@@ -439,3 +439,40 @@ export const migrateTaskAddress = async (db: Sequelize): Promise<void> => {
 	await db.query('ALTER TABLE `tasks` ADD COLUMN `address` VARCHAR(255)');
 	console.log('Spalte address an tasks nachgezogen.');
 };
+
+/**
+ * Geo-Config-Spalten am User (#1098: Anzeige-/Alarm-Entfernung, Positionsermittlungs-Intervall)
+ * mit denselben Defaults wie das Modell (`server/src/models/user.ts`) bzw. `GEO_CONFIG_DEFAULTS`
+ * der Route. `NOT NULL` mit Default, damit SQLite die Spalte auf Bestands-Zeilen füllen kann
+ * (ALTER TABLE ADD COLUMN NOT NULL erfordert einen DEFAULT-Wert, siehe migratePillarDescription).
+ */
+const USER_GEO_COLUMNS = [
+	{ column: 'displayDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 5' },
+	{ column: 'alarmDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 1' },
+	{ column: 'intervalMinutes', definition: 'INTEGER NOT NULL DEFAULT 5' },
+] as const;
+
+/**
+ * Zieht die Geo-Config-Spalten auf einer **bestehenden** `users`-Tabelle nach, BEVOR
+ * `sequelize.sync()` läuft — analog `migrateUserIdColumns`: `sync()` ohne `alter` ergänzt
+ * vorhandene Tabellen NICHT um neue Spalten; jede User-Query (Login, `/geo-config`,
+ * `/tasks/nearby`) würde sonst mit `no such column: displayDistanceKm` brechen (#1103 F1).
+ *
+ * Idempotent: Bereits vorhandene Spalten werden übersprungen, mehrfache Aufrufe bleiben stabil.
+ * Fehlt die Tabelle ganz (frische DB), ist die Migration ein No-op — `sync()` legt danach Tabelle
+ * inkl. Spalten an.
+ */
+export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	for (const { column, definition } of USER_GEO_COLUMNS) {
+		if (!existing.includes(column)) {
+			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` ${definition}`);
+			console.log(`Spalte ${column} an users nachgezogen.`);
+		}
+	}
+};

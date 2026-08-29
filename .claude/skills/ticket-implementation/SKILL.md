@@ -30,6 +30,15 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 
 **No full re-triage.** The triage stage already did the work — implementation trusts it.
 
+## Delegation — context-gathering goes to cheaper roles (ADR 0008)
+
+**Criterion, not a command list:** if a sub-step produces a lot of raw text but only a short result, delegate it. The delegation saves parent-context tokens only under the roles' return contract (findings, not raw output) — that contract lives in the agent files, don't restate it when delegating.
+
+- **Gate runs (step 3c)** → role `gate-runner` (agent in `.claude/agents/`): the full chain runs there; you get back command/exit/signature blocks. Never let a green test run's output into your own context.
+- **Search questions** ("where is this called?", "which tests cover Y?", "how does the existing code at Z do this?") → role `recherche`.
+- **Never delegated:** the code change itself, decisions about test-contract deviations, judgment. Delegation replaces context-gathering, not judgment — the editing step stays on the phase model.
+- If a role isn't available (local setup), the same instruction to a general-purpose subagent works; the model override applies regardless.
+
 ## Step 3 — Implement (test-driven: red-green)
 
 - **Branch:** in **spec mode** the branch is already checked out. In **fallback mode**, the

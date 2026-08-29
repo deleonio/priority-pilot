@@ -69,7 +69,10 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 		await expect(page.getByRole('tabpanel')).toBeVisible();
 
 		// Der Säulen-Editor ist nicht mehr sichtbar (ausgeblendet oder aus DOM entfernt).
-		await expect(page.getByRole('slider').or(page.getByRole('spinbutton')).first()).toBeHidden();
+		// Seit #1098 zeigt der Allgemein-Tab eigene Range-Regler (Geo-Einstellungen) — eine
+		// page-weite Slider-Suche trifft diese. Der Editor wird über seine Überschrift geprüft
+		// (gleiches Panel, Muster wie crud.spec.ts „Säulen-Gewicht ändern").
+		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
 	});
 
 	/**
@@ -166,7 +169,9 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
-		await expect(page.getByRole('slider').or(page.getByRole('spinbutton')).first()).toBeHidden();
+		// Säulen-Editor bleibt verborgen — Überschrift statt page-weiter Slider-Suche, seit #1098
+		// zeigt der Allgemein-Tab eigene Range-Regler (Geo-Einstellungen), siehe AK3 oben.
+		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
 	});
 
 	test('AK2: Toggle mit verweigerter Berechtigung springt nicht auf Säulen-Tab zurück', async ({ page }) => {

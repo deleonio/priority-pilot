@@ -86,9 +86,22 @@ strip_file() {
 
 # Bodies byte-identisch nach $WORK/target.md laden: direkter Redirect statt "$(…)"
 # (Command-Substitution strippt ALLE trailing Newlines des Bodys). gh hängt an jede
-# --jq-Ausgabe genau einen Newline an (Println) — den entfernt head -c -1 allein.
+# --jq-Ausgabe genau einen Newline an (Println) — genau den zu entfernen.
+#
+# WARUM NICHT `head -c -1`: Negative Counts sind GNU-only — macOS-BSD-head bricht mit
+# "illegal byte count -- -1" ab (jeder fetch_body schlägt lokal fehl, gh_retry wertet
+# das als API-Fehler und schläft pro Kommentar 1+2+4+8+16 s — lokal wirkt der Sweep wie
+# eine Endlosschleife, in CI läuft er grün). Positiver Count via wc -c ist BSD+GNU
+# gemeinsam und stript byte-identisch dasselbe: alles außer dem letzten Byte.
 fetch_body() {
-  "$@" 2>/dev/null | head -c -1 > "$WORK/target.md" || true
+  "$@" > "$WORK/raw.md" 2>/dev/null || true
+  local n
+  n="$(wc -c < "$WORK/raw.md" | tr -d '[:space:]')"
+  if [ "${n:-0}" -gt 0 ]; then
+    head -c "$((n - 1))" "$WORK/raw.md" > "$WORK/target.md" || : > "$WORK/target.md"
+  else
+    : > "$WORK/target.md"
+  fi
 }
 
 # Ein Objekt (PR oder Issue) über dessen Kommentare iterieren und bereinigen.

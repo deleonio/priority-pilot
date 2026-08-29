@@ -147,7 +147,9 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// KoliBris `KolInputRange` exponiert KEIN `role="slider"` und kein `aria-label` aus seinem
 		// `_label`; im (offenen) Shadow-DOM steckt jedoch ein natives `<input type="range">`. Playwrights
 		// CSS durchdringt offene Shadow-Roots, daher zielen wir direkt auf diese Range-Inputs.
-		const sliders = page.locator('input[type="range"]');
+		// Scoping auf `.pillar-weights-grid`: seit #1098 stehen im (mitgemounteten, ausgeblendeten)
+		// Allgemein-Panel weitere Range-Regler earlier in document order im DOM.
+		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
 		const sliderCount = await sliders.count();
 		expect(sliderCount).toBeGreaterThan(1);
 		await sliders.first().press('End');
@@ -163,7 +165,8 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await waitForStableView(page);
 		await openPillarWeights();
 
-		const reloadedSliders = page.locator('input[type="range"]');
+		// Wie oben: auf das Säulen-Gewichtungs-Grid scopen (Geo-Regler aus #1098 stören sonst `.first()`).
+		const reloadedSliders = page.locator('.pillar-weights-grid input[type="range"]');
 		await expect(reloadedSliders.first()).toHaveValue('1');
 		await expect(reloadedSliders.nth(1)).toHaveValue('0');
 	});

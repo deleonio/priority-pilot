@@ -39,9 +39,15 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 
 	/**
 	 * Hilfsfunktion — Prüft, ob Range Slider-Elemente sichtbar sind.
+	 *
+	 * Scoping auf `.pillar-weights-grid`: seit #1098 stehen im (mitgemounteten, ausgeblendeten)
+	 * Allgemein-Panel weitere `kol-input-range`-Regler mit im DOM — page-weite Abfragen träfen
+	 * die Geo-Regler zuerst, die im aktiven Säulen-Tab versteckt sind.
 	 */
+	const pillarSliders = (page: Page) => page.locator('.pillar-weights-grid kol-input-range');
+
 	const expectSlidersVisible = async (page: Page) => {
-		const sliders = page.locator('kol-input-range');
+		const sliders = pillarSliders(page);
 		const count = await sliders.count();
 		expect(count, 'Es müssen Range Slider vorhanden sein').toBeGreaterThan(0);
 
@@ -58,7 +64,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await navigateToPillarWeights(page);
 
-		const sliders = page.locator('kol-input-range');
+		const sliders = pillarSliders(page);
 		const count = await sliders.count();
 		expect(count, 'Es müssen Range Slider vorhanden sein').toBeGreaterThan(0);
 
@@ -117,7 +123,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await navigateToPillarWeights(page);
 
-		const sliders = page.locator('kol-input-range');
+		const sliders = pillarSliders(page);
 		const descriptions = page.locator('.pillar-description').or(page.locator('[class*="description"]'));
 
 		const sliderCount = await sliders.count();
@@ -190,7 +196,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await navigateToPillarWeights(page);
 
-		const sliders = page.locator('kol-input-range');
+		const sliders = pillarSliders(page);
 		const count = await sliders.count();
 		expect(count, 'Es müssen Range Slider vorhanden sein').toBeGreaterThan(0);
 

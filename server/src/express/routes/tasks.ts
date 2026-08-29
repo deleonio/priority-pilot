@@ -7,6 +7,7 @@ import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import type { ChecklistItem } from '../../models/task.js';
 import type { components } from '../../api';
 
@@ -352,6 +353,11 @@ tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDt
 		return;
 	}
 	try {
+		// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
+		// Dieselbe User-Auflösung und derselbe Default wie /geo-config (#1103 F5) — inkl.
+		// Dev-Pass-Through-Nutzer, damit Dev/E2E die gespeicherte Config nicht still ignorieren.
+		const geoUser = await resolveGeoUser(req);
+		const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
 		// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
 		const tasks = await Task.findAll({
 			where: {
@@ -368,6 +374,7 @@ tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDt
 				distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
 			}))
 			.sort((a, b) => a.distanceKm - b.distanceKm)
+			.filter((item) => item.distanceKm <= maxDisplayKm)
 			.slice(0, 10);
 		res.json(items);
 	} catch (error) {

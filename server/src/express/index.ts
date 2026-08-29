@@ -16,6 +16,7 @@ import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
+import { geoConfigRouter } from './routes/geoConfig.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
@@ -201,6 +202,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
 	app.use(tasksRouter);
+
+	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
+	app.use(geoConfigRouter);
 
 	// Säulen-Routen: Gewichtung lesen/setzen (siehe routes/pillars.ts).
 	app.use(pillarsRouter);

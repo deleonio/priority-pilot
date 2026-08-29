@@ -10,6 +10,7 @@ import type {
 	LlmProviderInput,
 	LlmProviderUpdate,
 	NearbyTask,
+	GeoConfig,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -584,5 +585,25 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data as NearbyTask[];
+	},
+
+	// --- Geo-Konfiguration pro User (#1098) ---
+
+	// Anzeige-/Alarm-Entfernung + Aktualisierungsintervall (serverseitig gespeichert, mit Defaults).
+	async getGeoConfig(init: Init = {}): Promise<GeoConfig> {
+		const { data, error, response } = await client.GET('/geo-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Geo-Konfiguration; Schranken-Verstöße werden serverseitig mit 400 abgelehnt.
+	async updateGeoConfig(config: GeoConfig, init: Init = {}): Promise<GeoConfig> {
+		const { data, error, response } = await client.PUT('/geo-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 };

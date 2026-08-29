@@ -26,6 +26,9 @@ vi.mock('./api', () => ({
 		// der AK-5-Test das Fehlerverhalten ansteuern kann; rot ist der Test, weil `App.tsx` weder den
 		// Logout-Button rendert noch dessen Fehlerfall (Meldung + erneut aktivierter Button) behandelt.
 		logout: vi.fn(),
+		// #1098 AK5: `useGeolocation` lädt beim Mount die Geo-Konfiguration. Der Mock liefert
+		// keine Werte (resolves undefined), damit der 5-Minuten-Fallback des Hooks greift.
+		getGeoConfig: vi.fn().mockResolvedValue(undefined),
 	},
 }));
 

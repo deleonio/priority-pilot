@@ -234,7 +234,7 @@ describe('AK-5 — Redis-Store: Zwei Server-Instanzen teilen Sessions', () => {
 	// wäre IMMER geskippt, auch in CI mit Redis (stiller Deckungsverlust). t.skip() im
 	// before-Hook hingegen ließe den Test in diesem Node-Stand trotzdem laufen.
 	it('Session von Instanz 1 ist auf Instanz 2 gültig', async (t) => {
-		if (!redisAvailable) t.skip(skipReason);
+		if (!redisAvailable) return t.skip(skipReason);
 
 		// Beide Instanzen starten (teilen denselben Redis-Store via REDIS_URL)
 		[server1, server2] = await Promise.all([startTestServer(), startTestServer()]);

@@ -30,7 +30,7 @@ inputs:
     description: 'Ticket-Nummer, unter der der Datensatz abgelegt wird'
     required: true
   phase:
-    description: 'Pipeline-Phase (analyse | ux | spec | implement | review | fixup | documenter)'
+    description: 'Pipeline-Phase (analyse | ux | spec | implement | review | fixup | documenter | mentor — der Mentor-Vorlauf aus 04, ADR 0008)'
     required: true
   since-epoch:
     description: >-
