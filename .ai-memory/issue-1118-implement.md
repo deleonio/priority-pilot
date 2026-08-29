@@ -1,7 +1,7 @@
 # Issue 1118 — Implement (Phase 4), Stand 2026-08-29 (SOFT-DEADLINE-ABBRUCH, WIP)
 
-**ERGEBNIS: nicht fertig — 15/15 Unit grün, 5/7 neue E2E grün, 2 E2E rot (AK2, AK5). Soft-Deadline
-erreicht → WIP-Commit + Push, PR bleibt Draft, Folge-Lauf nötig.**
+**ERGEBNIS: nicht fertig — 15/15 Unit grün, 6/7 neue E2E grün, 1 E2E rot (AK2, KoliBri reflektiert
+`_level` nicht am Host). Soft-Deadline erreicht → WIP-Commits + Push, PR #1120 bleibt Draft.**
 
 ## Erledigt
 - Spec-Mode: Draft-PR #1120 (`ai/harness/1118`, Head 218fb703) ausgecheckt. Lokale untracked
@@ -17,8 +17,13 @@ erreicht → WIP-Commit + Push, PR bleibt Draft, Folge-Lauf nötig.**
   Signal-Wash/Akzent/`--pp-signal-ink`/`--kol-a11y-font-color` nur für `.dashboard-next-task kol-card`;
   Media Query ≥48rem: `align-items: start` → `stretch` + `height: 100%` auf die 6 Card-Hosts.
 - Unit: `pnpm --filter frontend exec vitest run src/components/Dashboard.test.tsx` → 15/15 grün.
-- E2E: `npx playwright test e2e/issue-1118-dashboard-section-cards.spec.ts` → 5 grün
-  (AK1/AK3/AK6/AK7/AK8), 2 rot (s. Offen).
+- E2E: `npx playwright test e2e/issue-1118-dashboard-section-cards.spec.ts` → 6 grün
+  (AK1/AK3/AK4/AK5/AK6/AK7/AK8), 1 rot: AK2 (s. Offen).
+- **AK5 gefixt:** Diag-Spec zeigte `cols: 604px 604px`, aber Tops um 32 px versetzt →
+  `.dashboard > * { margin-top: 0 }` (MQ, Spezifität 0,1,0) verlor im Quelltext gegen die später
+  notierten `.dashboard-pillars`/`.dashboard-balance`-Margins → Fix: `section.dashboard > *`
+  (0,1,1) in app.css. Bottoms waren gleich, Tops/Höhen um 32 px versetzt (margin frisst aus der
+  Streckhöhe).
 - Prettier auf beide Dateien gelaufen (grün). Format/lint/knip/test-GATE NICHT komplett gelaufen.
 
 ## Relevante Stellen
@@ -40,21 +45,19 @@ erreicht → WIP-Commit + Push, PR bleibt Draft, Folge-Lauf nötig.**
   reflektiert, `_level` nicht (KoliBri konsumiert das Prop beim Upgrade). Klärung nötig: either
   Test-Pflege-Bedarf (Attribut-Assert → Level über Heading-Role im Shadow-DOM prüfen) oder ein
   DOM-seitiger Weg, `_level` am Host zu halten. NICHT ala Unit-Test lösbar.
-- **AK5 rot (e2e:200):** „erwartet mindestens eine zweispaltige Grid-Zeile" → 0 Zeilen mit
-  ≥2 Cards, d. h. alle 6 Card-Oberkanten liegen >2 px auseinander, obwohl `.dashboard` bei ≥48rem
-  `grid-template-columns: 1fr 1fr` hat (Regel verifiziert, app.css:707-731) und AK7 (volle Breite)
-  grün ist. Ursache ungeklärt — als Nächstes Card-Host-`getBoundingClientRect()`-Tops je Sektion
-  bei 1280 dumpen (Vermutung: Card-Host-Margin/Sizing durch Theme, Wrapper-Top ≠ Card-Top).
-- Gate (format/prettier/lint/knip/test + E2E-Suite) nach den beiden Fixups nachholen.
+- Gate: format/knip/lint je Commit durch den pre-commit-Hook grün; `pnpm test` (gesamt) und
+  Prettier-Check als Volllauf AUSSTEHEND.
 
 ## Nächster Schritt
-- AK5 diagnostizieren (DOM-Tops der 6 Card-Hosts bei 1280px), fixen; AK2-Strategie entscheiden
-  (Test-Pflege-Bedarf im PR-Body dokumentieren, falls `_level` nicht reflektierbar), dann
-  GATE komplett grün → `gh pr ready 1120` + Body erweitern.
+- AK2-Strategie: Test-Pflege-Bedarf ist im PR-Body dokumentiert (e2e:135, `_level`-Reflektion) —
+  Test NICHT ändern; alternativ DOM-Weg suchen. Dann Gate-Volllauf (`pnpm test` gesamt +
+  Prettier-Check; format/knip/lint liefen im pre-commit-Hook je Commit grün) → `gh pr ready 1120`.
 
 ## Fallstricke
 - KoliBri reflektiert `_label`, aber NICHT `_level` am Host — Attribut-Asserts auf `_level` sind im
   echten Browser falsch-negativ (jsdom-Unit-Test sieht das rohe React-Attribut und wird grün).
+- Grid-Margin-Reset in einer Media Query verliert gegen später im Quelltext notierte Einzel-Margins
+  gleicher Spezifität — Reset höher spezifizieren (Präzedenz jetzt `section.dashboard > *`).
 - `.dashboard-next-task`-Panel-Chrome darf NICHT am Wrapper bleiben, sonst doppelter Rahmen
   (Wrapper + KolCard) — Chrome gehört jetzt am Card-Host.
 - `height: 100%` auf die Card-Hosts NUR in der ≥48rem-Media Query (AK6 mobil).
