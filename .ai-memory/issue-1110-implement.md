@@ -55,7 +55,8 @@
   ersetzt, alle vier Assertions stehen wortgleich.
 
 ## Offen
-- -
+- Wegwerf-Artefakt untracked in `.ai-memory/`, NICHT committen: `issue-1110-pr-body.md`
+  (PR-Body-Quelle für `gh pr edit --body-file`). Nur diese Datei hier ist die Phasen-Notiz.
 
 ## Nächster Schritt
 - Review-Phase (Kreuzverhör) über PR #1114; Test-Pflege-Bedarf (NearbyCard.test.tsx:53) muss im
