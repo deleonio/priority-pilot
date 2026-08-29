@@ -495,25 +495,48 @@ body {
  */
 .dashboard-next-task {
 	margin-top: var(--pp-gap-generous);
-	padding: 1rem 1.25rem;
-	border: 1px solid var(--pp-border);
-	border-left-width: 0.375rem;
-	border-left-color: var(--pp-signal);
-	border-radius: 0.5rem;
-	background: var(--pp-signal-wash);
-	color: var(--pp-signal-ink);
 }
 
-.dashboard-next-task h3 {
-	margin: 0 0 0.5rem;
-	color: var(--pp-signal-ink);
+/*
+ * #1118: Die sechs Dashboard-Sektionen sind Kolibri-Cards. Rahmen, Hintergrund und Padding
+ * liefert KoliBri intern; der Host (#930 transparent) trägt hier die Abweichungen.
+ */
+.dashboard-next-task kol-card,
+.dashboard-suggestions kol-card,
+.dashboard-top-tasks kol-card,
+.dashboard-pillars kol-card,
+.dashboard-balance kol-card,
+.dashboard-deadlines kol-card {
+	display: block;
+	max-width: 100%;
 }
 
+/*
+ * Signalfläche und -akzent der Hauptaussage liegen im Card-INHALT (Light-DOM), nicht am Host:
+ * das `article.kol-card` im Shadow-DOM malt seine eigene Fläche (`--color-light`, im Dunkelmodus
+ * ebenfalls weiß) über jeden Host-Hintergrund. Eine Wash am Host blieb deshalb unsichtbar und die
+ * Signal-Tinte landete auf Card-Weiß — gemessene 1.85:1 statt 4.5:1 (dark-mode-contrast.spec.ts,
+ * issue-902.spec.ts). Fläche und Textfarbe reisen immer zusammen (P1-1); hier tun sie das auf dem
+ * Element, das auch wirklich malt.
+ */
 .dashboard-next-task p {
 	margin: 0;
 }
 
 /* P2-1: Hauptaussage im Signal-Panel — größere Schrift, fette Aufzählung. */
+.dashboard-next-task-content,
+.dashboard-next-task-empty {
+	background-color: var(--pp-signal-wash);
+	color: var(--pp-signal-ink);
+	border-radius: 0.5rem;
+	padding: var(--pp-gap-base);
+	/* Signal-Akzent als inset-Schatten statt `border-left`: ein Rahmen verkleinert die Innenbreite
+	   des Flex-Containers und damit den gestreckten „Jetzt starten"-Button um 6 px — genau das misst
+	   issue-1042-dashboard-start-button.spec.ts (AK1). Der Schatten malt ohne Layout-Wirkung. */
+	box-shadow: inset 0.375rem 0 0 0 var(--pp-signal);
+	padding-left: calc(var(--pp-gap-base) + 0.375rem);
+}
+
 .dashboard-next-task-content {
 	display: flex;
 	flex-direction: column;
@@ -553,15 +576,7 @@ body {
  */
 .dashboard-suggestions {
 	margin-top: var(--pp-gap-generous);
-	padding: 1rem 1.25rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
 	color: var(--pp-ink);
-}
-
-.dashboard-suggestions h3 {
-	margin: 0 0 0.5rem;
 }
 
 .dashboard-suggestions-empty {
@@ -658,16 +673,8 @@ body {
 	margin-top: var(--pp-gap-generous);
 }
 
-.dashboard-top-tasks h3 {
-	margin: 0 0 0.5rem;
-}
-
 .dashboard-deadlines {
 	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-deadlines h3 {
-	margin: 0 0 0.5rem;
 }
 
 .dashboard-deadlines-list {
@@ -709,11 +716,23 @@ body {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 1.5rem;
-		align-items: start;
+		align-items: stretch;
 	}
 
-	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. */
-	.dashboard > * {
+	/* #1118: Gleichhöhe je Grid-Zeile — der Host reicht die Zeilenhöhe an die Card durch.
+	   Nur ab 48rem: mobil (einspaltig) wachsen die Karten nur mit ihrem Inhalt. */
+	.dashboard-next-task kol-card,
+	.dashboard-suggestions kol-card,
+	.dashboard-top-tasks kol-card,
+	.dashboard-pillars kol-card,
+	.dashboard-balance kol-card,
+	.dashboard-deadlines kol-card {
+		height: 100%;
+	}
+
+	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. (Spezifität 0,1,1, damit
+	   der Reset auch die erst später im Quelltext liegenden Widget-Margins übersteht — #1118 AK5.) */
+	section.dashboard > * {
 		margin-top: 0;
 	}
 
@@ -761,10 +780,6 @@ body {
 	overflow-wrap: break-word;
 }
 
-.dashboard-pillars h3 {
-	margin: 0 0 0.5rem;
-}
-
 .dashboard-pillars-list {
 	list-style: none;
 	margin: 0;
@@ -794,10 +809,6 @@ body {
    gleiches Zeilenmuster wie Meine Themen/Deadlines (Border-getrennte Listenzeilen). */
 .dashboard-balance {
 	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-balance h3 {
-	margin: 0 0 0.5rem;
 }
 
 .dashboard-balance-total {
