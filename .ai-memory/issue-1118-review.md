@@ -1,38 +1,37 @@
-# Issue 1118 — Review (PR 1120), Stand 2026-08-29T11:4xZ
+# Issue 1118 — Review (PR 1120), Runde 3, Stand 2026-08-29T11:5xZ
 
-**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Runde 1 = Kreuzverhör über den Gesamtdiff (Kommentar 5461790301, 10:25:56Z, ohne Findings). Runde 2 (dieser Lauf) = **Fixup-Nachweis**: Marker vorhanden → kein erneutes Kreuzverhör, nur Delta über die Fixup-Runde. Sammelkommentar (ID 5461790301) aktualisiert — History-Tabelle mit 2 behobenen Punkten (Signal-Kontrast am Host übermalt; AK2-Testpflege), Footer `Review-Typ: Fixup-Nachweis`.
+**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Runde 3 = Fixup-Nachweis über Commit `28b7111c` (einziger Code-Commit seit Runde 2). **Sammelkommentar (ID 5461790301) war zerschossen** — Body literarisch `@/tmp/ai-review-1120.md`, weil Runde 2 `gh api -f body=@file` (kleines -f postet literal, nur `-F` liest `@file`) benutzt hatte; der Workflow dokumentierte das als Fallback-Marker-Kommentar (5462165596, 11:37:04Z). Body rekonstruiert und mit `-F body=@` wiederhergestellt (verifiziert: Marker + 2370 Zeichen, gleiche ID).
 
 ## Erledigt
-- MODE-Bestimmung: `<!-- ai-review -->`-Kommentar gefunden (ID 5461790301, `gh api repos/deleonio/priority-pilot/issues/1120/comments`) → Fixup-Verifikation. Runde 1 hatte verdict `reviewed` + 0 offene Findings; Closing-Issue #1118 mit KI-ANALYSE vorhanden (kein „Review ohne Issue").
-- Delta-Scoping: PR hat 14 Commits; seit updatedAt 10:25:56Z nur `200bdaa9`/`28257985`/`83292ca2` (reine Memory-Commits) + **`312d93ca`** (11:30:28Z, einziger Code-Commit der Fixup-Runde: `frontend/src/app.css`, `frontend/e2e/issue-1118-dashboard-section-cards.spec.ts`, `.ai-memory/issue-1118-implement.md`).
-- Fixup-Inhalt verifiziert: Signal-Wash/-Ink/-Border vom `kol-card`-Host in den Card-Inhalt (Light-DOM) verlagert (`app.css:527` `.dashboard-next-task-content, .dashboard-next-task-empty`), `--kol-a11y-font-color`-Override und Host-`color`/1px-Rahmen entfernt; AK2-Messkonvention im E2E korrigiert (`:94` Attribut ODER `_level`-Property, `:145` h3-Assert via `querySelectorAll` statt `page.locator`).
-- CSS-Ziele gegen Produkt-Markup geprüft: beide Klassen existieren (`frontend/src/components/Dashboard.tsx:182` `-empty`, `:186` `-content`) — Fixup ändert Dashboard.tsx nicht.
-- CI zum Head-Commit `312d93ca`: `verify` **success** (format/lint/build/test); e2e (1–4) pending, `gate-merge` skipped, nichts rot → 🟢 zulässig nach SKILL-Regel („kein 🟢 bei rotem CI“).
-- Titel-Gate: `feat(frontend): render dashboard sections as equal-height Kolibri cards` (71 Zeichen, conventional, lowercase subject) → kein Rename.
-- Keine Review-Kommentare gepostet (keine Findings), keine Labels gesetzt.
+- MODE: Marker-Kommentar gefunden → Fixup-Verifikation; Closing-Issue #1118 vorhanden (kein „Review ohne Issue“).
+- Delta-Scoping: seit updatedAt 11:35:45Z genau 1 Commit = `28b7111c` (11:40:11Z, `frontend/src/app.css` +5/−1) → begutachtet, kein erneutes Gesamtkreuzverhör.
+- Fixup verifiziert gegen die Messstelle: `frontend/e2e/issue-1042-dashboard-start-button.spec.ts:42-56` (`innerWidth = rect.width − paddingLeft − paddingRight`, Border INKLUSIVE) + `:69-77` (AK1, 375px, Toleranz 2 px, Button via Flex-stretch = Content-Box). Mit 6-px-`border-left` war die Differenz exakt 6 px → rot; mit `box-shadow: inset 0.375rem` + `padding-left: calc(var(--pp-gap-base) + 0.375rem)` ist `innerWidth` == Buttonbreite (Differenz 0) → grün. Akzent bleibt sichtbar (inset-Schatten malt über background), Wash/Tinte unverändert im Card-Inhalt (`app.css:526-535`), Kontrast-Fix der Runde 2 unberührt.
+- Neighborhood per Haiku-Subagent (SKILL-Delegation): AK1-Messung, kein globales `box-sizing` in app.css (für `getBoundingClientRect` ohne Belang), Signal-Tokens `--pp-signal #f2b155 / -ink #8a4b00 / -wash #fdf3e3` (`app.css:22-24`), keine weiteren padding-Regeln auf den beiden Klassen, `Dashboard.tsx:186/192-197` (Content mit KolButton „Jetzt starten“), `:182` (empty = `<p>` ohne Button).
+- Sammelkommentar 5461790301 gepatcht: Review-Status (Runde 3, Wiederherstellung erwähnt), Behobene-Anmerkungen-Tabelle (3 Zeilen: Runde-2-Fix Kontrast, Runde-2-Fix AK2-Messkonvention, Runde-3 CI-Gate-Befund border-left), keine Entscheidungs-/offenen Findings, Footer `Review-Typ: Fixup-Nachweis`, Updated 2026-08-29.
+- Titel-Gate: `feat(frontend): render dashboard sections as equal-height Kolibri cards` (71 Z., conventional, lowercase) → kein Rename. Keine Inline-Kommentare (0 Findings), keine Labels gesetzt.
 
 ## Relevante Stellen
-- `frontend/src/app.css:515-535` — neuer Signal-Block im Light-DOM + Begründungskommentar (Shadow-DOM-Overpaint).
-- `frontend/e2e/issue-1118-dashboard-section-cards.spec.ts:14-21` (Messkonventionen im Header), `:90-94` (level), `:141-146` (h3-Light-DOM-Assert).
-- `frontend/src/components/Dashboard.tsx:178-190` — unverändertes Produkt-Markup, Ziel der neuen CSS-Regeln.
-- Sammelkommentar ID 5461790301 — in-place gepatcht (`gh api --method PATCH repos/.../issues/comments/5461790301 -f body=@/tmp/ai-review-1120.md`).
+- `frontend/src/app.css:526-538` — Signal-Block; Runde-3-Änderung = `border-left` → `box-shadow: inset` + `padding-left: calc(...)`.
+- `frontend/e2e/issue-1042-dashboard-start-button.spec.ts:42-56` — Messkonvention (Border in rect.width enthalten); Grund, warum der Rahmen 6 px Differenz erzeugte und der Schatten 0.
+- `frontend/e2e/issue-1118-dashboard-section-cards.spec.ts:94,145` — von Runde 2 umgestellte AK2-Asserts (unverändert von `28b7111c`).
+- Sammelkommentar ID 5461790301 — via `gh api --method PATCH … -F body=@.ai-memory/issue-1118-review-comment.md`.
 
 ## Annahmen
-- Rot-became-green der beiden Kontrast-Specs basiert auf der lokalen Gate-Angabe im Commit („Playwright-Volllauf 493 grün / 4 übersprungen“) — eigener Playwright-Lauf nicht wiederholt (chromium-Install-Kosten; CI-e2e-Matrix deckt es ab).
-- `review`-Check auf dem Head-Commit „pending“ ist dieser Lauf selbst.
+- „Lokal grün (15/15)“ im Commit-Body von `28b7111c` nicht selbst nachgefahren (Chromium-Kosten); CI-e2e (4 Shards) läuft am Head, nichts rot → 🟢 nach SKILL-Regel zulässig, Merge entscheidet `gate-merge`.
+- Runde-2-Tabellenzeilen aus `issue-1118-review.md` (Runde-2-Stand) übernommen — der ursprüngliche Kommentarbody war vor dem Patch nicht mehr lesbar.
 
 ## Verworfen
-- Erneutes Kreuzverhör über den Gesamtdiff — Marker vorhanden, Fixup-Nachweis-Modus per Prompt/SKILL step 5 (Diff-Scoping).
-- MEMORY.md-Eintrag („kol-card malt Host-Hintergrund über“) — repo-seitig bereits dokumentiert (`app.css:515`-Kommentar, Spec-Header, Commit-Message); Aufnahmekriterium „nicht im Repo erfasst“ nicht erfüllt.
-- Inline-Finding zum Wegfall des 1px-Vollrahmens — Kosmetik ohne AK-Bezug, Wash + Signal-Border links liefern die visuelle Begrenzung; Pseudo-Finding.
+- Kosmetik-Finding zur 6-px-Schattenleiste an der 8-px-Rundung (leichter Verlauf an den Ecken) — rein optisch, kein AK-Bezug, Pseudo-Finding.
+- Erneutes Gesamtkreuzverhör — Marker vorhanden, Diff-Scoping per SKILL step 5.
+- MEMORY.md-Eintrag „kol-card übermalt Host“ — bereits repo-seitig dokumentiert (app.css:515-Kommentar).
 
 ## Offen
-- e2e-Matrix (4 Shards) läuft noch beim Verlassen des Laufs; falls sie rot endet, greift der Merge-Gate/die nächste Review-Runde. Kein weiterer offener Punkt.
+- `.ai-memory/issue-1118-review-comment.md` = Wegwerf-Artefakt (Body-Quelle für den PATCH), NICHT committen. Nur diese Datei ist die Phasen-Notiz.
 
 ## Nächster Schritt
-- Keine weitere Review-Aktion; Merge entscheidet der Gate (verify grün + e2e).
+- Keine weitere Review-Aktion; Merge entscheidet der Gate (verify + e2e am `28b7111c`).
 
 ## Fallstricke
-- Fixup ohne `ai-fixup`-Kommentar und ohne Fixup-Memory-Notiz im Worktree: Die Fixup-Begründung steht im Commit-Message-Body + `issue-1118-implement.md` (Abschnitt „Fixup 2026-08-29“) — dort suchen, nicht nach einem ai-fixup-Sammelkommentar.
-- Worktree-Checkout kann älter als der PR-Head sein: `git show <sha>:<path>` statt Working-Tree-Lesen, wenn Zeilennummern für Kommentare gebraucht werden.
-- „Runde 1 reviewed, trotzdem Fixup“ ist kein Widerspruch: Auslöser war das CI-Qualitäts-Gate (roter e2e-Kontrast), nicht ein Review-Finding.
+- **`gh api -f body=@file` postet den Literal-String `@pfad`** (hat Runde 2 den Sammelkommentar zerstört) — nur `-F`/`--field` mit `@` liest Dateien; Ergebnis nach jedem PATCH gegenlesen.
+- CI-spezifische Zeile 2 des Sammelkommentars (PR #1120 + Issue #1118) nicht vergessen — der Workflow-Verifier testet u. a. `Entscheidungs-Findings` wörtlich (deutsche Headings beibehalten).
+- Zwei Stop-Guard-Kommentare (11/12 Commits > 10) im PR sind Workflow-Signale, keine Review-Objekte; die Fixup-Begründung steht im Owner-Kommentar 5462121780 (11:31:18Z) + Commit-Body.
