@@ -186,3 +186,4 @@ Konflikte, die er verhindern soll.
   Beides wurde erst sichtbar, weil der neue CSRF-Token-Fetch vor dem ersten Write ~10ms Timing
   verschob (PR #1079, keyboard-shortcuts AK8 + logout AK-2).
 - 2026-08-29 · Server-Tests — session.test.ts (Redis-Integration) macht lokale Läufe rot: exit 1 trotz fail=0 (Skip mit Fehler-Record), kein lokaler Redis nötig/vorhanden. Auf dem Basisbranch identisch (PR #1104) → nicht jagen, CI stellt Redis als Service bereit; gates lokal auf frontend + test:scripts beschränken und im PR dokumentieren.
+- 2026-08-29 · Frontend-E2E — KolTabs lässt inaktive Panels gemountet (nur [hidden]): page-weite Slider-Lokatoren (input[type=range], kol-input-range, getByRole('slider')) treffen seit #1098 zuerst die Geo-Regler des Allgemein-Panels (document order) bzw. sehen den Säulen-Editor fälschlich sichtbar → Slider-Abfragen auf .pillar-weights-grid scopen, „Editor ausgeblendet" über die Überschrift prüfen.

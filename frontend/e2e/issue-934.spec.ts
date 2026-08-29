@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
@@ -37,9 +37,12 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 		await waitForStableView(page, 'Säulen-Gewichtung');
 	};
 
-	/** Misst alle `kol-input-range`-Hosts und assertiert die Mindestbreite je Fund (AK1). */
-	const expectAllRangesAtLeast300px = async (page: Page, context: string) => {
-		const ranges = page.locator('kol-input-range');
+	/** Misst alle `kol-input-range`-Hosts und assertiert die Mindestbreite je Fund (AK1).
+	 *
+	 * `ranges` wird vom Aufrufer gescoped übergeben: Auf dem Säulen-Tab stehen seit #1098 weitere
+	 * Geo-Regler im (mitgemounteten, ausgeblendeten) Allgemein-Panel mit im DOM — page-weite
+	 * Abfragen träfen die versteckten Regler zuerst (boundingBox null). */
+	const expectAllRangesAtLeast300px = async (ranges: Locator, context: string) => {
 		const count = await ranges.count();
 		// All-Quantor-Guard: über einer leeren Menge wäre der Test dauerhaft grün.
 		expect(count, `${context}: Es müssen Range-Felder vorhanden sein`).toBeGreaterThan(0);
@@ -61,7 +64,7 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 	test('AK1: kol-input-range auf dem Säulen-Tab mindestens 300 px breit (1280 px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await navigateToPillarWeights(page);
-		await expectAllRangesAtLeast300px(page, 'Säulen-Tab');
+		await expectAllRangesAtLeast300px(page.locator('.pillar-weights-grid kol-input-range'), 'Säulen-Tab');
 	});
 
 	/**
@@ -90,7 +93,8 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 
 			// Vorher verproben, dass es wirklich die TaskForm-Range-Felder sind (Priorität + Aufwand).
 			await expect(page.locator('input[type="range"][min="1"][max="5"]')).toBeVisible();
-			await expectAllRangesAtLeast300px(page, 'TaskForm');
+			// TaskForm-Dialog ist kein Settings-Kontext: keine Geo-Regler im DOM, page-weit messbar.
+			await expectAllRangesAtLeast300px(page.locator('kol-input-range'), 'TaskForm');
 		} finally {
 			await page.request.delete(`/api/v1/tasks/${task.id}`);
 		}
@@ -111,7 +115,8 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 			await page.setViewportSize({ width: viewportWidth, height: 812 });
 			await navigateToPillarWeights(page);
 
-			const ranges = page.locator('kol-input-range');
+			// Scoping wie AK1: nur die Säulen-Regler (Geo-Regler im Allgemein-Panel sind versteckt).
+			const ranges = page.locator('.pillar-weights-grid kol-input-range');
 			const count = await ranges.count();
 			expect(count, `viewportWidth=${viewportWidth}: Es müssen Range-Felder vorhanden sein`).toBeGreaterThan(0);
 

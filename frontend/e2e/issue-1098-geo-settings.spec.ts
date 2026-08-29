@@ -120,11 +120,27 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 		await waitForStableView(page, 'Allgemein');
 
 		const input = rangeInput(page, 'Anzeige-Entfernung (km)');
-		await input.click();
-		// Step 1: 5 km → 6 km (Pfeiltasten bewegen um genau einen Step, Muster #287).
+		// Pfeiltasten bewegen um genau einen Step (Muster #287): 5 km → 6 km. Kein Klick vorher —
+		// der springt den Thumb auf die Klickposition (≈ Mitte der Skala) und macht den Wert davon
+		// abhängig, wo der Regler im Viewport liegt.
 		await input.press('ArrowRight');
 		const afterChange = await input.inputValue();
 		expect(Number(afterChange)).toBeGreaterThan(5);
+
+		// Das PUT je Änderung ist Best-Effort und async: Ein sofortiger Reload bricht die
+		// in-flight-Request ab und der Wert geht verloren (CI-Flake, lokal meist schnell genug).
+		// Erst warten, bis der Server den neuen Wert zurückmeldet — dann ist der Reload ein
+		// echter Persistenz-Beweis (AK7: serverseitig, kein localStorage).
+		await expect
+			.poll(
+				async () => {
+					const response = await page.request.get('/api/v1/geo-config');
+					if (!response.ok()) return undefined;
+					return ((await response.json()) as { displayDistanceKm?: number }).displayDistanceKm;
+				},
+				{ timeout: 10_000 },
+			)
+			.toBe(Number(afterChange));
 
 		await page.reload();
 		await waitForStableView(page, 'Allgemein');

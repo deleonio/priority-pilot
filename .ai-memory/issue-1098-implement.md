@@ -33,3 +33,28 @@
 - `.ai-memory/issue-1098-pr-section.md` ist Wegwerf — nicht committen; nur triage/ux/spec/implement sind Phasen-Notizen.
 - Server-Geo-Tests STANDALONE brauchen `NODE_ENV=test DATABASE_STORAGE=:memory:`.
 - Pre-Commit-Hook läuft `tsc --noEmit` über den Frontend-Workspace.
+
+## Fixup nach CI (2026-08-29, e2e-Suite)
+
+Voll-CI (`e2e`-Workflow auf PR #1103) rot: 13 Fehler in 4 Shards — alles Bestands-Specs, die
+Slider-Lokatoren page-weit nutzen. Ursache: die drei Geo-Regler stehen im Allgemein-Panel, das
+KolTabs gemountet lässt (nur `hidden`); page-weite Abfragen (`input[type="range"]`,
+`kol-input-range`, `getByRole('slider')`) treffen sie vor den Säulen-Slidern (document order)
+bzw. halten den Säulen-Editor für sichtbar. Produktverhalten korrekt (#886-Mount bleibt gewollt),
+rein Test-Pflege:
+
+- `crud.spec.ts`, `keyboard-shortcuts.spec.ts`, `pillar-dynamic-cases.spec.ts`: Slider-Lokatoren
+  auf `.pillar-weights-grid input[type="range"]` gescopet.
+- `issue-763.spec.ts`: `pillarSliders()`-Hilfe (`.pillar-weights-grid kol-input-range`) für AK1–AK6.
+- `issue-934.spec.ts`: `expectAllRangesAtLeast300px` nimmt Locator statt Page; Säulen-Aufrufe
+  gescopet, TaskForm-Aufruf bleibt page-weit (keine Settings-Seite im DOM).
+- `settings-tabs.spec.ts` (AK3, #323 AK1): „Säulen-Editor ausgeblendet" jetzt über die
+  Überschrift „Säulen-Gewichtung" (Muster crud.spec.ts) statt page-weiter Slider-Suche.
+- `issue-1098-geo-settings.spec.ts` AK7 (einziger eigener CI-Fehler): Reload brach das
+  Best-Effort-PUT ab (in-flight) → `expect.poll` auf `GET /api/v1/geo-config` vor dem Reload;
+  zusätzlich Klick vor `ArrowRight` entfernt (sprang den Thumb auf die Klickposition, CI-Wert 26
+  statt 6 war layout-abhängig).
+
+Lokal verifiziert: 8 betroffene Specs (crud, keyboard-shortcuts, pillar-dynamic-cases, 763, 934,
+settings-tabs, 1098, 1066) — 48/48 grün; `pnpm format` + `pnpm lint` grün. MEMORY.md ergänzt
+(KolTabs-mounted-Panels-Falle).

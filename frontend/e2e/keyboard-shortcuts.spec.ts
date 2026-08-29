@@ -242,7 +242,9 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Ersten Slider auf das Maximum setzen (gültige Verteilung sichergestellt), CTA bleibt aktiv.
-		const sliders = page.locator('input[type="range"]');
+		// Scoping auf `.pillar-weights-grid`: seit #1098 stehen im (mitgemounteten, ausgeblendeten)
+		// Allgemein-Panel weitere Range-Regler earlier in document order im DOM.
+		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
 		await expect(sliders.first()).toBeVisible();
 		await sliders.first().press('End');
 
