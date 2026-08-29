@@ -16,14 +16,14 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 - Find open, approved, not-yet-assigned issues: `gh issue list --state open --label "ai:needs-impl" --json number,title,assignees --jq '[.[] | select(.assignees | length == 0)] | .[] | "\(.number)\t\(.title)"'`
 - A specifically given number takes priority.
 - **Assign yourself:** `gh issue edit <nr> --add-assignee @me`
-- Load context + analysis: read the analysis block from the **body** (`gh issue view <nr> --json body -q .body`); if missing, fall back to the most recent `🤖 KI-Analyse` comment.
+- Load context + analysis: read the analysis block from the **harness marker comment** (ADR 0009 — the ONE comment whose body starts with `<!-- ai-harness -->`; fetch via `gh issue view <nr> --json comments`); if missing, fall back to the issue body block (legacy tickets).
 - **Pick up the spec draft PR (the normal case):** find and check it out: `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → choose the PR whose `closingIssuesReferences` contains `<nr>`.
   **Fallback for an empty `closingIssuesReferences`:** check the PR body, but **ONLY with a closing keyword** — `grep -Ei "(clos(e|es|ed)|fix(es|ed)?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#?<nr>([^0-9]|$)"`. A mere mention of the number does **NOT** count (otherwise you'd check out a foreign PR that only describes the issue). Then `git fetch origin` and `git switch <headRefName>`.
 - **Idempotency:** if **no** draft PR exists, but a **non-draft PR** with a closing keyword does → implementation already ran → end the run. Otherwise **direct mode** applies (own branch + write tests yourself).
 
 ## Step 2 — Read the analysis & quickly verify
 
-- Take the **acceptance criteria + test cases** from the body block.
+- Take the **acceptance criteria + test cases** from the harness marker comment (legacy fallback: issue body block).
 - **Check affected files:** do the files named there still exist?
 - **Traffic light 🔴** → don't implement, comment with a justification, and end the run as not ready.
 - **Traffic light 🟢/🟡** → proceed directly to step 3.

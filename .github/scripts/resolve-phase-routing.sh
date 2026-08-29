@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Phasen-Routing aus der ai-phase-routing-Tabelle im Issue-Body lesen.
+# Phasen-Routing aus der ai-phase-routing-Tabelle lesen (ADR 0004).
 #
-# QUELLE: Die Triage/Analyse schreibt nach dem KI-ANALYSE-Block eine Routing-Tabelle
-# in den Issue-Body (stabil umschlossen von ai-phase-routing:START/END-Markern):
+# QUELLE (ADR 0009): Die Triage schreibt die Routing-Tabelle in den Harness-Kommentar
+# (Marker <!-- ai-harness -->, erste Zeile) — den EINEN Marker-Kommentar, in dem alle
+# Phasen ihre Ausgaben ablegen; der Issue-Body bleibt ab der Validierung unberuehrt.
+# Stabil umschlossen von ai-phase-routing:START/END-Markern:
 #
 #   <!-- ai-phase-routing:START -->
 #   | Phase | Run | Modell | Effort |
@@ -35,7 +37,7 @@
 #
 # --kind pr: Die Tabelle wird am verknuepften Issue gesucht (closingIssuesReferences,
 # erste Issue - dieselbe Quelle wie resolve-model-label.sh): Fixup/Review laufen auf
-# PRs, die Tabelle lebt aber am Issue, weil die Triage sie dorthin schreibt.
+# PRs, die Tabelle lebt aber am Issue(-Kommentar), weil die Triage sie dorthin schreibt.
 # --issue N bleibt als Abkuerzung fuer --ticket N --kind issue.
 #
 # GitHub-Outputs:
@@ -92,11 +94,21 @@ if [ "$KIND" = "pr" ]; then
   fi
 fi
 
-BODY="$(gh issue view "$ISSUE_NR" --repo "$REPO" --json body --jq '.body // ""')" || {
-  echo "resolve-phase-routing: Issue-Body nicht lesbar — Tabelle uebersprungen, Aufrufer-Defaults gelten" >&2
-  emit "" "" "" none
-  exit 0
-}
+# Quelle 1 (ADR 0009): Harness-Kommentar. Quelle 2 (Legacy-Fallback): Issue-Body —
+# Tickets vor der Umstellung tragen die Tabelle noch dort; sie bleiben lauffaehig,
+# bis eine Re-Triage sie in den Kommentar migriert. Keine der beiden Quellen lesbar
+# -> keine Tabelle -> Fail-Open auf die Aufrufer-Defaults.
+COMMENT_BODY="$(bash "$(dirname "$0")/harness-comment.sh" --repo "$REPO" --issue "$ISSUE_NR" 2>/dev/null || true)"
+if [ -n "$COMMENT_BODY" ]; then
+  BODY="$COMMENT_BODY"
+else
+  ISSUE_JSON="$(gh issue view "$ISSUE_NR" --repo "$REPO" --json body 2>/dev/null)" || {
+    echo "resolve-phase-routing: Issue nicht lesbar — Tabelle uebersprungen, Aufrufer-Defaults gelten" >&2
+    emit "" "" "" none
+    exit 0
+  }
+  BODY="$(printf '%s' "$ISSUE_JSON" | jq -r '.body // ""')"
+fi
 
 # Tabellen-Segment zwischen den Markern; sed -n mit /START/,/END/-Bereich.
 # /END/!? verhindert, dass die START-Zeile selbst als Bereichsende gezaehlt wird.

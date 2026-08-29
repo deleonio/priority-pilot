@@ -292,9 +292,11 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   - **Stop-Guard** (fixup): > 10 PR-Commits → Loop stoppt hart (s. o.).
   - **Label-Post-Assertion** (review): vergisst der Agent die Label-Umschaltung, setzt der Step
     den Safe-Default `ai:needs-fixup` (statt stiller PR-Stalle).
-  - **Template-Struktur-Post-Check** (triage): Die Analyse schreibt den Issue-Body komplett neu
-    (Copyedit + KI-ANALYSE-Block); der Güte-Gate-Vorab-Check skippt sich bei bestehendem
-    Analyse-Block selbst. Die Label-Post-Assertion prüft daher nach jedem Lauf mechanisch die
+  - **Template-Struktur-Post-Check** (triage): Seit ADR 0009 fasst die Analyse den Issue-Body
+    nicht mehr an (alle Phasen-Ausgaben wohnen im Harness-Kommentar) — der Check bleibt als
+    Sicherheitsleine nach jedem Lauf (Legacy-Migration schneidet Analyse-Reste aus alten
+    Bodys, Autoren-Edits können die Struktur beschädigen); der Güte-Gate-Vorab-Check skippt
+    bei Pipeline-Tickets (`ai:analysed`). Die Label-Post-Assertion prüft mechanisch die
     vier Template-Überschriften (`verify-template-structure.sh`) — fehlt eine, überschreibt das
     den Verdict auf `needs-human` inkl. `ai-triage-decision`-Kommentar mit
     Wiederherstellungs-Anleitung. Fail-safe wie beim Güte-Gate: nicht lesbar → Prüfung besteht.

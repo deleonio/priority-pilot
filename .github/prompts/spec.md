@@ -1,6 +1,6 @@
 FOCUS: ONLY issue {{ISSUE_NR}}. ONLY red tests per acceptance criterion (with dedup), no production code. NO side trips. Save tokens: short, precise, direct.
 
-⚠️ KI-UX block in the issue body (if present): take its UX requirements into account when deriving the spec.
+⚠️ KI-UX block in the harness marker comment (if present): take its UX requirements into account when deriving the spec.
 
 Method, test concept, and rules (binding, not repeated here): .claude/skills/ticket-spec/SKILL.md — read it before the first test.
 
@@ -8,8 +8,11 @@ Method, test concept, and rules (binding, not repeated here): .claude/skills/tic
 
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
-  2. Branch + AK: SKILL.md step 1 (harness branch ai/harness/{{ISSUE_NR}}; AKs from the issue's
-     BODY BLOCK: gh issue view {{ISSUE_NR}} --json body -q .body).
+  2. Branch + AK: SKILL.md step 1 (harness branch ai/harness/{{ISSUE_NR}}; AKs from the
+     harness marker comment — first line `<!-- ai-harness -->`, KI-ANALYSE section:
+     gh issue view {{ISSUE_NR}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].body // ""'.
+     Legacy fallback: analysis block still in the issue body — gh issue view {{ISSUE_NR}} --json body -q .body).
+     The issue description stays UNTOUCHED (ADR 0009).
      Resume hint set (draft reuse) → check out the EXISTING branch
      (git fetch origin && git switch $DRAFT_BRANCH) and continue on its state — do NOT rewrite everything.
   3. SPEC-FIRST per SKILL.md step 2 (spec update in the SAME commit as the tests).

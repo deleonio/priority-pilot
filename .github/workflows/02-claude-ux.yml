@@ -2,8 +2,9 @@ name: 2/6 UX-Beratung
 
 # UX-Beratung als automatisierte Phase VOR der Spec — beratend, nicht blockierend.
 # Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:needs-ux-ui,
-# schreibt KI-UX-Block zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> in den
-# Issue-Body und übergibt über ai:needs-spec an die Spec-Phase (Trigger wird hier
+# schreibt den KI-UX-Block zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> in den
+# Harness-Kommentar (ADR 0009: erste Zeile <!-- ai-harness --> — der Issue-Body bleibt
+# unberührt) und übergibt über ai:needs-spec an die Spec-Phase (Trigger wird hier
 # konsumiert).
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO).
@@ -209,7 +210,7 @@ jobs:
             gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body \
               "⚠️ **UX-Beratung: KI kommt nicht alleine weiter** (\`ai:needs-human\`).
 
-          **Warum:** Die UX-Beratung konnte die UI-Entscheidung für dieses Ticket nicht belastbar treffen. Die offenen Fragen und Überlegungen stehen im KI-UX-Block des Issue-Bodys (zwischen \`KI-UX:START\` und \`KI-UX:END\`).
+          **Warum:** Die UX-Beratung konnte die UI-Entscheidung für dieses Ticket nicht belastbar treffen. Die offenen Fragen und Überlegungen stehen im KI-UX-Block des Harness-Kommentars (Kommentar mit `<!-- ai-harness -->` in der ersten Zeile).
 
           **Was du als Mensch beitragen/entscheiden solltest:**
           1. Die offenen UX-Fragen im Issue klären (z. B. als Kommentar ins Ticket schreiben).

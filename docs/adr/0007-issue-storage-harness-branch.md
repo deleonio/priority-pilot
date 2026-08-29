@@ -1,6 +1,6 @@
 # ADR 0007 — Issue-Storage reist im Harness-Branch mit (Memory wird committet)
 
-- **Status:** Accepted (2026-08-28) — ersetzt [ADR 0006](0006-issue-storage-state-branch.md)
+- **Status:** Accepted (2026-08-28) — ersetzt [ADR 0006](0006-issue-storage-state-branch.md); Issue-seitig fortgeschrieben durch [ADR 0009](0009-issue-storage-harness-kommentar.md) (Phasen-Ausgaben im Harness-Kommentar)
 - **Datum:** 2026-08-28
 - **Kontext:** ADR 0006 ([State-Branch](0006-issue-storage-state-branch.md)), ADR 0005 (eine Umsetzungsphase)
 

@@ -80,12 +80,18 @@ section() { # heading-substring
 # Echten Text messen: Bullets und Woerter zaehlen, Whitespace raus.
 real_text_len() { printf '%s' "$1" | tr -s '[:space:]' ' ' | wc -c | tr -d ' '; }
 
-# Ticket bereits in der Pipeline? (Analyse-Block existiert) → Vorab-Check unsinnig:
-# Phasen-Edits (Body-Updates durch Triage/Spec/…) wuerden ihn sonst bei jedem Edit
-# neu anstossen. Guete ist dann durch die laufende Analyse selbst gesichert.
-if printf '%s' "$BODY" | grep -q 'KI-ANALYSE:START'; then
+# Ticket bereits in der Pipeline? → Vorab-Check unsinnig: Autoren-Edits WAEREND der
+# Pipeline wuerden ihn sonst bei jedem Edit neu anstossen und rot-feedbacken, obwohl
+# die Phasen seit ADR 0009 den Body gar nicht mehr anfassen (Ausgaben wandern in den
+# Harness-Kommentar). Zwei Signale: (1) Label ai:analysed — die Analyse lief, alle
+# Folgeschreibarbeit findet im Kommentar statt; (2) Legacy: Analyse-Block direkt im
+# Body (Tickets vor der Umstellung). Guete ist dann durch die gelaufene Analyse selbst
+# gesichert.
+IN_PIPELINE="$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
+  --jq '[.labels[].name] | any(. == "ai:analysed")' 2>/dev/null)" || IN_PIPELINE=""
+if [ "$IN_PIPELINE" = "true" ] || printf '%s' "$BODY" | grep -q 'KI-ANALYSE:START'; then
   echo "skipped=true" >> "$GITHUB_OUTPUT"
-  emit true "Analyse-Block vorhanden — Ticket ist in der Pipeline, Vorab-Check uebersprungen." ""
+  emit true "Ticket ist in der Pipeline (ai:analysed bzw. Analyse-Block vorhanden) — Vorab-Check uebersprungen." ""
   exit 0
 fi
 echo "skipped=false" >> "$GITHUB_OUTPUT"

@@ -1,14 +1,16 @@
 {{RESUME_HINT}}
 FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the acceptance criteria, no incidental refactoring. NO side trips. Save tokens: short, precise, direct.
 
-⚠️ KI-UX block in the issue body (if present): take its UX requirements into account.
+⚠️ KI-UX block in the harness marker comment (if present): take its UX requirements into account.
 
 Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting. Includes the Delegation section (gate runs and search questions go to haiku subagent roles).
 
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
   2. Read the analysis & quick-check it per SKILL.md step 2 (NO full re-triage;
-     AKs from the BODY BLOCK) — traffic light 🔴 → do NOT implement, stop (VERDICT not-ready).
+     AKs from the harness marker comment — first line `<!-- ai-harness -->`, KI-ANALYSE
+     section; legacy fallback: analysis block still in the issue body) — traffic light 🔴 →
+     do NOT implement, stop (VERDICT not-ready).
   3. Spec mode (the normal case): check out the existing DRAFT PR — including the closing-keyword trap and
      the idempotency rule (SKILL.md step 1). Turn its RED tests GREEN — do NOT change the tests
      (separation of duties). If a test contradicts the expected behavior → do NOT silently

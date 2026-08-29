@@ -48,9 +48,10 @@ available locally, the same question to a general-purpose subagent works.
   `gh pr view <pr> --json title,body,files,additions,deletions` and `gh pr diff <pr>`.
 - Load the linked issue (expected behavior): resolve the PR's `closingIssuesReferences`
   (`gh pr view <pr> --json closingIssuesReferences`) → `gh issue view <nr> --json body,comments`.
-  Read the triage's **acceptance criteria** primarily from the **body block** (the section between
+  Read the triage's **acceptance criteria** primarily from the **harness marker comment** (ADR 0009 — the
+  comment whose body starts with `<!-- ai-harness -->`; the section between
   `<!-- KI-ANALYSE:START … -->` and `<!-- KI-ANALYSE:END -->`); if missing (legacy issue), fall back to the
-  most recent `🤖 KI-Analyse` comment. The remaining comments stay context (dialogue/pings).
+  issue body block. The remaining comments stay context (dialogue/pings).
 - Clarify the target state: what problem should the PR solve, and how is "done" recognizable?
 
 ## Step 2 — Cross-examination (critical questions)

@@ -1,13 +1,15 @@
 ---
 name: ticket-triage
-description: "Ticket triage — analyze open GitHub issues, copyedit them, split them up if needed, write the analysis block (KI-ANALYSE) into the body, set the traffic-light verdict, and steer labels. Use for 'triage', 'analyze issues' (German: 'triage', 'analysiere Issues'), CI phase 1."
+description: "Ticket triage — analyze open GitHub issues, copyedit them, split them up if needed, write the analysis block (KI-ANALYSE) into the harness marker comment, set the traffic-light verdict, and steer labels. Use for 'triage', 'analyze issues' (German: 'triage', 'analysiere Issues'), CI phase 1."
 ---
 
 # Workflow: Ticket Triage (GitHub Issues)
 
-Use when you need to analyze open GitHub issues — assesses feasibility, writes the analysis block into the body, and steers the following phases via labels.
+Use when you need to analyze open GitHub issues — assesses feasibility, writes the analysis block into the harness marker comment, and steers the following phases via labels.
 
 Note: this file's prose is English; text written into GitHub issues/comments (the analysis block, ping comments, decision comments) stays German — that content is for the project's German-speaking issue authors and reviewers.
+
+**Storage (ADR 0009):** ALL phase output lives in the **harness marker comment** — the ONE comment whose body starts with the marker line `<!-- ai-harness -->` (first line, byte-exact). The issue **body** stays exactly as the issue validator checked it: every body edit re-triggers `0/6 Issue-Validator` and stalls the pipeline. Phases update the harness comment in place (upsert, one comment per issue — same pattern as the `<!-- ai-quality -->` marker comment).
 
 Issues = GitHub issues of `deleonio/priority-pilot`. Prerequisite: `gh` is authenticated.
 
@@ -29,37 +31,33 @@ Issues = GitHub issues of `deleonio/priority-pilot`. Prerequisite: `gh` is authe
   the `recherche` subagent role (ADR 0008; falls back to general-purpose if the role isn't
   available) and keep only its findings in your context.
 - Result: problem summary, affected files/areas, root cause/solution approach, open questions/risks, plus **verifiable acceptance criteria** and **test cases**.
-- **Re-triage of an existing analysis:** If the issue already carries `ai:analysed`, the analysis lives in a
-  marked block in the **body** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`).
-  1. Load the body, extract the analysis block, and read out the `stand` timestamp.
-  2. **Read only the delta comments since `stand`** (NOT the whole thread).
+- **Re-triage of an existing analysis:** If the issue already carries `ai:analysed`, the analysis lives in the
+  **harness marker comment** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->` inside the
+  comment whose first line is `<!-- ai-harness -->`).
+  1. Load the marker comment (`gh issue view <nr> --json comments`), extract the analysis block, and read out the `stand` timestamp.
+  2. **Read only the delta comments since `stand`** (NOT the whole thread, NOT the harness comment itself).
   3. **Don't carry over the existing analysis unchanged:** check whether it **still fits** the (possibly revised)
      task, including the delta answers, and is **complete**. If it no longer fits
      or aspects are missing: **incorporate/remove** answered open questions, flip the traffic light if needed, update the
      acceptance criteria — don't leave gaps standing.
 
-## Step 2 — Copyedit the description (content unchanged)
+## Step 2 — Description stays untouched (ADR 0009)
 
-- **Copyedit the issue description:** improve spelling, grammar, and clarity.
-- **The content must not be changed in the process:** no new or removed requirements,
-  no change in meaning, no additional assumptions.
-- **Template headings are untouchable:** the four ticket-template headings
-  (`Was ist das Problem?`, `Wie soll es sein?`, `Wo tritt es auf?`, `Woran messen wir das?`)
-  survive every body rewrite word-for-word — copyedit their **content**, never rename,
-  merge, or drop the headings themselves. Insert or replace the analysis block and the
-  routing table **below** the template sections, never in between: every later phase
-  locates its input by these headings.
-- Apply the copyedited version — pass a multi-line body with **real line breaks**, e.g.
-  `gh issue edit <nr> --body-file -` with a heredoc.
-- If the copyedit changes nothing substantively, leave the description untouched (no "pro forma" edit).
+- **Never edit the issue description.** The body stays byte-for-byte as the issue
+  validator (`0/6 Issue-Validator`) checked it — every body edit re-triggers the
+  validator and turned it red whenever a phase touched the description, stalling
+  UX/Spec (observed at #1121). No copyedit, no reformatting, no appending:
+  `gh issue edit <nr> --body` is **forbidden** in this phase.
+- All phase output (analysis block, routing table, later the UX review) goes into
+  the **harness marker comment** (step 4) instead.
 
 ## Step 2b — Optimize the title (content unchanged)
 
-- **Check consistency:** Does the title still accurately reflect the (copyedited) **description** and the issue's **actual
+- **Check consistency:** Does the title still accurately reflect the **description** and the issue's **actual
   goal**? Is it short, precise, and substantively coherent?
-- **Adjust only on actual inconsistency** — faithful to the content, as with the copyedit:
+- **Adjust only on actual inconsistency** — faithful to the content:
   no change in meaning, no new requirements.
-- Apply via `gh issue edit <nr> --title "<new title>"`.
+- Apply via `gh issue edit <nr> --title "<new title>"` (titles don't affect the body validator).
 
 ## Step 3 — Split up oversized issues (optional)
 
@@ -73,7 +71,8 @@ For an oversized issue:
 
 - **Precondition — ensure labels exist:** `ai:analysed`, and for immediately implementable sub-tasks also `ai:needs-ux-ui`/`ai:needs-spec`, must **exist**.
 - Derive **2–5 sub-tasks that are as independent as possible** from the analysis (each implementable in **one** PR).
-- Create a **sub-issue** per sub-task — already with a mini-analysis + traffic light in the body, **including the START/END markers**.
+- Create a **sub-issue** per sub-task — already with a mini-analysis + traffic light as its **harness marker comment**
+  (first line `<!-- ai-harness -->`, KI-ANALYSE block + routing table inside).
 - Attach the sub-issue as a **real GitHub sub-issue** under the parent issue (GraphQL, mandatory):
   `gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p=<parent-node-id> -f c=<child-node-id>`
 - **For sequential dependencies — set the native `blocked-by` relation (mandatory):**
@@ -82,7 +81,7 @@ For an oversized issue:
   already the analysis result) and thus fall outside step 1's selection criterion. Only **one** level of splitting is allowed.
 - If sub-issues are immediately implementable (traffic light 🟢), also set the matching phase trigger (`ai:needs-ux-ui` for UI relevance, otherwise `ai:needs-spec`). **For sequential chains (`blocked-by`), give the trigger only to the first, unblocked sub-issue.**
 
-## Step 4 — Solution proposal in the body block (with traffic light)
+## Step 4 — Solution proposal in the harness comment (with traffic light)
 
 - Formulate the solution approach concretely and actionably: affected files, steps, alternatives, risks.
 - **Acceptance criteria & test cases (mandatory part):**
@@ -99,8 +98,9 @@ For an oversized issue:
   - 🟡 **yellow** — conditionally implementable: open questions/assumptions, **acceptance criteria cannot (yet) be phrased verifiably**, larger scope or splitting recommended.
   - 🔴 **red** — not yet implementable: requirements unclear/contradictory or information missing; clarification needed.
 
-- Write the analysis as a marked **block into the issue body**. This block's content is written in German — it is the ticket content itself, read by the (German-speaking) issue author and other contributors:
+- Write the analysis as a marked **block into the harness marker comment** (the ONE comment whose body starts with `<!-- ai-harness -->`). This block's content is written in German — it is the ticket content itself, read by the (German-speaking) issue author and other contributors. Comment layout (marker line first, byte-exact — the selectors of all readers match on it):
   ```
+  <!-- ai-harness -->
   <!-- KI-ANALYSE:START stand=YYYY-MM-DDTHH:MM:SSZ -->
   ### Umsetzungskontext
   - Betroffene Dateien: `pfad/a.ts`, `pfad/b.ts`
@@ -141,16 +141,22 @@ For an oversized issue:
   - The table and analysis block belong together: on re-triage, rewrite BOTH.
     ASCII without umlauts/typographic quotes — the table is parsed by machine.
   - `stand` = ISO-8601 UTC, reset on **every** write: `date -u +%Y-%m-%dT%H:%M:%SZ`.
-  - Write via `gh issue edit <nr> --body-file -` with a heredoc.
+  - **Upsert, don't append:** exactly ONE harness comment per issue. Read-modify-write —
+    replace ONLY the KI-ANALYSE + ai-phase-routing sections, keep foreign sections
+    (e.g. a KI-UX block written by the UX phase) byte-for-byte. Mechanics (gh only):
+    1. Node-ID lookup (empty = not created yet):
+       `HID="$(gh issue view <nr> --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].id // ""')"`
+    2. Update: `gh api graphql -f query='mutation($i:ID!,$b:String!){updateIssueComment(input:{id:$i,body:$b}){clientMutationId}}' -f i="$HID" -F b=@-` with a heredoc carrying the FULL comment body (marker line first).
+    3. Create (no HID yet): `gh issue comment <nr> --body-file -` with the same heredoc.
 
 ## Step 4b — Short ping comment
 
 One **short ping comment** per run (`gh issue comment`), written in German:
 
-- 1 sentence noting that the analysis is in the description.
+- 1 sentence noting that the analysis is in the harness marker comment.
 - **Only if open questions exist:** address the issue author with `@<issue-author>` and attach the open questions as a list.
 
-**Manual/local runs only.** In the CI pipeline the phase prompt overrides this step with its NO-ping rule (body block + label are the complete communication there) — post nothing.
+**Manual/local runs only.** In the CI pipeline the phase prompt overrides this step with its NO-ping rule (harness comment + label are the complete communication there) — post nothing.
 
 ## Step 5 — Label (`ai:analysed`; for a clear 🟢 analysis, also the phase trigger)
 
@@ -187,4 +193,4 @@ gh issue close <nr> --reason "completed"
 ## Notes
 
 - Steps 2, 3, 4, 4b, and 5 write **publicly** to GitHub — get confirmation before executing, especially for batch processing.
-- **Never commit production code**; triage means only analysis, copyediting, optional splitting, the analysis block in the body, the ping comment, and labeling.
+- **Never commit production code**; triage means only analysis, optional splitting, the analysis block in the harness marker comment (the issue body stays untouched), the ping comment, and labeling.

@@ -41,10 +41,16 @@ Vier Einzelentscheidungen setzen das um:
 
 ### 1. Die Analyse ist die zentrale Instanz und läuft auf `fable`
 
-Sie zerlegt, reichert an und routet. Ihr Ergebnis steht strukturiert im `KI-ANALYSE`-Block des
-Issue-Bodys: `UI-Bezug`, `Spec nötig`, `Aufwandsklasse`, `Betroffene Dateien`, `Randbedingungen`,
+Sie zerlegt, reichert an und routet. Ihr Ergebnis steht strukturiert im `KI-ANALYSE`-Abschnitt
+des Harness-Kommentars (ADR 0009; Tickets vor der Umstellung: Issue-Body):
+`UI-Bezug`, `Spec nötig`, `Aufwandsklasse`, `Betroffene Dateien`, `Randbedingungen`,
 `Erwartetes Ergebnis`. **Akzeptanzkriterium:** Eine Subtask ist so beschrieben, dass ein günstiges
 Modell sie ohne Rückgriff auf ein starkes Modell umsetzen kann.
+
+> **Nachtrag 2026-08-30:** Der Analyse-Storage ist in den Harness-Kommentar gezogen
+> (ADR [0009](0009-issue-storage-harness-kommentar.md)) — der Issue-Body bleibt ab der
+> Validierung unberührt. Alle Aussagen dieses ADR über die Tabellen- und Blockinhalte
+> gelten unverändert, nur der Ablageort ändert sich.
 
 Bei Uneindeutigkeit wird nicht geraten: Die Analyse setzt `ai:needs-human` mit einem Kommentar,
 der **was** zu entscheiden ist, **worauf** es sich bezieht und **welche Optionen** bestehen

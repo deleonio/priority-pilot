@@ -3,7 +3,7 @@ MENTOR for {{KIND}} #{{TICKET_REF}} ({{PHASE_NAME}} run, round {{ROUND_INFO}}). 
 CONTEXT (read it yourself, gh is authenticated):
 - Phase notes: .ai-memory/issue-{{ISSUE_NR}}-*.md (previous rounds' memory — what was tried, what failed)
 - kind=pr (fixup run): the collected `<!-- ai-review -->` comment (find it via gh pr view {{TICKET_REF}} --json comments), the CURRENT diff (gh pr diff {{TICKET_REF}}), and failing CI jobs (gh pr checks {{TICKET_REF}}).
-- kind=issue (implement rerun): the KI-ANALYSE block in the issue body (gh issue view {{TICKET_REF}} --json body -q .body) and `git log --oneline -15` on the current branch — what the aborted run already changed.
+- kind=issue (implement rerun): the KI-ANALYSE section of the harness marker comment on the issue (gh issue view {{TICKET_REF}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].body // ""'; legacy fallback: issue body) and `git log --oneline -15` on the current branch — what the aborted run already changed.
 
 YOUR TASK: diagnose WHY the previous attempts did not converge (not WHAT the finding says — the finding is known), then chart ONE concrete way out. You have fresh eyes and the strong model: use them. If the previous attempt was actually on the right track and merely incomplete, say exactly that and name the missing piece.
 

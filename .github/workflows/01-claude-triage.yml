@@ -267,19 +267,26 @@ jobs:
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
+          # ADR 0009 — Analyse-Storage ist der Harness-Kommentar (erste Zeile
+          # `<!-- ai-harness -->`), nicht mehr der Issue-Body: Der Validator (00)
+          # feuert auf jedes Body-Edit und lief rot, sobald Phasen die Beschreibung
+          # anfassten. Der Body bleibt ab der Validierung unberuehrt; Parse-Basis
+          # dieser Assertion ist daher der Kommentar, der Body nur Legacy-Quelle.
           BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+          HARNESS="$(bash .github/scripts/harness-comment.sh --repo "$GITHUB_REPOSITORY" --issue "$ISSUE")"
+          ANALYSIS="$HARNESS"
           HAS_BLOCK="false"
           HAS_AK="false"
-          if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+          if printf '%s' "$ANALYSIS" | grep -q "KI-ANALYSE:START"; then
             HAS_BLOCK="true"
-            if printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
+            if printf '%s' "$ANALYSIS" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
               HAS_AK="true"
             fi
 
             # UI-Bezug aus KI-ANALYSE-Block parsen (entscheidet den nächsten Trigger:
             # ai:needs-ux-ui bei UI-Bezug, ai:needs-spec überspringt die UX-Phase)
             UI_BEZUG=""
-            UI_BEZUG_LINE="$(printf '%s' "$BODY" | grep -iE "UI-Bezug:" | head -1 || true)"
+            UI_BEZUG_LINE="$(printf '%s' "$ANALYSIS" | grep -iE "UI-Bezug:" | head -1 || true)"
             if [ -n "$UI_BEZUG_LINE" ]; then
               UI_BEZUG="$(printf '%s' "$UI_BEZUG_LINE" | sed -E 's/^.*[Uu][Iu][- ]?[Bb]ezug:[[:space:]]*//' | tr -d '[:space:]' | head -c 4 || true)"
             fi
@@ -289,9 +296,10 @@ jobs:
             # (die EINE analysgetriebene Steuerung, ADR-0004; resolve-model-label.sh
             # liest das daraus gesetzte ai:model:*-Label).
             # Parselogik deckungsgleich mit resolve-phase-routing.sh (Feld $4 der
-            # Markdown-Zeile, Whitespace entfernt) — BODY liegt hier bereits vor,
-            # deshalb inline statt Script-Call (kein zweiter API-Roundtrip).
-            KLASSE="$(printf '%s' "$BODY" | sed -n '/ai-phase-routing:START/,/ai-phase-routing:END/p' \
+            # Markdown-Zeile, Whitespace entfernt) — ANALYSIS (Harness-Kommentar)
+            # liegt hier bereits vor, deshalb inline statt Script-Call (kein zweiter
+            # API-Roundtrip).
+            KLASSE="$(printf '%s' "$ANALYSIS" | sed -n '/ai-phase-routing:START/,/ai-phase-routing:END/p' \
               | awk -F'|' '/^\|[[:space:]]*impl[[:space:]]*\|/ { m=$4; gsub(/[ \t]/, "", m); print m; exit }')"
             case "$KLASSE" in
               haiku|sonnet|opus) ;;
@@ -305,7 +313,7 @@ jobs:
             # Spec nötig? Entscheidung liegt in resolve-spec-skip.sh (dort getestet), nicht
             # hier inline: Sie prüft die Selbstauskunft der Analyse gegen die deklarierten
             # Dateien und fällt bei jeder Unsicherheit auf „Spec läuft" zurück.
-            printf '%s' "$BODY" > /tmp/analyse-block.md
+            printf '%s' "$ANALYSIS" > /tmp/analyse-block.md
             SPEC_OUT="$(bash .github/scripts/resolve-spec-skip.sh --block-file /tmp/analyse-block.md 2>/dev/null || true)"
             NEEDS_SPEC="$(printf '%s' "$SPEC_OUT" | sed -n 's/^needs_spec=//p')"
             SPEC_REASON="$(printf '%s' "$SPEC_OUT" | sed -n 's/^reason=//p')"
@@ -314,40 +322,76 @@ jobs:
             echo "Spec nötig: ${NEEDS_SPEC} — ${SPEC_REASON}"
           fi
 
-          # Self-Heal (Issue #566): Schwachmodell-Agent (zai/GLM) postet den KI-ANALYSE-Block
-          # gelegentlich als Kommentar, statt ihn via `gh issue edit` in den Body zu schreiben.
-          # Statt dann den kompletten Lauf (und die Token-Spende) wegzuwerfen, den Block aus
-          # dem neuesten passenden Kommentar in den Body migrieren — modellunabhängige
-          # Sicherheitsleine. hart-fail nur, wenn der Block WEDER im Body NOCH in einem
-          # Kommentar existiert — AUSNAHME needs-human: Der Prompt verbietet seit dem
-          # Output-Disziplin-Umbau das Raten einer Analyse bei unklarer Aufgabenstellung;
-          # dort ist der ai-triage-decision-Kommentar das Artefakt (weiter unten erzwungen),
-          # ein Analyse-Block existiert bewusst nicht. Rot wäre ein falscher Alarm.
+          # MIGRATION / SELF-HEAL (Issue #566 + ADR 0009, Richtung invertiert): Der
+          # KI-ANALYSE-Block gehoert in den Harness-Kommentar — nicht in den Body.
+          # Zwei Quellen: (a) LEGACY-Ticket mit Block noch im Body (alle Tickets vor
+          # ADR 0009): Block in den Kommentar heben und aus dem Body entfernen —
+          # der dabei feuernde Validator laeuft auf der validierten Beschreibung
+          # (bzw. skippt via ai:analysed) und bleibt stumm-gruen. (b) SCHWACHMODELL
+          # (zai/GLM, #566): Block als normalen, marker-losen Kommentar gepostet —
+          # in den Harness-Kommentar heben (der Alt-Kommentar bleibt als Duplikat
+          # stehen; der Marker-Kommentar ist die autoritative Quelle aller Leser).
+          # Hart-fail nur, wenn der Block NIRGENDWO existiert — AUSNAHME needs-human:
+          # Der Prompt verbietet das Raten einer Analyse bei unklarer Aufgabenstellung;
+          # dort ist der ai-triage-decision-Kommentar das Artefakt (weiter unten
+          # erzwungen), ein Analyse-Block existiert bewusst nicht. Rot waere ein
+          # falscher Alarm.
           if [ "$HAS_BLOCK" != "true" ] && [ "$verdict" != "needs-human" ]; then
-            BLOCK_FROM_COMMENT="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments -q \
-              '[.comments[] | select(.body | test("KI-ANALYSE:START"))] | last | .body // ""' 2>/dev/null || true)"
-            if [ -n "$BLOCK_FROM_COMMENT" ]; then
-              printf '%s\n\n%s\n' "$BODY" "$BLOCK_FROM_COMMENT" \
-                | gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
-              echo "::warning title=♻️ Block migriert::KI-ANALYSE-Block war in einem Kommentar statt im Issue-Body – automatisch in den Body migriert."
-              BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+            SEGMENTS=""
+            if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+              # (a) Legacy: beide markierten Segmente aus dem Body schneiden
+              SEGMENTS="$(printf '%s' "$BODY" | awk '
+                /KI-ANALYSE:START/,/KI-ANALYSE:END/ {print}
+                /ai-phase-routing:START/,/ai-phase-routing:END/ {print}')"
+            else
+              # (b) Schwachmodell: neuesten markierungslosen Analyse-Kommentar heben
+              SEGMENTS="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments -q \
+                '[.comments[] | select(.body | test("KI-ANALYSE:START"))] | last | .body // ""' 2>/dev/null || true)"
+            fi
+            if [ -n "$SEGMENTS" ]; then
+              # Upsert statt blindem Anlegen: Existiert der Marker-Kommentar bereits
+              # blocklos (z. B. abgebrochener Lauf mit korrekter Marker-Zeile), wuerde
+              # ein zweiter Kommentar angelegt — die first-Selektion aller Leser haette
+              # dann die LEERE Analyse. Per HID aktualisieren bleibt bei genau einem.
+              HARNESS_BODY="$(printf '<!-- ai-harness -->\n\n%s\n' "$SEGMENTS")"
+              HID="$(bash .github/scripts/harness-comment.sh --repo "$GITHUB_REPOSITORY" --issue "$ISSUE" --id 2>/dev/null || true)"
+              if [ -n "$HID" ]; then
+                gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$HID" -f body="$HARNESS_BODY" >/dev/null 2>&1 || true
+              else
+                printf '%s' "$HARNESS_BODY" \
+                  | gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+              fi
+              echo "::warning title=♻️ Block migriert::KI-ANALYSE-Block wurde nicht im Harness-Kommentar gefunden – automatisch dorthin migriert (ADR 0009)."
+              # Legacy-Body bereinigen: validierte Beschreibung ohne Analyse-Reste
+              if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+                printf '%s' "$BODY" | awk '
+                  /KI-ANALYSE:START/,/KI-ANALYSE:END/ {next}
+                  /ai-phase-routing:START/,/ai-phase-routing:END/ {next}
+                  {print}' \
+                  | gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+                BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+              fi
+              HARNESS="$(bash .github/scripts/harness-comment.sh --repo "$GITHUB_REPOSITORY" --issue "$ISSUE")"
+              ANALYSIS="$HARNESS"
               HAS_BLOCK="true"
-              if printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
+              if printf '%s' "$ANALYSIS" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
                 HAS_AK="true"
               fi
             fi
           fi
 
           if [ "$HAS_BLOCK" != "true" ]; then
-            echo "::error title=❌ Analyse fehlt::Kein KI-ANALYSE-Block im Issue-Body ODER in Kommentaren. Lauf muss wiederholt werden."
+            echo "::error title=❌ Analyse fehlt::Kein KI-ANALYSE-Block im Harness-Kommentar, Issue-Body oder sonstigen Kommentaren. Lauf muss wiederholt werden."
             exit 1
           fi
 
-          # TEMPLATE-STRUKTUR-POST-CHECK: Der Body wurde von der Analyse komplett neu
-          # geschrieben (Copyedit + KI-ANALYSE-Block) — der Vorab-Check des Güte-Gates
-          # skippt sich bei bestehendem Analyse-Block selbst, dieser Check läuft daher
-          # nach JEDEM Lauf (Erst- und Re-Triage). Fehlt eine der vier Template-
-          # Überschriften, überschreibt das unten den Verdict auf needs-human — die
+          # TEMPLATE-STRUKTUR-POST-CHECK: Seit ADR 0009 fasst die Analyse den Body
+          # nicht mehr an — der Check bleibt als Sicherheitsleine nach JEDEM Lauf
+          # (Erst- und Re-Triage; die Legacy-Migration oben schneidet Analyse-Reste
+          # aus alten Bodys, und Autoren-Edits koennen die Struktur ebenfalls
+          # beschädigen). Der Vorab-Check des Güte-Gates skippt bei Pipeline-
+          # Tickets (ai:analysed). Fehlt eine der vier Template-Überschriften,
+          # überschreibt das unten den Verdict auf needs-human — die
           # Folgearbeiten (UX/Spec/Implementierung) lokalisieren ihre Eingaben über
           # genau diese Abschnitte.
           printf '%s' "$BODY" > /tmp/structure-body.md
@@ -370,7 +414,7 @@ jobs:
               echo "<!-- ai-triage-decision -->"
               echo "## ⛔ Analyse hat die Ticket-Struktur beschädigt"
               echo ""
-              echo "Die Analyse hat den Issue-Body neu geschrieben und dabei Template-Überschriften entfernt:"
+              echo "Die Ticket-Beschreibung hat Template-Überschriften verloren (Nachweis aus dem Struktur-Check nach der Analyse):"
               echo ""
               printf '%s\n' "$MISSING_BULLETS"
               echo ""
@@ -483,6 +527,23 @@ jobs:
             --jq '[.labels[].name] | any(. == "ai:analysed")' 2>/dev/null || echo false)"
           if [ "$HAS_ANALYSED" != "true" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
+          fi
+
+          # HAPPY-CASE-CLEANUP (ADR 0009): Trägt der Body noch einen Legacy-
+          # KI-ANALYSE-Block, OBWOHL der Harness-Kommentar den Block bereits führt,
+          # bliebe dieser Rest dauerhaft stehen — Menschen lesen dort eine veraltete
+          # Analyse. Bewusst erst NACH dem ai:analysed-Ensure: das Body-Edit feuert
+          # den Validator (00), der über das Label sicher skippt. Nur bei
+          # HAS_BLOCK=true — sonst existiert der Block noch nirgends und darf den
+          # Body nicht verlassen.
+          if [ "$HAS_BLOCK" = "true" ] && printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+            printf '%s' "$BODY" | awk '
+              /KI-ANALYSE:START/,/KI-ANALYSE:END/ {next}
+              /ai-phase-routing:START/,/ai-phase-routing:END/ {next}
+              {print}' \
+              | gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+            BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+            echo "::notice title=🧹 Legacy-Block aus dem Body entfernt::Analyse liegt im Harness-Kommentar (ADR 0009) — Body-Rest bereinigt."
           fi
 
           if [ "$final" = "spec-ready" ]; then
