@@ -132,23 +132,22 @@ describe('Dashboard — Statuskacheln: genau drei Kacheln (Issue #390)', () => {
  * Der Test ist rot, solange Dashboard.tsx Zeile 196 noch `<p>Keine Säulen vorhanden.</p>` rendert.
  */
 describe('Dashboard — Empty-State bei 0 Säulen (Issue #440, AK1)', () => {
-	it('AK1: zeigt bei pillars=[] eine gestaltete KolCard statt des bisherigen Plain-Texts', () => {
+	// Test-Pflege #1118: Mit der Sektions-Card „Meine Themen" (AK1) wird der bisherige
+	// Card-in-Card-Leerzustand obsolet — der Hinweis steht jetzt IN der Sektions-Card.
+	it('AK1: zeigt bei pillars=[] den Hinweistext innerhalb der Sektions-Card „Meine Themen" (#1118 AK3/AK4)', () => {
 		const { container } = render(<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
 
-		// Der alte Plain-Text-Paragraph darf nicht mehr existieren.
-		expect(container.querySelector('.dashboard-pillars > p')).toBeNull();
+		// Genau eine Card: die Sektions-Card selbst — kein verschachteltes kol-card.
+		const cards = container.querySelectorAll('.dashboard-pillars kol-card');
+		expect(cards).toHaveLength(1);
+		expect(cards[0].getAttribute('_label')).toBe('Meine Themen');
 
-		// Stattdessen soll eine KolCard mit dem Label „Keine Säulen vorhanden" gerendert werden.
-		const card = container.querySelector('.dashboard-pillars kol-card');
-		expect(card).not.toBeNull();
-		expect(card?.getAttribute('_label')).toBe('Keine Säulen vorhanden');
-
-		// Die KolCard soll einen Hinweistext enthalten (über Slot oder children).
-		const cardText = card?.textContent ?? '';
+		// Der Leerzustand steht innerhalb dieser Card.
+		const cardText = cards[0].textContent ?? '';
 		expect(cardText).toMatch(/in den Einstellungen/i);
 
 		// Ein Link zu den Einstellungen soll vorhanden sein.
-		const link = card?.querySelector('a[href]');
+		const link = cards[0].querySelector('a[href]');
 		expect(link).not.toBeNull();
 		expect(link?.getAttribute('href')).toContain('settings');
 	});
@@ -295,6 +294,76 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		// Alle 5 Meter sollen den gleichen Schwellwert von 0.15 haben
 		for (let i = 0; i < 5; i++) {
 			expect(meters[i]?.getAttribute('_low')).toBe('0.15');
+		}
+	});
+});
+
+/**
+ * Issue #1118 — Dashboard-Sektionen als Kolibri-Cards.
+ * Spec: docs/spec/issue-1118.md (AK1–AK4).
+ *
+ * Rot-Solange: alle sechs Sektionen rendern heute noch bare `<section>` mit eigenem `<h3>`;
+ * erst wenn `KolCard` mit `_label`/`_level` eingezogen ist, werden die Tests grün.
+ */
+describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
+	const SECTIONS = [
+		['dashboard-next-task', 'Nächste Aufgabe'],
+		['dashboard-suggestions', 'Was ist jetzt dran?'],
+		['dashboard-top-tasks', 'Wichtigste Tasks'],
+		['dashboard-pillars', 'Meine Themen'],
+		['dashboard-balance', 'Gesamtguthaben'],
+		['dashboard-deadlines', 'Anstehende Deadlines'],
+	] as const;
+
+	it('AK1/AK2: je Sektion genau eine Card mit Sektionslabel und dritter Überschriftenebene, kein separates <h3>', () => {
+		const koerper = pillar(1, 'Körper', 100);
+		const { container } = render(
+			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+		);
+
+		for (const [className, label] of SECTIONS) {
+			const section = container.querySelector(`.${className}`);
+			expect(section, `Sektion .${className} fehlt`).not.toBeNull();
+
+			// AK1/AK4: genau EIN kol-card pro Sektion (kein Card-in-Card).
+			const cards = section!.querySelectorAll('kol-card');
+			expect(cards, `.${className} erwartet genau eine Card`).toHaveLength(1);
+
+			// AK2: Sektionsüberschrift als Card-Label …
+			expect(cards[0].getAttribute('_label')).toBe(label);
+
+			// … als dritte Ebene unter dem Dashboard-<h2> (KoliBri-Default _level=0 wäre KEINE Überschrift).
+			expect(cards[0].getAttribute('_level')).toBe('3');
+
+			// AK2: kein separates <h3> mehr (keine doppelte Überschrift im Accessibility-Tree).
+			expect(section!.querySelector('h3')).toBeNull();
+		}
+
+		// AK2: die Region „Nächste Aufgabe" bleibt benannt (Name muss „Nächste Aufgabe" lauten).
+		const nextTask = container.querySelector('.dashboard-next-task')!;
+		const regionName =
+			nextTask.getAttribute('aria-label') ??
+			document.getElementById(nextTask.getAttribute('aria-labelledby') ?? '')?.textContent ??
+			'';
+		expect(regionName).toMatch(/Nächste Aufgabe/);
+	});
+
+	it('AK3/AK4: Sektions-Leerzustände stehen innerhalb der Card', () => {
+		const { container } = render(<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+
+		const emptyExpectations: Array<[string, RegExp]> = [
+			['dashboard-next-task', /keine Aufgabe an/],
+			['dashboard-suggestions', /keine weiteren Vorschläge/],
+			['dashboard-top-tasks', /Keine offenen Aufgaben/],
+			['dashboard-pillars', /in den Einstellungen/],
+			['dashboard-balance', /Noch keine Punkte vergeben/],
+			['dashboard-deadlines', /Keine anstehenden Deadlines/],
+		];
+
+		for (const [className, pattern] of emptyExpectations) {
+			const card = container.querySelector(`.${className} kol-card`);
+			expect(card, `.Leerzustand-Card .${className} fehlt`).not.toBeNull();
+			expect(card!.textContent ?? '').toMatch(pattern);
 		}
 	});
 });
