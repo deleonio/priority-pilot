@@ -22,15 +22,19 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolInputText: ({
 		_label,
 		_value,
+		_type,
 		_on,
 		...rest
 	}: {
 		_label?: string;
 		_value?: string;
+		/** #1111: `_type` ist der native Input-Typ ("search" | "tel" | "text" | "url", spec/input-text). */
+		_type?: string;
 		_on?: { onChange?: (_e: unknown, v: string) => void; onInput?: (_e: unknown, v: string) => void };
 	}) => (
 		<input
 			aria-label={_label}
+			type={_type ?? 'text'}
 			value={_value ?? ''}
 			onChange={(e) => {
 				_on?.onChange?.(e.nativeEvent, e.target.value);
@@ -98,6 +102,15 @@ afterEach(() => {
 });
 
 describe('AddressAutocomplete (#1083)', () => {
+	it('#1111 AK6 — das Adressfeld ist ein input type="search" (wie das Kopfzeilen-Suchfeld)', () => {
+		mockGeocodeSearch.mockResolvedValue([]);
+		render(<Harness />);
+
+		// Der Mock spiegelt `_type` auf den nativen Typ (KolInputText-Prop, spec/input-text) —
+		// rot solange `AddressAutocomplete` die Prop nicht an `KolInputText` durchreicht.
+		expect(screen.getByRole('textbox')).toHaveAttribute('type', 'search');
+	});
+
 	it('AK5 — zeigt alle Server-Treffer ohne Substring-Gate („munchen" → München-Treffer)', async () => {
 		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
 		render(<Harness />);
