@@ -6,12 +6,12 @@ Die PWA-Update-/Offline-Notification (`.update-prompt`) wird auf Desktop-Viewpor
 
 ## Verhalten
 
-| AK  | Viewport | Erwartung                                                                                     |
-| --- | -------- | --------------------------------------------------------------------------------------------- |
+| AK  | Viewport | Erwartung                                                                                                   |
+| --- | -------- | ----------------------------------------------------------------------------------------------------------- |
 | AK1 | ≥ 768px  | rechtsbündig (rechte Kante am Viewport-Rand, Element in der rechten Hälfte), Elementbreite < Viewportbreite |
-| AK2 | ≥ 768px  | `max-width` gesetzt und ≤ 480px                                                                |
-| AK3 | 375px    | volle Breite: computed `left: 0px` und `right: 0px`                                            |
-| AK4 | 375px    | Aktionsbutton vollbreit, ≥ 44px hoch                                                           |
+| AK2 | ≥ 768px  | `max-width` gesetzt und ≤ 480px                                                                             |
+| AK3 | 375px    | volle Breite: computed `left: 0px` und `right: 0px`                                                         |
+| AK4 | 375px    | Aktionsbutton vollbreit, ≥ 44px hoch                                                                        |
 
 Hinweis AK1: Computed `left` liefert die CSSOM bei positionierten Elementen als verwendeten px-Wert zurück — `left: auto` ist per `getComputedStyle()` nicht beobachtbar. Die Rechtsbündigung wird deshalb geometrisch geprüft (rechte Kante ≈ Viewport-Rand, Element in der rechten Hälfte).
 

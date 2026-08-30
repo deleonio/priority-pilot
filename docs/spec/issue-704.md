@@ -44,9 +44,9 @@ Der Tab „Aufgaben" (Ansicht „Offen") zeigt ausschließlich die **Blatt-Aufga
 
 ## Randfälle & Fehler
 
-| Situation                           | Erwartetes Verhalten                                            |
-| ----------------------------------- | --------------------------------------------------------------- |
-| Keine Abhängigkeiten                | Jede Aufgabe ist Wurzel und wird ohne Einrückung angezeigt      |
-| Tiefe Verschachtelung (>3 Ebenen)   | Einrückung wächst je Ebene und bleibt lesbar                    |
-| Leerer Aufgabenwald                 | Card „Keine offenen Aufgabenbäume" mit Hinweistext              |
-| Mobilansicht                        | Hierarchie bleibt erkennbar (ggf. reduzierter Abstand)          |
+| Situation                         | Erwartetes Verhalten                                       |
+| --------------------------------- | ---------------------------------------------------------- |
+| Keine Abhängigkeiten              | Jede Aufgabe ist Wurzel und wird ohne Einrückung angezeigt |
+| Tiefe Verschachtelung (>3 Ebenen) | Einrückung wächst je Ebene und bleibt lesbar               |
+| Leerer Aufgabenwald               | Card „Keine offenen Aufgabenbäume" mit Hinweistext         |
+| Mobilansicht                      | Hierarchie bleibt erkennbar (ggf. reduzierter Abstand)     |

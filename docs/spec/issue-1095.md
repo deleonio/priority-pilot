@@ -8,12 +8,12 @@ Ein Klick auf „Jetzt neu laden" im PWA-Update-Prompt führt **garantiert** zu 
 
 ## Verhalten
 
-| Trigger                                                       | Erwartung                                                                                                  |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Klick auf „Jetzt neu laden" (`pwa-update-reload`)              | `updateServiceWorker(true)` **und** Registrierung eines `controllerchange`-Listeners auf `navigator.serviceWorker` |
-| `controllerchange` nach Bestätigung                            | `window.location.reload()` wird ausgelöst                                                                   |
-| `controllerchange` mehrfach (Plugin-Pfad + eigener Fallback)   | genau **ein** `location.reload()` (Idempotenz-Guard)                                                        |
-| Update verfügbar, ohne Klick                                   | kein Listener, kein Reload — auch wenn `controllerchange` feuert; Update-Card bleibt offen; Offline-Card unberührt |
+| Trigger                                                      | Erwartung                                                                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Klick auf „Jetzt neu laden" (`pwa-update-reload`)            | `updateServiceWorker(true)` **und** Registrierung eines `controllerchange`-Listeners auf `navigator.serviceWorker` |
+| `controllerchange` nach Bestätigung                          | `window.location.reload()` wird ausgelöst                                                                          |
+| `controllerchange` mehrfach (Plugin-Pfad + eigener Fallback) | genau **ein** `location.reload()` (Idempotenz-Guard)                                                               |
+| Update verfügbar, ohne Klick                                 | kein Listener, kein Reload — auch wenn `controllerchange` feuert; Update-Card bleibt offen; Offline-Card unberührt |
 
 ## Erwartetes Ergebnis
 

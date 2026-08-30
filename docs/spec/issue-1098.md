@@ -18,7 +18,7 @@ Im Settings-Tab „Allgemein" lässt sich unterhalb des Standort-Switches konfig
   - „Anzeige-Entfernung (km)": `_min` = aktueller Alarm-Wert, `_max` = 50, `_step` = 1,
   - „Alarm-Entfernung (km)": `_min` = 1, `_max` = aktueller Anzeige-Wert, `_step` = 1,
   - „Aktualisierungsintervall (Minuten)": `_min` = 1, `_max` = 60, `_step` = 1.
-  Jedes Feld zeigt seinen aktuellen Wert sichtbar mit Einheit an („5 km", „1 km", „5 Minuten").
+    Jedes Feld zeigt seinen aktuellen Wert sichtbar mit Einheit an („5 km", „1 km", „5 Minuten").
 - Kreuz-Schranken sind **dynamisch**: Ändert der Nutzer die Anzeige-Entfernung, springt `_max` der Alarm-Entfernung sofort auf den neuen Anzeige-Wert; ändert er die Alarm-Entfernung, springt `_min` der Anzeige-Entfernung sofort auf den neuen Alarm-Wert. Es gibt **keinen** Error-State/Alert/Inline-`_msg`.
 - Jede Änderung wird **sofort** gespeichert (PUT, kein Speichern-Button).
 - Standort-Switch aus → alle drei Felder sind deaktiviert; die Werte bleiben sichtbar erhalten.

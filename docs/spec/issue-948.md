@@ -50,12 +50,12 @@ Grundlage ist der **Serververtrag**: Ein 401 kann im Server-API-Vertrag ausschli
 
 ## Randfälle & Fehler
 
-| Situation                                          | Erwartetes Verhalten                                                       |
-| -------------------------------------------------- | -------------------------------------------------------------------------- |
-| 401 mit `{ "message": "Nicht eingeloggt." }`       | Session-Meldung, kein KI-Text                                              |
-| 401 ohne lesbaren JSON-Body                        | Session-Fallback-Meldung, kein KI-Text                                     |
-| 401 mit `{ "message": "Ungültige Zugangsdaten." }` | Session-Meldung (gleiche Kategorie Session-Auth)                           |
-| 401 mit fremder Message (z. B. „Invalid API key")  | KI-Konfigurations-Meldung                                                  |
-| 503 (Provider-Ausfall)                             | „KI-Dienst … nicht erreichbar"                                             |
-| 409 / 400 (Zyklus / Validierung)                   | Server-Message wird durchgereicht                                          |
-| DeleteTaskDialog bei Session-401                   | Session-Meldung im bestehenden KolAlert, Dialog-Struktur unverändert       |
+| Situation                                          | Erwartetes Verhalten                                                 |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| 401 mit `{ "message": "Nicht eingeloggt." }`       | Session-Meldung, kein KI-Text                                        |
+| 401 ohne lesbaren JSON-Body                        | Session-Fallback-Meldung, kein KI-Text                               |
+| 401 mit `{ "message": "Ungültige Zugangsdaten." }` | Session-Meldung (gleiche Kategorie Session-Auth)                     |
+| 401 mit fremder Message (z. B. „Invalid API key")  | KI-Konfigurations-Meldung                                            |
+| 503 (Provider-Ausfall)                             | „KI-Dienst … nicht erreichbar"                                       |
+| 409 / 400 (Zyklus / Validierung)                   | Server-Message wird durchgereicht                                    |
+| DeleteTaskDialog bei Session-401                   | Session-Meldung im bestehenden KolAlert, Dialog-Struktur unverändert |
