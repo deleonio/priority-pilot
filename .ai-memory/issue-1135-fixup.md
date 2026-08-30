@@ -22,6 +22,7 @@
 - `gh run list --workflow <dateiname>` und `gh workflow run <dateiname>` lösen über den Dateinamen — für F4-F7 wurden Dateinamen (nicht `name:`-Felder) nachgezogen, konsistent mit der bisherigen Verwendung.
 - Docs-Kommentare mit alten Dateinamen (z. B. `detect-pr-conflicts.yml:4-7,136`, `merge-pr.yml:350,421`, `cron.cache-cleanup.yml:4`) sind F8-Klasse (nicht blockierend, Autor hat Aufschub deklariert) und wurden bewusst NICHT angefasst.
 
+## Gate & CI
 - **Gate (step 3c, gate-runner):** prettier --check (geänderte Dateien) exit 0; `pnpm lint:actions` exit 0; YAML-Parse aller 10 geänderten Workflows exit 0; `pnpm test:scripts` — erst fail (s. nächster Punkt), nach Fix **251 pass / 0 fail**.
 - **Gate-Kollateral (gleiche Klasse wie F3, nicht als eigenes Finding gemeldet):** `.github/scripts/fixup-rounds.test.ts:24` zeigt auf `04-claude-implement.yml` → ENOENT, `pnpm test:scripts` rot. Auf `04-implement.yml` migriert (inkl. Testtitel :160). Ohne diesen Fix wäre der Gate-Push wieder rot gefahren — Fixup-Loop.
 - **CI auf eb4c4747 (Run 33331082779):** verify pass, e2e (1)-(4) pass — komplett grün.
