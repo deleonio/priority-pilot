@@ -1,54 +1,52 @@
 # Aufgabenbaum-Layout – Priority Pilot
 
-**Stand:** 2026-08-27  
-**Ziel:** Saubere, strukturierte Darstellung des Aufgabenbaums mit klarer Hierarchie
+**Stand:** 2026-08-30
 
-Dieser Spec beschreibt das beobachtbare Verhalten des Aufgabenbaum-Layouts, insbesondere die visuelle Darstellung verschachtelter Aufgabenstrukturen.
+Die App zeigt die Abhängigkeitsstruktur an genau einer Stelle als Baum: im Tab „Wald". Der Tab „Aufgaben" listet dagegen nur die ausführbaren Aufgaben flach.
 
 ---
 
-## Journey: Aufgabenbaum betrachten
+## Journey: Aufgabenwald betrachten
 
 ### Ziel
 
-Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar sind, visuelles Chaos vermieden wird und konsistente UI-Prinzipien angewendet werden.
+Der Aufgabenwald (Tab „Wald") zeigt Abhängigkeiten als eingerückte Baumstruktur, sortiert nach Wert.
 
 ### Vorbedingung
 
-- Mindestens zwei Aufgaben mit Abhängigkeiten existieren (eine Aufgabe hängt von der anderen ab)
-- Nutzer ist im Aufgabenwald-Tab
+- Mindestens eine Aufgabe existiert; für eine Baumstruktur mindestens eine Abhängigkeit
+- Nutzer ist im Tab „Wald"
 
 ### Schritte
 
-1. **Aufgabenbaum anzeigen**
+1. **Baum anzeigen**
    - Tab **„Wald"** auswählen
-   - Der Aufgabenbaum zeigt Aufgaben als Baumstruktur, sortiert nach Wert
+   - Unter der Überschrift „Priorisierung" erscheint der Aufgabenwald als Baumstruktur, sortiert nach Wert
 
 2. **Hierarchie erkennen**
-   - **Eltern-Aufgaben** erscheinen oben (weniger eingerückt)
-   - Ihre **Unteraufgaben (Vorgänger)** erscheinen darunter mit **erkennbarer Einrückung** (Indentation) —
-     eine Unteraufgabe wird als Vorgänger der Eltern-Aufgabe modelliert
-   - Die Einrücktiefe korrespondiert mit der Abhängigkeitstiefe (Tiefe 1 = leicht eingerückt, Tiefe 2 = stärker eingerückt, etc.)
-
-3. **Visuelle Konsistenz prüfen**
-   - **Whitespace**: Zwischen Aufgaben auf gleicher Hierarchiestufe ist ausreichender Abstand (nicht zusammengedrängt)
-   - **Linienführung** (optional): Verbindungen zwischen Vorgänger und Nachfolger sind als klare Linien oder Pfeile sichtbar
-   - **Konsistente Einrückung**: Alle Aufgaben gleicher Hierarchiestufe sind gleich stark eingerückt
+   - Jeder Knoten ist eine Card mit Titel („#id – Titel"), Prioritäts-Badge, **Wert** und **Gesamtaufwand** in Tagen
+   - Unteraufgaben (Vorgänger) stehen unterhalb ihrer Eltern-Card und sind **je Ebene um einen festen Betrag eingerückt** — die Einrücktiefe korrespondiert mit der Abhängigkeitstiefe
+   - Alle Knoten derselben Ebene sind gleich stark eingerückt
 
 ### Erwartetes Ergebnis
 
 - Verschachtelte Aufgaben sind durch Einrückung sofort erkennbar
-- Die Baumstruktur ist auf einen Blick verständlich (kein visuelles Chaos)
-- Hierarchie-Ebenen sind durch visuelle Abstände klar unterscheidbar
-- Das Layout ist konsistent mit anderen UI-Elementen der App
+- Der Baum ist auf einen Blick verständlich (kein visuelles Chaos)
+- Ein (unerwarteter) Zyklus in den Baumdaten bricht die Darstellung ab, statt sie endlos zu wiederholen
+
+---
+
+## Abgrenzung: Aufgaben-Tab
+
+Der Tab „Aufgaben" (Ansicht „Offen") zeigt ausschließlich die **Blatt-Aufgaben** — Aufgaben ohne Unteraufgaben — als flache Liste ohne Einrückung und ohne Aufklapp-Funktion, sortiert nach Wertbeitrag. Übergeordnete Aufgaben sind nur im Tab „Wald" sichtbar.
 
 ---
 
 ## Randfälle & Fehler
 
-| Situation                           | Erwartetes Verhalten                                     |
-| ----------------------------------- | -------------------------------------------------------- |
-| Flache Liste (keine Abhängigkeiten) | Aufgaben werden ohne Einrückung angezeigt                |
-| Tiefe Verschachtelung (>3 Ebenen)   | Einrückung bleibt lesbar (nicht zu stark komprimiert)    |
-| Viele Aufgaben auf gleicher Ebene   | Whitespace bleibt ausreichend (nicht zusammengedrängt)   |
-| Mobilansicht                        | Hierarchie bleibt erkennbar (ggf. reduzierte Whitespace) |
+| Situation                         | Erwartetes Verhalten                                       |
+| --------------------------------- | ---------------------------------------------------------- |
+| Keine Abhängigkeiten              | Jede Aufgabe ist Wurzel und wird ohne Einrückung angezeigt |
+| Tiefe Verschachtelung (>3 Ebenen) | Einrückung wächst je Ebene und bleibt lesbar               |
+| Leerer Aufgabenwald               | Card „Keine offenen Aufgabenbäume" mit Hinweistext         |
+| Mobilansicht                      | Hierarchie bleibt erkennbar (ggf. reduzierter Abstand)     |

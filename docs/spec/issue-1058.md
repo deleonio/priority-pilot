@@ -1,6 +1,6 @@
 # Spec #1058 — Suche-Dialog: Sprachaufnahme beim Öffnen automatisch starten
 
-**Stand:** 2026-08-28
+**Stand:** 2026-08-30
 
 ## Ziel
 
@@ -67,9 +67,7 @@ automatisch — ohne Klick auf den Mikrofon-Button.
 
 ## Randbedingungen
 
-- Einstellung wird **einmalig pro Dialog-Instanz** gelesen (kein Live-Update während der Dialog
-  offen ist), analog zu `TaskForm.tsx:328` und `QuickCaptureModal.tsx:51`.
-- Autofokus auf das Suchfeld (`SearchModal.tsx:23-29`, 200 ms Timeout) bleibt unverändert.
-- `VoiceField` kapselt die Auto-Start-Logik bereits vollständig (`VoiceField.tsx:59-69`) — keine
-  eigene Auto-Start-Logik in `SearchModal`.
-- Default der Einstellung bleibt aus (`voiceAutostart.ts`, `localStorage`-Key `pp-voice-autostart`).
+- Einstellung wird **einmalig pro Dialog-Instanz** gelesen (kein Live-Update, während der Dialog
+  offen ist) — konsistent über alle Felder mit Sprachaufnahme.
+- Autofokus liegt auf dem Suchfeld (200 ms nach dem Öffnen).
+- Default der Einstellung ist aus (`localStorage`-Key `pp-voice-autostart`).

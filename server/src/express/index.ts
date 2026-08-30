@@ -30,6 +30,7 @@ import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js'
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { createCsrfUtilities } from './csrf.js';
 import { User } from '../models/index.js';
+import { sendError } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskDto = components['schemas']['Task'];
@@ -245,7 +246,7 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			res.json(await buildTaskForest(getUserId(req)));
 		} catch {
-			res.status(500).json({ message: 'Interner Serverfehler.' });
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
 
@@ -255,7 +256,7 @@ export const createApp = (deps: AppDeps = {}) => {
 			const task = await findNextImportantTask(getUserId(req));
 			res.json(task ? serializeTask(task) : null);
 		} catch {
-			res.status(500).json({ message: 'Interner Serverfehler.' });
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
 
@@ -265,7 +266,7 @@ export const createApp = (deps: AppDeps = {}) => {
 			const tasks = await findSuggestedTasks(getUserId(req));
 			res.json(tasks.map(serializeTask));
 		} catch {
-			res.status(500).json({ message: 'Interner Serverfehler.' });
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
 

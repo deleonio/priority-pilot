@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import { UniqueConstraintError } from 'sequelize';
 import { PushSubscription } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
@@ -22,10 +23,6 @@ interface ValidSubscription {
 }
 
 type ValidationResult = { ok: true; value: ValidSubscription } | { ok: false; message: string };
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
 
 /**
  * Validiert den Body von `POST /push/subscribe` rein strukturell: `endpoint` muss ein nicht-leerer

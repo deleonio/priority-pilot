@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import { Pillar, PillarFeedback } from '../../models/index.js';
 import { classifyPillarsWithMistral, type FeedbackExample, type PillarClassifier } from '../../llm/llm.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
@@ -27,10 +28,6 @@ const MAX_FEEDBACK_EXAMPLES = 10;
  * damit eine voll laufende Tabelle den Endpoint nicht ausbremst.
  */
 const FEEDBACK_SCAN_LIMIT = MAX_FEEDBACK_EXAMPLES * 10;
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
 
 /** Validiert den Body von `POST /tasks/suggest-pillars`: `title` Pflicht, `description`/`context` optional. */
 const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto } | { ok: false; message: string } => {

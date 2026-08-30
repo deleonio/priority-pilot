@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import { Pillar } from '../../models/index.js';
 import { adviseActivitiesWithMistral, type ActivityAdvisor, type PillarDistribution } from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
@@ -11,10 +12,6 @@ type ErrorDto = components['schemas']['Error'];
 
 /** Obergrenze der Fragenlänge (Vertrag: `ActivityAdvisorInput.question` mit `maxLength: 500`). */
 const MAX_QUESTION_LENGTH = 500;
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
 
 /**
  * Validiert einen einzelnen Verteilungs-Eintrag (`{ pillarId, weight, actualShare }`) gegen den
