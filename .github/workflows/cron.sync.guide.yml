@@ -1,36 +1,37 @@
-name: Spec-Sync (nightly)
+name: Guide-Sync (nightly)
 
 # Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
-# Verifiziert die Specs in docs/spec/ (user-journeys.md + issue-*.md) gegen die tatsächliche
-# Implementation (frontend/src, server/src, openapi.yml) und hält sie auf IST-STAND —
-# die Implementation ist die Wahrheit, die Spec spiegelt sie nur. Leitlinie arc42-Prinzip:
-# so viel wie nötig, so wenig wie möglich — nur langfristig relevantes Verhalten bleibt Spec:
-#   - korrigieren (Impl hat sich geändert → Spec folgt),
-#   - entsorgen (einzelne Aussagen wie ganze Dateien: überholte/transitorische Soll-Aussagen
-#     wie „X soll entfernt sein“ sind langfristig keine Spec-Information; ganze Dateien ohne
-#     langfristigen Spec-Wert — Test-Protokolle, Validierungs-Platzhalter, vollständig
-#     redundant abgebildete Journeys — werden gelöscht),
-#   - ergänzen (implementiertes, un-spezifiziertes Verhalten bekommt neue Journeys).
+# Verifiziert das In-App-Handbuch docs/user-guide.md gegen die tatsächliche Implementation
+# (frontend/src, server/src, openapi.yml) und hält es auf IST-STAND — die Implementation ist
+# die Wahrheit, das Handbuch beschreibt sie nur aus ENDNUTZER-Sicht:
+#   - korrigieren (Verhalten hat sich geändert → Handbuch folgt),
+#   - entsorgen (beschriebene Funktion existiert nicht mehr),
+#   - ergänzen (implementiertes, undokumentiertes Nutzer-Feature).
+# docs/user-guide.md IST die Hilfe-Seite der App: vite.config.ts liefert sie unter
+# /user-guide.md aus, HelpPage.tsx rendert sie via react-markdown.
 #
-# DELIVERY: pro geänderter Spec-Datei EIN PR (Non-Draft) vom Branch chore/spec-sync/<datei-stem>
-# mit direktem ai:needs-review-Label per App-Token → Kreuzverhör-Review (04) startet automatisch.
-# Der Agent arbeitet lokal auf chore/spec-sync-work (nie gepusht); die Mechanik überträgt je
-# geänderter Datei den finalen Stand auf einen eigenen Branch — unabhängig davon, wie der
-# Agent committet hat (Diff-basiert, nicht Commit-basiert). Das Label wird direkt nach PR-Create
-# per App-Token gesetzt (Autolabeler greift bei Bots nicht) → labeled-Event feuert → 04-Review
-# und Fixup-Loop (05) übernehmen Prüfung und Nacharbeit automatisch. Für eine Datei mit bereits
-# offenem Sync-PR wird kein zweiter erzeugt (Skip mit Notice) — neue Drift derselben Datei
-# folgt nach dessen Merge.
+# DELIVERY: PR vom festen Branch chore/user-guide-sync. Der Branch wird jede Nacht auf
+# origin/main zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt damit IMMER exakt
+# die aktuelle Drift statt Commits über Nächte zu akkumulieren.
 #
-# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Die
-# offenen Draft-PRs sind der einzige Zustand; jede Nacht wird frisch verifiziert.
+# UNTERSCHIED ZU cron.sync.spec.yml: Dieser Bot-PR wird BEWUSST an die KI-Pipeline gehängt
+# (ai:needs-review per App-Token → 04 Review → Gate → Auto-Merge). Das Handbuch soll sich ohne
+# Menschen aktualisieren. Zwei Konsequenzen sind mechanisch abgesichert:
+#   1. Das Label muss ERST entfernt und DANN gesetzt werden (Re-Arm-Muster #536), sonst feuert
+#      bei einem schon gelabelten offenen PR kein `labeled`-Event und der Review startet nicht.
+#      pr-needs-review-label.yml hilft hier nicht: der labelt nur menschliche Aktoren.
+#   2. In-Flight-Guard: läuft die Pipeline noch auf dem offenen Sync-PR, wird der nächtliche
+#      Force-Push ausgesetzt — sonst reißt er Review/Fixup/Merge den Branch unter den Füßen weg.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Der
+# offene Sync-PR ist der einzige Zustand; jede Nacht wird frisch verifiziert.
 #
 # KEINE Nummer im Dateinamen: Nummern (01–06) sind lastend (Workflow-Name-Matching), dieser
 # Job ist ein Helper wie cache-cleanup und hängt nicht in der Label-Kette.
 
 on:
   schedule:
-    - cron: '37 2 * * *' # täglich 02:37 UTC, hinter Prompt-Audit (01:17 + 30-min-Timeout) und vor Guide-Sync (03:07)
+    - cron: '7 3 * * *' # täglich 03:07 UTC, hinter dem 30-min-Fenster von Spec-Sync (02:37)
   workflow_dispatch:
     inputs:
       force:
@@ -39,22 +40,29 @@ on:
         default: false
 
 concurrency:
-  group: claude-spec-sync
+  group: claude-guide-sync
   cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
+  # workflow_dispatch während des Nightly-Laufs würde still verworfen (Default `queue: single`).
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
 
 permissions:
-  contents: write # Branch-Pushes chore/spec-sync/*
-  pull-requests: write # Draft-PRs anlegen
+  contents: write # Branch-Push chore/user-guide-sync
+  pull-requests: write # Sync-PR anlegen/aktualisieren + Labels
+  issues: write # gh label create (Labels sind repo-weit Issue-Ressourcen)
   id-token: write # App-Token (setup-claude)
   actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
 
+env:
+  SYNC_BRANCH: chore/user-guide-sync
+
 jobs:
-  spec-sync:
+  guide-sync:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      SYNC_BRANCH: chore/spec-sync-all
     steps:
       - name: Skip-Guard (main unverändert seit letztem erfolgreichen Sync)
         # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf dieses Workflows
@@ -67,10 +75,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow claude-spec-sync.yml \
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.sync.guide.yml \
             --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
           if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
-            echo "::notice title=⏭️ Spec-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Sync."
+            echo "::notice title=⏭️ Guide-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Sync."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -89,14 +97,13 @@ jobs:
         if: steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
           blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
             --json labels \
-            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-human")) | join(", ")' \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-fixup" or . == "ai:reviewed" or . == "ai:needs-human")) | join(", ")' \
             2>/dev/null || true)"
           if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
-            echo "::notice title=⏸️ Spec-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
+            echo "::notice title=⏸️ Guide-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -113,8 +120,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          # 20 min weich (Ziel: ALLE Spec-Dateien schaffen) vs. 30 min hart — Restpuffer für Post-Steps.
-          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code
         id: setup
@@ -122,7 +128,7 @@ jobs:
         uses: ./.github/actions/setup-claude
         with:
           needs-mcp: false
-          tools-tier: full # Write/Edit auf docs/spec + git commit nötig; Push/PR macht der Workflow
+          tools-tier: full # Write/Edit auf docs/user-guide.md + git commit nötig; Push/PR macht der Workflow
           event-type: ${{ github.event_name }}
           # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
           # ungenutzten Storage-Namen (ai/state/issue-0) — Memory ist komplett aus (memory-load: false).
@@ -130,7 +136,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_SPEC_SYNC || 'sonnet' }}
+          model: ${{ vars.CLAUDE_MODEL_GUIDE_SYNC || 'opus' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -141,23 +147,35 @@ jobs:
           memory-load: 'false'
           expect-memory: 'false'
 
-      - name: Arbeits-Branch frisch aufsetzen (Basis = origin/main, wird NIE gepusht)
-        # Lokale Werkbank des Agenten; der Delivery-Branch chore/spec-sync-all entsteht
-        # erst im Post-Step diff-basiert daraus. Git-Identität stellt setup-claude zentral
-        # bereit (Repo-Owner, gültige noreply).
+      - name: Sync-Branch frisch aufsetzen (Basis = origin/main)
+        # Jede Nacht neuer Basis-Stand: der Sync-PR zeigt danach immer nur die HEUTIGE Drift.
+        # Git-Identität stellt setup-claude zentral bereit (Repo-Owner, gültige noreply).
         if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
-          git branch -D "$SYNC_BRANCH" 2>/dev/null || true
           git switch -C "$SYNC_BRANCH" origin/main
 
-      - name: Spec-Sync via Claude
+      - name: pnpm einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+
+      - name: Node.js einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Guide-Sync via Claude
         id: claude
         if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         run: |
-          cp .github/prompts/spec-sync.md /tmp/claude-prompt.txt
+          cp .github/prompts/guide-sync.md /tmp/claude-prompt.txt
 
           sed -i "s/{{SYNC_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
           sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
@@ -168,22 +186,20 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Sammel-PR erstellen/aktualisieren
-        id: deliver
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope ↔ Pflicht-Abschnitte) + Push + PR-Pflege
         # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
-        # behauptet synced/updated — die Mechanik verifiziert Commits und Datei-Scope und
-        # baut daraus deterministisch EINEN Sammel-PR (Push/PR ist bewusst KEINE Agent-Aufgabe).
-        # Bei offenem Sammel-PR ohne Pipeline-Label → Update (gh pr edit), ansonsten Create.
-        # Review wird per Re-Arm-Muster #536 angestoßen (Label-Create + Re-Arm).
+        # behauptet synced/updated — die Mechanik verifiziert Commits, Datei-Scope, den
+        # Handbuch-Vertrag und pusht/pflegt den PR deterministisch (Push/PR ist bewusst KEINE
+        # Agent-Aufgabe).
         if: >-
           ${{ always()
               && steps.guard.outputs.skip != 'true'
+              && steps.inflight.outputs.skip != 'true'
               && steps.setup.outputs.configured == 'true'
               && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
-          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
           # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
           # Token gewinnt, Prosa/Markdown nach dem Token ist egal (#1017-Klasse).
@@ -194,21 +210,44 @@ jobs:
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
           if [ "$OUTCOME" != "success" ]; then
-            echo "::error title=❌ Spec-Sync fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller „synced“."
+            echo "::error title=❌ Guide-Sync fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller „synced“."
             exit 1
           fi
           if [ "$verdict" != "synced" ] && [ "$verdict" != "updated" ]; then
-            echo "::error title=❌ Spec-Sync ohne Verdict::Weder „synced“ noch „updated“ — Lauf wiederholen."
+            echo "::error title=❌ Guide-Sync ohne Verdict::Weder „synced“ noch „updated“ — Lauf wiederholen."
             exit 1
           fi
 
           count="$(git rev-list --count origin/main..HEAD)"
           echo "Commits seit origin/main: $count"
 
-          # Scope-Guard: nur docs/spec/ ist erlaubt.
-          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/spec/' || true)"
+          # Scope-Guard: nur docs/user-guide.md ist erlaubt.
+          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/user-guide\.md$' || true)"
           if [ -n "$bad" ]; then
-            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/spec/: ${bad}"
+            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/user-guide.md: ${bad}"
+            exit 1
+          fi
+
+          # Sektions-Guard: der Handbuch-Vertrag aus server/src/logics/user-guide.test.ts (AK 2.1–2.9,
+          # AK 4) muss halten. Schneller Vorab-Check ohne pnpm install — autoritativ bleibt der
+          # Node-Test in der CI des PRs; hier verhindert er nur, dass ein kaputtes Handbuch
+          # überhaupt gepusht wird.
+          missing=""
+          check_section() {
+            grep -qiE "$1" docs/user-guide.md || missing="${missing} $2"
+          }
+          check_section 'dashboard' 'Dashboard'
+          check_section 'aufgaben verwalten' 'Aufgaben-verwalten'
+          check_section 'ki-schnellerfassung|schnellerfassung' 'Schnellerfassung'
+          check_section 'abh.ngigkeiten' 'Abhängigkeiten'
+          check_section 's.ulen' 'Säulen'
+          check_section 'aufgabenwald' 'Aufgabenwald'
+          check_section 'serien' 'Serien'
+          check_section 'punkte|gamification' 'Punkte/Gamification'
+          check_section 'header-aktionen|header aktionen|kopf-aktionen|kopf aktionen' 'Kopf-Aktionen'
+          grep -qE '^# ' docs/user-guide.md || missing="${missing} H1-Überschrift"
+          if [ -n "$missing" ]; then
+            echo "::error title=❌ Handbuch-Vertrag verletzt::Fehlende Pflicht-Abschnitte:${missing} (siehe server/src/logics/user-guide.test.ts) — kein Push."
             exit 1
           fi
 
@@ -223,80 +262,69 @@ jobs:
           fi
 
           if [ "$count" -eq 0 ]; then
-            echo "::notice title=✅ Spec am Ist-Stand::Keine Drift gefunden — kein Push, kein PR."
+            echo "::notice title=✅ Handbuch am Ist-Stand::Keine Drift gefunden — kein Push, kein PR."
             exit 0
           fi
 
-          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log die Fund-Abschnitte.
-          if [ ! -s /tmp/spec-sync-report.md ]; then
-            echo "::warning title=⚠️ Report fehlt::/tmp/spec-sync-report.md fehlt — Fallback aus git log."
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log den PR-Body (laut Warning).
+          if [ ! -s /tmp/guide-sync-report.md ]; then
+            echo "::warning title=⚠️ Report fehlt::/tmp/guide-sync-report.md fehlt — Fallback-Body aus git log."
             {
-              echo "## Spec-Sync $(date -u +%F)"
+              echo "## Guide-Sync $(date -u +%F)"
               echo ""
               echo "_Agent-Report fehlt — Fallback aus der Commit-Historie._"
               echo ""
               git log origin/main..HEAD --oneline --stat
-            } > /tmp/spec-sync-report.md
+            } > /tmp/guide-sync-report.md
           fi
 
-          # Sammel-PR auf chore/spec-sync-all: Push + PR create-oder-edit.
-          sync_date="$(date -u +%F)"
-          title="docs(spec): Ist-Stand-Sync $sync_date"
-
-          # Push des Sync-Branch (Force-Push = Reset auf neuen Stand).
           git push --force origin "$SYNC_BRANCH"
 
-          # Prüfen, ob bereits ein PR auf diesem Branch existiert.
-          existing_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
-            --json number,labels --jq '.[0] | {number: .number, labels: [.[].labels[]?.name]}' 2>/dev/null || true)"
-          existing_pr_number="$(printf '%s' "$existing_pr" | jq -r '.number // empty')"
-          existing_labels="$(printf '%s' "$existing_pr" | jq -r '.labels // [] | join(", ")')"
-
-          # PR-Body: Kopfzeile + Pipeline-Hinweis + kompletter Agent-Report.
-          {
-            echo "Nächtlicher Spec-Sync ($sync_date) — alle Änderungen in einem PR."
-            echo ""
-            echo "**Pipeline:** Dieser PR durchläuft nach dem Review automatisch Fixup und Merge (Workflows 04/05)."
-            echo ""
-            cat /tmp/spec-sync-report.md
-          } > /tmp/spec-sync-pr-body.md
-
-          if [ -n "$existing_pr_number" ]; then
-            echo "::notice title=🔄 PR existiert#$existing_pr_number — Aktualisiere Body."
-            gh pr edit "$existing_pr_number" --title "$title" --body-file /tmp/spec-sync-pr-body.md
-            echo "action=updated" >> "$GITHUB_OUTPUT"
-            echo "pr_number=$existing_pr_number" >> "$GITHUB_OUTPUT"
+          title="docs(guide): Ist-Stand-Sync $(date -u +%F)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/guide-sync-report.md
+            echo "::notice title=✅ Sync-PR aktualisiert::#$pr_number zeigt die Drift von heute."
           else
-            echo "::notice title=✨ PR erstellen — neuer Sammel-PR."
+            # PR-Nummer aus der Create-Ausgabe (PR-URL) ziehen statt neu zu listen: ein direkt
+            # folgendes `gh pr list` kann durch API-Replikationsverzögerung noch leer sein und
+            # der Review würde nie angestoßen. List-Abruf nur als Fallback.
             pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --base main \
-              --title "$title" --body-file /tmp/spec-sync-pr-body.md)"
+              --title "$title" --body-file /tmp/guide-sync-report.md)"
             pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
             if [ -z "$pr_number" ]; then
-              echo "::error title=❌ PR-Create fehlgeschlagen::PR konnte nicht erstellt werden."
-              exit 1
+              pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+                --json number --jq '.[0].number // empty' 2>/dev/null || true)"
             fi
-            echo "action=created" >> "$GITHUB_OUTPUT"
-            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+            echo "::notice title=✅ Sync-PR erstellt::${SYNC_BRANCH} → #${pr_number:-?}"
           fi
 
+          if [ -z "$pr_number" ]; then
+            echo "::error title=❌ PR nicht auflösbar::Push erfolgt, aber kein offener PR auf ${SYNC_BRANCH} gefunden — Review nicht anstoßbar."
+            exit 1
+          fi
+          echo "PR_NUMBER=$pr_number" >> "$GITHUB_ENV"
+
       - name: Review anstoßen (ai:needs-review per App-Token, Re-Arm-Muster #536)
-        # Sammel-PR trägt kein Pipeline-Label (In-Flight-Guard greift nicht) → Review triggerbar.
+        # Anders als der Spec-Sync hängt dieser PR an der KI-Pipeline: Review → Gate → Auto-Merge.
+        # pr-needs-review-label.yml labelt NUR menschliche Aktoren (sender.type != 'Bot') und
+        # springt hier deshalb nicht ein — das Label wird hier explizit gesetzt.
         # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
-        # reines --add-label ein No-op ohne `labeled`-Event → 04-claude-pr-review.yml startet nie.
-        # Ergebnis-Labels der Vornacht (needs-changes/ready-to-merge/needs-human) werden mit abgeräumt.
+        # reines --add-label ein No-op ohne `labeled`-Event → 05-claude-pr-review.yml startet nie.
+        # Ergebnis-Labels der Vornacht (needs-changes/ready-to-merge) werden mit abgeräumt.
         # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
-        if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && steps.deliver.outputs.pr_number != '' }}
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && env.PR_NUMBER != '' }}
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ steps.deliver.outputs.pr_number }}
         run: |
           set -euo pipefail
 
           gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
             --description "PR wartet auf KI-Review" 2>/dev/null || true
 
-          for label in ai:needs-fixup ai:reviewed ai:needs-human ai:needs-review; do
+          for label in ai:needs-fixup ai:reviewed ai:needs-review; do
             gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
           done
 
@@ -305,36 +333,26 @@ jobs:
               echo "::notice title=✅ Review angestoßen::PR #$PR_NUMBER trägt ai:needs-review — Kreuzverhör-Review startet."
               exit 0
             fi
-            if [ "$attempt" -ge 3 ]; then
-              echo "::error title=❌ Label-Setzen fehlgeschlagen::PR #$PR_NUMBER erstellt/aktualisiert, aber ai:needs-review konnte nicht gesetzt werden."
-              exit 1
-            fi
-            sleep 1
+            sleep "$attempt"
           done
+          echo "::error title=❌ ai:needs-review fehlgeschlagen::PR #$PR_NUMBER nach 3 Versuchen ungelabelt — Review startet nicht."
+          exit 1
 
       - name: Ergebnis zusammenfassen
         if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
-          ACTION: ${{ steps.deliver.outputs.action }}
-          PR_NUMBER: ${{ steps.deliver.outputs.pr_number }}
-          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
           count="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
-          sync_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
             --json number --jq '.[0].number // empty' 2>/dev/null || true)"
           {
-            echo "### Spec-Sync – fertig"
+            echo "### Guide-Sync – fertig"
             echo ""
             echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
-            echo "- Agent-Commits: ${count}"
-            if [ -n "${ACTION:-}" ]; then
-              echo "- Sammel-PR: #${PR_NUMBER} (${ACTION})"
-            else
-              echo "- Sammel-PR: keiner (VERDICT: synced)"
-            fi
-            echo "- Offener Sync-PR auf $SYNC_BRANCH: ${sync_pr:-keiner}"
+            echo "- Commits: ${count}"
+            echo "- Offener Sync-PR: ${pr_number:-keiner}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 🩺 Z.AI Fair-Usage-Check (1313)

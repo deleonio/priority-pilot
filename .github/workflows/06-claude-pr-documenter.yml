@@ -368,7 +368,7 @@ jobs:
         # mit dem Merge nicht zwingend zu Ende: Re-Open, Nachtrags-PR oder ein Documenter-Re-Run
         # fänden nach dem Löschen nichts mehr vor und begännen bei null.
         #
-        # Der Abbau bleibt deterministisch, nur später: der Sweep in cache-cleanup.yml entfernt
+        # Der Abbau bleibt deterministisch, nur später: der Sweep in cron.cache-cleanup.yml entfernt
         # ai/state/issue-*- und ai/harness/*-Branches, deren Issue GESCHLOSSEN ist und deren letzter Commit älter
         # als 7 Tage ist. Damit räumt genau eine Stelle auf statt zweier, und das Zeitfenster
         # deckt Nacharbeit ab.

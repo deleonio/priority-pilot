@@ -716,7 +716,7 @@ export function generateReport(
 
 	let md = `# Test-Optimierung Report — ${dateISO.slice(0, 10)}
 
-> Generiert von \`.github/workflows/test-optimization.yml\` (Scanner-basierte Analyse, TDD-Strategie v3)
+> Generiert von \`.github/workflows/cron.ci.test-optimization.yml\` (Scanner-basierte Analyse, TDD-Strategie v3)
 
 ---
 
