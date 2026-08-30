@@ -47,7 +47,7 @@ Ganz oben findest du die **Kopf-Aktionen**:
 
 Rechts daneben siehst du dein Profilbild.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht. Der Säulen-Berater erscheint nur, solange die KI-Features aktiviert sind (siehe „Einstellungen").
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -74,6 +74,11 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste mit höchstens fünf Einträgen,
   davon maximal zwei je Säule. Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht
   hier nicht erneut auf.
+- **In der Nähe:** offene Aufgaben mit Ortsbezug, aufsteigend nach Entfernung zu
+  deiner aktuellen Position (höchstens zehn Einträge). Jeder Eintrag nennt Titel
+  und Entfernung in Kilometern; im Kartentitel steht die eingestellte
+  Anzeige-Entfernung. Die Karte braucht die Standort-Freigabe des Browsers – ist
+  sie verweigert oder die Standortverwendung aus, erscheint stattdessen ein Hinweis.
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -115,6 +120,8 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
   alle darunterliegenden Unteraufgaben mit.
 - **Priorität** als `P1` bis `P5` – die Farbe stuft die Wichtigkeit ein: P1 blau,
   P2 und P3 orange, P4 und P5 rot.
+- **Ortsbezug** (Globus) – die Aufgabe trägt eine Adresse mit Koordinaten. Das
+  Kennzeichen erscheint auch in der Serien- und in der Erledigt-Liste.
 
 ### Aktionen je Aufgabe
 
@@ -140,7 +147,8 @@ Aufgabe erscheint in der **Erledigt**-Ansicht.
 ## Aufgaben anlegen
 
 Neue Aufgaben legst du immer über **„Neuen Task anlegen"** in der Kopfzeile an.
-Der Ablauf ist zweistufig:
+Der Ablauf ist zweistufig. Hast du die Schnellerfassung in den Einstellungen
+deaktiviert, entfällt der erste Schritt und das Formular öffnet sich direkt:
 
 ### Schritt 1 – Schnellerfassung
 
@@ -165,6 +173,12 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Geschätzter Aufwand in Tagen** – Schieberegler von **0,1 bis 1** (Standard 0,5).
 - **Deadline (optional)** – Fälligkeitsdatum. Es zählt der reine Kalendertag,
   unabhängig von der Zeitzone.
+- **Adresse (optional)** – ein Ortsbezug für die Aufgabe. Während der Eingabe
+  schlägt die App passende Adressen vor; wählst du eine aus, werden die
+  zugehörigen Koordinaten gespeichert und unter dem Feld angezeigt. Du kannst
+  auch freien Text ohne Treffer übernehmen – dann liegen keine Koordinaten vor
+  und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Für Serien gilt
+  das Adressfeld genauso.
 - **Beschreibung (optional)** – weiterer Kontext.
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
   Einträge können hinzugefügt, abgehakt und entfernt werden.
@@ -343,7 +357,7 @@ vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen 
 - **Nein (nur Serie)** – nur das Template wird aktualisiert; künftige Instanzen
   erhalten die neuen Werte, bestehende bleiben unberührt.
 
-Rhythmus, Startdatum und Aktiv-Status werden **nie** kaskadiert.
+Rhythmus und Startdatum werden **nie** kaskadiert.
 
 ---
 
@@ -372,8 +386,10 @@ Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
 
 Beim Erledigen einer Aufgabe sammelst du Punkte:
 
-- Die Punkte entsprechen dem **geschätzten Aufwand** der Aufgabe, anteilig auf ihre
-  Säulen verteilt – entsprechend dem Anteil, mit dem die Aufgabe auf jede Säule einzahlt.
+- Die Punkte entsprechen **Aufwand mal Priorität** der Aufgabe, anteilig auf ihre
+  Säulen verteilt – entsprechend dem Anteil, mit dem die Aufgabe auf jede Säule
+  einzahlt. Erledigst du eine Aufgabe erst nach ihrer Deadline, gibt es dafür nur
+  die halbe Punktzahl.
 - Aufgaben ohne Säulen-Zuordnung fließen ins **Dashboard-Gesamtguthaben** ein, verteilt
   nach deiner Säulen-Gewichtung — in der Erledigt-Tabelle zeigen sie 0 Punkte je Spalte.
   Erledigte Arbeit wird so auch ohne zugeordnete Säule sichtbar.
@@ -395,10 +411,15 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
-- **Standort erfassen** – ermittelt alle 5 Minuten deine aktuelle Position. Beim
-  Einschalten wird die Standort-Berechtigung angefragt. Mit **„Standort jetzt
-  ermitteln"** holst du die Position sofort; dazu siehst du die Uhrzeit der letzten
-  Erfassung und eine Adresse zum Standort.
+- **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle
+  Position (Standard alle 5 Minuten). Beim Einschalten wird die
+  Standort-Berechtigung angefragt. Mit **„Standort ermitteln"** holst du die
+  Position sofort; dazu siehst du die Uhrzeit der letzten Erfassung und eine
+  Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion:
+  **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe"-Liste
+  Aufgaben; **Alarm-Entfernung** – ab dieser Entfernung zu einer Aufgabe kommt
+  ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
+  wird.
 
 ### Säulen
 
@@ -408,7 +429,16 @@ Modal-Dialoge).
 
 ### KI-Provider
 
-Hier wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
+Oben schaltest du die KI-Bedienelemente insgesamt ein und aus:
+
+- **KI-Features aktiv** – ist der Schalter aus, verschwinden der Säulen-Berater
+  aus der Kopfzeile und die Lektorat-Buttons aus dem Aufgabenformular; die
+  Schnellerfassung ist dann ebenfalls inaktiv.
+- **Schnellerfassung aktiv** – ist dieser Schalter aus, öffnet „Neuen Task
+  anlegen" direkt das vollständige Formular. Er lässt sich nur bei aktiver KI
+  einschalten.
+
+Darunter wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
 Lektorat). Du wählst den aktiven Provider und daraus per Dropdown das Modell – die
 Modellliste wird live vom Provider geladen. Mitgelieferte Provider (Mistral, OpenRouter)
 beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Provider"** an
@@ -432,6 +462,11 @@ wenn die App gerade nicht geöffnet ist.
   alle offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder
   schon überschritten ist — sowie **separat** deine drei wichtigsten offenen Aufgaben
   (nach Priorität). Eine bereits gemeldete Fälligkeit wird nicht erneut gemeldet.
+- Ist die Standort-Erfassung aktiv, bekommst du zusätzlich einen Hinweis, wenn eine
+  offene Aufgabe mit Ortsbezug näher als deine Alarm-Entfernung liegt (Standard 1 km):
+  als einzelne Nachricht mit Titel und Entfernung bzw. als gebündelte Nachricht
+  „X Aufgaben in der Nähe". Auch hier wird dieselbe Aufgabe nicht sofort erneut
+  gemeldet.
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Priority Pilot nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
@@ -453,7 +488,7 @@ Priority Pilot ist eine **installierbare Web-App (PWA)** und funktioniert auch o
   **„Installieren"** auf dein Gerät legen. Unter iOS/Safari nutzt du dazu **Teilen →
   Zum Home-Bildschirm**.
 - **Aktualisieren:** Ist eine neue Version verfügbar, erscheint unten eine Karte mit
-  **„Neu laden"**. Ein Klick lädt die aktuelle Version.
+  **„Jetzt neu laden"**. Ein Klick lädt die aktuelle Version.
 
 Eine Karte **„Offline einsatzbereit"** bestätigt, dass die App auch ohne Verbindung
 nutzbar ist.
