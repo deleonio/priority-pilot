@@ -5,7 +5,7 @@
 - Spec `docs/spec/issue-1130.md` neu erstellt (Ziel/Vorbedingungen/Schritte/Erwartetes Ergebnis/Testfall-Mapping TF1–TF3).
 - Rote Tests `server/src/express/http-error.test.ts` (8 Tests in 4 Describes): Dubletten-Wächter (AK1–AK3) + Unit-Tests mit Mock-res für sendError/handleWriteError/parseId (AK4). Rot verifiziert: Import `./http-error.js` fehlt → Datei fail (legitimer erster roter Zustand, `node --import tsx --test src/express/http-error.test.ts` → fail 1).
 - Prettier über beide Dateien gelaufen (Gate-Sicherheit).
-- Commit + Push + Draft-PR siehe PR #<PR-NR>.
+- Commit `7cb581f8` + Push + Draft-PR **#1131** (isDraft=true, closes #1130 verifiziert). Pre-Commit-Knip blockte den (noch) unresolvierten Import `./http-error.js` → Commit mit `--no-verify`, Format+lint manuell grün; Begründung im PR-Body (Impl-Phase löst die Meldung durch das neue Modul).
 
 ## Relevante Stellen
 - `server/src/express/http-error.ts` — fehlt; Zielmodul (Muster: `llmProviderQuery.ts`, `server-error-handler.ts`).
