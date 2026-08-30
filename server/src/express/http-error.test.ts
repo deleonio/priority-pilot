@@ -19,20 +19,20 @@ import { ValidationError as SequelizeValidationError } from 'sequelize';
 import { sendError, handleWriteError, parseId } from './http-error.js';
 
 const ROUTE_FILES = [
-	'routes/tasks.ts',
-	'routes/series.ts',
-	'routes/pillars.ts',
-	'routes/push.ts',
-	'routes/geoConfig.ts',
-	'routes/llmProviders.ts',
-	'routes/lektorat.ts',
-	'routes/suggestPillars.ts',
-	'routes/pillarAdvisor.ts',
+	'express/routes/tasks.ts',
+	'express/routes/series.ts',
+	'express/routes/pillars.ts',
+	'express/routes/push.ts',
+	'express/routes/geoConfig.ts',
+	'express/routes/llmProviders.ts',
+	'express/routes/lektorat.ts',
+	'express/routes/suggestPillars.ts',
+	'express/routes/pillarAdvisor.ts',
 ];
 
-const INLINE_500_FILES = ['routes/scores.ts', 'index.ts', 'routes/llmProviders.ts'];
+const INLINE_500_FILES = ['express/routes/scores.ts', 'express/index.ts', 'express/routes/llmProviders.ts'];
 
-const srcRoot = fileURLToPath(new URL('./', import.meta.url));
+const srcRoot = fileURLToPath(new URL('../', import.meta.url));
 
 /** Rekursiv alle Quelldateien unter server/src (ohne node_modules/Build-Artefakte). */
 const listSources = (dir: string): string[] =>
@@ -80,17 +80,19 @@ describe('Issue #1130 — Dubletten-Wächter (AK1–AK3, TF1)', () => {
 	});
 
 	it('tasks/series/llmProviders nutzen den gemeinsamen parseId bzw. handleWriteError', () => {
-		for (const file of ['routes/tasks.ts', 'routes/series.ts', 'routes/llmProviders.ts']) {
+		for (const file of ['express/routes/tasks.ts', 'express/routes/series.ts', 'express/routes/llmProviders.ts']) {
 			assert.match(read(file), /from '(?:(?:\.\.)\/)+http-error\.js'/);
 		}
-		const missingHandleWriteError = ['routes/tasks.ts', 'routes/series.ts'].filter(
+		const missingHandleWriteError = ['express/routes/tasks.ts', 'express/routes/series.ts'].filter(
 			(file) =>
 				!new RegExp(`import \\{[^}]*handleWriteError[^}]*\\} from '(\\.\\./)+http-error\\.js'`).test(read(file)),
 		);
 		assert.deepEqual(missingHandleWriteError, []);
-		const missingParseId = ['routes/tasks.ts', 'routes/series.ts', 'routes/llmProviders.ts'].filter(
-			(file) => !new RegExp(`import \\{[^}]*parseId[^}]*\\} from '(\\.\\./)+http-error\\.js'`).test(read(file)),
-		);
+		const missingParseId = [
+			'express/routes/tasks.ts',
+			'express/routes/series.ts',
+			'express/routes/llmProviders.ts',
+		].filter((file) => !new RegExp(`import \\{[^}]*parseId[^}]*\\} from '(\\.\\./)+http-error\\.js'`).test(read(file)));
 		assert.deepEqual(missingParseId, []);
 	});
 
@@ -114,7 +116,7 @@ describe('Issue #1130 — sendError (AK4, TF2)', () => {
 describe('Issue #1130 — handleWriteError (AK4, TF2)', () => {
 	it("mappt SequelizeValidationError auf 400 mit '; '-verbundener Sammelmeldung", () => {
 		const res = mockRes();
-		const error = new SequelizeValidationError([
+		const error = new SequelizeValidationError('Validation error', [
 			{ message: 'Validation len on title failed' },
 			{ message: 'Validation notEmpty on title failed' },
 		] as never);

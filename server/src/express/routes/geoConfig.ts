@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError } from '../http-error.js';
+import { sendError, type ErrorDto } from '../http-error.js';
 import { User } from '../../models/index.js';
 import { getUserId, isAuthActive } from '../requireAuth.js';
 import { runGeoPushNotifications } from '../../logics/geo-background-job.js';
@@ -86,7 +86,7 @@ const validateGeoConfig = (body: unknown): GeoConfigDto | null => {
 export const geoConfigRouter = Router();
 
 // GET /geo-config — gespeicherte Konfiguration des Users, sonst die Defaults.
-geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigDto | { message: string }>) => {
+geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigDto | ErrorDto>) => {
 	try {
 		const user = await resolveGeoUser(req);
 		if (!user) {
@@ -104,7 +104,7 @@ geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigD
 });
 
 // PUT /geo-config — validierte Konfiguration speichern; bei Verstoß 400 ohne Persistenz.
-geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigDto | { message: string }>) => {
+geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigDto | ErrorDto>) => {
 	try {
 		const user = await resolveGeoUser(req);
 		if (!user) {
@@ -134,7 +134,7 @@ geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigD
  * an (`logics/geo-background-job.ts`). Fire-and-forget: die Antwort wartet nicht auf den Versand —
  * ein Push-Fehler darf die Positionsbehandlung nicht blockieren.
  */
-geoConfigRouter.post('/geo/position', async (req: Request, res: Response<{ message: string }>) => {
+geoConfigRouter.post('/geo/position', async (req: Request, res: Response<ErrorDto>) => {
 	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
 	const parseCoord = (value: unknown): number =>
 		typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;

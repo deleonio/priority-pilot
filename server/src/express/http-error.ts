@@ -7,17 +7,10 @@ import type { Response } from 'express';
 import { ValidationError as SequelizeValidationError } from 'sequelize';
 import type { components } from '../api.js';
 
-type ErrorDto = components['schemas']['Error'];
+export type ErrorDto = components['schemas']['Error'];
 
 /** Sammelt die Einzelmeldungen eines Sequelize-Validierungsfehlers. */
-const validationMessages = (error: SequelizeValidationError): string[] => {
-	const raw: unknown = error.errors.length > 0 ? error.errors : error.message;
-	const items: unknown[] = Array.isArray(raw) ? raw : [];
-	return items
-		.map((item) => (typeof item === 'object' && item !== null && 'message' in item ? item.message : item))
-		.map((message) => (typeof message === 'string' ? message : ''))
-		.filter((message) => message !== '');
-};
+const validationMessages = (error: SequelizeValidationError): string[] => error.errors.map((item) => item.message);
 
 /** Schreibt Statuscode und `{ message }`-Body in die Response. */
 export function sendError(res: Response<ErrorDto>, status: number, message: string): void {
