@@ -9,7 +9,8 @@
 - Beide Ein-Zeilen-Umformulierungen nach Review-Vorschlag eingebaut.
 - Gate: `pnpm exec prettier --check .` + Vertragstest `server/src/logics/user-guide.test.ts` (Überschriften unangetastet).
 - Commit+Push auf `chore/user-guide-sync` inkl. dieser Notiz (ADR 0005/0007).
-- Beide Review-Threads via GraphQL `resolveReviewThread` aufgelöst.
+- Beide Review-Threads via GraphQL `resolveReviewThread` aufgelöst (PRRT_kwDONloM186degZG / …degZH, isResolved=true verifiziert).
+- CI von Commit `8038a603` (Run 33291271793) KOMPLETT GRÜN: verify pass, e2e Shards 1–4 pass — auch Shard 3 (der frühere Flake `e2e/issue-969.spec.ts:86`).
 
 ## Relevante Stellen
 - `docs/user-guide.md:420` (Alarm-Entfernung-Satz) und `:123` (Ortsbezug-Bullet) — beide im Abschnitt „Kennzeichen" bzw. „Standort erfassen".
@@ -28,7 +29,7 @@
 - -
 
 ## Nächster Schritt
-- CI von PR 1129 abwarten; Review-Runde 2 (FIXUP VERIFICATION) prüft Diff ab Sammelkommentar-updatedAt.
+- Review-Runde 2 (FIXUP VERIFICATION) prüft Diff ab Sammelkommentar-updatedAt.
 
 ## Fallstricke
 - Keine neuen Findings erzeugen: nur die 2 gemeldeten Stellen angefasst, Zeilenumbrüche Prettier-konform.
