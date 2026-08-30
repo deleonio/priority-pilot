@@ -1,4 +1,4 @@
-name: Issue/PR Trigger Validation
+name: Trigger Pipeline
 
 # Workflow-Skizze für Issue/PR-Events und Label-Trigger (Issue 659)
 # Reagiert auf Issue-Kommentare, PR-Events und Label-Änderungen

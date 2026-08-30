@@ -1,4 +1,4 @@
-name: Prompt-Audit (nightly)
+name: Audit Prompts
 
 # Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Review der Phasen-Prompts der KI-Pipeline unter der Leitfrage: Wie lässt sich der

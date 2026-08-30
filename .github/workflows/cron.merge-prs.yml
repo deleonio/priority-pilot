@@ -1,4 +1,4 @@
-name: Claude PR Gate Sweep
+name: Merge PRs
 
 # Stündliches Sicherheitsnetz für das event-getriebene Gate (claude-pr-gate-merge.yml): Jedes
 # No-op des Gates vertraut darauf, dass ein Folge-Event (Label, CI-/Review-Abschluss) es erneut

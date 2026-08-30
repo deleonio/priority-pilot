@@ -1,4 +1,4 @@
-name: Test Tailscale Exit Node Route
+name: Test Tailscale
 
 on:
   workflow_dispatch: # Erlaubt manuelles Starten über die GitHub-Oberfläche

@@ -1,4 +1,4 @@
-name: Spec-Sync (nightly)
+name: Sync Spec
 
 # Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Verifiziert die Specs in docs/spec/ (user-journeys.md + issue-*.md) gegen die tatsächliche

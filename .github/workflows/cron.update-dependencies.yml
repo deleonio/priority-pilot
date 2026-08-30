@@ -1,6 +1,6 @@
-name: Renovate
+name: Update Dependencies
 
-# Faehrt Renovate self-hosted als GitHub Action (statt/erganzend zur Mend-App).
+# Runs Renovate self-hosted as GitHub Action (statt/erganzend zur Mend-App).
 # Liest die Repo-Konfiguration aus renovate.json5 und legt Dependency-Update-PRs an.
 #
 # Zeitsteuerung erfolgt ueber den Cron unten (woechentlich, Montag frueh) bzw. manuell per

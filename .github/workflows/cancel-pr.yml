@@ -1,4 +1,4 @@
-name: Claude PR Review abbrechen (bei Merge/Schliessen)
+name: Cancel PR
 
 # Bricht laufende UND wartende Kreuzverhoer-Review- und Fixup-Laeufe eines PRs ab, sobald er
 # gemergt oder geschlossen wird. Noetig, weil die Concurrency-Gruppen (statisch pro Phase:

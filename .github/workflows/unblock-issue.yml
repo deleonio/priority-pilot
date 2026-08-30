@@ -1,4 +1,4 @@
-name: Issue Unblock (Nachfolger freigeben)
+name: Unblock Issue
 
 # Gibt abhängige Nachfolge-Issues frei, sobald ihr Vorgänger gemergt wurde (#…).
 #

@@ -1,4 +1,4 @@
-name: Claude Continue Sweep
+name: Resume Pipeline
 
 # Alle 6 Stunden (jeweils 5 Minuten nach 0, 6, 12 und 18 Uhr Europe/Berlin) Sicherheitsnetz
 # für die label-getriebene Pipeline (01–06): Jede Phase läuft auf `labeled`-Events, und der

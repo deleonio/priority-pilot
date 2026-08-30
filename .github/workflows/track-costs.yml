@@ -1,4 +1,4 @@
-name: Kosten-Baseline
+name: Track Costs
 
 # Sammelt die Kosten-Artefakte EINES Tickets ein und schreibt sie als eine Tabelle in die
 # Job-Summary.

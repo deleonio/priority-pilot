@@ -1,4 +1,4 @@
-name: ADR-Sync (weekly)
+name: Sync ADR
 
 # Wöchentlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Konsolidiert die ADRs in docs/adr/ AUFSTEIGEND — neuere Entscheidungen schlagen ältere.

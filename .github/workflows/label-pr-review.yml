@@ -1,4 +1,4 @@
-name: PR Auto-Label (ai:needs-review)
+name: Label PR Review
 
 # Setzt beim OEFFNEN eines (Nicht-Draft-)Pull Requests automatisch das Pipeline-Label
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-

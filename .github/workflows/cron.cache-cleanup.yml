@@ -1,4 +1,4 @@
-name: Cache-Aufraeumen
+name: Cleanup Cache
 
 # Der Repo-Cache (GitHub Actions, 10-GB-Limit) fuellte sich zuletzt spuerbar aus pnpm-Store- und
 # Playwright-Browser-Caches (ci.yml/deploy.yml/03-claude-spec.yml/04-claude-implement.yml —

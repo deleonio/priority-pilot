@@ -1,4 +1,4 @@
-name: 5/6 Review
+name: 05 Review
 
 # ⚠️ Der `name:` ist lastend: das workflow_run-Allowlist in claude-pr-gate-merge.yml matcht ihn
 #    exakt ("5/6 Review"). Umbenennen schaltet das Gate lautlos ab → stummes Gate. ACHTUNG: es
