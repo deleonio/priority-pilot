@@ -1,37 +1,34 @@
-# PR 1129 — Review (Kreuzverhör Runde 1), Stand 2026-08-30
+# PR 1129 — Review (Runde 1 Kreuzverhör + Runde 2 Fixup-Nachweis), Stand 2026-08-30
 
-**ERGEBNIS: VERDICT needs-fixup (🟡).** Docs-only-PR (+46/−11, nur `docs/user-guide.md`), KEIN Closing-Issue → „Review ohne Issue", PR-Beschreibung massgebend. Review id 5059862730 (event COMMENT) mit 2 Inline-Findings; Sammelkommentar id 5466533137 (Marker `<!-- ai-review -->` angelegt — Folge-Runde = FIXUP VERIFICATION, Diff-Scope ab updatedAt). Titel-Gate: „docs(guide): Ist-Stand-Sync 2026-08-30" (deutsch/uppercase) → umbenannt zu `docs: sync user guide with implemented state (2026-08-30)`. Keine Labels gesetzt.
+**ERGEBNIS: VERDICT reviewed (🟢, Runde 2).** Runde 1: needs-fixup (🟡, 2 Inline-Findings, „Review ohne Issue" — kein Closing-Issue, PR-Beschreibung massgebend). Runde 2 (Fixup-Nachweis): beide Findings korrekt behoben, keine neuen; Sammelkommentar id 5466533137 per PATCH aktualisiert (gleiche ID), Titel `docs: sync user guide with implemented state (2026-08-30)` weiterhin CC-konform. Keine Labels gesetzt.
 
-## Erledigt
-- MODE bestimmt: kein `<!-- ai-review -->`-Marker (pulls+issues-API leer) → Kreuzverhör; closingIssuesReferences = 0.
-- Alle 11 PR-Body-Befunde via 2 Haiku-Recherche-Subagents gegen Code verifiziert — alle Belege korrekt (App.tsx:488-499 aiEnabled-Berater; NearbyCard.tsx:9,10,25,95 max 10/aufsteigend/1 Nachkommastelle/Titel mit displayDistanceKm, Hinweise :101-108; GeoBadge-Nutzung TaskTree:93/SeriesTab:149/CompletedTasksTable:128; TaskForm.tsx:972,984-994 Adresse-Feld; tasks.ts:312 + score.ts:11,36 Punkteformel; SettingsPage.tsx:347 „Standort ermitteln", Regler :371-425 mit Kreuz-Schranken :397; KI-Schalter :452-483 inkl. `_disabled={!aiEnabled}` :477; UpdatePrompt.tsx:66 „Jetzt neu laden"; geo-background-job.ts:92 `<=`, :128/:133 Push-Texte, Dedup :100-108, DEFAULT_ALARM_DISTANCE_KM=1 :28; series.ts:420-452 Rhythmus/Start/active nicht kaskadiert).
-- 2 eigene Gegenproben (GeoBadge.tsx:81-83 Render-Bedingung selbst gelesen; TaskForm.tsx:983-988 Freitext-verwirft-Koordinaten) → 2 Findings (s. Fallstricke).
-- Vertragstest `server/src/logics/user-guide.test.ts` (AK 2.1–2.9, Regex auf Abschnitte) — Überschriften im Diff unangetastet → grün, `verify`-Job pass.
-- Sammelkommentar + Review + Titel-Rename wie oben.
+## Erledigt (Runde 2)
+- MODE per Marker-Suche: `<!-- ai-review -->` vorhanden → FIXUP VERIFICATION; Diff-Scope ab Runde-1-Kommentar (03:44:11Z): nur Fixup-Commit `8038a603` (docs/user-guide.md 4+/3-), Memory-Commit `443aa1dc` ([skip ci]) und Main-Merge `63cbdee8` (Net-Diff auf docs/user-guide.md = exakt die 2 Hunks, verifiziert per `git diff 1bbe45ca..63cbdee8 -- docs/user-guide.md`).
+- Finding 1 geprüft: neue Formulierung „liegt eine Aufgabe näher als diese Entfernung, kommt ein Push-Hinweis" deckt `server/src/logics/geo-background-job.ts:92` (`<=`).
+- Finding 2 geprüft: „trägt einen Ortsbezug (Adresse oder Koordinaten)" deckt `frontend/src/components/GeoBadge.tsx:81-83`.
+- CI grün: verify pass, e2e 1–4 pass (nur der review-Job selbst pending); Threads laut Fixup-Notiz resolved.
+- Sammelkommentar aktualisiert (Review-Status reviewed 🟢, Behobene-Anmerkungen-Tabelle mit Finding 1/2 → `8038a603`, Footer `Review-Typ: Fixup-Nachweis`, Updated 2026-08-30).
 
 ## Relevante Stellen
-- `docs/user-guide.md:420` — Finding 1: „ab dieser Entfernung … Push-Hinweis" invertiert (Code: näher ALS).
-- `docs/user-guide.md:123` — Finding 2: „Adresse mit Koordinaten" zu eng (Badge: Adresse ODER Koordinaten).
-- `server/src/logics/geo-background-job.ts:92` + `frontend/src/components/GeoBadge.tsx:81-83` — Belegstellen der Findings.
-- `server/src/logics/user-guide.test.ts` — Vertragstest, bei Guide-Edits Überschriften nie antasten.
+- `docs/user-guide.md:120-124` (Ortsbezug-Bullet) und `:417-422` (Alarm-Entfernung-Satz) — die beiden korrigierten Stellen.
+- `server/src/logics/geo-background-job.ts:92`, `frontend/src/components/GeoBadge.tsx:81-83` — Belegstellen.
+- `server/src/logics/user-guide.test.ts` — Vertragstest (Überschriften), grün.
 
 ## Annahmen
-- e2e-Shard 3/4-Fail (`e2e/issue-969.spec.ts:86`, Settings-Padding) ist Flake/pre-existing: docs-only-Diff ohne Kausalpfad, main-Läufe aktuell grün — nicht rerunnnt (needs-fixup triggert ohnehin neuen CI-Lauf).
-- Guide-Sync-PRs dieser Art brauchen kein Closing-Issue (nightly „Guide-Sync"-Workflow erzeugt sie ohne Issue).
+- PATCH-Response zeigt `updatedAt: null` (auch `.updatedAt` einzeln leer) — gh/API-Quirk; Update erfolgreich an Body-Zeile 1 verifiziert.
+- Runde-1-Recherche (11 PR-Body-Funde + 2 Gegenproben) bleibt gültig, nicht wiederholt.
 
 ## Verworfen
-- CI-Rerun des Flake-Shards — bringt nichts, Fixup-Push erzeugt neuen Lauf.
-- MEMORY.md-Eintrag — kein neues Fehlermuster, Kriterium nicht erfüllt.
-- Footer-Position-Behauptung (PR-„Offene Unklarheiten") angreifen — steht im unveränderten Text, nicht im Diff.
+- Neue Findings zur Formulierung („Das"-Umbruch-Zeile, Wortwiederholung „Ortsbezug … Ortsbezug") — Prettier-check grün laut Fixup-Notiz, inhaltlich korrekt, entspricht dem eigenen Review-Vorschlag aus Runde 1 → keine Pseudo-Findings.
+- MEMORY.md-Eintrag — kein neues Fehlermuster.
 
 ## Offen
-- Fixup-Runde: 2 Formulierungen in `docs/user-guide.md` (Zeilen ~123, ~420) korrigieren.
-- Wegwerf-Artefakte NICHT committen: `.ai-memory/issue-1129-review-payload.json`, `.ai-memory/issue-1129-collected.md` (diese Datei hier ist die Phasen-Notiz).
+- Wegwarf-Artefakte NICHT committen: `.ai-memory/issue-1129-collected.md`, `.ai-memory/issue-1129-old-comment.md` (leerer Fehlgriff, Node-ID statt DB-ID) — diese Datei hier ist die Phasen-Notiz.
 
 ## Nächster Schritt
-- Fixup-Agent: beide Findings als Ein-Zeilen-Umformulierungen einbauen, Sammelkommentar id 5466533137 in Runde 2 per PATCH aktualisieren (Behobene-Anmerkungen-Tabelle füllen).
+- Workflow übernimmt (Gate/Labels automatisch); keine Review-Aktion mehr offen.
 
 ## Fallstricke
-- Runde 2 = FIXUP VERIFICATION: nur Diff seit Sammelkommentar-updatedAt prüfen, Finding-Nummern 1/2 NICHT neu nummerieren.
-- Review-POST-Response zeigt `.comments | length` = 0, obwohl Inline-Kommentare anlegen — Wahrheit steht in `pulls/1129/reviews/<id>/comments` (waren 2).
-- Deutsch/uppercase-PR-Titel verletzt das CC-Gate (English, lowercase) — nach Fixup-Push erneut prüfen; Titel ist jetzt schon konform.
+- `gh pr view --json comments` liefert Node-IDs (`IC_…`), REST `issues/comments/<id>` will die numerische DB-ID (5466533137) — Node-ID gibt 404.
+- `git diff <runde1-commit>..head` über einen Main-Merge explodiert (ganz main drin) — auf `-- docs/user-guide.md` scopen oder Fixup-Commit direkt zeigen.
+- Finding-Nummern 1/2 blieben stabil; bei einer hypothetischen Runde 3 weiterführen.
