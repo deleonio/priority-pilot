@@ -1,39 +1,34 @@
-# Issue 1134 — Review (Kreuzverhör, Runde 1), Stand 2026-08-30
+# Issue 1134 — Review (Fixup-Nachweis, Runde 2), Stand 2026-08-30
 
-**ERGEBNIS: VERDICT needs-fixup, Ampel 🟡.** Review ohne Issue (closingIssuesReferences = 0) → PR-Beschreibung ist massgebend. Marker `<!-- ai-review -->` fehlte → Kreuzverhör des kompletten Diffs (12 Workflow-Renames, 100% similarity, +16/-16 Doku/Config-Referenzen). Titel-Gate bestanden (kein Rename nötig).
+**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Modus Fixup-Verifikation (Marker-Kommentar ID 5469728520 vom 2026-08-30T15:57:54Z vorhanden). Review ohne Issue (closingIssuesReferences = 0) → PR-Beschreibung massgebend (in Sammelkommentar Zeile 2 vermerkt). Titel-Gate: bestanden (kein Rename). Sammelkommentar per PATCH auf reviewed aktualisiert (F1/F2 → Behobene-Anmerkungen-Tabelle), kein neuer Kommentar erstellt.
 
 ## Erledigt
-- Kompletten Diff gelesen (reine Umbenennung `cron.*`, keine Inhaltsänderungen in den Workflows).
-- Repo-weites Grep nach alten Dateinamen (mit `(?<!cron\.)`-Lookbehind, weil `cron.cache-cleanup.yml` sonst `cache-cleanup.yml` false-positive matcht) → 13 echte Treffer ausserhalb `.ai-memory/`.
-- Funktionalität jedes Treffers geprüft (Kommando vs. Kommentar): 4 funktionale `gh run list --workflow <alter-name>`-Skip-Guards + 9 kosmetische Kommentar/Report-Referenzen.
-- Entscheidender API-Beweis: `gh run list --workflow cron.sync.guide.yml` → HTTP 404 (neue Datei noch nicht auf main), `--workflow claude-guide-sync.yml` → liefert Runs (alte Datei noch auf main). Nach Merge kehrt sich das um → Guards failen still.
-- Review als Einzel-Review (event=COMMENT, Body-only — Inline-Anker unmöglich bei 100%-Similarity-Renames ohne Hunks) + Sammelkommentar erstellt (Marker Zeile 1).
+- Delta bestimmt: genau 1 Commit seit updatedAt — `0cee0730` (16:07:01Z, „fix(ci): point workflow references at cron.* filenames"); PR head = `0cee0730`, Baum identisch mit lokalem Merge-Commit `287fac80` (leeres `git diff --stat`).
+- Fixup-Diff gelesen: F1 ✔ (4 Skip-Guards in `cron.sync.guide.yml:78`, `cron.sync.spec.yml:70`, `cron.sync.adr.yml:70`, `cron.audit.prompt.yml:71` referenzieren jetzt den eigenen `cron.*`-Dateinamen), F2 ✔ (alle 9 Anker umgestellt). Daneben nur die 2 erlaubten `.ai-memory/`-Phasen-Notizen (ADR 0007) — keine neuen Probleme.
+- Independent verifiziert: alle referenzierten Zieldateien existieren (`cron.{pr-gate-sweep,codeql,ci.test-optimization,continue-sweep,sync.*,audit.prompt,cache-cleanup,architecture-optimization}.yml` per ls).
+- Repo-weites Grep am Head nach ALLEN 12 alten Basenames (inkl. nightly-arch-opt, ci-multi-provider, renovate) mit `(^|[^./[:alnum:]])`-Präfix-Guard → 0 Treffer außerhalb `.ai-memory/` (exit 1).
+- CI-Status: e2e (1)–(4), verify, precheck, Trigger-Validierung pass; `review` pending = dieser Lauf; `gate-merge` skipping = erwartet (wartet auf Verdict). Kein roter Check → 🟢 zulässig.
 
 ## Relevante Stellen
-- `.github/workflows/cron.sync.guide.yml:78` — `gh run list --workflow claude-guide-sync.yml` (Finding F1, funktional).
-- `.github/workflows/cron.sync.spec.yml:70` — `gh run list --workflow claude-spec-sync.yml` (F1).
-- `.github/workflows/cron.sync.adr.yml:70` — `gh run list --workflow claude-adr-sync.yml` (F1).
-- `.github/workflows/cron.audit.prompt.yml:71` — `gh run list --workflow claude-prompt-audit.yml` (F1).
-- Kosmetisch (F2): `cron.continue-sweep.yml:11,23,73`, `claude-pr-gate-merge.yml:60`, `06-claude-pr-documenter.yml:371`, `cron.cache-cleanup.yml:28`, `cron.architecture-optimization.yml:14,18`, `.github/scripts/analyze-test-suite.ts:719`, `cron.sync.guide.yml:17`.
-- `.ai-memory/issue-*.md`-Treffer = historische Phasen-Notizen, bewusst NICHT angefasst (kein Finding).
+- `.github/workflows/cron.{sync.guide,sync.spec,sync.adr,audit.prompt}.yml` — Skip-Guards, F1-Kern, jetzt selbst-referenzierend korrekt.
+- `.github/scripts/analyze-test-suite.ts:719` — Report-Header auf `cron.ci.test-optimization.yml`; einzige TS-Änderung.
+- Sammelkommentar https://github.com/deleonio/priority-pilot/pull/1134#issuecomment-5469728520 — Runde-2-Stand (reviewed).
 
 ## Annahmen
-- Guard-Folge-Schadensbild: 404 → gh exit != 0 → `2>/dev/null || true` → `last_sha` leer → skip=false → Lauf auch bei unverändertem main. Kein Crash, nur stiller Wegfall der Dedup + nächtliche LLM-Kosten.
-- `workflow_run`-Trigger referenzieren Display-`name:`-Felder (unverändert, da Dateiinhalte gleich) → keine Bruchstelle dort; Grep fand keine weiteren Kommando-Referenzen.
-- CI-Checks nicht im Detail geprüft (needs-fixup unabhängig davon).
+- `gh run list --workflow cron.*.yml` bleibt bis zum Merge 404 (Datei noch nicht auf main) — erwartbar, kein Gegenbeweis; Beweisführung über Code-Stand (Runde-1-Fallstrick bestätigt sich).
+- Flaky-Einstufung des Fixup-Laufs (e2e issue-969) übernommen: thematisch unberührt, rerun ist inzwischen grün.
 
 ## Verworfen
-- Inline-Kommentare im Review — GitHub braucht diff-Anker; reine Renames ohne Hunks haben keine positionierbaren Zeilen. Findings stattdessen mit file:line im Review-Body.
-- `.ai-memory/`-Altreferenzen als Finding — historisches Protokoll, Umschreiben wäre Geschichtsfälschung.
-- MEMORY.md-Eintrag — `(?<!cron\.)`-Grep-Falle ist generisch nützlich, aber noch kein wiederholter Fehler; Kriterium (strikt) nicht erfüllt.
+- Erneutes Kreuzverhör des Gesamtdiffs — Modus Fixup-Verifikation; nur Delta `0cee0730` geprüft (SKILL step 5 Diff scoping).
+- MEMORY.md-Eintrag — kein wiederholter Fehler/Kriterium nicht erfüllt (strikt).
 
 ## Offen
 - -
 
 ## Nächster Schritt
-- Fixup-Runde: F1 (4× `--workflow`-Argument auf neuen `cron.*`-Dateinamen) + F2 (9 kosmetische Referenzen); danach Fixup-Verifikation (Modus: alter-name-Grep muss leer sein außer `.ai-memory/`).
+- Keiner seitens Review: Verdict `reviewed` in `/tmp/claude-verdict`; Pipeline (gate-merge) übernimmt Auto-Merge, wenn CI + Reviewer grün.
 
 ## Fallstricke
-- Grep nach alten Workflow-Namen OHNE Lookbehind produziert false positives (`cron.X.yml` enthält `X.yml`).
-- Fixup-Verifikation: `gh run list --workflow <neuer-name>` bleibt bis zum Merge 404 — das ist erwartbar, kein Gegenbeweis; Beweisführung läuft über den Code-Stand, nicht die Live-API.
-- Sammelkommentar-Update in Runde 2 per Marker-Suche + PATCH (nicht neu erstellen); Finding-Nummern F1/F2 stabil lassen.
+- Grep nach alten Workflow-Namen braucht Präfix-Guard (`(^|[^./[:alnum:]])` oder `(?<!cron\.)`), sonst false positives (`cron.cache-cleanup.yml` matcht `cache-cleanup.yml`).
+- `gh api issues/comments` liefert `updated_at` (snake_case), nicht `updatedAt` — sonst null.
+- Sammelkommentar-Update nur per Marker-Suche + PATCH (ID stabil 5469728520); Finding-Nummern F1/F2 blieben stabil.
