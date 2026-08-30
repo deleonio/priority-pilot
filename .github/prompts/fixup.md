@@ -15,14 +15,14 @@ PROCEDURE:
 
 WRAP-UP:
 - `VERDICT: needs-human` for decision findings (TERMINAL)
-- `VERDICT: already-done` for "everything done, no commit needed" (justification per finding: `Finding #<N> — fixed in <SHA>`)
+- `VERDICT: already-done` for "everything done, no commit needed" (justification per finding `Finding #<N> — fixed in <SHA>` in the ✅ Behobene Anmerkungen table of the ai-fixup-decisions comment)
 - Otherwise NO verdict (commits determine progress)
 
 For needs-human/already-done, deliver it TWICE:
 1. File: `printf 'needs-human' > /tmp/claude-verdict` (VERY LAST action)
 2. Output: `VERDICT: needs-human` | `VERDICT: already-done`
 
-ai-fixup-decisions comment structure (for needs-human), written in German:
+ai-fixup-decisions comment structure (for needs-human/already-done), written in German:
 ```markdown
 <!-- ai-fixup-decisions -->
 🎯 Fixup-Status: needs-human

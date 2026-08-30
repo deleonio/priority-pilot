@@ -8,10 +8,8 @@ Method, test concept, and rules (binding, not repeated here): .claude/skills/tic
 
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
-  2. Branch + AK: SKILL.md step 1 (harness branch ai/harness/{{ISSUE_NR}}; AKs from the
-     harness marker comment — first line `<!-- ai-harness -->`, KI-ANALYSE section:
-     gh issue view {{ISSUE_NR}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].body // ""'.
-     Legacy fallback: analysis block still in the issue body — gh issue view {{ISSUE_NR}} --json body -q .body).
+  2. Branch + AKs: SKILL.md step 1 (harness branch ai/harness/{{ISSUE_NR}}; AKs from the
+     harness marker comment — jq: `gh issue view {{ISSUE_NR}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].body // ""'`).
      The issue description stays UNTOUCHED (ADR 0009).
      Resume hint set (draft reuse) → check out the EXISTING branch
      (git fetch origin && git switch $DRAFT_BRANCH) and continue on its state — do NOT rewrite everything.

@@ -31,20 +31,9 @@ PROCEDURE:
    `ja`; for Run=`nein` set model/effort to '-'). The comment body STARTS with the marker
    line `<!-- ai-harness -->`; read-modify-write: replace ONLY the KI-ANALYSE +
    ai-phase-routing sections, keep foreign sections (e.g. KI-UX) byte-for-byte.
-   `stand` resets on every write. gh-only mechanics (restricted tier):
-   a) Node-ID lookup (empty output = comment not created yet):
-   HID="$(gh issue view {{ISSUE_NR}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].id // ""')"
-   b) Update (heredoc carries the FULL comment body, marker line first — heredoc
-   lines start at column 0, the EOF terminator must too):
-   gh api graphql -f query='mutation($i:ID!,$b:String!){updateIssueComment(input:{id:$i,body:$b}){clientMutationId}}' -f i="$HID" -F b=@- <<'EOF'
-   <!-- ai-harness -->
-   …analysis block + routing table…
-   EOF
-   c) Create (no HID yet):
-   gh issue comment {{ISSUE_NR}} --body-file - <<'EOF'
-   <!-- ai-harness -->
-   …analysis block + routing table…
-   EOF
+   `stand` resets on every write. gh-only mechanics (restricted tier; HID lookup,
+   update vs. create): SKILL.md step 4. CI delta: heredoc lines start at column 0,
+   the EOF terminator must too.
 
 NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the harness comment +
 label change is the complete communication. NO extra comments, NO

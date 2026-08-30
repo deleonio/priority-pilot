@@ -8,8 +8,7 @@ Method, modes (spec/direct mode), and rules (binding, not repeated here): .claud
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
   2. Read the analysis & quick-check it per SKILL.md step 2 (NO full re-triage;
-     AKs from the harness marker comment — first line `<!-- ai-harness -->`, KI-ANALYSE
-     section; legacy fallback: analysis block still in the issue body) — traffic light 🔴 →
+     AKs per SKILL.md step 1) — traffic light 🔴 →
      do NOT implement, stop (VERDICT not-ready).
   3. Spec mode (the normal case): check out the existing DRAFT PR — including the closing-keyword trap and
      the idempotency rule (SKILL.md step 1). Turn its RED tests GREEN — do NOT change the tests
