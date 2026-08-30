@@ -499,8 +499,10 @@ body {
 
 /*
  * #1118: Die sieben Dashboard-Widgets sind Kolibri-Cards — die Widget-Klasse sitzt direkt am
- * Card-Host (die alte Außen-<section> ist entfernt). Rahmen, Hintergrund und Padding liefert
- * KoliBri intern; der Host (#930 transparent) trägt hier die Abweichungen.
+ * Card-Host (die alte Außen-<section> ist entfernt). Breite, Höhe, Rahmen und Schatten liefert
+ * das KoliBri-Theme am Host (width/height: 100 %). Bewusst EIGENER Override bleibt nur
+ * display: block — das Theme setzt kein display, ohne bliebe der Custom-Element-Host inline
+ * und würde außerhalb des Grids (mobil, einspaltig) zerfließen.
  */
 .dashboard-nearby,
 .dashboard-next-task,
@@ -510,7 +512,6 @@ body {
 .dashboard-balance,
 .dashboard-deadlines {
 	display: block;
-	max-width: 100%;
 }
 
 /*
@@ -718,17 +719,8 @@ body {
 		align-items: stretch;
 	}
 
-	/* #1118: Gleichhöhe je Grid-Zeile — der Card-Host (trägt die Widget-Klasse direkt) füllt die
-	   Zeile. Nur ab 48rem: mobil (einspaltig) wachsen die Karten nur mit ihrem Inhalt. */
-	.dashboard-nearby,
-	.dashboard-next-task,
-	.dashboard-suggestions,
-	.dashboard-top-tasks,
-	.dashboard-pillars,
-	.dashboard-balance,
-	.dashboard-deadlines {
-		height: 100%;
-	}
+	/* #1118 Gleichhöhe je Grid-Zeile: liefert align-items: stretch (s. o.) gemeinsam mit dem
+	   theme-seitigen height: 100 % am kol-card-Host — kein eigener Override nötig. */
 
 	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. (Spezifität 0,1,1, damit
 	   der Reset auch die erst später im Quelltext liegenden Widget-Margins übersteht — #1118 AK5.) */
@@ -774,16 +766,19 @@ body {
 
 .dashboard-pillars {
 	margin-top: var(--pp-gap-generous);
-	/* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen. */
-	max-width: 100%;
-	overflow-x: hidden;
-	overflow-wrap: break-word;
 }
 
+/* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen — der
+   Übergelaufschutz liegt bewusst an der Liste (Card-INHALT), nicht am Card-Host: overflow am
+   Host würde den Schatten der KoliBri-Card (gemalt im Shadow-DOM, 4px über die Kante)
+   clippen und „Meine Themen" einen anderen Rahmen als die Nachbar-Cards geben. */
 .dashboard-pillars-list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
+	max-width: 100%;
+	overflow-x: hidden;
+	overflow-wrap: break-word;
 }
 
 .dashboard-pillar {
