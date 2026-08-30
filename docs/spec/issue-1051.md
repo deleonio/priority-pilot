@@ -1,4 +1,6 @@
-# Spec #1051 — Header-Toolbar-Buttons einheitlich + Mikrofon-Button ausrichten
+# Header-Toolbar-Buttons einheitlich + Mikrofon-Button ausrichten
+
+**Stand:** 2026-08-30
 
 ## Ziel
 
@@ -46,7 +48,5 @@ Der Mikrofon-Button im Such-Dialog ist vertikal mittig in der Inputbox ausgerich
 
 ## Randbedingungen
 
-- KoliBri rendert Toolbar-Buttons im Shadow-DOM — Varianten nur über `_variant` der Items steuerbar.
-- VoiceField `variant="input"` wird auch in TaskForm, QuickCaptureModal, PillarAdvisorModal genutzt — CSS-Korrektur wirkt global.
-- Mikrofon-Button bleibt `tabIndex={-1}` (#522 AC2c).
-- Toolbar-Button-Höhe hängt an `--pp-toolbar-height` / `--a11y-min-size` (app.css:360-362), nicht anfassen.
+- Der Mikrofon-Button ist nicht per Tastatur fokussierbar (kein Tab-Stopp).
+- Die Ausrichtung des Mikrofon-Buttons gilt für alle Eingabefelder mit Sprachaufnahme (Suchdialog, Task-Formular, Schnellerfassung, Säulen-Berater).
