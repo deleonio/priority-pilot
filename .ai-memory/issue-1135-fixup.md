@@ -24,7 +24,8 @@
 
 - **Gate (step 3c, gate-runner):** prettier --check (geänderte Dateien) exit 0; `pnpm lint:actions` exit 0; YAML-Parse aller 10 geänderten Workflows exit 0; `pnpm test:scripts` — erst fail (s. nächster Punkt), nach Fix **251 pass / 0 fail**.
 - **Gate-Kollateral (gleiche Klasse wie F3, nicht als eigenes Finding gemeldet):** `.github/scripts/fixup-rounds.test.ts:24` zeigt auf `04-claude-implement.yml` → ENOENT, `pnpm test:scripts` rot. Auf `04-implement.yml` migriert (inkl. Testtitel :160). Ohne diesen Fix wäre der Gate-Push wieder rot gefahren — Fixup-Loop.
-- **CI-Rerun 33329068335:** e2e (3) → success (FLAKY bestätigt: issue-969 AK4 Settings-Insets, PR berührt kein Frontend); `verify` blieb failure — erwartet, lief auf dem alten Commit ohne Kontrakttest-Fix; entscheidend ist verify auf dem neuen Commit.
+- **CI auf eb4c4747 (Run 33331082779):** verify pass, e2e (1)-(4) pass — komplett grün.
+**CI-Rerun 33329068335:** e2e (3) → success (FLAKY bestätigt: issue-969 AK4 Settings-Insets, PR berührt kein Frontend); `verify` blieb failure — erwartet, lief auf dem alten Commit ohne Kontrakttest-Fix; entscheidend ist verify auf dem neuen Commit.
 
 ## Verworfen
 - F8 Docs-Stale fixen — außerhalb des Auftrags („nur gemeldete Findings"), Autor-Deferral + Review-Einstufung nicht blockierend.
@@ -32,10 +33,10 @@
 - Konkurs-Test-Assertions verschärfen/weiter reißen — nur Migration, keine Vertragserweiterung.
 
 ## Offen
-- -(Gate + CI-Rerun abgeschlossen, beide Grün-Meldungen unten)
+- -(Fixup abgeschlossen: Commit eb4c4747 gepusht, CI komplett grün, Threads resolvt)
 
 ## Nächster Schritt
-- Commit+Push (diese Notiz inkl.), danach Review-Threads resolven.
+- Nächster Lauf ist Fixup-VERIFICATION gegen den `<!-- ai-review -->`-Sammelkommentar: F1-F7 abhaken (alle in eb4c4747), F8 bleibt offen (Autor-Deferral auf Folge-PR).
 
 ## Fallstricke
 - merge-pr.yml hat im Rename-Diff keine geänderten Zeilen (R100 pure rename) → F1 war nur im Review-Body verankert, nicht inline.
