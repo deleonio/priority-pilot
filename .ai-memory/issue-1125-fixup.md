@@ -70,3 +70,30 @@
 ## Nächster Schritt
 - Fixup-Verifikation des Review-Workflows (Delta = 482aa826 + cb5a5d1b); kein weiterer Fix nötig —
   alle Findings behoben, CI grün. Re-Review übernimmt Phase 7.
+
+## Erledigt (Fixup-Verifikation, 2026-08-30)
+- Auslöser dieses Laufs war KEIN neues Review-Finding: Thread PRRT_kwDONloM186dcw8x ist resolved,
+  Sammelkommentar 5464954841 steht auf reviewed/🟢 (Runde 2). Einziger Rot-Punkt: CI-Run
+  33282956471 (Head 8cb3de25) — Job `e2e (3)` failed an `frontend/e2e/issue-969.spec.ts:113`
+  AK4 (`panel.boundingBox()` → null trotz `toBeVisible`, Race im Settings-Tab-Panel).
+  Spec ist PR-unberührt (Diff vs origin/main: Dashboard.tsx, NearbyCard.tsx, Dashboard.test.tsx,
+  app.css, empty-states/issue-1066/issue-1118 e2e) → als Flaky eingestuft, `gh run rerun
+  33282956471 --failed` → e2e(3) danach GRÜN, Run conclusion=success.
+- Kein Code-Commit nötig: Finding 1 bleibt behoben in 482aa826 (+ CI-Followup cb5a5d1b).
+- Kein Playwright-MCP-Layout-Check nötig (keine UI-Änderung in diesem Lauf).
+
+## Verworfen (Fixup-Verifikation)
+- issue-969-AK4 „richtig" fixen — Spec/Race liegt außerhalb des PR-Diffs; ein Fix wäre Scope-
+  Verletzung im Fixup-Phase-Kontext (nur gemeldete Findings). Rerun war grün.
+- ai-fixup-decisions-Kommentar anlegen — nur für „unrelated red" vorgesehen; hier Flaky via
+  Rerun gelöst, kein Entscheidungsneeding.
+- Phasen-Notiz-Update committen — [skip ci]-Push (Präzedenz 872f3322) hat die Pipeline zuletzt
+  zum Stillstand gebracht (Re-Arm 8cb3de25 nötig); bei already-done bewusst kein Push.
+
+## Offen (Fixup-Verifikation)
+- `.ai-memory/issue-1125-fixup.md` ist lokal modifiziert (dieser Abschnitt) und NICHT
+  committet/pushed — bewusst, um Pipeline-Stall durch [skip ci]-Push zu vermeiden.
+  WORKING-TREE-Änderung landet nicht im PR.
+
+## Nächster Schritt (Fixup-Verifikation)
+- Keiner: VERDICT already-done. Merge-Gate übernimmt die Pipeline (CI auf 8cb3de25 vollständig grün).
