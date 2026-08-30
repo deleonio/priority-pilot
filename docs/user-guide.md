@@ -120,7 +120,8 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
   alle darunterliegenden Unteraufgaben mit.
 - **Priorität** als `P1` bis `P5` – die Farbe stuft die Wichtigkeit ein: P1 blau,
   P2 und P3 orange, P4 und P5 rot.
-- **Ortsbezug** (Globus) – die Aufgabe trägt eine Adresse mit Koordinaten. Das
+- **Ortsbezug** (Globus) – die Aufgabe trägt einen Ortsbezug (Adresse oder
+  Koordinaten). Das
   Kennzeichen erscheint auch in der Serien- und in der Erledigt-Liste.
 
 ### Aktionen je Aufgabe
@@ -417,8 +418,8 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
   Position sofort; dazu siehst du die Uhrzeit der letzten Erfassung und eine
   Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion:
   **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe"-Liste
-  Aufgaben; **Alarm-Entfernung** – ab dieser Entfernung zu einer Aufgabe kommt
-  ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
+  Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
+  kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
   wird.
 
 ### Säulen
