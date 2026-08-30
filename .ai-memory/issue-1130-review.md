@@ -1,40 +1,38 @@
-# Issue 1130 — Review (Phase 5), Stand 2026-08-30
+# Issue 1130 — Review (Phase 5/7), Fixup-Verifikation Runde 2, Stand 2026-08-30
+
+**ERGEBNIS: MODE = Fixup-Verifikation (`<!-- ai-review -->`-Kommentar IC_kwDONloM188AAAABRdk88Q, needs-fixup, Runde 1). F1–F3 alle verifiziert behoben, 3/3 Review-Threads resolved, kein neues Finding, kein Entscheidungs-Finding → VERDICT reviewed (🟢).**
 
 ## Erledigt
-- MODE = Kreuzverhör (kein `<!-- ai-review -->`-Kommentar auf PR #1131 vorhanden); Closing-Issue #1130 vorhanden → AKs aus dem KI-ANALYSE-Block im Harness-Kommentar (issuecomment, `<!-- ai-harness -->`, KI-ANALYSE:START stand=2026-08-30T04:26:09Z).
-- Kompletten Diff gelesen (`.ai-memory/issue-1130-review-diff.patch`, 712 Zeilen), PR-Body + Harness-Block ausgewertet (`.ai-memory/issue-1130-review-{prbody,harness}.md`).
-- TDD-Trennung verifiziert: Spec-Tests nur in Commit `7cb581f8` (test: red spec tests), Impl-Commit `a92b844e` berührt `http-error.test.ts` NICHT → Spec-Tests unverändert grün übernommen.
-- `error-contract.test.ts` unverändert vs. origin/main (Subagent + Diff) → AK5-Evidenz.
-- CI am Head: verify grün, e2e (1)/(2)/(4) grün, **e2e (3) rot** — `e2e/issue-969.spec.ts:113 expect(box).toBeTruthy()` (Frontend-Layout-Test, PR ist server-only → nicht PR-bedingt, vermutlich Flaky).
-- 3 Findings als Inline-Kommentare gepostet (Review, event=COMMENT) + Sammelkommentar (`<!-- ai-review -->`) mit VERDICT **needs-fixup**.
-- TITLE GATE: PR-Titel `[arch-opt] …` → `refactor(server): central http error contract in one module (#1130)` via `gh pr edit 1131 --title`.
+- Marker-Suche: genau 1 `<!-- ai-review -->`-Kommentar (id `IC_kwDONloM188AAAABRdk88Q`, created 2026-08-30T05:04:55Z, 3 offene Findings, „Review-Typ: Kreuzverhör", keine „ohne Issue"-Zeile — Closing-Issue #1130 vorhanden).
+- Delta = Fixup-Commit `92c74349` (05:20:39Z) vs. reviewed Head `970921dd` (davor nur memory-Commits); Memory-Commit `4690a9ca` code-los.
+- **F1 ✅** `http-error.test.ts:119` → `new SequelizeValidationError('Validation error', [items])`; `http-error.ts:14` → `error.errors.map((item) => item.message)` ohne toten Fallback. Rückgabetyp `string[]` korrekt (ValidationErrorItem.message ist string).
+- **F2 ✅** `http-error.test.ts:35` → `srcRoot = new URL('../', import.meta.url)` = `server/src`; alle 13 Pfad-Strings (ROUTE_FILES 9×, INLINE_500_FILES 3×, Hardcode-Liste 3. Test) auf Präfix `express/` umgestellt. JSDoc „unter server/src" stimmt jetzt. False-Positive-Check: `grep -rnE "const (sendError|handleWriteError|parseId) =" server/src --include=*.ts` = 0 Treffer (auch http-error.ts selbst nutzt `export function`) → verbreiterter Scan grün.
+- **F3 ✅** `http-error.ts:10` → `export type ErrorDto`; `routes/geoConfig.ts:89,107,137` nutzen `Response<… | ErrorDto>` statt lokaler Kopie; geoConfig hat keinen lokalen `type ErrorDto` mehr. knip: Export wird genutzt → grün.
+- Review-Threads F1/F2/F3 alle `isResolved: true`.
+- lokale Test-Ausführung unmöglich (kein node_modules in der Sandbox, Memory 2026-08-29) → CI verify am Fixup-Head abgewartet.
+- Sammelkommentar aktualisiert („Behobene Anmerkungen" F1–F3, Offene Findings leer, Footer „Review-Typ: Fixup-Nachweis"), VERDICT `reviewed` → /tmp/claude-verdict.
 
 ## Relevante Stellen
-- `server/src/express/http-error.ts:14` — F1: `validationMessages`-Fallback auf `error.message`; nur für die künstliche Test-Konstruktion nötig (Produktion: `errors` befüllt) → toter Code.
-- `server/src/express/http-error.test.ts:117` — `new SequelizeValidationError([items])` ohne Message-Argument (sequelize 6.37.8) befüllt `errors` nicht; F1-Fix: Signatur `(message, errors)`.
-- `server/src/express/http-error.test.ts:34,36` — F2: `srcRoot` = Testdatei-Verzeichnis (`server/src/express/`), JSDoc behauptet aber „unter server/src“; Guard schmaler als AK1-Wortlaut.
-- `server/src/express/http-error.ts:10` — F3: `type ErrorDto` lokal statt exportiert; Spec-Vorbedingung (geoConfig → ErrorDto) nicht umgesetzt; knip-Argument entkräftet, sobald geoConfig importiert.
-- `server/src/express/llmProviderQuery.ts:25` — restlicher Inline-500 in `sendLlmError` (bewusst NICHT als Finding: LLM-eigener Mapper mit Hinweistexten, außerhalb AK3-Scope).
-- 14 lokale `type ErrorDto =`-Kopien in server/src/express (Subagent-Liste) — außerhalb Ticket-Scope, nicht als Finding.
+- `server/src/express/http-error.ts` — 33 Zeilen, zentraler Fehlervertrag; `ErrorDto` exportiert, drei Helfer.
+- `server/src/express/http-error.test.ts:35` — `srcRoot` jetzt `server/src`; Guard-Test 1 scannt `listSources(srcRoot)` recursive (filter nur `node_modules`) → breiter als nötig, aber ohne Treffer.
+- `server/src/express/routes/geoConfig.ts` — einziger neuer Importeur von `ErrorDto` (Spec-Vorbedingung `docs/spec/issue-1130.md:22` erfüllt).
+- 14 weitere lokale `type ErrorDto =`-Kopien (index.ts, series, tasks, pillars, …) — laut Runde-1-Review explizit außerhalb Ticket-Scope, bewusst NICHT als Finding.
 
 ## Annahmen
-- Test-Grünheit der Impl-Phase (9/9 http-error, 23/23 error-contract, 775 Server-Tests) nicht lokal reproduzierbar — Sandbox ohne `node_modules`; verify-Job in CI grün als Ersatznachweis.
-- `new SequelizeValidationError([items])`-Verhalten laut Impl-Notiz (node -e verifiziert); eigener Lauf nicht möglich → F1 bleibt unabhängig davon korrekt (toter Produktionscode steht fest).
-- e2e(3)-Rot als Flaky/nicht PR-bedingt eingeordnet (keine Frontend-Änderung im PR).
+- `error-contract.test.ts` (unverändert vs. main) deckt den Produktionspfad mit echtem sequelize ab → F1-Vereinfachung verhaltensidentisch; lokale Ausführung nicht möglich, CI verify als Ersatznachweis.
+- CI-`e2e (1..4)` am Head sind server-irrelevant (PR server-only); der Runde-1-Flaky `e2e/issue-969.spec.ts:113` war zwischenzeitlich grün gelaufen.
 
 ## Verworfen
-- llmProviderQuery.ts-Inline-500 als Finding — außerhalb AK3 (nur 6 Call-Sites im AK), Mapper mit Zusatzverhalten, Scope-Creep.
-- Serien-`console.error`-Wegfall als Finding — vom Analyse-Block ausdrücklich als kein Vertrag sanktioniert; kein Re-Litigieren der Spec.
-- geoConfig-Verhaltenstest — reiner Typ-Refactor, kein AK.
-- needs-human — F1 ist fixbar (Impl selbst hat die Korrektur empfohlen; Korrektur hier gebilligt) → needs-fixup.
+- Erneutes Kreuzverhör des Gesamt-PR — MODE Fixup-Verifikation, nur Delta.
+- Neue Findings zu den 14 verbleibenden ErrorDto-Kopien / `llmProviders.ts:324` (`ErrorDto | { message: string }`) — außerhalb Ticket-Scope, Runde-1-Entscheidung hält.
+- MEMORY.md-Eintrag — kein neuer Fehler, Kriterium nicht erfüllt.
 
 ## Offen
-- Wegwerf-Artefakte in `.ai-memory/` NICHT committen: `issue-1130-review-{diff.patch,prbody.md,harness.md,review.json,collected.md}.md`. Nur diese Datei ist die Phasen-Notiz.
+- -
 
 ## Nächster Schritt
-- Fixup-Phase: F1 (Test-Signatur `(message, errors)` + `validationMessages` vereinfachen), F2 (`srcRoot` auf `../` oder JSDoc korrigieren), F3 (`export type ErrorDto` + geoConfig-Import); danach Re-Review (Fixup-Nachweis) gegen die 3 stabilen Finding-Nummern.
+- Pipeline: `ai:needs-review` entfernen / Merge-Freigabe; Ticket #1130 kann durch den PR-Merge schließen.
 
 ## Fallstricke
-- `Entscheidungs-Findings`-Heading im Sammelkommentar NUR bei needs-human setzen — Pipeline substring-testet den Body darauf (SKILL step 5); in needs-fixup-Kommentaren ausgelassen.
-- Neues Modul + Testdatei: Review-Inline-Kommentare brauchen `commit_id` = Head-SHA und RIGHT-side Zeilennummern.
-- PR-Titel war kein Conventional-Commit (`[arch-opt] …`) → Title-Gate vor dem Verdict.
+- Breiterer `srcRoot` scannt ALLE *.ts unter server/src inkl. api.d.ts + Tests — das Muster `const <name> =` ist absichtlich so zusammengesetzt, dass die Testdatei sich nicht selbst trifft; bei künftigen Erweiterungen (z. B. INLINE_500) ebenfalls nur Datei-Listen, keine Heuristik, verwenden.
+- Fixup-Delta sauber bestimmen: reviewed Head war `970921dd`, nicht `a92b844e` — dazwischen liegen nur `memory:`-Commits.
