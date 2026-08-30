@@ -13,7 +13,7 @@
 	],
 
 	// Zeitzone für Renovate-interne schedules. Aktuell ohne Effekt, da die Zeitplanung allein der
-	// Workflow-Cron (.github/workflows/renovate.yml) übernimmt und es bewusst kein top-level
+	// Workflow-Cron (.github/workflows/cron.renovate.yml) übernimmt und es bewusst kein top-level
 	// `schedule` gibt — bleibt als Reserve, falls künftig ein internes schedule hinzukommt.
 	timezone: 'Europe/Berlin',
 

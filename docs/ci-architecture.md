@@ -318,7 +318,7 @@ seine Phasen-Notiz selbst mit, der Save-Step bleibt idempotentes Sicherheitsnetz
 Jede Phase lädt per `git fetch` + `git restore` in den Workspace (Index unberührt,
 Legacy-Fallback auf `ai/state/issue-{N}`). `state.json` ist entfallen. Beim Merge löscht
 `delete_branch_on_merge` den Branch (Memory ist dann in `main`), der Hygiene-Sweep in
-`cache-cleanup.yml` fängt Verwaiste (Issue geschlossen + 7 Tage Ruhe) auf beiden Prefixen.
+`cron.cache-cleanup.yml` fängt Verwaiste (Issue geschlossen + 7 Tage Ruhe) auf beiden Prefixen.
 Entscheidung inkl. Geschichte (Artefakt-/Cache-Ablehnung, read-only Cache-Tokens):
 [ADR 0007](./adr/0007-issue-storage-harness-branch.md), Vorgänger [ADR 0006](./adr/0006-issue-storage-state-branch.md).
 
@@ -343,7 +343,7 @@ leer bleiben, ohne den Lauf zu brechen.
 Das frühere Secret `NOUS_PORTAL_TOKEN` wird von der Pipeline **nicht mehr referenziert** und kann
 im Repo gelöscht werden. `OPENROUTER_API_KEY` hingegen ist **aktiv**: `openrouter` ist ein
 vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Key an `setup-claude`
-durch, `00-set-llm-provider.yml` akzeptiert ihn, `ci-multi-provider.yml` führt die Matrix) — nur
+durch, `00-set-llm-provider.yml` akzeptiert ihn, `cron.ci.multi-provider.yml` führt die Matrix) — nur
 ist er nicht der Default-Pfad (`claude`).
 
 ## MCP-Server für KoliBri und Playwright (Browser-Inspektion)
@@ -434,7 +434,7 @@ frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — i
 `ai:needs-analyse` **per App-Token** setzt und so die Re-Triage gegen den nun gemergten Code-Stand
 anstößt.
 
-### Continue-Sweep (`claude-continue-sweep.yml`)
+### Continue-Sweep (`cron.continue-sweep.yml`)
 
 Sicherheitsnetz für hängengebliebene Phasen (Issue #894): Der Soft-Abort-Selbstretrigger läuft
 im sterbenden Job — stirbt der Lauf davor (Runner-Ausfall, Cancel, hartes Timeout), klebt das
@@ -511,7 +511,7 @@ review-bereit und labelt ihn **selbst** mit `ai:needs-review`. Der separate
 [`pr-needs-review-label.yml`](../.github/workflows/pr-needs-review-label.yml) reagiert bewusst
 **NICHT** auf bot-erzeugte Draft→ready-Übergänge (nur auf menschliche Aktoren).
 
-## Nightly Spec-Sync (`claude-spec-sync.yml`)
+## Nightly Spec-Sync (`cron.sync.spec.yml`)
 
 Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 03:37 UTC +
 `workflow_dispatch`): Ein LLM-Lauf verifiziert die Specs in `docs/spec/` (`user-journeys.md` +
@@ -552,7 +552,7 @@ Journeys im user-journeys.md-Format).
   `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und
   Fair-Usage-Check).
 
-## Nightly Guide-Sync (`claude-guide-sync.yml`)
+## Nightly Guide-Sync (`cron.sync.guide.yml`)
 
 Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 04:27 UTC +
 `workflow_dispatch`): Ein LLM-Lauf hält das **In-App-Handbuch** `docs/user-guide.md` auf

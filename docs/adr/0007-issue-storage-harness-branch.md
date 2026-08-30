@@ -70,7 +70,7 @@ Bot-Akteure explizit (kein Label-Loop), `ci.yml` läuft als normaler PR-CI über
 Memory-Änderung (`.prettierignore` nimmt `.ai-memory/` aus).
 
 **7. Abbau.** `delete_branch_on_merge` (Repo-Fakt) löscht den Harness-Branch beim Merge —
-der Memory ist da schon in `main`. Der Hygiene-Sweep in `cache-cleanup.yml` fängt Verwaiste
+der Memory ist da schon in `main`. Der Hygiene-Sweep in `cron.cache-cleanup.yml` fängt Verwaiste
 (abgebrochene Tickets, nie gemergt) mit derselben Regel wie zuvor: Issue/PR geschlossen und
 letzter Commit älter als 7 Tage. Der Sweep läuft über beide Prefixe (`ai/state/`, `ai/harness/`).
 

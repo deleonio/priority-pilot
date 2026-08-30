@@ -47,7 +47,7 @@ Struktur jetzt:
 | `.claude/skills/*/SKILL.md` | Methode (Haltung, Schritte), keine CI-Referenzen |
 | `.github/prompts/*.md`      | operative CI-Prompts, verweisen auf SKILL.md     |
 
-Folge-Fixes im selben Zug: `claude-prompt-audit.yml` prüft die neuen Pfade, `FIXUP.md`
+Folge-Fixes im selben Zug: `cron.audit.prompt.yml` prüft die neuen Pfade, `FIXUP.md`
 mit umgezogen, Doku (ci-architecture.md, ADR-0005, tdd-strategy.md) und Workflow-Kommentare
 angepasst.
 

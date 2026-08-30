@@ -4,12 +4,12 @@
 
 ## Ziel
 
-Der Workflow `.github/workflows/claude-spec-sync.yml` synchronisiert `docs/spec/` gegen die Implementation und liefert jeden Lauf mit Drift als EINEN Sammel-PR ab.
+Der Workflow `.github/workflows/cron.sync.spec.yml` synchronisiert `docs/spec/` gegen die Implementation und liefert jeden Lauf mit Drift als EINEN Sammel-PR ab.
 
 ## Vorbedingung
 
 - Repository ist auf `origin/main`
-- Workflow-Datei `.github/workflows/claude-spec-sync.yml` existiert
+- Workflow-Datei `.github/workflows/cron.sync.spec.yml` existiert
 
 ## Schritte
 

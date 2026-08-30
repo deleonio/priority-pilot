@@ -53,7 +53,7 @@ Die Umbenennung des Server-Pakets (`priority-pilot` → `server`, Commit `6677ac
 Aufrufe in Doku, Skripten und CI ohne Treffer laufen. `pnpm` meldet dabei nur „No projects matched"
 und endet mit **Exit-Code 0** — die Fehler waren also unsichtbar. Betroffen waren unter anderem
 `pnpm ui:inspect` (der ganze Browser-MCP-Weg), das E2E-Backend in `frontend/playwright.config.ts`
-und das **Coverage-Gate** in `ci.yml`/`ci-multi-provider.yml`.
+und das **Coverage-Gate** in `ci.yml`/`cron.ci.multi-provider.yml`.
 
 Während dieses Audits lief, hat #841 (Issue #839) die **ausführbaren** Stellen auf `--filter server`
 umgestellt. Offen geblieben war die **Dokumentation** — sieben Dateien

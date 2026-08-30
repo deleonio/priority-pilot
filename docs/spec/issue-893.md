@@ -29,7 +29,7 @@ ZAI-Provider automatisch in den z.ai-Peak-Zeiten (Mo–Fr 08:00–12:00 Uhr Euro
 - Lösung ist DST-korrekt (kein zweimaliges Fehlschalten im Jahr)
 - CI-Läufe sind nicht blockiert, CLAUDE_API_KEY ist verfügbar
 - Jeder Auto-Switch ist im Job-Log sichtbar
-- `ci-multi-provider.yml` nutzt die Action nicht und ist von der Umschaltung nicht betroffen
+- `cron.ci.multi-provider.yml` nutzt die Action nicht und ist von der Umschaltung nicht betroffen
 
 ## Verhaltensfälle
 
