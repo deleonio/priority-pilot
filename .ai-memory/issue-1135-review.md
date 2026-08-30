@@ -1,43 +1,38 @@
-# Issue 1135 — Review (Kreuzverhör, Runde 1), Stand 2026-08-30
+# Issue 1135 — Review (Kreuzverhör R1 + Fixup-Nachweis R2), Stand 2026-08-30T19:5xZ
 
-**ERGEBNIS: VERDICT needs-fixup, Ampel 🔴.** PR #1135 (Workflow-Rename, 31 Dateien) — KEIN Closing-Issue (closingIssuesReferences=0) → „Review ohne Issue", PR-Beschreibung massgebend; Autor verschiebt Referenz-Updates ausdrücklich auf „separaten PR oder nach Merge". Kein `<!-- ai-review -->`-Marker vorhanden → MODE=CROSS-EXAMINATION (Volldiff). Diff ist sauber schlank: 31 Dateien, +31/−31, nur je eine `name:`-Zeile + 1 Kommentar-Übersetzung (cron.update-dependencies.yml). Review-Inline-Kommentare gebündelt als EIN Review (event=COMMENT) gepostet, Sammelkommentar mit Marker angelegt.
+**ERGEBNIS R2: VERDICT reviewed, Ampel 🟢.** MODE=FIXUP VERIFICATION (`<!-- ai-review -->`-Marker vorhanden, Kommentar-Id 5470612385, Update per PATCH gepostet). F1–F7 alle in eb4c4747 behoben und am HEAD verifiziert; F8 (Docs-Stale) bleibt als nicht blockierender Autor-Deferral offen. Titel weiterhin CC-konform (kein Rename).
 
 ## Erledigt
-- Voll-Diff gelesen (`git diff origin/main...HEAD -M --name-status`): R097-R100-Renames + cron.cache-cleanup.yml als M; keine Content-Änderungen neben `name:`.
-- Alte/neue `name:`-Mapping vollständig extrahiert (beide Seiten per Schleife über git ls-tree / Arbeitbaum).
-- Blast-Radius an 2 Haiku-Recherche-Agenten delegiert (workflow_run/gh-CLI-Refs; Docs-Refs) — Ergebnisse selbst am Code verifiziert.
-- Kontrakt-Test real laufen lassen: `node --import tsx --test .github/scripts/workflow-name-contract.test.ts` → **0 pass, 3 fail** (ENOENT auf alte Dateinamen + Phasen-Schema n/6 passt nicht mehr auf „00 Validate"). Root `pnpm test` enthält test:scripts (package.json:22-23) → CI verify auf dem PR ROT bestätigt (`gh pr checks 1135`: verify=fail).
+- Fixup-Diff gelesen: eb4c4747 (`.github/`, 15 Dateien) + e5596629/65165c21 (nur `.ai-memory/`-Docs) + menschlicher Commit 3913dd3b (00-validate-issue.yml → 00-validate.yml, `name: 00 Validate` — GitHub-UI-Commit von deleonio, richtet sich selbst nach, passt zum NN-Schema).
+- F1 merge-pr.yml:53 Allowlist `['Verify', '05 Review']` + :241-252 jq-Literale ✓; F2 05-review.yml:441-443 ✓; F3 Kontrakt-Test (REVIEW_FILE/GATE_FILE, Regex `^(\d\d)\s`, deepEqual-Sequenz :99 bleibt) ✓; F4 PHASES-Tabelle ✓; F5 cancel-pr:70 + label-pr-review:144 ✓; F6 cron.merge-prs:110 → `merge-pr.yml` ✓; F7 4 Selbstrefs ✓. Gate-Kollateral fixup-rounds.test.ts:24 → `04-implement.yml` mitgewandert.
+- Kreuzcheck neue Literale gegen echte `name:`-Felder: verify.yml=`Verify`, 05-review.yml=`05 Review`, 00-06 alle `NN Titel` ✓.
+- Stale-Ref-Grep am HEAD: nur noch Kommentare/Docs (F8-Klasse) — label-pr-review-Kommentare, actions/claude-workbench, unblock-issue, cron.sync-guide:314 etc., keine funktionalen Treffer.
+- CI: `gh run list --workflow verify.yml` auf dem Branch → eb4c4747 **success**; Head 65165c21 (nur `.ai-memory/`-Docs) pending, e5596629 cancelled (Superseded) — kein funktionales Risiko.
+- Sammelkommentar 5470612385 auf reviewed 🟢 aktualisiert (F1–F7 in Behobene-Anmerkungen-Tabelle abgehakt, F8 offen belassen, Footer „Review-Typ: Fixup-Nachweis").
 
 ## Relevante Stellen
-- `merge-pr.yml:53` — `workflows: ['CI', '5/6 Review']` (workflow_run-Allowlist) veraltet; neu wären `['Verify', '05 Review']`. Kommentar :51-52 fordert exakte Übereinstimmung selbst.
-- `merge-pr.yml:241-252` + `05-review.yml:441-443` — jq-Literale `.workflow == "CI"` / `"5/6 Review"` (Check-Buckets des Gates) ebenfalls veraltet → Gate zählt 0 Checks, merged nie.
-- `.github/scripts/workflow-name-contract.test.ts:34-35` — REVIEW_FILE/GATE_FILE zeigen auf alte Dateinamen; :78+ Phasen-Schema-Test erwartet `<n>/<gesamt>`-Namen. Muss mit dem Rename mitwandern (Test-Pflege-Bedarf).
-- `cron.resume-pipeline.yml:142-147` — PHASES-Tabelle mit 5 alten Dateinamen → `gh run list --workflow` leer → „Phase aktiv"-Skip + Soft-Abort-Fenster stumm falsch.
-- `cancel-pr.yml:70` + `label-pr-review.yml:144` — `for wf in 05-claude-pr-review.yml 04-claude-implement.yml` → stale Runs werden nicht mehr abgebrochen.
-- `cron.merge-prs.yml:110` — `gh workflow run claude-pr-gate-merge.yml` → Dispatch schlägt fehl.
-- `cron.audit-prompts.yml:71`, `cron.sync-adr.yml:70`, `cron.sync-guide.yml:78`, `cron.sync-spec.yml:70` — Selbst-Referenzen auf eigene alte Dateinamen (last_sha/Dedup).
-- Docs-Stale (vom Agent, nicht blockierend, Autor hat's deklariert): docs/pipeline-flow.md, docs/ci-architecture.md, .costs/SCHEMA.md:19,26, docs/kosten-baseline-912.md:3, docs/adr/0002,0004,0005,0007, .ai-knowledge/tdd-strategy.md:13, docs/spec/issue-734.md, docs/tailscale-exit-node.md, docs/kosten-optimierung-2026-08-26.md.
+- `.github/workflows/merge-pr.yml:53,241-252` — Gate-Allowlist + Check-Buckets (F1, behoben).
+- `.github/workflows/05-review.yml:441-443` — Gate-Spiegel (F2, behoben).
+- `.github/scripts/workflow-name-contract.test.ts:34-35,94-99` — Kontrakt-Test, migriert ohne Verwässerung (F3).
+- `.github/scripts/fixup-rounds.test.ts:24` — Gate-Kollateral, mitgewandert (nicht als Finding gemeldet gewesen).
+- `gh run list --workflow verify.yml` — CI-Beweisführung, wenn Sandbox kein tsx/pnpm hat.
 
 ## Annahmen
-- „gh run list --workflow <alter-Dateiname>" schlägt nach dem Rename fehl bzw. liefert nur Altdaten — nicht am Live-GitHub verifizert (keine Repos-Rechte für Experimente), aber konsistent mit gh-Auflösung über Workflow-Pfad und mit dem Kontrakt-Test-Kommentar („Umbenennen schaltet das Gate lautlos ab").
-- Deferral „nach Merge" ist kein akzeptabler Schutz: der Follow-up-PR hinge selbst am kaputten Gate (merge-pr.yml feuert nicht mehr) → Referenz-Fixes gehören IN diesen PR.
+- Lokaler Kontrakt-Test-Lauf in dieser Sandbox nicht möglich (`ERR_MODULE_NOT_FOUND: tsx`, kein pnpm im PATH) — CI verify auf eb4c4747 ist der verlässliche Beleg; docs-only Commits danach ändern keinen Code.
+- 3913dd3b (menschlich) braucht keine eigene Verifikation jenseits des Schemas — Name passt, kein Ref-Bruch entstanden (Grep `00-validate-issue` = 0 funktionale Treffer).
 
 ## Verworfen
-- needs-human — alle Findings sind konkret fixbar (Strings nachziehen), keine Produktfrage.
-- Docs-Stale als blockierendes Finding — PR-Beschreibung deklariert den Aufschub explizit; nur als 🟡-Hinweis aufgenommen.
-- Eigene Prüfung von renovate.json5 / session.test.ts-Altreferenzen (Agent nannte sie) — Kommentare/Docs, kein funktionaler Bruch, Zeitbudget.
+- Neue Kreuzverhör des Gesamtdiffs — MODE FIXUP VERIFICATION, nur Fixup-Delta + offene Findings.
+- F8 doch blockieren — Autor-Deferral steht in der PR-Beschreibung, R1 hat es ausdrücklich nicht blockierend eingestuft; reste nur Kommentare/Docs.
+- MEMORY.md-Eintrag — kein neuer Fehler/eine Lösung (tsx-fehlende Sandbox ist bekannte Klasse).
 
 ## Offen
-- Erwartete Fixups: F1 merge-pr.yml Allowlist+jq-Literale, F2 05-review.yml jq-Literale, F3 Kontrakt-Test migrieren (+ Phasen-Schema-Assertion an „00..06"-Namen anpassen), F4 resume-Pipeline PHASES, F5 cancel-pr+label-pr-review wf-Loops, F6 cron.merge-prs Dispatch, F7 sync/audit-Selbstrefs. Nummern in Sammelkommentar stabil.
-- Review gepostet: id 5061632168 (event=COMMENT, 6 Inline-Kommentare F2/F4-F8 + F1&F3 im Review-Body). Sammelkommentar mit `<!-- ai-review -->`-Marker angelegt (normale PR-Comments-API).
-- F1 konnte nicht inline verankert werden: merge-pr.yml ist im Diff R100 (reine Umbenennung, `name: Claude PR Gate & Auto-Merge` unverändert) → keine diffbaren Zeilen; F3-Datei liegt nicht im Diff → ebenfalls Body.
-- Wegwerf-Artefakt `.ai-memory/issue-1135-collected.md` (Sammelkommentar-Quelle) NICHT committen.
+- F8 Docs-Stale beim Autor/Afolge-PR (nicht blockierend, im Sammelkommentar vermerkt).
+- Wegwerf-Artefakte NICHT committen: `.ai-memory/issue-1135-collected-r2.md` (Quelle des Kommentar-Updates; das R1-Artefakt `issue-1135-collected.md` besteht ggf. fort).
 
 ## Nächster Schritt
-- Fixup-Runde (MODE FIXUP VERIFICATION): `<!-- ai-review -->`-Sammelkommentar laden, nur Fixup-Diff + offene Findings F1-F7 abhaken, KEINE neue Kreuzverhör des Gesamtdiffs.
+- Phase abgeschlossen (verdict `reviewed` nach /tmp/claude-verdict geschrieben) — Workflow übernimmt Merge-Handling; F8 im Folge-PR abarbeiten.
 
 ## Fallstricke
-- Sammelkommentar existiert jetzt (Marker erste Zeile) → nächster Lauf ist FIXUP VERIFICATION, nicht Kreuzverhör.
-- Review-Inline-Kommentare altern mit dem Diff; Findings-Zählung (F1-F7) weiterführen, nicht neu nummerieren.
-- Beim Fixup: Kontrakt-Test nicht löschen/wässern, sondern auf neue Namen migrieren — er ist genau der Schutz, der diesen Bruch gefunden hat.
-- Title-Gate: „chore: rename all workflows with descriptive names" ist CC-konform (kein Rename nötig); kein Label setzen (Workflow macht das).
+- `gh pr view --json comments --jq '.databaseId'` lieferte leer — Kommentar-Id via `gh api repos/{owner}/{repo}/issues/1135/comments` holen.
+- Review-Inline-Threads aus R1 sind laut Fixup-Notiz resolvt; F-Nummern bleiben stabil (F8 weitergeführt, nichts neu nummeriert).
