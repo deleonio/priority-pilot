@@ -1,4 +1,4 @@
-name: Claude PR Review abbrechen (bei Merge/Schliessen)
+name: Cancel PR
 
 # Bricht laufende UND wartende Kreuzverhoer-Review- und Fixup-Laeufe eines PRs ab, sobald er
 # gemergt oder geschlossen wird. Noetig, weil die Concurrency-Gruppen (statisch pro Phase:
@@ -67,7 +67,7 @@ jobs:
           # (früher 06-claude-pr-fixup.yml). Der Branch-Filter trennt die beiden Eingänge
           # zuverlässig: Läufe des Issue-Eingangs hängen am Default-Branch, nie am
           # PR-Head-Branch — es werden also weiterhin nur PR-Läufe abgebrochen.
-          for wf in 05-claude-pr-review.yml 04-claude-implement.yml; do
+          for wf in 05-review.yml 04-implement.yml; do
             gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" \
               --json databaseId,status \
               --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \

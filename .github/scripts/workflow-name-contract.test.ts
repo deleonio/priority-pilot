@@ -5,19 +5,21 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Der `name:` des Review-Workflows ist LASTEND: claude-pr-gate-merge.yml hört per
+ * Der `name:` des Review-Workflows ist LASTEND: merge-pr.yml hört per
  * `workflow_run` auf eine Allowlist von Workflow-NAMEN und filtert seine Check-Buckets
  * über denselben String. Stimmen die beiden nicht überein, feuert das Gate nie und
  * meldet auch nichts — ein PR bleibt einfach für immer liegen. Genau davor warnt der
- * Kopf von 05-claude-pr-review.yml ("Umbenennen schaltet das Gate lautlos ab").
+ * Kopf von 05-review.yml ("Umbenennen schaltet das Gate lautlos ab").
  *
  * Bis hierher war diese Warnung ein Kommentar. Beim Umnummerieren auf das 6-Phasen-
  * Schema (5/7 → 5/6, ADR-0005) musste derselbe String an fünf Stellen mitwandern —
  * eine übersehene hätte das Gate stillgelegt, ohne dass irgendein Lauf rot wird.
- * Dieser Test macht daraus einen roten Test.
+ * Dieser Test macht daraus einen roten Test. (Beim deskriptiven Rename 2026-08-30
+ * wanderte er gleich noch einmal mit: '5/6 Review' → '05 Review', Phasennamen
+ * 'n/6 Titel' → 'NN Titel'.)
  *
  * Bewusst textuell (kein YAML-Parser): Geprüft wird exakt das, was GitHub sieht — der
- * String. Ein Parser würde `workflows: ['CI', '5/6 Review']` normalisieren und damit
+ * String. Ein Parser würde `workflows: ['Verify', '05 Review']` normalisieren und damit
  * genau die Tippfehler-Klasse verstecken, um die es geht.
  */
 
@@ -31,8 +33,8 @@ const workflowName = (file: string): string => {
 	return match[1].replace(/^['"]|['"]$/g, '');
 };
 
-const REVIEW_FILE = '05-claude-pr-review.yml';
-const GATE_FILE = 'claude-pr-gate-merge.yml';
+const REVIEW_FILE = '05-review.yml';
+const GATE_FILE = 'merge-pr.yml';
 
 describe('Workflow-Namensvertrag — Gate ↔ Review', () => {
 	it('das Gate horcht per workflow_run auf genau den Namen, den der Review-Workflow trägt', () => {
@@ -51,8 +53,8 @@ describe('Workflow-Namensvertrag — Gate ↔ Review', () => {
 	});
 
 	it('jeder .workflow-Vergleich in Gate und Review nennt einen existierenden Workflow-Namen', () => {
-		// Die jq-Filter beider Dateien vergleichen `.workflow` gegen Literale ("CI",
-		// "5/6 Review"). Ein Literal, das keinen Workflow trifft, lässt den Bucket leer —
+		// Die jq-Filter beider Dateien vergleichen `.workflow` gegen Literale ("Verify",
+		// "05 Review"). Ein Literal, das keinen Workflow trifft, lässt den Bucket leer —
 		// das Gate zählt dann 0 Reviews und merged nie (oder, schlimmer, es zählt einen
 		// Pflicht-Check nicht mit und merged zu früh).
 		const known = new Set(
@@ -80,16 +82,17 @@ describe('Workflow-Namensvertrag — Phasen-Nummerierung', () => {
 		// Die Nummer im Namen ist die einzige Stelle, an der ein Mensch die Pipeline-Länge
 		// abliest. Nach dem Zusammenlegen von Fixup und Umsetzung (ADR-0005) gibt es sechs
 		// Pipeline-Phasen (1..6), dazu Phase 0 (Setup) — zusammen 7 Workflows (00..06).
-		// Ein zurückgebliebenes "x/7" wäre schlicht eine Falschaussage.
+		// Seit dem deskriptiven Rename 2026-08-30 steht die Nummer zweistellig voran
+		// ("05 Review" statt "5/6 Review"); ein zurückgebliebenes "x/y" wäre schlicht
+		// eine Falschaussage.
 		const phaseFiles = readdirSync(workflows)
 			.filter((f) => /^\d\d-.*\.yml$/.test(f))
 			.sort();
 
 		const seen = phaseFiles.map((f) => {
 			const name = workflowName(f);
-			const match = name.match(/^(\d)\/(\d)\s/);
-			assert.ok(match, `${f}: Name '${name}' folgt nicht dem Schema '<n>/<gesamt> <Titel>'`);
-			assert.equal(match[2], '6', `${f}: Name '${name}' nennt eine andere Phasenzahl als 6`);
+			const match = name.match(/^(\d\d)\s/);
+			assert.ok(match, `${f}: Name '${name}' folgt nicht dem Schema '<nn> <Titel>'`);
 			return Number(match[1]);
 		});
 

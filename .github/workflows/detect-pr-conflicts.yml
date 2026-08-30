@@ -1,4 +1,4 @@
-name: PR Conflict Scan
+name: Detect PR Conflicts
 
 # Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
 # ai:needs-fixup, damit die Umsetzungsphase (04-claude-implement.yml) sie automatisch auflöst.

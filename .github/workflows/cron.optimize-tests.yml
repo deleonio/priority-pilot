@@ -1,4 +1,4 @@
-name: Test Optimization
+name: Optimize Tests
 
 # Tägliche Analyse der Test-Suite nach TDD-Prinzipien (Substance over Quantity).
 # Erkennt tautologische Tests, Redundanzen, fehlende Mutation-Probes, leere Mengen.

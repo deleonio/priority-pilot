@@ -1,4 +1,4 @@
-name: CI Multi-Provider
+name: Test Providers
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Claude PR Gate Sweep
+name: Merge PRs
 
 # Stündliches Sicherheitsnetz für das event-getriebene Gate (claude-pr-gate-merge.yml): Jedes
 # No-op des Gates vertraut darauf, dass ein Folge-Event (Label, CI-/Review-Abschluss) es erneut
@@ -107,7 +107,7 @@ jobs:
               echo "[dry-run] würde Gate für PR #$number nachtriggern."
               continue
             fi
-            if gh workflow run claude-pr-gate-merge.yml --repo "$REPO" -f "pr=$number"; then
+            if gh workflow run merge-pr.yml --repo "$REPO" -f "pr=$number"; then
               echo "| #$number | $title | 🚀 nachgetriggert |" >> "$GITHUB_STEP_SUMMARY"
               echo "🚀 Gate für PR #$number nachgetriggert."
             else

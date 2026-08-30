@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
  */
 
 const script = join(fileURLToPath(new URL('.', import.meta.url)), 'fixup-rounds.sh');
-const workflow04 = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'workflows', '04-claude-implement.yml');
+const workflow04 = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'workflows', '04-implement.yml');
 
 let stubDir: string;
 let fixturePath: string;
@@ -157,7 +157,7 @@ describe('fixup-rounds.sh count — TF4: Argument-Validierung', () => {
 });
 
 describe('Struktur-Check — Deckel-Konfiguration an genau einer Stelle (AK3)', () => {
-	it('04-claude-implement.yml definiert MAX_FIXUP_ROUNDS als env-Anchor und ruft fixup-rounds.sh im Stop-Guard', () => {
+	it('04-implement.yml definiert MAX_FIXUP_ROUNDS als env-Anchor und ruft fixup-rounds.sh im Stop-Guard', () => {
 		const yaml = readFileSync(workflow04, 'utf8');
 		const anchors = yaml.match(/^\s*MAX_FIXUP_ROUNDS:.*$/gm) ?? [];
 		assert.equal(anchors.length, 1, `MAX_FIXUP_ROUNDS muss genau 1× als env definiert sein, ist ${anchors.length}×`);

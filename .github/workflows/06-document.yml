@@ -1,4 +1,4 @@
-name: 6/6 Dokumentation
+name: 06 Document
 
 # 7. Pipeline-Phase — PR-Documenter (Arbeitsteilung Regel-Logik + LLM).
 # Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,

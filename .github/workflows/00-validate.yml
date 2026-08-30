@@ -1,4 +1,4 @@
-name: 0/6 Issue-Validator
+name: 00 Validate
 
 # Vorab-Feedback fuer Autoren: Beim ERSTELLEN und JEDEM EDIT des Issues laeuft die
 # rein mechanische Guete-Pruefung (verify-issue-quality.sh) und aktualisiert EINEN

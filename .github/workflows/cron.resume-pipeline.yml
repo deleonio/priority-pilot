@@ -1,4 +1,4 @@
-name: Claude Continue Sweep
+name: Resume Pipeline
 
 # Alle 6 Stunden (jeweils 5 Minuten nach 0, 6, 12 und 18 Uhr Europe/Berlin) Sicherheitsnetz
 # für die label-getriebene Pipeline (01–06): Jede Phase läuft auf `labeled`-Events, und der
@@ -139,12 +139,12 @@ jobs:
           # Dateiname-Schlüssel liesse sich das nicht ausdrücken; einer der beiden Eingänge
           # wäre still aus dem Sweep gefallen und klebende Trigger blieben liegen.
           declare -A PHASES=(
-            [1-analyse]="01-claude-triage.yml|ai:needs-analyse|issue"
-            [2-ux]="02-claude-ux.yml|ai:needs-ux-ui|issue"
-            [3-spec]="03-claude-spec.yml|ai:needs-spec|issue"
-            [4-implement]="04-claude-implement.yml|ai:needs-impl|issue"
-            [4-implement-pr]="04-claude-implement.yml|ai:needs-fixup|pr"
-            [5-review]="05-claude-pr-review.yml|ai:needs-review|pr"
+            [1-analyse]="01-triage.yml|ai:needs-analyse|issue"
+            [2-ux]="02-design-ux.yml|ai:needs-ux-ui|issue"
+            [3-spec]="03-define-spec.yml|ai:needs-spec|issue"
+            [4-implement]="04-implement.yml|ai:needs-impl|issue"
+            [4-implement-pr]="04-implement.yml|ai:needs-fixup|pr"
+            [5-review]="05-review.yml|ai:needs-review|pr"
           )
 
           for ENTRY in $(printf '%s\n' "${!PHASES[@]}" | sort); do

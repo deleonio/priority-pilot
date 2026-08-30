@@ -1,4 +1,4 @@
-name: Bild-Backfill (Datenschutz)
+name: Optimize Images
 
 # Einmaliger, manuell ausgelöster Nachzieh-Sweep für den Bild-Entfernungs-Job aus
 # 06-claude-pr-documenter.yml (.github/scripts/pr-image-strip.sh, Issue #1021): dieser

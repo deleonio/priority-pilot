@@ -1,4 +1,4 @@
-name: Nightly Architecture Optimization
+name: Optimize Architecture
 
 # Nightly: genau EINE Architektur-Optimierung (Stabilität/Wartbarkeit) via Claude Code suchen
 # und als pipeline-fähiges Ticket anlegen. Läuft täglich 03:57 UTC — nicht auf Push/PR.

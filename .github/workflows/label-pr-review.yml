@@ -1,4 +1,4 @@
-name: PR Auto-Label (ai:needs-review)
+name: Label PR Review
 
 # Setzt beim OEFFNEN eines (Nicht-Draft-)Pull Requests automatisch das Pipeline-Label
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
@@ -141,7 +141,7 @@ jobs:
           # (früher 06-claude-pr-fixup.yml). Der Branch-Filter trennt die beiden Eingänge
           # zuverlässig: Läufe des Issue-Eingangs hängen am Default-Branch, nie am
           # PR-Head-Branch — es werden also weiterhin nur PR-Läufe abgebrochen.
-          for wf in 05-claude-pr-review.yml 04-claude-implement.yml; do
+          for wf in 05-review.yml 04-implement.yml; do
             gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" --limit 100 \
               --json databaseId,status \
               --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \

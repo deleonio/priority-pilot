@@ -1,4 +1,4 @@
-name: Prompt-Audit (nightly)
+name: Audit Prompts
 
 # Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Review der Phasen-Prompts der KI-Pipeline unter der Leitfrage: Wie lässt sich der
@@ -68,7 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.audit.prompt.yml \
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.audit-prompts.yml \
             --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
           if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
             echo "::notice title=⏭️ Prompt-Audit übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Audit."
