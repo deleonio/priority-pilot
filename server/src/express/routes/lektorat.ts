@@ -1,14 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import { lektoratTextWithMistral } from '../../llm/llm.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 
 type ErrorDto = { message: string };
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	// `{ message }` wie alle übrigen Routen — toApiError (Frontend) liest exakt dieses Feld.
-	res.status(status).json({ message });
-};
 
 /**
  * Validiert den Body von `POST /lektorat`: `text` Pflicht (nicht-leer),

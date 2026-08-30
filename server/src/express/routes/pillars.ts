@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Pillar, TaskPillar, SeriesPillar } from '../../models/index.js';
 import type { components } from '../../api';
@@ -41,10 +42,6 @@ const serializePillar = (pillar: Pillar): PillarDto => ({
 	description: pillar.description,
 	weight: pillar.weight,
 });
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
 
 /**
  * Validiert den Body von `PUT /pillars/weights` rein strukturell (ohne DB-Zugriff):
