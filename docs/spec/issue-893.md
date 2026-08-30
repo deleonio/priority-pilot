@@ -1,6 +1,6 @@
 # Issue 893: ZAI-Provider Timeout-Fallback 08-12 Berlin
 
-**Stand:** 2026-08-24
+**Stand:** 2026-08-30
 
 ## Ziel
 
@@ -18,7 +18,7 @@ ZAI-Provider automatisch in den z.ai-Peak-Zeiten (Mo–Fr 08:00–12:00 Uhr Euro
 1. **Zeitfenster erkennen**: Laufzeit-Prüfung in Singapore-Zeit (`TZ='Asia/Singapore' date +%H` und `date +%u`) — das z.ai-Peak-Fenster ist Mo–Fr 14:00–17:59 Asia/Singapore (UTC+8, kein DST)
    - Wochentag 1–5 (Mo–Fr) und Stunden 14-17 SGT → innerhalb Zeitfenster (= 08:00–12:00 MESZ bzw. 07:00–11:00 MEZ Berlin)
    - Wochenende (Sa/So) oder Stunden außerhalb → außerhalb Zeitfenster (am Wochenende gilt bei z.ai ganztägig Off-Peak)
-2. **Provider-Entscheidung**: Wenn `LLM_PROVIDER=zai` UND Zeitfenster aktiv → auf `claude` fallen; andere Provider werden gar nicht geprüft (Notice „Zeitfenster-Check übersprungen")
+2. **Provider-Entscheidung**: Wenn `LLM_PROVIDER=zai` UND Zeitfenster aktiv → auf `claude` fallen; andere Provider werden gar nicht geprüft (Notice „Zeitfenster-Check übersprungen (Provider=$PROVIDER, nur zai wird geprüft)")
 3. **DST-Korrektheit**: Das Fenster ist in Singapore-Zeit (UTC+8, ohne DST) definiert — das Berliner Fenster verschiebt sich mit Sommer-/Winterzeit automatisch korrekt
 4. **Observability**: Auto-Switch im Log via `::notice::` (mit Wochentag/Stunde in SGT)
 
@@ -29,9 +29,9 @@ ZAI-Provider automatisch in den z.ai-Peak-Zeiten (Mo–Fr 08:00–12:00 Uhr Euro
 - Lösung ist DST-korrekt (kein zweimaliges Fehlschalten im Jahr)
 - CI-Läufe sind nicht blockiert, CLAUDE_API_KEY ist verfügbar
 - Jeder Auto-Switch ist im Job-Log sichtbar
-- `ci-multi-provider.yml` bleibt ausgenommen (eigener Vergleichs-Workflow)
+- `ci-multi-provider.yml` nutzt die Action nicht und ist von der Umschaltung nicht betroffen
 
-## Testfälle
+## Verhaltensfälle
 
 1. **Innerhalb Zeitfenster (Mo–Fr, 14-17 SGT)**: `LLM_PROVIDER=zai` → effektiv `claude`
 2. **Außerhalb Zeitfenster (Wochenende oder 18-13 SGT)**: `LLM_PROVIDER=zai` → effektiv `zai`

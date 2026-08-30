@@ -1,7 +1,6 @@
 # User Journey – Frontend-Error-Handling für LLM-Calls
 
-**Stand:** 2026-08-27  
-**Issue:** #620 (Teil von #617)
+**Stand:** 2026-08-30
 
 ---
 
@@ -55,4 +54,4 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 
 ## Hinweise zur Nutzung
 
-- **Implementierung:** Implementierungsagnostisch – beschreibt das beobachtbare Verhalten, nicht den technischen Pfad
+- **Implementierung:** Implementierungsagnostisch – beschreibt das beobachtbare Verhalten

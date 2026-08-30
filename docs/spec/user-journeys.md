@@ -1,6 +1,6 @@
 # User Journeys – Priority Pilot
 
-**Stand:** 2026-08-28  
+**Stand:** 2026-08-30  
 **Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Priority Pilot App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -92,7 +92,7 @@ Zwei Aufgaben so verknüpfen, dass eine Aufgabe vom Erledigen der anderen abhän
 
 - Abhängigkeit ist persistent gespeichert
 - Vorgänger-Aufgabe erscheint in der Liste der aktuellen Vorgänger
-- Im Aufgaben-Baum ist der Vorgänger (die Unteraufgabe) eingerückt unter der abhängigen (Eltern-)Aufgabe sichtbar
+- Im Tab „Wald" ist der Vorgänger (die Unteraufgabe) eingerückt unter der abhängigen (Eltern-)Aufgabe sichtbar
 - Die abhängige Aufgabe lässt sich erst erledigen, wenn der Vorgänger „Done" ist
 - Zyklische Abhängigkeiten werden mit einem Hinweis abgelehnt (z. B. A → B → A)
 - Die Liste „Aktuelle Vorgänger" im Abhängigkeits-Dialog basiert auf dem Aufgabenwald und zeigt nur Vorgänger mit Status „Offen"/„In Bearbeitung"; ist ein Vorgänger bereits „Done", verschwindet er aus dieser Liste (die Abhängigkeit selbst bleibt gespeichert)
@@ -198,7 +198,7 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
 | Zyklische Abhängigkeit (z. B. A → B → A)                             | Wird zurückgewiesen (HTTP 409): „… Es würde ein Zyklus entstehen."                                                                 |
 | Aufgabe mit offenen Unteraufgaben (Vorgängern) auf „Erledigt" setzen | Wird zurückgewiesen (HTTP 409): „Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren." |
 | Titel fehlt beim Anlegen                                             | „Bitte einen Titel angeben."                                                                                                       |
-| Titel länger als 30 Zeichen                                          | „Titel darf maximal 30 Zeichen haben." (Eingabe wird blockiert)                                                                    |
+| Titel länger als 30 Zeichen                                          | „Titel darf maximal 30 Zeichen haben." (Eingabe wird auf 30 Zeichen begrenzt)                                                      |
 | Kantengewicht außerhalb 0,1–1                                        | „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein."                                                                              |
 | Priorität / Aufwand außerhalb des Bereichs                           | Werte sind über die Schieberegler begrenzt (1–5 bzw. 0,1–1), außerhalb liegende Werte sind nicht eingebbar                         |
 
@@ -212,4 +212,3 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
   - **ausführbar** sind (jede Journey kann durchgespielt werden)
   - **mutationsresistent** sind (prüfen Verhalten, nicht Implementierungsdetails)
   - **ergebnisorientiert** sind (validieren das Ergebnis, nicht nur Schritte)
-- **Änderungen:** Bei Änderungen an der App müssen diese Journeys aktualisiert werden, damit Tests weiterhin gültig bleiben.
