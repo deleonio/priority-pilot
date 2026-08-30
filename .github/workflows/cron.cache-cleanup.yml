@@ -25,7 +25,7 @@ name: Cache-Aufraeumen
 # geschrumpft ist.
 #
 # `codeql-overlay-base-database-*`-Caches (vom github/codeql-action automatisch verwaltet) werden
-# hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in codeql.yml
+# hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in cron.codeql.yml
 # (Schedule-only statt pro Push/PR). Sie fallen innerhalb von 7 Tagen an GitHubs Eviction.
 #
 # STORAGE-BRANCH-SWEEP (ADR 0007, Erbe aus ADR 0006): Der Issue-Storage lebt auf

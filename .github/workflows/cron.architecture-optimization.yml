@@ -11,11 +11,11 @@ name: Nightly Architecture Optimization
 #
 # APP-TOKEN-PFLICHT: Issue-Anlage inkl. Label `ai:needs-analyse` läuft über das GitHub-App-
 # Token (steps.setup.outputs.gh-token) — von GITHUB_TOKEN gesetzte Labels lösen KEINE Folge-
-# Workflows aus (gleiche Falle wie in claude-continue-sweep.yml dokumentiert), die Triage der
+# Workflows aus (gleiche Falle wie in cron.continue-sweep.yml dokumentiert), die Triage der
 # Pipeline würde sonst nie anlaufen.
 #
 # DEDUP: Existiert bereits ein offenes `nightly-arch-opt`-Issue, wird KEIN neues angelegt
-# (Notice statt Spam-Duplikat, Muster test-optimization.yml). Die offenen Titel bekommt der
+# (Notice statt Spam-Duplikat, Muster cron.ci.test-optimization.yml). Die offenen Titel bekommt der
 # Agent vorab als bekannt mitgegeben, damit er nichts Offenes erneut vorschlägt.
 #
 # TEMPLATE-PFLICHT: Der Issue-Body folgt dem Ticket-Template (vier Abschnitte „Was ist das

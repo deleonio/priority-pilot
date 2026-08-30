@@ -57,7 +57,7 @@ on:
     # gefiltert, damit nicht jedes Label den Lauf startet.
     types: [labeled]
   workflow_dispatch:
-    # Manueller Re-Check eines PRs bzw. Trigger durch den Gate-Sweep (claude-pr-gate-sweep.yml):
+    # Manueller Re-Check eines PRs bzw. Trigger durch den Gate-Sweep (cron.pr-gate-sweep.yml):
     # heilt PRs, deren letztes Gate-Event in ein No-op fiel (z. B. mergeable=UNKNOWN direkt nach
     # Review-Abschluss, PR #876) und fuer die daher nie ein Folge-Event kommt.
     inputs:

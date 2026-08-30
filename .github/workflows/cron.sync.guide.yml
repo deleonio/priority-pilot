@@ -14,7 +14,7 @@ name: Guide-Sync (nightly)
 # origin/main zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt damit IMMER exakt
 # die aktuelle Drift statt Commits über Nächte zu akkumulieren.
 #
-# UNTERSCHIED ZU claude-spec-sync.yml: Dieser Bot-PR wird BEWUSST an die KI-Pipeline gehängt
+# UNTERSCHIED ZU cron.sync.spec.yml: Dieser Bot-PR wird BEWUSST an die KI-Pipeline gehängt
 # (ai:needs-review per App-Token → 04 Review → Gate → Auto-Merge). Das Handbuch soll sich ohne
 # Menschen aktualisieren. Zwei Konsequenzen sind mechanisch abgesichert:
 #   1. Das Label muss ERST entfernt und DANN gesetzt werden (Re-Arm-Muster #536), sonst feuert
@@ -75,7 +75,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow claude-guide-sync.yml \
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.sync.guide.yml \
             --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
           if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
             echo "::notice title=⏭️ Guide-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Sync."

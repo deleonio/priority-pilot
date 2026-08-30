@@ -8,7 +8,7 @@ name: Claude Continue Sweep
 # ein Folge-Event die Phase je wieder weckt — die Arbeit steht still, bis ein Mensch eingreift.
 # Dieser Sweep findet solche Kleber und feuert das Trigger-Label per App-Token neu (exakt die
 # dokumentierte Selbst-Retrigger-Mechanik, nur zeitversetzt als Sicherheitsnetz — analog
-# claude-pr-gate-sweep.yml für das Gate). Der geweckte Phasen-Workflow entscheidet dann mit
+# cron.pr-gate-sweep.yml für das Gate). Der geweckte Phasen-Workflow entscheidet dann mit
 # all seinen eigenen Guards (Konsumiert-Check, Doppel-Run-Guard, ai:continued-Fortsetzung),
 # ob er arbeitet: keine Logik-Duplikate, kein Label-Toggling außer dem Trigger selbst.
 #
@@ -20,7 +20,7 @@ name: Claude Continue Sweep
 #
 # WICHTIG (Token-Trigger-Falle): Label-Writes MÜSSEN mit dem GitHub-App-Token laufen — von
 # GITHUB_TOKEN gesetzte Labels lösen KEINE Folge-Workflows aus, der Sweep wäre wirkungslos
-# (gleiches Muster wie claude-pr-gate-sweep.yml). Fehlen die App-Secrets, ist das bewusst rot
+# (gleiches Muster wie cron.pr-gate-sweep.yml). Fehlen die App-Secrets, ist das bewusst rot
 # statt still grün. Das `unlabeled`-Event des Removes ist harmlos: 01-claude-triage.yml gatet
 # `unlabeled` auf `ai:analysed`, der Sweep entfernt nur `ai:needs-*`.
 #
@@ -70,7 +70,7 @@ jobs:
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         # Kein GITHUB_TOKEN-Fallback: von GITHUB_TOKEN gesetzte Labels lösen keine Folge-
         # Workflows aus — der Sweep wäre für den Automatik-Zweck (schedule) tot. Bewusst
-        # rot statt still grün (gleiche Begründung wie claude-pr-gate-sweep.yml).
+        # rot statt still grün (gleiche Begründung wie cron.pr-gate-sweep.yml).
         id: preflight
         env:
           APP_ID: ${{ secrets.APP_ID }}
