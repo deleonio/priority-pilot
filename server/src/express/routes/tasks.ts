@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Op, Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
+import { sendError, handleWriteError, parseId } from '../http-error.js';
+import { Op, Transaction } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
@@ -110,25 +111,6 @@ export const serializeTask = (task: Task): TaskDto => ({
 		}))
 		.sort((a, b) => a.pillarId - b.pillarId),
 });
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
-
-/** Übersetzt Schreibfehler in passende HTTP-Statuscodes (400 bei Validierung, sonst 500). */
-const handleWriteError = (res: Response<ErrorDto>, error: unknown): void => {
-	if (error instanceof SequelizeValidationError) {
-		sendError(res, 400, error.errors.map((item) => item.message).join('; '));
-		return;
-	}
-	sendError(res, 500, 'Interner Serverfehler.');
-};
-
-/** Pfad-Parameter als positive Ganzzahl parsen; sonst `null`. */
-const parseId = (raw: string | string[]): number | null => {
-	const id = Number(Array.isArray(raw) ? raw[0] : raw);
-	return Number.isInteger(id) && id > 0 ? id : null;
-};
 
 /**
  * Lädt einen Task nur, wenn er dem Nutzer gehört (bzw. im Pass-Through-Modus uneingeschränkt).

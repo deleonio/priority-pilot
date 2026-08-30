@@ -1,4 +1,6 @@
-# Spec #1105 — App-Routes für alle Menüs (außer Dialoge)
+# App-Routes für alle Menüs (außer Dialoge)
+
+**Stand:** 2026-08-30
 
 ## Ziel
 
@@ -8,8 +10,8 @@ v6): Browser-Back/Forward und Deep-Links funktionieren, Tab-Zustand wird aus der
 
 ## Voraussetzungen
 
-- Auth-Gate durchlässig (`/auth/me` gemockt in `frontend/e2e/fixtures.ts`).
-- Vite SPA-Fallback liefert `index.html` für alle Pfade → Deep-Links laden die App.
+- Angemeldeter Nutzer (Auth-Gate durchlässig).
+- SPA-Fallback des Dev-Servers liefert `index.html` für alle Pfade → Deep-Links laden die App.
 
 ## Schritte und erwartetes Ergebnis
 
@@ -35,15 +37,12 @@ vorige Ansicht mit voriger URL (kein Reload nötig), `goForward()` entsprechend.
 
 ### AK3 — Deep-Links inklusive Settings-Panel
 
-Siehe AK1-Tabelle; `/settings/:tab` wählt das richtige Panel. (Teilweise bereits abgedeckt durch
-`help.spec.ts` und `settings-page.spec.ts` — hier nur die noch fehlenden Routen.)
+Siehe AK1-Tabelle; `/settings/:tab` wählt das richtige Panel.
 
-### AK4 — Zustand aus URL abgeleitet, handgestrickte Navigation entfernt
+### AK4 — Zustand aus URL abgeleitet
 
 Aktiver Haupt-Tab und Settings-Tab sind reine Funktion der URL (bei Load und bei URL-Wechsel);
-die pushState/popstate-Fragmente (`App.tsx` `openHelp`/`closeHelp`/`openSettings`/`closeSettings`,
-popstate-Listener; `SettingsPage.tsx` Init aus `window.location.pathname`) sind durch React Router
-ersetzt. Verhalten wird über AK1/AK2 e2e eingeklagt (kein Doppeltest auf Unit-Ebene).
+die Navigation läuft vollständig über den Router (keine parallelen pushState/popstate-Pfade).
 
 ### AK5 — `/aufgaben` Query-Parameter
 
@@ -56,10 +55,9 @@ ersetzt. Verhalten wird über AK1/AK2 e2e eingeklagt (kein Doppeltest auf Unit-E
 Öffnen und Schließen von Task-Dialog („Neuen Task anlegen“), Suche und Säulen-Berater ändern
 Pathname und Query nicht (`page.url()` unverändert).
 
-### AK7 — Bestehende Tests bleiben grün
+### AK7 — Regression
 
-Kein neuer Test: Regression läuft über `help.spec.ts`, `settings-page.spec.ts`,
-`settings-tabs.spec.ts`, `tasks-tab-filter.spec.ts` und die Unit-Suites in CI.
+Bestehende Verhalten (Hilfe-Seite, Settings-Tabs, Aufgaben-Filter) bleiben unverändert.
 
 ### AK8 — Mobile-first 375 px
 

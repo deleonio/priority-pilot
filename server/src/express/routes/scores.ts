@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import { Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import type { PillarWithContribution } from '../../models/task.js';
@@ -25,7 +26,7 @@ scoresRouter.get('/scores', async (_req: Request, res: Response<ScoreEntryDto[] 
 			})),
 		);
 	} catch {
-		res.status(500).json({ message: 'Interner Serverfehler.' });
+		sendError(res, 500, 'Interner Serverfehler.');
 	}
 });
 
@@ -46,6 +47,6 @@ scoresRouter.get('/scores/by-pillar', async (req: Request, res: Response<PillarS
 		const summen = aggregierePunkteProSaeule(beitraege);
 		res.json([...summen.entries()].map(([pillarId, punkte]) => ({ pillarId, punkte })));
 	} catch {
-		res.status(500).json({ message: 'Interner Serverfehler.' });
+		sendError(res, 500, 'Interner Serverfehler.');
 	}
 });

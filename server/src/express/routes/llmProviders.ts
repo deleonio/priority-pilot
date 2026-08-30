@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Response } from 'express';
+import { sendError, parseId } from '../http-error.js';
 import type { components } from '../../api';
 import {
 	activateProvider,
@@ -19,10 +20,6 @@ type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
 type LlmProviderUpdateDto = components['schemas']['LlmProviderUpdate'];
 type LlmModelDto = components['schemas']['LlmModel'];
 type ErrorDto = components['schemas']['Error'];
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
 
 /** Prüft, ob ein String eine gültige http(s)-URL ist. */
 const isValidHttpUrl = (value: string): boolean => {
@@ -88,11 +85,6 @@ const validateUpdate = (body: unknown): UpdateValidation => {
 		}
 	}
 	return { ok: true, input };
-};
-
-const parseId = (value: string): number | null => {
-	const id = Number(value);
-	return Number.isInteger(id) && id > 0 ? id : null;
 };
 
 /** Ordnet Fehler der Service-Schicht auf HTTP-Status/Message — false = nicht behandelt. */
@@ -342,7 +334,7 @@ export const createLlmProvidersRouter = (
 			res.status(204).end();
 		} catch (error) {
 			if (sendServiceError(res, error)) return;
-			res.status(500).json({ message: 'Interner Serverfehler.' });
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
 
