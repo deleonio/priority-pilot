@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Op, Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
+import { sendError, handleWriteError, parseId } from '../http-error.js';
+import { Op, Transaction } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
@@ -75,26 +76,6 @@ type ValidationResult =
 
 const isRhythm = (value: unknown): value is SeriesRhythm =>
 	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
-
-const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ message });
-};
-
-/** Übersetzt Schreibfehler in passende HTTP-Statuscodes (400 bei Validierung, sonst 500). */
-const handleWriteError = (res: Response<ErrorDto>, error: unknown): void => {
-	if (error instanceof SequelizeValidationError) {
-		sendError(res, 400, error.errors.map((item) => item.message).join('; '));
-		return;
-	}
-	console.error('Unerwarteter Fehler in Series-Route:', error);
-	sendError(res, 500, 'Interner Serverfehler.');
-};
-
-/** Pfad-Parameter als positive Ganzzahl parsen; sonst `null`. */
-const parseId = (raw: string | string[]): number | null => {
-	const id = Number(Array.isArray(raw) ? raw[0] : raw);
-	return Number.isInteger(id) && id > 0 ? id : null;
-};
 
 /**
  * Wandelt ein Serien-Template in die im API-Vertrag definierte Form um. Die Säulen-Vorlage stammt

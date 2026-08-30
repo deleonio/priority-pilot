@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { sendError } from '../http-error.js';
 import { User } from '../../models/index.js';
 import { getUserId, isAuthActive } from '../requireAuth.js';
 import { runGeoPushNotifications } from '../../logics/geo-background-job.js';
@@ -80,10 +81,6 @@ const validateGeoConfig = (body: unknown): GeoConfigDto | null => {
 	if (config.displayDistanceKm < 1 || config.displayDistanceKm > 50) return null;
 	if (config.intervalMinutes < 1 || config.intervalMinutes > 60) return null;
 	return config;
-};
-
-const sendError = (res: Response<{ message: string }>, status: number, message: string): void => {
-	res.status(status).json({ message });
 };
 
 export const geoConfigRouter = Router();
