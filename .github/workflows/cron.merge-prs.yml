@@ -107,7 +107,7 @@ jobs:
               echo "[dry-run] würde Gate für PR #$number nachtriggern."
               continue
             fi
-            if gh workflow run claude-pr-gate-merge.yml --repo "$REPO" -f "pr=$number"; then
+            if gh workflow run merge-pr.yml --repo "$REPO" -f "pr=$number"; then
               echo "| #$number | $title | 🚀 nachgetriggert |" >> "$GITHUB_STEP_SUMMARY"
               echo "🚀 Gate für PR #$number nachgetriggert."
             else
