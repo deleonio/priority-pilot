@@ -92,8 +92,8 @@ test.describe('Empty-States bei 0 Säulen — Übergang (Issue #440, AK5)', () =
 		// Die neue KolCard enthält ein <p> im Slot — nur der alte direkte Plain-Text ist verboten.
 		await expect(pillarsSection.locator('p:has-text("Keine Säulen vorhanden.")')).toHaveCount(0);
 
-		// Stattdessen eine KolCard mit Hinweis auf die Einstellungen.
-		const card = pillarsSection.locator('kol-card');
+		// Stattdessen die KolCard — seit #1118-Folge ist die Sektion selbst der Card-Host.
+		const card = pillarsSection;
 		await expect(card).toBeVisible();
 		await expect(card).toContainText('in den Einstellungen');
 	});
@@ -134,7 +134,7 @@ test.describe('Empty-States bei 0 Säulen — Übergang (Issue #440, AK5)', () =
 		}
 
 		// Empty-State ist sichtbar.
-		await expect(page.locator('.dashboard-pillars kol-card')).toBeVisible();
+		await expect(page.locator('.dashboard-pillars')).toBeVisible();
 
 		// Erste Säule anlegen.
 		const created = await createPillar(page, 'Test-Säule', 'Zum Testen');
@@ -161,6 +161,6 @@ test.describe('Empty-States bei 0 Säulen — Übergang (Issue #440, AK5)', () =
 		}
 
 		// Empty-State erscheint wieder.
-		await expect(page.locator('.dashboard-pillars kol-card')).toBeVisible();
+		await expect(page.locator('.dashboard-pillars')).toBeVisible();
 	});
 });

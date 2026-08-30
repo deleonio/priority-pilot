@@ -35,6 +35,7 @@ export const NearbyCard = () => {
 	// #1110 (AK1/AK2): Der Titel nennt die gespeicherte Anzeige-Entfernung aus `GET /geo-config`
 	// statt eines hartcodierten Werts — beim nächsten Laden nach einer Änderung in den Einstellungen.
 	const [displayDistanceKm, setDisplayDistanceKm] = useState<number | null>(null);
+	const cardTitle = displayDistanceKm === null ? baseTitle : `In der Nähe (${displayDistanceKm} km)`;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -90,46 +91,49 @@ export const NearbyCard = () => {
 	}, [position, refreshKey]);
 
 	return (
-		<section className="dashboard-nearby" aria-label="In der Nähe">
-			<KolCard
-				_label={displayDistanceKm === null ? baseTitle : `In der Nähe (${displayDistanceKm} km)`}
-				_level={0}
-				data-testid="nearby-card"
-			>
-				{permissionDenied || !supported || unavailable ? (
-					<p className="dashboard-nearby-hint" data-testid="nearby-denied">
-						Der Browser hat die Standortfreigabe verweigert, ist nicht verfügbar oder unterstützt keine
-						Standortermittlung. Erlaube den Standortzugriff in den Browser-Einstellungen, um Aufgaben in deiner Nähe zu
-						sehen.
-					</p>
-				) : !enabled ? (
-					<p className="dashboard-nearby-hint" data-testid="nearby-preference-off">
-						Die Standortverwendung ist deaktiviert. Aktiviere sie in den Einstellungen, um Aufgaben in deiner Nähe zu
-						sehen.
-					</p>
-				) : nearby === null ? (
-					<p className="dashboard-nearby-hint">
-						{pending ? 'Standort wird ermittelt …' : 'Aufgaben in der Nähe werden geladen …'}
-					</p>
-				) : nearby.length === 0 ? (
-					<p className="dashboard-nearby-hint" data-testid="nearby-empty">
-						Keine Aufgaben mit Standort in deiner Nähe. Vergib beim Anlegen einer Aufgabe einen Ort über die
-						Adresssuche, damit sie hier erscheint.
-					</p>
-				) : (
-					<ol className="dashboard-nearby-list">
-						{nearby.map((task) => (
-							<li key={task.id} className="dashboard-nearby-item" data-testid="nearby-item">
-								<span className="dashboard-nearby-title">
-									#{task.id} – {task.title}
-								</span>
-								{/* #1098 AK6: Distanz in Klammern am Eintrag („(2,4 km)"). */}
-								<span className="dashboard-nearby-distance">({formatKm(task.distanceKm)} km)</span>
-							</li>
-						))}
-					</ol>
-				)}
-			</KolCard>
-		</section>
+		/* #1118-Folge: Die Card selbst ist das Widget — die alte Außen-<section> ist entfernt,
+		   die Widget-Klasse sitzt am Card-Host (gleiches Muster wie die Dashboard-Sektionen). */
+		<KolCard
+			className="dashboard-nearby"
+			role="region"
+			aria-label={cardTitle}
+			_label={cardTitle}
+			_level={0}
+			data-testid="nearby-card"
+		>
+			{permissionDenied || !supported || unavailable ? (
+				<p className="dashboard-nearby-hint" data-testid="nearby-denied">
+					Der Browser hat die Standortfreigabe verweigert, ist nicht verfügbar oder unterstützt keine
+					Standortermittlung. Erlaube den Standortzugriff in den Browser-Einstellungen, um Aufgaben in deiner Nähe zu
+					sehen.
+				</p>
+			) : !enabled ? (
+				<p className="dashboard-nearby-hint" data-testid="nearby-preference-off">
+					Die Standortverwendung ist deaktiviert. Aktiviere sie in den Einstellungen, um Aufgaben in deiner Nähe zu
+					sehen.
+				</p>
+			) : nearby === null ? (
+				<p className="dashboard-nearby-hint">
+					{pending ? 'Standort wird ermittelt …' : 'Aufgaben in der Nähe werden geladen …'}
+				</p>
+			) : nearby.length === 0 ? (
+				<p className="dashboard-nearby-hint" data-testid="nearby-empty">
+					Keine Aufgaben mit Standort in deiner Nähe. Vergib beim Anlegen einer Aufgabe einen Ort über die Adresssuche,
+					damit sie hier erscheint.
+				</p>
+			) : (
+				<ol className="dashboard-nearby-list">
+					{nearby.map((task) => (
+						<li key={task.id} className="dashboard-nearby-item" data-testid="nearby-item">
+							<span className="dashboard-nearby-title">
+								#{task.id} – {task.title}
+							</span>
+							{/* #1098 AK6: Distanz in Klammern am Eintrag („(2,4 km)"). */}
+							<span className="dashboard-nearby-distance">({formatKm(task.distanceKm)} km)</span>
+						</li>
+					))}
+				</ol>
+			)}
+		</KolCard>
 	);
 };

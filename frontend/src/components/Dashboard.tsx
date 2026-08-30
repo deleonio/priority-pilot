@@ -175,54 +175,64 @@ export const Dashboard = ({
 			 * Folgehandlung („Jetzt starten"). Die Säulen-Balance, Statistik-Karten und
 			 * Deadline-Liste ordnen sich darunter.
 			 */}
-			<section className="dashboard-next-task" role="region" aria-label="Nächste Aufgabe">
-				{/* #1118: Sektionsüberschrift als Card-Label (dritte Ebene unter dem Dashboard-<h2>). */}
-				<KolCard _label="Nächste Aufgabe" _level={3}>
-					{nextTask === null ? (
-						<p className="dashboard-next-task-empty">
-							Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
-						</p>
-					) : (
-						<div className="dashboard-next-task-content">
-							<span className="dashboard-next-task-title">
-								#{nextTask.id} – {nextTask.title}
-							</span>
-							<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
-							{onStartTask !== undefined && (
-								<KolButton
-									_label="Jetzt starten"
-									_variant="primary"
-									_icons={{ left: { icon: 'fa-solid fa-play' } }}
-									_on={{ onClick: () => onStartTask(nextTask) }}
-								/>
-							)}
-						</div>
-					)}
-				</KolCard>
-			</section>
+			{/* #1118: Die Card selbst ist das Widget — die alte Außen-<section> ist entfernt,
+			    die Sektionsklasse sitzt am Card-Host. Card-Label = Sektionsüberschrift;
+			    die Region-Semantik der Hauptaussage zieht mit auf den Host um. */}
+			<KolCard
+				className="dashboard-next-task"
+				role="region"
+				aria-label="Nächste Aufgabe"
+				_label="Nächste Aufgabe"
+				_level={3}
+			>
+				{nextTask === null ? (
+					<p className="dashboard-next-task-empty">
+						Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
+					</p>
+				) : (
+					<div className="dashboard-next-task-content">
+						<span className="dashboard-next-task-title">
+							#{nextTask.id} – {nextTask.title}
+						</span>
+						<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
+						{onStartTask !== undefined && (
+							<KolButton
+								_label="Jetzt starten"
+								_variant="primary"
+								_icons={{ left: { icon: 'fa-solid fa-play' } }}
+								_on={{ onClick: () => onStartTask(nextTask) }}
+							/>
+						)}
+					</div>
+				)}
+			</KolCard>
 			{/*
 			 * P2-1: „Was ist jetzt dran?" — Vorschläge, die die nächste Aufgabe ausschließen,
 			 * um keine doppelte Hauptaussage zu erzeugen. Visuell eine schlichtere Liste ohne
 			 * Signal-Färbung; die Signalfläche gehört allein der „Nächste Aufgabe"-Zeile.
 			 */}
-			<section className="dashboard-suggestions" aria-label="Was ist jetzt dran?">
-				<KolCard _label="Was ist jetzt dran?" _level={3}>
-					{suggestionsFiltered.length === 0 ? (
-						<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschläge an.</p>
-					) : (
-						<ol className="dashboard-suggestions-list">
-							{suggestionsFiltered.map((task) => (
-								<li key={task.id} className="dashboard-suggestion">
-									<span className="dashboard-suggestion-title">
-										#{task.id} – {task.title}
-									</span>
-									<span className="dashboard-suggestion-meta">(Priorität {task.priority})</span>
-								</li>
-							))}
-						</ol>
-					)}
-				</KolCard>
-			</section>
+			<KolCard
+				className="dashboard-suggestions"
+				role="region"
+				aria-label="Was ist jetzt dran?"
+				_label="Was ist jetzt dran?"
+				_level={3}
+			>
+				{suggestionsFiltered.length === 0 ? (
+					<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschläge an.</p>
+				) : (
+					<ol className="dashboard-suggestions-list">
+						{suggestionsFiltered.map((task) => (
+							<li key={task.id} className="dashboard-suggestion">
+								<span className="dashboard-suggestion-title">
+									#{task.id} – {task.title}
+								</span>
+								<span className="dashboard-suggestion-meta">(Priorität {task.priority})</span>
+							</li>
+						))}
+					</ol>
+				)}
+			</KolCard>
 			{/*
 			 * #1066: „In der Nähe" — Distanzliste unter der Vorschlagsliste. Wie die anderen
 			 * Sekundär-Widgets ohne Signal-Färbung; die Signalfläche gehört allein der
@@ -232,114 +242,106 @@ export const Dashboard = ({
 			    ausgeschaltet verschwindet die Card komplett (keine Hinweis-Card mehr).
 			    Bei Browser-Verweigerung (#1066 AK4) bleibt sie für den Ablehn-Hinweis stehen. */}
 			{(geoEnabled || geoDenied) && <NearbyCard />}
-			<section className="dashboard-top-tasks">
-				<KolCard _label="Wichtigste Tasks" _level={3}>
-					{topTasks.length === 0 ? (
-						<p>Keine offenen Aufgaben vorhanden.</p>
-					) : (
-						<ol className="dashboard-top-tasks-list">
-							{topTasks.map((task) => (
-								<li key={task.id} className="dashboard-top-task">
-									<span className="dashboard-top-task-title">
-										#{task.id} – {task.title}
+			<KolCard className="dashboard-top-tasks" _label="Wichtigste Tasks" _level={3}>
+				{topTasks.length === 0 ? (
+					<p>Keine offenen Aufgaben vorhanden.</p>
+				) : (
+					<ol className="dashboard-top-tasks-list">
+						{topTasks.map((task) => (
+							<li key={task.id} className="dashboard-top-task">
+								<span className="dashboard-top-task-title">
+									#{task.id} – {task.title}
+								</span>
+								<span className="dashboard-top-task-meta">
+									(Priorität {task.priority}, Wert {formatNumber(task.value)})
+								</span>
+							</li>
+						))}
+					</ol>
+				)}
+			</KolCard>
+			<KolCard className="dashboard-pillars" _label="Meine Themen" _level={3}>
+				{pillars.length === 0 ? (
+					<p>
+						Lege in den <a href="/settings">Einstellungen</a> deine ersten Säulen an, um hier den Überblick über deine
+						Themen zu behalten.
+					</p>
+				) : (
+					<ul className="dashboard-pillars-list">
+						{pillarSummaries.map(
+							({
+								pillar,
+								taskCount,
+								openCount,
+								doneCount,
+								totalValue,
+								totalEstimatedEffort,
+								openEstimatedEffort,
+								doneEstimatedEffort,
+								actualShare,
+							}) => (
+								<li key={pillar.id} className="dashboard-pillar">
+									<KolMeter
+										_label={pillar.name}
+										_value={actualShare}
+										_max={1}
+										_low={calculateMeterThreshold(pillar.weight)}
+										_high={calculateMeterHighThreshold(pillar.weight)}
+									/>
+									<span className="dashboard-pillar-meta">
+										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
 									</span>
-									<span className="dashboard-top-task-meta">
-										(Priorität {task.priority}, Wert {formatNumber(task.value)})
+								</li>
+							),
+						)}
+					</ul>
+				)}
+			</KolCard>
+			<KolCard className="dashboard-balance" _label="Gesamtguthaben" _level={3}>
+				{gesamtPunkte === 0 ? (
+					<p>Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.</p>
+				) : (
+					<>
+						<p className="dashboard-balance-total">
+							<span data-testid="balance-total">{formatNumber(gesamtPunkte)}</span> Punkte
+						</p>
+						<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
+							{pillarBalances.map(({ pillar, punkte, anteil }) => (
+								<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
+									<span className="dashboard-balance-name">{pillar.name}</span>
+									<span className="dashboard-balance-value">
+										{formatNumber(punkte)} Punkte ({Math.round(anteil * 100)} %)
 									</span>
 								</li>
 							))}
-						</ol>
-					)}
-				</KolCard>
-			</section>
-			<section className="dashboard-pillars">
-				<KolCard _label="Meine Themen" _level={3}>
-					{pillars.length === 0 ? (
-						<p>
-							Lege in den <a href="/settings">Einstellungen</a> deine ersten Säulen an, um hier den Überblick über deine
-							Themen zu behalten.
-						</p>
-					) : (
-						<ul className="dashboard-pillars-list">
-							{pillarSummaries.map(
-								({
-									pillar,
-									taskCount,
-									openCount,
-									doneCount,
-									totalValue,
-									totalEstimatedEffort,
-									openEstimatedEffort,
-									doneEstimatedEffort,
-									actualShare,
-								}) => (
-									<li key={pillar.id} className="dashboard-pillar">
-										<KolMeter
-											_label={pillar.name}
-											_value={actualShare}
-											_max={1}
-											_low={calculateMeterThreshold(pillar.weight)}
-											_high={calculateMeterHighThreshold(pillar.weight)}
-										/>
-										<span className="dashboard-pillar-meta">
-											{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
-										</span>
-									</li>
-								),
-							)}
 						</ul>
-					)}
-				</KolCard>
-			</section>
-			<section className="dashboard-balance">
-				<KolCard _label="Gesamtguthaben" _level={3}>
-					{gesamtPunkte === 0 ? (
-						<p>Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.</p>
-					) : (
-						<>
-							<p className="dashboard-balance-total">
-								<span data-testid="balance-total">{formatNumber(gesamtPunkte)}</span> Punkte
-							</p>
-							<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
-								{pillarBalances.map(({ pillar, punkte, anteil }) => (
-									<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
-										<span className="dashboard-balance-name">{pillar.name}</span>
-										<span className="dashboard-balance-value">
-											{formatNumber(punkte)} Punkte ({Math.round(anteil * 100)} %)
-										</span>
-									</li>
-								))}
-							</ul>
-						</>
-					)}
-				</KolCard>
-			</section>
-			<section className="dashboard-deadlines">
-				<KolCard _label="Anstehende Deadlines" _level={3}>
-					{upcomingDeadlines.length === 0 ? (
-						<p>Keine anstehenden Deadlines.</p>
-					) : (
-						<ul className="dashboard-deadlines-list">
-							{upcomingDeadlines.map((task) => {
-								const urgency = deadlineUrgency(task.deadline, now);
-								return (
-									<li key={task.id} className="dashboard-deadline">
-										<span className="dashboard-deadline-title">
-											#{task.id} – {task.title}
-										</span>
-										<span className="dashboard-deadline-aside">
-											{urgency !== 'later' && (
-												<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
-											)}
-											<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
-										</span>
-									</li>
-								);
-							})}
-						</ul>
-					)}
-				</KolCard>
-			</section>
+					</>
+				)}
+			</KolCard>
+			<KolCard className="dashboard-deadlines" _label="Anstehende Deadlines" _level={3}>
+				{upcomingDeadlines.length === 0 ? (
+					<p>Keine anstehenden Deadlines.</p>
+				) : (
+					<ul className="dashboard-deadlines-list">
+						{upcomingDeadlines.map((task) => {
+							const urgency = deadlineUrgency(task.deadline, now);
+							return (
+								<li key={task.id} className="dashboard-deadline">
+									<span className="dashboard-deadline-title">
+										#{task.id} – {task.title}
+									</span>
+									<span className="dashboard-deadline-aside">
+										{urgency !== 'later' && (
+											<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
+										)}
+										<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
+									</span>
+								</li>
+							);
+						})}
+					</ul>
+				)}
+			</KolCard>
 		</section>
 	);
 };

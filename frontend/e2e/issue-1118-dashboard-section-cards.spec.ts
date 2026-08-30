@@ -114,8 +114,9 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		for (const cls of SECTION_CLASSES) {
 			const section = page.locator(`.${cls}`);
 			await expect(section, `Sektion .${cls} fehlt`).toHaveCount(1);
-			// AK1: genau EIN Card-Host pro Sektion.
-			await expect(section.locator('kol-card'), `.${cls} erwartet genau eine Card`).toHaveCount(1);
+			// AK1: die Sektion IST der Card-Host (alte Außen-<section> entfernt).
+			const isCard = await section.evaluate((el) => el.matches('kol-card'));
+			expect(isCard, `.${cls} erwartet den Card-Host selbst`).toBe(true);
 		}
 
 		// AK4: nirgendwo im Dashboard eine verschachtelte Card (NearbyCard/„Keine Säulen vorhanden").
@@ -164,7 +165,7 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 
 		const emptyInsideCard = await page.evaluate(() => {
 			const section = document.querySelector('.dashboard-deadlines');
-			const card = section === null ? null : section.querySelector('kol-card');
+			const card = section === null ? null : section.matches('kol-card') ? section : section.querySelector('kol-card');
 			if (card === null) return null;
 			return card.textContent?.includes('Keine anstehenden Deadlines') ?? false;
 		});
