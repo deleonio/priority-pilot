@@ -3,9 +3,12 @@ Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are
 PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
 2. Read findings SCOPED (mirrors the review's own diff scoping, SKILL.md step 5): open findings from the collected ai-review comment (file/line anchors) + review threads + CI — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
+   - ai-review comment: `gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments --jq '.[] | select(.body | startswith("<!-- ai-review -->"))'`
+   - threads: `gh api repos/{owner}/{repo}/pulls/{{PR_NR}}/comments`
 3. Fix:
    - Unambiguous findings → change the code, run the GATE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning), commit+push (include your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md in the commit — tracked, NOT gitignored, ADR 0007), resolve the thread
-   - Ambiguous/decision findings → don't fix
+   - Ambiguous findings → ONE clarification reply in its review thread (wait for answer before thread-resolve); if not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
+   - Decision findings (already with options-ID from review) → implement EXACTLY that option
 4. **Decision findings** (already chosen): follow the comment with the option ID, implement EXACTLY that option
 5. **CI red**:
    - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, wait 60s
