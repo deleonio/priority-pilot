@@ -1,43 +1,36 @@
-# Issue 1137 — Review PR #1138 (Phase 5), Stand 2026-08-31
-
-**ERGEBNIS: VERDICT needs-fixup, 🔴.** MODE = Kreuzverhör (kein `<!-- ai-review -->`-Kommentar auf PR 1138 vorhanden). Closing-Issue #1137 vorhanden → AKs aus dem Harness-Kommentar (issuecomment mit `<!-- ai-harness -->`, AK1–AK8) gelesen. Review mit 3 Inline-Findings (F1–F3) gepostet, Sammelkommentar neu erstellt, Titel-Gate PASS (kein Rename).
+# Issue 1137 — Review (PR #1138), Stand 2026-08-31
 
 ## Erledigt
-- Marker-Suche: `gh api repos/{owner}/{repo}/issues/1138/comments` → 0 Treffer auf `startswith("<!-- ai-review -->")` → MODE Kreuzverhör.
-- PR gelesen: 1 Datei `.github/prompts/fixup.md` (+4/-1), 1 Commit d88823ca (2026-08-31T02:57:37Z), Titel `chore(fixup): close fixup loop gap for ambiguous findings (#1137)` (Conventional Commits ✅, 65 Zeichen).
-- Harness-Kommentar von #1137 komplett gelesen: 8 AKs, bindende Menschen-Entscheidung "Setze alle drei Optionen um" (deleonio 2026-08-31T02:24:40Z), keine Tests (reine CI-Prompt-Änderung) vorgesehen.
-- AK-Abgleich am Branch-Stand (Checkout = Merge 47c770fc): AK1 ✅ (Pauschalzeile "Ambiguous/decision findings → don't fix" entfernt, 3 getrennte Pfade), AK2 ✅ (beide Abrufbefehle, `gh api repos/{owner}/{repo}/...` = gültige gh-Platzhalter-Expansion, `{{PR_NR}}` konsistent mit fixup.md:1,9). **AK3–AK8 ✗** verifiziert: SKILL.md ohne ambig/Decision-Klassifikation (grep 0 Treffer), review.md:50-51 nur Verdict-Legende, ux.md:10-19 dupliziert KI-ANALYSE-Feldliste + read-modify-write weiterhin, triage.md:19-21 Body-Edit-Verbot weiterhin 3-zeilig, adr-sync.md:50 / spec-sync.md:34 / guide-sync.md:40 VERDICT-Langform, guide-sync.md:27 LOGIN-TB-Verweis vorhanden, spec-sync.md ohne recherche-Delegationszeile.
-- CI des PRs: precheck/verify/e2e(1,2,4) grün, e2e(3) pending, review-Job = dieser Lauf; kein rotes Gate.
-- Review (event COMMENT) mit 3 Inline-Kommentaren gepostet; Sammelkommentar `<!-- ai-review -->` neu erstellt.
+- MODE = Fixup-Nachweis (Marker `<!-- ai-review -->` vorhanden, Kommentar-ID 5473182245, updatedAt 2026-08-31T03:06:15Z). Delta = commits 38560fe6 + 7b18cfbe4, geprüft per `git diff 5ce16a8d..38560fe6` (8 Dateien, +53/−20) — kein Voll-Diff-Walk.
+- F2/F3 verifiziert geschlossen (fixup.md Schritt 3/4: PROPOSAL-Formulierung, Klärungspfad mit Endzustand „NO commit/NO verdict, Thread offen").
+- F1 teilweise geschlossen: AK3 ✓ (SKILL.md Step 4 Klassifikationsblock), AK4 ✓ (ux.md → SKILL `## Output` :16 existiert), AK5 ✓ (ticket-triage SKILL Step 2 = ADR-0009-Body-Regel, Referenz stimmt), AK7 ✓, AK8-Code ✓. **AK6 offen: nur 4/8 Dateien konvertiert** — spec.md:25, implement.md:34, prompt-audit.md:45 Langform; review.md:41 eigene Struktur. Verifiziert am PR-Head 7b18cfbe4 via `git show origin/...:{file} | grep -c "VERDICT (one line):"` → 0.
+- F4 neu: PR-Body (Runde-0-Stand) ohne AK3-Abgleich + AK8-Beleg, „Option 1 implementiert" statt Optionen 1–3, fixup.md-Zitat veraltet.
+- Review gepostet: `gh api …/pulls/1138/reviews` event=COMMENT, Review-ID 5062889439, Inline-Kommentar an `.github/prompts/ux.md:23` (Zielform-Standort; spec.md/review.md sind nicht im Diff → dort nicht ankerbar).
+- Sammelkommentar 5473182245 per PATCH aktualisiert (needs-fixup, Review-Typ: Fixup-Nachweis, F2/F3/F1-Teil1 → Behobene, F1-Rest + F4 → Offene). Kein Label gesetzt. Titel-Gate: „chore(fixup): close fixup loop gap for ambiguous findings (#1137)" = 64 Zeichen, konventionskonform → kein Rename.
+- Wegwerf-Artefakte: `.ai-memory/issue-1137-review-{collected,body,inline,payload,patch}.md` + `issue-1137-aks.md`, `issue-1137-prbody.md` — NICHT committen.
 
 ## Relevante Stellen
-- `.github/prompts/fixup.md:10-11` — neue ambig/Decision-Pfade; Z.11 ist der Konflikt-Finding-Anker (Options-ID aus Review ≠ vom Menschen gewählt).
-- `.github/prompts/fixup.md:19-22` — WRAP-UP kennt nur needs-human/already-done/kein Verdict → Klärungs-Runde hat keinen definierten Endzustand (F3).
-- `.github/prompts/ux.md:10-19`, `triage.md:19-21`, `guide-sync.md:27,40`, `spec-sync.md:34`, `adr-sync.md:50` — Beleg-Stellen für AK4-AK7-Unerledigt-Sein (F1).
-- `.claude/skills/review-kreuzverhoer/SKILL.md` — AK3-Ziel (Finding-Klassen fixbar/ambig/Entscheidungs-Finding anschlussfähig), aktuell ohne "ambiguous".
+- `.github/prompts/spec.md:25` / `implement.md:34` / `prompt-audit.md:45` / `review.md:41` — AK6-Rest; Konvertierung auf „VERDICT (one line):" wie ux.md:23.
+- `.github/prompts/fixup.md:10-12` — F2/F3-Verankerung, unverändert lassen.
+- PR-Beschreibung — F4: Runde-1-Zusammenfassung je AK + AK3-Abgleich + AK8-Beleg ergänzen, Zitat korrigieren.
+- Verify-Run 33353336438 (38560fe6) grün; Checks auf 7b18cfbe4 pending (e2e/verify).
 
 ## Annahmen
-- Der PR soll das ganze Issue #1137 abdecken (`Closes #1137` im Body); dass nur Option 1 drin ist, ist Scope-Lücke, nicht bewusster Split — der Body nennt keinen Split-Plan und es gibt keinen zweiten PR (gh pr list = nur 1138).
-- Verdict needs-fixup (nicht needs-human), weil die AKs eindeutig vorgeben, WAS zu tun ist; ein Fixup kann AK3–AK8 direkt nachziehen (Analyse-Block: "Änderungen in einem PR machbar, Präzedenz #1090").
+- AK-Wortlaute aus dem Harness-Kommentar von #1137 (`gh issue view 1137 --json comments`, ai-harness-Filter) sind maßgeblich; AK6 nennt explizit 8 Dateien.
+- Threads zu F1–F3 als resolved behandelt (Fixup-Notiz nennt PRRT_kwDONloM186dmW6T/-W6Z/-W6d); REST-Resolve-Status nicht einzeln nachgeprüft.
 
 ## Verworfen
-- needs-human für F1 — Spezifikation (AKs + bindende Entscheidung) ist eindeutig, keine echte Produktfrage.
-- KoliBri-/Mobile-/Design-Audit — keine UI-Änderung im Diff.
-- Test-Finding — Issue AK-Block sagt explizit "Keine" (kein Anwendungscode); kein tautologischer Test im Diff.
-- Titel-Edit — Conventional Commits erfüllt.
+- needs-human — keine Entscheidung nötig: AK6-Rest ist mechanische Konvertierung, F4 reine Body-Doku.
+- Re-Review des ganzen PR — SKILL step 5 Diff-Scoping; Runde-1-Positionen nicht neu verhandelt.
+- Inline-Anker auf spec.md:25 — Datei nicht im PR-Diff, GitHub lehnt Kommentar ab → Anker auf ux.md:23.
 
 ## Offen
-- e2e (3) und der review-Workflow-Job waren beim Review-Abschluss noch pending — kein rotes Gate, aber endgueltiges CI-Gruen ist nicht von mir verifiziert.
+- CI auf 7b18cfbe4 pending zum Zeitpunkt des Verdicts; Merge-Gate entscheidet workflow-seitig.
 
 ## Nächster Schritt
-- Fixup-Runde: AK3–AK8 in PR #1138 nachziehen (ux.md, triage.md, VERDICT-Kurzform in 8 Prompts, guide-sync, spec-sync, SKILL/review.md-Klassifikationsabgleich) + F2 (fixup.md:11 auf menschliche Options-Wahl einschränken) + F3 (Endzustand der Klärungs-Runde definieren).
+- Fixup-Runde 2 (Label `ai:needs-changes`): AK6-Rest in den 4 Dateien + PR-Body-Nachtrag (F4); danach Re-Review nur gegen dieses Delta.
 
 ## Fallstricke
-- F1-Nummerierung stabil halten: F1=Scope/AK3-AK8, F2=fixup.md:11 Bypass-Risiko, F3=fixup.md:10 Klärungs-Endzustand.
-- `gh api repos/{owner}/{repo}/...` in Prompts ist KEIN Template-Fehler — gh expandiert `{owner}`/`{repo}` nativ; nicht als Finding melden.
-- Sammelkommentar line 2 muss `needs-fixup` + PR-/Issue-Referenz tragen; Footer `Review-Typ: Kreuzverhör`.
-
-## Nachtrag (Abschluss)
-- Review gepostet: pullrequestreview-5062817145 (event COMMENT, commit d88823ca) mit 3 Inline-Kommentaren (fixup.md Z.12=F1, Z.11=F2, Z.10=F3; Z.1 ist Diff-Kontext → Anchor nicht auflösbar, F1 deshalb auf Z.12 verankert).
-- Sammelkommentar erstellt: issuecomment-5473182245 (Marker `<!-- ai-review -->`, line 2 = needs-fixup + PR/Issue, Footer Review-Typ: Kreuzverhör). Tippfehler "Rende" per PATCH korrigiert.
-- TITLE GATE: PASS — kein `gh pr edit` nötig.
+- Runde-1-F1 war bei AK6 zu knapp gescoped (3 statt 8 Dateien) — der Fixup hat treu geliefert; Rest-Openierung ist kein Fixup-Versäumnis, im Kommentar so markiert.
+- Nicht-im-Diff-Dateien können keine Inline-Kommentare tragen → AK6-Anker auf die Zielform-Zeile (ux.md:23) legen.
+- `git diff main..head` am lokalen Merge-HEAD (c0503f7f) entspricht dem PR-Delta; PR-Head-Stände sicherer per `git show origin/<branch>:<file>` prüfen.
