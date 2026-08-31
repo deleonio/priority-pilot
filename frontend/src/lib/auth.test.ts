@@ -72,6 +72,48 @@ describe('checkAuth', () => {
 	});
 });
 
+// ── Issue #1136 — checkAuth: 30-s-Timeout gegen den Dauerspinner ───────────
+// Vertrag (docs/spec/issue-1136.md, AK1): checkAuth() bindet den /auth/me-Fetch an ein
+// AbortSignal aus AbortSignal.timeout(30000). Löst das Signal ab, rejected checkAuth(),
+// statt ewig zu warten (Root hängt sonst dauerhaft im Lade-Spinner).
+//
+// Determinismus: AbortSignal.timeout läuft auf Node-internen Timern und folgt KEINEN
+// Fake-Timern. Deshalb ersetzt der Spy AbortSignal.timeout durch eine echtes Timeout(0)
+// — das Signal bricht nach ~1 ms ab — und merkt sich das geforderte Limit zur Assertion.
+
+describe('Issue #1136 — checkAuth: 30-s-Timeout', () => {
+	const originalFetch = global.fetch;
+	const originalTimeout = AbortSignal.timeout;
+
+	afterEach(() => {
+		global.fetch = originalFetch;
+		AbortSignal.timeout = originalTimeout;
+	});
+
+	it('AC-1136-1: bindet den Fetch an AbortSignal.timeout(30000)', async () => {
+		let requestedTimeoutMs: number | undefined;
+		let passedSignal: AbortSignal | undefined;
+
+		AbortSignal.timeout = ((ms: number) => {
+			requestedTimeoutMs = ms;
+			passedSignal = originalTimeout.call(AbortSignal, 0); // bricht nach ~1 ms ab
+			return passedSignal;
+		}) as typeof AbortSignal.timeout;
+
+		// Fetch antwortet nie — nur der Signal-Abbruch kann den Check beenden.
+		global.fetch = vi.fn((_url: unknown, init?: { signal?: AbortSignal }) => {
+			return new Promise((_resolve, reject) => {
+				init?.signal?.addEventListener('abort', () => reject(new Error('AbortError (Test)')));
+			}) as unknown as Promise<Response>;
+		}) as unknown as typeof fetch;
+
+		await expect(checkAuth()).rejects.toThrow(/AbortError/);
+
+		expect(requestedTimeoutMs).toBe(30_000);
+		expect(passedSignal?.aborted).toBe(true);
+	});
+});
+
 // ── Issue #217 — Avatar mit Google Profilbild ─────────────────────────────
 // AuthUser muss avatarUrl: string | null enthalten; checkAuth() muss es durchleiten.
 // Diese Tests sind ROT bis AuthUser um avatarUrl erweitert und checkAuth() angepasst ist:
