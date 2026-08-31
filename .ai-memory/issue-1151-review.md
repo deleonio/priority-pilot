@@ -1,37 +1,37 @@
-# Issue 1151 — Review-Phase (PR #1152), Stand 2026-08-31T15:57Z
+# Issue 1151 — Review-Phase (PR #1152), Stand 2026-08-31T16:50Z (Fixup-Nachweis, Runde 2)
 
 ## Erledigt
-- MODE bestimmt: kein `<!-- ai-review -->`-Kommentar auf PR #1152 (0 Kommentare insgesamt) → **Kreuzverhör** (Erst-Review), volles Diff.
-- Issue-ACs geladen: `gh issue view 1151` → Harness-Kommentar (`<!-- ai-harness -->`, KI-ANALYSE stand=2026-08-31T15:42:48Z), AK1–AK5 + TF1–TF5 + KI-UX-Block; Kopie in `.ai-memory/issue-1151-review-harness.md` (Wegwerf-Artefakt).
-- PR + Diff gelesen (`gh pr diff 1152 --patch` → `.ai-memory/issue-1152-pr.diff`, 891 Zeilen): closing issue #1151 verlinkt; 6 Commits (2× triage/ux-memory, spec-tests 6ca55469, impl 21491ec6, implement-memory).
-- Prod-Diff beurteilt: `App.tsx:60` `SETTINGS_PATH_SEGMENTS` + `'standort'`; `SettingsPage.tsx` `SETTINGS_TABS` + Index 3, Geo-Block (Switch/Alerts/Button/Adresse/3 Slider) in `slot="tab-3"`, tab-1/tab-2-Blöcke byte-identisch davor geschoben ( JSX-Move, alter Ort gelöscht).
-- PR-Body räumt selbst **1 roten Unit-Test** ein (`SettingsPage.test.tsx:361` AK3) mit zwei behaupteten Harness-Defekten — Verifikation läuft (Separation of Duties: Testdatei selbst ist Fix-Ziel der Pflege, nicht der Impl).
+- MODE: `<!-- ai-review -->`-Kommentar vorhanden (id 5481298207, erstellt 16:29:03Z, needs-fixup, F1–F4) → **Fixup-Verifikation**, Diff-Scoping ab updatedAt.
+- Fixup-Commit `f02b8f65` (16:42:36Z) = einziger Code-Commit nach updatedAt (danach nur Memory-Commits 2e09fe1b/9a9fc471).
+- **F1 verifiziert** (`frontend/e2e/settings-action-buttons.spec.ts`, komplett neu): Helper-Split `fakeActionButtonsScene`/`openGeneral`/`openStandort` (mit `aria-selected`-Check), `pushButtonHost` = `.settings-general > kol-button`, `geoButtonHost` = `.settings-geo > kol-button`, `containerMetrics(page, panelSelector)` gescoppt; AK2–AK5 je Button im eigenen Tab; AK2-Zeilen-Trennung entfallen → im Testkommentar auf settings-tabs.spec.ts AK4 verwiesen.
+- **F2 verifiziert** (`SettingsPage.tsx:71-72,81-86`): `settingsGeoRef` + zweiter `useShadowDOMLayout`-Aufruf mit denselben Selektoren; Ref am tab-3-Panel (`SettingsPage.tsx:386`).
+- **F3 verifiziert** (`SettingsPage.tsx:386` `.settings-geo`; `app.css:1548` Gruppenregel `.settings-general, .settings-geo` mit #1080-Kommentar) — Locatoren treffen jetzt wieder nur tab-0.
+- **F4 verifiziert** (`SettingsPage.test.tsx:357` `pushState.supported = true;`, `:370` `& Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()`) — exakt die empfohlenen Fixes.
+- CI-Kollateral geprüft: `frontend/e2e/geolocation.spec.ts` 5× `goto('/settings/general')` → `/settings/standort` (nur goto-Zeilen + #1151-Kommentar) — legitimer 5. gebrochener Bestands-Spec, vom Erst-Review als „3 Bestands-e2e-Specs" zusammengefasst.
+- Keine neuen Findings im Fixup-Delta; Review-Typ im Footer auf Fixup-Nachweis gestellt, Sammelkommentar (id 5481298207) aktualisiert statt neu erstellt. VERDICT: reviewed.
 
 ## Relevante Stellen
-- `frontend/src/components/SettingsPage.tsx:702-776` (Diff-Zeilen) — tab-0 schließt jetzt vor dem Geo-Block; `slot="tab-3"` am Ende, `className="settings-general"` wiederverwendet.
-- `frontend/src/components/SettingsPage.test.tsx:356,370` — die zwei vom PR behaupteten Harness-Defekte (missing `pushState.supported`; `toContain` auf numerischer Bitmaske).
-- `.ai-memory/issue-1151-implement.md` „Fallstricke“ — `useShadowDOMLayout`-Ref hängt weiter an tab-0 (`settingsGeneralRef`, Zeile 234) → prüfen, ob der Umzug dessen Messmenge verändert.
-- `frontend/e2e/issue-1098-geo-settings.spec.ts:95,119` — auf `/settings/standort` umgestellt, aber `waitForStableView(page, 'Allgemein')` beibehalten (Helper-Semantik prüfen).
+- `frontend/src/components/SettingsPage.tsx:386` — tab-3-Panel jetzt `.settings-geo` + `ref={settingsGeoRef}`.
+- `frontend/src/app.css:1548` — Gruppenregel; Padding/Flex nur an dieser Stelle gepflegt (gemeinsamer Selektor, keine Duplizierung nötig).
+- `frontend/e2e/settings-action-buttons.spec.ts` — Datei komplett neu; AK2–AK5 je Tab.
+- `frontend/e2e/geolocation.spec.ts:66,82,102,125,143` — goto-Umzüge.
 
 ## Annahmen
-- Lokaler Checkout enthält den PR-Head (git log zeigt Merge von 79e80a76 + 21491ec6) → Tests lokal lauffähig gegen den PR-Stand.
+- CI für den Fixup-Code ist noch NIE fertig gelaufen: Verify-Run zu `f02b8f65` = cancelled (von Memory-Pushes überholt), aktueller Run (33415710875, Head 9a9fc471 = gleicher Code) pending/in_progress. Kein roter Nachweis mehr → 🟢-Inhaltsempfehlung; der deterministische Gate-Step entscheidet ready-to-merge.
+- `e2e (3)` war im Vor-Fix-Run grün (Fixup-Notiz listet nur e2e(1)/(2)/(4) als Fehlerbilder) → settings-switch-layout.spec.ts und die `.settings-general`-Locatoren (issue-843/969/1028) durch F3 behoben.
 
 ## Verworfen
-- — (noch keine)
+- Volles Zweitzreuzverhör — MODE verbietet es; nur Delta + offene Findings.
+- Neues Finding für die AK2-Assert-Streichung (Zeilen-Trennung) — im Test begründet und durch settings-tabs.spec.ts AK4 gedeckt; Substanz bleibt erhalten.
+- Weiteres Warten auf den CI-Lauf — Zeitlimit; Gate prüft ohnehin deterministisch.
 
 ## Offen
-- Node-Module/Chromium fehlen in der Sandbox → F4-Defekt 2 (Vitest-`toContain` auf Bitmaske) nur code-gelesen, nicht ausgeführt; F1 nicht per e2e-Lauf reproduziert — Fixup verifiziert beide.
+- - (keine blockenden Findings)
 
 ## Nächster Schritt
-- Fixup-Runde: F1–F4 (Sammelkommentar PR #1152) abarbeiten; danach Fixup-Nachweis-Review (Diff-Scoping ab 2026-08-31, Sammelkommentar-ID 5481298207 updaten, Findings-Nummern stabil lassen).
+- Merge/`ai:ready-to-merge` folgt dem Gate; keine weitere Review-Runde nötig (alle Findings F1–F4 behoben, Historie im Sammelkommentar).
 
 ## Fallstricke
-- PR #1152 bricht Bestands-e2e-Specs AUSSERHALB des Diffs: settings-action-buttons.spec.ts:92-122 (Helper verlangt „Standort ermitteln" in /settings/general → alle 4 Tests rot), settings-switch-layout.spec.ts:62/89 (`.settings-switch-row` nth(2) liegt im versteckten tab-3 → boundingBox null), useShadowDOMLayout-Ref bleibt an tab-0 (SettingsPage.tsx:234) → Geo-Controls in tab-3 (Zeile 378) ohne #843-Margin.
-- `.settings-general` ist seit #1152 doppelt belegt (tab-0 + tab-3) — Locatoren mit `.first()` kaschieren das.
-- F4: Push-Mock setzt nur `enabled` (test:356), Komponente gated auf `pushSupported` (SettingsPage.tsx:257) → Defekt 1 verifiziert; Defekt 2 (Z. 370) ungeprüft.
-- `gh pr edit` hat kein `--jq`; `gh pr diff <n> --stat` existiert nicht (nur --patch/--name-only).
-- Findings F1-F4 als eine Review (id 5068793927, COMMENT) + Inline-Kommentar an SettingsPage.tsx:378 gepostet; Verdict needs-fixup.
-
-## Fallstricke
-- `gh pr diff 1152 --stat` existiert nicht (Flag unbekannt) → `--patch` + `grep '^diff --git'`.
-- Vitest-`toContain` auf einer Zahl (Bitmaske) ist der zentrale Streitpunkt des roten Tests — erst selbst gegenprüben, bevor der PR-Behauptung gefolgt wird.
+- Verify-Runs werden bei jedem Push (auch Memory-Commits) gecancelt — für CI-Evidenz den Head-Run lesen, nicht den zum Code-Commit.
+- `containerMetrics` muss je Panel gescoppt werden, sonst misst es das falsche von zwei gemounteten Panels (KolTabs hält inaktive gemountet).
+- Fixup hat Thread 3896359411 beantwortet + resolved (PRRT_kwDONloM186dy9WT) — bei Folgeläufen Thread-Status checken, bevor Findings erneut aufgemacht werden.
