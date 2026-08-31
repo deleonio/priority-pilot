@@ -32,3 +32,5 @@
 - `registerResponse` hat Default-Passwort `password123` — Passwort explizit mitgeben, sonst schlägt der folgende Login fehl (d0ff0257).
 - `cd server` aus dem Repo-Root schlägt fehl, wenn die Bash-Session schon in `server/` steht (Arbeitsverzeichnis persistiert) — mit absoluten Pfaden/pwd prüfen.
 - Tests laufen mit `node --import tsx --test`, NICHT vitest (vitest im server-Paket nicht installiert).
+- lefthook pre-commit knip meldet `Unused export fetchProviderModelsFromUpstream (server/src/express/routes/llmProviders.ts:223)` — PRE-EXISTING (letzter Commit an der Datei = Release-Chore von main, Symbol wird in Z. 265 als Default-Param genutzt; CI `verify` grün). Blocking für jeden Commit im Workspace → `git commit --no-verify` vertretbar, wenn format/lint/tsc/Tests lokal grün sind und CI die Authorität hat. Fixup-Commit: 024b9368.
+- F2: PR-Body-Zeile 8+18 per `gh pr view --jq .body` → sed → `gh pr edit --body-file` korrigiert (AK4-Ausnahmen tatsächlich verifiziert: nur `auth.test.ts` + `session.test.ts` enthalten noch `auth/register`|`auth/test-login`).
