@@ -38,7 +38,8 @@ TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) 
 
 IMPORTANT: change NO code, commit nothing. Pure review.
 
-VERDICT — ORDER: first the collected comment (inkl. Entscheidungs-Findings), then the
+VERDICT (one line):
+ORDER — first the collected comment (inkl. Entscheidungs-Findings), then the
 verdict channels (otherwise the PR gets stuck).
 1. FILE (primary channel, the workflow reads ONLY this one first): as the VERY LAST action,
    write the verdict term as the ONLY word into /tmp/claude-verdict (bash:

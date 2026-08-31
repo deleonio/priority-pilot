@@ -22,7 +22,7 @@ PROCEDURE (STRICT):
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
-VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
+VERDICT (one line):
   - VERDICT: ready
   - VERDICT: spec-partial
   (ready = red tests written + draft PR created → releases the issue for implementation;

@@ -8,23 +8,19 @@ PROCEDURE (STRICT):
      The validated description stays UNTOUCHED (ADR 0009): never `gh issue edit --body`.
   3. Read the analysis from the harness marker comment — the comment whose body starts with
      `<!-- ai-harness -->`; the KI-ANALYSE section between <!-- KI-ANALYSE:START --> and
-     <!-- KI-ANALYSE:END --> holds the fields `Umsetzungskontext`, `Akzeptanzkriterien`,
-     `Testfälle`, `Ampel` (UI-Relevanz: ai-phase-routing-Zeile `ux`).
-     The UX review runs BEFORE the spec.
+     <!-- KI-ANALYSE:END --> (fields per SKILL.md → Output; UI relevance: ai-phase-routing
+     line `ux`). The UX review runs BEFORE the spec.
      Legacy fallback: no marker comment yet → the analysis block may still live in the
      issue body (tickets before ADR 0009) — read it there.
   4. Rules & sources per SKILL.md (.ai-knowledge/ux-design.md, docs/mobile-ui-rules.md, KoliBri docs via MCP) — purely static.
   5. Write the UX review (in German, per SKILL.md) between <!-- KI-UX:START --> and
-     <!-- KI-UX:END --> INSIDE the harness marker comment — read-modify-write: fetch the
-     comment, replace ONLY the KI-UX section, keep KI-ANALYSE etc. byte-for-byte.
-     gh-only mechanics (restricted tier; HID lookup, update vs. create) + block
-     structure + VERDICT placement (NOT in the block): .claude/skills/ticket-ux/SKILL.md
-     → Output. CI delta: heredoc lines start at column 0, the EOF terminator must too.
+     <!-- KI-UX:END --> INSIDE the harness marker comment (mechanics per SKILL.md → Output).
+     CI delta: heredoc lines start at column 0, the EOF terminator must too.
      Only write what applies to the issue — don't force every section.
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
-VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
+VERDICT (one line):
   - VERDICT: ux-ready
   - VERDICT: ux-not-ready
   (ux-ready = UX review written → issue ready for implementation;

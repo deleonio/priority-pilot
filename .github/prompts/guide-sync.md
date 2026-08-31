@@ -24,7 +24,7 @@ STIL (das Handbuch ist Endnutzer-Prosa, kein Entwicklerdokument):
   - KEINE Datei-/Komponentennamen, KEINE API-Pfade, KEIN Implementierungsjargon.
   - Mobile-First: beschreibe, was der Nutzer sieht und antippt.
   - Bestehende Gliederung/Abschnittsreihenfolge beibehalten, nicht ohne Befund umbauen.
-  - Vermenschlicht schreiben (Regeln aus LOGIN-TB/claude-skills:vermenschlichen):
+  - Vermenschlicht schreiben (skill:vermenschlichen):
     KEINE Werbesprache, keine Bedeutungsaufblähung, keine "nicht nur … sondern auch"-Konstruktionen,
     keine Fazit-/Herausforderungen-Abschnitte, kein Schema "Fett: Erklärung", keine gehäuften
     Gedankenstriche, schlichte Verben statt steifer Synonyme, keine Synonym-Rotation, keine
@@ -37,7 +37,7 @@ CONSTRAINTS:
   - KEINE Änderungs-Historie: kein „wurde geändert“, kein „seit/neu/jetzt“ im Sinne von „früher war es anders“ — das Handbuch beschreibt den aktuellen Zustand, als gäbe es nie einen anderen.
   - PFLICHT-ABSCHNITTE (Vertrag aus server/src/logics/user-guide.test.ts, AK 2.1–2.9): Dashboard, "Aufgaben verwalten", (KI-)Schnellerfassung, Abhängigkeiten, Säulen, Aufgabenwald, Serien, Punkte/Gamification, Kopf-/Header-Aktionen. Diese Themen dürfen NICHT wegfallen und ihre Überschriften-Stichwörter NICHT verschwinden. Genau eine "# "-H1 am Dateianfang bleibt bestehen.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+VERDICT (one line):
   - VERDICT: synced
   - VERDICT: updated
   (synced = keine Drift gefunden, kein Commit; updated = Handbuch-Korrekturen committed)

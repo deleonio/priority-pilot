@@ -106,6 +106,12 @@ Per finding, **one concrete comment anchored to a file/line** — each with:
 2. **Why** it matters (impact: bug, risk, maintainability, performance, …).
 3. A **concrete suggestion** for improvement (ideally with a code/suggestion block).
 
+- Classify every finding so the fixup loop can act on it (the fixup prompt keys off these
+  classes — use the same terms): **fixable** (you know the fix, the fixup implements it),
+  **decision** (a human must choose — options + option IDs in the collected comment) or
+  **ambiguous** (context missing — name exactly what the fixup should ask in the thread).
+  The classification needs a justified match (Abgleich): a finding only becomes **decision**
+  if fixing it yourself would overrule a documented human choice or a binding ADR — say which.
 - Post them bundled as **one review** with inline-anchored comments, event **`COMMENT`** (not
   `APPROVE`/`REQUEST_CHANGES`): `gh api repos/{owner}/{repo}/pulls/<pr>/reviews` with `event=COMMENT`,
   `body` (summary), and one entry per finding in `comments[]` (`path`, `line`, `body`).
