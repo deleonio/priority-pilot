@@ -2,7 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { PushSubscription } from '../models/index.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import { QUOTES } from '../logics/pushTestQuote.js';
 import type { PushSender } from '../logics/push.js';
 
@@ -17,10 +17,7 @@ import type { PushSender } from '../logics/push.js';
  * Sender ersetzt — so bleibt `sent` deterministisch und es gibt keinen echten Netzwerkzugriff.
  */
 process.env.GOOGLE_ALLOWED_EMAILS = 'a@example.com,b@example.com';
-process.env.SESSION_SECRET = 'push-test-endpoint-secret';
-process.env.GOOGLE_CLIENT_ID = 'push-test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'push-test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('push-test-endpoint');
 process.env.VAPID_PUBLIC_KEY = 'test-public-key';
 process.env.VAPID_PRIVATE_KEY = 'test-private-key';
 
@@ -38,18 +35,6 @@ const recordingSender: PushSender = (subscription) => {
 };
 
 /** Test-Only-Login liefert einen Cookie, der einen echten Session-`userId` repräsentiert. */
-const login = async (email: string): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, displayName: email }),
-	});
-	assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Test-Login sollte Set-Cookie setzen');
-	return setCookie.split(';')[0];
-};
-
 const subscribe = (cookie: string, endpoint: string) =>
 	fetch(`${server.baseUrl}/push/subscribe`, {
 		method: 'POST',
@@ -79,7 +64,7 @@ describe('POST /push/test — Test-Push mit rotierendem Zitat (#386, AK2 + AK4)'
 	});
 
 	it('AK2: 200 mit { sent, quote: { text, author } } bei vorhandener Subscription', async () => {
-		const cookie = await login('a@example.com');
+		const cookie = await server.login('a@example.com', { displayName: 'a@example.com' });
 		assert.equal((await subscribe(cookie, 'https://push.example.com/a')).status, 201);
 
 		const res = await postTest(cookie);
@@ -94,7 +79,7 @@ describe('POST /push/test — Test-Push mit rotierendem Zitat (#386, AK2 + AK4)'
 	});
 
 	it('AK2: das zurückgegebene Zitat ist eines der 10 definierten', async () => {
-		const cookie = await login('a@example.com');
+		const cookie = await server.login('a@example.com', { displayName: 'a@example.com' });
 		await subscribe(cookie, 'https://push.example.com/a');
 
 		const res = await postTest(cookie);
@@ -108,7 +93,7 @@ describe('POST /push/test — Test-Push mit rotierendem Zitat (#386, AK2 + AK4)'
 	});
 
 	it('AK2: ohne Subscription liefert es sent: 0 (kein Fehler)', async () => {
-		const cookie = await login('a@example.com');
+		const cookie = await server.login('a@example.com', { displayName: 'a@example.com' });
 
 		const res = await postTest(cookie);
 		assert.equal(res.status, 200);
@@ -123,7 +108,7 @@ describe('POST /push/test — Test-Push mit rotierendem Zitat (#386, AK2 + AK4)'
 	});
 
 	it('AK4: 503, wenn Web-Push nicht konfiguriert ist (VAPID fehlt)', async () => {
-		const cookie = await login('a@example.com');
+		const cookie = await server.login('a@example.com', { displayName: 'a@example.com' });
 		const saved = process.env.VAPID_PUBLIC_KEY;
 		delete process.env.VAPID_PUBLIC_KEY;
 		try {
@@ -135,8 +120,8 @@ describe('POST /push/test — Test-Push mit rotierendem Zitat (#386, AK2 + AK4)'
 	});
 
 	it('AK4: Datenisolation — sendet nur an Subscriptions des eingeloggten Nutzers', async () => {
-		const cookieA = await login('a@example.com');
-		const cookieB = await login('b@example.com');
+		const cookieA = await server.login('a@example.com', { displayName: 'a@example.com' });
+		const cookieB = await server.login('b@example.com', { displayName: 'b@example.com' });
 		await subscribe(cookieA, 'https://push.example.com/a');
 
 		// B (ohne eigene Subscription) löst einen Test-Push aus — A's Subscription darf NICHT angesprochen werden.

@@ -10,29 +10,14 @@
  */
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 // Auth-Kontext: Der Test-Login-Endpunkt braucht SESSION_SECRET; Google-Felder für Passport-Init.
-process.env.SESSION_SECRET = 'test-secret-issue-207';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-issue-207');
 
 let server: TestServer;
 
 /** Registriert einen neuen Nutzer und gibt den Session-Cookie zurück. */
-const register = async (email: string, password: string): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/register`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password }),
-	});
-	assert.equal(res.status, 201, `Register ${email} muss 201 liefern`);
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Register muss einen Set-Cookie-Header setzen');
-	return setCookie.split(';')[0];
-};
-
 describe('API-Schutz & Datenisolation (#207)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -115,8 +100,8 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 
 	describe('AK 5 — Datenisolation zwischen zwei Nutzern (Tasks)', () => {
 		it('GET /tasks liefert nur die Tasks des eingeloggten Nutzers', async () => {
-			const cookieA = await register('alice@example.com', 'passwort-alice');
-			const cookieB = await register('bob@example.com', 'passwort-bob');
+			const cookieA = await server.register('alice@example.com', 'passwort-alice');
+			const cookieB = await server.register('bob@example.com', 'passwort-bob');
 
 			// Alice erstellt einen Task
 			const resA = await fetchJson('/tasks', {
@@ -150,8 +135,8 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 		});
 
 		it('PATCH auf fremden Task → 403 oder 404', async () => {
-			const cookieA = await register('alice@example.com', 'passwort-alice');
-			const cookieB = await register('bob@example.com', 'passwort-bob');
+			const cookieA = await server.register('alice@example.com', 'passwort-alice');
+			const cookieB = await server.register('bob@example.com', 'passwort-bob');
 
 			const createRes = await fetchJson('/tasks', {
 				method: 'POST',
@@ -173,8 +158,8 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 		});
 
 		it('DELETE auf fremden Task → 403 oder 404', async () => {
-			const cookieA = await register('alice@example.com', 'passwort-alice');
-			const cookieB = await register('bob@example.com', 'passwort-bob');
+			const cookieA = await server.register('alice@example.com', 'passwort-alice');
+			const cookieB = await server.register('bob@example.com', 'passwort-bob');
 
 			const createRes = await fetchJson('/tasks', {
 				method: 'POST',
@@ -202,8 +187,8 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 
 	describe('AK 5 — Säulen sind nutzer-eigen, Route ist scoped (#428, Teil 2)', () => {
 		it('sät jedem Nutzer eigene Säulen; GET /pillars ist erreichbar und zeigt nur eigene Säulen', async () => {
-			const cookieA = await register('alice@example.com', 'passwort-alice');
-			const cookieB = await register('bob@example.com', 'passwort-bob');
+			const cookieA = await server.register('alice@example.com', 'passwort-alice');
+			const cookieB = await server.register('bob@example.com', 'passwort-bob');
 
 			// Session vorhanden ⇒ der Säulen-Endpunkt darf nicht mit 401 abweisen.
 			const putResA = await fetchJson('/pillars/weights', {

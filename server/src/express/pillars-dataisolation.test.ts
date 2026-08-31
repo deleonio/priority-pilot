@@ -2,7 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar } from '../models/index.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 // Spec-Tests für #428 (Teil 2, AK4): Säulen sind nutzer-eigen (scoping). Nutzer A sieht nur
 // seine eigenen Säulen, kann die von B weder lesen/ändern/löschen. Diese Tests sichern das
@@ -13,10 +13,7 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 // Test-Zugriff zuverlässig gegen eine lokale `.env` (dort steht die Plural-Variable auf modevel@…).
 // Die Zuweisung läuft nach dem `.env`-Lade-Import und überschreibt damit den `.env`-Wert.
 process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.com,charlie@example.com';
-process.env.SESSION_SECRET = 'iso-test-secret';
-process.env.GOOGLE_CLIENT_ID = 'iso-test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'iso-test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('iso-test');
 
 const TEST_EMAIL_ALICE = 'alice@example.com';
 const TEST_EMAIL_BOB = 'bob@example.com';
@@ -28,17 +25,6 @@ const seedPillarsForUser = async (userId: number): Promise<Pillar[]> =>
 	Pillar.bulkCreate(SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight, userId })));
 
 /** Test-Only-Login liefert einen Cookie, der einen echten Session-`userId` repräsentiert. */
-const login = async (email: string): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, displayName: email.split('@')[0] }),
-	});
-	assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Test-Login sollte Set-Cookie setzen');
-	return setCookie!.split(';')[0];
-};
 
 describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)', () => {
 	before(async () => {
@@ -57,8 +43,8 @@ describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)',
 	// ── GET /pillars — nur eigene Säulen ───────────────────────────────────────────────
 
 	it('GET /pillars liefert einem eingeloggten Nutzer nur seine eigenen Säulen (AK4)', async () => {
-		const aliceCookie = await login(TEST_EMAIL_ALICE);
-		const bobCookie = await login(TEST_EMAIL_BOB);
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const bobCookie = await server.login(TEST_EMAIL_BOB);
 
 		// Alice's Nutzer-ID ist 1 (test-login create order)
 		await seedPillarsForUser(1);
@@ -93,8 +79,8 @@ describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)',
 	// ── POST /tasks mit Säulen-Beiträgen — nur eigene Säulen zulässig ─────────────────────
 
 	it('POST /tasks mit Säulen-Beiträgen wird 400, wenn pillarId fremder Säule gehört (AK4)', async () => {
-		const aliceCookie = await login(TEST_EMAIL_ALICE);
-		const bobCookie = await login(TEST_EMAIL_BOB);
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const bobCookie = await server.login(TEST_EMAIL_BOB);
 
 		// Alice legt Säule an
 		const alicePillarRes = await fetch(`${server.baseUrl}/pillars`, {
@@ -123,8 +109,8 @@ describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)',
 	// ── PATCH /pillars/:id — nur eigene Säulen änderbar ─────────────────────────────────
 
 	it('PATCH /pillars/:id liefert 404 bei fremder Säule (AK4)', async () => {
-		const aliceCookie = await login(TEST_EMAIL_ALICE);
-		const bobCookie = await login(TEST_EMAIL_BOB);
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const bobCookie = await server.login(TEST_EMAIL_BOB);
 
 		// Alice legt Säule an
 		const alicePillarRes = await fetch(`${server.baseUrl}/pillars`, {
@@ -155,8 +141,8 @@ describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)',
 	// ── DELETE /pillars/:id — nur eigene Säulen löschbar ────────────────────────────────
 
 	it('DELETE /pillars/:id liefert 404 bei fremder Säule (AK4)', async () => {
-		const aliceCookie = await login(TEST_EMAIL_ALICE);
-		const bobCookie = await login(TEST_EMAIL_BOB);
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const bobCookie = await server.login(TEST_EMAIL_BOB);
 
 		// Alice legt Säule an
 		const alicePillarRes = await fetch(`${server.baseUrl}/pillars`, {

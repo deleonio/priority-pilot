@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../../test/helpers.js';
 import { type ActivityAdvisor, type AdviseActivitiesInput, type ActivityAdvice } from '../../llm/llm.js';
 import { Pillar, User } from '../../models/index.js';
 
@@ -10,28 +10,9 @@ import { Pillar, User } from '../../models/index.js';
 // AK4 Nutzer ohne Säulen → HTTP 503 (unverändert).
 // Der Auth-Kontext muss VOR dem Server-Start feststehen (createApp liest die Env-Werte).
 process.env.GOOGLE_ALLOWED_EMAILS = 'userA@example.com,userB@example.com';
-process.env.SESSION_SECRET = 'test-secret-430-advisor';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-430-advisor');
 
 let server: TestServer;
-
-/** Extrahiert das erste `name=value`-Paar aus einem Set-Cookie-Header (ohne Attribute). */
-const cookieFromSetCookie = (setCookie: string): string => setCookie.split(';')[0];
-
-/** Loggt über den Test-Only-Endpunkt ein und gibt den Cookie-Header für Folgeanfragen zurück. */
-const testLogin = async (email: string, displayName: string): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, displayName }),
-	});
-	assert.equal(res.status, 200, `Test-Login für ${email} sollte 200 liefern`);
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Test-Login sollte einen Set-Cookie-Header setzen');
-	return cookieFromSetCookie(setCookie);
-};
 
 const postAs = (cookie: string, path: string, body: unknown) =>
 	fetch(`${server.baseUrl}${path}`, {
@@ -78,8 +59,8 @@ describe('POST /pillars/advisor — nutzerdefinierte Säulen (#430)', () => {
 	});
 
 	it('AK1: Berater erhält nur die Säulen des anfragenden Nutzers (Name + Beschreibung)', async () => {
-		const cookieA = await testLogin('userA@example.com', 'User A');
-		await testLogin('userB@example.com', 'User B');
+		const cookieA = await server.login('userA@example.com', { displayName: 'User A' });
+		await server.login('userB@example.com', { displayName: 'User B' });
 		const uidA = await userIdOf('userA@example.com');
 		const uidB = await userIdOf('userB@example.com');
 
@@ -105,8 +86,8 @@ describe('POST /pillars/advisor — nutzerdefinierte Säulen (#430)', () => {
 	});
 
 	it('AK1: User B sieht umgekehrt nur die eigenen Säulen', async () => {
-		const cookieB = await testLogin('userB@example.com', 'User B');
-		await testLogin('userA@example.com', 'User A');
+		const cookieB = await server.login('userB@example.com', { displayName: 'User B' });
+		await server.login('userA@example.com', { displayName: 'User A' });
 		const uidA = await userIdOf('userA@example.com');
 		const uidB = await userIdOf('userB@example.com');
 
@@ -125,8 +106,8 @@ describe('POST /pillars/advisor — nutzerdefinierte Säulen (#430)', () => {
 	});
 
 	it('AK2: zurückgegebene pillarIds stammen ausschließlich aus gültigen Nutzer-Säulen', async () => {
-		const cookieA = await testLogin('userA@example.com', 'User A');
-		await testLogin('userB@example.com', 'User B');
+		const cookieA = await server.login('userA@example.com', { displayName: 'User A' });
+		await server.login('userB@example.com', { displayName: 'User B' });
 		const uidA = await userIdOf('userA@example.com');
 		const uidB = await userIdOf('userB@example.com');
 
@@ -149,7 +130,7 @@ describe('POST /pillars/advisor — nutzerdefinierte Säulen (#430)', () => {
 	});
 
 	it('AK4: Nutzer ohne Säulen erhält HTTP 503', async () => {
-		const cookieA = await testLogin('userA@example.com', 'User A');
+		const cookieA = await server.login('userA@example.com', { displayName: 'User A' });
 		// Keine Säulen für User A.
 		const res = await postAs(cookieA, '/pillars/advisor', { question: 'Etwas tun' });
 		assert.equal(res.status, 503);
@@ -157,7 +138,7 @@ describe('POST /pillars/advisor — nutzerdefinierte Säulen (#430)', () => {
 	});
 
 	it('Route-Validierung: ?provider=foo → HTTP 400 (#749)', async () => {
-		const cookieA = await testLogin('userA@example.com', 'User A');
+		const cookieA = await server.login('userA@example.com', { displayName: 'User A' });
 		const uidA = await userIdOf('userA@example.com');
 		await Pillar.create({ name: 'A-Körper', description: 'Sport', weight: 100, userId: uidA });
 

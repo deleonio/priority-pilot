@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 /**
  * Rote Spec-Tests für #1066 (Spec docs/spec/issue-1066.md) — Endpoint `GET /tasks/nearby`.
@@ -20,28 +20,13 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 
 // Auth-Kontext wie in api-auth-protection.test.ts (#207): damit ist requireAuth aktiv und der
 // Register-Endpunkt liefert einen Session-Cookie.
-process.env.SESSION_SECRET = 'test-secret-issue-1066';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-issue-1066');
 
 /** Referenzposition: Berlin (Alexanderplatz). */
 const LAT = 52.5219;
 const LON = 13.4132;
 
 let server: TestServer;
-
-const register = async (email: string, password: string): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/register`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password }),
-	});
-	assert.equal(res.status, 201, `Register ${email} muss 201 liefern`);
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Register muss einen Set-Cookie-Header setzen');
-	return setCookie.split(';')[0];
-};
 
 /** Unabhängiger Haversine-Orakel (km) — absichtlich NICHT aus der Route importiert (AK3 #1110). */
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -99,7 +84,7 @@ describe('GET /tasks/nearby (#1066)', () => {
 	});
 
 	it('liefert Tasks aufsteigend nach Distanz mit distanceKm in km (AK2, AK3)', async () => {
-		const cookie = await register('nearby-sort@example.com', 'password123');
+		const cookie = await server.register('nearby-sort@example.com', 'password123');
 		// 1° Breite ≈ 111 km → 0.009° / 0.027° / 0.045° ≈ 1 / 3 / 5 km nördlich der Referenz.
 		await createTask(cookie, { title: '5km', latitude: LAT + 0.045, longitude: LON });
 		await createTask(cookie, { title: '3km', latitude: LAT + 0.027, longitude: LON });
@@ -124,7 +109,7 @@ describe('GET /tasks/nearby (#1066)', () => {
 	});
 
 	it('erledigte Tasks und Tasks ohne Koordinaten erscheinen nicht (AK2)', async () => {
-		const cookie = await register('nearby-filter@example.com', 'password123');
+		const cookie = await server.register('nearby-filter@example.com', 'password123');
 		const done = await createTask(cookie, { title: 'Erledigt', latitude: 52.52, longitude: 13.405 });
 		await fetch(`${server.baseUrl}/tasks/${done.id}`, {
 			method: 'PATCH',
@@ -140,7 +125,7 @@ describe('GET /tasks/nearby (#1066)', () => {
 	});
 
 	it('liefert maximal 10 Einträge (AK2)', async () => {
-		const cookie = await register('nearby-cap@example.com', 'password123');
+		const cookie = await server.register('nearby-cap@example.com', 'password123');
 		for (let i = 0; i < 12; i += 1) {
 			await createTask(cookie, { title: `Task ${i}`, latitude: 52.5 + i / 100, longitude: 13.4 });
 		}
@@ -154,7 +139,7 @@ describe('GET /tasks/nearby (#1066)', () => {
 
 	// #1098 AK6: Der Server filtert auf die gespeicherte Anzeige-Entfernung des Users.
 	it('liefert nur Tasks innerhalb der gespeicherten Anzeige-Entfernung (AK6 #1098)', async () => {
-		const cookie = await register('nearby-radius@example.com', 'password123');
+		const cookie = await server.register('nearby-radius@example.com', 'password123');
 		// ~3 km und ~26 km von der Referenzposition entfernt.
 		await createTask(cookie, { title: 'Nah', latitude: LAT + 0.027, longitude: LON });
 		await createTask(cookie, { title: 'Fern (Potsdam)', latitude: 52.3906, longitude: 13.0645 });
@@ -185,7 +170,7 @@ describe('GET /tasks/nearby (#1066)', () => {
 	// damit ein flächendeckendes „(0 km)" in der UI als Kettenbruch auffällt und nicht als
 	// „wird so gerechnet" durchgeht.
 	it('liefert exakt 0 für einen Task an der Position und die Haversine-Distanz sonst (AK3 #1110)', async () => {
-		const cookie = await register('nearby-haversine@example.com', 'password123');
+		const cookie = await server.register('nearby-haversine@example.com', 'password123');
 		// ~2,4 km nördlich der Referenzposition (1° Breite ≈ 111,32 km).
 		await createTask(cookie, { title: '2,4km', latitude: LAT + 0.0216, longitude: LON });
 		await createTask(cookie, { title: 'Exakt dort', latitude: LAT, longitude: LON });
@@ -209,8 +194,8 @@ describe('GET /tasks/nearby (#1066)', () => {
 	});
 
 	it('Datenisolation: User A sieht keine Tasks von User B (AK7)', async () => {
-		const cookieA = await register('nearby-a@example.com', 'password123');
-		const cookieB = await register('nearby-b@example.com', 'password123');
+		const cookieA = await server.register('nearby-a@example.com', 'password123');
+		const cookieB = await server.register('nearby-b@example.com', 'password123');
 		await createTask(cookieB, { title: 'B-Besitz', latitude: 52.52, longitude: 13.405 });
 
 		const res = await nearby(cookieA);

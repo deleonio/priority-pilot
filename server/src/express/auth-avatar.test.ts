@@ -1,13 +1,18 @@
 import { describe, it, beforeEach, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	testLoginResponse,
+	registerResponse,
+} from '../test/helpers.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen.
 process.env.GOOGLE_ALLOWED_EMAIL = 'testuser@example.com';
-process.env.SESSION_SECRET = 'test-secret-for-tests';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-for-tests');
 
 const ALLOWED_EMAIL = 'testuser@example.com';
 const ALLOWED_NAME = 'Test User';
@@ -34,14 +39,9 @@ describe('Issue #217 — Avatar mit Google Profilbild', () => {
 
 	describe('AC-217-1 — Google-Login mit Foto: avatarUrl als HTTPS-String', () => {
 		it('liefert avatarUrl wenn test-login eine HTTPS-URL uebergibt', async () => {
-			const loginRes = await fetch(`${server.baseUrl}/auth/test-login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					email: ALLOWED_EMAIL,
-					displayName: ALLOWED_NAME,
-					avatarUrl: 'https://lh3.googleusercontent.com/a/photo.jpg',
-				}),
+			const loginRes = await testLoginResponse(server, ALLOWED_EMAIL, {
+				displayName: ALLOWED_NAME,
+				avatarUrl: 'https://lh3.googleusercontent.com/a/photo.jpg',
 			});
 			assert.equal(loginRes.status, 200, 'test-login muss 200 liefern');
 			const setCookie = loginRes.headers.get('set-cookie');
@@ -64,11 +64,7 @@ describe('Issue #217 — Avatar mit Google Profilbild', () => {
 
 	describe('AC-217-2 — Google-Login ohne Foto: avatarUrl ist null', () => {
 		it('liefert avatarUrl: null wenn kein avatarUrl uebergeben wird', async () => {
-			const loginRes = await fetch(`${server.baseUrl}/auth/test-login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: ALLOWED_EMAIL, displayName: ALLOWED_NAME }),
-			});
+			const loginRes = await testLoginResponse(server, ALLOWED_EMAIL, { displayName: ALLOWED_NAME });
 			assert.equal(loginRes.status, 200, 'test-login muss 200 liefern');
 			const setCookie = loginRes.headers.get('set-cookie');
 			assert.ok(setCookie, 'test-login muss Cookie setzen');
@@ -86,11 +82,7 @@ describe('Issue #217 — Avatar mit Google Profilbild', () => {
 
 	describe('AC-217-3 — Email/Passwort-Login: avatarUrl ist null', () => {
 		it('liefert avatarUrl: null nach Passwort-Login', async () => {
-			await fetch(`${server.baseUrl}/auth/register`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: 'avatar-pw@example.com', password: 'sicher123' }),
-			});
+			await registerResponse(server, 'avatar-pw@example.com', 'sicher123');
 			const loginRes = await fetch(`${server.baseUrl}/auth/login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar } from '../models/index.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import type { PillarClassifier, ActivityAdvisor, ClassifyPillarsInput, AdviseActivitiesInput } from '../llm/llm.js';
 
 /**
@@ -12,27 +12,12 @@ import type { PillarClassifier, ActivityAdvisor, ClassifyPillarsInput, AdviseAct
  * bis die Umsetzung die Nutzer-Isolation nachrüstet.
  */
 process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.com';
-process.env.SESSION_SECRET = 'scope-ak5-secret';
-process.env.GOOGLE_CLIENT_ID = 'scope-ak5-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'scope-ak5-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('scope-ak5');
 
 const TEST_EMAIL_ALICE = 'alice@example.com';
 const TEST_EMAIL_BOB = 'bob@example.com';
 
 let server: TestServer;
-
-const login = async (email: string): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, displayName: email.split('@')[0] }),
-	});
-	assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Test-Login sollte Set-Cookie setzen');
-	return setCookie!.split(';')[0];
-};
 
 describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by-pillar', () => {
 	let lastClassifyInput: ClassifyPillarsInput | undefined;
@@ -73,9 +58,9 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 
 	describe('POST /tasks/suggest-pillars', () => {
 		it('AK5: liefert dem Klassifikator nur die Säulen des eingeloggten Nutzers (Alice)', async () => {
-			const aliceCookie = await login(TEST_EMAIL_ALICE);
+			const aliceCookie = await server.login(TEST_EMAIL_ALICE);
 			// Bob als Nutzer anlegen (damit userId=2 existiert)
-			await login(TEST_EMAIL_BOB);
+			await server.login(TEST_EMAIL_BOB);
 
 			// Alice legt eigene Säule an (userId 1)
 			await Pillar.create({ name: 'AliceOnly', weight: 100, userId: 1 });
@@ -97,8 +82,8 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 
 		it('AK5: liefert dem Klassifikator nur die Säulen des eingeloggten Nutzers (Bob)', async () => {
 			// Alice als Nutzer anlegen (damit userId=1 existiert)
-			await login(TEST_EMAIL_ALICE);
-			const bobCookie = await login(TEST_EMAIL_BOB);
+			await server.login(TEST_EMAIL_ALICE);
+			const bobCookie = await server.login(TEST_EMAIL_BOB);
 
 			await Pillar.create({ name: 'AlicePillar', weight: 100, userId: 1 });
 			await Pillar.create({ name: 'BobPillar', weight: 100, userId: 2 });
@@ -121,9 +106,9 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 
 	describe('POST /pillars/advisor', () => {
 		it('AK5: liefert dem Berater nur die Säulen des eingeloggten Nutzers', async () => {
-			const aliceCookie = await login(TEST_EMAIL_ALICE);
+			const aliceCookie = await server.login(TEST_EMAIL_ALICE);
 			// Bob als Nutzer anlegen (damit userId=2 existiert)
-			await login(TEST_EMAIL_BOB);
+			await server.login(TEST_EMAIL_BOB);
 
 			await Pillar.create({ name: 'AliceHealth', weight: 50, userId: 1 });
 			await Pillar.create({ name: 'BobFinance', weight: 50, userId: 2 });
@@ -145,8 +130,8 @@ describe('AK5 — Nutzer-Scoping für suggest-pillars, pillar-advisor, scores/by
 
 	describe('GET /scores/by-pillar', () => {
 		it('AK5: aggregiert Punkte nur über die Säulen des eingeloggten Nutzers', async () => {
-			const aliceCookie = await login(TEST_EMAIL_ALICE);
-			const bobCookie = await login(TEST_EMAIL_BOB);
+			const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+			const bobCookie = await server.login(TEST_EMAIL_BOB);
 
 			// Alice hat Säule A mit einem Task + Score
 			const alicePillar = await Pillar.create({ name: 'AliceMove', weight: 50, userId: 1 });

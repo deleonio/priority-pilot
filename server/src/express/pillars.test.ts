@@ -2,14 +2,11 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar, TaskPillar } from '../models/index.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 // Auth-Env für Nutzer-Scoping (Teil 2, #428). Per test-login mit allowlist.
 process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.com';
-process.env.SESSION_SECRET = 'pillars-test-secret';
-process.env.GOOGLE_CLIENT_ID = 'pillars-test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'pillars-test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('pillars-test');
 
 let server: TestServer;
 
@@ -57,18 +54,6 @@ describe('Pillars API', () => {
 		});
 
 	/** Test-Only-Login liefert einen Cookie für den Nutzer (test-login). */
-	const login = async (email: string): Promise<string> => {
-		const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email, displayName: email.split('@')[0] }),
-		});
-		assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
-		const setCookie = res.headers.get('set-cookie');
-		assert.ok(setCookie, 'Test-Login sollte Set-Cookie setzen');
-		return setCookie!.split(';')[0];
-	};
-
 	/** Legt die fünf Standard-Säulen für einen Nutzer an (userId-scoped). */
 	const seedPillarsForUser = async (userId: number): Promise<Pillar[]> =>
 		Pillar.bulkCreate(SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight, userId })));
@@ -77,14 +62,14 @@ describe('Pillars API', () => {
 
 	describe('GET /pillars', () => {
 		it('200 mit leerer Liste ohne Säulen', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const res = await get('/pillars', aliceCookie);
 			assert.equal(res.status, 200);
 			assert.deepEqual(await res.json(), []);
 		});
 
 		it('200 mit allen Säulen inkl. weight und description, nach id sortiert', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1; // test-login legt Nutzer mit id=1 an (alice@example.com)
 			const pillars = await seedPillarsForUser(userId);
 
@@ -112,7 +97,7 @@ describe('Pillars API', () => {
 
 	describe('PUT /pillars/weights', () => {
 		it('200 setzt eine gültige Verteilung (Summe 100) und persistiert sie', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const weights = [
@@ -134,7 +119,7 @@ describe('Pillars API', () => {
 		});
 
 		it('200 akzeptiert Float-Verteilung innerhalb der Toleranz (33,33 + 33,33 + 33,34)', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			await Pillar.bulkCreate([
 				{ name: 'A', weight: 50, userId },
@@ -157,7 +142,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 wenn die Summe nicht 100 ergibt', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const res = await put(
@@ -171,7 +156,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 wenn ein Gewicht negativ ist', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const res = await put(
@@ -191,7 +176,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 wenn nicht alle Säulen abgedeckt sind', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const res = await put(
@@ -208,7 +193,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 bei unbekannter Säulen-id', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const weights = pillars.map((p) => ({ id: p.id, weight: 20 }));
@@ -218,7 +203,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 bei fremder (nicht zu Nutzer gehörender) Säulen-id', async () => {
-			const bobCookie = await login('bob@example.com');
+			const bobCookie = await server.login('bob@example.com');
 
 			// Alice hat Säulen
 			await seedPillarsForUser(1);
@@ -236,7 +221,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 bei doppelter id', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const res = await put(
@@ -256,7 +241,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 wenn weights fehlt oder keine Liste ist', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			await seedPillarsForUser(userId);
 			assert.equal((await put('/pillars/weights', {}, aliceCookie)).status, 400);
@@ -265,7 +250,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 wenn weight kein Number ist', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			const pillars = await seedPillarsForUser(userId);
 			const weights = pillars.map((p) => ({ id: p.id, weight: 20 }));
@@ -275,7 +260,7 @@ describe('Pillars API', () => {
 		});
 
 		it('400 wenn Body kein Objekt ist', async () => {
-			const aliceCookie = await login('alice@example.com');
+			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
 			await seedPillarsForUser(userId);
 			const res = await fetch(`${server.baseUrl}/pillars/weights`, {
@@ -290,7 +275,7 @@ describe('Pillars API', () => {
 
 		describe('POST /pillars', () => {
 			it('201 legt Säule mit name+description, weight=0 beim Nutzer an (AK1)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 
 				const res = await post('/pillars', { name: 'Meditation', description: 'Innere Ruhe' }, aliceCookie);
 				assert.equal(res.status, 201, 'Säule wird angelegt');
@@ -305,14 +290,14 @@ describe('Pillars API', () => {
 			});
 
 			it('400 bei leerem Namen (AK1)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 
 				const res = await post('/pillars', { name: '', description: 'Leer' }, aliceCookie);
 				assert.equal(res.status, 400, 'leerer Name wird abgewiesen');
 			});
 
 			it('409 bei Dublette (name, userId) (AK2)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				await post('/pillars', { name: 'Meditation', description: 'Erste' }, aliceCookie);
 
 				const res = await post('/pillars', { name: 'Meditation', description: 'Zweite' }, aliceCookie);
@@ -329,7 +314,7 @@ describe('Pillars API', () => {
 
 		describe('PATCH /pillars/:id', () => {
 			it('200 benennt um und ändert Beschreibung nur beim Besitzer (AK2)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const aliceId = (await (await post('/pillars', { name: 'Sport', description: 'Bewegung' }, aliceCookie)).json())
 					.id as number;
 
@@ -342,17 +327,17 @@ describe('Pillars API', () => {
 			});
 
 			it('404 bei fremder ID (AK2)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const aliceId = (await (await post('/pillars', { name: 'AlicePillar', description: '' }, aliceCookie)).json())
 					.id as number;
 
-				const bobCookie = await login('bob@example.com');
+				const bobCookie = await server.login('bob@example.com');
 				const res = await patch(`/pillars/${aliceId}`, { name: 'Geklaut', description: '' }, bobCookie);
 				assert.equal(res.status, 404, 'Bob darf Alices Säule nicht sehen/ändern');
 			});
 
 			it('400 bei leerem Namen', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const aliceId = (await (await post('/pillars', { name: 'Kultur', description: '' }, aliceCookie)).json())
 					.id as number;
 
@@ -361,7 +346,7 @@ describe('Pillars API', () => {
 			});
 
 			it('409 bei Umbenennung auf bereits vergebenen Namen (AK2)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 
 				await post('/pillars', { name: 'Sport', description: 'Erste' }, aliceCookie);
 				await post('/pillars', { name: 'Büro', description: 'Zweite' }, aliceCookie);
@@ -374,7 +359,7 @@ describe('Pillars API', () => {
 			});
 
 			it('200 bei Umbenennung auf denselben Namen (idempotent, kein Konflikt)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const created = (await (await post('/pillars', { name: 'Yoga', description: '' }, aliceCookie)).json()) as {
 					id: number;
 				};
@@ -389,7 +374,7 @@ describe('Pillars API', () => {
 
 		describe('DELETE /pillars/:id', () => {
 			it('204 entfernt Säule + Beiträge; renormiert verbleibende share je Task auf 100 (AK3)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const userId = 1;
 
 				await seedPillarsForUser(userId);
@@ -429,7 +414,7 @@ describe('Pillars API', () => {
 			});
 
 			it('204 renormiert Rest-Gewichte der übrigen Säulen auf 100 (AK3)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const userId = 1;
 
 				await Pillar.bulkCreate([
@@ -449,17 +434,17 @@ describe('Pillars API', () => {
 			});
 
 			it('404 bei fremder ID', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 				const aliceId = (await (await post('/pillars', { name: 'AliceDelete', description: '' }, aliceCookie)).json())
 					.id as number;
 
-				const bobCookie = await login('bob@example.com');
+				const bobCookie = await server.login('bob@example.com');
 				const res = await del(`/pillars/${aliceId}`, bobCookie);
 				assert.equal(res.status, 404, 'Bob darf Alices Säule nicht löschen');
 			});
 
 			it('204 ermöglicht Löschen der letzten Säule (Task wird neutral)', async () => {
-				const aliceCookie = await login('alice@example.com');
+				const aliceCookie = await server.login('alice@example.com');
 
 				// Nur eine Säule anlegen
 				const created = (await (await post('/pillars', { name: 'Einzige', description: '' }, aliceCookie)).json()) as {

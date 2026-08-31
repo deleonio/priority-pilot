@@ -1,13 +1,10 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen.
 process.env.GOOGLE_ALLOWED_EMAIL = 'testuser@example.com';
-process.env.SESSION_SECRET = 'test-secret-for-tests';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-for-tests');
 
 let server: TestServer;
 
@@ -19,29 +16,13 @@ let server: TestServer;
 describe('Task — Titel-Länge (Issue #582)', () => {
 	let cookie: string;
 
-	/** Extrahiert das erste `name=value`-Paar aus einem Set-Cookie-Header (ohne Attribute). */
-	const cookieFromSetCookie = (setCookie: string): string => setCookie.split(';')[0];
-
-	/** Loggt über den Test-Only-Endpunkt ein und gibt den Cookie-Header für Folgeanfragen zurück. */
-	const testLogin = async (email: string, displayName: string): Promise<string> => {
-		const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email, displayName }),
-		});
-		assert.equal(res.status, 200, `Test-Login für ${email} sollte 200 liefern`);
-		const setCookie = res.headers.get('set-cookie');
-		assert.ok(setCookie, 'Test-Login sollte einen Set-Cookie-Header setzen');
-		return cookieFromSetCookie(setCookie);
-	};
-
 	before(async () => {
 		server = await startTestServer();
 	});
 
 	beforeEach(async () => {
 		await resetDb();
-		cookie = await testLogin('testuser@example.com', 'Test User');
+		cookie = await server.login('testuser@example.com', { displayName: 'Test User' });
 	});
 
 	after(async () => {
