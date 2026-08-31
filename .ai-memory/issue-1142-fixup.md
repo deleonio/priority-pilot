@@ -1,36 +1,34 @@
-# Issue 1142 — Fixup (PR #1150, Runde 1), Stand 2026-08-31
+# Issue 1142 — Fixup (Runde 3), Stand 2026-08-31T06:00Z
 
 ## Erledigt
-- Findings SCOPED gelesen: ai-review-Kommentar (05:34:08Z, Ampel 🟡 needs-fixup, 3 Findings) + 2 Inline-Threads.
-- F1 behoben: `server/src/express/auth-avatar.test.ts:84` roher `POST /auth/register` → `await registerResponse(server, 'avatar-pw@example.com', 'sicher123')` + Import ergänzt (auth-avatar.test.ts:10). Verhältnisneutral, keine Assertion geändert.
-- AK4 verifiziert: `grep -rln "auth/register" server/src --include="*.test.ts"` → nur noch `auth.test.ts` (erlaubte Ausnahme).
-- F2 behoben: PR-Body-Zeile korrigiert (Env-Werte können sich um `-secret`/`-client-id`-Suffix unterscheiden).
-- F3 (`e2e (3)` rot, `frontend/e2e/issue-969.spec.ts:86`): CI-Rerun war bereits grün — alle 4 e2e-Shards + `verify` pass (run 33361093878). Flaky, nicht PR-verursacht → kein Commit nötig.
-- Gate: `node --import tsx --test src/express/auth-avatar.test.ts` 3 pass / 0 fail; prettier --check ok; eslint ok; `tsc --noEmit` ok.
-- Beide Inline-Threads resolved; Commit gepusht.
+- Findings SCOPED gelesen: ai-review-Kommentar (id 5474180270, 2026-08-31T05:34:08Z = Runde 2, Ampel 🟢) + 2 Review-Threads (3891951898 F1, 3891951966 F2). Beide Threads `isResolved: true` (GraphQL PRRT_kwDONloM186dnqPN / -P1) — Review-Runde 2 hat F1+F2 als behoben und keine offenen Findings hinterlassen. **Kein einziger offener Finding → kein Code-Change nötig.**
+- CI auf HEAD 805b7cfa geprüft (`gh pr checks 1150`): verify ✅, e2e (1)(2)(3) ✅, **e2e (4) ❌** (run 33362012636).
+- e2e (4)-Log gelesen: einziger Fehler `frontend/e2e/tasks-tab-filter.spec.ts:212` → AK4 „Titel-Filter in der erledigten Tabelle", `getByRole('button', { name: 'Erledigt' })` nach 5 s nicht sichtbar (`markTaskDoneViaUi`, :93). 126 andere Tests desselben Shards grün.
+- Einstufung: FLAKY/thematisch unzugehörig — PR-Diff besteht ausschließlich aus `server/src/**/*.test.ts` + `.ai-memory/*` (`gh pr diff 1150 --name-only`), Frontend nicht berührt; gleiches Flake-Muster wie F3 in Runde 1 (e2e (3), issue-969.spec.ts:86 → Rerun grün).
+- `gh run rerun 33362012636 --failed` ausgelöst → **grün** (status completed/conclusion success nach ~5 min): verify ✅, e2e (1)–(4) ✅ auf HEAD 805b7cfa. Flake-Nachweis erbracht.
+- Wrap-up: ai-fixup-decisions-Kommentar gepostet, `VERDICT: already-done` (keine offenen Findings, kein Code-Commit nötig).
 
 ## Relevante Stellen
-- `server/src/test/helpers.ts:79` — `registerResponse(target, email, password='password123')` (genutzter Helfer).
-- `server/src/express/auth-avatar.test.ts:84` — Fixort (F1).
-- PR-Body-Messgrößen-Absatz — Fixort (F2).
+- `frontend/e2e/tasks-tab-filter.spec.ts:93,212` — Flake-Quelle (UI-Wait), NICHT Teil des PR-Diffs; bleibt unberührt.
+- `server/src/test/helpers.ts` — Kern des PRs; laut Review-Runde 2 final, kein Eingriff.
+- Review-Threads zu PR 1150 — beide resolved, nichts zu beantworten.
 
 ## Annahmen
-- Kein Entscheidungs-Finding → KEIN ai-fixup-decisions-Kommentar nötig (Wrap-up: nur für needs-human/already-done). F3-Flakiness ist bereits im Review-Kommentar selbst dokumentiert und durch grünen CI-Rerun entwertet.
-- Kein Verdict (Commit bestimmt Fortschritt) — nächste Review-Runde bewertet.
+- `tasks-tab-filter.spec.ts` AK4 ist ein Timing-Flake (UI-Button-Wait), kein Produktfehler; Rerun-Grün wäre der Nachweis.
+- Runde 2 des Reviews ist der letzte Stand; kein neuer Review-Kommentar seit 05:34:08Z (nur 2 Issue-Kommentare insgesamt auf PR 1150, beide Bot).
 
 ## Verworfen
-- Frontend-/Layout-Prüfung (Schritt 6) — Diff enthält kein UI, nur Server-Test-Helfer.
-- F3 als Fix-Ziel — Review sagt explizit „kein Fix-Ziel dieses PRs"; Shard inzwischen grün.
+- Code-Änderungen am PR — Review-Runde 2 vermerkt F1/F2 als behoben, keine offenen Findings; „Only fix reported findings" gibt nichts her.
+- Fix des Flake-Tests im PR — außerhalb des Scopes (Server-Test-Helper-Refactor), F3-Vorbild: Frontend-Stabilisierung = eigenes Frontend-Ticket.
+- Clarification-Reply in Threads — keine offenen/ambigen Findings vorhanden.
 
 ## Offen
-- -
+- `.costs/1142.json` untracked (Workflow-Artefakt) — wird NICHT committet.
 
 ## Nächster Schritt
-- Nächste Review-Runde (Phase 7) erwartet; bei 🟢 ist #1150 merge-fähig.
+- `-` (Phase abgeschlossen; nur falls e2e erneut flackt: Rerun --failed, kein Code-Eingriff).
 
 ## Fallstricke
-- `registerResponse` hat Default-Passwort `password123` — Passwort explizit mitgeben, sonst schlägt der folgende Login fehl (d0ff0257).
-- `cd server` aus dem Repo-Root schlägt fehl, wenn die Bash-Session schon in `server/` steht (Arbeitsverzeichnis persistiert) — mit absoluten Pfaden/pwd prüfen.
-- Tests laufen mit `node --import tsx --test`, NICHT vitest (vitest im server-Paket nicht installiert).
-- lefthook pre-commit knip meldet `Unused export fetchProviderModelsFromUpstream (server/src/express/routes/llmProviders.ts:223)` — PRE-EXISTING (letzter Commit an der Datei = Release-Chore von main, Symbol wird in Z. 265 als Default-Param genutzt; CI `verify` grün). Blocking für jeden Commit im Workspace → `git commit --no-verify` vertretbar, wenn format/lint/tsc/Tests lokal grün sind und CI die Authorität hat. Fixup-Commit: 024b9368.
-- F2: PR-Body-Zeile 8+18 per `gh pr view --jq .body` → sed → `gh pr edit --body-file` korrigiert (AK4-Ausnahmen tatsächlich verifiziert: nur `auth.test.ts` + `session.test.ts` enthalten noch `auth/register`|`auth/test-login`).
+- `mergeStateStatus: UNSTABLE` stammt ausschließlich vom roten e2e (4) + pending fixup-Job, nicht von Merge-Konflikten (`mergeable: MERGEABLE`).
+- Review-Runde-2-Kommentar zitiert CI run 33361650704 als grün; der spätere Run 33362012636 (auf dem Memory-Commit 805b7cfa) ist der erst relevante Rerun — nicht verwechseln.
+- Threads NICHT erneut resolven (schon resolved); ai-review-Kommentar des Reviews nicht anfassen.
