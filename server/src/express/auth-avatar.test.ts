@@ -7,6 +7,7 @@ import {
 	type TestServer,
 	applyTestAuthEnv,
 	testLoginResponse,
+	registerResponse,
 } from '../test/helpers.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen.
@@ -81,11 +82,7 @@ describe('Issue #217 — Avatar mit Google Profilbild', () => {
 
 	describe('AC-217-3 — Email/Passwort-Login: avatarUrl ist null', () => {
 		it('liefert avatarUrl: null nach Passwort-Login', async () => {
-			await fetch(`${server.baseUrl}/auth/register`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: 'avatar-pw@example.com', password: 'sicher123' }),
-			});
+			await registerResponse(server, 'avatar-pw@example.com', 'sicher123');
 			const loginRes = await fetch(`${server.baseUrl}/auth/login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
