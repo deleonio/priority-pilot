@@ -1,7 +1,9 @@
 # Issue 1137 — Review (PR #1138), Stand 2026-08-31
 
 ## Erledigt
-- MODE = Fixup-Nachweis (Marker `<!-- ai-review -->` vorhanden, Kommentar-ID 5473182245, updatedAt 2026-08-31T03:06:15Z). Delta = commits 38560fe6 + 7b18cfbe4, geprüft per `git diff 5ce16a8d..38560fe6` (8 Dateien, +53/−20) — kein Voll-Diff-Walk.
+- **Runde 2 (2026-08-31T03:34:56Z):** MODE = Fixup-Nachweis, Kommentar-ID 5473182245, updatedAt 03:27:34Z. **KEIN Delta** — Head weiterhin `7b18cfbe4` (kein Commit, kein Kommentar, PR-Body byte-identisch zum Runde-1-Stand) → Fixup-Runde 2 hat noch nichts geliefert. F1-Rest + F4 am Head NEU verifiziert statt Notiz vertraut: `git show 7b18cfbe4:.github/prompts/{spec,implement,review,prompt-audit}.md | grep -c "VERDICT (one line):"` = 0 je Datei; ux:23 + adr-sync/spec-sync/guide-sync = je 1. Sammelkommentar per PATCH aktualisiert (Runde-2-Statuszeile, Re-Check-Belege in F1/F4), ID unverändert. Kein Inline-Kommentar (kein neuer Fund, Anker ux.md:23 existiert weiter). Verdict: needs-fixup (unchanged).
+- Titel-Gate erneut: „chore(fixup): close fixup loop gap for ambiguous findings (#1137)" konventionskonform → kein Rename. Kein Label gesetzt.
+- Runde 1 (03:06–03:27Z): Delta = commits 38560fe6 + 7b18cfbe4, geprüft per `git diff 5ce16a8d..38560fe6` (8 Dateien, +53/−20) — kein Voll-Diff-Walk.
 - F2/F3 verifiziert geschlossen (fixup.md Schritt 3/4: PROPOSAL-Formulierung, Klärungspfad mit Endzustand „NO commit/NO verdict, Thread offen").
 - F1 teilweise geschlossen: AK3 ✓ (SKILL.md Step 4 Klassifikationsblock), AK4 ✓ (ux.md → SKILL `## Output` :16 existiert), AK5 ✓ (ticket-triage SKILL Step 2 = ADR-0009-Body-Regel, Referenz stimmt), AK7 ✓, AK8-Code ✓. **AK6 offen: nur 4/8 Dateien konvertiert** — spec.md:25, implement.md:34, prompt-audit.md:45 Langform; review.md:41 eigene Struktur. Verifiziert am PR-Head 7b18cfbe4 via `git show origin/...:{file} | grep -c "VERDICT (one line):"` → 0.
 - F4 neu: PR-Body (Runde-0-Stand) ohne AK3-Abgleich + AK8-Beleg, „Option 1 implementiert" statt Optionen 1–3, fixup.md-Zitat veraltet.
@@ -28,9 +30,11 @@
 - CI auf 7b18cfbe4 pending zum Zeitpunkt des Verdicts; Merge-Gate entscheidet workflow-seitig.
 
 ## Nächster Schritt
-- Fixup-Runde 2 (Label `ai:needs-changes`): AK6-Rest in den 4 Dateien + PR-Body-Nachtrag (F4); danach Re-Review nur gegen dieses Delta.
+- Fixup muss jetzt LIEFERN (Runde 2 ist ein Leerlauf-Delta gewesen): AK6-Rest in den 4 Dateien + PR-Body-Nachtrag (F4); danach Re-Review nur gegen dieses Delta. Wenn erneut kein Commit kommt,_delta-frei eskalieren (Runde-3-Statuszeile im Sammelkommentar, gleiche Finding-Nummern).
 
 ## Fallstricke
+- REST-`updated_at` heißt `updated_at`, nicht `updatedAt` (jq liefert sonst still `null`).
+- Fixup kann „leer“ sein: PR-Body-Fix (F4) ist kein Commit — Delta immer auch gegen PR-Body + Kommentare prüfen, nicht nur `commits`.
 - Runde-1-F1 war bei AK6 zu knapp gescoped (3 statt 8 Dateien) — der Fixup hat treu geliefert; Rest-Openierung ist kein Fixup-Versäumnis, im Kommentar so markiert.
 - Nicht-im-Diff-Dateien können keine Inline-Kommentare tragen → AK6-Anker auf die Zielform-Zeile (ux.md:23) legen.
 - `git diff main..head` am lokalen Merge-HEAD (c0503f7f) entspricht dem PR-Delta; PR-Head-Stände sicherer per `git show origin/<branch>:<file>` prüfen.
