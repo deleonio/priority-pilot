@@ -1,6 +1,13 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	registerOn,
+	applyTestAuthEnv,
+} from '../../test/helpers.js';
 import { resetProviderModelsCache, resetProviderTestCache } from './llmProviders.js';
 
 /**
@@ -12,10 +19,7 @@ import { resetProviderModelsCache, resetProviderTestCache } from './llmProviders
  * Modellliste wird über AppDeps injiziert (kein echter Provider-Call).
  */
 
-process.env.SESSION_SECRET = 'test-secret-llm-providers';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-llm-providers');
 
 const ENV_KEYS = ['MISTRAL_API_KEY', 'OPENROUTER_API_KEY', 'MISTRAL_MODEL', 'OPENROUTER_MODEL'] as const;
 const envBackup: Record<string, string | undefined> = {};
@@ -24,18 +28,6 @@ let server: TestServer;
 
 /** Zählt Aufrufe des injizierten Test-Runners — Grundlage der Cooldown/Dedupe-Assertions. */
 let testRunnerCalls = 0;
-
-const registerOn = async (target: TestServer, email: string, password: string): Promise<string> => {
-	const res = await fetch(`${target.baseUrl}/auth/register`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password }),
-	});
-	assert.equal(res.status, 201, `Register ${email} muss 201 liefern`);
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Register muss einen Set-Cookie-Header setzen');
-	return setCookie.split(';')[0];
-};
 
 describe('LLM-Providers API', () => {
 	before(async () => {

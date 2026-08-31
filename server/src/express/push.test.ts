@@ -2,7 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { PushSubscription } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { expectError } from './test-helpers.js';
+import { expectError } from '../test/helpers.js';
 
 // Web-Push benötigt konfigurierte VAPID-Schlüssel — sonst greift das 503-Gate (siehe logics/push.ts).
 // Kein echtes Schlüsselpaar nötig: die /push/subscribe-Route speichert nur, sie verschickt nichts.

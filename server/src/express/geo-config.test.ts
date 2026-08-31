@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 /**
  * Rote Spec-Tests für #1098 (Spec docs/spec/issue-1098.md) — pro-User Geo-Konfiguration.
@@ -14,10 +14,7 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
  * Muster: routes/llmProviders.test.ts (per-User-Konfiguration + Dataisolation).
  */
 
-process.env.SESSION_SECRET = 'test-secret-issue-1098';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-issue-1098');
 
 type GeoConfig = { displayDistanceKm: number; alarmDistanceKm: number; intervalMinutes: number };
 
@@ -25,23 +22,10 @@ const DEFAULTS: GeoConfig = { displayDistanceKm: 5, alarmDistanceKm: 1, interval
 
 let server: TestServer;
 
-const register = async (email: string, password = 'password123'): Promise<string> => {
-	const res = await fetch(`${server.baseUrl}/auth/register`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password }),
-	});
-	assert.equal(res.status, 201, `Register ${email} muss 201 liefern`);
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Register muss einen Set-Cookie-Header setzen');
-	return setCookie.split(';')[0];
-};
-
-const getConfig = (cookie: string): Promise<Response> =>
-	fetch(`${server.baseUrl}/geo-config`, { headers: { Cookie: cookie } });
+const getConfig = (cookie: string): Promise<Response> => server.json('/geo-config', { headers: { Cookie: cookie } });
 
 const putConfig = (cookie: string, body: unknown): Promise<Response> =>
-	fetch(`${server.baseUrl}/geo-config`, {
+	server.json('/geo-config', {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
 		body: JSON.stringify(body),
@@ -76,14 +60,14 @@ describe('Geo-Konfiguration pro User (#1098 AK7)', () => {
 	});
 
 	it('GET liefert die Defaults (5 km / 1 km / 5 min), solange nichts gespeichert ist', async () => {
-		const cookie = await register('geo-defaults@example.com');
+		const cookie = await server.register('geo-defaults@example.com', 'password123');
 		const res = await getConfig(cookie);
 		assert.equal(res.status, 200);
 		assert.deepEqual((await res.json()) as GeoConfig, DEFAULTS);
 	});
 
 	it('PUT speichert eine valide Config, GET liefert sie zurück (auch nach Neuladen der DB-Session)', async () => {
-		const cookie = await register('geo-put@example.com');
+		const cookie = await server.register('geo-put@example.com', 'password123');
 		const next: GeoConfig = { displayDistanceKm: 20, alarmDistanceKm: 3, intervalMinutes: 15 };
 		const put = await putConfig(cookie, next);
 		assert.equal(put.status, 200, 'valide Config muss 200 liefern');
@@ -101,7 +85,7 @@ describe('Geo-Konfiguration pro User (#1098 AK7)', () => {
 	];
 	for (const [index, [label, body]] of invalid.entries()) {
 		it(`PUT weist Schranken-Verstoß ab: ${label} (400)`, async () => {
-			const cookie = await register(`geo-invalid-${index}@example.com`);
+			const cookie = await server.register(`geo-invalid-${index}@example.com`);
 			const res = await putConfig(cookie, body);
 			assert.equal(res.status, 400, `${label} ist keine gültige Kombination`);
 			// Der Verstoß darf nichts persistieren:
@@ -110,8 +94,8 @@ describe('Geo-Konfiguration pro User (#1098 AK7)', () => {
 	}
 
 	it('Dataisolation: User B sieht seine eigene (Default-)Config, nicht die von User A', async () => {
-		const cookieA = await register('geo-a@example.com');
-		const cookieB = await register('geo-b@example.com');
+		const cookieA = await server.register('geo-a@example.com', 'password123');
+		const cookieB = await server.register('geo-b@example.com', 'password123');
 		await putConfig(cookieA, { displayDistanceKm: 40, alarmDistanceKm: 10, intervalMinutes: 30 });
 
 		const ofB = (await (await getConfig(cookieB)).json()) as GeoConfig;
@@ -162,14 +146,14 @@ describe('POST /geo/position (#1101 F5/F1)', () => {
 	];
 	for (const [index, [label, body]] of nan.entries()) {
 		it(`weist nicht-numerische Koordinaten ab: ${label} (400)`, async () => {
-			const cookie = await register(`geo-pos-nan-${index}@example.com`);
+			const cookie = await server.register(`geo-pos-nan-${index}@example.com`);
 			const res = await postPosition(cookie, body);
 			assert.equal(res.status, 400, `${label} muss als „keine Zahl“ abgelehnt werden`);
 		});
 	}
 
 	it('weist Koordinaten außerhalb des Wertebereichs ab (400)', async () => {
-		const cookie = await register('geo-pos-range@example.com');
+		const cookie = await server.register('geo-pos-range@example.com', 'password123');
 		assert.equal((await postPosition(cookie, { lat: 91, lon: 13.4 })).status, 400);
 		assert.equal((await postPosition(cookie, { lat: -91, lon: 13.4 })).status, 400);
 		assert.equal((await postPosition(cookie, { lat: 52.5, lon: 181 })).status, 400);
@@ -177,7 +161,7 @@ describe('POST /geo/position (#1101 F5/F1)', () => {
 	});
 
 	it('gültige Koordinaten → 204 ohne Body (Fire-and-forget)', async () => {
-		const cookie = await register('geo-pos-valid@example.com');
+		const cookie = await server.register('geo-pos-valid@example.com', 'password123');
 		const res = await postPosition(cookie, { lat: 52.5219, lon: 13.4132 });
 		assert.equal(res.status, 204);
 		assert.equal(await res.text(), '', '204 hat keinen Body');

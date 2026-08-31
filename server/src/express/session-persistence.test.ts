@@ -1,6 +1,13 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	type TestServer,
+	applyTestAuthEnv,
+	testLoginResponse,
+} from '../test/helpers.js';
 
 /**
  * Rote Spec-Tests für Issue #396 — „Automatisches Login", PR A (Persistente App-Session).
@@ -22,36 +29,17 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 
 // Auth-Kontext muss vor dem Server-Start feststehen (wie in auth.test.ts / session.test.ts).
 process.env.GOOGLE_ALLOWED_EMAIL = 'testuser@example.com';
-process.env.SESSION_SECRET = 'test-secret-for-session-persistence';
-process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
-process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
+applyTestAuthEnv('test-secret-for-session-persistence');
 
 const ALLOWED_EMAIL = 'testuser@example.com';
 const ALLOWED_NAME = 'Test User';
 const SEVEN_DAYS_SECONDS = 604800;
-
-/** Extrahiert das erste `name=value`-Paar aus einem Set-Cookie-Header (ohne Attribute). */
-const cookieFromSetCookie = (setCookie: string): string => setCookie.split(';')[0];
 
 /** Vereinigt alle Set-Cookie-Header einer Response zu einem String (case-insensitive auswertbar). */
 const allSetCookies = (res: Response): string => {
 	const list =
 		typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [res.headers.get('set-cookie') ?? ''];
 	return list.join('\n');
-};
-
-/** Loggt über den Test-Only-Endpunkt ein und gibt den Cookie-Header für Folgeanfragen zurück. */
-const testLogin = async (baseUrl: string): Promise<string> => {
-	const res = await fetch(`${baseUrl}/auth/test-login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email: ALLOWED_EMAIL, displayName: ALLOWED_NAME }),
-	});
-	assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
-	const setCookie = res.headers.get('set-cookie');
-	assert.ok(setCookie, 'Test-Login sollte Set-Cookie setzen');
-	return cookieFromSetCookie(setCookie!);
 };
 
 describe('Issue #396 PR A — Persistente App-Session (Default 7 Tage, rolling)', () => {
@@ -74,11 +62,7 @@ describe('Issue #396 PR A — Persistente App-Session (Default 7 Tage, rolling)'
 	// ── AK1 — Default maxAge = 7 Tage, wenn SESSION_TTL nicht gesetzt ist ─────────
 
 	it('AK1a: Set-Cookie enthält Max-Age/Expires ≈ 7 Tage, wenn SESSION_TTL nicht gesetzt ist', async () => {
-		const res = await fetch(`${server.baseUrl}/auth/test-login`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email: ALLOWED_EMAIL, displayName: ALLOWED_NAME }),
-		});
+		const res = await testLoginResponse(server, ALLOWED_EMAIL, { displayName: ALLOWED_NAME });
 		assert.equal(res.status, 200, 'Test-Login sollte 200 liefern');
 
 		const all = allSetCookies(res);
@@ -101,7 +85,7 @@ describe('Issue #396 PR A — Persistente App-Session (Default 7 Tage, rolling)'
 	});
 
 	it('AK1b: Session verlängert sich bei Aktivität (rolling) — Folgeanfrage sendet aktualisiertes Set-Cookie', async () => {
-		const cookie = await testLogin(server.baseUrl);
+		const cookie = await server.login(ALLOWED_EMAIL, { displayName: ALLOWED_NAME });
 
 		// Eine authentifizierte Folgeanfrage OHNE Session-Änderung: mit rolling:true MUSS erneut ein
 		// Set-Cookie mit (ungekürztem) 7-Tage-Max-Age gesendet werden. Heute (ROT) fehlt rolling → kein
