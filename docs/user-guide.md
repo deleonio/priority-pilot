@@ -77,8 +77,10 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **In der Nähe:** offene Aufgaben mit Ortsbezug, aufsteigend nach Entfernung zu
   deiner aktuellen Position (höchstens zehn Einträge). Jeder Eintrag nennt Titel
   und Entfernung in Kilometern; im Kartentitel steht die eingestellte
-  Anzeige-Entfernung. Die Karte braucht die Standort-Freigabe des Browsers – ist
-  sie verweigert oder die Standortverwendung aus, erscheint stattdessen ein Hinweis.
+  Anzeige-Entfernung. Die Karte erscheint nur, solange die Standort-Erfassung in
+  den Einstellungen aktiviert ist – ist sie aus, fehlt die Karte ganz. Verweigert
+  der Browser die Standort-Freigabe, bleibt die Karte stehen und zeigt stattdessen
+  einen Hinweis.
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -338,9 +340,11 @@ erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
   Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
   jede Instanz übernommen.
 - **Verwalten:** im Tab **Serien** siehst du alle Serien mit ihrem Rhythmus. Dort
-  kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du, ob die
-  Serie **mitsamt aller zugehörigen Aufgaben** entfernt wird oder **nur die Serie** –
-  die bereits generierten Aufgaben bleiben dann eigenständig bestehen.
+  kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du zwischen
+  **„Ja (Serie + alle Aufgaben)"** und **„Nein (nur Serie, Aufgaben bleiben
+  eigenständig)"**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**
+  bleiben alle Aufgaben als eigenständige Aufgaben bestehen. Bereits erledigte
+  Instanzen bleiben in beiden Fällen als eigenständige Aufgaben erhalten.
 - **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die aktuell
   fälligen Aufgaben aus allen Serien.
 
