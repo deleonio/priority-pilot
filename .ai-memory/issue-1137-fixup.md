@@ -28,4 +28,4 @@
 - -
 
 ## Nächster Schritt
-- Threads F1–F3 resolven nach dem Push; Re-Review (Phase 7) läuft workflow-seitig.
+- Re-Review (Phase 7) läuft workflow-seitig; alle 3 Threads beantwortet + resolved (PRRT_kwDONloM186dmW6T/-W6Z/-W6d), Gate grün (Verify-Run 33353336438 auf 38560fe6 ✓, inkl. 4 E2E-Shards). Kein Verdict (Fixup-Runde mit Commits).
