@@ -24,7 +24,7 @@ STIL (das Handbuch ist Endnutzer-Prosa, kein Entwicklerdokument):
   - KEINE Datei-/Komponentennamen, KEINE API-Pfade, KEIN Implementierungsjargon.
   - Mobile-First: beschreibe, was der Nutzer sieht und antippt.
   - Bestehende Gliederung/Abschnittsreihenfolge beibehalten, nicht ohne Befund umbauen.
-  - Vermenschlicht schreiben:
+  - Vermenschlicht schreiben (skills:vermenschlichen):
     KEINE Werbesprache, keine Bedeutungsaufblähung, keine "nicht nur … sondern auch"-Konstruktionen,
     keine Fazit-/Herausforderungen-Abschnitte, kein Schema "Fett: Erklärung", keine gehäuften
     Gedankenstriche, schlichte Verben statt steifer Synonyme, keine Synonym-Rotation, keine
