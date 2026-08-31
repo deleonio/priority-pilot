@@ -1,6 +1,10 @@
-# Issue 1126 — Triage (Phase 1), Stand 2026-08-30
+# Issue 1126 — Triage (Phase 1 + Re-Triage 2026-08-31), Stand 2026-08-31
 
-**ERGEBNIS: VERDICT needs-human.** Initial-Triage (kein Harness-Marker, kein ai-triage-decision-Kommentar; einziger Kommentar = github-actions-Qualitätscheck 2026-08-30T00:18:43Z, keine Entscheidung). Kein KI-ANALYSE-Block geschrieben (nicht raten), stattdessen GENAU EIN `<!-- ai-triage-decision -->`-Kommentar (issuecomment-5465729395) mit 3 Optionen + 3 offenen Fragen. Labels: `ai:needs-analyse` entfernt, `ai:needs-human` gesetzt (Endstand verifiziert: nur `ai:needs-human`). Kein Titel-Edit (traf zu), kein Body-Edit, kein Ping, kein Auto-Close (402 besteht laut Issue, kein Erfüllungsbeleg).
+**ERGEBNIS: VERDICT needs-human (unverändert).** Phase 1 s. unten. Re-Triage 2026-08-31: Trigger-Pfad „Re-Triage nach needs-human" — Entscheidungs-Kommentar (2026-08-30T00:24:06Z) ist weiterhin der LETZTE Kommentar, keine menschliche Antwort danach → keine bindende Entscheidung vorhanden, nicht raten. KEIN neuer Kommentar (One-Comment-Regel — der Entscheidungs-Kommentar von Phase 1 steht). Label-Drift korrigiert: Workflow hatte `ai:needs-analyse` neu gesetzt (Reset-Muster #1090/#1095) → entfernt, `ai:needs-human` gesetzt (Endstand verifiziert: nur `ai:needs-human`). Kein Titel-/Body-Edit, kein Auto-Close.
+
+## Erledigt (Re-Triage 2026-08-31)
+- Trigger geprüft: kein `<!-- ai-harness -->`-Kommentar, `<!-- ai-triage-decision -->` vorhanden → Re-Triage-nach-needs-human-Pfad; alle Kommentare nach dem Entscheidungskommentar gelesen = 0 (Kommentarliste vollständig via gh verifiziert, 2 Kommentare gesamt).
+- Label-Drift korrigiert (`ai:needs-analyse` → raus, `ai:needs-human` → drauf), Endstand verifiziert.
 
 ## Erledigt
 - Issue geladen, Trigger als Initial-Triage bestimmt, Body komplett analysiert.
@@ -27,10 +31,10 @@
 - MEMORY.md-Eintrag — kein neuartiger Fehler/Experience, Kriterium nicht erfüllt.
 
 ## Offen
-- Warten auf menschliche Entscheidung (Antwort auf den ai-triage-decision-Kommentar): O1 / O1+O2 / O3 + Befund-Dokumentation.
+- Weiterhin warten auf menschliche Entscheidung (Antwort auf den ai-triage-decision-Kommentar issuecomment-5465729395): O1 / O1+O2 / O3 + Befund-Dokumentation. Bis dahin bleibt needs-human bestehen; erneute Re-Triage-Läufe ohne neue Antwort = nur Label-Drift-Check, kein Kommentar.
 
 ## Nächster Schritt
-- Re-Triage (nach menschlicher Antwort): Trigger-Pfad „Re-Triage nach needs-human" — Entscheidungskommentar + alle Kommentare danach lesen, Entscheidung BINDEND umsetzen (bei O2: Analyse-Block + Routing-Tabelle in Harness-Marker-Kommentar schreiben, Labels `ai:needs-human` entfernen + `ai:needs-spec` setzen; bei O1/O3: entsprechend operativ weitergeben/schließen).
+- Nächste Re-Triage nach menschlicher Antwort: Entscheidung BINDEND umsetzen (bei O2-Anteil: Analyse-Block + Routing-Tabelle in den Harness-Marker-Kommentar schreiben, Labels `ai:needs-human` entfernen + `ai:needs-spec` setzen; bei O1/O3 ohne Code-Anteil: kein Phase-Trigger, Ticket dem Autor überlassen bzw. nach Befund+Config-Wechsel schließen).
 
 ## Fallstricke
 - Kein Harness-Marker-Kommentar vorhanden — beim Re-Triage also KEIN stand/Delta-Mechanismus, sondern Entscheidungs-Kommentar-Pfad (wie #1090).
