@@ -58,12 +58,12 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK1: Mobile 375px — jede Switch-Zeile nimmt die volle Breite ein', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+			await page.goto('/settings/general');
+			await waitForStableView(page, 'Priority Pilot');
 
-		const rows = page.locator('.settings-switch-row');
-		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
-		await expect(rows).toHaveCount(2);
+			const rows = page.locator('.settings-general .settings-switch-row');
+			// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
+			await expect(rows).toHaveCount(2);
 
 		const containerBox = await page.locator('.settings-general').first().boundingBox();
 		expect(containerBox).toBeTruthy();
@@ -85,12 +85,12 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK2: Desktop 1024px — Switch-Zeilen sind horizontal ausgerichtet und zentriert', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+			await page.goto('/settings/general');
+			await waitForStableView(page, 'Priority Pilot');
 
-		const rows = page.locator('.settings-switch-row');
-		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
-		await expect(rows).toHaveCount(2);
+			const rows = page.locator('.settings-general .settings-switch-row');
+			// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
+			await expect(rows).toHaveCount(2);
 
 		for (let i = 0; i < 2; i++) {
 			const style = await rows.nth(i).evaluate((el) => {
