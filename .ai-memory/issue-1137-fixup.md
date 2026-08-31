@@ -37,4 +37,4 @@
 - `.ai-memory/issue-1137-pr-body.md` = Wegwerf-Artefakt (PR-Body-Quelle), NICHT committen. Untracked bleiben außerdem `issue-1137-review.md`, `issue-1137-triage.md`, `.costs/1137.json` (fremde Phasen) — nicht mitcommitten.
 
 ## Nächster Schritt
-- Re-Review (Phase 7) läuft workflow-seitig; alle 3 Threads beantwortet + resolved (PRRT_kwDONloM186dmW6T/-W6Z/-W6d), Gate grün (Verify-Run 33353336438 auf 38560fe6 ✓, inkl. 4 E2E-Shards). Kein Verdict (Fixup-Runde mit Commits).
+- Re-Review (Phase 7) läuft workflow-seitig; Runde 2: alle 4 Threads beantwortet + resolved (neu PRRT_kwDONloM186dmhl9, Reply 3891576675), Fixup-Commit 6742d980 gepusht, PR-Body via `gh pr edit 1138 --body-file` gesetzt. Kein Verdict (Fixup-Runde mit Commits). Runde 1: alle 3 Threads beantwortet + resolved (PRRT_kwDONloM186dmW6T/-W6Z/-W6d), Gate grün (Verify-Run 33353336438 auf 38560fe6 ✓, inkl. 4 E2E-Shards). Kein Verdict (Fixup-Runde mit Commits).
