@@ -61,7 +61,7 @@ export interface TestServer {
 	baseUrl: string;
 	close: () => Promise<void>;
 	/** Registriert einen Nutzer (erwartet 201) und liefert den Session-Cookie. */
-	register: (email: string, password: string) => Promise<string>;
+	register: (email: string, password?: string) => Promise<string>;
 	/** Loggt über den Test-Only-Endpunkt ein (erwartet 200) und liefert den Session-Cookie. */
 	login: (email: string, options?: TestLoginOptions) => Promise<string>;
 	/** JSON-Request gegen `baseUrl` (Content-Type wird gesetzt), liefert die rohe Response. */
@@ -76,7 +76,7 @@ const cookieOf = (res: Response, message: string): string => {
 };
 
 /** POST /auth/register — rohe Response (für eigene Status-Assertions wie 409). */
-export const registerResponse = (target: TestServer, email: string, password: string): Promise<Response> =>
+export const registerResponse = (target: TestServer, email: string, password = 'password123'): Promise<Response> =>
 	fetch(`${target.baseUrl}/auth/register`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -99,7 +99,7 @@ export const testLoginResponse = (
 };
 
 /** POST /auth/register — erwartet 201, liefert den Session-Cookie. */
-export const registerOn = async (target: TestServer, email: string, password: string): Promise<string> => {
+export const registerOn = async (target: TestServer, email: string, password?: string): Promise<string> => {
 	const res = await registerResponse(target, email, password);
 	assert.equal(res.status, 201, `Register ${email} muss 201 liefern`);
 	return cookieOf(res, `Register ${email} muss einen Set-Cookie-Header setzen`);
