@@ -5,13 +5,16 @@ import { waitForStableView } from './helpers';
  * ROTE Spec-Tests für #971 „Switch-Layout im Tab Allgemein der Einstellungen".
  *
  * Spezifikation: docs/spec/issue-971.md
- * Ziel: Jeder der 3 Switches (Sprachaufnahme, Push, Standort) liegt mit seinen zugehörigen
- * Alerts in einem `div.settings-switch-row` — mobil (<768px) volle Breite im Stack-Layout,
- * desktop (≥768px) eine Zeile (`flex-direction: row; align-items: center`), Alert rechts.
+ * Ziel: Die Switches (Sprachaufnahme, Push) liegen mit ihren zugehörigen Alerts in einem
+ * `div.settings-switch-row` — mobil (<768px) volle Breite im Stack-Layout, desktop (≥768px)
+ * eine Zeile (`flex-direction: row; align-items: center`), Alert rechts.
+ *
+ * HINWEIS: Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push);
+ * der "Standort erfassen"-Switch wurde in den neuen "Standort"-Tab verschoben.
  *
  * Testklassen (siehe Spec „Erwartetes Ergebnis"):
  * - AK1/AK2/AK6 sind ROT, bis Wrapper + CSS umgesetzt sind (Spec-Phase 3/6).
- * - AK3/AK4/AK5 sind Sicherungs-Tests (Schutz): Sie können bereits jetzt grün sein und sichern,
+ * - AK3/AK4/AK5 sind Sicherungs- Tests (Schutz): Sie können bereits jetzt grün sein und sichern,
  *   dass die Layout-Umsetzung Touch-Targets, Overflow und ARIA nicht still zerstört.
  *
  * Bezug zur Spec:
@@ -58,14 +61,14 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		const rows = page.locator('.settings-switch-row');
-		// Alle 3 Switches des Tabs „Allgemein" haben je einen Wrapper.
-		await expect(rows).toHaveCount(3);
+		const rows = page.locator('.settings-general .settings-switch-row');
+		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
+		await expect(rows).toHaveCount(2);
 
 		const containerBox = await page.locator('.settings-general').first().boundingBox();
 		expect(containerBox).toBeTruthy();
 
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 2; i++) {
 			const rowBox = await rows.nth(i).boundingBox();
 			expect(rowBox).toBeTruthy();
 			// Volle Breite: ≥95% der Container-Breite (5% Toleranz für Rundung/Padding).
@@ -85,10 +88,11 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		const rows = page.locator('.settings-switch-row');
-		await expect(rows).toHaveCount(3);
+		const rows = page.locator('.settings-general .settings-switch-row');
+		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
+		await expect(rows).toHaveCount(2);
 
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 2; i++) {
 			const style = await rows.nth(i).evaluate((el) => {
 				const computed = window.getComputedStyle(el);
 				return { flexDirection: computed.flexDirection, alignItems: computed.alignItems };
@@ -109,10 +113,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
-		// Guard gegen leere Menge: genau die 3 Switches des Tabs „Allgemein".
-		await expect(switches).toHaveCount(3);
+		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
+		await expect(switches).toHaveCount(2);
 
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 2; i++) {
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			expect(box!.height).toBeGreaterThanOrEqual(44);
@@ -150,8 +154,9 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		const labels = [/Sprachaufnahme automatisch starten/i, /Push-Nachrichten aktivieren/i, /Standort erfassen/i];
-		// Rollenadressierung aller 3 Switches intakt (Locator-Auflösung beweist die Rolle).
+		const labels = [/Sprachaufnahme automatisch starten/i, /Push-Nachrichten aktivieren/i];
+		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push);
+		// Rollenadressierung intakt (Locator-Auflösung beweist die Rolle).
 		for (const label of labels) {
 			await expect(switchControl(page, label)).toBeVisible();
 		}
@@ -207,5 +212,25 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		const alertCenterY = alertBox!.y + alertBox!.height / 2;
 		const rowCenterY = rowBox!.y + rowBox!.height / 2;
 		expect(Math.abs(alertCenterY - rowCenterY)).toBeLessThanOrEqual(8);
+	});
+
+	/**
+	 * Seit #1151: Der "Standort erfassen"-Switch wurde in den neuen "Standort"-Tab verschoben.
+	 * Dieser Test stellt sicher, dass er dort vorhanden ist und korrekt funktioniert.
+	 */
+	test('AK7: Standort-Switch ist im Standort-Tab vorhanden und funktionsfähig', async ({ page }) => {
+		await page.goto('/settings/standort');
+		await waitForStableView(page, 'Priority Pilot');
+
+		// Der Standort-Switch sollte im Standort-Tab sichtbar sein.
+		const locationSwitch = switchControl(page, /Standort erfassen/i);
+		await expect(locationSwitch).toBeVisible();
+
+		// Der Switch sollte standardmäßig ausgeschaltet sein.
+		await expect(locationSwitch).not.toBeChecked();
+
+		// Der Switch sollte im `.settings-switch-row` liegen.
+		const locationRow = page.locator('.settings-switch-row').filter({ hasText: /Standort erfassen/ });
+		await expect(locationRow).toHaveCount(1);
 	});
 });

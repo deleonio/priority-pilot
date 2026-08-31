@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
@@ -208,5 +208,151 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(pillarsTab).toHaveAttribute('aria-selected', 'true');
+	});
+});
+
+/**
+ * ROTE Spec-Tests für #1151 „Eigener Settings-Tab ‚Standort'" (Spec: docs/spec/issue-1151.md).
+ *
+ * Der komplette Geo-Block wandert aus dem Tab „Allgemein" in einen neuen vierten Tab
+ * „Standort" (Index 3, Route `/settings/standort`). Diese Tests sind rot, bis
+ * `SETTINGS_TABS`/`SETTINGS_PATH_SEGMENTS` erweitert sind und der Geo-Block im neuen Slot lebt.
+ */
+const geoSwitch = (page: Page) =>
+	page
+		.getByRole('checkbox', { name: /standort erfassen/i })
+		.or(page.getByRole('switch', { name: /standort erfassen/i }));
+
+const GEO_SLIDER_LABELS = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', 'Aktualisierungsintervall (Minuten)'];
+
+test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
+	/**
+	 * AK1 — Vierter Tab vorhanden und per Route wählbar: Direktaufruf `/settings/standort`
+	 * aktiviert den Tab „Standort"; alle vier Tabs sind in der Tablist vorhanden.
+	 */
+	test('AK1: /settings/standort zeigt vier Tabs und aktiviert „Standort"', async ({ page }) => {
+		await page.goto('/settings/standort');
+		await waitForStableView(page, 'Priority Pilot');
+
+		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
+			await expect(page.getByRole('tab', { name: label, exact: true })).toBeVisible();
+		}
+		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'false');
+	});
+
+	/**
+	 * AK2 — Geo-Settings nur im Standort-Tab: `/settings/standort` zeigt den
+	 * „Standort erfassen"-Schalter und die drei Slider; auf `/settings/general` ist kein
+	 * Geo-Element mehr sichtbar.
+	 */
+	test('AK2: Geo-Switch und Slider im Standort-Tab sichtbar, im Allgemein-Tab nicht mehr', async ({ page }) => {
+		await page.goto('/settings/standort');
+		await waitForStableView(page, 'Priority Pilot');
+		await expect(geoSwitch(page)).toBeVisible();
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+		await expect(geoSwitch(page)).toBeHidden();
+		for (const label of GEO_SLIDER_LABELS) {
+			await expect(page.locator(`kol-input-range[_label="${label}"]`)).toBeHidden();
+		}
+	});
+
+	/**
+	 * AK2/AK3 — Funktional im neuen Tab: Mit eingeschaltetem Standort sind die drei Slider im
+	 * Standort-Tab sichtbar und bedienbar (bestehende #1098-Abläufe laufen dort weiter).
+	 */
+	test('AK2/AK3: bei eingeschaltetem Standort sind die drei Slider im Standort-Tab bedienbar', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'geolocation', {
+				value: {
+					getCurrentPosition: (success: (pos: { coords: { latitude: number; longitude: number } }) => void) =>
+						success({ coords: { latitude: 52.52, longitude: 13.41 } }),
+					watchPosition: () => 1,
+					clearWatch: () => {},
+				},
+				writable: true,
+			});
+			localStorage.setItem('pp-geolocation-enabled', 'true');
+		});
+		await page.goto('/settings/standort');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(geoSwitch(page)).toBeVisible();
+		for (const label of GEO_SLIDER_LABELS) {
+			await expect(page.locator(`kol-input-range[_label="${label}"]`)).toBeVisible();
+		}
+	});
+
+	/**
+	 * AK4 — URL bleibt die Quelle: Tab-Klick auf „Standort" schreibt `/settings/standort`,
+	 * Klick zurück auf „Allgemein" `/settings/general`; Browsers-Zurückkehren stellt den
+	 * Standort-Tab wieder her.
+	 */
+	test('AK4: Tab-Klick aktualisiert die URL, Zurückkehren stellt den Standort-Tab wieder her', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.getByRole('tab', { name: 'Standort', exact: true }).click();
+		await expect(page).toHaveURL(/\/settings\/standort$/);
+		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+
+		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
+		await expect(page).toHaveURL(/\/settings\/llm$/);
+
+		await page.getByRole('tab', { name: 'Allgemein', exact: true }).click();
+		await expect(page).toHaveURL(/\/settings\/general$/);
+
+		await page.goBack();
+		await expect(page).toHaveURL(/\/settings\/llm$/);
+		await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+
+	/**
+	 * AK4 — Fallback unverändert: Ein unbekanntes URL-Segment fällt weiterhin auf den
+	 * Säulen-Tab (Index 1) zurück.
+	 */
+	test('AK4: unbekanntes Segment /settings/xyz fällt auf den Säulen-Tab zurück', async ({ page }) => {
+		await page.goto('/settings/xyz');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+	});
+
+	/**
+	 * AK5 — Mobile-First (375px): Alle vier Tab-Targets und die drei Geo-Slider liegen
+	 * vollständig im Viewport (Bounding-Box statt scrollWidth — die App-Shell clippt
+	 * `overflow-x`, Memory 2026-08-24).
+	 */
+	test('AK5: 375px — vier Tabs und Geo-Slider ohne horizontale Überlagerung', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'geolocation', {
+				value: {
+					getCurrentPosition: (success: (pos: { coords: { latitude: number; longitude: number } }) => void) =>
+						success({ coords: { latitude: 52.52, longitude: 13.41 } }),
+					watchPosition: () => 1,
+					clearWatch: () => {},
+				},
+				writable: true,
+			});
+			localStorage.setItem('pp-geolocation-enabled', 'true');
+		});
+		await page.goto('/settings/standort');
+		await waitForStableView(page, 'Priority Pilot');
+
+		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
+			const box = await page.getByRole('tab', { name: label, exact: true }).boundingBox();
+			expect(box, `Tab „${label}" rendert messbar`).not.toBeNull();
+			expect(box!.x, `Tab „${label}" beginnt im Viewport`).toBeGreaterThanOrEqual(-1);
+			expect(box!.x + box!.width, `Tab „${label}" endet im Viewport`).toBeLessThanOrEqual(375 + 1);
+		}
+		for (const label of GEO_SLIDER_LABELS) {
+			const box = await page.locator(`kol-input-range[_label="${label}"]`).boundingBox();
+			expect(box, `Slider „${label}" rendert messbar`).not.toBeNull();
+			expect(box!.x, `Slider „${label}" beginnt im Viewport`).toBeGreaterThanOrEqual(-1);
+			expect(box!.x + box!.width, `Slider „${label}" endet im Viewport`).toBeLessThanOrEqual(375 + 1);
+		}
 	});
 });

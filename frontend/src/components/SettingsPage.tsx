@@ -27,9 +27,14 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält und die Auswahl zurücksetzt. Reihenfolge: Allgemein (Index 0), Säulen
-// (Index 1), KI-Provider (Index 2).
-// Reihenfolge: Allgemein (Index 0), Säulen (Index 1), KI-Provider (Index 2).
-const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label: 'KI-Provider' }];
+// (Index 1), KI-Provider (Index 2), Standort (Index 3, #1151). Muss index-paritätisch mit
+// `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben.
+const SETTINGS_TABS = [
+	{ _label: 'Allgemein' },
+	{ _label: 'Säulen' },
+	{ _label: 'KI-Provider' },
+	{ _label: 'Standort' },
+];
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
 const formatGeoTimestamp = (updatedAt: number): string => {
@@ -48,10 +53,11 @@ type DisabledProp = boolean | string;
 const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined => value as boolean | undefined;
 
 /**
- * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
- * (Säulen-Gewichtungs-Editor) und „KI-Provider" (Provider-Auswahl & -Verwaltung). Der aktive Tab wird beim
- * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2),
- * alles andere → Säulen (1).
+ * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Darstellung, Sprachaufnahme,
+ * Push), „Säulen" (Säulen-Gewichtungs-Editor), „KI-Provider" (Provider-Auswahl & -Verwaltung) und
+ * „Standort" (Geo-Einstellungen, #1151). Der aktive Tab wird beim initialen Laden aus der URL
+ * abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2),
+ * `/settings/standort` → Standort (3), alles andere → Säulen (1).
  */
 export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
 	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`
@@ -62,10 +68,18 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 
 	// #843: Ref für Settings-General Container
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
+	// #1151: eigener Ref für den Geo-Tab — der Layout-Hook wirkt nur innerhalb des Ref-Containers.
+	const settingsGeoRef = useRef<HTMLDivElement>(null);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
 	useShadowDOMLayout(
 		settingsGeneralRef,
+		'kol-input-checkbox, kol-button',
+		'[role="switch"], button:not([type="button"]):not([class*="icon"])',
+	);
+	// #1151: derselbe Alignment-Hook für den „Standort"-Tab (F2: Geo-Controls liegen außerhalb von tab-0).
+	useShadowDOMLayout(
+		settingsGeoRef,
 		'kol-input-checkbox, kol-button',
 		'[role="switch"], button:not([type="button"]):not([class*="icon"])',
 	);
@@ -306,6 +320,70 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							Push fehlgeschlagen.
 						</KolAlert>
 					)}
+				</div>
+				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
+					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
+					    verwerfen und bei jeder Rückkehr einen erneuten Provider-Fetch auslösen (#886). */}
+				<div slot="tab-1">
+					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
+						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
+					<KolHeading _label="Säulen-Gewichtung" _level={2} />
+					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
+						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+					<PillarList onPillarChanged={onPillarChanged} />
+					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+						    übernommen werden. */}
+					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
+				</div>
+				<div slot="tab-2" className="settings-llm">
+					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
+					<KolHeading _label="KI-Provider" _level={2} />
+					{/* #1080: Hauptschalter — blendet die KI-Bedienelemente (Säulen-Berater, Lektorate) aus.
+							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile. */}
+					<div className="settings-llm-switch-row">
+						<KolInputCheckbox
+							_label="KI-Features aktiv"
+							_variant="switch"
+							_hint="Bei deaktivierter KI sind der Säulen-Berater und die Lektorat-Buttons ausgeblendet."
+							_checked={aiEnabled}
+							_on={{
+								onChange: (_event, value) => {
+									setAiPreference('aiEnabled', value === true);
+								},
+							}}
+						/>
+						{!aiEnabled && (
+							<KolAlert _type="info" _label="KI-Features deaktiviert">
+								Säulen-Berater und Lektorat-Buttons sind derzeit ausgeblendet. Auch die Schnellerfassung ist inaktiv,
+								solange die KI deaktiviert ist (#1085).
+							</KolAlert>
+						)}
+					</div>
+					{/* #1085: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
+							deaktiviert, damit er nicht umschaltbar ist. */}
+					<div className="settings-llm-switch-row">
+						<KolInputCheckbox
+							_label="Schnellerfassung aktiv"
+							_variant="switch"
+							_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
+							_checked={quickCaptureEnabled}
+							_disabled={!aiEnabled}
+							_on={{
+								onChange: (_event, value) => {
+									setAiPreference('quickCaptureEnabled', value === true);
+								},
+							}}
+						/>
+					</div>
+					<LlmSettings />
+				</div>
+				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
+				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
+				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
+				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
+				<div slot="tab-3" className="settings-geo" ref={settingsGeoRef}>
 					{geoSupported ? (
 						<div className="settings-switch-row">
 							<KolInputCheckbox
@@ -425,64 +503,6 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							</div>
 						</>
 					)}
-				</div>
-				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
-					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
-					    verwerfen und bei jeder Rückkehr einen erneuten Provider-Fetch auslösen (#886). */}
-				<div slot="tab-1">
-					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
-						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
-					<KolHeading _label="Säulen-Gewichtung" _level={2} />
-					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
-					<PillarList onPillarChanged={onPillarChanged} />
-					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-						    übernommen werden. */}
-					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
-				</div>
-				<div slot="tab-2" className="settings-llm">
-					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
-					<KolHeading _label="KI-Provider" _level={2} />
-					{/* #1080: Hauptschalter — blendet die KI-Bedienelemente (Säulen-Berater, Lektorate) aus.
-							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile. */}
-					<div className="settings-llm-switch-row">
-						<KolInputCheckbox
-							_label="KI-Features aktiv"
-							_variant="switch"
-							_hint="Bei deaktivierter KI sind der Säulen-Berater und die Lektorat-Buttons ausgeblendet."
-							_checked={aiEnabled}
-							_on={{
-								onChange: (_event, value) => {
-									setAiPreference('aiEnabled', value === true);
-								},
-							}}
-						/>
-						{!aiEnabled && (
-							<KolAlert _type="info" _label="KI-Features deaktiviert">
-								Säulen-Berater und Lektorat-Buttons sind derzeit ausgeblendet. Auch die Schnellerfassung ist inaktiv,
-								solange die KI deaktiviert ist (#1085).
-							</KolAlert>
-						)}
-					</div>
-					{/* #1085: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
-							deaktiviert, damit er nicht umschaltbar ist. */}
-					<div className="settings-llm-switch-row">
-						<KolInputCheckbox
-							_label="Schnellerfassung aktiv"
-							_variant="switch"
-							_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
-							_checked={quickCaptureEnabled}
-							_disabled={!aiEnabled}
-							_on={{
-								onChange: (_event, value) => {
-									setAiPreference('quickCaptureEnabled', value === true);
-								},
-							}}
-						/>
-					</div>
-					<LlmSettings />
 				</div>
 			</KolTabs>
 		</main>

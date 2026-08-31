@@ -2,16 +2,18 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * ROTE Spec-Tests für #1017 „Buttons ‚Push testen' + ‚Standort ermitteln' vereinheitlichen".
+ * Spec-Tests für #1017 „Buttons ‚Push testen' + ‚Standort ermitteln' vereinheitlichen".
  *
  * Spec-Bezug: docs/spec/issue-1017.md — Erwartetes Ergebnis AK2, AK3, AK4, AK5.
  *
- * Die beiden sekundären Aktions-Buttons im Tab „Allgemein" sollen ein einheitliches responsives
- * Breiten-Layout bekommen: mobil (<768px) füllen sie die Container-Innenbreite je in eigener
- * Zeile, desktop (≥768px) sind sie inhaltsbreit linksbündig. Status quo: „Push testen" trägt
- * `.push-test-btn { align-self: flex-start }` (#932) und ist in ALLEN Viewports inhaltsbreit,
- * „Standort ermitteln" hat keine Layout-Klasse und füllt immer die volle Zeile.
- * → AK2 (Push-Button mobil) und AK3 (Geo-Button desktop) sind rot, bis die gemeinsame Regel existiert.
+ * Beide sekundären Aktions-Buttons bekommen ein einheitliches responsives Breiten-Layout:
+ * mobil (<768px) füllen sie die Container-Innenbreite je in eigener Zeile, desktop (≥768px)
+ * sind sie inhaltsbreit linksbündig.
+ *
+ * #1151: „Standort ermitteln" ist in den eigenen Tab „Standort" (`/settings/standort`, Panel
+ * `.settings-geo`) umgezogen; „Push testen" bleibt im Tab „Allgemein" (`.settings-general`).
+ * Die gemeinsame Zwei-Buttons-Szene existiert damit nicht mehr — jede Messung läuft im Tab des
+ * jeweiligen Buttons (Split nach Tab), die AKs werden je Button geprüft.
  *
  * Gemessen wird das HOST-Element `kol-button` (Repo-Konvention wie in issue-843.spec.ts —
  * `align-self` wirkt auf den Host, nicht auf das Shadow-DOM-Innere). Die Container-Innenbreite
@@ -70,8 +72,8 @@ const GEO_ENABLED_INIT_SCRIPT = `
 	})();
 `;
 
-/** Öffnet `/settings/general` mit sichtbarem Push- UND Geo-Button und verifiziert die Szene. */
-async function openSettingsWithBothButtons(page: import('@playwright/test').Page): Promise<void> {
+/** Routed/Faked die Szene (Push-Subscription + Geo aktiv) — nötig für BEIDE Tabs. */
+async function fakeActionButtonsScene(page: import('@playwright/test').Page): Promise<void> {
 	await page.addInitScript(ACTIVE_PUSH_INIT_SCRIPT);
 	await page.addInitScript(GEO_ENABLED_INIT_SCRIPT);
 	await page.route('**/push/vapid-public-key', (route) =>
@@ -88,83 +90,94 @@ async function openSettingsWithBothButtons(page: import('@playwright/test').Page
 			body: JSON.stringify({ address: 'Musterstraße 1, 10117 Berlin' }),
 		}),
 	);
+}
 
+/** Öffnet den Tab „Allgemein" mit sichtbarem Push-Button und verifiziert die Szene. */
+async function openGeneral(page: import('@playwright/test').Page): Promise<void> {
+	await fakeActionButtonsScene(page);
 	await page.goto('/settings/general');
 	await waitForStableView(page, 'Priority Pilot');
 	await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
-	// Szene-Verifikation: Ohne sichtbare Buttons messen die Geometrie-Assertions über eine leere
+	// Szene-Verifikation: Ohne sichtbaren Button messen die Geometrie-Assertions über eine leere
 	// Menge und blieben dauerhaft grün (All-Quantor-Falle).
 	await expect(page.getByRole('button', { name: 'Push testen' })).toBeVisible();
+}
+
+/** Öffnet den Tab „Standort" (#1151) mit sichtbarem Geo-Button und verifiziert die Szene. */
+async function openStandort(page: import('@playwright/test').Page): Promise<void> {
+	await fakeActionButtonsScene(page);
+	await page.goto('/settings/standort');
+	await waitForStableView(page, 'Priority Pilot');
+	await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
 	await expect(page.getByRole('button', { name: 'Standort ermitteln' })).toBeVisible();
 }
 
 /** Container-Geometrie aus dem gerenderten Style: Innenbreite + linker Innenrand (nicht hartkodiert). */
 async function containerMetrics(
 	page: import('@playwright/test').Page,
+	panelSelector: '.settings-general' | '.settings-geo',
 ): Promise<{ innerLeft: number; innerWidth: number }> {
-	return page
-		.locator('.settings-general')
-		.first()
-		.evaluate((el) => {
-			const rect = el.getBoundingClientRect();
-			const style = window.getComputedStyle(el);
-			const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
-			const paddingRight = Number.parseFloat(style.paddingRight) || 0;
-			return {
-				innerLeft: rect.x + paddingLeft,
-				innerWidth: rect.width - paddingLeft - paddingRight,
-			};
-		});
+	return page.locator(panelSelector).evaluate((el) => {
+		const rect = el.getBoundingClientRect();
+		const style = window.getComputedStyle(el);
+		const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+		const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+		return {
+			innerLeft: rect.x + paddingLeft,
+			innerWidth: rect.width - paddingLeft - paddingRight,
+		};
+	});
 }
 
-/** Host-Buttons im „Allgemein"-Tab — bei aktiviertem Push + Geo exakt die beiden #1017-Buttons. */
-const actionButtonHosts = (page: import('@playwright/test').Page) => page.locator('.settings-general > kol-button');
+/** Host-Buttons je Tab: „Push testen" in „Allgemein", „Standort ermitteln" in „Standort" (#1151). */
+const pushButtonHost = (page: import('@playwright/test').Page) => page.locator('.settings-general > kol-button');
+const geoButtonHost = (page: import('@playwright/test').Page) => page.locator('.settings-geo > kol-button');
 
 test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 	/**
-	 * AK2 (rot): Mobil (<768px) füllen BEIDE Buttons je ≥90 % der Container-Innenbreite und liegen
-	 * in getrennten Zeilen (Geo-Button beginnt unterhalb des Push-Buttons inkl. Gap).
+	 * AK2 (rot): Mobil (<768px) füllt jeder Button ≥90 % der Container-Innenbreite. #1151: in
+	 * getrennten Tabs — die frühere Zeilen-Trennung (Geo-Button unterhalb des Push-Buttons) ist
+	 * durch die Tab-Trennung ersetzt und wird in settings-tabs.spec.ts (#1151 AK4) geschützt.
 	 */
-	test('AK2: mobil (375px) füllen beide Buttons die Container-Innenbreite in getrennten Zeilen', async ({ page }) => {
+	test('AK2: mobil (375px) füllt jeder Button die Container-Innenbreite (je Tab)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await openSettingsWithBothButtons(page);
 
-		expect(await actionButtonHosts(page).count()).toBe(2);
-		const { innerWidth } = await containerMetrics(page);
-		const [pushBox, geoBox] = await Promise.all([
-			actionButtonHosts(page).nth(0).boundingBox(),
-			actionButtonHosts(page).nth(1).boundingBox(),
-		]);
+		await openGeneral(page);
+		const pushBox = await pushButtonHost(page).boundingBox();
 		expect(pushBox).toBeTruthy();
+		const generalMetrics = await containerMetrics(page, '.settings-general');
+		expect(pushBox!.width).toBeGreaterThanOrEqual(0.9 * generalMetrics.innerWidth);
+
+		await openStandort(page);
+		const geoBox = await geoButtonHost(page).boundingBox();
 		expect(geoBox).toBeTruthy();
-
-		// Beide Buttons nahe Container-Innenbreite (≥90 %) — der Push-Button ist heute
-		// inhaltsbreit (`align-self: flex-start` ohne Mobile-Ausnahme) und macht den Test rot.
-		expect(pushBox!.width).toBeGreaterThanOrEqual(0.9 * innerWidth);
-		expect(geoBox!.width).toBeGreaterThanOrEqual(0.9 * innerWidth);
-
-		// Getrennte Zeilen: Der Geo-Button beginnt erst NACH dem Push-Button samt Gap (>0 Abstand).
-		expect(geoBox!.y).toBeGreaterThanOrEqual(pushBox!.y + pushBox!.height + 1);
+		const geoMetrics = await containerMetrics(page, '.settings-geo');
+		expect(geoBox!.width).toBeGreaterThanOrEqual(0.9 * geoMetrics.innerWidth);
 	});
 
 	/**
-	 * AK3 (rot): Desktop (≥768px) sind BEIDE Buttons inhaltsbreit (<90 % Container-Innenbreite)
-	 * und linksbündig am Container-Innenrand (±8px). Der Geo-Button füllt heute die volle
-	 * Flex-Breite und macht den Test rot; zugleich deckt das die #932-Desktop-Bedingung (AK4).
+	 * AK3 (rot): Desktop (≥768px) ist jeder Button inhaltsbreit (<90 % Container-Innenbreite)
+	 * und linksbündig am Container-Innenrand (±8px) — je im eigenen Tab (#1151). Der Geo-Button
+	 * füllt heute die volle Flex-Breite und macht den Test rot; zugleich deckt das die
+	 * #932-Desktop-Bedingung (AK4).
 	 */
 	test('AK3: desktop (1280px) sind beide Buttons inhaltsbreit und linksbündig', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await openSettingsWithBothButtons(page);
 
-		expect(await actionButtonHosts(page).count()).toBe(2);
-		const { innerLeft, innerWidth } = await containerMetrics(page);
-		for (let i = 0; i < 2; i++) {
-			const box = await actionButtonHosts(page).nth(i).boundingBox();
-			expect(box).toBeTruthy();
-			expect(box!.width).toBeLessThan(0.9 * innerWidth); // inhaltsbreit statt volle Flex-Breite
-			expect(Math.abs(box!.x - innerLeft)).toBeLessThanOrEqual(8); // linksbündig am Innenrand
-		}
+		await openGeneral(page);
+		const pushBox = await pushButtonHost(page).boundingBox();
+		expect(pushBox).toBeTruthy();
+		const generalMetrics = await containerMetrics(page, '.settings-general');
+		expect(pushBox!.width).toBeLessThan(0.9 * generalMetrics.innerWidth);
+		expect(Math.abs(pushBox!.x - generalMetrics.innerLeft)).toBeLessThanOrEqual(8);
+
+		await openStandort(page);
+		const geoBox = await geoButtonHost(page).boundingBox();
+		expect(geoBox).toBeTruthy();
+		const geoMetrics = await containerMetrics(page, '.settings-geo');
+		expect(geoBox!.width).toBeLessThan(0.9 * geoMetrics.innerWidth);
+		expect(Math.abs(geoBox!.x - geoMetrics.innerLeft)).toBeLessThanOrEqual(8);
 	});
 
 	/**
@@ -175,14 +188,16 @@ test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 	 */
 	test('AK4: Touch-Target beider Buttons bleibt ≥44px hoch (375px)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await openSettingsWithBothButtons(page);
 
-		expect(await actionButtonHosts(page).count()).toBe(2);
-		for (let i = 0; i < 2; i++) {
-			const box = await actionButtonHosts(page).nth(i).boundingBox();
-			expect(box).toBeTruthy();
-			expect(box!.height).toBeGreaterThanOrEqual(44);
-		}
+		await openGeneral(page);
+		const pushBox = await pushButtonHost(page).boundingBox();
+		expect(pushBox).toBeTruthy();
+		expect(pushBox!.height).toBeGreaterThanOrEqual(44);
+
+		await openStandort(page);
+		const geoBox = await geoButtonHost(page).boundingBox();
+		expect(geoBox).toBeTruthy();
+		expect(geoBox!.height).toBeGreaterThanOrEqual(44);
 	});
 
 	/**
@@ -193,14 +208,16 @@ test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 	 */
 	test('AK5: kein horizontales Clipping der Buttons bei 320px', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 800 });
-		await openSettingsWithBothButtons(page);
-
-		expect(await actionButtonHosts(page).count()).toBe(2);
 		const viewportWidth = page.viewportSize()?.width ?? 0;
-		for (let i = 0; i < 2; i++) {
-			const box = await actionButtonHosts(page).nth(i).boundingBox();
-			expect(box).toBeTruthy();
-			expect(box!.x + box!.width).toBeLessThanOrEqual(viewportWidth);
-		}
+
+		await openGeneral(page);
+		const pushBox = await pushButtonHost(page).boundingBox();
+		expect(pushBox).toBeTruthy();
+		expect(pushBox!.x + pushBox!.width).toBeLessThanOrEqual(viewportWidth);
+
+		await openStandort(page);
+		const geoBox = await geoButtonHost(page).boundingBox();
+		expect(geoBox).toBeTruthy();
+		expect(geoBox!.x + geoBox!.width).toBeLessThanOrEqual(viewportWidth);
 	});
 });

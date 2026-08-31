@@ -8,7 +8,7 @@ import { waitForStableView } from './helpers';
  *   mit `nearby-preference-off`-Hinweis) und die Fußzeile zeigt weder Adresse noch Koordinaten.
  * - AK6: Distanz in Klammern am Eintrag („(2,4 km)"), nur Tasks innerhalb der gespeicherten
  *   Anzeige-Entfernung (Server-Filter).
- * - AK1/AK3: Bei 375px sind die drei Regler im Settings-Tab „Allgemein" bedienbar, im Viewport
+ * - AK1/AK3: Bei 375px sind die drei Regler im Settings-Tab „Standort" (seit #1151) bedienbar, im Viewport
  *   und mindestens 44px hoch; bei ausgeschaltetem Standort `_disabled`.
  * - AK7: ein geänderter Wert überlebt den Reload (serverseitig pro User, kein localStorage).
  *
@@ -92,7 +92,8 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 	test('AK1/AK3 — 375px: Regler bedienbar, Touch-Ziel ≥ 44px, bei Standort aus _disabled', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(GEO_INIT(false));
-		await page.goto('/settings/general');
+		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
+		await page.goto('/settings/standort');
 		await waitForStableView(page, 'Allgemein');
 
 		const labels = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', 'Aktualisierungsintervall (Minuten)'];
@@ -116,7 +117,8 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 
 	test('AK7 — geänderter Anzeige-Wert überlebt den Reload (serverseitig gespeichert)', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
-		await page.goto('/settings/general');
+		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
+		await page.goto('/settings/standort');
 		await waitForStableView(page, 'Allgemein');
 
 		const input = rangeInput(page, 'Anzeige-Entfernung (km)');

@@ -78,9 +78,10 @@ beforeEach(() => {
 	geoState.address = null;
 	geoState.addressLoading = false;
 	geoState.positionUpdatedAt = null;
-	// Tab „Allgemein“ aktivieren (Default-Pfad lädt den Säulen-Tab; alle Panels bleiben
-	// zwar gemountet, aber der.General-Tab ist der fachliche Kontext der Tests).
-	window.history.replaceState({}, '', '/settings/general');
+	// #1151: Die Geo-Einstellungen leben im Tab „Standort" (`/settings/standort`) — der fachliche
+	// Kontext aller Geo-Tests dieser Datei. (Die Panels bleiben gemountet, die URL steuert hier
+	// nur den fachlichen Kontext.)
+	window.history.replaceState({}, '', '/settings/standort');
 });
 
 afterEach(cleanup);
@@ -284,5 +285,88 @@ describe('SettingsPage – #1098: Geo-Einstellungen (Anzeige-/Alarm-Entfernung, 
 		// Werte bleiben sichtbar erhalten (disabled, nicht entfernt):
 		expect(bound(field(container, LABELS.display)!, '_value')).toBe('5');
 		expect(bound(field(container, LABELS.alarm)!, '_value')).toBe('1');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1151 — „Eigener Settings-Tab ‚Standort'".
+ *
+ * Spec-Bezug: docs/spec/issue-1151.md
+ *
+ * Der komplette Geo-Block (Standort-Switch inkl. Alerts, Ermitteln-Button, Addressanzeige,
+ * drei Slider) wandert aus dem Tab „Allgemein" (`slot="tab-0"`) in einen neuen vierten Slot
+ * (`slot="tab-3"`, Route `/settings/standort`). „Allgemein" behält Darstellung → Sprachaufnahme
+ * → Push in unveränderter Reihenfolge.
+ *
+ * jsdom rendert `<kol-tabs>` als unbekanntes Element ohne Slot-Zuordnung — alle Panels bleiben
+ * im DOM. Der Slot-Vertrag lässt sich deshalb direkt über die `slot="tab-N"`-Container prüfen.
+ * Die URL-/Tab-Auswahl-Interaktion (AK1 „Direktaufruf wählt ihn aus", AK4) ist e2e-Vertrag
+ * (settings-tabs.spec.ts), hier liegt der Fokus auf der DOM-Zuordnung.
+ */
+describe('SettingsPage – #1151: Standort-Tab (Tab-Umzug der Geo-Einstellungen)', () => {
+	/** Slot-Container eines Tabs (KolTabs-Panel-Host). */
+	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
+		container.querySelector(`[slot="${slot}"]`);
+
+	it('AK1: es gibt ein viertes Panel slot="tab-3" und der Geo-Switch lebt darin', () => {
+		geoState.enabled = false;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tab3 = panel(container, 'tab-3');
+		expect(tab3, 'vierter Slot tab-3 existiert').not.toBeNull();
+		expect(
+			tab3?.querySelector('kol-input-checkbox[_label="Standort erfassen"]'),
+			'Standort-Switch ist im tab-3-Panel',
+		).toBeTruthy();
+	});
+
+	it('AK2: der komplette Geo-Block ist aus tab-0 („Allgemein") entfernt', () => {
+		geoState.enabled = true;
+		geoState.permissionDenied = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tab0 = panel(container, 'tab-0');
+		expect(tab0).not.toBeNull();
+		// Switch inkl. Berechtigungs-Alert:
+		expect(tab0?.querySelector('kol-input-checkbox[_label="Standort erfassen"]')).toBeNull();
+		expect(tab0?.querySelector('kol-alert[_label="Standortzugriff verweigert"]')).toBeNull();
+		// Ermitteln-Button + Addressanzeige:
+		expect(tab0?.querySelector('kol-button[_label="Standort ermitteln"]')).toBeNull();
+		expect(tab0?.querySelector('.geo-address')).toBeNull();
+		// Die drei Slider:
+		expect(tab0?.querySelectorAll('kol-input-range').length, 'keine Geo-Regler im Allgemein-Tab').toBe(0);
+	});
+
+	it('AK2: der Geo-Block (Switch, Button, Adresse, drei Slider) ist vollständig in tab-3', () => {
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tab3 = panel(container, 'tab-3');
+		expect(tab3, 'vierter Slot tab-3 existiert').not.toBeNull();
+		expect(tab3?.querySelector('kol-input-checkbox[_label="Standort erfassen"]')).toBeTruthy();
+		expect(tab3?.querySelector('kol-button[_label="Standort ermitteln"]')).toBeTruthy();
+		expect(tab3?.querySelector('.geo-address')).toBeTruthy();
+		const labels = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', 'Aktualisierungsintervall (Minuten)'];
+		for (const label of labels) {
+			expect(tab3?.querySelector(`kol-input-range[_label="${label}"]`), `${label} im tab-3-Panel`).toBeTruthy();
+		}
+	});
+
+	it('AK3: tab-0 behält Darstellung, Sprachaufnahme und Push in bisheriger Reihenfolge', () => {
+		pushState.enabled = true;
+		pushState.supported = true; // ohne `supported` rendert die Komponente die Push-Sektion gar nicht
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tab0 = panel(container, 'tab-0');
+		expect(tab0, 'Allgemein-Panel existiert').not.toBeNull();
+		expect(tab0?.querySelector('kol-input-radio[_label="Darstellung"]')).toBeTruthy();
+
+		// Reihenfolge via DOM-Position (compareDocumentPosition), wie bisher: Sprachaufnahme
+		// vor Push-Nachrichten; keine Geo-Elemente dazwischen (durch AK2-Test gesichert).
+		const voice = tab0?.querySelector('kol-input-checkbox[_label="Sprachaufnahme automatisch starten"]');
+		const push = tab0?.querySelector('kol-input-checkbox[_label="Push-Nachrichten aktivieren"]');
+		expect(voice).not.toBeNull();
+		expect(push).not.toBeNull();
+		expect(voice!.compareDocumentPosition(push!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 });

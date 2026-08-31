@@ -1538,7 +1538,14 @@ body {
  * Container, damit alle Controls konsistent aligned sind.
  */
 
-.settings-general {
+/*
+ * #1151: `.settings-geo` (Tab „Standort") teilt die Basis-Layout-Regeln des Tab „Allgemein".
+ * Bewusst eine EIGENE Klasse statt derselben: `KolTabs` hält inaktive Panels gemountet, eine
+ * doppelt vergebene Klasse würde alle `.settings-general`-Locatoren auf zwei Panels treffen
+ * lassen (Präzedenz #1080 `.settings-llm-switch-row`).
+ */
+.settings-general,
+.settings-geo {
 	/*
 	 * #969: Symmetrisches horizontales Padding — vorher nur `padding-left: 1.5rem` (#843),
 	 * was zusammen mit dem `.settings-page`-Padding die Seite asymmetrisch einrückte

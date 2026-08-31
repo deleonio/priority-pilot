@@ -63,7 +63,7 @@ const buildInitScript = (permission: 'granted' | 'denied' | 'prompt') => `
 test('AK1: Schalter „Standort erfassen" ist sichtbar und default aus', async ({ page }) => {
 	await page.addInitScript(buildInitScript('prompt'));
 
-	await page.goto('/settings/general');
+	await page.goto('/settings/standort'); // #1151: Geo-Settings sind in den eigenen Tab „Standort" umgezogen
 	await page.waitForLoadState('networkidle');
 
 	// KolInputCheckbox Switch = Rolle checkbox (mit .or() Fallback für role-Variation)
@@ -79,7 +79,7 @@ test('AK1: Schalter „Standort erfassen" ist sichtbar und default aus', async (
 test('AK2: Einschalten mit granted Permission → Intervall startet', async ({ page }) => {
 	await page.addInitScript(buildInitScript('granted'));
 
-	await page.goto('/settings/general');
+	await page.goto('/settings/standort'); // #1151: Geo-Settings sind in den eigenen Tab „Standort" umgezogen
 	await page.waitForLoadState('networkidle');
 
 	const switchLocator = page
@@ -99,7 +99,7 @@ test('AK2: Einschalten mit granted Permission → Intervall startet', async ({ p
 test('AK3: Ausschalten stoppt den Intervall', async ({ page }) => {
 	await page.addInitScript(buildInitScript('granted'));
 
-	await page.goto('/settings/general');
+	await page.goto('/settings/standort'); // #1151: Geo-Settings sind in den eigenen Tab „Standort" umgezogen
 	await page.waitForLoadState('networkidle');
 
 	const switchLocator = page
@@ -122,7 +122,7 @@ test('AK3: Ausschalten stoppt den Intervall', async ({ page }) => {
 test('AK4: Position wird nach erfolgreicher Ermittlung angezeigt', async ({ page }) => {
 	await page.addInitScript(buildInitScript('granted'));
 
-	await page.goto('/settings/general');
+	await page.goto('/settings/standort'); // #1151: Geo-Settings sind in den eigenen Tab „Standort" umgezogen
 	await page.waitForLoadState('networkidle');
 
 	const switchLocator = page
@@ -140,7 +140,7 @@ test('AK4: Position wird nach erfolgreicher Ermittlung angezeigt', async ({ page
 test('AK5: Permission denied → Schalter bleibt aus, KolAlert warning sichtbar', async ({ page }) => {
 	await page.addInitScript(buildInitScript('denied'));
 
-	await page.goto('/settings/general');
+	await page.goto('/settings/standort'); // #1151: Geo-Settings sind in den eigenen Tab „Standort" umgezogen
 	await page.waitForLoadState('networkidle');
 
 	const switchLocator = page
