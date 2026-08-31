@@ -22,7 +22,7 @@
 		"react": "19.2.7",
 		"react-dom": "19.2.7",
 		"react-markdown": "10.1.0",
-		"react-router-dom": "^6.30.6",
+		"react-router-dom": "6.30.6",
 		"workbox-window": "7.4.1"
 	},
 	"devDependencies": {
