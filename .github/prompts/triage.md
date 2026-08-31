@@ -16,9 +16,7 @@ TRIGGER:
 PROCEDURE:
 1. Load the issue (gh issue view {{ISSUE_NR}} --json title,body)
 2. Only change the title if it's substantively wrong — ONE edit, not a copyedit.
-   NEVER edit the issue description: the body stays EXACTLY as validated (ADR 0009 —
-   every body edit re-triggers the issue validator and stalls the pipeline).
-   `gh issue edit --body` is forbidden in this phase.
+   NEVER `gh issue edit --body` — ADR 0009, re-triggers the issue validator; details SKILL.md step 2.
 3. CLARIFY AMBIGUITY FIRST (BEFORE the analysis): if the task can't be resolved unambiguously
    (even after reading the code), do NOT guess an analysis. Instead:
    VERDICT: needs-human AND EXACTLY ONE comment with the <!-- ai-triage-decision --> marker
@@ -27,8 +25,7 @@ PROCEDURE:
    one, don't hide them in the analysis block, don't scatter them across ping comments.
 4. Split up (if too large, see skill step 3)
 5. Write the analysis block AND routing table into the ONE harness marker comment — values
-   and format per SKILL.md step 4 (its own ai-phase-routing block, ASCII; impl/review ALWAYS
-   `ja`; for Run=`nein` set model/effort to '-'). The comment body STARTS with the marker
+   and format per SKILL.md step 4. The comment body STARTS with the marker
    line `<!-- ai-harness -->`; read-modify-write: replace ONLY the KI-ANALYSE +
    ai-phase-routing sections, keep foreign sections (e.g. KI-UX) byte-for-byte.
    `stand` resets on every write. gh-only mechanics (restricted tier; HID lookup,

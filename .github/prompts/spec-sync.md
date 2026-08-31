@@ -5,6 +5,7 @@ LEITLINIE (arc42-Prinzip): SO VIEL WIE NÖTIG, SO WENIG WIE MÖGLICH. Specs halt
 QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Specs: alle Dateien unter docs/spec/ (user-journeys.md + issue-*.md)
   - Ist-Zustand: frontend/src/** (UI-Verhalten, Dialoge, Meldungstexte), server/src/** + openapi.yml (API, Validierung, Fehlermeldungen)
+  - Breite Reads (Spec-Aussagen gegen den Code verifizieren) → `recherche`-Subagent-Rolle (ADR 0008); je Datei nur die Funde zurück in den Kontext.
 
 ABLAUF (STRIKT):
   1. SOFORT starten. Alle Dateien unter docs/spec/ vollständig lesen.
@@ -31,7 +32,7 @@ CONSTRAINTS:
   - KEINE Soll-/Absichts-Formulierungen in der Spec — nur Ist.
   - KEINE Änderungs-Historie im Text: kein „wurde geändert/entfernt/ergänzt“, kein „seit #X“, kein „gilt nicht mehr“, kein „früher“ — nur Aussagen über den aktuellen Ist-Zustand, als gäbe es nie einen anderen.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+VERDICT (one line):
   - VERDICT: synced
   - VERDICT: updated
   (synced = keine Drift gefunden, kein Commit; updated = Spec-Korrekturen committed)

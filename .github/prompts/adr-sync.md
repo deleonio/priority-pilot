@@ -47,7 +47,7 @@ CONSTRAINTS:
     Status es bereits besagt. Zweifel ohne klaren Status → Konfliktliste, keine Änderung.
   - Die Status-Zeile bleibt ASCII (keine Umlaute/typografischen Anführungszeichen).
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+VERDICT (one line):
   - VERDICT: synced
   - VERDICT: updated
   - VERDICT: conflict
