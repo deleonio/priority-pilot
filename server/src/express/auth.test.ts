@@ -224,6 +224,33 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		});
 	});
 
+	// ── Issue #1136 — OAuth-Fehler im manuellen Login-Pfad → /?error=<code> ───
+	// Vertrag (docs/spec/issue-1136.md, AK2): Der failureRedirect des gemeinsamen Callbacks
+	// adressiert im MANUELLEN Pfad die Frontend-Fehler-Weiche /?error=<code> statt der rohen
+	// JSON-Route /auth/error. Der stille Pfad (/?silent=unavailable) bleibt unverändert.
+	// Der Callback ohne Session/Google-Antwort schlägt bei Passport fehl → failureRedirect greift.
+
+	describe('AK2 (#1136) — OAuth-Fehler im manuellen Login-Pfad', () => {
+		it('GET /auth/google/callback ohne Session → 302 auf /?error=… (nicht /auth/error)', async () => {
+			const res = await fetch(`${server.baseUrl}/auth/google/callback`, { redirect: 'manual' });
+			assert.equal(res.status, 302);
+			const location = res.headers.get('location');
+			assert.ok(location, 'Location-Header sollte gesetzt sein');
+			const target = new URL(location, server.baseUrl);
+			assert.equal(target.pathname, '/', 'Redirect-Ziel sollte die App-Wurzel sein');
+			assert.match(target.search, /[?&]error=/, `Redirect sollte ?error= tragen, war: ${location}`);
+			assert.ok(!target.search.includes('silent='), 'Manueller Pfad darf nicht silent=unavailable melden');
+			assert.notEqual(location, '/auth/error', 'Rohe JSON-Fehler-Route ist als Ziel abgelöst');
+		});
+
+		it('GET /auth/error bleibt als API-Fallback erhalten (rohes JSON 400)', async () => {
+			const res = await fetch(`${server.baseUrl}/auth/error`);
+			assert.equal(res.status, 400);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.ok(body.error, 'Fallback sollte ein JSON-Fehlerfeld liefern');
+		});
+	});
+
 	describe('AK 3 — POST /auth/logout (Passwort-Session)', () => {
 		it('nach Passwort-Login + Logout ist Session ungültig: GET /auth/me → 401', async () => {
 			await fetch(`${server.baseUrl}/auth/register`, {

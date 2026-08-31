@@ -109,6 +109,8 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 			const panel = page.locator(`[slot="${tab}"]`);
 			await expect(panel).toBeVisible();
 
+			// Warten, bis das Panel eine stabile Bounding Box hat (Timing-Problem in Voll-suite)
+			await panel.waitFor({ state: 'attached' });
 			const box = await panel.boundingBox();
 			expect(box).toBeTruthy();
 

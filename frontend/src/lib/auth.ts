@@ -6,7 +6,10 @@ export type AuthUser = {
 };
 
 export async function checkAuth(): Promise<AuthUser | null> {
-	const response = await fetch('/api/v1/auth/me');
+	// Issue #1136: Der Auth-Check braucht eine Zeitgrenze — ohne Abort bliebe Root beim hängenden
+	// /auth/me-Request dauerhaft im Lade-Spinner. Nur dieser Request wird abgebrochen; die
+	// Google-Top-Level-Navigation selbst ist clientseitig nicht abbrechbar.
+	const response = await fetch('/api/v1/auth/me', { signal: AbortSignal.timeout(30_000) });
 	if (response.status === 401) {
 		return null;
 	}
