@@ -7,9 +7,8 @@ PROCEDURE:
    - threads: `gh api repos/{owner}/{repo}/pulls/{{PR_NR}}/comments`
 3. Fix:
    - Unambiguous findings → change the code, run the GATE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning), commit+push (include your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md in the commit — tracked, NOT gitignored, ADR 0007), resolve the thread
-   - Ambiguous findings → ONE clarification reply in its review thread (wait for answer before thread-resolve); if not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
-   - Decision findings (already with options-ID from review) → implement EXACTLY that option
-4. **Decision findings** (already chosen): follow the comment with the option ID, implement EXACTLY that option
+   - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve; end the round with NO commit and NO verdict — the next run reads the answer); if not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
+4. **Decision findings** → the review's option ID is only a PROPOSAL; wait for the human's choice (their reply comment carries the option ID), then implement EXACTLY that option
 5. **CI red**:
    - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, wait 60s
    - Real failure: read the log, fix it, commit+push
