@@ -2,7 +2,16 @@
 
 **PR #1150** (`ai/harness/1142` → main), MODE = Kreuzverhör (0 `<!-- ai-review -->`-Kommentare vor Start). **VERDICT: needs-fixup** — Sammelkommentar: https://github.com/deleonio/priority-pilot/pull/1150#issuecomment-5474180270
 
-## Erledigt
+## Erledigt (Runde 2 — Fixup-Nachweis, 2026-08-31T05:50Z)
+- **VERDICT `reviewed`, Ampel 🟢.** MODE über Marker `<!-- ai-review -->` (Kommentar-ID 5474180270) → Fixup-Verifikation, Delta nur Fixup-Commit `024b9368`.
+- F1 behoben: `auth-avatar.test.ts` nutzt `registerResponse(server,'avatar-pw@example.com','sicher123')` statt rohem fetch (Signatur `server/src/test/helpers.ts:79` passt, Response wird ignoriert — verhältnisneutral).
+- F2 behoben: PR-Body-Zeile 8 trägt jetzt den Suffix-Hinweis („Werte können sich um das `-secret`/`-client-id`-Suffix … unterscheiden").
+- F3 erledigt ohne Code: CI-Run 33361650704 auf `0164051d` — `verify` ✅ 2m58s, `e2e (1)–(4)` ✅ je ~4m (`e2e (3)` 4m12s) → vorheriger Fehler = Flake.
+- Grep-Nachprüfung am HEAD: lokale login/register-Helfer 0, `/auth/register` nur `helpers.ts` + `auth.test.ts` + Produktionsroute `routes/auth.ts`, `express/test-helpers.ts` entfernt, `applyTestAuthEnv` in 16 Testdateien.
+- Sammelkommentar in place gepatcht (ID bleibt 5474180270): Behobene-Tabelle F1–F3, Offene Findings leer, `Review-Typ: Fixup-Nachweis`. Titel-Gate: Conventional Commits ok, kein Rename.
+- **NEU (Fallstrick):** `gh api -f body=@file` liest die Datei NICHT (schreibt Literal `@/tmp/…` in den Kommentar) → `-F body=@file` verwenden; falschen Stand sofort neu gepatcht.
+
+## Erledigt (Runde 1)
 - Full Diff (23 Dateien, +374/−451) gelesen; AKs aus Harness-Kommentar (my-github-action-bot 2026-08-31T04:30:54Z, stand=04:30:40Z), Ampel 🟢, AK1–AK5.
 - Eigene grep-Verifikation am Branch-Stand `ffee389c`: `const login|register = async` in express = 0 ✓; `auth/test-login` nur auth.test.ts + session.test.ts ✓; **`auth/register` AUCH in auth-avatar.test.ts:84 ✗ (AK4-Verletzung)**; `applyTestAuthEnv` in 16 Dateien ✓; `express/test-helpers.ts`-Refs = 0 ✓; `expectError` nur aus `test/helpers.js` ✓.
 - 2 Inline-Findings gepostet (Review-Kommentare 3891951898 = auth-avatar.test.ts/file-level, 3891951966 = helpers.ts:45).
@@ -28,11 +37,11 @@
 - Mock/test-spike für die neuen Helfer — Test-Infrastruktur, Spec sieht „Tests für Tests" explizit nicht vor (AK1–AK3 per Review/Grep).
 
 ## Offen
-- Fixup-Runde steht aus (F1 Code-Zeile + Import, F2 PR-Body-Zeile).
+- — (Runde 2 abgeschlossen, `reviewed`)
 - Wegwerf-Artefakte in `.ai-memory/` NICHT committen: `issue-1142-review-payload.json`, `issue-1142-review-c1.json`, `issue-1142-review-c2.json`, `issue-1142-review-comment.md` (gesendeter Sammelkommentar). Nur diese Datei ist die Phasen-Notiz.
 
 ## Nächster Schritt
-- Fixup-Verifikation (MODE = Fixup-Nachweis): nur F1/F2-Delta prüfen — `grep -rln "auth/register" server/src --include="*.test.ts"` muss nur noch auth.test.ts (+ helpers.ts) treffen, PR-Body-Zeile korrigiert, `verify` grün, dann Behobene-Anmerkungen-Tabelle pflegen und auf `reviewed` drehen (vorher `e2e (3)`-Status erneut ansehen).
+- — (Phase beendet; nächste Phase = Documenter/merge über den Workflow-Gate-Schritt)
 
 ## Fallstricke
 - **Inline-Review-Kommentare nur auf Diff-Zeilen:** `POST /pulls/{n}/reviews` mit `comments[].line` auf einer NICHT im Diff liegenden Zeile → 422 „Line could not be resolved"; `subject_type:"file"` wird an DIESER Endpoint-Route nicht akzeptiert (GraphQL-Fehler „Field is not defined"). → Einzelkommentare über `POST /pulls/{n}/comments` mit `subject_type:"file"` (ohne `line`) bzw. `line`+`side:"RIGHT"` posten; Review-Body separat als Review mit `event=COMMENT` ohne `comments[]`.
