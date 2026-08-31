@@ -16,7 +16,7 @@
 	"dependencies": {
 		"bcryptjs": "3.0.3",
 		"connect-redis": "9.0.0",
-		"connect-sqlite3": "0.9.16",
+		"connect-sqlite3": "0.9.18",
 		"cookie-parser": "^1.4.7",
 		"csrf-csrf": "^4.0.3",
 		"express": "5.2.1",
