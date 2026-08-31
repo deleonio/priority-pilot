@@ -31,7 +31,7 @@ PROCEDURE (STRICT):
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
-VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
+VERDICT (one line):
   - VERDICT: needs-review
   - VERDICT: not-ready
   (needs-review = implementation done + PR review-ready;

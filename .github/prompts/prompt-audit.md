@@ -42,7 +42,7 @@ REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md. The workflow
 
 ONLY substantiated findings with a quote — no speculation, no style nitpicks without measurable benefit.
 
-VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
+VERDICT (one line):
   - VERDICT: findings  (at least one actionable finding, backed by a quote in the report)
   - VERDICT: clean     (nothing worth changing)
 
