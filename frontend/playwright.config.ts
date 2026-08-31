@@ -54,6 +54,12 @@ export default defineConfig({
 				DB_RESET: 'true',
 				DB_SEED: 'false',
 				DATABASE_STORAGE: ':memory:',
+				// NODE_ENV=test registriert zusätzlich POST /auth/test-login (siehe
+				// server/src/express/routes/auth.ts) — die einzige Möglichkeit, in der E2E-Umgebung
+				// ohne echten Google-Zyklus eine echte Session zu erzeugen (#1136 AK4). Außer der
+				// Endpunkt-Registrierung hat NODE_ENV=test keinen Einfluss auf das Serververhalten
+				// (alle Produktionszweige prüfen auf `=== 'production'`).
+				NODE_ENV: 'test',
 				// Auth-Gate deterministisch AUS (Issue #207): Eine lokale `server/.env` mit
 				// Google-OAuth-Credentials würde `isAuthActive()` scharfschalten — dann antwortet jede
 				// API-Route 401, denn die Specs mocken nur `/auth/me` (Browser), nie eine echte Session.

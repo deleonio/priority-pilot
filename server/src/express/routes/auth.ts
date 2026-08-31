@@ -169,14 +169,26 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 // GET /auth/google/callback — Google leitet nach Authentifizierung hierher zurück. Der gemeinsame
 // Callback bedient den normalen UND den stillen OAuth-Einstieg (Issue #396 PR B): war der Auslöser
 // ein stiller Versuch (Session-Marker `silentPending`), leiten Interaktionsfehler auf
-// /?silent=unavailable statt auf /auth/error weiter, damit das Frontend die manuelle Login-Seite zeigt.
+// /?silent=unavailable weiter, damit das Frontend die manuelle Login-Seite zeigt.
+// Issue #1136: Der MANUELLE Pfad adressiert die Frontend-Fehler-Weiche /?error=<code> statt der
+// rohen JSON-Route /auth/error — LoginPage rendert dafür bereits eine Meldung (Fallback für
+// unbekannte Codes). /auth/error bleibt als API-Fallback erhalten.
 authRouter.get(
 	'/auth/google/callback',
 	requireGoogleStrategy,
 	(req, res, next) => {
 		const silentPending = req.session?.silentPending === true;
+		// Issue #1136: Ein Callback-Hit ohne Google-`code` ist kein gültiger OAuth-Abschluss —
+		// Passport würde hier erneut einen Authorization-Redirect starten (ungenutzer Loop). Google
+		// liefert einen Ablehnungsgrund als `error`-Parameter (z. B. `access_denied`); dieser Code wird
+		// 1:1 an die Frontend-Fehler-Weiche durchgereicht, sonst `login_failed` als Sammelcode.
+		if (!req.query.code) {
+			const code = typeof req.query.error === 'string' && req.query.error !== '' ? req.query.error : 'login_failed';
+			res.redirect(silentPending ? '/?silent=unavailable' : `/?error=${encodeURIComponent(code)}`);
+			return;
+		}
 		passport.authenticate('google', {
-			failureRedirect: silentPending ? '/?silent=unavailable' : '/auth/error',
+			failureRedirect: silentPending ? '/?silent=unavailable' : '/?error=login_failed',
 		})(req, res, next);
 	},
 	(req, res) => {
@@ -189,7 +201,7 @@ authRouter.get(
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
 			if (err) {
-				res.redirect(silentPending ? '/?silent=unavailable' : '/auth/error');
+				res.redirect(silentPending ? '/?silent=unavailable' : '/?error=login_failed');
 				return;
 			}
 			req.session.user = {
@@ -242,7 +254,10 @@ if (process.env.NODE_ENV === 'test') {
 		};
 
 		// Multi-User-Gate (Issue #193, AK-8): nicht-erlaubte E-Mail → 401.
-		if (!email || !isEmailAllowed(email)) {
+		// Issue #1136: Ohne konfigurierte Allowlist (Pass-Through-Modus, siehe `isAuthActive`) ist
+		// jede Adresse erlaubt — sonst bliebe der Endpunkt in einer auth-losen E2E-Umgebung unbenutzbar.
+		const hasAllowlist = !!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
+		if (!email || (hasAllowlist && !isEmailAllowed(email))) {
 			res.status(401).json({ message: 'Nicht eingeloggt.' });
 			return;
 		}
