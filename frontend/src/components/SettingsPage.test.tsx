@@ -354,6 +354,7 @@ describe('SettingsPage – #1151: Standort-Tab (Tab-Umzug der Geo-Einstellungen)
 
 	it('AK3: tab-0 behält Darstellung, Sprachaufnahme und Push in bisheriger Reihenfolge', () => {
 		pushState.enabled = true;
+		pushState.supported = true; // ohne `supported` rendert die Komponente die Push-Sektion gar nicht
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		const tab0 = panel(container, 'tab-0');
@@ -366,6 +367,6 @@ describe('SettingsPage – #1151: Standort-Tab (Tab-Umzug der Geo-Einstellungen)
 		const push = tab0?.querySelector('kol-input-checkbox[_label="Push-Nachrichten aktivieren"]');
 		expect(voice).not.toBeNull();
 		expect(push).not.toBeNull();
-		expect(voice!.compareDocumentPosition(push!)).toContain(Node.DOCUMENT_POSITION_FOLLOWING);
+		expect(voice!.compareDocumentPosition(push!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 });

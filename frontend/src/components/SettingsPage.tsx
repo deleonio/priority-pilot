@@ -68,10 +68,18 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 
 	// #843: Ref für Settings-General Container
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
+	// #1151: eigener Ref für den Geo-Tab — der Layout-Hook wirkt nur innerhalb des Ref-Containers.
+	const settingsGeoRef = useRef<HTMLDivElement>(null);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
 	useShadowDOMLayout(
 		settingsGeneralRef,
+		'kol-input-checkbox, kol-button',
+		'[role="switch"], button:not([type="button"]):not([class*="icon"])',
+	);
+	// #1151: derselbe Alignment-Hook für den „Standort"-Tab (F2: Geo-Controls liegen außerhalb von tab-0).
+	useShadowDOMLayout(
+		settingsGeoRef,
 		'kol-input-checkbox, kol-button',
 		'[role="switch"], button:not([type="button"]):not([class*="icon"])',
 	);
@@ -375,7 +383,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
 				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
 				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
-				<div slot="tab-3" className="settings-general">
+				<div slot="tab-3" className="settings-geo" ref={settingsGeoRef}>
 					{geoSupported ? (
 						<div className="settings-switch-row">
 							<KolInputCheckbox
