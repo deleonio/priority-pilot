@@ -1,6 +1,7 @@
 # Issue 1136 — Implement (Phase 4), Stand 2026-08-31T04:35Z
 
 ## Erledigt
+- **ABGESCHLOSSEN:** Gate komplett grün (format/prettier/lint/knip/test, alle exit 0); Commit `3525db02` gepusht; PR **#1149** review-ready (isDraft=false, OPEN, `Closes #1136`, Body mit Testergebnis-Tabelle + Umsetzungsanmerkungen).
 - Draft-PR **#1149** (branch `ai/harness/1136`) übernommen (closingIssuesReferences enthält 1136, `Closes #1136` im Body), `git merge origin/main` (Merge-Commit 5e0002ae) — Spec-Modus, Ampel 🟢, Tests unangetastet.
 - AK1 grün: `frontend/src/lib/auth.ts:9-13` — `fetch('/api/v1/auth/me', { signal: AbortSignal.timeout(30_000) })`. Root-Verdrahtung war bereits vollständig (`Root.tsx:78-80` catch → error-State `:96`), keine Root-Änderung nötig.
 - AK2 grün: `server/src/express/routes/auth.ts` — Callback-Guard VOR `passport.authenticate`: ohne `req.query.code` → Redirect `/?silent=unavailable` (silent) bzw. `/?error=<code>` (manuell; Google-`error`-Param 1:1 durchgereicht, sonst `login_failed`); failureRedirect `:186` + `session.regenerate`-Fehlerfall `:199` auf `/?error=login_failed` umgestellt. `/auth/error`-Route unverändert als API-Fallback.
@@ -25,10 +26,10 @@
 - UI/Layout-Check via Playwright MCP — keine sichtbare UI-Änderung (Fehler-UI/LoginPage unverändert); 375px-Abdeckung läuft über `google-signup.spec.ts` (AK4).
 
 ## Offen
-- Gate-Lauf läuft (gate-runner). Danach: Commit + Push + PR #1149 review-ready (`gh pr ready`) + Body erweitern.
+- -
 
 ## Nächster Schritt
-- Gate abwarten, committen (inkl. Phasen-Notiz + `docs/spec`-Prettier-Check), pushen, `gh pr ready 1149`, Body erweitern (Testergebnisse, Server-Änderungserklärung), VERDICT needs-review.
+- Phase 5 (Review, `ai:review`): Kreuzverhör von PR #1149; Prüfschwerpunkt = Callback-Guard (neues Verhalten bei Nackt-Hit ohne `code`) + test-login-Allowlist-Pass-Through.
 
 ## Fallstricke
 - Spec-Test AK2 erreicht failureRedirect NICHT: ohne `code`/`error`-Query param startet die Google-Strategie einen neuen Auth-Redirect (302 auf accounts.google.com) — der Redirect-Erwartung dient der neue Guard, nicht die failureRedirect-Umstellung (die bleibt für den `code`-vorhanden-Austausch-Fehlerfall).
