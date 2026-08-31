@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sequelize from '../database.js';
 import { User } from '../models/index.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, registerResponse } from '../test/helpers.js';
 
 // ── Rote Spec-Tests für #421, AK4 — neuer Nutzer bekommt beim ersten Login die fünf Standard-Säulen ──
 //
@@ -19,13 +19,6 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 process.env.SESSION_SECRET = 'seed-test-secret';
 
 let server: TestServer;
-
-const register = (email: string, password = 'password123'): Promise<Response> =>
-	fetch(`${server.baseUrl}/auth/register`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password }),
-	});
 
 const login = (email: string, password = 'password123'): Promise<Response> =>
 	fetch(`${server.baseUrl}/auth/login`, {
@@ -63,7 +56,7 @@ describe('Säulen pro Nutzer — Standard-Säulen beim ersten Login (#421, AK4)'
 	});
 
 	it('sät einem frisch registrierten Nutzer seine eigenen fünf Standard-Säulen (je 20 %)', async () => {
-		const res = await register('neu@example.com');
+		const res = await registerResponse(server, 'neu@example.com', 'password123');
 		assert.equal(res.status, 201, 'Registrierung liefert 201');
 
 		const userId = await userIdByEmail('neu@example.com');
@@ -81,12 +74,20 @@ describe('Säulen pro Nutzer — Standard-Säulen beim ersten Login (#421, AK4)'
 	});
 
 	it('sät bei einem zweiten Login/Registrierungsversuch nicht erneut (keine Dubletten)', async () => {
-		assert.equal((await register('doppel@example.com')).status, 201, 'erste Registrierung: 201');
+		assert.equal(
+			(await registerResponse(server, 'doppel@example.com', 'password123')).status,
+			201,
+			'erste Registrierung: 201',
+		);
 		const userId = await userIdByEmail('doppel@example.com');
 		assert.equal((await ownPillars(userId)).length, 5, 'nach erster Registrierung genau fünf Säulen');
 
 		// Zweiter Registrierungsversuch derselben E-Mail wird abgewiesen (409) und sät nichts nach.
-		assert.equal((await register('doppel@example.com')).status, 409, 'zweite Registrierung: 409 (E-Mail vergeben)');
+		assert.equal(
+			(await registerResponse(server, 'doppel@example.com', 'password123')).status,
+			409,
+			'zweite Registrierung: 409 (E-Mail vergeben)',
+		);
 		assert.equal((await ownPillars(userId)).length, 5, 'kein Nachsäen durch den zweiten Registrierungsversuch');
 
 		// Auch ein regulärer erneuter Login sät nicht doppelt.
@@ -95,8 +96,8 @@ describe('Säulen pro Nutzer — Standard-Säulen beim ersten Login (#421, AK4)'
 	});
 
 	it('isoliert die Säulen zweier Nutzer — jeder bekommt seine eigenen fünf', async () => {
-		assert.equal((await register('alice@example.com')).status, 201);
-		assert.equal((await register('bob@example.com')).status, 201);
+		assert.equal((await registerResponse(server, 'alice@example.com', 'password123')).status, 201);
+		assert.equal((await registerResponse(server, 'bob@example.com', 'password123')).status, 201);
 
 		const aliceId = await userIdByEmail('alice@example.com');
 		const bobId = await userIdByEmail('bob@example.com');

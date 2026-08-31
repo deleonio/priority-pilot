@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { describe, it, beforeEach, after } from 'node:test';
 import { Task, Pillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { expectError } from './test-helpers.js';
+import { expectError } from '../test/helpers.js';
 import { MissingApiKeyError, MistralRequestError, type PillarClassifier } from '../llm/llm.js';
 
 /** Legt die fünf gleichgewichteten Standard-Säulen an. */
