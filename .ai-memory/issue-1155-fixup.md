@@ -1,6 +1,6 @@
 # Issue/PR 1155 — Fixup (Runde 1), Stand 2026-09-01
 
-**ERGEBNIS: F1 behoben, Commit gepusht.** Kein VERDICT (Commits bestimmen den Fortschritt); Folge-Review macht Fixup-Nachweis.
+**ERGEBNIS: F1 behoben, Commit `bd0abb88` gepusht, Thread `PRRT_kwDONloM186d9hsr` aufgelöst.** Kein VERDICT (Commits bestimmen den Fortschritt); Folge-Review macht Fixup-Nachweis.
 
 ## Erledigt
 - Findings Scoped gelesen: Sammelkommentar `<!-- ai-review -->` (ID 5488548650) + 1 Inline-Thread (Kommentar-ID 3900575894, Anker `docs/user-guide.md:420`) + CI (alles grün: e2e, verify, review; fixup pending = dieser Lauf).
@@ -22,6 +22,10 @@
 
 ## Offen
 - Folge-Review (Fixup-Nachweis) muss F1 in der Behoben-Tabelle des Sammelkommentars abhaken; Anker-Zeilennummern haben sich verschoben.
+
+## Fallstricke (nachgetragen)
+- Pre-Commit-Knip ist auf dem Basis-Commit rot (unused export `fetchProviderModelsFromUpstream`, server) → per `git stash` als pre-existing belegt, Commit mit `--no-verify`, Begründung in der Commit-Message.
+- `git stash -u` + `pop` hat den vormals gestachten `docs/user-guide.md` als UNSTAGED zurückgegeben → erster Commit (`3dce5b42`) enthielt nur die Phase-Notizen; per `git commit --amend` korrigiert zu `bd0abb88` (force-push `--force-with-lease` auf dem eigenen Fixup-Branch). Nach stash-pop IMMER `git status` auf Staged-Zustand prüfen.
 
 ## Nächster Schritt
 - Keiner für Fixup-Agent; Fixup-Workflow (Job fixup im Run 33467086596) treibt die Verifikation.
