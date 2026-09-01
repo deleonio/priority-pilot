@@ -1,6 +1,8 @@
-# Issue 1157 — Review (Phase 5, Kreuzverhör PR #1158), Stand 2026-09-01
+# Issue 1157 — Review (Phase 5/7, PR #1158), Stand 2026-09-01
 
-**ERGEBNIS: VERDICT reviewed, Ampel 🟢, keine Findings.** Erstreview (kein `<!-- ai-review -->`-Marker vorhanden → MODE Kreuzverhör). Sammelkommentar einmalig erstellt (Marker erste Zeile), Titel-Gate vorher angewendet: PR-Titel auf `fix(server): scope series routes to owner (data isolation) (#1157)` umbenannt (war `[arch-opt] Series-Routen ohne …`, kein Conventional Commit).
+**ERGEBNIS (Runde 2, Fixup-Nachweis): VERDICT reviewed, Ampel 🟢, keine Findings.** Marker vorhanden (Kommentar 5489130634, updatedAt 2026-09-01T04:59:28Z) → MODE Fixup-Nachweis. Delta = 3 Memory-Commits (c5676111, 2f11a483, 13fdad6d; `git diff --stat` nur `.ai-memory/`, +73 Zeilen, kein Produktionscode). Fixup-Runde des Agenten war korrekt: 0 Findings → kein Fix; flaky e2e (4) als nicht-PR-verursacht erkannt + 1× Rerun grün. Sammelkommentar per PATCH in-place auf Fixup-Nachweis aktualisiert. Titel-Gate: `fix(server): scope series routes to owner (data isolation) (#1157)` = valide CC-Form, kein Rename. CI auf dem Memory-only-Merge neu angelaufen (pending, nicht rot) — Gate prüft vor Merge.
+
+**ERGEBNIS (Runde 1, Kreuzverhör): VERDICT reviewed, Ampel 🟢, keine Findings.** Erstreview (kein `<!-- ai-review -->`-Marker vorhanden → MODE Kreuzverhör). Sammelkommentar einmalig erstellt (Marker erste Zeile), Titel-Gate vorher angewendet: PR-Titel auf `fix(server): scope series routes to owner (data isolation) (#1157)` umbenannt (war `[arch-opt] Series-Routen ohne …`, kein Conventional Commit).
 
 ## Erledigt
 - Modus bestimmt (Marker-Suche `gh api issues/1158/comments` → leer), Issue #1157 per closingIssuesReferences verlinkt → AKs aus Harness-Kommentar (KI-ANALYSE stand=2026-09-01T04:26:23Z) gelesen.
@@ -29,10 +31,10 @@
 - MEMORY.md-Eintrag — kein neuer Fehler, Kriterium nicht erfüllt.
 
 ## Offen
-- Wegwerf-Artefakte dieses Laufs in `.ai-memory/`, NICHT committen: `issue-1158-pr-diff.txt`, `issue-1157-harness.txt`. Nur diese Datei ist die Phasen-Notiz.
+- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `issue-1158-pr-diff.txt`, `issue-1157-harness.txt`, `issue-1157-collected.md` (Round-2-Body der PATCH-Payload). Nur diese Datei ist die Phasen-Notiz.
 
 ## Nächster Schritt
-- Workflow: Gate/CI abwarten (verify + e2e), dann `ai:ready-to-merge` → Merge. Fixup-Runde nur bei rotem CI oder Rückmeldungen.
+- Workflow: Gate/CI auf dem Memory-only-Merge abwarten (verify + e2e), dann `ai:ready-to-merge` → Merge. Weitere Review-Runde nur bei rotem CI oder neuen Kommentaren.
 
 ## Fallstricke
 - Follow-up-Review (falls Fixup): Sammelkommentar existiert jetzt (Marker `<!-- ai-review -->`) → MODE Fixup-Nachweis, Diff-Scoping ab dessen updatedAt; Finding-Nummerierung entfällt (keine Findings gesetzt).
