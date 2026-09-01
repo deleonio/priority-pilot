@@ -19,17 +19,17 @@ v6): Browser-Back/Forward und Deep-Links funktionieren, Tab-Zustand wird aus der
 
 Direkter Aufruf (`page.goto`) jeder Route öffnet die richtige Ansicht:
 
-| Route               | Ansicht (erkennbar an aktivem Tab / Panel)                       |
-| ------------------- | ---------------------------------------------------------------- |
-| `/`                 | Tab „Dashboard“ aktiv                                            |
-| `/aufgaben`         | Tab „Aufgaben“ aktiv                                             |
-| `/serien`           | Tab „Serien“ aktiv                                               |
-| `/wald`             | Tab „Wald“ aktiv                                                 |
-| `/hilfe`            | Hilfe-Seite (Markdown-Überschrift sichtbar)                      |
-| `/settings/general` | Settings-Tab „Allgemein“ aktiv                                   |
-| `/settings/pillars` | Settings-Tab „Säulen“ aktiv (Säulen-Gewichtungs-Editor sichtbar) |
-| `/settings/llm`     | Settings-Tab „KI-Provider“ aktiv                                 |
-| `/settings/standort` | Settings-Tab „Standort" aktiv (Geo-Einstellungen sichtbar)      |
+| Route                | Ansicht (erkennbar an aktivem Tab / Panel)                       |
+| -------------------- | ---------------------------------------------------------------- |
+| `/`                  | Tab „Dashboard“ aktiv                                            |
+| `/aufgaben`          | Tab „Aufgaben“ aktiv                                             |
+| `/serien`            | Tab „Serien“ aktiv                                               |
+| `/wald`              | Tab „Wald“ aktiv                                                 |
+| `/hilfe`             | Hilfe-Seite (Markdown-Überschrift sichtbar)                      |
+| `/settings/general`  | Settings-Tab „Allgemein“ aktiv                                   |
+| `/settings/pillars`  | Settings-Tab „Säulen“ aktiv (Säulen-Gewichtungs-Editor sichtbar) |
+| `/settings/llm`      | Settings-Tab „KI-Provider“ aktiv                                 |
+| `/settings/standort` | Settings-Tab „Standort“ aktiv (Geo-Einstellungen sichtbar)       |
 
 ### AK2 — Navigation ändert die URL, Back/Forward stellt die Ansicht wieder her
 

@@ -6,7 +6,7 @@
  *   zu pflegen (TF1 — Dubletten-Wächter über den Quelltext).
  * AK4: Verhalten der drei Helfer mit Mock-`res` bzw. direkten Assertions (TF2).
  * AK5: `error-contract.test.ts` bleibt der unveränderte Verhaltensnachweis für den
- *   HTTP-Vertrag — hier kein Duplikat-Test (siehe docs/spec/issue-1130.md).
+ *   HTTP-Vertrag — hier kein Duplikat-Test.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';

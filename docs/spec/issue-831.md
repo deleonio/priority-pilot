@@ -1,6 +1,7 @@
 # Issue 831: KoliBri-MCP in UX-Phase integrieren
 
-**Stand:** 2026-09-01  
+**Stand:** 2026-09-01
+
 ## Ziel
 
 Agent kann während der UX-Phase über KoliBri-MCP-Tools auf barrierefreie KoliBri-Components zugreifen, um:
