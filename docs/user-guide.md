@@ -354,7 +354,7 @@ weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
 ### Serien bearbeiten – Kaskade auf bestehende Instanzen
 
 Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
-(Titel, Priorität, Aufwand, Beschreibung, Automatisches Löschen, Säulen), erscheint
+(Titel, Priorität, Aufwand, Beschreibung, Adresse, Automatisches Löschen, Säulen), erscheint
 vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?"**
 
 - **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
@@ -406,7 +406,7 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 
 ## Einstellungen
 
-Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit drei Bereichen:
+Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit vier Bereichen:
 
 ### Allgemein
 
@@ -416,15 +416,6 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
-- **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle
-  Position (Standard alle 5 Minuten). Beim Einschalten wird die
-  Standort-Berechtigung angefragt. Mit **„Standort ermitteln"** holst du die
-  Position sofort; dazu siehst du die Uhrzeit der letzten Erfassung und eine
-  Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion:
-  **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe"-Liste
-  Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
-  kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
-  wird.
 
 ### Säulen
 
@@ -450,6 +441,18 @@ beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Prov
 (Name, Adresse, API-Key, Modell) und kannst sie **testen**, bearbeiten und löschen. Diese
 Einstellung gilt serverseitig für alle Nutzer. Ist kein Provider eingerichtet, zeigt der
 Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
+
+### Standort
+
+- **Standort erfassen** – ermittelt im Hintergrund regelmäßig deine aktuelle
+  Position (Standard alle 5 Minuten). Beim Einschalten wird die
+  Standort-Berechtigung angefragt. Mit **„Standort ermitteln"** holst du die
+  Position sofort; dazu siehst du die Uhrzeit der letzten Erfassung und eine
+  Adresse zum Standort. Drei Schieberegler steuern die Standortfunktion:
+  **Anzeige-Entfernung** – bis zu dieser Entfernung zeigt die „In der Nähe"-Liste
+  Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
+  kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
+  wird.
 
 ---
 
