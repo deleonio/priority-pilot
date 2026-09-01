@@ -1,39 +1,35 @@
-# Issue/PR 1155 — Review (Kreuzverhör Runde 1), Stand 2026-09-01
+# Issue/PR 1155 — Review (Fixup-Nachweis Runde 2), Stand 2026-09-01T03:55:32Z
 
-**ERGEBNIS: VERDICT needs-fixup (🟡, 1 fixables Finding F1).** Kein `<!-- ai-review -->`-Marker vorhanden → Modus Kreuzverprüfung des Gesamtdiffs. **Kein Closing-Issue** (closingIssuesReferences = 0) → PR-Beschreibung (Guide-Sync-Report) war massgebende informelle Spezifikation; als „Review ohne Issue" in Sammelkommentar Zeile 2 vermerkt.
+**ERGEBNIS: VERDICT reviewed (🟢).** Modus FIXUP VERIFICATION (`<!-- ai-review -->`-Marker vorhanden, Sammelkommentar-ID 5488548650, updatedAt 2026-09-01T03:39:57Z). Runde 1 (Kreuzverhör, needs-fixup, 1 fixables Finding F1) ist oben im Verlauf dokumentiert; diese Runde hat nur den Fixup-Diff geprüft.
 
 ## Erledigt
-- Full Diff gelesen: nur `docs/user-guide.md`, +5/−2, 1 Commit (`085ef331`, Branch `chore/user-guide-sync`, Autor = Workflow-Bot).
-- Beide Sync-Funde des PR-Bodies gegen Code verifiziert: 4 Reiter bestätigt (`frontend/src/components/SettingsPage.tsx:32-37`, Standort = Index 3, Kommentar :29-31 nennt Reihenfolge explizit); Adresse kaskadierbar bestätigt (`frontend/src/components/TaskForm.tsx:77-81`, inkl. latitude/longitude; `rhythm`/`startDate`/`active` kaskadieren nie, :70 — Guide-Aussagen dazu unverändert korrekt).
-- Konsistenz geprüft: kein „drei Bereiche"-Rest in `docs/` (grep), genau 1 H1 im Guide (`grep -c "^# "` = 1), „vier Bereiche" genau 1× (user-guide.md:409).
-- Fund F1 gehoben: Guide-Abschnittsreihenfolge (Allgemein → Standort → Säulen → KI-Provider, `docs/user-guide.md:420`) ≠ UI-Reiter-Reihenfolge (Standort letzter Reiter). Als fixable, geringe Schwere, klassifiziert.
-- Titel-Gate: „docs(guide): Ist-Stand-Sync 2026-09-01" verletzte Conventional Commits (deutscher, großgeschriebener Subject) → umbenannt zu „docs(guide): sync user guide to current app state (2026-09-01)" via `gh pr edit`.
-- Review mit Inline-Kommentar gepostet (event COMMENT, Review-ID 5073802672, Anker `docs/user-guide.md:420`).
-- Sammelkommentar neu erstellt (Marker `<!-- ai-review -->`, Comment-ID 5488548650): Review-Status needs-fixup + „Review ohne Issue"-Hinweis Zeile 2, leere Behoben-Tabelle, Offenes Finding F1, Footer „Review-Typ: Kreuzverhör".
+- Fixup-Delta bestimmt: Commits nach updatedAt = `bd0abb88` (F1-Fix), `a2f652b6` + `30be7a76` (ADR-0007-Phase-Notizen) → `git diff 085ef331..HEAD` gelesen.
+- F1 abgehakt: `### Standort` byte-identisch (reiner Move, kein Inhaltsdrift) von vor `### Säulen` hinter `### KI-Provider` verschoben — Guide-Heading-Reihenfolge jetzt Allgemein → Säulen → KI-Provider → Standort (`docs/user-guide.md:412,421,427,445`), exakt identisch zu `SETTINGS_TABS` (`frontend/src/components/SettingsPage.tsx:32-37`, Kommentar :29-31 nennt die Reihenfolge explizit).
+- Keine neuen Probleme im Fixup-Diff: verschobener Block unverändert, interner Vorwärts-Verweis „siehe Benachrichtigungen" bleibt korrekt (:459 folgt), Rest des Diffs nur `.ai-memory/`-Notizen.
+- Titel-Gate: „docs(guide): sync user guide to current app state (2026-09-01)" — Conventional Commits konform (docs(guide), englisches Lowercase-Subject, ≤72). Keine Umbenennung nötig.
+- Sammelkommentar 5488548650 per PATCH aktualisiert (Review-Status reviewed, F1 in Behoben-Tabelle mit neuen Zeilennummern, keine offenen Findings, Footer „Review-Typ: Fixup-Nachweis", Updated 2026-09-01).
+- Keine Inline-Kommentare (nichts zu fixen), keine Labels angetastet.
 
 ## Relevante Stellen
-- `docs/user-guide.md:409-438` — geänderte Einstellungen-Sektion: „vier Bereiche" + neuer Unterabschnitt „### Standort" (:420) vor „### Säulen" (:432) und „### KI-Provider" (:438).
-- `docs/user-guide.md:354-358` — Kaskadenfelder-Liste, „Adresse" ergänzt.
-- `frontend/src/components/SettingsPage.tsx:29-37` — `SETTINGS_TABS`, verbindliche Reiter-Reihenfolge (Beleg für F1).
-- `frontend/src/components/TaskForm.tsx:72-85` — `hasSeriesCascadeChange` (Beleg für Fund 2 des PR-Bodies).
+- `docs/user-guide.md:445-458` — neuer Ort des Unterabschnitts „### Standort" (nach KI-Provider :427, vor `## Benachrichtigungen` :459).
+- `frontend/src/components/SettingsPage.tsx:32-37` — `SETTINGS_TABS`, Beleg für die Reihenfolgen-Parität.
+- Sammelkommentar-ID 5488548650 — weitere Runden PATCHen, nicht neu anlegen.
 
 ## Annahmen
-- Working Tree (Detached HEAD inkl. Merge 3745376d von `085ef331`) entspricht dem PR-Head — verifiziert: user-guide.md zeigt den Post-Change-Stand („vier Bereiche" :409, „### Standort" :420), Zeilennummern des Inline-Komments gültig.
-- F1 als needs-fixup (statt reviewed): PR-Ziel ist Ist-Stand-Fidelity, Abschnitts-Reihenfolge ist davon umfasst; Fix trivial (Abschnitt verschieben oder Reihenfolge in Einleitung nennen).
-- Kein MEMORY.md-Eintrag: kein neuer Fehlertyp, Kriterium (strikt) nicht erfüllt.
+- CI der Fixup-Commits lief bei Verdict noch (e2e/verify pending); Docs-only-Änderung + `prettier --check docs/user-guide.md` grün (Fixup-Notiz), Merge-Gate degradiert deterministisch nach `ai:needs-changes`, falls doch rot. Kein Abwarten erforderlich.
+- Keine erneute Ganz-PR-Prüfung (Diff-Scoping nach SKILL step 5); Runde-1-Verifikation der beiden Sync-Funde bleibt gültig, da `docs/user-guide.md` außer dem Move nicht geändert wurde.
 
 ## Verworfen
-- Fund zu „Adresse (inkl. Koordinaten)"-Formulierung (lat/lon kaskadieren auch ohne Adress-String-Änderung, `TaskForm.tsx:80-81`) — zu pedantisch, konzeptionell von „Adresse" umfasst; nicht erhoben.
-- Weitere Prüfung der laut PR-Body „geprüft und bestätigt"-Abschnitte (Punkte-Formel, Push etc.) — FOCUS: nur der Diff; die 2 Hunks sind verifiziert.
+- MEMORY.md-Eintrag — kein neuer Fehler/nicht gelöste Erfahrung; striktes Kriterium nicht erfüllt.
+- Warten auf grüne e2e-Checks — siehe Annahmen.
 
 ## Offen
-- Fixup-Runde: F1 umsetzen (Abschnitt „Standort" hinter „KI-Provider" verschieben ODER Reiter-Reihenfolge in Zeile 409 nennen), dann Fixup-Verifikation (Modus FIXUP VERIFICATION gegen Sammelkommentar 5488548650).
-- Wegwerf-Artefakte NICHT committen: `.ai-memory/issue-1155-review-payload.json`, `.ai-memory/issue-1155-review-comment.md`. Nur diese Datei ist die Phasen-Notiz.
+- Wegwerf-Artefakt NICHT committen: `.ai-memory/issue-1155-review-comment.md` (Payload des Sammelkommentars). Diese Datei hier ist die Phasen-Notiz.
+- Merge liegt beim Menschen/der Pipeline (kein Approve durch KI).
 
 ## Nächster Schritt
-- Fixup-Agent setzt F1 um; Folge-Review (Fixup-Nachweis) tickt F1 ab und prüft nur den Fixup-Diff.
+- Keiner — Review abgeschlossen (🟢 reviewed); Pipeline übernimmt Merge-Gate.
 
 ## Fallstricke
-- Sammelkommentar-ID 5488548650 — bei Folge-Runden per Marker suchen und PATCHen, nicht neu anlegen; Finding-Nummer F1 stabil lassen.
-- Zeilennummern im Guide verschieben sich durch den F1-Fix — beim Folge-Review Anker neu bestimmen.
-- Kein Closing-Issue vorhanden: keine AK-Verifikation möglich, PR-Beschreibung bleibt massgebende Spezifikation auch in Folge-Runden.
+- Kein Closing-Issue vorhanden: keine AK-Verifikation möglich, PR-Beschreibung bleibt massgebende Spezifikation („Review ohne Issue", in Sammelkommentar Zeile 2 vermerkt).
+- Finding-Nummer F1 bleibt stabil; sollte ein Folge-Fixup doch nötig werden, als F2 weiterzählen.
