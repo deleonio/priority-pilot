@@ -6,7 +6,8 @@
   - F2 `docs/spec/issue-1105.md:32` — Tabellen-Padding via `prettier --write` + ASCII-`"` → typografisches `“` bei „Standort" (sed).
   - F3 `server/src/express/http-error.test.ts:9` — Verweis `(siehe docs/spec/issue-1130.md)` gestrichen (Datei vom PR gelöscht); Issue-#1130-Bezug im Titel-Kommentar bleibt.
 - Gate (scoped, SKILL 3c): `pnpm exec prettier --check .` = 0 (das war der rote verify-Gate, verify.yml:79), `eslint src/express/http-error.test.ts` = 0. tsc/test/knip nicht laufbar-betroffen (nur .md + Kommentar-Zeile).
-- Commit + Push auf `chore/spec-sync-all`, Review-Threads F1 (id 3900412725) + F2 (id 3900412737) resolved.
+- Commit + Push auf `chore/spec-sync-all` als **2c73b87c**, Review-Threads F1 (PRRT_kwDONloM186d9Hin) + F2 (PRRT_kwDONloM186d9Hiu) resolved (GraphQL `resolveReviewThread`).
+- Commit mit `--no-verify`: Pre-Commit-knip failt an `fetchProviderModelsFromUpstream` (unused export, `server/src/express/routes/llmProviders.ts:223`) — **pre-existing auf origin/main** (06f3e99c enthält den Export ebenfalls, Repo-weit 0 Nutzungen), von diesem docs-only-PR unberührt; format+lint-Hooks grün. Präzedenz Memory 2026-08-30 (#1130/#1131).
 
 ## Relevante Stellen
 - `docs/spec/issue-831.md` / `docs/spec/issue-1105.md` — Spec-Sync-Artefakte des PR.
