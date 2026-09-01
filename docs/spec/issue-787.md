@@ -1,6 +1,6 @@
 # Issue 787 – Header-Layout
 
-**Stand:** 2026-08-28  
+**Stand:** 2026-09-01  
 **Ziel:** Header-Layout beschreiben: Reihenfolge, Responsivität, Bedienbarkeit
 
 ---
@@ -54,7 +54,7 @@ Responsives Verhalten entsteht nur durch Layout/Positionierung, nicht durch Entf
 
 Beide Tab-Leisten der App bleiben auch auf schmalen Viewports (< 768px) horizontal nebeneinander
 statt vertikal zu stapeln: die Ansichten-Wahl („Dashboard / Aufgaben / Serien / Wald") und die
-Settings-Bereiche („Allgemein / Säulen / KI-Provider"). Bei echtem Platzmangel bricht die Leiste
+Settings-Bereiche („Allgemein / Säulen / KI-Provider / Standort"). Bei echtem Platzmangel bricht die Leiste
 sauber um, statt einen horizontalen Seitenüberlauf zu erzeugen. Dies ist eine bewusste Abweichung
 von der Mobile-First-Regel „eine primäre Aktion pro Zeile": Sie gilt für Tab-Leisten nicht.
 

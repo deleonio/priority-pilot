@@ -1,6 +1,6 @@
 # App-Routes für alle Menüs (außer Dialoge)
 
-**Stand:** 2026-08-30
+**Stand:** 2026-09-01
 
 ## Ziel
 
@@ -15,7 +15,7 @@ v6): Browser-Back/Forward und Deep-Links funktionieren, Tab-Zustand wird aus der
 
 ## Schritte und erwartetes Ergebnis
 
-### AK1 — 8 Routen rendern die zugehörige Ansicht
+### AK1 — 9 Routen rendern die zugehörige Ansicht
 
 Direkter Aufruf (`page.goto`) jeder Route öffnet die richtige Ansicht:
 
@@ -29,6 +29,7 @@ Direkter Aufruf (`page.goto`) jeder Route öffnet die richtige Ansicht:
 | `/settings/general` | Settings-Tab „Allgemein“ aktiv                                   |
 | `/settings/pillars` | Settings-Tab „Säulen“ aktiv (Säulen-Gewichtungs-Editor sichtbar) |
 | `/settings/llm`     | Settings-Tab „KI-Provider“ aktiv                                 |
+| `/settings/standort` | Settings-Tab „Standort" aktiv (Geo-Einstellungen sichtbar)      |
 
 ### AK2 — Navigation ändert die URL, Back/Forward stellt die Ansicht wieder her
 

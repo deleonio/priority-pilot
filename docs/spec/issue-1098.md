@@ -1,8 +1,8 @@
 # Geo-Einstellungen: Entfernungen und Aktualisierungsintervall
 
-**Stand:** 2026-08-30
+**Stand:** 2026-09-01
 
-Im Settings-Tab „Allgemein" lässt sich unterhalb des Standort-Switches konfigurieren, bis zu welcher Entfernung Aufgaben „in der Nähe" angezeigt werden (Anzeige-Entfernung), ab welcher Entfernung alarmiert wird (Alarm-Entfernung, Grundlage der Geo-Push-Benachrichtigung) und in welchem Minutenabstand die eigene Position neu ermittelt wird. Alle drei Werte werden **serverseitig pro User** persistiert — **kein localStorage** für diese drei Werte. Ungültige Kombinationen sind durch dynamische Kreuz-Schranken ausgeschlossen, es gibt keine Alerts/Inline-Errors.
+Im Settings-Tab „Standort" lässt sich unterhalb des Standort-Switches konfigurieren, bis zu welcher Entfernung Aufgaben „in der Nähe" angezeigt werden (Anzeige-Entfernung), ab welcher Entfernung alarmiert wird (Alarm-Entfernung, Grundlage der Geo-Push-Benachrichtigung) und in welchem Minutenabstand die eigene Position neu ermittelt wird. Alle drei Werte werden **serverseitig pro User** persistiert — **kein localStorage** für diese drei Werte. Ungültige Kombinationen sind durch dynamische Kreuz-Schranken ausgeschlossen, es gibt keine Alerts/Inline-Errors.
 
 ## Datenmodell & Endpoint `GET`/`PUT /api/v1/geo-config`
 
@@ -12,7 +12,7 @@ Im Settings-Tab „Allgemein" lässt sich unterhalb des Standort-Switches konfig
 - Datenisolation: die Config eines Users ist nur für ihn lesbar/schreibbar — User A kann die Config von User B weder lesen noch überschreiben.
 - Der localStorage-Switch `pp-geolocation-enabled` ist von der Config unabhängig (nur die drei Werte laufen über den Server).
 
-## Settings-Tab „Allgemein" — Geo-Block
+## Settings-Tab „Standort" — Geo-Block
 
 - Unterhalb des Switches „Standort erfassen" stehen drei `KolInputRange` (auch bei deaktiviertem Standort — disabled, nicht versteckt):
   - „Anzeige-Entfernung (km)": `_min` = aktueller Alarm-Wert, `_max` = 50, `_step` = 1,

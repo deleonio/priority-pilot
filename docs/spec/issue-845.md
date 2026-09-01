@@ -1,20 +1,20 @@
 # Geolocation: Positionsermittlung und Einstellungs-Schalter
 
-**Stand:** 2026-08-30
+**Stand:** 2026-09-01
 
 Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wird die Position ermittelt und in der App angezeigt. Die Berechtigung wird explizit angefragt und nur bei Erfolg aktiviert. Das Abfrageintervall ist in den Einstellungen konfigurierbar (Default 5 Minuten).
 
 ## Vorbedingung
 
 - App ist geöffnet (Browser, nicht Service-Worker)
-- Nutzer:in ist in den Einstellungen → Tab „Allgemein"
+- Nutzer:in ist in den Einstellungen → Tab „Standort"
 
 ## Verhalten
 
 ### Standorterfassung aktivieren (Standard-Flow)
 
 1. **Schalter betätigen**
-   - Klick auf **„Standort erfassen"** (KolInputCheckbox Switch) unter Einstellungen → Allgemein
+   - Klick auf **„Standort erfassen"** (KolInputCheckbox Switch) unter Einstellungen → Standort
    - App ruft `navigator.geolocation.getCurrentPosition` auf
 2. **Berechtigung erteilt (Erfolgs-Flow)**
    - Browser zeigt Permission-Dialog an; Nutzer:in klickt **„Zulassen"**

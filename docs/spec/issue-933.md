@@ -1,10 +1,10 @@
 # Spec #933 — Geolokation manuell anstoßen und aktuelle Adresse stets sichtbar
 
-**Stand:** 2026-08-30
+**Stand:** 2026-09-01
 
 ## Ziel
 
-Der Nutzer kann in den Einstellungen (Tab „Allgemein", Abschnitt „Standort erfassen") die Standortermittlung **manuell anstoßen** und die **zuletzt ermittelte Adresse inkl. Zeitstempel** sehen — unabhängig vom 5-Minuten-Intervall.
+Der Nutzer kann in den Einstellungen (Tab „Standort") die Standortermittlung **manuell anstoßen** und die **zuletzt ermittelte Adresse inkl. Zeitstempel** sehen — unabhängig vom 5-Minuten-Intervall.
 
 ## Vorbedingung
 
