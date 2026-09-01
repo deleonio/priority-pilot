@@ -1,6 +1,6 @@
 # Settings Screen Layout – Priority Pilot
 
-**Stand:** 2026-08-28
+**Stand:** 2026-09-01
 **Ziel:** Konsistentes Layout im Settings Screen mit einheitlichen Spacing-Werten, korrektem Alignment und lesbarer Typografie
 
 Diese Spezifikation beschreibt das beobachtbare Layout-Verhalten des Settings Screen. Sie ist implementierungsagnostisch und fokussiert auf visuelle Konsistenz.
@@ -18,9 +18,9 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 
 ### Schritte
 
-1. **Settings Screen öffnen** - Klick auf **„Settings"** oder **„Einstellungen"** in der Navigation - Settings Screen erscheint mit verfügbaren Einstellungsbereichen (Tabs „Allgemein", „Säulen", „KI-Provider")
+1. **Settings Screen öffnen** - Klick auf **„Settings"** oder **„Einstellungen"** in der Navigation - Settings Screen erscheint mit verfügbaren Einstellungsbereichen (Tabs „Allgemein", „Säulen", „KI-Provider", „Standort")
 
-2. **Layout-Inspektion: Spacing (Tab „Allgemein"/„KI-Provider")** - Vertikale Abstände zwischen den Bedienelementen eines Tabs (z.B. Darstellung, Sprachaufnahme, Standort erfassen) messen: **16dp** - Innerhalb einer Schalter-Zeile (Schalter + zugehöriger Hinweis/Alert) beträgt der Abstand **8dp** unterhalb 768px Breite bzw. **16dp** ab 768px Breite
+2. **Layout-Inspektion: Spacing (Tab „Allgemein"/„KI-Provider")** - Vertikale Abstände zwischen den Bedienelementen eines Tabs (z.B. Darstellung, Sprachaufnahme) messen: **16dp** - Innerhalb einer Schalter-Zeile (Schalter + zugehöriger Hinweis/Alert) beträgt der Abstand **8dp** unterhalb 768px Breite bzw. **16dp** ab 768px Breite
 
 3. **Layout-Inspektion: Alignment** - Im Tab „Allgemein" starten alle Controls (Schalter, Buttons, Radio-Gruppe „Darstellung") an derselben linken Position: **24dp** vom Container-Rand - Im Tab „KI-Provider" gilt dieses 24dp-Alignment nicht; dort bestimmt nur das allgemeine Seiten-Padding die linke Position - Controls sind je Tab vertikal gestapelt; ab 768px Breite ordnen sich Schalter und zugehöriger Hinweis/Alert innerhalb einer Zeile nebeneinander an, ebenso die Optionen der Radio-Gruppe „KI-Provider"
 

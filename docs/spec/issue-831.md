@@ -1,9 +1,6 @@
 # Issue 831: KoliBri-MCP in UX-Phase integrieren
 
-**Stand:** 2026-08-28  
-**Ziel:** Agent kann über KoliBri-MCP-Tools auf BITV-2.1-PS-konforme Components zugreifen und Alternativen finden
-
----
+**Stand:** 2026-09-01
 
 ## Ziel
 
