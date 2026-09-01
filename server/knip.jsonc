@@ -7,4 +7,6 @@
 		"src/llm/index.ts",
 		"src/llm/llm.ts",
 	],
+	// tsx wird als devDependency benötigt (test:node mit tsx) — keine false positive
+	"ignoreDependencies": ["tsx"],
 }

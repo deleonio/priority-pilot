@@ -220,7 +220,7 @@ interface UpstreamModel {
  * braucht ein nicht-leeres `id` — `name` ist optional (Mistral liefert keins). Wirft bei jedem
  * Netzwerk-/Formatproblem; der Aufrufer antwortet 502.
  */
-export const fetchProviderModelsFromUpstream = async (runtime: ProviderRuntime): Promise<LlmModelDto[]> => {
+const fetchProviderModelsFromUpstream = async (runtime: ProviderRuntime): Promise<LlmModelDto[]> => {
 	const headers: Record<string, string> = {};
 	if (runtime.apiKey !== '') {
 		headers.Authorization = `Bearer ${runtime.apiKey}`;
