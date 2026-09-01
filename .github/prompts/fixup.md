@@ -6,7 +6,8 @@ PROCEDURE:
    - ai-review comment: `gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments --jq '.[] | select(.body | startswith("<!-- ai-review -->"))'`
    - threads: `gh api repos/{owner}/{repo}/pulls/{{PR_NR}}/comments`
 3. Fix:
-   - Unambiguous findings → change the code, run the GATE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning), commit+push (include your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md in the commit — tracked, NOT gitignored, ADR 0007), resolve the thread
+   - Unambiguous findings → change the code, run the GATE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning), commit+push (include your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md in the commit — tracked, NOT gitignored, ADR 0007), resolve the thread:
+     `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{path line}}}}}}}' -f o=<owner> -f r=<repo> -F n={{PR_NR}} --jq '.data.repository.pullRequest.reviewThreads.nodes[] | [.id, .isResolved, .comments.nodes[0].path, .comments.nodes[0].line] | @tsv'` (pick the thread ID by path/line, skip `isResolved=true`; threads are GraphQL-only — REST `pulls/{pr}/threads` does NOT exist, and gh has NO native resolve command) → `gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id}}}' -f t=<thread-id>`
    - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve; end the round with NO commit and NO verdict — the next run reads the answer); if not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
 4. **Decision findings** → the review's option ID is only a PROPOSAL; wait for the human's choice (their reply comment carries the option ID), then implement EXACTLY that option
 5. **CI red**:
@@ -14,6 +15,8 @@ PROCEDURE:
    - Real failure: read the log, fix it, commit+push
    - Unrelated: document in your own ai-fixup-decisions collected comment (no new comment, do NOT touch the review's ai-review comment)
 6. **UI findings**: SKILL.md step 3c (deterministic tools first; Playwright MCP only for the short 375/1280 layout-break check). Fix layout breaks, KoliBri-first
+
+⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
 WRAP-UP:
 - `VERDICT: needs-human` for decision findings (TERMINAL)
