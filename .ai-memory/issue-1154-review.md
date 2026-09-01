@@ -1,34 +1,35 @@
-# PR 1154 — Kreuzverhör (Review-Phase), Stand 2026-09-01
+# PR 1154 — Review (Runde 2: Fixup-Nachweis), Stand 2026-09-01T03:19Z
 
-MODE: Kreuzverhör (Initial) — kein `<!-- ai-review -->`-Kommentar vorhanden, kein Closing-Issue
-(`closingIssuesReferences` leer) → „Review ohne Issue - PR-Beschreibung ist massgebend".
+MODE: Fixup-Nachweis — `<!-- ai-review -->`-Kommentar (id 5488287532, updatedAt 2026-09-01T03:05:19Z)
+vorhanden, Runde 1 = Kreuzverhör needs-fixup (F1–F3). Kein Closing-Issue → „Review ohne Issue".
 
 ## Erledigt
-- Diff komplett gelesen: 10 Dateien in `docs/spec/` (+52/−190), 1 Commit `1c58ddce`, Branch `chore/spec-sync-all` → main. Kern: Tab „Allgemein"→„Standort"-Korrekturen (1098/845/933/787/843), Route `/settings/standort` + Zähler 8→9 (1105), Neufassung als Ist-Spec (1136, 1151), Redundanz-Entfernung (831), Löschung issue-1130.md.
-- Code-Claims des PR-Bodys verifiziert (Agent + eigene Stichprobe): `App.tsx:60` Segmente `['general','pillars','llm','standort']` ✓, `SettingsPage.tsx:32-37` 4 Tabs ✓, `auth.ts:12` `AbortSignal.timeout(30_000)` ✓, `routes/auth.ts:187,191` `/?error=`/`/?silent=unavailable` + `/auth/error` JSON-400-Fallback (Z.136) ✓, Fallback unbekanntes Segment → Index 1 (`App.tsx:124-126`) ✓, AK1-Tabelle 1105 hat 9 Zeilen ✓.
-- `server/src/express/http-error.ts` + `http-error.test.ts` existieren, Zentralisierung via #1131 (Commit 347bb7e7) gemergt → Lösch-Begründung issue-1130.md trägt.
-- TITLE GATE ausgeführt: alter Titel „docs(spec): Ist-Stand-Sync 2026-09-01" (deutsch, Grossbuchstabe) → umbenannt zu „docs(spec): sync specs to implemented state 2026-09-01" (`gh pr edit 1154 --title`, verifiziert).
+- Delta seit updatedAt ermittelt: `2c73b87c` (Fixup F1–F3) + `9653bb76` (nur `.ai-memory/issue-1154-fixup.md`, 2 Zeilen).
+- F1 ✓ `docs/spec/issue-831.md`: Leerzeile vor `## Ziel` + Trailing-Spaces entfernt (diff-Verifikation).
+- F2 ✓ `docs/spec/issue-1105.md:32`: Tabellen-Padding auf längste Zelle `/settings/standort` re-aligniert, `„Standort“` typografisch.
+- F3 ✓ `server/src/express/http-error.test.ts:9`: `(siehe docs/spec/issue-1130.md)` gestrichen.
+- Sammelkommentar 5488287532 per PATCH aktualisiert: Status reviewed, F1–F3 in „Behobene Anmerkungen", Offene Findings = keine, Footer „Review-Typ: Fixup-Nachweis", Updated 2026-09-01. Marker-Eindeutigkeit verifiziert (1×).
+- TITLE GATE: „docs(spec): sync specs to implemented state 2026-09-01" — konformes Conventional-Commits-Format (English, lowercase, ≤72) → keine Änderung.
 
 ## Relevante Stellen
-- `docs/spec/issue-1130.md` — gelöscht; interne Refactoring-Spec ohne Aussenverhalten.
-- `docs/spec/issue-1136.md`, `issue-1151.md` — Neufassungen Soll→Ist.
-- `server/src/express/http-error.ts` — Existenznachweis der Lösch-Begründung.
+- `git show 2c73b87c` — gesamter Fixup-Delta (4 Dateien, +43/−13).
+- `.ai-memory/issue-1154-review-body.md` — gesendeter Sammelkommentar-Stand (Wegsprechartefakt).
 
 ## Annahmen
-- PR-Beschreibung („alle 42 Dateien der Triage, 32 unverändert") als Arbeitsvertrag; keine AK-Verifikation möglich (ohne Issue).
+- Format-Gate grün: lokale Sandbox hat kein node_modules (`pnpm`/`npx prettier` fehlen) → Verifikation per Diff-Analyse (Prettier-Konventionen erfüllt) + Fixup-Notiz (`prettier --check .` = 0, gelaufen in der Impl-Sandbox). verify-CI pending, nicht rot.
+- Kein neues Finding im Delta: `.ai-memory/`-Änderungen sind kein Review-Gegenstand.
 
 ## Verworfen
-- Finding „http-error.ts existiert nicht" — False Negative des Haiku-Subagents (ls/grep direkt widerlegt).
+- Lokaler `prettier --check`-Nachweis — Pakete nicht installiert (s. Annahmen).
 
 ## Offen
 - -
 
 ## Ergebnis
-- **VERDICT: needs-fixup (🟡)** — Review gepostet (pullrequestreview-5073612975): F1 `docs/spec/issue-831.md:3` (keine Leerzeile vor `## Ziel` + Hard-Break-Spaces, prettier rot), F2 `docs/spec/issue-1105.md:32` (Tabellen-Padding nicht re-aligniert + ASCII-`"` statt `“` bei „Standort", prettier rot; Gate = `prettier --check .` in verify.yml:79), F3 `server/src/express/http-error.test.ts:9` (Test-Pflege: Kommentar verweist auf gelöschte docs/spec/issue-1130.md; kein Inline-Anker möglich — Datei nicht im Diff → steht im Review-Body).
-- Sammelkommentar `<!-- ai-review -->` neu angelegt (genau 1, verifiziert), Review-Status needs-fixup, Offene Findings F1–F3, Footer „Review-Typ: Kreuzverhör".
+- **VERDICT: reviewed (🟢)** — F1–F3 verifiziert behoben, keine neuen Probleme.
 
 ## Nächster Schritt
-- Fixup-Runde (Workflow): F1/F2 per `prettier --write` auf die beiden Dateien, F3 Kommentar-Verweis auf `#1130` umbiegen; danach Fixup-Nachweis-Review gegen diese Datei (Delta = 1 Commit, aktualisierte Stand-Zeilen bleiben unberührt).
+- Workflow: Label-Überleitung zu ready-to-merge sobald verify/e2e grün (Gate degradiert bei Rot automatisch).
 
 ## Fallstricke
-- Haiku-Recherche-Ergebnisse vor Berücksichtigung stichprobenartig selbst verifizern (1 False Negative in diesem Lauf).
+- Review-Sandbox ohne node_modules — Gates hier nicht reproduzierbar; auf Fixup-Notiz + CI verlassen und das im Sammelkommentar dokumentieren.
