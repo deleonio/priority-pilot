@@ -7,7 +7,7 @@ import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/ind
 import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
-import { getUserId } from '../requireAuth.js';
+import { getUserId, ownerScope } from '../requireAuth.js';
 import { serializeTask } from './tasks.js';
 import type { components } from '../../api';
 
@@ -286,8 +286,13 @@ const validateSeriesFields = (
 	return { ok: true, attrs, pillars };
 };
 
-/** Lädt ein Serien-Template inkl. seiner Säulen-Vorlage (für die Serialisierung). */
-const findSeriesWithPillars = (id: number): Promise<Series | null> => Series.findByPk(id, { include: [Pillar] });
+/**
+ * Lädt ein Serien-Template inkl. seiner Säulen-Vorlage (für die Serialisierung).
+ * #1157: Datenisolation — `ownerScope(userId)` filtert auf die eigene Serie (Pass-Through bei
+ * undefined userId, vgl. pillars.ts).
+ */
+const findSeriesWithPillars = (id: number, userId: number | undefined): Promise<Series | null> =>
+	Series.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar] });
 
 /** Schreibt die Säulen-Vorlage einer Serie neu (ersetzt vorhandene) — innerhalb einer Transaktion. */
 const replaceContributions = (
@@ -308,9 +313,10 @@ const replaceContributions = (
 export const seriesRouter = Router();
 
 // GET /series — alle Serien-Templates auflisten
-seriesRouter.get('/series', async (_req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
+seriesRouter.get('/series', async (req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
 	try {
-		const all = await Series.findAll({ order: [['id', 'ASC']], include: [Pillar] });
+		// #1157: nur die eigenen Serien-Templates (Pass-Through ohne Auth bleibt erhalten).
+		const all = await Series.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']], include: [Pillar] });
 		res.json(all.map(serializeSeries));
 	} catch (error) {
 		handleWriteError(res, error);
@@ -339,7 +345,7 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 			}
 			return series;
 		});
-		const withPillars = await findSeriesWithPillars(created.id);
+		const withPillars = await findSeriesWithPillars(created.id, getUserId(req));
 		if (!withPillars) {
 			sendError(res, 500, 'Interner Serverfehler.');
 			return;
@@ -370,7 +376,8 @@ seriesRouter.post(
 // GET /series/:id — ein Serien-Template abrufen
 seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const series = id === null ? null : await findSeriesWithPillars(id);
+	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+	const series = id === null ? null : await findSeriesWithPillars(id, getUserId(req));
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
@@ -381,7 +388,9 @@ seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | E
 // PATCH /series/:id — ein Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
 seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const series = id === null ? null : await Series.findByPk(id, { include: [Pillar] });
+	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+	const series =
+		id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) }, include: [Pillar] });
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
@@ -461,7 +470,7 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 				}
 			}
 		});
-		const withPillars = await findSeriesWithPillars(series.id);
+		const withPillars = await findSeriesWithPillars(series.id, getUserId(req));
 		if (!withPillars) {
 			sendError(res, 404, 'Serie nicht gefunden.');
 			return;
@@ -480,7 +489,8 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 // in einer Transaktion, damit Instanz- und Serien-Löschung/-Abkopplung atomar sind.
 seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const series = id === null ? null : await Series.findByPk(id);
+	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+	const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
@@ -514,7 +524,8 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 // POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
 seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const series = id === null ? null : await Series.findByPk(id);
+	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+	const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
