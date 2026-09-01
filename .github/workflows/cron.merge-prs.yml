@@ -1,6 +1,6 @@
 name: Merge PRs
 
-# Stündliches Sicherheitsnetz für das event-getriebene Gate (claude-pr-gate-merge.yml): Jedes
+# Alle 2 Stunden Sicherheitsnetz für das event-getriebene Gate (claude-pr-gate-merge.yml): Jedes
 # No-op des Gates vertraut darauf, dass ein Folge-Event (Label, CI-/Review-Abschluss) es erneut
 # weckt. Fiel das No-op auf das LETZTE Event eines PR, bleibt ein grüner ai:reviewed-PR für immer
 # unmerged — empirisch PR #220 (Checks unsichtbar) und PR #876 am 18.08. (mergeable=UNKNOWN
@@ -15,9 +15,9 @@ name: Merge PRs
 
 on:
   schedule:
-    # Stündlich, Minute versetzt zu anderen Cron-Workflows (Documenter-Sweep 03:17), damit
-    # Runner-/API-Last nicht gebündelt auftritt.
-    - cron: '23 * * * *'
+    # Alle 2 Stunden (jede gerade Stunde :23), Minute versetzt zu anderen Cron-Workflows,
+    # damit Runner-/API-Last nicht gebündelt auftritt.
+    - cron: '23 0,2,4,6,8,10,12,14,16,18,20,22 * * *'
   workflow_dispatch:
     inputs:
       dry-run:

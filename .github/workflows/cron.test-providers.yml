@@ -12,7 +12,7 @@ on:
           - zai
           - openrouter
   schedule:
-    - cron: '17 4 * * *'
+    - cron: '17 4 * * 3' # mittwochs 04:17 UTC (woechentlich)
 
 # Least-Privilege (CodeQL actions/missing-workflow-permissions): nur Lesen noetig.
 permissions:

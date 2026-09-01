@@ -24,7 +24,7 @@ name: Optimize Architecture
 
 on:
   schedule:
-    - cron: '57 3 * * *'
+    - cron: '57 3 * * 2' # dienstags 03:57 UTC (woechentlich)
   workflow_dispatch: {}
 
 concurrency:
