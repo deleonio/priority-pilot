@@ -201,12 +201,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				// bereits aktiven Tab lieferte dann dasselbe Ziel ohne Query und rivalisierte mit
 				// dem Offen/Erledigt-Switch (CI-Bruch completed-tasks/issue-1063).
 				navigate({ pathname: ROUTE_PATHS[selected] ?? '/', search: searchParams.toString() });
-				void reload();
 			},
 		}),
-		// `searchParams` in den Deps: nur so ist die mitgeschickte Query aktuell — der Preis ist,
 		// dass sich `onSelect` bei jeder Query-Änderung neu verdrahtet (Auswahl bleibt prop-getrieben).
-		[navigate, reload, searchParams],
+		[navigate, searchParams],
 	);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
@@ -706,7 +704,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							)}
 						</section>
 					</div>
-					<div slot="tab-2">{activeTab === 2 && <SeriesTab pillars={pillars} />}</div>
+					<div slot="tab-2">
+						<SeriesTab pillars={pillars} />
+					</div>
 					<div slot="tab-3">
 						<ForestPanel forest={forest} />
 					</div>
