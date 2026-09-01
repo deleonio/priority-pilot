@@ -1,4 +1,4 @@
-FOCUS: ONLY issue {{ISSUE_NR}}. Write the UX review into the harness marker comment — advisory, not blocking. NO code changes, no branch, no PR. NO browser, NO Playwright, NO dynamic inspection. Only static rule checks against the design system (KERN/KoliBri), mobile-ui-rules.md, ux-design.md. Save tokens: short, precise, direct.
+FOCUS: ONLY issue {{ISSUE_NR}}. Write the UX review into the harness marker comment — advisory, not blocking. NO code changes, no branch, no PR. NO browser, NO Playwright, NO dynamic inspection. Only static rule checks (sources: SKILL.md step 4). Save tokens: short, precise, direct.
 
 Method, rules, and output block structure (binding, not repeated here): .claude/skills/ticket-ux/SKILL.md — read it before starting.
 
