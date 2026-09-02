@@ -7,6 +7,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 ## Wissensbasis
 
 - [Projekt & Konventionen](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Konventionen, Mobile-First, Datenbank
+- [Ticket-Erstellung](.claude/skills/ticket-create/SKILL.md) — neue Tickets template-konform erfassen, gezielte Nachfragen an den Autor
 - [Ticket-Triage](.claude/skills/ticket-triage/SKILL.md) — Analyse offener GitHub-Issues
 - [Ticket-UX](.claude/skills/ticket-ux/SKILL.md) — UX-Beratung für UI-Tickets
 - [Ticket-Spec](.claude/skills/ticket-spec/SKILL.md) — rote Tests (Vertrag) für `ai:needs-spec`-Issues
