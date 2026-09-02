@@ -34,14 +34,6 @@ test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => 
 		return task.id;
 	};
 
-	/** Setzt den Status per API (ohne UI → ohne Konfetti-Trigger), z. B. für AK3. */
-	const setStatus = async (page: Page, id: number, title: string, status: string): Promise<void> => {
-		const response = await page.request.patch(`/api/v1/tasks/${id}`, {
-			data: { title, status, priority: 3, estimatedEffort: 1 },
-		});
-		expect(response.ok()).toBeTruthy();
-	};
-
 	const fetchStatus = async (page: Page, id: number): Promise<string> => {
 		const response = await page.request.get(`/api/v1/tasks/${id}`);
 		expect(response.ok()).toBeTruthy();
@@ -126,28 +118,38 @@ test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => 
 	});
 
 	test('AK3: Wieder-Öffnen (Done→Open) löst kein Konfetti aus', async ({ page }) => {
-		const title = uniqueTitle('Reopen');
-		const id = await createTask(page, title);
-		// Status per API setzen, damit der Open→Done-Konfetti-Trigger nicht vorab feuert.
-		await setStatus(page, id, title, 'Done');
+		const id = await seedOpenTask(page, 'Reopen');
 
-		await page.goto('/');
-		await waitForStableView(page);
-		await openTasksTab(page);
-		await expect(item(page, id)).toBeVisible();
-
+		// Erst per UI auf Erledigt schalten — der Open→Done-Effekt feuert (AK1). Ein API-Seed
+		// auf „Done" zeigt die Zeile nie im Aufgaben-Tab (GET /forest liefert nur offene
+		// Aufgaben), deshalb der UI-Weg. Warten bis zum Selbst-Abbau (AK2) ist nicht möglich:
+		// Die Liste lädt neu und entfernt die Done-Zeile, das Popover geht damit verloren.
 		await openActionsPopover(page, id);
+		await doneToggle(page, id).click();
+		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
+
+		// Ersteffekt nicht mitzählen: Overlay-Anzahl VOR dem Reopen merken …
+		const overlaysBeforeReopen = await confetti(page).count();
+
+		// … und sofort über das noch offene Popover wiederveröffnen (Muster done-toggle.spec.ts, #387).
+		await expect(doneToggle(page, id)).toBeVisible();
 		await doneToggle(page, id).click();
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Open');
 
-		// Kein Overlay — kurzes Fenster reicht, da launchConfetti synchron zum Klick passiert.
+		// Kein NEUES Overlay — kurzes Fenster reicht, da launchConfetti synchron zum Klick passiert.
 		await page.waitForTimeout(1_000);
-		expect(await confetti(page).count()).toBe(0);
+		expect(await confetti(page).count()).toBe(overlaysBeforeReopen);
 	});
 
 	test('AK5: während der Konfetti-Animation bleibt eine andere Aufgabe bedienbar', async ({ page }) => {
-		const idA = await seedOpenTask(page, 'A');
+		// Beide Aufgaben VOR der Navigation anlegen — die Aufgabenliste lädt nicht nach
+		// (kein Polling), nachträglich per API geseedete Zeilen erscheinen nie.
+		const idA = await createTask(page, uniqueTitle('A'));
 		const idB = await createTask(page, uniqueTitle('B'));
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+		await expect(item(page, idA)).toBeVisible();
 		await expect(item(page, idB)).toBeVisible();
 
 		// Konfetti starten …
