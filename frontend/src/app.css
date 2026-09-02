@@ -1025,6 +1025,61 @@ body {
 	width: 100%;
 }
 
+/* --- #1159: Dreier-Hierarchie im TaskForm (Pflicht → Termin & Ort → Optional) ---
+   Opt-in-Sektionen ausschließlich im TaskForm; .form-grid selbst bleibt unangetastet
+   (sieben Formulare teilen sich die Klasse — der QuickCapture-Erfassungsschritt bleibt
+   kompakt und ohne Sektionen). Der Abstand ZWISCHEN den Gruppen entsteht aus der
+   bestehenden .modal-body-section-Regel (margin-bottom) plus .form-grid-Gap/Margin und
+   ist dadurch größer als jeder In-Gruppen-Abstand (--pp-gap-base, AK5). */
+.form-section {
+	display: grid;
+	gap: var(--pp-gap-base);
+}
+
+/* Gruppen-Überschrift (KolHeading h3): vererbbare Werte greifen auch im Shadow-DOM. */
+.form-section-heading {
+	font-size: var(--pp-font-size-sm);
+	font-weight: var(--pp-weight-bold);
+	color: var(--pp-ink-muted);
+}
+
+/* Pflichtgruppe: gehobene Fläche (Karte) mit Trenner-Rahmen — keine Signal-/Brandfarbe. */
+.form-section--primary {
+	padding: var(--pp-space-4);
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: var(--pp-radius-md);
+}
+
+/* Sekundärgruppe: dezenter — eingesenkte Fläche ohne Rahmen, klar von Gruppe 1
+   unterschieden (AK2: andere background-color und kein border-top). Der zusätzliche
+   margin-top vergrößert den Gruppenabstand über den .modal-body-Sektions-Rand hinaus
+   (AK5: Gruppenabstand > jeder In-Gruppen-Abstand, auch > deadline→adresse). */
+.form-section--secondary {
+	padding: var(--pp-space-4);
+	background: var(--pp-surface-2);
+	border-radius: var(--pp-radius-md);
+	margin-top: var(--pp-gap-generous);
+}
+
+/* Optional-Bereich: bewusst ohne eigene Fläche (AK3) — Gewichtung nur über die
+   stummgeschaltete Überschrift und die bestehenden „… (optional)"-Labels;
+   deshalb ohne eigenen Regelblock. */
+
+/* AK4: ab Desktop teilen sich Titel und Range-Felder eine Top-Kante (align-items: start,
+   kein V-Spring durch Label-Längen); die Überschrift überspannt beide Spalten. Die
+   halbe Spaltenbreite bleibt über der 300-px-Mindestbreite der Range-Hosts (#934). */
+@media (min-width: 1024px) {
+	.form-section--primary {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		align-items: start;
+	}
+
+	.form-section--primary .form-section-heading {
+		grid-column: 1 / -1;
+	}
+}
+
 /* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
    .form-grid: Letztere teilen sich sieben Formulare (u. a. TaskForm/QuickCaptureModal), globale
    Spalten quetschen dort .range-inputs-row in halbbreite Zellen und verschieben die Slider
