@@ -129,9 +129,11 @@
 	--pp-modal-width-desktop: 44rem;
 }
 
-/* Lektorat-Buttons (#997): Gemeinsame Ausrichtungsregel für beide Buttons (Titel/Beschreibung). */
+/* Lektorat-Buttons (#997): Gemeinsame Ausrichtungsregel für beide Buttons (Titel/Beschreibung).
+   #1159: Oberkante des Knopfs fluchtet mit der Oberkante der Eingabebox — das heißt unter
+   dem KoliBri-Feldlabel (24,8 px) plus dessen Bodenabstand (8 px) → 2 rem statt 1 rem. */
 .lektorat-button-align {
-	margin-top: var(--pp-space-4);
+	margin-top: var(--pp-space-6);
 }
 
 /*
@@ -1025,6 +1027,53 @@ body {
 	width: 100%;
 }
 
+/* --- #1159: Dreier-Hierarchie im TaskForm (Pflicht → Termin & Ort → Optional) ---
+   Opt-in-Sektionen ausschließlich im TaskForm; .form-grid selbst bleibt unangetastet
+   (sieben Formulare teilen sich die Klasse — der QuickCapture-Erfassungsschritt bleibt
+   kompakt und ohne Sektionen). Der Abstand ZWISCHEN den Gruppen entsteht aus der
+   bestehenden .modal-body-section-Regel (margin-bottom) plus .form-grid-Gap/Margin und
+   ist dadurch größer als jeder In-Gruppen-Abstand (--pp-gap-base, AK5). */
+.form-section {
+	display: grid;
+	gap: var(--pp-gap-base);
+}
+
+/* Gruppen-Überschrift (KolHeading h3): vererbbare Werte greifen auch im Shadow-DOM. */
+.form-section-heading {
+	font-size: var(--pp-font-size-sm);
+	font-weight: var(--pp-weight-bold);
+	color: var(--pp-ink-muted);
+}
+
+/* Pflichtgruppe: gehobene Fläche (Karte) mit Trenner-Rahmen — keine Signal-/Brandfarbe. */
+.form-section--primary {
+	padding: var(--pp-space-4);
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: var(--pp-radius-md);
+}
+
+/* Sekundärgruppe: dezenter — eingesenkte Fläche ohne Rahmen, klar von Gruppe 1
+   unterschieden (AK2: andere background-color und kein border-top). Der zusätzliche
+   margin-top vergrößert den Gruppenabstand über den .modal-body-Sektions-Rand hinaus
+   (AK5: Gruppenabstand > jeder In-Gruppen-Abstand, auch > deadline→adresse). */
+.form-section--secondary {
+	padding: var(--pp-space-4);
+	background: var(--pp-surface-2);
+	border-radius: var(--pp-radius-md);
+	margin-top: var(--pp-gap-generous);
+}
+
+/* Optional-Bereich: bewusst ohne eigene Fläche (AK3) — Gewichtung nur über die
+   stummgeschaltete Überschrift und die bestehenden „… (optional)"-Labels;
+   deshalb ohne eigenen Regelblock. */
+
+/* Bewusst KEIN zweispaltiges Desktop-Grid (Titel | Ranges): die Range-Zeile braucht die
+   volle Sektionsbreite (2 × 300 px Hosts + Gap, #934) — in einer Halbspalte stapeln die
+   Slider und der Titel-Lektorat-Knopf klebt hochgestellt am Feldlabel. Die AK4-Fluchtung
+   leistet stattdessen die bestehende .range-inputs-row (≥769 px, gemeinsame Top-Kante
+   von Priorität und Aufwand). */
+
 /* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
    .form-grid: Letztere teilen sich sieben Formulare (u. a. TaskForm/QuickCaptureModal), globale
    Spalten quetschen dort .range-inputs-row in halbbreite Zellen und verschieben die Slider
@@ -1871,6 +1920,13 @@ body {
 		/* #934: Je Feld ≥ 300 px Host-Breite — passt das nicht nebeneinander, wird umbrochen
 		   statt überzulaufen (Dialog-/Containerbreite variiert). */
 		flex-wrap: wrap;
+	}
+
+	/* #1159: Hosts teilen die Zeile gleichmäßig (flex-basis 0 statt Inhaltsbreite 300/349 px) —
+	   sonst entscheidet der Inhaltsüberhang des längeren Feldes über den Zeilenumbruch, sobald
+	   ein umgebendes Sektions-Polster (#1159-Karte) die Zeile verkleinert. */
+	.range-inputs-row > kol-input-range {
+		flex: 1 1 0;
 	}
 }
 

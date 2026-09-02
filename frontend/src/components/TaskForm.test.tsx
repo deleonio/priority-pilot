@@ -71,6 +71,12 @@ vi.mock('@public-ui/react-v19', () => ({
 			}}
 		/>
 	),
+	// #1159: Gruppen-Überschriften im TaskForm (nur darstellend — Sektionen-Struktur).
+	KolHeading: ({ _label, _level }: { _label?: string; _level?: number }) => (
+		<span role="heading" aria-level={_level ?? 1}>
+			{_label}
+		</span>
+	),
 	KolInputCheckbox: ({
 		_label,
 		_checked,
