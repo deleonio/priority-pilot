@@ -19,7 +19,7 @@ name: Update Dependencies
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Täglich 04:00 UTC
+    - cron: '*/15 * * * *' # alle 15 Minuten
   workflow_dispatch:
     inputs:
       logLevel:

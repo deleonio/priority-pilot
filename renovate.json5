@@ -59,8 +59,10 @@
 			groupName: 'Toolchain (Node / pnpm)',
 		},
 		{
-			// Major-Updates immer einzeln, mit Hinweis im Titel.
+			// Major-Updates immer einzeln, mit Hinweis im Titel — und ohne Automerge (menschlicher
+			// Blick auf Breaking Changes): top-level automerge:true gilt sonst auch hier.
 			matchUpdateTypes: ['major'],
+			automerge: false,
 			labels: ['dependencies', 'major'],
 		},
 	],
