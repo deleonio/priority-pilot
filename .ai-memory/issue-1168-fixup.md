@@ -22,10 +22,10 @@
 - Fix an `useGeolocation.ts`-Exports — knip-Artefakt falscher Invocation, mit richtiger Config grün.
 
 ## Offen
-- CI auf dem neuen Commit muss grün laufen (e2e-Shards + verify) — nach Push beobachten, falls rot: Log lesen.
+- -
 
 ## Nächster Schritt
-- Push abwarten/CI prüfen; wenn grün, keine weitere Aktion (nächstes Review erledigt die Runde).
+- Keine — CI auf 324fe706 grün (e2e 1–4 + verify, Run 33635957687), Runde 2 abgeschlossen; nächstes Kreuzverhör übernimmt der Workflow.
 
 ## Fallstricke
 - Knip IMMER als `pnpm knip` (root) laufen lassen — ohne knip.jsonc kommen phantomhafte „Unused exports".
