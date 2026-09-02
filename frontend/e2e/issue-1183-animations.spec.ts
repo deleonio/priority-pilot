@@ -14,9 +14,7 @@ import { waitForStableView } from './helpers';
 const ANIMATIONS_KEY = 'pp-animations-enabled';
 
 const animationsToggle = (page: Page) =>
-	page
-		.getByRole('checkbox', { name: /^Animationen$/i })
-		.or(page.getByRole('switch', { name: /^Animationen$/i }));
+	page.getByRole('checkbox', { name: /^Animationen$/i }).or(page.getByRole('switch', { name: /^Animationen$/i }));
 
 const openGeneralSettings = async (page: Page): Promise<void> => {
 	await page.goto('/settings/general');
@@ -53,7 +51,10 @@ const seedOpenTask = async (page: Page, label: string): Promise<number> => {
 
 /** Erledigt-Umschalter einer Zeile über das „…"-Popover. */
 const toggleDone = async (page: Page, id: number): Promise<void> => {
-	await page.getByTestId(`task-list-item-${id}`).getByRole('button', { name: /Weitere Aktionen/i }).click();
+	await page
+		.getByTestId(`task-list-item-${id}`)
+		.getByRole('button', { name: /Weitere Aktionen/i })
+		.click();
 	await page
 		.getByTestId(`task-list-item-${id}`)
 		.locator('[role="toolbar"]')
@@ -96,9 +97,7 @@ test.describe('Priority Pilot — Master-Schalter „Animationen" (#1183)', () =
 	test('AK2: Schalter aus (frischer Kontext) → Erledigt-Toggle ohne Konfetti', async ({ page }) => {
 		const id = await seedOpenTask(page, 'Aus');
 		await toggleDone(page, id);
-		await expect
-			.poll(async () => fetchStatus(page, id))
-			.toBe('Done');
+		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 		await page.waitForTimeout(1_000);
 		expect(await page.getByTestId('confetti-overlay').count()).toBe(0);
 	});

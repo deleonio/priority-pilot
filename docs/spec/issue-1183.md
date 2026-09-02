@@ -56,13 +56,13 @@ eine Migration alter Geräte findet bewusst nicht statt.
 
 ## Test-Abdeckung
 
-| AK  | Test                                                                                          |
-| --- | --------------------------------------------------------------------------------------------- |
+| AK  | Test                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------ |
 | AK1 | `frontend/src/components/SettingsPage.test.tsx` (#1183-Block: Rendering + Key-Sync) + E2E Reload |
-| AK2 | `frontend/src/lib/confetti.test.ts` (#1183-Block: Key aus/an) + E2E Toggle+Erledigt            |
-| AK3 | `frontend/src/lib/animations.test.ts` (Key absent → false) + E2E frischer Kontext             |
-| AK4 | `frontend/src/lib/confetti.test.ts` (Key `true` + reduce → kein Overlay)                       |
-| AK5 | E2E `frontend/e2e/issue-1183-animations.spec.ts` (Viewport 375×667)                           |
+| AK2 | `frontend/src/lib/confetti.test.ts` (#1183-Block: Key aus/an) + E2E Toggle+Erledigt              |
+| AK3 | `frontend/src/lib/animations.test.ts` (Key absent → false) + E2E frischer Kontext                |
+| AK4 | `frontend/src/lib/confetti.test.ts` (Key `true` + reduce → kein Overlay)                         |
+| AK5 | E2E `frontend/e2e/issue-1183-animations.spec.ts` (Viewport 375×667)                              |
 
 ## Abgrenzungen
 

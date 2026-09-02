@@ -402,7 +402,10 @@ describe('SettingsPage – #1183: Master-Schalter „Animationen" im Tab Allgeme
 		const { container } = render(<SettingsPage {...defaultProps} />);
 		const tab0 = container.querySelector('[slot="tab-0"]');
 		expect(tab0, 'Allgemein-Panel existiert').not.toBeNull();
-		expect(tab0?.querySelector('kol-input-checkbox[_label="Animationen"]'), 'Animationen-Schalter fehlt').not.toBeNull();
+		expect(
+			tab0?.querySelector('kol-input-checkbox[_label="Animationen"]'),
+			'Animationen-Schalter fehlt',
+		).not.toBeNull();
 	});
 
 	it('AK3: ohne Key ist der Schalter initial aus (Default false)', () => {
