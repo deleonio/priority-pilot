@@ -160,7 +160,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 	});
 
-	test('AK6: Mic-Button ist auf 375px-Viewport sichtbar', async ({ page }) => {
+	test('AK6: Mic-Button ist auf 375px-Viewport vollständig sichtbar (nach Scroll)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
 		await page.goto('/');
@@ -168,9 +168,13 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		await openTaskForm(page);
 
-		// Auch auf schmalem Mobil-Viewport ist der Mic-Button sichtbar und im Viewport.
-		await expect(micButton(page, 'Beschreibung')).toBeVisible();
-		await expect(micButton(page, 'Beschreibung')).toBeInViewport();
+		// Das Formular ist über Tickets gewachsen (Deadline-Gruppe #1072, Adresse #1063, Sektionen
+		// #1159) und übersteigt bei 375×812 naturgemäß den Fold. Der Mobile-Vertrag (#264) ist:
+		// der Mic-Button wird NICHT abgeschnitten — nach dem Hinscrollen vollständig im Viewport.
+		const mic = micButton(page, 'Beschreibung');
+		await mic.scrollIntoViewIfNeeded();
+		await expect(mic).toBeVisible();
+		await expect(mic).toBeInViewport({ ratio: 1 });
 	});
 
 	// --- #264: Mic-Buttons an allen Textfeldern, Position INNERHALB des Feldes ---
@@ -293,7 +297,9 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await expect(page.locator('.mic-error')).toHaveCount(0);
 	});
 
-	test('AK12 (#264): beide Mic-Buttons des Task-Formulars sind auf 375px-Viewport im Viewport', async ({ page }) => {
+	test('AK12 (#264): beide Mic-Buttons des Task-Formulars sind auf 375px-Viewport vollständig sichtbar', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
 		await page.goto('/');
@@ -301,10 +307,16 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		await openTaskForm(page);
 
-		await expect(micButton(page, 'Titel')).toBeVisible();
-		await expect(micButton(page, 'Titel')).toBeInViewport();
-		await expect(micButton(page, 'Beschreibung')).toBeVisible();
-		await expect(micButton(page, 'Beschreibung')).toBeInViewport();
+		// Titel-Mic liegt im ersten Blick; das Beschreibungs-Feld steht unter dem Fold —
+		// dort genügt die Vollständigkeits-Prüfung nach dem Hinscrollen (kein Abschneiden).
+		const titleMic = micButton(page, 'Titel');
+		await expect(titleMic).toBeVisible();
+		await expect(titleMic).toBeInViewport({ ratio: 1 });
+
+		const descMic = micButton(page, 'Beschreibung');
+		await descMic.scrollIntoViewIfNeeded();
+		await expect(descMic).toBeVisible();
+		await expect(descMic).toBeInViewport({ ratio: 1 });
 	});
 
 	test('AK13 (#264): Serien-Formular — Transkript landet im Titel-Feld', async ({ page }) => {
