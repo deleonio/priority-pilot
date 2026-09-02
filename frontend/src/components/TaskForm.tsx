@@ -871,7 +871,9 @@ export const TaskForm = ({
 							}}
 						/>
 						<KolInputRange
-							_label={`Geschätzter Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
+							/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
+											   und versetzt die Slider-Bahnen (V-Spring). */
+							_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
 							_min={0.1}
 							_max={1}
 							_step={0.1}

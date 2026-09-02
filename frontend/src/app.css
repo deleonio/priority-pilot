@@ -129,9 +129,11 @@
 	--pp-modal-width-desktop: 44rem;
 }
 
-/* Lektorat-Buttons (#997): Gemeinsame Ausrichtungsregel für beide Buttons (Titel/Beschreibung). */
+/* Lektorat-Buttons (#997): Gemeinsame Ausrichtungsregel für beide Buttons (Titel/Beschreibung).
+   #1159: Oberkante des Knopfs fluchtet mit der Oberkante der Eingabebox — das heißt unter
+   dem KoliBri-Feldlabel (24,8 px) plus dessen Bodenabstand (8 px) → 2 rem statt 1 rem. */
 .lektorat-button-align {
-	margin-top: var(--pp-space-4);
+	margin-top: var(--pp-space-6);
 }
 
 /*
