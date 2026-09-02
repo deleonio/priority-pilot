@@ -7,7 +7,7 @@ name: Optimize Tests
 
 on:
   schedule:
-    - cron: '57 8 * * *'
+    - cron: '57 8 * * 4' # donnerstags 08:57 UTC (woechentlich)
   workflow_dispatch: {} # manuell anstoßbar
 
 concurrency:

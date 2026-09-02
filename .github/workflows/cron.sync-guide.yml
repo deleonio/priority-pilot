@@ -31,7 +31,7 @@ name: Sync Guide
 
 on:
   schedule:
-    - cron: '7 3 * * *' # täglich 03:07 UTC, hinter dem 30-min-Fenster von Spec-Sync (02:37)
+    - cron: '7 3 * * 0' # sonntags 03:07 UTC, hinter Spec-Sync (02:37)
   workflow_dispatch:
     inputs:
       force:

@@ -125,7 +125,17 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — Startdatum als Anker der Serie setzen.
 		await page.getByLabel('Startdatum').fill('2026-09-07');
+		// Auf das Anlegen-POST warten, bevor der Seiten-Reload den Request abwürgen kann
+		// (Muster dashboard-meter.spec.ts).
+		const seriesCreated = page.waitForResponse(
+			(response) => response.url().includes('/api/v1/series') && response.request().method() === 'POST',
+		);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
+		await seriesCreated;
+
+		// SeriesTab lädt ihre Liste selbstständig beim App-Start — der frisch angelegte Eintrag steht
+		// erst nach einem vollständigen Seiten-Reload bereit (kein Tab-Wechsel-Reload im Spiel).
+		await page.reload();
 		await waitForStableView(page);
 
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
@@ -159,8 +169,10 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Beide Instanzen tragen den Serien-Titel in der Tabelle.
-		await expect(page.getByText(title, { exact: true })).toHaveCount(2);
+		// Beide Instanzen tragen den Serien-Titel in der Tabelle. Auf die Aufgaben-Sektion gescoped:
+		// SeriesTab bleibt stets gerendert, ihr verstecktes Panel listet den Serien-Titel zusätzlich
+		// im Light-DOM (KolTabs mountet inaktive Panels).
+		await expect(page.locator('.task-section').getByText(title, { exact: true })).toHaveCount(2);
 
 		// AK 2: sichtbare Kennzeichnung „zur Serie gehörig" — das Serien-Badge erscheint in der Tabelle.
 		await expect(page.getByText('Serie', { exact: true }).first()).toBeVisible();

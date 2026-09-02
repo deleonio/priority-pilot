@@ -78,7 +78,18 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 			.click();
 		const doneButton = page.getByRole('button', { name: 'Erledigt' }).first();
 		await expect(doneButton).toBeVisible();
+		// Auf das PATCH warten, bevor der Seiten-Reload den Request abwürgen kann
+		// (Muster dashboard-meter.spec.ts).
+		const patchDone = page.waitForResponse(
+			(response) => response.url().includes('/api/v1/tasks/') && response.request().method() === 'PATCH',
+		);
 		await doneButton.click();
+		await patchDone;
+		await waitForStableView(page);
+		// Sticky-Zeile (#315) deterministisch auflösen: die erledigte Aufgabe bleibt bis zum nächsten
+		// Reload im (veralteten) Wald stehen und wäre in der Erledigt-Tabelle ausgeblendet. Der volle
+		// Seiten-Reload holt den Server-Stand sofort — unabhängig vom Tab-Wechsel.
+		await page.reload();
 		await waitForStableView(page);
 	};
 
@@ -91,16 +102,9 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		await createTaskViaUi(page, doneTitle);
 		await createTaskViaUi(page, openTitle);
 
-		// Genau einen der beiden Tasks erledigen (der zuerst angelegte steht oben).
-		await openTasksTab(page);
-		await page
-			.getByRole('button', { name: /Weitere Aktionen/i })
-			.first()
-			.click();
-		const firstDoneButton = page.getByRole('button', { name: 'Erledigt' }).first();
-		await expect(firstDoneButton).toBeVisible();
-		await firstDoneButton.click();
-		await waitForStableView(page);
+		// Genau einen der beiden Tasks erledigen (der zuerst angelegte steht oben) — der Helfer
+		// wartet auf das PATCH und löst die Sticky-Zeile per Seiten-Reload auf.
+		await markTaskDoneViaUi(page);
 
 		await openCompletedTab(page);
 		// Der erledigte Task ist gelistet …

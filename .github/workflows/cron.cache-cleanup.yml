@@ -9,20 +9,8 @@ name: Cleanup Cache
 # Eviction bzw. dem 10-GB-Limit liegen bleibt. Dieser Job erzwingt stattdessen eine harte 1-Tag-
 # Obergrenze fuer genau diese Cache-Arten.
 #
-# `hermes-session-*`-Caches (Named Session Resume, siehe .github/actions/session-save) sind seit
-# der Artefakt-Umstellung (2026-07-10) VERWAIST: das Sitzungsarchiv liegt jetzt in
-# Workflow-Artefakten (GitHubs Read-only-Cache fuer untrusted Trigger, Changelog 2026-06-26,
-# machte Cache-Saves aus den Issue-Workflows unmoeglich). Es werden keine neuen
-# hermes-session-Caches mehr geschrieben -- Altbestaende werden hier mit abgeraeumt (ohne
-# Altersgrenze, sie sind ersatzlos tot), bis keiner mehr auftaucht.
-#
-# `ticket-*`-Caches sind ein ebenfalls verwaister Legacy-Typ (Pro-Issue-Caches a ~1-2 KiB), der
-# von keinem aktuellen Workflow mehr geschrieben wird (die Issue-Memory-Persistierung laeuft
-# seit 2026-08-16 ausschliesslich ueber Workflow-ARTEFAKTE -- der Cache-Weg ist fuer die
-# Claude-Phasen platform-seitig schreib-tot, s. setup-claude Kopf-Kommentar; der frueher hier
-# genannte Begleitworkflow claude-memory-save.yml wurde deshalb entfernt). Sie werden hier ohne
-# Altersgrenze abgeraeumt, bis der Altbestand (51 Eintraege bei Messung 2026-08-15) auf null
-# geschrumpft ist.
+# `hermes-session-*`- und `ticket-*`-Caches sind verwaiste Legacy-Typen, die nicht mehr
+# geschrieben werden (Artefakt-Umstellung 2026-07-10). Altbestaende wurden 2026-08 abgeraeumt.
 #
 # `codeql-overlay-base-database-*`-Caches (vom github/codeql-action automatisch verwaltet) werden
 # hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in cron.codeql.yml
@@ -66,7 +54,7 @@ jobs:
           # --limit 300: bei Messung 2026-08-15 178 Caches, Reserve fuer Wachstum.
           gh cache list --repo "$GITHUB_REPOSITORY" --limit 300 \
             --json id,key,createdAt \
-            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("hermes-session-") or startswith("ticket-")) | [.id, .key, .createdAt] | @tsv' \
+            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-")) | [.id, .key, .createdAt] | @tsv' \
             > /tmp/caches-to-check.tsv
 
           total=$(wc -l < /tmp/caches-to-check.tsv)
@@ -77,9 +65,8 @@ jobs:
           while IFS=$'\t' read -r id key created; do
             [ -z "$id" ] && continue
             created_epoch=$(date -u -d "$created" +%s)
-            # Verwaiste Altbestaende (Archiv liegt jetzt in Artefakten oder Typ wird nicht
-            # mehr geschrieben) -- ohne Altersgrenze loeschen; alles andere erst nach 24h.
-            if [ "${key#hermes-session-}" != "$key" ] || [ "${key#ticket-}" != "$key" ] || [ "$created_epoch" -lt "$cutoff_epoch" ]; then
+            # Nur Caches aelter als 24h loeschen.
+            if [ "$created_epoch" -lt "$cutoff_epoch" ]; then
               if gh cache delete "$id" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
                 echo "Loesche Cache '$key' (id=$id, erstellt $created)"
                 deleted=$((deleted + 1))

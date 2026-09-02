@@ -91,7 +91,18 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 			.click();
 		const doneButton = page.getByRole('button', { name: 'Erledigt' }).first();
 		await expect(doneButton).toBeVisible();
+		// Auf das PATCH warten, bevor der Seiten-Reload den Request abwürgen kann
+		// (Muster dashboard-meter.spec.ts).
+		const patchDone = page.waitForResponse(
+			(response) => response.url().includes('/api/v1/tasks/') && response.request().method() === 'PATCH',
+		);
 		await doneButton.click();
+		await patchDone;
+		await waitForStableView(page);
+		// Sticky-Zeile (#315) deterministisch auflösen — sonst träfe ein erneuter markTaskDoneViaUi
+		// denselben (nun erledigten) Task und schaltete ihn zurück. Voller Seiten-Reload statt
+		// Tab-Wechsel-Reload.
+		await page.reload();
 		await waitForStableView(page);
 	};
 

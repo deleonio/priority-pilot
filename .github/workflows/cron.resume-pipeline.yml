@@ -1,6 +1,6 @@
 name: Resume Pipeline
 
-# Alle 6 Stunden (jeweils 5 Minuten nach 0, 6, 12 und 18 Uhr Europe/Berlin) Sicherheitsnetz
+# Alle 8 Stunden (jeweils 5 Minuten nach 0, 8 und 16 Uhr Europe/Berlin) Sicherheitsnetz
 # für die label-getriebene Pipeline (01–06): Jede Phase läuft auf `labeled`-Events, und der
 # Soft-Abort-Selbstretrigger (Trigger-Label entfernen + sofort neu setzen, s. ci-architecture.md
 # „Weiches Zeitlimit") läuft IM sterbenden Job. Stirbt der Lauf davor (Runner-Ausfall, Cancel,
@@ -25,17 +25,16 @@ name: Resume Pipeline
 # `unlabeled` auf `ai:analysed`, der Sweep entfernt nur `ai:needs-*`.
 #
 # Cron/DST: GitHub-Crons laufen in UTC; Europe/Berlin wechselt zwischen CEST (UTC+2) und CET
-# (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab (8 Feuerungen/Tag), der Job-Guard prüft
-# die tatsächliche Berliner Stunde (TZ=Europe/Berlin) und lässt nur die 4 Feuerungen laufen,
-# die auf 00:05/06:05/12:05/18:05 Berlin fallen — DST-korrekt ohne saisonale Drift (gleiches
-# Laufzeit-Prinzip wie der ZAI-Zeitfenster-Check in setup-claude, Issue #893).
+# (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab (6 Feuerungen/Tag), der Job-Guard prüft
+# die tatsächliche Berliner Stunde (TZ=Europe/Berlin) und lässt nur die 3 Feuerungen laufen,
+# die auf 00:05/08:05/16:05 Berlin fallen — DST-korrekt ohne saisonale Drift.
 
 on:
   schedule:
-    # CEST-Feuerungen: 22:05/04:05/10:05/16:05 UTC = 00:05/06:05/12:05/18:05 Europe/Berlin (Sommer)
-    - cron: '5 22,4,10,16 * * *'
-    # CET-Feuerungen: 23:05/05:05/11:05/17:05 UTC = 00:05/06:05/12:05/18:05 Europe/Berlin (Winter)
-    - cron: '5 23,5,11,17 * * *'
+    # CEST-Feuerungen: 22:05/06:05/14:05 UTC = 00:05/08:05/16:05 Europe/Berlin (Sommer)
+    - cron: '5 22,6,14 * * *'
+    # CET-Feuerungen: 23:05/07:05/15:05 UTC = 00:05/08:05/16:05 Europe/Berlin (Winter)
+    - cron: '5 23,7,15 * * *'
   workflow_dispatch:
     inputs:
       dry-run:
@@ -88,9 +87,9 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Zeitfenster prüfen (nur 00/06/12/18 Europe/Berlin; manuell immer)
-        # schedule-Feuerungen laufen 8×/Tag (CEST- und CET-Offsets überlappen je Jahreszeit);
-        # aktiv werden nur die 4, deren Berliner Stunde auf dem 6-Stunden-Raster liegt. Die 4
+      - name: Zeitfenster prüfen (nur 00/08/16 Europe/Berlin; manuell immer)
+        # schedule-Feuerungen laufen 6×/Tag (CEST- und CET-Offsets überlappen je Jahreszeit);
+        # aktiv werden nur die 3, deren Berliner Stunde auf dem 8-Stunden-Raster liegt. Die 3
         # DST-Doppel-Feuerungen pro Tag enden hier als 12s-No-op. workflow_dispatch umgeht den
         # Guard bewusst (manueller Test und Steuerversuch jederzeit möglich).
         id: timegate
@@ -105,13 +104,13 @@ jobs:
           BERLIN_HOUR="$(TZ='Europe/Berlin' date +%H)"
           echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
           case "$BERLIN_HOUR" in
-            00|06|12|18)
+            00|08|16)
               echo "active=true" >> "$GITHUB_OUTPUT"
               echo "::notice title=🕐 Sweep aktiv::${BERLIN_HOUR}:05 Europe/Berlin — Continue-Sweep läuft."
               ;;
             *)
               echo "active=false" >> "$GITHUB_OUTPUT"
-              echo "::notice title=⏭️ Sweep übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} nicht im 6h-Raster) — nichts zu tun."
+              echo "::notice title=⏭️ Sweep übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} nicht im 8h-Raster) — nichts zu tun."
               ;;
           esac
 
