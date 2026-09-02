@@ -22,7 +22,7 @@ overrides:
   dottie: '2.0.7' #            GHSA-r5mx-6wc6-7h9w (<- sequelize)
   uuid: '11.1.1' #             GHSA-w5hq-g745-h8pq (<- sequelize; v1/v4 ohne buf -> nicht exploitierbar, Bump trotzdem)
   tar-fs@2: '2.1.5' #          GHSA-vj76-c3g6-qr5v / -8cj5-5rvv-wf4v / -pq67-2wwv-3xjx (<- sqlite3); auf 2.x bleiben
-  undici@6: '6.27.0' #         GHSA-vxpw-j846-p89q / -p88m-4jfj-68fv / -g8m3-5g58-fq7m / -35p6-xmwp-9g52 (<- node-gyp); 7.x ist clean
+  undici@6: '6.28.0' #         GHSA-vxpw-j846-p89q / -p88m-4jfj-68fv / -g8m3-5g58-fq7m / -35p6-xmwp-9g52 (<- node-gyp); 7.x ist clean
   brace-expansion@2: '2.1.4' # GHSA-f886-m6hf-6m8v / -v6h2-p8h4-qcjw (<- minimatch@5); 5.x ist clean
   picomatch@2: '2.3.2' #       GHSA-3v7f-55p6-f55p (<- chokidar/knip); 4.x ist clean
   js-yaml@4: '4.3.2' #         GHSA-h67p-54hq-rp68 (<- openapi-typescript/knip); auf 4.x bleiben (5.x ist breaking)
