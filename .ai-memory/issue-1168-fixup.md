@@ -1,6 +1,7 @@
-# Issue 1168 — Fixup (PR #1170), Stand 2026-09-02 (Runde 2)
+# Issue 1168 — Fixup (PR #1170), Stand 2026-09-02 (Runde 3)
 
 ## Erledigt
+- Runde 3 (dieser Lauf): ai-review-Kommentar Runde 2 gelesen → 🟢 reviewed, 0 offene Findings, 0 Entscheidungs-Findings; beide Review-Threads (PRRT_…Z6W-, PRRT_…Z6XC) isResolved=true verifiziert → kein Code-Fix nötig. Einziges Problem: `e2e (3)` rot in Run 33637299033 (HEAD 06041ce8). Fehlgeschlagen: `issue-969.spec.ts:86` (Settings-Tab-Padding AK4) — NICHT im PR-Diff (`gh pr diff 1170 --name-only` bestätigt), identischer Code (06041ce8 = 324fe706 + reine .ai-memory-Commits) war in Run 33635957687 komplett grün → FLAKY/unrelated. `gh run rerun 33637299033 --failed` angestoßen, 60 s gewartet, Status in_progress (E2E braucht ~4 min, wurde nicht bis Abschluss abgewartet — nächster Lauf prüft das Ergebnis).
 - Runde 1 (Commits a9f1be36/bf1a9426): beide Review-Findings gefixt (Seed-Priorität 5/2, Mock PATCH), Threads aufgelöst — s. alte Notiz unten.
 - Runde 2 (dieser Lauf): CI-Auswertung von Run 33604034767 (HEAD 78f2c8e9) — e2e-Shard 2 rot, TF3+TF6, gleiche Spec, aber NEUE Ursachen (per Playwright-Artifact `playwright-report-shard-2`, Error-Context-Snapshots):
   - TF3 `spec.ts:62`: strict-mode violation — ungescopter `getByText` matcht 4 Elemente (Panel-Titel, Top-Task, Aufgabenliste, Wald). Seed-Fix aus Runde 1 WIRKTE (Aufgabe #46 existierte). Fix: Zeile 62 auf `.dashboard-next-task-content` toContainText gescoped, Zeile 66 (AK2 „Dialog nennt Aufgabe") auf `.modal-body` gescoped — NICHT auf `getByRole('dialog')`: der native `<dialog>` steckt im Shadow-DOM des KolDialog-Hosts, sein textContent umfasst geschlottete Light-DOM-Kinder nicht („Aufgabe erledigenSchließen"-Falle, lokal reproduziert).
@@ -25,7 +26,7 @@
 - -
 
 ## Nächster Schritt
-- Keine — CI auf 324fe706 grün (e2e 1–4 + verify, Run 33635957687), Runde 2 abgeschlossen; nächstes Kreuzverhör übernimmt der Workflow.
+- Ausgang des Reruns von Run 33637299033 prüfen: grün → nichts zu tun; erneut rot in issue-969.spec.ts → erneut unrelated/flaky, in ai-fixup-decisions dokumentieren und NICHT in diesem PR fixen (Settings-Padding ist #969-Scope).
 
 ## Fallstricke
 - Knip IMMER als `pnpm knip` (root) laufen lassen — ohne knip.jsonc kommen phantomhafte „Unused exports".
