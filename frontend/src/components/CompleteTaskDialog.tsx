@@ -55,9 +55,11 @@ export const CompleteTaskDialog = ({
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
 		>
 			{error !== null && (
-				<KolAlert _type="error" _label="Erledigen fehlgeschlagen">
-					{error}
-				</KolAlert>
+				<div role="alert">
+					<KolAlert _type="error" _label="Erledigen fehlgeschlagen">
+						{error}
+					</KolAlert>
+				</div>
 			)}
 			<p>
 				Soll die Aufgabe <strong>„{task.title}"</strong> (ID {task.id}) als erledigt markiert werden?

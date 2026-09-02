@@ -59,11 +59,16 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		await createTask(page, 'E2E #1168 Zweite Aufgabe', 2);
 
 		await openDashboard(page);
-		await expect(page.getByText('E2E #1168 Erste Aufgabe', { exact: false })).toBeVisible();
+		// Panel-Titel scopen: Der ungescopte getByText-Text matcht zusätzlich Top-Task-,
+		// Aufgabenlisten- und Wald-Rendering derselben Aufgabe (strict-mode violation).
+		await expect(page.locator('.dashboard-next-task-content')).toContainText('E2E #1168 Erste Aufgabe');
 
 		await page.getByRole('button', { name: 'Erledigt' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
-		await expect(page.getByText('E2E #1168 Erste Aufgabe', { exact: false })).toBeVisible();
+		// AK2: Der Dialog nennt die betroffene Aufgabe namentlich. Der Inhalts-Anchor ist die
+		// Light-DOM-Hülle `.modal-body` (Modal.tsx): der native <dialog> steckt im Shadow-DOM des
+		// KolDialog-Hosts, sein textContent umfasst die geschlotteten Kinder nicht.
+		await expect(page.locator('.modal-body')).toContainText('E2E #1168 Erste Aufgabe');
 
 		await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
