@@ -31,6 +31,11 @@
 		schedule: ['at any time'],
 	},
 
+	// Automerge: Patch- und Minor-Updates nach grünen Checks mergen.
+	automerge: true,
+	automergeStrategy: 'squash',
+	automergeType: 'pr',
+
 	// Nicht zu viele offene PRs/Branches gleichzeitig.
 	prConcurrentLimit: 5,
 	prHourlyLimit: 2,
