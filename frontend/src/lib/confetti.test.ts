@@ -67,7 +67,7 @@ describe('launchConfetti — Overlay-Vertrag (#1169 AK1/AK2/AK5/AK6)', () => {
 	it('AK5: das Overlay ist rein dekorativ und blockiert keine Bedienung', () => {
 		stubReducedMotion(false);
 		launchConfetti();
-		const overlay = document.querySelector('[data-testid="confetti-overlay"]');
+		const overlay = document.querySelector<HTMLElement>('[data-testid="confetti-overlay"]');
 		expect(overlay?.getAttribute('aria-hidden')).toBe('true');
 		// KI-UX: pointer-events: none nach dem UpdatePrompt-Overlay-Muster (app.css:1765-1781).
 		expect(overlay?.style.pointerEvents).toBe('none');

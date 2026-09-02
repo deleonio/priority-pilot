@@ -39,6 +39,7 @@ import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { APP_VERSION } from './lib/version';
 import { isQuickCaptureEffective, readAiPreferences } from './lib/aiPreferences';
+import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -397,6 +398,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					},
 				});
 				if (markingDone) {
+					// #1169: Konfetti als Erfolgs-Feedback — nur für den Übergang auf „Erledigt"
+					// (shouldCelebrateDone), nie beim Wieder-Öffnen; reduce wird in launchConfetti geprüft.
+					if (shouldCelebrateDone(task.status, next)) {
+						launchConfetti();
+					}
 					// Kein reload(): Der Wald (`GET /forest`) enthält nur offene Aufgaben — nach einem Reload
 					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
 					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
