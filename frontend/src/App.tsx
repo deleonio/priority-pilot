@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
+import { CompleteTaskDialog } from './components/CompleteTaskDialog';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
@@ -44,6 +45,7 @@ type Dialog =
 	| { kind: 'create'; parentTask?: Task; initialText?: string }
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
+	| { kind: 'complete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
 	| { kind: 'search' }
 	| { kind: 'advisor' }
@@ -371,6 +373,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
+	const openComplete = useCallback((task: Task): void => setDialog({ kind: 'complete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
 
@@ -421,6 +424,23 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		},
 		[reload],
 	);
+
+	// #1168: Signal-Panel-Aktion „Erledigt" — setzt die Aufgabe auf `Done`. Anders als
+	// `handleDoneToggle` kein sticky-Pfad (`DONE_REMOVAL_DELAY_MS`): der greift für die Aufgabenliste,
+	// das Panel lädt stattdessen sofort per `reload()` die nächste Aufgabe (`afterMutation`).
+	const completeTask = useCallback(async (task: Task): Promise<void> => {
+		await api.updateTask({
+			id: task.id,
+			taskUpdate: {
+				title: task.title,
+				description: task.description,
+				status: TaskStatus.Done,
+				priority: task.priority,
+				estimatedEffort: task.estimatedEffort,
+				deadline: task.deadline,
+			},
+		});
+	}, []);
 
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
 	const refreshKeepingDialog = useCallback((): void => {
@@ -608,7 +628,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							suggestions={suggestions}
 							pillars={pillars}
 							displayName={user.displayName}
-							onStartTask={openEdit}
+							onCompleteTask={openComplete}
 						/>
 					</div>
 					<div slot="tab-1">
@@ -780,6 +800,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					task={dialog.task}
 					onClose={closeDialog}
 					onDeleted={afterDelete}
+					fallbackFocusRef={deleteFallbackRef}
+				/>
+			)}
+			{dialog?.kind === 'complete' && (
+				<CompleteTaskDialog
+					task={dialog.task}
+					onConfirm={() => completeTask(dialog.task)}
+					onClose={closeDialog}
+					onCompleted={afterMutation}
 					fallbackFocusRef={deleteFallbackRef}
 				/>
 			)}

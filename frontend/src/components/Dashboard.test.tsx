@@ -389,7 +389,6 @@ describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/s
 				forest={[] as TaskTreeNode[]}
 				nextTask={nextTask}
 				pillars={[]}
-				// @ts-expect-error — `onCompleteTask` existiert noch nicht im Props-Vertrag (#1168 AK1).
 				onCompleteTask={onCompleteTask}
 			/>,
 		);

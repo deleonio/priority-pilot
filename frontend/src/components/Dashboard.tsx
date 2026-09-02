@@ -36,8 +36,8 @@ interface DashboardProps {
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
-	/** Öffnet die nächste Aufgabe zum Bearbeiten („Jetzt starten" im Signal-Panel, P2-1). */
-	onStartTask?: (task: Task) => void;
+	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
+	onCompleteTask?: (task: Task) => void;
 }
 
 interface StatCard {
@@ -79,7 +79,7 @@ export const Dashboard = ({
 	suggestions = [],
 	pillars,
 	displayName = '',
-	onStartTask,
+	onCompleteTask,
 }: DashboardProps) => {
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
@@ -172,7 +172,7 @@ export const Dashboard = ({
 			{/*
 			 * P2-1: „Nächste Aufgabe" ist die EINE Hauptaussage einer Ansicht (ux-design.md §1).
 			 * Sie trägt die Signalfarbe `--pp-signal` / `--pp-signal-wash` und eine klare
-			 * Folgehandlung („Jetzt starten"). Die Säulen-Balance, Statistik-Karten und
+			 * Folgehandlung („Erledigt"). Die Säulen-Balance, Statistik-Karten und
 			 * Deadline-Liste ordnen sich darunter.
 			 */}
 			{/* #1118: Die Card selbst ist das Widget — die alte Außen-<section> ist entfernt,
@@ -195,12 +195,12 @@ export const Dashboard = ({
 							#{nextTask.id} – {nextTask.title}
 						</span>
 						<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
-						{onStartTask !== undefined && (
+						{onCompleteTask !== undefined && (
 							<KolButton
-								_label="Jetzt starten"
+								_label="Erledigt"
 								_variant="primary"
-								_icons={{ left: { icon: 'fa-solid fa-play' } }}
-								_on={{ onClick: () => onStartTask(nextTask) }}
+								_icons={{ left: { icon: 'fa-solid fa-check' } }}
+								_on={{ onClick: () => onCompleteTask(nextTask) }}
 							/>
 						)}
 					</div>
