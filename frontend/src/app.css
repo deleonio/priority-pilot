@@ -1066,19 +1066,11 @@ body {
    stummgeschaltete Überschrift und die bestehenden „… (optional)"-Labels;
    deshalb ohne eigenen Regelblock. */
 
-/* AK4: ab Desktop teilen sich Titel und Range-Felder eine Top-Kante (align-items: start,
-   kein V-Spring durch Label-Längen); die Überschrift überspannt beide Spalten. Die
-   halbe Spaltenbreite bleibt über der 300-px-Mindestbreite der Range-Hosts (#934). */
-@media (min-width: 1024px) {
-	.form-section--primary {
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		align-items: start;
-	}
-
-	.form-section--primary .form-section-heading {
-		grid-column: 1 / -1;
-	}
-}
+/* Bewusst KEIN zweispaltiges Desktop-Grid (Titel | Ranges): die Range-Zeile braucht die
+   volle Sektionsbreite (2 × 300 px Hosts + Gap, #934) — in einer Halbspalte stapeln die
+   Slider und der Titel-Lektorat-Knopf klebt hochgestellt am Feldlabel. Die AK4-Fluchtung
+   leistet stattdessen die bestehende .range-inputs-row (≥769 px, gemeinsame Top-Kante
+   von Priorität und Aufwand). */
 
 /* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
    .form-grid: Letztere teilen sich sieben Formulare (u. a. TaskForm/QuickCaptureModal), globale
@@ -1926,6 +1918,13 @@ body {
 		/* #934: Je Feld ≥ 300 px Host-Breite — passt das nicht nebeneinander, wird umbrochen
 		   statt überzulaufen (Dialog-/Containerbreite variiert). */
 		flex-wrap: wrap;
+	}
+
+	/* #1159: Hosts teilen die Zeile gleichmäßig (flex-basis 0 statt Inhaltsbreite 300/349 px) —
+	   sonst entscheidet der Inhaltsüberhang des längeren Feldes über den Zeilenumbruch, sobald
+	   ein umgebendes Sektions-Polster (#1159-Karte) die Zeile verkleinert. */
+	.range-inputs-row > kol-input-range {
+		flex: 1 1 0;
 	}
 }
 

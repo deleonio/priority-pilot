@@ -116,18 +116,18 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 		await expect(group.getByText(/optional/i).first()).toBeVisible();
 	});
 
-	// AK4: 1280px — Titel und die Felder der range-inputs-row fluchten auf derselben
-	// Top-Kante (≤ 2px Versatz, kein V-Spring durch Label-Längen).
+	// AK4: 1280px — die benachbarten Felder der Primärgruppe (Priorität | Aufwand) fluchten
+	// auf derselben Top-Kante (≤ 2px Versatz, kein V-Spring durch Label-Längen).
 	test('AK4 — 1280px: Top-Kanten innerhalb der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
-		const titleBox = await page.locator('.form-section--primary [data-testid="task-title"]').boundingBox();
-		const priorityBox = await page.locator('.form-section--primary .range-inputs-row').boundingBox();
+		const priorityBox = await page.locator('.form-section--primary kol-input-range').first().boundingBox();
+		const effortBox = await page.locator('.form-section--primary kol-input-range').nth(1).boundingBox();
 
-		expect(titleBox).not.toBeNull();
 		expect(priorityBox).not.toBeNull();
-		expect(Math.abs(titleBox!.y - priorityBox!.y)).toBeLessThanOrEqual(2);
+		expect(effortBox).not.toBeNull();
+		expect(Math.abs(priorityBox!.y - effortBox!.y)).toBeLessThanOrEqual(2);
 	});
 
 	// AK5: exakt 768px — Abstand zwischen Primär- und Sekundärgruppe größer als der
