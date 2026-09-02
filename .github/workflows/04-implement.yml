@@ -863,18 +863,25 @@ jobs:
             exit 0
           fi
 
-          # ── Bremse 2: Commit-Guard (grobe Ausfallsicherung, unverändert) ──────
-          if ! commits="$(gh pr view "$PR" --repo "$REPO" --json commits --jq '.commits | length' 2>/dev/null)"; then
-            echo "stop=true" >> "$GITHUB_OUTPUT"
-            gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: gh-API nicht erreichbar – fail-closed." 2>/dev/null || true
-            exit 0
+          # ── Bremse 2: Commit-Guard (grobe Ausfallsicherung) ───────────────────────
+          # Optional über Label `ai:skip-commit-guard` deaktivierbar.
+          SKIP_COMMIT_GUARD="$(gh pr view "$PR" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "ai:skip-commit-guard")' 2>/dev/null || echo false)"
+          if [ "$SKIP_COMMIT_GUARD" = "true" ]; then
+            echo "Commit-Guard übersprungen (Label ai:skip-commit-guard gesetzt)"
+            echo "stop=false" >> "$GITHUB_OUTPUT"
+          else
+            if ! commits="$(gh pr view "$PR" --repo "$REPO" --json commits --jq '.commits | length' 2>/dev/null)"; then
+              echo "stop=true" >> "$GITHUB_OUTPUT"
+              gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: gh-API nicht erreichbar – fail-closed." 2>/dev/null || true
+              exit 0
+            fi
+            if [ "${commits:-0}" -gt 10 ]; then
+              echo "stop=true" >> "$GITHUB_OUTPUT"
+              gh pr comment "$PR" --repo "$REPO" --body "🛑 **Stop-Guard: Fixup-Loop gestoppt** (${commits} Commits > 10). Bitte manuell prüfen (Label \`ai:skip-commit-guard\` zum Überspringen setzen)." 2>/dev/null || true
+              exit 0
+            fi
+            echo "stop=false" >> "$GITHUB_OUTPUT"
           fi
-          if [ "${commits:-0}" -gt 10 ]; then
-            echo "stop=true" >> "$GITHUB_OUTPUT"
-            gh pr comment "$PR" --repo "$REPO" --body "🛑 **Stop-Guard: Fixup-Loop gestoppt** (${commits} Commits > 10). Bitte manuell prüfen." 2>/dev/null || true
-            exit 0
-          fi
-          echo "stop=false" >> "$GITHUB_OUTPUT"
 
       # ── Mentor-Vorlauf (ADR 0008): Rat ab der zweiten Fixup-Runde ───────────────
       # Runde 1 ist normale Nacharbeit; ab Runde 2 wiederholt ein schwächeres Modell
