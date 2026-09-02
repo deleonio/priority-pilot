@@ -55,8 +55,8 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 	test('TF3 (AK2, AK4, AK5): Bestätigen setzt Status auf Done und das Panel zeigt ohne Reload die nächste Aufgabe', async ({
 		page,
 	}) => {
-		const firstId = await createTask(page, 'E2E #1168 Erste Aufgabe', 9);
-		await createTask(page, 'E2E #1168 Zweite Aufgabe', 5);
+		const firstId = await createTask(page, 'E2E #1168 Erste Aufgabe', 5);
+		await createTask(page, 'E2E #1168 Zweite Aufgabe', 2);
 
 		await openDashboard(page);
 		await expect(page.getByText('E2E #1168 Erste Aufgabe', { exact: false })).toBeVisible();
@@ -111,7 +111,7 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
 
 		await page.route(`**/api/v1/tasks/${id}`, (route: Route) => {
-			if (route.request().method() === 'PUT') {
+			if (route.request().method() === 'PATCH') {
 				return route.fulfill({
 					status: 500,
 					contentType: 'application/json',
