@@ -1,35 +1,31 @@
-# Issue 1162 — Review (Kreuzverhör, Runde 1), Stand 2026-09-02
+# Issue 1162 — Review (Runde 1 Kreuzverhör + Runde 2 Fixup-Nachweis), Stand 2026-09-02
 
-**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** MODE = CROSS-EXAMINATION (kein `<!-- ai-review -->`-Marker vorhanden), 0 closing issues → „Review ohne Issue — PR-Beschreibung massgebend" (in Sammelkommentar Zeile 2 + Review-Body vermerkt). Renovate-Pin-PR: 6+/6− in 3 Cron-Workflows, kein Code.
+**ERGEBNIS (R2): VERDICT reviewed, Ampel 🟢.** MODE = FIXUP VERIFICATION (ai-review-Marker vorhanden, Kommentar 5504919198). Runde 1 war 🟢 mit null Findings; Fixup-Runde 1 meldete `already-done`. Diese Runde: Delta leer, 🟢 bestätigt.
 
 ## Erledigt
-- Vollständigen Diff gelesen: `.github/workflows/cron.arc42.yml` (checkout@v4→SHA v4.4.0, setup-node@v4→SHA v4.4.0, node-version '26'→'26.8.1'), `cron.security-scan.yml` (codeql-action init+analyze v4.37.8→v4.37.9), `cron.update-dependencies.yml` (renovatebot/github-action v46.2.3→v46.2.5).
-- Alle 4 Action-SHAs per `gh api repos/<repo>/git/ref/tags/<tag>` (annotated Tags dereferenziert) gegen Upstream-Tags verifiziert — alle MATCH.
-- CI-Rollup geprüft: precheck/label SUCCESS, verify/e2e IN_PROGRESS, nichts rot → 🟢 zulässig (Gate degradiert ohnehin bei Rot).
-- Titel-Gate: „chore(deps): pin dependencies" erfüllt Conventional Commits → kein Rename.
-- Review als COMMENT (id 5085940587) gepostet; Sammelkommentar neu angelegt (`<!-- ai-review -->`, issuecomment-5504919198), Footer „Review-Typ: Kreuzverhör", Updated: 2026-09-02.
-- Keine Labels gesetzt (Workflow-Verantwortung).
+- **Runde 1 (Kreuzverhör):** MODE CROSS-EXAMINATION, 0 closing issues → „Review ohne Issue — PR-Beschreibung massgebend" (in Sammelkommentar Zeile 2 vermerkt). Renovate-Pin-PR: 6+/6− in 3 Cron-Workflows (`.github/workflows/cron.arc42.yml` checkout/setup-node SHA + node 26.8.1; `cron.security-scan.yml` codeql v4.37.9; `cron.update-dependencies.yml` renovate-action v46.2.5). Alle 4 Action-SHAs per `gh api repos/<repo>/git/ref/tags/<tag>` gegen Upstream verifiziert — MATCH. Titel-Gate OK („chore(deps): pin dependencies"). Review als COMMENT (id 5085940587), Sammelkommentar angelegt (5504919198).
+- **Runde 2 (Fixup-Nachweis, dieser Lauf):** Marker-Suche → 5504919198 vorhanden (updatedAt 2026-09-02T05:48:09Z) → MODE FIXUP VERIFICATION. Offene Findings: keine (R1-🟢, ✅-Tabelle leer). Commits seit updatedAt: KEINE (Head `d1c5140d` vom 05:28:41Z, vor R1) → kein Delta-Diff. CI-Check: precheck/verify/4× e2e alle pass (e2e(3) nach Rerun aus R1 grün); `review`/`fixup` pending = Workflow-Buchführung, kein roter Check. 2 neue Bot-Kommentare seit updatedAt: 5505075248 (ai-fixup-decisions, bekannt) + 5505090105 (Workflow-Ankündigung dieser Re-Review) — keine Entscheidungen. Sammelkommentar per **PATCH auf 5504919198** aktualisiert (Body aus `.ai-memory/issue-1162-sammel-r2.md`), Zeile 2 weiterhin „Review ohne Issue", Footer „Review-Typ: Fixup-Nachweis", Updated: 2026-09-02; Landing verifiziert (updated_at 05:52:00Z, Marker + Status intakt).
+- Keine Labels gesetzt (Workflow-Verantwortung), kein Code geändert, kein Commit.
 
 ## Relevante Stellen
-- `.github/workflows/cron.arc42.yml:28-31` — die neuen Pins (checkout 11d5960…, setup-node 49933ea…, node 26.8.1).
-- `.github/workflows/cron.security-scan.yml:66,95` — codeql-action cdf488f… (v4.37.9) an init+analyze (beide Stellen konsistent).
-- `.github/workflows/cron.update-dependencies.yml:112` — renovatebot/github-action 39b9141… (v46.2.5); Pin-Kommentar darüber („keine gleitenden Major-Tags") bleibt gültig.
-- `.github/workflows/00-validate.yml:36` u. a. — Rest des Repos auf checkout v7.0.1 (SHA 3d3c42e…, gesetzt via #1135) gepinnt; Ursache der Drift, nicht des PRs.
+- Sammelkommentar 5504919198 — der EINZIGE ai-review-Kommentar; weitere Runden immer per PATCH auf diese ID, nie `--edit-last` (Unfall R1, s. issue-1162-fixup.md).
+- PR 1162 Head `d1c5140d` (Merge main→renovate/github-actions) — Diff seit R1 unverändert.
+- CI-Run 33594821790 (e2e-Matrix) — final grün; Run 33596265197 = dieser Review-Lauf.
 
 ## Annahmen
-- Renovate pinnt bewusst innerhalb des bisherigen `v4`-Ranges (floating @v4 → v4.4.0), Major-Anhebung v4→v7 kommt als separater Renovate-PR (Tag-Kommentar `# v4.4.0` gibt Renovate die Version zum Aktualisieren) — Drift selbstheilend, deshalb Hinweis statt Finding.
-- node 26.8.1 existiert (Renovate-Quelle actions/node-versions); cron.arc42 läuft nur schedule-basiert, CI prüft ihn nicht direkt — akzeptiert.
+- `fixup`-Check „pending" (Run 33595148161) ist der Fixup-Workflow-Job der Runde selbst, kein Content-Check der Allowlist → kein Degradationsgrund.
+- Ohne Commit seit R1 können keine neuen Inline-Threads auf geänderten Zeilen entstanden sein; menschliche Kommentare: keine (nur 2 Bot-Kommentare geprüft).
 
 ## Verworfen
-- Drift checkout/setup-node v4.4.0 (Cron) vs. v7.0.1/ESM (Rest) als Fixup-Finding — kein Defekt dieses Diff, selbstheilend, würde eine Fixup-Runde für Renovate-Design verschwenden; nur als Hinweis im Review-Body dokumentiert.
-- Einschränkung/Prüfung der Release-Notes-Inhalte (v46.2.5 ist Docker-Chores) — für Pin-Korrektheit irrelevant.
+- Erneute Vollprüfung des PR-Diffs — per SKILL Schritt 5 (Diff scoping) bei vorhandenem Sammelkommentar untersagt; Delta ist leer.
+- Erneutes Aufwärmen des Drift-Hinweises (Cron v4.4.0 vs. Rest v7.0.1) — bewusst KEIN offenes Finding (R1-Entscheidung), selbstheilend über Renovate-Major-PRs.
 
 ## Offen
-- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `issue-1162-review-body.md`, `issue-1162-sammel.md`. Nur diese Datei hier ist die Phasen-Notiz.
+- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `issue-1162-sammel-r2.md`, `issue-1162-review-body.md`, `issue-1162-sammel.md`, `issue-1162-review-comment.md`, `issue-1162-review-restore.md`, `issue-1162-fixup-decisions.md`. Echte Phasen-Notizen: diese Datei + `issue-1162-fixup.md`.
 
 ## Nächster Schritt
-- Keiner seitens Review (verdict abgesetzt). Merge-Lauf: Gate prüft CI; danach üblicher Ablauf.
+- Keiner — Review abgeschlossen (verdict reviewed abgesetzt). Merge-Lauf: Gate prüft CI + Reviewer, dann üblicher Ablauf.
 
 ## Fallstricke
-- Bei künftiger Fixup-Runde (falls doch): Sammelkommentar 5504919198 per PATCH updaten, nicht neu anlegen; Finding-Nummerierung startet leer.
-- Der Drift-Hinweis ist bewusst KEIN offenes Finding — in einer Runde 2 nicht als vergessenes Finding werten.
+- Falls doch eine Runde 3 kommt: immer noch PATCH auf 5504919198; Finding-Nummerierung bleibt leer, solange keine Findings existieren.
+- Drift-Hinweis bleibt KEIN offenes Finding — in keiner Folgerunde als vergessen werten.
