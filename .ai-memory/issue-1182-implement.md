@@ -21,7 +21,7 @@
 - -
 
 ## Nächster Schritt
-- Gate grün → Commit (inkl. dieser Notiz) + Push + `gh pr ready 1185` + PR-Body erweitern.
+- Keiner — Run abgeschlossen: Gate 5/5 grün (format/prettier/lint/knip/test, 251/251), Impl-Commit `0f932d0f` gepusht, PR #1185 ready-for-review + Body erweitert. VERDICT: needs-review.
 
 ## Fallstricke
 - `pnpm test` lokal rot an `session.test.ts` (Redis fehlt in Sandbox, MEMORY 2026-08-27/29) → pre-existing, im PR-Body dokumentieren, nicht fixen.
