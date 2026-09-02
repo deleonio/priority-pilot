@@ -1,38 +1,38 @@
-# Issue 1159 / PR 1160 — Review (Phase 5), Stand 2026-09-02
+# Issue 1159 / PR 1160 — Review, Stand 2026-09-02T07:13Z (2. Runde, Fixup-Nachweis)
 
-**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Mode = Kreuzverhör (kein vorhandener `<!-- ai-review -->`-Kommentar). Closing Issue #1159 vorhanden → AKs aus Harness-Marker-Kommentar (KI-ANALYSE stand=2026-09-01T23:32:38Z, AK1–AK6). Sammelkommentar einmalig erstellt (Kommentar-ID 5502343578), Titel-Gate vorher ausgeführt: PR-Titel war deutsch („Dreier-Hierarchie im Aufgaben-Formular") → auf `feat(frontend): add three-tier hierarchy to task form (#1159)` umbenannt (Conventional Commits, Englisch). Keine Labels angetastet, kein Code geändert, kein Commit.
+**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** MODE = Fixup-Nachweis (Marker `<!-- ai-review -->` Kommentar-ID 5502343578 vorhanden, erstellt 00:10:22Z, seither NICHT aktualisiert trotz zwischenzeitlicher review/fixup-Phasenläufe — s. Fallstricke). Ursprüngliches Kreuzverhör hatte 0 Findings (🟢, s. Git-History dieser Datei / vorherige Version). Delta seit Kommentar-Update: 3 inhaltliche Commits, alle vom Menschen (deleonio) direkt gepusht, NICHT über den AI-Fixup-Loop (der war laut Bot-Kommentaren zuvor am Runden-Deckel gescheitert und an den Menschen übergeben worden).
 
 ## Erledigt
-- SKILL.md + MEMORY.md gelesen; MODE über Marker-Suche bestimmt (`gh api issues/1160/comments` + jq auf `startswith("<!-- ai-review -->")` = leer).
-- Gesamtdiff gelesen (`gh pr diff 1160` → `.ai-memory/pr-1160-diff.txt`, 1399 Zeilen, 9 Dateien): TaskForm.tsx drei `section.form-section--*`-Wrapper + KolHeading h3 per `useId`-`aria-labelledby`; app.css #1159-Block (surface-1+border / surface-2 / transparent; `@media (min-width:1024px)` Zweispalter `minmax(0,1fr)`+`align-items:start`); e2e-Spec neu; TaskForm.test.tsx nur KolHeading-Mock.
-- AK-Abgleich: AK1–AK6 je durch grünen e2e-Test abgedeckt (6/6 lt. PR-Body + Impl-Notiz); AK-Verankerung im Test je als Kommentarzeile erkennbar.
-- Test-Ordnung verifiziert: Commits `7997175a` (test: red spec) < `8bdc6e17` (feat); `git diff 7997175a HEAD -- frontend/e2e/issue-1159-taskform-layout.spec.ts` = leer → Spec-Tests unverändert grün gefahren, keine Separation-of-duties-Verletzung.
-- Neighborhood-Recherche an recherche-Haiku-Subagenten delegiert: (a) KEINE `.form-grid .X`-Descendant-Selektoren in app.css → Herausziehen von Beschreibung/Säulen/Checkliste aus `.form-grid` ist style-neutral; (b) `.form-section*`-Selektoren nur im neuen #1159-Block, keine Kollisionen; (c) Modal.tsx:154 `_level={2}` → h2→h3-Hierarchie korrekt; (d) QuickCaptureModal Schritt 1 ohne Sektionen, Schritt 2 rendert TaskForm.
-- Grenzfall 1024px durchgerechnet: Modal-Desktop-Breite 44rem (app.css:129), Sektions-Inhalt ~622px → Halbspalte ~303px ≥ 300px Range-Minimum (app.css:1937-1939); selbst bei Unterschreitung greift `min(300px,100%)`-Cap + flex-wrap → graceful, kein Finding.
-- CI-Stand bei Review: e2e/verify pending (nicht rot) — Gate/merge-Steuerung übernimmt der Workflow deterministisch.
+- MODE bestimmt: `gh api issues/1160/comments` → genau 1 `<!-- ai-review -->`-Kommentar (5502343578, updated_at unverändert seit Erstellung).
+- Zwischen-Kommentare gelesen: Stop-Guard (5503798984, 11 Commits > 10) und Runden-Deckel (5504916964, Fixup-Runde 4 von max 3) — beide vom Bot, führten zur Übergabe an den Menschen. Danach 2 manuelle Fixup-Kommentare von deleonio (5505394533, 5505684410).
+- Delta-Commits identifiziert und einzeln geprüft (`git show <sha> --stat` + vollständiger Diff): `a3883a81` (Range-Zeile voll breit, Desktop-2-Spalten-Grid der Primärgruppe entfernt), `44dc04cd` (Aufwand-Label kompakt, `.lektorat-button-align` margin-top 1rem→2rem), `6fae8ecb` (AK6/AK12 aus #264/voice-transcription.spec.ts von "sichtbar ohne Scroll" auf "nach Scroll vollständig im Viewport" gelockert — Kollateralschaden durch kumulatives Formularwachstum, laut Commit-Message auch auf main rot).
+- Kollateral-Checks: `.form-section-heading` bleibt generisch für alle 3 Sektionen nutzbar (TaskForm.tsx:788,899,1084), keine verwaiste CSS-Regel nach Entfernen des `@media(min-width:1024px)`-Blocks. `.lektorat-button-align` nur an den 2 von der Commit-Message genannten Stellen verwendet (TaskForm.tsx:848,1132) — keine Kollateralwirkung auf andere Formulare (grep bestätigt).
+- CI-Stand geprüft (`gh pr checks 1160`): e2e (1-4), verify, precheck, label alle `pass`; `review`/`gate-merge` pending/skipping (Workflow-intern, kein Blocker für den Inhalt).
+- Sammelkommentar 5502343578 aktualisiert (PATCH, `-F body=@datei` — NICHT `-f`, s. Fallstricke) auf Fixup-Nachweis-Struktur mit Delta-Review-Details, Footer `Review-Typ: Fixup-Nachweis`.
 
 ## Relevante Stellen
-- `frontend/src/components/TaskForm.tsx:787,896,1081` — die drei Sektionen (primary/secondary INNERHALB `.form-grid`, optional DANACH — form-grid schließt hinter Sekundärgruppe).
-- `frontend/src/app.css:1028-1081` — #1159-Block; `:1017-1019` `.modal-body section { margin-bottom: generous }` (AK5-Mechanik, greift jetzt auch auf die neuen Sektionen); `:1021-1026` `.form-grid`; `:1917-1930` `.range-inputs-row` (769px-Presäzedenz, unberührt).
-- `frontend/e2e/issue-1159-taskform-layout.spec.ts` — 6 Tests AK1–AK6; `openForm`-Präzedenz aus issue-1072.
-- `docs/spec/issue-1159.md` — Contract, deckt die AK-Auslegungen (AK4-Fluchtung, AK3-transparent) fest.
+- `frontend/src/app.css:1036-1081` — `.form-section` (einspaltig), `.form-section--primary`/`--secondary` Kartenstile, ehemaliger 1024px-2-Spalten-Block jetzt entfernt (Kommentar erklärt Grund).
+- `frontend/src/app.css:1917-1933` — `.range-inputs-row` inkl. neuem `flex:1 1 0` für die Hosts (AK4-Fluchtungsmechanik).
+- `frontend/src/components/TaskForm.tsx:871-876` — Aufwand-Label kompakt.
+- `frontend/e2e/issue-1159-taskform-layout.spec.ts:116-131` — AK4-Test umgestellt (Priorität vs. Aufwand statt Titel vs. Range-Zeile).
+- `frontend/e2e/voice-transcription.spec.ts:163-182,300-322` — AK6/AK12 (#264) gelockert auf Scroll+ratio:1.
 
 ## Annahmen
-- e2e-Ergebnisse (6/6 + Regressionen 17/17 grün) nach PR-Body/Impl-Notiz übernommen, nicht selbst neu gefahren (Zeitbudget); CI-e2e lief zum Review-Zeitpunkt pending.
-- KoliBri reicht `id` an den Host durch (Konvention; in-repo über funktionierendes `className`-Passthrough auf KoliBri-Hosts indirekt belegt, node_modules nicht installiert für Quellenprüfung). e2e prüft nur Attributpräsenz von `aria-labelledby`, nicht Auflösung — als nicht-blockierender Hinweis im Sammelkommentar dokumentiert.
+- CI-Grün (e2e/verify) für den aktuellen HEAD (`6fae8ecb`) übernommen aus `gh pr checks`, nicht lokal nachgefahren (Zeitbudget).
+- "Auch auf main rot, nachgestellt" (Commit-Message 6fae8ecb) als Beleg für echte Regression statt verdeckter Testabschwächung akzeptiert — nicht selbst auf main nachgestellt (Zeitbudget, Aussage ist präzise und plausibel angesichts der drei genannten Tickets #1072/#1063/#1159).
 
 ## Verworfen
-- Finding „aria-labelledby-Auflösung ungetestet" — Test kann failen (Attribut fehlbar), deckt das AK ab; nur Robustheits-Verstärkung, kein Defekt → kein needs-fixuploop dafür.
-- Finding „1024px-Grenze nicht e2e-getestet" — AK4 misst 1280 (wie im Analyse-Block festgelegt); 1024 degradiert graceful (wrap), Kommentar-Behauptung rechnerisch gedeckt.
-- MEMORY.md-Eintrag — kein neuer Fehler/die Kriterien nicht erfüllt.
+- Erneutes volles Kreuzverhör der gesamten PR — MODE=Fixup-Nachweis, Marker vorhanden, SKILL schreibt Delta-Review vor.
+- Finding zu AK6/AK12-Lockerung als Test-Pflege-Verstoß — Kontrakt (#264 "nicht abgeschnitten") bleibt gewahrt, Prüfung sogar strenger (ratio:1 statt Default-Ratio>0); keine Verwässerung.
+- MEMORY.md-Eintrag — kein neuer, hier noch nicht dokumentierter Fehler (gh -f/-F-Unterschied ist ein bekanntes CLI-Detail, kein Repo-spezifisches Learning).
 
 ## Offen
-- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `pr-1160-diff.txt`, `issue-1159-harness.md` (Re-Extraktion), `issue-1159-review-comment.md` (gesendeter Kommentar-Stand). Nur diese Datei ist die Phasen-Notiz dieser Phase.
+- Wegwerf-Artefakt NICHT committen: `/tmp/tmp.fM2nCLih57` (liegt außerhalb des Repos, unkritisch).
+- Ungeklärt, warum die Zwischenrunden (review 03:15, fixup 03:18/05:32) den Sammelkommentar nicht aktualisiert haben, obwohl updatedAt seit Erstellung unverändert war — vermutlich fanden diese Runden nur Merge-Commits (keine Inhaltsänderung) vor und haben bewusst nicht gepatcht; nicht weiter verifiziert (außerhalb des Fokus dieser Runde).
 
 ## Nächster Schritt
-- Workflow übernimmt (Labels/CI-Gate/merge); bei späterem Fixup-Lauf: MODE = Fixup-Nachweis gegen Sammelkommentar 5502343578.
+- Workflow übernimmt (Gate/Merge). Bei weiterem Fixup-Push: erneut Delta seit `updated_at` von Kommentar 5502343578 (jetzt 2026-09-02T07:12:50Z) prüfen.
 
 ## Fallstricke
-- Sammelkommentar suchen via `startswith("<!-- ai-review -->")` auf issues/1160/comments — gefunden = updaten (PATCH), nicht neu anlegen.
-- „Behobene Anmerkungen"-Tabelle beim Follow-up befüllen; Finding-Nummerierung stabil halten.
-- CI war zum Review-Zeitpunkt pending — 🟢 gilt inhaltlich; das Gate degradiert deterministisch, falls e2e/verify rot läuft.
+- `gh api --method PATCH ... -f body=@datei` schreibt den LITERALEN Dateinamen-String in den Body, nicht den Dateiinhalt — `-f` liest `@`-Syntax nicht ein. `-F` (großes F, `--field` raw) funktioniert korrekt. IMMER mit einem kurzen Read-back verifizieren (Body-Länge/Prefix), nicht blind auf HTTP 200 vertrauen.
+- Sammelkommentar-`updated_at` ändert sich NUR bei tatsächlichem PATCH — als Marker nutzbar, ob eine vorherige Runde wirklich geschrieben hat oder nur gemessen/verworfen hat.
