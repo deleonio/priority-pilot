@@ -31,10 +31,15 @@
 - KolCard als Gruppen-Container — UX-Block verworfen (Card-in-Modal).
 
 ## Offen
-- `.ai-memory/issue-1159-impl-harness.md` (geladener Harness-Kommentar dieses Laufs) — Wegwerf, NICHT committen.
+- Lauf abgeschlossen: Commit `8bdc6e17` gepusht, PR #1160 ready (non-draft, Body erweitert). Review/Fixup-Phase folgt.
 
 ## Nächster Schritt
-- Gate-Ergebnis abwarten, e2e `issue-1159-taskform-layout.spec.ts` + `series-in-taskform.spec.ts` + `issue-1072-deadline-group.spec.ts` grün fahren, dann Commit + Push + `gh pr ready 1160` + PR-Body erweitern.
+- Review-Phase (Label-Steuerung übernimmt der Workflow).
+
+## Nachtrag (Endstand)
+- Gate final grün: format/prettier/lint/knip ok, Frontend-Unit 491 passed (Mock `KolHeading` in `TaskForm.test.tsx:74-79` ergänzt — reine Mock-Infrastruktur), e2e 17/17 (AK1–AK6 + issue-1072 + series-in-taskform).
+- AK5-Fix: `margin-top: var(--pp-gap-generous)` auf `.form-section--secondary` (In-Gruppen-Gap deadline→adresse ist 48,8 px — auch vorher schon, Messung 768 px: Gruppen-Gap jetzt 80 px).
+- Debug-Erkenntnis 768 px: title→row = 16 px, deadline→adresse = 48,8 px (Ursache nicht weiter untersucht — vor der Änderung identisch, kein Regressionsthema).
 
 ## Fallstricke
 - Falls AK5 rot: In-Gruppen-Gap = `--pp-gap-base` (16px) — Gruppen-Gap muss > 16px bleiben (aktuell ~48px aus .modal-body-sections + form-grid-Gap); `.modal-body section`-Regel nicht versehentlich überschreiben.
