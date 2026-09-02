@@ -53,6 +53,14 @@ test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => 
 		await deleteAllTasks(page);
 	});
 
+	// #1183 Test-Pflege: Konfetti hängt am Master-Schalter „Animationen" (Default aus, Key
+	// `pp-animations-enabled`). Diese Specs prüfen das Konfetti-Verhalten unter EINGESCHALTETEM
+	// Schalter (docs/spec/issue-1183.md, Abgrenzungen) — ohne Vorbelegung bräche der Default
+	// die Overlay-Assertions. AK6 (reduce) bleibt bewusst ohne Ausnahme.
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript((key) => localStorage.setItem(key, 'true'), 'pp-animations-enabled');
+	});
+
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
