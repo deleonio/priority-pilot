@@ -14,6 +14,10 @@ import { waitForStableView } from './helpers';
  * `min-width: 768px`-Regel analog `.settings-action-btn` (#1017/#932) existiert.
  *
  * Gemessen wird das HOST-Element `kol-button` (Repo-Konvention wie in settings-action-buttons.spec.ts).
+ *
+ * #1168 (TF7): Der Button wurde umbenannt in „Erledigt" (`docs/spec/issue-1168.md` AK1/AK7) — der
+ * Layout-Vertrag (AK1–AK3 hier) bleibt für den umbenannten Button inhaltlich gültig und wird unter
+ * dem neuen Label geprüft.
  */
 
 const deleteAllTasks = async (page: Page): Promise<void> => {
@@ -24,7 +28,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 	}
 };
 
-/** Legt eine offene Aufgabe an und öffnet das Dashboard mit sichtbarem „Jetzt starten"-Button. */
+/** Legt eine offene Aufgabe an und öffnet das Dashboard mit sichtbarem „Erledigt"-Button. */
 async function openDashboardWithStartButton(page: Page): Promise<void> {
 	await page.goto('/');
 	await waitForStableView(page);
@@ -35,7 +39,8 @@ async function openDashboardWithStartButton(page: Page): Promise<void> {
 	await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 	await waitForStableView(page);
 
-	await expect(page.getByRole('button', { name: 'Jetzt starten' })).toBeVisible();
+	// #1168 AK1/AK7: der Button heißt „Erledigt" statt „Jetzt starten".
+	await expect(page.getByRole('button', { name: 'Erledigt' })).toBeVisible();
 }
 
 /** Innenbreite/-rand aus dem gerenderten Style von `.dashboard-next-task-content`. */

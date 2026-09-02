@@ -290,7 +290,10 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		});
 		expect(washPainted, 'Signal-Wash (--pp-signal-wash) nicht sichtbar gemalt').toBe(true);
 
-		// Tastatur: „Jetzt starten" ist fokussierbar und Enter öffnet den Task-Dialog.
+		// Tastatur: „Erledigt" ist fokussierbar und Enter öffnet den Bestätigungsdialog (#1168 AK8;
+		// bis zur Umstellung heißt der Button noch „Jetzt starten" und öffnet den Task-Dialog — der
+		// Locator bleibt bewusst label-frei, damit der Test bei der Umbenennung nicht durch einen
+		// Selektor-Fehlschlag, sondern durch die Dialog-Assertion unten rot ist).
 		const startButton = page.locator('.dashboard-next-task kol-button');
 		await expect(startButton).toBeVisible();
 		await page.keyboard.press('Tab');
@@ -301,9 +304,16 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 			);
 			if (!focused) await page.keyboard.press('Tab');
 		}
-		expect(focused, '„Jetzt starten" per Tab erreichbar').toBe(true);
+		expect(focused, '„Erledigt" per Tab erreichbar').toBe(true);
 
+		// #1168 AK8: Enter öffnet den Bestätigungsdialog „Aufgabe erledigen" (nicht mehr den
+		// Task-Edit-Dialog). Rot, solange der Button noch „Jetzt starten" heißt und den Edit-Dialog öffnet.
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('dialog').first()).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
+
+		// Escape schließt den Dialog, Fokus kehrt zum Auslöser zurück.
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
+		await expect(startButton).toBeFocused();
 	});
 });
