@@ -18,10 +18,10 @@
 - Erweiterung des `createTask()`-Helpers um eine `response.ok()`-Assertion — nicht Teil des gemeldeten Findings, würde über den Scope hinausgehen.
 
 ## Offen
-- Push und Thread-Resolve stehen noch aus (folgt direkt nach dieser Notiz).
+- CI-Läufe (e2e 1-4, verify) für Commit `a9f1be36` liefen zum Zeitpunkt dieser Notiz noch (pending) — Ergebnis nicht abgewartet, da beide gemeldeten Findings behoben und Gate lokal grün war.
 
 ## Nächster Schritt
-- Committen+pushen, beide Review-Threads (Zeile 58 + 114) via GraphQL auflösen.
+- Falls e2e/verify auf `a9f1be36` rot laufen: Log lesen, Ursache diagnostizieren (ggf. weitere Seed/Mock-Diskrepanz), fixen, erneut Gate+Push. Falls grün: nächste Kreuzverhör-Runde durch die Review-Skill abwarten.
 
 ## Fallstricke
 - Threads sind GraphQL-only (REST `pulls/{pr}/threads` existiert nicht) — Thread-IDs vorher per `reviewThreads`-Query holen, nach Pfad+Zeile matchen, nur `isResolved=false`.
