@@ -369,3 +369,39 @@ describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
 		}
 	});
 });
+
+/**
+ * ROTER Spec-Test für #1168 (AK1, TF1 — docs/spec/issue-1168.md): der Aktionsbutton im Panel
+ * „Nächste Aufgabe" heißt „Erledigt" statt „Jetzt starten". `Dashboard.tsx:198-205` rendert heute
+ * `KolButton _label="Jetzt starten"` an der Prop `onStartTask`; der Vertrag wird auf eine neue Prop
+ * `onCompleteTask` umgestellt. Der Test ist rot, bis `Dashboard.tsx` die neue Prop und das neue Label
+ * trägt — mit der alten Prop bleibt der Button ungerendert (Bedingung `onStartTask !== undefined`),
+ * daher gibt es aktuell KEIN Element mit `_label="Erledigt"` im Panel.
+ */
+describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/spec/issue-1168.md)', () => {
+	it('AK1: rendert bei gesetztem nextTask einen Button „Erledigt", keinen Button „Jetzt starten"', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+		const onCompleteTask = () => undefined;
+
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[]}
+				// @ts-expect-error — `onCompleteTask` existiert noch nicht im Props-Vertrag (#1168 AK1).
+				onCompleteTask={onCompleteTask}
+			/>,
+		);
+
+		const panel = container.querySelector('.dashboard-next-task-content');
+		expect(panel, '.dashboard-next-task-content fehlt bei gesetztem nextTask').not.toBeNull();
+
+		const buttons = [...(panel?.querySelectorAll('kol-button') ?? [])];
+		const doneButton = buttons.find((b) => b.getAttribute('_label') === 'Erledigt');
+		expect(doneButton, 'Button mit _label="Erledigt" fehlt im Panel').toBeDefined();
+
+		const startButton = buttons.find((b) => b.getAttribute('_label') === 'Jetzt starten');
+		expect(startButton, 'Button „Jetzt starten" darf nicht mehr existieren').toBeUndefined();
+	});
+});
