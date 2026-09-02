@@ -16,7 +16,7 @@ overrides:
   picomatch@2: 2.3.2
   js-yaml@4: 4.3.2
   tar: 7.5.22
-  '@tootallnate/once': 2.0.1
+  '@tootallnate/once': 3.0.1
 
 importers:
 
@@ -1747,8 +1747,8 @@ packages:
       '@types/react-dom':
         optional: true
 
-  '@tootallnate/once@2.0.1':
-    resolution: {integrity: sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ==}
+  '@tootallnate/once@3.0.1':
+    resolution: {integrity: sha512-VyMVKRrpHTT8PnotUeV8L/mDaMwD5DaAKCFLP73zAqAtvF0FCqky+Ki7BYbFCYQmqFyTe9316Ed5zS70QUR9eg==}
     engines: {node: '>= 10'}
 
   '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
@@ -6131,7 +6131,7 @@ snapshots:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.5(@types/react@19.2.18)
 
-  '@tootallnate/once@2.0.1':
+  '@tootallnate/once@3.0.1':
     optional: true
 
   '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
@@ -7640,7 +7640,7 @@ snapshots:
 
   http-proxy-agent@4.0.1(supports-color@5.5.0):
     dependencies:
-      '@tootallnate/once': 2.0.1
+      '@tootallnate/once': 3.0.1
       agent-base: 6.0.2(supports-color@5.5.0)
       debug: 4.4.3(supports-color@5.5.0)
     transitivePeerDependencies:
