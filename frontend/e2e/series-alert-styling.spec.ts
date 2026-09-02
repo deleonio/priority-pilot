@@ -14,11 +14,8 @@ import { test, expect } from './fixtures';
 
 test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () => {
 	test.beforeEach(async ({ page }) => {
-		// Serien-Tab öffnen
-		await page.goto('/');
-		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
-
-		// Eine Serie via API anlegen, damit .series-tree-title existiert
+		// Eine Serie via API anlegen, damit .series-tree-title existiert — VOR dem Seitenaufruf:
+		// SeriesTab lädt ihre Liste einmal beim App-Start, ein späteres Anlegen würde sie nicht sehen.
 		await page.request.post('/api/v1/series', {
 			data: {
 				title: `E2E #692 Test Serie ${Date.now().toString(36)}`,
@@ -29,6 +26,10 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 				startDate: '2026-09-07T00:00:00.000Z',
 			},
 		});
+
+		// Serien-Tab öffnen
+		await page.goto('/');
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
 	});
 
 	// Die In-Memory-DB lebt über alle Specs des Backend-Prozesses weiter (ein Worker, kein Neustart
