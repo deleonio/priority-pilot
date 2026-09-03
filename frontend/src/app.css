@@ -1541,12 +1541,24 @@ body {
 	overflow-wrap: anywhere;
 }
 
-.help-changelog-entry {
-	margin-bottom: 1.5rem;
+/* Markdown-Links in beiden Hilfe-Tabs (bis #1206 ungestylt): Unterstreichung + Markenfarbe
+	 statt reiner Farbwechsel (WCAG 1.4.1) und sichtbarer Fokus (WCAG 2.4.7). Wortbruch hält
+	 lange Autolink-URLs der Release-Notes bei 375 px im Viewport (KI-UX #1206). */
+.help-page-content a {
+	color: var(--pp-brand);
+	text-decoration: underline;
+	overflow-wrap: anywhere;
 }
 
-.help-changelog-date {
-	font-variant-numeric: tabular-nums;
+.help-page-content a:focus-visible {
+	outline: 2px solid var(--pp-focus-ring);
+	outline-offset: 2px;
+}
+
+/* Changelog-Tab der Hilfe-Seite (#1206): Aggregation nach Kategorien — ein Block je
+	 Kategorie (statt #1190s Sektion je Release), getrennt im Sektions-Rhythmus. */
+.help-changelog-category {
+	margin-bottom: var(--pp-space-6);
 }
 
 /* --- Einstellungen-Seite (#271) --- */

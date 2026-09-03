@@ -1,6 +1,8 @@
 import { KolButton, KolSpin, KolTabs } from '@public-ui/react-v19';
 import { useEffect, useMemo, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
 
 interface HelpPageProps {
 	onBack: () => void;
@@ -22,6 +24,16 @@ interface GithubRelease {
 	published_at: string;
 	body: string | null;
 }
+
+// Externe Links (GitHub-PRs) verlassen die PWA — zentral für beide Tabs gesetzt, gilt für
+// Markdown-Links und (seit #1206, via remark-gfm) Autolinks nackter URLs gleich (KI-UX).
+const MARKDOWN_COMPONENTS: Components = {
+	a: ({ href, children }) => (
+		<a href={href} target="_blank" rel="noopener noreferrer">
+			{children}
+		</a>
+	),
+};
 
 // Die API liefert neueste zuerst — das Frontend rendert in API-Reihenfolge ohne eigene Sortierung.
 const fetchReleases = (): Promise<GithubRelease[]> =>
@@ -85,7 +97,9 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 							<KolSpin _show _variant="cycle" _label="Lädt Handbuch …" />
 						</div>
 					) : (
-						<ReactMarkdown>{content}</ReactMarkdown>
+						<ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+							{content}
+						</ReactMarkdown>
 					)}
 				</div>
 				<div slot="tab-1" className="help-page-content">
@@ -96,17 +110,15 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 					)}
 					{changelog.status === 'error' && <p>Changelog konnte nicht geladen werden.</p>}
 					{changelog.status === 'loaded' &&
-						changelog.releases.map((release) => (
-							<section key={release.tag_name} className="help-changelog-entry">
-								{/* Release-Bodys beginnen bei `###` (Kategorie-Abschnitte) — die
-										Versionsnummer als h2 hält die Heading-Hierarchie ohne Sprung. */}
-								<h2>{release.tag_name}</h2>
-								<p className="help-changelog-date">
-									<time dateTime={release.published_at}>
-										{new Date(release.published_at).toLocaleDateString('de-DE')}
-									</time>
-								</p>
-								{release.body !== null && <ReactMarkdown>{release.body}</ReactMarkdown>}
+						aggregateChangelog(changelog.releases).map((category) => (
+							<section key={category.title} className="help-changelog-category">
+								{/* Aggregation nach Kategorien (#1206): Die Bodys gliedern sich in
+										`###`-Abschnitte je Kategorie — zusammengefasst erscheint jede
+										Kategorie genau einmal, die Entries tragen ihre Ursprungs-Version. */}
+								<h2>{category.title}</h2>
+								<ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+									{entriesToMarkdown(category.entries)}
+								</ReactMarkdown>
 							</section>
 						))}
 				</div>

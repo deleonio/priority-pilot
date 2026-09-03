@@ -61,7 +61,9 @@ test.describe('#1206 Changelog-Aggregation auf der Hilfe-Seite', () => {
 			const offenders: string[] = [];
 			const collect = (root: Element | ShadowRoot): void => {
 				root.querySelectorAll('*').forEach((el) => {
+					// eslint-disable-next-line no-restricted-syntax
 					if (el.shadowRoot) {
+						// eslint-disable-next-line no-restricted-syntax
 						collect(el.shadowRoot);
 					}
 					const rect = el.getBoundingClientRect();
