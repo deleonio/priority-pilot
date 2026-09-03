@@ -36,3 +36,21 @@
 - Sammelkommentar UPDATEN (PATCH auf 5518226930), nicht neu anlegen; Finding-Nummer F1 stabil halten.
 - Keine Labels setzen (Workflow-Automatik).
 - Review-Inline-Kommentar kann in der Fixup-Runde nicht „getickt" werden — Fortschritt nur im Sammelkommentar führen.
+
+---
+
+# Runde 2 — Fixup-Nachweis, Stand 2026-09-03
+
+**ERGEBNIS: reviewed (🟢).** Marker vorhanden (Kommentar 5518226930, updatedAt 2026-09-03T00:02:38Z) → MODE Fixup-Nachweis.
+
+## Erledigt (R2)
+- Delta seit updatedAt: 8239cf75 (Fix) + 7047043a (Merge main: nur renovate/pnpm-Sync, kein PR-Inhalt) + 2 memory-Commits.
+- F1 als behoben verifiziert: neues `test.beforeEach` in `frontend/e2e/issue-1182-dashboard-confetti.spec.ts:74` setzt `pp-animations-enabled='true'` per `addInitScript` — identisches Muster wie `issue-1169-confetti.spec.ts:61`; einziges beforeEach im Describe (deleteAllTasks bleibt afterEach :64); AK3 (reduce, :92) korrekt ohne Ausnahme.
+- Keine neuen Findings im Delta; CI pending (nicht rot), Pipeline-Gate prüft separat.
+- Sammelkommentar 5518226930 in-place aktualisiert (F1 → Behobene-Tabelle, Status reviewed, Review-Typ: Fixup-Nachweis). Labels nicht angefasst. Titel-Gate: konform (68 Zeichen), kein Rename.
+
+## Nächster Schritt (R2)
+- Keiner für Review-Phase — Workflow übernimmt Merge-Steuerung (CI muss noch grün laufen).
+
+## Fallstricke (R2)
+- e2e/verify-Shards waren bei Verdict noch pending — falls CI rot läuft, degradiert das Pipeline-Gate automatisch auf ai:needs-changes; kein Anlass hier vorbeugend needs-fixup.
