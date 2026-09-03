@@ -54,3 +54,31 @@
 
 ## Fallstricke (R2)
 - e2e/verify-Shards waren bei Verdict noch pending — falls CI rot läuft, degradiert das Pipeline-Gate automatisch auf ai:needs-changes; kein Anlass hier vorbeugend needs-fixup.
+
+---
+
+# Runde 3 — Fixup-Nachweis, Stand 2026-09-03
+
+**ERGEBNIS: reviewed (🟢).** Marker vorhanden (5518226930, updatedAt 2026-09-03T00:29:34Z) → MODE Fixup-Nachweis. Titel-Gate: konform (68 Zeichen), kein Rename.
+
+## Erledigt (R3)
+- Delta seit R2: 6f8005fc + ad65ed37 (memory-Commits, kein PR-Inhalt) + **52920dc8** (einziger Inhalts-Commit: `frontend/e2e/settings-switch-layout.spec.ts`, +9/−9 Anpassung #971-E2E auf 3 Switch-Zeilen).
+- Fixup verifiziert: `SettingsPage.tsx` Tab „Allgemein“ hat 3 `.settings-switch-row` (:250 Sprachaufnahme, :271 Animationen, :285 Push) → Counts 2→3 in AK1–AK3 korrekt; keine 2er-Assertionen übrig; keine Assert-Abschwächung; Test-Pflege durch Anforderungsänderung #1183 legitim (Begründung in Commit-Msg, CI-Shard-4-Rot).
+- CI: e2e (1)–(4) + verify grün (Run 33700941047).
+- Sammelkommentar 5518226930 per PATCH + jq-Payload aktualisiert (Status reviewed, Runde-3-Nachweis; Behobene-Tabelle unverändert F1). Payload via `jq -Rs` — `-F body=@file` scheiterte mit HTTP 422.
+
+## Relevante Stellen (R3)
+- `frontend/e2e/settings-switch-layout.spec.ts:151-159` — AK5 prüft nur 2 Labels, Titel sagt „3 Switches“, Kommentar :159 veraltet — NICHT blockend, im Sammelkommentar ohne Fix-Zwang vermerkt.
+- `frontend/e2e/issue-1183-animations.spec.ts:17` — Rollenadressierbarkeit des Animationen-Schalters (deckt AK5-Lücke).
+
+## Verworfen (R3)
+- Finding gegen AK5-Kommentar-Staleness → nur dokumentarisch (#1151-Altlast), ein Fixup-Rundtrip dafür unverhältnismäßig; im Sammelkommentar als Beobachtung festgehalten.
+
+## Offen (R3)
+- Wegwerf-Artefakte NICHT committen: `issue-1183-collected-r3.md` (neu, dieser Runde).
+
+## Nächster Schritt (R3)
+- Keiner — Workflow übernimmt Merge-Steuerung (CI grün, Verdict reviewed).
+
+## Fallstricke (R3)
+- gh-PATCH mit mehrzeiligem Body: `--input` + `jq -Rs '{body:.}'`-Datei nehmen, nicht `-F body=@file` (422).
