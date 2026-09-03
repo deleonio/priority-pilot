@@ -60,6 +60,9 @@ bedienbar — die Systemeinstellung hat Vorrang, sie deaktiviert den Schalter ni
 - Erwartetes Ergebnis: Der Schalter „Animationen" zeigt den gespeicherten Wert, trägt
   kein `_disabled` (das Banner deaktiviert ihn nicht) und ein Toggle schreibt weiterhin
   `pp-animations-enabled`.
+- Addendum: Update 2026-09-03, PR #1201 — AK4 ersetzt: Der Schalter zeigt weiterhin den
+  gespeicherten Wert, ist aber bei aktivem reduce deaktiviert (`_disabled`); ohne reduce
+  bleibt er unverändert bedienbar und ein Toggle schreibt `pp-animations-enabled`.
 
 ### AK5 — Systemwechsel bei offener App: nächste Erledigt-Fete bleibt aus
 
