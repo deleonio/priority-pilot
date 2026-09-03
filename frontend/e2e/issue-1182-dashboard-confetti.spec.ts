@@ -66,6 +66,15 @@ test.describe('#1182 Konfetti über das Dashboard-Signal-Panel', () => {
 		await deleteAllTasks(page);
 	});
 
+	// #1183 Test-Pflege: Konfetti hängt am Master-Schalter „Animationen" (Default aus, Key
+	// `pp-animations-enabled`). AK1/AK4 prüfen das Overlay-Verhalten unter EINGESCHALTETEM
+	// Schalter (docs/spec/issue-1183.md, Abgrenzungen) — ohne Vorbelegung bräche der Default
+	// die Overlay-Assertions. AK3 (reduce) bleibt bewusst ohne Ausnahme: reduce unterdrückt
+	// auch bei eingeschaltetem Schalter.
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript((key) => localStorage.setItem(key, 'true'), 'pp-animations-enabled');
+	});
+
 	test('AK1: Bestätigen des Dialogs „Aufgabe erledigen" erzeugt genau ein Konfetti-Overlay', async ({ page }) => {
 		const id = await createTask(page, 'E2E #1182 Signal-Panel', 5);
 

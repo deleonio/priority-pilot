@@ -11,6 +11,7 @@ import { waitForStableView } from './helpers';
  *
  * HINWEIS: Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push);
  * der "Standort erfassen"-Switch wurde in den neuen "Standort"-Tab verschoben.
+ * Seit #1183 kommt der Master-Schalter "Animationen" hinzu → 3 Switch-Zeilen.
  *
  * Testklassen (siehe Spec „Erwartetes Ergebnis"):
  * - AK1/AK2/AK6 sind ROT, bis Wrapper + CSS umgesetzt sind (Spec-Phase 3/6).
@@ -62,13 +63,13 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
-		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
-		await expect(rows).toHaveCount(2);
+		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push).
+		await expect(rows).toHaveCount(3);
 
 		const containerBox = await page.locator('.settings-general').first().boundingBox();
 		expect(containerBox).toBeTruthy();
 
-		for (let i = 0; i < 2; i++) {
+		for (let i = 0; i < 3; i++) {
 			const rowBox = await rows.nth(i).boundingBox();
 			expect(rowBox).toBeTruthy();
 			// Volle Breite: ≥95% der Container-Breite (5% Toleranz für Rundung/Padding).
@@ -89,10 +90,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
-		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
-		await expect(rows).toHaveCount(2);
+		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push).
+		await expect(rows).toHaveCount(3);
 
-		for (let i = 0; i < 2; i++) {
+		for (let i = 0; i < 3; i++) {
 			const style = await rows.nth(i).evaluate((el) => {
 				const computed = window.getComputedStyle(el);
 				return { flexDirection: computed.flexDirection, alignItems: computed.alignItems };
@@ -113,10 +114,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
-		// Seit #1151 gibt es nur noch 2 Switches im Tab "Allgemein" (Sprachaufnahme, Push).
-		await expect(switches).toHaveCount(2);
+		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push).
+		await expect(switches).toHaveCount(3);
 
-		for (let i = 0; i < 2; i++) {
+		for (let i = 0; i < 3; i++) {
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			expect(box!.height).toBeGreaterThanOrEqual(44);
