@@ -20,7 +20,7 @@ run_test() {
   SGT_DOW="$sgt_dow"
   PROVIDER="$provider"
 
-  # Logik aus setup-claude action.yml replizieren
+  # Logik aus setup-agent action.yml replizieren
   time_window_override="false"
   if [ "$PROVIDER" = "zai" ]; then
     if [ "$SGT_DOW" -le 5 ] && [ "$SGT_HOUR" -ge 14 ] && [ "$SGT_HOUR" -le 17 ]; then

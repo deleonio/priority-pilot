@@ -1,7 +1,7 @@
 name: 'Modellwahl aus ai:model:*-Label'
 description: >-
   Liest die Modellwahl statisch aus dem Label `ai:model:<alias>` und liefert den Alias
-  für `setup-claude`. Fehlt das Label oder ist es mehrdeutig, wird der Start abgebrochen
+  für `setup-agent`. Fehlt das Label oder ist es mehrdeutig, wird der Start abgebrochen
   und das Ticket mit `ai:needs-human` samt Begründung beim Menschen geparkt.
 
 # WARUM IM PRECHECK-JOB: Die Auswertung muss VOR dem Claude-Start sitzen (`--model` gilt

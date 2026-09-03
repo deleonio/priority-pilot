@@ -6,12 +6,13 @@
 >
 > **Weiterführend:** [pipeline-flow.md](./pipeline-flow.md) (Trigger-Fluss).
 
-## Aktuelle Konfiguration: Claude Code, Provider umschaltbar (Z.AI / Anthropic)
+## Aktuelle Konfiguration: Claude Code (pi im Pilot), Provider umschaltbar (Z.AI / Anthropic)
 
 **Implementierung:** [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) als
-einziger Coding-Agent in CI. Das **Backend** ist über die Repo-Variable **`vars.LLM_PROVIDER`**
-umschaltbar; aufgelöst wird sie zentral in
-[`.github/actions/setup-claude`](../.github/actions/setup-claude/action.yml).
+Coding-Agent in CI — seit #1184 mit **pi** als zweiter, über eine Variable wählbarer Laufzeit
+(Pilotphase: nur Triage, s. [Laufzeit umschalten](#laufzeit-umschalten-claude-code-oder-pi)).
+Das **Backend** ist über die Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar; aufgelöst wird
+sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/action.yml).
 
 | `vars.LLM_PROVIDER` | Endpoint                                            | Secret           | Auth-Variable                                   | Modell (`"model": "opus"`) |
 | ------------------- | --------------------------------------------------- | ---------------- | ----------------------------------------------- | -------------------------- |
@@ -27,13 +28,14 @@ Ist die Variable **nicht gesetzt oder leer**, gilt `claude`. Ein **unbekannter W
 Lauf ab** (kein stiller Fallback). Fehlt das Secret des gewählten Providers, schlägt der
 Setup-Step mit klarer Fehlermeldung fehl.
 
-| Komponente | Wert / Quelle                                                          |
-| ---------- | ---------------------------------------------------------------------- |
-| Agent      | Claude Code CLI (`npm install -g @anthropic-ai/claude-code`, pro Lauf) |
-| Provider   | `vars.LLM_PROVIDER` → Setup-Action setzt Endpoint via `GITHUB_ENV`     |
-| Auth       | provider-abhängige Auth-Variable + Secret (Setup-Action, s. o.)        |
-| Modell     | `"model": "opus"` (settings.json) → pro Provider via Alias aufgelöst   |
-| Invoke     | `claude -p '<prompt>'` (single-query, non-interactive)                 |
+| Komponente | Wert / Quelle                                                             |
+| ---------- | ------------------------------------------------------------------------- |
+| Laufzeit   | `vars.AGENT_RUNTIME` → `claude` (Default) oder `pi` (nur Phase 01, Pilot) |
+| Agent      | Claude Code CLI (`npm install -g @anthropic-ai/claude-code`, pro Lauf)    |
+| Provider   | `vars.LLM_PROVIDER` → Setup-Action setzt Endpoint via `GITHUB_ENV`        |
+| Auth       | provider-abhängige Auth-Variable + Secret (Setup-Action, s. o.)           |
+| Modell     | `"model": "opus"` (settings.json) → pro Provider via Alias aufgelöst      |
+| Invoke     | `claude -p '<prompt>'` (single-query, non-interactive)                    |
 
 - [Z.AI API Docs](https://docs.z.ai/guides/llm/glm-5.1)
 - [Claude Code Docs](https://docs.anthropic.com/en/docs/claude-code)
@@ -43,9 +45,126 @@ Setup-Step mit klarer Fehlermeldung fehl.
 Optional wird der gesamte LLM-Traffic eines Laufs über einen Nürnberger Tailscale-Exit-Node
 geleitet, sodass z.ai/OpenRouter alle Requests von **einer konsistenten IP** sehen — das verhindert
 das „Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs. Eingehängt zentral im
-[`setup-claude`](../.github/actions/setup-claude/action.yml)-Composite (Connect + DNS-Fix) **vor**
-dem `claude -p`-Aufruf. Kill-Switch und Fail-closed-Verhalten: siehe
-[`tailscale-exit-node.md`](tailscale-exit-node.md).
+[`setup-agent`](../.github/actions/setup-agent/action.yml)-Composite (Connect + DNS-Fix) **vor**
+dem Agenten-Aufruf — laufzeitunabhängig, weil der Tarif am Provider hängt, nicht an der CLI.
+Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscale-exit-node.md).
+
+## Laufzeit umschalten: Claude Code oder pi
+
+Seit #1184 ist die **Laufzeit** genauso eine Variable wie der Provider. Beide Achsen sind
+unabhängig:
+
+| `vars.AGENT_RUNTIME` | `vars.LLM_PROVIDER`   | Was läuft                                                      |
+| -------------------- | --------------------- | -------------------------------------------------------------- |
+| leer / `claude`      | `claude`              | Claude Code gegen Anthropic (Default)                          |
+| leer / `claude`      | `zai` \| `openrouter` | Claude Code gegen das jeweilige Backend                        |
+| `pi`                 | `claude`              | pi gegen Anthropic (nativ, `ANTHROPIC_API_KEY`)                |
+| `pi`                 | `zai`                 | pi gegen z.ai (nativ, `ZAI_API_KEY`)                           |
+| `pi`                 | `openrouter`          | pi gegen OpenRouter (nativ; Modell-IDs aus `PI_MODEL_ALIASES`) |
+
+Ein unbekannter Wert bricht den Lauf ab — kein stiller Fallback, sonst liefe ein als pi-Test
+gemeinter Lauf unbemerkt auf Claude Code und die Messung wäre wertlos.
+
+```bash
+gh variable set AGENT_RUNTIME --body pi       # Pilot: Triage läuft mit pi
+gh variable delete AGENT_RUNTIME              # zurück auf Claude Code
+```
+
+**Pilotumfang:** Nur [`01-triage.yml`](../.github/workflows/01-triage.yml) reicht
+`vars.AGENT_RUNTIME` durch. Die übrigen Phasen rufen dieselbe Setup-Action ohne
+`runtime`-Input auf und laufen unverändert auf Claude Code; der Rollout ist ein Folge-Ticket.
+
+### Aufteilung der Setup-Actions
+
+```
+Workflow
+  └─ .github/actions/setup-agent      gemeinsame Teile + Laufzeit-Weiche
+       ├─ .github/actions/setup-claude  (runtime = claude)
+       └─ .github/actions/setup-pi      (runtime = pi)
+```
+
+| Action         | Inhalt                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `setup-agent`  | App-Token, Git-Remote/Identität, Ticket-Auflösung, Memory-Load, ZAI-Zeitfenster, **Provider-Auflösung**, Tailscale, die Weiche |
+| `setup-claude` | Claude-CLI + Trust-Dialog, Auth-Env, Modell-Alias → `--model`/`settings.local.json`, `--allowedTools`, `claude -p`             |
+| `setup-pi`     | pi-CLI, Paket-Installation, Auth-Env, Modell-Alias → `--model`, `--thinking`, `--session-dir`, `pi -p`                         |
+
+Der Schnitt folgt einer Frage: **WELCHER** Provider gilt, ist für beide Laufzeiten dasselbe
+(→ `setup-agent`); **WIE** er authentifiziert wird, nicht: Claude Code biegt alles über
+`ANTHROPIC_*`-Env plus `settings.local.json` um, pi kennt alle drei Provider eingebaut und
+braucht nur die jeweilige Key-Variable (`ANTHROPIC_API_KEY`, `ZAI_API_KEY`, `OPENROUTER_API_KEY`).
+
+`setup-agent` trägt die vollständige alte Signatur von `setup-claude` plus `runtime` — die
+Aufrufer mussten nur den Pfad umhängen. Composite-Actions haben **keinen Zugriff auf den
+`vars`-Kontext**; `runtime` wird deshalb wie `llm-provider` vom Workflow durchgereicht.
+
+### pi-Pakete im Runner
+
+`setup-pi` installiert genau die Pakete aus dem eingecheckten
+[`.pi/settings.json`](../.pi/settings.json) — dem Projektfile, das ohnehin für jede pi-Session in
+diesem Repo gilt (aktuell `pi-subagents`, `pi-mcp-adapter`, `pi-web-access`,
+`@entelligentsia/pi-claude-compat`, je mit Ressourcen-Filtern). **Keine CI-eigene Paketliste:** Die
+würde erzeugen, was die Pilotphase widerlegen soll — einen CI-Lauf, der anders arbeitet als der
+lokale.
+
+MCP braucht keine zweite Konfiguration: `pi-mcp-adapter` liest das vorhandene `.mcp.json` des
+Repos. pi installiert Projektpakete beim Start ohnehin selbst; `setup-pi` tut es **vorher**, damit
+ein Fehlschlag laut abbricht (ein still fehlender MCP-Adapter macht den Vergleich mit einem
+Claude-Lauf wertlos) und `pi list` als **Nachweis im Runner-Log** steht. `--verbose` leistet das
+nicht: Das Flag erzwingt den ausführlichen Startkopf des TUI und gibt im `-p`-Modus nichts aus
+(nachgemessen mit pi 0.84.4).
+
+Zwei offene Punkte für den Rollout, die die Pilotphase sichtbar macht statt still zu ändern:
+Die Paketeinträge sind **versionslos** (Versionsdrift zwischen zwei Läufen — `setup-pi` meldet das
+als `::notice`), und das vom Ticket genannte **LSP-Paket fehlt** im Projektfile. Beides ist eine
+Entscheidung des Projekts, nicht der Pipeline; Details in [`.github/pi/README.md`](../.github/pi/README.md).
+
+Modelle: `.github/pi/model-aliases.json` bildet `fable|opus|sonnet|haiku` je Provider auf
+pi-Modellreferenzen ab (`anthropic/claude-opus-5`, `zai/glm-5.3`, …); `vars.PI_MODEL_ALIASES` legt
+sich darüber (der Weg für OpenRouter, dessen Modell-IDs bewusst nicht im Repo stehen). Fehlt ein
+Alias in beiden Quellen, bricht `setup-pi` ab.
+
+Eine eigene `models.json` gibt es bewusst **nicht**: pi kennt `anthropic`, `zai` und `openrouter`
+eingebaut, und eine handgeschriebene z.ai-Zeile würde das eingebaute 1M-Kontextfenster von
+`glm-5.3` auf 200K kappen (nachgemessen mit `pi --list-models`). Details: `.github/pi/README.md`.
+
+### Was pi NICHT kann: die Tool-Tiers
+
+pi hat **kein Permission-System** (steht so in seiner README). `--tools` ist eine Allowlist von
+Tool-**Namen**; ein Gegenstück zu Claudes `Bash(gh *)` oder `Edit(.ai-memory/*)` existiert nicht.
+Damit lässt sich das `restricted`-Tier der Triage unter pi **nicht nachbauen**: Wer `bash`
+bekommt — und ohne `bash` kein `gh`, also keine Triage —, kann faktisch auch schreiben.
+
+Die Eingrenzung eines pi-Laufs kommt daher aus dem ephemeren Runner und dem Scope des
+App-Tokens, nicht aus der Laufzeit. `setup-pi` protokolliert das bei `restricted`/`review` als
+`::warning`, statt eine Gleichwertigkeit zu behaupten. Verlässlich abschaltbar sind nur die
+Proxy-Tools des MCP-Adapters (`mcp`, `mcpScript`) — genau das tut `needs-mcp: false` per
+`--exclude-tools`. Eine Allowlist mit geratenen Tool-Namen (pi-lsp ist konfigurierbar, die
+Direkt-Tools des Adapters werden serverabhängig präfixiert) würde Erweiterungen **still**
+abschalten und wäre schlimmer als keine.
+
+### Kostenerfassung unter pi
+
+Gleiches Schema, andere Quelle: [`cost-from-pi-session.ts`](../.github/scripts/cost-from-pi-session.ts)
+liest die pi-Sitzungen, [`cost-from-transcript.ts`](../.github/scripts/cost-from-transcript.ts) die
+Claude-Code-Transkripte; `record-cost` wählt über den `runtime`-Input. Beide Skripte geben
+zeichengleiche `key=value`-Zeilen aus und schreiben denselben `.costs/<issue>.json`-Datensatz —
+`track-costs` und `cost-seal` arbeiten unverändert weiter, auch der Artefaktname bleibt
+`claude-costs-…` (historisch, nicht laufzeitbezogen).
+
+Zwei Unterschiede sind gewollt:
+
+- **Kein Dedupe, andere Feldnamen.** Claude Code schreibt je Content-Block eine Zeile mit
+  identischer `usage` (Dedupe über `message.id` ist dort Pflicht); pi schreibt je Nachricht eine
+  Zeile mit `input/output/cacheRead/cacheWrite`.
+- **Exakte Laufabgrenzung statt Zeitfenster.** `setup-pi` legt je Lauf ein eigenes
+  `--session-dir` an und lenkt die Subagent-Kindsitzungen nach `<session-dir>/subagents`
+  (`defaultSessionDir` von `pi-subagents`). Deren Verbrauch zählt voll mit und wird zusätzlich
+  als `sidechainTokens` ausgewiesen — wie der Claude-Fan-out.
+
+Gerechnet wird **nicht** mit pis eigenem `usage.cost`, sondern mit der Preistabelle aus
+`cost-from-transcript.ts`. Sonst verglichen Claude-Lauf und pi-Lauf zwei Preislisten statt zweier
+Laufzeiten — dieselbe Begründung, die schon den festen `EUR_TO_USD`-Kurs trägt.
 
 ### Konfigurationstrennung
 
@@ -56,7 +175,7 @@ jede lokale Claude-Session zwangsweise nach z.ai umrouten. Deshalb:
 - **`.claude/settings.json`** (eingecheckt) → **providerneutral**: aktives Modell als _Alias_
   (`"model": "opus"`), KoliBri-MCP, Permissions, Timeouts. Kein `ANTHROPIC_BASE_URL`, keine
   `ANTHROPIC_DEFAULT_*_MODEL`-Overrides.
-- **`.github/actions/setup-claude/action.yml`** → installiert Claude Code, akzeptiert den
+- **`.github/actions/setup-claude/action.yml`** (via `setup-agent`) → installiert Claude Code, akzeptiert den
   Trust-Dialog und setzt pro Lauf via `GITHUB_ENV`: Endpoint, die passende Auth-Variable und
   (nur bei `zai`) die Modell-Aliase `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL` +
   `CLAUDE_CODE_SUBAGENT_MODEL`.
@@ -71,7 +190,7 @@ gh variable set LLM_PROVIDER --body claude   # Anthropic nativ (Default)
 gh variable set LLM_PROVIDER --body zai      # z.ai/GLM (Subscription-Kontingent)
 ```
 
-Abgesichert ist davon nur, was ein Review nicht sieht: dass alle `setup-claude`-Aufrufer den
+Abgesichert ist davon nur, was ein Review nicht sieht: dass alle `setup-agent`-Aufrufer den
 Provider-Input durchreichen und `.claude/settings.json` providerneutral bleibt. Dieses
 Spiegel-Verhältnis war früher via `workflow-consistency`-Test gesichert; mit
 [ADR 0001](./adr/0001-github-workflows-bleiben-ungetestet.md) entfällt der Test — wie die Auflösungslogik selbst (Endpoint,
@@ -107,7 +226,7 @@ oder hat kein Guthaben — dann in der Anthropic Console prüfen und
 > Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
 Die sechs LLM-Workflows (Ticket-Phasen 01–06 inkl. Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
-Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch; GitHub-Vars dienen als Override/Experimente.
+Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-agent` durch; GitHub-Vars dienen als Override/Experimente.
 
 Seit [ADR 0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) ist die Nacharbeit an Review-Findings kein eigener Workflow mehr, sondern der PR-Eingang der Umsetzungsphase — `CLAUDE_MODEL_FIXUP` gilt weiterhin, nur eben für den zweiten Eingang von 04.
 
@@ -145,7 +264,7 @@ Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTING
   Kontingent zu ziehen.
 - **Sperrzeiten:** Das einzige gebuchte Modell mit Spitzenzeit-Aufschlag ist `glm-5-turbo`
   (Mo–Fr 14:00–18:00 UTC+8 = dt. Vormittag, DST-abhängig 07:00–11:00 MEZ / 08:00–12:00 MESZ;
-  am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Fallback in `setup-claude`
+  am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Fallback in `setup-agent`
   prüft direkt die Singapore-Zeit (UTC+8, kein DST) und greift damit an Samstagen/Sonntagen
   nicht mehr; er ist bewusst pauschal (konservativ), solange unklar ist, ob der 3×-Tarif
   planweit oder nur für 2×/3×-Modelle gilt.
@@ -243,8 +362,9 @@ Modell-Spalte der Routing-Tabelle.
 | #   | Datei                                         | Stelle                                                                                                               |
 | --- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | 1   | `.github/scripts/resolve-model-label.sh`      | case-Filter + Abbruch-Meldung (~Zeile 167)                                                                           |
-| 2   | `.github/actions/setup-claude/action.yml`     | Phasen-Modell-Auflösung: case + `::error`-Meldung (~Zeile 552–564)                                                   |
-| 3   | `.github/actions/setup-claude/action.yml`     | Subagent-Alias: case + `::error`-Meldung (~Zeile 607–612)                                                            |
+| 2   | `.github/actions/setup-claude/action.yml`     | Phasen-Modell-Auflösung: case + `::error`-Meldung                                                                    |
+| 3   | `.github/actions/setup-claude/action.yml`     | Subagent-Alias: case + `::error`-Meldung                                                                             |
+| 3b  | `.github/actions/setup-pi/action.yml`         | Alias-Filter im Step „Modell + Subagent-Modell auflösen“ + `.github/pi/model-aliases.json` je Provider               |
 | 4   | `.github/scripts/resolve-model-label.test.ts` | neuer Fall „bekannter Alias → durch“ + alter Abbruch-Fall bleibt grün                                                |
 | 5   | `.github/workflows/04-claude-implement.yml`   | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
 | 6   | `.claude/agents/*.md`                         | Rollen-Frontmatter `model:` (dieselben Aliase; wird in CI vom Subagent-Override überdeckt, greift lokal)             |
@@ -342,7 +462,7 @@ leer bleiben, ohne den Lauf zu brechen.
 
 Das frühere Secret `NOUS_PORTAL_TOKEN` wird von der Pipeline **nicht mehr referenziert** und kann
 im Repo gelöscht werden. `OPENROUTER_API_KEY` hingegen ist **aktiv**: `openrouter` ist ein
-vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Key an `setup-claude`
+vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Key an `setup-agent`
 durch, `00-set-llm-provider.yml` akzeptiert ihn, `cron.ci.multi-provider.yml` führt die Matrix) — nur
 ist er nicht der Default-Pfad (`claude`).
 
@@ -355,7 +475,7 @@ für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz
 die UX-Phase (02) läuft bewusst rein statisch (`browser-mcp: false`).
 
 **Einrichtung:** Beide Server sind in `.mcp.json` registriert (KoliBri: HTTP, Playwright: `@playwright/mcp@0.0.79`,
-`allowed-origins: localhost:4174;3001`). Die Setup-Action (`setup-claude`) hängt bei `needs-mcp: true` die
+`allowed-origins: localhost:4174;3001`). Die Setup-Action (`setup-claude`, via `setup-agent`) hängt bei `needs-mcp: true` die
 KoliBri-Tools (`mcp__kolibri-mcp__*`) an die Allowlist aller Tiers; bei `browser-mcp: true` zusätzlich die
 Playwright-Tools (`mcp__playwright__*`).
 
@@ -549,7 +669,7 @@ Journeys im user-journeys.md-Format).
   `ai:needs-human`) verhindert konkurrierende Spec-Änderungen.
 - **Bewusst stateless:** Kein pro-Issue-Memory — die offenen Draft-PRs sind der einzige Zustand.
 - **Modell:** `vars.CLAUDE_MODEL_SPEC_SYNC` (Default `sonnet`), Provider wie alle LLM-Phasen via
-  `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und
+  `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl. Tailscale-Egress und
   Fair-Usage-Check).
 
 ## Nightly Guide-Sync (`cron.sync.guide.yml`)
@@ -591,5 +711,5 @@ mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
   `pr-needs-review-label.yml` springt nicht ein (labelt nur menschliche Akteure).
 - **Bewusst stateless:** Kein pro-Issue-Memory — der offene Sync-PR ist der einzige Zustand.
 - **Modell:** `vars.CLAUDE_MODEL_GUIDE_SYNC` (Default `opus` — Handbuch-Prosa und Drift-Erkennung),
-  Provider wie alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl.
+  Provider wie alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl.
   Tailscale-Egress und Fair-Usage-Check).

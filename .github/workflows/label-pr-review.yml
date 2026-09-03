@@ -111,7 +111,7 @@ jobs:
         run: |
           # Bewusst KEIN GITHUB_TOKEN-Fallback (G3): unter GITHUB_TOKEN gesetzte Labels feuern
           # kein `labeled`-Event → der Kreuzverhoer-Review startet nie (still). Genau das
-          # versagt auch setup-claude/action.yml hard (gleiche App-only-Philosophie). Ein
+          # versagt auch setup-agent/action.yml hard (gleiche App-only-Philosophie). Ein
           # fehlendes App-Token trotz vorhandener Secrets = Konfigurations-/Transient-Fehler
           # → laut abbrechen, nicht still mit GITHUB_TOKEN weiterlaufen.
           if [ -z "$APP_TOK" ] || [ "$APP_TOK" = "null" ]; then

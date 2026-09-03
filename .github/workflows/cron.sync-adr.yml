@@ -114,7 +114,7 @@ jobs:
       - name: Setup Claude Code
         id: setup
         if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
-        uses: ./.github/actions/setup-claude
+        uses: ./.github/actions/setup-agent
         with:
           needs-mcp: false
           tools-tier: full # Write/Edit auf docs/adr/*.md + git commit nötig; Push/PR macht der Workflow

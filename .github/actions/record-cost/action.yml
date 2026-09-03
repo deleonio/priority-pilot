@@ -1,8 +1,9 @@
 name: 'Token-/Kostenerfassung'
 description: >-
-  Liest den Verbrauch DIESES Laufes aus dem Claude-Code-Sitzungstranskript, schreibt
-  ihn nach .costs/<issue>.json, zeigt ihn in der Job-Summary und lädt ihn als Artefakt
-  hoch. Läuft NACH dem claude-Step und lässt den claude-Aufruf selbst unangetastet.
+  Liest den Verbrauch DIESES Laufes aus dem Sitzungstranskript der jeweiligen Laufzeit
+  (Claude Code oder pi), schreibt ihn nach .costs/<issue>.json, zeigt ihn in der
+  Job-Summary und lädt ihn als Artefakt hoch. Läuft NACH dem Agenten-Step und lässt den
+  Agenten-Aufruf selbst unangetastet.
 
 # WARUM DIESE ACTION (Schritt 0 der Harness-Optimierung): Der Vorher/Nachher-Vergleich
 # der Pipeline braucht eine Baseline auf der UNVERÄNDERTEN Pipeline. cost-record.ts lag
@@ -42,6 +43,20 @@ inputs:
     description: 'Aufgelöster LLM-Provider (steps.setup.outputs.llm-provider) — nur zur Ablage'
     required: false
     default: ''
+  runtime:
+    description: >-
+      Laufzeit dieses Laufes (steps.setup.outputs.runtime): "claude" (Default) oder "pi".
+      Entscheidet, WOHER der Verbrauch gelesen wird — die beiden Sitzungsformate haben
+      ausser "JSONL" nichts gemeinsam (s. Kopf von cost-from-pi-session.ts).
+    required: false
+    default: 'claude'
+  session-dir:
+    description: >-
+      Sitzungsverzeichnis des Laufes (steps.setup.outputs.session-dir). Nur für runtime=pi:
+      setup-pi legt je Lauf ein eigenes Verzeichnis an, damit die Abgrenzung „nur dieser
+      Lauf" exakt ist statt über eine Zeituntergrenze geschätzt. Leer = pi-Standardablage.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -54,29 +69,51 @@ runs:
         PHASE: ${{ inputs.phase }}
         SINCE_EPOCH: ${{ inputs.since-epoch }}
         PROVIDER: ${{ inputs.provider }}
+        RUNTIME: ${{ inputs.runtime }}
+        SESSION_DIR: ${{ inputs.session-dir }}
       run: |
         set -uo pipefail
 
-        # Epoch -> ISO-8601 (UTC). Die Transkript-Timestamps sind ISO-Strings; der
-        # Vergleich im Skript ist ein lexikografischer String-Vergleich, deshalb muss
-        # das Format exakt passen (Z-Suffix, keine lokale Zeitzone).
-        SINCE="$(date -u -d "@${SINCE_EPOCH}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
-        if [ -z "$SINCE" ]; then
-          echo "::warning title=Kostenerfassung::since-epoch '${SINCE_EPOCH}' nicht konvertierbar — erfasse ohne Untergrenze."
+        # Laufzeit-abhängige Quelle. Die Ausgaben BEIDER Skripte sind zeichengleich
+        # (dieselben key=value-Zeilen), deshalb genügt hier eine Weiche über die Argumente —
+        # der Auswerte-Block unten bleibt für beide identisch.
+        if [ "${RUNTIME:-claude}" = "pi" ]; then
+          # pi: setup-pi legt je Lauf ein eigenes Sitzungsverzeichnis an (inkl. der
+          # Subagent-Kindsitzungen). Damit ist die Abgrenzung exakt und die
+          # Zeituntergrenze überflüssig.
+          SCRIPT_NAME="cost-from-pi-session.ts"
+          SCOPE_ARGS=()
+          if [ -n "$SESSION_DIR" ]; then
+            SCOPE_ARGS=(--session-dir "$SESSION_DIR")
+          else
+            echo "::warning title=Kostenerfassung::runtime=pi, aber session-dir ist leer — es wird die pi-Standardablage gelesen."
+          fi
+        else
+          # Claude Code: alle Läufe eines Runner-Homes teilen sich denselben Projektordner.
+          # Epoch -> ISO-8601 (UTC): Die Transkript-Timestamps sind ISO-Strings; der
+          # Vergleich im Skript ist ein lexikografischer String-Vergleich, deshalb muss
+          # das Format exakt passen (Z-Suffix, keine lokale Zeitzone).
+          SCRIPT_NAME="cost-from-transcript.ts"
+          SINCE="$(date -u -d "@${SINCE_EPOCH}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
+          if [ -z "$SINCE" ]; then
+            echo "::warning title=Kostenerfassung::since-epoch '${SINCE_EPOCH}' nicht konvertierbar — erfasse ohne Untergrenze."
+          fi
+          SCOPE_ARGS=()
+          [ -n "$SINCE" ] && SCOPE_ARGS=(--since "$SINCE")
         fi
 
         # Bewusst `node` statt `pnpm exec tsx`: Die Phasen 01, 05 und 07 richten weder
         # Node-Setup noch pnpm ein (nur 02/03/04/06 tun das). Node >= 22.18 entfernt
-        # TypeScript-Typen nativ beim Laden, das Skript nutzt ausschliesslich loeschbare
+        # TypeScript-Typen nativ beim Laden, die Skripte nutzen ausschliesslich loeschbare
         # Syntax — damit laeuft die Erfassung in ALLEN sieben Phasen ohne Zusatz-Setup.
         # Faellt das Type-Stripping aus (aelteres Node), greift tsx als Fallback.
-        SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/cost-from-transcript.ts"
+        SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/${SCRIPT_NAME}"
         OUT="$(node "$SCRIPT" \
           --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
-          ${SINCE:+--since "$SINCE"} 2>&1)" \
+          "${SCOPE_ARGS[@]}" 2>&1)" \
           || OUT="$(pnpm exec tsx "$SCRIPT" \
               --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
-              ${SINCE:+--since "$SINCE"} 2>&1 || true)"
+              "${SCOPE_ARGS[@]}" 2>&1 || true)"
         printf '%s\n' "$OUT"
 
         # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und
@@ -93,6 +130,7 @@ runs:
         PHASE: ${{ inputs.phase }}
         ISSUE: ${{ inputs.issue }}
         PROVIDER: ${{ inputs.provider }}
+        RUNTIME: ${{ inputs.runtime }}
         TOKENS_IN: ${{ steps.collect.outputs.tokensIn }}
         TOKENS_OUT: ${{ steps.collect.outputs.tokensOut }}
         COST: ${{ steps.collect.outputs.cost }}
@@ -113,6 +151,7 @@ runs:
           else
             echo "| Metrik | Wert |"
             echo "| --- | --- |"
+            echo "| Laufzeit | \`${RUNTIME:-claude}\` |"
             echo "| Modell | \`${MODEL:-unbekannt}\` |"
             echo "| Provider | \`${PROVIDER:-?}\` |"
             echo "| Token in (inkl. Cache) | ${TOKENS_IN} |"
@@ -131,6 +170,11 @@ runs:
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Kostendatensatz als Artefakt sichern
+      # DER NAME BLEIBT `claude-costs-…`, AUCH FÜR pi-LÄUFE: track-costs.yml und
+      # seal-costs.sh filtern die Artefakte über genau dieses Präfix. Ein laufzeit-
+      # spezifischer Name würde die pi-Läufe für beide unsichtbar machen — die Kosten
+      # verschwänden still aus Zusammenfassung und Siegel. Das Präfix ist historisch,
+      # nicht laufzeitbezogen; die Laufzeit steht im Datensatz und in der Job-Summary.
       if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:

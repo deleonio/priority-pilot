@@ -1,0 +1,15 @@
+{
+	"claude": {
+		"fable": "anthropic/claude-fable-5",
+		"opus": "anthropic/claude-opus-5",
+		"sonnet": "anthropic/claude-sonnet-5",
+		"haiku": "anthropic/claude-haiku-4-5-20251001"
+	},
+	"zai": {
+		"fable": "zai/glm-5.3",
+		"opus": "zai/glm-5.3",
+		"sonnet": "zai/glm-5-turbo",
+		"haiku": "zai/glm-4.7"
+	},
+	"openrouter": {}
+}

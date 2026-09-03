@@ -1,7 +1,9 @@
 name: 01 Triage
 
 # Stößt die KI-Analyse (Triage) eines Issues an.
-# Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
+# Laufzeit via `vars.AGENT_RUNTIME` (claude|pi), Provider via `vars.LLM_PROVIDER`
+# (claude|zai|openrouter) — beides aufgelöst in setup-agent. Diese Phase ist die Pilotphase
+# für die pi-Laufzeit (#1184); alle anderen Phasen laufen weiter fest auf Claude Code.
 #
 # Triggert bei:
 #  - Setzen von Label "ai:needs-analyse" (issues: labeled) → Einstieg in die Pipeline
@@ -158,10 +160,18 @@ jobs:
           # Job-Timeout (30 min) bleibt unverändert die harte Grenze.
           echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Claude Code (mit Memory-Load)
+      - name: Setup Agent-Laufzeit (mit Memory-Load)
         id: setup
-        uses: ./.github/actions/setup-claude
+        uses: ./.github/actions/setup-agent
         with:
+          # PILOTPHASE (#1184): Diese Phase ist die EINZIGE, die vars.AGENT_RUNTIME
+          # durchreicht — hier wird pi als zweite Laufzeit erprobt. Die übrigen Phasen
+          # rufen setup-agent ohne runtime-Input auf und laufen unverändert auf Claude
+          # Code; der Rollout ist laut Ticket ein Folge-Ticket nach Bewährung.
+          # Umschalten ohne Commit: `gh variable set AGENT_RUNTIME --body pi`
+          # (leer oder nicht gesetzt = claude; unbekannter Wert bricht laut ab).
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           needs-mcp: true
           tools-tier: restricted
           event-type: ${{ github.event_name }}
@@ -200,7 +210,12 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: bash .github/scripts/ensure-labels.sh
 
-      - name: Triage via Claude
+      - name: Triage via Agent-Laufzeit
+        # Step-ID und die /tmp/claude-*-Pfade bleiben historisch: `steps.claude.outcome`
+        # wird unten zweimal gelesen, und /tmp/claude-output.log ist der fest verdrahtete
+        # Pfad von needs-human-explain.sh, phase-crash-park.sh und transient-api-error.sh.
+        # WELCHE Laufzeit hier läuft, entscheidet setup-agent über invoke-cmd/invoke-args —
+        # die Aufrufzeile unten ist für Claude Code und pi identisch (beide: `<cmd> "<prompt>" <args>`).
         id: claude
         if: steps.setup.outputs.configured == 'true'
         env:
@@ -237,6 +252,11 @@ jobs:
           phase: analyse
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          # Laufzeit + Sitzungsverzeichnis entscheiden, WOHER der Verbrauch gelesen wird.
+          # session-dir ist nur bei runtime=pi gefüllt; bei claude bleibt es leer und die
+          # Erfassung nutzt wie bisher die Zeituntergrenze aus since-epoch.
+          runtime: ${{ steps.setup.outputs.runtime }}
+          session-dir: ${{ steps.setup.outputs.session-dir }}
 
       - name: Issue-Storage sichern (Harness-Branch)
         # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem
