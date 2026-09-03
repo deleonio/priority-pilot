@@ -12,8 +12,8 @@ import type { CostEntry } from './cost-record.ts';
  * summiert bleibt unbemerkt. Deshalb prüft dieser Test die stillen Fehlerfälle:
  * verlorene Dateien, verlorene Turns und die falsche Sortierung (die Ausreisser
  * müssen OBEN stehen, sonst sieht niemand die Schleifen-Tickets) — plus die
- * Rechenlogik der neuen Darstellungsformen (ISO-Wochen-Grenze, Richtungs-Schwelle,
- * Fenster-Ausschluss, Anteils-Balken).
+ * Rechenlogik der neuen Darstellungsformen (ISO-Wochen-Grenze, Berlin-Tages-Grenze,
+ * Richtungs-Schwelle, Fenster-Ausschluss, Anteils-Balken).
  */
 
 const entry = (over: Partial<CostEntry> = {}): CostEntry => ({
@@ -94,6 +94,34 @@ describe('costs-report', () => {
 			);
 			assert.match(report, /█{10} 100 %/, 'voller Anteil = 10 gefüllte Balken-Zeichen');
 			assert.match(report, /Top 5 Tickets\*\* stehen für 100 % des Gesamtwerts/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('zählt Trend-Tage in Berlin-Lokalzeit — UTC-Abend gehört zum Berliner Folgetag', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'costs-report-tz-'));
+		try {
+			writeTicket(dir, '800', [
+				entry({ issueId: '800', phase: 'implement', valueCost: 1, timestamp: '2026-09-02T21:00:00Z' }), // 23:00 Berlin, 02.09.
+				entry({ issueId: '800', phase: 'review', valueCost: 2, timestamp: '2026-09-02T23:00:00Z' }), // 01:00 Berlin, 03.09.
+				// Sonntag 23:00 UTC = Montag 01:00 Berlin (07.09., W37) — unter UTC-Ableitung
+				// stünde noch W36 (Sonntag 06.09.); genau diesen Unterschied pinnt der Test.
+				entry({ issueId: '800', phase: 'fixup', valueCost: 3, timestamp: '2026-09-06T23:00:00Z' }),
+			]);
+			const report = renderReport(dir);
+			assert.match(
+				report,
+				/x-axis \["09-02", "09-03", "09-07"\]/,
+				'der 23:00-UTC-Lauf ist in Berlin schon der Folgetag — ein UTC-Slice würde ihn dem Vortag zuschlagen',
+			);
+			assert.match(report, /Zeitraum 2026-09-02 bis 2026-09-07/);
+			assert.match(report, /\| 2026-W36 \| 2 \| 1 \|/, 'beide Berlin-Tage liegen in derselben ISO-Woche');
+			assert.match(
+				report,
+				/\| 2026-W37 \| 1 \| 1 \|/,
+				'Sonntag 23:00 UTC ist in Berlin schon Montag und damit W37 — unter UTC-Woche stünde W36',
+			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

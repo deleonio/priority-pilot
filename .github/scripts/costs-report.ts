@@ -101,9 +101,23 @@ const bar = (part: number, total: number): string => {
 	return `${'█'.repeat(filled)}${'░'.repeat(10 - filled)} ${pct(anteil)}`;
 };
 
-/** ISO-Woche eines ISO-Timestamps („2026-W35") — Anker ist der Donnerstag der Woche. */
-const isoWeek = (timestamp: string): string => {
+// Kalenderformat für Berlin-Tage: en-CA liefert ISO-ähnlich „2026-09-03“ ohne Nachformatieren.
+const berlinFmt = new Intl.DateTimeFormat('en-CA', {
+	timeZone: 'Europe/Berlin',
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit',
+});
+
+/** Kalendertag in Berlin-Lokalzeit („2026-09-03“) — der Report zählt menschliche Tage, keine UTC-Slices; unlesbare Stempel fallen auf den UTC-Slice zurück. */
+const berlinDay = (timestamp: string): string => {
 	const d = new Date(timestamp);
+	return Number.isNaN(d.getTime()) ? timestamp.slice(0, 10) : berlinFmt.format(d);
+};
+
+/** ISO-Woche eines Berlin-Kalendertags („2026-W35“) — Anker ist der Donnerstag der Woche. */
+const isoWeek = (day: string): string => {
+	const d = new Date(`${day}T12:00:00Z`);
 	const thursday = new Date(d);
 	thursday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
 	const jan1 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
@@ -137,7 +151,8 @@ export function renderReport(dir: string): string {
 	);
 	const anyTurns = sum.turns > 0;
 	// Zeitraum über ALLE Tickets (min/max), nicht über die Enden der wert-sortierten
-	// Liste — der billigste Ticket-Datensatz stammt selten vom ersten Tag.
+	// Liste — der billigste Ticket-Datensatz stammt selten vom ersten Tag. Anzeige in
+	// Berlin-Tagen, wie überall im Report.
 	const first = tickets.reduce((min, t) => (t.first < min ? t.first : min), tickets[0].first);
 	const last = tickets.reduce((max, t) => (t.last > max ? t.last : max), tickets[0].last);
 
@@ -189,7 +204,7 @@ export function renderReport(dir: string): string {
 	});
 
 	lines.push(
-		`**${tickets.length} Tickets · ${sum.runs} Läufe · Zeitraum ${first.slice(0, 10)} bis ${last.slice(0, 10)}**`,
+		`**${tickets.length} Tickets · ${sum.runs} Läufe · Zeitraum ${berlinDay(first)} bis ${berlinDay(last)}**`,
 		'',
 	);
 	if (kpiRows.length > 0) {
@@ -257,13 +272,14 @@ export function renderReport(dir: string): string {
 	// Zeitlicher Trend der Durchschnittskosten je Run (nur messende Läufe, valueCost > 0).
 	// Grund: ein Trend ist der Kompass für Optimierungen — Tagesmittel glätten Ticket-Streuung,
 	// Phasen-Mittel zeigen, WELCHE Phase den Trend treibt. Läufe ohne Messung (valueCost=0,
-	// vor #984) würden den Trend gegen 0 ziehen und sind ausgeschlossen.
+	// vor #984) würden den Trend gegen 0 ziehen und sind ausgeschlossen. Tages-Grenzen
+	// gelten in Berlin-Lokalzeit — ein UTC-Slice würde Abend-Läufe nach 0 Uhr dem Vortag zuschlagen.
 	const byDay = new Map<string, { runs: number; vc: number }>();
 	const byWeek = new Map<string, { runs: number; vc: number; issues: Set<string> }>();
 	const byWeekPhase = new Map<string, Map<string, { runs: number; vc: number }>>();
 	for (const e of messende) {
 		const vc = ZERO(e.valueCost);
-		const day = e.timestamp.slice(0, 10);
+		const day = berlinDay(e.timestamp);
 		let d = byDay.get(day);
 		if (!d) {
 			d = { runs: 0, vc: 0 };
@@ -271,7 +287,7 @@ export function renderReport(dir: string): string {
 		}
 		d.runs += 1;
 		d.vc += vc;
-		const wk = isoWeek(e.timestamp);
+		const wk = isoWeek(day);
 		let w = byWeek.get(wk);
 		if (!w) {
 			w = { runs: 0, vc: 0, issues: new Set<string>() };
@@ -324,7 +340,7 @@ export function renderReport(dir: string): string {
 		lines.push(
 			'',
 			'> Nur Läufe mit Messung (valueCost > 0, seit #984). Wenige Runs pro Tag können den',
-			'> Tageswert stark bewegen — der Trend zählt, nicht der Einzelpunkt.',
+			'> Tageswert stark bewegen — der Trend zählt, nicht der Einzelpunkt. Tages-Grenzen gelten in Berliner Zeit.',
 			'',
 		);
 		// Wochen-Raster: Wochen statt Tage — weniger Rauschen, und Ø je Ticket ist direkt
@@ -350,8 +366,9 @@ export function renderReport(dir: string): string {
 		}
 		lines.push('');
 		// Richtung: letzte 7 Kalendertage gegen die 8–14 davor — Anker ist der jüngste
-		// messende Datensatz, deterministisch aus den Daten statt von der Wanduhr.
-		const anchorDay = Math.max(...messende.map((e) => Date.parse(`${e.timestamp.slice(0, 10)}T00:00:00Z`)));
+		// messende Datensatz, deterministisch aus den Daten statt von der Wanduhr;
+		// gezählt in Berlin-Tagen, konsistent zum Trend oben.
+		const anchorDay = Math.max(...messende.map((e) => Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)));
 		const dirNew = new Map<string, { runs: number; vc: number }>();
 		const dirOld = new Map<string, { runs: number; vc: number }>();
 		const addDir = (m: Map<string, { runs: number; vc: number }>, ph: string, vc: number): void => {
@@ -364,7 +381,7 @@ export function renderReport(dir: string): string {
 			x.vc += vc;
 		};
 		for (const e of messende) {
-			const age = (anchorDay - Date.parse(`${e.timestamp.slice(0, 10)}T00:00:00Z`)) / 86_400_000;
+			const age = (anchorDay - Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)) / 86_400_000;
 			if (age < 0 || age > 13) continue;
 			const fenster = age <= 6 ? dirNew : dirOld;
 			const ph = e.phase ?? '(ohne)';
@@ -394,7 +411,7 @@ export function renderReport(dir: string): string {
 		richtRow('**Alle Phasen**', '(gesamt)');
 		lines.push(
 			'',
-			'> Anker ist der jüngste Datensatz (Kalendertage). „—" = zu wenige Runs (< 2) im Fenster,',
+			'> Anker ist der jüngste Datensatz (Kalendertage, Berliner Zeit). „—" = zu wenige Runs (< 2) im Fenster,',
 			'> „→" = unter ±10 % Änderung. „Alle Phasen" verschiebt sich auch mit dem Phasen-Mix',
 			'> (z. B. kaum implement-Läufe im alten Fenster) — je Phase lesen, nicht nur die Summe.',
 			'',
