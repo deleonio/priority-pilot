@@ -82,6 +82,20 @@
 			groupName: 'devDependencies (non-major)',
 		},
 		{
+			// pnpm-Workspace-Overrides (Security-Pins in pnpm-workspace.yaml): Major-Vorschläge
+			// unterdrücken — die Pins sollen auf den getesteten GHSA-Fixes bleiben (z. B.
+			// "auf 2.x/4.x bleiben"); ein neuer Pin ist eine bewusste Entscheidung.
+			matchDepTypes: ['pnpm-workspace.overrides'],
+			matchUpdateTypes: ['major'],
+			enabled: false,
+		},
+		{
+			// ... und Patch-/Minor-Bumps innerhalb der Pins in einem PR bündeln —
+			// hält die Pins aktuell, ohne bis zu 12 einzelne PR-Streams zu erzeugen.
+			matchDepTypes: ['pnpm-workspace.overrides'],
+			groupName: 'pnpm overrides (Security-Pins)',
+		},
+		{
 			// GitHub-Actions-Updates separat gruppieren.
 			matchManagers: ['github-actions'],
 			groupName: 'GitHub Actions',
