@@ -438,3 +438,93 @@ describe('SettingsPage – #1183: Master-Schalter „Animationen" im Tab Allgeme
 		expect(localStorage.getItem(KEY)).toBe('false');
 	});
 });
+
+describe('SettingsPage – #1187: Info-Meldung „Bewegung reduzieren" im Tab Allgemein', () => {
+	const KEY = 'pp-animations-enabled';
+
+	/** KoliBri-Adapter setzt boolesche Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	/**
+	 * matchMedia-Stub (Muster `confetti.test.ts:17-31`): nur die reduced-motion-Query
+	 * liefert eine Präferenz, alles andere (z. B. color-scheme aus AppearanceSetting)
+	 * bleibt neutral. Der Hook `usePrefersReducedMotion` existiert noch nicht → die
+	 * Banner-Assertions laufen rot, bis `frontend/src/lib/reducedMotion.ts` + Banner
+	 * existieren (docs/spec/issue-1187.md).
+	 */
+	const stubReducedMotion = (reduce: boolean): void => {
+		vi.stubGlobal(
+			'matchMedia',
+			vi.fn().mockImplementation((query: string) => ({
+				matches: reduce && query.includes('prefers-reduced-motion'),
+				media: query,
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+				addListener: vi.fn(),
+				removeListener: vi.fn(),
+				onchange: null,
+				dispatchEvent: vi.fn().mockReturnValue(false),
+			})),
+		);
+	};
+
+	/** Info-Alerts im Panel „Allgemein" (u. a. Push-Banner) — Grundmenge für den Themen-Filter. */
+	const reducedMotionAlerts = (container: HTMLElement): NodeListOf<Element> =>
+		container.querySelectorAll('[slot="tab-0"] kol-alert[_type="info"]');
+
+	/** Filtert die Info-Alerts auf die, deren Label ODER Text „Bewegung reduzieren" nennen. */
+	const alertsMentioningReducedMotion = (container: HTMLElement): Element[] =>
+		Array.from(reducedMotionAlerts(container)).filter(
+			(alert) =>
+				(alert.getAttribute('_label') ?? '').includes('Bewegung reduzieren') ||
+				(alert.textContent ?? '').includes('Bewegung reduzieren'),
+		);
+
+	beforeEach(() => {
+		localStorage.removeItem(KEY);
+	});
+
+	afterEach(() => {
+		localStorage.removeItem(KEY);
+		vi.unstubAllGlobals();
+	});
+
+	it('AK1: bei aktiver Systemeinstellung erscheint im Panel Allgemein eine Info-Meldung', () => {
+		stubReducedMotion(true);
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const alerts = alertsMentioningReducedMotion(container);
+		expect(alerts.length, 'Info-Meldung zu „Bewegung reduzieren" fehlt').toBeGreaterThan(0);
+		expect(alerts[0]?.getAttribute('_type')).toBe('info');
+	});
+
+	it('AK1: ohne die Systemeinstellung erscheint die Info-Meldung nicht', () => {
+		stubReducedMotion(false);
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		expect(alertsMentioningReducedMotion(container)).toHaveLength(0);
+	});
+
+	it('AK4: bei reduce zeigt der Schalter weiter den gespeicherten Gerätewert und bleibt umschaltbar', async () => {
+		stubReducedMotion(true);
+		localStorage.setItem(KEY, 'true');
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const toggle = container.querySelector('kol-input-checkbox[_label="Animationen"]');
+		expect(toggle, 'Animationen-Schalter fehlt').not.toBeNull();
+
+		// Zeigt den gespeicherten Wert …
+		expect(bound(toggle!, '_checked')).toBe('true');
+		// … und ist durch das Banner NICHT deaktiviert.
+		expect(toggle!.hasAttribute('_disabled')).toBe(false);
+
+		// Toggle schreibt weiterhin den localStorage-Key.
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(localStorage.getItem(KEY)).toBe('false');
+	});
+});
