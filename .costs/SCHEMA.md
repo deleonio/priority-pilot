@@ -122,7 +122,16 @@ Artefakte.
 **`turns` zählt API-Calls, nicht Zeilen.** Eine Assistant-Antwort erscheint im Transkript
 als mehrere JSONL-Zeilen mit identischer Nutzung; gezählt werden deduplizierte Antworten
 (inkl. Subagenten). Die Zahl ist die Granularität zwischen Läufen und Token: wie viele
-Prompts brauchte ein Lauf wirklich.
+Prompts brauchte ein Lauf wirklich. Weil die Abos praktisch nach Prompts/Turns abrechnen,
+hat sie einen eigenen repo-weiten Bericht — Workflow
+[`Turn-Übersicht`](../.github/workflows/report-turns.yml) (manuell) oder lokal:
+
+```
+node .github/scripts/turns-report.ts --dir .costs
+```
+
+Läufe von vor der Turns-Erfassung (Issue #984) haben das Feld nicht; sie erscheinen dort
+als „—" und zählen in keinem Durchschnitt mit.
 
 ## Beispiel
 

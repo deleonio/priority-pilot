@@ -1,0 +1,36 @@
+name: Turn-Übersicht
+
+# Rendert die TURN-primäre Gesamt-Übersicht über ALLE versiegelten Kosten-Datensätze
+# (.costs/*.json) in die Job-Summary — das Gegenstück zum Workflow „Kosten-Übersicht", der
+# dieselben Daten token-/USD-primär zeigt. Die Abos rechnen nach Prompts/Turns ab, deshalb
+# gibt es beide Blickwinkel getrennt (Issue #1197).
+#
+# WARUM NUR MANUELL: wie bei der Kosten-Übersicht eine Momentaufnahme für den Menschen
+# („wie viele Prompts kostet ein Ticket, welche Phase schleift") — ein schedule würde nur
+# Runner verbrennen. Beim lokalen Blick reicht:
+#   node .github/scripts/turns-report.ts --dir .costs
+#
+# NUR LESEND: kein Label, kein Kommentar, kein Commit.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read # .costs/ + Skript auschecken
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Bericht bauen
+        run: |
+          set -euo pipefail
+          # Bewusst `node` statt tsx: kein pnpm-Setup nötig, das Skript nutzt
+          # ausschliesslich löschbare TypeScript-Syntax (gleiche Begründung wie record-cost).
+          node .github/scripts/turns-report.ts --dir .costs \
+            | tee -a "$GITHUB_STEP_SUMMARY"
