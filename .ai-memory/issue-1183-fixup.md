@@ -1,34 +1,34 @@
-# Issue 1183 — Fixup (PR #1188, Kreuzverhör Runde 1), Stand 2026-09-03
+# Issue 1183 — Fixup (PR #1188), Stand 2026-09-03 (Runde 2)
 
 ## Erledigt
-- Findings eingesammelt: genau EIN fixables Finding F1 (🟡, Inline-Kommentar 3919809567, `frontend/e2e/issue-1182-dashboard-confetti.spec.ts`) — kein Entscheidungs-Finding, kein CI-Befund im Kommentar.
-- Ursache verifiziert: Branch basierte auf `bb340752` (vor #1182-Merge `ba00b9d7`), das 1182-Spec fehlte lokal komplett → Repo war SHALLOW (`git rev-parse --is-shallow-repository` = true, daher zunächst „no merge base"); nach `git fetch --unshallow origin` merge-base da.
-- `git merge origin/main --no-edit` in `ai/harness/1183` (bringt #1182-Spec + App.tsx-Wiring, #1191, Release-Commits; kein Konflikt).
-- Fix F1: `test.beforeEach` + `addInitScript('pp-animations-enabled' → 'true')` in `issue-1182-dashboard-confetti.spec.ts` eingefügt (nach dem `afterEach`, vor AK1) — Muster aus `issue-1169-confetti.spec.ts:60-62`, Kommentar verweist auf #1183-Test-Pflege und AK3-Reduce-Ausnahme.
-- Verifikation E2E lokal: `npx playwright test e2e/issue-1182-dashboard-confetti.spec.ts` = 3/3 grün (AK1/AK3/AK4); `issue-1183-animations.spec.ts` + `issue-1169-confetti.spec.ts` = 11/11 grün nach dem Merge.
-- Gate (format/lint/knip/unit) an gate-runner (haiku) delegiert — Ergebnis im Commit/PR nachlesbar, s. Offen falls noch laufend.
+- Runde 1 (voriger Lauf): F1 gefixt (`8239cf75`), Merge `7047043a`, Thread `PRRT_kwDONloM186eufG9` resolved — verifiziert: isResolved=true.
+- Re-Review Runde 2 (Kommentar 5518226930, 2026-09-03T00:02:38Z): 🟢, „F1 sauber behoben, keine neuen Findings im Fixup-Delta".
+- CI-Befund `e2e (4)` FAILURE (Run 33699775732, Head 6f8005fc) untersucht: KEIN Flaky — `settings-switch-layout.spec.ts` AK1–AK3 erwarten `toHaveCount(2)` auf `.settings-general .settings-switch-row`, fanden deterministisch 3 (14×Retry). Ursache: #1183 hat den dritten Switch „Animationen" (`SettingsPage.tsx:269-283`, eigenes `.settings-switch-row`, Muster wie #971) in den Allgemein-Tab gebaut — Test-Pflege wie F1, echte Regression im Diff-Nachbereich.
+- Fix: Spec auf 3 aktualisiert (Z. 12-14 HINWEIS + AK1:66/71, AK2:93/95, AK3:117/119, Kommentare nennen #1183); AK5–AK7 label-basiert, unberührt.
+- Verifikation lokal: `npx playwright test e2e/settings-switch-layout.spec.ts` = 7/7 grün (14s). Prettier + eslint auf der Datei grün.
+- Commit + Push (siehe `git log`), kein Verdict — Fortschritt trägt der Commit. Kein Review-Thread aufzulösen (CI-Failure war kein Inline-Finding; Review-Kommentar unangetastet).
 
 ## Relevante Stellen
-- `frontend/e2e/issue-1182-dashboard-confetti.spec.ts:69-81` (AK1) und `:107-118` (AK4) — die vom Gate `launchConfetti → readAnimationsEnabled` (Default aus) gebrochenen Overlay-Assertions; Fix sitzt als beforeEach direkt im describe.
-- `frontend/src/lib/confetti.ts:85` — das neue Default-aus-Gate, Auslöser der Regression.
-- `frontend/e2e/issue-1169-confetti.spec.ts:56-62` — Vorlagen-Muster des Fixes.
-- PR #1188: Review-Kommentar `<!-- ai-review -->` (needs-fixup, F1), Thread 3919809567 (GraphQL resolve ausstehend/nach Push).
+- `frontend/src/components/SettingsPage.tsx:269-283` — der #1183-Master-Schalter „Animationen", drittes `.settings-switch-row` im tab-0 (Allgemein).
+- `frontend/e2e/settings-switch-layout.spec.ts:66,93,117` — Count-Assertionen (jetzt 3); Push-Zeile ist an `pushSupported` gekoppelt (im CI-Env supportet → 3 stabil).
+- PR #1188 Checks: run 33699775732 (e2e 1–3 + verify grün, e2e 4 rot vor Fix).
 
 ## Annahmen
-- Merge von origin/main in den Feature-Branch ist der richtige Weg (statt Cherry-Pick der Datei): vermeidet add/add-Konflikt beim PR-Merge und hält den PR-Diff gegen main minimal (nur der beforeEach-Block).
-- F1 ist unambiguous (Review liefert exakten Code-Vorschlag) → direkt gefixt, keine Klärung nötig.
+- Count 3 bleibt stabil, da Push-Support im E2E-Env gegeben war (CI sah 3, nicht 2) und kein weiterer Switch in tab-0 geplant.
+- Kein neuerer Lauf existierte, der den Fix schon enthält; Pipeline startet nach Push automatisch.
 
 ## Verworfen
-- Cherry-Pick/Checkout nur der 1182-Spec-Datei aus origin/main — hätte add/add-Konflikt beim GitHub-Merge erzeugt (beide Seiten fügen gleiche Datei mit unterschiedlichem Inhalt hinzu).
-- Vollständiger Diff-Walk — Review hat nur F1 gemeldet, SCOPE-Regel des Prompts (nur Anker lesen).
+- `gh run rerun --failed` — kein Flaky (deterministischer Count-Mismatch, 3 AKs rot).
+- AK5-Labels um „Animationen" erweitern — grüner Sicherungs-Test, kein gemeldetes Finding (SCOPE-Regel).
+- Vollständiger Diff-Walk — Review hat 🟢 gegeben, nur CI-Anker verfolgt.
 
 ## Offen
-- -
+- Pipeline nach Push beobachten (nächster Lauf); `.costs/1183.json` bleibt untracked (Harness-Artefakt, nicht committen).
 
 ## Nächster Schritt
-- Erledigt: Merge `7047043a` (origin/main rein), Fix-Commit `8239cf75` gepusht (4fae36ab..8239cf75), Review-Thread PRRT_kwDONloM186eufG9 (Inline 3919809567) per GraphQL resolved (isResolved=true verifiziert). Kein Verdict — Fortschritt trägt der Commit. Nächster Lauf: Re-Review/CI auf PR #1188 abwarten.
+- Nächster Lauf: CI auf PR #1188 prüfen (sollte jetzt komplett grün sein), dann Merge-Pfad des Workflows.
 
 ## Fallstricke
-- Runner-Repo ist shallow geklont — merge-base-Fehler erst mal mit `git fetch --unshallow origin` lösen, nicht als divergierte Historie fehldeuten.
-- Bash-Tool-Arbeitsverzeichnis persistiert: nach `cd frontend` läuft der nächste Call schon dort („cd: frontend: No such file or directory" ist dann kein Fehler für den eigentlichen Befehl).
-- AK3 (reduce) bekommt KEINE Schalter-Vorbelegung-Ausnahme — reduce unterdrückt auch bei eingeschaltetem Schalter; wer dort test.beforeEach-Ausnahmen einbaut, verändert den Vertragspunkt.
+- Repo ist in frischen Runner-Sandboxes wieder SHALLOW → `git fetch --unshallow origin` vor merge-base-Operationen.
+- Der #971-Spec-Kommentar „Seit #1151 nur noch 2" war veraltetet Munition: Count-Assertions in Altspecs sind die erste Anlaufstelle, wenn ein neuer Switch in tab-0 landet.
+- AK3 (reduce) bekommt weiterhin KEINE Schalter-Vorbelegung-Ausnahme (Runde-1-Vertrag).
