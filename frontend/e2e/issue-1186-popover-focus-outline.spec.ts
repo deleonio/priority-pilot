@@ -16,11 +16,13 @@ import { waitForStableView } from './helpers';
  * - AK2: Der per Tastatur fokussierte Toolbar-Button trägt eine sichtbare Outline
  *   (outline-style != none, outline-width > 0) und kein Vorfahr im Popover-Shadow-DOM
  *   clippt sie — damit ist die Outline an allen vier Kanten vollständig sichtbar.
- * - AK3: AK1+AK2 gelten unverändert bei 375px-Viewport (Mobile-first).
+ * - AK3: AK1+AK2 gelten unverändert bei 375px-Viewport (Mobile-first); der Fokus
+ *   wird dort per echter Tab-Navigation erreicht (nicht nur programmatisch), um ein
+ *   Fokus-Gefängnis im engen Popover-Layout auszuschließen (Vorbild issue-930, AK1).
  *
  * Stil-Assertions per getComputedStyle auf dem per Locator erreichten Element
  * (Playwright pierct offene Shadow Roots, Vorbild issue-930-transparent-backgrounds);
- * Fokus per locator.focus() + toBeFocused (Vorbild issue-761, AK6). Kein Unit-Test:
+ * Fokus in AK1/AK2 per locator.focus() + toBeFocused (Vorbild issue-761, AK6). Kein Unit-Test:
  * migration-check.test.ts verbietet shadowRoot-Zugriffe in frontend/src-Tests —
  * die Prüfung liegt bewusst auf E2E-Ebene.
  */
@@ -176,10 +178,24 @@ test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenlis
 			const overflow = await popoverPanel(page, id).evaluate((el) => window.getComputedStyle(el).overflow);
 			expect(overflow, 'Panel-overflow muss auch auf schmalem Viewport visible sein').toBe('visible');
 
-			// AK2 bei 375px.
+			// AK2 bei 375px — per echter Tab-Navigation (nicht nur programmatisch),
+			// da ein Fokus-Gefängnis im engen Popover-Layout die Tab-Reihenfolge
+			// unterbrechen könnte, ohne dass ein programmatischer .focus() das zeigt.
 			const button = firstToolbarButton(page, id);
 			await expect(button).toBeVisible();
-			await button.focus();
+			let focusedViaKeyboard = false;
+			for (let i = 0; i < 15 && !focusedViaKeyboard; i++) {
+				await page.keyboard.press('Tab');
+				try {
+					await expect(button).toBeFocused({ timeout: 150 });
+					focusedViaKeyboard = true;
+				} catch {
+					// noch nicht beim Button — weiter tabben
+				}
+			}
+			expect(focusedViaKeyboard, 'Toolbar-Button muss auf 375px per Tab-Taste erreichbar sein (max. 15 Tabs)').toBe(
+				true,
+			);
 			await expect(button).toBeFocused();
 
 			const hasOutline = await button.evaluate((el) => {
