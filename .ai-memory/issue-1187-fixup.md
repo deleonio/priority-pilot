@@ -1,53 +1,55 @@
-# Issue 1187 — Fixup (PR #1195), Stand 2026-09-03
+# Issue 1187 — Fixup (PR #1195), Runde 2, Stand 2026-09-03
 
 ## Erledigt
-- **F1** (`frontend/src/lib/reducedMotion.test.ts:28-56`): Fake-MQL um `addEventListener`/
-  `removeEventListener` erweitert, die bei `type === 'change'` in die `listeners`-Menge
-  schreiben/diesen entfernen — AK2c/d/e liefen dagegen grün (lokal verifiziert, 5/5 passed).
-- **F2** (`frontend/src/lib/reducedMotion.ts:20-33`): `typeof addEventListener`-Guard gestrichen,
-  Registrierung jetzt bedingungslos wie `theme.ts:101-102` (Hausmuster).
-- **CI e2e (2) rot, review behauptete grün** — Root Cause per Playwright-Sonden gefunden:
-  1. Banner-Lokator `[slot="tab-0"] kol-alert` trifft 0 Elemente, weil KolTabs die light-DOM-slot-
-     Attribute zur Laufzeit umbenennt (`tab-0` → `tabpanel-slot-*`, MEMORY 2026-08-23). Fix:
-     `.settings-general kol-alert` (stabile Panel-Klasse, Hauskonvention wie
-     `settings-action-buttons.spec.ts:134`). → AK1/AK6 grün.
-  2. AK2-Race: `emulateMedia` feuerte das change-Event, BEVOR React den passiven Effect des Hooks
-     gespült hatte (Sonden-Beleg: keine ADD-Registrierung zum Zeitpunkt des Events) → Event verloren,
-     Banner bleibt aus. Fix: vor `emulateMedia` harmloser Klick auf den aktiven Tab „Allgemein“ —
-     React spült offene passive Effects vor der nächsten Event-Dispatch, danach ist der Listener
-     garantiert registriert. → AK2 grün.
-- Gate (gate-runner): format/prettier/lint/knip/test alles exit 0 (252 Tests, fail 0; Redis lokal
-  erreichbar, session.test.ts unproblematisch).
-- E2e-Verifikation: `npx playwright test e2e/issue-1187-reduced-motion.spec.ts` → 4/4 passed.
-- Commit + Push auf `ai/harness/1187`, beide Review-Threads (F1/F2) via GraphQL aufgelöst.
+- **Runde 1 (SHA 5aac8f33, abgeschlossen):** F1 Fake-MQL-Stub-Verkabelung
+  (`frontend/src/lib/reducedMotion.test.ts:28-56`), F2 Guard gestrichen
+  (`frontend/src/lib/reducedMotion.ts:20-33`), e2e-Lokator `.settings-general kol-alert` +
+  AK2-Tab-Klick-Gate (`frontend/e2e/issue-1187-reduced-motion.spec.ts:75-79,101-121`).
+  Gate grün, 4/4 e2e lokal, beide Review-Threads via GraphQL resolved, gepusht.
+- **Runde 2 (dieser Lauf, SHA 86b57339):** Review-Kommentar zeigt keine neuen Findings
+  („Keine Entscheidungs-Findings", offene F1/F2 bereits von Runde 1 behoben + Threads resolved).
+  CI-Audit: `verify` grün, e2e (1)/(2)/(4) grün, **e2e (3) rot** —
+  `issue-969.spec.ts:86` AK4: `toBeVisible()` ok, danach `boundingBox()` = null
+  (Playwright-Race beim KolTabs-Panelwechsel; Issue #969 thematisch unbeteiligt).
+- Flaky-Nachweis: e2e (3) lief in beiden früheren Verify-Läufen des Branches grün
+  (33703975288 auf SHA caed9e57 = vor Fixup, 33703544237); Diff caed9e57→86b57339
+  berührt nur Unit-Stub, verhaltensneutrale Guard-Entfernung, eigenen e2e-Spec.
+- `gh run rerun 33705162974 --failed` angestoßen (nur e2e (3)).
 
 ## Relevante Stellen
-- `frontend/src/lib/reducedMotion.test.ts` — Stub `stubReducedMotion`; add/remove-Verkabelung in `listeners`.
-- `frontend/src/lib/reducedMotion.ts` — Hook, jetzt wörtlich dem theme.ts-Muster folgend.
-- `frontend/e2e/issue-1187-reduced-motion.spec.ts:75-79` (Lokator), `:101-121` (AK2 mit Tab-Klick-Gate).
-- `frontend/src/components/SettingsPage.tsx:250` — `.settings-general` = Panel-Anker tab-0; `:289-294` = bedingtes KolAlert.
+- `frontend/e2e/issue-969.spec.ts:86-135` — AK4 misst `[slot="tabpanel-slot-1"/"-2"]`-Insets;
+  Zeile 113-115 = Race-Stelle (`waitFor attached` garantiert keine Sichtbarkeit beim boundingBox-Call).
+- Verify-Run 33705162974 — Shard-Aufteilung: issue-969.spec.ts in Shard 3/4.
 
 ## Annahmen
-- Der Tab-Klick vor `emulateMedia` ist deterministisch genug (React spült passive Effects synchrom
-  vor Event-Dispatch — stabiles Verhalten seit React 17/18; einmalige Verifikationsläufe grün).
-- Review-Aussage „E2E AK1/AK2/AK5/AK6 grün“ war falsch — CI-Lauf 33703975288 (Shard 2) ist
-  autoritativ gewesen; beide e2e-Fehlerarten waren testseitig, kein Produktionscode-Bug.
+- Rerun wird grün (Fehlerbild 1/137, nur Timing); wenn wieder rot: echtes Problem prüfen,
+  dann lokalen Lauf `npx playwright test e2e/issue-969.spec.ts` im `frontend`-Dir.
 
 ## Verworfen
-- Playwright-MCP-Layout-Check — kein sichtbares UI-Element geändert (Logik + Tests); AK6 deckt
-  die 375px-Aussage bereits e2e ab.
-- CDP-Poll (`DOMDebugger.getEventListeners`) als Alternative zum Tab-Klick — überengineert für
-  den Zweck; Klick ist idiomatischer und kürzer.
-- Eigener Kommentar zum e2e-Befund im ai-review-Kommentar — verboten (Review-Kommentar unangetastet lassen).
+- Fix am issue-969-Test (z. B. `toBeVisible` nach boundingBox-Schleife) — außerhalb des
+  Fixup-Scopes (PR 1195 / Issue 1187); wenn der Flake wiederkehrt, separates Ticket-Thema.
 
 ## Offen
-- CI nach Push beobachten (nächster Lauf testet den neuen SHA).
+- Rerun-Ergebnis von 33705162974 (e2e (3)) abwarten.
 
 ## Nächster Schritt
-- Warten auf CI; bei Grün parkt der PR im normalen Review-Fluss.
+- Rerun prüfen: grün → Lauf beenden (kein Commit nötig, alles erledigt); rot → Log lesen,
+  lokalen Lauf reproben, echten Fehler fixen oder Flake dokumentieren.
 
 ## Fallstricke
-- KolTabs-slot-Umbenennung betrifft ALLE neuen Settings-e2e-Lokatoren — nie `[slot="tab-N"]`
-  schreiben, immer `.settings-general`/`.settings-geo` scopen.
-- emulateMedia direkt nach Navigation = Race gegen passive Effects; vorher Interaktion (Klick)
-  einbauen oder anderweitig Effect-Flush garantieren.
+- Keine Labels setzen (Workflow macht das selbst).
+- Bei „alles erledigt, kein Commit": VERDICT already-done + ai-fixup-decisions-Kommentar
+  nur falls Findings-Tabelle befüllbar ist — hier: F1/F2 wurden in Runde 1 per Commit
+  5aac8f33 behoben, Threads bereits resolved.
+
+## Nachtrag (Runde 2, nach Deadline-Ablauf)
+- Rerun von 33705162974 ebenfalls ROT: wieder `issue-969.spec.ts:86` AK4, 136/137 passed
+  (02:17:35Z) → KEIN Einzel-Flake, reproduzierbar auf SHA 86b57339, obwohl e2e (3) auf
+  SHA caed9e57 (33703975288) und 19a932e4 (33703544237) grün war.
+- Widerspruch offen: Diff caed9e57→86b57339 = nur 5aac8f33 (+Memory-Commits). Guard-Entfernung
+  in reducedMotion.ts ist in echten Browsern verhaltensneutral; Unit-Stub berührt e2e nicht.
+  Nächster Lauf MUSS das lokal reproduzieren: `cd frontend && npx playwright test e2e/issue-969.spec.ts`
+  auf 86b57339. Lokal grün + CI 2× rot → CI-Umgebungs-Race (KolTabs-Panelwechsel boundingBox null);
+  dann: Test-Stabilisierung (boundingBox-Retry/expect.poll) als Test-Pflege im Fixup-PR rechtfertigen
+  oder als eigenen Befund im ai-fixup-decisions dokumentieren.
+- Kein Commit der Code-Änderungen nötig gewesen; dieser Lauf hat nur Diagnose + Rerun gemacht.
