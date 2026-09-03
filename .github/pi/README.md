@@ -47,12 +47,10 @@ Projektfile, das ohnehin für jede pi-Session in diesem Repo gilt. Eine zweite, 
 würde erzeugen, was die Pilotphase widerlegen soll: einen CI-Lauf, der anders arbeitet als der
 lokale. Die Auswahl der Pakete ist damit eine Entscheidung des Projekts, keine der Pipeline.
 
-Zwei Dinge, die beim Rollout zu entscheiden sind (die Pilotphase macht sie sichtbar, statt sie
-still zu ändern):
-
-- **Versionen.** Die Einträge sind versionslos (`npm:pi-subagents` statt `npm:pi-subagents@0.64.0`).
-  Für den Betrieb in Ordnung, für belastbare Kostenvergleiche nicht: zwei Läufe können auf
-  verschiedenen Erweiterungsständen basieren. `setup-pi` protokolliert das als `::notice`.
-- **LSP.** Das Ticket nennt LSP als verhaltensrelevant; im Projektfile steht kein LSP-Paket
-  (lokal vorhanden ist `@narumitw/pi-lsp`). Bewusst nicht eigenmächtig ergänzt — die kuratierte
-  Projektliste hat Vorrang vor einer Vermutung der Pipeline.
+Alle Einträge sind auf eine Version **gepinnt** — ohne Pin zöge die CI bei jedem Lauf den
+aktuellen Stand, und zwei Läufe basierten auf verschiedenen Erweiterungsversionen, was jeden
+Kostenvergleich wertlos macht. Pinnen allein ließe die Pakete aber veralten, deshalb pflegt ein
+**Renovate-CustomManager** (`renovate.json5`) genau diese Zeilen: eigene PR-Gruppe
+„pi-Erweiterungen", bewusst **ohne** Automerge, weil diese Pakete das Verhalten des Agenten
+ändern und nicht nur Bibliothekscode. `setup-pi` warnt, falls doch ein Eintrag ohne Version
+nachgetragen wird.

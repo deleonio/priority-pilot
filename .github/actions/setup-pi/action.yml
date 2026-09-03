@@ -170,18 +170,19 @@ runs:
             echo "::error title=pi-Paket nicht installierbar::'$SRC' — Lauf abgebrochen."
             exit 1
           fi
-          # Versionslose npm-Quelle = die CI zieht bei jedem Lauf die aktuelle Version.
-          # Für den Betrieb in Ordnung, für den A/B-Vergleich mit Claude Code nicht: zwei
-          # Läufe können dann auf verschiedenen Erweiterungsständen basieren. Sichtbar
-          # machen statt still hinnehmen — das Pinnen ist eine Entscheidung des Projekts
-          # (die Datei gilt auch für lokale Sessions), keine der Pipeline.
+          # Versionslose npm-Quelle = die CI zieht bei jedem Lauf die aktuelle Version, und
+          # zwei Läufe basierten dann auf verschiedenen Erweiterungsständen — als
+          # Kostenvergleich wertlos. Alle Einträge sind deshalb gepinnt und werden von einem
+          # Renovate-CustomManager gepflegt (renovate.json5). Die Prüfung bleibt als
+          # Sicherheitsleine: Ein von Hand nachgetragener Eintrag ohne Version soll auffallen,
+          # bevor er die Messbasis verschiebt.
           case "$SRC" in
             npm:*@*) ;;
             npm:*) UNPINNED="${UNPINNED:+$UNPINNED, }$SRC" ;;
           esac
         done
         if [ -n "$UNPINNED" ]; then
-          echo "::notice title=📌 Ungepinnte pi-Pakete::${UNPINNED} — die CI zieht jeweils die aktuelle Version. Für belastbare Kostenvergleiche in .pi/settings.json auf eine Version festlegen (npm:paket@x.y.z)."
+          echo "::warning title=📌 Ungepinnte pi-Pakete::${UNPINNED} — die CI zieht jeweils die aktuelle Version, Läufe werden unvergleichbar. In .pi/settings.json auf eine Version festlegen (npm:paket@x.y.z); Renovate hält sie danach aktuell."
         fi
 
         # NACHWEIS im Runner-Log (Akzeptanzkriterium des Tickets): `pi list` zeigt die

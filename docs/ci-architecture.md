@@ -65,6 +65,21 @@ unabhängig:
 Ein unbekannter Wert bricht den Lauf ab — kein stiller Fallback, sonst liefe ein als pi-Test
 gemeinter Lauf unbemerkt auf Claude Code und die Messung wäre wertlos.
 
+**Umschalten geht über den Workflow [`set-agent-config.yml`](../.github/workflows/set-agent-config.yml)**
+(`workflow_dispatch`, App-Token). Er setzt beide Achsen in einem Lauf; jeder Input hat
+`unverändert` als Default, damit ein Laufzeitwechsel den Provider nicht versehentlich mitzieht.
+
+**Warum beide in EINEM Workflow** (er ersetzt das frühere `set-provider.yml`): Laufzeit und
+Provider sind keine unabhängigen Schalter, sondern eine 2×3-Matrix. Manche Kombinationen
+scheitern erst zur Laufzeit — `pi` + `openrouter` ohne Einträge in `PI_MODEL_ALIASES`, oder `pi` +
+ein Anthropic-**OAuth**-Token (`sk-ant-oat…`), das pi nicht als API-Key verwerten kann. Der
+Workflow prüft genau diese Fälle **vor** dem Setzen (fail-closed, ohne den Secret-Wert zu loggen).
+Getrennte Workflows bräuchten zwei Dispatches für einen Wechsel und hätten keine Stelle, an der
+die Kombination geprüft wird — der Fehler fiele erst im nächsten Triage-Lauf auf, dort mit
+konsumiertem Trigger-Label.
+
+Ohne Workflow geht es weiterhin direkt:
+
 ```bash
 gh variable set AGENT_RUNTIME --body pi       # Pilot: Triage läuft mit pi
 gh variable delete AGENT_RUNTIME              # zurück auf Claude Code
@@ -102,7 +117,7 @@ Aufrufer mussten nur den Pfad umhängen. Composite-Actions haben **keinen Zugrif
 
 `setup-pi` installiert genau die Pakete aus dem eingecheckten
 [`.pi/settings.json`](../.pi/settings.json) — dem Projektfile, das ohnehin für jede pi-Session in
-diesem Repo gilt (aktuell `pi-subagents`, `pi-mcp-adapter`, `pi-web-access`,
+diesem Repo gilt (aktuell `pi-subagents`, `pi-mcp-adapter`, `@narumitw/pi-lsp`, `pi-web-access`,
 `@entelligentsia/pi-claude-compat`, je mit Ressourcen-Filtern). **Keine CI-eigene Paketliste:** Die
 würde erzeugen, was die Pilotphase widerlegen soll — einen CI-Lauf, der anders arbeitet als der
 lokale.
@@ -114,10 +129,10 @@ Claude-Lauf wertlos) und `pi list` als **Nachweis im Runner-Log** steht. `--verb
 nicht: Das Flag erzwingt den ausführlichen Startkopf des TUI und gibt im `-p`-Modus nichts aus
 (nachgemessen mit pi 0.84.4).
 
-Zwei offene Punkte für den Rollout, die die Pilotphase sichtbar macht statt still zu ändern:
-Die Paketeinträge sind **versionslos** (Versionsdrift zwischen zwei Läufen — `setup-pi` meldet das
-als `::notice`), und das vom Ticket genannte **LSP-Paket fehlt** im Projektfile. Beides ist eine
-Entscheidung des Projekts, nicht der Pipeline; Details in [`.github/pi/README.md`](../.github/pi/README.md).
+Die Einträge sind **gepinnt** und werden von einem Renovate-CustomManager (`renovate.json5`,
+Gruppe „pi-Erweiterungen", ohne Automerge) gepflegt: ungepinnt wären zwei Läufe nicht
+vergleichbar, nur gepinnt würden die Pakete veralten. `setup-pi` warnt, falls ein Eintrag ohne
+Version nachgetragen wird. Details in [`.github/pi/README.md`](../.github/pi/README.md).
 
 Modelle: `.github/pi/model-aliases.json` bildet `fable|opus|sonnet|haiku` je Provider auf
 pi-Modellreferenzen ab (`anthropic/claude-opus-5`, `zai/glm-5.3`, …); `vars.PI_MODEL_ALIASES` legt
@@ -137,7 +152,14 @@ bekommt — und ohne `bash` kein `gh`, also keine Triage —, kann faktisch auch
 
 Die Eingrenzung eines pi-Laufs kommt daher aus dem ephemeren Runner und dem Scope des
 App-Tokens, nicht aus der Laufzeit. `setup-pi` protokolliert das bei `restricted`/`review` als
-`::warning`, statt eine Gleichwertigkeit zu behaupten. Verlässlich abschaltbar sind nur die
+`::warning`, statt eine Gleichwertigkeit zu behaupten.
+
+**Der Weg raus** steht in [#1193](https://github.com/deleonio/priority-pilot/issues/1193): eine
+pi-Extension mit zwei engen Custom-Tools (`gh` mit Kommando-Allowlist, `memory_write` mit
+Pfad-Zwang) und Invoke mit `--no-builtin-tools` — dann gibt es im restricted-Tier gar kein `bash`,
+was strenger ist als das Claude-Tier. Fällig **vor** dem Rollout auf 02–06: Dort wiegt die Lücke
+schwerer als im Triage-Pilot, weil Review (05) untrusted Diffs liest und heute bewusst
+schreibgeschützt läuft. Verlässlich abschaltbar sind nur die
 Proxy-Tools des MCP-Adapters (`mcp`, `mcpScript`) — genau das tut `needs-mcp: false` per
 `--exclude-tools`. Eine Allowlist mit geratenen Tool-Namen (pi-lsp ist konfigurierbar, die
 Direkt-Tools des Adapters werden serverabhängig präfixiert) würde Erweiterungen **still**
@@ -183,7 +205,10 @@ jede lokale Claude-Session zwangsweise nach z.ai umrouten. Deshalb:
 Der Alias-Trick hält `settings.json` providerneutral: `"model": "opus"` bedeutet bei `zai`
 `glm-5.3[1m]` und bei `claude` echtes Opus — dieselbe Datei, beide Backends.
 
-**Provider wechseln** (kein Commit nötig):
+**Provider wechseln** (kein Commit nötig) — bevorzugt über den Workflow
+[`set-agent-config.yml`](../.github/workflows/set-agent-config.yml), der Provider und Laufzeit
+gemeinsam setzt und die Kombination vorab prüft (s.
+[Laufzeit umschalten](#laufzeit-umschalten-claude-code-oder-pi)). Direkt geht auch:
 
 ```bash
 gh variable set LLM_PROVIDER --body claude   # Anthropic nativ (Default)
