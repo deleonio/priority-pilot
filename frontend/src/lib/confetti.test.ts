@@ -1,5 +1,5 @@
 import { TaskStatus } from 'client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { launchConfetti, shouldCelebrateDone } from './confetti';
 
 /**
@@ -39,6 +39,19 @@ afterEach(() => {
 	removeConfettiOverlays();
 	vi.unstubAllGlobals();
 	vi.useRealTimers();
+});
+
+// #1183: Konfetti hängt am Master-Schalter „Animationen" (localStorage-Key, Default aus).
+// Die #1169-Tests prüfen das Konfetti-Verhalten unter EINGESCHALTETEM Schalter — ohne diese
+// Vorbelegung würden sie mit dem neuen Default (aus) brechen (Test-Pflege, docs/spec/issue-1183.md).
+const ANIMATIONS_KEY = 'pp-animations-enabled';
+
+beforeEach(() => {
+	localStorage.setItem(ANIMATIONS_KEY, 'true');
+});
+
+afterEach(() => {
+	localStorage.removeItem(ANIMATIONS_KEY);
 });
 
 describe('shouldCelebrateDone — Richtungsentcheidung (#1169 AK3, matchMedia-unabhängig)', () => {
@@ -84,6 +97,29 @@ describe('launchConfetti — Overlay-Vertrag (#1169 AK1/AK2/AK5/AK6)', () => {
 
 	it('AK6: bei prefers-reduced-motion: reduce wird kein Overlay erzeugt und false zurückgegeben', () => {
 		stubReducedMotion(true);
+		expect(launchConfetti()).toBe(false);
+		expect(document.querySelector('[data-testid="confetti-overlay"]')).toBeNull();
+	});
+});
+
+describe('launchConfetti — Master-Schalter „Animationen" (#1183 AK2/AK4)', () => {
+	it('AK2/AK3: ohne Key (Default aus) startet launchConfetti kein Konfetti', () => {
+		stubReducedMotion(false);
+		localStorage.removeItem(ANIMATIONS_KEY);
+		expect(launchConfetti()).toBe(false);
+		expect(document.querySelector('[data-testid="confetti-overlay"]')).toBeNull();
+	});
+
+	it('AK2: Key true + kein reduced-motion → Overlay wie bisher (#1169 unverändert)', () => {
+		stubReducedMotion(false);
+		localStorage.setItem(ANIMATIONS_KEY, 'true');
+		expect(launchConfetti()).toBe(true);
+		expect(document.querySelector('[data-testid="confetti-overlay"]')).not.toBeNull();
+	});
+
+	it('AK4: Key true + reduced-motion → kein Overlay (reduce bleibt unabhängig vom Schalter)', () => {
+		stubReducedMotion(true);
+		localStorage.setItem(ANIMATIONS_KEY, 'true');
 		expect(launchConfetti()).toBe(false);
 		expect(document.querySelector('[data-testid="confetti-overlay"]')).toBeNull();
 	});

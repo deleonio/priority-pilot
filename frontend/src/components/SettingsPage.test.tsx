@@ -370,3 +370,71 @@ describe('SettingsPage – #1151: Standort-Tab (Tab-Umzug der Geo-Einstellungen)
 		expect(voice!.compareDocumentPosition(push!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1183 — „Animationen zentral in den Einstellungen schaltbar".
+ *
+ * Spec-Bezug: docs/spec/issue-1183.md (AK1/AK3).
+ *
+ * Der Master-Schalter „Animationen" (localStorage `pp-animations-enabled`, Default aus)
+ * lebt als KolInputCheckbox im Panel „Allgemein" (`slot="tab-0"`), Muster: Voice-Autostart
+ * (#272). Der Hook useAnimationsEnabled wird NICHT gemockt — der localStorage-Vertrag
+ * (Initial-Zustand + Toggle schreibt Key) ist hier Teil der Prüfung.
+ */
+describe('SettingsPage – #1183: Master-Schalter „Animationen" im Tab Allgemein', () => {
+	const KEY = 'pp-animations-enabled';
+
+	/** KoliBri-Adapter setzt numerische/boolesche Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	beforeEach(() => {
+		localStorage.removeItem(KEY);
+	});
+
+	afterEach(() => {
+		localStorage.removeItem(KEY);
+	});
+
+	it('AK1: der Schalter „Animationen" rendert im Panel Allgemein (tab-0)', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const tab0 = container.querySelector('[slot="tab-0"]');
+		expect(tab0, 'Allgemein-Panel existiert').not.toBeNull();
+		expect(
+			tab0?.querySelector('kol-input-checkbox[_label="Animationen"]'),
+			'Animationen-Schalter fehlt',
+		).not.toBeNull();
+	});
+
+	it('AK3: ohne Key ist der Schalter initial aus (Default false)', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const toggle = container.querySelector('kol-input-checkbox[_label="Animationen"]');
+		expect(toggle).not.toBeNull();
+		expect(bound(toggle!, '_checked')).toBe('false');
+	});
+
+	it('AK1: Toggle schreibt den localStorage-Key und übernimmt den Zustand', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const toggle = container.querySelector('kol-input-checkbox[_label="Animationen"]');
+		expect(toggle).not.toBeNull();
+
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				true,
+			);
+		});
+		expect(localStorage.getItem(KEY)).toBe('true');
+		expect(bound(toggle!, '_checked')).toBe('true');
+
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(localStorage.getItem(KEY)).toBe('false');
+	});
+});

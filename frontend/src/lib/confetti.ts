@@ -1,4 +1,5 @@
 import { TaskStatus } from 'client';
+import { readAnimationsEnabled } from './animations';
 
 /**
  * #1169: Konfetti-Regen als Erfolgs-Feedback beim Erledigt-Toggle („…"-Popover).
@@ -67,12 +68,21 @@ const createParticles = (width: number, height: number, palette: string[]): Part
  * (`aria-hidden`, KI-UX A11y) und fängt keine Klicks (`pointer-events: none`, Muster
  * `update-prompt` in `app.css:1765` — AK5). Bei `prefers-reduced-motion: reduce` wird
  * nichts erzeugt und `false` zurückgegeben (AK6) — die globale CSS-Regel (`app.css:187`)
- * klemmt nur Motion-Token, sie stoppt KEINE rAF-Animation, deshalb die JS-Abfrage.
+ * klemmt nur Motion-Token, sie stoppt KEINE rAF-Animation, deshalb die JS-Abfrage. Der
+ * Check bleibt unabhängig vom Master-Schalter „Animationen" wirksam (#1183 AK4: reduce hat
+ * Vorrang, auch bei eingeschaltetem Schalter).
  *
- * @returns `true`, wenn der Effekt gestartet wurde; `false` bei reduced-motion.
+ * @returns `true`, wenn der Effekt gestartet wurde; `false` bei reduced-motion oder ausgeschaltetem Schalter.
  */
 export function launchConfetti(): boolean {
 	if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+		return false;
+	}
+
+	// #1183 AK2/AK3: Master-Schalter „Animationen" (localStorage, Default aus) — Konfetti und
+	// künftige dekorative Animationen laufen nur bei eingeschaltetem Schalter. Der Aufrufer
+	// (App.tsx) bleibt bewusst unverändert, das Gate sitzt hier zentral.
+	if (!readAnimationsEnabled()) {
 		return false;
 	}
 

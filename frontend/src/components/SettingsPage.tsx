@@ -2,6 +2,7 @@ import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolInputRange, KolTa
 import type { GeoConfig, Pillar } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { useAnimationsEnabled } from '../lib/animations';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation, GEO_CONFIG_CHANGED_EVENT } from '../lib/useGeolocation';
@@ -99,6 +100,9 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 	// Mikrofon-Berechtigung angefordert; nur bei erteilter Berechtigung wird die Einstellung aktiviert
 	// und persistiert. Wird sie verweigert, bleibt der Schalter aus und ein Hinweis erscheint.
 	const { enabled: voiceAutostart, setEnabled: setVoiceAutostart } = useVoiceAutostart();
+	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
+	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
+	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
 	// #1080: Hauptschalter „KI-Features aktiv" und die unabhängige Option „Schnellerfassung aktiv".
 	const { aiEnabled, quickCaptureEnabled, setPreference: setAiPreference } = useAiPreferences();
 	const [micDenied, setMicDenied] = useState(false);
@@ -261,6 +265,21 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 								erteile die Berechtigung im Browser und versuche es erneut.
 							</KolAlert>
 						)}
+					</div>
+					{/* #1183: Master-Schalter „Animationen" — steuert zentral alle dekorativen Animationen
+							(erster Konsument: Konfetti aus #1169). Muster wie die Switch-Zeilen oben (#971). */}
+					<div className="settings-switch-row">
+						<KolInputCheckbox
+							_label="Animationen"
+							_variant="switch"
+							_checked={animationsEnabled}
+							_hint="Dekorative Animationen (z. B. Konfetti beim Erledigt-Machen von Aufgaben) anzeigen. Gilt gerätebezogen und ist standardmäßig aus."
+							_on={{
+								onChange: (_event, value) => {
+									setAnimationsEnabled(value === true);
+								},
+							}}
+						/>
 					</div>
 					{pushSupported ? (
 						<div className="settings-switch-row">
