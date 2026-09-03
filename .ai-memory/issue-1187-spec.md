@@ -26,7 +26,7 @@
 - Mocken des zukünftigen `reducedMotion`-Moduls in SettingsPage-Tests — bewusst NICHT gemockt, damit AK1 gegen die echte Integration rot läuft.
 
 ## Offen
-- `git commit --no-verify` nötig: Pre-Commit/tsc failt am Import des noch nicht existierenden `./reducedMotion` (Memory 2026-09-02, Präzedenz #1130/#1183-Spec).
+- Draft-PR **#1195** erstellt (closes #1187 verifiziert). Branch-Push war Force (`--force-with-lease`): Remote `ai/harness/1187` trug nur veraltete Triage-Memory-Commits auf altem main (v0.1.681, ohne #1183-Code) — deren Inhalt (Re-Triage-Notiz 2026-09-03T01:02:30Z) wurde in neuerer Fassung übernommen.
 
 ## Nächster Schritt
 - Impl-Phase: `frontend/src/lib/reducedMotion.ts` + Banner in SettingsPage tab-0 bauen, alle roten Tests grün; danach E2E-Verifikation.
