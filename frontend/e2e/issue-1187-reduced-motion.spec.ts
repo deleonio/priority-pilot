@@ -73,7 +73,7 @@ test.describe('Priority Pilot — „Bewegung reduzieren" transparent machen (#1
 
 	/** Das reduced-motion-Banner im Tab „Allgemein" — Host + Textanker „Bewegung reduzieren". */
 	const reducedMotionBanner = (page: Page) =>
-		page.locator('[slot="tab-0"] kol-alert', { hasText: /Bewegung reduzieren/ });
+		page.locator('.settings-general kol-alert', { hasText: /Bewegung reduzieren/ });
 
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
@@ -102,6 +102,13 @@ test.describe('Priority Pilot — „Bewegung reduzieren" transparent machen (#1
 		await openSettings(page);
 		// Ohne Systemeinstellung gibt es das Banner nicht (bedingtes Rendern, nicht nur hidden).
 		await expect(reducedMotionBanner(page)).toHaveCount(0);
+
+		// Der Hook registriert seinen change-Listener in einem passiven Effect. Der spült
+		// unter Last erst verzögert — feuert emulateMedia vorher, geht das Event ins Leere
+		// und der Test wird zum Race (CI-Lauf 33703975288). Ein harmloser Klick auf den
+		// aktiven Tab zwingt React, vor der nächsten Event-Dispatch offene Effects zu
+		// spülen; danach ist der Listener garantiert registriert.
+		await page.getByRole('tab', { name: 'Allgemein', exact: true }).click();
 
 		// System-„Bewegung reduzieren" EINSCHALTEN — ohne page.reload().
 		await page.emulateMedia({ reducedMotion: 'reduce' });

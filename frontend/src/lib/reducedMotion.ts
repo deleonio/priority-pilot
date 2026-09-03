@@ -23,13 +23,8 @@ export const usePrefersReducedMotion = (): boolean => {
 			setPrefersReducedMotion(event.matches);
 		};
 
-		// Umgebungen ohne `addEventListener` am MediaQueryList (Legacy-Stubs) lassen wir
-		// unverändert — der Initialwert gilt dann ohne Live-Überwachung weiter.
-		if (typeof mediaQuery.addEventListener === 'function') {
-			mediaQuery.addEventListener('change', handleChange);
-			return () => mediaQuery.removeEventListener('change', handleChange);
-		}
-		return undefined;
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery.removeEventListener('change', handleChange);
 	}, []);
 
 	return prefersReducedMotion;

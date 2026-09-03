@@ -18,6 +18,10 @@ type ChangeListener = (event: { matches: boolean }) => void;
 interface FakeMediaQueryList {
 	media: string;
 	matches: boolean;
+	/** Registriert einen change-Listener wie die echte MediaQueryList. */
+	addEventListener: (type: string, listener: ChangeListener) => void;
+	/** Meldet einen change-Listener ab (Verifikation des Unmount-Cleanups). */
+	removeEventListener: (type: string, listener: ChangeListener) => void;
 	/** Feuert den Systemwechsel: setzt `matches` und benachrichtigt alle Listener. */
 	fire: (matches: boolean) => void;
 	/** Aktuell registrierte change-Listener (Verifikation des Unmount-Cleanups). */
@@ -30,6 +34,16 @@ const stubReducedMotion = (initialMatches: boolean): FakeMediaQueryList => {
 	const mql: FakeMediaQueryList = {
 		media: '(prefers-reduced-motion: reduce)',
 		matches: initialMatches,
+		addEventListener: (type: string, listener: ChangeListener) => {
+			if (type === 'change') {
+				listeners.add(listener);
+			}
+		},
+		removeEventListener: (type: string, listener: ChangeListener) => {
+			if (type === 'change') {
+				listeners.delete(listener);
+			}
+		},
 		fire: (matches: boolean) => {
 			mql.matches = matches;
 			for (const listener of listeners) {
