@@ -1,0 +1,453 @@
+name: 'Setup pi Runtime'
+description: 'pi-spezifischer Teil eines Agenten-Laufs: CLI-Install, Pakete aus .pi/settings.json, Auth (claude/zai/openrouter), Modell-/Thinking-Auflösung, Invoke-Resolution. Wird ausschließlich von setup-agent aufgerufen.'
+
+# ROLLE DIESER ACTION (Issue #1184): Sie enthält NUR pi-Spezifisches. Alles Runtime-Neutrale —
+# App-Token, Git-Remote/Identität, Ticket-Auflösung, Memory-Load, ZAI-Zeitfenster,
+# Provider-Auflösung, Tailscale — liegt in ../setup-agent und läuft dort VOR dieser Action.
+# `llm-provider` kommt deshalb bereits aufgelöst an (inkl. Zeitfenster-Override).
+#
+# pi = @earendil-works/pi-coding-agent (https://pi.dev). Die für CI nötigen Hebel bringt es
+# selbst mit: -p (non-interaktiv, Antwort auf stdout), --model, --thinking, --session-dir,
+# --tools/--exclude-tools, --approve, --verbose.
+
+inputs:
+  llm-provider:
+    description: 'BEREITS AUFGELÖSTER LLM-Provider ("claude", "zai" oder "openrouter") aus setup-agent — inklusive ZAI-Zeitfenster-Override. Wird hier nicht erneut validiert.'
+    required: true
+  needs-mcp:
+    description: 'Ob MCP für diesen Workflow benötigt wird. false schaltet die Proxy-Tools des pi-mcp-adapter per --exclude-tools ab; die Server selbst stehen im .mcp.json des Repos, das der Adapter direkt liest.'
+    required: false
+    default: 'false'
+  browser-mcp:
+    description: 'Ob Playwright-MCP benötigt wird. Unter pi ohne eigenen Effekt: Playwright läuft über dasselbe mcp-Proxy-Tool wie KoliBri. Nur zur Protokollierung.'
+    required: false
+    default: 'false'
+  tools-tier:
+    description: 'Permission-Tier des Aufrufers (restricted | review | full). ACHTUNG: pi hat kein Permission-System — s. Kommentar am Invoke-Step. Wird validiert und protokolliert, kann aber restricted/review nicht wie Claude Code durchsetzen.'
+    required: false
+    default: 'full'
+  model:
+    description: 'Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (pi-Default). Aufgelöst über .github/pi/model-aliases.json + vars.PI_MODEL_ALIASES; ein unbekannter Alias bricht laut ab.'
+    required: false
+    default: ''
+  subagent-model:
+    description: "Modell für Subagents als Alias, oder 'inherit' (Default). Wird als subagents.defaultModel in $HOME/.pi/agent/settings.json gesetzt (pi-subagents liest diesen Settings-Key)."
+    required: false
+    default: 'inherit'
+  effort:
+    description: 'Effort-Level für diesen Lauf: low | medium | high | xhigh | max. Wird 1:1 als --thinking durchgereicht (pi kennt exakt diese Stufen). Leer = kein Flag.'
+    required: false
+    default: ''
+  model-aliases-json:
+    description: 'Optionale Alias-Tabelle als JSON-String (aus vars.PI_MODEL_ALIASES), gleiche Struktur wie .github/pi/model-aliases.json. Wird ÜBER die eingecheckte Tabelle gelegt — der Weg für Provider, deren Modell-IDs bewusst nicht im Repo stehen (openrouter).'
+    required: false
+    default: ''
+  zai-api-key:
+    description: 'API-Key für z.ai (secret, secrets.ZAI_API_KEY). Nur bei llm-provider=zai erforderlich.'
+    required: false
+  claude-api-key:
+    description: 'API-Key für Anthropic (secret, secrets.CLAUDE_API_KEY). Nur bei llm-provider=claude erforderlich.'
+    required: false
+  openrouter-api-key:
+    description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
+    required: false
+  pi-version:
+    description: 'Gepinnte pi-Version. BEWUSST GEPINNT statt latest: Zwei Läufe auf verschiedenen CLI-Versionen sind für den A/B-Vergleich mit Claude Code wertlos.'
+    required: false
+    default: '0.84.4'
+
+outputs:
+  invoke-cmd:
+    description: 'Invoke-Befehl (pi -p)'
+    value: ${{ steps.resolve-invoke.outputs.invoke-cmd }}
+  invoke-args:
+    description: 'Invoke-Argumente (pi-Flags inkl. --session-dir, --model, --thinking)'
+    value: ${{ steps.resolve-invoke.outputs.invoke-args }}
+  session-dir:
+    description: 'Sitzungsverzeichnis DIESES Laufes — Quelle der Kostenerfassung (cost-from-pi-session.ts)'
+    value: ${{ steps.session.outputs.session-dir }}
+
+runs:
+  using: composite
+  steps:
+    # pi-CLI cachen — dieselbe Überlegung wie bei Claude Code: `npm install -g` kostet auf
+    # jedem kalten Runner Zeit. Der Key trägt die gepinnte Version, ein Versionswechsel
+    # invalidiert den Cache also von selbst (anders als der statische Claude-Key, der bei
+    # jedem Upgrade von Hand gebustet werden müsste).
+    - name: pi CLI sichern
+      id: cache-pi
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        # GANZES node_modules-Verzeichnis statt nur der Scoped-Package: `npm install -g`
+        # hoisted pi unscopte Runtime-Abhängigkeiten (chalk, undici, …) als Geschwister
+        # neben `@earendil-works` — nur die Scoped-Package + Symlink zu cachen hätte
+        # nie einen nutzbaren Treffer ergeben (Verify-Step reinstalliert trotzdem).
+        # `npm`/`corepack` gehören zum Node des Runner-Images, nicht zu pi — bewusst
+        # ausgeschlossen, damit ein Restore die Runner-eigene npm-Version nicht überschreibt.
+        path: |
+          /usr/local/lib/node_modules
+          !/usr/local/lib/node_modules/npm
+          !/usr/local/lib/node_modules/corepack
+          /usr/local/bin/pi
+        key: pi-cli-${{ runner.os }}-${{ inputs.pi-version }}-v2
+
+    # VERIFIZIEREN STATT VERTRAUEN (übernommen aus setup-claude): Ein Cache-Treffer beweist
+    # nur, dass Dateien da sind — nicht, dass die CLI startet. Und der Abbruch gehört HIER
+    # hin statt in den Phasen-Step: dort liefe erst das komplette Setup, und der Fehler sähe
+    # im Log wie ein Provider-/Modellproblem aus.
+    - name: pi bereitstellen und prüfen
+      shell: bash
+      env:
+        PI_VERSION: ${{ inputs.pi-version }}
+        CACHE_HIT: ${{ steps.cache-pi.outputs.cache-hit }}
+      run: |
+        set -uo pipefail
+
+        cli_ok() { pi --version >/dev/null 2>&1; }
+
+        if cli_ok && [ "$(pi --version 2>/dev/null | tr -d '[:space:]')" = "$PI_VERSION" ]; then
+          echo "::notice title=pi CLI::Lauffähig (${PI_VERSION}, aus Cache)."
+          exit 0
+        fi
+
+        if [ "$CACHE_HIT" = "true" ]; then
+          echo "::warning title=pi CLI unvollständig::Cache-Treffer, aber 'pi --version' liefert nicht ${PI_VERSION} — wird neu installiert. Passiert das in JEDEM Lauf, liegen Dateien außerhalb der gecachten Pfade: dann die path-Liste oben erweitern."
+        fi
+
+        npm install -g "@earendil-works/pi-coding-agent@${PI_VERSION}"
+
+        if ! cli_ok; then
+          echo "::error title=pi CLI nicht lauffähig::'pi --version' startet auch nach Neuinstallation nicht. Der Lauf wird hier beendet, statt später im LLM-Aufruf zu scheitern."
+          exit 1
+        fi
+        echo "::notice title=pi CLI::Lauffähig ($(pi --version 2>/dev/null))."
+
+    - name: Sitzungsverzeichnis für diesen Lauf anlegen
+      id: session
+      shell: bash
+      run: |
+        # EIGENES Verzeichnis je Lauf statt der Standardablage ~/.pi/agent/sessions:
+        # Die Kostenerfassung kann damit exakt die Sitzungen DIESES Laufes lesen, ohne die
+        # Zeitfenster-Heuristik (--since), die das Claude-Pendant braucht, weil dort alle
+        # Läufe eines Runner-Homes im selben Projektordner landen.
+        SESSION_DIR="${RUNNER_TEMP}/pi-session"
+        mkdir -p "$SESSION_DIR"
+        echo "session-dir=$SESSION_DIR" >> "$GITHUB_OUTPUT"
+        echo "::notice title=📁 pi-Sitzungen::$SESSION_DIR"
+
+    - name: pi-Pakete installieren (aus .pi/settings.json)
+      shell: bash
+      run: |
+        set -uo pipefail
+
+        # QUELLE IST DAS EINGECHECKTE PROJEKTFILE, nicht eine CI-eigene Liste: .pi/settings.json
+        # gilt ohnehin für jede pi-Session in diesem Repo (auch lokal). Eine zweite Liste nur
+        # für CI würde genau das erzeugen, was die Pilotphase widerlegen soll — einen Lauf, der
+        # anders arbeitet als der lokale.
+        #
+        # WARUM ÜBERHAUPT INSTALLIEREN, wenn pi Projektpakete beim Start selbst nachzieht:
+        # Die Projekteinträge tragen `autoload: false` und sind damit laut pi-Doku ein DELTA
+        # über dem jeweiligen GLOBALEN Eintrag (Ressourcen-Filter, nicht eigenständige
+        # Installation). Genau so sieht die lokale Maschine des Maintainers aus: global
+        # installiert, projektseitig gefiltert. `pi install` schreibt in die globalen Settings
+        # (~/.pi/agent/settings.json) und stellt diese Ebene im Runner erst her.
+        # Zweiter Grund: Ein Fehlschlag bricht hier laut ab, und `pi list` steht als Nachweis
+        # im Log — statt mitten im Agentenlauf unterzugehen.
+        SETTINGS=".pi/settings.json"
+        if [ ! -f "$SETTINGS" ]; then
+          echo "::error title=pi-Pakete fehlen::$SETTINGS nicht gefunden — ohne die Paketliste läuft pi ohne Subagents und MCP und ist mit einem Claude-Code-Lauf nicht vergleichbar."
+          exit 1
+        fi
+
+        # Objektform (mit Ressourcen-Filtern) ebenso zulassen wie den blossen Quell-String —
+        # die pi-Doku erlaubt beide in `packages`, und das Projektfile nutzt die Objektform.
+        mapfile -t SOURCES < <(jq -r '.packages[]? | if type == "object" then .source else . end' "$SETTINGS")
+        if [ "${#SOURCES[@]}" -eq 0 ]; then
+          echo "::error title=pi-Pakete leer::$SETTINGS enthält keine packages."
+          exit 1
+        fi
+
+        # HART FEHLSCHLAGEN statt weiterlaufen: Ein still fehlender MCP-Adapter oder ein
+        # fehlendes Subagent-Paket ändert das Verhalten des Laufes, ohne dass es im Ergebnis
+        # sofort sichtbar wäre — und macht damit genau den Vergleich kaputt, für den die
+        # Pilotphase existiert.
+        UNPINNED=""
+        for SRC in "${SOURCES[@]}"; do
+          echo "→ pi install $SRC"
+          if ! pi install "$SRC"; then
+            echo "::error title=pi-Paket nicht installierbar::'$SRC' — Lauf abgebrochen."
+            exit 1
+          fi
+          # Versionslose npm-Quelle = die CI zieht bei jedem Lauf die aktuelle Version, und
+          # zwei Läufe basierten dann auf verschiedenen Erweiterungsständen — als
+          # Kostenvergleich wertlos. Alle Einträge sind deshalb gepinnt und werden von einem
+          # Renovate-CustomManager gepflegt (renovate.json5). Die Prüfung bleibt als
+          # Sicherheitsleine: Ein von Hand nachgetragener Eintrag ohne Version soll auffallen,
+          # bevor er die Messbasis verschiebt.
+          case "$SRC" in
+            npm:*@*) ;;
+            npm:*) UNPINNED="${UNPINNED:+$UNPINNED, }$SRC" ;;
+          esac
+        done
+        if [ -n "$UNPINNED" ]; then
+          echo "::warning title=📌 Ungepinnte pi-Pakete::${UNPINNED} — die CI zieht jeweils die aktuelle Version, Läufe werden unvergleichbar. In .pi/settings.json auf eine Version festlegen (npm:paket@x.y.z); Renovate hält sie danach aktuell."
+        fi
+
+        # NACHWEIS im Runner-Log (Akzeptanzkriterium des Tickets): `pi list` zeigt die
+        # installierten Pakete mit Version und Pfad. Bewusst „installiert", nicht „geladen" —
+        # ein headless-Lauf gibt keinen Startkopf aus (--verbose ist im -p-Modus stumm,
+        # nachgemessen mit 0.84.4), also ist das die belastbarste Aussage, die im Log steht.
+        echo "::group::pi list"
+        pi list || echo "::warning title=pi list::Auflistung fehlgeschlagen — Installation lief dennoch durch."
+        echo "::endgroup::"
+
+    - name: Auth setzen (providerspezifisch)
+      shell: bash
+      env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+      run: |
+        set -uo pipefail
+        PROVIDER="$LLM_PROVIDER"
+
+        # Secrets strippen (ein beim Einfügen mitkopierter Zeilenumbruch macht den Key ungültig)
+        CLAUDE_API_KEY="$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')"
+        ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
+        OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
+
+        mkdir -p "$HOME/.pi/agent"
+
+        case "$PROVIDER" in
+          claude)
+            if [ -z "$CLAUDE_API_KEY" ]; then
+              echo "::error title=Auth fehlt::LLM_PROVIDER=claude, aber Secret CLAUDE_API_KEY ist leer."
+              exit 1
+            fi
+            case "$CLAUDE_API_KEY" in
+              sk-ant-oat*)
+                # LAUT ABBRECHEN statt es zu versuchen: Ein OAuth-Token aus `claude setup-token`
+                # ist KEIN Anthropic-API-Key. Claude Code hat dafür CLAUDE_CODE_OAUTH_TOKEN;
+                # pi kennt Subscription-Auth nur über sein eigenes auth.json (`/login`), das
+                # sich in CI nicht headless befüllen lässt. In ANTHROPIC_API_KEY gesteckt
+                # scheitert es mit „Invalid API key" — und das sieht im Log wie ein
+                # Modell-/Endpointfehler aus.
+                echo "::error title=Token-Typ passt nicht zu pi::CLAUDE_API_KEY ist ein OAuth-Token (sk-ant-oat…). Die pi-Laufzeit braucht einen echten API-Key (sk-ant-api…) aus der Anthropic Console, oder es muss LLM_PROVIDER gewechselt werden."
+                exit 1
+                ;;
+              *)
+                echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
+                echo "::notice::Provider=claude – ANTHROPIC_API_KEY gesetzt (pi-nativ)."
+                ;;
+            esac
+            ;;
+          openrouter)
+            if [ -z "$OPENROUTER_API_KEY" ]; then
+              echo "::error title=Auth fehlt::LLM_PROVIDER=openrouter, aber Secret OPENROUTER_API_KEY ist leer."
+              exit 1
+            fi
+            echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
+            echo "::notice::Provider=openrouter – OPENROUTER_API_KEY gesetzt (pi-nativ)."
+            ;;
+          zai)
+            if [ -z "$ZAI_API_KEY" ]; then
+              echo "::error title=Auth fehlt::LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
+              exit 1
+            fi
+            # z.ai ist in pi EINGEBAUT (anders als bei Claude Code, wo es über
+            # ANTHROPIC_BASE_URL umgebogen werden muss) — inklusive der drei gebuchten
+            # Modelle. Ein eigener Custom-Provider in models.json wäre nicht nur überflüssig,
+            # sondern schädlich: Handgeschriebene contextWindow-/maxTokens-Werte würden das
+            # eingebaute 1M-Fenster von glm-5.3 überschreiben (nachgemessen mit
+            # `pi --list-models`: eingebaut 1M/131K, eine eigene Zeile hätte daraus 200K/32K
+            # gemacht). Deshalb NUR der Key.
+            echo "ZAI_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
+            echo "::notice::Provider=zai – ZAI_API_KEY gesetzt (pi-nativ)."
+            ;;
+        esac
+
+    - name: Modell + Subagent-Modell auflösen
+      id: model
+      shell: bash
+      env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+        MODEL_ALIAS: ${{ inputs.model }}
+        SUBAGENT_ALIAS: ${{ inputs.subagent-model }}
+        ALIASES_JSON: ${{ inputs.model-aliases-json }}
+        SESSION_DIR: ${{ steps.session.outputs.session-dir }}
+      run: |
+        set -uo pipefail
+
+        # Alias-Tabelle: eingecheckte Datei als Basis, vars.PI_MODEL_ALIASES als Overlay.
+        # Grund fürs Overlay: Die OpenRouter-Modell-IDs stehen bewusst nicht im Repo (Source
+        # of Truth ist die GitHub-Variable, wie bei CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER).
+        TABLE="$(mktemp)"
+        if [ -n "$ALIASES_JSON" ]; then
+          if ! printf '%s' "$ALIASES_JSON" | jq -e . >/dev/null 2>&1; then
+            echo "::error title=PI_MODEL_ALIASES ungültig::Der Inhalt von vars.PI_MODEL_ALIASES ist kein gültiges JSON."
+            exit 1
+          fi
+          printf '%s' "$ALIASES_JSON" | jq -s '.[0] * .[1]' .github/pi/model-aliases.json - > "$TABLE"
+        else
+          cp .github/pi/model-aliases.json "$TABLE"
+        fi
+
+        resolve_alias() {
+          local alias="$1"
+          jq -r --arg p "$LLM_PROVIDER" --arg a "$alias" '.[$p][$a] // ""' "$TABLE"
+        }
+
+        RESOLVED_MODEL=""
+        if [ -n "$MODEL_ALIAS" ]; then
+          case "$MODEL_ALIAS" in
+            fable|opus|sonnet|haiku) ;;
+            *)
+              echo "::error title=Ungueltiger Modell-Alias::model='$MODEL_ALIAS' — erlaubt: fable | opus | sonnet | haiku (oder leer für den pi-Default)."
+              exit 1
+              ;;
+          esac
+          RESOLVED_MODEL="$(resolve_alias "$MODEL_ALIAS")"
+          if [ -z "$RESOLVED_MODEL" ]; then
+            # KEIN stiller Fallback auf den pi-Default: Ein geratenes Modell ist genau der
+            # Fehlgriff, gegen den die Modell-Allowlist antritt (s. docs/ci-architecture.md).
+            echo "::error title=Kein pi-Modell für diesen Alias::Alias '$MODEL_ALIAS' hat für Provider '$LLM_PROVIDER' keinen Eintrag — weder in .github/pi/model-aliases.json noch in vars.PI_MODEL_ALIASES. Eintrag ergänzen (s. .github/pi/README.md)."
+            exit 1
+          fi
+          echo "::notice title=Modell::$RESOLVED_MODEL (Alias '$MODEL_ALIAS', Provider $LLM_PROVIDER)."
+        else
+          # WARNUNG, NICHT NOTICE: Ohne --model greift, was in .pi/settings.json steht
+          # (defaultProvider/defaultModel). Das ist die Konfiguration für lokale Sessions und
+          # kann von vars.LLM_PROVIDER abweichen — der Lauf liefe dann gegen ein anderes
+          # Backend als angefordert, ohne dass es irgendwo stünde.
+          PROJ_DEF="$(jq -r '[.defaultProvider // empty, .defaultModel // empty] | join("/")' .pi/settings.json 2>/dev/null || true)"
+          echo "::warning title=Kein Phasen-Modell::Ohne Modell-Alias entscheidet .pi/settings.json (${PROJ_DEF:-pi-Default}) — das kann von LLM_PROVIDER='${LLM_PROVIDER}' abweichen."
+        fi
+        echo "resolved-model=$RESOLVED_MODEL" >> "$GITHUB_OUTPUT"
+
+        # ── Subagent-Modell ──────────────────────────────────────────────────────────
+        # pi-subagents liest den Settings-Key `subagents.defaultModel`. Er wird in die
+        # GLOBALEN Settings geschrieben, nicht in das eingecheckte .pi/settings.json: Der
+        # Wert ist phasenabhängig (pro Lauf), das Projektfile ist versioniert. Die
+        # Projekt-Settings definieren `subagents` bewusst nicht, es gibt also keinen Konflikt.
+        #
+        # WARUM ÜBERHAUPT: Ohne Override erben Subagents das Elternmodell — ein Fan-out einer
+        # opus-Phase liefe dann ebenfalls auf opus und die Ersparnis, für die der Fan-out da
+        # ist, kehrte sich in Mehrkosten um. 'inherit' bedeutet ausdrücklich „kein Override".
+        SETTINGS_FILE="$HOME/.pi/agent/settings.json"
+        [ -f "$SETTINGS_FILE" ] || echo '{}' > "$SETTINGS_FILE"
+        case "$SUBAGENT_ALIAS" in
+          inherit|"")
+            echo "::notice title=Subagent-Modell::inherit — Subagents laufen auf dem Phasenmodell (kein Override)."
+            ;;
+          fable|opus|sonnet|haiku)
+            SUB_MODEL="$(resolve_alias "$SUBAGENT_ALIAS")"
+            if [ -z "$SUB_MODEL" ]; then
+              echo "::error title=Kein pi-Modell für den Subagent-Alias::Alias '$SUBAGENT_ALIAS' hat für Provider '$LLM_PROVIDER' keinen Eintrag (s. .github/pi/README.md)."
+              exit 1
+            fi
+            tmp="$(mktemp)"
+            jq --arg m "$SUB_MODEL" '.subagents = ((.subagents // {}) | .defaultModel = $m)' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+            echo "::notice title=Subagent-Modell::$SUB_MODEL (Alias '$SUBAGENT_ALIAS') als subagents.defaultModel gesetzt."
+            ;;
+          *)
+            echo "::error title=Ungueltiger Subagent-Alias::subagent-model='$SUBAGENT_ALIAS' — erlaubt: inherit | fable | opus | sonnet | haiku."
+            exit 1
+            ;;
+        esac
+
+        # Kind-Sitzungen in dasselbe Lauf-Verzeichnis lenken. Ohne diesen Eintrag leitet
+        # pi-subagents das Kind-Sitzungsverzeichnis selbst aus der Elternsitzung ab — der
+        # Verbrauch der Subagents landete dann möglicherweise ausserhalb dessen, was die
+        # Kostenerfassung liest, und der Fan-out sähe gratis aus.
+        mkdir -p "$HOME/.pi/agent/extensions/subagent"
+        SUB_CONFIG="$HOME/.pi/agent/extensions/subagent/config.json"
+        [ -f "$SUB_CONFIG" ] || echo '{}' > "$SUB_CONFIG"
+        tmp_sub="$(mktemp)"
+        jq --arg d "${SESSION_DIR}/subagents" '.defaultSessionDir = $d' "$SUB_CONFIG" > "$tmp_sub" && mv "$tmp_sub" "$SUB_CONFIG"
+        echo "::notice title=Subagent-Sitzungen::${SESSION_DIR}/subagents (wird von der Kostenerfassung mitgelesen)."
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # INVOKE-RESOLUTION – setzt invoke-cmd + invoke-args
+    #
+    # TOOL-TIER UNTER pi — AUSDRÜCKLICHER VORBEHALT:
+    # pi hat KEIN Permission-System (steht so in seiner README). `--tools` ist eine
+    # Allowlist von TOOL-NAMEN; ein Gegenstück zu Claudes `Bash(gh *)` oder
+    # `Edit(.ai-memory/*)` gibt es nicht. Das restricted-Tier der Triage lässt sich damit
+    # nicht nachbauen: Wer `bash` bekommt — und ohne bash kein `gh`, also keine Triage —,
+    # kann faktisch auch schreiben. Die Eingrenzung kommt im pi-Lauf aus dem ephemeren
+    # Runner und dem Scope des App-Tokens, nicht aus der Laufzeit. Deshalb wird der
+    # Unterschied hier als ::warning protokolliert, statt eine Gleichwertigkeit zu
+    # behaupten, die nicht existiert.
+    #
+    # BEWUSST KEINE ALLOWLIST DER ERWEITERUNGS-TOOLS: Die Tool-Namen von pi-lsp sind
+    # konfigurierbar, die Direkt-Tools des MCP-Adapters werden serverabhängig präfixiert.
+    # Eine Allowlist mit geratenen Namen würde die Erweiterung STILL abschalten — schlimmer
+    # als keine Allowlist. Was sich verlässlich benennen lässt, sind die Proxy-Tools des
+    # Adapters (`mcp`, `mcpScript`); genau die schaltet needs-mcp=false per --exclude-tools ab.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Invoke auflösen
+      id: resolve-invoke
+      shell: bash
+      env:
+        NEEDS_MCP: ${{ inputs.needs-mcp }}
+        BROWSER_MCP: ${{ inputs.browser-mcp }}
+        TOOLS_TIER: ${{ inputs.tools-tier }}
+        EFFORT_LEVEL: ${{ inputs.effort }}
+        RESOLVED_MODEL: ${{ steps.model.outputs.resolved-model }}
+        SESSION_DIR: ${{ steps.session.outputs.session-dir }}
+      run: |
+        set -uo pipefail
+        echo "invoke-cmd=pi -p" >> "$GITHUB_OUTPUT"
+
+        MODEL_FLAG=""
+        [ -n "$RESOLVED_MODEL" ] && MODEL_FLAG="--model $RESOLVED_MODEL"
+
+        # Effort → --thinking. pi kennt exakt dieselben Stufen wie Claudes --effort,
+        # die Abbildung ist deshalb 1:1. Ungültiger Wert = lauter Abbruch (kein Fallback).
+        THINKING_FLAG=""
+        if [ -n "$EFFORT_LEVEL" ]; then
+          case "$EFFORT_LEVEL" in
+            low|medium|high|xhigh|max)
+              THINKING_FLAG="--thinking $EFFORT_LEVEL"
+              echo "::notice::Thinking-Level: $EFFORT_LEVEL (aus effort)."
+              ;;
+            *)
+              echo "::error title=Ungueltiges effort::effort='$EFFORT_LEVEL' — erlaubt: low | medium | high | xhigh | max"
+              exit 1
+              ;;
+          esac
+        fi
+
+        case "${TOOLS_TIER:-full}" in
+          restricted|review)
+            echo "::warning title=⚠️ Tool-Tier unter pi nicht durchsetzbar::tools-tier='${TOOLS_TIER}' — pi kennt kein Permission-System (keine Entsprechung zu Bash(gh *) / Edit(.ai-memory/*)). Der Lauf hat Schreib- und Shell-Zugriff wie im full-Tier; die Eingrenzung kommt aus dem ephemeren Runner und dem App-Token-Scope."
+            ;;
+          full)
+            ;;
+          *)
+            echo "::error title=Ungueltiges tools-tier::tools-tier='$TOOLS_TIER' — erlaubt: restricted | review | full"
+            exit 1
+            ;;
+        esac
+
+        EXCLUDE_FLAG=""
+        if [ "$NEEDS_MCP" = "true" ]; then
+          echo "::notice::MCP aktiv — Proxy-Tools des pi-mcp-adapter stehen bereit (Server aus .mcp.json des Repos)."
+          if [ "$BROWSER_MCP" = "true" ]; then
+            echo "::notice::browser-mcp=true — Playwright läuft unter pi über dasselbe mcp-Proxy-Tool, kein eigenes Flag nötig."
+          fi
+        else
+          EXCLUDE_FLAG="--exclude-tools mcp,mcpScript"
+          echo "::notice::MCP inaktiv — mcp/mcpScript per --exclude-tools abgeschaltet."
+        fi
+
+        # --approve: In non-interaktiven Modi (-p) fragt pi nicht nach Projekt-Trust und
+        # ignoriert projektlokale Ressourcen ohne gespeicherte Entscheidung. Ohne das Flag
+        # läge das eingecheckte .pi/settings.json (Paketliste, Compaction) brach.
+        #
+        # BEWUSST OHNE --verbose: Das Flag erzwingt den ausführlichen Startkopf des TUI und
+        # gibt im -p-Modus nichts aus (nachgemessen mit pi 0.84.4 — die Ausgabe blieb leer).
+        # Der Nachweis, dass die Pakete geladen sind, ist deshalb der `pi list`-Block des
+        # Installations-Steps oben, nicht ein Flag, das hier nur so aussähe, als täte es etwas.
+        echo "invoke-args=--session-dir $SESSION_DIR $MODEL_FLAG $THINKING_FLAG $EXCLUDE_FLAG --approve" >> "$GITHUB_OUTPUT"

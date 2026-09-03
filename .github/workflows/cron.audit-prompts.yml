@@ -99,7 +99,7 @@ jobs:
       - name: Setup Claude Code
         id: setup
         if: steps.guard.outputs.skip != 'true'
-        uses: ./.github/actions/setup-claude
+        uses: ./.github/actions/setup-agent
         with:
           needs-mcp: false
           browser-mcp: false

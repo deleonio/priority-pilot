@@ -50,7 +50,7 @@ jobs:
 
       - name: Setup Claude Code
         id: setup
-        uses: ./.github/actions/setup-claude
+        uses: ./.github/actions/setup-agent
         with:
           tools-tier: restricted
           # Stateless Helper: kein Ticket-Kontext, kein Memory (memory-load=false,

@@ -1,0 +1,554 @@
+name: 'Setup Agent Runtime'
+description: 'Runtime-neutrale Vorbereitung eines Agenten-Laufs (App-Token, Ticket-Auflösung, Memory-Load, Provider-Auflösung, Tailscale) + Weiche auf setup-claude oder setup-pi'
+
+# WARUM DIESE ACTION EXISTIERT (Issue #1184): Bis hierher steckte die Laufzeit fest in
+# setup-claude — CLI-Install, Auth, Modell-Aliase, Tool-Tiers und der Invoke lagen dort
+# gemeinsam mit Dingen, die mit der Laufzeit nichts zu tun haben (App-Token, Git-Remote,
+# Ticket-Auflösung, Memory-Load, Tailscale). Eine zweite Laufzeit hätte diese Plumbing
+# entweder duplizieren oder in einer bereits 850 Zeilen langen Datei mitverzweigen müssen.
+#
+# Aufteilung stattdessen:
+#   setup-agent (hier)  — alles Runtime-Neutrale + die Weiche
+#   setup-claude        — nur Claude Code (CLI, Trust-Dialog, Auth-Env, --allowedTools, claude -p)
+#   setup-pi            — nur pi (CLI, Pakete, Auth-Env, --tools, pi -p)
+#
+# Die Ein-/Ausgabe-Signatur ist absichtlich identisch mit dem bisherigen setup-claude (plus
+# `runtime`): Die Aufrufer mussten nur den Pfad umhängen, kein Workflow musste seine Parameter
+# umschreiben.
+#
+# WARUM `runtime` ALS INPUT UND NICHT AUS `vars` GELESEN: Composite-Actions haben keinen
+# Zugriff auf den `vars`-Kontext. Der Wert muss — genau wie `llm-provider` seit jeher — vom
+# Workflow durchgereicht werden.
+
+inputs:
+  runtime:
+    description: >-
+      Agenten-Laufzeit für diesen Lauf: "claude" (Claude Code, Default) oder "pi"
+      (@earendil-works/pi-coding-agent). Aus vars.AGENT_RUNTIME; leer = claude. Ein
+      unbekannter Wert bricht laut ab (kein stiller Fallback) — dieselbe Regel wie beim
+      Provider, damit ein Tippfehler nicht unbemerkt die alte Laufzeit weiterlaufen lässt.
+    required: false
+    default: 'claude'
+  needs-mcp:
+    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird. Steuert nur die Tool-Allowlist; registriert ist der Server in .claude/settings.json (Claude) bzw. .mcp.json (pi, via pi-mcp-adapter). Gilt für alle Phasen außer Documenter (07).'
+    required: false
+    default: 'false'
+  browser-mcp:
+    description: 'Ob Playwright-MCP (Browser-Tools) für diesen Workflow benötigt wird. Bei true werden mcp__playwright__* Tools zur Allowlist aller Tiers hinzugefügt (Claude); unter pi laufen sie über dasselbe mcp-Proxy-Tool. Nur für Phasen mit UI-Inspektion (02 UX, 04 Umsetzung, 06 Fixup).'
+    required: false
+    default: 'false'
+  tools-tier:
+    description: 'Permission-Tier für diesen Lauf. "restricted" = nur lesender GitHub-Zugriff via gh/git, kein Bypass (Triage). "review" = Vollzugriff minus Write/Edit. "full" = vollautonom mit Bypass (Default; Spec/Implement/Fixup). Steuert --allowedTools / --dangerously-skip-permissions / --disallowedTools. Der globale deny-Layer in .claude/settings.json greift in JEDEM Tier (auch unter bypass). ACHTUNG: pi kennt kein Permission-System — dort ist das Tier nur eine Tool-Namensliste (s. setup-pi).'
+    required: false
+    default: 'full'
+  event-type:
+    description: 'github.event_name (issues oder pull_request)'
+    required: true
+  ticket-ref:
+    description: 'Issue- oder PR-Nummer (für Ticket-Auflösung)'
+    required: true
+  app-id:
+    description: 'GitHub App ID (secret)'
+    required: true
+  app-private-key:
+    description: 'GitHub App Private Key (secret)'
+    required: true
+  llm-provider:
+    description: 'LLM-Provider für diesen Lauf: "claude" (Anthropic nativ, Default), "zai" (z.ai/GLM) oder "openrouter" (OpenRouter). Aus vars.LLM_PROVIDER; leer = claude.'
+    required: false
+    default: 'claude'
+  zai-api-key:
+    description: 'API-Key für z.ai (secret, secrets.ZAI_API_KEY). Nur bei llm-provider=zai erforderlich.'
+    required: false
+  claude-api-key:
+    description: 'API-Key für Anthropic (secret, secrets.CLAUDE_API_KEY). Nur bei llm-provider=claude erforderlich.'
+    required: false
+  openrouter-api-key:
+    description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
+    required: false
+  # Settings-JSON direkt als Input (aus GitHub Variables) – vermeidet gh CLI Auth-Probleme
+  zai-settings-json:
+    description: 'settings.local.json für zai als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI). Nur für runtime=claude relevant.'
+    required: false
+    default: ''
+  openrouter-settings-json:
+    description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER). Nur für runtime=claude relevant.'
+    required: false
+    default: ''
+  pi-model-aliases-json:
+    description: 'Alias→Modell-Tabelle für pi als JSON-String (aus vars.PI_MODEL_ALIASES), gelegt über die eingecheckte .github/pi/model-aliases.json. Nur für runtime=pi relevant; der Weg für Provider, deren Modell-IDs bewusst nicht im Repo stehen (openrouter).'
+    required: false
+    default: ''
+  compact-tokens:
+    description: 'Auto-compact threshold für Claude Code (z.B. "80k", "100k", "auto"). Leer = Default aus .claude/settings.json. Unter pi wirkungslos: pi konfiguriert Compaction über .pi/settings.json, nicht über ein CLI-Flag.'
+    required: false
+    default: ''
+  effort:
+    description: 'Effort-Level (Thinking-Budget) für diesen Lauf: low | medium | high | xhigh | max. Leer = kein Flag. Unter pi als --thinking durchgereicht (identische Stufen).'
+    required: false
+    default: ''
+  memory-load:
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Harness-Branch ai/harness/{N}; Fallback auf den Legacy-State-Branch ai/state/issue-{N}). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
+    required: false
+    default: 'false'
+  expect-memory:
+    description: 'Erwartet die Phase vorherige Phasen-Notizen (Restore)? true ab Phase 2. Bei leerem Restore → Warning (Resume-Kontext fehlt); false (Phase 1) → leeres Memory ist normal, keine Warning.'
+    required: false
+    default: 'false'
+  model:
+    description: 'Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein Modell-Flag (Default der jeweiligen Laufzeit). Der Alias wird providerspezifisch aufgelöst; ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
+    required: false
+    default: ''
+  subagent-model:
+    description: >-
+      Modell für Subagents als Alias, oder 'inherit' (Default). Unter Claude Code als
+      CLAUDE_CODE_SUBAGENT_MODEL gesetzt, unter pi als Konfiguration für pi-subagents.
+
+      BEWUSST GESETZT, NICHT UNGESETZT GELASSEN: Die Variable überschreibt das Modell für
+      ALLE Subagents und hat Vorrang vor deren model-Frontmatter. Bliebe sie unbestimmt,
+      liefe ein Subagent-Fan-out einer fable-Phase potenziell ebenfalls auf fable — und
+      genau das kehrte die Kostenlogik um, die die Phasen-Modellwahl herstellt.
+      'inherit' = ausdrücklich das Phasenmodell (bisheriges Verhalten, kein Override).
+    required: false
+    default: 'inherit'
+  # Tailscale-Exit-Node: optional. Verbindet den Runner VOR dem Agenten-Step mit dem Exit Node,
+  # sodass der gesamte LLM-Traffic über eine konsistente IP egressiert (verhindert z.ai/
+  # OpenRouter "Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs). Kill-Switch:
+  # leerer tailscale-exit-node (vars.TAILSCALE_EXIT_NODE nicht gesetzt) deaktiviert das Routing
+  # komplett → exakt heutiges Verhalten. Fail-closed: bei gesetztem Exit-Node + fehlendem/schlech-
+  # tem Key scheitert der Connect laut → der Agenten-Step wird übersprungen (kein direkter Azure-Egress).
+  tailscale-authkey:
+    description: 'Tailscale Auth-Key (secret, secrets.TAILSCALE_AUTH_KEY; reusable + ephemeral + tag:ci). Zusammen mit tailscale-exit-node aktiv; sonst ignoriert.'
+    required: false
+    default: ''
+  tailscale-exit-node:
+    description: 'Tailscale-Exit-Node (Name oder 100.x.y.z, aus vars.TAILSCALE_EXIT_NODE). LEER = Routing deaktiviert (Kill-Switch). Vorhanden = aktiv, Connect fail-closed.'
+    required: false
+    default: ''
+
+outputs:
+  configured:
+    description: 'Ob App-Secrets konfiguriert sind'
+    value: ${{ steps.preflight.outputs.configured }}
+  gh-token:
+    description: 'GitHub Token für gh-Befehle (App-Token oder GITHUB_TOKEN)'
+    value: ${{ steps.gh-token.outputs.token }}
+  issue-number:
+    description: 'Aufgelöste Issue-Nummer (für Issue-Events direkt, für PR-Events via closingIssuesReferences)'
+    value: ${{ steps.ticket.outputs.issue-number }}
+  compact-tokens:
+    description: 'Der tatsächlich aufgelöste Auto-Compact-Threshold (leer = Default der Laufzeit)'
+    value: ${{ inputs.compact-tokens }}
+  runtime:
+    description: 'Die tatsächlich gewählte Laufzeit ("claude" oder "pi") — von record-cost gebraucht, um die richtige Kostenquelle zu lesen'
+    value: ${{ steps.runtime.outputs.runtime }}
+  invoke-cmd:
+    description: 'Invoke-Befehl der gewählten Laufzeit (claude -p oder pi -p)'
+    value: ${{ steps.claude.outputs.invoke-cmd || steps.pi.outputs.invoke-cmd }}
+  invoke-args:
+    description: 'Invoke-Argumente der gewählten Laufzeit (inkl. Tool-Allowlist und Modell)'
+    value: ${{ steps.claude.outputs.invoke-args || steps.pi.outputs.invoke-args }}
+  session-dir:
+    description: 'Sitzungsverzeichnis des Laufes (nur pi; bei claude leer). Quelle der Kostenerfassung.'
+    value: ${{ steps.pi.outputs.session-dir }}
+  llm-provider:
+    description: 'Der tatsächlich aufgelöste Provider ("claude", "zai" oder "openrouter")'
+    value: ${{ steps.provider.outputs.llm-provider }}
+  memory-loaded:
+    description: 'Ob pro-Issue Memory aus einer Vor-Phase geladen wurde (State-Branch gefunden UND restauriert)'
+    value: ${{ steps.memory-load.outputs.found }}
+  memory-restored:
+    description: 'Ob tatsächlich Memory-Dateien restauriert wurden (State-Branch geladen UND Dateianzahl > 0).'
+    value: ${{ steps.memory-verify.outputs.restored }}
+  memory-file-count:
+    description: 'Anzahl restaurierter Memory-Dateien in .ai-memory/.'
+    value: ${{ steps.memory-verify.outputs.file-count }}
+  memory-status-text:
+    description: 'Sed-sicherer Restore-Status für den Prompt-Platzhalter {{MEMORY_STATUS}} ("vorhanden" | "leer").'
+    value: ${{ steps.memory-verify.outputs.status-text }}
+
+runs:
+  using: composite
+  steps:
+    - name: Voraussetzung prüfen (GitHub-App-Secrets)
+      id: preflight
+      env:
+        APP_ID: ${{ inputs.app-id }}
+        APP_PRIVATE_KEY: ${{ inputs.app-private-key }}
+      shell: bash
+      run: |
+        if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+          echo "::warning::GitHub-App-Secrets fehlen – Lauf wird übersprungen."
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    # Laufzeit-Weiche VOR allem anderen validieren: Ein Tippfehler in vars.AGENT_RUNTIME soll
+    # nicht erst nach App-Token, Checkout und Memory-Load auffallen, sondern in der ersten
+    # Sekunde. Kein stiller Fallback auf claude — sonst liefe ein als pi-Test gemeinter Lauf
+    # unbemerkt auf der alten Laufzeit und das Messergebnis wäre wertlos.
+    - name: Laufzeit auflösen
+      id: runtime
+      shell: bash
+      env:
+        RUNTIME: ${{ inputs.runtime }}
+      run: |
+        RT="${RUNTIME:-claude}"
+        case "$RT" in
+          claude|pi) ;;
+          *)
+            echo "::error title=Unbekannte Laufzeit::runtime='$RT' — erlaubt sind 'claude' und 'pi' (vars.AGENT_RUNTIME)."
+            exit 1
+            ;;
+        esac
+        echo "runtime=$RT" >> "$GITHUB_OUTPUT"
+        echo "::notice title=🤖 Laufzeit::$RT"
+
+    - name: GitHub-App-token erzeugen
+      id: app-token
+      if: steps.preflight.outputs.configured == 'true'
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+      with:
+        client-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+
+    - name: App-Token durchreichen (App-only — kein GITHUB_TOKEN-Fallback)
+      id: gh-token
+      shell: bash
+      run: |
+        APP_TOK="${{ steps.app-token.outputs.token }}"
+        if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+          echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+          echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+        else
+          # App-only-Pipeline: ohne App-Token kann weder gepusht (Contents:Write) noch ein
+          # Folge-Workflow getriggert werden (GITHUB_TOKEN-Events lösen keine Runs aus). Ein
+          # stiller GITHUB_TOKEN-Fallback endet grün, pusht nicht und loopt — deshalb LAUT
+          # abbrechen statt degradieren.
+          echo "::error::App-Token nicht verfügbar – Pipeline ist App-only. Abbruch statt GITHUB_TOKEN-Fallback (Push braucht Contents:Write, Label-Wechsel müssen Folge-Workflows triggern). Secrets APP_ID/APP_PRIVATE_KEY oder die App-Installation prüfen."
+          exit 1
+        fi
+
+    - name: Git-Remote origin auf App-Token umstellen (wie deploy.yml)
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+      run: |
+        # App-Token DIREKT in die origin-URL einbetten — exakt wie deploy.yml. Der frühere
+        # insteadOf-Rewrite wurde vom per `persist-credentials` (Default true) von checkout
+        # hinterlegten GITHUB_TOKEN überstimmt, sodass der Agent als github-actions[bot]
+        # (contents:read) statt als App (Contents:Write) pushte → 403. Mit persist-credentials:false
+        # an allen Agenten-Checkouts gibt es keine konkurrierende Credential mehr; origin trägt
+        # als einzige das App-Token.
+        git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        echo "::notice::origin-Remote auf App-Token umgestellt (Contents:Write für Push)."
+
+    - name: Git-Identität auf Repo-Owner stellen
+      # Commit-Attribution: Sämtliche Phasen-Commits (Spec/Implement/Fixup, Syncs, Auto-Merge)
+      # laufen unter der Identität des Repo-Owners statt der App-Bot-Identität — gültige
+      # noreply-Adresse, Commits verlinken auf den Owner-Account und zählen in dessen
+      # Beitragsdiagramm. Der PUSH selbst bleibt App-Token (App-only-Pipeline, s. Schritt oben).
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      run: |
+        git config user.name "deleonio"
+        git config user.email "6279703+deleonio@users.noreply.github.com"
+
+    - name: Ticket-ID auflösen (Issue-Nummer)
+      id: ticket
+      if: steps.preflight.outputs.configured == 'true'
+      env:
+        GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+        EVENT_TYPE: ${{ inputs.event-type }}
+        TICKET_REF: ${{ inputs.ticket-ref }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      shell: bash
+      run: |
+        if [ "$EVENT_TYPE" = "pull_request" ]; then
+          ISSUE_NR=$(gh pr view "$TICKET_REF" --repo "$GITHUB_REPOSITORY" \
+            --json closingIssuesReferences \
+            --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || echo "")
+          if [ -z "$ISSUE_NR" ] || [ "$ISSUE_NR" = "null" ]; then
+            ISSUE_NR="$TICKET_REF"
+            # WARNING, nicht NOTICE: Der Fallback bedeutet ein ZWEITES Speicher-Silo
+            # (ai/harness/<PR> statt ai/harness/<Ticket>) — Fixup/Review/Documenter
+            # sehen dann nichts von Triage/UX/Spec/Umsetzung. Als Notice ist genau das eine
+            # Woche lang in grünen Läufen untergegangen (PRs #988–#992).
+            echo "::warning title=⚠️ Kein Closing-Issue am PR::PR #$TICKET_REF hat kein verlinktes Closing-Issue — Speicher-Schlüssel fällt auf die PR-Nummer zurück, der Memory der Vor-Phasen ist für diesen Lauf unerreichbar. Fehlt ein 'Closes #<Nr>' im PR-Body?"
+          else
+            echo "::notice::PR #$TICKET_REF → Issue #$ISSUE_NR."
+          fi
+        else
+          ISSUE_NR="$TICKET_REF"
+        fi
+        echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
+
+    - name: Memory-Load (pro Issue, Harness-Branch ai/harness/{N}, Fallback State-Branch)
+      # ADR 0007: Der Issue-Storage lebt im Harness-Branch — demselben Branch, auf dem
+      # Spec/Impl arbeiten und der per PR nach main gemergt wird. Hier: fetchen und die
+      # Storage-Pfade in den Workspace restoren. git restore OHNE --staged lässt den Index
+      # unberührt. MEMORY.md wird via :(exclude) ausgespart: es ist eingecheckt und reist in
+      # den Phasen-Commits — ein alter Stand aus dem Storage dürfte es nie überschreiben.
+      # Fehlt der Harness-Branch, wird der LEGACY-State-Branch ai/state/issue-{N} (ADR 0006,
+      # Bestand vor der Umstellung) probiert. Fehlen beide (Erst-Triage/Erst-Phase) →
+      # found=false, Phase startet mit leerem Memory (fail-open). Dasselbe greift für
+      # Branches aus der Zeit vor dem .ai-memory-Umzug: dort matcht der Pathspec nicht,
+      # der Restore scheitert kontrolliert und die Phase startet leer statt mit Müll.
+      # WICHTIG für Phase 3 (Spec): Der Agent switched im weiteren Verlauf auf genau diesen
+      # Branch — die restaurierten Dateien sind dann identisch mit dem Branch-Stand, der
+      # Switch ist sauber; ab Spec committet der Agent seine Notizen selbst mit (ADR 0007).
+      id: memory-load
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+      shell: bash
+      env:
+        ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
+      run: |
+        set -uo pipefail
+        mkdir -p .ai-memory
+        found="false"
+        SOURCE=""
+        for BRANCH in "ai/harness/${ISSUE_NR}" "ai/state/issue-${ISSUE_NR}"; do
+          if git fetch --quiet origin "$BRANCH" 2>/dev/null \
+             && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
+             && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md' ':(exclude).ai-memory/state.json'; then
+            found="true"
+            SOURCE="$BRANCH"
+            break
+          fi
+        done
+        if [ "$found" = "true" ]; then
+          echo "::notice title=🧠 Memory geladen::$SOURCE → .ai-memory/ (worktree, Index unberührt)."
+        else
+          echo "::notice title=🧠 Memory leer (kein Harness-/State-Branch)::ai/harness/${ISSUE_NR} und ai/state/issue-${ISSUE_NR} existieren (noch) nicht — erste Phase dieses Tickets oder Storage zwischenzeitlich abgeräumt."
+        fi
+        echo "found=$found" >> "$GITHUB_OUTPUT"
+
+    - name: Memory-Verzeichnis sicherstellen (Schreibzugriff auch bei Miss / memory-load=false)
+      # Entkoppelt von memory-load: auch bei Restore-Miss (Erst-Triage) oder memory-load=false
+      # (stateless Helper) MUSS geschrieben werden dürfen → Verzeichnis immer anlegen.
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      run: mkdir -p ".ai-memory"
+
+    - name: Memory-Restore verifizieren (ab Phase 2)
+      # Prüft, OB wirklich Memory restauriert wurde (Artefakt geladen + Dateianzahl > 0). Phase 1
+      # (memory-load=false) überspringt diesen Schritt — leeres Memory ist dort der Normalfall.
+      # Ab Phase 2 (expect-memory=true) warnt ein leerer Restore: entweder hat die Vor-Phase
+      # nichts geschrieben, ODER der Artefakt-Upload/-Download schlug fehl.
+      id: memory-verify
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+      shell: bash
+      env:
+        EXPECT_MEMORY: ${{ inputs.expect-memory }}
+        ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
+        ARTIFACT_FOUND: ${{ steps.memory-load.outputs.found }}
+      run: |
+        # Nur die Phasen-Notizen zählen. Das eingecheckte Dauergedächtnis .ai-memory/MEMORY.md
+        # liegt IMMER im Checkout — ungefiltert wäre der Zähler dauerhaft >= 1 und die
+        # expect-memory-Warnung („Restore leer") könnte nie mehr feuern.
+        count=$(find .ai-memory -type f -name 'issue-*.md' 2>/dev/null | wc -l | tr -d ' ')
+        restored="false"
+        if [ "${ARTIFACT_FOUND}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
+        echo "file-count=${count:-0}" >> "$GITHUB_OUTPUT"
+        echo "restored=$restored" >> "$GITHUB_OUTPUT"
+        if [ "$restored" = "true" ]; then
+          echo "status-text=vorhanden" >> "$GITHUB_OUTPUT"
+          echo "::notice title=🧠 Memory-Restore OK::Issue #${ISSUE_NR} — ${count} Memory-Datei(en) geladen."
+        else
+          echo "status-text=leer" >> "$GITHUB_OUTPUT"
+          if [ "${EXPECT_MEMORY}" = "true" ]; then
+            echo "::warning title=⚠️ Memory-Restore leer::Issue #${ISSUE_NR} — keine Phasen-Notizen geladen (vorherige Phase schrieb nichts ODER Persistierung fehlgeschlagen). Resume-Kontext fehlt."
+          else
+            echo "::notice title=🧠 Memory leer (erwartet)::Issue #${ISSUE_NR} — erste Phase, kein Vor-Kontext."
+          fi
+        fi
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # ZAI TIME-WINDOW CHECK – ZAI in z.ai-Peak-Zeiten (3× Quota) auf Claude fallen
+    #
+    # Issue #893: z.ai berechnet den 3×-Peak-Tarif nur Mo–Fr 14:00–18:00 Asia/Singapore
+    # (= 08:00–12:00 MESZ bzw. 07:00–11:00 MEZ); am Wochenende gilt ganztägig Off-Peak.
+    # Abo-Realität: Nur glm-4.7/glm-5-turbo/glm-5.3 gebucht; der 2×/3×-Tarif trifft im Abo
+    # einzig glm-5-turbo (Subagent-Modell) — der Fallback bleibt bewusst pauschal.
+    # Die Prüfung läuft in Singapore-Zeit (UTC+8, kein DST) — dadurch verschiebt sich das
+    # Berliner Fenster mit der Sommerzeit automatisch korrekt (die frühere harte
+    # Berlin-Stunde 08–11 lag im Winter daneben).
+    # Nur ZAI wird überschrieben; claude/openrouter bleiben unangetastet.
+    # Runtime-neutral: Der Tarif hängt am Provider, nicht an der Laufzeit.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: ZAI Zeitfenster-Check (Mo–Fr 14:00–18:00 Asia/Singapore → Claude Fallback)
+      id: time-window-check
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+      run: |
+        PROVIDER="${LLM_PROVIDER:-claude}"
+
+        # Nur bei ZAI prüfen, ob wir im Peak-Fenster sind
+        if [ "$PROVIDER" != "zai" ]; then
+          echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          echo "time-window-override=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Zeitfenster-Check übersprungen (Provider=$PROVIDER, nur zai wird geprüft)."
+          exit 0
+        fi
+
+        # Peak-Fenster in Singapore-Zeit (UTC+8, kein DST): Mo–Fr 14:00–17:59
+        SGT_HOUR=$(TZ='Asia/Singapore' date +%H)
+        SGT_DOW=$(TZ='Asia/Singapore' date +%u) # 1=Mo … 7=So
+        echo "Singapore-Zeit: Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx (Asia/Singapore)."
+
+        if [ "$SGT_DOW" -le 5 ] && [ "$SGT_HOUR" -ge 14 ] && [ "$SGT_HOUR" -le 17 ]; then
+          echo "original-llm-provider=zai" >> "$GITHUB_OUTPUT"
+          echo "time-window-override=true" >> "$GITHUB_OUTPUT"
+          echo "::notice title=🕐 ZAI Peak-Zeit aktiv::Mo–Fr 14:00–18:00 Asia/Singapore (3× Quota) — ZAI wird auf Claude gefallback (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx)."
+        else
+          echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          echo "time-window-override=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Zeitfenster inaktiv (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx — Wochenende oder außerhalb Mo–Fr 14:00–18:00 SGT) — ZAI wird verwendet."
+        fi
+
+    # PROVIDER-AUFLÖSUNG (runtime-neutral). Bewusst getrennt vom Setzen der Auth-Variablen:
+    # WELCHER Provider gilt, ist für beide Laufzeiten dieselbe Frage; WIE er authentifiziert
+    # wird, ist es nicht (Claude Code: ANTHROPIC_*-Env + settings.local.json; pi:
+    # providereigene Env + models.json). Das Auth-Setzen liegt deshalb in setup-claude/setup-pi.
+    - name: Provider auflösen
+      id: provider
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+        TIME_WINDOW_OVERRIDE: ${{ steps.time-window-check.outputs.time-window-override }}
+        ORIGINAL_PROVIDER: ${{ steps.time-window-check.outputs.original-llm-provider }}
+      run: |
+        PROVIDER="${LLM_PROVIDER:-claude}"
+
+        # Zeitfenster-Override: Wenn aktiv, ZAI durch Claude ersetzen
+        if [ "$TIME_WINDOW_OVERRIDE" = "true" ]; then
+          echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (z.ai-Peak-Zeit Mo–Fr 14:00–18:00 Asia/Singapore aktiv)."
+          PROVIDER="claude"
+        fi
+
+        case "$PROVIDER" in
+          claude|zai|openrouter) ;;
+          *)
+            echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' – erlaubt sind 'claude', 'zai' oder 'openrouter'."
+            exit 1
+            ;;
+        esac
+
+        echo "llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+        echo "::notice title=🔌 Provider::$PROVIDER"
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # TAILSCALE EXIT-NODE – nur für Provider 'zai' (z.ai blockt Azure-IPs).
+    # claude (Anthropic nativ) und openrouter vertragen Azure-IPs problemlos.
+    # Läuft NACH der Provider-Auflösung, damit der finale Provider (inkl.
+    # Zeitfenster-Override) bekannt ist. Kill-Switch: tailscale-exit-node leer → deaktiviert.
+    # Fail-closed: Exit-Node gesetzt + Provider=zai, aber Key fehlt/
+    # Connect scheitert → setup rot → der Agenten-Step wird übersprungen.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      shell: bash
+      env:
+        TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
+      run: |
+        if [ -z "$TAILSCALE_AUTHKEY" ]; then
+          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
+          exit 1
+        fi
+
+    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
+      with:
+        authkey: ${{ inputs.tailscale-authkey }}
+        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
+
+    - name: ✅ Tailscale-Verbindung bestätigen (für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      shell: bash
+      run: |
+        sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
+        if tailscale status >/dev/null 2>&1; then
+          SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
+          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Nürnberg."
+          echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
+        else
+          echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
+        fi
+
+    - name: DNS fixen + Egress-IP protokollieren (für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      shell: bash
+      run: |
+        sudo systemctl stop systemd-resolved 2>/dev/null || true
+        sudo rm -f /etc/resolv.conf
+        echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+        echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
+        if getent hosts api.anthropic.com >/dev/null 2>&1; then
+          EGRESS=$(curl -s --max-time 5 https://ipinfo.io/json 2>/dev/null || echo "")
+          if [ -n "$EGRESS" ]; then
+            IP=$(printf '%s' "$EGRESS" | jq -r '.ip // "?"')
+            CITY=$(printf '%s' "$EGRESS" | jq -r '.city // "?"')
+            COUNTRY=$(printf '%s' "$EGRESS" | jq -r '.country // "?"')
+            echo "::notice title=🌐 LLM-Egress über Tailscale::Exit-Node aktiv — IP ${IP} (${CITY}, ${COUNTRY})."
+            echo "Egress-IP: ${IP} (${CITY}, ${COUNTRY})"
+          else
+            echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (Egress-IP nicht abrufbar)."
+          fi
+        else
+          echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
+          exit 1
+        fi
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # RUNTIME-WEICHE — genau EINE der beiden Actions läuft.
+    # Der übersprungene Step liefert leere Outputs; die `||`-Verknüpfung in den
+    # Action-Outputs oben nimmt deshalb automatisch den Wert der gelaufenen Action.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Claude Code einrichten
+      id: claude
+      if: steps.preflight.outputs.configured == 'true' && steps.runtime.outputs.runtime == 'claude'
+      uses: ./.github/actions/setup-claude
+      with:
+        llm-provider: ${{ steps.provider.outputs.llm-provider }}
+        needs-mcp: ${{ inputs.needs-mcp }}
+        browser-mcp: ${{ inputs.browser-mcp }}
+        tools-tier: ${{ inputs.tools-tier }}
+        model: ${{ inputs.model }}
+        subagent-model: ${{ inputs.subagent-model }}
+        effort: ${{ inputs.effort }}
+        compact-tokens: ${{ inputs.compact-tokens }}
+        zai-api-key: ${{ inputs.zai-api-key }}
+        claude-api-key: ${{ inputs.claude-api-key }}
+        openrouter-api-key: ${{ inputs.openrouter-api-key }}
+        zai-settings-json: ${{ inputs.zai-settings-json }}
+        openrouter-settings-json: ${{ inputs.openrouter-settings-json }}
+
+    - name: pi einrichten
+      id: pi
+      if: steps.preflight.outputs.configured == 'true' && steps.runtime.outputs.runtime == 'pi'
+      uses: ./.github/actions/setup-pi
+      with:
+        llm-provider: ${{ steps.provider.outputs.llm-provider }}
+        needs-mcp: ${{ inputs.needs-mcp }}
+        browser-mcp: ${{ inputs.browser-mcp }}
+        tools-tier: ${{ inputs.tools-tier }}
+        model: ${{ inputs.model }}
+        subagent-model: ${{ inputs.subagent-model }}
+        effort: ${{ inputs.effort }}
+        model-aliases-json: ${{ inputs.pi-model-aliases-json }}
+        zai-api-key: ${{ inputs.zai-api-key }}
+        claude-api-key: ${{ inputs.claude-api-key }}
+        openrouter-api-key: ${{ inputs.openrouter-api-key }}
+
+    # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-agent).
+    # Phasen (01..05) sichern nach dem Agenten-Step den Issue-Storage über die Composite-Action
+    # issue-state-save als Fetch-then-Commit auf ai/harness/{N} (ADR 0007) — derselbe Branch,
+    # auf dem Spec/Impl arbeiten und der per PR nach main gemergt wird (Memory reist mit);
+    # es folgt kein Artefakt-/Cache-Transport mehr (Cache-Writes sind fuer diese
+    # Trigger platform-seitig gesperrt, s. Kopf-Kommentar von setup-claude).
