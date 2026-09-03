@@ -1,13 +1,43 @@
-import { KolButton, KolSpin } from '@public-ui/react-v19';
-import { useEffect, useState } from 'react';
+import { KolButton, KolSpin, KolTabs } from '@public-ui/react-v19';
+import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 interface HelpPageProps {
 	onBack: () => void;
 }
 
+// Tab-Leiste der Hilfe-Seite (#1190). Modulkonstante, damit `KolTabs` nicht bei jedem Render
+// eine neue Tab-Liste erhält (Muster SettingsPage.tsx). Reihenfolge: Handbuch (Index 0,
+// initial aktiv), Changelog (Index 1).
+const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }];
+
+// Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Die letzten 30 Releases
+// fix im Code — kein UI-Regler (KI-ANALYSE Annahme). Renovate-/Dependabot-Einträge werden
+// bereits upstream beim Release-Erzeugen ausgeschlossen (.github/release.yml), das Frontend
+// filtert nichts.
+const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=30';
+
+interface GithubRelease {
+	tag_name: string;
+	published_at: string;
+	body: string | null;
+}
+
+// Die API liefert neueste zuerst — das Frontend rendert in API-Reihenfolge ohne eigene Sortierung.
+const fetchReleases = (): Promise<GithubRelease[]> =>
+	fetch(RELEASES_URL).then((r) => {
+		if (!r.ok) throw new Error(r.statusText);
+		return r.json() as Promise<GithubRelease[]>;
+	});
+
+/** Lazy-Zustand des Changelog-Tabs: `idle`/`error` lösen beim Aktivieren einen (neuen) Versuch aus. */
+type ChangelogState =
+	{ status: 'idle' } | { status: 'loading' } | { status: 'error' } | { status: 'loaded'; releases: GithubRelease[] };
+
 export const HelpPage = ({ onBack }: HelpPageProps) => {
 	const [content, setContent] = useState<string | null>(null);
+	const [activeTab, setActiveTab] = useState(0);
+	const [changelog, setChangelog] = useState<ChangelogState>({ status: 'idle' });
 
 	useEffect(() => {
 		fetch('/user-guide.md')
@@ -19,6 +49,25 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 			.catch(() => setContent('# Hilfe\n\n- Handbuch konnte nicht geladen werden.'));
 	}, []);
 
+	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
+	// Abhängigkeit ist nur der Lazy-Zustand: Beim ersten Aktivieren des Changelog-Tabs wird
+	// geladen; nach einem Ladefehler startet ein erneutes Anwählen einen neuen Versuch
+	// (KI-UX Recovery-Pfad), nach erfolgreichem Laden wird nicht neu geladen.
+	const tabsCallbacks = useMemo(
+		() => ({
+			onSelect: (_event: Event, selected: number): void => {
+				setActiveTab(selected);
+				if (selected === 1 && (changelog.status === 'idle' || changelog.status === 'error')) {
+					setChangelog({ status: 'loading' });
+					void fetchReleases()
+						.then((releases) => setChangelog({ status: 'loaded', releases }))
+						.catch(() => setChangelog({ status: 'error' }));
+				}
+			},
+		}),
+		[changelog.status],
+	);
+
 	return (
 		<main className="help-page">
 			<header className="help-page-header">
@@ -29,15 +78,39 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 					_on={{ onClick: onBack }}
 				/>
 			</header>
-			{content === null ? (
-				<div className="help-page-loading">
-					<KolSpin _show _variant="cycle" _label="Lädt Handbuch …" />
+			<KolTabs _label="Hilfe" _tabs={HELP_TABS} _selected={activeTab} _on={tabsCallbacks}>
+				<div slot="tab-0" className="help-page-content">
+					{content === null ? (
+						<div className="help-page-loading">
+							<KolSpin _show _variant="cycle" _label="Lädt Handbuch …" />
+						</div>
+					) : (
+						<ReactMarkdown>{content}</ReactMarkdown>
+					)}
 				</div>
-			) : (
-				<div className="help-page-content">
-					<ReactMarkdown>{content}</ReactMarkdown>
+				<div slot="tab-1" className="help-page-content">
+					{changelog.status === 'loading' && (
+						<div className="help-page-loading">
+							<KolSpin _show _variant="cycle" _label="Lädt Changelog …" />
+						</div>
+					)}
+					{changelog.status === 'error' && <p>Changelog konnte nicht geladen werden.</p>}
+					{changelog.status === 'loaded' &&
+						changelog.releases.map((release) => (
+							<section key={release.tag_name} className="help-changelog-entry">
+								{/* Release-Bodys beginnen bei `###` (Kategorie-Abschnitte) — die
+										Versionsnummer als h2 hält die Heading-Hierarchie ohne Sprung. */}
+								<h2>{release.tag_name}</h2>
+								<p className="help-changelog-date">
+									<time dateTime={release.published_at}>
+										{new Date(release.published_at).toLocaleDateString('de-DE')}
+									</time>
+								</p>
+								{release.body !== null && <ReactMarkdown>{release.body}</ReactMarkdown>}
+							</section>
+						))}
 				</div>
-			)}
+			</KolTabs>
 		</main>
 	);
 };

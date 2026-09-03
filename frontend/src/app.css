@@ -1535,6 +1535,20 @@ body {
 	margin-bottom: 0.25rem;
 }
 
+/* Changelog-Tab der Hilfe-Seite (#1190): flache Release-Liste. Lange Code-Spans (Dateipfade
+	 in Release-Notes) müssen auf 375 px umbrechen — sonst clippt die App-Shell sie unlesbar. */
+.help-page-content code {
+	overflow-wrap: anywhere;
+}
+
+.help-changelog-entry {
+	margin-bottom: 1.5rem;
+}
+
+.help-changelog-date {
+	font-variant-numeric: tabular-nums;
+}
+
 /* --- Einstellungen-Seite (#271) --- */
 /* Eigenständiger Seiten-Container (ersetzt `.app`, s. App.tsx) — braucht die Safe-Area-Ränder daher selbst. */
 .settings-page {
