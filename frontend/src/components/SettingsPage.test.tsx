@@ -506,7 +506,7 @@ describe('SettingsPage – #1187: Info-Meldung „Bewegung reduzieren" im Tab Al
 		expect(alertsMentioningReducedMotion(container)).toHaveLength(0);
 	});
 
-	it('AK4: bei reduce zeigt der Schalter weiter den gespeicherten Gerätewert und bleibt umschaltbar', async () => {
+	it('AK4: bei reduce bleibt der gespeicherte Gerätewert sichtbar, aber der Schalter ist deaktiviert', () => {
 		stubReducedMotion(true);
 		localStorage.setItem(KEY, 'true');
 		const { container } = render(<SettingsPage {...defaultProps} />);
@@ -515,16 +515,23 @@ describe('SettingsPage – #1187: Info-Meldung „Bewegung reduzieren" im Tab Al
 
 		// Zeigt den gespeicherten Wert …
 		expect(bound(toggle!, '_checked')).toBe('true');
-		// … und ist durch das Banner NICHT deaktiviert.
+		// … ist aber deaktiviert, weil die Systemeinstellung Vorrang hat.
+		expect(toggle!.hasAttribute('_disabled')).toBe(true);
+	});
+
+	it('AK4: ohne reduce ist der Schalter umschaltbar und schreibt den localStorage-Key', async () => {
+		stubReducedMotion(false);
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		const toggle = container.querySelector('kol-input-checkbox[_label="Animationen"]');
+		expect(toggle, 'Animationen-Schalter fehlt').not.toBeNull();
 		expect(toggle!.hasAttribute('_disabled')).toBe(false);
 
-		// Toggle schreibt weiterhin den localStorage-Key.
 		await act(async () => {
 			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
 				{ target: toggle },
-				false,
+				true,
 			);
 		});
-		expect(localStorage.getItem(KEY)).toBe('false');
+		expect(localStorage.getItem(KEY)).toBe('true');
 	});
 });
