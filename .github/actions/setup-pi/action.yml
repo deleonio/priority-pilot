@@ -78,10 +78,18 @@ runs:
       id: cache-pi
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
+        # GANZES node_modules-Verzeichnis statt nur der Scoped-Package: `npm install -g`
+        # hoisted pi unscopte Runtime-Abhängigkeiten (chalk, undici, …) als Geschwister
+        # neben `@earendil-works` — nur die Scoped-Package + Symlink zu cachen hätte
+        # nie einen nutzbaren Treffer ergeben (Verify-Step reinstalliert trotzdem).
+        # `npm`/`corepack` gehören zum Node des Runner-Images, nicht zu pi — bewusst
+        # ausgeschlossen, damit ein Restore die Runner-eigene npm-Version nicht überschreibt.
         path: |
-          /usr/local/lib/node_modules/@earendil-works
+          /usr/local/lib/node_modules
+          !/usr/local/lib/node_modules/npm
+          !/usr/local/lib/node_modules/corepack
           /usr/local/bin/pi
-        key: pi-cli-${{ runner.os }}-${{ inputs.pi-version }}-v1
+        key: pi-cli-${{ runner.os }}-${{ inputs.pi-version }}-v2
 
     # VERIFIZIEREN STATT VERTRAUEN (übernommen aus setup-claude): Ein Cache-Treffer beweist
     # nur, dass Dateien da sind — nicht, dass die CLI startet. Und der Abbruch gehört HIER
