@@ -23,10 +23,10 @@
 - Vollständiger Diff-Walk — Review hat nur F1 gemeldet, SCOPE-Regel des Prompts (nur Anker lesen).
 
 ## Offen
-- Commit + Push (inkl. Merge-Commit, Spec-Fix, dieser Notiz), danach Review-Thread 3919809567 per GraphQL resolve (`resolveReviewThread`, threadId aus Query mit path=frontend/e2e/issue-1182-dashboard-confetti.spec.ts).
+- -
 
 ## Nächster Schritt
-- Nach grünem Gate: `git add` + Commit (`fix: keep #1182 dashboard confetti e2e under animations master switch (#1183)` o. ä.) + Push, Thread resolve, keine weitere Aktion.
+- Erledigt: Merge `7047043a` (origin/main rein), Fix-Commit `8239cf75` gepusht (4fae36ab..8239cf75), Review-Thread PRRT_kwDONloM186eufG9 (Inline 3919809567) per GraphQL resolved (isResolved=true verifiziert). Kein Verdict — Fortschritt trägt der Commit. Nächster Lauf: Re-Review/CI auf PR #1188 abwarten.
 
 ## Fallstricke
 - Runner-Repo ist shallow geklont — merge-base-Fehler erst mal mit `git fetch --unshallow origin` lösen, nicht als divergierte Historie fehldeuten.
