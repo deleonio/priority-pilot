@@ -37,11 +37,14 @@
 
 ## Offen
 - Arbeitsbaum hat uncommittierte Löschungen `.ai-memory/issue-1183-*.md` / `issue-1187-*.md`
-  und untracked `issue-1184-review.md` — NICHT von diesem Fixup angerührt (nur fixup-Note +
-  action.yml im Commit; review-Note mitgenommen, da ADR-0007-Phasen-Notiz dieses Tickets).
+  — NICHT von diesem Fixup angerührt und nicht committet (nur action.yml, fixup-Note und die
+  vormals untracked `issue-1184-review.md` sind in 28b24ead).
+- „04 Implement"-Workflow-Lauf 33716868300 (alter SHA c96a7a89) lief noch — Orchestrierung,
+  kein rotes CI; Verify 33717629236 auf 28b24ead grün.
 
 ## Nächster Schritt
-- Gate grün → commit+push → beide Review-Threads via GraphQL resolve → Runde abschließen.
+- Runde abgeschlossen: Commit 28b24ead gepusht, beide Threads (PRRT_…ex2G6 / ex2G8) mit
+  Antwort + Resolve geschlossen, PR-Body korrigiert. Warten auf Re-Review.
 
 ## Fallstricke
 - Thread-Resolve geht NUR via GraphQL-Mutation `resolveReviewThread` (kein gh-Native, kein REST).
