@@ -10,7 +10,7 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
  *
  * Die Einstellung hat Vorrang vor dem Master-Schalter „Animationen" (#1183):
  * Das Konfetti-Gate prüft die Query selbst bei jedem Aufruf (`confetti.ts`),
- * dieser Hook liefert nur den Anzeige-Zustand für die Info-Meldung.
+ * dieser Hook liefert den Zustand für die Info-Meldung und deaktiviert den Schalter.
  */
 export const usePrefersReducedMotion = (): boolean => {
 	const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(

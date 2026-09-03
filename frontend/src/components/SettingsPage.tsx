@@ -104,8 +104,8 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
 	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
 	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
-	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — nur Anzeige, der
-	// Schalter aus #1183 bleibt unberührt (die Systemeinstellung hat Vorrang).
+	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — deaktiviert den
+	// Schalter aus #1183 und zeigt den Info-Hinweis (die Systemeinstellung hat Vorrang).
 	const prefersReducedMotion = usePrefersReducedMotion();
 	// #1080: Hauptschalter „KI-Features aktiv" und die unabhängige Option „Schnellerfassung aktiv".
 	const { aiEnabled, quickCaptureEnabled, setPreference: setAiPreference } = useAiPreferences();
@@ -277,6 +277,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							_label="Animationen"
 							_variant="switch"
 							_checked={animationsEnabled}
+							_disabled={prefersReducedMotion}
 							_hint="Dekorative Animationen (z. B. Konfetti beim Erledigt-Machen von Aufgaben) anzeigen. Gilt gerätebezogen und ist standardmäßig aus."
 							_on={{
 								onChange: (_event, value) => {
@@ -284,8 +285,8 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 								},
 							}}
 						/>
-						{/* #1187: Rein informierend — die Systemeinstellung hat Vorrang und deaktiviert
-								den Schalter nicht (deshalb kein `_disabled`). */}
+						{/* #1187: Die Systemeinstellung hat Vorrang — sie deaktiviert den Schalter
+								(deshalb `_disabled` oben) und erklärt den Zustand. */}
 						{prefersReducedMotion && (
 							<KolAlert _type="info" _label="Bewegung reduzieren aktiv">
 								Dein Betriebssystem ist auf „Bewegung reduzieren" eingestellt. Dekorative Animationen (z. B. Konfetti)
