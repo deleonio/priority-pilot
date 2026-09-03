@@ -124,10 +124,14 @@ test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenlis
 		// Kern des Fixes (#1186): das Panel selbst darf die Toolbar-Inhalte nicht mehr
 		// clippen — der Helper setzt das Inline-Style (wie width/left) am Panel.
 		const overflow = await popoverPanel(page, id).evaluate((el) => window.getComputedStyle(el).overflow);
-		expect(overflow, 'Panel-overflow muss visible sein (statt UA-auto), sonst clippt das Panel die Fokus-Outline').toBe('visible');
+		expect(overflow, 'Panel-overflow muss visible sein (statt UA-auto), sonst clippt das Panel die Fokus-Outline').toBe(
+			'visible',
+		);
 	});
 
-	test('AK2: Fokussierter Toolbar-Button hat sichtbare Outline, die von keinem Popover-Vorfahren geclippt wird', async ({ page }) => {
+	test('AK2: Fokussierter Toolbar-Button hat sichtbare Outline, die von keinem Popover-Vorfahren geclippt wird', async ({
+		page,
+	}) => {
 		const id = await createTask(page, 'Popover Focus #1186');
 
 		await page.goto('/');
