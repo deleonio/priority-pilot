@@ -1,0 +1,217 @@
+name: Set Agent Config
+
+# Manuelles Umschalten der beiden Repo-Variablen, die JEDEN Agentenlauf steuern:
+#   AGENT_RUNTIME (claude | pi)        — welche CLI läuft   (Pilot: nur Phase 01)
+#   LLM_PROVIDER  (claude | zai | openrouter) — gegen welches Backend
+# Löst KEINE Folge-Workflows aus — nur Variablen setzen + Verifizieren.
+# Nutzt GitHub-App-Token (wie die Pipeline-Workflows), damit variables:write funktioniert.
+#
+# WARUM EIN WORKFLOW FÜR BEIDE (#1184, vorher zwei getrennte Achsen in set-provider.yml):
+# Laufzeit und Provider sind keine unabhängigen Schalter, sondern eine 2x3-Matrix — `pi` + `zai`
+# verhält sich anders als `claude` + `zai`, und manche Kombinationen scheitern erst zur Laufzeit
+# (pi + openrouter ohne PI_MODEL_ALIASES; pi + ein Anthropic-OAuth-Token). Getrennt bräuchte ein
+# Wechsel zwei Dispatches, und KEINE Stelle prüfte die Kombination. Hier laufen beide Werte durch
+# denselben Vorab-Check, bevor irgendetwas gesetzt wird.
+#
+# `unverändert` als Default beider Inputs: Ein Lauf, der nur die Laufzeit umstellen soll, darf den
+# Provider nicht versehentlich auf einen Default zurückziehen.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Agenten-Laufzeit (AGENT_RUNTIME) — wirkt aktuell nur auf Phase 01 (Pilot)'
+        type: choice
+        required: true
+        default: 'unverändert'
+        options:
+          - unverändert
+          - claude
+          - pi
+      provider:
+        description: 'LLM-Provider (LLM_PROVIDER) für alle Pipeline-Phasen'
+        type: choice
+        required: true
+        default: 'unverändert'
+        options:
+          - unverändert
+          - claude
+          - openrouter
+          - zai
+
+jobs:
+  set-agent-config:
+    name: Update AGENT_RUNTIME / LLM_PROVIDER
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Für GitHub-App-Token
+    steps:
+      - name: Checkout (für gh auth)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: GH_TOKEN setzen (App-Token)
+        id: gh-token
+        shell: bash
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "::error::App-Token nicht verfügbar — Secrets APP_ID / APP_PRIVATE_KEY prüfen."
+            exit 1
+          fi
+
+      - name: Ist-Zustand lesen und Zielwerte auflösen
+        id: resolve
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          IN_RUNTIME: ${{ inputs.runtime }}
+          IN_PROVIDER: ${{ inputs.provider }}
+        run: |
+          set -uo pipefail
+
+          # Ungesetzte Variablen sind zulässig und bedeuten den Default der Setup-Action
+          # (beide: claude). Das wird hier explizit gemacht, damit die Kombinationsprüfung
+          # unten mit den WIRKSAMEN Werten rechnet und nicht mit "leer".
+          cur_runtime="$(gh variable get AGENT_RUNTIME -R "${GITHUB_REPOSITORY}" 2>/dev/null || echo '')"
+          cur_provider="$(gh variable get LLM_PROVIDER  -R "${GITHUB_REPOSITORY}" 2>/dev/null || echo '')"
+
+          eff_runtime="${cur_runtime:-claude}"
+          eff_provider="${cur_provider:-claude}"
+          [ "$IN_RUNTIME"  != "unverändert" ] && eff_runtime="$IN_RUNTIME"
+          [ "$IN_PROVIDER" != "unverändert" ] && eff_provider="$IN_PROVIDER"
+
+          {
+            echo "current-runtime=${cur_runtime:-nicht gesetzt}"
+            echo "current-provider=${cur_provider:-nicht gesetzt}"
+            echo "runtime=$eff_runtime"
+            echo "provider=$eff_provider"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Ist:  AGENT_RUNTIME=${cur_runtime:-nicht gesetzt}, LLM_PROVIDER=${cur_provider:-nicht gesetzt}"
+          echo "Ziel: AGENT_RUNTIME=$eff_runtime, LLM_PROVIDER=$eff_provider"
+
+      - name: Kombination prüfen (fail-closed, VOR dem Setzen)
+        # Diese Prüfungen fangen genau die Fälle ab, die sonst erst im nächsten Triage-Lauf
+        # auffallen — dort mit konsumiertem Trigger-Label und einem Fehlertext, der wie ein
+        # Modell- oder Endpointproblem aussieht.
+        env:
+          RUNTIME: ${{ steps.resolve.outputs.runtime }}
+          PROVIDER: ${{ steps.resolve.outputs.provider }}
+          PI_MODEL_ALIASES: ${{ vars.PI_MODEL_ALIASES }}
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        run: |
+          set -uo pipefail
+
+          case "$RUNTIME" in
+            claude|pi) ;;
+            *) echo "::error::Ungültige Laufzeit '$RUNTIME' — erlaubt: claude, pi"; exit 1 ;;
+          esac
+          case "$PROVIDER" in
+            claude|openrouter|zai) ;;
+            *) echo "::error::Ungültiger Provider '$PROVIDER' — erlaubt: claude, openrouter, zai"; exit 1 ;;
+          esac
+
+          [ "$RUNTIME" = "pi" ] || exit 0
+
+          # pi + openrouter: Die Modell-IDs stehen bewusst nicht im Repo (Source of Truth ist
+          # die Variable). Ohne Einträge bräche setup-pi beim Modell-Alias ab.
+          if [ "$PROVIDER" = "openrouter" ]; then
+            count=0
+            if [ -n "$PI_MODEL_ALIASES" ]; then
+              count="$(printf '%s' "$PI_MODEL_ALIASES" | jq -r '(.openrouter // {}) | length' 2>/dev/null || echo 0)"
+            fi
+            if [ "${count:-0}" -eq 0 ]; then
+              echo "::error title=pi + openrouter unvollständig::vars.PI_MODEL_ALIASES enthält keine openrouter-Einträge. setup-pi bräche beim Modell-Alias ab. Erst setzen, z. B.: gh variable set PI_MODEL_ALIASES --body '{\"openrouter\":{\"opus\":\"openrouter/<id>\",\"sonnet\":\"…\",\"haiku\":\"…\",\"fable\":\"…\"}}' (s. .github/pi/README.md)."
+              exit 1
+            fi
+            echo "::notice::pi + openrouter: ${count} Alias-Einträge in PI_MODEL_ALIASES gefunden."
+          fi
+
+          # pi + claude: Anthropic kennt zwei Token-Typen. Das OAuth-Token aus
+          # `claude setup-token` ist KEIN API-Key; pi hat dafür kein Gegenstück und
+          # scheiterte mit "Invalid API key". Nur das Präfix wird geprüft, nie der Wert geloggt.
+          if [ "$PROVIDER" = "claude" ]; then
+            case "$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')" in
+              sk-ant-oat*)
+                echo "::error title=Token-Typ passt nicht zu pi::secrets.CLAUDE_API_KEY ist ein OAuth-Token (sk-ant-oat…). Die pi-Laufzeit braucht einen API-Key (sk-ant-api…) aus der Anthropic Console — sonst scheitert jeder Lauf mit 'Invalid API key'."
+                exit 1
+                ;;
+              '')
+                echo "::error title=Auth fehlt::secrets.CLAUDE_API_KEY ist leer."
+                exit 1
+                ;;
+            esac
+          fi
+
+      - name: Variablen setzen (nur die geänderten)
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          IN_RUNTIME: ${{ inputs.runtime }}
+          IN_PROVIDER: ${{ inputs.provider }}
+        run: |
+          set -uo pipefail
+          if [ "$IN_RUNTIME" != "unverändert" ]; then
+            gh variable set AGENT_RUNTIME -b "$IN_RUNTIME" -R "${GITHUB_REPOSITORY}"
+            echo "::notice title=✅ Variable gesetzt::AGENT_RUNTIME=$IN_RUNTIME"
+          else
+            echo "AGENT_RUNTIME bleibt unverändert."
+          fi
+          if [ "$IN_PROVIDER" != "unverändert" ]; then
+            gh variable set LLM_PROVIDER -b "$IN_PROVIDER" -R "${GITHUB_REPOSITORY}"
+            echo "::notice title=✅ Variable gesetzt::LLM_PROVIDER=$IN_PROVIDER"
+          else
+            echo "LLM_PROVIDER bleibt unverändert."
+          fi
+
+      - name: Verifizieren
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          IN_RUNTIME: ${{ inputs.runtime }}
+          IN_PROVIDER: ${{ inputs.provider }}
+        run: |
+          set -uo pipefail
+          sleep 1 # kurze Propagation-Pause
+          rc=0
+          if [ "$IN_RUNTIME" != "unverändert" ]; then
+            v="$(gh variable get AGENT_RUNTIME -R "${GITHUB_REPOSITORY}" 2>/dev/null || echo 'FEHLER')"
+            echo "AGENT_RUNTIME verifiziert: $v"
+            [ "$v" = "$IN_RUNTIME" ] || { echo "::error::AGENT_RUNTIME nicht übernommen (gelesen: $v)"; rc=1; }
+          fi
+          if [ "$IN_PROVIDER" != "unverändert" ]; then
+            v="$(gh variable get LLM_PROVIDER -R "${GITHUB_REPOSITORY}" 2>/dev/null || echo 'FEHLER')"
+            echo "LLM_PROVIDER verifiziert: $v"
+            [ "$v" = "$IN_PROVIDER" ] || { echo "::error::LLM_PROVIDER nicht übernommen (gelesen: $v)"; rc=1; }
+          fi
+          exit $rc
+
+      - name: Zusammenfassung
+        if: always()
+        env:
+          IN_RUNTIME: ${{ inputs.runtime }}
+          IN_PROVIDER: ${{ inputs.provider }}
+          PREV_RUNTIME: ${{ steps.resolve.outputs.current-runtime }}
+          PREV_PROVIDER: ${{ steps.resolve.outputs.current-provider }}
+          EFF_RUNTIME: ${{ steps.resolve.outputs.runtime }}
+          EFF_PROVIDER: ${{ steps.resolve.outputs.provider }}
+        run: |
+          {
+            echo "### Agent-Konfiguration"
+            echo ""
+            echo "| Variable | Vorher | Eingabe | Wirksam |"
+            echo "| --- | --- | --- | --- |"
+            echo "| \`AGENT_RUNTIME\` | ${PREV_RUNTIME:-?} | ${IN_RUNTIME} | ${EFF_RUNTIME:-?} |"
+            echo "| \`LLM_PROVIDER\` | ${PREV_PROVIDER:-?} | ${IN_PROVIDER} | ${EFF_PROVIDER:-?} |"
+            echo ""
+            echo "- **Status:** ${{ job.status }}"
+            echo "- \`AGENT_RUNTIME\` wirkt aktuell nur auf Phase 01 (Pilot, #1184)."
+          } >> "$GITHUB_STEP_SUMMARY"

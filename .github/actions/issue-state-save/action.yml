@@ -1,9 +1,9 @@
 name: 'Issue-Memory Save'
-description: 'Issue-Storage sichern (ADR 0007): Phasen-Notizen als Fetch-then-Commit auf den Harness-Branch ai/harness/{N} — derselbe Branch, auf dem Spec/Impl arbeiten und der per PR nach main gemergt wird. NACH dem claude-Step aufrufen — origin trägt bereits das App-Token aus setup-claude.'
+description: 'Issue-Storage sichern (ADR 0007): Phasen-Notizen als Fetch-then-Commit auf den Harness-Branch ai/harness/{N} — derselbe Branch, auf dem Spec/Impl arbeiten und der per PR nach main gemergt wird. NACH dem Agenten-Step aufrufen — origin trägt bereits das App-Token aus setup-agent.'
 
 inputs:
   issue-number:
-    description: 'Issue-Nummer = Storage-Key (bei PRs ohne Closing-Issue die PR-Nummer, gleiche Auflösung wie setup-claude).'
+    description: 'Issue-Nummer = Storage-Key (bei PRs ohne Closing-Issue die PR-Nummer, gleiche Auflösung wie setup-agent).'
     required: true
   phase:
     description: 'Phasen-Name (triage|ux|spec|implement|fixup|review|documenter) für die Commit-Message.'

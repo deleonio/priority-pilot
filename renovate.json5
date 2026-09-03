@@ -40,7 +40,41 @@
 	prConcurrentLimit: 5,
 	prHourlyLimit: 2,
 
+	// pi-Erweiterungen in .pi/settings.json mitpflegen (#1184).
+	//
+	// WARUM EIN CUSTOM MANAGER: Die Datei ist keine package.json — kein eingebauter Manager
+	// findet die Pakete dort. Sie stehen als pi-eigene Quell-Strings ("npm:<paket>@<version>")
+	// im `packages`-Array und gelten für CI UND lokale pi-Sessions gleichermaßen.
+	//
+	// WARUM ÜBERHAUPT GEPINNT: Ohne Version zöge die CI bei jedem Lauf den aktuellen Stand —
+	// zwei Läufe basierten dann auf verschiedenen Erweiterungsversionen und wären als
+	// Kostenvergleich wertlos (genau die Messung, für die die pi-Laufzeit eingeführt wurde).
+	// Pinnen allein ließe die Pakete aber veralten; erst dieser Manager macht daraus
+	// "gepinnt UND gepflegt".
+	customManagers: [
+		{
+			customType: 'regex',
+			// Glob statt /regex/: Der Pfad enthält einen Schrägstrich, der in der
+			// Regex-Schreibweise das Muster vorzeitig beenden würde.
+			managerFilePatterns: ['.pi/settings.json'],
+			// Fängt beide erlaubten Schreibweisen ab: den blossen Quell-String und die
+			// Objektform mit Ressourcen-Filtern ("source": "npm:…"). Scope-Pakete
+			// (@narumitw/pi-lsp) sind eingeschlossen.
+			matchStrings: ['"(?:source"\\s*:\\s*")?npm:(?<depName>@?[^"@]+)@(?<currentValue>[^"]+)"'],
+			datasourceTemplate: 'npm',
+		},
+	],
+
 	packageRules: [
+		{
+			// pi-Erweiterungen als eigene Gruppe, ohne Automerge: Sie ändern das VERHALTEN des
+			// Agenten (Subagents, MCP, LSP), nicht nur Bibliothekscode — ein stiller Merge
+			// verschöbe die Messbasis zwischen zwei Pipeline-Läufen.
+			matchFileNames: ['.pi/settings.json'],
+			groupName: 'pi-Erweiterungen',
+			automerge: false,
+			labels: ['dependencies', 'pi'],
+		},
 		{
 			// devDependencies: Patch- und Minor-Updates in einem PR bündeln.
 			matchDepTypes: ['devDependencies'],

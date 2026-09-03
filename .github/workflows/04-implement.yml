@@ -236,7 +236,7 @@ jobs:
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
-        uses: ./.github/actions/setup-claude
+        uses: ./.github/actions/setup-agent
         with:
           needs-mcp: true
           browser-mcp: true
@@ -659,7 +659,7 @@ jobs:
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
-        uses: ./.github/actions/setup-claude
+        uses: ./.github/actions/setup-agent
         with:
           needs-mcp: true
           browser-mcp: true

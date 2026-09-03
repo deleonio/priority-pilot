@@ -6,7 +6,7 @@
 	},
 	"packages": [
 		{
-			"source": "npm:pi-subagents",
+			"source": "npm:pi-subagents@0.64.0",
 			"autoload": false,
 			"prompts": [
 				"+prompts/review-loop.md",
@@ -20,18 +20,23 @@
 			"skills": ["+skills/council-mode/SKILL.md", "+skills/pi-subagents/SKILL.md"]
 		},
 		{
-			"source": "npm:pi-mcp-adapter",
+			"source": "npm:pi-mcp-adapter@2.32.1",
 			"autoload": false,
 			"extensions": ["+index.ts"],
 			"skills": ["+skills/mcp-scripting/SKILL.md"]
 		},
 		{
-			"source": "npm:pi-web-access",
+			"source": "npm:@narumitw/pi-lsp@0.49.6",
+			"autoload": false,
+			"extensions": ["+dist/index.ts"]
+		},
+		{
+			"source": "npm:pi-web-access@0.27.0",
 			"autoload": false,
 			"extensions": ["+index.ts"]
 		},
 		{
-			"source": "npm:@entelligentsia/pi-claude-compat",
+			"source": "npm:@entelligentsia/pi-claude-compat@1.2.1",
 			"autoload": false,
 			"extensions": ["+extensions/claude-compat/index.ts"]
 		}
