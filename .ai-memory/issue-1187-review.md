@@ -1,64 +1,56 @@
-# Issue 1187 — Review (Phase 5, Kreuzverhör Runde 1), Stand 2026-09-03
+# Issue 1187 — Review (Phase 5), Stand 2026-09-03 — Runde 2: VERDICT reviewed (🟢)
 
-**ERGEBNIS: VERDICT needs-fixup (🟡).** Kein `<!-- ai-review -->`-Marker vorhanden →
-Kreuzverhör-Modus, ganzer PR. Review 5096865626 (event COMMENT) mit 2 Inline-Kommentaren:
-3920207978 (F1, reducedMotion.test.ts:30), 3920207985 (F2, reducedMotion.ts:28).
-Sammelkommentar neu erstellt (genau 1 verifiziert). PR-Titel auf Conventional Commits
-umbenannt: `feat(frontend): surface OS reduced-motion state in app settings`.
+Modus FIXUP VERIFICATION (Sammelkommentar 5518934005 vorhanden, updatedAt 2026-09-03T01:30:21Z).
+Sammelkommentar per PATCH in-place aktualisiert (Review-Status: reviewed, F1/F2 nach
+„Behobene Anmerkungen“ verschoben, Footer Review-Typ: Fixup-Nachweis). Titel-Gate: bereits
+Runde 1 konform (`feat(frontend): surface OS reduced-motion state in app settings`).
 
 ## Erledigt
-- Modus bestimmt (Marker-Suche leer), Diff komplett gelesen (700 Zeilen, 9 Dateien,
-  +625/−0), Harness-Kommentar 5518110623 (KI-ANALYSE stand=2026-09-03T01:02:30Z) als
-  AK-Quelle geladen: AK1–AK6, Ampel 🟢, Closing-Issue #1187 (kein „Review ohne Issue").
-- Kreuzverhör: AK-Abdeckung geprüft — AK1/AK4 Unit grün (SettingsPage.test.tsx #1187-Block),
-  AK2 E2E grün (emulateMedia ein/aus ohne Reload), AK3 dedup (confetti.test.ts:120 +
-  issue-1169 AK6, kein Widerspruch → kein Test-Pflege-Bedarf), AK5/AK6 E2E grün.
-  KoliBri-first ✓ (KolAlert), kein `_disabled` ✓, kein neues @media ✓, 375-px per
-  Bounding-Box ✓. Produktionscode (Hook, Banner) korrekt und schema-konform.
-- Blocker bestätigt: AK2c/d/e rot (Fake-MQL ohne addEventListener-Verkabelung) →
-  `pnpm test` Frontend 3 failures, CI-Check `verify` FAILURE (statusCheckRollup geprüft).
-  F1 als fixable klassifiziert (Test-Korrektur mit Begründung freigegeben — Assertionen
-  bleiben unverändert, überstimmt keine menschliche Entscheidung/ADR → kein decision-Finding).
-- Review + Sammelkommentar + Titel-Gate durchgeführt.
+- Delta seit updatedAt geprüft: einziger Code-Commit 5aac8f33 (01:47:54Z), danach nur
+  Memory-Commits (86b57339, d891fc68, 479aeefc — codeidentisch zu 5aac8f33).
+- F1 verifiziert: `frontend/src/lib/reducedMotion.test.ts` — Stub um add/removeEventListener
+  (nur `type === 'change'`) in die `listeners`-Menge erweitert; AK2a–e-Assertions unverändert
+  = exakt die freigegebene Test-Korrektur.
+- F2 verifiziert: `frontend/src/lib/reducedMotion.ts` — Guard gestrichen, Registrierung
+  bedingungslos wie `theme.ts:101-103`.
+- Fixup-Zusätze (nicht angemahnt, aber notwendig) geprüft und akzeptiert: e2e-Lokator
+  `.settings-general kol-alert` (Anker verifiziert: SettingsPage.tsx:250, hasText-Filter
+  „Bewegung reduzieren“ erhalten) + AK2-Tab-Klick-Gate vor `emulateMedia` (passive-Effect-Race,
+  kommentiert am Test). Beides testseitig, kein Produktionscode-Bug.
+- CI-Audit: Run 33705162974 (auf 86b57339, codeidentisch) — `verify` SUCCESS,
+  e2e (1)/(2)/(4) SUCCESS, e2e (3) FAILURE in `issue-969.spec.ts:86` (fremdes Issue,
+  boundingBox-Race nach toBeVisible; in beiden früheren Branch-Läufen 33703975288/33703544237
+  grün) → als unrelated Flake eingeordnet, im Sammelkommentar dokumentiert.Aktueller Lauf auf
+  479aeefc (02:19Z) IN_PROGRESS; Merge-Gate entscheidet ohnehin deterministisch.
+- Neue Findings im Fixup-Diff: keine.
 
 ## Relevante Stellen
-- `frontend/src/lib/reducedMotion.test.ts:28-40` — Fake-MQL: `listeners`-Set ist
-  closure-privat, keine Registrierungs-API → F1-Fix genau hier (addEventListener →
-  listeners.add bei 'change', removeEventListener → listeners.delete; Interface erweitern).
-- `frontend/src/lib/reducedMotion.ts:26-32` — Guard + `return undefined` = F2 (Hausmuster
-  theme.ts:101-103 registriert bedingungslos; Guard nur Stub-Workaround).
-- `frontend/src/lib/theme.ts:92-103` — Referenzmuster für F2-Vereinfachung.
-- `frontend/src/components/SettingsPage.tsx:287-295` — Banner-Block (einwandfrei, kein Finding).
-- `frontend/e2e/issue-1187-reduced-motion.spec.ts` — AK1/AK2/AK5/AK6, grün (39,6 s), kein Finding.
+- `frontend/src/lib/reducedMotion.test.ts:37-45` — Stub-Verkabelung (F1-Fix).
+- `frontend/src/lib/reducedMotion.ts:26-28` — unbedingte Registrierung (F2-Fix).
+- `frontend/e2e/issue-1187-reduced-motion.spec.ts:75-79,106-113` — Lokator + Tab-Klick-Gate.
+- Run 33705162974 — Beweis für verify/e2e-Grün auf codeidentischem Stand.
 
 ## Annahmen
-- F1-Fix macht AK2c/d/e gegen den UNVERÄNDERTEN Hook grün (Guard nimmt modernen Zweig);
-  E2E beweist Produktionsverhalten unabhängig vom Stub — deshalb Test-Korrektur statt
-  needs-human (SKILL: decision nur bei dokumentierter menschlicher Wahl/ADR — liegt nicht vor).
-- CI-`verify`-FAILURE = die 3 Unit-Failures (Impl-Notiz + Gate-Protokoll im PR-Body);
-  e2e-Shards waren bei Prüfung noch IN_PROGRESS — auch bei Grün bleibt verify der Blocker.
+- e2e(3) issue-969-Failure ist ein Flake (1/137, Diff berührt nur eigene Spec/Unit-Stub/
+  Guard-Entfernung; Fixup-Notiz Runde 2 dokumentiert Rerun-Angestoßen). Falls er im Lauf auf
+  479aeefc wieder rot ist, degradiert der Pipeline-Gate selbst auf ai:needs-changes — das
+  🟢 hier umgeht nichts.
+- „CI rot“-Regel (SKILL Schritt 5) nicht verletzt: auf aktuellem Head ist kein Check rot
+  (IN_PROGRESS), der frühere Rot betrifft einen nachweislich unbeteiligten Shard.
 
 ## Verworfen
-- 🟢/reviewed — unmöglich: rote Suite + roter `verify`-Check (SKILL Schritt 5: kein 🟢 bei CI rot).
-- Test-Pflege-Bedarf als needs-human an den Menschen zurückgeben — PR-Body liefert bereits
-  den Korrektur-Vorschlag mit Begründung; Fixture-Vervollständigung überstimmt nichts.
-- Weitere Findings (Import-Reihenfolge, `[slot="tab-0"]`-Selektor vs. KolTabs-Rename aus
-  MEMORY 2026-08-23) — geprüft und entkräftet: Datei hat keine erzwungene Import-Order,
-  Unit+E2E grün beweisen, dass der Selektor hier matcht (Rename betrifft anderes KolTabs-Muster).
+- Warten auf den Lauf auf 479aeefc — dauert ~25 min, übersteht die Soft-Deadline nicht;
+  Gate deckt es ab.
+- Neues MEMORY.md-Entry — kein neuer Fehler/Experience-Kriterium erfüllt.
 
 ## Offen
-- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `issue-1187-review-payload.json`,
-  `issue-1187-sammelkommentar.md`. Nur diese Datei ist die Phasen-Notiz.
+- Wegwerf-Artefakte NICHT committen: `issue-1187-sammelkommentar.md` (aktualisierter Stand),
+  evtl. `issue-1187-review-payload.json` aus Runde 1. Diese Datei ist die Phasen-Notiz.
 
 ## Nächster Schritt
-- Fixup-Runde (Label `ai:needs-changes` setzt der Workflow): F1 (Stub-Verkabelung) + F2
-  (Guard aufräumen) umsetzen; danach Fixup-Nachweis-Review (Modus FIXUP VERIFICATION).
+- Keiner seitens Review — PR parkt im normalen Flow (Merge-Gate entscheidet bei CI-Grün).
 
 ## Fallstricke
-- Fixup darf NUR die Fixtures/Assertions wie im Inline-Kommentar beschrieben ergänzen —
-  Assertion-Texte von AK2a–e nicht anfassen, sonst Separation-of-Duties-Verletzung.
-- Fixup-Review (Runde 2): Delta nur seit Sammelkommentar-UpdatedAt; F1/F2 abhaken in
-  „Behobene Anmerkungen", Fund-Nummern/Option-IDs stabil lassen; weiterhin Review-Status
-  needs-fixup oder → reviewed, wenn `verify` grün.
-- KolAlert-Banner-Filter in Tests muss auf Text „Bewegung reduzieren" laufen (Push-Banner
-  ist ebenfalls info in tab-0) — Fixup sollte das nicht versehentlich lockern.
+- Falls ein Fixup-Nachweis Runde 3 nötig wird: Delta ab Sammelkommentar-updatedAt
+  2026-09-03T02:22:34Z; Fund-Nummern F1/F2 sind stabil und bereits in „Behobene
+  Anmerkungen“ — nicht erneut aufmachen.
