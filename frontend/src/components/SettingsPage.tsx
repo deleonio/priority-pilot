@@ -3,6 +3,7 @@ import type { GeoConfig, Pillar } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
+import { usePrefersReducedMotion } from '../lib/reducedMotion';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation, GEO_CONFIG_CHANGED_EVENT } from '../lib/useGeolocation';
@@ -103,6 +104,9 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
 	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
 	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
+	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — nur Anzeige, der
+	// Schalter aus #1183 bleibt unberührt (die Systemeinstellung hat Vorrang).
+	const prefersReducedMotion = usePrefersReducedMotion();
 	// #1080: Hauptschalter „KI-Features aktiv" und die unabhängige Option „Schnellerfassung aktiv".
 	const { aiEnabled, quickCaptureEnabled, setPreference: setAiPreference } = useAiPreferences();
 	const [micDenied, setMicDenied] = useState(false);
@@ -280,6 +284,14 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 								},
 							}}
 						/>
+						{/* #1187: Rein informierend — die Systemeinstellung hat Vorrang und deaktiviert
+								den Schalter nicht (deshalb kein `_disabled`). */}
+						{prefersReducedMotion && (
+							<KolAlert _type="info" _label="Bewegung reduzieren aktiv">
+								Dein Betriebssystem ist auf „Bewegung reduzieren" eingestellt. Dekorative Animationen (z. B. Konfetti)
+								bleiben deshalb aus, unabhängig vom Schalter „Animationen".
+							</KolAlert>
+						)}
 					</div>
 					{pushSupported ? (
 						<div className="settings-switch-row">
