@@ -31,9 +31,17 @@ export type TicketTotal = {
 
 const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
-/** Liest alle <issueId>.json unter `dir` und summiert je Ticket. Kaputte Dateien übersprungen+gemeldet. */
-export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: string[] } {
-	const tickets: TicketTotal[] = [];
+/** Roh-Einträge EINER Ticket-Datei — Zwischenschritt zwischen Datei und Summenzeile. */
+export type TicketEntries = { issue: string; entries: CostEntry[] };
+
+/**
+ * Liest alle `<issueId>.json` unter `dir` roh ein — die gemeinsame Datenquelle aller
+ * repo-weiten Berichte (Kosten hier, Turns in turns-report.ts). Kaputte Dateien werden
+ * übersprungen und gemeldet, statt den Bericht scheitern zu lassen; ein nicht lesbares
+ * Verzeichnis meldet sich als einzelner Skip.
+ */
+export function readTickets(dir: string): { tickets: TicketEntries[]; skipped: string[] } {
+	const tickets: TicketEntries[] = [];
 	const skipped: string[] = [];
 	let names: string[] = [];
 	try {
@@ -56,46 +64,58 @@ export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: st
 		}
 		const entries = parsed as CostEntry[];
 		if (entries.length === 0) continue;
-		const issue = name.replace(/\.json$/, '');
-		const byPhase = new Map<string, number>();
-		const total: TicketTotal = {
-			issue,
-			runs: entries.length,
-			turns: 0,
-			tokensIn: 0,
-			tokensOut: 0,
-			valueCost: 0,
-			cost: 0,
-			first: entries[0]?.timestamp ?? '',
-			last: entries[entries.length - 1]?.timestamp ?? '',
-			phases: [],
-		};
-		for (const e of entries) {
-			total.turns += ZERO(e.turns);
-			total.tokensIn += ZERO(e.tokensIn);
-			total.tokensOut += ZERO(e.tokensOut);
-			total.valueCost += ZERO(e.valueCost);
-			total.cost += ZERO(e.cost);
-			const phase = e.phase ?? '(ohne)';
-			byPhase.set(phase, (byPhase.get(phase) ?? 0) + 1);
-		}
-		total.phases = [...byPhase.entries()].map(([phase, n]) => `${phase}:${n}`);
-		tickets.push(total);
+		tickets.push({ issue: name.replace(/\.json$/, ''), entries });
 	}
-	// Schleifen-Kandidaten zuerst: absteigend nach Wert, dann Issue-Nummer aufsteigend —
-	// der Bericht soll die Ausreisser oben zeigen, nicht sie in 50 Zeilen verstecken.
-	tickets.sort((a, b) => b.valueCost - a.valueCost || Number(a.issue) - Number(b.issue));
 	return { tickets, skipped };
+}
+
+/** Summiert die Einträge EINES Tickets zur Berichtszeile. */
+const ticketTotal = ({ issue, entries }: TicketEntries): TicketTotal => {
+	const byPhase = new Map<string, number>();
+	const total: TicketTotal = {
+		issue,
+		runs: entries.length,
+		turns: 0,
+		tokensIn: 0,
+		tokensOut: 0,
+		valueCost: 0,
+		cost: 0,
+		first: entries[0]?.timestamp ?? '',
+		last: entries[entries.length - 1]?.timestamp ?? '',
+		phases: [],
+	};
+	for (const e of entries) {
+		total.turns += ZERO(e.turns);
+		total.tokensIn += ZERO(e.tokensIn);
+		total.tokensOut += ZERO(e.tokensOut);
+		total.valueCost += ZERO(e.valueCost);
+		total.cost += ZERO(e.cost);
+		const phase = e.phase ?? '(ohne)';
+		byPhase.set(phase, (byPhase.get(phase) ?? 0) + 1);
+	}
+	total.phases = [...byPhase.entries()].map(([phase, n]) => `${phase}:${n}`);
+	return total;
+};
+
+// Schleifen-Kandidaten zuerst: absteigend nach Wert, dann Issue-Nummer aufsteigend —
+// der Bericht soll die Ausreisser oben zeigen, nicht sie in 50 Zeilen verstecken.
+const byValue = (a: TicketTotal, b: TicketTotal): number =>
+	b.valueCost - a.valueCost || Number(a.issue) - Number(b.issue);
+
+/** Liest alle <issueId>.json unter `dir` und summiert je Ticket. Kaputte Dateien übersprungen+gemeldet. */
+export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: string[] } {
+	const { tickets, skipped } = readTickets(dir);
+	return { tickets: tickets.map(ticketTotal).sort(byValue), skipped };
 }
 
 const num = (n: number): string => n.toLocaleString('de-DE');
 const usd = (n: number): string => `$${n.toFixed(2)}`;
 const mio = (n: number): string => `${(n / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Mio`;
-const pct = (n: number): string => `${(n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+export const pct = (n: number): string => `${(n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
 const share = (part: number, total: number): number => (total > 0 ? part / total : 0);
 
 /** Unicode-Balken (10 Zeichen █/░) plus Prozent — Anteile direkt in der Tabellenzeile sichtbar. */
-const bar = (part: number, total: number): string => {
+export const bar = (part: number, total: number): string => {
 	const anteil = share(part, total);
 	const filled = Math.round(Math.max(0, Math.min(1, anteil)) * 10);
 	return `${'█'.repeat(filled)}${'░'.repeat(10 - filled)} ${pct(anteil)}`;
@@ -110,13 +130,13 @@ const berlinFmt = new Intl.DateTimeFormat('en-CA', {
 });
 
 /** Kalendertag in Berlin-Lokalzeit („2026-09-03“) — der Report zählt menschliche Tage, keine UTC-Slices; unlesbare Stempel fallen auf den UTC-Slice zurück. */
-const berlinDay = (timestamp: string): string => {
+export const berlinDay = (timestamp: string): string => {
 	const d = new Date(timestamp);
 	return Number.isNaN(d.getTime()) ? timestamp.slice(0, 10) : berlinFmt.format(d);
 };
 
 /** ISO-Woche eines Berlin-Kalendertags („2026-W35“) — Anker ist der Donnerstag der Woche. */
-const isoWeek = (day: string): string => {
+export const isoWeek = (day: string): string => {
 	const d = new Date(`${day}T12:00:00Z`);
 	const thursday = new Date(d);
 	thursday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
@@ -127,7 +147,11 @@ const isoWeek = (day: string): string => {
 
 /** Markdown-Bericht: Summen, Phasen-Verteilung, Tabelle je Ticket (Wert absteigend). */
 export function renderReport(dir: string): string {
-	const { tickets, skipped } = ticketTotals(dir);
+	// EINMAL lesen, zweimal auswerten: Ticket-Summen für die Tabelle, Roh-Einträge für die
+	// Phasen-/Trend-Rechnungen. Die Phasen-Reihenfolge folgt damit der Ticket-Nummer
+	// (≈ Zeitachse) statt der Wert-Sortierung — was `totalsByPhase` ohnehin meint.
+	const { tickets: raw, skipped } = readTickets(dir);
+	const tickets = raw.map(ticketTotal).sort(byValue);
 	const lines: string[] = [];
 	lines.push('## 💰 Kosten-Übersicht — alle versiegelten Tickets', '');
 	if (tickets.length === 0) {
@@ -135,8 +159,11 @@ export function renderReport(dir: string): string {
 		return `${lines.join('\n')}\n`;
 	}
 
-	const allEntries: CostEntry[] = [];
-	for (const t of tickets) allEntries.push(...readCostEntries(dir, t.issue));
+	// Einträge in der Reihenfolge der Tabelle unten (Wert absteigend) — `totalsByPhase` ordnet
+	// die Phasen nach ihrem ersten Auftreten in der Eingabe, und diese Reihenfolge ist die
+	// bisherige des Berichts.
+	const byIssue = new Map(raw.map((t) => [t.issue, t.entries]));
+	const allEntries: CostEntry[] = tickets.flatMap((t) => byIssue.get(t.issue) ?? []);
 	const phases = totalsByPhase(allEntries);
 	const sum = tickets.reduce(
 		(a, t) => ({
@@ -445,16 +472,6 @@ export function renderReport(dir: string): string {
 	}
 	return `${lines.join('\n')}\n`;
 }
-
-/** Einträge einer Ticket-Datei erneut roh lesen (die Tabelle braucht sie für die Phasen-Summen). */
-const readCostEntries = (dir: string, issue: string): CostEntry[] => {
-	try {
-		const parsed = JSON.parse(readFileSync(join(dir, `${issue}.json`), 'utf8')) as CostEntry[];
-		return Array.isArray(parsed) ? parsed : [];
-	} catch {
-		return [];
-	}
-};
 
 const main = (argv: readonly string[]): number => {
 	let dir = '.costs';
