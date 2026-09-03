@@ -446,6 +446,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				deadline: task.deadline,
 			},
 		});
+		// #1182: Konfetti auch über den Dashboard-Pfad (Signal-Panel → Dialog) — dieselbe
+		// Übergangs-Regel wie in `handleDoneToggle` (#1169); reduce prüft `launchConfetti` selbst.
+		if (shouldCelebrateDone(task.status, TaskStatus.Done)) {
+			launchConfetti();
+		}
 	}, []);
 
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
