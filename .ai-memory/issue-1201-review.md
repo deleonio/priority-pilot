@@ -1,40 +1,46 @@
-# Issue 1201 (PR-Review), Stand 2026-09-03
+# Issue 1201 — Review (Runde 1 + Fixup-Nachweis Runde 2), Stand 2026-09-03T05:54Z
 
-Review-Kanal für PR #1201 (kein Closing-Issue → „Review ohne Issue", PR-Beschreibung ist massgebende Spezifikation).
+**ERGEBNIS Runde 2: VERDICT reviewed (🟢).** Fixup-Verifikation: Finding 1 (Spec-Drift AK4)
+durch Commit `3a3c30ca` behoben, kein neues Finding im Delta. Sammelkommentar 5521020680
+in-place aktualisiert (Status reviewed, Finding 1 in „Behobene Anmerkungen“ verschoben,
+Review-Typ: Fixup-Nachweis). Verdict `reviewed` nach /tmp/claude-verdict.
 
 ## Erledigt
-- MODE bestimmt: kein `<!-- ai-review -->`-Kommentar vorhanden → KREUZVERHÖR (Erstreview).
-- Diff komplett gelesen: 1 Commit d7f714b8, +18/−10, 3 Dateien. Kern: `_disabled={prefersReducedMotion}` am Animationen-Schalter (SettingsPage.tsx:280); AK4-Test aus #1187 ersetzt — Ersetzung im PR-Body dokumentiert, Autor = deleonio (Mensch) → kein Entscheidungs-Finding.
-- Titel-Gate: alter Titel deutsch/75 Zeichen → umbenannt in "feat(frontend): disable animations switch under os reduced motion" (verifiziert).
-- CI: verify + alle 4 e2e-Shards + precheck pass; nur review-Job (= dieser Lauf) pending.
-- Lokaler Testlauf unmöglich (keine node_modules) → CI-verify als Test-Signal akzeptiert.
-- Blast-Radius-Recherche (haiku): kein Code/E2E bricht — keine e2e klickt den Animationen-Schalter unter reduce-Emulation (issue-1183-animations.spec.ts klickt ohne emulateMedia; reduce-Emulation nur in 1187/1169/1182-Specs, die den Schalter nicht klicken).
-- Review gebündelt als COMMENT mit 1 Inline-Finding (SettingsPage.tsx:280) gepostet + Sammelkommentar erstellt (needs-fixup).
+- Runde 1 (Kreuzverhör, ohne Closing-Issue → PR-Beschreibung massgebend): diff geprüft,
+  1 fixables Finding → needs-fixup; Inline-Kommentar zu `SettingsPage.tsx`, Sammelkommentar
+  5521020680 angelegt (Stand 2026-09-03T05:33:47Z).
+- Runde 2: Marker gefunden → FIXUP VERIFICATION; Delta = `f7aee93a` (Merge main→Branch, nur
+  Issue-1184-CI-Inhalt, kein PR-Delta) + `3a3c30ca` (Fixup: `docs/spec/issue-1187.md` +3 Zeilen
+  Addendum bei AK4 Z.63-65, sonst nur `.ai-memory/`-Notizen + `.costs/1201.json`).
+- CI-Stichprobe: verify SUCCESS, kein roter Check (e2e-Shards 1/2/4 liefen noch; docs-only
+  Fixup kann e2e nicht brechen, deterministisches Merge-Gate prüft ohnehin nach).
+- Titel-Gate: „feat(frontend): disable animations switch under os reduced motion“ = CC-konform
+  (66 Zeichen, englisch, lowercase) — kein Rename nötig.
 
 ## Relevante Stellen
-- `frontend/src/components/SettingsPage.tsx:280` — `_disabled={prefersReducedMotion}` (neu).
-- `frontend/src/components/SettingsPage.test.tsx:509-536` — AK4 neu gefasst: reduce → disabled + Wert sichtbar; ohne reduce → umschaltbar + localStorage-Write.
-- `docs/spec/issue-1187.md:57-62` — AK4 fordert weiter alten Zustand („trägt kein `_disabled`") → Finding 1 (Spec-Drift).
-- `frontend/src/lib/animations.ts:15,47` — `pp-animations-enabled`-Key + Hook, unverändert, only consumer.
-- `frontend/e2e/issue-1183-animations.spec.ts:86,117` — einzige e2e-Klicks auf den Schalter, ohne reduce-Emulation → unproblematisch.
+- `docs/spec/issue-1187.md:63-65` — AK4-Addendum „Update 2026-09-03, PR #1201 — AK4 ersetzt“;
+  löst Finding 1 exakt nach Runde-1-Vorschlag (Historie blieb stehen).
+- `frontend/src/components/SettingsPage.tsx:280` — `_disabled`-Anbindung des Animations-
+  Schalters an `usePrefersReducedMotion` (Runde 1 positiv bewertet, unverändert).
+- Sammelkommentar: `repos/deleonio/priority-pilot/issues/comments/5521020680`.
 
 ## Annahmen
-- CI-verify-Job (= Unit-Tests) ersetzt lokalen Testlauf (Sandbox ohne node_modules).
-- React entfernt `_disabled` bei `false` auf Custom-Element (hasAttribute false) — grün lt. CI, nicht lokal verifiziert.
+- Merge-Commit `f7aee93a` bringt ausschliesslich main-Stand herein — nicht als PR-Delta
+  gewertet, nicht ger-reviewt (Diff-Scoping lt. SKILL step 5).
+- Laufende e2e-Shards werden grün; selbst bei Rot degradiert das deterministische Gate auf
+  ai:needs-changes, ohne dass der Content-Review falsch läge.
 
 ## Verworfen
-- Test-Pflege-Bedarf gegen AK4-Test-Ersetzung — vom Menschen im PR-Body dokumentiert („bewusst ersetzt").
-- Entscheidungs-Finding/needs-human — Entscheidung bereits vom PR-Autor getroffen.
-- lokale pnpm-Installation für Testlauf — Zeitbudget; CI grün.
+- Erneutes Voll-Review des PR-Diffs — Fixup-Modus, nur Delta geprüft.
+- MEMORY.md-Eintrag — kein neuer Fehler, Kriterium nicht erfüllt.
 
 ## Offen
-- -
+- `.ai-memory/issue-1201-review-round2-body.md` ist Wegwerf-Artefakt (Comment-Body) —
+  NICHT committen.
 
 ## Nächster Schritt
-- Fixup-Runde: Finding 1 umsetzen (datierter Addendum in docs/spec/issue-1187.md AK4: ersetzt durch PR #1201), dann Fixup-Nachweis-Review (MODE anhand `<!-- ai-review -->`-Marker, Finding-Nummer 1 stabil halten).
+- Keiner aus Review-Sicht: PR wartet aufCI/Reviewer-Gates und Auto-Merge (Workflow).
 
 ## Fallstricke
-- Sammelkommentar-updates über PATCH auf die Kommentar-ID, nicht neu erstellen.
-- Footer „Review-Typ: Kreuzverhör"; in Runde 2 „Fixup-Nachweis".
-- Keine Labels setzen (Workflow macht das selbst).
-- Write-Tool auf .ai-memory wurde in diesem Lauf ohne Freigabe blockiert → bash-heredoc-Fallback genutzt.
+- Falls ein weiterer Fixup-Lauf folgt: Sammelkommentar 5521020680 weiterhin in-place
+  patchen, Finding-Nummerierung stabil lassen (1 = Spec-Drift, behoben).
