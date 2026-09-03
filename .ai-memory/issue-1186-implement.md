@@ -21,10 +21,10 @@
 - Unit-Test — weiter verboten (migration-check, s. Spec-Notiz).
 
 ## Offen
-- PR #1189 aus Draft holen (`gh pr ready 1189`) + Body mit Impl-Zusammenfassung/Gate-Ergebnissen erweitern.
+- - (alles erledigt; PR wartet auf Review/Kreuzverhör)
 
 ## Nächster Schritt
-- Commit (Fix + diese Notiz im SELBEN Commit), Push, `gh pr ready 1189`, PR-Body erweitern.
+- Erledigt: Commit `3e99d399` gepusht, PR #1189 non-draft (`gh pr ready`), Body mit Impl-Zusammenfassung + Gate-Tabelle erweitert (`.ai-memory/issue-1186-prbody.md`, uncommittetes Wegwerf-Artefakt). Folge-Läufe: Idempotenz — non-draft-PR mit Closing-Keyword existiert → Lauf beenden.
 
 ## Fallstricke
 - Soft-Deadline 1788395096 knapp — Gate fokussiert, E2e-Neuläufe der Alt-Specs nur bei Bedarf.
