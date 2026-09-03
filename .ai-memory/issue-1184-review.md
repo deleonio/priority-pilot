@@ -1,42 +1,34 @@
-# Issue 1184 / PR 1192 — Review (Kreuzverhör, Runde 1), Stand 2026-09-03
+# Issue 1184 / PR 1192 — Review (Runde 1: Kreuzverhör, Runde 2: Fixup-Nachweis), Stand 2026-09-03
 
 ## Erledigt
-- MODE = CROSS-EXAMINATION festgestellt: kein `<!-- ai-review -->`-Kommentar auf PR 1192 (API-Suche leer). Closing-Issue #1184 (refs length 1).
-- AK-Quelle: KEIN `<!-- ai-harness -->`-Kommentar und KEIN KI-ANALYSE-Block im Issue-Body (einziger Issue-Kommentar = github-actions-Qualitätscheck) → AKs aus der Issue-eigenen Sektion „Woran messen wir das?" (4 Kriterien) übernommen und im Verdikt vermerkt.
-- Kompletten Diff gelesen (2108+/574-, 28 Dateien; `.ai-memory/pr1192.diff` = Wegwerf-Artefakt, nicht committen). PR-Body, Issue-Body ausgewertet.
-- Regression geprüft: kein Workflow nutzt mehr `uses: …/setup-claude` (nur noch Kommentare nennen es — kosmetisch); alle `steps.setup.outputs.*`-Referenzen (configured, gh-token, invoke-*, issue-number, llm-provider, memory-status-text, runtime, session-dir) werden von setup-agent bedient (Output-Menge = Superset der alten setup-claude-Outputs). `test-time-window.sh`-Umzug: keine verwaisten Pfad-Referenzen (grep über .github leer).
-- `cost-from-pi-session.test.ts` lokal ausgeführt: alle Tests grün (TAP ok; lief versehentlich via `node <file>` direkt — main()-Guard feuert nur bei Direktausführung des Scripts selbst, Test-Aufruf von main() druckt erwartete key=value-Zeilen).
-- CI: e2e (1-4), verify, label grün; `review` = dieser Lauf (pending).
-- renovate.json5-Regex des CustomManagers manuell nachvollgezogen (Objektform `"source": "npm:pkg@1.2.3"` und scoped `npm:@scope/pkg@x` matchen korrekt; ungepinnte Einträge matchen nicht → nur setup-pi-Warning, konsistent).
-- Befunde als Review (event COMMENT) mit 2 Inline-Kommentaren + Sammelkommentar (neu angelegt, Marker `<!-- ai-review -->`) gepostet; Titel-Gate: deutscher Subject → PR umbenannt in `feat(ci): add pi as switchable agent runtime (pilot: triage) (#1184)`.
+- Runde 1 (Kreuzverhör): kompletter Diff-Review, 2 fixable Findings, Sammelkommentar angelegt, Titel normiert — Details im Git-Stand dieser Datei vor Runde 2 (Commit 28b24ead enthält die Runde-1-Fassung).
+- Runde 2 (Fixup-Nachweis): MODE über `<!-- ai-review -->`-Marker (Kommentar 5520662229, updatedAt 2026-09-03T04:55:41Z) erkannt → KEIN neuer Voll-Review.
+- Fixup-Delta sauber abgegrenzt: `git diff a84fb7d4..8a5f5410` war ZU BREIT (enthält den Main-Merge mit #1199 prompt-audit/costs-summary-Änderungen, die im PR-vs-main-Diff wegfallen). Echtes Delta = Commit 28b24ead allein: nur `.github/actions/setup-pi/action.yml` (12 Zeilen) + Phase-Notizen.
+- F1 verifiziert behoben: PR-Body „Bewusst offen“ Nr. 3 (falsche „kein LSP-Paket“-Behauptung) gestrichen, neuer Nr. 3 = Rollout-Grenze; `.pi/settings.json`/pi-lsp-Änderung jetzt unter „Geänderte Dateien“ dokumentiert.
+- F2 verifiziert behoben: `setup-pi/action.yml` Cache `path:` → `/usr/local/lib/node_modules` mit `!/…​/npm` + `!/…​/corepack`-Exklusionen (Include-vor-Exclusion = dokumentierte actions-cache-Semantik), Key `pi-cli-…-v2`. Keine neuen Probleme im Delta.
+- CI gegenprobe: `gh pr checks 1192` — precheck/e2e ×4/verify pass, review pending (dieser Lauf).
+- Sammelkommentar 5520662229 per PATCH aktualisiert (genau EIN ai-review-Kommentar, F1/F2 in „Behobene Anmerkungen“-Tabelle, Ampel 🟢, Footer „Review-Typ: Fixup-Nachweis“). Body-Datei: `.ai-memory/issue-1184-round2-body.md`.
+- Titel-Gate: `feat(ci): add pi as switchable agent runtime (pilot: triage) (#1184)` erfüllt Conventional Commits — keine Änderung.
+- VERDICT: reviewed (`/tmp/claude-verdict`).
 
 ## Relevante Stellen
-- `.github/actions/setup-agent/action.yml` (neu, 554 Zeilen) — Runtime-Weiche; validiert `runtime` als ERSTEN Step (Tippfehler → exit 1, kein stiller Fallback).
-- `.github/actions/setup-pi/action.yml` (neu) — pi-CLI (gepinnt 0.84.4, Cache Z. 81-83), Paket-Install aus `.pi/settings.json` (hart failend), Auth, Modell-Alias aus `.github/pi/model-aliases.json` + vars.PI_MODEL_ALIASES-Overlay (jq `.[0] * .[1]`, Overlay gewinnt), invoke-args Z. ~445.
-- `.github/scripts/cost-from-pi-session.ts` (+ .test.ts) — liest `<session-dir>` inkl. `subagents/`-Kindsitzungen, zeichengleiche key=value-Ausgabe wie cost-from-transcript.ts; Preistabelle geteilt.
-- `.github/workflows/01-triage.yml` — einzige Phase mit `runtime: ${{ vars.AGENT_RUNTIME }}`; invoke-Zeile für beide Laufzeiten identisch (Step-ID `claude` + /tmp/claude-Pfade bewusst historisch).
-- `.github/workflows/set-agent-config.yml` (neu, ersetzt gelöschtes set-provider.yml) — setzt AGENT_RUNTIME+LLM_PROVIDER, Kombinations-Check fail-closed VOR dem Setzen (pi+openrouter ohne PI_MODEL_ALIASES; pi+claude mit sk-ant-oat-Token).
-- `.pi/settings.json:29` — LSP-Paket `npm:@narumitw/pi-lsp@0.49.6` neu ergänzt; alle Einträge jetzt gepinnt (Renovate-CustomManager pflegt).
-- `docs/ci-architecture.md` — neue Sektionen „Laufzeit umschalten", „pi-Pakete im Runner", „Was pi NICHT kann: die Tool-Tiers" (Verweis auf Folge-Issue #1193), „Kostenerfassung unter pi".
+- `.github/actions/setup-pi/action.yml` Z. 78-93 — Cache-Step nach Fixup; Kommentar begründet Ganzverzeichnis + npm/corepack-Exklusion.
+- PR-Body-Abschnitte „Geänderte Dateien“ + „Bewusst offen“ — F1-Lösungsort (Body-Edit, kein Commit).
+- `.ai-memory/issue-1184-fixup.md` — Fixup-Phase-Notiz (vom Fixup-Lauf geschrieben, Commit 28b24ead).
 
 ## Annahmen
-- pi-Session-Format (Feldnamen input/output/cacheRead/cacheWrite, 1 Zeile je Nachricht, compaction-usage) wie im PR-Body „am Bestand verifiziert" — vom Autor mit echter Sitzungsdatei geprüft behauptet, hier nicht reproduzierbar (kein pi in der Sandbox).
-- `pi-subagents`-Konfig-Schlüssel (`subagents.defaultModel`, `extensions/subagent/config.json` → `defaultSessionDir`) laut PR-Body lokal verifiziert.
-- npm-Registry-Abfrage lieferte die Dep-Liste von pi-coding-agent@0.84.4 (19 Runtime-Deps, 15 davon unscoped) — Evidenz für Finding 2.
+- Der empirische Cache-Hit-Beweis (2. Lauf) ist wie AK 1/2/4 erst im Pilotlauf nach Merge möglich — als dokumentierte Offenheit akzeptiert, kein Finding (gleiche Einstufung wie Runde 1).
+- Main-Merge 8a5f5410 bringt nur bereits auf main befindliche #1199-Änderungen in den Branch — für den PR-Diff gegen main neutral, deshalb nicht re-reviewt.
 
 ## Verworfen
-- Weitere Finding-Suche zu set-agent-config.yml (id-token:write unnötig für client-id/private-key-Flow — harmlos, Pattern-Übernahme aus set-provider.yml, kein Befund wert).
-- Docs-Drift `00-set-llm-provider.yml`/`cron.ci.multi-provider.yml` werden in docs/ci-architecture.md erwähnt, existieren aber nicht unter .github/workflows/ — vorbestehender Text, nicht Teil dieses Diffs (kein Side-Trip per FOCUS).
-- AK1/AK4 als eigenes Finding — inhärent erst durch echten Pilotlauf beweisbar, im PR-Body + docs ehrlich als offen dokumentiert; im Sammelkommentar vermerkt statt Findings.
+- Erneute Voll-Findung-Suche über den 150-KB-Gesamtdiff — Fixup-Verifikation prüft nur Delta + Abgleich offener Findings (SKILL step 5).
+- MEMORY.md-Eintrag — kein neuer Fehler/keine neue Erfahrung (Kriterium nicht erfüllt).
 
 ## Offen
-- `.ai-memory/issue-1184-body.md`, `.ai-memory/issue-1184-harness.md` (leer, 0 Byte), `.ai-memory/pr1192.diff` = Wegwarf-Artefakte dieses Laufs, NICHT committen.
+- Wegwerf-Artefakte, NICHT committen: `.ai-memory/issue-1184-body.md`, `.ai-memory/issue-1184-harness.md` (0 Byte), `.ai-memory/pr1192.diff` (Runde 1) + `.ai-memory/issue-1184-round2-body.md` (Runde 2, PATCH-Body).
 
 ## Nächster Schritt
-- Fixup-Runde: Finding 1 (PR-Body „Bewusst offen" Nr. 3 ist stale — LSP-Paket IST ergänzt) + Finding 2 (Cache-Pfade decken gehoistete pi-Deps nicht) abarbeiten; danach Fixup-Verifikation (Modus über `<!-- ai-review -->`-Marker).
+- - (Review abgeschlossen; Workflow übernimmt Merge-Entscheidung/Labels.)
 
 ## Fallstricke
-- Finding-Nummern stabil: F1 = PR-Body/LSP-Kontradiktion (Anchor .pi/settings.json:29), F2 = pi-CLI-Cache-Pfade (Anchor .github/actions/setup-pi/action.yml:82).
-- Sammelkommentar-Zeile 2 nennt PR #1192 + Issue #1184; Footer „Review-Typ: Kreuzverhör".
-- KEINE Labels setzen (Workflow macht das selbst).
-- Nächste Runde: Fixup-Verifikation NICHT wieder Voll-Diff — nur Deltas seit updatedAt des Sammelkommentars.
+- PR-Branch enthält Main-Merges: Diff-Range für Fixup-Runden MUSS über die PR-Commits (gh pr view --json commits) abgrenzt werden, nicht über `main..HEAD`-Blickpunkte — sonst re-reviewt man fremde Main-Commits.
