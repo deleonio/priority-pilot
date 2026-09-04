@@ -1,6 +1,8 @@
-# PR 1216 — Review (Kreuzverhör, Runde 1), Stand 2026-09-04
+# PR 1216 — Review (Runde 1 Kreuzverhör + Runde 2 Fixup-Nachweis), Stand 2026-09-04T13:28Z
 
-**ERGEBNIS: VERDICT needs-fixup (🟡).** Kein `<!-- ai-review -->`-Marker vorhanden → Modus Kreuzverklärung (Erstreview). **Keine Closing-Issue** (`closingIssuesReferences` = []) → „Review ohne Issue — PR-Beschreibung ist massgebend". Titel-Gate gegriffen: deutscher Subject → umbenannt zu `feat(frontend): add heart-shaped life-balance widget to the dashboard`.
+**ERGEBNIS Runde 2: VERDICT needs-fixup (unverändert).** Modus FIXUP VERIFICATION (Marker vorhanden, Kommentar #5541029875, updatedAt 13:20:40Z). **Kein Fixup gelaufen:** kein `<!-- ai-fixup-decisions -->`-Kommentar, kein Fixup-Commit; einziges Delta seit Runde 1 = Merge `2511ed5e` (main, 13:21:08Z) mit nur `package.json`-Versions-Bump (`git diff --stat 9173ee33 2511ed5e`). Finding #1 und Nit N1 auf PR-Head unverändert verifiziert (`heart-balance.spec.ts:59-62` scrollWidth-Assertion bzw. `HeartBalance.tsx:293`). Sammelkommentar #5541029875 per PATCH in-place auf Runde 2 aktualisiert (id stabil). Titel-Gate Runde 2: Conventional-Commits-konform, kein Rename.
+
+**ERGEBNIS Runde 1: VERDICT needs-fixup (🟡).** Kein `<!-- ai-review -->`-Marker vorhanden → Modus Kreuzverhör (Erstreview). **Keine Closing-Issue** (`closingIssuesReferences` = []) → „Review ohne Issue — PR-Beschreibung ist massgebend". Titel-Gate gegriffen: deutscher Subject → umbenannt zu `feat(frontend): add heart-shaped life-balance widget to the dashboard`.
 
 ## Erledigt
 - Vollständigen Diff gelesen (1221+/21−, 13 Dateien; `.ai-memory/issue-1216-pr.diff`), PR-Body als informelle Spec.
@@ -30,8 +32,8 @@
 - MEMORY.md-Eintrag — Befund steht seit 2026-08-24 drin; nichts Neues gelernt.
 
 ## Offen
-- `.ai-memory/issue-1216-pr-body.md`, `issue-1216-pr.diff`, `issue-1216-review-input.json`, `issue-1216-collected.md` = Wegwerf-Artefakte dieses Laufs, NICHT committen.
-- Fixup-Runde muss Finding #1 abarbeiten; danach Fixup-Nachweis (Modus wechselt).
+- `.ai-memory/issue-1216-pr-body.md`, `issue-1216-pr.diff`, `issue-1216-review-input.json`, `issue-1216-collected.md` (2× geschrieben: Runde 1 + 2) = Wegwerf-Artefakte, NICHT committen.
+- Fixup-Runde muss Finding #1 abarbeiten; danach Fixup-Nachweis (Modus bleibt FIXUP VERIFICATION bis Claims da sind).
 
 ## Nächster Schritt
 - Fixup: heart-balance.spec.ts Overflow-Prüfung auf Bounding-Box umstellen (Muster s. Finding #1), Nit N1 optional.
