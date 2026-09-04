@@ -1,52 +1,77 @@
-# Issue 1211 — Impl (Phase 4), Stand 2026-09-04
+# Issue 1211 — Impl (Phase 4), Stand 2026-09-04 (3. Lauf)
 
-**ERGEBNIS: VERDICT not-ready (Zeitnot, 2. Lauf).** Server-Seite komplett + grün (beide Spec-Suiten), OpenAPI-Vertrag für /groups eingetragen + Typen generiert, Frontend (AK6/AK7/AK8) NOCH NICHT angefangen — Draft-PR #1214 bleibt Draft. Begründung im PR-Body. Nächster Impl-Lauf: nur noch Frontend + Gate.
+**ERGEBNIS: Frontend AK6/AK7/AK8 implementiert; Server aus Lauf 1/2 grün.** E2e groups.spec.ts
+zweite Runde lief im Hintergrund beim Soft-Deadline-Abbruch — Ergebnis im PR-Body nachprüfen
+(`gh pr checks 1214` / Playwright-Run nachholen, falls rot). Draft-PR #1214 ggf. noch ready setzen.
 
-## Erledigt
-- Branch `ai/harness/1211` ausgecheckt (Draft-PR #1214, Commit 341f726f = Spec).
-- `server/src/models/group.ts` NEU: id/name(STRING 60)/description(TEXT, null) + Timestamps.
-- `server/src/models/groupMember.ts` NEU: Komposit-PK groupId+userId, role (Default 'member'), joinedAt DATE, timestamps false (taskPillar-Muster).
-- `server/src/models/index.ts`: Group + GroupMember importiert/exportiert (keine Assoziationen — Kommentar-Block ergänzt fehlt noch, nur Exportliste erweitert).
-- `server/src/express/routes/groups.ts` NEU: POST/GET/GET :id/PATCH/DELETE — Nutzer-Auflösung über `resolveGeoUser` (Pass-Through-Dev-User für API-Tests ohne Auth-Env, Wiederverwendung aus geoConfig.ts statt Kopie), Sichtbarkeit NUR über `GroupMember`-Lookup (kein ownerScope), fremd/Nicht-Admin → 404; POST+DELETE in `sequelize.transaction` (pillars.ts:340-Muster); memberCount via COUNT.
-- `server/src/express/index.ts`: `groupsRouter` importiert + hinter `requireAuth` nach seriesRouter gemountet.
-- Beide Server-Suiten GRÜN: `NODE_ENV=test DATABASE_STORAGE=:memory: npx tsx --test src/express/groups.{api,dataisolation}.test.ts` (je 1 ✔ Suite). WICHTIG: `NODE_ENV=test` nötig, sonst ist /auth/test-login nicht registriert → Login-401 (Falle s.o.).
-- **Test-Pflege (dokumentiert im PR-Body):** `groups.api.test.ts:59,70` — Spec-Phase hatte `body?.error`/`body.error.length` assertiert; Repo-Fehlervertrag ist seit #1130 zentral `{ message }` (http-error.ts sendError). Assertions auf `body?.message`/`body.message.length` geändert, sonst nichts.
-- **Test-Pflege 2:** `groups.api.test.ts:13` `body: any` → struktureller Typ `GroupResponseBody` (eslint no-explicit-any blockierte lint; Assertions inhaltlich unverändert). **Test-Pflege 3:** `frontend/e2e/groups.spec.ts:72` Playwright-`toBe(false, 'msg')` → `expect(wert, 'msg').toBe(false)` (tsc TS2554 — Playwright nimmt die Nachricht auf expect, nicht auf toBe).
-- `pnpm lint` komplett GRÜN (server+frontend), prettier-check über alle geänderten Dateien grün.
-
-## Erledigt (2. Lauf, Fortsetzung 2026-09-04)
-- Branch-Verifizierung: `ai/harness/1211` in Sync mit origin (Server-Commit 607b21e8 + Notiz c62ea954 waren bereits gepusht).
-- `openapi.yml` +168 Zeilen: `paths /groups` (GET/POST) + `/groups/{id}` (GET/PATCH/DELETE, operationIds listGroups/createGroup/getGroup/updateGroup/deleteGroup, tags [groups], Error-refs) + Schemas `Group` (id/name/description nullable/role enum [admin,member]/memberCount), `GroupInput` (name 1–60 Pflicht, description optional), `GroupUpdate` (beides optional). Vertrag exakt aus `server/src/express/routes/groups.ts` abgeleitet (GroupDto :23, 201/200/204-Statuscodes).
-- Typen regeneriert: `pnpm --filter server build:api` + `pnpm --filter client generate` — WICHTIG: `server/src/api.d.ts` + `client/src/schema.d.ts` sind GITIGNORED (nur openapi.yml ist getrackt); die generierten Dateien liegen lokal bereit, der nächste Lauf braucht sie NICHT neu generieren (falls doch: dieselben zwei Skripte).
-- prettier über openapi.yml: unchanged (formatkonform); openapi-typescript-Parsetlauf = YAML-Gültigkeitsnachweis.
+## Erledigt (3. Lauf)
+- Branch `ai/harness/1211` (Merge e4d79b7f von main drin). Generierte Typen waren STALE auf diesem
+  Runner (schema.d.ts ohne /groups) → neu generiert: `pnpm --filter server build:api` +
+  `pnpm --filter client generate`.
+- `client/src/index.ts`: Export `Group`/`GroupInput`/`GroupUpdate` (Schemas['Group'] etc.).
+- `frontend/src/api.ts`: `listGroups`/`createGroup`/`updateGroup`/`deleteGroup` (client.GET/POST/
+  PATCH/DELETE '/groups…', ResponseError-Muster wie pillars) + Typ-Imports.
+- `frontend/src/components/GroupFormDialog.tsx` NEU: PillarFormDialog-Muster, Titel „Gruppe anlegen“/
+  „Gruppe bearbeiten“, KolInputText Name (_maxLength 60) + KolTextarea Beschreibung, Inline-Validierung
+  leer/>60 deutsch, CTA „Anlegen“/„Speichern“, Ctrl+Enter.
+- `frontend/src/components/GroupDeleteDialog.tsx` NEU: sequenzielle Bestätigung (Pattern-Doc):
+  Schritt 1 Intent („wirklich löschen?“, Button exakt „Löschen“ → Schritt 2), Schritt 2 Scope
+  („inkl. aller Mitglieder-Einträge“, „Endgültig löschen“ bekommt per useEffect+confirmRef den
+  Fokus); Öffnen mit Initialfokus „Abbrechen“ (#472); Fehler als KolAlert im Dialog.
+- `frontend/src/components/GroupsSection.tsx` NEU: KolHeading „Gruppen“ (h2, im tabpanel → e2e-Kontrakt),
+  KolSpin beim Laden, KolAlert bei Fehler, Empty-State-Karte mit „Gruppe anlegen“-CTA (Toolbar-Button
+  nur wenn Liste nicht leer — EIN Button dieses Namens, sonst Playwright-strict-mode), Karten-Liste
+  (`ul.groups-items`/`li.groups-item`): KolHeading Name, einzeilig gekappte Beschreibung, KolBadge
+  Rolle („Admin“/„Mitglied“, Text nie nur Farbe) + „N Mitglied(er)“; Bearbeiten/Löschen nur bei
+  role==='admin'. loadGroups: `Array.isArray`-Guard gegen Unit-Mock-undefined.
+- `frontend/src/components/SettingsPage.tsx`: SETTINGS_TABS + `{_label:'Gruppen'}` (Index 4) +
+  `<div slot="tab-4">` mit GroupsSection; Kommentar Index-Parität aktualisiert.
+- `frontend/src/App.tsx:63`: SETTINGS_PATH_SEGMENTS + 'gruppen' (Index 4).
+- `frontend/src/app.css`: .groups-toolbar/-items/-item/-info/-description (einzeilig Ellipsis)/
+  -meta/-actions — Spiegel der .pillar-*-Regeln.
+- **Test-Pflege 4 (dokumentiert im PR-Body):** `frontend/e2e/groups.spec.ts:17` —
+  `waitForStableView(page)` default wartet auf Text „Dashboard“, der auf /settings/* nie rendert
+  (App-Shell zeigt Settings-Tabs); alle anderen Settings-Specs (issue-1098:97, llm-settings:28)
+  übergeben einen auf der Seite existierenden Text. Geändert zu `waitForStableView(page, 'Gruppen')`.
+  Erste e2e-Runde bewies: UI funktionierte (error-context zeigte Tab „Gruppen“ selected + Empty-State),
+  nur der Helper-Wartetext war falsch.
+- Grün: `tsc --noEmit`, `pnpm lint` (frontend), prettier, vitest SettingsPage.test.tsx 20/20.
+- E2e 2. Runde (nach Test-Pflege) lief beim Deadline-Abbruch im Hintergrund — Status unbekannt.
 
 ## Relevante Stellen
-- `server/src/express/routes/groups.ts` — fertig implementierter API-Vertrag.
-- `server/src/express/routes/geoConfig.ts:29` — `resolveGeoUser` (exportiert), Dev-Pass-Through-Nutzer.
-- `frontend/src/App.tsx:63` (`SETTINGS_PATH_SEGMENTS` + 'gruppen') + `:355` Navigation + `frontend/src/components/SettingsPage.tsx:34` (`SETTINGS_TABS`) — Frontend-Einstiegspunkte, NOCH UNBERÜHRT.
-- `frontend/e2e/groups.spec.ts` — unveränderter Vertrag für AK6/AK7/AK8 (Button-Texte „Gruppe anlegen“/„Anlegen“/„Löschen“/„Endgültig löschen“, Texte /wirklich löschen/, /Mitglieder-Einträge/, /1 Mitglied/, listitem-Karten, tabpanel-heading „Gruppen“).
-- `docs/spec/issue-1211.md` — vollständiger Vertrag inkl. Frontend-Vertrag (KolBadge-Rolle, Modal, sequenzielle Bestätigung, EmptyState/KolSpin/KolAlert).
+- `frontend/e2e/groups.spec.ts` — Vertrag AK6/AK7/AK8 (Button-Texte, /wirklich löschen/,
+  /Mitglieder-Einträge/, „Endgültig löschen“ focused, Bounding-Box ≤375).
+- `frontend/src/components/Modal.tsx` — initialFocusRef/fallbackFocusRef-Mechanik (Fokus-Pattern).
+- `server/src/express/routes/groups.ts` — fertige API (Lauf 1).
 
 ## Annahmen
-- `resolveGeoUser`-Wiederverwendung statt eigenem Duplikat ist korrekt (gleiche Semantik: Session sonst Dev-User; Kommentar dort erwähnt `/tasks/nearby` als weiteren Konsumenten).
-- openapi.yml + `server/src/api.d.ts`/`client/src/schema.d.ts` pflegen MIT dem Frontend (ein Schritt), nicht vorab — Server-Tests hängen nicht daran.
+- Native `<dialog showModal>` macht den Hintergrund inert (HTML-Spec) → einzigartiger
+  „Löschen“-Button im geöffneten Dialog trotz gleich benanntem Karten-Button (Playwright-strict-mode).
+- Generated files (api.d.ts/schema.d.ts) sind gitignored — der CI-Lint/Pre-Commit generiert sie selbst.
 
 ## Verworfen
-- Frontend in diesem Lauf — Soft-Deadline (~19 min ab Laufstart) reichte nicht für Tab+Modal+sequenzielle Bestätigung+e2e+Gate; halbfertige UI wäre schlechter als sauberer Schnitt.
-- Eigene Dev-User-Auflösung im groups-Router — `resolveGeoUser` deckt sie ab.
+- Wiederverwendung der komponenten-`EmptyState.tsx` — task-spezifische Texte/Props („Ersten Task
+  anlegen“), nicht generisch; stattdessen KolCard-Muster direkt in GroupsSection.
 
 ## Offen
-- Frontend AK6/AK7/AK8 komplett (Tab, Karten-Liste, Anlegen-/Bearbeiten-Modal mit Inline-Validierung, sequenzielle Löschen-Bestätigung mit Fokus, Empty/Laden/Fehler-Zustände).
-- `api.ts`-Wrapper-Methoden für die neuen operationIds (listGroups/createGroup/getGroup/updateGroup/deleteGroup) — Typen liegen bereits generiert bereit (components['schemas']['Group'] etc.).
-- Voller Gate-Lauf (`pnpm format/prettier/lint/knip/test`) + e2e `groups.spec.ts` + 375/1280-Check.
-- Full-Suite-Nachweis: in diesem Lauf liefen nur die zwei Gruppen-Suiten (Zeitnot), nicht `pnpm test` komplett.
+- E2e-Ergebnis der 2. Runde verifizieren; falls rot: Fehler beheben (Fokus/Strict-mode sind die
+  wahrscheinlichsten Kandidaten).
+- Voller Gate-Lauf (`pnpm format && prettier --check . && pnpm lint && pnpm knip && pnpm test`) —
+  in diesem Lauf nur frontend lint/tsc/vitest-SettingsPage + e2e groups.
+- `gh pr ready 1214` + PR-Body um Implementierungs-Summary + Test-Pflege 4 + Testergebnisse erweitern.
+- Knip prüfen: GroupsSection/Dialogs sind neu — ungenutzte-Export-Regel könnte zuschlagen (alle
+  Komponenten werden von SettingsPage importiert, sollte passen).
 
 ## Nächster Schritt
-- Frontend bauen (App.tsx-Segmente + SettingsPage SETTINGS_TABS Index 4 + GroupsSection-Komponente mit Form/Delete-Dialog nach LlmSettings/LlmProvider*Dialog-Muster), dann kompletter Gate + e2e, dann `gh pr ready 1214` + Beschreibung erweitern.
+- E2e-Ergebnis prüfen → voller Gate → commit+push (falls nicht schon geschehen) → `gh pr ready 1214`
+  + Body erweitern.
 
 ## Fallstricke
-- Server-Tests NUR mit `NODE_ENV=test DATABASE_STORAGE=:memory:` starten (package.json-Skript tut das; `/auth/test-login` ist sonst nicht registriert → 401).
-- Fehler-Body = `{ message }`, NIEMALS `{ error }` (#1130, error-contract.test.ts wacht darüber).
-- `session.test.ts` ohne Redis rot (pre-existing, MEMORY 2026-08-29) — nicht jagen.
-- Gruppe „groups“-Tabelle: sequelize.sync() legt an (verify in helpers — resetDb nutzt sync), KEINE migrate.ts-Änderung (Issue-Text).
-- Nicht-Admin-Bearbeiten → 404 (nicht 403) — bewusste Einheitlichkeit gegen Existenz-Leak; kann in Ticket 2 (Einladungen) revidiert werden.
+- Server-Tests NUR mit `NODE_ENV=test DATABASE_STORAGE=:memory:` (`/auth/test-login` sonst 401).
+- Fehler-Body = `{ message }`, niemals `{ error }` (#1130).
+- `session.test.ts` ohne Redis rot (pre-existing) — nicht jagen.
+- Zweimal „Gruppe anlegen“-Button gleichzeitig = Playwright-strict-mode-Fehler (deshalb Toolbar
+  nur bei nicht-leerer Liste).
+- Der Runner kann wechseln: generierte api.d.ts/schema.d.ts sind gitignored und STALE — vor
+  frontend-Arbeit immer `build:api` + `client generate` laufen lassen (dieser Lauf: grep -c "'/groups"
+  auf schema.d.ts war der Nachweis; Achtung: generierte Keys stehen in DOPPELTEN Anführungszeichen).

@@ -14,7 +14,9 @@ import { waitForStableView } from './helpers';
 /** Öffnet die Einstellungen direkt auf dem Gruppen-Tab. */
 const openGroupsTab = async (page: Page): Promise<void> => {
 	await page.goto('/settings/gruppen');
-	await waitForStableView(page);
+	// 'Gruppen' statt des Default-'Dashboard': Auf /settings/* rendert die App-Shell keine
+	// Dashboard-Text (Issue-1098/llm-settings-Specs übergeben ebenfalls einen Seiten-Text).
+	await waitForStableView(page, 'Gruppen');
 	await expect(page.getByRole('tab', { name: 'Gruppen', exact: true })).toBeVisible();
 };
 
@@ -69,7 +71,10 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		await expect(page.getByText(/Name/).first()).toBeVisible();
 		const response = await page.request.get('/api/v1/groups');
 		const groups = (await response.json()) as { name: string }[];
-		expect(groups.some((group) => group.name === ''), 'leere Gruppe darf nicht entstehen').toBe(false);
+		expect(
+			groups.some((group) => group.name === ''),
+			'leere Gruppe darf nicht entstehen',
+		).toBe(false);
 	});
 
 	// ── AK7: Löschen mit sequenzieller Bestätigung ───────────────────────────────────
@@ -102,7 +107,11 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 	test('Gruppen-Tab bleibt bei 375px ohne horizontalen Überlauf bedienbar (AK8)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openGroupsTab(page);
-		await createGroupViaUi(page, 'E2E Schmal', 'Beschreibung die auch auf schmalen Screens nur einzeilig gekappt dargestellt werden sollte');
+		await createGroupViaUi(
+			page,
+			'E2E Schmal',
+			'Beschreibung die auch auf schmalen Screens nur einzeilig gekappt dargestellt werden sollte',
+		);
 
 		const card = page.getByRole('listitem').filter({ hasText: 'E2E Schmal' });
 		await expect(card).toBeVisible();

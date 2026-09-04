@@ -11,6 +11,7 @@ import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
 import { AppearanceSetting } from './AppearanceSetting';
+import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
@@ -29,13 +30,14 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält und die Auswahl zurücksetzt. Reihenfolge: Allgemein (Index 0), Säulen
-// (Index 1), KI-Provider (Index 2), Standort (Index 3, #1151). Muss index-paritätisch mit
-// `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben.
+// (Index 1), KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211). Muss
+// index-paritätisch mit `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben.
 const SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
 	{ _label: 'KI-Provider' },
 	{ _label: 'Standort' },
+	{ _label: 'Gruppen' },
 ];
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
@@ -535,6 +537,12 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							</div>
 						</>
 					)}
+				</div>
+				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 4, Route
+				        /settings/gruppen). Liste als Karten mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten
+				        per Modal, Löschen mit sequenzieller Bestätigung. */}
+				<div slot="tab-4" className="settings-groups">
+					<GroupsSection />
 				</div>
 			</KolTabs>
 		</main>
