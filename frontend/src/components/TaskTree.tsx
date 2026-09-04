@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
 import { GeoBadge } from './GeoBadge';
 import { priorityBadge } from '../lib/task';
+import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
 interface TaskTreeProps {
@@ -26,6 +27,12 @@ interface TaskTreeProps {
 	onAddSubtask: (task: Task) => void;
 	/** Schaltet eine Aufgabe per binärem Toggle zwischen „Erledigt" und „Offen" um (#315). */
 	onDoneToggle: (task: Task) => Promise<void>;
+	/**
+	 * #1220: Eingefrorener Snapshot virtueller Balance-Prioritäten je Task-ID. `null`/leer →
+	 * Originale Wertbeitrags-Sortierung und `P{n}`-Badges; gesetzt → Liste nach Balance-Score
+	 * sortiert und Badges zeigen die virtuelle Prio als `~P{n}`.
+	 */
+	balancePriorities?: ReadonlyMap<number, BalancePriority> | null;
 }
 
 interface LeafItemProps {
@@ -33,6 +40,8 @@ interface LeafItemProps {
 	taskById: Map<number, Task>;
 	progressMap: Map<number, { done: number; total: number }>;
 	userId: number | null;
+	/** #1220: Virtuelle Balance-Priorität dieses Tasks; `null` → Original-P-Badge. */
+	balancePriority?: BalancePriority | null;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -57,6 +66,7 @@ const LeafItem = ({
 	taskById,
 	progressMap,
 	userId,
+	balancePriority,
 	onEdit,
 	onDelete,
 	onEditDependencies,
@@ -78,7 +88,11 @@ const LeafItem = ({
 	const isDone = task?.status === TaskStatus.Done;
 	const doneToggleLabel = isDone ? 'Wieder öffnen' : 'Erledigt';
 	const priority = task?.priority ?? 1;
-	const priorityBadgeInfo = priorityBadge(priority);
+	// #1220: Im Balance-Modus zeigt das Badge die virtuelle Priorität (~P{n}, eigene Farbe nach
+	// Stufe) statt der Server-Prio — unterscheidbar per Tilde-Präfix, nie nur per Farbe (KI-UX).
+	const priorityBadgeInfo = priorityBadge(balancePriority?.virtualPriority ?? priority);
+	const priorityBadgeLabel =
+		balancePriority != null ? virtualPriorityLabel(balancePriority.virtualPriority) : priorityBadgeInfo.label;
 	// #1213: Ersteller-Sicht auf eine abgegebene Aufgabe — lesbar, aber ohne Schreibrechte (AK5).
 	// Die Aktionen werden ausgeblendet statt anklickbar angeboten, sonst endet jede Aktion in 404.
 	const handedOff = task?.forUserId != null;
@@ -126,7 +140,7 @@ const LeafItem = ({
 						)}
 						{task !== null && (
 							<KolBadge
-								_label={priorityBadgeInfo.label}
+								_label={priorityBadgeLabel}
 								_color={priorityColor}
 								className="task-tree-badge task-tree-badge--priority"
 							/>
@@ -243,11 +257,21 @@ export const TaskTree = ({
 	onEditDependencies,
 	onAddSubtask,
 	onDoneToggle,
+	balancePriorities = null,
 }: TaskTreeProps) => {
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 
 	// Anzuzeigende Blatt-Aufgaben aus dem originalen `/forest`-Wald extrahieren (nicht invertieren).
 	const leaves = extractLeaves(forest);
+	// #1220: Im Balance-Modus ersetzt die virtuelle Balance-Priorität die Wertbeitrags-Sortierung;
+	// die Original-`priority` bleibt als Sekundärkriterium erhalten (Spec, Abschnitt Rechenkern).
+	const visibleLeaves =
+		balancePriorities !== null && balancePriorities.size > 0
+			? sortTasksByBalance(
+					leaves.map((node) => ({ ...node, priority: taskById.get(node.id)?.priority ?? 1 })),
+					balancePriorities,
+				)
+			: leaves;
 
 	if (leaves.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
@@ -255,13 +279,14 @@ export const TaskTree = ({
 
 	return (
 		<ul className="task-list" data-testid="task-list">
-			{leaves.map((node) => (
+			{visibleLeaves.map((node) => (
 				<LeafItem
 					key={node.id}
 					node={node}
 					taskById={taskById}
 					progressMap={progressMap}
 					userId={userId}
+					balancePriority={balancePriorities?.get(node.id) ?? null}
 					onEdit={onEdit}
 					onDelete={onDelete}
 					onEditDependencies={onEditDependencies}
