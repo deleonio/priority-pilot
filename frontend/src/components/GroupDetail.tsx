@@ -1,8 +1,9 @@
 import { KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
 import type { GroupInvitation, GroupMember, UserSearchHit } from 'client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { Modal } from './Modal';
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (KI-UX #1211). */
 const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
@@ -30,6 +31,10 @@ export const GroupDetail = ({ groupId, ownRole }: GroupDetailProps) => {
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState('');
 	const [hits, setHits] = useState<UserSearchHit[] | null>(null);
+	// Mitglied, dessen Entfernung noch bestätigt werden muss (null = kein Dialog offen).
+	const [pendingRemoval, setPendingRemoval] = useState<GroupMember | null>(null);
+	// Initialfokus im Bestätigungsdialog: „Abbrechen" (#472 — destruktive Aktion nicht per Enter).
+	const cancelRemoveRef = useRef<HTMLKolButtonElement>(null);
 
 	const load = useCallback(async (): Promise<void> => {
 		try {
@@ -78,6 +83,7 @@ export const GroupDetail = ({ groupId, ownRole }: GroupDetailProps) => {
 	};
 
 	const handleRemove = async (userId: number): Promise<void> => {
+		setPendingRemoval(null);
 		try {
 			await api.removeGroupMember({ id: groupId, userId });
 			await load();
@@ -106,11 +112,7 @@ export const GroupDetail = ({ groupId, ownRole }: GroupDetailProps) => {
 								<span className="group-member-name">{member.displayName}</span>
 								<KolBadge _label={roleLabel(member.role)} />
 								{ownRole === 'admin' && (
-									<KolButton
-										_label="Entfernen"
-										_variant="danger"
-										_on={{ onClick: () => void handleRemove(member.userId) }}
-									/>
+									<KolButton _label="Entfernen" _variant="danger" _on={{ onClick: () => setPendingRemoval(member) }} />
 								)}
 							</li>
 						))}
@@ -157,6 +159,31 @@ export const GroupDetail = ({ groupId, ownRole }: GroupDetailProps) => {
 						</section>
 					)}
 				</>
+			)}
+			{pendingRemoval !== null && (
+				<Modal
+					title="Mitglied entfernen"
+					onClose={() => setPendingRemoval(null)}
+					initialFocusRef={cancelRemoveRef as RefObject<HTMLElement | null>}
+				>
+					<p>
+						Willst du <strong>„{pendingRemoval.displayName}“</strong> wirklich aus der Gruppe entfernen? Die Person
+						verliert damit den Zugriff auf die Gruppe und ihre Inhalte.
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							ref={cancelRemoveRef}
+							_label="Abbrechen"
+							_variant="secondary"
+							_on={{ onClick: () => setPendingRemoval(null) }}
+						/>
+						<KolButton
+							_label="Entfernen"
+							_variant="danger"
+							_on={{ onClick: () => void handleRemove(pendingRemoval.userId) }}
+						/>
+					</div>
+				</Modal>
 			)}
 		</div>
 	);
