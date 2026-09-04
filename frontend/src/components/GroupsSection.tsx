@@ -1,9 +1,10 @@
 import { KolAlert, KolBadge, KolButton, KolCard, KolHeading, KolSpin } from '@public-ui/react-v19';
-import type { Group } from 'client';
+import type { Group, ReceivedInvitation } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { GroupDeleteDialog } from './GroupDeleteDialog';
+import { GroupDetail } from './GroupDetail';
 import { GroupFormDialog } from './GroupFormDialog';
 
 type DialogState =
@@ -26,6 +27,10 @@ export const GroupsSection = () => {
 	const [groups, setGroups] = useState<Group[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
+	// Aufgeklappte Gruppe (#1212): Klick auf die Karte zeigt Mitglieder, Einladungen und die
+	// Nutzersuche direkt darunter — kein eigener Screen, damit die Sektion mobil eine Spalte bleibt.
+	const [openGroupId, setOpenGroupId] = useState<number | null>(null);
+	const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
 
 	// Fokus-Rückgabe nach dem Löschen: Der „Löschen“-Trigger fällt mit der Karte aus dem DOM —
 	// stabiler Container mit tabIndex={-1} als Fallback (PillarList-Muster).
@@ -43,9 +48,31 @@ export const GroupsSection = () => {
 		}
 	}, []);
 
+	const loadInvitations = useCallback(async (): Promise<void> => {
+		try {
+			const loaded = await api.listReceivedInvitations();
+			setInvitations(Array.isArray(loaded) ? loaded : []);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	}, []);
+
 	useEffect(() => {
 		void loadGroups();
-	}, [loadGroups]);
+		void loadInvitations();
+	}, [loadGroups, loadInvitations]);
+
+	/** Annehmen/Ablehnen einer empfangenen Einladung (#1212 AK6/AK7). */
+	const respondToInvitation = async (id: number, accept: boolean): Promise<void> => {
+		try {
+			await (accept ? api.acceptInvitation({ id }) : api.declineInvitation({ id }));
+			await Promise.all([loadInvitations(), loadGroups()]);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	};
 
 	const handleDialogClosed = (): void => {
 		setDialog({ kind: 'closed' });
@@ -68,6 +95,33 @@ export const GroupsSection = () => {
 				<KolAlert _type="error" _label="Gruppen konnten nicht geladen werden">
 					{error}
 				</KolAlert>
+			)}
+			{invitations.length > 0 && (
+				<section className="group-received-invitations">
+					<KolHeading _label="Einladungen" _level={3} />
+					<ul className="groups-items">
+						{invitations.map((invitation) => (
+							<li key={invitation.id} className="groups-item">
+								<div className="groups-info">
+									<KolHeading _label={invitation.groupName} _level={4} />
+									<p className="hint">{`Eingeladen von ${invitation.invitedByName}`}</p>
+								</div>
+								<div className="groups-actions">
+									<KolButton
+										_label="Annehmen"
+										_variant="primary"
+										_on={{ onClick: () => void respondToInvitation(invitation.id, true) }}
+									/>
+									<KolButton
+										_label="Ablehnen"
+										_variant="secondary"
+										_on={{ onClick: () => void respondToInvitation(invitation.id, false) }}
+									/>
+								</div>
+							</li>
+						))}
+					</ul>
+				</section>
 			)}
 			{groups === null ? (
 				<KolSpin _show _variant="cycle" _label="Gruppen werden geladen …" />
@@ -100,7 +154,11 @@ export const GroupsSection = () => {
 							{groups.map((group) => (
 								<li key={group.id} className="groups-item" data-group-id={group.id}>
 									<div className="groups-info">
-										<KolHeading _label={group.name} _level={3} />
+										<KolButton
+											_label={group.name}
+											_variant="tertiary"
+											_on={{ onClick: () => setOpenGroupId(openGroupId === group.id ? null : group.id) }}
+										/>
 										{group.description !== null && group.description !== '' && (
 											<p className="hint groups-description">{group.description}</p>
 										)}
@@ -124,6 +182,7 @@ export const GroupsSection = () => {
 											/>
 										</div>
 									)}
+									{openGroupId === group.id && <GroupDetail groupId={group.id} ownRole={group.role} />}
 								</li>
 							))}
 						</ul>
