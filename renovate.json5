@@ -63,15 +63,26 @@
 			matchStrings: ['"(?:source"\\s*:\\s*")?npm:(?<depName>@?[^"@]+)@(?<currentValue>[^"]+)"'],
 			datasourceTemplate: 'npm',
 		},
+		{
+			// pi-CLI-Pin in setup-pi: einziger Dependency-Stand ohne eingebauten Manager — der Pin
+			// steckt im Input-Default der Composite-Action, kein `uses:`-Ref (GitHub-Actions-Manager
+			// greift nicht) und keine settings.json. Der `# pi pin`-Marker hinter dem Default hält
+			// die Regex exakt auf diese Zeile (die Datei enthaelt weitere Versions-Defaults).
+			customType: 'regex',
+			managerFilePatterns: ['.github/actions/setup-pi/action.yml'],
+			matchStrings: ["default: '(?<currentValue>\\d+\\.\\d+\\.\\d+)' # pi pin"],
+			depNameTemplate: '@earendil-works/pi-coding-agent',
+			datasourceTemplate: 'npm',
+		},
 	],
 
 	packageRules: [
 		{
-			// pi-Erweiterungen als eigene Gruppe, ohne Automerge: Sie ändern das VERHALTEN des
-			// Agenten (Subagents, MCP, LSP), nicht nur Bibliothekscode — ein stiller Merge
-			// verschöbe die Messbasis zwischen zwei Pipeline-Läufen.
-			matchFileNames: ['.pi/settings.json'],
-			groupName: 'pi-Erweiterungen',
+			// pi gesammelt (CLI + Erweiterungen) als eigene Gruppe, ohne Automerge: Beide aendern das
+			// VERHALTEN des Agenten (Runtime, Subagents, MCP, LSP), nicht nur Bibliothekscode — ein
+			// stiller Merge verschöbe die Messbasis zwischen zwei Pipeline-Laeufen.
+			matchFileNames: ['.pi/settings.json', '.github/actions/setup-pi/action.yml'],
+			groupName: 'pi (CLI + Erweiterungen)',
 			automerge: false,
 			labels: ['dependencies', 'pi'],
 		},

@@ -5,14 +5,20 @@ name: Turn-Übersicht
 # dieselben Daten token-/USD-primär zeigt. Die Abos rechnen nach Prompts/Turns ab, deshalb
 # gibt es beide Blickwinkel getrennt (Issue #1197).
 #
-# WARUM NUR MANUELL: wie bei der Kosten-Übersicht eine Momentaufnahme für den Menschen
-# („wie viele Prompts kostet ein Ticket, welche Phase schleift") — ein schedule würde nur
-# Runner verbrennen. Beim lokalen Blick reicht:
+# WARUM WOCHENTLICHER CRON: das Turn-Budget (ca. 8000 Prompts/Woche) ist 2026-09 erstmals
+# gerissen worden, ohne dass es jemand sah — die Übersicht muss regelmäßig von selbst
+# erscheinen, nicht nur auf Klick. Montagfrüh (06:43 UTC, 08:43 MESZ): die Zahlen der
+# Vorwoche sind komplett versiegelt, die neue Woche läuft noch nicht heiß. Der Lauf ist
+# read-only und fertig in ~1 min — das „Runner verbrennen“ des reinen Manuell-Betriebs
+# (Issue #1197) wog nur bei täglichem Schedule; weekly ist es Budget-Monitoring.
+# Der manuelle Dispatch bleibt für Zwischendurch-Blicke. Lokal geht weiterhin:
 #   node .github/scripts/turns-report.ts --dir .costs
 #
 # NUR LESEND: kein Label, kein Kommentar, kein Commit.
 
 on:
+  schedule:
+    - cron: '43 6 * * 1' # montags 06:43 UTC
   workflow_dispatch: {}
 
 permissions:
