@@ -86,11 +86,13 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			await page.getByRole('button', { name: 'Einladen' }).click();
 			await expect(page.getByText('Ausstehend')).toBeVisible();
 
-			// Eingeladene Person nimmt an.
+			// Eingeladene Person nimmt an. Auf den Einladungs-Abschnitt gescoped: nach dem Annehmen
+			// steht der Gruppenname weiterhin auf der Seite — dann aber als eigene Gruppe.
 			await openGroupsTab(inviteePage);
-			await expect(inviteePage.getByText('E2E Mitgliedschaft')).toBeVisible();
+			const receivedInvitations = inviteePage.locator('.group-received-invitations');
+			await expect(receivedInvitations.getByText('E2E Mitgliedschaft')).toBeVisible();
 			await inviteePage.getByRole('button', { name: 'Annehmen' }).click();
-			await expect(inviteePage.getByText('E2E Mitgliedschaft')).toBeHidden();
+			await expect(receivedInvitations.getByText('E2E Mitgliedschaft')).toBeHidden();
 
 			// Admin sieht die neue Person jetzt als Mitglied (nicht mehr „Ausstehend").
 			await page.reload();
@@ -99,11 +101,14 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			await expect(page.getByText('Ines Eingeladen')).toBeVisible();
 			await expect(page.getByText('Ausstehend')).toBeHidden();
 
-			// Admin entfernt die Person wieder (AK9).
-			const memberRow = page.getByRole('listitem').filter({ hasText: 'Ines Eingeladen' });
+			// Admin entfernt die Person wieder (AK9). Auf die Mitgliederliste gescoped: die
+			// aufgeklappte Gruppenkarte ist selbst ein listitem und enthält den Namen ebenfalls.
+			const memberRow = page.locator('.group-members').getByRole('listitem').filter({ hasText: 'Ines Eingeladen' });
 			await memberRow.getByRole('button', { name: 'Entfernen' }).click();
 			await page.locator('kol-dialog').getByRole('button', { name: 'Entfernen', exact: true }).click();
-			await expect(page.getByText('Ines Eingeladen')).toBeHidden();
+			// Auf die Mitgliederliste gescoped: der schließende Bestätigungsdialog trägt den Namen
+			// ebenfalls, ein seitenweiter Texttreffer wäre kurzzeitig doppelt (strict mode).
+			await expect(page.locator('.group-members').getByText('Ines Eingeladen')).toBeHidden();
 		} finally {
 			await inviteeContext.close();
 		}
@@ -127,7 +132,8 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			375,
 		);
 
-		const memberRow = page.getByRole('listitem').first();
+		// Gemessen wird die Mitgliederzeile, nicht die umschließende Gruppenkarte (auch ein listitem).
+		const memberRow = page.locator('.group-members').getByRole('listitem').first();
 		const memberBox = await memberRow.boundingBox();
 		expect(memberBox).not.toBeNull();
 		expect(memberBox!.x + memberBox!.width, 'Mitgliederzeile ragt nicht über den Viewport hinaus').toBeLessThanOrEqual(

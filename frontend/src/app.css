@@ -1258,6 +1258,12 @@ body {
 	color: var(--pp-ink);
 }
 
+/* Aufklappbare Gruppenkarte (#1212): der Zeiger zeigt an, dass die ganze Karte das Detail
+   öffnet — die Einladungskarten oben tragen die Klasse bewusst nicht. */
+.groups-item--expandable {
+	cursor: pointer;
+}
+
 .groups-info {
 	flex: 1 1 16rem;
 	min-width: 0;

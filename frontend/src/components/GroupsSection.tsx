@@ -152,7 +152,26 @@ export const GroupsSection = () => {
 					) : (
 						<ul className="groups-items">
 							{groups.map((group) => (
-								<li key={group.id} className="groups-item" data-group-id={group.id}>
+								<li
+									key={group.id}
+									className="groups-item groups-item--expandable"
+									data-group-id={group.id}
+									// Ganze Karte klickbar (#1212): der Namens-Button allein deckt nur einen schmalen
+									// Streifen ab, ein Klick daneben (die Karte ist `space-between`, dazwischen liegt
+									// eine Lücke) blieb wirkungslos. Der Guard nimmt Bedienelemente und das bereits
+									// aufgeklappte Detail aus — sonst klappte jeder Klick auf „Einladen"/„Entfernen"
+									// oder ins Suchfeld die Ansicht wieder zu. Tastaturpfad bleibt der Namens-Button.
+									onClick={(event) => {
+										if (
+											(event.target as HTMLElement).closest(
+												'.group-detail, kol-button, kol-input-text, kol-dialog, button, a, input',
+											) !== null
+										) {
+											return;
+										}
+										setOpenGroupId(openGroupId === group.id ? null : group.id);
+									}}
+								>
 									<div className="groups-info">
 										<KolButton
 											_label={group.name}

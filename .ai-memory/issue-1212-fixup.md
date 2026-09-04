@@ -1,44 +1,90 @@
-# Issue 1212 — Fixup zu PR #1215 (Runde 1 + Crash-Nachbereitung + Runde-3-Abbruch), Stand 2026-09-04
+# Issue 1212 — Fixup zu PR #1215, Stand 2026-09-04
 
-## Runde 3 — ABGEBROCHEN (Soft-Deadline, KEIN Fix)
-- Lauf startete ~200 s vor Soft-Deadline 1788520944 → kein Fix, kein Gate, kein Push von Code. Nur diese Notiz.
-- Mentor-Rat (VERBINDLICH für die nächste Runde, ursprünglich in Auto-Memory `mentor-advice-1215-runde3.md`, hier gesichert):
-  - **Ursache E2E-Rot (Finding #2):** Klick aufs listitem (spec:51/82/120) trifft das li-Zentrum, das bei `space-between` in der Lücke zwischen `.groups-info` und `.groups-actions` liegt — `openGroupId` wird nie gesetzt, GroupDetail klappt nie auf, deshalb wird `getByRole('searchbox')` nie gefunden. Beleg: error-context.md-Snapshot im Playwright-Artifact von Run 33845823342 (`playwright-report-shard-1`). KI-ANALYSE will „Karte klickbar → Detail aufklappen"; Implementierung liefert das nicht.
-  - **Weg:** 1) `frontend/src/components/GroupsSection.tsx:155` am `<li className="groups-item">` ergänzen: `onClick={(e) => { if ((e.target as HTMLElement).closest('button, a, input, kol-dialog')) return; setOpenGroupId(openGroupId === group.id ? null : group.id); }}` (Guard hält Bearbeiten/Löschen/Suchfeld/Entfernen vom Zuklappen fern; Namens-Button Z. 157-161 bleibt Tastatur-Pfad). 2) `frontend/src/app.css:1248` (`.groups-item`) `cursor: pointer;` ergänzen. 3) `frontend/e2e/groups-invitations.spec.ts:130` `page.getByRole('listitem').first()` → `page.locator('li.group-member').first()` (nach dem Aufklappen ist das erste listitem die äußere Karte; AK12 misst die Mitgliederzeile). 4) Gate lokal (format/prettier/lint/knip/test) via gate-runner, committen, pushen — e2e validiert die CI (lokal braucht es Backend, nie lokal gelaufen). 5) Nach grünem e2e: Finding #2 in der ✅-Tabelle des ai-review-Kommentars UND des ai-fixup-decisions-Kommentars (ID 5539372480) nachweisen (Commit-Hash) + Review-Thread resolven.
-  - **Fallen:** Spec-Klicks NICHT auf den Namens-Button umschreiben (schwächt den ausführbaren Vertrag ab). Guard nicht weglassen (sonst klappt Entfernen/Einladen das Detail zu). Bei weiterem Rot: error-context.md aus dem Playwright-Artifact des NEUEN Runs lesen. Keinen alten Run rerunen (cancelt den neuen Run).
+## Runde 4 — Finding #2 behoben, e2e ERSTMALS LOKAL GRÜN
 
-## Nachbereitung Lauf 2 (Crash-Wiederanlauf, gleiche Runde)
-- Voriger Lauf crashte NACH Fix+Push (33be8aec) vor der Nachweis-Pflege. Dieser Lauf: ai-fixup-decisions-Kommentar erstellt (ID 5539372480, Marker `<!-- ai-fixup-decisions -->`), ✅-Tabelle mit Zeile für Finding #1/33be8aec gepflegt, Review-Thread PRRT_kwDONloM186fMFFR (GroupDetail.tsx:112) per GraphQL resolveReviewThread aufgelöst (isResolved:true verifiziert). Kein VERDICT (Fix-Commit bestimmt Fortschritt).
+### Ursache (bestätigt, nicht mehr vermutet)
 
-## Erledigt
-- Findings scoped gelesen: ai-review-Kommentar an Issue #1215 (1 Blocker + 1 Nit), `gh api .../pulls/1215/comments` (keine Inline-Threads), CI nicht rot gemeldet.
-- **Finding #1 (blocker) behoben**: `frontend/src/components/GroupDetail.tsx` — „Entfernen" löst nicht mehr direkt `handleRemove` aus, sondern setzt `pendingRemoval` (neuer State, Z. 35). Neuer Bestätigungsdialog via `Modal` (Z. 163-187): Titel „Mitglied entfernen", Text mit Anzeigename, Buttons „Abbrechen" (Initialfokus über `cancelRemoveRef`, #472) und „Entfernen" (`_variant="danger"`, ruft `handleRemove`). `handleRemove` schließt den Dialog zuerst (`setPendingRemoval(null)`, Z. 86), damit die 409-Meldung („letzter Administrator") wie bisher als `KolAlert` in der Detailansicht stehen bleibt.
-- Gate grün (delegiert an gate-runner): `pnpm format`, `prettier --check .`, `pnpm lint`, `pnpm knip`, `pnpm test` → alle exit 0, 274 Tests.
+`page.getByRole('listitem').…click()` trifft das Zentrum der Gruppenkarte. `.groups-item` ist
+`display:flex; justify-content:space-between` — dort liegt die Lücke zwischen `.groups-info` und
+`.groups-actions`, also das `li` selbst. Das `li` hatte keinen Klick-Handler; nur der Namens-Button
+schaltete `openGroupId`. Ergebnis: Detail klappte nie auf → `getByRole('searchbox')` lief 30 s ins
+Leere. Die Hypothese „KolInputText exponiert `role=searchbox` nicht" ist widerlegt — nach dem Fix
+findet Playwright die Searchbox sofort.
 
-## Relevante Stellen
-- `frontend/src/components/GroupDetail.tsx:35,37,86,115,163-187` — State, Fokus-Ref, Dialog-Rendering.
-- `frontend/e2e/groups-invitations.spec.ts:104-106` — der Vertrag: Klick auf „Entfernen" in der Mitgliederzeile, danach GENAU EIN Klick auf `kol-dialog` → `getByRole('button', {name:'Entfernen', exact:true})`, danach ist das Mitglied weg.
-- `frontend/src/components/GroupDeleteDialog.tsx` — zweistufiges Muster aus #1211 (Vorbild für Modal/Fokus, aber s. Annahmen).
-- `frontend/src/components/Modal.tsx` — `initialFocusRef` erwartet `RefObject<HTMLElement | null>`, deshalb der Cast beim `HTMLKolButtonElement`-Ref.
-- `docs/spec/issue-1212.md:54-55` — Frontend-Vertrag „sequenzielle Bestätigung".
+### Fix
 
-## Annahmen
-- **Einstufig statt zweistufig, bewusst**: `docs/spec/issue-1212.md:54` fordert das sequenzielle Muster (2 Schritte), der E2E-Test `groups-invitations.spec.ts:105` klickt aber genau EINEN Dialog-Button mit Namen exakt „Entfernen" und erwartet danach die Entfernung. Ein zweiter Schritt („Endgültig entfernen") würde diesen ausführbaren Vertrag brechen. Der ausführbare Test hat Vorrang; das Review-Finding verlangt „Bestätigungsschritt vor handleRemove", das ist erfüllt. Falls die Zweistufigkeit gewünscht ist, muss der E2E-Test mitgeändert werden — das wäre eine Entscheidung, keine reine Fixup-Korrektur.
-- Es gibt KEINEN Unit-Test zu Entfernen/Dialog in `frontend/src/components/GroupDetail.test.tsx` (grep auf `Entfernen|removeGroupMember|dialog` = 0 Treffer) → der Fix ist unit-seitig ungedeckt, E2E deckt ihn ab.
+- `frontend/src/components/GroupsSection.tsx` — `onClick` am `li.groups-item` mit Guard
+  (`closest('.group-detail, kol-button, kol-input-text, kol-dialog, button, a, input')`). Der Guard
+  ist zwingend: das Detail wird INNERHALB des `li` gerendert, ohne ihn klappte jeder Klick auf
+  „Einladen"/„Entfernen"/ins Suchfeld die Ansicht wieder zu. Web-Components zählen mit, weil das
+  Event-Target beim Verlassen des Shadow-DOM auf den Host (`kol-button`) retargeted wird —
+  `closest('button')` allein greift nicht. Tastaturpfad bleibt der Namens-Button.
+- `frontend/src/app.css` — neue Klasse `.groups-item--expandable { cursor: pointer }`. Bewusst nicht
+  auf `.groups-item` global: die Einladungskarten oben teilen sich die Klasse und sind nicht klickbar.
+- `frontend/e2e/groups-invitations.spec.ts` — drei Locator-Präzisierungen, alle wegen der
+  aufgeklappten Karte, die den gesuchten Text ein zweites Mal enthält (strict-mode-Verstöße, in
+  Playwright NICHT retrybar):
+  - `spec:107` „Ines Eingeladen ist weg" auf `.group-members` gescoped — der schließende
+    Bestätigungsdialog trägt den Namen in `<strong>` ebenfalls.
+  - `spec:93` „Einladung ist weg" auf `.group-received-invitations` gescoped — nach dem Annehmen
+    steht der Gruppenname weiter auf der Seite, nur eben als eigene Gruppe. Vorher ein echter Race
+    (bestand einmal, fiel im nächsten Lauf).
+  - `spec:103/130` Mitgliederzeile über `.group-members` statt `getByRole('listitem').first()` —
+    die umschließende Gruppenkarte ist selbst ein `listitem` und matcht sonst mit.
+  Die Klick-Zeilen (`getByRole('listitem').filter(...)`) blieben unangetastet: sie SIND der Vertrag
+  „Karte klickbar".
+- `frontend/src/components/GroupDetail.test.tsx` — Unit-Abdeckung für den Bestätigungsdialog aus
+  Runde 1 (Nit aus Finding #2): Dialog öffnet statt sofort zu entfernen, Bestätigen ruft
+  `removeGroupMember({id, userId})` und lädt neu, Abbrechen feuert keinen Request. `./Modal` wird
+  gemockt (Muster `DeleteTaskDialog.test.tsx`).
+
+### E2E lokal ausgeführt — so geht es in dieser Umgebung
+
+Bisher scheiterte jede Runde daran, dass e2e nie lokal lief. Es geht:
+Playwright startet Backend + Vite selbst (`webServer` in `playwright.config.ts`), nur der Browser
+fehlt — das Repo will Build 1234, vorinstalliert ist 1194 unter `/opt/pw-browsers/chromium`.
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` wird von Playwright ignoriert. Was funktioniert: eine
+temporäre Config unter `/tmp` (NICHT im Repo), die die echte importiert und überschreibt —
+`use.launchOptions.executablePath` auf `/opt/pw-browsers/chromium`, plus `cwd: <frontend>` an jedem
+`webServer`-Eintrag (sonst startet Playwright die Server im Config-Verzeichnis und bricht mit
+„Process from config.webServer exited early" ab).
+
+### Gate (alles lokal, alles grün)
+
+| Kommando                                          | Ergebnis                          |
+| ------------------------------------------------- | --------------------------------- |
+| `pnpm format` / `prettier --check .`              | exit 0                            |
+| `pnpm lint`                                       | exit 0                            |
+| `pnpm knip`                                       | exit 0                            |
+| `pnpm --filter server test`                       | 811 pass / 0 fail                 |
+| `pnpm --filter frontend test`                     | 530 pass (vorher 527, +3 neue)    |
+| e2e `groups-invitations.spec.ts` (AK1/AK6+AK9/AK12) | 3 passed — erstmals grün          |
+| e2e `groups.spec.ts` (#1211, Regressionsprobe)    | 6 passed                          |
+
+## Frühere Runden (Kurzfassung)
+
+- **Runde 1** — Finding #1 (blocker): „Entfernen" ohne Bestätigung. Behoben via `33be8aec`
+  (`pendingRemoval`-State + `Modal`, Initialfokus „Abbrechen" nach #472). Bewusst EINstufig statt
+  zweistufig wie `GroupDeleteDialog.tsx`: `spec:105` klickt genau EINEN Dialog-Button mit exakt
+  „Entfernen" — ein zweiter Schritt bräche den ausführbaren Vertrag. Thread
+  `PRRT_kwDONloM186fMFFR` aufgelöst, Nachweis im ai-fixup-decisions-Kommentar (ID 5539372480).
+- **Runde 2** — Crash-Nachbereitung (Kommentar + Thread-Auflösung nachgeholt).
+- **Runde 3** — am Soft-Deadline abgebrochen, kein Code. Die dort gesicherte Mentor-Diagnose
+  (li-Klick trifft die Lücke) hat sich als richtig erwiesen.
 
 ## Verworfen
-- Zweistufiger Dialog nach `GroupDeleteDialog.tsx` — bricht `groups-invitations.spec.ts:105` (nur ein Klick, exact „Entfernen"), s. Annahmen.
-- Nit „Selbst-Austritt für Nicht-Admins" (ai-review, Nits-Abschnitt) — nicht blockierend, kein AK verlangt es; Fixup fasst nur gemeldete Blocker an.
-- `fallbackFocusRef` am Modal — der Trigger-Button verschwindet zwar nach erfolgreichem Entfernen aus dem DOM, aber es gibt in `GroupDetail` kein stabiles Rücksprungziel; nicht Teil des Findings.
 
-## Offen
-- **CI e2e-Shard 1 ROT — KEINE Regression aus 33be8aec** (Run 33845823342/SHA 8953ad13; identische 3 Fehler bereits auf VOR-Fix-Head 4df8ee2b, Run 33844930295, e2e-Job 100934669920): `groups-invitations.spec.ts` AK1 (spec:44), AK6/AK9 (spec:59), AK12 (spec:114). Erstfehler spec:53 `getByRole('searchbox')` nie gefunden nach Klick auf Gruppen-Listitem (`locator.fill` 30s-Timeout) — GroupDetail-Ansicht rendert die Nutzersuche im E2E-Kontext nicht. Shards 2-4 + verify grün; Modal.tsx existiert, `_type="search"` steht in GroupDetail.tsx:137. Kein Rerun angesetzt (thematisch kernig, nicht fremd-flaky; MEMORY 2026-08-23: Rerun nach Push cancelt den neuen Run). Im ai-fixup-decisions-Kommentar (5539372480) als 🔴 dokumentiert.
-- E2E wurde lokal in keinem Lauf ausgeführt (Zeitbudget; braucht laufendes Backend).
-
-## Nächster Schritt
-- Mentor-Weg (Abschnitt „Runde 3" oben) exakt ausführen: GroupsSection.tsx:155 li-onClick mit Guard, app.css:1248 cursor, spec:130 Locator-Fix, Gate via gate-runner, commit+push, Nachweis Finding #2 in beiden ✅-Tabellen + Thread-Resolve. Vor Start Zeitfenster prüfen — diesmal früh anfangen, Deadlines stehen in der Prompt.
+- Spec-Klicks auf den Namens-Button umschreiben — schwächt den Vertrag „Karte klickbar" ab.
+- `cursor: pointer` global auf `.groups-item` — die nicht klickbaren Einladungskarten nutzen dieselbe
+  Klasse.
+- Nit „Selbst-Austritt für Nicht-Admins" (ai-review) — nicht blockierend, kein AK verlangt es.
 
 ## Fallstricke
-- Der Trigger-Button in der Mitgliederzeile heißt ebenfalls „Entfernen" — der E2E-Locator ist auf `kol-dialog` gescoped, in Unit-Tests wäre `getAllByRole` nötig.
-- `handleRemove` muss den Dialog VOR dem Request schließen, sonst überlagert das Modal die Fehler-`KolAlert` (409 letzter Admin).
-- `Modal` öffnet `KolDialog` imperativ beim Mount → Dialog nur bedingt rendern (`pendingRemoval !== null`), nicht per CSS verstecken.
+
+- Der Trigger-Button in der Mitgliederzeile heißt ebenso „Entfernen" wie der im Dialog — Unit-Tests
+  brauchen `within(row)` bzw. `within(getByTestId('modal'))`, e2e den `kol-dialog`-Scope.
+- `handleRemove` muss den Dialog VOR dem Request schließen, sonst überlagert das Modal die
+  Fehler-`KolAlert` (409 letzter Admin).
+- `Modal` öffnet `KolDialog` imperativ beim Mount → nur bedingt rendern, nie per CSS verstecken.
+- Strict-mode-Verstöße („resolved to 2 elements") werden von `expect(...).toBeHidden()` NICHT
+  wegretryt, auch wenn der Zustand eine Sekunde später stimmt. Immer scopen statt hoffen.
