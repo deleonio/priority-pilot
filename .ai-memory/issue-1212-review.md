@@ -1,37 +1,34 @@
-# Issue 1212 / PR #1215 — Review (Fixup-Nachweis Runde 3), Stand 2026-09-04T11:25Z
+# Issue 1212 / PR #1215 — Review (Fixup-Nachweis Runde 4, FINAL), Stand 2026-09-04T12:40Z
 
-**ERGEBNIS: VERDICT needs-fixup.** Fixup-Runde 3 brach vor Soft-Deadline ab, ohne Code-Fix (seit 33be8aec nur `.ai-memory`-Commits 7fde3bbf + 8692e7a7, per `git diff --stat` belegt). Claim-Checkliste unverändert (nur #1 → 33be8aec, Runde 2 verifiziert); Finding #2 ohne Claim-Zeile → offen. Sammelkommentar 5536676640 per PATCH aktualisiert (Diagnose + Fix-Pfad für #2 eingetragen). Titel CC-konform, kein Rename. Keine neuen Inline-Kommentare (#2 ist bereits an discussion_r3933346873 verankert, unverändert).
+**ERGEBNIS: VERDICT reviewed 🟢.** Der nach der menschlichen Übergabe (Fixup-Runden-Deckel, Bot-Kommentar 11:31:06Z) gepushte Commit 10b0d0ba „fix(groups): Gruppenkarte per Klick aufklappen" behebt Finding #2 vollständig und einzeln (sonst nur `.ai-memory/issue-1212-fixup.md`). Beide Blocker damit behoben (#1 → 33be8aec Runde 2, #2 → 10b0d0ba diese Runde), Rest-Nit bewusst offen. Sammelkommentar 5536676640 per PATCH aktualisiert (12:39:54Z): Status reviewed 🟢, #2 in ✅-Tabelle, Dialog-Test-Nit durchgestrichen, Review-Typ: Fixup-Nachweis. Titel CC-konform („feat(server): add group invitations and membership management", passt zu Type/Scope-Hint), kein Rename.
 
 ## Erledigt
-- MODE: `<!-- ai-review -->` vorhanden (5536676640) → Fixup-Verifikation Runde 3.
-- Delta seit letztem Review: `git log 33be8aec..8692e7a7 --stat` + `git diff --stat` → NUR `.ai-memory/issue-1212-{fixup,fixup-decisions,review}.md` → kein Code, nichts neu zu reviewen.
-- Fixup-Notiz `issue-1212-fixup.md` gelesen: Runde-3-Abbruch dokumentiert + verbindlicher Mentor-Fix-Pfad für #2 (li-onClick mit Guard, cursor:pointer, spec:130 Locator).
-- CI-Lage: Run 33865312018 (Head 7e22b99e) e2e-Shards alle **cancelled** (vom neueren Push verdrängt); aktueller Run 33867484069 (Head 8692e7a7) e2e pending — da seit 7e22b99e nur Memory-Commits, ist Rot persistierend (Spek-Datei des Fehlers unangetastet).
-- Sammelkommentar 5536676640 aktualisiert (11:25:03Z verifiziert): Status Runde 3, #1 in ✅-Tabelle (historisch), #2 offen mit Ursache (li-Klick trifft space-between-Lücke → openGroupId nie gesetzt, Playwright error-context Run 33845823342) + 3-Schritte-Fix-Pfad, Nits fortgeführt, Review-Typ: Fixup-Nachweis.
+- MODE: `<!-- ai-review -->` vorhanden → Fixup-Verifikation Runde 4.
+- Claim-Checkliste (`<!-- ai-fixup-decisions -->` 5539372480, stand 10:52Z) hat KEINE Zeile für #2 (Fixup-Lauf hatte vor Nachweis-Pflege abgedauft/Deckel erreicht) → stattdessen Delta-Review: einziger Code-Commit seit updatedAt 11:25Z ist 10b0d0ba; direkt gegen Finding #2 verifiziert.
+- 10b0d0ba geprüft (frontend/src/components/GroupsSection.tsx, app.css, groups-invitations.spec.ts, GroupDetail.test.tsx): Fix folgt exakt dem in Runde 3 vorgegebenen Pfad — onClick am li mit Guard `.group-detail, kol-button, kol-input-text, kol-dialog, button, a, input`; `cursor: pointer` nur auf neuer Klasse `.groups-item--expandable` (Einladungskarten teilen `.groups-item`, bleiben außen vor); Spec-Locators auf `.group-members`/`.group-received-invitations` gescopet, Klick-Zeilen unverändert (Vertrag nicht geschwächt).
+- Bonus: 3 neue GroupDetail-Unit-Tests decken den Bestätigungsdialog (öffnen statt entfernen, bestätigen, abbrechen) → Nit aus Runde 1 erledigt.
+- CI: alle Checks SUCCESS (e2e-Shards 1–4, verify, precheck); nur der laufende Review-Check pending. Keine neuen Probleme im Fix (Guard schließt Zuklappen-Falle und Shadow-DOM-Retargeting ein, Tastaturpfad bleibt der Namens-Button).
 
 ## Relevante Stellen
-- `frontend/src/components/GroupsSection.tsx:155` — `<li className="groups-item">`, Ziel des Fix-Schritts 1 (onClick + Guard gegen `button, a, input, kol-dialog`).
-- `frontend/src/app.css:1248` — `.groups-item`, Fix-Schritt 2 (`cursor: pointer`).
-- `frontend/e2e/groups-invitations.spec.ts:44,51,53,59,82,114,120,130` — rote AKs + Erstfehler + AK12-Locator-Fix (`.group-member`).
-- `.ai-memory/issue-1212-fixup.md` „Runde 3"-Abschnitt — der verbindliche Mentor-Weg für die nächste Fixup-Runde.
+- `frontend/src/components/GroupsSection.tsx` (~Z. 152–177) — li-onClick + Guard, Kern des Fixes.
+- `frontend/src/app.css` (~Z. 1261–1266) — `.groups-item--expandable { cursor: pointer; }`.
+- `frontend/e2e/groups-invitations.spec.ts:86-137` — gescopete Locators (Strict-Mode-Doppel-Treffer durch aufgeklappte Karte/Dialog).
+- `frontend/src/components/GroupDetail.test.tsx:99-156` — neue Dialog-Tests (Modal gemockt, `removeGroupMember` Spy).
 
 ## Annahmen
-- E2E-Rot persistiert auf 8692e7a7 (Run pending): seit dem letzten Rot-Befund nur Memory-Commits; Spek-Datei und Render-Pfad unangetastet.
+- CI-Grün auf Head (Merge-Commit) gilt für den Fix-Commit 10b0d0ba (alle Inhalts-Commits sind Vorfahren).
 - Runde-1-Grundbefund („Server-Logik solide") unverändert übernommen — MODE verbietet Neu-Kreuzverhör.
 
 ## Verworfen
-- Warten auf die pendingen e2e-Shards von Run 33867484069 — Ausgang durch Commit-Lage determiniert (Rot), Zeitlimit.
-- Neue Inline-Kommentare — #2 unverändert und bereits an discussion_r3933346873 verankert; Duplikat würde nur cluttern.
-- MEMORY.md-Eintrag — kein neues Fehlermuster (Abbruch-Ursache „zu spät gestartet" ist bereits im Fixup-Notiz-Fallstrich verankert).
+- Neue Inline-Kommentare — keine neuen Findings; #2-Thread discussion_r3933346873 bleibt historisch stehen.
+- MEMORY.md-Eintrag — kein neues Fehlermuster (Crash-Abbrüche des Fixup-Loops sind bereits in früheren Einträgen/Fallstricken verankert).
 
 ## Offen
-- Run 33867484069 e2e-Shards pending bei Verdict — falls wider Erwarten grün: #2 wäre verifiziert (ausgeschlossen, s. Annahmen).
+- -
 
 ## Nächster Schritt
-- Fixup-Runde 4 (Workflow): Mentor-Weg aus `issue-1212-fixup.md` „Runde 3" exakt ausführen (früh starten — letzter Abbruch war Zeitmangel), danach Nachweis in BEIDEN ✅-Tabellen (ai-review 5536676640 + ai-fixup-decisions 5539372480) + Thread PRRT-Diskussion r3933346873 resolven.
+- Workflow übernimmt (Labels/CI-Gate); PR #1215 ist inhaltlich fertig für `ai:ready-to-merge` sobald der Review-Check durchläuft.
 
 ## Fallstricke
-- Finding-Nummern stabil: #1 = Dialog (behoben), #2 = E2E-listitem/searchbox. Nits unverändert.
-- Sammelkommentar = genau EIN `<!-- ai-review -->` (5536676640), PATCH statt neu anlegen; Fixup-Decisions (5539372480) analog.
-- Labels nicht anfassen (Workflow). Keinen alten CI-Run rerunen (cancelt den neuen, MEMORY 2026-08-23).
-- Spec-Klicks NICHT auf den Namens-Button umschreiben — schwächt den ausführbaren Vertrag (AK „Karte klickbar → Detail aufklappen").
+- Falls der Mensch doch noch einen Fixup ordert: Nit „Selbst-Austritt für Nicht-Admins" ist bewusst NICHT beauftragt (kein AK).
+- Die `<!-- ai-fixup-decisions -->`-Checkliste (5539372480) bleibt für #2 ohne Zeile — Beleg lebt im ai-review-Kommentar; nicht als Widerspruch werten.
