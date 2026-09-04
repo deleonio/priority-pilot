@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuickCaptureModal } from './QuickCaptureModal';
@@ -51,5 +51,87 @@ describe('QuickCaptureModal — Vorbelegung per initialText (#327)', () => {
 		const { container } = render(<QuickCaptureModal {...props} />);
 
 		expect(isDisabled(processButton(container))).toBe(true);
+	});
+});
+
+// ── #1213 (AK7): Empfängerauswahl auch in der Schnellerfassung ───────────────────────────────
+
+/**
+ * Rote Spec-Tests für #1213 (AK7, docs/spec/issue-1213.md): Die Schnellerfassung führt bekanntlich
+ * in dasselbe TaskForm — nach „Überspringen" muss dort die Empfängerauswahl erscheinen, wenn der
+ * Nutzer in mindestens einer Gruppe ist, und mit dem eigenen Konto vorbelegt sein.
+ *
+ * Ebene: wie die TaskForm-Tests von #1213 gemockte API (`api.listGroups`/`api.getGroupMembers`)
+ * plus Stub des rohen `GET /api/v1/auth/me` (checkAuth). KoliBri bleibt hier ungemockt (Stil der
+ * bestehenden Tests dieser Datei): Custom Elements sind in jsdom inaktiv, Props liegen als
+ * Eigenschaften am Host-Element (`_options`, `_value`).
+ */
+vi.mock('../api', () => ({
+	api: {
+		listGroups: vi.fn(),
+		getGroupMembers: vi.fn(),
+		parseText: vi.fn(),
+		createTask: vi.fn(),
+		updateTask: vi.fn(),
+		createSeries: vi.fn(),
+		updateSeries: vi.fn(),
+		suggestPillars: vi.fn().mockResolvedValue([]),
+		geocodeSearch: vi.fn().mockResolvedValue([]),
+	},
+}));
+
+import { api } from '../api';
+
+const mockListGroups = api.listGroups as ReturnType<typeof vi.fn>;
+const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
+
+describe('QuickCaptureModal — Empfängerauswahl im Formular-Schritt (#1213 AK7)', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+		vi.unstubAllGlobals();
+		cleanup();
+	});
+
+	it('zeigt nach „Überspringen" die Empfängerauswahl mit eigenem Konto vorbelegt', async () => {
+		mockListGroups.mockResolvedValue([{ id: 5, name: 'QCM Gruppe', description: null, role: 'admin', memberCount: 2 }]);
+		mockGetGroupMembers.mockResolvedValue([
+			{ userId: 1, displayName: 'Quin Schnell', role: 'admin' },
+			{ userId: 2, displayName: 'Rita Rat', role: 'member' },
+		]);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				if (String(input).includes('/auth/me')) {
+					return new Response(
+						JSON.stringify({ id: 1, displayName: 'Quin Schnell', email: 'q@example.com', avatarUrl: null }),
+						{ status: 200 },
+					);
+				}
+				return new Response('{}', { status: 404 });
+			}),
+		);
+
+		const { container } = render(<QuickCaptureModal {...{ pillars, onClose: vi.fn(), onSaved: vi.fn() }} />);
+
+		// „Überspringen": KoliBri ist hier ungemockt und in jsdom inaktiv (kein Shadow-DOM, keine
+		// Rolle) — der Click-Handler liegt als `_on`-Eigenschaft am Host und wird direkt gerufen.
+		const skipButton = [...container.querySelectorAll('kol-button')].find(
+			(el) => el.getAttribute('_label') === 'Überspringen',
+		);
+		expect(skipButton, '„Überspringen"-Button muss im Capture-Schritt gerendert werden').toBeTruthy();
+		await act(async () => {
+			(skipButton as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+
+		const select = container.querySelector('kol-single-select[_label="Empfänger"]');
+		expect(select, 'Empfänger-Auswahl muss im Formular-Schritt gerendert werden').toBeTruthy();
+
+		const options = (select as unknown as { _options?: { label: string; value: string }[] })._options ?? [];
+		expect(options.map((option) => option.label)).toContain('Rita Rat');
+
+		// Vorbelegung: eigenes Konto (id 1 aus /auth/me).
+		expect(String((select as unknown as { _value?: unknown })._value)).toBe('1');
 	});
 });

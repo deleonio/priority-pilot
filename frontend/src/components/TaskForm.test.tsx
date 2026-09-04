@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { Pillar, Series, SeriesRhythm, Task } from 'client';
+import type { Group, GroupMember, Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -179,6 +179,10 @@ vi.mock('../api', () => ({
 		updateSeries: vi.fn(),
 		parseText: vi.fn(),
 		geocodeSearch: vi.fn().mockResolvedValue([]),
+		// #1213: Empfängerauswahl — Gruppen + Mitglieder (leere Defaults, damit bestehende
+		// Tests dieser Datei die (noch nicht existierende) Gruppen-Abfrage nicht mitreißt).
+		listGroups: vi.fn().mockResolvedValue([]),
+		getGroupMembers: vi.fn().mockResolvedValue([]),
 	},
 }));
 
@@ -204,6 +208,8 @@ const mockUpdateTask = api.updateTask as ReturnType<typeof vi.fn>;
 const mockCreateSeries = api.createSeries as ReturnType<typeof vi.fn>;
 const mockUpdateSeries = api.updateSeries as ReturnType<typeof vi.fn>;
 const mockGeocodeSearch = api.geocodeSearch as ReturnType<typeof vi.fn>;
+const mockListGroups = api.listGroups as ReturnType<typeof vi.fn>;
+const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
 
 // --- Fixtures ---
 
@@ -1785,5 +1791,76 @@ describe('TaskForm — Serien-Kaskade-Bestätigung beim Bearbeiten (#553)', () =
 		await clickSaveEdit();
 
 		expect(screen.queryByTestId('confirm-series-modal')).toBeNull();
+	});
+});
+
+// ── #1213 (AK7): Empfängerauswahl nur mit Gruppe, vorbelegt mit dem eigenen Konto ────────────
+
+/**
+ * Rote Spec-Tests für #1213 (AK7, docs/spec/issue-1213.md): Im Formular „Neue Aufgabe" erscheint
+ * die Empfängerauswahl (`KolSingleSelect`, Label „Empfänger") NUR, wenn der Nutzer in mindestens
+ * einer Gruppe ist, und ist dann mit dem eigenen Konto vorbelegt.
+ *
+ * Datenquellen laut Spec: `api.listGroups` + `api.getGroupMembers` (gemockt) sowie das eigene
+ * Konto aus `GET /auth/me` (`checkAuth`, lib/auth.ts — roher fetch, daher hier gestubbt).
+ * Rot, solange TaskForm keine Empfängerauswahl rendert.
+ */
+describe('TaskForm — Empfängerauswahl (#1213 AK7)', () => {
+	const ownUser = { id: 1, displayName: 'Alex Selbst', email: 'alex@example.com', avatarUrl: null };
+	const groups: Group[] = [{ id: 5, name: 'E2E Gruppe', description: null, role: 'admin', memberCount: 2 }];
+	const members: GroupMember[] = [
+		{ userId: 1, displayName: 'Alex Selbst', role: 'admin' },
+		{ userId: 2, displayName: 'Bobi Anderes', role: 'member' },
+	];
+
+	/** Stubbt den rohen fetch von checkAuth (`GET /api/v1/auth/me`) auf das eigene Konto. */
+	const stubAuthMe = (): void => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				if (String(input).includes('/auth/me')) {
+					return new Response(JSON.stringify(ownUser), { status: 200 });
+				}
+				return new Response('{}', { status: 404 });
+			}),
+		);
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('AK7 — mit Gruppe: „Empfänger"-Auswahl sichtbar, Optionen = Mitglieder, eigenes Konto vorausgewählt', async () => {
+		mockListGroups.mockResolvedValue(groups);
+		mockGetGroupMembers.mockResolvedValue(members);
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const select = await screen.findByTestId('select-Empfänger');
+		expect(select).toBeTruthy();
+
+		// Optionen: beide Gruppenmitglieder; Person aus mehreren Gruppen nur einmal (KI-UX).
+		const optionLabels = [...select.querySelectorAll('option')].map((option) => option.textContent);
+		expect(optionLabels).toContain('Alex Selbst');
+		expect(optionLabels).toContain('Bobi Anderes');
+
+		// Vorbelegung: eigenes Konto (Anzeigename des ausgewählten Eintrags).
+		const selectElement = select as HTMLSelectElement;
+		const selected = selectElement.querySelector('option[selected]') ?? selectElement.selectedOptions[0];
+		expect(selected?.textContent).toBe('Alex Selbst');
+	});
+
+	it('AK7 — ohne Gruppe: keine Empfängerauswahl sichtbar (bisheriger Flow unverändert)', async () => {
+		mockListGroups.mockResolvedValue([]);
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(screen.queryByTestId('select-Empfänger')).toBeNull();
 	});
 });
