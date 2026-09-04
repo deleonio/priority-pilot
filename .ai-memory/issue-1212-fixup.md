@@ -1,4 +1,7 @@
-# Issue 1212 — Fixup zu PR #1215 (Runde 1), Stand 2026-09-04
+# Issue 1212 — Fixup zu PR #1215 (Runde 1 + Crash-Nachbereitung), Stand 2026-09-04
+
+## Nachbereitung Lauf 2 (Crash-Wiederanlauf, gleiche Runde)
+- Voriger Lauf crashte NACH Fix+Push (33be8aec) vor der Nachweis-Pflege. Dieser Lauf: ai-fixup-decisions-Kommentar erstellt (ID 5539372480, Marker `<!-- ai-fixup-decisions -->`), ✅-Tabelle mit Zeile für Finding #1/33be8aec gepflegt, Review-Thread PRRT_kwDONloM186fMFFR (GroupDetail.tsx:112) per GraphQL resolveReviewThread aufgelöst (isResolved:true verifiziert). Kein VERDICT (Fix-Commit bestimmt Fortschritt).
 
 ## Erledigt
 - Findings scoped gelesen: ai-review-Kommentar an Issue #1215 (1 Blocker + 1 Nit), `gh api .../pulls/1215/comments` (keine Inline-Threads), CI nicht rot gemeldet.
@@ -22,10 +25,11 @@
 - `fallbackFocusRef` am Modal — der Trigger-Button verschwindet zwar nach erfolgreichem Entfernen aus dem DOM, aber es gibt in `GroupDetail` kein stabiles Rücksprungziel; nicht Teil des Findings.
 
 ## Offen
-- E2E wurde in diesem Lauf nicht ausgeführt (Zeitbudget; braucht laufendes Backend). Der Dialog ist gegen den erwarteten Selektor gebaut (`kol-dialog` kommt aus `Modal`/`KolDialog`, Button-Label exakt „Entfernen").
+- **CI e2e-Shard 1 ROT** (Run 33845823342, SHA 8953ad13, kein Rerun ausgeführt): 3 Fehler in `frontend/e2e/groups-invitations.spec.ts` — AK1 (spec:44), AK6/AK9 (spec:59), AK12 (spec:114). Erstfehler: spec:53 `getByRole('searchbox')` nie gefunden nach Klick auf Gruppen-Listitem (`locator.fill` 30s-Timeout) — GroupDetail-Ansicht rendert die Suche scheinbar nicht. Shards 2-4 + verify grün; Modal.tsx existiert, `_type="search"` steht in GroupDetail.tsx:137. Ursache ungeklärt: Regression aus 33be8aec (Modal/Laufzeit) vs. Timing/Seed-Flake vs. bereits im Erststand. Im ai-fixup-decisions-Kommentar als 🔴 offener Punkt dokumentiert.
+- E2E wurde lokal in keinem Lauf ausgeführt (Zeitbudget; braucht laufendes Backend).
 
 ## Nächster Schritt
-- Folge-Review liest die ✅-Tabelle im ai-fixup-decisions-Kommentar; falls CI-E2E rot: Selektor/Label im Dialog gegen `groups-invitations.spec.ts:105` abgleichen.
+- e2e-Fehler analysieren: Log von Job 100937378234 komplett lesen (Kontext um 06:57:57Z), prüfen ob alle 3 Tests am selben Punkt (searchbox nach Listitem-Klick) sterben; vermutlich Rerun ODER Fix. Danach erst Folge-Review.
 
 ## Fallstricke
 - Der Trigger-Button in der Mitgliederzeile heißt ebenfalls „Entfernen" — der E2E-Locator ist auf `kol-dialog` gescoped, in Unit-Tests wäre `getAllByRole` nötig.
