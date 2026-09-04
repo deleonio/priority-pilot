@@ -175,8 +175,12 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 
 		// Klick auf „Ausbalancieren" stößt die Neuberechnung sichtbar an: Beide Defizite sind nun
 		// 0 → Sekundärkriterium Original-Prio → Y (P5) über X (P1).
+		// Test-Pflege (#1220, Impl-Phase): Der Klick lädt die Datenbasis neu (GET) und committet
+		// erst danach — ein einzelner Read unmittelbar nach dem Klick racet gegen den Netzwerk-
+		// Roundtrip und flakt. Geprüft bleibt dieselbe Aussage (Y über X), nur als erwartungsvoller
+		// Poll (Repo-Muster: PR #1079, MEMORY 2026-08-28).
 		await rebalanceButton(page).click();
-		expect(await yOf(page, taskY.id)).toBeLessThan(await yOf(page, taskX.id));
+		await expect.poll(async () => (await yOf(page, taskY.id)) < (await yOf(page, taskX.id))).toBe(true);
 
 		// KI-UX (WCAG 4.1.3): Die Umsortierung wird per aria-live ankündigt.
 		await expect(
