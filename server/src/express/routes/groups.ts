@@ -153,14 +153,24 @@ groupsRouter.patch('/groups/:id', async (req: Request, res: Response<GroupDto | 
 			return;
 		}
 		const body = (req.body ?? {}) as { name?: unknown; description?: unknown };
-		const name = validateName(body.name);
-		if (name === null) {
-			sendError(res, 400, `Der Gruppenname ist Pflicht und darf ${NAME_MAX_LENGTH} Zeichen nicht überschreiten.`);
-			return;
+		// PATCH-Vertrag (openapi.yml, GroupUpdate): alle Felder optional, abwesende Felder bleiben
+		// unverändert. `name` wird deshalb nur bei Anwesenheit validiert — der Frontend-Dialog
+		// sendet im Bearbeiten-Modus ausschließlich geänderte Felder, ein reines
+		// Beschreibungs-Edit ohne `name` muss daher 200 liefern (Review PR #1214, Finding 1).
+		const changes: { name?: string; description?: string | null } = {};
+		if (body.name !== undefined) {
+			const name = validateName(body.name);
+			if (name === null) {
+				sendError(res, 400, `Der Gruppenname ist Pflicht und darf ${NAME_MAX_LENGTH} Zeichen nicht überschreiten.`);
+				return;
+			}
+			changes.name = name;
 		}
-		const description =
-			typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
-		await found.group.update({ name, description });
+		if (body.description !== undefined) {
+			changes.description =
+				typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
+		}
+		await found.group.update(changes);
 		res.json(await toDto(found.group, found.role));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

@@ -83,6 +83,28 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		).toBe(false);
 	});
 
+	// ── AK6: Bearbeiten — nur geänderte Felder speichern (Review PR #1214, Finding 1) ──
+
+	test('Bearbeiten: nur geänderte Beschreibung speichern hält den Namen (AK6)', async ({ page }) => {
+		await openGroupsTab(page);
+		await createGroupViaUi(page, 'E2E Edit', 'Alte Beschreibung');
+
+		const card = page.getByRole('listitem').filter({ hasText: 'E2E Edit' });
+		await card.getByRole('button', { name: 'Bearbeiten' }).click();
+		await expect(page.getByRole('heading', { name: /Gruppe bearbeiten/ })).toBeVisible();
+		// Name-Feld unangetastet lassen: Der Dialog sendet nur geänderte Felder — ohne den
+		// serverseitigen GroupUpdate-Vertrag (alle Felder optional) schlägt genau das fehl.
+		await page.getByRole('textbox', { name: 'Beschreibung' }).fill('Neue Beschreibung');
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Gruppe bearbeiten/ })).toBeHidden();
+
+		// 'Gruppen' statt Default-'Dashboard' (gleiche Begründung wie in openGroupsTab).
+		await waitForStableView(page, 'Gruppen');
+		const updatedCard = page.getByRole('listitem').filter({ hasText: 'E2E Edit' });
+		await expect(updatedCard.getByText('Neue Beschreibung')).toBeVisible();
+		await expect(updatedCard.getByText('E2E Edit')).toBeVisible();
+	});
+
 	// ── AK7: Löschen mit sequenzieller Bestätigung ───────────────────────────────────
 
 	test('Löschen verlangt sequenzielle Bestätigung und entfernt die Gruppe (AK7)', async ({ page }) => {

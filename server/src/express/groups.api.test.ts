@@ -85,6 +85,43 @@ describe('Gruppen-API — Anlegen, Validierung, Löschen (#1211)', () => {
 		assert.equal(status, 201, '60 Zeichen sind noch gültig');
 	});
 
+	// ── PATCH: Teil-Update nach OpenAPI-Vertrag (GroupUpdate: alle Felder optional) ────
+
+	it('PATCH /groups/:id nur mit description → 200, Name unverändert (Review PR #1214, Finding 1)', async () => {
+		const { body: created } = await createGroup({ name: 'Familie Müller', description: 'Alte Beschreibung' });
+		const res = await fetch(`${server.baseUrl}/groups/${created.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ description: 'Neue Beschreibung' }),
+		});
+		assert.equal(res.status, 200, 'Beschreibungs-only-Edit ohne name muss laut GroupUpdate-Vertrag erlaubt sein');
+		const updated = (await res.json()) as GroupResponseBody;
+		assert.equal(updated.name, 'Familie Müller', 'abwesendes Feld name bleibt unverändert');
+		assert.equal(updated.description, 'Neue Beschreibung');
+	});
+
+	it('PATCH /groups/:id nur mit name → 200, Beschreibung unverändert; leerer name → 400 (AK4)', async () => {
+		const { body: created } = await createGroup({ name: 'Sport', description: 'Wandern und Rad' });
+		const res = await fetch(`${server.baseUrl}/groups/${created.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: 'Sport neu' }),
+		});
+		assert.equal(res.status, 200);
+		const updated = (await res.json()) as GroupResponseBody;
+		assert.equal(updated.name, 'Sport neu');
+		assert.equal(updated.description, 'Wandern und Rad', 'abwesendes Feld description bleibt unverändert');
+
+		// Angegebenes, aber ungültiges name-Feld wird weiterhin abgewiesen (Validierung greift
+		// nur bei Anwesenheit, nicht als Dummy durchgelassen).
+		const invalidRes = await fetch(`${server.baseUrl}/groups/${created.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: '   ' }),
+		});
+		assert.equal(invalidRes.status, 400, 'leerer Name bleibt 400');
+	});
+
 	// ── AK5: DELETE entfernt Gruppe inkl. Mitgliedschaften ────────────────────────────
 
 	it('DELETE /groups/:id entfernt Gruppe und Mitgliedschaften; GET danach → 404 (AK5)', async () => {
