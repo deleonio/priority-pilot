@@ -2255,97 +2255,282 @@ kol-heading {
 	justify-content: flex-end;
 }
 
-/* Dashboard HeartBalance Container */
-.dashboard-heart-balance {
-	width: 100%;
-	max-width: 280px;
-	margin: var(--pp-gap-base) auto 0;
+/* --- Herz der Startseite (Lebensbalance) --- */
+
+/*
+ * Das Herz ist das erste Bild des Dashboards und steht mittig. Die Grafik skaliert über ihre
+ * `viewBox` mit, die Breite begrenzt `max-width` — auf 375 px füllt sie die Karte, auf dem Desktop
+ * bleibt sie bei 20rem stehen, statt zur Plakatwand zu werden.
+ */
+.dashboard-heart {
+	display: block;
+	margin-top: var(--pp-gap-generous);
 }
 
-/* HeartBalance Component Styling */
 .heart-balance {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: var(--pp-gap-base);
-	padding: var(--pp-gap-base);
-	margin: var(--pp-gap-base) 0;
-	background-color: var(--pp-surface-1);
-	border-radius: var(--pp-radius-md);
-	box-shadow: var(--pp-shadow-card);
+}
+
+.heart-balance-stage {
+	width: 100%;
+	max-width: 20rem;
+	/*
+	 * Ruhepuls des Herzens — ein doppelter Schlag, wie ein echter. Die Dauer liefert die Komponente
+	 * als `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife, keine
+	 * Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms) beschreiben Übergänge auf eine
+	 * Nutzeraktion hin und passen hier bewusst nicht.
+	 */
+	animation: heart-beat var(--pp-heart-beat, 2s) var(--pp-ease) infinite;
+	transform-origin: 50% 60%;
 }
 
 .heart-balance-svg {
 	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
 }
 
-.heart-balance-outline {
-	transition: stroke var(--pp-motion-base) var(--pp-ease);
+/* Leeres Gefäß: eingesenkte Fläche, damit das Fehlende genauso ablesbar ist wie das Erreichte. */
+.heart-vessel {
+	fill: var(--pp-surface-2);
 }
 
-.heart-balance-fill {
-	transition:
-		height var(--pp-motion-base) var(--pp-ease),
-		y var(--pp-motion-base) var(--pp-ease);
+/* Kontur als Grenze eines bedeutungstragenden Elements — `border-strong` hält ≥ 3:1 (WCAG 1.4.11). */
+.heart-outline {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 2;
+	stroke-linejoin: round;
 }
 
-.heart-balance-wave {
-	transition: d var(--pp-motion-base) var(--pp-ease);
+/*
+ * Trennfuge zwischen zwei Wassersäulen: in Kartenfarbe, damit sie als Spalt liest, nicht als Linie —
+ * und bewusst zurückhaltend. Eine kräftige Fuge macht aus dem Wasser ein Balkendiagramm; die
+ * Segmente trennen sich ohnehin schon über ihre Farbe und ihren Pegel.
+ */
+.heart-seam {
+	stroke: var(--pp-surface-1);
+	stroke-width: 0.5;
+	opacity: 0.55;
 }
 
-.heart-balance-text {
-	fill: var(--pp-text);
-	transition: fill var(--pp-motion-base) var(--pp-ease);
+/*
+ * Wellenlauf: verschiebt die gekachelte Wellenfläche um genau eine Wellenlänge und läuft dadurch
+ * nahtlos in sich zurück. Den Versatz liefert die Komponente als `--pp-heart-wave-shift` aus
+ * derselben Konstante, aus der auch der Pfad gebaut ist — nur so bleibt die Kachelung sprungfrei.
+ * Reine Compositor-Bewegung: kein JavaScript-Frame-Loop, keine Re-Renders.
+ */
+.heart-wave {
+	animation: heart-wave-drift 7s linear infinite;
+	/* Leicht durchscheinend: das Gefäß darunter tönt mit, das Wasser wirkt flüssig statt lackiert. */
+	opacity: 0.9;
 }
 
-.heart-balance-label {
-	fill: var(--pp-text-muted);
-	transition: fill var(--pp-motion-base) var(--pp-ease);
+/* Hintere Welle: gegenläufig und blasser — sie schaut nur dort hervor, wo die vordere tiefer steht. */
+.heart-wave--back {
+	animation-direction: reverse;
+	opacity: 0.45;
 }
 
-.heart-balance-legend {
-	transition: opacity var(--pp-motion-base) var(--pp-ease);
+@keyframes heart-wave-drift {
+	from {
+		transform: translateX(0);
+	}
+
+	to {
+		transform: translateX(calc(var(--pp-heart-wave-shift, 16px) * -1));
+	}
 }
 
-.heart-balance-info {
+@keyframes heart-beat {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+
+	8% {
+		transform: scale(1.035);
+	}
+
+	17% {
+		transform: scale(1);
+	}
+
+	25% {
+		transform: scale(1.018);
+	}
+
+	34% {
+		transform: scale(1);
+	}
+}
+
+/*
+ * Bewegung ist Beiwerk: Umgebungs-Schleifen laufen nicht mit eigener Dauer weiter, wenn sie
+ * abbestellt sind. Ohne Animation steht die Wellenfläche auf `translateX(0)` und deckt die
+ * Wassersäule unverändert ab — das Bild bleibt vollständig, nur still.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.heart-balance-stage,
+	.heart-wave {
+		animation: none;
+	}
+}
+
+/*
+ * Wasserfarbe je Säule aus der kategorialen Rampe, der Reihe nach vergeben. Ohne Modifier bleibt
+ * das Segment neutral: ab der 9. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
+ */
+.heart-water {
+	fill: var(--pp-border-strong);
+}
+
+.heart-water--1 {
+	fill: var(--pp-pillar-1);
+}
+
+.heart-water--2 {
+	fill: var(--pp-pillar-2);
+}
+
+.heart-water--3 {
+	fill: var(--pp-pillar-3);
+}
+
+.heart-water--4 {
+	fill: var(--pp-pillar-4);
+}
+
+.heart-water--5 {
+	fill: var(--pp-pillar-5);
+}
+
+.heart-water--6 {
+	fill: var(--pp-pillar-6);
+}
+
+.heart-water--7 {
+	fill: var(--pp-pillar-7);
+}
+
+.heart-water--8 {
+	fill: var(--pp-pillar-8);
+}
+
+/* Ablesung unter dem Bild — die Zahl steht neben ihrer Bezugsgröße, nicht im Wasser. */
+.heart-balance-readout {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--pp-space-1);
 	text-align: center;
-	color: var(--pp-text-muted);
-	font-size: var(--pp-font-size-sm);
-	line-height: var(--pp-line-base);
 }
 
-.heart-balance-info strong {
-	color: var(--pp-text);
+.heart-balance-value {
+	font-size: var(--pp-font-size-2xl);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	color: var(--pp-ink);
+	font-variant-numeric: tabular-nums;
 }
 
-/* Dark mode adjustments for HeartBalance */
-:root[data-theme='dark'] .heart-balance {
-	background-color: var(--pp-surface-1);
-}
-
-:root[data-theme='dark'] .heart-balance-outline {
-	stroke: var(--pp-border-subtle);
-}
-
-:root[data-theme='dark'] .heart-balance-text {
-	fill: var(--pp-ink);
-}
-
-:root[data-theme='dark'] .heart-balance-label {
-	fill: var(--pp-ink-muted);
-}
-
-:root[data-theme='dark'] .heart-balance-info {
-	color: var(--pp-ink-muted);
-}
-
-:root[data-theme='dark'] .heart-balance-info strong {
+.heart-balance-state {
+	font-size: var(--pp-font-size-lg);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
 	color: var(--pp-ink);
 }
 
-/* Reduced motion: deactivate wave animation */
-@media (prefers-reduced-motion: reduce) {
-	.heart-balance-wave {
-		display: none;
-	}
+.heart-balance-hint {
+	font-size: var(--pp-font-size-sm);
+	line-height: var(--pp-line-base);
+	color: var(--pp-ink-muted);
+	max-width: 32ch;
+}
+
+/* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig). */
+.heart-balance-legend {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+/*
+ * Wird der Platz für Name und Wert nebeneinander zu knapp, rutscht der Wert in eine zweite Zeile,
+ * statt den Namen mitten im Wort umzubrechen — Säulennamen sind nutzerdefiniert und können lang
+ * sein, aber „Beziehunge/n" ist kein Umbruch, sondern ein Fehler.
+ */
+.heart-balance-legend-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--pp-gap-tight);
+	padding: var(--pp-space-2) 0;
+	border-bottom: 1px solid var(--pp-border-subtle);
+}
+
+.heart-balance-legend-row:last-child {
+	border-bottom: none;
+}
+
+.heart-balance-legend-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.heart-balance-legend-value {
+	flex: 0 0 auto;
+	margin-left: auto;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Farbtupfer der Legende — rein dekorativ (aria-hidden), der Name daneben trägt die Bedeutung. */
+.heart-legend-dot {
+	flex-shrink: 0;
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: var(--pp-radius-pill);
+	background: var(--pp-border-strong);
+	align-self: center;
+}
+
+.heart-legend-dot--1 {
+	background: var(--pp-pillar-1);
+}
+
+.heart-legend-dot--2 {
+	background: var(--pp-pillar-2);
+}
+
+.heart-legend-dot--3 {
+	background: var(--pp-pillar-3);
+}
+
+.heart-legend-dot--4 {
+	background: var(--pp-pillar-4);
+}
+
+.heart-legend-dot--5 {
+	background: var(--pp-pillar-5);
+}
+
+.heart-legend-dot--6 {
+	background: var(--pp-pillar-6);
+}
+
+.heart-legend-dot--7 {
+	background: var(--pp-pillar-7);
+}
+
+.heart-legend-dot--8 {
+	background: var(--pp-pillar-8);
 }

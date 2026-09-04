@@ -113,11 +113,13 @@ export const Dashboard = ({
 		return buildPillarSummaries(pillars, tasks, valueByTaskId);
 	}, [pillars, tasks, forest]);
 
-	// Gesamtguthaben (Gamification-Balance, §4.4): Punkte je Säule aus dem erledigten Aufwand,
-	// daraus Anteile und Gesamtstand ableiten. Tasks ohne Säulen-Zuweisung fließen gleichmäßig
-	// nach Säulen-Gewicht ein, damit erledigte Arbeit auch ohne explizite Säule sichtbar wird.
-	const pillarBalances = useMemo(() => {
-		const punkteProSaeule = new Map<number, number>(
+	// Punkte je Säule aus dem erledigten Aufwand (Gamification-Balance, §4.4). Tasks ohne
+	// Säulen-Zuweisung fließen gleichmäßig nach Säulen-Gewicht ein, damit erledigte Arbeit auch ohne
+	// explizite Säule sichtbar wird. Eigenes `useMemo`, weil zwei Widgets an derselben Punktequelle
+	// hängen — „Gesamtguthaben" (Anteile) und das Herz (Füllstand); eine je Render neu gebaute Map
+	// würde deren Memoisierung bei jedem Render wegwerfen.
+	const punkteProSaeule = useMemo(() => {
+		const punkte = new Map<number, number>(
 			pillarSummaries.map(({ pillar, doneEstimatedEffort }) => [pillar.id, doneEstimatedEffort]),
 		);
 		const totalWeight = pillars.reduce((sum, p) => sum + p.weight, 0);
@@ -125,14 +127,16 @@ export const Dashboard = ({
 			for (const task of tasks) {
 				if (task.status === TaskStatus.Done && task.pillars.length === 0) {
 					for (const pillar of pillars) {
-						const prev = punkteProSaeule.get(pillar.id) ?? 0;
-						punkteProSaeule.set(pillar.id, prev + task.estimatedEffort * (pillar.weight / totalWeight));
+						const prev = punkte.get(pillar.id) ?? 0;
+						punkte.set(pillar.id, prev + task.estimatedEffort * (pillar.weight / totalWeight));
 					}
 				}
 			}
 		}
-		return buildPillarBalances(pillars, punkteProSaeule);
+		return punkte;
 	}, [pillars, pillarSummaries, tasks]);
+
+	const pillarBalances = useMemo(() => buildPillarBalances(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
 
 	const gesamtPunkte = useMemo(() => pillarBalances.reduce((acc, { punkte }) => acc + punkte, 0), [pillarBalances]);
 
@@ -159,16 +163,17 @@ export const Dashboard = ({
 			</div>
 			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
 
-			{/* HeartBalance - Lebensbalance-Herz mit Segmenten pro Säule */}
+			{/*
+			 * Das Herz steht als erstes Bild ganz oben und mittig: Es beantwortet „wie steht es um
+			 * mich?", bevor die Zahlen kommen. Es bleibt bewusst in der Säulen-Rampe eingefärbt und
+			 * greift NICHT die Signalfarbe ab — die gehört weiterhin allein der „Nächsten Aufgabe"
+			 * als der einen Hauptaussage (ux-design.md §1). Ohne Säulen gibt es nichts zu segmentieren,
+			 * dann entfällt die Karte ganz (die Karte „Meine Themen" führt dort zu den Einstellungen).
+			 */}
 			{pillars.length > 0 && (
-				<div className="dashboard-heart-balance">
-					<HeartBalance
-						pillars={pillars}
-						punkteProSaeule={new Map(pillarBalances.map(({ pillar, punkte }) => [pillar.id, punkte]))}
-						animated={true}
-						size={220}
-					/>
-				</div>
+				<KolCard className="dashboard-heart" _label="Meine Lebensbalance" _level={3}>
+					<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} />
+				</KolCard>
 			)}
 			<ul className="dashboard-cards">
 				{cards.map((card) => (

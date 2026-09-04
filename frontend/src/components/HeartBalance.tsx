@@ -1,348 +1,224 @@
 import type { Pillar } from 'client';
-import { useMemo, useState, useEffect } from 'react';
+import { useId, useMemo, type CSSProperties } from 'react';
+import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
 
 /**
- * HeartBalance-Komponente: Zeigt ein Herz, das in Segmente pro Säule (Pillar) unterteilt ist.
- * Der Füllstand des Herzens spiegelt die Ausgewogenheit der Lebenssäulen wider.
+ * Das Herz der Startseite: ein vektorielles Gefäß (SVG), in dem je Lebenssäule eine Wassersäule
+ * steht. Jede Wassersäule steigt, je näher ihre Säule an ihrem Soll-Anteil liegt; die Wellen an
+ * der Oberfläche laufen dauerhaft weiter.
  *
- * Design:
- * - Jede Säule entspricht einem Segment des Herzens
- * - Der Füllstand basiert auf der Balance der Säulen (je ausgewogener, desto voller)
- * - Optional: Wellenanimation des Füllpegels
+ * **Warum Wassersäulen und nicht Tortenstücke:** Die Segmente sind vertikal, weil die Aussage
+ * vertikal ist — „wie voll ist diese Säule". Dadurch bildet die Wasserlinie über alle Segmente
+ * hinweg selbst die Balance ab: gleichmäßige Säulen ergeben eine flache, ruhige Oberfläche,
+ * eine Schieflage eine zerklüftete. Die Form trägt die Aussage, nicht erst die Prozentzahl.
+ *
+ * **Warum SVG und nicht Canvas:** Die Grafik ist Text-, Theme- und Zoom-fähig (Farbrollen als
+ * Custom Properties, `role="img"` mit Label, scharf bei jeder Größe) und braucht keinen
+ * Render-Loop in JavaScript — die Wellen laufen als CSS-Animation im Compositor.
+ *
+ * Rechnung, Randfälle und das Balance-Maß stehen in `lib/heartBalance.ts`.
  */
 interface HeartBalanceProps {
-	/** Die Lebenssäulen für die Segmentierung */
+	/** Die Lebenssäulen — je Säule ein Segment, in Anzeigereihenfolge. */
 	pillars: Pillar[];
-	/** Punkte pro Säule für die Füllstandsberechnung (Map: pillarId -> punkte) */
+	/** Punktestand je Säule (`pillarId → Punkte`), dieselbe Quelle wie „Gesamtguthaben". */
 	punkteProSaeule: ReadonlyMap<number, number>;
-	/** Ob die Wellenanimation aktiviert sein soll */
-	animated?: boolean;
-	/** Größe des Herzens (Breite in px, Höhe wird proportional berechnet) */
-	size?: number;
 }
 
+/* Zeichenfläche in Nutzereinheiten; die Anzeigegröße bestimmt allein das CSS (`width: 100%`). */
+const VIEW_WIDTH = 100;
+const VIEW_HEIGHT = 92;
+
 /**
- * Berechnet den Balance-Score (0-1) basierend auf der Ausgewogenheit der Säulen.
- * Je gleichmäßiger die Punkte verteilt sind, desto höher der Score.
+ * Symmetrische Herzkontur (an `x = 50` gespiegelt, Bounding-Box x 4–96 / y 6–88). Bewusst als
+ * Konstante statt berechnet: die Kurve ist von Hand ausbalanciert, eine Formel würde sie nur
+ * schwerer nachvollziehbar machen.
+ */
+const HEART_PATH = [
+	'M 50 88',
+	'C 20 66, 4 48, 4 32',
+	'C 4 16, 16 6, 29 6',
+	'C 38 6, 46 11, 50 18',
+	'C 54 11, 62 6, 71 6',
+	'C 84 6, 96 16, 96 32',
+	'C 96 48, 80 66, 50 88',
+	'Z',
+].join(' ');
+
+/** Oberkante und Tiefpunkt des Gefäßes — zwischen ihnen bewegt sich die Wasserlinie. */
+const HEART_TOP = 6;
+const HEART_BOTTOM = 88;
+
+/**
+ * Wellenlänge und Auslenkung der Oberfläche in Nutzereinheiten. Die Wellenlänge ist bewusst kürzer
+ * als ein Segment breit ist (bei fünf Säulen 20 Einheiten): Sieht man weniger als eine volle Welle,
+ * liest die Oberfläche als schiefe Kante statt als Wasser.
+ */
+const WAVE_LENGTH = 16;
+const WAVE_AMPLITUDE = 2;
+
+/**
+ * Baut eine Wellenfläche, die über die Zeichenfläche hinaussteht: Die CSS-Animation verschiebt sie
+ * um genau **eine** Wellenlänge, wodurch die Kachelung nahtlos in sich zurückläuft.
  *
- * Methode: 1 - (Standardabweichung der Anteile / maximale mögliche Standardabweichung)
- * Dies gibt einen Wert zwischen 0 (vollständig unausgeglichen) und 1 (perfekt ausgewogen).
+ * Die Fläche beginnt eine Wellenlänge vor der Zeichenfläche und reicht eine über sie hinaus — die
+ * sichtbaren 0–100 bleiben damit über die ganze Verschiebung gedeckt. Nach unten schließt sie weit
+ * unter dem Gefäßboden; geclippt wird ohnehin an der Herzkontur.
  */
-const calculateBalanceScore = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): number => {
-	// Punkte pro Säule holen
-	const points: number[] = pillars.map((pillar) => punkteProSaeule.get(pillar.id) ?? 0);
-	const total = points.reduce((acc, p) => acc + p, 0);
-
-	// Wenn keine Punkte vorhanden, ist der Score 0
-	if (total === 0) return 0;
-
-	// Anteile berechnen
-	const shares = points.map((p) => p / total);
-
-	// Durchschnitt berechnen
-	const mean = shares.reduce((acc, s) => acc + s, 0) / shares.length;
-
-	// Standardabweichung berechnen
-	const variance = shares.reduce((acc, s) => acc + Math.pow(s - mean, 2), 0) / shares.length;
-	const stdDev = Math.sqrt(variance);
-
-	// Maximale mögliche Standardabweichung (wenn alle Punkte auf einer Säule)
-	const n = shares.length;
-	const maxStdDev = Math.sqrt((n - 1) / (n * n));
-
-	// Balance-Score: 1 - (stdDev / maxStdDev)
-	const score = 1 - stdDev / maxStdDev;
-
-	// Score auf 0-1 begrenzen
-	return Math.max(0, Math.min(1, score));
+const buildWavePath = (): string => {
+	const halfWave = WAVE_LENGTH / 2;
+	const start = -WAVE_LENGTH * 2;
+	// Auf eine gerade Anzahl Halbwellen aufrunden, damit die Kachel auf einer vollen Periode endet.
+	const needed = Math.ceil((VIEW_WIDTH + WAVE_LENGTH - start) / halfWave);
+	const halfWaves = needed + (needed % 2);
+	// Erste Halbwelle als `q`, alle weiteren als `t` — das spiegelt den Kontrollpunkt automatisch
+	// und erzeugt so eine stetige Sinus-Näherung ohne Knick an den Nahtstellen.
+	const crests = [
+		`q ${halfWave / 2} ${-WAVE_AMPLITUDE} ${halfWave} 0`,
+		...Array.from({ length: halfWaves - 1 }, () => `t ${halfWave} 0`),
+	];
+	const end = start + halfWaves * halfWave;
+	const floor = VIEW_HEIGHT * 2;
+	return `M ${start} 0 ${crests.join(' ')} L ${end} ${floor} L ${start} ${floor} Z`;
 };
 
+const WAVE_PATH = buildWavePath();
+
+/** Höchster in `app.css` definierter Rang der Säulen-Rampe (`--pp-pillar-1…8`). */
+const PILLAR_RAMP_SIZE = 8;
+
 /**
- * Erstellt die SVG-Pfaddaten für ein Herz.
+ * Farbklasse einer Wassersäule. Ab der 9. Säule wird nicht weiter eingefärbt (ux-design.md §2,
+ * Regel 3) — diese Segmente bleiben neutral, ihr Name steht wie bei allen anderen in der Legende.
  */
-const getHeartPath = (width: number, height: number): string => {
-	const centerX = width / 2;
-	const centerY = height / 2;
-	const radius = Math.min(width, height) * 0.4;
+const waterClass = (colorIndex: number): string =>
+	colorIndex < PILLAR_RAMP_SIZE ? `heart-water heart-water--${colorIndex + 1}` : 'heart-water';
 
-	// Klassische Herzform mit Bézier-Kurven
-	const bottomY = centerY + radius * 0.8;
-	const topY = centerY - radius * 0.6;
-	const leftX = centerX - radius * 0.7;
-	const rightX = centerX + radius * 0.7;
-	const leftCurveX = centerX - radius * 0.4;
-	const rightCurveX = centerX + radius * 0.4;
-	const curveY = centerY + radius * 0.2;
+/** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
+const asPercent = (share: number): number => Math.round(share * 100);
 
-	return `M ${centerX} ${bottomY}
-		 C ${leftCurveX} ${curveY}, ${leftX} ${topY}, ${centerX} ${topY}
-		 C ${rightX} ${topY}, ${rightCurveX} ${curveY}, ${centerX} ${bottomY}
-		 Z`;
-};
+export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) => {
+	const balance = useMemo(() => buildHeartBalance(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
+	const health = heartHealth(balance);
 
-/**
- * Erstellt eine Wellenform für die Animation.
- */
-const getWavePath = (width: number, fillLevel: number, time: number): string => {
-	const waveHeight = width * 0.03; // Amplitude der Welle
-	const waveLength = width * 0.4; // Wellenlänge
-	const speed = 0.005; // Geschwindigkeit der Animation
+	// Eindeutige, aber stabile Präfixe für die SVG-Fragment-Referenzen: mehrere Herzen auf einer
+	// Seite dürfen sich nicht gegenseitig die `clipPath`-IDs überschreiben. Doppelpunkte aus
+	// `useId()` fallen raus, damit die IDs auch für `querySelector` benutzbar bleiben.
+	const uid = useId().replace(/:/g, '');
+	const heartClipId = `${uid}-heart`;
+	const columnClipId = (index: number): string => `${uid}-col-${index}`;
 
-	const yPos = width * (1 - fillLevel);
+	const columnWidth = balance.segments.length > 0 ? VIEW_WIDTH / balance.segments.length : VIEW_WIDTH;
+	const fillPercent = asPercent(balance.fill);
 
-	let path = `M 0 ${yPos + waveHeight * Math.sin(time * speed)}`;
-
-	for (let x = 0; x <= width; x += 5) {
-		const y = yPos + waveHeight * Math.sin((x / waveLength) * Math.PI * 2 + time * speed);
-		path += ` L ${x} ${y}`;
-	}
-
-	path += ` L ${width} ${width} L 0 ${width} Z`;
-
-	return path;
-};
-
-/**
- * Farben für die Säulen-Segmente (aus den Design-Tokens) */
-const PILLAR_COLORS = [
-	'#2a78d6', // pp-pillar-1
-	'#eb6834', // pp-pillar-2
-	'#1baf7a', // pp-pillar-3
-	'#eda100', // pp-pillar-4
-	'#e87ba4', // pp-pillar-5
-	'#008300', // pp-pillar-6
-	'#4a3aa7', // pp-pillar-7
-	'#e34948', // pp-pillar-8
-];
-
-/**
- * HeartBalance-Komponente
- */
-export const HeartBalance = ({ pillars, punkteProSaeule, animated = true, size = 300 }: HeartBalanceProps) => {
-	const balanceScore = useMemo(() => calculateBalanceScore(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
-
-	const totalPoints = useMemo(() => [...punkteProSaeule.values()].reduce((acc, p) => acc + p, 0), [punkteProSaeule]);
-
-	// Animations-Timer
-	const [time, setTime] = useState(0);
-
-	useEffect(() => {
-		if (!animated) return;
-
-		const animationId = requestAnimationFrame(() => {
-			setTime(Date.now());
-		});
-
-		return () => cancelAnimationFrame(animationId);
-	}, [animated, time]);
-
-	// SVG-Dimensionen
-	const width = size;
-	const height = size * 1.2;
-	const centerX = width / 2;
-	const centerY = height / 2;
-
-	// Herz-Pfad
-	const heartPath = useMemo(() => getHeartPath(width, height), [width, height]);
-
-	// Füllpegel
-	const fillY = height * (1 - balanceScore);
-
-	// Farbauswahl für Segmente
-	const getSegmentColor = (index: number): string => {
-		return PILLAR_COLORS[index % PILLAR_COLORS.length];
-	};
-
-	// Anzahl der Segmente (entspricht der Anzahl der Säulen)
-	const segmentCount = pillars.length;
+	/*
+	 * Ruhepuls: Je ausgewogener das Herz, desto langsamer und ruhiger schlägt es (1,5 s leer bis
+	 * 2,6 s voll). Der Wert geht als Custom Property ins CSS, damit die Animation dort bleibt,
+	 * wo Bewegung hingehört — und `prefers-reduced-motion` sie an einer Stelle abschalten kann.
+	 */
+	const beatSeconds = (1.5 + balance.fill * 1.1).toFixed(2);
 
 	return (
-		<div className="heart-balance" role="img" aria-label="Lebensbalance-Herz">
-			<svg
-				width={width}
-				height={height}
-				viewBox={`0 0 ${width} ${height}`}
-				className="heart-balance-svg"
-				aria-label={`Lebensbalance: ${Math.round(balanceScore * 100)}%`}
+		<div className="heart-balance">
+			{/*
+			 * Zwei Werte, die die Grafik der Animation vorgibt: der Ruhepuls und der Versatz einer
+			 * vollen Wellenlänge. Letzterer MUSS `WAVE_LENGTH` entsprechen, sonst springt die Kachelung
+			 * bei jedem Schleifendurchlauf — deshalb kommt er aus derselben Konstante wie der Pfad.
+			 */}
+			<div
+				className="heart-balance-stage"
+				style={{ '--pp-heart-beat': `${beatSeconds}s`, '--pp-heart-wave-shift': `${WAVE_LENGTH}px` } as CSSProperties}
 			>
-				{/* Herz-Umriss */}
-				<path
-					d={heartPath}
-					fill="none"
-					stroke="var(--pp-border-subtle, #dfe3ea)"
-					strokeWidth="2"
-					className="heart-balance-outline"
-				/>
-
-				{/* Clip-Pfad für das Herz */}
-				<clipPath id="heart-clip">
-					<path d={heartPath} />
-				</clipPath>
-
-				{/* Hintergrund-Füllung mit Wellenanimation */}
-				<g clipPath="url(#heart-clip)">
-					{/* Statische Füllung */}
-					<rect
-						x={0}
-						y={fillY}
-						width={width}
-						height={height - fillY}
-						fill="var(--pp-signal, #f2b155)"
-						opacity={0.2}
-						className="heart-balance-fill"
-					/>
-
-					{/* Wellenanimation */}
-					{animated && (
-						<>
-							{/* Erste Welle */}
-							<path
-								d={getWavePath(width, balanceScore, time)}
-								fill="var(--pp-signal, #f2b155)"
-								opacity={0.3}
-								className="heart-balance-wave"
-							/>
-							{/* Zweite Welle (phasenverschoben) */}
-							<path
-								d={getWavePath(width, balanceScore, time + 1000)}
-								fill="var(--pp-signal, #f2b155)"
-								opacity={0.2}
-								className="heart-balance-wave"
-							/>
-						</>
-					)}
-				</g>
-
-				{/* Säulen-Segmente als farbige Bereiche */}
-				{pillars.map((pillar, index) => {
-					const points = punkteProSaeule.get(pillar.id) ?? 0;
-					const pillarScore = totalPoints > 0 ? points / totalPoints : 0;
-
-					// Füllhöhe für dieses Segment
-					const segmentFillLevel = pillarScore;
-					const segmentFillY = height * (1 - segmentFillLevel);
-
-					// Winkelbereich für das Segment
-					const startAngle = (index / segmentCount) * Math.PI * 2 - Math.PI / 2;
-					const endAngle = ((index + 1) / segmentCount) * Math.PI * 2 - Math.PI / 2;
-
-					// Clip-Pfad für das Segment (Kreis-Segment)
-					const radius = Math.min(width, height) * 0.45;
-					const clipPathId = `segment-clip-${index}`;
-
-					return (
-						<g key={`segment-${index}`}>
-							{/* Clip-Pfad Definition */}
-							<clipPath id={clipPathId}>
-								<path
-									d={`M ${centerX} ${centerY}
-										L ${centerX + radius * Math.cos(startAngle)} ${centerY + radius * Math.sin(startAngle)}
-										A ${radius} ${radius} 0 0 1 ${centerX + radius * Math.cos(endAngle)} ${centerY + radius * Math.sin(endAngle)}
-										Z`}
-								/>
+				<svg
+					className="heart-balance-svg"
+					viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+					role="img"
+					aria-label={`Herz-Füllstand ${fillPercent} Prozent — ${health.label}`}
+					data-testid="heart-balance-svg"
+				>
+					<defs>
+						<clipPath id={heartClipId}>
+							<path d={HEART_PATH} />
+						</clipPath>
+						{balance.segments.map((segment, index) => (
+							<clipPath key={segment.pillar.id} id={columnClipId(index)}>
+								<rect x={index * columnWidth} y={0} width={columnWidth} height={VIEW_HEIGHT} />
 							</clipPath>
+						))}
+					</defs>
 
-							{/* Gefülltes Segment mit Clip-Pfad */}
-							<g clipPath={`url(#${clipPathId})`}>
-								<rect
-									x={0}
-									y={segmentFillY}
-									width={width}
-									height={height - segmentFillY}
-									fill={getSegmentColor(index)}
-									opacity={0.6}
-								/>
-							</g>
+					{/* Leeres Gefäß — die eingesenkte Fläche macht sichtbar, wie viel noch fehlt. */}
+					<path d={HEART_PATH} className="heart-vessel" />
 
-							{/* Segment-Umriss */}
-							<path
-								d={`M ${centerX} ${centerY}
-									L ${centerX + radius * Math.cos(startAngle)} ${centerY + radius * Math.sin(startAngle)}
-									A ${radius} ${radius} 0 0 1 ${centerX + radius * Math.cos(endAngle)} ${centerY + radius * Math.sin(endAngle)}
-									Z`}
-								fill="none"
-								stroke={getSegmentColor(index)}
-								strokeWidth="1"
-								opacity={0.3}
-							/>
-						</g>
-					);
-				})}
-
-				{/* Balance-Score in der Mitte */}
-				<text
-					x={centerX}
-					y={centerY - height * 0.05}
-					textAnchor="middle"
-					fill="var(--pp-text, #12161d)"
-					fontSize={width * 0.12}
-					fontWeight="700"
-					className="heart-balance-text"
-				>
-					{Math.round(balanceScore * 100)}%
-				</text>
-
-				{/* Beschriftung */}
-				<text
-					x={centerX}
-					y={centerY + height * 0.22}
-					textAnchor="middle"
-					fill="var(--pp-text-muted, #525b6a)"
-					fontSize={width * 0.05}
-					fontWeight="500"
-					className="heart-balance-label"
-				>
-					Lebensbalance
-				</text>
-
-				{/* Legende */}
-				{pillars.length > 0 && pillars.length <= 8 && (
-					<g className="heart-balance-legend" transform={`translate(${width * 0.05}, ${height * 0.65})`}>
-						{pillars.map((pillar, index) => {
-							const points = punkteProSaeule.get(pillar.id) ?? 0;
-							const pillarScore = totalPoints > 0 ? points / totalPoints : 0;
-							const yOffset = index * 18;
-
+					<g clipPath={`url(#${heartClipId})`}>
+						{balance.segments.map((segment, index) => {
+							const surfaceY = HEART_BOTTOM - segment.level * (HEART_BOTTOM - HEART_TOP);
+							// Leicht verschiedene Laufzeiten und Phasen: sonst schwingen alle Segmente im
+							// Gleichtakt und das Wasser wirkt wie eine einzige starre Kachel.
+							const drift = { animationDuration: `${(7 + index * 0.9).toFixed(1)}s` };
+							const driftBack = {
+								animationDuration: `${(9.5 + index * 1.1).toFixed(1)}s`,
+								animationDelay: `-${(index * 1.3).toFixed(1)}s`,
+							};
 							return (
-								<g key={`legend-${index}`} transform={`translate(0, ${yOffset})`}>
-									{/* Farbiger Punkt */}
-									<circle cx={0} cy={9} r={6} fill={getSegmentColor(index)} />
-									{/* Säulenname */}
-									<text
-										x={12}
-										y={12}
-										fill="var(--pp-text-muted, #525b6a)"
-										fontSize={12}
-										textAnchor="start"
-										alignmentBaseline="middle"
-									>
-										{pillar.name.length > 15 ? `${pillar.name.substring(0, 12)}...` : pillar.name}
-									</text>
-									{/* Anteil */}
-									<text
-										x={width * 0.6}
-										y={12}
-										fill="var(--pp-text-muted, #525b6a)"
-										fontSize={12}
-										textAnchor="end"
-										alignmentBaseline="middle"
-									>
-										{Math.round(pillarScore * 100)}%
-									</text>
+								<g key={segment.pillar.id} clipPath={`url(#${columnClipId(index)})`} data-testid="heart-column">
+									<g transform={`translate(0 ${surfaceY.toFixed(2)})`}>
+										{/* Hintere Welle: gegenläufig und blasser — das erzeugt Tiefe im Wasser. */}
+										<g className="heart-wave heart-wave--back" style={driftBack}>
+											<path d={WAVE_PATH} className={waterClass(segment.colorIndex)} />
+										</g>
+										<g className="heart-wave" style={drift}>
+											<path d={WAVE_PATH} className={waterClass(segment.colorIndex)} />
+										</g>
+									</g>
 								</g>
 							);
 						})}
-					</g>
-				)}
-			</svg>
 
-			{/* Info-Text */}
-			<div className="heart-balance-info">
-				<p>
-					Dein Herz ist zu <strong>{Math.round(balanceScore * 100)}%</strong> gefüllt.
-				</p>
-				<p>Je ausgewogener deine Lebenssäulen sind, desto voller wird es.</p>
+						{/* Trennfugen zwischen den Segmenten — in Kartenfarbe, damit sie als Fuge lesen. */}
+						{balance.segments.slice(1).map((segment, index) => (
+							<line
+								key={segment.pillar.id}
+								className="heart-seam"
+								x1={(index + 1) * columnWidth}
+								y1={0}
+								x2={(index + 1) * columnWidth}
+								y2={VIEW_HEIGHT}
+							/>
+						))}
+					</g>
+
+					{/* Kontur zuletzt, damit sie über dem Wasser liegt und die Silhouette scharf bleibt. */}
+					<path d={HEART_PATH} className="heart-outline" />
+				</svg>
 			</div>
+
+			<p className="heart-balance-readout">
+				<span className="heart-balance-value" data-testid="heart-balance-value">
+					{fillPercent} %
+				</span>
+				<span className="heart-balance-state" data-state={health.state}>
+					{health.label}
+				</span>
+				<span className="heart-balance-hint">{health.hint}</span>
+			</p>
+
+			{/*
+			 * Relief-Regel (ux-design.md §2, Regel 4): Der Säulenname steht immer als Text neben der
+			 * Farbe — die Farbe allein trägt hier keine Bedeutung. Zugleich ist das die Legende, die
+			 * die Wassersäulen im Bild überhaupt zuordenbar macht.
+			 */}
+			<ul className="heart-balance-legend" data-testid="heart-balance-legend">
+				{balance.segments.map((segment) => (
+					<li key={segment.pillar.id} className="heart-balance-legend-row">
+						<span className={`heart-legend-dot heart-legend-dot--${segment.colorIndex + 1}`} aria-hidden="true" />
+						<span className="heart-balance-legend-name">{segment.pillar.name}</span>
+						<span className="heart-balance-legend-value">
+							{asPercent(segment.actualShare)} % · Ziel {asPercent(segment.targetShare)} %
+						</span>
+					</li>
+				))}
+			</ul>
 		</div>
 	);
 };
