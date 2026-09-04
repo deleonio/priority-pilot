@@ -123,4 +123,47 @@ describe('Gruppen-Datenisolation — Membership statt ownerScope (#1211)', () =>
 		const bobStillThere = await fetch(`${server.baseUrl}/groups/${bobGroupId}`, { headers: { cookie: bobCookie } });
 		assert.equal(bobStillThere.status, 200, 'fehlgeschlagener Fremd-Delete darf nichts zerstören');
 	});
+
+	// ── #1212: fremde Gruppe/Einladung leakt nichts über die neuen Routen ─────────────
+
+	it('GET /groups/{id}/members und /invitations liefern 404 für fremde Gruppe (#1212)', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const bobCookie = await server.login(TEST_EMAIL_BOB);
+		const bobGroupId = await createGroup(bobCookie, 'Bobs Sportgruppe');
+
+		const membersRes = await fetch(`${server.baseUrl}/groups/${bobGroupId}/members`, {
+			headers: { cookie: aliceCookie },
+		});
+		assert.equal(membersRes.status, 404, 'Mitgliederliste einer fremden Gruppe ist nicht einsehbar');
+
+		const invitationsRes = await fetch(`${server.baseUrl}/groups/${bobGroupId}/invitations`, {
+			headers: { cookie: aliceCookie },
+		});
+		assert.equal(invitationsRes.status, 404, 'offene Einladungen einer fremden Gruppe sind nicht einsehbar');
+	});
+
+	it('POST /groups/{id}/invitations und DELETE members/{userId} liefern 404 für fremde Gruppe (#1212)', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		const bobCookie = await server.login(TEST_EMAIL_BOB);
+		const bobGroupId = await createGroup(bobCookie, 'Bobs Sportgruppe');
+
+		const bobSearchRes = await fetch(`${server.baseUrl}/users/search?query=${encodeURIComponent(TEST_EMAIL_BOB)}`, {
+			headers: { cookie: aliceCookie },
+		});
+		const [bobHit] = (await bobSearchRes.json()) as { id: number }[];
+		assert.ok(bobHit, 'Setup: Bob muss über die Suche auffindbar sein');
+
+		const inviteRes = await fetch(`${server.baseUrl}/groups/${bobGroupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+			body: JSON.stringify({ userId: bobHit.id }),
+		});
+		assert.equal(inviteRes.status, 404, 'Einladen in eine fremde Gruppe ist nicht möglich');
+
+		const removeRes = await fetch(`${server.baseUrl}/groups/${bobGroupId}/members/${bobHit.id}`, {
+			method: 'DELETE',
+			headers: { cookie: aliceCookie },
+		});
+		assert.equal(removeRes.status, 404, 'Mitglied einer fremden Gruppe entfernen ist nicht möglich');
+	});
 });
