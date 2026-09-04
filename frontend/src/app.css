@@ -1995,6 +1995,18 @@ body {
 	flex-shrink: 0;
 }
 
+/* #1220: „Ausbalancieren" bricht wie die Switches nicht um und bleibt damit auch auf schmalen
+   Viewports voll bedienbar; der Sortier-Stand (aria-live) nimmt als Vollzeile eine eigene Reihe. */
+.task-filter-bar .task-balance-button {
+	flex-shrink: 0;
+}
+
+.task-filter-bar__hint {
+	margin: 0;
+	flex: 1 1 100%;
+	color: var(--pp-text-muted);
+}
+
 /* Such-Eingabe (KolInputText, type=search) und „Filtern"-Button (KolButton) in einer Zeile.
    flex-basis 100% → auf schmalen Viewports rutscht die Zeile unter den Switch und nimmt die volle
    Breite ein; das Feld schrumpft dank min-width:0, der Button bleibt fest. Kein H-Overflow (AK7). */

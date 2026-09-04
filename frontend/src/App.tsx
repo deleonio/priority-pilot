@@ -32,6 +32,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForestByTitle } from './lib/filterForestByTitle';
+import { buildBalancePriorities, type BalancePriority } from './lib/balancePriority';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
@@ -73,6 +74,19 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
+/**
+ * #1220: Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule,
+ * anteilig nach `share`, exakt die Quelle des Dashboards (`buildPillarSummaries`). Der Wert-Beitrag
+ * fließt hier nicht ein, daher die leere Map.
+ */
+const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, number> => {
+	const doneEffortByPillar = new Map<number, number>();
+	for (const summary of buildPillarSummaries(pillars, tasks, new Map<number, number>())) {
+		doneEffortByPillar.set(summary.pillar.id, summary.doneEstimatedEffort);
+	}
+	return doneEffortByPillar;
+};
+
 const AppShell = ({ user }: { user: AuthUser }) => {
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -103,6 +117,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [searchDraft, setSearchDraft] = useState(taskSearch);
 	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
 	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
+
+	// #1220: Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz). Der
+	// Snapshot ist der **eingefrorene** Berechnungsstand (AK2): Er entsteht beim Aktivieren und auf
+	// „Ausbalancieren" und bleibt bis dahin unverändert stehen, auch wenn die App zwischendurch
+	// lädt. `balanceSortedAt` speist die aria-live-Bekanntgabe der Umsortierung (KI-UX, WCAG 4.1.3).
+	const [balanceMode, setBalanceMode] = useState(false);
+	const [balanceSnapshot, setBalanceSnapshot] = useState<ReadonlyMap<number, BalancePriority> | null>(null);
+	const [balanceSortedAt, setBalanceSortedAt] = useState('');
 
 	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
 	const applyTaskFilter = useCallback(
@@ -143,6 +165,38 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		},
 		[setSearchParams],
 	);
+
+	// #1220: Snapshot der virtuellen Balance-Prioritäten aus dem übergebenen Stand berechnen und
+	// einfrieren. Bewusst Parameter statt State-Lesung: „Ausbalancieren" rechnet aus frisch
+	// geladenen Daten, dieser Closure hielte sonst den veralteten Stand.
+	const applyBalanceSnapshot = useCallback((pillarStand: Pillar[], taskStand: Task[]): void => {
+		setBalanceSnapshot(buildBalancePriorities(pillarStand, buildDoneEffortByPillar(pillarStand, taskStand), taskStand));
+		setBalanceSortedAt(new Date().toLocaleTimeString('de-DE'));
+	}, []);
+
+	/** #1220: Balance-Modus (de)aktivieren; beim Aktivieren wird der Snapshot aus dem aktuellen Stand berechnet. */
+	const activateBalanceMode = useCallback(
+		(active: boolean): void => {
+			setBalanceMode(active);
+			if (active) {
+				applyBalanceSnapshot(pillars, tasks ?? []);
+			}
+		},
+		[applyBalanceSnapshot, pillars, tasks],
+	);
+
+	/** #1220: „Ausbalancieren" (AK2) — Datenbasis frisch laden, dann den Snapshot neu berechnen. */
+	const rebalanceTasks = useCallback(async (): Promise<void> => {
+		try {
+			const [freshTasks, freshPillars] = await Promise.all([api.listTasks(), api.listPillars()]);
+			setTasks(freshTasks);
+			setPillars(freshPillars);
+			applyBalanceSnapshot(freshPillars, freshTasks);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setLoadError(apiError.message);
+		}
+	}, [applyBalanceSnapshot]);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -656,6 +710,24 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										},
 									}}
 								/>
+								<KolInputCheckbox
+									className="task-view-switch"
+									_label="Balance-Priorisierung"
+									_variant="switch"
+									_checked={balanceMode}
+									_on={{
+										onChange: (_event, checked) => {
+											activateBalanceMode(checked === true);
+										},
+									}}
+								/>
+								{balanceMode && (
+									// KI-UX (#1220): Die Umsortierung wird per Live-Region angekündigt (WCAG 4.1.3);
+									// der Zeitpunkt macht den eingefrorenen Stand greifbar („Stand …").
+									<p className="task-filter-bar__hint" aria-live="polite">
+										Liste nach Balance-Priorität sortiert (Stand: {balanceSortedAt})
+									</p>
+								)}
 								<div className="task-filter-search">
 									<KolInputText
 										ref={taskFilterInputRef}
@@ -685,6 +757,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 									/>
 								</div>
+								<KolButton
+									className="task-balance-button"
+									_label="Ausbalancieren"
+									_variant="secondary"
+									_on={{
+										onClick: () => {
+											// #1220: Bei aktivem Modus Neuberechnung aus frischem Stand (AK2); aus
+											// (sichtbar, damit er auch ohne Modus auffindbar bleibt) schaltet er ihn ein.
+											if (balanceMode) {
+												void rebalanceTasks();
+											} else {
+												activateBalanceMode(true);
+											}
+										},
+									}}
+								/>
 							</div>
 							{taskViewMode === 'open' ? (
 								filteredForest.length === 0 ? (
@@ -709,6 +797,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										tasks={tasks}
 										progressMap={progressMap}
 										userId={user.id}
+										balancePriorities={balanceMode ? balanceSnapshot : null}
 										onEdit={openEdit}
 										onDelete={openDelete}
 										onEditDependencies={openDependencies}
