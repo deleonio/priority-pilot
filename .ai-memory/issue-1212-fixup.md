@@ -25,7 +25,7 @@
 - `fallbackFocusRef` am Modal — der Trigger-Button verschwindet zwar nach erfolgreichem Entfernen aus dem DOM, aber es gibt in `GroupDetail` kein stabiles Rücksprungziel; nicht Teil des Findings.
 
 ## Offen
-- **CI e2e-Shard 1 ROT** (Run 33845823342, SHA 8953ad13, kein Rerun ausgeführt): 3 Fehler in `frontend/e2e/groups-invitations.spec.ts` — AK1 (spec:44), AK6/AK9 (spec:59), AK12 (spec:114). Erstfehler: spec:53 `getByRole('searchbox')` nie gefunden nach Klick auf Gruppen-Listitem (`locator.fill` 30s-Timeout) — GroupDetail-Ansicht rendert die Suche scheinbar nicht. Shards 2-4 + verify grün; Modal.tsx existiert, `_type="search"` steht in GroupDetail.tsx:137. Ursache ungeklärt: Regression aus 33be8aec (Modal/Laufzeit) vs. Timing/Seed-Flake vs. bereits im Erststand. Im ai-fixup-decisions-Kommentar als 🔴 offener Punkt dokumentiert.
+- **CI e2e-Shard 1 ROT — KEINE Regression aus 33be8aec** (Run 33845823342/SHA 8953ad13; identische 3 Fehler bereits auf VOR-Fix-Head 4df8ee2b, Run 33844930295, e2e-Job 100934669920): `groups-invitations.spec.ts` AK1 (spec:44), AK6/AK9 (spec:59), AK12 (spec:114). Erstfehler spec:53 `getByRole('searchbox')` nie gefunden nach Klick auf Gruppen-Listitem (`locator.fill` 30s-Timeout) — GroupDetail-Ansicht rendert die Nutzersuche im E2E-Kontext nicht. Shards 2-4 + verify grün; Modal.tsx existiert, `_type="search"` steht in GroupDetail.tsx:137. Kein Rerun angesetzt (thematisch kernig, nicht fremd-flaky; MEMORY 2026-08-23: Rerun nach Push cancelt den neuen Run). Im ai-fixup-decisions-Kommentar (5539372480) als 🔴 dokumentiert.
 - E2E wurde lokal in keinem Lauf ausgeführt (Zeitbudget; braucht laufendes Backend).
 
 ## Nächster Schritt
