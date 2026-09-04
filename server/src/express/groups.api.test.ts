@@ -9,8 +9,18 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 
 let server: TestServer;
 
+/** Response-Body der Gruppen-Routen: DTO bei Erfolg, `{ message }` bei Fehler (Fehlervertrag #1130). */
+type GroupResponseBody = {
+	id?: number;
+	name?: string;
+	description?: string | null;
+	role?: string;
+	memberCount?: number;
+	message?: string;
+};
+
 /** Legt eine Gruppe an und liefert die Response (Status + geparsten Body). */
-const createGroup = async (body: unknown): Promise<{ status: number; body: any }> => {
+const createGroup = async (body: unknown): Promise<{ status: number; body: GroupResponseBody | null }> => {
 	const res = await fetch(`${server.baseUrl}/groups`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -56,7 +66,7 @@ describe('Gruppen-API — Anlegen, Validierung, Löschen (#1211)', () => {
 	it('POST /groups ohne Name → 400 mit deutscher Meldung (AK4)', async () => {
 		const { status, body } = await createGroup({ description: 'kein Name' });
 		assert.equal(status, 400);
-		assert.ok(typeof body?.error === 'string' && body.error.length > 0, 'Fehlermeldung vorhanden');
+		assert.ok(typeof body?.message === 'string' && body.message.length > 0, 'Fehlermeldung vorhanden');
 	});
 
 	it('POST /groups mit leerem Name → 400 (AK4)', async () => {
@@ -67,7 +77,7 @@ describe('Gruppen-API — Anlegen, Validierung, Löschen (#1211)', () => {
 	it('POST /groups mit Name > 60 Zeichen → 400 mit deutscher Meldung (AK4)', async () => {
 		const { status, body } = await createGroup({ name: 'x'.repeat(61) });
 		assert.equal(status, 400);
-		assert.ok(typeof body?.error === 'string' && body.error.length > 0, 'Fehlermeldung vorhanden');
+		assert.ok(typeof body?.message === 'string' && body.message.length > 0, 'Fehlermeldung vorhanden');
 	});
 
 	it('POST /groups mit Name = 60 Zeichen → 201 (Grenze erlaubt, AK4)', async () => {

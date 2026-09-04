@@ -69,7 +69,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		await expect(page.getByText(/Name/).first()).toBeVisible();
 		const response = await page.request.get('/api/v1/groups');
 		const groups = (await response.json()) as { name: string }[];
-		expect(groups.some((group) => group.name === '')).toBe(false, 'leere Gruppe darf nicht entstehen');
+		expect(groups.some((group) => group.name === ''), 'leere Gruppe darf nicht entstehen').toBe(false);
 	});
 
 	// ── AK7: Löschen mit sequenzieller Bestätigung ───────────────────────────────────

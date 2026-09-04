@@ -10,6 +10,8 @@ import User from './user.js';
 import PushSubscription from './pushSubscription.js';
 import NotificationLog from './notificationLog.js';
 import LlmProvider from './llmProvider.js';
+import Group from './group.js';
+import GroupMember from './groupMember.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -71,4 +73,6 @@ export {
 	PushSubscription,
 	NotificationLog,
 	LlmProvider,
+	Group,
+	GroupMember,
 };
