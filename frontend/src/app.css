@@ -730,6 +730,7 @@ body {
 		margin-top: 0;
 	}
 
+	.dashboard-heart,
 	.dashboard h2,
 	.dashboard-greeting,
 	.dashboard-cards,
@@ -1751,11 +1752,24 @@ body {
 	box-sizing: border-box;
 }
 
+/*
+ * Feinschalter unter dem Master „Animationen“ („Herz animieren“, „Erledigt animieren“):
+ * mobil halb so weit eingerückt wie auf dem Desktop, um die Zugehörigkeit zum Master zu
+ * zeigen, ohne die ohnehin schmalen 375 px weiter zu verknappen.
+ */
+.settings-switch-row--sub {
+	margin-left: 1.25rem;
+}
+
 @media (min-width: 768px) {
 	.settings-switch-row {
 		flex-direction: row;
 		align-items: center;
 		gap: 1rem; /* 16dp */
+	}
+
+	.settings-switch-row--sub {
+		margin-left: 2.5rem;
 	}
 
 	/*
@@ -2259,4 +2273,299 @@ kol-heading {
 	display: flex;
 	gap: 0.5rem;
 	justify-content: flex-end;
+}
+
+/* --- Herz der Startseite (Lebensbalance) --- */
+
+/*
+ * Das Herz ist das erste Bild des Dashboards und steht mittig über die ganze Seitenbreite. Die
+ * Grafik skaliert über ihre `viewBox` mit, die Breite begrenzt `max-width` — auf 375 px füllt sie
+ * die Karte, auf dem Desktop wächst sie als Hero der Seite, bleibt aber zentriert und gesetzten
+ * Grenzen unterworfen, statt zur Plakatwand zu werden.
+ */
+.dashboard-heart {
+	display: block;
+	margin-top: var(--pp-gap-generous);
+}
+
+.heart-balance {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--pp-gap-base);
+}
+
+.heart-balance-stage {
+	width: 100%;
+	max-width: 24rem;
+	/*
+	 * Ruhepuls des Herzens — ein doppelter Schlag, wie ein echter. Die Dauer liefert die Komponente
+	 * als `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife, keine
+	 * Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms) beschreiben Übergänge auf eine
+	 * Nutzeraktion hin und passen hier bewusst nicht.
+	 */
+	animation: heart-beat var(--pp-heart-beat, 2s) var(--pp-ease) infinite;
+	transform-origin: 50% 60%;
+}
+
+.heart-balance-svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+/* Leeres Gefäß: eingesenkte Fläche, damit das Fehlende genauso ablesbar ist wie das Erreichte. */
+.heart-vessel {
+	fill: var(--pp-surface-2);
+}
+
+/* Kontur als Grenze eines bedeutungstragenden Elements — `border-strong` hält ≥ 3:1 (WCAG 1.4.11). */
+.heart-outline {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 2;
+	stroke-linejoin: round;
+}
+
+/*
+ * Trennfuge zwischen zwei Wassersäulen: in Kartenfarbe, damit sie als Spalt liest, nicht als Linie —
+ * und bewusst zurückhaltend. Eine kräftige Fuge macht aus dem Wasser ein Balkendiagramm; die
+ * Segmente trennen sich ohnehin schon über ihre Farbe und ihren Pegel.
+ */
+.heart-seam {
+	stroke: var(--pp-surface-1);
+	stroke-width: 0.5;
+	opacity: 0.55;
+}
+
+/*
+ * Wellenlauf: Die Bewegung selbst kommt per SMIL aus der Komponente (`animateTransform`) — nicht
+ * aus CSS. Grund: Die Farb-Kopien der Welle müssen zwingend phasengleich laufen; die gemeinsame
+ * SMIL-Dokument-Zeitachse garantiert das, einzelne CSS-Animationsuhren tun es nicht. Hier bleibt
+ * nur das Erscheinungsbild. Reine Grafikbewegung: kein JavaScript-Frame-Loop, keine Re-Renders.
+ */
+.heart-wave {
+	/* Leicht durchscheinend: das Gefäß darunter tönt mit, das Wasser wirkt flüssig statt lackiert. */
+	opacity: 0.9;
+}
+
+/*
+ * Auftakt: Das Wasser steigt einmalig von unten auf seinen Stand — die Wegstrecke liefert die
+ * Komponente als `--pp-heart-rise` (volle Gefäßhöhe) aus. `both` hält den Endzustand auch nach
+ * dem Durchlauf fest; die dauerhafte Wellenbewegung läuft auf den inneren Gruppen und wird davon
+ * nicht berührt.
+ */
+.heart-water-rise {
+	animation: heart-water-rise 1.4s var(--pp-ease) both;
+}
+
+@keyframes heart-water-rise {
+	from {
+		transform: translateY(var(--pp-heart-rise, 82px));
+	}
+
+	to {
+		transform: translateY(0);
+	}
+}
+
+@keyframes heart-beat {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+
+	8% {
+		transform: scale(1.035);
+	}
+
+	17% {
+		transform: scale(1);
+	}
+
+	25% {
+		transform: scale(1.018);
+	}
+
+	34% {
+		transform: scale(1);
+	}
+}
+
+/*
+ * Bewegung ist Beiwerk: Umgebungs-Schleifen laufen nicht mit eigener Dauer weiter, wenn sie
+ * abbestellt sind. Ohne Animation steht die Wellenfläche auf `translateX(0)` und deckt die
+ * Wassersäule unverändert ab — das Bild bleibt vollständig, nur still.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.heart-balance-stage,
+	.heart-water-rise {
+		animation: none;
+	}
+}
+
+/*
+ * Bewegung ist abbestellbar: Der Feinschalter „Herz animieren" (gemeinsam mit dem Master
+ * „Animationen") setzt die Still-Klasse — alle Herz-Schleifen laufen nicht, das Bild bleibt
+ * vollständig (Wasser standhaft auf seinem Stand, Oberfläche flach). Die OS-Einstellung oben
+ * greift unabhängig davon.
+ */
+.heart-balance-stage--still,
+.heart-balance-stage--still .heart-water-rise {
+	animation: none;
+}
+
+/*
+ * Wasserfarbe je Säule aus der kategorialen Rampe, der Reihe nach vergeben. Ohne Modifier bleibt
+ * das Segment neutral: ab der 9. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
+ */
+.heart-water {
+	fill: var(--pp-border-strong);
+}
+
+.heart-water--1 {
+	fill: var(--pp-pillar-1);
+}
+
+.heart-water--2 {
+	fill: var(--pp-pillar-2);
+}
+
+.heart-water--3 {
+	fill: var(--pp-pillar-3);
+}
+
+.heart-water--4 {
+	fill: var(--pp-pillar-4);
+}
+
+.heart-water--5 {
+	fill: var(--pp-pillar-5);
+}
+
+.heart-water--6 {
+	fill: var(--pp-pillar-6);
+}
+
+.heart-water--7 {
+	fill: var(--pp-pillar-7);
+}
+
+.heart-water--8 {
+	fill: var(--pp-pillar-8);
+}
+
+/* Ablesung unter dem Bild — die Zahl steht neben ihrer Bezugsgröße, nicht im Wasser. */
+.heart-balance-readout {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--pp-space-1);
+	text-align: center;
+}
+
+.heart-balance-value {
+	font-size: var(--pp-font-size-2xl);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	color: var(--pp-ink);
+	font-variant-numeric: tabular-nums;
+}
+
+.heart-balance-state {
+	font-size: var(--pp-font-size-lg);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	color: var(--pp-ink);
+}
+
+.heart-balance-hint {
+	font-size: var(--pp-font-size-sm);
+	line-height: var(--pp-line-base);
+	color: var(--pp-ink-muted);
+	max-width: 32ch;
+}
+
+/* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig). */
+.heart-balance-legend {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+/*
+ * Wird der Platz für Name und Wert nebeneinander zu knapp, rutscht der Wert in eine zweite Zeile,
+ * statt den Namen mitten im Wort umzubrechen — Säulennamen sind nutzerdefiniert und können lang
+ * sein, aber „Beziehunge/n" ist kein Umbruch, sondern ein Fehler.
+ */
+.heart-balance-legend-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--pp-gap-tight);
+	padding: var(--pp-space-2) 0;
+	border-bottom: 1px solid var(--pp-border-subtle);
+}
+
+.heart-balance-legend-row:last-child {
+	border-bottom: none;
+}
+
+.heart-balance-legend-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.heart-balance-legend-value {
+	flex: 0 0 auto;
+	margin-left: auto;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Farbtupfer der Legende — rein dekorativ (aria-hidden), der Name daneben trägt die Bedeutung. */
+.heart-legend-dot {
+	flex-shrink: 0;
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: var(--pp-radius-pill);
+	background: var(--pp-border-strong);
+	align-self: center;
+}
+
+.heart-legend-dot--1 {
+	background: var(--pp-pillar-1);
+}
+
+.heart-legend-dot--2 {
+	background: var(--pp-pillar-2);
+}
+
+.heart-legend-dot--3 {
+	background: var(--pp-pillar-3);
+}
+
+.heart-legend-dot--4 {
+	background: var(--pp-pillar-4);
+}
+
+.heart-legend-dot--5 {
+	background: var(--pp-pillar-5);
+}
+
+.heart-legend-dot--6 {
+	background: var(--pp-pillar-6);
+}
+
+.heart-legend-dot--7 {
+	background: var(--pp-pillar-7);
+}
+
+.heart-legend-dot--8 {
+	background: var(--pp-pillar-8);
 }

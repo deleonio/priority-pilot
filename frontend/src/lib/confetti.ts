@@ -1,5 +1,6 @@
 import { TaskStatus } from 'client';
 import { readAnimationsEnabled } from './animations';
+import { readDoneAnimationEnabled } from './doneAnimation';
 
 /**
  * #1169: Konfetti-Regen als Erfolgs-Feedback beim Erledigt-Toggle („…"-Popover).
@@ -72,7 +73,7 @@ const createParticles = (width: number, height: number, palette: string[]): Part
  * Check bleibt unabhängig vom Master-Schalter „Animationen" wirksam (#1183 AK4: reduce hat
  * Vorrang, auch bei eingeschaltetem Schalter).
  *
- * @returns `true`, wenn der Effekt gestartet wurde; `false` bei reduced-motion oder ausgeschaltetem Schalter.
+ * @returns `true`, wenn der Effekt gestartet wurde; `false` bei reduced-motion oder ausgeschalteten Schaltern.
  */
 export function launchConfetti(): boolean {
 	if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
@@ -83,6 +84,12 @@ export function launchConfetti(): boolean {
 	// künftige dekorative Animationen laufen nur bei eingeschaltetem Schalter. Der Aufrufer
 	// (App.tsx) bleibt bewusst unverändert, das Gate sitzt hier zentral.
 	if (!readAnimationsEnabled()) {
+		return false;
+	}
+
+	// Feinschalter „Erledigt animieren" (Default an): Wer den Regen gezielt abbestellt, verliert
+	// keine anderen Animationen. Der Vorrang-Kette folgt der Master, dann die Feinschalter.
+	if (!readDoneAnimationEnabled()) {
 		return false;
 	}
 

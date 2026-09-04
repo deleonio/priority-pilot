@@ -265,6 +265,12 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		await seedTasks(page, 1, 'E2E #1118 Signal');
 		await openDashboard(page, 1280, 900);
 
+		// `elementFromPoint` arbeitet in Viewport-Koordinaten und liefert außerhalb des sichtbaren
+		// Bereichs ausnahmslos `null`. Die Region muss deshalb erst in den Blick gescrollt werden —
+		// sonst hinge das Ergebnis daran, wie weit oben die Card gerade im Dashboard steht, und der
+		// Test würde rot, sobald ein Widget darüber wächst (statt weil die Fläche fehlt).
+		await page.locator('.dashboard-next-task').scrollIntoViewIfNeeded();
+
 		// Signalfläche: mindestens ein Element in der Region malt den aufgelösten
 		// `--pp-signal-wash`-Wert (Light-DOM oder Shadow-DOM — #930 macht den Host transparent).
 		const washPainted = await page.evaluate(() => {
@@ -279,14 +285,20 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 
 			// Schatten-DOM nicht intern anfassen (Lint-Vertrag): den effektiv gemalten Hintergrund
 			// rasterförmig über `elementFromPoint` abtasten — das liefert auch Shadow-DOM-Elemente.
+			// Das Raster bleibt im Viewport; wurde dabei kein einziger Punkt abgetastet, ist das
+			// Ergebnis unbrauchbar (`null`) statt eines stillen `false`.
 			const rect = region.getBoundingClientRect();
+			const top = Math.max(rect.top + 4, 0);
+			const bottom = Math.min(rect.bottom - 4, window.innerHeight);
+			let sampled = 0;
 			for (let x = rect.left + 4; x < rect.right - 4; x += 24) {
-				for (let y = rect.top + 4; y < rect.bottom - 4; y += 24) {
+				for (let y = top; y < bottom; y += 24) {
+					sampled++;
 					const el = document.elementFromPoint(x, y);
 					if (el !== null && getComputedStyle(el).backgroundColor === wash) return true;
 				}
 			}
-			return false;
+			return sampled === 0 ? null : false;
 		});
 		expect(washPainted, 'Signal-Wash (--pp-signal-wash) nicht sichtbar gemalt').toBe(true);
 

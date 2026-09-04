@@ -59,6 +59,12 @@ test.describe('#843 Settings Screen Layout', () => {
 	 *
 	 * HINWEIS: Wir prüfen die Host-Elemente (kol-input-radio, kol-input-checkbox, kol-button),
 	 * da die role-Elemente im Shadow-DOM unterschiedliche interne Abstände haben.
+	 *
+	 * Ausgenommen sind die Feinschalter in `.settings-switch-row--sub`: Sie stehen bewusst
+	 * eingerückt unter ihrem Master-Schalter, um die Zugehörigkeit zu zeigen — eine Ebene tiefer,
+	 * nicht eine fehlausgerichtete Zeile. Ihre Einrückung ist eigens abgesichert
+	 * (`settings-switch-layout.spec.ts`: Master-Zeilen fluchten, Sub-Zeilen liegen versetzt),
+	 * dieser Test hier deckt weiterhin lückenlos die oberste Ebene ab.
 	 */
 	test('AK2: Alle Controls sind auf 24dp linker Margin aligned', async ({ page }) => {
 		await page.goto('/settings/general');
@@ -66,7 +72,7 @@ test.describe('#843 Settings Screen Layout', () => {
 
 		// Wir prüfen die Host-Elemente, nicht die role-Elemente im Shadow-DOM
 		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general kol-input-checkbox, .settings-general > kol-button',
+			'.settings-general > kol-input-radio, .settings-general :not(.settings-switch-row--sub) > kol-input-checkbox, .settings-general > kol-button',
 		);
 		const count = await controls.count();
 

@@ -45,6 +45,8 @@ afterEach(() => {
 // Die #1169-Tests prüfen das Konfetti-Verhalten unter EINGESCHALTETEM Schalter — ohne diese
 // Vorbelegung würden sie mit dem neuen Default (aus) brechen (Test-Pflege, docs/spec/issue-1183.md).
 const ANIMATIONS_KEY = 'pp-animations-enabled';
+// Feinschalter „Erledigt animieren“ (Default an) — schaltet nur den Konfetti-Regen ab.
+const DONE_ANIMATION_KEY = 'pp-done-animation-enabled';
 
 beforeEach(() => {
 	localStorage.setItem(ANIMATIONS_KEY, 'true');
@@ -102,7 +104,31 @@ describe('launchConfetti — Overlay-Vertrag (#1169 AK1/AK2/AK5/AK6)', () => {
 	});
 });
 
-describe('launchConfetti — Master-Schalter „Animationen" (#1183 AK2/AK4)', () => {
+describe('launchConfetti — Feinschalter „Erledigt animieren“', () => {
+	it('Default (Key fehlt) ist an — Konfetti fällt wie bisher', () => {
+		stubReducedMotion(false);
+		localStorage.removeItem(DONE_ANIMATION_KEY);
+		expect(launchConfetti()).toBe(true);
+		expect(document.querySelector('[data-testid="confetti-overlay"]')).not.toBeNull();
+	});
+
+	it('Feinschalter aus → kein Overlay, obwohl Master an', () => {
+		stubReducedMotion(false);
+		localStorage.setItem(DONE_ANIMATION_KEY, 'false');
+		expect(launchConfetti()).toBe(false);
+		expect(document.querySelector('[data-testid="confetti-overlay"]')).toBeNull();
+	});
+
+	it('Master aus gewinnt weiterhin — auch bei angeschaltetem Feinschalter', () => {
+		stubReducedMotion(false);
+		localStorage.removeItem(ANIMATIONS_KEY);
+		localStorage.removeItem(DONE_ANIMATION_KEY);
+		expect(launchConfetti()).toBe(false);
+		expect(document.querySelector('[data-testid="confetti-overlay"]')).toBeNull();
+	});
+});
+
+describe('launchConfetti — Master-Schalter „Animationen“ (#1183 AK2/AK4)', () => {
 	it('AK2/AK3: ohne Key (Default aus) startet launchConfetti kein Konfetti', () => {
 		stubReducedMotion(false);
 		localStorage.removeItem(ANIMATIONS_KEY);
