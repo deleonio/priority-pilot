@@ -30,7 +30,9 @@ const createGroupViaUi = async (page: Page, name: string, description?: string):
 	}
 	await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
-	await waitForStableView(page);
+	// 'Gruppen' statt Default-'Dashboard': Nach dem Schließen des Dialogs sind wir weiterhin
+	// auf /settings/gruppen (gleiche Begründung wie in openGroupsTab).
+	await waitForStableView(page, 'Gruppen');
 };
 
 test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
@@ -47,7 +49,11 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 
 	test('Tab „Gruppen“ ist unter /settings/gruppen erreichbar (AK6)', async ({ page }) => {
 		await openGroupsTab(page);
-		await expect(page.getByRole('tabpanel').getByRole('heading', { name: 'Gruppen' })).toBeVisible();
+		// Panel-Scoped via `.settings-groups` statt `getByRole('tabpanel')`-Chaining: KolTabs
+		// slotet den Panel-Inhalt ins Shadow-DOM — slottedes Light-DOM ist im A11y-Baum im
+		// Tabpanel geschachtelt, DOM-seitig aber KEIN Nachfahre des Tabpanel-Elements (Muster:
+		// issue-969.spec.ts locatet Panels via slot-Attribut).
+		await expect(page.locator('.settings-groups').getByRole('heading', { name: 'Gruppen', exact: true })).toBeVisible();
 	});
 
 	test('Angelegtabelle: Gruppe erscheint mit Rolle und Mitgliederzahl (AK6)', async ({ page }) => {
@@ -87,8 +93,11 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		await card.getByRole('button', { name: 'Löschen' }).click();
 
 		// Schritt 1: Intentionsprüfung — Bestätigen erst nach dem zweiten Schritt wirksam.
+		// Auf den Dialog scopen: Der Karten-Trigger heißt ebenfalls „Löschen“ — `showModal()`
+		// macht die Seite hinter dem Dialog zwar inert, Playwright-Lokatoren lösen trotzdem
+		// beide auf (strict-mode). Muster: `kol-dialog`-Scoping wie pillar-crud.spec.ts.
 		await expect(page.getByText(/wirklich löschen/)).toBeVisible();
-		await page.getByRole('button', { name: 'Löschen', exact: true }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Löschen', exact: true }).click();
 
 		// Schritt 2: Scope („inkl. aller Mitglieder-Einträge") — Fokus liegt auf der Bestätigung.
 		await expect(page.getByText(/Mitglieder-Einträge/)).toBeVisible();

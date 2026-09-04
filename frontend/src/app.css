@@ -1218,6 +1218,19 @@ body {
 }
 
 /* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
+/*
+ * #1211 AK8: KolTabs rendert seine Panels in einem CSS-Grid (`div.kol-tabs` im Shadow-DOM), dessen
+ * Track-Minimum über die min-content-Breite des Panel-Inhalts läuft. Die einzeilig gekappte
+ * Beschreibung (`.groups-description`, `white-space: nowrap`) bläht diese min-content-Breite sonst
+ * auf die volle Textlänge auf und lässt das Panel aus dem 375px-Viewport laufen (622px gemessen).
+ * `minmax(0, 1fr)` koppelt die Panel-Breite vom Inhalt (klassischer Grid-Min-Content-Break) —
+ * die Ellipsis der Beschreibung greift dann wie in `.groups-info` (`min-width: 0`).
+ */
+.settings-groups {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
 .groups-toolbar {
 	margin-bottom: 1rem;
 }

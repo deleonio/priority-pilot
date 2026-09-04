@@ -52,7 +52,10 @@ describe('Gruppen-Datenisolation — Membership statt ownerScope (#1211)', () =>
 		assert.equal(res.status, 200);
 		const list = (await res.json()) as { id: number; role: string; memberCount: number }[];
 
-		assert.ok(list.some((group) => group.id === aliceGroupId), 'eigene Gruppe ist gelistet');
+		assert.ok(
+			list.some((group) => group.id === aliceGroupId),
+			'eigene Gruppe ist gelistet',
+		);
 		assert.ok(!list.some((group) => group.id === bobGroupId), 'fremde Gruppe ist nicht gelistet');
 		assert.equal(list.length, 1, 'Alice sieht genau ihre eine Gruppe');
 		assert.equal(list[0].role, 'admin', 'eigene Rolle wird mitgeliefert');

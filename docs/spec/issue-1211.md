@@ -21,13 +21,13 @@ Nutzer sind weder sichtbar noch erreichbar (404, nicht 403). Ticket 2/3 aus #952
 
 ## API-Vertrag (hinter `requireAuth`, Router `server/src/express/routes/groups.ts` neu)
 
-| Route | Verhalten |
-| --- | --- |
-| `POST /groups` | Body `{name, description?}`. 201 mit `{id, name, description, role:'admin', memberCount:1}`; Ersteller wird als Admin-Mitglied eingetragen. Leerer Name oder > 60 Zeichen → 400 mit deutscher Meldung. |
-| `GET /groups` | Nur Gruppen mit Membership des angemeldeten Nutzers, je `{id, name, description, role, memberCount}`. `memberCount` = COUNT über `group_members`. |
-| `GET /groups/{id}` | Eigene Membership → 200 (gleicher Shape); fremde Gruppe → 404. |
-| `PATCH /groups/{id}` | Nur `role='admin'` → 200; Validierung wie POST; fremde Gruppe → 404. |
-| `DELETE /groups/{id}` | Admin → 204; entfernt Gruppe UND alle `group_members`-Einträge in einer Transaktion; anschließendes `GET /groups/{id}` → 404. Fremde Gruppe → 404. |
+| Route                 | Verhalten                                                                                                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /groups`        | Body `{name, description?}`. 201 mit `{id, name, description, role:'admin', memberCount:1}`; Ersteller wird als Admin-Mitglied eingetragen. Leerer Name oder > 60 Zeichen → 400 mit deutscher Meldung. |
+| `GET /groups`         | Nur Gruppen mit Membership des angemeldeten Nutzers, je `{id, name, description, role, memberCount}`. `memberCount` = COUNT über `group_members`.                                                      |
+| `GET /groups/{id}`    | Eigene Membership → 200 (gleicher Shape); fremde Gruppe → 404.                                                                                                                                         |
+| `PATCH /groups/{id}`  | Nur `role='admin'` → 200; Validierung wie POST; fremde Gruppe → 404.                                                                                                                                   |
+| `DELETE /groups/{id}` | Admin → 204; entfernt Gruppe UND alle `group_members`-Einträge in einer Transaktion; anschließendes `GET /groups/{id}` → 404. Fremde Gruppe → 404.                                                     |
 
 Sichtbarkeit/Rechte immer über Membership-Lookup in `group_members` — nie über `ownerScope`
 (Group hat kein userId-Feld). Pass-Through-Modus (`ownerScope(undefined)` = `{}`) darf den
