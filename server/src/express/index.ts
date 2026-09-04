@@ -13,6 +13,7 @@ import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
+import { usersRouter } from './routes/users.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
@@ -230,6 +231,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Gruppen (Issue #1211): CRUD hinter requireAuth — Sichtbarkeit/Rechte über group_members-
 	// Membership, nicht über ownerScope (Group hat kein userId). Einladungen folgen in Ticket 2 (#952).
 	app.use(groupsRouter);
+
+	// Nutzersuche für den Einladungsfluss (#1212): nur id+displayName, E-Mail nur als Volltreffer.
+	app.use(usersRouter);
 
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).

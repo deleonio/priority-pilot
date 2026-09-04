@@ -1259,6 +1259,248 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /users/search:
+    get:
+      summary: Konten für eine Einladung suchen
+      description: >-
+        Trefferliste für den Einladungsfluss (#1212): volle E-Mail-Adresse als
+        Exact-Match ODER displayName-Fragment ab 3 Zeichen. Das DTO enthält nie
+        die E-Mail. Zu kurze Anfragen und Nulltreffer liefern 200 mit [].
+      operationId: searchUsers
+      tags: [groups]
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Volle E-Mail-Adresse oder Namensfragment ab 3 Zeichen
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trefferliste (nur id und displayName)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSearchHit'
+  /groups/{id}/members:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Mitglieder einer Gruppe auflisten
+      description: >-
+        Jedes Mitglied (Admin oder Mitglied) sieht die Liste; fremde Gruppe 404.
+      operationId: listGroupMembers
+      tags: [groups]
+      responses:
+        '200':
+          description: Mitglieder mit Anzeigename und Rolle
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupMember'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /groups/{id}/members/{userId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+      - name: userId
+        in: path
+        required: true
+        description: ID des zu entfernenden Kontos
+        schema:
+          type: integer
+    delete:
+      summary: Mitglied entfernen oder Gruppe verlassen
+      description: >-
+        Admins entfernen beliebige Mitglieder, jedes Mitglied sich selbst
+        (#1212 AK9). Der letzte verbleibende Admin wird nicht entfernt (409).
+      operationId: removeGroupMember
+      tags: [groups]
+      responses:
+        '204':
+          description: Mitglied entfernt
+        '403':
+          description: Mitglied ohne Adminrechte entfernt ein fremdes Konto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe oder Mitglied unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Letzter Administrator der Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /groups/{id}/invitations:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Offene Einladungen einer Gruppe auflisten
+      description: Nur Admins (andere Mitglieder 403, Nicht-Mitglieder 404).
+      operationId: listGroupInvitations
+      tags: [groups]
+      responses:
+        '200':
+          description: Offene Einladungen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupInvitation'
+        '403':
+          description: Mitglied ohne Adminrechte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Konto in die Gruppe einladen
+      description: >-
+        Nur Admins (andere Mitglieder 403, Nicht-Mitglieder 404). Eine zweite
+        offene Einladung für dasselbe Konto und eine bestehende Mitgliedschaft
+        liefern 409; nach einer Ablehnung ist eine neue Einladung möglich.
+      operationId: createGroupInvitation
+      tags: [groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupInvitationInput'
+      responses:
+        '201':
+          description: Angelegte Einladung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupInvitation'
+        '400':
+          description: Ungültiger Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Mitglied ohne Adminrechte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe oder Konto unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Bereits Mitglied oder bereits eingeladen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /invitations:
+    get:
+      summary: Eigene offene Einladungen auflisten
+      description: Gruppenübergreifend alle offenen Einladungen des angemeldeten Kontos.
+      operationId: listReceivedInvitations
+      tags: [groups]
+      responses:
+        '200':
+          description: Offene Einladungen mit Gruppen- und Einladenden-Namen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReceivedInvitation'
+  /invitations/{id}/accept:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Einladung
+        schema:
+          type: integer
+    post:
+      summary: Einladung annehmen
+      description: Nur der Eingeladene selbst; legt die Mitgliedschaft mit Rolle „member" an.
+      operationId: acceptInvitation
+      tags: [groups]
+      responses:
+        '200':
+          description: Beigetretene Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResult'
+        '404':
+          description: Einladung unbekannt oder fremd
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /invitations/{id}/decline:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Einladung
+        schema:
+          type: integer
+    post:
+      summary: Einladung ablehnen
+      description: Nur der Eingeladene selbst; die Mitgliederliste bleibt unverändert.
+      operationId: declineInvitation
+      tags: [groups]
+      responses:
+        '200':
+          description: Abgelehnte Einladung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResult'
+        '404':
+          description: Einladung unbekannt oder fremd
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     SeriesId:
@@ -1392,6 +1634,70 @@ components:
         description:
           type: string
           description: Neue Beschreibung der Gruppe
+    UserSearchHit:
+      type: object
+      description: Suchtreffer der Nutzersuche (#1212) — bewusst ohne E-Mail.
+      required: [id, displayName]
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+    GroupMember:
+      type: object
+      description: Mitglied einer Gruppe mit Anzeigename und Rolle (#1212).
+      required: [userId, displayName, role]
+      properties:
+        userId:
+          type: integer
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+    GroupInvitationInput:
+      type: object
+      description: Payload zum Einladen eines Kontos (#1212).
+      required: [userId]
+      properties:
+        userId:
+          type: integer
+    GroupInvitation:
+      type: object
+      description: Offene Einladung aus Sicht der Gruppe (#1212).
+      required: [id, groupId, userId, status]
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        userId:
+          type: integer
+        displayName:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+    ReceivedInvitation:
+      type: object
+      description: Offene Einladung aus Sicht des Eingeladenen (#1212).
+      required: [id, groupId, groupName, invitedByName]
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        groupName:
+          type: string
+        invitedByName:
+          type: string
+    InvitationResult:
+      type: object
+      description: Ergebnis von Annehmen/Ablehnen einer Einladung (#1212).
+      required: [groupId]
+      properties:
+        groupId:
+          type: integer
     Health:
       type: object
       required:

@@ -6,7 +6,11 @@ import type {
 	DependencyInput,
 	Group,
 	GroupInput,
+	GroupInvitation,
+	GroupMember,
 	GroupUpdate,
+	ReceivedInvitation,
+	UserSearchHit,
 	LlmModels,
 	LlmProvider,
 	LlmProviderTestResult,
@@ -306,6 +310,83 @@ export const api = {
 
 	async deleteGroup({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/groups/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// ── Einladungen und Mitgliedschaftspflege (#1212) ──────────────────────────
+
+	async searchUsers({ query, ...init }: { query: string } & Init): Promise<UserSearchHit[]> {
+		const { data, error, response } = await client.GET('/users/search', {
+			params: { query: { query } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async getGroupMembers({ id, ...init }: { id: number } & Init): Promise<GroupMember[]> {
+		const { data, error, response } = await client.GET('/groups/{id}/members', {
+			params: { path: { id } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async getGroupInvitations({ id, ...init }: { id: number } & Init): Promise<GroupInvitation[]> {
+		const { data, error, response } = await client.GET('/groups/{id}/invitations', {
+			params: { path: { id } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async inviteGroupMember({ id, userId }: { id: number; userId: number }): Promise<GroupInvitation> {
+		const { data, error, response } = await client.POST('/groups/{id}/invitations', {
+			params: { path: { id } },
+			body: { userId },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async removeGroupMember({ id, userId }: { id: number; userId: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/groups/{id}/members/{userId}', {
+			params: { path: { id, userId } },
+		});
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	async listReceivedInvitations(init: Init = {}): Promise<ReceivedInvitation[]> {
+		const { data, error, response } = await client.GET('/invitations', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async acceptInvitation({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.POST('/invitations/{id}/accept', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	async declineInvitation({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.POST('/invitations/{id}/decline', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
