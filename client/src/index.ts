@@ -24,6 +24,10 @@ export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
 export type PillarCreate = Schemas['PillarCreate'];
 export type PillarUpdate = Schemas['PillarUpdate'];
+/** #1211: Gruppen (Name Pflicht ≤ 60 Zeichen, Beschreibung optional) mit eigener Rolle. */
+export type Group = Schemas['Group'];
+export type GroupInput = Schemas['GroupInput'];
+export type GroupUpdate = Schemas['GroupUpdate'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];
 export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];
 export type ChecklistItem = Schemas['ChecklistItem'];

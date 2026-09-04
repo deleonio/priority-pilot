@@ -4,6 +4,9 @@ import type {
 	ActivityAdvisorResult,
 	components,
 	DependencyInput,
+	Group,
+	GroupInput,
+	GroupUpdate,
 	LlmModels,
 	LlmProvider,
 	LlmProviderTestResult,
@@ -267,6 +270,42 @@ export const api = {
 
 	async deletePillar({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/pillars/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// ── Gruppen (#1211) ────────────────────────────────────────────────────────
+
+	async listGroups(init: Init = {}): Promise<Group[]> {
+		const { data, error, response } = await client.GET('/groups', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async createGroup({ groupInput }: { groupInput: GroupInput }): Promise<Group> {
+		const { data, error, response } = await client.POST('/groups', { body: groupInput });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async updateGroup({ id, groupUpdate }: { id: number; groupUpdate: GroupUpdate }): Promise<Group> {
+		const { data, error, response } = await client.PATCH('/groups/{id}', {
+			params: { path: { id } },
+			body: groupUpdate,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async deleteGroup({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/groups/{id}', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

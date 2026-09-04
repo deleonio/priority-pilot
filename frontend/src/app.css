@@ -1217,6 +1217,77 @@ body {
 	flex-shrink: 0;
 }
 
+/* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
+/*
+ * #1211 AK8: KolTabs rendert seine Panels in einem CSS-Grid (`div.kol-tabs` im Shadow-DOM), dessen
+ * Track-Minimum über die min-content-Breite des Panel-Inhalts läuft. Die einzeilig gekappte
+ * Beschreibung (`.groups-description`, `white-space: nowrap`) bläht diese min-content-Breite sonst
+ * auf die volle Textlänge auf und lässt das Panel aus dem 375px-Viewport laufen (622px gemessen).
+ * `minmax(0, 1fr)` koppelt die Panel-Breite vom Inhalt (klassischer Grid-Min-Content-Break) —
+ * die Ellipsis der Beschreibung greift dann wie in `.groups-info` (`min-width: 0`).
+ */
+.settings-groups {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.groups-toolbar {
+	margin-bottom: 1rem;
+}
+
+/* Liste der Gruppen: jede Gruppe ist ein Listeneintrag (Karte) mit Info-Block und Aktions-Buttons. */
+.groups-items {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.groups-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem 1rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+	color: var(--pp-ink);
+}
+
+.groups-info {
+	flex: 1 1 16rem;
+	min-width: 0;
+}
+
+/* Beschreibung einzeilig kappen (KI-UX #1211): Ellipsis statt mehrzeilig aufblendender Karten;
+   `min-width: 0` oben macht die Ellipsis in der Flex-Zeile überhaupt wirksam. */
+.groups-description {
+	margin: 0.25rem 0 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* Metazeile: Rolle als Text-Badge + Mitgliederzahl. */
+.groups-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	margin-top: 0.25rem;
+}
+
+.groups-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+	flex-shrink: 0;
+}
+
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
    untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
 .deadline-group {

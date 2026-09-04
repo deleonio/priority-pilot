@@ -1139,6 +1139,126 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups:
+    get:
+      summary: Gruppen des angemeldeten Nutzers auflisten
+      description: >-
+        Listet alle Gruppen, in denen der angemeldete Nutzer Mitglied ist,
+        inklusive seiner Rolle und der Mitgliederzahl (#1211).
+      operationId: listGroups
+      tags: [groups]
+      responses:
+        '200':
+          description: Liste der Gruppen mit eigener Rolle
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+    post:
+      summary: Neue Gruppe anlegen
+      description: >-
+        Legt eine Gruppe an; der Ersteller wird automatisch Mitglied mit Rolle
+        `admin`. Name nach Trim nicht leer und maximal 60 Zeichen, sonst HTTP 400.
+      operationId: createGroup
+      tags: [groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupInput'
+      responses:
+        '201':
+          description: Gruppe angelegt (Ersteller ist Admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: Ungültiger Payload (Name fehlt oder ist zu lang)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /groups/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Einzelne Gruppe abrufen
+      description: >-
+        Liefert die Gruppe, wenn der angemeldete Nutzer Mitglied ist — sonst
+        HTTP 404 (keine Existenz-Leak).
+      operationId: getGroup
+      tags: [groups]
+      responses:
+        '200':
+          description: Gruppe mit Rolle des aufrufenden Nutzers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Gruppe umbenennen oder Beschreibung ändern
+      description: >-
+        Nur für Admins (andere Mitglieder: HTTP 404). Abwesende Felder bleiben
+        unverändert; Name nach Trim nicht leer und maximal 60 Zeichen, sonst
+        HTTP 400.
+      operationId: updateGroup
+      tags: [groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupUpdate'
+      responses:
+        '200':
+          description: Aktualisierte Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: Ungültiger Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe unbekannt, kein Mitglied oder kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Gruppe löschen
+      description: >-
+        Löscht die Gruppe inklusive aller Mitglieder-Einträge (Cascade). Nur
+        Admins (andere: HTTP 404). Response 204 ohne Body.
+      operationId: deleteGroup
+      tags: [groups]
+      responses:
+        '204':
+          description: Gruppe gelöscht
+        '404':
+          description: Gruppe unbekannt, kein Mitglied oder kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     SeriesId:
@@ -1224,6 +1344,54 @@ components:
           minimum: 1
           maximum: 60
           description: Aktualisierungsintervall in Minuten (Default 5)
+    Group:
+      type: object
+      description: >-
+        Gruppe mit Sicht einer Mitgliedschaft (#1211): Rolle des aufrufenden
+        Nutzers und Mitgliederzahl. Beschreibung ist optional (null ohne Angabe).
+      required: [id, name, description, role, memberCount]
+      properties:
+        id:
+          type: integer
+          description: ID der Gruppe
+        name:
+          type: string
+          description: Name der Gruppe (maximal 60 Zeichen)
+        description:
+          type: [string, 'null']
+          description: Optionale Beschreibung der Gruppe
+        role:
+          type: string
+          enum: [admin, member]
+          description: Rolle des aufrufenden Nutzers in der Gruppe
+        memberCount:
+          type: integer
+          description: Anzahl der Mitglieder der Gruppe
+    GroupInput:
+      type: object
+      description: Payload zum Anlegen einer Gruppe (#1211).
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Name der Gruppe (nach Trim nicht leer, max. 60 Zeichen)
+        description:
+          type: string
+          description: Optionale Beschreibung der Gruppe
+    GroupUpdate:
+      type: object
+      description: Payload zum Bearbeiten einer Gruppe — alle Felder optional.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Neuer Name (nach Trim nicht leer, max. 60 Zeichen)
+        description:
+          type: string
+          description: Neue Beschreibung der Gruppe
     Health:
       type: object
       required:
