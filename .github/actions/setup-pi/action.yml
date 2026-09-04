@@ -54,7 +54,7 @@ inputs:
   pi-version:
     description: 'Gepinnte pi-Version. BEWUSST GEPINNT statt latest: Zwei Läufe auf verschiedenen CLI-Versionen sind für den A/B-Vergleich mit Claude Code wertlos.'
     required: false
-    default: '0.84.4' # pi pin — Renovate customManager (renovate.json5) updated diese Version; Marker hält die Regex exakt auf diese Zeile
+    default: '0.85.0' # pi pin — Renovate customManager (renovate.json5) updated diese Version; Marker hält die Regex exakt auf diese Zeile
 
 outputs:
   invoke-cmd:
