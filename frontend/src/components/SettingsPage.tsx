@@ -3,6 +3,8 @@ import type { GeoConfig, Pillar } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
+import { useHeartAnimationEnabled } from '../lib/heartAnimation';
+import { useDoneAnimationEnabled } from '../lib/doneAnimation';
 import { usePrefersReducedMotion } from '../lib/reducedMotion';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
@@ -106,6 +108,10 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
 	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
 	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
+	// Feinschalter „Herz animieren“ — gilt nur gemeinsam mit dem Master (das Herz im HeartBalance).
+	const { enabled: heartAnimationEnabled, setEnabled: setHeartAnimationEnabled } = useHeartAnimationEnabled();
+	// Feinschalter „Erledigt animieren“ — gilt nur gemeinsam mit dem Master (Konfetti, #1169).
+	const { enabled: doneAnimationEnabled, setEnabled: setDoneAnimationEnabled } = useDoneAnimationEnabled();
 	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — deaktiviert den
 	// Schalter aus #1183 und zeigt den Info-Hinweis (die Systemeinstellung hat Vorrang).
 	const prefersReducedMotion = usePrefersReducedMotion();
@@ -280,7 +286,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							_variant="switch"
 							_checked={animationsEnabled}
 							_disabled={prefersReducedMotion}
-							_hint="Dekorative Animationen (z. B. Konfetti beim Erledigt-Machen von Aufgaben) anzeigen. Gilt gerätebezogen und ist standardmäßig aus."
+							_hint="Dekorative Animationen anzeigen — im Einzelnen schaltbar über „Herz animieren“ und „Erledigt animieren“. Gilt gerätebezogen und ist standardmäßig aus."
 							_on={{
 								onChange: (_event, value) => {
 									setAnimationsEnabled(value === true);
@@ -295,6 +301,37 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 								bleiben deshalb aus, unabhängig vom Schalter „Animationen".
 							</KolAlert>
 						)}
+					</div>
+					{/* Feinschalter unter dem Master — als eigene Zeilen darunter, eingerückt
+							(settings-switch-row--sub), um die Zugehörigkeit zum Master zu zeigen.
+							Ausgegraut, solange der Master zu ist bzw. das OS Bewegung reduziert. */}
+					<div className="settings-switch-row settings-switch-row--sub">
+						<KolInputCheckbox
+							_label="Herz animieren"
+							_variant="switch"
+							_checked={heartAnimationEnabled}
+							_disabled={!animationsEnabled || prefersReducedMotion}
+							_hint="Das Herz der Lebensbalance auf dem Dashboard schlägt und seine Wasseroberfläche wellt. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+							_on={{
+								onChange: (_event, value) => {
+									setHeartAnimationEnabled(value === true);
+								},
+							}}
+						/>
+					</div>
+					<div className="settings-switch-row settings-switch-row--sub">
+						<KolInputCheckbox
+							_label="Erledigt animieren"
+							_variant="switch"
+							_checked={doneAnimationEnabled}
+							_disabled={!animationsEnabled || prefersReducedMotion}
+							_hint="Beim Erledigt-Machen von Aufgaben regnet Konfetti. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+							_on={{
+								onChange: (_event, value) => {
+									setDoneAnimationEnabled(value === true);
+								},
+							}}
+						/>
 					</div>
 					{pushSupported ? (
 						<div className="settings-switch-row">

@@ -5,10 +5,10 @@ import type { Pillar } from 'client';
  * `pillar.ts` — als reine Funktionen ohne React, damit die Mathematik ohne DOM prüfbar bleibt und
  * die Komponente nur noch zeichnet.
  *
- * **Metapher:** Das Herz ist ein Gefäß, in dem je Säule eine Wassersäule steht. Steht eine Säule
- * auf ihrem Soll, ist ihre Wassersäule voll. Sind alle Säulen auf Soll, ist das Herz randvoll und
- * die Wasseroberfläche flach — die *Form* der Wasserlinie trägt die Aussage „ausgewogen", nicht
- * nur ihre Höhe.
+ * **Metapher:** Das Herz ist ein Gefäß, dessen Wasserpegel von unten steigt. Steht eine Säule
+ * auf ihrem Soll, trägt ihr Farbsegment voll bei; sind alle Säulen auf Soll, ist das Herz
+ * randvoll — die *Höhe* der gemeinsamen Wasserlinie trägt die Aussage „ausgewogen", die
+ * Aufschlüsselung je Säule die Legende neben dem Bild.
  *
  * **Maß:** Der Füllstand ist die Überlappung zwischen Ist- und Soll-Verteilung,
  * `füllstand = Σ min(sollᵢ, istᵢ)`. Das ist das Komplement der Totalvariations-Distanz und liegt
@@ -26,7 +26,11 @@ interface HeartSegment {
 	 * auslösen (ux-design.md §2, Regel 3). Ab Rang 8 (der 9. Säule) wird nicht weiter eingefärbt.
 	 */
 	colorIndex: number;
-	/** Füllstand dieser Wassersäule (0–1): Ist-Anteil gemessen am Soll-Anteil, bei 1 gedeckelt. */
+	/**
+	 * Balance dieses Segments (0–1): Ist-Anteil gemessen am Soll-Anteil, bei 1 gedeckelt. Das
+	 * Herz-Bild zeichnet sie nicht mehr als eigene Wassersäule, sie bleibt Teil des Modells und
+	 * der Lib-Tests.
+	 */
 	level: number;
 	/** Ist-Anteil der Säule am Gesamt-Punktestand (0–1). */
 	actualShare: number;
@@ -34,7 +38,7 @@ interface HeartSegment {
 	targetShare: number;
 }
 
-/** Gesamtbild des Herzens: sein Füllstand und die Wassersäulen in Anzeigereihenfolge. */
+/** Gesamtbild des Herzens: sein Füllstand und die Farbsegmente in Anzeigereihenfolge. */
 interface HeartBalance {
 	/** Füllstand des Herzens (0–1) — `Σ min(soll, ist)`, siehe Modulkommentar. */
 	fill: number;
@@ -93,15 +97,20 @@ interface HeartHealth {
  * Zustandswechsel verkaufen.
  */
 const HEALTH_STEPS: readonly (HeartHealth & { min: number })[] = [
-	{ min: 0.9, state: 'stark', label: 'Im Gleichgewicht', hint: 'Deine Säulen tragen gleichmäßig — so bleibt es rund.' },
-	{ min: 0.7, state: 'gut', label: 'Gut in Balance', hint: 'Kleine Schieflage, nichts Dramatisches.' },
+	{ min: 0.9, state: 'stark', label: 'In Balance', hint: 'Deine Säulen liegen dicht am Soll.' },
+	{
+		min: 0.7,
+		state: 'gut',
+		label: 'Gut in Balance',
+		hint: 'Die Verteilung ist solide, kleine Abweichungen sind normal.',
+	},
 	{
 		min: 0.45,
 		state: 'wackelig',
 		label: 'Leichte Schieflage',
-		hint: 'Einzelne Säulen ziehen davon, andere bleiben zurück.',
+		hint: 'Einzelne Säulen ziehen davon, andere kommen zu kurz.',
 	},
-	{ min: 0, state: 'schwach', label: 'Aus dem Gleichgewicht', hint: 'Fast alle Punkte hängen an wenigen Säulen.' },
+	{ min: 0, state: 'schwach', label: 'Aus der Balance', hint: 'Fast alle Punkte hängen an wenigen Säulen.' },
 ];
 
 /** Leitet den Gesundheitszustand aus dem Füllstand ab; ohne Punkte gilt der eigene Leer-Zustand. */
@@ -110,7 +119,7 @@ export const heartHealth = (balance: HeartBalance): HeartHealth => {
 		return {
 			state: 'leer',
 			label: 'Noch leer',
-			hint: 'Schließe Aufgaben ab — jede erledigte Aufgabe lässt das Herz steigen.',
+			hint: 'Erledige Aufgaben, damit sich das Herz füllt.',
 		};
 	}
 	// Die letzte Stufe hat `min: 0` und greift damit immer; der Fallback ist nur fürs Typsystem.

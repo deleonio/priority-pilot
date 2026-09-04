@@ -730,6 +730,7 @@ body {
 		margin-top: 0;
 	}
 
+	.dashboard-heart,
 	.dashboard h2,
 	.dashboard-greeting,
 	.dashboard-cards,
@@ -1745,11 +1746,24 @@ body {
 	box-sizing: border-box;
 }
 
+/*
+ * Feinschalter unter dem Master „Animationen“ („Herz animieren“, „Erledigt animieren“):
+ * mobil halb so weit eingerückt wie auf dem Desktop, um die Zugehörigkeit zum Master zu
+ * zeigen, ohne die ohnehin schmalen 375 px weiter zu verknappen.
+ */
+.settings-switch-row--sub {
+	margin-left: 1.25rem;
+}
+
 @media (min-width: 768px) {
 	.settings-switch-row {
 		flex-direction: row;
 		align-items: center;
 		gap: 1rem; /* 16dp */
+	}
+
+	.settings-switch-row--sub {
+		margin-left: 2.5rem;
 	}
 
 	/*
@@ -2258,9 +2272,10 @@ kol-heading {
 /* --- Herz der Startseite (Lebensbalance) --- */
 
 /*
- * Das Herz ist das erste Bild des Dashboards und steht mittig. Die Grafik skaliert über ihre
- * `viewBox` mit, die Breite begrenzt `max-width` — auf 375 px füllt sie die Karte, auf dem Desktop
- * bleibt sie bei 20rem stehen, statt zur Plakatwand zu werden.
+ * Das Herz ist das erste Bild des Dashboards und steht mittig über die ganze Seitenbreite. Die
+ * Grafik skaliert über ihre `viewBox` mit, die Breite begrenzt `max-width` — auf 375 px füllt sie
+ * die Karte, auf dem Desktop wächst sie als Hero der Seite, bleibt aber zentriert und gesetzten
+ * Grenzen unterworfen, statt zur Plakatwand zu werden.
  */
 .dashboard-heart {
 	display: block;
@@ -2276,7 +2291,7 @@ kol-heading {
 
 .heart-balance-stage {
 	width: 100%;
-	max-width: 20rem;
+	max-width: 24rem;
 	/*
 	 * Ruhepuls des Herzens — ein doppelter Schlag, wie ein echter. Die Dauer liefert die Komponente
 	 * als `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife, keine
@@ -2319,30 +2334,33 @@ kol-heading {
 }
 
 /*
- * Wellenlauf: verschiebt die gekachelte Wellenfläche um genau eine Wellenlänge und läuft dadurch
- * nahtlos in sich zurück. Den Versatz liefert die Komponente als `--pp-heart-wave-shift` aus
- * derselben Konstante, aus der auch der Pfad gebaut ist — nur so bleibt die Kachelung sprungfrei.
- * Reine Compositor-Bewegung: kein JavaScript-Frame-Loop, keine Re-Renders.
+ * Wellenlauf: Die Bewegung selbst kommt per SMIL aus der Komponente (`animateTransform`) — nicht
+ * aus CSS. Grund: Die Farb-Kopien der Welle müssen zwingend phasengleich laufen; die gemeinsame
+ * SMIL-Dokument-Zeitachse garantiert das, einzelne CSS-Animationsuhren tun es nicht. Hier bleibt
+ * nur das Erscheinungsbild. Reine Grafikbewegung: kein JavaScript-Frame-Loop, keine Re-Renders.
  */
 .heart-wave {
-	animation: heart-wave-drift 7s linear infinite;
 	/* Leicht durchscheinend: das Gefäß darunter tönt mit, das Wasser wirkt flüssig statt lackiert. */
 	opacity: 0.9;
 }
 
-/* Hintere Welle: gegenläufig und blasser — sie schaut nur dort hervor, wo die vordere tiefer steht. */
-.heart-wave--back {
-	animation-direction: reverse;
-	opacity: 0.45;
+/*
+ * Auftakt: Das Wasser steigt einmalig von unten auf seinen Stand — die Wegstrecke liefert die
+ * Komponente als `--pp-heart-rise` (volle Gefäßhöhe) aus. `both` hält den Endzustand auch nach
+ * dem Durchlauf fest; die dauerhafte Wellenbewegung läuft auf den inneren Gruppen und wird davon
+ * nicht berührt.
+ */
+.heart-water-rise {
+	animation: heart-water-rise 1.4s var(--pp-ease) both;
 }
 
-@keyframes heart-wave-drift {
+@keyframes heart-water-rise {
 	from {
-		transform: translateX(0);
+		transform: translateY(var(--pp-heart-rise, 82px));
 	}
 
 	to {
-		transform: translateX(calc(var(--pp-heart-wave-shift, 16px) * -1));
+		transform: translateY(0);
 	}
 }
 
@@ -2376,9 +2394,20 @@ kol-heading {
  */
 @media (prefers-reduced-motion: reduce) {
 	.heart-balance-stage,
-	.heart-wave {
+	.heart-water-rise {
 		animation: none;
 	}
+}
+
+/*
+ * Bewegung ist abbestellbar: Der Feinschalter „Herz animieren" (gemeinsam mit dem Master
+ * „Animationen") setzt die Still-Klasse — alle Herz-Schleifen laufen nicht, das Bild bleibt
+ * vollständig (Wasser standhaft auf seinem Stand, Oberfläche flach). Die OS-Einstellung oben
+ * greift unabhängig davon.
+ */
+.heart-balance-stage--still,
+.heart-balance-stage--still .heart-water-rise {
+	animation: none;
 }
 
 /*

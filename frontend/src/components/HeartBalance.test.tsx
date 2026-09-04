@@ -65,7 +65,7 @@ describe('HeartBalance', () => {
 		expect(screen.getByTestId('heart-balance-value').textContent).toBe('100 %');
 		expect(screen.getByTestId('heart-balance-svg')).toHaveAttribute(
 			'aria-label',
-			'Herz-Füllstand 100 Prozent — Im Gleichgewicht',
+			'Herz-Füllstand 100 Prozent — In Balance',
 		);
 	});
 

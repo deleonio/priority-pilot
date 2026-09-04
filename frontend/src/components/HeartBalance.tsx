@@ -1,16 +1,23 @@
 import type { Pillar } from 'client';
 import { useId, useMemo, type CSSProperties } from 'react';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
+import { useAnimationsEnabled } from '../lib/animations';
+import { useHeartAnimationEnabled } from '../lib/heartAnimation';
+import { usePrefersReducedMotion } from '../lib/reducedMotion';
 
 /**
- * Das Herz der Startseite: ein vektorielles Gefäß (SVG), in dem je Lebenssäule eine Wassersäule
- * steht. Jede Wassersäule steigt, je näher ihre Säule an ihrem Soll-Anteil liegt; die Wellen an
- * der Oberfläche laufen dauerhaft weiter.
+ * Das Herz der Startseite: ein vektorielles Gefäß (SVG), das sich wie ein Wasserglas füllt. Der
+ * Füllstand steigt von unten nach oben, je ausgewogener — je balancierter — die Lebenssäulen sind
+ * (Rechnung in `lib/heartBalance.ts`); die Oberfläche ist eine durchlaufende Welle.
  *
- * **Warum Wassersäulen und nicht Tortenstücke:** Die Segmente sind vertikal, weil die Aussage
- * vertikal ist — „wie voll ist diese Säule". Dadurch bildet die Wasserlinie über alle Segmente
- * hinweg selbst die Balance ab: gleichmäßige Säulen ergeben eine flache, ruhige Oberfläche,
- * eine Schieflage eine zerklüftete. Die Form trägt die Aussage, nicht erst die Prozentzahl.
+ * **Das Bild sagt zwei Dinge gleichzeitig:** Die *Höhe* der gemeinsamen Wasserlinie trägt die
+ * Gesamt-Balance, die *Breite* der Farbstreifen unter der Oberfläche die Verteilung — jeder
+ * Streifen ist genau so breit, wie sein Ist-Anteil am Punkte-Saldo beträgt. Ein schmales Band
+ * neben einem breiten ist damit auch ohne Zahl eine Schieflage.
+ *
+ * **Warum eine gemeinsame Wasserlinie:** „Wie voll ist das Herz" ist eine einzige Zahl — also
+ * gibt es im Bild auch nur eine Wasserlinie. Sie steigt einmalig von unten auf ihren Stand und
+ * wellt danach über die volle Herzbreite.
  *
  * **Warum SVG und nicht Canvas:** Die Grafik ist Text-, Theme- und Zoom-fähig (Farbrollen als
  * Custom Properties, `role="img"` mit Label, scharf bei jeder Größe) und braucht keinen
@@ -50,12 +57,13 @@ const HEART_TOP = 6;
 const HEART_BOTTOM = 88;
 
 /**
- * Wellenlänge und Auslenkung der Oberfläche in Nutzereinheiten. Die Wellenlänge ist bewusst kürzer
- * als ein Segment breit ist (bei fünf Säulen 20 Einheiten): Sieht man weniger als eine volle Welle,
- * liest die Oberfläche als schiefe Kante statt als Wasser.
+ * Wellenlänge und Auslenkung der Oberfläche in Nutzereinheiten. Die Auslenkung ist so gewählt,
+ * dass die Oberfläche auch in voller Farbe klar als Welle lesbar ist. Die Wellenlänge ist bewusst
+ * kürzer als ein Segment breit ist (bei fünf Säulen 20 Einheiten): Sieht man weniger als eine
+ * volle Welle, liest die Oberfläche als schiefe Kante statt als Wasser.
  */
 const WAVE_LENGTH = 16;
-const WAVE_AMPLITUDE = 2;
+const WAVE_AMPLITUDE = 3;
 
 /**
  * Baut eine Wellenfläche, die über die Zeichenfläche hinaussteht: Die CSS-Animation verschiebt sie
@@ -94,21 +102,74 @@ const PILLAR_RAMP_SIZE = 8;
 const waterClass = (colorIndex: number): string =>
 	colorIndex < PILLAR_RAMP_SIZE ? `heart-water heart-water--${colorIndex + 1}` : 'heart-water';
 
+/*
+ * Wellen-Drift per SMIL (`<animateTransform>`), nicht per CSS-Animation: Alle Kopien der Welle
+ * müssen zwingend **phasengleich** laufen — nur dann ist die sichtbare Oberfläche über die
+ * Bandgrenzen hinweg eine einzige, ununterbrochene Welle. CSS-Animationsuhren starten je Element
+ * und laufen auseinander; die SMIL-Zeitachse ist eine gemeinsame Dokument-Uhr, gleiche `dur`
+ * bedeutet damit garantiert gleiche Phase. Die Verschiebung um genau eine Wellenlänge
+ * (`WAVE_LENGTH`, siehe Pfad) lässt die Kachelung sprungfrei zurücklaufen.
+ *
+ * Es gibt bewusst nur **eine** Wasseroberfläche: Eine zweite, dahinter laufende „Tiefenwelle“
+ * schaut als blasser Bogen über die Farbkante und wirkt wie abgeschnitten — der Effekt wurde
+ * nach Nutzer-Feedback entfernt. Gerendert wird das `<animateTransform>` nur bei erlaubter
+ * Animation (`animated`); sonst steht die Welle still in ihrer Grundform — SMIL lässt sich
+ * nicht per CSS abschalten.
+ */
+const WAVE_DRIFT_DURATION = '7s';
+
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
 const asPercent = (share: number): number => Math.round(share * 100);
+
+/** Ein Farbstreifen unter der Wasserlinie: eine Säule mit ihrer horizontalen Spanne (0–100). */
+interface HeartBand {
+	pillarId: number;
+	colorIndex: number;
+	/** Linke und rechte Kante des Streifens in Nutzereinheiten. */
+	x0: number;
+	x1: number;
+}
 
 export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) => {
 	const balance = useMemo(() => buildHeartBalance(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
 	const health = heartHealth(balance);
+
+	/*
+	 * Das Herz schlägt und wellt nur, wenn beide Schalter es erlauben: der Master „Animationen“
+	 * (#1183) und der Feinschalter „Herz animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat
+	 * Vorrang und schaltet hier mit ab — die Wellen-Drift ist SMIL und lässt sich nicht per
+	 * CSS-Media-Query ausnehmen (Schlag und Aufstieg bleiben trotzdem im CSS abgesichert).
+	 */
+	const { enabled: animationsEnabled } = useAnimationsEnabled();
+	const { enabled: heartAnimationEnabled } = useHeartAnimationEnabled();
+	const prefersReducedMotion = usePrefersReducedMotion();
+	const animated = animationsEnabled && heartAnimationEnabled && !prefersReducedMotion;
+
+	/*
+	 * Horizontale Spannen der Farbstreifen: kumulierte Ist-Anteile über die Zeichenbreite — die
+	 * Breite jedes Streifens entspricht exakt dem Ist-Anteil seiner Säule (Verteilung im Bild).
+	 * Ohne Punkte gilt die Soll-Verteilung, damit das leere Herz schon die Zielaufteilung zeigt.
+	 */
+	const bands = useMemo<HeartBand[]>(() => {
+		let x = 0;
+		const next = balance.segments.map((segment) => {
+			const share = balance.hasPoints ? segment.actualShare : segment.targetShare;
+			const x0 = x;
+			x = Math.min(VIEW_WIDTH, x + share * VIEW_WIDTH);
+			return { pillarId: segment.pillar.id, colorIndex: segment.colorIndex, x0, x1: x };
+		});
+		// Letzte Kante exakt auf die Zeichenbreite legen — ein Float-Rest darf keinen Spalt lassen.
+		if (next.length > 0) next[next.length - 1].x1 = VIEW_WIDTH;
+		return next;
+	}, [balance]);
 
 	// Eindeutige, aber stabile Präfixe für die SVG-Fragment-Referenzen: mehrere Herzen auf einer
 	// Seite dürfen sich nicht gegenseitig die `clipPath`-IDs überschreiben. Doppelpunkte aus
 	// `useId()` fallen raus, damit die IDs auch für `querySelector` benutzbar bleiben.
 	const uid = useId().replace(/:/g, '');
 	const heartClipId = `${uid}-heart`;
-	const columnClipId = (index: number): string => `${uid}-col-${index}`;
+	const bandClipId = (index: number): string => `${uid}-band-${index}`;
 
-	const columnWidth = balance.segments.length > 0 ? VIEW_WIDTH / balance.segments.length : VIEW_WIDTH;
 	const fillPercent = asPercent(balance.fill);
 
 	/*
@@ -121,13 +182,20 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 	return (
 		<div className="heart-balance">
 			{/*
-			 * Zwei Werte, die die Grafik der Animation vorgibt: der Ruhepuls und der Versatz einer
-			 * vollen Wellenlänge. Letzterer MUSS `WAVE_LENGTH` entsprechen, sonst springt die Kachelung
-			 * bei jedem Schleifendurchlauf — deshalb kommt er aus derselben Konstante wie der Pfad.
+			 * Zwei Werte, die die CSS-Animationen der Grafik vorgeben: der Ruhepuls und der
+			 * Aufstiegsweg. Die Wellen-Drift selbst läuft per SMIL (s. unten) und braucht hier
+			 * keinen Versatz mehr.
 			 */}
 			<div
-				className="heart-balance-stage"
-				style={{ '--pp-heart-beat': `${beatSeconds}s`, '--pp-heart-wave-shift': `${WAVE_LENGTH}px` } as CSSProperties}
+				className={animated ? 'heart-balance-stage' : 'heart-balance-stage heart-balance-stage--still'}
+				style={
+					{
+						'--pp-heart-beat': `${beatSeconds}s`,
+						// Weg, den das Wasser beim Aufstieg zurücklegt: die volle Gefäßhöhe. Die Animation
+						// (`heart-water-rise` in app.css) startet mit der Oberfläche am Boden und endet hier.
+						'--pp-heart-rise': `${HEART_BOTTOM - HEART_TOP}px`,
+					} as CSSProperties
+				}
 			>
 				<svg
 					className="heart-balance-svg"
@@ -140,9 +208,9 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 						<clipPath id={heartClipId}>
 							<path d={HEART_PATH} />
 						</clipPath>
-						{balance.segments.map((segment, index) => (
-							<clipPath key={segment.pillar.id} id={columnClipId(index)}>
-								<rect x={index * columnWidth} y={0} width={columnWidth} height={VIEW_HEIGHT} />
+						{bands.map((band, index) => (
+							<clipPath key={band.pillarId} id={bandClipId(index)}>
+								<rect x={band.x0} y={0} width={band.x1 - band.x0} height={VIEW_HEIGHT} />
 							</clipPath>
 						))}
 					</defs>
@@ -151,41 +219,52 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 					<path d={HEART_PATH} className="heart-vessel" />
 
 					<g clipPath={`url(#${heartClipId})`}>
-						{balance.segments.map((segment, index) => {
-							const surfaceY = HEART_BOTTOM - segment.level * (HEART_BOTTOM - HEART_TOP);
-							// Leicht verschiedene Laufzeiten und Phasen: sonst schwingen alle Segmente im
-							// Gleichtakt und das Wasser wirkt wie eine einzige starre Kachel.
-							const drift = { animationDuration: `${(7 + index * 0.9).toFixed(1)}s` };
-							const driftBack = {
-								animationDuration: `${(9.5 + index * 1.1).toFixed(1)}s`,
-								animationDelay: `-${(index * 1.3).toFixed(1)}s`,
-							};
-							return (
-								<g key={segment.pillar.id} clipPath={`url(#${columnClipId(index)})`} data-testid="heart-column">
-									<g transform={`translate(0 ${surfaceY.toFixed(2)})`}>
-										{/* Hintere Welle: gegenläufig und blasser — das erzeugt Tiefe im Wasser. */}
-										<g className="heart-wave heart-wave--back" style={driftBack}>
-											<path d={WAVE_PATH} className={waterClass(segment.colorIndex)} />
-										</g>
-										<g className="heart-wave" style={drift}>
-											<path d={WAVE_PATH} className={waterClass(segment.colorIndex)} />
+						{/*
+						 * Das Wasser steigt einmalig von unten auf seinen Stand (CSS, Compositor) und wellt
+						 * danach dauerhaft weiter. Eine Oberfläche fürs ganze Herz — Details zur Phasen-
+						 * und Clip-Struktur bei den Drift-Konstanten oben.
+						 */}
+						<g className="heart-water-rise">
+							<g transform={`translate(0 ${(HEART_BOTTOM - balance.fill * (HEART_BOTTOM - HEART_TOP)).toFixed(2)})`}>
+								{bands.map((band, index) => (
+									<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="heart-column">
+										<g className="heart-wave">
+											<path d={WAVE_PATH} className={waterClass(band.colorIndex)} />
+											{animated && (
+												<animateTransform
+													attributeName="transform"
+													type="translate"
+													from="0 0"
+													to={`${-WAVE_LENGTH} 0`}
+													dur={WAVE_DRIFT_DURATION}
+													repeatCount="indefinite"
+												/>
+											)}
 										</g>
 									</g>
-								</g>
-							);
-						})}
+								))}
+							</g>
+						</g>
 
-						{/* Trennfugen zwischen den Segmenten — in Kartenfarbe, damit sie als Fuge lesen. */}
-						{balance.segments.slice(1).map((segment, index) => (
-							<line
-								key={segment.pillar.id}
-								className="heart-seam"
-								x1={(index + 1) * columnWidth}
-								y1={0}
-								x2={(index + 1) * columnWidth}
-								y2={VIEW_HEIGHT}
-							/>
-						))}
+						{/*
+						 * Trennfugen zwischen den Streifen — in Kartenfarbe, damit sie als Fuge lesen. Nur an
+						 * echten Kanten: Streifen ohne Breite (Ist-Anteil 0) erzeugen keine Fuge.
+						 */}
+						{bands
+							.slice(1)
+							.map(
+								(band) =>
+									band.x1 > band.x0 && (
+										<line
+											key={band.pillarId}
+											className="heart-seam"
+											x1={band.x0}
+											y1={0}
+											x2={band.x0}
+											y2={VIEW_HEIGHT}
+										/>
+									),
+							)}
 					</g>
 
 					{/* Kontur zuletzt, damit sie über dem Wasser liegt und die Silhouette scharf bleibt. */}
@@ -206,7 +285,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 			{/*
 			 * Relief-Regel (ux-design.md §2, Regel 4): Der Säulenname steht immer als Text neben der
 			 * Farbe — die Farbe allein trägt hier keine Bedeutung. Zugleich ist das die Legende, die
-			 * die Wassersäulen im Bild überhaupt zuordenbar macht.
+			 * die Farbstreifen im Bild überhaupt zuordenbar macht.
 			 */}
 			<ul className="heart-balance-legend" data-testid="heart-balance-legend">
 				{balance.segments.map((segment) => (
