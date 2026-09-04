@@ -36,7 +36,16 @@ zweite Runde lief im Hintergrund beim Soft-Deadline-Abbruch — Ergebnis im PR-B
   Erste e2e-Runde bewies: UI funktionierte (error-context zeigte Tab „Gruppen“ selected + Empty-State),
   nur der Helper-Wartetext war falsch.
 - Grün: `tsc --noEmit`, `pnpm lint` (frontend), prettier, vitest SettingsPage.test.tsx 20/20.
-- E2e 2. Runde (nach Test-Pflege) lief beim Deadline-Abbruch im Hintergrund — Status unbekannt.
+- E2e 2. Runde (nach Test-Pflege): 1/5 grün (Leerer-Name-Test), 4 rot — Weitere Ursache gefunden:
+  `createGroupViaUi` Zeile 33 ruft `waitForStableView(page)` DEFAULT ('Dashboard') → alle Tests,
+  die eine Gruppe anlegen (53/82/107), scheitern dort; Test 48 (nur openGroupsTab) trotz Fix rot —
+  Ursache ungeklärt (error-context in frontend/test-results/ ansehen). Zweite Test-Pflege nötig:
+  Zeile 33 ebenfalls auf einen Settings-Seiten-Text umstellen (z. B. 'Gruppe anlegen'). UI selbst
+  funktionierte laut error-context (Tab selected, Empty-State sichtbar).
+
+## Erledigt (3b — Push)
+- Commit `feat(frontend): Gruppen-Tab …` + Push auf ai/harness/1211 ERFOLGREICH; Pre-commit-Hook
+  lief format+knip+lint über ALLE Workspaces — GRÜN (Gate-Teilnachweis im Hook-Output).
 
 ## Relevante Stellen
 - `frontend/e2e/groups.spec.ts` — Vertrag AK6/AK7/AK8 (Button-Texte, /wirklich löschen/,
