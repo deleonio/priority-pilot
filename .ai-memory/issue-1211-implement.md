@@ -1,6 +1,6 @@
 # Issue 1211 — Impl (Phase 4), Stand 2026-09-04
 
-**ERGEBNIS: VERDICT not-ready (Zeitnot).** Server-Seite komplett + grün (beide Spec-Suiten), Frontend (AK6/AK7/AK8) NOCH NICHT angefangen — Draft-PR #1214 bleibt Draft. Begründung im PR-Body. Nächster Impl-Lauf: nur noch Frontend + OpenAPI + Gate.
+**ERGEBNIS: VERDICT not-ready (Zeitnot, 2. Lauf).** Server-Seite komplett + grün (beide Spec-Suiten), OpenAPI-Vertrag für /groups eingetragen + Typen generiert, Frontend (AK6/AK7/AK8) NOCH NICHT angefangen — Draft-PR #1214 bleibt Draft. Begründung im PR-Body. Nächster Impl-Lauf: nur noch Frontend + Gate.
 
 ## Erledigt
 - Branch `ai/harness/1211` ausgecheckt (Draft-PR #1214, Commit 341f726f = Spec).
@@ -13,6 +13,12 @@
 - **Test-Pflege (dokumentiert im PR-Body):** `groups.api.test.ts:59,70` — Spec-Phase hatte `body?.error`/`body.error.length` assertiert; Repo-Fehlervertrag ist seit #1130 zentral `{ message }` (http-error.ts sendError). Assertions auf `body?.message`/`body.message.length` geändert, sonst nichts.
 - **Test-Pflege 2:** `groups.api.test.ts:13` `body: any` → struktureller Typ `GroupResponseBody` (eslint no-explicit-any blockierte lint; Assertions inhaltlich unverändert). **Test-Pflege 3:** `frontend/e2e/groups.spec.ts:72` Playwright-`toBe(false, 'msg')` → `expect(wert, 'msg').toBe(false)` (tsc TS2554 — Playwright nimmt die Nachricht auf expect, nicht auf toBe).
 - `pnpm lint` komplett GRÜN (server+frontend), prettier-check über alle geänderten Dateien grün.
+
+## Erledigt (2. Lauf, Fortsetzung 2026-09-04)
+- Branch-Verifizierung: `ai/harness/1211` in Sync mit origin (Server-Commit 607b21e8 + Notiz c62ea954 waren bereits gepusht).
+- `openapi.yml` +168 Zeilen: `paths /groups` (GET/POST) + `/groups/{id}` (GET/PATCH/DELETE, operationIds listGroups/createGroup/getGroup/updateGroup/deleteGroup, tags [groups], Error-refs) + Schemas `Group` (id/name/description nullable/role enum [admin,member]/memberCount), `GroupInput` (name 1–60 Pflicht, description optional), `GroupUpdate` (beides optional). Vertrag exakt aus `server/src/express/routes/groups.ts` abgeleitet (GroupDto :23, 201/200/204-Statuscodes).
+- Typen regeneriert: `pnpm --filter server build:api` + `pnpm --filter client generate` — WICHTIG: `server/src/api.d.ts` + `client/src/schema.d.ts` sind GITIGNORED (nur openapi.yml ist getrackt); die generierten Dateien liegen lokal bereit, der nächste Lauf braucht sie NICHT neu generieren (falls doch: dieselben zwei Skripte).
+- prettier über openapi.yml: unchanged (formatkonform); openapi-typescript-Parsetlauf = YAML-Gültigkeitsnachweis.
 
 ## Relevante Stellen
 - `server/src/express/routes/groups.ts` — fertig implementierter API-Vertrag.
@@ -31,12 +37,12 @@
 
 ## Offen
 - Frontend AK6/AK7/AK8 komplett (Tab, Karten-Liste, Anlegen-/Bearbeiten-Modal mit Inline-Validierung, sequenzielle Löschen-Bestätigung mit Fokus, Empty/Laden/Fehler-Zustände).
-- `openapi.yml` Group-Schemas + Client-Typen regenerieren.
+- `api.ts`-Wrapper-Methoden für die neuen operationIds (listGroups/createGroup/getGroup/updateGroup/deleteGroup) — Typen liegen bereits generiert bereit (components['schemas']['Group'] etc.).
 - Voller Gate-Lauf (`pnpm format/prettier/lint/knip/test`) + e2e `groups.spec.ts` + 375/1280-Check.
 - Full-Suite-Nachweis: in diesem Lauf liefen nur die zwei Gruppen-Suiten (Zeitnot), nicht `pnpm test` komplett.
 
 ## Nächster Schritt
-- Frontend bauen (App.tsx-Segmente + SettingsPage-Tab + Komponente), dann kompletter Gate + e2e, dann `gh pr ready 1214` + Beschreibung erweitern.
+- Frontend bauen (App.tsx-Segmente + SettingsPage SETTINGS_TABS Index 4 + GroupsSection-Komponente mit Form/Delete-Dialog nach LlmSettings/LlmProvider*Dialog-Muster), dann kompletter Gate + e2e, dann `gh pr ready 1214` + Beschreibung erweitern.
 
 ## Fallstricke
 - Server-Tests NUR mit `NODE_ENV=test DATABASE_STORAGE=:memory:` starten (package.json-Skript tut das; `/auth/test-login` ist sonst nicht registriert → 401).
