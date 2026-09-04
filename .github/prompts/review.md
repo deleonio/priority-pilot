@@ -16,12 +16,21 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
   1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt. Check line 2 for whether this was a "Review ohne Issue".
+  2. Load the fixup's <!-- ai-fixup-decisions --> collected comment: its "✅ Behobene Anmerkungen"
+     rows (Finding #<N> — fixed in <SHA>) are the CLAIM CHECKLIST. Verify each row against the
+     fixup diff (commit exists, actually fixes the finding, introduces nothing new); findings
+     without a claim row stay open. This is cheaper and more precise than re-discovering the delta.
   Delta-Review per SKILL.md step 5 (Diff scoping): only the fixup diff + new problems; tick off open findings, keep context in view.
      - If the original review was "ohne Issue": continue using PR description as the informal specification (no AK verification possible).
 
 WRAP-UP (both modes):
   - TITLE GATE (BEFORE the verdict): {{TITLE_OK}} says whether the PR title satisfies Conventional Commits (type(scope)!: subject, English, lowercase subject, <=72). If false: rename it via gh pr edit {{PR_NR}} --title — using the type/scope hints {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, subject in descriptive English. Not a finding, doesn't delay the verdict.
-  - (Fixable) findings → review comments on file/line, then VERDICT: needs-fixup
+  - Blocker findings (bug/security, uncovered AC, red tests, convention break WITH impact) →
+    review comments on file/line, then VERDICT: needs-fixup
+  - NIT-ONLY (style/naming/minor simplification, no behavioral risk — severity per SKILL.md step 4):
+    NO fixup round. Nits as one bundled inline list + section "📝 Nits (nicht blockierend)" in the
+    collected comment; if the ACs are covered and green, VERDICT: reviewed (🟢 with nits noted).
+    A fixup round plus re-review costs ~45 turns — a nit doesn't justify that.
   - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the
     "## ⏸️ Entscheidungs-Findings" section per the SKILL.md step 5 template.
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed

@@ -112,6 +112,14 @@ Per finding, **one concrete comment anchored to a file/line** — each with:
   **ambiguous** (context missing — name exactly what the fixup should ask in the thread).
   The classification needs a justified match (Abgleich): a finding only becomes **decision**
   if fixing it yourself would overrule a documented human choice or a binding ADR — say which.
+- **Severity decides whether a fixup round runs at all (cost gate):** every fixable finding
+  also carries a severity — **blocker** (bug, security, uncovered acceptance criterion, red
+  tests, convention violation with impact) or **nit** (style/naming/minor simplification
+  without behavioral risk). Blockers → verdict `needs-fixup`. **A nit-only round does NOT
+  trigger a fixup run**: the verdict stays `reviewed` (🟢 if the acceptance criteria are
+  covered by green tests) and the nits go into the collected comment as a non-blocking list —
+  a human can still order a fixup later. Rationale: one fixup round plus re-review costs
+  ~45 turns; a nit almost never justifies that.
 - Post them bundled as **one review** with inline-anchored comments, event **`COMMENT`** (not
   `APPROVE`/`REQUEST_CHANGES`): `gh api repos/{owner}/{repo}/pulls/<pr>/reviews` with `event=COMMENT`,
   `body` (summary), and one entry per finding in `comments[]` (`path`, `line`, `body`).
@@ -150,12 +158,16 @@ age with the diff regardless; what gets consolidated is the **collected comment*
   **create it once** (`gh pr comment` with the marker as the first line).
 - **Diff scoping on a follow-up review (cost/time savings):** if an existing collected comment is
   found (follow-up review after a fixup push), do NOT walk the entire PR diff again from
-  scratch. Instead, read its `updatedAt` timestamp from the API response and check only the
-  commits/diff **since that point in time** (`gh pr view --json commits` filtered on
-  `committedDate > updatedAt`, then `git diff`) — don't re-litigate points already listed under
-  "Resolved comments". Keep the issue context and architectural touchpoints in view (don't judge
-  purely diff-locally). If the marked comment is missing (first review), always check the full
-  diff (step 1 stays unchanged).
+  scratch. The primary input is the fixup's **claim checklist**: its `<!-- ai-fixup-decisions -->`
+  collected comment lists every addressed finding as `Finding #<N> — fixed in <SHA>` under
+  "✅ Behobene Anmerkungen" — verify **each row against the fixup diff** (commit exists, actually
+  fixes the finding, introduces nothing new) instead of re-discovering the delta. Findings
+  without a claim row stay open. Beyond that, read the review comment's `updatedAt` timestamp
+  and check only the commits/diff **since that point in time** (`gh pr view --json commits`
+  filtered on `committedDate > updatedAt`, then `git diff`) — don't re-litigate points already
+  listed under "Resolved comments". Keep the issue context and architectural touchpoints in
+  view (don't judge purely diff-locally). If the marked comment is missing (first review),
+  always check the full diff (step 1 stays unchanged).
 - **Struktur des Sammelkommentars** (status line, then sections as needed). The section
   headings below are written **verbatim in German** — they are the German artifact's own
   headings, the fixup sibling comment uses the same ones, and the pipeline's needs-human
@@ -174,6 +186,9 @@ age with the diff regardless; what gets consolidated is the **collected comment*
     chosen option without re-evaluating.
   - **📋 Offene Findings** — only for needs-fixup: the points of the **current** round (with
     traffic light, file/line, suggestion).
+  - **📝 Nits (nicht blockierend)** — nit-only rounds: the non-blocking points as a short list
+    (file/line, suggestion). Never a reason for `needs-fixup`; entries get removed or checked
+    off once addressed (by a later fixup or the human).
   - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` (review type: cross-examination | fixup evidence) and `Updated: JJJJ-MM-TT` (ISO date; the German placeholder is kept so it matches the sibling ai-fixup-decisions comment).
 
 **CI/quality gate as a precondition:** a green content verdict (🟢) is **necessary but not

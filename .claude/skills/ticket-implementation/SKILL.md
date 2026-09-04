@@ -59,6 +59,16 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   For **changed UI files**, apply the same order — **SPARINGLY:** for design/layout checks, use the deterministic, cheap tools first (design detectors + rules from `docs/mobile-ui-rules.md`); use Playwright MCP only for the short 375/1280 layout-break check on actually visible changes (screenshot + A11y snapshot), NOT for exploratory design analysis.
   **e2e:** `pnpm --filter frontend test:e2e` ONLY if the change affects UI behavior and an e2e spec exists for it — otherwise skip and note it in the PR body.
   **For confirm/delete/destructive dialogs:** apply `docs/ux-pattern-sequential-confirmation.md`. **For visible UI:** apply `docs/mobile-ui-rules.md` (touch targets ≥44px, async states, anti-patterns).
+  **Pre-push checklist — recurrent review findings (check here, not in the fixup loop; each item
+  has already cost real fixup rounds):**
+  - **Pattern fidelity:** new code follows the neighboring pattern (structure, names, locations);
+    a deliberate deviation is justified in the PR body — the cross-examination checks exactly this.
+  - **`eslint-disable`/`no-restricted-syntax`:** only with a named precedent (file:line) in the PR body.
+  - **Changed/deleted assertions of existing tests** → documented in the PR body as deliberate
+    Test-Pflege (what/why, issue ref) — undocumented test changes always become findings.
+  - **Generated contract files** (`server/src/api.d.ts`, `client/src/schema.d.ts`) are never
+    hand-edited: their source is `openapi.yml` — hand edits get silently overwritten by the
+    next `pnpm lint`/pre-commit hook.
   Only commit/push once everything is green.
 
 ## Step 4 — Create & link the PR (ready to review)
