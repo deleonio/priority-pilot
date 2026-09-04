@@ -14,7 +14,7 @@ name: Audit Prompts
 # bewertet der Audit auch, ob ein Prompt vermeidbare Turns erzeugt oder eine Bündelungs-
 # Anweisung vermissen lässt (AGENTS.md „Turns bündeln"), mit eigener Fund-Kategorie
 # „Turn-Bündelung"; vorhandene Bündelung ist guter Zustand und darf keinem Kürzungs-
-# Vorschlag zum Opfer fallen. Die Datenbasis liefert costs-summary.sh (Turns gesamt,
+# Vorschlag zum Opfer fallen. Die Datenbasis liefert audit-basis.ts (Turns gesamt,
 # Turns ∅ je Lauf, Turns/Ticket neben $).
 #
 # PRÜFOBJEKT: alle Prompts unter .github/prompts/ (Phasen-Prompts, Memory-Snippets

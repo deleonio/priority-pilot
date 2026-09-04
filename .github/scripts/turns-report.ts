@@ -1,7 +1,7 @@
 // Turn-primäre Gesamt-Übersicht über ALLE versiegelten Kosten-Datensätze (.costs/*.json).
 //
 // WARUM EIGENER BERICHT: Die Abos rechnen praktisch nach Prompts/Turns ab (Claude,
-// z.ai/GLM Coding Plan), nicht nach Tokens. costs-report.ts stellt Tokens und USD als
+// z.ai/GLM Coding Plan), nicht nach Tokens. tokens-report.ts stellt Tokens und USD als
 // Primärmetrik dar und führt `turns` nur als Nebenspalte ohne eigene Aggregation — die
 // Effizienz-Betrachtung greift damit am tatsächlichen Abrechnungsmaßstab vorbei (Issue #1197).
 // Dieser Bericht dreht die Perspektive um: Turns je Ticket und Phase, Ø je Lauf und je Ticket,
@@ -12,13 +12,13 @@
 // Workflow „Turn-Übersicht" (manuell, read-only) in die Job-Summary:
 //   node .github/scripts/turns-report.ts --dir .costs
 //
-// Stil-Spiegel von costs-report.ts: Node-Eintritt, keine externen Deps, ESM, ausschliesslich
-// löschbare TypeScript-Syntax. Lesen, Balken und Zeitraster kommen aus costs-report.ts —
+// Stil-Spiegel von tokens-report.ts: Node-Eintritt, keine externen Deps, ESM, ausschliesslich
+// löschbare TypeScript-Syntax. Lesen, Balken und Zeitraster kommen aus tokens-report.ts —
 // zwei Kopien derselben Berlin-/ISO-Woche-Rechnung wären ein zweites Muster.
 
 import { totalsByPhase } from './cost-aggregate.ts';
 import type { CostEntry } from './cost-record.ts';
-import { bar, berlinDay, isoWeek, pct, readTickets } from './costs-report.ts';
+import { bar, berlinDay, classifyTicket, isoWeek, pct, readTickets, type TicketClass } from './tokens-report.ts';
 
 export type TicketTurns = {
 	issue: string;
@@ -29,6 +29,10 @@ export type TicketTurns = {
 	turns: number;
 	/** Turns je Phase in Erstauftreten-Reihenfolge, z. B. „implement:42 review:30". */
 	phases: string[];
+	/** Laufzahl je Phase (über ALLE Läufe, auch ungemessene) — Basis der Klassifikation. */
+	phaseRuns: Record<string, number>;
+	/** Pipeline-Vollständigkeit (`classifyTicket` aus tokens-report.ts — gemeinsame Definition). */
+	class: TicketClass;
 };
 
 export type TurnTotals = {
@@ -67,16 +71,27 @@ export function turnTotals(dir: string): TurnTotals {
 	for (const { issue, entries: ticketEntries } of raw) {
 		entries.push(...ticketEntries);
 		const byPhase = new Map<string, number>();
-		const total: TicketTurns = { issue, runs: ticketEntries.length, measured: 0, turns: 0, phases: [] };
+		const phaseRuns: Record<string, number> = {};
+		const total: TicketTurns = {
+			issue,
+			runs: ticketEntries.length,
+			measured: 0,
+			turns: 0,
+			phases: [],
+			phaseRuns,
+			class: 'sonstiges',
+		};
 		for (const e of ticketEntries) {
+			const phase = e.phase ?? '(ohne)';
+			phaseRuns[phase] = (phaseRuns[phase] ?? 0) + 1;
 			if (!isMeasured(e)) continue;
 			const turns = e.turns as number;
 			total.measured += 1;
 			total.turns += turns;
-			const phase = e.phase ?? '(ohne)';
 			byPhase.set(phase, (byPhase.get(phase) ?? 0) + turns);
 		}
 		total.phases = [...byPhase.entries()].map(([phase, n]) => `${phase}:${n}`);
+		total.class = classifyTicket(phaseRuns);
 		tickets.push(total);
 	}
 	tickets.sort(
@@ -84,6 +99,8 @@ export function turnTotals(dir: string): TurnTotals {
 	);
 	return { tickets, entries, measured: entries.filter(isMeasured), skipped };
 }
+
+const has = (phaseRuns: Record<string, number>, phase: string): boolean => (phaseRuns[phase] ?? 0) > 0;
 
 const num = (n: number): string => n.toLocaleString('de-DE');
 /** Ø-Werte mit einer Nachkommastelle; ohne messende Läufe „—" statt einer Division durch 0. */
@@ -93,13 +110,46 @@ const avg = (part: number, count: number): string =>
 const ratio = (part: number, base: number): string =>
 	base > 0 ? (part / base).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
 
+/** Quantil (0..1) über aufsteigend sortierte Werte; unteres Element, ohne Interpolation. */
+const quantile = (sorted: number[], q: number): number => {
+	if (sorted.length === 0) return Number.NaN;
+	const idx = Math.min(sorted.length - 1, Math.floor(q * sorted.length));
+	return sorted[idx] as number;
+};
+
+const CLASS_LABEL: Record<TicketClass, string> = {
+	vollstaendig: 'vollständig',
+	'fixup-bein': 'Fixup-Bein',
+	abgebrochen: 'abgebrochen',
+	sonstiges: 'sonstiges',
+};
+
 /** Markdown-Bericht: Kennzahlen, Schleifen-Raten, Turns je Phase, Wochen-Trend, Turns je Ticket. */
 export function renderTurnReport(dir: string): string {
-	const { tickets, entries, measured, skipped } = turnTotals(dir);
+	const all = turnTotals(dir);
 	const lines: string[] = [];
-	lines.push('## 🔁 Turn-Übersicht — alle versiegelten Tickets', '');
-	if (tickets.length === 0) {
+	// VOLLSTÄNDIGKEITS-FILTER: alle Kennzahlen laufen NUR über vollständige Tickets
+	// (implement + documenter, `classifyTicket` aus tokens-report.ts — dieselbe Definition
+	// wie im Kosten-Report und in der Audit-Basis). Fixup-Beine blähen Schleifen-Raten auf,
+	// abgebrochene Durchläufe haben ihr Ende noch nicht gezeigt; beide bleiben nur als
+	// Fußnote mit ihrer Summe sichtbar (Budget-Realität erhalten, Auswertung sauber).
+	const tickets = all.tickets.filter((t) => t.class === 'vollstaendig');
+	const excluded = all.tickets.filter((t) => t.class !== 'vollstaendig');
+	const completeIds = new Set(tickets.map((t) => t.issue));
+	const entries = all.entries.filter((e) => completeIds.has(e.issueId));
+	const measured = all.measured.filter((e) => completeIds.has(e.issueId));
+	const skipped = all.skipped;
+	lines.push('## 🔁 Turn-Übersicht — vollständige Tickets', '');
+	if (all.tickets.length === 0) {
 		lines.push(`Keine Datensätze unter \`${dir}\` gefunden.`, '');
+		if (skipped.length > 0) lines.push(`> ⚠️ Nicht lesbar und übersprungen: ${skipped.join(', ')}`, '');
+		return `${lines.join('\n')}\n`;
+	}
+	if (tickets.length === 0) {
+		lines.push(
+			`Keine vollständigen Datensätze unter \`${dir}\` (${excluded.length} unvollständige ausgeschlossen).`,
+			'',
+		);
 		if (skipped.length > 0) lines.push(`> ⚠️ Nicht lesbar und übersprungen: ${skipped.join(', ')}`, '');
 		return `${lines.join('\n')}\n`;
 	}
@@ -108,15 +158,26 @@ export function renderTurnReport(dir: string): string {
 	const runsTotal = tickets.reduce((a, t) => a + t.runs, 0);
 	const measuredTickets = tickets.filter((t) => t.measured > 0);
 	const days = entries.map((e) => berlinDay(e.timestamp)).sort();
+	const exRuns = excluded.reduce((a, t) => a + t.runs, 0);
+	const exTurns = excluded.reduce((a, t) => a + t.turns, 0);
 
 	lines.push(
-		`**${tickets.length} Tickets · ${runsTotal} Läufe · ${num(turnsTotal)} Turns · ` +
+		`**${tickets.length} vollständige Tickets · ${runsTotal} Läufe · ${num(turnsTotal)} Turns · ` +
 			`Zeitraum ${days[0]} bis ${days[days.length - 1]}**`,
 		'',
 		`${measured.length} von ${runsTotal} Läufen (${pct(runsTotal > 0 ? measured.length / runsTotal : 0)}) haben Turns ` +
 			`erfasst — nur sie tragen zu Summen und Durchschnitten bei.`,
 		'',
 	);
+	if (excluded.length > 0) {
+		const byClass = (cls: TicketClass): number => excluded.filter((t) => t.class === cls).length;
+		lines.push(
+			`> ℹ️ Ausgeschlossen (unvollständig, in KEINER Kennzahl enthalten): ${excluded.length} Tickets — ` +
+				`${byClass('fixup-bein')} Fixup-Beine, ${byClass('abgebrochen')} abgebrochen, ${byClass('sonstiges')} sonstige; ` +
+				`${exRuns} Läufe · ${num(exTurns)} Turns. Budget-Realität bleibt über diese Summe sichtbar.`,
+			'',
+		);
+	}
 
 	if (measured.length === 0) {
 		lines.push(
@@ -160,6 +221,41 @@ export function renderTurnReport(dir: string): string {
 		'> Turns-Verhältnis = was die Schleife gegenüber der Erstumsetzung an Prompts kostet,',
 		'> Läufe-Verhältnis = wie oft sie überhaupt auftritt. „—" heißt: keine messenden',
 		'> `implement`-Läufe als Bezugsgröße vorhanden.',
+		'',
+	);
+
+	// Selbstoptimierungs-Kennzahlen — `tickets` ist seit dem Vollständigkeits-Filter oben
+	// bereits die Basis vollständiger Tickets; hier nur noch die Aufteilung nach Fixup.
+	const complete = tickets;
+	const firstPass = complete.filter((t) => !has(t.phaseRuns, 'fixup'));
+	const reworked = complete.filter((t) => has(t.phaseRuns, 'fixup'));
+	const fixupRunsReworked = reworked.reduce((a, t) => a + (t.phaseRuns.fixup ?? 0), 0);
+	const reviewRunsComplete = complete.reduce((a, t) => a + (t.phaseRuns.review ?? 0), 0);
+	const completeTurns = complete.reduce((a, t) => a + t.turns, 0);
+	const loopTurns = measured
+		.filter((e) => (e.phase === 'fixup' || e.phase === 'review') && complete.some((t) => t.issue === e.issueId))
+		.reduce((a, e) => a + (e.turns as number), 0);
+	const sortedTicketTurns = complete
+		.filter((t) => t.turns > 0)
+		.map((t) => t.turns)
+		.sort((a, b) => a - b);
+	lines.push(
+		'### Selbstoptimierung — vollständige Tickets',
+		'',
+		`Basis: **${complete.length} vollständige Tickets** — davon ${reworked.length} mit Fixup-Schleife.`,
+		'',
+		'| Kennzahl | Wert |',
+		'| --- | ---: |',
+		`| First-Pass-Grün-Rate (kein Fixup) | ${pct(complete.length > 0 ? firstPass.length / complete.length : 0)} |`,
+		`| Ø Fixup-Läufe je nachbearbeitetem Ticket | ${avg(fixupRunsReworked, reworked.length)} |`,
+		`| Ø Review-Läufe je Ticket (Re-Review-Faktor) | ${avg(reviewRunsComplete, complete.length)} |`,
+		`| Turns je Ticket — Median | ${sortedTicketTurns.length > 0 ? num(quantile(sortedTicketTurns, 0.5)) : '—'} |`,
+		`| Turns je Ticket — p75 | ${sortedTicketTurns.length > 0 ? num(quantile(sortedTicketTurns, 0.75)) : '—'} |`,
+		`| Fixup+Review-Anteil an Turns | ${pct(completeTurns > 0 ? loopTurns / completeTurns : 0)} |`,
+		'',
+		'> Die First-Pass-Grün-Rate ist die Steuergröße der Pipeline: Jede Nacharbeit kostet',
+		'> eine Fixup- und eine Re-Review-Runde. Der Wochen-Trend zeigt, ob Interventionen',
+		'> (z. B. Severity-Gating im Review) die Rate bewegen — Median/p75 robuster als Ø.',
 		'',
 	);
 
@@ -213,6 +309,27 @@ export function renderTurnReport(dir: string): string {
 		w.issues.add(e.issueId);
 	}
 	const weeks = [...byWeek.entries()].sort(([a], [b]) => a.localeCompare(b));
+	// Erstgrün je Woche — Attribute: Woche des LETZTEN gemessenen Laufs (Abschlusswoche), denn
+	// ob ein Ticket first-pass-grün ist, weiß man erst am Ende. Nur vollständige Tickets.
+	const weekFirstPass = new Map<string, { complete: number; firstPass: number }>();
+	for (const t of tickets.filter((c) => c.class === 'vollstaendig')) {
+		const last = entries
+			.filter((e) => e.issueId === t.issue && isMeasured(e))
+			.map((e) => e.timestamp)
+			.sort()
+			.pop();
+		if (!last) continue;
+		const wk = isoWeek(berlinDay(last));
+		const rec = weekFirstPass.get(wk) ?? { complete: 0, firstPass: 0 };
+		rec.complete += 1;
+		if (!has(t.phaseRuns, 'fixup')) rec.firstPass += 1;
+		weekFirstPass.set(wk, rec);
+	}
+	const firstPassCol = (wk: string): string => {
+		const rec = weekFirstPass.get(wk);
+		if (!rec || rec.complete === 0) return '—';
+		return `${rec.firstPass}/${rec.complete} (${pct(rec.firstPass / rec.complete)})`;
+	};
 	lines.push('### Wochen-Trend', '');
 	lines.push('```mermaid');
 	lines.push('xychart-beta');
@@ -224,11 +341,11 @@ export function renderTurnReport(dir: string): string {
 	lines.push('\tbar "Ø je Lauf" [' + weeks.map(([, w]) => (w.turns / w.runs).toFixed(1)).join(', ') + ']');
 	lines.push('```');
 	lines.push('');
-	lines.push('| Woche | Läufe | Tickets | Turns | Ø je Lauf | Ø je Ticket |');
-	lines.push('| --- | ---: | ---: | ---: | ---: | ---: |');
+	lines.push('| Woche | Läufe | Tickets | Turns | Ø je Lauf | Ø je Ticket | Erstgrün |');
+	lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: |');
 	for (const [wk, w] of weeks) {
 		lines.push(
-			`| ${wk} | ${w.runs} | ${w.issues.size} | ${num(w.turns)} | ${avg(w.turns, w.runs)} | ${avg(w.turns, w.issues.size)} |`,
+			`| ${wk} | ${w.runs} | ${w.issues.size} | ${num(w.turns)} | ${avg(w.turns, w.runs)} | ${avg(w.turns, w.issues.size)} | ${firstPassCol(wk)} |`,
 		);
 	}
 	lines.push('');
@@ -236,17 +353,17 @@ export function renderTurnReport(dir: string): string {
 	lines.push(
 		'### Turns je Ticket',
 		'',
-		'| Ticket | Läufe | Turns | Ø je Lauf | Anteil | Turns je Phase |',
-		'| --- | ---: | ---: | ---: | :--- | --- |',
+		'| Ticket | Klasse | Läufe | Turns | Ø je Lauf | Anteil | Turns je Phase |',
+		'| --- | --- | ---: | ---: | ---: | :--- | --- |',
 	);
 	for (const t of tickets) {
 		const link = `[#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue})`;
 		if (t.measured === 0) {
-			lines.push(`| ${link} | ${t.runs} | — | — | — | — |`);
+			lines.push(`| ${link} | ${CLASS_LABEL[t.class]} | ${t.runs} | — | — | — | — |`);
 			continue;
 		}
 		lines.push(
-			`| ${link} | ${t.runs} | ${num(t.turns)} | ${avg(t.turns, t.measured)} | ${bar(t.turns, turnsTotal)} | ` +
+			`| ${link} | ${CLASS_LABEL[t.class]} | ${t.runs} | ${num(t.turns)} | ${avg(t.turns, t.measured)} | ${bar(t.turns, turnsTotal)} | ` +
 				`${t.phases.join(' ')} |`,
 		);
 	}

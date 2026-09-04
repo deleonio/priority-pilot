@@ -1,0 +1,50 @@
+name: Pipeline-Uebersicht
+
+# Rendert BEIDE Zusammenfassungen ueber die versiegelten Kosten-Datensaetze (.costs/*.json)
+# in EINE Job-Summary: die Turn-Uebersicht (turns-report.ts, Abrechnungsmassstab der Abos,
+# Issue #1197) OBEN, die Token-/Kosten-Uebersicht (tokens-report.ts, Token/USD-primär) darunter —
+# ein Lauf, ein Blick, kein zweiter Runner. Beide Berichte filtern seit 2026-09 auf
+# VOLLSTAENDIGE Tickets (implement + documenter, classifyTicket in tokens-report.ts);
+# Fixup-Beine und abgebrochene Durchläufe stehen nur als Fussnote mit ihrer Summe.
+#
+# WARUM WOCHENTLICHER CRON: das Turn-Budget (ca. 8000 Prompts/Woche) ist 2026-09 erstmals
+# gerissen worden, ohne dass es jemand sah — die Uebersicht muss regelmaessig von selbst
+# erscheinen, nicht nur auf Klick. Montagfrueh (06:43 UTC, 08:43 MESZ): die Zahlen der
+# Vorwoche sind komplett versiegelt, die neue Woche laeuft noch nicht heiss. Der Lauf ist
+# read-only und fertig in ~1 min. Der manuelle Dispatch bleibt fuer Zwischendurch-Blicke,
+# lokal gehen beide Berichte einzeln:
+#   node .github/scripts/turns-report.ts --dir .costs
+#   node .github/scripts/tokens-report.ts --dir .costs
+#
+# NUR LESEND: kein Label, kein Kommentar, kein Commit.
+
+on:
+  schedule:
+    - cron: '43 6 * * 1' # montags 06:43 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read # .costs/ + Skripte auschecken
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Turn-Uebersicht (vollstaendige Tickets)
+        run: |
+          set -euo pipefail
+          # Bewusst `node` statt tsx: kein pnpm-Setup nötig, die Skripte nutzen
+          # ausschliesslich löschbare TypeScript-Syntax (gleiche Begründung wie record-cost).
+          node .github/scripts/turns-report.ts --dir .costs \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Token- und Kosten-Uebersicht (vollstaendige Tickets)
+        run: |
+          set -euo pipefail
+          node .github/scripts/tokens-report.ts --dir .costs \
+            | tee -a "$GITHUB_STEP_SUMMARY"
