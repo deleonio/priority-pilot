@@ -1,4 +1,11 @@
-# Issue 1212 — Fixup zu PR #1215 (Runde 1 + Crash-Nachbereitung), Stand 2026-09-04
+# Issue 1212 — Fixup zu PR #1215 (Runde 1 + Crash-Nachbereitung + Runde-3-Abbruch), Stand 2026-09-04
+
+## Runde 3 — ABGEBROCHEN (Soft-Deadline, KEIN Fix)
+- Lauf startete ~200 s vor Soft-Deadline 1788520944 → kein Fix, kein Gate, kein Push von Code. Nur diese Notiz.
+- Mentor-Rat (VERBINDLICH für die nächste Runde, ursprünglich in Auto-Memory `mentor-advice-1215-runde3.md`, hier gesichert):
+  - **Ursache E2E-Rot (Finding #2):** Klick aufs listitem (spec:51/82/120) trifft das li-Zentrum, das bei `space-between` in der Lücke zwischen `.groups-info` und `.groups-actions` liegt — `openGroupId` wird nie gesetzt, GroupDetail klappt nie auf, deshalb wird `getByRole('searchbox')` nie gefunden. Beleg: error-context.md-Snapshot im Playwright-Artifact von Run 33845823342 (`playwright-report-shard-1`). KI-ANALYSE will „Karte klickbar → Detail aufklappen"; Implementierung liefert das nicht.
+  - **Weg:** 1) `frontend/src/components/GroupsSection.tsx:155` am `<li className="groups-item">` ergänzen: `onClick={(e) => { if ((e.target as HTMLElement).closest('button, a, input, kol-dialog')) return; setOpenGroupId(openGroupId === group.id ? null : group.id); }}` (Guard hält Bearbeiten/Löschen/Suchfeld/Entfernen vom Zuklappen fern; Namens-Button Z. 157-161 bleibt Tastatur-Pfad). 2) `frontend/src/app.css:1248` (`.groups-item`) `cursor: pointer;` ergänzen. 3) `frontend/e2e/groups-invitations.spec.ts:130` `page.getByRole('listitem').first()` → `page.locator('li.group-member').first()` (nach dem Aufklappen ist das erste listitem die äußere Karte; AK12 misst die Mitgliederzeile). 4) Gate lokal (format/prettier/lint/knip/test) via gate-runner, committen, pushen — e2e validiert die CI (lokal braucht es Backend, nie lokal gelaufen). 5) Nach grünem e2e: Finding #2 in der ✅-Tabelle des ai-review-Kommentars UND des ai-fixup-decisions-Kommentars (ID 5539372480) nachweisen (Commit-Hash) + Review-Thread resolven.
+  - **Fallen:** Spec-Klicks NICHT auf den Namens-Button umschreiben (schwächt den ausführbaren Vertrag ab). Guard nicht weglassen (sonst klappt Entfernen/Einladen das Detail zu). Bei weiterem Rot: error-context.md aus dem Playwright-Artifact des NEUEN Runs lesen. Keinen alten Run rerunen (cancelt den neuen Run).
 
 ## Nachbereitung Lauf 2 (Crash-Wiederanlauf, gleiche Runde)
 - Voriger Lauf crashte NACH Fix+Push (33be8aec) vor der Nachweis-Pflege. Dieser Lauf: ai-fixup-decisions-Kommentar erstellt (ID 5539372480, Marker `<!-- ai-fixup-decisions -->`), ✅-Tabelle mit Zeile für Finding #1/33be8aec gepflegt, Review-Thread PRRT_kwDONloM186fMFFR (GroupDetail.tsx:112) per GraphQL resolveReviewThread aufgelöst (isResolved:true verifiziert). Kein VERDICT (Fix-Commit bestimmt Fortschritt).
@@ -29,7 +36,7 @@
 - E2E wurde lokal in keinem Lauf ausgeführt (Zeitbudget; braucht laufendes Backend).
 
 ## Nächster Schritt
-- e2e-Fehler analysieren: Log von Job 100937378234 komplett lesen (Kontext um 06:57:57Z), prüfen ob alle 3 Tests am selben Punkt (searchbox nach Listitem-Klick) sterben; vermutlich Rerun ODER Fix. Danach erst Folge-Review.
+- Mentor-Weg (Abschnitt „Runde 3" oben) exakt ausführen: GroupsSection.tsx:155 li-onClick mit Guard, app.css:1248 cursor, spec:130 Locator-Fix, Gate via gate-runner, commit+push, Nachweis Finding #2 in beiden ✅-Tabellen + Thread-Resolve. Vor Start Zeitfenster prüfen — diesmal früh anfangen, Deadlines stehen in der Prompt.
 
 ## Fallstricke
 - Der Trigger-Button in der Mitgliederzeile heißt ebenfalls „Entfernen" — der E2E-Locator ist auf `kol-dialog` gescoped, in Unit-Tests wäre `getAllByRole` nötig.
