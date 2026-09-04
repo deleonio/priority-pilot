@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { renderReport, ticketTotals } from './costs-report.ts';
+import { renderReport, ticketTotals } from './tokens-report.ts';
 import type { CostEntry } from './cost-record.ts';
 
 /**
@@ -28,9 +28,9 @@ const entry = (over: Partial<CostEntry> = {}): CostEntry => ({
 const writeTicket = (dir: string, issue: string, entries: CostEntry[]): void =>
 	writeFileSync(join(dir, `${issue}.json`), JSON.stringify(entries), 'utf8');
 
-describe('costs-report', () => {
+describe('tokens-report', () => {
 	it('summiert je Ticket und sortiert absteigend nach Wert (Ausreisser zuerst)', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-'));
 		try {
 			writeTicket(dir, '100', [
 				entry({ issueId: '100', phase: 'review', valueCost: 1, turns: 10 }),
@@ -55,7 +55,7 @@ describe('costs-report', () => {
 	});
 
 	it('überspringt kaputte Dateien, statt den Report zu verlieren', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-broken-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-broken-'));
 		try {
 			writeTicket(dir, '100', [entry({ issueId: '100' })]);
 			writeFileSync(join(dir, 'kaputt.json'), '{ kein json', 'utf8');
@@ -68,11 +68,15 @@ describe('costs-report', () => {
 	});
 
 	it('rendert Phasen-Summen und weist Altdaten ohne Turns offen aus', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-md-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-md-'));
 		try {
-			writeTicket(dir, '300', [entry({ issueId: '300', phase: 'review', valueCost: 2 })]); // ohne turns
+			writeTicket(dir, '300', [
+				entry({ issueId: '300', phase: 'implement' }), // wert- und turnlos — macht das Ticket vollständig
+				entry({ issueId: '300', phase: 'review', valueCost: 2, timestamp: '2026-08-24T11:00:00Z' }), // ohne turns
+				entry({ issueId: '300', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
+			]);
 			const report = renderReport(dir);
-			assert.match(report, /1 Tickets · 1 Läufe/);
+			assert.match(report, /1 vollständige Tickets · 3 Läufe/);
 			assert.match(report, /\| review \| 1 \| — \|/);
 			assert.match(report, /vor der Turns-Erfassung/);
 		} finally {
@@ -81,16 +85,18 @@ describe('costs-report', () => {
 	});
 
 	it('mappt den 1.1. auf die Vorjahres-Woche und zeigt Anteile als Balken', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-iso-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-iso-'));
 		try {
 			writeTicket(dir, '500', [
+				entry({ issueId: '500', phase: 'implement', timestamp: '2027-01-01T11:00:00Z' }),
 				entry({ issueId: '500', phase: 'review', valueCost: 1, timestamp: '2027-01-01T12:00:00Z' }),
+				entry({ issueId: '500', phase: 'documenter', timestamp: '2027-01-01T13:00:00Z' }),
 			]);
 			const report = renderReport(dir);
 			assert.match(
 				report,
 				/\| 2026-W53 \| 1 \| 1 \| \$1\.00 \| \$1\.00 \|/,
-				'der 1.1.2027 gehört noch zur W53 von 2026 — ein Fehler am Jahreswechsel verschiebt die ganze Wochen-Tabelle',
+				'der 1.1.2027 gehört noch zur W53 von 2026 — ein Fehler am Jahreswechsel verschiebt die ganze Wochen-Tabelle (nur messende Läufe zählen, die wertlosen implement/documenter-Einträge nicht)',
 			);
 			assert.match(report, /█{10} 100 %/, 'voller Anteil = 10 gefüllte Balken-Zeichen');
 			assert.match(report, /Top 5 Tickets\*\* stehen für 100 % des Gesamtwerts/);
@@ -100,7 +106,7 @@ describe('costs-report', () => {
 	});
 
 	it('zählt Trend-Tage in Berlin-Lokalzeit — UTC-Abend gehört zum Berliner Folgetag', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-tz-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-tz-'));
 		try {
 			writeTicket(dir, '800', [
 				entry({ issueId: '800', phase: 'implement', valueCost: 1, timestamp: '2026-09-02T21:00:00Z' }), // 23:00 Berlin, 02.09.
@@ -108,6 +114,7 @@ describe('costs-report', () => {
 				// Sonntag 23:00 UTC = Montag 01:00 Berlin (07.09., W37) — unter UTC-Ableitung
 				// stünde noch W36 (Sonntag 06.09.); genau diesen Unterschied pinnt der Test.
 				entry({ issueId: '800', phase: 'fixup', valueCost: 3, timestamp: '2026-09-06T23:00:00Z' }),
+				entry({ issueId: '800', phase: 'documenter', valueCost: 0, timestamp: '2026-09-07T05:00:00Z' }), // Mo, W37
 			]);
 			const report = renderReport(dir);
 			assert.match(
@@ -120,7 +127,7 @@ describe('costs-report', () => {
 			assert.match(
 				report,
 				/\| 2026-W37 \| 1 \| 1 \|/,
-				'Sonntag 23:00 UTC ist in Berlin schon Montag und damit W37 — unter UTC-Woche stünde W36',
+				'Sonntag 23:00 UTC ist in Berlin schon Montag und damit W37 — unter UTC-Woche stünde W36 (der wertlose documenter-Lauf zählt nicht als messend)',
 			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
@@ -128,7 +135,7 @@ describe('costs-report', () => {
 	});
 
 	it('entscheidet die ±10-%-Schwelle an der rohen Änderung, nicht am gerundeten Prozentwert', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-richtung-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-richtung-'));
 		try {
 			const alt = (phase: string, hour: number): CostEntry =>
 				entry({ issueId: '600', phase, valueCost: 1, timestamp: `2026-08-17T${hour}:00:00Z` }); // 10 Tage alt
@@ -143,6 +150,7 @@ describe('costs-report', () => {
 				alt('implement', 13),
 				neu('implement', 12, 1.25),
 				neu('implement', 13, 1.25),
+				entry({ issueId: '600', phase: 'documenter', valueCost: 0, timestamp: '2026-08-27T14:00:00Z' }),
 			]);
 			const report = renderReport(dir);
 			assert.match(report, /\| review \| \$1\.00 → \$1\.10 \| → \|/, '9,95 % ist „unter ±10 %“, nicht „↑ 10 %“');
@@ -153,17 +161,44 @@ describe('costs-report', () => {
 	});
 
 	it('lässt Einträge jenseits von 14 Tagen weg und zeigt Fenster mit < 2 Runs als „—“', () => {
-		const dir = mkdtempSync(join(tmpdir(), 'costs-report-fenster-'));
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-fenster-'));
 		try {
 			writeTicket(dir, '700', [
 				entry({ issueId: '700', phase: 'analyse', valueCost: 5, timestamp: '2026-08-07T10:00:00Z' }), // 20 Tage alt
 				entry({ issueId: '700', phase: 'fixup', valueCost: 1, timestamp: '2026-08-27T10:00:00Z' }), // 1 Run im Fenster
+				entry({ issueId: '700', phase: 'implement', valueCost: 0, timestamp: '2026-08-27T11:00:00Z' }),
+				entry({ issueId: '700', phase: 'documenter', valueCost: 0, timestamp: '2026-08-27T12:00:00Z' }),
 			]);
 			const report = renderReport(dir);
 			const richtung = report.slice(report.indexOf('### Richtung'), report.indexOf('> Anker ist der jüngste'));
 			assert.ok(richtung.length > 0, 'Richtungs-Tabelle fehlt komplett');
 			assert.doesNotMatch(richtung, /\| analyse \|/, '20-Tage-Eintrag liegt ausserhalb beider Fenster');
 			assert.match(richtung, /\| fixup \| — → \$1\.00 \| — \|/, 'ein einzelner Run ist zu wenig für einen Trend');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('schliesst unvollstaendige Tickets aus allen Kennzahlen aus und nennt ihre Summe', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-filter-'));
+		try {
+			// vollstaendig: zahlt
+			writeTicket(dir, '910', [
+				entry({ issueId: '910', phase: 'implement', valueCost: 4, turns: 10 }),
+				entry({ issueId: '910', phase: 'documenter', valueCost: 1, turns: 2, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			// Fixup-Bein (kein implement): 100 $ duerfen den Ticket-OE nicht halbieren
+			writeTicket(dir, '911', [
+				entry({ issueId: '911', phase: 'fixup', valueCost: 100, turns: 50 }),
+				entry({ issueId: '911', phase: 'documenter', valueCost: 1, turns: 3, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			// abgebrochen (kein documenter): reale Kosten, kein abgeschlossener Durchlauf
+			writeTicket(dir, '912', [entry({ issueId: '912', phase: 'implement', valueCost: 7, turns: 9 })]);
+			const report = renderReport(dir);
+			assert.match(report, /1 vollständige Tickets · 2 Läufe/);
+			assert.match(report, /Ausgeschlossen \(unvollständig[^)]*\): 2 Tickets — 1 Fixup-Beine, 1 abgebrochen/);
+			assert.match(report, /3 Läufe · 62 Turns · \$108\.00 Wert/);
+			assert.doesNotMatch(report, /\[#91[12]\]/, 'ausgeschlossene Tickets stehen nicht in der Ticket-Tabelle');
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

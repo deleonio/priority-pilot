@@ -94,7 +94,7 @@ Kontext-Hygiene; der Kostenhebel ist klein (Cache-Reads sind rabattiert).
 - `cost-from-transcript.ts` gibt zusätzlich `inputTokens`, `cacheCreationTokens`,
   `cacheReadTokens` und USD je Block aus.
 - `record-cost` zeigt in der Job-Summary die Token-Herkunft und Kosten pro Block.
-- `costs-report.ts` (Kosten-Übersicht): Phasen-Tabelle mit Input/Cache-Write/Cache-Read
+- `tokens-report.ts` (Kosten-Übersicht): Phasen-Tabelle mit Input/Cache-Write/Cache-Read
   getrennt, Block-Verteilungstabelle, Mermaid-Trend-Diagramm (Ø je Run pro Tag) plus
   Phasen-Mittel je Tag.
 - Bugfix `3dde3ecb`: `$$` in der Summary-Zeile expandierte zur Shell-PID.
@@ -189,7 +189,7 @@ Priorisiert nach Kostenhebel-Größe (Datenlage: Referenzlauf + Baseline).
 
 - `.github/actions/setup-claude/action.yml` — effort/compact-Inputs
 - `.github/prompts/*.md` — alle Phasen-Prompts
-- `.github/scripts/cost-from-transcript.ts`, `costs-report.ts`, `cost-aggregate.ts` — Messung
+- `.github/scripts/cost-from-transcript.ts`, `tokens-report.ts`, `cost-aggregate.ts` — Messung
 - `.github/actions/record-cost/action.yml` — Job-Summary mit Block-Aufschlüsselung
 - `.github/workflows/kosten-uebersicht.yml` — Trend-Report (manueller Trigger)
 - `.costs/SCHEMA.md` — Datenschema

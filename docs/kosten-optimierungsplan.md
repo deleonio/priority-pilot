@@ -304,7 +304,7 @@ THEN
 
 ```bash
 # Wöchentlicher Kosten-Report
-node .github/scripts/costs-report.ts --dir .costs
+node .github/scripts/tokens-report.ts --dir .costs
 
 # Phasenweise Analyse
 node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs

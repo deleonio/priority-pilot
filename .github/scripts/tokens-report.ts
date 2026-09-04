@@ -4,8 +4,8 @@
 //
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte: Der Report
 // zeigt damit genau das, was dauerhaft erhalten ist. Läuft lokal und im Workflow
-// „Kosten-Übersicht" (manuell, read-only) in die Job-Summary:
-//   node .github/scripts/costs-report.ts --dir .costs
+// „Pipeline-Uebersicht" (woechentlich, read-only) in die Job-Summary:
+//   node .github/scripts/tokens-report.ts --dir .costs
 //
 // Stil-Spiegel von cost-aggregate.ts: Node-Eintritt, keine externen Deps, ESM,
 // ausschliesslich löschbare TypeScript-Syntax.
@@ -112,6 +112,30 @@ const num = (n: number): string => n.toLocaleString('de-DE');
 const usd = (n: number): string => `$${n.toFixed(2)}`;
 const mio = (n: number): string => `${(n / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Mio`;
 export const pct = (n: number): string => `${(n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+
+/**
+ * Vollständigkeit eines Ticket-Datensatzes — gemeinsame Definition für Kosten-Report,
+ * Turn-Report und Audit-Basis (eine Definition, drei Renderer). Versiegelte Dateien
+ * enthalten nicht nur komplette Durchläufe, und Kennzahlen dürfen darüber nicht mitteln:
+ * - `vollstaendig`: implement + documenter — kompletter Durchlauf bis zum Siegel. Einzige
+ *   Basis aller Auswertungs-Kennzahlen (Ø je Ticket, Schleifen-Raten, Trend, KPIs).
+ * - `fixup-bein`: implement FEHLT, fixup vorhanden — Nacharbeit eines bereits versiegelten
+ *   Tickets als eigene Datei. Würde Schleifen-Raten aufblähen, ohne Erstumsetzung zu sein.
+ * - `abgebrochen`: kein documenter — endete vor dem Merge (needs-human, Abbruch, verfallen).
+ * - `sonstiges`: alles andere (z. B. reine Analyse-Läufe, documenter-Re-Seals).
+ * Ausgeschlossene Klassen erscheinen nur als Fußnote mit ihrer Summe — Budget-Realität
+ * sichtbar halten, Auswertung sauber halten.
+ */
+export type TicketClass = 'vollstaendig' | 'fixup-bein' | 'abgebrochen' | 'sonstiges';
+
+/** Klassifikation nach Pipeline-Vollständigkeit — Doku am Typ `TicketClass`. */
+export function classifyTicket(phaseRuns: Record<string, number>): TicketClass {
+	const has = (phase: string): boolean => (phaseRuns[phase] ?? 0) > 0;
+	if (!has('documenter')) return 'abgebrochen';
+	if (has('implement')) return 'vollstaendig';
+	if (has('fixup')) return 'fixup-bein';
+	return 'sonstiges';
+}
 const share = (part: number, total: number): number => (total > 0 ? part / total : 0);
 
 /** Unicode-Balken (10 Zeichen █/░) plus Prozent — Anteile direkt in der Tabellenzeile sichtbar. */
@@ -150,12 +174,38 @@ export function renderReport(dir: string): string {
 	// EINMAL lesen, zweimal auswerten: Ticket-Summen für die Tabelle, Roh-Einträge für die
 	// Phasen-/Trend-Rechnungen. Die Phasen-Reihenfolge folgt damit der Ticket-Nummer
 	// (≈ Zeitachse) statt der Wert-Sortierung — was `totalsByPhase` ohnehin meint.
-	const { tickets: raw, skipped } = readTickets(dir);
+	//
+	// VOLLSTÄNDIGKEITS-FILTER: alle Kennzahlen laufen NUR über vollständige Tickets
+	// (implement + documenter, `classifyTicket`); Fixup-Beine und abgebrochene Durchläufe
+	// verzerrten Ø je Ticket und Review-Runden — als Fußnote bleiben sie sichtbar.
+	const { tickets: rawAll, skipped } = readTickets(dir);
+	const phaseRunsOf = (entries: CostEntry[]): Record<string, number> => {
+		const runs: Record<string, number> = {};
+		for (const e of entries) runs[e.phase ?? '(ohne)'] = (runs[e.phase ?? '(ohne)'] ?? 0) + 1;
+		return runs;
+	};
+	const classified = rawAll.map((t) => ({ ...t, class: classifyTicket(phaseRunsOf(t.entries)) }));
+	const raw = classified.filter((t) => t.class === 'vollstaendig');
+	const excluded = classified.filter((t) => t.class !== 'vollstaendig');
+	const exStats = excluded.reduce(
+		(a, t) => {
+			for (const e of t.entries) {
+				a.runs += 1;
+				a.turns += ZERO(e.turns);
+				a.valueCost += ZERO(e.valueCost);
+			}
+			return a;
+		},
+		{ runs: 0, turns: 0, valueCost: 0 },
+	);
 	const tickets = raw.map(ticketTotal).sort(byValue);
 	const lines: string[] = [];
-	lines.push('## 💰 Kosten-Übersicht — alle versiegelten Tickets', '');
-	if (tickets.length === 0) {
-		lines.push(`Keine Datensätze unter \`${dir}\` gefunden.`, '');
+	lines.push('## 📊 Token- & Kosten-Übersicht — vollständige Tickets', '');
+	if (raw.length === 0) {
+		lines.push(
+			`Keine vollständigen Datensätze unter \`${dir}\` (${excluded.length} unvollständige ausgeschlossen).`,
+			'',
+		);
 		return `${lines.join('\n')}\n`;
 	}
 
@@ -231,7 +281,7 @@ export function renderReport(dir: string): string {
 	});
 
 	lines.push(
-		`**${tickets.length} Tickets · ${sum.runs} Läufe · Zeitraum ${berlinDay(first)} bis ${berlinDay(last)}**`,
+		`**${tickets.length} vollständige Tickets · ${sum.runs} Läufe · Zeitraum ${berlinDay(first)} bis ${berlinDay(last)}**`,
 		'',
 	);
 	if (kpiRows.length > 0) {
@@ -467,6 +517,16 @@ export function renderReport(dir: string): string {
 		'> Wert = Verbrauchsbewertung (echter Listenpreis, wo vorhanden — sonst Modellklasse), Echt = gemessene Kosten zu Listenpreisen von Anthropic und z.ai (ohne Preisliste, also openrouter: 0, s. `.costs/SCHEMA.md`). Sortiert nach Wert absteigend — oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen).',
 		'',
 	);
+	if (excluded.length > 0) {
+		const byClass = (cls: TicketClass): number => excluded.filter((t) => t.class === cls).length;
+		lines.push(
+			`> ℹ️ Ausgeschlossen (unvollständig, in KEINER Kennzahl enthalten): ${excluded.length} Tickets — ` +
+				`${byClass('fixup-bein')} Fixup-Beine, ${byClass('abgebrochen')} abgebrochen, ${byClass('sonstiges')} sonstige; ` +
+				`${exStats.runs} Läufe · ${num(exStats.turns)} Turns · ${usd(exStats.valueCost)} Wert. ` +
+				'Budget-Realität bleibt über diese Summe sichtbar, die Auswertung bleibt sauber.',
+			'',
+		);
+	}
 	if (skipped.length > 0) {
 		lines.push(`> ⚠️ ${skipped.length} Datei(en) nicht lesbar und übersprungen: ${skipped.join(', ')}`, '');
 	}
