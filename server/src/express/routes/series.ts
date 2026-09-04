@@ -542,7 +542,7 @@ seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<Tas
 	}
 	try {
 		const instances = await generateDueInstances(series, { until: new Date(until) });
-		res.status(201).json(instances.map(serializeTask));
+		res.status(201).json(instances.map((task) => serializeTask(task)));
 	} catch (error) {
 		handleWriteError(res, error);
 	}

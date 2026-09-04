@@ -14,6 +14,11 @@ interface TaskTreeProps {
 	tasks: Task[];
 	/** Fortschritt (erledigt/gesamt) je Task-ID; fehlt der Eintrag, hat der Task keine Unter-Tasks. */
 	progressMap: Map<number, { done: number; total: number }>;
+	/**
+	 * ID des angemeldeten Kontos (#1213): unterscheidet „Erstellt von: …" (Aufgabe eines anderen
+	 * für mich) von selbst angelegten Aufgaben. `null`, wenn unbekannt — dann kein Ersteller-Hinweis.
+	 */
+	userId?: number | null;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -27,6 +32,7 @@ interface LeafItemProps {
 	node: TaskTreeNode;
 	taskById: Map<number, Task>;
 	progressMap: Map<number, { done: number; total: number }>;
+	userId: number | null;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -50,6 +56,7 @@ const LeafItem = ({
 	node,
 	taskById,
 	progressMap,
+	userId,
 	onEdit,
 	onDelete,
 	onEditDependencies,
@@ -72,6 +79,9 @@ const LeafItem = ({
 	const doneToggleLabel = isDone ? 'Wieder öffnen' : 'Erledigt';
 	const priority = task?.priority ?? 1;
 	const priorityBadgeInfo = priorityBadge(priority);
+	// #1213: Ersteller-Sicht auf eine abgegebene Aufgabe — lesbar, aber ohne Schreibrechte (AK5).
+	// Die Aktionen werden ausgeblendet statt anklickbar angeboten, sonst endet jede Aktion in 404.
+	const handedOff = task?.forUserId != null;
 
 	// P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard).
 	const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
@@ -96,6 +106,15 @@ const LeafItem = ({
 				</div>
 				<div className="task-tree-row-controls">
 					<div className="task-tree-badges">
+						{/* #1213: Provenienz-Hinweise als Text-Badge (KI-UX: nie nur Farbe, muted ohne
+						    weiteren Hex-Wert; umbrechfähig über die bestehende Badge-Zeile). „Für: …"
+						    sieht der Ersteller, „Erstellt von: …" der Empfänger. */}
+						{task !== null && task.forUserName != null && (
+							<KolBadge _label={`Für: ${task.forUserName}`} className="task-tree-badge" />
+						)}
+						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
+							<KolBadge _label={`Erstellt von: ${task.createdByName}`} className="task-tree-badge" />
+						)}
 						{task !== null && task.seriesId != null && (
 							<KolBadge _label="Serie" _color="#005b99" className="task-tree-badge" />
 						)}
@@ -113,7 +132,7 @@ const LeafItem = ({
 							/>
 						)}
 					</div>
-					{task !== null && (
+					{task !== null && !handedOff && (
 						<div className="task-tree-actions">
 							<KolPopoverButton
 								ref={popoverRef}
@@ -218,6 +237,7 @@ export const TaskTree = ({
 	forest,
 	tasks,
 	progressMap,
+	userId = null,
 	onEdit,
 	onDelete,
 	onEditDependencies,
@@ -241,6 +261,7 @@ export const TaskTree = ({
 					node={node}
 					taskById={taskById}
 					progressMap={progressMap}
+					userId={userId}
 					onEdit={onEdit}
 					onDelete={onDelete}
 					onEditDependencies={onEditDependencies}

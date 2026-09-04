@@ -693,6 +693,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											forest={filteredForest}
 											tasks={tasks}
 											progressMap={progressMap}
+											userId={user.id}
 											onEdit={openEdit}
 											onDelete={openDelete}
 											onEditDependencies={openDependencies}
@@ -707,6 +708,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										forest={filteredForest}
 										tasks={tasks}
 										progressMap={progressMap}
+										userId={user.id}
 										onEdit={openEdit}
 										onDelete={openDelete}
 										onEditDependencies={openDependencies}

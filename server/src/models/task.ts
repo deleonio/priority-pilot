@@ -65,6 +65,10 @@ class Task extends Model {
 	// Eigentümer des Tasks (Issue #207, AK5 — Datenisolation). Nullable für Abwärtskompatibilität:
 	// Alt-Bestände ohne Zuordnung bleiben lesbar; neue Tasks werden über die Session-`userId` gebunden.
 	public userId?: number | null;
+	// Ersteller-Konto (#1213): bei Aufgaben für ein anderes Gruppenmitglied weicht es vom Eigentümer
+	// ab; der Ersteller behält lesenden Zugriff (Lese-Scope um diese Spalte erweitert), Schreibzugriff
+	// bleibt an `userId` gebunden. Nullable — Bestandsaufgaben haben keinen Ersteller-Eintrag.
+	public createdById?: number | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
@@ -195,6 +199,11 @@ Task.init(
 		},
 		// Eigentümer-Bindung (Issue #207, AK5). `null` erlaubt (Abwärtskompatibilität, s. o.).
 		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		// Ersteller-Konto (#1213, siehe Feld-Kommentar oben) — nullable wie `userId`.
+		createdById: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
 		},

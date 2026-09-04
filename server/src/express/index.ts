@@ -273,7 +273,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/suggestions', async (req, res: express.Response<TaskDto[] | ErrorDto>) => {
 		try {
 			const tasks = await findSuggestedTasks(getUserId(req));
-			res.json(tasks.map(serializeTask));
+			res.json(tasks.map((task) => serializeTask(task)));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

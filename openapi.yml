@@ -1808,6 +1808,30 @@ components:
           description: >-
             `true`, wenn diese generierte Serien-Instanz individuell geändert
             wurde — Template-Generierung lässt solche Instanzen unberührt.
+        createdById:
+          type: integer
+          nullable: true
+          description: >-
+            Konto des Erstellers (#1213). Weicht bei einer Aufgabe für ein anderes
+            Gruppenmitglied vom Eigentümer ab; `null` für Bestandsaufgaben ohne
+            Ersteller-Eintrag.
+        createdByName:
+          type: string
+          nullable: true
+          description: >-
+            Anzeigename des Erstellers (E-Mail-Fallback, #1213); synchron zu
+            `createdById`, also `null` ohne Ersteller-Eintrag.
+        forUserId:
+          type: integer
+          nullable: true
+          description: >-
+            Empfänger-Konto, nur gesetzt, wenn die Aufgabe aus Sicht des aufrufenden
+            Erstellers für ein anderes Gruppenmitglied angelegt wurde (#1213);
+            sonst `null`.
+        forUserName:
+          type: string
+          nullable: true
+          description: Anzeigename des Empfängers (E-Mail-Fallback, #1213); synchron zu `forUserId`.
         pillars:
           type: array
           description: >-
@@ -1830,6 +1854,12 @@ components:
       properties:
         title:
           type: string
+        userId:
+          type: integer
+          description: >-
+            Optionaler Empfänger (#1213): das Konto, dem die Aufgabe gehören soll.
+            Der Aufrufer muss mit ihm eine Gruppe teilen (sonst 403); ohne das Feld
+            oder mit der eigenen ID gehört die Aufgabe dem Aufrufer wie bisher.
         status:
           $ref: '#/components/schemas/TaskStatus'
         priority:

@@ -9,6 +9,7 @@ import {
 	migratePillarDescription,
 	migrateTaskChecklist,
 	migrateTaskAddress,
+	migrateTaskCreatedById,
 	migrateUserGeoConfigColumns,
 	migrateLlmProviderKindColumns,
 } from './migrate.js';
@@ -327,6 +328,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskChecklist(sequelize);
 		await migrateSeriesColumns(sequelize);
 		await migrateTaskAddress(sequelize);
+		await migrateTaskCreatedById(sequelize); // #1213: Ersteller-Spalte, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
 		await assert.doesNotReject(

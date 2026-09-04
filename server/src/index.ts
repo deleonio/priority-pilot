@@ -145,6 +145,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskAddress,
 			migrateUserGeoConfigColumns,
 			migrateLlmProviderKindColumns,
+			migrateTaskCreatedById,
 		} = await import('./logics/migrate.js');
 		const { buildTaskForest } = await import('./logics/tree.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
@@ -189,6 +190,9 @@ export const main = async (): Promise<void> => {
 		// Fehlende kind/builtin_key-Spalten an llm_providers nachziehen (Built-in-Provider) — vor
 		// sync(), damit Provider-Zugriffe auf Bestands-DBs aus #951 nicht mit `no such column` brechen.
 		await migrateLlmProviderKindColumns(sequelize);
+		// Fehlende createdById-Spalte an tasks nachziehen (#1213 — Ersteller-Konto) — vor sync(),
+		// damit der erweiterte Lese-Scope auf Bestands-DBs nicht mit `no such column` bricht.
+		await migrateTaskCreatedById(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
