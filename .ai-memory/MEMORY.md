@@ -27,24 +27,6 @@ Konflikte, die er verhindern soll.
   substituiert, ohne Quoting-Layer. Tool-Spezifizierer mit Klammern (`Bash(gh *)`) lassen bash
   dann `(` als Subshell-Start parsen → `syntax error near unexpected token '('`, exit 2. → Wert
   nach `--allowedTools`/`--disallowedTools` immer single-quoten.
-- 2026-08-19 · CI/Tool-Permissions — Claude Code wertet für Datei-Schreibzugriffe nur
-  `Edit(path)`-Regeln aus, `Write(path)` wird ignoriert (`Edit` deckt alle file-editing-Tools
-  inkl. `Write` ab). Ein globales `Edit`-Disallow lässt sich per Allow-Regel nicht wieder
-  punktuell öffnen — Disallow gewinnt. → Schreibrechte ausschliesslich über eine
-  `Edit(path)`-Allowlist modellieren, nicht über Bypass + Disallow.
-  **TEILWEISE WIDERLEGT (2026-08-25):** Der daraus gezogene Schluss, eine `Edit(path)`-Allowlist
-  öffne beliebige Pfade, stimmt NICHT für `.claude/**`. Dort greift eine Sensitive-File-Sperre
-  VOR der Allowlist, die keine Allow-Regel aufhebt — Write-Tool und Bash-Heredoc werden beide
-  abgelehnt. Dieses Learning hat den Irrtum knapp eine Woche konserviert und vier von sechs
-  Pipeline-Phasen schreibunfähig gemacht (Runs 32747085777, 32741816829). → Agenten-Schreibpfade
-  IMMER ausserhalb von `.claude/` legen; der Memory liegt seither in `.ai-memory/`.
-- 2026-08-19 · Build — repo-weites `pnpm build`/`pnpm lint` ist in den meisten Läufen unnötig
-  teuer. → Gezielt filtern: `pnpm --filter server build`, `pnpm --filter server lint`.
-- 2026-08-20 · Labels/Spec-Phase — der lokale `/spec-ticket`-Wrapper nennt generische
-  Label-Namen "ai:ready"/"ai:spec-ready", die in diesem Repo nicht existieren. Die echte
-  Konvention steht in `.github/workflows/03-claude-spec.yml`: bei Erfolg `ai:needs-spec`
-  entfernen + `ai:needs-impl` setzen (Phase 4/7). → Vor dem Label-Setzen `gh label list`
-  gegenprüfen statt Wrapper-Namen blind übernehmen.
 - 2026-08-20 · Sandbox/Playwright — frische Sandbox hat kein Chromium für `pnpm exec playwright
   test` (`Executable doesn't exist … chromium_headless_shell-…`). → Einmalig
   `pnpm exec playwright install chromium --with-deps` vor dem ersten e2e-Lauf pro Sandbox.
@@ -70,18 +52,7 @@ Konflikte, die er verhindern soll.
   (`result.current.refresh`), sterben am Hook statt rot zu laufen. → Neue API im Test per
   Intersection-Typ optional deklarieren (`type T = ReturnType<typeof hook> & { neu?: … }`)
   und casten — Produktiv-Typ unangetastet.
-- 2026-08-23 · Git/Sandbox — frische Runner-Sandbox hat kein `git config user.name/email`:
-  `git commit` scheitert mit „empty ident name", ein vorher gestarteter `git push -u origin
-  <branch>` legt trotzdem einen LEEREN Remote-Branch an. → Vor dem ersten Commit lokal
-  `git config user.name/user.email` setzen und Commit-Ergebnis per `git log -1` verifizieren.
-- 2026-08-23 · Vitest 4 — `--reporter=basic` existiert nicht mehr („Failed to load custom
-  Reporter"); nur noch default/tap/etc. → Default-Reporter nutzen und Output per `tail`
-  kürzen.
 - 2026-08-23 · Spec-Phase/Issue-Body — gelegentlich ist der KI-ANALYSE-Block im Issue-Body defekt (enthält wörtlich `$(gh issue view …)` statt Inhalt). → AKs dann aus Titel + KI-UX-Block + Analyse-Bot-Kommentar (`gh issue view N --json comments`) ableiten und den Defekt im Spec/PR-Body dokumentieren.
-- 2026-08-23 · GraphQL/Threads — Review-Threads auflösen: `resolvePullRequestReviewThread` existiert
-  im Schema dieses Endpoints NICHT (`Field doesn't exist on type "Mutation"`); Introspektion ergab
-  `resolveReviewThread(input:{threadId})`. Außerdem `body` als `$b:String!` deklarieren und der
-  Reply-Payload hat kein `thread`-Feld — `comment{databaseId}` selektieren.
 - 2026-08-23 · CI/Spec-Phase — der verify-Job läuft die (beabsichtigt roten) Spec-Tests und ist rot;
   das ist in der Spec-Phase der Normalzustand, kein Fix-Ziel. → Rot-Assertionen (Zielverhalten) NICHT
   auf 404-Status-quo zurückbauen, um CI grün zu bekommen — der Review-Workflow läuft trotz rotem
@@ -124,10 +95,6 @@ Konflikte, die er verhindern soll.
   Flag (unbound $2) UND bash shifft bei `shift 2` mit <2 Rest-Argumenten nichts → Endlosschleife.
   → `[ $# -ge 2 ] || die_usage` VOR dem Zugriff; gh `--paginate`-Output (konkatenierte
   JSON-Arrays) via `jq -s 'add // []'` zu einem Array flattening.
-- 2026-08-24 · node:test — `it()`-Optionen (`{skip: …}`) werden synchron bei der REGISTRIERUNG
-  ausgewertet; Flags, die ein `before`-Hook setzt, sind dort garantiert noch false → der Test ist
-  IMMER geskippt, auch in CI (grüner Job maskiert das: Skips zählen nicht als Fail). → Skip
-  dynamisch per `t.skip(reason)` im Test-Body; `{skip}`-Option nur mit Modul-Level-Flag.
 - 2026-08-24 · Bash/gh-PR-Body — `gh pr create --body "…"` mit Klammern im Text lässt bash `(` als
   Subshell-Start parsen → `syntax error near unexpected token '('`, exit 2 (gleiche Ursache wie der
   Workflow-Quoting-Eintrag vom 08-19, hier im interaktiven Bash-Tool). → Body per `Write` in Datei
@@ -137,14 +104,6 @@ Konflikte, die er verhindern soll.
   UND nicht per eigener `.shadowRoot.activeElement`-Kette (#824-ESLint-Guard schlägt an) →
   Playwrights `expect(locator).toBeFocused({timeout:150})` im try/catch als Poll nutzen; es
   pierct nativ und lintet grün.
-- 2026-08-25 · Git/Mutationsprobe — nach sed-Mutationsprobe NICHT mit `git checkout -- <file>`
-  aufräumen: das verwirft die eigene (ungesicherte) Änderung mit. → Vorher `cp` nach /tmp,
-  Zurückkopieren statt checkout.
-- 2026-08-25 · CI/VERDICT-Parser — Prosa hinter dem Verdict-Token („ux-ready (steht im
-  Issue-Body)") klebte via tr -d an den Token → exakter Vergleich scheiterte → Crash-Park
-  (#1017 zweimal geparkt, obwohl 2× ux-ready entschieden). → Parser extrahiert jetzt per
-  grep -oE '<Vokabular>' | head -1 den ersten bekannten Token (8 Stellen + Aufwandsklasse
-  in 01); Prompt-Beispiele tragen den Token nackt, Bedeutungen in eigene Zeile.
 - 2026-08-25 · Playwright/E2e — `locator.evaluate` auf nicht existierendem Element läuft in den vollen 30s-Test-Timeout statt schnell zu failen (Fehlermeldung nennt dann „toBeVisible/evaluate“-Gemisch). → Vor evaluate ein `await expect(locator).toBeVisible()` setzen: fails in 5s mit klarem Ziel-Locator; auch für rote Spec-Tests die schnellere Rot-Signatur.
 - 2026-08-25 · node:test/t.skip — `t.skip()` im Test-Body markiert den Test nur, bricht ihn NICHT
   ab: der Body läuft weiter; eine Exception darin zählt nicht als `fail` (Summary zeigt `fail 0,
@@ -159,9 +118,6 @@ Konflikte, die er verhindern soll.
   Direkt-Redirect in Datei + `head -c -1` (GNU) entfernt allein den gh-Newline. gh-Stubs
   in Tests müssen den Newline emulieren (`cat fixture; printf '\n'`), sonst frisst head
   den letzten Content-Byte.
-- 2026-08-25 · Git/Runner — frischer Runner hat keine Git-Identität (`Author identity unknown` beim ersten Commit) → vor dem Commit `git config user.name/email` aus `git log -1 --format=%an/%ae` übernehmen (Bot-Identität des Repos).
-- 2026-08-26 · Skills — YAML-Frontmatter brach an deutschen Anführungszeichen: schließendes " muss typografisch (U+201C) sein, ASCII 0x22 terminiert den "…"-String vorzeitig (Extension-Load-Fehler "Unexpected scalar").
-- 2026-08-26 · Alle-Agents/Text — sprachspezifische Sonderzeichen und Umlaute in maschinen-gelesenen Feldern (YAML-Frontmatter, Verdict-Zeilen, Marker) vermeiden: ASCII-Quotes/„"“-Mix brachen schon zwei Parser (Extension-Load, Verdict). Fliesstext unangetastet lassen, nur strukturierte Felder ASCII-sauber halten.
 - 2026-08-26 · Bash-Tool/gh-issue-body — Heredoc mit mehrzeiligem Markdown-Body scheitert am
   Bash-Tool-Parser ("Parser skipped input between top-level statements"); `Write` ist auf das
   Working Directory beschränkt, Schreiben nach `/tmp` wird abgelehnt. → Body-Text per `Write` in
@@ -169,13 +125,7 @@ Konflikte, die er verhindern soll.
   `.ai-memory/issue-<N>-*.md`), danach `gh issue edit --body-file <pfad>` (analog für PR-Bodies).
 - 2026-08-26 · CI-Shell — awk `gsub()` auf einem Feld ($2) baute $0 mit OFS neu auf, die Markdown-Pipes verschwanden und das Nachparsen der Zeile lieferte leer. → Felder in EINEM awk-Durchlauf extrahieren und per printf ausgeben, die Zeile nie zwischenspeichern und spaeter erneut parsen.
 - 2026-08-26 · Frontend/Tests — `pnpm --filter frontend test:e2e -- <grep-pattern>` filtert NICHT, playwright ignoriert das Argument nach `--` und laeuft die volle e2e-Suite (~10 Min statt Sekunden). → Fuer gezielte Spec-Verifikation direkt `npx playwright test e2e/<datei>.spec.ts` im `frontend`-Verzeichnis nutzen.
-- 2026-08-27 · Gate · `pnpm test` schlägt lokal an `session.test.ts` „AK-5 — Redis-Store“ fehl (Suite ✖ trotz fail 0, Test-Body läuft nach t.skip() weiter) → pre-existing/umgebungsbedingt (Redis nur als CI-Service); per `git stash` auf sauberem Stand verifizieren und im PR-Body dokumentieren, nicht fixen.
 - 2026-08-27 · Security/E2E — Neue Security-Middleware (CSRF, Rate-Limit) darf in Dev/E2E NICHT aktiv sein: die E2E-Suite seedet per Design über ~100 direkte page.request-POST/PUT/PATCH-DELETE-Aufrufe in ~40 Specs ohne Token → mit CSRF-API-Seeding wären massenhaft 403er. → Gates wie SESSION_SECRET/Allowlist auf `NODE_ENV === 'production'`; csrf-csrf v4 braucht getSecret+getSessionIdentifier (Pflicht), cookie-parser NACH express-session, der Cookie enthaelt den vollen Token (HMAC.random), Frontend-Token via openapi-fetch client.use-Middleware in api.ts.
-- 2026-08-28 · CI/Smoke-Test · run:-Bloecke der Composite-Actions lassen sich lokal
-  pruefen (yaml-extrahieren + bash -n + Minirepo), aber macOS-/bin/bash ist 3.2: `declare -A`
-  scheitert, assoziative-Array-Zugriffe liefern Muell → nur Teilpfade testbar (Erst-Anlage,
-  Idempotenz, leer), Blob-Diff-Pfade muessen der CI (bash 5) vertrauen. Nicht forensisch
-  jagen - Artefakt erkennen und einordnen.
 - 2026-08-28 · CI/Pipeline — menschlicher Push auf einen PR mit klebendem ai:needs-human verwirft die Autolabeler-Transition (Guard 3, PR #903): Der PR parkt weiter, ai:needs-review wird NICHT gesetzt. → Entblocken nur durch den Menschen: Label in der UI entfernen und ai:needs-review setzen (Entfernen allein startet nichts).
 - 2026-08-28 · Playwright/E2E · `page.route`-Handler feuert asynchron NACH Aufloesung eines
   parallelen `waitForRequest` — Assertions auf im Route-Handler kaptierte Werte einamlig zu lesen
@@ -187,7 +137,6 @@ Konflikte, die er verhindern soll.
   verschob (PR #1079, keyboard-shortcuts AK8 + logout AK-2).
 - 2026-08-29 · Server-Tests — session.test.ts (Redis-Integration) macht lokale Läufe rot: exit 1 trotz fail=0 (Skip mit Fehler-Record), kein lokaler Redis nötig/vorhanden. Auf dem Basisbranch identisch (PR #1104) → nicht jagen, CI stellt Redis als Service bereit; gates lokal auf frontend + test:scripts beschränken und im PR dokumentieren.
 - 2026-08-29 · Frontend-E2E — KolTabs lässt inaktive Panels gemountet (nur [hidden]): page-weite Slider-Lokatoren (input[type=range], kol-input-range, getByRole('slider')) treffen seit #1098 zuerst die Geo-Regler des Allgemein-Panels (document order) bzw. sehen den Säulen-Editor fälschlich sichtbar → Slider-Abfragen auf .pillar-weights-grid scopen, „Editor ausgeblendet" über die Überschrift prüfen.
-- 2026-08-29 · API-Vertrag — Hand-Edits an `server/src/api.d.ts` (und `client/src/schema.d.ts`) werden vom nächsten `pnpm lint`/Pre-Commit-Hook still überschrieben (`build:api` = openapi-typescript aus `openapi.yml`). → Neue Endpunkte in `openapi.yml` pflegen, dann `server: pnpm build:api` + `client: pnpm generate`; tsc-Fehler „/geo/position not assignable" im Frontend = Schema der Client-Workspace noch alt.
 - 2026-08-29 · Edit-Tool/Unicode — Der Edit-Tool-Aufruf ersetzt Zeichenstill-Ziele stillschweigend durch die Unicode-Charaktere: schreibt man als Ziel `{' '}` (Absicht: normales Leerzeichen) in eine Datei, in der das Tool Escape-Swapping macht, landet ein ROHES U+00A0 (C2 A0) im Quelltext statt des Escapes `{' '}` — unsichtbar, aber von Spec-Tests (TreeWalker über Textknoten) und Prettier-/Scanner-Konventionen abhängig. → Nach jedem Edit mit NBSP/Escape-Absicht `grep -c $'\xc2\xa0' <datei>` gegenprüfen und per `python3`-Replace auf das Escape umschreiben (nicht per Edit — derselbe Swap greift wieder).
 - 2026-08-30 · Spec-Phase/Gate · Pre-Commit-Knip failt, wenn der rote Spec-Test ein noch nicht existierendes Modul importiert (legitimer erster roter Zustand, aber Hook blockt den Commit) → Format+lint manuell verifizieren und den Spec-Commit mit `git commit --no-verify` setzen; Begründung in den PR-Body (Impl-Phase lässt die knip-Meldung mit dem neuen Modul verschwinden, Präzedenz #1130/PR #1131).
 - 2026-09-01 · Git/Stash — `git stash -u` + `pop` gibt vormals GESTAGTE Dateien UNSTAGED zurück: der nächste Commit enthielt nur die Phase-Notizen, der eigentliche Fix fehlte (PR #1155, per `--amend` + `--force-with-lease` korrigiert). → Nach stash/pop IMMER `git status` auf den Staged-Zustand prüfen bzw. neu `git add`en; `--force-with-lease` nur auf eigenen Feature-Branches.
