@@ -96,11 +96,16 @@ const WAVE_PATH = buildWavePath();
 const PILLAR_RAMP_SIZE = 8;
 
 /**
- * Farbklasse einer Wassersäule. Ab der 9. Säule wird nicht weiter eingefärbt (ux-design.md §2,
- * Regel 3) — diese Segmente bleiben neutral, ihr Name steht wie bei allen anderen in der Legende.
+ * Farbklassen aus der Säulen-Rampe — einmal für den Farbstreifen im Bild (`heart-water`), einmal
+ * für den Tupfer in der Legende (`heart-legend-dot`). Ab der 9. Säule wird nicht weiter eingefärbt
+ * (ux-design.md §2, Regel 3): Dann bleibt es bei der Basisklasse, die neutral färbt, und der Name
+ * in der Legende trägt die Zuordnung allein.
+ *
+ * Beide Stellen gehen bewusst durch dieselbe Funktion — sonst driftet die Rampen-Grenze der einen
+ * von der anderen ab.
  */
-const waterClass = (colorIndex: number): string =>
-	colorIndex < PILLAR_RAMP_SIZE ? `heart-water heart-water--${colorIndex + 1}` : 'heart-water';
+const rampClass = (base: string, colorIndex: number): string =>
+	colorIndex < PILLAR_RAMP_SIZE ? `${base} ${base}--${colorIndex + 1}` : base;
 
 /*
  * Wellen-Drift per SMIL (`<animateTransform>`), nicht per CSS-Animation: Alle Kopien der Welle
@@ -229,7 +234,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 								{bands.map((band, index) => (
 									<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="heart-column">
 										<g className="heart-wave">
-											<path d={WAVE_PATH} className={waterClass(band.colorIndex)} />
+											<path d={WAVE_PATH} className={rampClass('heart-water', band.colorIndex)} />
 											{animated && (
 												<animateTransform
 													attributeName="transform"
@@ -290,7 +295,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 			<ul className="heart-balance-legend" data-testid="heart-balance-legend">
 				{balance.segments.map((segment) => (
 					<li key={segment.pillar.id} className="heart-balance-legend-row">
-						<span className={`heart-legend-dot heart-legend-dot--${segment.colorIndex + 1}`} aria-hidden="true" />
+						<span className={rampClass('heart-legend-dot', segment.colorIndex)} aria-hidden="true" />
 						<span className="heart-balance-legend-name">{segment.pillar.name}</span>
 						<span className="heart-balance-legend-value">
 							{asPercent(segment.actualShare)} % · Ziel {asPercent(segment.targetShare)} %
