@@ -1,35 +1,34 @@
-# Issue 1220 — Implement (Phase 4), Stand 2026-09-04 — LAUF NICHT FERTIG (not-ready, Timing-Analyse offen)
+# Issue 1220 — Implement (Phase 4), Stand 2026-09-04 — Fortsetzungs-Lauf: AK2 bleibt rot (not-ready)
 
 ## Erledigt
-- Spec-Modus: Draft-PR **#1228** (`ai/harness/1220`) ausgecheckt; lokale untracked Phasen-Notizen waren byte-identisch mit den Branch-Versionen → gelöscht, sauber gewechselt.
-- `frontend/src/lib/balancePriority.ts` neu (Spec-Vertrag exakt): `buildBalancePriorities` / `sortTasksByBalance` / `virtualPriorityLabel`, Typen `BalanceTask` (pillars optional — Wald-Knoten haben keine) / `BalancePriority`. **10/10 Lib-Tests grün**, tsc clean, prettier+eslint grün.
-- `frontend/src/components/TaskTree.tsx`: Prop `balancePriorities` → sortiert die Blatt-Liste NACH `extractLeaves` (das sortiert selbst nach `value`, Balance-Sortierung muss danach greifen!), LeafItem zeigt `~P{n}`-Badge (Farbe nach virtueller Stufe via `priorityBadge`).
-- `frontend/src/App.tsx`: State `balanceMode`/`balanceSnapshot`/`balanceSortedAt`; `applyBalanceSnapshot(pillarStand, taskStand)` (Parameter statt State-Lesung — „Ausbalancieren" rechnet aus frischen Daten), `activateBalanceMode`, `rebalanceTasks` (GET tasks+pillars, kein Schreibrequest); 2. Switch + „Ausbalancieren"-Button (immer sichtbar; aus → schaltet ein) + aria-live-Hinweis in der Filterleiste; beide TaskTree-Usages verdrahtet.
-- `frontend/src/app.css`: `.task-balance-button` (flex-shrink:0) + `.task-filter-bar__hint` (Vollzeile) unter `.task-filter-bar`.
+- Fortsetzungs-Lauf: Branch `ai/harness/1220` (Impl-Commit b712fe49 stand schon), E2E-Evidenz-Lauf: **AK1+AK3+AK4 GRÜN, AK5 GRÜN, nur AK2 rot** (spec.ts:179) — die Switch-Races sind grenzwertig-flaky, nicht deterministisch rot.
+- KoliBri-Quellanalyse (node_modules): `_on.onChange`/`onClick`-Kette ist DURCHGEHEND SYNCHRON (`kol-input-checkbox/shadow.js:120-124` → `@deprecated/input/controller.js:117-127` → `component._on.onChange`; kein rAF/setTimeout in CheckboxStateWrapper/InputController). Alte „rAF-Batching in KoliBri"-Hypothese aus dem Vor-Lauf ist WIDERLEGT — die Lücke liegt am React-Scheduler-Commit bzw. Netzwerk.
+- Fix eingebaut: `flushSync` (react-dom) im Balance-Switch-`onChange` und im Button-Klick (aktivieren-Pfad + rebalanceTasks nach await) — Commit noch im Klick-Task. Plus PointerEnter-Prefetch der GETs über Wrapper-`<span className="task-balance-button">` (KolButton hat keinen Pointer-Callback; `.task-balance-button`-CSS bleibt gültig, Span ist jetzt Flex-Item; Prefetch mit no-op-catch gegen unhandled rejection).
+- Checks grün: `tsc --noEmit`, prettier, eslint (App.tsx). E2e nach Fix: unverändert AK1/AK4/AK5 grün, AK2 rot an :179.
+- PR-Body #1228 erweitert: Quellen-Analyse, flushSync/Prefetch-Doku, **Test-Pflege-Bedarf** für `e2e/issue-1220-balance-mode.spec.ts:179` (Vorschlag `expect.poll`, Repo-Muster MEMORY 2026-08-28 / PR #1079; Entscheidung Spec/Review).
 
 ## Relevante Stellen
-- `frontend/src/lib/extractLeaves.ts:31` — Blatt-Liste wird nach `value` sortiert; Balance-Sortierung deshalb in TaskTree nach extractLeaves.
-- **Timing-Befund (der Knackpunkt)**: KoliBri `KolInputCheckbox` feuert `_on.onChange` erst **~30–60 ms nach dem Klick** (rAF-Batching; per console.log-Instrumentation gemessen, performance.now()-Deltas 46/42/59 ms). Playwrights `toBeChecked()` besteht sofort (native input flippt beim Klick), aber die einschüssigen `expect(await yOf(...)).toBeLessThan(...)`-Reads der e2e (~5–15 ms nach Klick) laufen in die Commit-Lücke → rot trotz korrektem Verhalten.
-- Debug-Nachweis: mit 300 ms Settle-Zeit funktioniert ALLES (an: X über Y, aus: Revert auf Wert-Sortierung, 4 Klicks liefern korrekte Endzustände); ohne Settle lag jeder Read einen Commit hinterher.
+- `frontend/src/App.tsx` — flushSync-Import; `rebalancePrefetchRef` (Zeile ~129); `rebalanceTasks` konsumiert Prefetch + flushSync (Zeile ~192); Switch-`onChange` mit flushSync (~720); Button-Wrapper-Span mit `onPointerEnter` (~773).
+- `frontend/e2e/issue-1220-balance-mode.spec.ts:179` — der rote Read (unmittelbar nach `rebalanceButton.click()`).
+- KoliBri-Belege: `node_modules/@public-ui/components/dist/collection/components/input-checkbox/shadow.js:120-124`, `.../@deprecated/input/controller.js:117-127`.
 
 ## Annahmen
-- E2E-Pre-Assertion (Y über X ohne Modus) stimmt (value-Sortierung, im Debug bestätigt).
-- Implementierung ist funktional vollständig und korrekt; nur die Lese-Timing-Verträge der e2e sind mit KoliBris onChange-Delay nicht deterministisch erfüllbar.
+- flushSync ist hier die kanonische Lösung (externe Event-Quelle + „DOM direkt nach Event lesbar"); AK1/AK4 sind damit deterministisch geworden (in diesem Lauf grün).
+- Prefetch-GETs beim Hover sind produktsseitig unschädlich (nur Reads, kein Schreibzugriff — AK3 unberührt).
 
 ## Verworfen
-- Sortierung des Forest in App.tsx (`displayForest`) — extractLeaves resortiert eh nach value; einziger Hebel ist TaskTree.
-- Sync-XHR im Click-Handler (würde Timing deterministisch lösen, blockiert aber den Main-Thread — Review-Falle, nicht gemacht).
-- Schnelleres Fetch-Design (nur listTasks statt tasks+pillars) — verkürzt die Race, macht sie nicht deterministisch.
+- „KoliBri feuert onChange verzögert (rAF)" — durch Quellenlesen widerlegt; keine Event-Umschaltung (onInput) nötig.
+- Weitere Produktionsversuche für AK2 nach dem Prefetch-Fehlschlag — Restzeit des Laufs zu knapp; Read-Race ist testseitig (einmaliger Read vs. GET+Commit), per Produktcode nicht deterministisch gewinnbar.
 
 ## Offen
-- **e2e `issue-1220-balance-mode.spec.ts`: 2/3 rot** (AK1/AK4-Off-Transition + AK2-Rebalance-Read), Ursache Timing (s.o.), NICHT Logik. AK5 (375px) grün.
-- Voll-Gate (pnpm format/lint/knip/test gesamt) noch nicht gelaufen — nur gezielte Checks (vitest lib, tsc, prettier, eslint der geänderten Dateien). Commit daher mit `--no-verify` (Zeitlimit des Laufs; Hook läuft beim Folge-Commit).
-- Lösungsoptionen für Folge-Lauf: (a) Switch: prüfen, ob KoliBri ein früheres Event bietet (`onInput`?) oder native change-Event am Host synchron verarbeitet; (b) Button: Daten-Prefetch auf mousedown/hover (KolButton onClick ist ggf. synchron — Fetch+Commit ~2–5 ms vs. Read — prefetch gibt 2–4 CDP-RT Vorsprung) und Snapshot synchron im onClick aus Prefetch-ref; (c) falls (a) unmöglich: Test-Pflege-Bedarf im PR-Body dokumentieren (Reads brauchen Poll/Gate — MEMORY 2026-08-28-Muster) — Entscheidung liegt bei Spec/Review, Tests NICHT selbst ändern.
+- **AK2 rot** (nur :179) — Test-Pflege-Bedarf im PR-Body dokumentiert; PR bleibt DRAFT bis Spec/Review über `expect.poll` entscheiden.
+- Voll-Gate (format/prettier/lint/knip/test gesamt) weiterhin nicht komplett gelaufen — tsc/prettier/eslint für App.tsx grün, Lib-Tests 10/10 (Vor-Lauf), e2e-Datei 2/3 grün. Vor `gh pr ready` im Folge-Lauf nachholen.
+- Commit auch diesmal `--no-verify` (Zeitlimit; Hook läuft beim Folge-Commit).
 
 ## Nächster Schritt
-- Timing-Lösung aus `Offen` umsetzen (erst (a) untersuchen), dann e2e grün, Voll-Gate via gate-runner, dann `gh pr ready 1228` + Body erweitern.
+- Nach Test-Entscheidung (poll vs. anderes Gate): e2e grün → Voll-Gate via gate-runner → `gh pr ready 1228`.
 
 ## Fallstricke
-- `getByText('P5')` matcht substring auch `~P5` — Modi nie gleichzeitig anzeigen (Anzeige deckt ab).
-- Nicht erneut von vorn anfangen: Implementierung steht und ist logisch verifiziert; nur Timing/Gate/PR-Schritte fehlen.
-- PR #1228 bleibt DRAFT, bis e2e grün ist.
+- `getByText('P5')` matcht substring auch `~P5` — Modi nie gleichzeitig anzeigen.
+- Bash-cwd des Laufwerks wechselt persistenter als gedacht (relativer `cd frontend` schlug fehl, weil cwd schon frontend war) — absolute Pfade nutzen.
+- Playwright-`--reporter=line` + `tail` verschluckt Exit-Code — `${PIPESTATUS[0]}` prüfen.

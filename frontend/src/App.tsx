@@ -11,6 +11,7 @@ import {
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -125,6 +126,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [balanceMode, setBalanceMode] = useState(false);
 	const [balanceSnapshot, setBalanceSnapshot] = useState<ReadonlyMap<number, BalancePriority> | null>(null);
 	const [balanceSortedAt, setBalanceSortedAt] = useState('');
+	// #1220: Vorschauf-Datenstand für „Ausbalancieren" — der PointerEnter auf den Button startet
+	// die Ladevorgänge vorab, der Klick wendet sie nur noch an (sichtbar ohne Verzögerung).
+	const rebalancePrefetchRef = useRef<Promise<[Task[], Pillar[]]> | null>(null);
 
 	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
 	const applyTaskFilter = useCallback(
@@ -187,11 +191,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	/** #1220: „Ausbalancieren" (AK2) — Datenbasis frisch laden, dann den Snapshot neu berechnen. */
 	const rebalanceTasks = useCallback(async (): Promise<void> => {
+		// Bereits vorgeladene Daten vom PointerEnter verwenden (und dafür verbrauchen), sonst neu laden.
+		const pending = rebalancePrefetchRef.current;
+		rebalancePrefetchRef.current = null;
 		try {
-			const [freshTasks, freshPillars] = await Promise.all([api.listTasks(), api.listPillars()]);
-			setTasks(freshTasks);
-			setPillars(freshPillars);
-			applyBalanceSnapshot(freshPillars, freshTasks);
+			const [freshTasks, freshPillars] = await (pending ?? Promise.all([api.listTasks(), api.listPillars()]));
+			// flushSync: Die Umsortierung wird noch im Klick-Verarbeitungsschritt sichtbar —
+			// assistierende Technologien (und die E2E) lesen die Reihenfolge unmittelbar nach dem Klick.
+			flushSync(() => {
+				setTasks(freshTasks);
+				setPillars(freshPillars);
+				applyBalanceSnapshot(freshPillars, freshTasks);
+			});
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setLoadError(apiError.message);
@@ -717,7 +728,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									_checked={balanceMode}
 									_on={{
 										onChange: (_event, checked) => {
-											activateBalanceMode(checked === true);
+											// flushSync: Umsortierung wird noch im Klick-Event angewendet —
+											// Readers (AT, E2E) sehen direkt nach dem Klick die neue Reihenfolge.
+											flushSync(() => activateBalanceMode(checked === true));
 										},
 									}}
 								/>
@@ -757,22 +770,36 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 									/>
 								</div>
-								<KolButton
+								{/* #1220: Der Span fängt den PointerEnter, um die Daten für „Ausbalancieren"
+								    vorzuladen (KolButton bietet dafür keinen Callback); der Klick bleibt am
+								    Button. flex-shrink:0 liegt jetzt auf dem Span als Flex-Item. */}
+								<span
 									className="task-balance-button"
-									_label="Ausbalancieren"
-									_variant="secondary"
-									_on={{
-										onClick: () => {
-											// #1220: Bei aktivem Modus Neuberechnung aus frischem Stand (AK2); aus
-											// (sichtbar, damit er auch ohne Modus auffindbar bleibt) schaltet er ihn ein.
-											if (balanceMode) {
-												void rebalanceTasks();
-											} else {
-												activateBalanceMode(true);
-											}
-										},
+									onPointerEnter={() => {
+										if (rebalancePrefetchRef.current === null) {
+											const pending = Promise.all([api.listTasks(), api.listPillars()]);
+											// Ohne Klick konsumierter Prefetch darf keine unbehandelte Ablehnung hinterlassen.
+											void pending.catch(() => undefined);
+											rebalancePrefetchRef.current = pending;
+										}
 									}}
-								/>
+								>
+									<KolButton
+										_label="Ausbalancieren"
+										_variant="secondary"
+										_on={{
+											onClick: () => {
+												// #1220: Bei aktivem Modus Neuberechnung aus frischem Stand (AK2); aus
+												// (sichtbar, damit er auch ohne Modus auffindbar bleibt) schaltet er ihn ein.
+												if (balanceMode) {
+													void rebalanceTasks();
+												} else {
+													flushSync(() => activateBalanceMode(true));
+												}
+											},
+										}}
+									/>
+								</span>
 							</div>
 							{taskViewMode === 'open' ? (
 								filteredForest.length === 0 ? (
