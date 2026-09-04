@@ -6,8 +6,15 @@ name: Cleanup Cache
 # pnpm-lock.yaml-Hash). Jeder Lockfile-Hash-Wechsel (z. B. wenn ein Umsetzungs-Workflow eine neue
 # Dependency committet) erzeugt einen NEUEN, ~130-260 MiB grossen Eintrag, der nach einem Merge/
 # Verwerfen des Branches nie wieder getroffen wird und sonst bis zu GitHubs impliziter 7-Tage-
-# Eviction bzw. dem 10-GB-Limit liegen bleibt. Dieser Job erzwingt stattdessen eine harte 1-Tag-
-# Obergrenze fuer genau diese Cache-Arten.
+# Eviction bzw. dem 10-GB-Limit liegen bleibt.
+#
+# FRUEHER (bis 2026-09-03): eine harte 1-Tag-Obergrenze per createdAt. Das war kontraproduktiv:
+# Der taegliche Delete kaltete den warmen main-Eintrag an, und weil GitHub Caches je BRANCH
+# scopet, rettete sich jeder im Kaltfenster laufende Branch eine eigene ~136-MiB-Kopie bei
+# IDENTISCHEM Lockfile-Hash (Messung 2026-09-03: 70 Caches / 10,08 GiB am Limit, davon 61
+# node-cache-Kopien). Jetzt: Delete nach lastAccessedAt mit 7-Tage-Grenze, deckungsgleich mit
+# GitHubs eigener LRU. Heisse Eintraege (main, taeglich getroffen) ueberleben, echte Verwaiste
+# (alter Hash nach Renovate-Bump, dessen Branch weg ist) fallen nach einer Woche Ruhe.
 #
 # `hermes-session-*`- und `ticket-*`-Caches sind verwaiste Legacy-Typen, die nicht mehr
 # geschrieben werden (Artefakt-Umstellung 2026-07-10). Altbestaende wurden 2026-08 abgeraeumt.
@@ -42,19 +49,19 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: pnpm-/Playwright-Caches aelter als 24h + verwaiste Altbestaende loeschen
+      - name: pnpm-/Playwright-Caches ohne Zugriff seit 7 Tagen + verwaiste Altbestaende loeschen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -uo pipefail
-          cutoff_epoch=$(( $(date -u +%s) - 86400 ))
+          cutoff_epoch=$(( $(date -u +%s) - 7*86400 ))
 
           # Caches in eine Datei schreiben (Prozess-Substitution statt Pipe, damit
           # set -e / Exit-Codes in der Schleife nicht durch die Subshell verschluckt werden).
           # --limit 300: bei Messung 2026-08-15 178 Caches, Reserve fuer Wachstum.
           gh cache list --repo "$GITHUB_REPOSITORY" --limit 300 \
-            --json id,key,createdAt \
-            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-")) | [.id, .key, .createdAt] | @tsv' \
+            --json id,key,lastAccessedAt \
+            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-")) | [.id, .key, .lastAccessedAt] | @tsv' \
             > /tmp/caches-to-check.tsv
 
           total=$(wc -l < /tmp/caches-to-check.tsv)
@@ -62,20 +69,20 @@ jobs:
           kept=0
           failed=0
 
-          while IFS=$'\t' read -r id key created; do
+          while IFS=$'\t' read -r id key accessed; do
             [ -z "$id" ] && continue
-            created_epoch=$(date -u -d "$created" +%s)
-            # Nur Caches aelter als 24h loeschen.
-            if [ "$created_epoch" -lt "$cutoff_epoch" ]; then
+            accessed_epoch=$(date -u -d "$accessed" +%s)
+            # Nur Caches ohne Zugriff seit 7 Tagen loeschen - nie den warmen main-Eintrag.
+            if [ "$accessed_epoch" -lt "$cutoff_epoch" ]; then
               if gh cache delete "$id" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
-                echo "Loesche Cache '$key' (id=$id, erstellt $created)"
+                echo "Loesche Cache '$key' (id=$id, letzter Zugriff $accessed)"
                 deleted=$((deleted + 1))
               else
                 echo "::warning::Loeschen von Cache $id ($key) fehlgeschlagen (uebersprungen)"
                 failed=$((failed + 1))
               fi
             else
-              echo "Behalte Cache '$key' (id=$id, erstellt $created, < 24h alt)"
+              echo "Behalte Cache '$key' (id=$id, letzter Zugriff $accessed, < 7 Tage)"
               kept=$((kept + 1))
             fi
           done < /tmp/caches-to-check.tsv
@@ -84,7 +91,7 @@ jobs:
           echo "=== Zusammenfassung ==="
           echo "Caches geprueft: $total"
           echo "Caches geloescht: $deleted"
-          echo "Caches behalten:  $kept (< 24h alt)"
+          echo "Caches behalten:  $kept (Zugriff < 7 Tage)"
           echo "Fehlschlaege:     $failed"
 
       - name: Verwaiste Issue-Storage-Branches entfernen (ai/state/* + ai/harness/*, Issue/PR geschlossen, >7 Tage)
