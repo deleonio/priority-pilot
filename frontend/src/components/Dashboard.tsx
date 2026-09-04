@@ -1,5 +1,6 @@
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
+import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
@@ -157,6 +158,18 @@ export const Dashboard = ({
 				<h2>Dashboard</h2>
 			</div>
 			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
+
+			{/* HeartBalance - Lebensbalance-Herz mit Segmenten pro Säule */}
+			{pillars.length > 0 && (
+				<div className="dashboard-heart-balance">
+					<HeartBalance
+						pillars={pillars}
+						punkteProSaeule={new Map(pillarBalances.map(({ pillar, punkte }) => [pillar.id, punkte]))}
+						animated={true}
+						size={220}
+					/>
+				</div>
+			)}
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
 					<li key={card.label}>

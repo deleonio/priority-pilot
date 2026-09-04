@@ -2254,3 +2254,98 @@ kol-heading {
 	gap: 0.5rem;
 	justify-content: flex-end;
 }
+
+/* Dashboard HeartBalance Container */
+.dashboard-heart-balance {
+	width: 100%;
+	max-width: 280px;
+	margin: var(--pp-gap-base) auto 0;
+}
+
+/* HeartBalance Component Styling */
+.heart-balance {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--pp-gap-base);
+	padding: var(--pp-gap-base);
+	margin: var(--pp-gap-base) 0;
+	background-color: var(--pp-surface-1);
+	border-radius: var(--pp-radius-md);
+	box-shadow: var(--pp-shadow-card);
+}
+
+.heart-balance-svg {
+	display: block;
+}
+
+.heart-balance-outline {
+	transition: stroke var(--pp-motion-base) var(--pp-ease);
+}
+
+.heart-balance-fill {
+	transition:
+		height var(--pp-motion-base) var(--pp-ease),
+		y var(--pp-motion-base) var(--pp-ease);
+}
+
+.heart-balance-wave {
+	transition: d var(--pp-motion-base) var(--pp-ease);
+}
+
+.heart-balance-text {
+	fill: var(--pp-text);
+	transition: fill var(--pp-motion-base) var(--pp-ease);
+}
+
+.heart-balance-label {
+	fill: var(--pp-text-muted);
+	transition: fill var(--pp-motion-base) var(--pp-ease);
+}
+
+.heart-balance-legend {
+	transition: opacity var(--pp-motion-base) var(--pp-ease);
+}
+
+.heart-balance-info {
+	text-align: center;
+	color: var(--pp-text-muted);
+	font-size: var(--pp-font-size-sm);
+	line-height: var(--pp-line-base);
+}
+
+.heart-balance-info strong {
+	color: var(--pp-text);
+}
+
+/* Dark mode adjustments for HeartBalance */
+:root[data-theme='dark'] .heart-balance {
+	background-color: var(--pp-surface-1);
+}
+
+:root[data-theme='dark'] .heart-balance-outline {
+	stroke: var(--pp-border-subtle);
+}
+
+:root[data-theme='dark'] .heart-balance-text {
+	fill: var(--pp-ink);
+}
+
+:root[data-theme='dark'] .heart-balance-label {
+	fill: var(--pp-ink-muted);
+}
+
+:root[data-theme='dark'] .heart-balance-info {
+	color: var(--pp-ink-muted);
+}
+
+:root[data-theme='dark'] .heart-balance-info strong {
+	color: var(--pp-ink);
+}
+
+/* Reduced motion: deactivate wave animation */
+@media (prefers-reduced-motion: reduce) {
+	.heart-balance-wave {
+		display: none;
+	}
+}
