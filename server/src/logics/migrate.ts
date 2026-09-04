@@ -476,3 +476,21 @@ export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> 
 		}
 	}
 };
+
+/**
+ * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
+ * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
+ * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:
+ * lesbar und unverändert). Idempotent (Spalte vorhanden → No-op); bei frischer DB ebenso
+ * No-op — `sync()` legt die Spalte an.
+ */
+export const migrateTaskCreatedById = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('createdById')) {
+		return;
+	}
+	await db.query('ALTER TABLE `tasks` ADD COLUMN `createdById` INTEGER');
+	console.log('Spalte createdById an tasks nachgezogen (#1213).');
+};

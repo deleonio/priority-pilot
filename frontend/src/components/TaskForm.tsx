@@ -22,6 +22,7 @@ import type {
 	TaskPillarContribution,
 	TaskUpdate,
 } from 'client';
+import { checkAuth } from '../lib/auth';
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -341,6 +342,18 @@ export const TaskForm = ({
 	const [checklist, setChecklist] = useState<ChecklistItem[]>(task?.checklist ?? []);
 	const [newChecklistTitle, setNewChecklistTitle] = useState('');
 
+	// #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus, nur wenn der Nutzer in mindestens einer
+	// Gruppe ist; dann mit dem eigenen Konto vorbelegt. `recipientVisible` wird erst nach geladener,
+	// nicht-leerer Gruppenliste gesetzt (ohne Gruppe bleibt der bisherige Flow unverändert). Die
+	// eigene Identität stammt aus `GET /auth/me` (checkAuth) — erst NACH der Gruppenliste abgefragt,
+	// damit Formulare ohne Gruppe keinen Auth-Fetch auslösen.
+	const [recipientVisible, setRecipientVisible] = useState(false);
+	const [recipientsLoading, setRecipientsLoading] = useState(false);
+	const [recipientError, setRecipientError] = useState(false);
+	const [recipientOptions, setRecipientOptions] = useState<{ label: string; value: string }[]>([]);
+	const [ownUserId, setOwnUserId] = useState<number | null>(null);
+	const [recipientId, setRecipientId] = useState<string>('');
+
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
@@ -530,6 +543,64 @@ export const TaskForm = ({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	// #1213 (AK7): Beim Anlegen einmalig Gruppen + deren Mitglieder laden. Personen aus mehreren
+	// Gruppen erscheinen nur einmal (KI-UX); das eigene Konto steht zuerst und ist vorausgewählt.
+	// Ein Ladefehler zeigt nur einen Hinweis — das Formular bleibt ohne Auswahl funktionsfähig
+	// (der Server legt die Aufgabe dann für den Aufrufer selbst an, AK1-Default).
+	useEffect(() => {
+		if (isEdit) {
+			return;
+		}
+		let cancelled = false;
+		void (async () => {
+			try {
+				const groups = await api.listGroups();
+				if (cancelled || groups.length === 0) {
+					return;
+				}
+				setRecipientVisible(true);
+				setRecipientsLoading(true);
+				const [own, memberLists] = await Promise.all([
+					checkAuth(),
+					Promise.all(groups.map((group) => api.getGroupMembers({ id: group.id }))),
+				]);
+				if (cancelled) {
+					return;
+				}
+				if (own === null) {
+					return;
+				}
+				const namesById = new Map<number, string>();
+				for (const member of memberLists.flat()) {
+					namesById.set(member.userId, member.displayName);
+				}
+				if (!namesById.has(own.id)) {
+					namesById.set(own.id, own.displayName);
+				}
+				setOwnUserId(own.id);
+				setRecipientId(String(own.id));
+				setRecipientOptions([
+					{ label: own.displayName, value: String(own.id) },
+					...[...namesById.entries()]
+						.filter(([id]) => id !== own.id)
+						.map(([id, label]) => ({ label, value: String(id) })),
+				]);
+			} catch {
+				if (!cancelled) {
+					setRecipientError(true);
+				}
+			} finally {
+				if (!cancelled) {
+					setRecipientsLoading(false);
+				}
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
 		if (title === '') {
@@ -648,6 +719,11 @@ export const TaskForm = ({
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
 					checklist,
+					// #1213: Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
+					// (oder eigene ID) fehlt das Feld und der Ablauf bleibt wie bisher (AK1).
+					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
+						? { userId: Number(recipientId) }
+						: {}),
 				};
 				// Bei erneutem Submit nach fehlgeschlagener Verknüpfung den bereits angelegten Task
 				// wiederverwenden, statt ein Duplikat anzulegen.
@@ -849,6 +925,28 @@ export const TaskForm = ({
 							/>
 						)}
 					</div>
+					{/* #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus mit mindestens einer Gruppe,
+					    vorbelegt mit dem eigenen Konto. Während die Mitglieder laden, ist die Auswahl
+					    deaktiviert (Ladehinweis statt leerer Liste, mobile-ui-rules Regel 7); bei einem
+					    Ladefehler nur ein Hinweis — das Formular bleibt ohne Auswahl funktionsfähig. */}
+					{!isEdit && !isSeriesMode && recipientVisible && (
+						<>
+							<KolSingleSelect
+								_label="Empfänger"
+								_options={recipientOptions}
+								_value={recipientId}
+								_disabled={recipientsLoading || recipientOptions.length === 0}
+								_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
+							/>
+							{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
+							{recipientError && (
+								<KolAlert
+									_type="warning"
+									_label="Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt."
+								/>
+							)}
+						</>
+					)}
 					{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
 					<div className="range-inputs-row">
 						<KolInputRange

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError, handleWriteError, parseId } from '../http-error.js';
-import { Op, Transaction } from 'sequelize';
+import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
-import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
+import { GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
 import { berechneScore } from '../../logics/score.js';
@@ -83,34 +83,99 @@ const validateChecklist = (value: unknown): ChecklistItem[] | string => {
 };
 
 /**
+ * Kontext für die Ersteller-/Empfänger-Kennzeichen des Task-DTO (#1213): `requesterId` entscheidet,
+ * ob `forUserId`/`forUserName` gesetzt werden (nur der Ersteller sieht das „Für:"-Kennzeichen),
+ * `names` liefert Anzeigenamen (E-Mail-Fallback) der referenzierten Konten. Ohne Kontext (z. B.
+ * Series-Instanzen, /next, /suggestions) bleiben alle vier Felder null — der DTO-Vertrag erlaubt das.
+ */
+export interface TaskSerializeContext {
+	requesterId?: number | null;
+	names?: Map<number, string>;
+}
+
+/**
+ * Lädt die Anzeigenamen (E-Mail-Fallback, Muster `displayNameOf` in routes/groups.ts) zu den
+ * referenzierten Nutzer-IDs — ein Sammel-Query statt je Task.
+ */
+const loadUserNames = async (ids: number[]): Promise<Map<number, string>> => {
+	const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+	if (unique.length === 0) {
+		return new Map();
+	}
+	const users = await User.findAll({ where: { id: unique } });
+	return new Map(users.map((user) => [user.id, user.displayName ?? user.email]));
+};
+
+/**
  * Wandelt eine Task-Instanz in die im API-Vertrag definierte Form um. Die Säulen-Beiträge stammen
  * aus der **eager-geladenen** Assoziation `task.Pillars` (`include: [Pillar]`); fehlt sie, gilt
  * „keine Säulen". Die Beiträge sind nach `pillarId` sortiert (deterministische Reihenfolge).
  */
-export const serializeTask = (task: Task): TaskDto => ({
-	id: task.id,
-	title: task.title,
-	status: task.status,
-	priority: task.priority,
-	estimatedEffort: task.estimatedEffort,
-	actualEffort: task.actualEffort ?? null,
-	description: task.description ?? null,
-	address: task.address ?? null,
-	latitude: task.latitude ?? null,
-	longitude: task.longitude ?? null,
-	deadline: task.deadline ? task.deadline.toISOString() : null,
-	autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
-	checklist: task.checklist ?? [],
-	seriesId: task.seriesId ?? null,
-	isException: task.isException ?? false,
-	pillars: (task.Pillars ?? [])
-		.map((pillar) => ({
-			pillarId: pillar.id,
-			share: pillar.TaskPillar.share,
-			confidence: pillar.TaskPillar.confidence,
-		}))
-		.sort((a, b) => a.pillarId - b.pillarId),
-});
+export const serializeTask = (task: Task, context: TaskSerializeContext = {}): TaskDto => {
+	// #1213: Ersteller-Kennzeichen. `forUserId`/`forUserName` nur aus Sicht des Erstellers — der
+	// Empfänger bekommt kein „Für:"-Kennzeichen für die eigene Aufgabe (AK3), der Ersteller eines
+	// Selbst-Empfängers ebenso wenig (userId == createdById).
+	const createdBy = task.createdById ?? null;
+	const handedOff =
+		createdBy !== null &&
+		context.requesterId != null &&
+		context.requesterId === createdBy &&
+		task.userId != null &&
+		task.userId !== createdBy;
+	return {
+		id: task.id,
+		title: task.title,
+		status: task.status,
+		priority: task.priority,
+		estimatedEffort: task.estimatedEffort,
+		actualEffort: task.actualEffort ?? null,
+		description: task.description ?? null,
+		address: task.address ?? null,
+		latitude: task.latitude ?? null,
+		longitude: task.longitude ?? null,
+		deadline: task.deadline ? task.deadline.toISOString() : null,
+		autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
+		checklist: task.checklist ?? [],
+		seriesId: task.seriesId ?? null,
+		isException: task.isException ?? false,
+		createdById: createdBy,
+		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
+		forUserId: handedOff ? task.userId : null,
+		forUserName: handedOff ? (context.names?.get(task.userId as number) ?? null) : null,
+		pillars: (task.Pillars ?? [])
+			.map((pillar) => ({
+				pillarId: pillar.id,
+				share: pillar.TaskPillar.share,
+				confidence: pillar.TaskPillar.confidence,
+			}))
+			.sort((a, b) => a.pillarId - b.pillarId),
+	};
+};
+
+/**
+ * Lese-Scope der Task-Liste (#1213, AK3/AK5): eigene Aufgaben (`ownerScope`) OER Aufgaben, die der
+ * Nutzer für ein anderes Gruppenmitglied angelegt hat (`createdById`). Der Schreib-Scope
+ * (`findOwnTask`) bleibt ausschließlich `ownerScope` — der Ersteller einer fremden Aufgabe erhält
+ * auf PATCH/DELETE 404. Ohne Session (Pass-Through) unverändert leer (alles sichtbar); Aufgaben
+ * ohne `createdById` (NULL) sind über den `userId`-Zweig abgedeckt (AK6, NULL-sicher).
+ */
+const taskReadScope = (userId: number | undefined, requesterId: number | null): WhereOptions =>
+	userId === undefined
+		? {}
+		: requesterId === null
+			? { userId }
+			: { [Op.or]: [{ userId }, { createdById: requesterId }] };
+
+/**
+ * Serialisiert Tasks mit Ersteller-/Empfänger-Kennzeichen aus Sicht des Request-Nutzers (#1213).
+ * Nutzer-Auflösung wie /geo-config: Session-Nutzer, sonst im Pass-Through-Modus der gemeinsame
+ * Entwicklungs-Nutzer — nur so trägt das „Für:"-Kennzeichen auch im Dev/E2E-Betrieb.
+ */
+const serializeTasksFor = async (req: Request, tasks: Task[]): Promise<TaskDto[]> => {
+	const requester = await resolveGeoUser(req);
+	const names = await loadUserNames(tasks.flatMap((task) => [task.createdById ?? 0, task.userId ?? 0]));
+	return tasks.map((task) => serializeTask(task, { requesterId: requester?.id ?? null, names }));
+};
 
 /**
  * Lädt einen Task nur, wenn er dem Nutzer gehört (bzw. im Pass-Through-Modus uneingeschränkt).
@@ -305,8 +370,14 @@ export const tasksRouter = Router();
 // GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
 tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 	try {
-		const tasks = await Task.findAll({ where: ownerScope(getUserId(req)), include: [Pillar] });
-		res.json(tasks.map(serializeTask));
+		// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
+		// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
+		const requester = await resolveGeoUser(req);
+		const tasks = await Task.findAll({
+			where: taskReadScope(getUserId(req), requester?.id ?? null),
+			include: [Pillar],
+		});
+		res.json(await serializeTasksFor(req, tasks));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
@@ -374,9 +445,38 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 		return;
 	}
 	try {
+		// #1213: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
+		// prüfen: `userId` im Body bezeichnet das Konto, dem die Aufgabe gehören soll. Ohne das Feld
+		// (oder mit der eigenen ID) ändert sich am bisherigen Ablauf nichts (AK1); ein Empfänger, mit dem
+		// der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne einen Datensatz anzulegen (AK2).
+		const requester = await resolveGeoUser(req);
+		const requesterId = requester?.id ?? null;
+		let recipientId: number | null = null;
+		const recipientInput = (req.body as { userId?: unknown }).userId;
+		if (recipientInput !== undefined) {
+			if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+				sendError(res, 400, 'userId muss eine Ganzzahl sein.');
+				return;
+			}
+			if (recipientInput !== requesterId) {
+				const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
+				const shared = await GroupMember.findOne({
+					where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
+				});
+				if (shared === null) {
+					sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+					return;
+				}
+				recipientId = recipientInput;
+			}
+		}
 		const created = await sequelize.transaction(async (transaction) => {
-			// Neuen Task an den eingeloggten Nutzer binden (Datenisolation, #207); `null` im Pass-Through.
-			const task = await Task.create({ ...validation.attrs, userId: userId ?? null }, { transaction });
+			// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
+			// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
+			const task = await Task.create(
+				{ ...validation.attrs, userId: recipientId ?? userId ?? null, createdById: requesterId },
+				{ transaction },
+			);
 			if (validation.pillars !== undefined && validation.pillars.length > 0) {
 				await replaceContributions(task.id, validation.pillars, transaction);
 			}
@@ -387,7 +487,7 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 			sendError(res, 500, 'Interner Serverfehler.');
 			return;
 		}
-		res.status(201).json(serializeTask(withPillars));
+		res.status(201).json((await serializeTasksFor(req, [withPillars]))[0]);
 	} catch (error) {
 		handleWriteError(res, error);
 	}
@@ -403,7 +503,7 @@ tasksRouter.get('/tasks/:id', async (req: Request, res: Response<TaskDto | Error
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;
 	}
-	res.json(serializeTask(task));
+	res.json((await serializeTasksFor(req, [task]))[0]);
 });
 
 // PATCH /tasks/:id — einen Task teilweise aktualisieren
