@@ -305,6 +305,8 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 					{/* Feinschalter unter dem Master — als eigene Zeilen darunter, eingerückt
 							(settings-switch-row--sub), um die Zugehörigkeit zum Master zu zeigen.
 							Ausgegraut, solange der Master zu ist bzw. das OS Bewegung reduziert. */}
+					<details className="settings-animation-details">
+						<summary>Details Optionen anzeigen</summary>
 					<div className="settings-switch-row settings-switch-row--sub">
 						<KolInputCheckbox
 							_label="Herz animieren"
@@ -333,6 +335,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							}}
 						/>
 					</div>
+					</details>
 					{pushSupported ? (
 						<div className="settings-switch-row">
 							<KolInputCheckbox
