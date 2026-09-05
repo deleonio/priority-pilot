@@ -130,8 +130,13 @@ async function containerMetrics(
 	});
 }
 
-/** Host-Buttons je Tab: „Push testen" in „Allgemein", „Standort ermitteln" in „Standort" (#1151). */
-const pushButtonHost = (page: import('@playwright/test').Page) => page.locator('.settings-general > kol-button');
+/**
+ * Host-Buttons je Tab: „Push testen" in „Allgemein", „Standort ermitteln" in „Standort" (#1151).
+ * #1227: „Allgemein" hat seit dem Animations-Details-Dialog einen zweiten direkten `kol-button`
+ * („Details Optionen anzeigen") — nach Text gefiltert, um weiterhin genau den Push-Button zu treffen.
+ */
+const pushButtonHost = (page: import('@playwright/test').Page) =>
+	page.locator('.settings-general > kol-button').filter({ hasText: 'Push testen' });
 const geoButtonHost = (page: import('@playwright/test').Page) => page.locator('.settings-geo > kol-button');
 
 test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
