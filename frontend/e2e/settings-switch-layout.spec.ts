@@ -131,7 +131,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" in einem KolDetails — geschlossen
 		// kollabiert deren Zeilenhöhe auf 0. Für die Touch-Target-Prüfung erst öffnen.
-		await page.getByRole('button', { name: 'Details Optionen anzeigen' }).click();
+		await page.getByRole('button', { name: 'Animations-Details' }).click();
 
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Herz animieren,
@@ -139,8 +139,14 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await expect(switches).toHaveCount(5);
 
 		// Das Öffnen animiert die Zeilenhöhe (CSS-Transition) — auf den Endzustand des zuletzt
-		// eingeblendeten Feinschalters („Erledigt animieren", Index 3) warten, bevor gemessen wird.
-		await expect.poll(async () => (await switches.nth(3).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+		// eingeblendeten Feinschalters („Erledigt animieren") warten, bevor gemessen wird. Am
+		// `_label`-Attribut statt am Index festgemacht (wie AK8 in dieser Datei), damit ein künftig
+		// davor eingefügter Switch die Prüfung nicht still verschiebt. `hasText` griffe hier ins
+		// Leere, da KoliBri das Label im Shadow-DOM rendert statt im Light-DOM-Textinhalt.
+		const lastSwitch = page.locator(
+			'.settings-general kol-input-checkbox[_variant="switch"][_label="Erledigt animieren"]',
+		);
+		await expect.poll(async () => (await lastSwitch.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
 		for (let i = 0; i < 5; i++) {
 			const box = await switches.nth(i).boundingBox();
@@ -263,10 +269,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	/**
 	 * #1227: „Herz animieren"/„Erledigt animieren" sitzen seit dem Umbau in einem eigenen
 	 * KolDetails statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis in
-	 * der Breite bei gleicher Bedienbarkeit. Der Klick auf „Details Optionen anzeigen" blendet
+	 * der Breite bei gleicher Bedienbarkeit. Der Klick auf „Animations-Details" blendet
 	 * beide Feinschalter ein; sie bleiben über den Master-Schalter koppelbar.
 	 */
-	test('AK8: „Details Optionen anzeigen" blendet beide Feinschalter im KolDetails ein', async ({ page }) => {
+	test('AK8: „Animations-Details" blendet beide Feinschalter im KolDetails ein', async ({ page }) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
@@ -275,7 +281,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
 
-		await page.getByRole('button', { name: 'Details Optionen anzeigen' }).click();
+		await page.getByRole('button', { name: 'Animations-Details' }).click();
 
 		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();

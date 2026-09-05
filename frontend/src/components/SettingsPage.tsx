@@ -381,7 +381,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							KolDetails (statt eigener Zeilen), um unter dem Master-Schalter „Animationen"
 							horizontal Platz zu sparen. Ausgegraut, solange der Master zu ist bzw. das
 							OS Bewegung reduziert. */}
-					<KolDetails _label="Details Optionen anzeigen" className="settings-animation-details">
+					<KolDetails _label="Animations-Details">
 						<div className="settings-switch-row settings-switch-row--sub">
 							<KolInputCheckbox
 								_label="Herz animieren"
