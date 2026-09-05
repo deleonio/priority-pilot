@@ -559,6 +559,7 @@ groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTa
 		}
 		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
 		const memberIds = members.map((member) => member.userId);
+		const memberIdSet = new Set(memberIds);
 		const tasks = await Task.findAll({
 			where: { userId: { [Op.in]: memberIds }, status: { [Op.ne]: 'Done' } },
 		});
@@ -569,7 +570,7 @@ groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTa
 				task.createdById !== null &&
 				task.createdById !== undefined &&
 				task.createdById !== task.userId &&
-				memberIds.includes(task.createdById),
+				memberIdSet.has(task.createdById),
 		);
 		const users = await User.findAll({ where: { id: memberIds } });
 		const nameOf = (userId: number): string =>

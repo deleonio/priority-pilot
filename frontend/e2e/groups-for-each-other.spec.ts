@@ -41,8 +41,11 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
 	await page.getByRole('searchbox').fill('Empfängerin');
-	await expect(page.getByText(INVITEE_NAME)).toBeVisible();
-	await page.getByRole('button', { name: 'Einladen' }).click();
+	// Nutzersuche läuft datenbankweit — Treffer exakt auf den eigenen Empfänger grenzen, damit
+	// ein Namensanteil nicht den „Einladen"-Klick eines anderen Test-Kontexts trifft.
+	const hit = page.getByRole('listitem').filter({ hasText: INVITEE_NAME });
+	await expect(hit).toBeVisible();
+	await hit.getByRole('button', { name: 'Einladen' }).click();
 	await expect(page.getByText('Ausstehend')).toBeVisible();
 };
 
@@ -122,11 +125,13 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await createForeignTaskViaApi(page, group!.id, 'E2E Übergabe-Aufgabe');
 
 			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander' }).click();
+			// Abschnitt scopen statt page-weit: „von …" und die Empfängerin tauchen auch in der
+			// Mitgliederliste und in den gemounteten KolTabs-Panels auf (Strict Mode, 2026-08-29).
+			const taskSection = page.locator('.group-tasks');
 			await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
-			await expect(page.getByText('E2E Übergabe-Aufgabe')).toBeVisible();
-			// Empfängername steht in der Mitgliederliste UND im Abschnitt → erstes Vorkommen genügt.
-			await expect(page.getByText(INVITEE_NAME).first()).toBeVisible();
-			await expect(page.getByText(/von /)).toBeVisible();
+			await expect(taskSection.getByText('E2E Übergabe-Aufgabe')).toBeVisible();
+			await expect(taskSection.getByText(INVITEE_NAME).first()).toBeVisible();
+			await expect(taskSection.getByText(/von /).first()).toBeVisible();
 		} finally {
 			await close();
 		}
@@ -177,16 +182,19 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await page.setViewportSize({ width: 375, height: 812 });
 			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander Schmal' }).click();
 
-			// Überschrift und jeder Listeneintrag bleiben im Viewport — der lange Empfängername muss
-			// umbrechen (overflow-wrap), sonst sprengt genau dieser Fall den 375-px-Check.
-			const sectionElements = page
-				.getByRole('heading', { name: SECTION_HEADING })
-				.or(page.getByText(/E2E Schmale Übergabe-Aufgabe|Lángename Empfängerin|von /));
-			const count = await sectionElements.count();
-			expect(count, 'Abschnitt muss Überschrift und Einträge rendern').toBeGreaterThanOrEqual(2);
+			// Überschrift und der Abschnitts-Eintrag bleiben im Viewport — der lange Empfängername muss
+			// umbrechen (overflow-wrap), sonst sprengt genau dieser Fall den 375-px-Check. Locator auf
+			// den Abschnitt scopen (page-weite Texte treffen auch gemountete KolTabs-Panels) und per
+			// toHaveCount auf das Rendern warten, statt einmalig count() zu lesen (Race).
+			const taskEntry = page
+				.locator('.group-tasks .group-task')
+				.filter({ hasText: /E2E Schmale Übergabe-Aufgabe|Lángename Empfängerin/ });
+			await expect(taskEntry).toHaveCount(1);
+			const heading = page.getByRole('heading', { name: SECTION_HEADING });
+			await expect(heading).toBeVisible();
 			const viewport = page.viewportSize();
-			for (let index = 0; index < count; index += 1) {
-				const box = await sectionElements.nth(index).boundingBox();
+			for (const [index, element] of [heading, taskEntry].entries()) {
+				const box = await element.boundingBox();
 				expect(box, `Element ${index} muss eine Bounding-Box haben`).not.toBeNull();
 				expect(box!.x + box!.width, `Element ${index} ragt bei 375 px horizontal aus dem Viewport`).toBeLessThanOrEqual(
 					viewport!.width,

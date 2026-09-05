@@ -31,7 +31,8 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 	const [members, setMembers] = useState<GroupMember[] | null>(null);
 	const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
 	// Füreinander angelegte Aufgaben (#1223): reine Lese-Ansicht, keine Aktionen je Eintrag.
-	const [tasks, setTasks] = useState<GroupTask[]>([]);
+	// `null` = erster Ladevorgang — sonst blitzt der Leerzustand-Hinweis vor den ersten Daten auf.
+	const [tasks, setTasks] = useState<GroupTask[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState('');
 	const [hits, setHits] = useState<UserSearchHit[] | null>(null);
@@ -161,7 +162,9 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 						</>
 					)}
 					<KolHeading _label="Füreinander angelegt" _level={4} />
-					{tasks.length === 0 ? (
+					{tasks === null ? (
+						<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
+					) : tasks.length === 0 ? (
 						<p className="hint">Noch hat niemand eine Aufgabe für ein anderes Mitglied angelegt.</p>
 					) : (
 						<ul className="group-tasks">
