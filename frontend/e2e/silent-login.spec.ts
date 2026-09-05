@@ -81,7 +81,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		let silentCount = 0;
 		// Silent-Endpunkt abfangen, zählen und auf die manuelle Login-Seite weiterleiten
 		// (simuliert „Interaktion erforderlich"), damit der Test deterministisch terminiert.
-		await page.route('**/auth/google/silent', (route) => {
+		await page.route('**/auth/google/silent*', (route) => {
 			silentCount += 1;
 			route.fulfill({ status: 302, headers: { Location: '/?silent=unavailable' } });
 		});
@@ -106,7 +106,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 	}) => {
 		await mockUnauthenticated(page);
 		let silentCount = 0;
-		await page.route('**/auth/google/silent', (route) => {
+		await page.route('**/auth/google/silent*', (route) => {
 			silentCount += 1;
 			route.fulfill({ status: 302, headers: { Location: '/?silent=unavailable' } });
 		});
@@ -135,7 +135,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		// /auth/me: vor dem stillen Login 401, danach 200 (Session wurde serverseitig etabliert).
 		await page.route('**/auth/me', (route) => route.fulfill(silentDone ? fulfillJson(USER) : UNAUTHENTICATED));
 		// Stiller Login erfolgreich: etabliert die Session (silentDone) und leitet zurück zur App.
-		await page.route('**/auth/google/silent', (route) => {
+		await page.route('**/auth/google/silent*', (route) => {
 			silentDone = true;
 			route.fulfill({ status: 302, headers: { Location: '/' } });
 		});
@@ -163,7 +163,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 			sessionActive = false;
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
 		});
-		await page.route('**/auth/google/silent', (route) => {
+		await page.route('**/auth/google/silent*', (route) => {
 			silentCount += 1;
 			route.fulfill({ status: 302, headers: { Location: '/?silent=unavailable' } });
 		});

@@ -1,5 +1,5 @@
 import { ResponseError } from 'client';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { toApiError } from './apiError';
 
@@ -105,5 +105,51 @@ describe('toApiError — 401 Session vs. KI (#948, Spec issue-948.md)', () => {
 
 		expect(result.status).toBe(401);
 		expect(result.message).toBe(SESSION_TEXT);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1231 (Spec docs/spec/issue-1231.md, Ereignis-Vertrag): Genau die
+ * Session-401-Lagen, die auf SESSION_TEXT mappen (#948), feuern einmal das DOM-Event
+ * `pp:session-expired` auf window — der globale SessionExpiredDialog öffnet sich danach.
+ * Jede andere 401-Ursache (LLM/Proxy), 403 und sonstige Fehler feuern NICHT.
+ */
+describe('toApiError — Session-Expired-Event (#1231, Spec issue-1231.md)', () => {
+	const SESSION_EXPIRED_EVENT = 'pp:session-expired';
+
+	let fired: number;
+	const listener = (): void => {
+		fired += 1;
+	};
+
+	beforeEach(() => {
+		fired = 0;
+		window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+	});
+
+	afterEach(() => {
+		window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
+	});
+
+	it.each(SESSION_MESSAGES)('AK1: 401 mit Session-Message "%s" feuert das Event genau 1×', async (message) => {
+		await toApiError(responseError(401, { message }));
+		expect(fired).toBe(1);
+	});
+
+	it('AK1: 401 ohne lesbaren Body (Session-Fallback) feuert das Event genau 1×', async () => {
+		await toApiError(responseError(401));
+		expect(fired).toBe(1);
+	});
+
+	it('AK2: 401 mit fremder Message (LLM/Proxy „Invalid API key") feuert NICHT', async () => {
+		await toApiError(responseError(401, { message: 'Invalid API key' }));
+		expect(fired).toBe(0);
+	});
+
+	it('AK2: 403 und andere Fehler feuern NICHT', async () => {
+		await toApiError(responseError(403, { message: 'Nicht eingeloggt.' }));
+		await toApiError(responseError(500, { message: 'boom' }));
+		await toApiError(new Error('fetch failed'));
+		expect(fired).toBe(0);
 	});
 });

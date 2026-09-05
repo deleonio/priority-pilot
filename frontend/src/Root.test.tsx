@@ -31,6 +31,7 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 
 	afterEach(() => {
 		cleanup();
+		sessionStorage.removeItem('pp_silent_attempted');
 		global.fetch = originalFetch;
 		AbortSignal.timeout = originalTimeout;
 		window.history.replaceState(null, '', '/');
@@ -78,6 +79,26 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 		// Keine Weiterleitung (kein stiller Re-Login, kein Redirect-Loop).
 		expect(window.location.pathname).toBe('/');
 		expect(window.location.search).toBe('');
+	});
+
+	it('AC-1231-1 (AK3): erfolgreicher Auth-Check entfernt pp_silent_attempted — nach Reload ist ein neuer stiller Versuch möglich', async () => {
+		// Simuliert: In dieser Browser-Session lief bereits ein stiller Login (Flag gesetzt, wie vor
+		// dem Redirect auf /auth/google/silent). Kehrt der Nutzer mit gültiger Session zurück (hier:
+		// nach dem Reload aus dem Session-Dialog), muss das Flag zurückgesetzt sein — sonst würde der
+		// NÄCHSTE Ablauf ohne stillen Versuch auf der LoginPage landen (Spec issue-1231.md).
+		sessionStorage.setItem('pp_silent_attempted', '1');
+
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ id: 1, email: 'peter@example.com', displayName: 'Peter', avatarUrl: null }),
+		});
+		global.fetch = fetchMock as unknown as typeof fetch;
+
+		render(<Root />);
+
+		expect(await screen.findByTestId('app')).toBeVisible();
+		expect(sessionStorage.getItem('pp_silent_attempted')).toBeNull();
 	});
 
 	it('AC-1136-4 (AK3): ?error=access_denied zeigt die LoginPage mit Alert — ohne stillen Versuch (Guard-Regression)', async () => {
