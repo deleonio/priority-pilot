@@ -3,6 +3,7 @@
 **ERGEBNIS: KI-UX-Block in den Harness-Kommentar geschrieben (IC_kwDONloM188AAAABSyHDuw), zwischen KI-ANALYSE:END und ai-phase-routing. VERDICT: ux-not-ready** — 4 offene UX-Entscheidungen im Block (fail-safe), jeweils mit Empfehlung: (1) Landung nach Beitritt, (2) 404/410-Meldungstexte, (3) Admin-Link-Anzeige/Kopieren, (4) 409-bereits-Mitglied-Zustand. Keine Labels gesetzt, kein Ping, Issue-Body unangetastet (ADR 0009).
 
 ## Erledigt
+- Re-Lauf 2026-09-05 (nach Label-Reset): KI-UX-Block bereits im Harness-Kommentar vorhanden und intakt (Marker je 1×, KI-ANALYSE/Routing byte-identisch) → NICHT neu geschrieben, VERDICT erneut ux-not-ready (4 offene Fragen bestehen). Keine Labels, kein Ping.
 - Harness-Kommentar gelesen (KI-UX fehlte, KI-ANALYSE stand=2026-09-05T23:21:14Z, Routing ux=ja/sonnet/medium) + Issue-Body.
 - Regelquellen gelesen: `docs/mobile-ui-rules.md` (komplett), `.ai-knowledge/ux-design.md` (komplett); statisch, kein Browser.
 - Code gelesen: `frontend/src/components/GroupDetail.tsx` (komplett — Modal-Muster pendingRemoval Z. 212-236, Einladungs-Admin-Bereich Z. 182-209), `frontend/src/Root.tsx` (komplett — `/bahn`-Weiche Z. 145, returnTo-Muster Z. 109-113).
