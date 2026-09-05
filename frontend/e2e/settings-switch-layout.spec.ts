@@ -63,19 +63,33 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
-		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push). Seit #1227
+		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push); seit #1227
 		// sitzen die Animations-Feinschalter („Herz animieren“, „Erledigt animieren“) in einem eigenen
-		// KolDialog statt eigener Zeilen — sie erscheinen daher hier nicht mehr.
-		await expect(rows).toHaveCount(3);
+		// KolDetails (statt eigener Zeilen) unter dem Master-Schalter — 2 eingerückte Sub-Zeilen dazu.
+		// Ihr Inhalt bleibt bei geschlossenem KolDetails im DOM (Breite gesetzt, Höhe kollabiert).
+		await expect(rows).toHaveCount(5);
 
 		const containerBox = await page.locator('.settings-general').first().boundingBox();
 		expect(containerBox).toBeTruthy();
 
-		for (let i = 0; i < (await rows.count()); i++) {
-			const rowBox = await rows.nth(i).boundingBox();
+		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sind bewusst eingerückt
+		// (.settings-switch-row--sub) und liegen dafür versetzt unter dem Master.
+		const mainRows = page.locator('.settings-general .settings-switch-row:not(.settings-switch-row--sub)');
+		for (let i = 0; i < (await mainRows.count()); i++) {
+			const rowBox = await mainRows.nth(i).boundingBox();
 			expect(rowBox).toBeTruthy();
 			// Volle Breite: ≥95% der Container-Breite (5% Toleranz für Rundung/Padding).
 			expect(rowBox!.width).toBeGreaterThanOrEqual(containerBox!.width * 0.95);
+		}
+
+		// Sub-Zeilen: eingerückt gegenüber den Hauptzeilen (Hierarchie unter dem Master sichtbar) —
+		// die x-Position bleibt auch bei kollabiertem KolDetails gesetzt (nur die Höhe kollabiert).
+		const firstMainBox = await mainRows.first().boundingBox();
+		const subRows = page.locator('.settings-general .settings-switch-row--sub');
+		for (let i = 0; i < (await subRows.count()); i++) {
+			const subBox = await subRows.nth(i).boundingBox();
+			expect(subBox).toBeTruthy();
+			expect(subBox!.x).toBeGreaterThan(firstMainBox!.x + 16);
 		}
 	});
 
@@ -92,10 +106,10 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
-		// Seit #1227: 3 Zeilen (s. AK1) — die Animations-Feinschalter liegen im Dialog.
-		await expect(rows).toHaveCount(3);
+		// Seit #1183: 3 Switches, seit #1227 (s. AK1) 5 Zeilen (2 davon im KolDetails eingerückt).
+		await expect(rows).toHaveCount(5);
 
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 5; i++) {
 			const style = await rows.nth(i).evaluate((el) => {
 				const computed = window.getComputedStyle(el);
 				return { flexDirection: computed.flexDirection, alignItems: computed.alignItems };
@@ -115,12 +129,26 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
-		// Seit #1227: 3 Switches (Sprachaufnahme, Animationen, Push) — Herz/Erledigt animieren
-		// liegen im Animations-Details-Dialog und sind erst nach dessen Öffnen im DOM.
-		await expect(switches).toHaveCount(3);
+		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" in einem KolDetails — geschlossen
+		// kollabiert deren Zeilenhöhe auf 0. Für die Touch-Target-Prüfung erst öffnen.
+		await page.getByRole('button', { name: 'Animations-Details' }).click();
 
-		for (let i = 0; i < 3; i++) {
+		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
+		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Herz animieren,
+		// Erledigt animieren, Push).
+		await expect(switches).toHaveCount(5);
+
+		// Das Öffnen animiert die Zeilenhöhe (CSS-Transition) — auf den Endzustand des zuletzt
+		// eingeblendeten Feinschalters („Erledigt animieren") warten, bevor gemessen wird. Am
+		// `_label`-Attribut statt am Index festgemacht (wie AK8 in dieser Datei), damit ein künftig
+		// davor eingefügter Switch die Prüfung nicht still verschiebt. `hasText` griffe hier ins
+		// Leere, da KoliBri das Label im Shadow-DOM rendert statt im Light-DOM-Textinhalt.
+		const lastSwitch = page.locator(
+			'.settings-general kol-input-checkbox[_variant="switch"][_label="Erledigt animieren"]',
+		);
+		await expect.poll(async () => (await lastSwitch.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+		for (let i = 0; i < 5; i++) {
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			expect(box!.height).toBeGreaterThanOrEqual(44);
@@ -240,24 +268,21 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 	/**
 	 * #1227: „Herz animieren"/„Erledigt animieren" sitzen seit dem Umbau in einem eigenen
-	 * KolDialog statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis in
-	 * der Breite bei gleicher Bedienbarkeit. Der Button „Details Optionen anzeigen" öffnet den
-	 * Dialog; darin bleiben beide Feinschalter über den Master-Schalter koppelbar.
+	 * KolDetails statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis in
+	 * der Breite bei gleicher Bedienbarkeit. Der Klick auf „Animations-Details" blendet
+	 * beide Feinschalter ein; sie bleiben über den Master-Schalter koppelbar.
 	 */
-	test('AK8: „Details Optionen anzeigen" öffnet den Animations-Details-Dialog mit beiden Feinschaltern', async ({
-		page,
-	}) => {
+	test('AK8: „Animations-Details" blendet beide Feinschalter im KolDetails ein', async ({ page }) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Vor dem Öffnen sind die Feinschalter nicht im DOM.
-		await expect(switchControl(page, /Herz animieren/i)).toHaveCount(0);
-		await expect(switchControl(page, /Erledigt animieren/i)).toHaveCount(0);
+		// Vor dem Öffnen sind die Feinschalter zwar im DOM (KolDetails kollabiert nur die Höhe),
+		// aber nicht sichtbar/bedienbar.
+		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
+		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
 
-		await page.getByRole('button', { name: 'Details Optionen anzeigen' }).click();
+		await page.getByRole('button', { name: 'Animations-Details' }).click();
 
-		const dialog = page.getByRole('dialog', { name: 'Animations-Details' });
-		await expect(dialog).toBeVisible();
 		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
 

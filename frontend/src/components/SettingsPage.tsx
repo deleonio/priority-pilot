@@ -1,6 +1,7 @@
 import {
 	KolAlert,
 	KolButton,
+	KolDetails,
 	KolHeading,
 	KolInputCheckbox,
 	KolInputRange,
@@ -24,7 +25,6 @@ import { useAiPreferences } from '../lib/aiPreferences';
 import { AppearanceSetting } from './AppearanceSetting';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
-import { Modal } from './Modal';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
@@ -129,9 +129,6 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 	const { aiEnabled, quickCaptureEnabled, setPreference: setAiPreference } = useAiPreferences();
 	const [micDenied, setMicDenied] = useState(false);
 	const [permissionPending, setPermissionPending] = useState(false);
-	// Feinschalter „Herz animieren"/„Erledigt animieren" sitzen in einem eigenen Dialog (KolDialog),
-	// um in der Zeile unter dem Master-Schalter „Animationen" horizontal Platz zu sparen.
-	const [showAnimationDetails, setShowAnimationDetails] = useState(false);
 
 	const onToggleVoiceAutostart = async (next: boolean): Promise<void> => {
 		if (!next) {
@@ -381,51 +378,39 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 						)}
 					</div>
 					{/* Feinschalter „Herz animieren"/„Erledigt animieren" sitzen in einem eigenen
-							KolDialog (statt eigener Zeilen), um unter dem Master-Schalter „Animationen"
+							KolDetails (statt eigener Zeilen), um unter dem Master-Schalter „Animationen"
 							horizontal Platz zu sparen. Ausgegraut, solange der Master zu ist bzw. das
 							OS Bewegung reduziert. */}
-					<KolButton
-						_label="Details Optionen anzeigen"
-						class="settings-action-btn"
-						_variant="secondary"
-						_on={{
-							onClick: () => {
-								setShowAnimationDetails(true);
-							},
-						}}
-					/>
-					{showAnimationDetails && (
-						<Modal title="Animations-Details" onClose={() => setShowAnimationDetails(false)}>
-							<div className="settings-switch-row settings-switch-row--sub">
-								<KolInputCheckbox
-									_label="Herz animieren"
-									_variant="switch"
-									_checked={heartAnimationEnabled}
-									_disabled={!animationsEnabled || prefersReducedMotion}
-									_hint="Das Herz der Lebensbalance auf dem Dashboard schlägt und seine Wasseroberfläche wellt. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
-									_on={{
-										onChange: (_event, value) => {
-											setHeartAnimationEnabled(value === true);
-										},
-									}}
-								/>
-							</div>
-							<div className="settings-switch-row settings-switch-row--sub">
-								<KolInputCheckbox
-									_label="Erledigt animieren"
-									_variant="switch"
-									_checked={doneAnimationEnabled}
-									_disabled={!animationsEnabled || prefersReducedMotion}
-									_hint="Beim Erledigt-Machen von Aufgaben regnet Konfetti. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
-									_on={{
-										onChange: (_event, value) => {
-											setDoneAnimationEnabled(value === true);
-										},
-									}}
-								/>
-							</div>
-						</Modal>
-					)}
+					<KolDetails _label="Animations-Details">
+						<div className="settings-switch-row settings-switch-row--sub">
+							<KolInputCheckbox
+								_label="Herz animieren"
+								_variant="switch"
+								_checked={heartAnimationEnabled}
+								_disabled={!animationsEnabled || prefersReducedMotion}
+								_hint="Das Herz der Lebensbalance auf dem Dashboard schlägt und seine Wasseroberfläche wellt. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+								_on={{
+									onChange: (_event, value) => {
+										setHeartAnimationEnabled(value === true);
+									},
+								}}
+							/>
+						</div>
+						<div className="settings-switch-row settings-switch-row--sub">
+							<KolInputCheckbox
+								_label="Erledigt animieren"
+								_variant="switch"
+								_checked={doneAnimationEnabled}
+								_disabled={!animationsEnabled || prefersReducedMotion}
+								_hint="Beim Erledigt-Machen von Aufgaben regnet Konfetti. Setzt den Schalter „Animationen“ voraus. Gilt gerätebezogen."
+								_on={{
+									onChange: (_event, value) => {
+										setDoneAnimationEnabled(value === true);
+									},
+								}}
+							/>
+						</div>
+					</KolDetails>
 					{pushSupported ? (
 						<div className="settings-switch-row">
 							<KolInputCheckbox
