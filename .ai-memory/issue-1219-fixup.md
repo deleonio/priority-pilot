@@ -67,3 +67,18 @@ Entscheidungs-Findings), 1 nicht-blockierender Nit. Review-Kommentar-IDs: 555035
   via `gh api .../issues/1233/comments --jq 'select(startswith("<!-- ai-fixup-decisions -->"))'`
   prüfen, ob Runde-x schon einen angelegt hat) und danach PATCHen, nie neu anlegen.
 - Threads sind GraphQL-only; resolveReviewThread mit threadId (nicht commentId).
+
+## Runde 2 (2026-09-05, Lauf nach 360e5540) — VERDICT already-done
+- Keine neuen Findings: genau 1 ai-review-Kommentar (Runde 1), beide Threads
+  (PRRT_...Vwq SettingsPage.tsx, PRRT_...Vwz profile-display-name.spec.ts) bereits resolved.
+- Fixes im Code bestätigt (nicht Blind vertraut): `.settings-profile`-Wrapper
+  SettingsPage.tsx:316, `_label`-Assertion profile-display-name.spec.ts:47.
+- CI auf Head d9eff2b6 vollständig grün (e2e 1–4 + verify, Run 33954892458) — der
+  issue-969-Poll-Fix (360e5540) hat den Shard-3-Flake behoben.
+- Terminal-Status im ai-fixup-decisions-Kommentar 5550430667 nachgetragen:
+  `🎯 Fixup-Status: already-done` + Updated-Zeile auf Runde 2 gepatcht.
+- Kein Code-Commit nötig; nur dieser Notiz-Nachtrag.
+
+## Nächster Schritt (für Folge-Lauf)
+- Nichts — Runde terminal abgeschlossen (already-done). Nächste Bewegung kommt vom
+  Review-Workflow (Nachfolge-Review liest die ✅-Tabelle als Claim-Checkliste).
