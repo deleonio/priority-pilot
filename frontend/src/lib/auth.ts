@@ -5,6 +5,14 @@ export type AuthUser = {
 	avatarUrl: string | null;
 };
 
+/**
+ * Session-Marker (#1231): Der `SessionExpiredDialog` setzt ihn, wenn der Nutzer das Neuladen
+ * bestätigt. `Root.tsx` erlaubt genau dafür EINEN weiteren stillen Google-Login, obwohl in dieser
+ * Browser-Session bereits einer lief (`pp_silent_attempted`) — und räumt den Marker nach der
+ * Entscheidung wieder weg, damit der Bonus nicht auf spätere Abläufe übertragen wird.
+ */
+export const SESSION_RELOAD_KEY = 'pp_session_reload';
+
 export async function checkAuth(): Promise<AuthUser | null> {
 	// Issue #1136: Der Auth-Check braucht eine Zeitgrenze — ohne Abort bliebe Root beim hängenden
 	// /auth/me-Request dauerhaft im Lade-Spinner. Nur dieser Request wird abgebrochen; die

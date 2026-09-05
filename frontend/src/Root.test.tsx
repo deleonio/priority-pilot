@@ -30,9 +30,9 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 	const originalTimeout = AbortSignal.timeout;
 
 	afterEach(() => {
-	cleanup();
-	sessionStorage.removeItem('pp_silent_attempted');
-	global.fetch = originalFetch;
+		cleanup();
+		sessionStorage.removeItem('pp_silent_attempted');
+		global.fetch = originalFetch;
 		AbortSignal.timeout = originalTimeout;
 		window.history.replaceState(null, '', '/');
 	});

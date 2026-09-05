@@ -13,12 +13,12 @@ Erkennt `toApiError` einen Session-401 (Server-Message „Nicht eingeloggt." / �
 - Name (Vertrag, konstant): `pp:session-expired`
 - Empfohlene Umsetzung: exportierte Konstante `SESSION_EXPIRED_EVENT = 'pp:session-expired'`
 
-| Fehlerlage                                              | Event                          |
-| ------------------------------------------------------- | ------------------------------ |
-| 401 + Session-Message (lesbarer Body)                   | feuert 1×                      |
-| 401 ohne lesbaren Body (Session-Fallback #948)          | feuert 1×                      |
-| 401 mit fremder Message (LLM/Proxy, „Invalid API key")  | feuert **nicht**               |
-| 403 / CSRF / Netzwerkfehler / andere Statuscodes        | feuert **nicht**               |
+| Fehlerlage                                             | Event            |
+| ------------------------------------------------------ | ---------------- |
+| 401 + Session-Message (lesbarer Body)                  | feuert 1×        |
+| 401 ohne lesbaren Body (Session-Fallback #948)         | feuert 1×        |
+| 401 mit fremder Message (LLM/Proxy, „Invalid API key") | feuert **nicht** |
+| 403 / CSRF / Netzwerkfehler / andere Statuscodes       | feuert **nicht** |
 
 ## Dialog-Vertrag (Frontend, neu `frontend/src/components/SessionExpiredDialog.tsx`)
 
@@ -41,16 +41,16 @@ Global montiert in `App.tsx` neben `InstallPrompt`/`UpdatePrompt` (`App.tsx:954`
 
 `sanitizeReturnPath(raw: unknown): string | null`
 
-| Eingabe                      | Ausgabe             |
-| ---------------------------- | ------------------- |
-| `undefined`, `''`, Non-String| `null`              |
-| `/aufgaben`                  | `/aufgaben`         |
-| `/settings/general`          | `/settings/general` |
-| `/tasks?view=done&x=1`       | unverändert         |
-| `aufgaben` (ohne `/`)        | `null`              |
-| `https://evil.example`       | `null`              |
-| `//evil.example`             | `null`              |
-| `/\evil.example` (Backslash) | `null`              |
+| Eingabe                       | Ausgabe             |
+| ----------------------------- | ------------------- |
+| `undefined`, `''`, Non-String | `null`              |
+| `/aufgaben`                   | `/aufgaben`         |
+| `/settings/general`           | `/settings/general` |
+| `/tasks?view=done&x=1`        | unverändert         |
+| `aufgaben` (ohne `/`)         | `null`              |
+| `https://evil.example`        | `null`              |
+| `//evil.example`              | `null`              |
+| `/\evil.example` (Backslash)  | `null`              |
 
 - `GET /auth/google/silent?returnTo=X`: `X` wird sanitisiert in der Session (`silentReturnTo`) abgelegt; ungültig/fehlend → kein Return-Path.
 - Erfolgs-Callback: Redirect auf `sanitizeReturnPath(session.silentReturnTo) ?? '/'` (statt fix `/`).

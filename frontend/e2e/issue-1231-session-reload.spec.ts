@@ -57,10 +57,10 @@ const stubAppData = async (page: Page): Promise<void> => {
  * erfasst seine URL (returnTo-Assertion, AK4), meldet still erfolgreich zurück auf `/aufgaben`.
  */
 const mockAuthCycle = (page: Page): { authed: { value: boolean }; silentReturnTo: () => string | null } => {
-	const state = { authed: true, returnTo: null as string | null };
+	const state = { value: true, returnTo: null as string | null };
 	void page.route('**/auth/me', (route: Route) =>
 		route.fulfill(
-			state.authed
+			state.value
 				? fulfillJson(USER)
 				: { status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Nicht eingeloggt.' }) },
 		),
@@ -69,7 +69,7 @@ const mockAuthCycle = (page: Page): { authed: { value: boolean }; silentReturnTo
 		const url = new URL(route.request().url());
 		state.returnTo = url.searchParams.get('returnTo');
 		// Stiller Login erfolgreich: Session etabliert, Rückkehr auf die App-Route.
-		state.authed = true;
+		state.value = true;
 		route.fulfill({ status: 302, headers: { Location: '/aufgaben' } });
 	});
 	return { authed: state, silentReturnTo: () => state.returnTo };

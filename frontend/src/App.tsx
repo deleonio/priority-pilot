@@ -24,6 +24,7 @@ import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
+import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { SearchModal } from './components/SearchModal';
@@ -953,6 +954,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			)}
 			<InstallPrompt />
 			<UpdatePrompt />
+			<SessionExpiredDialog />
 			<Footer version={APP_VERSION} />
 		</main>
 	);

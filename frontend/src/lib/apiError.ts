@@ -30,6 +30,12 @@ const SESSION_MESSAGES = new Set(['Nicht eingeloggt.', 'Ungültige Zugangsdaten.
 
 /** Session-Meldung für abgelaufene/ungültige Session statt der irreführenden KI-Meldung (#948). */
 const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
+
+/**
+ * DOM-Event-Name, den `toApiError` bei einem erkannten Session-401 auf `window` feuert (#1231).
+ * Der globale `SessionExpiredDialog` lauscht darauf und bietet das Neuladen der App an.
+ */
+export const SESSION_EXPIRED_EVENT = 'pp:session-expired';
 export const toApiError = async (reason: unknown): Promise<ApiError> => {
 	if (reason instanceof ResponseError) {
 		const { status } = reason.response;
@@ -68,6 +74,12 @@ export const toApiError = async (reason: unknown): Promise<ApiError> => {
 				// Ohne lesbaren Body ist ein 401 laut Serververtrag Session-Auth (#948)
 				message = SESSION_TEXT;
 			}
+		}
+		if (message === SESSION_TEXT) {
+			// Session-401 (#1231): globaler Dialog „Session abgelaufen" anstoßen. Genau hier — und
+			// nirgendwo sonst — laufen die Fälle zusammen, die laut #948 auf die Session-Meldung mappen;
+			// jeder andere 401 (LLM-/Proxy-401), 403 oder Netzwerkfehler feuert nicht.
+			window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 		}
 		return { status, message };
 	}

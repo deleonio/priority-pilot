@@ -4,7 +4,7 @@ import { App } from './App';
 import { BahnPage } from './components/BahnPage';
 import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
-import { checkAuth } from './lib/auth';
+import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
@@ -58,13 +58,27 @@ const AuthenticatedApp = () => {
 					// Bei erfolgreicher Anmeldung den Logout-Marker zurücksetzen, damit ein späterer
 					// Logout die Silent-Logik nicht dauerhaft sperrt.
 					sessionStorage.removeItem(JUST_LOGGED_OUT_KEY);
+					// #1231: Auch den „bereits versucht"-Marker zurücksetzen — sonst würde nach dem
+					// Neuladen aus dem Session-Dialog (dessen Reload erneut still anmelden soll) kein
+					// zweiter stiller Versuch mehr starten. Die Loop-Guards (?silent=unavailable,
+					// ?error=…, pp_just_logged_out) bleiben unverändert wirksam.
+					sessionStorage.removeItem(SILENT_ATTEMPTED_KEY);
 					return;
 				}
 				// Unauthentifiziert: einmalig entscheiden, ob ein stiller Login versucht wird.
 				if (silentInitiated.current) {
 					return;
 				}
-				if (!shouldAttemptSilentLogin()) {
+				// #1231 (AK3): Kommt der Ablauf aus dem Neuladen des Session-Expired-Dialogs, ist genau
+				// EIN weiterer stiller Versuch ausdrücklich gewollt — auch wenn in dieser Browser-Session
+				// bereits einer lief (`pp_silent_attempted`). Der Bonus-Marker wird gleich entfernt, damit
+				// er auf keine späteren Abläufe übertragen wird; die Loop-Guards der Silent-Logik
+				// (?silent=unavailable, ?error=…, pp_just_logged_out) bleiben unverändert wirksam.
+				const sessionReload = sessionStorage.getItem(SESSION_RELOAD_KEY) === '1';
+				if (sessionReload) {
+					sessionStorage.removeItem(SESSION_RELOAD_KEY);
+				}
+				if (!sessionReload && !shouldAttemptSilentLogin()) {
 					setAuthState('unauthenticated');
 					return;
 				}
@@ -73,7 +87,11 @@ const AuthenticatedApp = () => {
 				// Versuch startet (Loop-Guard).
 				sessionStorage.setItem(SILENT_ATTEMPTED_KEY, '1');
 				setSilentPending(true);
-				window.location.href = '/auth/google/silent';
+				// #1231: aktuelle Route als Return-Path mitgeben — der Erfolgs-Callback des stillen
+				// Logins leitet darauf zurück statt fix auf „/". Serverseitig sanitize
+				// (sanitizeReturnPath), hier nur encodeURIComponent gegen Query-Injection.
+				const currentPath = `${window.location.pathname}${window.location.search}`;
+				window.location.href = `/auth/google/silent?returnTo=${encodeURIComponent(currentPath)}`;
 			})
 			.catch(() => {
 				setAuthState('error');
