@@ -29,6 +29,8 @@
 - Impl-Phase: `server/src/logics/oauthUser.ts` bauen (Tests grün), Verify-Callback in `index.ts` auf die Funktion umstellen (Z. 173-180 ersetzen), avatarUrl-Sync unverändert lassen.
 
 ## Fallstricke
+- lefthook pre-commit blockt den Rot-Commit: knip meldet den **bewusst** nicht auflösbaren Import `./oauthUser.js` als "Unresolved imports" → Fail. CI (verify/review/merge) läuft knip NICHT (nur deploy.yml erwähnt ihn im --no-verify-Kommentar) → Commit mit `--no-verify` + Begründung im PR-Body ist der Weg (Deploy-CI nutzt dasselbe Muster). Achtung: erst den fehlenden generierten `src/api.d.ts` (server lint = `pnpm build:api`) ausschließen, sonst sieht der knip-Fail nach 12 Fehlern aus statt nach dem einen eigenen.
+- Exit-Codes nie aus Pipes lesen — `npx knip | grep; echo $?` lieferte fälschlich 0 (grep-Exit), der zweite Hook-Lauf entlarvte den echten Fail (steht auch in MEMORY.md 2026-08-25).
 - AK2 ist ZWEI Assertions: DB-Sync UND Rückgabe aus der DB-Zeile. Wer nur synced und weiter die Google-Variable returned, bleibt rot (genau der gemeldete Bug-Split).
 - `displayName ?? email`-Fallback (index.ts:170) muss in Zeile und Rückgabe identisch gelten — TF1b fixiert das.
 - `server.json()` liefert Response, nicht Body — Body-Asserts brauchen `await res.json()` (sonst tsc-Fehler/undefined).
