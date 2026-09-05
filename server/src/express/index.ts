@@ -5,7 +5,7 @@ import passport from 'passport';
 import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { components } from '../api';
-import { tasksRouter, serializeTask } from './routes/tasks.js';
+import { createTasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
@@ -204,8 +204,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).
 	app.use(lektoratRouter());
 
-	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
-	app.use(tasksRouter);
+	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts) — PushSender injiziert für die
+	// Benachrichtigung bei fremd angelegten Aufgaben (#1224, Vorbild createPushRouter).
+	app.use(createTasksRouter({ pushSender: deps.pushSender }));
 
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
