@@ -309,26 +309,31 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 				<div slot="tab-0" className="settings-general" ref={settingsGeneralRef}>
 					{/* #1219 AK6/AK7: Anzeigename — Feld + Speichern im Stapel-Layout der Tab-Spalte
 							(mobil volle Breite, kein horizontales Scrollen); bewusst ohne `.settings-switch-row`
-							(dessen e2e-Guard zählt genau 3 Zeilen, #971). */}
-					<KolInputText
-						_label="Anzeigename"
-						_value={displayName}
-						_maxLength={60}
-						_on={{
-							onInput: (_event, value) => {
-								nameUserEditedRef.current = true;
-								setDisplayName(
-									typeof value === 'string' ? value : String((_event.target as HTMLInputElement)?.value ?? ''),
-								);
-							},
-						}}
-					/>
-					<KolButton
-						className="settings-action-btn"
-						_label="Anzeigename speichern"
-						_variant="secondary"
-						_on={{ onClick: saveDisplayName }}
-					/>
+							(dessen e2e-Guard zählt genau 3 Zeilen, #971). Eigener `.settings-profile`-Wrapper
+							statt direkter `.settings-general`-Kinder: Der #843-e2e misst die 16dp-Abstände
+							über `> kol-button` nur auf oberster Ebene — der Speichern-Button liegt deshalb
+							eine Ebene tiefer (Review #1233, Finding 1). */}
+					<div className="settings-profile">
+						<KolInputText
+							_label="Anzeigename"
+							_value={displayName}
+							_maxLength={60}
+							_on={{
+								onInput: (_event, value) => {
+									nameUserEditedRef.current = true;
+									setDisplayName(
+										typeof value === 'string' ? value : String((_event.target as HTMLInputElement)?.value ?? ''),
+									);
+								},
+							}}
+						/>
+						<KolButton
+							className="settings-action-btn"
+							_label="Anzeigename speichern"
+							_variant="secondary"
+							_on={{ onClick: saveDisplayName }}
+						/>
+					</div>
 					<AppearanceSetting />
 					{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 							Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}

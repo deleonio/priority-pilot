@@ -40,7 +40,12 @@ test.describe('Priority Pilot — #1219: Anzeigename', () => {
 		await expect(saveButton, 'Speichern-Button „Anzeigename speichern" fehlt').toBeVisible();
 		await saveButton.click();
 
-		// Die Kopfzeile (Avatar) zeigt den neuen Namen — Rot heute: es gibt kein Speichern.
-		await expect(page.locator('.app-header__user')).toContainText(uniqueName, { timeout: 10_000 });
+		// Die Kopfzeile zeigt den neuen Namen — per #865 bewusst NICHT als sichtbaren Text
+		// (dort stehen nur die Initialen „E1"), sondern als `_label` des Avatars (der
+		// Accessible Name, den Screenreader verlesen). Präzedenz: header-appearance.spec.ts
+		// AK3 (Smoke) prüft `kol-avatar` genauso. Rot vor der Impl: kein Speichern vorhanden.
+		await expect(page.locator('.app-header__user kol-avatar')).toHaveAttribute('_label', uniqueName, {
+			timeout: 10_000,
+		});
 	});
 });

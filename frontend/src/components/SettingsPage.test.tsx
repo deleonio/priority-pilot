@@ -541,8 +541,8 @@ describe('SettingsPage – #1187: Info-Meldung „Bewegung reduzieren" im Tab Al
  *
  * - AK6: Im Allgemein-Tab gibt es ein Feld „Anzeigename" (KolInputText), mit dem aktuellen
  *   Wert aus `api.getProfile` vorbelegt; Speichern (KolButton „Anzeigename speichern") ruft
- *   `api.updateProfile` mit dem neuen Namen und stößt über `onSaved` das User-Reload der
- *   Kopfzeile an (Root → checkAuth).
+ *   `api.updateProfile` mit dem neuen Namen und löst `notifyProfileChanged` aus — Root hört
+ *   auf `PROFILE_CHANGED_EVENT` und aktualisiert die Kopfzeile ohne `/auth/me`-Roundtrip.
  *
  * Der api-Proxy (oben) liefert gecachte Mocks — `apiMocks.getProfile`/`updateProfile` werden
  * hier gezielt gestemmt. Rot, bis Feld + Speichern-Logik existieren (KEIN Produktivcode).
