@@ -1864,3 +1864,115 @@ describe('TaskForm — Empfängerauswahl (#1213 AK7)', () => {
 		expect(screen.queryByTestId('select-Empfänger')).toBeNull();
 	});
 });
+
+// ── #1222 (AK8): Empfängerauswahl auch im Serie-Modus ────────────────────────────────────────
+
+/**
+ * #1222 (AK8, docs/spec/issue-1222.md): Die Empfängerauswahl (#1213) erscheint auch nach dem
+ * Umschalten auf „Serie", bleibt im Bearbeiten-Modus ausgeblendet, wird mit dem eigenen Konto
+ * vorbelegt, übersteht den Moduswechsel unverändert und landet als `userId` im
+ * `createSeries`-Payload (nur bei fremdem Empfänger).
+ */
+describe('TaskForm — Empfängerauswahl im Serie-Modus (#1222 AK8)', () => {
+	const ownUser = { id: 1, displayName: 'Alex Selbst', email: 'alex@example.com', avatarUrl: null };
+	const groups: Group[] = [{ id: 5, name: 'E2E Gruppe', description: null, role: 'admin', memberCount: 2 }];
+	const members: GroupMember[] = [
+		{ userId: 1, displayName: 'Alex Selbst', role: 'admin' },
+		{ userId: 2, displayName: 'Bobi Anderes', role: 'member' },
+	];
+
+	/** Stubbt den rohen fetch von checkAuth (`GET /api/v1/auth/me`) auf das eigene Konto. */
+	const stubAuthMe = (): void => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				if (String(input).includes('/auth/me')) {
+					return new Response(JSON.stringify(ownUser), { status: 200 });
+				}
+				return new Response('{}', { status: 404 });
+			}),
+		);
+	};
+
+	const seedRecipients = async (): Promise<HTMLSelectElement> => {
+		mockListGroups.mockResolvedValue(groups);
+		mockGetGroupMembers.mockResolvedValue(members);
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+		return screen.getByTestId('select-Empfänger') as HTMLSelectElement;
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('Serie-Modus: „Empfänger"-Auswahl sichtbar und mit dem eigenen Konto vorbelegt', async () => {
+		const select = await seedRecipients();
+
+		expect(select).toBeTruthy();
+		expect(select.selectedOptions[0]?.textContent).toBe('Alex Selbst');
+	});
+
+	it('Serie-Modus: createSeries erhält die userId des gewählten Empfängers', async () => {
+		const select = await seedRecipients();
+
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '2' } });
+		});
+		await fillTitle('Serie für Bobi');
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate['userId']).toBe(2);
+	});
+
+	it('Serie-Modus mit eigenem Konto: createSeries ohne userId (bisheriger Ablauf)', async () => {
+		const select = await seedRecipients();
+
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '1' } });
+		});
+		await fillTitle('Serie für mich');
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate).not.toHaveProperty('userId');
+	});
+
+	it('Moduswechsel Task ⇄ Serie erhält die bereits getroffene Empfängerwahl', async () => {
+		const select = await seedRecipients();
+
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '2' } });
+		});
+		// Zurück in den Task-Modus und wieder in den Serie-Modus.
+		const switchEl = within(screen.getByTestId('mode-switch')).getByRole('switch');
+		await act(async () => {
+			fireEvent.click(switchEl);
+		});
+		await act(async () => {
+			fireEvent.click(switchEl);
+		});
+
+		expect((screen.getByTestId('select-Empfänger') as HTMLSelectElement).value).toBe('2');
+	});
+
+	it('Serien-Edit: keine Empfängerauswahl (nur Anlege-Modus)', async () => {
+		mockListGroups.mockResolvedValue(groups);
+		mockGetGroupMembers.mockResolvedValue(members);
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		expect(screen.queryByTestId('select-Empfänger')).toBeNull();
+	});
+});

@@ -108,7 +108,7 @@ describe('Empfänger-Serie: Instanz-Eigentümer und Schreib-Isolation (#1222)', 
 		const genRes = await fetch(`${server.baseUrl}/series/${seriesId}/generate`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: await server.login(BOB) },
-			body: JSON.stringify({ until: '2026-03-01T00:00:00.000Z' }),
+			body: JSON.stringify({ until: '2027-03-01T00:00:00.000Z' }),
 		});
 		assert.equal(genRes.status, 201, 'Empfänger kann seine Serie generieren');
 

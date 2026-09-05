@@ -44,8 +44,13 @@ class Series extends Model {
 
 	// Eigentümer des Templates (Issue #244, AK1 — Datenisolation), analog zu `Task.userId`. Nullable
 	// für Abwärtskompatibilität: Alt-Bestände ohne Zuordnung bleiben lesbar; neue Serien werden über
-	// die Session-`userId` gebunden.
+	// die Session-`userId` gebunden. Bei einer Serie für ein anderes Gruppenmitglied (#1222) das
+	// Empfänger-Konto.
 	public userId?: number | null;
+
+	// Ersteller-Konto (#1222, analog `Task.createdById` #1213) — nullable wie `userId`: Bestandsserien
+	// ohne Ersteller-Eintrag bleiben lesbar und unverändert.
+	public createdById?: number | null;
 
 	/** Eager-geladene Säulen-Vorlage (über `include: [Pillar]`); je Eintrag mit `SeriesPillar` (#302). */
 	public Pillars?: SeriesPillarWithContribution[];
@@ -117,6 +122,13 @@ Series.init(
 		// `defaultValue: null` stellt sicher, dass eine ohne Angabe angelegte Serie `userId === null`
 		// (statt `undefined`) trägt.
 		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
+		},
+		// Ersteller-Konto (#1222) — nullable wie `userId`; `defaultValue: null` hält Alt-Bestände
+		// (ohne Ersteller-Eintrag) und Selbst-Anlagen auseinander.
+		createdById: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
 			defaultValue: null,

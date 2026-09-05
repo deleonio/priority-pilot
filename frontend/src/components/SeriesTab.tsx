@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolSpin, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolSpin, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Series } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -152,30 +152,41 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 										address={entry.address}
 									/>
 								)}
-								<div className="series-tree-actions">
-									<KolToolbar
-										_label={`Aktionen für ${entry.title}`}
-										_orientation="horizontal"
-										_items={[
-											{
-												type: 'button',
-												_label: 'Bearbeiten',
-												_hideLabel: true,
-												_icons: { left: { icon: 'fa-solid fa-pen' } },
-												_variant: 'secondary',
-												_on: { onClick: () => setEditDialog({ series: entry }) },
-											},
-											{
-												type: 'button',
-												_label: 'Löschen',
-												_hideLabel: true,
-												_icons: { left: { icon: 'kolicon-cross' } },
-												_variant: 'danger',
-												_on: { onClick: () => setDeleteTarget(entry) },
-											},
-										]}
-									/>
-								</div>
+								{/* #1222: Empfänger-Kennzeichen für den Ersteller (Muster „Für: …" im TaskTree,
+								    #1213). Der Empfänger selbst sieht kein Kennzeichen — für ihn ist die Serie
+								    eine eigene. */}
+								{entry.forUserName != null && (
+									<KolBadge _label={`Für: ${entry.forUserName}`} className="series-tree-badge" />
+								)}
+								{/* #1222 (AK6): Eine fremde Serie (vom eigenen Konto für ein anderes Mitglied
+								    angelegt) ist schreibgeschützt — die Toolbar würde nur in die 404-Sackgasse
+								    führen und bleibt deshalb ungerendert (keine Geister-Fokusziele). */}
+								{entry.forUserId == null && (
+									<div className="series-tree-actions">
+										<KolToolbar
+											_label={`Aktionen für ${entry.title}`}
+											_orientation="horizontal"
+											_items={[
+												{
+													type: 'button',
+													_label: 'Bearbeiten',
+													_hideLabel: true,
+													_icons: { left: { icon: 'fa-solid fa-pen' } },
+													_variant: 'secondary',
+													_on: { onClick: () => setEditDialog({ series: entry }) },
+												},
+												{
+													type: 'button',
+													_label: 'Löschen',
+													_hideLabel: true,
+													_icons: { left: { icon: 'kolicon-cross' } },
+													_variant: 'danger',
+													_on: { onClick: () => setDeleteTarget(entry) },
+												},
+											]}
+										/>
+									</div>
+								)}
 							</div>
 						</li>
 					))}

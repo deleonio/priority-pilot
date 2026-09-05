@@ -99,7 +99,7 @@ export interface TaskSerializeContext {
  * Lädt die Anzeigenamen (E-Mail-Fallback, Muster `displayNameOf` in routes/groups.ts) zu den
  * referenzierten Nutzer-IDs — ein Sammel-Query statt je Task.
  */
-const loadUserNames = async (ids: number[]): Promise<Map<number, string>> => {
+export const loadUserNames = async (ids: number[]): Promise<Map<number, string>> => {
 	const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
 	if (unique.length === 0) {
 		return new Map();
@@ -140,6 +140,9 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		checklist: task.checklist ?? [],
 		seriesId: task.seriesId ?? null,
 		isException: task.isException ?? false,
+		// #1222: Eigentümer im DTO (Spiegel zu `Series.userId`) — generierte Instanzen einer
+		// Empfänger-Serie tragen den Serien-Eigentümer (AK4).
+		userId: task.userId ?? null,
 		createdById: createdBy,
 		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
 		forUserId: handedOff ? task.userId : null,
