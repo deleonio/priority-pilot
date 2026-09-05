@@ -187,9 +187,8 @@ describe('Benachrichtigung bei fremd angelegter Aufgabe (#1224)', () => {
 		const logs1 = await NotificationLog.findAll({ where: { kind: 'task-created' } });
 		assert.equal(logs1.length, 1, 'genau ein Dedupe-Eintrag zur ersten Aufgabe');
 		assert.equal(logs1[0].dedupeKey, String(taskId1), 'der dedupeKey ist aus der Aufgaben-Id gebildet');
-		assert.notInclude(
-			['due-task', 'daily-top-tasks'],
-			logs1[0].kind,
+		assert.ok(
+			!['due-task', 'daily-top-tasks'].includes(logs1[0].kind),
 			'die eigene kind kollidiert nicht mit den Scheduler-Auslösern',
 		);
 

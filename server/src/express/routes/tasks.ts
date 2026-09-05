@@ -10,6 +10,8 @@ import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
+import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
+import type { PushSender } from '../../logics/push.js';
 import type { ChecklistItem } from '../../models/task.js';
 import type { components } from '../../api';
 
@@ -365,327 +367,354 @@ const awardScoreOnDone = async (task: Task, transaction: Transaction): Promise<v
 	});
 };
 
-export const tasksRouter = Router();
+/**
+ * Baut den Task-Router. `pushSender` ist injizierbar (Vorbild `createPushRouter`), damit der
+ * Versand bei fremd angelegten Aufgaben (#1224) ohne echte VAPID-Konfiguration testbar ist.
+ */
+export interface TasksRouterDeps {
+	/** Injizierbarer Web-Push-Versand (Default: web-push); Tests reichen einen Mock herein. */
+	pushSender?: PushSender;
+}
 
-// GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
-tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
-	try {
-		// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
-		// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
-		const requester = await resolveGeoUser(req);
-		const tasks = await Task.findAll({
-			where: taskReadScope(getUserId(req), requester?.id ?? null),
-			include: [Pillar],
-		});
-		res.json(await serializeTasksFor(req, tasks));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router => {
+	const tasksRouter = Router();
 
-// GET /tasks/nearby — offene Tasks mit Koordinaten, aufsteigend nach Distanz zur Position (#1066).
-// Muss VOR `/tasks/:id` registriert sein, damit der Pfad nicht als id gefangen wird.
+	// GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
+	tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
+		try {
+			// #1213: Lese-Scope um selbst angelegte Aufgaben für andere Gruppenmitglieder erweitert
+			// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
+			const requester = await resolveGeoUser(req);
+			const tasks = await Task.findAll({
+				where: taskReadScope(getUserId(req), requester?.id ?? null),
+				include: [Pillar],
+			});
+			res.json(await serializeTasksFor(req, tasks));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
 
-tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
-	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
-	const parseCoord = (value: unknown): number =>
-		typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
-	const lat = parseCoord(req.query.lat);
-	const lon = parseCoord(req.query.lon);
-	if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
-		sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
-		return;
-	}
-	try {
-		// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
-		// Dieselbe User-Auflösung und derselbe Default wie /geo-config (#1103 F5) — inkl.
-		// Dev-Pass-Through-Nutzer, damit Dev/E2E die gespeicherte Config nicht still ignorieren.
-		const geoUser = await resolveGeoUser(req);
-		const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
-		// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
-		const tasks = await Task.findAll({
-			where: {
-				status: { [Op.ne]: 'Done' },
-				latitude: { [Op.ne]: null },
-				longitude: { [Op.ne]: null },
-				...ownerScope(getUserId(req)),
-			},
-		});
-		const items = tasks
-			.map((task) => ({
-				id: task.id,
-				title: task.title,
-				distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
-			}))
-			.sort((a, b) => a.distanceKm - b.distanceKm)
-			.filter((item) => item.distanceKm <= maxDisplayKm)
-			.slice(0, 10);
-		res.json(items);
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+	// GET /tasks/nearby — offene Tasks mit Koordinaten, aufsteigend nach Distanz zur Position (#1066).
+	// Muss VOR `/tasks/:id` registriert sein, damit der Pfad nicht als id gefangen wird.
 
-// POST /tasks — neuen Task anlegen
-tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
-	const validation = validateTaskFields(req.body, true);
-	if (!validation.ok) {
-		sendError(res, 400, validation.message);
-		return;
-	}
-	const userId = getUserId(req);
-	if (
-		validation.pillars !== undefined &&
-		!(await arePillarsExistent(
-			validation.pillars.map((p) => p.pillarId),
-			userId,
-		))
-	) {
-		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
-		return;
-	}
-	try {
-		// #1213: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
-		// prüfen: `userId` im Body bezeichnet das Konto, dem die Aufgabe gehören soll. Ohne das Feld
-		// (oder mit der eigenen ID) ändert sich am bisherigen Ablauf nichts (AK1); ein Empfänger, mit dem
-		// der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne einen Datensatz anzulegen (AK2).
-		const requester = await resolveGeoUser(req);
-		const requesterId = requester?.id ?? null;
-		let recipientId: number | null = null;
-		const recipientInput = (req.body as { userId?: unknown }).userId;
-		if (recipientInput !== undefined) {
-			if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
-				sendError(res, 400, 'userId muss eine Ganzzahl sein.');
-				return;
-			}
-			if (recipientInput !== requesterId) {
-				const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
-				const shared = await GroupMember.findOne({
-					where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
-				});
-				if (shared === null) {
-					sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+	tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
+		// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
+		const parseCoord = (value: unknown): number =>
+			typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+		const lat = parseCoord(req.query.lat);
+		const lon = parseCoord(req.query.lon);
+		if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+			return;
+		}
+		try {
+			// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
+			// Dieselbe User-Auflösung und derselbe Default wie /geo-config (#1103 F5) — inkl.
+			// Dev-Pass-Through-Nutzer, damit Dev/E2E die gespeicherte Config nicht still ignorieren.
+			const geoUser = await resolveGeoUser(req);
+			const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
+			// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
+			const tasks = await Task.findAll({
+				where: {
+					status: { [Op.ne]: 'Done' },
+					latitude: { [Op.ne]: null },
+					longitude: { [Op.ne]: null },
+					...ownerScope(getUserId(req)),
+				},
+			});
+			const items = tasks
+				.map((task) => ({
+					id: task.id,
+					title: task.title,
+					distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
+				}))
+				.sort((a, b) => a.distanceKm - b.distanceKm)
+				.filter((item) => item.distanceKm <= maxDisplayKm)
+				.slice(0, 10);
+			res.json(items);
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /tasks — neuen Task anlegen
+	tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const validation = validateTaskFields(req.body, true);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
+		const userId = getUserId(req);
+		if (
+			validation.pillars !== undefined &&
+			!(await arePillarsExistent(
+				validation.pillars.map((p) => p.pillarId),
+				userId,
+			))
+		) {
+			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+			return;
+		}
+		try {
+			// #1213: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
+			// prüfen: `userId` im Body bezeichnet das Konto, dem die Aufgabe gehören soll. Ohne das Feld
+			// (oder mit der eigenen ID) ändert sich am bisherigen Ablauf nichts (AK1); ein Empfänger, mit dem
+			// der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne einen Datensatz anzulegen (AK2).
+			const requester = await resolveGeoUser(req);
+			const requesterId = requester?.id ?? null;
+			let recipientId: number | null = null;
+			const recipientInput = (req.body as { userId?: unknown }).userId;
+			if (recipientInput !== undefined) {
+				if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+					sendError(res, 400, 'userId muss eine Ganzzahl sein.');
 					return;
 				}
-				recipientId = recipientInput;
-			}
-		}
-		const created = await sequelize.transaction(async (transaction) => {
-			// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
-			// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
-			const task = await Task.create(
-				{ ...validation.attrs, userId: recipientId ?? userId ?? null, createdById: requesterId },
-				{ transaction },
-			);
-			if (validation.pillars !== undefined && validation.pillars.length > 0) {
-				await replaceContributions(task.id, validation.pillars, transaction);
-			}
-			return task;
-		});
-		const withPillars = await findTaskWithPillars(created.id);
-		if (!withPillars) {
-			sendError(res, 500, 'Interner Serverfehler.');
-			return;
-		}
-		res.status(201).json((await serializeTasksFor(req, [withPillars]))[0]);
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
-
-// GET /tasks/:id — einen Task abrufen
-tasksRouter.get('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
-	const id = parseId(req.params.id);
-	const userId = getUserId(req);
-	// Nur eigene Tasks sind auffindbar (Datenisolation, #207) — fremde → 404.
-	const task = id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar] });
-	if (!task) {
-		sendError(res, 404, 'Task nicht gefunden.');
-		return;
-	}
-	res.json((await serializeTasksFor(req, [task]))[0]);
-});
-
-// PATCH /tasks/:id — einen Task teilweise aktualisieren
-tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
-	const id = parseId(req.params.id);
-	// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
-	const task = id === null ? null : await findOwnTask(id, getUserId(req));
-	if (!task) {
-		sendError(res, 404, 'Task nicht gefunden.');
-		return;
-	}
-	const validation = validateTaskFields(req.body, false);
-	if (!validation.ok) {
-		sendError(res, 400, validation.message);
-		return;
-	}
-	const userId = getUserId(req);
-	if (
-		validation.pillars !== undefined &&
-		!(await arePillarsExistent(
-			validation.pillars.map((p) => p.pillarId),
-			userId,
-		))
-	) {
-		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
-		return;
-	}
-	// Unteraufgaben-Done-Guard (#246, AK5; Kanten-Richtung korrigiert in #336): Ein Task darf nur auf
-	// „Done" wechseln, wenn keine seiner direkten Unteraufgaben offen ist. Eine Unteraufgabe wird über
-	// den realen „Unteraufgabe anlegen"-Flow (`TaskForm.tsx`) als **Vorgänger** der Eltern-Aufgabe
-	// angelegt (`POST /tasks/{parentId}/dependencies` mit `dependingTaskId = childId`) → die direkten
-	// Unteraufgaben stehen in `parent.getDependencies()`, nicht in `getDependents()`. Zuvor prüfte der
-	// Guard die entgegengesetzte Richtung und griff für real angelegte Unteraufgaben daher nie.
-	if (validation.attrs.status === 'Done') {
-		const subtasks = await task.getDependencies();
-		const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done');
-		if (hasOpenSubtask) {
-			sendError(
-				res,
-				409,
-				'Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren.',
-			);
-			return;
-		}
-	}
-	try {
-		// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
-		const warVorherDone = task.status === 'Done';
-		// AK2 (#120): Eine individuelle Änderung an einer generierten Serien-Instanz markiert sie als
-		// Ausnahme — der Generator lässt `isException`-Instanzen unangetastet und das Template bleibt
-		// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
-		const attrs = task.seriesId != null ? { ...validation.attrs, isException: true } : validation.attrs;
-		await sequelize.transaction(async (transaction) => {
-			await task.update(attrs, { transaction });
-			// `pillars` fehlt → Beiträge unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
-			if (validation.pillars !== undefined) {
-				await TaskPillar.destroy({ where: { taskId: task.id }, transaction });
-				if (validation.pillars.length > 0) {
-					await replaceContributions(task.id, validation.pillars, transaction);
+				if (recipientInput !== requesterId) {
+					const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
+					const shared = await GroupMember.findOne({
+						where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
+					});
+					if (shared === null) {
+						sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+						return;
+					}
+					recipientId = recipientInput;
 				}
 			}
-			// Punkte nur beim echten Übergang auf „Done" vergeben (vorher ≠ Done, jetzt Done) — kein
-			// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
-			if (!warVorherDone && task.status === 'Done') {
-				await awardScoreOnDone(task, transaction);
+			const created = await sequelize.transaction(async (transaction) => {
+				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
+				// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
+				const task = await Task.create(
+					{ ...validation.attrs, userId: recipientId ?? userId ?? null, createdById: requesterId },
+					{ transaction },
+				);
+				if (validation.pillars !== undefined && validation.pillars.length > 0) {
+					await replaceContributions(task.id, validation.pillars, transaction);
+				}
+				return task;
+			});
+			// #1224: Empfänger über die fremd angelegte Aufgabe informieren — erst nach dem Commit, und
+			// nur bei echter Fremd-Anlage (AK2: Selbst-Anlage bleibt ohne Nachricht). Restfehler werden
+			// gefangen und nur protokolliert, damit das Anlegen unberührt bleibt (AK4).
+			if (recipientId !== null) {
+				try {
+					await notifyTaskCreated(
+						{ id: created.id, title: created.title, userId: recipientId },
+						requester ? { displayName: requester.displayName } : null,
+						pushSender,
+					);
+				} catch (error) {
+					console.warn('Benachrichtigung zur neu angelegten Aufgabe fehlgeschlagen:', error);
+				}
 			}
-			// Score-Rücknahme beim Wiedereröffnen (#228, AK-5): War der Task vorher „Done" und ist er
-			// jetzt nicht mehr erledigt, wird der beim Erledigen vergebene ScoreEntry wieder entfernt.
-			// Ein erneutes „Done" vergibt dann genau einen neuen Eintrag (keine Doppelzählung).
-			if (warVorherDone && task.status !== 'Done') {
-				await ScoreEntry.destroy({ where: { taskId: task.id }, transaction });
+			const withPillars = await findTaskWithPillars(created.id);
+			if (!withPillars) {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
 			}
-		});
-		const withPillars = await findTaskWithPillars(task.id);
-		if (!withPillars) {
+			res.status(201).json((await serializeTasksFor(req, [withPillars]))[0]);
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// GET /tasks/:id — einen Task abrufen
+	tasksRouter.get('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		const userId = getUserId(req);
+		// Nur eigene Tasks sind auffindbar (Datenisolation, #207) — fremde → 404.
+		const task = id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar] });
+		if (!task) {
 			sendError(res, 404, 'Task nicht gefunden.');
 			return;
 		}
-		res.json(serializeTask(withPillars));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+		res.json((await serializeTasksFor(req, [task]))[0]);
+	});
 
-// DELETE /tasks/:id — einen Task löschen
-tasksRouter.delete('/tasks/:id', async (req: Request, res: Response<ErrorDto>) => {
-	const id = parseId(req.params.id);
-	// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
-	const task = id === null ? null : await findOwnTask(id, getUserId(req));
-	if (!task) {
-		sendError(res, 404, 'Task nicht gefunden.');
-		return;
-	}
-	await task.destroy();
-	res.status(204).send();
-});
-
-// POST /tasks/:id/dependencies — Abhängigkeit (Vorgänger) hinzufügen
-tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
-	const id = parseId(req.params.id);
-	if (id === null) {
-		sendError(res, 404, 'Task nicht gefunden.');
-		return;
-	}
-
-	const body: unknown = req.body;
-	if (typeof body !== 'object' || body === null) {
-		sendError(res, 400, 'Request-Body muss ein Objekt sein.');
-		return;
-	}
-	const input = body as Record<string, unknown>;
-
-	if (
-		typeof input.dependingTaskId !== 'number' ||
-		!Number.isInteger(input.dependingTaskId) ||
-		input.dependingTaskId < 1
-	) {
-		sendError(res, 400, 'dependingTaskId muss eine Ganzzahl >= 1 sein.');
-		return;
-	}
-	if (
-		input.weight !== undefined &&
-		(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0)
-	) {
-		sendError(res, 400, 'weight muss eine endliche Zahl >= 0 sein.');
-		return;
-	}
-	const weight = typeof input.weight === 'number' ? input.weight : 1;
-
-	// Beide Enden müssen dem Nutzer gehören (Datenisolation, #207) — fremde Tasks → 404.
-	const userId = getUserId(req);
-	const dependentTask = await findOwnTask(id, userId);
-	if (!dependentTask) {
-		sendError(res, 404, 'Task nicht gefunden.');
-		return;
-	}
-	const dependingTask = await findOwnTask(input.dependingTaskId, userId);
-	if (!dependingTask) {
-		sendError(res, 404, 'Abhängiger Task (dependingTaskId) nicht gefunden.');
-		return;
-	}
-
-	if (await wouldCreateCycle(dependentTask, dependingTask)) {
-		sendError(res, 409, 'Abhängigkeit kann nicht hinzugefügt werden: Es würde ein Zyklus entstehen.');
-		return;
-	}
-
-	try {
-		// Idempotent: Besteht die Kante bereits, aktualisiert addDependency() nur das Gewicht der
-		// vorhandenen Join-Zeile (kein Duplikat, kein Constraint-Fehler) — die Antwort bleibt 201.
-		await dependentTask.addDependency(dependingTask, { through: { weight } });
-		const withPillars = await findTaskWithPillars(dependentTask.id);
-		if (!withPillars) {
+	// PATCH /tasks/:id — einen Task teilweise aktualisieren
+	tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
 			sendError(res, 404, 'Task nicht gefunden.');
 			return;
 		}
-		res.status(201).json(serializeTask(withPillars));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+		const validation = validateTaskFields(req.body, false);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
+		const userId = getUserId(req);
+		if (
+			validation.pillars !== undefined &&
+			!(await arePillarsExistent(
+				validation.pillars.map((p) => p.pillarId),
+				userId,
+			))
+		) {
+			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+			return;
+		}
+		// Unteraufgaben-Done-Guard (#246, AK5; Kanten-Richtung korrigiert in #336): Ein Task darf nur auf
+		// „Done" wechseln, wenn keine seiner direkten Unteraufgaben offen ist. Eine Unteraufgabe wird über
+		// den realen „Unteraufgabe anlegen"-Flow (`TaskForm.tsx`) als **Vorgänger** der Eltern-Aufgabe
+		// angelegt (`POST /tasks/{parentId}/dependencies` mit `dependingTaskId = childId`) → die direkten
+		// Unteraufgaben stehen in `parent.getDependencies()`, nicht in `getDependents()`. Zuvor prüfte der
+		// Guard die entgegengesetzte Richtung und griff für real angelegte Unteraufgaben daher nie.
+		if (validation.attrs.status === 'Done') {
+			const subtasks = await task.getDependencies();
+			const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done');
+			if (hasOpenSubtask) {
+				sendError(
+					res,
+					409,
+					'Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren.',
+				);
+				return;
+			}
+		}
+		try {
+			// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
+			const warVorherDone = task.status === 'Done';
+			// AK2 (#120): Eine individuelle Änderung an einer generierten Serien-Instanz markiert sie als
+			// Ausnahme — der Generator lässt `isException`-Instanzen unangetastet und das Template bleibt
+			// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
+			const attrs = task.seriesId != null ? { ...validation.attrs, isException: true } : validation.attrs;
+			await sequelize.transaction(async (transaction) => {
+				await task.update(attrs, { transaction });
+				// `pillars` fehlt → Beiträge unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
+				if (validation.pillars !== undefined) {
+					await TaskPillar.destroy({ where: { taskId: task.id }, transaction });
+					if (validation.pillars.length > 0) {
+						await replaceContributions(task.id, validation.pillars, transaction);
+					}
+				}
+				// Punkte nur beim echten Übergang auf „Done" vergeben (vorher ≠ Done, jetzt Done) — kein
+				// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
+				if (!warVorherDone && task.status === 'Done') {
+					await awardScoreOnDone(task, transaction);
+				}
+				// Score-Rücknahme beim Wiedereröffnen (#228, AK-5): War der Task vorher „Done" und ist er
+				// jetzt nicht mehr erledigt, wird der beim Erledigen vergebene ScoreEntry wieder entfernt.
+				// Ein erneutes „Done" vergibt dann genau einen neuen Eintrag (keine Doppelzählung).
+				if (warVorherDone && task.status !== 'Done') {
+					await ScoreEntry.destroy({ where: { taskId: task.id }, transaction });
+				}
+			});
+			const withPillars = await findTaskWithPillars(task.id);
+			if (!withPillars) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			res.json(serializeTask(withPillars));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
 
-// DELETE /tasks/:id/dependencies/:depId — Abhängigkeit (Vorgänger) entfernen
-tasksRouter.delete('/tasks/:id/dependencies/:depId', async (req: Request, res: Response<ErrorDto>) => {
-	const id = parseId(req.params.id);
-	const depId = parseId(req.params.depId);
-	const task = id === null ? null : await findOwnTask(id, getUserId(req));
-	if (!task) {
-		sendError(res, 404, 'Task nicht gefunden.');
-		return;
-	}
-	if (depId === null) {
-		sendError(res, 404, 'Abhängigkeit nicht gefunden.');
-		return;
-	}
-	// Existenz der Kante prüfen, damit ein stilles "Löschen" einer nicht vorhandenen Abhängigkeit
-	// laut Vertrag mit 404 (statt 204) beantwortet wird.
-	const dependencies = await task.getDependencies();
-	if (!dependencies.some((dependency) => dependency.id === depId)) {
-		sendError(res, 404, 'Abhängigkeit nicht gefunden.');
-		return;
-	}
-	await task.removeDependency(depId);
-	res.status(204).send();
-});
+	// DELETE /tasks/:id — einen Task löschen
+	tasksRouter.delete('/tasks/:id', async (req: Request, res: Response<ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		await task.destroy();
+		res.status(204).send();
+	});
+
+	// POST /tasks/:id/dependencies — Abhängigkeit (Vorgänger) hinzufügen
+	tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+
+		const body: unknown = req.body;
+		if (typeof body !== 'object' || body === null) {
+			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+			return;
+		}
+		const input = body as Record<string, unknown>;
+
+		if (
+			typeof input.dependingTaskId !== 'number' ||
+			!Number.isInteger(input.dependingTaskId) ||
+			input.dependingTaskId < 1
+		) {
+			sendError(res, 400, 'dependingTaskId muss eine Ganzzahl >= 1 sein.');
+			return;
+		}
+		if (
+			input.weight !== undefined &&
+			(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0)
+		) {
+			sendError(res, 400, 'weight muss eine endliche Zahl >= 0 sein.');
+			return;
+		}
+		const weight = typeof input.weight === 'number' ? input.weight : 1;
+
+		// Beide Enden müssen dem Nutzer gehören (Datenisolation, #207) — fremde Tasks → 404.
+		const userId = getUserId(req);
+		const dependentTask = await findOwnTask(id, userId);
+		if (!dependentTask) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		const dependingTask = await findOwnTask(input.dependingTaskId, userId);
+		if (!dependingTask) {
+			sendError(res, 404, 'Abhängiger Task (dependingTaskId) nicht gefunden.');
+			return;
+		}
+
+		if (await wouldCreateCycle(dependentTask, dependingTask)) {
+			sendError(res, 409, 'Abhängigkeit kann nicht hinzugefügt werden: Es würde ein Zyklus entstehen.');
+			return;
+		}
+
+		try {
+			// Idempotent: Besteht die Kante bereits, aktualisiert addDependency() nur das Gewicht der
+			// vorhandenen Join-Zeile (kein Duplikat, kein Constraint-Fehler) — die Antwort bleibt 201.
+			await dependentTask.addDependency(dependingTask, { through: { weight } });
+			const withPillars = await findTaskWithPillars(dependentTask.id);
+			if (!withPillars) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			res.status(201).json(serializeTask(withPillars));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// DELETE /tasks/:id/dependencies/:depId — Abhängigkeit (Vorgänger) entfernen
+	tasksRouter.delete('/tasks/:id/dependencies/:depId', async (req: Request, res: Response<ErrorDto>) => {
+		const id = parseId(req.params.id);
+		const depId = parseId(req.params.depId);
+		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		if (!task) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		if (depId === null) {
+			sendError(res, 404, 'Abhängigkeit nicht gefunden.');
+			return;
+		}
+		// Existenz der Kante prüfen, damit ein stilles "Löschen" einer nicht vorhandenen Abhängigkeit
+		// laut Vertrag mit 404 (statt 204) beantwortet wird.
+		const dependencies = await task.getDependencies();
+		if (!dependencies.some((dependency) => dependency.id === depId)) {
+			sendError(res, 404, 'Abhängigkeit nicht gefunden.');
+			return;
+		}
+		await task.removeDependency(depId);
+		res.status(204).send();
+	});
+
+	return tasksRouter;
+};
