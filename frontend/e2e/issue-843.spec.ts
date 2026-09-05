@@ -22,6 +22,10 @@ test.describe('#843 Settings Screen Layout', () => {
 	/**
 	 * Spec-Bezug: Schritt 2 — Layout-Inspektion: Spacing
 	 * AK1 aus Spec: Settings-UI verwendet einheitliche Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)
+	 *
+	 * Ausgenommen sind die Feinschalter in `.settings-switch-row--sub` (wie bei AK2 unten): Sie
+	 * liegen seit #1227 in einem KolDetails, dessen Zeilenhöhe bei geschlossenem Zustand auf 0
+	 * kollabiert — ihre Bounding-Box würde den 16dp-Abstand zu den Hauptzeilen verfälschen.
 	 */
 	test('AK1: Settings-UI verwendet konsistente Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)', async ({
 		page,
@@ -31,7 +35,7 @@ test.describe('#843 Settings Screen Layout', () => {
 
 		// Wir prüfen die Host-Elemente für konsistentes Spacing
 		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general kol-input-checkbox, .settings-general > kol-button',
+			'.settings-general > kol-input-radio, .settings-general :not(.settings-switch-row--sub) > kol-input-checkbox, .settings-general > kol-button',
 		);
 		const count = await controls.count();
 
