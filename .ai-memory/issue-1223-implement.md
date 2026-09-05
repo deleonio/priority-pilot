@@ -1,101 +1,68 @@
-# Issue 1223 — Impl-Phase (Phase 4), Stand 2026-09-05 (Soft-Deadline-Abbruch)
+# Issue 1223 — Impl-Phase (Phase 4), Stand 2026-09-05 (Fortsetzungs-Lauf: fertig)
 
-**ERGEBNIS: nicht fertig — VERDICT not-ready (PR #1239 bleibt Draft).** Implementierung ist
-funktional komplett und verifiziert (API-Tests 3/3 grün, e2e mit fehlerbereinigten Locators
-3/3 grün — Beweislauf mit Wegwerf-Kopie), aber der lokale Gate (lint/knit/ganze Testsuite) und
-`gh pr ready` fehlen noch. Soft-Deadline (1788625206) war beim Gate-Antritt überschritten →
-Commit+Push dieses Standes, Ende des Laufs.
+**ERGEBNIS: VERDICT needs-review.** Implementierung komplett, Gate vollständig grün,
+PR #1239 aus dem Draft genommen und Body um Implementierungs-Summary erweitert.
 
 ## Erledigt
-- Spec-Modus: Draft-PR #1239 (`ai/harness/1223`) ausgecheckt; untracked lokale Memory-Kopien
-  waren byte-identisch mit den Branch-Versionen → verworfen, dann `git switch`.
-- `server/src/express/routes/groups.ts:529-597` — neuer `GET /groups/:id/tasks` (`GroupTaskDto`,
-  `resolveGeoUser`→401, `findMembership`→404, `Op.in` memberIds + `status != Done`, JS-Filter
-  `createdById != null && != userId && in memberIds`, DTO exakt Spec-Feldsatz, Sort: recipientName
-  `localeCompare(sensitivity:'accent')` → deadline asc (null zuletzt) → id).
-- `openapi.yml` — Pfad `/groups/{id}/tasks` (operationId `listGroupTasks`, Tag groups, 200/404)
-  + Schema `GroupTask` (required id/title/deadline/status/recipientName/creatorName; deadline
-  `date-time nullable`, status `$ref TaskStatus`) hinter `/groups/{id}/members/{userId}`-Block.
-- Client generiert: `pnpm --filter client generate` (`client/src/schema.d.ts`, gitignored) +
-  `openapi-typescript ../openapi.yml -o src/api.d.ts` im server-Dir (gitignored). Beide NICHT
-  committet (ignoriert), Quelle ist openapi.yml.
-- `client/src/index.ts:33` — `export type GroupTask = Schemas['GroupTask'];`
-- `frontend/src/api.ts` — `getGroupTasks({ id })` analog `getGroupMembers` (Import `GroupTask`).
-- `frontend/src/components/GroupDetail.tsx` — State `tasks`, dritter `Promise.all`-Zweig
-  (`api.getGroupTasks`), Abschnitt „Füreinander angelegt“ (KolHeading level 4) nach den offenen
-  Einladungen: Liste `.group-tasks` mit je div-Zeilen recipient/title/`von {creator}` (Blöcke,
-  damit lange Namen umbrechen), Leerzustand `<p class="hint">Noch hat niemand eine Aufgabe für
-  ein anderes Mitglied angelegt.</p>`.
-- `frontend/src/components/GroupsSection.tsx:33-34,159-179,208` — `detailRefreshTick`-State;
-  Klick-Guard von #1212 gesplittet: Bedienelemente unverändert no-op, blanker Klick IM offenen
-  Detail (`closest('.group-detail')`) zählt den Ticker hoch statt nichts zu tun, Karte draußen
-  togglet wie bisher. `GroupDetail` bekommt `refreshKey={detailRefreshTick}`.
-- `frontend/src/components/GroupDetail.tsx` Props um `refreshKey?: number` erweitert; `load`-
-  useCallback dep `[groupId, ownRole, refreshKey]`.
-- `frontend/src/components/GroupDetail.test.tsx:36-38` — Mock um `getGroupTasks: vi.fn()` ergänzt
-  (Test-Pflege: ohne es wirft `api.getGroupTasks` TypeError im try und die #1212-Tests rotten);
-  resolves undefined → Array-Verteidigung im Produktionscode → leere Liste. KEINE Assertions
-  geändert.
-- Verifikation: API-Tests `NODE_ENV=test DATABASE_STORAGE=:memory: pnpm exec tsx --test
-  src/express/groups-tasks.api.test.ts` → 3/3 grün (beide Server-tsc + Frontend-tsc grün).
-  e2e `npx playwright test e2e/groups-for-each-other.spec.ts` → 1/3 (Details s. Fallstricke);
-  mit Wegwerf-Kopie (scoped Locators + expect.poll) 3/3 grün → Produktionsverhalten korrekt.
-  Kopie (`e2e/zz-tmp-verify-1223.spec.ts`) wieder gelöscht, NICHT committet.
-- `pnpm format` + `pnpm exec prettier --check .` grün (vor diesem Commit).
+- Implementierung (Vorlauf, Commit c915015c): `server/src/express/routes/groups.ts:529-597`
+  neuer `GET /groups/:id/tasks`; `openapi.yml` Pfad+Schema `GroupTask`; `client/src/index.ts:33`
+  Typ-Export; `frontend/src/api.ts` `getGroupTasks`; `GroupDetail.tsx` Abschnitt
+  „Füreinander angelegt" + `refreshKey`-Prop; `GroupsSection.tsx` Klick auf offene Karte
+  zählt `detailRefreshTick` hoch (Refresh statt No-op); `GroupDetail.test.tsx:36-38` Mock
+  `getGroupTasks: vi.fn()` ergänzt (resolves undefined → Array-Verteidigung → leere Liste).
+- Fortsetzungs-Lauf (dieser): Branch `ai/harness/1223` ausgecheckt (lokale untracked
+  Memory-Kopien waren byte-identisch mit Branch → verworfen); ESLint-Fix
+  `GroupDetail.tsx`: `refreshKey` aus `load`-Deps (`[groupId, ownRole]`) in den Reload-Effekt
+  (`[load, refreshKey]`) verschoben.
+- Gate VOLLSTÄNDIG grün: `pnpm format` ✅, `prettier --check .` ✅, `pnpm lint` ✅ (Warning weg),
+  `pnpm knip` ✅ (nur Configuration hints = bekannter Zustand main), `pnpm test` ✅
+  (frontend 57 Testdateien/579 Tests passed, server 274 passed/0 fail, test:scripts inklusive).
+- Generierte Dateien in dieser Sandbox neu erzeugt (gitignored, NICHT committet):
+  `pnpm --filter client generate` + server `openapi-typescript ../openapi.yml -o src/api.d.ts`
+  — ohne Regeneration rotet frontend-tsc an `client/src/index.ts(34)` (`GroupTask` fehlt).
+  Wichtig für Folge-Läufe in frischen Sandboxes: erst regenerieren, dann lint/test.
+- PR #1239: Body um Implementierungs-Summary + Gate-Ergebnisse + Test-Pflege-Bedarf erweitert
+  (`gh pr edit --body-file`), dann `gh pr ready 1239`. Phase-Notiz im Impl-Commit mitgecommittet.
 
 ## Relevante Stellen
-- `server/src/express/routes/groups.ts:529` — neuer Endpunkt (Ende der Datei, nach members-Routen).
-- `frontend/src/components/GroupsSection.tsx:169` — neuer Click-Guard (Refresh statt no-op).
-- `frontend/src/components/GroupDetail.tsx:108-119` — Abschnitt „Füreinander angelegt“.
-- `frontend/e2e/groups-for-each-other.spec.ts:129,182-186` — die beiden defekten Locators (s.u.).
+- `server/src/express/routes/groups.ts:529` — Endpunkt (Sort: recipientName localeCompare
+  sensitivity:'accent' → deadline asc, null zuletzt → id).
+- `frontend/src/components/GroupsSection.tsx:169` — Click-Guard (Refresh statt No-op).
+- `frontend/src/components/GroupDetail.tsx` — `load`-Deps `[groupId, ownRole]`, Effekt
+  `[load, refreshKey]`; Abschnitt „Füreinander angelegt" mit Block-Zeilen (keine Inline-Spans).
+- `frontend/e2e/groups-for-each-other.spec.ts:129,182-186` — defekte Locators (s. Offen).
 
 ## Annahmen
-- „Klick auf offene Gruppenkarte frischt Daten auf“ ist die Produktentscheidung, die AK7 e2e
-  ohne Test-Änderung erreichbar macht (Test klickt die bereits aufgeklappte Karte und erwartet
-  AKTUELLE Daten; Vorher-Verhalten = No-op mit stale Daten). Repo-Präzedenz für „frische Daten“:
+- „Klick auf offene Gruppenkarte frischt Daten auf" ist die Produktentscheidung, die AK7 e2e
+  ohne Test-Änderung erreichbar macht. Repo-Präzedenz für „frische Daten":
   groups-invitations.spec.ts:100 nutzt `page.reload()`.
-- AK5-Test war laut Spec-Notiz bereits grün (Fallthrough-404/requireAuth-401) — bestätigt.
+- e2e-Verifikation aus dem Vorlauf gilt weiter (Beweislauf mit Wegwerf-Kopie 3/3 grün,
+  `zz-tmp-verify-1223.spec.ts` gelöscht); im Fortsetzungs-Lauf nicht erneut gefahren —
+  bekanntes Ergebnis wäre 1/3 (2 Test-Defekte, kein Produktfehler).
 
 ## Verworfen
-- Polling-Interval in GroupDetail als Frische-Quelle — nicht deterministisch für den e2e-
-  Einmal-`count()`, dauerhafte Extra-Requests.
-- Remount des Details per key statt `refreshKey`-Prop — würde Suchfeld-Zustand verlieren.
-- e2e-Tests selbst umbiegen — verboten (Trennung der Zuständigkeiten); Defekte als Test-Pflegebedarf
-  dokumentiert statt geändert.
+- e2e-Tests selbst umbiegen — verboten (Trennung der Zuständigkeiten); Defekte als
+  Test-Pflege-Bedarf im PR-Body dokumentiert.
+- Remount per key statt `refreshKey`-Prop — würde Suchfeld-Zustand verlieren.
+- Subagent-Delegation (gate-runner/recherche) — Rollen fallen in dieser Umgebung mit
+  `API Error 400 modelCode does not exist` (glm-5.3-flash) aus; Gate direkt gelaufen.
 
 ## Offen
-- **Gate nicht gefahren**: `pnpm lint`, `pnpm knip`, `pnpm test` (frontend+server) laufen nach
-  diesem Commit; nur format/prettier/tsc/API-Test/e2e sind verifiziert.
-- **2 der 3 committeten e2e-Tests bleiben rot (Test-Pflege-Bedarf, nicht Produktfehler):**
-  - `frontend/e2e/groups-for-each-other.spec.ts:129` — `getByText(/von /)` ist seitensweit und
-    kollidiert mit inaktiven KolTabs-Panels (bleiben gemountet, Memory 2026-08-29): „Säulen“-
-    Hints (`pillar-list-description`, „Gib je Säule einen Wert von 0,0 …“) und kol-form-field-
-    Hints enthalten „von “ → Strict-Mode-Violation (5 Elemente). Fix: auf
-    `.group-tasks` scopen (`page.locator('.group-tasks').getByText(/von /)`).
-  - `frontend/e2e/groups-for-each-other.spec.ts:182-186` — derselbe Seitenscope im `.or()`:
-    hidden Treffer aus inaktiven Panels haben keine Bounding-Box → „Element 0 muss eine
-    Bounding-Box haben“. Zusätzlich Einmal-`count()` (Zeile 185) raced gegen das Neu-Laden des
-    Details nach dem Klick (UL_COUNT 0 im Moment der Zählung, Sekunden später Liste da —
-    empirisch verifiziert). Fix: Scope + `expect.poll` statt `count()`; damit 3/3 grün
-    (Beweislauf mit Wegwerf-Kopie, nicht committet).
-- **PR-Body erweitern** (Implementierungssummary, Gate-Ergebnisse, Test-Pflege-Bedarf oben,
-  Verhalten-Änderung „Klick auf offene Karte aktualisiert“, Mock-Ergänzung GroupDetail.test.tsx)
-  und `gh pr ready 1239` — erst dann VERDICT needs-review.
+- `.ai-memory/issue-1223-pr-body.md` = Wegwerf-Artefakt (PR-Body-Zusammensetzung), NICHT
+  committen. Diese Datei hier ist die echte Phasen-Notiz.
+- 2 der 3 e2e-Tests rot wegen TEST-Defekten (im PR-Body als Test-Pflege-Bedarf dokumentiert,
+  Fix-Vorschlag jeweils dabei): `groups-for-each-other.spec.ts:129` `getByText(/von /)`
+  seitensweit (KolTabs-Panels bleiben gemountet) → auf `.group-tasks` scopen;
+  `:182-186` `.or()`-Treffer ohne Bounding-Box aus inaktiven Panels + Einmal-`count()` raced
+  gegen Neu-Laden → Scope + `expect.poll`.
 
 ## Nächster Schritt
-- Zuerst ESLint-Warning fixen (Commit c915015c): `frontend/src/components/GroupDetail.tsx:58` —
-  `refreshKey` aus den `load`-Deps raus (`[groupId, ownRole]`) und stattdessen den Reload-Effekt
-  auf `[load, refreshKey]` ziehen; danach Gate laufen lassen (`pnpm lint && pnpm knip && pnpm
-  test`; server: session.test.ts braucht Redis → lokal bekannt rot, Memory 2026-08-29, im PR
-  dokumentieren), PR-Body erweitern + `gh pr ready`.
+- Review-Phase (Kreuzverhoer) über `ai:needs-review`; auf Findings mit Fixup-Läufen reagieren.
 
 ## Fallstricke
 - Server-Tests brauchen `NODE_ENV=test DATABASE_STORAGE=:memory:` — ohne NODE_ENV=test ist
-  `/auth/test-login` nicht registriert (auth.ts:258) und jeder Test-Login liefert 401
-  (`applyTestAuthEnv` allein reicht NICHT).
+  `/auth/test-login` nicht registriert (auth.ts:258). (Voller `pnpm test` lief diesmal auch
+  mit session.test.ts grün durch — Redis-Falle aus MEMORY 2026-08-29 griff nicht.)
 - `pnpm --filter frontend test:e2e -- <pattern>` filtert nicht (Memory 2026-08-26) — direkt
   `npx playwright test e2e/<datei>` im frontend-Dir.
-- JSX rendert benachbarte `<span>`-Zeilen OHNE Leerzeichen (Snapshot: Empfängername+Titel
-  konkateniert) — je eigene Block-Elemente verwenden, nicht Inline-Spans untereinander.
-- Knip immer über Root-Skript `pnpm knip` (Memory 2026-09-02); pre-commit lefthook läuft
-  automatisch beim Commit.
+- In frischer Sandbox vor lint/test die generierten Schema-Dateien regenerieren (s. Erledigt).

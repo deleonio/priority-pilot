@@ -55,11 +55,11 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
 		}
-	}, [groupId, ownRole, refreshKey]);
+	}, [groupId, ownRole]);
 
 	useEffect(() => {
 		void load();
-	}, [load]);
+	}, [load, refreshKey]);
 
 	const handleSearch = async (value: string): Promise<void> => {
 		setQuery(value);
