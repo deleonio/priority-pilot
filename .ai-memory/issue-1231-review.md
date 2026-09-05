@@ -1,37 +1,39 @@
-# Issue 1231 / PR 1232 — Review (Runde 2, Fixup-Nachweis), Stand 2026-09-05
+# Issue 1231 / PR 1232 — Review (Runde 3, Fixup-Nachweis), Stand 2026-09-05
 
-**ERGEBNIS: VERDICT reviewed (🟢, Nit-only).** Marker `<!-- ai-review -->` vorhanden (Kommentar-ID 5548968818, Runde 1 ebenfalls reviewed) → MODE Fixup-Nachweis. Fixup-Lauf 33941537547 war gecrasht (429 usage limit, Crash-Notice = Kommentar 5549199557, KEIN `ai-fixup-decisions`-Kommentar, kein Code-Commit). Sammelkommentar in Place aktualisiert (Review-Typ: Fixup-Nachweis), keine Inline-Kommentare (keine neuen Findings).
+**ERGEBNIS: VERDICT reviewed (🟢, keine offenen Findings).** Marker `<!-- ai-review -->` vorhanden (Kommentar-ID 5548968818, Runden 1+2 ebenfalls reviewed) → MODE Fixup-Nachweis. Fixup-Runde 3 lief durch: `<!-- ai-fixup-decisions -->`-Kommentar 5550621530 (08:35:03Z) mit 2 Claim-Zeilen, beide → bd810c90. Beide Claims am Diff verifiziert, nichts Neues eingeführt. Sammelkommentar in Place aktualisiert (Nits 1+2 in „Behobene Anmerkungen" verschoben), Footer weiter „Fixup-Nachweis". Keine Inline-Kommentare nötig.
 
 ## Erledigt
-- MODE bestimmt: Marker vorhanden → Fixup-Nachweis. Claim-Checkliste leer (kein ai-fixup-decisions-Kommentar; Crash-Notice stattdessen).
-- Delta seit Runde 1 (Review 03:13Z): Commit f7a9d53759→f7a28f68 (nur .ai-memory, Crash-Notiz) + Merge `main` a4960747 07:21Z. `git diff --stat 19d53759..a4960747` (ohne .ai-memory): nur `SettingsPage.tsx`, `settings-action-buttons.spec.ts`, `settings-switch-layout.spec.ts`, `package.json` — **null Überschneidung** mit PR-1232-Dateien (Root.tsx, apiError.ts, auth.ts, SessionExpiredDialog, session-reload/silent-login-e2e).
-- CI auf Head geprüft: `e2e (3)` rot — `e2e/issue-969.spec.ts:86` AK4 (Settings-Tab-Insets). Ursache: main-seitig aus #1234 (KolDialog-Umbau SettingsPage); Beleg: `git diff origin/main..a4960747 -- SettingsPage.tsx issue-969.spec.ts settings-*.spec.ts` = leer (byte-identisch zu main bd0c2b82). Nicht PR-1232-verursacht → als „CI-Hinweis"-Sektion im Sammelkommentar dokumentiert, kein Finding gegen diesen PR.
-- Sammelkommentar 5548968818 per PATCH in Place aktualisiert (Body in `.ai-memory/issue-1231-collected.md`); Nits 1+2 unverändert übernommen (Stabilität der Nummern), keine Behobene-Anmerkungen (Fixup crashte).
-- Titel-Gate: „feat(frontend,server): session-expired dialog with silent re-login" konform (67 Zeichen, lowercase, Englisch) — kein Rename.
+- MODE bestimmt: Marker vorhanden (updated_at 07:28:35Z) → Fixup-Nachweis. Claim-Checkliste = ai-fixup-decisions-Kommentar 5550621530: Finding 1 (apiError.ts:78 statusbasiert) + Finding 2 (Root.tsx:81 nur pp_silent_attempted ersetzen), je „fixed in bd810c90".
+- Fixup-Diff verifiziert (`git show bd810c90`, ohne .ai-memory): genau 2 Code-Dateien.
+  - Claim 1 ✔: `frontend/src/lib/apiError.ts:78` jetzt `status === 401 && message === SESSION_TEXT`. Verhaltensneutral belegt: SESSION_TEXT wird nur in 401-Zweigen gesetzt (`apiError.ts:63,75`), nie sonst — Härtung ohne Verhaltensänderung.
+  - Claim 2 ✔: `frontend/src/Root.tsx:28` `shouldAttemptSilentLogin(allowRepeat = false)` — einziges Call-Site `:85` übergibt `sessionReload`; URL-Guards (`?silent=unavailable`, `?error=…`) und Logout-Guard bleiben auf dem Bonus-Pfad wirksam. Grep: keine weiteren Caller.
+  - Nichts Neues: Diff enthält nur die zwei Fixes + Kommentare/Memory-Notiz.
+- Commits nach Runde-2-Review (07:28:35Z): 08030722 (memory), bd810c90 (Fix), 25f304b9 (memory) — kein ungedeckter Code-Commit.
+- CI-Stichprobe Head: verify + e2e (4) pass, e2e (1/2/3) pending (Neustart); Runde-2-Rot `e2e/issue-969.spec.ts:86` war main-geerbt (#1234), Dateien byte-identisch zu main — CI-Hinweis im Sammelkommentar aktualisiert.
+- Titel-Gate: „feat(frontend,server): session-expired dialog with silent re-login" konform — kein Rename.
 
 ## Relevante Stellen
-- Kommentar 5548968818 — der eine `<!-- ai-review -->`-Sammelkommentar (weiterhin die einzige Instanz).
-- Kommentar 5549199557 — Crash-Notice des Fixups (429); menschliche Checkliste drin (Label-Entscheidung ai:needs-fixup vs. needs-human).
-- `frontend/e2e/issue-969.spec.ts:86` — der rote Test (AK4 Tab-Insets); gehört main/#1234, nicht #1232.
-- Merge a4960747 — „Merge branch 'main' into ai/harness/1231"; bringt #1234 + Release v0.1.709 (bd0c2b82).
+- Kommentar 5548968818 — der eine `<!-- ai-review -->`-Sammelkommentar (Runde 3 aktualisiert, Body-Datei `.ai-memory/issue-1232-review-body.md`).
+- Kommentar 5550621530 — `<!-- ai-fixup-decisions -->` der Fixup-Runde 3 (Claim-Quelle).
+- `frontend/src/lib/apiError.ts:61-84` — SESSION_TEXT-Zuweisungen (beide 401-gated) + gehärtetes Event-Gate.
+- `frontend/src/Root.tsx:28-37,76-90` — Silent-Login-Guards mit `allowRepeat`-Parameter; Bonus-Marker wird vor dem Versuch konsumiert.
+- Commit bd810c90 — „fix(review): session-expired guards hardened (#1231)", einzige Code-Änderung der Runde.
 
 ## Annahmen
-- Fixup hat nichts geleistet: Crash-Notice nennt HEAD vor/nach = 19d53759; f7a28f68 (memory: fixup) ist nur die Workflow-Phasen-Notiz, kein Code (Diff-Beleg s.o.).
-- e2e-Rot ist main-geerbt, nicht Merge-Auflösungsfehler: PR-Branch hatte keine eigenen Änderungen an den Settings-Dateien, also kann die Merge-Auflösung sie nicht verändert haben (Diff zu main leer).
-- Runde-1-Grundaussagen (AK1–AK5 grün, KoliBri-first ok) brauchen keine Neu-Prüfung — Diff-seitig unverändert.
+- Fixup-Gate-Aussage (frontend-vitest 569 passed, test:scripts 274 passed, format/lint/knip grün) geglaubt, nicht lokal reproduziert — Diff ist trivial verhaltensneutral, apiError.test.ts deckt die Session-401-Fälle ab.
+- e2e-Rot der Runde 2 ist auf dem neuen Head noch nicht endgültig bewertet (Checks pending) — Ursache war laut Byte-Identitäts-Beleg main-seitig (#1234), unverändert dokumentiert.
 
 ## Verworfen
-- Vollständiges Re-Review des PR-Diffs — MODE Fixup-Nachweis + leerer Fixup-Delta; Skill-Kostengate.
-- needs-fixup wegen rotem e2e (3) — Ursache liegt auf main (#1234), nicht im PR-Diff; das deterministische merge-gate degradiert ohnehin, bis CI grün ist. Verdict ist die inhaltliche Aussage.
-- Lokales Playwright-Reproduktion des issue-969-Failures — Byte-Identitäts-Beleg reicht als Kausalitätsnachweis.
+- Vollständiges Re-Review des PR-Diffs — MODE Fixup-Nachweis; Skill-Kostengate (nur Claim-Verifikation + Delta seit updatedAt).
+- Lokale Test-Wiederholung — Fixup-Gate dokumentiert grün, keine Gegenevidenz im Diff.
 
 ## Offen
-- Wegwerf-Artefakte in `.ai-memory/` NICHT committen: `issue-1231-review-prev.md` (Runde-1-Kommentar-Backup), `issue-1231-collected.md` (gesendeter Body Runde 2). Nur diese Datei hier ist die Phasen-Notiz.
-- e2e (3) rot auf main-Geerbtem: menschliche/fixup-Seite Entscheidung, ob #969-AK4-Test auf main gepflegt wird (Test-Pflege-Bedarf bei main, nicht bei diesem PR).
+- Wegwerf-Artefakte in `.ai-memory/` NICHT committen: `issue-1232-review-body.md` (gesendeter Body Runde 3) + Altbestand `issue-1231-review-prev.md`, `issue-1231-collected.md` aus Runde 2. Nur diese Datei hier ist die Phasen-Notiz.
+- e2e (3)/issue-969-AK4 auf main: Test-Pflege-Bedarf bleibt bei main (#1234-Nachwirkung), nicht bei diesem PR.
 
 ## Nächster Schritt
-- Workflow/gate entscheidet: CI rot → degrade zu ai:needs-changes (mechanisch) oder menschlich entblockt; inhaltlich ist der PR review-abschließig 🟢.
+- Workflow: verdict „reviewed" emittiert → gate-merge entscheidet anhand der Checks; inhaltlich ist der PR review-abschließig 🟢 (alle Findings behoben).
 
 ## Fallstricke
-- Keine neuen Runden ohne neuen Code: weiterer Fixup-Nachweis braucht einen `ai-fixup-decisions`-Kommentar oder neue Commits — sonst gilt dieses Ergebnis weiter.
-- issue-969-AK4-e2e bleibt rot, solange main den #1234-Stand hat — nicht als #1232-Regression fehlinterpretieren.
+- Keine neue Runde ohne neuen Code/Claim: weiterer Fixup-Nachweis braucht neuen `ai-fixup-decisions`-Kommentar oder neue Commits — sonst gilt dieses Ergebnis.
+- `gh api --method PATCH … --input - -f body=…` mischt sich → 422 („links/1/schema"); nur `-f body="$(cat …)"` ohne `--input` verwenden.
