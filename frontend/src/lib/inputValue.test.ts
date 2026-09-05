@@ -14,6 +14,12 @@ describe('readString', () => {
 	it('wandelt andere Werte in ihren String', () => {
 		expect(readString(42)).toBe('42');
 	});
+
+	it('entpackt { value: … }-Objekte, wie sie der KolSingleSelect-Clear-Button liefert', () => {
+		expect(readString({ value: null })).toBe('');
+		expect(readString({ value: 'abc' })).toBe('abc');
+		expect(readString({ value: 42 })).toBe('42');
+	});
 });
 
 describe('readNumber', () => {
