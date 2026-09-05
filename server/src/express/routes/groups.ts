@@ -434,6 +434,61 @@ groupsRouter.post('/invitations/:id/decline', async (req: Request, res: Response
 	}
 });
 
+/**
+ * Prüft, ob `target` der letzte verbleibende Administrator der Gruppe ist — in dem Fall darf
+ * weder die Rolle auf `member` zurückgestuft noch das Mitglied entfernt werden (AK6/AK10,
+ * gemeinsame Prüfung für PATCH und DELETE, siehe docs/spec/issue-1221.md).
+ */
+const isLastRemainingAdmin = async (groupId: number, target: GroupMember): Promise<boolean> => {
+	if (target.role !== 'admin') return false;
+	const adminCount = await GroupMember.count({ where: { groupId, role: 'admin' } });
+	return adminCount <= 1;
+};
+
+const LAST_ADMIN_MESSAGE = 'Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.';
+
+// PATCH /groups/:id/members/:userId — Admin ändert die Rolle eines Mitglieds (AK1-AK6). Der
+// letzte verbleibende Admin bleibt unantastbar (AK6, 409 mit Begründung, dieselbe Prüfung wie
+// DELETE).
+groupsRouter.patch('/groups/:id/members/:userId', async (req: Request, res: Response<MemberDto | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		if (found.role !== 'admin') {
+			sendError(res, 403, 'Nur Administratoren dürfen Rollen ändern.');
+			return;
+		}
+		const body = (req.body ?? {}) as { role?: unknown };
+		if (body.role !== 'admin' && body.role !== 'member') {
+			sendError(res, 400, 'Die Rolle muss "admin" oder "member" sein.');
+			return;
+		}
+		const targetUserId = Number(req.params.userId);
+		const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
+		if (!target) {
+			sendError(res, 404, 'Mitglied nicht gefunden.');
+			return;
+		}
+		if (body.role === 'member' && (await isLastRemainingAdmin(found.group.id, target))) {
+			sendError(res, 409, LAST_ADMIN_MESSAGE);
+			return;
+		}
+		await target.update({ role: body.role });
+		const targetUser = await User.findByPk(targetUserId);
+		res.json({ userId: target.userId, displayName: displayNameOf(targetUser), role: target.role as GroupRole });
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
 // DELETE /groups/:id/members/:userId — Admin entfernt beliebige Mitglieder, jedes Mitglied sich
 // selbst (AK9). Der letzte verbleibende Admin bleibt unantastbar (AK10, 409 mit Begründung).
 groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Response<ErrorDto>) => {
@@ -459,12 +514,9 @@ groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Res
 			sendError(res, 404, 'Mitglied nicht gefunden.');
 			return;
 		}
-		if (target.role === 'admin') {
-			const adminCount = await GroupMember.count({ where: { groupId: found.group.id, role: 'admin' } });
-			if (adminCount <= 1) {
-				sendError(res, 409, 'Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.');
-				return;
-			}
+		if (await isLastRemainingAdmin(found.group.id, target)) {
+			sendError(res, 409, LAST_ADMIN_MESSAGE);
+			return;
 		}
 		await target.destroy();
 		res.status(204).send();

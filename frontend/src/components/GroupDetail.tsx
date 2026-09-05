@@ -94,6 +94,17 @@ export const GroupDetail = ({ groupId, ownRole }: GroupDetailProps) => {
 		}
 	};
 
+	const handleRoleChange = async (userId: number, role: GroupMember['role']): Promise<void> => {
+		try {
+			await api.updateGroupMemberRole({ id: groupId, userId, role });
+			await load();
+		} catch (reason) {
+			// 409 „letzter Administrator" kommt als Server-Meldung und bleibt als KolAlert stehen.
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	};
+
 	return (
 		<div className="group-detail">
 			{error !== null && (
@@ -111,6 +122,19 @@ export const GroupDetail = ({ groupId, ownRole }: GroupDetailProps) => {
 							<li key={member.userId} className="group-member">
 								<span className="group-member-name">{member.displayName}</span>
 								<KolBadge _label={roleLabel(member.role)} />
+								{ownRole === 'admin' && (
+									<KolButton
+										_label={
+											member.role === 'admin'
+												? `${member.displayName} zur Mitgliedschaft zurückstufen`
+												: `${member.displayName} zum Administrator machen`
+										}
+										_variant="secondary"
+										_on={{
+											onClick: () => void handleRoleChange(member.userId, member.role === 'admin' ? 'member' : 'admin'),
+										}}
+									/>
+								)}
 								{ownRole === 'admin' && (
 									<KolButton _label="Entfernen" _variant="danger" _on={{ onClick: () => setPendingRemoval(member) }} />
 								)}
