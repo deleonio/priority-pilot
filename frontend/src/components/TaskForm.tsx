@@ -28,6 +28,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
+import { buildRecipientOptions } from '../lib/recipientOptions';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { readAiPreferences } from '../lib/aiPreferences';
 import { VoiceField } from './VoiceField';
@@ -570,21 +571,9 @@ export const TaskForm = ({
 				if (own === null) {
 					return;
 				}
-				const namesById = new Map<number, string>();
-				for (const member of memberLists.flat()) {
-					namesById.set(member.userId, member.displayName);
-				}
-				if (!namesById.has(own.id)) {
-					namesById.set(own.id, own.displayName);
-				}
 				setOwnUserId(own.id);
 				setRecipientId(String(own.id));
-				setRecipientOptions([
-					{ label: own.displayName, value: String(own.id) },
-					...[...namesById.entries()]
-						.filter(([id]) => id !== own.id)
-						.map(([id, label]) => ({ label, value: String(id) })),
-				]);
+				setRecipientOptions(buildRecipientOptions(own, memberLists.flat()));
 			} catch {
 				if (!cancelled) {
 					setRecipientError(true);
