@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError, handleWriteError, parseId } from '../http-error.js';
-import { Op, Transaction } from 'sequelize';
+import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
-import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
+import { GroupMember, Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import { serializeTask } from './tasks.js';
+import { serializeTask, loadUserNames } from './tasks.js';
+import { resolveGeoUser } from './geoConfig.js';
 import type { components } from '../../api';
 
 type SeriesDto = components['schemas']['Series'];
@@ -78,31 +79,85 @@ const isRhythm = (value: unknown): value is SeriesRhythm =>
 	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
 
 /**
+ * Kontext für die Ersteller-/Empfänger-Kennzeichen des Series-DTO (#1222, Muster `TaskSerializeContext`
+ * in routes/tasks.ts #1213): `requesterId` entscheidet, ob `forUserId`/`forUserName` gesetzt werden
+ * (nur der Ersteller sieht das „Für:"-Kennzeichen), `names` liefert Anzeigenamen (E-Mail-Fallback)
+ * der referenzierten Konten. Ohne Kontext bleiben die Kennzeichen-Felder null — der DTO-Vertrag
+ * erlaubt das.
+ */
+interface SeriesSerializeContext {
+	requesterId?: number | null;
+	names?: Map<number, string>;
+}
+
+/**
  * Wandelt ein Serien-Template in die im API-Vertrag definierte Form um. Die Säulen-Vorlage stammt
  * aus der **eager-geladenen** Assoziation `series.Pillars` (`include: [Pillar]`); fehlt sie, gilt
  * „keine Säulen". Die Beiträge sind nach `pillarId` sortiert (deterministische Reihenfolge).
  */
-const serializeSeries = (series: Series): SeriesDto => ({
-	id: series.id,
-	title: series.title,
-	rhythm: series.rhythm,
-	priority: series.priority,
-	estimatedEffort: series.estimatedEffort,
-	active: series.active,
-	startDate: series.startDate.toISOString(),
-	description: series.description ?? null,
-	address: series.address ?? null,
-	latitude: series.latitude ?? null,
-	longitude: series.longitude ?? null,
-	autoDeleteAfterDeadline: series.autoDeleteAfterDeadline ?? false,
-	pillars: (series.Pillars ?? [])
-		.map((pillar) => ({
-			pillarId: pillar.id,
-			share: pillar.SeriesPillar.share,
-			confidence: pillar.SeriesPillar.confidence,
-		}))
-		.sort((a, b) => a.pillarId - b.pillarId),
-});
+const serializeSeries = (series: Series, context: SeriesSerializeContext = {}): SeriesDto => {
+	// #1222: Ersteller-Kennzeichen. `forUserId`/`forUserName` nur aus Sicht des Erstellers — der
+	// Empfänger bekommt kein „Für:"-Kennzeichen für die eigene Serie, der Ersteller einer
+	// Selbst-Anlage ebenso wenig (userId == createdById).
+	const createdBy = series.createdById ?? null;
+	const handedOff =
+		createdBy !== null &&
+		context.requesterId != null &&
+		context.requesterId === createdBy &&
+		series.userId != null &&
+		series.userId !== createdBy;
+	return {
+		id: series.id,
+		title: series.title,
+		rhythm: series.rhythm,
+		priority: series.priority,
+		estimatedEffort: series.estimatedEffort,
+		active: series.active,
+		startDate: series.startDate.toISOString(),
+		description: series.description ?? null,
+		address: series.address ?? null,
+		latitude: series.latitude ?? null,
+		longitude: series.longitude ?? null,
+		autoDeleteAfterDeadline: series.autoDeleteAfterDeadline ?? false,
+		userId: series.userId ?? null,
+		createdById: createdBy,
+		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
+		forUserId: handedOff ? series.userId : null,
+		forUserName: handedOff ? (context.names?.get(series.userId as number) ?? null) : null,
+		pillars: (series.Pillars ?? [])
+			.map((pillar) => ({
+				pillarId: pillar.id,
+				share: pillar.SeriesPillar.share,
+				confidence: pillar.SeriesPillar.confidence,
+			}))
+			.sort((a, b) => a.pillarId - b.pillarId),
+	};
+};
+
+/**
+ * Lädt die Anzeigenamen für die Kennzeichen-Felder einer Serienliste (Muster `serializeSeriesFor`
+ * in routes/tasks.ts #1213) — ein Sammel-Query statt je Serie.
+ */
+const serializeSeriesFor = async (req: Request, seriesList: Series[]): Promise<SeriesDto[]> => {
+	const requester = await resolveGeoUser(req);
+	const requesterId = requester?.id ?? null;
+	const names = await loadUserNames(seriesList.flatMap((series) => [series.createdById ?? 0, series.userId ?? 0]));
+	return seriesList.map((series) => serializeSeries(series, { requesterId, names }));
+};
+
+/**
+ * Lese-Scope der Serien-Liste (#1222, AK5): eigene Serien (`ownerScope`) ODER Serien, die der
+ * Nutzer für ein anderes Gruppenmitglied angelegt hat (`createdById`). Der Schreib-Scope
+ * (`findSeriesWithPillars`, PATCH/DELETE) bleibt ausschließlich `ownerScope` — der Ersteller einer
+ * fremden Serie erhält dort 404. Ohne Session (Pass-Through) unverändert; Serien ohne
+ * `createdById` (NULL) sind über den `userId`-Zweig abgedeckt (AK7, NULL-sicher).
+ */
+const seriesReadScope = (userId: number | undefined, requesterId: number | null): WhereOptions =>
+	userId === undefined
+		? {}
+		: requesterId === null
+			? { userId }
+			: { [Op.or]: [{ userId }, { createdById: requesterId }] };
 
 /**
  * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `isPost` signalisiert
@@ -315,9 +370,14 @@ export const seriesRouter = Router();
 // GET /series — alle Serien-Templates auflisten
 seriesRouter.get('/series', async (req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
 	try {
-		// #1157: nur die eigenen Serien-Templates (Pass-Through ohne Auth bleibt erhalten).
-		const all = await Series.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']], include: [Pillar] });
-		res.json(all.map(serializeSeries));
+		// #1157: nur die eigenen Serien-Templates; #1222 zusätzlich die fremden, die der Nutzer
+		// für ein anderes Gruppenmitglied angelegt hat (Pass-Through ohne Auth bleibt erhalten).
+		const all = await Series.findAll({
+			where: seriesReadScope(getUserId(req), (await resolveGeoUser(req))?.id ?? null),
+			order: [['id', 'ASC']],
+			include: [Pillar],
+		});
+		res.json(await serializeSeriesFor(req, all));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
@@ -338,19 +398,53 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 		return;
 	}
 	try {
+		// #1222: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
+		// prüfen — Muster `POST /tasks` (#1213): `userId` im Body bezeichnet das Konto, dem die Serie
+		// gehören soll. Ohne das Feld (oder mit der eigenen ID) ändert sich am bisherigen Ablauf nichts
+		// (AK1); ein Empfänger, mit dem der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne
+		// einen Datensatz anzulegen (AK2).
+		const requester = await resolveGeoUser(req);
+		const requesterId = requester?.id ?? null;
+		let recipientId: number | null = null;
+		const recipientInput = (req.body as { userId?: unknown }).userId;
+		if (recipientInput !== undefined) {
+			if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+				sendError(res, 400, 'userId muss eine Ganzzahl sein.');
+				return;
+			}
+			if (recipientInput !== requesterId) {
+				const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
+				const shared = await GroupMember.findOne({
+					where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
+				});
+				if (shared === null) {
+					sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+					return;
+				}
+				recipientId = recipientInput;
+			}
+		}
 		const created = await sequelize.transaction(async (transaction) => {
-			const series = await Series.create({ ...validation.attrs, userId: getUserId(req) ?? null }, { transaction });
+			const series = await Series.create(
+				// An den Eigentümer binden (Datenisolation, #244; Empfänger #1222, sonst der eingeloggte
+				// Nutzer) und den Ersteller festhalten (AK3).
+				{ ...validation.attrs, userId: recipientId ?? getUserId(req) ?? null, createdById: requesterId },
+				{ transaction },
+			);
 			if (validation.pillars !== undefined && validation.pillars.length > 0) {
 				await replaceContributions(series.id, validation.pillars, transaction);
 			}
 			return series;
 		});
-		const withPillars = await findSeriesWithPillars(created.id, getUserId(req));
+		// #1222: Angelegt-Objekt ohne Owner-Scope nachladen — bei einer Empfänger-Serie ist der
+		// Ersteller nicht Eigentümer und fände sie über `findSeriesWithPillars` nicht wieder (500).
+		const withPillars = await Series.findOne({ where: { id: created.id }, include: [Pillar] });
 		if (!withPillars) {
 			sendError(res, 500, 'Interner Serverfehler.');
 			return;
 		}
-		res.status(201).json(serializeSeries(withPillars));
+		const names = await loadUserNames([withPillars.createdById ?? 0, withPillars.userId ?? 0]);
+		res.status(201).json(serializeSeries(withPillars, { requesterId, names }));
 	} catch (error) {
 		handleWriteError(res, error);
 	}

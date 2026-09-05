@@ -1389,6 +1389,52 @@ paths:
         description: ID des zu entfernenden Kontos
         schema:
           type: integer
+    patch:
+      summary: Rolle eines Mitglieds ändern
+      description: >-
+        Nur Admins (#1221). Nicht-Mitglieder erhalten 404 (kein
+        Existenz-Leak), Mitglieder ohne Adminrechte 403. Die Rückstufung des
+        letzten verbleibenden Administrators wird abgelehnt (409, dieselbe
+        Prüfung wie beim Entfernen).
+      operationId: updateGroupMemberRole
+      tags: [groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMemberRoleUpdate'
+      responses:
+        '200':
+          description: Mitglied mit aktualisierter Rolle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMember'
+        '400':
+          description: Ungültiger Rollenwert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Mitglied ohne Adminrechte ändert eine Rolle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe oder Mitglied unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Letzter Administrator der Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Mitglied entfernen oder Gruppe verlassen
       description: >-
@@ -1413,6 +1459,39 @@ paths:
                 $ref: '#/components/schemas/Error'
         '409':
           description: Letzter Administrator der Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /groups/{id}/tasks:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Füreinander angelegte Aufgaben der Gruppe auflisten
+      description: >-
+        Offene Aufgaben, die ein Gruppenmitglied für ein anderes Mitglied
+        angelegt hat (#1223). Selbst-Aufgaben und Altbestand ohne Ersteller
+        bleiben privat (auch für Admins); erledigte Aufgaben erscheinen nicht.
+        Reduzierter Feldsatz ohne Beschreibung, Checkliste und Ids. Fremde
+        Gruppe 404, unauthentifiziert 401 (globales requireAuth).
+      operationId: listGroupTasks
+      tags: [groups]
+      responses:
+        '200':
+          description: Füreinander angelegte offene Aufgaben, sortiert nach Empfänger und Fälligkeit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupTask'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
           content:
             application/json:
               schema:
@@ -1737,6 +1816,37 @@ components:
         role:
           type: string
           enum: [admin, member]
+    GroupTask:
+      type: object
+      description: >-
+        Aufgabe, die ein Gruppenmitglied für ein anderes Mitglied angelegt hat
+        (#1223) — bewusst ohne Beschreibung, Checkliste und Nutzer-Ids.
+      required: [id, title, deadline, status, recipientName, creatorName]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        recipientName:
+          type: string
+          description: Anzeigename des Empfängers (Fallback E-Mail)
+        creatorName:
+          type: string
+          description: Anzeigename des Erstellers (Fallback E-Mail)
+    GroupMemberRoleUpdate:
+      type: object
+      description: Payload zum Ändern der Rolle eines Mitglieds (#1221).
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [admin, member]
     GroupInvitationInput:
       type: object
       description: Payload zum Einladen eines Kontos (#1212).
@@ -1890,6 +2000,13 @@ components:
           description: >-
             `true`, wenn diese generierte Serien-Instanz individuell geändert
             wurde — Template-Generierung lässt solche Instanzen unberührt.
+        userId:
+          type: integer
+          nullable: true
+          description: >-
+            Eigentümer der Aufgabe (Datenisolation #207); bei einer für ein anderes
+            Gruppenmitglied angelegten Aufgabe/Instanz das Empfänger-Konto (#1213,
+            #1222), `null` im Dev-Pass-Through.
         createdById:
           type: integer
           nullable: true
@@ -2625,6 +2742,35 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        userId:
+          type: integer
+          nullable: true
+          description: >-
+            Eigentümer der Serie (Issue #244); bei einer Serie für ein anderes
+            Gruppenmitglied (#1222) das Empfänger-Konto statt des Erstellers.
+        createdById:
+          type: integer
+          nullable: true
+          description: >-
+            Konto des Erstellers (#1222, analog `Task.createdById` #1213). Weicht bei
+            einer Serie für ein anderes Gruppenmitglied vom Eigentümer ab; `null` für
+            Bestandsserien ohne Ersteller-Eintrag.
+        createdByName:
+          type: string
+          nullable: true
+          description: >-
+            Anzeigename des Erstellers (E-Mail-Fallback, #1222); synchron zu
+            `createdById`, also `null` ohne Ersteller-Eintrag.
+        forUserId:
+          type: integer
+          nullable: true
+          description: >-
+            Empfänger-Konto, nur gesetzt, wenn die Serie aus Sicht des aufrufenden
+            Erstellers für ein anderes Gruppenmitglied angelegt wurde (#1222); sonst `null`.
+        forUserName:
+          type: string
+          nullable: true
+          description: Anzeigename des Empfängers (E-Mail-Fallback, #1222); synchron zu `forUserId`.
         pillars:
           type: array
           description: >-
@@ -2642,6 +2788,13 @@ components:
       properties:
         title:
           type: string
+        userId:
+          type: integer
+          description: >-
+            Optionaler Empfänger (#1222): das Konto, dem die Serie und ihre generierten
+            Instanzen gehören sollen. Der Aufrufer muss mit ihm eine Gruppe teilen
+            (sonst 403); ohne das Feld oder mit der eigenen ID gehört die Serie dem
+            Aufrufer wie bisher.
         rhythm:
           $ref: '#/components/schemas/SeriesRhythm'
         priority:

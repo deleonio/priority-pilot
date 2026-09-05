@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { Group, GroupInvitation, GroupMember, User } from '../../models/index.js';
+import { Group, GroupInvitation, GroupMember, Task, User } from '../../models/index.js';
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 
@@ -434,6 +435,61 @@ groupsRouter.post('/invitations/:id/decline', async (req: Request, res: Response
 	}
 });
 
+/**
+ * Prüft, ob `target` der letzte verbleibende Administrator der Gruppe ist — in dem Fall darf
+ * weder die Rolle auf `member` zurückgestuft noch das Mitglied entfernt werden (AK6/AK10,
+ * gemeinsame Prüfung für PATCH und DELETE, siehe docs/spec/issue-1221.md).
+ */
+const isLastRemainingAdmin = async (groupId: number, target: GroupMember): Promise<boolean> => {
+	if (target.role !== 'admin') return false;
+	const adminCount = await GroupMember.count({ where: { groupId, role: 'admin' } });
+	return adminCount <= 1;
+};
+
+const LAST_ADMIN_MESSAGE = 'Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.';
+
+// PATCH /groups/:id/members/:userId — Admin ändert die Rolle eines Mitglieds (AK1-AK6). Der
+// letzte verbleibende Admin bleibt unantastbar (AK6, 409 mit Begründung, dieselbe Prüfung wie
+// DELETE).
+groupsRouter.patch('/groups/:id/members/:userId', async (req: Request, res: Response<MemberDto | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		if (found.role !== 'admin') {
+			sendError(res, 403, 'Nur Administratoren dürfen Rollen ändern.');
+			return;
+		}
+		const body = (req.body ?? {}) as { role?: unknown };
+		if (body.role !== 'admin' && body.role !== 'member') {
+			sendError(res, 400, 'Die Rolle muss "admin" oder "member" sein.');
+			return;
+		}
+		const targetUserId = Number(req.params.userId);
+		const target = await GroupMember.findOne({ where: { groupId: found.group.id, userId: targetUserId } });
+		if (!target) {
+			sendError(res, 404, 'Mitglied nicht gefunden.');
+			return;
+		}
+		if (body.role === 'member' && (await isLastRemainingAdmin(found.group.id, target))) {
+			sendError(res, 409, LAST_ADMIN_MESSAGE);
+			return;
+		}
+		await target.update({ role: body.role });
+		const targetUser = await User.findByPk(targetUserId);
+		res.json({ userId: target.userId, displayName: displayNameOf(targetUser), role: target.role as GroupRole });
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
 // DELETE /groups/:id/members/:userId — Admin entfernt beliebige Mitglieder, jedes Mitglied sich
 // selbst (AK9). Der letzte verbleibende Admin bleibt unantastbar (AK10, 409 mit Begründung).
 groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Response<ErrorDto>) => {
@@ -459,15 +515,83 @@ groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Res
 			sendError(res, 404, 'Mitglied nicht gefunden.');
 			return;
 		}
-		if (target.role === 'admin') {
-			const adminCount = await GroupMember.count({ where: { groupId: found.group.id, role: 'admin' } });
-			if (adminCount <= 1) {
-				sendError(res, 409, 'Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.');
-				return;
-			}
+		if (await isLastRemainingAdmin(found.group.id, target)) {
+			sendError(res, 409, LAST_ADMIN_MESSAGE);
+			return;
 		}
 		await target.destroy();
 		res.status(204).send();
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+/**
+ * ── Füreinander angelegte Aufgaben (#1223, Teil 4 der Gruppen-Epic #952) ─────────────────
+ *
+ * Reine Lese-Ansicht: offen (nicht `Done`), vom Ersteller für ein anderes Gruppenmitglied
+ * angelegt (`userId != createdById`, Altbestand ohne `createdById` bleibt privat — auch für
+ * Admins). Reduzierter Feldsatz ohne Beschreibung, Checkliste und Ids (Datenisolation).
+ * Sortierung stabil: Empfänger case-insensitive, dann deadline aufsteigend (ohne zuletzt),
+ * dann id.
+ */
+type GroupTaskDto = {
+	id: number;
+	title: string;
+	deadline: string | null;
+	status: Task['status'];
+	recipientName: string;
+	creatorName: string;
+};
+
+// GET /groups/:id/tasks — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
+groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTaskDto[] | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
+		const memberIds = members.map((member) => member.userId);
+		const memberIdSet = new Set(memberIds);
+		const tasks = await Task.findAll({
+			where: { userId: { [Op.in]: memberIds }, status: { [Op.ne]: 'Done' } },
+		});
+		// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
+		// in SQL nicht falsch-positiv-sicher.
+		const mutual = tasks.filter(
+			(task) =>
+				task.createdById !== null &&
+				task.createdById !== undefined &&
+				task.createdById !== task.userId &&
+				memberIdSet.has(task.createdById),
+		);
+		const users = await User.findAll({ where: { id: memberIds } });
+		const nameOf = (userId: number): string =>
+			displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
+		const dtos: GroupTaskDto[] = mutual.map((task) => ({
+			id: task.id,
+			title: task.title,
+			deadline: task.deadline ? task.deadline.toISOString() : null,
+			status: task.status,
+			recipientName: nameOf(task.userId ?? 0),
+			creatorName: nameOf(task.createdById!),
+		}));
+		dtos.sort((a, b) => {
+			const byRecipient = a.recipientName.localeCompare(b.recipientName, undefined, { sensitivity: 'accent' });
+			if (byRecipient !== 0) return byRecipient;
+			const aDeadline = a.deadline ? Date.parse(a.deadline) : Number.POSITIVE_INFINITY;
+			const bDeadline = b.deadline ? Date.parse(b.deadline) : Number.POSITIVE_INFINITY;
+			if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+			return a.id - b.id;
+		});
+		res.json(dtos);
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}

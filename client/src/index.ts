@@ -30,6 +30,8 @@ export type Group = Schemas['Group'];
 export type GroupInput = Schemas['GroupInput'];
 export type GroupUpdate = Schemas['GroupUpdate'];
 export type GroupMember = Schemas['GroupMember'];
+/** #1223: füreinander angelegte Aufgabe einer Gruppe (reduzierter Feldsatz). */
+export type GroupTask = Schemas['GroupTask'];
 export type GroupInvitation = Schemas['GroupInvitation'];
 export type GroupInvitationInput = Schemas['GroupInvitationInput'];
 export type ReceivedInvitation = Schemas['ReceivedInvitation'];

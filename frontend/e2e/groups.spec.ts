@@ -150,4 +150,23 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		expect(box).not.toBeNull();
 		expect(box!.x + box!.width, 'Karte ragt nicht über den Viewport hinaus').toBeLessThanOrEqual(375);
 	});
+
+	// ── #1221 AK8: Rollen-Button bei 375px ohne horizontalen Überlauf ─────────────────
+
+	test('Mitgliederzeile mit Rollen-Button bleibt bei 375px ohne horizontalen Überlauf (#1221 AK8)', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await openGroupsTab(page);
+		await createGroupViaUi(page, 'E2E Rolle Schmal');
+		await page.getByRole('listitem').filter({ hasText: 'E2E Rolle Schmal' }).click();
+
+		const memberRow = page.locator('.group-members').getByRole('listitem').first();
+		await expect(memberRow.getByRole('button', { name: /zur Mitgliedschaft zurückstufen/i })).toBeVisible();
+		const memberBox = await memberRow.boundingBox();
+		expect(memberBox).not.toBeNull();
+		expect(memberBox!.x + memberBox!.width, 'Mitgliederzeile ragt nicht über den Viewport hinaus').toBeLessThanOrEqual(
+			375,
+		);
+	});
 });

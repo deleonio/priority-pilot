@@ -30,6 +30,8 @@ export const GroupsSection = () => {
 	// Aufgeklappte Gruppe (#1212): Klick auf die Karte zeigt Mitglieder, Einladungen und die
 	// Nutzersuche direkt darunter — kein eigener Screen, damit die Sektion mobil eine Spalte bleibt.
 	const [openGroupId, setOpenGroupId] = useState<number | null>(null);
+	// Ticker für „Daten auffrischen“ am offenen Detail (#1223): Hochzählen löst ein Neuladen aus.
+	const [detailRefreshTick, setDetailRefreshTick] = useState(0);
 	const [invitations, setInvitations] = useState<ReceivedInvitation[]>([]);
 
 	// Fokus-Rückgabe nach dem Löschen: Der „Löschen“-Trigger fällt mit der Karte aus dem DOM —
@@ -158,15 +160,19 @@ export const GroupsSection = () => {
 									data-group-id={group.id}
 									// Ganze Karte klickbar (#1212): der Namens-Button allein deckt nur einen schmalen
 									// Streifen ab, ein Klick daneben (die Karte ist `space-between`, dazwischen liegt
-									// eine Lücke) blieb wirkungslos. Der Guard nimmt Bedienelemente und das bereits
-									// aufgeklappte Detail aus — sonst klappte jeder Klick auf „Einladen"/„Entfernen"
-									// oder ins Suchfeld die Ansicht wieder zu. Tastaturpfad bleibt der Namens-Button.
+									// eine Lücke) blieb wirkungslos. Bedienelemente klappen die Ansicht nie zu — sonst
+									// klappte jeder Klick auf „Einladen"/„Entfernen" oder ins Suchfeld die Ansicht
+									// wieder zu. Tastaturpfad bleibt der Namens-Button.
+									// Blanker Klick auf das bereits aufgeklappte Detail frischt die Daten auf, statt
+									// nichts zu tun (#1223) — so sieht man Annahmen und neue Aufgaben anderer, ohne
+									// die Karte erst zu- und wieder aufzuklappen.
 									onClick={(event) => {
-										if (
-											(event.target as HTMLElement).closest(
-												'.group-detail, kol-button, kol-input-text, kol-dialog, button, a, input',
-											) !== null
-										) {
+										const target = event.target as HTMLElement;
+										if (target.closest('kol-button, kol-input-text, kol-dialog, button, a, input') !== null) {
+											return;
+										}
+										if (target.closest('.group-detail') !== null) {
+											setDetailRefreshTick((tick) => tick + 1);
 											return;
 										}
 										setOpenGroupId(openGroupId === group.id ? null : group.id);
@@ -201,7 +207,9 @@ export const GroupsSection = () => {
 											/>
 										</div>
 									)}
-									{openGroupId === group.id && <GroupDetail groupId={group.id} ownRole={group.role} />}
+									{openGroupId === group.id && (
+										<GroupDetail groupId={group.id} ownRole={group.role} refreshKey={detailRefreshTick} />
+									)}
 								</li>
 							))}
 						</ul>

@@ -8,6 +8,7 @@ import type {
 	GroupInput,
 	GroupInvitation,
 	GroupMember,
+	GroupTask,
 	GroupUpdate,
 	ReceivedInvitation,
 	UserSearchHit,
@@ -351,6 +352,18 @@ export const api = {
 		return data;
 	},
 
+	/** Füreinander angelegte offene Aufgaben der Gruppe (#1223), sortiert nach Empfänger/Fälligkeit. */
+	async getGroupTasks({ id, ...init }: { id: number } & Init): Promise<GroupTask[]> {
+		const { data, error, response } = await client.GET('/groups/{id}/tasks', {
+			params: { path: { id } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	async inviteGroupMember({ id, userId }: { id: number; userId: number }): Promise<GroupInvitation> {
 		const { data, error, response } = await client.POST('/groups/{id}/invitations', {
 			params: { path: { id } },
@@ -369,6 +382,25 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
+	},
+
+	async updateGroupMemberRole({
+		id,
+		userId,
+		role,
+	}: {
+		id: number;
+		userId: number;
+		role: GroupMember['role'];
+	}): Promise<GroupMember> {
+		const { data, error, response } = await client.PATCH('/groups/{id}/members/{userId}', {
+			params: { path: { id, userId } },
+			body: { role },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 
 	async listReceivedInvitations(init: Init = {}): Promise<ReceivedInvitation[]> {

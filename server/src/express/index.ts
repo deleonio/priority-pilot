@@ -5,7 +5,7 @@ import passport from 'passport';
 import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { components } from '../api';
-import { tasksRouter, serializeTask } from './routes/tasks.js';
+import { createTasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
@@ -32,7 +32,7 @@ import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { createCsrfUtilities } from './csrf.js';
-import { User } from '../models/index.js';
+import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
@@ -169,15 +169,15 @@ export const createApp = (deps: AppDeps = {}) => {
 						}
 						const displayName = profile.displayName ?? email;
 						const avatarUrl = (profile.photos?.[0]?.value ?? null) as string | null;
-						// OAuth-Nutzer haben kein Passwort — Sentinel verhindert bcrypt-Login über die /auth/login-Route.
-						const [user, created] = await User.findOrCreate({
-							where: { email },
-							defaults: { email, passwordHash: '__oauth__', displayName, avatarUrl },
+						// Profil-Sync + Session-Basis aus der DB-Zeile (Issue #1238): geänderte Profilnamen
+						// landen in `users`, damit die Gruppenmitgliederliste (DB-Live-Lese) aktuell bleibt.
+						const user = await upsertOAuthUser({ email, displayName, avatarUrl });
+						return done(null, {
+							id: user.id,
+							email: user.email,
+							displayName: user.displayName,
+							avatarUrl: user.avatarUrl,
 						});
-						if (!created && user.avatarUrl !== avatarUrl) {
-							await user.update({ avatarUrl });
-						}
-						return done(null, { id: user.id, email, displayName, avatarUrl });
 					} catch (err) {
 						return done(err as Error);
 					}
@@ -204,8 +204,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).
 	app.use(lektoratRouter());
 
-	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
-	app.use(tasksRouter);
+	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts) — PushSender injiziert für die
+	// Benachrichtigung bei fremd angelegten Aufgaben (#1224, Vorbild createPushRouter).
+	app.use(createTasksRouter({ pushSender: deps.pushSender }));
 
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);

@@ -95,10 +95,12 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			await expect(receivedInvitations.getByText('E2E Mitgliedschaft')).toBeHidden();
 
 			// Admin sieht die neue Person jetzt als Mitglied (nicht mehr „Ausstehend").
+			// Exact-Match statt reinem Textsuche (#1221): der neue Rollen-Button trägt den Namen
+			// ebenfalls in seinem Label ("… zum Administrator machen"), ein loser Treffer wäre doppelt.
 			await page.reload();
 			await openGroupsTab(page);
 			await page.getByRole('listitem').filter({ hasText: 'E2E Mitgliedschaft' }).click();
-			await expect(page.getByText('Ines Eingeladen')).toBeVisible();
+			await expect(page.getByText('Ines Eingeladen', { exact: true })).toBeVisible();
 			await expect(page.getByText('Ausstehend')).toBeHidden();
 
 			// Admin entfernt die Person wieder (AK9). Auf die Mitgliederliste gescoped: die
@@ -106,9 +108,9 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			const memberRow = page.locator('.group-members').getByRole('listitem').filter({ hasText: 'Ines Eingeladen' });
 			await memberRow.getByRole('button', { name: 'Entfernen' }).click();
 			await page.locator('kol-dialog').getByRole('button', { name: 'Entfernen', exact: true }).click();
-			// Auf die Mitgliederliste gescoped: der schließende Bestätigungsdialog trägt den Namen
-			// ebenfalls, ein seitenweiter Texttreffer wäre kurzzeitig doppelt (strict mode).
-			await expect(page.locator('.group-members').getByText('Ines Eingeladen')).toBeHidden();
+			// Auf die Mitgliederliste gescoped, Exact-Match (#1221, s. o.): der schließende
+			// Bestätigungsdialog trägt den Namen ebenfalls, ein loser Treffer wäre doppelt.
+			await expect(page.locator('.group-members').getByText('Ines Eingeladen', { exact: true })).toBeHidden();
 		} finally {
 			await inviteeContext.close();
 		}
