@@ -109,8 +109,13 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 			const panel = page.locator(`[slot="${tab}"]`);
 			await expect(panel).toBeVisible();
 
-			// Warten, bis das Panel eine stabile Bounding Box hat (Timing-Problem in Voll-suite)
-			await panel.waitFor({ state: 'attached' });
+			// Warten, bis das Panel eine stabile Bounding Box hat (Timing-Problem in Voll-suite).
+			// Fixup #1233: Auf langsamen CI-Runnern war die Box unmittelbar nach `toBeVisible`
+			// punktuell noch null (KoliBri baut das Panel beim Tab-Wechsel asynchron neu auf) —
+			// die einmalige Abfrage war dort zweimal identisch rot, lokal (Shard + 25 Wieder-
+			// holungen) durchweg grün. Deshalb pollend auf eine existierende Box warten; die
+			// Messung und die ±1px-Assertion bleiben unverändert.
+			await expect.poll(async () => (await panel.boundingBox()) !== null).toBeTruthy();
 			const box = await panel.boundingBox();
 			expect(box).toBeTruthy();
 

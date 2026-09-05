@@ -19,6 +19,7 @@ import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
+import { profileRouter } from './routes/profile.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
@@ -208,6 +209,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
+
+	// Anzeigename selbst festlegen (#1219): GET/PUT /profile.
+	app.use(profileRouter);
 
 	// Säulen-Routen: Gewichtung lesen/setzen (siehe routes/pillars.ts).
 	app.use(pillarsRouter);

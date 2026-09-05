@@ -18,6 +18,7 @@ import type {
 	LlmProviderUpdate,
 	NearbyTask,
 	GeoConfig,
+	Profile,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -734,5 +735,25 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}
+	},
+
+	// --- Profil (#1219) ---
+
+	// Anzeigename, E-Mail und Avatar des Nutzers lesen.
+	async getProfile(init: Init = {}): Promise<Profile> {
+		const { data, error, response } = await client.GET('/profile', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert den Anzeigenamen; leer oder > 60 Zeichen werden serverseitig mit 400 abgelehnt.
+	async updateProfile(profile: { displayName: string }, init: Init = {}): Promise<Profile> {
+		const { data, error, response } = await client.PUT('/profile', { body: profile, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 };

@@ -535,3 +535,65 @@ describe('SettingsPage – #1187: Info-Meldung „Bewegung reduzieren" im Tab Al
 		expect(localStorage.getItem(KEY)).toBe('true');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1219 — Anzeigename selbst festlegen (Spec docs/spec/issue-1219.md).
+ *
+ * - AK6: Im Allgemein-Tab gibt es ein Feld „Anzeigename" (KolInputText), mit dem aktuellen
+ *   Wert aus `api.getProfile` vorbelegt; Speichern (KolButton „Anzeigename speichern") ruft
+ *   `api.updateProfile` mit dem neuen Namen und löst `notifyProfileChanged` aus — Root hört
+ *   auf `PROFILE_CHANGED_EVENT` und aktualisiert die Kopfzeile ohne `/auth/me`-Roundtrip.
+ *
+ * Der api-Proxy (oben) liefert gecachte Mocks — `apiMocks.getProfile`/`updateProfile` werden
+ * hier gezielt gestemmt. Rot, bis Feld + Speichern-Logik existieren (KEIN Produktivcode).
+ */
+describe('SettingsPage – #1219: Anzeigename (Allgemein)', () => {
+	beforeEach(() => {
+		apiMocks.getProfile?.mockResolvedValue({
+			displayName: 'Bisheriger Name',
+			email: 'profile@example.com',
+			avatarUrl: null,
+		});
+		apiMocks.updateProfile?.mockReset();
+		apiMocks.updateProfile?.mockResolvedValue({
+			displayName: 'Neuer Name',
+			email: 'profile@example.com',
+			avatarUrl: null,
+		});
+	});
+
+	it('AK6: Feld „Anzeigename" im Allgemein-Tab zeigt den aktuellen Wert', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await act(async () => {}); // getProfile-Nachladen abwarten
+
+		const field = container.querySelector('kol-input-text[_label="Anzeigename"]');
+		expect(field, 'Feld „Anzeigename" fehlt im Allgemein-Tab').not.toBeNull();
+		const value = (field as unknown as Record<string, unknown>)._value ?? field!.getAttribute('_value');
+		expect(String(value)).toBe('Bisheriger Name');
+	});
+
+	it('AK6: Speichern ruft updateProfile mit dem neuen Namen und danach onSaved (Kopfzeilen-Reload)', async () => {
+		const onSaved = vi.fn();
+		const { container } = render(<SettingsPage {...defaultProps} onSaved={onSaved} />);
+		await act(async () => {});
+
+		const field = container.querySelector('kol-input-text[_label="Anzeigename"]')!;
+		expect(field, 'Feld „Anzeigename" fehlt').not.toBeNull();
+		await act(async () => {
+			(field as unknown as { _on: { onInput: (e: unknown, v: string) => void } })._on.onInput(
+				{ target: field },
+				'Neuer Name',
+			);
+		});
+
+		const save = container.querySelector('kol-button[_label="Anzeigename speichern"]');
+		expect(save, 'Speichern-Button „Anzeigename speichern" fehlt').not.toBeNull();
+		await act(async () => {
+			(save as unknown as { _on: { onClick: (e: unknown) => void } })._on.onClick({});
+		});
+
+		expect(apiMocks.updateProfile).toHaveBeenCalledTimes(1);
+		expect(apiMocks.updateProfile).toHaveBeenCalledWith({ displayName: 'Neuer Name' });
+		expect(onSaved, 'onSaved muss das User-Reload der Kopfzeile anstoßen').toHaveBeenCalled();
+	});
+});

@@ -4,6 +4,7 @@ import { App } from './App';
 import { BahnPage } from './components/BahnPage';
 import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
+import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
 import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
@@ -52,6 +53,20 @@ const AuthenticatedApp = () => {
 	// Schützt vor der StrictMode-Doppelinvokation des checkAuth-Effekts: ein zweiter Aufruf darf den
 	// einmal getroffenen Silent-Beschluss nicht umstoßen (keine Login-Seite vorab rendern).
 	const silentInitiated = useRef(false);
+
+	// #1219 AK6: Anzeigename in der Kopfzeile sofort aktualisieren — SettingsPage meldet den
+	// gespeicherten Namen per Fenster-Event (notifyProfileChanged), hier wird der User-State
+	// damit übernommen. Bewusst ohne erneutes `checkAuth`: der Name kommt bereits aus der
+	// PUT-Antwort, ein zusätzlicher Roundtrip könnte den alten Namen zurückschreiben.
+	useEffect(() => {
+		const onProfileChanged = (event: Event): void => {
+			const displayName = (event as CustomEvent<{ displayName?: unknown }>).detail?.displayName;
+			if (typeof displayName !== 'string' || displayName.length === 0) return;
+			setUser((current) => (current ? { ...current, displayName } : current));
+		};
+		window.addEventListener(PROFILE_CHANGED_EVENT, onProfileChanged);
+		return () => window.removeEventListener(PROFILE_CHANGED_EVENT, onProfileChanged);
+	}, []);
 
 	useEffect(() => {
 		checkAuth()
