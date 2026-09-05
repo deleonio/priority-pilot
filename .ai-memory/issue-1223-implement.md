@@ -83,8 +83,11 @@ Commit+Push dieses Standes, Ende des Laufs.
   und `gh pr ready 1239` — erst dann VERDICT needs-review.
 
 ## Nächster Schritt
-- Gate laufen lassen (`pnpm lint && pnpm knip && pnpm test`; server: session.test.ts braucht Redis
-  → lokal bekannt rot, Memory 2026-08-29, im PR dokumentieren), PR-Body erweitern + `gh pr ready`.
+- Zuerst ESLint-Warning fixen (Commit c915015c): `frontend/src/components/GroupDetail.tsx:58` —
+  `refreshKey` aus den `load`-Deps raus (`[groupId, ownRole]`) und stattdessen den Reload-Effekt
+  auf `[load, refreshKey]` ziehen; danach Gate laufen lassen (`pnpm lint && pnpm knip && pnpm
+  test`; server: session.test.ts braucht Redis → lokal bekannt rot, Memory 2026-08-29, im PR
+  dokumentieren), PR-Body erweitern + `gh pr ready`.
 
 ## Fallstricke
 - Server-Tests brauchen `NODE_ENV=test DATABASE_STORAGE=:memory:` — ohne NODE_ENV=test ist
