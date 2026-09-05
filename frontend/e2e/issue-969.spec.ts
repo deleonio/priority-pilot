@@ -113,10 +113,19 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 			// Fixup #1233: Auf langsamen CI-Runnern war die Box unmittelbar nach `toBeVisible`
 			// punktuell noch null (KoliBri baut das Panel beim Tab-Wechsel asynchron neu auf) —
 			// die einmalige Abfrage war dort zweimal identisch rot, lokal (Shard + 25 Wieder-
-			// holungen) durchweg grün. Deshalb pollend auf eine existierende Box warten; die
-			// Messung und die ±1px-Assertion bleiben unverändert.
-			await expect.poll(async () => (await panel.boundingBox()) !== null).toBeTruthy();
-			const box = await panel.boundingBox();
+			// holungen) durchweg grün. Fixup #1243: Eine separate `boundingBox()`-Abfrage NACH
+			// dem Poll ließ ein Race-Fenster offen — zwischen dem erfolgreichen Poll-Tick und der
+			// zweiten Abfrage konnte das Panel (seit dem KolDetails im „KI-Provider“-Tab spürbarer)
+			// erneut kurz `null` liefern. Die Box daher direkt aus dem erfolgreichen Poll-Tick
+			// übernehmen statt sie danach erneut abzufragen; Messung und ±1px-Assertion bleiben
+			// unverändert.
+			let box: Awaited<ReturnType<typeof panel.boundingBox>> = null;
+			await expect
+				.poll(async () => {
+					box = await panel.boundingBox();
+					return box !== null;
+				})
+				.toBeTruthy();
 			expect(box).toBeTruthy();
 
 			const viewportWidth = page.viewportSize()?.width ?? 0;
