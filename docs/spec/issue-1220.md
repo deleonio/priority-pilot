@@ -8,10 +8,14 @@ Rot-Tests: `frontend/src/lib/balancePriority.test.ts` (TF1–TF3),
 
 Die offene Aufgabenliste (Tab „Aufgaben") erhält einen Schalter **„Balance-Priorisierung"**
 (`KolInputCheckbox _variant="switch"`, neben „Erledigte Aufgaben anzeigen" in der Filterleiste)
-und einen Button **„Ausbalancieren"** (`KolButton _variant="secondary"`). Im aktivierten Zustand
+und einen Button **„Neu berechnen"** (`KolButton _variant="secondary"`). Im aktivierten Zustand
 wird die Liste nach einer **virtuellen Balance-Priorität** sortiert, die aus dem
 Säulen-Defizit berechnet wird — ohne jeglichen Schreibzugriff auf Tasks. Die Server-`priority`
 bleibt unangetastet; Dashboard-Scoring („Was ist jetzt dran?", Vorschläge) bleibt unberührt.
+
+Die Zuständigkeiten der beiden Bedienelemente sind getrennt (AK6): Der Schalter wechselt nur die
+Sicht, der Button setzt nur den Stand neu. Der Button erscheint deshalb erst im aktivierten
+Modus — außerhalb hätte ein Klick keine sichtbare Wirkung.
 
 ## Rechenkern (verbindlich für die Implementierung)
 
@@ -42,11 +46,17 @@ neu sortiertes Array (Input wird nicht mutiert), `virtualPriorityLabel(virtualPr
 
 ## Snapshot-Semantik (AK2)
 
-Berechnet wird **beim Aktivieren des Schalters** und **auf Klick „Ausbalancieren"**. Die
-angezeigte Reihenfolge/Badges sind bis zum nächsten Klick **eingefroren**: Ändert sich die
-Datenbasis (z. B. Task wird erledigt), hält die Anzeige den letzten Stand — auch dann, wenn die
-App die Daten zwischenzeitlich neu lädt. Der Klick löst Neuberechnung (und den dafür nötigen
-Refresh der Datenbasis) aus und wird per `aria-live="polite"` angekündigt (KI-UX, WCAG 4.1.3).
+Der Stand ist abgeleiteter Datenwert, nicht Ergebnis eines Klicks: Solange der Modus **aus** ist,
+läuft er mit der Datenlage mit (sichtbar ist nichts, also springt auch nichts). Mit dem
+**Einschalten friert er ein** und bleibt bis zum Klick auf „Neu berechnen" stehen — auch dann,
+wenn die App die Daten zwischenzeitlich neu lädt. Genau dort schützt das Einfrieren: Die Liste
+sortiert sich nicht um, während man sie abarbeitet.
+
+Damit rechnet der Schalter nie selbst und zeigt trotzdem sofort einen aktuellen Stand. Der Klick
+auf „Neu berechnen" lädt die Datenbasis frisch und ersetzt den Stand; er wird per
+`aria-live="polite"` angekündigt (KI-UX, WCAG 4.1.3). Weicht der eingefrorene Stand von der
+aktuellen Datenlage ab, weist der Hinweis ihn als veraltet aus („Daten haben sich geändert") —
+ohne dieses Signal wäre nicht erkennbar, wann eine Neuberechnung überhaupt etwas ändert.
 Der Schalter-Zustand ist session-lokal (keine Persistenz).
 
 ## AK1 — Sortierung nach Balance-Priorität
@@ -59,13 +69,16 @@ Der Schalter-Zustand ist session-lokal (keine Persistenz).
   Säule. Sind alle Säulen ausgeglichen (Defizit überall 0), folgt die Sortierung der
   Original-Prio (Sekundärkriterium).
 
-## AK2 — „Ausbalancieren" stößt die Neuberechnung sichtbar an
+## AK2 — „Neu berechnen" ersetzt den eingefrorenen Stand sichtbar
 
 - **Vorbedingung:** Balance-Modus aktiv, Reihenfolge nach letzter Berechnung.
 - **Schritte:** Datenbasis extern ändern (Task per API erledigen, der die Defizit-Lage kippt);
-  Anzeige bleibt eingefroren; dann „Ausbalancieren" klicken.
+  Anzeige bleibt eingefroren; dann „Neu berechnen" klicken.
 - **Erwartet:** Vor dem Klick unveränderte Reihenfolge; nach dem Klick die der neuen Datenlage
-  entsprechende Reihenfolge (und Badges).
+  entsprechende Reihenfolge (und Badges). Der Schalter bleibt dabei an.
+- **Veraltet-Hinweis:** Ändert sich die Datenlage innerhalb der App (z. B. Aufgabe über die Liste
+  erledigen), trägt der Stand-Hinweis „Daten haben sich geändert"; nach der Neuberechnung ist der
+  Zusatz weg.
 
 ## AK3 — Virtuelles Badge, keine Schreibzugriffe
 
@@ -82,10 +95,18 @@ Der Schalter-Zustand ist session-lokal (keine Persistenz).
 
 ## AK5 — Mobile-First (375 px)
 
-- **Schritte:** Aufgaben-Tab bei 375 px Breite.
-- **Erwartet:** Schalter und „Ausbalancieren"-Button sichtbar und bedienbar; kein horizontales
-  Clipping der Filterleiste (Bounding-Box-Prüfung, die App-Shell clippt `overflow-x`, daher keine
-  `scrollWidth`-Assertion).
+- **Schritte:** Aufgaben-Tab bei 375 px Breite, Balance-Modus einschalten.
+- **Erwartet:** Schalter, Stand-Hinweis und „Neu berechnen"-Button sichtbar und bedienbar; kein
+  horizontales Clipping der Filterleiste (Bounding-Box-Prüfung, die App-Shell clippt `overflow-x`,
+  daher keine `scrollWidth`-Assertion).
+
+## AK6 — Getrennte Zuständigkeiten von Schalter und Button
+
+- **Schritte:** Aufgaben-Tab; Button ohne aktiven Modus suchen; Schalter anschalten (Netzwerk-
+  Mitschnitt läuft); „Neu berechnen" klicken; Schalter ausschalten.
+- **Erwartet:** Ohne aktiven Modus ist der Button nicht vorhanden. Der Schalter sortiert um, ohne
+  einen `GET` auf `/api/v1/tasks` auszulösen. Der Button lädt die Datenbasis nach und lässt den
+  Schalter dabei angeschaltet. Ausschalten blendet den Button wieder aus.
 
 ## Test-Pflege / dedup
 

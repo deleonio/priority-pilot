@@ -34,7 +34,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForestByTitle } from './lib/filterForestByTitle';
-import { buildBalancePriorities, type BalancePriority } from './lib/balancePriority';
+import { balancePrioritiesEqual, buildBalancePriorities, type BalancePriority } from './lib/balancePriority';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
@@ -120,16 +120,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
 	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
 
-	// #1220: Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz). Der
-	// Snapshot ist der **eingefrorene** Berechnungsstand (AK2): Er entsteht beim Aktivieren und auf
-	// „Ausbalancieren" und bleibt bis dahin unverändert stehen, auch wenn die App zwischendurch
-	// lädt. `balanceSortedAt` speist die aria-live-Bekanntgabe der Umsortierung (KI-UX, WCAG 4.1.3).
+	// #1220: Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz).
+	// Zuständigkeiten strikt getrennt: Der Schalter wechselt nur die Sicht, „Neu berechnen" setzt
+	// nur den Stand neu. Deshalb hängt die Rechnung an keinem der beiden, sondern an den Daten.
 	const [balanceMode, setBalanceMode] = useState(false);
 	const [balanceSnapshot, setBalanceSnapshot] = useState<ReadonlyMap<number, BalancePriority> | null>(null);
 	const [balanceSortedAt, setBalanceSortedAt] = useState('');
-	// #1220: Vorschauf-Datenstand für „Ausbalancieren" — der PointerEnter auf den Button startet
-	// die Ladevorgänge vorab, der Klick wendet sie nur noch an (sichtbar ohne Verzögerung).
-	const rebalancePrefetchRef = useRef<Promise<[Task[], Pillar[]]> | null>(null);
+	const [rebalancing, setRebalancing] = useState(false);
 
 	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
 	const applyTaskFilter = useCallback(
@@ -171,44 +168,52 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[setSearchParams],
 	);
 
-	// #1220: Snapshot der virtuellen Balance-Prioritäten aus dem übergebenen Stand berechnen und
-	// einfrieren. Bewusst Parameter statt State-Lesung: „Ausbalancieren" rechnet aus frisch
-	// geladenen Daten, dieser Closure hielte sonst den veralteten Stand.
-	const applyBalanceSnapshot = useCallback((pillarStand: Pillar[], taskStand: Task[]): void => {
-		setBalanceSnapshot(buildBalancePriorities(pillarStand, buildDoneEffortByPillar(pillarStand, taskStand), taskStand));
-		setBalanceSortedAt(new Date().toLocaleTimeString('de-DE'));
-	}, []);
-
-	/** #1220: Balance-Modus (de)aktivieren; beim Aktivieren wird der Snapshot aus dem aktuellen Stand berechnet. */
-	const activateBalanceMode = useCallback(
-		(active: boolean): void => {
-			setBalanceMode(active);
-			if (active) {
-				applyBalanceSnapshot(pillars, tasks ?? []);
-			}
-		},
-		[applyBalanceSnapshot, pillars, tasks],
+	// #1220: Der mitlaufende Balance-Stand zur aktuellen Datenlage. Einzige Rechenstelle für den
+	// laufenden Wert — weder Schalter noch Button rechnen selbst.
+	const liveBalance = useMemo(
+		() => buildBalancePriorities(pillars, buildDoneEffortByPillar(pillars, tasks ?? []), tasks ?? []),
+		[pillars, tasks],
 	);
 
-	/** #1220: „Ausbalancieren" (AK2) — Datenbasis frisch laden, dann den Snapshot neu berechnen. */
+	// #1220: Solange der Modus aus ist, zieht der Snapshot mit den Daten mit — sichtbar ist nichts,
+	// also springt auch nichts. Mit dem Einschalten hört das auf: Der Stand friert ein (AK2) und
+	// bleibt stehen, während man die Liste abarbeitet. Genau dort schützt das Einfrieren, und nur
+	// „Neu berechnen" löst es. Der Schalter selbst rechnet dadurch nie und sieht trotzdem sofort
+	// einen aktuellen Stand.
+	useEffect(() => {
+		if (!balanceMode) {
+			setBalanceSnapshot(liveBalance);
+			setBalanceSortedAt(new Date().toLocaleTimeString('de-DE'));
+		}
+	}, [balanceMode, liveBalance]);
+
+	// #1220: Weicht der eingefrorene Stand von der aktuellen Datenlage ab? Nur so ist für den
+	// Nutzer erkennbar, wann „Neu berechnen" überhaupt etwas ändert.
+	const balanceStale = balanceMode && !balancePrioritiesEqual(balanceSnapshot, liveBalance);
+
+	/**
+	 * #1220: „Neu berechnen" (AK2) — lädt die Datenbasis frisch und ersetzt damit den eingefrorenen
+	 * Stand. Fasst den Modus bewusst nicht an: Der Schalter wechselt die Sicht, dieser Button den
+	 * Stand. Der Snapshot wird aus den frisch geladenen Daten gesetzt statt aus dem State, den
+	 * dieser Closure zum Klickzeitpunkt noch veraltet hielte.
+	 */
 	const rebalanceTasks = useCallback(async (): Promise<void> => {
-		// Bereits vorgeladene Daten vom PointerEnter verwenden (und dafür verbrauchen), sonst neu laden.
-		const pending = rebalancePrefetchRef.current;
-		rebalancePrefetchRef.current = null;
+		setRebalancing(true);
 		try {
-			const [freshTasks, freshPillars] = await (pending ?? Promise.all([api.listTasks(), api.listPillars()]));
-			// flushSync: Die Umsortierung wird noch im Klick-Verarbeitungsschritt sichtbar —
-			// assistierende Technologien (und die E2E) lesen die Reihenfolge unmittelbar nach dem Klick.
-			flushSync(() => {
-				setTasks(freshTasks);
-				setPillars(freshPillars);
-				applyBalanceSnapshot(freshPillars, freshTasks);
-			});
+			const [freshTasks, freshPillars] = await Promise.all([api.listTasks(), api.listPillars()]);
+			setTasks(freshTasks);
+			setPillars(freshPillars);
+			setBalanceSnapshot(
+				buildBalancePriorities(freshPillars, buildDoneEffortByPillar(freshPillars, freshTasks), freshTasks),
+			);
+			setBalanceSortedAt(new Date().toLocaleTimeString('de-DE'));
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setLoadError(apiError.message);
+		} finally {
+			setRebalancing(false);
 		}
-	}, [applyBalanceSnapshot]);
+	}, []);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -729,17 +734,20 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									_checked={balanceMode}
 									_on={{
 										onChange: (_event, checked) => {
-											// flushSync: Umsortierung wird noch im Klick-Event angewendet —
-											// Readers (AT, E2E) sehen direkt nach dem Klick die neue Reihenfolge.
-											flushSync(() => activateBalanceMode(checked === true));
+											// Der Schalter wechselt ausschließlich die Sicht — der Stand liegt schon
+											// vor, weil er bei ausgeschaltetem Modus mitläuft. flushSync nur, damit
+											// die Umsortierung noch im Klick-Event steht (AT und E2E lesen sofort).
+											flushSync(() => setBalanceMode(checked === true));
 										},
 									}}
 								/>
 								{balanceMode && (
 									// KI-UX (#1220): Die Umsortierung wird per Live-Region angekündigt (WCAG 4.1.3);
-									// der Zeitpunkt macht den eingefrorenen Stand greifbar („Stand …").
+									// der Zeitpunkt macht den eingefrorenen Stand greifbar („Stand …"). Der
+									// Veraltet-Zusatz zeigt an, wann „Neu berechnen" etwas ändern würde.
 									<p className="task-filter-bar__hint" aria-live="polite">
-										Liste nach Balance-Priorität sortiert (Stand: {balanceSortedAt})
+										Liste nach Balance-Priorität sortiert (Stand: {balanceSortedAt}
+										{balanceStale && ' · Daten haben sich geändert'})
 									</p>
 								)}
 								<div className="task-filter-search">
@@ -771,36 +779,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 									/>
 								</div>
-								{/* #1220: Der Span fängt den PointerEnter, um die Daten für „Ausbalancieren"
-								    vorzuladen (KolButton bietet dafür keinen Callback); der Klick bleibt am
-								    Button. flex-shrink:0 liegt jetzt auf dem Span als Flex-Item. */}
-								<span
-									className="task-balance-button"
-									onPointerEnter={() => {
-										if (rebalancePrefetchRef.current === null) {
-											const pending = Promise.all([api.listTasks(), api.listPillars()]);
-											// Ohne Klick konsumierter Prefetch darf keine unbehandelte Ablehnung hinterlassen.
-											void pending.catch(() => undefined);
-											rebalancePrefetchRef.current = pending;
-										}
-									}}
-								>
+								{/* #1220: Nur im aktiven Modus — außerhalb hätte ein Klick keine sichtbare Wirkung,
+								    weil der Stand dann ohnehin mitläuft. Der Button setzt ausschließlich den Stand
+								    neu und lässt den Schalter unangetastet. */}
+								{balanceMode && (
 									<KolButton
-										_label="Ausbalancieren"
+										className="task-balance-button"
+										_label="Neu berechnen"
 										_variant="secondary"
-										_on={{
-											onClick: () => {
-												// #1220: Bei aktivem Modus Neuberechnung aus frischem Stand (AK2); aus
-												// (sichtbar, damit er auch ohne Modus auffindbar bleibt) schaltet er ihn ein.
-												if (balanceMode) {
-													void rebalanceTasks();
-												} else {
-													flushSync(() => activateBalanceMode(true));
-												}
-											},
-										}}
+										_disabled={rebalancing}
+										_on={{ onClick: () => void rebalanceTasks() }}
 									/>
-								</span>
+								)}
 							</div>
 							{taskViewMode === 'open' ? (
 								filteredForest.length === 0 ? (

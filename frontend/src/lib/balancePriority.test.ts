@@ -1,6 +1,12 @@
 import type { Pillar } from 'client';
 import { describe, expect, it } from 'vitest';
-import { buildBalancePriorities, sortTasksByBalance, virtualPriorityLabel, type BalanceTask } from './balancePriority';
+import {
+	balancePrioritiesEqual,
+	buildBalancePriorities,
+	sortTasksByBalance,
+	virtualPriorityLabel,
+	type BalanceTask,
+} from './balancePriority';
 
 /**
  * Rote Spec-Tests für #1220 — Rechenkern der „Balance-Priorisierung" (docs/spec/issue-1220.md).
@@ -186,5 +192,53 @@ describe('Snapshot-Semantik (#1220 TF3, AK2)', () => {
 		const recomputed = buildBalancePriorities(pillars, new Map([[1, 10]]), openTasks);
 		expect(sortTasksByBalance(openTasks, snapshot).map((entry) => entry.id)).toEqual([901, 902]);
 		expect(sortTasksByBalance(openTasks, recomputed).map((entry) => entry.id)).toEqual([902, 901]);
+	});
+});
+
+describe('balancePrioritiesEqual — Veraltet-Erkennung des eingefrorenen Stands', () => {
+	const pillars = [pillar(1, 'Körper', 50), pillar(2, 'Geist', 50)];
+	const openTasks = [task(901, 1, [{ pillarId: 1, share: 100 }]), task(902, 5, [{ pillarId: 2, share: 100 }])];
+
+	it('erkennt denselben Stand aus gleicher Datenlage als gleich', () => {
+		const snapshot = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+		const live = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+
+		expect(balancePrioritiesEqual(snapshot, live)).toBe(true);
+	});
+
+	it('erkennt eine gekippte Defizit-Lage als abweichend', () => {
+		const snapshot = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+		const live = buildBalancePriorities(pillars, new Map([[1, 10]]), openTasks);
+
+		expect(balancePrioritiesEqual(snapshot, live)).toBe(false);
+	});
+
+	it('erkennt einen hinzugekommenen und einen entfallenen Task als abweichend', () => {
+		const done = new Map([[2, 10]]);
+		const snapshot = buildBalancePriorities(pillars, done, openTasks);
+		const withExtra = buildBalancePriorities(pillars, done, [...openTasks, task(903, 3, [{ pillarId: 1, share: 50 }])]);
+		const withoutOne = buildBalancePriorities(pillars, done, [openTasks[0]]);
+
+		expect(balancePrioritiesEqual(snapshot, withExtra)).toBe(false);
+		expect(balancePrioritiesEqual(snapshot, withoutOne)).toBe(false);
+	});
+
+	it('erkennt gleiche Größe bei getauschten Task-IDs als abweichend', () => {
+		const done = new Map([[2, 10]]);
+		const snapshot = buildBalancePriorities(pillars, done, openTasks);
+		const renamed = buildBalancePriorities(pillars, done, [
+			task(901, 1, [{ pillarId: 1, share: 100 }]),
+			task(999, 5, [{ pillarId: 2, share: 100 }]),
+		]);
+
+		expect(balancePrioritiesEqual(snapshot, renamed)).toBe(false);
+	});
+
+	it('behandelt „noch kein Stand" als ungleich zu einem vorhandenen, aber gleich zu sich selbst', () => {
+		const snapshot = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+
+		expect(balancePrioritiesEqual(null, snapshot)).toBe(false);
+		expect(balancePrioritiesEqual(snapshot, null)).toBe(false);
+		expect(balancePrioritiesEqual(null, null)).toBe(true);
 	});
 });

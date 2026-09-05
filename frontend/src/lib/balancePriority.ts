@@ -26,11 +26,11 @@ export interface BalancePriority {
 }
 
 /**
- * Berechnet die virtuellen Balance-Prioritäten für offene Tasks aus einem **eingefrorenen Stand**
- * (AK2): `pillars` liefert das Soll (`weight`), `doneEffortByPillar` das Ist (erledigter
+ * Berechnet die virtuellen Balance-Prioritäten für offene Tasks aus dem übergebenen Datenstand:
+ * `pillars` liefert das Soll (`weight`), `doneEffortByPillar` das Ist (erledigter
  * `estimatedEffort` je Säule, anteilig nach `share` — Quelle `buildPillarSummaries` wie im
- * Dashboard). Die zurückgegebene Map ändert sich nicht mehr, wenn sich die Datenbasis ändert —
- * Neuberechnung passiert nur durch einen neuen Aufruf (Schalter/„Ausbalancieren").
+ * Dashboard). Die Funktion ist rein; ob das Ergebnis mitläuft oder einfriert (AK2), entscheidet
+ * allein der Aufrufer daran, wann er sie aufruft.
  *
  * Randfälle bewusst wie `heartBalance.ts` festgelegt:
  * - **Kein erledigter Aufwand** → jede Säule hat ihr volles Defizit.
@@ -62,6 +62,29 @@ export const buildBalancePriorities = (
 		priorities.set(task.id, { balanceScore, virtualPriority: 1 + Math.round(balanceScore * 4) });
 	}
 	return priorities;
+};
+
+/**
+ * Vergleicht zwei Balance-Stände auf inhaltliche Gleichheit — gleiche Task-IDs, gleicher Score und
+ * gleiche virtuelle Priorität. Damit erkennt die Oberfläche, ob der eingefrorene Stand von der
+ * aktuellen Datenlage abweicht, und kann ihn als veraltet ausweisen; ohne dieses Signal wäre für
+ * den Nutzer nicht erkennbar, wann eine Neuberechnung überhaupt etwas ändert.
+ *
+ * `null` ist kein Stand und damit nie gleich einem vorhandenen.
+ */
+export const balancePrioritiesEqual = (
+	a: ReadonlyMap<number, BalancePriority> | null,
+	b: ReadonlyMap<number, BalancePriority> | null,
+): boolean => {
+	if (a === null || b === null) return a === b;
+	if (a.size !== b.size) return false;
+	for (const [taskId, priority] of a) {
+		const other = b.get(taskId);
+		if (other === undefined) return false;
+		if (other.balanceScore !== priority.balanceScore) return false;
+		if (other.virtualPriority !== priority.virtualPriority) return false;
+	}
+	return true;
 };
 
 /**
