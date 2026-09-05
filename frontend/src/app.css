@@ -1758,6 +1758,20 @@ body {
 }
 
 /*
+ * #1219: Profil-Block (Feld „Anzeigename" + Speichern-Button) im Tab „Allgemein".
+ * Eigener Wrapper statt direkter `.settings-general`-Kinder: Der #843-e2e misst die 16dp-
+ * Section-Abstände über `.settings-general > kol-button` nur auf oberster Ebene — der Button
+ * liegt deshalb eine Ebene tiefer (Review #1233, Finding 1). Innen derselbe Stapel-Rhythmus
+ * (flex column, 16dp), mobil füllt der Button über `.settings-action-btn` weiterhin die
+ * Container-Innenbreite.
+ */
+.settings-profile {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base); /* 16dp Element-Abstand wie `.settings-general` */
+}
+
+/*
  * #971: Switch-Zeilen im Tab „Allgemein" — mobil (<768px, Default) volle Breite im Stack-Layout
  * (Switch oben, zugehöriger Alert darunter), desktop (≥768px) eine Zeile (Switch links, Alert
  * rechtsbündig via `margin-left: auto`). Der KoliBri-Host ist unteilbar (Shadow-DOM ohne
