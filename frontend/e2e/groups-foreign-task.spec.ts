@@ -39,7 +39,7 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	// Nutzersuche läuft datenbankweit (Shard-DB hält Test-Nutzer anderer Specs mit demselben
 	// Namensanteil vor) — Treffer exakt auf den eigenen Empfänger grenzen, sonst resolved der
 	// „Einladen"-Klick in den Strict Mode.
-	const hit = page.getByRole('listitem').filter({ hasText: INVITEE_NAME });
+	const hit = page.locator('li.group-search-hit').filter({ hasText: INVITEE_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
 	await expect(page.getByText('Ausstehend')).toBeVisible();

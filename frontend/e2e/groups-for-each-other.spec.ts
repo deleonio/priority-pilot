@@ -43,7 +43,7 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await page.getByRole('searchbox').fill('Empfängerin');
 	// Nutzersuche läuft datenbankweit — Treffer exakt auf den eigenen Empfänger grenzen, damit
 	// ein Namensanteil nicht den „Einladen"-Klick eines anderen Test-Kontexts trifft.
-	const hit = page.getByRole('listitem').filter({ hasText: INVITEE_NAME });
+	const hit = page.locator('li.group-search-hit').filter({ hasText: INVITEE_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
 	await expect(page.getByText('Ausstehend')).toBeVisible();
