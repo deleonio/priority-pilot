@@ -7,6 +7,7 @@ import sequelize from '../../database.js';
 import { Pillar, User } from '../../models/index.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
+import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 
 // Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
@@ -163,6 +164,13 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 		return;
 	}
 	req.session.silentPending = true;
+	// #1231: Route, von der der stille Login angestoßen wurde, aufnehmen — der Erfolgs-Callback
+	// leitet darauf zurück statt fix auf „/". Sanitisiert (Open-Redirect-Schutz); ungültig/fehlend
+	// → kein Return-Path.
+	const returnTo = sanitizeReturnPath(req.query.returnTo);
+	if (returnTo !== null) {
+		req.session.silentReturnTo = returnTo;
+	}
 	passport.authenticate('google', { scope: ['email', 'profile'], prompt: 'none' })(req, res, next);
 });
 
@@ -195,8 +203,14 @@ authRouter.get(
 		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.
 		const user = req.user as { id: number; email: string; displayName: string; avatarUrl?: string | null };
 		const silentPending = req.session?.silentPending === true;
+		// Return-Path (#1231) ebenfalls vor regenerate() sichern — die neue Session enthält die
+		// Session-Daten des stillen Einstiegs nicht mehr.
+		const silentReturnTo = sanitizeReturnPath(req.session?.silentReturnTo);
 		if (req.session?.silentPending) {
 			delete req.session.silentPending;
+		}
+		if (req.session?.silentReturnTo) {
+			delete req.session.silentReturnTo;
 		}
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
@@ -210,7 +224,7 @@ authRouter.get(
 				displayName: user.displayName,
 				avatarUrl: user.avatarUrl ?? null,
 			};
-			req.session.save(() => res.redirect('/'));
+			req.session.save(() => res.redirect(silentReturnTo ?? '/'));
 		});
 	},
 );
