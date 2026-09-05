@@ -278,3 +278,146 @@ describe('Gruppen-Einladungen und Mitgliedschaftspflege (#1212)', () => {
 		assert.equal(members.length, 1, 'letzter Admin bleibt Mitglied');
 	});
 });
+
+// Rote Spec-Tests für #1221 (AK1–AK6) — API-Vertrag laut docs/spec/issue-1221.md.
+// Die Route PATCH /groups/{id}/members/{userId} existiert noch nicht.
+describe('Rolle eines Gruppenmitglieds ändern (#1221)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	const createGroup = async (cookie: string, name: string): Promise<GroupDto> => {
+		const res = await fetch(`${server.baseUrl}/groups`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie },
+			body: JSON.stringify({ name }),
+		});
+		assert.equal(res.status, 201, 'Setup: Gruppe muss anlegbar sein');
+		return (await res.json()) as GroupDto;
+	};
+
+	const invite = (cookie: string, groupId: number, targetUserId: number): Promise<Response> =>
+		fetch(`${server.baseUrl}/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', cookie },
+			body: JSON.stringify({ userId: targetUserId }),
+		});
+
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await fetch(`${server.baseUrl}/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	const patchRole = (cookie: string, groupId: number, targetUserId: number, role: unknown): Promise<Response> =>
+		fetch(`${server.baseUrl}/groups/${groupId}/members/${targetUserId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie },
+			body: JSON.stringify({ role }),
+		});
+
+	/** Legt eine Gruppe mit Alice (Admin) und Bob (Mitglied) an. */
+	const setupGroupWithMember = async (): Promise<{
+		aliceCookie: string;
+		bobCookie: string;
+		group: GroupDto;
+		aliceId: number;
+		bobId: number;
+	}> => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+		const bobCookie = await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+		const group = await createGroup(aliceCookie, 'Familie');
+		const aliceId = await ownUserId(aliceCookie, 'Alice Admin');
+		const bobId = await ownUserId(bobCookie, 'Bob Baumeister');
+		const invitation = (await (await invite(aliceCookie, group.id, bobId)).json()) as InvitationDto;
+		await fetch(`${server.baseUrl}/invitations/${invitation.id}/accept`, {
+			method: 'POST',
+			headers: { cookie: bobCookie },
+		});
+		return { aliceCookie, bobCookie, group, aliceId, bobId };
+	};
+
+	it('Admin befördert ein Mitglied zum Administrator → 200, Rolle danach admin (AK1)', async () => {
+		const { aliceCookie, group, bobId } = await setupGroupWithMember();
+
+		const res = await patchRole(aliceCookie, group.id, bobId, 'admin');
+		assert.equal(res.status, 200);
+
+		const membersRes = await fetch(`${server.baseUrl}/groups/${group.id}/members`, {
+			headers: { cookie: aliceCookie },
+		});
+		const members = (await membersRes.json()) as MemberDto[];
+		const bob = members.find((m) => m.userId === bobId);
+		assert.equal(bob?.role, 'admin', 'Bob ist jetzt Administrator');
+	});
+
+	it('Admin stuft einen Administrator zurück, sofern nicht der letzte → 200, Rolle danach member (AK2)', async () => {
+		const { aliceCookie, group, bobId } = await setupGroupWithMember();
+		await patchRole(aliceCookie, group.id, bobId, 'admin');
+
+		const res = await patchRole(aliceCookie, group.id, bobId, 'member');
+		assert.equal(res.status, 200);
+
+		const membersRes = await fetch(`${server.baseUrl}/groups/${group.id}/members`, {
+			headers: { cookie: aliceCookie },
+		});
+		const members = (await membersRes.json()) as MemberDto[];
+		const bob = members.find((m) => m.userId === bobId);
+		assert.equal(bob?.role, 'member', 'Bob ist wieder Mitglied');
+	});
+
+	it('ungültiger Rollenwert → 400 (AK3)', async () => {
+		const { aliceCookie, group, bobId } = await setupGroupWithMember();
+
+		const res = await patchRole(aliceCookie, group.id, bobId, 'owner');
+		assert.equal(res.status, 400);
+	});
+
+	it('Mitglied ohne Adminrolle darf keine Rolle ändern → 403 (AK4)', async () => {
+		const { bobCookie, group, aliceId } = await setupGroupWithMember();
+
+		const res = await patchRole(bobCookie, group.id, aliceId, 'member');
+		assert.equal(res.status, 403);
+	});
+
+	it('Nicht-Mitglied bekommt 404 statt 403 (kein Existenz-Leak) (AK5)', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+		const carolCookie = await server.login(TEST_EMAIL_CAROL, { displayName: 'Carol Chef' });
+		const group = await createGroup(aliceCookie, 'Familie');
+		const aliceId = await ownUserId(aliceCookie, 'Alice Admin');
+
+		const res = await patchRole(carolCookie, group.id, aliceId, 'member');
+		assert.equal(res.status, 404);
+	});
+
+	it('Rückstufung des letzten Administrators → 409 mit erklärender Meldung; dieselbe Prüfung wie DELETE (AK6)', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+		const group = await createGroup(aliceCookie, 'Familie');
+		const aliceId = await ownUserId(aliceCookie, 'Alice Admin');
+
+		const res = await patchRole(aliceCookie, group.id, aliceId, 'member');
+		assert.equal(res.status, 409);
+		const body = (await res.json()) as { message?: string };
+		assert.ok(typeof body.message === 'string' && body.message.length > 0, 'erklärende Meldung vorhanden');
+
+		const membersRes = await fetch(`${server.baseUrl}/groups/${group.id}/members`, {
+			headers: { cookie: aliceCookie },
+		});
+		const members = (await membersRes.json()) as MemberDto[];
+		const alice = members.find((m) => m.userId === aliceId);
+		assert.equal(alice?.role, 'admin', 'Alice bleibt Administrator');
+	});
+});
