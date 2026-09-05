@@ -2000,6 +2000,13 @@ components:
           description: >-
             `true`, wenn diese generierte Serien-Instanz individuell geändert
             wurde — Template-Generierung lässt solche Instanzen unberührt.
+        userId:
+          type: integer
+          nullable: true
+          description: >-
+            Eigentümer der Aufgabe (Datenisolation #207); bei einer für ein anderes
+            Gruppenmitglied angelegten Aufgabe/Instanz das Empfänger-Konto (#1213,
+            #1222), `null` im Dev-Pass-Through.
         createdById:
           type: integer
           nullable: true
@@ -2735,6 +2742,35 @@ components:
           description: >-
             Wenn `true`, erben künftig generierte Instanzen diese Option und
             werden bei verpasster Deadline automatisch gelöscht (#523).
+        userId:
+          type: integer
+          nullable: true
+          description: >-
+            Eigentümer der Serie (Issue #244); bei einer Serie für ein anderes
+            Gruppenmitglied (#1222) das Empfänger-Konto statt des Erstellers.
+        createdById:
+          type: integer
+          nullable: true
+          description: >-
+            Konto des Erstellers (#1222, analog `Task.createdById` #1213). Weicht bei
+            einer Serie für ein anderes Gruppenmitglied vom Eigentümer ab; `null` für
+            Bestandsserien ohne Ersteller-Eintrag.
+        createdByName:
+          type: string
+          nullable: true
+          description: >-
+            Anzeigename des Erstellers (E-Mail-Fallback, #1222); synchron zu
+            `createdById`, also `null` ohne Ersteller-Eintrag.
+        forUserId:
+          type: integer
+          nullable: true
+          description: >-
+            Empfänger-Konto, nur gesetzt, wenn die Serie aus Sicht des aufrufenden
+            Erstellers für ein anderes Gruppenmitglied angelegt wurde (#1222); sonst `null`.
+        forUserName:
+          type: string
+          nullable: true
+          description: Anzeigename des Empfängers (E-Mail-Fallback, #1222); synchron zu `forUserId`.
         pillars:
           type: array
           description: >-
@@ -2752,6 +2788,13 @@ components:
       properties:
         title:
           type: string
+        userId:
+          type: integer
+          description: >-
+            Optionaler Empfänger (#1222): das Konto, dem die Serie und ihre generierten
+            Instanzen gehören sollen. Der Aufrufer muss mit ihm eine Gruppe teilen
+            (sonst 403); ohne das Feld oder mit der eigenen ID gehört die Serie dem
+            Aufrufer wie bisher.
         rhythm:
           $ref: '#/components/schemas/SeriesRhythm'
         priority:

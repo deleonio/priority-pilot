@@ -72,6 +72,9 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'startDate', definition: 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP' },
 	// Eigentümer-Bindung (#244, AK1): nullable, daher kein DEFAULT nötig.
 	{ name: 'userId', definition: 'INTEGER' },
+	// Ersteller-Konto (#1222, analog `Task.createdById` #1213): nullable, daher kein DEFAULT nötig;
+	// Bestandsserien bleiben ohne Ersteller-Eintrag (NULL, lesbar und unverändert).
+	{ name: 'createdById', definition: 'INTEGER' },
 	// Freitext-Beschreibung (#301): nullable, daher kein NOT NULL/DEFAULT nötig.
 	{ name: 'description', definition: 'TEXT' },
 	// Serien-Ortsbezug (#1063), analog `Task.address`: nullable, daher kein NOT NULL/DEFAULT nötig.

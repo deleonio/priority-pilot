@@ -151,7 +151,10 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			// #553: Provenienz einmalig und dauerhaft festhalten. `seriesId` ist der Live-Link (fällt beim
 			// Abkoppeln auf null), `originSeriesId` bleibt als Herkunftsnachweis auch nach Serien-Löschung.
 			originSeriesId: series.id,
-			userId: options.userId ?? null,
+			// #1222: Die Instanz gehört dem Serien-Eigentümer — bei einer Serie für ein anderes
+			// Gruppenmitglied (#1222) trägt sie dessen `userId`, nicht den des auslösenden Laufs.
+			// `options.userId` (Sammel-Lauf des Eigentümers) bleibt harmlos identisch.
+			userId: options.userId ?? series.userId ?? null,
 			// #523: Auto-Lösch-Option wird vom Template auf jede generierte Instanz vererbt (Snapshot zum
 			// Generierungszeitpunkt, wie die übrigen Default-Werte — AK3/AK4).
 			autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,

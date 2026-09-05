@@ -36,6 +36,8 @@ vi.mock('@public-ui/react-v19', () => ({
 		</button>
 	),
 	KolSpin: () => <span aria-busy="true" />,
+	// #1222 (AK9): „Für: …"-Empfänger-Badge (Text-Badge, KI-UX: sichtbarer Text statt nur Farbe).
+	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="series-badge">{_label}</span>,
 	KolToolbar: ({
 		_label,
 		_items,
@@ -141,5 +143,43 @@ describe('SeriesTab — Anzeige der neuen Rhythmus-Werte (#470, AK2/AK3)', () =>
 
 			expect(screen.getByText(expected), `Badge für rhythm „${rhythm}“ fehlt`).toBeInTheDocument();
 		}
+	});
+});
+
+// ── #1222 (AK9): Empfänger-Kennzeichen + keine Aktionen für fremde Serien ────────────────────
+
+/**
+ * #1222 (AK9, docs/spec/issue-1222.md): Der Ersteller sieht im Serien-Tab eine für ein anderes
+ * Gruppenmitglied angelegte Serie mit „Für: <Name>"-Badge (nur wenn `forUserName` vorhanden) und
+ * OHNE Bearbeiten/Löschen-Toolbar — diese führt serverseitig in die 404-Sackgasse (AK6), darf
+ * also keine fokussierbaren Geister-Buttons liefern (KI-UX). Eigene Serien bleiben unverändert.
+ */
+describe('SeriesTab — Für-Kennzeichen und fremde Serien (#1222 AK9)', () => {
+	const baseSeries = makeSeries('weekly', 'Übergabe-Routine');
+
+	it('fremde Serie: „Für: <Name>"-Badge sichtbar, Bearbeiten/Löschen nicht gerendert', async () => {
+		mockListSeries.mockResolvedValue([{ ...baseSeries, forUserId: 2, forUserName: 'Bobi Anderes' }]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.getByTestId('series-badge')).toHaveTextContent('Für: Bobi Anderes');
+		expect(screen.queryByRole('toolbar', { name: /Aktionen für Übergabe-Routine/ })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Löschen' })).toBeNull();
+	});
+
+	it('eigene Serie: kein Für-Badge, Bearbeiten/Löschen gerendert', async () => {
+		mockListSeries.mockResolvedValue([{ ...baseSeries, forUserId: null, forUserName: null }]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.queryByTestId('series-badge')).toBeNull();
+		expect(screen.getByRole('toolbar', { name: /Aktionen für Übergabe-Routine/ })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Löschen' })).toBeInTheDocument();
 	});
 });

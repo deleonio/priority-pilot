@@ -678,6 +678,11 @@ export const TaskForm = ({
 					rhythm: form.current.rhythm,
 					active: true,
 					autoDeleteAfterDeadline: autoDelete,
+					// #1222 (AK8): Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
+					// (oder eigene ID) fehlt das Feld und die Serie gehört dem Aufrufer wie bisher (AK1).
+					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
+						? { userId: Number(recipientId) }
+						: {}),
 				};
 				await api.createSeries({ seriesCreate });
 			} else if (taskEdit) {
@@ -915,10 +920,11 @@ export const TaskForm = ({
 						)}
 					</div>
 					{/* #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus mit mindestens einer Gruppe,
-					    vorbelegt mit dem eigenen Konto. Während die Mitglieder laden, ist die Auswahl
-					    deaktiviert (Ladehinweis statt leerer Liste, mobile-ui-rules Regel 7); bei einem
-					    Ladefehler nur ein Hinweis — das Formular bleibt ohne Auswahl funktionsfähig. */}
-					{!isEdit && !isSeriesMode && recipientVisible && (
+					    vorbelegt mit dem eigenen Konto; #1222 (AK8): auch im Serie-Modus. Während die
+					    Mitglieder laden, ist die Auswahl deaktiviert (Ladehinweis statt leerer Liste,
+					    mobile-ui-rules Regel 7); bei einem Ladefehler nur ein Hinweis — das Formular
+					    bleibt ohne Auswahl funktionsfähig. */}
+					{!isEdit && recipientVisible && (
 						<>
 							<KolSingleSelect
 								_label="Empfänger"
@@ -931,7 +937,11 @@ export const TaskForm = ({
 							{recipientError && (
 								<KolAlert
 									_type="warning"
-									_label="Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt."
+									_label={
+										isSeriesMode
+											? 'Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.'
+											: 'Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.'
+									}
 								/>
 							)}
 						</>
