@@ -236,6 +236,12 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		await expect(switches).toHaveCount(2);
 
 		for (let i = 0; i < 2; i++) {
+			// „Schnellerfassung aktiv" liegt in „KI-Funktionen-Details" (docs/ux-pattern-master-detail-
+			// settings.md), das mit dem vorherigen Schleifendurchlauf (Master aus-/wieder-anschalten,
+			// Zeile 258 ff.) neu öffnet — auf den Endzustand der CSS-Transition warten (Muster
+			// settings-switch-layout.spec.ts AK3), sonst liefert die erste Bounding-Box einen
+			// Zwischenwert unter 44px.
+			await expect.poll(async () => (await switches.nth(i).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			// Vollständig in der Viewport-Breite (kein Abschneiden, kein Horizontal-Scroll).
