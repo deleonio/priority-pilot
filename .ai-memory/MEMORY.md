@@ -147,3 +147,4 @@ Konflikte, die er verhindern soll.
   empirisch verifiziert), der Request fällt durch und Tests werden nicht-deterministisch. → Beim
   Ergänzen von Query-Params an gemockten Routen die Glob-Muster mit `*`-Suffix öffnen und im
   PR-Body als Test-Pflege dokumentieren.
+- 2026-09-05 · CI/Subagents — Agent-Rollen (gate-runner, recherche; allg. Subagents ebenso) fallen in dieser Umgebung mit `API Error 400 [1214] modelCode: does not exist` aus (glm-5.3-flash existiert am API nicht). → Gate/Suchen in dem Lauf direkt selbst fahren; Delegation-Versuch kostet nur einen Fehlcall.

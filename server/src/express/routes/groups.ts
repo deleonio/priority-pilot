@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { Group, GroupInvitation, GroupMember, User } from '../../models/index.js';
+import { Group, GroupInvitation, GroupMember, Task, User } from '../../models/index.js';
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 
@@ -520,6 +521,77 @@ groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Res
 		}
 		await target.destroy();
 		res.status(204).send();
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+/**
+ * ── Füreinander angelegte Aufgaben (#1223, Teil 4 der Gruppen-Epic #952) ─────────────────
+ *
+ * Reine Lese-Ansicht: offen (nicht `Done`), vom Ersteller für ein anderes Gruppenmitglied
+ * angelegt (`userId != createdById`, Altbestand ohne `createdById` bleibt privat — auch für
+ * Admins). Reduzierter Feldsatz ohne Beschreibung, Checkliste und Ids (Datenisolation).
+ * Sortierung stabil: Empfänger case-insensitive, dann deadline aufsteigend (ohne zuletzt),
+ * dann id.
+ */
+type GroupTaskDto = {
+	id: number;
+	title: string;
+	deadline: string | null;
+	status: Task['status'];
+	recipientName: string;
+	creatorName: string;
+};
+
+// GET /groups/:id/tasks — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
+groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTaskDto[] | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
+		const memberIds = members.map((member) => member.userId);
+		const memberIdSet = new Set(memberIds);
+		const tasks = await Task.findAll({
+			where: { userId: { [Op.in]: memberIds }, status: { [Op.ne]: 'Done' } },
+		});
+		// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
+		// in SQL nicht falsch-positiv-sicher.
+		const mutual = tasks.filter(
+			(task) =>
+				task.createdById !== null &&
+				task.createdById !== undefined &&
+				task.createdById !== task.userId &&
+				memberIdSet.has(task.createdById),
+		);
+		const users = await User.findAll({ where: { id: memberIds } });
+		const nameOf = (userId: number): string =>
+			displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
+		const dtos: GroupTaskDto[] = mutual.map((task) => ({
+			id: task.id,
+			title: task.title,
+			deadline: task.deadline ? task.deadline.toISOString() : null,
+			status: task.status,
+			recipientName: nameOf(task.userId ?? 0),
+			creatorName: nameOf(task.createdById!),
+		}));
+		dtos.sort((a, b) => {
+			const byRecipient = a.recipientName.localeCompare(b.recipientName, undefined, { sensitivity: 'accent' });
+			if (byRecipient !== 0) return byRecipient;
+			const aDeadline = a.deadline ? Date.parse(a.deadline) : Number.POSITIVE_INFINITY;
+			const bDeadline = b.deadline ? Date.parse(b.deadline) : Number.POSITIVE_INFINITY;
+			if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+			return a.id - b.id;
+		});
+		res.json(dtos);
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
