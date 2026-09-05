@@ -8,6 +8,7 @@ import type {
 	GroupInput,
 	GroupInvitation,
 	GroupMember,
+	GroupTask,
 	GroupUpdate,
 	ReceivedInvitation,
 	UserSearchHit,
@@ -342,6 +343,18 @@ export const api = {
 
 	async getGroupInvitations({ id, ...init }: { id: number } & Init): Promise<GroupInvitation[]> {
 		const { data, error, response } = await client.GET('/groups/{id}/invitations', {
+			params: { path: { id } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Füreinander angelegte offene Aufgaben der Gruppe (#1223), sortiert nach Empfänger/Fälligkeit. */
+	async getGroupTasks({ id, ...init }: { id: number } & Init): Promise<GroupTask[]> {
+		const { data, error, response } = await client.GET('/groups/{id}/tasks', {
 			params: { path: { id } },
 			signal: init.signal,
 		});

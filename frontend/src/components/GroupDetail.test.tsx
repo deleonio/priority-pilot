@@ -33,6 +33,9 @@ vi.mock('../api', () => ({
 	api: {
 		getGroupMembers: vi.fn(),
 		getGroupInvitations: vi.fn(),
+		// #1223: füreinander angelegte Aufgaben — ohne Implementierung resolves `undefined` und
+		// läuft auf die Array-Verteidigung im Produktionscode (leere Liste).
+		getGroupTasks: vi.fn(),
 		removeGroupMember: vi.fn(),
 		updateGroupMemberRole: vi.fn(),
 	},

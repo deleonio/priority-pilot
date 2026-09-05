@@ -1463,6 +1463,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups/{id}/tasks:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Füreinander angelegte Aufgaben der Gruppe auflisten
+      description: >-
+        Offene Aufgaben, die ein Gruppenmitglied für ein anderes Mitglied
+        angelegt hat (#1223). Selbst-Aufgaben und Altbestand ohne Ersteller
+        bleiben privat (auch für Admins); erledigte Aufgaben erscheinen nicht.
+        Reduzierter Feldsatz ohne Beschreibung, Checkliste und Ids. Fremde
+        Gruppe 404, unauthentifiziert 401 (globales requireAuth).
+      operationId: listGroupTasks
+      tags: [groups]
+      responses:
+        '200':
+          description: Füreinander angelegte offene Aufgaben, sortiert nach Empfänger und Fälligkeit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupTask'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/invitations:
     parameters:
       - name: id
@@ -1783,6 +1816,29 @@ components:
         role:
           type: string
           enum: [admin, member]
+    GroupTask:
+      type: object
+      description: >-
+        Aufgabe, die ein Gruppenmitglied für ein anderes Mitglied angelegt hat
+        (#1223) — bewusst ohne Beschreibung, Checkliste und Nutzer-Ids.
+      required: [id, title, deadline, status, recipientName, creatorName]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        recipientName:
+          type: string
+          description: Anzeigename des Empfängers (Fallback E-Mail)
+        creatorName:
+          type: string
+          description: Anzeigename des Erstellers (Fallback E-Mail)
     GroupMemberRoleUpdate:
       type: object
       description: Payload zum Ändern der Rolle eines Mitglieds (#1221).
