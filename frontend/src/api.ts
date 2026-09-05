@@ -371,6 +371,25 @@ export const api = {
 		}
 	},
 
+	async updateGroupMemberRole({
+		id,
+		userId,
+		role,
+	}: {
+		id: number;
+		userId: number;
+		role: GroupMember['role'];
+	}): Promise<GroupMember> {
+		const { data, error, response } = await client.PATCH('/groups/{id}/members/{userId}', {
+			params: { path: { id, userId } },
+			body: { role },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	async listReceivedInvitations(init: Init = {}): Promise<ReceivedInvitation[]> {
 		const { data, error, response } = await client.GET('/invitations', { signal: init.signal });
 		if (!response.ok || data === undefined) {
