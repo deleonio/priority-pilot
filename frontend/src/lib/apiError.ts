@@ -75,7 +75,7 @@ export const toApiError = async (reason: unknown): Promise<ApiError> => {
 				message = SESSION_TEXT;
 			}
 		}
-		if (message === SESSION_TEXT) {
+		if (status === 401 && message === SESSION_TEXT) {
 			// Session-401 (#1231): globaler Dialog „Session abgelaufen" anstoßen. Genau hier — und
 			// nirgendwo sonst — laufen die Fälle zusammen, die laut #948 auf die Session-Meldung mappen;
 			// jeder andere 401 (LLM-/Proxy-401), 403 oder Netzwerkfehler feuert nicht.

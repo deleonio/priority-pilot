@@ -20,13 +20,17 @@ const JUST_LOGGED_OUT_KEY = 'pp_just_logged_out';
  *  - „pp_just_logged_out": nach Abmelden KEIN stiller Re-Login (sonst ist Ausloggen praktisch unmöglich);
  *    gesetzt von handleLogout() in App.tsx.
  *  - „pp_silent_attempted": in dieser Browser-Session wurde bereits ein Versuch gestartet.
+ *
+ * `allowRepeat` (#1231): der Session-Expired-Reload-Bonus ersetzt ausschließlich diesen letzten
+ * Flag — ein zweiter stiller Versuch nach dem Neuladen aus dem Dialog ist dann ausdrücklich
+ * gewollt. Die Loop-Guards (?silent=unavailable, ?error=…) und der Logout-Guard greifen weiter.
  */
-const shouldAttemptSilentLogin = (): boolean => {
+const shouldAttemptSilentLogin = (allowRepeat = false): boolean => {
 	const params = new URLSearchParams(window.location.search);
 	if (params.get('silent') === 'unavailable') return false;
 	if (params.has('error')) return false;
 	if (sessionStorage.getItem(JUST_LOGGED_OUT_KEY) === '1') return false;
-	if (sessionStorage.getItem(SILENT_ATTEMPTED_KEY) === '1') return false;
+	if (!allowRepeat && sessionStorage.getItem(SILENT_ATTEMPTED_KEY) === '1') return false;
 	return true;
 };
 
@@ -72,13 +76,13 @@ const AuthenticatedApp = () => {
 				// #1231 (AK3): Kommt der Ablauf aus dem Neuladen des Session-Expired-Dialogs, ist genau
 				// EIN weiterer stiller Versuch ausdrücklich gewollt — auch wenn in dieser Browser-Session
 				// bereits einer lief (`pp_silent_attempted`). Der Bonus-Marker wird gleich entfernt, damit
-				// er auf keine späteren Abläufe übertragen wird; die Loop-Guards der Silent-Logik
-				// (?silent=unavailable, ?error=…, pp_just_logged_out) bleiben unverändert wirksam.
+				// er auf keine späteren Abläufe übertragen wird; er ersetzt nur den „bereits versucht"-
+				// Flag, nicht die Loop-Guards (?silent=unavailable, ?error=…) oder den Logout-Guard.
 				const sessionReload = sessionStorage.getItem(SESSION_RELOAD_KEY) === '1';
 				if (sessionReload) {
 					sessionStorage.removeItem(SESSION_RELOAD_KEY);
 				}
-				if (!sessionReload && !shouldAttemptSilentLogin()) {
+				if (!shouldAttemptSilentLogin(sessionReload)) {
 					setAuthState('unauthenticated');
 					return;
 				}
