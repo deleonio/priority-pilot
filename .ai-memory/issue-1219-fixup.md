@@ -46,13 +46,20 @@ Entscheidungs-Findings), 1 nicht-blockierender Nit. Review-Kommentar-IDs: 555035
 - „Push testen"/„Standort ermitteln"-Buttons mit in den Wrapper — würde settings-action-
   buttons.spec.ts:139 (`.settings-general > kol-button`) brechen.
 
+- Fix-Commit c76e4272 gepusht (inkl. Phasen-Notiz), Gate grün (274/274), e2e issue-843 +
+  profile-display-name + settings-action-buttons lokal grün, ai-fixup-decisions-Kommentar
+  5550430667 angelegt (✅-Tabelle), beide Threads (PRRT_...Vwq, PRRT_...Vwz) resolved.
+- **CI-Fix nachgezogen:** Run 33953915593 (e2e-Shard 3) fiel 2× identisch an issue-969.spec.ts
+  AK4 — `panel.boundingBox()` null direkt nach `toBeVisible` (KI-Provider-Panel; Fehler-Kontext-
+  Snapshot belegt: Panel gerendert). Lokal: ganzer Shard + 25× Wiederholung grün → Mess-Race
+  auf langsamen Runnern. Fix: pollende Box-Abfrage via `expect.poll`, Assertion unverändert.
+
 ## Offen
-- GATE (format/prettier/lint/knip/test) + e2e issue-843.spec.ts & profile-display-name.spec.ts
-  lokal grün machen, dann Commit+Push, ai-fixup-decisions-Kommentar anlegen (✅-Tabelle),
-  Threads 3939894330 + 3939894339 resolven.
+- CI nach dem zweiten Fix-Commit beobachten (e2e-Shard 3 muss grün werden).
 
 ## Nächster Schritt
-- Gate laufen lassen (gate-runner), e2e der beiden Specs, dann Commit/Push/Kommentar/Resolve.
+- Commit <SHA2> (issue-969-Poll-Fix) pushen, ✅-Tabelle im Kommentar 5550430667 um CI-Zeile
+  ergänzen, Runde beenden (kein Verdict — Commits zählen).
 
 ## Fallstricke
 - Keine Labels setzen (Workflow macht das selbst).
