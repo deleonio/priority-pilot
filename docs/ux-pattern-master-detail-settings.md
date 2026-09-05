@@ -60,9 +60,9 @@ selbst wenn das umschließende `KolDetails` zusätzlich geschlossen ist.
 
 - Das `KolDetails`, das die Unter-Einstellungen umschließt, bindet `_open` direkt an den Zustand
   des Master-Schalters: `_open={masterEnabled}`. Ein zusätzlicher `_on.onToggle`-Handler ist nicht
-  nötig — der KoliBri-React-Adapter setzt die Property nur bei einer tatsächlichen Wertänderung neu,
-  sodass manuelles Auf-/Zuklappen durch die nutzende Person zwischen zwei Master-Umschaltungen
-  weiterhin möglich bleibt.
+  nötig — beobachtetes Verhalten: manuelles Auf-/Zuklappen durch die nutzende Person bleibt
+  zwischen zwei Master-Umschaltungen möglich, solange sich `_open` dabei nicht ändert (siehe
+  `settings-switch-layout.spec.ts` AK9, das den Master-Sync-Fall pinnt).
 - Sub-Controls behalten zusätzlich ihr eigenes `_disabled={!masterEnabled}` (bzw. eine erweiterte
   Bedingung, wenn ein weiterer Zustand den Master zusätzlich sperrt, z. B.
   `prefersReducedMotion` bei den Animations-Feinschaltern). Das ist bewusst redundant zum
