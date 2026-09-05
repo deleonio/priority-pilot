@@ -1139,6 +1139,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /profile:
+    get:
+      summary: Anzeigename, E-Mail und Avatar des Nutzers lesen
+      description: >-
+        Liefert den Anzeigenamen, die E-Mail-Adresse und die Avatar-URL des
+        angemeldeten Nutzers (#1219). Im lokalen Pass-Through-Modus ohne
+        Auth-Kontext wird der gemeinsame Entwicklungs-Nutzer bedient.
+      operationId: getProfile
+      tags: [profile]
+      responses:
+        '200':
+          description: Profildaten des Nutzers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Anzeigenamen speichern
+      description: >-
+        Ändert ausschließlich den Anzeigenamen (#1219); die Session wird nachgezogen,
+        sodass `/auth/me` sofort den neuen Namen liefert. Nach `trim()` leer oder
+        länger als 60 Zeichen → HTTP 400 ohne Persistenz. `email`, `passwordHash`
+        und unbekannte Felder im Body werden ignoriert.
+      operationId: updateProfile
+      tags: [profile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [displayName]
+              properties:
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 60
+      responses:
+        '200':
+          description: Gespeicherte Profildaten
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: Ungültiger Anzeigename (leer oder länger als 60 Zeichen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups:
     get:
       summary: Gruppen des angemeldeten Nutzers auflisten
@@ -1562,6 +1624,26 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    Profile:
+      type: object
+      description: >-
+        Profildaten des Nutzers (#1219): Anzeigename (selbst festlegbar),
+        unveränderliche E-Mail-Adresse und optionale Avatar-URL.
+      required: [displayName, email, avatarUrl]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Anzeigename, fällt per Default auf die E-Mail zurück
+        email:
+          type: string
+          format: email
+          description: E-Mail-Adresse (über /profile nicht änderbar)
+        avatarUrl:
+          type: string
+          nullable: true
+          description: Avatar-URL (null ohne Avatar)
     GeoConfig:
       type: object
       description: >-

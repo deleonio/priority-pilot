@@ -1,4 +1,12 @@
-import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolInputRange, KolTabs } from '@public-ui/react-v19';
+import {
+	KolAlert,
+	KolButton,
+	KolHeading,
+	KolInputCheckbox,
+	KolInputRange,
+	KolInputText,
+	KolTabs,
+} from '@public-ui/react-v19';
 import type { GeoConfig, Pillar } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
@@ -9,6 +17,7 @@ import { usePrefersReducedMotion } from '../lib/reducedMotion';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation, GEO_CONFIG_CHANGED_EVENT } from '../lib/useGeolocation';
+import { notifyProfileChanged } from '../lib/profileChanged';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
@@ -155,6 +164,44 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 
 	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
 
+	// #1219 AK6: Anzeigename (Tab „Allgemein") — Server ist die Quelle (Spalte `users.displayName`),
+	// initial per GET /profile nachgeladen. Nutzer-Eingabe schlägt den nachlaufenden GET
+	// (dieselbe Absicherung wie bei der Geo-Konfiguration unten).
+	const [displayName, setDisplayName] = useState('');
+	const nameUserEditedRef = useRef(false);
+
+	useEffect(() => {
+		api
+			.getProfile()
+			.then((profile) => {
+				if (!nameUserEditedRef.current && profile && typeof profile.displayName === 'string') {
+					setDisplayName(profile.displayName);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Feld bleibt leer, aber bedienbar.
+			});
+	}, []);
+
+	/** #1219 AK2: Anzeigenamen speichern; Root aktualisiert die Kopfzeile über das Profil-Event. */
+	const saveDisplayName = (): void => {
+		const trimmed = displayName.trim();
+		// Leer lässt der Server ohnehin mit 400 ab — den vergeblichen Roundtrip sparen.
+		if (trimmed.length === 0) return;
+		api
+			.updateProfile({ displayName: trimmed })
+			.then((profile) => {
+				// Server-Echo vorziehen, aber defensiv bleiben (fehlendes/leeres Body-Feld nicht crashing).
+				const savedName = typeof profile?.displayName === 'string' ? profile.displayName : trimmed;
+				setDisplayName(savedName);
+				notifyProfileChanged(savedName);
+				onSaved();
+			})
+			.catch(() => {
+				// Best-Effort wie die Geo-Werte: UI zeigt den eingegebenen Namen, 400/Netzwerk bleibt ohne Alert.
+			});
+	};
+
 	// #1098 AK1: Geo-Konfiguration (Anzeige-/Alarm-Entfernung, Intervall) — serverseitig pro User
 	// gespeichert (AK7, kein localStorage). Initial die Server-Defaults 5 km / 1 km / 5 Minuten,
 	// der GET-Aufruf überschreibt sie mit den gespeicherten Werten.
@@ -256,6 +303,28 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 				_on={tabsCallbacks}
 			>
 				<div slot="tab-0" className="settings-general" ref={settingsGeneralRef}>
+					{/* #1219 AK6/AK7: Anzeigename — Feld + Speichern im Stapel-Layout der Tab-Spalte
+							(mobil volle Breite, kein horizontales Scrollen); bewusst ohne `.settings-switch-row`
+							(dessen e2e-Guard zählt genau 3 Zeilen, #971). */}
+					<KolInputText
+						_label="Anzeigename"
+						_value={displayName}
+						_maxLength={60}
+						_on={{
+							onInput: (_event, value) => {
+								nameUserEditedRef.current = true;
+								setDisplayName(
+									typeof value === 'string' ? value : String((_event.target as HTMLInputElement)?.value ?? ''),
+								);
+							},
+						}}
+					/>
+					<KolButton
+						className="settings-action-btn"
+						_label="Anzeigename speichern"
+						_variant="secondary"
+						_on={{ onClick: saveDisplayName }}
+					/>
 					<AppearanceSetting />
 					{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 							Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
