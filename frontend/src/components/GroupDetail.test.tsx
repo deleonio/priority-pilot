@@ -34,6 +34,7 @@ vi.mock('../api', () => ({
 		getGroupMembers: vi.fn(),
 		getGroupInvitations: vi.fn(),
 		removeGroupMember: vi.fn(),
+		updateGroupMemberRole: vi.fn(),
 	},
 }));
 
@@ -43,6 +44,10 @@ import { GroupDetail } from './GroupDetail';
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
 const mockGetGroupInvitations = api.getGroupInvitations as ReturnType<typeof vi.fn>;
 const mockRemoveGroupMember = api.removeGroupMember as ReturnType<typeof vi.fn>;
+// `updateGroupMemberRole` existiert im echten Client-Typ noch nicht (Impl-Phase #1221) — Zugriff
+// über eine lokal erweiterte Sicht, damit der Test unabhängig vom Produktionscode kompiliert.
+const mockUpdateGroupMemberRole = (api as unknown as { updateGroupMemberRole: ReturnType<typeof vi.fn> })
+	.updateGroupMemberRole;
 
 afterEach(() => {
 	cleanup();
@@ -152,5 +157,86 @@ describe('GroupDetail — Entfernen erst nach Bestätigung (#1212 AK9)', () => {
 			expect(screen.queryByTestId('modal')).toBeNull();
 		});
 		expect(mockRemoveGroupMember).not.toHaveBeenCalled();
+	});
+});
+
+// Rote Spec-Tests für #1221 (AK7) — Rollen-Button nur für Admins, Ziel-Label je Rolle.
+// `api.updateGroupMemberRole` existiert im Client noch nicht (docs/spec/issue-1221.md).
+describe('GroupDetail — Rolle ändern (#1221 AK7)', () => {
+	it('Admin sieht je Mitglied einen Rollen-Button mit dem Ziel-Label', async () => {
+		mockGetGroupMembers.mockResolvedValue([
+			{ userId: 1, displayName: 'Alice Admin', role: 'admin' },
+			{ userId: 2, displayName: 'Bob Baumeister', role: 'member' },
+		]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+
+		await waitFor(() => {
+			expect(screen.getByText('Bob Baumeister')).toBeInTheDocument();
+		});
+		expect(screen.getByRole('button', { name: /Bob Baumeister zum Administrator machen/i })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: /Alice Admin zur Mitgliedschaft zurückstufen/i })).toBeInTheDocument();
+	});
+
+	it('einfaches Mitglied sieht keinen Rollen-Button, nur die Rollen-Badge', async () => {
+		mockGetGroupMembers.mockResolvedValue([
+			{ userId: 1, displayName: 'Alice Admin', role: 'admin' },
+			{ userId: 2, displayName: 'Bob Baumeister', role: 'member' },
+		]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="member" />);
+
+		await waitFor(() => {
+			expect(screen.getByText('Alice Admin')).toBeInTheDocument();
+		});
+		expect(screen.queryByRole('button', { name: /zum Administrator machen/i })).toBeNull();
+		expect(screen.queryByRole('button', { name: /zur Mitgliedschaft zurückstufen/i })).toBeNull();
+	});
+
+	it('Klick auf den Rollen-Button ruft updateGroupMemberRole mit der Zielrolle auf und lädt neu', async () => {
+		mockGetGroupMembers.mockResolvedValue([
+			{ userId: 1, displayName: 'Alice Admin', role: 'admin' },
+			{ userId: 2, displayName: 'Bob Baumeister', role: 'member' },
+		]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+		mockUpdateGroupMemberRole.mockResolvedValue(undefined);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => {
+			expect(screen.getByText('Bob Baumeister')).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: /Bob Baumeister zum Administrator machen/i }));
+
+		await waitFor(() => {
+			expect(mockUpdateGroupMemberRole).toHaveBeenCalledWith({ id: 1, userId: 2, role: 'admin' });
+		});
+		expect(mockGetGroupMembers).toHaveBeenCalledTimes(2);
+	});
+
+	it('409 vom Server (letzter Administrator) erscheint im bestehenden KolAlert-Fehlerbereich', async () => {
+		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+		mockUpdateGroupMemberRole.mockRejectedValue(
+			Object.assign(
+				new Error('Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person.'),
+				{
+					status: 409,
+				},
+			),
+		);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => {
+			expect(screen.getByText('Alice Admin')).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: /Alice Admin zur Mitgliedschaft zurückstufen/i }));
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toHaveTextContent(/mindestens einen Administrator/i);
+		});
 	});
 });

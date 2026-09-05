@@ -1389,6 +1389,52 @@ paths:
         description: ID des zu entfernenden Kontos
         schema:
           type: integer
+    patch:
+      summary: Rolle eines Mitglieds ändern
+      description: >-
+        Nur Admins (#1221). Nicht-Mitglieder erhalten 404 (kein
+        Existenz-Leak), Mitglieder ohne Adminrechte 403. Die Rückstufung des
+        letzten verbleibenden Administrators wird abgelehnt (409, dieselbe
+        Prüfung wie beim Entfernen).
+      operationId: updateGroupMemberRole
+      tags: [groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMemberRoleUpdate'
+      responses:
+        '200':
+          description: Mitglied mit aktualisierter Rolle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMember'
+        '400':
+          description: Ungültiger Rollenwert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Mitglied ohne Adminrechte ändert eine Rolle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe oder Mitglied unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Letzter Administrator der Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Mitglied entfernen oder Gruppe verlassen
       description: >-
@@ -1734,6 +1780,14 @@ components:
           type: integer
         displayName:
           type: string
+        role:
+          type: string
+          enum: [admin, member]
+    GroupMemberRoleUpdate:
+      type: object
+      description: Payload zum Ändern der Rolle eines Mitglieds (#1221).
+      required: [role]
+      properties:
         role:
           type: string
           enum: [admin, member]
