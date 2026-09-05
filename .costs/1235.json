@@ -1,0 +1,73 @@
+[
+	{
+		"timestamp": "2026-09-05T10:07:53.862Z",
+		"tokensIn": 426226,
+		"tokensOut": 2193,
+		"cost": 0.498223872,
+		"issueId": "1235",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 310848,
+		"turns": 7,
+		"valueCost": 0.498223872
+	},
+	{
+		"timestamp": "2026-09-05T10:25:03.106Z",
+		"tokensIn": 1009280,
+		"tokensOut": 22403,
+		"cost": 1.642675,
+		"issueId": "1235",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 100496,
+		"cacheReadTokens": 908760,
+		"turns": 12,
+		"valueCost": 1.642675
+	},
+	{
+		"timestamp": "2026-09-05T10:40:50.495Z",
+		"tokensIn": 5359052,
+		"tokensOut": 20274,
+		"cost": 2.4112875000000003,
+		"issueId": "1235",
+		"phase": "fixup",
+		"model": "claude-sonnet-5",
+		"provider": "claude",
+		"cacheCreationTokens": 144626,
+		"cacheReadTokens": 5214240,
+		"sidechainTokens": 99573,
+		"turns": 62,
+		"valueCost": 2.4112875000000003
+	},
+	{
+		"timestamp": "2026-09-05T10:43:50.495Z",
+		"tokensIn": 587808,
+		"tokensOut": 11099,
+		"cost": 0.93652175,
+		"issueId": "1235",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 63489,
+		"cacheReadTokens": 524301,
+		"turns": 9,
+		"valueCost": 0.93652175
+	},
+	{
+		"timestamp": "2026-09-05T10:46:59.379Z",
+		"tokensIn": 529247,
+		"tokensOut": 5721,
+		"cost": 0.15554275,
+		"issueId": "1235",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 64295,
+		"cacheReadTokens": 464870,
+		"turns": 10,
+		"valueCost": 0.15554275
+	}
+]
