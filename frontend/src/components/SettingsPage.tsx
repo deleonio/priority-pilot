@@ -510,22 +510,26 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							</KolAlert>
 						)}
 					</div>
-					{/* #1085: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
-							deaktiviert, damit er nicht umschaltbar ist. */}
-					<div className="settings-llm-switch-row">
-						<KolInputCheckbox
-							_label="Schnellerfassung aktiv"
-							_variant="switch"
-							_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
-							_checked={quickCaptureEnabled}
-							_disabled={!aiEnabled}
-							_on={{
-								onChange: (_event, value) => {
-									setAiPreference('quickCaptureEnabled', value === true);
-								},
-							}}
-						/>
-					</div>
+					{/* Feinschalter „Schnellerfassung aktiv" sitzt wie bei „Animationen" (#1227) in einem
+							eigenen KolDetails, das synchron mit dem Master „KI-Features aktiv" öffnet/schließt
+							(Muster docs/ux-pattern-master-detail-settings.md). #1085: bei deaktivierter KI bleibt
+							der Schalter zusätzlich `_disabled`. */}
+					<KolDetails _label="KI-Funktionen-Details" _open={aiEnabled}>
+						<div className="settings-llm-switch-row settings-llm-switch-row--sub">
+							<KolInputCheckbox
+								_label="Schnellerfassung aktiv"
+								_variant="switch"
+								_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
+								_checked={quickCaptureEnabled}
+								_disabled={!aiEnabled}
+								_on={{
+									onChange: (_event, value) => {
+										setAiPreference('quickCaptureEnabled', value === true);
+									},
+								}}
+							/>
+						</div>
+					</KolDetails>
 					<LlmSettings />
 				</div>
 				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
@@ -588,12 +592,15 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 						</>
 					)}
 					{geoSupported && (
-						<>
-							{/* #1098 AK1–AK3: Geo-Regler unterhalb des Standort-Switches. Die Kreuz-Schranken
-								    (AK2) wirken als dynamische `_min`/`_max` — kein Fehlerzustand (Autoren-Entscheidung).
-								    Der `key`-Wechsel auf `geoEnabled` erzwingt wie beim Ermitteln-Button oben einen Remount:
-								    der KoliBri-Adapter setzt Props nach dem Mount als Element-Properties, der
-								    `_disabled`-Attributwechsel beim Rerender schlägt sonst nicht durch (AK3). */}
+						<KolDetails _label="Standort-Details" _open={geoEnabled}>
+							{/* #1098 AK1–AK3: Geo-Regler unterhalb des Standort-Switches, seit dem Master-/
+								    Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md) in diesem
+								    KolDetails gebündelt, das synchron mit dem Standort-Switch öffnet/schließt.
+								    Die Kreuz-Schranken (AK2) wirken als dynamische `_min`/`_max` — kein
+								    Fehlerzustand (Autoren-Entscheidung). Der `key`-Wechsel auf `geoEnabled`
+								    erzwingt wie beim Ermitteln-Button oben einen Remount: der KoliBri-Adapter
+								    setzt Props nach dem Mount als Element-Properties, der `_disabled`-Attribut-
+								    wechsel beim Rerender schlägt sonst nicht durch (AK3). */}
 							<div className="geo-range-field">
 								<KolInputRange
 									key={`geo-display-${geoEnabled}`}
@@ -650,7 +657,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 								/>
 								<span className="geo-range-value">{geoConfig.intervalMinutes} Minuten</span>
 							</div>
-						</>
+						</KolDetails>
 					)}
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 4, Route

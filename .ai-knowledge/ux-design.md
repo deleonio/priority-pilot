@@ -15,6 +15,7 @@ Ergänzende Pflichtlektüre (nicht hier dupliziert):
 - [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) — die 10 Regeln inkl. Repo-Abstimmung.
 - [Konventionen → Mobile-First](project.md#mobile-first-frontend) — Aufwärts-Kaskade, e2e-Pflicht bei 375×812.
 - [UX-Pattern: Sequenzielle Bestätigung](../docs/ux-pattern-sequential-confirmation.md) — destruktive Aktionen.
+- [UX-Pattern: Haupt-/Unter-Einstellung](../docs/ux-pattern-master-detail-settings.md) — Master-Schalter mit KolDetails für Unter-Einstellungen.
 
 ## 1. Haltung
 
