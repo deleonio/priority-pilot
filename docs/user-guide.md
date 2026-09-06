@@ -66,7 +66,8 @@ begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast
 die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
 
 - **Meine Lebensbalance:** ein Herz zeigt, wie ausgeglichen sich dein erledigter
-  Aufwand auf deine Säulen verteilt.
+  Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
+  Säule angelegt hast).
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
@@ -204,7 +205,8 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
   (siehe „Lebensbalance-Säulen").
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
-  einer deiner Gruppen (siehe „Gruppen").
+  einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint nur beim Anlegen
+  (nicht beim Bearbeiten) und nur, solange du Mitglied mindestens einer Gruppe bist.
 
 Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
 
@@ -487,7 +489,8 @@ In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufg
   Einladungs-Link. Wer ihn öffnet – auch ohne Anmeldung –, landet auf einer Seite mit
   **„Gruppe beitreten"**. Unter **„Offene Einladungen"** kannst du Links kopieren oder
   für ungültig erklären (**„Ungültig machen"**).
-- **Empfangene Einladungen:** eingeladene Konten können annehmen oder ablehnen.
+- **Einladungen** (Karte in der Gruppen-Übersicht, nicht zu verwechseln mit
+  „Offene Einladungen"): eingeladene Konten können annehmen oder ablehnen.
 - **Aufgaben für andere anlegen:** im Aufgaben- und Serien-Formular wählst du im Feld
   **„Empfänger"**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
   fremde Aufgaben an den Hinweisen **„Für: {Name}"** und **„Erstellt von: {Name}"**;
