@@ -54,9 +54,16 @@ const FRAGMENT_SOURCE = `#define GLASS_APP 1\n${fragmentSource}`;
 
 /** Wellen- und Aufstieg-Konstanten wie im SVG (`WAVE_LENGTH`, `WAVE_AMPLITUDE`, Drift 7 s). */
 const WAVE_LENGTH = 16;
-const WAVE_AMPLITUDE = 3;
+const WAVE_AMPLITUDE = 1.3;
 const WAVE_DRIFT_DURATION = 7;
 const RISE_DURATION = 1.4;
+
+/** Tiefe des Wassers: zwei versetzte Tiefenwellen, halbtransparent schattiert (siehe Shader). */
+const DEPTH_WAVES = 2;
+const DEPTH_STRENGTH = 0.45;
+
+/** Deckkraft des weichen Schattens unterm Herz (0–0.3). */
+const SHADOW_OPACITY = 0.12;
 
 /** Zahl der Band-Uniforms im Shader — Streifen darüber laufen im letzten (neutralen) zusammen. */
 const BAND_SLOTS = 8;
@@ -179,6 +186,9 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 		waveLength: uniform('u_wave_length'),
 		waveAmplitude: uniform('u_wave_amplitude'),
 		waveDuration: uniform('u_wave_duration'),
+		depthWaves: uniform('u_depth_waves'),
+		depthStrength: uniform('u_depth_strength'),
+		shadow: uniform('u_shadow'),
 		bandColors: uniform('u_band_colors[0]'),
 		bandEdges: uniform('u_band_edges[0]'),
 		bandCount: uniform('u_band_count'),
@@ -191,6 +201,9 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 	gl.uniform1f(locations.waveLength, WAVE_LENGTH);
 	gl.uniform1f(locations.waveAmplitude, WAVE_AMPLITUDE);
 	gl.uniform1f(locations.waveDuration, WAVE_DRIFT_DURATION);
+	gl.uniform1f(locations.depthWaves, DEPTH_WAVES);
+	gl.uniform1f(locations.depthStrength, DEPTH_STRENGTH);
+	gl.uniform1f(locations.shadow, SHADOW_OPACITY);
 
 	/*
 	 * Größe nur bei echter Änderung schreiben: Jedes Schreiben von `canvas.width` leert den

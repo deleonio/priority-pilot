@@ -66,13 +66,14 @@ const HEART_TOP = 6;
 const HEART_BOTTOM = 88;
 
 /**
- * Wellenlänge und Auslenkung der Oberfläche in Nutzereinheiten. Die Auslenkung ist so gewählt,
- * dass die Oberfläche auch in voller Farbe klar als Welle lesbar ist. Die Wellenlänge ist bewusst
- * kürzer als ein Segment breit ist (bei fünf Säulen 20 Einheiten): Sieht man weniger als eine
- * volle Welle, liest die Oberfläche als schiefe Kante statt als Wasser.
+ * Wellenlänge und Auslenkung der Oberfläche in Nutzereinheiten. Die Auslenkung ist bewusst zart
+ * (Wasserlinie soll leben, nicht branden) und gilt gemeinsam für SVG- und Glas-Fassung — beide
+ * zeigen dasselbe Bild. Die Wellenlänge ist bewusst kürzer als ein Segment breit ist (bei fünf
+ * Säulen 20 Einheiten): Sieht man weniger als eine volle Welle, liest die Oberfläche als schiefe
+ * Kante statt als Wasser.
  */
 const WAVE_LENGTH = 16;
-const WAVE_AMPLITUDE = 3;
+const WAVE_AMPLITUDE = 1.3;
 
 /**
  * Baut eine Wellenfläche, die über die Zeichenfläche hinaussteht: Die CSS-Animation verschiebt sie

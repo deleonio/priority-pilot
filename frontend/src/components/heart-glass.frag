@@ -23,6 +23,9 @@ uniform float u_rise_duration;
 uniform float u_wave_length;
 uniform float u_wave_amplitude;
 uniform float u_wave_duration;
+uniform float u_depth_waves;
+uniform float u_depth_strength;
+uniform float u_shadow;
 
 #ifdef GLASS_APP
 uniform vec3 u_band_colors[8];
@@ -80,6 +83,19 @@ float sdSeg(vec2 p, vec2 a, vec2 b) {
 
 /* Kantabstand + Innerhalb-Paritat in einem Durchlauf: q ist bereits auf x >= 50 gefaltet. */
 #define E(a, b) d = min(d, sdSeg(q, a, b)); if ((a.y > q.y) != (b.y > q.y) && q.x < (b.x - a.x) * (q.y - a.y) / (b.y - a.y) + a.x) inside = 1.0 - inside;
+
+/*
+ * Tiefenwelle: eine versetzte, langsamer driftende Schicht unter der Hauptoberflaeche — nur
+ * innerhalb des Wassers sichtbar, halbtransparent abgedunkelt. Textueller Makro statt Funktion,
+ * weil GLSL keine Closures kennt (p, level, drift, water, aa kommen aus dem Aufrufort in main).
+ */
+#define STRATUM(dur, off, drop, ampScale, dark, strength) \
+	{ \
+		float phS = PI2 * ((p.x + drift * u_wave_length / dur) / u_wave_length) + off; \
+		float surfS = level + u_wave_amplitude * ampScale * sin(phS) + drop; \
+		float mS = smoothstep(surfS - aa, surfS + aa, p.y) * water * strength; \
+		liquid = mix(liquid, liquid * dark, mS); \
+	}
 
 /* ---------- Themen: Farben und Bandgrenzen (App: Uniforms, Preview: Konstanten) ---------- */
 
@@ -219,6 +235,17 @@ void main() {
 
 	vec3 liquid = bandColorAt(t);
 	liquid = mix(liquid, seamColor(), seamFactor(t) * 0.55);
+
+	/*
+	 * Tiefenwellen: zwei versetzte, langsamer driftende Schichten unter der Hauptoberflaeche. Sie
+	 * geben dem Wasser Tiefe, ohne die Wasserlinie — und damit den Fuellstand — zu verwässern; die
+	 * Hauptwelle behaelt den Meniskus als einzige helle Kante. Ihr Abstand (drop) ist so gewaehlt,
+	 * dass jede Schicht selbst im Wellental unter der vorherigen bleibt — sonst sähe die tiefste
+	 * Schicht ueber der Oberflaeche, der Fehler, der die Tiefenwelle im SVG unmoeglich macht.
+	 */
+	STRATUM(9.0, 2.1, 3.4, 1.35, 0.82, step(1.0, u_depth_waves) * u_depth_strength)
+	STRATUM(11.0, 4.2, 6.8, 1.7, 0.70, step(2.0, u_depth_waves) * u_depth_strength * 0.66)
+
 	liquid *= mix(1.05, 0.78, depth);
 	liquid *= 1.0 - 0.14 * wall;
 	liquid *= 1.0 + 0.05 * cos(phase);
@@ -232,18 +259,37 @@ void main() {
 
 	vec3 col = mix(vessel, liquid, water * 0.92);
 
-	/* Glas: heller Fresnel-Saum kurz innerhalb der Kontur, zweite blassere „Dickenzeile“. */
-	col += vec3(0.18) * smoothstep(0.0, 1.0, -sd) * smoothstep(3.4, 1.0, -sd);
+	/*
+	 * Lichtrichtung (oben links) als Mass 0–1 — steuert Fresnel-Saum, Kontur-Verlauf und Schatten.
+	 */
+	float lit = clamp(0.5 + ((50.0 - p.x) * 0.35 + (6.0 - p.y) * 0.65) / 60.0, 0.0, 1.0);
+
+	/* Glas: heller Fresnel-Saum kurz innerhalb der Kontur, zur Schattenseite auslaufend. */
+	col += vec3(0.20) * smoothstep(0.0, 1.0, -sd) * smoothstep(3.4, 1.0, -sd) * (0.25 + 0.75 * lit);
 	col += vec3(0.04) * smoothstep(4.5, 6.0, -sd) * smoothstep(9.5, 6.0, -sd);
 
-	/* Glanzlichter auf den Lappen: Licht von oben links, auf der Flüssigkeit ebenso sichtbar. */
-	col += vec3(0.12) * spec(p, vec2(31.0, 20.0), vec2(11.0, 3.2), -0.55);
-	col += vec3(0.08) * spec(p, vec2(69.0, 25.0), vec2(6.5, 2.4), 0.45);
-	col += vec3(0.05) * spec(p, vec2(24.0, 33.0), vec2(2.2, 2.2), 0.0);
+	/* Glanzlichter auf den Lappen: Licht von oben links, auf der Fluessigkeit ebenso sichtbar. */
+	col += vec3(0.13) * spec(p, vec2(31.0, 20.0), vec2(10.0, 2.8), -0.55);
+	col += vec3(0.09) * spec(p, vec2(69.0, 25.0), vec2(6.0, 2.2), 0.45);
+	col += vec3(0.05) * spec(p, vec2(24.0, 33.0), vec2(2.0, 2.0), 0.0);
 
-	/* Kontur wie im SVG: border-strong, zentriert, Breite 2 — hält ≥ 3:1 (WCAG 1.4.11). */
-	float outline = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, abs(sd));
-	col = mix(col, outlineColor(), outline);
+	/*
+	 * Kontur: schmal (Gesamtstaerke 1,2) und mit Lichtrichtung gefärbt — zur Schattenseite dunkler
+	 * statt zur Lichtseite aufgehellt: Jede Stelle bleibt >= 3:1 gegen die Karte (WCAG 1.4.11,
+	 * Farb- keine Strichstaerkefrage).
+	 */
+	float outline = 1.0 - smoothstep(0.6 - aa, 0.6 + aa, abs(sd));
+	vec3 outlineCol = mix(outlineColor(), outlineColor() * 0.78, 1.0 - lit);
+	col = mix(col, outlineCol, outline);
 
-	gl_FragColor = vec4(col, max(heart, outline));
+	/*
+	 * Weicher Schatten unterm Herz: hebt die Silhouette von der Karte, nur unterhalb der Mitte
+	 * (Licht von oben links) und nur ausserhalb der Kontur.
+	 */
+	float alpha = max(heart, outline);
+	float shadowMask = smoothstep(7.0, 1.0, sd) * smoothstep(30.0, 64.0, p.y);
+	float shadowAlpha = (1.0 - alpha) * shadowMask * u_shadow;
+	col = mix(col, vec3(0.42, 0.45, 0.50), (1.0 - alpha) * shadowMask);
+
+	gl_FragColor = vec4(col, max(alpha, shadowAlpha));
 }
