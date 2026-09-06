@@ -15,12 +15,9 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
-  1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt. Check line 2 for whether this was a "Review ohne Issue".
-  2. Load the fixup's <!-- ai-fixup-decisions --> collected comment: its "✅ Behobene Anmerkungen"
-     rows (Finding #<N> — fixed in <SHA>) are the CLAIM CHECKLIST. Verify each row against the
-     fixup diff (commit exists, actually fixes the finding, introduces nothing new); findings
-     without a claim row stay open. This is cheaper and more precise than re-discovering the delta.
-  Delta-Review per SKILL.md step 5 (Diff scoping): only the fixup diff + new problems; tick off open findings, keep context in view.
+  1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt (CI delta; not in the SKILL). Check line 2 for whether this was a "Review ohne Issue".
+  2. Claim checklist (fixup's <!-- ai-fixup-decisions --> comment: "✅ Behobene Anmerkungen" rows) + delta scoping per
+     review-kreuzverhoer SKILL.md step 5 — verify each claim row against the fixup diff; findings without a claim row stay open.
      - If the original review was "ohne Issue": continue using PR description as the informal specification (no AK verification possible).
 
 WRAP-UP (both modes):
