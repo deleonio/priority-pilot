@@ -13,6 +13,7 @@ import LlmProvider from './llmProvider.js';
 import Group from './group.js';
 import GroupMember from './groupMember.js';
 import GroupInvitation from './groupInvitation.js';
+import GroupInviteLink from './groupInviteLink.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -77,4 +78,5 @@ export {
 	Group,
 	GroupMember,
 	GroupInvitation,
+	GroupInviteLink,
 };

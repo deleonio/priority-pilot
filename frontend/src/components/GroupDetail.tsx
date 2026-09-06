@@ -1,5 +1,5 @@
 import { KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
-import type { GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
+import type { GroupInviteLink, GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -10,6 +10,17 @@ const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Ad
 
 /** Ab dieser Länge sucht der Server nach Namensfragmenten (kürzer: nur volle E-Mail). */
 const MIN_QUERY_LENGTH = 3;
+
+/** Vollständiger Beitrittslink zu einem Token (#1226). */
+const inviteLinkUrl = (token: string): string =>
+	`${window.location.origin}/gruppen/beitreten?token=${encodeURIComponent(token)}`;
+
+/** Maskiert einen Token auf Anfang und Ende — nach dem einmaligen Voll-Blick (KI-UX #1226). */
+const maskToken = (token: string): string => `${token.slice(0, 4)} … ${token.slice(-4)}`;
+
+/** Ablaufdatum eines Links kurz und deutsch formatiert. */
+const formatExpiry = (expiresAt: string): string =>
+	new Date(expiresAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 type GroupDetailProps = {
 	groupId: number;
@@ -40,6 +51,15 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 	const [pendingRemoval, setPendingRemoval] = useState<GroupMember | null>(null);
 	// Initialfokus im Bestätigungsdialog: „Abbrechen" (#472 — destruktive Aktion nicht per Enter).
 	const cancelRemoveRef = useRef<HTMLKolButtonElement>(null);
+	// Einladungslinks (#1226), in DIESER Sitzung erzeugt — der Token wird nur bei der Erzeugung
+	// übermittelt, eine serverseitige Liste existiert bewusst nicht. `copiedLinkId` markiert den
+	// Link, dessen einmaliger Voll-Blick vorbei ist (fortan maskiert).
+	const [inviteLinks, setInviteLinks] = useState<GroupInviteLink[]>([]);
+	const [copiedLinkId, setCopiedLinkId] = useState<number | null>(null);
+	// Link, dessen Ungültigmachung noch bestätigt werden muss (null = kein Dialog offen).
+	const [pendingRevoke, setPendingRevoke] = useState<GroupInviteLink | null>(null);
+	// Initialfokus im Bestätigungsdialog: „Abbrechen" (#472).
+	const cancelRevokeRef = useRef<HTMLKolButtonElement>(null);
 
 	const load = useCallback(async (): Promise<void> => {
 		try {
@@ -107,6 +127,47 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 			await load();
 		} catch (reason) {
 			// 409 „letzter Administrator" kommt als Server-Meldung und bleibt als KolAlert stehen.
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	};
+
+	// ── Einladungslinks (#1226) ───────────────────────────────────────────────────────
+	// Der Server übermittelt den Token ausschließlich in der Erzeugungs-Antwort — deshalb bleibt
+	// der frische Link genau einmal voll sichtbar (mit Kopieren-Aktion) und erscheint danach in
+	// der Liste der offenen Links nur noch maskiert. Die Liste lebt bewusst im Komponenten-State:
+	// es gibt keinen serverseitigen Listen-Endpunkt, und nach einem Neuladen sind alte Token
+	// ohnehin nie wieder einsehbar.
+
+	const handleCreateInviteLink = async (): Promise<void> => {
+		try {
+			const created = await api.createGroupInviteLink({ id: groupId });
+			setInviteLinks((current) => [created, ...current]);
+			setError(null);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	};
+
+	const handleCopyInviteLink = async (link: GroupInviteLink): Promise<void> => {
+		try {
+			await navigator.clipboard.writeText(inviteLinkUrl(link.token));
+			// Einmal voll sichtbar, danach maskiert (KI-UX-Block): Nach dem Kopieren ist der
+			// eine Blick gewesen — der Eintrag erscheint fortan nur noch als Ausschnitt.
+			setCopiedLinkId(link.id);
+		} catch {
+			setError('Der Link konnte nicht in die Zwischenablage kopiert werden. Bitte manuell markieren und kopieren.');
+		}
+	};
+
+	const handleRevokeInviteLink = async (link: GroupInviteLink): Promise<void> => {
+		setPendingRevoke(null);
+		try {
+			await api.revokeInviteLink({ id: link.id });
+			setInviteLinks((current) => current.filter((entry) => entry.id !== link.id));
+			setError(null);
+		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
 		}
@@ -207,6 +268,52 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 								))}
 						</section>
 					)}
+					{ownRole === 'admin' && (
+						<section className="group-invite-links">
+							<KolHeading _label="Einladungen" _level={4} />
+							<p className="hint">
+								Über einen Link kann jeder deiner Gruppe ohne persönliche Einladung beitreten. Ein Link ist 7 Tage
+								gültig und lässt sich jederzeit ungültig machen.
+							</p>
+							<KolButton
+								_label="Link erzeugen"
+								_variant="secondary"
+								_on={{ onClick: () => void handleCreateInviteLink() }}
+							/>
+							{inviteLinks.length > 0 && (
+								<ul className="group-invite-links-list">
+									{inviteLinks.map((link) => (
+										<li key={link.id} className="group-invite-link">
+											{copiedLinkId === link.id ? (
+												<>
+													<span className="group-invite-link-token">{maskToken(link.token)}</span>
+													<span className="group-invite-link-meta">
+														gültig bis {formatExpiry(link.expiresAt)} · Link kopiert
+													</span>
+												</>
+											) : (
+												<>
+													{/* Der frische Link ist einmal voll sichtbar — direkt hier kopierbar. */}
+													<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
+													<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>
+													<KolButton
+														_label="Link kopieren"
+														_variant="secondary"
+														_on={{ onClick: () => void handleCopyInviteLink(link) }}
+													/>
+												</>
+											)}
+											<KolButton
+												_label="Ungültig machen"
+												_variant="danger"
+												_on={{ onClick: () => setPendingRevoke(link) }}
+											/>
+										</li>
+									))}
+								</ul>
+							)}
+						</section>
+					)}
 				</>
 			)}
 			{pendingRemoval !== null && (
@@ -230,6 +337,31 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 							_label="Entfernen"
 							_variant="danger"
 							_on={{ onClick: () => void handleRemove(pendingRemoval.userId) }}
+						/>
+					</div>
+				</Modal>
+			)}
+			{pendingRevoke !== null && (
+				<Modal
+					title="Einladungslink ungültig machen"
+					onClose={() => setPendingRevoke(null)}
+					initialFocusRef={cancelRevokeRef as RefObject<HTMLElement | null>}
+				>
+					<p>
+						Willst du diesen Einladungslink wirklich ungültig machen? Niemand kann damit mehr beitreten — das lässt sich
+						nicht rückgängig machen. Bereits Beigetretene bleiben Mitglied.
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							ref={cancelRevokeRef}
+							_label="Abbrechen"
+							_variant="secondary"
+							_on={{ onClick: () => setPendingRevoke(null) }}
+						/>
+						<KolButton
+							_label="Ungültig machen"
+							_variant="danger"
+							_on={{ onClick: () => void handleRevokeInviteLink(pendingRevoke) }}
 						/>
 					</div>
 				</Modal>

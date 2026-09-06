@@ -2620,3 +2620,81 @@ kol-heading {
 .heart-legend-dot--8 {
 	background: var(--pp-pillar-8);
 }
+
+/* --- Beitrittsseite über Einladungslink (#1226): öffentlicher Screen ohne App-Shell --- */
+/*
+ * Eine Spalte, Karte voll breit, Inhaltsbreite begrenzt (AK6): bei 375px liegt der Karteninhalt
+ * inklusive Primäraktion vollständig im Viewport — geprüft per Bounding-Box, da die App-Shell
+ * `overflow-x: hidden` clippt (Erfahrung 2026-08-24).
+ */
+.join-page {
+	display: grid;
+	place-items: start center;
+	min-height: 100dvh;
+	box-sizing: border-box;
+	padding: 1.5rem;
+}
+
+.join-card {
+	display: grid;
+	gap: 1rem;
+	width: 100%;
+	max-width: 28rem;
+	padding: 1.5rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg, #fff);
+	color: var(--pp-ink);
+}
+
+/* Primäraktion „Gruppe beitreten" in voller Breite im unteren Bereich (KI-UX #1226). */
+.join-card kol-button {
+	width: 100%;
+}
+
+.join-card-context {
+	margin: 0;
+	color: var(--pp-text-muted);
+}
+
+.join-card-context strong {
+	color: var(--pp-ink);
+}
+
+/* --- Einladungslinks in der Gruppendetail-Verwaltung (#1226) --- */
+.group-invite-links {
+	display: grid;
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+
+.group-invite-links-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 0.5rem;
+}
+
+.group-invite-link {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+/* Volle Link-URL darf umbrechen, nie überlaufen (AK-Familie 375px, Erfahrung 2026-08-24). */
+.group-invite-link-token {
+	overflow-wrap: anywhere;
+	min-width: 0;
+	font-size: 0.875rem;
+}
+
+.group-invite-link-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+}
