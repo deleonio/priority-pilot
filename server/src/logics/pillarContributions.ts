@@ -62,19 +62,16 @@ export const validatePillars = (raw: unknown[]): { ok: true; pillars: PillarCont
 };
 
 /**
- * DB-gestützte Prüfung, ob alle referenzierten Säulen für einen Nutzer existieren (Teil 2, #428).
- * Säulen sind jetzt nutzer-eigen; optionaler `userId`-Parameter scoping die Prüfung auf die Säulen
- * des Nutzers (ownerScope). Ohne userId (undefined) bleibt die Prüfung global (Abwärtskompatibilität).
- * `[]` ist trivial `true`.
+ * DB-gestützte Prüfung, ob alle referenzierten Säulen für ein Konto existieren (Teil 2, #428).
+ * Säulen sind nutzer-eigen; der Kontobezug ist Pflichtparameter (#1249, AK5) — die frühere globale
+ * Prüfung ohne Konto ist entfallen. `null` (Datensatz ohne Eigentümer-Konto) matcht nur die
+ * historischen NULL-owned Säulen (`pillars.userId` ist nullable; ownership-konsistent im
+ * Dev-Pass-Through); produktiv ist der Kontobezug stets gesetzt. `[]` ist trivial `true`.
  */
-export const arePillarsExistent = async (pillarIds: number[], userId?: number): Promise<boolean> => {
+export const arePillarsExistent = async (pillarIds: number[], userId: number | null): Promise<boolean> => {
 	if (pillarIds.length === 0) {
 		return true;
 	}
-	const where: { id: number[]; userId?: number } = { id: pillarIds };
-	if (userId !== undefined) {
-		where.userId = userId;
-	}
-	const count = await Pillar.count({ where });
+	const count = await Pillar.count({ where: { id: pillarIds, userId } });
 	return count === pillarIds.length;
 };

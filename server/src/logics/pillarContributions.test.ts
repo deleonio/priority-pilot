@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Pillar } from '../models/index.js';
+import { Pillar, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 // ROTER Spec-Test (#302 / A3.2): Das geteilte Pillar-Validierungsmodul existiert noch nicht. Der
 // Import schlägt fehl, bis `server/src/logics/pillarContributions.ts` die hier eingeklagte
@@ -105,9 +105,12 @@ describe('validatePillars', () => {
 });
 
 /**
- * Vertrag für `arePillarsExistent(pillarIds)` — die DB-gestützte Prüfung, ob alle referenzierten
- * Säulen als globale Stammdaten existieren. Liefert `true`, wenn jede `pillarId` einer Zeile in
- * `pillars` entspricht (leere Liste ⇒ trivial `true`), sonst `false`.
+ * Vertrag für `arePillarsExistent(pillarIds, userId)` (#1249, AK5) — die DB-gestützte Prüfung, ob
+ * alle referenzierten Säulen für das genannte KONTO existieren. Der Kontobezug ist Pflichtparameter
+ * (kein optionaler globaler Fallback): ein Aufruf ohne Konto ist nicht mehr kompilierbar — abgesichert
+ * über `tsc --noEmit` in den Gates, weshalb JEDER Aufruf hier das Konto übergibt. Liefert `true`,
+ * wenn jede `pillarId` einer Zeile in `pillars` mit genau dieser `userId` entspricht (leere Liste ⇒
+ * trivial `true`), sonst `false`.
  */
 describe('arePillarsExistent', () => {
 	beforeEach(async () => {
@@ -118,28 +121,38 @@ describe('arePillarsExistent', () => {
 		await closeDb();
 	});
 
-	const seedTwoPillars = async (): Promise<[number, number]> => {
-		const koerper = await Pillar.create({ name: 'Körper', weight: 20 });
-		const sinn = await Pillar.create({ name: 'Sinn', weight: 20 });
-		return [koerper.id, sinn.id];
+	/** Zwei nutzer-eigene Säulen (gleicher Name wie bei Fremd-Konto in einem Test, Unique-Index erlaubt das). */
+	const seedTwoPillars = async (): Promise<{ userId: number; ids: [number, number] }> => {
+		const owner = await User.create({ email: 'owner@example.com', passwordHash: '__test__', displayName: 'Owner' });
+		const koerper = await Pillar.create({ name: 'Körper', weight: 20, userId: owner.id });
+		const sinn = await Pillar.create({ name: 'Sinn', weight: 20, userId: owner.id });
+		return { userId: owner.id, ids: [koerper.id, sinn.id] };
 	};
 
 	it('leere Liste → true', async () => {
-		assert.equal(await arePillarsExistent([]), true);
+		const { userId } = await seedTwoPillars();
+		assert.equal(await arePillarsExistent([], userId), true);
 	});
 
-	it('alle pillarIds existieren → true', async () => {
-		const [koerper, sinn] = await seedTwoPillars();
-		assert.equal(await arePillarsExistent([koerper, sinn]), true);
+	it('alle pillarIds existieren im Konto → true', async () => {
+		const { userId, ids } = await seedTwoPillars();
+		assert.equal(await arePillarsExistent(ids, userId), true);
 	});
 
 	it('unbekannte pillarId → false', async () => {
-		await seedTwoPillars();
-		assert.equal(await arePillarsExistent([99999]), false);
+		const { userId } = await seedTwoPillars();
+		assert.equal(await arePillarsExistent([99999], userId), false);
 	});
 
 	it('teils unbekannte pillarId → false', async () => {
-		const [koerper] = await seedTwoPillars();
-		assert.equal(await arePillarsExistent([koerper, 99999]), false);
+		const { userId, ids } = await seedTwoPillars();
+		assert.equal(await arePillarsExistent([ids[0], 99999], userId), false);
+	});
+
+	it('Säule eines FREMDEN Kontos zählt nicht (gleicher Name, andere userId) → false (#1249)', async () => {
+		const { userId, ids } = await seedTwoPillars();
+		const fremd = await User.create({ email: 'fremd@example.com', passwordHash: '__test__', displayName: 'Fremd' });
+		const fremdPillar = await Pillar.create({ name: 'Körper', weight: 20, userId: fremd.id });
+		assert.equal(await arePillarsExistent([ids[0], fremdPillar.id], userId), false);
 	});
 });
