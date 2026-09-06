@@ -1,34 +1,35 @@
-# PR 1244 — Kreuzverhör (Review-Phase), Stand 2026-09-06
+# PR 1244 — Kreuzverhör + Fixup-Nachweis (Review-Phase), Stand 2026-09-06 (2. Lauf)
 
-**ERGEBNIS: VERDICT reviewed, 🟢 mit 2 Nits (nicht blockierend).** Modus Kreuzverhör (kein `<!-- ai-review -->`-Marker vorhanden), kein Closing-Issue (length 0) → „Review ohne Issue — PR-Beschreibung ist massgebend" (steht in Zeile 2 des Sammelkommentars). Titel per Titel-Gate umbenannt (war deutsch) → `feat(frontend): separate balance switch from recompute button (#1220)`.
+**ERGEBNIS: VERDICT reviewed, 🟢.** Lauf 1 (Kreuzverhör): reviewed mit 2 Nits, Sammelkommentar IC_kwDONloM188AAAABSyTgnw angelegt. Lauf 2 (dieser): Marker vorhanden → MODE FIXUP VERIFICATION; Fixup-Commit `f4958f06` (2026-09-06T00:28Z, nach Sammelkommentar 00:05Z) + Merge `a23a2129` = Delta. Beide Nits im Delta behoben und verifiziert, keine neuen Findings, CI grün → Sammelkommentar aktualisiert (Nits 1+2 in „Behobene Anmerkungen", Review-Typ: Fixup-Nachweis). Titel-Gate: `feat(frontend): separate balance switch from recompute button (#1220)` = gültig (70 Zeichen, CC-konform), kein Rename.
 
 ## Erledigt
-- Vollständigen Diff gelesen (6 Dateien, +277/−114): App.tsx-Entflechtung, balancePriority.ts (+`balancePrioritiesEqual`), 5 neue Unit-Fälle, E2E AK2/AK6/Veraltet/AK5 erweitert, docs/spec/issue-1220.md nachgezogen.
-- Modus über Marker-Suche bestimmt (kein Treffer → Kreuzverhör); Closing-Issue-Check: 0.
-- CI verifiziert: e2e (1)–(4), precheck, label, verify = SUCCESS; „review"-Check = dieser Lauf selbst.
-- Umfeld-Recherche an recherche-Subagent (haiku) delegiert: 0 Reste von `Ausbalancieren`/`activateBalanceMode`/`rebalancePrefetchRef`/`applyBalanceSnapshot`; `useRef` (App.tsx:13→111,376,379) und `flushSync` (:14→740) lebendig; `sortTasksByBalance` extern nur TaskTree.tsx:8,270 (unverändert); Balance-UI nur e2e-abgedeckt (kein Unit-Test — OK); 5 `test(` in der Spec-Datei = matches PR-Body „5/5".
-- Review (event COMMENT, ID 5123516190) mit 2 Inline-Nits gepostet; Sammelkommentar einmalig angelegt (ID 5555675295).
+- Marker-Suche: genau 1 `<!-- ai-review -->`-Kommentar (IC_kwDONloM188AAAABSyTgnw) → Fixup-Nachweis-Modus.
+- KEIN `<!-- ai-fixup-decisions -->`-Kommentar auf dem PR (fixup-Check = „skipping") → keine Claim-Zeilen; Delta stattdessen direkt gegen die offenen Findings geprüft (18bc659c..a23a2129, 5 Dateien, +83/−10).
+- Nit-1-Fix verifiziert: `originalPriority` in `BalancePriority` (`balancePriority.ts:26`), mitverglichen in `balancePrioritiesEqual` (:98), Tie-Break in `sortTasksByBalance` liest Snapshot mit Fallback auf eigene Prio bei fehlendem Eintrag (:122-124); 3 neue Unit-Tests (eingefrorener Gleichstand, Fallback, Veraltet bei Prio-Änderung); Spec `docs/spec/issue-1220.md` synchronisiert.
+- Nit-2-Fix verifiziert: Button-Label `rebalancing ? 'Berechne neu …' : 'Neu berechnen'` (App.tsx ~:790), E2E-Locator-Regex auf beide Zustände erweitert (`issue-1220-balance-mode.spec.ts:98`).
+- CI auf Head: verify + e2e (1)–(4) + precheck + label = pass (gh pr checks).
+- Sammelkommentar per GraphQL `updateIssueComment` aktualisiert (Body-Vorlage: `.ai-memory/issue-1244-comment.md`).
 
 ## Relevante Stellen
-- `frontend/src/App.tsx:174` — `liveBalance`-useMemo, einzige Rechenstelle; `:184` Effect: Modus aus → Snapshot läuft mit; `:192` `balanceStale`; `:203-215` `rebalanceTasks` (fetch → ersetzt Stand, `_disabled={rebalancing}` :790); `:818` `balancePriorities={balanceMode ? balanceSnapshot : null}`.
-- `frontend/src/lib/balancePriority.ts:75` — `balancePrioritiesEqual` (Vergleich: ID → score+virtualPriority); `:105` Tie-Break `b.priority - a.priority` aus aktuellen Task-Objekten (Nit-1-Quelle).
-- `frontend/e2e/issue-1220-balance-mode.spec.ts` — Tests :124 (AK1+AK3+AK4 kombiniert), :165 (AK2), :200 (Veraltet-Hinweis), :233 (AK6, Netzwerk-Mitschnitt), :270 (AK5 375px).
+- `frontend/src/lib/balancePriority.ts:23-31,67-73,95-100,106-125` — eingefrorener Tie-Break (Kern des Fixups).
+- `frontend/src/lib/balancePriority.test.ts:149-176,265-277` — die 3 neuen Unit-Fälle.
+- `frontend/src/App.tsx:785-795` — Ladezustand-Label des Neu-berechnen-Buttons.
+- `docs/spec/issue-1220.md:35-49,84-93` — Vertrag + Ladezustand nachgezogen.
 
 ## Annahmen
-- PR-Body als informelle Spec (AK-Nummern aus docs/spec/issue-1220.md, das im selben PR nachgezogen wurde — bewusstes Test-Pflege im Nachbesserungs-PR, kein Separation-of-duties-Verstoß, da keine Issue-Phase lief).
-- „274 pass / 0 fail" aus dem PR-Body nicht selbst gezählt — durch CI-verify SUCCESS gedeckt.
+- `gh pr checks` zeigt die Checks des aktuellen Head (a23a2129) — e2e/verify-pass deckt den Fixup-Commit ab (Timeline: Push 00:28 → verify/e2e → Review-Run).
+- Interface-Erweiterung `BalancePriority` um Pflichtfeld `originalPriority` ist abwärtsunikal: einzige Konstruktionsstelle ist `buildBalancePriorities`; tsc (verify) grün bestätigt.
 
 ## Verworfen
-- Blocker „Balance-UI ohne Unit-Tests" — Verdrahtung (Einfrieren/Veraltet/Aufgabenteilung) ist deterministisch per E2E abgedeckt, Rechenkern per Unit; deckungsgleich mit #1220-Präzedenz.
-- Nit als Fixup-Runde werten — Kosten-Gate (SKILL Schritt 4): ~45 Turns rechtfertigen keinen Randfall.
+- Neue Kreuzverhör des ganzen PRs — Fixup-Nachweis-Modus (SKILL Schritt 5): nur Delta + offene Findings.
+- MEMORY.md-Eintrag — kein neuer Fehler/Kriterium erfüllt.
 
 ## Offen
-- Nits 1+2 (siehe Sammelkommentar) — abhakbar durch späteren Fixup oder Menschen, kein `ai:needs-fixup` ausgelöst.
+- `.ai-memory/issue-1244-comment.md` = Wegwerf-Artefakt (Kommentar-Vorlage), NICHT committen.
 
 ## Nächster Schritt
-- Workflow übernimmt (Labels automatisch); bei menschlich angeordneter Fixup-Runde: Fixup-Nachweis-Modus (Marker vorhanden → nur Claim-Checkliste + Delta seit Updated prüfen).
+- Workflow übernimmt (Labels automatisch, Review-Term steht in /tmp/claude-verdict und Sammelkommentar).
 
 ## Fallstricke
-- Nächster Review-Lauf: MODE = FIXUP VERIFICATION (Marker `<!-- ai-review -->` jetzt vorhanden, ID 5555675295, Updated 2026-09-06).
-- Finding-Nummerierung: Nits sind als 1/2 im Sammelkommentar verankert — bei Fixup-Runde diese IDs beibehalten, nicht neu nummerieren.
-- Titel wurde von mir geändert (feat statt refactor per Workflow-Hinweis) — nicht als Finding werten.
+- Erneuter Review-Lauf: Marker weiterhin vorhanden → wieder FIXUP VERIFICATION; Finding-Nummern 1/2 sind jetzt in „Behobene Anmerkungen" verankert, NICHT neu nummerieren.
+- Kommentar-Edit läuft nur per GraphQL mit der Node-ID (REST bräuchte numerische Comment-ID, `gh pr view` liefert die Node-ID).
