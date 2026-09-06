@@ -24,7 +24,7 @@ MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result
      - If the original review was "ohne Issue": continue using PR description as the informal specification (no AK verification possible).
 
 WRAP-UP (both modes):
-  - TITLE GATE (BEFORE the verdict): {{TITLE_OK}} says whether the PR title satisfies Conventional Commits (type(scope)!: subject, English, lowercase subject, <=72). If false: rename it via gh pr edit {{PR_NR}} --title — using the type/scope hints {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, subject in descriptive English. Not a finding, doesn't delay the verdict.
+  - TITLE GATE (BEFORE the verdict): {{TITLE_OK}} says whether the PR title satisfies Conventional Commits (type(scope)!: subject, English, lowercase subject, <=72). If {{TITLE_OK}} is not exactly `true` (false or `unbekannt`): verify the title yourself against that rule; if it violates: rename it via gh pr edit {{PR_NR}} --title — using the type/scope hints {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, subject in descriptive English. Not a finding, doesn't delay the verdict.
   - Blocker findings (bug/security, uncovered AC, red tests, convention break WITH impact) →
     review comments on file/line, then VERDICT: needs-fixup
   - NIT-ONLY (style/naming/minor simplification, no behavioral risk — severity per SKILL.md step 4):

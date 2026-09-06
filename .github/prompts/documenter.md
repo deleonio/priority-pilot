@@ -6,7 +6,7 @@ INPUTS (read them yourself):
 - `gh pr diff {{PR_NR}}`
 - `gh pr view {{PR_NR}} --json title,body,files,labels,author`
 - {{LINKED_ISSUES}} (context)
-- title compliant = {{TITLE_OK}}, type/scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
+- title compliant = {{TITLE_OK}} — trust ONLY exactly `true`; `false`/`unbekannt` → decide compliance yourself (SKILL.md → Rules); type/scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
 
 OUTPUT (`/tmp/doc.json`): structure per SKILL.md → Output.
 
