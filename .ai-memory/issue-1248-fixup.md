@@ -47,3 +47,19 @@
 - Nochmaliger Rerun der deterministischen main-Fails — pointless, auf main selbst rot (Beleg 34005240890).
 ## Nächster Schritt (R3)
 - VERDICT already-done; Wegwerf-Artefakt `.ai-memory/issue-1248-decisions-body.md` NICHT committen.
+
+---
+# Update Fixup-Runde 4, 2026-09-06 (~06:32 UTC)
+## Erledigt (R4)
+- Trigger: fixup-Workflow erneut gelaufen (Runs 34015634330/34015640055). Befund: ai-fixup-decisions-Kommentar 5556752267 war von R3 kaputtgepatcht — Body = wörtlich `@.ai-memory/issue-1248-decisions-body.md` (40 Byte, Dateiname statt Inhalt; `-F body=@pfad`-Mishap, lokales Artifact nicht mehr vorhanden).
+- Kommentar 5556752267 aus den Phasen-Notizen (Fixup R1 ✅-Tabelle + R3 CI-Sektion) NEU aufgebaut (Marker, 🎯 Fixup-Status: already-done, 3-Zeilen-✅-Tabelle SHA 268e3736, CI-Sektion, Review-Typ/Updated) und per PATCH wiederhergestellt (1077 Byte, Marker+Tabelle verifiziert). Review-Kommentar 5556715608 intakt (1495 Byte) — nicht angefasst.
+- Keine offenen Findings (R2 = Fixup-Nachweis 🟢, REST-Threads leer, keine neuen ai-review-Kommentare), kein Code/Docs-Commit nötig.
+## Annahmen (R4)
+- rebuilt Body inhaltlich identisch zu R1/R3-Stand; Fehltext nur 40 Byte, daher kein Datenverlust über Notizen hinaus.
+## Verworfen (R4)
+- Nochmaliger e2e-Rerun — verbleibende Fails deterministisch auf main rot (Beleg 34005240890), pointless.
+- Commit des Wegwerf-Artefakts issue-1248-decisions-body.md.
+## Nächster Schritt (R4)
+- VERDICT already-done liefern; /tmp/claude-verdict als SEHR LETZTE Aktion.
+## Fallstricke (R4)
+- `gh api -F body=@<datei>`: der @-File-Reference-Mechanismus hat in R3 den DATEINAMEN als Body gepostet — nach jedem PATCH Länge/Marker verifizieren (`.body|length` + grep Marker).
