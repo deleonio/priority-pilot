@@ -15,10 +15,9 @@ PROCEDURE (STRICT):
      (separation of duties). If a test contradicts the expected behavior → do NOT silently
      change/delete it; instead add a "Test-Pflege-Bedarf" (test maintenance needed) section in the
      PR body with file:line + justification.
-  3b. DIRECT MODE (no draft PR exists — the analysis deliberately skipped the spec):
-     create the harness branch ai/harness/{{ISSUE_NR}} yourself if it does not exist (git fetch origin ai/harness/{{ISSUE_NR}} && git switch ai/harness/{{ISSUE_NR}} || git switch -c ai/harness/{{ISSUE_NR}}), implement, commit, push, and create the PR YOURSELF
-     (gh pr create … Closes #{{ISSUE_NR}} …, NOT --draft). Test obligation for application code:
-     SKILL.md step 3a.
+  3b. DIRECT MODE (no draft PR exists — the analysis deliberately skipped the spec): per
+     ticket-implementation SKILL.md step 3(a) "Fallback/direct mode" — branch, implement, commit,
+     push, and create the PR YOURSELF (NOT --draft); incl. its test obligation.
   3.5. UI WORK on frontend changes: SKILL.md step 3b/3c.
   4. GATE per SKILL.md step 3c (full local CI gate, every command green BEFORE the push;
      test results in the PR body per AGENTS.md).
