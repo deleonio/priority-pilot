@@ -30,12 +30,18 @@
 - `server/src/express/routes/tasks.ts:478-489` (POST, neue Prüfung), `:558` (PATCH `?? null`).
 - `server/src/express/routes/series.ts:420-431` (POST, neue Prüfung), `:502-512` (PATCH, Eigentümer).
 - `server/src/express/pillar-ownership.test.ts` — Spec-Vertrag (AK1–AK4/AK6), unverändert gelassen.
-- Tabellennamen für AK7-SQL verifiziert: `task_pillars` (taskPillar.ts:55), `series_pillars`
-  (seriesPillar.ts:57), `pillars` (pillar.ts:62).
+- Tabellen- UND Spaltennamen für AK7-SQL verifiziert: `task_pillars(taskId, pillarId, …)`
+  (taskPillar.ts:55), `series_pillars(seriesId, pillarId, …)` (seriesPillar.ts:57), `pillars`
+  (pillar.ts:62) — camelCase-Spalten, kein `underscored`, keine `field`-Mappings (Fixup-Korrektur:
+  Erstverifikation prüfte nur Tabellennamen, weshalb die erste PR-Body-Fassung fälschlich
+  snake_case verwendete).
 
 ## Annahmen
 - `null`-Owner (Dev-Pass-Through ohne Session) mit nicht-leeren `pillars` → 400 ist gewollt
-  (AK5: Prüfung ohne Kontobezug unzulässig; `pillars.userId` ist NOT NULL, `IS NULL` matcht nie).
+  (AK5: Prüfung ohne Kontobezug unzulässig). `pillars.userId` ist NULLABLE (historische globale
+  Säulen, `seedPillars`/Migration lassen sie bestehen) — `IS NULL` matcht im Dev-Pass-Through
+  genau diese ownership-konsistenten Zeilen; produktiv ist der Kontobezug stets gesetzt
+  (Fixup-Korrektur der früheren NOT-NULL-Begründung).
 - PATCH /tasks verhält sich unverändert (Task ist owner-scoped geladen; `userId ?? null` entspricht
   dem Eigentümer).
 - SQLITE-Dialekt (`IS NOT`) für die AK7-Abfrage im PR-Body; PostgreSQL-Variante (`IS DISTINCT FROM`)

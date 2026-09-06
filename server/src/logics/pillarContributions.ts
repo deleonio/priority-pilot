@@ -64,8 +64,9 @@ export const validatePillars = (raw: unknown[]): { ok: true; pillars: PillarCont
 /**
  * DB-gestützte Prüfung, ob alle referenzierten Säulen für ein Konto existieren (Teil 2, #428).
  * Säulen sind nutzer-eigen; der Kontobezug ist Pflichtparameter (#1249, AK5) — die frühere globale
- * Prüfung ohne Konto ist entfallen. `null` (Datensatz ohne Eigentümer-Konto) matcht keine Säule.
- * `[]` ist trivial `true`.
+ * Prüfung ohne Konto ist entfallen. `null` (Datensatz ohne Eigentümer-Konto) matcht nur die
+ * historischen NULL-owned Säulen (`pillars.userId` ist nullable; ownership-konsistent im
+ * Dev-Pass-Through); produktiv ist der Kontobezug stets gesetzt. `[]` ist trivial `true`.
  */
 export const arePillarsExistent = async (pillarIds: number[], userId: number | null): Promise<boolean> => {
 	if (pillarIds.length === 0) {
