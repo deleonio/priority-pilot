@@ -1,5 +1,5 @@
 import { KolAlert, KolAvatar, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
-import type { GroupInviteLink, GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
+import type { Group, GroupInviteLink, GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
