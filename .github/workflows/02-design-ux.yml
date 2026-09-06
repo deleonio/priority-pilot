@@ -119,6 +119,7 @@ jobs:
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # vars.* = manueller Not-Override; sonst Tabelle; sonst bewährter Default.
           model: ${{ vars.CLAUDE_MODEL_UX || steps.routing.outputs.model || 'haiku' }}
+          subagent-model: ${{ vars.CLAUDE_MODEL_UX_SUBAGENT || 'haiku' }}
           effort: ${{ steps.routing.outputs.effort || 'low' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
