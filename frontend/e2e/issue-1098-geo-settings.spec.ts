@@ -89,7 +89,7 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 		expect(text).toMatch(/\(\d+,\d km\)/);
 	});
 
-	test('AK1/AK3 — 375px: Regler bedienbar, Touch-Ziel ≥ 44px, bei Standort aus _disabled', async ({ page }) => {
+	test('AK1/AK3 — 375px: „Standort-Details" folgt dem Switch, geöffnet ≥ 44px Touch-Ziel', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(GEO_INIT(false));
 		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
@@ -99,20 +99,33 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 		const labels = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', 'Aktualisierungsintervall (Minuten)'];
 		for (const label of labels) {
 			const host = page.locator(`kol-input-range[_label="${label}"]`);
-			await expect(host, `${label} wird gerendert (nicht versteckt)`).toHaveCount(1);
+			// #1227/Master-Detail-Pattern (docs/ux-pattern-master-detail-settings.md): das umschließende
+			// „Standort-Details"-KolDetails ist geschlossen, solange der Standort-Switch aus ist — die
+			// Regler bleiben im DOM (`_disabled` gesetzt), sind aber nicht sichtbar/messbar.
+			await expect(host, `${label} bleibt im DOM`).toHaveCount(1);
+			await expect(host, `${label} bei Standort aus nicht sichtbar (Details geschlossen)`).toBeHidden();
+			await expect(host, `${label} bei Standort aus deaktiviert`).toHaveAttribute('_disabled', /.*/);
+		}
+
+		// AK3 live: Einschalten öffnet das „Standort-Details" und hebt die Deaktivierung auf
+		// (key-Remount-Mechanik) — jetzt sind die Regler sichtbar, bedienbar und ≥44px hoch.
+		await geoSwitch(page).click();
+		// Das Öffnen animiert die Höhe (KolDetails-CSS-Transition, 0.3s) — auf den Endzustand
+		// warten, bevor gemessen wird (Muster settings-switch-layout.spec.ts AK3), sonst liefert
+		// die erste Bounding-Box einen Zwischenwert unter 44px.
+		const lastHost = page.locator(`kol-input-range[_label="${labels[labels.length - 1]}"]`);
+		await expect.poll(async () => (await lastHost.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+		for (const label of labels) {
+			const host = page.locator(`kol-input-range[_label="${label}"]`);
+			await expect(host, `${label} bei Standort an sichtbar`).toBeVisible();
+			await expect(host, `${label} bei Standort an nicht mehr deaktiviert`).not.toHaveAttribute('_disabled');
 			const box = await host.boundingBox();
 			expect(box, `${label} rendert messbar`).not.toBeNull();
 			// Bounding-Box statt scrollWidth (App-Shell clippt mit overflow-x:hidden):
 			expect(box!.x).toBeGreaterThanOrEqual(-1);
 			expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 			expect(box!.height, `${label} Touch-Ziel ≥ 44px`).toBeGreaterThanOrEqual(44);
-			// AK3: Standort aus → alle drei Felder deaktiviert, Werte bleiben sichtbar.
-			await expect(host, `${label} bei Standort aus deaktiviert`).toHaveAttribute('_disabled', /.*/);
 		}
-
-		// AK3 live: Einschalten hebt die Deaktivierung auf (key-Remount-Mechanik).
-		await geoSwitch(page).click();
-		await expect(page.locator('kol-input-range[_label="Anzeige-Entfernung (km)"]')).not.toHaveAttribute('_disabled');
 	});
 
 	test('AK7 — geänderter Anzeige-Wert überlebt den Reload (serverseitig gespeichert)', async ({ page }) => {

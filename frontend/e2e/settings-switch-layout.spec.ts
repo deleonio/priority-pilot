@@ -290,4 +290,31 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await expect(switchControl(page, /Herz animieren/i)).toBeDisabled();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeDisabled();
 	});
+
+	/**
+	 * Master-/Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md): „Animations-
+	 * Details" öffnet/schließt synchron mit dem Master-Schalter „Animationen" — unabhängig vom
+	 * manuellen Auf-/Zuklappen aus AK8. Ohne diesen Test wäre `_open={animationsEnabled}` von
+	 * einem lediglich default-geschlossenen KolDetails nicht unterscheidbar.
+	 */
+	test('AK9: „Animations-Details" folgt dem Master-Schalter „Animationen" (öffnen und schließen)', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		const animationsSwitch = switchControl(page, /^Animationen$/);
+		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
+
+		// Master an → Details öffnet von selbst, ohne den Aufklapp-Button zu klicken; Feinschalter
+		// werden bedienbar (kein `_disabled` mehr, da nur noch der Master-Zustand zählt).
+		await animationsSwitch.click();
+		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
+		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
+		await expect(switchControl(page, /Herz animieren/i)).toBeEnabled();
+		await expect(switchControl(page, /Erledigt animieren/i)).toBeEnabled();
+
+		// Master wieder aus → Details schließt von selbst, ohne erneuten Klick auf „Animations-Details".
+		await animationsSwitch.click();
+		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
+		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
+	});
 });

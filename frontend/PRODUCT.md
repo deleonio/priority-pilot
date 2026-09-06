@@ -46,7 +46,7 @@ Name **Priority Pilot** und vorhandenes Logo (Frontend-Assets, Transparenz durch
 
 ## Evidence on Hand
 
-- `docs/user-guide.md` (vollständiges Nutzerhandbuch), `README.md` (Fachlogik), ADRs unter `docs/adr/`, verbindliches Mobile-UI-Regelset `docs/mobile-ui-rules.md`, UX-Pattern-Doku (`docs/ux-pattern-sequential-confirmation.md`).
+- `docs/user-guide.md` (vollständiges Nutzerhandbuch), `README.md` (Fachlogik), ADRs unter `docs/adr/`, verbindliches Mobile-UI-Regelset `docs/mobile-ui-rules.md`, UX-Pattern-Doku (`docs/ux-pattern-sequential-confirmation.md`, `docs/ux-pattern-master-detail-settings.md`).
 - Stärkster Beweis: die echte tägliche Nutzung durch den Eigentümer.
 - Keine Testimonials, Fallstudien, Presseberichte oder Nutzerzahlen vorhanden — künftige Flächen dürfen solche Nachweise nicht erfinden.
 
