@@ -13,6 +13,7 @@ import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
+import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { usersRouter } from './routes/users.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
@@ -196,6 +197,11 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
 	app.use('/api/transit', transitRouter);
+
+	// Öffentliche Einladungslink-Preisgabe (#1226): GET + redeem unter /invite-links — bewusst
+	// VOR requireAuth, damit ein Link ohne Session geöffnet werden kann (redeem prüft die
+	// Session selbst und antwortet sonst 401).
+	app.use(inviteLinksPublicRouter);
 
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);
