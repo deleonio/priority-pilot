@@ -12,7 +12,7 @@ PROCEDURE (STRICT):
      line `ux`). The UX review runs BEFORE the spec.
      Legacy fallback: no marker comment yet → the analysis block may still live in the
      issue body (tickets before ADR 0009) — read it there.
-  4. Rules & sources per SKILL.md (.ai-knowledge/ux-design.md, docs/mobile-ui-rules.md, KoliBri docs via MCP) — purely static.
+  4. Rules & sources per SKILL.md (mandatory sources there) — purely static.
   5. Write the UX review (in German, per SKILL.md) between <!-- KI-UX:START --> and
      <!-- KI-UX:END --> INSIDE the harness marker comment (mechanics per SKILL.md → Output).
      CI delta: heredoc lines start at column 0, the EOF terminator must too.

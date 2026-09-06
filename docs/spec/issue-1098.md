@@ -14,14 +14,16 @@ Im Settings-Tab „Standort" lässt sich unterhalb des Standort-Switches konfigu
 
 ## Settings-Tab „Standort" — Geo-Block
 
-- Unterhalb des Switches „Standort erfassen" stehen drei `KolInputRange` (auch bei deaktiviertem Standort — disabled, nicht versteckt):
+- Unterhalb des Switches „Standort erfassen" stecken die drei `KolInputRange` in einem `KolDetails`
+  („Standort-Details", Muster `docs/ux-pattern-master-detail-settings.md`), das synchron mit dem
+  Switch öffnet/schließt — an → geöffnet, aus → geschlossen:
   - „Anzeige-Entfernung (km)": `_min` = aktueller Alarm-Wert, `_max` = 50, `_step` = 1,
   - „Alarm-Entfernung (km)": `_min` = 1, `_max` = aktueller Anzeige-Wert, `_step` = 1,
   - „Aktualisierungsintervall (Minuten)": `_min` = 1, `_max` = 60, `_step` = 1.
     Jedes Feld zeigt seinen aktuellen Wert sichtbar mit Einheit an („5 km", „1 km", „5 Minuten").
 - Kreuz-Schranken sind **dynamisch**: Ändert der Nutzer die Anzeige-Entfernung, springt `_max` der Alarm-Entfernung sofort auf den neuen Anzeige-Wert; ändert er die Alarm-Entfernung, springt `_min` der Anzeige-Entfernung sofort auf den neuen Alarm-Wert. Es gibt **keinen** Error-State/Alert/Inline-`_msg`.
 - Jede Änderung wird **sofort** gespeichert (PUT, kein Speichern-Button).
-- Standort-Switch aus → alle drei Felder sind deaktiviert; die Werte bleiben sichtbar erhalten.
+- Standort-Switch aus → das Standort-Details-`KolDetails` schließt (Regler nicht mehr sichtbar) und alle drei Felder sind zusätzlich `_disabled`; die Werte bleiben erhalten.
 - Der Hinweis des Standort-Switches („Ermittle alle N Minuten …") folgt dem konfigurierten Intervall.
 
 ## Positionsermittlung, Dashboard und Fußzeile
@@ -33,4 +35,4 @@ Im Settings-Tab „Standort" lässt sich unterhalb des Standort-Switches konfigu
 
 ## E2E (375px, mobile-first)
 
-Bei 375px sind die drei Regler bedienbar und vollständig im Viewport (Bounding-Box, nicht `scrollWidth` — die App-Shell clippt mit `overflow-x: hidden`); Touch-Ziel je Feld ≥ 44px Höhe.
+Bei 375px sind die drei Regler bedienbar und vollständig im Viewport (Bounding-Box, nicht `scrollWidth` — die App-Shell clippt mit `overflow-x: hidden`); Touch-Ziel je Feld ≥ 44px Höhe. Diese Prüfung gilt für den **geöffneten** Zustand des „Standort-Details"-`KolDetails` (Standort-Switch an); bei ausgeschaltetem Standort sind die Regler durch das geschlossene `KolDetails` nicht sichtbar.

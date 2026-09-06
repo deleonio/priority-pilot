@@ -2,7 +2,7 @@ Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are
 
 PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
-2. Read findings SCOPED (mirrors the review's own diff scoping, SKILL.md step 5): open findings from the collected ai-review comment (file/line anchors) + review threads + CI — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
+2. Read findings SCOPED (mirrors the review's own diff scoping, review-kreuzverhoer SKILL.md step 5): open findings from the collected ai-review comment (file/line anchors) + review threads + CI — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
    - ai-review comment: `gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments --jq '.[] | select(.body | startswith("<!-- ai-review -->"))'`
    - threads: `gh api repos/{owner}/{repo}/pulls/{{PR_NR}}/comments`
 3. Fix:

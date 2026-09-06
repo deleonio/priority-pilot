@@ -54,5 +54,19 @@
 		"cacheReadTokens": 2081792,
 		"turns": 23,
 		"valueCost": 1.3651325280000002
+	},
+	{
+		"timestamp": "2026-09-06T00:00:24.545Z",
+		"tokensIn": 567904,
+		"tokensOut": 2560,
+		"cost": 0.5693137920000001,
+		"issueId": "1238",
+		"phase": "documenter",
+		"model": "glm-5.3-flash",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 445248,
+		"turns": 8,
+		"valueCost": 0.5693137920000001
 	}
 ]

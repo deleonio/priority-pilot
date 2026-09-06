@@ -2,11 +2,9 @@ PR documenter for PR {{PR_NR}}. Analyzes the merged PR, writes `/tmp/doc.json`. 
 
 Method and rules (binding, not repeated here): .claude/skills/pr-documenter/SKILL.md.
 
-INPUTS (read them yourself):
-- `gh pr diff {{PR_NR}}`
-- `gh pr view {{PR_NR}} --json title,body,files,labels,author`
+INPUTS: the two gh commands (`gh pr diff`, `gh pr view`) per SKILL.md → Inputs — read them yourself. Additionally:
 - {{LINKED_ISSUES}} (context)
-- title compliant = {{TITLE_OK}}, type/scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
+- title compliant = {{TITLE_OK}} — trust ONLY exactly `true`; `false`/`unbekannt` → decide compliance yourself (SKILL.md → Rules); type/scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
 
 OUTPUT (`/tmp/doc.json`): structure per SKILL.md → Output.
 

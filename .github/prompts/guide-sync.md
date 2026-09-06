@@ -7,6 +7,7 @@ QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Ist-Zustand UI: frontend/src/** (Komponenten, Dialoge, Buttons, Routen in App.tsx, sichtbare Meldungstexte, Tastaturkürzel)
   - Ist-Zustand Server: server/src/** (Push-Benachrichtigungen, LLM-/Einstellungs-Verhalten, Allowlist-/Fehlermeldungen) + openapi.yml (welche Funktionen es überhaupt gibt)
   - Querbeleg für beobachtbares Verhalten: frontend/e2e/*.spec.ts und docs/spec/user-journeys.md
+  - Breite Reads (Handbuch-Aussagen gegen den Code verifizieren) → `recherche`-Subagent-Rolle (ADR 0008); je Datei nur die Funde zurück in den Kontext.
 
 ABLAUF (STRIKT):
   1. SOFORT starten. docs/user-guide.md vollständig lesen.

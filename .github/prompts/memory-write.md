@@ -1,8 +1,6 @@
 ## WRITING MEMORY — MANDATORY
 
-**TWO PURPOSES**:
-1. A follow-up run of THIS phase after a soft-abort → pick up seamlessly
-2. The NEXT phase of this issue → don't redo the work
+**PURPOSE**: seamless resume of THIS phase after a soft-abort + handover to the NEXT phase of the issue — don't redo work.
 
 **FILE**: `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md`
 
@@ -20,7 +18,7 @@
 **IMPORTANT**:
 - Write for SOMEONE WITHOUT YOUR CONTEXT → name files, lines, identifiers
 - Statements must be verifiable (file:line plus what was there) — file states go stale!
-- Write the FIRST snapshot IMMEDIATELY after the analysis, update before EVERY soft-deadline check
+- Write the FIRST snapshot IMMEDIATELY after the analysis; afterwards keep the note current at natural checkpoints (after each completed sub-step and before long-running commands) — bundle updates, don't rewrite per step
 - Fill empty sections with `-`, don't omit them
 
 ---
