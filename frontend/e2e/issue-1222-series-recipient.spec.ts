@@ -246,7 +246,10 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await waitForStableView(recipientPage);
 			await recipientPage.getByRole('button', { name: 'Überspringen' }).click();
 			await waitForStableView(recipientPage);
-			await expect(recipientPage.getByLabel('Empfänger')).toBeVisible();
+			// Combobox-Rolle statt getByLabel: Der Anzeigename des eigenen Kontos enthält hier
+			// „Empfänger", der Avatar der Vorauswahl (aria-label „Avatar von Ronny Empfänger")
+			// matchet getByLabel per Substring mit → strict-mode violation (Test-Pflege #1262).
+			await expect(recipientPage.getByRole('combobox', { name: 'Empfänger' })).toBeVisible();
 
 			const taskCreated = recipientPage.waitForResponse(
 				(response) => response.url().includes('/api/v1/tasks') && response.request().method() === 'POST',
@@ -265,7 +268,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await waitForStableView(recipientPage);
 			await recipientPage.getByTestId('mode-switch').getByRole('checkbox').click();
 			await waitForStableView(recipientPage);
-			await expect(recipientPage.getByLabel('Empfänger')).toBeVisible();
+			await expect(recipientPage.getByRole('combobox', { name: 'Empfänger' })).toBeVisible();
 
 			await recipientPage.getByRole('textbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Serie');
 			await recipientPage.getByLabel('Startdatum').fill('2026-12-07');
