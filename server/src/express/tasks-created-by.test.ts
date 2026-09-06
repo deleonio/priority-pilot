@@ -212,3 +212,180 @@ describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 		assert.equal(patchRes.status, 200, 'Owner darf die Bestandsaufgabe weiter patchen (kein Über-Scoping)');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1250 — Erststeller-Lesezugriff endet mit der Gruppenmitgliedschaft
+ * (Vertrag: docs/spec/issue-1250.md, TF1–TF4 + TF6 für AK1–AK4, AK6, AK7).
+ *
+ * Erwartung: der `createdById`-Zweig von `taskReadScope` wird an die AKTUELLE gemeinsame
+ * Gruppenmitgliedschaft gebunden. Rot, solange der Zweig `createdById: requesterId` bedingungslos
+ * gilt (Aufgabe bleibt nach Austritt/Gruppenlöschung sichtbar). KEIN Produktivcode.
+ */
+describe('Ersteller-Lesezugriff endet mit der Gruppenmitgliedschaft (#1250, Tasks)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	/**
+	 * Seedet Alice/Bob/Carol und eine Gruppe mit Alice UND Bob als Admin — nur so kann Alice
+	 * self-leave testen, ohne am letzten-Admin-Schutz (409) zu scheitern. Liefert die Gruppen-ID.
+	 */
+	const seedGroupWithTwoAdmins = async (): Promise<number> => {
+		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
+		await server.login(BOB, { displayName: 'Bob Empfänger' });
+		await server.login(CAROL, { displayName: 'Carol Dritte' });
+		const group = await Group.create({ name: 'Spec-Gruppe', description: null });
+		const aliceId = await userIdOf(ALICE);
+		const bobId = await userIdOf(BOB);
+		await GroupMember.create({ groupId: group.id, userId: aliceId, role: 'admin', joinedAt: new Date() });
+		await GroupMember.create({ groupId: group.id, userId: bobId, role: 'admin', joinedAt: new Date() });
+		return group.id;
+	};
+
+	/** Alice legt eine Aufgabe für Bob an; liefert die Task-ID. */
+	const createTaskForBob = async (): Promise<number> => {
+		const res = await postTaskFor1250(await server.login(ALICE), {
+			title: 'Bobs Aufgabe aus der Gruppe',
+			userId: await userIdOf(BOB),
+		});
+		assert.equal(res.status, 201, 'Setup: Aufgabe für Gruppenmitglied muss anlegbar sein');
+		return ((await res.json()) as CreatedByTaskDto).id;
+	};
+
+	const postTaskFor1250 = async (cookie: string, body: Record<string, unknown>): Promise<Response> =>
+		fetch(`${server.baseUrl}/tasks`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+
+	const aliceSees = async (taskId: number): Promise<boolean> => {
+		const list = await listTasksFor1250(await server.login(ALICE));
+		return list.some((task) => task.id === taskId);
+	};
+
+	const listTasksFor1250 = async (cookie: string): Promise<CreatedByTaskDto[]> => {
+		const res = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200, 'GET /tasks muss 200 liefern');
+		return (await res.json()) as CreatedByTaskDto[];
+	};
+
+	const leaveGroup = async (cookie: string, groupId: number, targetUserId: number): Promise<Response> =>
+		fetch(`${server.baseUrl}/groups/${groupId}/members/${targetUserId}`, {
+			method: 'DELETE',
+			headers: { Cookie: cookie },
+		});
+
+	// ── AK1: Sichtbarkeit folgt der aktuellen Mitgliedschaft ──────────────────────────
+
+	it('AK1/TF1: Aufgabe verschwindet aus Alices Liste nach self-leave und kommt mit Wiedereintritt zurück', async () => {
+		const groupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const taskId = await createTaskForBob();
+
+		// AK7-Deckel: solange die Gruppe geteilt wird, bleibt der SCHREIB-/Detail-Scope owner-only.
+		const detailRes = await fetch(`${server.baseUrl}/tasks/${taskId}`, {
+			headers: { Cookie: await server.login(ALICE) },
+		});
+		assert.equal(detailRes.status, 404, 'AK7: GET /tasks/:id bleibt für die Erstellerin 404');
+
+		assert.ok(await aliceSees(taskId), 'mit gemeinsamer Gruppe sieht Alice die Aufgabe');
+
+		const leaveRes = await leaveGroup(await server.login(ALICE), groupId, aliceId);
+		assert.equal(leaveRes.status, 204, 'Setup: self-leave muss 204 liefern (zwei Admins geseedet)');
+		assert.ok(!(await aliceSees(taskId)), 'nach Austritt darf Alice die Aufgabe nicht mehr sehen');
+
+		// Wiedereintritt (Mitgliedschaft ist Eingabe, nicht SUT) → wieder sichtbar.
+		await GroupMember.create({ groupId, userId: aliceId, role: 'member', joinedAt: new Date() });
+		assert.ok(await aliceSees(taskId), 'nach Wiedereintritt sieht Alice die Aufgabe wieder');
+	});
+
+	it('AK1/TF1: Admin-Entfernung von Alice aus der Gruppe beendet den Lesezugriff genauso', async () => {
+		const groupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const taskId = await createTaskForBob();
+		assert.ok(await aliceSees(taskId), 'mit gemeinsamer Gruppe sieht Alice die Aufgabe');
+
+		const removeRes = await leaveGroup(await server.login(BOB), groupId, aliceId);
+		assert.equal(removeRes.status, 204, 'Setup: Admin-Entfernung muss 204 liefern');
+		assert.ok(!(await aliceSees(taskId)), 'nach Admin-Entfernung darf Alice die Aufgabe nicht mehr sehen');
+	});
+
+	// ── AK2: Gruppenlöschung ─────────────────────────────────────────────────────────
+
+	it('AK2/TF2: nach Löschen der gemeinsamen Gruppe fehlt die Aufgabe in Alices Liste', async () => {
+		const groupId = await seedGroupWithTwoAdmins();
+		const taskId = await createTaskForBob();
+		assert.ok(await aliceSees(taskId), 'mit gemeinsamer Gruppe sieht Alice die Aufgabe');
+
+		const deleteRes = await fetch(`${server.baseUrl}/groups/${groupId}`, {
+			method: 'DELETE',
+			headers: { Cookie: await server.login(ALICE) },
+		});
+		assert.equal(deleteRes.status, 204, 'Setup: Gruppenlöschung als Admin muss 204 liefern');
+		assert.ok(!(await aliceSees(taskId)), 'nach Gruppenlöschung darf Alice die Aufgabe nicht mehr sehen');
+	});
+
+	// ── AK3: Eigentümer-Sicht unberührt ──────────────────────────────────────────────
+
+	it('AK3/TF3: Bob sieht die Aufgabe mit Ersteller-Kennzeichen vor und nach Alices Austritt', async () => {
+		const groupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const taskId = await createTaskForBob();
+
+		const checkBobsView = async (): Promise<void> => {
+			const bobList = await listTasksFor1250(await server.login(BOB));
+			const task = bobList.find((candidate) => candidate.id === taskId);
+			assert.ok(task, 'Bob (Eigentümer) sieht die Aufgabe immer');
+			assert.equal(task.createdById, aliceId, 'createdById bleibt auf der Erstellerin (kein Nullen)');
+			assert.equal(task.createdByName, 'Alice Erstellerin', 'createdByName bleibt die Erstellerin');
+		};
+		await checkBobsView();
+
+		const leaveRes = await leaveGroup(await server.login(ALICE), groupId, aliceId);
+		assert.equal(leaveRes.status, 204, 'Setup: self-leave muss 204 liefern');
+		await checkBobsView();
+	});
+
+	// ── AK4: mehrere gemeinsame Gruppen ──────────────────────────────────────────────
+
+	it('AK4/TF4: eine verbleibende gemeinsame Gruppe genügt für den Lesezugriff', async () => {
+		const firstGroupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const secondGroup = await Group.create({ name: 'Zweite Gruppe', description: null });
+		await GroupMember.create({ groupId: secondGroup.id, userId: aliceId, role: 'member', joinedAt: new Date() });
+		await GroupMember.create({
+			groupId: secondGroup.id,
+			userId: await userIdOf(BOB),
+			role: 'member',
+			joinedAt: new Date(),
+		});
+		const taskId = await createTaskForBob();
+		assert.ok(await aliceSees(taskId), 'mit zwei gemeinsamen Gruppen sieht Alice die Aufgabe');
+
+		const leaveRes = await leaveGroup(await server.login(ALICE), firstGroupId, aliceId);
+		assert.equal(leaveRes.status, 204, 'Setup: Austritt aus der ersten Gruppe muss 204 liefern');
+		assert.ok(await aliceSees(taskId), 'AK4: eine verbleibende gemeinsame Gruppe genügt');
+	});
+
+	// ── AK6: Bestandsaufgaben laufen weiter über den userId-Zweig ─────────────────────
+
+	it('AK6/TF6: Bestandsaufgabe ohne createdById bleibt gruppenunabhängig Eigentümer-only', async () => {
+		await seedGroupWithTwoAdmins();
+		const legacy = await Task.create({ title: 'Altbestand 1250', userId: await userIdOf(BOB) });
+
+		const bobList = await listTasksFor1250(await server.login(BOB));
+		assert.ok(
+			bobList.some((task) => task.id === legacy.id),
+			'Eigentümer sieht die Bestandsaufgabe',
+		);
+		assert.ok(!(await aliceSees(legacy.id)), 'trotz gemeinsamer Gruppe: kein createdById-Zweig für Bestand');
+	});
+});
