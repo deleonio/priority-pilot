@@ -637,6 +637,11 @@ export const TaskForm = ({
 			const normalizedShares =
 				contributions.length > 0 ? normalizeToTotalWeight(contributions.map((entry) => entry.share)) : [];
 			const pillars = contributions.map((entry, index) => ({ ...entry, share: normalizedShares[index] }));
+			// #1252 (AK9): Übergabe-Kondition — gewählter Empfänger ist ein fremdes Konto. Nur dann geht
+			// `userId` mit raus; die Edit-Pfade lassen in dem Fall zusätzlich `pillars` weg (s. u.), damit
+			// der Server den Säulen-Namen-Remap (AK6) fährt statt die IDs des bisherigen Eigentümers
+			// gegen das Empfänger-Konto mit 400 abzulehnen.
+			const isHandover = recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId;
 			if (seriesEdit) {
 				// Serien-Edit (#316): gesetzte Felder gelten für künftige Instanzen. `startDate` nur mitschicken,
 				// wenn das Feld gefüllt ist (leer → unverändert lassen).
@@ -648,15 +653,16 @@ export const TaskForm = ({
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					latitude: form.current.latitude,
 					longitude: form.current.longitude,
-					pillars,
+					// #1252 (AK6): Bei einer Übergabe `pillars` weglassen — der Server übernimmt die
+					// Vorlage per Säulen-Namen-Remap; ein Beitrags-Edit im selben Save wie die Übergabe
+					// wird bewusst nicht übernommen.
+					...(isHandover ? {} : { pillars }),
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
 					autoDeleteAfterDeadline: autoDelete,
 					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Serie beim Speichern — ohne
 					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
-					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
-						? { userId: Number(recipientId) }
-						: {}),
+					...(isHandover ? { userId: Number(recipientId) } : {}),
 				};
 				// #553: bei geänderten kaskadierbaren Feldern erst das Bestätigungs-Modal anzeigen, das
 				// nur über die Kaskade entscheidet. Ohne solche Änderung direkt speichern (kein Modal).
@@ -699,13 +705,14 @@ export const TaskForm = ({
 					longitude: form.current.longitude,
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
-					pillars,
+					// #1252 (AK6): Bei einer Übergabe `pillars` weglassen — der Server übernimmt die
+					// Beiträge per Säulen-Namen-Remap; ein Beitrags-Edit im selben Save wie die Übergabe
+					// wird bewusst nicht übernommen.
+					...(isHandover ? {} : { pillars }),
 					checklist,
 					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Aufgabe beim Speichern — ohne
 					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
-					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
-						? { userId: Number(recipientId) }
-						: {}),
+					...(isHandover ? { userId: Number(recipientId) } : {}),
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
 			} else {

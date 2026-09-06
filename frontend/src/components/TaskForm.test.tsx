@@ -2075,6 +2075,32 @@ describe('TaskForm — Empfängerauswahl im Bearbeiten-Modus / Übergabe (#1252 
 		const [{ id, taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ id: number; taskUpdate: Record<string, unknown> }];
 		expect(id).toBe(minimalNewTask().id);
 		expect(taskUpdate['userId']).toBe(2);
+		// #1252 (AK6): Bei einer Übergabe lässt das UI `pillars` weg — sonst validiert der Server die
+		// IDs des bisherigen Eigentümers gegen das Empfänger-Konto (400) statt den Namen-Remap zu fahren.
+		expect(taskUpdate).not.toHaveProperty('pillars');
+	});
+
+	it('AK9 — Übergabe beim Speichern: updateSeries erhält die userId des fremden Empfängers', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '2' } });
+		});
+		await clickSaveEdit();
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [{ id, seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [
+			{ id: number; seriesUpdate: Record<string, unknown> },
+		];
+		expect(id).toBe(minimalSeries().id);
+		expect(seriesUpdate['userId']).toBe(2);
+		// #1252 (AK6): Serien-Zwilling der Task-Übergabe — auch hier `pillars` weglassen.
+		expect(seriesUpdate).not.toHaveProperty('pillars');
 	});
 
 	it('AK9 — ohne Auswahländerung bleibt der updateTask-Payload ohne userId (keine Abgabe)', async () => {

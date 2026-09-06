@@ -14,15 +14,18 @@ import { Group, GroupMember, Pillar, Series, SeriesPillar, Task, User } from '..
  * AK6: SeriesPillar-Beiträge zeigen nach der Übergabe auf keine Säule der bisherigen
  * Eigentümerin (Invariante; übernehmen oder verwerfen ist Impl-Entscheidung).
  *
- * 400/403-Spiegel und Schreib-Scope (Ersteller → 404) sind durch die Task-Gegenstücke
- * (tasks-handover.test.ts) bzw. series-recipient-instances.test.ts (#1222) gedeckt — Dedup.
+ * 400/403-Spiegel des eigenständigen Series-Empfängerblocks (series.ts PATCH) wird hier
+ * mitgetestet — die Task-Gegenstücke (tasks-handover.test.ts) testen nur PATCH /tasks/:id,
+ * ein Copy-Paste-Fehler in der Series-Variante bliebe sonst unentdeckt. Der Schreib-Scope
+ * (Ersteller → 404) bleibt durch series-recipient-instances.test.ts (#1222) gedeckt — Dedup.
  * Rot, bis PATCH /series/:id ein optionales `userId` auswertet. KEIN Produktivcode.
  */
-process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.com,carol@example.com';
 applyTestAuthEnv('series-handover-test');
 
 const ALICE = 'alice@example.com';
 const BOB = 'bob@example.com';
+const CAROL = 'carol@example.com';
 
 let server: TestServer;
 
@@ -47,6 +50,8 @@ describe('Serien-Übergabe an ein Gruppenmitglied (#1252)', () => {
 	const seedSharedGroup = async (): Promise<void> => {
 		await server.login(ALICE, { displayName: 'Alice Eigentümerin' });
 		await server.login(BOB, { displayName: 'Bob Empfänger' });
+		// Carol existiert als Drittkonto ohne Gruppenbezug (403-Fall).
+		await server.login(CAROL, { displayName: 'Carol Ohne Gruppe' });
 		const group = await Group.create({ name: 'Serien-Übergabe-Gruppe', description: null });
 		await GroupMember.create({ groupId: group.id, userId: await userIdOf(ALICE), role: 'admin', joinedAt: new Date() });
 		await GroupMember.create({ groupId: group.id, userId: await userIdOf(BOB), role: 'member', joinedAt: new Date() });
@@ -72,6 +77,24 @@ describe('Serien-Übergabe an ein Gruppenmitglied (#1252)', () => {
 			headers: { 'Content-Type': 'application/json', Cookie: cookie ?? '' },
 			body: JSON.stringify(body),
 		});
+
+	it('userId ohne Ganzzahl → 400; ohne gemeinsame Gruppe → 403 ohne Teil-Änderung (Spiegel des Task-Verhaltens)', async () => {
+		await seedSharedGroup();
+		const series = await seedAliceSeries();
+		const aliceCookie = await server.login(ALICE);
+		const carolId = await userIdOf(CAROL);
+
+		const badType = await patchSeries(aliceCookie, series.id, { userId: 'bob' });
+		assert.equal(badType.status, 400, 'nicht-ganzzahliges userId muss 400 liefern (wie bei Aufgaben)');
+
+		const foreign = await patchSeries(aliceCookie, series.id, { userId: carolId, title: 'Unerlaubte Änderung' });
+		assert.equal(foreign.status, 403, 'Empfänger ohne gemeinsame Gruppe muss 403 liefern (wie bei Aufgaben)');
+
+		const oracle = await Series.findByPk(series.id);
+		assert.ok(oracle);
+		assert.equal(oracle.userId, await userIdOf(ALICE), 'Eigentümer unverändert');
+		assert.equal(oracle.title, 'Wöchentliche Übergabe-Routine', 'keine Teil-Änderung — Titel bleibt alt');
+	});
 
 	it('Übergabe: Serie gehört Bob, Alice sieht sie mit „Für:"-Kennzeichen als Erstellerin (AK8)', async () => {
 		await seedSharedGroup();
