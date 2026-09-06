@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { Group, GroupInvitation, GroupInviteLink, GroupMember, Task, User } from '../../models/index.js';
+import { Group, GroupInvitation, GroupInviteLink, GroupMember, Series, Task, User } from '../../models/index.js';
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 
@@ -209,8 +209,37 @@ groupsRouter.patch('/groups/:id', async (req: Request, res: Response<GroupDto | 
 	}
 });
 
+/**
+ * Stillagt Cross-Member-Serien (#1251): jede Serie, deren Eigentümer (`userId`) und Ersteller
+ * (`createdById`) beide in den genannten Mitgliedsmengen liegen, wird `active:false` — mit dem
+ * Ende der gemeinsamen Gruppe darf eine fremd angelegte Serie keine Aufgaben mehr erzeugen
+ * (Bestands-Aufgaben bleiben unberührt). Filter auf `createdById !== userId` in JS statt SQL —
+ * `Op.ne` wäre mit NULL-Werten (Altbestand ohne createdById) nicht falsch-positiv-sicher
+ * (Muster GET /groups/:id/tasks).
+ */
+const restCrossMemberSeries = async (
+	ownerIds: number[],
+	creatorIds: number[],
+	transaction: Transaction,
+): Promise<void> => {
+	if (ownerIds.length === 0 || creatorIds.length === 0) {
+		return;
+	}
+	const candidates = await Series.findAll({
+		where: { userId: { [Op.in]: ownerIds }, createdById: { [Op.in]: creatorIds } },
+		transaction,
+	});
+	const restingIds = candidates.filter((series) => series.createdById !== series.userId).map((series) => series.id);
+	if (restingIds.length > 0) {
+		await Series.update({ active: false }, { where: { id: restingIds }, transaction });
+	}
+};
+
 // DELETE /groups/:id — Admin → 204; Gruppe UND alle Mitgliedschaften in einer Transaktion
-// entfernen (AK5), danach ist jede :id-Route 404.
+// entfernen (AK5), danach ist jede :id-Route 404. Die Auflösung ist der Massenaustritt aller
+// Mitglieder: die Einladungen der Gruppe werden mit entfernt (#1251, AK1) und die Cross-Member-
+// Serien ALLER ehemaligen Paare stillagt (AK5) — zurück blieben sonst Geister-Einladungen mit
+// leerem Gruppennamen in GET /invitations und munter weiterlaufende fremde Serien.
 groupsRouter.delete('/groups/:id', async (req: Request, res: Response<ErrorDto>) => {
 	try {
 		const user = await resolveGeoUser(req);
@@ -224,7 +253,11 @@ groupsRouter.delete('/groups/:id', async (req: Request, res: Response<ErrorDto>)
 			return;
 		}
 		await sequelize.transaction(async (transaction) => {
+			const members = await GroupMember.findAll({ where: { groupId: found.group.id }, transaction });
+			const memberIds = members.map((member) => member.userId);
+			await restCrossMemberSeries(memberIds, memberIds, transaction);
 			await GroupMember.destroy({ where: { groupId: found.group.id }, transaction });
+			await GroupInvitation.destroy({ where: { groupId: found.group.id }, transaction });
 			await Group.destroy({ where: { id: found.group.id }, transaction });
 		});
 		res.status(204).send();
@@ -523,6 +556,9 @@ groupsRouter.patch('/groups/:id/members/:userId', async (req: Request, res: Resp
 
 // DELETE /groups/:id/members/:userId — Admin entfernt beliebige Mitglieder, jedes Mitglied sich
 // selbst (AK9). Der letzte verbleibende Admin bleibt unantastbar (AK10, 409 mit Begründung).
+// Der Austritt räumt im selben atomaren Vorgang auf (#1251): offene Einladungen der Gruppe für
+// das entfernte Konto werden gelöscht (AK2) und Serien, die ein anderes (verbleibendes) Mitglied
+// für es angelegt hat, werden stillagt (AK3) — Bestands-Aufgaben bleiben Eigentum des Empfängers.
 groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Response<ErrorDto>) => {
 	try {
 		const user = await resolveGeoUser(req);
@@ -550,7 +586,13 @@ groupsRouter.delete('/groups/:id/members/:userId', async (req: Request, res: Res
 			sendError(res, 409, LAST_ADMIN_MESSAGE);
 			return;
 		}
-		await target.destroy();
+		await sequelize.transaction(async (transaction) => {
+			const remaining = await GroupMember.findAll({ where: { groupId: found.group.id }, transaction });
+			const remainingIds = remaining.filter((member) => member.userId !== targetUserId).map((member) => member.userId);
+			await restCrossMemberSeries([targetUserId], remainingIds, transaction);
+			await GroupInvitation.destroy({ where: { groupId: found.group.id, invitedUserId: targetUserId }, transaction });
+			await target.destroy({ transaction });
+		});
 		res.status(204).send();
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

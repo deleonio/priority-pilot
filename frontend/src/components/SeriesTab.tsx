@@ -145,6 +145,10 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 							<div className="series-tree-row">
 								<span className="series-tree-title">{entry.title}</span>
 								<span className="series-tree-badge series-tree-badge--rhythm">{RHYTHM_LABEL[entry.rhythm]}</span>
+								{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
+								    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
+								    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
+								{entry.active === false && <KolBadge _label="Ruhend" className="series-tree-badge" />}
 								{(entry.latitude != null || entry.address != null) && (
 									<GeoBadge
 										latitude={entry.latitude ?? null}

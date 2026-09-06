@@ -152,6 +152,7 @@ export const main = async (): Promise<void> => {
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
+		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { launchServer } = await import('./express/index.js');
 		const { startScheduler, startDeadlineAutoDeleteScheduler } = await import('./scheduler/index.js');
 
@@ -212,6 +213,10 @@ export const main = async (): Promise<void> => {
 		if (shouldSeedDemo) {
 			await seedDemoData();
 		}
+
+		// Verwaiste Gruppen-Einladungen (Gruppe gelöscht, Einladung überlebt — #1251, AK7)
+		// einmalig idempotent beim Start bereinigen; die Routen räumen inzwischen selbst mit auf.
+		await cleanupOrphanedGroupInvitations();
 
 		console.log(JSON.stringify(await buildTaskForest(), null, 2));
 		await launchServer();
