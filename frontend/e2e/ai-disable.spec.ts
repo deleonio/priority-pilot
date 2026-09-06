@@ -189,18 +189,25 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 
 		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
 		const quickCaptureSwitch = switchControl(page, /^Schnellerfassung aktiv$/);
+		// Master-/Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md): Sobald
+		// „KI-Features aktiv" aus ist, schließt das umschließende „KI-Funktionen-Details" und die
+		// Rolle des nativen Inputs ist per `visibility: hidden` aus dem Accessibility-Baum
+		// entfernt — `getByRole` findet den Schalter dann nicht mehr. Für Zustandsprüfungen bei
+		// geschlossenem Details deshalb den Host-CSS-Selektor direkt auf das native Input (Muster
+		// AK6 unten: `switches.nth(i).locator('input')`).
+		const quickCaptureInput = page.locator('kol-input-checkbox[_label="Schnellerfassung aktiv"] input');
 		// #1085: die Schnellerfassung zuerst umschalten — bei KI-aus wäre ihr Schalter disabled.
 		await quickCaptureSwitch.click();
 		await expect(quickCaptureSwitch).not.toBeChecked();
 		await aiSwitch.click();
 		await expect(aiSwitch).not.toBeChecked();
-		await expect(quickCaptureSwitch).toBeDisabled();
+		await expect(quickCaptureInput).toBeDisabled();
 
 		await page.reload();
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(aiSwitch).not.toBeChecked();
-		await expect(quickCaptureSwitch).not.toBeChecked();
+		await expect(quickCaptureInput).not.toBeChecked();
 	});
 
 	test('AK2: in den Einstellungen umgeschaltet — „Säulen-Berater" ist nach „Zurück" sofort weg', async ({ page }) => {
@@ -229,6 +236,12 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		await expect(switches).toHaveCount(2);
 
 		for (let i = 0; i < 2; i++) {
+			// „Schnellerfassung aktiv" liegt in „KI-Funktionen-Details" (docs/ux-pattern-master-detail-
+			// settings.md), das mit dem vorherigen Schleifendurchlauf (Master aus-/wieder-anschalten,
+			// Zeile 258 ff.) neu öffnet — auf den Endzustand der CSS-Transition warten (Muster
+			// settings-switch-layout.spec.ts AK3), sonst liefert die erste Bounding-Box einen
+			// Zwischenwert unter 44px.
+			await expect.poll(async () => (await switches.nth(i).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 			const box = await switches.nth(i).boundingBox();
 			expect(box).toBeTruthy();
 			// Vollständig in der Viewport-Breite (kein Abschneiden, kein Horizontal-Scroll).
