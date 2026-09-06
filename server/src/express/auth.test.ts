@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { User } from '../models/index.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen: createApp() liest diese
 // Werte beim Aufbau der Session-/Passport-Middleware.
@@ -105,6 +106,22 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.equal(body.email, ALLOWED_EMAIL);
 			assert.equal(body.displayName, ALLOWED_NAME);
+		});
+
+		// #1262 (AK1): /auth/me muss die User-Id liefern — sonst ist `own.id` im Frontend
+		// undefined, die Empfängerauswahl (#1213/#1222) spricht "undefined" an und das
+		// Anlegen für das eigene Konto scheitert an der userId-Validierung.
+		it('#1262 — liefert id als positive Zahl, identisch zur DB-Id des Session-Users', async () => {
+			const cookie = await testLogin();
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(typeof body.id, 'number', 'body.id muss eine Zahl sein');
+			assert.ok(Number.isInteger(body.id as number), 'body.id muss eine Ganzzahl sein');
+			assert.ok((body.id as number) > 0, 'body.id muss positiv sein');
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Session-User muss in der DB existieren');
+			assert.equal(body.id, dbUser.id, 'body.id muss der id des User-Datensatzes entsprechen');
 		});
 	});
 
