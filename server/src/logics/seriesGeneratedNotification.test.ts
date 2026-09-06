@@ -14,7 +14,10 @@ import { notifySeriesGenerated } from './seriesGeneratedNotification.js';
  * Rot, bis `logics/seriesGeneratedNotification.ts` mit `notifySeriesGenerated` existiert.
  * KEIN Produktivcode.
  */
-beforeEach(resetDb);
+beforeEach(async () => {
+	await resetDb();
+	calls.length = 0;
+});
 after(closeDb);
 
 interface SentPush {
@@ -33,9 +36,9 @@ const seedUsers = async (): Promise<{ aliceId: number; bobId: number }> => {
 	const alice = await User.create({
 		email: 'alice@example.com',
 		displayName: 'Alice Erstellerin',
-		googleId: 'spec-alice',
+		passwordHash: '__test__',
 	});
-	const bob = await User.create({ email: 'bob@example.com', displayName: 'Bob Empfänger', googleId: 'spec-bob' });
+	const bob = await User.create({ email: 'bob@example.com', displayName: 'Bob Empfänger', passwordHash: '__test__' });
 	await PushSubscription.create({
 		endpoint: 'https://push.example/bob-1',
 		p256dh: 'p256dh',
@@ -161,7 +164,7 @@ describe('notifySeriesGenerated (#1253, TF7)', () => {
 	// AK2 (Logikseite): Selbst-/erstellerlose Serien lösen nichts aus — der Aufrufer
 	// entscheidet nicht mit, die Logik selbst muss still bleiben.
 	it('Selbst-Anlage und Serie ohne createdById → kein Versand, kein Log-Eintrag', async () => {
-		const { aliceId, bobId } = await seedUsers();
+		const { bobId } = await seedUsers();
 		const own = await seedSeriesWithInstances(bobId, bobId, 1);
 		const legacy = await Series.create({
 			title: 'Altbestand',

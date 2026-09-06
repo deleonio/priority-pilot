@@ -1,5 +1,7 @@
-import { Series, Task, SeriesPillar, TaskPillar } from '../models/index.js';
+import { Series, Task, SeriesPillar, TaskPillar, User } from '../models/index.js';
 import type { SeriesRhythm } from '../models/series.js';
+import { notifySeriesGenerated } from './seriesGeneratedNotification.js';
+import type { PushSender } from './push.js';
 
 /** Optionen der Generierung; `until` ist der (inklusive) Materialisierungs-Horizont. */
 interface GenerateOptions {
@@ -7,6 +9,8 @@ interface GenerateOptions {
 	until: Date;
 	/** Eigentümer, der den erzeugten Instanzen zugeordnet wird (Issue #244). `undefined` → `null`. */
 	userId?: number;
+	/** Injizierbarer Web-Push-Versand für den Serien-Benachrichtigungstrigger #1253 (Default: web-push). */
+	pushSender?: PushSender;
 }
 
 /** Ob der UTC-Wochentag `day` (0=So … 6=Sa) zum Rhythmus `weekdays` (Mo–Fr) bzw. `weekend` (Sa+So) gehört. */
@@ -171,6 +175,20 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 		}
 		created.push(instance);
 	}
+
+	// #1253: Erzeugt dieser Lauf Instanzen einer fremd angelegten Serie (A für B), erhält B genau
+	// eine gebündelte Nachricht. Der Auslöser sitzt bewusst in der Generierungslogik (nicht im
+	// Router), damit beide Endpunkte und künftige Aufrufer ihn teilen; die Stille-Entscheidung
+	// (Selbst-Anlage/Alt-Bestand) trifft `notifySeriesGenerated`. Restfehler werden gefangen und
+	// nur protokolliert, damit die Generierung unberührt bleibt (AK5, Muster routes/tasks.ts #1224).
+	if (created.length > 0 && series.createdById != null && series.createdById !== series.userId) {
+		try {
+			const creator = await User.findByPk(series.createdById);
+			await notifySeriesGenerated(series, created, creator, options.pushSender);
+		} catch (error) {
+			console.warn(`Benachrichtigung zur Serie ${series.id} fehlgeschlagen:`, error);
+		}
+	}
 	return created;
 };
 
@@ -180,12 +198,16 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
  * eigenen Serien, im Pass-Through-Modus (`undefined`) alle. Fehler einzelner Serien werden isoliert und
  * geloggt — ein Ausreißer bricht den Gesamtlauf nicht ab. Gibt alle neu erzeugten Instanzen zurück.
  */
-export const materializeDueSeries = async (userId: number | undefined, until: Date): Promise<Task[]> => {
+export const materializeDueSeries = async (
+	userId: number | undefined,
+	until: Date,
+	pushSender?: PushSender,
+): Promise<Task[]> => {
 	const seriesList = await Series.findAll({ where: { active: true, ...(userId !== undefined ? { userId } : {}) } });
 	const created: Task[] = [];
 	for (const series of seriesList) {
 		try {
-			const instances = await generateDueInstances(series, { until, userId });
+			const instances = await generateDueInstances(series, { until, userId, pushSender });
 			created.push(...instances);
 		} catch (error) {
 			console.error(`Serie ${series.id} konnte nicht materialisiert werden:`, error);

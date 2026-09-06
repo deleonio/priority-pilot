@@ -90,8 +90,7 @@ const generateAll = async (cookie: string): Promise<{ created: number }> => {
 	return (await res.json()) as { created: number };
 };
 
-const instanceCount = async (seriesId: number): Promise<number> =>
-	Task.count({ where: { seriesId } });
+const instanceCount = async (seriesId: number): Promise<number> => Task.count({ where: { seriesId } });
 
 describe('Push bei fremd angelegten Serien-Instanzen (#1253)', () => {
 	before(async () => {
@@ -198,10 +197,7 @@ describe('Push bei fremd angelegten Serien-Instanzen (#1253)', () => {
 		const payload = JSON.parse(calls[0].body) as { title: string; body?: string };
 		const text = `${payload.title} ${payload.body ?? ''}`;
 		assert.ok(text.includes('Wochenputz'), 'die gebündelte Nachricht nennt den Serientitel');
-		assert.ok(
-			text.includes(String(result.created)),
-			'die Nachricht nennt die Zahl der neuen Aufgaben im Text',
-		);
+		assert.ok(text.includes(String(result.created)), 'die Nachricht nennt die Zahl der neuen Aufgaben im Text');
 	});
 
 	// ── AK5: wirfender Sender — Generierung und Antwort bleiben unberührt ─────────────

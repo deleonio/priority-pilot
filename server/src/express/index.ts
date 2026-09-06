@@ -11,7 +11,7 @@ import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { scoresRouter } from './routes/scores.js';
-import { seriesRouter } from './routes/series.js';
+import { createSeriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
 import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { usersRouter } from './routes/users.js';
@@ -236,8 +236,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Gamification-Scoring: Punkte je Task lesen, Balance-Stand je Säule (siehe routes/scores.ts).
 	app.use(scoresRouter);
 
-	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts).
-	app.use(seriesRouter);
+	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts) —
+	// PushSender injiziert für die Benachrichtigung bei fremd angelegten Serien-Instanzen
+	// (#1253, Vorbild createTasksRouter #1224).
+	app.use(createSeriesRouter({ pushSender: deps.pushSender }));
 
 	// Gruppen (Issue #1211): CRUD hinter requireAuth — Sichtbarkeit/Rechte über group_members-
 	// Membership, nicht über ownerScope (Group hat kein userId). Einladungen folgen in Ticket 2 (#952).
