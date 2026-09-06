@@ -124,4 +124,40 @@ describe('audit-basis', () => {
 			assert.match(out, /Keine Datensätze unter/);
 		});
 	});
+
+	it('weist Delegationsquote und Sidechain-Token-Anteil je Phase aus', () => {
+		inTmp('audit-basis-deleg', (dir) => {
+			writeTicket(dir, '700', [
+				// implement: 1 von 2 Läufen delegiert, 250k sidechain auf 1,5M Input
+				entry({ issueId: '700', phase: 'implement', turns: 10, tokensIn: 1_000_000, sidechainTokens: 250_000 }),
+				entry({ issueId: '700', phase: 'implement', turns: 5, tokensIn: 500_000, timestamp: '2026-08-24T11:00:00Z' }),
+				// review: 1 von 1 delegiert, 100k auf 200k Input
+				entry({
+					issueId: '700',
+					phase: 'review',
+					turns: 3,
+					tokensIn: 200_000,
+					sidechainTokens: 100_000,
+					timestamp: '2026-08-24T12:00:00Z',
+				}),
+			]);
+			const out = renderAuditBasis(dir);
+			assert.match(out, /### Delegation \(Subagent-Fan-out, ADR 0008\)/);
+			// implement: 1/2 = 50 % · 250k/1,75M = 14,3 %
+			assert.match(out, /\| implement \| 1 \| 50 % \| 250 \| 14,3 % \|/);
+			// review: 1/1 = 100 % · 100k/300k = 33,3 %
+			assert.match(out, /\| review \| 1 \| 100 % \| 100 \| 33,3 % \|/);
+			// Gesamt: 2/3 = 66,7 % · 350k/2,05M = 17,1 %
+			assert.match(out, /\| \*\*Gesamt\*\* \| \*\*2\*\* \| \*\*66,7 %\*\* \| \*\*350\*\* \| \*\*17,1 %\*\* \|/);
+		});
+	});
+
+	it('meldet fehlenden Subagent-Fan-out offen statt die Tabelle wegzulassen', () => {
+		inTmp('audit-basis-nodeleg', (dir) => {
+			writeTicket(dir, '701', [entry({ issueId: '701', phase: 'implement', turns: 10 })]);
+			const out = renderAuditBasis(dir);
+			assert.doesNotMatch(out, /### Delegation/);
+			assert.match(out, /Delegation: keine sidechainTokens in den Daten — kein Subagent-Fan-out gelaufen/);
+		});
+	});
 });

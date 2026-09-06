@@ -63,13 +63,25 @@ export function renderAuditBasis(dir: string): string {
 			tokensIn: number;
 			tokensOut: number;
 			cost: number;
+			delegated: number;
+			sidechain: number;
 		}
 	>();
 	for (const e of entries) {
 		const phase = e.phase ?? '(ohne)';
 		let p = phases.get(phase);
 		if (!p) {
-			p = { runs: 0, tickets: new Set<string>(), turns: 0, measured: 0, tokensIn: 0, tokensOut: 0, cost: 0 };
+			p = {
+				runs: 0,
+				tickets: new Set<string>(),
+				turns: 0,
+				measured: 0,
+				tokensIn: 0,
+				tokensOut: 0,
+				cost: 0,
+				delegated: 0,
+				sidechain: 0,
+			};
 			phases.set(phase, p);
 		}
 		p.runs += 1;
@@ -77,6 +89,8 @@ export function renderAuditBasis(dir: string): string {
 		p.tokensIn += e.tokensIn;
 		p.tokensOut += e.tokensOut;
 		p.cost += e.cost;
+		p.sidechain += e.sidechainTokens ?? 0;
+		if ((e.sidechainTokens ?? 0) > 0) p.delegated += 1;
 		if (isMeasured(e)) {
 			p.measured += 1;
 			p.turns += e.turns as number;
@@ -107,6 +121,35 @@ export function renderAuditBasis(dir: string): string {
 			`**${num(sum(entries, (e) => e.tokensOut) / 1000)}** | **${totalCost.toFixed(2)}** |`,
 		'',
 	);
+
+	// Delegation (ADR 0008): sidechainTokens zählen den Subagent-Fan-out eines Laufs. Quote =
+	// Anteil der Läufe mit Fan-out; Token-Anteil = sidechain ÷ (tokensIn + sidechain). Eine Phase
+	// mit 0 % bei hohem Input hält Kontextarbeit im teuren Parent — genau Kriterium G des Audits.
+	const totalSidechain = sum(entries, (e) => e.sidechainTokens ?? 0);
+	const totalDelegated = entries.filter((e) => (e.sidechainTokens ?? 0) > 0).length;
+	if (totalSidechain > 0 || totalDelegated > 0) {
+		lines.push(
+			'### Delegation (Subagent-Fan-out, ADR 0008)',
+			'',
+			`| Phase | Runs delegiert | Quote | Sidechain (k) | Anteil am Input |`,
+			`| --- | ---: | ---: | ---: | ---: |`,
+		);
+		for (const [phase, p] of sorted) {
+			lines.push(
+				`| ${phase} | ${p.delegated} | ${pct(p.runs > 0 ? p.delegated / p.runs : 0)} | ${num(p.sidechain / 1000)} | ` +
+					`${pct(p.sidechain / Math.max(1, p.tokensIn + p.sidechain))} |`,
+			);
+		}
+		lines.push(
+			`| **Gesamt** | **${totalDelegated}** | **${pct(entries.length > 0 ? totalDelegated / entries.length : 0)}** | ` +
+				`**${num(totalSidechain / 1000)}** | **${pct(totalSidechain / Math.max(1, sum(entries, (e) => e.tokensIn) + totalSidechain))}** |`,
+			'',
+			`Quote = Anteil der Läufe mit sidechainTokens > 0 · Anteil am Input = sidechainTokens ÷ (tokensIn + sidechainTokens).`,
+			'',
+		);
+	} else {
+		lines.push(`Delegation: keine sidechainTokens in den Daten — kein Subagent-Fan-out gelaufen (Kriterium G).`, '');
+	}
 
 	const completeEntries = measured.filter((e) => completeIds.has(e.issueId));
 	const runsOf = (phase: string, list: CostEntry[]): number => list.filter((e) => e.phase === phase).length;
