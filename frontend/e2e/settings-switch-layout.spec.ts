@@ -65,16 +65,16 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		const rows = page.locator('.settings-general .settings-switch-row');
 		// Seit #1183: 3 Switches im Tab "Allgemein" (Sprachaufnahme, Animationen, Push); seit #1227
 		// sitzen die Animations-Feinschalter („Herz animieren“, „Erledigt animieren“) in einem eigenen
-		// KolDetails (statt eigener Zeilen) unter dem Master-Schalter — 2 eingerückte Sub-Zeilen dazu.
+		// KolDetails (statt eigener Zeilen) unter dem Master-Schalter — 2 Sub-Zeilen dazu.
 		// Ihr Inhalt bleibt bei geschlossenem KolDetails im DOM (Breite gesetzt, Höhe kollabiert).
 		await expect(rows).toHaveCount(5);
 
 		const containerBox = await page.locator('.settings-general').first().boundingBox();
 		expect(containerBox).toBeTruthy();
 
-		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sind bewusst eingerückt
-		// (.settings-switch-row--sub) und liegen dafür versetzt unter dem Master.
-		const mainRows = page.locator('.settings-general .settings-switch-row:not(.settings-switch-row--sub)');
+		// Volle Breite gilt für die Hauptzeilen (direkte Kinder des Containers); die Sub-Zeilen
+		// sitzen im KolDetails-Kollapsbereich und liegen dafür versetzt unter dem Master.
+		const mainRows = page.locator('.settings-general > .settings-switch-row');
 		for (let i = 0; i < (await mainRows.count()); i++) {
 			const rowBox = await mainRows.nth(i).boundingBox();
 			expect(rowBox).toBeTruthy();
@@ -82,10 +82,11 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 			expect(rowBox!.width).toBeGreaterThanOrEqual(containerBox!.width * 0.95);
 		}
 
-		// Sub-Zeilen: eingerückt gegenüber den Hauptzeilen (Hierarchie unter dem Master sichtbar) —
-		// die x-Position bleibt auch bei kollabiertem KolDetails gesetzt (nur die Höhe kollabiert).
+		// Sub-Zeilen (im KolDetails): durch dessen Innenabstand gegenüber den Hauptzeilen versetzt
+		// (Hierarchie unter dem Master sichtbar) — die x-Position bleibt auch bei kollabiertem
+		// KolDetails gesetzt (nur die Höhe kollabiert).
 		const firstMainBox = await mainRows.first().boundingBox();
-		const subRows = page.locator('.settings-general .settings-switch-row--sub');
+		const subRows = page.locator('.settings-general kol-details .settings-switch-row');
 		for (let i = 0; i < (await subRows.count()); i++) {
 			const subBox = await subRows.nth(i).boundingBox();
 			expect(subBox).toBeTruthy();
@@ -106,7 +107,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
-		// Seit #1183: 3 Switches, seit #1227 (s. AK1) 5 Zeilen (2 davon im KolDetails eingerückt).
+		// Seit #1183: 3 Switches, seit #1227 (s. AK1) 5 Zeilen (2 davon im KolDetails).
 		await expect(rows).toHaveCount(5);
 
 		for (let i = 0; i < 5; i++) {
