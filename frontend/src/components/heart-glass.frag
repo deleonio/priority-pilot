@@ -122,13 +122,13 @@ vec3 vesselColor() { return u_vessel; }
 vec3 outlineColor() { return u_outline; }
 vec3 seamColor() { return u_seam; }
 #else
-/* Helle Rampe aus app.css: --pp-pillar-1..5, funf gleichbreite Bander. */
+/* Helle Rampe aus app.css: --pp-pillar-1..5 (Neon in Lesbarkeits-Brechung), funf gleichbreite Bander. */
 vec3 bandColorAt(float t) {
-	vec3 c = vec3(0.1647, 0.4706, 0.8392);
-	c = mix(c, vec3(0.9216, 0.4078, 0.2039), step(0.2, t));
-	c = mix(c, vec3(0.1059, 0.6863, 0.4784), step(0.4, t));
-	c = mix(c, vec3(0.9294, 0.6314, 0.0000), step(0.6, t));
-	c = mix(c, vec3(0.9098, 0.4824, 0.6431), step(0.8, t));
+	vec3 c = vec3(0.8392, 0.0, 0.4314);
+	c = mix(c, vec3(0.0, 0.5294, 0.6588), step(0.2, t));
+	c = mix(c, vec3(0.0863, 0.6431, 0.0863), step(0.4, t));
+	c = mix(c, vec3(0.6588, 0.5725, 0.0), step(0.6, t));
+	c = mix(c, vec3(0.5412, 0.1216, 0.8392), step(0.8, t));
 	return c;
 }
 
@@ -243,8 +243,10 @@ void main() {
 	 * dass jede Schicht selbst im Wellental unter der vorherigen bleibt — sonst sähe die tiefste
 	 * Schicht ueber der Oberflaeche, der Fehler, der die Tiefenwelle im SVG unmoeglich macht.
 	 */
-	STRATUM(9.0, 2.1, 3.4, 1.35, 0.82, step(1.0, u_depth_waves) * u_depth_strength)
-	STRATUM(11.0, 4.2, 6.8, 1.7, 0.70, step(2.0, u_depth_waves) * u_depth_strength * 0.66)
+	/* Drei unterscheidbare Geschwindigkeiten (Nutzer-Auftrag 2026-09-06): Oberflaeche 7 s,
+	   Tiefenschicht 1: 14 s, Tiefenschicht 2: 23 s — identisch zum SVG (DEPTH_WAVE_LAYERS). */
+	STRATUM(14.0, 2.1, 3.4, 1.35, 0.82, step(1.0, u_depth_waves) * u_depth_strength)
+	STRATUM(23.0, 4.2, 6.8, 1.7, 0.70, step(2.0, u_depth_waves) * u_depth_strength * 0.66)
 
 	liquid *= mix(1.05, 0.78, depth);
 	liquid *= 1.0 - 0.14 * wall;

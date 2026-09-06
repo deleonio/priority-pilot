@@ -83,7 +83,7 @@ const WAVE_AMPLITUDE = 1.3;
  * sichtbaren 0–100 bleiben damit über die ganze Verschiebung gedeckt. Nach unten schließt sie weit
  * unter dem Gefäßboden; geclippt wird ohnehin an der Herzkontur.
  */
-const buildWavePath = (): string => {
+const buildWavePath = (amplitude: number): string => {
 	const halfWave = WAVE_LENGTH / 2;
 	const start = -WAVE_LENGTH * 2;
 	// Auf eine gerade Anzahl Halbwellen aufrunden, damit die Kachel auf einer vollen Periode endet.
@@ -92,7 +92,7 @@ const buildWavePath = (): string => {
 	// Erste Halbwelle als `q`, alle weiteren als `t` — das spiegelt den Kontrollpunkt automatisch
 	// und erzeugt so eine stetige Sinus-Näherung ohne Knick an den Nahtstellen.
 	const crests = [
-		`q ${halfWave / 2} ${-WAVE_AMPLITUDE} ${halfWave} 0`,
+		`q ${halfWave / 2} ${-amplitude} ${halfWave} 0`,
 		...Array.from({ length: halfWaves - 1 }, () => `t ${halfWave} 0`),
 	];
 	const end = start + halfWaves * halfWave;
@@ -100,7 +100,29 @@ const buildWavePath = (): string => {
 	return `M ${start} 0 ${crests.join(' ')} L ${end} ${floor} L ${start} ${floor} Z`;
 };
 
-const WAVE_PATH = buildWavePath();
+const WAVE_PATH = buildWavePath(WAVE_AMPLITUDE);
+
+/**
+ * Die zwei Tiefenschichten unter der Wasserlinie — Parameter exakt wie die `STRATUM`-Aufrufe im
+ * Glas-Shader (gleiche Wellenlänge, ampScale 1,35/1,7, drop 3,4/6,8), damit beide Fassungen
+ * dasselbe Bild zeigen. Die Geschwindigkeiten (14 s / 23 s) sind bewusst deutlich langsamer als
+ * die Oberfläche (7 s). Die Abdunkelung liegt stärker als im Glas (dark 0,82/0,70 × strength
+ * 0,45 ≈ 8 %), damit die Schichten auch ohne Glasmaterial lesbar bleiben.
+ */
+const DEPTH_WAVE_LAYERS = [
+	{
+		duration: '14s',
+		drop: 3.4,
+		opacity: 0.16,
+		path: buildWavePath(WAVE_AMPLITUDE * 1.35),
+	},
+	{
+		duration: '23s',
+		drop: 6.8,
+		opacity: 0.22,
+		path: buildWavePath(WAVE_AMPLITUDE * 1.7),
+	},
+];
 
 /** Höchster in `app.css` definierter Rang der Säulen-Rampe (`--pp-pillar-1…8`). */
 const PILLAR_RAMP_SIZE = 8;
@@ -125,11 +147,15 @@ const rampClass = (base: string, colorIndex: number): string =>
  * bedeutet damit garantiert gleiche Phase. Die Verschiebung um genau eine Wellenlänge
  * (`WAVE_LENGTH`, siehe Pfad) lässt die Kachelung sprungfrei zurücklaufen.
  *
- * Es gibt bewusst nur **eine** Wasseroberfläche: Eine zweite, dahinter laufende „Tiefenwelle“
- * schaut als blasser Bogen über die Farbkante und wirkt wie abgeschnitten — der Effekt wurde
- * nach Nutzer-Feedback entfernt. Gerendert wird das `<animateTransform>` nur bei erlaubter
- * Animation (`animated`); sonst steht die Welle still in ihrer Grundform — SMIL lässt sich
- * nicht per CSS abschalten.
+ * Es gibt **eine** Wasseroberfläche — sie allein trägt die Füllstands-Aussage. Darunter liegen
+ * seit 2026-09-06 (Nutzer-Auftrag „drei Wellen, unterschiedliche Geschwindigkeit“) zwei Tiefen-
+ * schichten als Abdunkelung, dieselben drei Schichten wie im Glas-Shader (`STRATUM`). Ihre Drops
+ * (3,4 / 6,8) halten jede Schicht im Wellental der vorherigen — nichts schaut als blasser Bogen
+ * über die Farbkante (der Fehler, der die erste Tiefenwelle einst entfernt hat). Die
+ * Geschwindigkeiten liegen bewusst weit auseinander (7 s / 14 s / 23 s), damit die drei
+ * Schichten als eigenständige Bewegungen lesbar sind. Gerendert wird das `<animateTransform>`
+ * nur bei erlaubter Animation (`animated`); sonst stehen die Wellen still in ihrer Grundform —
+ * SMIL lässt sich nicht per CSS abschalten.
  */
 const WAVE_DRIFT_DURATION = '7s';
 
@@ -281,6 +307,25 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 														from="0 0"
 														to={`${-WAVE_LENGTH} 0`}
 														dur={WAVE_DRIFT_DURATION}
+														repeatCount="indefinite"
+													/>
+												)}
+											</g>
+										</g>
+									))}
+									{/* Tiefenwellen: dieselben drei Schichten wie im Glas-Herz (STRATUM) — mit 14 s / 23 s
+								   bewusst langsamer als die Oberfläche (7 s) und nie über die Wasserlinie steigend. */}
+									{DEPTH_WAVE_LAYERS.map((layer) => (
+										<g key={layer.duration} transform={`translate(0 ${layer.drop})`}>
+											<g className="heart-depth">
+												<path d={layer.path} opacity={layer.opacity} />
+												{animated && (
+													<animateTransform
+														attributeName="transform"
+														type="translate"
+														from="0 0"
+														to={`${-WAVE_LENGTH} 0`}
+														dur={layer.duration}
 														repeatCount="indefinite"
 													/>
 												)}

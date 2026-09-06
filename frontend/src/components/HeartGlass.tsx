@@ -52,7 +52,8 @@ const VERTEX_SOURCE = ['attribute vec2 a_pos;', 'void main() {', '	gl_Position =
 /** `GLASS_APP` schaltet den Shader von den Preview-Konstanten auf die Theme-Uniforms um. */
 const FRAGMENT_SOURCE = `#define GLASS_APP 1\n${fragmentSource}`;
 
-/** Wellen- und Aufstieg-Konstanten wie im SVG (`WAVE_LENGTH`, `WAVE_AMPLITUDE`, Drift 7 s). */
+/** Wellen- und Aufstieg-Konstanten wie im SVG (`WAVE_LENGTH`, `WAVE_AMPLITUDE`, Drift 7 s);
+ *  die zwei Tiefenwellen laufen im Shader mit 14 s / 23 s (drei unterscheidbare Geschwindigkeiten). */
 const WAVE_LENGTH = 16;
 const WAVE_AMPLITUDE = 1.3;
 const WAVE_DRIFT_DURATION = 7;

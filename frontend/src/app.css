@@ -57,14 +57,16 @@
 	 * schlechtestes Nachbarpaar CVD ΔE 9.1. Drei Hell-Werte liegen unter 3:1 zu Weiß, deshalb gilt
 	 * die Relief-Regel: der Säulenname steht immer als Text daneben.
 	 */
-	--pp-pillar-1: #2a78d6;
-	--pp-pillar-2: #eb6834;
-	--pp-pillar-3: #1baf7a;
-	--pp-pillar-4: #eda100;
-	--pp-pillar-5: #e87ba4;
-	--pp-pillar-6: #008300;
-	--pp-pillar-7: #4a3aa7;
-	--pp-pillar-8: #e34948;
+	/* Herz-Rampe: Neon-Palette (Nutzer-Auftrag 2026-09-06). Light in Lesbarkeits-Brechung
+	   (volle Leuchtkraft bleibt dem Dark Mode vorbehalten), Reihenfolge der Hue wie zuvor. */
+	--pp-pillar-1: #d6006e;
+	--pp-pillar-2: #0087a8;
+	--pp-pillar-3: #16a416;
+	--pp-pillar-4: #a89200;
+	--pp-pillar-5: #8a1fd6;
+	--pp-pillar-6: #c95400;
+	--pp-pillar-7: #009179;
+	--pp-pillar-8: #d40f0f;
 
 	/* Alias-Schicht (historische Namen) — siehe Kommentar oben. */
 	--pp-bg: var(--pp-surface-0);
@@ -167,14 +169,15 @@
 	--pp-warning: #e8924a;
 	--pp-danger: #f97066;
 
-	--pp-pillar-1: #3987e5;
-	--pp-pillar-2: #d95926;
-	--pp-pillar-3: #199e70;
-	--pp-pillar-4: #c98500;
-	--pp-pillar-5: #d55181;
-	--pp-pillar-6: #008300;
-	--pp-pillar-7: #9085e9;
-	--pp-pillar-8: #e66767;
+	/* Herz-Rampe Dark: volle Neon-Leuchtkraft. */
+	--pp-pillar-1: #ff2d95;
+	--pp-pillar-2: #00e5ff;
+	--pp-pillar-3: #39ff14;
+	--pp-pillar-4: #fff01f;
+	--pp-pillar-5: #b026ff;
+	--pp-pillar-6: #ff6a00;
+	--pp-pillar-7: #00ffc8;
+	--pp-pillar-8: #ff3131;
 
 	--pp-shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
 	--pp-shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
@@ -2604,6 +2607,12 @@ kol-heading {
 }
 
 /* Farbtupfer der Legende — rein dekorativ (aria-hidden), der Name daneben trägt die Bedeutung. */
+/* Tiefenwellen im SVG-Herzen — Abdunkelung wie die STRATUM-Schichten im Glas-Shader; sie liegen
+   über den Farbstreifen und unter den Fugen. Opacity je Schicht als Attribut (Markup-Parameter). */
+.heart-depth {
+	fill: #000;
+}
+
 .heart-legend-dot {
 	flex-shrink: 0;
 	width: 0.75rem;
