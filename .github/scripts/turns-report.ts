@@ -239,6 +239,24 @@ export function renderTurnReport(dir: string): string {
 		.filter((t) => t.turns > 0)
 		.map((t) => t.turns)
 		.sort((a, b) => a - b);
+	// I — Lead-Time (Wandzeit erster → letzter Lauf je Ticket, ALLE Läufe auch ungemessene):
+	// der Gegenpart zu Turns — „schnell fertig" vs. „wenige Prompts". Median/p75 wie bei Turns.
+	const leadHours = tickets
+		.map((t) => {
+			const ts = entries
+				.filter((e) => e.issueId === t.issue)
+				.map((e) => Date.parse(e.timestamp))
+				.sort((a, b) => a - b);
+			return ts.length >= 2 ? (ts[ts.length - 1] - ts[0]) / 3_600_000 : Number.NaN;
+		})
+		.filter((h) => Number.isFinite(h))
+		.sort((a, b) => a - b);
+	const leadFmt = (q: number): string =>
+		leadHours.length > 0 ? `${quantile(leadHours, q).toLocaleString('de-DE', { maximumFractionDigits: 1 })} h` : '—';
+	// J — Routing-Ersparnis realisiert: Anteil vollständiger Tickets, die spec/ux laut
+	// Analyse-Entscheidung übersprungen haben (Run-Spalte der ai-phase-routing-Tabelle).
+	const noSpec = complete.filter((t) => !has(t.phaseRuns, 'spec')).length;
+	const noUx = complete.filter((t) => !has(t.phaseRuns, 'ux')).length;
 	lines.push(
 		'### Selbstoptimierung — vollständige Tickets',
 		'',
@@ -252,12 +270,36 @@ export function renderTurnReport(dir: string): string {
 		`| Turns je Ticket — Median | ${sortedTicketTurns.length > 0 ? num(quantile(sortedTicketTurns, 0.5)) : '—'} |`,
 		`| Turns je Ticket — p75 | ${sortedTicketTurns.length > 0 ? num(quantile(sortedTicketTurns, 0.75)) : '—'} |`,
 		`| Fixup+Review-Anteil an Turns | ${pct(completeTurns > 0 ? loopTurns / completeTurns : 0)} |`,
+		`| Lead-Time je Ticket — Median (Wandzeit) | ${leadFmt(0.5)} |`,
+		`| Lead-Time je Ticket — p75 | ${leadFmt(0.75)} |`,
+		`| Spec übersprungen (Routing-Ersparnis) | ${pct(complete.length > 0 ? noSpec / complete.length : 0)} |`,
+		`| UX übersprungen (Routing-Ersparnis) | ${pct(complete.length > 0 ? noUx / complete.length : 0)} |`,
 		'',
 		'> Die First-Pass-Grün-Rate ist die Steuergröße der Pipeline: Jede Nacharbeit kostet',
 		'> eine Fixup- und eine Re-Review-Runde. Der Wochen-Trend zeigt, ob Interventionen',
 		'> (z. B. Severity-Gating im Review) die Rate bewegen — Median/p75 robuster als Ø.',
 		'',
 	);
+
+	// E — Review-Runden-Verteilung: der Ø 2,2 versteckt den Schwanz — wenige Tickets mit 4+
+	// Runden tragen die Schleifenkosten (Kreuzverhör-Loops, #932). Das Histogramm macht sie
+	// sichtbar; sie sind die Eskalations-/Mentor-Kandidaten.
+	const buckets = new Map<number, number>();
+	for (const t of complete) {
+		const r = t.phaseRuns.review ?? 0;
+		if (r <= 0) continue;
+		const b = Math.min(r, 5);
+		buckets.set(b, (buckets.get(b) ?? 0) + 1);
+	}
+	if (buckets.size > 0) {
+		lines.push('Review-Runden je Ticket (Histogramm):', '', '| Review-Runden | Tickets |', '| --- | ---: |');
+		for (let b = 1; b <= 5; b++) lines.push(`| ${b === 5 ? '5+' : b} | ${buckets.get(b) ?? 0} |`);
+		lines.push(
+			'',
+			'> Wenige Tickets mit 4+ Runden tragen die Schleifenkosten — sie sind die Eskalations-/Mentor-Kandidaten.',
+			'',
+		);
+	}
 
 	// Turns je Phase über totalsByPhase — auf die MESSENDEN Läufe angewandt ist dessen `runs`
 	// automatisch „Läufe mit Turn-Erfassung", und Ø je Lauf mittelt nicht über Messlücken.
@@ -405,11 +447,24 @@ export function renderTurnReport(dir: string): string {
 		'',
 	);
 
-	lines.push('| Woche | Läufe | Tickets | Turns | Ø je Lauf | Ø je Ticket | Erstgrün | Loop-Anteil |');
-	lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
-	for (const [i, [wk, w]] of weeks.entries()) {
+	// H — Delegationsquote je Woche: sidechainTokens-Anteil am Input. Misst, ob der ADR-0008-
+	// Fan-out (Haiku-Subagents) real ankommt — 0 % heißt, alle Reads laufen im teuren Parent.
+	const weekSidechain = new Map<string, number>();
+	const weekInput = new Map<string, number>();
+	for (const e of measured) {
+		const wk = isoWeek(berlinDay(e.timestamp));
+		weekInput.set(wk, (weekInput.get(wk) ?? 0) + e.tokensIn);
+		weekSidechain.set(wk, (weekSidechain.get(wk) ?? 0) + (e.sidechainTokens ?? 0));
+	}
+	const delegationCol = (wk: string): string => {
+		const inp = weekInput.get(wk) ?? 0;
+		return inp > 0 ? `${(((weekSidechain.get(wk) ?? 0) / inp) * 100).toFixed(1)} %` : '—';
+	};
+	lines.push('| Woche | Läufe | Tickets | Turns | Ø je Lauf | Ø je Ticket | Erstgrün | Loop-Anteil | Delegation |');
+	lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+	for (const [wk, w] of weeks) {
 		lines.push(
-			`| ${wk} | ${w.runs} | ${w.issues.size} | ${num(w.turns)} | ${avg(w.turns, w.runs)} | ${avg(w.turns, w.issues.size)} | ${firstPassCol(wk)} | ${(loopShares[i] ?? 0).toFixed(1)} % |`,
+			`| ${wk} | ${w.runs} | ${w.issues.size} | ${num(w.turns)} | ${avg(w.turns, w.runs)} | ${avg(w.turns, w.issues.size)} | ${firstPassCol(wk)} | ${(((weekLoopTurns.get(wk) ?? 0) / Math.max(1, w.turns)) * 100).toFixed(1)} % | ${delegationCol(wk)} |`,
 		);
 	}
 	lines.push('');
@@ -445,6 +500,75 @@ export function renderTurnReport(dir: string): string {
 		'> Ø Turns/Läufe nur über Tickets mit Turn-Erfassung; Fixup-Rate über alle. Extern = Tickets ohne Analyse+Implement-Einträge — auch vor der Verkabelung versiegelte Durchläufe zählen hierzu.',
 		'',
 	);
+
+	// F+G — Neue Messfelder (ab 2026-09-06 erfasst): verdict/findings/nits je Review-Lauf und
+	// effort je Lauf füllen sich erst mit künftigen Versiegelungen. Ohne Daten bleibt es eine
+	// Notiz statt einer leeren Tabelle — über fehlende Messung wird keine Aussage gemacht.
+	const originById = new Map(all.tickets.map((t) => [t.issue, originOf(t)]));
+	const withFindings = all.entries.filter(
+		(e) => e.phase === 'review' && typeof e.findings === 'number' && typeof e.nits === 'number',
+	);
+	const effortRuns = all.entries.filter((e) => typeof e.effort === 'string');
+	if (withFindings.length === 0 && effortRuns.length === 0) {
+		lines.push(
+			'> ℹ️ Review-Fakten (verdict/findings/nits) und Effort sind ab Versiegelungen ab 2026-09-06',
+			'> erfasst — die Herkunfts-Tabelle oben schärft sich dann um „Ø Findings/Nits je Review“',
+			'> und eine Effort-Matrix (Ø Turns je Phase × Effort-Stufe) ergänzt diese Notiz.',
+			'',
+		);
+	}
+	if (withFindings.length > 0) {
+		lines.push(
+			'### Review-Fakten je Herkunft (Läufe ab 2026-09-06)',
+			'',
+			'| Herkunft | Review-Läufe | Ø Findings | Ø Nits | needs-fixup-Anteil |',
+			'| --- | ---: | ---: | ---: | ---: |',
+		);
+		for (const o of origins) {
+			const g = withFindings.filter((e) => originById.get(e.issueId) === o);
+			if (g.length === 0) continue;
+			const fAvg = g.reduce((a, e) => a + (e.findings as number), 0) / g.length;
+			const nAvg = g.reduce((a, e) => a + (e.nits as number), 0) / g.length;
+			const fixShare = g.filter((e) => e.verdict === 'needs-fixup').length / g.length;
+			lines.push(
+				`| ${o === 'pipeline' ? 'Pipeline' : 'extern'} | ${g.length} | ${fAvg.toLocaleString('de-DE', { maximumFractionDigits: 1 })} | ${nAvg.toLocaleString('de-DE', { maximumFractionDigits: 1 })} | ${pct(fixShare)} |`,
+			);
+		}
+		lines.push(
+			'',
+			'> Findings = Inline-Review-Kommentare des Laufes (je einer nach SKILL Step 4).',
+			'> Hohe Ø Findings bei extern UND Pipeline → strengerer Review; hohe Findings + hoher',
+			'> needs-fixup-Anteil nur bei extern → schwächerer Code (s. SCHEMA.md-Auswertung).',
+			'',
+		);
+	}
+	if (effortRuns.length > 0) {
+		const byPhaseEffort = new Map<string, { runs: number; turns: number }>();
+		for (const e of effortRuns) {
+			if (!isMeasured(e)) continue;
+			const key = `${e.phase ?? '(ohne)'}\u{0009}${e.effort}`;
+			const rec = byPhaseEffort.get(key) ?? { runs: 0, turns: 0 };
+			rec.runs += 1;
+			rec.turns += e.turns as number;
+			byPhaseEffort.set(key, rec);
+		}
+		lines.push(
+			'### Effort-Matrix (Läufe ab 2026-09-06)',
+			'',
+			'| Phase | Effort | Läufe | Ø Turns |',
+			'| --- | --- | ---: | ---: |',
+		);
+		for (const [key, rec] of [...byPhaseEffort.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+			const [phase, effort] = key.split('\u{0009}') as [string, string];
+			lines.push(`| ${phase} | ${effort} | ${rec.runs} | ${avg(rec.turns, rec.runs)} |`);
+		}
+		lines.push(
+			'',
+			'> Antwortet „lohnt high Effort?“:senkt ein höherer Aufwand die Turns je Lauf (und',
+			'> mittelbar die Fixup-Rate), oder zahlt er sich nur in Token?',
+			'',
+		);
+	}
 
 	lines.push(
 		'### Turns je Ticket',
