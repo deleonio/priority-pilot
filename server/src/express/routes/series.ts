@@ -390,13 +390,6 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (
-		validation.pillars !== undefined &&
-		!(await arePillarsExistent(validation.pillars.map((entry) => entry.pillarId)))
-	) {
-		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
-		return;
-	}
 	try {
 		// #1222: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
 		// prüfen — Muster `POST /tasks` (#1213): `userId` im Body bezeichnet das Konto, dem die Serie
@@ -423,6 +416,18 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 				}
 				recipientId = recipientInput;
 			}
+		}
+		// #1249: Säulen gegen das Konto prüfen, dem die Serie gehören wird — bei einem Empfänger gegen
+		// dessen Konto statt gegen den Aufrufer (Empfänger-Auflösung inkl. 403 bleibt davor).
+		if (
+			validation.pillars !== undefined &&
+			!(await arePillarsExistent(
+				validation.pillars.map((entry) => entry.pillarId),
+				recipientId ?? getUserId(req) ?? null,
+			))
+		) {
+			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+			return;
 		}
 		const created = await sequelize.transaction(async (transaction) => {
 			const series = await Series.create(
@@ -494,9 +499,13 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 		sendError(res, 400, validation.message);
 		return;
 	}
+	// #1249: Säulen gegen den Eigentümer der Serie prüfen, nicht gegen den Aufrufer.
 	if (
 		validation.pillars !== undefined &&
-		!(await arePillarsExistent(validation.pillars.map((entry) => entry.pillarId)))
+		!(await arePillarsExistent(
+			validation.pillars.map((entry) => entry.pillarId),
+			series.userId ?? null,
+		))
 	) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;

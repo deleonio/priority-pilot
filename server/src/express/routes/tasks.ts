@@ -449,16 +449,6 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			return;
 		}
 		const userId = getUserId(req);
-		if (
-			validation.pillars !== undefined &&
-			!(await arePillarsExistent(
-				validation.pillars.map((p) => p.pillarId),
-				userId,
-			))
-		) {
-			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
-			return;
-		}
 		try {
 			// #1213: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
 			// prüfen: `userId` im Body bezeichnet das Konto, dem die Aufgabe gehören soll. Ohne das Feld
@@ -484,6 +474,18 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					}
 					recipientId = recipientInput;
 				}
+			}
+			// #1249: Säulen gegen das Konto prüfen, dem die Aufgabe gehören wird — bei einem Empfänger
+			// gegen dessen Konto statt gegen den Ersteller (Empfänger-Auflösung inkl. 403 bleibt davor).
+			if (
+				validation.pillars !== undefined &&
+				!(await arePillarsExistent(
+					validation.pillars.map((p) => p.pillarId),
+					recipientId ?? userId ?? null,
+				))
+			) {
+				sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+				return;
 			}
 			const created = await sequelize.transaction(async (transaction) => {
 				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
@@ -554,7 +556,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			validation.pillars !== undefined &&
 			!(await arePillarsExistent(
 				validation.pillars.map((p) => p.pillarId),
-				userId,
+				userId ?? null,
 			))
 		) {
 			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
