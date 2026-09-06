@@ -256,9 +256,9 @@ jobs:
           provider: ${{ steps.setup.outputs.llm-provider }}
           effort: ${{ steps.setup.outputs.effort }}
 
-      - name: Issue-Storage sichern (Harness-Branch)
-        # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem
-        # Spec/Impl arbeiten; der Memory reist committet mit dem PR nach main.
+      - name: Issue-Storage sichern (Artefakt)
+        # ADR 0010: Phasen-Notizen als Workflow-Artefakt hochladen — kein Commit/Branch
+        # mehr am Phasen-Ende. Restore macht der Memory-Load der Folgephase.
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/issue-state-save
         with:

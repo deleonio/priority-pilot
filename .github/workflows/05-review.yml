@@ -405,9 +405,10 @@ jobs:
           findings: ${{ steps.review-facts.outputs.findings }}
           nits: ${{ steps.review-facts.outputs.nits }}
 
-      - name: Issue-Storage sichern (Harness-Branch)
-        # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem
-        # Spec/Impl arbeiten; der Memory reist committet mit dem PR nach main.
+      - name: Issue-Storage sichern (Artefakt)
+        # ADR 0010: Phasen-Notizen als Workflow-Artefakt hochladen — kein Commit auf dem
+        # PR-Branch mehr: Der Save löste bisher pro Review einen CI-Neustart (Synchronize)
+        # für eine reine Notiz-Änderung aus.
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/issue-state-save
         with:

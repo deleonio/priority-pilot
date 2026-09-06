@@ -23,10 +23,10 @@ name: Cleanup Cache
 # hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in cron.codeql.yml
 # (Schedule-only statt pro Push/PR). Sie fallen innerhalb von 7 Tagen an GitHubs Eviction.
 #
-# STORAGE-BRANCH-SWEEP (ADR 0007, Erbe aus ADR 0006): Der Issue-Storage lebt auf
-# Harness-Zweigen ai/harness/{N} (ab Spec zugleich PR-Branch, vom Merge automatisch
-# geloescht) sowie legacy auf ai/state/issue-{N}. Dieser Sweep ist der Backstop fuer
-# Tickets, die den geregelten Abbau nie erreichen (ai:needs-human, Abbruch,
+# STORAGE-BRANCH-SWEEP (Erbe aus ADR 0006/0007): Seit ADR 0010 reist der Issue-Storage als
+# Workflow-Artefakt; Harness-Zweige ai/harness/{N} sind nur noch Arbeits-/PR-Branch ab Spec
+# (vom Merge automatisch geloescht), dazu legacy ai/state/issue-{N}. Dieser Sweep ist der
+# Backstop fuer Tickets, die den geregelten Abbau nie erreichen (ai:needs-human, Abbruch,
 # ai:to-big-issue): Ein Branch beider Prefixe, dessen Issue/PR GESCHLOSSEN ist und dessen
 # letzter Commit aelter als 7 Tage ist, wird entfernt. Offene Issues werden nie angefasst.
 
@@ -95,9 +95,10 @@ jobs:
           echo "Fehlschlaege:     $failed"
 
       - name: Verwaiste Issue-Storage-Branches entfernen (ai/state/* + ai/harness/*, Issue/PR geschlossen, >7 Tage)
-        # ADR 0007 (Erbe 0006): Backstop fuer Storage-Branches (ai/harness/* + legacy
-        # ai/state/*), deren Ticket den geregelten Abbau nie erreicht hat. Ein
-        # geschlossenes Issue/PR + 7 Tage Ruhe = nachweislich verwaisst.
+        # Erbe 0006/0007 (Transport seit ADR 0010 als Artefakt): Backstop fuer
+        # Storage-/Arbeits-Branches (ai/harness/* + legacy ai/state/*), deren Ticket den
+        # geregelten Abbau nie erreicht hat. Ein geschlossenes Issue/PR + 7 Tage Ruhe =
+        # nachweislich verwaisst.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

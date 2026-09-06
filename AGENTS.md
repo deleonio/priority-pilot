@@ -21,7 +21,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Diagramm + Tabellen zum label-getriebenen Ticket-Flows
 - [Kosten-Baseline #912](docs/kosten-baseline-912.md) — Token/Kosten eines Tickets über alle Phasen
-- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch (superseded)](docs/adr/0006-issue-storage-state-branch.md), [0007 Issue-Storage = Harness-Branch](docs/adr/0007-issue-storage-harness-branch.md), [0009 Phasen-Ausgaben = Harness-Kommentar](docs/adr/0009-issue-storage-harness-kommentar.md)
+- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch (superseded)](docs/adr/0006-issue-storage-state-branch.md), [0007 Issue-Storage = Harness-Branch (Transport superseded)](docs/adr/0007-issue-storage-harness-branch.md), [0009 Phasen-Ausgaben = Harness-Kommentar](docs/adr/0009-issue-storage-harness-kommentar.md), [0010 Phasen-Notizen = Workflow-Artefakt](docs/adr/0010-issue-storage-workflow-artefakt.md)
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
@@ -82,10 +82,10 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 `.ai-memory/` (nativer Claude-Code-Memory, `autoMemoryDirectory` in
 [`.claude/settings.json`](.claude/settings.json)) hat zwei Ebenen:
 
-| Datei                               | Lebensdauer                                                                                             | Zweck                                                 |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| [`MEMORY.md`](.ai-memory/MEMORY.md) | dauerhaft, eingecheckt                                                                                  | Erfahrungs-Log — derselbe Fehler kein zweites Mal     |
-| `issue-<N>-<phase>.md`              | committet, reist im Harness-Branch `ai/harness/{N}` mit dem PR nach main; Hygiene-Sweep räumt Verwaiste | Soft-Abort-Resume eines Tickets: wo der Lauf aufhörte |
+| Datei                               | Lebensdauer                                                         | Zweck                                                 |
+| ----------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
+| [`MEMORY.md`](.ai-memory/MEMORY.md) | dauerhaft, eingecheckt                                              | Erfahrungs-Log — derselbe Fehler kein zweites Mal     |
+| `issue-<N>-<phase>.md`              | 90 Tage als Workflow-Artefakt (ADR 0010); nie committet, gitignored | Soft-Abort-Resume eines Tickets: wo der Lauf aufhörte |
 
 **Lesen:** immer beide, `MEMORY.md` zuerst — auch beim ersten Lauf an einem Ticket.
 
@@ -100,10 +100,12 @@ Selbstverständliches, Erfolgsmeldungen. Die meisten Läufe schreiben **gar nich
 per `union` ([`.gitattributes`](.gitattributes)), was nur bei reinem Anhängen konfliktfrei trägt;
 Prettier fasst sie bewusst nicht an ([`.prettierignore`](.prettierignore)).
 
-**Wer committet:** nur Phasen mit Commit-Auftrag (Spec, Umsetzung — beide Eingänge) im normalen
-Phasen-Commit, kein eigener, kein Push auf `main`. Phasen ohne Branch (Triage, UX, Review) legen den
-Kandidaten unter `## Fallstricke` ihrer Phasen-Notiz ab. Lokale Sessions dürfen anhängen, aber nicht
-selbst committen — Eintrag vorschlagen, er reist mit dem nächsten regulären Commit mit.
+**Wer committet:** niemand — Phasen-Notizen sind gitignored und reisen als Workflow-Artefakt
+(ADR 0010). `MEMORY.md` reist allein im normalen Phasen-Commit (Spec, Umsetzung — beide
+Eingänge), kein eigener Commit, kein Push auf `main`. Phasen ohne Branch (Triage, UX, Review)
+legen den Kandidaten unter `## Fallstricke` ihrer Phasen-Notiz ab. Lokale Sessions dürfen
+anhängen, aber nicht selbst committen — Eintrag vorschlagen, er reist mit dem nächsten
+regulären Commit mit.
 
 **Kuratierung:** max. ~40 Einträge. Zur festen Regel Gewordenes nach
 [Konventionen](.ai-knowledge/project.md#konventionen) überführen und die Zeile entfernen — MEMORY.md ist ein

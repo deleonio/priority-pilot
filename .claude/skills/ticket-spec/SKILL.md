@@ -19,8 +19,9 @@ This stage is the **separation of duties** of the TDD strategy (stage 3, see [td
 - A specifically given number takes priority; otherwise process in order (oldest first).
 - **Idempotency:** If an open PR with `Closes #<nr>` already exists for the issue, **do not** spec it again — end the run.
 - Load context + analysis: read the **acceptance criteria + test cases** block primarily from the **harness marker comment** (ADR 0009 — the ONE comment whose body starts with `<!-- ai-harness -->`; fetch via `gh issue view <nr> --json comments`, section between `<!-- KI-ANALYSE:START … -->` and `<!-- KI-ANALYSE:END -->`). If the marker comment is missing (legacy issue), fall back to the issue body block (`gh issue view <nr> --json body -q .body`). The issue description is never edited by phases.
-- Create a branch: the harness branch `ai/harness/<nr>` (usually already exists — it carries
-  the phase notes from triage/UX; `git fetch origin && git switch ai/harness/<nr>`).
+- Create a branch: the harness branch `ai/harness/<nr>` (exists only after a previous spec/
+  implementation run on this issue — resume case; the phase notes travel as workflow
+  artifacts, ADR 0010, NOT on this branch; `git fetch origin && git switch ai/harness/<nr>`).
   If it does not exist yet: `git switch -c ai/harness/<nr>`.
 
 ## Step 2 — Spec-first: update the specification (BEFORE deriving tests)

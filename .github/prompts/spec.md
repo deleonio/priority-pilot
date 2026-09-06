@@ -18,8 +18,8 @@ PROCEDURE (STRICT):
      spec-PR scope, red verification via scoped run + gate-runner delegation: SKILL.md step 3 —
      read that section before writing the first test).
   5. Commit/push/draft PR per SKILL.md step 4. Do NOT set ai:needs-review.
-     Additionally in the SAME commit: your phase note .ai-memory/issue-{{ISSUE_NR}}-spec.md
-     (it is tracked, NOT gitignored — the memory travels with the PR, ADR 0007).
+     Your phase note .ai-memory/issue-{{ISSUE_NR}}-spec.md stays LOCAL (gitignored) — the
+     workflow uploads it as an artifact at phase end (ADR 0010); never commit it.
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 

@@ -22,9 +22,9 @@ PROCEDURE (STRICT):
   4. UI WORK on frontend changes: ticket-implementation SKILL.md step 3b/3c.
   5. GATE per ticket-implementation SKILL.md step 3c (full local CI gate, every command green BEFORE the push;
      test results in the PR body per AGENTS.md).
-  6. Commit + push the branch (phase note .ai-memory/issue-{{ISSUE_NR}}-implement.md in the SAME
-     commit — it is tracked, NOT gitignored, the memory travels with the PR, ADR 0007),
-     then make the PR review-ready per ticket-implementation SKILL.md step 4: spec mode → the existing draft PR
+  6. Commit + push the branch (your phase note .ai-memory/issue-{{ISSUE_NR}}-implement.md stays
+     LOCAL, gitignored — the workflow uploads it as an artifact at phase end, ADR 0010; never
+     commit it), then make the PR review-ready per ticket-implementation SKILL.md step 4: spec mode → the existing draft PR
      (gh pr ready <nr>) + extend the description; direct mode → the PR from step 3b (not as a draft).
      In BOTH cases, an open, non-draft PR with commits must exist at the end — the workflow checks
      exactly that before setting ai:needs-review.

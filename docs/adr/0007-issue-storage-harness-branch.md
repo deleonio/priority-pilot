@@ -1,6 +1,6 @@
 # ADR 0007 — Issue-Storage reist im Harness-Branch mit (Memory wird committet)
 
-- **Status:** Accepted (2026-08-28) — ersetzt [ADR 0006](0006-issue-storage-state-branch.md); Issue-seitig fortgeschrieben durch [ADR 0009](0009-issue-storage-harness-kommentar.md) (Phasen-Ausgaben im Harness-Kommentar)
+- **Status:** Accepted (2026-08-28) — Storage-Transport superseded (2026-09-06) durch [ADR 0010](0010-issue-storage-workflow-artefakt.md) (Phasen-Notizen als Workflow-Artefakt, kein Commit mehr); der Harness-Branch als Arbeits-/PR-Branch ab Spec bleibt aus diesem ADR bestehen. Issue-seitig fortgeschrieben durch [ADR 0009](0009-issue-storage-harness-kommentar.md) (Phasen-Ausgaben im Harness-Kommentar)
 - **Datum:** 2026-08-28
 - **Kontext:** ADR 0006 ([State-Branch](0006-issue-storage-state-branch.md)), ADR 0005 (eine Umsetzungsphase)
 

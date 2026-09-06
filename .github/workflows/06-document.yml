@@ -290,10 +290,12 @@ jobs:
           issue="${issue:-$PR}"
           bash .github/scripts/seal-costs.sh --repo "$REPO" --issue "$issue"
 
-      - name: Issue-Storage sichern (Harness-Branch)
-        # Der Documenter schreibt jetzt ebenfalls: "am Ende jeder Phase speichern" gilt ohne
+      - name: Issue-Storage sichern (Artefakt)
+        # Der Documenter schreibt ebenfalls: "am Ende jeder Phase speichern" gilt ohne
         # Ausnahme. Nutzen auch in der terminalen Phase: schlaegt er fehl und laeuft erneut,
-        # setzt der Re-Run auf seinem eigenen Checkpoint auf statt bei null.
+        # setzt der Re-Run auf seinem eigenen Checkpoint auf statt bei null. Seit ADR 0010
+        # als Artefakt — kein Branch-Neuanlage nach dem Merge mehr nötig; und der Documenter
+        # sieht jetzt auch die Vor-Phasen-Notizen (der Branch wurde beim Merge geloescht).
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/issue-state-save
         id: save
@@ -303,7 +305,7 @@ jobs:
 
       - name: 🔍 Notiz-Post-Assertion (Claude-Pfad muss neue Phasen-Notiz schreiben)
         # Spiegelstück zur Label-Post-Assertion unten (#1010 AK2): Der Save meldet nur noch
-        # NEUE Notizen (Blob-Diff gegen den State-Branch) — ein grüner Lauf ohne neue
+        # NEUE Notizen (sha256-Diff gegen die Load-Baseline) — ein grüner Lauf ohne neue
         # .ai-memory/issue-*.md bedeutet, Claude hat den Checkpoint vergessen. Fail-hard
         # statt stiller Speicher-Schein (Beobachtungsfall Run 32803685957 aus #1008).
         # Bot-/Ignore-Shortcut läuft bewusst ohne Claude und bleibt ausgenommen (analog

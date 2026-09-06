@@ -88,7 +88,7 @@ inputs:
     required: false
     default: ''
   memory-load:
-    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Harness-Branch ai/harness/{N}; Fallback auf den Legacy-State-Branch ai/state/issue-{N}). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert die Phasen-Notizen für ticket-ref aus dem neuesten Workflow-Artefakt ai-memory-issue-<N>-*; Übergangs-Fallback auf den alten Harness-Branch ai/harness/{N} bzw. Legacy-State-Branch ai/state/issue-{N} für Tickets aus der Zeit vor ADR 0010). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
     required: false
     default: 'false'
   expect-memory:
@@ -288,45 +288,81 @@ runs:
         fi
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Load (pro Issue, Harness-Branch ai/harness/{N}, Fallback State-Branch)
-      # ADR 0007: Der Issue-Storage lebt im Harness-Branch — demselben Branch, auf dem
-      # Spec/Impl arbeiten und der per PR nach main gemergt wird. Hier: fetchen und die
-      # Storage-Pfade in den Workspace restoren. git restore OHNE --staged lässt den Index
-      # unberührt. MEMORY.md wird via :(exclude) ausgespart: es ist eingecheckt und reist in
-      # den Phasen-Commits — ein alter Stand aus dem Storage dürfte es nie überschreiben.
-      # Fehlt der Harness-Branch, wird der LEGACY-State-Branch ai/state/issue-{N} (ADR 0006,
-      # Bestand vor der Umstellung) probiert. Fehlen beide (Erst-Triage/Erst-Phase) →
-      # found=false, Phase startet mit leerem Memory (fail-open). Dasselbe greift für
-      # Branches aus der Zeit vor dem .ai-memory-Umzug: dort matcht der Pathspec nicht,
-      # der Restore scheitert kontrolliert und die Phase startet leer statt mit Müll.
-      # WICHTIG für Phase 3 (Spec): Der Agent switched im weiteren Verlauf auf genau diesen
-      # Branch — die restaurierten Dateien sind dann identisch mit dem Branch-Stand, der
-      # Switch ist sauber; ab Spec committet der Agent seine Notizen selbst mit (ADR 0007).
+    - name: Memory-Load (pro Issue — neuestes ai-memory-Artefakt, Übergangs-Fallback Branch)
+      # ADR 0010: Der Issue-Storage reist als Workflow-Artefakt — jede Phase lädt am Laufbeginn
+      # das NEUESTE nicht-abgelaufene Artefakt mit Prefix ai-memory-issue-<N>- und entpackt es
+      # nach .ai-memory/ (Artefakte sind repo-weit lesbar, unabhängig vom Trigger-Ref — anders
+      # als actions/cache, dessen Writes auf Issue-/PR-Triggern platformseitig gesperrt sind,
+      # s. ADR 0006). MEMORY.md liegt nie im Artefakt (Upload-Glob issue-*.md): es ist
+      # eingecheckt und reist in den Phasen-Commits — ein alter Stand dürfte es nie
+      # überschreiben.
+      # ÜBERGANGS-FALLBACK: Tickets, deren Notizen noch auf ai/harness/{N} (ADR 0007) bzw.
+      # ai/state/issue-{N} (ADR 0006) committet sind, laden einmalig vom Branch. Fällt weg,
+      # sobald keine vor-0010-Tickets mehr in der Pipeline sind.
+      # Baseline: sha256 je geladener Notiz nach $RUNNER_TEMP — issue-state-save zählt daran
+      # new-notes (neu/geändert) statt blinder Blob-Diffs.
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
       env:
         ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
+        REPO: ${{ github.repository }}
+        GH_TOKEN: ${{ steps.gh-token.outputs.token }}
       run: |
         set -uo pipefail
         mkdir -p .ai-memory
+        BASELINE="$RUNNER_TEMP/ai-memory-baseline.sha"
+        : > "$BASELINE"
         found="false"
         SOURCE=""
-        for BRANCH in "ai/harness/${ISSUE_NR}" "ai/state/issue-${ISSUE_NR}"; do
-          if git fetch --quiet origin "$BRANCH" 2>/dev/null \
-             && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
-             && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md' ':(exclude).ai-memory/state.json'; then
+
+        # ── 1. Artefakt-Transport (ADR 0010): neuestes Artefakt je Issue ──────────────
+        # Latest-Wins über created_at (ISO-8601, lexikalisch sortierbar). Der Suffix-Binde-
+        # strich im Prefix verankert die Issue-Nummer (ai-memory-issue-12- matcht NIE
+        # ai-memory-issue-123-…). Listen-Fehler schlagen NICHT als „leer = Erstphase"
+        # durch: dann greift der Branch-Fallback, und fehlt der auch, warnt memory-verify.
+        LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
+          --jq ".artifacts[] | select(.expired == false) \
+                | select(.name | startswith(\"ai-memory-issue-${ISSUE_NR}-\")) \
+                | [.id, .name, .created_at] | @tsv" 2>/dev/null || true)"
+        latest="$(printf '%s\n' "$LIST" | sort -t "$(printf '\t')" -k3,3 | tail -n 1 || true)"
+        if [ -n "$latest" ]; then
+          art_id="$(printf '%s' "$latest" | cut -f1)"
+          art_name="$(printf '%s' "$latest" | cut -f2)"
+          if gh api "repos/${REPO}/actions/artifacts/${art_id}/zip" >"/tmp/ai-memory-${art_id}.zip" 2>/dev/null \
+             && unzip -o -q "/tmp/ai-memory-${art_id}.zip" -d .ai-memory 2>/dev/null; then
             found="true"
-            SOURCE="$BRANCH"
-            break
+            SOURCE="Artefakt ${art_name}"
           fi
-        done
+          rm -f "/tmp/ai-memory-${art_id}.zip"
+        fi
+
+        # ── 2. Übergangs-Fallback: alter Branch-Storage (ADR 0007/0006) ─────────────
+        if [ "$found" != "true" ]; then
+          for BRANCH in "ai/harness/${ISSUE_NR}" "ai/state/issue-${ISSUE_NR}"; do
+            if git fetch --quiet origin "$BRANCH" 2>/dev/null \
+               && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
+               && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md' ':(exclude).ai-memory/state.json'; then
+              found="true"
+              SOURCE="Legacy-Branch ${BRANCH} (Übergang, ADR 0007)"
+              break
+            fi
+          done
+        fi
+
         if [ "$found" = "true" ]; then
           echo "::notice title=🧠 Memory geladen::$SOURCE → .ai-memory/ (worktree, Index unberührt)."
         else
-          echo "::notice title=🧠 Memory leer (kein Harness-/State-Branch)::ai/harness/${ISSUE_NR} und ai/state/issue-${ISSUE_NR} existieren (noch) nicht — erste Phase dieses Tickets oder Storage zwischenzeitlich abgeräumt."
+          echo "::notice title=🧠 Memory leer (kein Artefakt, kein Branch)::ai-memory-issue-${ISSUE_NR}-* und ai/harness/${ISSUE_NR} existieren (noch) nicht — erste Phase dieses Tickets oder Storage zwischenzeitlich abgelaufen."
         fi
         echo "found=$found" >> "$GITHUB_OUTPUT"
+
+        # Baseline für new-notes im Save-Step: nur echte Phasen-Notizen zählen.
+        while IFS= read -r f; do
+          [ -f "$f" ] || continue
+          printf '%s:%s\n' "$(basename "$f")" "$(sha256sum "$f" | cut -d' ' -f1)" >> "$BASELINE"
+        done < <(find .ai-memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null \
+                   | grep -E '/issue-[0-9]+-(triage|ux|spec|implement|fixup|review|documenter)\.md$' || true)
 
     - name: Memory-Verzeichnis sicherstellen (Schreibzugriff auch bei Miss / memory-load=false)
       # Entkoppelt von memory-load: auch bei Restore-Miss (Erst-Triage) oder memory-load=false
@@ -550,8 +586,9 @@ runs:
         openrouter-api-key: ${{ inputs.openrouter-api-key }}
 
     # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-agent).
-    # Phasen (01..05) sichern nach dem Agenten-Step den Issue-Storage über die Composite-Action
-    # issue-state-save als Fetch-then-Commit auf ai/harness/{N} (ADR 0007) — derselbe Branch,
-    # auf dem Spec/Impl arbeiten und der per PR nach main gemergt wird (Memory reist mit);
-    # es folgt kein Artefakt-/Cache-Transport mehr (Cache-Writes sind fuer diese
-    # Trigger platform-seitig gesperrt, s. Kopf-Kommentar von setup-claude).
+    # Phasen (01..06) sichern nach dem Agenten-Step den Issue-Storage über die Composite-
+    # Action issue-state-save: Upload der .ai-memory-Notizen als Workflow-Artefakt
+    # ai-memory-issue-<N>-<phase>-<run> (ADR 0010) — kein Commit, kein Branch; der Restore
+    # hier oben lädt das jeweils neueste Artefakt. Der frühere Branch-Commit (ADR 0007)
+    # entfiel: Der Review-Save-Commit auf dem PR-Branch FEUERTE pro Runde einen CI-Neustart,
+    # und Triage/UX/Documenter legten Branches nur für den Transport an.

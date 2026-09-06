@@ -451,21 +451,23 @@ adressieren beide. `MEMORY.md` ist das **eingecheckte Dauergedächtnis** über T
 reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und kommt nie in
 den Issue-Storage, sonst überschriebe ein alter Stand beim Restore der Folgephase die frisch
 committete Datei. `issue-<N>-<phase>.md` sind die **Phasen-Notizen** für den
-Soft-Abort-Resume — seit ADR 0007 committet (nicht mehr gitignored): Sie reisen im
-Harness-Branch mit und gelangen per PR-Merge dauerhaft nach `main`. Vertrag und
-Aufnahmekriterium: [AGENTS.md → Memory](../AGENTS.md#memory).
+Soft-Abort-Resume — seit ADR 0010 gitignored (nie committet): Ihr Transport ist ein
+Workflow-Artefakt. Vertrag und Aufnahmekriterium: [AGENTS.md → Memory](../AGENTS.md#memory).
 
-**Issue-Storage (Transport):** Der Zustand pro Issue liegt auf dem **Harness-Branch
-`ai/harness/{N}`** — demselben Branch, auf dem Spec/Impl arbeiten und der per PR nach
-`main` gemergt wird. Triage/UX legen ihn an bzw. schreiben ihn über die Composite-Action
-`issue-state-save` fort (Temp-Index, Basis `origin/main`); ab Spec committet der Agent
-seine Phasen-Notiz selbst mit, der Save-Step bleibt idempotentes Sicherheitsnetz.
-Jede Phase lädt per `git fetch` + `git restore` in den Workspace (Index unberührt,
-Legacy-Fallback auf `ai/state/issue-{N}`). `state.json` ist entfallen. Beim Merge löscht
-`delete_branch_on_merge` den Branch (Memory ist dann in `main`), der Hygiene-Sweep in
-`cron.cache-cleanup.yml` fängt Verwaiste (Issue geschlossen + 7 Tage Ruhe) auf beiden Prefixen.
-Entscheidung inkl. Geschichte (Artefakt-/Cache-Ablehnung, read-only Cache-Tokens):
-[ADR 0007](./adr/0007-issue-storage-harness-branch.md), Vorgänger [ADR 0006](./adr/0006-issue-storage-state-branch.md).
+**Issue-Storage (Transport):** Der Zustand pro Issue reist als **Workflow-Artefakt**
+(ADR 0010): Jede Phase lädt am Laufbeginn das neueste nicht-abgelaufene Artefakt
+`ai-memory-issue-<N>-*` (API-Listing + entpacken nach `.ai-memory/`, Last-Wins über
+`created_at`; Übergangs-Fallback auf die alten Storage-Branches für vor-0010-Tickets) und
+lädt am Phasen-Ende die volle Notizenmenge wieder hoch (`issue-state-save`, 90 Tage Retention,
+`new-notes` per sha256-Diff gegen eine Load-Baseline). Kein Commit, kein Branch am Phasen-Ende:
+Der Review-Save feuert dadurch keinen CI-Neustart mehr, und in `main` landen keine
+Notiz-Dateien. Der Harness-Branch `ai/harness/{N}` bleibt reiner Arbeits-/PR-Branch ab der
+Spec-Phase; `delete_branch_on_merge` löscht ihn beim Merge, der Hygiene-Sweep in
+`cron.cache-cleanup.yml` räumt Verwaiste (Issue geschlossen + 7 Tage Ruhe). Geschichte inkl.
+Neubewertung der früheren Artefakt-/Cache-Ablehnung:
+[ADR 0010](./adr/0010-issue-storage-workflow-artefakt.md), Vorgänger
+[ADR 0007](./adr/0007-issue-storage-harness-branch.md) (Branch-Transport),
+[ADR 0006](./adr/0006-issue-storage-state-branch.md) (Cache-Sperre).
 
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/claude-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der

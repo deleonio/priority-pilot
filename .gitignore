@@ -1,7 +1,8 @@
-# Phasen-Notizen (.ai-memory/issue-*.md) sind seit ADR 0007 NICHT mehr ignoriert: Sie reisen
-# committet im Harness-Branch ai/harness/{N} mit und gelangen per PR-Merge dauerhaft nach
-# main. Das Dauergedächtnis .ai-memory/MEMORY.md bleibt ebenfalls versioniert (Verzeichnis-
-# Ignore ginge nicht: ein ignoriertes Verzeichnis lässt sich nicht per ! wieder öffnen).
+# Phasen-Notizen (.ai-memory/issue-*.md) reisen NICHT mehr im Repo (ADR 0010): Transport ist
+# ein Workflow-Artefakt (Upload je Phasen-Ende, Restore je Phasen-Start in setup-agent).
+# Das Dauergedächtnis .ai-memory/MEMORY.md bleibt versioniert (Verzeichnis-Ignore ginge
+# nicht: ein ignoriertes Verzeichnis lässt sich nicht per ! wieder öffnen).
+.ai-memory/issue-*.md
 .claude/worktrees/
 .claude/settings.local.json
 .zcode/
