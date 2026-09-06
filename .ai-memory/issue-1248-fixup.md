@@ -32,3 +32,18 @@
 ## Fallstricke
 - ai-fixup-decisions-Kommentar immer per PATCH auf dem BESTEHENDEN (Marker-Suche) updaten — ein neuer Kommentar pro Runde bricht den Nachweis-Kettenvertrag.
 - e2e-Fails (issue-843 AK1/AK2, settings-switch-layout AK1) sind auf main rot — nicht als Fixup-Regression werten.
+
+---
+# Update Fixup-Runde 3, 2026-09-06 (CI-Trigger)
+## Erledigt (R3)
+- Keine offenen Findings (Review Runde 2 = Fixup-Nachweis 🟢, REST-Threads leer) → kein Fix-Commit. Trigger dieser Runde: CI-Red.
+- Flake-Analyse Run 34010284465: e2e(3) = issue-843 AK1/AK2 + issue-865 AK6 + (e2e(4)) settings-switch-layout AK1. issue-865 AK6 failte auf WebGL-GPU-Warnung „GPU stall due to ReadPixels" (Umgebungs-Flake).
+- `gh run rerun 34010284465 --failed` (FLAKY-Pfad, kein Push davor → kein Concurrency-Risiko, Memory 2026-08-23), 60s + ~290s gewartet: issue-865 AK6 GRÜN beim Rerun; verbleibend = exakt das main-Set (issue-843 AK1/AK2, settings-switch-layout AK1; main-Run 34005240890 auf 8ff757a = identisch rot + issue-1051 F1).
+- ai-fixup-decisions-Kommentar 5556752267 per PATCH aktualisiert (neue Sektion „🧪 CI (Fixup-Runde 3)"), ✅-Tabelle unverändert (3 Zeilen, SHA 268e3736).
+## Annahmen (R3)
+- issue-865-AK6-Rerun-Grün + nur-docs-Diff → als Flake eingestuft, nicht als echte Regression.
+## Verworfen (R3)
+- Fix-Commit — wäre pro-forma, kein Finding offen.
+- Nochmaliger Rerun der deterministischen main-Fails — pointless, auf main selbst rot (Beleg 34005240890).
+## Nächster Schritt (R3)
+- VERDICT already-done; Wegwerf-Artefakt `.ai-memory/issue-1248-decisions-body.md` NICHT committen.
