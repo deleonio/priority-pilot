@@ -1,8 +1,6 @@
 ## WRITING MEMORY — MANDATORY
 
-**TWO PURPOSES**:
-1. A follow-up run of THIS phase after a soft-abort → pick up seamlessly
-2. The NEXT phase of this issue → don't redo the work
+**PURPOSE**: seamless resume of THIS phase after a soft-abort + handover to the NEXT phase of the issue — don't redo work.
 
 **FILE**: `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md`
 
