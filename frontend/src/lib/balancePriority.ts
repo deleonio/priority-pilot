@@ -23,14 +23,22 @@ export interface BalanceTask {
 export interface BalancePriority {
 	balanceScore: number;
 	virtualPriority: number;
+	/**
+	 * Original-`priority` zum Zeitpunkt der Berechnung. Gehört in den Stand, weil sie den
+	 * Gleichstand bricht (`sortTasksByBalance`): Läse die Sortierung sie live, sortierte sich die
+	 * eingefrorene Liste bei score-gleichen Tasks um, sobald jemand eine Prio ändert. Bewusst
+	 * nicht `priority` genannt — daneben steht `virtualPriority`, die beiden dürfen nicht
+	 * verwechselbar sein.
+	 */
+	originalPriority: number;
 }
 
 /**
- * Berechnet die virtuellen Balance-Prioritäten für offene Tasks aus einem **eingefrorenen Stand**
- * (AK2): `pillars` liefert das Soll (`weight`), `doneEffortByPillar` das Ist (erledigter
+ * Berechnet die virtuellen Balance-Prioritäten für offene Tasks aus dem übergebenen Datenstand:
+ * `pillars` liefert das Soll (`weight`), `doneEffortByPillar` das Ist (erledigter
  * `estimatedEffort` je Säule, anteilig nach `share` — Quelle `buildPillarSummaries` wie im
- * Dashboard). Die zurückgegebene Map ändert sich nicht mehr, wenn sich die Datenbasis ändert —
- * Neuberechnung passiert nur durch einen neuen Aufruf (Schalter/„Ausbalancieren").
+ * Dashboard). Die Funktion ist rein; ob das Ergebnis mitläuft oder einfriert (AK2), entscheidet
+ * allein der Aufrufer daran, wann er sie aufruft.
  *
  * Randfälle bewusst wie `heartBalance.ts` festgelegt:
  * - **Kein erledigter Aufwand** → jede Säule hat ihr volles Defizit.
@@ -59,17 +67,49 @@ export const buildBalancePriorities = (
 			(sum, contribution) => sum + (contribution.share / 100) * (deficits.get(contribution.pillarId) ?? 0),
 			0,
 		);
-		priorities.set(task.id, { balanceScore, virtualPriority: 1 + Math.round(balanceScore * 4) });
+		priorities.set(task.id, {
+			balanceScore,
+			virtualPriority: 1 + Math.round(balanceScore * 4),
+			originalPriority: task.priority,
+		});
 	}
 	return priorities;
+};
+
+/**
+ * Vergleicht zwei Balance-Stände auf inhaltliche Gleichheit — gleiche Task-IDs, gleicher Score und
+ * gleiche virtuelle Priorität. Damit erkennt die Oberfläche, ob der eingefrorene Stand von der
+ * aktuellen Datenlage abweicht, und kann ihn als veraltet ausweisen; ohne dieses Signal wäre für
+ * den Nutzer nicht erkennbar, wann eine Neuberechnung überhaupt etwas ändert.
+ *
+ * `null` ist kein Stand und damit nie gleich einem vorhandenen.
+ */
+export const balancePrioritiesEqual = (
+	a: ReadonlyMap<number, BalancePriority> | null,
+	b: ReadonlyMap<number, BalancePriority> | null,
+): boolean => {
+	if (a === null || b === null) return a === b;
+	if (a.size !== b.size) return false;
+	for (const [taskId, priority] of a) {
+		const other = b.get(taskId);
+		if (other === undefined) return false;
+		if (other.balanceScore !== priority.balanceScore) return false;
+		if (other.virtualPriority !== priority.virtualPriority) return false;
+		// Auch die Original-Prio: Sie bricht den Gleichstand, eine Änderung verschiebt die
+		// Reihenfolge also selbst dann, wenn kein Score sich rührt.
+		if (other.originalPriority !== priority.originalPriority) return false;
+	}
+	return true;
 };
 
 /**
  * Sortiert Tasks nach Balance: Score absteigend, bei Gleichstand Original-`priority` absteigend,
  * sonst stabil (keine Gleichstands-Umsortierung). Das Eingabe-Array wird nicht mutiert.
  *
- * `pillars` ist im `BalanceTask` optional, weil hier auch Wald-Knoten ohne eigene Säulen-Beiträge
- * laufen können — der Score kommt ohnehin aus dem übergebenen Snapshot.
+ * **Beide** Kriterien kommen aus dem Snapshot, nicht aus den übergebenen Task-Objekten — sonst
+ * bliebe der Gleichstand live und die eingefrorene Liste sortierte sich um, sobald jemand die
+ * Prio eines score-gleichen Tasks ändert. Nur wo ein Task im Stand fehlt, zählt sein eigener
+ * Wert; `pillars` ist im `BalanceTask` aus demselben Grund optional (Wald-Knoten ohne Beiträge).
  */
 export const sortTasksByBalance = <T extends BalanceTask>(
 	tasks: readonly T[],
@@ -79,7 +119,9 @@ export const sortTasksByBalance = <T extends BalanceTask>(
 		const scoreA = priorities.get(a.id)?.balanceScore ?? 0;
 		const scoreB = priorities.get(b.id)?.balanceScore ?? 0;
 		if (scoreA !== scoreB) return scoreB - scoreA;
-		return b.priority - a.priority;
+		const priorityA = priorities.get(a.id)?.originalPriority ?? a.priority;
+		const priorityB = priorities.get(b.id)?.originalPriority ?? b.priority;
+		return priorityB - priorityA;
 	});
 
 /** Label der virtuellen Priorität — Tilde-Präfix hält sie vom echten `P{n}`-Badge unterscheidbar (KI-UX). */
