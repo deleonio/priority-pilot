@@ -128,7 +128,7 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			// Abschnitt scopen statt page-weit: „von …" und die Empfängerin tauchen auch in der
 			// Mitgliederliste und in den gemounteten KolTabs-Panels auf (Strict Mode, 2026-08-29).
 			const taskSection = page.locator('.group-tasks');
-			await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
+			await expect(page.getByRole('heading', { name: SECTION_HEADING, exact: true })).toBeVisible();
 			await expect(taskSection.getByText('E2E Übergabe-Aufgabe')).toBeVisible();
 			await expect(taskSection.getByText(INVITEE_NAME).first()).toBeVisible();
 			await expect(taskSection.getByText(/von /).first()).toBeVisible();
@@ -156,7 +156,7 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			expect(selfCreated.status()).toBe(201);
 
 			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander Leer' }).click();
-			await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
+			await expect(page.getByRole('heading', { name: SECTION_HEADING, exact: true })).toBeVisible();
 			await expect(page.getByText(EMPTY_HINT)).toBeVisible();
 			await expect(page.getByText('Nur für mich')).toBeHidden();
 		} finally {
@@ -190,7 +190,7 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 				.locator('.group-tasks .group-task')
 				.filter({ hasText: /E2E Schmale Übergabe-Aufgabe|Lángename Empfängerin/ });
 			await expect(taskEntry).toHaveCount(1);
-			const heading = page.getByRole('heading', { name: SECTION_HEADING });
+			const heading = page.getByRole('heading', { name: SECTION_HEADING, exact: true });
 			await expect(heading).toBeVisible();
 			const viewport = page.viewportSize();
 			for (const [index, element] of [heading, taskEntry].entries()) {
