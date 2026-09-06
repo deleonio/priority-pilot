@@ -1,6 +1,9 @@
-# PR 1248 — Review (Runde 2: Fixup-Nachweis), Stand 2026-09-06
+# PR 1248 — Review (Runde 3: Fixup-Nachweis), Stand 2026-09-06
 
-**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Modus Fixup-Nachweis (`<!-- ai-review -->`-Marker vorhanden: Sammelkommentar 5556715608, updatedAt 03:48:13Z; `<!-- ai-fixup-decisions -->` 5556752267). Kein neues Kreuzverhör — nur Claim-Check + Delta-Scope. Alle 3 Claim-Zeilen gegen Fixup-Diff 268e3736 verifiziert, keine offenen Findings, nichts Neues eingebracht. Sammelkommentar per PATCH auf 5556715608 aktualisiert (Nits → Behobene-Tabelle, Footer „Review-Typ: Fixup-Nachweis"). Titel-Gate: „docs(guide): sync user guide with current app state (2026-09-06)" erfüllt Conventional Commits — kein Rename. Keine Labels gesetzt.
+**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Modus Fixup-Nachweis (Marker vorhanden: Sammelkommentar 5556715608, stand vor diesem Lauf 04:03:58Z; Fixup-Kommentar 5556752267, R4-repariert 06:29:30Z). Delta seit 04:03:58Z = NUR Commit 81ce90a8 (`.ai-memory/issue-1248-fixup.md` +31, Memory-Notiz; kein Code/Docs) → kein reviewables Delta, Claim-Checklist unverändert gültig (Runde 2 zeilenverifiziert), keine offenen Findings. Sammelkommentar per PATCH auf 5556715608 aktualisiert (Runde 3, Updated 06:35:02Z, Body in `.ai-memory/issue-1248-sammelkommentar-r3.md`). Titel-Gate: „docs(guide): sync user guide with current app state (2026-09-06)" erfüllt Conventional Commits — kein Rename. Keine Labels gesetzt.
+
+## Runde 2 (Kontext, Details unten unverändert gültig)
+Modus Fixup-Nachweis; alle 3 Claim-Zeilen gegen Fixup-Diff 268e3736 (nur `docs/user-guide.md` +9/-3 + Memory) verifiziert, nichts Neues eingebracht; Sammelkommentar erstmals auf Behobene-Tabelle umgestellt.
 
 ## Erledigt
 - Modus bestimmt (Marker-Suche `gh api issues/1248/comments`): Fixup-Nachweis; Runde-1-Review war „Review ohne Issue" (closingIssuesReferences = 0) → PR-Beschreibung bleibt informelle Spec, Zeile 2 im Sammelkommentar beibehalten.
@@ -25,10 +28,10 @@
 - Codeseitige Nachverifikation — Runde 1 hatte alle Code-Belege bereits erbracht.
 
 ## Offen
-- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `issue-1248-sammelkommentar-r2.md` (neu, dieser Lauf). Nur diese Datei hier ist die Phasen-Notiz.
+- Wegwerf-Artefakte in `.ai-memory/`, NICHT committen: `issue-1248-sammelkommentar-r2.md` + `issue-1248-sammelkommentar-r3.md` (Runde 3). Nur diese Datei hier ist die Phasen-Notiz.
 
 ## Nächster Schritt
-- Workflow übernimmt (Verdict reviewed → Merge-Gate entscheidt über CI); keine weitere Review-Runde nötig.
+- Workflow übernimmt (Verdict reviewed → Merge-Gate entscheidet über CI); weitere Runden nur falls erneut getriggert — dann wieder nur Delta-Scope gegen updatedAt des Sammelkommentars.
 
 ## Fallstricke
 - Weitere Runden (falls je getriggert): Sammelkommentar weiterhin per PATCH auf 5556715608, Finding-Nummern 1–3 stabil, „Review ohne Issue"-Hinweis Zeile 2 behalten.
