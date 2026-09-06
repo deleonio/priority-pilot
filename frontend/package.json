@@ -17,6 +17,7 @@
 		"@public-ui/components": "4.3.0",
 		"@public-ui/react-v19": "4.3.0",
 		"@public-ui/theme-default": "4.3.0",
+		"@public-ui/theme-kern": "4.3.0",
 		"client": "workspace:*",
 		"openapi-fetch": "0.17.0",
 		"react": "19.2.7",
