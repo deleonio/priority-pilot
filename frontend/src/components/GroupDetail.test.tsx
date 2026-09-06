@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,13 +16,22 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
+	KolAccordion: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<details open>
+			<summary>{_label}</summary>
+			{children}
+		</details>
+	),
 	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
 	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }) => (
 		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h3>{_label}</h3>,
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
-	KolInputText: () => <input type="search" />,
+	KolInputText: ({ _on }: { _on?: { onInput?: (event: unknown, value: string) => void } }) => (
+		// onInput durchgereicht (KoliBri-Signatur: Event + Wert) — für die Such-Debounce-Tests.
+		<input type="search" onInput={(event) => _on?.onInput?.(event, (event.target as HTMLInputElement).value)} />
+	),
 }));
 
 vi.mock('./Modal', () => ({
@@ -38,6 +47,8 @@ vi.mock('../api', () => ({
 		getGroupTasks: vi.fn(),
 		// #1254: füreinander angelegte Serien — gleiche Array-Verteidigung wie bei getGroupTasks.
 		getGroupSeries: vi.fn(),
+		// Audit #1257: Nutzersuche — Debounce- und Überhol-/Abbruch-Tests mocken die Treffer.
+		searchUsers: vi.fn(),
 		removeGroupMember: vi.fn(),
 		updateGroupMemberRole: vi.fn(),
 	},
@@ -49,6 +60,7 @@ import { GroupDetail } from './GroupDetail';
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
 const mockGetGroupInvitations = api.getGroupInvitations as ReturnType<typeof vi.fn>;
 const mockRemoveGroupMember = api.removeGroupMember as ReturnType<typeof vi.fn>;
+const mockSearchUsers = api.searchUsers as ReturnType<typeof vi.fn>;
 // `updateGroupMemberRole` existiert im echten Client-Typ noch nicht (Impl-Phase #1221) — Zugriff
 // über eine lokal erweiterte Sicht, damit der Test unabhängig vom Produktionscode kompiliert.
 const mockUpdateGroupMemberRole = (api as unknown as { updateGroupMemberRole: ReturnType<typeof vi.fn> })
@@ -243,5 +255,102 @@ describe('GroupDetail — Rolle ändern (#1221 AK7)', () => {
 		await waitFor(() => {
 			expect(screen.getByRole('alert')).toHaveTextContent(/mindestens einen Administrator/i);
 		});
+	});
+});
+
+// Audit #1257: Die Nutzersuche bündelt Tastenschläge (Debounce) und verwirft überholte Antworten —
+// sonst feuert jedes Zeichen einen Request, und eine langsame alte Antwort überschreibt neue
+// Treffer. Muster und Teststil: useAddressSearch (Fake-Timer, deferred Promise).
+describe('GroupDetail — Nutzersuche: Debounce und Überholschutz (Audit #1257)', () => {
+	/** Manuell auflösbare Promise — für Anfragen, die „im Netz“ hängen bleiben sollen. */
+	function deferred<T>() {
+		let resolve!: (value: T) => void;
+		const promise = new Promise<T>((res) => {
+			resolve = res;
+		});
+		return { promise, resolve };
+	}
+
+	type Hit = { id: number; displayName: string };
+
+	/** Timer-Vorschub plus React-Flush — State-Updates aus Antworten landen sonst nicht im DOM. */
+	const flush = async (ms: number): Promise<void> => {
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(ms);
+		});
+	};
+
+	it('bündelt schnelles Tippen zu einer Suche mit dem finalen Suchtext', async () => {
+		vi.useFakeTimers();
+		try {
+			mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+			mockGetGroupInvitations.mockResolvedValue([]);
+			mockSearchUsers.mockResolvedValue([]);
+
+			render(<GroupDetail groupId={1} ownRole="admin" />);
+			await flush(0);
+
+			const input = screen.getByRole('searchbox');
+			fireEvent.input(input, { target: { value: 'ali' } });
+			fireEvent.input(input, { target: { value: 'alice' } });
+			fireEvent.input(input, { target: { value: 'alice w' } });
+			expect(mockSearchUsers).not.toHaveBeenCalled();
+
+			await flush(300);
+			expect(mockSearchUsers).toHaveBeenCalledTimes(1);
+			expect(mockSearchUsers).toHaveBeenCalledWith({ query: 'alice w', signal: expect.any(AbortSignal) });
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('verwirft die späte Antwort einer überholten Suche (stale Response gewinnt nicht)', async () => {
+		vi.useFakeTimers();
+		try {
+			mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+			mockGetGroupInvitations.mockResolvedValue([]);
+			const slow = deferred<Hit[]>();
+			mockSearchUsers.mockImplementationOnce(() => slow.promise);
+			mockSearchUsers.mockResolvedValueOnce([{ id: 6, displayName: 'Neuer Treffer' }]);
+
+			render(<GroupDetail groupId={1} ownRole="admin" />);
+			await flush(0);
+
+			const input = screen.getByRole('searchbox');
+			fireEvent.input(input, { target: { value: 'langsam' } });
+			await flush(300);
+			fireEvent.input(input, { target: { value: 'schnell' } });
+			await flush(300);
+			expect(screen.getByText('Neuer Treffer')).toBeInTheDocument();
+
+			slow.resolve([{ id: 5, displayName: 'Alter Treffer' }]);
+			await flush(0);
+			expect(screen.queryByText('Alter Treffer')).toBeNull();
+			expect(screen.getByText('Neuer Treffer')).toBeInTheDocument();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('kündigt Suchergebnisse in einer Live-Region an (Audit #1257)', async () => {
+		vi.useFakeTimers();
+		try {
+			mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+			mockGetGroupInvitations.mockResolvedValue([]);
+			mockSearchUsers.mockResolvedValue([{ id: 6, displayName: 'Neuer Treffer' }]);
+
+			render(<GroupDetail groupId={1} ownRole="admin" />);
+			await flush(0);
+
+			fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'neu' } });
+			await flush(300);
+
+			// Mehrere role=status möglich (Spinner-Mocks in Accordions) — die Treffer-Region
+			// ist die, die den Ergebnistext trägt.
+			const regions = screen.getAllByRole('status');
+			expect(regions.map((region) => region.textContent).join(' ')).toContain('Neuer Treffer');
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

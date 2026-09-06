@@ -27,8 +27,10 @@ export const GroupsSection = () => {
 	const [groups, setGroups] = useState<Group[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
-	// Aufgeklappte Gruppe (#1212): Klick auf die Karte zeigt Mitglieder, Einladungen und die
-	// Nutzersuche direkt darunter — kein eigener Screen, damit die Sektion mobil eine Spalte bleibt.
+	// Aufgeklappte Gruppe (#1212): Klick auf die Karte zeigt das Detail darunter — kein eigener
+	// Screen, damit die Sektion mobil eine Spalte bleibt. Das Detail hält Kopf, Rolle, Mitgliederzahl
+	// und die Mitgliederliste sofort sichtbar; weitere Bereiche sind dort als KolAccordion
+	// zugeklappt (#1257).
 	const [openGroupId, setOpenGroupId] = useState<number | null>(null);
 	// Ticker für „Daten auffrischen“ am offenen Detail (#1223): Hochzählen löst ein Neuladen aus.
 	const [detailRefreshTick, setDetailRefreshTick] = useState(0);
@@ -180,10 +182,21 @@ export const GroupsSection = () => {
 								>
 									{/* Gruppenbild (#1225, AK4): Avatar links neben dem Namen — mit imageUrl das Bild,
 									    ohne Bild die Initialen aus dem Namen (Muster App.tsx:665). `_color` bewusst
-									    ungesetzt (KI-UX), rein dekorativ und kein eigenes Klick-Ziel. */}
-									<KolAvatar className="groups-avatar" _label={group.name} _src={group.imageUrl ?? undefined} />
+									    ungesetzt (KI-UX), rein dekorativ und kein eigenes Klick-Ziel; `aria-hidden`
+									    hält den Namen einmalig im SR-Baum — der Namens-Button trägt ihn
+									    (Audit #1257). */}
+									<KolAvatar
+										aria-hidden="true"
+										className="groups-avatar"
+										_label={group.name}
+										_src={group.imageUrl ?? undefined}
+									/>
 									<div className="groups-info">
+										{/* Auf/Zu gehört zur Semantik des Schalters (WCAG 4.1.2, Audit #1257):
+										    aria-expanded + aria-controls nativ an der KoliBri-Komponente. */}
 										<KolButton
+											_ariaControls={`group-detail-${group.id}`}
+											_ariaExpanded={openGroupId === group.id}
 											_label={group.name}
 											_variant="tertiary"
 											_on={{ onClick: () => setOpenGroupId(openGroupId === group.id ? null : group.id) }}
@@ -212,7 +225,12 @@ export const GroupsSection = () => {
 										</div>
 									)}
 									{openGroupId === group.id && (
-										<GroupDetail groupId={group.id} ownRole={group.role} refreshKey={detailRefreshTick} group={group} />
+										<GroupDetail
+											id={`group-detail-${group.id}`}
+											groupId={group.id}
+											ownRole={group.role}
+											refreshKey={detailRefreshTick}
+										/>
 									)}
 								</li>
 							))}

@@ -1262,7 +1262,7 @@ body {
 }
 
 .groups-toolbar {
-	margin-bottom: 1rem;
+	margin-bottom: var(--pp-gap-base);
 }
 
 /* Liste der Gruppen: jede Gruppe ist ein Listeneintrag (Karte) mit Info-Block und Aktions-Buttons. */
@@ -1272,7 +1272,7 @@ body {
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.75rem;
+	gap: var(--pp-space-3);
 }
 
 .groups-item {
@@ -1280,11 +1280,11 @@ body {
 	flex-wrap: wrap;
 	align-items: flex-start;
 	justify-content: space-between;
-	gap: 0.75rem 1rem;
-	padding: 0.75rem 1rem;
+	gap: var(--pp-space-3) var(--pp-gap-base);
+	padding: var(--pp-space-3) var(--pp-gap-base);
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
+	background: var(--pp-surface-2);
 	color: var(--pp-ink);
 }
 
@@ -1302,7 +1302,7 @@ body {
 /* Beschreibung einzeilig kappen (KI-UX #1211): Ellipsis statt mehrzeilig aufblendender Karten;
    `min-width: 0` oben macht die Ellipsis in der Flex-Zeile überhaupt wirksam. */
 .groups-description {
-	margin: 0.25rem 0 0;
+	margin: var(--pp-space-1) 0 0;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -1314,7 +1314,7 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--pp-gap-tight);
-	margin-top: 0.25rem;
+	margin-top: var(--pp-space-1);
 }
 
 .groups-actions {
@@ -1339,13 +1339,11 @@ body {
 	flex-shrink: 0;
 }
 
-/* Kopf des aufgeklappten Details (#1225, AK4): Avatar + Gruppenname in einer Zeile. */
-.group-detail-head {
-	display: flex;
-	align-items: center;
+/* Aufgeklapptes Gruppendetail (#1257): Das Wesentliche (Mitglieder) steht ohne eigene Klappmechanik
+   oben, alle weiteren Bereiche sind KolAccordion — Trennung über Token-Gap statt ungestylter Stapel. */
+.group-detail {
+	display: grid;
 	gap: var(--pp-gap-tight);
-	min-width: 0;
-	margin-bottom: var(--pp-space-2);
 }
 
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
@@ -2697,8 +2695,7 @@ kol-heading {
 /* --- Einladungslinks in der Gruppendetail-Verwaltung (#1226) --- */
 .group-invite-links {
 	display: grid;
-	gap: 0.75rem;
-	margin-top: 1rem;
+	gap: var(--pp-gap-tight);
 }
 
 .group-invite-links-list {
@@ -2706,7 +2703,7 @@ kol-heading {
 	margin: 0;
 	padding: 0;
 	display: grid;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .group-invite-link {
@@ -2714,20 +2711,20 @@ kol-heading {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--pp-gap-tight);
-	padding: 0.5rem 0.75rem;
+	padding: var(--pp-gap-tight) var(--pp-space-3);
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
+	background: var(--pp-surface-2);
 }
 
 /* Volle Link-URL darf umbrechen, nie überlaufen (AK-Familie 375px, Erfahrung 2026-08-24). */
 .group-invite-link-token {
 	overflow-wrap: anywhere;
 	min-width: 0;
-	font-size: 0.875rem;
+	font-size: var(--pp-font-size-sm);
 }
 
 .group-invite-link-meta {
 	color: var(--pp-text-muted);
-	font-size: 0.875rem;
+	font-size: var(--pp-font-size-sm);
 }

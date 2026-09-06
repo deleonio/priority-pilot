@@ -1,13 +1,5 @@
-import { KolAlert, KolAvatar, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
-import type {
-	Group,
-	GroupInviteLink,
-	GroupInvitation,
-	GroupMember,
-	GroupSeries,
-	GroupTask,
-	UserSearchHit,
-} from 'client';
+import { KolAccordion, KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
+import type { GroupInviteLink, GroupInvitation, GroupMember, GroupSeries, GroupTask, UserSearchHit } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -18,6 +10,9 @@ const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Ad
 
 /** Ab dieser Länge sucht der Server nach Namensfragmenten (kürzer: nur volle E-Mail). */
 const MIN_QUERY_LENGTH = 3;
+
+/** Debounce der Nutzersuche — bündelt Tastenschläge, statt pro Zeichen einen Request zu feuern. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 /** Vollständiger Beitrittslink zu einem Token (#1226). */
 const inviteLinkUrl = (token: string): string =>
@@ -35,23 +30,22 @@ type GroupDetailProps = {
 	ownRole: GroupMember['role'];
 	/** Wechsel stößt ein Neuladen der Daten an (Klick auf die bereits aufgeklappte Gruppenkarte). */
 	refreshKey?: number;
-	/**
-	 * Gruppe mit Name und Bildadresse (#1225, AK4) für den Detailkopf — bewusst optional, damit
-	 * der Kopf entfällt, wenn nur die IDs bekannt sind (Unit-Tests ohne Gruppenobjekt).
-	 */
-	group?: Group;
+	/** DOM-Id des Detail-Containers — Ziel von `aria-controls` am Karten-Toggle (#1257). */
+	id?: string;
 };
 
 /**
- * Gruppendetail (#1212 AK11): Mitgliederliste (Anzeigename + Rollen-Badge) und darunter die
- * offenen Einladungen mit dem Hinweis „Ausstehend". Nur Admins sehen die Nutzersuche zum
- * Einladen und die Entfernen-Aktion je Mitglied — die Server-Rolle steuert (403/404 bleiben
- * die eigentliche Absicherung, die UI blendet nur aus).
+ * Gruppendetail (#1212 AK11): Das Wesentliche — die Mitgliederliste (Anzeigename + Rollen-Badge)
+ * — steht direkt unter dem Kartenkopf; alle weiteren Bereiche (offene Einladungen, füreinander
+ * angelegte Aufgaben/Serien, Nutzersuche, Einladungslinks) sind KolAccordion und standardmäßig
+ * zugeklappt (#1257) — so bleibt die aufgeklappte Gruppe bei 375px übersichtlich. Nur Admins
+ * sehen die Nutzersuche zum Einladen und die Entfernen-Aktion je Mitglied — die Server-Rolle
+ * steuert (403/404 bleiben die eigentliche Absicherung, die UI blendet nur aus).
  *
  * Die Suche ist bewusst KolInputText + eigene Ergebnisliste statt KolCombobox: @public-ui 4.3.0
  * hat keinen Filter-Hook für serverseitige Treffer (#1083).
  */
-export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDetailProps) => {
+export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetailProps) => {
 	const [members, setMembers] = useState<GroupMember[] | null>(null);
 	const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
 	// Füreinander angelegte Aufgaben (#1223): reine Lese-Ansicht, keine Aktionen je Eintrag.
@@ -63,6 +57,11 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState('');
 	const [hits, setHits] = useState<UserSearchHit[] | null>(null);
+	// Nutzersuche (Audit #1257): Debounce-Timer plus laufende Anfrage — beim nächsten Tastenschlag
+	// bzw. Unmount abgebrochen, damit eine späte alte Antwort keine neueren Treffer überschreibt
+	// (Muster useAddressSearch).
+	const searchTimerRef = useRef<number | undefined>(undefined);
+	const searchAbortRef = useRef<AbortController | null>(null);
 	// Mitglied, dessen Entfernung noch bestätigt werden muss (null = kein Dialog offen).
 	const [pendingRemoval, setPendingRemoval] = useState<GroupMember | null>(null);
 	// Initialfokus im Bestätigungsdialog: „Abbrechen" (#472 — destruktive Aktion nicht per Enter).
@@ -100,24 +99,57 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 		void load();
 	}, [load, refreshKey]);
 
-	const handleSearch = async (value: string): Promise<void> => {
+	// Laufende Suche beim Unmount stoppen (Timer + Anfrage) — sonst setzt eine späte Antwort
+	// State in einer längst geschlossenen Komponente (Muster useAddressSearch).
+	useEffect(
+		() => () => {
+			window.clearTimeout(searchTimerRef.current);
+			searchAbortRef.current?.abort();
+		},
+		[],
+	);
+
+	/** Hängende Suche stoppen — Timer und laufende Anfrage (etwa nach dem Einladen). */
+	const cancelSearch = (): void => {
+		window.clearTimeout(searchTimerRef.current);
+		searchAbortRef.current?.abort();
+	};
+
+	/** Eigentliche Suche: startet erst nach dem Debounce, Ergebnis nur wenn nicht überholt. */
+	const runSearch = async (trimmed: string): Promise<void> => {
+		searchAbortRef.current?.abort();
+		const current = new AbortController();
+		searchAbortRef.current = current;
+		try {
+			const found = await api.searchUsers({ query: trimmed, signal: current.signal });
+			if (!current.signal.aborted) {
+				setHits(Array.isArray(found) ? found : []);
+				setError(null);
+			}
+		} catch (reason) {
+			if (!current.signal.aborted) {
+				const apiError = await toApiError(reason);
+				setError(apiError.message);
+			}
+		}
+	};
+
+	const handleSearch = (value: string): void => {
 		setQuery(value);
-		if (value.trim().length < MIN_QUERY_LENGTH && !value.includes('@')) {
+		window.clearTimeout(searchTimerRef.current);
+		const trimmed = value.trim();
+		if (trimmed.length < MIN_QUERY_LENGTH && !trimmed.includes('@')) {
+			cancelSearch();
 			setHits(null);
 			return;
 		}
-		try {
-			setHits(await api.searchUsers({ query: value.trim() }));
-			setError(null);
-		} catch (reason) {
-			const apiError = await toApiError(reason);
-			setError(apiError.message);
-		}
+		searchTimerRef.current = window.setTimeout(() => void runSearch(trimmed), SEARCH_DEBOUNCE_MS);
 	};
 
 	const handleInvite = async (userId: number): Promise<void> => {
 		try {
 			await api.inviteGroupMember({ id: groupId, userId });
+			cancelSearch();
 			setQuery('');
 			setHits(null);
 			await load();
@@ -192,7 +224,7 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 	};
 
 	return (
-		<div className="group-detail">
+		<div className="group-detail" id={id}>
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion nicht möglich">
 					{error}
@@ -202,14 +234,9 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 				<KolSpin _show _variant="cycle" _label="Mitglieder werden geladen …" />
 			) : (
 				<>
-					{group !== undefined && (
-						/* Detailkopf (#1225, AK4): Gruppenbild/Initialen neben dem Namen — derselbe
-						   KolAvatar wie in der Liste (`_color` ungesetzt, rein dekorativ). */
-						<div className="group-detail-head">
-							<KolAvatar className="groups-avatar" _label={group.name} _src={group.imageUrl ?? undefined} />
-							<KolHeading _label={group.name} _level={4} />
-						</div>
-					)}
+					{/* Kein eigener Detailkopf mehr (#1257): Avatar und Name stehen bereits im
+					    Kartenkopf direkt darüber — die Duplizierung verdrängte die Mitglieder
+					    unnötig nach unten. */}
 					<KolHeading _label="Mitglieder" _level={4} />
 					<ul className="group-members">
 						{members.map((member) => (
@@ -236,8 +263,7 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 						))}
 					</ul>
 					{invitations.length > 0 && (
-						<>
-							<KolHeading _label="Offene Einladungen" _level={4} />
+						<KolAccordion _label="Offene Einladungen" _level={4}>
 							<ul className="group-invitations">
 								{invitations.map((invitation) => (
 									<li key={invitation.id} className="group-invitation">
@@ -246,121 +272,132 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 									</li>
 								))}
 							</ul>
-						</>
+						</KolAccordion>
 					)}
-					<KolHeading _label="Füreinander angelegt" _level={4} />
-					{tasks === null ? (
-						<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
-					) : tasks.length === 0 ? (
-						<p className="hint">Noch hat niemand eine Aufgabe für ein anderes Mitglied angelegt.</p>
-					) : (
-						<ul className="group-tasks">
-							{tasks.map((task) => (
-								<li key={task.id} className="group-task">
-									{/* Je eigene Zeile (KI-UX #1223): Empfänger als Haupteintrag, Titel und Ersteller
-									    als Sekundärzeilen — Block-Elemente, damit lange Namen umbrechen (AK8). */}
-									<div className="group-task-recipient">{task.recipientName}</div>
-									<div className="group-task-title">{task.title}</div>
-									<div className="group-task-creator">{`von ${task.creatorName}`}</div>
-								</li>
-							))}
-						</ul>
-					)}
-					<KolHeading _label="Füreinander angelegte Serien" _level={4} />
-					{seriesList === null ? (
-						<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
-					) : seriesList.length === 0 ? (
-						<p className="hint">Noch hat niemand eine Serie für ein anderes Mitglied angelegt.</p>
-					) : (
-						<ul className="group-series">
-							{seriesList.map((series) => (
-								<li key={series.id} className="group-series-entry">
-									{/* Je eigene Zeile (KI-UX #1254): Eigentümer als Haupteintrag, Titel darunter,
-									    Rhythmus und Ersteller als Sekundärzeile — Block-Elemente, damit lange
-									    Namen bei 375 px umbrechen statt überlaufen (AK7). */}
-									<div className="group-series-owner">{series.ownerName}</div>
-									<div className="group-series-title">{series.title}</div>
-									<div className="group-series-meta">
-										{`${series.rhythm} · von ${series.creatorName}`}
-										{!series.active && <KolBadge _label="Ruhend" />}
-									</div>
-								</li>
-							))}
-						</ul>
-					)}
+					<KolAccordion _label="Füreinander angelegt" _level={4}>
+						{tasks === null ? (
+							<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
+						) : tasks.length === 0 ? (
+							<p className="hint">Noch hat niemand eine Aufgabe für ein anderes Mitglied angelegt.</p>
+						) : (
+							<ul className="group-tasks">
+								{tasks.map((task) => (
+									<li key={task.id} className="group-task">
+										{/* Je eigene Zeile (KI-UX #1223): Empfänger als Haupteintrag, Titel und Ersteller
+										    als Sekundärzeilen — Block-Elemente, damit lange Namen umbrechen (AK8). */}
+										<div className="group-task-recipient">{task.recipientName}</div>
+										<div className="group-task-title">{task.title}</div>
+										<div className="group-task-creator">{`von ${task.creatorName}`}</div>
+									</li>
+								))}
+							</ul>
+						)}
+					</KolAccordion>
+					<KolAccordion _label="Füreinander angelegte Serien" _level={4}>
+						{seriesList === null ? (
+							<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
+						) : seriesList.length === 0 ? (
+							<p className="hint">Noch hat niemand eine Serie für ein anderes Mitglied angelegt.</p>
+						) : (
+							<ul className="group-series">
+								{seriesList.map((series) => (
+									<li key={series.id} className="group-series-entry">
+										{/* Je eigene Zeile (KI-UX #1254): Eigentümer als Haupteintrag, Titel darunter,
+										    Rhythmus und Ersteller als Sekundärzeile — Block-Elemente, damit lange
+										    Namen bei 375 px umbrechen statt überlaufen (AK7). */}
+										<div className="group-series-owner">{series.ownerName}</div>
+										<div className="group-series-title">{series.title}</div>
+										<div className="group-series-meta">
+											{`${series.rhythm} · von ${series.creatorName}`}
+											{!series.active && <KolBadge _label="Ruhend" />}
+										</div>
+									</li>
+								))}
+							</ul>
+						)}
+					</KolAccordion>
 					{ownRole === 'admin' && (
-						<section className="group-invite">
+						/* Eigenes aufklappbares Element statt unbeschrifteter Sektion (#1257):
+						   standardmäßig zugeklappt, die Überschrift trägt den Zweck. */
+						<KolAccordion _label="Mitglieder einladen" _level={4}>
 							<KolInputText
 								_label="Konto suchen"
 								_type="search"
 								_placeholder="Name ab 3 Zeichen oder volle E-Mail"
 								_value={query}
-								_on={{ onInput: (_event, value) => void handleSearch(String(value ?? '')) }}
+								_on={{ onInput: (_event, value) => handleSearch(String(value ?? '')) }}
 							/>
-							{hits !== null &&
-								(hits.length === 0 ? (
-									<p className="hint">Keine Konten gefunden.</p>
-								) : (
-									<ul className="group-search-hits">
-										{hits.map((hit) => (
-											<li key={hit.id} className="group-search-hit">
-												<span className="group-member-name">{hit.displayName}</span>
+							{/* Treffer als Live-Region (Audit #1257): der Wechsel zwischen leer und Trefferliste
+							    wird angesagt, ohne den Fokus zu bewegen — die Region bleibt dafür bestehen. */}
+							<div role="status">
+								{hits !== null &&
+									(hits.length === 0 ? (
+										<p className="hint">Keine Konten gefunden.</p>
+									) : (
+										<ul className="group-search-hits">
+											{hits.map((hit) => (
+												<li key={hit.id} className="group-search-hit">
+													<span className="group-member-name">{hit.displayName}</span>
+													<KolButton
+														_label="Einladen"
+														_variant="primary"
+														_on={{ onClick: () => void handleInvite(hit.id) }}
+													/>
+												</li>
+											))}
+										</ul>
+									))}
+							</div>
+						</KolAccordion>
+					)}
+					{ownRole === 'admin' && (
+						/* Eigenes aufklappbares Element mit eindeutigem Namen (#1257) — „Einladungslinks“
+						   statt „Einladungen“, um es von den offenen Einladungen zu unterscheiden. */
+						<KolAccordion _label="Einladungslinks" _level={4}>
+							<section className="group-invite-links">
+								<p className="hint">
+									Über einen Link kann jeder deiner Gruppe ohne persönliche Einladung beitreten. Ein Link ist 7 Tage
+									gültig und lässt sich jederzeit ungültig machen.
+								</p>
+								<KolButton
+									_label="Link erzeugen"
+									_variant="secondary"
+									_on={{ onClick: () => void handleCreateInviteLink() }}
+								/>
+								{inviteLinks.length > 0 && (
+									<ul className="group-invite-links-list">
+										{inviteLinks.map((link) => (
+											<li key={link.id} className="group-invite-link">
+												{copiedLinkId === link.id ? (
+													<>
+														<span className="group-invite-link-token">{maskToken(link.token)}</span>
+														<span className="group-invite-link-meta">
+															gültig bis {formatExpiry(link.expiresAt)} · Link kopiert
+														</span>
+													</>
+												) : (
+													<>
+														{/* Der frische Link ist einmal voll sichtbar — direkt hier kopierbar. */}
+														<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
+														<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>
+														<KolButton
+															_label="Link kopieren"
+															_variant="secondary"
+															_on={{ onClick: () => void handleCopyInviteLink(link) }}
+														/>
+													</>
+												)}
 												<KolButton
-													_label="Einladen"
-													_variant="primary"
-													_on={{ onClick: () => void handleInvite(hit.id) }}
+													_label="Ungültig machen"
+													_variant="danger"
+													_on={{ onClick: () => setPendingRevoke(link) }}
 												/>
 											</li>
 										))}
 									</ul>
-								))}
-						</section>
-					)}
-					{ownRole === 'admin' && (
-						<section className="group-invite-links">
-							<KolHeading _label="Einladungen" _level={4} />
-							<p className="hint">
-								Über einen Link kann jeder deiner Gruppe ohne persönliche Einladung beitreten. Ein Link ist 7 Tage
-								gültig und lässt sich jederzeit ungültig machen.
-							</p>
-							<KolButton
-								_label="Link erzeugen"
-								_variant="secondary"
-								_on={{ onClick: () => void handleCreateInviteLink() }}
-							/>
-							{inviteLinks.length > 0 && (
-								<ul className="group-invite-links-list">
-									{inviteLinks.map((link) => (
-										<li key={link.id} className="group-invite-link">
-											{copiedLinkId === link.id ? (
-												<>
-													<span className="group-invite-link-token">{maskToken(link.token)}</span>
-													<span className="group-invite-link-meta">
-														gültig bis {formatExpiry(link.expiresAt)} · Link kopiert
-													</span>
-												</>
-											) : (
-												<>
-													{/* Der frische Link ist einmal voll sichtbar — direkt hier kopierbar. */}
-													<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
-													<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>
-													<KolButton
-														_label="Link kopieren"
-														_variant="secondary"
-														_on={{ onClick: () => void handleCopyInviteLink(link) }}
-													/>
-												</>
-											)}
-											<KolButton
-												_label="Ungültig machen"
-												_variant="danger"
-												_on={{ onClick: () => setPendingRevoke(link) }}
-											/>
-										</li>
-									))}
-								</ul>
-							)}
-						</section>
+								)}
+							</section>
+						</KolAccordion>
 					)}
 				</>
 			)}
