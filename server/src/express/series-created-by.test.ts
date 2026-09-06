@@ -176,3 +176,165 @@ describe('Serie für ein Gruppenmitglied (#1222)', () => {
 		assert.equal(series.forUserId, null, 'forUserId bleibt null');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1250 — Ersteller-Lesezugriff endet mit der Gruppenmitgliedschaft
+ * (Vertrag: docs/spec/issue-1250.md, TF5 für AK5; TF6-Anteil Serien für AK6).
+ *
+ * Erwartung: der `createdById`-Zweig von `seriesReadScope` wird an die AKTUELLE gemeinsame
+ * Gruppenmitgliedschaft gebunden. Rot, solange der Zweig bedingungslos gilt. KEIN Produktivcode.
+ */
+describe('Ersteller-Lesezugriff endet mit der Gruppenmitgliedschaft (#1250, Serien)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	/** Alice+Bob als Admins (self-leave ohne letzten-Admin-409), Carol ohne Gruppe. */
+	const seedGroupWithTwoAdmins = async (): Promise<number> => {
+		await server.login(ALICE, { displayName: 'Alice Erstellerin' });
+		await server.login(BOB, { displayName: 'Bob Empfänger' });
+		await server.login(CAROL, { displayName: 'Carol Dritte' });
+		const group = await Group.create({ name: 'Spec-Gruppe', description: null });
+		const aliceId = await userIdOf(ALICE);
+		const bobId = await userIdOf(BOB);
+		await GroupMember.create({ groupId: group.id, userId: aliceId, role: 'admin', joinedAt: new Date() });
+		await GroupMember.create({ groupId: group.id, userId: bobId, role: 'admin', joinedAt: new Date() });
+		return group.id;
+	};
+
+	const postSeriesFor1250 = async (cookie: string, body: Record<string, unknown>): Promise<Response> =>
+		fetch(`${server.baseUrl}/series`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({
+				rhythm: 'weekly',
+				priority: 3,
+				estimatedEffort: 0.5,
+				active: true,
+				startDate: '2030-01-07T00:00:00.000Z',
+				...body,
+			}),
+		});
+
+	const listSeriesFor1250 = async (cookie: string): Promise<CreatedBySeriesDto[]> => {
+		const res = await fetch(`${server.baseUrl}/series`, { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200, 'GET /series muss 200 liefern');
+		return (await res.json()) as CreatedBySeriesDto[];
+	};
+
+	const createSeriesForBob = async (): Promise<number> => {
+		const res = await postSeriesFor1250(await server.login(ALICE), {
+			title: 'Bobs Serie aus der Gruppe',
+			userId: await userIdOf(BOB),
+		});
+		assert.equal(res.status, 201, 'Setup: Serie für Gruppenmitglied muss anlegbar sein');
+		return ((await res.json()) as CreatedBySeriesDto).id;
+	};
+
+	const aliceSees = async (seriesId: number): Promise<boolean> => {
+		const list = await listSeriesFor1250(await server.login(ALICE));
+		return list.some((series) => series.id === seriesId);
+	};
+
+	const leaveGroup = async (cookie: string, groupId: number, targetUserId: number): Promise<Response> =>
+		fetch(`${server.baseUrl}/groups/${groupId}/members/${targetUserId}`, {
+			method: 'DELETE',
+			headers: { Cookie: cookie },
+		});
+
+	it('AK5/TF5: Serie folgt Mitgliedschaft — sichtbar, nach Austritt weg, nach Wiedereintritt zurück', async () => {
+		const groupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const seriesId = await createSeriesForBob();
+
+		// AK7-Deckel: Detail-Zugriff der Erstellerin bleibt 404 (seriesReadScope nur für die Liste).
+		const detailRes = await fetch(`${server.baseUrl}/series/${seriesId}`, {
+			headers: { Cookie: await server.login(ALICE) },
+		});
+		assert.equal(detailRes.status, 404, 'AK7: GET /series/:id bleibt für die Erstellerin 404');
+
+		assert.ok(await aliceSees(seriesId), 'mit gemeinsamer Gruppe sieht Alice die Serie');
+
+		const leaveRes = await leaveGroup(await server.login(ALICE), groupId, aliceId);
+		assert.equal(leaveRes.status, 204, 'Setup: self-leave muss 204 liefern (zwei Admins geseedet)');
+		assert.ok(!(await aliceSees(seriesId)), 'nach Austritt darf Alice die Serie nicht mehr sehen');
+
+		await GroupMember.create({ groupId, userId: aliceId, role: 'member', joinedAt: new Date() });
+		assert.ok(await aliceSees(seriesId), 'nach Wiedereintritt sieht Alice die Serie wieder');
+
+		// Eigentümer unberührt (AK3-Analogon): Bob sieht die Serie mit Ersteller-Kennzeichen.
+		const bobList = await listSeriesFor1250(await server.login(BOB));
+		const series = bobList.find((candidate) => candidate.id === seriesId);
+		assert.ok(series, 'Bob sieht die Serie immer');
+		assert.equal(series.createdById, aliceId, 'createdById bleibt auf der Erstellerin');
+		assert.equal(series.createdByName, 'Alice Erstellerin', 'createdByName bleibt die Erstellerin');
+	});
+
+	it('AK5/TF5: Admin-Entfernung und Gruppenlöschung beenden den Serien-Lesezugriff', async () => {
+		// Admin-Entfernung
+		const groupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const seriesId = await createSeriesForBob();
+		assert.ok(await aliceSees(seriesId), 'mit gemeinsamer Gruppe sieht Alice die Serie');
+		const removeRes = await leaveGroup(await server.login(BOB), groupId, aliceId);
+		assert.equal(removeRes.status, 204, 'Setup: Admin-Entfernung muss 204 liefern');
+		assert.ok(!(await aliceSees(seriesId)), 'nach Admin-Entfernung weg');
+
+		// Gruppenlöschung
+		const secondGroupId = await seedGroupWithTwoAdmins();
+		const secondSeriesId = await createSeriesForBob();
+		assert.ok(await aliceSees(secondSeriesId), 'mit neuer gemeinsamer Gruppe sichtbar');
+		const deleteRes = await fetch(`${server.baseUrl}/groups/${secondGroupId}`, {
+			method: 'DELETE',
+			headers: { Cookie: await server.login(ALICE) },
+		});
+		assert.equal(deleteRes.status, 204, 'Setup: Gruppenlöschung als Admin muss 204 liefern');
+		assert.ok(!(await aliceSees(secondSeriesId)), 'nach Gruppenlöschung weg');
+	});
+
+	it('AK5/TF5: eine verbleibende gemeinsame Gruppe genügt für Serien (AK4-Analogon)', async () => {
+		const firstGroupId = await seedGroupWithTwoAdmins();
+		const aliceId = await userIdOf(ALICE);
+		const secondGroup = await Group.create({ name: 'Zweite Gruppe', description: null });
+		await GroupMember.create({ groupId: secondGroup.id, userId: aliceId, role: 'member', joinedAt: new Date() });
+		await GroupMember.create({
+			groupId: secondGroup.id,
+			userId: await userIdOf(BOB),
+			role: 'member',
+			joinedAt: new Date(),
+		});
+		const seriesId = await createSeriesForBob();
+		assert.ok(await aliceSees(seriesId), 'mit zwei gemeinsamen Gruppen sichtbar');
+
+		const leaveRes = await leaveGroup(await server.login(ALICE), firstGroupId, aliceId);
+		assert.equal(leaveRes.status, 204, 'Setup: Austritt aus der ersten Gruppe muss 204 liefern');
+		assert.ok(await aliceSees(seriesId), 'eine verbleibende gemeinsame Gruppe genügt');
+	});
+
+	it('AK6/TF6: Bestandsserie ohne createdById bleibt gruppenunabhängig Eigentümer-only', async () => {
+		await seedGroupWithTwoAdmins();
+		const legacy = await Series.create({
+			title: 'Altbestand 1250',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2030-01-07T00:00:00.000Z'),
+			userId: await userIdOf(BOB),
+		});
+
+		const bobList = await listSeriesFor1250(await server.login(BOB));
+		assert.ok(
+			bobList.some((series) => series.id === legacy.id),
+			'Eigentümer sieht die Bestandsserie',
+		);
+		assert.ok(!(await aliceSees(legacy.id)), 'trotz gemeinsamer Gruppe: kein createdById-Zweig für Bestand');
+	});
+});

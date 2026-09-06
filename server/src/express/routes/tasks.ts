@@ -158,18 +158,46 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 };
 
 /**
+ * Nutzer-IDs, mit denen der Requester aktuell mindestens eine Gruppe teilt (#1250). Basis sind die
+ * vorhandenen `group_members`-Zeilen: Austritt, Admin-Entfernung und Gruppenlöschung entfernen sie
+ * physisch, die Sichtbarkeit folgt damit zur Abfragezeit der Mitgliedschaft (Wiedereintritt stellt
+ * sie wieder her). Duplikate über mehrere gemeinsame Gruppen werden dedupliziert.
+ */
+export const loadSharedUserIds = async (requesterId: number): Promise<number[]> => {
+	const own = await GroupMember.findAll({ where: { userId: requesterId }, attributes: ['groupId'] });
+	if (own.length === 0) {
+		return [];
+	}
+	const shared = await GroupMember.findAll({
+		where: { groupId: own.map((membership) => membership.groupId) },
+		attributes: ['userId'],
+	});
+	return [...new Set(shared.map((membership) => membership.userId))];
+};
+
+/**
  * Lese-Scope der Task-Liste (#1213, AK3/AK5): eigene Aufgaben (`ownerScope`) OER Aufgaben, die der
  * Nutzer für ein anderes Gruppenmitglied angelegt hat (`createdById`). Der Schreib-Scope
  * (`findOwnTask`) bleibt ausschließlich `ownerScope` — der Ersteller einer fremden Aufgabe erhält
  * auf PATCH/DELETE 404. Ohne Session (Pass-Through) unverändert leer (alles sichtbar); Aufgaben
  * ohne `createdById` (NULL) sind über den `userId`-Zweig abgedeckt (AK6, NULL-sicher).
+ *
+ * #1250: Der `createdById`-Zweig ist an die AKTUELLE Gruppenmitgliedschaft gebunden — der Ersteller
+ * sieht die Aufgabe nur, solange er mit dem Eigentümer mindestens eine Gruppe teilt (leere Liste →
+ * `IN (NULL)` → nichts sichtbar). Der `userId`-Zweig bleibt davon unberührt.
  */
-const taskReadScope = (userId: number | undefined, requesterId: number | null): WhereOptions =>
-	userId === undefined
-		? {}
-		: requesterId === null
-			? { userId }
-			: { [Op.or]: [{ userId }, { createdById: requesterId }] };
+const taskReadScope = async (userId: number | undefined, requesterId: number | null): Promise<WhereOptions> => {
+	if (userId === undefined) {
+		return {};
+	}
+	if (requesterId === null) {
+		return { userId };
+	}
+	const sharedUserIds = await loadSharedUserIds(requesterId);
+	return {
+		[Op.or]: [{ userId }, { createdById: requesterId, userId: { [Op.in]: sharedUserIds } }],
+	};
+};
 
 /**
  * Serialisiert Tasks mit Ersteller-/Empfänger-Kennzeichen aus Sicht des Request-Nutzers (#1213).
@@ -389,7 +417,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// (`createdById`); Schreibzugriffe bleiben an `ownerScope` gebunden (siehe findOwnTask).
 			const requester = await resolveGeoUser(req);
 			const tasks = await Task.findAll({
-				where: taskReadScope(getUserId(req), requester?.id ?? null),
+				where: await taskReadScope(getUserId(req), requester?.id ?? null),
 				include: [Pillar],
 			});
 			res.json(await serializeTasksFor(req, tasks));

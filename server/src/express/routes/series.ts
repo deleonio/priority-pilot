@@ -8,7 +8,7 @@ import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import { serializeTask, loadUserNames } from './tasks.js';
+import { serializeTask, loadUserNames, loadSharedUserIds } from './tasks.js';
 import { resolveGeoUser } from './geoConfig.js';
 import type { components } from '../../api';
 
@@ -151,13 +151,23 @@ const serializeSeriesFor = async (req: Request, seriesList: Series[]): Promise<S
  * (`findSeriesWithPillars`, PATCH/DELETE) bleibt ausschließlich `ownerScope` — der Ersteller einer
  * fremden Serie erhält dort 404. Ohne Session (Pass-Through) unverändert; Serien ohne
  * `createdById` (NULL) sind über den `userId`-Zweig abgedeckt (AK7, NULL-sicher).
+ *
+ * #1250: Der `createdById`-Zweig ist an die AKTUELLE Gruppenmitgliedschaft gebunden — der Ersteller
+ * sieht die Serie nur, solange er mit dem Eigentümer mindestens eine Gruppe teilt. Der
+ * `userId`-Zweig bleibt davon unberührt.
  */
-const seriesReadScope = (userId: number | undefined, requesterId: number | null): WhereOptions =>
-	userId === undefined
-		? {}
-		: requesterId === null
-			? { userId }
-			: { [Op.or]: [{ userId }, { createdById: requesterId }] };
+const seriesReadScope = async (userId: number | undefined, requesterId: number | null): Promise<WhereOptions> => {
+	if (userId === undefined) {
+		return {};
+	}
+	if (requesterId === null) {
+		return { userId };
+	}
+	const sharedUserIds = await loadSharedUserIds(requesterId);
+	return {
+		[Op.or]: [{ userId }, { createdById: requesterId, userId: { [Op.in]: sharedUserIds } }],
+	};
+};
 
 /**
  * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `isPost` signalisiert
@@ -373,7 +383,7 @@ seriesRouter.get('/series', async (req: Request, res: Response<SeriesDto[] | Err
 		// #1157: nur die eigenen Serien-Templates; #1222 zusätzlich die fremden, die der Nutzer
 		// für ein anderes Gruppenmitglied angelegt hat (Pass-Through ohne Auth bleibt erhalten).
 		const all = await Series.findAll({
-			where: seriesReadScope(getUserId(req), (await resolveGeoUser(req))?.id ?? null),
+			where: await seriesReadScope(getUserId(req), (await resolveGeoUser(req))?.id ?? null),
 			order: [['id', 'ASC']],
 			include: [Pillar],
 		});
