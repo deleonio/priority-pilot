@@ -14,6 +14,7 @@ type GroupResponseBody = {
 	id?: number;
 	name?: string;
 	description?: string | null;
+	imageUrl?: string | null;
 	role?: string;
 	memberCount?: number;
 	message?: string;
@@ -135,5 +136,73 @@ describe('Gruppen-API — Anlegen, Validierung, Löschen (#1211)', () => {
 		const listRes = await fetch(`${server.baseUrl}/groups`);
 		const list = (await listRes.json()) as { id: number }[];
 		assert.ok(!list.some((group) => group.id === created.id), 'Gruppe fehlt in der Liste');
+	});
+});
+
+// ── #1225 AK1: PATCH /groups/:id mit optionaler Bildadresse (imageUrl) ────────────────
+// Vertrag laut docs/spec/issue-1225.md: nur https:// wird übernommen, null entfernt das
+// Bild, abwesendes Feld bleibt unverändert (presence-basierter PATCH-Vertrag), DTO liefert
+// das Feld mit. Rot, bis der Router imageUrl verarbeitet.
+describe('Gruppen-API — Bildadresse imageUrl (#1225, AK1)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	const patchImageUrl = async (groupId: number, body: unknown): Promise<Response> =>
+		fetch(`${server.baseUrl}/groups/${groupId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+	it('PATCH mit gültiger https-Bildadresse → 200, DTO und GET liefern imageUrl zurück (AK1)', async () => {
+		const { body: created } = await createGroup({ name: 'Familie Bild' });
+		const res = await patchImageUrl(created!.id!, { imageUrl: 'https://example.com/gruppe.png' });
+		assert.equal(res.status, 200, 'gültige https-Adresse muss übernommen werden');
+		const updated = (await res.json()) as GroupResponseBody;
+		assert.equal(updated.imageUrl, 'https://example.com/gruppe.png', 'DTO liefert imageUrl mit');
+
+		const getRes = await fetch(`${server.baseUrl}/groups/${created!.id!}`);
+		const reloaded = (await getRes.json()) as GroupResponseBody;
+		assert.equal(reloaded.imageUrl, 'https://example.com/gruppe.png', 'GET /groups/:id liefert das Bild mit');
+	});
+
+	it('PATCH mit http://-Adresse → 400 mit deutscher Meldung, Bild nicht übernommen (AK1)', async () => {
+		const { body: created } = await createGroup({ name: 'Familie Unsicher' });
+		const res = await patchImageUrl(created!.id!, { imageUrl: 'http://example.com/gruppe.png' });
+		assert.equal(res.status, 400, 'nur https:// ist erlaubt');
+		const body = (await res.json()) as GroupResponseBody;
+		assert.ok(typeof body.message === 'string' && body.message.length > 0, 'deutsche Meldung vorhanden');
+
+		const getRes = await fetch(`${server.baseUrl}/groups/${created!.id!}`);
+		const reloaded = (await getRes.json()) as GroupResponseBody;
+		assert.notEqual(reloaded.imageUrl, 'http://example.com/gruppe.png', 'unsichere Adresse wurde nicht gespeichert');
+	});
+
+	it('PATCH mit imageUrl: null → Bild entfernt, DTO liefert null (AK1)', async () => {
+		const { body: created } = await createGroup({ name: 'Familie Wegbild' });
+		await patchImageUrl(created!.id!, { imageUrl: 'https://example.com/gruppe.png' });
+		const res = await patchImageUrl(created!.id!, { imageUrl: null });
+		assert.equal(res.status, 200, 'null muss als „Bild entfernen“ akzeptiert werden');
+		const updated = (await res.json()) as GroupResponseBody;
+		assert.equal(updated.imageUrl, null, 'nach null ist das Feld leer');
+	});
+
+	it('PATCH ohne imageUrl-Feld → Bild bleibt unverändert (presence-basierter Vertrag, AK1)', async () => {
+		const { body: created } = await createGroup({ name: 'Familie Bleibt' });
+		await patchImageUrl(created!.id!, { imageUrl: 'https://example.com/gruppe.png' });
+		const res = await patchImageUrl(created!.id!, { description: 'nur Beschreibung' });
+		assert.equal(res.status, 200);
+		const updated = (await res.json()) as GroupResponseBody;
+		assert.equal(updated.imageUrl, 'https://example.com/gruppe.png', 'abwesendes Feld darf nichts entfernen');
 	});
 });

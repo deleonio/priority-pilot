@@ -137,6 +137,7 @@ export const main = async (): Promise<void> => {
 			migrateSeriesRenameFields,
 			migrateSeriesTable,
 			migrateUsersAvatarUrl,
+			migrateGroupImageUrl,
 			migrateUserIdColumns,
 			migratePillarDescription,
 			migratePillarPerUser,
@@ -166,6 +167,8 @@ export const main = async (): Promise<void> => {
 		await migrateSeriesTable(sequelize);
 		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
 		await migrateUsersAvatarUrl(sequelize);
+		// Fehlende imageUrl-Spalte (Gruppenbild, #1225) an groups nachziehen — vor sync().
+		await migrateGroupImageUrl(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
 		await migrateUserIdColumns(sequelize);
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen

@@ -420,4 +420,37 @@ describe('Rolle eines Gruppenmitglieds ändern (#1221)', () => {
 		const alice = members.find((m) => m.userId === aliceId);
 		assert.equal(alice?.role, 'admin', 'Alice bleibt Administrator');
 	});
+
+	// #1225 AK3: Schreibrechte auf die Gruppen-Bildadresse — Mitglied ohne Adminrolle → 403,
+	// Nicht-Mitglied → 404 (kein Existenz-Leak). Heute antwortet PATCH beiden mit 404, deshalb rot.
+	it('PATCH /groups/{id} Bildadresse: Nicht-Admin-Mitglied → 403, Nicht-Mitglied → 404 (#1225 AK3)', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin' });
+		const bobCookie = await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+		const carolCookie = await server.login(TEST_EMAIL_CAROL, { displayName: 'Carol Chef' });
+		const group = await createGroup(aliceCookie, 'Familie');
+		const bobId = await ownUserId(bobCookie, 'Bob Baumeister');
+
+		// Bob als member in die Gruppe holen (Admin lädt ein, Bob nimmt an).
+		const inviteRes = await invite(aliceCookie, group.id, bobId);
+		const invitation = (await inviteRes.json()) as InvitationDto;
+		const acceptRes = await fetch(`${server.baseUrl}/invitations/${invitation.id}/accept`, {
+			method: 'POST',
+			headers: { cookie: bobCookie },
+		});
+		assert.equal(acceptRes.status, 200, 'Setup: Bob muss annehmen können');
+
+		const memberPatch = await fetch(`${server.baseUrl}/groups/${group.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: bobCookie },
+			body: JSON.stringify({ imageUrl: 'https://example.com/gruppe.png' }),
+		});
+		assert.equal(memberPatch.status, 403, 'Mitglied ohne Adminrolle erhält 403 (Mitgliedschaft wird nicht geleakt)');
+
+		const outsiderPatch = await fetch(`${server.baseUrl}/groups/${group.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: carolCookie },
+			body: JSON.stringify({ imageUrl: 'https://example.com/gruppe.png' }),
+		});
+		assert.equal(outsiderPatch.status, 404, 'Nicht-Mitglied erhält 404 statt 403 (kein Existenz-Leak)');
+	});
 });

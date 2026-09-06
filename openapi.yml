@@ -1924,6 +1924,11 @@ components:
         description:
           type: [string, 'null']
           description: Optionale Beschreibung der Gruppe
+        imageUrl:
+          type: [string, 'null']
+          description: >-
+            https-Bildadresse des Gruppenbilds (#1225); null = kein Bild
+            (Initialen aus dem Namen)
         role:
           type: string
           enum: [admin, member]
@@ -1956,6 +1961,11 @@ components:
         description:
           type: string
           description: Neue Beschreibung der Gruppe
+        imageUrl:
+          type: [string, 'null']
+          description: >-
+            Neue Bildadresse (#1225) — muss beginnen mit https://, null entfernt
+            das Bild; abwesendes Feld lässt es unverändert
     UserSearchHit:
       type: object
       description: Suchtreffer der Nutzersuche (#1212) — bewusst ohne E-Mail.

@@ -14,6 +14,9 @@ import {
 	migrateLlmProviderKindColumns,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
+// #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
+// Namespace + Cast, damit tsc grün bleibt, bis die Impl-Phase die Funktion anlegt.
+import * as migrateModule from './migrate.js';
 import { closeDb } from '../test/helpers.js';
 
 // Rote Spec-Tests für #146 — fehlende Schema-Migration für die Serien-Spalten.
@@ -584,5 +587,67 @@ describe('migrateTaskAddress', () => {
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
 
 		assert.ok((await taskColumns()).includes('address'), 'frische Tabelle enthält address');
+	});
+});
+
+// ── #1225 AK2: migrateGroupImageUrl — nullable imageUrl-Spalte an groups nachziehen ────
+// Vertrag laut docs/spec/issue-1225.md, Muster migrateUserGeoConfigColumns: Auf einer
+// Bestands-groups-Tabelle (vor diesem Feature) fehlt `imageUrl`; `sequelize.sync()` ohne
+// `alter` ergänzt die Spalte nicht, jede Gruppen-Query mit imageUrl würde brechen.
+describe('migrateGroupImageUrl (#1225 AK2)', () => {
+	const migrateGroupImageUrl = (
+		migrateModule as unknown as { migrateGroupImageUrl?: (db: typeof sequelize) => Promise<void> }
+	).migrateGroupImageUrl;
+
+	/** Spaltennamen der groups-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const groupColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('groups')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine groups-Tabelle im Alt-Schema (ohne imageUrl) per Raw-SQL. */
+	const createLegacyGroupsTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `groups` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`name` VARCHAR(60) NOT NULL, ' +
+				'`description` TEXT' +
+				')',
+		);
+	};
+
+	it('zieht auf einem Alt-Schema die imageUrl-Spalte nach, Bestandszeilen bleiben lesbar', async () => {
+		assert.ok(migrateGroupImageUrl, 'migrateGroupImageUrl muss in migrate.ts exportiert werden');
+		await createLegacyGroupsTable();
+		await sequelize.query("INSERT INTO `groups` (`name`, `description`) VALUES ('Familie', 'Alt')");
+
+		await migrateGroupImageUrl(sequelize);
+
+		assert.ok((await groupColumns()).includes('imageUrl'), 'imageUrl-Spalte vorhanden');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr');
+		const [rows] = await sequelize.query('SELECT name, description, imageUrl FROM `groups`');
+		const row = (rows as { name: string; description: string; imageUrl: string | null }[])[0];
+		assert.equal(row.name, 'Familie', 'Bestandszeile bleibt unverändert');
+		assert.equal(row.imageUrl, null, 'Bestandszeilen sind ohne Bild (NULL)');
+	});
+
+	it('ist idempotent: erneuter Lauf wirft nicht und legt die Spalte nicht doppelt an', async () => {
+		assert.ok(migrateGroupImageUrl, 'migrateGroupImageUrl muss in migrate.ts exportiert werden');
+		await createLegacyGroupsTable();
+		await migrateGroupImageUrl(sequelize);
+
+		await assert.doesNotReject(() => migrateGroupImageUrl!(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await groupColumns()).filter((name) => name === 'imageUrl').length, 1, 'imageUrl genau einmal');
+	});
+
+	it('ist auf einer DB ohne groups-Tabelle ein No-op und sync() legt die Tabelle inkl. Spalte an', async () => {
+		assert.ok(migrateGroupImageUrl, 'migrateGroupImageUrl muss in migrate.ts exportiert werden');
+		await sequelize.getQueryInterface().dropAllTables();
+		assert.deepEqual(await groupColumns(), [], 'Vorbedingung: keine groups-Tabelle');
+
+		await assert.doesNotReject(() => migrateGroupImageUrl!(sequelize), 'Migration ohne Tabelle ist No-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		assert.ok((await groupColumns()).includes('imageUrl'), 'frische Tabelle enthält imageUrl');
 	});
 });

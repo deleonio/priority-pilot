@@ -170,3 +170,47 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		);
 	});
 });
+
+// ── #1225 AK4/AK5: Gruppenbild (imageUrl) in Liste/Detail, 375px ohne Überlauf ─────────
+// Vertrag: docs/spec/issue-1225.md. Bildadresse wird im Bearbeiten-Dialog gesetzt (neues
+// Pflicht-UI-Feld „Bildadresse“ — bis zur Impl-Phase rot). AK5 wie AK8 per Bounding-Box
+// statt scrollWidth (App-Shell clippt overflow-x:hidden, Erfahrung 2026-08-24).
+
+test('Gruppenliste zeigt das hinterlegte Gruppenbild als Avatar neben dem Namen (#1225 AK4)', async ({ page }) => {
+	await openGroupsTab(page);
+	await createGroupViaUi(page, 'E2E Bild', 'Mit Gruppenbild');
+
+	const card = page.getByRole('listitem').filter({ hasText: 'E2E Bild' });
+	await card.getByRole('button', { name: 'Bearbeiten' }).click();
+	await page.getByRole('textbox', { name: 'Bildadresse' }).fill('https://example.com/gruppe.png');
+	await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+	await waitForStableView(page, 'Gruppen');
+
+	const avatar = card.locator('kol-avatar');
+	await expect(avatar).toBeVisible();
+	await expect(avatar.locator('img')).toHaveAttribute('src', 'https://example.com/gruppe.png');
+});
+
+test('Gruppe ohne Bild zeigt Initialen statt leerer Fläche (#1225 AK4)', async ({ page }) => {
+	await openGroupsTab(page);
+	await createGroupViaUi(page, 'E2E Initiales');
+
+	const card = page.getByRole('listitem').filter({ hasText: 'E2E Initiales' });
+	await expect(card.locator('kol-avatar')).toBeVisible();
+	await expect(card.locator('kol-avatar img')).toHaveCount(0); // ohne Bild keine <img> — Initialen
+});
+
+test('Gruppenzeile mit Bild bleibt bei 375px ohne horizontalen Überlauf (#1225 AK5)', async ({ page }) => {
+	await openGroupsTab(page);
+	await createGroupViaUi(page, 'E2E Mobil Bild', 'Lange Beschreibung, die mobil umbricht');
+
+	const card = page.getByRole('listitem').filter({ hasText: 'E2E Mobil Bild' });
+	await card.getByRole('button', { name: 'Bearbeiten' }).click();
+	await page.getByRole('textbox', { name: 'Bildadresse' }).fill('https://example.com/gruppe.png');
+	await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+	await waitForStableView(page, 'Gruppen');
+
+	await page.setViewportSize({ width: 375, height: 812 });
+	const box = await card.boundingBox();
+	expect(box!.x + box!.width, 'Karte mit Bild ragt nicht über den 375px-Viewport hinaus').toBeLessThanOrEqual(375);
+});

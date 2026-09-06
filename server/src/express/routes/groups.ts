@@ -26,6 +26,7 @@ type GroupDto = {
 	id: number;
 	name: string;
 	description: string | null;
+	imageUrl: string | null;
 	role: GroupRole;
 	memberCount: number;
 };
@@ -40,11 +41,23 @@ const validateName = (name: unknown): string | null => {
 	return trimmed;
 };
 
+/**
+ * Bildadresse validieren (#1225, AK1): nur nach Trim mit `https://` beginnende Adressen werden
+ * übernommen, jeder andere angegebene Wert ist ein 400. `null` ist gültig (Bild entfernen) und
+ * wird nicht hier, sondern direkt im PATCH-Handler behandelt.
+ */
+const validateImageUrl = (value: unknown): string | null => {
+	if (typeof value !== 'string') return null;
+	const trimmed = value.trim();
+	return trimmed.startsWith('https://') ? trimmed : null;
+};
+
 /** DTO einer Gruppe inkl. eigener Rolle und Mitgliederzahl (COUNT über group_members). */
 const toDto = async (group: Group, role: GroupRole): Promise<GroupDto> => ({
 	id: group.id,
 	name: group.name,
 	description: group.description ?? null,
+	imageUrl: group.imageUrl ?? null,
 	role,
 	memberCount: await GroupMember.count({ where: { groupId: group.id } }),
 });
@@ -139,9 +152,8 @@ groupsRouter.get('/groups/:id', async (req: Request, res: Response<GroupDto | Er
 	}
 });
 
-// PATCH /groups/:id — nur Admins (AK3); Nicht-Mitglieder und Nicht-Admins bekommen einheitlich
-// 404. Nicht-Admin kann in diesem Ticket nicht auftreten (Ersteller ist immer Admin, Einladungen
-// sind Ticket 2), die Klausel sichert den Vertrag trotzdem ab.
+// PATCH /groups/:id — nur Admins (AK3): ein Mitglied ohne Adminrolle bekommt 403 (die Gruppe
+// kennt es ja), ein Nicht-Mitglied 404 (kein Existenz-Leak, Muster invitations-Route).
 groupsRouter.patch('/groups/:id', async (req: Request, res: Response<GroupDto | ErrorDto>) => {
 	try {
 		const user = await resolveGeoUser(req);
@@ -150,16 +162,20 @@ groupsRouter.patch('/groups/:id', async (req: Request, res: Response<GroupDto | 
 			return;
 		}
 		const found = await findMembership(user.id, Number(req.params.id));
-		if (!found || found.role !== 'admin') {
+		if (!found) {
 			sendError(res, 404, 'Gruppe nicht gefunden.');
 			return;
 		}
-		const body = (req.body ?? {}) as { name?: unknown; description?: unknown };
+		if (found.role !== 'admin') {
+			sendError(res, 403, 'Nur Administratoren dürfen die Gruppe bearbeiten.');
+			return;
+		}
+		const body = (req.body ?? {}) as { name?: unknown; description?: unknown; imageUrl?: unknown };
 		// PATCH-Vertrag (openapi.yml, GroupUpdate): alle Felder optional, abwesende Felder bleiben
 		// unverändert. `name` wird deshalb nur bei Anwesenheit validiert — der Frontend-Dialog
 		// sendet im Bearbeiten-Modus ausschließlich geänderte Felder, ein reines
 		// Beschreibungs-Edit ohne `name` muss daher 200 liefern (Review PR #1214, Finding 1).
-		const changes: { name?: string; description?: string | null } = {};
+		const changes: { name?: string; description?: string | null; imageUrl?: string | null } = {};
 		if (body.name !== undefined) {
 			const name = validateName(body.name);
 			if (name === null) {
@@ -171,6 +187,20 @@ groupsRouter.patch('/groups/:id', async (req: Request, res: Response<GroupDto | 
 		if (body.description !== undefined) {
 			changes.description =
 				typeof body.description === 'string' && body.description.trim().length > 0 ? body.description.trim() : null;
+		}
+		// Bildadresse (#1225, AK1): `null` entfernt das Bild bewusst — nur deshalb darf `null`
+		// hier nicht mit „abwesend" gleichgesetzt werden.
+		if (body.imageUrl !== undefined) {
+			if (body.imageUrl === null) {
+				changes.imageUrl = null;
+			} else {
+				const imageUrl = validateImageUrl(body.imageUrl);
+				if (imageUrl === null) {
+					sendError(res, 400, 'Die Bildadresse muss beginnen mit https://.');
+					return;
+				}
+				changes.imageUrl = imageUrl;
+			}
 		}
 		await found.group.update(changes);
 		res.json(await toDto(found.group, found.role));

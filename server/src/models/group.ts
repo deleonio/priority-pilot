@@ -12,6 +12,8 @@ class Group extends Model {
 	public id!: number;
 	public name!: string;
 	public description!: string | null;
+	/** Gruppenbild als https-Bildadresse (#1225) — null = kein Bild. */
+	public imageUrl!: string | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -30,6 +32,10 @@ Group.init(
 		},
 		description: {
 			type: DataTypes.TEXT,
+			allowNull: true,
+		},
+		imageUrl: {
+			type: DataTypes.STRING,
 			allowNull: true,
 		},
 	},

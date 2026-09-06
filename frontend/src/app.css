@@ -1321,6 +1321,30 @@ body {
 	flex-shrink: 0;
 }
 
+/*
+ * Gruppenbild (#1225, AK4/AK5): Avatar links neben dem Namen — feste Kachelgröße, damit das
+ * Nachladen des Bilds nicht springt. `kol-avatar` setzt im Shadow-DOM `:host { width: 100px;
+ * aspect-ratio: 1 }` ohne Custom Property, deshalb Breite/Höhe explizit am Host (Muster
+ * `.app-header kol-avatar`); `flex-shrink: 0` hält die Kachel konstant, der Textblock rechts
+ * bricht (`min-width: 0` in `.groups-info`) — bei 375px bleibt die Zeile ohne horizontalen
+ * Überlauf (AK5).
+ */
+.groups-avatar {
+	width: var(--pp-space-6);
+	height: var(--pp-space-6);
+	aspect-ratio: 1;
+	flex-shrink: 0;
+}
+
+/* Kopf des aufgeklappten Details (#1225, AK4): Avatar + Gruppenname in einer Zeile. */
+.group-detail-head {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+	margin-bottom: var(--pp-space-2);
+}
+
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
    untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
 .deadline-group {
