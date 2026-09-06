@@ -281,8 +281,9 @@ Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTING
 
 - **Kontingent:** Alle gebuchten Modelle außer `glm-5-turbo` kosten denselben Anteil (1×) — ein
   leichteres Modell spart also nichts, kostet aber Qualität.
-- **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call** und ist nur als Subagent-Modell
-  im Spiel; die Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nicht betroffen.
+- **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call**; es war als Subagent-Modell
+  im Spiel und ist seit der Umstellung auf `glm-4.7` (2026-09) nicht mehr konfiguriert. Die
+  Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
   Seit der globalen Phasen-Serialisierung (statische `concurrency`-Gruppe je Phase, s.
   [pipeline-flow.md](./pipeline-flow.md)) ist die Obergrenze strukturell **6 gleichzeitige
   Agent-Läufe** — einer je Phase; weitere Läufe derselben Phase stapeln sich, statt parallel
@@ -295,11 +296,13 @@ Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTING
   planweit oder nur für 2×/3×-Modelle gilt.
 
 **Fazit (Abo-Realität):** `glm-5.3[1m]` trägt alle Phasen-Aliase außer `haiku` (→ `glm-4.7`) —
-1× Kontingent, keine Sperrzeit. `glm-5-turbo` läuft nur als `CLAUDE_CODE_SUBAGENT_MODEL` und ist
-der einzige 2×/3×-Tarif-Nutzer sowie mit Parallelität 1 der Flaschenhals für parallele
-Subagent-Calls. Wer beides vermeiden will, setzt `CLAUDE_CODE_SUBAGENT_MODEL` in
-`vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` auf `glm-4.7` oder `glm-5.3[1m]` — dann ist der
-Peak-Fallback praktisch rein defensiv.
+1× Kontingent, keine Sperrzeit. `CLAUDE_CODE_SUBAGENT_MODEL` steht in
+`vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` ebenfalls auf `glm-4.7` (Ad-hoc-Fan-outs ohne
+Rollen-Frontmatter): 1× Kontingent, keine Sperrzeit, unbeschränkte Parallelität —
+`glm-5-turbo` (2×/3×-Tarif, Parallelität 1) ist damit aus der Konfiguration entfernt und der
+Peak-Fallback rein defensiv. Achtung: Die Alias-Auflösung hängt an dieser GitHub-Variable,
+nicht am Repo — ein dort eingetragenes, nicht gebuchtes Modell (2026-09: `glm-5.3-flash`)
+ließ Subagent-Rollen still mit `400 [1214]` sterben.
 
 ### Modell-Routing je Phase (ai-phase-routing-Tabelle)
 
@@ -344,7 +347,10 @@ Die Workflows setzen `subagent-model: haiku` (Triage schon länger; Umsetzung/Fi
 seit ADR 0008). Seit CLI 2.1.251 ist `CLAUDE_CODE_SUBAGENT_MODEL` nur noch Default: das
 Rollen-Frontmatter (`haiku` bei beiden Rollen) schlägt es, der Override greift nur bei
 Ad-hoc-Fan-outs ohne Definition — genau dort soll er den Fan-out vom teuren Phasenmodell
-fernhalten. Anweisung und Kriterium stehen in
+fernhalten. `setup-claude` löst den Subagent-Alias provider-aware auf: bei `claude` als native
+ID via `GITHUB_ENV`, bei `zai`/`openrouter` über denselben `ANTHROPIC_DEFAULT_*_MODEL`-
+Mechanismus wie das Phasenmodell (settings.local.json env, synchron mit `GITHUB_ENV` gehalten,
+dessen env-Block gewinnt empirisch) — eine native Anthropic-ID würde dort mit `400` abgelehnt. Anweisung und Kriterium stehen in
 den SKILLs (`ticket-implementation` → „Delegation", `review-kreuzverhoer` → „Delegation",
 `ticket-triage` Schritt 1), die Prompts verweisen nur.
 
