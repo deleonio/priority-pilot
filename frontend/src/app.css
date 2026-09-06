@@ -1792,24 +1792,11 @@ body {
 	box-sizing: border-box;
 }
 
-/*
- * Feinschalter unter dem Master „Animationen“ („Herz animieren“, „Erledigt animieren“):
- * mobil halb so weit eingerückt wie auf dem Desktop, um die Zugehörigkeit zum Master zu
- * zeigen, ohne die ohnehin schmalen 375 px weiter zu verknappen.
- */
-.settings-switch-row--sub {
-	margin-left: 1.25rem;
-}
-
 @media (min-width: 768px) {
 	.settings-switch-row {
 		flex-direction: row;
 		align-items: center;
 		gap: 1rem; /* 16dp */
-	}
-
-	.settings-switch-row--sub {
-		margin-left: 2.5rem;
 	}
 
 	/*
@@ -1844,24 +1831,11 @@ body {
 	width: auto;
 }
 
-/*
- * Feinschalter „Schnellerfassung aktiv" unter dem Master „KI-Features aktiv" (KolDetails,
- * Muster docs/ux-pattern-master-detail-settings.md) — gleiche Einrückung wie
- * `.settings-switch-row--sub` bei den Animations-Feinschaltern.
- */
-.settings-llm-switch-row--sub {
-	margin-left: 1.25rem;
-}
-
 @media (min-width: 768px) {
 	.settings-llm-switch-row {
 		flex-direction: row;
 		align-items: center;
 		gap: 1rem; /* 16dp */
-	}
-
-	.settings-llm-switch-row--sub {
-		margin-left: 2.5rem;
 	}
 
 	.settings-llm-switch-row kol-input-checkbox[_variant='switch'] {
@@ -2379,6 +2353,17 @@ kol-heading {
 	width: 100%;
 	height: auto;
 	overflow: visible;
+}
+
+/*
+ * Glasherz (WebGL): dieselbe Geometrie wie das SVG (Zeichenfläche 100×92, volle Breite der
+ * Bühne). Der Puls bleibt CSS auf der Bühne — das Canvas skaliert als Ganzes mit.
+ */
+.heart-glass-canvas {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 100 / 92;
 }
 
 /* Leeres Gefäß: eingesenkte Fläche, damit das Fehlende genauso ablesbar ist wie das Erreichte. */

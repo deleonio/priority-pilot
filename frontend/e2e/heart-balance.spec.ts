@@ -43,11 +43,11 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openDashboard(page);
 
-		const heart = page.getByTestId('heart-balance-svg');
+		const heart = page.getByTestId(/heart-balance-(canvas|svg)/);
 		await expect(heart).toBeVisible();
 
-		// Je Säule ein Farbstreifen — ohne gepflegte Säulen gäbe es die Karte gar nicht.
-		expect(await page.getByTestId('heart-column').count()).toBeGreaterThan(0);
+		// Je Säule eine Zeile in der Legende — ohne gepflegte Säulen gäbe es die Karte gar nicht.
+		expect(await page.getByTestId('heart-balance-legend-row').count()).toBeGreaterThan(0);
 
 		// Horizontal mittig: die Grafik-Mitte liegt auf der Mitte ihrer Karte (1 px Toleranz für
 		// subpixelgenaues Layout).
@@ -73,7 +73,7 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 			await page.setViewportSize({ width, height: 812 });
 			await openDashboard(page);
 
-			await expect(page.getByTestId('heart-balance-svg')).toBeVisible();
+			await expect(page.getByTestId(/heart-balance-(canvas|svg)/)).toBeVisible();
 
 			for (const selector of ['.dashboard-heart', '.heart-balance-stage', '.heart-balance-legend']) {
 				const box = await page.locator(selector).boundingBox();
