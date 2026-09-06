@@ -139,6 +139,9 @@ outputs:
   compact-tokens:
     description: 'Der tatsächlich aufgelöste Auto-Compact-Threshold (leer = Default der Laufzeit)'
     value: ${{ inputs.compact-tokens }}
+  effort:
+    description: 'Der aufgelöste Effort-Level dieses Laufes (low | medium | high | xhigh | max) — von record-cost in den Kostensatz geschrieben, damit die Effort-Routing-Entscheidung messbar wird (ADR 0004)'
+    value: ${{ inputs.effort }}
   runtime:
     description: 'Die tatsächlich gewählte Laufzeit ("claude" oder "pi") — von record-cost gebraucht, um die richtige Kostenquelle zu lesen'
     value: ${{ steps.runtime.outputs.runtime }}

@@ -168,6 +168,14 @@ describe('main — Datensatz im .costs-Schema', () => {
 				'analyse',
 				'--provider',
 				'claude',
+				'--effort',
+				'high',
+				'--verdict',
+				'reviewed',
+				'--findings',
+				'3',
+				'--nits',
+				'2',
 				'--session-dir',
 				sessionDir,
 				'--root-dir',
@@ -186,6 +194,11 @@ describe('main — Datensatz im .costs-Schema', () => {
 			assert.equal(entry.provider, 'claude');
 			assert.equal(entry.phase, 'analyse');
 			assert.ok(entry.cost > 0, 'Anthropic-Modell ist bepreist — cost darf nicht 0 sein');
+			// Kontext-Flags landen im Eintrag (gleicher Weg wie beim Claude-Pendant)
+			assert.equal(entry.effort, 'high');
+			assert.equal(entry.verdict, 'reviewed');
+			assert.equal(entry.findings, 3);
+			assert.equal(entry.nits, 2);
 		} finally {
 			rmSync(sessionDir, { recursive: true, force: true });
 			rmSync(rootDir, { recursive: true, force: true });

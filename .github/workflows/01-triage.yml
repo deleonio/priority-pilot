@@ -252,6 +252,7 @@ jobs:
           phase: analyse
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
           # Laufzeit + Sitzungsverzeichnis entscheiden, WOHER der Verbrauch gelesen wird.
           # session-dir ist nur bei runtime=pi gefüllt; bei claude bleibt es leer und die
           # Erfassung nutzt wie bisher die Zeituntergrenze aus since-epoch.
