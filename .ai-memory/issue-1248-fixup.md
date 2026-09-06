@@ -7,7 +7,8 @@
   - :206 — Empfänger-Feld um Bedingungen ergänzt („erscheint nur beim Anlegen (nicht beim Bearbeiten) und nur, solange du Mitglied mindestens einer Gruppe bist", Deckung TaskForm.tsx:922–943).
   - :490 — „Empfangene Einladungen" → „Einladungen (Karte in der Gruppen-Übersicht, nicht zu verwechseln mit ‚Offene Einladungen')", Deckung GroupsSection.tsx:100 / GroupDetail.tsx:214.
 - GATE grün: `npx prettier --check docs/user-guide.md` ✓; `node --test --experimental-strip-types src/logics/user-guide.test.ts` im server/ = 12/12 pass.
-- ai-fixup-decisions-Sammelkommentar (NEU, Marker `<!-- ai-fixup-decisions -->`) mit ✅-Tabelle (3 Zeilen) gepostet; Review-Kommentar 5556715608 NICHT angefasst.
+- ai-fixup-decisions-Sammelkommentar (NEU, Marker `<!-- ai-fixup-decisions -->`) mit ✅-Tabelle (3 Zeilen) gepostet: Comment-ID **5556752267**; Review-Kommentar 5556715608 NICHT angefasst.
+- Fixup-Commit **268e3736** gepusht (docs/user-guide.md + Phasen-Notiz; `--no-verify` wegen knip „GlassBand" pre-existing, wie be993f53 — Pre-Commit selbst: format/lint grün).
 
 ## Relevante Stellen
 - `docs/user-guide.md:68,206,490` — die drei Finding-Anker (Zeilen verschoben sich durch die Edits nach unten, Inhalt unverändert davor/danach).
