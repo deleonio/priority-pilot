@@ -10,6 +10,8 @@ web
 
 Primärnutzer ist der Eigentümer selbst: Priority Pilot ist sein Daily Driver — die reale tägliche Arbeitsplanung passiert in der App. Zugang ausschließlich über Google-Login mit E-Mail-Allowlist; neben dem Eigentümer sind nur freigeschaltete Adressen zugelassen. Bestätigte Ambition (2026-08-18): »Aspiring Product« — die Allowlist ist der heutige Zustand, mittelfristig soll Priority Pilot für eine breitere Nutzerschaft geöffnet werden.
 
+**Gruppen** (#1211, bestätigt 2026-02) erweitern die Ein-Personen-Annahme: Konten können gemeinsame Aufgabengruppen teilen (Rollen Admin/Mitglied, Beitritt per Einladungs-Link). Die Beitritts-Vorschau ist öffentlich; das Einlösen braucht eine Session — Mitglieder brauchen weiterhin Google-Login.
+
 ## Product Purpose
 
 Priority Pilot beantwortet die Frage »Woran sollte ich als Nächstes arbeiten?« für Situationen, in denen Aufgaben voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen. Zwei Rechen-Kernkonzepte:
@@ -27,7 +29,8 @@ Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag au
 
 - Persönliche Aufgabenplanung, Desktop und mobil; als PWA installierbar (Install-/Update-Prompt, Web-Push).
 - Spracheingabe (Voice-Field mit Mikrofon-Freigabe, Autostart-Option), Quick-Capture, Geolocation-Nutzung im Frontend vorhanden.
-- KI-Kaskade Mistral + OpenRouter für den Säulen-Beraten (Pillar Advisor, `suggest-pillars`); ohne konfigurierten Key antwortet der Endpoint mit HTTP 503.
+- KI-Features — Säulen-Berater (Pillar Advisor, `suggest-pillars`) und Lektorat (Diff-Übernahme für Titel/Beschreibung) — laufen über im Settings-Tab »KI-Provider« verwaltete LLM-Provider: genau ein aktiver Provider, Custom-Provider mit eigenem Key anlegbar (LLM-Verwaltung, Test-Verbindung).
+- Herz-Balance auf dem Dashboard: `HeartBalance` füllt ein Herz-Gefäß je Lebensbalance — WebGL2-Glas (Shader `heart-glass.frag`) mit SVG-Rückfall; Füllstand = Gesamt-Balance, Farbstreifenbreite = Säulen-Verteilung. Reduced-Motion-Präferenz wird respektiert, kein JS-Render-Loop.
 - Zwei Betriebsarten: Cloud (dedizierter Linux-Server, Caddy TLS, PM2, Deploy via GitHub Actions) und Local (Entwicklung/Selbsthosting); nightly SQLite-Backup via `maintenance.sh`.
 - UI durchgehend Deutsch, Du-Form.
 - Mobile Einhandbedienung ist der Leitfall: Referenz-Viewport 375px.
@@ -36,8 +39,12 @@ Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag au
 ## Capabilities and Constraints
 
 - Vier Hauptansichten per Tab-Leiste: **Dashboard**, **Aufgaben** (Umschalter offen/erledigt), **Serien** (wiederkehrende Aufgaben), **Wald** (Aufgabenbaum). Kopfzeile mit fünf Icon-Aktionen: Task anlegen, Säulen-Berater, Einstellungen, Hilfe, Abmelden.
+- Settings-Seite (#271) mit Tab-Leiste: **Allgemein**, **Säulen**, **KI-Provider**, **Standort**, **Gruppen**; aktiver Tab liegt auf der Route `/settings/:tab` (#1105).
+- **Gruppen**: gemeinsame Aufgabengruppen mit Rollen (Admin/Mitglied), Einladungs-Links (`/gruppen/beitreten?token=…`, #1226), Nutzersuche per Namensfragment/E-Mail; öffentliche Beitritts-Vorschau vor dem Auth-Gate, vier gestaltete Beitritts-Zustände.
+- **»In der Nähe«** (#1066): Dashboard-Card mit bis zu 10 Geo-Tasks, aufsteigend nach Haversine-Distanz; vier gestaltete Zustände (Erfolg, leer, Browser verweigert, Präferenz aus) — Positionserhebung erst nach Freigabe.
+- **Suche & Filter**: globaler Suchdialog mit Voice-Eingabe (#264/#522), Übergabe an den Aufgaben-Tab; Aufgaben-Filter via Query-Parameter (`?q=`, `?view=`, #1105); Balance-Priorisierung der Aufgabenliste (#1220, session-lokal).
 - Technik verbindlich: KoliBri (`@public-ui`) als Komponenten-Bibliothek, React 19, Vite-PWA; typsichere API-Anbindung per `openapi-fetch` gegen die gemeinsame `openapi.yml` (Express 5 + Sequelize 6/SQLite im Backend).
-- Farb-Tokens `--pp-*` existieren in `frontend/src/app.css`; Spacing-/Radien-/Typografie-Tokens existieren (noch) nicht — Token-Pflicht gilt für neues CSS.
+- Farb-, Spacing-, Radien- und Typografie-Tokens existieren in `frontend/src/app.css` (`--pp-*`, u. a. `--pp-gap-*`, `--pp-space-*`, `--pp-radius-*`, `--pp-font-size-*`) — Token-Pflicht gilt für neues CSS.
 - Deutschsprachige UI ohne i18n-Infrastruktur ist Ist-Zustand, aber nicht als bindende Festlegung bestätigt (offenes Faktum für künftige Produktarbeit).
 
 ## Brand Commitments
