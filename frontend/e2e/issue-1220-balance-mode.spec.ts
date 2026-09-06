@@ -4,11 +4,15 @@ import { waitForStableView } from './helpers';
 /**
  * E2E-Vertrag für #1220 — „Balance-Priorisierung" in der Aufgabenliste (Tab „Aufgaben").
  *
- * Rot-Tests zur Spec `docs/spec/issue-1220.md` (AK1–AK5): Ein Schalter in der Filterleiste
+ * Tests zur Spec `docs/spec/issue-1220.md` (AK1–AK6): Ein Schalter in der Filterleiste
  * sortiert die offene Liste nach virtueller Balance-Priorität (Defizit-gewichtet, Rechenkern
  * `frontend/src/lib/balancePriority.ts`), das P-Badge zeigt die virtuelle Prio als `~P{n}`,
- * „Ausbalancieren" berechnet den eingefrorenen Stand neu (Snapshot-Semantik), und es gehen
+ * „Neu berechnen" ersetzt den eingefrorenen Stand (Snapshot-Semantik), und es gehen
  * keinerlei Schreibzugriffe auf `/api/v1/tasks` raus — die Server-`priority` bleibt unberührt.
+ *
+ * AK6 nagelt die Aufgabenteilung fest: Der Schalter wechselt nur die Sicht (lädt nichts), der
+ * Button setzt nur den Stand neu (schaltet nichts). Beide Zuständigkeiten überlappten sich
+ * ursprünglich, wodurch Schalter und Button aus verschiedenen Datenquellen rechneten.
  *
  * Wie die übrigen funktionalen Specs läuft dies gegen das echte Backend (In-Memory-DB,
  * Vite-Proxy); `/auth/me` authentifiziert die Fixture. Szenario: Der gesamte erledigte Aufwand
@@ -90,7 +94,15 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 
 	const balanceSwitch = (page: Page) => page.getByRole('checkbox', { name: /Balance-Priorisierung/i });
 
-	const rebalanceButton = (page: Page) => page.getByRole('button', { name: /Ausbalancieren/i });
+	// Das Label wechselt während des Ladens auf „Berechne neu …" — beide Zustände treffen.
+	const rebalanceButton = (page: Page) => page.getByRole('button', { name: /Neu berechnen|Berechne neu/i });
+
+	/** Der aria-live-Hinweis mit dem Stand der Sortierung (trägt auch den Veraltet-Zusatz). */
+	const balanceHint = (page: Page) =>
+		page
+			.locator('[aria-live="polite"]')
+			.filter({ hasText: /sortiert/i })
+			.first();
 
 	/** Vertikalposition eines Listen-Eintrags (px von oben) — kleinere y = weiter oben in der Liste. */
 	const yOf = async (page: Page, id: number): Promise<number> => {
@@ -151,18 +163,18 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 		expect(writes).toEqual([]);
 	});
 
-	test('AK2: „Ausbalancieren" berechnet den eingefrorenen Stand neu — Anzeige folgt erst auf den Klick', async ({
-		page,
-	}) => {
+	test('AK2: „Neu berechnen" ersetzt den eingefrorenen Stand — Anzeige folgt erst auf den Klick', async ({ page }) => {
 		const { pillarA, taskX, taskY } = await seedScene(page);
 
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Balance-Modus: Berechnung beim Aktivieren — X (Defizit) über Y.
+		// Balance-Modus: Der Stand lief bis hierher mit, das Einschalten friert ihn ein — X (Defizit) über Y.
 		await balanceSwitch(page).click();
 		expect(await yOf(page, taskX.id)).toBeLessThan(await yOf(page, taskY.id));
+		await expect(balanceHint(page)).toBeVisible();
+		await expect(balanceHint(page)).not.toContainText('Daten haben sich geändert');
 
 		// Datenbasis extern kippen: Eine erledigte Aufgabe zahlt jetzt auch in Säule A ein →
 		// Ist-Anteil von A steigt, ihr Defizit fällt auf 0 (Soll ≤ Ist-Anteil).
@@ -173,7 +185,7 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 		// Nachziehen, obwohl sich die Datenbasis geändert hat.
 		expect(await yOf(page, taskX.id)).toBeLessThan(await yOf(page, taskY.id));
 
-		// Klick auf „Ausbalancieren" stößt die Neuberechnung sichtbar an: Beide Defizite sind nun
+		// Klick auf „Neu berechnen" ersetzt den Stand sichtbar: Beide Defizite sind nun
 		// 0 → Sekundärkriterium Original-Prio → Y (P5) über X (P1).
 		// Test-Pflege (#1220, Impl-Phase): Der Klick lädt die Datenbasis neu (GET) und committet
 		// erst danach — ein einzelner Read unmittelbar nach dem Klick racet gegen den Netzwerk-
@@ -182,20 +194,81 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 		await rebalanceButton(page).click();
 		await expect.poll(async () => (await yOf(page, taskY.id)) < (await yOf(page, taskX.id))).toBe(true);
 
-		// KI-UX (WCAG 4.1.3): Die Umsortierung wird per aria-live ankündigt.
-		await expect(
-			page
-				.locator('[aria-live="polite"]')
-				.filter({ hasText: /sortiert/i })
-				.first(),
-		).toBeVisible();
+		// Der Modus bleibt an — der Button setzt nur den Stand neu, er schaltet nichts um.
+		await expect(balanceSwitch(page)).toBeChecked();
+	});
+
+	test('Veralteter Stand wird ausgewiesen, sobald sich die Datenlage in der App ändert', async ({ page }) => {
+		const { taskX, taskY } = await seedScene(page);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		await balanceSwitch(page).click();
+		expect(await yOf(page, taskX.id)).toBeLessThan(await yOf(page, taskY.id));
+		await expect(balanceHint(page)).not.toContainText('Daten haben sich geändert');
+
+		// Eine Aufgabe in der App erledigen: Ihr Aufwand zählt ab jetzt zum Ist ihrer Säule, das
+		// Defizit verschiebt sich. Der eingefrorene Stand bildet das nicht mehr ab — genau das
+		// meldet der Hinweis, damit erkennbar ist, wann „Neu berechnen" etwas ändern würde.
+		// Der Erledigt-Toggle liegt hinter dem Aktionen-Popover der Zeile (#387, Muster balance.spec.ts).
+		await page
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.first()
+			.click();
+		const doneButton = page.getByRole('button', { name: 'Erledigt' }).first();
+		await expect(doneButton).toBeVisible();
+		await doneButton.click();
+
+		await expect(balanceHint(page)).toContainText('Daten haben sich geändert');
+
+		// Die Reihenfolge zieht dabei nicht von selbst nach (AK2 gilt weiter).
+		expect(await yOf(page, taskX.id)).toBeLessThan(await yOf(page, taskY.id));
+
+		// Erst „Neu berechnen" übernimmt die neue Lage — danach ist der Stand wieder aktuell.
+		await rebalanceButton(page).click();
+		await expect(balanceHint(page)).not.toContainText('Daten haben sich geändert');
+	});
+
+	test('AK6: Schalter wechselt nur die Sicht, „Neu berechnen" setzt nur den Stand neu', async ({ page }) => {
+		const { taskX, taskY } = await seedScene(page);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		// Außerhalb des Modus gibt es nichts neu zu berechnen — der Stand läuft ohnehin mit.
+		await expect(rebalanceButton(page)).toHaveCount(0);
+
+		// Der Schalter wechselt nur die Sicht: Er sortiert sofort um, ohne Daten nachzuladen.
+		const taskReads: string[] = [];
+		page.on('request', (request) => {
+			if (/\/api\/v1\/tasks(\?|$)/.test(request.url()) && request.method() === 'GET') {
+				taskReads.push(request.url());
+			}
+		});
+		await balanceSwitch(page).click();
+		expect(await yOf(page, taskX.id)).toBeLessThan(await yOf(page, taskY.id));
+		expect(taskReads).toEqual([]);
+
+		// Der Button lädt die Datenbasis nach, lässt den Schalter aber unangetastet.
+		await expect(rebalanceButton(page)).toBeVisible();
+		await rebalanceButton(page).click();
+		await expect.poll(() => taskReads.length).toBeGreaterThan(0);
+		await expect(balanceSwitch(page)).toBeChecked();
+
+		// Ausschalten blendet den Button wieder aus — er hat außerhalb des Modus keine Wirkung.
+		await balanceSwitch(page).click();
+		await expect(balanceSwitch(page)).not.toBeChecked();
+		await expect(rebalanceButton(page)).toHaveCount(0);
 	});
 
 	// AK5 braucht den mobilen Viewport für den ganzen Test — test.use wirkt nur auf Describe-Ebene.
 	test.describe('mobile 375px', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 
-		test('AK5 (375px): Schalter und „Ausbalancieren“ bleiben bedienbar, kein Clipping der Filterleiste', async ({
+		test('AK5 (375px): Schalter, Stand-Hinweis und „Neu berechnen“ bleiben bedienbar, kein Clipping', async ({
 			page,
 		}) => {
 			await seedScene(page);
@@ -204,21 +277,24 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 			await waitForStableView(page);
 			await openTasksTab(page);
 
+			// Der Schalter schaltet den Modus an — erst damit erscheinen Hinweis und Button.
+			await balanceSwitch(page).click();
+			await expect(balanceSwitch(page)).toBeChecked();
+			await expect(rebalanceButton(page)).toBeVisible();
+
 			const switchBox = await balanceSwitch(page).boundingBox();
+			const hintBox = await balanceHint(page).boundingBox();
 			const buttonBox = await rebalanceButton(page).boundingBox();
 			expect(switchBox).not.toBeNull();
+			expect(hintBox).not.toBeNull();
 			expect(buttonBox).not.toBeNull();
 
 			// Die App-Shell clippt overflow-x (scrollWidth wäre strukturell ≤ Viewport) — daher
-			// Bounding-Box-Prüfung: beide Bedienelemente liegen vollständig im 375px-Viewport.
-			expect(switchBox!.x).toBeGreaterThanOrEqual(0);
-			expect(switchBox!.x + switchBox!.width).toBeLessThanOrEqual(375);
-			expect(buttonBox!.x).toBeGreaterThanOrEqual(0);
-			expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(375);
-
-			// Beide sind tatsächlich bedienbar: Der Schalter schaltet den Modus an.
-			await balanceSwitch(page).click();
-			await expect(balanceSwitch(page)).toBeChecked();
+			// Bounding-Box-Prüfung: alle drei liegen vollständig im 375px-Viewport.
+			for (const box of [switchBox!, hintBox!, buttonBox!]) {
+				expect(box.x).toBeGreaterThanOrEqual(0);
+				expect(box.x + box.width).toBeLessThanOrEqual(375);
+			}
 		});
 	});
 });
