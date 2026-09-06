@@ -509,12 +509,38 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 		sendError(res, 400, validation.message);
 		return;
 	}
-	// #1249: Säulen gegen den Eigentümer der Serie prüfen, nicht gegen den Aufrufer.
+	// #1252: optionaler Empfänger — Übergabe der Serie an ein Gruppenmitglied. Muster `POST /series`
+	// (#1222) bzw. `PATCH /tasks` (#1252): ohne das Feld (oder mit der eigenen ID) ändert sich am
+	// bisherigen PATCH-Ablauf nichts (AK8); ein Empfänger ohne gemeinsame Gruppe wird mit 403
+	// abgelehnt, ohne dass Feldänderungen aus demselben Request durchkommen.
+	const requester = await resolveGeoUser(req);
+	const requesterId = requester?.id ?? null;
+	let recipientId: number | null = null;
+	const recipientInput = (req.body as { userId?: unknown }).userId;
+	if (recipientInput !== undefined) {
+		if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+			sendError(res, 400, 'userId muss eine Ganzzahl sein.');
+			return;
+		}
+		if (recipientInput !== requesterId) {
+			const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
+			const shared = await GroupMember.findOne({
+				where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
+			});
+			if (shared === null) {
+				sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+				return;
+			}
+			recipientId = recipientInput;
+		}
+	}
+	// #1249/#1252: Säulen gegen das Konto prüfen, dem die Serie nach diesem Request gehört — bei
+	// einer Übergabe gegen das Empfänger-Konto statt gegen den bisherigen Eigentümer.
 	if (
 		validation.pillars !== undefined &&
 		!(await arePillarsExistent(
 			validation.pillars.map((entry) => entry.pillarId),
-			series.userId ?? null,
+			recipientId ?? series.userId ?? null,
 		))
 	) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
@@ -526,7 +552,41 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 	const applyToInstances = body.applyToInstances === true;
 	try {
 		await sequelize.transaction(async (transaction) => {
-			await series.update(validation.attrs, { transaction });
+			// #1252 (AK8): Eine Übergabe schreibt NUR die Eigentumsfelder des Templates — `userId` =
+			// Empfänger und `createdById` = übergebender Eigentümer. Bereits erzeugte Instanzen bleiben
+			// beim bisherigen Eigentümer: die Kaskade unten kopiert nur die geänderten kaskadierbaren
+			// Felder, nie Eigentümer.
+			await series.update(
+				{ ...validation.attrs, ...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}) },
+				{ transaction },
+			);
+			// #1252 (AK6): Bei einer Übergabe (ohne gleichzeitig gesendete `pillars` — die wären bereits
+			// gegen das Empfänger-Konto validiert und ersetzen unten komplett) darf die Säulen-Vorlage
+			// nicht auf Säulen des bisherigen Eigentümers zeigen: Übernahme per gleichem Säulen-Namen
+			// des Empfängers (#1249-Regel), sonst verwerfen.
+			if (recipientId !== null && validation.pillars === undefined) {
+				const contributions = await SeriesPillar.findAll({ where: { seriesId: series.id }, transaction });
+				if (contributions.length > 0) {
+					const oldPillars = await Pillar.findAll({
+						where: { id: contributions.map((entry) => entry.pillarId) },
+					});
+					const names = oldPillars.map((pillar) => pillar.name);
+					const replacements =
+						names.length > 0 ? await Pillar.findAll({ where: { userId: recipientId, name: names } }) : [];
+					const byName = new Map(replacements.map((pillar) => [pillar.name, pillar]));
+					const mapped = contributions.flatMap((entry) => {
+						const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);
+						const target = source ? byName.get(source.name) : undefined;
+						return target
+							? [{ seriesId: series.id, pillarId: target.id, share: entry.share, confidence: entry.confidence }]
+							: [];
+					});
+					await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
+					if (mapped.length > 0) {
+						await SeriesPillar.bulkCreate(mapped, { transaction, validate: true });
+					}
+				}
+			}
 			// `pillars` fehlt → Vorlage unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
 			if (validation.pillars !== undefined) {
 				await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
@@ -583,9 +643,19 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 				}
 			}
 		});
-		const withPillars = await findSeriesWithPillars(series.id, getUserId(req));
+		// #1252: Nach einer Übergabe ist der Aufrufer nicht mehr Eigentümer — ohne Owner-Scope
+		// nachladen (Muster `POST /series`, #1222), sonst antwortete die erfolgreiche Übergabe 404.
+		const withPillars =
+			recipientId !== null
+				? await Series.findOne({ where: { id: series.id }, include: [Pillar] })
+				: await findSeriesWithPillars(series.id, getUserId(req));
 		if (!withPillars) {
 			sendError(res, 404, 'Serie nicht gefunden.');
+			return;
+		}
+		if (recipientId !== null) {
+			const names = await loadUserNames([withPillars.createdById ?? 0, withPillars.userId ?? 0]);
+			res.json(serializeSeries(withPillars, { requesterId, names }));
 			return;
 		}
 		res.json(serializeSeries(withPillars));

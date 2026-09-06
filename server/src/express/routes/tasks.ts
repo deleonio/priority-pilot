@@ -580,15 +580,63 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			return;
 		}
 		const userId = getUserId(req);
+		// #1252: optionaler Empfänger — Übergabe der Aufgabe an ein Gruppenmitglied. Muster
+		// `POST /tasks` (#1213): ohne das Feld (oder mit der eigenen ID) ändert sich am bisherigen
+		// PATCH-Ablauf nichts (AK1); ein Empfänger ohne gemeinsame Gruppe wird mit 403 abgelehnt,
+		// ohne dass Feldänderungen aus demselben Request durchkommen (AK2).
+		const requester = await resolveGeoUser(req);
+		const requesterId = requester?.id ?? null;
+		let recipientId: number | null = null;
+		const recipientInput = (req.body as { userId?: unknown }).userId;
+		if (recipientInput !== undefined) {
+			if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+				sendError(res, 400, 'userId muss eine Ganzzahl sein.');
+				return;
+			}
+			if (recipientInput !== requesterId) {
+				const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
+				const shared = await GroupMember.findOne({
+					where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
+				});
+				if (shared === null) {
+					sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+					return;
+				}
+				recipientId = recipientInput;
+			}
+		}
+		// #1249/#1252: Säulen gegen das Konto prüfen, dem die Aufgabe nach diesem Request gehört —
+		// bei einer Übergabe gegen das Empfänger-Konto statt gegen den Aufrufer.
 		if (
 			validation.pillars !== undefined &&
 			!(await arePillarsExistent(
 				validation.pillars.map((p) => p.pillarId),
-				userId ?? null,
+				recipientId ?? userId ?? null,
 			))
 		) {
 			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 			return;
+		}
+		// #1252 (AK7): Hängt die Aufgabe in irgendeine Richtung an Aufgaben, die der Empfänger nicht
+		// sieht (weder Eigentümer noch Ersteller mit aktueller Gruppenmitgliedschaft — Spiegel des
+		// Lese-Scopes `taskReadScope`), lehnt der Server die Übergabe VOR der Transaktion ab: keine
+		// halb übergebene Aufgabe, Feldänderungen aus demselben Request werden mit zurückgewiesen.
+		if (recipientId !== null) {
+			const neighbors = [...(await task.getDependencies()), ...(await task.getDependents())];
+			if (neighbors.length > 0) {
+				const sharedByRecipient = new Set(await loadSharedUserIds(recipientId));
+				const visibleToRecipient = (other: Task): boolean =>
+					other.userId === recipientId ||
+					(other.createdById === recipientId && sharedByRecipient.has(other.userId ?? -1));
+				if (neighbors.some((other) => !visibleToRecipient(other))) {
+					sendError(
+						res,
+						409,
+						'Die Aufgabe hängt an Aufgaben, die der Empfänger nicht sehen kann. Abhängigkeiten entfernen oder den Empfänger wechseln.',
+					);
+					return;
+				}
+			}
 		}
 		// Unteraufgaben-Done-Guard (#246, AK5; Kanten-Richtung korrigiert in #336): Ein Task darf nur auf
 		// „Done" wechseln, wenn keine seiner direkten Unteraufgaben offen ist. Eine Unteraufgabe wird über
@@ -614,9 +662,42 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// AK2 (#120): Eine individuelle Änderung an einer generierten Serien-Instanz markiert sie als
 			// Ausnahme — der Generator lässt `isException`-Instanzen unangetastet und das Template bleibt
 			// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
-			const attrs = task.seriesId != null ? { ...validation.attrs, isException: true } : validation.attrs;
+			// #1252 (AK5): Eine Übergabe schreibt NUR die Eigentumsfelder — `userId` = Empfänger und
+			// `createdById` = übergebender Eigentümer (AK4), alle anderen Attribute bleiben unberührt.
+			const attrs = {
+				...validation.attrs,
+				...(task.seriesId != null ? { isException: true } : {}),
+				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
+			};
 			await sequelize.transaction(async (transaction) => {
 				await task.update(attrs, { transaction });
+				// #1252 (AK6): Bei einer Übergabe (ohne gleichzeitig gesendete `pillars` — die wären
+				// bereits gegen das Empfänger-Konto validiert und ersetzen unten komplett) dürfen Beiträge
+				// nicht auf Säulen des bisherigen Eigentümers zeigen: Übernahme per gleichem Säulen-Namen
+				// des Empfängers (#1249-Regel), sonst verwerfen. Nur die Eigentumsfelder ändern sich.
+				if (recipientId !== null && validation.pillars === undefined) {
+					const contributions = await TaskPillar.findAll({ where: { taskId: task.id }, transaction });
+					if (contributions.length > 0) {
+						const oldPillars = await Pillar.findAll({
+							where: { id: contributions.map((entry) => entry.pillarId) },
+						});
+						const names = oldPillars.map((pillar) => pillar.name);
+						const replacements =
+							names.length > 0 ? await Pillar.findAll({ where: { userId: recipientId, name: names } }) : [];
+						const byName = new Map(replacements.map((pillar) => [pillar.name, pillar]));
+						const mapped = contributions.flatMap((entry) => {
+							const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);
+							const target = source ? byName.get(source.name) : undefined;
+							return target
+								? [{ taskId: task.id, pillarId: target.id, share: entry.share, confidence: entry.confidence }]
+								: [];
+						});
+						await TaskPillar.destroy({ where: { taskId: task.id }, transaction });
+						if (mapped.length > 0) {
+							await TaskPillar.bulkCreate(mapped, { transaction, validate: true });
+						}
+					}
+				}
 				// `pillars` fehlt → Beiträge unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
 				if (validation.pillars !== undefined) {
 					await TaskPillar.destroy({ where: { taskId: task.id }, transaction });

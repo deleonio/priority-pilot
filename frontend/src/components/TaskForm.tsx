@@ -546,12 +546,11 @@ export const TaskForm = ({
 
 	// #1213 (AK7): Beim Anlegen einmalig Gruppen + deren Mitglieder laden. Personen aus mehreren
 	// Gruppen erscheinen nur einmal (KI-UX); das eigene Konto steht zuerst und ist vorausgewählt.
+	// #1252 (AK9): auch im Bearbeiten-Modus — dort ist die Auswahl mit dem eigenen Konto vorbelegt
+	// („keine Abgabe") und eine Speichern mit fremdem Empfänger übergibt die Aufgabe/Serie.
 	// Ein Ladefehler zeigt nur einen Hinweis — das Formular bleibt ohne Auswahl funktionsfähig
 	// (der Server legt die Aufgabe dann für den Aufrufer selbst an, AK1-Default).
 	useEffect(() => {
-		if (isEdit) {
-			return;
-		}
 		let cancelled = false;
 		void (async () => {
 			try {
@@ -587,7 +586,6 @@ export const TaskForm = ({
 		return () => {
 			cancelled = true;
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	const submit = async (): Promise<void> => {
@@ -639,6 +637,11 @@ export const TaskForm = ({
 			const normalizedShares =
 				contributions.length > 0 ? normalizeToTotalWeight(contributions.map((entry) => entry.share)) : [];
 			const pillars = contributions.map((entry, index) => ({ ...entry, share: normalizedShares[index] }));
+			// #1252 (AK9): Übergabe-Kondition — gewählter Empfänger ist ein fremdes Konto. Nur dann geht
+			// `userId` mit raus; die Edit-Pfade lassen in dem Fall zusätzlich `pillars` weg (s. u.), damit
+			// der Server den Säulen-Namen-Remap (AK6) fährt statt die IDs des bisherigen Eigentümers
+			// gegen das Empfänger-Konto mit 400 abzulehnen.
+			const isHandover = recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId;
 			if (seriesEdit) {
 				// Serien-Edit (#316): gesetzte Felder gelten für künftige Instanzen. `startDate` nur mitschicken,
 				// wenn das Feld gefüllt ist (leer → unverändert lassen).
@@ -650,10 +653,16 @@ export const TaskForm = ({
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					latitude: form.current.latitude,
 					longitude: form.current.longitude,
-					pillars,
+					// #1252 (AK6): Bei einer Übergabe `pillars` weglassen — der Server übernimmt die
+					// Vorlage per Säulen-Namen-Remap; ein Beitrags-Edit im selben Save wie die Übergabe
+					// wird bewusst nicht übernommen.
+					...(isHandover ? {} : { pillars }),
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
 					autoDeleteAfterDeadline: autoDelete,
+					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Serie beim Speichern — ohne
+					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
+					...(isHandover ? { userId: Number(recipientId) } : {}),
 				};
 				// #553: bei geänderten kaskadierbaren Feldern erst das Bestätigungs-Modal anzeigen, das
 				// nur über die Kaskade entscheidet. Ohne solche Änderung direkt speichern (kein Modal).
@@ -696,8 +705,14 @@ export const TaskForm = ({
 					longitude: form.current.longitude,
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
-					pillars,
+					// #1252 (AK6): Bei einer Übergabe `pillars` weglassen — der Server übernimmt die
+					// Beiträge per Säulen-Namen-Remap; ein Beitrags-Edit im selben Save wie die Übergabe
+					// wird bewusst nicht übernommen.
+					...(isHandover ? {} : { pillars }),
 					checklist,
+					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Aufgabe beim Speichern — ohne
+					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
+					...(isHandover ? { userId: Number(recipientId) } : {}),
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
 			} else {
@@ -919,12 +934,13 @@ export const TaskForm = ({
 							/>
 						)}
 					</div>
-					{/* #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus mit mindestens einer Gruppe,
-					    vorbelegt mit dem eigenen Konto; #1222 (AK8): auch im Serie-Modus. Während die
-					    Mitglieder laden, ist die Auswahl deaktiviert (Ladehinweis statt leerer Liste,
-					    mobile-ui-rules Regel 7); bei einem Ladefehler nur ein Hinweis — das Formular
-					    bleibt ohne Auswahl funktionsfähig. */}
-					{!isEdit && recipientVisible && (
+					{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
+					    dem eigenen Konto; #1222 (AK8): auch im Serie-Modus; #1252 (AK9): auch im
+					    Bearbeiten-Modus (Übergabe — eine Primäraktion: erst das Speichern übergibt).
+					    Während die Mitglieder laden, ist die Auswahl deaktiviert (Ladehinweis statt
+					    leerer Liste, mobile-ui-rules Regel 7); bei einem Ladefehler nur ein Hinweis —
+					    das Formular bleibt ohne Auswahl funktionsfähig. */}
+					{recipientVisible && (
 						<>
 							<KolSingleSelect
 								_label="Empfänger"
@@ -934,6 +950,16 @@ export const TaskForm = ({
 								_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
 							/>
 							{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
+							{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
+							    Konto gewählt ist — die Übergabe gibt das Eigentum ab (ruhiger Hinweistext
+							    statt Extra-Bestätigungsschritt). */}
+							{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
+								<p className="hint">
+									Beim Speichern übergibst du {isSeriesMode ? 'diese Serie' : 'diese Aufgabe'} an{' '}
+									{recipientOptions.find((option) => option.value === recipientId)?.label}. Du siehst sie anschließend
+									nur noch mit „Für:"-Kennzeichen.
+								</p>
+							)}
 							{recipientError && (
 								<KolAlert
 									_type="warning"
