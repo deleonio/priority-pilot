@@ -52,5 +52,5 @@
 		}
 	},
 	"defaultProvider": "zai",
-	"defaultModel": "glm-4.7"
+	"defaultModel": "glm-5.3-flash"
 }
