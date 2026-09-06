@@ -341,14 +341,110 @@ export function renderTurnReport(dir: string): string {
 	lines.push('\tbar "Ø je Lauf" [' + weeks.map(([, w]) => (w.turns / w.runs).toFixed(1)).join(', ') + ']');
 	lines.push('```');
 	lines.push('');
-	lines.push('| Woche | Läufe | Tickets | Turns | Ø je Lauf | Ø je Ticket | Erstgrün |');
-	lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: |');
-	for (const [wk, w] of weeks) {
+
+	// WIRKUNGSGRAD-CHARTS (A/B/C) — die Schleifen-Kennzahlen oben sind Snapshots; Entwicklung
+	// braucht die Zeitachse. Alles Wochen-Raster (Tages-Werte verschieben sich mit dem
+	// Versiegelungs-Lag nachträglich, s. Kosten-Report-Fußnote).
+	//
+	// A — Erstgrün-Rate je Woche: die Steuergröße als Kurve. Die Tabelle führt sie als Spalte,
+	// der Trend braucht aber das Bild — „bewegt sich was" sieht man im Chart in einer Sekunde.
+	const fpRates = weeks.map(([wk]) => {
+		const rec = weekFirstPass.get(wk);
+		return rec && rec.complete > 0 ? (rec.firstPass / rec.complete) * 100 : 0;
+	});
+	lines.push('```mermaid');
+	lines.push('xychart-beta');
+	lines.push('\ttitle "First-Pass-Grün je Woche (%)"');
+	lines.push('\tx-axis ["' + weeks.map(([wk]) => wk).join('", "') + '"]');
+	lines.push('\ty-axis "%" 0 --> 100');
+	lines.push('\tbar "Erstgrün %" [' + fpRates.map((r) => r.toFixed(1)).join(', ') + ']');
+	lines.push('```');
+	lines.push('');
+
+	// B — Loop-Anteil je Woche: Anteil der Schleifen-Phasen (review+fixup) an den Turns der
+	// Woche. Der Snapshot oben (28,6 %) zeigt den Stand — ob der Block schrumpft, ist die Frage.
+	const weekLoopTurns = new Map<string, number>();
+	for (const e of measured) {
+		if (e.phase !== 'review' && e.phase !== 'fixup') continue;
+		const wk = isoWeek(berlinDay(e.timestamp));
+		weekLoopTurns.set(wk, (weekLoopTurns.get(wk) ?? 0) + (e.turns as number));
+	}
+	const loopShares = weeks.map(([wk, w]) => (w.turns > 0 ? ((weekLoopTurns.get(wk) ?? 0) / w.turns) * 100 : 0));
+	lines.push('```mermaid');
+	lines.push('xychart-beta');
+	lines.push('\ttitle "Loop-Anteil (Review+Fixup) an Turns je Woche (%)"');
+	lines.push('\tx-axis ["' + weeks.map(([wk]) => wk).join('", "') + '"]');
+	lines.push('\ty-axis "%" 0 --> 100');
+	lines.push('\tbar "Loop-Anteil %" [' + loopShares.map((s) => s.toFixed(1)).join(', ') + ']');
+	lines.push('```');
+	lines.push('');
+
+	// C — Budget-Burn: Turns je Woche über ALLE messenden Läufe, AUCH die ausgeschlossenen
+	// Tickets — das Abo rechnet die Realität, nicht die gefilterte Auswertung (das Budget
+	// riss 2026-09 unbemerkt, s. Kopf des Kosten-Übersicht-Workflows). Die 8000er-Linie ist
+	// das Richtbudget aus docs/kosten-optimierungsplan.md; laufende Woche unvollständig.
+	const TURN_BUDGET_PER_WEEK = 8000;
+	const burnWeeks = new Map<string, number>();
+	for (const e of all.measured) {
+		const wk = isoWeek(berlinDay(e.timestamp));
+		burnWeeks.set(wk, (burnWeeks.get(wk) ?? 0) + (e.turns as number));
+	}
+	const burnKeys = [...burnWeeks.keys()].sort();
+	const burnMax = Math.max(TURN_BUDGET_PER_WEEK, ...burnKeys.map((k) => burnWeeks.get(k) ?? 0));
+	lines.push('```mermaid');
+	lines.push('xychart-beta');
+	lines.push('\ttitle "Turn-Budget-Burn — Turns je Woche vs. Budget"');
+	lines.push('\tx-axis ["' + burnKeys.join('", "') + '"]');
+	lines.push(`\ty-axis "Turns" 0 --> ${Math.ceil(burnMax * 1.1)}`);
+	lines.push('\tbar "Turns" [' + burnKeys.map((k) => burnWeeks.get(k) ?? 0).join(', ') + ']');
+	lines.push(`\tline "Budget ${TURN_BUDGET_PER_WEEK}" [` + burnKeys.map(() => TURN_BUDGET_PER_WEEK).join(', ') + ']');
+	lines.push('```');
+	lines.push(
+		'',
+		`> Budget-Linie = ${num(TURN_BUDGET_PER_WEEK)} Turns/Woche (Richtwert). Basis: ALLE messenden Läufe inkl. der ausgeschlossenen Tickets — Abo-Realität statt gefilterte Auswertung.`,
+		'',
+	);
+
+	lines.push('| Woche | Läufe | Tickets | Turns | Ø je Lauf | Ø je Ticket | Erstgrün | Loop-Anteil |');
+	lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
+	for (const [i, [wk, w]] of weeks.entries()) {
 		lines.push(
-			`| ${wk} | ${w.runs} | ${w.issues.size} | ${num(w.turns)} | ${avg(w.turns, w.runs)} | ${avg(w.turns, w.issues.size)} | ${firstPassCol(wk)} |`,
+			`| ${wk} | ${w.runs} | ${w.issues.size} | ${num(w.turns)} | ${avg(w.turns, w.runs)} | ${avg(w.turns, w.issues.size)} | ${firstPassCol(wk)} | ${(loopShares[i] ?? 0).toFixed(1)} % |`,
 		);
 	}
 	lines.push('');
+
+	// D — HERKUNFTS-SPLIT: Pipeline-Tickets (Analyse+Implement vorhanden) gegen extern
+	// umgesetzte (Review-only-Durchläufe, z. B. in Claude Web vorbereitet). Basis sind ALLE
+	// Tickets, nicht nur vollständige — vollständige sind per Definition Pipeline-Tickets
+	// (implement+documenter), der Extern-Anteil läge sonst gar nicht in der Auswertung.
+	// Beantwortet die offene Frage, ob externe Tickets öfter nachgebessert werden UND ob
+	// das an Turns teurer ist — die Trennung „schlechterer Code vs. strengerer Review"
+	// liefern die findings/nits-Felder, sobald sie gefüllt sind (s. u.).
+	const originOf = (t: TicketTurns): 'pipeline' | 'extern' =>
+		has(t.phaseRuns, 'analyse') && has(t.phaseRuns, 'implement') ? 'pipeline' : 'extern';
+	const origins: Array<'pipeline' | 'extern'> = ['pipeline', 'extern'];
+	lines.push(
+		'### Herkunft: Pipeline vs. extern umgesetzt — alle Tickets',
+		'',
+		'| Herkunft | Tickets | mit Fixup | Fixup-Rate | Turns gesamt | Ø Turns je Ticket | Ø Läufe je Ticket |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+	);
+	for (const o of origins) {
+		const group = all.tickets.filter((t) => originOf(t) === o);
+		const reworkedGroup = group.filter((t) => has(t.phaseRuns, 'fixup'));
+		const measuredGroup = group.filter((t) => t.measured > 0);
+		const turnsGroup = group.reduce((a, t) => a + t.turns, 0);
+		const runsGroup = group.reduce((a, t) => a + t.runs, 0);
+		lines.push(
+			`| ${o === 'pipeline' ? 'Pipeline (Analyse+Implement)' : 'extern umgesetzt (Review-only)'} | ${group.length} | ${reworkedGroup.length} | ${pct(group.length > 0 ? reworkedGroup.length / group.length : 0)} | ${num(turnsGroup)} | ${avg(turnsGroup, measuredGroup.length)} | ${avg(runsGroup, group.length)} |`,
+		);
+	}
+	lines.push(
+		'',
+		'> Ø Turns/Läufe nur über Tickets mit Turn-Erfassung; Fixup-Rate über alle. Extern = Tickets ohne Analyse+Implement-Einträge — auch vor der Verkabelung versiegelte Durchläufe zählen hierzu.',
+		'',
+	);
 
 	lines.push(
 		'### Turns je Ticket',
