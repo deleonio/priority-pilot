@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -16,12 +16,17 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
-	KolAccordion: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
-		<details open>
-			<summary>{_label}</summary>
-			{children}
-		</details>
-	),
+	KolAccordion: ({ _label, _open, children }: { _label?: string; _open?: boolean; children?: ReactNode }) => {
+		// #1257: Standardmäßig zugeklappt — Klappzustand lokal gespiegelt, Inhalt erst nach dem
+		// Öffnen im DOM (wie die echte Komponente ihn visisch versteckt); Summary-Klick klappt um.
+		const [open, setOpen] = useState(_open === true);
+		return (
+			<details open={open}>
+				<summary onClick={() => setOpen((current) => !current)}>{_label}</summary>
+				{open ? children : null}
+			</details>
+		);
+	},
 	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
 	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }) => (
 		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
@@ -95,6 +100,8 @@ describe('GroupDetail — Mitgliederliste und offene Einladungen (#1212 AK11)', 
 
 		render(<GroupDetail groupId={1} ownRole="admin" />);
 
+		// #1257: Einladungen liegen im zugeklappten Accordion — erst aufklappen, dann lesen.
+		fireEvent.click(await screen.findByText('Offene Einladungen'));
 		await waitFor(() => {
 			expect(screen.getByText('Carol Chef')).toBeInTheDocument();
 		});
@@ -107,6 +114,8 @@ describe('GroupDetail — Mitgliederliste und offene Einladungen (#1212 AK11)', 
 
 		render(<GroupDetail groupId={1} ownRole="admin" />);
 
+		// #1257: Einladungen liegen im zugeklappten Accordion — erst aufklappen, dann lesen.
+		fireEvent.click(await screen.findByText('Offene Einladungen'));
 		await waitFor(() => {
 			expect(screen.getByText('Carol Chef')).toBeInTheDocument();
 		});
@@ -290,6 +299,8 @@ describe('GroupDetail — Nutzersuche: Debounce und Überholschutz (Audit #1257)
 			render(<GroupDetail groupId={1} ownRole="admin" />);
 			await flush(0);
 
+			// #1257: Suche liegt im zugeklappten Accordion — erst aufklappen.
+			fireEvent.click(screen.getByText('Mitglieder einladen'));
 			const input = screen.getByRole('searchbox');
 			fireEvent.input(input, { target: { value: 'ali' } });
 			fireEvent.input(input, { target: { value: 'alice' } });
@@ -316,6 +327,8 @@ describe('GroupDetail — Nutzersuche: Debounce und Überholschutz (Audit #1257)
 			render(<GroupDetail groupId={1} ownRole="admin" />);
 			await flush(0);
 
+			// #1257: Suche liegt im zugeklappten Accordion — erst aufklappen.
+			fireEvent.click(screen.getByText('Mitglieder einladen'));
 			const input = screen.getByRole('searchbox');
 			fireEvent.input(input, { target: { value: 'langsam' } });
 			await flush(300);
@@ -342,6 +355,8 @@ describe('GroupDetail — Nutzersuche: Debounce und Überholschutz (Audit #1257)
 			render(<GroupDetail groupId={1} ownRole="admin" />);
 			await flush(0);
 
+			// #1257: Suche liegt im zugeklappten Accordion — erst aufklappen.
+			fireEvent.click(screen.getByText('Mitglieder einladen'));
 			fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'neu' } });
 			await flush(300);
 
@@ -352,5 +367,26 @@ describe('GroupDetail — Nutzersuche: Debounce und Überholschutz (Audit #1257)
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+});
+
+// #1257 AK3: Nutzersuche und Einladungslinks sind direkt nach dem Aufklappen zugeklappt — nur
+// die Überschriften (Trigger) stehen sichtbar, die Inhalte sind nicht im DOM (zugeklapptes
+// Accordion). So bleibt die aufgeklappte Gruppe bei 375 px übersichtlich.
+describe('GroupDetail — Sektionen initial zugeklappt (#1257 AK3)', () => {
+	it('zeigt Nutzersuche und Einladungslinks erst nach dem Aufklappen des Accordion', async () => {
+		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => {
+			expect(screen.getByText('Alice Admin')).toBeInTheDocument();
+		});
+
+		// Trigger sichtbar, Inhalte nicht: keine Suchbox, kein „Link erzeugen“-Button.
+		expect(screen.getByText('Mitglieder einladen')).toBeInTheDocument();
+		expect(screen.getByText('Einladungslinks')).toBeInTheDocument();
+		expect(screen.queryByRole('searchbox')).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Link erzeugen' })).toBeNull();
 	});
 });

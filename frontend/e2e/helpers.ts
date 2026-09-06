@@ -46,6 +46,15 @@ export const headerAction = async (page: Page, label: string | RegExp): Promise<
 };
 
 /**
+ * Öffnet einen zugeklappten KolAccordion-Abschnitt (Gruppendetail, #1257) über seine
+ * Überschrift — der Trigger-Button trägt das Label. `exact: true`, damit z. B. „Füreinander
+ * angelegt“ nicht den Abschnitt „… angelegte Serien“ mittrifft (Substring-Match).
+ */
+export const openAccordionSection = async (page: Page, label: string): Promise<void> => {
+	await page.getByRole('button', { name: label, exact: true }).click();
+};
+
+/**
  * Init-Script (als String, vor dem Seitenaufbau injiziert), das die Web Speech API mockt:
  *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onstart`, `onresult`, `onend`,
  *  2. Zuweisung an `window.SpeechRecognition` und `window.webkitSpeechRecognition`,

@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1223 (AK7, AK8; docs/spec/issue-1223.md) — Abschnitt
@@ -40,12 +40,16 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await waitForStableView(page, 'Gruppen');
 
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
+	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
 	// Nutzersuche läuft datenbankweit — Treffer exakt auf den eigenen Empfänger grenzen, damit
 	// ein Namensanteil nicht den „Einladen"-Klick eines anderen Test-Kontexts trifft.
 	const hit = page.locator('li.group-search-hit').filter({ hasText: INVITEE_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
+	// #1257: „Ausstehend" steht im Accordion „Offene Einladungen" — erst aufklappen.
+	await openAccordionSection(page, 'Offene Einladungen');
 	await expect(page.getByText('Ausstehend')).toBeVisible();
 };
 
@@ -125,6 +129,8 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await createForeignTaskViaApi(page, group!.id, 'E2E Übergabe-Aufgabe');
 
 			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander' }).click();
+			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
+			await openAccordionSection(page, SECTION_HEADING);
 			// Abschnitt scopen statt page-weit: „von …" und die Empfängerin tauchen auch in der
 			// Mitgliederliste und in den gemounteten KolTabs-Panels auf (Strict Mode, 2026-08-29).
 			const taskSection = page.locator('.group-tasks');
@@ -156,6 +162,8 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			expect(selfCreated.status()).toBe(201);
 
 			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander Leer' }).click();
+			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
+			await openAccordionSection(page, SECTION_HEADING);
 			await expect(page.getByRole('heading', { name: SECTION_HEADING, exact: true })).toBeVisible();
 			await expect(page.getByText(EMPTY_HINT)).toBeVisible();
 			await expect(page.getByText('Nur für mich')).toBeHidden();
@@ -181,6 +189,8 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 
 			await page.setViewportSize({ width: 375, height: 812 });
 			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander Schmal' }).click();
+			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
+			await openAccordionSection(page, SECTION_HEADING);
 
 			// Überschrift und der Abschnitts-Eintrag bleiben im Viewport — der lange Empfängername muss
 			// umbrechen (overflow-wrap), sonst sprengt genau dieser Fall den 375-px-Check. Locator auf

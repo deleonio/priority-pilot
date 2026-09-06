@@ -137,6 +137,9 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 	const handleSearch = (value: string): void => {
 		setQuery(value);
 		window.clearTimeout(searchTimerRef.current);
+		// Laufende Anfrage sofort stoppen (nicht erst beim nächsten runSearch) — sonst könnte
+		// eine alte Antwort noch während des Debounce-Fensters Treffer zur neuen Eingabe zeigen.
+		searchAbortRef.current?.abort();
 		const trimmed = value.trim();
 		if (trimmed.length < MIN_QUERY_LENGTH && !trimmed.includes('@')) {
 			cancelSearch();

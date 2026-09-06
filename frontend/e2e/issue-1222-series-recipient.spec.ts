@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E für #1222 (AK8–AK10, docs/spec/issue-1222.md) — Serie für ein anderes Gruppenmitglied
@@ -13,7 +13,10 @@ import { waitForStableView } from './helpers';
  * Geprüft wird bei 375 px UND 320 px (Card-Padding schluckt sonst Überlauf).
  */
 
-const RECIPIENT_EMAIL = 'series-recipient@example.com';
+// Bewusst nicht 'series-recipient@example.com' — die teilt groups-series-for-each-other.spec.ts;
+// test-login (findOrCreate per E-Mail) würde den dortigen Nutzer wiederverwenden und nie
+// umbenennen, die Suche nach 'Ronny Empfänger' ginge bei gemeinsamer Ausführung leer.
+const RECIPIENT_EMAIL = 'series-recipient-1222@example.com';
 const RECIPIENT_NAME = 'Ronny Empfänger';
 const GROUP_NAME = 'E2E Serien-Übergabe';
 const SERIES_TITLE = 'E2E Übergabe-Serie';
@@ -35,10 +38,14 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await waitForStableView(page, 'Gruppen');
 
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
+	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfänger');
 	const hit = page.locator('li.group-search-hit').filter({ hasText: RECIPIENT_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
+	// #1257: „Ausstehend" steht im Accordion „Offene Einladungen" — erst aufklappen.
+	await openAccordionSection(page, 'Offene Einladungen');
 	await expect(page.getByText('Ausstehend')).toBeVisible();
 };
 
