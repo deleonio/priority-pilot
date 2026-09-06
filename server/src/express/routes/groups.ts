@@ -670,6 +670,75 @@ groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTa
 	}
 });
 
+/**
+ * ── Füreinander angelegte Serien (#1254) ──────────────────────────────────────────────
+ *
+ * Reine Lese-Ansicht analog /groups/:id/tasks (#1223): Serien, die ein Mitglied für ein
+ * anderes Mitglied angelegt hat (`userId != createdById`, beide gesetzt und beide Mitglieder
+ * — Altbestand ohne Ersteller bleibt privat, auch für Admins, kein Rollen-Sonderweg).
+ * Ruhende Serien (`active:false`, z. B. nach `restCrossMemberSeries` #1251) bleiben sichtbar
+ * und sind im DTO gekennzeichnet. Reduzierter Feldsatz ohne Beschreibung, Adresse, Koordinaten
+ * und Ids (Datenisolation). Sortierung stabil: Eigentümer case-insensitive, dann Titel, dann id.
+ */
+type GroupSeriesDto = {
+	id: number;
+	title: string;
+	rhythm: Series['rhythm'];
+	active: boolean;
+	ownerName: string;
+	creatorName: string;
+};
+
+// GET /groups/:id/series — jedes Mitglied (admin oder member) sieht die Liste; fremde Gruppe 404.
+groupsRouter.get('/groups/:id/series', async (req: Request, res: Response<GroupSeriesDto[] | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		const members = await GroupMember.findAll({ where: { groupId: found.group.id } });
+		const memberIds = members.map((member) => member.userId);
+		const memberIdSet = new Set(memberIds);
+		const series = await Series.findAll({ where: { userId: { [Op.in]: memberIds } } });
+		// Filter in JS statt in SQL: `userId != createdById` wäre mit NULL-Werten (Altbestand)
+		// in SQL nicht falsch-positiv-sicher.
+		const mutual = series.filter(
+			(entry) =>
+				entry.createdById !== null &&
+				entry.createdById !== undefined &&
+				entry.createdById !== entry.userId &&
+				memberIdSet.has(entry.createdById),
+		);
+		const users = await User.findAll({ where: { id: memberIds } });
+		const nameOf = (userId: number): string =>
+			displayNameOf(users.find((candidate) => candidate.id === userId) ?? null);
+		const dtos: GroupSeriesDto[] = mutual.map((entry) => ({
+			id: entry.id,
+			title: entry.title,
+			rhythm: entry.rhythm,
+			active: entry.active,
+			ownerName: nameOf(entry.userId ?? 0),
+			creatorName: nameOf(entry.createdById!),
+		}));
+		dtos.sort((a, b) => {
+			const byOwner = a.ownerName.localeCompare(b.ownerName, undefined, { sensitivity: 'accent' });
+			if (byOwner !== 0) return byOwner;
+			const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: 'accent' });
+			if (byTitle !== 0) return byTitle;
+			return a.id - b.id;
+		});
+		res.json(dtos);
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
 // ── Einladungslinks (#1226) — Admin-Teil hinter requireAuth; der öffentliche Teil (GET + redeem)
 // hängt bewusst VOR requireAuth (siehe express/index.ts, routes/inviteLinks.ts).
 

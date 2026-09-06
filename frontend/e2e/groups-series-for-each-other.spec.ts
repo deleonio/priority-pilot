@@ -196,7 +196,9 @@ test.describe('Gruppenabschnitt „Füreinander angelegte Serien“ (#1254)', ()
 			const restingEntry = page.locator('.group-series .group-series-entry').filter({ hasText: 'E2E Ruhende Serie' });
 			await expect(restingEntry).toHaveCount(1);
 			// Nie nur Farbcodierung (WCAG 1.4.1): der Ruhend-Zustand braucht ein Text-Badge.
-			await expect(restingEntry.getByText('Ruhend')).toBeVisible();
+			// exact: Der Serien-Titel („E2E Ruhende Serie") enthält „Ruhend" als Substring — ohne
+			// exact wären Titel und Badge zwei Treffer → strict-mode violation (Test-Pflege #1254).
+			await expect(restingEntry.getByText('Ruhend', { exact: true })).toBeVisible();
 		} finally {
 			await close();
 		}
