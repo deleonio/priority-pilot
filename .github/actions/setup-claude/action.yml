@@ -323,29 +323,53 @@ runs:
           echo "resolved-model=" >> "$GITHUB_OUTPUT"
         fi
 
-        # Subagent-Modell: CLAUDE_CODE_SUBAGENT_MODEL überschreibt das Modell ALLER
-        # Subagents und schlägt deren model-Frontmatter. Deshalb wird es hier bewusst
-        # gesetzt statt dem Zufall überlassen — 'inherit' bedeutet ausdrücklich
-        # „kein Override, Subagents laufen auf dem Phasenmodell".
+        # Subagent-Modell: CLAUDE_CODE_SUBAGENT_MODEL ist seit CLI 2.1.251 nur noch der
+        # DEFAULT für Subagents ohne eigenes model-Frontmatter — das Rollen-Frontmatter
+        # (haiku) schlägt ihn. 'inherit' bedeutet ausdrücklich „kein Override, Subagents
+        # laufen auf dem Phasenmodell".
         # Dieselbe Alias-Tabelle wie oben; ein unbekannter Alias bricht laut ab, damit
         # ein Tippfehler nicht still das teuerste Modell für den Fan-out wählt.
         case "$SUBAGENT_MODEL" in
           inherit|"")
             echo "::notice title=Subagent-Modell::inherit — Subagents laufen auf dem Phasenmodell (kein Override)."
             ;;
-          fable)  SUB_ID="claude-fable-5" ;;
-          opus)   SUB_ID="claude-opus-5" ;;
-          sonnet) SUB_ID="claude-sonnet-5" ;;
-          haiku)  SUB_ID="claude-haiku-4-5-20251001" ;;
+          fable|opus|sonnet|haiku)
+            case "$PROVIDER" in
+              claude)
+                case "$SUBAGENT_MODEL" in
+                  fable)  SUB_ID="claude-fable-5" ;;
+                  opus)   SUB_ID="claude-opus-5" ;;
+                  sonnet) SUB_ID="claude-sonnet-5" ;;
+                  haiku)  SUB_ID="claude-haiku-4-5-20251001" ;;
+                esac
+                echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
+                echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
+                ;;
+              zai|openrouter)
+                # Native Anthropic-IDs existieren bei zai/openrouter NICHT (API 400
+                # „modelCode: does not exist"). Der Alias löst sich über denselben
+                # ANTHROPIC_DEFAULT_*_MODEL-Mechanismus wie das Phasenmodell auf — Quelle
+                # ist die in diesem Step geschriebene settings.local.json. Ihr env-Block
+                # gewinnt empirisch über GITHUB_ENV, deshalb werden BEIDE Schichten
+                # synchron gesetzt — sonst ignorierte der Lauf den Input still.
+                DEFAULT_VAR="ANTHROPIC_DEFAULT_$(printf '%s' "$SUBAGENT_MODEL" | tr '[:lower:]' '[:upper:]')_MODEL"
+                RESOLVED_SUB="$(jq -r --arg v "$DEFAULT_VAR" '.env[$v] // empty' .claude/settings.local.json 2>/dev/null || true)"
+                if [ -n "$RESOLVED_SUB" ]; then
+                  tmp_sub=$(mktemp)
+                  jq --arg m "$RESOLVED_SUB" '.env.CLAUDE_CODE_SUBAGENT_MODEL = $m' .claude/settings.local.json > "$tmp_sub" && mv "$tmp_sub" .claude/settings.local.json
+                  echo "CLAUDE_CODE_SUBAGENT_MODEL=$RESOLVED_SUB" >> "$GITHUB_ENV"
+                  echo "::notice title=Subagent-Modell::$RESOLVED_SUB (Alias '$SUBAGENT_MODEL' via $DEFAULT_VAR) für Subagents ohne Rollen-Frontmatter."
+                else
+                  echo "::warning title=Subagent-Modell::Alias '$SUBAGENT_MODEL' für Provider $PROVIDER nicht auflösbar ($DEFAULT_VAR fehlt in settings.local.json) — kein Override gesetzt, Ad-hoc-Subagents erben Phasenmodell bzw. Rollen-Frontmatter."
+                fi
+                ;;
+            esac
+            ;;
           *)
             echo "::error title=Ungueltiger Subagent-Alias::subagent-model='$SUBAGENT_MODEL' — erlaubt: inherit | fable | opus | sonnet | haiku."
             exit 1
             ;;
         esac
-        if [ -n "${SUB_ID:-}" ]; then
-          echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
-          echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
-        fi
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # INVOKE-RESOLUTION – setzt invoke-cmd + invoke-args
