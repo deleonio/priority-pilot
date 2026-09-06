@@ -129,7 +129,7 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v4
+        key: claude-code-cli-${{ runner.os }}-v5
 
     # VERIFIZIEREN STATT VERTRAUEN: Die Bedingung lautete lange „installiere nur, wenn der
     # Cache NICHT griff". Ein Cache-Treffer beweist aber nur, dass Dateien da sind — nicht,
