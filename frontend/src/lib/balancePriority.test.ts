@@ -1,6 +1,12 @@
 import type { Pillar } from 'client';
 import { describe, expect, it } from 'vitest';
-import { buildBalancePriorities, sortTasksByBalance, virtualPriorityLabel, type BalanceTask } from './balancePriority';
+import {
+	balancePrioritiesEqual,
+	buildBalancePriorities,
+	sortTasksByBalance,
+	virtualPriorityLabel,
+	type BalanceTask,
+} from './balancePriority';
 
 /**
  * Rote Spec-Tests für #1220 — Rechenkern der „Balance-Priorisierung" (docs/spec/issue-1220.md).
@@ -140,6 +146,34 @@ describe('sortTasksByBalance (#1220 TF2)', () => {
 		expect(sorted.map((entry) => entry.id)).toEqual([601, 602, 603]);
 	});
 
+	it('bricht den Gleichstand aus dem Stand, nicht aus den übergebenen Task-Objekten', () => {
+		// Beide Tasks zahlen gleich in dieselbe Säule ein → identischer Score, es entscheidet die
+		// Original-Prio. Der Stand wird mit 801 > 802 berechnet; danach kippen die live
+		// übergebenen Objekte die Prio. Die eingefrorene Reihenfolge darf das nicht mitmachen.
+		const pillars = [pillar(1, 'A', 100)];
+		const doneEffort = new Map([[1, 3]]);
+		const atSnapshot = [task(801, 5, [{ pillarId: 1, share: 100 }]), task(802, 1, [{ pillarId: 1, share: 100 }])];
+		const snapshot = buildBalancePriorities(pillars, doneEffort, atSnapshot);
+
+		const liveEdited = [task(801, 1, [{ pillarId: 1, share: 100 }]), task(802, 5, [{ pillarId: 1, share: 100 }])];
+
+		expect(sortTasksByBalance(liveEdited, snapshot).map((entry) => entry.id)).toEqual([801, 802]);
+	});
+
+	it('nimmt die eigene Prio, wo ein Task im Stand fehlt', () => {
+		// Einzige Säule, ihr Aufwand ist erledigt → Defizit 0, alle Scores 0. Es entscheidet also
+		// allein der Tiebreak. Nur `known` steht im Stand (Prio 1 eingefroren), `unknown` fehlt
+		// dort und fällt auf seine eigene Prio 5 zurück — und landet damit oben.
+		const pillars = [pillar(1, 'A', 100)];
+		const known = task(811, 1, [{ pillarId: 1, share: 100 }]);
+		const snapshot = buildBalancePriorities(pillars, new Map([[1, 3]]), [known]);
+		const unknown = task(812, 5, [{ pillarId: 1, share: 100 }]);
+
+		expect(snapshot.get(811)?.balanceScore).toBe(0);
+		expect(snapshot.has(812)).toBe(false);
+		expect(sortTasksByBalance([unknown, known], snapshot).map((entry) => entry.id)).toEqual([812, 811]);
+	});
+
 	it('mutiert das Eingabe-Array nicht', () => {
 		const pillars = [pillar(1, 'A', 50), pillar(2, 'B', 50)];
 		const doneEffort = new Map([[2, 2]]);
@@ -186,5 +220,67 @@ describe('Snapshot-Semantik (#1220 TF3, AK2)', () => {
 		const recomputed = buildBalancePriorities(pillars, new Map([[1, 10]]), openTasks);
 		expect(sortTasksByBalance(openTasks, snapshot).map((entry) => entry.id)).toEqual([901, 902]);
 		expect(sortTasksByBalance(openTasks, recomputed).map((entry) => entry.id)).toEqual([902, 901]);
+	});
+});
+
+describe('balancePrioritiesEqual — Veraltet-Erkennung des eingefrorenen Stands', () => {
+	const pillars = [pillar(1, 'Körper', 50), pillar(2, 'Geist', 50)];
+	const openTasks = [task(901, 1, [{ pillarId: 1, share: 100 }]), task(902, 5, [{ pillarId: 2, share: 100 }])];
+
+	it('erkennt denselben Stand aus gleicher Datenlage als gleich', () => {
+		const snapshot = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+		const live = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+
+		expect(balancePrioritiesEqual(snapshot, live)).toBe(true);
+	});
+
+	it('erkennt eine gekippte Defizit-Lage als abweichend', () => {
+		const snapshot = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+		const live = buildBalancePriorities(pillars, new Map([[1, 10]]), openTasks);
+
+		expect(balancePrioritiesEqual(snapshot, live)).toBe(false);
+	});
+
+	it('erkennt einen hinzugekommenen und einen entfallenen Task als abweichend', () => {
+		const done = new Map([[2, 10]]);
+		const snapshot = buildBalancePriorities(pillars, done, openTasks);
+		const withExtra = buildBalancePriorities(pillars, done, [...openTasks, task(903, 3, [{ pillarId: 1, share: 50 }])]);
+		const withoutOne = buildBalancePriorities(pillars, done, [openTasks[0]]);
+
+		expect(balancePrioritiesEqual(snapshot, withExtra)).toBe(false);
+		expect(balancePrioritiesEqual(snapshot, withoutOne)).toBe(false);
+	});
+
+	it('erkennt gleiche Größe bei getauschten Task-IDs als abweichend', () => {
+		const done = new Map([[2, 10]]);
+		const snapshot = buildBalancePriorities(pillars, done, openTasks);
+		const renamed = buildBalancePriorities(pillars, done, [
+			task(901, 1, [{ pillarId: 1, share: 100 }]),
+			task(999, 5, [{ pillarId: 2, share: 100 }]),
+		]);
+
+		expect(balancePrioritiesEqual(snapshot, renamed)).toBe(false);
+	});
+
+	it('erkennt eine geänderte Original-Prio bei unverändertem Score als abweichend', () => {
+		// Die Original-Prio bricht den Gleichstand — ändert sie sich, verschiebt sich die
+		// Reihenfolge, obwohl kein Score sich rührt. Der Stand ist damit veraltet.
+		const done = new Map([[2, 10]]);
+		const snapshot = buildBalancePriorities(pillars, done, openTasks);
+		const repriorized = buildBalancePriorities(pillars, done, [
+			task(901, 4, [{ pillarId: 1, share: 100 }]),
+			task(902, 5, [{ pillarId: 2, share: 100 }]),
+		]);
+
+		expect(repriorized.get(901)?.balanceScore).toBe(snapshot.get(901)?.balanceScore);
+		expect(balancePrioritiesEqual(snapshot, repriorized)).toBe(false);
+	});
+
+	it('behandelt „noch kein Stand" als ungleich zu einem vorhandenen, aber gleich zu sich selbst', () => {
+		const snapshot = buildBalancePriorities(pillars, new Map([[2, 10]]), openTasks);
+
+		expect(balancePrioritiesEqual(null, snapshot)).toBe(false);
+		expect(balancePrioritiesEqual(snapshot, null)).toBe(false);
+		expect(balancePrioritiesEqual(null, null)).toBe(true);
 	});
 });
