@@ -23,10 +23,12 @@
 - -
 
 ## Offen
-- Frontend FEHLT noch: GroupJoinPage, Root-Weiche, GroupDetail-Admin-UI, openapi.yml + Client-Typen → AK5/AK6 e2e noch rot.
+- e2e AK5/AK6 nicht lokal verifiziert (playwright chromium nicht installiert).
+- Gate: `pnpm test` gesamt grün (server 274/274, frontend 586 pass/13 skipped), API-Tests 8/8, GroupDetail-Unit 10/10, tsc ×3 grün, pre-commit format/knip/lint grün. e2e AK5/AK6 NICHT gelaufen (Chromium-Setup fehlte, Zeitfenster) — im Review-Zyklus nachholen.
+- GroupDetail-Link-Liste ist session-lokal (nur im Laufe erzeugte Links) — bewusst ohne eigenen GET-Listen-Abruf im Load, damit der gemockte `api` der bestehenden GroupDetail-Tests (Test-Pflege-Bedarf vermeiden) unberührt bleibt; GET /groups/{id}/invite-links existiert serverseitig + openapi, wird aber (noch) nicht beim Mount geladen.
 
 ## Nächster Schritt
-- openapi.yml-Pfade ergänzen, Client-Typen generieren, `GroupJoinPage.tsx` + Root-Weiche, GroupDetail-Link-Verwaltung, dann voller Gate-Lauf + `gh pr ready 1246`.
+- PR 1246 review-ready machen (`gh pr ready 1246`) + Body mit Testergebnissen; e2e AK5/AK6 im Review-Zyklus verifizieren (Chromium-Install nötig, Memory 2026-08-20).
 
 ## Fallstricke
 - Server-Tests OHNE `NODE_ENV=test` → test-login-Route nicht registriert → alle 401 (sieht aus wie Auth-Bug, ist nur env).
