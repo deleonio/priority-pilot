@@ -328,27 +328,30 @@ Fehlern gilt das ungeescalatierte Ergebnis weiter.
 Die Phasen-Modellwahl steuert den **Lauf** — innerhalb eines Laufs greifen zwei weitere
 Mechanismen, die unterschiedliche Richtungen haben und sich nicht ins Gehege kommen dürfen:
 
-|          | Delegation (Subagent)                            | Eskalation (Mentor)               |
-| -------- | ------------------------------------------------ | --------------------------------- |
-| Richtung | nach unten, billiger                             | nach oben, teurer                 |
-| Modell   | `haiku`, global via `CLAUDE_CODE_SUBAGENT_MODEL` | `opus` (Default), eigener Prozess |
-| Auslöser | der Agent selbst, nach SKILL-Regel               | deterministischer Workflow-Step   |
-| Aufgabe  | breit lesen, ausführen, fassen                   | einmal urteilen, Weg vorschlagen  |
-| Rückgabe | kurzes Fazit, nie Rohtext                        | ≤ 40 Zeilen Handlungsanweisung    |
+|          | Delegation (Subagent)              | Eskalation (Mentor)               |
+| -------- | ---------------------------------- | --------------------------------- |
+| Richtung | nach unten, billiger               | nach oben, teurer                 |
+| Modell   | `haiku` (Rollen-Frontmatter)       | `opus` (Default), eigener Prozess |
+| Auslöser | der Agent selbst, nach SKILL-Regel | deterministischer Workflow-Step   |
+| Aufgabe  | breit lesen, ausführen, fassen     | einmal urteilen, Weg vorschlagen  |
+| Rückgabe | kurzes Fazit, nie Rohtext          | ≤ 40 Zeilen Handlungsanweisung    |
 
 **Delegation:** Zwei Rollen in [`.claude/agents/`](../.claude/agents/) mit
 Rückgabevertrag (Fazit statt Rohtext — ohne den Vertrag verdoppeln Subagents Tokens,
 denn jedes Ergebnis fließt in den Elternkontext zurück): `recherche` (read-only
 Suchfragen) und `gate-runner` (Gate-Kette, meldet nur Exit-Code + Fehlersignatur).
 Die Workflows setzen `subagent-model: haiku` (Triage schon länger; Umsetzung/Fixup/Review
-seit ADR 0008) — der Override schlägt das Rollen-Frontmatter und gilt für ALLE Subagents,
-deshalb stehen Rollen und Override auf derselben Stufe. Anweisung und Kriterium stehen in
+seit ADR 0008). Seit CLI 2.1.251 ist `CLAUDE_CODE_SUBAGENT_MODEL` nur noch Default: das
+Rollen-Frontmatter (`haiku` bei beiden Rollen) schlägt es, der Override greift nur bei
+Ad-hoc-Fan-outs ohne Definition — genau dort soll er den Fan-out vom teuren Phasenmodell
+fernhalten. Anweisung und Kriterium stehen in
 den SKILLs (`ticket-implementation` → „Delegation", `review-kreuzverhoer` → „Delegation",
 `ticket-triage` Schritt 1), die Prompts verweisen nur.
 
 **Mentor:** Eigener `claude -p`-Step **vor** dem Phasen-Step in 04 (beide Eingänge),
-read-only. Kein Subagent, weil `CLAUDE_CODE_SUBAGENT_MODEL` global überschreibt — ein
-Mentor-Subagent zwänge dem Fan-out dasselbe Modell auf oder umgekehrt. Auslöser rein
+read-only. Kein Subagent: Ein Mentor als `.claude/agents`-Rolle mit eigenem `model:`
+wäre seit 2.1.251 zwar machbar (Frontmatter schlägt den Subagent-Default), der separate
+`claude -p`-Step bleibt aber bewusst — eigener Prozess, kein Fan-out-Kontext. Auslöser rein
 deterministisch über [`mentor-gate.sh`](../.github/scripts/mentor-gate.sh):
 
 | Eingang   | Auslöser                                           | Signal                  |
@@ -392,7 +395,7 @@ Modell-Spalte der Routing-Tabelle.
 | 3b  | `.github/actions/setup-pi/action.yml`         | Alias-Filter im Step „Modell + Subagent-Modell auflösen“ + `.github/pi/model-aliases.json` je Provider               |
 | 4   | `.github/scripts/resolve-model-label.test.ts` | neuer Fall „bekannter Alias → durch“ + alter Abbruch-Fall bleibt grün                                                |
 | 5   | `.github/workflows/04-claude-implement.yml`   | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
-| 6   | `.claude/agents/*.md`                         | Rollen-Frontmatter `model:` (dieselben Aliase; wird in CI vom Subagent-Override überdeckt, greift lokal)             |
+| 6   | `.claude/agents/*.md`                         | Rollen-Frontmatter `model:` (dieselben Aliase; schlägt seit CLI 2.1.251 den Subagent-Default, gilt lokal wie in CI)  |
 
 **Freigabe-Prozess:** Alias in allen vier Stellen eintragen, das Resolve-Ziel je Provider ergänzen
 (`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-Einträge der

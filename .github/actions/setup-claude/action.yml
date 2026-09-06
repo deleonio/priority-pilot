@@ -97,11 +97,13 @@ inputs:
       Modell für Subagents als Alias, oder 'inherit' (Default). Wird als
       CLAUDE_CODE_SUBAGENT_MODEL gesetzt.
 
-      BEWUSST GESETZT, NICHT UNGESETZT GELASSEN: Die Variable überschreibt das Modell für
-      ALLE Subagents und hat Vorrang vor deren model-Frontmatter. Bliebe sie unbestimmt,
-      liefe ein Subagent-Fan-out einer fable-Phase potenziell ebenfalls auf fable — und
-      genau das kehrte die Kostenlogik um, die die Phasen-Modellwahl herstellt.
-      'inherit' = ausdrücklich das Phasenmodell (bisheriges Verhalten, kein Override).
+      BEWUSST GESETZT, NICHT UNGESETZT GELASSEN: Bliebe sie unbestimmt, liefe ein
+      Ad-hoc-Fan-out (Task ohne Agent-Definition) einer fable-Phase potenziell ebenfalls
+      auf fable — und genau das kehrte die Kostenlogik um, die die Phasen-Modellwahl
+      herstellt. Seit CLI 2.1.251 ist die Variable nur noch Default für Subagents OHNE
+      model-Frontmatter; Definitionen (.claude/agents/*.md, beide bewusst haiku) schlagen
+      sie. Das harte Override alias CLAUDE_CODE_SUBAGENT_MODEL_FORCE (ab 2.1.257) bleibt
+      bewusst ungesetzt. 'inherit' = ausdrücklich das Phasenmodell (kein Override).
     required: false
     default: 'inherit'
 
