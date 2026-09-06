@@ -14,8 +14,11 @@
     `.ai-memory/issue-1249-implement.md` (Relevante Stellen + Annahmen).
   - `.ai-memory/issue-1249-implement.md:33` Verifikations-Claim korrigiert: Erstverifikation prüfte
     nur Tabellennamen, nicht Spaltennamen (Ursache des Blockers); Claim jetzt Tabellen+Spalten.
-- Gate gefahren (s. Fallstricke), Commit + Push auf `ai/harness/1249`, Threads resolved,
-  ai-fixup-decisions-Kommentar (Marker `<!-- ai-fixup-decisions -->`) mit ✅-Tabelle angelegt/gepflegt.
+- Gate gefahren (format/prettier/lint/knip/test alle grün, 274/274), Commit `8ec90621` + Push auf
+  `ai/harness/1249`, beide Threads resolved (PRRT_…EdF, PRRT_…EdL), ai-fixup-decisions-Kommentar
+  angelegt (ID 5558759592, Marker `<!-- ai-fixup-decisions -->`) mit ✅-Tabelle (2 Zeilen, beide 8ec90621).
+- PR-Body via `gh pr edit 1255 --body-file .ai-memory/issue-1249-prbody.md` aktualisiert (vor dem
+  Thread-Resolve).
 
 ## Relevante Stellen
 - `server/src/logics/pillarContributions.ts:65-72` — Doc-Block der `arePillarsExistent` (Kommentarfix F2).
@@ -37,7 +40,7 @@
   Modell-Quelle plausibilisiert (Review zitiert taskPillar.ts/pillar.ts ohne `underscored`/`field`).
 
 ## Offen
-- -
+- CI auf `8ec90621` vollständig grün (verify 3m53s + e2e 1–4 pass, per `gh pr checks 1255`).
 
 ## Nächster Schritt
 - Nächste Review-Runde prüft die ✅-Tabelle im ai-fixup-decisions-Kommentar gegen die Commits; danach
