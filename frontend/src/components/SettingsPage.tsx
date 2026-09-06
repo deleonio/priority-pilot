@@ -382,7 +382,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							horizontal Platz zu sparen. Ausgegraut, solange der Master zu ist bzw. das
 							OS Bewegung reduziert. */}
 					<KolDetails _label="Animations-Details" _open={animationsEnabled}>
-						<div className="settings-switch-row settings-switch-row--sub">
+						<div className="settings-switch-row">
 							<KolInputCheckbox
 								_label="Herz animieren"
 								_variant="switch"
@@ -396,7 +396,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 								}}
 							/>
 						</div>
-						<div className="settings-switch-row settings-switch-row--sub">
+						<div className="settings-switch-row">
 							<KolInputCheckbox
 								_label="Erledigt animieren"
 								_variant="switch"
@@ -515,7 +515,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 							(Muster docs/ux-pattern-master-detail-settings.md). #1085: bei deaktivierter KI bleibt
 							der Schalter zusätzlich `_disabled`. */}
 					<KolDetails _label="KI-Funktionen-Details" _open={aiEnabled}>
-						<div className="settings-llm-switch-row settings-llm-switch-row--sub">
+						<div className="settings-llm-switch-row">
 							<KolInputCheckbox
 								_label="Schnellerfassung aktiv"
 								_variant="switch"

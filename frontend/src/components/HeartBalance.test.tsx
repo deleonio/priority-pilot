@@ -75,4 +75,22 @@ describe('HeartBalance', () => {
 		expect(screen.getByTestId('heart-balance-value').textContent).toBe('0 %');
 		expect(screen.getAllByTestId('heart-column')).toHaveLength(2);
 	});
+
+	it('fällt ohne WebGL auf das SVG zurück, statt ohne Bild dazustehen', () => {
+		// jsdom stellt kein WebGL bereit — genau der Rückfallpfad, den dieser Test sichert.
+		render(
+			<HeartBalance
+				pillars={pillars}
+				punkteProSaeule={
+					new Map([
+						[1, 3],
+						[2, 7],
+					])
+				}
+			/>,
+		);
+
+		expect(screen.getByTestId('heart-balance-svg')).toBeInTheDocument();
+		expect(screen.queryByTestId('heart-balance-canvas')).not.toBeInTheDocument();
+	});
 });

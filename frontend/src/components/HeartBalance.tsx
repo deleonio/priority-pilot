@@ -1,5 +1,6 @@
 import type { Pillar } from 'client';
-import { useId, useMemo, type CSSProperties } from 'react';
+import { useCallback, useId, useMemo, useState, type CSSProperties } from 'react';
+import { HeartGlass } from './HeartGlass';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
 import { useAnimationsEnabled } from '../lib/animations';
 import { useHeartAnimationEnabled } from '../lib/heartAnimation';
@@ -19,9 +20,17 @@ import { usePrefersReducedMotion } from '../lib/reducedMotion';
  * gibt es im Bild auch nur eine Wasserlinie. Sie steigt einmalig von unten auf ihren Stand und
  * wellt danach über die volle Herzbreite.
  *
- * **Warum SVG und nicht Canvas:** Die Grafik ist Text-, Theme- und Zoom-fähig (Farbrollen als
- * Custom Properties, `role="img"` mit Label, scharf bei jeder Größe) und braucht keinen
- * Render-Loop in JavaScript — die Wellen laufen als CSS-Animation im Compositor.
+ * **Zwei Fassungen desselben Bildauftrags:** Kann der Browser WebGL2, zeichnet `HeartGlass` das
+ * Herz als Glasgefäß (Shader `heart-glass.frag`) — Kontur, Füllstand, Streifen, Welle und
+ * Aufstieg identisch, das Material dazu (Fresnel-Saum, Glanzlichter, Meniskus, Brechung). Ohne
+ * WebGL (oder nach Kontextverlust ohne Wiederkehr) steht das SVG hier als Rückfall — dasselbe
+ * Bild, nur ohne Glas.
+ *
+ * **Warum das SVG text-, theme- und zoomfähig bleibt:** Farbrollen als Custom Properties,
+ * `role="img"` mit Label, scharf bei jeder Größe — und kein Render-Loop in JavaScript: Die Welle
+ * läuft als SMIL/CSS-Animation im Compositor. Die WebGL-Fassung hält dieselben Eigenschaften über
+ * Uniforms aus denselben CSS-Rollen und stoppt ihre Loop, wenn nichts zu tun ist (Details in
+ * `HeartGlass.tsx`).
  *
  * Rechnung, Randfälle und das Balance-Maß stehen in `lib/heartBalance.ts`.
  */
@@ -135,6 +144,19 @@ interface HeartBand {
 	x1: number;
 }
 
+/**
+ * WebGL2 einmalig anfragen (jsdom-sicher): Ohne Kontext rendert die Bühne das SVG — dasselbe
+ * Bild, nur ohne Glas. `WebGL2RenderingContext` wird zuerst geprüft, damit Umgebungen ohne WebGL
+ * (Tests) gar nicht erst `getContext` anfassen müssen.
+ */
+const supportsGlassHeart = (): boolean => {
+	try {
+		return typeof WebGL2RenderingContext !== 'undefined' && !!document.createElement('canvas').getContext('webgl2');
+	} catch {
+		return false;
+	}
+};
+
 export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) => {
 	const balance = useMemo(() => buildHeartBalance(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
 	const health = heartHealth(balance);
@@ -176,6 +198,13 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 	const bandClipId = (index: number): string => `${uid}-band-${index}`;
 
 	const fillPercent = asPercent(balance.fill);
+	const ariaLabel = `Herz-Füllstand ${fillPercent} Prozent — ${health.label}`;
+
+	/* Glas zuerst, SVG als Rückfall: WebGL fehlt oder fällt aus → bekanntes Bild. */
+	const [glassBroken, setGlassBroken] = useState(false);
+	const [glassSupported] = useState(supportsGlassHeart);
+	const renderGlass = glassSupported && !glassBroken;
+	const giveUpGlass = useCallback((): void => setGlassBroken(true), []);
 
 	/*
 	 * Ruhepuls: Je ausgewogener das Herz, desto langsamer und ruhiger schlägt es (1,5 s leer bis
@@ -202,79 +231,89 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 					} as CSSProperties
 				}
 			>
-				<svg
-					className="heart-balance-svg"
-					viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-					role="img"
-					aria-label={`Herz-Füllstand ${fillPercent} Prozent — ${health.label}`}
-					data-testid="heart-balance-svg"
-				>
-					<defs>
-						<clipPath id={heartClipId}>
-							<path d={HEART_PATH} />
-						</clipPath>
-						{bands.map((band, index) => (
-							<clipPath key={band.pillarId} id={bandClipId(index)}>
-								<rect x={band.x0} y={0} width={band.x1 - band.x0} height={VIEW_HEIGHT} />
+				{renderGlass ? (
+					<HeartGlass
+						fill={balance.fill}
+						bands={bands}
+						animated={animated}
+						ariaLabel={ariaLabel}
+						onGiveUp={giveUpGlass}
+					/>
+				) : (
+					<svg
+						className="heart-balance-svg"
+						viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+						role="img"
+						aria-label={ariaLabel}
+						data-testid="heart-balance-svg"
+					>
+						<defs>
+							<clipPath id={heartClipId}>
+								<path d={HEART_PATH} />
 							</clipPath>
-						))}
-					</defs>
+							{bands.map((band, index) => (
+								<clipPath key={band.pillarId} id={bandClipId(index)}>
+									<rect x={band.x0} y={0} width={band.x1 - band.x0} height={VIEW_HEIGHT} />
+								</clipPath>
+							))}
+						</defs>
 
-					{/* Leeres Gefäß — die eingesenkte Fläche macht sichtbar, wie viel noch fehlt. */}
-					<path d={HEART_PATH} className="heart-vessel" />
+						{/* Leeres Gefäß — die eingesenkte Fläche macht sichtbar, wie viel noch fehlt. */}
+						<path d={HEART_PATH} className="heart-vessel" />
 
-					<g clipPath={`url(#${heartClipId})`}>
-						{/*
-						 * Das Wasser steigt einmalig von unten auf seinen Stand (CSS, Compositor) und wellt
-						 * danach dauerhaft weiter. Eine Oberfläche fürs ganze Herz — Details zur Phasen-
-						 * und Clip-Struktur bei den Drift-Konstanten oben.
-						 */}
-						<g className="heart-water-rise">
-							<g transform={`translate(0 ${(HEART_BOTTOM - balance.fill * (HEART_BOTTOM - HEART_TOP)).toFixed(2)})`}>
-								{bands.map((band, index) => (
-									<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="heart-column">
-										<g className="heart-wave">
-											<path d={WAVE_PATH} className={rampClass('heart-water', band.colorIndex)} />
-											{animated && (
-												<animateTransform
-													attributeName="transform"
-													type="translate"
-													from="0 0"
-													to={`${-WAVE_LENGTH} 0`}
-													dur={WAVE_DRIFT_DURATION}
-													repeatCount="indefinite"
-												/>
-											)}
+						<g clipPath={`url(#${heartClipId})`}>
+							{/*
+							 * Das Wasser steigt einmalig von unten auf seinen Stand (CSS, Compositor) und wellt
+							 * danach dauerhaft weiter. Eine Oberfläche fürs ganze Herz — Details zur Phasen-
+							 * und Clip-Struktur bei den Drift-Konstanten oben.
+							 */}
+							<g className="heart-water-rise">
+								<g transform={`translate(0 ${(HEART_BOTTOM - balance.fill * (HEART_BOTTOM - HEART_TOP)).toFixed(2)})`}>
+									{bands.map((band, index) => (
+										<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="heart-column">
+											<g className="heart-wave">
+												<path d={WAVE_PATH} className={rampClass('heart-water', band.colorIndex)} />
+												{animated && (
+													<animateTransform
+														attributeName="transform"
+														type="translate"
+														from="0 0"
+														to={`${-WAVE_LENGTH} 0`}
+														dur={WAVE_DRIFT_DURATION}
+														repeatCount="indefinite"
+													/>
+												)}
+											</g>
 										</g>
-									</g>
-								))}
+									))}
+								</g>
 							</g>
+
+							{/*
+							 * Trennfugen zwischen den Streifen — in Kartenfarbe, damit sie als Fuge lesen. Nur an
+							 * echten Kanten: Streifen ohne Breite (Ist-Anteil 0) erzeugen keine Fuge.
+							 */}
+							{bands
+								.slice(1)
+								.map(
+									(band) =>
+										band.x1 > band.x0 && (
+											<line
+												key={band.pillarId}
+												className="heart-seam"
+												x1={band.x0}
+												y1={0}
+												x2={band.x0}
+												y2={VIEW_HEIGHT}
+											/>
+										),
+								)}
 						</g>
 
-						{/*
-						 * Trennfugen zwischen den Streifen — in Kartenfarbe, damit sie als Fuge lesen. Nur an
-						 * echten Kanten: Streifen ohne Breite (Ist-Anteil 0) erzeugen keine Fuge.
-						 */}
-						{bands
-							.slice(1)
-							.map(
-								(band) =>
-									band.x1 > band.x0 && (
-										<line
-											key={band.pillarId}
-											className="heart-seam"
-											x1={band.x0}
-											y1={0}
-											x2={band.x0}
-											y2={VIEW_HEIGHT}
-										/>
-									),
-							)}
-					</g>
-
-					{/* Kontur zuletzt, damit sie über dem Wasser liegt und die Silhouette scharf bleibt. */}
-					<path d={HEART_PATH} className="heart-outline" />
-				</svg>
+						{/* Kontur zuletzt, damit sie über dem Wasser liegt und die Silhouette scharf bleibt. */}
+						<path d={HEART_PATH} className="heart-outline" />
+					</svg>
+				)}
 			</div>
 
 			<p className="heart-balance-readout">
@@ -294,7 +333,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 			 */}
 			<ul className="heart-balance-legend" data-testid="heart-balance-legend">
 				{balance.segments.map((segment) => (
-					<li key={segment.pillar.id} className="heart-balance-legend-row">
+					<li key={segment.pillar.id} className="heart-balance-legend-row" data-testid="heart-balance-legend-row">
 						<span className={rampClass('heart-legend-dot', segment.colorIndex)} aria-hidden="true" />
 						<span className="heart-balance-legend-name">{segment.pillar.name}</span>
 						<span className="heart-balance-legend-value">

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { KolSpin } from '@public-ui/react-v19';
 import { App } from './App';
 import { BahnPage } from './components/BahnPage';
+import { GroupJoinPage } from './components/GroupJoinPage';
 import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
 import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
@@ -138,12 +139,16 @@ const AuthenticatedApp = () => {
 
 /**
  * Wurzel-Komponente mit der URL-Weiche für öffentliche Routen. Der öffentliche Bahn-Routenplaner
- * unter `/bahn` (#225) wird VOR jedem Auth-Check gerendert — ohne Login-Flow und ohne Redirect.
- * Alle übrigen Pfade laufen durch den authentifizierten Einstieg (`AuthenticatedApp`).
+ * unter `/bahn` (#225) und die Beitrittsseite für Einladungslinks unter `/gruppen/beitreten` (#1226)
+ * werden VOR jedem Auth-Check gerendert — ohne Login-Flow und ohne Redirect. Alle übrigen Pfade
+ * laufen durch den authentifizierten Einstieg (`AuthenticatedApp`).
  */
 export const Root = () => {
 	if (window.location.pathname === '/bahn') {
 		return <BahnPage />;
+	}
+	if (window.location.pathname === '/gruppen/beitreten') {
+		return <GroupJoinPage />;
 	}
 	return <AuthenticatedApp />;
 };

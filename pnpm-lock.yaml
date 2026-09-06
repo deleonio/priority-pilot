@@ -64,6 +64,9 @@ importers:
       '@public-ui/theme-default':
         specifier: 4.3.0
         version: 4.3.0(@public-ui/components@4.3.0(adopted-style-sheets@1.1.9-rc.25))
+      '@public-ui/theme-kern':
+        specifier: 4.3.0
+        version: 4.3.0(@public-ui/components@4.3.0(adopted-style-sheets@1.1.9-rc.25))
       client:
         specifier: workspace:*
         version: link:../client
@@ -1379,6 +1382,11 @@ packages:
 
   '@public-ui/theme-default@4.3.0':
     resolution: {integrity: sha512-S+1DDTIZ73ydJc9tyAIRQe6USCH/AGo1N2ijRY6eVlIEk9Q+cDGYIPUWjQlOBcmDRsybpq2LDrqAMECuLHtjug==}
+    peerDependencies:
+      '@public-ui/components': 4.3.0
+
+  '@public-ui/theme-kern@4.3.0':
+    resolution: {integrity: sha512-gPoQmEVQ+FIu+C+iHWDVYbPKxty7B8+s1hbnbOfg6jpg2Ods9D4hTscRx9FGllws4msh/C1eNC0TVTRFFoAhIg==}
     peerDependencies:
       '@public-ui/components': 4.3.0
 
@@ -5934,6 +5942,10 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
 
   '@public-ui/theme-default@4.3.0(@public-ui/components@4.3.0(adopted-style-sheets@1.1.9-rc.25))':
+    dependencies:
+      '@public-ui/components': 4.3.0(adopted-style-sheets@1.1.9-rc.25)
+
+  '@public-ui/theme-kern@4.3.0(@public-ui/components@4.3.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
       '@public-ui/components': 4.3.0(adopted-style-sheets@1.1.9-rc.25)
 

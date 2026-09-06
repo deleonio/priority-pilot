@@ -1575,6 +1575,167 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups/{id}/invite-links:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    post:
+      summary: Teilbaren Einladungslink erzeugen
+      description: >-
+        Nur Admins (andere Mitglieder 403, Nicht-Mitglieder 404). Jeder Aufruf
+        erzeugt einen neuen, anderen Token; der Link ist 7 Tage gültig und
+        lässt sich jederzeit ungültig machen. Der Token wird ausschließlich in
+        dieser Antwort übermittelt.
+      operationId: createGroupInviteLink
+      tags: [groups]
+      responses:
+        '201':
+          description: Erzeugter Einladungslink
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupInviteLink'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Mitglied ohne Adminrechte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /invite-links/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token des Einladungslinks
+        schema:
+          type: string
+    get:
+      summary: Einladungslink öffentlich abrufen
+      description: >-
+        Öffentlich ohne Anmeldung (#1226). Liefert ausschließlich Gruppenname
+        und Anzeigename des Einladenden — keine Mitglieder, keine E-Mails.
+        Unbekanntes Token 404, abgelaufenes oder widerrufenes Token 410.
+      operationId: getInviteLink
+      tags: [groups]
+      responses:
+        '200':
+          description: Linkvorschau
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteLinkPreview'
+        '404':
+          description: Einladungslink unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '410':
+          description: Einladungslink abgelaufen oder widerrufen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /invite-links/{token}/redeem:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token des Einladungslinks
+        schema:
+          type: string
+    post:
+      summary: Einladungslink einlösen (Gruppe beitreten)
+      description: >-
+        Hinter der Anmeldung (401 ohne Session). Der Aufrufer wird Mitglied mit
+        Rolle „member"; eine bestehende Mitgliedschaft — egal wie entstanden —
+        liefert 409. Unbekanntes Token 404, abgelaufen/widerrufen 410.
+      operationId: redeemInviteLink
+      tags: [groups]
+      responses:
+        '200':
+          description: Beigetretene Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteLinkRedeemResult'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Einladungslink unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Bereits Mitglied dieser Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '410':
+          description: Einladungslink abgelaufen oder widerrufen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /invite-links/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Einladungslinks
+        schema:
+          type: integer
+    delete:
+      summary: Einladungslink ungültig machen
+      description: >-
+        Nur Admins der Gruppe (Mitglied 403, fremde Gruppe oder unbekannter
+        Link 404). Setzt `revokedAt`; Einlösen und öffentliches GET liefern
+        danach 410.
+      operationId: revokeInviteLink
+      tags: [groups]
+      responses:
+        '204':
+          description: Einladungslink ungültig gemacht (kein Inhalt)
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Mitglied ohne Adminrechte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Einladungslink unbekannt oder fremde Gruppe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /invitations:
     get:
       summary: Eigene offene Einladungen auflisten
@@ -1896,6 +2057,37 @@ components:
     InvitationResult:
       type: object
       description: Ergebnis von Annehmen/Ablehnen einer Einladung (#1212).
+      required: [groupId]
+      properties:
+        groupId:
+          type: integer
+    GroupInviteLink:
+      type: object
+      description: >-
+        Erzeugter Einladungslink (#1226). Der Token wird ausschließlich bei der
+        Erzeugung übermittelt — ein späteres erneutes Auslesen ist bewusst
+        nicht möglich.
+      required: [id, token, expiresAt]
+      properties:
+        id:
+          type: integer
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    InviteLinkPreview:
+      type: object
+      description: Öffentliche Linkpreisgabe (#1226) — nur Gruppenname und Einladender.
+      required: [name, invitedByName]
+      properties:
+        name:
+          type: string
+        invitedByName:
+          type: string
+    InviteLinkRedeemResult:
+      type: object
+      description: Ergebnis des Einlösens eines Einladungslinks (#1226).
       required: [groupId]
       properties:
         groupId:

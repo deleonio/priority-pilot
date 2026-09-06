@@ -1,8 +1,9 @@
+import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { Group, GroupInvitation, GroupMember, Task, User } from '../../models/index.js';
+import { Group, GroupInvitation, GroupInviteLink, GroupMember, Task, User } from '../../models/index.js';
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 
@@ -622,6 +623,76 @@ groupsRouter.get('/groups/:id/tasks', async (req: Request, res: Response<GroupTa
 			return a.id - b.id;
 		});
 		res.json(dtos);
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// ── Einladungslinks (#1226) — Admin-Teil hinter requireAuth; der öffentliche Teil (GET + redeem)
+// hängt bewusst VOR requireAuth (siehe express/index.ts, routes/inviteLinks.ts).
+
+const INVITE_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+type InviteLinkDto = { id: number; token: string; expiresAt: string };
+
+// POST /groups/:id/invite-links — nur Admins (AK1): jeder Aufruf erzeugt einen neuen Token
+// aus `crypto.randomBytes` (hex ≥ 32 Zeichen), gültig für 7 Tage. Nicht-Admin-Mitglied → 403,
+// Nicht-Mitglied (auch unbekannte Gruppe) → 404.
+groupsRouter.post('/groups/:id/invite-links', async (req: Request, res: Response<InviteLinkDto | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const found = await findMembership(user.id, Number(req.params.id));
+		if (!found) {
+			sendError(res, 404, 'Gruppe nicht gefunden.');
+			return;
+		}
+		if (found.role !== 'admin') {
+			sendError(res, 403, 'Nur Administratoren dürfen Einladungslinks erzeugen.');
+			return;
+		}
+		const created = await GroupInviteLink.create({
+			groupId: found.group.id,
+			token: randomBytes(24).toString('hex'),
+			createdByUserId: user.id,
+			expiresAt: new Date(Date.now() + INVITE_LINK_TTL_MS),
+			revokedAt: null,
+			createdAt: new Date(),
+		});
+		res.status(201).json({ id: created.id, token: created.token, expiresAt: created.expiresAt.toISOString() });
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// DELETE /invite-links/:id — nur Admins der Gruppe (AK4): setzt `revokedAt` (204), danach sind
+// Einlösen und öffentliches GET 410. Mitglied → 403, fremde Gruppe/unbekannter Link → 404.
+groupsRouter.delete('/invite-links/:id', async (req: Request, res: Response<ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const link = await GroupInviteLink.findByPk(Number(req.params.id));
+		if (!link) {
+			sendError(res, 404, 'Einladungslink nicht gefunden.');
+			return;
+		}
+		const found = await findMembership(user.id, link.groupId);
+		if (!found) {
+			sendError(res, 404, 'Einladungslink nicht gefunden.');
+			return;
+		}
+		if (found.role !== 'admin') {
+			sendError(res, 403, 'Nur Administratoren dürfen Einladungslinks ungültig machen.');
+			return;
+		}
+		await link.update({ revokedAt: new Date() });
+		res.status(204).send();
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
