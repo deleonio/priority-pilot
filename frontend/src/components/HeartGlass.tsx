@@ -24,7 +24,7 @@ import fragmentSource from './heart-glass.frag?raw';
  */
 
 /** Ein Farbstreifen unter der Wasserlinie, aus `HeartBalance` (Spannen in Nutzereinheiten). */
-export interface GlassBand {
+interface GlassBand {
 	pillarId: number;
 	colorIndex: number;
 	x0: number;
@@ -225,9 +225,6 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 	let pageVisible = !document.hidden;
 
 	const draw = (): void => {
-		const w = window as unknown as { __heartDraws?: number; __heartTime?: number };
-		w.__heartDraws = (w.__heartDraws ?? 0) + 1;
-		w.__heartTime = shaderTime;
 		resize();
 		gl.uniform1f(locations.time, shaderTime);
 		gl.clearColor(0, 0, 0, 0);
@@ -310,18 +307,6 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 		// Canvas-Element; Programm und Buffer werden oben explizit freigegeben.
 	};
 
-	const debug = {
-		gl,
-		program,
-		locations,
-		get time() {
-			return shaderTime;
-		},
-		get animated() {
-			return animated;
-		},
-	};
-	(window as unknown as { __heartDebug?: unknown }).__heartDebug = debug;
 	return {
 		update,
 		setLooping: (next) => {
