@@ -12,6 +12,13 @@ class User extends Model {
 	public passwordHash!: string;
 	public displayName!: string;
 	public avatarUrl!: string | null;
+	/**
+	 * `true`, sobald der Nutzer den Anzeigenamen selbst über `PUT /profile` gesetzt hat (#1256) —
+	 * dann überschreibt der OAuth-Profil-Sync (`upsertOAuthUser`) den Namen nicht mehr; ohne
+	 * eigenes Setzen (0) folgt `displayName` weiter dem Google-Profil. Der Avatar-Sync bleibt
+	 * von der Flag unberührt.
+	 */
+	public displayNameCustom!: boolean;
 	/** Geo-Konfiguration pro User (#1098) — serverseitig statt localStorage. */
 	public displayDistanceKm!: number;
 	public alarmDistanceKm!: number;
@@ -45,6 +52,11 @@ User.init(
 		avatarUrl: {
 			type: DataTypes.STRING,
 			allowNull: true,
+		},
+		displayNameCustom: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
 		},
 		displayDistanceKm: {
 			type: DataTypes.INTEGER,

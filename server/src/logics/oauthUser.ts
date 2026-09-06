@@ -32,8 +32,13 @@ export async function upsertOAuthUser({
 	});
 
 	// Bestandsnutzer: abweichende Profilfelder nachziehen (Muster des bisherigen avatarUrl-Syncs).
+	// #1256: Ein selbst über PUT /profile gesetzter Name (`displayNameCustom`) wird vom
+	// Google-Profil NICHT mehr überschrieben — nur der Avatar folgt weiterhin jedem Login.
 	if (!created && (user.displayName !== resolvedDisplayName || user.avatarUrl !== avatarUrl)) {
-		await user.update({ displayName: resolvedDisplayName, avatarUrl });
+		await user.update({
+			displayName: user.displayNameCustom ? user.displayName : resolvedDisplayName,
+			avatarUrl,
+		});
 	}
 
 	return { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl };

@@ -499,6 +499,27 @@ export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> 
 };
 
 /**
+ * Zieht die `displayNameCustom`-Flag-Spalte auf einer **bestehenden** `users`-Tabelle nach
+ * (#1256) — analog `migrateUsersAvatarUrl`, aber NOT NULL mit Default 0: die Flag markiert,
+ * dass der Nutzer seinen Anzeigenamen selbst gesetzt hat, und schützt ihn so vor dem
+ * OAuth-Profil-Sync (`upsertOAuthUser`). `sequelize.sync()` ohne `alter` ergänzt die Spalte
+ * nicht, jede User-Query mit der Flag würde mit `no such column` brechen. Bestandskonten
+ * starten mit 0 (Ursprung des Namens ist nachträglich nicht unterscheidbar — sie folgen dem
+ * Google-Profil, bis sie selbst speichern). Idempotent; No-op bei frischer DB.
+ */
+export const migrateUsersDisplayNameCustom = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('displayNameCustom')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `users` ADD COLUMN `displayNameCustom` TINYINT NOT NULL DEFAULT 0');
+	console.log('Spalte displayNameCustom an users nachgezogen.');
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:

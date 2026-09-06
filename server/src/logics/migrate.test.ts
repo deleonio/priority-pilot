@@ -485,7 +485,10 @@ describe('migrateUserGeoConfigColumns', () => {
 		return (rows as { name: string }[]).map((row) => row.name);
 	};
 
-	/** Erzeugt eine `users`-Tabelle im Alt-Schema (vor #1098) — ohne die Geo-Config-Spalten. */
+	/** Erzeugt eine `users`-Tabelle im Alt-Schema (vor #1098) — ohne die Geo-Config-Spalten.
+	 * #1256 Test-Pflege: `displayNameCustom` ergänzt — das User-Modell selectiert die Spalte
+	 * inzwischen, ohne sie bräche `User.findAll()` unten mit `no such column` (Konvention wie
+	 * beim #1256-Legacy-Schema weiter unten, das die Geo-Spalten enthält). */
 	const createLegacyUsersTable = async (): Promise<void> => {
 		await sequelize.getQueryInterface().dropAllTables();
 		await sequelize.query(
@@ -495,6 +498,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`passwordHash` VARCHAR(255) NOT NULL, ' +
 				"`displayName` VARCHAR(255) NOT NULL DEFAULT '', " +
 				'`avatarUrl` VARCHAR(255), ' +
+				'`displayNameCustom` TINYINT NOT NULL DEFAULT 0, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',

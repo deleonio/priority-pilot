@@ -145,6 +145,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskChecklist,
 			migrateTaskAddress,
 			migrateUserGeoConfigColumns,
+			migrateUsersDisplayNameCustom,
 			migrateLlmProviderKindColumns,
 			migrateTaskCreatedById,
 		} = await import('./logics/migrate.js');
@@ -191,6 +192,10 @@ export const main = async (): Promise<void> => {
 		// Fehlende Geo-Config-Spalten an users nachziehen (#1098) — vor sync(), damit Login,
 		// /geo-config und /tasks/nearby auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateUserGeoConfigColumns(sequelize);
+		// Fehlende displayNameCustom-Flag-Spalte an users nachziehen (#1256 — Eigen-Speicherung
+		// schützt den Anzeigenamen vor dem OAuth-Sync) — vor sync(), damit User-Zugriffe auf
+		// Bestands-DBs nicht mit `no such column` brechen.
+		await migrateUsersDisplayNameCustom(sequelize);
 		// Fehlende kind/builtin_key-Spalten an llm_providers nachziehen (Built-in-Provider) — vor
 		// sync(), damit Provider-Zugriffe auf Bestands-DBs aus #951 nicht mit `no such column` brechen.
 		await migrateLlmProviderKindColumns(sequelize);
