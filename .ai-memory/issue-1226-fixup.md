@@ -1,14 +1,25 @@
 # Issue 1226 — Fixup PR #1246 (Review-Kreuzverhör, 1. Runde), Stand 2026-09-06
 
 ## Erledigt
+- **Runde 1 ABGESCHLOSSEN (Commit d7bac7b1, gepusht als Merge 1c7a1ac1 auf ai/harness/1226).**
+  Kein Verdict emittiert (keine Entscheidungs-Findings, Commits bestimmen den Fortschritt).
 - Findings SCOPED gelesen: ai-review-Kommentar 5555911376 (2 Blocker + 1 Nit) + 2 Review-Threads
-  (3942545797 e2e spec :54, 3942545800 docs/spec/issue-1226.md:34). Beide Blocker fixable, keine
-  Entscheidungs-Findings → kein needs-human.
-- Befund verifiziert: PR-Diff enthält NUR Server-Teil (12 Dateien); `frontend/src/components/GroupJoinPage.tsx`
-  fehlt, `Root.tsx`-Weiche fehlt, GroupDetail-Admin-Bereich fehlt, `openapi.yml` unangetastet.
-- Delegation-Entscheid: Gate/Suchen DIREKT gefahren, keine Agent-Rollen (MEMORY 2026-09-05:
-  Subagents fallen hier mit `API Error 400 [1214] does not exist` aus). Abweichung vom
-  Prompt-Delegation-Hinweis damit begründet.
+  (3942545797 e2e spec :54, 3942545800 docs/spec/issue-1226.md:34). Beide fixable, kein needs-human.
+- Implementiert: GroupJoinPage.tsx (4 Zustände), Root.tsx-Weiche `/gruppen/beitreten` vor Auth-Gate,
+  GroupDetail-Admin-Bereich „Einladungen“ (State-lokale Linkliste, Kopieren → maskiert, Revoke-Modal),
+  openapi.yml 4 Pfade + 3 Schemas, client/src/index.ts-Aliase, api.ts-Fassadenmethoden, app.css;
+  Nit: Membership-Check in Transaktion + UniqueConstraintError → 409 (routes/inviteLinks.ts).
+- GATE (Zeitdruck): tsc --noEmit grün (server+frontend), lefthook pre-commit grün (format/knip/lint,
+  lint regeneriert server/src/api.d.ts aus dem neuen openapi.yml). **NICHT lokal gelaufen: e2e AK5/AK6
+  + Workspace-Testsuiten** — Chromium-Setup + Doppel-Webserver passten nicht ins Zeitfenster
+  (Soft-Deadline 1788658817); Verifikation läuft über CI. Falls rot: Memory 2026-08-20
+  (`playwright install chromium --with-deps`) und gezielt `npx playwright test e2e/groups-invite-links.spec.ts`.
+- ai-fixup-decisions-Kommentar **5556111746** erstellt (Nachweis-Tabelle 3 Zeilen, Stand 2026-09-06).
+- Beide Review-Threads resolved: PRRT_kwDONloM186foJT2, PRRT_kwDONloM186foJT4 (GraphQL resolveReviewThread).
+- Finding 2: PR-Body per `gh pr edit --body-file .ai-memory/issue-1226-pr-body.md` auf realen Stand
+  korrigiert (GET-Liste als NICHT existierend dokumentiert, Testaussagen auf gelaufene Gates begrenzt).
+- Push-Konflikt: Remote war voraus (Workflow-Auto-Merge b4d0d796) → merge statt rebase, konfliktfrei.
+
 
 ## Relevante Stellen
 - `docs/spec/issue-1226.md` — Frontend-Vertrag: 4 Zustände (Laden/Fehler/409/Erfolg), Route
