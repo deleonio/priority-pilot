@@ -245,7 +245,7 @@ authRouter.get('/auth/me', (req, res) => {
 		return;
 	}
 	const user = req.session.user;
-	res.json({ email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null });
+	res.json({ id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null });
 });
 
 // POST /auth/logout — Session beenden

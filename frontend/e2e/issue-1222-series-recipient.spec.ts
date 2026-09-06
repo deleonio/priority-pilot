@@ -221,4 +221,78 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await recipientContext.close();
 		}
 	});
+
+	/**
+	 * #1262 (AK2/AK3, docs/spec/issue-1262.md): Auf der Empfänger-Seite (recipientPage) gilt —
+	 * anders als auf der Fixture-Page — KEIN /auth/me-Mock: echter Session-Cookie per test-login,
+	 * echte `/auth/me`-Antwort des Backends. Ist dort `id` absent (der Bug), ist die eigene
+	 * Vorauswahl der Empfängerauswahl kaputt (`recipientId = "undefined"`) und das Anlegen ohne
+	 * Eingriff in die Auswahl scheitert an der userId-Validierung (4xx).
+	 */
+	test('#1262 — eigene Vorauswahl: Aufgabe und Serie ohne Eingriff anlegbar (AK2/AK3)', async ({
+		page,
+		request,
+		baseURL,
+	}) => {
+		const { recipientContext, recipientPage } = await setupSharedGroup(page, request, baseURL!);
+
+		try {
+			await recipientPage.goto('/');
+			await waitForStableView(recipientPage);
+
+			// AK2 — Task-Modus: Anlegen ohne Eingriff in die Empfängerauswahl → POST /tasks mit 2xx.
+			await recipientPage.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+			await expect(recipientPage.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+			await waitForStableView(recipientPage);
+			await recipientPage.getByRole('button', { name: 'Überspringen' }).click();
+			await waitForStableView(recipientPage);
+			// Combobox-Rolle statt getByLabel: Der Anzeigename des eigenen Kontos enthält hier
+			// „Empfänger", der Avatar der Vorauswahl (aria-label „Avatar von Ronny Empfänger")
+			// matchet getByLabel per Substring mit → strict-mode violation (Test-Pflege #1262).
+			await expect(recipientPage.getByRole('combobox', { name: 'Empfänger' })).toBeVisible();
+
+			const taskCreated = recipientPage.waitForResponse(
+				(response) => response.url().includes('/api/v1/tasks') && response.request().method() === 'POST',
+			);
+			await recipientPage.getByRole('textbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Task');
+			await recipientPage.getByRole('button', { name: 'Anlegen', exact: true }).click();
+			const taskResponse = await taskCreated;
+			expect(taskResponse.status(), 'Task-Anlage ohne Eingriff in die Auswahl muss 2xx liefern').toBeLessThan(300);
+			expect(taskResponse.status()).toBeGreaterThanOrEqual(200);
+			await expect(recipientPage.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
+
+			// AK3 — Serie-Modus: dieselbe Vorauswahl, POST /series mit 2xx.
+			await recipientPage.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+			await waitForStableView(recipientPage);
+			await recipientPage.getByRole('button', { name: 'Überspringen' }).click();
+			await waitForStableView(recipientPage);
+			await recipientPage.getByTestId('mode-switch').getByRole('checkbox').click();
+			await waitForStableView(recipientPage);
+			await expect(recipientPage.getByRole('combobox', { name: 'Empfänger' })).toBeVisible();
+
+			await recipientPage.getByRole('textbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Serie');
+			await recipientPage.getByLabel('Startdatum').fill('2026-12-07');
+			const seriesCreated = recipientPage.waitForResponse(
+				(response) => response.url().includes('/api/v1/series') && response.request().method() === 'POST',
+			);
+			await recipientPage.getByRole('button', { name: 'Anlegen', exact: true }).click();
+			const seriesResponse = await seriesCreated;
+			expect(seriesResponse.status(), 'Serien-Anlage ohne Eingriff in die Auswahl muss 2xx liefern').toBeLessThan(300);
+			expect(seriesResponse.status()).toBeGreaterThanOrEqual(200);
+		} finally {
+			const series = (await (await recipientPage.request.get('/api/v1/series')).json()) as { id: number }[];
+			for (const entry of series) {
+				await recipientPage.request.delete(`/api/v1/series/${entry.id}`);
+			}
+			const tasks = (await (await recipientPage.request.get('/api/v1/tasks')).json()) as { id: number }[];
+			for (const entry of tasks) {
+				await recipientPage.request.delete(`/api/v1/tasks/${entry.id}`);
+			}
+			const groups = (await (await page.request.get('/api/v1/groups')).json()) as { id: number }[];
+			for (const group of groups) {
+				await page.request.delete(`/api/v1/groups/${group.id}`);
+			}
+			await recipientContext.close();
+		}
+	});
 });
