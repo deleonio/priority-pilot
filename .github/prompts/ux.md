@@ -1,6 +1,6 @@
 FOCUS: ONLY issue {{ISSUE_NR}}. Write the UX review into the harness marker comment — advisory, not blocking. NO code changes, no branch, no PR. NO browser, NO Playwright, NO dynamic inspection. Only static rule checks (sources: step 4). Save tokens: short, precise, direct.
 
-Method, rules, and output block structure (binding, not repeated here): .claude/skills/ticket-ux/SKILL.md — read it before starting.
+Method, rules, and output block structure (binding, not repeated here): .claude/skills/ticket-ux/SKILL.md — read it before starting. Includes its Delegation section (KoliBri component lookups go to the kolibri-recherche subagent role).
 
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.

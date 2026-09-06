@@ -339,10 +339,12 @@ Mechanismen, die unterschiedliche Richtungen haben und sich nicht ins Gehege kom
 | Aufgabe  | breit lesen, ausführen, fassen     | einmal urteilen, Weg vorschlagen  |
 | Rückgabe | kurzes Fazit, nie Rohtext          | ≤ 40 Zeilen Handlungsanweisung    |
 
-**Delegation:** Zwei Rollen in [`.claude/agents/`](../.claude/agents/) mit
+**Delegation:** Drei Rollen in [`.claude/agents/`](../.claude/agents/) mit
 Rückgabevertrag (Fazit statt Rohtext — ohne den Vertrag verdoppeln Subagents Tokens,
 denn jedes Ergebnis fließt in den Elternkontext zurück): `recherche` (read-only
-Suchfragen) und `gate-runner` (Gate-Kette, meldet nur Exit-Code + Fehlersignatur).
+Suchfragen), `gate-runner` (Gate-Kette, meldet nur Exit-Code + Fehlersignatur) und
+`kolibri-recherche` (KoliBri-Komponenten-Lookups inkl. KoliBri-MCP in der Rolle; UX-Phase,
+seit #1271).
 Die Workflows setzen `subagent-model: haiku` (Triage schon länger; Umsetzung/Fixup/Review
 seit ADR 0008). Seit CLI 2.1.251 ist `CLAUDE_CODE_SUBAGENT_MODEL` nur noch Default: das
 Rollen-Frontmatter (`haiku` bei beiden Rollen) schlägt es, der Override greift nur bei

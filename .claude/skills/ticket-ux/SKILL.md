@@ -71,6 +71,15 @@ The `VERDICT:` line does **not** belong in the block — the verdict is reported
 - **Optional:** for non-UI issues (the analysis sets `ai:needs-spec` directly), the UX phase never runs.
 - **Fail-safe:** if UX questions remain unclear, don't guess — collect the open questions in the UX block and report the issue as not UX-ready; a human clarifies before the spec.
 
+## Delegation — KoliBri lookups go to the cheaper role (ADR 0008)
+
+KoliBri component lookups are read-heavy with a short result (component fit, props/slots,
+samples): delegate them to the `kolibri-recherche` role (agent in `.claude/agents/`, haiku via
+subagent model; its tool set includes the KoliBri MCP search/fetch). The UX judgment, the rule
+checks and the KI-UX block stay in the parent — delegation replaces context-gathering, not
+judgment. If the role isn't available (local setup), run the lookups yourself or use a
+general-purpose subagent.
+
 ## Tools
 
 - **KoliBri MCP** (search/fetch): read component documentation to verify component choice.
