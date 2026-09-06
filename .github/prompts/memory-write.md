@@ -20,7 +20,7 @@
 **IMPORTANT**:
 - Write for SOMEONE WITHOUT YOUR CONTEXT → name files, lines, identifiers
 - Statements must be verifiable (file:line plus what was there) — file states go stale!
-- Write the FIRST snapshot IMMEDIATELY after the analysis, update before EVERY soft-deadline check
+- Write the FIRST snapshot IMMEDIATELY after the analysis; afterwards keep the note current at natural checkpoints (after each completed sub-step and before long-running commands) — bundle updates, don't rewrite per step
 - Fill empty sections with `-`, don't omit them
 
 ---
