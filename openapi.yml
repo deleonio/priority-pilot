@@ -1496,6 +1496,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /groups/{id}/series:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Gruppe
+        schema:
+          type: integer
+    get:
+      summary: Füreinander angelegte Serien der Gruppe auflisten
+      description: >-
+        Serien, die ein Gruppenmitglied für ein anderes Mitglied angelegt hat
+        (#1254). Selbst-Anlagen und Altbestand ohne Ersteller bleiben privat
+        (auch für Admins); ruhende Serien sind enthalten und als active:false
+        gekennzeichnet. Reduzierter Feldsatz ohne Beschreibung, Adresse,
+        Koordinaten und Nutzer-Ids. Fremde Gruppe 404, unauthentifiziert 401
+        (globales requireAuth).
+      operationId: listGroupSeries
+      tags: [groups]
+      responses:
+        '200':
+          description: Füreinander angelegte Serien, sortiert nach Eigentümer und Titel
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupSeries'
+        '404':
+          description: Gruppe unbekannt oder kein Mitglied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/invitations:
     parameters:
       - name: id
@@ -2007,6 +2041,28 @@ components:
         recipientName:
           type: string
           description: Anzeigename des Empfängers (Fallback E-Mail)
+        creatorName:
+          type: string
+          description: Anzeigename des Erstellers (Fallback E-Mail)
+    GroupSeries:
+      type: object
+      description: >-
+        Serie, die ein Gruppenmitglied für ein anderes Mitglied angelegt hat
+        (#1254) — bewusst ohne Beschreibung, Adresse, Koordinaten und Nutzer-Ids.
+      required: [id, title, rhythm, active, ownerName, creatorName]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        rhythm:
+          $ref: '#/components/schemas/SeriesRhythm'
+        active:
+          type: boolean
+          description: false = ruhend (z. B. nach Mitgliederaustritt #1251)
+        ownerName:
+          type: string
+          description: Anzeigename des Eigentümers (Fallback E-Mail)
         creatorName:
           type: string
           description: Anzeigename des Erstellers (Fallback E-Mail)

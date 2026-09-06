@@ -1,5 +1,13 @@
 import { KolAlert, KolAvatar, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
-import type { Group, GroupInviteLink, GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
+import type {
+	Group,
+	GroupInviteLink,
+	GroupInvitation,
+	GroupMember,
+	GroupSeries,
+	GroupTask,
+	UserSearchHit,
+} from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -49,6 +57,9 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 	// Füreinander angelegte Aufgaben (#1223): reine Lese-Ansicht, keine Aktionen je Eintrag.
 	// `null` = erster Ladevorgang — sonst blitzt der Leerzustand-Hinweis vor den ersten Daten auf.
 	const [tasks, setTasks] = useState<GroupTask[] | null>(null);
+	// Füreinander angelegte Serien (#1254): analoge Lese-Ansicht, wird im selben Ladevorgang
+	// mitgezogen (KI-UX Regel 7: kein zweiter Spinner-Lauf, kein Springen von leer auf voll).
+	const [seriesList, setSeriesList] = useState<GroupSeries[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState('');
 	const [hits, setHits] = useState<UserSearchHit[] | null>(null);
@@ -68,14 +79,16 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 
 	const load = useCallback(async (): Promise<void> => {
 		try {
-			const [loadedMembers, loadedInvitations, loadedTasks] = await Promise.all([
+			const [loadedMembers, loadedInvitations, loadedTasks, loadedSeries] = await Promise.all([
 				api.getGroupMembers({ id: groupId }),
 				ownRole === 'admin' ? api.getGroupInvitations({ id: groupId }) : Promise.resolve([]),
 				api.getGroupTasks({ id: groupId }),
+				api.getGroupSeries({ id: groupId }),
 			]);
 			setMembers(Array.isArray(loadedMembers) ? loadedMembers : []);
 			setInvitations(Array.isArray(loadedInvitations) ? loadedInvitations : []);
 			setTasks(Array.isArray(loadedTasks) ? loadedTasks : []);
+			setSeriesList(Array.isArray(loadedSeries) ? loadedSeries : []);
 			setError(null);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -249,6 +262,28 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDe
 									<div className="group-task-recipient">{task.recipientName}</div>
 									<div className="group-task-title">{task.title}</div>
 									<div className="group-task-creator">{`von ${task.creatorName}`}</div>
+								</li>
+							))}
+						</ul>
+					)}
+					<KolHeading _label="Füreinander angelegte Serien" _level={4} />
+					{seriesList === null ? (
+						<KolSpin _show _variant="cycle" _label="Gruppen-Serien werden geladen …" />
+					) : seriesList.length === 0 ? (
+						<p className="hint">Noch hat niemand eine Serie für ein anderes Mitglied angelegt.</p>
+					) : (
+						<ul className="group-series">
+							{seriesList.map((series) => (
+								<li key={series.id} className="group-series-entry">
+									{/* Je eigene Zeile (KI-UX #1254): Eigentümer als Haupteintrag, Titel darunter,
+									    Rhythmus und Ersteller als Sekundärzeile — Block-Elemente, damit lange
+									    Namen bei 375 px umbrechen statt überlaufen (AK7). */}
+									<div className="group-series-owner">{series.ownerName}</div>
+									<div className="group-series-title">{series.title}</div>
+									<div className="group-series-meta">
+										{`${series.rhythm} · von ${series.creatorName}`}
+										{!series.active && <KolBadge _label="Ruhend" />}
+									</div>
 								</li>
 							))}
 						</ul>

@@ -9,6 +9,7 @@ import type {
 	GroupInvitation,
 	GroupMember,
 	GroupTask,
+	GroupSeries,
 	GroupUpdate,
 	GroupInviteLink,
 	InviteLinkPreview,
@@ -358,6 +359,18 @@ export const api = {
 	/** Füreinander angelegte offene Aufgaben der Gruppe (#1223), sortiert nach Empfänger/Fälligkeit. */
 	async getGroupTasks({ id, ...init }: { id: number } & Init): Promise<GroupTask[]> {
 		const { data, error, response } = await client.GET('/groups/{id}/tasks', {
+			params: { path: { id } },
+			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Füreinander angelegte Serien der Gruppe (#1254), sortiert nach Eigentümer/Titel. */
+	async getGroupSeries({ id, ...init }: { id: number } & Init): Promise<GroupSeries[]> {
+		const { data, error, response } = await client.GET('/groups/{id}/series', {
 			params: { path: { id } },
 			signal: init.signal,
 		});

@@ -36,6 +36,8 @@ vi.mock('../api', () => ({
 		// #1223: füreinander angelegte Aufgaben — ohne Implementierung resolves `undefined` und
 		// läuft auf die Array-Verteidigung im Produktionscode (leere Liste).
 		getGroupTasks: vi.fn(),
+		// #1254: füreinander angelegte Serien — gleiche Array-Verteidigung wie bei getGroupTasks.
+		getGroupSeries: vi.fn(),
 		removeGroupMember: vi.fn(),
 		updateGroupMemberRole: vi.fn(),
 	},
