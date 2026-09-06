@@ -523,8 +523,15 @@ Der Runner killt den Prozess am Ende; `ui-inspect.sh` hat einen trap für eigene
 Statt harten `timeout-minutes` nutzt jeder Workflow ein **weiches Timeout**, das der Agent über
 die instruierte Deadline selbst kontrolliert:
 
-- **Phase 1 (Triage/Review/Fixup)**: Soft-Deadline 10 Minuten (`now+600`)
-- **Phase 2 (Spec/Implement)**: Soft-Deadline 14 Minuten (`now+840`)
+- **Triage/Spec**: 14 Minuten (`now+840`) · **UX/Documenter**: 10 Minuten (`now+600`)
+- **Implement**: 40 Minuten (`now+2400`) · **Fixup**: 30 Minuten (`now+1800`) · **Review**: 15 Minuten (`now+900`)
+
+Die wandzeit-intensiven Phasen (Implement/Fixup/Review) sitzen bewusst hoeher: Ein Soft-Abort
+kostet einen vollen Resume-Lauf (neue Session, Prompt-Cache der Vorgaenger-Session ist nach der
+Tow-Time weg → Kontext-Rebuild zum Vollpreis), 15 zusaetzliche Runner-Minuten (~$0,12) sind
+billiger. Der Konvergenz-Deckel bleibt darueber bestehen: `ai:continued` erlaubt genau eine
+Wiederholung mit Eskalation, der zweite Soft-Abort geht an den Menschen — laenger drehen ohne
+Eskalation ist bei nicht konvergierenden Laeufen teurer (ADR 0004, #932).
 
 Der `starttime`-Step setzt die Soft-Deadline. Der Prompt instruiert den Agenten, VOR jedem
 Teilschritt `date +%s` gegen die Deadline zu prüfen. Bei Erreichen:
@@ -543,7 +550,7 @@ manuell eingreifen.
 
 ### Timeout-Backstop
 
-`timeout-minutes: 30` als harter Backstop (weit über der Soft-Deadline) — fängt einen hängenden
+`timeout-minutes` je Phase (20–60 min, weit über der jeweiligen Soft-Deadline) als harter Backstop — fängt einen hängenden
 Agent ab (Prompt-Deadline ignoriert, API-Call hängt), ohne das graceful Save bei der Soft-Deadline
 zu stören.
 

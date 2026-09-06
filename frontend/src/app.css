@@ -1844,11 +1844,24 @@ body {
 	width: auto;
 }
 
+/*
+ * Feinschalter „Schnellerfassung aktiv" unter dem Master „KI-Features aktiv" (KolDetails,
+ * Muster docs/ux-pattern-master-detail-settings.md) — gleiche Einrückung wie
+ * `.settings-switch-row--sub` bei den Animations-Feinschaltern.
+ */
+.settings-llm-switch-row--sub {
+	margin-left: 1.25rem;
+}
+
 @media (min-width: 768px) {
 	.settings-llm-switch-row {
 		flex-direction: row;
 		align-items: center;
 		gap: 1rem; /* 16dp */
+	}
+
+	.settings-llm-switch-row--sub {
+		margin-left: 2.5rem;
 	}
 
 	.settings-llm-switch-row kol-input-checkbox[_variant='switch'] {
@@ -2205,6 +2218,7 @@ kol-avatar,
 kol-badge,
 kol-button,
 kol-card,
+kol-details,
 kol-dialog,
 kol-heading,
 kol-input-checkbox,

@@ -232,7 +232,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 1500))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 2400))" >> "$GITHUB_OUTPUT" # 40 min: Implement ist wandzeit-intensivste Phase (Setup+GATE+PR); Soft-Abort-Resume kostet einen vollen Re-Launch ohne Prompt-Cache-Kontinuitaet
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -423,6 +423,7 @@ jobs:
           phase: mentor
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
 
       - name: Umsetzung via Claude
         id: claude
@@ -482,6 +483,7 @@ jobs:
           phase: implement
           since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
 
       - name: Issue-Storage sichern (Harness-Branch)
         # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem
@@ -651,7 +653,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 1800))" >> "$GITHUB_OUTPUT" # 30 min: Fixup laeuft mit grossem CI-Log-Kontext; lange Turns sind Normalfall, kein Ausnahmezustand
           # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
           # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
           # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
@@ -981,6 +983,7 @@ jobs:
           phase: mentor
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
 
       # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
       # concurrency-Gruppe) lässt Fixup-Läufe desselben Branches nie parallel laufen, und der
@@ -1067,6 +1070,7 @@ jobs:
           phase: fixup
           since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
 
       - name: Issue-Storage sichern (Harness-Branch)
         # Siehe implement-Job — gleiche Mechanik (ADR 0007), Phase fixup.

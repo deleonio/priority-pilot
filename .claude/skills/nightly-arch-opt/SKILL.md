@@ -16,6 +16,9 @@ content is for the project's German-speaking contributors.
 
 1. **Research** with the **Grep/Glob/Read tools**. Bash `find`/`grep` are NOT permitted in the
    restricted tools tier — use the tools instead. Read only files that are actually relevant.
+   The candidate search across the search areas is read-heavy with a short result: delegate it
+   to the `recherche` subagent role (ADR 0008) — only the candidate findings per area come back
+   into your context. Weighing candidates and the result block stay in the parent.
 2. **Analyze** suspects against the architecture principles below.
 3. **Output**: result block if something was found; otherwise `FOUND: false` — honest, never forced.
 

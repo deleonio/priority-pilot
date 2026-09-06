@@ -57,6 +57,31 @@ inputs:
       Lauf" exakt ist statt über eine Zeituntergrenze geschätzt. Leer = pi-Standardablage.
     required: false
     default: ''
+  effort:
+    description: >-
+      Aufgelöster Effort-Level dieses Laufes (steps.setup.outputs.effort; low | medium | high |
+      xhigh | max). Schließt die Messlücke: Routing entscheidet Modell UND Effort, messbar war
+      bisher nur Modell. Leer = Feld bleibt weg (ältere Aufrufer, Cron-Altlasten).
+    required: false
+    default: ''
+  verdict:
+    description: >-
+      Review-Verdict dieses Laufes (reviewed | needs-fixup | needs-human) aus dem Review-Fakten-
+      Schritt. Nur für phase=review sinvoll gesetzt; leer = Feld bleibt weg.
+    required: false
+    default: ''
+  findings:
+    description: >-
+      Anzahl Inline-Review-Kommentare (= Findings, je einer nach SKILL Step 4) dieses Laufes.
+      Nur phase=review; leer = Feld bleibt weg.
+    required: false
+    default: ''
+  nits:
+    description: >-
+      Anzahl Nits aus dem „📝 Nits"-Abschnitt des ai-review-Sammelkommentars. Nur phase=review;
+      leer = Feld bleibt weg.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -71,6 +96,10 @@ runs:
         PROVIDER: ${{ inputs.provider }}
         RUNTIME: ${{ inputs.runtime }}
         SESSION_DIR: ${{ inputs.session-dir }}
+        EFFORT: ${{ inputs.effort }}
+        VERDICT: ${{ inputs.verdict }}
+        FINDINGS: ${{ inputs.findings }}
+        NITS: ${{ inputs.nits }}
       run: |
         set -uo pipefail
 
@@ -107,13 +136,20 @@ runs:
         # TypeScript-Typen nativ beim Laden, die Skripte nutzen ausschliesslich loeschbare
         # Syntax — damit laeuft die Erfassung in ALLEN sieben Phasen ohne Zusatz-Setup.
         # Faellt das Type-Stripping aus (aelteres Node), greift tsx als Fallback.
+        # Kontext-Flags (effort/verdict/findings/nits): nur gesetzt mitgeben — die Skripte
+        # lassen leere Flags weg, damit Alt-Aufrufer weiterhin schlanke Eintraege schreiben.
+        EXTRA_ARGS=()
+        [ -n "$EFFORT" ] && EXTRA_ARGS+=(--effort "$EFFORT")
+        [ -n "$VERDICT" ] && EXTRA_ARGS+=(--verdict "$VERDICT")
+        [ -n "$FINDINGS" ] && EXTRA_ARGS+=(--findings "$FINDINGS")
+        [ -n "$NITS" ] && EXTRA_ARGS+=(--nits "$NITS")
         SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/${SCRIPT_NAME}"
         OUT="$(node "$SCRIPT" \
           --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
-          "${SCOPE_ARGS[@]}" 2>&1)" \
+          "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1)" \
           || OUT="$(pnpm exec tsx "$SCRIPT" \
               --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
-              "${SCOPE_ARGS[@]}" 2>&1 || true)"
+              "${SCOPE_ARGS[@]}" "${EXTRA_ARGS[@]}" 2>&1 || true)"
         printf '%s\n' "$OUT"
 
         # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und

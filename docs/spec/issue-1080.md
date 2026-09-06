@@ -8,7 +8,7 @@ Im Settings-Tab „KI-Provider" gibt es zwei voneinander unabhängige, clientsei
 
 ## Schalter
 
-- Beide Schalter stehen im Tab „KI-Provider" als Switch-Zeilen, **positiv** formuliert (Switch an = Funktion vorhanden), in der Reihenfolge Hauptschalter → Hinweis-Alert → Schnellerfassung-Option.
+- Beide Schalter stehen im Tab „KI-Provider" als Switch-Zeilen, **positiv** formuliert (Switch an = Funktion vorhanden), in der Reihenfolge Hauptschalter → Hinweis-Alert → Schnellerfassung-Option. Die Schnellerfassung-Option liegt in einem `KolDetails` („KI-Funktionen-Details", Muster `docs/ux-pattern-master-detail-settings.md`), das synchron mit dem Hauptschalter öffnet/schließt.
 - Persistenz rein clientseitig per `localStorage` (Keys `pp-ai-enabled` und `pp-quick-capture-enabled`), Best-Effort: fehlender, ungültiger oder nicht lesbarer Eintrag → Default (**an**).
 - Änderungen wirken sofort (kein Speichern-Button) und überleben `page.reload()`.
 

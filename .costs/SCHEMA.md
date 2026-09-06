@@ -47,16 +47,43 @@ Geschrieben von `.github/scripts/cost-from-transcript.ts` über die Action
 `.github/actions/record-cost`. Ältere Datensätze haben sie nicht — Leser müssen sie
 als optional behandeln.
 
-| Feld                  | Typ    | Bedeutung                                                                              |
-| --------------------- | ------ | -------------------------------------------------------------------------------------- |
-| `phase`               | string | Pipeline-Phase (`analyse`, `ux`, `spec`, `implement`, `review`, `fixup`, `documenter`) |
-| `model`               | string | Modell mit dem größten Output-Anteil im Lauf                                           |
-| `provider`            | string | Aufgelöster LLM-Provider (`claude`, `zai`, `openrouter`)                               |
-| `cacheCreationTokens` | int    | Anteil an `tokensIn`, der in den Prompt-Cache geschrieben wurde (~1,25x Preis)         |
-| `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                    |
-| `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                       |
-| `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten           |
-| `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                        |
+| Feld                  | Typ    | Bedeutung                                                                                 |
+| --------------------- | ------ | ----------------------------------------------------------------------------------------- |
+| `phase`               | string | Pipeline-Phase (`analyse`, `ux`, `spec`, `implement`, `review`, `fixup`, `documenter`)    |
+| `model`               | string | Modell mit dem größten Output-Anteil im Lauf                                              |
+| `provider`            | string | Aufgelöster LLM-Provider (`claude`, `zai`, `openrouter`)                                  |
+| `cacheCreationTokens` | int    | Anteil an `tokensIn`, der in den Prompt-Cache geschrieben wurde (~1,25x Preis)            |
+| `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                       |
+| `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                          |
+| `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten              |
+| `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                           |
+| `effort`              | string | Aufgelöster Effort-Level des Laufes (`low` \| `medium` \| `high` \| `xhigh` \| `max`)     |
+| `verdict`             | string | Review-Verdict (`reviewed` \| `needs-fixup` \| `needs-human`) — nur `phase: review`       |
+| `findings`            | int    | Inline-Review-Kommentare des Laufes (= Findings, je einer nach SKILL Step 4) — nur review |
+| `nits`                | int    | Nits aus dem „📝 Nits“-Abschnitt des ai-review-Sammelkommentars — nur review              |
+
+**Warum `effort`/`verdict`/`findings`/`nits` (2026-09):** Die Analyse-Routing-Entscheidung
+(ADR 0004) steuert Modell **und** Effort — messbar war nur Modell. Und die Ursache der höheren
+Fixup-Rate extern umgesetzter Tickets (67 % vs. 53 %) war nicht unterscheidbar: schwächerer
+Code oder strengerer Review ohne Spec-Kontext. `findings` zählt Inline-Kommentare (SKILL
+Step 4: je Finding EIN Kommentar), `nits` die Nicht-blockier-Liste im Sammelkommentar — beide
+deterministisch ohne LLM, erhoben im Review-Fakten-Schritt von `05-review.yml`. Auswertung
+gegen die versiegelten Dateien (Herkunft: Tickets mit `analyse`+`implement`-Einträgen =
+Pipeline, nur `review`/`fixup` = extern umgesetzt):
+
+```bash
+# Effort-Matrix: Ø Turns/Kosten je Phase × Effort (ab Einträgen mit effort-Feld)
+jq -s '[.[][] | select(.effort != null)] | group_by(.phase + " | " + .effort) |
+  .[] | [.[0].phase, .[0].effort, length,
+    ((map(.turns // 0) | add) / length * 10 | round / 10),
+    ((map(.valueCost // 0) | add) / length * 100 | round / 100)] | @tsv' .costs/*.json | column -t
+
+# Review-Ursache: Findings/Nits/Verdict je Herkunft (extern vs. Pipeline)
+jq -s 'group_by(.issueId) | .[] |
+  (if (any(.[]; .phase == "implement") and any(.[]; .phase == "analyse")) then "pipeline" else "extern" end) as $g |
+  map(select(.phase == "review" and .findings != null))[] | [$g, (.verdict // "?"), .findings, .nits] | @tsv' .costs/*.json \
+  | sort | uniq -c | sort -rn | head -20
+```
 
 **`tokensIn` enthält die Cache-Token.** Es ist die Summe aus ungecachten Eingabe-Token,
 `cacheCreationTokens` und `cacheReadTokens` — also der gesamte eingabeseitige Verbrauch.
