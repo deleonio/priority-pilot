@@ -1,5 +1,5 @@
-import { KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
-import type { GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
+import { KolAlert, KolAvatar, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
+import type { Group, GroupInvitation, GroupMember, GroupTask, UserSearchHit } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -16,6 +16,11 @@ type GroupDetailProps = {
 	ownRole: GroupMember['role'];
 	/** Wechsel stößt ein Neuladen der Daten an (Klick auf die bereits aufgeklappte Gruppenkarte). */
 	refreshKey?: number;
+	/**
+	 * Gruppe mit Name und Bildadresse (#1225, AK4) für den Detailkopf — bewusst optional, damit
+	 * der Kopf entfällt, wenn nur die IDs bekannt sind (Unit-Tests ohne Gruppenobjekt).
+	 */
+	group?: Group;
 };
 
 /**
@@ -27,7 +32,7 @@ type GroupDetailProps = {
  * Die Suche ist bewusst KolInputText + eigene Ergebnisliste statt KolCombobox: @public-ui 4.3.0
  * hat keinen Filter-Hook für serverseitige Treffer (#1083).
  */
-export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailProps) => {
+export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, group }: GroupDetailProps) => {
 	const [members, setMembers] = useState<GroupMember[] | null>(null);
 	const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
 	// Füreinander angelegte Aufgaben (#1223): reine Lese-Ansicht, keine Aktionen je Eintrag.
@@ -123,6 +128,14 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0 }: GroupDetailPro
 				<KolSpin _show _variant="cycle" _label="Mitglieder werden geladen …" />
 			) : (
 				<>
+					{group !== undefined && (
+						/* Detailkopf (#1225, AK4): Gruppenbild/Initialen neben dem Namen — derselbe
+						   KolAvatar wie in der Liste (`_color` ungesetzt, rein dekorativ). */
+						<div className="group-detail-head">
+							<KolAvatar className="groups-avatar" _label={group.name} _src={group.imageUrl ?? undefined} />
+							<KolHeading _label={group.name} _level={4} />
+						</div>
+					)}
 					<KolHeading _label="Mitglieder" _level={4} />
 					<ul className="group-members">
 						{members.map((member) => (

@@ -1,4 +1,4 @@
-import { KolAlert, KolBadge, KolButton, KolCard, KolHeading, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolAvatar, KolBadge, KolButton, KolCard, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Group, ReceivedInvitation } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
@@ -178,6 +178,10 @@ export const GroupsSection = () => {
 										setOpenGroupId(openGroupId === group.id ? null : group.id);
 									}}
 								>
+									{/* Gruppenbild (#1225, AK4): Avatar links neben dem Namen — mit imageUrl das Bild,
+									    ohne Bild die Initialen aus dem Namen (Muster App.tsx:665). `_color` bewusst
+									    ungesetzt (KI-UX), rein dekorativ und kein eigenes Klick-Ziel. */}
+									<KolAvatar className="groups-avatar" _label={group.name} _src={group.imageUrl ?? undefined} />
 									<div className="groups-info">
 										<KolButton
 											_label={group.name}
@@ -208,7 +212,7 @@ export const GroupsSection = () => {
 										</div>
 									)}
 									{openGroupId === group.id && (
-										<GroupDetail groupId={group.id} ownRole={group.role} refreshKey={detailRefreshTick} />
+										<GroupDetail groupId={group.id} ownRole={group.role} refreshKey={detailRefreshTick} group={group} />
 									)}
 								</li>
 							))}
