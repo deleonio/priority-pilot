@@ -57,6 +57,9 @@ const createOwnTaskViaUi = async (page: Page, title: string): Promise<void> => {
 
 /** Öffnet das Bearbeiten-Formular der ersten Aufgabe in der Liste (Muster crud.spec.ts). */
 const openFirstTaskEdit = async (page: Page): Promise<void> => {
+	// Die „Weitere Aktionen"-Menüs liegen im Aufgaben-Tab (TaskTree) — das Dashboard zeigt die
+	// Aufgabe nur als Karte ohne Aktionsmenü (Test-Pflege: Tab-Wechsel fehlte im Spec-Entwurf).
+	await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 	await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 	await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();

@@ -2337,6 +2337,15 @@ components:
       properties:
         title:
           type: string
+        userId:
+          type: integer
+          description: >-
+            Optionaler Empfänger (#1252): übergibt die Aufgabe an das benannte
+            Gruppenmitglied (Eigentümerwechsel, Aufrufer wird Ersteller). Der
+            Aufrufer muss mit dem Empfänger eine Gruppe teilen (sonst 403); ohne
+            das Feld oder mit der eigenen ID bleibt der Eigentümer unverändert.
+            Übergabe schreibt nur die Eigentumsfelder; Abhängigkeiten, die der
+            Empfänger nicht sehen kann, lehnen die Übergabe mit 409 ab.
         status:
           $ref: '#/components/schemas/TaskStatus'
         priority:
@@ -3060,6 +3069,15 @@ components:
       properties:
         title:
           type: string
+        userId:
+          type: integer
+          description: >-
+            Optionaler Empfänger (#1252): übergibt das Serien-Template an das
+            benannte Gruppenmitglied (Eigentümerwechsel, Aufrufer wird Ersteller).
+            Der Aufrufer muss mit dem Empfänger eine Gruppe teilen (sonst 403);
+            ohne das Feld oder mit der eigenen ID bleibt der Eigentümer
+            unverändert. Bereits erzeugte Instanzen bleiben beim bisherigen
+            Eigentümer (keine Kaskade des Eigentümers).
         rhythm:
           $ref: '#/components/schemas/SeriesRhythm'
         priority:
