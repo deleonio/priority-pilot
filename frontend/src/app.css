@@ -2048,7 +2048,7 @@ body {
 	flex-shrink: 0;
 }
 
-/* #1220: „Ausbalancieren" bricht wie die Switches nicht um und bleibt damit auch auf schmalen
+/* #1220: „Neu berechnen" bricht wie die Switches nicht um und bleibt damit auch auf schmalen
    Viewports voll bedienbar; der Sortier-Stand (aria-live) nimmt als Vollzeile eine eigene Reihe. */
 .task-filter-bar .task-balance-button {
 	flex-shrink: 0;
