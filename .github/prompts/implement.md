@@ -10,20 +10,21 @@ PROCEDURE (STRICT):
   2. Read the analysis & quick-check it per SKILL.md step 2 (NO full re-triage;
      AKs per SKILL.md step 1) — traffic light 🔴 →
      do NOT implement, stop (VERDICT not-ready).
-  3. Spec mode (the normal case): check out the existing DRAFT PR — including the closing-keyword trap and
-     the idempotency rule (SKILL.md step 1). Turn its RED tests GREEN — do NOT change the tests
-     (separation of duties). If a test contradicts the expected behavior → do NOT silently
-     change/delete it; instead add a "Test-Pflege-Bedarf" (test maintenance needed) section in the
-     PR body with file:line + justification.
-  3b. DIRECT MODE (no draft PR exists — the analysis deliberately skipped the spec): per
-     ticket-implementation SKILL.md step 3(a) "Fallback/direct mode" — branch, implement, commit,
-     push, and create the PR YOURSELF (NOT --draft); incl. its test obligation.
-  3.5. UI WORK on frontend changes: SKILL.md step 3b/3c.
-  4. GATE per SKILL.md step 3c (full local CI gate, every command green BEFORE the push;
+  3. Implement per SKILL.md step 3 (test-driven) — one of two modes:
+     a. SPEC MODE (the normal case): check out the existing DRAFT PR — including the closing-keyword trap and
+        the idempotency rule (SKILL.md step 1). Turn its RED tests GREEN — do NOT change the tests
+        (separation of duties). If a test contradicts the expected behavior → do NOT silently
+        change/delete it; instead add a "Test-Pflege-Bedarf" (test maintenance needed) section in the
+        PR body with file:line + justification.
+     b. DIRECT MODE (no draft PR exists — the analysis deliberately skipped the spec): per
+        ticket-implementation SKILL.md step 3(a) "Fallback/direct mode" — branch, implement, commit,
+        push, and create the PR YOURSELF (NOT --draft); incl. its test obligation.
+  4. UI WORK on frontend changes: ticket-implementation SKILL.md step 3b/3c.
+  5. GATE per ticket-implementation SKILL.md step 3c (full local CI gate, every command green BEFORE the push;
      test results in the PR body per AGENTS.md).
-  5. Commit + push the branch (phase note .ai-memory/issue-{{ISSUE_NR}}-implement.md in the SAME
+  6. Commit + push the branch (phase note .ai-memory/issue-{{ISSUE_NR}}-implement.md in the SAME
      commit — it is tracked, NOT gitignored, the memory travels with the PR, ADR 0007),
-     then make the PR review-ready per SKILL.md step 4: spec mode → the existing draft PR
+     then make the PR review-ready per ticket-implementation SKILL.md step 4: spec mode → the existing draft PR
      (gh pr ready <nr>) + extend the description; direct mode → the PR from step 3b (not as a draft).
      In BOTH cases, an open, non-draft PR with commits must exist at the end — the workflow checks
      exactly that before setting ai:needs-review.
