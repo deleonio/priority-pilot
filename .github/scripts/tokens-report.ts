@@ -4,7 +4,7 @@
 //
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte: Der Report
 // zeigt damit genau das, was dauerhaft erhalten ist. Läuft lokal und im Workflow
-// „Pipeline-Uebersicht" (woechentlich, read-only) in die Job-Summary:
+// „Kosten-Uebersicht" (woechentlich, read-only) in die Job-Summary:
 //   node .github/scripts/tokens-report.ts --dir .costs
 //
 // Stil-Spiegel von cost-aggregate.ts: Node-Eintritt, keine externen Deps, ESM,
