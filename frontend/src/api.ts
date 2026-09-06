@@ -10,6 +10,9 @@ import type {
 	GroupMember,
 	GroupTask,
 	GroupUpdate,
+	GroupInviteLink,
+	InviteLinkPreview,
+	InviteLinkRedeemResult,
 	ReceivedInvitation,
 	UserSearchHit,
 	LlmModels,
@@ -420,6 +423,43 @@ export const api = {
 
 	async declineInvitation({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.POST('/invitations/{id}/decline', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// ── Einladungslinks (#1226) ───────────────────────────────────────────────────────
+	// `getInviteLink` und `redeemInviteLink` sprechen den ÖFFENTLICH gemounteten Teil-Router an
+	// (express/index.ts vor requireAuth); redeem prüft die Session selbst (401).
+
+	async createGroupInviteLink({ id }: { id: number }): Promise<GroupInviteLink> {
+		const { data, error, response } = await client.POST('/groups/{id}/invite-links', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async getInviteLink({ token }: { token: string }): Promise<InviteLinkPreview> {
+		const { data, error, response } = await client.GET('/invite-links/{token}', { params: { path: { token } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async redeemInviteLink({ token }: { token: string }): Promise<InviteLinkRedeemResult> {
+		const { data, error, response } = await client.POST('/invite-links/{token}/redeem', {
+			params: { path: { token } },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async revokeInviteLink({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/invite-links/{id}', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

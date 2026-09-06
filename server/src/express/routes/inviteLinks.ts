@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { UniqueConstraintError } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { Group, GroupInviteLink, GroupMember, User } from '../../models/index.js';
 import sequelize from '../../database.js';
@@ -68,19 +69,36 @@ inviteLinksPublicRouter.post(
 				sendError(res, 410, 'Dieser Einladungslink ist nicht mehr gültig.');
 				return;
 			}
-			const existing = await GroupMember.findOne({ where: { groupId: link.groupId, userId: user.id } });
-			if (existing) {
-				sendError(res, 409, 'Du bist bereits Mitglied dieser Gruppe.');
-				return;
-			}
+			let alreadyMember = false;
 			await sequelize.transaction(async (transaction) => {
+				// Membership-Check IN der Transaktion (Kreuzverhör #1246): Zwischen Prüfen und Einfügen
+				// kann ein gleichzeitiger Zweit-Redeem liegen — der Composite-PK (groupId, userId)
+				// fängt die Doppel-Zeile ab, der UniqueConstraintError wird unten genauso zu 409
+				// gemeldet wie der hier vorab geprüfte Fall.
+				const existing = await GroupMember.findOne({
+					where: { groupId: link.groupId, userId: user.id },
+					transaction,
+				});
+				if (existing) {
+					alreadyMember = true;
+					return;
+				}
 				await GroupMember.create(
 					{ groupId: link.groupId, userId: user.id, role: 'member', joinedAt: new Date() },
 					{ transaction },
 				);
 			});
+			if (alreadyMember) {
+				sendError(res, 409, 'Du bist bereits Mitglied dieser Gruppe.');
+				return;
+			}
 			res.json({ groupId: link.groupId });
-		} catch {
+		} catch (error) {
+			// Gleichzeitiger Zweit-Redeem verletzt den Composite-Primärschlüssel → 409 statt 500.
+			if (error instanceof UniqueConstraintError) {
+				sendError(res, 409, 'Du bist bereits Mitglied dieser Gruppe.');
+				return;
+			}
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	},

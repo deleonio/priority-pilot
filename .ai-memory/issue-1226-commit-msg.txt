@@ -1,0 +1,22 @@
+fix(#1226): Frontend für Einladungslinks ergänzt (AK5/AK6) + Redeem-Transaktionsnit
+
+Review #1246 (Kreuzverhör, 1. Runde): Finding 1 — Frontend-Teil fehlte komplett
+(GroupJoinPage, Root-Weiche, GroupDetail-Admin-Bereich, openapi.yml); Finding 2 —
+PR-Body behauptete nicht existierenden Code; Nit — Membership-Check lag außerhalb
+der Transaktion, gleichzeitiger Zweit-Redeem lief in 500 statt 409.
+
+- openapi.yml: 4 Pfade + 3 Schemas (GroupInviteLink, InviteLinkPreview,
+  InviteLinkRedeemResult), Aliase in client/src/index.ts, api.ts-Fassadenmethoden
+- GroupJoinPage.tsx (neu): öffentliche Beitrittsseite mit 4 Zuständen — Laden,
+  nicht mehr gültig (404/410), Erfolg, 409 als eigener Zustand; Login-Roundtrip
+  über /auth/google/silent mit returnTo
+- Root.tsx: Weiche /gruppen/beitreten vor dem Auth-Gate (Muster /bahn)
+- GroupDetail.tsx: Admin-Bereich „Einladungen“ — Link erzeugen, einmal voll
+  sichtbar mit Kopieren-Aktion, danach maskiert mit Ablaufdatum; Ungültig machen
+  per Bestätigungsdialog (Modal-Muster, Initialfokus Abbrechen)
+- inviteLinks.ts: Membership-Check in die Transaktion gezogen; UniqueConstraintError
+  (gleichzeitiger Zweit-Redeem) → 409 statt 500
+- app.css: Join-Page (eine Spalte, begrenzte Kartenbreite, Primäraktion in voller
+  Breite) + CSS für die Link-Liste
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>

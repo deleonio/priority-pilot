@@ -35,6 +35,12 @@ export type GroupTask = Schemas['GroupTask'];
 export type GroupInvitation = Schemas['GroupInvitation'];
 export type GroupInvitationInput = Schemas['GroupInvitationInput'];
 export type ReceivedInvitation = Schemas['ReceivedInvitation'];
+/** #1226: erzeugter Einladungslink (Token nur bei der Erzeugung übermittelt). */
+export type GroupInviteLink = Schemas['GroupInviteLink'];
+/** #1226: öffentliche Linkpreisgabe — nur Gruppenname und Einladender. */
+export type InviteLinkPreview = Schemas['InviteLinkPreview'];
+/** #1226: Ergebnis des Einlösens eines Einladungslinks. */
+export type InviteLinkRedeemResult = Schemas['InviteLinkRedeemResult'];
 export type UserSearchHit = Schemas['UserSearchHit'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];
 export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];
