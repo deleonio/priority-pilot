@@ -35,13 +35,19 @@ Neue reine Client-Lib `frontend/src/lib/balancePriority.ts` (React-frei, Vorbild
   `virtualPriority = 1 + round(balanceScore · 4)` — score 1 → P5, 0,75 → P4, 0,5 → P3, 0,25 → P2,
   0 → P1. Rein vom eigenen Score abhängig (kein Rang unter Nachbarn).
 - **Sortierung** (`sortTasksByBalance`): absteigend nach `balanceScore`, bei Gleichstand
-  absteigend nach Original-`priority`, sonst stabil (keine Gleichstands-Umsortierung).
+  absteigend nach Original-`priority`, sonst stabil (keine Gleichstands-Umsortierung). Beide
+  Kriterien stammen aus dem Snapshot (`originalPriority`), nicht aus den übergebenen
+  Task-Objekten — sonst bliebe der Gleichstand live und die eingefrorene Liste sortierte sich um,
+  sobald jemand die Prio eines score-gleichen Tasks ändert. Nur wo ein Task im Stand fehlt, zählt
+  sein eigener Wert.
 - **Badge-Label**: virtuelles Badge heißt `~P{n}` (Tilde-Präfix, KI-UX-Empfehlung: virtuelle und
   echte Prio nie ununterscheidbar); Original-Badge bleibt `P{n}` aus `priorityBadge`.
 
 Vertrag (Exporte): `buildBalancePriorities(pillars, doneEffortByPillar, tasks)` →
-`Map<taskId, { balanceScore, virtualPriority }>`, `sortTasksByBalance(tasks, priorities)` →
-neu sortiertes Array (Input wird nicht mutiert), `virtualPriorityLabel(virtualPriority)` →
+`Map<taskId, { balanceScore, virtualPriority, originalPriority }>`,
+`sortTasksByBalance(tasks, priorities)` → neu sortiertes Array (Input wird nicht mutiert),
+`balancePrioritiesEqual(a, b)` → inhaltlicher Vergleich zweier Stände (trägt die
+Veraltet-Erkennung; vergleicht alle drei Felder), `virtualPriorityLabel(virtualPriority)` →
 `` `~P${n}` ``.
 
 ## Snapshot-Semantik (AK2)
@@ -78,7 +84,10 @@ Der Schalter-Zustand ist session-lokal (keine Persistenz).
   entsprechende Reihenfolge (und Badges). Der Schalter bleibt dabei an.
 - **Veraltet-Hinweis:** Ändert sich die Datenlage innerhalb der App (z. B. Aufgabe über die Liste
   erledigen), trägt der Stand-Hinweis „Daten haben sich geändert"; nach der Neuberechnung ist der
-  Zusatz weg.
+  Zusatz weg. Eine geänderte Original-Prio zählt dazu, auch wenn kein Score sich rührt — sie
+  bricht den Gleichstand und verschiebt damit die Reihenfolge.
+- **Ladezustand:** Während „Neu berechnen" lädt, ist der Button deaktiviert und heißt
+  „Berechne neu …", damit er nicht tot statt beschäftigt wirkt.
 
 ## AK3 — Virtuelles Badge, keine Schreibzugriffe
 

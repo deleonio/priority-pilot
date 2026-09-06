@@ -785,7 +785,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								{balanceMode && (
 									<KolButton
 										className="task-balance-button"
-										_label="Neu berechnen"
+										// Während des Ladens sagt das Label, dass gearbeitet wird — `_disabled` allein
+										// ließe den Button bei trägem Netz tot statt beschäftigt wirken.
+										_label={rebalancing ? 'Berechne neu …' : 'Neu berechnen'}
 										_variant="secondary"
 										_disabled={rebalancing}
 										_on={{ onClick: () => void rebalanceTasks() }}

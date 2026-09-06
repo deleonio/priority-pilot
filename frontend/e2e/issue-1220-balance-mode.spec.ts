@@ -94,7 +94,8 @@ test.describe('#1220 Balance-Priorisierung in der Aufgabenliste', () => {
 
 	const balanceSwitch = (page: Page) => page.getByRole('checkbox', { name: /Balance-Priorisierung/i });
 
-	const rebalanceButton = (page: Page) => page.getByRole('button', { name: /Neu berechnen/i });
+	// Das Label wechselt während des Ladens auf „Berechne neu …" — beide Zustände treffen.
+	const rebalanceButton = (page: Page) => page.getByRole('button', { name: /Neu berechnen|Berechne neu/i });
 
 	/** Der aria-live-Hinweis mit dem Stand der Sortierung (trägt auch den Veraltet-Zusatz). */
 	const balanceHint = (page: Page) =>
