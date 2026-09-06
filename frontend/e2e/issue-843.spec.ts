@@ -23,12 +23,11 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * Spec-Bezug: Schritt 2 — Layout-Inspektion: Spacing
 	 * AK1 aus Spec: Settings-UI verwendet einheitliche Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)
 	 *
-	 * Ausgenommen sind die Feinschalter in `.settings-switch-row--sub` (wie bei AK2 unten): Sie
-	 * liegen seit #1227 in einem KolDetails, dessen Zeilenhöhe bei geschlossenem Zustand auf 0
-	 * kollabiert — ihre Bounding-Box würde den 16dp-Abstand zu den Hauptzeilen verfälschen. Das
-	 * `kol-details`-Summary-Element selbst bleibt aber sichtbar und zählt als eigene Zeile — sonst
-	 * würde der Abstandscheck über es hinweg messen (Animationen -> Push-Nachrichten) und einen
-	 * falschen Ausschlag melden.
+	 * Ausgenommen sind die Feinschalter im KolDetails (wie bei AK2 unten): Seit #1227 kollabiert
+	 * deren Zeilenhöhe bei geschlossenem Zustand auf 0 — ihre Bounding-Box würde den 16dp-Abstand
+	 * zu den Hauptzeilen verfälschen. Das `kol-details`-Summary-Element selbst bleibt aber sichtbar
+	 * und zählt als eigene Zeile — sonst würde der Abstandscheck über es hinweg messen
+	 * (Animationen -> Push-Nachrichten) und einen falschen Ausschlag melden.
 	 */
 	test('AK1: Settings-UI verwendet konsistente Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)', async ({
 		page,
@@ -38,7 +37,7 @@ test.describe('#843 Settings Screen Layout', () => {
 
 		// Wir prüfen die Host-Elemente für konsistentes Spacing
 		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general :not(.settings-switch-row--sub) > kol-input-checkbox, .settings-general > kol-button, .settings-general > kol-details',
+			'.settings-general > kol-input-radio, .settings-general > .settings-switch-row > kol-input-checkbox, .settings-general > kol-button, .settings-general > kol-details',
 		);
 		const count = await controls.count();
 
@@ -67,11 +66,10 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * HINWEIS: Wir prüfen die Host-Elemente (kol-input-radio, kol-input-checkbox, kol-button),
 	 * da die role-Elemente im Shadow-DOM unterschiedliche interne Abstände haben.
 	 *
-	 * Ausgenommen sind die Feinschalter in `.settings-switch-row--sub`: Sie stehen bewusst
-	 * eingerückt unter ihrem Master-Schalter, um die Zugehörigkeit zu zeigen — eine Ebene tiefer,
-	 * nicht eine fehlausgerichtete Zeile. Ihre Einrückung ist eigens abgesichert
-	 * (`settings-switch-layout.spec.ts`: Master-Zeilen fluchten, Sub-Zeilen liegen versetzt),
-	 * dieser Test hier deckt weiterhin lückenlos die oberste Ebene ab.
+	 * Ausgenommen sind die Feinschalter im KolDetails: Sie stehen im Kollapsbereich unter ihrem
+	 * Master-Schalter — eine Ebene tiefer, nicht eine fehlausgerichtete Zeile. Ihr Versatz zum Master
+	 * ist eigens abgesichert (`settings-switch-layout.spec.ts`: Master-Zeilen fluchten, Sub-Zeilen
+	 * liegen versetzt), dieser Test hier deckt weiterhin lückenlos die oberste Ebene ab.
 	 */
 	test('AK2: Alle Controls sind auf 24dp linker Margin aligned', async ({ page }) => {
 		await page.goto('/settings/general');
@@ -79,7 +77,7 @@ test.describe('#843 Settings Screen Layout', () => {
 
 		// Wir prüfen die Host-Elemente, nicht die role-Elemente im Shadow-DOM
 		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general :not(.settings-switch-row--sub) > kol-input-checkbox, .settings-general > kol-button',
+			'.settings-general > kol-input-radio, .settings-general > .settings-switch-row > kol-input-checkbox, .settings-general > kol-button',
 		);
 		const count = await controls.count();
 

@@ -71,8 +71,9 @@ selbst wenn das umschließende `KolDetails` zusätzlich geschlossen ist.
 - `kol-details` ist Teil der App-weiten Transparenz-Regel für KoliBri-Host-Hintergründe (#930,
   `frontend/src/app.css`) — kein eigener Hintergrund, wie bei allen anderen KoliBri-Komponenten in
   Priority Pilot.
-- Eingerückte Sub-Zeilen (z. B. `.settings-switch-row--sub`, `.settings-llm-switch-row--sub`)
-  zeigen die Zugehörigkeit zum Master zusätzlich visuell.
+- Die Zugehörigkeit zum Master zeigt sich allein durch die Gruppierung im `KolDetails` und den
+  Innenabstand dessen Kollapsbereichs — eigene Einrückungs-/Sub-Marker-Klassen
+  (`.settings-switch-row--sub`) sind seit dem Flush-Layout ersatzlos entfallen.
 
 ---
 

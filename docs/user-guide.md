@@ -41,7 +41,7 @@ Ganz oben findest du die **Kopf-Aktionen**:
 - **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
@@ -65,11 +65,14 @@ Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist
 begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast, zeigt
 die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
 
+- **Meine Lebensbalance:** ein Herz zeigt, wie ausgeglichen sich dein erledigter
+  Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
+  Säule angelegt hast).
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
   erledigt sind.
-  Über **„Jetzt starten"** öffnest du sie direkt zum Bearbeiten. Steht nichts an,
+  Über **„Erledigt"** schließt du sie in einem Dialog direkt ab. Steht nichts an,
   erscheint ein Hinweis (alles erledigt oder durch offene Vorgänger blockiert).
 - **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste mit höchstens fünf Einträgen,
   davon maximal zwei je Säule. Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht
@@ -101,10 +104,18 @@ die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt 
 Den Überblick über den gesamten Aufgabenbaum mit Oberaufgaben, Abhängigkeiten und dem
 Aufgabenwald findest du im Tab **Wald**.
 
-Oben im Tab findest du zwei Bedienelemente:
+Oben im Tab findest du drei Bedienelemente:
 
 - einen **Umschalter „Erledigte Aufgaben anzeigen"**, der zwischen der Liste der offenen
-  Aufgaben und der Tabelle der erledigten Aufgaben wechselt, und
+  Aufgaben und der Tabelle der erledigten Aufgaben wechselt,
+- einen **Schalter „Balance-Priorisierung"** – sortiert die offene Liste so um, dass Aufgaben
+  nach oben rücken, die auf deine bislang vernachlässigten Säulen einzahlen. Das Prioritäts-
+  Kennzeichen zeigt dann eine abgeleitete Stufe mit Tilde (`~P1` bis `~P5`) statt der eigentlichen
+  Priorität; nach dem Ausschalten zeigt es wieder die gewohnten `P1` bis `P5`. Die Sortierung
+  bleibt nach dem Einschalten so stehen, bis du sie per **„Neu berechnen"** (Button daneben,
+  nur im aktivierten Zustand sichtbar) auf den aktuellen Stand bringst – hat sich zwischendurch
+  etwas geändert, weist der Hinweis unter dem Schalter darauf hin („Daten haben sich geändert").
+  Deine Aufgaben selbst werden dabei nicht verändert, nur die Reihenfolge der Anzeige, und
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
   Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern"** klickst
   oder Enter drückst. Der Suchtext bleibt beim Umschalten bestehen; bei keinem Treffer
@@ -193,6 +204,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
   (siehe „Lebensbalance-Säulen").
+- **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
+  einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint nur beim Anlegen
+  (nicht beim Bearbeiten) und nur, solange du Mitglied mindestens einer Gruppe bist.
 
 Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
 
@@ -406,12 +420,18 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 
 ## Einstellungen
 
-Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit vier Bereichen:
+Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit fünf Bereichen:
+Allgemein, Säulen, KI-Provider, Standort und Gruppen.
 
 ### Allgemein
 
+- **Anzeigename** – der Name, mit dem das Dashboard dich begrüßt; nach dem Ändern
+  mit **„Anzeigename speichern"** übernehmen.
 - **Darstellung** – die Auswahl (System, Hell, Dunkel) ist aktuell deaktiviert; die
   App nutzt durchgehend das helle Farbschema.
+- **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
+  **„Erledigt animieren"** steuern die Bewegungen des Herzens auf dem Dashboard und
+  den Ablauf beim Erledigen einer Aufgabe.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, wird beim Öffnen
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
@@ -453,6 +473,28 @@ Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
   Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
   kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
   wird.
+
+---
+
+## Gruppen
+
+In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufgaben:
+
+- **Gruppe anlegen:** Namen festlegen – du bist damit Admin der Gruppe. Admins tragen
+  das Kennzeichen **„Admin"**, Mitglieder **„Mitglied"**.
+- **Mitglieder verwalten:** als Admin suchst du in der Gruppe über **„Konto suchen"**
+  ein Konto und lädst es per **„Einladen"** ein; entfernen kannst du Mitglieder
+  ebenfalls nur als Admin.
+- **Einladen per Link:** in der Gruppe erzeugst du unter **„Link erzeugen"** einen
+  Einladungs-Link. Wer ihn öffnet – auch ohne Anmeldung –, landet auf einer Seite mit
+  **„Gruppe beitreten"**. Unter **„Offene Einladungen"** kannst du Links kopieren oder
+  für ungültig erklären (**„Ungültig machen"**).
+- **Einladungen** (Karte in der Gruppen-Übersicht, nicht zu verwechseln mit
+  „Offene Einladungen"): eingeladene Konten können annehmen oder ablehnen.
+- **Aufgaben für andere anlegen:** im Aufgaben- und Serien-Formular wählst du im Feld
+  **„Empfänger"**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
+  fremde Aufgaben an den Hinweisen **„Für: {Name}"** und **„Erstellt von: {Name}"**;
+  bearbeiten lassen sie sich nur beim Empfänger.
 
 ---
 
