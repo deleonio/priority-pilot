@@ -291,12 +291,22 @@ describe('Bestandsschutz cost-record.ts', () => {
 					cost: 1,
 					phase: 'implement',
 					model: 'claude-haiku-4-5',
+					effort: 'high',
+					verdict: 'reviewed',
+					findings: 2,
+					nits: 1,
 				},
 				{ rootDir: dir },
 			);
 			const entries = readCostRecords('42', { rootDir: dir });
 			assert.equal(entries.length, 2, 'Append, kein Überschreiben');
 			assert.equal(entries[1].phase, 'implement');
+			// Messlücken-Felder (ADR 0004): gehen sie im Whitelist-Spiegel verloren, fehlen sie
+			// still in jedem versiegelten Kostensatz — die Lücke bliebe zu, ohne dass es auffällt.
+			assert.equal(entries[1].effort, 'high');
+			assert.equal(entries[1].verdict, 'reviewed');
+			assert.equal(entries[1].findings, 2);
+			assert.equal(entries[1].nits, 1);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

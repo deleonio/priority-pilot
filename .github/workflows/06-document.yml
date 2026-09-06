@@ -263,6 +263,7 @@ jobs:
           phase: documenter
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
 
       - name: App-Token für Kosten-Siegel holen
         # always(): Auch bei Fehlläufen die bereits erfassten Costs versiegeln

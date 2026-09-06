@@ -27,7 +27,13 @@ export const COSTS_DIR = '.costs';
  *   - ohne `turns` fehlt die Granularität zwischen Läufen und Token (wie viele API-Calls
  *     brauchte der Lauf — die Kennzahl zur Bearbeitungseffizienz, Issue #984),
  *   - ohne `valueCost` sind Läufe über zai/openrouter in USD nicht vergleichbar (cost ist
- *     dort 0, bewertet wird der Verbrauch zu Modellklassen-Preisen, Issue #984).
+ *     dort 0, bewertet wird der Verbrauch zu Modellklassen-Preisen, Issue #984),
+ *   - ohne `effort` ist die Effort-Hälfte der Analyse-Routing-Entscheidung (ADR 0004)
+ *     nicht auswertbar — Modell und Effort werden je Phase geroutet, messbar war nur Modell,
+ *   - ohne `verdict`/`findings`/`nits` (nur Review-Läufe) ist die Ursache der Fixup-Rate
+ *     nicht unterscheidbar (schwächerer Code vs. strengerer Review ohne Spec-Kontext) —
+ *     Inline-Kommentare sind je ein Finding (SKILL Step 4), Nits stehen gesammelt im
+ *     ai-review-Kommentar; beide sind ohne LLM deterministisch zählbar.
  * Alt-Einträge ohne diese Felder bleiben gültig — Leser müssen sie als optional behandeln.
  */
 export type CostEntry = {
@@ -44,6 +50,10 @@ export type CostEntry = {
 	sidechainTokens?: number;
 	turns?: number;
 	valueCost?: number;
+	effort?: string;
+	verdict?: string;
+	findings?: number;
+	nits?: number;
 };
 
 /** Eingabe eines Runs (Issue-ID wird beim Anhängen zugewiesen). */
@@ -91,6 +101,10 @@ const toEntry = (issueId: string, input: CostInput): CostEntry => {
 	if (input.sidechainTokens !== undefined) entry.sidechainTokens = input.sidechainTokens;
 	if (input.turns !== undefined) entry.turns = input.turns;
 	if (input.valueCost !== undefined) entry.valueCost = input.valueCost;
+	if (input.effort !== undefined) entry.effort = input.effort;
+	if (input.verdict !== undefined) entry.verdict = input.verdict;
+	if (input.findings !== undefined) entry.findings = input.findings;
+	if (input.nits !== undefined) entry.nits = input.nits;
 	return entry;
 };
 

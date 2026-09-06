@@ -165,6 +165,7 @@ jobs:
           phase: ux
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
 
       - name: Issue-Storage sichern (Harness-Branch)
         # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem

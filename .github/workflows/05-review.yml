@@ -335,6 +335,59 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
+      - name: Review-Fakten (Verdict + Findings für den Kostensatz)
+        # Messlücke Review-Ursache: 55% der Tickets laufen extern umgesetzt durchs Review
+        # (ohne Analyse-Kontext, min. opus) mit 67% Fixup-Rate — die Ursache (schwächerer
+        # Code vs. strengerer Review ohne Spec) war mit Token-/Turns-Zahlen nicht
+        # unterscheidbar. Verdict + Findings je Review-Lauf machen sie auswertbar, alles
+        # deterministisch ohne LLM:
+        #   verdict  — derselbe Kanal wie die Label-Post-Assertion (Datei, dann Output-Grep)
+        #   findings — Inline-Kommentare dieses Laufes: SKILL Step 4 postet JE Finding als
+        #              EINEN Kommentar; gezählt wird pulls/comments seit Laufstart
+        #   nits     — Listeneinträge im „📝 Nits (nicht blockierend)“-Abschnitt des
+        #              ai-review-Sammelkommentars (Platzhalter „- -“ zählt nicht)
+        # Fail-open wie record-cost selbst: die Messung darf eine grüne Phase nie rot färben.
+        id: review-facts
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+          START_EPOCH: ${{ steps.starttime.outputs.epoch }}
+        run: |
+          set -uo pipefail
+
+          verdict=""
+          if [ -f /tmp/claude-verdict ]; then
+            verdict="$(tr -d -c 'A-Za-z0-9-' < /tmp/claude-verdict)"
+          fi
+          if [ -z "$verdict" ] && [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'needs-fixup|needs-human|reviewed' | head -1 || true)"
+          fi
+          echo "verdict=${verdict}" >> "$GITHUB_OUTPUT"
+
+          findings=""
+          SINCE_ISO="$(date -u -d "@${START_EPOCH}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
+          if [ -n "$SINCE_ISO" ]; then
+            # ISO-String ist zeichensicher (nur Ziffern/Doppelpunkt/T/Z) — Einbettung in
+            # den jq-Filter ist hier bewusst der Variable-Vorweg (gh api kennt kein --arg).
+            findings="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/comments" --paginate \
+              --jq "[.[] | select(.created_at > \"${SINCE_ISO}\")] | length" 2>/dev/null || true)"
+          fi
+
+          nits=""
+          body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
+            --jq '[.[] | select(.body | startswith("<!-- ai-review -->"))] | last | .body // empty' 2>/dev/null || true)"
+          if [ -n "$body" ]; then
+            nits="$(printf '%s\n' "$body" | awk '
+              /^## / { in_nits = ($0 ~ /Nits/) ? 1 : 0; next }
+              in_nits && /^- / && $0 !~ /^- -/ { c++ }
+              END { print c + 0 }')"
+          fi
+
+          echo "findings=${findings}" >> "$GITHUB_OUTPUT"
+          echo "nits=${nits}" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Review-Fakten::verdict='${verdict:-keins}' findings=${findings:-?} nits=${nits:-?}"
+
       - name: Token & Kosten erfassen
         # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
         # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
@@ -347,6 +400,10 @@ jobs:
           phase: review
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
+          verdict: ${{ steps.review-facts.outputs.verdict }}
+          findings: ${{ steps.review-facts.outputs.findings }}
+          nits: ${{ steps.review-facts.outputs.nits }}
 
       - name: Issue-Storage sichern (Harness-Branch)
         # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem

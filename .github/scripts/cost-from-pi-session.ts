@@ -199,6 +199,14 @@ const flag = (argv: readonly string[], name: string): string | undefined => {
 	return idx >= 0 && idx + 1 < argv.length ? argv[idx + 1] : undefined;
 };
 
+/** Ganzzahl-Flag (z. B. --findings 3): leer oder ungültig = nicht gesetzt, nie NaN in die Datei. */
+const intFlag = (argv: readonly string[], name: string): number | undefined => {
+	const raw = flag(argv, name);
+	if (raw === undefined || raw === '') return undefined;
+	const n = Number(raw);
+	return Number.isInteger(n) && n >= 0 ? n : undefined;
+};
+
 export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	const issue = flag(argv, 'issue');
 	if (!issue) {
@@ -241,6 +249,14 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	const provider = flag(argv, 'provider');
 	if (phase) input.phase = phase;
 	if (provider) input.provider = provider;
+	const effort = flag(argv, 'effort');
+	if (effort) input.effort = effort;
+	const verdict = flag(argv, 'verdict');
+	if (verdict) input.verdict = verdict;
+	const findings = intFlag(argv, 'findings');
+	if (findings !== undefined) input.findings = findings;
+	const nits = intFlag(argv, 'nits');
+	if (nits !== undefined) input.nits = nits;
 	if (usage.model) input.model = usage.model;
 	if (usage.sidechainTokens > 0) input.sidechainTokens = usage.sidechainTokens;
 	if (usage.turns > 0) input.turns = usage.turns;
