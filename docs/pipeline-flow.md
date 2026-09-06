@@ -69,7 +69,7 @@ flowchart TD
 
     %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) + menschlich erstellte PRs ----
     gatemerge -.->|"menschlicher Push<br/>(Reset ai:reviewed)"| autolabel
-    fixup -.->|"menschlicher Push<br/>(Reset ai:needs-fixup)"| autolabel
+    fixup -.->|"menschlicher Push bei klebendem Label<br/>(Re-Arm ai:needs-fixup, kein Review-Reset)"| fixup
     autolabel -->|"label: ai:needs-review<br/>(nur menschliche Aktoren)"| review
 
     %% ---- Review-Verzweigung ----
@@ -132,15 +132,15 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 
 **Trigger-Labels (`ai:needs-*`)** — jede Phase reagiert auf genau eines und konsumiert es:
 
-| Label                | Gesetzt von                                                        | Entfernt von (Konsum)  | Triggert                  |
-| -------------------- | ------------------------------------------------------------------ | ---------------------- | ------------------------- |
-| `ai:needs-analyse`   | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                 | `triage.yml`              |
-| `ai:needs-po-review` | triage (bei 🟢)                                                    | PO (Mensch)            | —                         |
-| `ai:needs-ux-ui`     | PO (nach Prüfung)                                                  | ux                     | `ux.yml`                  |
-| `ai:needs-spec`      | PO (nach Prüfung), ux (bei Erfolg)                                 | spec                   | `spec.yml`                |
-| `ai:needs-impl`      | PO (nach Prüfung), spec (bei Erfolg)                               | implement              | `implement.yml`           |
-| `ai:needs-review`    | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                 | `pr-review.yml`           |
-| `ai:needs-fixup`     | review (🔴), **gate-merge**, **conflict-scan**                     | implement (PR-Eingang) | `04-claude-implement.yml` |
+| Label                | Gesetzt von                                                          | Entfernt von (Konsum)  | Triggert                  |
+| -------------------- | -------------------------------------------------------------------- | ---------------------- | ------------------------- |
+| `ai:needs-analyse`   | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe)   | triage                 | `triage.yml`              |
+| `ai:needs-po-review` | triage (bei 🟢)                                                      | PO (Mensch)            | —                         |
+| `ai:needs-ux-ui`     | PO (nach Prüfung)                                                    | ux                     | `ux.yml`                  |
+| `ai:needs-spec`      | PO (nach Prüfung), ux (bei Erfolg)                                   | spec                   | `spec.yml`                |
+| `ai:needs-impl`      | PO (nach Prüfung), spec (bei Erfolg)                                 | implement              | `implement.yml`           |
+| `ai:needs-review`    | implement, pr-needs-review-label (nur menschlich), **fixup**         | review                 | `pr-review.yml`           |
+| `ai:needs-fixup`     | review (🔴), **gate-merge**, **conflict-scan**, Autolabeler (Re-Arm) | implement (PR-Eingang) | `04-claude-implement.yml` |
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 
@@ -212,12 +212,22 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   `ai:to-big-issue`, `ai:needs-human` und Draft-PRs werden nie geweckt; `ai:continued` bleibt
   dem Folgelauf überlassen (Fortsetzen statt Neustart). Details: ci-architecture.md.
 - **Push-Reset-Mechanik:** Jeder menschliche Push auf den PR-Branch (`synchronize`-Event) löst
-  `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-fixup`,
-  `ai:reviewed`, `ai:needs-human`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem
+  `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:reviewed`,
+  `ai:needs-human`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem
   Push wieder in den Review. Bot-Pushes (Fixup, Implement-Spec) werden ignoriert (Actor-Filter),
   um Race-Conditions mit nebenläufigen Label-Switches zu vermeiden. Das bedeutet: **`ai:reviewed`
   ist nicht terminal** — ein menschlicher Push nach grünem Review setzt den PR zurück in den
   Review-Zustand. Soll ein PR mergen bleiben, muss er ohne weitere Pushes grün bleiben.
+- **Fixup-Kontinuität (Ausnahme vom Push-Reset):** Klebt zum Push-Zeitpunkt noch
+  `ai:needs-fixup`, wurde es nie konsumiert — der Fixup-Job entfernt sein Trigger-Label beim
+  Start; klebend heißt also: die Nacharbeit lief nie an, typischerweise weil GitHub
+  `pull_request`-Workflows auf konfliktbehafteten PRs nicht ausführt (PR #899) und der Mensch
+  den Konflikt gerade per Push gelöst hat. Dann re-armt der Autolabeler `ai:needs-fixup`
+  (Remove + atomare Transition → frisches `labeled`-Event) statt auf `ai:needs-review`
+  umzuschwenken: Die Findings werden zuerst bearbeitet, der Fixup-Job startet auf dem neuen
+  Head, und das Review kommt garantiert danach (Fixup setzt `ai:needs-review` selbst). Der
+  menschliche Commit zählt im Fixup als HEAD-Bewegung; hat der Mensch die Findings selbst
+  erledigt, fängt das der already-done-Pfad ab.
 - **`pr-needs-review-label.yml` labelt NUR menschliche Aktoren** — für alle drei Event-Typen
   (`opened`/`ready_for_review`/`synchronize`), nicht nur bei `synchronize` wie ursprünglich.
   Grund: `implement.yml` macht seine PRs per App-Bot-Token review-bereit und setzt

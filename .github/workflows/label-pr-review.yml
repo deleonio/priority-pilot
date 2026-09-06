@@ -13,6 +13,14 @@ name: Label PR Review
 # laufende/queued Review-/Fixup-Laeufe des Branches — Supersede-Kompensation dafuer, dass die
 # Phasen-Workflows seit der statischen concurrency-Gruppe nicht mehr verdraengen, sondern nur
 # noch serialisieren (cancel-in-progress: false).
+#
+# FIXUP-KONTINUITAET: Klebt zum Event-Zeitpunkt noch ai:needs-fixup, lief die Nacharbeit NIE an
+# (der Start-Konsum im Fixup-Job entfernt das Label sofort — kleben heisst also: kein Lauf,
+# typischerweise weil GitHub pull_request-Workflows auf konfliktbehafteten PRs gar nicht
+# ausfuehrt, PR #899). Der menschliche Push ist dann Fortschritt INNERHALB der Fixup-Phase
+# (meist die Konfliktaufloesung), kein Neuanfang: Statt des Review-Resets wird ai:needs-fixup
+# re-armt (Remove + atomare Transition, #536-Muster) — der Fixup-Job startet frisch auf dem
+# neuen Head, das Review kommt garantiert danach (Fixup setzt ai:needs-review selbst).
 # sender.type != 'Bot' (job-if) stellt sicher, dass NUR Menschen-Pushes zuruecksetzen,
 # nicht die Fixup-Bot-Commits.
 #
@@ -44,6 +52,8 @@ name: Label PR Review
 #     menschliche PRs (Ticket #116, der eigentliche Zweck dieses Workflows) bleibt das
 #     Verhalten unveraendert: opened/ready_for_review/synchronize durch einen Menschen labeln
 #     weiterhin sofort.
+#   - Fixup-Kontinuitaet gilt fuer ALLE drei Event-Typen gleich: klebendes ai:needs-fixup
+#     wird immer re-armt, nie auf ai:needs-review umgebogen (Findings zuerst, Review danach).
 
 on:
   pull_request:
@@ -127,9 +137,10 @@ jobs:
       # LAUFENDER Review den frisch gesteckten Trigger konsumieren (entfernt ai:needs-review in
       # seiner Post-Assertion), der queued Folge-Lauf im Label-Pre-Check skippen — und der
       # menschliche Push bliebe unreviewed. Ein menschlicher Push ist echter Fortschritt und
-      # VERDRÄNGT deshalb bewusst laufende/queued Review- und Fixup-Läufe des Branches
-      # (Muster: claude-pr-cancel.yml). Danach sorgt Entfernen+Neu-Setzen des Labels für einen
-      # frischen Review-Lauf, der garantiert den neuen Head sieht.
+      # verdrängt bewusst laufende/queued Review- und Fixup-Läufe des Branches
+      # (Muster: claude-pr-cancel.yml). Danach sorgt der Folge-Schritt für einen frischen
+      # Lauf auf dem neuen Head: Review-Reset — oder, bei klebendem ai:needs-fixup,
+      # Fixup-Re-Arm (Fixup-Kontinuität, siehe Schritt unten).
       - name: Stale Review-/Fixup-Läufe des Branches abbrechen (nur synchronize)
         if: github.event.action == 'synchronize' && steps.preflight.outputs.configured == 'true'
         env:
@@ -158,12 +169,71 @@ jobs:
         with:
           persist-credentials: false
 
+      # FIXUP-KONTINUITAET (vor dem Review-Reset): Klebt ai:needs-fixup noch, startete die
+      # Nacharbeit nie — der Start-Konsum im Fixup-Job (04) entfernt das Label unmittelbar
+      # nach seinem Anlauf, klebend heisst also: kein Lauf. Realer Fall: GitHub fuehrt
+      # pull_request-Workflows auf konfliktbehafteten PRs GAR NICHT aus (PR #899), das
+      # labeled-Event verstreicht ungenutzt; der Mensch loest den Konflikt per Push ->
+      # dieses synchronize-Event. Der Push ist dann Fortschritt INNERHALB der Fixup-Phase,
+      # kein Neuanlang nach ihr: Re-Arm des Triggers (#536-Muster: Remove + atomare
+      # Transition mit frischem labeled-Event) statt Transition zu ai:needs-review. Der
+      # Fixup-Job startet auf dem NEUEN Head; der menschliche Commit zaehlt dort als
+      # HEAD-Bewegung (Fortschritt), und hat der Mensch die Findings selbst erledigt,
+      # faengt das der already-done-Pfad des Fixup. Das Review kommt garantiert nach dem
+      # Fixup — Er setzt ai:needs-review am Rundenende selbst.
+      - name: Fixup-Kontinuitaet pruefen (klebendes ai:needs-fixup re-armen)
+        id: fixup-continuity
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          echo "rearmed=false" >> "$GITHUB_OUTPUT"
+
+          has_fixup="$(gh pr view "$PR" --repo "$REPO" --json labels \
+            --jq 'any(.labels[].name; . == "ai:needs-fixup")')"
+          if [ "$has_fixup" != "true" ]; then
+            echo "Kein klebendes ai:needs-fixup — normaler Review-Reset."
+            exit 0
+          fi
+
+          echo "PR #$PR: ai:needs-fixup klebt unkonsumiert — Re-Arm statt Review-Reset (Fixup-Kontinuitaet)."
+          # Remove + Transition erzwingt ein frisches labeled-Event (identischer Zielzustand
+          # allein feuert keins) — gleiches Muster wie der #536-Re-Arm weiter unten.
+          gh pr edit "$PR" --repo "$REPO" --remove-label ai:needs-fixup
+          if ! OUT="$(bash .github/scripts/label-transition.sh \
+              --repo "$REPO" --pr "$PR" --set ai:needs-fixup --expect none)"; then
+            echo "::error::Fixup-Re-Arm endgueltig fehlgeschlagen — ai:needs-fixup wurde entfernt, bitte manuell pruefen."
+            exit 1
+          fi
+          applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+          state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+          reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+          if [ "$applied" != "true" ]; then
+            # Absichtliche Ablehnung (state=ok, z. B. Guard 3 „ai:needs-human klebt“): Das
+            # Remove ist passiert, der PR parkt beim Menschen — kein Fixup-Re-Arm, aber auch
+            # KEIN Review-Reset nachziehen (neuere Entscheidung regiert, PR #903).
+            if [ "$state" = "ok" ]; then
+              echo "rearmed=true" >> "$GITHUB_OUTPUT" # Review-Reset bewusst ueberspringen
+              echo "::notice title=⏭️ Fixup-Re-Arm verworfen::PR #$PR — ${reason:-neuere Entscheidung regiert}; PR parkt."
+              exit 0
+            fi
+            echo "::error::Fixup-Re-Arm fehlgeschlagen (state=${state:-?}, ${reason:-Guard}) — ai:needs-fixup wurde entfernt, bitte manuell pruefen."
+            exit 1
+          fi
+          echo "rearmed=true" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR: ai:needs-fixup re-armt — Fixup (04, PR-Eingang) startet auf dem neuen Head; Review kommt nach dem Fixup." \
+            >> "$GITHUB_STEP_SUMMARY"
+
       # Reiner gh-Job (kein LLM): EINE atomare Transition zu ai:needs-review — ersetzt
       # den gesamten Pipeline-Bestand, nimmt also alte Ergebnis-Labels (ai:needs-fixup,
       # ai:reviewed, ai:needs-human) immer mit ab. Mit dem App-Token gesetzt, damit das
-      # `labeled`-Event den Kreuzverhoer-Review ausloest.
+      # `labeled`-Event den Kreuzverhoer-Review ausloest. Uebersprungen, wenn der Schritt
+      # oben ein klebendes ai:needs-fixup re-armt hat (Fixup-Kontinuitaet).
       - name: Label-Transition zu ai:needs-review (Reset + Trigger)
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.fixup-continuity.outputs.rearmed != 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
           REPO: ${{ github.repository }}
