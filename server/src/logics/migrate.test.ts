@@ -651,3 +651,86 @@ describe('migrateGroupImageUrl (#1225 AK2)', () => {
 		assert.ok((await groupColumns()).includes('imageUrl'), 'frische Tabelle enthält imageUrl');
 	});
 });
+
+// ── #1256 AK5: migrateUsersDisplayNameCustom — Flag-Spalte an users nachziehen ────────
+// Vertrag laut docs/spec/issue-1256.md, Muster migrateUsersAvatarUrl: `users.displayNameCustom`
+// (TINYINT NOT NULL DEFAULT 0) schützt den per PUT /profile gesetzten Anzeigenamen vor dem
+// OAuth-Sync; `sequelize.sync()` ohne `alter` ergänzt die Spalte auf Bestands-DBs nicht, jede
+// User-Query mit der Flag würde mit `no such column` brechen. Idempotent; No-op bei frischer DB.
+describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
+	// #1256: `migrateUsersDisplayNameCustom` existiert noch nicht (rote Spec-Tests) — Zugriff
+	// über den Namespace + Cast, damit tsc grün bleibt, bis die Impl-Phase sie anlegt.
+	const migrateUsersDisplayNameCustom = (
+		migrateModule as unknown as { migrateUsersDisplayNameCustom?: (db: typeof sequelize) => Promise<void> }
+	).migrateUsersDisplayNameCustom;
+
+	/** Spaltennamen der users-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const userColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('users')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine users-Tabelle im Alt-Schema (vor #1256) — inkl. Geo-Spalten, ohne Flag. */
+	const createLegacyUsersTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `users` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`email` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`passwordHash` VARCHAR(255) NOT NULL, ' +
+				"`displayName` VARCHAR(255) NOT NULL DEFAULT '', " +
+				'`avatarUrl` VARCHAR(255), ' +
+				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
+				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
+				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it('zieht auf einem Alt-Schema displayNameCustom mit Default 0 nach, danach läuft sync()', async () => {
+		assert.ok(migrateUsersDisplayNameCustom, 'migrateUsersDisplayNameCustom muss in migrate.ts exportiert werden');
+		await createLegacyUsersTable();
+		await sequelize.query(
+			'INSERT INTO users (email, passwordHash, displayName, createdAt, updatedAt) ' +
+				"VALUES ('alt@local', 'hash', 'Alt', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+		assert.ok(!(await userColumns()).includes('displayNameCustom'), 'Alt-Schema hat die Flag noch nicht');
+
+		await migrateUsersDisplayNameCustom(sequelize);
+		await sequelize.sync();
+
+		assert.ok((await userColumns()).includes('displayNameCustom'), 'Spalte ist nachgezogen');
+		const [rows] = await sequelize.query('SELECT `displayNameCustom` FROM `users`');
+		assert.equal(
+			Number((rows as { displayNameCustom: number }[])[0]?.displayNameCustom),
+			0,
+			'Bestands-Zeile trägt Default 0 (NOT NULL DEFAULT — SQLite-Constraint)',
+		);
+		// Der Vertrag: jede User-Query selectiert die Modell-Spalten und bräche ohne Migration.
+		const users = await User.findAll();
+		assert.equal(users.length, 1, 'Bestands-Zeile bleibt nach sync() erhalten');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und legt keine doppelte Spalte an', async () => {
+		assert.ok(migrateUsersDisplayNameCustom);
+		await createLegacyUsersTable();
+		await migrateUsersDisplayNameCustom(sequelize);
+		await assert.doesNotReject(() => migrateUsersDisplayNameCustom!(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal(
+			(await userColumns()).filter((name) => name === 'displayNameCustom').length,
+			1,
+			'displayNameCustom genau einmal',
+		);
+	});
+
+	it('ist auf einer DB ohne users-Tabelle ein No-op und sync() legt sie inkl. Spalte an', async () => {
+		assert.ok(migrateUsersDisplayNameCustom);
+		assert.deepEqual(await userColumns(), [], 'Vorbedingung: keine users-Tabelle');
+
+		await assert.doesNotReject(() => migrateUsersDisplayNameCustom!(sequelize), 'Migration ohne Tabelle ist No-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		assert.ok((await userColumns()).includes('displayNameCustom'), 'frische Tabelle enthält displayNameCustom');
+	});
+});

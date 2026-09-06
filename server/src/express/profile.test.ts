@@ -1,6 +1,14 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	applyTestAuthEnv,
+	setDisplayNameCustom,
+	displayNameCustomOf,
+	type TestServer,
+} from '../test/helpers.js';
 import { User } from '../models/index.js';
 import { verifyPassword } from '../logics/auth.js';
 
@@ -17,6 +25,11 @@ import { verifyPassword } from '../logics/auth.js';
  * - AK5: GET und PUT ohne Session → 401 (Auth-Kontext aktiv via applyTestAuthEnv).
  *
  * Rot, bis der profileRouter existiert (heute: 404/SPA-Fallback). KEIN Produktivcode.
+ *
+ * #1256 AK1 (Spec docs/spec/issue-1256.md): PUT /profile setzt zusätzlich die Flag-Spalte
+ * `users.displayNameCustom = 1` — sie schützt den eigenen Namen vor dem OAuth-Profil-Sync
+ * (`upsertOAuthUser`). DB-Assert bewusst als Roh-Query (helpers.displayNameCustomOf), damit
+ * der Test nicht vom Modellstand abhängt. Heute rot: die Route schreibt die Flag nicht.
  */
 
 applyTestAuthEnv('test-secret-issue-1219');
@@ -132,5 +145,19 @@ describe('Profil — Anzeigename (#1219 AK1–AK5)', () => {
 		const session = (await (await me(cookie)).json()) as ProfileDto;
 		assert.equal(session.email, 'profile-ak4@example.com', 'Auch die Session-E-Mail bleibt unverändert');
 		assert.equal(session.displayName, 'Anna', 'Der Anzeigename selbst wird gespeichert');
+	});
+
+	it('#1256 AK1: PUT /profile setzt displayNameCustom = 1 (OAuth-Sync-Schutz)', async () => {
+		const email = 'profile-1256@example.com';
+		const cookie = await server.register(email, 'password123');
+		// Baseline: Flag 0 (Nutzer hat noch keinen eigenen Namen gespeichert); zieht die Spalte
+		// testseitig nach, solange das Modell sie noch nicht kennt.
+		await setDisplayNameCustom(email, 0);
+		assert.equal(await displayNameCustomOf(email), 0, 'Vorbedingung: Flag beginnt bei 0');
+		const put = await putProfile(cookie, { displayName: 'Anna Eigen' });
+		assert.equal(put.status, 200, 'valider Anzeigename muss 200 liefern');
+		await put.body?.cancel();
+		const flag = await displayNameCustomOf(email);
+		assert.equal(flag, 1, 'PUT /profile muss displayNameCustom auf 1 setzen (Schutz vor OAuth-Name-Override)');
 	});
 });

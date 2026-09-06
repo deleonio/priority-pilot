@@ -32,6 +32,36 @@ export const setTestLlmProvider = async (active: boolean): Promise<void> => {
 	}
 };
 
+/**
+ * Test-Helper für #1256 (rote Spec-Tests): zieht die Flag-Spalte `users.displayNameCustom`
+ * testseitig nach, solange das User-Modell sie noch nicht kennt (nach `resetDb()` fehlt sie).
+ * Idempotent — sobald die Impl die Spalte am Modell ergänzt, wird kein `ALTER TABLE` mehr
+ * ausgeführt.
+ */
+export const ensureDisplayNameCustomColumn = async (): Promise<void> => {
+	const [rows] = await sequelize.query("PRAGMA table_info('users')");
+	const hasColumn = (rows as { name: string }[]).some((row) => row.name === 'displayNameCustom');
+	if (!hasColumn) {
+		await sequelize.query('ALTER TABLE `users` ADD COLUMN `displayNameCustom` TINYINT NOT NULL DEFAULT 0');
+	}
+};
+
+/** Setzt die #1256-Flag für die gegebene E-Mail (zieht die Spalte vorher testseitig nach). */
+export const setDisplayNameCustom = async (email: string, value: 0 | 1): Promise<void> => {
+	await ensureDisplayNameCustomColumn();
+	await sequelize.query('UPDATE `users` SET `displayNameCustom` = ? WHERE `email` = ?', {
+		replacements: [value, email],
+	});
+};
+
+/** Roh-Wert von `users.displayNameCustom` (0/1) für DB-Asserts ohne Modellabhängigkeit (#1256). */
+export const displayNameCustomOf = async (email: string): Promise<number> => {
+	const [rows] = await sequelize.query('SELECT `displayNameCustom` FROM `users` WHERE `email` = ?', {
+		replacements: [email],
+	});
+	return Number((rows as { displayNameCustom: number }[])[0]?.displayNameCustom ?? -1);
+};
+
 export const closeDb = async (): Promise<void> => {
 	// No-op: closing the Sequelize singleton prevents subsequent resetDb() calls in later
 	// test suites from working (SQLITE_MISUSE: Database is closed). In-memory SQLite
