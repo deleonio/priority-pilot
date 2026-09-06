@@ -78,7 +78,9 @@ profileRouter.put('/profile', async (req: Request, res: Response<ProfileDto | Er
 			);
 			return;
 		}
-		await User.update({ displayName }, { where: { id: user.id } });
+		// #1256:displayNameCustom markiert die Eigen-Speicherung — sie schützt den Namen vor
+		// dem OAuth-Profil-Sync (upsertOAuthUser zieht den Google-Namen nur noch ohne Flag nach).
+		await User.update({ displayName, displayNameCustom: true }, { where: { id: user.id } });
 		if (req.session?.user) {
 			req.session.user.displayName = displayName;
 		}
