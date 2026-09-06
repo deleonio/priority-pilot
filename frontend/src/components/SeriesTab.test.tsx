@@ -183,3 +183,35 @@ describe('SeriesTab — Für-Kennzeichen und fremde Serien (#1222 AK9)', () => {
 		expect(screen.getByRole('button', { name: 'Löschen' })).toBeInTheDocument();
 	});
 });
+
+// ── #1251 (AK6): Ruh-Hinweis für stillgelegte Serien ────────────────────────────────────────
+
+/**
+ * #1251 (AK6, docs/spec/issue-1251.md): Eine stillgelegte Serie (`active:false`, entsteht durch
+ * Gruppenaustritt/-löschung) trägt im Serien-Tab ein Text-Badge „Ruhend" — nie nur Farbe
+ * (KI-UX, WCAG 1.4.1). Aktive Serien bekommen kein Badge; die Toolbar (Bearbeiten/Löschen)
+ * bleibt für die eigene ruhende Serie erhalten (kein Toggle, kein Sperren).
+ * Rot, bis SeriesTab.tsx das Badge rendert. KEIN Produktivcode.
+ */
+describe('SeriesTab — Ruh-Hinweis für stillgelegte Serien (#1251 AK6)', () => {
+	it('ruhende Serie (active:false) zeigt das Text-Badge „Ruhend", Toolbar bleibt', async () => {
+		mockListSeries.mockResolvedValue([{ ...makeSeries('weekly', 'Ruhende Routine'), active: false }]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.getByText('Ruhend')).toBeInTheDocument();
+		expect(screen.getByRole('toolbar', { name: /Aktionen für Ruhende Routine/ })).toBeInTheDocument();
+	});
+
+	it('aktive Serie zeigt kein „Ruhend"-Badge', async () => {
+		mockListSeries.mockResolvedValue([makeSeries('weekly', 'Aktive Routine')]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		expect(screen.queryByText('Ruhend')).toBeNull();
+	});
+});
