@@ -1965,14 +1965,130 @@ describe('TaskForm — Empfängerauswahl im Serie-Modus (#1222 AK8)', () => {
 		expect((screen.getByTestId('select-Empfänger') as HTMLSelectElement).value).toBe('2');
 	});
 
-	it('Serien-Edit: keine Empfängerauswahl (nur Anlege-Modus)', async () => {
+	// Der frühere Test „Serien-Edit: keine Empfängerauswahl (nur Anlege-Modus)" ist mit #1252
+	// bewusst ENTFERNT: AK9 verlangt die Auswahl ab sofort auch im Bearbeiten-Formular, solange
+	// der Nutzer in mindestens einer Gruppe ist (Test-Pflege-Bedarf, s. PR-Body).
+});
+
+// ── #1252 (AK9): Empfängerauswahl auch im Bearbeiten-Modus (Übergabe) ────────────────────────
+
+/**
+ * Rote Spec-Tests für #1252 (AK9, docs/spec/issue-1252.md): Die Empfängerauswahl erscheint im
+ * Bearbeiten-Formular (Task UND Serie) nur, wenn der Nutzer in mindestens einer Gruppe ist —
+ * ohne Gruppe unveränderter Flow. Vorbelegt mit dem eigenen Konto (sichtbarer Default
+ * „keine Abgabe"); erst das Speichern mit fremdem Empfänger übergibt die `userId` in den
+ * `updateTask`-/`updateSeries`-Payload (eine Primäraktion: Speichern, KI-UX-Block).
+ *
+ * Ersetzt den #1222-Vertrag „im Bearbeiten-Modus ausgeblendet" (Test-Pflege-Bedarf, s. PR).
+ */
+describe('TaskForm — Empfängerauswahl im Bearbeiten-Modus / Übergabe (#1252 AK9)', () => {
+	const ownUser = { id: 1, displayName: 'Alex Selbst', email: 'alex@example.com', avatarUrl: null };
+	const groups: Group[] = [{ id: 5, name: 'E2E Gruppe', description: null, role: 'admin', memberCount: 2 }];
+	const members: GroupMember[] = [
+		{ userId: 1, displayName: 'Alex Selbst', role: 'admin' },
+		{ userId: 2, displayName: 'Bobi Anderes', role: 'member' },
+	];
+
+	const stubAuthMe = (): void => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				if (String(input).includes('/auth/me')) {
+					return new Response(JSON.stringify(ownUser), { status: 200 });
+				}
+				return new Response('{}', { status: 404 });
+			}),
+		);
+	};
+
+	const seedGroups = (): void => {
 		mockListGroups.mockResolvedValue(groups);
 		mockGetGroupMembers.mockResolvedValue(members);
+		mockUpdateTask.mockResolvedValue(minimalNewTask());
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('AK9 — Task-Bearbeiten mit Gruppe: „Empfänger"-Auswahl sichtbar, eigenes Konto vorausgewählt', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		const selected = select.querySelector('option[selected]') ?? select.selectedOptions[0];
+		expect(selected?.textContent).toBe('Alex Selbst');
+	});
+
+	it('AK9 — Task-Bearbeiten ohne Gruppe: keine Empfängerauswahl (unveränderter Flow)', async () => {
+		mockListGroups.mockResolvedValue([]);
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		expect(screen.queryByTestId('select-Empfänger')).toBeNull();
+	});
+
+	it('AK9 — Serien-Bearbeiten mit Gruppe: „Empfänger"-Auswahl sichtbar', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		expect(await screen.findByTestId('select-Empfänger')).toBeTruthy();
+	});
+
+	it('AK9 — Serien-Bearbeiten ohne Gruppe: keine Empfängerauswahl', async () => {
+		mockListGroups.mockResolvedValue([]);
+		stubAuthMe();
 
 		await act(async () => {
 			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
 		});
 
 		expect(screen.queryByTestId('select-Empfänger')).toBeNull();
+	});
+
+	it('AK9 — Übergabe beim Speichern: updateTask erhält die userId des fremden Empfängers', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+		const select = (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+		await act(async () => {
+			fireEvent.change(select, { target: { value: '2' } });
+		});
+		await clickSaveEdit();
+
+		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
+		const [{ id, taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ id: number; taskUpdate: Record<string, unknown> }];
+		expect(id).toBe(minimalNewTask().id);
+		expect(taskUpdate['userId']).toBe(2);
+	});
+
+	it('AK9 — ohne Auswahländerung bleibt der updateTask-Payload ohne userId (keine Abgabe)', async () => {
+		seedGroups();
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+		await screen.findByTestId('select-Empfänger');
+		await clickSaveEdit();
+
+		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
+		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ taskUpdate: Record<string, unknown> }];
+		expect(taskUpdate).not.toHaveProperty('userId');
 	});
 });
