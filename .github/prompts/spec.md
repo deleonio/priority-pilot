@@ -15,7 +15,8 @@ PROCEDURE (STRICT):
      (git fetch origin && git switch $DRAFT_BRANCH) and continue on its state — do NOT rewrite everything.
   3. SPEC-FIRST per SKILL.md step 2 (spec update in the SAME commit as the tests).
   4. Write RED tests — derived from the spec (rules incl. dedup, mutation check,
-     spec-PR scope: SKILL.md step 3 — read that section before writing the first test).
+     spec-PR scope, red verification via scoped run + gate-runner delegation: SKILL.md step 3 —
+     read that section before writing the first test).
   5. Commit/push/draft PR per SKILL.md step 4. Do NOT set ai:needs-review.
      Additionally in the SAME commit: your phase note .ai-memory/issue-{{ISSUE_NR}}-spec.md
      (it is tracked, NOT gitignored — the memory travels with the PR, ADR 0007).
@@ -28,7 +29,7 @@ VERDICT (one line):
   (ready = red tests written + draft PR created → releases the issue for implementation;
    spec-partial = partial — tests incomplete, needs a follow-up run)
 
-HONESTY RULE: output VERDICT: ready ONLY if the draft PR actually exists AND at least one test file has been committed+pushed (verify first with gh pr view/git log).
+HONESTY RULE: output VERDICT: ready ONLY if the draft PR actually exists AND at least one test file has been committed+pushed (verify first with gh pr view/git log) AND its red state was verified with a scoped run (failing at the assertion, or missing module only for new functionality — SKILL.md step 3).
 
 NO ping comment: the draft PR + tests are the complete communication. NO extra comments on the issue or PR.
 Ambiguous acceptance criteria are NOT a reason to guess: if an acceptance criterion can't be phrased testably, skip the test with a matching reason and collect it in the PR body under "Offene Fragen" (open questions) — don't scatter it across comments.
