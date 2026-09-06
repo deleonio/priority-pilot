@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-E2E für #1252 (AK9/AK10, docs/spec/issue-1252.md) — Empfängerauswahl im
@@ -36,10 +36,14 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await waitForStableView(page, 'Gruppen');
 
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
+	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfänger');
 	const hit = page.locator('li.group-search-hit').filter({ hasText: RECIPIENT_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
+	// #1257: „Ausstehend" steht im Accordion „Offene Einladungen" — erst aufklappen.
+	await openAccordionSection(page, 'Offene Einladungen');
 	await expect(page.getByText('Ausstehend')).toBeVisible();
 };
 

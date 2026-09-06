@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1212 (AK1/AK9–AK12) — Nutzersuche, Einladen, Annehmen/Ablehnen,
@@ -50,6 +50,10 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 		await createGroupViaUi(page, 'E2E Einladen');
 		await page.getByRole('listitem').filter({ hasText: 'E2E Einladen' }).click();
 
+		// AK3 (#1257): Die Suche ist direkt nach dem Aufklappen zugeklappt ...
+		await expect(page.getByRole('searchbox')).toBeHidden();
+		// ... und wird über die Accordion-Überschrift geöffnet.
+		await openAccordionSection(page, 'Mitglieder einladen');
 		await page.getByRole('searchbox').fill('Such');
 		await expect(page.getByText('Sina Suchbar')).toBeVisible();
 	});
@@ -81,9 +85,15 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			await createGroupViaUi(page, 'E2E Mitgliedschaft');
 			await page.getByRole('listitem').filter({ hasText: 'E2E Mitgliedschaft' }).click();
 
+			// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
+			await openAccordionSection(page, 'Mitglieder einladen');
 			await page.getByRole('searchbox').fill('Eingeladen');
 			await expect(page.getByText('Ines Eingeladen')).toBeVisible();
-			await page.getByRole('button', { name: 'Einladen' }).click();
+			// exact: Der Accordion-Trigger „Mitglieder einladen" trägt „Einladen" als Substring —
+			// ohne Exact-Match wäre der Klick im Strict Mode doppelt (#1257).
+			await page.getByRole('button', { name: 'Einladen', exact: true }).click();
+			// #1257: „Ausstehend" steht im Accordion „Offene Einladungen" — erst aufklappen.
+			await openAccordionSection(page, 'Offene Einladungen');
 			await expect(page.getByText('Ausstehend')).toBeVisible();
 
 			// Eingeladene Person nimmt an. Auf den Einladungs-Abschnitt gescoped: nach dem Annehmen
@@ -126,6 +136,8 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 		await createGroupViaUi(page, 'E2E Schmal Detail');
 		await page.getByRole('listitem').filter({ hasText: 'E2E Schmal Detail' }).click();
 
+		// #1257: Suche liegt im zugeklappten Accordion — erst aufklappen, dann messen.
+		await openAccordionSection(page, 'Mitglieder einladen');
 		const searchBox = page.getByRole('searchbox');
 		await expect(searchBox).toBeVisible();
 		const searchBoxBox = await searchBox.boundingBox();

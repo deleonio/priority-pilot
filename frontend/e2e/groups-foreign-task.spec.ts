@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1213 (AK8, docs/spec/issue-1213.md) — Aufgabe für ein anderes
@@ -35,6 +35,8 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await waitForStableView(page, 'Gruppen');
 
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
+	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
 	// Nutzersuche läuft datenbankweit (Shard-DB hält Test-Nutzer anderer Specs mit demselben
 	// Namensanteil vor) — Treffer exakt auf den eigenen Empfänger grenzen, sonst resolved der
@@ -42,6 +44,8 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	const hit = page.locator('li.group-search-hit').filter({ hasText: INVITEE_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
+	// #1257: „Ausstehend" steht im Accordion „Offene Einladungen" — erst aufklappen.
+	await openAccordionSection(page, 'Offene Einladungen');
 	await expect(page.getByText('Ausstehend')).toBeVisible();
 };
 

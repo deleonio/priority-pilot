@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1254 (TF4/TF5 für AK5–AK7; docs/spec/issue-1254.md) — Abschnitt
@@ -39,12 +39,16 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await waitForStableView(page, 'Gruppen');
 
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
+	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
 	// Nutzersuche läuft datenbankweit — Treffer exakt auf den eigenen Empfänger grenzen, damit
 	// ein Namensanteil nicht den „Einladen"-Klick eines anderen Test-Kontexts trifft.
 	const hit = page.locator('li.group-search-hit').filter({ hasText: INVITEE_NAME });
 	await expect(hit).toBeVisible();
 	await hit.getByRole('button', { name: 'Einladen' }).click();
+	// #1257: „Ausstehend" steht im Accordion „Offene Einladungen" — erst aufklappen.
+	await openAccordionSection(page, 'Offene Einladungen');
 	await expect(page.getByText('Ausstehend')).toBeVisible();
 };
 
@@ -115,6 +119,8 @@ const findGroupId = async (page: Page, groupName: string): Promise<number> => {
 const openGroupDetail = async (page: Page, groupName: string): Promise<void> => {
 	await page.getByRole('listitem').filter({ hasText: groupName }).click();
 	await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
+	// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
+	await openAccordionSection(page, SECTION_HEADING);
 };
 
 test.describe('Gruppenabschnitt „Füreinander angelegte Serien“ (#1254)', () => {
