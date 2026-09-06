@@ -6,6 +6,7 @@ import sequelize from '../../database.js';
 import { GroupMember, Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
+import type { PushSender } from '../../logics/push.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { serializeTask, loadUserNames, loadSharedUserIds } from './tasks.js';
@@ -375,37 +376,154 @@ const replaceContributions = (
 		{ transaction, validate: true },
 	);
 
-export const seriesRouter = Router();
+/**
+ * Baut den Serien-Router. `pushSender` ist injizierbar (Vorbild `createTasksRouter`, #1224),
+ * damit der Serien-Benachrichtigungstrigger (#1253) ohne echte VAPID-Konfiguration testbar ist.
+ */
+export interface SeriesRouterDeps {
+	/** Injizierbarer Web-Push-Versand (Default: web-push); Tests reichen einen Mock herein. */
+	pushSender?: PushSender;
+}
 
-// GET /series — alle Serien-Templates auflisten
-seriesRouter.get('/series', async (req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
-	try {
-		// #1157: nur die eigenen Serien-Templates; #1222 zusätzlich die fremden, die der Nutzer
-		// für ein anderes Gruppenmitglied angelegt hat (Pass-Through ohne Auth bleibt erhalten).
-		const all = await Series.findAll({
-			where: await seriesReadScope(getUserId(req), (await resolveGeoUser(req))?.id ?? null),
-			order: [['id', 'ASC']],
-			include: [Pillar],
-		});
-		res.json(await serializeSeriesFor(req, all));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Router => {
+	const seriesRouter = Router();
 
-// POST /series — neues Serien-Template anlegen
-seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
-	const validation = validateSeriesFields(req.body, true);
-	if (!validation.ok) {
-		sendError(res, 400, validation.message);
-		return;
-	}
-	try {
-		// #1222: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
-		// prüfen — Muster `POST /tasks` (#1213): `userId` im Body bezeichnet das Konto, dem die Serie
-		// gehören soll. Ohne das Feld (oder mit der eigenen ID) ändert sich am bisherigen Ablauf nichts
-		// (AK1); ein Empfänger, mit dem der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne
-		// einen Datensatz anzulegen (AK2).
+	// GET /series — alle Serien-Templates auflisten
+	seriesRouter.get('/series', async (req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
+		try {
+			// #1157: nur die eigenen Serien-Templates; #1222 zusätzlich die fremden, die der Nutzer
+			// für ein anderes Gruppenmitglied angelegt hat (Pass-Through ohne Auth bleibt erhalten).
+			const all = await Series.findAll({
+				where: await seriesReadScope(getUserId(req), (await resolveGeoUser(req))?.id ?? null),
+				order: [['id', 'ASC']],
+				include: [Pillar],
+			});
+			res.json(await serializeSeriesFor(req, all));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /series — neues Serien-Template anlegen
+	seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
+		const validation = validateSeriesFields(req.body, true);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
+		try {
+			// #1222: Ersteller auflösen (Session-Nutzer, sonst Dev-Pass-Through) und optionalen Empfänger
+			// prüfen — Muster `POST /tasks` (#1213): `userId` im Body bezeichnet das Konto, dem die Serie
+			// gehören soll. Ohne das Feld (oder mit der eigenen ID) ändert sich am bisherigen Ablauf nichts
+			// (AK1); ein Empfänger, mit dem der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne
+			// einen Datensatz anzulegen (AK2).
+			const requester = await resolveGeoUser(req);
+			const requesterId = requester?.id ?? null;
+			let recipientId: number | null = null;
+			const recipientInput = (req.body as { userId?: unknown }).userId;
+			if (recipientInput !== undefined) {
+				if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+					sendError(res, 400, 'userId muss eine Ganzzahl sein.');
+					return;
+				}
+				if (recipientInput !== requesterId) {
+					const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
+					const shared = await GroupMember.findOne({
+						where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
+					});
+					if (shared === null) {
+						sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
+						return;
+					}
+					recipientId = recipientInput;
+				}
+			}
+			// #1249: Säulen gegen das Konto prüfen, dem die Serie gehören wird — bei einem Empfänger gegen
+			// dessen Konto statt gegen den Aufrufer (Empfänger-Auflösung inkl. 403 bleibt davor).
+			if (
+				validation.pillars !== undefined &&
+				!(await arePillarsExistent(
+					validation.pillars.map((entry) => entry.pillarId),
+					recipientId ?? getUserId(req) ?? null,
+				))
+			) {
+				sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+				return;
+			}
+			const created = await sequelize.transaction(async (transaction) => {
+				const series = await Series.create(
+					// An den Eigentümer binden (Datenisolation, #244; Empfänger #1222, sonst der eingeloggte
+					// Nutzer) und den Ersteller festhalten (AK3).
+					{ ...validation.attrs, userId: recipientId ?? getUserId(req) ?? null, createdById: requesterId },
+					{ transaction },
+				);
+				if (validation.pillars !== undefined && validation.pillars.length > 0) {
+					await replaceContributions(series.id, validation.pillars, transaction);
+				}
+				return series;
+			});
+			// #1222: Angelegt-Objekt ohne Owner-Scope nachladen — bei einer Empfänger-Serie ist der
+			// Ersteller nicht Eigentümer und fände sie über `findSeriesWithPillars` nicht wieder (500).
+			const withPillars = await Series.findOne({ where: { id: created.id }, include: [Pillar] });
+			if (!withPillars) {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
+			}
+			const names = await loadUserNames([withPillars.createdById ?? 0, withPillars.userId ?? 0]);
+			res.status(201).json(serializeSeries(withPillars, { requesterId, names }));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /series/generate-all — fällige Instanzen aller aktiven Serien materialisieren (idempotent).
+	// MUSS vor den `/series/:id`-Routen stehen, damit `generate-all` nicht als `:id` gematcht wird.
+	seriesRouter.post(
+		'/series/generate-all',
+		async (req: Request, res: Response<SeriesGenerateAllResultDto | ErrorDto>) => {
+			const userId = getUserId(req);
+			try {
+				const until = new Date();
+				until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
+				const created = await materializeDueSeries(userId, until, pushSender);
+				res.json({ created: created.length });
+			} catch (error) {
+				handleWriteError(res, error);
+			}
+		},
+	);
+
+	// GET /series/:id — ein Serien-Template abrufen
+	seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+		const series = id === null ? null : await findSeriesWithPillars(id, getUserId(req));
+		if (!series) {
+			sendError(res, 404, 'Serie nicht gefunden.');
+			return;
+		}
+		res.json(serializeSeries(series));
+	});
+
+	// PATCH /series/:id — ein Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
+	seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+		const series =
+			id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) }, include: [Pillar] });
+		if (!series) {
+			sendError(res, 404, 'Serie nicht gefunden.');
+			return;
+		}
+		const validation = validateSeriesFields(req.body, false, series);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
+		// #1252: optionaler Empfänger — Übergabe der Serie an ein Gruppenmitglied. Muster `POST /series`
+		// (#1222) bzw. `PATCH /tasks` (#1252): ohne das Feld (oder mit der eigenen ID) ändert sich am
+		// bisherigen PATCH-Ablauf nichts (AK8); ein Empfänger ohne gemeinsame Gruppe wird mit 403
+		// abgelehnt, ohne dass Feldänderungen aus demselben Request durchkommen.
 		const requester = await resolveGeoUser(req);
 		const requesterId = requester?.id ?? null;
 		let recipientId: number | null = null;
@@ -427,306 +545,202 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 				recipientId = recipientInput;
 			}
 		}
-		// #1249: Säulen gegen das Konto prüfen, dem die Serie gehören wird — bei einem Empfänger gegen
-		// dessen Konto statt gegen den Aufrufer (Empfänger-Auflösung inkl. 403 bleibt davor).
+		// #1249/#1252: Säulen gegen das Konto prüfen, dem die Serie nach diesem Request gehört — bei
+		// einer Übergabe gegen das Empfänger-Konto statt gegen den bisherigen Eigentümer.
 		if (
 			validation.pillars !== undefined &&
 			!(await arePillarsExistent(
 				validation.pillars.map((entry) => entry.pillarId),
-				recipientId ?? getUserId(req) ?? null,
+				recipientId ?? series.userId ?? null,
 			))
 		) {
 			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 			return;
 		}
-		const created = await sequelize.transaction(async (transaction) => {
-			const series = await Series.create(
-				// An den Eigentümer binden (Datenisolation, #244; Empfänger #1222, sonst der eingeloggte
-				// Nutzer) und den Ersteller festhalten (AK3).
-				{ ...validation.attrs, userId: recipientId ?? getUserId(req) ?? null, createdById: requesterId },
-				{ transaction },
-			);
-			if (validation.pillars !== undefined && validation.pillars.length > 0) {
-				await replaceContributions(series.id, validation.pillars, transaction);
-			}
-			return series;
-		});
-		// #1222: Angelegt-Objekt ohne Owner-Scope nachladen — bei einer Empfänger-Serie ist der
-		// Ersteller nicht Eigentümer und fände sie über `findSeriesWithPillars` nicht wieder (500).
-		const withPillars = await Series.findOne({ where: { id: created.id }, include: [Pillar] });
-		if (!withPillars) {
-			sendError(res, 500, 'Interner Serverfehler.');
-			return;
-		}
-		const names = await loadUserNames([withPillars.createdById ?? 0, withPillars.userId ?? 0]);
-		res.status(201).json(serializeSeries(withPillars, { requesterId, names }));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
-
-// POST /series/generate-all — fällige Instanzen aller aktiven Serien materialisieren (idempotent).
-// MUSS vor den `/series/:id`-Routen stehen, damit `generate-all` nicht als `:id` gematcht wird.
-seriesRouter.post(
-	'/series/generate-all',
-	async (req: Request, res: Response<SeriesGenerateAllResultDto | ErrorDto>) => {
-		const userId = getUserId(req);
+		// #553: `applyToInstances=true` kaskadiert die im Serie-Edit GEÄNDERTEN kaskadierbaren Felder auf
+		// alle bestehenden Instanzen. `rhythm`/`startDate`/`active` werden bewusst NICHT übernommen.
+		const body = typeof req.body === 'object' && req.body !== null ? (req.body as Record<string, unknown>) : {};
+		const applyToInstances = body.applyToInstances === true;
 		try {
-			const until = new Date();
-			until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
-			const created = await materializeDueSeries(userId, until);
-			res.json({ created: created.length });
+			await sequelize.transaction(async (transaction) => {
+				// #1252 (AK8): Eine Übergabe schreibt NUR die Eigentumsfelder des Templates — `userId` =
+				// Empfänger und `createdById` = übergebender Eigentümer. Bereits erzeugte Instanzen bleiben
+				// beim bisherigen Eigentümer: die Kaskade unten kopiert nur die geänderten kaskadierbaren
+				// Felder, nie Eigentümer.
+				await series.update(
+					{ ...validation.attrs, ...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}) },
+					{ transaction },
+				);
+				// #1252 (AK6): Bei einer Übergabe (ohne gleichzeitig gesendete `pillars` — die wären bereits
+				// gegen das Empfänger-Konto validiert und ersetzen unten komplett) darf die Säulen-Vorlage
+				// nicht auf Säulen des bisherigen Eigentümers zeigen: Übernahme per gleichem Säulen-Namen
+				// des Empfängers (#1249-Regel), sonst verwerfen.
+				if (recipientId !== null && validation.pillars === undefined) {
+					const contributions = await SeriesPillar.findAll({ where: { seriesId: series.id }, transaction });
+					if (contributions.length > 0) {
+						const oldPillars = await Pillar.findAll({
+							where: { id: contributions.map((entry) => entry.pillarId) },
+						});
+						const names = oldPillars.map((pillar) => pillar.name);
+						const replacements =
+							names.length > 0 ? await Pillar.findAll({ where: { userId: recipientId, name: names } }) : [];
+						const byName = new Map(replacements.map((pillar) => [pillar.name, pillar]));
+						const mapped = contributions.flatMap((entry) => {
+							const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);
+							const target = source ? byName.get(source.name) : undefined;
+							return target
+								? [{ seriesId: series.id, pillarId: target.id, share: entry.share, confidence: entry.confidence }]
+								: [];
+						});
+						await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
+						if (mapped.length > 0) {
+							await SeriesPillar.bulkCreate(mapped, { transaction, validate: true });
+						}
+					}
+				}
+				// `pillars` fehlt → Vorlage unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
+				if (validation.pillars !== undefined) {
+					await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
+					if (validation.pillars.length > 0) {
+						await replaceContributions(series.id, validation.pillars, transaction);
+					}
+				}
+				// Kaskade auf bestehende Instanzen: pro Instanz NUR die geänderten kaskadierbaren Felder
+				// überschreiben (inkl. `isException`-Instanzen). rhythm/startDate/active bleiben außen vor.
+				// #555: Erledigte ("Done") Instanzen werden von der Kaskade ausgenommen — sie bleiben
+				// unverändert, sodass abgeschlossene Aufgaben nicht nachträglich überschrieben werden.
+				const openInstancesWhere = { seriesId: series.id, status: { [Op.ne]: 'Done' as const } };
+				if (applyToInstances) {
+					const instanceAttrs: SeriesAttributes = {};
+					if (validation.attrs.title !== undefined) instanceAttrs.title = validation.attrs.title;
+					if (validation.attrs.priority !== undefined) instanceAttrs.priority = validation.attrs.priority;
+					if (validation.attrs.estimatedEffort !== undefined) {
+						instanceAttrs.estimatedEffort = validation.attrs.estimatedEffort;
+					}
+					if (validation.attrs.description !== undefined) instanceAttrs.description = validation.attrs.description;
+					if (validation.attrs.address !== undefined) instanceAttrs.address = validation.attrs.address;
+					if (validation.attrs.latitude !== undefined) instanceAttrs.latitude = validation.attrs.latitude;
+					if (validation.attrs.longitude !== undefined) instanceAttrs.longitude = validation.attrs.longitude;
+					if (validation.attrs.autoDeleteAfterDeadline !== undefined) {
+						instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
+					}
+					if (Object.keys(instanceAttrs).length > 0) {
+						await Task.update(instanceAttrs, { where: openInstancesWhere, transaction });
+					}
+					// Geänderte Säulen-Vorlage als TaskPillar-Beiträge auf jede (nicht-erledigte) Instanz übernehmen.
+					if (validation.pillars !== undefined) {
+						const seriesPillars = validation.pillars;
+						const instances = await Task.findAll({
+							where: openInstancesWhere,
+							attributes: ['id'],
+							transaction,
+						});
+						for (const inst of instances) {
+							await TaskPillar.destroy({ where: { taskId: inst.id }, transaction });
+						}
+						if (seriesPillars.length > 0 && instances.length > 0) {
+							await TaskPillar.bulkCreate(
+								instances.flatMap((inst) =>
+									seriesPillars.map((pillar) => ({
+										taskId: inst.id,
+										pillarId: pillar.pillarId,
+										share: pillar.share,
+										confidence: pillar.confidence,
+									})),
+								),
+								{ transaction, validate: true },
+							);
+						}
+					}
+				}
+			});
+			// #1252: Nach einer Übergabe ist der Aufrufer nicht mehr Eigentümer — ohne Owner-Scope
+			// nachladen (Muster `POST /series`, #1222), sonst antwortete die erfolgreiche Übergabe 404.
+			const withPillars =
+				recipientId !== null
+					? await Series.findOne({ where: { id: series.id }, include: [Pillar] })
+					: await findSeriesWithPillars(series.id, getUserId(req));
+			if (!withPillars) {
+				sendError(res, 404, 'Serie nicht gefunden.');
+				return;
+			}
+			if (recipientId !== null) {
+				const names = await loadUserNames([withPillars.createdById ?? 0, withPillars.userId ?? 0]);
+				res.json(serializeSeries(withPillars, { requesterId, names }));
+				return;
+			}
+			res.json(serializeSeries(withPillars));
 		} catch (error) {
 			handleWriteError(res, error);
 		}
-	},
-);
+	});
 
-// GET /series/:id — ein Serien-Template abrufen
-seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
-	const id = parseId(req.params.id);
-	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
-	const series = id === null ? null : await findSeriesWithPillars(id, getUserId(req));
-	if (!series) {
-		sendError(res, 404, 'Serie nicht gefunden.');
-		return;
-	}
-	res.json(serializeSeries(series));
-});
-
-// PATCH /series/:id — ein Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
-seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
-	const id = parseId(req.params.id);
-	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
-	const series =
-		id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) }, include: [Pillar] });
-	if (!series) {
-		sendError(res, 404, 'Serie nicht gefunden.');
-		return;
-	}
-	const validation = validateSeriesFields(req.body, false, series);
-	if (!validation.ok) {
-		sendError(res, 400, validation.message);
-		return;
-	}
-	// #1252: optionaler Empfänger — Übergabe der Serie an ein Gruppenmitglied. Muster `POST /series`
-	// (#1222) bzw. `PATCH /tasks` (#1252): ohne das Feld (oder mit der eigenen ID) ändert sich am
-	// bisherigen PATCH-Ablauf nichts (AK8); ein Empfänger ohne gemeinsame Gruppe wird mit 403
-	// abgelehnt, ohne dass Feldänderungen aus demselben Request durchkommen.
-	const requester = await resolveGeoUser(req);
-	const requesterId = requester?.id ?? null;
-	let recipientId: number | null = null;
-	const recipientInput = (req.body as { userId?: unknown }).userId;
-	if (recipientInput !== undefined) {
-		if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
-			sendError(res, 400, 'userId muss eine Ganzzahl sein.');
-			return;
-		}
-		if (recipientInput !== requesterId) {
-			const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
-			const shared = await GroupMember.findOne({
-				where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
-			});
-			if (shared === null) {
-				sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
-				return;
-			}
-			recipientId = recipientInput;
-		}
-	}
-	// #1249/#1252: Säulen gegen das Konto prüfen, dem die Serie nach diesem Request gehört — bei
-	// einer Übergabe gegen das Empfänger-Konto statt gegen den bisherigen Eigentümer.
-	if (
-		validation.pillars !== undefined &&
-		!(await arePillarsExistent(
-			validation.pillars.map((entry) => entry.pillarId),
-			recipientId ?? series.userId ?? null,
-		))
-	) {
-		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
-		return;
-	}
-	// #553: `applyToInstances=true` kaskadiert die im Serie-Edit GEÄNDERTEN kaskadierbaren Felder auf
-	// alle bestehenden Instanzen. `rhythm`/`startDate`/`active` werden bewusst NICHT übernommen.
-	const body = typeof req.body === 'object' && req.body !== null ? (req.body as Record<string, unknown>) : {};
-	const applyToInstances = body.applyToInstances === true;
-	try {
-		await sequelize.transaction(async (transaction) => {
-			// #1252 (AK8): Eine Übergabe schreibt NUR die Eigentumsfelder des Templates — `userId` =
-			// Empfänger und `createdById` = übergebender Eigentümer. Bereits erzeugte Instanzen bleiben
-			// beim bisherigen Eigentümer: die Kaskade unten kopiert nur die geänderten kaskadierbaren
-			// Felder, nie Eigentümer.
-			await series.update(
-				{ ...validation.attrs, ...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}) },
-				{ transaction },
-			);
-			// #1252 (AK6): Bei einer Übergabe (ohne gleichzeitig gesendete `pillars` — die wären bereits
-			// gegen das Empfänger-Konto validiert und ersetzen unten komplett) darf die Säulen-Vorlage
-			// nicht auf Säulen des bisherigen Eigentümers zeigen: Übernahme per gleichem Säulen-Namen
-			// des Empfängers (#1249-Regel), sonst verwerfen.
-			if (recipientId !== null && validation.pillars === undefined) {
-				const contributions = await SeriesPillar.findAll({ where: { seriesId: series.id }, transaction });
-				if (contributions.length > 0) {
-					const oldPillars = await Pillar.findAll({
-						where: { id: contributions.map((entry) => entry.pillarId) },
-					});
-					const names = oldPillars.map((pillar) => pillar.name);
-					const replacements =
-						names.length > 0 ? await Pillar.findAll({ where: { userId: recipientId, name: names } }) : [];
-					const byName = new Map(replacements.map((pillar) => [pillar.name, pillar]));
-					const mapped = contributions.flatMap((entry) => {
-						const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);
-						const target = source ? byName.get(source.name) : undefined;
-						return target
-							? [{ seriesId: series.id, pillarId: target.id, share: entry.share, confidence: entry.confidence }]
-							: [];
-					});
-					await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
-					if (mapped.length > 0) {
-						await SeriesPillar.bulkCreate(mapped, { transaction, validate: true });
-					}
-				}
-			}
-			// `pillars` fehlt → Vorlage unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
-			if (validation.pillars !== undefined) {
-				await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
-				if (validation.pillars.length > 0) {
-					await replaceContributions(series.id, validation.pillars, transaction);
-				}
-			}
-			// Kaskade auf bestehende Instanzen: pro Instanz NUR die geänderten kaskadierbaren Felder
-			// überschreiben (inkl. `isException`-Instanzen). rhythm/startDate/active bleiben außen vor.
-			// #555: Erledigte ("Done") Instanzen werden von der Kaskade ausgenommen — sie bleiben
-			// unverändert, sodass abgeschlossene Aufgaben nicht nachträglich überschrieben werden.
-			const openInstancesWhere = { seriesId: series.id, status: { [Op.ne]: 'Done' as const } };
-			if (applyToInstances) {
-				const instanceAttrs: SeriesAttributes = {};
-				if (validation.attrs.title !== undefined) instanceAttrs.title = validation.attrs.title;
-				if (validation.attrs.priority !== undefined) instanceAttrs.priority = validation.attrs.priority;
-				if (validation.attrs.estimatedEffort !== undefined) {
-					instanceAttrs.estimatedEffort = validation.attrs.estimatedEffort;
-				}
-				if (validation.attrs.description !== undefined) instanceAttrs.description = validation.attrs.description;
-				if (validation.attrs.address !== undefined) instanceAttrs.address = validation.attrs.address;
-				if (validation.attrs.latitude !== undefined) instanceAttrs.latitude = validation.attrs.latitude;
-				if (validation.attrs.longitude !== undefined) instanceAttrs.longitude = validation.attrs.longitude;
-				if (validation.attrs.autoDeleteAfterDeadline !== undefined) {
-					instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
-				}
-				if (Object.keys(instanceAttrs).length > 0) {
-					await Task.update(instanceAttrs, { where: openInstancesWhere, transaction });
-				}
-				// Geänderte Säulen-Vorlage als TaskPillar-Beiträge auf jede (nicht-erledigte) Instanz übernehmen.
-				if (validation.pillars !== undefined) {
-					const seriesPillars = validation.pillars;
-					const instances = await Task.findAll({
-						where: openInstancesWhere,
-						attributes: ['id'],
-						transaction,
-					});
-					for (const inst of instances) {
-						await TaskPillar.destroy({ where: { taskId: inst.id }, transaction });
-					}
-					if (seriesPillars.length > 0 && instances.length > 0) {
-						await TaskPillar.bulkCreate(
-							instances.flatMap((inst) =>
-								seriesPillars.map((pillar) => ({
-									taskId: inst.id,
-									pillarId: pillar.pillarId,
-									share: pillar.share,
-									confidence: pillar.confidence,
-								})),
-							),
-							{ transaction, validate: true },
-						);
-					}
-				}
-			}
-		});
-		// #1252: Nach einer Übergabe ist der Aufrufer nicht mehr Eigentümer — ohne Owner-Scope
-		// nachladen (Muster `POST /series`, #1222), sonst antwortete die erfolgreiche Übergabe 404.
-		const withPillars =
-			recipientId !== null
-				? await Series.findOne({ where: { id: series.id }, include: [Pillar] })
-				: await findSeriesWithPillars(series.id, getUserId(req));
-		if (!withPillars) {
+	// DELETE /series/:id — ein Serien-Template löschen.
+	// Query `cascade=true`: zusätzlich alle Instanzen (Tasks mit `seriesId = :id`) löschen.
+	// Default (`cascade=false`): nur das Template; die Instanzen bleiben erhalten und werden von der
+	// Serie ABGEKOPPELT (`seriesId → null`). Ihre Provenienz (`originSeriesId`) bleibt dauerhaft
+	// erhalten — so lassen sich ehemalige Instanzen später noch gruppieren/filtern. Beide Pfade laufen
+	// in einer Transaktion, damit Instanz- und Serien-Löschung/-Abkopplung atomar sind.
+	seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+		const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
+		if (!series) {
 			sendError(res, 404, 'Serie nicht gefunden.');
 			return;
 		}
-		if (recipientId !== null) {
-			const names = await loadUserNames([withPillars.createdById ?? 0, withPillars.userId ?? 0]);
-			res.json(serializeSeries(withPillars, { requesterId, names }));
+		const cascade = req.query.cascade === 'true';
+		try {
+			await sequelize.transaction(async (transaction) => {
+				if (cascade) {
+					// #555: Beim Kaskaden-Löschen werden NUR nicht-erledigte Instanzen entfernt; erledigte
+					// ("Done") bleiben erhalten und werden — analog zu `cascade=false` — von der Serie
+					// abgekoppelt (`seriesId → null`), während ihre Provenienz (`originSeriesId`) erhalten
+					// bleibt. Die Serie-Definition wird in beiden Fällen gelöscht.
+					await Task.destroy({
+						where: { seriesId: series.id, status: { [Op.ne]: 'Done' } },
+						transaction,
+					});
+					await Task.update({ seriesId: null }, { where: { seriesId: series.id, status: 'Done' }, transaction });
+				} else {
+					// Abkoppeln: aus den ehemaligen Instanzen werden eigenständige Aufgaben. `originSeriesId`
+					// bleibt unangetastet und hält die Herkunft fest.
+					await Task.update({ seriesId: null }, { where: { seriesId: series.id }, transaction });
+				}
+				await series.destroy({ transaction });
+			});
+			res.status(204).send();
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
+
+	// POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
+	seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
+		const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
+		if (!series) {
+			sendError(res, 404, 'Serie nicht gefunden.');
 			return;
 		}
-		res.json(serializeSeries(withPillars));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+		const body: unknown = req.body;
+		if (typeof body !== 'object' || body === null) {
+			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+			return;
+		}
+		const until = (body as Record<string, unknown>).until;
+		if (typeof until !== 'string' || Number.isNaN(Date.parse(until))) {
+			sendError(res, 400, 'until muss ein gültiges ISO-Datum sein.');
+			return;
+		}
+		try {
+			const instances = await generateDueInstances(series, { until: new Date(until), pushSender });
+			res.status(201).json(instances.map((task) => serializeTask(task)));
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	});
 
-// DELETE /series/:id — ein Serien-Template löschen.
-// Query `cascade=true`: zusätzlich alle Instanzen (Tasks mit `seriesId = :id`) löschen.
-// Default (`cascade=false`): nur das Template; die Instanzen bleiben erhalten und werden von der
-// Serie ABGEKOPPELT (`seriesId → null`). Ihre Provenienz (`originSeriesId`) bleibt dauerhaft
-// erhalten — so lassen sich ehemalige Instanzen später noch gruppieren/filtern. Beide Pfade laufen
-// in einer Transaktion, damit Instanz- und Serien-Löschung/-Abkopplung atomar sind.
-seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
-	const id = parseId(req.params.id);
-	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
-	const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
-	if (!series) {
-		sendError(res, 404, 'Serie nicht gefunden.');
-		return;
-	}
-	const cascade = req.query.cascade === 'true';
-	try {
-		await sequelize.transaction(async (transaction) => {
-			if (cascade) {
-				// #555: Beim Kaskaden-Löschen werden NUR nicht-erledigte Instanzen entfernt; erledigte
-				// ("Done") bleiben erhalten und werden — analog zu `cascade=false` — von der Serie
-				// abgekoppelt (`seriesId → null`), während ihre Provenienz (`originSeriesId`) erhalten
-				// bleibt. Die Serie-Definition wird in beiden Fällen gelöscht.
-				await Task.destroy({
-					where: { seriesId: series.id, status: { [Op.ne]: 'Done' } },
-					transaction,
-				});
-				await Task.update({ seriesId: null }, { where: { seriesId: series.id, status: 'Done' }, transaction });
-			} else {
-				// Abkoppeln: aus den ehemaligen Instanzen werden eigenständige Aufgaben. `originSeriesId`
-				// bleibt unangetastet und hält die Herkunft fest.
-				await Task.update({ seriesId: null }, { where: { seriesId: series.id }, transaction });
-			}
-			await series.destroy({ transaction });
-		});
-		res.status(204).send();
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
-
-// POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
-seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
-	const id = parseId(req.params.id);
-	// #1157: fremde Serien-ID → 404 (wie Tasks/Pillars).
-	const series = id === null ? null : await Series.findOne({ where: { id, ...ownerScope(getUserId(req)) } });
-	if (!series) {
-		sendError(res, 404, 'Serie nicht gefunden.');
-		return;
-	}
-	const body: unknown = req.body;
-	if (typeof body !== 'object' || body === null) {
-		sendError(res, 400, 'Request-Body muss ein Objekt sein.');
-		return;
-	}
-	const until = (body as Record<string, unknown>).until;
-	if (typeof until !== 'string' || Number.isNaN(Date.parse(until))) {
-		sendError(res, 400, 'until muss ein gültiges ISO-Datum sein.');
-		return;
-	}
-	try {
-		const instances = await generateDueInstances(series, { until: new Date(until) });
-		res.status(201).json(instances.map((task) => serializeTask(task)));
-	} catch (error) {
-		handleWriteError(res, error);
-	}
-});
+	return seriesRouter;
+};
