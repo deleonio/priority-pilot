@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Funktionale End-to-End-Spec für die **Serien-Frontend-Vertikale** (#142) gegen das **echte**
@@ -121,6 +121,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// Auf „Serie"-Modus umschalten (Switch statt Button-Paar, #334).
 		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
+		// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — Startdatum als Anker der Serie setzen.

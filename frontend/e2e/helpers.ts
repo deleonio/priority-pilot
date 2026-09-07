@@ -46,12 +46,50 @@ export const headerAction = async (page: Page, label: string | RegExp): Promise<
 };
 
 /**
- * Öffnet einen zugeklappten KolAccordion-Abschnitt (Gruppendetail, #1257) über seine
- * Überschrift — der Trigger-Button trägt das Label. `exact: true`, damit z. B. „Füreinander
- * angelegt“ nicht den Abschnitt „… angelegte Serien“ mittrifft (Substring-Match).
+ * Öffnet einen zugeklappten KolAccordion-Abschnitt über seine Überschrift — der Trigger-Button
+ * trägt das Label. `exact: true`, damit z. B. „Füreinander angelegt“ nicht den Abschnitt „…
+ * angelegte Serien“ mittrifft (Substring-Match).
+ *
+ * Idempotent: der Trigger (kol-button-wc im Shadow-DOM) trägt `aria-expanded`; nur bei `false`
+ * wird geklickt — ein schon offener Abschnitt (#1260: TaskForm startet im Edit mit gefüllten
+ * Werten aufgeklappt) wird nicht zugklappt.
  */
 export const openAccordionSection = async (page: Page, label: string): Promise<void> => {
-	await page.getByRole('button', { name: label, exact: true }).click();
+	const trigger = page.getByRole('button', { name: label, exact: true });
+	if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+		await trigger.click();
+		await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+		// Öffnungs-Animation abwarten (KolAccordion: grid-template-rows 0.3s), bevor der Aufrufer
+		// weitermisst — sonst landen Bounding-Box-Assertions in der laufenden Expansion
+		// (#1072-AK4-/#1159-AK5-Flakes).
+		await waitForStableBox(page, page.locator('kol-accordion').filter({ has: trigger }));
+	}
+};
+
+/**
+ * Wartet, bis die Bounding-Box eines Elements stabil ist (Y-Position und Höhe über zwei
+ * Messungen im 100-ms-Abstand unverändert): Öffnungs-Animationen (KolAccordion,
+ * grid-template-rows 0.3s) und asynchron settlende KoliBri-Elemente (Counter-Zeile, Input-Höhe
+ * nach Font-Load) schieben sonst in laufende Messungen hinein (#1051-F1-Flake, beide Richtungen).
+ * Mindestabstand 300 ms vor dem ersten Sample: unter Last startet die Transition verzögert —
+ * zwei vorgleichende Reads vor dem Start wären „falsch stabil" (#1159-AK5 im Volllauf).
+ */
+export const waitForStableBox = async (page: Page, locator: Locator, maxTries = 9): Promise<void> => {
+	await page.waitForTimeout(300);
+	let previous = await locator.boundingBox();
+	for (let remaining = maxTries; remaining > 0; remaining--) {
+		await page.waitForTimeout(100);
+		const current = await locator.boundingBox();
+		if (
+			previous &&
+			current &&
+			Math.abs(current.y - previous.y) < 0.5 &&
+			Math.abs(current.height - previous.height) < 0.5
+		) {
+			break;
+		}
+		previous = current;
+	}
 };
 
 /**

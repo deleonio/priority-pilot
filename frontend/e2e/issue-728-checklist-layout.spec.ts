@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E-Layout-Tests für #728 „Checklist-Item-Abstand optimieren".
@@ -25,6 +25,9 @@ const openFormWithChecklistItems = async (page: Page, titles: string[]): Promise
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 	await page.getByRole('button', { name: /überspringen/i }).click();
 	await waitForStableView(page);
+
+	// #1260: Checkliste liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
+	await openAccordionSection(page, 'Optional');
 
 	const section = page.locator('[data-testid="checklist-section"]');
 	await expect(section).toBeVisible();

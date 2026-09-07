@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E-Test für #1111 — Koordinaten-Box „Gespeicherter Ortsbezug" unter dem Adressfeld (AK7).
@@ -37,6 +37,9 @@ test.describe('#1111 Koordinaten-Box „Gespeicherter Ortsbezug"', () => {
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
+
+		// #1260: Adresse liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		const addressInput = page.getByLabel('Adresse (optional)');
 		await expect(addressInput).toBeVisible();

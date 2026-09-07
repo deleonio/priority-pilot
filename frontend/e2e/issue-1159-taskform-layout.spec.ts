@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular".
@@ -78,6 +78,8 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 	test('AK2 — Sekundärgruppe: Deadline + Adresse, optisch von Gruppe 1 unterschieden', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
+		// #1260: Sekundärgruppe startet als zugeklapptes „Termin & Ort"-Akkordeon.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		const group = secondary(page);
 		await expect(group).toBeVisible();
@@ -100,6 +102,8 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 	test('AK3 — Optional-Bereich: reduzierte Gewichtung, größerer Abstand zu Gruppe 2', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
+		// #1260: Der Optional-Bereich startet als zugeklapptes Akkordeon.
+		await openAccordionSection(page, 'Optional');
 
 		const group = optional(page);
 		await expect(group).toBeVisible();
@@ -111,8 +115,10 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 		const opt = await surfaceOf(page, '.form-section--optional');
 		expect(opt.backgroundColor).toBe('rgba(0, 0, 0, 0)');
 
-		// Programmatische Gruppierung + textualisierte Optional-Kennzeichnung.
-		expect(await group.evaluate((el) => el.matches('fieldset, [role="group"], section[aria-labelledby]'))).toBe(true);
+		// Programmatische Gruppierung: seit #1260 liefert das KolAccordion die Semantik — Trigger-
+		// Button plus beschriftete Region (role="region", aria-labelledby im KoliBri-Shadow-DOM),
+		// die frühere section[aria-labelledby]-Überschrift entfiel mit der Akkordeon-Umstellung.
+		await expect(page.getByRole('region', { name: 'Optional' })).toBeVisible();
 		await expect(group.getByText(/optional/i).first()).toBeVisible();
 	});
 
@@ -134,7 +140,17 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 	// maximale Abstand innerhalb einer Gruppe.
 	test('AK5 — 768px: Gruppenabstand > maximaler In-Gruppen-Abstand', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 900 });
+		// Deterministischer Zustand: Gruppen-Leaks aus früheren Specs entfernen — rendert die
+		// Empfängerauswahl (#1213) zwischen Titel und range-inputs-row, verschiebt sie die
+		// title→row-Messung um die Höhe des Selekts und bricht den Gruppenabstands-Vertrag.
+		const groups = (await (await page.request.get('/api/v1/groups')).json()) as { id: number }[];
+		for (const group of groups) {
+			await page.request.delete(`/api/v1/groups/${group.id}`);
+		}
 		await openForm(page);
+		// #1260: beide Opt-in-Sektionen starten zugeklappt — für die Box-Messung öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
+		await openAccordionSection(page, 'Optional');
 
 		const primaryBox = await primary(page).boundingBox();
 		const secondaryBox = await secondary(page).boundingBox();
@@ -165,6 +181,9 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 	test('AK6 — 375px: alle Felder nutzbar, kein Feld wird abgeschnitten', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openForm(page);
+		// #1260: beide Opt-in-Sektionen starten zugeklappt — erst öffnen, dann messen.
+		await openAccordionSection(page, 'Termin & Ort');
+		await openAccordionSection(page, 'Optional');
 
 		const fields = [
 			page.locator('[data-testid="task-title"]'),

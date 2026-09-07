@@ -60,6 +60,8 @@ const createSeriesForRecipientViaUi = async (page: Page, title: string): Promise
 	// In den Serie-Modus schalten (Switch statt Button-Paar, Muster series.spec.ts).
 	await page.getByTestId('mode-switch').getByRole('checkbox').click();
 	await waitForStableView(page);
+	// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+	await openAccordionSection(page, 'Termin & Ort');
 
 	await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 	await page.getByLabel('Startdatum').fill('2026-12-07');
@@ -186,6 +188,8 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await waitForStableView(page);
 			await page.getByTestId('mode-switch').getByRole('checkbox').click();
 			await waitForStableView(page);
+			// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+			await openAccordionSection(page, 'Termin & Ort');
 			await expectWithinViewport(page, 'Empfänger-Auswahl (375 px)', page.getByLabel('Empfänger'));
 
 			await page.getByRole('textbox', { name: 'Titel' }).fill(SERIES_TITLE);
@@ -275,6 +279,8 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await waitForStableView(recipientPage);
 			await recipientPage.getByTestId('mode-switch').getByRole('checkbox').click();
 			await waitForStableView(recipientPage);
+			// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+			await openAccordionSection(recipientPage, 'Termin & Ort');
 			await expect(recipientPage.getByRole('combobox', { name: 'Empfänger' })).toBeVisible();
 
 			await recipientPage.getByRole('textbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Serie');

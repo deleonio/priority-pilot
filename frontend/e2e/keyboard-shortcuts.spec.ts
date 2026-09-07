@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #243 — „CTA Buttons sollen immer mit Strg+Enter abgesendet werden".
@@ -56,6 +56,10 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
+		// #1260: Beschreibung und Startdatum liegen in zugeklappten Akkordeons — für AK4 (Beschreibung)
+		// und AK8 (Startdatum im Serie-Modus) beide öffnen; die restlichen AKs sind davon unberührt.
+		await openAccordionSection(page, 'Termin & Ort');
+		await openAccordionSection(page, 'Optional');
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 	};
 
@@ -276,6 +280,8 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Auf „Serie"-Modus umschalten (Switch, #334).
 		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
+		// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		await page.getByLabel('Startdatum').fill('2026-09-07');

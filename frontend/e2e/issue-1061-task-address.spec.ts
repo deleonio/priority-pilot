@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E-Layout-Tests für #1061 „Adressfeld mit Forward Geocoding im Task-Formular".
@@ -40,6 +40,9 @@ const openFormWithAddressField = async (page: Page) => {
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 	await page.getByRole('button', { name: /überspringen/i }).click();
 	await waitForStableView(page);
+
+	// #1260: Adresse liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+	await openAccordionSection(page, 'Termin & Ort');
 
 	const addressInput = page.getByLabel('Adresse (optional)');
 	await expect(addressInput).toBeVisible();

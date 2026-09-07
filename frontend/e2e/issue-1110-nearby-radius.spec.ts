@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1110 — Radius im Nearby-Card-Titel + echte Distanzen
@@ -126,6 +126,8 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 		// Task über die Adresssuche anlegen (QuickCapture-Schritt überspringen, Muster #1061).
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await page.getByRole('button', { name: /überspringen/i }).click();
+		// #1260: Adresse liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
 		const addressInput = page.getByLabel('Adresse (optional)');
 		await expect(addressInput).toBeVisible();
 		await addressInput.fill('Musterstraße 1');

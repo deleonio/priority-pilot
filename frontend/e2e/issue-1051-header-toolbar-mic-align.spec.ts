@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableBox, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1051 „Header-Toolbar-Buttons einheitlich + Mikrofon-Button im Such-Dialog ausrichten".
@@ -148,6 +148,11 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		// Mic-Button des Titelfelds (Light-DOM innerhalb des VoiceField-Wrappers).
 		const micButton = page.locator('[data-testid="task-title"] .mic-button');
 		await expect(micButton).toBeVisible();
+
+		// Counter-Zeile (_hasCounter) und Input-Höhe settle asynchron nach Hydration — erst messen,
+		// wenn beide Boxen stabil stehen (Flake in beide Richtungen, CI + lokal).
+		await waitForStableBox(page, micButton);
+		await waitForStableBox(page, titleInput);
 
 		const micBox = await micButton.boundingBox();
 		const inputBox = await titleInput.boundingBox();
