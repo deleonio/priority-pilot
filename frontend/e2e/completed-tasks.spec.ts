@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { measureHorizontalScroll, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests (#228 / #307): die Erledigt-Ansicht — Tabelle NUR mit erledigten Tasks, Punkte je Säule,
@@ -172,13 +172,14 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	});
 
 	/**
-	 * Roter TDD-Vertrag für #1020, AK3+AK4 (Spec: docs/spec/issue-1020.md) — ersetzt den alten
-	 * #228-AK-6-Test („passt ohne Scrollen in 375px"): Der Mobile-Karten-Modus ist per
-	 * Nutzer-Entscheidung (Issue-Kommentar 2026-08-25 12:50Z) entfallen. Die Erledigt-Tabelle ist
-	 * eine `KolTableStateful`; bei 375px scrollt sie INTERN horizontal, während die Seiten-Shell
-	 * ohne Überlauf bleibt. Rot, bis `CompletedTasksTable.tsx` auf KolTable umgebaut ist.
+	 * #1258 widerruft die #1020-Entscheidung vom 2026-08-25 („bei 375px scrollt die Erledigt-Tabelle
+	 * INTERN horizontal, kein Mobile-Karten-Modus") — dieser Test assertierte genau jenes Scrollen und
+	 * ist jetzt invertiert: Unter 48rem rendert `CompletedTasksTable` eine REDUZIERTE Tabelle mit nur
+	 * Titel- und Aktion-Spalte. Damit gibt es bei 375px kein horizontales Scrollen mehr, auch nicht
+	 * innerhalb der Tabelle (WCAG 1.4.10 Reflow, docs/mobile-ui-rules.md Regel 3). Säulen-Punkte sind
+	 * mobil bewusst nicht sichtbar — volle Tabelle ab 48rem (Geometrie-Vertrag: #1020-Test unten).
 	 */
-	test('AK-6 (neu, #1020): Erledigt-Tabelle scrollt bei 375px intern — kein Karten-Modus, Seite ohne Überlauf', async ({
+	test('AK-1 (#1258): Erledigt-Tabelle bei 375px reduziert auf Titel + Aktion — kein horizontales Scrollen', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
@@ -199,49 +200,21 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		const host = page.locator('.completed-tasks kol-table-stateful');
 		await expect(host).toBeVisible();
 
-		// #1020 AK4: kein Karten-Modus — die Kopfzeile ist sichtbar (der Karten-Modus blendete sie
-		// visuell aus), und das native Karten-/Tabellen-Gerüst existiert nicht mehr (count 0 statt 1 —
-		// schließt die `td[data-label]`-Beschriftungslogik mit ein, ohne KoliBri-Internelements zu raten).
-		await expect(host.getByRole('columnheader').first()).toBeVisible();
-		await expect(page.locator('.completed-tasks table.completed-tasks-table')).toHaveCount(0);
+		// Reduzierte Tabelle: genau zwei Spalten (Titel, Aktion) — die Säulen-Spalten fehlen mobil
+		// (der alte #1020-Karten-Modus-Check `table.completed-tasks-table` bleibt mit abgedeckt:
+		// count 2 statt ≥3 schließt das native Karten-Gerüst ebenfalls aus).
+		await expect(host.getByRole('columnheader')).toHaveCount(2);
 
-		// #1020 AK3: interner Scroll + Seite ohne Überlauf. Gemessen wird NICHT `body.scrollWidth`
-		// (die App-Shell clippt mit `overflow-x: hidden`, der Wert wäre strukturell grün), sondern:
-		// der Host bleibt in der Seitenbreite (Bounding-Box) und hat im Inneren (rekursiv durch die
-		// offenen Shadow-Roots) einen horizontal scrollbaren Container mit echtem Überlauf.
-		const geometry = await host.evaluate((el) => {
-			const findScroller = (root: ParentNode): HTMLElement | null => {
-				for (const node of Array.from(root.querySelectorAll('*'))) {
-					if (node instanceof HTMLElement) {
-						const overflowX = getComputedStyle(node).overflowX;
-						if ((overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth + 1) {
-							return node;
-						}
-						// eslint-disable-next-line no-restricted-syntax -- KolTable-Scroll-Verhalten ist über die öffentliche Rollen-Schnittstelle nicht abfragbar; die Shadow-Roots werden ausschließlich lesend nach dem overflow-Container durchsucht (keine internen Klassen-/Tag-Selektoren, #824-Guard).
-						const shadow = node.shadowRoot;
-						if (shadow) {
-							const hit = findScroller(shadow);
-							if (hit) return hit;
-						}
-					}
-				}
-				return null;
-			};
-			return {
-				hostRight: el.getBoundingClientRect().right,
-				scroller: (() => {
-					// `el.querySelectorAll('*')` durchsucht nur das Light-DOM des Hosts (leer, da
-					// KolTableStateful ohne Kinder verwendet wird) — der Scroll-Container liegt im
-					// eigenen Shadow-Root des Hosts, deshalb dort statt bei `el` selbst starten.
-					// eslint-disable-next-line no-restricted-syntax -- s.o. Kommentar bei findScroller: lesende Durchquerung, kein interner Selektor.
-					const hit = findScroller(el.shadowRoot ?? el);
-					return hit ? { scrollWidth: hit.scrollWidth, clientWidth: hit.clientWidth } : null;
-				})(),
-			};
-		});
-		expect(geometry.hostRight).toBeLessThanOrEqual(375 + 1);
-		expect(geometry.scroller).not.toBeNull();
-		expect(geometry.scroller?.scrollWidth ?? 0).toBeGreaterThan(geometry.scroller?.clientWidth ?? 0);
+		// Kein Überlauf der Seiten-Shell: Der Host bleibt in der 375px-Breite (Bounding-Box statt
+		// `body.scrollWidth` — die App-Shell clippt mit `overflow-x: hidden`).
+		const hostRight = await host.evaluate((el) => el.getBoundingClientRect().right);
+		expect(hostRight).toBeLessThanOrEqual(375 + 1);
+
+		// Kern des Widerrufs: Im Inneren (rekursiv durch die offenen Shadow-Roots) existiert KEIN
+		// horizontal scrollbarer Container mit echtem Überlauf mehr — Messung über den geteilten
+		// Helfer `measureHorizontalScroll` (helpers.ts, #824-Guard: lesende Durchquerung).
+		const { scroller } = await host.evaluate(measureHorizontalScroll);
+		expect(scroller).toBeNull();
 	});
 
 	/**

@@ -955,11 +955,21 @@ body {
 	min-width: 0;
 }
 
+/*
+ * #1258: Mobil Zweizeilen-Modell — der Header (Titel) belegt Zeile 1, die Controls nehmen über
+ * `flex: 1 1 100%` die zweite Zeile VOLLBREIT ein: Badges links, „…"-Button konstant rechtsbündig
+ * (`space-between`). Der Button sitzt damit immer an derselben, daumen-findbaren Stelle — unabhängig
+ * davon, wie viele Badges die Aufgabe trägt, und ohne je auf eine dritte Zeile zu rutschen. Ab 48rem
+ * kehren die Controls in das alte Einzeilen-Layout neben dem Titel zurück (keine Desktop-Regression).
+ */
 .task-tree-row-controls {
+	flex: 1 1 100%;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
+	justify-content: space-between;
 	gap: var(--task-tree-row-gap);
+	min-width: 0;
 }
 
 .task-tree-badges {
@@ -967,11 +977,14 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--task-tree-row-gap);
+	min-width: 0;
 }
 
 @media (min-width: 48rem) {
 	.task-tree-row-controls {
+		flex: 0 1 auto;
 		flex-wrap: nowrap;
+		justify-content: flex-start;
 	}
 }
 
@@ -991,6 +1004,9 @@ body {
 .task-tree-actions {
 	display: flex;
 	align-items: center;
+	/* #1258: Der „…"-Button schrumpft nicht — er bleibt in der Controls-Zeile konstant
+	   rechtsbündig stehen, während die Badges links umbrechen. */
+	flex: none;
 	/* Anker für das absolut positionierte „…"-Popover (#361). */
 	position: relative;
 }
@@ -1015,6 +1031,17 @@ body {
 .task-tree-badge--priority {
 	/* Farbe kommt über KolBadge _type (info/warning/danger) */
 	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * #1258: Provenanz-Badges („Für: …"/„Erstellt von: …") dürfen umbrechen — der Namensteil ist
+ * beliebig lang, und `white-space: nowrap` erbt in den KolBadge-Shadow-DOM. System-Badges
+ * (Serie, geändert, n/m, Prio) bleiben einzeilig: Sie sind kurz und sollen als Chips lesbar
+ * bleiben. Umbrech-Fähigkeit hält die Controls-Zeile auf einer Höhe, statt eine dritte Zeile
+ * zu erzwingen.
+ */
+.task-tree-badge--provenance {
+	white-space: normal;
 }
 
 /* --- Modal-Inhalt --- */

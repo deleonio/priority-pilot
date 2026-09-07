@@ -11,6 +11,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * die Props assertionsfähig, ohne die Web Component zu benötigen. Der Test ist rot, bis
  * `CompletedTasksTable.tsx` die native `<table class="completed-tasks-table">` ersetzt.
  *
+ * #1258: Unter 48rem rendert die Komponente eine reduzierte Tabelle (nur Titel + Aktion) — der
+ * Viewport-Zweig hängt an `useDesktopViewport` (lib/desktopViewport.ts), dessen MediaQuery jsdom
+ * nicht auswertet (`matchMedia` liefert dort immer `matches: false`). Deshalb wird der Breakpoint
+ * hier deterministisch gestubbt: die #1020-Tests laufen im Desktop-Zweig, der eigene #1258-Test
+ * unten im Mobile-Zweig.
+ *
  * Der Volltext-Tooltip (UX-Empfehlung) ist bewusst NICHT Teil des Tests: KoliBri 4.3.0 hat an
  * Header-Zellen kein `title`-Prop (siehe Spec „Abgrenzung“).
  */
@@ -75,8 +81,34 @@ const defaultProps = {
 	onReloaded: vi.fn(),
 };
 
-describe('CompletedTasksTable — KolTable-Umbau (#1020, AK1)', () => {
+/** #1258: Muss mit der Query in `lib/desktopViewport.ts` (unexportiert) übereinstimmen. */
+const DESKTOP_VIEWPORT_QUERY = '(min-width: 48rem)';
+
+/**
+ * Stubbt `window.matchMedia` für den Desktop-Breakpoint-Zweig von `useDesktopViewport` (#1258):
+ * jsdom wertet MediaQuery-Syntax nicht aus. Listener-Methoden sind No-Ops — ein Viewport-Wechsel
+ * zur Laufzeit ist in jsdom nicht Teil dieser Tests.
+ */
+const stubDesktopViewport = (isDesktop: boolean): void => {
+	vi.stubGlobal('matchMedia', (query: string) => ({
+		matches: isDesktop && query === DESKTOP_VIEWPORT_QUERY,
+		media: query,
+		onchange: null,
+		addEventListener: vi.fn(),
+		removeEventListener: vi.fn(),
+		addListener: vi.fn(),
+		removeListener: vi.fn(),
+		dispatchEvent: vi.fn(() => false),
+	}));
+};
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
+
+describe('CompletedTasksTable — KolTable-Umbau (#1020, AK1; Desktop-Zweig)', () => {
 	it('rendert KolTableStateful mit Accessible Label und fixierten Randspalten statt nativer Tabelle', () => {
+		stubDesktopViewport(true);
 		const { container } = render(<CompletedTasksTable {...defaultProps} />);
 
 		// AK1: KolTableStateful ist der Vertrag — die Mock-Test-ID existiert nur, wenn die Komponente
@@ -92,6 +124,7 @@ describe('CompletedTasksTable — KolTable-Umbau (#1020, AK1)', () => {
 	});
 
 	it('kürzt Säulen-Header auf maximal 20 Zeichen — „Titel“ und „Aktion“ bleiben wörtlich', () => {
+		stubDesktopViewport(true);
 		render(<CompletedTasksTable {...defaultProps} />);
 
 		const headers = within(screen.getByTestId('completed-kol-table'))
@@ -111,5 +144,24 @@ describe('CompletedTasksTable — KolTable-Umbau (#1020, AK1)', () => {
 
 		// … während kurze Säulennamen unverändert durchgereicht werden.
 		expect(headers[2]).toBe('Karriere');
+	});
+});
+
+describe('CompletedTasksTable — reduzierte Mobile-Tabelle (#1258)', () => {
+	it('rendert unter 48rem nur Titel und Aktion — keine Säulen-Spalten, keine fixierten Spalten', () => {
+		stubDesktopViewport(false);
+		render(<CompletedTasksTable {...defaultProps} />);
+
+		const kolTable = screen.getByTestId('completed-kol-table');
+
+		// Reduzierter Header-Satz: Titel und Aktion bleiben, die Säulen-Punkte-Spalten entfallen
+		// mobil bewusst (volle Tabelle ab 48rem, Vertrag siehe Desktop-Test oben).
+		const headers = within(kolTable)
+			.getAllByRole('columnheader')
+			.map((th) => th.textContent ?? '');
+		expect(headers).toEqual(['Titel', 'Aktion']);
+
+		// Ohne Säulen-Spalten gibt es nichts einzupinnen — `_fixedCols` bleibt mobil unset.
+		expect(kolTable.dataset.fixedCols).toBe('null');
 	});
 });

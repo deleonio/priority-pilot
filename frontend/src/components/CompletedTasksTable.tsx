@@ -5,6 +5,7 @@ import { TaskStatus } from 'client';
 import { memo, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useDesktopViewport } from '../lib/desktopViewport';
 import { getTaskPillarPoints } from '../lib/pillar';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { GeoBadge } from './GeoBadge';
@@ -66,13 +67,18 @@ interface DoneTaskRow extends KoliBriTableDataType {
  * `getTaskPillarPoints`) und ein „Wieder öffnen"-Schalter, der den Status per PATCH auf `Open` setzt
  * und danach einen Reload auslöst.
  *
- * Als `KolTableStateful` (#1020): schmale Hosts scrollen seitlich INNERHALB der Komponente, es gibt
- * keinen separaten Mobile-Karten-Modus mehr (Nutzer-Entscheidung 2026-08-25, ersetzt #228 AK-6).
- * `_fixedCols={[1, 1]}` = „1 Spalte vom Anfang, 1 Spalte vom Ende fixiert" (KoliBri-Semantik, nicht
- * „Spalten 0 und 1") und hält damit Titel- (erste) und Aktion-Spalte (letzte) beim Scrollen sichtbar.
+ * Als `KolTableStateful` (#1020). #1258 widerruft die Nutzer-Entscheidung vom 2026-08-25 („bei 375px
+ * scrollt die Tabelle INTERN horizontal, kein Mobile-Karten-Modus"): Unter dem Desktop-Breakpoint
+ * (< 48rem) rendert die Komponente eine **reduzierte Tabelle** mit nur Titel- und Aktion-Spalte —
+ * Säulen-Punkte sind dort bewusst nicht sichtbar (Rückschau-Werte, volle Tabelle ab 48rem). Damit
+ * gibt es bei 375px kein horizontales Scrollen mehr, auch nicht innerhalb der Tabelle
+ * (WCAG 1.4.10 Reflow, docs/mobile-ui-rules.md Regel 3). `_fixedCols={[1, 1]}` (KoliBri-Semantik:
+ * „1 Spalte vom Anfang, 1 vom Ende fixiert") bleibt der Desktop-Ansicht vorbehalten — die reduzierte
+ * Tabelle hat keine Spalten, die es einzupinnen lohnte.
  */
 export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 	const { tasks, pillars, forestTaskIds, onReloaded } = props;
+	const isDesktop = useDesktopViewport();
 	const [reopeningId, setReopeningId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -111,10 +117,12 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 				// #1020 AK2: Titel-Spalte dominiert (feste Mindestbreite), Punkte-Spalten bekommen eine
 				// am Header-Text bemessene feste Breite (`pillarHeaderWidth`) — hält die Kopfzeile
 				// einzeilig, ohne kurze Säulennamen unnötig aufzublähen.
+				// #1258: Mobil fällt die feste Titel-Breite weg — `table-layout: fixed` (KoliBri) gibt
+				// der Titelspalte dann den gesamten Rest der 375px-Viewportbreite.
 				{
 					key: 'title',
 					label: 'Titel',
-					width: 360,
+					...(isDesktop ? { width: 360 } : {}),
 					// #1063: hinter dem Titel zeigt der Ortsbezug das Geo-Badge (nur bei `address`).
 					// Wie die Aktion-Spalte wird die Zelle über `render` in eine pro Zelle gecachte
 					// React-Root gemountet; der reine `title`-Datenwert bleibt Sortierung/Filter erhalten.
@@ -135,10 +143,13 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 						);
 					},
 				},
-				...pillars.map((pillar) => {
-					const label = shortPillarHeader(pillar.name);
-					return { key: pillarKey(pillar.id), label, width: pillarHeaderWidth(label) };
-				}),
+				// #1258: Säulen-Punkte-Spalten nur ab 48rem — mobil sind sie bewusst nicht sichtbar.
+				...(isDesktop
+					? pillars.map((pillar) => {
+							const label = shortPillarHeader(pillar.name);
+							return { key: pillarKey(pillar.id), label, width: pillarHeaderWidth(label) };
+						})
+					: []),
 				{
 					key: 'action',
 					label: 'Aktion',
@@ -179,7 +190,12 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 					{error}
 				</p>
 			)}
-			<KolTableStateful _label="Liste der erledigten Aufgaben" _data={data} _headers={headers} _fixedCols={[1, 1]} />
+			<KolTableStateful
+				_label="Liste der erledigten Aufgaben"
+				_data={data}
+				_headers={headers}
+				_fixedCols={isDesktop ? [1, 1] : undefined}
+			/>
 		</div>
 	);
 });

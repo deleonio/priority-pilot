@@ -55,6 +55,41 @@ export const openAccordionSection = async (page: Page, label: string): Promise<v
 };
 
 /**
+ * Misst im Seitenkontext (`locator.evaluate(measureHorizontalScroll)`), ob innerhalb eines
+ * Elements — einschließlich aller offenen Shadow-Roots — ein horizontal scrollbarer Container mit
+ * echtem Überlauf existiert (`overflow-x: auto|scroll` und `scrollWidth > clientWidth`).
+ *
+ * #1258: Negativ-Vertrag „kein horizontales Scrollen bei 375px, auch nicht innerhalb der
+ * Erledigt-Tabelle". `body.scrollWidth` ist dafür unbrauchbar (die App-Shell clippt mit
+ * `overflow-x: hidden`, der Wert wäre strukturell grün) — hier wird der tatsächliche Scroll-
+ * Container im KoliBri-Shadow-DOM gesucht. Start im eigenen Shadow-Root des Elements, weil
+ * KolTableStateful ohne Light-DOM-Kinder verwendet wird. Bewusst schließungs-frei, damit
+ * Playwright die Funktion serialisieren kann; rekursive Durchquerung ausschließlich lesend
+ * (keine internen Klassen-/Tag-Selektoren, #824-Guard).
+ */
+export const measureHorizontalScroll = (
+	el: HTMLElement,
+): { scroller: { scrollWidth: number; clientWidth: number } | null } => {
+	const scan = (root: ParentNode): { scrollWidth: number; clientWidth: number } | null => {
+		for (const node of Array.from(root.querySelectorAll('*'))) {
+			if (node instanceof HTMLElement) {
+				const overflowX = getComputedStyle(node).overflowX;
+				if ((overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth + 1) {
+					return { scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
+				}
+				const shadow = node.shadowRoot;
+				if (shadow) {
+					const hit = scan(shadow);
+					if (hit) return hit;
+				}
+			}
+		}
+		return null;
+	};
+	return { scroller: scan(el.shadowRoot ?? el) };
+};
+
+/**
  * Init-Script (als String, vor dem Seitenaufbau injiziert), das die Web Speech API mockt:
  *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onstart`, `onresult`, `onend`,
  *  2. Zuweisung an `window.SpeechRecognition` und `window.webkitSpeechRecognition`,
