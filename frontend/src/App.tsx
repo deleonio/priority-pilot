@@ -698,7 +698,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				</div>
 			)}
 
-			{tasks !== null && tasks.length === 0 && <EmptyState onCreate={() => setDialog({ kind: 'create' })} />}
+			{/* #1259: Der Dashboard-Leerzustand gehört nur auf das Dashboard (aktiver Tab 0) — bisher
+			    renderte die Karte tab-unabhängig ÜBER der Tab-Leiste und drückte auf Serien/Wald den
+			    Listenstart um ~230px nach unten (bei 375px+812 blieben statt ≥4 Serien nur 3 ohne
+			    Scrollen sichtbar). Aufgaben- und Wald-Tab haben eigene Leerzustände (TaskTree, #510). */}
+			{tasks !== null && tasks.length === 0 && activeTab === 0 && (
+				<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
+			)}
 
 			{tasks !== null && (
 				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _selected={activeTab} _on={tabsCallbacks}>
