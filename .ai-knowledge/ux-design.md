@@ -50,7 +50,7 @@ sehen dieselben Werte.
 | `--pp-ink`, `--pp-ink-muted`      | Primär- und Sekundärtext (beide ≥ 4.5:1)              |
 | `--pp-status-open/inprocess/done` | Aufgabenstatus                                        |
 | `--pp-success/warning/danger`     | Rückmeldung — immer mit Icon **und** Text, nie allein |
-| `--pp-pillar-1…8`                 | Kategoriale Rampe für die nutzerdefinierten Säulen    |
+| `--pp-pillar-1…7`                 | Kategoriale Rampe für die nutzerdefinierten Säulen    |
 
 **Regeln**
 
@@ -58,14 +58,16 @@ sehen dieselben Werte.
    ≥ 3:1 — in **beiden** Farbschemata. Neue Werte werden gerechnet, nicht geschaut.
 2. **Farbe trägt nie allein Bedeutung** (BITV/WCAG 1.4.1). Status = Farbe **+** Text/Icon.
 3. **Die Säulen-Rampe wird der Reihe nach vergeben, nie durchgezählt-zyklisch.** Die Säulen sind
-   nutzerdefiniert; ab der 9. Säule wird nicht neu eingefärbt, sondern gebündelt oder nur der Name
+   nutzerdefiniert; ab der 8. Säule wird nicht neu eingefärbt, sondern gebündelt oder nur der Name
    gezeigt. Farbe folgt der Säule, nicht ihrem Rang — eine Umsortierung darf keine Umfärbung auslösen.
-4. **Die Rampe ist validiert, nicht geraten.** Herkunft: validierte Referenzpalette des `dataviz`-Skills,
-   nachgerechnet gegen unsere Kartenflächen (hell `#ffffff`, dunkel `#161b22`) — alle Prüfungen bestanden,
-   schlechtestes Nachbarpaar CVD ΔE 9.1 (hell) / 8.4 (dunkel). Drei Hell-Werte liegen unter 3:1 zur
-   weißen Fläche; deshalb gilt für Säulen-Visualisierungen die **Relief-Regel**: der Säulenname steht
-   immer als Text daneben (im Repo bereits so: `.dashboard-balance-name`, `.dashboard-pillar`).
-   Wer die Rampe ändert, führt `scripts/validate_palette.js` des `dataviz`-Skills erneut aus.
+4. **Die Rampe ist validiert, nicht geraten.** 7 Neon-Farben (#1273), als Dauer-Test verankert in
+   `frontend/src/lib/pillarPalette.test.ts`: alle 21 Paare je Theme erreichen CIEDE2000 ΔE ≥ 7 unter
+   Normalsicht und Protanopie/Deuteranopie/Tritanopie — schlechtestes Paar ΔE 12.6 (hell:
+   `#b61414`/`#a0306f`, Tritanopie) / 8.8 (dunkel: `#5af2a6`/`#4324db`, Tritanopie); Dark hält
+   HSL S ≥ 0.7 und L ≥ 0.5, Light den Hue des Dark-Gegenstücks (± 15°). Die Hell-Werte liegen
+   unter 3:1 zur weißen Fläche; deshalb gilt für Säulen-Visualisierungen die **Relief-Regel**: der
+   Säulenname steht immer als Text daneben (im Repo bereits so: `.dashboard-balance-name`,
+   `.dashboard-pillar`). Wer die Rampe ändert, hält diesen Test grün bzw. schärft ihn.
 5. **Dunkelmodus wird gewählt, nicht gespiegelt.** Jede Rolle hat einen eigenen Dunkelwert.
 6. **Fläche und Textfarbe reisen zusammen.** Wer `background` auf ein Token zieht, setzt in derselben
    Regel `color`. Im KoliBri-Umfeld erbt Text sonst Schwarz und wird im Dunkelmodus unlesbar —

@@ -1310,7 +1310,7 @@ describe('TaskForm — Auto-Löschen für Serien verfügbar (#534, Anforderung 1
  *  - Ein Text-Eingabefeld (Label „Checklisten-Eintrag") + Button „Hinzufügen": legt einen neuen Eintrag
  *    an (generierte UUID, `completed = false`).
  *  - Jeder Eintrag in einer Zeile `data-testid="checklist-item"` mit einer Checkbox (Toggle `completed`,
- *    Label „Erledigt") und einem Button „Entfernen" (löscht den Eintrag).
+ *    Label „Erledigen") und einem Button „Entfernen" (löscht den Eintrag).
  *  - Beim Anlegen/Bearbeiten fließt `checklist` (Array aus `{ id, title, completed }`) ins Payload.
  *
  * Die KoliBri-Mocks rendern KolInputText/KolInputCheckbox/KolButton als native Elemente mit aria-label

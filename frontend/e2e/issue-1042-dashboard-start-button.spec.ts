@@ -28,7 +28,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 	}
 };
 
-/** Legt eine offene Aufgabe an und öffnet das Dashboard mit sichtbarem „Erledigt"-Button. */
+/** Legt eine offene Aufgabe an und öffnet das Dashboard mit sichtbarem „Erledigen"-Button. */
 async function openDashboardWithStartButton(page: Page): Promise<void> {
 	await page.goto('/');
 	await waitForStableView(page);
@@ -39,8 +39,8 @@ async function openDashboardWithStartButton(page: Page): Promise<void> {
 	await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 	await waitForStableView(page);
 
-	// #1168 AK1/AK7: der Button heißt „Erledigt" statt „Jetzt starten".
-	await expect(page.getByRole('button', { name: 'Erledigt' })).toBeVisible();
+	// #1168 AK1/AK7: der Button heißt „Erledigen" statt „Jetzt starten".
+	await expect(page.getByRole('button', { name: 'Erledigen' })).toBeVisible();
 }
 
 /** Innenbreite/-rand aus dem gerenderten Style von `.dashboard-next-task-content`. */

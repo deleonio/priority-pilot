@@ -68,8 +68,8 @@ const SHADOW_OPACITY = 0.12;
 
 /** Zahl der Band-Uniforms im Shader — Streifen darüber laufen im letzten (neutralen) zusammen. */
 const BAND_SLOTS = 8;
-/** Höchster Rang der Säulen-Rampe (`--pp-pillar-1…8`) — wie `PILLAR_RAMP_SIZE` im SVG. */
-const PILLAR_RAMP_SIZE = 8;
+/** Höchster Rang der Säulen-Rampe (`--pp-pillar-1…7`) — wie `PILLAR_RAMP_SIZE` im SVG. */
+const PILLAR_RAMP_SIZE = 7;
 
 /** Liest eine CSS-Farbe (`#rgb`, `#rrggbb`, `rgb()`) als 0–1-Vektor; unlesbar bleibt schwarz. */
 const parseColor = (value: string): [number, number, number] => {
@@ -98,7 +98,7 @@ const readThemeColors = () => {
 		pillars: Array.from({ length: PILLAR_RAMP_SIZE }, (_, index) => read(`--pp-pillar-${index + 1}`)),
 		vessel: read('--pp-surface-2'),
 		outline: read('--pp-border-strong'),
-		// Fugen wie das SVG in Kartenfarbe; ab der 9. Säule färbt die Kontur-Farbe neutral.
+		// Fugen wie das SVG in Kartenfarbe; ab der 8. Säule färbt die Kontur-Farbe neutral.
 		seam: read('--pp-surface-1'),
 		neutral: read('--pp-border-strong'),
 	};
@@ -115,7 +115,7 @@ interface SlotBand {
 /**
  * Streifen auf die Shader-Slots abbilden: Die ersten 7 behalten Farbe und Breite; läuft die Liste
  * über 8 hinaus (mehr Säulen als Uniform-Slots), läuft der Rest im letzten Slot **neutral**
- * zusammen — wie das SVG, das ab der 9. Säule ohnehin nicht mehr einfärbt.
+ * zusammen — wie das SVG, das ab der 8. Säule ohnehin nicht mehr einfärbt.
  */
 const toSlotBands = (bands: GlassBand[], colors: ThemeColors): SlotBand[] => {
 	if (bands.length <= BAND_SLOTS) {
