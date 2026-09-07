@@ -215,7 +215,7 @@ export const Dashboard = ({
 						<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
 						{onCompleteTask !== undefined && (
 							<KolButton
-								_label="Erledigt"
+								_label="Erledigen"
 								_variant="primary"
 								_icons={{ left: { icon: 'fa-solid fa-check' } }}
 								_on={{ onClick: () => onCompleteTask(nextTask) }}
