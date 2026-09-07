@@ -124,10 +124,13 @@ const LeafItem = ({
 						    weiteren Hex-Wert; umbrechfähig über die bestehende Badge-Zeile). „Für: …"
 						    sieht der Ersteller, „Erstellt von: …" der Empfänger. */}
 						{task !== null && task.forUserName != null && (
-							<KolBadge _label={`Für: ${task.forUserName}`} className="task-tree-badge" />
+							<KolBadge _label={`Für: ${task.forUserName}`} className="task-tree-badge task-tree-badge--provenance" />
 						)}
 						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
-							<KolBadge _label={`Erstellt von: ${task.createdByName}`} className="task-tree-badge" />
+							<KolBadge
+								_label={`Erstellt von: ${task.createdByName}`}
+								className="task-tree-badge task-tree-badge--provenance"
+							/>
 						)}
 						{task !== null && task.seriesId != null && (
 							<KolBadge _label="Serie" _color="#005b99" className="task-tree-badge" />
