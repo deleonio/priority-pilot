@@ -15,8 +15,9 @@ PROCEDURE (STRICT):
      (git fetch origin && git switch $DRAFT_BRANCH) and continue on its state — do NOT rewrite everything.
   3. SPEC-FIRST per SKILL.md step 2 (spec update in the SAME commit as the tests).
   4. Write RED tests — derived from the spec (rules incl. dedup, mutation check,
-     spec-PR scope, red verification via scoped run + gate-runner delegation: SKILL.md step 3 —
-     read that section before writing the first test).
+     spec-PR scope: SKILL.md step 3 — read that section before writing the first test).
+  4b. EVERY test run (red AND green) → gate-runner role (SKILL.md step 3); never keep raw
+     test output in your own context.
   5. Commit/push/draft PR per SKILL.md step 4. Do NOT set ai:needs-review.
      Your phase note .ai-memory/issue-{{ISSUE_NR}}-spec.md stays LOCAL (gitignored) — the
      workflow uploads it as an artifact at phase end (ADR 0010); never commit it.

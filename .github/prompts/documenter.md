@@ -10,4 +10,4 @@ OUTPUT (`/tmp/doc.json`): structure per SKILL.md → Output.
 
 Rules (`title`, `files`, `issues`, `jq` check) per SKILL.md → Rules.
 
-TIME LIMIT: {{SOFT_DEADLINE}}. If OVER: write a minimal snapshot.
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: write a minimal snapshot.

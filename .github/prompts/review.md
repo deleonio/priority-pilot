@@ -13,6 +13,8 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
      - NO closing issue (length == 0): PR description/title is the informal specification (the SKILL's KI-Analyse-comment fallback needs an issue — doesn't apply here) — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
   2. Cross-examination questions incl. regression/Test-Pflege-Bedarf + KoliBri-first: SKILL.md step 2.
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).
+  4. Neighborhood questions of ALL findings → ONE parallel recherche block (SKILL.md →
+     Delegation); never delegate the diff or the verdict.
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
   1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt (CI delta; not in the SKILL). Check line 2 for whether this was a "Review ohne Issue".
@@ -27,7 +29,7 @@ WRAP-UP (both modes):
   - NIT-ONLY (style/naming/minor simplification, no behavioral risk — severity per SKILL.md step 4):
     NO fixup round. Nits as one bundled inline list + section "📝 Nits (nicht blockierend)" in the
     collected comment; if the ACs are covered and green, VERDICT: reviewed (🟢 with nits noted).
-    A fixup round plus re-review costs ~45 turns — a nit doesn't justify that.
+    A fixup round plus re-review costs dozens of turns (measured: AGENTS.md "Turns bündeln") — a nit doesn't justify that.
   - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the
     "## ⏸️ Entscheidungs-Findings" section per the SKILL.md step 5 template.
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed
