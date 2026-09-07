@@ -121,8 +121,9 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
-		// War es der einzige Task, kehrt die App in den leeren Anfangszustand zurück; der Titel ist weg.
-		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+		// War es der einzige Task, zeigt der Aufgaben-Tab seinen eigenen Leerzustand (#1259: das
+		// Dashboard-„Noch keine Aufgaben" rendert nur noch auf Tab 0); der Titel ist weg.
+		await expect(page.getByText('Noch keine Tasks vorhanden. Lege oben einen neuen Task an.')).toBeVisible();
 		await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 	});
 

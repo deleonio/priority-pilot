@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { Pillar, Series } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -79,6 +79,7 @@ import { api } from '../api';
 import { SeriesTab } from './SeriesTab';
 
 const mockListSeries = api.listSeries as ReturnType<typeof vi.fn>;
+const mockGenerateAllSeries = api.generateAllSeries as ReturnType<typeof vi.fn>;
 
 const pillarKoerper: Pillar = { id: 1, name: 'Körper', description: 'Gesundheit', weight: 100 };
 
@@ -213,5 +214,38 @@ describe('SeriesTab — Ruh-Hinweis für stillgelegte Serien (#1251 AK6)', () =>
 		});
 
 		expect(screen.queryByText('Ruhend')).toBeNull();
+	});
+});
+
+/**
+ * Doppel-POST-Schutz (#1259-Fixup, Review-Nit Runde 1): `generateAll` sichert sich über
+ * `isGeneratingRef` SYNCHRON vor dem ersten `await` ab — ein zweiter Aufruf im selben Tick
+ * (Doppelklick, State `_disabled` wäre noch nicht geflippt) darf keinen zweiten POST senden.
+ */
+describe('SeriesTab — Doppel-POST-Schutz bei generateAll (isGeneratingRef-Guard)', () => {
+	it('zwei synchrone Auslösungen rufen generateAllSeries genau 1× auf', async () => {
+		let resolveGenerate: (value: { created: number }) => void = () => {};
+		mockListSeries.mockResolvedValue([]);
+		mockGenerateAllSeries.mockImplementation(
+			() =>
+				new Promise<{ created: number }>((resolve) => {
+					resolveGenerate = resolve;
+				}),
+		);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		const generateButton = screen.getByRole('button', { name: 'Fällige Instanzen generieren' });
+		fireEvent.click(generateButton); // 1. Aufruf: Guard setzt isGeneratingRef vor dem await
+		fireEvent.click(generateButton); // 2. Aufruf im selben Tick: Guard blockt
+
+		expect(mockGenerateAllSeries).toHaveBeenCalledTimes(1);
+
+		// Hängendes Promise auflösen, damit die setState-Follow-ups innerhalb von act laufen.
+		await act(async () => {
+			resolveGenerate({ created: 0 });
+		});
 	});
 });
