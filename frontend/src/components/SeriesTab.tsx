@@ -46,12 +46,26 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [editDialog, setEditDialog] = useState<EditDialog>(null);
 	const [isGenerating, setIsGenerating] = useState(false);
+	// Doppelklick-Schutz über Ref statt State: Zwei schnelle Klicks laufen in denselben Render-Zyklus,
+	// der State-Guard (`_disabled`) verliert das Race (harden-Verifikation: 2 POSTs). Der Ref ist
+	// synchron und verhindert den zweiten POST zuverlässig.
+	const isGeneratingRef = useRef(false);
 	// Zu löschende Serie (Öffnet den `DeleteSeriesDialog`, #472). `null` = kein Lösch-Dialog offen.
 	const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
 	// Fallback-Fokusziel nach erfolgreicher Serien-Löschung (#182, #472): Nach dem Löschen fällt die
 	// Toolbar-Zeile der Serie aus dem DOM, sodass der Trigger-Button kein Fokus-Ziel mehr ist. Analog
 	// zu App.tsx / PillarList.tsx (`deleteFallbackRef`) halten wir einen stabilen Container bereit.
 	const deleteFallbackRef = useRef<HTMLElement>(null);
+	// Handle des Erfolgs-Toast-Timers (`generateAll`): wird vor dem Neusetzen und beim Unmount
+	// geräumt, damit kein setState nach dem Unmount überlebt (Muster `doneRemovalTimers`, App.tsx).
+	const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	useEffect(
+		() => () => {
+			if (successTimerRef.current !== null) clearTimeout(successTimerRef.current);
+		},
+		[],
+	);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -81,7 +95,8 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 
 	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
 	const generateAll = useCallback(async (): Promise<void> => {
-		if (isGenerating) return;
+		if (isGeneratingRef.current) return;
+		isGeneratingRef.current = true;
 		setIsGenerating(true);
 		setSuccessMessage(null);
 		try {
@@ -89,14 +104,16 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 			setError(null);
 			const msg = created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell';
 			setSuccessMessage(msg);
-			setTimeout(() => setSuccessMessage(null), 5000);
+			if (successTimerRef.current !== null) clearTimeout(successTimerRef.current);
+			successTimerRef.current = setTimeout(() => setSuccessMessage(null), 5000);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
 		} finally {
+			isGeneratingRef.current = false;
 			setIsGenerating(false);
 		}
-	}, [isGenerating]);
+	}, []);
 
 	const handleDeleted = useCallback((): void => {
 		setDeleteTarget(null);
