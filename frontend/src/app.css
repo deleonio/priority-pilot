@@ -1790,15 +1790,41 @@ body {
 /*
  * #968: Tab-Leisten nebeneinander auf allen Viewports.
  * Die ursprüngliche #703-Entscheidung, Tabs unter 768 px vertikal zu stapeln (Mobile-First „eine
- * primäre Aktion pro Zeile"), wurde revidiert: Tabs passen auch auf 375 px gut nebeneinander.
- * KoliBri `kol-tabs` rendert die Button-Gruppe im Shadow-DOM mit `flex-direction: row` und
- * `flex-wrap: wrap` als Default — ohne Override werden Tabs auf allen Viewports horizontal mit
- * sauberem Umbruch bei Platzmangel angezeigt.
+ * primäre Aktion pro Zeile"), wurde revidiert: Tabs passen auch auf 375 px nebeneinander — seit
+ * #1274 mit kompaktem Gap (Registrierung unten), vorher brach die Hauptansichten-Leiste mit
+ * 32 px-Zwischenraum um. Der saubere Umbruch bei Platzmangel bleibt Muster für Leisten, die auch
+ * kompakt nicht einzeilig passen (Settings: „Allgemein/Säulen/KI-Provider | Standort/Gruppen").
  *
  * Wichtig: `.app-tabs` bzw. `.settings-tabs` ist der `kol-tabs`-Host selbst (die `className` wird
  * direkt auf dem React-Komponenten-Element gesetzt). Der Selektor `.app-tabs kol-tabs` wäre daher
  * ein Nachkomme-Sucher ohne Treffer — die Property würde am Host stehen (falls Override nötig).
  */
+
+/*
+ * #1274: Kompakter Tab-Gap, damit die vier Hauptansicht-Tabs bei 375px einzeilig bleiben.
+ *
+ * Das Default-Theme deklariert `.kol-tabs--align-top { --button-group-gap: 32px }` IM Shadow-DOM;
+ * gegen diese innere Deklaration kommt ein vom Host vererbter Wert nie an (eigene Deklaration
+ * schlägt Vererbung). Gemessen bei 375px: Buttons 276px + 3×32px Gap = 372px > 351px nutzbare
+ * Breite — „Wald" brach allein in Zeile 2 und war als Abschnitts-Überschrift misslesbar (#1274).
+ * Die `@property`-Registrierung kappt genau diese Vererbung: `inherits: false` gibt der
+ * konsumierenden `.kol-tabs__button-group` den Initialwert, während die innere 32px-Deklaration
+ * wirkungslos bleibt. 12px (4-dp-Skala) halten den ≥8dp-Abstand zwischen Touch-Targets
+ * (docs/mobile-ui-rules.md, Regel 2): 276px + 3×12px = 312px ≤ 351px.
+ *
+ * Sollbruchstellen: (1) Der Property-Name ist KoliBri-intern (theme-default 4.3.0 — im Geiste der
+ * bestehenden `--grid-template-columns`-Klammer am `.app-tabs` ebenfalls unpublizierte API); ein
+ * Theme-Update kann die Klammer gegenstandslos machen, dann schlägt der E2E-Wächter
+ * „Tab-Leiste der Hauptansichten bleibt einzeilig" in `frontend/e2e/mobile-shell.spec.ts` an.
+ * (2) Browser ohne `@property` (Safari < 16.4, Firefox < 128) behalten das 32px-Gap und damit den
+ * alten Umbruch. (3) Die Registrierung gilt für ALLE `kol-tabs` (App, Settings, Hilfe) — die
+ * Leisten erhalten dadurch einheitlich 12px Gap.
+ */
+@property --button-group-gap {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 12px;
+}
 
 .settings-placeholder {
 	color: var(--pp-text-muted);

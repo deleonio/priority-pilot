@@ -70,6 +70,34 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 		expect(contentWidth).toBeGreaterThanOrEqual(340);
 	});
 
+	/**
+	 * #1274: Die Tab-Leiste der Hauptansichten („Dashboard | Aufgaben | Serien | Wald") muss bei
+	 * 375px einzeilig bleiben — bricht sie um, steht ein einsames Label („Wald") linksbündig in
+	 * Zeile 2 und wird als Abschnitts-Überschrift misslesbar. Vertrag wie oben über *gemessene*
+	 * Größen: alle vier Tab-Buttons auf derselben y-Position (gemeinsame Grundlinie), unabhängig
+	 * davon, wie das Gap im Stylesheet erreicht wird. Das CSS-seitige Gap-Wächter-Wissen (12px-Registrierung, Sollbruchstellen) steht in `app.css` (#1274-Kommentar).
+	 */
+	test('375×812: Tab-Leiste der Hauptansichten bleibt einzeilig', async ({ page }) => {
+		await gotoApp(page, MOBILE);
+
+		// Playwright pierct offene Shadow-DOMs, daher erreicht getByRole('tab') den Button in
+		// kol-button-wc. Sichtbarkeit abwarten, damit das Layout (und ein Umbruch) schon steht.
+		const tabTops: number[] = [];
+		for (const label of ['Dashboard', 'Aufgaben', 'Serien', 'Wald'] as const) {
+			const tab = page.getByRole('tab', { name: label });
+			await expect(tab).toBeVisible();
+			const box = await tab.boundingBox();
+			expect(box, `Tab „${label}" muss messbar sein`).not.toBeNull();
+			if (box === null) return;
+			tabTops.push(box.y);
+		}
+
+		expect(
+			new Set(tabTops).size,
+			`Alle vier Hauptansicht-Tabs müssen auf gemeinsamer Grundlinie stehen (y: ${tabTops.join(', ')})`,
+		).toBe(1);
+	});
+
 	test('375×812: alle fünf Kopf-Aktionen bleiben erreichbar', async ({ page }) => {
 		await gotoApp(page, MOBILE);
 
