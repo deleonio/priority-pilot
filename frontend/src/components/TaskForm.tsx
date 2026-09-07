@@ -1379,7 +1379,7 @@ export const TaskForm = ({
 						{checklist.map((item) => (
 							<div key={item.id} className="checklist-item" data-testid="checklist-item">
 								<KolInputCheckbox
-									_label="Erledigt"
+									_label="Erledigen"
 									_variant="switch"
 									_checked={item.completed}
 									_on={{ onChange: () => toggleChecklistItem(item.id) }}

@@ -220,10 +220,10 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Kein Klick auf „Endgültig löschen": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');
 
-		// Der Dialog schließt sich und der Task ist weg — als einziger Task kehrt die App in den
-		// leeren Anfangszustand zurück.
+		// Der Dialog schließt sich und der Task ist weg — als einziger Task zeigt der Aufgaben-Tab
+		// seinen eigenen Leerzustand (#1259: das Dashboard-„Noch keine Aufgaben" steht nur auf Tab 0).
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
-		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+		await expect(page.getByText('Noch keine Tasks vorhanden. Lege oben einen neuen Task an.')).toBeVisible();
 		await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 	});
 

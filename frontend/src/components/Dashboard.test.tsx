@@ -376,7 +376,7 @@ describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
  * `KolButton _label="Jetzt starten"` an der Prop `onStartTask`; der Vertrag wird auf eine neue Prop
  * `onCompleteTask` umgestellt. Der Test ist rot, bis `Dashboard.tsx` die neue Prop und das neue Label
  * trägt — mit der alten Prop bleibt der Button ungerendert (Bedingung `onStartTask !== undefined`),
- * daher gibt es aktuell KEIN Element mit `_label="Erledigt"` im Panel.
+ * daher gibt es aktuell KEIN Element mit `_label="Erledigen"` im Panel.
  */
 describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/spec/issue-1168.md)', () => {
 	it('AK1: rendert bei gesetztem nextTask einen Button „Erledigt", keinen Button „Jetzt starten"', () => {
@@ -398,7 +398,7 @@ describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/s
 
 		const buttons = [...(panel?.querySelectorAll('kol-button') ?? [])];
 		const doneButton = buttons.find((b) => b.getAttribute('_label') === 'Erledigt');
-		expect(doneButton, 'Button mit _label="Erledigt" fehlt im Panel').toBeDefined();
+		expect(doneButton, 'Button mit _label="Erledigen" fehlt im Panel').toBeDefined();
 
 		const startButton = buttons.find((b) => b.getAttribute('_label') === 'Jetzt starten');
 		expect(startButton, 'Button „Jetzt starten" darf nicht mehr existieren').toBeUndefined();

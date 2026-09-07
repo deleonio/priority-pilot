@@ -1504,18 +1504,66 @@ body {
 	min-width: 0;
 }
 
-.series-tree-title {
+/* #1259: Zweizeilen-Modell analog `task-tree` (#1258) — Titel (Header) in Zeile 1, Badges und
+   Aktions-Toolbar nehmen über `flex: 1 1 100%` die zweite Zeile VOLLBREIT ein: Badges links,
+   Toolbar konstant rechtsbündig (`space-between`) — unabhängig davon, wie viele Badges die
+   Serie trägt, ohne je auf eine dritte Zeile zu rutschen. Ab 48rem kehren die Controls in die
+   gewohnte Einzeil-Ordnung neben dem Titel zurück (keine Desktop-Regression). */
+.series-tree-row-header {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
 	flex: 1 1 auto;
 	min-width: 0;
+}
+
+.series-tree-row-controls {
+	flex: 1 1 100%;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+}
+
+@media (min-width: 48rem) {
+	.series-tree-row-controls {
+		flex: 0 1 auto;
+		flex-wrap: nowrap;
+		justify-content: flex-start;
+	}
+}
+
+.series-tree-badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-width: 0;
+}
+
+.series-tree-title {
+	/* Analog `task-tree-title` (#1259): Titel schrumpft auf 80px-Minimum, trägt den Umbruch —
+	   der Geo-Badge im Header bleibt unmittelbar hinter dem Titeltext (#1121-Muster). */
+	flex: 0 1 auto;
+	min-width: 80px;
 	overflow-wrap: anywhere;
 	font-weight: normal;
 }
 
 .series-tree-actions {
 	display: flex;
-	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--pp-gap-tight);
+	/* #1259: Die Toolbar schrumpft nicht — sie bleibt in der Controls-Zeile konstant
+	   rechtsbündig stehen, während die Badges links umbrechen. */
+	flex: none;
+}
+
+/* #1259: „Für: …“ darf umbrechen — der Namensteil ist beliebig lang, und `white-space: nowrap`
+   erbt in den KolBadge-Shadow-DOM (Muster `task-tree-badge--provenance`, #1258). */
+.series-tree-badge--provenance {
+	white-space: normal;
 }
 
 .series-tree-badge {

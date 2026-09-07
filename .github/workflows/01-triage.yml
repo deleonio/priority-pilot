@@ -2,8 +2,8 @@ name: 01 Triage
 
 # Stößt die KI-Analyse (Triage) eines Issues an.
 # Laufzeit via `vars.AGENT_RUNTIME` (claude|pi), Provider via `vars.LLM_PROVIDER`
-# (claude|zai|openrouter) — beides aufgelöst in setup-agent. Diese Phase ist die Pilotphase
-# für die pi-Laufzeit (#1184); alle anderen Phasen laufen weiter fest auf Claude Code.
+# (claude|zai|openrouter) — beides aufgelöst in setup-agent. Der Laufzeitschalter gilt
+# seit dem Rollout des #1184-Pilots für alle Phasen, nicht nur für die Triage.
 #
 # Triggert bei:
 #  - Setzen von Label "ai:needs-analyse" (issues: labeled) → Einstieg in die Pipeline
@@ -164,11 +164,9 @@ jobs:
         id: setup
         uses: ./.github/actions/setup-agent
         with:
-          # PILOTPHASE (#1184): Diese Phase ist die EINZIGE, die vars.AGENT_RUNTIME
-          # durchreicht — hier wird pi als zweite Laufzeit erprobt. Die übrigen Phasen
-          # rufen setup-agent ohne runtime-Input auf und laufen unverändert auf Claude
-          # Code; der Rollout ist laut Ticket ein Folge-Ticket nach Bewährung.
-          # Umschalten ohne Commit: `gh variable set AGENT_RUNTIME --body pi`
+          # Rollout (#1184-Rollout): ALLE Phasen reichen vars.AGENT_RUNTIME durch — der Laufzeit-
+          # schalter gilt repo-weit. Umschalten ohne Commit:
+          # `gh variable set AGENT_RUNTIME --body pi`
           # (leer oder nicht gesetzt = claude; unbekannter Wert bricht laut ab).
           runtime: ${{ vars.AGENT_RUNTIME }}
           pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}

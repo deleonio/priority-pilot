@@ -62,7 +62,7 @@ Definiert in `frontend/src/app.css :root` / `[data-theme='dark']`.
 | `--pp-accent-total`     | `#3b82f6`             | `#60a5fa`             | Dashboard-Karte "Gesamt"                                     |
 | `--pp-accent-open`      | `#f59e0b`             | `#fbbf24`             | Dashboard-Karte "Offen"                                      |
 | `--pp-accent-inprocess` | `#ef4444`             | `#f87171`             | Dashboard-Karte "In Bearbeitung"                             |
-| `--pp-accent-done`      | `#22c55e`             | `#4ade80`             | Dashboard-Karte "Erledigt"                                   |
+| `--pp-accent-done`      | `#22c55e`             | `#4ade80`             | Dashboard-Karte "Erledigen"                                  |
 | `--pp-danger`           | `#b42318`             | `#ef4444`             | Destruktive Aktionen                                         |
 | `--pp-pillar-1…8`       | Neon (geknickt)       | Neon (pur)            | Herz-Wasserstreifen + Legende-Tupfer (Neon-Palette, 2026-09) |
 | `--pp-success`          | `#22c55e`             | `#4ade80`             | Erfolgs-Zustände                                             |
