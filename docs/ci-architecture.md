@@ -19,6 +19,12 @@ sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/ac
 | `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)       | `CLAUDE_API_KEY` | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)        |
 | `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`              |
 
+**Peak-Fallback nur mit echtem API-Key:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18 Asia/Singapore)
+fällt während des Peak-Fensters auf `claude` zurück — aber nur, wenn `CLAUDE_API_KEY` ein echter
+API-Key (`sk-ant-api…`) ist. Bei einem OAuth-Subscription-Token (`sk-ant-oat…`, das pi nicht
+verwerten kann und das Claude Code verweigert, wenn die Org den Subscription-Zugang entzogen hat)
+bleibt der Lauf laut im Peak auf zai (3× Quota) statt garantiert roter Fallback-Läufe.
+
 **Warum unterschiedliche Auth-Variablen?** `ANTHROPIC_API_KEY` sendet den Token als
 `x-api-key`-Header, `ANTHROPIC_AUTH_TOKEN` als `Authorization: Bearer`. z.ai akzeptiert nur
 die Bearer-Form. Die Action setzt pro Provider **genau eine** davon — beide gleichzeitig
@@ -85,9 +91,9 @@ gh variable set AGENT_RUNTIME --body pi       # Pilot: Triage läuft mit pi
 gh variable delete AGENT_RUNTIME              # zurück auf Claude Code
 ```
 
-**Pilotumfang:** Nur [`01-triage.yml`](../.github/workflows/01-triage.yml) reicht
-`vars.AGENT_RUNTIME` durch. Die übrigen Phasen rufen dieselbe Setup-Action ohne
-`runtime`-Input auf und laufen unverändert auf Claude Code; der Rollout ist ein Folge-Ticket.
+**Rollout abgeschlossen:** Sämtliche Setup-Agent-Aufrufer (01–06, die sync/arch/audit-prompts-Crons
+und design-optimize) reichen `vars.AGENT_RUNTIME` durch — der Laufzeitschalter gilt repo-weit,
+nicht mehr nur in der Triage. Unbekannte Werte brechen in der Setup-Action laut ab.
 
 ### Aufteilung der Setup-Actions
 

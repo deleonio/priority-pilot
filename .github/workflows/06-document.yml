@@ -120,6 +120,8 @@ jobs:
           ticket-ref: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
+          runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION || 'haiku' }}
           effort: 'low'

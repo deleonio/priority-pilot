@@ -461,13 +461,26 @@ runs:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
         TIME_WINDOW_OVERRIDE: ${{ steps.time-window-check.outputs.time-window-override }}
         ORIGINAL_PROVIDER: ${{ steps.time-window-check.outputs.original-llm-provider }}
+        CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
-        # Zeitfenster-Override: Wenn aktiv, ZAI durch Claude ersetzen
+        # Zeitfenster-Override: Wenn aktiv, ZAI durch Claude ersetzen — aber nur, wenn der
+        # Fallback auch bedienbar ist (#1275): Ein OAuth-Subscription-Token (sk-ant-oat…) kann
+        # pi grundsätzlich nicht verwerten (fail-closed-Guard in setup-pi), und Claude Code
+        # verweigert es, wenn die Org Subscription-Zugang entzogen hat. Dann lieber laut im
+        # Peak auf zai bleiben (3× Quota, aber funktionierend) als garantiert rote Läufe.
         if [ "$TIME_WINDOW_OVERRIDE" = "true" ]; then
-          echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (z.ai-Peak-Zeit Mo–Fr 14:00–18:00 Asia/Singapore aktiv)."
-          PROVIDER="claude"
+          case "$CLAUDE_API_KEY" in
+            sk-ant-api-*)
+              echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (z.ai-Peak-Zeit Mo–Fr 14:00–18:00 Asia/Singapore aktiv)."
+              PROVIDER="claude"
+              ;;
+            *)
+              echo "::warning title=🕐 Peak-Fallback übersprungen::CLAUDE_API_KEY ist kein echter API-Key (sk-ant-api…) — der Claude-Fallback wäre nicht lauffähig. Es bleibt bei zai trotz Peak-Fenster (3× Quota)."
+              PROVIDER="zai"
+              ;;
+          esac
         fi
 
         case "$PROVIDER" in

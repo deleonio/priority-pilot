@@ -245,6 +245,8 @@ jobs:
           ticket-ref: ${{ github.event.issue.number }}
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
+          runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile) > ai:model:*-Label > Literal
           # (precheck merget), vars.CLAUDE_MODEL_IMPLEMENT bleibt manueller Not-Override.
@@ -670,6 +672,8 @@ jobs:
           ticket-ref: ${{ github.event.pull_request.number }}
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
+          runtime: ${{ vars.AGENT_RUNTIME }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # Modellwahl: ai-phase-routing-Tabelle (impl-Zeile, gilt auch fuer Fixup —
           # ADR-0005) > ai:model:*-Label > Literal (precheck merget).
