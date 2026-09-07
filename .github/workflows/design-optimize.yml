@@ -3,23 +3,27 @@ name: Design Optimize
 # Design-Ziel optimieren: ein freitextlich beschriebenes UI-Ziel (DESIGN_TARGET) wird mit der
 # Impeccable-Skill-Kette zu Ende optimiert — AUDIT → ADAPT → HARDEN → POLISH — und der Lauf
 # schließt damit ab, dass offene TODOs sauber beendet werden (Ergebnis-Marker DESIGN-RUN:
-# clean|remaining). Manual-Dispatch, kein Teil der 7-Phasen-Pipeline (kein Ticket, keine Labels).
+# clean|remaining). Das Ergebnis landet als DRAFT-PR mit nachvollziehbarer Beschreibung
+# (Audit-Befunde → Änderungen pro Phase → offene Punkte → Gate) auf dem Dispatch-Ref.
+# Manual-Dispatch, kein Teil der 7-Phasen-Pipeline (kein Ticket, keine Labels).
 #
 # MODELL: Dispatch-Input `model` als Alias (fable|opus|sonnet|haiku, Default sonnet). Die
 # providerspezifische Auflösung — inkl. zai → GLM — macht zentral die Setup-Action
 # (.github/actions/setup-agent → setup-claude bzw. setup-pi); ein ungültiger Alias bricht dort
 # laut ab (kein stiller Fallback).
 #
-# LAUFZEIT: Wie 01-triage wird vars.AGENT_RUNTIME durchgereicht — der gewohnte Schalter
-# zwischen Claude Code und pi (unbekannter Wert bricht in der Setup-Action laut ab).
+# LAUFZEIT: Wie alle Phasen seit dem Rollout wird vars.AGENT_RUNTIME durchgereicht — der
+# gewohnte Schalter zwischen Claude Code und pi (unbekannter Wert bricht in der Setup-Action
+# laut ab).
 #
 # IMPECCABLE: Die Skill ist bewusst NICHT ins Repo committed (Engine-Binary, Plattform-Assets) —
 # der Lauf installiert sie user-level (`--scope=global`) AUSSERHALB des Worktrees, damit der
 # Abschluss-Commit des Agenten nur die Design-Änderungen enthält und nicht die Skill-Dateien.
 #
-# ERGEBNIS: Der Agent committed + pusht auf den Dispatch-Ref (App-Token). Bei Dispatch auf main
-# löst der Push die gewohnte Deploy-Kette aus — wer das nicht will, dispatcht auf einen Branch.
-# Kein record-cost/issue-state-save: stateless Lauf ohne Ticket (Muster cron.optimize-architecture).
+# ERGEBNIS: Der Agent legt einen Delivery-Branch (design/optimize-<run_id>) an, pusht ihn und
+# erstellt den Draft-PR gegen den Dispatch-Ref (App-Token). Draft = bewusst außer Reichweite des
+# Auto-Merge-Crons; der Mensch entscheidet über den Merge. Kein record-cost/issue-state-save:
+# stateless Lauf ohne Ticket (Muster cron.optimize-architecture).
 
 on:
   workflow_dispatch:
@@ -46,17 +50,18 @@ concurrency:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
   optimize:
-    name: Impeccable audit → adapt → harden → polish
+    name: Impeccable audit → adapt → harden → polish → draft PR
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Voll-Historie: Der Agent committed und pusht am Laufende auf den Dispatch-Ref.
+          # Voll-Historie: Der Agent pusht den Delivery-Branch und öffnet den Draft-PR.
           fetch-depth: 0
           # Muster aller Agent-Workflows: kein GITHUB_TOKEN-Credential hinterlassen —
           # setup-agent legt das App-Token als einzige origin-Credential ab.
@@ -67,7 +72,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          # Soft-Deadline 60 min: 4 Phasen + Gate + Commit; Job-Timeout 75 min als hartes Netz.
+          # Soft-Deadline 60 min: 4 Phasen + Gate + Branch/PR; Job-Timeout 75 min als hartes Netz.
           echo "soft_deadline_epoch=$((now + 3600))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Coding-Agent (Claude Code oder pi, Provider zentral)
@@ -112,6 +117,11 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           DESIGN_TARGET: ${{ inputs.design_target }}
           SOFT_DEADLINE: ${{ steps.starttime.outputs.soft_deadline_epoch }}
+          # RUN CONTEXT: deterministische Delivery-Branch + PR-Basis + Run-Link — vom Workflow
+          # vorgegeben, vom Agenten wortwörtlich zu verwenden (kein Slug-Escaping im Freitext).
+          DELIVERY_BRANCH: design/optimize-${{ github.run_id }}
+          BASE_REF: ${{ github.ref_name }}
+          RUN_URL: ${{ github.serverUrl }}/${{ github.repository }}/actions/runs/${{ github.runId }}
         run: |
           # Guard: workflow_dispatch-String-Inputs dürfen leer submitted werden.
           if [ -z "$DESIGN_TARGET" ]; then
@@ -128,6 +138,11 @@ jobs:
             echo ""
             printf '%s\n' "$DESIGN_TARGET"
             echo ""
+            echo "## RUN CONTEXT (use verbatim)"
+            echo "- Delivery branch: $DELIVERY_BRANCH"
+            echo "- PR base ref: $BASE_REF"
+            echo "- Run URL (for the PR's traceability section): $RUN_URL"
+            echo ""
             echo "## TIME BUDGET"
             echo "Soft deadline epoch: $SOFT_DEADLINE — check with [ \$(date +%s) -ge $SOFT_DEADLINE ] before every step."
           } >> /tmp/claude-prompt.txt
@@ -139,12 +154,19 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Ergebnis parsen (DESIGN-RUN-Marker, fail-loud)
+      - name: Ergebnis parsen (PR-URL + DESIGN-RUN-Marker, fail-loud)
         # Formatbruch = lauter Fehler, kein stiller No-op (Muster FOUND-Parsing arch-opt):
         # Der letzte gewonnene Marker gilt, Prosadeco davor/hinter dem Token ist egal.
         id: parse
         if: steps.setup.outputs.configured == 'true' && steps.agent.outcome == 'success'
         run: |
+          pr_url="$(grep 'PR-URL:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*PR-URL:[[:space:]]*//' | grep -oE 'https://[^[:space:]]+' | head -1 || true)"
+          if [ -z "$pr_url" ]; then
+            echo "::error title=❌ Formatbruch::Keine PR-URL:-Zeile im Agent-Output erkennbar — der Draft-PR ist das Deliverable, Lauf wiederholen."
+            exit 1
+          fi
+          echo "pr-url=$pr_url" >> "$GITHUB_OUTPUT"
+
           status="$(grep 'DESIGN-RUN:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*DESIGN-RUN:[[:space:]]*//' | grep -oE 'clean|remaining' | head -1 || true)"
           if [ -z "$status" ]; then
             echo "::error title=❌ Formatbruch::Keine DESIGN-RUN:-Zeile im Agent-Output erkennbar — Lauf wiederholen."
@@ -167,7 +189,7 @@ jobs:
       - name: Ergebnis zusammenfassen
         if: always()
         env:
-          # Freitexte/Outputs bewusst via env statt \${{ }}-Interpolation in Bash-Quotes —
+          # Freitexte/Outputs bewusst via env statt ${{ }}-Interpolation in Bash-Quotes —
           # Quotes/Backticks im DESIGN_TARGET oder im REMAINING-Text dürften die Zeile nicht brechen.
           DESIGN_TARGET_INPUT: ${{ inputs.design_target }}
           MODEL_INPUT: ${{ inputs.model }}
@@ -175,6 +197,7 @@ jobs:
           AGENT_OUTCOME: ${{ steps.agent.outcome }}
           AGENT_STATUS: ${{ steps.parse.outputs.status }}
           REMAINING: ${{ steps.parse.outputs.remaining }}
+          PR_URL_OUT: ${{ steps.parse.outputs.pr-url }}
           RUNTIME_OUT: ${{ steps.setup.outputs.runtime }}
           PROVIDER_OUT: ${{ steps.setup.outputs.llm-provider }}
         run: |
@@ -184,7 +207,7 @@ jobs:
             if [ "$CONFIGURED" != "true" ]; then
               echo "- ⚠️ App-Secrets fehlen — Lauf übersprungen (kein Fehler)."
             elif [ "$AGENT_OUTCOME" = "success" ] && [ "$AGENT_STATUS" = "clean" ]; then
-              echo "- ✅ Lauf sauber abgeschlossen: audit → adapt → harden → polish, keine offenen TODOs, Änderungen committed + gepusht."
+              echo "- ✅ Lauf sauber abgeschlossen: audit → adapt → harden → polish, keine offenen TODOs."
             elif [ "$AGENT_OUTCOME" = "success" ] && [ "$AGENT_STATUS" = "remaining" ]; then
               echo "- ⚠️ Lauf beendet, aber mit bewusst offenen Punkten (REMAINING):"
               echo ""
@@ -193,6 +216,10 @@ jobs:
               echo "- ❌ Ergebnis-Parsing fehlgeschlagen (Formatbruch) — Log prüfen, Lauf wiederholen."
             else
               echo "- ❌ Agent-Lauf fehlgeschlagen: \`$AGENT_OUTCOME\`."
+            fi
+            if [ -n "$PR_URL_OUT" ]; then
+              echo ""
+              echo "- 📝 Draft-PR: $PR_URL_OUT"
             fi
             echo ""
             echo "- Modell: \`$MODEL_INPUT\` · Laufzeit: \`${RUNTIME_OUT:-claude}\` · Provider: \`${PROVIDER_OUT:-claude}\`"
