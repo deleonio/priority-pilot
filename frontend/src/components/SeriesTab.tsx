@@ -143,54 +143,67 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 					{series.map((entry) => (
 						<li key={entry.id} className="series-tree-item" data-testid={`series-tree-item-${entry.id}`}>
 							<div className="series-tree-row">
-								<span className="series-tree-title">{entry.title}</span>
-								<span className="series-tree-badge series-tree-badge--rhythm">{RHYTHM_LABEL[entry.rhythm]}</span>
-								{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
-								    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
-								    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
-								{entry.active === false && <KolBadge _label="Ruhend" className="series-tree-badge" />}
-								{(entry.latitude != null || entry.address != null) && (
-									<GeoBadge
-										latitude={entry.latitude ?? null}
-										longitude={entry.longitude ?? null}
-										address={entry.address}
-									/>
-								)}
-								{/* #1222: Empfänger-Kennzeichen für den Ersteller (Muster „Für: …" im TaskTree,
-								    #1213). Der Empfänger selbst sieht kein Kennzeichen — für ihn ist die Serie
-								    eine eigene. */}
-								{entry.forUserName != null && (
-									<KolBadge _label={`Für: ${entry.forUserName}`} className="series-tree-badge" />
-								)}
-								{/* #1222 (AK6): Eine fremde Serie (vom eigenen Konto für ein anderes Mitglied
-								    angelegt) ist schreibgeschützt — die Toolbar würde nur in die 404-Sackgasse
-								    führen und bleibt deshalb ungerendert (keine Geister-Fokusziele). */}
-								{entry.forUserId == null && (
-									<div className="series-tree-actions">
-										<KolToolbar
-											_label={`Aktionen für ${entry.title}`}
-											_orientation="horizontal"
-											_items={[
-												{
-													type: 'button',
-													_label: 'Bearbeiten',
-													_hideLabel: true,
-													_icons: { left: { icon: 'fa-solid fa-pen' } },
-													_variant: 'secondary',
-													_on: { onClick: () => setEditDialog({ series: entry }) },
-												},
-												{
-													type: 'button',
-													_label: 'Löschen',
-													_hideLabel: true,
-													_icons: { left: { icon: 'kolicon-cross' } },
-													_variant: 'danger',
-													_on: { onClick: () => setDeleteTarget(entry) },
-												},
-											]}
+								{/* Zeilenstruktur analog `TaskTree` (#1258-Zweizeilen-Modell): Titel + Geo-Badge im
+								    Header, Badges + Aktions-Toolbar in den Controls — mobil (<48rem) Zeile 2 in
+								    voller Breite (Badges links, Toolbar rechtsbündig), ab 48rem alles einzeilig
+								    neben dem Titel (#1259). */}
+								<div className="series-tree-row-header">
+									<span className="series-tree-title">{entry.title}</span>
+									{(entry.latitude != null || entry.address != null) && (
+										<GeoBadge
+											latitude={entry.latitude ?? null}
+											longitude={entry.longitude ?? null}
+											address={entry.address}
 										/>
+									)}
+								</div>
+								<div className="series-tree-row-controls">
+									<div className="series-tree-badges">
+										<span className="series-tree-badge series-tree-badge--rhythm">{RHYTHM_LABEL[entry.rhythm]}</span>
+										{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
+										    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
+										    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
+										{entry.active === false && <KolBadge _label="Ruhend" className="series-tree-badge" />}
+										{/* #1222: Empfänger-Kennzeichen für den Ersteller (Muster „Für: …" im TaskTree,
+										    #1213). Der Empfänger selbst sieht kein Kennzeichen — für ihn ist die Serie
+										    eine eigene. */}
+										{entry.forUserName != null && (
+											<KolBadge
+												_label={`Für: ${entry.forUserName}`}
+												className="series-tree-badge series-tree-badge--provenance"
+											/>
+										)}
 									</div>
-								)}
+									{/* #1222 (AK6): Eine fremde Serie (vom eigenen Konto für ein anderes Mitglied
+									    angelegt) ist schreibgeschützt — die Toolbar würde nur in die 404-Sackgasse
+									    führen und bleibt deshalb ungerendert (keine Geister-Fokusziele). */}
+									{entry.forUserId == null && (
+										<div className="series-tree-actions">
+											<KolToolbar
+												_label={`Aktionen für ${entry.title}`}
+												_orientation="horizontal"
+												_items={[
+													{
+														type: 'button',
+														_label: 'Bearbeiten',
+														_hideLabel: true,
+														_icons: { left: { icon: 'fa-solid fa-pen' } },
+														_variant: 'secondary',
+														_on: { onClick: () => setEditDialog({ series: entry }) },
+													},
+													{
+														type: 'button',
+														_label: 'Löschen',
+														_hideLabel: true,
+														_icons: { left: { icon: 'kolicon-cross' } },
+														_variant: 'danger',
+														_on: { onClick: () => setDeleteTarget(entry) },
+													},
+												]}
+											/>
+										</div>
+									)}
+								</div>
 							</div>
 						</li>
 					))}
