@@ -91,18 +91,21 @@ test.describe('Priority Pilot — #1258: Aufgaben-Tab mobil (375px)', () => {
 		expect(fullyVisible, 'vier Aufgaben ohne Scrollen vollständig im Viewport').toBeGreaterThanOrEqual(4);
 	});
 
-	test('AK3: langer Titel bricht um, statt seitlich abgeschnitten zu werden', async ({ page }) => {
+	test('AK3: längstmöglicher Titel wird vollständig angezeigt, nicht seitlich abgeschnitten', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		// Ein einziges, 108 Zeichen langes „Wort" ohne Leerzeichen — nur `overflow-wrap: anywhere`
-		// (app.css, .task-tree-title) kann es in die Zeilenbreite zwingen; klassischer Umbruch nicht.
-		const longWord = 'Titelumbruchpruefung'.repeat(6);
-		const id = await createTaskViaApi(page, `${uniqueTitle('Lang')} ${longWord}`);
+		// Task-Titel sind schema-seitig auf 30 Zeichen begrenzt (Issue #582: Task.STRING(30) mit
+		// len-Validierung) — der härteste legitime Fall ist ein einzelnes 29-Zeichen-Wort ohne
+		// Leerzeichen: klassischer Umbruch unmöglich, nur die `min-width: 0`-Kette plus
+		// `overflow-wrap: anywhere` (app.css, .task-tree-title) hält es in der Zeile. Längere
+		// Einzelwörter wären kein gültiger Produktzustand (API lehnt sie mit 400 ab).
+		const longWord = 'Donaudampfschifffahrtsgesell'; // 29 Zeichen, kein Leerzeichen
+		const id = await createTaskViaApi(page, longWord);
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
 		const row = page.getByTestId(`task-list-item-${id}`);
-		// Der vollständige Titeltext ist gerendert (umgebrochen, nicht abgeschnitten) …
+		// Der vollständige Titeltext ist gerendert (ggf. umgebrochen, nicht abgeschnitten) …
 		await expect(row.getByText(longWord)).toBeVisible();
 		// … und die Zeile läuft nicht aus dem Viewport.
 		const box = await row.boundingBox();
