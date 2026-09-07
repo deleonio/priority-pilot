@@ -397,7 +397,7 @@ describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/s
 		expect(panel, '.dashboard-next-task-content fehlt bei gesetztem nextTask').not.toBeNull();
 
 		const buttons = [...(panel?.querySelectorAll('kol-button') ?? [])];
-		const doneButton = buttons.find((b) => b.getAttribute('_label') === 'Erledigt');
+		const doneButton = buttons.find((b) => b.getAttribute('_label') === 'Erledigen');
 		expect(doneButton, 'Button mit _label="Erledigen" fehlt im Panel').toBeDefined();
 
 		const startButton = buttons.find((b) => b.getAttribute('_label') === 'Jetzt starten');

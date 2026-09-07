@@ -77,6 +77,26 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</span>
 	),
+	// #1260: Akkordeon-Mock — kontrolliert wie die echte Komponente: `details.open` spiegelt `_open`,
+	// der Summary-Klick ruft den onClick-Callback mit dem neuen Zustand auf (KoliBri-Signatur:
+	// Event + Boolean). Der Inhalt bleibt wie im echten kol-accordion im DOM (nur visisch versteckt),
+	// damit die bestehenden Feld-Tests unverändert greifen.
+	KolAccordion: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onClick?: (event: unknown, open: boolean) => void };
+		children?: ReactNode;
+	}) => (
+		<details open={_open === true} data-accordion={_label}>
+			<summary onClick={(e) => _on?.onClick?.(e.nativeEvent, !(_open === true))}>{_label}</summary>
+			{children}
+		</details>
+	),
 	KolInputCheckbox: ({
 		_label,
 		_checked,
@@ -1350,9 +1370,11 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
+		// #1260: Die Checkliste liegt im zugeklappten Optional-Akkordeon — erst aufklappen.
+		fireEvent.click(screen.getByText('Optional'));
 
 		await addItem('Abhaken');
-		const toggle = screen.getByRole('switch', { name: /Erledigt/i }) as HTMLInputElement;
+		const toggle = screen.getByRole('switch', { name: /Erledigen/i }) as HTMLInputElement;
 		expect(toggle.checked).toBe(false);
 
 		await act(async () => {
@@ -1500,6 +1522,8 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
+		// #1260: Ort & Termin liegt zugeklappt — erst das Akkordeon öffnen.
+		fireEvent.click(screen.getByText('Termin & Ort'));
 
 		await selectAddressHit('munchen', /München Hauptbahnhof/);
 
@@ -1557,6 +1581,7 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
+		fireEvent.click(screen.getByText('Termin & Ort')); // #1260: erst aufklappen
 		await selectAddressHit('munchen', /München Hauptbahnhof/);
 
 		await selectAddressHit('munchen ost', /München Ost/);
@@ -1576,6 +1601,7 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
+		fireEvent.click(screen.getByText('Termin & Ort')); // #1260: erst aufklappen
 		await fillTitle('Freitext-Aufgabe');
 		await selectAddressHit('munchen', /München Hauptbahnhof/);
 
@@ -1605,6 +1631,7 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
+		fireEvent.click(screen.getByText('Termin & Ort')); // #1260: erst aufklappen
 		await selectAddressHit('munchen', /München Hauptbahnhof/);
 		expect(coordsBox()).toBeVisible();
 
@@ -2116,5 +2143,82 @@ describe('TaskForm — Empfängerauswahl im Bearbeiten-Modus / Übergabe (#1252 
 		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
 		const [{ taskUpdate }] = mockUpdateTask.mock.calls[0] as [{ taskUpdate: Record<string, unknown> }];
 		expect(taskUpdate).not.toHaveProperty('userId');
+	});
+});
+
+describe('TaskForm — Kompakte Sektionen (#1260)', () => {
+	/** Liefert das `<details>`-Element des gemockten Akkordeons zur Sektion mit dem Label. */
+	const accordionOf = (label: string): HTMLDetailsElement =>
+		screen.getByText(label).closest('details') as HTMLDetailsElement;
+
+	it('AK1/AK2 — Anlegen: Pflichtfelder sofort sichtbar, beide Opt-in-Sektionen zugeklappt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(screen.getByLabelText('Titel')).toBeInTheDocument();
+		expect(screen.getByLabelText(/Priorität/)).toBeInTheDocument();
+		expect(screen.getByLabelText(/Aufwand in Tagen/)).toBeInTheDocument();
+		expect(accordionOf('Termin & Ort').open).toBe(false);
+		expect(accordionOf('Optional').open).toBe(false);
+	});
+
+	it('AK2 — je ein Klick klappt die Sektion einzeln auf', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		fireEvent.click(screen.getByText('Termin & Ort'));
+		expect(accordionOf('Termin & Ort').open).toBe(true);
+		expect(accordionOf('Optional').open).toBe(false);
+
+		fireEvent.click(screen.getByText('Optional'));
+		expect(accordionOf('Optional').open).toBe(true);
+	});
+
+	it('AK4 — Task-Bearbeiten mit gefüllter Deadline: „Termin & Ort" startet aufgeklappt', async () => {
+		await act(async () => {
+			render(
+				<TaskForm task={{ ...minimalNewTask(), deadline: new Date('2026-08-15T00:00:00.000Z') }} {...defaultProps} />,
+			);
+		});
+
+		expect(accordionOf('Termin & Ort').open).toBe(true);
+		expect(accordionOf('Optional').open).toBe(false);
+	});
+
+	it('AK4 — Task-Bearbeiten mit Beschreibung: „Optional" startet aufgeklappt', async () => {
+		await act(async () => {
+			render(<TaskForm task={{ ...minimalNewTask(), description: 'Vorhandene Beschreibung' }} {...defaultProps} />);
+		});
+
+		expect(accordionOf('Optional').open).toBe(true);
+		expect(accordionOf('Termin & Ort').open).toBe(false);
+	});
+
+	it('AK4 — Task-Bearbeiten ohne gefüllte Opt-in-Werte: beide zugeklappt', async () => {
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		expect(accordionOf('Termin & Ort').open).toBe(false);
+		expect(accordionOf('Optional').open).toBe(false);
+	});
+
+	it('AK4 — Serien-Bearbeiten: „Termin & Ort" startet wegen vorhandenem Startdatum aufgeklappt', async () => {
+		const SeriesEdit = TaskForm as unknown as (
+			props: typeof defaultProps & { task: null; series: Series },
+		) => ReactNode;
+
+		await act(async () => {
+			render(<SeriesEdit task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		expect(accordionOf('Termin & Ort').open).toBe(true);
+		expect(accordionOf('Optional').open).toBe(false);
 	});
 });
