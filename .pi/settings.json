@@ -6,7 +6,7 @@
 	},
 	"packages": [
 		{
-			"source": "npm:pi-subagents@0.65.0",
+			"source": "npm:pi-subagents@0.66.0",
 			"autoload": false,
 			"prompts": [
 				"+prompts/review-loop.md",
@@ -26,12 +26,12 @@
 			"skills": ["+skills/mcp-scripting/SKILL.md"]
 		},
 		{
-			"source": "npm:@narumitw/pi-lsp@0.49.6",
+			"source": "npm:@narumitw/pi-lsp@0.49.7",
 			"autoload": false,
 			"extensions": ["+dist/index.ts"]
 		},
 		{
-			"source": "npm:pi-web-access@0.27.0",
+			"source": "npm:pi-web-access@0.28.0",
 			"autoload": false,
 			"extensions": ["+index.ts"]
 		},
