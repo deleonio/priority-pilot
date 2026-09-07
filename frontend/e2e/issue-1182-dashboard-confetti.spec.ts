@@ -55,7 +55,7 @@ const confetti = (page: Page) => page.getByTestId('confetti-overlay');
 
 /** AK1-Ablauf: Aufgabe über das Signal-Panel und den Bestätigungsdialog erledigen. */
 const completeViaDashboard = async (page: Page): Promise<void> => {
-	await page.getByRole('button', { name: 'Erledigt', exact: true }).click();
+	await page.getByRole('button', { name: 'Erledigen', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
 	await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
 	await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();

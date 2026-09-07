@@ -124,12 +124,12 @@ const DEPTH_WAVE_LAYERS = [
 	},
 ];
 
-/** Höchster in `app.css` definierter Rang der Säulen-Rampe (`--pp-pillar-1…8`). */
-const PILLAR_RAMP_SIZE = 8;
+/** Höchster in `app.css` definierter Rang der Säulen-Rampe (`--pp-pillar-1…7`). */
+const PILLAR_RAMP_SIZE = 7;
 
 /**
  * Farbklassen aus der Säulen-Rampe — einmal für den Farbstreifen im Bild (`heart-water`), einmal
- * für den Tupfer in der Legende (`heart-legend-dot`). Ab der 9. Säule wird nicht weiter eingefärbt
+ * für den Tupfer in der Legende (`heart-legend-dot`). Ab der 8. Säule wird nicht weiter eingefärbt
  * (ux-design.md §2, Regel 3): Dann bleibt es bei der Basisklasse, die neutral färbt, und der Name
  * in der Legende trägt die Zuordnung allein.
  *

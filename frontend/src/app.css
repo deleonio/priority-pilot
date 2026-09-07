@@ -53,20 +53,19 @@
 
 	/*
 	 * Säulen-Rampe: kategorial, in fester Reihenfolge vergeben (nie zyklisch weiterzählen). Herkunft
-	 * ist die validierte Referenzpalette des dataviz-Skills, nachgerechnet gegen unsere Flächen —
-	 * schlechtestes Nachbarpaar CVD ΔE 9.1. Drei Hell-Werte liegen unter 3:1 zu Weiß, deshalb gilt
-	 * die Relief-Regel: der Säulenname steht immer als Text daneben.
+	 * ist die gerechnete 7-Farben-Neon-Palette (#1273) — Nachweis als Dauer-Test in
+	 * pillarPalette.test.ts (CIEDE2000 + CVD-Simulation). Die Hell-Werte liegen unter 3:1 zu Weiß,
+	 * deshalb gilt die Relief-Regel: der Säulenname steht immer als Text daneben.
 	 */
-	/* Herz-Rampe: Neon-Palette (Nutzer-Auftrag 2026-09-06). Light in Lesbarkeits-Brechung
-	   (volle Leuchtkraft bleibt dem Dark Mode vorbehalten), Reihenfolge der Hue wie zuvor. */
-	--pp-pillar-1: #d6006e;
-	--pp-pillar-2: #0087a8;
-	--pp-pillar-3: #16a416;
-	--pp-pillar-4: #a89200;
-	--pp-pillar-5: #8a1fd6;
-	--pp-pillar-6: #c95400;
-	--pp-pillar-7: #009179;
-	--pp-pillar-8: #d40f0f;
+	/* Herz-Rampe: 7 Neon-Farben, paarweise unterscheidbar auch unter Farbsehschwäche; Light in
+	   Lesbarkeits-Brechung (volle Leuchtkraft bleibt dem Dark Mode vorbehalten), gleicher Hue. */
+	--pp-pillar-1: #b61414;
+	--pp-pillar-2: #dbde0d;
+	--pp-pillar-3: #0ca974;
+	--pp-pillar-4: #0f009c;
+	--pp-pillar-5: #a722c8;
+	--pp-pillar-6: #6a1b64;
+	--pp-pillar-7: #a0306f;
 
 	/* Alias-Schicht (historische Namen) — siehe Kommentar oben. */
 	--pp-bg: var(--pp-surface-0);
@@ -170,14 +169,13 @@
 	--pp-danger: #f97066;
 
 	/* Herz-Rampe Dark: volle Neon-Leuchtkraft. */
-	--pp-pillar-1: #ff2d95;
-	--pp-pillar-2: #00e5ff;
-	--pp-pillar-3: #39ff14;
-	--pp-pillar-4: #fff01f;
-	--pp-pillar-5: #b026ff;
-	--pp-pillar-6: #ff6a00;
-	--pp-pillar-7: #00ffc8;
-	--pp-pillar-8: #ff3131;
+	--pp-pillar-1: #f0210f;
+	--pp-pillar-2: #e7f831;
+	--pp-pillar-3: #5af2a6;
+	--pp-pillar-4: #4324db;
+	--pp-pillar-5: #c22aef;
+	--pp-pillar-6: #e665ea;
+	--pp-pillar-7: #dd31af;
 
 	--pp-shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
 	--pp-shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
@@ -2569,7 +2567,7 @@ kol-heading {
 
 /*
  * Wasserfarbe je Säule aus der kategorialen Rampe, der Reihe nach vergeben. Ohne Modifier bleibt
- * das Segment neutral: ab der 9. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
+ * das Segment neutral: ab der 8. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
  */
 .heart-water {
 	fill: var(--pp-border-strong);
@@ -2601,10 +2599,6 @@ kol-heading {
 
 .heart-water--7 {
 	fill: var(--pp-pillar-7);
-}
-
-.heart-water--8 {
-	fill: var(--pp-pillar-8);
 }
 
 /* Ablesung unter dem Bild — die Zahl steht neben ihrer Bezugsgröße, nicht im Wasser. */
@@ -2721,10 +2715,6 @@ kol-heading {
 
 .heart-legend-dot--7 {
 	background: var(--pp-pillar-7);
-}
-
-.heart-legend-dot--8 {
-	background: var(--pp-pillar-8);
 }
 
 /* --- Beitrittsseite über Einladungslink (#1226): öffentlicher Screen ohne App-Shell --- */

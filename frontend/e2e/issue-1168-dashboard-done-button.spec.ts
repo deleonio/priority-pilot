@@ -63,7 +63,7 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		// Aufgabenlisten- und Wald-Rendering derselben Aufgabe (strict-mode violation).
 		await expect(page.locator('.dashboard-next-task-content')).toContainText('E2E #1168 Erste Aufgabe');
 
-		await page.getByRole('button', { name: 'Erledigt' }).click();
+		await page.getByRole('button', { name: 'Erledigen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
 		// AK2: Der Dialog nennt die betroffene Aufgabe namentlich. Der Inhalts-Anchor ist die
 		// Light-DOM-Hülle `.modal-body` (Modal.tsx): der native <dialog> steckt im Shadow-DOM des
@@ -83,7 +83,7 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		await createTask(page, 'E2E #1168 Einzige Aufgabe', 5);
 
 		await openDashboard(page);
-		await page.getByRole('button', { name: 'Erledigt' }).click();
+		await page.getByRole('button', { name: 'Erledigen' }).click();
 		await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
 
@@ -95,7 +95,7 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		const id = await createTask(page, 'E2E #1168 Abbrechen-Aufgabe', 5);
 
 		await openDashboard(page);
-		await page.getByRole('button', { name: 'Erledigt' }).click();
+		await page.getByRole('button', { name: 'Erledigen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
 
 		await page.getByRole('button', { name: 'Abbrechen' }).click();
@@ -112,7 +112,7 @@ test.describe('#1168 „Erledigt"-Button im Dashboard-Signal-Panel', () => {
 		const id = await createTask(page, 'E2E #1168 Fehler-Aufgabe', 5);
 
 		await openDashboard(page);
-		await page.getByRole('button', { name: 'Erledigt' }).click();
+		await page.getByRole('button', { name: 'Erledigen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeVisible();
 
 		await page.route(`**/api/v1/tasks/${id}`, (route: Route) => {
