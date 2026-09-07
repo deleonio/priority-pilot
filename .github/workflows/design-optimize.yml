@@ -1,0 +1,199 @@
+name: Design Optimize
+
+# Design-Ziel optimieren: ein freitextlich beschriebenes UI-Ziel (DESIGN_TARGET) wird mit der
+# Impeccable-Skill-Kette zu Ende optimiert — AUDIT → ADAPT → HARDEN → POLISH — und der Lauf
+# schließt damit ab, dass offene TODOs sauber beendet werden (Ergebnis-Marker DESIGN-RUN:
+# clean|remaining). Manual-Dispatch, kein Teil der 7-Phasen-Pipeline (kein Ticket, keine Labels).
+#
+# MODELL: Dispatch-Input `model` als Alias (fable|opus|sonnet|haiku, Default sonnet). Die
+# providerspezifische Auflösung — inkl. zai → GLM — macht zentral die Setup-Action
+# (.github/actions/setup-agent → setup-claude bzw. setup-pi); ein ungültiger Alias bricht dort
+# laut ab (kein stiller Fallback).
+#
+# LAUFZEIT: Wie 01-triage wird vars.AGENT_RUNTIME durchgereicht — der gewohnte Schalter
+# zwischen Claude Code und pi (unbekannter Wert bricht in der Setup-Action laut ab).
+#
+# IMPECCABLE: Die Skill ist bewusst NICHT ins Repo committed (Engine-Binary, Plattform-Assets) —
+# der Lauf installiert sie user-level (`--scope=global`) AUSSERHALB des Worktrees, damit der
+# Abschluss-Commit des Agenten nur die Design-Änderungen enthält und nicht die Skill-Dateien.
+#
+# ERGEBNIS: Der Agent committed + pusht auf den Dispatch-Ref (App-Token). Bei Dispatch auf main
+# löst der Push die gewohnte Deploy-Kette aus — wer das nicht will, dispatcht auf einen Branch.
+# Kein record-cost/issue-state-save: stateless Lauf ohne Ticket (Muster cron.optimize-architecture).
+
+on:
+  workflow_dispatch:
+    inputs:
+      design_target:
+        description: 'Design-Ziel in der App (kurzer Text, z. B. „Serien-Tab")'
+        required: true
+        type: string
+      model:
+        description: 'Modell-Klasse (zai/openrouter mappen providerspezifisch)'
+        required: true
+        default: 'sonnet'
+        type: choice
+        options:
+          - haiku
+          - sonnet
+          - opus
+          - fable
+
+concurrency:
+  group: design-optimize
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  optimize:
+    name: Impeccable audit → adapt → harden → polish
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Voll-Historie: Der Agent committed und pusht am Laufende auf den Dispatch-Ref.
+          fetch-depth: 0
+          # Muster aller Agent-Workflows: kein GITHUB_TOKEN-Credential hinterlassen —
+          # setup-agent legt das App-Token als einzige origin-Credential ab.
+          persist-credentials: false
+
+      - name: Startzeit merken
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # Soft-Deadline 60 min: 4 Phasen + Gate + Commit; Job-Timeout 75 min als hartes Netz.
+          echo "soft_deadline_epoch=$((now + 3600))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Coding-Agent (Claude Code oder pi, Provider zentral)
+        id: setup
+        uses: ./.github/actions/setup-agent
+        with:
+          needs-mcp: true
+          browser-mcp: true
+          tools-tier: full
+          event-type: issues
+          # Stateless Helper-Run ohne Ticket: Nummer bleibt bewusst leer — verbraucht wird sie
+          # nur für Memory-Load/Save, beides hier deaktiviert (Muster arch-opt).
+          ticket-ref: ''
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ inputs.model }}
+          # Fan-out-Lesen (audit-recherche) auf dem billigen Modell, Muster Triage/Arch-Opt.
+          subagent-model: ${{ vars.CLAUDE_MODEL_DESIGN_SUBAGENT || 'haiku' }}
+          effort: 'high'
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+
+      - name: Impeccable-Skill installieren (user-level, außerhalb des Worktrees)
+        if: steps.setup.outputs.configured == 'true'
+        timeout-minutes: 10
+        run: |
+          # Major-Pin: Installationsmechanik der 4er-Linie; Engine + Skill-Dateien landen in
+          # ~/.claude/skills bzw. ~/.pi/agent/skills — beides außerhalb des Repos.
+          npx -y impeccable@4 install -y --scope=global --providers=claude,pi --no-hooks
+
+      - name: Design-Optimierung via Coding-Agent
+        id: agent
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          DESIGN_TARGET: ${{ inputs.design_target }}
+          SOFT_DEADLINE: ${{ steps.starttime.outputs.soft_deadline_epoch }}
+        run: |
+          # Guard: workflow_dispatch-String-Inputs dürfen leer submitted werden.
+          if [ -z "$DESIGN_TARGET" ]; then
+            echo "::error title=Leerer DESIGN_TARGET::Der Dispatch-Input 'design_target' ist leer — bitte ein Ziel angeben."
+            exit 1
+          fi
+
+          # Kontext als angehängter Block statt sed-Substitution über Freitext
+          # (Muster arch-opt — kein Escaping-Problem mit beliebigen Ziel-Texten).
+          cp .github/prompts/design-optimize.md /tmp/claude-prompt.txt
+          {
+            echo ""
+            echo "## DESIGN_TARGET (dispatch input — authoritative; resolve to the concrete surface yourself)"
+            echo ""
+            printf '%s\n' "$DESIGN_TARGET"
+            echo ""
+            echo "## TIME BUDGET"
+            echo "Soft deadline epoch: $SOFT_DEADLINE — check with [ \$(date +%s) -ge $SOFT_DEADLINE ] before every step."
+          } >> /tmp/claude-prompt.txt
+
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Ergebnis parsen (DESIGN-RUN-Marker, fail-loud)
+        # Formatbruch = lauter Fehler, kein stiller No-op (Muster FOUND-Parsing arch-opt):
+        # Der letzte gewonnene Marker gilt, Prosadeco davor/hinter dem Token ist egal.
+        id: parse
+        if: steps.setup.outputs.configured == 'true' && steps.agent.outcome == 'success'
+        run: |
+          status="$(grep 'DESIGN-RUN:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*DESIGN-RUN:[[:space:]]*//' | grep -oE 'clean|remaining' | head -1 || true)"
+          if [ -z "$status" ]; then
+            echo "::error title=❌ Formatbruch::Keine DESIGN-RUN:-Zeile im Agent-Output erkennbar — Lauf wiederholen."
+            exit 1
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+          # REMAINING-Block (falls vorhanden) für die Summary durchreichen.
+          remaining="$(awk 'index($0, "REMAINING") { f = 1; next } index($0, "DESIGN-RUN:") { f = 0 } f' /tmp/claude-output.log | head -20)"
+          {
+            echo "remaining<<PARSE_EOF"
+            printf '%s\n' "${remaining:-keine}"
+            echo "PARSE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/llm-fair-usage-check
+
+      - name: Ergebnis zusammenfassen
+        if: always()
+        env:
+          # Freitexte/Outputs bewusst via env statt \${{ }}-Interpolation in Bash-Quotes —
+          # Quotes/Backticks im DESIGN_TARGET oder im REMAINING-Text dürften die Zeile nicht brechen.
+          DESIGN_TARGET_INPUT: ${{ inputs.design_target }}
+          MODEL_INPUT: ${{ inputs.model }}
+          CONFIGURED: ${{ steps.setup.outputs.configured }}
+          AGENT_OUTCOME: ${{ steps.agent.outcome }}
+          AGENT_STATUS: ${{ steps.parse.outputs.status }}
+          REMAINING: ${{ steps.parse.outputs.remaining }}
+          RUNTIME_OUT: ${{ steps.setup.outputs.runtime }}
+          PROVIDER_OUT: ${{ steps.setup.outputs.llm-provider }}
+        run: |
+          {
+            echo "### Design-Optimize: ${DESIGN_TARGET_INPUT:-(kein Ziel)}"
+            echo ""
+            if [ "$CONFIGURED" != "true" ]; then
+              echo "- ⚠️ App-Secrets fehlen — Lauf übersprungen (kein Fehler)."
+            elif [ "$AGENT_OUTCOME" = "success" ] && [ "$AGENT_STATUS" = "clean" ]; then
+              echo "- ✅ Lauf sauber abgeschlossen: audit → adapt → harden → polish, keine offenen TODOs, Änderungen committed + gepusht."
+            elif [ "$AGENT_OUTCOME" = "success" ] && [ "$AGENT_STATUS" = "remaining" ]; then
+              echo "- ⚠️ Lauf beendet, aber mit bewusst offenen Punkten (REMAINING):"
+              echo ""
+              printf '%s\n' "$REMAINING"
+            elif [ "$AGENT_OUTCOME" = "success" ]; then
+              echo "- ❌ Ergebnis-Parsing fehlgeschlagen (Formatbruch) — Log prüfen, Lauf wiederholen."
+            else
+              echo "- ❌ Agent-Lauf fehlgeschlagen: \`$AGENT_OUTCOME\`."
+            fi
+            echo ""
+            echo "- Modell: \`$MODEL_INPUT\` · Laufzeit: \`${RUNTIME_OUT:-claude}\` · Provider: \`${PROVIDER_OUT:-claude}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
