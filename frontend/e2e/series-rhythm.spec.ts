@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote End-to-End-Spec für #470 — Serien-Rhythmen: Werktags/Wochenende/Wochentag (Frontend).
@@ -57,6 +57,8 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 		await waitForStableView(page);
 		// In den Serie-Modus schalten (Switch mit data-testid="mode-switch").
 		await page.getByTestId('mode-switch').getByRole('checkbox').click();
+		// #1260: Startdatum/Rhythmus liegen im zugeklappten „Termin & Ort"-Akkordeon.
+		await openAccordionSection(page, 'Termin & Ort');
 		await expect(page.getByLabel('Rhythmus')).toBeVisible();
 	};
 

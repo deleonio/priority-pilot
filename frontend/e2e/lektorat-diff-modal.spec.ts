@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 // Spec-Referenz: docs/spec/issue-687.md
 // Akzeptanzkriterien aus Issue 687:
@@ -30,6 +30,8 @@ const openTaskForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Überspringen' }).click();
 	await waitForStableView(page);
+	// #1260: Beschreibung liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
+	await openAccordionSection(page, 'Optional');
 	const titleInput = page.getByRole('textbox', { name: 'Titel' });
 	await expect(titleInput).toBeVisible();
 };

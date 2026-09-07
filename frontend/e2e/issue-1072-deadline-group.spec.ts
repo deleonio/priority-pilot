@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E-Layout-Tests für #1072 „Deadline-Felder visuell gruppieren, Adresse als letztes Feld".
@@ -22,6 +22,8 @@ const openForm = async (page: Page): Promise<void> => {
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 	await page.getByRole('button', { name: /überspringen/i }).click();
 	await waitForStableView(page);
+	// #1260: Deadline-Gruppe und Adresse liegen im zugeklappten „Termin & Ort"-Akkordeon.
+	await openAccordionSection(page, 'Termin & Ort');
 };
 
 const deadlineGroup = (page: Page) => page.getByTestId('deadline-group');

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote End-to-End-Spec (#316, Sub-C2 von #296) für den **Task/Serie-Umschalter im Anlege-Formular**
@@ -53,6 +53,8 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
+		// #1260: Deadline/Serienfelder liegen im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
 	};
 
 	/** Liefert den Switch-Wrapper (data-testid="mode-switch", #334). */

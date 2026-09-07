@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { SPEECH_MOCK_INIT_SCRIPT, waitForStableView } from './helpers';
+import { SPEECH_MOCK_INIT_SCRIPT, openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * e2e-Spec für #251 — „Audiotranskription für die Task-Erstellung" (Weg A: Browser Web Speech API) —
@@ -58,6 +58,8 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
+		// #1260: Beschreibung liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Optional');
 		// `getByRole('textbox', …)` statt `getByLabel`: Letzteres matcht per Substring auch die
 		// Mic-Buttons (aria-label `Aufnahme starten (Mikrofon): Titel`, #264).
 		await expect(titleInput(page)).toBeVisible();

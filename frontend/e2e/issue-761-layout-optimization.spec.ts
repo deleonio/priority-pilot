@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * E2E-Layout-Tests für #761 „Layout-Optimierung Titel/Beschreibung/Aktionen".
@@ -40,6 +40,9 @@ const openTaskForm = async (page: Page): Promise<void> => {
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 	await page.getByRole('button', { name: /überspringen/i }).click();
 	await waitForStableView(page);
+
+	// #1260: Beschreibung liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
+	await openAccordionSection(page, 'Optional');
 };
 
 /** Die Flex-Zeile eines Feldes: Feld-Wrapper (`data-testid`) + zugehöriger Lektorat-Button. */

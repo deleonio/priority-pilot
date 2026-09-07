@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1080 — „Settings KI deaktivierbar" (Stufe 1 TDD, der einklagbare Vertrag).
@@ -180,6 +180,8 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		// Auch dieser Einstieg weicht der Schnellerfassung aus (#1080) und nimmt den Vorschlagstext
 		// als Beschreibungs-Vorbelegung mit (#327: `initialText` → `initialValues.description`).
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
+		// #1260: Die Beschreibung liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
+		await openAccordionSection(page, 'Optional');
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
 		await expect(page.getByRole('textbox', { name: /^Beschreibung/ })).toHaveValue('Spaziergang am Fluss');
 	});
