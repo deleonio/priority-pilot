@@ -21,9 +21,9 @@ import type { Pillar } from 'client';
 interface HeartSegment {
 	pillar: Pillar;
 	/**
-	 * Nullbasierter Rang in der Säulen-Rampe `--pp-pillar-1…8`. Er folgt der **Säulen-`id`**, nicht
+	 * Nullbasierter Rang in der Säulen-Rampe `--pp-pillar-1…7`. Er folgt der **Säulen-`id`**, nicht
 	 * der Anzeigereihenfolge: Farbe folgt der Säule, eine Umsortierung darf keine Umfärbung
-	 * auslösen (ux-design.md §2, Regel 3). Ab Rang 8 (der 9. Säule) wird nicht weiter eingefärbt.
+	 * auslösen (ux-design.md §2, Regel 3). Ab Rang 7 (der 8. Säule) wird nicht weiter eingefärbt.
 	 */
 	colorIndex: number;
 	/**
