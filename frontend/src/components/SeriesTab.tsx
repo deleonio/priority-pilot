@@ -176,7 +176,10 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 								</div>
 								<div className="series-tree-row-controls">
 									<div className="series-tree-badges">
-										<span className="series-tree-badge series-tree-badge--rhythm">{RHYTHM_LABEL[entry.rhythm]}</span>
+										{/* Rhythmus als KolBadge (Muster „Serie“-Badge im TaskTree, #1258) statt roher Span:
+										    alle Badges einer Zeile stammen aus einem System (KoliBri-first, DESIGN.md) —
+										    gleiche Höhe, gleicher Radius, Kontrast rechnet KoliBri selbst (_color). */}
+										<KolBadge _label={RHYTHM_LABEL[entry.rhythm]} _color="#005b99" className="series-tree-badge" />
 										{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
 										    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
 										    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}

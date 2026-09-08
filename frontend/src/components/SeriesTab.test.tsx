@@ -165,7 +165,7 @@ describe('SeriesTab — Für-Kennzeichen und fremde Serien (#1222 AK9)', () => {
 			render(<SeriesTab pillars={[pillarKoerper]} />);
 		});
 
-		expect(screen.getByTestId('series-badge')).toHaveTextContent('Für: Bobi Anderes');
+		expect(screen.getByText('Für: Bobi Anderes')).toBeInTheDocument();
 		expect(screen.queryByRole('toolbar', { name: /Aktionen für Übergabe-Routine/ })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Löschen' })).toBeNull();
@@ -178,7 +178,7 @@ describe('SeriesTab — Für-Kennzeichen und fremde Serien (#1222 AK9)', () => {
 			render(<SeriesTab pillars={[pillarKoerper]} />);
 		});
 
-		expect(screen.queryByTestId('series-badge')).toBeNull();
+		expect(screen.queryByText(/^Für: /)).toBeNull();
 		expect(screen.getByRole('toolbar', { name: /Aktionen für Übergabe-Routine/ })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Löschen' })).toBeInTheDocument();
