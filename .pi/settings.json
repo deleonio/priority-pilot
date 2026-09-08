@@ -47,10 +47,9 @@
 		"baseDelayMs": 5000,
 		"provider": {
 			"timeoutMs": 3600000,
-			"maxRetries": 0,
+			"maxRetries": 3,
 			"maxRetryDelayMs": 120000
 		}
 	},
-	"defaultProvider": "zai",
-	"defaultModel": "glm-5.3-flash"
+	"defaultModel": "glm-5.3"
 }
