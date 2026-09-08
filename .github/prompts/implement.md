@@ -41,6 +41,6 @@ TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) 
 
 Idempotency: per SKILL.md step 1.
 
-MENTOR-RAT: if a block between "═══ MENTOR-RAT (VERBINDLICH) ═══" and "═══ ENDE MENTOR-RAT ═══" is present in this prompt, it is BINDING — this run already failed once; follow the mentor's Weg, avoid its Fallen. Deviate only with a justification in your phase note.
+MENTOR-RAT: if a block between "═══ MENTOR-RAT (VERBINDLICH) ═══" and "═══ ENDE MENTOR-RAT ═══" is present in this prompt, it is BINDING — this phase already failed once (rerun or fixup round); follow the mentor's Weg, avoid its Fallen. Deviate only with a justification in your phase note. <!-- keep in sync: implement.md / fixup.md -->
 
 NO ping comment: the PR + commits are the complete communication. For progress/problems: document in the PR body (draft + justification), not via comments. The traffic-light-🔴 rule from step 2 remains unaffected.

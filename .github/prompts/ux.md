@@ -4,16 +4,17 @@ Method, rules, and output block structure (binding, not repeated here): .claude/
 
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
-  2. Load the issue body (gh issue view {{ISSUE_NR}} --json body -q .body) — context only.
-     The validated description stays UNTOUCHED (ADR 0009): never `gh issue edit --body`.
-  3. Read the analysis from the harness marker comment — the comment whose body starts with
-     `<!-- ai-harness -->`; the KI-ANALYSE section between <!-- KI-ANALYSE:START --> and
+  2. ONE gh call for both sources: gh issue view {{ISSUE_NR}} --json body,comments -q
+     '{body: .body, harness: ([.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].body // "")}'
+     — the body is context only and stays UNTOUCHED (ADR 0009): never `gh issue edit --body`.
+     From the harness comment read the KI-ANALYSE section between <!-- KI-ANALYSE:START --> and
      <!-- KI-ANALYSE:END --> (fields per SKILL.md → Output; UI relevance: ai-phase-routing
      line `ux`). The UX review runs BEFORE the spec.
-     Legacy fallback: no marker comment yet → the analysis block may still live in the
-     issue body (tickets before ADR 0009) — read it there.
-  4. Rules & sources per SKILL.md (mandatory sources there) — purely static.
-  5. Write the UX review (in German, per SKILL.md) between <!-- KI-UX:START --> and
+     Legacy fallback: no marker comment yet (harness == "") → the analysis block may still
+     live in the issue body (tickets before ADR 0009) — read it there.
+  3. Rules & sources per SKILL.md (mandatory sources there) — purely static.
+     KoliBri component verification → kolibri-recherche role (SKILL.md → Delegation).
+  4. Write the UX review (in German, per SKILL.md) between <!-- KI-UX:START --> and
      <!-- KI-UX:END --> INSIDE the harness marker comment (mechanics per SKILL.md → Output).
      CI delta: heredoc lines start at column 0, the EOF terminator must too.
      Only write what applies to the issue — don't force every section.

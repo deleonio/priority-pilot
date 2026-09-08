@@ -39,8 +39,11 @@ on:
         default: false
 
 concurrency:
-  group: claude-spec-sync
+  group: llm
   cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run (Default
+  # `queue: single` verwirft wartende Läufe still). `max` = bis zu 100 pending, FIFO.
+  queue: max
 
 permissions:
   contents: write # Branch-Pushes chore/spec-sync/*

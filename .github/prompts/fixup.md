@@ -55,4 +55,4 @@ Updated: JJJJ-MM-TT
 
 TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: commit+push the current state, end the turn.
 
-MENTOR-RAT: if a block between "═══ MENTOR-RAT (VERBINDLICH) ═══" and "═══ ENDE MENTOR-RAT ═══" is present in this prompt, it is BINDING — previous rounds did not converge; follow the mentor's Weg, avoid its Fallen. Deviate only with a justification in your phase note.
+MENTOR-RAT: if a block between "═══ MENTOR-RAT (VERBINDLICH) ═══" and "═══ ENDE MENTOR-RAT ═══" is present in this prompt, it is BINDING — this phase already failed once (rerun or fixup round); follow the mentor's Weg, avoid its Fallen. Deviate only with a justification in your phase note. <!-- keep in sync: implement.md / fixup.md -->

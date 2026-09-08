@@ -20,7 +20,8 @@ on:
         type: string
 
 concurrency:
-  group: claude-ux
+  # Gemeinsame LLM-Gruppe: ALLE LLM-Workflows teilen EINE Queue (max. 1 Lauf repo-weit, FIFO).
+  group: llm
   cancel-in-progress: false
   queue: max
 

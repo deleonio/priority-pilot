@@ -8,10 +8,11 @@ QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Breite Reads (Spec-Aussagen gegen den Code verifizieren) → `recherche`-Subagent-Rolle (ADR 0008); je Datei nur die Funde zurück in den Kontext.
 
 ABLAUF (STRIKT):
-  1. SOFORT starten. Alle Dateien unter docs/spec/ vollständig lesen.
-  2. DATEI-TRIAGE (billig zuerst): JEDE Datei auf langfristigen Spec-Wert prüfen. GANZE DATEI ENTFERNEN, wenn
+  1. DATEI-TRIAGE zuerst (billig zuerst, via `recherche`-Rolle — ADR 0008): der Subagent liefert die Liste aller
+     docs/spec/-Dateien mit je 1-Satz-Zweck + Lösch-Empfehlung; du entscheidest je Datei. GANZE DATEI ENTFERNEN, wenn
      a) sie per Art kein Spec-Wert ist (manuelle Test-Protokolle, Validierungs-Platzhalter, Soll-/Arbeits-Stände zu abgeschlossenen Tickets), oder
      b) ihr Inhalt vollständig in anderen Spec-Dateien abgebildet ist → Redundanz an EINER Stelle halten (dort konsolidieren, Rest löschen).
+  2. SOFORT danach starten: nur die überlebenden Dateien vollständig lesen.
   3. JEDE verhaltensrelevante Aussage (Journey-Schritte, erwartete Ergebnisse, Randfall-Tabellen, Meldungstexte) der verbleibenden Dateien gegen den Code verifizieren. ZIEL: ALLE Dateien schaffen.
   4. NUR bei belegtem Befund die Spec anpassen — jede Operation gilt für Textpassagen UND, wo zutreffend, ganze Dateien:
      a) AKTUALISIEREN: Passage (oder ganze Datei) auf den neuen Ist-Zustand umformulieren.

@@ -123,7 +123,7 @@ Per finding, **one concrete comment anchored to a file/line** — each with:
   trigger a fixup run**: the verdict stays `reviewed` (🟢 if the acceptance criteria are
   covered by green tests) and the nits go into the collected comment as a non-blocking list —
   a human can still order a fixup later. Rationale: one fixup round plus re-review costs
-  ~45 turns; a nit almost never justifies that.
+  dozens of turns (measured: AGENTS.md "Turns bündeln"); a nit almost never justifies that.
 - Post them bundled as **one review** with inline-anchored comments, event **`COMMENT`** (not
   `APPROVE`/`REQUEST_CHANGES`): `gh api repos/{owner}/{repo}/pulls/<pr>/reviews` with `event=COMMENT`,
   `body` (summary), and one entry per finding in `comments[]` (`path`, `line`, `body`).

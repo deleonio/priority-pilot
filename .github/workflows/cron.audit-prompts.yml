@@ -46,7 +46,7 @@ on:
         default: false
 
 concurrency:
-  group: claude-prompt-audit
+  group: llm
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
   # workflow_dispatch während des Nightly-Laufs würde still verworfen. `max` = FIFO-Schlange.

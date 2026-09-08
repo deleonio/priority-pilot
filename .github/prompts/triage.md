@@ -32,13 +32,17 @@ PROCEDURE:
    update vs. create): SKILL.md step 4. CI delta: heredoc lines start at column 0,
    the EOF terminator must too.
 
-NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the harness comment +
-label change is the complete communication. NO extra comments, NO
-summaries, NO follow-up questions outside the needs-human path.
+NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the harness comment is the
+complete communication. NO extra comments, NO summaries, NO follow-up questions outside the
+needs-human path.
+
+⚠️ LABELS: do NOT set labels! The workflow handles that automatically (incl. the PO-Review-Gate on 🟢).
 
 VERDICT (one line):
 - VERDICT: spec-ready
 - VERDICT: analyzed
 - VERDICT: needs-human
+  (spec-ready = traffic light 🟢 AND acceptance criteria phrased testably; analyzed = 🟡/🔴;
+   needs-human = ambiguous — one needs-human comment with open questions)
 
 TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}

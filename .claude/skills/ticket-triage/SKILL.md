@@ -160,6 +160,10 @@ One **short ping comment** per run (`gh issue comment`), written in German:
 
 ## Step 5 — Label (`ai:analysed`; for a clear 🟢 analysis, also the phase trigger)
 
+> **CI:** In der Pipeline setzt die Phase **keine** Labels — der Workflow force-setzt sie nach dem Lauf
+> (GitHub-App-Token, inkl. PO-Review-Gate); der Phasen-Prompt verbietet sie explizit (⚠️ LABELS).
+> Labels setzen bleibt ein rein manueller/lokaler Schritt.
+
 - Set the `ai:analysed` label: `gh issue edit <nr> --add-label "ai:analysed"`
 - **Ambiguous task → `ai:needs-human` instead of a guessed analysis.** Post **exactly one** comment (in German) whose first line is exactly `<!-- ai-triage-decision -->`, followed by **what needs to be decided / options / recommendation**.
 - **Phase trigger based on the traffic light:**
