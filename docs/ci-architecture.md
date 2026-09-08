@@ -684,7 +684,7 @@ review-bereit und labelt ihn **selbst** mit `ai:needs-review`. Der separate
 
 ## Nightly Spec-Sync (`cron.sync.spec.yml`)
 
-Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 03:37 UTC +
+Keine Pipeline-Phase, sondern ein Helper-Workflow (sonntags 02:37 UTC +
 `workflow_dispatch`): Ein LLM-Lauf verifiziert die Specs in `docs/spec/` (`user-journeys.md` +
 `issue-*.md`) gegen die tatsächliche Implementation (`frontend/src/`, `server/src/`,
 `openapi.yml`) und hält sie auf **Ist-Stand** — die Implementation ist die Wahrheit, die Spec
@@ -725,7 +725,7 @@ Journeys im user-journeys.md-Format).
 
 ## Nightly Guide-Sync (`cron.sync.guide.yml`)
 
-Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 04:27 UTC +
+Keine Pipeline-Phase, sondern ein Helper-Workflow (sonntags 03:07 UTC +
 `workflow_dispatch`): Ein LLM-Lauf hält das **In-App-Handbuch** `docs/user-guide.md` auf
 **Ist-Stand**. Diese Datei _ist_ die Hilfe-Seite der App (`frontend/vite.config.ts` liefert sie
 unter `/user-guide.md` aus, `HelpPage.tsx` rendert sie als Markdown) — jede Zeile darin liest ein
@@ -745,8 +745,8 @@ mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
   `ai:reviewed` oder (terminal) `ai:needs-human`, wird der Lauf ausgesetzt. Sonst zieht der
   nächtliche Force-Push einem laufenden Review-/Fixup-/Merge-Lauf den Branch unter den Füßen weg.
   `force: true` umgeht diesen Guard bewusst **nicht** — er schützt fremde Läufe, nicht das Budget.
-- **Branch/PR:** Der Agent committed nur lokal auf `chore/user-guide-sync`, der Branch wird jede
-  Nacht auf `origin/main` zurückgesetzt und per Force-Push ersetzt — der offene Sync-PR zeigt damit
+- **Branch/PR:** Der Agent committed nur lokal auf `chore/user-guide-sync`, der Branch wird je
+  Lauf auf `origin/main` zurückgesetzt und per Force-Push ersetzt — der offene Sync-PR zeigt damit
   immer exakt die **aktuelle** Drift statt Commits zu akkumulieren. Push und PR-Anlage/-Update sind
   deterministische Workflow-Steps, keine Agent-Aufgabe. Fehlt der Agent-Report
   (`/tmp/guide-sync-report.md`), ersetzt ein `git log`-Fallback den PR-Body (mit Warning).
@@ -764,3 +764,43 @@ mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
 - **Modell:** `vars.CLAUDE_MODEL_GUIDE_SYNC` (Default `opus` — Handbuch-Prosa und Drift-Erkennung),
   Provider wie alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl.
   Tailscale-Egress und Fair-Usage-Check).
+
+## Wöchentlicher Arc42-Sync (`cron.sync.arc42.yml`)
+
+Keine Pipeline-Phase, sondern ein Helper-Workflow (samstags 05:47 UTC — 30 Minuten hinter
+ADR-Sync, Architektur-Familie im Wochenend-Off-Peak — plus `workflow_dispatch`): Ein LLM-Lauf
+hält die Architektur-Doku `docs/arc42.md` (arc42-Struktur mit zwölf nummerierten Abschnitten)
+auf **Ist-Stand**. Existiert die Datei noch nicht, erstellt der Lauf sie komplett —
+Erst-Erstellung und Sync sind derselbe Auftrag. Die Implementation ist die Wahrheit; verifiziert
+wird gegen `frontend/src/`, `server/src/`, `openapi.yml` und die Monorepo-Struktur. Drei
+Operationen: **aktualisieren** (Architektur hat sich geändert → Doku folgt), **entsorgen**
+(beschriebene Bausteine/Schnittstellen existieren nicht mehr), **ergänzen** (im Code sichtbare,
+undokumentierte Architektur). Leitlinie arc42-Prinzip: so viel wie nötig, so wenig wie möglich;
+Abschnitt 9 (Architekturentscheidungen) verweist nur auf `docs/adr/`, statt ADR-Inhalte zu
+duplizieren — ein Datensatz, eine Wahrheit. Diagramme ausschließlich als Mermaid.js inline.
+
+**Mechanik:**
+
+- **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
+  übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
+  `workflow_dispatch` mit `force: true` umgeht den Guard.
+- **In-Flight-Guard:** Trägt der offene Sync-PR gerade `ai:needs-review`, `ai:needs-fixup`,
+  `ai:reviewed` oder (terminal) `ai:needs-human`, wird der Lauf ausgesetzt — der Force-Push
+  würde sonst einem laufenden Review-/Fixup-/Merge-Lauf den Branch unter den Füßen wegziehen.
+  `force: true` umgeht diesen Guard bewusst **nicht**.
+- **Branch/PR:** Der Agent committed nur lokal auf `chore/arc42-sync`; der Branch wird je Lauf
+  auf `origin/main` zurückgesetzt und per Force-Push ersetzt — der offene Sync-PR zeigt immer
+  exakt die **aktuelle** Drift. Push und PR-Anlage/-Update sind deterministische Workflow-Steps;
+  fehlt der Agent-Report (`/tmp/arc42-sync-report.md`), ersetzt ein `git log`-Fallback den PR-Body.
+- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
+  Commits vorhanden, geänderte Dateien ⊆ `docs/arc42.md`, **plus Struktur-Guard**: genau eine H1
+  und alle zwölf nummerierten `## N.`-Abschnitte müssen stehen, sonst kein Push.
+- **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token**
+  (erst entfernen, dann setzen — Re-Arm-Muster #536) → Review → Gate → Auto-Merge; die
+  Architektur-Doku aktualisiert sich ohne Menschen.
+- **Bewusst stateless:** Kein pro-Issue-Memory — der offene Sync-PR ist der einzige Zustand.
+- **Modell:** `vars.CLAUDE_MODEL_ARC42_SYNC` (Default `sonnet`, wie Spec-/ADR-Sync), Provider wie
+  alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl. Tailscale-Egress
+  und Fair-Usage-Check).
+- **Herkunft:** Ersetzt das tote `cron.arc42.yml` (rief ein nie existierendes `pnpm ai run
+/arc42-weekly` auf); die 16 importierten, interaktiven `arc42-*`-Skills sind mit ihm entfernt.

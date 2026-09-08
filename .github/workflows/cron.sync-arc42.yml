@@ -1,0 +1,356 @@
+name: Sync Arc42
+
+# Wöchentlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
+# Hält die Architektur-Doku docs/arc42.md auf IST-STAND — die Implementation ist die Wahrheit,
+# die Doku spiegelt sie nur aus ENTWICKLER-Sicht. Existiert die Datei (noch) nicht, erstellt
+# der Lauf sie komplett (Erst-Erstellung und Sync sind derselbe Auftrag):
+#   - aktualisieren (Architektur hat sich geändert → Doku folgt),
+#   - entsorgen (beschriebene Bausteine/Schnittstellen existieren nicht mehr),
+#   - ergänzen (im Code sichtbare Architektur, die in keinem Abschnitt steht).
+# Leitlinie arc42-Prinzip: so viel wie nötig, so wenig wie möglich.
+#
+# Ersetzt das tote cron.arc42.yml (rief `pnpm ai run /arc42-weekly` auf — ein Skript, das es
+# nie gab; der zugehörige arc42-*-Skill-Werkzeugkasten war interaktiv und ist mit ihm gefallen).
+#
+# DELIVERY: PR vom festen Branch chore/arc42-sync. Der Branch wird je Lauf auf origin/main
+# zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt damit IMMER exakt die aktuelle
+# Drift statt Commits über Wochen zu akkumulieren (Muster wie Guide-/ADR-Sync).
+#
+# PIPELINE-ANBINDUNG: Der Bot-PR hängt an der KI-Pipeline (ai:needs-review per App-Token →
+# Review → Gate → Auto-Merge). Zwei Konsequenzen sind mechanisch abgesichert:
+#   1. Das Label muss ERST entfernt und DANN gesetzt werden (Re-Arm-Muster #536), sonst feuert
+#      bei einem schon gelabelten offenen PR kein `labeled`-Event und der Review startet nicht.
+#   2. In-Flight-Guard: läuft die Pipeline noch auf dem offenen Sync-PR, wird der Force-Push
+#      ausgesetzt — sonst reißt er Review/Fixup/Merge den Branch unter den Füßen weg.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Der
+# offene Sync-PR ist der einzige Zustand; jeder Lauf wird frisch verifiziert.
+#
+# KEINE Nummer im Dateinamen: Nummern (01–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper wie cache-cleanup und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '47 5 * * 6' # samstags 05:47 UTC, 30 Min hinter ADR-Sync (05:17) — Architektur-Familie am Wochenende im z.ai-Off-Peak
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: llm
+  cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
+  # workflow_dispatch während des geplanten Laufs würde still verworfen (Default `queue: single`).
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
+
+permissions:
+  contents: write # Branch-Push chore/arc42-sync
+  pull-requests: write # Sync-PR anlegen/aktualisieren + Labels
+  issues: write # gh label create (Labels sind repo-weit Issue-Ressourcen)
+  id-token: write # App-Token (setup-claude)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+env:
+  SYNC_BRANCH: chore/arc42-sync
+
+jobs:
+  arc42-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichen Sync)
+        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf dieses Workflows
+        # denselben SHA, ist das Verifikationsergebnis deterministisch dasselbe → kein Lauf.
+        # Fail-open bei API-Fehlern (leerer last_sha → Lauf): ein vergessener Sync ist
+        # billiger als ein stumm übersprungener. workflow_dispatch mit force=true umgeht
+        # den Guard (Re-Sync ohne Code-Änderung, z. B. nach Prompt-Anpassung).
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.sync-arc42.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ Arc42-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichem Sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Sync-PR)
+        # Der Force-Push ersetzt den Branch komplett. Läuft auf dem offenen Sync-PR
+        # nur bei aktiven Pipeline-Labels (ai:needs-review, ai:needs-fixup) aussetzen. ai:reviewed
+        # (abgeschlossen) und ai:needs-human (Mensch entscheidet) blocken ebenfalls, statt die
+        # Diskussionsgrundlage zu überschreiben.
+        # Fail-open: ist der Label-Abruf nicht möglich, läuft der Sync (wie beim Skip-Guard).
+        # force=true umgeht auch diesen Guard NICHT — er schützt fremde Läufe, nicht das Budget.
+        id: inflight
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json labels \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-fixup" or . == "ai:reviewed" or . == "ai:needs-human")) | join(", ")' \
+            2>/dev/null || true)"
+          if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
+            echo "::notice title=⏸️ Arc42-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # 20 min weich (Erst-Erstellung füllt alle 12 Abschnitte; Ziel: komplett schaffen)
+          # vs. 30 min hart — Restpuffer für Post-Steps.
+          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
+        uses: ./.github/actions/setup-agent
+        with:
+          needs-mcp: false
+          tools-tier: full # Write/Edit auf docs/arc42.md + git commit nötig; Push/PR macht der Workflow
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Storage-Namen (ai/state/issue-0) — Memory ist komplett aus (memory-load: false).
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_ARC42_SYNC || 'sonnet' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: Sync-Branch frisch aufsetzen (Basis = origin/main)
+        # Jeder Lauf neuer Basis-Stand: der Sync-PR zeigt danach immer nur die HEUTIGE Drift.
+        # Git-Identität stellt setup-claude zentral bereit (Repo-Owner, gültige noreply).
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          git switch -C "$SYNC_BRANCH" origin/main
+
+      - name: pnpm einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+
+      - name: Node.js einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Arc42-Sync via Claude
+        id: claude
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: |
+          cp .github/prompts/arc42-sync.md /tmp/claude-prompt.txt
+
+          sed -i "s/{{SYNC_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope ↔ Struktur-Vertrag) + Push + PR-Pflege
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
+        # behauptet synced/updated — die Mechanik verifiziert Commits, Datei-Scope, den
+        # Struktur-Vertrag und pusht/pflegt den PR deterministisch (Push/PR ist bewusst KEINE
+        # Agent-Aufgabe).
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.inflight.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
+          # Token gewinnt, Prosa/Markdown nach dem Token ist egal (#1017-Klasse).
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'updated|synced' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ Arc42-Sync fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller „synced“."
+            exit 1
+          fi
+          if [ "$verdict" != "synced" ] && [ "$verdict" != "updated" ]; then
+            echo "::error title=❌ Arc42-Sync ohne Verdict::Weder „synced“ noch „updated“ — Lauf wiederholen."
+            exit 1
+          fi
+
+          count="$(git rev-list --count origin/main..HEAD)"
+          echo "Commits seit origin/main: $count"
+
+          # Scope-Guard: nur docs/arc42.md ist erlaubt.
+          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/arc42\.md$' || true)"
+          if [ -n "$bad" ]; then
+            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/arc42.md: ${bad}"
+            exit 1
+          fi
+
+          # Struktur-Guard (Vertrag aus dem Prompt, harte Nummern statt Schlagwort-Liste wie
+          # beim Guide): genau eine H1 und alle zwölf nummerierten Abschnitte müssen stehen —
+          # auch nach Erst-Erstellung, sonst ist die Doku unbrauchbar gekürzt.
+          if [ "$count" -gt 0 ]; then
+            missing=""
+            h1_count="$(grep -cE '^# ' docs/arc42.md || true)"
+            [ "$h1_count" -eq 1 ] || missing="${missing} H1-Überschrift(${h1_count})"
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              grep -qE "^## ${i}\. " docs/arc42.md || missing="${missing} Abschnitt-${i}"
+            done
+            if [ -n "$missing" ]; then
+              echo "::error title=❌ Struktur-Vertrag verletzt::Fehlt:${missing} (siehe .github/prompts/arc42-sync.md) — kein Push."
+              exit 1
+            fi
+          fi
+
+          # Verdict ↔ Commits konsistent?
+          if [ "$verdict" = "updated" ] && [ "$count" -eq 0 ]; then
+            echo "::error title=❌ Verdict ohne Commits::VERDICT updated, aber kein Commit vorhanden."
+            exit 1
+          fi
+          if [ "$verdict" = "synced" ] && [ "$count" -gt 0 ]; then
+            echo "::error title=❌ Commits ohne Verdict::VERDICT synced, aber Commits vorhanden."
+            exit 1
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            echo "::notice title=✅ Architektur-Doku am Ist-Stand::Keine Drift gefunden — kein Push, kein PR."
+            exit 0
+          fi
+
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log den PR-Body (laut Warning).
+          if [ ! -s /tmp/arc42-sync-report.md ]; then
+            echo "::warning title=⚠️ Report fehlt::/tmp/arc42-sync-report.md fehlt — Fallback-Body aus git log."
+            {
+              echo "## Arc42-Sync $(date -u +%F)"
+              echo ""
+              echo "_Agent-Report fehlt — Fallback aus der Commit-Historie._"
+              echo ""
+              git log origin/main..HEAD --oneline --stat
+            } > /tmp/arc42-sync-report.md
+          fi
+
+          git push --force origin "$SYNC_BRANCH"
+
+          title="docs(arc42): Ist-Stand-Sync $(date -u +%F)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/arc42-sync-report.md
+            echo "::notice title=✅ Sync-PR aktualisiert::#$pr_number zeigt die Drift von heute."
+          else
+            # PR-Nummer aus der Create-Ausgabe (PR-URL) ziehen statt neu zu listen: ein direkt
+            # folgendes `gh pr list` kann durch API-Replikationsverzögerung noch leer sein und
+            # der Review würde nie angestoßen. List-Abruf nur als Fallback.
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --base main \
+              --title "$title" --body-file /tmp/arc42-sync-report.md)"
+            pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
+            if [ -z "$pr_number" ]; then
+              pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+                --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+            fi
+            echo "::notice title=✅ Sync-PR erstellt::${SYNC_BRANCH} → #${pr_number:-?}"
+          fi
+
+          if [ -z "$pr_number" ]; then
+            echo "::error title=❌ PR nicht auflösbar::Push erfolgt, aber kein offener PR auf ${SYNC_BRANCH} gefunden — Review nicht anstoßbar."
+            exit 1
+          fi
+          echo "PR_NUMBER=$pr_number" >> "$GITHUB_ENV"
+
+      - name: Review anstoßen (ai:needs-review per App-Token, Re-Arm-Muster #536)
+        # Der Sync-PR hängt an der KI-Pipeline: Review → Gate → Auto-Merge.
+        # pr-needs-review-label.yml labelt NUR menschliche Akteure (sender.type != 'Bot') und
+        # springt hier deshalb nicht ein — das Label wird hier explizit gesetzt.
+        # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
+        # reines --add-label ein No-op ohne `labeled`-Event → 05-claude-pr-review.yml startet nie.
+        # Ergebnis-Labels des Vortags (needs-changes/ready-to-merge) werden mit abgeräumt.
+        # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && env.PR_NUMBER != '' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+            --description "PR wartet auf KI-Review" 2>/dev/null || true
+
+          for label in ai:needs-fixup ai:reviewed ai:needs-review; do
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
+          done
+
+          for attempt in 1 2 3; do
+            if gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label ai:needs-review; then
+              echo "::notice title=✅ Review angestoßen::PR #$PR_NUMBER trägt ai:needs-review — Kreuzverhör-Review startet."
+              exit 0
+            fi
+            sleep "$attempt"
+          done
+          echo "::error title=❌ ai:needs-review fehlgeschlagen::PR #$PR_NUMBER nach 3 Versuchen ungelabelt — Review startet nicht."
+          exit 1
+
+      - name: Ergebnis zusammenfassen
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          count="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          {
+            echo "### Arc42-Sync – fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Commits: ${count}"
+            echo "- Offener Sync-PR: ${pr_number:-keiner}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
