@@ -778,6 +778,10 @@ Operationen: **aktualisieren** (Architektur hat sich geändert → Doku folgt), 
 undokumentierte Architektur). Leitlinie arc42-Prinzip: so viel wie nötig, so wenig wie möglich;
 Abschnitt 9 (Architekturentscheidungen) verweist nur auf `docs/adr/`, statt ADR-Inhalte zu
 duplizieren — ein Datensatz, eine Wahrheit. Diagramme ausschließlich als Mermaid.js inline.
+Die Methode je Abschnitt liefern die `arc42-*`-Skills (`.claude/skills/`: je Abschnitt Templates,
+Q42-Qualitätsziele, Checklisten; dazu `arc42-mermaid` und Querschnitts-Lint via `arc42-lint`) —
+der Prompt bindet sie verbindlich ein und übersteuert ihre interaktiven Rückfragen headless:
+Antworten kommen aus dem Code, nicht aus einem Nutzergespräch.
 
 **Mechanik:**
 
@@ -803,4 +807,5 @@ duplizieren — ein Datensatz, eine Wahrheit. Diagramme ausschließlich als Merm
   alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl. Tailscale-Egress
   und Fair-Usage-Check).
 - **Herkunft:** Ersetzt das tote `cron.arc42.yml` (rief ein nie existierendes `pnpm ai run
-/arc42-weekly` auf); die 16 importierten, interaktiven `arc42-*`-Skills sind mit ihm entfernt.
+/arc42-weekly` auf — im CI lief nichts davon je). Die `arc42-*`-Skills bleiben erhalten und
+  werden vom Prompt als Methode genutzt; nur der tote Workflow ist gefallen.

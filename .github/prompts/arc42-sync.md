@@ -9,6 +9,22 @@ STRUKTUR-VERTRAG (unveränderlich, der Workflow prüft darauf): genau eine „# 
   5. Bausteinsicht · 6. Laufzeitsicht · 7. Verteilungssicht · 8. Querschnittliche Konzepte ·
   9. Architekturentscheidungen (ADR) · 10. Qualitätsanforderungen · 11. Risiken und technische Schulden · 12. Glossar
 
+METHODE (arc42-Skills — verbindlich, NICHT neu erfinden):
+  - Aufbau, Inhalte und Qualitätskriterien jedes Abschnitts folgen den Skills unter .claude/skills/arc42-*:
+    je Abschnitt arc42-section-01 … arc42-section-12 (Templates, Q42-Qualitätsziele mit messbaren Szenarien, Checklisten),
+    Diagramm-Regeln aus arc42-mermaid; nach den Änderungen Querschnitts-Konsistenz via arc42-lint prüfen (manuelle
+    Regeln, das Python-Skript existiert hier nicht) und Findings selbst beheben.
+  - Detail-Level: ESSENTIAL (LEAN-Untergrenze: Q42-Qualitätsziele sind Pflicht, Skills-Regel).
+  - HEADLESS-Übersteuerung: Die Skills stellen Rückfragen („Ask first“) und iterieren mit dem Nutzer. Stelle KEINE
+    Fragen und warte NICHT — beantworte alles aus dem Code (die Implementation ist die Wahrheit). Was sich nicht aus
+    dem Code belegen lässt (z. B. messbare Zahlen für Qualitätsszenarien, Stakeholder-Sign-off), kommt unter
+    „Offene Unklarheiten“ in den Report, NICHT in den Text.
+  - Toolkit-Konventionen, die hier nicht greifen (z. B. RISK-xx-Felder in §9-ADR-Verweisen — docs/adr/ hat eigenes
+    Format), als Hinweis im Report führen statt sie zu erfinden.
+  - Die Abschnitts-Templates der Skills gelten pro Abschnitts-Datei mit „# “-Titel — hier auf EINE Datei übertragen:
+    Abschnittstitel als „## N. <deutscher Titel>“ (STRUKTUR-VERTRAG), Untergliederungen eine Ebene tiefer, Text deutsch.
+  - Bei Konflikt gewinnen ABLAUF/CONSTRAINTS dieses Prompts; die Skills liefern die Methode je Abschnitt.
+
 QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Ist-Zustand Frontend: frontend/src/** (App-Struktur, Komponenten, Libs, State-Muster)
   - Ist-Zustand Server: server/src/** (Module, Express-Routen, Logiken, Persistenz) + openapi.yml (API-Oberfläche)
