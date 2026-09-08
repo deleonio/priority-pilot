@@ -45,7 +45,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   statt je Einzeländerung. Keine Bestätigungs-Rückfragen im Arbeitsfluss — der
   `needs-human`-Weg der Pipeline-Phasen bleibt davon unberührt.
   **Qualität geht vor:** Ein nachgebesserter Schritt kostet mehr Turns als ein gründlicher
-  erster — eine Fixup-Schleife kostet ~47 Turns (Ø Fixup 30,3 + Re-Review 17,1, Stand 2026-09,
+  erster — eine Fixup-Schleife kostet ~47 Turns (Ø Fixup 30,2 + Re-Review 17,2, Stand 2026-09,
   Quelle `.costs/`). Nie einen Prüfschritt überspringen,
   um Turns zu sparen: der Tausch geht immer zulasten des Kontingents.
 - **Verbessern vs. Erweitern:** Soll Funktionierendes verbessert werden, zuerst fragen: Ist der
