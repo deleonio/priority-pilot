@@ -39,7 +39,9 @@ on:
         default: false
 
 concurrency:
-  group: llm
+  # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Läufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
+  # Die Pipeline-Phasen haben je eine eigene Gruppe (`llm-<phase>`) und laufen unabhängig.
+  group: llm-sync
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run (Default
   # `queue: single` verwirft wartende Läufe still). `max` = bis zu 100 pending, FIFO.

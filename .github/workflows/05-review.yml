@@ -24,9 +24,11 @@ on:
     types: [labeled]
 
 concurrency:
-  # Gemeinsame LLM-Gruppe: ALLE LLM-Workflows (Phasen + Crons) teilen EINE Queue —
-  # maximal 1 LLM-Lauf repo-weit, FIFO; lange Warteschlange bewusst akzeptiert.
-  group: llm
+  # Eigene Gruppe pro Phase: maximal 1 Review-Lauf gleichzeitig, FIFO. Andere Phasen und
+  # die Sync-/Ad-hoc-Läufe (Gruppe `llm-sync`) laufen davon unabhängig parallel. Weil der
+  # Fixup in `llm-implement` läuft, deckt die Serialisierung die Doppel-Armung (beide
+  # Trigger-Labels kleben) NICHT ab — das erledigt `ABSENT=(ai:needs-fixup)` im Pre-Check.
+  group: llm-review
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
