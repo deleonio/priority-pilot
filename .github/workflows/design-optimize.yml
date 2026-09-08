@@ -3,9 +3,12 @@ name: Design Optimize
 # Design-Ziel optimieren: ein freitextlich beschriebenes UI-Ziel (DESIGN_TARGET) wird mit der
 # Impeccable-Skill-Kette zu Ende optimiert — AUDIT → ADAPT → HARDEN → POLISH — und der Lauf
 # schließt damit ab, dass offene TODOs sauber beendet werden (Ergebnis-Marker DESIGN-RUN:
-# clean|remaining). Das Ergebnis landet als DRAFT-PR mit nachvollziehbarer Beschreibung
+# clean|remaining). Das Ergebnis landet als Non-Draft-PR mit nachvollziehbarer Beschreibung
 # (Audit-Befunde → Änderungen pro Phase → offene Punkte → Gate) auf dem Dispatch-Ref.
-# Manual-Dispatch, kein Teil der 7-Phasen-Pipeline (kein Ticket, keine Labels).
+# Manual-Dispatch, kein Teil der 7-Phasen-Pipeline (kein Ticket) — der Workflow setzt aber
+# selbst `ai:needs-review` als kontrollierten letzten Schritt (Muster 04-implement: der
+# Autolabeler label-pr-review.yml labelt Bot-PRs bewusst nicht, deshalb übernimmt es der
+# Workflow selbst), damit Review-/Fixup-/Auto-Merge-Maschinerie voll aktiv ist.
 #
 # MODELL: Dispatch-Input `model` als Alias (fable|opus|sonnet|haiku, Default sonnet). Die
 # providerspezifische Auflösung — inkl. zai → GLM — macht zentral die Setup-Action
@@ -21,9 +24,10 @@ name: Design Optimize
 # Abschluss-Commit des Agenten nur die Design-Änderungen enthält und nicht die Skill-Dateien.
 #
 # ERGEBNIS: Der Agent legt einen Delivery-Branch (design/optimize-<run_id>) an, pusht ihn und
-# erstellt den Draft-PR gegen den Dispatch-Ref (App-Token). Draft = bewusst außer Reichweite des
-# Auto-Merge-Crons; der Mensch entscheidet über den Merge. Kein record-cost/issue-state-save:
-# stateless Lauf ohne Ticket (Muster cron.optimize-architecture).
+# erstellt den Non-Draft-PR gegen den Dispatch-Ref (App-Token). Danach setzt der Workflow das
+# Label `ai:needs-review` selbst (App-Token → labeled-Event startet den Kreuzverhör-Review);
+# nach grünem Review übernehmen merge-pr.yml/cron.merge-prs.yml den Auto-Merge. Kein
+# record-cost/issue-state-save: stateless Lauf ohne Ticket (Muster cron.optimize-architecture).
 
 on:
   workflow_dispatch:
@@ -58,14 +62,14 @@ permissions:
 
 jobs:
   optimize:
-    name: Impeccable audit → adapt → harden → polish → draft PR
+    name: Impeccable audit → adapt → harden → polish → PR
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Voll-Historie: Der Agent pusht den Delivery-Branch und öffnet den Draft-PR.
+          # Voll-Historie: Der Agent pusht den Delivery-Branch und öffnet den PR.
           fetch-depth: 0
           # Muster aller Agent-Workflows: kein GITHUB_TOKEN-Credential hinterlassen —
           # setup-agent legt das App-Token als einzige origin-Credential ab.
@@ -166,7 +170,7 @@ jobs:
         run: |
           pr_url="$(grep 'PR-URL:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*PR-URL:[[:space:]]*//' | grep -oE 'https://[^[:space:]]+' | head -1 || true)"
           if [ -z "$pr_url" ]; then
-            echo "::error title=❌ Formatbruch::Keine PR-URL:-Zeile im Agent-Output erkennbar — der Draft-PR ist das Deliverable, Lauf wiederholen."
+            echo "::error title=❌ Formatbruch::Keine PR-URL:-Zeile im Agent-Output erkennbar — der PR ist das Deliverable, Lauf wiederholen."
             exit 1
           fi
           echo "pr-url=$pr_url" >> "$GITHUB_OUTPUT"
@@ -186,6 +190,29 @@ jobs:
             echo "PARSE_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Review-Label setzen (ai:needs-review)
+        # Muster 04-implement: Der Agent öffnet den PR mit dem App-Bot-Token, deshalb labelt ihn
+        # der Autolabeler label-pr-review.yml bewusst nicht (sender.type == 'Bot') — das Label
+        # setzt der Workflow selbst, als kontrollierter letzter Schritt NACHDEM der PR komplett
+        # steht. Remove+Add garantiert ein frisches labeled-Event (05-review startet); das Add
+        # scheitert laut (fail-loud) — das Label kann ein Mensch manuell nachziehen.
+        id: review-label
+        if: steps.setup.outputs.configured == 'true' && steps.agent.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR_URL: ${{ steps.parse.outputs.pr-url }}
+        run: |
+          pr_nr="$(printf '%s' "$PR_URL" | grep -oE 'pull/[0-9]+' | grep -oE '[0-9]+' | head -1)"
+          if [ -z "$pr_nr" ]; then
+            echo "::error title=❌ Keine PR-Nummer::Aus der PR-URL ist keine Nummer (pull/<nr>) erkennbar: $PR_URL"
+            exit 1
+          fi
+
+          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+          gh pr edit "$pr_nr" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
+          gh pr edit "$pr_nr" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
+          echo "::notice::Label gesetzt: ai:needs-review an PR #${pr_nr} — Kreuzverhör-Review startet."
+
       - name: 🩺 Z.AI Fair-Usage-Check (1313)
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/llm-fair-usage-check
@@ -202,6 +229,7 @@ jobs:
           AGENT_STATUS: ${{ steps.parse.outputs.status }}
           REMAINING: ${{ steps.parse.outputs.remaining }}
           PR_URL_OUT: ${{ steps.parse.outputs.pr-url }}
+          LABEL_OUTCOME: ${{ steps.review-label.outcome }}
           RUNTIME_OUT: ${{ steps.setup.outputs.runtime }}
           PROVIDER_OUT: ${{ steps.setup.outputs.llm-provider }}
         run: |
@@ -223,7 +251,10 @@ jobs:
             fi
             if [ -n "$PR_URL_OUT" ]; then
               echo ""
-              echo "- 📝 Draft-PR: $PR_URL_OUT"
+              echo "- 📝 PR: $PR_URL_OUT"
+              if [ "$LABEL_OUTCOME" = "success" ]; then
+                echo "- 🏷️ \`ai:needs-review\` gesetzt — Kreuzverhör-Review läuft."
+              fi
             fi
             echo ""
             echo "- Modell: \`$MODEL_INPUT\` · Laufzeit: \`${RUNTIME_OUT:-claude}\` · Provider: \`${PROVIDER_OUT:-claude}\`"
