@@ -488,7 +488,8 @@ describe('migrateUserGeoConfigColumns', () => {
 	/** Erzeugt eine `users`-Tabelle im Alt-Schema (vor #1098) — ohne die Geo-Config-Spalten.
 	 * #1256 Test-Pflege: `displayNameCustom` ergänzt — das User-Modell selectiert die Spalte
 	 * inzwischen, ohne sie bräche `User.findAll()` unten mit `no such column` (Konvention wie
-	 * beim #1256-Legacy-Schema weiter unten, das die Geo-Spalten enthält). */
+	 * beim #1256-Legacy-Schema weiter unten, das die Geo-Spalten enthält).
+	 * Test-Pflege (Rollensystem admin/member): `role` ergänzt — aus demselben Grund. */
 	const createLegacyUsersTable = async (): Promise<void> => {
 		await sequelize.getQueryInterface().dropAllTables();
 		await sequelize.query(
@@ -499,6 +500,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				"`displayName` VARCHAR(255) NOT NULL DEFAULT '', " +
 				'`avatarUrl` VARCHAR(255), ' +
 				'`displayNameCustom` TINYINT NOT NULL DEFAULT 0, ' +
+				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -674,7 +676,9 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 		return (rows as { name: string }[]).map((row) => row.name);
 	};
 
-	/** Erzeugt eine users-Tabelle im Alt-Schema (vor #1256) — inkl. Geo-Spalten, ohne Flag. */
+	/** Erzeugt eine users-Tabelle im Alt-Schema (vor #1256) — inkl. Geo-Spalten, ohne Flag.
+	 * Test-Pflege (Rollensystem admin/member): `role` ergänzt, sonst bräche `User.findAll()`
+	 * unten mit `no such column` (Konvention wie oben bei `migrateUserGeoConfigColumns`). */
 	const createLegacyUsersTable = async (): Promise<void> => {
 		await sequelize.getQueryInterface().dropAllTables();
 		await sequelize.query(
@@ -687,6 +691,7 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',

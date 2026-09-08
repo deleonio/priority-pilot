@@ -1,8 +1,9 @@
 import 'express-session';
+import type { UserRole } from '../models/user.js';
 
 declare module 'express-session' {
 	interface SessionData {
-		user?: { id?: number; email: string; displayName: string; avatarUrl?: string | null };
+		user?: { id?: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole };
 		/** Issue #396 PR B: markiert einen laufenden stillen Google-Login — der gemeinsame Callback
 		 *  leitet bei Interaktionsfehlern (login_required u. ä.) auf /?silent=unavailable statt /auth/error. */
 		silentPending?: boolean;

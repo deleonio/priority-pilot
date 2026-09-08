@@ -1,4 +1,6 @@
 import bcrypt from 'bcryptjs';
+import { isAdminEmail } from './adminEmails.js';
+import type { UserRole } from '../models/user.js';
 
 // bcrypt-Cost-Faktor: 12 ist der aktuell empfohlene Mindestwert (OWASP) und
 // balanciert Angriffskosten gegen Login-Latenz. AK 6 fordert cost ≥ 12.
@@ -18,4 +20,17 @@ export const hashPassword = async (password: string): Promise<string> => {
  */
 export const verifyPassword = async (password: string, hash: string): Promise<boolean> => {
 	return bcrypt.compare(password, hash);
+};
+
+/**
+ * Ermittelt die effektive Rolle eines Users für Register/Login/OAuth (Rollensystem admin/member).
+ * `'admin'`, sobald die E-Mail in `ADMIN_EMAILS` gelistet ist — sonst bleibt die bestehende Rolle
+ * erhalten (`currentRole`) bzw. `'member'` für neue Konten. Bewusst nur Beförderung, nie
+ * automatische Rückstufung (siehe logics/adminEmails.ts).
+ */
+export const resolveRole = (email: string, currentRole?: UserRole): UserRole => {
+	if (isAdminEmail(email)) {
+		return 'admin';
+	}
+	return currentRole ?? 'member';
 };

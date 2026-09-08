@@ -1,4 +1,6 @@
 import { User } from '../models/index.js';
+import type { UserRole } from '../models/user.js';
+import { resolveRole } from './auth.js';
 
 /**
  * OAuth-Profil-Sync (Issue #1238). Ein Google-Profil (E-Mail, Name, Avatar) wird mit der
@@ -22,24 +24,36 @@ export async function upsertOAuthUser({
 	email: string;
 	displayName: string | null;
 	avatarUrl: string | null;
-}): Promise<{ id: number; email: string; displayName: string; avatarUrl: string | null }> {
+}): Promise<{ id: number; email: string; displayName: string; avatarUrl: string | null; role: UserRole }> {
 	// Fallback wie bisher: ohne Profilname gilt die E-Mail (identisch in Zeile und Rückgabe).
 	const resolvedDisplayName = displayName ?? email;
 
 	const [user, created] = await User.findOrCreate({
 		where: { email },
-		defaults: { email, passwordHash: '__oauth__', displayName: resolvedDisplayName, avatarUrl },
+		defaults: {
+			email,
+			passwordHash: '__oauth__',
+			displayName: resolvedDisplayName,
+			avatarUrl,
+			role: resolveRole(email),
+		},
 	});
 
 	// Bestandsnutzer: abweichende Profilfelder nachziehen (Muster des bisherigen avatarUrl-Syncs).
 	// #1256: Ein selbst über PUT /profile gesetzter Name (`displayNameCustom`) wird vom
 	// Google-Profil NICHT mehr überschrieben — nur der Avatar folgt weiterhin jedem Login.
-	if (!created && (user.displayName !== resolvedDisplayName || user.avatarUrl !== avatarUrl)) {
+	// Rollensystem admin/member: ADMIN_EMAILS wird bei jedem Login neu abgeglichen (nur Beförderung).
+	const effectiveRole = resolveRole(email, user.role as UserRole);
+	if (
+		!created &&
+		(user.displayName !== resolvedDisplayName || user.avatarUrl !== avatarUrl || user.role !== effectiveRole)
+	) {
 		await user.update({
 			displayName: user.displayNameCustom ? user.displayName : resolvedDisplayName,
 			avatarUrl,
+			role: effectiveRole,
 		});
 	}
 
-	return { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl };
+	return { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl, role: user.role };
 }

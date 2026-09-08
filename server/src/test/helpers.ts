@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import sequelize from '../database.js';
 import { createApp, type AppDeps } from '../express/index.js';
 import { createSessionStore, disconnectStore } from '../express/session.js';
+import type { UserRole } from '../models/user.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
 
@@ -62,6 +63,35 @@ export const displayNameCustomOf = async (email: string): Promise<number> => {
 	return Number((rows as { displayNameCustom: number }[])[0]?.displayNameCustom ?? -1);
 };
 
+/**
+ * Test-Helper für das Rollensystem admin/member: zieht die Spalte `users.role` testseitig nach,
+ * solange das User-Modell sie noch nicht kennt (nach `resetDb()` fehlt sie). Idempotent — sobald
+ * die Impl die Spalte am Modell ergänzt, wird kein `ALTER TABLE` mehr ausgeführt.
+ */
+export const ensureRoleColumn = async (): Promise<void> => {
+	const [rows] = await sequelize.query("PRAGMA table_info('users')");
+	const hasColumn = (rows as { name: string }[]).some((row) => row.name === 'role');
+	if (!hasColumn) {
+		await sequelize.query("ALTER TABLE `users` ADD COLUMN `role` VARCHAR(255) NOT NULL DEFAULT 'member'");
+	}
+};
+
+/** Setzt die Rolle für die gegebene E-Mail (zieht die Spalte vorher testseitig nach). */
+export const setRole = async (email: string, role: UserRole): Promise<void> => {
+	await ensureRoleColumn();
+	await sequelize.query('UPDATE `users` SET `role` = ? WHERE `email` = ?', {
+		replacements: [role, email],
+	});
+};
+
+/** Roh-Wert von `users.role` für DB-Asserts ohne Modellabhängigkeit. */
+export const roleOf = async (email: string): Promise<string | null> => {
+	const [rows] = await sequelize.query('SELECT `role` FROM `users` WHERE `email` = ?', {
+		replacements: [email],
+	});
+	return (rows as { role: string }[])[0]?.role ?? null;
+};
+
 export const closeDb = async (): Promise<void> => {
 	// No-op: closing the Sequelize singleton prevents subsequent resetDb() calls in later
 	// test suites from working (SQLITE_MISUSE: Database is closed). In-memory SQLite
@@ -85,6 +115,8 @@ export interface TestLoginOptions {
 	displayName?: string;
 	/** Avatar-URL (nur auth-avatar-Tests, #217). */
 	avatarUrl?: string;
+	/** Rollensystem admin/member: setzt die Rolle direkt beim Test-Login (nur NODE_ENV=test). */
+	role?: UserRole;
 }
 
 export interface TestServer {
@@ -121,6 +153,7 @@ export const testLoginResponse = (
 ): Promise<Response> => {
 	const body: Record<string, unknown> = { email, displayName: options.displayName ?? email.split('@')[0] };
 	if (options.avatarUrl) body.avatarUrl = options.avatarUrl;
+	if (options.role) body.role = options.role;
 	return fetch(`${target.baseUrl}/auth/test-login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },

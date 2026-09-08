@@ -61,7 +61,7 @@ const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'S
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
-const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen'];
+const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen', 'nutzer'];
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
@@ -564,6 +564,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				onBack={closeSettings}
 				onSaved={afterSettingsSaved}
 				onPillarChanged={handlePillarChanged}
+				isAdmin={user.role === 'admin'}
 			/>
 		);
 	}
