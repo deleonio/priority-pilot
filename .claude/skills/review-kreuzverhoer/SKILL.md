@@ -188,8 +188,13 @@ age with the diff regardless; what gets consolidated is the **collected comment*
     **selection line**: the human replies with a comment containing the option ID and sets
     `ai:needs-fixup` (implement) or `ai:needs-review` (accept) — the fixup implements the
     chosen option without re-evaluating.
-  - **📋 Offene Findings** — only for needs-fixup: the points of the **current** round (with
-    traffic light, file/line, suggestion).
+  - **📋 Offene Findings** — only for needs-fixup: the blockers of the **current** round as ONE
+    canonical table (fixup reads `Ort` as its diff anchor and `#`+`Titel` as its claim reference):
+    `| # | Ort | Titel | Vorschlag |` — `#` stable across rounds (same numbering the fixup mirrors
+    into its ✅ table), `Ort` = `` `path[:line]` `` (fallback token `repo-weit` when a finding has
+    no local anchor), `Titel` = short title (reappears verbatim in the fixup's ✅ row),
+    `Vorschlag` = the concrete change. Cells stay pipe-free (table must render on GitHub);
+    nits remain in their own section below.
   - **📝 Nits (nicht blockierend)** — nit-only rounds: the non-blocking points as a short list
     (file/line, suggestion). Never a reason for `needs-fixup`; entries get removed or checked
     off once addressed (by a later fixup or the human).
