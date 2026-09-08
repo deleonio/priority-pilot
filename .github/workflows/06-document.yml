@@ -26,10 +26,10 @@ on:
         type: string
 
 concurrency:
-  # Statische Gruppe pro Phase (globale Serialisierung, FIFO): jede Phase hat genau eine
-  # Laufzeit-Instanz. Der precheck-Job verhindert falsches Nachziehen — kurz hintereinander
+  # Gemeinsame LLM-Gruppe über ALLE LLM-Workflows (globale Serialisierung, FIFO): genau ein
+  # LLM-Lauf repo-weit. Der precheck-Job verhindert falsches Nachziehen — kurz hintereinander
   # gemergte PRs reihen sich ein statt zu parallelisieren.
-  group: claude-pr-documenter
+  group: llm
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,

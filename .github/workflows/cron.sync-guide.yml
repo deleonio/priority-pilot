@@ -40,7 +40,7 @@ on:
         default: false
 
 concurrency:
-  group: claude-guide-sync
+  group: llm
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
   # workflow_dispatch während des Nightly-Laufs würde still verworfen (Default `queue: single`).

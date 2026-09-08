@@ -34,7 +34,7 @@ on:
         default: false
 
 concurrency:
-  group: claude-adr-sync
+  group: llm
   cancel-in-progress: false
   # queue: max — ein manueller workflow_dispatch während des geplanten Laufs würde sonst
   # still verworfen (GitHub hält pro Gruppe ohne `queue` nur EINEN pending-Run).

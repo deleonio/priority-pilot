@@ -287,8 +287,9 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
-  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Jede Phase serialisiert global über eine statische
-    `concurrency`-Gruppe (`claude-triage`, `claude-spec`, … — genau EIN Lauf je Phase). Das
+  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Alle LLM-Workflows (Phasen + Crons) serialisieren
+    global über EINE gemeinsame statische `concurrency`-Gruppe `llm` — genau **EIN** LLM-Lauf
+    repo-weit; alles reiht sich FIFO ein (lange Warteschlange bewusst akzeptiert). Das
     Stapeln leistet **`queue: max`**: Ohne diesen Schlüssel hält GitHub pro Gruppe nur EINEN
     wartenden Lauf und verwirft ihn still, sobald ein neuer eintrifft (`queue: single` ist der
     Default, und `cancel-in-progress: false` schützt nur den _laufenden_). Mit `max` warten bis

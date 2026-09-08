@@ -44,8 +44,12 @@ on:
           - fable
 
 concurrency:
-  group: design-optimize
-  cancel-in-progress: true
+  # Gemeinsame LLM-Gruppe: ALLE LLM-Workflows teilen EINE Queue (max. 1 Lauf repo-weit, FIFO).
+  group: llm
+  cancel-in-progress: false
+  # queue: max — ohne hält GitHub pro Gruppe nur EINEN pending-Run (ein neuer Run verwirft
+  # den wartenden still). `max` = bis zu 100 pending, FIFO.
+  queue: max
 
 permissions:
   contents: read

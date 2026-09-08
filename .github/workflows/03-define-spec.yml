@@ -14,7 +14,9 @@ on:
     types: [labeled]
 
 concurrency:
-  group: claude-spec
+  # Gemeinsame LLM-Gruppe: ALLE LLM-Workflows (Phasen + Crons) teilen EINE Queue —
+  # maximal 1 LLM-Lauf repo-weit, FIFO; lange Warteschlange bewusst akzeptiert.
+  group: llm
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
