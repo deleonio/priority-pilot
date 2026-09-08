@@ -262,7 +262,7 @@ export const Dashboard = ({
 			{(geoEnabled || geoDenied) && <NearbyCard />}
 			<KolCard className="dashboard-top-tasks" _label="Wichtigste Tasks" _level={3}>
 				{topTasks.length === 0 ? (
-					<p>Keine offenen Aufgaben vorhanden.</p>
+					<p className="dashboard-empty">Keine offenen Aufgaben vorhanden.</p>
 				) : (
 					<ol className="dashboard-top-tasks-list">
 						{topTasks.map((task) => (
@@ -280,7 +280,7 @@ export const Dashboard = ({
 			</KolCard>
 			<KolCard className="dashboard-pillars" _label="Meine Themen" _level={3}>
 				{pillars.length === 0 ? (
-					<p>
+					<p className="dashboard-empty">
 						Lege in den <a href="/settings">Einstellungen</a> deine ersten Säulen an, um hier den Überblick über deine
 						Themen zu behalten.
 					</p>
@@ -317,7 +317,9 @@ export const Dashboard = ({
 			</KolCard>
 			<KolCard className="dashboard-balance" _label="Gesamtguthaben" _level={3}>
 				{gesamtPunkte === 0 ? (
-					<p>Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.</p>
+					<p className="dashboard-empty">
+						Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.
+					</p>
 				) : (
 					<>
 						<p className="dashboard-balance-total">
@@ -338,7 +340,7 @@ export const Dashboard = ({
 			</KolCard>
 			<KolCard className="dashboard-deadlines" _label="Anstehende Deadlines" _level={3}>
 				{upcomingDeadlines.length === 0 ? (
-					<p>Keine anstehenden Deadlines.</p>
+					<p className="dashboard-empty">Keine anstehenden Deadlines.</p>
 				) : (
 					<ul className="dashboard-deadlines-list">
 						{upcomingDeadlines.map((task) => {

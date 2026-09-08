@@ -439,29 +439,32 @@ body {
 }
 
 .dashboard-greeting {
-	margin: 0.25rem 0 0;
-	font-size: 1.125rem;
-	font-weight: 600;
+	margin: var(--pp-space-1) 0 0;
+	font-size: var(--pp-font-size-lg);
+	font-weight: var(--pp-weight-bold);
 }
 
 /*
  * Kennzahlen-Kacheln: auf Handy-Breite kompaktes 3er-Raster (Gesamt/Offen/Erledigt) statt
  * 2+1-Versatz (auto-fit mit 10rem-Mindestbreite passt erst ab Tablet). Ab 48rem übernimmt dort
- * wieder das auto-fit-Raster mit größeren Zahlen.
+ * wieder das auto-fit-Raster mit größeren Zahlen. Der Widget-Abstand nach oben ist wie bei allen
+ * Cards generous — die alte 0.5rem-Kopplung stammt aus der Zeit, als die Begrüßung noch direkt
+ * über den Kacheln saß (das Herz steht inzwischen dazwischen).
  */
 .dashboard-cards {
 	list-style: none;
-	margin: 0.5rem 0 0;
+	margin: var(--pp-gap-generous) 0 0;
 	padding: 0;
 	display: grid;
 	gap: var(--pp-gap-tight);
 	grid-template-columns: repeat(3, 1fr);
 }
 
-/* Rahmen, Hintergrund und Padding liefert jetzt `KolCard`; der Count bleibt der prominente Inhalt. */
+/* Rahmen, Hintergrund und Padding liefert jetzt `KolCard`; der Count bleibt der prominente
+   Inhalt. xl mobil / 2xl ab Tablet liegt auf der Fünf-Größen-Skala (mobile-ui-rules Regel 6). */
 .dashboard-card-count {
-	font-size: 1.5rem;
-	font-weight: 700;
+	font-size: var(--pp-font-size-xl);
+	font-weight: var(--pp-weight-bold);
 	line-height: 1;
 }
 
@@ -469,9 +472,9 @@ body {
 .dashboard-card-accent {
 	display: block;
 	width: 2.5rem;
-	height: 0.25rem;
-	border-radius: 999px;
-	margin-bottom: 0.5rem;
+	height: var(--pp-space-1);
+	border-radius: var(--pp-radius-pill);
+	margin-bottom: var(--pp-space-2);
 }
 
 .dashboard-card-accent.total {
@@ -534,7 +537,7 @@ body {
 .dashboard-next-task-empty {
 	background-color: var(--pp-signal-wash);
 	color: var(--pp-signal-ink);
-	border-radius: 0.5rem;
+	border-radius: var(--pp-radius-md);
 	padding: var(--pp-gap-base);
 	/* Signal-Akzent als inset-Schatten statt `border-left`: ein Rahmen verkleinert die Innenbreite
 	   des Flex-Containers und damit den gestreckten „Jetzt starten"-Button um 6 px — genau das misst
@@ -552,17 +555,15 @@ body {
 .dashboard-next-task-title {
 	font-size: var(--pp-font-size-lg);
 	font-weight: var(--pp-weight-bold);
+	/* Auch in der Signalfläche: ein ungetrennter langer Titel darf die Card nicht überlaufen. */
+	overflow-wrap: anywhere;
 }
 
-/* #1042: „Jetzt starten" mobil volle Breite, desktop (≥768px) inhaltsbreit linksbündig, analog #1017. */
+/* #1042: „Jetzt starten“ mobil volle Breite, ab Tablet-Grid (48rem, siehe unten) inhaltsbreit
+   linksbündig, analog #1017 — derselbe Breakpoint wie das Grid, damit Button und Spaltenwechsel
+   auch bei Textvergrößerung synchron schalten. */
 .dashboard-next-task-content kol-button {
 	align-self: stretch;
-}
-
-@media (min-width: 768px) {
-	.dashboard-next-task-content kol-button {
-		align-self: flex-start;
-	}
 }
 
 .dashboard-next-task-priority {
@@ -587,7 +588,11 @@ body {
 	   Dunkelmodus hell-auf-weiß malen (dark-mode-contrast.spec.ts, #1118-Folge). */
 }
 
+/* Leerzustände der Listen-Widgets: einheitlich ohne Browser-Außenabstand, in der Normalgröße
+   sm — jeder Zustand ist gestaltet, auch der leere (mobile-ui-rules Regel 7). */
+.dashboard-empty,
 .dashboard-suggestions-empty {
+	margin: 0;
 	font-size: var(--pp-font-size-sm);
 }
 
@@ -602,8 +607,8 @@ body {
 .dashboard-suggestion {
 	display: flex;
 	flex-direction: column;
-	gap: 0.125rem;
-	padding: 0.5rem 0;
+	gap: var(--pp-space-1);
+	padding: var(--pp-space-2) 0;
 	border-bottom: 1px solid var(--pp-border);
 }
 
@@ -612,8 +617,9 @@ body {
 }
 
 .dashboard-suggestion-title {
-	font-weight: 600;
+	font-weight: var(--pp-weight-bold);
 	counter-increment: dashboard-suggestion;
+	overflow-wrap: anywhere;
 }
 
 .dashboard-suggestion-title::before {
@@ -648,7 +654,7 @@ body {
 	justify-content: space-between;
 	gap: 0.25rem 0.5rem;
 	min-height: 44px;
-	padding: 0.25rem 0;
+	padding: var(--pp-space-2) 0;
 	border-bottom: 1px solid var(--pp-border);
 }
 
@@ -669,7 +675,7 @@ body {
 
 .dashboard-suggestion-meta {
 	color: var(--pp-text-muted);
-	font-size: 0.875rem;
+	font-size: var(--pp-font-size-sm);
 }
 
 .dashboard-top-tasks {
@@ -690,12 +696,20 @@ body {
 	display: flex;
 	justify-content: space-between;
 	gap: var(--pp-gap-base);
-	padding: 0.375rem 0;
+	padding: var(--pp-space-2) 0;
 	border-bottom: 1px solid var(--pp-border);
 }
 
 .dashboard-deadline:last-child {
 	border-bottom: none;
+}
+
+/* Lange, ungetrennte Titel dürfen die Zeile nicht aus der Card drücken: Die rechte Aside-Gruppe
+   (Badge + Datum) ist flex-shrink: 0 und das Datum nowrap — der Umbruchschutz gehört deshalb
+   an den Titel (gleiches Muster wie .dashboard-nearby-title). */
+.dashboard-deadline-title {
+	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .dashboard-deadline-date {
@@ -712,13 +726,15 @@ body {
 	flex-shrink: 0;
 }
 
-/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" und „Was ist jetzt dran?" bleiben prominent
-   über die volle Breite, „Wichtigste Tasks" und „Anstehende Deadlines" stehen nebeneinander. */
+/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe“, „Was ist jetzt dran?“, Begrüßung und
+   Kacheln bleiben über die volle Breite; die fünf Sekundär-Widgets („In der Nähe“ — nur bei
+   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks“, „Meine Themen“,
+   „Gesamtguthaben“ und „Anstehende Deadlines“) fließen ins Zwei-Spalten-Raster. */
 @media (min-width: 48rem) {
 	.dashboard {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 1.5rem;
+		gap: var(--pp-gap-generous);
 		align-items: stretch;
 	}
 
@@ -740,6 +756,11 @@ body {
 		grid-column: 1 / -1;
 	}
 
+	/* #1042: Ab Tablet-Grid wird der „Erledigt“-Button wieder inhaltsbreit linksbündig. */
+	.dashboard-next-task-content kol-button {
+		align-self: flex-start;
+	}
+
 	/* Ab Tablet wieder das großzügigere Kachel-Raster mit größeren Zahlen. */
 	.dashboard-cards {
 		gap: var(--pp-gap-base);
@@ -747,25 +768,46 @@ body {
 	}
 
 	.dashboard-card-count {
-		font-size: 2rem;
+		font-size: var(--pp-font-size-2xl);
 	}
 }
 
+/* Gleiches Rang-Zeilenmuster wie die Vorschlagsliste („Was ist jetzt dran?“): eigener Counter
+   statt Browser-Default-Nummerierung mit 1.25rem-Einrückung, Border-getrennte Zeilen — nur ein
+   Muster für dieselbe Aufgabe (Rangliste im Dashboard). */
 .dashboard-top-tasks-list {
+	list-style: none;
 	margin: 0;
-	padding-left: 1.25rem;
+	padding: 0;
+	counter-reset: dashboard-top-task;
 }
 
 .dashboard-top-task {
 	display: flex;
 	flex-direction: column;
-	gap: 0.125rem;
-	margin: 0.25rem 0;
+	gap: var(--pp-space-1);
+	padding: var(--pp-space-2) 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-top-task:last-child {
+	border-bottom: none;
+}
+
+.dashboard-top-task-title {
+	font-weight: var(--pp-weight-bold);
+	counter-increment: dashboard-top-task;
+	overflow-wrap: anywhere;
+}
+
+.dashboard-top-task-title::before {
+	content: counter(dashboard-top-task) '. ';
+	color: var(--pp-text-muted);
 }
 
 .dashboard-top-task-meta {
 	color: var(--pp-text-muted);
-	font-size: 0.875rem;
+	font-size: var(--pp-font-size-sm);
 }
 
 .dashboard-pillars {
@@ -788,8 +830,8 @@ body {
 .dashboard-pillar {
 	display: flex;
 	flex-direction: column;
-	gap: 0.25rem;
-	padding: 0.5rem 0;
+	gap: var(--pp-space-1);
+	padding: var(--pp-space-2) 0;
 	border-bottom: 1px solid var(--pp-border);
 }
 
@@ -799,7 +841,7 @@ body {
 
 .dashboard-pillar-meta {
 	color: var(--pp-text-muted);
-	font-size: 0.875rem;
+	font-size: var(--pp-font-size-sm);
 	overflow-wrap: break-word;
 	word-break: break-word;
 }
@@ -811,10 +853,10 @@ body {
 }
 
 .dashboard-balance-total {
-	margin: 0 0 0.5rem;
-	font-size: 1.5rem;
-	font-weight: 700;
-	line-height: 1.2;
+	margin: 0 0 var(--pp-space-2);
+	font-size: var(--pp-font-size-2xl);
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
 }
 
 .dashboard-balance-list {
@@ -827,8 +869,8 @@ body {
 	display: flex;
 	justify-content: space-between;
 	align-items: baseline;
-	gap: 0.75rem;
-	padding: 0.375rem 0;
+	gap: var(--pp-space-3);
+	padding: var(--pp-space-2) 0;
 	border-bottom: 1px solid var(--pp-border);
 }
 
