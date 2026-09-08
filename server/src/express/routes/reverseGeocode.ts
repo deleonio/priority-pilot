@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { isGeocodeRateLimited, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 
 type ReverseGeocodeDto = components['schemas']['ReverseGeocodeResponse'];
 type ErrorDto = components['schemas']['Error'];
@@ -56,19 +56,10 @@ export const reverseGeocodeRouter = express.Router();
 /**
  * GET /api/v1/reverse-geocode?lat={lat}&lon={lon}
  * Reverse Geocoding: Koordinaten → Adresse (Issue #866).
- * Rate-Limit: Aufrufer sollte max. 1 req/sec (Frontend debouncen).
+ * Rate-Limit 1 req/sec: geteilter Limiter (`geocodeRateLimit.ts`, vor dem Router montiert).
  * Fallback: Bei Fehler/Timeout wird leere Adresse zurückgegeben (Position anzeigen ohne Adresse).
  */
 reverseGeocodeRouter.get('/', async (req, res: express.Response<ReverseGeocodeDto | ErrorDto>) => {
-	// Rate-Limit: 1 req/sec (Nominatim Policy)
-	const ip = req.ip || 'unknown';
-	const session = (req.headers['x-session-token'] as string) || '';
-	if (isGeocodeRateLimited(ip, session)) {
-		// Rate-Limit verletzt → leere Adresse (Fallback)
-		res.json({ address: '' });
-		return;
-	}
-
 	const lat = req.query.lat;
 	const lon = req.query.lon;
 
