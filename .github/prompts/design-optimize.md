@@ -1,6 +1,6 @@
 FOCUS: Optimize ONE design target in the Priority Pilot frontend to shipping quality, end to end
 with the Impeccable design skill: audit, adapt, harden, polish — then cleanly close remaining
-TODOs and deliver the result as a DRAFT PR with a fully traceable description. You CHANGE code in
+TODOs and deliver the result as a regular PR with a fully traceable description. You CHANGE code in
 this run (full tool tier).
 
 The DESIGN_TARGET below is a short natural-language text (workflow dispatch input). Resolve it
@@ -31,7 +31,7 @@ PROCEDURE (in this order, one bounded pass per phase — no open-ended polish lo
    CONTEXT" below (git checkout -b), commit ALL changes
    (git add -A && git commit -m "design(frontend): <short slug from the DESIGN_TARGET>
    [impeccable]") and push it with git push -u origin HEAD.
-9. DRAFT PR: create it with gh pr create --draft --base <BASE_REF from RUN CONTEXT> --head
+9. PR: create it with gh pr create --base <BASE_REF from RUN CONTEXT> --head
    <branch> — title "design(frontend): <short slug>", body per the mandatory skeleton below
    (write it to a temp file, pass via --body-file). The PR is the complete deliverable and its
    description is the audit trail — every change must be traceable to an audit finding or an
@@ -61,13 +61,13 @@ RULES:
 - Refinement, never redesign (impeccable craft floor); KoliBri-first; token discipline
   (--pp-* in frontend/src/app.css, docs/mobile-ui-rules.md is the binding mobile rule set).
 - Mobile-first: the 375px reference viewport is the bar for every change.
-- The PR is DRAFT and the only GitHub write besides the branch push — no issues, no labels,
-  no comments. Mark nothing ready for review.
+- The PR is a regular non-draft PR and the only GitHub write besides the branch push — no
+  issues, no labels, no comments (the workflow sets `ai:needs-review` itself).
 - TIME LIMIT: soft deadline noted below. Before every step: [ $(date +%s) -ge <epoch> ].
-  If OVER: branch+commit+push the current state, create the draft PR with the skeleton
+  If OVER: branch+commit+push the current state, create the PR with the skeleton
   (open items documented honestly), end the turn.
 
 RESULT (the very LAST lines of your reply, in this order):
-- PR-URL: <the created draft PR's URL>
+- PR-URL: <the created PR's URL>
 - DESIGN-RUN: clean
 - DESIGN-RUN: remaining
