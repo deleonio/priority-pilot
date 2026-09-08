@@ -726,10 +726,11 @@ body {
 	flex-shrink: 0;
 }
 
-/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe“, „Was ist jetzt dran?“, Begrüßung und
-   Kacheln bleiben über die volle Breite; die fünf Sekundär-Widgets („In der Nähe“ — nur bei
-   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks“, „Meine Themen“,
-   „Gesamtguthaben“ und „Anstehende Deadlines“) fließen ins Zwei-Spalten-Raster. */
+/* Ab mittlerer Breite zweispaltig: Begrüßung und „Was ist jetzt dran?" bleiben über die volle
+   Breite; der Hero („Meine Lebensbalance" zwei Drittel, rechts ein Drittel die gestapelten
+   Kacheln samt „Nächste Aufgabe") und die fünf Sekundär-Widgets („In der Nähe" — nur bei
+   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks", „Meine Themen",
+   „Gesamtguthaben" und „Anstehende Deadlines") fließen ins Zwei-Spalten-Raster. */
 @media (min-width: 48rem) {
 	.dashboard {
 		display: grid;
@@ -747,13 +748,57 @@ body {
 		margin-top: 0;
 	}
 
-	.dashboard-heart,
 	.dashboard h2,
 	.dashboard-greeting,
-	.dashboard-cards,
-	.dashboard-next-task,
 	.dashboard-suggestions {
 		grid-column: 1 / -1;
+	}
+
+	/*
+	 * Desktop-Hero: „Meine Lebensbalance" links zwei Drittel, rechts ein Drittel die
+	 * Kennzahlen-Kacheln gestapelt und darunter „Nächste Aufgabe" — untenbündig mit der
+	 * Herz-Unterkante (margin-top: auto, das übrige Spiel bekommt der Flex-Auto-Margin).
+	 * min-width: 0 hält lange, ungetrennte Titel im schmalen rechten Track (Muster der
+	 * KolTabs-Spalte weiter oben): Grid-/Flex-Items hätten sonst min-width: auto und drückten
+	 * die Spalte auf. Ohne Säulen entfällt die Herz-Card (#440) — der Solo-Modifier stellt
+	 * auf eine Spalte um; die Kacheln behalten dort ihr auto-fit-Raster über die volle Breite.
+	 */
+	.dashboard-hero {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: 2fr 1fr;
+		gap: var(--pp-gap-generous);
+		align-items: stretch;
+		min-width: 0;
+	}
+
+	.dashboard-hero--solo {
+		grid-template-columns: 1fr;
+	}
+
+	.dashboard-hero-side {
+		display: flex;
+		flex-direction: column;
+		gap: var(--pp-gap-base);
+		min-width: 0;
+	}
+
+	/* Im Hero steuert die Lücke: die Eigenmargins der Widgets entfallen. Spezifität (0,2,1),
+	   damit der Reset auch die erst später im Quelltext liegende .dashboard-heart-Marge schlägt. */
+	section.dashboard .dashboard-hero > *,
+	section.dashboard .dashboard-hero-side > * {
+		margin-top: 0;
+	}
+
+	/* Kennzahlen-Kacheln in der schmalen Spalte untereinander — kein 2+1-Versatz des
+	   auto-fit-Rasters; Spezifität 0,3,0 übersteht den auto-fit-Regel weiter unten. */
+	.dashboard-hero:not(.dashboard-hero--solo) .dashboard-cards {
+		grid-template-columns: 1fr;
+	}
+
+	/* „Nächste Aufgabe" schließt die rechte Spalte unten bündig mit der Herz-Unterkante ab. */
+	.dashboard-hero:not(.dashboard-hero--solo) .dashboard-next-task {
+		margin-top: auto;
 	}
 
 	/* #1042: Ab Tablet-Grid wird der „Erledigt“-Button wieder inhaltsbreit linksbündig. */
@@ -2680,12 +2725,16 @@ kol-heading {
 	max-width: 32ch;
 }
 
-/* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig). */
+/* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig).
+   Die max-width hält die Zeilen auf die Breite der Herz-Grafik — auf dem Desktop wächst die
+   Hero-Card über die 24rem der Bühne hinaus, die Legende soll dort nicht auseinandergezogen
+   werden; auf 375px (Card < 24rem) bleibt es beim gewohnten Bild. */
 .heart-balance-legend {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 	width: 100%;
+	max-width: 24rem;
 }
 
 /*

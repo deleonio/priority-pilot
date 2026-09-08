@@ -241,7 +241,7 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		}
 	});
 
-	test('AK7: Nächste Aufgabe, Vorschläge, Kacheln und Begrüßung bleiben volle Breite', async ({ page }) => {
+	test('AK7: Begrüßung/Vorschläge volle Breite, Hero 2/3 Herz + 1/3 Kacheln mit Nächster Aufgabe', async ({ page }) => {
 		await seedTasks(page, 2, 'E2E #1118 Breite');
 		await openDashboard(page, 1280, 900);
 
@@ -249,15 +249,39 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		expect(gridWidth).toBeGreaterThan(600);
 
 		// Volle Breite: Card/Bereich spannt über die Grid-Innenbreite.
-		for (const selector of [
-			'.dashboard-next-task',
-			'.dashboard-suggestions',
-			'.dashboard-cards',
-			'.dashboard-greeting',
-		]) {
+		for (const selector of ['.dashboard-suggestions', '.dashboard-greeting']) {
 			const box = await page.locator(selector).first().boundingBox();
 			expect(box, `${selector} vorhanden`).not.toBeNull();
 			expect(box!.width, `volle Breite von ${selector}`).toBeGreaterThanOrEqual(gridWidth * 0.95);
+		}
+
+		/* Design-Follow-up (Hero, 2026): „Meine Lebensbalance" links zwei Drittel, rechts ein
+		 * Drittel die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Herz-Unterkante —
+		 * „Nächste Aufgabe". Ersetzt die frühere Volle-Breite-Forderung für Kacheln/Nächste Aufgabe. */
+		const heroBox = await page.locator('.dashboard-heart').boundingBox();
+		const sideBox = await page.locator('.dashboard-hero-side').boundingBox();
+		expect(heroBox, 'Herz-Card vorhanden').not.toBeNull();
+		expect(sideBox, 'Hero-Seitenspalte vorhanden').not.toBeNull();
+		// Zwei Drittel (±6 % für Gap/Padding) beziehungsweise höchstens ein Drittel zuzüglich Gap.
+		expect(heroBox!.width).toBeGreaterThanOrEqual(gridWidth * 0.6);
+		expect(heroBox!.width).toBeLessThanOrEqual(gridWidth * 0.72);
+		expect(sideBox!.width).toBeLessThanOrEqual(gridWidth * 0.4);
+		// „Nächste Aufgabe" schließt die Seitenspalte unten bündig ab.
+		const nextBox = await page.locator('.dashboard-next-task').boundingBox();
+		expect(nextBox, 'Nächste-Aufgabe-Card vorhanden').not.toBeNull();
+		expect(Math.abs(nextBox!.y + nextBox!.height - (sideBox!.y + sideBox!.height))).toBeLessThanOrEqual(2);
+		// Kacheln in der Seitenspalte untereinander: gleiche Spalte, gleiche Breite, fallende Reihenfolge.
+		const tileTops = await page.locator('.dashboard-cards > li').evaluateAll((els) =>
+			els.map((el) => {
+				const r = el.getBoundingClientRect();
+				return { x: Math.round(r.x), top: Math.round(r.top), width: Math.round(r.width) };
+			}),
+		);
+		expect(tileTops.length, 'drei Kennzahlen-Kacheln').toBe(3);
+		for (let i = 1; i < tileTops.length; i++) {
+			expect(tileTops[i]!.top, `Kachel ${i} unter Kachel ${i - 1}`).toBeGreaterThan(tileTops[i - 1]!.top);
+			expect(tileTops[i]!.x, `Kachel ${i} gleiche Spalte`).toBe(tileTops[i - 1]!.x);
+			expect(tileTops[i]!.width, `Kachel ${i} gleiche Breite`).toBe(tileTops[i - 1]!.width);
 		}
 	});
 
