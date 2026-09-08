@@ -140,6 +140,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		// Vorgeschalteter Schnellerfassungs-Schritt wird übersprungen (siehe issue-761 openTaskForm).
 		await page.getByRole('button', { name: /überspringen/i }).click();
+		await waitForStableView(page);
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 
 		const titleInput = page.getByRole('textbox', { name: 'Titel' });

@@ -109,8 +109,13 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
-		const priorityBox = await page.locator('.form-section--primary kol-input-range').first().boundingBox();
-		const effortBox = await page.locator('.form-section--primary kol-input-range').nth(1).boundingBox();
+		const priorityRange = page.locator('.form-section--primary kol-input-range').first();
+		const effortRange = page.locator('.form-section--primary kol-input-range').nth(1);
+		await waitForStableBox(page, priorityRange);
+		await waitForStableBox(page, effortRange);
+
+		const priorityBox = await priorityRange.boundingBox();
+		const effortBox = await effortRange.boundingBox();
 
 		expect(priorityBox).not.toBeNull();
 		expect(effortBox).not.toBeNull();
