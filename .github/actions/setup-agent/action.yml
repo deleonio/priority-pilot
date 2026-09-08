@@ -405,19 +405,19 @@ runs:
         fi
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # ZAI TIME-WINDOW CHECK – ZAI in z.ai-Peak-Zeiten (3× Quota) auf Claude fallen
+    # ZAI TIME-WINDOW CHECK – z.ai-Peak-Zeiten (3× Quota) nur noch als Warning
     #
     # Issue #893: z.ai berechnet den 3×-Peak-Tarif nur Mo–Fr 14:00–18:00 Asia/Singapore
     # (= 08:00–12:00 MESZ bzw. 07:00–11:00 MEZ); am Wochenende gilt ganztägig Off-Peak.
-    # Abo-Realität: Nur glm-4.7/glm-5-turbo/glm-5.3 gebucht; der 2×/3×-Tarif trifft im Abo
-    # einzig glm-5-turbo (Subagent-Modell) — der Fallback bleibt bewusst pauschal.
     # Die Prüfung läuft in Singapore-Zeit (UTC+8, kein DST) — dadurch verschiebt sich das
     # Berliner Fenster mit der Sommerzeit automatisch korrekt (die frühere harte
     # Berlin-Stunde 08–11 lag im Winter daneben).
-    # Nur ZAI wird überschrieben; claude/openrouter bleiben unangetastet.
+    # Kein Fallback mehr: Der frühere Claude-Override lief still auf Anthropic-Rechnung
+    # und ließ die Kosten der betroffenen Läufe verschwinden — im Peak bleibt es
+    # deshalb bei zai (3× Quota wird bewusst in Kauf genommen), das Log warnt nur.
     # Runtime-neutral: Der Tarif hängt am Provider, nicht an der Laufzeit.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: ZAI Zeitfenster-Check (Mo–Fr 14:00–18:00 Asia/Singapore → Claude Fallback)
+    - name: ZAI Zeitfenster-Check (Mo–Fr 14:00–18:00 Asia/Singapore → Warning)
       id: time-window-check
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
@@ -428,8 +428,6 @@ runs:
 
         # Nur bei ZAI prüfen, ob wir im Peak-Fenster sind
         if [ "$PROVIDER" != "zai" ]; then
-          echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
-          echo "time-window-override=false" >> "$GITHUB_OUTPUT"
           echo "::notice::Zeitfenster-Check übersprungen (Provider=$PROVIDER, nur zai wird geprüft)."
           exit 0
         fi
@@ -440,12 +438,8 @@ runs:
         echo "Singapore-Zeit: Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx (Asia/Singapore)."
 
         if [ "$SGT_DOW" -le 5 ] && [ "$SGT_HOUR" -ge 14 ] && [ "$SGT_HOUR" -le 17 ]; then
-          echo "original-llm-provider=zai" >> "$GITHUB_OUTPUT"
-          echo "time-window-override=true" >> "$GITHUB_OUTPUT"
-          echo "::notice title=🕐 ZAI Peak-Zeit aktiv::Mo–Fr 14:00–18:00 Asia/Singapore (3× Quota) — ZAI wird auf Claude gefallback (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx)."
+          echo "::warning title=🕐 z.ai Peak-Zeit aktiv::Mo–Fr 14:00–18:00 Asia/Singapore (3× Quota) — kein Claude-Fallback mehr (Kosten gingen verloren), es bleibt bei zai (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx)."
         else
-          echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
-          echo "time-window-override=false" >> "$GITHUB_OUTPUT"
           echo "::notice::Zeitfenster inaktiv (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx — Wochenende oder außerhalb Mo–Fr 14:00–18:00 SGT) — ZAI wird verwendet."
         fi
 
@@ -459,29 +453,8 @@ runs:
       shell: bash
       env:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
-        TIME_WINDOW_OVERRIDE: ${{ steps.time-window-check.outputs.time-window-override }}
-        ORIGINAL_PROVIDER: ${{ steps.time-window-check.outputs.original-llm-provider }}
-        CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
-
-        # Zeitfenster-Override: Wenn aktiv, ZAI durch Claude ersetzen — aber nur, wenn der
-        # Fallback auch bedienbar ist (#1275): Ein OAuth-Subscription-Token (sk-ant-oat…) kann
-        # pi grundsätzlich nicht verwerten (fail-closed-Guard in setup-pi), und Claude Code
-        # verweigert es, wenn die Org Subscription-Zugang entzogen hat. Dann lieber laut im
-        # Peak auf zai bleiben (3× Quota, aber funktionierend) als garantiert rote Läufe.
-        if [ "$TIME_WINDOW_OVERRIDE" = "true" ]; then
-          case "$CLAUDE_API_KEY" in
-            sk-ant-api-*)
-              echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (z.ai-Peak-Zeit Mo–Fr 14:00–18:00 Asia/Singapore aktiv)."
-              PROVIDER="claude"
-              ;;
-            *)
-              echo "::warning title=🕐 Peak-Fallback übersprungen::CLAUDE_API_KEY ist kein echter API-Key (sk-ant-api…) — der Claude-Fallback wäre nicht lauffähig. Es bleibt bei zai trotz Peak-Fenster (3× Quota)."
-              PROVIDER="zai"
-              ;;
-          esac
-        fi
 
         case "$PROVIDER" in
           claude|zai|openrouter) ;;
