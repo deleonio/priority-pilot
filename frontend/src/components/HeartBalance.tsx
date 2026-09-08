@@ -162,7 +162,11 @@ const WAVE_DRIFT_DURATION = '7s';
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
 const asPercent = (share: number): number => Math.round(share * 100);
 
-/** Ein Farbstreifen unter der Wasserlinie: eine Säule mit ihrer horizontalen Spanne (0–100). */
+/** Sichtbare Gefäßbreite (x-Spanne der Herzkontur) — Bandmaß und Glas-Normierung (`toSlotBands`) teilen sie. */
+const VESSEL_LEFT = 4;
+const VESSEL_RIGHT = 96;
+
+/** Ein Farbstreifen unter der Wasserlinie: eine Säule mit ihrer horizontalen Spanne über der Gefäßbreite. */
 interface HeartBand {
 	pillarId: number;
 	colorIndex: number;
@@ -200,20 +204,22 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 	const animated = animationsEnabled && heartAnimationEnabled && !prefersReducedMotion;
 
 	/*
-	 * Horizontale Spannen der Farbstreifen: kumulierte Ist-Anteile über die Zeichenbreite — die
-	 * Breite jedes Streifens entspricht exakt dem Ist-Anteil seiner Säule (Verteilung im Bild).
-	 * Ohne Punkte gilt die Soll-Verteilung, damit das leere Herz schon die Zielaufteilung zeigt.
+	 * Horizontale Spannen der Farbstreifen: kumulierte Ist-Anteile über die **sichtbare Gefäßbreite**
+	 * (Herzkontur, x 4–96) — die Breite jedes Streifens entspricht exakt dem Ist-Anteil seiner Säule
+	 * (Verteilung im Bild). Ohne Punkte gilt die Soll-Verteilung, damit das leere Herz schon die
+	 * Zielaufteilung zeigt. Dieselben Kanten liest der Glas-Shader (`toSlotBands`) — so zeigen SVG
+	 * und Glas dasselbe Bild.
 	 */
 	const bands = useMemo<HeartBand[]>(() => {
-		let x = 0;
+		let x = VESSEL_LEFT;
 		const next = balance.segments.map((segment) => {
 			const share = balance.hasPoints ? segment.actualShare : segment.targetShare;
 			const x0 = x;
-			x = Math.min(VIEW_WIDTH, x + share * VIEW_WIDTH);
+			x = Math.min(VESSEL_RIGHT, x + share * (VESSEL_RIGHT - VESSEL_LEFT));
 			return { pillarId: segment.pillar.id, colorIndex: segment.colorIndex, x0, x1: x };
 		});
-		// Letzte Kante exakt auf die Zeichenbreite legen — ein Float-Rest darf keinen Spalt lassen.
-		if (next.length > 0) next[next.length - 1].x1 = VIEW_WIDTH;
+		// Letzte Kante exakt an die rechte Kontur legen — ein Float-Rest darf keinen Spalt lassen.
+		if (next.length > 0) next[next.length - 1].x1 = VESSEL_RIGHT;
 		return next;
 	}, [balance]);
 

@@ -106,29 +106,30 @@ const readThemeColors = () => {
 
 type ThemeColors = ReturnType<typeof readThemeColors>;
 
-/** Shader-seitige Bandliste: Farbe plus rechte Kante als Anteil der Herzbreite (0–1). */
+/** Shader-seitige Bandliste: Farbe plus **linke** Kante als Anteil der sichtbaren Herzbreite (0–1).
+ *  Der Shader wechselt an `u_band_edges[i]` zur Farbe i (`bandColorAt`) — Kante i ist die Grenze,
+ *  ab der Farbe i gilt; die Fläche bis zur nächsten Kante (bzw. bis 1.0 beim letzten) bleibt bei i. */
 interface SlotBand {
 	color: [number, number, number];
 	edge: number;
 }
 
 /**
- * Streifen auf die Shader-Slots abbilden: Die ersten 7 behalten Farbe und Breite; läuft die Liste
- * über 8 hinaus (mehr Säulen als Uniform-Slots), läuft der Rest im letzten Slot **neutral**
- * zusammen — wie das SVG, das ab der 8. Säule ohnehin nicht mehr einfärbt.
+ * Streifen auf die Shader-Slots abbilden: Jede Kante liegt auf der **linken** Kante ihres Bandes
+ * (`x0`, normiert auf die sichtbare Breite x 4–96) — der Shader beginnt Farbe i genau dort. Die
+ * ersten 7 behalten Farbe; läuft die Liste über 8 hinaus (mehr Säulen als Uniform-Slots), läuft
+ * der Rest ab der linken Kante des 8. Bandes im letzten Slot **neutral** zusammen — wie das SVG,
+ * das ab der 8. Säule ohnehin nicht mehr einfärbt. Das letzte Band behält so seine Fläche bis 1.0.
  */
-const toSlotBands = (bands: GlassBand[], colors: ThemeColors): SlotBand[] => {
+export const toSlotBands = (bands: GlassBand[], colors: ThemeColors): SlotBand[] => {
+	const edge = (band: GlassBand): number => Math.max(0, Math.min(1, (band.x0 - 4) / 92));
+	const colorOf = (band: GlassBand): [number, number, number] =>
+		band.colorIndex < PILLAR_RAMP_SIZE ? colors.pillars[band.colorIndex] : colors.neutral;
 	if (bands.length <= BAND_SLOTS) {
-		return bands.map((band) => ({
-			color: band.colorIndex < PILLAR_RAMP_SIZE ? colors.pillars[band.colorIndex] : colors.neutral,
-			edge: Math.max(0, Math.min(1, (band.x1 - 4) / 92)),
-		}));
+		return bands.map((band) => ({ color: colorOf(band), edge: edge(band) }));
 	}
-	const head = bands.slice(0, BAND_SLOTS - 1).map((band) => ({
-		color: band.colorIndex < PILLAR_RAMP_SIZE ? colors.pillars[band.colorIndex] : colors.neutral,
-		edge: Math.max(0, Math.min(1, (band.x1 - 4) / 92)),
-	}));
-	return [...head, { color: colors.neutral, edge: 1 }];
+	const head = bands.slice(0, BAND_SLOTS - 1).map((band) => ({ color: colorOf(band), edge: edge(band) }));
+	return [...head, { color: colors.neutral, edge: edge(bands[BAND_SLOTS - 1]) }];
 };
 
 interface GlassEngine {
