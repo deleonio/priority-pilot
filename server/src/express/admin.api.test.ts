@@ -1,15 +1,17 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import { User } from '../models/index.js';
 
 // Rote Spec-Tests für das Rollensystem admin/member — Nutzerverwaltung (GET/PATCH /admin/users).
 // Muster: groups-dataisolation.test.ts — zwei Konten, eines Admin (per Test-Login-Rolle), eines
 // Member; Autorisierung läuft über `requireRole('admin')` (server/src/express/requireAuth.ts).
-process.env.GOOGLE_ALLOWED_EMAILS = 'admin@example.com,member@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS = 'admin@example.com,member@example.com,admin2@example.com';
 applyTestAuthEnv('admin-api-test');
 
 const ADMIN_EMAIL = 'admin@example.com';
 const MEMBER_EMAIL = 'member@example.com';
+const OTHER_ADMIN_EMAIL = 'admin2@example.com';
 
 let server: TestServer;
 
@@ -99,6 +101,18 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 			body: JSON.stringify({ role: 'member' }),
 		});
 		assert.equal(res.status, 409, 'letzter Admin darf nicht zurückgestuft werden');
+	});
+
+	it('GET /admin/users liefert 403, wenn die Rolle nach dem Login in der DB zurückgestuft wurde', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		await server.login(OTHER_ADMIN_EMAIL, { role: 'admin' }); // damit kein Letzter-Admin-Konflikt entsteht
+
+		const demoted = await User.findOne({ where: { email: ADMIN_EMAIL } });
+		assert.ok(demoted, 'Setup: zurückzustufender Admin muss existieren');
+		await demoted.update({ role: 'member' });
+
+		const res = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: adminCookie } });
+		assert.equal(res.status, 403, 'alte Session darf nach DB-Rückstufung nicht mehr durchkommen');
 	});
 
 	it('PATCH /admin/users/:id/role liefert 400 bei ungültiger Rolle', async () => {
