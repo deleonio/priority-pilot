@@ -19,7 +19,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
-		const head = `E2E #1121 ${label}`.slice(0, 30 - tail.length);
+		const head = `E2E #1121 ${label}`.slice(0, 65 - tail.length);
 		return `${head}${tail}`;
 	};
 
@@ -137,7 +137,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 	test('AK2 — Genau ein geschütztes Leerzeichen zwischen Titel und Icon, gemeinsame Umbrucheinheit', async ({
 		page,
 	}) => {
-		const title = uniqueTitle('Umbruch').padEnd(30, 'x'); // Domänen-Maximum (server/src/models/task.ts:93)
+		const title = uniqueTitle('Umbruch').padEnd(65, 'x'); // Domänen-Maximum (server/src/models/task.ts:93)
 		const id = await createTaskViaApi(page, title, 'Lange Musterstraße 123, 12345 Musterstadt');
 
 		await page.setViewportSize({ width: 375, height: 667 });

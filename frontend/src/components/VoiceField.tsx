@@ -23,9 +23,10 @@ interface VoiceFieldProps {
 	 */
 	hint?: string;
 	/**
-	 * Nur für `variant: 'input'`: Das Feld nutzt den KoliBri built-in Zähler (`_hasCounter`),
-	 * der eine Zeile UNTER der Inputbox rendert. Der Wrapper wird dadurch höher — die
-	 * Modifier-Klasse hebt den Bottom-Anker des Mic-Buttons um diese Zeile an (#1054 F1).
+	 * Das Feld nutzt den KoliBri built-in Zähler (`_hasCounter`), der eine Zeile UNTER der
+	 * Inputbox rendert. Der Wrapper wird dadurch höher — die Modifier-Klasse hebt den
+	 * Bottom-Anker des Mic-Buttons um diese Zeile an (#1054 F1). Wirkt für beide Varianten
+	 * (`input` über --pp-input-below in der Zentrier-Formel, `textarea` über den Bottom-Anker).
 	 */
 	counter?: boolean;
 	children: ReactNode;
