@@ -81,7 +81,8 @@ graph LR
 
 ## 4. Lösungsstrategie
 
-- **API-first:** `openapi.yml` ist der alleinige API-Vertrag. `pnpm build` generiert daraus Typen
+- **API-first:** `openapi.yml` ist der zentrale API-Vertrag; der Lektorat-Endpunkt liegt als
+  bekannte Schuld noch außerhalb (s. §11). `pnpm build` generiert daraus Typen
   für `client/` (Frontend) und `server/src/api.d.ts`; das Frontend ruft die API typsicher mit
   `openapi-fetch` auf (`frontend/src/api.ts`). Der Server arbeitet mit denselben `components`-Typen.
 - **Getrennte Zuständigkeiten im Server:** HTTP-Schicht (`server/src/express/`), Fachlogik
@@ -304,7 +305,9 @@ dokumentiert.
 
 - **Qualitätseigenschaft:** `#suitable` — Vollständigkeit
 - **Szenario:** Jede fachliche Operation (Tasks, Säulen, Serien, Gruppen, Push, Geo, LLM-Funktionen)
-  ist als Pfad in `openapi.yml` erfasst und über generierte Typen ansprechbar.
+  ist als Pfad in `openapi.yml` erfasst und über generierte Typen ansprechbar — mit Ausnahme des
+  Lektorat-Endpunkts (`POST /lektorat`), der außerhalb des Vertrags liegt
+  (`server/src/express/routes/lektorat.ts`).
 - **Erfolgsmessung:** `pnpm build` scheitert, sobald Vertrag und generierte Typen auseinanderlaufen.
 
 ### QS-02 — fachliche Kernlogik abgedeckt
@@ -366,6 +369,7 @@ dokumentiert.
 | SQLite als Single-File-Store                                                        | Keine horizontale Skalierung; Betrieb auf genau einem Host ist dem Datenmodell eingeschrieben                              | `server/src/database.ts`                                      |
 | `/api/v1`-Prefix wird an zwei Stellen gestreift                                     | Vite-Dev-Proxy und Caddy-Handle müssen dasselbe Strip-Verhalten nachführen                                                 | `frontend/vite.config.ts`, [server-setup.md](server-setup.md) |
 | Legacy-Spaltenprüfung bei jedem Start                                               | `migrateLegacySinglePillar` liest per `PRAGMA` die `tasks`-Tabelle, solange `task_pillars` leer ist                        | `server/src/index.ts`                                         |
+| Lektorat-Endpunkt fehlt im API-Vertrag                                              | `POST /lektorat` ist umgesetzt, aber nicht in `openapi.yml` erfasst; QS-01 gilt nur mit dieser Ausnahme                    | `server/src/express/routes/lektorat.ts`                       |
 
 ## 12. Glossar
 
