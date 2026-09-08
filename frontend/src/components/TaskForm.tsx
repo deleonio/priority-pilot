@@ -1240,6 +1240,9 @@ export const TaskForm = ({
 								<VoiceField
 									variant="textarea"
 									fieldLabel="Beschreibung"
+									// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
+									// Textarea — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
+									counter
 									onTranscript={(text) => {
 										const newVal = form.current.description ? `${form.current.description} ${text}` : text;
 										form.current.description = newVal;
