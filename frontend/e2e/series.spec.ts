@@ -57,6 +57,18 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		expect(response.ok()).toBeTruthy();
 	};
 
+	/**
+	 * Datums-Anker relativ zu heute (00:00 UTC, `days` = 0 → heute). Die Instanz-Generierung beginnt
+	 * erst am aktuellen Datum (`server/src/logics/series.ts`, „Nur zukünftige Termine“) — hartkodierte
+	 * vergange Startdaten verlieren die erste Instanz still und brechen die Instanz-Counts
+	 * (CI-Fall 2026-09-08).
+	 */
+	const dayFromTodayUtc = (days: number): string => {
+		const day = new Date();
+		day.setUTCHours(0, 0, 0, 0);
+		return new Date(day.getTime() + days * 86_400_000).toISOString();
+	};
+
 	interface ApiTask {
 		id: number;
 		title: string;
@@ -155,15 +167,15 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		page,
 	}) => {
 		const title = uniqueTitle('Kennzeichnung');
-		// Wöchentliche Serie, zwei fällige Termine (07.09. + 14.09.2026) materialisieren.
-		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-09-07T00:00:00.000Z' });
-		await generateInstancesViaApi(page, seriesId, '2026-09-14T00:00:00.000Z');
+		// Wöchentliche Serie, zwei fällige Termine (heute + in 7 Tagen) materialisieren — dynamischer Anker, siehe dayFromTodayUtc.
+		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: dayFromTodayUtc(0) });
+		await generateInstancesViaApi(page, seriesId, dayFromTodayUtc(7));
 
 		// Eine der beiden Instanzen individuell ändern → das Backend markiert sie als `isException`.
 		const instances = (await listTasksViaApi(page)).filter((task) => task.seriesId === seriesId);
 		expect(instances.length).toBe(2);
 		const exceptionResponse = await page.request.patch(`/api/v1/tasks/${instances[0].id}`, {
-			data: { deadline: '2026-09-28T00:00:00.000Z' },
+			data: { deadline: dayFromTodayUtc(21) },
 		});
 		expect(exceptionResponse.ok()).toBeTruthy();
 
@@ -186,12 +198,12 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 	// und nicht auf die Geschwister-Instanzen.
 	test('AK3 — eine Instanz einzeln verschieben wirkt nicht auf Template und Geschwister', async ({ page }) => {
 		const title = uniqueTitle('Verschieben');
-		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-09-07T00:00:00.000Z' });
-		await generateInstancesViaApi(page, seriesId, '2026-09-14T00:00:00.000Z');
+		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: dayFromTodayUtc(0) });
+		await generateInstancesViaApi(page, seriesId, dayFromTodayUtc(7));
 
 		const before = (await listTasksViaApi(page)).filter((task) => task.seriesId === seriesId);
 		expect(before.length).toBe(2);
-		// Instanzen nach Deadline sortieren: A = 07.09. (wird verschoben), B = 14.09. (bleibt unberührt).
+		// Instanzen nach Deadline sortieren: A = heute (wird verschoben), B = heute + 7 Tage (bleibt unberührt).
 		const sorted = [...before].sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
 		const moved = sorted[0];
 		const sibling = sorted[1];
@@ -208,7 +220,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
-		await page.getByLabel('Deadline (optional)').fill('2026-09-28');
+		await page.getByLabel('Deadline (optional)').fill(dayFromTodayUtc(21).slice(0, 10));
 		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
@@ -224,7 +236,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// Geschwister-Instanz unberührt (Deadline unverändert).
 		expect(siblingAfter?.deadline).toBe(sibling.deadline);
 		// Verschobene Instanz hat die neue Deadline und ist als Ausnahme markiert.
-		expect(movedAfter?.deadline?.slice(0, 10)).toBe('2026-09-28');
+		expect(movedAfter?.deadline?.slice(0, 10)).toBe(dayFromTodayUtc(21).slice(0, 10));
 		expect(movedAfter?.isException).toBe(true);
 
 		// Das Serien-Template selbst bleibt unverändert (kein Drift durch die Einzel-Änderung).
@@ -233,7 +245,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 			startDate: string;
 		};
 		expect(seriesAfter.title).toBe(title);
-		expect(seriesAfter.startDate.slice(0, 10)).toBe('2026-09-07');
+		expect(seriesAfter.startDate.slice(0, 10)).toBe(dayFromTodayUtc(0).slice(0, 10));
 	});
 
 	// AK7 (#244): In der Serien-Verwaltung gibt es einen Button „Fällige Instanzen generieren".
