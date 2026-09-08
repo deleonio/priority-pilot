@@ -1167,19 +1167,25 @@ body {
    vertikal (#727-Regression, Y-Versatz 18px). */
 .pillar-weights-grid {
 	/* #934: 334 px = 300 px Content-Mindestbreite der Range-Felder + 2 × 1rem Card-Padding
-	   + 2 × 1 px Border — sonst quetscht die Bahn die Slider unter die 300-px-Regel unten. */
-	grid-template-columns: repeat(auto-fit, minmax(334px, 1fr));
+	   + 2 × 1 px Border. `min(334px, 100%)`: Seit die Slider in der gemeinsamen Gewichtungskarte
+	   liegen, ist der Grid-Container auch bei 375 px Viewport schmaler als 334 px — ohne das
+	   Minimum-Cap würde die 334-px-Spur die Karte aufreißen (geclipt durch das overflow-x:
+	   hidden der .settings-page), statt sauber auf 1 Spalte zu fallen. */
+	grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
 }
 
-/* Eine Säule im Gewichtungs-Editor: Card-Struktur für den Slider (#763, ohne Beschreibung #934) */
+/* Abstand der Gewichtungskarte zur Säulen-Verwaltung darüber (alle Slider in EINER Karte) */
+.pillar-weights-card {
+	margin-top: var(--pp-gap-base);
+}
+
+/* Eine Säule im Gewichtungs-Editor: schlichte Zeile OHNE eigenen Kartenrahmen — die
+   Gruppierungsfläche ist die eine gemeinsame Gewichtungskarte im Settings-Tab (KolCard);
+   verschachtelte Karten wären Kartenrauschen neben der Säulen-Liste darüber. */
 .pillar-weight-row {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-gap-tight);
-	padding: 1rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-bg-secondary, var(--color-misc-200));
 }
 
 .pillar-weight-row kol-input-range {
@@ -1200,10 +1206,11 @@ body {
 	}
 }
 
-/* Desktop: 3-4-spaltiges Layout (#763); minmax ≥ 334 px für die Range-Mindestbreite (#934) */
+/* Desktop: 3-4-spaltiges Layout (#763); minmax ≥ 334 px für die Range-Mindestbreite (#934),
+   mit demselben 100-%-Cap wie die Basisregel (Overflow-Schutz im Karten-Container) */
 @media (min-width: 1024px) {
 	.pillar-weights-grid {
-		grid-template-columns: repeat(auto-fit, minmax(334px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
 	}
 }
 
