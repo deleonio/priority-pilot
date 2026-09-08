@@ -26,10 +26,10 @@ on:
         type: string
 
 concurrency:
-  # Gemeinsame LLM-Gruppe über ALLE LLM-Workflows (globale Serialisierung, FIFO): genau ein
-  # LLM-Lauf repo-weit. Der precheck-Job verhindert falsches Nachziehen — kurz hintereinander
-  # gemergte PRs reihen sich ein statt zu parallelisieren.
-  group: llm
+  # Eigene Gruppe pro Phase (FIFO): genau ein Documenter-Lauf gleichzeitig. Der precheck-Job
+  # verhindert falsches Nachziehen — kurz hintereinander gemergte PRs reihen sich ein statt zu
+  # parallelisieren. Andere Phasen und `llm-sync` laufen davon unabhängig.
+  group: llm-document
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
