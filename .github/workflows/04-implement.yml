@@ -428,6 +428,11 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
           effort: ${{ steps.setup.outputs.effort }}
+          # Laufzeit + Sitzungsverzeichnis entscheiden, WOHER der Verbrauch gelesen wird.
+          # session-dir ist nur bei runtime=pi gefüllt; bei claude bleibt es leer und die
+          # Erfassung nutzt wie bisher die Zeituntergrenze aus since-epoch.
+          runtime: ${{ steps.setup.outputs.runtime }}
+          session-dir: ${{ steps.setup.outputs.session-dir }}
 
       - name: Umsetzung via Claude
         id: claude
@@ -488,6 +493,8 @@ jobs:
           since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
           effort: ${{ steps.setup.outputs.effort }}
+          runtime: ${{ steps.setup.outputs.runtime }}
+          session-dir: ${{ steps.setup.outputs.session-dir }}
 
       - name: Issue-Storage sichern (Artefakt)
         # ADR 0010: Phasen-Notizen als Workflow-Artefakt hochladen — kein Commit/Branch
@@ -990,6 +997,8 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
           effort: ${{ steps.setup.outputs.effort }}
+          runtime: ${{ steps.setup.outputs.runtime }}
+          session-dir: ${{ steps.setup.outputs.session-dir }}
 
       # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
       # concurrency-Gruppe) lässt Fixup-Läufe desselben Branches nie parallel laufen, und der
@@ -1077,6 +1086,8 @@ jobs:
           since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
           effort: ${{ steps.setup.outputs.effort }}
+          runtime: ${{ steps.setup.outputs.runtime }}
+          session-dir: ${{ steps.setup.outputs.session-dir }}
 
       - name: Issue-Storage sichern (Artefakt)
         # Siehe implement-Job — gleiche Mechanik (ADR 0010), Phase fixup.
