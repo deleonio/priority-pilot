@@ -5,8 +5,6 @@
 		"src/components/TaskTable.tsx",
 		// React-Cell-Root-Adapter füragrid — library-intern, kein Anwendungscode
 		"src/lib/reactCellRoot.ts",
-		// Series-Management mit Modal-State-Machine — komplexe Typ-Infrastruktur
-		"src/components/SeriesManagementModal.tsx",
 		// Service Worker für PWA — manuell eingebunden, kein Entry-Point
 		"public/push-sw.js",
 		// Icon-Generator-Script für Linux-Build — Dev-Tool, kein App-Code
