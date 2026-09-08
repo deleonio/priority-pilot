@@ -99,7 +99,13 @@ vi.mock('@public-ui/react-v19', () => ({
 		<details open={_open === true} aria-disabled={_disabled === true || undefined} data-accordion={_label}>
 			<summary
 				onClick={(e) => {
-					if (_disabled === true) return;
+					if (_disabled === true) {
+						// TEST-PFLEGE #1285 (Impl): KoliBri-Trigger ignorieren bei `_disabled` ALLE Events —
+						// das schließt den nativen jsdom-details-Toggle ein (preventDefault), sonst toggle
+						// jsdom 30 bei jedem Klick unabhängig vom Handler.
+						e.preventDefault();
+						return;
+					}
 					_on?.onClick?.(e.nativeEvent, !(_open === true));
 				}}
 			>
@@ -1561,6 +1567,9 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		await act(async () => {
 			render(<TaskForm task={task} {...defaultProps} />);
 		});
+		// TEST-PFLEGE #1285 (Impl): Opt-in-Sektionen starten seit AK3 immer zu (auch im Edit) —
+		// die Box liegt in „Termin & Ort“, daher wie im Anlege-Fall erst aufklappen.
+		fireEvent.click(screen.getByText('Termin & Ort'));
 
 		const box = coordsBox();
 		expect(within(box).getByText(/Alte Adresse 5/)).toBeVisible();
@@ -1579,6 +1588,9 @@ describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () 
 		await act(async () => {
 			render(<SeriesEditForm task={null} series={series} {...defaultProps} />);
 		});
+		// TEST-PFLEGE #1285 (Impl): Opt-in-Sektionen starten seit AK3 immer zu (auch im Edit) —
+		// die Box liegt in „Termin & Ort“, daher wie im Anlege-Fall erst aufklappen.
+		fireEvent.click(screen.getByText('Termin & Ort'));
 
 		const box = coordsBox();
 		expect(within(box).getByText(/Serienadresse 7/)).toBeVisible();

@@ -2,7 +2,6 @@ import {
 	KolAccordion,
 	KolAlert,
 	KolButton,
-	KolHeading,
 	KolInputCheckbox,
 	KolInputDate,
 	KolInputRange,
@@ -311,10 +310,6 @@ export const TaskForm = ({
 		longitude: form.current.longitude,
 	}));
 	const coordsBoxId = useId();
-	// #1159: ID der Primärgruppen-Überschrift — die Pflichtgruppe ist eine programmatische
-	// Gruppe (section[aria-labelledby], KI-UX/WCAG 1.4.1), nicht nur eine Farb-Fläche. Die beiden
-	// Opt-in-Sektionen sind seit #1260 KolAccordion und beschriften sich über den Akkordeon-Trigger.
-	const primaryHeadingId = useId();
 	// Adresssuche (#1083): die Vorschlagsliste lebt in `AddressAutocomplete`, das den Hook selbst
 	// aufruft (Debounce 400 ms) — hier doppelt zu suchen würde den geteilten 1-req/s-Limiter treffen.
 	// #1066 AK1/AK10: Übernimmt die Koordinaten des explizit gewählten Treffers. Freitext ohne
@@ -356,20 +351,11 @@ export const TaskForm = ({
 	const [checklist, setChecklist] = useState<ChecklistItem[]>(task?.checklist ?? []);
 	const [newChecklistTitle, setNewChecklistTitle] = useState('');
 
-	// #1260: Klappzustände der beiden Opt-in-Sektionen (KolAccordion, kontrolliert). Beim Anlegen
-	// sind beide zugeklappt (AK2) — nur die Pflichtgruppe bleibt ohne Scrollen sichtbar (AK1).
-	// Im Bearbeiten-Modus startet ein Abschnitt aufgeklappt, sobald er bereits gefüllte Werte
-	// enthält (AK4) — bewusst nur als Initialzustand, kein Auf-/Zuklappen während der Eingabe.
-	const [scheduleOpen, setScheduleOpen] = useState(
-		isEdit &&
-			((taskEdit && form.current.deadline !== '') ||
-				(seriesEdit && form.current.startDate !== '') ||
-				form.current.address.trim() !== '' ||
-				autoDelete),
-	);
-	const [optionalOpen, setOptionalOpen] = useState(
-		isEdit && (form.current.description.trim() !== '' || contributions.length > 0 || checklist.length > 0),
-	);
+	// #1285: Klappzustände der beiden Opt-in-Sektionen (KolAccordion, kontrolliert) — beim Öffnen
+	// immer zugeklappt, einheitlich für Anlegen und Bearbeiten (die #1260-Vorbelegung „Edit mit
+	// gefüllten Werten startet offen“ ist bewusst ersetzt). Kein Auf-/Zuklappen während der Eingabe.
+	const [scheduleOpen, setScheduleOpen] = useState(false);
+	const [optionalOpen, setOptionalOpen] = useState(false);
 
 	// #1213 (AK7): Empfängerauswahl — nur im Anlege-Modus, nur wenn der Nutzer in mindestens einer
 	// Gruppe ist; dann mit dem eigenen Konto vorbelegt. `recipientVisible` wird erst nach geladener,
@@ -894,155 +880,156 @@ export const TaskForm = ({
 				</div>
 			)}
 			<div className="form-grid">
-				{/* #1159: Primärgruppe — Pflichtfelder (Titel, Priorität, Aufwand) als eigene,
-				    optisch abgesetzte Einheit. Opt-in-Wrapper; `.form-grid` bleibt unangetastet,
-				    da sieben Formulare die Klasse teilen (QuickCapture bleibt kompakt). */}
-				<section className="form-section form-section--primary" aria-labelledby={primaryHeadingId}>
-					<KolHeading _label="Basisangaben" _level={3} id={primaryHeadingId} className="form-section-heading" />
-					{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
+				{/* #1285: Pflichtgruppe — wie die beiden Opt-in-Sektionen ein KolAccordion ohne
+				    Kartenfläche; dauerhaft aufgeklappt und mit `_disabled` nicht einklappbar (AK2).
+				    `.form-grid` bleibt unangetastet, da sieben Formulare die Klasse teilen. */}
+				<section className="form-section form-section--primary">
+					<KolAccordion _label="Basisangaben" _level={3} _open _disabled>
+						{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
 			    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
-					<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-						<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
-							<VoiceField
-								variant="input"
-								fieldLabel="Titel"
-								// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
-								// Inputbox — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
-								counter
-								autoStart={voiceAutostart}
-								onTranscript={(text) => {
-									const newVal = form.current.title ? `${form.current.title} ${text}` : text;
-									form.current.title = newVal;
-									setTitle(newVal);
-								}}
-							>
-								<div style={{ position: 'relative' }}>
-									{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
+						<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+							<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
+								<VoiceField
+									variant="input"
+									fieldLabel="Titel"
+									// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
+									// Inputbox — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
+									counter
+									autoStart={voiceAutostart}
+									onTranscript={(text) => {
+										const newVal = form.current.title ? `${form.current.title} ${text}` : text;
+										form.current.title = newVal;
+										setTitle(newVal);
+									}}
+								>
+									<div style={{ position: 'relative' }}>
+										{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
 							    statt des früheren manuellen character-counter-Divs. */}
-									<KolInputText
-										_label="Titel"
-										_required
-										_maxLength={TITLE_MAX_LENGTH}
-										_hasCounter
-										_value={title}
-										_on={{
-											onInput: (_event, value) => {
-												const newVal = readString(value);
-												form.current.title = newVal;
-												setTitle(newVal);
-											},
-											onChange: (_event, value) => {
-												const newVal = readString(value);
-												form.current.title = newVal;
-												setTitle(newVal);
-											},
-										}}
-									/>
-								</div>
-							</VoiceField>
+										<KolInputText
+											_label="Titel"
+											_required
+											_maxLength={TITLE_MAX_LENGTH}
+											_hasCounter
+											_value={title}
+											_on={{
+												onInput: (_event, value) => {
+													const newVal = readString(value);
+													form.current.title = newVal;
+													setTitle(newVal);
+												},
+												onChange: (_event, value) => {
+													const newVal = readString(value);
+													form.current.title = newVal;
+													setTitle(newVal);
+												},
+											}}
+										/>
+									</div>
+								</VoiceField>
+							</div>
+							{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+							{aiEnabled && (
+								<KolButton
+									ref={lektoratTitleTriggerRef}
+									_label="Titel lektorieren"
+									_hideLabel
+									_variant="minimal"
+									_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+									_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+									_on={{
+										onClick: () => void runLektorat('title', 30),
+									}}
+									style={{
+										flexShrink: 0,
+									}}
+									className="lektorat-button-align"
+								/>
+							)}
 						</div>
-						{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
-						{aiEnabled && (
-							<KolButton
-								ref={lektoratTitleTriggerRef}
-								_label="Titel lektorieren"
-								_hideLabel
-								_variant="minimal"
-								_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-								_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-								_on={{
-									onClick: () => void runLektorat('title', 30),
-								}}
-								style={{
-									flexShrink: 0,
-								}}
-								className="lektorat-button-align"
-							/>
-						)}
-					</div>
-					{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
+						{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
 					    dem eigenen Konto; #1222 (AK8): auch im Serie-Modus; #1252 (AK9): auch im
 					    Bearbeiten-Modus (Übergabe — eine Primäraktion: erst das Speichern übergibt).
 					    Während die Mitglieder laden, ist die Auswahl deaktiviert (Ladehinweis statt
 					    leerer Liste, mobile-ui-rules Regel 7); bei einem Ladefehler nur ein Hinweis —
 					    das Formular bleibt ohne Auswahl funktionsfähig. */}
-					{recipientVisible && (
-						<>
-							<KolSingleSelect
-								_label="Empfänger"
-								_options={recipientOptions}
-								_value={recipientId}
-								_disabled={recipientsLoading || recipientOptions.length === 0}
-								_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
-							/>
-							{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
-							{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
+						{recipientVisible && (
+							<>
+								<KolSingleSelect
+									_label="Empfänger"
+									_options={recipientOptions}
+									_value={recipientId}
+									_disabled={recipientsLoading || recipientOptions.length === 0}
+									_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
+								/>
+								{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
+								{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
 							    Konto gewählt ist — die Übergabe gibt das Eigentum ab (ruhiger Hinweistext
 							    statt Extra-Bestätigungsschritt). */}
-							{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
-								<p className="hint">
-									Beim Speichern übergibst du {isSeriesMode ? 'diese Serie' : 'diese Aufgabe'} an{' '}
-									{recipientOptions.find((option) => option.value === recipientId)?.label}. Du siehst sie anschließend
-									nur noch mit „Für:"-Kennzeichen.
-								</p>
-							)}
-							{recipientError && (
-								<KolAlert
-									_type="warning"
-									_label={
-										isSeriesMode
-											? 'Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.'
-											: 'Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.'
-									}
-								/>
-							)}
-						</>
-					)}
-					{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
-					<div className="range-inputs-row">
-						<KolInputRange
-							_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
-							_min={1}
-							_max={5}
-							_step={1}
-							_value={priority}
-							_on={{
-								onInput: (_event, value) => {
-									const next = readNumber(value) ?? priority;
-									form.current.priority = next;
-									setPriority(next);
-								},
-								onChange: (_event, value) => {
-									const next = readNumber(value) ?? priority;
-									form.current.priority = next;
-									setPriority(next);
-								},
-							}}
-						/>
-						<KolInputRange
-							/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
+								{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
+									<p className="hint">
+										Beim Speichern übergibst du {isSeriesMode ? 'diese Serie' : 'diese Aufgabe'} an{' '}
+										{recipientOptions.find((option) => option.value === recipientId)?.label}. Du siehst sie anschließend
+										nur noch mit „Für:"-Kennzeichen.
+									</p>
+								)}
+								{recipientError && (
+									<KolAlert
+										_type="warning"
+										_label={
+											isSeriesMode
+												? 'Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.'
+												: 'Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.'
+										}
+									/>
+								)}
+							</>
+						)}
+						{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
+						<div className="range-inputs-row">
+							<KolInputRange
+								_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
+								_min={1}
+								_max={5}
+								_step={1}
+								_value={priority}
+								_on={{
+									onInput: (_event, value) => {
+										const next = readNumber(value) ?? priority;
+										form.current.priority = next;
+										setPriority(next);
+									},
+									onChange: (_event, value) => {
+										const next = readNumber(value) ?? priority;
+										form.current.priority = next;
+										setPriority(next);
+									},
+								}}
+							/>
+							<KolInputRange
+								/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
 											   und versetzt die Slider-Bahnen (V-Spring). */
-							_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
-							_min={0.1}
-							_max={1}
-							_step={0.1}
-							_value={estimatedEffort}
-							_on={{
-								onInput: (_event, value) => {
-									const next = readNumber(value) ?? estimatedEffort;
-									form.current.estimatedEffort = next;
-									setEstimatedEffort(next);
-								},
-								onChange: (_event, value) => {
-									const next = readNumber(value) ?? estimatedEffort;
-									form.current.estimatedEffort = next;
-									setEstimatedEffort(next);
-								},
-							}}
-						/>
-					</div>
+								_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
+								_min={0.1}
+								_max={1}
+								_step={0.1}
+								_value={estimatedEffort}
+								_on={{
+									onInput: (_event, value) => {
+										const next = readNumber(value) ?? estimatedEffort;
+										form.current.estimatedEffort = next;
+										setEstimatedEffort(next);
+									},
+									onChange: (_event, value) => {
+										const next = readNumber(value) ?? estimatedEffort;
+										form.current.estimatedEffort = next;
+										setEstimatedEffort(next);
+									},
+								}}
+							/>
+						</div>
+					</KolAccordion>
 				</section>
 				{/* #1159: Sekundärgruppe — Termin (Deadline bzw. Startdatum/Rhythmus) und Ort
 				    (Adresse) als abgetrennte zweite Einheit. #1260: als KolAccordion standardmäßig
