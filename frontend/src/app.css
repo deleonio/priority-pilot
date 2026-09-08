@@ -118,7 +118,7 @@
 	/* Semantische Gap-Tokens (P0: Rhythm & Spacing Scale) */
 	--pp-gap-tight: var(--pp-space-2); /* 0.5rem — intra-group */
 	--pp-gap-base: var(--pp-space-4); /* 1rem — inter-group */
-	--pp-gap-generous: var(--pp-space-6); /* 1.5rem — section break */
+	--pp-gap-generous: var(--pp-space-6); /* 2rem — section break */
 	--pp-gap-major: var(--pp-space-7); /* 2rem — major section */
 
 	/* P2: Responsive Modal Width Tokens */
@@ -726,10 +726,11 @@ body {
 	flex-shrink: 0;
 }
 
-/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe“, „Was ist jetzt dran?“, Begrüßung und
-   Kacheln bleiben über die volle Breite; die fünf Sekundär-Widgets („In der Nähe“ — nur bei
-   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks“, „Meine Themen“,
-   „Gesamtguthaben“ und „Anstehende Deadlines“) fließen ins Zwei-Spalten-Raster. */
+/* Ab mittlerer Breite zweispaltig: Begrüßung und „Was ist jetzt dran?" bleiben über die volle
+   Breite; der Hero („Meine Lebensbalance" zwei Drittel, rechts ein Drittel die gestapelten
+   Kacheln samt „Nächste Aufgabe") und die fünf Sekundär-Widgets („In der Nähe" — nur bei
+   aktivierter/verweigerter Standorterhebung gerendert —, „Wichtigste Tasks", „Meine Themen",
+   „Gesamtguthaben" und „Anstehende Deadlines") fließen ins Zwei-Spalten-Raster. */
 @media (min-width: 48rem) {
 	.dashboard {
 		display: grid;
@@ -747,13 +748,57 @@ body {
 		margin-top: 0;
 	}
 
-	.dashboard-heart,
 	.dashboard h2,
 	.dashboard-greeting,
-	.dashboard-cards,
-	.dashboard-next-task,
 	.dashboard-suggestions {
 		grid-column: 1 / -1;
+	}
+
+	/*
+	 * Desktop-Hero: „Meine Lebensbalance" links zwei Drittel, rechts ein Drittel die
+	 * Kennzahlen-Kacheln gestapelt und darunter „Nächste Aufgabe" — untenbündig mit der
+	 * Herz-Unterkante (margin-top: auto, das übrige Spiel bekommt der Flex-Auto-Margin).
+	 * min-width: 0 hält lange, ungetrennte Titel im schmalen rechten Track (Muster der
+	 * KolTabs-Spalte weiter oben): Grid-/Flex-Items hätten sonst min-width: auto und drückten
+	 * die Spalte auf. Ohne Säulen entfällt die Herz-Card (#440) — der Solo-Modifier stellt
+	 * auf eine Spalte um; die Kacheln behalten dort ihr auto-fit-Raster über die volle Breite.
+	 */
+	.dashboard-hero {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: 2fr 1fr;
+		gap: var(--pp-gap-generous);
+		align-items: stretch;
+		min-width: 0;
+	}
+
+	.dashboard-hero--solo {
+		grid-template-columns: 1fr;
+	}
+
+	.dashboard-hero-side {
+		display: flex;
+		flex-direction: column;
+		gap: var(--pp-gap-base);
+		min-width: 0;
+	}
+
+	/* Im Hero steuert die Lücke: die Eigenmargins der Widgets entfallen. Spezifität (0,2,1),
+	   damit der Reset auch die erst später im Quelltext liegende .dashboard-heart-Marge schlägt. */
+	section.dashboard .dashboard-hero > *,
+	section.dashboard .dashboard-hero-side > * {
+		margin-top: 0;
+	}
+
+	/* Kennzahlen-Kacheln in der schmalen Spalte untereinander — kein 2+1-Versatz des
+	   auto-fit-Rasters; Spezifität 0,3,0 übersteht den auto-fit-Regel weiter unten. */
+	.dashboard-hero:not(.dashboard-hero--solo) .dashboard-cards {
+		grid-template-columns: 1fr;
+	}
+
+	/* „Nächste Aufgabe" schließt die rechte Spalte unten bündig mit der Herz-Unterkante ab. */
+	.dashboard-hero:not(.dashboard-hero--solo) .dashboard-next-task {
+		margin-top: auto;
 	}
 
 	/* #1042: Ab Tablet-Grid wird der „Erledigt“-Button wieder inhaltsbreit linksbündig. */
@@ -1103,19 +1148,56 @@ body {
    Formulare teilen sich die Klasse — der QuickCapture-Erfassungsschritt bleibt kompakt).
    Seit #1285 sind alle drei Sektionen KolAccordions ohne Kartenfläche (kein background/
    border/radius) — die Gruppierung tragen Typografie (Accordion-Trigger) und Abstand.
-   Der Abstand ZWISCHEN den Gruppen entsteht aus der bestehenden .modal-body-section-Regel
-   (margin-bottom) plus .form-grid-Gap/Margin und ist dadurch größer als jeder
-   In-Gruppen-Abstand (--pp-gap-base, #1159-AK5). */
+
+   Sektionsabstände einheitlich --pp-space-5 (Design-Lauf): vorher stapelten sich je Grenze
+   .modal-body-section-Margin, .form-grid-Gap/-Margin und .form-section--secondary-Margin —
+   gemessen 80 px (Basisangaben→Termin & Ort) und 48 px (→Optional), ungleich und zu groß.
+   Jetzt trägt genau eine Regel je Grenze denselben Wert; #1159-AK5 bleibt erfüllt
+   (Gruppenabstand 24 px > jeder In-Gruppen-Abstand 16 px). */
 .form-section {
 	display: grid;
 	gap: var(--pp-gap-base);
 }
 
-/* Sekundärgruppe: der zusätzliche margin-top hält den Gruppenabstand über den
-   .modal-body-Sektions-Rand hinaus (#1159-AK5: Gruppenabstand > jeder
-   In-Gruppen-Abstand, auch > deadline→adresse) — bewusst OHNE Surface (#1285). */
-.form-section--secondary {
-	margin-top: var(--pp-gap-generous);
+.form-grid--sections {
+	gap: var(--pp-space-5);
+	margin-bottom: var(--pp-space-5);
+}
+
+/* Die gestapelten Außenmargins der Sektionen entfallen — der Abstand kommt aus dem
+   .form-grid--sections-Gap; nur die Optional-Sektion (außerhalb des Grids) trägt den
+   Sektionsabstand selbst (kollabiert gegen .modal-actions). Specificity (0,2,0)/(0,2,1)
+   schlägt .modal-body section (0,1,1). */
+.form-grid--sections .form-section {
+	margin: 0;
+}
+
+.modal-body section.form-section--optional {
+	margin-bottom: var(--pp-space-5);
+}
+
+/* Mode-Switch (Aufgabe/Serie): klebte vorher mit 0 px am „Basisangaben“-Kopf — jetzt
+   der Feld-Rhythmus. */
+.mode-switch {
+	margin-bottom: var(--pp-gap-base);
+}
+
+/* Akkordeon-Inhalt (Design-Lauf): das KoliBri-DEFAULT-Theme zieht .kol-accordion__content
+   links mit 2.25em ein (rechts nur 0.5rem) — ohne Kartenfläche (#1285) wirkt das als
+   schiefer Sack und verschenkt auf 375 px 28 px Feldbreite. Der Wrapper kompensiert auf
+   symmetrische 0.5rem beidseits (bündig mit dem Trigger-Icon, wie im KERN-V2-Theme) und
+   trägt den In-Gruppen-Rhythmus als Gap. em-Einheiten skalieren mit der Textvergrößerung
+   mit (WCAG 1.4.10 Reflow). */
+.form-section kol-accordion > .accordion-body {
+	display: grid;
+	gap: var(--pp-gap-base);
+	margin-left: calc(-2.25em + var(--pp-space-2));
+}
+
+/* Streu-Margins der Editor-Blöcke (.checklist-editor margin-top, .pillar-editor margin-bottom —
+   in QuickCapture/PillarAdvisor weiterhin wirksam) sind hier überflüssig: der Gap trägt. */
+.form-section kol-accordion > .accordion-body > * {
+	margin: 0;
 }
 
 /* Bewusst KEIN zweispaltiges Desktop-Grid (Titel | Ranges): die Range-Zeile braucht die
@@ -1130,19 +1212,25 @@ body {
    vertikal (#727-Regression, Y-Versatz 18px). */
 .pillar-weights-grid {
 	/* #934: 334 px = 300 px Content-Mindestbreite der Range-Felder + 2 × 1rem Card-Padding
-	   + 2 × 1 px Border — sonst quetscht die Bahn die Slider unter die 300-px-Regel unten. */
-	grid-template-columns: repeat(auto-fit, minmax(334px, 1fr));
+	   + 2 × 1 px Border. `min(334px, 100%)`: Seit die Slider in der gemeinsamen Gewichtungskarte
+	   liegen, ist der Grid-Container auch bei 375 px Viewport schmaler als 334 px — ohne das
+	   Minimum-Cap würde die 334-px-Spur die Karte aufreißen (geclipt durch das overflow-x:
+	   hidden der .settings-page), statt sauber auf 1 Spalte zu fallen. */
+	grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
 }
 
-/* Eine Säule im Gewichtungs-Editor: Card-Struktur für den Slider (#763, ohne Beschreibung #934) */
+/* Abstand der Gewichtungskarte zur Säulen-Verwaltung darüber (alle Slider in EINER Karte) */
+.pillar-weights-card {
+	margin-top: var(--pp-gap-base);
+}
+
+/* Eine Säule im Gewichtungs-Editor: schlichte Zeile OHNE eigenen Kartenrahmen — die
+   Gruppierungsfläche ist die eine gemeinsame Gewichtungskarte im Settings-Tab (KolCard);
+   verschachtelte Karten wären Kartenrauschen neben der Säulen-Liste darüber. */
 .pillar-weight-row {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-gap-tight);
-	padding: 1rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-bg-secondary, var(--color-misc-200));
 }
 
 .pillar-weight-row kol-input-range {
@@ -1163,10 +1251,11 @@ body {
 	}
 }
 
-/* Desktop: 3-4-spaltiges Layout (#763); minmax ≥ 334 px für die Range-Mindestbreite (#934) */
+/* Desktop: 3-4-spaltiges Layout (#763); minmax ≥ 334 px für die Range-Mindestbreite (#934),
+   mit demselben 100-%-Cap wie die Basisregel (Overflow-Schutz im Karten-Container) */
 @media (min-width: 1024px) {
 	.pillar-weights-grid {
-		grid-template-columns: repeat(auto-fit, minmax(334px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
 	}
 }
 
@@ -2167,18 +2256,6 @@ body {
 	flex-shrink: 0;
 }
 
-/* #1220: „Neu berechnen" bricht wie die Switches nicht um und bleibt damit auch auf schmalen
-   Viewports voll bedienbar; der Sortier-Stand (aria-live) nimmt als Vollzeile eine eigene Reihe. */
-.task-filter-bar .task-balance-button {
-	flex-shrink: 0;
-}
-
-.task-filter-bar__hint {
-	margin: 0;
-	flex: 1 1 100%;
-	color: var(--pp-text-muted);
-}
-
 /* Such-Eingabe (KolInputText, type=search) und „Filtern"-Button (KolButton) in einer Zeile.
    flex-basis 100% → auf schmalen Viewports rutscht die Zeile unter den Switch und nimmt die volle
    Breite ein; das Feld schrumpft dank min-width:0, der Button bleibt fest. Kein H-Overflow (AK7). */
@@ -2680,12 +2757,16 @@ kol-heading {
 	max-width: 32ch;
 }
 
-/* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig). */
+/* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig).
+   Die max-width hält die Zeilen auf die Breite der Herz-Grafik — auf dem Desktop wächst die
+   Hero-Card über die 24rem der Bühne hinaus, die Legende soll dort nicht auseinandergezogen
+   werden; auf 375px (Card < 24rem) bleibt es beim gewohnten Bild. */
 .heart-balance-legend {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 	width: 100%;
+	max-width: 24rem;
 }
 
 /*

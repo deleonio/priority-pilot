@@ -164,66 +164,75 @@ export const Dashboard = ({
 			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
 
 			{/*
-			 * Das Herz steht als erstes Bild ganz oben und mittig: Es beantwortet „wie steht es um
-			 * mich?", bevor die Zahlen kommen. Es bleibt bewusst in der Säulen-Rampe eingefärbt und
-			 * greift NICHT die Signalfarbe ab — die gehört weiterhin allein der „Nächsten Aufgabe"
-			 * als der einen Hauptaussage (ux-design.md §1). Ohne Säulen gibt es nichts zu segmentieren,
-			 * dann entfällt die Karte ganz (die Karte „Meine Themen" führt dort zu den Einstellungen).
+			 * Desktop-Hero (ab 48rem): „Meine Lebensbalance" links zwei Drittel, rechts ein Drittel
+			 * die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Herz-Unterkante — die
+			 * „Nächste Aufgabe". Mobil bleibt die gewohnte Einspaltigkeit; das Herz steht weiter ganz
+			 * oben und mittig: Es beantwortet „wie steht es um mich?", bevor die Zahlen kommen. Es
+			 * bleibt bewusst in der Säulen-Rampe eingefärbt und greift NICHT die Signalfarbe ab — die
+			 * gehört weiterhin allein der „Nächsten Aufgabe" als der einen Hauptaussage (ux-design.md
+			 * §1). Ohne Säulen gibt es nichts zu segmentieren, dann entfällt die Karte ganz und der
+			 * Solo-Modifier (.dashboard-hero--solo) stellt das Raster auf eine Spalte um (die Karte
+			 * „Meine Themen" führt dort zu den Einstellungen). Die DOM-Reihenfolge ist zugleich die
+			 * Lesereihenfolge: Herz → Kacheln → Nächste Aufgabe.
 			 */}
-			{pillars.length > 0 && (
-				<KolCard className="dashboard-heart" _label="Meine Lebensbalance" _level={3}>
-					<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} />
-				</KolCard>
-			)}
-			<ul className="dashboard-cards">
-				{cards.map((card) => (
-					<li key={card.label}>
-						<KolCard _label={card.label} _level={0}>
-							<div className="dashboard-card">
-								<span className={`dashboard-card-accent ${card.accent}`} aria-hidden="true" />
-								<span className="dashboard-card-count">{card.count}</span>
-							</div>
-						</KolCard>
-					</li>
-				))}
-			</ul>
-			{/*
-			 * P2-1: „Nächste Aufgabe" ist die EINE Hauptaussage einer Ansicht (ux-design.md §1).
-			 * Sie trägt die Signalfarbe `--pp-signal` / `--pp-signal-wash` und eine klare
-			 * Folgehandlung („Erledigt"). Die Säulen-Balance, Statistik-Karten und
-			 * Deadline-Liste ordnen sich darunter.
-			 */}
-			{/* #1118: Die Card selbst ist das Widget — die alte Außen-<section> ist entfernt,
-			    die Sektionsklasse sitzt am Card-Host. Card-Label = Sektionsüberschrift;
-			    die Region-Semantik der Hauptaussage zieht mit auf den Host um. */}
-			<KolCard
-				className="dashboard-next-task"
-				role="region"
-				aria-label="Nächste Aufgabe"
-				_label="Nächste Aufgabe"
-				_level={3}
-			>
-				{nextTask === null ? (
-					<p className="dashboard-next-task-empty">
-						Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
-					</p>
-				) : (
-					<div className="dashboard-next-task-content">
-						<span className="dashboard-next-task-title">
-							#{nextTask.id} – {nextTask.title}
-						</span>
-						<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
-						{onCompleteTask !== undefined && (
-							<KolButton
-								_label="Erledigen"
-								_variant="primary"
-								_icons={{ left: { icon: 'fa-solid fa-check' } }}
-								_on={{ onClick: () => onCompleteTask(nextTask) }}
-							/>
-						)}
-					</div>
+			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
+				{pillars.length > 0 && (
+					<KolCard className="dashboard-heart" _label="Meine Lebensbalance" _level={3}>
+						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} />
+					</KolCard>
 				)}
-			</KolCard>
+				<div className="dashboard-hero-side">
+					<ul className="dashboard-cards">
+						{cards.map((card) => (
+							<li key={card.label}>
+								<KolCard _label={card.label} _level={0}>
+									<div className="dashboard-card">
+										<span className={`dashboard-card-accent ${card.accent}`} aria-hidden="true" />
+										<span className="dashboard-card-count">{card.count}</span>
+									</div>
+								</KolCard>
+							</li>
+						))}
+					</ul>
+					{/*
+					 * P2-1: „Nächste Aufgabe" ist die EINE Hauptaussage einer Ansicht (ux-design.md §1).
+					 * Sie trägt die Signalfarbe `--pp-signal` / `--pp-signal-wash` und eine klare
+					 * Folgehandlung („Erledigt"). Die Säulen-Balance, Statistik-Karten und
+					 * Deadline-Liste ordnen sich darunter.
+					 */}
+					{/* #1118: Die Card selbst ist das Widget — die alte Außen-<section> ist entfernt,
+					    die Sektionsklasse sitzt am Card-Host. Card-Label = Sektionsüberschrift;
+					    die Region-Semantik der Hauptaussage zieht mit auf den Host um. */}
+					<KolCard
+						className="dashboard-next-task"
+						role="region"
+						aria-label="Nächste Aufgabe"
+						_label="Nächste Aufgabe"
+						_level={3}
+					>
+						{nextTask === null ? (
+							<p className="dashboard-next-task-empty">
+								Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
+							</p>
+						) : (
+							<div className="dashboard-next-task-content">
+								<span className="dashboard-next-task-title">
+									#{nextTask.id} – {nextTask.title}
+								</span>
+								<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
+								{onCompleteTask !== undefined && (
+									<KolButton
+										_label="Erledigen"
+										_variant="primary"
+										_icons={{ left: { icon: 'fa-solid fa-check' } }}
+										_on={{ onClick: () => onCompleteTask(nextTask) }}
+									/>
+								)}
+							</div>
+						)}
+					</KolCard>
+				</div>
+			</div>
 			{/*
 			 * P2-1: „Was ist jetzt dran?" — Vorschläge, die die nächste Aufgabe ausschließen,
 			 * um keine doppelte Hauptaussage zu erzeugen. Visuell eine schlichtere Liste ohne
