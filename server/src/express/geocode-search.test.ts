@@ -6,6 +6,7 @@
 import { describe, it, before, afterEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, closeDb, type TestServer } from '../test/helpers.js';
+import * as nominatimLogics from '../logics/nominatim.js';
 
 let server: TestServer;
 let savedFetch: typeof fetch | null = null;
@@ -261,6 +262,82 @@ describe('Adresssuche (GET /geocode-search)', () => {
 			await reverse.json(),
 			{ address: '' },
 			'Reverse-Geocode binnen 1s nach der Suche muss vom geteilten Zähler gedrosselt werden',
+		);
+	});
+
+	// #1280 AK1 — Der leaky Eigenbau-Limiter (Map ohne Cleanup, wächst unbeschränkt) muss ganz
+	// verschwinden; Rate-Limiting läuft ausschließlich über die geteilte express-rate-limit-Instanz.
+	// Rot, solange der Export existiert; bewahrt vor der Rückkehr des Eigenbau-Mechanismus.
+	it('AK1 — isGeocodeRateLimited ist aus logics/nominatim.ts entfernt', async () => {
+		assert.equal(
+			'isGeocodeRateLimited' in nominatimLogics,
+			false,
+			'Eigenbau-Limiter (rateLimitMap/isGeocodeRateLimited) muss entfernt sein — express-rate-limit übernimmt',
+		);
+	});
+
+	// #1280 AK2 — Fensterablauf: nach >1 s ohne Request muss dieselbe Session wieder echte
+	// Treffer bekommen (guardt gegen falsch konfigurierte windowMs der neuen Limiter-Instanz).
+	it('AK2 — nach Ablauf des 1-s-Fensters liefert dieselbe Session wieder Treffer', async () => {
+		mockUpstreams({
+			photon: {
+				status: 200,
+				body: {
+					type: 'FeatureCollection',
+					features: [
+						{
+							type: 'Feature',
+							geometry: { type: 'Point', coordinates: [13.405, 52.52] },
+							properties: { name: 'Treffer' },
+						},
+					],
+				},
+			},
+		});
+
+		const first = await get('/geocode-search?q=Erste', 'spec-fenster');
+		assert.equal(first.status, 200);
+		assert.deepEqual(await first.json(), [{ address: 'Treffer', lat: 52.52, lon: 13.405 }]);
+
+		await new Promise((resolve) => setTimeout(resolve, 1100));
+
+		const second = await get('/geocode-search?q=Zweite', 'spec-fenster');
+		assert.equal(second.status, 200);
+		assert.deepEqual(
+			await second.json(),
+			[{ address: 'Treffer', lat: 52.52, lon: 13.405 }],
+			'nach Fensterablauf (>1s) muss der Request wieder durchgehen',
+		);
+	});
+
+	// #1280 AK2 — Reverse→Reverse: auch der zweite /reverse-geocode binnen 1s wird gedrosselt
+	// (200 + leere Adresse statt 429) — der Frontend-Fallback-Vertrag gilt für beide Endpunkte.
+	it('AK2 — zweite /reverse-geocode-Anfrage derselben Session binnen 1s → 200 mit leerer Adresse', async () => {
+		// Nominatim würde eine echte Adresse liefern — käme die zweite Anfrage durch, wäre die
+		// Antwort nicht leer. Die Drossel muss sie abfangen, BEVOR der Upstream gefragt wird.
+		mockUpstreams();
+		const original = globalThis.fetch;
+		globalThis.fetch = async function (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+			const url = input instanceof Request ? input.url : String(input);
+			if (url.startsWith('https://nominatim.openstreetmap.org/reverse')) {
+				return new Response(JSON.stringify({ address: { road: 'Fenstergasse' } }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return original(input, init);
+		} as typeof fetch;
+
+		const first = await get('/reverse-geocode?lat=52.52&lon=13.405', 'spec-reverse');
+		assert.equal(first.status, 200);
+		assert.deepEqual(await first.json(), { address: 'Fenstergasse' }, 'erste Anfrage verbraucht das Kontingent');
+
+		const second = await get('/reverse-geocode?lat=52.52&lon=13.405', 'spec-reverse');
+		assert.equal(second.status, 200);
+		assert.deepEqual(
+			await second.json(),
+			{ address: '' },
+			'zweite Reverse-Anfrage binnen 1s muss gedrosselt werden (200 + leer statt 429)',
 		);
 	});
 });

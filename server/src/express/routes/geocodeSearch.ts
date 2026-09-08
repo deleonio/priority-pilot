@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { isGeocodeRateLimited, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
 type ErrorDto = components['schemas']['Error'];
@@ -39,21 +39,13 @@ export const geocodeSearchRouter = express.Router();
 /**
  * GET /api/v1/geocode-search?q={query}
  * Forward Geocoding: Adress-Suchtext → Vorschlagsliste (Adresssuche für Aufgaben).
- * Rate-Limit: Aufrufer sollte max. 1 req/sec (Frontend debouncen).
+ * Rate-Limit 1 req/sec: geteilter Limiter (`geocodeRateLimit.ts`, vor dem Router montiert).
  * Fallback: Bei Fehler/Timeout/Rate-Limit wird eine leere Liste zurückgegeben.
  */
 geocodeSearchRouter.get('/', async (req, res: express.Response<GeocodeSearchResultDto[] | ErrorDto>) => {
 	const q = req.query.q;
 	if (typeof q !== 'string' || q.trim() === '') {
 		res.status(400).json({ message: 'q als nicht-leerer Query-Parameter erforderlich.' });
-		return;
-	}
-
-	// Rate-Limit: 1 req/sec (Nominatim Policy)
-	const ip = req.ip || 'unknown';
-	const session = (req.headers['x-session-token'] as string) || '';
-	if (isGeocodeRateLimited(ip, session)) {
-		res.json([]);
 		return;
 	}
 
