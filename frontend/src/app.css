@@ -118,7 +118,7 @@
 	/* Semantische Gap-Tokens (P0: Rhythm & Spacing Scale) */
 	--pp-gap-tight: var(--pp-space-2); /* 0.5rem — intra-group */
 	--pp-gap-base: var(--pp-space-4); /* 1rem — inter-group */
-	--pp-gap-generous: var(--pp-space-6); /* 1.5rem — section break */
+	--pp-gap-generous: var(--pp-space-6); /* 2rem — section break */
 	--pp-gap-major: var(--pp-space-7); /* 2rem — major section */
 
 	/* P2: Responsive Modal Width Tokens */
@@ -1148,19 +1148,56 @@ body {
    Formulare teilen sich die Klasse — der QuickCapture-Erfassungsschritt bleibt kompakt).
    Seit #1285 sind alle drei Sektionen KolAccordions ohne Kartenfläche (kein background/
    border/radius) — die Gruppierung tragen Typografie (Accordion-Trigger) und Abstand.
-   Der Abstand ZWISCHEN den Gruppen entsteht aus der bestehenden .modal-body-section-Regel
-   (margin-bottom) plus .form-grid-Gap/Margin und ist dadurch größer als jeder
-   In-Gruppen-Abstand (--pp-gap-base, #1159-AK5). */
+
+   Sektionsabstände einheitlich --pp-space-5 (Design-Lauf): vorher stapelten sich je Grenze
+   .modal-body-section-Margin, .form-grid-Gap/-Margin und .form-section--secondary-Margin —
+   gemessen 80 px (Basisangaben→Termin & Ort) und 48 px (→Optional), ungleich und zu groß.
+   Jetzt trägt genau eine Regel je Grenze denselben Wert; #1159-AK5 bleibt erfüllt
+   (Gruppenabstand 24 px > jeder In-Gruppen-Abstand 16 px). */
 .form-section {
 	display: grid;
 	gap: var(--pp-gap-base);
 }
 
-/* Sekundärgruppe: der zusätzliche margin-top hält den Gruppenabstand über den
-   .modal-body-Sektions-Rand hinaus (#1159-AK5: Gruppenabstand > jeder
-   In-Gruppen-Abstand, auch > deadline→adresse) — bewusst OHNE Surface (#1285). */
-.form-section--secondary {
-	margin-top: var(--pp-gap-generous);
+.form-grid--sections {
+	gap: var(--pp-space-5);
+	margin-bottom: var(--pp-space-5);
+}
+
+/* Die gestapelten Außenmargins der Sektionen entfallen — der Abstand kommt aus dem
+   .form-grid--sections-Gap; nur die Optional-Sektion (außerhalb des Grids) trägt den
+   Sektionsabstand selbst (kollabiert gegen .modal-actions). Specificity (0,2,0)/(0,2,1)
+   schlägt .modal-body section (0,1,1). */
+.form-grid--sections .form-section {
+	margin: 0;
+}
+
+.modal-body section.form-section--optional {
+	margin-bottom: var(--pp-space-5);
+}
+
+/* Mode-Switch (Aufgabe/Serie): klebte vorher mit 0 px am „Basisangaben“-Kopf — jetzt
+   der Feld-Rhythmus. */
+.mode-switch {
+	margin-bottom: var(--pp-gap-base);
+}
+
+/* Akkordeon-Inhalt (Design-Lauf): das KoliBri-DEFAULT-Theme zieht .kol-accordion__content
+   links mit 2.25em ein (rechts nur 0.5rem) — ohne Kartenfläche (#1285) wirkt das als
+   schiefer Sack und verschenkt auf 375 px 28 px Feldbreite. Der Wrapper kompensiert auf
+   symmetrische 0.5rem beidseits (bündig mit dem Trigger-Icon, wie im KERN-V2-Theme) und
+   trägt den In-Gruppen-Rhythmus als Gap. em-Einheiten skalieren mit der Textvergrößerung
+   mit (WCAG 1.4.10 Reflow). */
+.form-section kol-accordion > .accordion-body {
+	display: grid;
+	gap: var(--pp-gap-base);
+	margin-left: calc(-2.25em + var(--pp-space-2));
+}
+
+/* Streu-Margins der Editor-Blöcke (.checklist-editor margin-top, .pillar-editor margin-bottom —
+   in QuickCapture/PillarAdvisor weiterhin wirksam) sind hier überflüssig: der Gap trägt. */
+.form-section kol-accordion > .accordion-body > * {
+	margin: 0;
 }
 
 /* Bewusst KEIN zweispaltiges Desktop-Grid (Titel | Ranges): die Range-Zeile braucht die

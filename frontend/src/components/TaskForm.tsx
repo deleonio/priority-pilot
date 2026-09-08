@@ -864,7 +864,7 @@ export const TaskForm = ({
 			{/* #334: Umschalter Aufgabe/Serie als Switch. Nur beim Anlegen sichtbar; beim Bearbeiten
 			    steht der Datensatz-Typ (Task vs. Serie) fest und der Switch entfällt komplett. */}
 			{!isEdit && (
-				<div data-testid="mode-switch">
+				<div className="mode-switch" data-testid="mode-switch">
 					<KolInputCheckbox
 						_label="Serie"
 						_checked={isSeriesMode}
@@ -879,155 +879,157 @@ export const TaskForm = ({
 					/>
 				</div>
 			)}
-			<div className="form-grid">
+			<div className="form-grid form-grid--sections">
 				{/* #1285: Pflichtgruppe — wie die beiden Opt-in-Sektionen ein KolAccordion ohne
 				    Kartenfläche; dauerhaft aufgeklappt und mit `_disabled` nicht einklappbar (AK2).
 				    `.form-grid` bleibt unangetastet, da sieben Formulare die Klasse teilen. */}
 				<section className="form-section form-section--primary">
 					<KolAccordion _label="Basisangaben" _level={3} _open _disabled>
-						{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
+						<div className="accordion-body">
+							{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
 			    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
-						<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-							<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
-								<VoiceField
-									variant="input"
-									fieldLabel="Titel"
-									// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
-									// Inputbox — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
-									counter
-									autoStart={voiceAutostart}
-									onTranscript={(text) => {
-										const newVal = form.current.title ? `${form.current.title} ${text}` : text;
-										form.current.title = newVal;
-										setTitle(newVal);
-									}}
-								>
-									<div style={{ position: 'relative' }}>
-										{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
+							<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+								<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
+									<VoiceField
+										variant="input"
+										fieldLabel="Titel"
+										// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
+										// Inputbox — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
+										counter
+										autoStart={voiceAutostart}
+										onTranscript={(text) => {
+											const newVal = form.current.title ? `${form.current.title} ${text}` : text;
+											form.current.title = newVal;
+											setTitle(newVal);
+										}}
+									>
+										<div style={{ position: 'relative' }}>
+											{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
 							    statt des früheren manuellen character-counter-Divs. */}
-										<KolInputText
-											_label="Titel"
-											_required
-											_maxLength={TITLE_MAX_LENGTH}
-											_hasCounter
-											_value={title}
-											_on={{
-												onInput: (_event, value) => {
-													const newVal = readString(value);
-													form.current.title = newVal;
-													setTitle(newVal);
-												},
-												onChange: (_event, value) => {
-													const newVal = readString(value);
-													form.current.title = newVal;
-													setTitle(newVal);
-												},
-											}}
-										/>
-									</div>
-								</VoiceField>
+											<KolInputText
+												_label="Titel"
+												_required
+												_maxLength={TITLE_MAX_LENGTH}
+												_hasCounter
+												_value={title}
+												_on={{
+													onInput: (_event, value) => {
+														const newVal = readString(value);
+														form.current.title = newVal;
+														setTitle(newVal);
+													},
+													onChange: (_event, value) => {
+														const newVal = readString(value);
+														form.current.title = newVal;
+														setTitle(newVal);
+													},
+												}}
+											/>
+										</div>
+									</VoiceField>
+								</div>
+								{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+								{aiEnabled && (
+									<KolButton
+										ref={lektoratTitleTriggerRef}
+										_label="Titel lektorieren"
+										_hideLabel
+										_variant="minimal"
+										_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+										_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+										_on={{
+											onClick: () => void runLektorat('title', 30),
+										}}
+										style={{
+											flexShrink: 0,
+										}}
+										className="lektorat-button-align"
+									/>
+								)}
 							</div>
-							{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
-							{aiEnabled && (
-								<KolButton
-									ref={lektoratTitleTriggerRef}
-									_label="Titel lektorieren"
-									_hideLabel
-									_variant="minimal"
-									_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-									_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-									_on={{
-										onClick: () => void runLektorat('title', 30),
-									}}
-									style={{
-										flexShrink: 0,
-									}}
-									className="lektorat-button-align"
-								/>
-							)}
-						</div>
-						{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
+							{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
 					    dem eigenen Konto; #1222 (AK8): auch im Serie-Modus; #1252 (AK9): auch im
 					    Bearbeiten-Modus (Übergabe — eine Primäraktion: erst das Speichern übergibt).
 					    Während die Mitglieder laden, ist die Auswahl deaktiviert (Ladehinweis statt
 					    leerer Liste, mobile-ui-rules Regel 7); bei einem Ladefehler nur ein Hinweis —
 					    das Formular bleibt ohne Auswahl funktionsfähig. */}
-						{recipientVisible && (
-							<>
-								<KolSingleSelect
-									_label="Empfänger"
-									_options={recipientOptions}
-									_value={recipientId}
-									_disabled={recipientsLoading || recipientOptions.length === 0}
-									_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
-								/>
-								{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
-								{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
+							{recipientVisible && (
+								<>
+									<KolSingleSelect
+										_label="Empfänger"
+										_options={recipientOptions}
+										_value={recipientId}
+										_disabled={recipientsLoading || recipientOptions.length === 0}
+										_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
+									/>
+									{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
+									{/* #1252 (KI-UX): Konsequenz-Hinweis, sobald im Bearbeiten-Modus ein fremdes
 							    Konto gewählt ist — die Übergabe gibt das Eigentum ab (ruhiger Hinweistext
 							    statt Extra-Bestätigungsschritt). */}
-								{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
-									<p className="hint">
-										Beim Speichern übergibst du {isSeriesMode ? 'diese Serie' : 'diese Aufgabe'} an{' '}
-										{recipientOptions.find((option) => option.value === recipientId)?.label}. Du siehst sie anschließend
-										nur noch mit „Für:"-Kennzeichen.
-									</p>
-								)}
-								{recipientError && (
-									<KolAlert
-										_type="warning"
-										_label={
-											isSeriesMode
-												? 'Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.'
-												: 'Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.'
-										}
-									/>
-								)}
-							</>
-						)}
-						{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
-						<div className="range-inputs-row">
-							<KolInputRange
-								_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
-								_min={1}
-								_max={5}
-								_step={1}
-								_value={priority}
-								_on={{
-									onInput: (_event, value) => {
-										const next = readNumber(value) ?? priority;
-										form.current.priority = next;
-										setPriority(next);
-									},
-									onChange: (_event, value) => {
-										const next = readNumber(value) ?? priority;
-										form.current.priority = next;
-										setPriority(next);
-									},
-								}}
-							/>
-							<KolInputRange
-								/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
+									{isEdit && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId && (
+										<p className="hint">
+											Beim Speichern übergibst du {isSeriesMode ? 'diese Serie' : 'diese Aufgabe'} an{' '}
+											{recipientOptions.find((option) => option.value === recipientId)?.label}. Du siehst sie
+											anschließend nur noch mit „Für:"-Kennzeichen.
+										</p>
+									)}
+									{recipientError && (
+										<KolAlert
+											_type="warning"
+											_label={
+												isSeriesMode
+													? 'Empfängerauswahl ist nicht verfügbar — die Serie wird für dich angelegt.'
+													: 'Empfängerauswahl ist nicht verfügbar — die Aufgabe wird für dich angelegt.'
+											}
+										/>
+									)}
+								</>
+							)}
+							{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
+							<div className="range-inputs-row">
+								<KolInputRange
+									_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
+									_min={1}
+									_max={5}
+									_step={1}
+									_value={priority}
+									_on={{
+										onInput: (_event, value) => {
+											const next = readNumber(value) ?? priority;
+											form.current.priority = next;
+											setPriority(next);
+										},
+										onChange: (_event, value) => {
+											const next = readNumber(value) ?? priority;
+											form.current.priority = next;
+											setPriority(next);
+										},
+									}}
+								/>
+								<KolInputRange
+									/* #1159: Label bewusst kompakt — „Geschätzter Aufwand in Tagen …“ bricht zweizeilig
 											   und versetzt die Slider-Bahnen (V-Spring). */
-								_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
-								_min={0.1}
-								_max={1}
-								_step={0.1}
-								_value={estimatedEffort}
-								_on={{
-									onInput: (_event, value) => {
-										const next = readNumber(value) ?? estimatedEffort;
-										form.current.estimatedEffort = next;
-										setEstimatedEffort(next);
-									},
-									onChange: (_event, value) => {
-										const next = readNumber(value) ?? estimatedEffort;
-										form.current.estimatedEffort = next;
-										setEstimatedEffort(next);
-									},
-								}}
-							/>
+									_label={`Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
+									_min={0.1}
+									_max={1}
+									_step={0.1}
+									_value={estimatedEffort}
+									_on={{
+										onInput: (_event, value) => {
+											const next = readNumber(value) ?? estimatedEffort;
+											form.current.estimatedEffort = next;
+											setEstimatedEffort(next);
+										},
+										onChange: (_event, value) => {
+											const next = readNumber(value) ?? estimatedEffort;
+											form.current.estimatedEffort = next;
+											setEstimatedEffort(next);
+										},
+									}}
+								/>
+							</div>
 						</div>
 					</KolAccordion>
 				</section>
@@ -1044,174 +1046,176 @@ export const TaskForm = ({
 							onClick: (_event, open) => setScheduleOpen(open === true),
 						}}
 					>
-						{/* #1072: Deadline-Feld(er) + Auto-Lösch-Schalter (+ Hinweis) als logische Gruppe; die
+						<div className="accordion-body">
+							{/* #1072: Deadline-Feld(er) + Auto-Lösch-Schalter (+ Hinweis) als logische Gruppe; die
 					    Adresse folgt erst danach (siehe unten). */}
-						<div className="deadline-group" data-testid="deadline-group">
-							{isSeriesMode ? (
-								<>
-									{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
+							<div className="deadline-group" data-testid="deadline-group">
+								{isSeriesMode ? (
+									<>
+										{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
+										<KolInputDate
+											_label="Startdatum"
+											_type="date"
+											_value={startDateValue}
+											_on={{
+												onChange: (_event, value) => {
+													const next = value instanceof Date ? startDateToInput(value) : readString(value);
+													form.current.startDate = next;
+													setStartDateInput(next);
+												},
+												onInput: (_event, value) => {
+													const next = value instanceof Date ? startDateToInput(value) : readString(value);
+													form.current.startDate = next;
+													setStartDateInput(next);
+												},
+											}}
+										/>
+										<KolSingleSelect
+											_label="Rhythmus"
+											_options={RHYTHM_OPTIONS}
+											_value={form.current.rhythm}
+											_on={{
+												onChange: (_event, value) => {
+													const next = readString(value);
+													if (isSeriesRhythm(next)) {
+														form.current.rhythm = next;
+														setRhythm(next);
+													}
+												},
+											}}
+										/>
+										{weekdayMismatch !== null && (
+											<KolAlert
+												_type="warning"
+												_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
+											/>
+										)}
+									</>
+								) : (
 									<KolInputDate
-										_label="Startdatum"
+										_label="Deadline (optional)"
 										_type="date"
-										_value={startDateValue}
+										_value={deadlineValue}
 										_on={{
 											onChange: (_event, value) => {
-												const next = value instanceof Date ? startDateToInput(value) : readString(value);
-												form.current.startDate = next;
-												setStartDateInput(next);
+												const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+												form.current.deadline = next;
+												setDeadlineInput(next);
 											},
 											onInput: (_event, value) => {
-												const next = value instanceof Date ? startDateToInput(value) : readString(value);
-												form.current.startDate = next;
-												setStartDateInput(next);
+												const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+												form.current.deadline = next;
+												setDeadlineInput(next);
 											},
 										}}
 									/>
-									<KolSingleSelect
-										_label="Rhythmus"
-										_options={RHYTHM_OPTIONS}
-										_value={form.current.rhythm}
-										_on={{
-											onChange: (_event, value) => {
-												const next = readString(value);
-												if (isSeriesRhythm(next)) {
-													form.current.rhythm = next;
-													setRhythm(next);
-												}
-											},
-										}}
-									/>
-									{weekdayMismatch !== null && (
-										<KolAlert
-											_type="warning"
-											_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
-										/>
-									)}
-								</>
-							) : (
-								<KolInputDate
-									_label="Deadline (optional)"
-									_type="date"
-									_value={deadlineValue}
-									_on={{
-										onChange: (_event, value) => {
-											const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-											form.current.deadline = next;
-											setDeadlineInput(next);
-										},
-										onInput: (_event, value) => {
-											const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-											form.current.deadline = next;
-											setDeadlineInput(next);
-										},
-									}}
-								/>
-							)}
-							{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
+								)}
+								{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
 					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
 					    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
 					    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
-							<KolInputCheckbox
-								className="auto-delete-toggle"
-								_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
-								_checked={autoDelete}
-								_disabled={autoDeleteDisabled}
-								_on={{
-									// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
-									// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
-									// die Wertzurückweisung im onChange-Handler.
-									onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
-								}}
-							/>
-							{autoDelete && (
-								<KolAlert
-									_type="info"
-									_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
+								<KolInputCheckbox
+									className="auto-delete-toggle"
+									_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+									_checked={autoDelete}
+									_disabled={autoDeleteDisabled}
+									_on={{
+										// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
+										// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
+										// die Wertzurückweisung im onChange-Handler.
+										onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
+									}}
 								/>
-							)}
-						</div>
-						{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
+								{autoDelete && (
+									<KolAlert
+										_type="info"
+										_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
+									/>
+								)}
+							</div>
+							{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
 				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). #1072: steht nach der
 				    kompletten Deadline-Gruppe. */}
-						<AddressAutocomplete
-							label="Adresse (optional)"
-							value={address}
-							onValueChange={(next) => {
-								// #1110 (AK4): Echo der übernommenen Treffer-Adresse → Koordinaten behalten.
-								if (selectedAddressRef.current !== null && next === selectedAddressRef.current) {
+							<AddressAutocomplete
+								label="Adresse (optional)"
+								value={address}
+								onValueChange={(next) => {
+									// #1110 (AK4): Echo der übernommenen Treffer-Adresse → Koordinaten behalten.
+									if (selectedAddressRef.current !== null && next === selectedAddressRef.current) {
+										form.current.address = next;
+										setAddress(next);
+										return;
+									}
+									selectedAddressRef.current = null;
 									form.current.address = next;
 									setAddress(next);
-									return;
-								}
-								selectedAddressRef.current = null;
-								form.current.address = next;
-								setAddress(next);
-								// Freitext: alte Treffer-Koordinate verwerfen, sonst bleibt sie stecken.
-								form.current.latitude = null;
-								form.current.longitude = null;
-								setCoords({ latitude: null, longitude: null });
-							}}
-							onSelect={(hit) => {
-								form.current.address = hit.address;
-								setAddress(hit.address);
-								selectedAddressRef.current = hit.address;
-								applyAddressCoords(hit);
-							}}
-							ariaDetails={coordsBoxId}
-						/>
-						{/* #1111: passive Anzeige des gespeicherten Ortsbezugs (Task UND Serie) — außerhalb des
+									// Freitext: alte Treffer-Koordinate verwerfen, sonst bleibt sie stecken.
+									form.current.latitude = null;
+									form.current.longitude = null;
+									setCoords({ latitude: null, longitude: null });
+								}}
+								onSelect={(hit) => {
+									form.current.address = hit.address;
+									setAddress(hit.address);
+									selectedAddressRef.current = hit.address;
+									applyAddressCoords(hit);
+								}}
+								ariaDetails={coordsBoxId}
+							/>
+							{/* #1111: passive Anzeige des gespeicherten Ortsbezugs (Task UND Serie) — außerhalb des
 				    `role="combobox"`-Containers (dort gehören nur Feld + Listbox hinein) und ohne
 				    `aria-live` (Freitext-Tippen würde pro Tastenschlag ankündigen). Sichtbar nur bei
 				    Adresstext (AK5: geleertes Feld lässt die Box verschwinden); Freitext ohne Treffer
 				    ist erlaubt und wird als ruhiger Hinweis gezeigt, nicht als Fehler. */}
-						{address.trim() !== '' &&
-							(coords.latitude !== null && coords.longitude !== null ? (
-								<div
-									id={coordsBoxId}
-									role="group"
-									aria-label="Gespeicherter Ortsbezug"
-									style={{ ...COORDS_BOX_BASE_STYLE, color: 'var(--pp-ink, #1a1a1a)' }}
-								>
-									<dl style={{ margin: 0 }}>
-										<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
-											<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Breitengrad</dt>
-											<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.latitude.toFixed(6)}</dd>
-										</div>
-										<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
-											<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Längengrad</dt>
-											<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.longitude.toFixed(6)}</dd>
-										</div>
-										<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
-											<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Adresse</dt>
-											<dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{address}</dd>
-										</div>
-									</dl>
-								</div>
-							) : (
-								<div
-									id={coordsBoxId}
-									role="group"
-									aria-label="Gespeicherter Ortsbezug"
-									style={{
-										...COORDS_BOX_BASE_STYLE,
-										color: 'var(--pp-ink-muted, #555)',
-										overflowWrap: 'anywhere',
-									}}
-								>
-									Keine Koordinaten hinterlegt — die Aufgabe erscheint dann nicht in der „In der Nähe“-Liste.
-								</div>
-							))}
-						{pendingLektorat !== null && (
-							<LektoratDiffModal
-								original={pendingLektorat.original}
-								lektoriert={pendingLektorat.lektoriert}
-								fieldLabel={pendingLektorat.field === 'title' ? 'Titel' : 'Beschreibung'}
-								onConfirm={() => confirmLektorat()}
-								onCancel={() => cancelLektorat()}
-								fallbackFocusRef={getLektoratTriggerRef(pendingLektorat.field)}
-								error={lektoratError}
-							/>
-						)}
+							{address.trim() !== '' &&
+								(coords.latitude !== null && coords.longitude !== null ? (
+									<div
+										id={coordsBoxId}
+										role="group"
+										aria-label="Gespeicherter Ortsbezug"
+										style={{ ...COORDS_BOX_BASE_STYLE, color: 'var(--pp-ink, #1a1a1a)' }}
+									>
+										<dl style={{ margin: 0 }}>
+											<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
+												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Breitengrad</dt>
+												<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.latitude.toFixed(6)}</dd>
+											</div>
+											<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
+												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Längengrad</dt>
+												<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.longitude.toFixed(6)}</dd>
+											</div>
+											<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
+												<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Adresse</dt>
+												<dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{address}</dd>
+											</div>
+										</dl>
+									</div>
+								) : (
+									<div
+										id={coordsBoxId}
+										role="group"
+										aria-label="Gespeicherter Ortsbezug"
+										style={{
+											...COORDS_BOX_BASE_STYLE,
+											color: 'var(--pp-ink-muted, #555)',
+											overflowWrap: 'anywhere',
+										}}
+									>
+										Keine Koordinaten hinterlegt — die Aufgabe erscheint dann nicht in der „In der Nähe“-Liste.
+									</div>
+								))}
+							{pendingLektorat !== null && (
+								<LektoratDiffModal
+									original={pendingLektorat.original}
+									lektoriert={pendingLektorat.lektoriert}
+									fieldLabel={pendingLektorat.field === 'title' ? 'Titel' : 'Beschreibung'}
+									onConfirm={() => confirmLektorat()}
+									onCancel={() => cancelLektorat()}
+									fallbackFocusRef={getLektoratTriggerRef(pendingLektorat.field)}
+									error={lektoratError}
+								/>
+							)}
+						</div>
 					</KolAccordion>
 				</section>
 			</div>
@@ -1227,198 +1231,200 @@ export const TaskForm = ({
 						onClick: (_event, open) => setOptionalOpen(open === true),
 					}}
 				>
-					{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
+					<div className="accordion-body">
+						{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
 				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
-					<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-						<div style={{ flex: 1, minWidth: 0 }} data-testid="task-description">
-							<VoiceField
-								variant="textarea"
-								fieldLabel="Beschreibung"
-								onTranscript={(text) => {
-									const newVal = form.current.description ? `${form.current.description} ${text}` : text;
-									form.current.description = newVal;
-									setDescription(newVal);
-								}}
-							>
-								<KolTextarea
-									_label="Beschreibung (optional)"
-									_rows={4}
-									_value={description}
-									_on={{
-										onInput: (_event, value) => {
-											const newVal = readString(value);
-											form.current.description = newVal;
-											setDescription(newVal);
-										},
-										onChange: (_event, value) => {
-											const newVal = readString(value);
-											form.current.description = newVal;
-											setDescription(newVal);
-										},
+						<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+							<div style={{ flex: 1, minWidth: 0 }} data-testid="task-description">
+								<VoiceField
+									variant="textarea"
+									fieldLabel="Beschreibung"
+									onTranscript={(text) => {
+										const newVal = form.current.description ? `${form.current.description} ${text}` : text;
+										form.current.description = newVal;
+										setDescription(newVal);
 									}}
+								>
+									<KolTextarea
+										_label="Beschreibung (optional)"
+										_rows={4}
+										_value={description}
+										_on={{
+											onInput: (_event, value) => {
+												const newVal = readString(value);
+												form.current.description = newVal;
+												setDescription(newVal);
+											},
+											onChange: (_event, value) => {
+												const newVal = readString(value);
+												form.current.description = newVal;
+												setDescription(newVal);
+											},
+										}}
+									/>
+								</VoiceField>
+							</div>
+							{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+							{aiEnabled && (
+								<KolButton
+									ref={lektoratDescriptionTriggerRef}
+									_label="Beschreibung lektorieren"
+									_hideLabel
+									_variant="minimal"
+									_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+									_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+									_on={{
+										onClick: () => void runLektorat('description'),
+									}}
+									style={{
+										flexShrink: 0,
+									}}
+									className="lektorat-button-align"
 								/>
-							</VoiceField>
+							)}
 						</div>
-						{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
-						{aiEnabled && (
-							<KolButton
-								ref={lektoratDescriptionTriggerRef}
-								_label="Beschreibung lektorieren"
-								_hideLabel
-								_variant="minimal"
-								_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-								_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-								_on={{
-									onClick: () => void runLektorat('description'),
-								}}
-								style={{
-									flexShrink: 0,
-								}}
-								className="lektorat-button-align"
-							/>
+						{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
+						{pillars.length === 0 ? (
+							<p className="hint">
+								Keine Säulen definiert — lege zuerst Säulen in den <a href="/settings">Einstellungen</a> an.
+							</p>
+						) : (
+							<div className="pillar-editor">
+								<div className="pillar-editor-head">
+									<span className="pillar-editor-label">Säulen (optional)</span>
+									<KolButton
+										_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
+										_variant="secondary"
+										_disabled={saving || suggesting}
+										_on={{ onClick: () => void suggestPillars() }}
+									/>
+								</div>
+								{suggesting && (
+									<div className="pillar-editor-loading">
+										<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
+									</div>
+								)}
+								{suggestError !== null && (
+									<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
+										{suggestError}
+									</KolAlert>
+								)}
+								{lektoratError !== null && (
+									<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
+										{lektoratError}
+									</KolAlert>
+								)}
+								{contributions.length === 0 ? (
+									<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
+								) : (
+									contributions.map((entry) => {
+										const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
+										return (
+											<div key={entry.pillarId} className="pillar-row">
+												<KolInputRange
+													_label={`${name} – Anteil: ${formatNumber(entry.share)}`}
+													_min={RAW_WEIGHT_MIN}
+													_max={RAW_WEIGHT_MAX}
+													_step={RAW_WEIGHT_STEP}
+													_value={entry.share}
+													_on={{
+														onInput: (_event, value) =>
+															updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
+														onChange: (_event, value) =>
+															updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
+													}}
+												/>
+												<KolInputRange
+													_label={`Konfidenz: ${formatNumber(entry.confidence)} %`}
+													_min={0}
+													_max={100}
+													_step={1}
+													_value={entry.confidence}
+													_on={{
+														onInput: (_event, value) =>
+															updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
+														onChange: (_event, value) =>
+															updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
+													}}
+												/>
+												<KolButton
+													_label={`${name} entfernen`}
+													_hideLabel
+													_icons={{ left: { icon: 'kolicon-cross' } }}
+													_variant="danger"
+													_on={{ onClick: () => removePillar(entry.pillarId) }}
+												/>
+											</div>
+										);
+									})
+								)}
+								{availablePillars.length > 0 && (
+									<KolSingleSelect
+										_label="Säule hinzufügen"
+										_hideLabel
+										_options={addPillarOptions(availablePillars)}
+										_value={ADD_PILLAR_PLACEHOLDER}
+										_on={{ onChange: (_event, value) => addPillar(value) }}
+									/>
+								)}
+								{contributions.length > 0 && (
+									<p
+										className={
+											shareValid
+												? 'pillar-weights-sum pillar-weights-sum-ok'
+												: 'pillar-weights-sum pillar-weights-sum-invalid'
+										}
+									>
+										Summe der Roh-Anteile: {formatNumber(shareSum)}{' '}
+										{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
+									</p>
+								)}
+							</div>
+						)}
+						{/* #531: Abhakbare Checkliste (nur Task-Modus, nicht bei Serien). Einträge anlegen/entfernen/
+			    abhaken; beim Speichern fließt die Liste ins Task-Payload. Im Task-Edit aus dem Task vorbelegt. */}
+						{!isSeriesMode && (
+							<div className="checklist-editor" data-testid="checklist-section">
+								<span className="checklist-editor-label">Checkliste (optional)</span>
+								<div className="checklist-add">
+									<KolInputText
+										_label="Checklisten-Eintrag"
+										_hideLabel
+										_value={newChecklistTitle}
+										_on={{
+											onChange: (_event, value) => setNewChecklistTitle(readString(value)),
+											onInput: (_event, value) => setNewChecklistTitle(readString(value)),
+										}}
+									/>
+									<KolButton
+										_label="Hinzufügen"
+										_variant="secondary"
+										_disabled={saving}
+										_on={{ onClick: () => addChecklistItem() }}
+									/>
+								</div>
+								{checklist.map((item) => (
+									<div key={item.id} className="checklist-item" data-testid="checklist-item">
+										<KolInputCheckbox
+											_label="Erledigen"
+											_variant="switch"
+											_checked={item.completed}
+											_on={{ onChange: () => toggleChecklistItem(item.id) }}
+										/>
+										<span className="checklist-item-title">{item.title}</span>
+										<KolButton
+											_label="Entfernen"
+											_hideLabel
+											_icons={{ left: { icon: 'kolicon-cross' } }}
+											_variant="danger"
+											_disabled={saving}
+											_on={{ onClick: () => removeChecklistItem(item.id) }}
+										/>
+									</div>
+								))}
+							</div>
 						)}
 					</div>
-					{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
-					{pillars.length === 0 ? (
-						<p className="hint">
-							Keine Säulen definiert — lege zuerst Säulen in den <a href="/settings">Einstellungen</a> an.
-						</p>
-					) : (
-						<div className="pillar-editor">
-							<div className="pillar-editor-head">
-								<span className="pillar-editor-label">Säulen (optional)</span>
-								<KolButton
-									_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
-									_variant="secondary"
-									_disabled={saving || suggesting}
-									_on={{ onClick: () => void suggestPillars() }}
-								/>
-							</div>
-							{suggesting && (
-								<div className="pillar-editor-loading">
-									<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
-								</div>
-							)}
-							{suggestError !== null && (
-								<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
-									{suggestError}
-								</KolAlert>
-							)}
-							{lektoratError !== null && (
-								<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
-									{lektoratError}
-								</KolAlert>
-							)}
-							{contributions.length === 0 ? (
-								<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
-							) : (
-								contributions.map((entry) => {
-									const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
-									return (
-										<div key={entry.pillarId} className="pillar-row">
-											<KolInputRange
-												_label={`${name} – Anteil: ${formatNumber(entry.share)}`}
-												_min={RAW_WEIGHT_MIN}
-												_max={RAW_WEIGHT_MAX}
-												_step={RAW_WEIGHT_STEP}
-												_value={entry.share}
-												_on={{
-													onInput: (_event, value) =>
-														updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
-													onChange: (_event, value) =>
-														updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
-												}}
-											/>
-											<KolInputRange
-												_label={`Konfidenz: ${formatNumber(entry.confidence)} %`}
-												_min={0}
-												_max={100}
-												_step={1}
-												_value={entry.confidence}
-												_on={{
-													onInput: (_event, value) =>
-														updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
-													onChange: (_event, value) =>
-														updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
-												}}
-											/>
-											<KolButton
-												_label={`${name} entfernen`}
-												_hideLabel
-												_icons={{ left: { icon: 'kolicon-cross' } }}
-												_variant="danger"
-												_on={{ onClick: () => removePillar(entry.pillarId) }}
-											/>
-										</div>
-									);
-								})
-							)}
-							{availablePillars.length > 0 && (
-								<KolSingleSelect
-									_label="Säule hinzufügen"
-									_hideLabel
-									_options={addPillarOptions(availablePillars)}
-									_value={ADD_PILLAR_PLACEHOLDER}
-									_on={{ onChange: (_event, value) => addPillar(value) }}
-								/>
-							)}
-							{contributions.length > 0 && (
-								<p
-									className={
-										shareValid
-											? 'pillar-weights-sum pillar-weights-sum-ok'
-											: 'pillar-weights-sum pillar-weights-sum-invalid'
-									}
-								>
-									Summe der Roh-Anteile: {formatNumber(shareSum)}{' '}
-									{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
-								</p>
-							)}
-						</div>
-					)}
-					{/* #531: Abhakbare Checkliste (nur Task-Modus, nicht bei Serien). Einträge anlegen/entfernen/
-			    abhaken; beim Speichern fließt die Liste ins Task-Payload. Im Task-Edit aus dem Task vorbelegt. */}
-					{!isSeriesMode && (
-						<div className="checklist-editor" data-testid="checklist-section">
-							<span className="checklist-editor-label">Checkliste (optional)</span>
-							<div className="checklist-add">
-								<KolInputText
-									_label="Checklisten-Eintrag"
-									_hideLabel
-									_value={newChecklistTitle}
-									_on={{
-										onChange: (_event, value) => setNewChecklistTitle(readString(value)),
-										onInput: (_event, value) => setNewChecklistTitle(readString(value)),
-									}}
-								/>
-								<KolButton
-									_label="Hinzufügen"
-									_variant="secondary"
-									_disabled={saving}
-									_on={{ onClick: () => addChecklistItem() }}
-								/>
-							</div>
-							{checklist.map((item) => (
-								<div key={item.id} className="checklist-item" data-testid="checklist-item">
-									<KolInputCheckbox
-										_label="Erledigen"
-										_variant="switch"
-										_checked={item.completed}
-										_on={{ onChange: () => toggleChecklistItem(item.id) }}
-									/>
-									<span className="checklist-item-title">{item.title}</span>
-									<KolButton
-										_label="Entfernen"
-										_hideLabel
-										_icons={{ left: { icon: 'kolicon-cross' } }}
-										_variant="danger"
-										_disabled={saving}
-										_on={{ onClick: () => removeChecklistItem(item.id) }}
-									/>
-								</div>
-							))}
-						</div>
-					)}
 				</KolAccordion>
 			</section>
 			<div className="modal-actions" data-testid="task-actions">

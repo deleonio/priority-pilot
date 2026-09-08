@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableBox, waitForStableView } from './helpers';
 
 /**
  * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular" + #1285
@@ -143,7 +143,10 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		const titleBox = await page.locator('[data-testid="task-title"]').boundingBox();
 		const rowBox = await page.locator('.range-inputs-row').boundingBox();
 		const deadlineBox = await page.locator('[data-testid="deadline-group"]').boundingBox();
-		const addressBox = await page.getByLabel('Adresse (optional)').boundingBox();
+		// Like-for-like: Combobox-Container (Feld inkl. Label) statt des blanken Inputs — dessen
+		// Box läge sonst UNTER dem sichtbaren Label und würde dessen Höhe fälschlich in den
+		// gemessenen Abstand addieren (die übrigen gemessenen Felder schließen ihr Label ein).
+		const addressBox = await page.locator('.form-section--secondary div[role="combobox"]').boundingBox();
 		expect(rowBox).not.toBeNull();
 		expect(deadlineBox).not.toBeNull();
 		expect(addressBox).not.toBeNull();
@@ -200,5 +203,44 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 			expect(box!.x).toBeGreaterThanOrEqual(0);
 			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 		}
+	});
+
+	// Design-Lauf (Akkordeon-Rhythmus): Der Inhalt jedes Akkordeons sitzt symmetrisch
+	// (0.5rem beidseits, obwohl das KoliBri-DEFAULT-Theme .kol-accordion__content links mit
+	// 2.25em einzieht — kompensiert über .accordion-body in app.css) und die drei
+	// Sektionsabstände sind einheitlich --pp-space-5 (24px). Guard gegen Theme-Updates, die
+	// den Kompensationswert entgleiten lassen, und gegen Rückfälle in die gestapelten
+	// Außenmargins (vorher gemessen 80px/48px/32px).
+	test('Design-Lauf — Akkordeon-Inhalt symmetrisch, Sektionsabstände einheitlich (375px)', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await openForm(page);
+		await openAccordionSection(page, 'Termin & Ort');
+		await openAccordionSection(page, 'Optional');
+		await waitForStableBox(page, primary(page));
+		await waitForStableBox(page, optional(page));
+
+		// Links-/Rechtseinrückung des Inhalts gegenüber dem Akkordeon-Host: symmetrisch (±2px).
+		const insets = await page.evaluate(() => {
+			const host = document.querySelector('.form-section--primary kol-accordion');
+			const body = document.querySelector('.form-section--primary .accordion-body');
+			if (host === null || body === null) return null;
+			const a = host.getBoundingClientRect();
+			const b = body.getBoundingClientRect();
+			return { left: b.x - a.x, right: a.right - b.right };
+		});
+		expect(insets).not.toBeNull();
+		expect(Math.abs(insets!.left - insets!.right)).toBeLessThanOrEqual(2);
+
+		// Sektionsabstände einheitlich 24px (±2px Toleranz für Sub-Pixel-Rounding).
+		const primaryBox = await primary(page).boundingBox();
+		const secondaryBox = await secondary(page).boundingBox();
+		const optionalBox = await optional(page).boundingBox();
+		expect(primaryBox).not.toBeNull();
+		expect(secondaryBox).not.toBeNull();
+		expect(optionalBox).not.toBeNull();
+		expect(verticalGap(primaryBox!, secondaryBox!)).toBeGreaterThanOrEqual(22);
+		expect(verticalGap(primaryBox!, secondaryBox!)).toBeLessThanOrEqual(26);
+		expect(verticalGap(secondaryBox!, optionalBox!)).toBeGreaterThanOrEqual(22);
+		expect(verticalGap(secondaryBox!, optionalBox!)).toBeLessThanOrEqual(26);
 	});
 });
