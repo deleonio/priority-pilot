@@ -287,9 +287,14 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
-  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Alle LLM-Workflows (Phasen + Crons) serialisieren
-    global über EINE gemeinsame statische `concurrency`-Gruppe `llm` — genau **EIN** LLM-Lauf
-    repo-weit; alles reiht sich FIFO ein (lange Warteschlange bewusst akzeptiert). Das
+  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Jede Phase serialisiert über eine **eigene**
+    statische `concurrency`-Gruppe (`llm-triage`, `llm-ux`, `llm-spec`, `llm-implement`,
+    `llm-review`, `llm-document`) — genau **EIN** Lauf **je Phase**, alles Weitere reiht sich
+    FIFO ein. Beide Eingänge von Phase 4 (Umsetzung und Fixup, [ADR 0005](./adr/0005-fixup-und-umsetzung-sind-eine-phase.md))
+    teilen sich `llm-implement` und überholen einander damit nie. Die übrigen LLM-Workflows
+    (Doku-/Spec-Syncs, Prompt-Audit, Architektur- und Design-Optimierung) teilen sich EINE
+    gemeinsame Gruppe `llm-sync`. Die strukturelle Obergrenze liegt damit bei **7** gleichzeitigen
+    Agent-Läufen (6 Phasen + 1 Sync-Slot); Phasen blockieren einander nicht mehr. Das
     Stapeln leistet **`queue: max`**: Ohne diesen Schlüssel hält GitHub pro Gruppe nur EINEN
     wartenden Lauf und verwirft ihn still, sobald ein neuer eintrifft (`queue: single` ist der
     Default, und `cancel-in-progress: false` schützt nur den _laufenden_). Mit `max` warten bis

@@ -40,9 +40,11 @@ on:
     types: [labeled]
 
 concurrency:
-  # Gemeinsame LLM-Gruppe: ALLE LLM-Workflows (Phasen + Crons) teilen EINE Queue —
-  # maximal 1 LLM-Lauf repo-weit, FIFO; lange Warteschlange bewusst akzeptiert.
-  group: llm
+  # Eigene Gruppe pro Phase: maximal 1 Umsetzungs-Lauf gleichzeitig, FIFO. Beide Eingänge
+  # dieser Datei (Issue+ai:needs-impl und PR+ai:needs-fixup, ADR-0005) fallen bewusst in
+  # DIESELBE Gruppe — Umsetzung und Nacharbeit dürfen einander nie überholen. Andere Phasen
+  # und die Sync-/Ad-hoc-Läufe (Gruppe `llm-sync`) laufen davon unabhängig parallel.
+  group: llm-implement
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
