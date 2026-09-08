@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-e2e für #996 — „Mobile: Säulen-Verteilung im Task-Formular — Slider volle Breite,
@@ -59,6 +59,8 @@ test.describe('#996 Säulen-Beiträge im TaskForm (Mobile-Layout)', () => {
 		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
+		// #1285 (AK3): „Optional“ startet im Edit zugeklappt — Säulen-Zeile erst freischalten.
+		await openAccordionSection(page, 'Optional');
 
 		const row = page.locator('.pillar-row').first();
 		await expect(row).toBeVisible();

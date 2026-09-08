@@ -1056,46 +1056,25 @@ body {
 	width: 100%;
 }
 
-/* --- #1159: Dreier-Hierarchie im TaskForm (Pflicht → Termin & Ort → Optional) ---
-   Opt-in-Sektionen ausschließlich im TaskForm; .form-grid selbst bleibt unangetastet
-   (sieben Formulare teilen sich die Klasse — der QuickCapture-Erfassungsschritt bleibt
-   kompakt und ohne Sektionen). Der Abstand ZWISCHEN den Gruppen entsteht aus der
-   bestehenden .modal-body-section-Regel (margin-bottom) plus .form-grid-Gap/Margin und
-   ist dadurch größer als jeder In-Gruppen-Abstand (--pp-gap-base, AK5). */
+/* --- #1159/#1285: Dreier-Hierarchie im TaskForm (Basisangaben → Termin & Ort → Optional) ---
+   Sektionen ausschließlich im TaskForm; .form-grid selbst bleibt unangetastet (sieben
+   Formulare teilen sich die Klasse — der QuickCapture-Erfassungsschritt bleibt kompakt).
+   Seit #1285 sind alle drei Sektionen KolAccordions ohne Kartenfläche (kein background/
+   border/radius) — die Gruppierung tragen Typografie (Accordion-Trigger) und Abstand.
+   Der Abstand ZWISCHEN den Gruppen entsteht aus der bestehenden .modal-body-section-Regel
+   (margin-bottom) plus .form-grid-Gap/Margin und ist dadurch größer als jeder
+   In-Gruppen-Abstand (--pp-gap-base, #1159-AK5). */
 .form-section {
 	display: grid;
 	gap: var(--pp-gap-base);
 }
 
-/* Gruppen-Überschrift (KolHeading h3): vererbbare Werte greifen auch im Shadow-DOM. */
-.form-section-heading {
-	font-size: var(--pp-font-size-sm);
-	font-weight: var(--pp-weight-bold);
-	color: var(--pp-ink-muted);
-}
-
-/* Pflichtgruppe: gehobene Fläche (Karte) mit Trenner-Rahmen — keine Signal-/Brandfarbe. */
-.form-section--primary {
-	padding: var(--pp-space-4);
-	background: var(--pp-surface-1);
-	border: 1px solid var(--pp-border-subtle);
-	border-radius: var(--pp-radius-md);
-}
-
-/* Sekundärgruppe: dezenter — eingesenkte Fläche ohne Rahmen, klar von Gruppe 1
-   unterschieden (AK2: andere background-color und kein border-top). Der zusätzliche
-   margin-top vergrößert den Gruppenabstand über den .modal-body-Sektions-Rand hinaus
-   (AK5: Gruppenabstand > jeder In-Gruppen-Abstand, auch > deadline→adresse). */
+/* Sekundärgruppe: der zusätzliche margin-top hält den Gruppenabstand über den
+   .modal-body-Sektions-Rand hinaus (#1159-AK5: Gruppenabstand > jeder
+   In-Gruppen-Abstand, auch > deadline→adresse) — bewusst OHNE Surface (#1285). */
 .form-section--secondary {
-	padding: var(--pp-space-4);
-	background: var(--pp-surface-2);
-	border-radius: var(--pp-radius-md);
 	margin-top: var(--pp-gap-generous);
 }
-
-/* Optional-Bereich: bewusst ohne eigene Fläche (AK3) — Gewichtung nur über die
-   stummgeschaltete Überschrift und die bestehenden „… (optional)"-Labels;
-   deshalb ohne eigenen Regelblock. */
 
 /* Bewusst KEIN zweispaltiges Desktop-Grid (Titel | Ranges): die Range-Zeile braucht die
    volle Sektionsbreite (2 × 300 px Hosts + Gap, #934) — in einer Halbspalte stapeln die

@@ -3,16 +3,18 @@ import { expect, test } from './fixtures';
 import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
- * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular".
+ * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular" + #1285
+ * „TaskForm-Sektionen als Accordion-Behälter ohne Kartenfläche".
  *
- * Contract: docs/spec/issue-1159.md (AK1–AK6).
+ * Contract: docs/spec/issue-1159.md (AK4-Fluchtung, AK5-Gruppenabstand),
+ * docs/spec/issue-1285.md (AK1–AK5).
  *
  * Gemessen wird über Bounding-Boxes und getComputedStyle — nicht per `scrollWidth`,
  * da die App-Shell mit `overflow-x: hidden` clippt (Präzedenz issue-1072/1061).
  *
- * Rot-Zustand: die Sektions-Wrapper `.form-section--primary`/`--secondary`/`--optional`
- * existieren noch nicht in TaskForm.tsx — jede `toBeVisible`-Assertion scheitert
- * zunächst schnell (5s) mit klarem Locator.
+ * Rot-Zustand (#1285): „Basisangaben" ist noch KolHeading + Karte (`.form-section--primary`
+ * mit Surface) — die Akkordeon-Trigger- und Transparent-Assertions scheitern zunächst
+ * schnell mit klarem Locator.
  */
 
 /** Öffnet das Task-Anlegeformular (QuickCapture-Schritt übersprungen). */
@@ -34,97 +36,76 @@ interface Surface {
 }
 
 const surfaceOf = async (page: Page, selector: string): Promise<Surface> =>
-		page.locator(selector).evaluate((el) => ({
-			backgroundColor: getComputedStyle(el).backgroundColor,
-			borderTopWidth: getComputedStyle(el).borderTopWidth,
-		})),
-	hasSurface = ({ backgroundColor, borderTopWidth }: Surface): boolean =>
-		backgroundColor !== 'rgba(0, 0, 0, 0)' || (parseFloat(borderTopWidth) ?? 0) > 0;
+	page.locator(selector).evaluate((el) => ({
+		backgroundColor: getComputedStyle(el).backgroundColor,
+		borderTopWidth: getComputedStyle(el).borderTopWidth,
+	}));
 
 /** Vertikaler Abstand zwischen zwei Boxen (Lücke = next.y - prev.y - prev.height). */
 const verticalGap = (prev: { y: number; height: number }, next: { y: number }): number => next.y - prev.y - prev.height;
 
-test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
-	// AK1: Titel, Priorität, Aufwand in einer eigenen Gruppe mit Fläche oder Rahmen
-	// und programmatischer Gruppierung (fieldset/role=group/aria-labelledby, KI-UX).
-	test('AK1 — Primärgruppe: Titel + Priorität + Aufwand, Fläche/Rahmen, Gruppierung', async ({ page }) => {
+test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
+	// AK1: Je ein KolAccordion pro Sektion, keine Kartenfläche (background/border entfernt).
+	test('AK1 — drei Akkordeon-Behälter, keine Surface auf primary/secondary', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
-		const group = primary(page);
-		await expect(group).toBeVisible();
-		await expect(group.locator('[data-testid="task-title"]')).toBeVisible();
-		await expect(group.locator('.range-inputs-row')).toBeVisible();
-		await expect(group.getByText(/Priorität/)).toBeVisible();
-		await expect(group.getByText(/Aufwand/)).toBeVisible();
+		for (const section of [primary(page), secondary(page), optional(page)]) {
+			await expect(section.locator('kol-accordion')).toHaveCount(1);
+		}
 
-		// Fläche oder Rahmen (getComputedStyle, AK1).
-		expect(hasSurface(await surfaceOf(page, '.form-section--primary'))).toBe(true);
-
-		// Programmatische Gruppierung statt reiner Farb-Gruppierung (WCAG 1.4.1).
-		expect(
-			await group.evaluate((el) =>
-				el.matches('fieldset, [role="group"], section[aria-labelledby], fieldset:not([disabled])'),
-			),
-		).toBe(true);
-
-		// Nur Opt-in: QuickCaptureModal bekommt keinen Primär-Wrapper (es teilt sich
-		// .form-grid) — es gibt im Formular genau EINE Primärgruppe.
-		await expect(primary(page)).toHaveCount(1);
+		for (const selector of ['.form-section--primary', '.form-section--secondary']) {
+			const surface = await surfaceOf(page, selector);
+			expect(surface.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+			expect(surface.borderTopWidth).toBe('0px');
+		}
 	});
 
-	// AK2: Deadline-Gruppe + Adresse als optisch abgetrennte zweite Gruppe, von
-	// Gruppe 1 unterscheidbar.
-	test('AK2 — Sekundärgruppe: Deadline + Adresse, optisch von Gruppe 1 unterschieden', async ({ page }) => {
+	// AK2: Basisangaben dauerhaft offen, Trigger deaktiviert — Inhalt ohne Klick sichtbar,
+	// per Tastatur (Enter auf dem Trigger) nicht zuklappbar.
+	test('AK2 — Basisangaben: ohne Klick sichtbar, Trigger-Klick und Tastatur klappen nicht zu', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
-		// #1260: Sekundärgruppe startet als zugeklapptes „Termin & Ort"-Akkordeon.
+
+		const trigger = page.getByRole('button', { name: 'Basisangaben', exact: true });
+		await expect(trigger).toHaveCount(1);
+		// Inhalt ohne Interaktion sichtbar (AK2: `_open={true}`).
+		await expect(page.locator('[data-testid="task-title"]')).toBeVisible();
+
+		// `_disabled`: Trigger ist nicht fokussierbar und ignoriert alle Events — Enter auf dem
+		// Trigger (bei fehlendem `_disabled` würde der Klick das Akkordeon zuklappen) ändert nichts.
+		await trigger.press('Enter');
+		await expect(page.locator('[data-testid="task-title"]')).toBeVisible();
+	});
+
+	// AK3/AK4: Termin & Ort und Optional starten zugeklappt (auch im Bearbeiten — Unit-Ebene,
+	// s. TaskForm.test.tsx) und sind per Trigger auf-/einklappbar.
+	test('AK3/AK4 — Opt-in-Sektionen: zu beim Start, per Trigger auf- und wieder zu', async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await openForm(page);
+
+		await expect(page.locator('[data-testid="deadline-group"]')).not.toBeVisible();
+		await expect(page.locator('[data-testid="task-description"]')).not.toBeVisible();
+
 		await openAccordionSection(page, 'Termin & Ort');
+		await expect(page.locator('[data-testid="deadline-group"]')).toBeVisible();
 
-		const group = secondary(page);
-		await expect(group).toBeVisible();
-		await expect(group.locator('[data-testid="deadline-group"]')).toBeVisible();
-		await expect(group.getByLabel('Adresse (optional)')).toBeVisible();
-		// Pflicht- und Optional-Felder liegen NICHT in der Sekundärgruppe.
-		await expect(group.locator('[data-testid="task-title"]')).toHaveCount(0);
-		await expect(group.locator('.pillar-editor')).toHaveCount(0);
-
-		expect(hasSurface(await surfaceOf(page, '.form-section--secondary'))).toBe(true);
-
-		// Optische Unterscheidung von Gruppe 1: Fläche ODER Rahmen unterschiedlich.
-		const g1 = await surfaceOf(page, '.form-section--primary');
-		const g2 = await surfaceOf(page, '.form-section--secondary');
-		expect(g1.backgroundColor !== g2.backgroundColor || g1.borderTopWidth !== g2.borderTopWidth).toBe(true);
-	});
-
-	// AK3: Säulen, Beschreibung, Checkliste als Optional-Bereich ohne eigene Fläche;
-	// Abstand zu Gruppe 2 größer als jeder In-Gruppen-Abstand.
-	test('AK3 — Optional-Bereich: reduzierte Gewichtung, größerer Abstand zu Gruppe 2', async ({ page }) => {
-		await page.setViewportSize({ width: 1280, height: 900 });
-		await openForm(page);
-		// #1260: Der Optional-Bereich startet als zugeklapptes Akkordeon.
 		await openAccordionSection(page, 'Optional');
+		await expect(page.locator('[data-testid="task-description"]')).toBeVisible();
 
-		const group = optional(page);
-		await expect(group).toBeVisible();
-		await expect(group.locator('.pillar-editor')).toBeVisible();
-		await expect(group.locator('[data-testid="task-description"]')).toBeVisible();
-		await expect(group.locator('[data-testid="checklist-section"]')).toBeVisible();
-
-		// Keine eigene Fläche (reduzierte visuelle Gewichtung, KI-UX-Block).
-		const opt = await surfaceOf(page, '.form-section--optional');
-		expect(opt.backgroundColor).toBe('rgba(0, 0, 0, 0)');
-
-		// Programmatische Gruppierung: seit #1260 liefert das KolAccordion die Semantik — Trigger-
-		// Button plus beschriftete Region (role="region", aria-labelledby im KoliBri-Shadow-DOM),
-		// die frühere section[aria-labelledby]-Überschrift entfiel mit der Akkordeon-Umstellung.
-		await expect(page.getByRole('region', { name: 'Optional' })).toBeVisible();
-		await expect(group.getByText(/optional/i).first()).toBeVisible();
+		// AK4: erneuter Klick klappt wieder zu.
+		for (const label of ['Termin & Ort', 'Optional']) {
+			const trigger = page.getByRole('button', { name: label, exact: true });
+			await trigger.click();
+			await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+		}
+		await expect(page.locator('[data-testid="deadline-group"]')).not.toBeVisible();
+		await expect(page.locator('[data-testid="task-description"]')).not.toBeVisible();
 	});
 
-	// AK4: 1280px — die benachbarten Felder der Primärgruppe (Priorität | Aufwand) fluchten
-	// auf derselben Top-Kante (≤ 2px Versatz, kein V-Spring durch Label-Längen).
-	test('AK4 — 1280px: Top-Kanten innerhalb der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
+	// #1159 AK4 (unverändert gültig): 1280px — die benachbarten Felder der Primärgruppe
+	// (Priorität | Aufwand) fluchten auf derselben Top-Kante (≤ 2px Versatz).
+	test('#1159 AK4 — 1280px: Top-Kanten innerhalb der Primärgruppe fluchten (≤ 2px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
@@ -136,9 +117,9 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 		expect(Math.abs(priorityBox!.y - effortBox!.y)).toBeLessThanOrEqual(2);
 	});
 
-	// AK5: exakt 768px — Abstand zwischen Primär- und Sekundärgruppe größer als der
-	// maximale Abstand innerhalb einer Gruppe.
-	test('AK5 — 768px: Gruppenabstand > maximaler In-Gruppen-Abstand', async ({ page }) => {
+	// #1159 AK5 (unverändert gültig): exakt 768px — Abstand zwischen Primär- und
+	// Sekundärgruppe größer als der maximale Abstand innerhalb einer Gruppe.
+	test('#1159 AK5 — 768px: Gruppenabstand > maximaler In-Gruppen-Abstand', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 900 });
 		// Deterministischer Zustand: Gruppen-Leaks aus früheren Specs entfernen — rendert die
 		// Empfängerauswahl (#1213) zwischen Titel und range-inputs-row, verschiebt sie die
@@ -148,7 +129,7 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 			await page.request.delete(`/api/v1/groups/${group.id}`);
 		}
 		await openForm(page);
-		// #1260: beide Opt-in-Sektionen starten zugeklappt — für die Box-Messung öffnen.
+		// beide Opt-in-Sektionen starten zugeklappt — für die Box-Messung öffnen.
 		await openAccordionSection(page, 'Termin & Ort');
 		await openAccordionSection(page, 'Optional');
 
@@ -176,15 +157,33 @@ test.describe('#1159 TaskForm-Dreier-Hierarchie', () => {
 		expect(groupGap).toBeGreaterThan(maxInGroup);
 	});
 
-	// AK6: 375px — alle Felder voll nutzbar untereinander, kein horizontaler Überlauf
-	// (Bounding-Box-Check, da overflow-x:hidden der App-Shell scrollWidth unbrauchbar macht).
-	test('AK6 — 375px: alle Felder nutzbar, kein Feld wird abgeschnitten', async ({ page }) => {
+	// AK5 (#1285): 375px — die drei Accordions stehen untereinander in voller Breite,
+	// kein horizontaler Overflow (Bounding-Box-Check, da overflow-x:hidden der App-Shell
+	// scrollWidth unbrauchbar macht).
+	test('AK5 — 375px: Accordions untereinander in voller Breite, kein Overflow', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openForm(page);
-		// #1260: beide Opt-in-Sektionen starten zugeklappt — erst öffnen, dann messen.
 		await openAccordionSection(page, 'Termin & Ort');
 		await openAccordionSection(page, 'Optional');
 
+		const boxes: ({ x: number; y: number; width: number; height: number } | null)[] = [];
+		for (const section of [primary(page), secondary(page), optional(page)]) {
+			await expect(section).toBeVisible();
+			boxes.push(await section.boundingBox());
+		}
+		for (const box of boxes) {
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+			// Volle Breite des Formular-Body (minus Modal-Padding), keine eingezogene Karte.
+			expect(box!.width).toBeGreaterThan(300);
+		}
+		// Untereinander: jede Sektion beginnt unterhalb der vorherigen (keine Überlappung).
+		for (let i = 1; i < boxes.length; i++) {
+			expect(boxes[i]!.y).toBeGreaterThanOrEqual(boxes[i - 1]!.y + boxes[i - 1]!.height - 1);
+		}
+
+		// Alle Felder nach dem Aufklappen nutzbar (übernimmt den ehemaligen #1159-AK6-Check).
 		const fields = [
 			page.locator('[data-testid="task-title"]'),
 			page.locator('.range-inputs-row'),

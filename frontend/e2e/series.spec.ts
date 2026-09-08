@@ -220,6 +220,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
+		// #1285 (AK3): „Termin & Ort“ startet im Edit zugeklappt — Deadline-Feld erst freischalten.
+		await openAccordionSection(page, 'Termin & Ort');
 		await page.getByLabel('Deadline (optional)').fill(dayFromTodayUtc(21).slice(0, 10));
 		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
@@ -367,6 +369,9 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 
 		// Der Titel-Wert ist vorbefüllt.
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
+
+		// #1285 (AK3): „Termin & Ort“ startet im Edit zugeklappt — erst öffnen.
+		await openAccordionSection(page, 'Termin & Ort');
 
 		// Serienfelder sichtbar (Startdatum, Rhythmus), keine Deadline.
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
@@ -629,6 +634,9 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 		await openSeriesManagement(page);
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await waitForStableView(page);
+
+		// #1285 (AK3): „Optional“ startet im Edit zugeklappt — Säulen-Zeile erst freischalten.
+		await openAccordionSection(page, 'Optional');
 
 		// 11. Die Säulen-Zeile ist im Formular sichtbar (die Zuordnung wurde ins Formular geladen).
 		await expect(page.locator('.pillar-row').first()).toBeVisible();
