@@ -51,5 +51,6 @@
 			"maxRetryDelayMs": 120000
 		}
 	},
-	"defaultModel": "glm-5.3"
+	"defaultProvider": "anthropic",
+	"defaultModel": "claude-sonnet-5"
 }
