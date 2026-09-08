@@ -19,11 +19,12 @@ sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/ac
 | `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)       | `CLAUDE_API_KEY` | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)        |
 | `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`              |
 
-**Peak-Fallback nur mit echtem API-Key:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18 Asia/Singapore)
-fällt während des Peak-Fensters auf `claude` zurück — aber nur, wenn `CLAUDE_API_KEY` ein echter
-API-Key (`sk-ant-api…`) ist. Bei einem OAuth-Subscription-Token (`sk-ant-oat…`, das pi nicht
-verwerten kann und das Claude Code verweigert, wenn die Org den Subscription-Zugang entzogen hat)
-bleibt der Lauf laut im Peak auf zai (3× Quota) statt garantiert roter Fallback-Läufe.
+**Peak-Fenster: Warning-only, kein Fallback mehr:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18
+Asia/Singapore) schaltet im Peak-Fenster nicht mehr auf `claude` um: Der Lauf bleibt auf zai
+(3× Quota bewusst in Kauf genommen), das Job-Log erhält nur eine `::warning` — der frühere
+stille Claude-Fallback lief auf Anthropic-Rechnung und ließ die Kosten der betroffenen Läufe
+verschwinden (Beobachtungsfall #1285). Der frühere API-Key-Guard (`sk-ant-api…` vs.
+OAuth-Subscription-Token) ist damit entfallen.
 
 **Warum unterschiedliche Auth-Variablen?** `ANTHROPIC_API_KEY` sendet den Token als
 `x-api-key`-Header, `ANTHROPIC_AUTH_TOKEN` als `Authorization: Bearer`. z.ai akzeptiert nur
@@ -296,17 +297,16 @@ Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTING
   FIFO-Queue ein, statt parallel Kontingent zu ziehen.
 - **Sperrzeiten:** Das einzige gebuchte Modell mit Spitzenzeit-Aufschlag ist `glm-5-turbo`
   (Mo–Fr 14:00–18:00 UTC+8 = dt. Vormittag, DST-abhängig 07:00–11:00 MEZ / 08:00–12:00 MESZ;
-  am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Fallback in `setup-agent`
-  prüft direkt die Singapore-Zeit (UTC+8, kein DST) und greift damit an Samstagen/Sonntagen
-  nicht mehr; er ist bewusst pauschal (konservativ), solange unklar ist, ob der 3×-Tarif
-  planweit oder nur für 2×/3×-Modelle gilt.
+  am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Check in `setup-agent`
+  prüft direkt die Singapore-Zeit (UTC+8, kein DST) und warnt im Peak-Fenster nur (`::warning`,
+  s. o.) — ein Claude-Fallback existiert seit #1285 nicht mehr.
 
 **Fazit (Abo-Realität):** `glm-5.3[1m]` trägt alle Phasen-Aliase außer `haiku` (→ `glm-4.7`) —
 1× Kontingent, keine Sperrzeit. `CLAUDE_CODE_SUBAGENT_MODEL` steht in
 `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` ebenfalls auf `glm-4.7` (Ad-hoc-Fan-outs ohne
 Rollen-Frontmatter): 1× Kontingent, keine Sperrzeit, unbeschränkte Parallelität —
 `glm-5-turbo` (2×/3×-Tarif, Parallelität 1) ist damit aus der Konfiguration entfernt und der
-Peak-Fallback rein defensiv. Achtung: Die Alias-Auflösung hängt an dieser GitHub-Variable,
+Zeitfenster-Check nur noch Warnung. Achtung: Die Alias-Auflösung hängt an dieser GitHub-Variable,
 nicht am Repo — ein dort eingetragenes, nicht gebuchtes Modell (2026-09: `glm-5.3-flash`)
 ließ Subagent-Rollen still mit `400 [1214]` sterben.
 

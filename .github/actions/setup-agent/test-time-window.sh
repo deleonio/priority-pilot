@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Unit-Tests für ZAI Zeitfenster-Logik (Issue #893)
-# Testet: Peak-Fenster Mo–Fr 14:00–18:00 Asia/Singapore, Provider-Override, Logik.
+# Testet: Peak-Fenster Mo–Fr 14:00–18:00 Asia/Singapore, Logik.
+# Das Fenster steuert nur noch die Peak-Warning (kein Claude-Override mehr) — die
+# Erkennungslogik ist unverändert und bleibt so abgedeckt.
 # Singapore-Zeit ist UTC+8 ohne DST — dadurch deckt der Test Sommer- UND Winterfall
 # des Berliner Fensters (08:00–12:00 MESZ / 07:00–11:00 MEZ) implizit ab.
 
