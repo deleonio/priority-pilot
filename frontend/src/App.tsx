@@ -11,7 +11,6 @@ import {
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -34,7 +33,6 @@ import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForestByTitle } from './lib/filterForestByTitle';
-import { balancePrioritiesEqual, buildBalancePriorities, type BalancePriority } from './lib/balancePriority';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
@@ -76,19 +74,6 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
-/**
- * #1220: Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule,
- * anteilig nach `share`, exakt die Quelle des Dashboards (`buildPillarSummaries`). Der Wert-Beitrag
- * fließt hier nicht ein, daher die leere Map.
- */
-const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, number> => {
-	const doneEffortByPillar = new Map<number, number>();
-	for (const summary of buildPillarSummaries(pillars, tasks, new Map<number, number>())) {
-		doneEffortByPillar.set(summary.pillar.id, summary.doneEstimatedEffort);
-	}
-	return doneEffortByPillar;
-};
-
 const AppShell = ({ user }: { user: AuthUser }) => {
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -119,14 +104,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [searchDraft, setSearchDraft] = useState(taskSearch);
 	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
 	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
-
-	// #1220: Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz).
-	// Zuständigkeiten strikt getrennt: Der Schalter wechselt nur die Sicht, „Neu berechnen" setzt
-	// nur den Stand neu. Deshalb hängt die Rechnung an keinem der beiden, sondern an den Daten.
-	const [balanceMode, setBalanceMode] = useState(false);
-	const [balanceSnapshot, setBalanceSnapshot] = useState<ReadonlyMap<number, BalancePriority> | null>(null);
-	const [balanceSortedAt, setBalanceSortedAt] = useState('');
-	const [rebalancing, setRebalancing] = useState(false);
 
 	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
 	const applyTaskFilter = useCallback(
@@ -167,53 +144,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		},
 		[setSearchParams],
 	);
-
-	// #1220: Der mitlaufende Balance-Stand zur aktuellen Datenlage. Einzige Rechenstelle für den
-	// laufenden Wert — weder Schalter noch Button rechnen selbst.
-	const liveBalance = useMemo(
-		() => buildBalancePriorities(pillars, buildDoneEffortByPillar(pillars, tasks ?? []), tasks ?? []),
-		[pillars, tasks],
-	);
-
-	// #1220: Solange der Modus aus ist, zieht der Snapshot mit den Daten mit — sichtbar ist nichts,
-	// also springt auch nichts. Mit dem Einschalten hört das auf: Der Stand friert ein (AK2) und
-	// bleibt stehen, während man die Liste abarbeitet. Genau dort schützt das Einfrieren, und nur
-	// „Neu berechnen" löst es. Der Schalter selbst rechnet dadurch nie und sieht trotzdem sofort
-	// einen aktuellen Stand.
-	useEffect(() => {
-		if (!balanceMode) {
-			setBalanceSnapshot(liveBalance);
-			setBalanceSortedAt(new Date().toLocaleTimeString('de-DE'));
-		}
-	}, [balanceMode, liveBalance]);
-
-	// #1220: Weicht der eingefrorene Stand von der aktuellen Datenlage ab? Nur so ist für den
-	// Nutzer erkennbar, wann „Neu berechnen" überhaupt etwas ändert.
-	const balanceStale = balanceMode && !balancePrioritiesEqual(balanceSnapshot, liveBalance);
-
-	/**
-	 * #1220: „Neu berechnen" (AK2) — lädt die Datenbasis frisch und ersetzt damit den eingefrorenen
-	 * Stand. Fasst den Modus bewusst nicht an: Der Schalter wechselt die Sicht, dieser Button den
-	 * Stand. Der Snapshot wird aus den frisch geladenen Daten gesetzt statt aus dem State, den
-	 * dieser Closure zum Klickzeitpunkt noch veraltet hielte.
-	 */
-	const rebalanceTasks = useCallback(async (): Promise<void> => {
-		setRebalancing(true);
-		try {
-			const [freshTasks, freshPillars] = await Promise.all([api.listTasks(), api.listPillars()]);
-			setTasks(freshTasks);
-			setPillars(freshPillars);
-			setBalanceSnapshot(
-				buildBalancePriorities(freshPillars, buildDoneEffortByPillar(freshPillars, freshTasks), freshTasks),
-			);
-			setBalanceSortedAt(new Date().toLocaleTimeString('de-DE'));
-		} catch (reason) {
-			const apiError = await toApiError(reason);
-			setLoadError(apiError.message);
-		} finally {
-			setRebalancing(false);
-		}
-	}, []);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -733,29 +663,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										},
 									}}
 								/>
-								<KolInputCheckbox
-									className="task-view-switch"
-									_label="Balance-Priorisierung"
-									_variant="switch"
-									_checked={balanceMode}
-									_on={{
-										onChange: (_event, checked) => {
-											// Der Schalter wechselt ausschließlich die Sicht — der Stand liegt schon
-											// vor, weil er bei ausgeschaltetem Modus mitläuft. flushSync nur, damit
-											// die Umsortierung noch im Klick-Event steht (AT und E2E lesen sofort).
-											flushSync(() => setBalanceMode(checked === true));
-										},
-									}}
-								/>
-								{balanceMode && (
-									// KI-UX (#1220): Die Umsortierung wird per Live-Region angekündigt (WCAG 4.1.3);
-									// der Zeitpunkt macht den eingefrorenen Stand greifbar („Stand …"). Der
-									// Veraltet-Zusatz zeigt an, wann „Neu berechnen" etwas ändern würde.
-									<p className="task-filter-bar__hint" aria-live="polite">
-										Liste nach Balance-Priorität sortiert (Stand: {balanceSortedAt}
-										{balanceStale && ' · Daten haben sich geändert'})
-									</p>
-								)}
 								<div className="task-filter-search">
 									<KolInputText
 										ref={taskFilterInputRef}
@@ -785,20 +692,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 									/>
 								</div>
-								{/* #1220: Nur im aktiven Modus — außerhalb hätte ein Klick keine sichtbare Wirkung,
-								    weil der Stand dann ohnehin mitläuft. Der Button setzt ausschließlich den Stand
-								    neu und lässt den Schalter unangetastet. */}
-								{balanceMode && (
-									<KolButton
-										className="task-balance-button"
-										// Während des Ladens sagt das Label, dass gearbeitet wird — `_disabled` allein
-										// ließe den Button bei trägem Netz tot statt beschäftigt wirken.
-										_label={rebalancing ? 'Berechne neu …' : 'Neu berechnen'}
-										_variant="secondary"
-										_disabled={rebalancing}
-										_on={{ onClick: () => void rebalanceTasks() }}
-									/>
-								)}
 							</div>
 							{taskViewMode === 'open' ? (
 								filteredForest.length === 0 ? (
@@ -823,7 +716,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										tasks={tasks}
 										progressMap={progressMap}
 										userId={user.id}
-										balancePriorities={balanceMode ? balanceSnapshot : null}
 										onEdit={openEdit}
 										onDelete={openDelete}
 										onEditDependencies={openDependencies}
