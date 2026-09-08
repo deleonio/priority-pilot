@@ -81,19 +81,30 @@ vi.mock('@public-ui/react-v19', () => ({
 	// der Summary-Klick ruft den onClick-Callback mit dem neuen Zustand auf (KoliBri-Signatur:
 	// Event + Boolean). Der Inhalt bleibt wie im echten kol-accordion im DOM (nur visisch versteckt),
 	// damit die bestehenden Feld-Tests unverändert greifen.
+	// #1285 (AK2): `_disabled` wird wie in KoliBri 4.3.0 behandelt — der Trigger ignoriert ALLE
+	// Events (onClick wird nicht gefeuert), das `disabled`-Attribut spiegelt den Zustand.
 	KolAccordion: ({
 		_label,
 		_open,
 		_on,
+		_disabled,
 		children,
 	}: {
 		_label?: string;
 		_open?: boolean;
 		_on?: { onClick?: (event: unknown, open: boolean) => void };
+		_disabled?: boolean;
 		children?: ReactNode;
 	}) => (
-		<details open={_open === true} data-accordion={_label}>
-			<summary onClick={(e) => _on?.onClick?.(e.nativeEvent, !(_open === true))}>{_label}</summary>
+		<details open={_open === true} aria-disabled={_disabled === true || undefined} data-accordion={_label}>
+			<summary
+				onClick={(e) => {
+					if (_disabled === true) return;
+					_on?.onClick?.(e.nativeEvent, !(_open === true));
+				}}
+			>
+				{_label}
+			</summary>
 			{children}
 		</details>
 	),
@@ -2146,70 +2157,68 @@ describe('TaskForm — Empfängerauswahl im Bearbeiten-Modus / Übergabe (#1252 
 	});
 });
 
-describe('TaskForm — Kompakte Sektionen (#1260)', () => {
+describe('TaskForm — Sektionen als Accordions (#1285)', () => {
 	/** Liefert das `<details>`-Element des gemockten Akkordeons zur Sektion mit dem Label. */
-	const accordionOf = (label: string): HTMLDetailsElement =>
-		screen.getByText(label).closest('details') as HTMLDetailsElement;
+	const accordionOf = (label: string): HTMLDetailsElement | null =>
+		screen.queryByText(label)?.closest('details') ?? null;
 
-	it('AK1/AK2 — Anlegen: Pflichtfelder sofort sichtbar, beide Opt-in-Sektionen zugeklappt', async () => {
+	// AK1 — alle drei Abschnitte sind KolAccordion-Behälter (statt Karte + Heading bei Basisangaben).
+	it('AK1 — alle drei Abschnitte sind Akkordeon-Behälter', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 
-		expect(screen.getByLabelText('Titel')).toBeInTheDocument();
-		expect(screen.getByLabelText(/Priorität/)).toBeInTheDocument();
-		expect(screen.getByLabelText(/Aufwand in Tagen/)).toBeInTheDocument();
-		expect(accordionOf('Termin & Ort').open).toBe(false);
-		expect(accordionOf('Optional').open).toBe(false);
+		expect(accordionOf('Basisangaben')).not.toBeNull();
+		expect(accordionOf('Termin & Ort')).not.toBeNull();
+		expect(accordionOf('Optional')).not.toBeNull();
 	});
 
-	it('AK2 — je ein Klick klappt die Sektion einzeln auf', async () => {
+	// AK2 — Basisangaben startet offen; der Trigger ist deaktiviert, Klick klappt nicht zu.
+	it('AK2 — Basisangaben: dauerhaft offen, Trigger-Klick klappt nicht zu (_disabled)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 
-		fireEvent.click(screen.getByText('Termin & Ort'));
-		expect(accordionOf('Termin & Ort').open).toBe(true);
-		expect(accordionOf('Optional').open).toBe(false);
+		const details = accordionOf('Basisangaben');
+		expect(details).not.toBeNull();
+		expect(details!.open).toBe(true);
 
-		fireEvent.click(screen.getByText('Optional'));
-		expect(accordionOf('Optional').open).toBe(true);
+		fireEvent.click(screen.getByText('Basisangaben'));
+		expect(details!.open).toBe(true);
+		expect(details).toHaveAttribute('aria-disabled', 'true');
 	});
 
-	it('AK4 — Task-Bearbeiten mit gefüllter Deadline: „Termin & Ort" startet aufgeklappt', async () => {
+	// AK3 — Anlegen: beide Opt-in-Sektionen zugeklappt.
+	it('AK3 — Anlegen: Termin & Ort und Optional zugeklappt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(accordionOf('Termin & Ort')!.open).toBe(false);
+		expect(accordionOf('Optional')!.open).toBe(false);
+	});
+
+	// AK3 — Bearbeiten (Task mit Deadline): #1260-Vorbelegung „Edit mit Werten startet offen"
+	// ist bewusst ersetzt — beide Opt-in-Sektionen starten zu.
+	it('AK3 — Task-Bearbeiten mit gefüllter Deadline: beide Opt-ins zugeklappt', async () => {
 		await act(async () => {
 			render(
 				<TaskForm task={{ ...minimalNewTask(), deadline: new Date('2026-08-15T00:00:00.000Z') }} {...defaultProps} />,
 			);
 		});
 
-		expect(accordionOf('Termin & Ort').open).toBe(true);
-		expect(accordionOf('Optional').open).toBe(false);
+		expect(accordionOf('Termin & Ort')!.open).toBe(false);
+		expect(accordionOf('Optional')!.open).toBe(false);
 	});
 
-	it('AK4 — Task-Bearbeiten mit Beschreibung: „Optional" startet aufgeklappt', async () => {
-		await act(async () => {
-			render(<TaskForm task={{ ...minimalNewTask(), description: 'Vorhandene Beschreibung' }} {...defaultProps} />);
-		});
-
-		expect(accordionOf('Optional').open).toBe(true);
-		expect(accordionOf('Termin & Ort').open).toBe(false);
-	});
-
-	it('AK4 — Task-Bearbeiten ohne gefüllte Opt-in-Werte: beide zugeklappt', async () => {
-		await act(async () => {
-			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
-		});
-
-		expect(accordionOf('Termin & Ort').open).toBe(false);
-		expect(accordionOf('Optional').open).toBe(false);
-	});
-
-	it('AK4 — Serien-Bearbeiten: „Termin & Ort" startet wegen vorhandenem Startdatum aufgeklappt', async () => {
+	// AK3 — Serien-Bearbeiten mit Startdatum: ebenfalls zugeklappt.
+	it('AK3 — Serien-Bearbeiten mit Startdatum: beide Opt-ins zugeklappt', async () => {
 		const SeriesEdit = TaskForm as unknown as (
 			props: typeof defaultProps & { task: null; series: Series },
 		) => ReactNode;
@@ -2218,7 +2227,41 @@ describe('TaskForm — Kompakte Sektionen (#1260)', () => {
 			render(<SeriesEdit task={null} series={minimalSeries()} {...defaultProps} />);
 		});
 
-		expect(accordionOf('Termin & Ort').open).toBe(true);
-		expect(accordionOf('Optional').open).toBe(false);
+		expect(accordionOf('Termin & Ort')!.open).toBe(false);
+		expect(accordionOf('Optional')!.open).toBe(false);
+	});
+
+	// AK3 — Bearbeiten mit gefüllter Checkliste: „Optional“ startet zu.
+	it('AK3 — Task-Bearbeiten mit gefüllter Checkliste: Optional zugeklappt', async () => {
+		await act(async () => {
+			render(
+				<TaskForm
+					task={{ ...minimalNewTask(), checklist: [{ id: 'c1', title: 'Aufräumen', completed: false }] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		expect(accordionOf('Optional')!.open).toBe(false);
+	});
+
+	// AK4 — Opt-in-Sektionen bleiben per Trigger aus-/einklappbar (auf- und wieder zuklappen).
+	it('AK4 — Trigger klappt die Sektionen einzeln auf und wieder zu', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		fireEvent.click(screen.getByText('Termin & Ort'));
+		expect(accordionOf('Termin & Ort')!.open).toBe(true);
+		fireEvent.click(screen.getByText('Termin & Ort'));
+		expect(accordionOf('Termin & Ort')!.open).toBe(false);
+
+		fireEvent.click(screen.getByText('Optional'));
+		expect(accordionOf('Optional')!.open).toBe(true);
+		expect(accordionOf('Termin & Ort')!.open).toBe(false);
+		fireEvent.click(screen.getByText('Optional'));
+		expect(accordionOf('Optional')!.open).toBe(false);
 	});
 });
