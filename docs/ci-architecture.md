@@ -291,10 +291,11 @@ Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTING
 - **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call**; es war als Subagent-Modell
   im Spiel und ist seit der Umstellung auf `glm-4.7` (2026-09) nicht mehr konfiguriert. Die
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
-  Seit der globalen LLM-Serialisierung (eine gemeinsame statische `concurrency`-Gruppe `llm`
-  über alle LLM-Workflows, s. [pipeline-flow.md](./pipeline-flow.md)) ist die Obergrenze
-  strukturell **1 gleichzeitiger Agent-Lauf** — weitere Läufe reihen sich in der gemeinsamen
-  FIFO-Queue ein, statt parallel Kontingent zu ziehen.
+  Die `concurrency`-Gruppen deckeln die Parallelität strukturell: eine eigene statische Gruppe
+  je Phase (`llm-triage` … `llm-document`) plus eine gemeinsame Gruppe `llm-sync` für alle
+  Cron-/Ad-hoc-Läufe (s. [pipeline-flow.md](./pipeline-flow.md)). Obergrenze: **bis zu 7
+  gleichzeitige Agent-Läufe** (6 Phasen + 1 Sync-Slot). Innerhalb einer Gruppe reihen sich
+  weitere Läufe FIFO ein, statt parallel Kontingent zu ziehen.
 - **Sperrzeiten:** Das einzige gebuchte Modell mit Spitzenzeit-Aufschlag ist `glm-5-turbo`
   (Mo–Fr 14:00–18:00 UTC+8 = dt. Vormittag, DST-abhängig 07:00–11:00 MEZ / 08:00–12:00 MESZ;
   am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Check in `setup-agent`

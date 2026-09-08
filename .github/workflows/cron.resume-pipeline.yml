@@ -149,10 +149,12 @@ jobs:
           for ENTRY in $(printf '%s\n' "${!PHASES[@]}" | sort); do
             IFS='|' read -r WF LABEL KIND <<< "${PHASES[$ENTRY]}"
 
-            # 1) Ruht die Phase? Alle LLM-Workflows teilen EINE gemeinsame concurrency-Gruppe (llm,
-            #    queue: max) — ist irgendein Run queued/in_progress, kann kein Kandidat dieser
-            #    Phase "in Arbeit" sein, ohne dass die Phase Runs hat. Dann skip (konservativ):
-            #    Der nächste 6h-Zyklus findet den Kleber, sobald die Phase wieder ruht.
+            # 1) Ruht die Phase? Jede Phase hat eine eigene statische concurrency-Gruppe
+            #    (llm-<phase>, queue: max) — ist ein Run DIESER Phase queued/in_progress, kann
+            #    kein Kandidat der Phase "in Arbeit" sein, ohne dass die Phase Runs hat. Dann
+            #    skip (konservativ): Der nächste 6h-Zyklus findet den Kleber, sobald die Phase
+            #    wieder ruht. Läufe anderer Phasen sind irrelevant — deshalb ist die Abfrage
+            #    bewusst auf $WF eingegrenzt.
             latest="$(gh run list --workflow "$WF" --repo "$REPO" -L 1 --json status,createdAt 2>/dev/null || echo '[]')"
             status="$(printf '%s' "$latest" | jq -r '.[0].status // ""')"
             if [ "$status" = "queued" ] || [ "$status" = "in_progress" ]; then

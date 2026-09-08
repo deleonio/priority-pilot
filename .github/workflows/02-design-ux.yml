@@ -20,8 +20,8 @@ on:
         type: string
 
 concurrency:
-  # Gemeinsame LLM-Gruppe: ALLE LLM-Workflows teilen EINE Queue (max. 1 Lauf repo-weit, FIFO).
-  group: llm
+  # Eigene Gruppe pro Phase: max. 1 UX-Lauf gleichzeitig, FIFO — andere Phasen laufen parallel.
+  group: llm-ux
   cancel-in-progress: false
   queue: max
 
