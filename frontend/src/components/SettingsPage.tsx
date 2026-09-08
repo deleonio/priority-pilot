@@ -1,6 +1,7 @@
 import {
 	KolAlert,
 	KolButton,
+	KolCard,
 	KolDetails,
 	KolHeading,
 	KolInputCheckbox,
@@ -480,11 +481,18 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
 						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
 					<PillarList onPillarChanged={onPillarChanged} />
-					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
+					    Gruppierungsfläche, Muster wie die Dashboard-Karten): Die H3-Überschrift unter
+					    „Säulen-Gewichtung“ benennt die Gruppe auch für die Überschriften-Navigation;
+					    die Slider-Zeilen selbst tragen bewusst keinen eigenen Kartenrahmen mehr
+					    (keine verschachtelten Karten). */}
+					<KolCard className="pillar-weights-card" _label="Gewichtung" _level={3}>
+						{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
 						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
 						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
 						    übernommen werden. */}
-					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
+						<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
+					</KolCard>
 				</div>
 				<div slot="tab-2" className="settings-llm">
 					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
