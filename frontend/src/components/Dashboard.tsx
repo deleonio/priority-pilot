@@ -315,9 +315,40 @@ export const Dashboard = ({
 										_low={calculateMeterThreshold(pillar.weight)}
 										_high={calculateMeterHighThreshold(pillar.weight)}
 									/>
-									<span className="dashboard-pillar-meta">
-										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
-									</span>
+									{/*
+									 * Die Kennzahlen stehen als beschriftete Wertepaare statt als ein Fließtext-Satz:
+									 * Screenreader lesen vier benannte Werte, das Auge findet sie ohne Satz-Parsing.
+									 * Der Anteil führt, weil er die Frage der Karte beantwortet („wo stehe ich?");
+									 * die Aufschlüsselung offen/erledigt hängt gedämpft an ihrem jeweiligen Wert.
+									 */}
+									<dl className="dashboard-pillar-facts">
+										<div className="dashboard-pillar-fact dashboard-pillar-fact--lead">
+											<dt>Anteil</dt>
+											<dd>{Math.round(actualShare * 100)} %</dd>
+										</div>
+										<div className="dashboard-pillar-fact">
+											<dt>Aufgaben</dt>
+											<dd>
+												{taskCount}
+												<span className="dashboard-pillar-split">
+													{openCount} offen · {doneCount} erledigt
+												</span>
+											</dd>
+										</div>
+										<div className="dashboard-pillar-fact">
+											<dt>Wert</dt>
+											<dd>{formatNumber(totalValue)}</dd>
+										</div>
+										<div className="dashboard-pillar-fact">
+											<dt>Aufwand</dt>
+											<dd>
+												{formatNumber(totalEstimatedEffort)} Tage
+												<span className="dashboard-pillar-split">
+													{formatNumber(openEstimatedEffort)} offen · {formatNumber(doneEstimatedEffort)} erledigt
+												</span>
+											</dd>
+										</div>
+									</dl>
 								</li>
 							),
 						)}
