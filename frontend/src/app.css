@@ -271,9 +271,9 @@ body {
 	 * --pp-surface-2, feiner Rahmen und Radius setzen ihn gegen den weißen Inhalt darunter ab.
 	 * Die Höhe bleibt an --pp-toolbar-height gebunden (siehe --pp-avatar-size oben) — die
 	 * Leiste beansprucht dadurch auf allen Breiten nur die WCAG-Mindesthöhe der Buttons.
+	 * `column-gap`/`padding` bleiben mobil aus (siehe 48rem-Media-Query): auf 375px zählt laut
+	 * #965 jedes Pixel der Zeile, das Budget verträgt hier keinen zusätzlichen Abstand.
 	 */
-	column-gap: var(--pp-space-2);
-	padding: var(--pp-space-2) var(--pp-space-3);
 	background: var(--pp-surface-2);
 	border: 1px solid var(--pp-border-subtle);
 	border-radius: var(--pp-radius-md);
@@ -283,6 +283,8 @@ body {
 	.app-header {
 		/* Nur der Zeilenabstand wächst; `column-gap` bleibt eng, damit die Leiste kompakt liest. */
 		row-gap: var(--pp-gap-base);
+		column-gap: var(--pp-space-2);
+		padding: var(--pp-space-2) var(--pp-space-3);
 	}
 }
 
