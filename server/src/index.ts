@@ -148,6 +148,7 @@ export const main = async (): Promise<void> => {
 			migrateUsersDisplayNameCustom,
 			migrateLlmProviderKindColumns,
 			migrateTaskCreatedById,
+			migrateUsersRoleColumn,
 		} = await import('./logics/migrate.js');
 		const { buildTaskForest } = await import('./logics/tree.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
@@ -202,6 +203,9 @@ export const main = async (): Promise<void> => {
 		// Fehlende createdById-Spalte an tasks nachziehen (#1213 — Ersteller-Konto) — vor sync(),
 		// damit der erweiterte Lese-Scope auf Bestands-DBs nicht mit `no such column` bricht.
 		await migrateTaskCreatedById(sequelize);
+		// Fehlende role-Spalte (Rollensystem admin/member) an users nachziehen — vor sync(), damit
+		// Login, /auth/me und die Admin-API auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateUsersRoleColumn(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

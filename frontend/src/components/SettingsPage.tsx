@@ -24,6 +24,7 @@ import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
 import { AppearanceSetting } from './AppearanceSetting';
+import { AdminUsersSection } from './AdminUsersSection';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
@@ -39,13 +40,16 @@ interface SettingsPageProps {
 	onSaved: () => void;
 	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
 	onPillarChanged?: () => void;
+	/** Rollensystem admin/member: blendet den Tab „Nutzerverwaltung" ein (Server erzwingt, UI blendet nur aus). */
+	isAdmin?: boolean;
 }
 
-// Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
-// eine neue Tab-Liste erhält und die Auswahl zurücksetzt. Reihenfolge: Allgemein (Index 0), Säulen
-// (Index 1), KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211). Muss
-// index-paritätisch mit `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben.
-const SETTINGS_TABS = [
+// Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
+// KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211), optional
+// Nutzerverwaltung (Index 5, nur für Admins). Muss index-paritätisch mit `SETTINGS_PATH_SEGMENTS`
+// in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt statt eingeschoben, damit
+// sich die Indizes der ersten fünf Tabs für Member nie verschieben.
+const BASE_SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
 	{ _label: 'KI-Provider' },
@@ -76,7 +80,21 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
  * abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2),
  * `/settings/standort` → Standort (3), alles andere → Säulen (1).
  */
-export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
+export const SettingsPage = ({
+	pillars,
+	tab,
+	onTabChange,
+	onBack,
+	onSaved,
+	onPillarChanged,
+	isAdmin = false,
+}: SettingsPageProps) => {
+	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
+	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
+	const settingsTabs = useMemo(
+		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : [])],
+		[isAdmin],
+	);
 	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`
 	// übergeben (AK4) — `/settings/llm` öffnet damit den KI-Provider-Tab (#886). Ohne Prop (direkte
 	// Verwendung in Unit-Tests) gilt der Säulen-Tab als Default; `localTab` hält den letzten Select.
@@ -300,7 +318,7 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 			<KolTabs
 				className="settings-tabs"
 				_label="Einstellungen"
-				_tabs={SETTINGS_TABS}
+				_tabs={settingsTabs}
 				_selected={activeTab}
 				_on={tabsCallbacks}
 			>
@@ -474,25 +492,46 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
 					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
 					    verwerfen und bei jeder Rückkehr einen erneuten Provider-Fetch auslösen (#886). */}
-				<div slot="tab-1">
-					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
-						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
-					<KolHeading _label="Säulen-Gewichtung" _level={2} />
-					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
-					<PillarList onPillarChanged={onPillarChanged} />
-					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
-					    Gruppierungsfläche, Muster wie die Dashboard-Karten): Die H3-Überschrift unter
-					    „Säulen-Gewichtung“ benennt die Gruppe auch für die Überschriften-Navigation;
-					    die Slider-Zeilen selbst tragen bewusst keinen eigenen Kartenrahmen mehr
-					    (keine verschachtelten Karten). */}
-					<KolCard className="pillar-weights-card" _label="Gewichtung" _level={3}>
-						{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-						    übernommen werden. */}
-						<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
-					</KolCard>
+				{/*
+				 * Der Tab „Säulen" trägt zwei getrennte Aufgaben: die Stammdaten-Verwaltung (anlegen,
+				 * bearbeiten, löschen) und die Gewichtung. Bis dahin standen beide unter der einen
+				 * Überschrift „Säulen-Gewichtung" — die Überschrift log über die Liste darunter und die
+				 * H3-Säulennamen der Liste standen im Überschriften-Baum als Geschwister der
+				 * Gewichtungs-Gruppe (WCAG 1.3.1). Jetzt: zwei `<section>` mit je eigener H2, die
+				 * Vertragsüberschrift „Säulen-Gewichtung" (#270, settings-page.spec.ts) benennt genau
+				 * den Abschnitt, für den sie gilt.
+				 */}
+				<div slot="tab-1" className="settings-pillars">
+					<section className="settings-pillars-section">
+						<KolHeading _label="Säulen verwalten" _level={2} />
+						{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
+							    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+						<PillarList onPillarChanged={onPillarChanged} />
+					</section>
+					<section className="settings-pillars-section">
+						{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
+							    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
+						<KolHeading _label="Säulen-Gewichtung" _level={2} />
+						{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
+						    Gruppierungsfläche, Muster wie die Dashboard-Karten); die Slider-Zeilen selbst
+						    tragen bewusst keinen eigenen Kartenrahmen (keine verschachtelten Karten).
+						    Das Karten-Label ist `_label` von KolCard (Pflicht-Prop) und benennt jetzt den
+						    Karteninhalt statt den Abschnitt zu wiederholen: unter der H2 „Säulen-Gewichtung"
+						    stand bisher die H3 „Gewichtung" — zwei Namen für dieselbe Sache. */}
+						<KolCard className="pillar-weights-card" _label="Verteilung je Säule" _level={3}>
+							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+							    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+							    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+							    übernommen werden. Der Key ist die ID-Folge, nicht die Anzahl: Löschen + Anlegen
+							    zwischen zwei Renders lässt die Anzahl gleich, ordnete die Rohwerte im Ref aber
+							    den falschen Säulen zu. */}
+							<PillarWeightsForm
+								key={pillars.map((pillar) => pillar.id).join('-')}
+								pillars={pillars}
+								onSaved={onSaved}
+							/>
+						</KolCard>
+					</section>
 				</div>
 				<div slot="tab-2" className="settings-llm">
 					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
@@ -674,6 +713,11 @@ export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPil
 				<div slot="tab-4" className="settings-groups">
 					<GroupsSection />
 				</div>
+				{isAdmin && (
+					<div slot="tab-5" className="settings-admin-users">
+						<AdminUsersSection />
+					</div>
+				)}
 			</KolTabs>
 		</main>
 	);

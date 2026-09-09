@@ -5,8 +5,9 @@ import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import sequelize from '../../database.js';
 import { Pillar, User } from '../../models/index.js';
+import type { UserRole } from '../../models/user.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
-import { hashPassword, verifyPassword } from '../../logics/auth.js';
+import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 
@@ -53,7 +54,7 @@ authRouter.post('/auth/register', async (req, res) => {
 	try {
 		created = await sequelize.transaction(async (t) => {
 			const user = await User.create(
-				{ email: normalizedEmail, passwordHash, displayName: normalizedEmail },
+				{ email: normalizedEmail, passwordHash, displayName: normalizedEmail, role: resolveRole(normalizedEmail) },
 				{ transaction: t },
 			);
 			// Säulen pro Nutzer (#421, AK4): dem frisch angelegten Nutzer seine eigenen fünf Standard-Säulen
@@ -80,7 +81,13 @@ authRouter.post('/auth/register', async (req, res) => {
 			res.status(500).json({ message: 'Session-Fehler.' });
 			return;
 		}
-		req.session.user = { id: created.id, email: normalizedEmail, displayName: normalizedEmail, avatarUrl: null };
+		req.session.user = {
+			id: created.id,
+			email: normalizedEmail,
+			displayName: normalizedEmail,
+			avatarUrl: null,
+			role: created.role,
+		};
 		req.session.save((saveErr) => {
 			if (saveErr) {
 				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
@@ -115,7 +122,18 @@ authRouter.post('/auth/login', async (req, res) => {
 		return;
 	}
 
-	const sessionUser = { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: null };
+	// Rollensystem admin/member: ADMIN_EMAILS bei jedem Login neu abgleichen (nur Beförderung).
+	const effectiveRole = resolveRole(normalizedEmail, user.role);
+	if (effectiveRole !== user.role) {
+		await user.update({ role: effectiveRole });
+	}
+	const sessionUser = {
+		id: user.id,
+		email: user.email,
+		displayName: user.displayName,
+		avatarUrl: null,
+		role: effectiveRole,
+	};
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
 		if (err) {
@@ -200,7 +218,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 		'google',
 		(
 			err: Error | null,
-			user: { id: number; email: string; displayName: string; avatarUrl?: string | null } | false,
+			user: { id: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole } | false,
 		) => {
 			if (err) {
 				console.error('Google-OAuth-Callback fehlgeschlagen:', err);
@@ -237,6 +255,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 					email: user.email,
 					displayName: user.displayName,
 					avatarUrl: user.avatarUrl ?? null,
+					role: user.role,
 				};
 				req.session.save(() => res.redirect(silentReturnTo ?? '/'));
 			});
@@ -244,8 +263,11 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 	)(req, res, next);
 });
 
-// GET /auth/me — gibt die aktuelle Session zurück (oder 401)
-authRouter.get('/auth/me', (req, res) => {
+// GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB
+// (nicht aus dem Session-Snapshot): So wirken Beförderung und Rückstufung über die Admin-API
+// sofort auf den Tab „Nutzerverwaltung“, und Alt-Sessions von vor dem Rollensystem (ohne `role`)
+// erhalten ihre echte Rolle statt `undefined`. Anzeigefelder bleiben bewusst Session-Daten.
+authRouter.get('/auth/me', async (req, res) => {
 	// Pass-Through-Modus: Ist überhaupt kein Auth-Kontext konfiguriert (siehe `isAuthActive`), lässt
 	// `requireAuth` jede API-Route ungehindert durch — dann darf `/auth/me` nicht 401 melden. Sonst
 	// zeigt das Frontend eine Login-Seite, hinter die niemand kommt: ohne OAuth-Credentials ist weder
@@ -260,7 +282,25 @@ authRouter.get('/auth/me', (req, res) => {
 		return;
 	}
 	const user = req.session.user;
-	res.json({ id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null });
+	let role: UserRole;
+	try {
+		const dbRole = typeof user.id === 'number' ? (await User.findByPk(user.id))?.role : undefined;
+		role = dbRole ?? user.role ?? 'member';
+	} catch {
+		res.status(500).json({ message: 'Interner Serverfehler.' });
+		return;
+	}
+	// Snapshot nachziehen, damit Alt-Sessions ab jetzt eine Rolle tragen (self-healing).
+	if (user.role !== role) {
+		user.role = role;
+	}
+	res.json({
+		id: user.id,
+		email: user.email,
+		displayName: user.displayName,
+		avatarUrl: user.avatarUrl ?? null,
+		role,
+	});
 });
 
 // POST /auth/logout — Session beenden
@@ -276,10 +316,12 @@ authRouter.post('/auth/logout', (req, res) => {
 // bei versehentlichem Deploy einer test-Konfiguration.
 if (process.env.NODE_ENV === 'test') {
 	authRouter.post('/auth/test-login', async (req, res) => {
-		const { email, displayName, avatarUrl } = req.body as {
+		const { email, displayName, avatarUrl, role } = req.body as {
 			email?: string;
 			displayName?: string;
 			avatarUrl?: string | null;
+			/** Rollensystem admin/member: Tests dürfen die Rolle direkt setzen (nur NODE_ENV=test). */
+			role?: UserRole;
 		};
 
 		// Multi-User-Gate (Issue #193, AK-8): nicht-erlaubte E-Mail → 401.
@@ -295,8 +337,12 @@ if (process.env.NODE_ENV === 'test') {
 		// Test-Nutzer ohne Passwort: find/create analog zum OAuth-Pfad.
 		const [dbUser] = await User.findOrCreate({
 			where: { email },
-			defaults: { email, passwordHash: '__test__', displayName: resolvedDisplayName },
+			defaults: { email, passwordHash: '__test__', displayName: resolvedDisplayName, role: role ?? resolveRole(email) },
 		});
+		const effectiveRole = role ?? resolveRole(email, dbUser.role);
+		if (effectiveRole !== dbUser.role) {
+			await dbUser.update({ role: effectiveRole });
+		}
 
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
@@ -304,7 +350,13 @@ if (process.env.NODE_ENV === 'test') {
 				res.status(500).json({ message: 'Session-Fehler.' });
 				return;
 			}
-			req.session.user = { id: dbUser.id, email, displayName: resolvedDisplayName, avatarUrl: avatarUrl ?? null };
+			req.session.user = {
+				id: dbUser.id,
+				email,
+				displayName: resolvedDisplayName,
+				avatarUrl: avatarUrl ?? null,
+				role: effectiveRole,
+			};
 			req.session.save(() => {
 				res.json({ message: 'Eingeloggt.' });
 			});

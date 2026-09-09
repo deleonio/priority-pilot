@@ -100,6 +100,11 @@ Schritt still übersprungen.
   `MISTRAL_API_URL`, `OPENROUTER_MODEL`, `OPENROUTER_API_URL` — Details:
   [docs/llm-providers.md](../docs/llm-providers.md).
 - `DB_RESET`, `DATABASE_STORAGE`, `PORT` — siehe `server/.env.example`.
+- `ADMIN_EMAILS` (Rollensystem admin/member): Konten, die bei Register/Login/OAuth automatisch
+  zu `admin` befördert werden (CSV oder JSON-Array, nur Beförderung, nie Rückstufung —
+  `server/src/logics/adminEmails.ts`). Alle anderen Konten sind `member`; Rollen ändern Admins in
+  den Einstellungen unter „Nutzerverwaltung" (`GET/PATCH /admin/users…`, `requireRole('admin')`
+  liest die Rolle frisch aus der DB). Nicht zu verwechseln mit der Gruppen-Rolle (`GroupMember.role`).
 
 ## Datenbank
 
