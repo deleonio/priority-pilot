@@ -1,6 +1,11 @@
 import type { TaskGraph, TaskGraphEdge, TaskGraphNode } from 'client';
 import { describe, expect, it } from 'vitest';
-import { layoutGraph, selectTopNodes } from './graphLayout';
+import * as graphLayout from './graphLayout';
+
+const { layoutGraph } = graphLayout;
+// `splitIntoTrees` existiert noch nicht (rote Tests für #1314, neue Funktion) — Cast hält `tsc`
+// grün, der Aufruf selbst bleibt zur Laufzeit rot, bis die Implementierung folgt.
+const splitIntoTrees = (graphLayout as unknown as { splitIntoTrees: (graph: TaskGraph) => TaskGraph[] }).splitIntoTrees;
 
 const node = (id: number, value = 1): TaskGraphNode => ({
 	id,
@@ -83,22 +88,41 @@ describe('layoutGraph', () => {
 	});
 });
 
-describe('selectTopNodes', () => {
+describe('splitIntoTrees', () => {
 	const graph = (nodes: TaskGraphNode[], edges: TaskGraphEdge[]): TaskGraph => ({ nodes, edges });
 
-	it('Gibt den Graphen unverändert zurück, wenn er unter dem Limit liegt', () => {
-		const input = graph([node(1), node(2)], [edge(1, 2)]);
-		expect(selectTopNodes(input, 60)).toEqual(input);
+	it('Zwei verbundene Paare plus zwei isolierte Knoten ⇒ genau 2 Bäume, isolierte IDs in keinem Baum', () => {
+		const input = graph([node(1), node(2), node(3), node(4), node(5), node(6)], [edge(1, 2), edge(3, 4)]);
+		const trees = splitIntoTrees(input);
+		expect(trees).toHaveLength(2);
+		const idsInTrees = trees.flatMap((tree) => tree.nodes.map((entry) => entry.id));
+		expect(idsInTrees.sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
+		expect(idsInTrees).not.toContain(5);
+		expect(idsInTrees).not.toContain(6);
 	});
 
-	it('Kappt auf die wertvollsten Knoten (Server liefert absteigend sortiert)', () => {
-		const input = graph([node(1, 9), node(2, 5), node(3, 1)], []);
-		expect(selectTopNodes(input, 2).nodes.map((entry) => entry.id)).toEqual([1, 2]);
+	it('Jede Eingangskante landet in genau einem Baum', () => {
+		const input = graph([node(1), node(2), node(3), node(4)], [edge(1, 2), edge(3, 4)]);
+		const trees = splitIntoTrees(input);
+		const totalEdges = trees.reduce((sum, tree) => sum + tree.edges.length, 0);
+		expect(totalEdges).toBe(2);
 	});
 
-	it('Wirft keine Kante ins Leere: Kanten zu gekappten Knoten fallen weg', () => {
-		const input = graph([node(1, 9), node(2, 5), node(3, 1)], [edge(1, 2), edge(3, 2), edge(1, 3)]);
-		const capped = selectTopNodes(input, 2);
-		expect(capped.edges).toEqual([edge(1, 2)]);
+	it('Diamant (zwei Vorgänger, zwei Nachfolger auf einen gemeinsamen Knoten) bleibt EIN Baum', () => {
+		const input = graph([node(1), node(2), node(3), node(4)], [edge(1, 2), edge(1, 3), edge(2, 4), edge(3, 4)]);
+		const trees = splitIntoTrees(input);
+		expect(trees).toHaveLength(1);
+		expect(trees[0].nodes.map((entry) => entry.id).sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
+	});
+
+	it('Reihenfolge: der Baum mit dem höchsten value steht an Index 0', () => {
+		const input = graph([node(1, 1), node(2, 1), node(3, 99), node(4, 1)], [edge(1, 2), edge(3, 4)]);
+		const trees = splitIntoTrees(input);
+		expect(trees[0].nodes.map((entry) => entry.id).sort((a, b) => a - b)).toEqual([3, 4]);
+		expect(trees[1].nodes.map((entry) => entry.id).sort((a, b) => a - b)).toEqual([1, 2]);
+	});
+
+	it('Graph nur aus isolierten Knoten ⇒ keine Bäume', () => {
+		expect(splitIntoTrees(graph([node(1), node(2)], []))).toEqual([]);
 	});
 });
