@@ -51,6 +51,7 @@ import {
 import { deadlineToDateInput, formatNumber } from '../lib/task';
 import type { AddressSuggestion } from '../lib/useAddressSearch';
 import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
+import { DESCRIPTION_MAX_LENGTH } from '../lib/descriptionLengthValidation';
 
 /**
  * #553: Vergleicht zwei Säulen-Beitragslisten auf inhaltliche Gleichheit (Reihenfolge-unabhängig).
@@ -940,7 +941,7 @@ export const TaskForm = ({
 										_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
 										_icons={{ left: { icon: 'fa-solid fa-magic' } }}
 										_on={{
-											onClick: () => void runLektorat('title', 30),
+											onClick: () => void runLektorat('title', TITLE_MAX_LENGTH),
 										}}
 										style={{
 											flexShrink: 0,
@@ -1239,6 +1240,9 @@ export const TaskForm = ({
 								<VoiceField
 									variant="textarea"
 									fieldLabel="Beschreibung"
+									// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
+									// Textarea — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
+									counter
 									onTranscript={(text) => {
 										const newVal = form.current.description ? `${form.current.description} ${text}` : text;
 										form.current.description = newVal;
@@ -1248,6 +1252,8 @@ export const TaskForm = ({
 									<KolTextarea
 										_label="Beschreibung (optional)"
 										_rows={4}
+										_maxLength={DESCRIPTION_MAX_LENGTH}
+										_hasCounter
 										_value={description}
 										_on={{
 											onInput: (_event, value) => {

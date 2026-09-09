@@ -181,53 +181,68 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 // Issue #1136: Der MANUELLE Pfad adressiert die Frontend-Fehler-Weiche /?error=<code> statt der
 // rohen JSON-Route /auth/error — LoginPage rendert dafür bereits eine Meldung (Fallback für
 // unbekannte Codes). /auth/error bleibt als API-Fallback erhalten.
-authRouter.get(
-	'/auth/google/callback',
-	requireGoogleStrategy,
-	(req, res, next) => {
-		const silentPending = req.session?.silentPending === true;
-		// Issue #1136: Ein Callback-Hit ohne Google-`code` ist kein gültiger OAuth-Abschluss —
-		// Passport würde hier erneut einen Authorization-Redirect starten (ungenutzer Loop). Google
-		// liefert einen Ablehnungsgrund als `error`-Parameter (z. B. `access_denied`); dieser Code wird
-		// 1:1 an die Frontend-Fehler-Weiche durchgereicht, sonst `login_failed` als Sammelcode.
-		if (!req.query.code) {
-			const code = typeof req.query.error === 'string' && req.query.error !== '' ? req.query.error : 'login_failed';
-			res.redirect(silentPending ? '/?silent=unavailable' : `/?error=${encodeURIComponent(code)}`);
-			return;
-		}
-		passport.authenticate('google', {
-			failureRedirect: silentPending ? '/?silent=unavailable' : '/?error=login_failed',
-		})(req, res, next);
-	},
-	(req, res) => {
-		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.
-		const user = req.user as { id: number; email: string; displayName: string; avatarUrl?: string | null };
-		const silentPending = req.session?.silentPending === true;
-		// Return-Path (#1231) ebenfalls vor regenerate() sichern — die neue Session enthält die
-		// Session-Daten des stillen Einstiegs nicht mehr.
-		const silentReturnTo = sanitizeReturnPath(req.session?.silentReturnTo);
-		if (req.session?.silentPending) {
-			delete req.session.silentPending;
-		}
-		if (req.session?.silentReturnTo) {
-			delete req.session.silentReturnTo;
-		}
-		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
-		req.session.regenerate((err) => {
+authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) => {
+	const silentPending = req.session?.silentPending === true;
+	// Issue #1136: Ein Callback-Hit ohne Google-`code` ist kein gültiger OAuth-Abschluss —
+	// Passport würde hier erneut einen Authorization-Redirect starten (ungenutzer Loop). Google
+	// liefert einen Ablehnungsgrund als `error`-Parameter (z. B. `access_denied`); dieser Code wird
+	// 1:1 an die Frontend-Fehler-Weiche durchgereicht, sonst `login_failed` als Sammelcode.
+	if (!req.query.code) {
+		const code = typeof req.query.error === 'string' && req.query.error !== '' ? req.query.error : 'login_failed';
+		res.redirect(silentPending ? '/?silent=unavailable' : `/?error=${encodeURIComponent(code)}`);
+		return;
+	}
+	// Eigene Callback-Signatur statt `failureRedirect`-Option: `failureRedirect` greift nur bei
+	// Ablehnung (`done(null, false)`), NICHT bei technischen Fehlern (`done(err)`) — die liefen sonst
+	// über `next(err)` an Express' Default-Error-Handler (rohe 500-Seite statt Redirect ins Frontend,
+	// keine Session gesetzt). Mit eigenem Callback fangen wir beide Fälle einheitlich ab.
+	passport.authenticate(
+		'google',
+		(
+			err: Error | null,
+			user: { id: number; email: string; displayName: string; avatarUrl?: string | null } | false,
+		) => {
 			if (err) {
+				console.error('Google-OAuth-Callback fehlgeschlagen:', err);
+			}
+			if (err || !user) {
+				// Marker löschen: sonst landet nach einem gescheiterten stillen Login auch der nächste
+				// manuelle Login-Fehler fälschlich auf /?silent=unavailable statt /?error=login_failed.
+				if (req.session?.silentPending) {
+					delete req.session.silentPending;
+				}
+				if (req.session?.silentReturnTo) {
+					delete req.session.silentReturnTo;
+				}
 				res.redirect(silentPending ? '/?silent=unavailable' : '/?error=login_failed');
 				return;
 			}
-			req.session.user = {
-				id: user.id,
-				email: user.email,
-				displayName: user.displayName,
-				avatarUrl: user.avatarUrl ?? null,
-			};
-			req.session.save(() => res.redirect(silentReturnTo ?? '/'));
-		});
-	},
-);
+			// Return-Path (#1231) vor regenerate() sichern — die neue Session enthält die
+			// Session-Daten des stillen Einstiegs nicht mehr.
+			const silentReturnTo = sanitizeReturnPath(req.session?.silentReturnTo);
+			if (req.session?.silentPending) {
+				delete req.session.silentPending;
+			}
+			if (req.session?.silentReturnTo) {
+				delete req.session.silentReturnTo;
+			}
+			// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
+			req.session.regenerate((regenerateErr) => {
+				if (regenerateErr) {
+					res.redirect(silentPending ? '/?silent=unavailable' : '/?error=login_failed');
+					return;
+				}
+				req.session.user = {
+					id: user.id,
+					email: user.email,
+					displayName: user.displayName,
+					avatarUrl: user.avatarUrl ?? null,
+				};
+				req.session.save(() => res.redirect(silentReturnTo ?? '/'));
+			});
+		},
+	)(req, res, next);
+});
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401)
 authRouter.get('/auth/me', (req, res) => {

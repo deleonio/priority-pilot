@@ -1,6 +1,9 @@
 import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
-import { TITLE_MAX_LENGTH } from '../src/lib/titleLengthValidation.ts';
+
+// Eigene Konstante statt der geteilten Task-/Series-TITLE_MAX_LENGTH: das Säulennamen-Limit ist
+// von der Titel-Längenbeschränkung für Aufgaben/Serien entkoppelt (siehe PillarFormDialog.tsx).
+const PILLAR_NAME_MAX_LENGTH = 30;
 
 /**
  * E2E-Spec-Tests für #935 „Säulen-Formular: Beschreibung als Textarea, Titel auf 30 Zeichen
@@ -42,7 +45,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 	let runId = 0;
 	const uniqueName = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
-		const head = `E2E-P935-${label}`.slice(0, TITLE_MAX_LENGTH - tail.length);
+		const head = `E2E-P935-${label}`.slice(0, PILLAR_NAME_MAX_LENGTH - tail.length);
 		return `${head}${tail}`;
 	};
 
@@ -115,12 +118,11 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 	});
 
 	/**
-	 * AK2 / Spec-Schritt 3: Der Name ist auf TITLE_MAX_LENGTH beschränkt — Sollwert aus der
-	 * führenden Quelle (`titleLength.ts`, von TaskForm/Series geteilt) importiert, nicht als
-	 * Literal. `maxlength` am nativen Input UND hartes Kappen realer Tastatur-Eingaben
-	 * (`fill()` umgeht maxlength, daher pressSequentially).
+	 * AK2 / Spec-Schritt 3: Der Name ist auf PILLAR_NAME_MAX_LENGTH beschränkt — eigenständig vom
+	 * Task-/Series-Titel-Limit (siehe PillarFormDialog.tsx). `maxlength` am nativen Input UND
+	 * hartes Kappen realer Tastatur-Eingaben (`fill()` umgeht maxlength, daher pressSequentially).
 	 */
-	test('AK2: Name auf TITLE_MAX_LENGTH begrenzt', async ({ page }) => {
+	test('AK2: Name auf PILLAR_NAME_MAX_LENGTH begrenzt', async ({ page }) => {
 		await openPillarTab(page);
 
 		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
@@ -129,11 +131,11 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 
 		const dialog = page.locator('kol-dialog');
 		const nameInput = dialog.getByRole('textbox', { name: 'Name' });
-		await expect(nameInput).toHaveAttribute('maxlength', String(TITLE_MAX_LENGTH));
+		await expect(nameInput).toHaveAttribute('maxlength', String(PILLAR_NAME_MAX_LENGTH));
 
 		// Reale Tastatur-Eingabe über die Grenze: Browser-Kappprüfung (hard behavior)
 		await nameInput.click();
-		await nameInput.pressSequentially('x'.repeat(TITLE_MAX_LENGTH + 5));
-		await expect(nameInput).toHaveValue('x'.repeat(TITLE_MAX_LENGTH));
+		await nameInput.pressSequentially('x'.repeat(PILLAR_NAME_MAX_LENGTH + 5));
+		await expect(nameInput).toHaveValue('x'.repeat(PILLAR_NAME_MAX_LENGTH));
 	});
 });

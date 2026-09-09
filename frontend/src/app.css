@@ -1792,9 +1792,11 @@ body {
 	z-index: 1;
 }
 
-/* Textarea: unten rechts. */
+/* Textarea: unten rechts. `--pp-input-below` hebt den Anker um Elemente unter der Inputbox an
+   (Default 0 — ohne Counter ist die Textarea das unterste Wrapper-Element; mit `_hasCounter`
+   markiert die Call-Site das Feld, siehe .voice-field--counter unten, #1054 F1). */
 .voice-field--textarea > .mic-button {
-	bottom: 0.5rem;
+	bottom: calc(var(--pp-input-below, 0rem) + 0.5rem);
 }
 
 /* Einzeiliger Input: vertikal in der Inputbox zentriert, von unten gerechnet. Die Inputbox-Höhe

@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import passport from 'passport';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
 
@@ -265,6 +266,100 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(res.status, 400);
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.ok(body.error, 'Fallback sollte ein JSON-Fehlerfeld liefern');
+		});
+	});
+
+	// ── Review-Finding #1 (PR #1299) — eigener Callback-Pfad vollständig ungetestet ──
+	// Der Callback braucht einen `code`-Query-Parameter, um überhaupt bis zu
+	// `passport.authenticate('google', callback)` vorzudringen (sonst greift der
+	// Frühausstieg aus AK2 oben). Um `this.error(...)`/`this.success(...)` ohne echten
+	// Google-Request auszulösen, ersetzt eine Stub-Strategie unter dem Namen 'google'
+	// vorübergehend die echte GoogleStrategy — passport löst Strategien pro Request anhand
+	// des Namens auf, das Tauschen zur Laufzeit ist damit sicher.
+	describe('Finding #1 (Review PR #1299) — GET /auth/google/callback mit code', () => {
+		type StubMode = 'error' | 'fail' | 'success';
+
+		class StubGoogleStrategy implements passport.Strategy {
+			name = 'google';
+			constructor(private readonly mode: StubMode) {}
+
+			authenticate(this: passport.StrategyCreated<StubGoogleStrategy>): void {
+				if (this.mode === 'error') {
+					this.error(new Error('stub-oauth-fehler'));
+					return;
+				}
+				if (this.mode === 'fail') {
+					this.fail();
+					return;
+				}
+				this.success({ id: 1, email: ALLOWED_EMAIL, displayName: ALLOWED_NAME, avatarUrl: null });
+			}
+		}
+
+		const getGoogleStrategy = (): passport.Strategy =>
+			(passport as unknown as { _strategy(name: string): passport.Strategy })._strategy('google');
+
+		/** Tauscht die 'google'-Strategie für die Dauer von `run` gegen den Stub, stellt danach zurück. */
+		const withStubStrategy = async (mode: StubMode, run: () => Promise<void>): Promise<void> => {
+			const original = getGoogleStrategy();
+			passport.use(new StubGoogleStrategy(mode));
+			try {
+				await run();
+			} finally {
+				passport.use(original);
+			}
+		};
+
+		it("this.error(...) im Callback → 302 auf '/?error=login_failed'", async () => {
+			await withStubStrategy('error', async () => {
+				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
+				assert.equal(res.status, 302);
+				assert.equal(res.headers.get('location'), '/?error=login_failed');
+			});
+		});
+
+		it("this.fail() (Ablehnung) im Callback → 302 auf '/?error=login_failed'", async () => {
+			await withStubStrategy('fail', async () => {
+				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
+				assert.equal(res.status, 302);
+				assert.equal(res.headers.get('location'), '/?error=login_failed');
+			});
+		});
+
+		it('this.success(user) im Callback → Erfolgs-Redirect auf / + Session-Cookie', async () => {
+			await withStubStrategy('success', async () => {
+				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
+				assert.equal(res.status, 302);
+				assert.equal(res.headers.get('location'), '/');
+				const setCookie = res.headers.get('set-cookie');
+				assert.ok(setCookie, 'Erfolgreicher Callback sollte eine Session setzen');
+
+				const meRes = await fetch(`${server.baseUrl}/auth/me`, {
+					headers: { Cookie: cookieFromSetCookie(setCookie) },
+				});
+				assert.equal(meRes.status, 200);
+				const body = (await meRes.json()) as { email: string };
+				assert.equal(body.email, ALLOWED_EMAIL);
+			});
+		});
+
+		it("stiller Login + Fehler im Callback → 302 auf '/?silent=unavailable'", async () => {
+			// Der Marker `silentPending` muss über die reale /auth/google/silent-Route gesetzt
+			// werden (dort läuft noch die echte GoogleStrategy — sie leitet nur zu Google weiter,
+			// ohne den Login abzuschließen, genau wie in AC 2 oben).
+			const silentRes = await fetch(`${server.baseUrl}/auth/google/silent`, { redirect: 'manual' });
+			const silentCookieHeader = silentRes.headers.get('set-cookie');
+			assert.ok(silentCookieHeader, '/auth/google/silent sollte den silentPending-Marker per Cookie sichern');
+			const silentCookie = cookieFromSetCookie(silentCookieHeader);
+
+			await withStubStrategy('error', async () => {
+				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, {
+					redirect: 'manual',
+					headers: { Cookie: silentCookie },
+				});
+				assert.equal(res.status, 302);
+				assert.equal(res.headers.get('location'), '/?silent=unavailable');
+			});
 		});
 	});
 
