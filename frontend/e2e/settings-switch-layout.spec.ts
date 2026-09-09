@@ -74,7 +74,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		// Volle Breite gilt für die Hauptzeilen (direkte Kinder des Containers); die Sub-Zeilen
 		// sitzen im KolDetails-Kollapsbereich und liegen dafür versetzt unter dem Master.
-		const mainRows = page.locator('.settings-general > .settings-switch-row');
+		const mainRows = page.locator('.settings-general kol-card > .settings-card-stack > .settings-switch-row');
 		for (let i = 0; i < (await mainRows.count()); i++) {
 			const rowBox = await mainRows.nth(i).boundingBox();
 			expect(rowBox).toBeTruthy();
@@ -86,7 +86,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// (Hierarchie unter dem Master sichtbar) — die x-Position bleibt auch bei kollabiertem
 		// KolDetails gesetzt (nur die Höhe kollabiert).
 		const firstMainBox = await mainRows.first().boundingBox();
-		const subRows = page.locator('.settings-general kol-details .settings-switch-row');
+		const subRows = page.locator('.settings-general kol-accordion .settings-switch-row');
 		for (let i = 0; i < (await subRows.count()); i++) {
 			const subBox = await subRows.nth(i).boundingBox();
 			expect(subBox).toBeTruthy();

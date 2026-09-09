@@ -59,6 +59,13 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
+	// Gruppierungsflächen des Tabs (Design-Lauf 2026-09): `_label` ist die Überschrift der Gruppe.
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<section>
+			<h2>{_label}</h2>
+			{children}
+		</section>
+	),
 	KolInputRadio: ({ _label }: { _label?: string }) => <fieldset aria-label={_label} />,
 	// KolSingleSelect als natives <select> mit stabiler id — die Modellwahl-Tests greifen
 	// darauf über `#llm-active-model` zu (Muster wie TaskForm.test.tsx).

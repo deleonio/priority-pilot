@@ -131,8 +131,10 @@ async function containerMetrics(
 }
 
 /** Host-Buttons je Tab: „Push testen" in „Allgemein", „Standort ermitteln" in „Standort" (#1151). */
-const pushButtonHost = (page: import('@playwright/test').Page) => page.locator('.settings-general > kol-button');
-const geoButtonHost = (page: import('@playwright/test').Page) => page.locator('.settings-geo > kol-button');
+const pushButtonHost = (page: import('@playwright/test').Page) =>
+	page.locator('.settings-general kol-card kol-button.settings-action-btn');
+const geoButtonHost = (page: import('@playwright/test').Page) =>
+	page.locator('.settings-geo kol-card kol-button.settings-action-btn');
 
 test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 	/**

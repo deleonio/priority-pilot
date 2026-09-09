@@ -39,7 +39,7 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
 
-	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	await page.getByRole('button', { name: groupName, exact: true }).click();
 	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
 	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
@@ -128,7 +128,7 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await acceptInvitation(inviteePage, 'E2E Füreinander');
 			await createForeignTaskViaApi(page, group!.id, 'E2E Übergabe-Aufgabe');
 
-			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander' }).click();
+			await page.getByRole('button', { name: 'E2E Füreinander', exact: true }).click();
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 			// Abschnitt scopen statt page-weit: „von …" und die Empfängerin tauchen auch in der
@@ -161,7 +161,7 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			const selfCreated = await page.request.post('/api/v1/tasks', { data: { title: 'Nur für mich' } });
 			expect(selfCreated.status()).toBe(201);
 
-			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander Leer' }).click();
+			await page.getByRole('button', { name: 'E2E Füreinander Leer', exact: true }).click();
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 			await expect(page.getByRole('heading', { name: SECTION_HEADING, exact: true })).toBeVisible();
@@ -188,7 +188,7 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await createForeignTaskViaApi(page, group!.id, 'E2E Schmale Übergabe-Aufgabe');
 
 			await page.setViewportSize({ width: 375, height: 812 });
-			await page.getByRole('listitem').filter({ hasText: 'E2E Füreinander Schmal' }).click();
+			await page.getByRole('button', { name: 'E2E Füreinander Schmal', exact: true }).click();
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 

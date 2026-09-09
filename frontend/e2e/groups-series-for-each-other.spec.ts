@@ -38,7 +38,7 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
 
-	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	await page.getByRole('button', { name: groupName, exact: true }).click();
 	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
 	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
@@ -117,7 +117,7 @@ const findGroupId = async (page: Page, groupName: string): Promise<number> => {
 
 /** Ruft das Gruppendetail der frisch angelegten Gruppe auf. */
 const openGroupDetail = async (page: Page, groupName: string): Promise<void> => {
-	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	await page.getByRole('button', { name: groupName, exact: true }).click();
 	await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
 	// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 	await openAccordionSection(page, SECTION_HEADING);

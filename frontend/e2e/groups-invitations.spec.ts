@@ -48,7 +48,7 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 
 		await openGroupsTab(page);
 		await createGroupViaUi(page, 'E2E Einladen');
-		await page.getByRole('listitem').filter({ hasText: 'E2E Einladen' }).click();
+		await page.getByRole('button', { name: 'E2E Einladen', exact: true }).click();
 
 		// AK3 (#1257): Die Suche ist direkt nach dem Aufklappen zugeklappt ...
 		await expect(page.getByRole('searchbox')).toBeHidden();
@@ -83,7 +83,7 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 		try {
 			await openGroupsTab(page);
 			await createGroupViaUi(page, 'E2E Mitgliedschaft');
-			await page.getByRole('listitem').filter({ hasText: 'E2E Mitgliedschaft' }).click();
+			await page.getByRole('button', { name: 'E2E Mitgliedschaft', exact: true }).click();
 
 			// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
 			await openAccordionSection(page, 'Mitglieder einladen');
@@ -109,7 +109,7 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 			// ebenfalls in seinem Label ("… zum Administrator machen"), ein loser Treffer wäre doppelt.
 			await page.reload();
 			await openGroupsTab(page);
-			await page.getByRole('listitem').filter({ hasText: 'E2E Mitgliedschaft' }).click();
+			await page.getByRole('button', { name: 'E2E Mitgliedschaft', exact: true }).click();
 			await expect(page.getByText('Ines Eingeladen', { exact: true })).toBeVisible();
 			await expect(page.getByText('Ausstehend')).toBeHidden();
 
@@ -134,7 +134,7 @@ test.describe('Gruppen-Einladungen (#1212)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openGroupsTab(page);
 		await createGroupViaUi(page, 'E2E Schmal Detail');
-		await page.getByRole('listitem').filter({ hasText: 'E2E Schmal Detail' }).click();
+		await page.getByRole('button', { name: 'E2E Schmal Detail', exact: true }).click();
 
 		// #1257: Suche liegt im zugeklappten Accordion — erst aufklappen, dann messen.
 		await openAccordionSection(page, 'Mitglieder einladen');

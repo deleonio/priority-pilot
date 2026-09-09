@@ -1479,29 +1479,10 @@ body {
 }
 
 /*
- * Tab „Säulen" (#271): zwei Abschnitte — „Säulen verwalten" (Liste, Anlegen/Bearbeiten/Löschen)
- * und „Säulen-Gewichtung" (Regler). `grid-template-columns: minmax(0, 1fr)` wie bei
- * `.settings-groups` (#1211 AK8): KolTabs rendert seine Panels in einem Grid, dessen Track-Minimum
- * sonst über die min-content-Breite des Inhalts läuft und das Panel bei 375px aus dem Viewport
- * schiebt. Der Sektions-Abstand trägt die Trennung (vorher: `margin-top` an der Gewichtungskarte,
- * das die Liste und die Karte optisch zu einem Block zog).
+ * Tab „Säulen" (#271): zwei Karten — „Säulen verwalten" (Liste, Anlegen/Bearbeiten/Löschen) und
+ * „Säulen-Gewichtung" (Regler). Beide tragen `.settings-card` (Block-Host, volle Panel-Breite);
+ * der Abstand dazwischen kommt aus dem Panel-Gap von `.settings-panel`.
  */
-.settings-pillars {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-	gap: var(--pp-gap-generous);
-}
-
-.settings-pillars-section {
-	min-width: 0;
-}
-
-/* Alle Slider in EINER Karte. Kein `margin-top` mehr — der Abstand zur Verwaltung darüber kommt
-   jetzt vom Sektions-Gap des Panels. `display: block` am Karten-Host wie bei den Dashboard-Karten,
-   damit die Karte die volle Abschnittsbreite einnimmt. */
-.pillar-weights-card {
-	display: block;
-}
 
 /* Eine Säule im Gewichtungs-Editor: schlichte Zeile OHNE eigenen Kartenrahmen — die
    Gruppierungsfläche ist die eine gemeinsame Gewichtungskarte im Settings-Tab (KolCard);
@@ -1714,18 +1695,44 @@ body {
  * `minmax(0, 1fr)` koppelt die Panel-Breite vom Inhalt (klassischer Grid-Min-Content-Break) —
  * die Ellipsis der Beschreibung greift dann wie in `.groups-info` (`min-width: 0`).
  */
-.settings-groups {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-}
 
 /* Toolbar, Listen-, Karten-, Info- und Aktions-Rezept teilen sich Gruppen und Säulen — die
    gemeinsamen Regeln stehen oben im Säulen-Block (Karten-Rezept der Settings-Listen). */
 
-/* Aufklappbare Gruppenkarte (#1212): der Zeiger zeigt an, dass die ganze Karte das Detail
-   öffnet — die Einladungskarten oben tragen die Klasse bewusst nicht. */
-.groups-item--expandable {
-	cursor: pointer;
+/*
+ * Gruppen-Accordion (Design-Lauf 2026-09): Eine Gruppe ist ein `KolAccordion`, nicht mehr eine
+ * selbstgebaute Aufklapp-Karte. Das Listenelement ist deshalb nur noch Träger — die sichtbare
+ * Fläche und der Rahmen kommen vom Accordion. `.groups-item--accordion` nimmt dem Eintrag die
+ * Karten-Deko aus dem gemeinsamen Listen-Rezept oben (das weiterhin für die Einladungskarten
+ * und die Säulenliste gilt).
+ */
+.groups-item--accordion {
+	display: block;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+
+.groups-accordion {
+	display: block;
+}
+
+/* Innenleben einer aufgeklappten Gruppe: gleicher Stapel-Rhythmus wie in den Settings-Karten. */
+.groups-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	min-width: 0;
+}
+
+/* Kopfzeile im Accordion-Körper: Avatar links, Beschreibung + Metazeile rechts. Bei 375px
+   bleibt die Zeile umbruchfähig (`flex-wrap`), der Textblock schrumpft über `min-width: 0`. */
+.groups-summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: var(--pp-gap-tight) var(--pp-gap-base);
+	min-width: 0;
 }
 
 /* Beschreibung einzeilig kappen (KI-UX #1211): Ellipsis statt mehrzeilig aufblendender Karten;
@@ -1774,10 +1781,6 @@ body {
  * (Name/E-Mail/Badge links, Rollen-Button rechts); bei 375px bricht die Zeile um, statt
  * horizontal zu scrollen (Fixup PR #1300, Finding #3).
  */
-.settings-admin-users {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-}
 
 .admin-user-list {
 	list-style: none;
@@ -2178,12 +2181,14 @@ body {
 	display: flex;
 	align-items: center;
 	gap: var(--pp-gap-base);
-	margin-bottom: 1.5rem;
+	margin-bottom: var(--pp-gap-base);
 	flex-wrap: wrap;
 }
 
+/* Der Kopf trägt bereits 16dp Abstand nach unten — zusammen mit den vorherigen 24dp hier standen
+   48px toter Raum über der Tab-Leiste (bei 375px ein Achtel der Höhe). Ein Token-Schritt reicht. */
 .settings-tabs {
-	margin-top: var(--pp-gap-generous);
+	margin-top: var(--pp-gap-tight);
 }
 
 /*
@@ -2246,18 +2251,61 @@ body {
  * doppelt vergebene Klasse würde alle `.settings-general`-Locatoren auf zwei Panels treffen
  * lassen (Präzedenz #1080 `.settings-llm-switch-row`).
  */
-.settings-general,
-.settings-geo {
-	/*
-	 * #969: Symmetrisches horizontales Padding — vorher nur `padding-left: 1.5rem` (#843),
-	 * was zusammen mit dem `.settings-page`-Padding die Seite asymmetrisch einrückte
-	 * (links ≈ 2,5rem, rechts 1rem). Die linke Control-Position (24dp) bleibt erhalten.
-	 */
-	padding-inline: 1.5rem; /* 24dp */
-	/* Flex-Layout für konsistente vertikale Abstände */
+/*
+ * EIN Panel-Rezept für alle sechs Settings-Tabs (Design-Lauf 2026-09). Vorher hatte jeder Tab
+ * seinen eigenen: `.settings-general`/`.settings-geo` flex mit 16dp Gap UND zusätzlichen
+ * `padding-inline: 1.5rem`, `.settings-llm` flex mit 16dp Gap ohne Padding, `.settings-pillars`
+ * Grid mit 24dp Gap, `.settings-groups`/`.settings-admin-users` Grid ganz ohne Gap. Ergebnis
+ * waren vier verschiedene Abstände und zwei verschiedene Innenränder beim Tab-Wechsel.
+ *
+ * Das gestrichene `padding-inline: 1.5rem` addierte sich auf das 1rem-Padding von
+ * `.settings-page`: Bei 375px blieben dem Tab „Allgemein" 295px Inhaltsbreite, den anderen
+ * Tabs 343px. Die Control-Position bleibt links bündig — sie rückt nur gemeinsam mit allen
+ * anderen Tabs an den Seitenrand (#843 AK2 misst Ausrichtung, nicht den absoluten Wert;
+ * #969 AK1/AK2 misst Symmetrie, die bei 0 ebenso gilt).
+ *
+ * `min-width: 0` ersetzt das bisherige `grid-template-columns: minmax(0, 1fr)` der Grid-Panels:
+ * `KolTabs` rendert seine Panels als Grid-Kinder, deren Track-Minimum sonst über die
+ * min-content-Breite des Inhalts läuft und das Panel bei 375px aus dem Viewport schiebt
+ * (#1211 AK8). Die Auto-Mindestgröße direkt am Panel abzuschalten ist derselbe Fix, eine Ebene
+ * tiefer und für alle Tabs gleich.
+ */
+.settings-panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen Controls */
+	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen den Gruppen */
+	min-width: 0;
+}
+
+/*
+ * Gruppierungsfläche innerhalb eines Panels: `KolCard` für dauerhaft offene Gruppen,
+ * `KolAccordion` für aufklappbare. Beide Hosts sind block-level und nehmen die volle
+ * Panel-Breite ein (Muster der Dashboard-Karten).
+ */
+.settings-card,
+.settings-accordion {
+	display: block;
+	min-width: 0;
+}
+
+/* Stapel innerhalb einer Karte/eines Accordions — derselbe 16dp-Rhythmus wie im Panel. */
+.settings-card-stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base);
+	min-width: 0;
+}
+
+/*
+ * Dieselbe Korrektur wie bei den Formular-Sektionen (`.form-section kol-accordion`): Das
+ * KoliBri-Default-Theme rückt `.kol-accordion__content` links um 2.25em ein, rechts nur um
+ * 0.5rem. Unkompensiert steht der Inhalt der Settings-Accordions schief in der Spalte und
+ * verschenkt bei 375px rund 28px Breite — genau das Gegenteil des Ziels dieses Panels.
+ * em-Einheiten skalieren mit der Textvergrößerung mit (WCAG 1.4.10 Reflow).
+ */
+.settings-accordion > .settings-card-stack,
+.groups-accordion > .groups-body {
+	margin-left: calc(-2.25em + var(--pp-space-2));
 }
 
 /*
@@ -2308,18 +2356,17 @@ body {
 .settings-switch-row {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem; /* 8dp */
+	gap: var(--pp-gap-tight);
 	width: auto;
-	margin-inline: -1.5rem;
-	padding-inline: 1.5rem;
 	box-sizing: border-box;
+	min-width: 0;
 }
 
 @media (min-width: 768px) {
 	.settings-switch-row {
 		flex-direction: row;
 		align-items: center;
-		gap: 1rem; /* 16dp */
+		gap: var(--pp-gap-base);
 	}
 
 	/*
@@ -2350,15 +2397,16 @@ body {
 .settings-llm-switch-row {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem; /* 8dp */
+	gap: var(--pp-gap-tight);
 	width: auto;
+	min-width: 0;
 }
 
 @media (min-width: 768px) {
 	.settings-llm-switch-row {
 		flex-direction: row;
 		align-items: center;
-		gap: 1rem; /* 16dp */
+		gap: var(--pp-gap-base);
 	}
 
 	.settings-llm-switch-row kol-input-checkbox[_variant='switch'] {
@@ -2655,18 +2703,6 @@ kol-input-range {
 }
 
 /* --- Issue #788: LLM-Einstellungsmenü optimiert --- */
-/*
- * #972 AK1: Container-Rhythmus des LLM-Tabs analog `.settings-general` (flex column +
- * einheitlicher `gap`) — Heading, Provider-Toggle, Hinweistext, Key-Felder, Modell-Auswahl
- * und Aktionen stehen damit auf Mobile und Desktop im gleichen vertikalen Rhythmus.
- * Bewusst OHNE `padding-inline` (anders als `.settings-general`): Der LLM-Tab wird nicht
- * zusätzlich eingerückt, die Felder füllen die Inhaltsbreite der `.settings-page` (#972 E2).
- */
-.settings-llm {
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-gap-base); /* 16dp Section-Abstand, wie `.settings-general` */
-}
 
 /* Modell-Select Container für konsistentes Layout. */
 .llm-model-select {
@@ -2755,12 +2791,6 @@ kol-heading {
 	flex-direction: column;
 	gap: var(--pp-gap-tight);
 	margin-top: var(--pp-gap);
-}
-
-.llm-provider-admin__heading {
-	font-weight: 600;
-	font-size: 0.875rem;
-	margin: 0;
 }
 
 .llm-provider-admin__list {
