@@ -2,6 +2,7 @@ import { ResponseError } from 'client';
 import type {
 	ActivityAdvisorInput,
 	ActivityAdvisorResult,
+	AdminUser,
 	components,
 	DependencyInput,
 	Group,
@@ -327,6 +328,27 @@ export const api = {
 		const { data, error, response } = await client.GET('/users/search', {
 			params: { query: { query } },
 			signal: init.signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// ── Nutzerverwaltung (Rollensystem admin/member) ───────────────────────────
+
+	async getAdminUsers(init: Init = {}): Promise<AdminUser[]> {
+		const { data, error, response } = await client.GET('/admin/users', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async updateUserRole({ id, role }: { id: number; role: AdminUser['role'] }): Promise<AdminUser> {
+		const { data, error, response } = await client.PATCH('/admin/users/{id}/role', {
+			params: { path: { id } },
+			body: { role },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);

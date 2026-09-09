@@ -1,6 +1,9 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
+/** Systemweite Nutzerrolle (Rollensystem admin/member) — getrennt von `GroupRole` (Gruppen-Mitgliedschaft). */
+export type UserRole = 'admin' | 'member';
+
 /**
  * Ein Benutzer mit E-Mail-/Passwort-Authentifizierung (Issue #206).
  * `passwordHash` hält ausschließlich den bcrypt-Hash — niemals das Klartext-Passwort.
@@ -23,6 +26,8 @@ class User extends Model {
 	public displayDistanceKm!: number;
 	public alarmDistanceKm!: number;
 	public intervalMinutes!: number;
+	/** Systemweite Rolle (Rollensystem admin/member) — steuert Admin-Views und -API-Endpunkte. */
+	public role!: UserRole;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -72,6 +77,11 @@ User.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 5,
+		},
+		role: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'member',
 		},
 	},
 	{

@@ -421,7 +421,8 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit fünf Bereichen:
-Allgemein, Säulen, KI-Provider, Standort und Gruppen.
+Allgemein, Säulen, KI-Provider, Standort und Gruppen. Administratoren der App sehen zusätzlich
+einen sechsten Bereich **Nutzerverwaltung** (siehe unten).
 
 ### Allgemein
 
@@ -495,6 +496,27 @@ In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufg
   **„Empfänger"**, für wen die Aufgabe bestimmt ist. In den Listen erkennst du
   fremde Aufgaben an den Hinweisen **„Für: {Name}"** und **„Erstellt von: {Name}"**;
   bearbeiten lassen sie sich nur beim Empfänger.
+
+---
+
+## Nutzerverwaltung (nur für Administratoren)
+
+Jedes Konto hat eine App-weite Rolle: **Administrator** oder **Mitglied**. Diese Rolle ist etwas
+anderes als die Admin-Rolle innerhalb einer Gruppe (siehe [Gruppen](#gruppen)) – wer eine Gruppe
+verwaltet, ist deshalb noch kein Administrator der App.
+
+- **Wer Administrator ist:** Konten, deren E-Mail-Adresse der Betreiber in `ADMIN_EMAILS`
+  eingetragen hat, werden beim Anmelden automatisch Administrator. Alle anderen Konten sind
+  Mitglied. Aus der Liste entfernte Adressen bleiben Administrator, bis jemand die Rolle in der
+  App zurückstuft.
+- **Bereich Nutzerverwaltung:** Administratoren sehen in den Einstellungen den zusätzlichen
+  Bereich _Nutzerverwaltung_ mit allen Konten (Name, E-Mail, Rolle). Über **„… zum
+  Administrator machen"** bzw. **„… zur Mitgliedschaft zurückstufen"** änderst du die Rolle;
+  die Änderung gilt sofort, auch für bereits angemeldete Personen.
+- **Mindestens ein Administrator:** Den letzten verbleibenden Administrator kann niemand
+  zurückstufen – ernenne zuerst eine andere Person.
+- **Mitglieder** sehen den Bereich nicht; ein direkter Aufruf von `/settings/nutzer` öffnet bei
+  ihnen den Bereich _Säulen_.
 
 ---
 

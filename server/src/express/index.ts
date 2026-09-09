@@ -15,6 +15,7 @@ import { createSeriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
 import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
 import { usersRouter } from './routes/users.js';
+import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
@@ -181,6 +182,7 @@ export const createApp = (deps: AppDeps = {}) => {
 							email: user.email,
 							displayName: user.displayName,
 							avatarUrl: user.avatarUrl,
+							role: user.role,
 						});
 					} catch (err) {
 						return done(err as Error);
@@ -250,6 +252,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Nutzersuche für den Einladungsfluss (#1212): nur id+displayName, E-Mail nur als Volltreffer.
 	app.use(usersRouter);
+
+	// Nutzerverwaltung (Rollensystem admin/member): Liste + Rollenänderung, nur für Admins
+	// (zusätzliches `requireRole('admin')`-Gate innerhalb des Routers, siehe routes/admin.ts).
+	app.use(adminRouter);
 
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).

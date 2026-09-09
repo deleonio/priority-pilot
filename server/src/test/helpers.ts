@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import sequelize from '../database.js';
 import { createApp, type AppDeps } from '../express/index.js';
 import { createSessionStore, disconnectStore } from '../express/session.js';
+import type { UserRole } from '../models/user.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
 
@@ -85,6 +86,8 @@ export interface TestLoginOptions {
 	displayName?: string;
 	/** Avatar-URL (nur auth-avatar-Tests, #217). */
 	avatarUrl?: string;
+	/** Rollensystem admin/member: setzt die Rolle direkt beim Test-Login (nur NODE_ENV=test). */
+	role?: UserRole;
 }
 
 export interface TestServer {
@@ -121,6 +124,7 @@ export const testLoginResponse = (
 ): Promise<Response> => {
 	const body: Record<string, unknown> = { email, displayName: options.displayName ?? email.split('@')[0] };
 	if (options.avatarUrl) body.avatarUrl = options.avatarUrl;
+	if (options.role) body.role = options.role;
 	return fetch(`${target.baseUrl}/auth/test-login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
