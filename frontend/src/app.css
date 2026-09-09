@@ -247,10 +247,11 @@ body {
 	/*
 	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
 	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
-	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), um die sechste icon-only
-	 * Kopf-Aktion in die 375px-Zeile zu bekommen. Ab 48rem gilt wieder die gewohnte Relation aus
-	 * #485 AK3 / #718 AK6 (siehe Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet:
-	 * sie sind das WCAG-2.5.5-Minimum, nicht Deko.
+	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), damit die icon-only
+	 * Kopf-Aktionen in die 375px-Zeile passen — zur Zeit von #965 waren es sechs, seit dem
+	 * Provider-System sind es fünf (header-appearance.spec.ts AK6). Ab 48rem gilt wieder die
+	 * gewohnte Relation aus #485 AK3 / #718 AK6 (siehe Media-Query unten). Die 2.75rem/44px
+	 * selbst bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
@@ -263,8 +264,9 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — mit der sechsten icon-only Kopf-Aktion
-	 * zählt jedes Pixel der 375px-Zeile; ab 48rem gilt wieder der Base-Abstand. */
+	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — die fünf icon-only Kopf-Aktionen füllen
+	 * die 375px-Zeile bis auf wenige Pixel aus, hier zählt jedes einzelne; ab 48rem gilt wieder
+	 * der Base-Abstand. */
 	gap: 0.25rem;
 
 	/*
