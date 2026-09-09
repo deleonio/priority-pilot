@@ -113,9 +113,7 @@ Oben im Tab findest du drei Bedienelemente:
   nach oben rücken, die auf deine bislang vernachlässigten Säulen einzahlen. Das Prioritäts-
   Kennzeichen zeigt dann eine abgeleitete Stufe mit Tilde (`~P1` bis `~P5`) statt der eigentlichen
   Priorität; nach dem Ausschalten zeigt es wieder die gewohnten `P1` bis `P5`. Die Sortierung
-  bleibt nach dem Einschalten so stehen, bis du sie per **„Neu berechnen"** (Button daneben,
-  nur im aktivierten Zustand sichtbar) auf den aktuellen Stand bringst – hat sich zwischendurch
-  etwas geändert, weist der Hinweis unter dem Schalter darauf hin („Daten haben sich geändert").
+  rechnet mit deinem aktuellen Stand: Hakst du eine Aufgabe ab, ordnet sich die Liste sofort neu.
   Deine Aufgaben selbst werden dabei nicht verändert, nur die Reihenfolge der Anzeige, und
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
   Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern"** klickst
