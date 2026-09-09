@@ -50,6 +50,15 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
+	// Leer- und Ladezustand der Liste (Karte mit CTA bzw. Spinner) — dieselbe Reduktion auf
+	// natives HTML wie bei den übrigen KoliBri-Komponenten.
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<div>
+			{_label !== undefined && <h3>{_label}</h3>}
+			{children}
+		</div>
+	),
+	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolHeading: ({ _label, _level = 2 }: { _label?: string; _level?: number }) => {
 		// Nur h2/h3 werden in den PillarList-Dialogen verwendet. Zur Sicherheit auf h2 fallbacken.
 		if (_level === 3) return <h3>{_label}</h3>;
@@ -261,6 +270,38 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 			await waitFor(() => {
 				expect(screen.getByText(/1 und 100 zeichen/i)).toBeInTheDocument();
 			});
+		});
+	});
+
+	// ── Fehlerbehandlung beim Laden (Review #1306 Finding 1) ───────────────────
+
+	describe('Fehlerbehandlung beim Laden', () => {
+		it('zeigt bei fehlgeschlagenem Laden den Fehler-Alert und NICHT die Leerzustands-Karte', async () => {
+			vi.mocked(api.listPillars).mockRejectedValueOnce(apiError(500, 'Serverfehler'));
+
+			render(<PillarList />);
+
+			await waitFor(() => {
+				expect(screen.getByRole('alert')).toHaveTextContent(/serverfehler/i);
+			});
+			expect(screen.queryByText(/noch keine säulen/i)).not.toBeInTheDocument();
+		});
+
+		it('lädt nach Klick auf „Erneut versuchen" neu und blendet den Fehler nach Erfolg aus', async () => {
+			vi.mocked(api.listPillars).mockRejectedValueOnce(apiError(500, 'Serverfehler'));
+			vi.mocked(api.listPillars).mockResolvedValueOnce([pillar(1, 'Körper', 'Gesundheit', 100)]);
+
+			render(<PillarList />);
+
+			await waitFor(() => {
+				expect(screen.getByRole('alert')).toBeInTheDocument();
+			});
+			fireEvent.click(screen.getByRole('button', { name: /erneut versuchen/i }));
+
+			await waitFor(() => {
+				expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+			});
+			expect(screen.getByText('Körper')).toBeInTheDocument();
 		});
 	});
 

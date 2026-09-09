@@ -600,6 +600,49 @@ describe('SettingsPage – #1219: Anzeigename (Allgemein)', () => {
 });
 
 /**
+ * Rote Spec-Tests für Review #1306 Finding 2 — Remount-Key von `PillarWeightsForm`
+ * (`SettingsPage.tsx:511`, `key={pillars.map((pillar) => pillar.id).join('-')}`).
+ *
+ * `PillarWeightsForm` hält seine Rohwerte in einem beim Mount initialisierten Ref
+ * (`weights.current`, siehe PillarWeightsForm.tsx:43) — ohne Remount übernimmt es geänderte
+ * `pillar.weight`-Werte NICHT. Der Key ist bewusst die ID-*Folge*, nicht die Anzahl: gleiche
+ * Anzahl mit anderen IDs muss remounten, identische IDs dürfen es nicht (sonst überschreibt
+ * ein Remount unbeabsichtigt laufende Nutzereingaben).
+ */
+describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2)', () => {
+	const sliderFor = (container: HTMLElement, namePrefix: string): Element | undefined =>
+		Array.from(container.querySelectorAll('kol-input-range')).find((el) =>
+			el.getAttribute('_label')?.startsWith(`${namePrefix}:`),
+		);
+
+	const rawValue = (el: Element): string =>
+		String((el as unknown as Record<string, unknown>)._value ?? el.getAttribute('_value'));
+
+	it('identische ID-Folge (nur Gewicht geändert) remountet NICHT — Ref-Wert bleibt der alte', () => {
+		const { container, rerender } = render(
+			<SettingsPage {...defaultProps} pillars={[{ id: 1, name: 'Körper', description: '', weight: 20 }]} />,
+		);
+		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('0.2');
+
+		rerender(<SettingsPage {...defaultProps} pillars={[{ id: 1, name: 'Körper', description: '', weight: 50 }]} />);
+		// Ohne Remount bleibt der Ref-Rohwert unverändert bei 0,2 (Anzeige folgt nicht dem neuen Prop).
+		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('0.2');
+	});
+
+	it('gleiche Anzahl, andere ID-Folge remountet — Ref-Wert übernimmt das neue Gewicht', () => {
+		const { container, rerender } = render(
+			<SettingsPage {...defaultProps} pillars={[{ id: 1, name: 'Körper', description: '', weight: 20 }]} />,
+		);
+		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('0.2');
+
+		rerender(<SettingsPage {...defaultProps} pillars={[{ id: 2, name: 'Geist', description: '', weight: 50 }]} />);
+		// Andere ID-Folge → neuer `key` → Remount → Ref initialisiert sich aus dem neuen Prop (0,5).
+		expect(sliderFor(container, 'Körper')).toBeUndefined();
+		expect(rawValue(sliderFor(container, 'Geist')!)).toBe('0.5');
+	});
+});
+
+/**
  * Rote Spec-Tests für Fixup PR #1300 (Finding #2) — Tab-Gating „Nutzerverwaltung" (Rollensystem
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er

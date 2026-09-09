@@ -492,25 +492,46 @@ export const SettingsPage = ({
 				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
 					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
 					    verwerfen und bei jeder Rückkehr einen erneuten Provider-Fetch auslösen (#886). */}
-				<div slot="tab-1">
-					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
-						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
-					<KolHeading _label="Säulen-Gewichtung" _level={2} />
-					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
-					<PillarList onPillarChanged={onPillarChanged} />
-					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
-					    Gruppierungsfläche, Muster wie die Dashboard-Karten): Die H3-Überschrift unter
-					    „Säulen-Gewichtung“ benennt die Gruppe auch für die Überschriften-Navigation;
-					    die Slider-Zeilen selbst tragen bewusst keinen eigenen Kartenrahmen mehr
-					    (keine verschachtelten Karten). */}
-					<KolCard className="pillar-weights-card" _label="Gewichtung" _level={3}>
-						{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-						    übernommen werden. */}
-						<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
-					</KolCard>
+				{/*
+				 * Der Tab „Säulen" trägt zwei getrennte Aufgaben: die Stammdaten-Verwaltung (anlegen,
+				 * bearbeiten, löschen) und die Gewichtung. Bis dahin standen beide unter der einen
+				 * Überschrift „Säulen-Gewichtung" — die Überschrift log über die Liste darunter und die
+				 * H3-Säulennamen der Liste standen im Überschriften-Baum als Geschwister der
+				 * Gewichtungs-Gruppe (WCAG 1.3.1). Jetzt: zwei `<section>` mit je eigener H2, die
+				 * Vertragsüberschrift „Säulen-Gewichtung" (#270, settings-page.spec.ts) benennt genau
+				 * den Abschnitt, für den sie gilt.
+				 */}
+				<div slot="tab-1" className="settings-pillars">
+					<section className="settings-pillars-section">
+						<KolHeading _label="Säulen verwalten" _level={2} />
+						{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
+							    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+						<PillarList onPillarChanged={onPillarChanged} />
+					</section>
+					<section className="settings-pillars-section">
+						{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
+							    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
+						<KolHeading _label="Säulen-Gewichtung" _level={2} />
+						{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
+						    Gruppierungsfläche, Muster wie die Dashboard-Karten); die Slider-Zeilen selbst
+						    tragen bewusst keinen eigenen Kartenrahmen (keine verschachtelten Karten).
+						    Das Karten-Label ist `_label` von KolCard (Pflicht-Prop) und benennt jetzt den
+						    Karteninhalt statt den Abschnitt zu wiederholen: unter der H2 „Säulen-Gewichtung"
+						    stand bisher die H3 „Gewichtung" — zwei Namen für dieselbe Sache. */}
+						<KolCard className="pillar-weights-card" _label="Verteilung je Säule" _level={3}>
+							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+							    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+							    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+							    übernommen werden. Der Key ist die ID-Folge, nicht die Anzahl: Löschen + Anlegen
+							    zwischen zwei Renders lässt die Anzahl gleich, ordnete die Rohwerte im Ref aber
+							    den falschen Säulen zu. */}
+							<PillarWeightsForm
+								key={pillars.map((pillar) => pillar.id).join('-')}
+								pillars={pillars}
+								onSaved={onSaved}
+							/>
+						</KolCard>
+					</section>
 				</div>
 				<div slot="tab-2" className="settings-llm">
 					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
