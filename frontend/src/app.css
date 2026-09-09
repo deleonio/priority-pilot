@@ -241,16 +241,17 @@ body {
 	 * #485: Eine gemeinsame Maß-Basis für Logo, Toolbar-Buttons und Avatar.
 	 * `--pp-toolbar-height` ist die Höhe der Toolbar-Buttons: 2.75rem = 44px entspricht der
 	 * WCAG-2.5.5-Mindestgröße (`--a11y-min-size` der KoliBri-Buttons) — kleiner darf sie nicht sein.
-	 * Der Avatar leitet sich davon mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
+	 * Der Avatar leitet sich davon ab 48rem mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
 	 */
 	--pp-toolbar-height: 2.75rem;
 	/*
 	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
 	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
-	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), um die sechste icon-only
-	 * Kopf-Aktion in die 375px-Zeile zu bekommen. Ab 48rem gilt wieder die gewohnte Relation (siehe
-	 * Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind das WCAG-2.5.5-
-	 * Minimum, nicht Deko.
+	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), damit die icon-only
+	 * Kopf-Aktionen in die 375px-Zeile passen — zur Zeit von #965 waren es sechs, seit dem
+	 * Provider-System sind es fünf (header-appearance.spec.ts AK6). Ab 48rem gilt wieder die
+	 * gewohnte Relation aus #485 AK3 / #718 AK6 (siehe Media-Query unten). Die 2.75rem/44px
+	 * selbst bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
@@ -263,16 +264,37 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — mit der sechsten icon-only Kopf-Aktion
-	 * zählt jedes Pixel der 375px-Zeile; ab 48rem gilt wieder der Base-Abstand. */
+	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — die fünf icon-only Kopf-Aktionen füllen
+	 * die 375px-Zeile bis auf wenige Pixel aus, hier zählt jedes einzelne; ab 48rem gilt wieder
+	 * der Base-Abstand. */
 	gap: 0.25rem;
+
+	/*
+	 * Der Header liest als kompakte Kommandoleiste, nicht als Titelzone: eigene Fläche auf
+	 * --pp-surface-2, feiner Rahmen und Radius setzen ihn gegen den weißen Inhalt darunter ab.
+	 * Die Höhe bleibt an --pp-toolbar-height gebunden (siehe --pp-avatar-size oben) — die
+	 * Leiste beansprucht dadurch auf allen Breiten nur die WCAG-Mindesthöhe der Buttons.
+	 * `column-gap`/`padding` bleiben mobil aus (siehe 48rem-Media-Query): auf 375px zählt laut
+	 * #965 jedes Pixel der Zeile, das Budget verträgt hier keinen zusätzlichen Abstand.
+	 *
+	 * Die Kante ist ein inset-Schatten, kein `border`: ein Rahmen verkleinert die Innenbreite um
+	 * 2 px und brach damit die 375px-Zeile zweizeilig um (mobile-shell.spec.ts, #718 AK4). Der
+	 * Schatten malt ohne Layout-Wirkung — dasselbe Muster nutzt der Signal-Akzent der
+	 * „Nächsten Aufgabe" aus dem gleichen Grund.
+	 */
+	background: var(--pp-surface-2);
+	box-shadow: inset 0 0 0 1px var(--pp-border-subtle);
+	border-radius: var(--pp-radius-md);
 }
 
 @media (min-width: 48rem) {
 	.app-header {
 		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
 
-		gap: var(--pp-gap-base);
+		/* Nur der Zeilenabstand wächst; `column-gap` bleibt eng, damit die Leiste kompakt liest. */
+		row-gap: var(--pp-gap-base);
+		column-gap: var(--pp-space-2);
+		padding: var(--pp-space-2) var(--pp-space-3);
 	}
 }
 
@@ -290,8 +312,16 @@ body {
  */
 .app-name {
 	display: none;
-	font-weight: 700;
-	font-size: 1.125rem;
+	/*
+	 * Die Wortmarke trägt als gesperrte Versalie: sie bleibt als ruhige Signatur lesbar, ohne mit
+	 * den Kopf-Aktionen um Aufmerksamkeit zu konkurrieren — der Header ist Werkzeugleiste, nicht
+	 * Titelzone. --pp-ink-muted auf --pp-surface-2 liegt bei 5.9:1 und damit über der 4.5:1-Schwelle.
+	 */
+	font-weight: 600;
+	font-size: var(--pp-font-size-sm);
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--pp-ink-muted);
 	white-space: nowrap;
 }
 
@@ -337,7 +367,8 @@ body {
 
 .app-header__primary {
 	display: flex;
-	gap: var(--pp-gap-tight);
+	/* Eng gesetzt: Toolbar und Avatar lesen als eine zusammenhängende Aktionsgruppe. */
+	gap: var(--pp-space-1);
 	flex-wrap: wrap;
 	align-items: center;
 	margin-left: auto;
@@ -875,20 +906,63 @@ body {
 .dashboard-pillar {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-space-1);
-	padding: var(--pp-space-2) 0;
-	border-bottom: 1px solid var(--pp-border);
+	gap: var(--pp-space-2);
+	padding: var(--pp-space-3) 0;
+	border-bottom: 1px solid var(--pp-border-subtle);
 }
 
 .dashboard-pillar:last-child {
 	border-bottom: none;
 }
 
-.dashboard-pillar-meta {
-	color: var(--pp-text-muted);
+/*
+ * Die Säulen-Kennzahlen als beschriftete Wertepaare: vorher stand hier ein einzelner
+ * Fließtext-Satz mit vier Zahlen (`.dashboard-pillar-meta`), der bei 375px dicht lief und
+ * Screenreadern als ein Textblock zuging. Als <dl> tragen Label und Wert getrennt, umbrechen
+ * einzeln und behalten über `tabular-nums` eine gemeinsame Ziffernbreite über alle Säulen.
+ */
+.dashboard-pillar-facts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-2) var(--pp-space-5);
+	margin: 0;
+}
+
+.dashboard-pillar-fact {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.dashboard-pillar-fact dt {
+	font-size: 0.75rem;
+	font-weight: var(--pp-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--pp-ink-muted);
+}
+
+.dashboard-pillar-fact dd {
+	margin: 0;
+	font-size: var(--pp-font-size-lg);
+	font-variant-numeric: tabular-nums;
+	line-height: var(--pp-line-tight);
+	color: var(--pp-ink);
+}
+
+/* Der Anteil führt: Er beantwortet die Frage der Karte, die Buchhaltung daneben belegt sie. */
+.dashboard-pillar-fact--lead dd {
+	font-weight: var(--pp-weight-bold);
+	color: var(--pp-brand);
+}
+
+.dashboard-pillar-split {
+	display: block;
+	margin-top: 2px;
 	font-size: var(--pp-font-size-sm);
-	overflow-wrap: break-word;
-	word-break: break-word;
+	font-weight: var(--pp-weight-regular);
+	color: var(--pp-ink-muted);
 }
 
 /* Gesamtguthaben: prominente Punktzahl, darunter je Säule eine Zeile mit Wert rechtsbündig —
