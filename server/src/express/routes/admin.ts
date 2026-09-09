@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { Op } from 'sequelize';
+import sequelize from '../../database.js';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
@@ -29,11 +31,30 @@ const toDto = (user: User): AdminUserDto => ({
 
 const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ernenne zuerst eine andere Person.';
 
-/** Prüft, ob `target` der letzte verbleibende System-Administrator ist (analog Gruppen-Schutz). */
-const isLastRemainingAdmin = async (target: User): Promise<boolean> => {
-	if (target.role !== 'admin') return false;
-	const adminCount = await User.count({ where: { role: 'admin' } });
-	return adminCount <= 1;
+/**
+ * Stuft `id` auf `member` zurück — aber nur, wenn danach noch mindestens ein Admin übrig bleibt.
+ * Die Prüfung steckt als Subquery in EINEM bedingten UPDATE statt in „erst zählen, dann
+ * schreiben“: Zwei parallele Rückstufungen der beiden letzten Admins könnten sonst beide den
+ * Count `2` sehen und die App ohne Administrator zurücklassen (TOCTOU). Ein einzelnes UPDATE ist
+ * in SQLite atomar; auf eine Transaktion wird bewusst verzichtet (Tests laufen mit `:memory:` und
+ * einer einzigen Verbindung, parallele `BEGIN`s würden dort kollidieren). Bereits zurückgestufte
+ * Konten (`role <> 'admin'`) bleiben idempotent erreichbar (kein falsches 409).
+ * @returns `false`, wenn `id` der letzte verbleibende Admin ist und nichts geändert wurde.
+ */
+const demoteUnlessLastAdmin = async (id: number): Promise<boolean> => {
+	const [affected] = await User.update(
+		{ role: 'member' },
+		{
+			where: {
+				id,
+				[Op.or]: [
+					{ role: { [Op.ne]: 'admin' } },
+					sequelize.where(sequelize.literal("(SELECT COUNT(*) FROM `users` WHERE `role` = 'admin')"), Op.gt, 1),
+				],
+			},
+		},
+	);
+	return affected > 0;
 };
 
 export const adminRouter = Router();
@@ -76,11 +97,15 @@ adminRouter.patch(
 				sendError(res, 404, 'Nutzer nicht gefunden.');
 				return;
 			}
-			if (body.role === 'member' && (await isLastRemainingAdmin(target))) {
-				sendError(res, 409, LAST_ADMIN_MESSAGE);
-				return;
+			if (body.role === 'member') {
+				if (!(await demoteUnlessLastAdmin(target.id))) {
+					sendError(res, 409, LAST_ADMIN_MESSAGE);
+					return;
+				}
+				await target.reload();
+			} else {
+				await target.update({ role: body.role });
 			}
-			await target.update({ role: body.role });
 			res.json(toDto(target));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');

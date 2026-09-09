@@ -123,7 +123,7 @@ authRouter.post('/auth/login', async (req, res) => {
 	}
 
 	// Rollensystem admin/member: ADMIN_EMAILS bei jedem Login neu abgleichen (nur Beförderung).
-	const effectiveRole = resolveRole(normalizedEmail, user.role as UserRole);
+	const effectiveRole = resolveRole(normalizedEmail, user.role);
 	if (effectiveRole !== user.role) {
 		await user.update({ role: effectiveRole });
 	}
@@ -263,8 +263,11 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 	)(req, res, next);
 });
 
-// GET /auth/me — gibt die aktuelle Session zurück (oder 401)
-authRouter.get('/auth/me', (req, res) => {
+// GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB
+// (nicht aus dem Session-Snapshot): So wirken Beförderung und Rückstufung über die Admin-API
+// sofort auf den Tab „Nutzerverwaltung“, und Alt-Sessions von vor dem Rollensystem (ohne `role`)
+// erhalten ihre echte Rolle statt `undefined`. Anzeigefelder bleiben bewusst Session-Daten.
+authRouter.get('/auth/me', async (req, res) => {
 	// Pass-Through-Modus: Ist überhaupt kein Auth-Kontext konfiguriert (siehe `isAuthActive`), lässt
 	// `requireAuth` jede API-Route ungehindert durch — dann darf `/auth/me` nicht 401 melden. Sonst
 	// zeigt das Frontend eine Login-Seite, hinter die niemand kommt: ohne OAuth-Credentials ist weder
@@ -279,12 +282,24 @@ authRouter.get('/auth/me', (req, res) => {
 		return;
 	}
 	const user = req.session.user;
+	let role: UserRole;
+	try {
+		const dbRole = typeof user.id === 'number' ? (await User.findByPk(user.id))?.role : undefined;
+		role = dbRole ?? user.role ?? 'member';
+	} catch {
+		res.status(500).json({ message: 'Interner Serverfehler.' });
+		return;
+	}
+	// Snapshot nachziehen, damit Alt-Sessions ab jetzt eine Rolle tragen (self-healing).
+	if (user.role !== role) {
+		user.role = role;
+	}
 	res.json({
 		id: user.id,
 		email: user.email,
 		displayName: user.displayName,
 		avatarUrl: user.avatarUrl ?? null,
-		role: user.role,
+		role,
 	});
 });
 
@@ -324,7 +339,7 @@ if (process.env.NODE_ENV === 'test') {
 			where: { email },
 			defaults: { email, passwordHash: '__test__', displayName: resolvedDisplayName, role: role ?? resolveRole(email) },
 		});
-		const effectiveRole = role ?? resolveRole(email, dbUser.role as UserRole);
+		const effectiveRole = role ?? resolveRole(email, dbUser.role);
 		if (effectiveRole !== dbUser.role) {
 			await dbUser.update({ role: effectiveRole });
 		}

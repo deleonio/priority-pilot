@@ -124,9 +124,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4). */
 	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
 
-	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default). */
+	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default).
+	 * Rollensystem admin/member: Das Segment `nutzer` (Index 5) existiert nur für Admins — für Member
+	 * gilt es als unbekannt, sonst zeigte `KolTabs` mit `_selected=5` bei fünf Tabs ein leeres Panel. */
+	const isAdmin = user.role === 'admin';
 	const settingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
-	const settingsTabIndex = SETTINGS_PATH_SEGMENTS.indexOf(settingsSegment);
+	const settingsTabIndex = (isAdmin ? SETTINGS_PATH_SEGMENTS : SETTINGS_PATH_SEGMENTS.slice(0, 5)).indexOf(
+		settingsSegment,
+	);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
 
 	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */
@@ -564,7 +569,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				onBack={closeSettings}
 				onSaved={afterSettingsSaved}
 				onPillarChanged={handlePillarChanged}
-				isAdmin={user.role === 'admin'}
+				isAdmin={isAdmin}
 			/>
 		);
 	}

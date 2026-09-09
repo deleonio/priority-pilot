@@ -63,35 +63,6 @@ export const displayNameCustomOf = async (email: string): Promise<number> => {
 	return Number((rows as { displayNameCustom: number }[])[0]?.displayNameCustom ?? -1);
 };
 
-/**
- * Test-Helper für das Rollensystem admin/member: zieht die Spalte `users.role` testseitig nach,
- * solange das User-Modell sie noch nicht kennt (nach `resetDb()` fehlt sie). Idempotent — sobald
- * die Impl die Spalte am Modell ergänzt, wird kein `ALTER TABLE` mehr ausgeführt.
- */
-export const ensureRoleColumn = async (): Promise<void> => {
-	const [rows] = await sequelize.query("PRAGMA table_info('users')");
-	const hasColumn = (rows as { name: string }[]).some((row) => row.name === 'role');
-	if (!hasColumn) {
-		await sequelize.query("ALTER TABLE `users` ADD COLUMN `role` VARCHAR(255) NOT NULL DEFAULT 'member'");
-	}
-};
-
-/** Setzt die Rolle für die gegebene E-Mail (zieht die Spalte vorher testseitig nach). */
-export const setRole = async (email: string, role: UserRole): Promise<void> => {
-	await ensureRoleColumn();
-	await sequelize.query('UPDATE `users` SET `role` = ? WHERE `email` = ?', {
-		replacements: [role, email],
-	});
-};
-
-/** Roh-Wert von `users.role` für DB-Asserts ohne Modellabhängigkeit. */
-export const roleOf = async (email: string): Promise<string | null> => {
-	const [rows] = await sequelize.query('SELECT `role` FROM `users` WHERE `email` = ?', {
-		replacements: [email],
-	});
-	return (rows as { role: string }[])[0]?.role ?? null;
-};
-
 export const closeDb = async (): Promise<void> => {
 	// No-op: closing the Sequelize singleton prevents subsequent resetDb() calls in later
 	// test suites from working (SQLITE_MISUSE: Database is closed). In-memory SQLite

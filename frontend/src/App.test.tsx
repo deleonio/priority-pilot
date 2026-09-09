@@ -29,6 +29,14 @@ vi.mock('./api', () => ({
 		// #1098 AK5: `useGeolocation` lädt beim Mount die Geo-Konfiguration. Der Mock liefert
 		// keine Werte (resolves undefined), damit der 5-Minuten-Fallback des Hooks greift.
 		getGeoConfig: vi.fn().mockResolvedValue(undefined),
+		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
+		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
+		listLlmProviders: vi.fn().mockResolvedValue([]),
+		listGroups: vi.fn().mockResolvedValue([]),
+		listReceivedInvitations: vi.fn().mockResolvedValue([]),
+		getVapidPublicKey: vi.fn().mockResolvedValue(null),
+		getAdminUsers: vi.fn().mockResolvedValue([]),
+		getProfile: vi.fn().mockResolvedValue({ displayName: 'Test User', email: 'test@example.com', avatarUrl: null }),
 	},
 }));
 
@@ -305,5 +313,48 @@ describe('App — Avatar-Position im Header (#912)', () => {
 		// DOCUMENT_POSITION_FOLLOWING (4): `avatar` liegt im DOM-Baum NACH `primary`.
 		const position = primary!.compareDocumentPosition(avatar!);
 		expect((position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+	});
+});
+
+/**
+ * Rollensystem admin/member: Deep-Link `/settings/nutzer`. Der Settings-Tab ist eine reine Funktion
+ * der URL (#1105) — für Member darf das Admin-Segment aber nicht auf Index 5 abbilden, weil ihre
+ * Tab-Leiste nur fünf Einträge hat (`KolTabs` zeigte sonst ein leeres Panel). Admins landen auf dem
+ * sechsten Tab „Nutzerverwaltung".
+ */
+describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => {
+	type TabsElement = { _tabs?: { _label: string }[]; _selected?: number } | null;
+	const tabsElement = (): TabsElement => document.querySelector('kol-tabs.settings-tabs') as unknown as TabsElement;
+
+	beforeEach(() => {
+		window.history.replaceState({}, '', '/settings/nutzer');
+	});
+
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it('Member: fällt auf den Säulen-Tab (Index 1) zurück, kein Tab „Nutzerverwaltung", kein Panel tab-5', async () => {
+		render(<App user={testUser} />);
+
+		await waitFor(() => {
+			expect(tabsElement()).not.toBeNull();
+		});
+		const tabs = tabsElement();
+		expect(tabs?._selected).toBe(1);
+		expect(tabs?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
+		expect(document.querySelector('[slot="tab-5"]')).toBeNull();
+	});
+
+	it('Admin: öffnet den sechsten Tab „Nutzerverwaltung" (Index 5) mit Panel tab-5', async () => {
+		render(<App user={{ ...testUser, role: 'admin' as const }} />);
+
+		await waitFor(() => {
+			expect(tabsElement()).not.toBeNull();
+		});
+		const tabs = tabsElement();
+		expect(tabs?._selected).toBe(5);
+		expect(tabs?._tabs?.map((t) => t._label)).toContain('Nutzerverwaltung');
+		expect(document.querySelector('[slot="tab-5"]')).not.toBeNull();
 	});
 });

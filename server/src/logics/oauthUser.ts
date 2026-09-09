@@ -43,7 +43,7 @@ export async function upsertOAuthUser({
 	// #1256: Ein selbst über PUT /profile gesetzter Name (`displayNameCustom`) wird vom
 	// Google-Profil NICHT mehr überschrieben — nur der Avatar folgt weiterhin jedem Login.
 	// Rollensystem admin/member: ADMIN_EMAILS wird bei jedem Login neu abgeglichen (nur Beförderung).
-	const effectiveRole = resolveRole(email, user.role as UserRole);
+	const effectiveRole = resolveRole(email, user.role);
 	if (
 		!created &&
 		(user.displayName !== resolvedDisplayName || user.avatarUrl !== avatarUrl || user.role !== effectiveRole)
