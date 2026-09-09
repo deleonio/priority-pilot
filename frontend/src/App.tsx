@@ -32,6 +32,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForestByTitle } from './lib/filterForestByTitle';
+import { buildBalancePriorities } from './lib/balancePriority';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
@@ -83,6 +84,19 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
+/**
+ * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
+ * nach `share`, exakt die Quelle des Dashboards (`buildPillarSummaries`). Der Wert-Beitrag fließt
+ * hier nicht ein, daher die leere Map.
+ */
+const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, number> => {
+	const doneEffortByPillar = new Map<number, number>();
+	for (const summary of buildPillarSummaries(pillars, tasks, new Map<number, number>())) {
+		doneEffortByPillar.set(summary.pillar.id, summary.doneEstimatedEffort);
+	}
+	return doneEffortByPillar;
+};
+
 const AppShell = ({ user }: { user: AuthUser }) => {
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -113,6 +127,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [searchDraft, setSearchDraft] = useState(taskSearch);
 	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
 	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
+
+	// Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz). Der Schalter
+	// wechselt nur die Sicht; gerechnet wird live an der Datenlage, ohne eingefrorenen Stand.
+	const [balanceMode, setBalanceMode] = useState(false);
 
 	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
 	const applyTaskFilter = useCallback(
@@ -158,6 +176,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			});
 		},
 		[setSearchParams],
+	);
+
+	// Balance-Stand zur aktuellen Datenlage; außerhalb des Modus wird nicht gerechnet.
+	const balancePriorities = useMemo(
+		() =>
+			balanceMode ? buildBalancePriorities(pillars, buildDoneEffortByPillar(pillars, tasks ?? []), tasks ?? []) : null,
+		[balanceMode, pillars, tasks],
 	);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
@@ -681,6 +706,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										},
 									}}
 								/>
+								<KolInputCheckbox
+									className="task-view-switch"
+									_label="Balance-Priorisierung"
+									_variant="switch"
+									_checked={balanceMode}
+									_on={{
+										onChange: (_event, checked) => {
+											setBalanceMode(checked === true);
+										},
+									}}
+								/>
 								<div className="task-filter-search">
 									<KolInputText
 										ref={taskFilterInputRef}
@@ -719,6 +755,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											tasks={tasks}
 											progressMap={progressMap}
 											userId={user.id}
+											balancePriorities={balancePriorities}
 											onEdit={openEdit}
 											onDelete={openDelete}
 											onEditDependencies={openDependencies}
@@ -734,6 +771,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										tasks={tasks}
 										progressMap={progressMap}
 										userId={user.id}
+										balancePriorities={balancePriorities}
 										onEdit={openEdit}
 										onDelete={openDelete}
 										onEditDependencies={openDependencies}
