@@ -6,7 +6,7 @@ INPUTS: the two gh commands (`gh pr diff`, `gh pr view`) per SKILL.md → Inputs
 - {{LINKED_ISSUES}} (context)
 - title compliant = {{TITLE_OK}} — trust ONLY exactly `true`; `false`/`unbekannt` → decide compliance yourself (SKILL.md → Rules); type/scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
 
-OUTPUT (`/tmp/doc.json`): structure per SKILL.md → Output.
+OUTPUT (MANDATORY, both of them): `/tmp/doc.json` (structure per SKILL.md → Output) and your phase note. Write both via bash heredoc — never end the run waiting for a tool permission.
 
 Rules (`title`, `files`, `issues`, `jq` check) per SKILL.md → Rules.
 

@@ -148,7 +148,7 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 | --------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `ai:analysed`   | triage (idempotent)       | Konsumiert-Check des unlabeled-Wegs, issue-unblock (Parkplatz); **Entfernen** durch Menschen = Re-Triage-Trigger |
 | `ai:reviewed`   | review (🟢 / needs-human) | gate-merge (Trigger + Merge-Vorbedingung), fixup (Abräumen)                                                      |
-| `ai:documented` | documenter                | Documenter-Precheck (fail-closed)                                                                                |
+| `ai:documented` | documenter                | Documenter-Precheck (fail-closed; nur `workflow_dispatch` mit `force: true` übersteuert)                         |
 
 **Info-Labels** — kein Trigger, keine automatische Aktion:
 

@@ -40,6 +40,15 @@ hoch — Standard-Retention 90 Tage, wie die Kosten-Artefakte (`claude-costs-*`)
 Artefakt ist in sich vollständig; kein Merge über mehrere Artefakte nötig. Der sha256-Diff gegen
 eine Load-Baseline liefert `new-notes` (die Documenter-Post-Assertion #1010 AK2 bleibt funktional).
 
+> **Nachtrag 2026-09-09:** Der Upload lief drei Tage lang ins Leere. `actions/upload-artifact`
+> filtert seit v4.4 alles weg, was in einem Punkt-Verzeichnis liegt — `.ai-memory/` ist eins;
+> der Step meldete „No files were found" und lud nichts hoch, `if-no-files-found: warn` machte
+> daraus einen stillen Totalausfall (jeder Restore fiel auf den Übergangs-Fallback zurück).
+> Behoben mit `include-hidden-files: true`. Die Documenter-Post-Assertion ist bei der Gelegenheit
+> zum Bericht geworden: Fehlt die Notiz, schreibt der Workflow selbst einen Minimal-Checkpoint
+> und warnt, statt den Job zu töten — der Documenter ist terminal und per Pre-Check nicht
+> wiederholbar, ein Fail-hard dort ist unheilbar rot (elf Läufe, u. a. PR #1312).
+
 **2. Restore am Laufbeginn (`setup-agent`, Memory-Load).** Liste der nicht-abgelaufenen Artefakte
 mit Prefix `ai-memory-issue-<N>-` per API, neuestes nach `created_at`, entpacken nach `.ai-memory/`.
 Der read-seitige Vertrag ändert sich nicht: gleiche Dateien, gleicher Pfad, derselbe

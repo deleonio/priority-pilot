@@ -635,7 +635,7 @@ braucht Stufe 2 einen neuen Session-ID-Speicher außerhalb des Merge-Pfads (s.
 
 ## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 7)
 
-Der Post-Merge-Documenter ([06-claude-pr-documenter.yml](../.github/workflows/06-claude-pr-documenter.yml))
+Der Post-Merge-Documenter ([06-document.yml](../.github/workflows/06-document.yml))
 war anfangs eine reine Prompt-Phase — empirisch drifteten dabei Kommentar-Formate, blieben
 Branch-Namen-Titel (`perf/#692: …`, `feat/issue-671-…`) unnormalisiert und landeten UX-Änderungen
 unter `perf(...)` (feste Prompt-Regel `improved→perf`). Jetzt entscheidet Regel-Logik, das LLM
@@ -650,7 +650,11 @@ liefert nur Inhalte:
 
 Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-Dokumentation
 (Minimal-Kommentar + `ai:documented` + `release:engineering`) und hält den Job grün — ein Re-Run
-wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse.
+wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse. Dieselbe Logik gilt für die
+Phasen-Notiz: fehlt sie nach dem Claude-Lauf, schreibt der Workflow selbst einen
+Minimal-Checkpoint und warnt (früher ein Fail-hard — das machte elf vollständig dokumentierte PRs
+unheilbar rot). Nachdokumentieren geht nur über `workflow_dispatch` mit `force: true`: der Input
+hebt ausschliesslich die `ai:documented`-Invariante des Prechecks auf, die Merged-Bedingung bleibt.
 
 **Sprachregel:** PR-Titel und Haupttexte englisch (Conventional Commits, Subject klein, ≤72
 Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 5)
