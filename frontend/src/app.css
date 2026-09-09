@@ -247,13 +247,19 @@ body {
 	/*
 	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
 	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
-	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), damit die icon-only
-	 * Kopf-Aktionen in die 375px-Zeile passen — zur Zeit von #965 waren es sechs, seit dem
-	 * Provider-System sind es fünf (header-appearance.spec.ts AK6). Ab 48rem gilt wieder die
-	 * gewohnte Relation aus #485 AK3 / #718 AK6 (siehe Media-Query unten). Die 2.75rem/44px
-	 * selbst bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
+	 * ist seit #965 mobil auf 2rem verkleinert, damit die icon-only Kopf-Aktionen in die
+	 * 375px-Zeile passen — zur Zeit von #965 waren es sechs, seit dem Provider-System sind es fünf
+	 * (header-appearance.spec.ts AK6). Ab 48rem gilt wieder die gewohnte Relation aus #485 AK3 /
+	 * #718 AK6 (siehe Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind
+	 * das WCAG-2.5.5-Minimum, nicht Deko.
+	 *
+	 * `--pp-avatar-size` trägt deshalb die tatsächliche Avatar-Kantenlänge (mobil 2rem, ab 48rem
+	 * 1,25 × Toolbar-Höhe); die davon abweichende Logo-Höhe steht als eigenes `--pp-logo-size`.
+	 * Vorher hielt `--pp-avatar-size` mobil die Logo-Höhe und die 2rem des Avatars standen fest
+	 * verdrahtet in der `kol-avatar`-Regel — der Innenabstand unten kann so nicht rechnen.
 	 */
-	--pp-avatar-size: var(--pp-toolbar-height);
+	--pp-avatar-size: 2rem;
+	--pp-logo-size: var(--pp-toolbar-height);
 
 	/*
 	 * P1: Header in 3 semantische Gruppen (Brand | Primary | User).
@@ -272,10 +278,15 @@ body {
 	/*
 	 * Der Header liest als kompakte Kommandoleiste, nicht als Titelzone: eigene Fläche auf
 	 * --pp-surface-2, feiner Rahmen und Radius setzen ihn gegen den weißen Inhalt darunter ab.
-	 * Die Höhe bleibt an --pp-toolbar-height gebunden (siehe --pp-avatar-size oben) — die
+	 * Die Höhe bleibt an --pp-toolbar-height gebunden (siehe --pp-logo-size oben) — die
 	 * Leiste beansprucht dadurch auf allen Breiten nur die WCAG-Mindesthöhe der Buttons.
-	 * `column-gap`/`padding` bleiben mobil aus (siehe 48rem-Media-Query): auf 375px zählt laut
-	 * #965 jedes Pixel der Zeile, das Budget verträgt hier keinen zusätzlichen Abstand.
+	 * `column-gap` bleibt mobil aus (siehe 48rem-Media-Query): auf 375px zählt laut #965 jedes
+	 * Pixel der Zeile, das Budget verträgt hier keinen zusätzlichen Abstand zwischen den Gruppen.
+	 *
+	 * Auch das Padding bleibt auf der Basis-Breite aus (siehe die 24rem-Regel unten): Die 375px-Zeile
+	 * ist mit Logo (44px), sechs Kopf-Aktionen (6 × 44px) und Avatar (32px) plus Gruppen-Abstand bei
+	 * gemessenen ~349 von 351px Inhaltsbreite ausgereizt — jedes zusätzliche Pixel bricht sie
+	 * zweizeilig um (mobile-shell.spec.ts).
 	 *
 	 * Die Kante ist ein inset-Schatten, kein `border`: ein Rahmen verkleinert die Innenbreite um
 	 * 2 px und brach damit die 375px-Zeile zweizeilig um (mobile-shell.spec.ts, #718 AK4). Der
@@ -287,14 +298,38 @@ body {
 	border-radius: var(--pp-radius-md);
 }
 
+/*
+ * Gleichmäßiger Abstand um den Avatar: Er steht als letztes Element am rechten Rand und ist
+ * unterhalb von 48rem niedriger als die 44px-Zeile — oben und unten bleibt je die halbe
+ * Höhendifferenz Luft, rechts ohne Innenabstand keine. Der Innenabstand rechts setzt deshalb exakt
+ * diese halbe Differenz: der Avatar hat dann rundum denselben Abstand zur Kopfleiste. Links bleibt
+ * er aus — das Logo füllt die Zeilenhöhe voll aus und steht bündig, wie oben/unten auch.
+ *
+ * Erst ab 24rem (384px): Auf der 375px-Referenzbreite ist die Zeile voll (siehe oben), dort bliebe
+ * es bei der bündigen Kante. Ab 384px sind ~5px Reserve übrig, ab 400px mehr als 20 — die
+ * Aufwärts-Kaskade folgt damit demselben Mobile-First-Muster wie `column-gap`/`padding` ab 48rem.
+ */
+@media (min-width: 24rem) {
+	.app-header {
+		padding-inline-end: calc((var(--pp-toolbar-height) - var(--pp-avatar-size)) / 2);
+	}
+}
+
 @media (min-width: 48rem) {
 	.app-header {
 		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
+		--pp-logo-size: var(--pp-avatar-size);
 
 		/* Nur der Zeilenabstand wächst; `column-gap` bleibt eng, damit die Leiste kompakt liest. */
 		row-gap: var(--pp-gap-base);
 		column-gap: var(--pp-space-2);
-		padding: var(--pp-space-2) var(--pp-space-3);
+		/*
+		 * Rundum derselbe Innenabstand: Ab 48rem ist der Avatar das höchste Element der Zeile und
+		 * bestimmt die Innenhöhe — sein Abstand nach oben und unten ist damit genau das Padding.
+		 * Rechts galt vorher --pp-space-3, der Avatar saß also seitlich weiter von der Kante weg
+		 * als oben/unten. Ein einheitlicher Wert macht den Rahmen um ihn gleichmäßig.
+		 */
+		padding: var(--pp-space-2);
 	}
 }
 
@@ -349,11 +384,12 @@ body {
 
 /*
  * #485 AK1/AK5: Das Logo zeigt nur noch das Icon (`/logo/logo.png`, ~quadratisch) und treibt die
- * Header-Höhe nicht mehr über den Avatar hinaus — es liegt exakt auf Avatar-Höhe.
+ * Header-Höhe nicht mehr über den Avatar hinaus — ab 48rem liegt es exakt auf Avatar-Höhe, mobil
+ * auf Toolbar-Höhe (siehe --pp-logo-size oben).
  */
 .logo-btn img {
 	display: block;
-	height: var(--pp-avatar-size);
+	height: var(--pp-logo-size);
 	max-height: none;
 	width: auto;
 	max-width: 100%;
@@ -401,7 +437,9 @@ body {
  *
  * #965: Mobil (Basis) weicht der Avatar auf 2rem ab — er ist nicht interaktiv (kein Touch-Target-
  * Minimum) und ist das einzige Element der Kopf-Zeile, das Platz hergeben kann, damit Logo, die
- * sechs icon-only Kopf-Aktionen und der Avatar bei 375px einzeilig bleiben (mobile-shell, ≤ 64px).
+ * icon-only Kopf-Aktionen und der Avatar bei 375px einzeilig bleiben (mobile-shell, ≤ 64px).
+ * Beide Maße stehen als `--pp-avatar-size` am Header (siehe oben) — von dort rechnet auch dessen
+ * seitlicher Innenabstand, damit der Abstand rundum den Avatar gleich bleibt.
  */
 .app-header kol-avatar {
 	/*
@@ -412,16 +450,9 @@ body {
 	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
 	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
 	 */
-	width: 2rem;
-	height: 2rem;
+	width: var(--pp-avatar-size);
+	height: var(--pp-avatar-size);
 	aspect-ratio: 1;
-}
-
-@media (min-width: 48rem) {
-	.app-header kol-avatar {
-		width: var(--pp-avatar-size);
-		height: var(--pp-avatar-size);
-	}
 }
 
 .loading {
