@@ -363,14 +363,15 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
  * #1320 AK7 — Genau ein <main> und genau eine <h1> je Ansicht: Der Header-Umbau darf auf
  * /settings/general bzw. /hilfe weder ein doppeltes <main> (App-Layout + Seite) noch eine
  * zweite <h1> (die versteckte „Dashboard"-Überschrift aus dem Haupt-Layout) hinterlassen; die
- * verbleibende <h1> muss die geöffnete Seite benennen, nicht „Dashboard".
+ * verbleibende <h1> muss die geöffnete Seite benennen — positiv „Einstellungen" bzw. „Hilfe",
+ * nicht „Dashboard" und auch nicht der heutige Seitentitel „Priority Pilot" (SettingsPage.tsx).
  */
 describe('App — #1320 AK7: genau ein <main> und eine <h1> je Ansicht', () => {
 	afterEach(() => {
 		window.history.replaceState({}, '', '/');
 	});
 
-	it('AK7: /settings/general hat genau ein <main> und eine <h1> ungleich "Dashboard"', async () => {
+	it('AK7: /settings/general hat genau ein <main> und eine <h1>, die die Seite benennt', async () => {
 		window.history.replaceState({}, '', '/settings/general');
 		render(<App user={testUser} />);
 
@@ -381,10 +382,10 @@ describe('App — #1320 AK7: genau ein <main> und eine <h1> je Ansicht', () => {
 		expect(document.querySelectorAll('main')).toHaveLength(1);
 		const headings = document.querySelectorAll('h1');
 		expect(headings).toHaveLength(1);
-		expect(headings[0].textContent?.trim()).not.toBe('Dashboard');
+		expect(headings[0].textContent?.trim()).toContain('Einstellungen');
 	});
 
-	it('AK7: /hilfe hat genau ein <main> und eine <h1> ungleich "Dashboard", Header bleibt sichtbar (AK2)', async () => {
+	it('AK7: /hilfe hat genau ein <main> und eine <h1>, die die Seite benennt, Header bleibt sichtbar (AK2)', async () => {
 		window.history.replaceState({}, '', '/hilfe');
 		render(<App user={testUser} />);
 
@@ -398,6 +399,6 @@ describe('App — #1320 AK7: genau ein <main> und eine <h1> je Ansicht', () => {
 		expect(document.querySelectorAll('main')).toHaveLength(1);
 		const headings = document.querySelectorAll('h1');
 		expect(headings).toHaveLength(1);
-		expect(headings[0].textContent?.trim()).not.toBe('Dashboard');
+		expect(headings[0].textContent?.trim()).toContain('Hilfe');
 	});
 });

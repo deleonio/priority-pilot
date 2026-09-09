@@ -377,6 +377,23 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
+	/**
+	 * AK6 nennt den Browser-Zurück-Button für „/settings/general bzw. /hilfe" — hier die
+	 * /hilfe-Variante (Review-Nit PR #1323): goBack() von /hilfe stellt die vorherige
+	 * Ansicht inkl. aktivem Tab wieder her.
+	 */
+	test('AK6: goBack() von /hilfe stellt /settings/general mit aktivem Allgemein-Tab wieder her', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.goto('/hilfe');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.goBack();
+		await expect(page).toHaveURL(/\/settings\/general$/);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+
 	test('AK6: Deep-Link /settings/standort zeigt den Standort-Tab mit sichtbarem Banner', async ({ page }) => {
 		await page.goto('/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
