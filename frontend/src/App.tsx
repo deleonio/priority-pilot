@@ -756,9 +756,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						<SeriesTab pillars={pillars} />
 					</div>
 					<div slot="tab-3">
-						<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
-							<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
-						</Suspense>
+						{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
+						    (nicht entfernt), und die Knoten-/Listentitel sind wortgleich zum Aufgaben-Tab —
+						    dauerhaft gemountet würden sie dort exakte Text-Locators (z. B. in E2E-Tests) doppeln. */}
+						{activeTab === 3 && (
+							<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
+								<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
+							</Suspense>
+						)}
 					</div>
 				</KolTabs>
 			)}

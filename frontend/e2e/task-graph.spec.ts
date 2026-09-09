@@ -47,6 +47,13 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		}
 	};
 
+	// Der Graph kappt bei MAX_GRAPH_NODES (60, wertabsteigend sortiert) — Altlasten aus zuvor
+	// gelaufenen Specs im selben Shard (die nicht alle per afterEach aufräumen) würden sonst die
+	// hier neu angelegten Knoten aus den Top 60 verdrängen. beforeEach sichert einen leeren Stand.
+	test.beforeEach(async ({ page }) => {
+		await deleteAllTasks(page);
+	});
+
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});
@@ -69,6 +76,8 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		await expect(page.getByTestId(`graph-node-${parentId}`)).toBeVisible();
 		// Das Gewicht steht als Zahl an der Kante — die Strichstärke allein trägt die Information nicht.
 		await expect(page.getByTestId('task-graph-canvas').getByText('0,5', { exact: true })).toBeVisible();
+		// Kein fokussierbares Element im aria-hidden-Canvas (u. a. das React-Flow-Attribution-Panel) — WCAG 4.1.2.
+		await expect(page.getByTestId('task-graph-canvas').locator('a')).toHaveCount(0);
 	});
 
 	test('Die Unteraufgabe steht über der Aufgabe, die sie ermöglicht', async ({ page }) => {

@@ -115,6 +115,7 @@ const Viewport = ({ nodes, edges, selectedId, onSelect }: TaskGraphCanvasProps) 
 					nodes={flowNodes}
 					edges={flowEdges}
 					nodeTypes={nodeTypes}
+					proOptions={{ hideAttribution: true }}
 					fitView
 					minZoom={0.2}
 					maxZoom={1.6}

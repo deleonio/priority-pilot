@@ -138,7 +138,7 @@ export const buildTaskGraph = async (userId?: number): Promise<TaskGraph> => {
 	/** Vorgänger/Unteraufgaben je Task (Alias `dependencies`). */
 	const dependenciesOf = new Map<number, number[]>();
 	for (const row of edgeRows) {
-		const weight = row.weight ?? 1;
+		const weight = row.weight || 1;
 		const dependents = dependentsOf.get(row.dependingTaskId);
 		if (dependents) {
 			dependents.push({ id: row.dependentTaskId, weight });
@@ -301,7 +301,7 @@ export const buildTaskGraph = async (userId?: number): Promise<TaskGraph> => {
 	const visibleIds = new Set(nodes.map((node) => node.id));
 	const edges: TaskGraphEdge[] = edgeRows
 		.filter((row) => visibleIds.has(row.dependingTaskId) && visibleIds.has(row.dependentTaskId))
-		.map((row) => ({ from: row.dependingTaskId, to: row.dependentTaskId, weight: row.weight ?? 1 }))
+		.map((row) => ({ from: row.dependingTaskId, to: row.dependentTaskId, weight: row.weight || 1 }))
 		.sort((a, b) => a.to - b.to || a.from - b.from);
 
 	return { nodes, edges };

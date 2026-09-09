@@ -131,7 +131,9 @@ describe('buildTaskGraph', () => {
 		const b = await Task.create({ title: 'B', priority: 2, estimatedEffort: 0.25 });
 		const c = await Task.create({ title: 'C', priority: 5, estimatedEffort: 0.5 });
 		const doneLeaf = await Task.create({ title: 'Erledigt', priority: 3, estimatedEffort: 0.25 });
-		await b.addDependency(a, { through: { weight: 0.5 } });
+		// weight: 0 ist per API erreichbar (routes/tasks.ts akzeptiert weight >= 0) und muss wie in
+		// buildTaskForest/value.ts als "kein Gewicht gesetzt" (→ 1) behandelt werden, nicht als 0.
+		await b.addDependency(a, { through: { weight: 0 } });
 		await c.addDependency(b, { through: { weight: 0.8 } });
 		await b.addDependency(doneLeaf);
 		await doneLeaf.update({ status: 'Done' });
