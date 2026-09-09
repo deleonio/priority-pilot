@@ -3,7 +3,7 @@ import type { Task, TaskGraph, TaskGraphEdge, TaskGraphNode } from 'client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Panel-Vertrag: die drei Zustände (Laden/Fehler/Daten), die Kappung auf `MAX_GRAPH_NODES` und der
+ * Panel-Vertrag: die drei Zustände (Laden/Fehler/Daten), die Blätterung über die Bäume und der
  * Weg vom Knoten zum Abhängigkeits-Dialog.
  *
  * Der Canvas wird gemockt: jsdom kennt weder `ResizeObserver` noch `DOMMatrix`, ein echtes
@@ -22,8 +22,8 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
-	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: () => void } }) => (
-		<button type="button" onClick={() => _on?.onClick?.()}>
+	KolButton: ({ _label, _disabled, _on }: { _label?: string; _disabled?: boolean; _on?: { onClick?: () => void } }) => (
+		<button type="button" disabled={_disabled === true} onClick={() => _on?.onClick?.()}>
 			{_label}
 		</button>
 	),

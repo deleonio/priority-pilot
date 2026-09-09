@@ -7,9 +7,6 @@ export const NODE_HEIGHT = 92;
 const GAP_X = 32;
 const GAP_Y = 64;
 
-/** Anzeigegrenze: darüber wird auf die wertvollsten Knoten gekappt (siehe `selectTopNodes`). */
-export const MAX_GRAPH_NODES = 60;
-
 export interface PositionedNode {
 	node: TaskGraphNode;
 	/** Ebene im gerichteten Layout: 0 = ganz oben (Aufgaben ohne Vorgänger im sichtbaren Graphen). */
@@ -118,17 +115,64 @@ export const layoutGraph = (nodes: TaskGraphNode[], edges: TaskGraphEdge[]): Pos
 };
 
 /**
- * Kappt den Graphen auf die `limit` wertvollsten Knoten und wirft alle Kanten weg, die dadurch ins
- * Leere zeigen würden. Die Knoten kommen vom Server bereits absteigend nach `value` sortiert.
+ * Zerlegt den Graphen in seine Zusammenhangskomponenten — die „Bäume", die der Tab „Wald" einzeln
+ * zeigt. Verbunden wird über die **ungerichteten** Kanten: eine Aufgabe kann mehreren übergeordneten
+ * Aufgaben zuarbeiten, ein Diamant bleibt deshalb ein Baum.
  *
- * Die Kappung ist bewusst Sache der Ansicht und nicht des Endpunkts: `GET /graph` bleibt eine
- * vollständige Repräsentation, nur die Darstellung hat eine Grenze.
+ * Knoten ohne jede Kante gehören zu keinem Baum — eine Aufgabe ohne Abhängigkeit ist im Graphen
+ * nichts zu zeigen. Innerhalb eines Baums wird nichts gekappt: die Auswahl trifft die Blätterung,
+ * nicht eine Knotengrenze.
+ *
+ * Reihenfolge: absteigend nach dem höchsten `value` eines Baums, Tie-Break kleinste Knoten-`id`
+ * (wie `layoutGraph`) — damit steht der wertvollste Knoten des Graphen im ersten Baum und die
+ * Reihenfolge ist deterministisch prüfbar.
+ *
+ * Die Auswahl ist bewusst Sache der Ansicht und nicht des Endpunkts: `GET /graph` bleibt eine
+ * vollständige Repräsentation.
  */
-export const selectTopNodes = (graph: TaskGraph, limit: number): TaskGraph => {
-	if (graph.nodes.length <= limit) {
-		return graph;
+export const splitIntoTrees = (graph: TaskGraph): TaskGraph[] => {
+	const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+	// Kanten auf unbekannte Knoten verbinden nichts Sichtbares (gleiche Vorsicht wie in `layoutGraph`).
+	const known = graph.edges.filter((edge) => nodeById.has(edge.from) && nodeById.has(edge.to));
+
+	// Union-Find mit Pfadverkürzung, iterativ — tiefe Ketten dürfen den Stack nicht sprengen.
+	const parent = new Map<number, number>(graph.nodes.map((node) => [node.id, node.id]));
+	const find = (id: number): number => {
+		let root = id;
+		while ((parent.get(root) ?? root) !== root) {
+			root = parent.get(root) ?? root;
+		}
+		let cursor = id;
+		while (cursor !== root) {
+			const next = parent.get(cursor) ?? root;
+			parent.set(cursor, root);
+			cursor = next;
+		}
+		return root;
+	};
+	for (const edge of known) {
+		parent.set(find(edge.from), find(edge.to));
 	}
-	const nodes = graph.nodes.slice(0, limit);
-	const visible = new Set(nodes.map((node) => node.id));
-	return { nodes, edges: graph.edges.filter((edge) => visible.has(edge.from) && visible.has(edge.to)) };
+
+	const connected = new Set(known.flatMap((edge) => [edge.from, edge.to]));
+	const nodesByRoot = new Map<number, TaskGraphNode[]>();
+	for (const node of graph.nodes) {
+		if (!connected.has(node.id)) {
+			continue;
+		}
+		const root = find(node.id);
+		nodesByRoot.set(root, [...(nodesByRoot.get(root) ?? []), node]);
+	}
+	const edgesByRoot = new Map<number, TaskGraphEdge[]>();
+	for (const edge of known) {
+		const root = find(edge.from);
+		edgesByRoot.set(root, [...(edgesByRoot.get(root) ?? []), edge]);
+	}
+
+	const topValue = (tree: TaskGraph): number =>
+		tree.nodes.reduce((best, node) => Math.max(best, node.value), -Infinity);
+	const lowestId = (tree: TaskGraph): number => tree.nodes.reduce((best, node) => Math.min(best, node.id), Infinity);
+	return [...nodesByRoot.entries()]
+		.map(([root, nodes]): TaskGraph => ({ nodes, edges: edgesByRoot.get(root) ?? [] }))
+		.sort((a, b) => topValue(b) - topValue(a) || lowestId(a) - lowestId(b));
 };

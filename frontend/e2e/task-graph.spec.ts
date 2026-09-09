@@ -47,9 +47,9 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		}
 	};
 
-	// Der Graph kappt bei MAX_GRAPH_NODES (60, wertabsteigend sortiert) — Altlasten aus zuvor
-	// gelaufenen Specs im selben Shard (die nicht alle per afterEach aufräumen) würden sonst die
-	// hier neu angelegten Knoten aus den Top 60 verdrängen. beforeEach sichert einen leeren Stand.
+	// Der Tab zeigt einen zusammenhängenden Baum je Seite (#1314). Altlasten aus zuvor gelaufenen
+	// Specs im selben Shard (die nicht alle per afterEach aufräumen) brächten zusätzliche Bäume mit
+	// und verschöben Reihenfolge wie Positionsangabe. beforeEach sichert einen leeren Stand.
 	test.beforeEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});
@@ -115,7 +115,11 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 	});
 
 	test('Die Ansichts-Buttons erfüllen die 44-px-Regel', async ({ page }) => {
-		await createTask(page, uniqueTitle('Solo'));
+		// Seit #1314 zeigt der Tab nur Aufgaben mit Abhängigkeit — eine Einzelaufgabe ergäbe den Leerzustand.
+		const childId = await createTask(page, uniqueTitle('Solo'));
+		const parentId = await createTask(page, uniqueTitle('Solo Ziel'));
+		await addDependency(page, parentId, childId);
+
 		await page.goto('/');
 		await waitForStableView(page);
 		await openGraphTab(page);
@@ -145,7 +149,11 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 	});
 
 	test('Ein Klick auf einen Knoten öffnet Details und von dort den Abhängigkeits-Dialog', async ({ page }) => {
+		// Seit #1314 braucht der Knoten eine Kante, sonst gehört er zu keinem Baum.
 		const taskId = await createTask(page, uniqueTitle('Detail'));
+		const parentId = await createTask(page, uniqueTitle('Detail Ziel'));
+		await addDependency(page, parentId, taskId);
+
 		await page.goto('/');
 		await waitForStableView(page);
 		await openGraphTab(page);
@@ -180,5 +188,80 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		// Kein horizontaler Seiten-Scroll: der Canvas clippt seinen Inhalt selbst.
 		const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 		expect(hasOverflow).toBe(false);
+	});
+
+	/** Zwei getrennte Paare plus eine Aufgabe ohne Abhängigkeit — die Ausgangslage für #1314. */
+	const createTwoTreesAndSolo = async (page: Page): Promise<{ soloId: number }> => {
+		const firstChildId = await createTask(page, uniqueTitle('Baum A unten'));
+		const firstParentId = await createTask(page, uniqueTitle('Baum A oben'));
+		await addDependency(page, firstParentId, firstChildId);
+		const secondChildId = await createTask(page, uniqueTitle('Baum B unten'));
+		const secondParentId = await createTask(page, uniqueTitle('Baum B oben'));
+		await addDependency(page, secondParentId, secondChildId);
+		const soloId = await createTask(page, uniqueTitle('Ohne Kante'));
+		return { soloId };
+	};
+
+	test('Eine Aufgabe ohne Abhängigkeit erscheint weder auf der Fläche noch in der Liste', async ({ page }) => {
+		const { soloId } = await createTwoTreesAndSolo(page);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openGraphTab(page);
+
+		await expect(page.getByText('Baum 1 von 2')).toBeVisible();
+		await expect(page.getByTestId(`graph-node-${soloId}`)).toHaveCount(0);
+		await expect(page.getByTestId(`graph-list-item-${soloId}`)).toHaveCount(0);
+	});
+
+	test('Mit der Tastatur blättert „Vor" zum nächsten Baum und wird am Ende deaktiviert', async ({ page }) => {
+		await createTwoTreesAndSolo(page);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openGraphTab(page);
+
+		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toBeDisabled();
+		const forward = page.getByRole('button', { name: 'Vor', exact: true });
+		await forward.focus();
+		await expect(forward).toBeFocused();
+		await page.keyboard.press('Enter');
+
+		await expect(page.getByText('Baum 2 von 2')).toBeVisible();
+		await expect(forward).toBeDisabled();
+		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toBeEnabled();
+	});
+
+	test('Ohne jede Abhängigkeit erscheint der Leerzustand statt einer Blätter-Leiste', async ({ page }) => {
+		await createTask(page, uniqueTitle('Einzeln A'));
+		await createTask(page, uniqueTitle('Einzeln B'));
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openGraphTab(page);
+
+		await expect(page.getByText('Sobald es offene Aufgaben mit Abhängigkeiten gibt')).toBeVisible();
+		await expect(page.getByText(/Baum \d+ von \d+/)).toHaveCount(0);
+	});
+
+	test('Bei 375 px bleibt die Blätter-Leiste in der Viewportbreite', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await createTwoTreesAndSolo(page);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openGraphTab(page);
+
+		// Bounding-Box statt `scrollWidth`: die App-Shell clippt mit `overflow-x: hidden`.
+		for (const element of [
+			page.getByRole('button', { name: 'Zurück', exact: true }),
+			page.getByText('Baum 1 von 2'),
+			page.getByRole('button', { name: 'Vor', exact: true }),
+		]) {
+			const box = await element.boundingBox();
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+		}
 	});
 });
