@@ -100,6 +100,13 @@ Schritt still übersprungen.
   `MISTRAL_API_URL`, `OPENROUTER_MODEL`, `OPENROUTER_API_URL` — Details:
   [docs/llm-providers.md](../docs/llm-providers.md).
 - `DB_RESET`, `DATABASE_STORAGE`, `PORT` — siehe `server/.env.example`.
+- `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_CALLBACK_URL`, `GOOGLE_ALLOWED_EMAILS`,
+  `SESSION_SECRET`/`SESSION_TTL` (Anmeldung): Ohne jede dieser Variablen läuft die App offen
+  (Pass-Through, `isAuthActive` in `server/src/express/requireAuth.ts`); sobald eine gesetzt ist,
+  verlangt jede API-Route eine Session. Ein Konto entsteht erst beim ersten Google-Login einer
+  Adresse aus der Allowlist — die Prüfung liegt VOR dem Upsert (`server/src/express/index.ts`,
+  GoogleStrategy-Verify → `logics/oauthUser.ts`), abgewiesene Adressen hinterlassen keine
+  DB-Zeile. Betreiber-Anleitung: [docs/auth-setup.md](../docs/auth-setup.md).
 - `ADMIN_EMAILS` (Rollensystem admin/member): Konten, die bei Register/Login/OAuth automatisch
   zu `admin` befördert werden (CSV oder JSON-Array, nur Beförderung, nie Rückstufung —
   `server/src/logics/adminEmails.ts`). Alle anderen Konten sind `member`; Rollen ändern Admins in

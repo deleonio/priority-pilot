@@ -129,6 +129,14 @@ MISTRAL_API_KEY=DEIN_KEY_HIER
 # Optional — zweite Kaskaden-Stufe (Verfeinerung):
 # OPENROUTER_API_KEY=sk-or-v1-DEIN_KEY_HIER
 # OPENROUTER_MODEL=openrouter/free
+
+# Anmeldung (Pflicht in Produktion, siehe auth-setup.md)
+SESSION_SECRET=$(openssl rand -hex 32)
+GOOGLE_CLIENT_ID=DEINE_CLIENT_ID.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=DEIN_CLIENT_SECRET
+GOOGLE_CALLBACK_URL=https://priority-pilot.example.de/auth/google/callback
+GOOGLE_ALLOWED_EMAILS=du@example.de,partner@example.de
+ADMIN_EMAILS=du@example.de
 EOF
 sudo -u gh-deploy chmod 600 /var/www/gh-deploy/$APP/app/.env
 ```
@@ -136,6 +144,13 @@ sudo -u gh-deploy chmod 600 /var/www/gh-deploy/$APP/app/.env
 `DB_RESET` bewusst **nicht** setzen (`true` würde die DB bei jedem Start leeren).
 `DATABASE_STORAGE` **absolut** und in `data/` (Schritt 4). `PORT` ist nicht gesetzt → Backend
 lauscht auf `localhost:3000` (Default).
+
+**Anmeldung:** Ohne `SESSION_SECRET` und ohne mindestens eine Adresse in `GOOGLE_ALLOWED_EMAILS`
+startet das Backend in Produktion nicht. Nur die dort gelisteten Adressen können sich anmelden;
+ihr Konto entsteht beim ersten erfolgreichen Google-Login. Wer später jemanden hinzufügen will,
+ergänzt die Adresse und lädt das Backend neu (`pm2 reload priority-pilot --update-env`).
+Client-ID, Secret und Callback-URL kommen aus der Google Cloud Console; Anleitung und
+Fehlerbilder in [auth-setup.md](auth-setup.md).
 
 **LLM-Provider:** Die LLM-Funktionen laufen als **Kaskade** — Mistral generiert, OpenRouter
 verfeinert. Beide Keys sind einzeln optional: Es genügt **einer** von `MISTRAL_API_KEY`
@@ -288,6 +303,7 @@ vom Server wegsichern.
 | Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in gespiegeltes Verzeichnis                                         | absoluten `data/`-Pfad setzen (Schritt 5)                                                         |
 | Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                                                                  | Env-Datei korrigieren, `pm2 reload priority-pilot --update-env`                                   |
 | LLM-Endpunkte → 503                   | **kein** LLM-Key gesetzt (weder DB noch Env)                                                 | `MISTRAL_API_KEY` **oder** `OPENROUTER_API_KEY` setzen ([llm-providers.md](llm-providers.md))     |
+| Google-Login schlägt fehl, kein Konto | Adresse nicht in `GOOGLE_ALLOWED_EMAILS` (Konto entsteht erst beim ersten erlaubten Login)   | Adresse ergänzen, `pm2 reload priority-pilot --update-env` ([auth-setup.md](auth-setup.md))       |
 | LLM-Endpunkte → 502                   | alle **konfigurierten** Provider-Calls fehlgeschlagen (Key ungültig/Quota/Netz/Timeout 30 s) | Key + Quota beim Provider prüfen; 502-Response-Body auslesen (Server loggt zu diesem Fall nichts) |
 | TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                                                                    | A-Record auf Server-IP, dann `sudo systemctl reload caddy`                                        |
 | Backend nach Reboot weg               | `pm2 startup`/`pm2 save` nie eingerichtet                                                    | Schritt 6 nachholen                                                                               |
