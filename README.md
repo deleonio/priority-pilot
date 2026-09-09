@@ -162,6 +162,13 @@ pnpm --filter server lint    # api.d.ts + tsc --noemit + eslint
 > Ohne `DB_RESET=true` bleiben vorhandene Daten erhalten; Demo-Daten werden nur in eine
 > leere Datenbank gesät.
 
+Anmeldung und Zugang (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`,
+`GOOGLE_ALLOWED_EMAILS`, `ADMIN_EMAILS`, `SESSION_SECRET`): Ohne diese Variablen läuft die App
+offen und ohne Login (nur für Entwicklung). Mit ihnen können sich nur die freigeschalteten
+Adressen per Google anmelden; ihr Konto entsteht beim ersten Login. Einrichtung und Fehlerbilder:
+[`docs/auth-setup.md`](docs/auth-setup.md). Vorlage aller Variablen:
+[`server/.env.example`](server/.env.example).
+
 ## API
 
 Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET`/`POST` `/tasks`,
@@ -182,6 +189,7 @@ Deployment auf einen dedizierten Server (Merge auf `main` → Build in GitHub Ac
 
 - [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Rollback, Local-Betrieb & Cloud↔Local-Wechsel).
 - [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers (inkl. Caddy-Reverse-Proxy).
+- [`docs/auth-setup.md`](docs/auth-setup.md) — Anmeldung und Zugang: Google-OAuth-Client, Freischaltung von Adressen, Administratoren, Fehlerbilder.
 - [`docs/llm-providers.md`](docs/llm-providers.md) — LLM-Kaskade einrichten (Mistral → OpenRouter-Verfeinerung, ENV-Konfiguration).
 
 ## Mitwirken

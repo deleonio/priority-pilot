@@ -26,9 +26,11 @@ gebunden. Die Anmeldung erfolgt ausschließlich über **Google**:
 - Auf der Startseite auf **„Login with Google"** klicken.
 - Nach der Google-Anmeldung landest du direkt im Dashboard.
 
-Der Zugang ist auf freigeschaltete E-Mail-Adressen beschränkt. Ist deine Adresse
-nicht zugelassen, erscheint ein entsprechender Hinweis – wende dich dann an den
-Administrator.
+Der Zugang ist auf freigeschaltete E-Mail-Adressen beschränkt. Eine eigene Registrierung gibt
+es nicht: Dein Konto wird bei der ersten erfolgreichen Anmeldung automatisch angelegt. Ist deine
+Adresse nicht zugelassen, erscheint ein Anmeldefehler und es entsteht kein Konto – wende dich
+dann an den Administrator. Wie der Betreiber Adressen freischaltet, steht in
+[auth-setup.md](auth-setup.md).
 
 Über die Kopfzeile kannst du dich jederzeit wieder **abmelden** (Icon ganz rechts).
 

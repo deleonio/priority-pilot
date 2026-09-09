@@ -106,7 +106,21 @@ MISTRAL_API_KEY=
 # OPENROUTER_API_KEY=
 # MISTRAL_MODEL=mistral-medium-latest
 # OPENROUTER_MODEL=openrouter/free
+
+# Anmeldung — alle fünf Pflicht in Produktion, sonst startet das Backend nicht bzw. der
+# Google-Login ist nicht registriert. Konten entstehen erst beim ersten erlaubten Login.
+SESSION_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=https://priority-pilot.example.de/auth/google/callback
+GOOGLE_ALLOWED_EMAILS=          # freigeschaltete Adressen, Komma-getrennt
+ADMIN_EMAILS=                   # davon: Administratoren
 ```
+
+**Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
+legt die App beim ersten erfolgreichen Google-Login an. Neue Personen werden über die Env-Datei
+plus `pm2 reload priority-pilot --update-env` freigeschaltet, nicht in der App. Einrichtung des
+OAuth-Clients, Login-Ablauf und Fehlerbilder: [docs/auth-setup.md](auth-setup.md).
 
 **Provider-Strategie:** Genau EIN effektiv aktiver Provider pro Instanz — explizit per Radio in
 der Settings-UI (`/settings` → Tab „KI-Provider“) gewählt, sonst der Built-in-Fallback (Mistral
@@ -117,7 +131,9 @@ weiteren Handgriff; alte `/llm-config`-Keys aus #640 sind mit dem Provider-Syste
 Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [docs/llm-providers.md](llm-providers.md).
 
 Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load),
-`server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`).
+`server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`,
+`SESSION_SECRET`, `GOOGLE_*`), `server/src/logics/allowedEmails.ts` (`GOOGLE_ALLOWED_EMAILS`),
+`server/src/logics/adminEmails.ts` (`ADMIN_EMAILS`).
 
 ---
 
