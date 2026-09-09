@@ -44,6 +44,9 @@ export type InviteLinkPreview = Schemas['InviteLinkPreview'];
 /** #1226: Ergebnis des Einlösens eines Einladungslinks. */
 export type InviteLinkRedeemResult = Schemas['InviteLinkRedeemResult'];
 export type UserSearchHit = Schemas['UserSearchHit'];
+/** Rollensystem admin/member: Nutzer-Eintrag der Admin-Nutzerverwaltung. */
+export type AdminUser = Schemas['AdminUser'];
+export type AdminUserRoleUpdate = Schemas['AdminUserRoleUpdate'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];
 export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];
 export type ChecklistItem = Schemas['ChecklistItem'];

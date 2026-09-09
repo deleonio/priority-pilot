@@ -1346,6 +1346,82 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserSearchHit'
+  /admin/users:
+    get:
+      summary: Alle Nutzer der App auflisten
+      description: >-
+        Rollensystem admin/member: nur für Admins (403 sonst). Liefert jeden
+        registrierten Nutzer mit E-Mail, Anzeigename und aktueller Rolle.
+      operationId: listAdminUsers
+      tags: [admin]
+      responses:
+        '200':
+          description: Alle Nutzer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminUser'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/role:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    patch:
+      summary: Rolle eines Nutzers ändern
+      description: >-
+        Rollensystem admin/member: nur für Admins (403 sonst). Der letzte
+        verbleibende Administrator kann nicht auf `member` zurückgestuft
+        werden (409), damit die App nie ohne Administrator dasteht.
+      operationId: updateAdminUserRole
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserRoleUpdate'
+      responses:
+        '200':
+          description: Nutzer mit aktualisierter Rolle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültiger Rollenwert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Letzter verbleibender Administrator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/members:
     parameters:
       - name: id
@@ -2009,6 +2085,31 @@ components:
           type: integer
         displayName:
           type: string
+    AdminUser:
+      type: object
+      description: Nutzer-Eintrag der Admin-Nutzerverwaltung (Rollensystem admin/member).
+      required: [id, email, displayName, role, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [admin, member]
+        createdAt:
+          type: string
+          format: date-time
+    AdminUserRoleUpdate:
+      type: object
+      description: Payload zum Ändern der Rolle eines Nutzers (Rollensystem admin/member).
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [admin, member]
     GroupMember:
       type: object
       description: Mitglied einer Gruppe mit Anzeigename und Rolle (#1212).

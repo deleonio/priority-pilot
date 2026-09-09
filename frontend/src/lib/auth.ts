@@ -3,6 +3,8 @@ export type AuthUser = {
 	displayName: string;
 	email: string;
 	avatarUrl: string | null;
+	/** Rollensystem admin/member — steuert Admin-Views und -API-Endpunkte. */
+	role: 'admin' | 'member';
 };
 
 /**

@@ -42,6 +42,7 @@ vi.mock('../lib/useGeolocation', () => ({
 const apiDefaults: Record<string, unknown> = {
 	listPillars: [],
 	listLlmProviders: [],
+	getAdminUsers: [],
 };
 const apiMocks: Record<string, ReturnType<typeof vi.fn>> = {};
 vi.mock('../api', () => ({
@@ -638,5 +639,38 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
 		// Andere ID-Folge → neuer `key` → Remount → Ref initialisiert sich aus dem neuen Prop (0,5).
 		expect(sliderFor(container, 'Körper')).toBeUndefined();
 		expect(rawValue(sliderFor(container, 'Geist')!)).toBe('0.5');
+	});
+});
+
+/**
+ * Rote Spec-Tests für Fixup PR #1300 (Finding #2) — Tab-Gating „Nutzerverwaltung" (Rollensystem
+ * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
+ * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
+ * als sechster Tab (Index 5, ans Ende angehängt) mit `AdminUsersSection` im Panel `slot="tab-5"`.
+ */
+describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
+	it('ohne isAdmin fehlt der Tab „Nutzerverwaltung" in der Tab-Liste und es gibt kein Panel slot="tab-5"', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		expect(tabsEl?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
+		expect(container.querySelector('[slot="tab-5"]')).toBeNull();
+	});
+
+	it('mit isAdmin erscheint „Nutzerverwaltung" als sechster Tab mit AdminUsersSection im Panel slot="tab-5"', () => {
+		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
+
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		expect(tabsEl?._tabs?.map((t) => t._label)).toEqual([
+			'Allgemein',
+			'Säulen',
+			'KI-Provider',
+			'Standort',
+			'Gruppen',
+			'Nutzerverwaltung',
+		]);
+		const tab5 = container.querySelector('[slot="tab-5"]');
+		expect(tab5, 'sechster Slot tab-5 existiert').not.toBeNull();
+		expect(tab5?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-5-Panel').toBeTruthy();
 	});
 });

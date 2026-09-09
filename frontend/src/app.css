@@ -1509,6 +1509,47 @@ body {
 	gap: var(--pp-gap-tight);
 }
 
+/* --- Nutzerverwaltung im Settings-Tab „Nutzerverwaltung" (Rollensystem admin/member) ---
+ * Muster: `.settings-groups`/`.groups-item` — gleiches Grid-Min-Content-Problem (#1211 AK8),
+ * deshalb dieselbe `minmax(0, 1fr)`-Kopplung am Panel-Root. Jeder Eintrag ist eine Zeile
+ * (Name/E-Mail/Badge links, Rollen-Button rechts); bei 375px bricht die Zeile um, statt
+ * horizontal zu scrollen (Fixup PR #1300, Finding #3).
+ */
+.settings-admin-users {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-user-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-3);
+}
+
+.admin-user {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-space-3) var(--pp-gap-base);
+	padding: var(--pp-space-3) var(--pp-gap-base);
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-surface-2);
+	color: var(--pp-ink);
+}
+
+.admin-user-name {
+	font-weight: 600;
+}
+
+.admin-user-email {
+	color: var(--pp-ink-muted);
+	overflow-wrap: anywhere;
+}
+
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
    untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
 .deadline-group {

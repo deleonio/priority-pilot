@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import { isEmailAllowed } from '../logics/allowedEmails.js';
+import { sendError } from './http-error.js';
+import type { UserRole } from '../models/user.js';
+import { User } from '../models/index.js';
 
 /** Prüft, ob ein Allowlist-Gate konfiguriert ist (Plural oder Singular gesetzt). */
 const hasAllowlist = (): boolean =>
@@ -54,3 +57,28 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 	}
 	next();
 };
+
+/**
+ * Middleware-Fabrik: Rollensystem admin/member. Weist eine Anfrage mit 403 ab, wenn die
+ * aktuelle Rolle (frisch aus der DB, nicht der Session-Snapshot) nicht der geforderten entspricht.
+ * Der Session-Snapshot hält nur den Stand vom Login — eine Rückstufung über `PATCH
+ * /admin/users/:id/role` müsste sonst bis zum Re-Login der Zielperson wirkungslos bleiben (die
+ * zurückgestufte Person könnte sich in diesem Fenster sogar selbst wieder befördern). Setzt eine
+ * vorangehende `requireAuth`-Prüfung voraus (hier keine erneute 401-Prüfung). Im Pass-Through-Modus
+ * (kein Auth-Kontext konfiguriert) bleibt auch diese Prüfung deaktiviert — konsistent mit `requireAuth`.
+ */
+export const requireRole =
+	(role: UserRole) =>
+	async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		if (!isAuthActive()) {
+			next();
+			return;
+		}
+		const userId = req.session?.user?.id;
+		const currentRole = typeof userId === 'number' ? (await User.findByPk(userId))?.role : undefined;
+		if (currentRole !== role) {
+			sendError(res, 403, 'Keine Berechtigung.');
+			return;
+		}
+		next();
+	};

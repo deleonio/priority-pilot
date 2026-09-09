@@ -520,6 +520,26 @@ export const migrateUsersDisplayNameCustom = async (db: Sequelize): Promise<void
 };
 
 /**
+ * Zieht die `role`-Spalte (Rollensystem admin/member) auf einer **bestehenden** `users`-Tabelle
+ * nach — analog `migrateUsersDisplayNameCustom`. `sequelize.sync()` ohne `alter` ergänzt die
+ * Spalte nicht, jede User-Query (Login, `/auth/me`, Admin-API) würde sonst mit
+ * `no such column: role` brechen. Bestandskonten starten als `'member'` — Beförderung zu
+ * `'admin'` läuft über `ADMIN_EMAILS` (siehe `logics/adminEmails.ts`) oder die Admin-API.
+ * Idempotent; No-op bei frischer DB (dann legt `sync()` die Spalte samt Default an).
+ */
+export const migrateUsersRoleColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('role')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `users` ADD COLUMN `role` VARCHAR(255) NOT NULL DEFAULT 'member'");
+	console.log('Spalte role an users nachgezogen.');
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:
