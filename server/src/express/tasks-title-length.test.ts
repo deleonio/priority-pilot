@@ -9,11 +9,10 @@ applyTestAuthEnv('test-secret-for-tests');
 let server: TestServer;
 
 /**
- * Issue #582: Titel-Längenbeschränkung (30 Zeichen)
- * Rote Tests für Backend-Validierung bei Task Create/Update.
- * Die Tests FAILED, solange die 30-Zeichen-Beschränkung nicht implementiert ist.
+ * Titel-Längenbeschränkung (65 Zeichen)
+ * Tests für Backend-Validierung bei Task Create/Update.
  */
-describe('Task — Titel-Länge (Issue #582)', () => {
+describe('Task — Titel-Länge', () => {
 	let cookie: string;
 
 	before(async () => {
@@ -51,12 +50,12 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 		});
 
 	describe('POST /tasks — Titel-Länge bei Create', () => {
-		it('Task mit 30 Zeichen Titel wird akzeptiert', async () => {
-			const title30 = 'a'.repeat(30); // exakt 30 Zeichen
+		it('Task mit 65 Zeichen Titel wird akzeptiert', async () => {
+			const title65 = 'a'.repeat(65); // exakt 65 Zeichen
 			const res = await post(
 				'/tasks',
 				{
-					title: title30,
+					title: title65,
 					status: 'Open',
 					priority: 3,
 					estimatedEffort: 0.5,
@@ -64,17 +63,17 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 				cookie,
 			);
 
-			assert.equal(res.status, 201, '30-Zeichen-Titel sollte akzeptiert werden');
+			assert.equal(res.status, 201, '65-Zeichen-Titel sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal((body.title as string).length, 30);
+			assert.equal((body.title as string).length, 65);
 		});
 
-		it('Task mit 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
-			const title31 = 'b'.repeat(31); // 31 Zeichen > Limit
+		it('Task mit 66 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
+			const title66 = 'b'.repeat(66); // 66 Zeichen > Limit
 			const res = await post(
 				'/tasks',
 				{
-					title: title31,
+					title: title66,
 					status: 'Open',
 					priority: 3,
 					estimatedEffort: 0.5,
@@ -82,14 +81,14 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 				cookie,
 			);
 
-			assert.equal(res.status, 400, '31-Zeichen-Titel sollte abgelehnt werden');
+			assert.equal(res.status, 400, '66-Zeichen-Titel sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
 			// sendError liefert { message } (tasks.ts) — sequelize: "Validation len on title failed".
 			assert.ok((body.message as string)?.includes('title'), 'Fehler sollte auf title verweisen');
 		});
 
-		it('Task mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
-			const titleEmoji = '😀'.repeat(10); // 10 Emojis = 30 Zeichen (UTF-8 code units)
+		it('Task mit exakt 65 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
+			const titleEmoji = '😀'.repeat(10) + 'x'.repeat(45); // 10 Emojis (20 UTF-16 code units) + 45 Zeichen = 65
 			const res = await post(
 				'/tasks',
 				{
@@ -101,7 +100,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 				cookie,
 			);
 
-			assert.equal(res.status, 201, '30-Zeichen-Emoji-Titel sollte akzeptiert werden');
+			assert.equal(res.status, 201, '65-Zeichen-Emoji-Titel sollte akzeptiert werden');
 		});
 
 		it('Task mit leerem Titel wird abgelehnt (minimum 1 Zeichen)', async () => {
@@ -135,20 +134,20 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 			taskId = body.id;
 		});
 
-		it('Update auf 30 Zeichen Titel wird akzeptiert', async () => {
-			const title30 = 'c'.repeat(30);
-			const res = await patch(`/tasks/${taskId}`, { title: title30 }, cookie);
+		it('Update auf 65 Zeichen Titel wird akzeptiert', async () => {
+			const title65 = 'c'.repeat(65);
+			const res = await patch(`/tasks/${taskId}`, { title: title65 }, cookie);
 
-			assert.equal(res.status, 200, 'Update auf 30 Zeichen sollte akzeptiert werden');
+			assert.equal(res.status, 200, 'Update auf 65 Zeichen sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal((body.title as string).length, 30);
+			assert.equal((body.title as string).length, 65);
 		});
 
-		it('Update auf 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
-			const title31 = 'd'.repeat(31);
-			const res = await patch(`/tasks/${taskId}`, { title: title31 }, cookie);
+		it('Update auf 66 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
+			const title66 = 'd'.repeat(66);
+			const res = await patch(`/tasks/${taskId}`, { title: title66 }, cookie);
 
-			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
+			assert.equal(res.status, 400, 'Update auf 66 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.ok((body.message as string)?.includes('title'), 'Fehler sollte auf title verweisen');
 		});

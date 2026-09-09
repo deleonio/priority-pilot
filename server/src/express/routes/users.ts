@@ -37,7 +37,7 @@ usersRouter.get('/users/search', async (req: Request, res: Response<UserSearchDt
 			res.json([]);
 			return;
 		}
-		const where = isFullEmail ? { email: raw } : { displayName: { [Op.like]: `%${raw}%` } };
+		const where = isFullEmail ? { email: raw.toLowerCase() } : { displayName: { [Op.like]: `%${raw}%` } };
 		const found = await User.findAll({ where, order: [['displayName', 'ASC']] });
 		res.json(found.map((hit) => ({ id: hit.id, displayName: hit.displayName ?? hit.email })));
 	} catch {

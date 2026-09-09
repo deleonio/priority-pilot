@@ -67,10 +67,10 @@ Series.init(
 			primaryKey: true,
 		},
 		title: {
-			type: DataTypes.STRING(30),
+			type: DataTypes.STRING(65),
 			allowNull: false,
 			validate: {
-				len: [1, 30],
+				len: [1, 65],
 			},
 		},
 		rhythm: {
@@ -139,6 +139,9 @@ Series.init(
 			type: DataTypes.TEXT,
 			allowNull: true,
 			defaultValue: null,
+			validate: {
+				len: [0, 3000],
+			},
 		},
 		// Adresse des Serien-Orts (#1063), analog `Task.address`. `null` erlaubt; `defaultValue: null`
 		// stellt sicher, dass eine ohne Angabe angelegte Serie `address === null` trägt.

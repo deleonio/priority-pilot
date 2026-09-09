@@ -74,6 +74,16 @@ describe('Nutzersuche — GET /users/search (#1212)', () => {
 		assert.deepEqual(Object.keys(hit).sort(), ['displayName', 'id'], 'DTO hat ausschließlich id+displayName');
 	});
 
+	it('liefert einen Treffer bei voller E-Mail-Adresse mit abweichender Groß-/Kleinschreibung', async () => {
+		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		await server.login(TEST_EMAIL_BOB, { displayName: 'Bob Baumeister' });
+
+		const { status, body } = await search(aliceCookie, 'Bob@Example.COM');
+		assert.equal(status, 200);
+		assert.equal(body.length, 1, 'E-Mail-Suche muss unabhängig von Groß-/Kleinschreibung treffen');
+		assert.equal(body[0].displayName, 'Bob Baumeister');
+	});
+
 	it('E-Mail-Fragment (Teiltreffer) liefert keinen Treffer auf die E-Mail-Adresse (AK1)', async () => {
 		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
 		await server.login(TEST_EMAIL_CAROL, { displayName: 'Zzz Zzz' });

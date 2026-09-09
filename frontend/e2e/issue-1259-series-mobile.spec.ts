@@ -21,7 +21,7 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
-		const head = `E2E #1259 ${label}`.slice(0, 30 - tail.length);
+		const head = `E2E #1259 ${label}`.slice(0, 65 - tail.length);
 		return `${head} ${tail}`;
 	};
 
@@ -64,8 +64,8 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 	test('AK1: kein horizontaler Überlauf bei 375px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await createSeriesViaApi(page, uniqueTitle('OhneScroll'));
-		// Härtester legitimer Titel: 29-Zeichen-Einzelwort (Schema-Limit 30, analog #1258 AK3).
-		await createSeriesViaApi(page, 'Donaudampfschifffahrtsgesell');
+		// Härtester legitimer Titel: 64-Zeichen-Einzelwort (Schema-Limit 65, analog #1258 AK3).
+		await createSeriesViaApi(page, 'Donaudampfschifffahrtsgesellschaftskapitaen'.padEnd(64, 'x'));
 		await page.goto('/');
 		await waitForStableView(page);
 		await openSeriesView(page);

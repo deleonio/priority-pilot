@@ -138,9 +138,11 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Passport initialisieren (ohne persistente Sessions — wir speichern den User in express-session).
 	app.use(passport.initialize());
 
-	// passport.authenticate() ruft nach Erfolg intern req.logIn() auf, was serializeUser/deserializeUser
-	// voraussetzt — sonst wirft Passport "Failed to serialize user into session". Da der eigentliche
-	// User-State manuell in req.session.user gehalten wird (s. routes/auth.ts), genügt ein Passthrough.
+	// Passthrough-Registrierung: passport.initialize() verlangt serializeUser/deserializeUser, sobald
+	// irgendeine Strategie registriert ist — sonst wirft Passport "Failed to serialize user into
+	// session", selbst wenn (wie hier) kein Callback je req.logIn() erreicht. routes/auth.ts nutzt
+	// für /auth/google/callback eine eigene Callback-Signatur, die den User-State direkt in
+	// req.session.user schreibt, statt über Passports Session-(De-)Serialisierung zu gehen.
 	passport.serializeUser((user, done) => done(null, user));
 	passport.deserializeUser((user: Express.User, done) => done(null, user));
 
