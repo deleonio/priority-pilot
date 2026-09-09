@@ -89,14 +89,18 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 			    über der Liste. Muster wie `GroupsSection` (Meldungen sind KoliBri, DESIGN.md). */}
 			{error !== null && (
 				<KolAlert _type="error" _label="Säulen konnten nicht geladen werden">
-					{error}
+					<p>{error}</p>
+					<KolButton _label="Erneut versuchen" _variant="secondary" _on={{ onClick: () => void loadPillars() }} />
 				</KolAlert>
 			)}
 
-			{/* ── Vier gestaltete Zustände (mobile-ui-rules Regel 7): Laden, Leer, Fehler, Erfolg ── */}
+			{/* ── Vier gestaltete Zustände (mobile-ui-rules Regel 7): Laden, Leer, Fehler, Erfolg ──
+			    Der Leerzustand ist an `error === null` gebunden: nach einem gescheiterten `loadPillars()`
+			    bleibt `pillars` leer, ohne die Bindung würde die Anlege-CTA-Karte über der Fehlermeldung
+			    einen unbekannten Datenstand als „keine Säulen vorhanden" behaupten (Review #1306 Finding 1). */}
 			{loading ? (
 				<KolSpin _show _variant="cycle" _label="Säulen werden geladen …" />
-			) : pillars.length === 0 ? (
+			) : pillars.length === 0 && error === null ? (
 				/* Leerzustand als Einladung zum Handeln — der einzige „Neue Säule anlegen"-Knopf in
 				   diesem Zustand (die Toolbar bleibt aus, genau eine Primäraktion pro Zustand). */
 				<section className="empty-state">

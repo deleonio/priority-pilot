@@ -273,6 +273,38 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 		});
 	});
 
+	// ── Fehlerbehandlung beim Laden (Review #1306 Finding 1) ───────────────────
+
+	describe('Fehlerbehandlung beim Laden', () => {
+		it('zeigt bei fehlgeschlagenem Laden den Fehler-Alert und NICHT die Leerzustands-Karte', async () => {
+			vi.mocked(api.listPillars).mockRejectedValueOnce(apiError(500, 'Serverfehler'));
+
+			render(<PillarList />);
+
+			await waitFor(() => {
+				expect(screen.getByRole('alert')).toHaveTextContent(/serverfehler/i);
+			});
+			expect(screen.queryByText(/noch keine säulen/i)).not.toBeInTheDocument();
+		});
+
+		it('lädt nach Klick auf „Erneut versuchen" neu und blendet den Fehler nach Erfolg aus', async () => {
+			vi.mocked(api.listPillars).mockRejectedValueOnce(apiError(500, 'Serverfehler'));
+			vi.mocked(api.listPillars).mockResolvedValueOnce([pillar(1, 'Körper', 'Gesundheit', 100)]);
+
+			render(<PillarList />);
+
+			await waitFor(() => {
+				expect(screen.getByRole('alert')).toBeInTheDocument();
+			});
+			fireEvent.click(screen.getByRole('button', { name: /erneut versuchen/i }));
+
+			await waitFor(() => {
+				expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+			});
+			expect(screen.getByText('Körper')).toBeInTheDocument();
+		});
+	});
+
 	// ── AK2: Bearbeiten (Name / Beschreibung ändern) ──────────────────────────
 
 	describe('AK2 — Bearbeiten (Umbenennen / Beschreibung ändern)', () => {
