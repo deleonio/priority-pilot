@@ -65,4 +65,12 @@ runs:
         # neueste Artefakt ist damit in sich vollständig, kein Merge nötig.
         name: ai-memory-issue-${{ inputs.issue-number }}-${{ inputs.phase }}-${{ github.run_id }}
         path: .ai-memory/issue-*.md
+        # PFLICHT, nicht optional: upload-artifact filtert seit v4.4 alles weg, was in einem
+        # Punkt-Verzeichnis liegt — und .ai-memory IST eins. Ohne dieses Flag meldet der Step
+        # "No files were found with the provided path" und lädt NICHTS hoch, obwohl der
+        # Prüfschritt oben Notizen gezählt hat. Zusammen mit if-no-files-found: warn war das
+        # ein stiller Totalausfall des ADR-0010-Transports in allen sechs Phasen (belegt in
+        # Run 34332581006): der Load in setup-agent fand nie ein Artefakt und lebte allein vom
+        # Übergangs-Fallback auf ai/harness/<N>.
+        include-hidden-files: true
         if-no-files-found: warn

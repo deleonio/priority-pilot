@@ -21,6 +21,12 @@ description: 'Claude-Code-spezifischer Teil eines Agenten-Laufs: CLI-Install + A
 # Triage an #934). Nur die full-Phasen kamen durch, weil --dangerously-skip-permissions die
 # Prüfung komplett überspringt. Ein gewöhnlicher Repo-Pfad ausserhalb .claude/ plus
 # Edit(path)-Allowlist löst das für alle Tiers.
+#
+# ALLGEMEINER ALS DIE .claude/-SPERRE: Claude Code wertet Datei-Schreibrechte NUR gegen
+# Edit(path)- und Read(path)-Regeln aus. Eine Write(path)-Regel wird angenommen, aber NIE
+# konsultiert — jeder Zielpfad ohne Edit()-Regel braucht deshalb eine Freigabe zur Laufzeit,
+# die es unter `claude -p` nicht gibt. Das trifft nicht nur .claude/, sondern JEDEN Pfad
+# ausserhalb der Allowlist, /tmp eingeschlossen (s. review-Tier unten).
 
 inputs:
   llm-provider:
@@ -485,7 +491,15 @@ runs:
             # Testabdeckung) ist leseintensiv und liefert ein kurzes Fazit — der Fan-out
             # läuft auf dem Subagent-Modell (subagent-model), nicht auf dem Phasenmodell.
             # Das Review-Urteil selbst bleibt im Parent: der Diff wird nie delegiert.
-            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash,Edit(.ai-memory/*),Edit(.ai-memory/**)"
+            # Edit(//tmp/**) — DOPPELTER Slash = absoluter Pfad (einfacher Slash wäre relativ
+            # zum Projekt). Nötig, weil Phasen dieses Tiers ihr Ergebnis nach /tmp schreiben
+            # (Documenter: /tmp/doc.json, s. .github/prompts/documenter.md). Ohne Regel landet
+            # der Write-Aufruf im Permission-Prompt, den `claude -p` nie beantwortet: der Lauf
+            # endete mit "Awaiting permission to write /tmp/doc.json" und der Render-Schritt
+            # fiel in die Minimal-Doku (Run 34334430592, PR #1312). Grün wurde es nur, wenn das
+            # Modell zufällig Bash statt Write wählte — daher die Sprunghaftigkeit.
+            # /tmp ist ephemer und liegt ausserhalb des Workspace; Code bleibt schreibgeschützt.
+            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash,Edit(.ai-memory/*),Edit(.ai-memory/**),Edit(//tmp/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             echo "invoke-args=$COMPACT_FLAG $EFFORT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
