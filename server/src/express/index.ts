@@ -31,6 +31,7 @@ import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
 import { buildTaskForest } from '../logics/tree.js';
+import { buildTaskGraph } from '../logics/graph.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
@@ -39,6 +40,7 @@ import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
+type TaskGraphDto = components['schemas']['TaskGraph'];
 type TaskDto = components['schemas']['Task'];
 type ErrorDto = components['schemas']['Error'];
 type HealthDto = components['schemas']['Health'];
@@ -278,6 +280,16 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
 		try {
 			res.json(await buildTaskForest(getUserId(req)));
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
+
+	// GET /graph — Aufgabengraph (Knoten + gewichtete Kanten), auf den eingeloggten Nutzer gefiltert.
+	// Anders als /forest ohne Duplikate bei mehrfach übergeordneten Aufgaben (siehe logics/graph.ts).
+	app.get('/graph', async (req, res: express.Response<TaskGraphDto | ErrorDto>) => {
+		try {
+			res.json(await buildTaskGraph(getUserId(req)));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

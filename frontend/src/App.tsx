@@ -10,7 +10,7 @@ import {
 } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -20,7 +20,6 @@ import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
-import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
@@ -38,6 +37,7 @@ import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
+import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
 import { isQuickCaptureEffective, readAiPreferences } from './lib/aiPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
@@ -52,6 +52,12 @@ type Dialog =
 	| { kind: 'search' }
 	| { kind: 'advisor' }
 	| null;
+
+// Der Aufgabengraph zieht `@xyflow/react` nach — bewusst nachgeladen, damit die Bibliothek nur im
+// Bundle landet, wenn der Tab „Wald" auch geöffnet wird (der Kaltstart zeigt das Dashboard).
+const TaskGraphPanel = lazy(() =>
+	import('./components/TaskGraphPanel').then((module) => ({ default: module.TaskGraphPanel })),
+);
 
 // Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
 // `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
@@ -464,8 +470,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	}, []);
 
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
+	// Das Signal zieht zusätzlich den Aufgabengraphen nach, der seine Daten selbst lädt.
 	const refreshKeepingDialog = useCallback((): void => {
 		void reload();
+		notifyTasksChanged();
 	}, [reload]);
 
 	const handleLogoDashboard = useCallback((): void => {
@@ -758,7 +766,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						<SeriesTab pillars={pillars} />
 					</div>
 					<div slot="tab-3">
-						<ForestPanel forest={forest} />
+						{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
+						    (nicht entfernt), und die Knoten-/Listentitel sind wortgleich zum Aufgaben-Tab —
+						    dauerhaft gemountet würden sie dort exakte Text-Locators (z. B. in E2E-Tests) doppeln. */}
+						{activeTab === 3 && (
+							<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
+								<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
+							</Suspense>
+						)}
 					</div>
 				</KolTabs>
 			)}

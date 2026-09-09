@@ -18,6 +18,11 @@ export type TaskCreate = WithDateDeadline<Schemas['TaskCreate']>;
 export type TaskUpdate = WithDateDeadline<Schemas['TaskUpdate']>;
 export type TaskStatus = Schemas['TaskStatus'];
 export type TaskTreeNode = Schemas['TaskTreeNode'];
+/** Aufgabengraph (`GET /graph`): flache Knotenliste plus gewichtete Kanten, ohne Duplikate. */
+export type TaskGraph = Schemas['TaskGraph'];
+export type TaskGraphNode = Schemas['TaskGraphNode'];
+/** Kante: `from` = Unteraufgabe (Vorgänger), `to` = übergeordnete Aufgabe („from ermöglicht to"). */
+export type TaskGraphEdge = Schemas['TaskGraphEdge'];
 export type NearbyTask = Schemas['NearbyTask'];
 export type GeoConfig = Schemas['GeoConfig'];
 export type Profile = Schemas['Profile'];

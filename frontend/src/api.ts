@@ -42,6 +42,7 @@ import type {
 	Task,
 	TaskCreate,
 	TaskTreeNode,
+	TaskGraph,
 	TaskUpdate,
 } from 'client';
 import createClient from 'openapi-fetch';
@@ -161,6 +162,15 @@ export const api = {
 
 	async getForest(init: Init = {}): Promise<TaskTreeNode[]> {
 		const { data, error, response } = await client.GET('/forest', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Aufgabengraph (`GET /graph`): Knoten + gewichtete Kanten, jede Aufgabe genau einmal. */
+	async getGraph(init: Init = {}): Promise<TaskGraph> {
+		const { data, error, response } = await client.GET('/graph', { signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
