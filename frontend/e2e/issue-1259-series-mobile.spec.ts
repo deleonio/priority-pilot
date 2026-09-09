@@ -93,7 +93,9 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 		const row = page.locator('.series-tree-item').first();
 		const parts = {
 			titel: row.locator('.series-tree-title'),
-			badge: row.locator('.series-tree-badge--rhythm'),
+			// #1297: Rhythmus-Badge ist seit der KolBadge-Migration `kol-badge.series-tree-badge`
+			// (kein --rhythm-Modifier mehr) und bedingungslos das erste Badge der Zeile.
+			badge: row.locator('.series-tree-badge').first(),
 			edit: row.getByRole('button', { name: 'Bearbeiten' }),
 			del: row.getByRole('button', { name: 'Löschen' }),
 		};
