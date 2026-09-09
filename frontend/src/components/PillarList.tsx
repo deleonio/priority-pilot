@@ -1,4 +1,4 @@
-import { KolButton, KolHeading } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
@@ -21,6 +21,11 @@ interface PillarListProps {
  * (KoliBri `KolDialog`), nicht mehr als Inline-Forms.
  *
  * Nutzt die API-Funktionen aus #438 (createPillar, updatePillar, deletePillar).
+ *
+ * Vier gestaltete Zustände (docs/mobile-ui-rules.md Regel 7): Laden (`KolSpin`), Fehler
+ * (`KolAlert`), Leer (Karte mit Anlegen-CTA) und Erfolg (Kartenliste mit Toolbar) — Muster
+ * wie `GroupsSection`. Im Leerzustand bleibt die Toolbar aus, damit genau ein
+ * „Neue Säule anlegen"-Knopf existiert.
  */
 export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 	const [pillars, setPillars] = useState<Pillar[]>([]);
@@ -43,6 +48,9 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 	const loadPillars = useCallback(async () => {
 		try {
 			setPillars(await api.listPillars());
+			// Fehler nach erfolgreichem Nachladen zurücknehmen — sonst bleibt die Meldung eines
+			// gescheiterten Versuchs über der bereits wieder gefüllten Liste stehen (Muster GroupsSection).
+			setError(null);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
@@ -76,42 +84,67 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 
 	return (
 		<div className="pillar-list" ref={deleteFallbackRef} tabIndex={-1}>
-			{error !== null && <p className="error-message">{error}</p>}
+			{/* Fehler als `KolAlert` statt als `<p className="error-message">`: die Klasse hatte app-weit
+			    keine einzige CSS-Regel, der Fehler stand als normaler Fließtext ohne Fehler-Affordanz
+			    über der Liste. Muster wie `GroupsSection` (Meldungen sind KoliBri, DESIGN.md). */}
+			{error !== null && (
+				<KolAlert _type="error" _label="Säulen konnten nicht geladen werden">
+					{error}
+				</KolAlert>
+			)}
 
-			{/* ── Anlegen-Button ───────────────────────────────────────────── */}
-			<div className="pillar-list-toolbar">
-				<KolButton
-					_label="Neue Säule anlegen"
-					_icons={{ left: { icon: 'fa-solid fa-plus' } }}
-					_variant="primary"
-					_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
-				/>
-			</div>
-
-			{/* ── Säulen-Liste ─────────────────────────────────────────────── */}
+			{/* ── Vier gestaltete Zustände (mobile-ui-rules Regel 7): Laden, Leer, Fehler, Erfolg ── */}
 			{loading ? (
-				<p aria-live="polite">Säulen werden geladen …</p>
+				<KolSpin _show _variant="cycle" _label="Säulen werden geladen …" />
 			) : pillars.length === 0 ? (
-				<p>Keine Säulen vorhanden.</p>
+				/* Leerzustand als Einladung zum Handeln — der einzige „Neue Säule anlegen"-Knopf in
+				   diesem Zustand (die Toolbar bleibt aus, genau eine Primäraktion pro Zustand). */
+				<section className="empty-state">
+					<KolCard _label="Noch keine Säulen" _level={3}>
+						<p>
+							Säulen sind die Lebensbereiche, auf die deine Aufgaben einzahlen — lege deine erste an, um die
+							Priorisierung nach Lebensbalance zu steuern.
+						</p>
+						<KolButton
+							_label="Neue Säule anlegen"
+							_icons={{ left: { icon: 'fa-solid fa-plus' } }}
+							_variant="primary"
+							_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
+						/>
+					</KolCard>
+				</section>
 			) : (
-				<ul className="pillar-items">
-					{pillars.map((pillar) => (
-						<li key={pillar.id} className="pillar-item" data-pillar-id={pillar.id}>
-							<div className="pillar-info">
-								<KolHeading _label={pillar.name} _level={3} />
-								{pillar.description && <p className="hint pillar-list-description">{pillar.description}</p>}
-							</div>
-							<div className="pillar-actions">
-								<KolButton
-									_label="Bearbeiten"
-									_variant="secondary"
-									_on={{ onClick: () => setFormMode({ kind: 'edit', pillar }) }}
-								/>
-								<KolButton _label="Löschen" _variant="danger" _on={{ onClick: () => setDeleteTarget(pillar) }} />
-							</div>
-						</li>
-					))}
-				</ul>
+				<>
+					{/* ── Anlegen-Button ───────────────────────────────────────── */}
+					<div className="pillar-list-toolbar">
+						<KolButton
+							_label="Neue Säule anlegen"
+							_icons={{ left: { icon: 'fa-solid fa-plus' } }}
+							_variant="primary"
+							_on={{ onClick: () => setFormMode({ kind: 'create' }) }}
+						/>
+					</div>
+
+					{/* ── Säulen-Liste ─────────────────────────────────────────── */}
+					<ul className="pillar-items">
+						{pillars.map((pillar) => (
+							<li key={pillar.id} className="pillar-item" data-pillar-id={pillar.id}>
+								<div className="pillar-info">
+									<KolHeading _label={pillar.name} _level={3} />
+									{pillar.description && <p className="hint pillar-list-description">{pillar.description}</p>}
+								</div>
+								<div className="pillar-actions">
+									<KolButton
+										_label="Bearbeiten"
+										_variant="secondary"
+										_on={{ onClick: () => setFormMode({ kind: 'edit', pillar }) }}
+									/>
+									<KolButton _label="Löschen" _variant="danger" _on={{ onClick: () => setDeleteTarget(pillar) }} />
+								</div>
+							</li>
+						))}
+					</ul>
+				</>
 			)}
 
 			{/* ── Anlegen/Bearbeiten-Dialog ──────────────────────────────── */}

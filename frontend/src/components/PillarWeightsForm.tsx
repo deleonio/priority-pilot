@@ -123,7 +123,13 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 							</div>
 						))}
 					</div>
+					{/* `aria-live`: Die Summe ist die einzige Rückmeldung darauf, ob die Verteilung speicherbar
+					    ist — sie ändert sich bei jedem Reglerzug, ohne dass der Fokus sie berührt. Ohne
+					    Live-Region erfährt ein Screenreader den Umschlag gültig/ungültig nie.
+					    Das frühere „✓“-Zeichen ist raus: als Glyphe im Fließtext wird es je nach
+					    Screenreader vorgelesen („Häkchen“) oder verschluckt — die Aussage steht im Text. */}
 					<p
+						aria-live="polite"
 						className={
 							distributionValid
 								? 'pillar-weights-sum pillar-weights-sum-ok'
@@ -131,7 +137,7 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 						}
 					>
 						Summe der Rohwerte: {formatNumber(sum)}{' '}
-						{distributionValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
+						{distributionValid ? '— wird auf 100 % normiert' : '— mindestens eine Säule muss > 0 sein'}
 					</p>
 				</>
 			)}

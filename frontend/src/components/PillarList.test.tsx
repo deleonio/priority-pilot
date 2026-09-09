@@ -50,6 +50,15 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_label}
 		</button>
 	),
+	// Leer- und Ladezustand der Liste (Karte mit CTA bzw. Spinner) — dieselbe Reduktion auf
+	// natives HTML wie bei den übrigen KoliBri-Komponenten.
+	KolCard: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<div>
+			{_label !== undefined && <h3>{_label}</h3>}
+			{children}
+		</div>
+	),
+	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolHeading: ({ _label, _level = 2 }: { _label?: string; _level?: number }) => {
 		// Nur h2/h3 werden in den PillarList-Dialogen verwendet. Zur Sicherheit auf h2 fallbacken.
 		if (_level === 3) return <h3>{_label}</h3>;
