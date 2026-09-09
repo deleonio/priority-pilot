@@ -55,7 +55,7 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
 3. **Serien** – wiederkehrende Aufgaben
-4. **Wald** – die Priorisierung als Baum
+4. **Wald** – die Aufgaben als Graph mit gewichteten Abhängigkeiten
 
 ---
 
@@ -101,8 +101,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 Im Tab **Aufgaben** stehen deine Aufgaben als **flache Liste der ausführbaren Blatt-Aufgaben**.
 Das sind genau die Aufgaben, die **keine Unteraufgaben** haben – die Aufgaben,
 die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt werden muss.
-Den Überblick über den gesamten Aufgabenbaum mit Oberaufgaben, Abhängigkeiten und dem
-Aufgabenwald findest du im Tab **Wald**.
+Den Überblick über Oberaufgaben und alle Abhängigkeiten findest du im Tab **Wald**.
 
 Oben im Tab findest du drei Bedienelemente:
 
@@ -380,17 +379,28 @@ Rhythmus und Startdatum werden **nie** kaskadiert.
 
 ---
 
-## Aufgabenwald
+## Aufgabengraph
 
-Der Tab **Aufgabenwald** zeigt die Priorisierung als **Baumstruktur**, sortiert nach
-Wert – die wichtigste Aufgabe steht oben.
+Der Tab **Wald** zeigt, wie deine Aufgaben zusammenhängen – als Graph statt als Baum.
 
-- Jeder Knoten zeigt `#ID – Titel` sowie **Priorität**, **Wert** und den
-  **Gesamtaufwand in Tagen** (inklusive aller Abhängigkeiten).
-- Abhängige Aufgaben stehen eingerückt darunter.
+- Ein **Pfeil** zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.
+- Je **dicker die Linie**, desto stärker das Gewicht der Abhängigkeit. Die Zahl steht an
+  der Linie, du musst die Stärke also nicht schätzen.
+- Jeder **Knoten** zeigt `#ID`, Titel, **Priorität**, **Wert** und – falls es Unteraufgaben
+  gibt – den **Fortschritt**.
+- Eine Aufgabe, die mehreren übergeordneten Aufgaben zuarbeitet, steht **einmal** da und hat
+  mehrere Kanten. Im früheren Baum tauchte sie mehrfach auf.
 
-Der Aufgabenwald ist eine **Leseansicht**: Hier erkennst du Zusammenhänge und welche
-Aufgaben den größten Hebel haben. Bearbeitet wird im Tab „Aufgaben".
+Über der Grafik sitzen die Schaltflächen **Ansicht einpassen**, **Vergrößern** und
+**Verkleinern**; auf dem Handy schiebst du den Ausschnitt mit dem Finger.
+
+Ein Klick auf einen Knoten öffnet darunter eine Detail-Karte mit Wert, Gesamtaufwand und
+allen Vorgängern und Nachfolgern samt Gewicht. Von dort kommst du direkt zu
+**Abhängigkeiten bearbeiten**. Alles Weitere – anlegen, ändern, abhaken – machst du im Tab
+„Aufgaben".
+
+Unter der Grafik steht der Graph zusätzlich als aufklappbare **Liste**. Sie enthält
+dieselben Angaben in Textform und ist der Weg für Tastatur und Screenreader.
 
 ---
 

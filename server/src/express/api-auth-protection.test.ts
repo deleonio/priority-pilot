@@ -90,6 +90,11 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 			assert.equal(res.status, 401);
 		});
 
+		it('GET /graph ohne Session → 401', async () => {
+			const res = await fetch(`${server.baseUrl}/graph`);
+			assert.equal(res.status, 401);
+		});
+
 		it('GET /next ohne Session → 401', async () => {
 			const res = await fetch(`${server.baseUrl}/next`);
 			assert.equal(res.status, 401);

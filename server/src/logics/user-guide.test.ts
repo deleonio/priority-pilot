@@ -58,8 +58,10 @@ describe('Nutzerhandbuch docs/user-guide.md (#255)', () => {
 			assert.match(getContent(), /s.ulen/i, 'Abschnitt Säulen muss vorhanden sein');
 		});
 
-		it('AK 2.6: Abschnitt Aufgabenwald ist vorhanden', () => {
-			assert.match(getContent(), /aufgabenwald/i, 'Abschnitt Aufgabenwald muss vorhanden sein');
+		// Der Tab „Wald" zeigt seit dem Graph-Umbau keinen Baum mehr, sondern den Aufgabengraphen —
+		// der Abschnitt heißt entsprechend „Aufgabengraph". Der alte Name bleibt zulässig.
+		it('AK 2.6: Abschnitt zur Wald-Ansicht ist vorhanden', () => {
+			assert.match(getContent(), /aufgabenwald|aufgabengraph/i, 'Abschnitt zur Wald-Ansicht muss vorhanden sein');
 		});
 
 		it('AK 2.7: Abschnitt Serien ist vorhanden', () => {

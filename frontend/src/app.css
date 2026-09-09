@@ -402,7 +402,7 @@ body {
 
 .dashboard,
 .task-section,
-.forest-panel {
+.task-graph-panel {
 	margin-top: var(--pp-gap-major);
 }
 
@@ -424,7 +424,7 @@ body {
 /* Innerhalb eines Tabs ist der jeweilige Bereich der einzige Inhalt – der Stapel-Abstand entfällt. */
 .app-tabs .dashboard,
 .app-tabs .task-section,
-.app-tabs .forest-panel {
+.app-tabs .task-graph-panel {
 	margin-top: 0;
 }
 
@@ -933,68 +933,202 @@ body {
 	font-variant-numeric: tabular-nums;
 }
 
-/* --- Aufgabenwald (P2-5: strukturierte Cards statt Textwüste) --- */
-.forest-panel .tree-root,
-.forest-panel ul {
-	list-style: none;
-	padding-left: 1.25rem;
+/* --- Aufgabengraph (ersetzt die frühere Wald-Baumdarstellung) --- */
+
+/*
+ * Der Canvas hat eine begrenzte, mitwachsende Höhe und clippt seinen Inhalt. Damit entsteht auch
+ * bei einem breiten Graphen kein horizontaler Seiten-Scroll — geschwenkt wird im Canvas selbst.
+ * Er füllt bewusst nicht die volle Viewport-Höhe: ober- und unterhalb bleibt Fläche, an der die
+ * Seite normal weiterscrollt.
+ */
+.task-graph-canvas {
+	width: 100%;
+	height: clamp(320px, 55vh, 520px);
+	overflow: hidden;
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius-md);
+	background: var(--pp-surface-1);
+	margin-top: var(--pp-gap-base);
 }
 
-.forest-panel .tree-root {
-	padding-left: 0;
+@media (min-width: 48rem) {
+	.task-graph-canvas {
+		height: 640px;
+	}
 }
 
-.forest-panel li {
-	margin: var(--pp-space-6) 0;
+.task-graph-toolbar {
+	display: block;
+	margin-top: var(--pp-gap-base);
 }
 
-/* P2-5: Forest-Node Cards */
-.forest-panel .forest-node-card {
-	margin-bottom: var(--pp-space-8);
-}
-
-.forest-node-header {
+/* Knoten: feste Maße, damit das Layout (graphLayout.ts) und die Darstellung nicht auseinanderlaufen. */
+.task-graph-node {
+	box-sizing: border-box;
+	width: 180px;
+	height: 92px;
 	display: flex;
-	align-items: center;
+	flex-direction: column;
+	gap: 2px;
+	padding: var(--pp-space-2);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius-sm);
+	background: var(--pp-surface-0);
+	color: var(--pp-text);
+	font-size: var(--pp-font-size-sm);
+	line-height: var(--pp-line-tight);
+	cursor: pointer;
+}
+
+/*
+ * Priorität: die Stufe steht als Text im Chip („P4"), die Farbe umrandet nur den Chip. Bewusst
+ * keine farbige Kante am Knoten selbst — die trüge dieselbe Information ein zweites Mal, kostete
+ * bei 180 px Knotenbreite Platz und zöge den Blick auf die Kante statt auf den Titel.
+ */
+.task-graph-node--high .task-graph-node__priority {
+	border-color: var(--pp-danger);
+}
+
+.task-graph-node--medium .task-graph-node__priority {
+	border-color: var(--pp-warning);
+}
+
+.task-graph-node--low .task-graph-node__priority {
+	border-color: var(--pp-border-strong);
+}
+
+.task-graph-node--selected {
+	outline: 2px solid var(--pp-focus-ring);
+	outline-offset: 2px;
+}
+
+.task-graph-node--dimmed {
+	opacity: 0.35;
+}
+
+.task-graph-node__head {
+	display: flex;
 	justify-content: space-between;
 	gap: var(--pp-gap-tight);
-	margin-bottom: var(--pp-gap-tight);
-	flex-wrap: wrap;
-}
-
-.forest-node-title {
-	margin: 0;
-	flex: 1 1 auto;
-	min-width: 120px;
-}
-
-.forest-node-priority {
-	flex-shrink: 0;
-}
-
-.forest-node-meta {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--pp-gap-base);
-	font-size: var(--pp-font-size-sm);
 	color: var(--pp-text-muted);
 }
 
-.forest-node-meta-item {
+.task-graph-node__priority {
+	padding: 0 4px;
+	border: 1px solid var(--pp-border-strong);
+	border-radius: var(--pp-radius-pill);
+	font-weight: var(--pp-weight-bold);
+	color: var(--pp-text);
+}
+
+.task-graph-node__title {
+	margin: 0;
+	font-weight: var(--pp-weight-bold);
+	/* Zwei Zeilen, danach Ellipse — der volle Titel steht in der Listenansicht. */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.task-graph-node__meta,
+.task-graph-node__progress {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	color: var(--pp-text-muted);
 	white-space: nowrap;
 }
 
-.forest-node-children {
-	list-style: none;
-	padding-left: var(--pp-space-4);
-	margin-top: var(--pp-gap-tight);
-	border-left: 2px solid var(--pp-border);
+.task-graph-node__progress-track {
+	align-self: center;
+	flex: 1 1 auto;
+	height: 4px;
+	border-radius: var(--pp-radius-pill);
+	background: var(--pp-surface-2);
+	overflow: hidden;
 }
 
-.tree-node-meta {
+.task-graph-node__progress-fill {
+	display: block;
+	height: 100%;
+	background: var(--pp-status-done);
+}
+
+/*
+ * Kanten. Die Strichstärke kommt aus dem Gewicht (Inline-Style in TaskGraphCanvas), Farbe und
+ * Pfeilspitze aus den Rollen-Tokens. Ohne diese Regeln griffen die Default-Grautöne aus
+ * `@xyflow/react/dist/base.css`, das nach app.css geladen wird — die Selektoren hier sind
+ * spezifischer und gewinnen deshalb unabhängig von der Ladereihenfolge.
+ */
+.task-graph-canvas .react-flow__edge-path {
+	stroke: var(--pp-border-strong);
+}
+
+.task-graph-canvas .react-flow__arrowhead polyline,
+.task-graph-canvas .react-flow__arrowhead path {
+	stroke: var(--pp-border-strong);
+	fill: var(--pp-border-strong);
+}
+
+.task-graph-canvas .task-graph-edge--active .react-flow__edge-path {
+	stroke: var(--pp-brand);
+}
+
+.task-graph-canvas .task-graph-edge--dimmed {
+	opacity: 0.35;
+}
+
+.task-graph-canvas .react-flow__edge-textbg {
+	fill: var(--pp-surface-1);
+}
+
+.task-graph-canvas .react-flow__edge-text {
+	fill: var(--pp-text);
+	font-size: 11px;
+}
+
+/* Andockpunkte sind nur Geometrie für das Kanten-Routing, kein Bedienelement. */
+.task-graph-canvas .react-flow__handle {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.task-graph-legend ul {
+	margin: 0;
+	padding-left: var(--pp-space-4);
+}
+
+.task-graph-detail {
+	display: block;
+	margin-top: var(--pp-gap-base);
+}
+
+.task-graph-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.task-graph-list > li {
+	margin: var(--pp-gap-tight) 0;
+}
+
+.task-graph-list-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+}
+
+.task-graph-list-meta,
+.task-graph-list-empty {
 	color: var(--pp-text-muted);
-	font-size: 0.875rem;
-	margin-left: 0.5rem;
+	font-size: var(--pp-font-size-sm);
+}
+
+.task-graph-list-group-title {
+	margin-bottom: 0;
+	font-weight: var(--pp-weight-bold);
 }
 
 /* --- Aufgaben-Liste (flache Blatt-Liste, #537) --- */

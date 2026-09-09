@@ -468,6 +468,26 @@ paths:
                   $ref: '#/components/schemas/TaskTreeNode'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /graph:
+    get:
+      summary: Aufgabengraph mit gewichteten Kanten
+      description: >-
+        Liefert die aktiven Aufgaben (`Open`/`In process`) des Nutzers als flache
+        Knotenliste plus die gewichteten Kanten zwischen ihnen (siehe `buildTaskGraph`).
+        Anders als `/forest` erscheint eine Aufgabe, die mehreren übergeordneten
+        Aufgaben zuarbeitet, genau einmal — mit mehreren Kanten statt mehreren Kopien.
+        Kennzahlen (`value`, `totalEstimatedEffort`, `progress`) sind wertgleich zu
+        `/forest`.
+      operationId: getTaskGraph
+      responses:
+        '200':
+          description: Knoten und Kanten des Aufgabengraphen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGraph'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /next:
     get:
       summary: Nächsten wichtigen Task ermitteln
@@ -2611,6 +2631,99 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskTreeNode'
+    TaskGraph:
+      type: object
+      description: >-
+        Der Aufgabengraph als flache Knotenliste plus Kantenliste. Jede aktive Aufgabe
+        kommt genau einmal vor, auch wenn sie mehreren übergeordneten Aufgaben zuarbeitet.
+        Kanten stehen nur zwischen Knoten dieser Liste — es zeigt nie eine Kante ins Leere.
+      required:
+        - nodes
+        - edges
+      properties:
+        nodes:
+          type: array
+          description: Aktive Aufgaben, absteigend nach Wertbeitrag sortiert.
+          items:
+            $ref: '#/components/schemas/TaskGraphNode'
+        edges:
+          type: array
+          description: Gewichtete Abhängigkeitskanten zwischen den Knoten.
+          items:
+            $ref: '#/components/schemas/TaskGraphEdge'
+    TaskGraphNode:
+      type: object
+      description: >-
+        Ein Knoten des Aufgabengraphen. Feldgleich zu `TaskTreeNode`, aber ohne
+        `dependents` — die Struktur steckt in `TaskGraph.edges`, nicht im Knoten.
+      required:
+        - id
+        - title
+        - priority
+        - estimatedEffort
+        - totalEstimatedEffort
+        - value
+        - status
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        priority:
+          type: integer
+        estimatedEffort:
+          type: number
+          format: float
+        totalEstimatedEffort:
+          type: number
+          format: float
+          description: Gesamtaufwand inkl. aller transitiven aktiven Unteraufgaben
+        value:
+          type: number
+          format: float
+          description: Wertbeitrag des Tasks
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        progress:
+          type: object
+          nullable: true
+          description: >-
+            Fortschritt (erledigt/gesamt) inkl. des Knotens selbst und aller transitiven
+            Unteraufgaben, gezählt über die UNGEFILTERTE Abhängigkeitskette — also auch über
+            erledigte Unteraufgaben, die als Knoten nicht mehr erscheinen (#392 ∩ #241).
+            `null`, wenn der Task keine Unteraufgaben hat.
+          required:
+            - done
+            - total
+          properties:
+            done:
+              type: integer
+            total:
+              type: integer
+    TaskGraphEdge:
+      type: object
+      description: >-
+        Eine gerichtete, gewichtete Abhängigkeitskante. `from` ist die Unteraufgabe
+        (der Vorgänger, `dependencies.dependingTaskId`), `to` die übergeordnete Aufgabe
+        (`dependencies.dependentTaskId`). Gelesen: „`from` ermöglicht `to`" bzw. „`to`
+        kann erst, wenn `from` fertig ist". Die Richtung ist hier bewusst explizit
+        benannt, weil das Feld `dependents` in `TaskTreeNode` historisch die *Kinder*
+        meint und nicht die Dependents im Graph-Sinn (#336).
+      required:
+        - from
+        - to
+        - weight
+      properties:
+        from:
+          type: integer
+          description: ID der Unteraufgabe (Vorgänger)
+        to:
+          type: integer
+          description: ID der übergeordneten Aufgabe
+        weight:
+          type: number
+          format: float
+          description: Kantengewicht (0,1–1), wie beim Anlegen der Abhängigkeit gesetzt
     Pillar:
       type: object
       description: Eine der fünf festen Lebensbalance-Säulen (globale Stammdaten, für alle Nutzer identisch).

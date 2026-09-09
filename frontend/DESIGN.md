@@ -39,6 +39,8 @@ Quellen: KERN UX MCP (`kern-mcp_*`), KoliBri MCP (`kolibri-mcp_*`).
 
 **Regel:** Rohes HTML (`<button>`, `<input>`, `<table>`, `<h1>`–`<h6>`) ist **nur für Layout-Container** zulässig (`div`, `section`, `ul`/`li`, `p`, `span`). Jede Ausnahme braucht einen Code-Kommentar mit Begründung.
 
+**Eine dokumentierte Ausnahme:** Graph-Visualisierung → `@xyflow/react` (MIT). KoliBri/KERN hat keine Graph- oder Diagramm-Komponente, und ein pan-/zoombarer DAG mit Kanten-Routing und Touch-Gesten wäre handgerollt mehrere hundert Zeilen Eigenbau. Die Bibliothek deckt ausschließlich die Canvas-Ebene im Tab „Wald" ab; Bedienelemente, Detailbereich und die barrierefreie Listenfassung bleiben KoliBri. Begründung im Kopf von `src/components/TaskGraphPanel.tsx`.
+
 MCP-Nutzung: Vor neuer Komponenten-Nutzung `kolibri-mcp_search` / `kolibri-mcp_fetch` für Specs/Samples; `kern-mcp_get_component_docs` für Doku.
 
 ## Tokens (Priority Pilot — `--pp-*`)

@@ -574,6 +574,42 @@ describe('Tasks API', () => {
 		});
 	});
 
+	// ── GET /graph ───────────────────────────────────────────────────────────
+
+	describe('GET /graph', () => {
+		it('200 mit Knoten und Kanten', async () => {
+			const child = await Task.create({ title: 'Kind', priority: 3, estimatedEffort: 1 });
+			const parent = await Task.create({ title: 'Eltern', priority: 3, estimatedEffort: 1 });
+			await parent.addDependency(child, { through: { weight: 0.5 } });
+
+			const res = await get('/graph');
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { nodes: Record<string, unknown>[]; edges: Record<string, unknown>[] };
+			assert.equal(body.nodes.length, 2);
+			assert.deepEqual(body.edges, [{ from: child.id, to: parent.id, weight: 0.5 }]);
+		});
+
+		it('Knoten hat erwartete Felder und kein dependents', async () => {
+			await Task.create({ title: 'Solo', priority: 3, estimatedEffort: 1 });
+			const res = await get('/graph');
+			const body = (await res.json()) as { nodes: Record<string, unknown>[] };
+			const node = body.nodes[0];
+			for (const field of [
+				'id',
+				'title',
+				'priority',
+				'estimatedEffort',
+				'totalEstimatedEffort',
+				'value',
+				'status',
+				'progress',
+			]) {
+				assert.ok(field in node, `Fehlendes Feld: ${field}`);
+			}
+			assert.ok(!('dependents' in node), 'Graph-Knoten trägt keine Baumkinder');
+		});
+	});
+
 	// ── GET /next ────────────────────────────────────────────────────────────
 
 	describe('GET /next', () => {
