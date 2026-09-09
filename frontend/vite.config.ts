@@ -80,7 +80,7 @@ export default defineConfig({
 				importScripts: ['/push-sw.js'],
 				// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
 				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
-				maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
+				maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
 				// Ohne Denylist beantwortet der Service Worker JEDE Navigation mit der
 				// gecachten index.html (navigateFallback) – auch /auth/google und den
 				// Google-Callback. Der OAuth-Flow erreicht dann nie den Server (Symptom:
