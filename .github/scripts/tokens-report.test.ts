@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { renderReport, ticketTotals } from './tokens-report.ts';
+import { classifyTicket, renderReport, ticketTotals } from './tokens-report.ts';
 import type { CostEntry } from './cost-record.ts';
 
 /**
@@ -76,7 +76,7 @@ describe('tokens-report', () => {
 				entry({ issueId: '300', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
 			]);
 			const report = renderReport(dir);
-			assert.match(report, /1 vollständige Tickets · 3 Läufe/);
+			assert.match(report, /1 vollständige Tickets \(1 Pipeline · 0 extern\) · 3 Läufe/);
 			assert.match(report, /\| review \| 1 \| — \|/);
 			assert.match(report, /vor der Turns-Erfassung/);
 		} finally {
@@ -95,8 +95,13 @@ describe('tokens-report', () => {
 			const report = renderReport(dir);
 			assert.match(
 				report,
-				/\| 2026-W53 \| 1 \| 1 \| \$1\.00 \| \$1\.00 \|/,
+				/\| 2026-W53\*? \| 1 \| \$1\.00 \| — \| — \| — \|/,
 				'der 1.1.2027 gehört noch zur W53 von 2026 — ein Fehler am Jahreswechsel verschiebt die ganze Wochen-Tabelle (nur messende Läufe zählen, die wertlosen implement/documenter-Einträge nicht)',
+			);
+			assert.match(
+				report,
+				/\| 2026-W53\* \| 1† \/ 0 \| — \|/,
+				'Kohorte = Abschlusswoche des Siegels; n = 1 ist zu klein für einen Median',
 			);
 			assert.match(report, /█{10} 100 %/, 'voller Anteil = 10 gefüllte Balken-Zeichen');
 			assert.match(report, /Top 5 Tickets\*\* stehen für 100 % des Gesamtwerts/);
@@ -123,11 +128,11 @@ describe('tokens-report', () => {
 				'der 23:00-UTC-Lauf ist in Berlin schon der Folgetag — ein UTC-Slice würde ihn dem Vortag zuschlagen',
 			);
 			assert.match(report, /Zeitraum 2026-09-02 bis 2026-09-07/);
-			assert.match(report, /\| 2026-W36 \| 2 \| 1 \|/, 'beide Berlin-Tage liegen in derselben ISO-Woche');
+			assert.match(report, /\| 2026-W36 \| 2 \| \$3\.00 \|/, 'beide Berlin-Tage liegen in derselben ISO-Woche');
 			assert.match(
 				report,
-				/\| 2026-W37 \| 1 \| 1 \|/,
-				'Sonntag 23:00 UTC ist in Berlin schon Montag und damit W37 — unter UTC-Woche stünde W36 (der wertlose documenter-Lauf zählt nicht als messend)',
+				/\| 2026-W37\* \| 1 \| \$3\.00 \|/,
+				'Sonntag 23:00 UTC ist in Berlin schon Montag und damit W37 — unter UTC-Woche stünde W36 (der wertlose documenter-Lauf zählt nicht als messend); die laufende Woche trägt den Stern',
 			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
@@ -187,18 +192,81 @@ describe('tokens-report', () => {
 				entry({ issueId: '910', phase: 'implement', valueCost: 4, turns: 10 }),
 				entry({ issueId: '910', phase: 'documenter', valueCost: 1, turns: 2, timestamp: '2026-08-24T11:00:00Z' }),
 			]);
-			// Fixup-Bein (kein implement): 100 $ duerfen den Ticket-OE nicht halbieren
+			// Fixup-Bein (kein implement, fixup NACH dem Siegel): 100 $ duerfen den Ticket-OE nicht halbieren
 			writeTicket(dir, '911', [
-				entry({ issueId: '911', phase: 'fixup', valueCost: 100, turns: 50 }),
-				entry({ issueId: '911', phase: 'documenter', valueCost: 1, turns: 3, timestamp: '2026-08-24T11:00:00Z' }),
+				entry({ issueId: '911', phase: 'documenter', valueCost: 1, turns: 3 }),
+				entry({ issueId: '911', phase: 'fixup', valueCost: 100, turns: 50, timestamp: '2026-08-24T11:00:00Z' }),
 			]);
 			// abgebrochen (kein documenter): reale Kosten, kein abgeschlossener Durchlauf
 			writeTicket(dir, '912', [entry({ issueId: '912', phase: 'implement', valueCost: 7, turns: 9 })]);
 			const report = renderReport(dir);
-			assert.match(report, /1 vollständige Tickets · 2 Läufe/);
+			assert.match(report, /1 vollständige Tickets \(1 Pipeline · 0 extern\) · 2 Läufe/);
 			assert.match(report, /Ausgeschlossen \(unvollständig[^)]*\): 2 Tickets — 1 Fixup-Beine, 1 abgebrochen/);
 			assert.match(report, /3 Läufe · 62 Turns · \$108\.00 Wert/);
 			assert.doesNotMatch(report, /\[#91[12]\]/, 'ausgeschlossene Tickets stehen nicht in der Ticket-Tabelle');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('klassifiziert chronologisch: extern umgesetzte Erstdurchläufe sind vollständig, Nacharbeit nach dem Siegel ein Bein', () => {
+		const at = (phase: string, hour: number, over: Partial<CostEntry> = {}): CostEntry =>
+			entry({ phase, timestamp: `2026-08-24T${String(hour).padStart(2, '0')}:00:00Z`, ...over });
+		assert.equal(classifyTicket([at('implement', 10), at('documenter', 12)]), 'vollstaendig');
+		assert.equal(
+			classifyTicket([at('review', 10), at('fixup', 11), at('documenter', 12)]),
+			'extern-vollstaendig',
+			'review → fixup → Siegel ohne implement ist ein extern umgesetzter PR, kein Fixup-Bein',
+		);
+		assert.equal(classifyTicket([at('review', 10), at('documenter', 12)]), 'extern-vollstaendig');
+		assert.equal(
+			classifyTicket([at('documenter', 10), at('fixup', 11), at('documenter', 12)]),
+			'fixup-bein',
+			'fixup erst nach dem ersten Siegel = Nacharbeit eines versiegelten Tickets',
+		);
+		assert.equal(classifyTicket([at('review', 10)]), 'abgebrochen');
+		assert.equal(classifyTicket([at('analyse', 10), at('documenter', 12)]), 'sonstiges');
+		assert.equal(
+			classifyTicket([at('documenter', 12), at('review', 10), at('fixup', 11)]),
+			'extern-vollstaendig',
+			'Reihenfolge kommt aus den Zeitstempeln, nicht aus der Datei-Reihenfolge',
+		);
+	});
+
+	it('rechnet Kohorten je Abschlusswoche und den Index gegen die Baseline je Herkunft', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-kohorte-'));
+		try {
+			// 5 Pipeline-Tickets in W35 (Kosten 1..5, Median 3), 5 in W36 (Kosten 2..10, Median 6);
+			// ein W35-Ticket beginnt in W34 — sein ganzer Wert zählt in der Abschlusswoche W35.
+			const mk = (issue: string, start: string, seal: string, vc: number): void =>
+				writeTicket(dir, issue, [
+					entry({ issueId: issue, phase: 'implement', valueCost: vc / 2, timestamp: start }),
+					entry({ issueId: issue, phase: 'review', valueCost: vc / 2, timestamp: seal.replace('T12', 'T11') }),
+					entry({ issueId: issue, phase: 'documenter', valueCost: 0, timestamp: seal }),
+				]);
+			mk('1', '2026-08-20T10:00:00Z', '2026-08-26T12:00:00Z', 1); // Start W34, Siegel W35
+			for (let i = 2; i <= 5; i++) mk(String(i), '2026-08-25T10:00:00Z', `2026-08-2${i + 4}T12:00:00Z`, i);
+			for (let i = 1; i <= 5; i++) mk(String(10 + i), '2026-09-01T10:00:00Z', `2026-09-0${i + 1}T12:00:00Z`, 2 * i);
+			// ein externes Ticket in W36 — eigene Spalte, kein Einfluss auf den Pipeline-Median
+			writeTicket(dir, '99', [
+				entry({ issueId: '99', phase: 'review', valueCost: 50, timestamp: '2026-09-03T10:00:00Z' }),
+				entry({ issueId: '99', phase: 'documenter', valueCost: 0, timestamp: '2026-09-03T12:00:00Z' }),
+			]);
+			const report = renderReport(dir, { baseline: '2026-W35' });
+			assert.match(report, /Baseline 2026-W35 \(n=5\/0\)/, 'Baseline per Flag wählbar, n je Herkunft');
+			assert.match(report, /\| 2026-W35 \| 5 \/ 0 \| \$3\.00 \| \$4\.00 \| 100 \| — \| \$3\.00 \| — \| — \|/);
+			assert.match(
+				report,
+				/\| 2026-W36\* \| 5 \/ 1† \| \$6\.00 \| \$8\.00 \| 200 \| ↑ 100 % \| \$4\.00 \| — \| — \|/,
+				'Median W36 = 6 → Index 200; Rolling über alle 10 Tickets (1,2,2,3,4,4,5,6,8,10) = 4; extern n=1 ist zu klein für einen Median',
+			);
+			assert.match(report, /bar "Kohorte" \[100, 200\]/, 'Index-Chart über die Pipeline-Kohorten');
+			assert.match(report, /\| Kosten je Ticket Pipeline — Median \(messende\) \| \$4\.00 \| \$3\.00 \| 133 \|/);
+			assert.match(
+				report,
+				/\| Kosten je Ticket extern — Median \(messende\) \| \$50\.00 \| — \| — \|/,
+				'extern getrennt, ohne Baseline kein Index',
+			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

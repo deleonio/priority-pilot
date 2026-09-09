@@ -92,22 +92,25 @@ describe('audit-basis', () => {
 				entry({ issueId: '601', phase: 'review', turns: 5, timestamp: '2026-08-24T11:00:00Z' }),
 				entry({ issueId: '601', phase: 'documenter', turns: 3, timestamp: '2026-08-24T12:00:00Z' }),
 			]);
-			// Fixup-Bein: 5 fixup-Runs OHNE implement — darf die Rate nicht aufblähen
+			// Fixup-Bein: 5 fixup-Runs NACH dem Siegel, OHNE implement — darf die Rate nicht aufblähen
 			writeTicket(dir, '602', [
-				entry({ issueId: '602', phase: 'fixup', turns: 30 }),
+				entry({ issueId: '602', phase: 'documenter', turns: 3 }),
 				entry({ issueId: '602', phase: 'fixup', turns: 30, timestamp: '2026-08-24T11:00:00Z' }),
 				entry({ issueId: '602', phase: 'fixup', turns: 30, timestamp: '2026-08-24T12:00:00Z' }),
 				entry({ issueId: '602', phase: 'fixup', turns: 30, timestamp: '2026-08-24T13:00:00Z' }),
 				entry({ issueId: '602', phase: 'fixup', turns: 30, timestamp: '2026-08-24T14:00:00Z' }),
-				entry({ issueId: '602', phase: 'review', turns: 5, timestamp: '2026-08-24T15:00:00Z' }),
-				entry({ issueId: '602', phase: 'documenter', turns: 3, timestamp: '2026-08-24T16:00:00Z' }),
+				entry({ issueId: '602', phase: 'fixup', turns: 30, timestamp: '2026-08-24T15:00:00Z' }),
+				entry({ issueId: '602', phase: 'review', turns: 5, timestamp: '2026-08-24T16:00:00Z' }),
 			]);
 			// abgebrochen: kein documenter
 			writeTicket(dir, '603', [entry({ issueId: '603', phase: 'implement', turns: 7 })]);
 
 			const out = renderAuditBasis(dir);
 			// 2 vollständige, 1 Bein, 1 abgebrochen
-			assert.match(out, /Vollständigkeit: 2 vollständig · 1 Fixup-Beine · 1 abgebrochen · 0 sonstige/);
+			assert.match(
+				out,
+				/Vollständigkeit: 2 vollständig · 0 extern vollständig · 1 Fixup-Beine · 1 abgebrochen · 0 sonstige/,
+			);
 			// Fixup÷Implement nur über vollständige: 1÷2 = 0,5 — OHNE Filter stünden 6÷3 = 2
 			assert.match(out, /Fixup÷Implement = 1÷2 = 0,5/);
 			// Review÷Implement: 3 review-Runs vollständiger ÷ 2 implement = 1,5

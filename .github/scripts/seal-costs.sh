@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Siegel-Lauf für die Kosten-Datensätze eines Tickets. Aufrufer: der Documenter-Workflow
-# (.github/workflows/06-claude-pr-documenter.yml) — einmal im Documenter-Job nach der
+# (.github/workflows/06-document.yml) — einmal im Documenter-Job nach der
 # Kostenerfassung (eigener Eintrag mit versiegelt), einmal als eigenständiger Catch-up-Job
 # für nachgezogene Siegel, wenn der erste Versuch fehlschlug.
 #
@@ -18,7 +18,8 @@
 # NIE FATAL: Jeder Fehlschlag verwirnt sichtbar und lässt den Aufrufer grün — die
 # Artefakte leben 90 Tage, der Catch-up-Job holt nach.
 #
-# Benötigte Umgebung: GH_TOKEN (App-Token mit Contents:Write), node im PATH.
+# Benötigte Umgebung: GH_TOKEN (App-Token mit Contents:Write UND Actions:Read — der
+# Artefakt-Abruf läuft über dasselbe Token), node und unzip im PATH.
 # Aufruf: seal-costs.sh --repo <owner/repo> --issue <n>
 
 set -uo pipefail
@@ -42,34 +43,21 @@ if ! printf '%s' "$issue" | grep -Eq '^[0-9]+$'; then
 fi
 
 # ─── Artefakte laden ──────────────────────────────────────────────────────────
-# Der Listen-Abruf läuft über das App-Token: Schlägt er fehl (z. B. Installation ohne
-# „Actions: lesen" → 403), darf das NICHT als „Liste leer = nichts gemessen = bereits
-# vollständig" durchgehen — der Seal würde lautlos nichts committen. Deshalb den
-# Misserfall abfangen (stderr steht ungeschminkt im Job-Log) und sichtbar verwarnen.
-mkdir -p /tmp/costs
-if ! LIST="$(gh api --paginate "repos/${repo}/actions/artifacts?per_page=100" \
-	--jq ".artifacts[] | select(.expired == false) \
-	      | select(.name | startswith(\"claude-costs-\") and contains(\"-issue-${issue}-\")) \
-	      | [.id, .name] | @tsv")"; then
-	echo "::warning title=Versiegeln::Artefakt-Liste nicht abrufbar (App-Token braucht ggf. Actions:Read) — kein Seal in diesem Lauf, Catch-up möglich."
+# Gemeinsamer Helfer mit track-costs.yml. Schlägt der Listen-Abruf fehl (z. B. Installation
+# ohne „Actions: lesen" → 403, Exit 3), darf das NICHT als „Liste leer = nichts gemessen =
+# bereits vollständig" durchgehen — der Seal würde lautlos nichts committen. Der Helfer
+# verwarnt sichtbar; hier bleibt der Lauf grün (NIE FATAL), der Catch-up-Job holt nach.
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+if ! FETCH="$("${script_dir}/fetch-cost-artifacts.sh" --repo "$repo" --issue "$issue" --dest /tmp/costs)"; then
+	printf '%s\n' "$FETCH"
+	echo "::warning title=Versiegeln::Artefakte nicht abrufbar — kein Seal in diesem Lauf, Catch-up möglich."
 	exit 0
 fi
-count=0
-while IFS="$(printf '\t')" read -r id name; do
-	[ -n "$id" ] || continue
-	# Ein Ordner je Artefakt: alle enthalten eine Datei desselben Namens (<n>.json).
-	dest="/tmp/costs/${name}"
-	mkdir -p "$dest"
-	if gh api "repos/${repo}/actions/artifacts/${id}/zip" > "/tmp/${id}.zip" 2>/dev/null \
-		&& unzip -o -q "/tmp/${id}.zip" -d "$dest" 2>/dev/null; then
-		count=$((count + 1))
-	fi
-	rm -f "/tmp/${id}.zip"
-done <<< "$LIST"
-echo "::notice title=Kosten-Artefakte::${count} Artefakt(e) für #${issue} geladen."
+printf '%s\n' "$FETCH"
+count="$(printf '%s' "$FETCH" | sed -n 's/^count=\([0-9]*\).*/\1/p' | tail -1)"
+echo "::notice title=Kosten-Artefakte::${count:-0} Artefakt(e) für #${issue} geladen."
 
 # ─── Mergen (idempotent) ──────────────────────────────────────────────────────
-script_dir="$(cd "$(dirname "$0")" && pwd)"
 OUT="$(node "${script_dir}/cost-seal.ts" --issue "$issue" --dir /tmp/costs 2>&1 || true)"
 printf '%s\n' "$OUT"
 # Drei Ausgänge VOR dem Commit — alle bewusst grün (NIE FATAL), aber mit dem PASSENDEN
