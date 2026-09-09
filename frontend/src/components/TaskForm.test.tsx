@@ -237,7 +237,7 @@ vi.mock('./ConfirmSeriesActionModal', () => ({
 }));
 
 import { api } from '../api';
-import { TaskForm } from './TaskForm';
+import { TaskForm, type TaskFormInitialValues } from './TaskForm';
 
 const mockSuggestPillars = api.suggestPillars as ReturnType<typeof vi.fn>;
 const mockCreateTask = api.createTask as ReturnType<typeof vi.fn>;
@@ -1419,6 +1419,66 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		expect(typeof taskCreate.checklist![0].id).toBe('string');
 		expect(taskCreate.checklist![0].title).toBe('Schritt 1');
 		expect(taskCreate.checklist![0].completed).toBe(false);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1310 (TF5): `initialValues.address`/`initialValues.checklist` (aus der
+ * Schnellerfassung) müssen beim Anlegen vorbelegt werden. `TaskFormInitialValues` kennt diese
+ * Felder noch nicht — der lokale Cast ist bewusst der einzige Typ-Vertragsbruch (Muster
+ * `SeriesEditForm` oben), bis die Impl-Phase die Schnittstelle erweitert. Spec: `docs/spec/issue-1310.md`.
+ */
+describe('TaskForm — Vorbelegung aus der Schnellerfassung: Adresse & Checkliste (#1310)', () => {
+	const withExtraInitialValues = (extra: Record<string, unknown>): TaskFormInitialValues =>
+		extra as unknown as TaskFormInitialValues;
+
+	it('AK5: initialValues.address befüllt das Adressfeld', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					initialValues={withExtraInitialValues({ address: 'Musterstraße 1, 12345 Musterstadt' })}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		expect(screen.getByLabelText(/Adresse/i)).toHaveValue('Musterstraße 1, 12345 Musterstadt');
+	});
+
+	it('AK6: initialValues.checklist erzeugt je einen Checklisten-Eintrag', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					initialValues={withExtraInitialValues({ checklist: ['Punkt A', 'Punkt B'] })}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		expect(screen.getAllByTestId('checklist-item')).toHaveLength(2);
+		expect(screen.getByText('Punkt A')).toBeInTheDocument();
+		expect(screen.getByText('Punkt B')).toBeInTheDocument();
+	});
+
+	it('AK7: im Serien-Modus rendert trotz initialValues.checklist keine Checklist-Section (still verworfen)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					initialMode="series"
+					initialValues={withExtraInitialValues({ checklist: ['Punkt A'] })}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		expect(screen.queryByTestId('checklist-section')).toBeNull();
+		expect(screen.queryByTestId('checklist-item')).toBeNull();
 	});
 });
 

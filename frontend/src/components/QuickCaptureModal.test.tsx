@@ -1,4 +1,4 @@
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuickCaptureModal } from './QuickCaptureModal';
@@ -84,6 +84,7 @@ import { api } from '../api';
 
 const mockListGroups = api.listGroups as ReturnType<typeof vi.fn>;
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
+const mockParseText = api.parseText as ReturnType<typeof vi.fn>;
 
 describe('QuickCaptureModal — Empfängerauswahl im Formular-Schritt (#1213 AK7)', () => {
 	afterEach(() => {
@@ -133,5 +134,79 @@ describe('QuickCaptureModal — Empfängerauswahl im Formular-Schritt (#1213 AK7
 
 		// Vorbelegung: eigenes Konto (id 1 aus /auth/me).
 		expect(String((select as unknown as { _value?: unknown })._value)).toBe('1');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1310 (TF4): Die neuen `ParsedTask`-Felder `isSeries`/`address`/`checklist`
+ * müssen von `QuickCaptureModal.process()` in `TaskForm` (`initialMode` bzw. `initialValues`)
+ * übernommen werden. Spec: `docs/spec/issue-1310.md`.
+ *
+ * KoliBri bleibt in dieser Datei ungemockt (Stil der bestehenden Tests) — Custom Elements sind in
+ * jsdom inert, Zustand liegt als Attribut/Property am Host-Element (`_label`, `_value`).
+ */
+describe('QuickCaptureModal — erweiterte Schnellerfassung (#1310)', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+		cleanup();
+	});
+
+	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
+
+	/** Löst den Klick auf „Verarbeiten und weiter" aus (Host-`_on.onClick`, siehe processButton oben). */
+	const clickProcess = async (container: HTMLElement): Promise<void> => {
+		const button = processButton(container);
+		await act(async () => {
+			(button as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+	};
+
+	it('AK2: isSeries:true startet TaskForm im Serien-Modus (Rhythmus-Feld sichtbar)', async () => {
+		mockParseText.mockResolvedValue({ title: 'Wöchentliches Teammeeting', isSeries: true });
+		const { container } = render(<QuickCaptureModal {...props} initialText="Jeden Montag Teammeeting" />);
+
+		await clickProcess(container);
+
+		await waitFor(() =>
+			expect(
+				container.querySelector('kol-single-select[_label="Rhythmus"]'),
+				'Rhythmus-Feld = Serien-Modus',
+			).toBeTruthy(),
+		);
+	});
+
+	it('AK2: isSeries fehlend bleibt im Aufgaben-Modus (kein Rhythmus-Feld)', async () => {
+		mockParseText.mockResolvedValue({ title: 'Einfacher Task' });
+		const { container } = render(<QuickCaptureModal {...props} initialText="Einfacher Task" />);
+
+		await clickProcess(container);
+
+		await waitFor(() => expect(container.querySelector('[data-testid="task-title"]')).toBeTruthy());
+		expect(container.querySelector('kol-single-select[_label="Rhythmus"]')).toBeNull();
+	});
+
+	it('AK5: eine geparste Adresse befüllt das Adressfeld im Formular', async () => {
+		mockParseText.mockResolvedValue({ title: 'Task mit Ortsbezug', address: 'Musterstraße 1, 12345 Musterstadt' });
+		const { container } = render(<QuickCaptureModal {...props} initialText="Termin in der Musterstraße 1" />);
+
+		await clickProcess(container);
+
+		await waitFor(() => {
+			const field = container.querySelector('kol-input-text[_label="Adresse (optional)"]');
+			expect(field?.getAttribute('_value')).toBe('Musterstraße 1, 12345 Musterstadt');
+		});
+	});
+
+	it('AK6: geparste Checklisten-Punkte erzeugen Checklisten-Einträge im Formular', async () => {
+		mockParseText.mockResolvedValue({ title: 'Task mit Checkliste', checklist: ['Punkt A', 'Punkt B'] });
+		const { container } = render(<QuickCaptureModal {...props} initialText="Erledige Punkt A und Punkt B" />);
+
+		await clickProcess(container);
+
+		await waitFor(() => {
+			expect(container.querySelectorAll('[data-testid="checklist-item"]').length).toBe(2);
+		});
 	});
 });
