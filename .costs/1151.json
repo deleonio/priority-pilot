@@ -18,7 +18,7 @@
 		"timestamp": "2026-08-31T15:49:05.856Z",
 		"tokensIn": 2176253,
 		"tokensOut": 9960,
-		"cost": 1.2038291280000002,
+		"cost": 0.129197,
 		"issueId": "1151",
 		"phase": "ux",
 		"model": "glm-5.3-flash",
@@ -26,13 +26,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 2042112,
 		"turns": 27,
-		"valueCost": 1.2038291280000002
+		"valueCost": 0.129197
 	},
 	{
 		"timestamp": "2026-08-31T16:00:11.250Z",
 		"tokensIn": 4013947,
 		"tokensOut": 15549,
-		"cost": 1.9230495120000004,
+		"cost": 0.206357,
 		"issueId": "1151",
 		"phase": "spec",
 		"model": "glm-5.3-flash",
@@ -40,13 +40,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 3858048,
 		"turns": 41,
-		"valueCost": 1.9230495120000004
+		"valueCost": 0.206357
 	},
 	{
 		"timestamp": "2026-08-31T16:20:34.604Z",
 		"tokensIn": 6585402,
 		"tokensOut": 22583,
-		"cost": 2.903455584000001,
+		"cost": 0.311491,
 		"issueId": "1151",
 		"phase": "implement",
 		"model": "glm-5.3-flash",
@@ -55,13 +55,13 @@
 		"cacheReadTokens": 6405056,
 		"sidechainTokens": 8043,
 		"turns": 65,
-		"valueCost": 2.903455584000001
+		"valueCost": 0.311491
 	},
 	{
 		"timestamp": "2026-08-31T16:29:50.938Z",
 		"tokensIn": 2566840,
 		"tokensOut": 17028,
-		"cost": 1.5914568960000002,
+		"cost": 0.171104,
 		"issueId": "1151",
 		"phase": "review",
 		"model": "glm-5.3-flash",
@@ -69,13 +69,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 2369344,
 		"turns": 36,
-		"valueCost": 1.5914568960000002
+		"valueCost": 0.171104
 	},
 	{
 		"timestamp": "2026-08-31T16:43:40.628Z",
 		"tokensIn": 3424590,
 		"tokensOut": 15093,
-		"cost": 1.6828119360000002,
+		"cost": 0.180695,
 		"issueId": "1151",
 		"phase": "fixup",
 		"model": "glm-5.3-flash",
@@ -83,13 +83,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 3283904,
 		"turns": 50,
-		"valueCost": 1.6828119360000002
+		"valueCost": 0.180695
 	},
 	{
 		"timestamp": "2026-08-31T16:47:14.591Z",
 		"tokensIn": 840843,
 		"tokensOut": 5254,
-		"cost": 0.695178072,
+		"cost": 0.074568,
 		"issueId": "1151",
 		"phase": "review",
 		"model": "glm-5.3-flash",
@@ -97,7 +97,7 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 715328,
 		"turns": 11,
-		"valueCost": 0.695178072
+		"valueCost": 0.074568
 	},
 	{
 		"timestamp": "2026-08-31T18:51:51.225Z",
@@ -145,7 +145,7 @@
 		"timestamp": "2026-08-31T19:43:34.423Z",
 		"tokensIn": 359075,
 		"tokensOut": 3181,
-		"cost": 0.5966418960000002,
+		"cost": 0.063894,
 		"issueId": "1151",
 		"phase": "documenter",
 		"model": "glm-5.3-flash",
@@ -153,6 +153,6 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 206144,
 		"turns": 6,
-		"valueCost": 0.5966418960000002
+		"valueCost": 0.063894
 	}
 ]

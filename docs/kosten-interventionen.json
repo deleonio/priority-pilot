@@ -1,0 +1,12 @@
+[
+	{ "date": "2026-08-19", "label": "ADR 0004: analyse-getriebenes Routing (Modell + Effort je Phase)", "issue": null },
+	{ "date": "2026-08-20", "label": "ADR 0005: Fixup und Umsetzung sind eine Phase", "issue": null },
+	{ "date": "2026-08-26", "label": "Kostenoptimierung: Effort-Level je Phase (8bcc1ad2)", "issue": null },
+	{ "date": "2026-08-27", "label": "z.ai/GLM als Standard-Provider", "issue": 1060 },
+	{ "date": "2026-08-29", "label": "ADR 0008: Delegation (Haiku-Subagents) und Mentor-Eskalation", "issue": null },
+	{
+		"date": "2026-09-06",
+		"label": "ADR 0010: Phasen-Notizen als Artefakt; effort/verdict/findings erfasst",
+		"issue": null
+	}
+]

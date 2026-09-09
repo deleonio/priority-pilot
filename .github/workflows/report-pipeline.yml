@@ -4,8 +4,11 @@ name: Kosten-Uebersicht
 # in EINE Job-Summary: die Turn-Uebersicht (turns-report.ts, Abrechnungsmassstab der Abos,
 # Issue #1197) OBEN, die Token-/Kosten-Uebersicht (tokens-report.ts, Token/USD-primär) darunter —
 # ein Lauf, ein Blick, kein zweiter Runner. Beide Berichte filtern seit 2026-09 auf
-# VOLLSTAENDIGE Tickets (implement + documenter, classifyTicket in tokens-report.ts);
-# Fixup-Beine und abgebrochene Durchläufe stehen nur als Fussnote mit ihrer Summe.
+# VOLLSTAENDIGE Tickets (Pipeline: implement + documenter; extern: review/fixup vor dem
+# Siegel — classifyTicket in tokens-report.ts) und weisen Ticket-Kennzahlen je Herkunft
+# aus; Fixup-Beine und abgebrochene Durchläufe stehen nur als Fussnote mit ihrer Summe.
+# Wochen-Kennzahlen laufen ueber Kohorten je Abschlusswoche (Median, n, Index gegen
+# Baseline, 20-Ticket-Fenster); Interventionen aus docs/kosten-interventionen.json.
 #
 # WARUM WOCHENTLICHER CRON: das Turn-Budget (ca. 8000 Prompts/Woche) ist 2026-09 erstmals
 # gerissen worden, ohne dass es jemand sah — die Uebersicht muss regelmaessig von selbst

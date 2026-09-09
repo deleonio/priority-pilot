@@ -5,17 +5,18 @@
 // getrennt; der Audit musste Ersparnisse zwischen zwei Blickwinkeln umrechnen (#1198).
 //
 // VOLLSTÄNDIGKEITS-FILTER: Versiegelte Dateien enthalten neben kompletten Durchläufen auch
-// Fixup-Beine (Nacharbeit ohne implement, eigene Datei) und abgebrochene Tickets (ohne
+// Fixup-Beine (Nacharbeit nach dem Siegel ohne implement) und abgebrochene Tickets (ohne
 // documenter). Schleifen-Raten und Turns/Ticket mitteln deshalb NUR über vollständige
-// Tickets (implement + documenter) — Klassifikation aus turns-report.ts, dieselbe Logik
-// wie im Turn-Report (eine Definition, zwei Renderer).
+// Tickets (Pipeline: implement + documenter; extern: review/fixup vor dem Siegel) —
+// Klassifikation aus tokens-report.ts, dieselbe Logik wie in beiden Berichten.
 //
 // Läufe ohne `turns`-Feld (vor #984) zählen in Runs/$/Token mit, bleiben aber aus allen
 // Turn-Mittelwerten heraus — als 0 gemittelt hätten sie den Turn-Aufwand untertrieben.
 //
 // Aufruf: node .github/scripts/audit-basis.ts [verzeichnis]   (Default: .costs)
 
-import { classifyTicket, pct, readTickets } from './tokens-report.ts';
+import { classifyTicket, isComplete, readTickets, type TicketClass } from './tokens-report.ts';
+import { pct } from './report-stats.ts';
 import type { CostEntry } from './cost-record.ts';
 
 const M = 1_000_000;
@@ -38,17 +39,21 @@ export function renderAuditBasis(dir: string): string {
 
 	const entries = raw.flatMap((t) => t.entries);
 	const measured = entries.filter(isMeasured);
-	const classes = { vollstaendig: 0, 'fixup-bein': 0, abgebrochen: 0, sonstiges: 0 };
+	const classes: Record<TicketClass, number> = {
+		vollstaendig: 0,
+		'extern-vollstaendig': 0,
+		'fixup-bein': 0,
+		abgebrochen: 0,
+		sonstiges: 0,
+	};
 	const completeIds = new Set<string>();
 	const fixupIds = new Set<string>();
 	for (const { issue, entries: es } of raw) {
-		const phaseRuns: Record<string, number> = {};
-		for (const e of es) phaseRuns[e.phase ?? '(ohne)'] = (phaseRuns[e.phase ?? '(ohne)'] ?? 0) + 1;
-		const cls = classifyTicket(phaseRuns);
+		const cls = classifyTicket(es);
 		classes[cls] += 1;
-		if (cls === 'vollstaendig') {
+		if (isComplete(cls)) {
 			completeIds.add(issue);
-			if ((phaseRuns.fixup ?? 0) > 0) fixupIds.add(issue);
+			if (es.some((e) => e.phase === 'fixup')) fixupIds.add(issue);
 		}
 	}
 
@@ -171,7 +176,7 @@ export function renderAuditBasis(dir: string): string {
 		);
 
 	lines.push(
-		`Vollständigkeit: ${classes.vollstaendig} vollständig · ${classes['fixup-bein']} Fixup-Beine · ${classes.abgebrochen} abgebrochen · ${classes.sonstiges} sonstige — Raten darunter nur über vollständige.`,
+		`Vollständigkeit: ${classes.vollstaendig} vollständig · ${classes['extern-vollstaendig']} extern vollständig · ${classes['fixup-bein']} Fixup-Beine · ${classes.abgebrochen} abgebrochen · ${classes.sonstiges} sonstige — Raten darunter über beide vollständigen Klassen.`,
 		'',
 		`Schleifen (Läufe): Fixup÷Implement = ${fixRuns}÷${implRuns} = ${ratio(fixRuns, implRuns)} · Review÷Implement = ${revRuns}÷${implRuns} = ${ratio(revRuns, implRuns)}`,
 		`First-Pass-Grün (kein Fixup) = ${firstPass}/${completeIds.size} (${pct(completeIds.size > 0 ? firstPass / completeIds.size : 0)}) · Ø Fixup-Läufe je nachbearbeitetem = ${avg(fixRuns, fixupIds.size)} · Median Turns/Ticket (vollständig) = ${Number.isNaN(median) ? '—' : num(median)}`,

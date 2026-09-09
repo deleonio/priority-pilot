@@ -284,27 +284,44 @@ THEN
 
 ### KPIs
 
-1. **Durchschnittskosten pro Ticket**
-   - Ziel: < $3.00 (aktuell: ~$6.00)
-   - Messung: Wöchentlicher Report aus `.costs/`
+Gemessen im wöchentlichen Report (`report-pipeline.yml`) über **vollständige Pipeline-Tickets**
+(Klasse `vollstaendig`, s. `.costs/SCHEMA.md`); extern umgesetzte Tickets stehen daneben, zählen
+aber nicht gegen die Ziele. Jede Kennzahl mit Baseline-Kohorte, Index und 20-Ticket-Fenster —
+die Frage ist „hat die letzte Änderung etwas bewegt", nicht nur „wo stehen wir".
 
-2. **Modell-Nutzung**
-   - Ziel: < 10% Opus, > 50% Haiku
-   - Messung: Phasenweise Modell-Statistik
+1. **Kosten je Ticket (Median, Pipeline)**
+   - Ziel: < $3.00
+   - Messung: Median je Abschlusswoche mit n, Index gegen Baseline, Rolling-Median über 20 Tickets
 
-3. **Cache-Effizienz**
-   - Ziel: > 95% (aktuell: 95-96%)
-   - Messung: Token-Statistik pro Phase
+2. **Turns je Ticket (Median, Pipeline)** — modellneutrale Effizienzgröße
+   - Ziel: sinkender Index gegen die Baseline-Kohorte
+   - Messung: Turn-Übersicht, Kohorten je Abschlusswoche, Vorher/Nachher je Intervention
 
-4. **Review-Runden**
-   - Ziel: ≤ 1.2 Runden pro Ticket (aktuell: 1-2)
-   - Messung: Review-Phasen pro Ticket
+3. **First-Pass-Grün-Rate (Pipeline)**
+   - Ziel: steigend; Bewegung nur zählen, wenn sie das Wilson-Intervall verlässt
+   - Messung: k/n je Abschlusswoche mit 95-%-Band
+
+4. **Review-Runden je Ticket (mit Review)**
+   - Ziel: ≤ 1.2
+   - Messung: Review-Phasen je Ticket, je Herkunft
+
+5. **Modell-Nutzung (Claude-Läufe)**
+   - Ziel: < 10 % flagship-Klasse, > 50 % small-Klasse (haiku)
+   - Messung: `classifyModel`-Klassen über Läufe mit `provider: claude`; Provider-Mix daneben
+
+6. **Cache-Effizienz (je Provider)**
+   - Ziel: > 95 % bei `claude`
+   - Messung: Cache-Read / Input je Provider — openrouter-Läufe färben den Gesamtwert sonst rot
+
+Jede Harness-Änderung wird in `docs/kosten-interventionen.json` eingetragen; der Turn-Report
+vergleicht dann die 20 Pipeline-Tickets davor mit den 20 danach.
 
 ### Monitoring
 
 ```bash
-# Wöchentlicher Kosten-Report
-node .github/scripts/tokens-report.ts --dir .costs
+# Wöchentliche Berichte (Turns zuerst, dann Token/USD); Baseline-Kohorte optional
+node .github/scripts/turns-report.ts --dir .costs --baseline 2026-W35
+node .github/scripts/tokens-report.ts --dir .costs --baseline 2026-W35
 
 # Phasenweise Analyse
 node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs

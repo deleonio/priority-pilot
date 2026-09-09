@@ -5,15 +5,47 @@
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte: Der Report
 // zeigt damit genau das, was dauerhaft erhalten ist. Läuft lokal und im Workflow
 // „Kosten-Uebersicht" (woechentlich, read-only) in die Job-Summary:
-//   node .github/scripts/tokens-report.ts --dir .costs
+//   node .github/scripts/tokens-report.ts --dir .costs [--baseline 2026-W35]
+//
+// BEZUGSEINHEIT: Ticket-Kohorte je Abschlusswoche (Woche des Siegels). Wochen-Werte
+// „je Ticket" summieren das GANZE Ticket in seiner Abschlusswoche — nicht die Läufe, die
+// zufällig in der Woche liefen, geteilt durch die Tickets, die die Woche „berührt" haben
+// (das zählte ein Ticket in zwei Wochen und war nicht mit dem Kopf-KPI vergleichbar).
+// Lagemaß ist der Median (Kosten je Ticket sind rechtsschief, p90 ≈ 2× Median), immer mit
+// n; relative Sicht über einen Index gegen eine Baseline-Kohorte und ein gleitendes
+// Fenster über die letzten 20 Tickets (bei 4 Wochen Daten mit n = 5..40 ist das
+// Kalenderraster grob). Rechenhelfer in report-stats.ts.
 //
 // Stil-Spiegel von cost-aggregate.ts: Node-Eintritt, keine externen Deps, ESM,
 // ausschliesslich löschbare TypeScript-Syntax.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { totalsByPhase } from './cost-aggregate.ts';
+import { totalsByPhase, type PhaseTotal } from './cost-aggregate.ts';
+import { classifyModel, usageBlocksUsd, valueRates, type BlockUsd } from './cost-from-transcript.ts';
 import type { CostEntry } from './cost-record.ts';
+import {
+	bar,
+	berlinDay,
+	fmtIndex,
+	frac,
+	getOrInit,
+	indexTo,
+	isoWeek,
+	median,
+	MIN_N_COHORT,
+	mio,
+	num,
+	pct,
+	quantileOf,
+	rollingMedian,
+	sealWeek,
+	share,
+	trendArrow,
+	usd,
+	weekOf,
+	xychart,
+} from './report-stats.ts';
 
 export type TicketTotal = {
 	issue: string;
@@ -50,7 +82,7 @@ export function readTickets(dir: string): { tickets: TicketEntries[]; skipped: s
 		return { tickets, skipped: [dir] };
 	}
 	for (const name of names.sort()) {
-		if (!name.endsWith('.json') || name === 'SCHEMA.md') continue;
+		if (!name.endsWith('.json')) continue;
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(readFileSync(join(dir, name), 'utf8'));
@@ -108,85 +140,137 @@ export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: st
 	return { tickets: tickets.map(ticketTotal).sort(byValue), skipped };
 }
 
-const num = (n: number): string => n.toLocaleString('de-DE');
-const usd = (n: number): string => `$${n.toFixed(2)}`;
-const mio = (n: number): string => `${(n / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Mio`;
-export const pct = (n: number): string => `${(n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
-
 /**
  * Vollständigkeit eines Ticket-Datensatzes — gemeinsame Definition für Kosten-Report,
  * Turn-Report und Audit-Basis (eine Definition, drei Renderer). Versiegelte Dateien
- * enthalten nicht nur komplette Durchläufe, und Kennzahlen dürfen darüber nicht mitteln:
- * - `vollstaendig`: implement + documenter — kompletter Durchlauf bis zum Siegel. Einzige
- *   Basis aller Auswertungs-Kennzahlen (Ø je Ticket, Schleifen-Raten, Trend, KPIs).
- * - `fixup-bein`: implement FEHLT, fixup vorhanden — Nacharbeit eines bereits versiegelten
- *   Tickets als eigene Datei. Würde Schleifen-Raten aufblähen, ohne Erstumsetzung zu sein.
+ * enthalten nicht nur komplette Durchläufe, und Kennzahlen dürfen darüber nicht mitteln.
+ * Entschieden wird CHRONOLOGISCH am ersten Siegel (documenter), nicht an Phasen-Zählern:
+ * - `vollstaendig`: implement + documenter — Pipeline-Durchlauf bis zum Siegel.
+ * - `extern-vollstaendig`: kein implement, aber review/fixup VOR dem ersten Siegel — ein
+ *   extern umgesetzter PR (Claude Web, Mensch), der durch Review, ggf. Fixup und Siegel
+ *   lief. Das ist ein kompletter Erstdurchlauf mit eigener Herkunft, keine Nacharbeit:
+ *   Bis 2026-09 zählten 61 solcher Tickets als „Fixup-Bein" und 36 als „sonstiges", und
+ *   59 % aller Tickets fehlten in jeder Kennzahl.
+ * - `fixup-bein`: kein implement, fixup erst NACH dem ersten Siegel — Nacharbeit eines
+ *   bereits versiegelten Tickets. Würde Schleifen-Raten aufblähen, ohne Erstumsetzung zu sein.
  * - `abgebrochen`: kein documenter — endete vor dem Merge (needs-human, Abbruch, verfallen).
- * - `sonstiges`: alles andere (z. B. reine Analyse-Läufe, documenter-Re-Seals).
- * Ausgeschlossene Klassen erscheinen nur als Fußnote mit ihrer Summe — Budget-Realität
- * sichtbar halten, Auswertung sauber halten.
+ * - `sonstiges`: alles andere (z. B. reine Analyse-Läufe mit Siegel, documenter-Re-Seals).
+ * Beide vollständigen Klassen bilden die KPI-Basis, getrennt nach Herkunft ausweisbar;
+ * ausgeschlossene Klassen erscheinen nur als Fußnote mit ihrer Summe.
  */
-export type TicketClass = 'vollstaendig' | 'fixup-bein' | 'abgebrochen' | 'sonstiges';
+export type TicketClass = 'vollstaendig' | 'extern-vollstaendig' | 'fixup-bein' | 'abgebrochen' | 'sonstiges';
+
+export const CLASS_LABEL: Record<TicketClass, string> = {
+	vollstaendig: 'vollständig',
+	'extern-vollstaendig': 'extern vollständig',
+	'fixup-bein': 'Fixup-Bein',
+	abgebrochen: 'abgebrochen',
+	sonstiges: 'sonstiges',
+};
+
+/** Vollständige Klassen — die Basis aller Auswertungs-Kennzahlen. */
+export const isComplete = (cls: TicketClass): boolean => cls === 'vollstaendig' || cls === 'extern-vollstaendig';
+
+/** Herkunft eines vollständigen Tickets: Pipeline (implement) oder extern umgesetzt. */
+export type Origin = 'pipeline' | 'extern';
+export const originOf = (cls: TicketClass): Origin => (cls === 'vollstaendig' ? 'pipeline' : 'extern');
+
+const byTime = (a: CostEntry, b: CostEntry): number =>
+	a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0;
 
 /** Klassifikation nach Pipeline-Vollständigkeit — Doku am Typ `TicketClass`. */
-export function classifyTicket(phaseRuns: Record<string, number>): TicketClass {
-	const has = (phase: string): boolean => (phaseRuns[phase] ?? 0) > 0;
-	if (!has('documenter')) return 'abgebrochen';
-	if (has('implement')) return 'vollstaendig';
-	if (has('fixup')) return 'fixup-bein';
+export function classifyTicket(entries: readonly CostEntry[]): TicketClass {
+	const sorted = [...entries].sort(byTime);
+	const firstSeal = sorted.findIndex((e) => e.phase === 'documenter');
+	if (firstSeal < 0) return 'abgebrochen';
+	if (sorted.some((e) => e.phase === 'implement')) return 'vollstaendig';
+	const beforeSeal = sorted.slice(0, firstSeal);
+	if (beforeSeal.some((e) => e.phase === 'review' || e.phase === 'fixup')) return 'extern-vollstaendig';
+	if (sorted.slice(firstSeal + 1).some((e) => e.phase === 'fixup')) return 'fixup-bein';
 	return 'sonstiges';
 }
-const share = (part: number, total: number): number => (total > 0 ? part / total : 0);
 
-/** Unicode-Balken (10 Zeichen █/░) plus Prozent — Anteile direkt in der Tabellenzeile sichtbar. */
-export const bar = (part: number, total: number): string => {
-	const anteil = share(part, total);
-	const filled = Math.round(Math.max(0, Math.min(1, anteil)) * 10);
-	return `${'█'.repeat(filled)}${'░'.repeat(10 - filled)} ${pct(anteil)}`;
+/** Ticket mit Klasse und Abschlusswoche — die Zwischenform beider Berichte. */
+export type ClassifiedTicket = TicketEntries & {
+	class: TicketClass;
+	/** ISO-Woche des Siegels (letzter documenter-Lauf); undefined ohne Siegel. */
+	sealWeek?: string;
+	/** Zeitstempel des Siegels — Sortierschlüssel für Ticket-Fenster („letzte 20"). */
+	sealTs?: string;
 };
 
-// Kalenderformat für Berlin-Tage: en-CA liefert ISO-ähnlich „2026-09-03“ ohne Nachformatieren.
-const berlinFmt = new Intl.DateTimeFormat('en-CA', {
-	timeZone: 'Europe/Berlin',
-	year: 'numeric',
-	month: '2-digit',
-	day: '2-digit',
+export const classifyAll = (tickets: readonly TicketEntries[]): ClassifiedTicket[] =>
+	tickets.map((t) => {
+		const seal = t.entries
+			.filter((e) => e.phase === 'documenter')
+			.map((e) => e.timestamp)
+			.sort()
+			.pop();
+		return { ...t, class: classifyTicket(t.entries), sealWeek: sealWeek(t.entries), sealTs: seal };
+	});
+
+/** Mindest-n einer Kohorte, damit sie Baseline sein darf. */
+export const BASELINE_MIN_N = 20;
+/** Fensterbreite der Ticket-Fenster („letzte 20 vs. vorige 20"). */
+export const WINDOW = 20;
+
+/**
+ * Baseline-Kohorte: per `--baseline` gesetzt, sonst die erste Abschlusswoche mit
+ * n ≥ BASELINE_MIN_N, sonst die erste überhaupt. Eine zu kleine Baseline macht jeden
+ * Index zum Zufall — deshalb der Schwellwert, deshalb steht n im Kopf.
+ */
+export const chooseBaseline = (cohorts: ReadonlyMap<string, unknown[]>, override?: string): string | undefined => {
+	if (override && cohorts.has(override)) return override;
+	const weeks = [...cohorts.keys()].sort();
+	return weeks.find((w) => (cohorts.get(w)?.length ?? 0) >= BASELINE_MIN_N) ?? weeks[0];
+};
+
+/** Vollständige Tickets chronologisch nach Siegel — Basis der Ticket-Fenster. */
+export const completeBySeal = (tickets: readonly ClassifiedTicket[]): ClassifiedTicket[] =>
+	tickets
+		.filter((t) => isComplete(t.class) && t.sealTs)
+		.sort((a, b) => (a.sealTs as string).localeCompare(b.sealTs as string));
+
+/** Kohorten je Abschlusswoche (nur vollständige Tickets). */
+export const cohortsBySealWeek = (tickets: readonly ClassifiedTicket[]): Map<string, ClassifiedTicket[]> => {
+	const out = new Map<string, ClassifiedTicket[]>();
+	for (const t of tickets) {
+		if (!isComplete(t.class) || !t.sealWeek) continue;
+		getOrInit(out, t.sealWeek, () => []).push(t);
+	}
+	return new Map([...out.entries()].sort(([a], [b]) => a.localeCompare(b)));
+};
+
+/** Wert (valueCost) eines Tickets — die Größe hinter „Kosten je Ticket". */
+const ticketValue = (t: TicketEntries): number => t.entries.reduce((a, e) => a + ZERO(e.valueCost), 0);
+const isMeasuring = (t: TicketEntries): boolean => ticketValue(t) > 0;
+
+/** Ticket-Fenster: letzte `n` und die `n` davor — undefined, wenn das ältere Fenster nicht voll ist. */
+export const windows = <T>(sorted: readonly T[], n: number): { last: T[]; prev?: T[] } => ({
+	last: sorted.slice(-n),
+	prev: sorted.length >= 2 * n ? sorted.slice(-2 * n, -n) : undefined,
 });
 
-/** Kalendertag in Berlin-Lokalzeit („2026-09-03“) — der Report zählt menschliche Tage, keine UTC-Slices; unlesbare Stempel fallen auf den UTC-Slice zurück. */
-export const berlinDay = (timestamp: string): string => {
-	const d = new Date(timestamp);
-	return Number.isNaN(d.getTime()) ? timestamp.slice(0, 10) : berlinFmt.format(d);
+/** Laufende Woche = Woche des jüngsten Laufs überhaupt; ihre Kohorte ist noch offen. */
+const currentWeekOf = (entries: readonly CostEntry[]): string | undefined => {
+	const last = entries
+		.map((e) => e.timestamp)
+		.sort()
+		.pop();
+	return last === undefined ? undefined : weekOf(last);
 };
 
-/** ISO-Woche eines Berlin-Kalendertags („2026-W35“) — Anker ist der Donnerstag der Woche. */
-export const isoWeek = (day: string): string => {
-	const d = new Date(`${day}T12:00:00Z`);
-	const thursday = new Date(d);
-	thursday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
-	const jan1 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
-	const week = Math.ceil(((thursday.getTime() - jan1.getTime()) / 86_400_000 + 1) / 7);
-	return `${thursday.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-};
+export type ReportOptions = { baseline?: string };
 
-/** Markdown-Bericht: Summen, Phasen-Verteilung, Tabelle je Ticket (Wert absteigend). */
-export function renderReport(dir: string): string {
-	// EINMAL lesen, zweimal auswerten: Ticket-Summen für die Tabelle, Roh-Einträge für die
-	// Phasen-/Trend-Rechnungen. Die Phasen-Reihenfolge folgt damit der Ticket-Nummer
-	// (≈ Zeitachse) statt der Wert-Sortierung — was `totalsByPhase` ohnehin meint.
-	//
-	// VOLLSTÄNDIGKEITS-FILTER: alle Kennzahlen laufen NUR über vollständige Tickets
-	// (implement + documenter, `classifyTicket`); Fixup-Beine und abgebrochene Durchläufe
-	// verzerrten Ø je Ticket und Review-Runden — als Fußnote bleiben sie sichtbar.
+/** Markdown-Bericht: KPIs mit Baseline/Index, Phasen, Block-Kosten, Trend, Kohorten, Ticket-Tabelle. */
+export function renderReport(dir: string, opts: ReportOptions = {}): string {
+	// EINMAL lesen, mehrfach auswerten. VOLLSTÄNDIGKEITS-FILTER: alle Kennzahlen laufen NUR
+	// über vollständige Tickets (`classifyTicket`); Fixup-Beine, abgebrochene und sonstige
+	// Durchläufe verzerrten Ø je Ticket und Review-Runden — als Fußnote bleiben sie sichtbar.
 	const { tickets: rawAll, skipped } = readTickets(dir);
-	const phaseRunsOf = (entries: CostEntry[]): Record<string, number> => {
-		const runs: Record<string, number> = {};
-		for (const e of entries) runs[e.phase ?? '(ohne)'] = (runs[e.phase ?? '(ohne)'] ?? 0) + 1;
-		return runs;
-	};
-	const classified = rawAll.map((t) => ({ ...t, class: classifyTicket(phaseRunsOf(t.entries)) }));
-	const raw = classified.filter((t) => t.class === 'vollstaendig');
-	const excluded = classified.filter((t) => t.class !== 'vollstaendig');
+	const classified = classifyAll(rawAll);
+	const raw = classified.filter((t) => isComplete(t.class));
+	const excluded = classified.filter((t) => !isComplete(t.class));
 	const exStats = excluded.reduce(
 		(a, t) => {
 			for (const e of t.entries) {
@@ -232,70 +316,152 @@ export function renderReport(dir: string): string {
 	// Berlin-Tagen, wie überall im Report.
 	const first = tickets.reduce((min, t) => (t.first < min ? t.first : min), tickets[0].first);
 	const last = tickets.reduce((max, t) => (t.last > max ? t.last : max), tickets[0].last);
+	const pipelineCount = raw.filter((t) => t.class === 'vollstaendig').length;
+	lines.push(
+		`**${tickets.length} vollständige Tickets (${pipelineCount} Pipeline · ${raw.length - pipelineCount} extern) · ${sum.runs} Läufe · Zeitraum ${berlinDay(first)} bis ${berlinDay(last)}**`,
+		'',
+	);
 
-	// KPI-Kopf: die vier Ziele aus docs/kosten-optimierungsplan.md („Erfolgsmessung") direkt
-	// gegen die Ist-Werte — der Report soll bewerten, nicht nur aufschlüsseln. Läufe ohne
-	// Modell-/Cache-Felder (Altdaten) fließen in die jeweilige Kennzahl nicht ein.
-	const messende = allEntries.filter((e) => ZERO(e.valueCost) > 0);
-	const vcTickets = tickets.filter((t) => t.valueCost > 0);
-	const kpiRows: string[] = [];
-	if (vcTickets.length > 0) {
-		const jeTicket = sum.valueCost / vcTickets.length;
-		kpiRows.push(`| Ø Wert je Ticket (nur messende) | ${usd(jeTicket)} | < $3.00 | ${jeTicket < 3 ? '🟢' : '🔴'} |`);
-	}
-	const reviewRuns = allEntries.filter((e) => e.phase === 'review').length;
-	const runden = reviewRuns / tickets.length;
-	kpiRows.push(
-		`| Review-Runden je Ticket | ${runden.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} | ≤ 1,2 | ${runden <= 1.2 ? '🟢' : '🔴'} |`,
-	);
-	const mitCache = allEntries.filter(
-		(e): e is CostEntry & { cacheReadTokens: number } => typeof e.cacheReadTokens === 'number',
-	);
-	const cacheIn = mitCache.reduce((a, e) => a + ZERO(e.tokensIn), 0);
-	const cacheRead = mitCache.reduce((a, e) => a + ZERO(e.cacheReadTokens), 0);
-	if (cacheIn > 0) {
-		kpiRows.push(
-			`| Cache-Effizienz (Read / Input) | ${pct(share(cacheRead, cacheIn))} | > 95 % | ${cacheRead / cacheIn > 0.95 ? '🟢' : '🔴'} |`,
-		);
-	}
-	const mitModell = allEntries.filter(
-		(e): e is CostEntry & { model: string } => typeof e.model === 'string' && e.model.length > 0,
-	);
-	const opusRuns = mitModell.filter((e) => /opus/i.test(e.model)).length;
-	const haikuRuns = mitModell.filter((e) => /haiku/i.test(e.model)).length;
-	if (mitModell.length > 0) {
-		const opus = share(opusRuns, mitModell.length);
-		const haiku = share(haikuRuns, mitModell.length);
-		kpiRows.push(
-			`| Modell-Mix Opus / Haiku | ${pct(opus)} / ${pct(haiku)} | < 10 % / > 50 % | ${opus < 0.1 && haiku > 0.5 ? '🟢' : '🔴'} |`,
-		);
-	}
+	// ─── KPI-Kopf mit Baseline, Index und Ticket-Fenster ────────────────────────
+	// Die Ziele aus docs/kosten-optimierungsplan.md („Erfolgsmessung") gegen die Ist-Werte —
+	// und gegen die Baseline-Kohorte, denn „hat die letzte Harness-Änderung etwas gebracht"
+	// ist eine relative Frage. Jede Kennzahl ist eine Funktion über eine Ticket-Menge, damit
+	// Ist, Baseline und die beiden 20er-Fenster mit derselben Rechnung entstehen.
+	const cohorts = cohortsBySealWeek(classified);
+	const baselineWeek = chooseBaseline(cohorts, opts.baseline);
+	const baseline = baselineWeek ? (cohorts.get(baselineWeek) ?? []) : [];
+	const chrono = completeBySeal(classified);
+	const win = windows(chrono, WINDOW);
+	const currentWeek = currentWeekOf(rawAll.flatMap((t) => t.entries));
 
-	// Block-Aufschlüsselung: echter Input / Cache-Write / Cache-Read aus tokensIn ableiten.
-	// Grund: die Summe verdeckt, wo das Geld fliesst — Cache-Read ist rabattiert (0,1x)
-	// und trotzdem oft der groesste Block; Output-Disziplin optimiert nur einen Anteil.
+	type Metric = (set: readonly ClassifiedTicket[]) => number;
+	// Pipeline und extern sind zwei Populationen (extern = Review-only-Durchläufe, Median
+	// deutlich billiger). Gemischt würde jede Verschiebung des Extern-Anteils wie eine
+	// Kostenänderung aussehen — deshalb Ticket-Kennzahlen je Herkunft.
+	const ofOrigin = (set: readonly ClassifiedTicket[], origin: Origin): ClassifiedTicket[] =>
+		set.filter((t) => originOf(t.class) === origin);
+	const medianCost: Metric = (set) => median(set.filter(isMeasuring).map(ticketValue));
+	const p75Cost: Metric = (set) => quantileOf(set.filter(isMeasuring).map(ticketValue), 0.75);
+	const medianCostOf =
+		(origin: Origin): Metric =>
+		(set) =>
+			medianCost(ofOrigin(set, origin));
+	const p75CostOf =
+		(origin: Origin): Metric =>
+		(set) =>
+			p75Cost(ofOrigin(set, origin));
+	const reviewRounds: Metric = (set) => {
+		const withReview = set.filter((t) => t.entries.some((e) => e.phase === 'review'));
+		return withReview.length > 0
+			? withReview.reduce((a, t) => a + t.entries.filter((e) => e.phase === 'review').length, 0) / withReview.length
+			: Number.NaN;
+	};
+	const reviewRoundsOf =
+		(origin: Origin): Metric =>
+		(set) =>
+			reviewRounds(ofOrigin(set, origin));
+	const reviewCoverage: Metric = (set) =>
+		set.length > 0 ? set.filter((t) => t.entries.some((e) => e.phase === 'review')).length / set.length : Number.NaN;
+	const cacheRatio =
+		(provider: string): Metric =>
+		(set) => {
+			const es = set
+				.flatMap((t) => t.entries)
+				.filter((e) => e.provider === provider && typeof e.cacheReadTokens === 'number');
+			const input = es.reduce((a, e) => a + ZERO(e.tokensIn), 0);
+			return input > 0 ? es.reduce((a, e) => a + ZERO(e.cacheReadTokens), 0) / input : Number.NaN;
+		};
+	const claudeClassShare =
+		(cls: 'flagship' | 'small'): Metric =>
+		(set) => {
+			const es = set.flatMap((t) => t.entries).filter((e) => e.provider === 'claude' && typeof e.model === 'string');
+			return es.length > 0 ? es.filter((e) => classifyModel(e.model as string) === cls).length / es.length : Number.NaN;
+		};
+	const providerShare =
+		(provider: string): Metric =>
+		(set) => {
+			const es = set.flatMap((t) => t.entries);
+			return es.length > 0 ? es.filter((e) => e.provider === provider).length / es.length : Number.NaN;
+		};
+
+	const fmtVal = (v: number, f: (n: number) => string): string => (Number.isFinite(v) ? f(v) : '—');
+	// Ticket-Fenster je Herkunft: „letzte 20 Pipeline-Tickets" statt „Pipeline-Anteil der
+	// letzten 20 Tickets" — sonst vergleicht das Fenster bei wechselndem Mix 3 mit 17 Tickets.
+	const kpiRow = (
+		label: string,
+		metric: Metric,
+		f: (n: number) => string,
+		goal: string,
+		ok?: (v: number) => boolean,
+		origin?: Origin,
+	): string => {
+		const pool = origin ? ofOrigin(chrono, origin) : chrono;
+		const w = origin ? windows(pool, WINDOW) : win;
+		const ist = metric(raw);
+		const base = metric(baseline);
+		const last20 = metric(w.last);
+		const prev20 = w.prev ? metric(w.prev) : Number.NaN;
+		const status = ok && Number.isFinite(ist) ? (ok(ist) ? '🟢' : '🔴') : '—';
+		return `| ${label} | ${fmtVal(ist, f)} | ${fmtVal(base, f)} | ${fmtIndex(indexTo(base, ist))} | ${trendArrow(prev20, last20)} | ${goal} | ${status} |`;
+	};
+	const nOf = (set: readonly ClassifiedTicket[]): string =>
+		`n=${ofOrigin(set, 'pipeline').length}/${ofOrigin(set, 'extern').length}`;
+	const baselineNote = baselineWeek ? `${baselineWeek} (${nOf(baseline)})` : '—';
+	lines.push(
+		`| Kennzahl | Ist (${nOf(raw)}) | Baseline ${baselineNote} | Index | Δ letzte ${WINDOW} vs. vorige ${WINDOW} Tickets | Ziel | Status |`,
+		'| --- | ---: | ---: | ---: | :---: | ---: | :---: |',
+		kpiRow(
+			'Kosten je Ticket Pipeline — Median (messende)',
+			medianCostOf('pipeline'),
+			usd,
+			'< $3.00',
+			(v) => v < 3,
+			'pipeline',
+		),
+		kpiRow('Kosten je Ticket Pipeline — p75', p75CostOf('pipeline'), usd, '—', undefined, 'pipeline'),
+		kpiRow('Kosten je Ticket extern — Median (messende)', medianCostOf('extern'), usd, '—', undefined, 'extern'),
+		kpiRow('Kosten je Ticket extern — p75', p75CostOf('extern'), usd, '—', undefined, 'extern'),
+		kpiRow(
+			'Review-Runden je Ticket Pipeline (mit Review)',
+			reviewRoundsOf('pipeline'),
+			(v) => frac(v, 1),
+			'≤ 1,2',
+			(v) => v <= 1.2,
+			'pipeline',
+		),
+		kpiRow(
+			'Review-Runden je Ticket extern (mit Review)',
+			reviewRoundsOf('extern'),
+			(v) => frac(v, 1),
+			'≤ 1,2',
+			(v) => v <= 1.2,
+			'extern',
+		),
+		kpiRow('Review-Abdeckung (Tickets mit Review)', reviewCoverage, pct, '—'),
+		kpiRow('Cache-Effizienz claude (Read / Input)', cacheRatio('claude'), pct, '> 95 %', (v) => v > 0.95),
+		kpiRow('Cache-Effizienz zai', cacheRatio('zai'), pct, '—'),
+		kpiRow('Cache-Effizienz openrouter', cacheRatio('openrouter'), pct, '—'),
+		kpiRow('Flagship-Anteil der Claude-Läufe', claudeClassShare('flagship'), pct, '< 10 %', (v) => v < 0.1),
+		kpiRow('Small-Anteil der Claude-Läufe (haiku)', claudeClassShare('small'), pct, '> 50 %', (v) => v > 0.5),
+		kpiRow('Provider-Mix claude', providerShare('claude'), pct, '—'),
+		kpiRow('Provider-Mix zai', providerShare('zai'), pct, '—'),
+		kpiRow('Provider-Mix openrouter', providerShare('openrouter'), pct, '—'),
+		'',
+		'> Ziele aus `docs/kosten-optimierungsplan.md`. n = Pipeline/extern. Index = Ist / Baseline × 100 (Baseline = erste',
+		`> Abschlusswoche mit n ≥ ${BASELINE_MIN_N}, per \`--baseline\` änderbar). Δ vergleicht die letzten ${WINDOW}`,
+		`> versiegelten Tickets (je Herkunft) mit den ${WINDOW} davor („→" = unter ±10 %, „—" = älteres Fenster nicht voll).`,
+		'> Modell-Klassen (`classifyModel`) statt Namens-Regex; Cache je Provider, weil das Ziel dem',
+		'> Claude-Fuhrpark gilt und openrouter-Läufe den Gesamtwert sonst rot färben. Kohorten-Anker',
+		'> ist die Abschlusswoche (Siegel), nicht die Woche der einzelnen Läufe.',
+		'',
+	);
+
+	// ─── Phasen-Tabelle ────────────────────────────────────────────────────────
 	const blockTokens = (p: PhaseTotal): { input: number; write: number; read: number } => ({
 		input: Math.max(0, p.tokensIn - p.cacheCreationTokens - p.cacheReadTokens),
 		write: p.cacheCreationTokens,
 		read: p.cacheReadTokens,
 	});
-
-	lines.push(
-		`**${tickets.length} vollständige Tickets · ${sum.runs} Läufe · Zeitraum ${berlinDay(first)} bis ${berlinDay(last)}**`,
-		'',
-	);
-	if (kpiRows.length > 0) {
-		lines.push(
-			'| Kennzahl | Ist | Ziel | Status |',
-			'| --- | ---: | ---: | :---: |',
-			...kpiRows,
-			'',
-			'> Ziele aus `docs/kosten-optimierungsplan.md` (26.08.). Der Modell-Mix zielte auf den',
-			'> Claude-Fuhrpark — glm-Läufe zählen zu keiner Klasse, der z.ai-Standard (#1060) macht',
-			'> den Haiku-Anteil als Hebel obsolet.',
-			'',
-		);
-	}
 	lines.push(
 		'| Phase | Läufe | Turns | Input | Cache-W (1,25×) | Cache-R (0,1×) | Token out | Wert (USD) | Anteil |',
 		'| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |',
@@ -318,142 +484,227 @@ export function renderReport(dir: string): string {
 		'',
 	);
 
-	// Block-Kosten-Verteilung: USD je Block über alle Phasen. Roh-Bewertung zu
-	// mid-Klassenpreisen (3/15 je M), dann auf die valueCost-Summe skaliert — je
-	// Eintrag gerechnete Klassen-Preise sind fuer den Ueberblick zu fein; Anteile
-	// stimmen, der Gesamtwert bleibt konsistent zur Tabelle oben.
-	const rawIn = (sumBlocks.input / 1e6) * 3;
-	const rawWrite = (sumBlocks.write / 1e6) * 3 * 1.25;
-	const rawRead = (sumBlocks.read / 1e6) * 3 * 0.1;
-	const rawOut = (sum.tokensOut / 1e6) * 15;
-	const rawSum = rawIn + rawWrite + rawRead + rawOut || 1;
-	const scale = sum.valueCost / rawSum;
-	const blockRow = (label: string, tokens: number, usd: number): string =>
-		`| ${label} | ${mio(tokens)} | $${usd.toFixed(2)} | ${bar(usd, sum.valueCost)} |`;
+	// ─── Block-Kosten EXAKT je Eintrag ─────────────────────────────────────────
+	// Jeder messende Eintrag wird mit den Bewertungspreisen SEINES Modells in die vier
+	// Blöcke zerlegt (dieselbe Wahl wie valueCost, s. `valueRates`). Die frühere Näherung
+	// bewertete alle Token zu mid-Preisen (3/15) und skalierte auf die Summe — bei 75 %
+	// GLM-Läufen war Output um ~20 % über-, Cache-Read um 8 Punkte unterzeichnet. Einträge
+	// ohne Cache-Aufschlüsselung zählen komplett als echter Input.
+	const messende = allEntries.filter((e) => ZERO(e.valueCost) > 0);
+	const blocks: BlockUsd & { tokens: { input: number; write: number; read: number; output: number } } = {
+		input: 0,
+		write: 0,
+		read: 0,
+		output: 0,
+		tokens: { input: 0, write: 0, read: 0, output: 0 },
+	};
+	for (const e of messende) {
+		const write = ZERO(e.cacheCreationTokens);
+		const read = ZERO(e.cacheReadTokens);
+		const tokensOf = {
+			inputTokens: Math.max(0, e.tokensIn - write - read),
+			cacheCreationTokens: write,
+			cacheReadTokens: read,
+			outputTokens: e.tokensOut,
+		};
+		const [inRate, outRate] = valueRates(e.model ?? '');
+		const b = usageBlocksUsd(tokensOf, inRate, outRate);
+		blocks.input += b.input;
+		blocks.write += b.write;
+		blocks.read += b.read;
+		blocks.output += b.output;
+		blocks.tokens.input += tokensOf.inputTokens;
+		blocks.tokens.write += write;
+		blocks.tokens.read += read;
+		blocks.tokens.output += e.tokensOut;
+	}
+	const blockSum = blocks.input + blocks.write + blocks.read + blocks.output;
+	const blockRow = (label: string, tokens: number, value: number): string =>
+		`| ${label} | ${mio(tokens)} | ${usd(value)} | ${bar(value, blockSum)} |`;
 	lines.push(
-		'### Kosten nach Block',
+		'### Kosten nach Block — messende Läufe',
 		'',
 		'| Block | Token | Wert (USD) | Anteil |',
 		'| --- | ---: | ---: | :--- |',
-		blockRow('Input (echt)', sumBlocks.input, rawIn * scale),
-		blockRow('Cache-Write (1,25×)', sumBlocks.write, rawWrite * scale),
-		blockRow('Cache-Read (0,1×)', sumBlocks.read, rawRead * scale),
-		blockRow('Output', sum.tokensOut, rawOut * scale),
+		blockRow('Input (echt)', blocks.tokens.input, blocks.input),
+		blockRow('Cache-Write (1,25×)', blocks.tokens.write, blocks.write),
+		blockRow('Cache-Read (0,1×)', blocks.tokens.read, blocks.read),
+		blockRow('Output', blocks.tokens.output, blocks.output),
 		'',
-		'> Cache-Read ist rabattiert, aber bei hoher Turn-Zahl der größte Treiber;',
-		'> Output ist pro Token am teuersten. Achtung: Datensätze vor der',
-		'> Cache-Erfassung zählen komplett als „echter Input“ und überzeichnen ihn.',
+		'> Je Eintrag zu den Bewertungspreisen seines Modells zerlegt (Summe = Wert der messenden',
+		'> Läufe). Cache-Read ist rabattiert, aber bei hoher Turn-Zahl der größte Treiber; Output',
+		'> ist pro Token am teuersten. Läufe ohne Messung (valueCost 0) fehlen hier.',
 		'',
 	);
 
-	// Zeitlicher Trend der Durchschnittskosten je Run (nur messende Läufe, valueCost > 0).
-	// Grund: ein Trend ist der Kompass für Optimierungen — Tagesmittel glätten Ticket-Streuung,
-	// Phasen-Mittel zeigen, WELCHE Phase den Trend treibt. Läufe ohne Messung (valueCost=0,
-	// vor #984) würden den Trend gegen 0 ziehen und sind ausgeschlossen. Tages-Grenzen
-	// gelten in Berlin-Lokalzeit — ein UTC-Slice würde Abend-Läufe nach 0 Uhr dem Vortag zuschlagen.
+	// ─── Zeitlicher Trend (Läufe, Berlin-Tage, letzte 60 Tage) ─────────────────
+	// Tagesmittel glätten Ticket-Streuung, der 7-Tage-Median glättet die Tage. Begrenzt auf
+	// 60 Tage: eine x-Achse mit jedem Tag seit Messbeginn wird nach einem Quartal unlesbar.
+	const TREND_DAYS = 60;
 	const byDay = new Map<string, { runs: number; vc: number }>();
-	const byWeek = new Map<string, { runs: number; vc: number; issues: Set<string> }>();
+	const byWeek = new Map<string, { runs: number; vc: number }>();
 	const byWeekPhase = new Map<string, Map<string, { runs: number; vc: number }>>();
+	const byWeekProvider = new Map<string, Map<string, { turns: number; vc: number }>>();
 	for (const e of messende) {
 		const vc = ZERO(e.valueCost);
 		const day = berlinDay(e.timestamp);
-		let d = byDay.get(day);
-		if (!d) {
-			d = { runs: 0, vc: 0 };
-			byDay.set(day, d);
-		}
+		const d = getOrInit(byDay, day, () => ({ runs: 0, vc: 0 }));
 		d.runs += 1;
 		d.vc += vc;
 		const wk = isoWeek(day);
-		let w = byWeek.get(wk);
-		if (!w) {
-			w = { runs: 0, vc: 0, issues: new Set<string>() };
-			byWeek.set(wk, w);
-		}
+		const w = getOrInit(byWeek, wk, () => ({ runs: 0, vc: 0 }));
 		w.runs += 1;
 		w.vc += vc;
-		w.issues.add(e.issueId);
-		const ph = e.phase ?? '(ohne)';
-		let wm = byWeekPhase.get(wk);
-		if (!wm) {
-			wm = new Map();
-			byWeekPhase.set(wk, wm);
-		}
-		let pw = wm.get(ph);
-		if (!pw) {
-			pw = { runs: 0, vc: 0 };
-			wm.set(ph, pw);
-		}
+		const pw = getOrInit(
+			getOrInit(byWeekPhase, wk, () => new Map()),
+			e.phase ?? '(ohne)',
+			() => ({ runs: 0, vc: 0 }),
+		);
 		pw.runs += 1;
 		pw.vc += vc;
+		if (typeof e.turns === 'number' && e.turns > 0) {
+			const pv = getOrInit(
+				getOrInit(byWeekProvider, wk, () => new Map()),
+				e.provider ?? '?',
+				() => ({ turns: 0, vc: 0 }),
+			);
+			pv.turns += e.turns;
+			pv.vc += vc;
+		}
 	}
-	const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+	const allDays = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+	const days = allDays.slice(-TREND_DAYS);
 	if (days.length > 0) {
-		lines.push('### Zeitlicher Trend — nur messende Läufe', '');
-		lines.push('```mermaid');
-		lines.push('xychart-beta');
-		lines.push('\ttitle "Ø Kosten je Run (USD)"');
-		lines.push('\tx-axis ["' + days.map(([d]) => d.slice(5)).join('", "') + '"]');
+		lines.push(`### Zeitlicher Trend — nur messende Läufe, letzte ${TREND_DAYS} Tage`, '');
+		const perRun = days.map(([, v]) => v.vc / v.runs);
 		lines.push(
-			'\ty-axis "Ø USD je Run" 0 --> ' + Math.max(2, Math.ceil(Math.max(...days.map(([, v]) => v.vc / v.runs)) + 0.5)),
+			...xychart({
+				title: 'Ø Kosten je Run (USD)',
+				labels: days.map(([d]) => d.slice(5)),
+				yLabel: 'Ø USD je Run',
+				yMax: Math.max(2, Math.ceil(Math.max(...perRun) + 0.5)),
+				series: [
+					{ kind: 'bar', name: 'Ø je Run', values: perRun, digits: 3 },
+					{ kind: 'line', name: '7-Tage-Median', values: rollingMedian(perRun, 7), digits: 3 },
+				],
+			}),
 		);
-		lines.push('\tbar "Ø je Run" [' + days.map(([, v]) => (v.vc / v.runs).toFixed(3)).join(', ') + ']');
-		lines.push('```');
 		// Kumulierte Linie im EIGENEN Chart — andere Skala als der Ø-Balken, gemeinsame
 		// Achse würde die Balken plätten.
-		const cumSeries: string[] = [];
 		let cum = 0;
-		for (const [, v] of days) {
-			cum += v.vc;
-			cumSeries.push(cum.toFixed(2));
-		}
-		lines.push('```mermaid');
-		lines.push('xychart-beta');
-		lines.push('\ttitle "Kumulierter Wert (USD)"');
-		lines.push('\tx-axis ["' + days.map(([d]) => d.slice(5)).join('", "') + '"]');
-		lines.push('\ty-axis "USD kumuliert" 0 --> ' + Math.ceil(cum + 1));
-		lines.push('\tline "Kumuliert" [' + cumSeries.join(', ') + ']');
-		lines.push('```');
+		const cumSeries = days.map(([, v]) => (cum += v.vc));
+		lines.push(
+			...xychart({
+				title: `Kumulierter Wert (USD, ${TREND_DAYS} Tage)`,
+				labels: days.map(([d]) => d.slice(5)),
+				yLabel: 'USD kumuliert',
+				yMax: Math.ceil(cum + 1),
+				series: [{ kind: 'line', name: 'Kumuliert', values: cumSeries, digits: 2 }],
+			}),
+		);
 		lines.push(
 			'',
 			'> Nur Läufe mit Messung (valueCost > 0, seit #984). Wenige Runs pro Tag können den',
-			'> Tageswert stark bewegen — der Trend zählt, nicht der Einzelpunkt. Tages-Grenzen gelten in Berliner Zeit.',
+			'> Tageswert stark bewegen — der 7-Tage-Median zählt, nicht der Einzelpunkt. Tages-Grenzen gelten in Berliner Zeit.',
 			'',
 		);
-		// Wochen-Raster: Wochen statt Tage — weniger Rauschen, und Ø je Ticket ist direkt
-		// am Zielwert aus dem Optimierungsplan (< $3,00) ablesbar.
-		const weeks = [...byWeek.entries()].sort(([a], [b]) => a.localeCompare(b));
-		lines.push('| Woche | Läufe | Tickets | Wert (USD) | Ø Wert je Ticket |');
-		lines.push('| --- | ---: | ---: | ---: | ---: |');
-		for (const [wk, w] of weeks) {
-			lines.push(`| ${wk} | ${w.runs} | ${w.issues.size} | ${usd(w.vc)} | ${usd(w.vc / w.issues.size)} |`);
+
+		// ─── Kohorten je Abschlusswoche: Median, p75, Index (je Herkunft) ────────
+		const weeks = [...cohorts.keys()];
+		const cohortOf = (wk: string, origin: Origin): ClassifiedTicket[] =>
+			ofOrigin(cohorts.get(wk) ?? [], origin).filter(isMeasuring);
+		const cohortMedian = (origin: Origin): number[] =>
+			weeks.map((wk) => {
+				const set = cohortOf(wk, origin);
+				return set.length >= MIN_N_COHORT ? medianCost(set) : Number.NaN;
+			});
+		const medPipe = cohortMedian('pipeline');
+		const medExt = cohortMedian('extern');
+		const basePipe = medianCostOf('pipeline')(baseline);
+		const baseExt = medianCostOf('extern')(baseline);
+		// Gleitender Median über die letzten 20 Pipeline-Tickets, am Ende jeder Woche abgelesen.
+		const chronoPipe = ofOrigin(chrono, 'pipeline').filter(isMeasuring);
+		const rollingAtWeek = weeks.map((wk) => {
+			const upTo = chronoPipe.filter((t) => (t.sealWeek as string) <= wk).slice(-WINDOW);
+			return upTo.length >= MIN_N_COHORT ? median(upTo.map(ticketValue)) : Number.NaN;
+		});
+		const mark = (wk: string): string => (wk === currentWeek ? `${wk}*` : wk);
+		lines.push('### Kosten je Ticket nach Abschlusswoche', '');
+		lines.push(
+			'| Abschlusswoche | n Pipeline / extern | Median Pipeline | p75 Pipeline | Index Pipeline | Δ Vorwoche | Rolling-Median Pipeline (letzte 20) | Median extern | Index extern |',
+		);
+		lines.push('| --- | ---: | ---: | ---: | ---: | :---: | ---: | ---: | ---: |');
+		weeks.forEach((wk, i) => {
+			const pipe = cohortOf(wk, 'pipeline');
+			const ext = cohortOf(wk, 'extern');
+			const mp = medPipe[i] as number;
+			const prev = i > 0 ? (medPipe[i - 1] as number) : Number.NaN;
+			const small = (n: number): string => (n > 0 && n < MIN_N_COHORT ? `${n}†` : String(n));
+			lines.push(
+				`| ${mark(wk)} | ${small(pipe.length)} / ${small(ext.length)} | ${fmtVal(mp, usd)} | ${pipe.length >= MIN_N_COHORT ? usd(p75Cost(pipe)) : '—'} | ${fmtIndex(indexTo(basePipe, mp))} | ${trendArrow(prev, mp)} | ${fmtVal(rollingAtWeek[i] as number, usd)} | ${fmtVal(medExt[i] as number, usd)} | ${fmtIndex(indexTo(baseExt, medExt[i] as number))} |`,
+			);
+		});
+		lines.push('');
+		lines.push(
+			...xychart({
+				title: `Index Kosten je Ticket, Pipeline (Median, Baseline ${baselineWeek ?? '—'} = 100)`,
+				labels: weeks.map(mark),
+				yLabel: 'Index',
+				series: [
+					{ kind: 'bar', name: 'Kohorte', values: medPipe.map((m) => indexTo(basePipe, m)), digits: 0 },
+					{ kind: 'line', name: 'Rolling 20', values: rollingAtWeek.map((m) => indexTo(basePipe, m)), digits: 0 },
+				],
+			}),
+		);
+		lines.push(
+			'',
+			'> Kohorte = alle Tickets, die in der Woche versiegelt wurden (ganzer Ticket-Wert), je Herkunft. „†" =',
+			`> n < ${MIN_N_COHORT} messende Tickets, Median nicht belastbar und nicht im Chart. „*" = laufende Woche,`,
+			'> Kohorte noch offen. Rolling-Median = Median der letzten 20 versiegelten Pipeline-Tickets zum Wochenende.',
+			'',
+		);
+
+		// ─── Läufe je Woche: Budget-Sicht und Preis je Turn je Provider ───────────
+		// Kosten = Turns × Kosten je Turn. Fällt der Wochenwert, sagt diese Tabelle, ob weniger
+		// gearbeitet wurde (Turns) oder nur das Preisschild gewechselt hat (Provider-Mix).
+		const runWeeks = [...byWeek.entries()].sort(([a], [b]) => a.localeCompare(b));
+		const providers = ['claude', 'zai', 'openrouter'];
+		lines.push('### Läufe je Woche — Budget und Preis je Turn', '');
+		lines.push(`| Woche | Läufe | Wert (USD) | ${providers.map((p) => `$/Turn ${p}`).join(' | ')} |`);
+		lines.push(`| --- | ---: | ---: |${' ---: |'.repeat(providers.length)}`);
+		for (const [wk, w] of runWeeks) {
+			const pv = byWeekProvider.get(wk);
+			const cells = providers.map((p) => {
+				const x = pv?.get(p);
+				return x && x.turns > 0 ? `$${(x.vc / x.turns).toFixed(3)}` : '—';
+			});
+			lines.push(`| ${mark(wk)} | ${w.runs} | ${usd(w.vc)} | ${cells.join(' | ')} |`);
 		}
 		lines.push('');
-		// Phasen-Trendtabelle: Ø je Phase je Woche — zeigt, welche Phase den Trend treibt.
+		// Phasen-Trendtabelle: Ø je Phase je Woche PLUS Anteil am Wochenwert — Ø zeigt, ob
+		// eine Phase teurer wird, der Anteil, ob sie den Wochenwert dominiert.
 		const phaseNames = [...new Set(messende.map((e) => e.phase ?? '(ohne)'))];
+		lines.push('Ø Wert je Lauf und Anteil am Wochenwert, je Phase:', '');
 		lines.push('| Woche | ' + phaseNames.join(' | ') + ' |');
 		lines.push('| --- |' + ' ---: |'.repeat(phaseNames.length));
-		for (const [wk] of weeks) {
+		for (const [wk, w] of runWeeks) {
 			const wm = byWeekPhase.get(wk) ?? new Map<string, { runs: number; vc: number }>();
 			const cells = phaseNames.map((ph) => {
 				const pw = wm.get(ph);
-				return pw ? `$${(pw.vc / pw.runs).toFixed(2)}` : '—';
+				return pw ? `$${(pw.vc / pw.runs).toFixed(2)} · ${pct(share(pw.vc, w.vc))}` : '—';
 			});
-			lines.push(`| ${wk} | ${cells.join(' | ')} |`);
+			lines.push(`| ${mark(wk)} | ${cells.join(' | ')} |`);
 		}
 		lines.push('');
-		// Richtung: letzte 7 Kalendertage gegen die 8–14 davor — Anker ist der jüngste
-		// messende Datensatz, deterministisch aus den Daten statt von der Wanduhr;
-		// gezählt in Berlin-Tagen, konsistent zum Trend oben.
+
+		// ─── Richtung: letzte 7 Kalendertage gegen die 8–14 davor ─────────────────
+		// Anker ist der jüngste messende Datensatz, deterministisch aus den Daten statt von
+		// der Wanduhr; gezählt in Berlin-Tagen, konsistent zum Trend oben.
 		const anchorDay = Math.max(...messende.map((e) => Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)));
 		const dirNew = new Map<string, { runs: number; vc: number }>();
 		const dirOld = new Map<string, { runs: number; vc: number }>();
 		const addDir = (m: Map<string, { runs: number; vc: number }>, ph: string, vc: number): void => {
-			let x = m.get(ph);
-			if (!x) {
-				x = { runs: 0, vc: 0 };
-				m.set(ph, x);
-			}
+			const x = getOrInit(m, ph, () => ({ runs: 0, vc: 0 }));
 			x.runs += 1;
 			x.vc += vc;
 		};
@@ -466,15 +717,8 @@ export function renderReport(dir: string): string {
 			addDir(fenster, '(gesamt)', ZERO(e.valueCost));
 		}
 		const avgFenster = (x?: { runs: number; vc: number }): string => (x && x.runs > 0 ? usd(x.vc / x.runs) : '—');
-		const richtung = (alt?: { runs: number; vc: number }, neu?: { runs: number; vc: number }): string => {
-			if (!alt || alt.runs < 2 || !neu || neu.runs < 2) return '—';
-			const raw = (neu.vc / neu.runs - alt.vc / alt.runs) / (alt.vc / alt.runs);
-			// Schwelle an der ROHEN Änderung, nicht am gerundeten Prozentwert: 9,95 % würde
-			// auf 10 runden und als „↑ 10 %“ erscheinen, obwohl die Fußnote „→ = unter
-			// ±10 %“ verspricht. Das Runden gehört allein in die Anzeige.
-			if (Math.abs(raw) < 0.1) return '→';
-			return `${raw > 0 ? '↑' : '↓'} ${Math.round(Math.abs(raw) * 100)} %`;
-		};
+		const richtung = (alt?: { runs: number; vc: number }, neu?: { runs: number; vc: number }): string =>
+			!alt || alt.runs < 2 || !neu || neu.runs < 2 ? '—' : trendArrow(alt.vc / alt.runs, neu.vc / neu.runs);
 		const richtRow = (label: string, ph: string): void =>
 			lines.push(
 				`| ${label} | ${avgFenster(dirOld.get(ph))} → ${avgFenster(dirNew.get(ph))} | ${richtung(dirOld.get(ph), dirNew.get(ph))} |`,
@@ -493,15 +737,45 @@ export function renderReport(dir: string): string {
 			'> (z. B. kaum implement-Läufe im alten Fenster) — je Phase lesen, nicht nur die Summe.',
 			'',
 		);
+
+		// ─── Messabdeckung je Woche ───────────────────────────────────────────────
+		// Trends dürfen nicht an Messlücken hängen: Die Turn-Erfassung startete erst W35,
+		// Effort-Felder ab 2026-09-06. Ein Sprung in einer Kennzahl, der mit einem Sprung
+		// hier zusammenfällt, ist Messung, nicht Wirkung.
+		const fields: Array<[string, (e: CostEntry) => boolean]> = [
+			['turns', (e) => typeof e.turns === 'number'],
+			['valueCost', (e) => ZERO(e.valueCost) > 0],
+			['cache', (e) => typeof e.cacheReadTokens === 'number'],
+			['model', (e) => typeof e.model === 'string' && e.model.length > 0],
+			['effort', (e) => typeof e.effort === 'string'],
+			['sidechain', (e) => typeof e.sidechainTokens === 'number'],
+		];
+		const coverageWeeks = new Map<string, CostEntry[]>();
+		for (const e of rawAll.flatMap((t) => t.entries)) getOrInit(coverageWeeks, weekOf(e.timestamp), () => []).push(e);
+		lines.push('### Messabdeckung je Woche — alle Läufe', '');
+		lines.push(`| Woche | Läufe | ${fields.map(([f]) => f).join(' | ')} |`);
+		lines.push(`| --- | ---: |${' ---: |'.repeat(fields.length)}`);
+		for (const [wk, es] of [...coverageWeeks.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+			lines.push(
+				`| ${mark(wk)} | ${es.length} | ${fields.map(([, has]) => pct(share(es.filter(has).length, es.length))).join(' | ')} |`,
+			);
+		}
+		lines.push(
+			'',
+			'> Anteil der Läufe mit dem jeweiligen Feld. Ein Kennzahl-Sprung, der hier mit einem Sprung zusammenfällt, ist Messung, nicht Wirkung.',
+			'',
+		);
 	}
 
+	// ─── Ticket-Tabelle ────────────────────────────────────────────────────────
+	const classById = new Map(classified.map((t) => [t.issue, t.class]));
 	lines.push(
-		'| Ticket | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Anteil | Phasen |',
-		'| --- | ---: | ---: | ---: | ---: | ---: | :--- | --- |',
+		'| Ticket | Herkunft | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Anteil | Phasen |',
+		'| --- | --- | ---: | ---: | ---: | ---: | ---: | :--- | --- |',
 	);
 	for (const t of tickets) {
 		lines.push(
-			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
+			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${originOf(classById.get(t.issue) ?? 'vollstaendig')} | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
 		);
 	}
 	const top5 = tickets.slice(0, 5).reduce((a, t) => a + t.valueCost, 0);
@@ -533,11 +807,13 @@ export function renderReport(dir: string): string {
 	return `${lines.join('\n')}\n`;
 }
 
+const flag = (argv: readonly string[], name: string): string | undefined => {
+	const idx = argv.indexOf(`--${name}`);
+	return idx >= 0 && idx + 1 < argv.length ? argv[idx + 1] : undefined;
+};
+
 const main = (argv: readonly string[]): number => {
-	let dir = '.costs';
-	const idx = argv.indexOf('--dir');
-	if (idx >= 0 && idx + 1 < argv.length) dir = argv[idx + 1] ?? '.costs';
-	process.stdout.write(renderReport(dir));
+	process.stdout.write(renderReport(flag(argv, 'dir') ?? '.costs', { baseline: flag(argv, 'baseline') }));
 	return 0;
 };
 

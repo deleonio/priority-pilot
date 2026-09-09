@@ -59,7 +59,7 @@
 		"timestamp": "2026-09-02T23:53:59.796Z",
 		"tokensIn": 492626,
 		"tokensOut": 3141,
-		"cost": 0.558249408,
+		"cost": 0.059795,
 		"issueId": "1182",
 		"phase": "documenter",
 		"model": "glm-5.3-flash",
@@ -67,6 +67,6 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 367552,
 		"turns": 7,
-		"valueCost": 0.558249408
+		"valueCost": 0.059795
 	}
 ]

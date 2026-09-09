@@ -212,6 +212,32 @@ describe('classifyModel / computeValueCost (Issue #984)', () => {
 		assert.equal(classifyModel('weird-model-v9'), undefined);
 	});
 
+	it('kennt die Mythos-Stufe: fable/mythos sind flagship und werden zum Listenpreis bewertet', () => {
+		assert.equal(classifyModel('claude-fable-5'), 'flagship');
+		assert.equal(classifyModel('claude-fable-5-1'), 'flagship');
+		assert.equal(classifyModel('claude-mythos-5'), 'flagship');
+		const usage: Usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 1_000_000,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			sidechainTokens: 0,
+			turns: 1,
+			model: 'claude-fable-5',
+		};
+		// 10 + 50 — zur Klasse gerechnet stünden 30, ohne Klasseneintrag (mid) 18.
+		assert.equal(computeValueCost(usage).toFixed(2), '60.00');
+	});
+
+	it('bepreist glm-5.3-flash eigenständig statt über den glm-5.3-Präfix', () => {
+		const flash = lookupPrice('glm-5.3-flash');
+		const base = lookupPrice('glm-5.3[1m]');
+		assert.equal(flash?.[0], 'glm-5.3-flash');
+		assert.equal(base?.[0], 'glm-5.3', 'das [1m]-Suffix bleibt beim glm-5.3-Tarif');
+		assert.ok((flash?.[2] ?? 0) < (base?.[2] ?? 0) / 5, 'Flash kostet einen Bruchteil von 5.3');
+		assert.equal(classifyModel('glm-5.3-flash'), 'small');
+	});
+
 	it('bewertet GLM-Verbrauch zum echten z.ai-Preis statt zur Klassenstufe', () => {
 		const usage: Usage = {
 			inputTokens: 1_000_000,

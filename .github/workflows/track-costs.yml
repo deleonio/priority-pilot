@@ -72,46 +72,25 @@ jobs:
           ISSUE: ${{ steps.input.outputs.issue }}
         run: |
           set -uo pipefail
-          mkdir -p /tmp/costs
-
-          # Alle nicht-abgelaufenen Artefakte durchblättern und auf das Ticket filtern.
-          # `--paginate` holt ALLE Seiten; ohne das fehlten bei einem aktiven Repo genau die
-          # älteren Phasen (Analyse zuerst!) und die Baseline wäre still unvollständig.
-          #
-          # Der Filter verlangt `-issue-<n>-` mit beiden Bindestrichen: ein blosses
-          # `contains("912")` träfe auch Ticket 9120 und 1912 und mischte fremde Läufe unter.
-          LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
-            --jq ".artifacts[] | select(.expired == false) \
-                  | select(.name | startswith(\"claude-costs-\") and contains(\"-issue-${ISSUE}-\")) \
-                  | [.id, .name] | @tsv" 2>/dev/null || true)"
-
-          if [ -z "$LIST" ]; then
+          # Gemeinsamer Helfer mit seal-costs.sh (eine Schleife, eine Fehlerbehandlung).
+          # Ein fehlgeschlagener Listen-Abruf (Exit 3) ist ein FEHLER dieses Jobs, keine
+          # Aussage über das Ticket — vorher ging er als „Keine Artefakte" grün durch und
+          # war von „nie gemessen" nicht zu unterscheiden.
+          if ! FETCH="$(.github/scripts/fetch-cost-artifacts.sh --repo "$REPO" --issue "$ISSUE" --dest /tmp/costs)"; then
+            printf '%s\n' "$FETCH"
+            echo "::error title=Artefakt-Liste::Abruf für Ticket #${ISSUE} fehlgeschlagen — Bericht nicht möglich."
+            exit 1
+          fi
+          printf '%s\n' "$FETCH"
+          count="$(printf '%s' "$FETCH" | sed -n 's/^count=\([0-9]*\).*/\1/p' | tail -1)"
+          failed="$(printf '%s' "$FETCH" | sed -n 's/.*failed=\([0-9]*\)$/\1/p' | tail -1)"
+          if [ "${count:-0}" = "0" ] && [ "${failed:-0}" = "0" ]; then
             # Kein Fehler, sondern eine AUSSAGE über das Ticket: nie gemessen, oder die
             # Artefakte sind älter als ihre 90 Tage. Der Bericht sagt das gleich im Klartext;
             # ein roter Job würde nur verschleiern, dass die Frage beantwortet ist.
             echo "::notice title=Keine Artefakte::Für Ticket #${ISSUE} wurden keine Kosten-Artefakte gefunden."
             exit 0
           fi
-
-          count=0
-          failed=0
-          while IFS="$(printf '\t')" read -r id name; do
-            [ -n "$id" ] || continue
-            # Jedes Artefakt in einen EIGENEN Ordner: alle enthalten eine Datei desselben
-            # Namens (`<issue>.json`). Flach entpackt überschrieben sie einander und übrig
-            # bliebe genau eine Phase.
-            dest="/tmp/costs/${name}"
-            mkdir -p "$dest"
-            if gh api "repos/${REPO}/actions/artifacts/${id}/zip" > "/tmp/${id}.zip" 2>/dev/null \
-               && unzip -o -q "/tmp/${id}.zip" -d "$dest" 2>/dev/null; then
-              count=$((count + 1))
-            else
-              failed=$((failed + 1))
-              echo "::warning title=Artefakt nicht ladbar::${name} (id ${id}) übersprungen — die Summen sind untererfasst."
-            fi
-            rm -f "/tmp/${id}.zip"
-          done <<< "$LIST"
-
           echo "::notice title=Artefakte geladen::${count} Kosten-Artefakt(e) für Ticket #${ISSUE} (${failed} übersprungen)."
 
       - name: Bericht bauen
