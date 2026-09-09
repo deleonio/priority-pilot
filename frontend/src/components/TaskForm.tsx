@@ -96,6 +96,10 @@ export interface TaskFormInitialValues {
 	estimatedEffort?: number;
 	/** Deadline als ISO-8601-Datum/Zeit-String (aus dem LLM-Parsing, #236) — z. B. „2026-07-31T00:00:00.000Z". */
 	deadline?: string;
+	/** #1310: Ortsangabe aus dem Freitext-Parsing — reiner Adresstext ohne Koordinaten. */
+	address?: string;
+	/** #1310: Aufgezählte Punkte aus dem Freitext-Parsing — je Eintrag ein Checklisten-Eintrag. */
+	checklist?: string[];
 }
 
 /** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`, 12 Werte — Backend #469). */
@@ -276,7 +280,7 @@ export const TaskForm = ({
 		priority: task?.priority ?? series?.priority ?? initialValues?.priority ?? 3,
 		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
-		address: task?.address ?? series?.address ?? '',
+		address: task?.address ?? series?.address ?? initialValues?.address ?? '',
 		latitude: task?.latitude ?? series?.latitude ?? null,
 		longitude: task?.longitude ?? series?.longitude ?? null,
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
@@ -348,8 +352,18 @@ export const TaskForm = ({
 	// Deadline-Präsenz (Anforderung 2) reaktiv greift — `form.current.deadline` allein löst kein Re-Render aus.
 	const [deadlineInput, setDeadlineInput] = useState(form.current.deadline);
 	// #531: Abhakbare Checkliste (nur Task-Modus). State, damit Hinzufügen/Entfernen/Togglen neu
-	// rendern. Im Task-Edit aus dem vorhandenen Task vorbelegt; Default leer.
-	const [checklist, setChecklist] = useState<ChecklistItem[]>(task?.checklist ?? []);
+	// rendern. Im Task-Edit aus dem vorhandenen Task vorbelegt; beim Anlegen aus der
+	// Schnellerfassung (#1310) aus den geparsten Punkten — jeder Eintrag bekommt eine eigene UUID.
+	// Lazy-Initializer, damit die UUIDs nicht bei jedem Render neu gezogen werden.
+	const [checklist, setChecklist] = useState<ChecklistItem[]>(
+		() =>
+			task?.checklist ??
+			(initialValues?.checklist ?? []).map((title) => ({
+				id: crypto.randomUUID(),
+				title,
+				completed: false,
+			})),
+	);
 	const [newChecklistTitle, setNewChecklistTitle] = useState('');
 
 	// #1285: Klappzustände der beiden Opt-in-Sektionen (KolAccordion, kontrolliert) — beim Öffnen

@@ -56,6 +56,12 @@ export interface ParsedTask {
 	estimatedEffort?: number;
 	/** Deadline als ISO-8601-Datum/Zeit-String. */
 	deadline?: string;
+	/** #1310: `true`, wenn der Text einen wiederkehrenden Termin beschreibt (Formular startet im Serien-Modus). */
+	isSeries?: boolean;
+	/** #1310: Im Text genannte Ortsangabe als Adresstext (reiner Freitext, kein Geocoding). */
+	address?: string;
+	/** #1310: Im Text aufgezählte Einzelpunkte, je ein Checklisten-Eintrag (getrimmt, max. 255 Zeichen). */
+	checklist?: string[];
 }
 
 /** Funktionssignatur des Task-Text-Parsers — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -440,23 +446,44 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input, provid
 	return extractSuggestions(parsed, input);
 };
 
-/** System-Prompt für die Task-Schnellerfassung: extrahiert strukturierte Felder aus Freitext. */
-const PARSE_TASK_SYSTEM_PROMPT = [
-	'Du extrahierst aus einem frei formulierten deutschen Text die strukturierten Felder einer Aufgabe (Task).',
-	'',
-	'Gib genau diese Felder zurück (nur was der Text hergibt):',
-	'- "title" (Pflicht): kurzer, prägnanter Titel der Aufgabe.',
-	'- "description" (optional): ergänzende Details, falls im Text vorhanden.',
-	'- "priority" (optional): Ganzzahl 1–5 (1 = niedrig, 3 = mittel, 5 = hoch), falls eine Priorität genannt/erkennbar ist.',
-	'- "estimatedEffort" (optional): geschätzter Aufwand in Personentagen als Dezimalzahl (z. B. 2 Stunden ≈ 0.25).',
-	'- "deadline" (optional): Fälligkeitsdatum als ISO-8601-String (z. B. "2026-07-31T00:00:00.000Z"), falls ein Datum genannt ist.',
-	'',
-	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
-	'{ "title": <string>, "description": <string?>, "priority": <1-5?>, "estimatedEffort": <zahl?>, "deadline": <iso-string?> }',
-	'Lasse optionale Felder weg, wenn der Text keine Angabe dazu enthält.',
-].join('\n');
+/** Längengrenze des Titels (Spiegel von `frontend/src/lib/titleLengthValidation.ts`, #1310). */
+const PARSED_TITLE_MAX_LENGTH = 65;
+/** Längengrenze der Beschreibung (Spiegel von `frontend/src/lib/descriptionLengthValidation.ts`, #1310). */
+const PARSED_DESCRIPTION_MAX_LENGTH = 3000;
+/** Längengrenze eines Checklisten-Eintrags (Vertrag `ChecklistItem.title` in `openapi.yml`, #1310). */
+const PARSED_CHECKLIST_ITEM_MAX_LENGTH = 255;
 
-/** Liest aus der (bereits geparsten) Modell-Antwort die Task-Felder defensiv aus. */
+/**
+ * System-Prompt für die Task-Schnellerfassung: extrahiert strukturierte Felder aus Freitext.
+ * Das aktuelle Datum steckt im Prompt (ISO, UTC), damit relative Angaben („übermorgen") auflösbar
+ * sind (#1310 AK4) — ohne diesen Bezug kann das Modell sie nicht in eine Deadline übersetzen.
+ */
+const buildParseTaskSystemPrompt = (now: Date = new Date()): string =>
+	[
+		'Du extrahierst aus einem frei formulierten deutschen Text die strukturierten Felder einer Aufgabe (Task).',
+		'',
+		`Heutiges Datum (UTC): ${now.toISOString().slice(0, 10)}. Löse relative Zeitangaben („heute", „gestern", „übermorgen", „nächsten Freitag") gegen dieses Datum auf.`,
+		'',
+		'Gib genau diese Felder zurück (nur was der Text hergibt):',
+		`- "title" (Pflicht): kurzer, prägnanter Titel der Aufgabe, höchstens ${PARSED_TITLE_MAX_LENGTH} Zeichen.`,
+		`- "description" (optional): ergänzende Details, falls im Text vorhanden, höchstens ${PARSED_DESCRIPTION_MAX_LENGTH} Zeichen.`,
+		'- "priority" (optional): Ganzzahl 1–5 (1 = niedrig, 3 = mittel, 5 = hoch). Leite sie aus der Dringlichkeit im Text ab: betont dringliche Formulierungen („ganz wichtig", „sofort", „dringend") ergeben 5, beiläufig erwähnte Punkte („bei Gelegenheit", „irgendwann") ergeben 1 oder 2.',
+		'- "estimatedEffort" (optional): geschätzter Aufwand in Personentagen als Dezimalzahl (z. B. 2 Stunden ≈ 0.25).',
+		'- "deadline" (optional): Fälligkeitsdatum als ISO-8601-String (z. B. "2026-07-31T00:00:00.000Z"), falls ein Datum genannt ist.',
+		'- "isSeries" (optional): true, wenn der Text einen wiederkehrenden Termin beschreibt („jeden Montag", „monatlich"), sonst weglassen.',
+		'- "address" (optional): im Text genannte Ortsangabe als Adresstext.',
+		`- "checklist" (optional): Array der im Text aufgezählten Einzelpunkte als kurze Strings (je höchstens ${PARSED_CHECKLIST_ITEM_MAX_LENGTH} Zeichen).`,
+		'',
+		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+		'{ "title": <string>, "description": <string?>, "priority": <1-5?>, "estimatedEffort": <zahl?>, "deadline": <iso-string?>, "isSeries": <boolean?>, "address": <string?>, "checklist": <string[]?> }',
+		'Lasse optionale Felder weg, wenn der Text keine Angabe dazu enthält.',
+	].join('\n');
+
+/**
+ * Liest aus der (bereits geparsten) Modell-Antwort die Task-Felder defensiv aus. Die Längengrenzen
+ * werden hier erzwungen (#1310 AK3/AK6) — ein Prompt-Hinweis allein ist nicht prüfbar, und ein zu
+ * langer Titel/eine zu lange Beschreibung ließe das Speichern an der Validierung scheitern.
+ */
 const extractParsedTask = (parsed: unknown): ParsedTask => {
 	if (typeof parsed !== 'object' || parsed === null) {
 		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
@@ -465,9 +492,9 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 	if (typeof raw.title !== 'string' || raw.title.trim() === '') {
 		throw new MistralRequestError('Antwort des Modells enthielt keinen gültigen title.');
 	}
-	const result: ParsedTask = { title: raw.title.trim() };
+	const result: ParsedTask = { title: raw.title.trim().slice(0, PARSED_TITLE_MAX_LENGTH) };
 	if (typeof raw.description === 'string' && raw.description.trim() !== '') {
-		result.description = raw.description.trim();
+		result.description = raw.description.trim().slice(0, PARSED_DESCRIPTION_MAX_LENGTH);
 	}
 	if (typeof raw.priority === 'number' && Number.isFinite(raw.priority)) {
 		result.priority = Math.min(5, Math.max(1, Math.round(raw.priority)));
@@ -479,6 +506,23 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 		const d = new Date(raw.deadline.trim());
 		if (!isNaN(d.getTime())) {
 			result.deadline = d.toISOString();
+		}
+	}
+	if (typeof raw.isSeries === 'boolean') {
+		result.isSeries = raw.isSeries;
+	}
+	if (typeof raw.address === 'string' && raw.address.trim() !== '') {
+		result.address = raw.address.trim();
+	}
+	if (Array.isArray(raw.checklist)) {
+		// Leere/nur-Leerzeichen-Einträge fliegen raus, überlange werden gekürzt — beides würde die
+		// `ChecklistItem`-Validierung (1–255 Zeichen) beim Speichern sonst reißen.
+		const items = raw.checklist
+			.filter((entry): entry is string => typeof entry === 'string')
+			.map((entry) => entry.trim().slice(0, PARSED_CHECKLIST_ITEM_MAX_LENGTH))
+			.filter((entry) => entry !== '');
+		if (items.length > 0) {
+			result.checklist = items;
 		}
 	}
 	return result;
@@ -493,7 +537,7 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 export const parseTaskTextWithMistral: ParseTaskParser = async (text, provider) => {
 	const parsed = await requestModelJson(
 		[
-			{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
+			{ role: 'system', content: buildParseTaskSystemPrompt() },
 			{ role: 'user', content: text },
 		],
 		provider,
