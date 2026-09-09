@@ -1219,9 +1219,29 @@ body {
 	grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
 }
 
-/* Abstand der Gewichtungskarte zur Säulen-Verwaltung darüber (alle Slider in EINER Karte) */
+/*
+ * Tab „Säulen" (#271): zwei Abschnitte — „Säulen verwalten" (Liste, Anlegen/Bearbeiten/Löschen)
+ * und „Säulen-Gewichtung" (Regler). `grid-template-columns: minmax(0, 1fr)` wie bei
+ * `.settings-groups` (#1211 AK8): KolTabs rendert seine Panels in einem Grid, dessen Track-Minimum
+ * sonst über die min-content-Breite des Inhalts läuft und das Panel bei 375px aus dem Viewport
+ * schiebt. Der Sektions-Abstand trägt die Trennung (vorher: `margin-top` an der Gewichtungskarte,
+ * das die Liste und die Karte optisch zu einem Block zog).
+ */
+.settings-pillars {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--pp-gap-generous);
+}
+
+.settings-pillars-section {
+	min-width: 0;
+}
+
+/* Alle Slider in EINER Karte. Kein `margin-top` mehr — der Abstand zur Verwaltung darüber kommt
+   jetzt vom Sektions-Gap des Panels. `display: block` am Karten-Host wie bei den Dashboard-Karten,
+   damit die Karte die volle Abschnittsbreite einnimmt. */
 .pillar-weights-card {
-	margin-top: var(--pp-gap-base);
+	display: block;
 }
 
 /* Eine Säule im Gewichtungs-Editor: schlichte Zeile OHNE eigenen Kartenrahmen — die
@@ -1251,8 +1271,12 @@ body {
 	}
 }
 
-/* Desktop: 3-4-spaltiges Layout (#763); minmax ≥ 334 px für die Range-Mindestbreite (#934),
-   mit demselben 100-%-Cap wie die Basisregel (Overflow-Schutz im Karten-Container) */
+/* Desktop (#763): zurück auf die auto-fit-Basisregel — sie hebt die feste 2-Spalten-Vorgabe des
+   Tablet-Blocks wieder auf. minmax ≥ 334 px für die Range-Mindestbreite (#934), mit demselben
+   100-%-Cap wie die Basisregel (Overflow-Schutz im Karten-Container).
+   Hinweis (korrigiert die frühere Angabe „3-4-spaltig"): `.settings-page` deckelt die Inhalts-
+   breite auf 800 px, in die bei 334 px Mindestspur höchstens zwei Spalten passen — mehr als
+   zweispaltig wird die Gewichtung auf dieser Seite in keiner Auflösung. */
 @media (min-width: 1024px) {
 	.pillar-weights-grid {
 		grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
@@ -1339,47 +1363,87 @@ body {
 	display: block;
 }
 
-.pillar-list-toolbar {
-	margin-bottom: 1rem;
+/*
+ * EIN Karten-Rezept für die Settings-Listen (Säulen + Gruppen) statt zweier auseinander-
+ * gelaufener Kopien: `.pillar-item` trug bis hierher Hardcodes (0.75rem/1rem Innenabstand,
+ * `border-radius: 0.5rem` — kein Radius-Token) und den in DESIGN.md als deprecated geführten
+ * Alias `--pp-bg-muted`, `.groups-item` dieselben Maße bereits tokenisiert. Beide Klassennamen
+ * bleiben erhalten (E2E-Locatoren `li.pillar-item` / `.groups-item`), die sichtbare Fläche ist
+ * jetzt app-weit dieselbe.
+ */
+.pillar-list-toolbar,
+.groups-toolbar {
+	margin-bottom: var(--pp-gap-base);
 }
 
-/* Liste der Säulen: jede Säule ist ein Listeneintrag mit Info-Block und Aktions-Buttons. */
-.pillar-items {
+/* Liste: jeder Eintrag ist eine Karte mit Info-Block und Aktions-Buttons. */
+.pillar-items,
+.groups-items {
 	list-style: none;
 	padding: 0;
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.75rem;
+	gap: var(--pp-space-3);
 }
 
-.pillar-item {
+.pillar-item,
+.groups-item {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-start;
 	justify-content: space-between;
-	gap: 0.75rem 1rem;
-	padding: 0.75rem 1rem;
+	gap: var(--pp-space-3) var(--pp-gap-base);
+	padding: var(--pp-space-3) var(--pp-gap-base);
 	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
+	border-radius: var(--pp-radius-md);
+	background: var(--pp-surface-2);
 	color: var(--pp-ink);
+	/* Als Grid-Kind (Säulen ab 48rem) setzt der Track sonst auf der min-content-Breite auf. */
+	min-width: 0;
 }
 
-.pillar-info {
+.pillar-info,
+.groups-info {
 	flex: 1 1 16rem;
 	min-width: 0;
 }
 
+/* Name und Kurzbeschreibung dürfen die Karte bei 375px nicht aufreißen: ein einzelnes langes
+   Wort (URL, zusammengesetztes Substantiv) bricht innerhalb der Karte um statt überzulaufen. */
+.pillar-info kol-heading,
 .pillar-list-description {
-	margin: 0.25rem 0 0;
+	overflow-wrap: anywhere;
 }
 
-.pillar-actions {
+.pillar-list-description {
+	margin: var(--pp-space-1) 0 0;
+}
+
+.pillar-actions,
+.groups-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--pp-gap-tight);
 	flex-shrink: 0;
+}
+
+/*
+ * Bildschirmausnutzung: mobil eine Spalte (Mobile-Regel 3), ab 48rem so viele Säulenkarten
+ * nebeneinander, wie mit ≥18rem Kartenbreite in die Settings-Spalte passen — bei deren
+ * 800px-Maxbreite sind das zwei. Eine Säulenkarte trägt nur Name, Kurztext und zwei Knöpfe;
+ * als volle Zeile blieb rechts die halbe Spalte leer und acht Säulen schoben die Gewichtung
+ * aus dem Viewport. `min(18rem, 100%)` deckelt die Spur, damit sie schmale Container nicht
+ * aufreißt (Muster `.pillar-weights-grid`). Die Gruppen-Liste bleibt einspaltig: ihre Karten
+ * klappen ein Detail-Panel auf (#1212).
+ */
+@media (min-width: 48rem) {
+	.pillar-items {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
+		/* Bewusst kein `align-items: start`: die Karten einer Reihe strecken auf gleiche Höhe,
+		   sonst steht neben einer Säule mit Kurzbeschreibung eine sichtbar kürzere ohne. */
+	}
 }
 
 /* --- Gruppen-Verwaltung im Settings-Tab „Gruppen“ (#1211): Karten-Muster analog zu den Säulen --- */
@@ -1396,42 +1460,13 @@ body {
 	grid-template-columns: minmax(0, 1fr);
 }
 
-.groups-toolbar {
-	margin-bottom: var(--pp-gap-base);
-}
-
-/* Liste der Gruppen: jede Gruppe ist ein Listeneintrag (Karte) mit Info-Block und Aktions-Buttons. */
-.groups-items {
-	list-style: none;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-space-3);
-}
-
-.groups-item {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: var(--pp-space-3) var(--pp-gap-base);
-	padding: var(--pp-space-3) var(--pp-gap-base);
-	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-surface-2);
-	color: var(--pp-ink);
-}
+/* Toolbar, Listen-, Karten-, Info- und Aktions-Rezept teilen sich Gruppen und Säulen — die
+   gemeinsamen Regeln stehen oben im Säulen-Block (Karten-Rezept der Settings-Listen). */
 
 /* Aufklappbare Gruppenkarte (#1212): der Zeiger zeigt an, dass die ganze Karte das Detail
    öffnet — die Einladungskarten oben tragen die Klasse bewusst nicht. */
 .groups-item--expandable {
 	cursor: pointer;
-}
-
-.groups-info {
-	flex: 1 1 16rem;
-	min-width: 0;
 }
 
 /* Beschreibung einzeilig kappen (KI-UX #1211): Ellipsis statt mehrzeilig aufblendender Karten;
@@ -1450,13 +1485,6 @@ body {
 	align-items: center;
 	gap: var(--pp-gap-tight);
 	margin-top: var(--pp-space-1);
-}
-
-.groups-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--pp-gap-tight);
-	flex-shrink: 0;
 }
 
 /*
