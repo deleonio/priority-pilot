@@ -76,26 +76,54 @@ describe('HeartBalance', () => {
 		expect(screen.getAllByTestId('heart-column')).toHaveLength(2);
 	});
 
-	it('spannt die Band-Rects über die sichtbare Herzbreite, je Anteil proportional (AK2)', () => {
-		// Anteile 49/14/14/11/10/2 % — größtes und kleinstes Band der Legende müssen Fläche behalten.
-		const shares = [0.49, 0.14, 0.14, 0.11, 0.1, 0.02];
-		const sixPillars = shares.map((_, index) => pillar(index + 1, `Säule ${index + 1}`, 1));
-		const punkte = new Map(shares.map((share, index) => [index + 1, Math.round(share * 100)]));
-		render(<HeartBalance pillars={sixPillars} punkteProSaeule={punkte} />);
+	/**
+	 * Spec docs/spec/issue-1302.md: Bandkanten müssen jetzt vom Füllstand abhängen (kumulierte
+	 * Wasserfläche unterhalb der Wasserlinie `y_w`, die mit `fill` steigt), nicht mehr nur von den
+	 * Ist-Anteilen. Zwei Szenarien mit identischer Ist-Anteil-Verteilung [0.3, 0.7], aber
+	 * unterschiedlichem Füllstand (0.8 vs. 1.0, über unterschiedliche Soll-Gewichte erzwungen),
+	 * müssen deshalb unterschiedliche Kanten ergeben. Die aktuelle, rein breitenproportionale
+	 * Rechnung (`HeartBalance.tsx:213-224`) ignoriert `balance.fill` komplett und rendert in
+	 * beiden Fällen exakt dieselbe Kante — das ist der Fehler, den diese Spec beheben soll. Die
+	 * eigentliche Flächenkorrektheit prüft `heartGeometry.test.ts` unabhängig vom DOM.
+	 */
+	it('berechnet die Bandkante abhängig vom Füllstand, nicht nur vom Ist-Anteil (AK1/AK4)', () => {
+		// Szenario A: Soll 50/50, Ist 3/7 → Ist-Anteile [0.3, 0.7], fill = min(.5,.3)+min(.5,.7) = 0.8.
+		const scenarioA = [pillar(1, 'Körper', 50), pillar(2, 'Geist', 50)];
+		const { unmount } = render(
+			<HeartBalance
+				pillars={scenarioA}
+				punkteProSaeule={
+					new Map([
+						[1, 3],
+						[2, 7],
+					])
+				}
+			/>,
+		);
+		const edgeA = Number(
+			screen.getByTestId('heart-balance-svg').querySelectorAll('clipPath rect')[0].getAttribute('width'),
+		);
+		unmount();
 
-		const rects = Array.from(screen.getByTestId('heart-balance-svg').querySelectorAll('clipPath rect'));
-		expect(rects).toHaveLength(6);
+		// Szenario B: Soll 30/70, Ist 3/7 → dieselben Ist-Anteile [0.3, 0.7], aber fill = 0.3+0.7 = 1.0.
+		const scenarioB = [pillar(1, 'Körper', 30), pillar(2, 'Geist', 70)];
+		render(
+			<HeartBalance
+				pillars={scenarioB}
+				punkteProSaeule={
+					new Map([
+						[1, 3],
+						[2, 7],
+					])
+				}
+			/>,
+		);
+		const edgeB = Number(
+			screen.getByTestId('heart-balance-svg').querySelectorAll('clipPath rect')[0].getAttribute('width'),
+		);
 
-		// Sichtbare Gefäßbreite x 4–96: erstes Band an der linken Kontur, letztes endet an der rechten.
-		expect(Number(rects[0].getAttribute('x'))).toBeCloseTo(4, 5);
-		const last = rects[5];
-		expect(Number(last.getAttribute('x')) + Number(last.getAttribute('width'))).toBeCloseTo(96, 5);
-
-		// Breite je Ist-Anteil, keines der Bänder kollabiert auf null.
-		rects.forEach((rect, index) => {
-			expect(Number(rect.getAttribute('width')) / 92).toBeCloseTo(shares[index], 5);
-			expect(Number(rect.getAttribute('width'))).toBeGreaterThan(0);
-		});
+		// Gleiche Ist-Anteile, unterschiedlicher Füllstand → die Kante darf nicht identisch bleiben.
+		expect(edgeA).not.toBeCloseTo(edgeB, 3);
 	});
 
 	it('fällt ohne WebGL auf das SVG zurück, statt ohne Bild dazustehen', () => {
