@@ -78,6 +78,24 @@ async function containerMetrics(
 const newProviderButtonHost = (page: import('@playwright/test').Page) =>
 	page.locator('kol-button[_label="Neuer Provider"]');
 
+/**
+ * Innenrand der `KolCard` „Provider verwalten", die den Button seit dem Design-Lauf 2026-09
+ * umschließt (vorher lag er direkt im `.settings-llm`-Panel ohne eigenes Padding). Die
+ * Linksbündigkeit (AK3/AK4) gilt gegen den sichtbaren Innenrand der Karte, nicht mehr gegen den
+ * äußeren Tab-Container — sonst schlägt die Messung um das Card-Padding fehl.
+ */
+async function adminCardInnerLeft(page: import('@playwright/test').Page): Promise<number> {
+	return page
+		.locator('.settings-llm kol-card')
+		.filter({ has: newProviderButtonHost(page) })
+		.first()
+		.evaluate((el) => {
+			const rect = el.getBoundingClientRect();
+			const paddingLeft = Number.parseFloat(window.getComputedStyle(el).paddingLeft) || 0;
+			return rect.x + paddingLeft;
+		});
+}
+
 /** Aktions-Buttons der zuletzt angelegten Custom-Provider-Zeile (Testen/Bearbeiten/Löschen). */
 const customRowActionButtons = (page: import('@playwright/test').Page) =>
 	page.locator('.llm-provider-admin__item', { hasText: 'Issue-1037 Provider' }).locator('kol-button');
@@ -133,7 +151,8 @@ test.describe('#1037 Aktions-Buttons „KI-Provider" responsiv wie „Allgemein"
 		await openLlmTab(page);
 		await expect(newProviderButtonHost(page)).toBeVisible();
 
-		const { innerLeft, innerWidth } = await containerMetrics(page);
+		const { innerWidth } = await containerMetrics(page);
+		const innerLeft = await adminCardInnerLeft(page);
 		const newProviderBox = await newProviderButtonHost(page).boundingBox();
 		expect(newProviderBox).toBeTruthy();
 		expect(newProviderBox!.width).toBeLessThan(0.5 * innerWidth);

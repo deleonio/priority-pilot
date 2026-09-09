@@ -115,9 +115,14 @@ const findGroupId = async (page: Page, groupName: string): Promise<number> => {
 	return group!.id;
 };
 
-/** Ruft das Gruppendetail der frisch angelegten Gruppe auf. */
+/**
+ * Ruft das Gruppendetail der frisch angelegten Gruppe auf. Die Gruppe ist seit
+ * `createGroupAndInvite` bereits offen (KolAccordion, Design-Lauf 2026-09) — `openAccordionSection`
+ * öffnet nur bei Bedarf, ein erneuter roher Klick auf den Namens-Button würde sie stattdessen
+ * zuklappen (echter Toggle statt des früheren „Klick öffnet/frischt auf"-Verhaltens am `<li>`).
+ */
 const openGroupDetail = async (page: Page, groupName: string): Promise<void> => {
-	await page.getByRole('button', { name: groupName, exact: true }).click();
+	await openAccordionSection(page, groupName);
 	await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
 	// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 	await openAccordionSection(page, SECTION_HEADING);

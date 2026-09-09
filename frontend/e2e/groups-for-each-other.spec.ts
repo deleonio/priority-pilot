@@ -128,7 +128,11 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await acceptInvitation(inviteePage, 'E2E Füreinander');
 			await createForeignTaskViaApi(page, group!.id, 'E2E Übergabe-Aufgabe');
 
-			await page.getByRole('button', { name: 'E2E Füreinander', exact: true }).click();
+			// Die Gruppe ist seit `createGroupAndInvite` bereits offen (KolAccordion, Design-Lauf
+			// 2026-09) — ein erneuter Klick auf den Namens-Button würde sie zuklappen statt sie
+			// offen zu halten (echter Toggle statt des früheren „Klick öffnet/frischt auf"-Verhaltens
+			// am `<li>`). `openAccordionSection` ist idempotent und öffnet nur bei Bedarf.
+			await openAccordionSection(page, 'E2E Füreinander');
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 			// Abschnitt scopen statt page-weit: „von …" und die Empfängerin tauchen auch in der
@@ -161,7 +165,8 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			const selfCreated = await page.request.post('/api/v1/tasks', { data: { title: 'Nur für mich' } });
 			expect(selfCreated.status()).toBe(201);
 
-			await page.getByRole('button', { name: 'E2E Füreinander Leer', exact: true }).click();
+			// s. o. (AK7-Test): Gruppe ist bereits offen — idempotent statt togglendem Klick.
+			await openAccordionSection(page, 'E2E Füreinander Leer');
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 			await expect(page.getByRole('heading', { name: SECTION_HEADING, exact: true })).toBeVisible();
@@ -188,7 +193,8 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await createForeignTaskViaApi(page, group!.id, 'E2E Schmale Übergabe-Aufgabe');
 
 			await page.setViewportSize({ width: 375, height: 812 });
-			await page.getByRole('button', { name: 'E2E Füreinander Schmal', exact: true }).click();
+			// s. o. (AK7-Test): Gruppe ist bereits offen — idempotent statt togglendem Klick.
+			await openAccordionSection(page, 'E2E Füreinander Schmal');
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 
