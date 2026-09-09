@@ -19,7 +19,7 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
-		const head = `E2E #1063 ${label}`.slice(0, 30 - tail.length);
+		const head = `E2E #1063 ${label}`.slice(0, 65 - tail.length);
 		return `${head}${tail}`;
 	};
 
@@ -151,9 +151,9 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 		const seriesTitle = uniqueTitle('MobilSerie');
 		const doneTitle = uniqueTitle('MobilDone');
 		// Langer Titel neben den Badges ist der eigentliche Überlauf-Stressor in der Aufgabenzeile.
-		// Das Modell begrenzt title auf 30 Zeichen (server/src/models/task.ts:93) — der Stressor
+		// Das Modell begrenzt title auf 65 Zeichen (server/src/models/task.ts:93) — der Stressor
 		// ist deshalb das Domänen-Maximum, nicht darüber hinaus (sonst scheitert der API-Call).
-		const openTitle = uniqueTitle('MobilOffen').padEnd(30, 'x');
+		const openTitle = uniqueTitle('MobilOffen').padEnd(65, 'x');
 		const seriesId = await createSeriesViaApi(
 			page,
 			seriesTitle,

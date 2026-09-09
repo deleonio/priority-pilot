@@ -99,10 +99,10 @@ Task.init(
 			primaryKey: true,
 		},
 		title: {
-			type: DataTypes.STRING(30),
+			type: DataTypes.STRING(65),
 			allowNull: false,
 			validate: {
-				len: [1, 30],
+				len: [1, 65],
 			},
 		},
 		status: {
@@ -135,6 +135,9 @@ Task.init(
 		description: {
 			type: DataTypes.TEXT,
 			allowNull: true,
+			validate: {
+				len: [0, 3000],
+			},
 		},
 		deadline: {
 			type: DataTypes.DATE,

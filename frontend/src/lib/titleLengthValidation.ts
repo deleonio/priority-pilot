@@ -1,12 +1,12 @@
 /**
- * Issue #582: Titel-Längenbeschränkung (30 Zeichen)
+ * Titel-Längenbeschränkung (65 Zeichen)
  * Frontend-Validierung für Titel-Input-Felder.
  */
 
-export const TITLE_MAX_LENGTH = 30;
+export const TITLE_MAX_LENGTH = 65;
 
 /**
- * Validiert die Länge eines Titels gegen die 30-Zeichen-Beschränkung.
+ * Validiert die Länge eines Titels gegen die 65-Zeichen-Beschränkung.
  * Zählt UTF-16 code units (String.length), wie es Browser nativ tun.
  */
 export function validateTitleLength(title: string): { isValid: boolean; remaining: number; error?: string } {

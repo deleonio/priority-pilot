@@ -5,8 +5,11 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
-import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 import { Modal } from './Modal';
+
+// Eigene Konstante statt der geteilten Task-/Series-TITLE_MAX_LENGTH: das Säulennamen-Limit
+// bleibt unabhängig von der Titel-Längenbeschränkung für Aufgaben/Serien.
+const PILLAR_NAME_MAX_LENGTH = 30;
 
 interface PillarFormDialogProps {
 	/** Säule, die bearbeitet werden soll (`undefined` = Anlegen-Modus). */
@@ -94,7 +97,7 @@ export const PillarFormDialog = ({ pillar, onClose, onSaved }: PillarFormDialogP
 				<KolInputText
 					_label="Name"
 					_required
-					_maxLength={TITLE_MAX_LENGTH}
+					_maxLength={PILLAR_NAME_MAX_LENGTH}
 					_value={nameState}
 					_on={{
 						onInput: (_event, value) => {
