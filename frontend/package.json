@@ -14,10 +14,10 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
-		"@public-ui/components": "4.3.0",
-		"@public-ui/react-v19": "4.3.0",
-		"@public-ui/theme-default": "4.3.0",
-		"@public-ui/theme-kern": "4.3.0",
+		"@public-ui/components": "4.4.0",
+		"@public-ui/react-v19": "4.4.0",
+		"@public-ui/theme-default": "4.4.0",
+		"@public-ui/theme-kern": "4.4.0",
 		"@xyflow/react": "12.11.6",
 		"client": "workspace:*",
 		"openapi-fetch": "0.17.0",
