@@ -224,6 +224,14 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 				console.error('Google-OAuth-Callback fehlgeschlagen:', err);
 			}
 			if (err || !user) {
+				// Marker löschen: sonst landet nach einem gescheiterten stillen Login auch der nächste
+				// manuelle Login-Fehler fälschlich auf /?silent=unavailable statt /?error=login_failed.
+				if (req.session?.silentPending) {
+					delete req.session.silentPending;
+				}
+				if (req.session?.silentReturnTo) {
+					delete req.session.silentReturnTo;
+				}
 				res.redirect(silentPending ? '/?silent=unavailable' : '/?error=login_failed');
 				return;
 			}

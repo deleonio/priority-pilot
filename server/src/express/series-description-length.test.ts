@@ -9,10 +9,10 @@ applyTestAuthEnv('test-secret-for-tests');
 let server: TestServer;
 
 /**
- * Titel-Längenbeschränkung (65 Zeichen)
- * Tests für Backend-Validierung bei Series Create/Update.
+ * Beschreibung-Längenbeschränkung (3000 Zeichen)
+ * Tests für Backend-Validierung bei Series Create/Update. Die Beschreibung bleibt optional.
  */
-describe('Series — Titel-Länge', () => {
+describe('Series — Beschreibung-Länge', () => {
 	before(async () => {
 		server = await startTestServer();
 	});
@@ -46,58 +46,58 @@ describe('Series — Titel-Länge', () => {
 			body: JSON.stringify(body),
 		});
 
-	describe('POST /series — Titel-Länge bei Create', () => {
+	describe('POST /series — Beschreibung-Länge bei Create', () => {
 		let cookie: string;
 
 		it.beforeEach(async () => {
 			cookie = await server.login('testuser@example.com', { displayName: 'Test User' });
 		});
 
-		it('Series mit 65 Zeichen Titel wird akzeptiert', async () => {
-			const title65 = 'x'.repeat(65); // exakt 65 Zeichen
+		it('Series mit 3000 Zeichen Beschreibung wird akzeptiert', async () => {
+			const description3000 = 'a'.repeat(3000);
 			const res = await post(
 				'/series',
 				{
-					title: title65,
+					title: 'Serie mit langer Beschreibung',
 					rhythm: 'weekly',
 					priority: 3,
 					estimatedEffort: 0.5,
 					startDate: new Date().toISOString(),
+					description: description3000,
 				},
 				cookie,
 			);
 
-			assert.equal(res.status, 201, '65-Zeichen-Titel sollte akzeptiert werden');
+			assert.equal(res.status, 201, '3000-Zeichen-Beschreibung sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal((body.title as string).length, 65);
+			assert.equal((body.description as string).length, 3000);
 		});
 
-		it('Series mit 66 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
-			const title66 = 'y'.repeat(66); // 66 Zeichen > Limit
+		it('Series mit 3001 Zeichen Beschreibung wird mit ValidationError abgelehnt', async () => {
+			const description3001 = 'b'.repeat(3001);
 			const res = await post(
 				'/series',
 				{
-					title: title66,
+					title: 'Serie mit zu langer Beschreibung',
 					rhythm: 'weekly',
 					priority: 3,
 					estimatedEffort: 0.5,
 					startDate: new Date().toISOString(),
+					description: description3001,
 				},
 				cookie,
 			);
 
-			assert.equal(res.status, 400, '66-Zeichen-Titel sollte abgelehnt werden');
+			assert.equal(res.status, 400, '3001-Zeichen-Beschreibung sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			// sendError liefert { message } (series.ts).
 			assert.ok(body.message, 'Fehler sollte eine message enthalten');
 		});
 
-		it('Series mit exakt 65 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
-			const titleEmoji = '🎯'.repeat(10) + 'x'.repeat(45); // 10 Emojis (20 UTF-16 code units) + 45 Zeichen = 65
+		it('Series ohne Beschreibung wird weiterhin akzeptiert (optional)', async () => {
 			const res = await post(
 				'/series',
 				{
-					title: titleEmoji,
+					title: 'Serie ohne Beschreibung',
 					rhythm: 'weekly',
 					priority: 3,
 					estimatedEffort: 0.5,
@@ -106,34 +106,16 @@ describe('Series — Titel-Länge', () => {
 				cookie,
 			);
 
-			assert.equal(res.status, 201, '65-Zeichen-Emoji-Titel sollte akzeptiert werden');
-		});
-
-		it('Series mit leerem Titel wird abgelehnt (minimum 1 Zeichen)', async () => {
-			const res = await post(
-				'/series',
-				{
-					title: '',
-					rhythm: 'weekly',
-					priority: 3,
-					estimatedEffort: 0.5,
-					startDate: new Date().toISOString(),
-				},
-				cookie,
-			);
-
-			assert.equal(res.status, 400, 'Leerer Titel sollte abgelehnt werden');
+			assert.equal(res.status, 201, 'Serie ohne Beschreibung sollte akzeptiert werden');
 		});
 	});
 
-	describe('PATCH /series/:id — Titel-Länge bei Update', () => {
+	describe('PATCH /series/:id — Beschreibung-Länge bei Update', () => {
 		let seriesId: number;
 		let cookie: string;
 
 		it.beforeEach(async () => {
 			cookie = await server.login('testuser@example.com', { displayName: 'Test User' });
-			// Series via API (mit Cookie) anlegen, damit sie dem Test-User gehört — sonst
-			// antwortet PATCH /series/:id mit 404 (ownerScope).
 			const res = await post(
 				'/series',
 				{
@@ -149,20 +131,20 @@ describe('Series — Titel-Länge', () => {
 			seriesId = body.id;
 		});
 
-		it('Update auf 65 Zeichen Titel wird akzeptiert', async () => {
-			const title65 = 'z'.repeat(65);
-			const res = await patch(`/series/${seriesId}`, { title: title65 }, cookie);
+		it('Update auf 3000 Zeichen Beschreibung wird akzeptiert', async () => {
+			const description3000 = 'c'.repeat(3000);
+			const res = await patch(`/series/${seriesId}`, { description: description3000 }, cookie);
 
-			assert.equal(res.status, 200, 'Update auf 65 Zeichen sollte akzeptiert werden');
+			assert.equal(res.status, 200, 'Update auf 3000 Zeichen sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal((body.title as string).length, 65);
+			assert.equal((body.description as string).length, 3000);
 		});
 
-		it('Update auf 66 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
-			const title66 = 'ü'.repeat(66);
-			const res = await patch(`/series/${seriesId}`, { title: title66 }, cookie);
+		it('Update auf 3001 Zeichen Beschreibung wird mit ValidationError abgelehnt', async () => {
+			const description3001 = 'd'.repeat(3001);
+			const res = await patch(`/series/${seriesId}`, { description: description3001 }, cookie);
 
-			assert.equal(res.status, 400, 'Update auf 66 Zeichen sollte abgelehnt werden');
+			assert.equal(res.status, 400, 'Update auf 3001 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.ok(body.message, 'Fehler sollte eine message enthalten');
 		});
