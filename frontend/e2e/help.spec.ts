@@ -53,24 +53,6 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 	});
 
 	/**
-	 * AK3 — Zurück-Button: Auf der Hilfe-Seite gibt es einen Zurück-Button; ein Klick führt zurück in
-	 * die Haupt-App, die URL ist danach nicht mehr `/hilfe`.
-	 */
-	test('AK3: Zurück-Button auf der Hilfe-Seite führt zurück zur Haupt-App', async ({ page }) => {
-		await page.goto('/');
-		await waitForStableView(page);
-
-		await page.getByRole('button', { name: /hilfe/i }).click();
-		await expect(page).toHaveURL(/\/hilfe/);
-
-		// Zurück-Button (Link/Button mit sprechendem Namen) klicken.
-		await page.getByRole('button', { name: /zurück/i }).click();
-
-		// Die URL darf danach nicht mehr auf der Hilfe-Route liegen.
-		await expect(page).not.toHaveURL(/\/hilfe/);
-	});
-
-	/**
 	 * AK4 — Mobile-First: Auf einem 375-px-Viewport erzeugt die Hilfe-Seite kein horizontales Scrollen
 	 * (`document.body.scrollWidth <= window.innerWidth`).
 	 */
@@ -90,5 +72,55 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 
 		const hasNoHorizontalOverflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);
 		expect(hasNoHorizontalOverflow).toBe(true);
+	});
+});
+
+/**
+ * ROTE Spec-Tests für #1320 „Einstellungen und Hilfe als normale Seite statt
+ * Fullscreen-Overlay mit Zurück-Button" (Spec `docs/spec/issue-1320.md`).
+ *
+ * Der bisherige AK3-Test oben („Zurück-Button auf der Hilfe-Seite führt zurück zur
+ * Haupt-App") wurde entfernt — er widerspricht dem AK3 unten (kein „Zurück"-Button mehr)
+ * und ist durch den AK4/AK5-Test in `settings-page.spec.ts` sinngemäß ersetzt
+ * (Test-Pflege-Bedarf, PR-Body).
+ */
+test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
+	/** AK2 — Header (Banner, Toolbar) bleibt auf /hilfe sichtbar. */
+	test('AK2: Header mit Banner und Toolbar ist auf /hilfe sichtbar', async ({ page }) => {
+		await page.goto('/hilfe');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(page.getByRole('banner')).toBeVisible();
+		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Handbuch', exact: true })).toBeVisible();
+	});
+
+	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
+	test('AK3: Kein „Zurück"-Button auf /hilfe', async ({ page }) => {
+		await page.goto('/hilfe');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toHaveCount(0);
+	});
+
+	// AK4 (Direktwechsel Hilfe → Einstellungen) ist in header-toolbar.spec.ts abgedeckt (Dedup).
+
+	/** AK8 — Mobile-First (375px): Header und Seiteninhalt liegen vollständig im Viewport. */
+	test('AK8: 375px — Header und Seiteninhalt ohne horizontale Überlagerung', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/hilfe');
+		await waitForStableView(page, 'Priority Pilot');
+
+		const header = page.getByRole('banner');
+		await expect(header).toBeVisible();
+		const headerBox = await header.boundingBox();
+		expect(headerBox, 'Header rendert messbar').not.toBeNull();
+		expect(headerBox!.x + headerBox!.width, 'Header endet im Viewport').toBeLessThanOrEqual(375 + 1);
+
+		const content = page.getByRole('tab', { name: 'Handbuch', exact: true });
+		await expect(content).toBeVisible();
+		const contentBox = await content.boundingBox();
+		expect(contentBox, 'Seiteninhalt rendert messbar').not.toBeNull();
+		expect(contentBox!.x + contentBox!.width, 'Seiteninhalt endet im Viewport').toBeLessThanOrEqual(375 + 1);
 	});
 });
