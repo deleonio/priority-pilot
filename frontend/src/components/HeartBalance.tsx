@@ -2,6 +2,7 @@ import type { Pillar } from 'client';
 import { useCallback, useId, useMemo, useState, type CSSProperties } from 'react';
 import { HeartGlass } from './HeartGlass';
 import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
+import { bandEdges, HEART_BOTTOM, HEART_PATH, HEART_TOP, waterlineY } from '../lib/heartGeometry';
 import { useAnimationsEnabled } from '../lib/animations';
 import { useHeartAnimationEnabled } from '../lib/heartAnimation';
 import { usePrefersReducedMotion } from '../lib/reducedMotion';
@@ -12,9 +13,10 @@ import { usePrefersReducedMotion } from '../lib/reducedMotion';
  * (Rechnung in `lib/heartBalance.ts`); die Oberfläche ist eine durchlaufende Welle.
  *
  * **Das Bild sagt zwei Dinge gleichzeitig:** Die *Höhe* der gemeinsamen Wasserlinie trägt die
- * Gesamt-Balance, die *Breite* der Farbstreifen unter der Oberfläche die Verteilung — jeder
- * Streifen ist genau so breit, wie sein Ist-Anteil am Punkte-Saldo beträgt. Ein schmales Band
- * neben einem breiten ist damit auch ohne Zahl eine Schieflage.
+ * Gesamt-Balance, die *Fläche* der Farbstreifen unter der Oberfläche die Verteilung — jeder
+ * Streifen deckt genau den Anteil der Wasserfläche ab, den seine Säule am Punkte-Saldo hält
+ * (`lib/heartGeometry.ts`). Ein kleines Band neben einem großen ist damit auch ohne Zahl eine
+ * Schieflage.
  *
  * **Warum eine gemeinsame Wasserlinie:** „Wie voll ist das Herz" ist eine einzige Zahl — also
  * gibt es im Bild auch nur eine Wasserlinie. Sie steigt einmalig von unten auf ihren Stand und
@@ -44,26 +46,6 @@ interface HeartBalanceProps {
 /* Zeichenfläche in Nutzereinheiten; die Anzeigegröße bestimmt allein das CSS (`width: 100%`). */
 const VIEW_WIDTH = 100;
 const VIEW_HEIGHT = 92;
-
-/**
- * Symmetrische Herzkontur (an `x = 50` gespiegelt, Bounding-Box x 4–96 / y 6–88). Bewusst als
- * Konstante statt berechnet: die Kurve ist von Hand ausbalanciert, eine Formel würde sie nur
- * schwerer nachvollziehbar machen.
- */
-const HEART_PATH = [
-	'M 50 88',
-	'C 20 66, 4 48, 4 32',
-	'C 4 16, 16 6, 29 6',
-	'C 38 6, 46 11, 50 18',
-	'C 54 11, 62 6, 71 6',
-	'C 84 6, 96 16, 96 32',
-	'C 96 48, 80 66, 50 88',
-	'Z',
-].join(' ');
-
-/** Oberkante und Tiefpunkt des Gefäßes — zwischen ihnen bewegt sich die Wasserlinie. */
-const HEART_TOP = 6;
-const HEART_BOTTOM = 88;
 
 /**
  * Wellenlänge und Auslenkung der Oberfläche in Nutzereinheiten. Die Auslenkung ist bewusst zart
@@ -162,10 +144,6 @@ const WAVE_DRIFT_DURATION = '7s';
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
 const asPercent = (share: number): number => Math.round(share * 100);
 
-/** Sichtbare Gefäßbreite (x-Spanne der Herzkontur) — Bandmaß und Glas-Normierung (`toSlotBands`) teilen sie. */
-const VESSEL_LEFT = 4;
-const VESSEL_RIGHT = 96;
-
 /** Ein Farbstreifen unter der Wasserlinie: eine Säule mit ihrer horizontalen Spanne über der Gefäßbreite. */
 interface HeartBand {
 	pillarId: number;
@@ -204,23 +182,23 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 	const animated = animationsEnabled && heartAnimationEnabled && !prefersReducedMotion;
 
 	/*
-	 * Horizontale Spannen der Farbstreifen: kumulierte Ist-Anteile über die **sichtbare Gefäßbreite**
-	 * (Herzkontur, x 4–96) — die Breite jedes Streifens entspricht exakt dem Ist-Anteil seiner Säule
-	 * (Verteilung im Bild). Ohne Punkte gilt die Soll-Verteilung, damit das leere Herz schon die
-	 * Zielaufteilung zeigt. Dieselben Kanten liest der Glas-Shader (`toSlotBands`) — so zeigen SVG
-	 * und Glas dasselbe Bild.
+	 * Horizontale Spannen der Farbstreifen: Jeder Streifen deckt genau den Anteil der **gefüllten
+	 * Wasserfläche** ab, den seine Säule am Punkte-Saldo hält (#1302). Die Kanten kommen deshalb aus
+	 * der kumulierten Fläche (`bandEdges` in `lib/heartGeometry.ts`) und nicht aus der Breite — weil
+	 * das Herz oben breit ist und unten spitz zuläuft, trüge sonst dieselbe Breite je nach Position
+	 * unterschiedlich viel Wasser. Die Kanten hängen damit auch vom Füllstand ab. Ohne Punkte gilt
+	 * die Soll-Verteilung, damit das leere Herz schon die Zielaufteilung zeigt. Dieselben Kanten
+	 * liest der Glas-Shader (`toSlotBands`) — so zeigen SVG und Glas dasselbe Bild.
 	 */
 	const bands = useMemo<HeartBand[]>(() => {
-		let x = VESSEL_LEFT;
-		const next = balance.segments.map((segment) => {
-			const share = balance.hasPoints ? segment.actualShare : segment.targetShare;
-			const x0 = x;
-			x = Math.min(VESSEL_RIGHT, x + share * (VESSEL_RIGHT - VESSEL_LEFT));
-			return { pillarId: segment.pillar.id, colorIndex: segment.colorIndex, x0, x1: x };
-		});
-		// Letzte Kante exakt an die rechte Kontur legen — ein Float-Rest darf keinen Spalt lassen.
-		if (next.length > 0) next[next.length - 1].x1 = VESSEL_RIGHT;
-		return next;
+		const shares = balance.segments.map((segment) => (balance.hasPoints ? segment.actualShare : segment.targetShare));
+		const edges = bandEdges(shares, balance.fill);
+		return balance.segments.map((segment, index) => ({
+			pillarId: segment.pillar.id,
+			colorIndex: segment.colorIndex,
+			x0: edges[index],
+			x1: edges[index + 1],
+		}));
 	}, [balance]);
 
 	// Eindeutige, aber stabile Präfixe für die SVG-Fragment-Referenzen: mehrere Herzen auf einer
@@ -301,7 +279,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 							 * und Clip-Struktur bei den Drift-Konstanten oben.
 							 */}
 							<g className="heart-water-rise">
-								<g transform={`translate(0 ${(HEART_BOTTOM - balance.fill * (HEART_BOTTOM - HEART_TOP)).toFixed(2)})`}>
+								<g transform={`translate(0 ${waterlineY(balance.fill).toFixed(2)})`}>
 									{bands.map((band, index) => (
 										<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="heart-column">
 											<g className="heart-wave">
