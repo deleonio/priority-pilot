@@ -3,7 +3,7 @@ import type { Task, TaskGraph } from 'client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
-import { MAX_GRAPH_NODES, selectTopNodes } from '../lib/graphLayout';
+import { splitIntoTrees } from '../lib/graphLayout';
 import { formatNumber } from '../lib/task';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 import { TaskGraphCanvas } from './TaskGraphCanvas';
@@ -34,11 +34,17 @@ interface TaskGraphPanelProps {
  * Die Daten holt das Panel selbst (`GET /graph`) statt über den App-weiten `reload()`: sonst zahlte
  * jeder Kaltstart einen zusätzlichen Request für einen Tab, den viele nie öffnen. Auf Änderungen am
  * Aufgabenbestand hört es über `TASKS_CHANGED_EVENT` (Muster `SeriesTab`, `NearbyCard`).
+ *
+ * Gezeigt wird genau ein zusammenhängender Baum (`splitIntoTrees`), durchblätterbar über
+ * „Zurück"/„Vor". Aufgaben ohne Abhängigkeit erscheinen nicht — im Graphen wären sie ein Punkt ohne
+ * Aussage. Eine Knotengrenze braucht es damit nicht mehr: die Blätterung begrenzt die Menge, und
+ * ein angezeigter Baum ist immer vollständig.
  */
 export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProps) => {
 	const [graph, setGraph] = useState<TaskGraph | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [treeIndex, setTreeIndex] = useState(0);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -78,7 +84,18 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 		return () => window.removeEventListener('keydown', handleKeyDown);
 	}, [selectedId]);
 
-	const visible = useMemo(() => (graph === null ? null : selectTopNodes(graph, MAX_GRAPH_NODES)), [graph]);
+	// Ein Baum je Seite: getrennte Abhängigkeitsketten nebeneinander waren als Fläche nicht lesbar.
+	const trees = useMemo(() => (graph === null ? [] : splitIntoTrees(graph)), [graph]);
+	// Nach einem Reload über `TASKS_CHANGED_EVENT` kann der bisher gezeigte Baum verschwunden sein.
+	const currentIndex = trees.length === 0 ? 0 : Math.min(treeIndex, trees.length - 1);
+	const visible = trees[currentIndex] ?? null;
+
+	const showTree = useCallback((index: number): void => {
+		// Auswahl gehört zum verlassenen Baum — sonst zeigt die Detailkarte einen unsichtbaren Knoten.
+		setSelectedId(null);
+		setTreeIndex(index);
+	}, []);
+
 	const selected = visible?.nodes.find((node) => node.id === selectedId) ?? null;
 	const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
@@ -116,26 +133,36 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 				</KolAlert>
 			)}
 
-			{error === null && visible === null && <KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}
+			{error === null && graph === null && <KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}
 
-			{error === null && visible !== null && visible.nodes.length === 0 && (
+			{error === null && graph !== null && visible === null && (
 				<KolCard _label="Keine offenen Aufgaben" _level={3}>
 					<p>Sobald es offene Aufgaben mit Abhängigkeiten gibt, erscheinen sie hier als Graph.</p>
 				</KolCard>
 			)}
 
-			{error === null && visible !== null && visible.nodes.length > 0 && (
+			{error === null && visible !== null && (
 				<>
 					<KolHeading _label="Abhängigkeitsgraph" _level={3} />
 
-					{graph !== null && graph.nodes.length > visible.nodes.length && (
-						<KolAlert _type="info" _label="Ausschnitt">
-							<p>
-								Es werden die {visible.nodes.length} wertvollsten von {graph.nodes.length} Aufgaben angezeigt. Die
-								vollständige Liste steht im Tab „Aufgaben".
-							</p>
-						</KolAlert>
-					)}
+					<div className="task-graph-pager">
+						<KolButton
+							_label="Zurück"
+							_variant="secondary"
+							_disabled={currentIndex === 0}
+							_on={{ onClick: () => showTree(currentIndex - 1) }}
+						/>
+						{/* `aria-live`: ohne Ansage bemerkt ein Screenreader den Wechsel nur an der Knotenliste. */}
+						<p className="task-graph-pager__position" aria-live="polite">
+							{`Baum ${currentIndex + 1} von ${trees.length}`}
+						</p>
+						<KolButton
+							_label="Vor"
+							_variant="secondary"
+							_disabled={currentIndex >= trees.length - 1}
+							_on={{ onClick: () => showTree(currentIndex + 1) }}
+						/>
+					</div>
 
 					<KolCard _label="Legende" _level={4} className="task-graph-legend">
 						<ul>

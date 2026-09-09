@@ -1168,6 +1168,26 @@ body {
 	pointer-events: none;
 }
 
+/*
+ * Blätter-Leiste über dem Canvas: „Zurück" · „Baum X von Y" · „Vor" in einer Zeile. Bei 375px darf
+ * nichts über die Viewportbreite ragen, deshalb `min-width: 0` auf der Positionsangabe (KoliBri-Hosts
+ * sind block-level und würden den Text sonst herausdrücken) statt fester Breiten.
+ */
+.task-graph-pager {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-space-3);
+	margin-top: var(--pp-gap-base);
+}
+
+.task-graph-pager__position {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	text-align: center;
+}
+
 .task-graph-legend ul {
 	margin: 0;
 	padding-left: var(--pp-space-4);
