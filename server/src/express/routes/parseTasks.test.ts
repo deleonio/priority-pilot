@@ -53,6 +53,24 @@ describe('POST /tasks/parse-text', () => {
 		assert.ok(body.title.length > 0, 'title darf nicht leer sein');
 	});
 
+	// #1310 TF3: neue optionale Felder (isSeries/address/checklist) unverändert durchgereicht.
+	it('#1310 AK1: isSeries/address/checklist werden unverändert an den Client durchgereicht', async () => {
+		const parsed: ParsedTask = {
+			title: 'Wöchentliches Teammeeting',
+			isSeries: true,
+			address: 'Musterstraße 1, 12345 Musterstadt',
+			checklist: ['Agenda vorbereiten', 'Raum buchen'],
+		};
+		parserImpl = async () => parsed;
+
+		const res = await post(server.baseUrl, { text: 'Jeden Montag Teammeeting im Büro' });
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as ParsedTask;
+		assert.equal(body.isSeries, true);
+		assert.equal(body.address, 'Musterstraße 1, 12345 Musterstadt');
+		assert.deepEqual(body.checklist, ['Agenda vorbereiten', 'Raum buchen']);
+	});
+
 	it('AK1: Antwort-Body enthält alle optionalen Felder wenn der Parser sie liefert', async () => {
 		const parsed: ParsedTask = {
 			title: 'Steuererklärung',

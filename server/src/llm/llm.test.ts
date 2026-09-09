@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
 	buildAdvisorUserMessage,
@@ -7,10 +7,13 @@ import {
 	buildLektoratUserMessage,
 	extractLektoratOutput,
 	lektoratTextWithMistral,
+	parseTaskTextWithMistral,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
 	type LektoratInput,
+	type ParsedTask,
 } from './llm.js';
+import { resetDb, closeDb, setTestLlmProvider } from '../test/helpers.js';
 
 /**
  * Vertrag für `buildAdvisorUserMessage(input)` in Bezug auf die Säulen-Verteilung (Nachfolge #337):
@@ -268,5 +271,142 @@ describe('Lektorat-Funktion (Issue #645)', () => {
 		it('wirft bei negativer maxLength', async () => {
 			await assert.rejects(() => lektoratTextWithMistral({ text: 'Gültiger Text', maxLength: -5 }), /positiv/i);
 		});
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1310 (Schnellerfassung: Serie/Adresse/Checkliste, Längen, Priorität, Datum).
+ * Spec: `docs/spec/issue-1310.md`.
+ *
+ * Testebene: `parseTaskTextWithMistral` (öffentliche Funktion) mit gemocktem `globalThis.fetch`
+ * (Muster `lektorat.test.ts`) und einem aktiven Test-Provider (`setTestLlmProvider`) — die
+ * DB-seitig noch nicht exportierte `extractParsedTask` wird so indirekt über den vollen Parse-Pfad
+ * geprüft (TF1/TF2 laut Harness-Kommentar erlauben ausdrücklich diese Alternative).
+ */
+describe('parseTaskTextWithMistral — Schnellerfassung erweitert (#1310)', () => {
+	const originalFetch = globalThis.fetch;
+	let capturedBody: { messages?: { role: string; content: string }[] } | undefined;
+
+	/** Mockt NUR den LLM-API-Call (Mistral); zeichnet den gesendeten Body auf. */
+	const stubModelResponse = (parsedJson: unknown): void => {
+		globalThis.fetch = (async (url: string, init?: RequestInit) => {
+			if (typeof url === 'string' && url.includes('api.mistral.ai')) {
+				capturedBody = init?.body ? (JSON.parse(init.body as string) as typeof capturedBody) : undefined;
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(parsedJson) } }] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return originalFetch(url, init);
+		}) as typeof fetch;
+	};
+
+	beforeEach(async () => {
+		await resetDb();
+		await setTestLlmProvider(true);
+		capturedBody = undefined;
+	});
+
+	after(async () => {
+		globalThis.fetch = originalFetch;
+		await closeDb();
+	});
+
+	// AK1: neue optionale Felder werden unverändert durchgereicht.
+	it('AK1: isSeries/address/checklist werden aus der Modellantwort übernommen', async () => {
+		stubModelResponse({
+			title: 'Wöchentliches Teammeeting',
+			isSeries: true,
+			address: 'Musterstraße 1, 12345 Musterstadt',
+			checklist: ['Agenda vorbereiten', 'Raum buchen'],
+		});
+
+		const result: ParsedTask = await parseTaskTextWithMistral('Jeden Montag Teammeeting im Büro');
+
+		assert.equal(result.isSeries, true, 'isSeries wird übernommen');
+		assert.equal(result.address, 'Musterstraße 1, 12345 Musterstadt', 'address wird übernommen');
+		assert.deepEqual(result.checklist, ['Agenda vorbereiten', 'Raum buchen'], 'checklist wird übernommen');
+	});
+
+	// AK1: Rückwärtskompatibilität — fehlen die neuen Felder, bleibt das Ergebnis wie bisher.
+	it('AK1: fehlende neue Felder erzeugen kein isSeries/address/checklist im Ergebnis', async () => {
+		stubModelResponse({ title: 'Einfacher Task ohne neue Felder' });
+
+		const result: ParsedTask = await parseTaskTextWithMistral('Einfacher Task ohne neue Felder');
+
+		assert.equal(result.isSeries, undefined, 'isSeries bleibt unbelegt');
+		assert.equal(result.address, undefined, 'address bleibt unbelegt');
+		assert.equal(result.checklist, undefined, 'checklist bleibt unbelegt');
+	});
+
+	// AK3: Titel wird nach Trim auf 65 Zeichen gekürzt.
+	it('AK3: ein 200-Zeichen-Titel wird auf genau 65 Zeichen gekürzt', async () => {
+		const longTitle = 'T'.repeat(200);
+		stubModelResponse({ title: longTitle });
+
+		const result = await parseTaskTextWithMistral('Text mit sehr langem Titel');
+
+		assert.equal(result.title.length, 65, `Titel muss auf 65 Zeichen gekürzt sein, ist aber ${result.title.length}`);
+		assert.equal(result.title, 'T'.repeat(65));
+	});
+
+	// AK3: Beschreibung wird nach Trim auf 3000 Zeichen gekürzt.
+	it('AK3: eine 3500-Zeichen-Beschreibung wird auf genau 3000 Zeichen gekürzt', async () => {
+		const longDescription = 'D'.repeat(3500);
+		stubModelResponse({ title: 'Task mit langer Beschreibung', description: longDescription });
+
+		const result = await parseTaskTextWithMistral('Text mit sehr langer Beschreibung');
+
+		assert.equal(
+			result.description?.length,
+			3000,
+			`Beschreibung muss auf 3000 Zeichen gekürzt sein, ist aber ${result.description?.length}`,
+		);
+	});
+
+	// AK6: leere/whitespace-only Checklisten-Einträge werden verworfen, überlange gekürzt.
+	it('AK6: Checkliste filtert leere Einträge und kürzt überlange auf 255 Zeichen', async () => {
+		const overlong = 'C'.repeat(300);
+		stubModelResponse({
+			title: 'Task mit Checkliste',
+			checklist: ['Gültiger Eintrag', '', '   ', overlong],
+		});
+
+		const result = await parseTaskTextWithMistral('Checkliste: Gültiger Eintrag, dann Leerzeichen, dann sehr lang');
+
+		assert.deepEqual(
+			result.checklist,
+			['Gültiger Eintrag', overlong.slice(0, 255)],
+			'leere/whitespace-Einträge verworfen, überlanger Eintrag auf 255 Zeichen gekürzt',
+		);
+		assert.equal(result.checklist?.[1].length, 255);
+	});
+
+	// AK4: der System-/User-Prompt enthält das aktuelle Datum (ISO, UTC) als Kontext.
+	it('AK4: der gesendete Prompt enthält das aktuelle Datum (ISO, UTC)', async () => {
+		stubModelResponse({ title: 'Übermorgen Zahnarzt' });
+
+		await parseTaskTextWithMistral('Übermorgen zum Zahnarzt');
+
+		const today = new Date().toISOString().slice(0, 10);
+		const promptText = (capturedBody?.messages ?? []).map((m) => m.content).join('\n');
+		assert.ok(
+			promptText.includes(today),
+			`Prompt muss das aktuelle Datum (${today}) enthalten, war aber: ${promptText.slice(0, 200)}…`,
+		);
+	});
+
+	// AK8: der Prompt weist das Modell an, die Priorität anhand von Dringlichkeitssignalen zu setzen.
+	it('AK8: der System-Prompt enthält eine Dringlichkeits-Anweisung für priority', async () => {
+		stubModelResponse({ title: 'Ganz wichtige Erledigung', priority: 5 });
+
+		await parseTaskTextWithMistral('Das ist eine ganz wichtige Erledigung, muss sofort passieren');
+
+		const systemPrompt = capturedBody?.messages?.find((m) => m.role === 'system')?.content ?? '';
+		assert.match(
+			systemPrompt,
+			/dringlich/i,
+			'System-Prompt muss eine Dringlichkeits-Anweisung für die Prioritäts-Ableitung enthalten',
+		);
 	});
 });

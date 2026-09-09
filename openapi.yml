@@ -3063,6 +3063,25 @@ components:
           type: string
           format: date-time
           description: Optionale Deadline als ISO-8601-Datum/Zeit-String
+        isSeries:
+          type: boolean
+          description: >-
+            Optionale Serien-Erkennung (#1310): `true`, wenn der Text einen wiederkehrenden
+            Termin beschreibt — das Formular startet dann im Serien-Modus.
+        address:
+          type: string
+          description: >-
+            Optionale Ortsangabe aus dem Freitext (#1310) als Adresstext; reiner Freitext,
+            ohne Koordinaten (kein Geocoding im Parsing).
+        checklist:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 255
+          description: >-
+            Optionale, im Freitext aufgezählte Einzelpunkte (#1310) — je Eintrag ein
+            Checklisten-Eintrag im Formular.
     PillarFeedbackInput:
       type: object
       description: >-

@@ -351,4 +351,115 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Kein JS-Fehler (kein showModal/Shadow-DOM-Fehler durch den Autofokus).
 		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 	});
+
+	// --- Rote Spec-Tests für #1310: Serie/Adresse/Checkliste aus dem Parsing (docs/spec/issue-1310.md) ---
+
+	test('#1310 AK2/AK5/AK6: Serie-Erkennung, Adresse und Checkliste befüllen das Formular', async ({ page }) => {
+		await page.route('**/api/v1/tasks/parse-text*', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					title: 'Wöchentliches Teammeeting',
+					isSeries: true,
+					address: 'Musterstraße 1, 12345 Musterstadt',
+					checklist: ['Agenda vorbereiten', 'Raum buchen'],
+				}),
+			}),
+		);
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		await page.getByRole('textbox', { name: /Beschreibe/ }).fill('Jeden Montag Teammeeting im Büro');
+		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
+		await waitForStableView(page);
+
+		// „Termin & Ort" ist ein zugeklapptes KolAccordion (#1260) — Rhythmus/Adresse liegen darin.
+		await page.getByText('Termin & Ort', { exact: true }).click();
+
+		// AK2: Serien-Modus aktiv — Rhythmus-Feld sichtbar statt Deadline.
+		await expect(page.getByLabel('Rhythmus')).toBeVisible();
+
+		// AK5: Adressfeld ist mit der geparsten Adresse gefüllt.
+		await expect(page.getByLabel(/Adresse/i)).toHaveValue('Musterstraße 1, 12345 Musterstadt');
+	});
+
+	test('#1310 AK6: geparste Checklisten-Punkte erscheinen als Checklisten-Einträge (Aufgaben-Modus)', async ({
+		page,
+	}) => {
+		await page.route('**/api/v1/tasks/parse-text*', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					title: 'Umzug vorbereiten',
+					checklist: ['Kartons besorgen', 'Umzugsfirma anrufen'],
+				}),
+			}),
+		);
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		await page.getByRole('textbox', { name: /Beschreibe/ }).fill('Umzug vorbereiten: Kartons und Umzugsfirma');
+		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
+		await waitForStableView(page);
+
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Umzug vorbereiten');
+		// Die Checkliste liegt im zugeklappten „Optional"-Accordion (#1285/#1260) — erst aufklappen.
+		await page.getByText('Optional', { exact: true }).click();
+		const items = page.getByTestId('checklist-item');
+		await expect(items).toHaveCount(2);
+		await expect(items.filter({ hasText: 'Kartons besorgen' })).toBeVisible();
+		await expect(items.filter({ hasText: 'Umzugsfirma anrufen' })).toBeVisible();
+	});
+
+	test('#1310 AK10: Adressfeld und Checklisten-Einträge sind auf 375px vollständig sichtbar', async ({ page }) => {
+		await page.route('**/api/v1/tasks/parse-text*', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					title: 'Termin mit Vorbereitung',
+					address: 'Bahnhofstraße 12, 10115 Berlin',
+					checklist: ['Unterlagen mitnehmen'],
+				}),
+			}),
+		);
+
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await waitForStableView(page);
+
+		await page.getByRole('textbox', { name: /Beschreibe/ }).fill('Termin mit Vorbereitung, Unterlagen mitnehmen');
+		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
+		await waitForStableView(page);
+
+		// Beide Accordions (#1260/#1285) aufklappen — Adresse liegt in „Termin & Ort", Checkliste in „Optional".
+		await page.getByText('Termin & Ort', { exact: true }).click();
+		await page.getByText('Optional', { exact: true }).click();
+
+		const addressField = page.getByLabel(/Adresse/i);
+		const checklistItem = page.getByTestId('checklist-item').first();
+		await expect(addressField).toBeVisible();
+		await expect(checklistItem).toBeVisible();
+
+		for (const locator of [addressField, checklistItem]) {
+			const box = await locator.boundingBox();
+			expect(box, 'Element muss eine Bounding-Box haben').not.toBeNull();
+			expect(box!.x + box!.width, 'Element darf nicht über den 375px-Viewport hinausragen').toBeLessThanOrEqual(375);
+		}
+	});
 });

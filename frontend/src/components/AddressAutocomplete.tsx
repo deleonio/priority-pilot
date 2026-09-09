@@ -31,7 +31,11 @@ export const AddressAutocomplete = ({
 	onSelect,
 	ariaDetails,
 }: AddressAutocompleteProps) => {
-	const { suggestions, loading, error } = useAddressSearch(value);
+	// #1310 (AK5): Ein vorbelegter Wert (Schnellerfassung/Bearbeiten) löst KEINE Adresssuche aus —
+	// erst die Eingabe des Nutzers. Ohne diese Sperre würde allein das Öffnen des Formulars mit
+	// gefülltem Adressfeld einen Geocoding-Request absetzen, den niemand angefordert hat.
+	const [touched, setTouched] = useState(false);
+	const { suggestions, loading, error } = useAddressSearch(touched ? value : '');
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	// `dismissed` hält die Liste nach Auswahl/Escape zu, obwohl `value` (die übernommene Adresse)
 	// weiter ≥ 3 Zeichen lang ist und die Suche weiterläuft — sonst springt sie sofort wieder auf.
@@ -41,6 +45,7 @@ export const AddressAutocomplete = ({
 	const open = suggestions.length > 0 && !dismissed;
 
 	const change = (next: string) => {
+		setTouched(true);
 		setActiveIndex(null);
 		setDismissed(false);
 		onValueChange(next);

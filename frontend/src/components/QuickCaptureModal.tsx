@@ -91,7 +91,13 @@ export const QuickCaptureModal = ({
 				priority: parsed.priority,
 				estimatedEffort: parsed.estimatedEffort,
 				deadline: parsed.deadline,
+				address: parsed.address,
+				checklist: parsed.checklist,
 			});
+			// #1310: Erkennt das Parsing einen wiederkehrenden Termin, startet das Formular im
+			// Serien-Modus. `formMode` ist zugleich der Dialog-Titel-Spiegel (#334) und wird von
+			// `TaskForm` beim Umschalten über `onModeChange` weitergepflegt.
+			setFormMode(parsed.isSeries === true ? 'series' : 'task');
 			setStep('form');
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -122,6 +128,7 @@ export const QuickCaptureModal = ({
 					parentTask={parentTask}
 					pillars={pillars}
 					initialValues={prefill}
+					initialMode={formMode}
 					onClose={onClose}
 					onSaved={onSaved}
 					onModeChange={setFormMode}
