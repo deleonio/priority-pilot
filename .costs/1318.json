@@ -1,0 +1,35 @@
+[
+	{
+		"timestamp": "2026-09-09T16:16:12.343Z",
+		"tokensIn": 1303821,
+		"tokensOut": 19516,
+		"cost": 1.7167165,
+		"issueId": "1318",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 100308,
+		"cacheReadTokens": 1203483,
+		"turns": 15,
+		"valueCost": 1.7167165,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 2,
+		"nits": 0
+	},
+	{
+		"timestamp": "2026-09-09T16:19:18.853Z",
+		"tokensIn": 293644,
+		"tokensOut": 5450,
+		"cost": 0.11983809999999999,
+		"issueId": "1318",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 54938,
+		"cacheReadTokens": 238656,
+		"turns": 6,
+		"valueCost": 0.11983809999999999,
+		"effort": "low"
+	}
+]
