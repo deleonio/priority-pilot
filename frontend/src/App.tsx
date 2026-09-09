@@ -62,6 +62,9 @@ const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'S
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
 const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen', 'nutzer'];
+// Rollensystem admin/member: Segmente, die nur Admins als Tab sehen (Index-Parität mit den in
+// `SettingsPage` nur bei `isAdmin` angehängten Tabs). Für Member gelten sie als unbekannter Pfad.
+const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
@@ -129,9 +132,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	 * gilt es als unbekannt, sonst zeigte `KolTabs` mit `_selected=5` bei fünf Tabs ein leeres Panel. */
 	const isAdmin = user.role === 'admin';
 	const settingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
-	const settingsTabIndex = (isAdmin ? SETTINGS_PATH_SEGMENTS : SETTINGS_PATH_SEGMENTS.slice(0, 5)).indexOf(
-		settingsSegment,
-	);
+	const settingsTabIndex =
+		!isAdmin && ADMIN_ONLY_SETTINGS_SEGMENTS.has(settingsSegment)
+			? -1
+			: SETTINGS_PATH_SEGMENTS.indexOf(settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
 
 	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */

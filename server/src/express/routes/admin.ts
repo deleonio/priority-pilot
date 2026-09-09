@@ -42,15 +42,19 @@ const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ern
  * @returns `false`, wenn `id` der letzte verbleibende Admin ist und nichts geändert wurde.
  */
 const demoteUnlessLastAdmin = async (id: number): Promise<boolean> => {
+	// Tabellen-/Spaltenname und Quoting kommen aus Modell und Dialekt (kein hart kodiertes
+	// Backtick-SQL) — ein Dialekt- oder Tabellenwechsel bricht die Subquery dann nicht still.
+	const qi = sequelize.getQueryInterface();
+	const tableName = User.getTableName();
+	const usersTable = qi.quoteIdentifier(typeof tableName === 'string' ? tableName : tableName.tableName);
+	const roleColumn = qi.quoteIdentifier('role');
+	const adminCount = sequelize.literal(`(SELECT COUNT(*) FROM ${usersTable} WHERE ${roleColumn} = 'admin')`);
 	const [affected] = await User.update(
 		{ role: 'member' },
 		{
 			where: {
 				id,
-				[Op.or]: [
-					{ role: { [Op.ne]: 'admin' } },
-					sequelize.where(sequelize.literal("(SELECT COUNT(*) FROM `users` WHERE `role` = 'admin')"), Op.gt, 1),
-				],
+				[Op.or]: [{ role: { [Op.ne]: 'admin' } }, sequelize.where(adminCount, Op.gt, 1)],
 			},
 		},
 	);

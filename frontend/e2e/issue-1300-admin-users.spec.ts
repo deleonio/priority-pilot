@@ -13,15 +13,13 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
 
 const MOBILE = { width: 375, height: 812 } as const;
 
-const ADMIN_USER = { id: 1, displayName: 'Anna Admin', email: 'anna@example.com', role: 'admin' as 'admin' | 'member' };
-const MEMBER_USER = {
-	id: 2,
-	displayName: 'Test User',
-	email: 'test@example.com',
-	role: 'member' as 'admin' | 'member',
-};
+/** Mutierbare Fixture (die Rolle wechselt im zustandsbehafteten Mock unten). */
+type FixtureUser = { id: number; displayName: string; email: string; role: 'admin' | 'member' };
 
-const mockAuthMe = async (page: Page, user: { id: number; displayName: string; email: string; role: string }) => {
+const ADMIN_USER: FixtureUser = { id: 1, displayName: 'Anna Admin', email: 'anna@example.com', role: 'admin' };
+const MEMBER_USER: FixtureUser = { id: 2, displayName: 'Test User', email: 'test@example.com', role: 'member' };
+
+const mockAuthMe = async (page: Page, user: FixtureUser) => {
 	await page.route('**/auth/me', (route: Route) =>
 		route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) }),
 	);
