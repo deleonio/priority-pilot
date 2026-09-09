@@ -79,17 +79,6 @@ body:
       required: false
 
   - type: textarea
-    id: scope
-    attributes:
-      label: Wo tritt es auf?
-      description: Ein Ort pro Zeile — Seite, Komponente, Datei oder Endpunkt, sofern bekannt.
-      placeholder: |
-        frontend/src/components/TicketForm.tsx
-        Einstellungen → Push-Benachrichtigungen
-    validations:
-      required: true
-
-  - type: textarea
     id: criteria
     attributes:
       label: Woran messen wir das?
@@ -100,14 +89,6 @@ body:
         - Der Button ist per Tastatur bedienbar (Tab-Index)
     validations:
       required: true
-
-  - type: textarea
-    id: context
-    attributes:
-      label: Screenshots / weitere Hinweise (optional)
-      description: Was immer hilft — optional, gern leer lassen.
-    validations:
-      required: false
 
   - type: textarea
     id: context
