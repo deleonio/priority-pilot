@@ -36,6 +36,13 @@ export const TRANSCRIPT_ROOT = join(homedir(), '.claude', 'projects');
  */
 export const PRICES_EUR_PER_MTOK_ZAI: ReadonlyArray<readonly [string, number, number]> = [
 	// [Modell-Präfix, Input, Output]
+	// glm-5.3-flash ist ein EIGENES, deutlich billigeres Modell (docs/ci-architecture.md:
+	// „nicht gebucht"), fiel aber über den Präfix-Match still auf den glm-5.3-Tarif — 223
+	// versiegelte Läufe waren damit ~9x überbewertet. Der Coding-Plan-Preis ist nicht
+	// belegt; die Zeile ist aus dem Verhältnis der öffentlichen API-Preise abgeleitet
+	// (Flash 0,15/0,50 zu 5.3 1,40/4,40 USD je Mio., docs.z.ai Stand 2026-09) und auf den
+	// hier notierten glm-5.3-Coding-Plan-Preis angewandt. Längster Präfix gewinnt.
+	['glm-5.3-flash', 0.32, 1.14],
 	['glm-5.3', 3.0, 10.0],
 	['glm-5-turbo', 1.2, 4.0],
 	['glm-4.7', 0.6, 1.2],
@@ -120,7 +127,10 @@ export const DEFAULT_MODEL_CLASS: ModelClass = 'mid';
  * Transkript je nach Provider beides meldet.
  */
 export const MODEL_CLASSES: ReadonlyArray<readonly [string, ModelClass]> = [
-	// flagship
+	// flagship — fable/mythos sind die Mythos-Stufe ÜBER opus (Listenpreis 10/50 $); ohne
+	// Eintrag fielen sie auf `mid` zurück und der Modell-Mix zählte sie in keine Klasse.
+	['claude-fable', 'flagship'],
+	['claude-mythos', 'flagship'],
 	['claude-opus', 'flagship'],
 	['glm-5.3', 'flagship'],
 	['nvidia/nemotron-3-ultra', 'flagship'],
@@ -138,6 +148,7 @@ export const MODEL_CLASSES: ReadonlyArray<readonly [string, ModelClass]> = [
 	['laguna-s', 'mid'],
 	// small
 	['claude-haiku', 'small'],
+	['glm-5.3-flash', 'small'],
 	['glm-4.7', 'small'],
 	['nvidia/nemotron-3-nano', 'small'],
 	['nemotron-3-nano', 'small'],
@@ -191,15 +202,31 @@ export function classifyModel(model: string): ModelClass | undefined {
 	return MODEL_CLASSES.filter(([prefix]) => model.startsWith(prefix)).sort((a, b) => b[0].length - a[0].length)[0]?.[1];
 }
 
-/** Verbrauch → USD zu gegebenen Token-Preisen (Cache-Faktoren eingerechnet). */
-const usageToUsd = (usage: Usage, inRate: number, outRate: number): number => {
+/** Token-Blöcke eines Verbrauchs (nur die vier bepreisten Mengen). */
+export type UsageTokens = Pick<Usage, 'inputTokens' | 'outputTokens' | 'cacheCreationTokens' | 'cacheReadTokens'>;
+
+/** USD je Block (Input, Cache-Write, Cache-Read, Output) zu gegebenen Token-Preisen. */
+export type BlockUsd = { input: number; write: number; read: number; output: number };
+
+/**
+ * Verbrauch → USD je Block zu gegebenen Token-Preisen (Cache-Faktoren eingerechnet).
+ * Exportiert, damit der Kosten-Report die Block-Verteilung je Eintrag EXAKT rechnet,
+ * statt alle Token zu mid-Preisen zu bewerten und dann zu skalieren.
+ */
+export const usageBlocksUsd = (usage: UsageTokens, inRate: number, outRate: number): BlockUsd => {
 	const perToken = (tokens: number, rate: number) => (tokens / 1_000_000) * rate;
-	return (
-		perToken(usage.inputTokens, inRate) +
-		perToken(usage.cacheCreationTokens, inRate * CACHE_WRITE_FACTOR) +
-		perToken(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR) +
-		perToken(usage.outputTokens, outRate)
-	);
+	return {
+		input: perToken(usage.inputTokens, inRate),
+		write: perToken(usage.cacheCreationTokens, inRate * CACHE_WRITE_FACTOR),
+		read: perToken(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR),
+		output: perToken(usage.outputTokens, outRate),
+	};
+};
+
+/** Verbrauch → USD zu gegebenen Token-Preisen (Cache-Faktoren eingerechnet). */
+const usageToUsd = (usage: UsageTokens, inRate: number, outRate: number): number => {
+	const b = usageBlocksUsd(usage, inRate, outRate);
+	return b.input + b.write + b.read + b.output;
 };
 
 /**
@@ -219,22 +246,27 @@ export function computeCost(usage: Usage): number | undefined {
  * Bewertungskosten in USD (Issue #984) — im Gegensatz zu `computeCost` für JEDES Modell
  * definiert, auch `:free`: Bewertet wird der Verbrauch, nicht die Rechnung.
  *
- * Reihenfolge: Ein bekannter z.ai-Listenpreis schlägt den Klassenpreis, weil er den
- * Verbrauch genauer bewertet als die Anthropic-Referenzstufe — `glm-5.3` galt als
- * flagship ($5/$25), kostet real aber 3/10 EUR, was den GLM-Verbrauch beim Output um
- * mehr als das Doppelte überbewertete. Alles ohne echten Preis (openrouter, `:free`)
- * bleibt beim Klassenmaßstab; unbekannte Modelle zählen als `DEFAULT_MODEL_CLASS` und
- * der Aufrufer warnt.
+ * Reihenfolge: Ein bekannter Listenpreis (Anthropic, z.ai) schlägt den Klassenpreis, weil
+ * er den Verbrauch genauer bewertet als die Referenzstufe — `glm-5.3` galt als flagship
+ * ($5/$25), kostet real aber 3/10 EUR, was den GLM-Verbrauch beim Output um mehr als das
+ * Doppelte überbewertete. Alles ohne echten Preis (openrouter, `:free`) bleibt beim
+ * Klassenmaßstab; unbekannte Modelle zählen als `DEFAULT_MODEL_CLASS` und der Aufrufer warnt.
  *
- * Für Anthropic-Modelle ändert das nichts: deren Listenpreise sind identisch mit den
- * Klassenpreisen, aus denen die Stufen abgeleitet wurden.
+ * Für opus/sonnet/haiku ändert der Vorrang nichts (Listen- und Klassenpreis identisch);
+ * für fable/mythos (10/50 $, die Stufe über flagship) ist er nötig — zur Klasse gerechnet
+ * stünde ihr Verbrauch bei der Hälfte, ohne Klasseneintrag sogar bei 30 % des Listenpreises.
  */
 export function computeValueCost(usage: Usage): number {
-	const zai = lookupZaiPrice(usage.model);
-	if (zai) return usageToUsd(usage, zai[1], zai[2]);
-	const cls = classifyModel(usage.model) ?? DEFAULT_MODEL_CLASS;
-	const [inRate, outRate] = CLASS_PRICES_USD_PER_MTOK[cls];
+	const [inRate, outRate] = valueRates(usage.model);
 	return usageToUsd(usage, inRate, outRate);
+}
+
+/** Bewertungspreise (in/out je Mio.) eines Modells — dieselbe Wahl wie `computeValueCost`. */
+export function valueRates(model: string): readonly [number, number] {
+	const price = lookupPrice(model);
+	if (price) return [price[1], price[2]];
+	const cls = classifyModel(model) ?? DEFAULT_MODEL_CLASS;
+	return CLASS_PRICES_USD_PER_MTOK[cls];
 }
 
 /**

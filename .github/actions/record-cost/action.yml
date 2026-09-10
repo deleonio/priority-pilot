@@ -20,7 +20,7 @@ description: >-
 # denselben Ordner committen, erzeugen Konflikte auf main. Das Artefakt ist deshalb der
 # 90-Tage-ZWISCHENPUFFER. Dauerhaft eingecheckt wird terminal: Der Documenter siegelt
 # nach dem Merge alle Artefakte eines Tickets in .costs/<n>.json (cost-seal.ts, Schritt
-# „Kostenlauf versiegeln" in 06-claude-pr-documenter.yml) — ein Schreiber je Datei,
+# „Kostenlauf versiegeln" in 06-document.yml) — ein Schreiber je Datei,
 # kein Konflikt. Die Job-Summary zeigt den Verbrauch des eigenen Laufes live.
 #
 # NIE FATAL: Jeder Schritt ist fehlertolerant. Eine fehlende Kostenzeile darf keine
@@ -154,7 +154,7 @@ runs:
 
         # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und
         # die Summary sagt das offen, statt eine Null zu erfinden.
-        for key in tokensIn tokensOut cost model inputTokens cacheCreationTokens cacheReadTokens costInputUsd costCacheWriteUsd costCacheReadUsd costOutputUsd; do
+        for key in tokensIn tokensOut turns cost valueCost model inputTokens cacheCreationTokens cacheReadTokens costInputUsd costCacheWriteUsd costCacheReadUsd costOutputUsd; do
           val="$(printf '%s' "$OUT" | sed -n "s/^${key}=//p" | tail -1)"
           echo "${key}=${val}" >> "$GITHUB_OUTPUT"
         done
@@ -169,7 +169,9 @@ runs:
         RUNTIME: ${{ inputs.runtime }}
         TOKENS_IN: ${{ steps.collect.outputs.tokensIn }}
         TOKENS_OUT: ${{ steps.collect.outputs.tokensOut }}
+        TURNS: ${{ steps.collect.outputs.turns }}
         COST: ${{ steps.collect.outputs.cost }}
+        VALUE_COST: ${{ steps.collect.outputs.valueCost }}
         MODEL: ${{ steps.collect.outputs.model }}
         INPUT_TOKENS: ${{ steps.collect.outputs.inputTokens }}
         CACHE_CREATION: ${{ steps.collect.outputs.cacheCreationTokens }}
@@ -195,7 +197,9 @@ runs:
             echo "| → Cache-Write (1,25×) | ${CACHE_CREATION:-?} |"
             echo "| → Cache-Read (0,1×) | ${CACHE_READ:-?} |"
             echo "| Token out | ${TOKENS_OUT} |"
-            echo "| Kosten (USD, Anthropic-Listenpreis) | ${COST} |"
+            echo "| Turns (API-Calls, dedupliziert) | ${TURNS:-?} |"
+            echo "| Kosten (USD, Listenpreis) | ${COST} |"
+            echo "| Wert (USD, Bewertung je Modellklasse/Listenpreis) | ${VALUE_COST:-?} |"
             if [ -n "${COST_OUTPUT}" ]; then
               echo ""
               echo "**Kosten nach Block:** Input \$${COST_INPUT} · Cache-Write \$${COST_CACHE_W:-0} · Cache-Read \$${COST_CACHE_R:-0} · Output \$${COST_OUTPUT}"

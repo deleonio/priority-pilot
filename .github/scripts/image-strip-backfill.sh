@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Einmaliger Backfill des Bild-Sweeps (Issue #1021, Datenschutz) für den kompletten
 # historischen Altbestand: pr-image-strip.sh lief bisher nur automatisch bei einem
-# PR-MERGE bzw. einzeln per workflow_dispatch-Catch-up (s. 06-claude-pr-documenter.yml).
+# PR-MERGE bzw. einzeln per workflow_dispatch-Catch-up (s. 06-document.yml).
 # PRs/Issues von VOR Einführung des Sweeps blieben unbereinigt.
 #
 # Zieht ihn hier einmalig über den gesamten Altbestand nach:

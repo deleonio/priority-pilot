@@ -23,11 +23,10 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * Spec-Bezug: Schritt 2 — Layout-Inspektion: Spacing
 	 * AK1 aus Spec: Settings-UI verwendet einheitliche Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)
 	 *
-	 * Ausgenommen sind die Feinschalter im KolDetails (wie bei AK2 unten): Seit #1227 kollabiert
-	 * deren Zeilenhöhe bei geschlossenem Zustand auf 0 — ihre Bounding-Box würde den 16dp-Abstand
-	 * zu den Hauptzeilen verfälschen. Das `kol-details`-Summary-Element selbst bleibt aber sichtbar
-	 * und zählt als eigene Zeile — sonst würde der Abstandscheck über es hinweg messen
-	 * (Animationen -> Push-Nachrichten) und einen falschen Ausschlag melden.
+	 * Design-Lauf 2026-09: Der Tab gruppiert seine Bedienelemente in `KolCard`/`KolAccordion`
+	 * (Konto, Darstellung und Eingabe, Bewegung, Benachrichtigungen). Der 16dp-Sektionsabstand ist
+	 * damit der Abstand zwischen diesen Gruppen — innerhalb einer Gruppe gilt derselbe Rhythmus über
+	 * `.settings-card-stack`. Gemessen werden deshalb die Gruppen-Hosts statt der Einzel-Controls.
 	 */
 	test('AK1: Settings-UI verwendet konsistente Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)', async ({
 		page,
@@ -35,10 +34,8 @@ test.describe('#843 Settings Screen Layout', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Wir prüfen die Host-Elemente für konsistentes Spacing
-		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general > .settings-switch-row > kol-input-checkbox, .settings-general > kol-button, .settings-general > kol-details',
-		);
+		// Wir prüfen die Gruppen-Hosts für konsistentes Spacing
+		const controls = page.locator('.settings-general > kol-card, .settings-general > kol-accordion');
 		const count = await controls.count();
 
 		// Mindestens ein Control sollte existieren
@@ -63,22 +60,20 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * Spec-Bezug: Schritt 3 — Layout-Inspektion: Alignment
 	 * AK2 aus Spec: Alle Controls (Radio-Buttons, Toggles, Button) sind auf 24dp linker Margin aligned
 	 *
-	 * HINWEIS: Wir prüfen die Host-Elemente (kol-input-radio, kol-input-checkbox, kol-button),
-	 * da die role-Elemente im Shadow-DOM unterschiedliche interne Abstände haben.
+	 * HINWEIS: Wir prüfen die Host-Elemente der Gruppen (kol-card, kol-accordion), da die
+	 * role-Elemente im Shadow-DOM unterschiedliche interne Abstände haben.
 	 *
-	 * Ausgenommen sind die Feinschalter im KolDetails: Sie stehen im Kollapsbereich unter ihrem
-	 * Master-Schalter — eine Ebene tiefer, nicht eine fehlausgerichtete Zeile. Ihr Versatz zum Master
-	 * ist eigens abgesichert (`settings-switch-layout.spec.ts`: Master-Zeilen fluchten, Sub-Zeilen
-	 * liegen versetzt), dieser Test hier deckt weiterhin lückenlos die oberste Ebene ab.
+	 * Design-Lauf 2026-09: Gemessen wird die linke Kante der Gruppen-Hosts (`kol-card`/
+	 * `kol-accordion`). Die Controls darin sitzen im gemeinsamen `.settings-card-stack` und erben
+	 * dadurch dieselbe Kante; der Versatz der Feinschalter im Accordion ist eigens abgesichert
+	 * (`settings-switch-layout.spec.ts`).
 	 */
 	test('AK2: Alle Controls sind auf 24dp linker Margin aligned', async ({ page }) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Wir prüfen die Host-Elemente, nicht die role-Elemente im Shadow-DOM
-		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general > .settings-switch-row > kol-input-checkbox, .settings-general > kol-button',
-		);
+		// Wir prüfen die Gruppen-Hosts, nicht die role-Elemente im Shadow-DOM
+		const controls = page.locator('.settings-general > kol-card, .settings-general > kol-accordion');
 		const count = await controls.count();
 
 		// Erste Control-Position als Referenz

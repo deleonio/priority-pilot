@@ -16,14 +16,14 @@ main).
 Merge des PRs alle Artefakte eines Tickets in **eine** Datei `.costs/<n>.json` und
 committet sie auf main (`chore(costs): Ticket #<n> versiegelt [skip ci]`, siehe
 `.github/scripts/cost-seal.ts` und den Schritt „Kostenlauf versiegeln" in
-`06-claude-pr-documenter.yml`). Er ist der einzige Schreiber je Datei — damit ist das
+`06-document.yml`). Er ist der einzige Schreiber je Datei — damit ist das
 Konflikt-Argument gegen `.costs/`-Commits für den terminalen Seal entkräftet, und die
 Repo-Datei ist die dauerhafte Instanz. Idempotent über das Dedupe: Re-Runs zählen nicht
 doppelt; ein fehlgeschlagener Seal lässt sich per Documenter-`workflow_dispatch`
 nachholen, solange die Artefakte leben.
 
 Um die Zahlen eines Tickets als **eine** Tabelle zu sehen, den Workflow
-[`Kosten-Baseline`](../.github/workflows/cost-baseline.yml) manuell mit der Ticket-Nummer
+[`track-costs`](../.github/workflows/track-costs.yml) manuell mit der Ticket-Nummer
 starten. Er sammelt alle Artefakte des Tickets ein und schreibt den Bericht in die
 Job-Summary. Lokal gegen ein Verzeichnis mit entpackten Artefakten:
 
@@ -47,20 +47,20 @@ Geschrieben von `.github/scripts/cost-from-transcript.ts` über die Action
 `.github/actions/record-cost`. Ältere Datensätze haben sie nicht — Leser müssen sie
 als optional behandeln.
 
-| Feld                  | Typ    | Bedeutung                                                                                 |
-| --------------------- | ------ | ----------------------------------------------------------------------------------------- |
-| `phase`               | string | Pipeline-Phase (`analyse`, `ux`, `spec`, `implement`, `review`, `fixup`, `documenter`)    |
-| `model`               | string | Modell mit dem größten Output-Anteil im Lauf                                              |
-| `provider`            | string | Aufgelöster LLM-Provider (`claude`, `zai`, `openrouter`)                                  |
-| `cacheCreationTokens` | int    | Anteil an `tokensIn`, der in den Prompt-Cache geschrieben wurde (~1,25x Preis)            |
-| `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                       |
-| `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                          |
-| `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten              |
-| `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                           |
-| `effort`              | string | Aufgelöster Effort-Level des Laufes (`low` \| `medium` \| `high` \| `xhigh` \| `max`)     |
-| `verdict`             | string | Review-Verdict (`reviewed` \| `needs-fixup` \| `needs-human`) — nur `phase: review`       |
-| `findings`            | int    | Inline-Review-Kommentare des Laufes (= Findings, je einer nach SKILL Step 4) — nur review |
-| `nits`                | int    | Nits aus dem „📝 Nits“-Abschnitt des ai-review-Sammelkommentars — nur review              |
+| Feld                  | Typ    | Bedeutung                                                                                                                                                                 |
+| --------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `phase`               | string | Pipeline-Phase (`analyse`, `ux`, `spec`, `implement`, `mentor`, `review`, `fixup`, `documenter`; `adr-sync` aus `cron.sync-adr.yml` unter Issue `0`, wird nie versiegelt) |
+| `model`               | string | Modell mit dem größten Output-Anteil im Lauf                                                                                                                              |
+| `provider`            | string | Aufgelöster LLM-Provider (`claude`, `zai`, `openrouter`)                                                                                                                  |
+| `cacheCreationTokens` | int    | Anteil an `tokensIn`, der in den Prompt-Cache geschrieben wurde (~1,25x Preis)                                                                                            |
+| `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                                                                                                       |
+| `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                                                                                                          |
+| `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten                                                                                              |
+| `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                                                                                                           |
+| `effort`              | string | Aufgelöster Effort-Level des Laufes (`low` \| `medium` \| `high` \| `xhigh` \| `max`)                                                                                     |
+| `verdict`             | string | Review-Verdict (`reviewed` \| `needs-fixup` \| `needs-human`) — nur `phase: review`                                                                                       |
+| `findings`            | int    | Inline-Review-Kommentare des Laufes (= Findings, je einer nach SKILL Step 4) — nur review                                                                                 |
+| `nits`                | int    | Nits aus dem „📝 Nits“-Abschnitt des ai-review-Sammelkommentars — nur review                                                                                              |
 
 **Warum `effort`/`verdict`/`findings`/`nits` (2026-09):** Die Analyse-Routing-Entscheidung
 (ADR 0004) steuert Modell **und** Effort — messbar war nur Modell. Und die Ursache der höheren
@@ -97,11 +97,18 @@ Repo; ein mit Anthropic-Listenpreisen gerechneter Wert wäre schlicht falsch. Da
 **`zai` ist bepreist** (Listenpreise des GLM Coding Plan, `PRICES_EUR_PER_MTOK_ZAI` in
 `cost-from-transcript.ts`):
 
-| Modell-Präfix  | EUR je Mio. Token (in/out) |
-| -------------- | -------------------------- |
-| `glm-5.3*`     | 3,00 / 10,00               |
-| `glm-5-turbo*` | 1,20 / 4,00                |
-| `glm-4.7*`     | 0,60 / 1,20                |
+| Modell-Präfix    | EUR je Mio. Token (in/out) |
+| ---------------- | -------------------------- |
+| `glm-5.3-flash*` | 0,32 / 1,14 (abgeleitet)   |
+| `glm-5.3*`       | 3,00 / 10,00               |
+| `glm-5-turbo*`   | 1,20 / 4,00                |
+| `glm-4.7*`       | 0,60 / 1,20                |
+
+`glm-5.3-flash` ist ein eigenes, deutlich billigeres Modell; sein Coding-Plan-Preis ist nicht
+belegt, die Zeile ist aus dem Verhältnis der öffentlichen API-Preise (Flash 0,15/0,50 zu
+5.3 1,40/4,40 USD je Mio., docs.z.ai Stand 2026-09) abgeleitet. Bis 2026-09 fiel Flash über
+den Präfix-Match auf den glm-5.3-Tarif (223 Läufe ~9× überbewertet); die Altdaten sind mit
+dem Backfill neu gerechnet.
 
 Die Preise stehen bewusst in **EUR** (so sind sie gegen die z.ai-Preisliste prüfbar) und
 werden an genau einer Stelle über die Konstante `EUR_TO_USD` in USD umgerechnet — alle
@@ -123,11 +130,11 @@ unabhängig vom Provider — auch `:free`-Modelle — bewertet. Liegt ein echter
 vor (Anthropic, z.ai), gilt dieser; sonst die Modellklasse, orientiert an den
 Anthropic-Referenzstufen:
 
-| Klasse   | USD je Mio. Token (in/out) | Modell-Präfixe (Auswahl, längster Präfix gewinnt)                             |
-| -------- | -------------------------- | ----------------------------------------------------------------------------- |
-| flagship | $5 / $25                   | `claude-opus*`, `glm-5.3*`, `nemotron-3-ultra*`, `kimi-k2.6*`                 |
-| mid      | $3 / $15                   | `claude-sonnet*`, `glm-5-turbo*`, `deepseek-v3.2*`, `kimi-k2.5*`, `laguna-s*` |
-| small    | $1 / $5                    | `claude-haiku*`, `glm-4.7*`, `nemotron-3-nano*`                               |
+| Klasse   | USD je Mio. Token (in/out) | Modell-Präfixe (Auswahl, längster Präfix gewinnt)                                                |
+| -------- | -------------------------- | ------------------------------------------------------------------------------------------------ |
+| flagship | $5 / $25                   | `claude-fable*`, `claude-mythos*`, `claude-opus*`, `glm-5.3*`, `nemotron-3-ultra*`, `kimi-k2.6*` |
+| mid      | $3 / $15                   | `claude-sonnet*`, `glm-5-turbo*`, `deepseek-v3.2*`, `kimi-k2.5*`, `laguna-s*`                    |
+| small    | $1 / $5                    | `claude-haiku*`, `glm-5.3-flash*`, `glm-4.7*`, `nemotron-3-nano*`                                |
 
 Unbekannte Modelle zählen als `mid` (mit Warnung im Job-Log). Vollständige Zuordnung:
 `MODEL_CLASSES` in `cost-from-transcript.ts`. Zweck ist die vergleichbare Effizienz-Messung
@@ -136,9 +143,10 @@ Bewertungsmaßstab.
 
 **GLM-Läufe werden zum z.ai-Listenpreis bewertet, nicht zur Klassenstufe.** Die Stufe war
 für sie zu grob: `glm-5.3` zählt als `flagship` ($5/$25), kostet real aber 3/10 EUR — der
-GLM-Output war damit um mehr als das Doppelte überbewertet. Für Anthropic-Modelle ändert
-der Vorrang nichts, weil deren Listenpreise mit den Klassenpreisen identisch sind, aus
-denen die Stufen abgeleitet wurden; openrouter bleibt beim Klassenmaßstab.
+GLM-Output war damit um mehr als das Doppelte überbewertet. Der Vorrang gilt jedem
+bekannten Listenpreis: für opus/sonnet/haiku ändert er nichts (Listen- und Klassenpreis
+identisch), für fable/mythos (10/50 $, die Stufe über flagship) ist er nötig; openrouter
+bleibt beim Klassenmaßstab.
 
 Für Altdatensätze wurde `valueCost` ursprünglich bewusst nicht nachgerechnet. Mit der
 z.ai-Bepreisung ist das für `zai`-Läufe einmalig nachgeholt worden (s. o.), weil `cost` und
@@ -159,6 +167,35 @@ node .github/scripts/turns-report.ts --dir .costs
 
 Läufe von vor der Turns-Erfassung (Issue #984) haben das Feld nicht; sie erscheinen dort
 als „—" und zählen in keinem Durchschnitt mit.
+
+## Vollständigkeit und Herkunft eines Tickets (Auswertung)
+
+Die repo-weiten Berichte (`tokens-report.ts`, `turns-report.ts`, `audit-basis.ts`) werten
+nur **vollständige** Tickets aus; `classifyTicket` in `tokens-report.ts` entscheidet
+chronologisch am ersten Siegel (`documenter`):
+
+| Klasse                | Regel                                                    | In Kennzahlen | Herkunft |
+| --------------------- | -------------------------------------------------------- | ------------- | -------- |
+| `vollstaendig`        | `implement` + `documenter`                               | ja            | Pipeline |
+| `extern-vollstaendig` | kein `implement`, `review`/`fixup` VOR dem ersten Siegel | ja            | extern   |
+| `fixup-bein`          | kein `implement`, `fixup` erst NACH dem ersten Siegel    | nein          | —        |
+| `abgebrochen`         | kein `documenter`                                        | nein          | —        |
+| `sonstiges`           | alles andere (z. B. nur `analyse` + Siegel, Re-Seals)    | nein          | —        |
+
+Extern umgesetzte PRs (Claude Web, Mensch) laufen ohne `implement` durch Review, ggf.
+Fixup und Siegel — das ist ein kompletter Erstdurchlauf mit eigener Herkunft, keine
+Nacharbeit. Bis 2026-09 zählten diese Tickets als „Fixup-Bein" oder „sonstiges", und 59 %
+aller Tickets fehlten in jeder Kennzahl. Die Berichte weisen Ticket-Kennzahlen je Herkunft
+aus, weil die beiden Populationen verschieden teuer sind (extern: Review-only).
+
+**Bezugseinheit der Wochen-Kennzahlen** ist die Abschlusswoche (ISO-Woche des Siegels,
+Berliner Zeit): ein Ticket zählt ganz in der Woche, in der es versiegelt wurde. Lagemaß
+ist der Median mit n (Kosten und Turns je Ticket sind rechtsschief); Anteile (Erstgrün,
+Fixup-Rate) tragen ab n ≥ 8 ein 95-%-Wilson-Intervall. Relative Sicht: Index gegen die
+Baseline-Kohorte (erste Abschlusswoche mit n ≥ 20, per `--baseline` änderbar), gleitender
+Median über die letzten 20 Tickets und ein Vorher/Nachher je Harness-Intervention aus
+`docs/kosten-interventionen.json` (Liste `{ date, label, issue }`, bei jeder
+Harness-Änderung ergänzen). Rechenhelfer: `.github/scripts/report-stats.ts`.
 
 ## Beispiel
 

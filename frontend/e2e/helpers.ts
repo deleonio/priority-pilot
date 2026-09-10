@@ -62,7 +62,11 @@ export const openAccordionSection = async (page: Page, label: string): Promise<v
 		// Öffnungs-Animation abwarten (KolAccordion: grid-template-rows 0.3s), bevor der Aufrufer
 		// weitermisst — sonst landen Bounding-Box-Assertions in der laufenden Expansion
 		// (#1072-AK4-/#1159-AK5-Flakes).
-		await waitForStableBox(page, page.locator('kol-accordion').filter({ has: trigger }));
+		// `.last()`: seit dem Design-Lauf 2026-09 können Accordions verschachtelt sein (z. B. die
+		// Gruppen-Karte umschließt „Mitglieder einladen") — der Filter matcht dann auch das äußere
+		// Accordion als Vorfahren des Triggers. Im Dokument-Quelltext steht der Vorfahre vor dem
+		// Nachfahren, `.last()` trifft daher zuverlässig das unmittelbar umschließende Accordion.
+		await waitForStableBox(page, page.locator('kol-accordion').filter({ has: trigger }).last());
 	}
 };
 

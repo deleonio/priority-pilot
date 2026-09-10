@@ -75,7 +75,10 @@ export function backfillEntries(entries: readonly CostEntry[]): {
 		}
 		const cost = round6(computeCost(usage) ?? 0);
 		const valueCost = round6(computeValueCost(usage));
-		if (entry.cost === cost && entry.valueCost === valueCost) return entry;
+		// Toleranz statt Gleichheit: Die Erfassung schreibt ungerundete Floats, ein Vergleich
+		// auf Identität würde bei JEDEM Lauf alle 660 z.ai-Einträge „ändern" und den Diff
+		// einer echten Preiskorrektur (z. B. glm-5.3-flash) in Rundungsrauschen ertränken.
+		if (Math.abs(entry.cost - cost) < 1e-4 && Math.abs((entry.valueCost ?? 0) - valueCost) < 1e-4) return entry;
 		touched += 1;
 		return { ...entry, cost, valueCost };
 	});
