@@ -3356,6 +3356,13 @@ kol-heading {
 	overflow-wrap: anywhere;
 }
 
+.api-tokens__mcp-url {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	font-size: 0.875rem;
+}
+
 .api-tokens__confirm,
 .api-tokens__action {
 	display: flex;

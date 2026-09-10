@@ -10,6 +10,9 @@ const DEFAULT_TOKEN_NAME = 'Externer Client';
 /** Zeitpunkte in der Liste als „TT.MM.JJJJ" — die Uhrzeit trägt hier keine Entscheidung. */
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
 
+/** MCP-Endpunkt dieser App — aus der aktuellen Origin abgeleitet, damit er in jeder Umgebung stimmt. */
+const MCP_URL = `${window.location.origin}/api/v1/mcp/v1`;
+
 /**
  * Aktions-Hülle um einen `KolButton`: der Klick wird am umgebenden Element abgefangen statt über
  * `_on` am Web-Component. Grund ist die Testbarkeit (#1352): `kol-button` ist in jsdom kein
@@ -44,6 +47,7 @@ export const ApiTokensSection = () => {
 	const [copied, setCopied] = useState(false);
 	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
 	const [revokeId, setRevokeId] = useState<number | null>(null);
+	const [mcpUrlCopied, setMcpUrlCopied] = useState(false);
 
 	useEffect(() => {
 		let active = true;
@@ -111,6 +115,20 @@ export const ApiTokensSection = () => {
 							{error}
 						</KolAlert>
 					)}
+					<div className="api-tokens__mcp-url">
+						<span>MCP-Endpunkt für externe Clients:</span>
+						<span className="api-tokens__plaintext" data-testid="mcp-url">
+							{MCP_URL}
+						</span>
+						<ButtonAction
+							onClick={() => {
+								void navigator.clipboard?.writeText(MCP_URL).then(() => setMcpUrlCopied(true));
+							}}
+						>
+							<KolButton _label="URL kopieren" class="settings-action-btn" _variant="secondary" />
+						</ButtonAction>
+						{mcpUrlCopied && <span className="api-tokens__copied">In die Zwischenablage kopiert.</span>}
+					</div>
 					{plaintext !== null && (
 						<KolAlert _type="info" _label="Token einmalig sichtbar">
 							<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
