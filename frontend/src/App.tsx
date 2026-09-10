@@ -825,61 +825,59 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							</div>
 							<div slot="tab-1">
 								<section className="task-section">
+									{/* Filterleiste: Die beiden Umschalter sind Ansichtsschalter, keine Filter — sie stehen
+									    als eigene Gruppe über der Filterzeile. Darunter, in Lesereihenfolge und zugleich
+									    Tab-Reihenfolge: Suchfeld, Kategorie, „Filtern". Die Breitenverhältnisse
+									    (50/30/Rest ab Tablet, mobil gestapelt) macht `.task-filter-bar` in app.css. */}
 									<div className="task-filter-bar">
-										<KolInputCheckbox
-											className="task-view-switch"
-											_label="Erledigte Aufgaben anzeigen"
-											_variant="switch"
-											_checked={taskViewMode === 'done'}
-											_on={{
-												onChange: (_event, checked) => {
-													changeTaskViewMode(checked === true);
-												},
-											}}
-										/>
-										<KolInputCheckbox
-											className="task-view-switch"
-											_label="Balance-Priorisierung"
-											_variant="switch"
-											_checked={balanceMode}
-											_on={{
-												onChange: (_event, checked) => {
-													setBalanceMode(checked === true);
-												},
-											}}
-										/>
-										<div className="task-filter-search">
-											<KolInputText
-												ref={taskFilterInputRef}
-												className="task-filter-search__field"
-												_label="Nach Titel filtern"
-												_hideLabel
-												_type="search"
-												_placeholder="Nach Titel filtern…"
-												_value={searchDraft}
+										<div className="task-filter-switches">
+											<KolInputCheckbox
+												className="task-view-switch"
+												_label="Erledigte Aufgaben anzeigen"
+												_variant="switch"
+												_checked={taskViewMode === 'done'}
 												_on={{
-													onInput: (event: Event) => {
-														setSearchDraft((event.target as HTMLInputElement).value);
-													},
-													// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
-													onKeyDown: (event: KeyboardEvent) => {
-														if (event.key === 'Enter') {
-															applyTaskFilter((event.target as HTMLInputElement).value);
-														}
+													onChange: (_event, checked) => {
+														changeTaskViewMode(checked === true);
 													},
 												}}
 											/>
-											<KolButton
-												className="task-filter-search__submit"
-												_label="Filtern"
-												_variant="secondary"
-												_icons="fa-solid fa-magnifying-glass"
-												_on={{ onClick: () => applyTaskFilter(searchDraft) }}
+											<KolInputCheckbox
+												className="task-view-switch"
+												_label="Balance-Priorisierung"
+												_variant="switch"
+												_checked={balanceMode}
+												_on={{
+													onChange: (_event, checked) => {
+														setBalanceMode(checked === true);
+													},
+												}}
 											/>
 										</div>
+										<KolInputText
+											ref={taskFilterInputRef}
+											className="task-filter-search__field"
+											_label="Nach Titel filtern"
+											_hideLabel
+											_type="search"
+											_placeholder="Nach Titel filtern…"
+											_value={searchDraft}
+											_on={{
+												onInput: (event: Event) => {
+													setSearchDraft((event.target as HTMLInputElement).value);
+												},
+												// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
+												onKeyDown: (event: KeyboardEvent) => {
+													if (event.key === 'Enter') {
+														applyTaskFilter((event.target as HTMLInputElement).value);
+													}
+												},
+											}}
+										/>
 										{/* Kategorie-Filter neben dem Titel-Filter; er wirkt sofort (anders als der Suchtext,
 										    der erst auf „Filtern"/Enter greift) — eine Auswahl ist eine abgeschlossene Eingabe.
-										    Ohne angelegte Kategorien bleibt das Feld aus. */}
+										    Ohne angelegte Kategorien bleibt das Feld aus; Suchfeld und „Filtern" teilen sich
+										    dann die Zeile (siehe Flex-Verhältnisse in app.css). */}
 										{categories.length > 0 && (
 											<KolSingleSelect
 												className="task-filter-category"
@@ -895,6 +893,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												}}
 											/>
 										)}
+										<KolButton
+											className="task-filter-search__submit"
+											_label="Filtern"
+											_variant="secondary"
+											_icons="fa-solid fa-magnifying-glass"
+											_on={{ onClick: () => applyTaskFilter(searchDraft) }}
+										/>
 									</div>
 									{taskViewMode === 'open' ? (
 										filteredForest.length === 0 ? (
