@@ -356,3 +356,49 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		}
 	});
 });
+
+/**
+ * ROTE Spec-Tests für #1320 „Einstellungen und Hilfe als normale Seite statt
+ * Fullscreen-Overlay mit Zurück-Button" (Spec `docs/spec/issue-1320.md`), AK6 — Browser-Zurück
+ * und Deep-Links bleiben nach dem Layout-Umbau erhalten.
+ */
+test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erhalten (AK6)', () => {
+	test('AK6: goBack() nach Tab-Wechsel stellt /settings/general mit aktivem Allgemein-Tab wieder her', async ({
+		page,
+	}) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
+		await expect(page).toHaveURL(/\/settings\/llm$/);
+
+		await page.goBack();
+		await expect(page).toHaveURL(/\/settings\/general$/);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+
+	/**
+	 * AK6 nennt den Browser-Zurück-Button für „/settings/general bzw. /hilfe" — hier die
+	 * /hilfe-Variante (Review-Nit PR #1323): goBack() von /hilfe stellt die vorherige
+	 * Ansicht inkl. aktivem Tab wieder her.
+	 */
+	test('AK6: goBack() von /hilfe stellt /settings/general mit aktivem Allgemein-Tab wieder her', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.goto('/hilfe');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.goBack();
+		await expect(page).toHaveURL(/\/settings\/general$/);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+
+	test('AK6: Deep-Link /settings/standort zeigt den Standort-Tab mit sichtbarem Banner', async ({ page }) => {
+		await page.goto('/settings/standort');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(page.getByRole('banner')).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+});

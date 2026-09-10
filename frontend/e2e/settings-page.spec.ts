@@ -79,23 +79,6 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	});
 
 	/**
-	 * AK4 — Zurück: Auf `/settings/pillars` gibt es einen „Zurück"-Button; ein Klick führt zurück zum
-	 * Dashboard, die URL ist danach nicht mehr `/settings/pillars`.
-	 */
-	test('AK4: Zurück-Button führt von /settings/pillars zurück zum Dashboard', async ({ page }) => {
-		await page.goto('/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
-
-		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
-
-		// Zurück-Button klicken.
-		await page.getByRole('button', { name: /zurück/i }).click();
-
-		// Die URL darf danach nicht mehr auf der Settings-Route liegen (zurück auf dem Dashboard).
-		await expect(page).not.toHaveURL(/\/settings\/pillars/);
-	});
-
-	/**
 	 * AK5 — Speichern unverändert: Der Säulen-Editor auf der Seite `/settings/pillars` löst beim
 	 * „Speichern" weiterhin einen `PUT /api/v1/pillars/weights`-Request aus (Speicherverhalten
 	 * unverändert gegenüber dem bisherigen Modal).
@@ -138,5 +121,106 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 
 		const hasNoHorizontalOverflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);
 		expect(hasNoHorizontalOverflow).toBe(true);
+	});
+});
+
+/**
+ * ROTE Spec-Tests für #1320 „Einstellungen und Hilfe als normale Seite statt
+ * Fullscreen-Overlay mit Zurück-Button" (Spec `docs/spec/issue-1320.md`).
+ *
+ * Der bisherige AK4-Test oben („Zurück-Button führt von /settings/pillars zurück zum
+ * Dashboard") wurde entfernt — er widerspricht AK3 unten (kein „Zurück"-Button mehr)
+ * und ist durch den AK5-Test hier ersetzt (Test-Pflege-Bedarf, PR-Body).
+ */
+test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () => {
+	/** AK1 — Header (Banner, Toolbar, Avatar) bleibt auf /settings/general sichtbar. */
+	test('AK1: Header mit Banner, Toolbar und Avatar ist auf /settings/general sichtbar', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(page.getByRole('banner')).toBeVisible();
+		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
+		await expect(page.locator('kol-avatar')).toBeVisible();
+	});
+
+	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
+	test('AK3: Kein „Zurück"-Button auf /settings/general', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toHaveCount(0);
+	});
+
+	/**
+	 * AK5 — Der aktive Toolbar-Button „Einstellungen" schaltet zurück zur zuletzt aktiven
+	 * Hauptansicht (hier: /aufgaben); ohne vorherige Hauptansicht (Kaltstart) ist das Ziel `/`.
+	 */
+	test('AK5: erneuter Klick auf „Einstellungen" führt zur vorherigen Hauptansicht zurück', async ({ page }) => {
+		await page.goto('/aufgaben');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/settings\/general/);
+
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/aufgaben$/);
+	});
+
+	/**
+	 * Regression zum Layout-Umbau (Kreuzverhör Runde 2): Die Task-Dialoge hängen am `dialog`-State,
+	 * nicht an der Route, und rendern seitdem auf allen drei Ansichten — vorher schnitten die frühen
+	 * Returns sie beim Seitenwechsel ab. Browser-Zurück ist der einzige Weg an einem modalen
+	 * `<dialog>` vorbei (der Rest der Seite ist inert), und laut AK6 ein unterstützter Pfad: Der
+	 * Dialog darf danach nicht über der Einstellungen-Seite stehen bleiben.
+	 */
+	test('Offener Task-Dialog bleibt nach Browser-Zurück nicht über der Einstellungen-Seite stehen', async ({ page }) => {
+		// History aufbauen: / → /settings/general → / (Rückweg über den aktiven Toolbar-Button).
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/settings\/general/);
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/$/);
+
+		// Dialog auf der Hauptansicht öffnen, dann per Browser-Zurück in die Einstellungen.
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+
+		await page.goBack();
+		await expect(page).toHaveURL(/\/settings\/general/);
+
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toHaveCount(0);
+		await expect(page.locator('.settings-tabs')).toBeVisible();
+	});
+
+	test('AK5: Kaltstart auf /settings/general ohne vorherige Hauptansicht führt zu „/"', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/$/);
+	});
+
+	/** AK8 — Mobile-First (375px): Header und Seiteninhalt liegen vollständig im Viewport. */
+	test('AK8: 375px — Header und Seiteninhalt ohne horizontale Überlagerung', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		const header = page.getByRole('banner');
+		await expect(header).toBeVisible();
+		const headerBox = await header.boundingBox();
+		expect(headerBox, 'Header rendert messbar').not.toBeNull();
+		expect(headerBox!.x + headerBox!.width, 'Header endet im Viewport').toBeLessThanOrEqual(375 + 1);
+
+		const content = page.locator('.settings-tabs');
+		await expect(content).toBeVisible();
+		const contentBox = await content.boundingBox();
+		expect(contentBox, 'Seiteninhalt rendert messbar').not.toBeNull();
+		expect(contentBox!.x + contentBox!.width, 'Seiteninhalt endet im Viewport').toBeLessThanOrEqual(375 + 1);
 	});
 });
