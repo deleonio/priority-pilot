@@ -677,3 +677,85 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-6-Panel').toBeTruthy();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — AK8: Tab „Zugriff" erzeugt/zeigt
+ * einen Klartext-Token genau einmal und entfernt ihn nach „Zurückziehen" aus der Liste.
+ *
+ * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
+ * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
+ * `slot="tab-6"` (letzter Tab, s. Spec-Dokument).
+ */
+describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
+	beforeEach(() => {
+		delete apiMocks.listApiTokens;
+		delete apiMocks.createApiToken;
+		delete apiMocks.deleteApiToken;
+	});
+
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-6"] [data-testid="api-tokens-panel"]');
+
+	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
+		apiMocks.createApiToken = vi.fn().mockResolvedValue({
+			id: 1,
+			name: 'CLI',
+			token: 'pp_plaintext-once-1234567890',
+			createdAt: new Date().toISOString(),
+			lastUsedAt: null,
+		});
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(panel(container), 'Panel „Zugriff" (tab-6) fehlt').not.toBeNull();
+
+		const createButton = container.querySelector(
+			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',
+		);
+		expect(createButton, 'Button „Token erzeugen" fehlt').not.toBeNull();
+
+		await act(async () => {
+			createButton?.dispatchEvent(new Event('click', { bubbles: true }));
+			await Promise.resolve();
+		});
+
+		const plaintext = container.querySelector('[data-testid="api-token-plaintext"]');
+		expect(plaintext, 'Klartext-Anzeige nach Erzeugen fehlt').not.toBeNull();
+		expect(plaintext?.textContent).toContain('pp_plaintext-once-1234567890');
+	});
+
+	it('AK8: „Zurückziehen" entfernt die Zeile aus der Liste', async () => {
+		apiMocks.listApiTokens = vi
+			.fn()
+			.mockResolvedValue([{ id: 5, name: 'Zu löschen', createdAt: new Date().toISOString(), lastUsedAt: null }]);
+		apiMocks.deleteApiToken = vi.fn().mockResolvedValue(undefined);
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const rowsBefore = container.querySelectorAll('[data-testid="api-tokens-panel"] [data-testid="api-token-row"]');
+		expect(rowsBefore.length, 'bestehender Token muss initial gelistet sein').toBe(1);
+
+		const revokeButton = container.querySelector(
+			'[data-testid="api-tokens-panel"] [data-testid="api-token-row"] kol-button[_label*="Zurückziehen"]',
+		);
+		expect(revokeButton, 'Button „Zurückziehen" fehlt').not.toBeNull();
+
+		await act(async () => {
+			revokeButton?.dispatchEvent(new Event('click', { bubbles: true }));
+			await Promise.resolve();
+		});
+		// Sequenzielle Bestätigung (UX-Block): zweiter Klick auf den Bestätigen-Button im Dialog.
+		const confirmButton = container.querySelector('[data-testid="api-token-revoke-confirm"]');
+		if (confirmButton) {
+			await act(async () => {
+				confirmButton.dispatchEvent(new Event('click', { bubbles: true }));
+				await Promise.resolve();
+			});
+		}
+
+		const rowsAfter = container.querySelectorAll('[data-testid="api-tokens-panel"] [data-testid="api-token-row"]');
+		expect(rowsAfter.length, 'Token muss nach Zurückziehen aus der Liste verschwinden').toBe(0);
+	});
+});
