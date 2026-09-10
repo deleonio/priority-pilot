@@ -492,11 +492,11 @@ body {
 	/*
 	 * KolTabs legt sein Grid (`.kol-tabs`) intern ohne `grid-template-columns` an — die einzige
 	 * Spalte bleibt `auto` und wächst auf den Max-Content jedes Tabpanel-Inhalts (#1020: die
-	 * KolTable-Erledigt-Tabelle mit festen Spaltenbreiten). Das lässt Kopfzeile und Tabpanels über
-	 * `.app-tabs` hinauswachsen (bei 375px z. B. 456px statt 351px) — sichtbarer Überlauf bleibt nur
-	 * aus, weil die App-Shell weiter oben mit `overflow-x: hidden` clippt. Die Custom Property
-	 * durchdringt den Shadow-DOM-Rand (vererbbar) und macht die Spalte schrumpfbar, ohne KolTabs
-	 * selbst zu patchen.
+	 * KolTable-Erledigt-Tabelle mit festen Spaltenbreiten). Ohne Gegenmaßnahme wachsen Kopfzeile und
+	 * Tabpanels über `.app-tabs` hinaus (bei 375px z. B. 456px statt 351px) — es gibt keinen
+	 * shell-weiten Clip, der das auffinge, der Überlauf wäre also sichtbar (horizontaler
+	 * Scrollbalken). Die Custom Property durchdringt den Shadow-DOM-Rand (vererbbar) und macht die
+	 * Spalte schrumpfbar, ohne KolTabs selbst zu patchen.
 	 */
 	--grid-template-columns: minmax(0, 1fr);
 }
@@ -940,15 +940,16 @@ body {
 }
 
 /* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen — der
-   Übergelaufschutz liegt bewusst an der Liste (Card-INHALT), nicht am Card-Host: overflow am
-   Host würde den Schatten der KoliBri-Card (gemalt im Shadow-DOM, 4px über die Kante)
-   clippen und „Meine Themen" einen anderen Rahmen als die Nachbar-Cards geben. */
+   Übergelaufschutz sitzt an `overflow-wrap: break-word` (lange Werte/Wörter umbrechen statt die
+   Zeile zu sprengen) plus `max-width: 100%`, nicht an `overflow-x: hidden`: Ein Clip hier würde
+   nicht nur den Schatten der KoliBri-Card (gemalt im Shadow-DOM, 4px über die Kante) abschneiden
+   und „Meine Themen" einen anderen Rahmen als die Nachbar-Cards geben, sondern (da `overflow-x`
+   ohne `overflow-y` Letzteres implizit auf `auto` zieht) auch vertikal clippen. */
 .dashboard-pillars-list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 	max-width: 100%;
-	overflow-x: hidden;
 	overflow-wrap: break-word;
 }
 
@@ -1491,8 +1492,9 @@ body {
 	/* #934: 334 px = 300 px Content-Mindestbreite der Range-Felder + 2 × 1rem Card-Padding
 	   + 2 × 1 px Border. `min(334px, 100%)`: Seit die Slider in der gemeinsamen Gewichtungskarte
 	   liegen, ist der Grid-Container auch bei 375 px Viewport schmaler als 334 px — ohne das
-	   Minimum-Cap würde die 334-px-Spur die Karte aufreißen (geclipt durch das overflow-x:
-	   hidden der .settings-page), statt sauber auf 1 Spalte zu fallen. */
+	   Minimum-Cap würde die 334-px-Spur die Karte horizontal aufreißen, statt sauber auf 1 Spalte
+	   zu fallen. Der Cap ist der einzige Overflow-Schutz hier: `.settings-page` clippt bewusst
+	   nicht mehr (s. dort), das hätte sonst auch Fokus-Ring/Schatten der Cards abgeschnitten. */
 	grid-template-columns: repeat(auto-fit, minmax(min(334px, 100%), 1fr));
 }
 
@@ -2148,15 +2150,17 @@ body {
 
 /* --- Hilfe-Seite (#256) --- */
 /* #1320: Seiteninhalt INNERHALB der App-Shell (`.app`) statt eigenständiger Seiten-Container —
-   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite, Abstand zum Header
-   (Muster `.dashboard`/`.task-section`) und der Overflow-Schutz für lange Markdown-Inhalte. */
+   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite und Abstand zum Header
+   (Muster `.dashboard`/`.task-section`). Der Umbruchschutz für lange Markdown-Inhalte (Codespans,
+   URLs) sitzt gezielt an den Textelementen (`.help-page-content code`/`a`, `word-break` unten) statt
+   an einem Container-`overflow-x: hidden` — sonst clippen dessen Kinder auch vertikal (Fokus-Ring/
+   Schatten) mit, weil ein einseitig gesetztes `overflow-x` `overflow-y` implizit auf `auto` zieht. */
 .help-page {
 	max-width: 800px;
 	margin: var(--pp-gap-major) auto 0;
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
-	overflow-x: hidden;
 }
 
 .help-page-loading {
@@ -2166,7 +2170,6 @@ body {
 }
 
 .help-page-content {
-	overflow-x: hidden;
 	word-break: break-word;
 }
 
@@ -2220,15 +2223,17 @@ body {
 
 /* --- Einstellungen-Seite (#271) --- */
 /* #1320: Seiteninhalt INNERHALB der App-Shell (`.app`) statt eigenständiger Seiten-Container —
-   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite, Abstand zum Header
-   (Muster `.dashboard`/`.task-section`) und der Overflow-Schutz (s. `.pillar-weights-grid`). */
+   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite und Abstand zum Header
+   (Muster `.dashboard`/`.task-section`). Die 334px-Mindestspur von `.pillar-weights-grid` deckelt
+   sich selbst per `min(334px, 100%)` auf die Containerbreite — ein zusätzliches
+   `overflow-x: hidden` hier ist nicht nötig und clippt sonst (per implizitem `overflow-y: auto`)
+   auch Fokus-Ring/Schatten der Settings-Cards vertikal mit. */
 .settings-page {
 	max-width: 800px;
 	margin: var(--pp-gap-major) auto 0;
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
-	overflow-x: hidden;
 }
 
 /*
@@ -3227,8 +3232,9 @@ kol-heading {
 /* --- Beitrittsseite über Einladungslink (#1226): öffentlicher Screen ohne App-Shell --- */
 /*
  * Eine Spalte, Karte voll breit, Inhaltsbreite begrenzt (AK6): bei 375px liegt der Karteninhalt
- * inklusive Primäraktion vollständig im Viewport — geprüft per Bounding-Box, da die App-Shell
- * `overflow-x: hidden` clippt (Erfahrung 2026-08-24).
+ * inklusive Primäraktion vollständig im Viewport — geprüft per Bounding-Box statt `scrollWidth`,
+ * da es keinen shell-weiten Clip gibt, der einen stillen Überlauf sonst verdecken würde
+ * (Erfahrung 2026-08-24).
  */
 .join-page {
 	display: grid;
