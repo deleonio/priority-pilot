@@ -125,6 +125,10 @@ categoriesRouter.use(categoriesLimiter);
 // GET /categories — alle Kategorien des eingeloggten Nutzers auflisten.
 categoriesRouter.get('/categories', requireAuth, async (req: Request, res: Response<CategoryDto[] | ErrorDto>) => {
 	try {
+		// `name ASC` macht die Antwort deterministisch, ist aber KEINE deutsche Sortierung: SQLite
+		// vergleicht mit der BINARY-Kollation byteweise, Kleinschreibung landet hinter der
+		// Großschreibung und Umlaute ganz am Ende. `COLLATE NOCASE` deckt davon nur den ASCII-Teil ab.
+		// Die anzeigetaugliche Reihenfolge stellt der Client her (`frontend/src/lib/categories.ts`).
 		const categories = await Category.findAll({
 			where: ownerScope(getUserId(req)),
 			order: [['name', 'ASC']],
