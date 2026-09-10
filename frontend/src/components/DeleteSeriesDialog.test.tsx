@@ -161,3 +161,20 @@ describe('DeleteSeriesDialog — Kaskade-Auswahl Ja/Nein (#553)', () => {
 		expect(mockDeleteSeries.mock.calls.every((call) => (call[0] as { cascade: boolean }).cascade === false)).toBe(true);
 	});
 });
+
+// ── #1346 (AK6): Serien-ID als „#<id>" in muted Farbe (neu, bisher ohne ID) ──────────────────
+
+/**
+ * Rot, solange `DeleteSeriesDialog.tsx` keine ID nennt. Spezifikation: `docs/spec/issue-1346.md`.
+ */
+describe('DeleteSeriesDialog — Serien-ID als „#<id>" in muted Farbe (#1346, AK6)', () => {
+	it('zeigt die Serien-ID als „#7" in --pp-ink-muted', async () => {
+		await act(async () => {
+			render(<DeleteSeriesDialog series={sampleSeries()} onClose={vi.fn()} onDeleted={vi.fn()} />);
+		});
+
+		const idText = screen.getByText('#7');
+		expect(idText).toBeInTheDocument();
+		expect(idText).toHaveStyle({ color: 'var(--pp-ink-muted, #525b6a)' });
+	});
+});
