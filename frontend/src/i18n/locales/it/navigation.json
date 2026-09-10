@@ -1,0 +1,14 @@
+{
+	"tabs": {
+		"dashboard": "Pannello",
+		"tasks": "Attività",
+		"series": "Serie",
+		"forest": "Foresta"
+	},
+	"menu": {
+		"settings": "Impostazioni",
+		"help": "Aiuto",
+		"profile": "Profilo",
+		"logout": "Esci"
+	}
+}

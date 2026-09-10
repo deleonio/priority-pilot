@@ -1,0 +1,14 @@
+{
+	"tabs": {
+		"dashboard": "Tableau de bord",
+		"tasks": "Tâches",
+		"series": "Séries",
+		"forest": "Forêt"
+	},
+	"menu": {
+		"settings": "Paramètres",
+		"help": "Aide",
+		"profile": "Profil",
+		"logout": "Déconnexion"
+	}
+}

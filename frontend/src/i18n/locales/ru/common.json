@@ -1,0 +1,43 @@
+{
+	"app": {
+		"title": "Priority Pilot",
+		"description": "Менеджер задач"
+	},
+	"language": {
+		"de": "Deutsch",
+		"en": "English",
+		"es": "Español",
+		"fr": "Français",
+		"it": "Italiano",
+		"pt": "Português",
+		"nl": "Nederlands",
+		"pl": "Polski",
+		"ru": "Русский",
+		"sv": "Svenska"
+	},
+	"actions": {
+		"save": "Сохранить",
+		"delete": "Удалить",
+		"cancel": "Отмена",
+		"confirm": "Подтвердить",
+		"create": "Создать",
+		"update": "Обновить",
+		"close": "Закрыть",
+		"edit": "Редактировать",
+		"add": "Добавить",
+		"remove": "Удалить",
+		"select": "Выбрать",
+		"back": "Назад"
+	},
+	"status": {
+		"open": "Открыто",
+		"inProcess": "В процессе",
+		"done": "Завершено"
+	},
+	"time": {
+		"days": "Дни",
+		"hours": "Часы",
+		"minutes": "Минуты",
+		"seconds": "Секунды"
+	}
+}

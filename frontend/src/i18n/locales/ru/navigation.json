@@ -1,0 +1,14 @@
+{
+	"tabs": {
+		"dashboard": "Панель",
+		"tasks": "Задачи",
+		"series": "Серии",
+		"forest": "Лес"
+	},
+	"menu": {
+		"settings": "Параметры",
+		"help": "Справка",
+		"profile": "Профиль",
+		"logout": "Выход"
+	}
+}

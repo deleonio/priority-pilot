@@ -1,0 +1,14 @@
+{
+	"tabs": {
+		"dashboard": "Dashboard",
+		"tasks": "Taken",
+		"series": "Series",
+		"forest": "Bos"
+	},
+	"menu": {
+		"settings": "Instellingen",
+		"help": "Help",
+		"profile": "Profiel",
+		"logout": "Afmelden"
+	}
+}

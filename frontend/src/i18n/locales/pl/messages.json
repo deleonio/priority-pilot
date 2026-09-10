@@ -1,0 +1,26 @@
+{
+	"errors": {
+		"saveFailed": "Nie udało się zapisać",
+		"deleteFailed": "Nie udało się usunąć",
+		"createFailed": "Nie udało się utworzyć",
+		"loadingFailed": "Nie udało się załadować",
+		"genericError": "Wystąpił błąd",
+		"validation": "Błąd walidacji",
+		"notFound": "Nie znaleziono"
+	},
+	"success": {
+		"saved": "Zapisano pomyślnie",
+		"deleted": "Usunięto pomyślnie",
+		"created": "Utworzono pomyślnie",
+		"updated": "Zaktualizowano pomyślnie"
+	},
+	"confirmations": {
+		"deleteConfirm": "Na pewno usunąć?",
+		"unsavedChanges": "Masz niezapisane zmiany"
+	},
+	"empty": {
+		"noTasks": "Brak zadań",
+		"noSeries": "Brak serii",
+		"noCategories": "Brak kategorii"
+	}
+}

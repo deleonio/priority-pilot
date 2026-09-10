@@ -4,7 +4,7 @@ import { DEFAULT } from '@public-ui/theme-default';
 import { KERN_V2 } from '@public-ui/theme-kern';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nextProvider } from 'i18next-react';
+import { I18nextProvider } from 'react-i18next';
 import i18next from './i18n/config';
 import { Root } from './Root';
 import { applyInitialTheme } from './lib/theme';

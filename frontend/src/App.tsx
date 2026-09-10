@@ -12,6 +12,7 @@ import {
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -61,11 +62,6 @@ const TaskGraphPanel = lazy(() =>
 	import('./components/TaskGraphPanel').then((module) => ({ default: module.TaskGraphPanel })),
 );
 
-// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
-// `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
-// die Auswahl zurücksetzt.
-const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Wald' }];
-
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
@@ -102,12 +98,6 @@ const ACTIVE_VARIANT = 'primary' as const;
 const INACTIVE_VARIANT = 'secondary' as const;
 const ACTIVE_VIEW_DESCRIPTION = 'Aktuelle Ansicht — erneut betätigen führt zurück';
 
-// #1320: Seitentitel der einen `<h1>` je Ansicht (AK7). Die Hauptansichten teilen sich „Dashboard",
-// weil die Ansichten-Tabs innerhalb derselben Seite umschalten.
-const MAIN_VIEW_TITLE = 'Dashboard';
-const SETTINGS_VIEW_TITLE = 'Einstellungen';
-const HELP_VIEW_TITLE = 'Hilfe';
-
 /**
  * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
  * nach `share`, exakt die Quelle des Dashboards (`buildPillarSummaries`). Der Wert-Beitrag fließt
@@ -122,8 +112,23 @@ const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, 
 };
 
 const AppShell = ({ user }: { user: AuthUser }) => {
+	const { t } = useTranslation('navigation');
 	const location = useLocation();
 	const navigate = useNavigate();
+
+	// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
+	// `KolTabs`). Das `useMemo` hält die Objektidentität stabil, weil `KolTabs` bei einer neuen
+	// Tab-Liste die Auswahl zurücksetzt; `t` wechselt nur beim Sprachwechsel — genau dann sollen
+	// die Beschriftungen auch neu entstehen.
+	const viewTabs = useMemo(
+		() => [
+			{ _label: t('tabs.dashboard') },
+			{ _label: t('tabs.tasks') },
+			{ _label: t('tabs.series') },
+			{ _label: t('tabs.forest') },
+		],
+		[t],
+	);
 	const [searchParams, setSearchParams] = useSearchParams();
 	// #1105: Hilfe und Einstellungen sind Routen statt State-Flags — Back/Forward und Deep-Links
 	// funktionieren dadurch browser-nativ (AK1–AK4).
@@ -719,7 +724,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
 	// Layout. Header (Logo, Kopf-Aktionen, Avatar), Dialoge und Fußzeile bleiben auf allen drei
 	// Ansichten stehen, nur der Seiteninhalt wechselt. Genau deshalb entfällt der „Zurück"-Button.
-	const pageTitle = showSettings ? SETTINGS_VIEW_TITLE : showHelp ? HELP_VIEW_TITLE : MAIN_VIEW_TITLE;
+	// #1320: Seitentitel der einen `<h1>` je Ansicht (AK7). Die Hauptansichten teilen sich den
+	// Dashboard-Titel, weil die Ansichten-Tabs innerhalb derselben Seite umschalten.
+	const pageTitle = showSettings ? t('menu.settings') : showHelp ? t('menu.help') : t('tabs.dashboard');
 
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
@@ -805,13 +812,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					)}
 
 					{tasks !== null && (
-						<KolTabs
-							className="app-tabs"
-							_label="Ansichten"
-							_tabs={VIEW_TABS}
-							_selected={activeTab}
-							_on={tabsCallbacks}
-						>
+						<KolTabs className="app-tabs" _label="Ansichten" _tabs={viewTabs} _selected={activeTab} _on={tabsCallbacks}>
 							<div slot="tab-0">
 								<Dashboard
 									tasks={tasks}

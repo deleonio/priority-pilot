@@ -1,0 +1,29 @@
+{
+	"labels": {
+		"language": "Langue",
+		"name": "Nom",
+		"displayName": "Nom d'affichage",
+		"description": "Description",
+		"category": "Catégorie",
+		"duration": "Durée",
+		"effort": "Effort",
+		"priority": "Priorité",
+		"autoStartRecording": "Démarrer l'enregistrement vocal automatiquement",
+		"email": "E-mail",
+		"password": "Mot de passe",
+		"currentPassword": "Mot de passe actuel",
+		"newPassword": "Nouveau mot de passe",
+		"confirmPassword": "Confirmer le mot de passe"
+	},
+	"placeholders": {
+		"enterName": "Entrez le nom",
+		"enterDescription": "Entrez la description",
+		"selectCategory": "Sélectionnez une catégorie",
+		"searchTasks": "Rechercher des tâches"
+	},
+	"hints": {
+		"nameRequired": "Le nom est obligatoire",
+		"descriptionOptional": "Optionnel",
+		"selectAtLeastOne": "Sélectionnez au moins un élément"
+	}
+}

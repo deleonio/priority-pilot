@@ -8,9 +8,7 @@ packages:
 allowBuilds:
   '@evilmartians/lefthook': true
   '@public-ui/components': true
-  es5-ext: set this to true or false
   esbuild: true
-  node-sass: set this to true or false
   sqlite3: true
 minimumReleaseAgeExclude:
   - '@public-ui/components@4.4.0'

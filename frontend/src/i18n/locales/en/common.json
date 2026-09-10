@@ -1,0 +1,43 @@
+{
+	"app": {
+		"title": "Priority Pilot",
+		"description": "Task Management"
+	},
+	"language": {
+		"de": "Deutsch",
+		"en": "English",
+		"es": "Español",
+		"fr": "Français",
+		"it": "Italiano",
+		"pt": "Português",
+		"nl": "Nederlands",
+		"pl": "Polski",
+		"ru": "Русский",
+		"sv": "Svenska"
+	},
+	"actions": {
+		"save": "Save",
+		"delete": "Delete",
+		"cancel": "Cancel",
+		"confirm": "Confirm",
+		"create": "Create",
+		"update": "Update",
+		"close": "Close",
+		"edit": "Edit",
+		"add": "Add",
+		"remove": "Remove",
+		"select": "Select",
+		"back": "Back"
+	},
+	"status": {
+		"open": "Open",
+		"inProcess": "In Progress",
+		"done": "Done"
+	},
+	"time": {
+		"days": "Days",
+		"hours": "Hours",
+		"minutes": "Minutes",
+		"seconds": "Seconds"
+	}
+}

@@ -2,6 +2,17 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { JSDOM } from 'jsdom';
 import { afterEach } from 'vitest';
+// i18next global initialisieren: `initReactI18next` hinterlegt die Instanz als Default, damit
+// Komponenten mit `useTranslation` auch ohne eigenen Provider im Test übersetzte Texte rendern.
+import i18next from './src/i18n/config';
+
+/**
+ * Tests laufen fest auf Deutsch. Ohne diese Festlegung folgt der `LanguageDetector` dem
+ * `navigator.language` der jsdom-Umgebung (`en-US`) — jede Text-Assertion hinge dann an der
+ * Host-Umgebung statt am Code. Die Sprachwahl selbst wird in `src/i18n/locales.test.ts` und
+ * gezielt in den Sprach-Tests geprüft, nicht implizit über die Umgebung.
+ */
+await i18next.changeLanguage('de');
 
 /**
  * Globaler RTL-Auto-Cleanup: `@testing-library/react` registriert seinen `afterEach(cleanup)`
