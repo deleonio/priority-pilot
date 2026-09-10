@@ -25,6 +25,9 @@ export type TaskGraphNode = Schemas['TaskGraphNode'];
 export type TaskGraphEdge = Schemas['TaskGraphEdge'];
 export type NearbyTask = Schemas['NearbyTask'];
 export type GeoConfig = Schemas['GeoConfig'];
+// Persönliche API-Tokens für externe Clients (#1352) — Liste ohne Klartext, Anlege-Antwort mit.
+export type ApiToken = Schemas['ApiToken'];
+export type CreatedApiToken = Schemas['CreatedApiToken'];
 export type Profile = Schemas['Profile'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];

@@ -1,0 +1,179 @@
+import { KolAlert, KolButton, KolCard, KolInputText } from '@public-ui/react-v19';
+import type { ApiToken } from 'client';
+import { useEffect, useState, type ReactNode } from 'react';
+import { api } from '../api';
+import { toApiError } from '../lib/apiError';
+
+/** Vorbelegter Name eines neuen Tokens — ein Klick reicht, der Name bleibt änderbar. */
+const DEFAULT_TOKEN_NAME = 'Externer Client';
+
+/** Zeitpunkte in der Liste als „TT.MM.JJJJ" — die Uhrzeit trägt hier keine Entscheidung. */
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+
+/**
+ * Aktions-Hülle um einen `KolButton`: der Klick wird am umgebenden Element abgefangen statt über
+ * `_on` am Web-Component. Grund ist die Testbarkeit (#1352): `kol-button` ist in jsdom kein
+ * definiertes Custom Element, `_on` bleibt dort eine reine Property und ein echter Klick liefe ins
+ * Leere. Der Klick des internen Buttons ist `composed` und verlässt den Shadow-Root — im Browser
+ * wie im Test landet er damit genau einmal hier.
+ */
+const ButtonAction = ({ onClick, children }: { onClick: () => void; children: ReactNode }) => (
+	<span className="api-tokens__action" onClick={onClick}>
+		{children}
+	</span>
+);
+
+/**
+ * Einstellungen → „Zugriff": persönliche API-Tokens für externe Clients (#1352). Ein Klick auf
+ * „Token erzeugen" legt einen Token an und zeigt seinen Klartext **genau einmal** — danach kennt
+ * der Server nur noch dessen Hash und die Liste zeigt ausschließlich Metadaten (Name, Erstellung,
+ * letzte Nutzung). „Zurückziehen" sperrt den Token ab dem nächsten Aufruf.
+ *
+ * Aufbau wie `LlmSettings.tsx`: `KolCard` als Gruppierungsfläche, `ul`/`li` mit Zeilen-Aktionen
+ * statt Tabelle (Mobile-Regel 3). Der Rückzug läuft über eine zweistufige Bestätigung direkt in
+ * der Zeile (Progressive Disclosure, `docs/ux-pattern-sequential-confirmation.md`): kein einzelner
+ * Klick löst die irreversible Aktion aus.
+ */
+export const ApiTokensSection = () => {
+	const [tokens, setTokens] = useState<ApiToken[]>([]);
+	const [name, setName] = useState(DEFAULT_TOKEN_NAME);
+	// Klartext des zuletzt erzeugten Tokens — nur im Speicher dieser Sitzung, nie erneut abrufbar.
+	const [plaintext, setPlaintext] = useState<string | null>(null);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [copied, setCopied] = useState(false);
+	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
+	const [revokeId, setRevokeId] = useState<number | null>(null);
+
+	useEffect(() => {
+		let active = true;
+		api
+			.listApiTokens()
+			.then((list) => {
+				if (active) setTokens(list ?? []);
+			})
+			.catch(() => {
+				if (active) setError('Die Token-Liste konnte nicht geladen werden.');
+			});
+		return () => {
+			active = false;
+		};
+	}, []);
+
+	const handleCreate = async (): Promise<void> => {
+		setError(null);
+		setCopied(false);
+		setBusy(true);
+		try {
+			const { token, ...meta } = await api.createApiToken({ name: name.trim() });
+			setPlaintext(token);
+			setTokens((previous) => [...previous, meta]);
+			setName(DEFAULT_TOKEN_NAME);
+		} catch (reason) {
+			setError((await toApiError(reason)).message);
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const handleRevoke = async (id: number): Promise<void> => {
+		setError(null);
+		setBusy(true);
+		try {
+			await api.deleteApiToken({ id });
+			setTokens((previous) => previous.filter((entry) => entry.id !== id));
+			setRevokeId(null);
+		} catch (reason) {
+			setError((await toApiError(reason)).message);
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	return (
+		<div className="api-tokens" data-testid="api-tokens-panel">
+			<KolCard className="settings-card" _label="Zugriff für externe Clients" _level={2}>
+				<div className="api-tokens__create">
+					<p>
+						Ein Token spricht dieselben Schnittstellen an wie diese Oberfläche — mit deinen Daten und deinen Rechten.
+						Der Klartext ist nur direkt nach dem Erzeugen sichtbar.
+					</p>
+					<KolInputText
+						_label="Name des Tokens"
+						_value={name}
+						_on={{ onInput: (_event, value) => setName(String(value)) }}
+					/>
+					<ButtonAction onClick={() => void handleCreate()}>
+						<KolButton _label="Token erzeugen" class="settings-action-btn" _variant="primary" _disabled={busy} />
+					</ButtonAction>
+					{error !== null && (
+						<KolAlert _type="error" _label="Fehler">
+							{error}
+						</KolAlert>
+					)}
+					{plaintext !== null && (
+						<KolAlert _type="info" _label="Token einmalig sichtbar">
+							<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
+								{plaintext}
+							</span>
+							<ButtonAction
+								onClick={() => {
+									void navigator.clipboard?.writeText(plaintext).then(() => setCopied(true));
+								}}
+							>
+								<KolButton _label="Token kopieren" class="settings-action-btn" _variant="secondary" />
+							</ButtonAction>
+							{copied && <span className="api-tokens__copied">In die Zwischenablage kopiert.</span>}
+						</KolAlert>
+					)}
+				</div>
+			</KolCard>
+
+			<KolCard className="settings-card" _label="Vergebene Tokens" _level={2}>
+				{tokens.length === 0 ? (
+					<p>Noch kein Token vergeben.</p>
+				) : (
+					<ul className="api-tokens__list">
+						{tokens.map((token) => (
+							<li key={token.id} className="api-tokens__item" data-testid="api-token-row">
+								<span className="api-tokens__name">
+									{token.name}
+									<span className="api-tokens__meta">
+										{` · erstellt ${formatDate(token.createdAt)} · ${
+											token.lastUsedAt == null
+												? 'noch nicht genutzt'
+												: `zuletzt genutzt ${formatDate(token.lastUsedAt)}`
+										}`}
+									</span>
+								</span>
+								{revokeId === token.id ? (
+									<span className="api-tokens__confirm">
+										<span className="api-tokens__confirm-question">
+											Wirklich zurückziehen? Clients verlieren den Zugriff.
+										</span>
+										<ButtonAction onClick={() => setRevokeId(null)}>
+											<KolButton _label="Abbrechen" class="settings-action-btn" _variant="secondary" _disabled={busy} />
+										</ButtonAction>
+										<ButtonAction onClick={() => void handleRevoke(token.id)}>
+											<KolButton
+												data-testid="api-token-revoke-confirm"
+												_label="Endgültig zurückziehen"
+												class="settings-action-btn"
+												_variant="danger"
+												_disabled={busy}
+											/>
+										</ButtonAction>
+									</span>
+								) : (
+									<ButtonAction onClick={() => setRevokeId(token.id)}>
+										<KolButton _label="Zurückziehen" class="settings-action-btn" _variant="danger" />
+									</ButtonAction>
+								)}
+							</li>
+						))}
+					</ul>
+				)}
+			</KolCard>
+		</div>
+	);
+};

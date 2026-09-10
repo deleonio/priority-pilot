@@ -651,12 +651,15 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * als letzter Tab (Index 6, ans Ende angehängt) mit `AdminUsersSection` im Panel `slot="tab-6"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
-	it('ohne isAdmin fehlt der Tab „Nutzerverwaltung" in der Tab-Liste und es gibt kein Panel slot="tab-6"', () => {
+	// Test-Pflege #1352: Seit dem Tab „Zugriff" (letzter Tab) ist `slot="tab-6"` ohne Admin-Rolle vom
+	// API-Token-Panel belegt. Der #1300-Vertrag bleibt derselbe — geprüft wird jetzt die Abwesenheit
+	// der `AdminUsersSection` statt die des Slots.
+	it('ohne isAdmin fehlt der Tab „Nutzerverwaltung" in der Tab-Liste und es gibt kein Panel mit AdminUsersSection', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		expect(tabsEl?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
-		expect(container.querySelector('[slot="tab-6"]')).toBeNull();
+		expect(container.querySelector('.admin-users')).toBeNull();
 	});
 
 	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-6"', () => {
@@ -671,6 +674,8 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Gruppen',
 			'Kategorien',
 			'Nutzerverwaltung',
+			// Test-Pflege #1352: „Zugriff" hängt hinter dem Admin-Tab — Index 6 bleibt Nutzerverwaltung.
+			'Zugriff',
 		]);
 		const adminPanel = container.querySelector('[slot="tab-6"]');
 		expect(adminPanel, 'letzter Slot tab-6 existiert').not.toBeNull();

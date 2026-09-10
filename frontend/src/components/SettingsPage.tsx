@@ -26,6 +26,7 @@ import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
+import { ApiTokensSection } from './ApiTokensSection';
 import { CategoryList } from './CategoryList';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
@@ -49,7 +50,8 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
 // KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211), Kategorien (Index 5),
-// optional Nutzerverwaltung (Index 6, nur für Admins). Muss index-paritätisch mit
+// optional Nutzerverwaltung (Index 6, nur für Admins) und Zugriff (#1352, letzter Tab: Index 6 ohne
+// bzw. 7 mit Admin-Tab). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
 // statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
@@ -101,7 +103,8 @@ export const SettingsPage = ({
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
 	const settingsTabs = useMemo(
-		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : [])],
+		// „Zugriff" (#1352) hängt bewusst HINTER dem Admin-Tab, damit dessen Index 6 unverändert bleibt.
+		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : []), { _label: 'Zugriff' }],
 		[isAdmin],
 	);
 	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`
@@ -770,6 +773,10 @@ export const SettingsPage = ({
 						</KolCard>
 					</div>
 				)}
+				{/* Persönliche API-Tokens (#1352) — letzter Tab, daher Slot-Index abhängig vom Admin-Tab. */}
+				<div slot={isAdmin ? 'tab-7' : 'tab-6'} className="settings-api-tokens settings-panel">
+					<ApiTokensSection />
+				</div>
 			</KolTabs>
 		</div>
 	);

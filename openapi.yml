@@ -2055,6 +2055,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api-tokens:
+    get:
+      summary: Eigene API-Tokens auflisten
+      description: >-
+        Liefert die nicht zurückgezogenen persönlichen API-Tokens des angemeldeten
+        Nutzers (#1352) — ausschließlich Metadaten, nie den Klartext oder den Hash.
+      operationId: listApiTokens
+      tags: [api-tokens]
+      responses:
+        '200':
+          description: Liste der eigenen Tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiToken'
+    post:
+      summary: Persönlichen API-Token erzeugen
+      description: >-
+        Legt einen neuen persönlichen API-Token an (#1352). Der Klartext ist
+        ausschließlich in dieser einen Antwort enthalten und danach nicht mehr
+        abrufbar; gespeichert wird nur sein Hash.
+      operationId: createApiToken
+      tags: [api-tokens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiTokenInput'
+      responses:
+        '201':
+          description: Angelegter Token inklusive einmaligem Klartext
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedApiToken'
+        '400':
+          description: Ungültiger Name (leer oder länger als 60 Zeichen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api-tokens/{id}:
+    delete:
+      summary: API-Token zurückziehen
+      description: >-
+        Zieht einen eigenen API-Token zurück (#1352). Ab dem nächsten Aufruf wird
+        jeder Request mit diesem Token mit 401 abgewiesen. Fremde oder unbekannte
+        Tokens liefern 404.
+      operationId: deleteApiToken
+      tags: [api-tokens]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id des zurückzuziehenden Tokens
+      responses:
+        '204':
+          description: Token zurückgezogen
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   parameters:
     SeriesId:
@@ -2398,6 +2463,45 @@ components:
       properties:
         groupId:
           type: integer
+    ApiToken:
+      type: object
+      description: >-
+        Persönlicher API-Token für externe Clients (#1352) — Metadaten-Sicht ohne
+        Klartext und ohne Hash.
+      required: [id, name, createdAt, lastUsedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: Frei gewählter Name zur Wiedererkennung (1–60 Zeichen)
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Zeitpunkt des letzten erfolgreichen Bearer-Requests (null, solange ungenutzt)
+    ApiTokenInput:
+      type: object
+      description: Eingabe zum Anlegen eines API-Tokens (#1352).
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+    CreatedApiToken:
+      allOf:
+        - $ref: '#/components/schemas/ApiToken'
+        - type: object
+          description: Antwort auf das Anlegen — enthält den Klartext genau einmal (#1352).
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: Klartext-Token (`pp_<32 Hex>`); nur in dieser Antwort enthalten
     Health:
       type: object
       required:
