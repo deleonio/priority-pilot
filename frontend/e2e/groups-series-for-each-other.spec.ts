@@ -38,7 +38,7 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
 
-	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	await page.getByRole('button', { name: groupName, exact: true }).click();
 	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
 	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
@@ -115,9 +115,20 @@ const findGroupId = async (page: Page, groupName: string): Promise<number> => {
 	return group!.id;
 };
 
-/** Ruft das Gruppendetail der frisch angelegten Gruppe auf. */
+/**
+ * Ruft das Gruppendetail der frisch angelegten Gruppe auf. Die Gruppe ist seit
+ * `createGroupAndInvite` bereits offen (KolAccordion, Design-Lauf 2026-09) — `openAccordionSection`
+ * öffnet nur bei Bedarf, ein erneuter roher Klick auf den Namens-Button würde sie stattdessen
+ * zuklappen (echter Toggle statt des früheren „Klick öffnet/frischt auf"-Verhaltens am `<li>`).
+ */
 const openGroupDetail = async (page: Page, groupName: string): Promise<void> => {
-	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	await openAccordionSection(page, groupName);
+	// Die Serie entsteht erst NACH dem Aufklappen über die API — `GroupDetail` lädt beim Mount, ohne
+	// Neuladen bliebe die Liste leer. Früher übernahm das ein blanker Klick ins offene Detail; seit
+	// dem Design-Lauf 2026-09 ist das ein sichtbares, tastaturerreichbares Bedienelement. Auf die
+	// Gruppe gescopet — jede Gruppe der Liste hat ein eigenes.
+	const groupId = await findGroupId(page, groupName);
+	await page.locator(`li[data-group-id="${groupId}"]`).getByRole('button', { name: 'Daten auffrischen' }).click();
 	await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
 	// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 	await openAccordionSection(page, SECTION_HEADING);

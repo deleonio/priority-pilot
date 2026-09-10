@@ -44,6 +44,30 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</section>
 	),
+	// Jede Gruppe ist ein KolAccordion (Design-Lauf 2026-09): Der Kopf ist ein Button mit dem
+	// Gruppennamen, `_open` spiegelt den Zustand als `aria-expanded` und schaltet den Körper frei.
+	KolAccordion: ({
+		_label,
+		_open,
+		_on,
+		children,
+	}: {
+		_label?: string;
+		_open?: boolean;
+		_on?: { onToggle?: (event: MouseEvent, open: boolean) => void };
+		children?: ReactNode;
+	}) => (
+		<div>
+			<button
+				type="button"
+				aria-expanded={_open === true}
+				onClick={(e) => _on?.onToggle?.(e.nativeEvent, _open !== true)}
+			>
+				{_label}
+			</button>
+			{_open === true && <div>{children}</div>}
+		</div>
+	),
 	KolHeading: ({ _label }: { _label?: string }) => <h3>{_label}</h3>,
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
 	KolAvatar: ({
@@ -109,6 +133,8 @@ describe('GroupsSection — Gruppenbild als Avatar (#1225 AK4)', () => {
 		mockListReceivedInvitations.mockResolvedValue([]);
 
 		render(<GroupsSection />);
+		// Avatar und Metadaten liegen im Accordion-Körper — erst aufklappen (Design-Lauf 2026-09).
+		fireEvent.click(await screen.findByRole('button', { name: 'Familie Müller' }));
 		await waitFor(() => expect(screen.getByTestId('avatar')).toBeDefined());
 
 		const avatar = screen.getByTestId('avatar');
@@ -121,6 +147,8 @@ describe('GroupsSection — Gruppenbild als Avatar (#1225 AK4)', () => {
 		mockListReceivedInvitations.mockResolvedValue([]);
 
 		render(<GroupsSection />);
+		// Avatar und Metadaten liegen im Accordion-Körper — erst aufklappen (Design-Lauf 2026-09).
+		fireEvent.click(await screen.findByRole('button', { name: 'Familie Müller' }));
 		await waitFor(() => expect(screen.getByTestId('avatar')).toBeDefined());
 
 		const avatar = screen.getByTestId('avatar');
@@ -129,10 +157,11 @@ describe('GroupsSection — Gruppenbild als Avatar (#1225 AK4)', () => {
 	});
 });
 
-// Audit #1257: Der Namens-Button ist der echte Auf/Zu-Schalter der Karte — sein Zustand muss im
-// ARIA-Baum sichtbar sein (WCAG 4.1.2), und der Avatar darf den Namen nicht doppelt liefern.
-describe('GroupsSection — Toggle-Semantik der Gruppenkarte (Audit #1257)', () => {
-	it('spiegelt den Auf/Zu-Zustand der aufgeklappten Gruppe am Namens-Button', async () => {
+// Audit #1257 / Design-Lauf 2026-09: Der Accordion-Kopf ist der echte Auf/Zu-Schalter der Gruppe —
+// sein Zustand muss im ARIA-Baum sichtbar sein (WCAG 4.1.2), und der Avatar darf den Namen nicht
+// doppelt liefern. Vorher trug ein selbstgebauter Aufklapper am `<li>` diese Aufgabe.
+describe('GroupsSection — Toggle-Semantik der Gruppe (Audit #1257)', () => {
+	it('spiegelt den Auf/Zu-Zustand der aufgeklappten Gruppe am Accordion-Kopf', async () => {
 		mockListGroups.mockResolvedValue([group({ id: 7 })]);
 		mockListReceivedInvitations.mockResolvedValue([]);
 
@@ -146,18 +175,18 @@ describe('GroupsSection — Toggle-Semantik der Gruppenkarte (Audit #1257)', () 
 		fireEvent.click(toggle);
 		expect(screen.getByTestId('group-detail')).toBeInTheDocument();
 		expect(toggle.getAttribute('aria-expanded')).toBe('true');
-		expect(toggle.getAttribute('aria-controls')).toBe('group-detail-7');
 
 		fireEvent.click(toggle);
 		expect(screen.queryByTestId('group-detail')).toBeNull();
 		expect(toggle.getAttribute('aria-expanded')).toBe('false');
 	});
 
-	it('hält den Avatar dekorativ (aria-hidden) — der Namens-Button trägt die Information', async () => {
+	it('hält den Avatar dekorativ (aria-hidden) — der Accordion-Kopf trägt die Information', async () => {
 		mockListGroups.mockResolvedValue([group({ id: 7 })]);
 		mockListReceivedInvitations.mockResolvedValue([]);
 
 		render(<GroupsSection />);
+		fireEvent.click(await screen.findByRole('button', { name: 'Familie Müller' }));
 		await waitFor(() => expect(screen.getByTestId('avatar')).toBeDefined());
 
 		expect(screen.getByTestId('avatar').getAttribute('aria-hidden')).toBe('true');
