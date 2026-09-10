@@ -67,6 +67,15 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 		assert.equal(res.status, 401);
 	});
 
+	// Die Bearer-Middleware hängt global vor allen Routen — ein kaputter Header darf die bewusst
+	// öffentlichen Endpunkte nicht mitreißen (Review-Anmerkung zu PR #1354).
+	it('ein ungültiger Bearer-Token lässt die öffentliche Route GET /health erreichbar', async () => {
+		const res = await fetch(`${server.baseUrl}/health`, {
+			headers: { Authorization: 'Bearer pp_does-not-exist' },
+		});
+		assert.equal(res.status, 200);
+	});
+
 	it('AK3: GET /tasks mit gültigem Bearer-Token liefert dieselbe Antwort wie die Session des Besitzers', async () => {
 		const cookie = await server.register('bearer-a@example.com', 'password123');
 		await createTask(cookie, 'Über Session angelegt');

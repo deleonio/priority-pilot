@@ -10,9 +10,23 @@ import { waitForStableView } from './helpers';
  *   Klartext-Token bricht um statt die Seite zu verbreitern (Bounding-Box-Assertion statt
  *   `scrollWidth`, MEMORY 2026-08-24 — die App-Shell clippt mit `overflow-x: hidden`).
  *
- * Läuft gegen das echte Backend (Vite-Proxy) wie llm-settings.spec.ts; das E2E-Backend läuft im
- * Pass-Through-Auth-Modus (kein SESSION_SECRET/Allowlist), daher kein expliziter Login nötig.
+ * Läuft gegen das echte Backend (Vite-Proxy) wie llm-settings.spec.ts. Anders als die übrigen
+ * funktionalen Specs braucht diese eine **echte** Session: die Token-Routen sind pro Nutzer
+ * gebunden und antworten ohne `req.session.user` mit 401 (`getUserId()` ist im Pass-Through-Modus
+ * `undefined`, siehe `server/src/express/requireAuth.ts`). Der Login läuft daher über
+ * `POST /auth/test-login` (Muster issue-1252-handover.spec.ts); `page.request` teilt den
+ * Cookie-Jar des Browser-Kontexts, die UI-Aufrufe tragen den Session-Cookie damit mit.
  */
+
+const TEST_EMAIL = 'api-tokens@example.com';
+
+/** Legt eine echte Session im Kontext der Page an — ohne sie liefern die Token-Routen 401. */
+const login = async (page: Page): Promise<void> => {
+	const res = await page.request.post('/auth/test-login', {
+		data: { email: TEST_EMAIL, displayName: 'Token Tester' },
+	});
+	expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
+};
 
 const deleteAllTokens = async (page: Page): Promise<void> => {
 	const res = await page.request.get('/api/v1/api-tokens');
@@ -28,6 +42,7 @@ test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")',
 	});
 
 	test('AK8: Klartext erscheint genau einmal, nach Reload nur noch Metadaten', async ({ page }) => {
+		await login(page);
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
@@ -52,6 +67,7 @@ test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")',
 
 	test('AK9: 375px — Panel ohne horizontalen Overflow, Klartext bricht um', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
+		await login(page);
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 

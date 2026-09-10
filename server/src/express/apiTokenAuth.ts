@@ -11,6 +11,19 @@ export const generateApiToken = (): string => `${TOKEN_PREFIX}${randomBytes(16).
 /** SHA-256-Hex des Klartexts — der einzige Wert, der die Datenbank je zu sehen bekommt. */
 export const hashApiToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
+/**
+ * Neutralisiert das Speichern der Session für diesen Request. Bearer-Requests sind zustandslos: der
+ * synthetisierte (bzw. verworfene) Nutzer darf nicht im Session-Store landen — sonst wüchse er mit
+ * jedem Request eines externen Clients, und ein kaputter Bearer-Header löschte die Browser-Session
+ * des Nutzers gleich mit.
+ */
+const suppressSessionSave = (req: Request): void => {
+	req.session.save = ((callback?: (err?: unknown) => void) => {
+		callback?.();
+		return req.session;
+	}) as typeof req.session.save;
+};
+
 /** Liest den Klartext-Token aus dem `Authorization`-Header (`Bearer <token>`), sonst `null`. */
 const readBearerToken = (req: Request): string | null => {
 	const header = req.headers.authorization;
@@ -29,9 +42,12 @@ const readBearerToken = (req: Request): string | null => {
  * `getUserId()`/`ownerScope()` und `requireRole('admin')` unverändert auch für Bearer-Requests;
  * es braucht keine zweite Autorisierungslogik.
  *
- * Ein ungültiger oder zurückgezogener Token endet sofort mit 401 (kein Fallthrough auf eine
- * mitgeschickte Cookie-Session — sonst könnte ein kaputter Token still als fremder Nutzer
- * weiterlaufen). Ohne Bearer-Header bleibt der bestehende Session-Weg unangetastet.
+ * Ein ungültiger oder zurückgezogener Token verwirft die mitgeschickte Cookie-Session (ein kaputter
+ * Token darf nicht still als fremder Nutzer weiterlaufen), lässt den Request aber weiterlaufen: die
+ * Middleware hängt global vor **allen** Routen, auch vor den bewusst öffentlichen (`/health`,
+ * `/auth/*`, `/api/transit`, Invite-Links) — ein sofortiges 401 machte die allein wegen eines
+ * kaputten Headers unerreichbar. Geschützte Routen fallen über `requireAuth` ohnehin auf 401 (AK7).
+ * Ohne Bearer-Header bleibt der bestehende Session-Weg unangetastet.
  */
 export const apiTokenAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 	const token = readBearerToken(req);
@@ -43,7 +59,11 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		const record = await ApiToken.findOne({ where: { tokenHash: hashApiToken(token), revokedAt: null } });
 		const user = record ? await User.findByPk(record.userId) : null;
 		if (!record || !user) {
-			res.status(401).json({ message: 'Nicht eingeloggt.' });
+			// Kein Kurzschluss auf 401 (s. o.): Session verwerfen, durchlassen. `requireAuth` erledigt
+			// die Abweisung für alles, was Auth verlangt.
+			req.session.user = undefined;
+			suppressSessionSave(req);
+			next();
 			return;
 		}
 		await record.update({ lastUsedAt: new Date() });
@@ -56,12 +76,7 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 			avatarUrl: user.avatarUrl ?? null,
 			role: user.role,
 		};
-		// Bearer-Requests sind zustandslos: der synthetisierte Nutzer darf nicht im Session-Store
-		// landen (sonst wüchse er mit jedem Request eines externen Clients).
-		req.session.save = ((callback?: (err?: unknown) => void) => {
-			callback?.();
-			return req.session;
-		}) as typeof req.session.save;
+		suppressSessionSave(req);
 		next();
 	} catch {
 		res.status(500).json({ message: 'Interner Serverfehler.' });
