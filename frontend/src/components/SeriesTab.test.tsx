@@ -59,8 +59,14 @@ vi.mock('./DeleteSeriesDialog', () => ({
 	DeleteSeriesDialog: () => <div data-testid="delete-series-dialog" />,
 }));
 
+// #1346 (AK3): `title` mitrendern, damit Tests den Bearbeiten-Modal-Titel (inkl. ID) prüfen können.
 vi.mock('./Modal', () => ({
-	Modal: ({ children }: { children: ReactNode }) => <div data-testid="modal">{children}</div>,
+	Modal: ({ title, children }: { title?: string; children: ReactNode }) => (
+		<div data-testid="modal">
+			{title !== undefined && <h2>{title}</h2>}
+			{children}
+		</div>
+	),
 }));
 
 vi.mock('./TaskForm', () => ({
@@ -182,6 +188,29 @@ describe('SeriesTab — Für-Kennzeichen und fremde Serien (#1222 AK9)', () => {
 		expect(screen.getByRole('toolbar', { name: /Aktionen für Übergabe-Routine/ })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Löschen' })).toBeInTheDocument();
+	});
+});
+
+// ── #1346 (AK3): Serien-Bearbeiten-Modal zeigt die ID im Titel ──────────────────────────────
+
+/**
+ * Rot, solange `SeriesTab.tsx:238` den Modal-Titel ohne `(#<id>)` baut.
+ * Spezifikation: `docs/spec/issue-1346.md`.
+ */
+describe('SeriesTab — Bearbeiten-Modal-Titel zeigt die Serien-ID (#1346, AK3)', () => {
+	it('Klick auf „Bearbeiten" öffnet das Modal mit Titel „Serie bearbeiten: <title> (#<id>)"', async () => {
+		const series = { ...makeSeries('weekly', 'Übergabe-Routine'), id: 99, forUserId: null, forUserName: null };
+		mockListSeries.mockResolvedValue([series]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }));
+		});
+
+		expect(screen.getByRole('heading', { name: 'Serie bearbeiten: Übergabe-Routine (#99)' })).toBeInTheDocument();
 	});
 });
 
