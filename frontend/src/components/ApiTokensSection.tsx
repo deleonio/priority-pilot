@@ -128,6 +128,8 @@ export const ApiTokensSection = () => {
 							<KolButton _label="URL kopieren" class="settings-action-btn" _variant="secondary" />
 						</ButtonAction>
 						{mcpUrlCopied && <span className="api-tokens__copied">In die Zwischenablage kopiert.</span>}
+						<span>Header-Konfiguration für externe Clients (z. B. Claude-Connector):</span>
+						<span className="api-tokens__plaintext">Authorization: Bearer &lt;Token&gt;</span>
 					</div>
 					{plaintext !== null && (
 						<KolAlert _type="info" _label="Token einmalig sichtbar">
