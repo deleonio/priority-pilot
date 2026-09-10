@@ -2245,20 +2245,6 @@ body {
  */
 
 /*
- * #1336 AK2: Der erste (aktive) Tab-Button liegt flächenbündig am linken Rand der
- * `.kol-tabs__button-group` — der Fokus-Ring (`tabsFocusRing.ts`, 2px Breite + 2px Offset = 4px)
- * würde dort über die Bounding-Box des `kol-tabs`-Hosts hinausragen, obwohl nichts clippt
- * (`overflow` bleibt `visible`). `margin-inline: -4px` erweitert die Bounding-Box des Hosts um
- * genau den Ring-Bedarf; `padding-inline: 4px` gleicht das aus, sodass der sichtbare Inhalt an
- * derselben Position bleibt (Full-Bleed-Muster, siehe `.pillar-weights-grid`).
- */
-.app-tabs,
-.settings-tabs {
-	margin-inline: -4px;
-	padding-inline: 4px;
-}
-
-/*
  * #1274: Kompakter Tab-Gap, damit die vier Hauptansicht-Tabs bei 375px einzeilig bleiben.
  *
  * Das Default-Theme deklariert `.kol-tabs--align-top { --button-group-gap: 32px }` IM Shadow-DOM;

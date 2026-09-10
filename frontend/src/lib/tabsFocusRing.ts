@@ -27,10 +27,24 @@
  * UA-/KoliBri-Default-Ring für genau den maus-ausgelösten Fall — ohne sie bliebe trotz fehlender
  * `pp-focus-ring`-Klasse der browsereigene Outline (andere Farbe/Breite) sichtbar, weil
  * `:focus-visible` selbst (s. o.) weiterhin `true` ist.
+ *
+ * Den Platz für den Ring (2px Breite + 2px Offset = 4px) schafft `padding-inline` an der
+ * Button-Leiste IM Shadow-Root — der erste und der letzte Tab-Button liegen sonst flächenbündig an
+ * der Kante des `kol-tabs`-Hosts und der Ring ragte dort über dessen Bounding-Box hinaus (AK2).
+ * Nicht am Host (`.app-tabs`/`.settings-tabs`) reserviert, weil beide Wege dort scheitern:
+ * `padding-inline` am Host verschiebt auch die Tabpanels — sie sind Light-DOM-Kinder
+ * (`[slot="tabpanel-slot-N"]`) und liegen in dessen Content-Box, deren Insets `issue-969.spec.ts`
+ * AK4 auf ±1px an die `.settings-page` bindet. Ein Full-Bleed (`margin-inline: -4px` +
+ * `padding-inline: 4px`) wiederum macht den Host breiter als sein Elternelement: die
+ * `.settings-page` (`overflow-x: hidden`) clippt die linken 4px des Rings und meldet rechts 4px
+ * horizontalen Überlauf (`llm-settings.spec.ts`, „Mobile 375×812 ohne horizontalen Overflow").
  */
 const FOCUS_RING_CLASS = 'pp-focus-ring';
 
 const FOCUS_RING_CSS = `
+.kol-tabs__button-group {
+	padding-inline: 4px;
+}
 .kol-tabs__button-group .kol-button.${FOCUS_RING_CLASS} {
 	outline-color: var(--pp-focus-ring);
 	outline-style: solid;
