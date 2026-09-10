@@ -86,6 +86,18 @@ const createTaskViaApi = async (cookie: string, title: string): Promise<number> 
 	return ((await res.json()) as { id: number }).id;
 };
 
+const createReadOnlyToken = async (cookie: string): Promise<{ id: number; token: string }> => {
+	const res = await server.json('/api-tokens', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Cookie: cookie },
+		body: JSON.stringify({ name: `Client-${idCounter++}` }),
+	});
+	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
+	const body = (await res.json()) as { id: number; token: string; scope?: string };
+	assert.equal(body.scope, 'read', 'Vorbedingung: ein neu angelegter Token startet als read');
+	return { id: body.id, token: body.token };
+};
+
 describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -224,5 +236,43 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		for (const tool of sorted) {
 			assert.ok(tool.inputSchema, `${tool.name} muss ein inputSchema deklarieren`);
 		}
+	});
+
+	it('AK6 (#1356): ein Nur-lese-Token liest über task_list, task_create schlägt fehl und legt nichts an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+		await createTaskViaApi(cookie, 'Über Session angelegt');
+
+		const list = await mcpCall<{ title: string }[]>(token, 'task_list');
+		assert.ok(
+			list.result?.some((t) => t.title === 'Über Session angelegt'),
+			'lesende Werkzeuge bleiben mit scope read erreichbar',
+		);
+
+		const created = await mcpCall<{ id: number }>(token, 'task_create', { title: 'Über MCP mit Nur-lese-Token' });
+		assert.ok(created.error, 'task_create muss mit einem Nur-lese-Token fehlschlagen');
+
+		const afterFailedCreate = await mcpCall<{ title: string }[]>(token, 'task_list');
+		assert.ok(
+			!afterFailedCreate.result?.some((t) => t.title === 'Über MCP mit Nur-lese-Token'),
+			'ein fehlgeschlagener task_create darf keine Aufgabe anlegen',
+		);
+	});
+
+	it('AK6 (#1356): nach dem Umschalten auf readwrite gelingt task_create mit demselben Token', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { id, token } = await createReadOnlyToken(cookie);
+
+		const patch = await server.json(`/api-tokens/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ scope: 'readwrite' }),
+		});
+		assert.equal(patch.status, 200, 'Setup: Umschalten auf readwrite muss gelingen');
+
+		const created = await mcpCall<{ id: number; title: string }>(token, 'task_create', {
+			title: 'Nach Hochstufen über MCP',
+		});
+		assert.equal(created.result?.title, 'Nach Hochstufen über MCP');
 	});
 });

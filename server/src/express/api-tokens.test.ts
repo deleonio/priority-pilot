@@ -34,6 +34,13 @@ const listTokens = (cookie: string): Promise<Response> => server.json('/api-toke
 const revokeToken = (cookie: string, id: number): Promise<Response> =>
 	server.json(`/api-tokens/${id}`, { method: 'DELETE', headers: { Cookie: cookie } });
 
+const patchTokenScope = (cookie: string, id: number, scope: unknown): Promise<Response> =>
+	server.json(`/api-tokens/${id}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json', Cookie: cookie },
+		body: JSON.stringify({ scope }),
+	});
+
 describe('Persönliche API-Tokens — Verwaltung (#1352 AK1/AK2/AK4)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -131,6 +138,67 @@ describe('Persönliche API-Tokens — Verwaltung (#1352 AK1/AK2/AK4)', () => {
 		assert.ok(
 			list.some((entry) => entry.id === created.id),
 			'eigener Token muss unangetastet bleiben',
+		);
+	});
+
+	it('AK2: POST liefert scope: "read", GET listet den Token mit scope: "read"', async () => {
+		const cookie = await server.register('token-scope-create@example.com', 'password123');
+
+		const created = (await (await createToken(cookie, 'Neuer Token')).json()) as CreatedToken & {
+			scope: string;
+		};
+		assert.equal(created.scope, 'read', 'ein neu angelegter Token trägt immer scope read');
+
+		const list = (await (await listTokens(cookie)).json()) as (ListedToken & { scope: string })[];
+		assert.equal(list.length, 1);
+		assert.equal(list[0]!.scope, 'read', 'GET muss scope je Token mitliefern');
+	});
+
+	it('AK3: PATCH auf readwrite antwortet 200 mit aktualisiertem DTO, GET bestätigt danach denselben Wert', async () => {
+		const cookie = await server.register('token-scope-patch@example.com', 'password123');
+		const created = (await (await createToken(cookie, 'Wird hochgestuft')).json()) as CreatedToken;
+
+		const patched = await patchTokenScope(cookie, created.id, 'readwrite');
+		assert.equal(patched.status, 200);
+		const patchedBody = (await patched.json()) as { id: number; scope: string };
+		assert.equal(patchedBody.id, created.id);
+		assert.equal(patchedBody.scope, 'readwrite');
+
+		const list = (await (await listTokens(cookie)).json()) as (ListedToken & { scope: string })[];
+		assert.equal(
+			list.find((entry) => entry.id === created.id)?.scope,
+			'readwrite',
+			'der neue Wert muss über die DB persistiert sein, nicht nur in der PATCH-Antwort',
+		);
+	});
+
+	it('AK3: PATCH mit unbekanntem scope-Wert liefert 400, der Token bleibt unverändert', async () => {
+		const cookie = await server.register('token-scope-invalid@example.com', 'password123');
+		const created = (await (await createToken(cookie, 'Bleibt read')).json()) as CreatedToken;
+
+		const res = await patchTokenScope(cookie, created.id, 'admin');
+		assert.equal(res.status, 400);
+
+		const list = (await (await listTokens(cookie)).json()) as (ListedToken & { scope: string })[];
+		assert.equal(list.find((entry) => entry.id === created.id)?.scope, 'read', 'ungültiger Wert darf nicht greifen');
+	});
+
+	it('AK3: PATCH auf einen fremden oder unbekannten Token liefert 404, dessen Wert bleibt read', async () => {
+		const ownerCookie = await server.register('token-scope-owner@example.com', 'password123');
+		const otherCookie = await server.register('token-scope-other@example.com', 'password123');
+		const created = (await (await createToken(ownerCookie, 'Nur meiner')).json()) as CreatedToken;
+
+		const foreign = await patchTokenScope(otherCookie, created.id, 'readwrite');
+		assert.equal(foreign.status, 404, 'ein fremder Token darf nicht umschaltbar sein');
+
+		const unknown = await patchTokenScope(ownerCookie, 999_999, 'readwrite');
+		assert.equal(unknown.status, 404, 'ein unbekannter Token liefert 404');
+
+		const list = (await (await listTokens(ownerCookie)).json()) as (ListedToken & { scope: string })[];
+		assert.equal(
+			list.find((entry) => entry.id === created.id)?.scope,
+			'read',
+			'der PATCH-Versuch eines fremden Nutzers darf den Wert nicht ändern',
 		);
 	});
 });

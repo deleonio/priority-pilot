@@ -849,3 +849,76 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 		assert.ok((await userColumns()).includes('displayNameCustom'), 'frische Tabelle enthält displayNameCustom');
 	});
 });
+
+// ── #1356 AK1: migrateApiTokenScope — scope-Spalte an api_tokens nachziehen ────────────
+// Vertrag laut docs/spec/issue-1356.md, Muster migrateUsersRoleColumn: `api_tokens.scope`
+// (VARCHAR NOT NULL DEFAULT 'read') trägt die Rechtestufe je Token; `sequelize.sync()` ohne
+// `alter` ergänzt die Spalte auf Bestands-DBs nicht, jede Token-Query bräche mit
+// `no such column: scope`. Bestandszeilen starten als `'read'` (kein stilles Hochstufen).
+describe('migrateApiTokenScope (#1356 AK1)', () => {
+	// #1356: `migrateApiTokenScope` existiert noch nicht (rote Spec-Tests) — Zugriff über den
+	// Namespace + Cast, damit tsc grün bleibt, bis die Impl-Phase sie anlegt.
+	const migrateApiTokenScope = (
+		migrateModule as unknown as { migrateApiTokenScope?: (db: typeof sequelize) => Promise<void> }
+	).migrateApiTokenScope;
+
+	/** Spaltennamen der api_tokens-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const apiTokenColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('api_tokens')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine api_tokens-Tabelle im Alt-Schema (vor der Rechtestufe, #1352) per Raw-SQL. */
+	const createLegacyApiTokensTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `api_tokens` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`userId` INTEGER NOT NULL, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`tokenHash` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`lastUsedAt` DATETIME, ' +
+				'`revokedAt` DATETIME, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it("zieht auf einem Alt-Schema scope mit Default 'read' nach — Bestandszeilen bleiben erhalten", async () => {
+		assert.ok(migrateApiTokenScope, 'migrateApiTokenScope muss in migrate.ts exportiert werden');
+		await createLegacyApiTokensTable();
+		await sequelize.query(
+			'INSERT INTO api_tokens (userId, name, tokenHash, createdAt, updatedAt) ' +
+				"VALUES (1, 'Alt-Token', 'hash-alt', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+		assert.ok(!(await apiTokenColumns()).includes('scope'), 'Alt-Schema hat scope noch nicht');
+
+		await migrateApiTokenScope!(sequelize);
+		await sequelize.sync();
+
+		assert.ok((await apiTokenColumns()).includes('scope'), 'scope-Spalte ist nachgezogen');
+		const [rows] = await sequelize.query('SELECT name, scope FROM api_tokens');
+		const row = (rows as { name: string; scope: string }[])[0];
+		assert.equal(row?.name, 'Alt-Token', 'Bestandsdaten unverändert');
+		assert.equal(row?.scope, 'read', "Bestandszeile startet als 'read' (kein stilles Hochstufen)");
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und legt keine doppelte Spalte an', async () => {
+		assert.ok(migrateApiTokenScope, 'migrateApiTokenScope muss in migrate.ts exportiert werden');
+		await createLegacyApiTokensTable();
+		await migrateApiTokenScope!(sequelize);
+		await assert.doesNotReject(() => migrateApiTokenScope!(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await apiTokenColumns()).filter((name) => name === 'scope').length, 1, 'scope genau einmal');
+	});
+
+	it('ist auf einer DB ohne api_tokens-Tabelle ein No-op und sync() legt sie inkl. Spalte an', async () => {
+		assert.ok(migrateApiTokenScope, 'migrateApiTokenScope muss in migrate.ts exportiert werden');
+		await sequelize.getQueryInterface().dropAllTables();
+		assert.deepEqual(await apiTokenColumns(), [], 'Vorbedingung: keine api_tokens-Tabelle');
+
+		await assert.doesNotReject(() => migrateApiTokenScope!(sequelize), 'Migration ohne Tabelle ist No-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		assert.ok((await apiTokenColumns()).includes('scope'), 'frische Tabelle enthält scope');
+	});
+});
