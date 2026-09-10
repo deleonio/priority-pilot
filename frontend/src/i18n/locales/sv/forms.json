@@ -1,0 +1,29 @@
+{
+	"labels": {
+		"language": "Språk",
+		"name": "Namn",
+		"displayName": "Visningsnamn",
+		"description": "Beskrivning",
+		"category": "Kategori",
+		"duration": "Varaktighet",
+		"effort": "Insats",
+		"priority": "Prioritet",
+		"autoStartRecording": "Starta röstinspelning automatiskt",
+		"email": "E-post",
+		"password": "Lösenord",
+		"currentPassword": "Aktuellt lösenord",
+		"newPassword": "Nytt lösenord",
+		"confirmPassword": "Bekräfta lösenord"
+	},
+	"placeholders": {
+		"enterName": "Ange namn",
+		"enterDescription": "Ange beskrivning",
+		"selectCategory": "Välj kategori",
+		"searchTasks": "Sök uppgifter"
+	},
+	"hints": {
+		"nameRequired": "Namn är obligatoriskt",
+		"descriptionOptional": "Valfritt",
+		"selectAtLeastOne": "Välj minst ett objekt"
+	}
+}

@@ -50,6 +50,7 @@ import type {
 	TaskUpdate,
 } from 'client';
 import createClient from 'openapi-fetch';
+import { sortCategoriesByName } from './lib/categories';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
 // http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
@@ -315,7 +316,10 @@ export const api = {
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
-		return data;
+		// Hier sortiert statt in den einzelnen Auswahlfeldern: So stehen Formular, Suchfilter,
+		// Aufgaben-Filterleiste und die Liste im Einstellungs-Tab in derselben Reihenfolge. Warum die
+		// Server-Sortierung dafür nicht reicht, steht bei `sortCategoriesByName`.
+		return sortCategoriesByName(data);
 	},
 
 	async createCategory({ categoryCreate }: { categoryCreate: CategoryCreate }): Promise<Category> {

@@ -1,0 +1,26 @@
+{
+	"errors": {
+		"saveFailed": "Ошибка сохранения",
+		"deleteFailed": "Ошибка удаления",
+		"createFailed": "Ошибка создания",
+		"loadingFailed": "Ошибка загрузки",
+		"genericError": "Произошла ошибка",
+		"validation": "Ошибка валидации",
+		"notFound": "Не найдено"
+	},
+	"success": {
+		"saved": "Успешно сохранено",
+		"deleted": "Успешно удалено",
+		"created": "Успешно создано",
+		"updated": "Успешно обновлено"
+	},
+	"confirmations": {
+		"deleteConfirm": "Действительно удалить?",
+		"unsavedChanges": "У вас есть несохраненные изменения"
+	},
+	"empty": {
+		"noTasks": "Нет задач",
+		"noSeries": "Нет серий",
+		"noCategories": "Нет категорий"
+	}
+}

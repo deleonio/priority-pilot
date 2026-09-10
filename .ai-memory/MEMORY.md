@@ -158,3 +158,20 @@ Konflikte, die er verhindern soll.
 - 2026-09-08 · Vitest/jsdom — jsdom (≥24) toggle-d `<details>` bei jedem summary-Klick NATIV, unabhängig vom onClick-Handler (Aktivierungsverhalten läuft nach den Handlern; nur canceledFlag stoppt es). → Disabled-Accordion-Mocks brauchen `e.preventDefault()` im Handler, sonst ist „Klick ändert nichts" nicht testbar (#1285).
 - 2026-09-09 · CI/Artefakte — `actions/upload-artifact` filtert seit v4.4 alles weg, was in einem Punkt-Verzeichnis liegt: `path: .ai-memory/issue-*.md` meldete „No files were found" und lud NICHTS hoch, obwohl der Prüfschritt davor Notizen zählte — mit `if-no-files-found: warn` ein stiller Totalausfall des ADR-0010-Transports in allen Phasen. → `include-hidden-files: true` setzen, wenn der Pfad ein Punkt-Verzeichnis enthält.
 - 2026-09-09 · CI/Tool-Allowlist — Claude Code prüft Datei-Schreibrechte NUR gegen `Edit(path)`/`Read(path)`; `Write(path)` wird angenommen, aber nie konsultiert. Ein Zielpfad ohne `Edit()`-Regel (z. B. `/tmp/doc.json` im review-Tier) landet unter `claude -p` in einem nie beantworteten Permission-Prompt — der Lauf endet mit „Awaiting permission to write …" und der Job wird scheinbar grundlos rot. → Ausgabepfade als `Edit(//abs/pfad/**)` freigeben (doppelter Slash = absolut) und im Prompt zusätzlich bash-Heredoc vorschreiben.
+- 2026-09-10 · pnpm/Workspaces — `pnpm add -w <name> …` deutet `<name>` als REGISTRY-Paket, nicht als
+  Workspace: `pnpm add -w frontend i18next …` installierte ein wildfremdes `frontend@2.0.0-alpha.4`
+  (zog node-sass nach und schrieb `set this to true or false`-Platzhalter in `allowBuilds` der
+  pnpm-workspace.yaml) und legte die eigentlichen Deps in die Root-package.json, wo der Workspace sie
+  unter pnpms Isolation gar nicht auflösen kann — `tsc` bricht erst beim Import ab. → Deps immer per
+  `pnpm --filter <workspace> add --save-exact …` setzen. Und: das React-Binding für i18next heißt
+  `react-i18next`; `i18next-react` ist ein verwaistes Fremdpaket ohne `initReactI18next`.
+- 2026-09-10 · Vitest/Setup-Reihenfolge — ES-Importe werden VOR dem Modulrumpf ausgewertet: der
+  Web-Storage-Shim im Rumpf von `vitest.setup.ts` greift damit zu spät für jedes Modul, das die
+  Setup-Datei importiert. `i18next-browser-languagedetector` prüft `localStorage` genau einmal und
+  merkt sich das Ergebnis modulweit (`hasLocalStorageSupport`); unter Node 26 (nativer, ohne
+  `--localstorage-file` leerer Getter) fiel die Prüfung auf `false` und das Zurückschreiben der
+  Sprachwahl war für den ganzen Lauf still abgeschaltet — lokal unter Node 22 grün, in CI rot
+  (`.nvmrc` = 26). → Shim als EIGENE Setup-Datei vor `vitest.setup.ts` in `setupFiles`. Die
+  Node-26-Lage lässt sich auf Node 22 reproduzieren mit
+  `Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: undefined })`
+  als erste Setup-Datei.

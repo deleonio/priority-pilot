@@ -1,0 +1,16 @@
+{
+	"tabs": {
+		"dashboard": "Pannello",
+		"tasks": "Attività",
+		"series": "Serie",
+		"forest": "Foresta",
+		"ariaLabel": "Viste"
+	},
+	"menu": {
+		"settings": "Impostazioni",
+		"help": "Aiuto",
+		"logout": "Esci",
+		"headerActions": "Azioni dell'intestazione",
+		"activeViewDescription": "Vista corrente — premi di nuovo per tornare indietro"
+	}
+}

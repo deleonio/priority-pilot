@@ -1344,13 +1344,15 @@ export const TaskForm = ({
 							)}
 						</div>
 						{/* Kategorie: thematische Ordnung, höchstens eine je Aufgabe. Bewusst getrennt von den
-						    Säulen darunter — der Hinweistext benennt den Unterschied, damit niemand eine
-						    Säule als Ordner missbraucht (das verzerrt die Balance-Rechnung). */}
+						    Säulen darunter — der Hinweis benennt den Unterschied in einem Satz, damit niemand
+						    eine Säule als Ordner missbraucht (das verzerrt die Balance-Rechnung). Die lange
+						    Fassung steht dort, wo Zeit dafür ist: im Kategorien-Tab und im Benutzerhandbuch.
+						    Ein mehrzeiliger Hinweis schöbe hier nur das Badge vom Feld weg. */}
 						{categories.length > 0 && (
 							<div className="category-field">
 								<KolSingleSelect
 									_label="Kategorie (optional)"
-									_hint="Ordnet die Aufgabe einem Thema zu (Filter und Kennzeichen in den Listen). Anders als eine Säule wirkt sie nicht auf die Priorisierung."
+									_hint="Thema zum Filtern — wirkt nicht auf die Priorisierung."
 									_options={categoryOptions}
 									_value={categoryId ?? NO_CATEGORY}
 									_on={{
@@ -1360,7 +1362,24 @@ export const TaskForm = ({
 										},
 									}}
 								/>
-								<CategoryBadge category={selectedCategory} />
+								{/* Die getroffene Wahl steht als Badge UNTER dem Feld — genau so, wie sie später in den
+								    Listen aussieht — und daneben, auf derselben Zeile, der Weg zurück. Das „×" folgt dem
+								    Muster der Nachbarblöcke (`.pillar-row`, `.checklist-item`): icon-only, `danger`,
+								    Beschriftung nur für Screenreader (#368). Ohne Auswahl bleibt die Zeile aus, damit
+								    das Formular keinen leeren Platz vorhält. */}
+								{selectedCategory !== null && (
+									<div className="category-field__selection">
+										<CategoryBadge category={selectedCategory} />
+										<KolButton
+											_label="Kategorie entfernen"
+											_hideLabel
+											_icons={{ left: { icon: 'kolicon-cross' } }}
+											_variant="danger"
+											_disabled={saving}
+											_on={{ onClick: () => setCategoryId(null) }}
+										/>
+									</div>
+								)}
 							</div>
 						)}
 						{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}

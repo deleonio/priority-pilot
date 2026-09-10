@@ -1,0 +1,16 @@
+{
+	"tabs": {
+		"dashboard": "Instrumentbräda",
+		"tasks": "Uppgifter",
+		"series": "Serier",
+		"forest": "Skog",
+		"ariaLabel": "Vyer"
+	},
+	"menu": {
+		"settings": "Inställningar",
+		"help": "Hjälp",
+		"logout": "Logga ut",
+		"headerActions": "Sidhuvudsåtgärder",
+		"activeViewDescription": "Aktuell vy — aktivera igen för att gå tillbaka"
+	}
+}

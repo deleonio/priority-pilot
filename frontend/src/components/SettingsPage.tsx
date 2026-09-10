@@ -24,6 +24,7 @@ import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
+import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
 import { CategoryList } from './CategoryList';
 import { GroupsSection } from './GroupsSection';
@@ -369,6 +370,7 @@ export const SettingsPage = ({
 					<KolCard className="settings-card" _label="Darstellung und Eingabe" _level={2}>
 						<div className="settings-card-stack">
 							<AppearanceSetting />
+							<LanguageSetting />
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">

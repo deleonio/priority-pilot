@@ -1,0 +1,16 @@
+{
+	"tabs": {
+		"dashboard": "Painel",
+		"tasks": "Tarefas",
+		"series": "Séries",
+		"forest": "Floresta",
+		"ariaLabel": "Visualizações"
+	},
+	"menu": {
+		"settings": "Configurações",
+		"help": "Ajuda",
+		"logout": "Sair",
+		"headerActions": "Ações do cabeçalho",
+		"activeViewDescription": "Vista atual — ative novamente para voltar"
+	}
+}

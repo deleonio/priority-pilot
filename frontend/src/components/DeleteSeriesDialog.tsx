@@ -28,8 +28,10 @@ export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRe
 		title="Serie löschen"
 		body={
 			<p>
-				Soll die Serie <strong>„{series.title}"</strong> gelöscht werden — und falls ja, sollen auch alle bereits
-				generierten Instanzen mitgelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.
+				Soll die Serie <strong>„{series.title}"</strong> (
+				<span style={{ color: 'var(--pp-ink-muted, #525b6a)' }}>#{series.id}</span>) gelöscht werden — und falls ja,
+				sollen auch alle bereits generierten Instanzen mitgelöscht werden? Diese Aktion kann nicht rückgängig gemacht
+				werden.
 			</p>
 		}
 		confirmLabel="Ja (Serie + alle Aufgaben)"

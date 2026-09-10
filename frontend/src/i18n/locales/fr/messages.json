@@ -1,0 +1,26 @@
+{
+	"errors": {
+		"saveFailed": "Impossible d'enregistrer",
+		"deleteFailed": "Impossible de supprimer",
+		"createFailed": "Impossible de créer",
+		"loadingFailed": "Impossible de charger",
+		"genericError": "Une erreur s'est produite",
+		"validation": "Erreur de validation",
+		"notFound": "Non trouvé"
+	},
+	"success": {
+		"saved": "Enregistré avec succès",
+		"deleted": "Supprimé avec succès",
+		"created": "Créé avec succès",
+		"updated": "Mis à jour avec succès"
+	},
+	"confirmations": {
+		"deleteConfirm": "Voulez-vous vraiment supprimer?",
+		"unsavedChanges": "Vous avez des modifications non enregistrées"
+	},
+	"empty": {
+		"noTasks": "Aucune tâche",
+		"noSeries": "Aucune série",
+		"noCategories": "Aucune catégorie"
+	}
+}

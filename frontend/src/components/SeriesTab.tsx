@@ -235,7 +235,11 @@ export const SeriesTab = ({ pillars, categories = [] }: SeriesTabProps) => {
 			)}
 
 			{editDialog !== null && (
-				<Modal title={`Serie bearbeiten: ${editDialog.series.title}`} onClose={() => setEditDialog(null)} width="44rem">
+				<Modal
+					title={`Serie bearbeiten: ${editDialog.series.title} (#${editDialog.series.id})`}
+					onClose={() => setEditDialog(null)}
+					width="44rem"
+				>
 					<TaskForm
 						key={editDialog.series.id}
 						task={null}

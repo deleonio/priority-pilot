@@ -135,25 +135,25 @@ describe('taskFormModalTitle (#334)', () => {
 		expect(taskFormModalTitle(null, null, 'series')).toBe('Serie anlegen');
 	});
 
-	it('AK4: Bearbeiten im Task-Modus nennt den Typ „Aufgabe bearbeiten: <title>"', () => {
+	it('AK1 (#1346): Bearbeiten im Task-Modus nennt den Typ „Aufgabe bearbeiten: <title> (#<id>)"', () => {
 		expect(taskFormModalTitle(makeTask(1, 'Steuererklärung'), null, 'task')).toBe(
-			'Aufgabe bearbeiten: Steuererklärung',
+			'Aufgabe bearbeiten: Steuererklärung (#1)',
 		);
 	});
 
-	it('AK4: Bearbeiten im Serie-Modus nennt den Typ „Serie bearbeiten: <title>"', () => {
+	it('AK1 (#1346): Bearbeiten im Serie-Modus nennt den Typ „Serie bearbeiten: <title> (#<id>)"', () => {
 		expect(taskFormModalTitle(makeTask(7, 'Wöchentlicher Sport'), null, 'series')).toBe(
-			'Serie bearbeiten: Wöchentlicher Sport',
+			'Serie bearbeiten: Wöchentlicher Sport (#7)',
 		);
 	});
 
-	it('Unteraufgabe (parentTask gesetzt) bleibt unverändert', () => {
+	it('AK2: Unteraufgabe (parentTask gesetzt) bleibt unverändert, keine ID', () => {
 		expect(taskFormModalTitle(null, makeTask(42, 'Elternaufgabe'), 'task')).toBe('Unteraufgabe zu #42 – Elternaufgabe');
 	});
 
-	it('Bearbeiten einer Unteraufgabe (task UND parentTask gesetzt) zeigt Unteraufgaben-Titel', () => {
+	it('AK1 (#1346): Bearbeiten einer Unteraufgabe (task UND parentTask gesetzt) zeigt Unteraufgaben-Titel mit ID', () => {
 		expect(taskFormModalTitle(makeTask(5, 'Unteraufgabe'), makeTask(42, 'Elternaufgabe'), 'task')).toBe(
-			'Aufgabe bearbeiten: Unteraufgabe',
+			'Aufgabe bearbeiten: Unteraufgabe (#5)',
 		);
 	});
 

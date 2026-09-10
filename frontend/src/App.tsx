@@ -12,6 +12,7 @@ import {
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -62,11 +63,6 @@ const TaskGraphPanel = lazy(() =>
 	import('./components/TaskGraphPanel').then((module) => ({ default: module.TaskGraphPanel })),
 );
 
-// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
-// `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
-// die Auswahl zurücksetzt.
-const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Wald' }];
-
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
@@ -101,13 +97,6 @@ const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 // die Kopf-Aktionen sind app-weit über ihn adressiert.
 const ACTIVE_VARIANT = 'primary' as const;
 const INACTIVE_VARIANT = 'secondary' as const;
-const ACTIVE_VIEW_DESCRIPTION = 'Aktuelle Ansicht — erneut betätigen führt zurück';
-
-// #1320: Seitentitel der einen `<h1>` je Ansicht (AK7). Die Hauptansichten teilen sich „Dashboard",
-// weil die Ansichten-Tabs innerhalb derselben Seite umschalten.
-const MAIN_VIEW_TITLE = 'Dashboard';
-const SETTINGS_VIEW_TITLE = 'Einstellungen';
-const HELP_VIEW_TITLE = 'Hilfe';
 
 /**
  * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
@@ -123,8 +112,23 @@ const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, 
 };
 
 const AppShell = ({ user }: { user: AuthUser }) => {
+	const { t } = useTranslation('navigation');
 	const location = useLocation();
 	const navigate = useNavigate();
+
+	// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
+	// `KolTabs`). Das `useMemo` hält die Objektidentität stabil, weil `KolTabs` bei einer neuen
+	// Tab-Liste die Auswahl zurücksetzt; `t` wechselt nur beim Sprachwechsel — genau dann sollen
+	// die Beschriftungen auch neu entstehen.
+	const viewTabs = useMemo(
+		() => [
+			{ _label: t('tabs.dashboard') },
+			{ _label: t('tabs.tasks') },
+			{ _label: t('tabs.series') },
+			{ _label: t('tabs.forest') },
+		],
+		[t],
+	);
 	const [searchParams, setSearchParams] = useSearchParams();
 	// #1105: Hilfe und Einstellungen sind Routen statt State-Flags — Back/Forward und Deep-Links
 	// funktionieren dadurch browser-nativ (AK1–AK4).
@@ -683,25 +687,25 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				: []),
 			{
 				type: 'button' as const,
-				_label: 'Einstellungen',
+				_label: t('menu.settings'),
 				_hideLabel: true,
 				_icons: SETTINGS_ICON,
 				_variant: showSettings ? ACTIVE_VARIANT : INACTIVE_VARIANT,
-				...(showSettings ? { _ariaDescription: ACTIVE_VIEW_DESCRIPTION } : {}),
+				...(showSettings ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: toggleSettings },
 			},
 			{
 				type: 'button' as const,
-				_label: 'Hilfe',
+				_label: t('menu.help'),
 				_hideLabel: true,
 				_icons: HELP_ICON,
 				_variant: showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT,
-				...(showHelp ? { _ariaDescription: ACTIVE_VIEW_DESCRIPTION } : {}),
+				...(showHelp ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: toggleHelp },
 			},
 			{
 				type: 'button' as const,
-				_label: 'Abmelden',
+				_label: t('menu.logout'),
 				_hideLabel: true,
 				_icons: LOGOUT_ICON,
 				_variant: 'secondary' as const,
@@ -720,12 +724,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		aiEnabled,
 		showSettings,
 		showHelp,
+		t,
 	]);
 
 	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
 	// Layout. Header (Logo, Kopf-Aktionen, Avatar), Dialoge und Fußzeile bleiben auf allen drei
 	// Ansichten stehen, nur der Seiteninhalt wechselt. Genau deshalb entfällt der „Zurück"-Button.
-	const pageTitle = showSettings ? SETTINGS_VIEW_TITLE : showHelp ? HELP_VIEW_TITLE : MAIN_VIEW_TITLE;
+	// #1320: Seitentitel der einen `<h1>` je Ansicht (AK7). Die Hauptansichten teilen sich den
+	// Dashboard-Titel, weil die Ansichten-Tabs innerhalb derselben Seite umschalten.
+	const pageTitle = showSettings ? t('menu.settings') : showHelp ? t('menu.help') : t('tabs.dashboard');
 
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
@@ -748,7 +755,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
 					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
 					 */}
-					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
+					<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
 				</div>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
 				<div className="app-header__user">
@@ -814,8 +821,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						<KolTabs
 							ref={appTabsRef}
 							className="app-tabs"
-							_label="Ansichten"
-							_tabs={VIEW_TABS}
+							_label={t('tabs.ariaLabel')}
+							_tabs={viewTabs}
 							_selected={activeTab}
 							_on={tabsCallbacks}
 						>
@@ -832,61 +839,59 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							</div>
 							<div slot="tab-1">
 								<section className="task-section">
+									{/* Filterleiste: Die beiden Umschalter sind Ansichtsschalter, keine Filter — sie stehen
+									    als eigene Gruppe über der Filterzeile. Darunter, in Lesereihenfolge und zugleich
+									    Tab-Reihenfolge: Suchfeld, Kategorie, „Filtern". Die Breitenverhältnisse
+									    (50/30/Rest ab Tablet, mobil gestapelt) macht `.task-filter-bar` in app.css. */}
 									<div className="task-filter-bar">
-										<KolInputCheckbox
-											className="task-view-switch"
-											_label="Erledigte Aufgaben anzeigen"
-											_variant="switch"
-											_checked={taskViewMode === 'done'}
-											_on={{
-												onChange: (_event, checked) => {
-													changeTaskViewMode(checked === true);
-												},
-											}}
-										/>
-										<KolInputCheckbox
-											className="task-view-switch"
-											_label="Balance-Priorisierung"
-											_variant="switch"
-											_checked={balanceMode}
-											_on={{
-												onChange: (_event, checked) => {
-													setBalanceMode(checked === true);
-												},
-											}}
-										/>
-										<div className="task-filter-search">
-											<KolInputText
-												ref={taskFilterInputRef}
-												className="task-filter-search__field"
-												_label="Nach Titel filtern"
-												_hideLabel
-												_type="search"
-												_placeholder="Nach Titel filtern…"
-												_value={searchDraft}
+										<div className="task-filter-switches">
+											<KolInputCheckbox
+												className="task-view-switch"
+												_label="Erledigte Aufgaben anzeigen"
+												_variant="switch"
+												_checked={taskViewMode === 'done'}
 												_on={{
-													onInput: (event: Event) => {
-														setSearchDraft((event.target as HTMLInputElement).value);
-													},
-													// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
-													onKeyDown: (event: KeyboardEvent) => {
-														if (event.key === 'Enter') {
-															applyTaskFilter((event.target as HTMLInputElement).value);
-														}
+													onChange: (_event, checked) => {
+														changeTaskViewMode(checked === true);
 													},
 												}}
 											/>
-											<KolButton
-												className="task-filter-search__submit"
-												_label="Filtern"
-												_variant="secondary"
-												_icons="fa-solid fa-magnifying-glass"
-												_on={{ onClick: () => applyTaskFilter(searchDraft) }}
+											<KolInputCheckbox
+												className="task-view-switch"
+												_label="Balance-Priorisierung"
+												_variant="switch"
+												_checked={balanceMode}
+												_on={{
+													onChange: (_event, checked) => {
+														setBalanceMode(checked === true);
+													},
+												}}
 											/>
 										</div>
+										<KolInputText
+											ref={taskFilterInputRef}
+											className="task-filter-search__field"
+											_label="Nach Titel filtern"
+											_hideLabel
+											_type="search"
+											_placeholder="Nach Titel filtern…"
+											_value={searchDraft}
+											_on={{
+												onInput: (event: Event) => {
+													setSearchDraft((event.target as HTMLInputElement).value);
+												},
+												// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
+												onKeyDown: (event: KeyboardEvent) => {
+													if (event.key === 'Enter') {
+														applyTaskFilter((event.target as HTMLInputElement).value);
+													}
+												},
+											}}
+										/>
 										{/* Kategorie-Filter neben dem Titel-Filter; er wirkt sofort (anders als der Suchtext,
 										    der erst auf „Filtern"/Enter greift) — eine Auswahl ist eine abgeschlossene Eingabe.
-										    Ohne angelegte Kategorien bleibt das Feld aus. */}
+										    Ohne angelegte Kategorien bleibt das Feld aus; Suchfeld und „Filtern" teilen sich
+										    dann die Zeile (siehe Flex-Verhältnisse in app.css). */}
 										{categories.length > 0 && (
 											<KolSingleSelect
 												className="task-filter-category"
@@ -902,6 +907,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												}}
 											/>
 										)}
+										<KolButton
+											className="task-filter-search__submit"
+											_label="Filtern"
+											_variant="secondary"
+											_icons="fa-solid fa-magnifying-glass"
+											_on={{ onClick: () => applyTaskFilter(searchDraft) }}
+										/>
 									</div>
 									{taskViewMode === 'open' ? (
 										filteredForest.length === 0 ? (

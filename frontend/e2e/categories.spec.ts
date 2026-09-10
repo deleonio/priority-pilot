@@ -89,7 +89,7 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		expect(stored.map((entry) => entry.name)).toContain(name);
 	});
 
-	test('AK2: Kategorie im Aufgabenformular zuordnen — Auswahl landet am Task', async ({ page }) => {
+	test('AK2: Kategorie zuordnen — Kennzeichen unter dem Feld, abwählbar, landet am Task', async ({ page }) => {
 		const name = uniqueName('Steuer');
 		const title = `E2E-Kat-Erklaerung-${runId}`;
 		const categoryId = await createCategoryViaApi(page, name);
@@ -118,6 +118,31 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		// Übernahme belegen, bevor gespeichert wird: Ein Klick, den die Combobox verwirft, liefe sonst
 		// stumm in einen Task ohne Kategorie.
 		await expect(categoryField).toHaveValue(name);
+
+		// Die Wahl steht als Kennzeichen UNTER dem Feld — so, wie sie später in der Liste aussieht.
+		// „Darunter" wird an den echten Kästen geprüft, nicht an der DOM-Reihenfolge: Nur die Geometrie
+		// belegt, dass das Kennzeichen nicht doch neben dem Feld sitzt (der Zustand vor #1325-Nachtrag).
+		const selection = page.locator('.category-field__selection');
+		await expect(selection.locator('kol-badge')).toHaveText(name);
+		const fieldBox = await page.locator('.category-field kol-single-select').boundingBox();
+		const badgeBox = await selection.locator('kol-badge').boundingBox();
+		expect(badgeBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height - 1);
+
+		// … und das „×" steht INLINE daneben, nicht als dritte Zeile darunter: Die beiden Kästen
+		// überlappen vertikal. Der Knopf trägt keinen sichtbaren Text (Muster `.checklist-item`), ist
+		// aber über seinen zugänglichen Namen bedienbar — genau das prüft der Klick unten (#368).
+		const removeButton = page.getByRole('button', { name: 'Kategorie entfernen' });
+		const removeBox = await removeButton.boundingBox();
+		expect(removeBox!.y).toBeLessThan(badgeBox!.y + badgeBox!.height);
+		expect(badgeBox!.y).toBeLessThan(removeBox!.y + removeBox!.height);
+
+		// Abwählen und wieder wählen: Die Zuordnung ist keine Einbahnstraße.
+		await removeButton.click();
+		await expect(selection).toHaveCount(0);
+		await expect(categoryField).not.toHaveValue(name);
+		await categoryField.click();
+		await page.getByRole('option', { name }).click();
+		await expect(selection.locator('kol-badge')).toHaveText(name);
 
 		// Auf die Anlege-Antwort warten und sie auswerten: Ein stiller 4xx würde sonst als „Dialog zu,
 		// alles gut" durchgehen — die Aufgabe fehlte, ohne dass der Test es merkt.

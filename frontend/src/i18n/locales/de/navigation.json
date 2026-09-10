@@ -1,0 +1,16 @@
+{
+	"tabs": {
+		"dashboard": "Dashboard",
+		"tasks": "Aufgaben",
+		"series": "Serien",
+		"forest": "Wald",
+		"ariaLabel": "Ansichten"
+	},
+	"menu": {
+		"settings": "Einstellungen",
+		"help": "Hilfe",
+		"logout": "Abmelden",
+		"headerActions": "Kopf-Aktionen",
+		"activeViewDescription": "Aktuelle Ansicht — erneut betätigen führt zurück"
+	}
+}

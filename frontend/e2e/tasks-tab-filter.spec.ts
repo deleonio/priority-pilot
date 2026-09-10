@@ -345,4 +345,89 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 		const scrollWidthAfterSwitch = await page.evaluate(() => document.body.scrollWidth);
 		expect(scrollWidthAfterSwitch).toBeLessThanOrEqual(375);
 	});
+
+	/**
+	 * Layout der Filterzeile. Geprüft wird an den echten Kästen, nicht an Klassen: Nur die Geometrie
+	 * belegt, dass die drei Bedienelemente auf dem Desktop wirklich nebeneinander liegen (die Leiste
+	 * war vorher auf jedem Viewport gestapelt, weil die Suchzeile `flex: 1 1 100%` trug).
+	 *
+	 * Der Kategorie-Filter erscheint nur, wenn Kategorien angelegt sind — die Spec legt sich deshalb
+	 * eine eigene an und räumt sie hinterher wieder ab (Muster `categories.spec.ts`).
+	 */
+	test.describe('Filterzeile: Suchfeld 50 %, Kategorie 30 %, „Filtern" der Rest', () => {
+		const categoryName = 'E2E-Filterzeile';
+		const categoryFilter = (page: Page) => page.locator('.task-filter-category');
+
+		test.beforeEach(async ({ page }) => {
+			const response = await page.request.post('/api/v1/categories', {
+				data: { name: categoryName, color: '#b42318' },
+			});
+			expect(response.ok(), `Kategorie ${categoryName} konnte nicht angelegt werden`).toBeTruthy();
+		});
+
+		test.afterEach(async ({ page }) => {
+			const categories = (await (await page.request.get('/api/v1/categories')).json()) as {
+				id: number;
+				name: string;
+			}[];
+			for (const category of categories.filter((entry) => entry.name === categoryName)) {
+				await page.request.delete(`/api/v1/categories/${category.id}`);
+			}
+		});
+
+		/** Öffnet den Aufgaben-Tab im gewünschten Viewport und liefert die drei Kästen der Filterzeile. */
+		const filterRowBoxes = async (page: Page, width: number, height: number) => {
+			await page.setViewportSize({ width, height });
+			await page.goto('/');
+			await waitForStableView(page);
+			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+			await waitForStableView(page);
+
+			const [search, category, submit] = await Promise.all([
+				searchInput(page).boundingBox(),
+				categoryFilter(page).boundingBox(),
+				filterButton(page).boundingBox(),
+			]);
+			expect(search, 'Suchfeld nicht sichtbar').not.toBeNull();
+			expect(category, 'Kategorie-Filter nicht sichtbar').not.toBeNull();
+			expect(submit, '„Filtern"-Knopf nicht sichtbar').not.toBeNull();
+			return { search: search!, category: category!, submit: submit! };
+		};
+
+		test('Desktop (1280px): eine Zeile im Verhältnis 50 / 30 / 20', async ({ page }) => {
+			const { search, category, submit } = await filterRowBoxes(page, 1280, 900);
+
+			// Eine Zeile: Jedes Paar überlappt vertikal. Wären die Elemente gestapelt, läge der obere
+			// Rand des jeweils nächsten unterhalb der Unterkante des vorigen.
+			for (const [name, box] of [
+				['Kategorie', category],
+				['Filtern', submit],
+			] as const) {
+				expect(box.y, `${name} liegt nicht auf der Zeile des Suchfelds`).toBeLessThan(search.y + search.height);
+				expect(search.y, `${name} liegt nicht auf der Zeile des Suchfelds`).toBeLessThan(box.y + box.height);
+			}
+
+			// Und die zugesagten Anteile. Die Zeilenbreite ist die Summe der drei Kästen plus zwei Gaps;
+			// gemessen wird gegen die Summe der Kästen, damit der Gap-Wert hier nicht mitgepflegt werden
+			// muss. Toleranz ±3 Prozentpunkte deckt Rundung und Rahmen ab.
+			const total = search.width + category.width + submit.width;
+			expect(Math.round((search.width / total) * 100)).toBeGreaterThanOrEqual(47);
+			expect(Math.round((search.width / total) * 100)).toBeLessThanOrEqual(53);
+			expect(Math.round((category.width / total) * 100)).toBeGreaterThanOrEqual(27);
+			expect(Math.round((category.width / total) * 100)).toBeLessThanOrEqual(33);
+			expect(Math.round((submit.width / total) * 100)).toBeGreaterThanOrEqual(17);
+			expect(Math.round((submit.width / total) * 100)).toBeLessThanOrEqual(23);
+		});
+
+		test('Mobil (375px): gestapelt statt nebeneinander', async ({ page }) => {
+			const { search, category, submit } = await filterRowBoxes(page, 375, 812);
+
+			// Jedes Element beginnt unterhalb des vorigen — das Gegenteil der Desktop-Zusage.
+			expect(category.y).toBeGreaterThanOrEqual(search.y + search.height);
+			expect(submit.y).toBeGreaterThanOrEqual(category.y + category.height);
+
+			const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
+			expect(scrollWidth).toBeLessThanOrEqual(375);
+		});
+	});
 });
