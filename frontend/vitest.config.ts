@@ -40,9 +40,11 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'jsdom',
-		// Bindet Web Storage im jsdom-Env an jsdoms Implementierung (siehe vitest.setup.ts) —
-		// nötig, weil Node ≥ 26 einen nativen, ohne --localstorage-file leeren localStorage-Global mitbringt.
-		setupFiles: ['./vitest.setup.ts'],
+		// Reihenfolge ist bindend: `vitest.storage-shim.ts` bindet Web Storage im jsdom-Env an jsdoms
+		// Implementierung (Node ≥ 26 bringt einen nativen, ohne --localstorage-file leeren
+		// localStorage-Global mit) und muss laufen, BEVOR `vitest.setup.ts` Module importiert, die
+		// beim Laden Web Storage anfassen — Begründung im Kopf der Shim-Datei.
+		setupFiles: ['./vitest.storage-shim.ts', './vitest.setup.ts'],
 		// Die Playwright-Specs unter e2e/ matchen Vitests Default-Include, würden aber unter jsdom
 		// crashen (`@playwright/test`-Import). Daher zusätzlich zu den Vitest-Defaults ausschließen.
 		// __quarantine__ (Issue #564): Quarantäne-Tests sind bewusst vom CI-Lauf ausgeschlossen –

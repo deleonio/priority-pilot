@@ -165,3 +165,13 @@ Konflikte, die er verhindern soll.
   unter pnpms Isolation gar nicht auflösen kann — `tsc` bricht erst beim Import ab. → Deps immer per
   `pnpm --filter <workspace> add --save-exact …` setzen. Und: das React-Binding für i18next heißt
   `react-i18next`; `i18next-react` ist ein verwaistes Fremdpaket ohne `initReactI18next`.
+- 2026-09-10 · Vitest/Setup-Reihenfolge — ES-Importe werden VOR dem Modulrumpf ausgewertet: der
+  Web-Storage-Shim im Rumpf von `vitest.setup.ts` greift damit zu spät für jedes Modul, das die
+  Setup-Datei importiert. `i18next-browser-languagedetector` prüft `localStorage` genau einmal und
+  merkt sich das Ergebnis modulweit (`hasLocalStorageSupport`); unter Node 26 (nativer, ohne
+  `--localstorage-file` leerer Getter) fiel die Prüfung auf `false` und das Zurückschreiben der
+  Sprachwahl war für den ganzen Lauf still abgeschaltet — lokal unter Node 22 grün, in CI rot
+  (`.nvmrc` = 26). → Shim als EIGENE Setup-Datei vor `vitest.setup.ts` in `setupFiles`. Die
+  Node-26-Lage lässt sich auf Node 22 reproduzieren mit
+  `Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: undefined })`
+  als erste Setup-Datei.
