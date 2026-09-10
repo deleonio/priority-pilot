@@ -1,4 +1,13 @@
-import { KolAlert, KolAvatar, KolBadge, KolButton, KolCard, KolHeading, KolSpin } from '@public-ui/react-v19';
+import {
+	KolAccordion,
+	KolAlert,
+	KolAvatar,
+	KolBadge,
+	KolButton,
+	KolCard,
+	KolHeading,
+	KolSpin,
+} from '@public-ui/react-v19';
 import type { Group, ReceivedInvitation } from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
@@ -27,10 +36,11 @@ export const GroupsSection = () => {
 	const [groups, setGroups] = useState<Group[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
-	// Aufgeklappte Gruppe (#1212): Klick auf die Karte zeigt das Detail darunter — kein eigener
-	// Screen, damit die Sektion mobil eine Spalte bleibt. Das Detail hält Kopf, Rolle, Mitgliederzahl
-	// und die Mitgliederliste sofort sichtbar; weitere Bereiche sind dort als KolAccordion
-	// zugeklappt (#1257).
+	// Aufgeklappte Gruppe (#1212): Jede Gruppe ist ein `KolAccordion` — der Klapp-Mechanismus kommt
+	// aus KoliBri (Rolle, Tastaturpfad und `aria-expanded` inklusive) statt aus einem selbstgebauten
+	// `onClick` am Listenelement. Genau eine Gruppe ist offen, damit die Sektion mobil eine Spalte
+	// bleibt. Das Detail hält Mitgliederzahl und Mitgliederliste sofort sichtbar; weitere Bereiche
+	// sind dort ebenfalls KolAccordion und zugeklappt (#1257).
 	const [openGroupId, setOpenGroupId] = useState<number | null>(null);
 	// Ticker für „Daten auffrischen“ am offenen Detail (#1223): Hochzählen löst ein Neuladen aus.
 	const [detailRefreshTick, setDetailRefreshTick] = useState(0);
@@ -94,20 +104,24 @@ export const GroupsSection = () => {
 
 	return (
 		<div className="groups-section" ref={deleteFallbackRef} tabIndex={-1}>
-			<KolHeading _label="Gruppen" _level={2} />
+			{/* Keine H2 „Gruppen" mehr: Der Tab-Reiter trägt den Namen bereits — die Überschrift stand
+			    doppelt im Accessibility-Baum (Design-Lauf 2026-09). */}
 			{error !== null && (
 				<KolAlert _type="error" _label="Gruppen konnten nicht geladen werden">
 					{error}
 				</KolAlert>
 			)}
+			{/* `group-received-invitations` bleibt als Anker der empfangenen Einladungen erhalten (kein
+			    Styling, sondern der Scope, mit dem Tests „Einladungen an mich" von den „offenen
+			    Einladungen" im Gruppendetail trennen) — die frühere `<section>` mit eigener H3 ist zur
+			    Karte geworden, der Anker nicht. */}
 			{invitations.length > 0 && (
-				<section className="group-received-invitations">
-					<KolHeading _label="Einladungen" _level={3} />
+				<KolCard className="settings-card group-received-invitations" _label="Einladungen" _level={2}>
 					<ul className="groups-items">
 						{invitations.map((invitation) => (
 							<li key={invitation.id} className="groups-item">
 								<div className="groups-info">
-									<KolHeading _label={invitation.groupName} _level={4} />
+									<KolHeading _label={invitation.groupName} _level={3} />
 									<p className="hint">{`Eingeladen von ${invitation.invitedByName}`}</p>
 								</div>
 								<div className="groups-actions">
@@ -125,7 +139,7 @@ export const GroupsSection = () => {
 							</li>
 						))}
 					</ul>
-				</section>
+				</KolCard>
 			)}
 			{groups === null ? (
 				<KolSpin _show _variant="cycle" _label="Gruppen werden geladen …" />
@@ -156,82 +170,80 @@ export const GroupsSection = () => {
 					) : (
 						<ul className="groups-items">
 							{groups.map((group) => (
-								<li
-									key={group.id}
-									className="groups-item groups-item--expandable"
-									data-group-id={group.id}
-									// Ganze Karte klickbar (#1212): der Namens-Button allein deckt nur einen schmalen
-									// Streifen ab, ein Klick daneben (die Karte ist `space-between`, dazwischen liegt
-									// eine Lücke) blieb wirkungslos. Bedienelemente klappen die Ansicht nie zu — sonst
-									// klappte jeder Klick auf „Einladen"/„Entfernen" oder ins Suchfeld die Ansicht
-									// wieder zu. Tastaturpfad bleibt der Namens-Button.
-									// Blanker Klick auf das bereits aufgeklappte Detail frischt die Daten auf, statt
-									// nichts zu tun (#1223) — so sieht man Annahmen und neue Aufgaben anderer, ohne
-									// die Karte erst zu- und wieder aufzuklappen.
-									onClick={(event) => {
-										const target = event.target as HTMLElement;
-										if (target.closest('kol-button, kol-input-text, kol-dialog, button, a, input') !== null) {
-											return;
-										}
-										if (target.closest('.group-detail') !== null) {
-											setDetailRefreshTick((tick) => tick + 1);
-											return;
-										}
-										setOpenGroupId(openGroupId === group.id ? null : group.id);
-									}}
-								>
-									{/* Gruppenbild (#1225, AK4): Avatar links neben dem Namen — mit imageUrl das Bild,
-									    ohne Bild die Initialen aus dem Namen (Muster App.tsx:665). `_color` bewusst
-									    ungesetzt (KI-UX), rein dekorativ und kein eigenes Klick-Ziel; `aria-hidden`
-									    hält den Namen einmalig im SR-Baum — der Namens-Button trägt ihn
-									    (Audit #1257). */}
-									<KolAvatar
-										aria-hidden="true"
-										className="groups-avatar"
+								<li key={group.id} className="groups-item groups-item--accordion" data-group-id={group.id}>
+									{/*
+									 * Eine Gruppe = ein `KolAccordion` (Design-Lauf 2026-09). Vorher war das ein
+									 * selbstgebauter Aufklapper: ein `onClick` am `<li>` mit einer
+									 * `event.target.closest(...)`-Heuristik, die entscheiden musste, welcher Klick
+									 * auf-/zuklappt und welcher nicht — Rolle, Tastaturpfad und `aria-expanded`
+									 * hingen an einem separaten Namens-Button daneben. KoliBri bringt all das
+									 * nativ mit, und die Seite hat damit genau eine Klapp-Primitive.
+									 */}
+									<KolAccordion
+										className="groups-accordion"
 										_label={group.name}
-										_src={group.imageUrl ?? undefined}
-									/>
-									<div className="groups-info">
-										{/* Auf/Zu gehört zur Semantik des Schalters (WCAG 4.1.2, Audit #1257):
-										    aria-expanded + aria-controls nativ an der KoliBri-Komponente. */}
-										<KolButton
-											_ariaControls={`group-detail-${group.id}`}
-											_ariaExpanded={openGroupId === group.id}
-											_label={group.name}
-											_variant="tertiary"
-											_on={{ onClick: () => setOpenGroupId(openGroupId === group.id ? null : group.id) }}
-										/>
-										{group.description !== null && group.description !== '' && (
-											<p className="hint groups-description">{group.description}</p>
-										)}
-										{/* Metazeile: Rolle als Text-Badge (nie nur Farbe) + Mitgliederzahl (AK6). */}
-										<div className="groups-meta">
-											<KolBadge _label={roleLabel(group.role)} />
-											<span>{memberCountLabel(group.memberCount)}</span>
+										_level={3}
+										_open={openGroupId === group.id}
+										_on={{
+											onToggle: () => setOpenGroupId(openGroupId === group.id ? null : group.id),
+										}}
+									>
+										<div className="groups-body">
+											<div className="groups-summary">
+												{/* Gruppenbild (#1225, AK4): Avatar neben den Metadaten — mit imageUrl das Bild,
+												    ohne Bild die Initialen aus dem Namen (Muster App.tsx:665). `_color` bewusst
+												    ungesetzt (KI-UX), rein dekorativ und kein eigenes Klick-Ziel; `aria-hidden`
+												    hält den Namen einmalig im SR-Baum — der Accordion-Kopf trägt ihn. */}
+												<KolAvatar
+													aria-hidden="true"
+													className="groups-avatar"
+													_label={group.name}
+													_src={group.imageUrl ?? undefined}
+												/>
+												<div className="groups-info">
+													{group.description !== null && group.description !== '' && (
+														<p className="hint groups-description">{group.description}</p>
+													)}
+													{/* Metazeile: Rolle als Text-Badge (nie nur Farbe) + Mitgliederzahl (AK6). */}
+													<div className="groups-meta">
+														<KolBadge _label={roleLabel(group.role)} />
+														<span>{memberCountLabel(group.memberCount)}</span>
+													</div>
+												</div>
+											</div>
+											<div className="groups-actions">
+												{/* #1223: Explizites Bedienelement statt „Klick irgendwo ins offene Detail" —
+												    der alte Auffrisch-Pfad war weder sichtbar noch per Tastatur erreichbar. */}
+												<KolButton
+													_label="Daten auffrischen"
+													_variant="secondary"
+													_on={{ onClick: () => setDetailRefreshTick((tick) => tick + 1) }}
+												/>
+												{group.role === 'admin' && (
+													<>
+														<KolButton
+															_label="Bearbeiten"
+															_variant="secondary"
+															_on={{ onClick: () => setDialog({ kind: 'edit', group }) }}
+														/>
+														<KolButton
+															_label="Löschen"
+															_variant="danger"
+															_on={{ onClick: () => setDialog({ kind: 'delete', group }) }}
+														/>
+													</>
+												)}
+											</div>
+											{openGroupId === group.id && (
+												<GroupDetail
+													id={`group-detail-${group.id}`}
+													groupId={group.id}
+													ownRole={group.role}
+													refreshKey={detailRefreshTick}
+												/>
+											)}
 										</div>
-									</div>
-									{group.role === 'admin' && (
-										<div className="groups-actions">
-											<KolButton
-												_label="Bearbeiten"
-												_variant="secondary"
-												_on={{ onClick: () => setDialog({ kind: 'edit', group }) }}
-											/>
-											<KolButton
-												_label="Löschen"
-												_variant="danger"
-												_on={{ onClick: () => setDialog({ kind: 'delete', group }) }}
-											/>
-										</div>
-									)}
-									{openGroupId === group.id && (
-										<GroupDetail
-											id={`group-detail-${group.id}`}
-											groupId={group.id}
-											ownRole={group.role}
-											refreshKey={detailRefreshTick}
-										/>
-									)}
+									</KolAccordion>
 								</li>
 							))}
 						</ul>

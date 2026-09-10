@@ -1,4 +1,4 @@
-import { KolAlert, KolBadge, KolButton, KolHeading, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolSpin } from '@public-ui/react-v19';
 import type { AdminUser } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
@@ -54,7 +54,9 @@ export const AdminUsersSection = () => {
 				<KolSpin _show _variant="cycle" _label="Nutzer werden geladen …" />
 			) : (
 				<>
-					<KolHeading _label="Nutzerverwaltung" _level={4} />
+					{/* Keine eigene Überschrift mehr: Tab-Reiter („Nutzerverwaltung") und Karten-Label
+					    („Nutzer und Rollen", SettingsPage) benennen den Abschnitt bereits — die H4 war die
+					    dritte Wiederholung desselben Namens (Design-Lauf 2026-09). */}
 					<ul className="admin-user-list">
 						{users.map((user) => (
 							<li key={user.id} className="admin-user">
