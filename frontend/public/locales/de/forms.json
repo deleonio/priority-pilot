@@ -1,0 +1,28 @@
+{
+  "labels": {
+    "name": "Name",
+    "displayName": "Anzeigename",
+    "description": "Beschreibung",
+    "category": "Kategorie",
+    "duration": "Dauer",
+    "effort": "Aufwand",
+    "priority": "Priorität",
+    "autoStartRecording": "Sprachaufnahme automatisch starten",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Passwort bestätigen"
+  },
+  "placeholders": {
+    "enterName": "Name eingeben",
+    "enterDescription": "Beschreibung eingeben",
+    "selectCategory": "Kategorie wählen",
+    "searchTasks": "Aufgaben durchsuchen"
+  },
+  "hints": {
+    "nameRequired": "Der Name ist erforderlich",
+    "descriptionOptional": "Optional",
+    "selectAtLeastOne": "Wählen Sie mindestens einen Eintrag"
+  }
+}

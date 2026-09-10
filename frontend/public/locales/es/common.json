@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Priority Pilot",
+    "description": "Gestor de tareas"
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "it": "Italiano",
+    "pt": "Português",
+    "nl": "Nederlands",
+    "pl": "Polski",
+    "ru": "Русский",
+    "sv": "Svenska"
+  },
+  "actions": {
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "create": "Crear",
+    "update": "Actualizar",
+    "close": "Cerrar",
+    "edit": "Editar",
+    "add": "Agregar",
+    "remove": "Quitar",
+    "select": "Seleccionar",
+    "back": "Atrás"
+  },
+  "status": {
+    "open": "Abierto",
+    "inProcess": "En progreso",
+    "done": "Completado"
+  },
+  "time": {
+    "days": "Días",
+    "hours": "Horas",
+    "minutes": "Minutos",
+    "seconds": "Segundos"
+  }
+}

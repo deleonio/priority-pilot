@@ -1,0 +1,13 @@
+{
+  "tabs": {
+    "dashboard": "Pulpit",
+    "tasks": "Zadania",
+    "series": "Serie",
+    "forest": "Las"
+  },
+  "menu": {
+    "settings": "Ustawienia",
+    "profile": "Profil",
+    "logout": "Wyloguj się"
+  }
+}

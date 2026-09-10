@@ -1,0 +1,13 @@
+{
+  "tabs": {
+    "dashboard": "Instrumentbräda",
+    "tasks": "Uppgifter",
+    "series": "Serier",
+    "forest": "Skog"
+  },
+  "menu": {
+    "settings": "Inställningar",
+    "profile": "Profil",
+    "logout": "Logga ut"
+  }
+}

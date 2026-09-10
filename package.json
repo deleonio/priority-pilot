@@ -22,5 +22,11 @@
 		"test": "pnpm -r test && pnpm test:scripts",
 		"test:scripts": "node --import tsx --test \".github/scripts/*.test.ts\"",
 		"ui:inspect": "./ui-inspect.sh"
+	},
+	"dependencies": {
+		"frontend": "2.0.0-alpha.4",
+		"i18next": "^26.4.2",
+		"i18next-browser-languagedetector": "^8.2.1",
+		"i18next-react": "^0.2.2"
 	}
 }

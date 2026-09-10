@@ -1,0 +1,28 @@
+{
+  "labels": {
+    "name": "Nome",
+    "displayName": "Nome visualizzato",
+    "description": "Descrizione",
+    "category": "Categoria",
+    "duration": "Durata",
+    "effort": "Sforzo",
+    "priority": "Priorità",
+    "autoStartRecording": "Avvia automaticamente la registrazione vocale",
+    "email": "Email",
+    "password": "Password",
+    "currentPassword": "Password corrente",
+    "newPassword": "Nuova password",
+    "confirmPassword": "Conferma password"
+  },
+  "placeholders": {
+    "enterName": "Inserisci il nome",
+    "enterDescription": "Inserisci la descrizione",
+    "selectCategory": "Seleziona una categoria",
+    "searchTasks": "Cerca attività"
+  },
+  "hints": {
+    "nameRequired": "Il nome è obbligatorio",
+    "descriptionOptional": "Facoltativo",
+    "selectAtLeastOne": "Seleziona almeno un elemento"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "errors": {
+    "saveFailed": "Det gick inte att spara",
+    "deleteFailed": "Det gick inte att radera",
+    "createFailed": "Det gick inte att skapa",
+    "loadingFailed": "Det gick inte att ladda",
+    "genericError": "Ett fel uppstod",
+    "validation": "Valideringsfel",
+    "notFound": "Inte hittad"
+  },
+  "success": {
+    "saved": "Sparad",
+    "deleted": "Raderad",
+    "created": "Skapad",
+    "updated": "Uppdaterad"
+  },
+  "confirmations": {
+    "deleteConfirm": "Vill du verkligen radera?",
+    "unsavedChanges": "Du har osparade ändringar"
+  },
+  "empty": {
+    "noTasks": "Inga uppgifter",
+    "noSeries": "Inga serier",
+    "noCategories": "Inga kategorier"
+  }
+}

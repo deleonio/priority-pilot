@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Priority Pilot",
+    "description": "Gestore attività"
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "it": "Italiano",
+    "pt": "Português",
+    "nl": "Nederlands",
+    "pl": "Polski",
+    "ru": "Русский",
+    "sv": "Svenska"
+  },
+  "actions": {
+    "save": "Salva",
+    "delete": "Elimina",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "create": "Crea",
+    "update": "Aggiorna",
+    "close": "Chiudi",
+    "edit": "Modifica",
+    "add": "Aggiungi",
+    "remove": "Rimuovi",
+    "select": "Seleziona",
+    "back": "Indietro"
+  },
+  "status": {
+    "open": "Aperto",
+    "inProcess": "In corso",
+    "done": "Completato"
+  },
+  "time": {
+    "days": "Giorni",
+    "hours": "Ore",
+    "minutes": "Minuti",
+    "seconds": "Secondi"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Priority Pilot",
+    "description": "Aktivitetshanterare"
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "it": "Italiano",
+    "pt": "Português",
+    "nl": "Nederlands",
+    "pl": "Polski",
+    "ru": "Русский",
+    "sv": "Svenska"
+  },
+  "actions": {
+    "save": "Spara",
+    "delete": "Radera",
+    "cancel": "Avbryt",
+    "confirm": "Bekräfta",
+    "create": "Skapa",
+    "update": "Uppdatera",
+    "close": "Stäng",
+    "edit": "Redigera",
+    "add": "Lägg till",
+    "remove": "Ta bort",
+    "select": "Välj",
+    "back": "Tillbaka"
+  },
+  "status": {
+    "open": "Öppen",
+    "inProcess": "Pågår",
+    "done": "Slutfört"
+  },
+  "time": {
+    "days": "Dagar",
+    "hours": "Timmar",
+    "minutes": "Minuter",
+    "seconds": "Sekunder"
+  }
+}

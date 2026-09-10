@@ -1,0 +1,26 @@
+{
+  "errors": {
+    "saveFailed": "Save failed",
+    "deleteFailed": "Delete failed",
+    "createFailed": "Create failed",
+    "loadingFailed": "Loading failed",
+    "genericError": "An error occurred",
+    "validation": "Validation error",
+    "notFound": "Not found"
+  },
+  "success": {
+    "saved": "Successfully saved",
+    "deleted": "Successfully deleted",
+    "created": "Successfully created",
+    "updated": "Successfully updated"
+  },
+  "confirmations": {
+    "deleteConfirm": "Really delete?",
+    "unsavedChanges": "You have unsaved changes"
+  },
+  "empty": {
+    "noTasks": "No tasks",
+    "noSeries": "No series",
+    "noCategories": "No categories"
+  }
+}

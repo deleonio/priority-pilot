@@ -1,0 +1,13 @@
+{
+  "tabs": {
+    "dashboard": "Painel",
+    "tasks": "Tarefas",
+    "series": "Séries",
+    "forest": "Floresta"
+  },
+  "menu": {
+    "settings": "Configurações",
+    "profile": "Perfil",
+    "logout": "Sair"
+  }
+}

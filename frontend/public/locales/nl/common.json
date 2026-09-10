@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Priority Pilot",
+    "description": "Taakbeheerder"
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "it": "Italiano",
+    "pt": "Português",
+    "nl": "Nederlands",
+    "pl": "Polski",
+    "ru": "Русский",
+    "sv": "Svenska"
+  },
+  "actions": {
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "create": "Maken",
+    "update": "Bijwerken",
+    "close": "Sluiten",
+    "edit": "Bewerken",
+    "add": "Toevoegen",
+    "remove": "Verwijderen",
+    "select": "Selecteren",
+    "back": "Terug"
+  },
+  "status": {
+    "open": "Open",
+    "inProcess": "Bezig",
+    "done": "Voltooid"
+  },
+  "time": {
+    "days": "Dagen",
+    "hours": "Uren",
+    "minutes": "Minuten",
+    "seconds": "Seconden"
+  }
+}

@@ -4,6 +4,8 @@ import { DEFAULT } from '@public-ui/theme-default';
 import { KERN_V2 } from '@public-ui/theme-kern';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { I18nextProvider } from 'i18next-react';
+import i18next from './i18n/config';
 import { Root } from './Root';
 import { applyInitialTheme } from './lib/theme';
 // KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
@@ -32,7 +34,9 @@ const root = createRoot(container);
 const renderApp = () => {
 	root.render(
 		<StrictMode>
-			<Root />
+			<I18nextProvider i18n={i18next}>
+				<Root />
+			</I18nextProvider>
 		</StrictMode>,
 	);
 };

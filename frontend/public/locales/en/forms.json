@@ -1,0 +1,28 @@
+{
+  "labels": {
+    "name": "Name",
+    "displayName": "Display Name",
+    "description": "Description",
+    "category": "Category",
+    "duration": "Duration",
+    "effort": "Effort",
+    "priority": "Priority",
+    "autoStartRecording": "Auto-start voice recording",
+    "email": "Email",
+    "password": "Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password"
+  },
+  "placeholders": {
+    "enterName": "Enter name",
+    "enterDescription": "Enter description",
+    "selectCategory": "Select category",
+    "searchTasks": "Search tasks"
+  },
+  "hints": {
+    "nameRequired": "Name is required",
+    "descriptionOptional": "Optional",
+    "selectAtLeastOne": "Select at least one item"
+  }
+}
