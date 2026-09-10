@@ -175,3 +175,9 @@ Konflikte, die er verhindern soll.
   Node-26-Lage lässt sich auf Node 22 reproduzieren mit
   `Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: undefined })`
   als erste Setup-Datei.
+- 2026-09-10 · E2E/CI — Ein einzelner roter Shard in einem thematisch fremden Spec (`llm-settings`,
+  „kein horizontaler Overflow") wurde als Infra-Flake abgetan und kostete drei Fixup-Runden plus
+  Human-Handoff; die gemeldeten 4px stammten exakt aus der globalen CSS-Regel des eigenen Diffs
+  (`margin-inline: -4px` am `kol-tabs`-Host). → Bei rotem CI zuerst die gemeldete Zahl gegen den
+  Diff rechnen; „Flake" erst, wenn kein Wert im Diff sie erklärt. Globale Selektoren (`app.css`)
+  treffen immer auch Specs, die nichts mit dem Ticket zu tun haben.

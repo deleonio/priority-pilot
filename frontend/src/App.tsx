@@ -44,6 +44,7 @@ import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
 import { isQuickCaptureEffective, readAiPreferences } from './lib/aiPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
+import { setupTabsFocusRing } from './lib/tabsFocusRing';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -316,6 +317,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		// dass sich `onSelect` bei jeder Query-Änderung neu verdrahtet (Auswahl bleibt prop-getrieben).
 		[navigate, searchParams],
 	);
+
+	// #1336: sichtbarer Fokus-Ring für die Shadow-DOM-Tab-Buttons der Hauptnavigation. Callback-Ref
+	// statt `useEffect(…, [])`, weil `KolTabs` erst nach dem ersten Tasks-Ladevorgang mountet
+	// (`tasks !== null`) — ein Effekt mit leeren Deps liefe vorher ins Leere.
+	const appTabsRef = useCallback((node: HTMLKolTabsElement | null) => setupTabsFocusRing(node), []);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
 
@@ -813,6 +819,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 					{tasks !== null && (
 						<KolTabs
+							ref={appTabsRef}
 							className="app-tabs"
 							_label={t('tabs.ariaLabel')}
 							_tabs={viewTabs}

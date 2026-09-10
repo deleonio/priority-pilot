@@ -9,7 +9,7 @@ import {
 	KolTabs,
 } from '@public-ui/react-v19';
 import type { GeoConfig, Pillar } from 'client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
 import { useHeartAnimationEnabled } from '../lib/heartAnimation';
@@ -22,6 +22,7 @@ import { notifyProfileChanged } from '../lib/profileChanged';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
+import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
@@ -137,6 +138,10 @@ export const SettingsPage = ({
 		}),
 		[onTabChange],
 	);
+
+	// #1336: sichtbarer Fokus-Ring für die Shadow-DOM-Tab-Buttons; Callback-Ref, damit die Injektion
+	// zuverlässig läuft, sobald `kol-tabs` mountet (Muster analog App.tsx).
+	const settingsTabsRef = useCallback((node: HTMLKolTabsElement | null) => setupTabsFocusRing(node), []);
 
 	// #272: Schalter „Sprachaufnahme automatisch starten" (Default aus). Beim Einschalten wird die
 	// Mikrofon-Berechtigung angefordert; nur bei erteilter Berechtigung wird die Einstellung aktiviert
@@ -317,6 +322,7 @@ export const SettingsPage = ({
 		// und Kopf-Aktionen bleiben sichtbar, der Rückweg läuft über den aktiven Toolbar-Button.
 		<div className="settings-page">
 			<KolTabs
+				ref={settingsTabsRef}
 				className="settings-tabs"
 				_label="Einstellungen"
 				_tabs={settingsTabs}
