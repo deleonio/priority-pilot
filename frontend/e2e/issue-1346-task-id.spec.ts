@@ -47,6 +47,7 @@ test.describe('Priority Pilot — Task-ID in Bearbeiten-/Löschen-Dialog (#1346,
 		await openTasksTab(page);
 		await expect(page.getByText('E2E #1346 Bearbeiten', { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		const heading = page.getByRole('heading', { name: /Aufgabe bearbeiten: E2E #1346 Bearbeiten \(#\d+\)/ });
 		await expect(heading).toBeVisible();

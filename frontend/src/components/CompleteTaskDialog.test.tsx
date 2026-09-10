@@ -63,9 +63,7 @@ afterEach(() => {
 describe('CompleteTaskDialog — Task-ID als „#<id>" in muted Farbe (#1346, AK5)', () => {
 	it('zeigt die ID als „#42" in --pp-ink-muted, nicht mehr „ID 42"', async () => {
 		await act(async () => {
-			render(
-				<CompleteTaskDialog task={sampleTask()} onConfirm={vi.fn()} onClose={vi.fn()} onCompleted={vi.fn()} />,
-			);
+			render(<CompleteTaskDialog task={sampleTask()} onConfirm={vi.fn()} onClose={vi.fn()} onCompleted={vi.fn()} />);
 		});
 
 		const idText = screen.getByText('#42');

@@ -55,12 +55,12 @@ Beim Bearbeiten eines Tasks/einer Serie sowie in den Bestätigungsdialogen (Lös
 
 ## Testfälle → Datei-Zuordnung
 
-| TF | AK | Datei |
-| --- | --- | --- |
-| TF1 | AK1 | `frontend/src/lib/task.test.ts` |
+| TF  | AK  | Datei                                                                           |
+| --- | --- | ------------------------------------------------------------------------------- |
+| TF1 | AK1 | `frontend/src/lib/task.test.ts`                                                 |
 | TF2 | AK2 | `frontend/src/lib/task.test.ts` (bestehende Regressionstests, unverändert grün) |
-| TF3 | AK3 | `frontend/src/components/SeriesTab.test.tsx` |
-| TF4 | AK4 | `frontend/src/components/DeleteTaskDialog.test.tsx` |
-| TF5 | AK5 | `frontend/src/components/CompleteTaskDialog.test.tsx` (neu) |
-| TF6 | AK6 | `frontend/src/components/DeleteSeriesDialog.test.tsx` |
-| TF7 | AK7 | `frontend/e2e/issue-1346-task-id.spec.ts` (neu) |
+| TF3 | AK3 | `frontend/src/components/SeriesTab.test.tsx`                                    |
+| TF4 | AK4 | `frontend/src/components/DeleteTaskDialog.test.tsx`                             |
+| TF5 | AK5 | `frontend/src/components/CompleteTaskDialog.test.tsx` (neu)                     |
+| TF6 | AK6 | `frontend/src/components/DeleteSeriesDialog.test.tsx`                           |
+| TF7 | AK7 | `frontend/e2e/issue-1346-task-id.spec.ts` (neu)                                 |
