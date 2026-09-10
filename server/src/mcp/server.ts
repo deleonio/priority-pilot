@@ -94,7 +94,11 @@ mcpRouter.post('/mcp/v1', async (req: Request, res: Response) => {
 		authorization: req.get('authorization') ?? '',
 	};
 	try {
-		sendResult(res, id, await tool.run(context, args));
+		// CallToolResult per MCP-Spec: das Roh-Payload reist als JSON-Text im ersten Content-Block.
+		// Konforme Clients (SDK, Claude-Connector) validieren den Envelope und lehnen nackte
+		// Arrays/Objekte als `result` ab (mcp-handshake.test.ts).
+		const payload = await tool.run(context, args);
+		sendResult(res, id, { content: [{ type: 'text', text: JSON.stringify(payload) }] });
 	} catch (error) {
 		sendRpcError(
 			res,

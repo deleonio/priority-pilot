@@ -70,9 +70,15 @@ test.describe('Priority Pilot — #1353: MCP-Werkzeuge v1 (AK9)', () => {
 			},
 		});
 		expect(rpc.status(), 'tools/call muss 200 liefern').toBe(200);
-		const body = (await rpc.json()) as { result?: { id: number; title: string }; error?: { message: string } };
+		// Das Ergebnis reist spec-konform als CallToolResult — Roh-Payload als JSON-Text im ersten
+		// Content-Block (server/src/mcp/server.ts, mcp-handshake.test.ts).
+		const body = (await rpc.json()) as {
+			result?: { content?: { type: string; text: string }[] };
+			error?: { message: string };
+		};
 		expect(body.error, `task_create darf nicht fehlschlagen: ${body.error?.message ?? ''}`).toBeUndefined();
-		expect(body.result?.title).toBe(title);
+		const created = JSON.parse(body.result?.content?.[0]?.text ?? 'null') as { id: number; title: string };
+		expect(created.title).toBe(title);
 
 		// Sichtbarkeit in der App: die Aufgabenliste liegt hinter dem Tab „Aufgaben" (crud.spec.ts).
 		await page.goto('/');

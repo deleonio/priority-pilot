@@ -54,7 +54,17 @@ const mcpCall = async <T>(
 		}),
 	});
 	assert.equal(res.status, 200, `tools/call ${tool} sollte 200 liefern`);
-	return (await res.json()) as JsonRpcResponse<T>;
+	const body = (await res.json()) as {
+		result?: { content?: { type: string; text: string }[] };
+		error?: { message: string };
+	};
+	// CallToolResult-Envelope auflösen: das Roh-Payload reist als JSON-Text im ersten Text-Block
+	// (server/src/mcp/server.ts) — die AK-Assertions sehen weiterhin das Payload selbst.
+	const text = body.result?.content?.[0]?.text;
+	return {
+		result: text === undefined ? undefined : (JSON.parse(text) as T),
+		error: body.error,
+	};
 };
 
 const mcpListTools = async (

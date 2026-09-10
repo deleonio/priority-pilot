@@ -30,6 +30,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
+		"@modelcontextprotocol/sdk": "1.30.0",
 		"@types/connect-sqlite3": "0.9.6",
 		"@types/cookie-parser": "1.4.10",
 		"@types/express": "5.0.6",
