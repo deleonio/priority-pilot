@@ -1,0 +1,26 @@
+{
+	"errors": {
+		"saveFailed": "Error al guardar",
+		"deleteFailed": "Error al eliminar",
+		"createFailed": "Error al crear",
+		"loadingFailed": "Error al cargar",
+		"genericError": "Ocurrió un error",
+		"validation": "Error de validación",
+		"notFound": "No encontrado"
+	},
+	"success": {
+		"saved": "Guardado correctamente",
+		"deleted": "Eliminado correctamente",
+		"created": "Creado correctamente",
+		"updated": "Actualizado correctamente"
+	},
+	"confirmations": {
+		"deleteConfirm": "¿Realmente desea eliminar?",
+		"unsavedChanges": "Tiene cambios sin guardar"
+	},
+	"empty": {
+		"noTasks": "Sin tareas",
+		"noSeries": "Sin series",
+		"noCategories": "Sin categorías"
+	}
+}

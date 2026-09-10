@@ -1,0 +1,16 @@
+{
+	"tabs": {
+		"dashboard": "Pulpit",
+		"tasks": "Zadania",
+		"series": "Serie",
+		"forest": "Las",
+		"ariaLabel": "Widoki"
+	},
+	"menu": {
+		"settings": "Ustawienia",
+		"help": "Pomoc",
+		"logout": "Wyloguj się",
+		"headerActions": "Akcje nagłówka",
+		"activeViewDescription": "Bieżący widok — naciśnij ponownie, aby wrócić"
+	}
+}

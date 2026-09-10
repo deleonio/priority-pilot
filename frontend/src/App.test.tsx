@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { api } from './api';
 import { App } from './App';
+import i18next from './i18n/config';
 import type { Task } from 'client';
 import { TaskStatus } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -403,5 +404,43 @@ describe('App — #1320 AK7: genau ein <main> und eine <h1> je Ansicht', () => {
 		const headings = document.querySelectorAll('h1');
 		expect(headings).toHaveLength(1);
 		expect(headings[0].textContent?.trim()).toContain('Hilfe');
+	});
+});
+
+/**
+ * #1339 — Der Sprachwechsel darf die Tab-Auswahl nicht zurückwerfen.
+ *
+ * `KolTabs` setzt die Auswahl zurück, wenn es eine neue Tab-Liste bekommt; genau deshalb war die
+ * Liste früher eine Modulkonstante. Seit der Übersetzung hängt sie an `t`, und `t` wechselt bei
+ * `changeLanguage` die Identität. Wer auf „Serien" steht und die Sprache umstellt, dürfte deshalb
+ * nicht auf dem Dashboard landen, während die URL auf `/serien` stehen bleibt.
+ */
+describe('App — #1339: Sprachwechsel erhält die Tab-Auswahl', () => {
+	type TabsElement = { _tabs?: { _label: string }[]; _selected?: number } | null;
+	const appTabs = (): TabsElement => document.querySelector('kol-tabs.app-tabs') as unknown as TabsElement;
+
+	afterEach(async () => {
+		window.history.replaceState({}, '', '/');
+		await act(async () => {
+			await i18next.changeLanguage('de');
+		});
+	});
+
+	it('behält auf /serien den ausgewählten Tab und übersetzt zugleich die Beschriftungen', async () => {
+		window.history.replaceState({}, '', '/serien');
+		render(<App user={testUser} />);
+
+		await waitFor(() => {
+			expect(appTabs()).not.toBeNull();
+		});
+		expect(appTabs()?._selected).toBe(2);
+		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Serien');
+
+		await act(async () => {
+			await i18next.changeLanguage('en');
+		});
+
+		expect(appTabs()?._tabs?.map((tab) => tab._label)).toContain('Series');
+		expect(appTabs()?._selected).toBe(2);
 	});
 });

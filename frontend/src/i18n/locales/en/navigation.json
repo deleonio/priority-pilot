@@ -1,0 +1,16 @@
+{
+	"tabs": {
+		"dashboard": "Dashboard",
+		"tasks": "Tasks",
+		"series": "Series",
+		"forest": "Forest",
+		"ariaLabel": "Views"
+	},
+	"menu": {
+		"settings": "Settings",
+		"help": "Help",
+		"logout": "Logout",
+		"headerActions": "Header actions",
+		"activeViewDescription": "Current view — activate again to go back"
+	}
+}
