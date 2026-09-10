@@ -3363,6 +3363,13 @@ kol-heading {
 	font-size: 0.875rem;
 }
 
+.api-tokens__scope {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	font-size: 0.875rem;
+}
+
 .api-tokens__confirm,
 .api-tokens__action {
 	display: flex;

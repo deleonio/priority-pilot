@@ -540,6 +540,24 @@ export const migrateUsersRoleColumn = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `scope`-Spalte (Rechtestufe `'read'` | `'readwrite'`, #1356) auf einer **bestehenden**
+ * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateUsersRoleColumn`.
+ * Bestandszeilen erhalten `'read'` (kein stilles Hochstufen bereits vergebener Tokens). Idempotent
+ * (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt Tabelle inkl. Spalte an.
+ */
+export const migrateApiTokenScope = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('scope')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `api_tokens` ADD COLUMN `scope` VARCHAR(255) NOT NULL DEFAULT 'read'");
+	console.log('Spalte scope an api_tokens nachgezogen.');
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:

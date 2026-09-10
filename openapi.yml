@@ -2120,6 +2120,37 @@ paths:
           description: Token zurückgezogen
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Rechtestufe eines API-Tokens umschalten
+      description: >-
+        Setzt die Rechtestufe (`scope`) eines eigenen API-Tokens (#1356). Der neue Wert
+        gilt sofort für denselben Token, ohne dass er neu erzeugt werden muss.
+      operationId: updateApiToken
+      tags: [api-tokens]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id des umzuschaltenden Tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiTokenScopeInput'
+      responses:
+        '200':
+          description: Aktualisierter Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiToken'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   parameters:
     SeriesId:
@@ -2468,7 +2499,7 @@ components:
       description: >-
         Persönlicher API-Token für externe Clients (#1352) — Metadaten-Sicht ohne
         Klartext und ohne Hash.
-      required: [id, name, createdAt, lastUsedAt]
+      required: [id, name, createdAt, lastUsedAt, scope]
       properties:
         id:
           type: integer
@@ -2483,6 +2514,12 @@ components:
           format: date-time
           nullable: true
           description: Zeitpunkt des letzten erfolgreichen Bearer-Requests (null, solange ungenutzt)
+        scope:
+          type: string
+          enum: [read, readwrite]
+          description: >-
+            Rechtestufe des Tokens (#1356). `read` erlaubt nur lesende Requests, `readwrite`
+            auch schreibende. Ein neu angelegter Token startet immer als `read`.
     ApiTokenInput:
       type: object
       description: Eingabe zum Anlegen eines API-Tokens (#1352).
@@ -2492,6 +2529,14 @@ components:
           type: string
           minLength: 1
           maxLength: 60
+    ApiTokenScopeInput:
+      type: object
+      description: Eingabe zum Umschalten der Rechtestufe eines API-Tokens (#1356).
+      required: [scope]
+      properties:
+        scope:
+          type: string
+          enum: [read, readwrite]
     CreatedApiToken:
       allOf:
         - $ref: '#/components/schemas/ApiToken'

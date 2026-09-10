@@ -9,6 +9,11 @@ declare global {
 			 * sind daher von der CSRF-Doppel-Submit-Prüfung ausgenommen (siehe express/index.ts).
 			 */
 			apiTokenId?: number;
+			/**
+			 * Issue #1356: Rechtestufe des Tokens, der diesen Request authentifiziert hat — gesetzt
+			 * zusammen mit `apiTokenId`. Grundlage für `apiTokenScopeGuard` (express/apiTokenAuth.ts).
+			 */
+			apiTokenScope?: 'read' | 'readwrite';
 		}
 	}
 }

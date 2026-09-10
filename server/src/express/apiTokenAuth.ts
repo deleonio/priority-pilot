@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { ApiToken, User } from '../models/index.js';
+import { sendError } from './http-error.js';
 
 /** Präfix des Klartext-Tokens — erlaubt es, ihn später von anderen Secret-Arten zu unterscheiden. */
 const TOKEN_PREFIX = 'pp_';
@@ -69,6 +70,7 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		await record.update({ lastUsedAt: new Date() });
 
 		req.apiTokenId = record.id;
+		req.apiTokenScope = record.scope;
 		req.session.user = {
 			id: user.id,
 			email: user.email,
@@ -85,3 +87,39 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 
 /** Ob dieser Request über einen Bearer-Token authentifiziert wurde (CSRF-Ausnahme, s. o.). */
 export const isApiTokenRequest = (req: Request): boolean => req.apiTokenId !== undefined;
+
+/** Methoden, die als schreibend gelten (#1356, AK4) — GET/HEAD/OPTIONS bleiben immer erlaubt. */
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/**
+ * Middleware: setzt die Rechtestufe eines API-Tokens durch (Issue #1356, AK4/AK6/AK7). Registriert
+ * **hinter** `requireAuth` (Browser-Sessions sind unbetroffen) und **vor** allen Fachrouten.
+ *
+ * - Die Token-Verwaltung selbst (`/api-tokens`, jede Methode) ist über Bearer nie erreichbar — sonst
+ *   könnte sich ein Token selbst oder andere Tokens hochstufen (AK7).
+ * - `POST /mcp/v1` ist die JSON-RPC-Transportroute und wird NICHT allein wegen ihrer HTTP-Methode
+ *   gesperrt (sonst wäre `task_list` mit einem Nur-lese-Token tot) — die Sperre greift stattdessen
+ *   auf dem inneren Loopback-Request, den `mcp/tools.ts` mit demselben Bearer-Header gegen die
+ *   gespiegelte HTTP-Route schickt (AK6).
+ * - Alle übrigen schreibenden Requests (POST/PUT/PATCH/DELETE) eines Tokens mit `scope: 'read'`
+ *   werden mit 403 abgewiesen, bevor die Fachroute läuft (AK4).
+ */
+export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFunction): void => {
+	if (!isApiTokenRequest(req)) {
+		next();
+		return;
+	}
+	if (req.path === '/api-tokens' || req.path.startsWith('/api-tokens/')) {
+		sendError(res, 403, 'Die Token-Verwaltung ist über einen API-Token nicht erreichbar.');
+		return;
+	}
+	if (req.path === '/mcp/v1') {
+		next();
+		return;
+	}
+	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read') {
+		sendError(res, 403, 'Dieser Token erlaubt nur lesenden Zugriff.');
+		return;
+	}
+	next();
+};

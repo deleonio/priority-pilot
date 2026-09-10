@@ -150,6 +150,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskCreatedById,
 			migrateUsersRoleColumn,
 			migrateCategoryIdColumns,
+			migrateApiTokenScope,
 		} = await import('./logics/migrate.js');
 		const { buildTaskForest } = await import('./logics/tree.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
@@ -210,6 +211,9 @@ export const main = async (): Promise<void> => {
 		// Fehlende categoryId-Spalte an tasks und series nachziehen (thematische Kategorien) — vor
 		// sync(), damit Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateCategoryIdColumns(sequelize);
+		// Fehlende scope-Spalte (Rechtestufe je API-Token) an api_tokens nachziehen (#1356) — vor
+		// sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateApiTokenScope(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

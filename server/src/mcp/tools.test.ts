@@ -24,6 +24,11 @@ let idCounter = 1;
 
 type JsonRpcResponse<T> = { result?: T; error?: { message: string } };
 
+// Test-Pflege (#1356): Diese Tests aus #1353 prüfen die Werkzeug-Spiegelung (task_create/
+// task_update), nicht die Rechtestufe — seit #1356 startet ein neuer Token aber immer als
+// `scope: "read"` (AK2) und würde die schreibenden Aufrufe hier sonst mit 403 blockieren. Das
+// Hochstufen auf `readwrite` gehört daher zum Setup dieses generischen Helpers; die dedizierten
+// Scope-Tests unten nutzen bewusst `createReadOnlyToken` statt dieser Funktion.
 const createToken = async (cookie: string): Promise<string> => {
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
@@ -31,7 +36,14 @@ const createToken = async (cookie: string): Promise<string> => {
 		body: JSON.stringify({ name: `Client-${idCounter++}` }),
 	});
 	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
-	return ((await res.json()) as { token: string }).token;
+	const { id, token } = (await res.json()) as { id: number; token: string };
+	const patched = await server.json(`/api-tokens/${id}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json', Cookie: cookie },
+		body: JSON.stringify({ scope: 'readwrite' }),
+	});
+	assert.equal(patched.status, 200, 'Setup: Hochstufen auf readwrite muss gelingen');
+	return token;
 };
 
 const mcpCall = async <T>(
