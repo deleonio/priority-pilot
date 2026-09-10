@@ -112,13 +112,26 @@ describe('SearchModal — Sprachsuche mit Kategorie-Erkennung', () => {
 		expect(onSearch).toHaveBeenCalledWith('offene Sachen', 7);
 	});
 
-	it('behält den gesprochenen Text, wenn die Zerlegung nur eine Kategorie liefert', async () => {
+	it('filtert nur nach Kategorie, wenn die Zerlegung keinen Suchbegriff übrig lässt', async () => {
 		vi.mocked(api.parseSearch).mockResolvedValue({ categoryId: 7 });
 		const onSearch = vi.fn();
 
 		await searchByVoice(onSearch);
 
-		expect(onSearch).toHaveBeenCalledWith('offene Sachen zum Hausbau', 7);
+		// Der Rohtext wäre hier ein Titel-Filter, den keine Aufgabe erfüllt („offene Sachen zum
+		// Hausbau" steht in keinem Titel) — die Liste bliebe leer statt die Kategorie zu zeigen.
+		expect(onSearch).toHaveBeenCalledWith('', 7);
+	});
+
+	it('sucht mit dem gesprochenen Text, wenn die Zerlegung gar nichts erkennt', async () => {
+		// Vertragsgemäß gültiges Nicht-Ergebnis (`extractParsedSearch` gibt `{}` zurück). Ohne diesen
+		// Fallback liefe die Suche mit leerer Anfrage und zeigte die ungefilterte Gesamtliste.
+		vi.mocked(api.parseSearch).mockResolvedValue({});
+		const onSearch = vi.fn();
+
+		await searchByVoice(onSearch);
+
+		expect(onSearch).toHaveBeenCalledWith('offene Sachen zum Hausbau', null);
 	});
 
 	it('sucht bei einem Fehler der Zerlegung mit dem gesprochenen Text weiter', async () => {

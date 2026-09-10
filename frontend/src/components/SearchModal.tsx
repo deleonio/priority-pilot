@@ -72,8 +72,16 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 		setParsing(true);
 		try {
 			const parsed = await api.parseSearch({ text: query });
-			const parsedText = parsed.text?.trim();
-			onSearch(parsedText || query, parsed.categoryId ?? categoryId);
+			const parsedText = parsed.text?.trim() ?? '';
+			const parsedCategoryId = parsed.categoryId ?? null;
+			// Drei Fälle: (1) Das Modell hat etwas erkannt — Zerlegung übernehmen, ein leerer `text` neben
+			// einer Kategorie ist dabei gewollt („zeig mir Hausbau" filtert nur nach Kategorie). (2) Es hat
+			// gar nichts erkannt (`{}` ist laut Vertrag ein gültiges Ergebnis) — dann ist das keine
+			// Zerlegung, sondern ein Nicht-Ergebnis, und es wird mit dem gesprochenen Text gesucht statt
+			// ungefiltert alles zu zeigen. Der `catch` unten greift nur bei einer Exception, nicht hier.
+			// Eine im Feld getroffene Kategorie-Auswahl bleibt erhalten, wenn das Modell keine erkennt.
+			const nothingRecognized = parsedText === '' && parsedCategoryId === null;
+			onSearch(nothingRecognized ? query : parsedText, parsedCategoryId ?? categoryId);
 			onClose();
 		} catch {
 			// Kontrollierte Degradation: Ohne Zerlegung wird mit dem gesprochenen Text gesucht.
