@@ -128,8 +128,16 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		const badgeBox = await selection.locator('kol-badge').boundingBox();
 		expect(badgeBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height - 1);
 
+		// … und das „×" steht INLINE daneben, nicht als dritte Zeile darunter: Die beiden Kästen
+		// überlappen vertikal. Der Knopf trägt keinen sichtbaren Text (Muster `.checklist-item`), ist
+		// aber über seinen zugänglichen Namen bedienbar — genau das prüft der Klick unten (#368).
+		const removeButton = page.getByRole('button', { name: 'Kategorie entfernen' });
+		const removeBox = await removeButton.boundingBox();
+		expect(removeBox!.y).toBeLessThan(badgeBox!.y + badgeBox!.height);
+		expect(badgeBox!.y).toBeLessThan(removeBox!.y + removeBox!.height);
+
 		// Abwählen und wieder wählen: Die Zuordnung ist keine Einbahnstraße.
-		await page.getByRole('button', { name: 'Kategorie entfernen' }).click();
+		await removeButton.click();
 		await expect(selection).toHaveCount(0);
 		await expect(categoryField).not.toHaveValue(name);
 		await categoryField.click();

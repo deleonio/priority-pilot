@@ -1844,11 +1844,11 @@ body {
 .category-field {
 	display: grid;
 	gap: var(--pp-gap-tight);
-	margin-bottom: 1rem;
 }
 
-/* Badge und „Entfernen" liegen auf einer Zeile und brechen bei 375px sauber um; das Badge
-   schrumpft nicht, der Knopf behält sein Touch-Target (KoliBri-Default ≥ 44px). */
+/* Badge und das „×" liegen auf EINER Zeile (inline); erst ein sehr langer Name schiebt den Knopf
+   bei 375px um. Das Badge schrumpft nicht, der icon-only Knopf behält sein Touch-Target
+   (KoliBri-Default ≥ 44px) — dasselbe Verhalten wie in `.checklist-item`. */
 .category-field__selection {
 	display: flex;
 	flex-wrap: wrap;
