@@ -24,6 +24,7 @@ import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { profileRouter } from './routes/profile.js';
+import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
@@ -238,6 +239,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);
+
+	// MCP-Werkzeuge v1 (#1353): POST /mcp/v1. Bewusst HINTER `requireAuth` — ohne gültigen
+	// (Bearer-)Token gibt es 401 und damit keinen Werkzeugaufruf.
+	app.use(mcpRouter);
 
 	// Anzeigename selbst festlegen (#1219): GET/PUT /profile.
 	app.use(profileRouter);
