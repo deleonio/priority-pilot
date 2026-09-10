@@ -1838,22 +1838,26 @@ body {
 }
 
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
-/* Kategorie-Feld im Aufgabenformular: Auswahl und Vorschau-Badge in einer Zeile, mobil untereinander
-   (Aufwärts-Kaskade, Mobile-First). Das Select trägt die Breite, das Badge schrumpft nicht. */
+/* Kategorie-Feld im Aufgaben-/Serienformular: Das Auswahlfeld nimmt die volle Breite, die
+   getroffene Wahl steht als Badge DARUNTER — dieselbe Leserichtung wie im Formular darüber
+   (erst wählen, dann sehen, was gewählt ist). */
 .category-field {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
+	display: grid;
 	gap: var(--pp-gap-tight);
 	margin-bottom: 1rem;
 }
 
-.category-field kol-single-select {
-	flex: 1 1 12rem;
+/* Badge und „Entfernen" liegen auf einer Zeile und brechen bei 375px sauber um; das Badge
+   schrumpft nicht, der Knopf behält sein Touch-Target (KoliBri-Default ≥ 44px). */
+.category-field__selection {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
 	min-width: 0;
 }
 
-.category-field kol-badge {
+.category-field__selection kol-badge {
 	flex: none;
 }
 

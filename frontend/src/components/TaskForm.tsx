@@ -1360,7 +1360,20 @@ export const TaskForm = ({
 										},
 									}}
 								/>
-								<CategoryBadge category={selectedCategory} />
+								{/* Die getroffene Wahl steht als Badge UNTER dem Feld — genau so, wie sie später in den
+								    Listen aussieht. Daneben der Weg zurück: „Entfernen" setzt die Zuordnung auf `null`.
+								    Ohne Auswahl bleibt die Zeile aus, damit das Formular nicht leeren Platz vorhält. */}
+								{selectedCategory !== null && (
+									<div className="category-field__selection">
+										<CategoryBadge category={selectedCategory} />
+										<KolButton
+											_label="Kategorie entfernen"
+											_variant="secondary"
+											_icons={{ left: { icon: 'fa-solid fa-xmark' } }}
+											_on={{ onClick: () => setCategoryId(null) }}
+										/>
+									</div>
+								)}
 							</div>
 						)}
 						{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
