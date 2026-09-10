@@ -66,7 +66,15 @@ const TaskGraphPanel = lazy(() =>
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
-const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen', 'kategorien', 'nutzer'];
+const BASE_SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen', 'kategorien'];
+// #1352: „Zugriff" hängt als letzter Tab HINTER dem nur für Admins vorhandenen „Nutzerverwaltung" —
+// die Segmentfolge ist deshalb rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
+// `SettingsPage` bleibt (der Admin-Tab behält Index 6, „Zugriff" liegt bei 6 bzw. 7).
+const settingsPathSegments = (isAdmin: boolean): string[] => [
+	...BASE_SETTINGS_PATH_SEGMENTS,
+	...(isAdmin ? ['nutzer'] : []),
+	'zugriff',
+];
 // Rollensystem admin/member: Segmente, die nur Admins als Tab sehen (Index-Parität mit den in
 // `SettingsPage` nur bei `isAdmin` angehängten Tabs). Für Member gelten sie als unbekannter Pfad.
 const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
@@ -223,7 +231,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const settingsTabIndex =
 		!isAdmin && ADMIN_ONLY_SETTINGS_SEGMENTS.has(settingsSegment)
 			? -1
-			: SETTINGS_PATH_SEGMENTS.indexOf(settingsSegment);
+			: settingsPathSegments(isAdmin).indexOf(settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
 
 	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */
@@ -506,9 +514,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	/** Settings-Tab-Wechsel: URL auf `/settings/:tab` bringen — der Tab folgt der Route. */
 	const changeSettingsTab = useCallback(
 		(selected: number): void => {
-			navigate(`/settings/${SETTINGS_PATH_SEGMENTS[selected] ?? 'pillars'}`);
+			navigate(`/settings/${settingsPathSegments(isAdmin)[selected] ?? 'pillars'}`);
 		},
-		[navigate],
+		[navigate, isAdmin],
 	);
 
 	// Nach dem Speichern auf der Einstellungen-Seite: zurück zur Hauptansicht (#270, seit #1320 zur

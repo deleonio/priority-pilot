@@ -3,9 +3,11 @@ import type {
 	ActivityAdvisorInput,
 	ActivityAdvisorResult,
 	AdminUser,
+	ApiToken,
 	Category,
 	CategoryCreate,
 	CategoryUpdate,
+	CreatedApiToken,
 	components,
 	DependencyInput,
 	Group,
@@ -895,6 +897,34 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data;
+	},
+
+	// --- Persönliche API-Tokens für externe Clients (#1352) ---
+
+	// Eigene, nicht zurückgezogene Tokens — ausschließlich Metadaten, nie der Klartext.
+	async listApiTokens(init: Init = {}): Promise<ApiToken[]> {
+		const { data, error, response } = await client.GET('/api-tokens', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Legt einen Token an; der Klartext steckt ausschließlich in dieser einen Antwort.
+	async createApiToken({ name }: { name: string }): Promise<CreatedApiToken> {
+		const { data, error, response } = await client.POST('/api-tokens', { body: { name } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Zieht einen eigenen Token zurück (Soft-Delete); danach wird er mit 401 abgewiesen.
+	async deleteApiToken({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/api-tokens/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
 	},
 
 	// Meldet die aktuelle Position (#1101): der Server prüft Aufgaben im Alarmabstand und pusht ggf.

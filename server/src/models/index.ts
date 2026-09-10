@@ -15,6 +15,7 @@ import Group from './group.js';
 import GroupMember from './groupMember.js';
 import GroupInvitation from './groupInvitation.js';
 import GroupInviteLink from './groupInviteLink.js';
+import ApiToken from './apiToken.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -72,6 +73,8 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // Singleton-Zeile ohne Nutzer-Bindung, daher keine Assoziation. Dasselbe gilt für
 // `llm_providers` (Single-Provider-System, #951): instanzweite Zeilen ohne Nutzer-Bindung;
 // „Genau ein Provider aktiv“ wird von der Service-Schicht garantiert, nicht per DB-Constraint.
+// `api_tokens` steht für sich (persönliche Bearer-Tokens, Issue #1352) — pro Nutzer über `userId`
+// gefiltert, ohne Sequelize-Assoziation (Router und Auth-Middleware filtern direkt über die Spalte).
 export {
 	Task,
 	Category,
@@ -90,4 +93,5 @@ export {
 	GroupMember,
 	GroupInvitation,
 	GroupInviteLink,
+	ApiToken,
 };

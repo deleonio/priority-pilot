@@ -35,6 +35,8 @@ vi.mock('./api', () => ({
 		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
 		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
 		listLlmProviders: vi.fn().mockResolvedValue([]),
+		// Test-Pflege #1352: der neue Tab „Zugriff“ lädt beim Mount die eigenen API-Tokens.
+		listApiTokens: vi.fn().mockResolvedValue([]),
 		listGroups: vi.fn().mockResolvedValue([]),
 		listReceivedInvitations: vi.fn().mockResolvedValue([]),
 		getVapidPublicKey: vi.fn().mockResolvedValue(null),
@@ -347,7 +349,9 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 		const tabs = tabsElement();
 		expect(tabs?._selected).toBe(1);
 		expect(tabs?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-6"]')).toBeNull();
+		// Test-Pflege #1352: `slot="tab-6"` trägt für Member jetzt den Tab „Zugriff“ — geprüft wird
+		// deshalb die Abwesenheit der Nutzerverwaltung selbst, nicht die des Slots.
+		expect(document.querySelector('.admin-users')).toBeNull();
 	});
 
 	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 6) mit Panel tab-6', async () => {

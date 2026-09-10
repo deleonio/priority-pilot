@@ -3300,3 +3300,83 @@ kol-heading {
 	color: var(--pp-text-muted);
 	font-size: var(--pp-font-size-sm);
 }
+
+/* --- Persönliche API-Tokens (#1352, Einstellungen → „Zugriff") --- */
+/* Aufbau wie die LLM-Provider-Verwaltung: gestapelte Zeilen auf Mobile, ab 48rem Zeilen mit
+   rechtsbündigen Aktionen. Der Klartext-Token bricht um statt zu scrollen (AK9: kein
+   horizontales Scrollen bei 375px). */
+.api-tokens,
+.api-tokens__create {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
+.api-tokens__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
+.api-tokens__item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	padding: var(--pp-gap-tight) 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.api-tokens__item:last-child {
+	border-bottom: none;
+}
+
+.api-tokens__name {
+	font-size: 0.875rem;
+	overflow-wrap: anywhere;
+}
+
+.api-tokens__meta {
+	color: var(--pp-text-muted);
+}
+
+/* Monospace als funktionale Ausnahme: der Klartext wird abgetippt/kopiert, dabei müssen 0/O und
+   1/l unterscheidbar bleiben. */
+.api-tokens__plaintext {
+	display: block;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	overflow-wrap: anywhere;
+}
+
+.api-tokens__confirm,
+.api-tokens__action {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+}
+
+.api-tokens__confirm-question {
+	font-size: 0.875rem;
+	overflow-wrap: anywhere;
+}
+
+.api-tokens__copied {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+}
+
+@media (min-width: 48rem) {
+	.api-tokens__item {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.api-tokens__confirm {
+		flex-direction: row;
+		align-items: center;
+	}
+}

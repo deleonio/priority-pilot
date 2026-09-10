@@ -22,6 +22,7 @@ import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
+import { apiTokensRouter } from './routes/apiTokens.js';
 import { profileRouter } from './routes/profile.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
@@ -36,6 +37,7 @@ import { buildTaskGraph } from '../logics/graph.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
+import { apiTokenAuth, isApiTokenRequest } from './apiTokenAuth.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
@@ -131,13 +133,20 @@ export const createApp = (deps: AppDeps = {}) => {
 	// seine Cookies selbst, siehe csrf-csrf-Doku).
 	app.use(cookieParser());
 
+	// Bearer-Auth für externe Clients (#1352): bewusst VOR der CSRF-Prüfung und vor `requireAuth`
+	// registriert — die Middleware synthetisiert `req.session.user` aus dem Token, sodass alle
+	// nachfolgenden Gates (Datenisolation, Rollen) unverändert greifen.
+	app.use(apiTokenAuth);
+
 	// CSRF-Schutz für alle schreibenden Endpunkte (siehe csrf.ts), Token-Ausstellung via
 	// GET /auth/csrf. Nur in Produktion aktiv — die E2E-Suite seedet Daten über direkte
 	// page.request-Aufrufe ohne Token, und Dev läuft mit 'dev-secret' ohne echte Sessions.
 	const csrf = createCsrfUtilities(sessionSecret ?? 'dev-secret');
 	app.get('/auth/csrf', csrf.issueCsrfToken);
 	if (process.env.NODE_ENV === 'production') {
-		app.use(csrf.doubleCsrfProtection);
+		// Bearer-Requests tragen kein Cookie und können das Double-Submit-Token nicht liefern
+		// (#1352) — sie sind daher von der CSRF-Prüfung ausgenommen.
+		app.use((req, res, next) => (isApiTokenRequest(req) ? next() : csrf.doubleCsrfProtection(req, res, next)));
 		app.use(csrf.csrfErrorHandler);
 	}
 
@@ -226,6 +235,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
+
+	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
+	app.use(apiTokensRouter);
 
 	// Anzeigename selbst festlegen (#1219): GET/PUT /profile.
 	app.use(profileRouter);
