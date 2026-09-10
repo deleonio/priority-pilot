@@ -86,6 +86,17 @@ const acceptInvitation = async (inviteePage: Page, groupName: string): Promise<v
 	expect((await inviteePage.request.post(`/api/v1/invitations/${invitation!.id}/accept`)).status()).toBe(200);
 };
 
+/**
+ * Lädt das bereits offene Gruppendetail neu. Nötig, weil die Aufgabe erst NACH dem Aufklappen über
+ * die API entsteht: `GroupDetail` lädt beim Mount, ohne Neuladen bliebe die Liste leer. Früher
+ * übernahm das ein blanker Klick ins offene Detail; seit dem Design-Lauf 2026-09 ist das ein
+ * sichtbares, tastaturerreichbares Bedienelement („Daten auffrischen"). Auf die Gruppe gescopet —
+ * jede Gruppe der Liste hat ein eigenes.
+ */
+const refreshGroupDetail = async (page: Page, groupId: number): Promise<void> => {
+	await page.locator(`li[data-group-id="${groupId}"]`).getByRole('button', { name: 'Daten auffrischen' }).click();
+};
+
 /** Legt über die Tasks-API eine Aufgabe für das Empfänger-Konto an (groupId für Empfänger-Lookup). */
 const createForeignTaskViaApi = async (page: Page, groupId: number, title: string): Promise<void> => {
 	const members = (await (await page.request.get(`/api/v1/groups/${groupId}/members`)).json()) as {
@@ -133,6 +144,9 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			// offen zu halten (echter Toggle statt des früheren „Klick öffnet/frischt auf"-Verhaltens
 			// am `<li>`). `openAccordionSection` ist idempotent und öffnet nur bei Bedarf.
 			await openAccordionSection(page, 'E2E Füreinander');
+			// Die Aufgabe entstand nach dem Aufklappen — Detail neu laden, sonst misst der Test die
+			// beim Mount geladene (leere) Liste.
+			await refreshGroupDetail(page, group!.id);
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 			// Abschnitt scopen statt page-weit: „von …" und die Empfängerin tauchen auch in der
@@ -195,6 +209,8 @@ test.describe('Gruppenabschnitt „Füreinander angelegt“ (#1223)', () => {
 			await page.setViewportSize({ width: 375, height: 812 });
 			// s. o. (AK7-Test): Gruppe ist bereits offen — idempotent statt togglendem Klick.
 			await openAccordionSection(page, 'E2E Füreinander Schmal');
+			// s. o. (AK7-Test): Aufgabe entstand nach dem Aufklappen — Detail neu laden.
+			await refreshGroupDetail(page, group!.id);
 			// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 			await openAccordionSection(page, SECTION_HEADING);
 

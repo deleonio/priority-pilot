@@ -69,28 +69,34 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		// Ihr Inhalt bleibt bei geschlossenem KolDetails im DOM (Breite gesetzt, Höhe kollabiert).
 		await expect(rows).toHaveCount(5);
 
-		const containerBox = await page.locator('.settings-general').first().boundingBox();
-		expect(containerBox).toBeTruthy();
-
-		// Volle Breite gilt für die Hauptzeilen (direkte Kinder des Containers); die Sub-Zeilen
-		// sitzen im KolDetails-Kollapsbereich und liegen dafür versetzt unter dem Master.
+		// Volle Breite gilt für die Hauptzeilen; die Sub-Zeilen sitzen im Accordion-Kollapsbereich
+		// und liegen dafür versetzt unter dem Master.
+		// Design-Lauf 2026-09: Die Hauptzeilen stehen im `.settings-card-stack` ihrer Gruppen-Karte.
+		// Bezugsgröße ist deshalb dieser Stapel und nicht mehr `.settings-general` — das Panel ist um
+		// das Karten-Padding breiter, die alte Messung wäre strukturell rot.
 		const mainRows = page.locator('.settings-general kol-card > .settings-card-stack > .settings-switch-row');
 		for (let i = 0; i < (await mainRows.count()); i++) {
-			const rowBox = await mainRows.nth(i).boundingBox();
-			expect(rowBox).toBeTruthy();
+			const geometry = await mainRows.nth(i).evaluate((el) => ({
+				row: el.getBoundingClientRect().width,
+				stack: (el.parentElement as HTMLElement).getBoundingClientRect().width,
+			}));
 			// Volle Breite: ≥95% der Container-Breite (5% Toleranz für Rundung/Padding).
-			expect(rowBox!.width).toBeGreaterThanOrEqual(containerBox!.width * 0.95);
+			expect(geometry.row).toBeGreaterThanOrEqual(geometry.stack * 0.95);
 		}
 
-		// Sub-Zeilen (im KolDetails): durch dessen Innenabstand gegenüber den Hauptzeilen versetzt
+		// Sub-Zeilen (im Accordion): durch dessen Innenabstand gegenüber den Hauptzeilen versetzt
 		// (Hierarchie unter dem Master sichtbar) — die x-Position bleibt auch bei kollabiertem
-		// KolDetails gesetzt (nur die Höhe kollabiert).
+		// Accordion gesetzt (nur die Höhe kollabiert).
+		// Design-Lauf 2026-09: Der Kollapsbereich ist ein `KolAccordion` (vorher `KolDetails`), dessen
+		// schiefen Theme-Innenabstand `.settings-accordion > .settings-card-stack` auf
+		// `--pp-gap-tight` (8px) zurückholt — der Versatz ist damit kleiner als der frühere, aber
+		// weiterhin gesetzt. Geprüft wird deshalb der Versatz an sich (≥8px), nicht sein alter Wert.
 		const firstMainBox = await mainRows.first().boundingBox();
 		const subRows = page.locator('.settings-general kol-accordion .settings-switch-row');
 		for (let i = 0; i < (await subRows.count()); i++) {
 			const subBox = await subRows.nth(i).boundingBox();
 			expect(subBox).toBeTruthy();
-			expect(subBox!.x).toBeGreaterThan(firstMainBox!.x + 16);
+			expect(subBox!.x).toBeGreaterThanOrEqual(firstMainBox!.x + 8);
 		}
 	});
 
@@ -130,9 +136,11 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" in einem KolDetails — geschlossen
-		// kollabiert deren Zeilenhöhe auf 0. Für die Touch-Target-Prüfung erst öffnen.
-		await page.getByRole('button', { name: 'Animations-Details' }).click();
+		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" im Kollapsbereich unter dem
+		// Master-Schalter — geschlossen kollabiert deren Zeilenhöhe auf 0. Für die Touch-Target-
+		// Prüfung erst öffnen. Design-Lauf 2026-09: Das ist jetzt ein `KolAccordion` „Einzelne
+		// Animationen" (vorher `KolDetails` „Animations-Details").
+		await page.getByRole('button', { name: 'Einzelne Animationen' }).click();
 
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Herz animieren,
@@ -269,20 +277,22 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 	/**
 	 * #1227: „Herz animieren"/„Erledigt animieren" sitzen seit dem Umbau in einem eigenen
-	 * KolDetails statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis in
-	 * der Breite bei gleicher Bedienbarkeit. Der Klick auf „Animations-Details" blendet
+	 * Kollapsbereich statt eigener Zeilen unter dem Master-Schalter „Animationen" — Platzersparnis
+	 * in der Breite bei gleicher Bedienbarkeit. Der Klick auf „Einzelne Animationen" blendet
 	 * beide Feinschalter ein; sie bleiben über den Master-Schalter koppelbar.
+	 * Design-Lauf 2026-09: `KolAccordion` „Einzelne Animationen" statt `KolDetails`
+	 * „Animations-Details" — eine Klapp-Primitive für die ganze Seite.
 	 */
-	test('AK8: „Animations-Details" blendet beide Feinschalter im KolDetails ein', async ({ page }) => {
+	test('AK8: „Einzelne Animationen" blendet beide Feinschalter im Accordion ein', async ({ page }) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Vor dem Öffnen sind die Feinschalter zwar im DOM (KolDetails kollabiert nur die Höhe),
+		// Vor dem Öffnen sind die Feinschalter zwar im DOM (das Accordion kollabiert nur die Höhe),
 		// aber nicht sichtbar/bedienbar.
 		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
 
-		await page.getByRole('button', { name: 'Animations-Details' }).click();
+		await page.getByRole('button', { name: 'Einzelne Animationen' }).click();
 
 		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
@@ -293,12 +303,14 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	});
 
 	/**
-	 * Master-/Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md): „Animations-
-	 * Details" öffnet/schließt synchron mit dem Master-Schalter „Animationen" — unabhängig vom
+	 * Master-/Unter-Settings-Pattern (docs/ux-pattern-master-detail-settings.md): „Einzelne
+	 * Animationen" öffnet/schließt synchron mit dem Master-Schalter „Animationen" — unabhängig vom
 	 * manuellen Auf-/Zuklappen aus AK8. Ohne diesen Test wäre `_open={animationsEnabled}` von
-	 * einem lediglich default-geschlossenen KolDetails nicht unterscheidbar.
+	 * einem lediglich default-geschlossenen Accordion nicht unterscheidbar.
 	 */
-	test('AK9: „Animations-Details" folgt dem Master-Schalter „Animationen" (öffnen und schließen)', async ({ page }) => {
+	test('AK9: „Einzelne Animationen" folgt dem Master-Schalter „Animationen" (öffnen und schließen)', async ({
+		page,
+	}) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 

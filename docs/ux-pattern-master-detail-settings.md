@@ -19,11 +19,11 @@ sichtbar unter ihrem Master in einem `KolAccordion`.
 
 Vorhandene Umsetzungen dieses Patterns:
 
-- **„Animations-Details"** — Feinschalter „Herz animieren"/„Erledigt animieren" unter dem Master
+- **„Einzelne Animationen"** — Feinschalter „Herz animieren"/„Erledigt animieren" unter dem Master
   „Animationen" (`SettingsPage.tsx`, Tab „Allgemein").
-- **„KI-Funktionen-Details"** — Feinschalter „Schnellerfassung aktiv" unter dem Master
+- **„Einzelne KI-Funktionen"** — Feinschalter „Schnellerfassung aktiv" unter dem Master
   „KI-Features aktiv" (`SettingsPage.tsx`, Tab „KI-Provider").
-- **„Standort-Details"** — die drei Geo-Regler (Anzeige-/Alarm-Entfernung,
+- **„Reichweite und Intervall"** — die drei Geo-Regler (Anzeige-/Alarm-Entfernung,
   Aktualisierungsintervall) unter dem Master „Standort erfassen" (`SettingsPage.tsx`, Tab
   „Standort").
 

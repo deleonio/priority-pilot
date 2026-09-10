@@ -83,11 +83,14 @@ const newProviderButtonHost = (page: import('@playwright/test').Page) =>
  * umschließt (vorher lag er direkt im `.settings-llm`-Panel ohne eigenes Padding). Die
  * Linksbündigkeit (AK3/AK4) gilt gegen den sichtbaren Innenrand der Karte, nicht mehr gegen den
  * äußeren Tab-Container — sonst schlägt die Messung um das Card-Padding fehl.
+ *
+ * Gemessen wird `.llm-provider-admin`, der Light-DOM-Inhaltscontainer der Karte: Das Padding der
+ * `KolCard` liegt in ihrem Shadow-DOM, am Host selbst ist `paddingLeft` 0 — eine Messung am Host
+ * läge deshalb um genau dieses Padding (16px) neben dem tatsächlichen Innenrand.
  */
 async function adminCardInnerLeft(page: import('@playwright/test').Page): Promise<number> {
 	return page
-		.locator('.settings-llm kol-card')
-		.filter({ has: newProviderButtonHost(page) })
+		.locator('.settings-llm .llm-provider-admin')
 		.first()
 		.evaluate((el) => {
 			const rect = el.getBoundingClientRect();

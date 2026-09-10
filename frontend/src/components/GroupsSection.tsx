@@ -111,8 +111,12 @@ export const GroupsSection = () => {
 					{error}
 				</KolAlert>
 			)}
+			{/* `group-received-invitations` bleibt als Anker der empfangenen Einladungen erhalten (kein
+			    Styling, sondern der Scope, mit dem Tests „Einladungen an mich" von den „offenen
+			    Einladungen" im Gruppendetail trennen) — die frühere `<section>` mit eigener H3 ist zur
+			    Karte geworden, der Anker nicht. */}
 			{invitations.length > 0 && (
-				<KolCard className="settings-card" _label="Einladungen" _level={2}>
+				<KolCard className="settings-card group-received-invitations" _label="Einladungen" _level={2}>
 					<ul className="groups-items">
 						{invitations.map((invitation) => (
 							<li key={invitation.id} className="groups-item">

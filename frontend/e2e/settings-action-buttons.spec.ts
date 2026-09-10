@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
@@ -113,14 +114,19 @@ async function openStandort(page: import('@playwright/test').Page): Promise<void
 	await expect(page.getByRole('button', { name: 'Standort ermitteln' })).toBeVisible();
 }
 
-/** Container-Geometrie aus dem gerenderten Style: Innenbreite + linker Innenrand (nicht hartkodiert). */
-async function containerMetrics(
-	page: import('@playwright/test').Page,
-	panelSelector: '.settings-general' | '.settings-geo',
-): Promise<{ innerLeft: number; innerWidth: number }> {
-	return page.locator(panelSelector).evaluate((el) => {
-		const rect = el.getBoundingClientRect();
-		const style = window.getComputedStyle(el);
+/**
+ * Container-Geometrie aus dem gerenderten Style: Innenbreite + linker Innenrand (nicht hartkodiert).
+ *
+ * Bezugsgröße ist der Light-DOM-Stapel, in dem der Button steht (`.settings-card-stack` seiner
+ * Gruppen-Karte), nicht mehr das Tab-Panel: Seit dem Design-Lauf 2026-09 liegen die Buttons in
+ * einer `KolCard`, deren Padding im Shadow-DOM sitzt. Am Panel gemessen läge der Innenrand um
+ * genau dieses Padding (16px) neben der sichtbaren Kante, an der die Buttons ausgerichtet sind.
+ */
+async function containerMetrics(host: Locator): Promise<{ innerLeft: number; innerWidth: number }> {
+	return host.evaluate((el) => {
+		const container = el.parentElement as HTMLElement;
+		const rect = container.getBoundingClientRect();
+		const style = window.getComputedStyle(container);
 		const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
 		const paddingRight = Number.parseFloat(style.paddingRight) || 0;
 		return {
@@ -130,11 +136,19 @@ async function containerMetrics(
 	});
 }
 
-/** Host-Buttons je Tab: „Push testen" in „Allgemein", „Standort ermitteln" in „Standort" (#1151). */
+/**
+ * Host-Buttons je Tab: „Push testen" in „Allgemein", „Standort ermitteln" in „Standort" (#1151).
+ *
+ * Am Label festgemacht statt allein an der Klasse: Seit dem Design-Lauf 2026-09 trägt im Tab
+ * „Allgemein" auch „Anzeigename speichern" die Klasse `settings-action-btn` (Karte „Konto") —
+ * ein reiner Klassen-Selektor träfe beide und liefe in eine Strict-Mode-Verletzung. Über
+ * `_label` adressiert (Muster issue-1037-llm-action-buttons.spec.ts) — `hasText` griffe ins Leere,
+ * da KoliBri das Label im Shadow-DOM rendert.
+ */
 const pushButtonHost = (page: import('@playwright/test').Page) =>
-	page.locator('.settings-general kol-card kol-button.settings-action-btn');
+	page.locator('.settings-general kol-card kol-button.settings-action-btn[_label="Push testen"]');
 const geoButtonHost = (page: import('@playwright/test').Page) =>
-	page.locator('.settings-geo kol-card kol-button.settings-action-btn');
+	page.locator('.settings-geo kol-card kol-button.settings-action-btn[_label="Standort ermitteln"]');
 
 test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 	/**
@@ -148,13 +162,13 @@ test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 		await openGeneral(page);
 		const pushBox = await pushButtonHost(page).boundingBox();
 		expect(pushBox).toBeTruthy();
-		const generalMetrics = await containerMetrics(page, '.settings-general');
+		const generalMetrics = await containerMetrics(pushButtonHost(page));
 		expect(pushBox!.width).toBeGreaterThanOrEqual(0.9 * generalMetrics.innerWidth);
 
 		await openStandort(page);
 		const geoBox = await geoButtonHost(page).boundingBox();
 		expect(geoBox).toBeTruthy();
-		const geoMetrics = await containerMetrics(page, '.settings-geo');
+		const geoMetrics = await containerMetrics(geoButtonHost(page));
 		expect(geoBox!.width).toBeGreaterThanOrEqual(0.9 * geoMetrics.innerWidth);
 	});
 
@@ -170,14 +184,14 @@ test.describe('#1017 Aktions-Buttons vereinheitlichen', () => {
 		await openGeneral(page);
 		const pushBox = await pushButtonHost(page).boundingBox();
 		expect(pushBox).toBeTruthy();
-		const generalMetrics = await containerMetrics(page, '.settings-general');
+		const generalMetrics = await containerMetrics(pushButtonHost(page));
 		expect(pushBox!.width).toBeLessThan(0.9 * generalMetrics.innerWidth);
 		expect(Math.abs(pushBox!.x - generalMetrics.innerLeft)).toBeLessThanOrEqual(8);
 
 		await openStandort(page);
 		const geoBox = await geoButtonHost(page).boundingBox();
 		expect(geoBox).toBeTruthy();
-		const geoMetrics = await containerMetrics(page, '.settings-geo');
+		const geoMetrics = await containerMetrics(geoButtonHost(page));
 		expect(geoBox!.width).toBeLessThan(0.9 * geoMetrics.innerWidth);
 		expect(Math.abs(geoBox!.x - geoMetrics.innerLeft)).toBeLessThanOrEqual(8);
 	});

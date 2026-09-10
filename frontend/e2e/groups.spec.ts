@@ -69,8 +69,12 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		// Design-Lauf 2026-09: Beschreibung und Metazeile liegen im Accordion-Körper.
 		await page.getByRole('button', { name: 'E2E Familie', exact: true }).click();
 		await expect(card.getByText('E2E Beschreibung')).toBeVisible();
-		await expect(card.getByText(/admin/i)).toBeVisible(); // Rolle als Text, nie nur Farbe
-		await expect(card.getByText(/1 Mitglied/)).toBeVisible();
+		// Auf die Metazeile gescopet: Mit dem Aufklappen lädt darunter das Gruppendetail, dessen
+		// Mitgliederliste dieselbe Rolle als zweites „Admin"-Badge trägt — kartenweit wäre das eine
+		// (lade-zeitabhängige) Strict-Mode-Verletzung.
+		const meta = card.locator('.groups-meta');
+		await expect(meta.getByText(/admin/i)).toBeVisible(); // Rolle als Text, nie nur Farbe
+		await expect(meta.getByText(/1 Mitglied/)).toBeVisible();
 	});
 
 	test('Leerer Name im Dialog bleibt mit deutscher Meldung abgewiesen (AK6/AK4)', async ({ page }) => {

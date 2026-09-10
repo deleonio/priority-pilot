@@ -123,6 +123,12 @@ const findGroupId = async (page: Page, groupName: string): Promise<number> => {
  */
 const openGroupDetail = async (page: Page, groupName: string): Promise<void> => {
 	await openAccordionSection(page, groupName);
+	// Die Serie entsteht erst NACH dem Aufklappen über die API — `GroupDetail` lädt beim Mount, ohne
+	// Neuladen bliebe die Liste leer. Früher übernahm das ein blanker Klick ins offene Detail; seit
+	// dem Design-Lauf 2026-09 ist das ein sichtbares, tastaturerreichbares Bedienelement. Auf die
+	// Gruppe gescopet — jede Gruppe der Liste hat ein eigenes.
+	const groupId = await findGroupId(page, groupName);
+	await page.locator(`li[data-group-id="${groupId}"]`).getByRole('button', { name: 'Daten auffrischen' }).click();
 	await expect(page.getByRole('heading', { name: SECTION_HEADING })).toBeVisible();
 	// #1257: Der Abschnitt ist ein zugeklapptes Accordion — erst aufklappen.
 	await openAccordionSection(page, SECTION_HEADING);
