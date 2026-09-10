@@ -1,6 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import { CATEGORY_COLORS } from '../models/categoryColors.js';
 
 /**
  * Rote Spec-Tests für #1353 (Spec docs/spec/issue-1353.md) — MCP-Werkzeuge v1.
@@ -146,11 +147,12 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 	it('AK5: pillar_list und category_list liefern die eigenen Stammdaten', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
-		await server.json('/categories', {
+		const created = await server.json('/categories', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: JSON.stringify({ name: 'Eigene Kategorie' }),
+			body: JSON.stringify({ name: 'Eigene Kategorie', color: CATEGORY_COLORS[0] }),
 		});
+		assert.equal(created.status, 201, 'Setup: Kategorie muss anlegbar sein');
 
 		const pillars = await mcpCall<{ id: number; name: string }[]>(token, 'pillar_list');
 		assert.ok(Array.isArray(pillars.result));

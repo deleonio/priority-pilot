@@ -83,8 +83,14 @@ mcpRouter.post('/mcp/v1', async (req: Request, res: Response) => {
 		unknown
 	>;
 	// Loopback-Ziel des Werkzeugs: derselbe Server, derselbe Bearer-Token (siehe tools.ts).
+	// Das Ziel wird bewusst NICHT aus `req.protocol`/`Host` gebaut: beides ist Client-kontrolliert
+	// (durch `trust proxy` zusätzlich über `X-Forwarded-Host`/`-Proto`), der Server würde damit auf
+	// Zuruf beliebige Ziele anfragen — inklusive des mitgesendeten Bearer-Tokens (SSRF).
+	// `req.socket.localPort` ist der Port, auf dem dieser Prozess tatsächlich lauscht (im Test der
+	// zufällige Port aus `app.listen(0)`), und kommt vom Kernel, nicht vom Aufrufer.
+	const localPort = req.socket.localPort ?? (Number(process.env.PORT) || 3000);
 	const context: McpToolContext = {
-		baseUrl: `${req.protocol}://${req.get('host') ?? 'localhost'}`,
+		baseUrl: `http://127.0.0.1:${localPort}`,
 		authorization: req.get('authorization') ?? '',
 	};
 	try {

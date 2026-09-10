@@ -11,7 +11,7 @@
 
 /** Aufrufkontext eines Werkzeugs: Basis-URL des eigenen Servers + Bearer-Token des Aufrufers. */
 export interface McpToolContext {
-	/** z. B. `http://127.0.0.1:3000` — aus Protokoll und `Host`-Header des MCP-Requests. */
+	/** z. B. `http://127.0.0.1:3000` — feste Loopback-Adresse mit dem Port, auf dem der Prozess lauscht. */
 	baseUrl: string;
 	/** Der `Authorization`-Header des MCP-Requests; wird unverändert weitergereicht. */
 	authorization: string;
