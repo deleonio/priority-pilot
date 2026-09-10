@@ -283,6 +283,13 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
 
+		// #1320 (Test-Pflege): Die Einstellungen-Seite trägt keine eigene Seiten-Überschrift mehr —
+		// die eine `<h1>` der Ansicht steht seitdem im App-Layout, `kol-heading` gibt es hier nur
+		// noch im Inhalt. Das erste ist der Name einer Säule im Tab „Säulen"; dorthin wechseln,
+		// damit weiter an einem tatsächlich gerenderten Heading gemessen wird (in einem inaktiven
+		// Tab-Panel liegt es hinter `hidden` und hätte keine Darstellung).
+		await page.getByRole('tab', { name: 'Säulen', exact: true }).click();
+
 		// `waitForStableView(page, 'Priority Pilot')` wäre hier ein No-Op: der Text steht als
 		// `.app-name`-Span schon im App-Header auf JEDER Seite, auch vor diesem Klick. Stattdessen
 		// direkt auf das per Navigation neu gemountete kol-heading warten (Auto-Wait statt Race

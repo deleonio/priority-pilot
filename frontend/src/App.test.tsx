@@ -358,3 +358,47 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 		expect(document.querySelector('[slot="tab-5"]')).not.toBeNull();
 	});
 });
+
+/**
+ * #1320 AK7 — Genau ein <main> und genau eine <h1> je Ansicht: Der Header-Umbau darf auf
+ * /settings/general bzw. /hilfe weder ein doppeltes <main> (App-Layout + Seite) noch eine
+ * zweite <h1> (die versteckte „Dashboard"-Überschrift aus dem Haupt-Layout) hinterlassen; die
+ * verbleibende <h1> muss die geöffnete Seite benennen — positiv „Einstellungen" bzw. „Hilfe",
+ * nicht „Dashboard" und auch nicht der heutige Seitentitel „Priority Pilot" (SettingsPage.tsx).
+ */
+describe('App — #1320 AK7: genau ein <main> und eine <h1> je Ansicht', () => {
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it('AK7: /settings/general hat genau ein <main> und eine <h1>, die die Seite benennt', async () => {
+		window.history.replaceState({}, '', '/settings/general');
+		render(<App user={testUser} />);
+
+		await waitFor(() => {
+			expect(document.querySelector('kol-tabs.settings-tabs')).not.toBeNull();
+		});
+
+		expect(document.querySelectorAll('main')).toHaveLength(1);
+		const headings = document.querySelectorAll('h1');
+		expect(headings).toHaveLength(1);
+		expect(headings[0].textContent?.trim()).toContain('Einstellungen');
+	});
+
+	it('AK7: /hilfe hat genau ein <main> und eine <h1>, die die Seite benennt, Header bleibt sichtbar (AK2)', async () => {
+		window.history.replaceState({}, '', '/hilfe');
+		render(<App user={testUser} />);
+
+		await waitFor(() => {
+			expect(document.querySelector('kol-tabs')).not.toBeNull();
+		});
+
+		// AK2: der Header (Banner) muss auch auf /hilfe erhalten bleiben — heute ersetzt der
+		// frühe Return in App.tsx das komplette Layout, `HelpPage` rendert kein Banner.
+		expect(document.querySelector('header[role="banner"]')).not.toBeNull();
+		expect(document.querySelectorAll('main')).toHaveLength(1);
+		const headings = document.querySelectorAll('h1');
+		expect(headings).toHaveLength(1);
+		expect(headings[0].textContent?.trim()).toContain('Hilfe');
+	});
+});

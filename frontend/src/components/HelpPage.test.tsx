@@ -22,6 +22,11 @@ const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/relea
 
 const USER_GUIDE_MD = '# Priority Pilot Handbuch\n\n- Erster Abschnitt';
 
+// #1320 (Test-Pflege): Die Handbuch-Überschrift wird als `h2` gerendert, nicht mehr als `h1` —
+// die eine `<h1>` der Ansicht trägt seit dem Layout-Umbau das App-Layout („Hilfe", AK7), die
+// Markdown-Ebenen rücken dafür um eins tiefer (siehe MARKDOWN_COMPONENTS in HelpPage.tsx).
+const GUIDE_HEADING = 'h2';
+
 const releasesFixture = [
 	{
 		tag_name: 'v0.1.695',
@@ -71,7 +76,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 	});
 
 	it('AK1: KolTabs mit Labels [Handbuch, Changelog]; Handbuch bleibt nach Tab-Wechsel erhalten', async () => {
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		expect(
@@ -81,7 +86,10 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 
 		// Handbuch-Inhalt ist initial gerendert (Panel slot="tab-0" bleibt gemountet).
 		await waitFor(() => {
-			expect(panel(container, 'tab-0')?.querySelector('h1'), 'Handbuch-Überschrift im tab-0-Panel').toBeTruthy();
+			expect(
+				panel(container, 'tab-0')?.querySelector(GUIDE_HEADING),
+				'Handbuch-Überschrift im tab-0-Panel',
+			).toBeTruthy();
 		});
 
 		selectTab(container, 1);
@@ -91,15 +99,15 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 
 		const guideCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('user-guide.md'));
 		expect(guideCalls, 'Handbuch wird beim Tab-Wechsel nicht neu geladen').toHaveLength(1);
-		expect(panel(container, 'tab-0')?.querySelector('h1'), 'Handbuch-Inhalt bleibt im DOM').toBeTruthy();
+		expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING), 'Handbuch-Inhalt bleibt im DOM').toBeTruthy();
 	});
 
 	it('AK2: Changelog lädt lazy (kein API-Call bei Mount), per_page=30, neueste zuerst mit Version + de-DE-Datum', async () => {
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 
 		// Lazy: vor dem ersten Aktivieren des Changelog-Tabs passiert kein GitHub-Call.
 		await waitFor(() => {
-			expect(panel(container, 'tab-0')?.querySelector('h1')).toBeTruthy();
+			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
 		});
 		expect(
 			fetchMock.mock.calls.some(([input]) => String(input).includes('api.github.com')),
@@ -121,7 +129,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 	});
 
 	it('AK3: Release-Body wird gerendert — Kategorie-Abschnitte als Überschrift, Items als li', async () => {
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 
 		selectTab(container, 1);
 
@@ -144,9 +152,9 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 		});
 		vi.stubGlobal('fetch', fetchMock);
 
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 		await waitFor(() => {
-			expect(panel(container, 'tab-0')?.querySelector('h1')).toBeTruthy();
+			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
 		});
 
 		selectTab(container, 1);
@@ -154,7 +162,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 		await waitFor(() => {
 			expect(panel(container, 'tab-1')?.textContent ?? '').toMatch(/konnte nicht geladen werden/i);
 		});
-		expect(panel(container, 'tab-0')?.querySelector('h1'), 'Handbuch-Tab bleibt funktionsfähig').toBeTruthy();
+		expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING), 'Handbuch-Tab bleibt funktionsfähig').toBeTruthy();
 
 		// Recovery-Pfad (KI-UX): Weg- und Zurückschalten startet einen neuen Versuch.
 		selectTab(container, 0);
@@ -210,7 +218,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 		Array.from(panel(container, 'tab-1')?.querySelectorAll('h2, h3') ?? []).map((h) => h.textContent ?? '');
 
 	it('AK1: Nackte URLs und Markdown-Links werden zu echten <a href> gerendert', async () => {
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 
 		selectTab(container, 1);
 
@@ -229,7 +237,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 	});
 
 	it('AK2: Je Kategorie genau eine Überschrift, feste Reihenfolge, leere Kategorien entfallen; Bullets aller Versionen unter derselben Kategorie', async () => {
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 
 		selectTab(container, 1);
 
@@ -285,7 +293,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 	});
 
 	it('AK3: Kein Eintrag geht verloren — li-Gesamtzahl = Bullet-Summe; Ursprungs-Version je Bullet sichtbar', async () => {
-		const { container } = render(<HelpPage onBack={() => undefined} />);
+		const { container } = render(<HelpPage />);
 
 		selectTab(container, 1);
 

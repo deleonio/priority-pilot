@@ -349,3 +349,33 @@ test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () =
 		await expect(page.getByRole('tab', { name: 'Serien', exact: true })).toBeVisible();
 	});
 });
+
+/**
+ * ROTE Spec-Tests für #1320 „Einstellungen und Hilfe als normale Seite statt
+ * Fullscreen-Overlay mit Zurück-Button" (Spec `docs/spec/issue-1320.md`), AK4 —
+ * Direktwechsel zwischen Einstellungen und Hilfe über die Toolbar, ohne Zwischenschritt
+ * über das Dashboard.
+ */
+test.describe('#1320 Direktwechsel Einstellungen ↔ Hilfe über die Toolbar (AK4)', () => {
+	test('AK4: „Hilfe" navigiert von /settings/general direkt zu /hilfe', async ({ page }) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page
+			.getByRole('toolbar', { name: /Kopf-Aktionen/ })
+			.getByRole('button', { name: 'Hilfe' })
+			.click();
+		await expect(page).toHaveURL(/\/hilfe$/);
+	});
+
+	test('AK4: „Einstellungen" navigiert von /hilfe direkt zu /settings/general', async ({ page }) => {
+		await page.goto('/hilfe');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page
+			.getByRole('toolbar', { name: /Kopf-Aktionen/ })
+			.getByRole('button', { name: 'Einstellungen' })
+			.click();
+		await expect(page).toHaveURL(/\/settings\/general/);
+	});
+});

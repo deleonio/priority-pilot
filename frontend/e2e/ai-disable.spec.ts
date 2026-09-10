@@ -212,16 +212,23 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		await expect(quickCaptureInput).not.toBeChecked();
 	});
 
-	test('AK2: in den Einstellungen umgeschaltet — „Säulen-Berater" ist nach „Zurück" sofort weg', async ({ page }) => {
+	test('AK2: in den Einstellungen umgeschaltet — „Säulen-Berater" ist nach dem Rückweg sofort weg', async ({
+		page,
+	}) => {
 		await openLlmTab(page);
 
 		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
 		await aiSwitch.click();
 		await expect(aiSwitch).not.toBeChecked();
 
-		// Zurück in die Haupt-App: Der Button verschwindet ohne Seiten-Neuladen — die Einstellungen
-		// dürfen keinen veralteten Wert in der bereits gemounteten Haupt-App hinterlassen.
-		await page.getByRole('button', { name: 'Zurück' }).click();
+		// #1320: Der „Zurück"-Button entfällt — der Rückweg läuft über den bereits aktiven
+		// Toolbar-Button „Einstellungen" (Umschalter). Der Button verschwindet ohne
+		// Seiten-Neuladen — die Einstellungen dürfen keinen veralteten Wert in der bereits
+		// gemounteten Haupt-App hinterlassen.
+		await page
+			.getByRole('toolbar', { name: /Kopf-Aktionen/ })
+			.getByRole('button', { name: 'Einstellungen' })
+			.click();
 		await waitForStableView(page);
 
 		await expect(

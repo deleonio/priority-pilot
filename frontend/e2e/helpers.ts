@@ -22,6 +22,17 @@ export const waitForStableView = async (page: Page, readyText = 'Dashboard'): Pr
 		if (pending.length > 0) {
 			return false;
 		}
+		// #1320: `kol-tabs` hängt seine Panel-Inhalte erst beim Aufbau des Shadow-DOM in die
+		// internen Slots (es schreibt dazu `slot="tab-N"` auf `tabpanel-slot-N` um). Bis dahin
+		// sind die Panel-Kinder keinem Slot zugewiesen, also ohne Layout: `boundingBox()` liefert
+		// `null`, `getComputedStyle()` leere Werte. Der Ready-Marker aus Schritt 1 kann früher
+		// stehen als diese Zuweisung — jede Messung direkt danach liefe sonst ins Leere.
+		const unslottedPanel = Array.from(document.querySelectorAll('kol-tabs')).some((host) =>
+			Array.from(host.children).some((child) => child.assignedSlot === null),
+		);
+		if (unslottedPanel) {
+			return false;
+		}
 		const button = document.querySelector('kol-button');
 		// Ohne Buttons (z. B. theoretischer Sonderfall) gilt die Seite als hydriert.
 		return button === null || button.shadowRoot !== null;

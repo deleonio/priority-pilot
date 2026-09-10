@@ -1,12 +1,8 @@
-import { KolButton, KolSpin, KolTabs } from '@public-ui/react-v19';
+import { KolSpin, KolTabs } from '@public-ui/react-v19';
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
-
-interface HelpPageProps {
-	onBack: () => void;
-}
 
 // Tab-Leiste der Hilfe-Seite (#1190). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält (Muster SettingsPage.tsx). Reihenfolge: Handbuch (Index 0,
@@ -27,12 +23,23 @@ interface GithubRelease {
 
 // Externe Links (GitHub-PRs) verlassen die PWA — zentral für beide Tabs gesetzt, gilt für
 // Markdown-Links und (seit #1206, via remark-gfm) Autolinks nackter URLs gleich (KI-UX).
+//
+// #1320: Die Markdown-Überschriften rücken zugleich eine Ebene tiefer. Das Handbuch ist ein für
+// sich stehendes Dokument und beginnt mit `# Priority Pilot – Nutzerhandbuch`; seit die Hilfe im
+// App-Layout steckt, trägt die Seite bereits die eine `<h1>` „Hilfe" (AK7). Ohne Verschiebung
+// stünden zwei `<h1>` im Dokument und die Gliederung hätte zwei konkurrierende Wurzeln. `h6`
+// bleibt `h6` — tiefer geht die HTML-Gliederung nicht (das Handbuch nutzt maximal `###`).
 const MARKDOWN_COMPONENTS: Components = {
 	a: ({ href, children }) => (
 		<a href={href} target="_blank" rel="noopener noreferrer">
 			{children}
 		</a>
 	),
+	h1: ({ children }) => <h2>{children}</h2>,
+	h2: ({ children }) => <h3>{children}</h3>,
+	h3: ({ children }) => <h4>{children}</h4>,
+	h4: ({ children }) => <h5>{children}</h5>,
+	h5: ({ children }) => <h6>{children}</h6>,
 };
 
 // Die API liefert neueste zuerst — das Frontend rendert in API-Reihenfolge ohne eigene Sortierung.
@@ -46,7 +53,7 @@ const fetchReleases = (): Promise<GithubRelease[]> =>
 type ChangelogState =
 	{ status: 'idle' } | { status: 'loading' } | { status: 'error' } | { status: 'loaded'; releases: GithubRelease[] };
 
-export const HelpPage = ({ onBack }: HelpPageProps) => {
+export const HelpPage = () => {
 	const [content, setContent] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
 	const [changelog, setChangelog] = useState<ChangelogState>({ status: 'idle' });
@@ -81,15 +88,10 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 	);
 
 	return (
-		<main className="help-page">
-			<header className="help-page-header">
-				<KolButton
-					_label="Zurück"
-					_icons={{ left: { icon: 'fa-solid fa-arrow-left' } }}
-					_variant="secondary"
-					_on={{ onClick: onBack }}
-				/>
-			</header>
+		// #1320: Seiteninhalt INNERHALB der App-Shell — kein eigenes `<main>` und keine eigene `<h1>`
+		// mehr (beides trägt seit #1320 das App-Layout, AK7), und kein „Zurück"-Button (AK3): Header
+		// und Kopf-Aktionen bleiben sichtbar, der Rückweg läuft über den aktiven Toolbar-Button.
+		<div className="help-page">
 			<KolTabs _label="Hilfe" _tabs={HELP_TABS} _selected={activeTab} _on={tabsCallbacks}>
 				<div slot="tab-0" className="help-page-content">
 					{content === null ? (
@@ -123,6 +125,6 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 						))}
 				</div>
 			</KolTabs>
-		</main>
+		</div>
 	);
 };

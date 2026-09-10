@@ -84,6 +84,23 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
+// #1320: Aktiv-Zustand der Kopf-Aktionen „Einstellungen"/„Hilfe" — der Button der gerade offenen
+// Seite hebt sich sichtbar ab (`primary` gegen `secondary`), damit der Umschalter als verlässliche
+// Regel lesbar ist und nicht als Zufallstreffer. Farbe allein reicht nicht (WCAG 1.4.1); da
+// `kol-button` weder `aria-current` noch `aria-pressed` als Prop anbietet (nur `kol-link` kennt
+// `_ariaCurrentValue`), trägt die Zustandsansage die von KoliBri als `aria-describedby`
+// eingehängte, visuell verborgene Beschreibung. Der Accessible Name bleibt dabei unverändert —
+// die Kopf-Aktionen sind app-weit über ihn adressiert.
+const ACTIVE_VARIANT = 'primary' as const;
+const INACTIVE_VARIANT = 'secondary' as const;
+const ACTIVE_VIEW_DESCRIPTION = 'Aktuelle Ansicht — erneut betätigen führt zurück';
+
+// #1320: Seitentitel der einen `<h1>` je Ansicht (AK7). Die Hauptansichten teilen sich „Dashboard",
+// weil die Ansichten-Tabs innerhalb derselben Seite umschalten.
+const MAIN_VIEW_TITLE = 'Dashboard';
+const SETTINGS_VIEW_TITLE = 'Einstellungen';
+const HELP_VIEW_TITLE = 'Hilfe';
+
 /**
  * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
  * nach `share`, exakt die Quelle des Dashboards (`buildPillarSummaries`). Der Wert-Beitrag fließt
@@ -381,14 +398,49 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		});
 	}, [reload]);
 
+	// #1320: Rückweg aus Einstellungen/Hilfe. Gemerkt wird die zuletzt aktive HAUPTansicht (inkl.
+	// Aufgaben-Filter in `?q=`/`?view=`), nicht `navigate(-1)`: Der Rückweg soll an der App-Ansicht
+	// hängen, nicht an der Browser-History — sonst landete er nach einem Tab-Wechsel innerhalb der
+	// Einstellungen wieder in den Einstellungen. Ohne vorherige Hauptansicht (Deep-Link/Kaltstart
+	// direkt auf `/settings/*` oder `/hilfe`) gilt `/` als Fallback (AK5).
+	const lastMainViewRef = useRef('/');
+	useEffect(() => {
+		if (!showSettings && !showHelp) {
+			lastMainViewRef.current = `${location.pathname}${location.search}`;
+		}
+	}, [location.pathname, location.search, showSettings, showHelp]);
+
+	// #1320: Beim Wechsel auf Einstellungen/Hilfe einen offenen Task-Dialog schließen. Die Dialoge
+	// hängen am `dialog`-State, nicht an der Route, und rendern seit dem Layout-Umbau auf allen drei
+	// Ansichten — vorher schnitten die frühen Returns sie beim Seitenwechsel ab. Ohne diesen Schnitt
+	// bliebe ein per Browser-Zurück/-Vor verlassener Dialog (der einzige Weg an einem modalen
+	// `<dialog>` vorbei) über der Einstellungen- oder Hilfe-Seite stehen, obwohl die URL dort steht.
+	useEffect(() => {
+		if (showSettings || showHelp) {
+			setDialog(null);
+		}
+	}, [showSettings, showHelp]);
+
 	// #1105: Navigation läuft über React Router (kein handgestricktes pushState mehr, AK4).
-	const openHelp = useCallback((): void => navigate('/hilfe'), [navigate]);
+	// #1320: Die beiden Kopf-Aktionen sind Umschalter — auf der jeweils offenen Seite führt ein
+	// erneuter Klick zurück zur zuletzt aktiven Hauptansicht, sonst wird direkt gewechselt (AK4/AK5).
+	const backToMainView = useCallback((): void => navigate(lastMainViewRef.current), [navigate]);
 
-	const closeHelp = useCallback((): void => navigate('/'), [navigate]);
+	const toggleHelp = useCallback((): void => {
+		if (showHelp) {
+			backToMainView();
+			return;
+		}
+		navigate('/hilfe');
+	}, [showHelp, backToMainView, navigate]);
 
-	const openSettings = useCallback((): void => navigate('/settings/general'), [navigate]);
-
-	const closeSettings = useCallback((): void => navigate('/'), [navigate]);
+	const toggleSettings = useCallback((): void => {
+		if (showSettings) {
+			backToMainView();
+			return;
+		}
+		navigate('/settings/general');
+	}, [showSettings, backToMainView, navigate]);
 
 	/** Settings-Tab-Wechsel: URL auf `/settings/:tab` bringen — der Tab folgt der Route. */
 	const changeSettingsTab = useCallback(
@@ -398,12 +450,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[navigate],
 	);
 
-	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
-	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
+	// Nach dem Speichern auf der Einstellungen-Seite: zurück zur Hauptansicht (#270, seit #1320 zur
+	// zuletzt aktiven statt fest zum Dashboard) und die Daten neu laden, damit die geänderten
+	// Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
 	const afterSettingsSaved = useCallback((): void => {
-		closeSettings();
+		backToMainView();
 		void reload();
-	}, [closeSettings, reload]);
+	}, [backToMainView, reload]);
 
 	// Nach PillarList-Mutationen (anlegen/umbenennen/löschen) die globalen Pillar-Daten neu laden,
 	// damit PillarWeightsForm und Dashboard die aktuellen Daten anzeigen (#439 Review Finding 3).
@@ -523,9 +576,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// aus (Toolbar-Button „Säulen-Berater", Lektorat-Buttons im TaskForm); `quickCaptureEnabled`
 	// entscheidet, ob „Neuen Task anlegen" den Capture-Schritt zeigt oder direkt das Task-Formular.
 	// Absichtlich **kein** State-Hook: `SettingsPage` besitzt die eigene Hook-Instanz und `App`
-	// remountet beim „Zurück" nicht (`showSettings` ist interner State) — ein hier gepufferter Wert
-	// wäre veraltet. Jeder Render liest daher frisch aus dem `localStorage`; der Wechsel zurück aus
-	// den Einstellungen ist selbst ein Re-Render, sodass die Änderung sofort wirkt.
+	// remountet beim Verlassen der Einstellungen nicht (der App-State lebt außerhalb des Routers)
+	// — ein hier gepufferter Wert wäre veraltet. Jeder Render liest daher frisch aus dem
+	// `localStorage`; der Wechsel zurück aus den Einstellungen ist selbst ein Re-Render, sodass die
+	// Änderung sofort wirkt.
 	const preferences = readAiPreferences();
 	const { aiEnabled } = preferences;
 	// #1085: Die Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird die gespeicherte
@@ -574,16 +628,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				_label: 'Einstellungen',
 				_hideLabel: true,
 				_icons: SETTINGS_ICON,
-				_variant: 'secondary' as const,
-				_on: { onClick: openSettings },
+				_variant: showSettings ? ACTIVE_VARIANT : INACTIVE_VARIANT,
+				...(showSettings ? { _ariaDescription: ACTIVE_VIEW_DESCRIPTION } : {}),
+				_on: { onClick: toggleSettings },
 			},
 			{
 				type: 'button' as const,
 				_label: 'Hilfe',
 				_hideLabel: true,
 				_icons: HELP_ICON,
-				_variant: 'secondary' as const,
-				_on: { onClick: openHelp },
+				_variant: showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT,
+				...(showHelp ? { _ariaDescription: ACTIVE_VIEW_DESCRIPTION } : {}),
+				_on: { onClick: toggleHelp },
 			},
 			{
 				type: 'button' as const,
@@ -595,25 +651,23 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [logoutLoading, openSearch, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout, aiEnabled]);
+	}, [
+		logoutLoading,
+		openSearch,
+		openCreateDialog,
+		openAdvisor,
+		toggleSettings,
+		toggleHelp,
+		handleLogout,
+		aiEnabled,
+		showSettings,
+		showHelp,
+	]);
 
-	if (showSettings) {
-		return (
-			<SettingsPage
-				pillars={pillars}
-				tab={settingsTab}
-				onTabChange={changeSettingsTab}
-				onBack={closeSettings}
-				onSaved={afterSettingsSaved}
-				onPillarChanged={handlePillarChanged}
-				isAdmin={isAdmin}
-			/>
-		);
-	}
-
-	if (showHelp) {
-		return <HelpPage onBack={closeHelp} />;
-	}
+	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
+	// Layout. Header (Logo, Kopf-Aktionen, Avatar), Dialoge und Fußzeile bleiben auf allen drei
+	// Ansichten stehen, nur der Seiteninhalt wechselt. Genau deshalb entfällt der „Zurück"-Button.
+	const pageTitle = showSettings ? SETTINGS_VIEW_TITLE : showHelp ? HELP_VIEW_TITLE : MAIN_VIEW_TITLE;
 
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
@@ -643,13 +697,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
 				</div>
 			</header>
-			<h1 className="visually-hidden">Dashboard</h1>
+			{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier
+			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
+			<h1 className="visually-hidden">{pageTitle}</h1>
 
-			{loadError !== null && (
-				<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
-					{loadError}
-				</KolAlert>
-			)}
+			{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
+			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
 			{logoutError !== null && (
 				<div role="alert">
 					<KolAlert _type="error" _label="Logout fehlgeschlagen">
@@ -657,163 +710,190 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					</KolAlert>
 				</div>
 			)}
-			{updateError !== null && (
-				<div role="alert">
-					<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
-						{updateError}
-					</KolAlert>
-				</div>
-			)}
-			{tasks === null && loading && (
-				<div className="loading">
-					<KolSpin _show _variant="cycle" _label="Lädt" />
-					<span>Lade Tasks…</span>
-				</div>
-			)}
 
-			{/* #1259: Der Dashboard-Leerzustand gehört nur auf das Dashboard (aktiver Tab 0) — bisher
+			{showSettings ? (
+				<SettingsPage
+					pillars={pillars}
+					tab={settingsTab}
+					onTabChange={changeSettingsTab}
+					onSaved={afterSettingsSaved}
+					onPillarChanged={handlePillarChanged}
+					isAdmin={isAdmin}
+				/>
+			) : showHelp ? (
+				<HelpPage />
+			) : (
+				<>
+					{loadError !== null && (
+						<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
+							{loadError}
+						</KolAlert>
+					)}
+					{updateError !== null && (
+						<div role="alert">
+							<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
+								{updateError}
+							</KolAlert>
+						</div>
+					)}
+					{tasks === null && loading && (
+						<div className="loading">
+							<KolSpin _show _variant="cycle" _label="Lädt" />
+							<span>Lade Tasks…</span>
+						</div>
+					)}
+
+					{/* #1259: Der Dashboard-Leerzustand gehört nur auf das Dashboard (aktiver Tab 0) — bisher
 			    renderte die Karte tab-unabhängig ÜBER der Tab-Leiste und drückte auf Serien/Wald den
 			    Listenstart um ~230px nach unten (bei 375px+812 blieben statt ≥4 Serien nur 3 ohne
 			    Scrollen sichtbar). Aufgaben- und Wald-Tab haben eigene Leerzustände (TaskTree, #510). */}
-			{tasks !== null && tasks.length === 0 && activeTab === 0 && (
-				<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
-			)}
+					{tasks !== null && tasks.length === 0 && activeTab === 0 && (
+						<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
+					)}
 
-			{tasks !== null && (
-				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _selected={activeTab} _on={tabsCallbacks}>
-					<div slot="tab-0">
-						<Dashboard
-							tasks={tasks}
-							forest={forest}
-							nextTask={nextTask}
-							suggestions={suggestions}
-							pillars={pillars}
-							displayName={user.displayName}
-							onCompleteTask={openComplete}
-						/>
-					</div>
-					<div slot="tab-1">
-						<section className="task-section">
-							<div className="task-filter-bar">
-								<KolInputCheckbox
-									className="task-view-switch"
-									_label="Erledigte Aufgaben anzeigen"
-									_variant="switch"
-									_checked={taskViewMode === 'done'}
-									_on={{
-										onChange: (_event, checked) => {
-											changeTaskViewMode(checked === true);
-										},
-									}}
-								/>
-								<KolInputCheckbox
-									className="task-view-switch"
-									_label="Balance-Priorisierung"
-									_variant="switch"
-									_checked={balanceMode}
-									_on={{
-										onChange: (_event, checked) => {
-											setBalanceMode(checked === true);
-										},
-									}}
-								/>
-								<div className="task-filter-search">
-									<KolInputText
-										ref={taskFilterInputRef}
-										className="task-filter-search__field"
-										_label="Nach Titel filtern"
-										_hideLabel
-										_type="search"
-										_placeholder="Nach Titel filtern…"
-										_value={searchDraft}
-										_on={{
-											onInput: (event: Event) => {
-												setSearchDraft((event.target as HTMLInputElement).value);
-											},
-											// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
-											onKeyDown: (event: KeyboardEvent) => {
-												if (event.key === 'Enter') {
-													applyTaskFilter((event.target as HTMLInputElement).value);
-												}
-											},
-										}}
-									/>
-									<KolButton
-										className="task-filter-search__submit"
-										_label="Filtern"
-										_variant="secondary"
-										_icons="fa-solid fa-magnifying-glass"
-										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
-									/>
-								</div>
-							</div>
-							{taskViewMode === 'open' ? (
-								filteredForest.length === 0 ? (
-									taskSearch.trim() === '' ? (
-										<TaskTree
-											forest={filteredForest}
-											tasks={tasks}
-											progressMap={progressMap}
-											userId={user.id}
-											balancePriorities={balancePriorities}
-											onEdit={openEdit}
-											onDelete={openDelete}
-											onEditDependencies={openDependencies}
-											onAddSubtask={openAddSubtask}
-											onDoneToggle={handleDoneToggle}
-										/>
-									) : (
-										<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
-									)
-								) : (
-									<TaskTree
-										forest={filteredForest}
-										tasks={tasks}
-										progressMap={progressMap}
-										userId={user.id}
-										balancePriorities={balancePriorities}
-										onEdit={openEdit}
-										onDelete={openDelete}
-										onEditDependencies={openDependencies}
-										onAddSubtask={openAddSubtask}
-										onDoneToggle={handleDoneToggle}
-									/>
-								)
-							) : filteredCompletedTasks.length === 0 ? (
-								taskSearch.trim() === '' ? (
-									<CompletedTasksTable
-										tasks={filteredCompletedTasks}
-										pillars={pillars}
-										forestTaskIds={forestTaskIds}
-										onReloaded={reload}
-									/>
-								) : (
-									<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
-								)
-							) : (
-								<CompletedTasksTable
-									tasks={filteredCompletedTasks}
+					{tasks !== null && (
+						<KolTabs
+							className="app-tabs"
+							_label="Ansichten"
+							_tabs={VIEW_TABS}
+							_selected={activeTab}
+							_on={tabsCallbacks}
+						>
+							<div slot="tab-0">
+								<Dashboard
+									tasks={tasks}
+									forest={forest}
+									nextTask={nextTask}
+									suggestions={suggestions}
 									pillars={pillars}
-									forestTaskIds={forestTaskIds}
-									onReloaded={reload}
+									displayName={user.displayName}
+									onCompleteTask={openComplete}
 								/>
-							)}
-						</section>
-					</div>
-					<div slot="tab-2">
-						<SeriesTab pillars={pillars} />
-					</div>
-					<div slot="tab-3">
-						{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
+							</div>
+							<div slot="tab-1">
+								<section className="task-section">
+									<div className="task-filter-bar">
+										<KolInputCheckbox
+											className="task-view-switch"
+											_label="Erledigte Aufgaben anzeigen"
+											_variant="switch"
+											_checked={taskViewMode === 'done'}
+											_on={{
+												onChange: (_event, checked) => {
+													changeTaskViewMode(checked === true);
+												},
+											}}
+										/>
+										<KolInputCheckbox
+											className="task-view-switch"
+											_label="Balance-Priorisierung"
+											_variant="switch"
+											_checked={balanceMode}
+											_on={{
+												onChange: (_event, checked) => {
+													setBalanceMode(checked === true);
+												},
+											}}
+										/>
+										<div className="task-filter-search">
+											<KolInputText
+												ref={taskFilterInputRef}
+												className="task-filter-search__field"
+												_label="Nach Titel filtern"
+												_hideLabel
+												_type="search"
+												_placeholder="Nach Titel filtern…"
+												_value={searchDraft}
+												_on={{
+													onInput: (event: Event) => {
+														setSearchDraft((event.target as HTMLInputElement).value);
+													},
+													// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
+													onKeyDown: (event: KeyboardEvent) => {
+														if (event.key === 'Enter') {
+															applyTaskFilter((event.target as HTMLInputElement).value);
+														}
+													},
+												}}
+											/>
+											<KolButton
+												className="task-filter-search__submit"
+												_label="Filtern"
+												_variant="secondary"
+												_icons="fa-solid fa-magnifying-glass"
+												_on={{ onClick: () => applyTaskFilter(searchDraft) }}
+											/>
+										</div>
+									</div>
+									{taskViewMode === 'open' ? (
+										filteredForest.length === 0 ? (
+											taskSearch.trim() === '' ? (
+												<TaskTree
+													forest={filteredForest}
+													tasks={tasks}
+													progressMap={progressMap}
+													userId={user.id}
+													balancePriorities={balancePriorities}
+													onEdit={openEdit}
+													onDelete={openDelete}
+													onEditDependencies={openDependencies}
+													onAddSubtask={openAddSubtask}
+													onDoneToggle={handleDoneToggle}
+												/>
+											) : (
+												<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+											)
+										) : (
+											<TaskTree
+												forest={filteredForest}
+												tasks={tasks}
+												progressMap={progressMap}
+												userId={user.id}
+												balancePriorities={balancePriorities}
+												onEdit={openEdit}
+												onDelete={openDelete}
+												onEditDependencies={openDependencies}
+												onAddSubtask={openAddSubtask}
+												onDoneToggle={handleDoneToggle}
+											/>
+										)
+									) : filteredCompletedTasks.length === 0 ? (
+										taskSearch.trim() === '' ? (
+											<CompletedTasksTable
+												tasks={filteredCompletedTasks}
+												pillars={pillars}
+												forestTaskIds={forestTaskIds}
+												onReloaded={reload}
+											/>
+										) : (
+											<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+										)
+									) : (
+										<CompletedTasksTable
+											tasks={filteredCompletedTasks}
+											pillars={pillars}
+											forestTaskIds={forestTaskIds}
+											onReloaded={reload}
+										/>
+									)}
+								</section>
+							</div>
+							<div slot="tab-2">
+								<SeriesTab pillars={pillars} />
+							</div>
+							<div slot="tab-3">
+								{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
 						    (nicht entfernt), und die Knoten-/Listentitel sind wortgleich zum Aufgaben-Tab —
 						    dauerhaft gemountet würden sie dort exakte Text-Locators (z. B. in E2E-Tests) doppeln. */}
-						{activeTab === 3 && (
-							<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
-								<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
-							</Suspense>
-						)}
-					</div>
-				</KolTabs>
+								{activeTab === 3 && (
+									<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
+										<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
+									</Suspense>
+								)}
+							</div>
+						</KolTabs>
+					)}
+				</>
 			)}
 
 			{dialog?.kind === 'create' &&
