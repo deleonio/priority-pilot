@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // vi.mock-Hoisting: Die Factory wird vor allen Imports ausgefuehrt, daher muessen
 // die Mock-Objekte ueber vi.hoisted() vorab deklariert werden.
-const { mockPOST, mockPATCH, mockDELETE, mockUse } = vi.hoisted(() => ({
+const { mockGET, mockPOST, mockPATCH, mockDELETE, mockUse } = vi.hoisted(() => ({
+	mockGET: vi.fn(),
 	mockPOST: vi.fn(),
 	mockPATCH: vi.fn(),
 	mockDELETE: vi.fn(),
@@ -13,6 +14,7 @@ const { mockPOST, mockPATCH, mockDELETE, mockUse } = vi.hoisted(() => ({
 
 vi.mock('openapi-fetch', () => ({
 	default: vi.fn(() => ({
+		GET: mockGET,
 		POST: mockPOST,
 		PATCH: mockPATCH,
 		DELETE: mockDELETE,
@@ -174,5 +176,36 @@ describe('api.deletePillar', () => {
 		mockDELETE.mockResolvedValueOnce({ data: undefined, response: errorResponse });
 
 		await expect(api.deletePillar({ id: 1 })).rejects.toThrow(ResponseError);
+	});
+});
+
+/**
+ * Die Anzeigereihenfolge der Kategorien entsteht hier, nicht in den einzelnen Auswahlfeldern —
+ * dadurch stehen Formular, Suchfilter, Filterleiste und der Einstellungs-Tab in derselben
+ * Reihenfolge. Der Server liefert eine byteweise (BINARY) sortierte Liste; dieser Test spielt genau
+ * so eine ein und belegt, dass sie deutsch-alphabetisch beim Aufrufer ankommt.
+ */
+describe('api.listCategories', () => {
+	it('sortiert die Antwort des Servers deutsch-alphabetisch', async () => {
+		// Reihenfolge wie aus SQLite: erst alle Großbuchstaben, dann Kleinschreibung, Umlaute zuletzt.
+		mockGET.mockResolvedValueOnce({
+			data: [
+				{ id: 1, name: 'Bau', color: '#b42318' },
+				{ id: 2, name: 'Zoo', color: '#1064d0' },
+				{ id: 3, name: 'auto', color: '#1a7f37' },
+				{ id: 4, name: 'Ärzte', color: '#6941c6' },
+			],
+			response: { ok: true },
+		});
+
+		const result = await api.listCategories();
+
+		expect(result.map((category) => category.name)).toEqual(['Ärzte', 'auto', 'Bau', 'Zoo']);
+	});
+
+	it('wirft ResponseError bei undefined data trotz ok:true', async () => {
+		mockGET.mockResolvedValueOnce({ data: undefined, response: { ok: true } });
+
+		await expect(api.listCategories()).rejects.toThrow(ResponseError);
 	});
 });
