@@ -181,3 +181,4 @@ Konflikte, die er verhindern soll.
   (`margin-inline: -4px` am `kol-tabs`-Host). → Bei rotem CI zuerst die gemeldete Zahl gegen den
   Diff rechnen; „Flake" erst, wenn kein Wert im Diff sie erklärt. Globale Selektoren (`app.css`)
   treffen immer auch Specs, die nichts mit dem Ticket zu tun haben.
+- 2026-09-10 · CI/Gate — Ein `gate-runner`-Lauf, der `pnpm format`/`lint`/`test` hintereinander im selben Root ausführt, meldete 467 rote Server-Tests („maxLength undefined", fehlende `userId`), obwohl `pnpm --filter server test` allein 1026/0 grün ist: `pnpm lint` regeneriert `server/src/api.d.ts` und das Root-`pnpm test` fährt die Workspaces parallel. → Bei Massen-Rotfärbung erst die betroffene Suite isoliert laufen lassen, bevor man eine Regression annimmt.
