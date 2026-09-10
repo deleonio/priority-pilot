@@ -95,17 +95,19 @@ test.describe('Priority Pilot — Fokus-Outline auf Tab-Buttons (#1336)', () => 
 
 		const buttonBox = await button.boundingBox();
 		expect(buttonBox).not.toBeNull();
-		const tabsHost = button.locator('xpath=ancestor::kol-tabs[1]');
-		const hostBox = await tabsHost.boundingBox();
-		expect(hostBox).not.toBeNull();
+		const hostBox = await button.evaluate((el) => {
+			const host = (el.getRootNode() as ShadowRoot).host as HTMLElement;
+			const r = host.getBoundingClientRect();
+			return { x: r.x, width: r.width };
+		});
 		const ring = outline.width + outline.offset;
 		expect(buttonBox!.x - ring, 'AK2: Ring darf links nicht aus der Tab-Leiste ragen').toBeGreaterThanOrEqual(
-			hostBox!.x - 1,
+			hostBox.x - 1,
 		);
 		expect(
 			buttonBox!.x + buttonBox!.width + ring,
 			'AK2: Ring darf rechts nicht aus der Tab-Leiste ragen',
-		).toBeLessThanOrEqual(hostBox!.x + hostBox!.width + 1);
+		).toBeLessThanOrEqual(hostBox.x + hostBox.width + 1);
 	};
 
 	const appTabNames = ['Dashboard', 'Aufgaben', 'Serien', 'Wald'] as const;
