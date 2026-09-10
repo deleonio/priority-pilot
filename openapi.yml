@@ -248,6 +248,87 @@ paths:
           description: Säule wurde gelöscht
         '404':
           $ref: '#/components/responses/NotFound'
+  /categories:
+    get:
+      summary: Alle Kategorien auflisten
+      description: >-
+        Liefert die thematischen Kategorien des eingeloggten Nutzers. Kategorien sind
+        die flache Ordnungsebene neben den Lebensbalance-Säulen: Sie gruppieren und
+        filtern, ohne in Wert-, Score- oder Balance-Berechnung einzufließen.
+      operationId: listCategories
+      responses:
+        '200':
+          description: Liste aller Kategorien des Nutzers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Neue Kategorie anlegen
+      description: >-
+        Legt eine Kategorie für den eingeloggten Nutzer an. Der Name ist pro Nutzer
+        eindeutig (409 bei Dublette), die Farbe stammt aus der festen Palette.
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+      responses:
+        '201':
+          description: Kategorie wurde angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /categories/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CategoryId'
+    patch:
+      summary: Kategorie teilweise aktualisieren
+      description: >-
+        Ändert Name und/oder Farbe einer Kategorie. Bei Namenskonflikt 409, bei
+        unbekannter oder fremder ID 404.
+      operationId: updateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+      responses:
+        '200':
+          description: Die aktualisierte Kategorie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      summary: Kategorie löschen
+      description: >-
+        Löscht die Kategorie. Aufgaben und Serien bleiben erhalten und verlieren nur
+        die Zuordnung (`categoryId` wird auf `null` gesetzt).
+      operationId: deleteCategory
+      responses:
+        '204':
+          description: Kategorie wurde gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
   /pillars/weights:
     put:
       summary: Gewichtung (100 %-Verteilung) über alle Säulen setzen
@@ -390,6 +471,47 @@ paths:
                 $ref: '#/components/schemas/PillarFeedbackResult'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /tasks/parse-search:
+    post:
+      summary: Gesprochene/getippte Suchanfrage in Suchbegriff und Kategorie zerlegen
+      description: >-
+        Trennt eine frei formulierte Suchanfrage („offene Sachen zum Hausbau") in den
+        reinen Suchbegriff und die gemeinte Kategorie des Nutzers. Die Kategorien des
+        eingeloggten Nutzers gibt der Server dem Modell vor; erkennt es keine, bleibt
+        `categoryId` leer. Fehlt der LLM-Key, antwortet der Endpoint mit 503; bei
+        Upstream-/Format-Fehlern mit 502.
+      operationId: parseSearchQuery
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParseTaskInput'
+      responses:
+        '200':
+          description: Aus der Anfrage extrahierter Suchbegriff und Kategoriefilter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsedSearch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /tasks/parse-text:
@@ -1956,6 +2078,13 @@ components:
       description: ID der Säule
       schema:
         type: integer
+    CategoryId:
+      name: id
+      in: path
+      required: true
+      description: ID der Kategorie
+      schema:
+        type: integer
   responses:
     ValidationError:
       description: Ungültige Eingabe
@@ -2425,6 +2554,12 @@ components:
             (rückwärtskompatibel).
           items:
             $ref: '#/components/schemas/ChecklistItem'
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Thematische Kategorie der Aufgabe (0..1, siehe Schema `Category`); `null`,
+            wenn keine zugeordnet ist.
     TaskCreate:
       type: object
       required:
@@ -2508,6 +2643,12 @@ components:
             bleibt die Liste leer.
           items:
             $ref: '#/components/schemas/ChecklistItem'
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Optionale Kategorie der Aufgabe. Muss eine Kategorie des Eigentümer-Kontos
+            sein, sonst 400; `null` oder weggelassen heißt „ohne Kategorie".
     TaskUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder werden aktualisiert.
@@ -2589,6 +2730,12 @@ components:
             Liste leert die Checkliste; fehlt das Feld, bleibt sie unverändert.
           items:
             $ref: '#/components/schemas/ChecklistItem'
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Setzt die Kategorie (muss dem Eigentümer-Konto gehören) oder entfernt sie
+            mit `null`. Fehlt das Feld, bleibt die Zuordnung unverändert.
     DependencyInput:
       type: object
       required:
@@ -2728,6 +2875,12 @@ components:
               type: integer
             total:
               type: integer
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Thematische Kategorie der Aufgabe (0..1, siehe Schema `Category`) — trägt den
+            Kategorie-Filter der Aufgabenliste. `null`, wenn keine zugeordnet ist.
         dependents:
           type: array
           items:
@@ -2850,6 +3003,64 @@ components:
           minimum: 0
           default: 20
           description: Prozentualer Anteil der Säule (alle Säulen summieren sich auf 100)
+    Category:
+      type: object
+      description: >-
+        Thematische Kategorie einer Aufgabe/Serie — die flache Ordnungsebene neben den
+        Lebensbalance-Säulen. Höchstens eine je Aufgabe, ohne Anteil und ohne Wirkung
+        auf Wert, Score oder Balance; sie dient dem Gruppieren und Filtern.
+        Nutzer-eigene Stammdaten, Name pro Nutzer eindeutig.
+      required:
+        - id
+        - name
+        - color
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 40
+          description: 'Name der Kategorie (nicht leer, z. B. Hausbau, Steuer, Verein)'
+        color:
+          $ref: '#/components/schemas/CategoryColor'
+    CategoryColor:
+      type: string
+      description: >-
+        Badge-Farbe aus der festen Palette. Bewusst keine freie Farbwahl: Die Werte
+        sind auf die Design-Sprache abgestimmt, die Textfarbe rechnet `KolBadge` selbst
+        aus. Spiegel von `server/src/models/categoryColors.ts`.
+      enum:
+        - '#b42318'
+        - '#b54708'
+        - '#8a6100'
+        - '#1a7f37'
+        - '#0e7490'
+        - '#1064d0'
+        - '#6941c6'
+        - '#475467'
+    CategoryCreate:
+      type: object
+      description: Eingabe zum Anlegen einer neuen Kategorie.
+      required:
+        - name
+        - color
+      properties:
+        name:
+          type: string
+          maxLength: 40
+          description: Name der Kategorie (nicht leer)
+        color:
+          $ref: '#/components/schemas/CategoryColor'
+    CategoryUpdate:
+      type: object
+      description: Eingabe zum teilweisen Aktualisieren einer Kategorie. Mindestens ein Feld muss gesetzt sein.
+      properties:
+        name:
+          type: string
+          maxLength: 40
+          description: Neuer Name der Kategorie (nicht leer, falls gesetzt)
+        color:
+          $ref: '#/components/schemas/CategoryColor'
     PillarCreate:
       type: object
       description: Eingabe zum Anlegen einer neuen Säule.
@@ -3082,6 +3293,24 @@ components:
           description: >-
             Optionale, im Freitext aufgezählte Einzelpunkte (#1310) — je Eintrag ein
             Checklisten-Eintrag im Formular.
+        categoryId:
+          type: integer
+          description: >-
+            Optionale Kategorie: ID einer Kategorie des Nutzers, wenn der Text thematisch
+            eindeutig zu einer passt. Fehlt, wenn keine passt oder keine angelegt sind.
+    ParsedSearch:
+      type: object
+      description: >-
+        Aus einer frei formulierten Suchanfrage extrahierter Filter. Beide Felder sind
+        optional: `text` fehlt, wenn die Anfrage nur eine Kategorie nennt, `categoryId`
+        fehlt, wenn keine Kategorie gemeint ist.
+      properties:
+        text:
+          type: string
+          description: Reiner Suchbegriff ohne den Kategorie-Anteil der Anfrage
+        categoryId:
+          type: integer
+          description: ID der gemeinten Kategorie des Nutzers
     PillarFeedbackInput:
       type: object
       description: >-
@@ -3278,6 +3507,12 @@ components:
             über die referenzierten Säulen; `confidence` ist die Konfidenz je Beitrag.
           items:
             $ref: '#/components/schemas/TaskPillarContribution'
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Thematische Kategorie des Templates (0..1, siehe Schema `Category`); wird beim
+            Generieren auf jede Instanz vererbt. `null`, wenn keine zugeordnet ist.
     SeriesCreate:
       type: object
       required:
@@ -3352,6 +3587,12 @@ components:
             Summe aller `share` 100 ergeben.
           items:
             $ref: '#/components/schemas/TaskPillarContributionInput'
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Optionale Kategorie des Templates. Muss eine Kategorie des Eigentümer-Kontos
+            sein, sonst 400; wird beim Generieren auf jede Instanz vererbt.
     SeriesUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder gelten nur für künftige Instanzen.
@@ -3422,6 +3663,12 @@ components:
             `share` 100 ergeben. Fehlt das Feld, bleibt die Vorlage unverändert.
           items:
             $ref: '#/components/schemas/TaskPillarContributionInput'
+        categoryId:
+          type: integer
+          nullable: true
+          description: >-
+            Setzt die Kategorie des Templates (muss dem Eigentümer-Konto gehören) oder
+            entfernt sie mit `null`. Fehlt das Feld, bleibt die Zuordnung unverändert.
         applyToInstances:
           type: boolean
           description: >-

@@ -20,11 +20,18 @@ Zwei Konzepte bestimmen die Priorität einer Aufgabe (Task):
   So lässt sich die Priorisierung gezielt auf die Lebensbereiche lenken, die gerade wichtig sind; bei
   Gleichverteilung (je 100/N % über die N Säulen des Nutzers) bleibt die Gewichtung neutral.
 
+Quer dazu liegt eine **thematische** Ordnungsebene: **Kategorien** (0..1 je Aufgabe und Serie, mit
+eigener Badge-Farbe, anleg- und löschbar in den Einstellungen). Sie gruppieren und filtern —
+„Hausbau", „Steuer", „Verein" — und wirken bewusst **nicht** auf Wert, Priorisierung oder Balance.
+Genau das unterscheidet sie von einer Säule, die als Ordner missbraucht die Balance-Rechnung
+verzerren würde.
+
 Damit lassen sich:
 
 - die **wertvollsten Aufgaben** zuerst sichtbar machen (nach Wertbeitrag sortierter Aufgabenwald),
 - die **nächste sinnvolle Aufgabe** finden (höchste Priorität, deren Abhängigkeiten alle erledigt sind),
 - die Balance über die Lebensbereiche steuern, indem die **Säulen-Gewichtung** angepasst wird,
+- Aufgaben nach Thema bündeln und filtern (**Kategorien**, auch per Spracheingabe in der Suche),
 - Aufgaben und Abhängigkeiten pflegen — inklusive **Zyklus-Erkennung** (zyklische Abhängigkeiten
   werden abgelehnt).
 

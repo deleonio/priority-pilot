@@ -24,6 +24,7 @@ import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
 import { AppearanceSetting } from './AppearanceSetting';
 import { AdminUsersSection } from './AdminUsersSection';
+import { CategoryList } from './CategoryList';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
@@ -38,21 +39,24 @@ interface SettingsPageProps {
 	onSaved: () => void;
 	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
 	onPillarChanged?: () => void;
+	/** Analog zu `onPillarChanged` für die Kategorien (Formulare und Filter halten sie im State). */
+	onCategoryChanged?: () => void;
 	/** Rollensystem admin/member: blendet den Tab „Nutzerverwaltung" ein (Server erzwingt, UI blendet nur aus). */
 	isAdmin?: boolean;
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
-// KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211), optional
-// Nutzerverwaltung (Index 5, nur für Admins). Muss index-paritätisch mit `SETTINGS_PATH_SEGMENTS`
-// in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt statt eingeschoben, damit
-// sich die Indizes der ersten fünf Tabs für Member nie verschieben.
+// KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211), Kategorien (Index 5),
+// optional Nutzerverwaltung (Index 6, nur für Admins). Muss index-paritätisch mit
+// `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
+// statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
 	{ _label: 'KI-Provider' },
 	{ _label: 'Standort' },
 	{ _label: 'Gruppen' },
+	{ _label: 'Kategorien' },
 ];
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
@@ -89,6 +93,7 @@ export const SettingsPage = ({
 	onTabChange,
 	onSaved,
 	onPillarChanged,
+	onCategoryChanged,
 	isAdmin = false,
 }: SettingsPageProps) => {
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
@@ -742,8 +747,16 @@ export const SettingsPage = ({
 				<div slot="tab-4" className="settings-groups settings-panel">
 					<GroupsSection />
 				</div>
+				{/* Kategorien: thematische Ordnungsebene neben den Säulen (Route /settings/kategorien).
+				    Panel-Rezept wie die übrigen Tabs (Design-Lauf 2026-09): `.settings-panel` plus eine
+				    `KolCard` als Gruppierungsfläche. */}
+				<div slot="tab-5" className="settings-categories settings-panel">
+					<KolCard className="settings-card" _label="Kategorien verwalten" _level={2}>
+						<CategoryList onCategoryChanged={onCategoryChanged} />
+					</KolCard>
+				</div>
 				{isAdmin && (
-					<div slot="tab-5" className="settings-admin-users settings-panel">
+					<div slot="tab-6" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
 							<AdminUsersSection />
 						</KolCard>

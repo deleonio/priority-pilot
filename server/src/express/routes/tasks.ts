@@ -8,6 +8,7 @@ import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
+import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
@@ -36,6 +37,7 @@ interface TaskAttributes {
 	longitude?: number | null;
 	autoDeleteAfterDeadline?: boolean;
 	checklist?: ChecklistItem[];
+	categoryId?: number | null;
 }
 
 type ValidationResult =
@@ -138,6 +140,7 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		deadline: task.deadline ? task.deadline.toISOString() : null,
 		autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
 		checklist: task.checklist ?? [],
+		categoryId: task.categoryId ?? null,
 		seriesId: task.seriesId ?? null,
 		isException: task.isException ?? false,
 		// #1222: Eigentümer im DTO (Spiegel zu `Series.userId`) — generierte Instanzen einer
@@ -352,6 +355,16 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		attrs.checklist = result;
 	}
 
+	// Thematische Kategorie (0..1). Die Zugehörigkeit zum Konto prüft die Route gegen die DB
+	// (isCategoryExistent) — hier nur die Form.
+	if (input.categoryId !== undefined) {
+		const result = validateCategoryId(input.categoryId);
+		if (!result.ok) {
+			return { ok: false, message: 'categoryId muss eine Ganzzahl >= 1 oder null sein.' };
+		}
+		attrs.categoryId = result.categoryId;
+	}
+
 	let pillars: PillarContribution[] | undefined;
 	if (input.pillars !== undefined) {
 		if (!Array.isArray(input.pillars)) {
@@ -515,6 +528,15 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 				return;
 			}
+			// Kategorie gegen dasselbe Konto prüfen wie die Säulen: Bei einer Aufgabe für ein anderes
+			// Gruppenmitglied gehört sie dem Empfänger, dessen Kategorien gelten also.
+			if (
+				validation.attrs.categoryId !== undefined &&
+				!(await isCategoryExistent(validation.attrs.categoryId, recipientId ?? userId ?? null))
+			) {
+				sendError(res, 400, 'categoryId verweist auf eine nicht existierende Kategorie.');
+				return;
+			}
 			const created = await sequelize.transaction(async (transaction) => {
 				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
 				// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
@@ -617,6 +639,14 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 			return;
 		}
+		// Kategorie gegen dasselbe Konto prüfen wie die Säulen (bei Übergabe das Empfänger-Konto).
+		if (
+			validation.attrs.categoryId !== undefined &&
+			!(await isCategoryExistent(validation.attrs.categoryId, recipientId ?? userId ?? null))
+		) {
+			sendError(res, 400, 'categoryId verweist auf eine nicht existierende Kategorie.');
+			return;
+		}
 		// #1252 (AK7): Hängt die Aufgabe in irgendeine Richtung an Aufgaben, die der Empfänger nicht
 		// sieht (weder Eigentümer noch Ersteller mit aktueller Gruppenmitgliedschaft — Spiegel des
 		// Lese-Scopes `taskReadScope`), lehnt der Server die Übergabe VOR der Transaktion ab: keine
@@ -664,10 +694,18 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
 			// #1252 (AK5): Eine Übergabe schreibt NUR die Eigentumsfelder — `userId` = Empfänger und
 			// `createdById` = übergebender Eigentümer (AK4), alle anderen Attribute bleiben unberührt.
+			// Kategorie bei einer Übergabe umhängen (Regel wie bei den Säulen, #1252 AK6): Die bisherige
+			// Kategorie gehört dem alten Eigentümer. Der Empfänger übernimmt sie, wenn er eine gleichen
+			// Namens hat, sonst verliert die Aufgabe die Zuordnung — nie zeigt sie auf fremde Stammdaten.
+			const handoverCategoryId =
+				recipientId !== null && validation.attrs.categoryId === undefined && task.categoryId != null
+					? await remapCategoryForRecipient(task.categoryId, recipientId)
+					: undefined;
 			const attrs = {
 				...validation.attrs,
 				...(task.seriesId != null ? { isException: true } : {}),
 				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
+				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
 			};
 			await sequelize.transaction(async (transaction) => {
 				await task.update(attrs, { transaction });

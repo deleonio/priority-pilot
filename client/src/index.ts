@@ -28,6 +28,11 @@ export type GeoConfig = Schemas['GeoConfig'];
 export type Profile = Schemas['Profile'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
+/** Thematische Kategorie (0..1 je Aufgabe/Serie) — die flache Ordnungsebene neben den Säulen. */
+export type Category = Schemas['Category'];
+export type CategoryColor = Schemas['CategoryColor'];
+export type CategoryCreate = Schemas['CategoryCreate'];
+export type CategoryUpdate = Schemas['CategoryUpdate'];
 export type PillarCreate = Schemas['PillarCreate'];
 export type PillarUpdate = Schemas['PillarUpdate'];
 /** #1211: Gruppen (Name Pflicht ≤ 60 Zeichen, Beschreibung optional) mit eigener Rolle. */
@@ -66,6 +71,8 @@ export type ActivityAdvice = Schemas['ActivityAdvice'];
 export type ActivityAdvisorResult = Schemas['ActivityAdvisorResult'];
 export type ParseTaskInput = Schemas['ParseTaskInput'];
 export type ParsedTask = Schemas['ParsedTask'];
+/** Zerlegte Suchanfrage (`POST /tasks/parse-search`): Suchbegriff plus gemeinte Kategorie. */
+export type ParsedSearch = Schemas['ParsedSearch'];
 export type ApiError = Schemas['Error'];
 
 // LLM-Provider: Custom-Provider (frei anlegbar) und fixe Built-ins (Mistral/OpenRouter,

@@ -18,6 +18,8 @@ interface TaskTreeNode {
 	 * Task keine Unteraufgaben hat.
 	 */
 	progress: { done: number; total: number } | null;
+	/** Thematische Kategorie (0..1); trägt den Kategorie-Filter der Aufgabenliste. */
+	categoryId: number | null;
 	/**
 	 * Direkte Unteraufgaben dieses Knotens (Eltern → Kind). Eine Unteraufgabe wird als **Vorgänger**
 	 * der Eltern-Aufgabe angelegt (`parent.getDependencies() ∋ child`, siehe `TaskForm.tsx`); der Wald
@@ -108,6 +110,7 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 		value: await calculateValueContribution(task),
 		status: task.status,
 		progress: await computeProgress(task),
+		categoryId: task.categoryId ?? null,
 		dependents: children,
 	};
 };

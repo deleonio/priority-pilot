@@ -1,24 +1,55 @@
-import { KolButton, KolInputText } from '@public-ui/react-v19';
-import { useEffect, useRef, useState } from 'react';
+import { KolButton, KolInputText, KolSingleSelect } from '@public-ui/react-v19';
+import type { Category } from 'client';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../api';
+import { readAiPreferences } from '../lib/aiPreferences';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { Modal } from './Modal';
 import { VoiceField } from './VoiceField';
 
+/**
+ * Sentinel-Wert der Kategorie-Auswahl („alle Kategorien"). Kategorie-IDs sind serverseitig `>= 1`,
+ * `0` kollidiert daher mit keiner echten Kategorie (Muster `ADD_PILLAR_PLACEHOLDER`).
+ */
+const ALL_CATEGORIES = 0;
+
 interface SearchModalProps {
+	/** Kategorien des Nutzers für den Filter (`GET /categories`); leer blendet das Feld aus. */
+	categories?: Category[];
 	onClose: () => void;
-	onSearch: (query: string) => void;
+	/** Übergibt Suchbegriff und Kategoriefilter (`null` = alle Kategorien) an die Aufgabenansicht. */
+	onSearch: (query: string, categoryId: number | null) => void;
 }
 
 /**
  * Modal-Dialog für die globale Suche (#8009e9bf-9e02-491c-8c73-6b4bac74f087).
  * Enthält ein Suchfeld mit Audioaufzeichnungs-Funktionalität (via `VoiceField`, #264/#522)
- * und übergibt den Suchbegriff an die Aufgabenansicht, die dann zum Aufgaben-Tab wechselt
- * und filtert.
+ * und übergibt Suchbegriff samt Kategorie an die Aufgabenansicht, die dann zum Aufgaben-Tab
+ * wechselt und filtert.
+ *
+ * Bei aktiver KI wird eine frei formulierte Anfrage („offene Sachen zum Hausbau") vor dem Suchen
+ * durch `POST /tasks/parse-search` geschickt: Das trennt Suchbegriff und Kategorie, sodass auch
+ * eine diktierte Anfrage direkt den Filter setzt. Scheitert der Aufruf oder ist die KI aus, wird
+ * mit dem eingegebenen Text gesucht — die Suche funktioniert immer, das Parsing ist die Zugabe.
  */
-export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
+export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalProps) => {
 	const [searchQuery, setSearchQuery] = useState('');
+	const [categoryId, setCategoryId] = useState<number | null>(null);
+	const [parsing, setParsing] = useState(false);
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
+	// Ob der Text per Sprache entstanden ist: Nur dann lohnt das Zerlegen — getippte Suchen sind
+	// bereits der reine Suchbegriff, und der Filter steht als eigenes Feld daneben.
+	const [fromVoice, setFromVoice] = useState(false);
 	const inputRef = useRef<HTMLKolInputTextElement>(null);
+	const aiEnabled = useMemo(() => readAiPreferences().aiEnabled, []);
+
+	const categoryOptions = useMemo(
+		() => [
+			{ label: '— alle Kategorien —', value: ALL_CATEGORIES },
+			...categories.map((category) => ({ label: category.name, value: category.id })),
+		],
+		[categories],
+	);
 
 	// Autofokus auf das Suchfeld beim Öffnen
 	useEffect(() => {
@@ -28,16 +59,42 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 		return () => clearTimeout(id);
 	}, []);
 
-	const handleSearch = (): void => {
-		if (searchQuery.trim()) {
-			onSearch(searchQuery.trim());
+	const handleSearch = async (): Promise<void> => {
+		const query = searchQuery.trim();
+		if (query === '') {
+			return;
+		}
+		if (!aiEnabled || !fromVoice || categories.length === 0) {
+			onSearch(query, categoryId);
 			onClose();
+			return;
+		}
+		setParsing(true);
+		try {
+			const parsed = await api.parseSearch({ text: query });
+			const parsedText = parsed.text?.trim() ?? '';
+			const parsedCategoryId = parsed.categoryId ?? null;
+			// Drei Fälle: (1) Das Modell hat etwas erkannt — Zerlegung übernehmen, ein leerer `text` neben
+			// einer Kategorie ist dabei gewollt („zeig mir Hausbau" filtert nur nach Kategorie). (2) Es hat
+			// gar nichts erkannt (`{}` ist laut Vertrag ein gültiges Ergebnis) — dann ist das keine
+			// Zerlegung, sondern ein Nicht-Ergebnis, und es wird mit dem gesprochenen Text gesucht statt
+			// ungefiltert alles zu zeigen. Der `catch` unten greift nur bei einer Exception, nicht hier.
+			// Eine im Feld getroffene Kategorie-Auswahl bleibt erhalten, wenn das Modell keine erkennt.
+			const nothingRecognized = parsedText === '' && parsedCategoryId === null;
+			onSearch(nothingRecognized ? query : parsedText, parsedCategoryId ?? categoryId);
+			onClose();
+		} catch {
+			// Kontrollierte Degradation: Ohne Zerlegung wird mit dem gesprochenen Text gesucht.
+			onSearch(query, categoryId);
+			onClose();
+		} finally {
+			setParsing(false);
 		}
 	};
 
 	const handleKeyDown = (event: KeyboardEvent): void => {
 		if (event.key === 'Enter') {
-			handleSearch();
+			void handleSearch();
 		}
 	};
 
@@ -50,6 +107,7 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						setSearchQuery((prev) => (prev ? `${prev} ${text}` : text));
+						setFromVoice(true);
 					}}
 				>
 					<KolInputText
@@ -61,20 +119,34 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 						_on={{
 							onInput: (event: Event) => {
 								setSearchQuery((event.target as HTMLInputElement).value);
+								setFromVoice(false);
 							},
 							onKeyDown: handleKeyDown,
 						}}
 					/>
 				</VoiceField>
+				{categories.length > 0 && (
+					<KolSingleSelect
+						_label="Kategorie"
+						_options={categoryOptions}
+						_value={categoryId ?? ALL_CATEGORIES}
+						_on={{
+							onChange: (_event, value) => {
+								const next = Number(value);
+								setCategoryId(Number.isInteger(next) && next !== ALL_CATEGORIES ? next : null);
+							},
+						}}
+					/>
+				)}
 				<div className="search-modal__actions">
 					<KolButton
-						_label="Suche starten"
+						_label={parsing ? 'Suche startet…' : 'Suche starten'}
 						_variant="primary"
 						_icons="fa-solid fa-magnifying-glass"
-						_disabled={searchQuery.trim() === ''}
-						_on={{ onClick: handleSearch }}
+						_disabled={parsing || searchQuery.trim() === ''}
+						_on={{ onClick: () => void handleSearch() }}
 					/>
-					<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: onClose }} />
+					<KolButton _label="Abbrechen" _variant="secondary" _disabled={parsing} _on={{ onClick: onClose }} />
 				</div>
 			</div>
 		</Modal>

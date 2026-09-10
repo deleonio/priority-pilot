@@ -41,6 +41,7 @@ vi.mock('../lib/useGeolocation', () => ({
 // dieselbe Mock-Funktion, damit Einzeltests sie gezielt stemmen können (getGeoConfig).
 const apiDefaults: Record<string, unknown> = {
 	listPillars: [],
+	listCategories: [],
 	listLlmProviders: [],
 	getAdminUsers: [],
 };
@@ -647,18 +648,18 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * Rote Spec-Tests für Fixup PR #1300 (Finding #2) — Tab-Gating „Nutzerverwaltung" (Rollensystem
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
- * als sechster Tab (Index 5, ans Ende angehängt) mit `AdminUsersSection` im Panel `slot="tab-5"`.
+ * als letzter Tab (Index 6, ans Ende angehängt) mit `AdminUsersSection` im Panel `slot="tab-6"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
-	it('ohne isAdmin fehlt der Tab „Nutzerverwaltung" in der Tab-Liste und es gibt kein Panel slot="tab-5"', () => {
+	it('ohne isAdmin fehlt der Tab „Nutzerverwaltung" in der Tab-Liste und es gibt kein Panel slot="tab-6"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		expect(tabsEl?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
-		expect(container.querySelector('[slot="tab-5"]')).toBeNull();
+		expect(container.querySelector('[slot="tab-6"]')).toBeNull();
 	});
 
-	it('mit isAdmin erscheint „Nutzerverwaltung" als sechster Tab mit AdminUsersSection im Panel slot="tab-5"', () => {
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-6"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -668,10 +669,11 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'KI-Provider',
 			'Standort',
 			'Gruppen',
+			'Kategorien',
 			'Nutzerverwaltung',
 		]);
-		const tab5 = container.querySelector('[slot="tab-5"]');
-		expect(tab5, 'sechster Slot tab-5 existiert').not.toBeNull();
-		expect(tab5?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-5-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-6"]');
+		expect(adminPanel, 'letzter Slot tab-6 existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-6-Panel').toBeTruthy();
 	});
 });

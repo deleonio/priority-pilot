@@ -8,6 +8,7 @@ import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import type { PushSender } from '../../logics/push.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
+import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { serializeTask, loadUserNames, loadSharedUserIds } from './tasks.js';
 import { resolveGeoUser } from './geoConfig.js';
@@ -71,6 +72,7 @@ interface SeriesAttributes {
 	latitude?: number | null;
 	longitude?: number | null;
 	autoDeleteAfterDeadline?: boolean;
+	categoryId?: number | null;
 }
 
 type ValidationResult =
@@ -120,6 +122,7 @@ const serializeSeries = (series: Series, context: SeriesSerializeContext = {}): 
 		latitude: series.latitude ?? null,
 		longitude: series.longitude ?? null,
 		autoDeleteAfterDeadline: series.autoDeleteAfterDeadline ?? false,
+		categoryId: series.categoryId ?? null,
 		userId: series.userId ?? null,
 		createdById: createdBy,
 		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
@@ -313,6 +316,16 @@ const validateSeriesFields = (
 		attrs.autoDeleteAfterDeadline = input.autoDeleteAfterDeadline;
 	}
 
+	// Thematische Kategorie des Templates (0..1). Die Zugehörigkeit zum Konto prüft die Route gegen
+	// die DB (isCategoryExistent) — hier nur die Form.
+	if (input.categoryId !== undefined) {
+		const result = validateCategoryId(input.categoryId);
+		if (!result.ok) {
+			return { ok: false, message: 'categoryId muss eine Ganzzahl >= 1 oder null sein.' };
+		}
+		attrs.categoryId = result.categoryId;
+	}
+
 	// Konsistenz-Prüfung für wochentag-basierte Rhythmen (`mon`…`sun`): der Rhythmus-Name
 	// suggeriert einen festen Wochentag. Da `nextOccurrence` für diese Rhythmen schlicht +7 Tage
 	// addiert (Anker liegt „definitionsgemäß" auf dem Tag), würde ein `startDate` auf einem
@@ -450,6 +463,14 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 				sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 				return;
 			}
+			// Kategorie gegen dasselbe Konto prüfen wie die Säulen (bei einem Empfänger dessen Konto).
+			if (
+				validation.attrs.categoryId !== undefined &&
+				!(await isCategoryExistent(validation.attrs.categoryId, recipientId ?? getUserId(req) ?? null))
+			) {
+				sendError(res, 400, 'categoryId verweist auf eine nicht existierende Kategorie.');
+				return;
+			}
 			const created = await sequelize.transaction(async (transaction) => {
 				const series = await Series.create(
 					// An den Eigentümer binden (Datenisolation, #244; Empfänger #1222, sonst der eingeloggte
@@ -557,6 +578,14 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 			sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 			return;
 		}
+		// Kategorie gegen dasselbe Konto prüfen wie die Säulen (bei einer Übergabe das Empfänger-Konto).
+		if (
+			validation.attrs.categoryId !== undefined &&
+			!(await isCategoryExistent(validation.attrs.categoryId, recipientId ?? series.userId ?? null))
+		) {
+			sendError(res, 400, 'categoryId verweist auf eine nicht existierende Kategorie.');
+			return;
+		}
 		// #553: `applyToInstances=true` kaskadiert die im Serie-Edit GEÄNDERTEN kaskadierbaren Felder auf
 		// alle bestehenden Instanzen. `rhythm`/`startDate`/`active` werden bewusst NICHT übernommen.
 		const body = typeof req.body === 'object' && req.body !== null ? (req.body as Record<string, unknown>) : {};
@@ -567,8 +596,18 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 				// Empfänger und `createdById` = übergebender Eigentümer. Bereits erzeugte Instanzen bleiben
 				// beim bisherigen Eigentümer: die Kaskade unten kopiert nur die geänderten kaskadierbaren
 				// Felder, nie Eigentümer.
+				// Kategorie bei einer Übergabe umhängen (Regel wie bei den Säulen, #1252 AK6): Der Empfänger
+				// übernimmt die gleichnamige eigene Kategorie, sonst verliert das Template die Zuordnung.
+				const handoverCategoryId =
+					recipientId !== null && validation.attrs.categoryId === undefined && series.categoryId != null
+						? await remapCategoryForRecipient(series.categoryId, recipientId)
+						: undefined;
 				await series.update(
-					{ ...validation.attrs, ...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}) },
+					{
+						...validation.attrs,
+						...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
+						...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
+					},
 					{ transaction },
 				);
 				// #1252 (AK6): Bei einer Übergabe (ohne gleichzeitig gesendete `pillars` — die wären bereits
@@ -624,6 +663,9 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 					if (validation.attrs.autoDeleteAfterDeadline !== undefined) {
 						instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
 					}
+					// Die Kategorie ist ein kaskadierbares Default-Feld wie `address`: Wer sie am Template
+					// ändert und die Kaskade wählt, will die offenen Instanzen mitziehen.
+					if (validation.attrs.categoryId !== undefined) instanceAttrs.categoryId = validation.attrs.categoryId;
 					if (Object.keys(instanceAttrs).length > 0) {
 						await Task.update(instanceAttrs, { where: openInstancesWhere, transaction });
 					}

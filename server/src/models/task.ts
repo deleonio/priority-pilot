@@ -69,6 +69,9 @@ class Task extends Model {
 	// ab; der Ersteller behält lesenden Zugriff (Lese-Scope um diese Spalte erweitert), Schreibzugriff
 	// bleibt an `userId` gebunden. Nullable — Bestandsaufgaben haben keinen Ersteller-Eintrag.
 	public createdById?: number | null;
+	// Thematische Kategorie (0..1, siehe models/category.ts). Nullable: Die Zuordnung ist optional,
+	// und beim Löschen einer Kategorie fällt sie auf `null` zurück, ohne die Aufgabe anzutasten.
+	public categoryId?: number | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
@@ -207,6 +210,11 @@ Task.init(
 		},
 		// Ersteller-Konto (#1213, siehe Feld-Kommentar oben) — nullable wie `userId`.
 		createdById: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		// Kategorie-Bindung (0..1, siehe Feld-Kommentar oben) — nullable, ohne Default.
+		categoryId: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
 		},

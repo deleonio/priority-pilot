@@ -7,6 +7,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { components } from '../api';
 import { createTasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
+import { categoriesRouter } from './routes/categories.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
@@ -28,7 +29,7 @@ import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
 import { handleServerError } from './server-error-handler.js';
-import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
+import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
@@ -49,6 +50,8 @@ type HealthDto = components['schemas']['Health'];
 export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
 	taskTextParser?: ParseTaskParser;
+	/** Parser für `POST /tasks/parse-search` (Suchanfrage → Suchbegriff + Kategorie). */
+	searchTextParser?: ParseSearchParser;
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 	pushSender?: PushSender;
@@ -230,11 +233,14 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Säulen-Routen: Gewichtung lesen/setzen (siehe routes/pillars.ts).
 	app.use(pillarsRouter);
 
+	// Kategorie-Routen: thematische Ordnungsebene neben den Säulen (siehe routes/categories.ts).
+	app.use(categoriesRouter);
+
 	// Mistral-gestützte Säulen-Klassifikation (siehe routes/suggestPillars.ts).
 	app.use(createSuggestPillarsRouter(deps.pillarClassifier));
 
 	// Mistral-gestützte Task-Schnellerfassung: Freitext → strukturierte Felder (siehe routes/parseTasks.ts).
-	app.use(createParseTasksRouter(deps.taskTextParser));
+	app.use(createParseTasksRouter(deps.taskTextParser, deps.searchTextParser));
 
 	// Mistral-gestützter Aktivitäten-Berater: welche Aktivitäten zahlen auf welche Säulen ein
 	// (siehe routes/pillarAdvisor.ts).

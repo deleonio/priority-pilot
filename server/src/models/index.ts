@@ -1,4 +1,5 @@
 import Task from './task.js';
+import Category from './category.js';
 import Dependency from './dependency.js';
 import Pillar from './pillar.js';
 import TaskPillar from './taskPillar.js';
@@ -34,6 +35,15 @@ Task.belongsToMany(Task, {
 Task.belongsToMany(Pillar, { through: TaskPillar, foreignKey: 'taskId', otherKey: 'pillarId' });
 Pillar.belongsToMany(Task, { through: TaskPillar, foreignKey: 'pillarId', otherKey: 'taskId' });
 
+// Ein Task/eine Serie trägt höchstens EINE Kategorie (0..1 über die nullbare Spalte `categoryId`) —
+// bewusst ohne Join-Tabelle, ohne `share`/`confidence` und ohne Wirkung auf Wert, Score oder
+// Balance. Das ist der Unterschied zur Säule: gruppieren statt bewerten. Beim Löschen einer
+// Kategorie setzt die Route die Fremdschlüssel auf `null` (die Aufgaben bleiben bestehen).
+Task.belongsTo(Category, { foreignKey: 'categoryId' });
+Category.hasMany(Task, { foreignKey: 'categoryId' });
+Series.belongsTo(Category, { foreignKey: 'categoryId' });
+Category.hasMany(Series, { foreignKey: 'categoryId' });
+
 // Ein erledigter Task hat höchstens einen Gamification-Score-Eintrag (1:1 über `taskId`, unique).
 Task.hasOne(ScoreEntry, { foreignKey: 'taskId' });
 ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
@@ -64,6 +74,7 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // „Genau ein Provider aktiv“ wird von der Service-Schicht garantiert, nicht per DB-Constraint.
 export {
 	Task,
+	Category,
 	Dependency,
 	Pillar,
 	TaskPillar,

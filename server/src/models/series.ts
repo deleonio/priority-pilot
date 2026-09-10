@@ -52,6 +52,10 @@ class Series extends Model {
 	// ohne Ersteller-Eintrag bleiben lesbar und unverändert.
 	public createdById?: number | null;
 
+	// Thematische Kategorie des Templates (0..1, siehe models/category.ts). Wird beim Generieren als
+	// Snapshot auf jede Instanz vererbt, analog `address`/`autoDeleteAfterDeadline`. Nullable.
+	public categoryId?: number | null;
+
 	/** Eager-geladene Säulen-Vorlage (über `include: [Pillar]`); je Eintrag mit `SeriesPillar` (#302). */
 	public Pillars?: SeriesPillarWithContribution[];
 
@@ -175,6 +179,13 @@ Series.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: false,
+		},
+		// Kategorie-Bindung (0..1, siehe Feld-Kommentar oben); wird beim Generieren auf jede Instanz
+		// vererbt. Nullable, `defaultValue: null` analog den übrigen optionalen Serien-Feldern.
+		categoryId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
 		},
 	},
 	{

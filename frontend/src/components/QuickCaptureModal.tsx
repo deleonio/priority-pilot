@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolSpin, KolTextarea } from '@public-ui/react-v19';
-import type { Pillar, Task } from 'client';
+import type { Category, Pillar, Task } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -17,6 +17,8 @@ interface QuickCaptureModalProps {
 	parentTask?: Task | null;
 	/** Verfügbare Lebensbalance-Säulen (durchgereicht an das reguläre Formular). */
 	pillars: Pillar[];
+	/** Verfügbare Kategorien (durchgereicht an das reguläre Formular). */
+	categories?: Category[];
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
@@ -39,6 +41,7 @@ interface QuickCaptureModalProps {
 export const QuickCaptureModal = ({
 	parentTask = null,
 	pillars,
+	categories,
 	onClose,
 	onSaved,
 	initialText,
@@ -93,6 +96,9 @@ export const QuickCaptureModal = ({
 				deadline: parsed.deadline,
 				address: parsed.address,
 				checklist: parsed.checklist,
+				// Vom Modell erkannte Kategorie vorbelegen; sie ist bereits gegen die Kategorien des
+				// Nutzers geprüft (Server) und im Formular jederzeit änderbar.
+				categoryId: parsed.categoryId,
 			});
 			// #1310: Erkennt das Parsing einen wiederkehrenden Termin, startet das Formular im
 			// Serien-Modus. `formMode` ist zugleich der Dialog-Titel-Spiegel (#334) und wird von
@@ -127,6 +133,7 @@ export const QuickCaptureModal = ({
 					task={null}
 					parentTask={parentTask}
 					pillars={pillars}
+					categories={categories}
 					initialValues={prefill}
 					initialMode={formMode}
 					onClose={onClose}

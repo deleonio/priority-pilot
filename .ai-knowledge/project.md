@@ -7,7 +7,10 @@ umbenenn- und löschbar; neue Konten starten mit einem Default-Bestand von fünf
 Kurzbeschreibung `description` und prozentualem `weight`. Pro Task werden Wertbeitrag (eigene
 Priorität + gewichtete Werte der abhängigen Tasks, multiplikativ skaliert mit dem aus den anteiligen
 Säulen-Beiträgen gemittelten Säulen-Faktor) und Gesamtaufwand inkl. transitiver Abhängigkeiten
-berechnet. Full-Stack: Express-REST-API + React/KoliBri-PWA.
+berechnet. Quer dazu liegen **Kategorien** (`categories`, nutzer-eigen): eine flache, thematische
+Ordnungsebene, 0..1 je Task/Serie über die nullbare Spalte `categoryId`, mit Badge-Farbe aus einer
+festen Palette. Sie gruppieren und filtern und fließen bewusst in KEINE Berechnung ein — das ist der
+Unterschied zur Säule. Full-Stack: Express-REST-API + React/KoliBri-PWA.
 Fachliche Details: [../README.md](../README.md).
 
 ## Monorepo

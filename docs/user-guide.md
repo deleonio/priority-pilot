@@ -40,7 +40,7 @@ dann an den Administrator. Wie der Betreiber Adressen freischaltet, steht in
 
 Ganz oben findest du die **Kopf-Aktionen**:
 
-- **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel.
+- **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel und filtert nach Kategorie.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
 - **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen.
@@ -121,11 +121,18 @@ Oben im Tab findest du drei Bedienelemente:
   erscheint ein Leerhinweis.
 
 Daneben öffnet die **Lupe in der Kopfzeile** ein Suchfenster: Gib einen Begriff ein
-(optional per Sprache) und starte die Suche – die App wechselt dazu in den Aufgaben-Tab
-und übernimmt den Begriff als Titel-Filter.
+(optional per Sprache), wähle bei Bedarf eine **Kategorie** und starte die Suche – die App
+wechselt dazu in den Aufgaben-Tab und übernimmt Begriff und Kategorie als Filter. Beide
+stehen in der Adresszeile (`?q=` und `?cat=`), Lesezeichen und Zurück-Taste stellen sie
+also wieder her.
+
+Diktierst du die Anfrage und sind KI-Features aktiv, zerlegt die App sie vor der Suche:
+Aus „offene Sachen zum Hausbau" wird der Suchbegriff „offene Sachen" plus die Kategorie
+„Hausbau". Klappt das nicht, wird schlicht mit dem gesprochenen Text gesucht.
 
 Rechts an jeder Zeile können **Kennzeichen** stehen:
 
+- **Kategorie** – das farbige Kennzeichen mit dem Namen der Kategorie (siehe „Kategorien").
 - **Serie** – die Aufgabe stammt aus einer Serie.
 - **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
 - **Fortschritt** als `erledigt/gesamt` – nur bei Aufgaben mit Unteraufgaben; zählt
@@ -201,6 +208,8 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Lektorat** – über einen Button neben Titel und Beschreibung kannst du die KI bitten,
   den Text zu verbessern (Kürzung, Smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
+- **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
+  Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
 - **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
   (siehe „Lebensbalance-Säulen").
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
@@ -268,6 +277,8 @@ sofern dein Browser Spracherkennung unterstützt.
 - Die Sprache ist auf Deutsch (`de-DE`) festgelegt.
 - Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
+- Beim Anlegen und beim Suchen erkennt die KI aus dem gesprochenen Text auch die
+  **Kategorie**, sofern du welche angelegt hast (siehe „Kategorien").
 
 ---
 
@@ -287,6 +298,43 @@ Priority Pilot verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) un
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
 widerspruchsfrei – und die „Nächste Aufgabe" ist stets die wichtigste, deren
 Vorgänger alle erledigt sind.
+
+---
+
+## Kategorien
+
+Kategorien ordnen deine Aufgaben nach **Thema** – „Hausbau", „Steuer", „Verein". Jede
+Aufgabe und jede Serie hat höchstens eine; sie erscheint als farbiges Kennzeichen in den
+Listen und lässt sich in der Suche als Filter wählen.
+
+### Kategorie oder Säule?
+
+Beides ordnet, aber mit unterschiedlicher Wirkung – deshalb gibt es beides:
+
+|                   | Lebenssäule                             | Kategorie                            |
+| ----------------- | --------------------------------------- | ------------------------------------ |
+| Frage             | Worauf zahlt das in meinem Leben ein?   | Wo gehört das thematisch hin?        |
+| Anzahl je Aufgabe | mehrere, jeweils mit Anteil in Prozent  | genau eine oder keine                |
+| Wirkung           | steuert Wert, Priorisierung und Balance | nur Gruppierung, Kennzeichen, Filter |
+| Beispiel          | Körper, Beziehungen, Sinn               | Hausbau, Steuer, Verein              |
+
+Kurz: Eine Säule als Ordner zu missbrauchen („Hausbau" als sechste Säule) verzerrt die
+Balance-Rechnung. Dafür sind Kategorien da.
+
+### Kategorien anlegen und verwalten
+
+Über _Einstellungen → Kategorien_ legst du Kategorien an, benennst sie um, wählst ihre
+Farbe aus einer festen Palette und löschst sie wieder. Neue Konten starten ohne
+Kategorien – ohne Kategorie bleiben Aufgaben einfach ungeordnet.
+
+Beim Löschen bleiben die Aufgaben und Serien erhalten; sie verlieren nur die Zuordnung.
+
+### Kategorie zuordnen
+
+Im Aufgaben- und Serienformular wählst du unter **„Kategorie (optional)"** eine aus.
+Bei der Schnellerfassung schlägt die KI die passende Kategorie vor, wenn der Text
+eindeutig ist („Fliesen fürs Hausbau-Projekt bestellen") – der Vorschlag ist vor dem
+Speichern änderbar. Eine Serie vererbt ihre Kategorie an jede generierte Aufgabe.
 
 ---
 
@@ -430,9 +478,9 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 
 ## Einstellungen
 
-Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit fünf Bereichen:
-Allgemein, Säulen, KI-Provider, Standort und Gruppen. Administratoren der App sehen zusätzlich
-einen sechsten Bereich **Nutzerverwaltung** (siehe unten).
+Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit sechs Bereichen:
+Allgemein, Säulen, KI-Provider, Standort, Gruppen und Kategorien. Administratoren der App
+sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
 
 ### Allgemein
 
@@ -453,6 +501,11 @@ einen sechsten Bereich **Nutzerverwaltung** (siehe unten).
 Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") sowie die
 Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen – jeweils über eigene
 Modal-Dialoge).
+
+### Kategorien
+
+Die Verwaltung der Kategorien (Anlegen, Bearbeiten, Löschen – jeweils über eigene
+Modal-Dialoge) samt Farbwahl aus der festen Palette; siehe „Kategorien".
 
 ### KI-Provider
 

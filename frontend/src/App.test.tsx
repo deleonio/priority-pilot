@@ -22,6 +22,8 @@ vi.mock('./api', () => ({
 		getNextTask: vi.fn(),
 		getSuggestions: vi.fn(),
 		listPillars: vi.fn(),
+		// Kategorien: `reload()` lädt sie zusammen mit den Säulen; ohne Mock scheitert `Promise.all`.
+		listCategories: vi.fn().mockResolvedValue([]),
 		// #191: `logout` existiert in `api.ts` noch nicht. Der Mock stellt die Funktion bereit, damit
 		// der AK-5-Test das Fehlerverhalten ansteuern kann; rot ist der Test, weil `App.tsx` weder den
 		// Logout-Button rendert noch dessen Fehlerfall (Meldung + erneut aktivierter Button) behandelt.
@@ -71,6 +73,7 @@ beforeEach(() => {
 	vi.mocked(api.getNextTask).mockResolvedValue(null);
 	vi.mocked(api.getSuggestions).mockResolvedValue([]);
 	vi.mocked(api.listPillars).mockResolvedValue([]);
+	vi.mocked(api.listCategories).mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -318,9 +321,9 @@ describe('App — Avatar-Position im Header (#912)', () => {
 
 /**
  * Rollensystem admin/member: Deep-Link `/settings/nutzer`. Der Settings-Tab ist eine reine Funktion
- * der URL (#1105) — für Member darf das Admin-Segment aber nicht auf Index 5 abbilden, weil ihre
- * Tab-Leiste nur fünf Einträge hat (`KolTabs` zeigte sonst ein leeres Panel). Admins landen auf dem
- * sechsten Tab „Nutzerverwaltung".
+ * der URL (#1105) — für Member darf das Admin-Segment aber nicht auf den Admin-Index abbilden, weil
+ * ihre Tab-Leiste diesen Eintrag nicht hat (`KolTabs` zeigte sonst ein leeres Panel). Admins landen
+ * auf dem angehängten letzten Tab „Nutzerverwaltung" (Index 6, hinter „Kategorien").
  */
 describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => {
 	type TabsElement = { _tabs?: { _label: string }[]; _selected?: number } | null;
@@ -334,7 +337,7 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 		window.history.replaceState({}, '', '/');
 	});
 
-	it('Member: fällt auf den Säulen-Tab (Index 1) zurück, kein Tab „Nutzerverwaltung", kein Panel tab-5', async () => {
+	it('Member: fällt auf den Säulen-Tab (Index 1) zurück, kein Tab „Nutzerverwaltung", kein Panel tab-6', async () => {
 		render(<App user={testUser} />);
 
 		await waitFor(() => {
@@ -343,19 +346,19 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 		const tabs = tabsElement();
 		expect(tabs?._selected).toBe(1);
 		expect(tabs?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-5"]')).toBeNull();
+		expect(document.querySelector('[slot="tab-6"]')).toBeNull();
 	});
 
-	it('Admin: öffnet den sechsten Tab „Nutzerverwaltung" (Index 5) mit Panel tab-5', async () => {
+	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 6) mit Panel tab-6', async () => {
 		render(<App user={{ ...testUser, role: 'admin' as const }} />);
 
 		await waitFor(() => {
 			expect(tabsElement()).not.toBeNull();
 		});
 		const tabs = tabsElement();
-		expect(tabs?._selected).toBe(5);
+		expect(tabs?._selected).toBe(6);
 		expect(tabs?._tabs?.map((t) => t._label)).toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-5"]')).not.toBeNull();
+		expect(document.querySelector('[slot="tab-6"]')).not.toBeNull();
 	});
 });
 
