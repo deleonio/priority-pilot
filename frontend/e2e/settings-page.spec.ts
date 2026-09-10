@@ -167,6 +167,35 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 		await expect(page).toHaveURL(/\/aufgaben$/);
 	});
 
+	/**
+	 * Regression zum Layout-Umbau (Kreuzverhör Runde 2): Die Task-Dialoge hängen am `dialog`-State,
+	 * nicht an der Route, und rendern seitdem auf allen drei Ansichten — vorher schnitten die frühen
+	 * Returns sie beim Seitenwechsel ab. Browser-Zurück ist der einzige Weg an einem modalen
+	 * `<dialog>` vorbei (der Rest der Seite ist inert), und laut AK6 ein unterstützter Pfad: Der
+	 * Dialog darf danach nicht über der Einstellungen-Seite stehen bleiben.
+	 */
+	test('Offener Task-Dialog bleibt nach Browser-Zurück nicht über der Einstellungen-Seite stehen', async ({ page }) => {
+		// History aufbauen: / → /settings/general → / (Rückweg über den aktiven Toolbar-Button).
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/settings\/general/);
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/$/);
+
+		// Dialog auf der Hauptansicht öffnen, dann per Browser-Zurück in die Einstellungen.
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+
+		await page.goBack();
+		await expect(page).toHaveURL(/\/settings\/general/);
+
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toHaveCount(0);
+		await expect(page.locator('.settings-tabs')).toBeVisible();
+	});
+
 	test('AK5: Kaltstart auf /settings/general ohne vorherige Hauptansicht führt zu „/"', async ({ page }) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');

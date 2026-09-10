@@ -410,6 +410,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		}
 	}, [location.pathname, location.search, showSettings, showHelp]);
 
+	// #1320: Beim Wechsel auf Einstellungen/Hilfe einen offenen Task-Dialog schließen. Die Dialoge
+	// hängen am `dialog`-State, nicht an der Route, und rendern seit dem Layout-Umbau auf allen drei
+	// Ansichten — vorher schnitten die frühen Returns sie beim Seitenwechsel ab. Ohne diesen Schnitt
+	// bliebe ein per Browser-Zurück/-Vor verlassener Dialog (der einzige Weg an einem modalen
+	// `<dialog>` vorbei) über der Einstellungen- oder Hilfe-Seite stehen, obwohl die URL dort steht.
+	useEffect(() => {
+		if (showSettings || showHelp) {
+			setDialog(null);
+		}
+	}, [showSettings, showHelp]);
+
 	// #1105: Navigation läuft über React Router (kein handgestricktes pushState mehr, AK4).
 	// #1320: Die beiden Kopf-Aktionen sind Umschalter — auf der jeweils offenen Seite führt ein
 	// erneuter Klick zurück zur zuletzt aktiven Hauptansicht, sonst wird direkt gewechselt (AK4/AK5).
