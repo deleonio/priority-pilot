@@ -6,21 +6,49 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * zuordnen, Kennzeichen in der Liste sehen und danach filtern. Läuft gegen das echte Backend
  * (kein API-Mock); `/auth/me` liefert die Fixture.
  *
- * Der ganze Durchlauf läuft bei **375×812** (Mobile-First-Pflicht, `.ai-knowledge/project.md`):
- * Wenn die Kette hier ohne horizontalen Überlauf funktioniert, funktioniert sie auf jedem
- * breiteren Viewport erst recht.
+ * Der Durchlauf liegt bei **375×812** (Mobile-First-Pflicht, `.ai-knowledge/project.md`): Was hier
+ * ohne horizontalen Überlauf bedienbar ist, ist es auf breiteren Viewports erst recht.
+ *
+ * **Aufbau-Regel:** Stammdaten und Nebendarsteller entstehen über die API (`page.request`), nur der
+ * jeweils geprüfte Schritt läuft durch die UI. Die e2e-Suite teilt sich EINE In-Memory-DB über alle
+ * Specs eines Shards; ein Test, der alles durchklickt, läuft mit wachsendem Bestand ins 30s-Budget
+ * (belegt in CI-Lauf 34425244123: `/forest` und `/suggestions` verzögern den App-Load, das
+ * Kategorie-Feld erschien nicht rechtzeitig). Das `beforeEach` räumt zusätzlich Alt-Bestände ab,
+ * damit die Listen-Assertions deterministisch bleiben (Muster `issue-1258-tasks-mobile.spec.ts`).
  */
 test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 	let runId = 0;
 	const uniqueName = (label: string): string => `E2E-Kat-${label}-${(runId += 1)}`;
 
-	/** Räumt die per Test angelegten Kategorien und Aufgaben über die echte API ab. */
-	const cleanup = async (page: Page): Promise<void> => {
-		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number; title: string }[];
-		for (const task of tasks.filter((entry) => entry.title.startsWith('E2E-Kat-'))) {
+	/** Legt eine Kategorie über die echte API an und liefert ihre ID. */
+	const createCategoryViaApi = async (page: Page, name: string, color = '#b42318'): Promise<number> => {
+		const response = await page.request.post('/api/v1/categories', { data: { name, color } });
+		expect(response.ok(), `Kategorie ${name} konnte nicht angelegt werden`).toBeTruthy();
+		return ((await response.json()) as { id: number }).id;
+	};
+
+	/** Legt eine Aufgabe über die echte API an (optional mit Kategorie). */
+	const createTaskViaApi = async (page: Page, title: string, categoryId?: number): Promise<void> => {
+		const response = await page.request.post('/api/v1/tasks', {
+			data: { title, priority: 3, ...(categoryId === undefined ? {} : { categoryId }) },
+		});
+		expect(response.ok(), `Aufgabe ${title} konnte nicht angelegt werden`).toBeTruthy();
+	};
+
+	/**
+	 * Räumt vor und nach jedem Test auf. Aufgaben werden vollständig gelöscht — die Listen-Assertions
+	 * brauchen einen bekannten Stand, und ein voller Bestand aus den übrigen Specs des Shards bremst
+	 * den App-Load über das Test-Budget hinaus (Muster `issue-1258-tasks-mobile.spec.ts`). Kategorien
+	 * werden auf das eigene `E2E-Kat-`-Präfix eingegrenzt: fremde Stammdaten gehen diese Spec nichts an.
+	 */
+	const resetData = async (page: Page): Promise<void> => {
+		for (const task of (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[]) {
 			await page.request.delete(`/api/v1/tasks/${task.id}`);
 		}
-		const categories = (await (await page.request.get('/api/v1/categories')).json()) as { id: number; name: string }[];
+		const categories = (await (await page.request.get('/api/v1/categories')).json()) as {
+			id: number;
+			name: string;
+		}[];
 		for (const category of categories.filter((entry) => entry.name.startsWith('E2E-Kat-'))) {
 			await page.request.delete(`/api/v1/categories/${category.id}`);
 		}
@@ -28,80 +56,95 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
+		await resetData(page);
 	});
 
 	test.afterEach(async ({ page }) => {
-		await cleanup(page);
+		await resetData(page);
 	});
 
-	/** Legt eine Kategorie über die Einstellungen an und wartet, bis ihr Badge in der Liste steht. */
-	const createCategoryViaUi = async (page: Page, name: string): Promise<void> => {
+	test('AK1: Kategorie in den Einstellungen anlegen — erscheint sofort in der Liste', async ({ page }) => {
+		const name = uniqueName('Hausbau');
+
 		await page.goto('/settings/kategorien');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page.getByRole('button', { name: 'Neue Kategorie anlegen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Neue Kategorie anlegen' })).toBeVisible();
+		// Hydration des Dialogs abwarten: Ein `fill()` vor dem KoliBri-Upgrade landet im nativen
+		// Input, nicht im Komponenten-State — der Dialog speicherte dann einen leeren Namen.
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
 		await dialog.getByRole('textbox', { name: 'Name' }).fill(name);
 		await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
-		await expect(page.getByText(name, { exact: true })).toBeVisible();
-	};
+		// Bewusst auf die LISTE geprüft, nicht auf beliebigen Text: Der Anlege-Dialog zeigt den Namen
+		// auch in seiner Vorschau — ein `getByText(name)` wäre schon grün, wenn das Speichern scheitert
+		// und der Dialog offen stehen bleibt.
+		await expect(page.locator('li[data-category-id]').filter({ hasText: name })).toBeVisible();
 
-	/** Legt eine Aufgabe mit der genannten Kategorie über das reguläre Formular an. */
-	const createTaskWithCategory = async (page: Page, title: string, category: string): Promise<void> => {
+		// Gegenprobe am Backend: Die Kategorie ist wirklich gespeichert, nicht nur gerendert.
+		const stored = (await (await page.request.get('/api/v1/categories')).json()) as { name: string }[];
+		expect(stored.map((entry) => entry.name)).toContain(name);
+	});
+
+	test('AK2: Kategorie im Aufgabenformular zuordnen — Auswahl landet am Task', async ({ page }) => {
+		const name = uniqueName('Steuer');
+		const title = `E2E-Kat-Erklaerung-${runId}`;
+		const categoryId = await createCategoryViaApi(page, name);
+
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		// Beide Schritte des Anlege-Dialogs erst nach dem KoliBri-Upgrade bedienen — sonst laufen
+		// `fill()`/`click()` gegen noch nicht hydrierte Web-Components und der Wert fällt still weg.
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(title);
+		const titleField = page.getByRole('textbox', { name: 'Titel', exact: true });
+		await titleField.fill(title);
+		await expect(titleField).toHaveValue(title);
 		// Die Kategorie steht — wie die Säulen — in der Sektion „Optional" (#1285: zugeklappt beim
-		// Öffnen des Formulars).
+		// Öffnen des Formulars). KoliBris SingleSelect ist eine Combobox: öffnen, dann die Option
+		// klicken (Muster series-rhythm.spec.ts) — `selectOption` greift nur an nativen `<select>`.
 		await openAccordionSection(page, 'Optional');
-		// KoliBris SingleSelect ist eine Combobox: öffnen, dann die Option klicken (Muster
-		// series-rhythm.spec.ts) — `selectOption` greift nur an nativen `<select>`-Elementen.
-		await page.getByLabel('Kategorie (optional)').click();
-		await page.getByRole('option', { name: category }).click();
+		const categoryField = page.getByLabel('Kategorie (optional)');
+		await categoryField.click();
+		await page.getByRole('option', { name }).click();
+		// Übernahme belegen, bevor gespeichert wird: Ein Klick, den die Combobox verwirft, liefe sonst
+		// stumm in einen Task ohne Kategorie.
+		await expect(categoryField).toHaveValue(name);
+
+		// Auf die Anlege-Antwort warten und sie auswerten: Ein stiller 4xx würde sonst als „Dialog zu,
+		// alles gut" durchgehen — die Aufgabe fehlte, ohne dass der Test es merkt.
+		const created = page.waitForResponse(
+			(response) => response.url().includes('/api/v1/tasks') && response.request().method() === 'POST',
+		);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
+		const response = await created;
+		expect(response.status(), await response.text()).toBe(201);
+		expect(((await response.json()) as { categoryId: number | null }).categoryId).toBe(categoryId);
+	});
 
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
-	};
-
-	test('Kategorie anlegen, zuordnen, als Kennzeichen sehen und danach filtern', async ({ page }) => {
-		const category = uniqueName('Hausbau');
-		const matching = `E2E-Kat-Fliesen-${runId}`;
+	test('AK3: Kennzeichen in der Liste und Filter über `?cat=`', async ({ page }) => {
+		const name = uniqueName('Verein');
+		const categoryId = await createCategoryViaApi(page, name);
+		const matching = `E2E-Kat-Mitglieder-${runId}`;
 		const other = `E2E-Kat-Ohne-${runId}`;
+		await createTaskViaApi(page, matching, categoryId);
+		await createTaskViaApi(page, other);
 
-		await createCategoryViaUi(page, category);
-		await createTaskWithCategory(page, matching, category);
-
-		// Zweite Aufgabe ohne Kategorie — sie muss der Filter später ausblenden.
-		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Überspringen' }).click();
-		await waitForStableView(page);
-		await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(other);
-		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
-
-		// Kennzeichen in der Aufgabenliste.
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
-		const matchingRow = page.locator('.task-list-item').filter({ hasText: matching });
-		await expect(matchingRow.getByText(category, { exact: true })).toBeVisible();
 
-		// Filter über die URL (derselbe Zustand, den die Suche setzt): nur die passende Aufgabe bleibt.
-		const categoryId = await page.evaluate(async (name: string) => {
-			const response = await fetch('/api/v1/categories');
-			const list = (await response.json()) as { id: number; name: string }[];
-			return list.find((entry) => entry.name === name)?.id ?? 0;
-		}, category);
+		const matchingRow = page.locator('.task-list-item').filter({ hasText: matching });
+		await expect(matchingRow.getByText(name, { exact: true })).toBeVisible();
+		await expect(page.locator('.task-list-item').filter({ hasText: other }).getByText(name)).toHaveCount(0);
+
 		await page.goto(`/aufgaben?cat=${categoryId}`);
 		await waitForStableView(page);
 
@@ -113,23 +156,22 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		expect(listRight).toBeLessThanOrEqual(375 + 1);
 	});
 
-	test('Kategorie löschen lässt die Aufgabe bestehen und nimmt ihr nur das Kennzeichen', async ({ page }) => {
-		const category = uniqueName('Steuer');
-		const title = `E2E-Kat-Erklaerung-${runId}`;
-
-		await createCategoryViaUi(page, category);
-		await createTaskWithCategory(page, title, category);
+	test('AK4: Kategorie löschen lässt die Aufgabe bestehen und nimmt ihr nur das Kennzeichen', async ({ page }) => {
+		const name = uniqueName('Umbau');
+		const categoryId = await createCategoryViaApi(page, name);
+		const title = `E2E-Kat-Fliesen-${runId}`;
+		await createTaskViaApi(page, title, categoryId);
 
 		await page.goto('/settings/kategorien');
 		await waitForStableView(page, 'Priority Pilot');
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await page.locator('kol-dialog').getByRole('button', { name: 'Endgültig löschen' }).click();
-		await expect(page.getByText(category, { exact: true })).toBeHidden();
+		await expect(page.getByText(name, { exact: true })).toBeHidden();
 
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		const row = page.locator('.task-list-item').filter({ hasText: title });
 		await expect(row).toBeVisible();
-		await expect(row.getByText(category, { exact: true })).toHaveCount(0);
+		await expect(row.getByText(name, { exact: true })).toHaveCount(0);
 	});
 });
