@@ -1,8 +1,9 @@
 import { KolAlert, KolBadge, KolButton, KolSpin, KolToolbar } from '@public-ui/react-v19';
-import type { Pillar, Series } from 'client';
+import type { Category, Pillar, Series } from 'client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { CategoryBadge } from './CategoryBadge';
 import { DeleteSeriesDialog } from './DeleteSeriesDialog';
 import { GeoBadge } from './GeoBadge';
 import { Modal } from './Modal';
@@ -11,6 +12,8 @@ import { TaskForm } from './TaskForm';
 interface SeriesTabProps {
 	/** Verfügbare Lebensbalance-Säulen für die Serien-Zuordnung im eingebetteten `TaskForm`. */
 	pillars: Pillar[];
+	/** Verfügbare Kategorien — für das Badge in der Liste und die Auswahl im eingebetteten `TaskForm`. */
+	categories?: Category[];
 }
 
 /** Serie, die aktuell im Bearbeiten-Modal (`TaskForm` im Serie-Modus) geöffnet ist. */
@@ -40,7 +43,7 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
  * generieren" (#244) stößt die serverseitige Materialisierung an. Das Anlegen neuer Serien läuft über
  * den vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
  */
-export const SeriesTab = ({ pillars }: SeriesTabProps) => {
+export const SeriesTab = ({ pillars, categories = [] }: SeriesTabProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -180,6 +183,7 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 										    alle Badges einer Zeile stammen aus einem System (KoliBri-first, DESIGN.md) —
 										    gleiche Höhe, gleicher Radius, Kontrast rechnet KoliBri selbst (_color). */}
 										<KolBadge _label={RHYTHM_LABEL[entry.rhythm]} _color="#005b99" className="series-tree-badge" />
+										<CategoryBadge category={categories.find((category) => category.id === entry.categoryId)} />
 										{/* #1251 (AK6): Stillgelegte Serie (active:false, entsteht durch Gruppenaustritt/
 										    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
 										    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
@@ -237,6 +241,7 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 						task={null}
 						series={editDialog.series}
 						pillars={pillars}
+						categories={categories}
 						onClose={() => setEditDialog(null)}
 						onSaved={afterSaved}
 					/>

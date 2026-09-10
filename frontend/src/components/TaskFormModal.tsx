@@ -1,4 +1,4 @@
-import type { Pillar, Task } from 'client';
+import type { Category, Pillar, Task } from 'client';
 import type { RefObject } from 'react';
 import { taskFormModalTitle } from '../lib/task';
 import { Modal } from './Modal';
@@ -14,6 +14,8 @@ interface TaskFormModalProps {
 	parentTask?: Task | null;
 	/** Verfügbare Lebensbalance-Säulen für die Zuordnung (`GET /pillars`). */
 	pillars: Pillar[];
+	/** Verfügbare Kategorien für die thematische Zuordnung (`GET /categories`). */
+	categories?: Category[];
 	/**
 	 * Vorbelegung der Formularfelder beim Anlegen (`task === null`), z. B. aus der Schnellerfassung
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
@@ -35,6 +37,7 @@ export const TaskFormModal = ({
 	task,
 	parentTask = null,
 	pillars,
+	categories,
 	initialValues,
 	fallbackFocusRef,
 	onClose,
@@ -45,6 +48,7 @@ export const TaskFormModal = ({
 			task={task}
 			parentTask={parentTask}
 			pillars={pillars}
+			categories={categories}
 			initialValues={initialValues}
 			onClose={onClose}
 			onSaved={onSaved}

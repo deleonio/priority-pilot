@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Series, Task, Pillar, SeriesPillar, TaskPillar } from '../models/index.js';
+import { Category, Series, Task, Pillar, SeriesPillar, TaskPillar } from '../models/index.js';
+import { CATEGORY_COLORS } from '../models/categoryColors.js';
 import { generateDueInstances, materializeDueSeries } from './series.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
@@ -689,6 +690,47 @@ describe('generateDueInstances — Koordinaten-Snapshot (#1066, AK6)', () => {
 		}
 		for (const inst of newer.map(withCoords)) {
 			assert.equal(inst.latitude, 48.137154, 'künftige Instanz trägt die neuen Template-Koordinaten');
+		}
+	});
+});
+
+// Kategorie-Snapshot an generierten Instanzen: Die Kategorie des Templates wird wie `address`
+// (#1063) auf jede Instanz kopiert — so trägt die materialisierte Aufgabe dasselbe Badge und
+// erscheint im Kategorie-Filter.
+describe('generateDueInstances — Kategorie-Snapshot', () => {
+	it('Serie mit Kategorie → jede generierte Instanz erbt die categoryId', async () => {
+		const category = await Category.create({ name: 'Hausbau', color: CATEGORY_COLORS[0] });
+		const series = await Series.create({
+			title: 'Baustelle aufräumen',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+			categoryId: category.id,
+		});
+
+		const instances = await generateDueInstances(series, { until: futureDate(20) });
+		assert.ok(instances.length >= 1, 'es entstehen Instanzen');
+		for (const inst of instances) {
+			assert.equal(inst.categoryId, category.id, 'Instanz trägt die Kategorie der Serie');
+		}
+	});
+
+	it('Serie ohne Kategorie → generierte Instanzen erhalten categoryId === null', async () => {
+		const series = await Series.create({
+			title: 'Ohne Kategorie',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+		});
+
+		const instances = await generateDueInstances(series, { until: futureDate(20) });
+		assert.ok(instances.length >= 1, 'es entstehen Instanzen');
+		for (const inst of instances) {
+			assert.equal(inst.categoryId, null, 'Instanz ohne Kategorie ist null');
 		}
 	});
 });

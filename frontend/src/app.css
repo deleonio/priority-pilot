@@ -1817,6 +1817,38 @@ body {
 }
 
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
+/* Kategorie-Feld im Aufgabenformular: Auswahl und Vorschau-Badge in einer Zeile, mobil untereinander
+   (Aufwärts-Kaskade, Mobile-First). Das Select trägt die Breite, das Badge schrumpft nicht. */
+.category-field {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	margin-bottom: 1rem;
+}
+
+.category-field kol-single-select {
+	flex: 1 1 12rem;
+	min-width: 0;
+}
+
+.category-field kol-badge {
+	flex: none;
+}
+
+/* Vorschau im Kategorie-Dialog: Text und Badge auf einer Grundlinie. */
+.category-form-preview {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+}
+
+/* Einleitung der Kategorie-Verwaltung (Abgrenzung zu den Säulen) — Fließtext, kein Chip-Layout. */
+.category-list-intro {
+	margin: 0 0 var(--pp-gap-base);
+	max-width: 60ch;
+}
+
 .pillar-editor {
 	display: grid;
 	gap: 0.75rem;
@@ -2564,6 +2596,19 @@ body {
 
 .task-filter-search__submit {
 	flex-shrink: 0;
+}
+
+/* Kategorie-Filter: mobil eine eigene Zeile in voller Breite (wie die Suchzeile), ab Tablet-Breite
+   daneben. Aufwärts-Kaskade, kein horizontaler Überlauf bei 375px. */
+.task-filter-category {
+	flex: 1 1 100%;
+	min-width: 0;
+}
+
+@media (min-width: 48rem) {
+	.task-filter-category {
+		flex: 0 1 14rem;
+	}
 }
 
 /* Empty-State Meldung für Filter ohne Treffer */

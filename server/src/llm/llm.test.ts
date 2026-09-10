@@ -8,6 +8,7 @@ import {
 	extractLektoratOutput,
 	lektoratTextWithMistral,
 	parseTaskTextWithMistral,
+	parseSearchQueryWithMistral,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
 	type LektoratInput,
@@ -408,5 +409,79 @@ describe('parseTaskTextWithMistral — Schnellerfassung erweitert (#1310)', () =
 			/dringlich/i,
 			'System-Prompt muss eine Dringlichkeits-Anweisung für die Prioritäts-Ableitung enthalten',
 		);
+	});
+});
+
+/**
+ * Kategorie-Erkennung im Parsing. Testebene wie bei #1310: die öffentlichen Parser-Funktionen mit
+ * gemocktem `globalThis.fetch` — die Extraktoren werden darüber mitgeprüft. Der Kern ist die
+ * Abwehr erfundener IDs: Eine `categoryId`, die der Nutzer gar nicht hat, würde beim Speichern nur
+ * an der Server-Validierung scheitern und muss deshalb schon hier wegfallen.
+ */
+describe('Kategorie-Erkennung beim Parsen (Aufgabe und Suche)', () => {
+	const originalFetch = globalThis.fetch;
+	const categories = [
+		{ id: 7, name: 'Hausbau' },
+		{ id: 9, name: 'Steuer' },
+	];
+	let capturedBody: { messages?: { role: string; content: string }[] } | undefined;
+
+	const stubModelResponse = (parsedJson: unknown): void => {
+		globalThis.fetch = (async (url: string, init?: RequestInit) => {
+			if (typeof url === 'string' && url.includes('api.mistral.ai')) {
+				capturedBody = init?.body ? (JSON.parse(init.body as string) as typeof capturedBody) : undefined;
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(parsedJson) } }] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return originalFetch(url, init);
+		}) as typeof fetch;
+	};
+
+	beforeEach(async () => {
+		await resetDb();
+		await setTestLlmProvider(true);
+		capturedBody = undefined;
+	});
+
+	after(async () => {
+		globalThis.fetch = originalFetch;
+		await closeDb();
+	});
+
+	it('übernimmt eine categoryId aus der angebotenen Liste und listet die Kategorien im Prompt', async () => {
+		stubModelResponse({ title: 'Fliesen bestellen', categoryId: 7 });
+
+		const result = await parseTaskTextWithMistral('Fliesen fürs Bad bestellen', undefined, categories);
+
+		assert.equal(result.categoryId, 7, 'gültige Kategorie wird übernommen');
+		const systemPrompt = capturedBody?.messages?.find((message) => message.role === 'system')?.content ?? '';
+		assert.match(systemPrompt, /Hausbau/, 'die Kategorien des Nutzers stehen im Prompt');
+	});
+
+	it('verwirft eine erfundene categoryId, statt sie durchzureichen', async () => {
+		stubModelResponse({ title: 'Fliesen bestellen', categoryId: 999 });
+
+		const result = await parseTaskTextWithMistral('Fliesen fürs Bad bestellen', undefined, categories);
+
+		assert.equal(result.categoryId, undefined, 'unbekannte ID fällt weg');
+		assert.equal(result.title, 'Fliesen bestellen', 'der Rest des Ergebnisses bleibt unberührt');
+	});
+
+	it('zerlegt eine Suchanfrage in Suchbegriff und Kategorie', async () => {
+		stubModelResponse({ text: 'offene Sachen', categoryId: 7 });
+
+		const result = await parseSearchQueryWithMistral('offene Sachen zum Hausbau', undefined, categories);
+
+		assert.deepEqual(result, { text: 'offene Sachen', categoryId: 7 });
+	});
+
+	it('liefert bei einer Suchanfrage ohne erkennbare Kategorie nur den Text', async () => {
+		stubModelResponse({ text: 'Zahnarzt', categoryId: 42 });
+
+		const result = await parseSearchQueryWithMistral('Zahnarzt', undefined, categories);
+
+		assert.deepEqual(result, { text: 'Zahnarzt' }, 'erfundene ID fällt weg, der Text bleibt');
 	});
 });

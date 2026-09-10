@@ -3,7 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MissingApiKeyError, MistralRequestError, type ParseTaskParser, type ParsedTask } from '../../llm/llm.js';
+import {
+	MissingApiKeyError,
+	MistralRequestError,
+	type ParseSearchParser,
+	type ParseTaskParser,
+	type ParsedTask,
+} from '../../llm/llm.js';
+import { Category } from '../../models/index.js';
+import { CATEGORY_COLORS } from '../../models/categoryColors.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
 
 after(closeDb);
@@ -167,5 +175,59 @@ describe('AK3: openapi.yml enthält /tasks/parse-text', () => {
 			content.includes('ParsedTask') || content.includes('parsedTask'),
 			'openapi.yml muss ein Schema für die Response von /tasks/parse-text enthalten (ParsedTask)',
 		);
+	});
+});
+
+/**
+ * `POST /tasks/parse-search` — Suchanfrage in Suchbegriff und Kategorie zerlegen. Geprüft wird der
+ * Vertrag der Route, nicht das Modell: die Durchreichung des Parser-Ergebnisses und die Abkürzung
+ * ohne angelegte Kategorien (die einen LLM-Aufruf spart).
+ */
+describe('POST /tasks/parse-search', () => {
+	let server: TestServer;
+	let calls = 0;
+
+	const searchParser: ParseSearchParser = async (text) => {
+		calls += 1;
+		return { text: `${text} (geparst)`, categoryId: 7 };
+	};
+
+	const postSearch = (body: unknown) =>
+		fetch(`${server.baseUrl}/tasks/parse-search`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+	beforeEach(async () => {
+		await resetDb();
+		calls = 0;
+		if (!server) {
+			server = await startTestServer({ searchTextParser: searchParser });
+		}
+	});
+
+	after(async () => {
+		if (server) await server.close();
+	});
+
+	it('400 bei leerem Text', async () => {
+		assert.equal((await postSearch({ text: '   ' })).status, 400);
+	});
+
+	it('gibt ohne angelegte Kategorien den Text zurück, ohne den Parser aufzurufen', async () => {
+		const res = await postSearch({ text: 'offene Sachen zum Hausbau' });
+		assert.equal(res.status, 200);
+		assert.deepEqual(await res.json(), { text: 'offene Sachen zum Hausbau' });
+		assert.equal(calls, 0, 'kein LLM-Aufruf, wenn es nichts zu erkennen gibt');
+	});
+
+	it('reicht Suchbegriff und Kategorie des Parsers durch, sobald Kategorien existieren', async () => {
+		await Category.create({ name: 'Hausbau', color: CATEGORY_COLORS[0], userId: null });
+
+		const res = await postSearch({ text: 'offene Sachen zum Hausbau' });
+		assert.equal(res.status, 200);
+		assert.deepEqual(await res.json(), { text: 'offene Sachen zum Hausbau (geparst)', categoryId: 7 });
+		assert.equal(calls, 1);
 	});
 });

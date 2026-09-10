@@ -11,6 +11,7 @@ import {
 	KolTextarea,
 } from '@public-ui/react-v19';
 import type {
+	Category,
 	ChecklistItem,
 	Pillar,
 	Series,
@@ -31,6 +32,7 @@ import { readNumber, readString } from '../lib/inputValue';
 import { buildRecipientOptions } from '../lib/recipientOptions';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { readAiPreferences } from '../lib/aiPreferences';
+import { CategoryBadge } from './CategoryBadge';
 import { VoiceField } from './VoiceField';
 import { AddressAutocomplete } from './AddressAutocomplete';
 import { notifyTasksChanged } from '../lib/tasksChanged';
@@ -85,6 +87,9 @@ const hasSeriesCascadeChange = (update: SeriesUpdate, original: Series): boolean
 	if ((update.longitude ?? null) !== (original.longitude ?? null)) return true;
 	if ((update.autoDeleteAfterDeadline ?? false) !== (original.autoDeleteAfterDeadline ?? false)) return true;
 	if (update.pillars !== undefined && !pillarsEqual(update.pillars, original.pillars ?? [])) return true;
+	// Die Kategorie ist kaskadierbar wie die Adresse: Erst nach Bestätigung wandert sie auf offene
+	// Instanzen; Bestandsinstanzen bleiben sonst bei ihrem Snapshot.
+	if ((update.categoryId ?? null) !== (original.categoryId ?? null)) return true;
 	return false;
 };
 
@@ -100,7 +105,16 @@ export interface TaskFormInitialValues {
 	address?: string;
 	/** #1310: Aufgezählte Punkte aus dem Freitext-Parsing — je Eintrag ein Checklisten-Eintrag. */
 	checklist?: string[];
+	/** Vom Freitext-Parsing erkannte Kategorie (ID einer Kategorie des Nutzers). */
+	categoryId?: number;
 }
+
+/**
+ * Sentinel-Wert der Kategorie-Auswahl („ohne Kategorie"). Kategorie-IDs sind serverseitig `>= 1`
+ * (siehe `openapi.yml`), daher kollidiert `0` mit keiner echten Kategorie — dasselbe Muster wie
+ * `ADD_PILLAR_PLACEHOLDER` in `lib/pillar.ts`.
+ */
+const NO_CATEGORY = 0;
 
 /** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`, 12 Werte — Backend #469). */
 const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
@@ -180,6 +194,8 @@ interface TaskFormProps {
 	parentTask?: Task | null;
 	/** Verfügbare Lebensbalance-Säulen für die Zuordnung (`GET /pillars`). */
 	pillars: Pillar[];
+	/** Verfügbare Kategorien für die thematische Zuordnung (`GET /categories`). */
+	categories?: Category[];
 	/**
 	 * Vorbelegung der Formularfelder beim Anlegen (`task === null`), z. B. aus der Schnellerfassung
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
@@ -239,6 +255,7 @@ export const TaskForm = ({
 	initialMode = 'task',
 	parentTask = null,
 	pillars,
+	categories = [],
 	initialValues,
 	onClose,
 	onSaved,
@@ -294,6 +311,12 @@ export const TaskForm = ({
 	// Anzeige zurückgerechnet und erst beim Speichern wieder auf 100 % normiert. `confidence` bleibt 0–100.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
 		(task?.pillars ?? series?.pillars ?? []).map((entry) => ({ ...entry, share: weightToRaw(entry.share) })),
+	);
+
+	// Kategorie im State (nicht im Ref): Die Auswahl muss neu rendern, damit das Badge daneben
+	// mitzieht. `null` = keine Kategorie (Sentinel `NO_CATEGORY` im Auswahlfeld).
+	const [categoryId, setCategoryId] = useState<number | null>(
+		task?.categoryId ?? series?.categoryId ?? initialValues?.categoryId ?? null,
 	);
 
 	const [error, setError] = useState<string | null>(null);
@@ -427,6 +450,16 @@ export const TaskForm = ({
 	const [pendingLektorat, setPendingLektorat] = useState<PendingLektorat | null>(null);
 
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
+
+	/** Optionen der Kategorie-Auswahl: Platzhalter „ohne" plus die Kategorien des Nutzers. */
+	const categoryOptions = useMemo(
+		() => [
+			{ label: '— ohne Kategorie —', value: NO_CATEGORY },
+			...categories.map((category) => ({ label: category.name, value: category.id })),
+		],
+		[categories],
+	);
+	const selectedCategory = categories.find((category) => category.id === categoryId) ?? null;
 	// #470 (AK5): Client-seitige Konsistenzprüfung zwischen Wochentag-Rhythmus (`mon`…`sun`) und
 	// Startdatum — spiegelt die Backend-Regel und warnt den Nutzer frühzeitig (vor dem Speichern).
 	const weekdayMismatch = (() => {
@@ -689,6 +722,9 @@ export const TaskForm = ({
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
 					autoDeleteAfterDeadline: autoDelete,
+					// Bei einer Übergabe die Kategorie weglassen (Muster `pillars`): Sie gehört dem
+					// bisherigen Eigentümer — der Server hängt sie per Namensgleichheit um.
+					...(isHandover ? {} : { categoryId }),
 					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Serie beim Speichern — ohne
 					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
 					...(isHandover ? { userId: Number(recipientId) } : {}),
@@ -716,6 +752,7 @@ export const TaskForm = ({
 					rhythm: form.current.rhythm,
 					active: true,
 					autoDeleteAfterDeadline: autoDelete,
+					categoryId,
 					// #1222 (AK8): Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
 					// (oder eigene ID) fehlt das Feld und die Serie gehört dem Aufrufer wie bisher (AK1).
 					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
@@ -738,6 +775,8 @@ export const TaskForm = ({
 					// Beiträge per Säulen-Namen-Remap; ein Beitrags-Edit im selben Save wie die Übergabe
 					// wird bewusst nicht übernommen.
 					...(isHandover ? {} : { pillars }),
+					// Kategorie wie `pillars` bei einer Übergabe weglassen (siehe Kommentar oben).
+					...(isHandover ? {} : { categoryId }),
 					checklist,
 					// #1252 (AK9): Gewählter fremder Empfänger übergibt die Aufgabe beim Speichern — ohne
 					// Auswahl (oder eigenes Konto) fehlt das Feld und der Ablauf bleibt wie bisher.
@@ -756,6 +795,7 @@ export const TaskForm = ({
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
+					categoryId,
 					checklist,
 					// #1213: Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
 					// (oder eigene ID) fehlt das Feld und der Ablauf bleibt wie bisher (AK1).
@@ -1303,6 +1343,26 @@ export const TaskForm = ({
 								/>
 							)}
 						</div>
+						{/* Kategorie: thematische Ordnung, höchstens eine je Aufgabe. Bewusst getrennt von den
+						    Säulen darunter — der Hinweistext benennt den Unterschied, damit niemand eine
+						    Säule als Ordner missbraucht (das verzerrt die Balance-Rechnung). */}
+						{categories.length > 0 && (
+							<div className="category-field">
+								<KolSingleSelect
+									_label="Kategorie (optional)"
+									_hint="Ordnet die Aufgabe einem Thema zu (Filter und Kennzeichen in den Listen). Anders als eine Säule wirkt sie nicht auf die Priorisierung."
+									_options={categoryOptions}
+									_value={categoryId ?? NO_CATEGORY}
+									_on={{
+										onChange: (_event, value) => {
+											const next = Number(value);
+											setCategoryId(Number.isInteger(next) && next !== NO_CATEGORY ? next : null);
+										},
+									}}
+								/>
+								<CategoryBadge category={selectedCategory} />
+							</div>
+						)}
 						{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 						{pillars.length === 0 ? (
 							<p className="hint">

@@ -556,3 +556,23 @@ export const migrateTaskCreatedById = async (db: Sequelize): Promise<void> => {
 	await db.query('ALTER TABLE `tasks` ADD COLUMN `createdById` INTEGER');
 	console.log('Spalte createdById an tasks nachgezogen (#1213).');
 };
+
+/**
+ * Zieht die nullbare `categoryId`-Spalte (thematische Kategorie, 0..1) auf **bestehenden**
+ * `tasks`- und `series`-Tabellen nach, BEVOR `sequelize.sync()` läuft — analog
+ * `migrateTaskCreatedById`. Nullable, daher kein Default nötig: Bestandsdaten bleiben ohne
+ * Kategorie (`NULL`). Idempotent (Spalte vorhanden → No-op); bei frischer DB ebenso No-op, dann
+ * legt `sync()` Spalte und Tabelle `categories` selbst an.
+ */
+export const migrateCategoryIdColumns = async (db: Sequelize): Promise<void> => {
+	for (const table of ['tasks', 'series'] as const) {
+		const [columns] = await db.query(`PRAGMA table_info('${table}')`);
+		const existing = (columns as { name: string }[]).map((column) => column.name);
+
+		if (existing.length === 0 || existing.includes('categoryId')) {
+			continue;
+		}
+		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`categoryId\` INTEGER`);
+		console.log(`Spalte categoryId an ${table} nachgezogen.`);
+	}
+};

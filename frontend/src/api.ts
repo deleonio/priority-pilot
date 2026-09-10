@@ -3,6 +3,9 @@ import type {
 	ActivityAdvisorInput,
 	ActivityAdvisorResult,
 	AdminUser,
+	Category,
+	CategoryCreate,
+	CategoryUpdate,
 	components,
 	DependencyInput,
 	Group,
@@ -25,6 +28,7 @@ import type {
 	NearbyTask,
 	GeoConfig,
 	Profile,
+	ParsedSearch,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -213,6 +217,14 @@ export const api = {
 		return data;
 	},
 
+	// Suchanfrage in Suchbegriff und Kategorie zerlegen (`POST /tasks/parse-search`), damit eine
+	// gesprochene Anfrage wie „offene Sachen zum Hausbau" direkt den Kategorie-Filter setzt.
+	// Retry-Verhalten wie `parseText` — derselbe LLM-Upstream.
+	async parseSearch({ text }: { text: string }): Promise<ParsedSearch> {
+		const { data } = await withRetry(() => client.POST('/tasks/parse-search', { body: { text } }));
+		return data;
+	},
+
 	async updateTask({ id, taskUpdate }: { id: number; taskUpdate: TaskUpdate }): Promise<Task> {
 		const { deadline, ...rest } = taskUpdate;
 		const { data, error, response } = await client.PATCH('/tasks/{id}', {
@@ -291,6 +303,42 @@ export const api = {
 
 	async deletePillar({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/pillars/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// ── Kategorien (thematische Ordnungsebene neben den Säulen) ────────────────
+
+	async listCategories(init: Init = {}): Promise<Category[]> {
+		const { data, error, response } = await client.GET('/categories', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async createCategory({ categoryCreate }: { categoryCreate: CategoryCreate }): Promise<Category> {
+		const { data, error, response } = await client.POST('/categories', { body: categoryCreate });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async updateCategory({ id, categoryUpdate }: { id: number; categoryUpdate: CategoryUpdate }): Promise<Category> {
+		const { data, error, response } = await client.PATCH('/categories/{id}', {
+			params: { path: { id } },
+			body: categoryUpdate,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async deleteCategory({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/categories/{id}', { params: { path: { id } } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

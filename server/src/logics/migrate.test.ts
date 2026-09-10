@@ -13,6 +13,7 @@ import {
 	migrateUserGeoConfigColumns,
 	migrateLlmProviderKindColumns,
 	migrateUsersRoleColumn,
+	migrateCategoryIdColumns,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -233,6 +234,9 @@ describe('migrateSeriesTable', () => {
 		await migrateSeriesTable(sequelize);
 		await sequelize.sync();
 
+		// Kategorie-Spalte nachziehen: Series.findAll selektiert sie mit (separate Migration).
+		await migrateCategoryIdColumns(sequelize);
+
 		const { default: Series } = await import('../models/series.js');
 		await assert.doesNotReject(() => Series.findAll(), 'Series.findAll() wirft keinen SQLITE_ERROR mehr');
 		const rows = await Series.findAll();
@@ -333,6 +337,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateSeriesColumns(sequelize);
 		await migrateTaskAddress(sequelize);
 		await migrateTaskCreatedById(sequelize); // #1213: Ersteller-Spalte, ebenfalls von Task.findAll mitselektiert
+		await migrateCategoryIdColumns(sequelize); // Kategorie-Spalte, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
 		await assert.doesNotReject(
@@ -594,6 +599,43 @@ describe('migrateTaskAddress', () => {
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
 
 		assert.ok((await taskColumns()).includes('address'), 'frische Tabelle enthält address');
+	});
+});
+
+// ── Kategorien: nullable categoryId an tasks UND series nachziehen (Muster migrateTaskAddress) ──
+describe('migrateCategoryIdColumns', () => {
+	it('zieht auf einem Alt-Schema die categoryId-Spalte an tasks nach', async () => {
+		await createLegacyTasksTable();
+		// Vorbedingungen für sync()/Task.create() auf dem Alt-Schema (nicht Teil dieser Migration).
+		await migrateSeriesColumns(sequelize);
+		await migrateTaskChecklist(sequelize);
+		await migrateTaskAddress(sequelize);
+
+		assert.ok(!(await taskColumns()).includes('categoryId'), 'Alt-Schema hat categoryId noch nicht');
+
+		await migrateCategoryIdColumns(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		assert.ok((await taskColumns()).includes('categoryId'), 'categoryId wurde an tasks nachgezogen');
+
+		const task = await Task.create({ title: 'Ohne Kategorie' });
+		assert.equal(task.categoryId ?? null, null, 'Bestands-Tasks bleiben ohne Kategorie (NULL)');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelte Spalte', async () => {
+		await createLegacyTasksTable();
+		await migrateCategoryIdColumns(sequelize);
+		await assert.doesNotReject(() => migrateCategoryIdColumns(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await taskColumns()).filter((name) => name === 'categoryId').length, 1, 'categoryId genau einmal');
+	});
+
+	it('ist auf einer DB ohne tasks/series-Tabellen ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
+
+		await assert.doesNotReject(() => migrateCategoryIdColumns(sequelize), 'Migration ohne Tabellen ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabellen frisch an');
+
+		assert.ok((await taskColumns()).includes('categoryId'), 'frische tasks-Tabelle enthält categoryId');
 	});
 });
 

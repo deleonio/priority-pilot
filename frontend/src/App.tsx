@@ -4,11 +4,12 @@ import {
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
+	KolSingleSelect,
 	KolSpin,
 	KolTabs,
 	KolToolbar,
 } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskTreeNode } from 'client';
+import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -31,7 +32,7 @@ import { SeriesTab } from './components/SeriesTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
-import { filterForestByTitle } from './lib/filterForestByTitle';
+import { filterForest } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
@@ -68,7 +69,7 @@ const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'S
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
-const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen', 'nutzer'];
+const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm', 'standort', 'gruppen', 'kategorien', 'nutzer'];
 // Rollensystem admin/member: Segmente, die nur Admins als Tab sehen (Index-Parität mit den in
 // `SettingsPage` nur bei `isAdmin` angehängten Tabs). Für Member gelten sie als unbekannter Pfad.
 const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
@@ -76,6 +77,12 @@ const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
 const DONE_REMOVAL_DELAY_MS = 5000;
+
+/**
+ * Sentinel-Wert des Kategorie-Filters („alle Kategorien"). Kategorie-IDs sind serverseitig `>= 1`,
+ * `0` kollidiert daher mit keiner echten Kategorie (Muster `ADD_PILLAR_PLACEHOLDER`).
+ */
+const NO_CATEGORY_FILTER = 0;
 
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const SEARCH_ICON = { left: { icon: 'fa-solid fa-magnifying-glass' } };
@@ -110,6 +117,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [nextTask, setNextTask] = useState<Task | null>(null);
 	const [suggestions, setSuggestions] = useState<Task[]>([]);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
+	const [categories, setCategories] = useState<Category[]>([]);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
@@ -131,6 +139,40 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz). Der Schalter
 	// wechselt nur die Sicht; gerechnet wird live an der Datenlage, ohne eingefrorenen Stand.
 	const [balanceMode, setBalanceMode] = useState(false);
+
+	// Kategorie-Filter (`?cat=`) — Filterzustand wie `?q=`, damit Deep-Link und Zurück-Taste ihn
+	// wiederherstellen. `null` = keine Einschränkung; ein Wert, zu dem es keine Kategorie (mehr) gibt,
+	// wird als „keine Einschränkung" behandelt (gelöschte Kategorie in einem alten Link).
+	const categoryFilterParam = Number(searchParams.get('cat'));
+	const categoryFilter =
+		Number.isInteger(categoryFilterParam) && categories.some((entry) => entry.id === categoryFilterParam)
+			? categoryFilterParam
+			: null;
+
+	/** Optionen des Kategorie-Filters: „alle" plus die Kategorien des Nutzers. */
+	const taskCategoryFilterOptions = useMemo(
+		() => [
+			{ label: '— alle Kategorien —', value: NO_CATEGORY_FILTER },
+			...categories.map((category) => ({ label: category.name, value: category.id })),
+		],
+		[categories],
+	);
+
+	/** Setzt den Kategorie-Filter (`null` entfernt ihn) und spiegelt ihn in die URL. */
+	const applyCategoryFilter = useCallback(
+		(value: number | null): void => {
+			setSearchParams((prev) => {
+				const next = new URLSearchParams(prev);
+				if (value === null) {
+					next.delete('cat');
+				} else {
+					next.set('cat', String(value));
+				}
+				return next;
+			});
+		},
+		[setSearchParams],
+	);
 
 	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
 	const applyTaskFilter = useCallback(
@@ -188,18 +230,21 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
 		try {
-			const [loadedTasks, loadedForest, loadedNext, loadedSuggestions, loadedPillars] = await Promise.all([
-				api.listTasks({ signal }),
-				api.getForest({ signal }),
-				api.getNextTask({ signal }),
-				api.getSuggestions({ signal }),
-				api.listPillars({ signal }),
-			]);
+			const [loadedTasks, loadedForest, loadedNext, loadedSuggestions, loadedPillars, loadedCategories] =
+				await Promise.all([
+					api.listTasks({ signal }),
+					api.getForest({ signal }),
+					api.getNextTask({ signal }),
+					api.getSuggestions({ signal }),
+					api.listPillars({ signal }),
+					api.listCategories({ signal }),
+				]);
 			setTasks(loadedTasks);
 			setForest(loadedForest);
 			setNextTask(loadedNext ?? null);
 			setSuggestions(loadedSuggestions);
 			setPillars(loadedPillars);
+			setCategories(loadedCategories);
 			setLoadError(null);
 		} catch (reason) {
 			if (signal?.aborted === true) {
@@ -305,17 +350,23 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		return map;
 	}, [forest]);
 
-	// Gefilterter Aufgabenwald für den offenen Baum (Titel-Suchfilter).
-	const filteredForest = useMemo(() => filterForestByTitle(forest, taskSearch), [forest, taskSearch]);
+	// Gefilterter Aufgabenwald für den offenen Baum (Titel-Suche + Kategorie).
+	const filteredForest = useMemo(
+		() => filterForest(forest, { search: taskSearch, categoryId: categoryFilter }),
+		[forest, taskSearch, categoryFilter],
+	);
 
-	// Gefilterte erledigte Aufgaben für die Tabelle (Titel-Suchfilter).
+	// Gefilterte erledigte Aufgaben für die Tabelle (Titel-Suche + Kategorie).
 	const filteredCompletedTasks = useMemo(() => {
 		if (tasks === null) return [];
 		const doneTasks = tasks.filter((task) => task.status === TaskStatus.Done && !forestTaskIds.has(task.id));
-		if (taskSearch.trim() === '') return doneTasks;
 		const query = taskSearch.trim().toLowerCase();
-		return doneTasks.filter((task) => task.title.toLowerCase().includes(query));
-	}, [tasks, forestTaskIds, taskSearch]);
+		return doneTasks.filter(
+			(task) =>
+				(query === '' || task.title.toLowerCase().includes(query)) &&
+				(categoryFilter === null || task.categoryId === categoryFilter),
+		);
+	}, [tasks, forestTaskIds, taskSearch, categoryFilter]);
 
 	const handleLogout = useCallback(async (): Promise<void> => {
 		setLogoutLoading(true);
@@ -405,9 +456,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		void reload();
 	}, [closeSettings, reload]);
 
-	// Nach PillarList-Mutationen (anlegen/umbenennen/löschen) die globalen Pillar-Daten neu laden,
-	// damit PillarWeightsForm und Dashboard die aktuellen Daten anzeigen (#439 Review Finding 3).
-	const handlePillarChanged = useCallback((): void => {
+	// Nach Stammdaten-Mutationen in den Einstellungen (Säulen anlegen/umbenennen/löschen — #439
+	// Review Finding 3; ebenso Kategorien) die globalen Daten neu laden, damit Formulare, Filter,
+	// PillarWeightsForm und Dashboard den aktuellen Stand zeigen.
+	const handleMasterDataChanged = useCallback((): void => {
 		void reload();
 	}, [reload]);
 
@@ -605,7 +657,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				onTabChange={changeSettingsTab}
 				onBack={closeSettings}
 				onSaved={afterSettingsSaved}
-				onPillarChanged={handlePillarChanged}
+				onPillarChanged={handleMasterDataChanged}
+				onCategoryChanged={handleMasterDataChanged}
 				isAdmin={isAdmin}
 			/>
 		);
@@ -746,6 +799,24 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 									/>
 								</div>
+								{/* Kategorie-Filter neben dem Titel-Filter; er wirkt sofort (anders als der Suchtext,
+								    der erst auf „Filtern"/Enter greift) — eine Auswahl ist eine abgeschlossene Eingabe.
+								    Ohne angelegte Kategorien bleibt das Feld aus. */}
+								{categories.length > 0 && (
+									<KolSingleSelect
+										className="task-filter-category"
+										_label="Nach Kategorie filtern"
+										_hideLabel
+										_options={taskCategoryFilterOptions}
+										_value={categoryFilter ?? NO_CATEGORY_FILTER}
+										_on={{
+											onChange: (_event, value) => {
+												const next = Number(value);
+												applyCategoryFilter(Number.isInteger(next) && next !== NO_CATEGORY_FILTER ? next : null);
+											},
+										}}
+									/>
+								)}
 							</div>
 							{taskViewMode === 'open' ? (
 								filteredForest.length === 0 ? (
@@ -755,6 +826,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											tasks={tasks}
 											progressMap={progressMap}
 											userId={user.id}
+											categories={categories}
 											balancePriorities={balancePriorities}
 											onEdit={openEdit}
 											onDelete={openDelete}
@@ -771,6 +843,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										tasks={tasks}
 										progressMap={progressMap}
 										userId={user.id}
+										categories={categories}
 										balancePriorities={balancePriorities}
 										onEdit={openEdit}
 										onDelete={openDelete}
@@ -784,6 +857,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									<CompletedTasksTable
 										tasks={filteredCompletedTasks}
 										pillars={pillars}
+										categories={categories}
 										forestTaskIds={forestTaskIds}
 										onReloaded={reload}
 									/>
@@ -794,6 +868,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								<CompletedTasksTable
 									tasks={filteredCompletedTasks}
 									pillars={pillars}
+									categories={categories}
 									forestTaskIds={forestTaskIds}
 									onReloaded={reload}
 								/>
@@ -801,7 +876,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						</section>
 					</div>
 					<div slot="tab-2">
-						<SeriesTab pillars={pillars} />
+						<SeriesTab pillars={pillars} categories={categories} />
 					</div>
 					<div slot="tab-3">
 						{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
@@ -824,6 +899,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						parentTask={dialog.parentTask ?? null}
 						initialText={dialog.initialText}
 						pillars={pillars}
+						categories={categories}
 						onClose={closeDialog}
 						onSaved={afterMutation}
 					/>
@@ -833,14 +909,16 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						parentTask={dialog.parentTask ?? null}
 						initialValues={{ description: dialog.initialText }}
 						pillars={pillars}
+						categories={categories}
 						onClose={closeDialog}
 						onSaved={afterMutation}
 					/>
 				))}
 			{dialog?.kind === 'search' && (
 				<SearchModal
+					categories={categories}
 					onClose={closeDialog}
-					onSearch={(query) => {
+					onSearch={(query, categoryId) => {
 						// Eine einzige Navigation mit explizitem Ziel: `navigate('/aufgaben')` +
 						// `applyTaskFilter()` (`setSearchParams`) konkurrieren sonst — `setSearchParams`
 						// löst `?q=` gegen die Location der Render-Closure auf (noch `/` oder `/wald`),
@@ -851,6 +929,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 							next.delete('q');
 						} else {
 							next.set('q', query);
+						}
+						// Kategorie-Filter aus der Suche in denselben Navigations-Schritt legen — ein
+						// separates `applyCategoryFilter()` liefe gegen die alte Location (siehe oben).
+						if (categoryId === null) {
+							next.delete('cat');
+						} else {
+							next.set('cat', String(categoryId));
 						}
 						navigate({ pathname: '/aufgaben', search: next.toString() });
 						// `searchDraft` mitschreiben, damit das Filterfeld im Aufgaben-Tab den aktiven
@@ -866,6 +951,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					key={dialog.task.id}
 					task={dialog.task}
 					pillars={pillars}
+					categories={categories}
 					onClose={closeDialog}
 					onSaved={afterMutation}
 				/>

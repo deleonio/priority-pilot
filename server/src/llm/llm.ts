@@ -62,10 +62,38 @@ export interface ParsedTask {
 	address?: string;
 	/** #1310: Im Text aufgezählte Einzelpunkte, je ein Checklisten-Eintrag (getrimmt, max. 255 Zeichen). */
 	checklist?: string[];
+	/** ID der thematisch passenden Kategorie des Nutzers; nur gesetzt, wenn eine eindeutig passt. */
+	categoryId?: number;
 }
 
-/** Funktionssignatur des Task-Text-Parsers — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type ParseTaskParser = (text: string, provider?: LlmProvider) => Promise<ParsedTask>;
+/** Eine Kategorie, so wie der Prompt sie dem Modell zur Auswahl vorlegt. */
+export interface CategoryOption {
+	id: number;
+	name: string;
+}
+
+/**
+ * Funktionssignatur des Task-Text-Parsers — injizierbar, damit Tests ohne echten API-Call laufen.
+ * `categories` sind die Kategorien des eingeloggten Nutzers; ohne sie bleibt `categoryId` leer.
+ */
+export type ParseTaskParser = (
+	text: string,
+	provider?: LlmProvider,
+	categories?: CategoryOption[],
+) => Promise<ParsedTask>;
+
+/** Aus einer frei formulierten Suchanfrage extrahierter Filter (Suchbegriff + Kategorie). */
+export interface ParsedSearch {
+	text?: string;
+	categoryId?: number;
+}
+
+/** Funktionssignatur des Suchanfragen-Parsers — injizierbar wie {@link ParseTaskParser}. */
+export type ParseSearchParser = (
+	text: string,
+	provider?: LlmProvider,
+	categories?: CategoryOption[],
+) => Promise<ParsedSearch>;
 
 /**
  * Optionaler Provider-Pinning für den LLM-Test-Schalter (#749) und dynamische Provider (#951).
@@ -454,11 +482,36 @@ const PARSED_DESCRIPTION_MAX_LENGTH = 3000;
 const PARSED_CHECKLIST_ITEM_MAX_LENGTH = 255;
 
 /**
+ * Prompt-Zeilen zur Kategorie-Auswahl. Ohne Kategorien (neues Konto) bleiben sie leer — dann darf
+ * das Modell gar keine `categoryId` erfinden, weil keine zur Auswahl steht.
+ */
+const categoryPromptLines = (categories: CategoryOption[]): string[] =>
+	categories.length === 0
+		? []
+		: [
+				'Kategorien des Nutzers (thematische Ordnung, NICHT die Lebensbereiche):',
+				...categories.map((category) => `- ${category.id}: ${category.name}`),
+				'- "categoryId" (optional): ID genau EINER dieser Kategorien, wenn der Text thematisch eindeutig dorthin gehört. Im Zweifel weglassen; niemals eine ID erfinden.',
+			];
+
+/**
+ * Liest eine `categoryId` defensiv aus der Modell-Antwort: nur eine Ganzzahl, die zu einer der
+ * angebotenen Kategorien gehört, wird übernommen. Alles andere (erfundene ID, String, 0) fällt
+ * still weg — ein ungültiger Wert würde beim Speichern nur an der Server-Validierung scheitern.
+ */
+const extractCategoryId = (raw: unknown, categories: CategoryOption[]): number | undefined => {
+	if (typeof raw !== 'number' || !Number.isInteger(raw)) {
+		return undefined;
+	}
+	return categories.some((category) => category.id === raw) ? raw : undefined;
+};
+
+/**
  * System-Prompt für die Task-Schnellerfassung: extrahiert strukturierte Felder aus Freitext.
  * Das aktuelle Datum steckt im Prompt (ISO, UTC), damit relative Angaben („übermorgen") auflösbar
  * sind (#1310 AK4) — ohne diesen Bezug kann das Modell sie nicht in eine Deadline übersetzen.
  */
-const buildParseTaskSystemPrompt = (now: Date = new Date()): string =>
+const buildParseTaskSystemPrompt = (now: Date = new Date(), categories: CategoryOption[] = []): string =>
 	[
 		'Du extrahierst aus einem frei formulierten deutschen Text die strukturierten Felder einer Aufgabe (Task).',
 		'',
@@ -474,8 +527,10 @@ const buildParseTaskSystemPrompt = (now: Date = new Date()): string =>
 		'- "address" (optional): im Text genannte Ortsangabe als Adresstext.',
 		`- "checklist" (optional): Array der im Text aufgezählten Einzelpunkte als kurze Strings (je höchstens ${PARSED_CHECKLIST_ITEM_MAX_LENGTH} Zeichen).`,
 		'',
+		...categoryPromptLines(categories),
+		'',
 		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
-		'{ "title": <string>, "description": <string?>, "priority": <1-5?>, "estimatedEffort": <zahl?>, "deadline": <iso-string?>, "isSeries": <boolean?>, "address": <string?>, "checklist": <string[]?> }',
+		'{ "title": <string>, "description": <string?>, "priority": <1-5?>, "estimatedEffort": <zahl?>, "deadline": <iso-string?>, "isSeries": <boolean?>, "address": <string?>, "checklist": <string[]?>, "categoryId": <zahl?> }',
 		'Lasse optionale Felder weg, wenn der Text keine Angabe dazu enthält.',
 	].join('\n');
 
@@ -484,7 +539,7 @@ const buildParseTaskSystemPrompt = (now: Date = new Date()): string =>
  * werden hier erzwungen (#1310 AK3/AK6) — ein Prompt-Hinweis allein ist nicht prüfbar, und ein zu
  * langer Titel/eine zu lange Beschreibung ließe das Speichern an der Validierung scheitern.
  */
-const extractParsedTask = (parsed: unknown): ParsedTask => {
+const extractParsedTask = (parsed: unknown, categories: CategoryOption[] = []): ParsedTask => {
 	if (typeof parsed !== 'object' || parsed === null) {
 		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
 	}
@@ -525,6 +580,10 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 			result.checklist = items;
 		}
 	}
+	const categoryId = extractCategoryId(raw.categoryId, categories);
+	if (categoryId !== undefined) {
+		result.categoryId = categoryId;
+	}
 	return result;
 };
 
@@ -534,15 +593,68 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
  * {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
  */
-export const parseTaskTextWithMistral: ParseTaskParser = async (text, provider) => {
+export const parseTaskTextWithMistral: ParseTaskParser = async (text, provider, categories = []) => {
 	const parsed = await requestModelJson(
 		[
-			{ role: 'system', content: buildParseTaskSystemPrompt() },
+			{ role: 'system', content: buildParseTaskSystemPrompt(new Date(), categories) },
 			{ role: 'user', content: text },
 		],
 		provider,
 	);
-	return extractParsedTask(parsed);
+	return extractParsedTask(parsed, categories);
+};
+
+/**
+ * System-Prompt für die Suchanfrage-Zerlegung: trennt den reinen Suchbegriff von der gemeinten
+ * Kategorie. Ohne Kategorien bleibt nur die Textrückgabe übrig — der Aufruf lohnt sich dann nicht,
+ * die Route ruft in dem Fall gar nicht erst an.
+ */
+const buildParseSearchSystemPrompt = (categories: CategoryOption[]): string =>
+	[
+		'Du zerlegst eine frei formulierte deutsche Suchanfrage nach Aufgaben in einen Suchbegriff und eine Kategorie.',
+		'',
+		'Kategorien des Nutzers:',
+		...categories.map((category) => `- ${category.id}: ${category.name}`),
+		'',
+		'Gib genau diese Felder zurück:',
+		'- "text" (optional): der Suchbegriff OHNE den Kategorie-Anteil und ohne Füllwörter wie „zeig mir", „alle", „offene". Nennt die Anfrage nur eine Kategorie, lasse das Feld weg.',
+		'- "categoryId" (optional): ID genau EINER Kategorie aus der Liste, wenn die Anfrage sie meint. Im Zweifel weglassen; niemals eine ID erfinden.',
+		'',
+		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+		'{ "text": <string?>, "categoryId": <zahl?> }',
+	].join('\n');
+
+/**
+ * Liest die Suchanfrage-Zerlegung defensiv aus der Modell-Antwort. Anders als beim Task-Parsing
+ * gibt es kein Pflichtfeld: Ein leeres Ergebnis ist gültig (die Suche filtert dann nicht) und darf
+ * nicht als Upstream-Fehler durchschlagen.
+ */
+const extractParsedSearch = (parsed: unknown, categories: CategoryOption[] = []): ParsedSearch => {
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
+	}
+	const raw = parsed as Record<string, unknown>;
+	const result: ParsedSearch = {};
+	if (typeof raw.text === 'string' && raw.text.trim() !== '') {
+		result.text = raw.text.trim();
+	}
+	const categoryId = extractCategoryId(raw.categoryId, categories);
+	if (categoryId !== undefined) {
+		result.categoryId = categoryId;
+	}
+	return result;
+};
+
+/** Realer Suchanfragen-Parser (Muster {@link parseTaskTextWithMistral}). */
+export const parseSearchQueryWithMistral: ParseSearchParser = async (text, provider, categories = []) => {
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: buildParseSearchSystemPrompt(categories) },
+			{ role: 'user', content: text },
+		],
+		provider,
+	);
+	return extractParsedSearch(parsed, categories);
 };
 
 /** Ein Vorschlag des Aktivitäten-Beraters: Aktivität, Begründung und die Säulen, auf die sie einzahlt. */

@@ -1,6 +1,6 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
 import { KolTableStateful, KolToolbar } from '@public-ui/react-v19';
-import type { Pillar, Task } from 'client';
+import type { Category, Pillar, Task } from 'client';
 import { TaskStatus } from 'client';
 import { memo, useState } from 'react';
 import { api } from '../api';
@@ -8,11 +8,14 @@ import { toApiError } from '../lib/apiError';
 import { useDesktopViewport } from '../lib/desktopViewport';
 import { getTaskPillarPoints } from '../lib/pillar';
 import { renderIntoCell } from '../lib/reactCellRoot';
+import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
 
 interface CompletedTasksTableProps {
 	tasks: Task[];
 	pillars: Pillar[];
+	/** Kategorien des Nutzers — löst die `categoryId` einer Aufgabe zum Badge in der Titel-Zelle auf. */
+	categories?: Category[];
 	/**
 	 * IDs aller Aufgaben, die aktuell im Aufgabenwald angezeigt werden. Frisch per Toggle erledigte
 	 * Aufgaben (#315) bleiben bis zum nächsten Reload im (dann veralteten) Wald „sticky" sichtbar —
@@ -77,7 +80,7 @@ interface DoneTaskRow extends KoliBriTableDataType {
  * Tabelle hat keine Spalten, die es einzupinnen lohnte.
  */
 export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
-	const { tasks, pillars, forestTaskIds, onReloaded } = props;
+	const { tasks, pillars, categories = [], forestTaskIds, onReloaded } = props;
 	const isDesktop = useDesktopViewport();
 	const [reopeningId, setReopeningId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -132,6 +135,7 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 							domNode,
 							<span className="done-title-cell">
 								{task.title}
+								<CategoryBadge category={categories.find((category) => category.id === task.categoryId)} />
 								{(task.latitude != null || task.address != null) && (
 									<GeoBadge
 										latitude={task.latitude ?? null}

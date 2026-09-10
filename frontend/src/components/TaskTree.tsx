@@ -1,8 +1,9 @@
 import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
-import type { Task, TaskTreeNode } from 'client';
+import type { Category, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
+import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
 import { priorityBadge } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
@@ -20,6 +21,8 @@ interface TaskTreeProps {
 	 * für mich) von selbst angelegten Aufgaben. `null`, wenn unbekannt — dann kein Ersteller-Hinweis.
 	 */
 	userId?: number | null;
+	/** Kategorien des Nutzers — löst die `categoryId` einer Aufgabe zum Badge auf. */
+	categories?: Category[];
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -39,6 +42,8 @@ interface LeafItemProps {
 	taskById: Map<number, Task>;
 	progressMap: Map<number, { done: number; total: number }>;
 	userId: number | null;
+	/** Kategorien des Nutzers — löst die `categoryId` der Aufgabe zum Badge auf. */
+	categories: Category[];
 	/** Virtuelle Balance-Priorität dieses Tasks; `null` → Original-P-Badge. */
 	balancePriority?: BalancePriority | null;
 	onEdit: (task: Task) => void;
@@ -65,6 +70,7 @@ const LeafItem = ({
 	taskById,
 	progressMap,
 	userId,
+	categories,
 	balancePriority,
 	onEdit,
 	onDelete,
@@ -131,6 +137,7 @@ const LeafItem = ({
 								className="task-tree-badge task-tree-badge--provenance"
 							/>
 						)}
+						<CategoryBadge category={categories.find((category) => category.id === node.categoryId)} />
 						{task !== null && task.seriesId != null && (
 							<KolBadge _label="Serie" _color="#005b99" className="task-tree-badge" />
 						)}
@@ -259,6 +266,7 @@ export const TaskTree = ({
 	onEditDependencies,
 	onAddSubtask,
 	onDoneToggle,
+	categories = [],
 	balancePriorities = null,
 }: TaskTreeProps) => {
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
@@ -288,6 +296,7 @@ export const TaskTree = ({
 					taskById={taskById}
 					progressMap={progressMap}
 					userId={userId}
+					categories={categories}
 					balancePriority={balancePriorities?.get(node.id) ?? null}
 					onEdit={onEdit}
 					onDelete={onDelete}
