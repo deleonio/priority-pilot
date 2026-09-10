@@ -344,9 +344,22 @@ body {
  * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität und die sechs
  * icon-only Kopf-Aktionen bereits ausgereizt — der Name ist von allen Elementen das einzige rein
  * dekorative und weicht daher zuerst.
+ *
+ * #1320: Bis 64rem weicht der Name als `.visually-hidden`-Rezept statt per `display: none` — er
+ * bleibt damit im Accessibility-Baum, während er aus dem Layoutfluss verschwindet (absolut
+ * positioniert, 1px, geclippt) und die Kopfzeile unverändert einzeilig bleibt. Grund: Seit
+ * Einstellungen und Hilfe im App-Layout stecken, ist der Header die einzige Stelle, die die
+ * Wortmarke trägt — vorher brachte die Einstellungen-Seite sie als eigene Überschrift mit.
  */
 .app-name {
-	display: none;
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	border: 0;
 	/*
 	 * Die Wortmarke trägt als gesperrte Versalie: sie bleibt als ruhige Signatur lesbar, ohne mit
 	 * den Kopf-Aktionen um Aufmerksamkeit zu konkurrieren — der Header ist Werkzeugleiste, nicht
@@ -362,7 +375,12 @@ body {
 
 @media (min-width: 64rem) {
 	.app-name {
-		display: inline;
+		position: static;
+		width: auto;
+		height: auto;
+		margin: 0;
+		overflow: visible;
+		clip: auto;
 	}
 }
 
@@ -2093,19 +2111,16 @@ body {
 }
 
 /* --- Hilfe-Seite (#256) --- */
-/* Eigenständiger Seiten-Container (ersetzt `.app`, s. App.tsx) — braucht die Safe-Area-Ränder daher selbst. */
+/* #1320: Seiteninhalt INNERHALB der App-Shell (`.app`) statt eigenständiger Seiten-Container —
+   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite, Abstand zum Header
+   (Muster `.dashboard`/`.task-section`) und der Overflow-Schutz für lange Markdown-Inhalte. */
 .help-page {
 	max-width: 800px;
-	margin: 0 auto;
-	padding: calc(1rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
-		calc(1rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+	margin: var(--pp-gap-major) auto 0;
 	box-sizing: border-box;
 	width: 100%;
+	min-width: 0;
 	overflow-x: hidden;
-}
-
-.help-page-header {
-	margin-bottom: 1.5rem;
 }
 
 .help-page-loading {
@@ -2119,9 +2134,11 @@ body {
 	word-break: break-word;
 }
 
-.help-page-content h1,
+/* #1320: Die Markdown-Überschriften des Handbuchs rendern eine Ebene tiefer (h1→h2 …), damit die
+   Seite nur die eine App-`<h1>` führt — der Abstands-Rhythmus gilt jetzt für h2 bis h4. */
 .help-page-content h2,
-.help-page-content h3 {
+.help-page-content h3,
+.help-page-content h4 {
 	margin: 1rem 0 0.5rem;
 }
 
@@ -2166,29 +2183,16 @@ body {
 }
 
 /* --- Einstellungen-Seite (#271) --- */
-/* Eigenständiger Seiten-Container (ersetzt `.app`, s. App.tsx) — braucht die Safe-Area-Ränder daher selbst. */
+/* #1320: Seiteninhalt INNERHALB der App-Shell (`.app`) statt eigenständiger Seiten-Container —
+   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite, Abstand zum Header
+   (Muster `.dashboard`/`.task-section`) und der Overflow-Schutz (s. `.pillar-weights-grid`). */
 .settings-page {
 	max-width: 800px;
-	margin: 0 auto;
-	padding: calc(1rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
-		calc(1rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+	margin: var(--pp-gap-major) auto 0;
 	box-sizing: border-box;
 	width: 100%;
+	min-width: 0;
 	overflow-x: hidden;
-}
-
-.settings-page-header {
-	display: flex;
-	align-items: center;
-	gap: var(--pp-gap-base);
-	margin-bottom: var(--pp-gap-base);
-	flex-wrap: wrap;
-}
-
-/* Der Kopf trägt bereits 16dp Abstand nach unten — zusammen mit den vorherigen 24dp hier standen
-   48px toter Raum über der Tab-Leiste (bei 375px ein Achtel der Höhe). Ein Token-Schritt reicht. */
-.settings-tabs {
-	margin-top: var(--pp-gap-tight);
 }
 
 /*

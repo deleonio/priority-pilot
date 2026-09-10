@@ -63,9 +63,10 @@ vi.mock('../lib/voiceAutostart', () => ({ useVoiceAutostart: () => ({}) }));
 vi.mock('../lib/useShadowDOMLayout', () => ({ useShadowDOMLayout: () => ({}) }));
 vi.mock('../lib/micPermission', () => ({ requestMicrophonePermission: vi.fn() }));
 
+// #1320: `onBack` entfällt — der „Zurück"-Button der Seite ist weg, der Rückweg läuft über den
+// aktiven Toolbar-Button im App-Header.
 const defaultProps = {
 	pillars: [],
-	onBack: vi.fn(),
 	onSaved: vi.fn(),
 };
 

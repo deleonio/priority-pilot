@@ -3,7 +3,6 @@ import {
 	KolAlert,
 	KolButton,
 	KolCard,
-	KolHeading,
 	KolInputCheckbox,
 	KolInputRange,
 	KolInputText,
@@ -36,7 +35,6 @@ interface SettingsPageProps {
 	tab?: number;
 	/** #1105: Tab-Wechsel → App navigiert auf `/settings/:tab` (URL ist die Quelle). */
 	onTabChange?: (tab: number) => void;
-	onBack: () => void;
 	onSaved: () => void;
 	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
 	onPillarChanged?: () => void;
@@ -89,7 +87,6 @@ export const SettingsPage = ({
 	pillars,
 	tab,
 	onTabChange,
-	onBack,
 	onSaved,
 	onPillarChanged,
 	isAdmin = false,
@@ -309,17 +306,10 @@ export const SettingsPage = ({
 	const geoDisabled = toKolibriDisabled(geoEnabled ? undefined : 'true');
 
 	return (
-		<main className="settings-page">
-			<header className="settings-page-header">
-				<KolButton
-					_label="Zurück"
-					_icons={{ left: { icon: 'fa-solid fa-arrow-left' } }}
-					_variant="secondary"
-					_on={{ onClick: onBack }}
-				/>
-				<KolHeading _label="Priority Pilot" _level={1} />
-			</header>
-
+		// #1320: Seiteninhalt INNERHALB der App-Shell — kein eigenes `<main>` und keine eigene `<h1>`
+		// mehr (beides trägt seit #1320 das App-Layout, AK7), und kein „Zurück"-Button (AK3): Header
+		// und Kopf-Aktionen bleiben sichtbar, der Rückweg läuft über den aktiven Toolbar-Button.
+		<div className="settings-page">
 			<KolTabs
 				className="settings-tabs"
 				_label="Einstellungen"
@@ -760,6 +750,6 @@ export const SettingsPage = ({
 					</div>
 				)}
 			</KolTabs>
-		</main>
+		</div>
 	);
 };
