@@ -11,6 +11,9 @@ import { findMcpTool, mcpTools, type McpToolContext } from './tools.js';
  *
  * Unterstützte Methoden: `initialize`, `tools/list`, `tools/call` (plus stille Quittung für
  * Notifications ohne `id`). Der Body ist bereits von `express.json()` geparst.
+ *
+ * GET antwortet gemäß Streamable-HTTP-Spec mit 405 (`Allow: POST`), da es keinen SSE-Strom gibt;
+ * DELETE bleibt unbedient, weil nie eine `Mcp-Session-Id` vergeben wird (kein Grund zu terminieren).
  */
 
 /** Protokollversion, die der Server beim `initialize` meldet. */
@@ -107,4 +110,9 @@ mcpRouter.post('/mcp/v1', async (req: Request, res: Response) => {
 			error instanceof Error ? error.message : 'Werkzeugaufruf fehlgeschlagen.',
 		);
 	}
+});
+
+mcpRouter.get('/mcp/v1', (_req: Request, res: Response) => {
+	res.set('Allow', 'POST');
+	res.status(405).end();
 });

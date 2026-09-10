@@ -7,6 +7,7 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
  *
  * AK1: gültiger Bearer-Token → Verbindungsaufbau liefert eine Werkzeugliste.
  * AK2: kein/unbekannter/zurückgezogener Token → 401, kein Werkzeug aufrufbar.
+ * Zusätzlich: GET /mcp/v1 → 405 mit `Allow: POST` (Streamable HTTP ohne SSE-Strom, ADR 0012).
  *
  * Rot, bis `/mcp/v1` existiert (heute: Route fehlt komplett, 404). KEIN Produktivcode.
  */
@@ -96,5 +97,17 @@ describe('MCP-Endpunkt /mcp/v1 — Auth (#1353 AK1/AK2)', () => {
 		]) {
 			assert.ok(names.includes(expected), `erwartete Werkzeug "${expected}" in ${JSON.stringify(names)}`);
 		}
+	});
+
+	it('GET /mcp/v1 antwortet mit 405 und Allow: POST (Streamable HTTP ohne SSE-Strom)', async () => {
+		const cookie = await server.register('mcp-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const res = await fetch(`${server.baseUrl}/mcp/v1`, {
+			method: 'GET',
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		assert.equal(res.status, 405);
+		assert.equal(res.headers.get('allow'), 'POST');
 	});
 });
