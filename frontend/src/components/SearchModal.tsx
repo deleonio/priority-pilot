@@ -72,7 +72,8 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 		setParsing(true);
 		try {
 			const parsed = await api.parseSearch({ text: query });
-			onSearch(parsed.text?.trim() ?? '', parsed.categoryId ?? categoryId);
+			const parsedText = parsed.text?.trim();
+			onSearch(parsedText || query, parsed.categoryId ?? categoryId);
 			onClose();
 		} catch {
 			// Kontrollierte Degradation: Ohne Zerlegung wird mit dem gesprochenen Text gesucht.

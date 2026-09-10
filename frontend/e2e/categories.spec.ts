@@ -20,8 +20,8 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		for (const task of tasks.filter((entry) => entry.title.startsWith('E2E-Kat-'))) {
 			await page.request.delete(`/api/v1/tasks/${task.id}`);
 		}
-		const categories = (await (await page.request.get('/api/v1/categories')).json()) as { id: number }[];
-		for (const category of categories) {
+		const categories = (await (await page.request.get('/api/v1/categories')).json()) as { id: number; name: string }[];
+		for (const category of categories.filter((entry) => entry.name.startsWith('E2E-Kat-'))) {
 			await page.request.delete(`/api/v1/categories/${category.id}`);
 		}
 	};

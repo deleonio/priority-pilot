@@ -489,6 +489,7 @@ const categoryPromptLines = (categories: CategoryOption[]): string[] =>
 	categories.length === 0
 		? []
 		: [
+				'',
 				'Kategorien des Nutzers (thematische Ordnung, NICHT die Lebensbereiche):',
 				...categories.map((category) => `- ${category.id}: ${category.name}`),
 				'- "categoryId" (optional): ID genau EINER dieser Kategorien, wenn der Text thematisch eindeutig dorthin gehört. Im Zweifel weglassen; niemals eine ID erfinden.',
@@ -526,7 +527,6 @@ const buildParseTaskSystemPrompt = (now: Date = new Date(), categories: Category
 		'- "isSeries" (optional): true, wenn der Text einen wiederkehrenden Termin beschreibt („jeden Montag", „monatlich"), sonst weglassen.',
 		'- "address" (optional): im Text genannte Ortsangabe als Adresstext.',
 		`- "checklist" (optional): Array der im Text aufgezählten Einzelpunkte als kurze Strings (je höchstens ${PARSED_CHECKLIST_ITEM_MAX_LENGTH} Zeichen).`,
-		'',
 		...categoryPromptLines(categories),
 		'',
 		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
