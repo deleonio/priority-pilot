@@ -3,12 +3,14 @@
 		"dashboard": "Dashboard",
 		"tasks": "Aufgaben",
 		"series": "Serien",
-		"forest": "Wald"
+		"forest": "Wald",
+		"ariaLabel": "Ansichten"
 	},
 	"menu": {
 		"settings": "Einstellungen",
 		"help": "Hilfe",
-		"profile": "Profil",
-		"logout": "Abmelden"
+		"logout": "Abmelden",
+		"headerActions": "Kopf-Aktionen",
+		"activeViewDescription": "Aktuelle Ansicht — erneut betätigen führt zurück"
 	}
 }

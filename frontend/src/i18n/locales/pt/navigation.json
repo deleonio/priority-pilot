@@ -3,12 +3,14 @@
 		"dashboard": "Painel",
 		"tasks": "Tarefas",
 		"series": "Séries",
-		"forest": "Floresta"
+		"forest": "Floresta",
+		"ariaLabel": "Visualizações"
 	},
 	"menu": {
 		"settings": "Configurações",
 		"help": "Ajuda",
-		"profile": "Perfil",
-		"logout": "Sair"
+		"logout": "Sair",
+		"headerActions": "Ações do cabeçalho",
+		"activeViewDescription": "Vista atual — ative novamente para voltar"
 	}
 }

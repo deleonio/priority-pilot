@@ -3,12 +3,14 @@
 		"dashboard": "Panel",
 		"tasks": "Tareas",
 		"series": "Series",
-		"forest": "Bosque"
+		"forest": "Bosque",
+		"ariaLabel": "Vistas"
 	},
 	"menu": {
 		"settings": "Configuración",
 		"help": "Ayuda",
-		"profile": "Perfil",
-		"logout": "Cerrar sesión"
+		"logout": "Cerrar sesión",
+		"headerActions": "Acciones de cabecera",
+		"activeViewDescription": "Vista actual: actívela de nuevo para volver"
 	}
 }

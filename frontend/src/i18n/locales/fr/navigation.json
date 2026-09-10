@@ -3,12 +3,14 @@
 		"dashboard": "Tableau de bord",
 		"tasks": "Tâches",
 		"series": "Séries",
-		"forest": "Forêt"
+		"forest": "Forêt",
+		"ariaLabel": "Vues"
 	},
 	"menu": {
 		"settings": "Paramètres",
 		"help": "Aide",
-		"profile": "Profil",
-		"logout": "Déconnexion"
+		"logout": "Déconnexion",
+		"headerActions": "Actions d'en-tête",
+		"activeViewDescription": "Vue actuelle — activer de nouveau pour revenir"
 	}
 }

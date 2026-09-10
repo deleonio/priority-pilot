@@ -3,12 +3,14 @@
 		"dashboard": "Панель",
 		"tasks": "Задачи",
 		"series": "Серии",
-		"forest": "Лес"
+		"forest": "Лес",
+		"ariaLabel": "Представления"
 	},
 	"menu": {
 		"settings": "Параметры",
 		"help": "Справка",
-		"profile": "Профиль",
-		"logout": "Выход"
+		"logout": "Выход",
+		"headerActions": "Действия в шапке",
+		"activeViewDescription": "Текущий вид — нажмите ещё раз, чтобы вернуться"
 	}
 }

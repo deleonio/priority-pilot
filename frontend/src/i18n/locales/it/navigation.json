@@ -3,12 +3,14 @@
 		"dashboard": "Pannello",
 		"tasks": "Attività",
 		"series": "Serie",
-		"forest": "Foresta"
+		"forest": "Foresta",
+		"ariaLabel": "Viste"
 	},
 	"menu": {
 		"settings": "Impostazioni",
 		"help": "Aiuto",
-		"profile": "Profilo",
-		"logout": "Esci"
+		"logout": "Esci",
+		"headerActions": "Azioni dell'intestazione",
+		"activeViewDescription": "Vista corrente — premi di nuovo per tornare indietro"
 	}
 }

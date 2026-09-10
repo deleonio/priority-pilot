@@ -3,12 +3,14 @@
 		"dashboard": "Dashboard",
 		"tasks": "Taken",
 		"series": "Series",
-		"forest": "Bos"
+		"forest": "Bos",
+		"ariaLabel": "Weergaven"
 	},
 	"menu": {
 		"settings": "Instellingen",
 		"help": "Help",
-		"profile": "Profiel",
-		"logout": "Afmelden"
+		"logout": "Afmelden",
+		"headerActions": "Koptekstacties",
+		"activeViewDescription": "Huidige weergave — opnieuw activeren om terug te gaan"
 	}
 }

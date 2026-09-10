@@ -2,6 +2,7 @@ import { KolSingleSelect } from '@public-ui/react-v19';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES } from '../i18n/config';
+import { readString } from '../lib/inputValue';
 
 /**
  * Sprachauswahl für den Einstellungen-Tab „Allgemein" (#1339).
@@ -29,11 +30,7 @@ export const LanguageSetting = () => {
 			_options={options}
 			_value={i18n.resolvedLanguage ?? i18n.language}
 			_on={{
-				onChange: (_event, value) => {
-					if (typeof value === 'string') {
-						void i18n.changeLanguage(value);
-					}
-				},
+				onChange: (_event, value) => void i18n.changeLanguage(readString(value)),
 			}}
 		/>
 	);

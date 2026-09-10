@@ -96,7 +96,6 @@ const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 // die Kopf-Aktionen sind app-weit über ihn adressiert.
 const ACTIVE_VARIANT = 'primary' as const;
 const INACTIVE_VARIANT = 'secondary' as const;
-const ACTIVE_VIEW_DESCRIPTION = 'Aktuelle Ansicht — erneut betätigen führt zurück';
 
 /**
  * Ist-Verteilung für die Balance-Priorisierung — erledigter `estimatedEffort` je Säule, anteilig
@@ -682,25 +681,25 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				: []),
 			{
 				type: 'button' as const,
-				_label: 'Einstellungen',
+				_label: t('menu.settings'),
 				_hideLabel: true,
 				_icons: SETTINGS_ICON,
 				_variant: showSettings ? ACTIVE_VARIANT : INACTIVE_VARIANT,
-				...(showSettings ? { _ariaDescription: ACTIVE_VIEW_DESCRIPTION } : {}),
+				...(showSettings ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: toggleSettings },
 			},
 			{
 				type: 'button' as const,
-				_label: 'Hilfe',
+				_label: t('menu.help'),
 				_hideLabel: true,
 				_icons: HELP_ICON,
 				_variant: showHelp ? ACTIVE_VARIANT : INACTIVE_VARIANT,
-				...(showHelp ? { _ariaDescription: ACTIVE_VIEW_DESCRIPTION } : {}),
+				...(showHelp ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: toggleHelp },
 			},
 			{
 				type: 'button' as const,
-				_label: 'Abmelden',
+				_label: t('menu.logout'),
 				_hideLabel: true,
 				_icons: LOGOUT_ICON,
 				_variant: 'secondary' as const,
@@ -719,6 +718,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		aiEnabled,
 		showSettings,
 		showHelp,
+		t,
 	]);
 
 	// #1320: Einstellungen und Hilfe sind normale Seiten der App — kein früher Return mehr vor dem
@@ -749,7 +749,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
 					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
 					 */}
-					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
+					<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
 				</div>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
 				<div className="app-header__user">
@@ -812,7 +812,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					)}
 
 					{tasks !== null && (
-						<KolTabs className="app-tabs" _label="Ansichten" _tabs={viewTabs} _selected={activeTab} _on={tabsCallbacks}>
+						<KolTabs
+							className="app-tabs"
+							_label={t('tabs.ariaLabel')}
+							_tabs={viewTabs}
+							_selected={activeTab}
+							_on={tabsCallbacks}
+						>
 							<div slot="tab-0">
 								<Dashboard
 									tasks={tasks}

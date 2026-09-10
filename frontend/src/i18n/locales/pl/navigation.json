@@ -3,12 +3,14 @@
 		"dashboard": "Pulpit",
 		"tasks": "Zadania",
 		"series": "Serie",
-		"forest": "Las"
+		"forest": "Las",
+		"ariaLabel": "Widoki"
 	},
 	"menu": {
 		"settings": "Ustawienia",
 		"help": "Pomoc",
-		"profile": "Profil",
-		"logout": "Wyloguj się"
+		"logout": "Wyloguj się",
+		"headerActions": "Akcje nagłówka",
+		"activeViewDescription": "Bieżący widok — naciśnij ponownie, aby wrócić"
 	}
 }

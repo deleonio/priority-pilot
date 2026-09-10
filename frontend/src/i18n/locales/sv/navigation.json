@@ -3,12 +3,14 @@
 		"dashboard": "Instrumentbräda",
 		"tasks": "Uppgifter",
 		"series": "Serier",
-		"forest": "Skog"
+		"forest": "Skog",
+		"ariaLabel": "Vyer"
 	},
 	"menu": {
 		"settings": "Inställningar",
 		"help": "Hjälp",
-		"profile": "Profil",
-		"logout": "Logga ut"
+		"logout": "Logga ut",
+		"headerActions": "Sidhuvudsåtgärder",
+		"activeViewDescription": "Aktuell vy — aktivera igen för att gå tillbaka"
 	}
 }
