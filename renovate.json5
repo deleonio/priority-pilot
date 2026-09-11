@@ -112,6 +112,17 @@
 			groupName: 'GitHub Actions',
 		},
 		{
+			// Playwright npm-Paket und E2E-Docker-Image MÜSSEN synchron bleiben (s. Kommentar
+			// "ACHTUNG" in .github/workflows/verify.yml beim e2e-Job): der Container ist auf eine
+			// feste Tag-Version gepinnt, die zur @playwright/test-Version passen muss, sonst fehlt
+			// im Container das passende Browser-Binary und ALLE E2E-Shards schlagen fehl
+			// ("browserType.launch: Executable doesn't exist"). Ohne diese Regel landen beide
+			// Updates in getrennten Gruppen (devDependencies bzw. GitHub Actions) und blockieren
+			// sich gegenseitig, weil automerge nur bei komplett grünen Checks greift.
+			matchPackageNames: ['@playwright/test', 'mcr.microsoft.com/playwright'],
+			groupName: 'playwright (npm + docker image)',
+		},
+		{
 			// Node/pnpm-Engines nur als eigener PR (potenziell breaking).
 			matchPackageNames: ['node', 'pnpm'],
 			matchDepTypes: ['engines', 'packageManager'],
