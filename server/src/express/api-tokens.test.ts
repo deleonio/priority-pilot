@@ -13,20 +13,39 @@ import sequelize from '../database.js';
  * Rot, bis das Modell `ApiToken` und der Router existieren (heute: 404/SPA-Fallback bzw. Modul
  * fehlt — legitimer roter Ausgangszustand für neue Funktionalität). KEIN Produktivcode.
  * Muster: geo-config.test.ts (Pro-User-Ressource hinter requireAuth).
+ *
+ * Ergänzung #1357 (Spec docs/spec/issue-1357.md, Pflicht-Ablaufdatum): `createToken()` schickt ab
+ * hier immer ein gültiges `expiresInDays` mit (Test-Pflege — nach AK1 lehnt der Server einen Request
+ * ohne dieses Feld ab, die bestehenden #1352/#1356-Tests wollen aber weiterhin erfolgreich anlegen).
+ * Die neuen AK1–AK3-Fälle unten prüfen die Validierung/Berechnung selbst.
  */
 
 applyTestAuthEnv('api-tokens-test');
 
-type CreatedToken = { id: number; name: string; token: string; createdAt: string; lastUsedAt: null };
-type ListedToken = { id: number; name: string; createdAt: string; lastUsedAt: string | null };
+type CreatedToken = {
+	id: number;
+	name: string;
+	token: string;
+	createdAt: string;
+	lastUsedAt: null;
+	expiresAt: string;
+};
+type ListedToken = { id: number; name: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null };
 
 let server: TestServer;
 
-const createToken = (cookie: string, name: string): Promise<Response> =>
+/** Gültige Standard-Laufzeit für Tests, die sich nicht selbst mit `expiresInDays` befassen (#1357). */
+const DEFAULT_EXPIRES_IN_DAYS = 365;
+
+const createToken = (
+	cookie: string,
+	name: string,
+	expiresInDays: unknown = DEFAULT_EXPIRES_IN_DAYS,
+): Promise<Response> =>
 	server.json('/api-tokens', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name }),
+		body: JSON.stringify({ name, expiresInDays }),
 	});
 
 const listTokens = (cookie: string): Promise<Response> => server.json('/api-tokens', { headers: { Cookie: cookie } });
@@ -200,5 +219,64 @@ describe('Persönliche API-Tokens — Verwaltung (#1352 AK1/AK2/AK4)', () => {
 			'read',
 			'der PATCH-Versuch eines fremden Nutzers darf den Wert nicht ändern',
 		);
+	});
+});
+
+describe('Persönliche API-Tokens — Pflicht-Ablaufdatum (#1357 AK1/AK2/AK3)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: POST ohne expiresInDays liefert 400, es wird kein Token angelegt', async () => {
+		const cookie = await server.register('token-expiry-missing@example.com', 'password123');
+		const res = await server.json('/api-tokens', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ name: 'Ohne Laufzeit' }),
+		});
+		assert.equal(res.status, 400);
+		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		assert.equal(list.length, 0, 'ein 400 wegen fehlender Laufzeit darf keine Zeile hinterlassen');
+	});
+
+	it('AK1: POST mit expiresInDays außerhalb der Whitelist (400) liefert 400, es wird kein Token angelegt', async () => {
+		const cookie = await server.register('token-expiry-oob@example.com', 'password123');
+		const res = await createToken(cookie, 'Zu lange Laufzeit', 400);
+		assert.equal(res.status, 400, 'Höchstlaufzeit ist 365 Tage (12 Monate)');
+		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		assert.equal(list.length, 0);
+	});
+
+	it('AK2: POST mit expiresInDays: 365 legt einen Token an, dessen expiresAt ~365 Tage in der Zukunft liegt', async () => {
+		const cookie = await server.register('token-expiry-365@example.com', 'password123');
+		const before = Date.now();
+		const created = (await (await createToken(cookie, 'Ein Jahr gültig', 365)).json()) as CreatedToken;
+
+		assert.equal(typeof created.expiresAt, 'string', 'Antwort muss expiresAt enthalten');
+		const expiresAtMs = new Date(created.expiresAt).getTime();
+		const expectedMs = before + 365 * 24 * 60 * 60 * 1000;
+		const oneDayMs = 24 * 60 * 60 * 1000;
+		assert.ok(
+			Math.abs(expiresAtMs - expectedMs) <= oneDayMs,
+			`expiresAt (${created.expiresAt}) muss tagesgenau ~365 Tage in der Zukunft liegen`,
+		);
+	});
+
+	it('AK3: GET /api-tokens liefert je Token expiresAt (ISO-8601)', async () => {
+		const cookie = await server.register('token-expiry-get@example.com', 'password123');
+		const created = (await (await createToken(cookie, 'Mit Ablaufdatum', 90)).json()) as CreatedToken;
+
+		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		const listed = list.find((entry) => entry.id === created.id);
+		assert.ok(listed, 'Token muss in der Liste stehen');
+		assert.equal(typeof listed!.expiresAt, 'string', 'GET muss expiresAt je Token mitliefern');
+		assert.equal(listed!.expiresAt, created.expiresAt, 'GET muss denselben Wert wie POST liefern');
 	});
 });

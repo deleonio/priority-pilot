@@ -942,8 +942,14 @@ export const api = {
 	},
 
 	// Legt einen Token an; der Klartext steckt ausschließlich in dieser einen Antwort.
-	async createApiToken({ name }: { name: string }): Promise<CreatedApiToken> {
-		const { data, error, response } = await client.POST('/api-tokens', { body: { name } });
+	async createApiToken({
+		name,
+		expiresInDays,
+	}: {
+		name: string;
+		expiresInDays: 30 | 90 | 180 | 365;
+	}): Promise<CreatedApiToken> {
+		const { data, error, response } = await client.POST('/api-tokens', { body: { name, expiresInDays } });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

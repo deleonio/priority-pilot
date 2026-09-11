@@ -1,6 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import { ApiToken } from '../models/index.js';
 
 /**
  * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — Bearer-Auth neben Session.
@@ -12,6 +13,11 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
  *
  * Rot, bis die Bearer-Middleware existiert (heute: Bearer-Header wirkungslos, Requests bleiben
  * bei 401 hängen). KEIN Produktivcode.
+ *
+ * Ergänzung #1357 (Spec docs/spec/issue-1357.md, Pflicht-Ablaufdatum): `createToken()` schickt ab
+ * hier immer ein gültiges `expiresInDays` mit (Test-Pflege, Präzedenz api-tokens.test.ts). Die neuen
+ * AK4/AK5-Fälle unten prüfen das Ablaufverhalten selbst über einen direkt in die DB geschriebenen
+ * `expiresAt`-Wert (die Route legt bislang keinen kurzlebigen Token an).
  */
 
 process.env.GOOGLE_ALLOWED_EMAILS =
@@ -26,7 +32,7 @@ const createToken = async (cookie: string, name = 'CLI'): Promise<CreatedToken> 
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name }),
+		body: JSON.stringify({ name, expiresInDays: 365 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
 	return (await res.json()) as CreatedToken;
@@ -241,5 +247,43 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 
 		const res = await fetch(`${server.baseUrl}/api-tokens/`, { headers: { Authorization: `Bearer ${token}` } });
 		assert.equal(res.status, 403);
+	});
+});
+
+describe('Bearer-Token-Auth — Pflicht-Ablaufdatum (#1357 AK4/AK5)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK4: ein Token mit expiresAt in der Vergangenheit liefert 401 auf einer geschützten Route, lastUsedAt bleibt null', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000) });
+
+		const res = await withBearer(token);
+		assert.equal(res.status, 401, 'ein abgelaufener Token darf keinen Zugriff mehr gewähren');
+
+		const afterRecord = await ApiToken.findByPk(id);
+		assert.equal(afterRecord!.get('lastUsedAt'), null, 'ein abgewiesener Request darf lastUsedAt nicht setzen');
+	});
+
+	it('AK5: derselbe Token vor seinem Ablaufdatum liefert weiterhin 200', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
+
+		const res = await withBearer(token);
+		assert.equal(res.status, 200, 'ein noch gültiger Token darf weiterhin Zugriff gewähren');
 	});
 });

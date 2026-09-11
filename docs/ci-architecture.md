@@ -676,6 +676,17 @@ erscheinen kategorisiert (Breaking/Features/Fixes/Improvements/Engineering); Bot
 `exclude.authors` **und** `release:ignore` doppelt ausgeschlossen. Der Release-Schritt ist
 best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
 
+Direkt danach regeneriert [`changelog-render.sh`](../.github/scripts/changelog-render.sh)
+(#1372) die Root-`CHANGELOG.md` komplett aus **allen** GitHub-Releases (`gh api --paginate`):
+je Release ein `## v<Version> - <Datum>`-Abschnitt, darin `###`-Untergruppen in der
+Reihenfolge von `.github/release.yml` (keine zweite Kategorieliste — anders als
+[`frontend/src/lib/changelog.ts`](../frontend/src/lib/changelog.ts) aus #1206, das dieselben
+Bodys je Kategorie über alle Versionen aggregiert statt je Version, für den In-App-Tab). Die
+Datei wird bei jedem Lauf vollständig neu erzeugt und ist damit idempotent — ohne neue
+Releases bleibt sie byte-identisch. Auch dieser Schritt ist best-effort (`::warning` + Exit 0)
+und committet nur bei tatsächlicher Änderung, mit `[skip ci]` + `--no-verify` aus demselben
+Grund wie der Patch-Bump-Commit.
+
 ## Aufrufpfade der Kreuzverhör-Workflows
 
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",

@@ -21,7 +21,7 @@ const createToken = async (cookie: string, name = 'MCP-Client'): Promise<string>
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name }),
+		body: JSON.stringify({ name, expiresInDays: 365 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
 	return ((await res.json()) as { token: string }).token;
@@ -65,7 +65,7 @@ describe('MCP-Endpunkt /mcp/v1 — Auth (#1353 AK1/AK2)', () => {
 		const tokenRes = await server.json('/api-tokens', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie },
-			body: JSON.stringify({ name: 'Wird zurückgezogen' }),
+			body: JSON.stringify({ name: 'Wird zurückgezogen', expiresInDays: 365 }),
 		});
 		const created = (await tokenRes.json()) as { id: number; token: string };
 		const revokeRes = await server.json(`/api-tokens/${created.id}`, {
