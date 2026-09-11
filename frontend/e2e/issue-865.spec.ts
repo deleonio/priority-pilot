@@ -23,7 +23,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		// `_label`/Accessible Name des Avatars (kein Text-Knoten).
 		const displayName = header.getByText('Test User', { exact: true });
 		const toolbar = header.locator('[role="toolbar"]').first();
-		const logo = header.locator('img[alt*="Priority Pilot"], .logo').first();
+		const logo = header.locator('.logo-btn img, .logo').first();
 
 		const [logoBox, buttonBox, toolbarBox] = await Promise.all([
 			logo.boundingBox(),
@@ -161,14 +161,14 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const toolbar = page.locator('[role="toolbar"]').first();
 		await expect(toolbar).toBeVisible();
 
-		// Tab-Taste drücken, um durch Toolbar zu navigieren. Der erste Toolbar-Button liegt im KoliBri-
-		// Shadow-DOM: `:focus` matcht dort zusätzlich den `kol-toolbar`-Host (Fokus-Delegation), ein
-		// barer `locator(':focus')` läuft in eine strict-mode violation — geprüft wird der Button-Scope.
-		await page.keyboard.press('Tab');
+		// Tab-Taste drücken, um in die Toolbar zu gelangen. `kol-toolbar` stellt per Roving-Tabindex
+		// nur EINEN Tab-Stop für die gesamte Toolbar bereit (#1383: der Home-Schalter ist jetzt der
+		// erste Toolbar-Button, ein zusätzlicher Logo-Button-Tab-Stop entfällt) — der Fokus wird
+		// deshalb toolbar-gescoped geprüft, nicht global.
 		await page.keyboard.press('Tab');
 
-		const focusedButton = page.locator('button:focus');
-		await expect(focusedButton, 'Nach zwei Tabs muss der Fokus auf einem Button liegen').toBeVisible();
+		const focusedButton = toolbar.locator('button:focus');
+		await expect(focusedButton, 'Nach einem Tab muss der Fokus auf einem Toolbar-Button liegen').toBeVisible();
 		expect(await focusedButton.evaluate((el) => el.tagName)).toBe('BUTTON');
 	});
 });

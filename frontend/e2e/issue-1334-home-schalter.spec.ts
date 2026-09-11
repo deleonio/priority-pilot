@@ -50,6 +50,22 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	});
 
 	/**
+	 * AK2 (Tastatur) — der Home-Schalter ist als erster Toolbar-Button auch per Tastatur (Enter)
+	 * auslösbar; mit #395 entfiel die frühere Klick-/Tastatur-Deckung am Logo ersatzlos.
+	 */
+	test('AK2: Home-Schalter navigiert per Enter-Taste zum Dashboard', async ({ page }) => {
+		await page.goto('/aufgaben');
+		await waitForStableView(page);
+
+		await homeSwitch(page).focus();
+		await page.keyboard.press('Enter');
+
+		await expect(page).toHaveURL(/\/$/);
+		const dashboardTab = page.getByRole('tab', { name: /Dashboard/i });
+		await expect(dashboardTab).toHaveAttribute('aria-selected', 'true');
+	});
+
+	/**
 	 * AK3 — Mobile-First (375px): der Home-Schalter bleibt >= 44x44 CSS-Pixel groß, die
 	 * Kopfzeile bleibt einzeilig, kein horizontaler Overflow.
 	 */

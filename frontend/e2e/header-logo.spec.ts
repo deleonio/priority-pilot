@@ -27,7 +27,7 @@ test.describe('#395 Header – Logo', () => {
 		await expect(logoImg).toBeVisible();
 
 		// Kein Button mehr am Logo — das wäre die frühere, implizite Home-Funktion.
-		await expect(header.locator('.logo-btn')).not.toHaveJSProperty('tagName', 'BUTTON');
+		await expect(header.locator('.logo-btn')).toHaveJSProperty('tagName', 'SPAN');
 	});
 
 	/**

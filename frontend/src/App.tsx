@@ -659,7 +659,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				_label: t('menu.home'),
 				_hideLabel: true,
 				_icons: HOME_ICON,
-				_variant: 'secondary' as const,
+				_variant: INACTIVE_VARIANT,
 				_on: { onClick: handleHomeNavigate },
 			},
 			{
@@ -733,7 +733,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				<div className="app-header__brand">
 					{/* Rein dekorativ: der Home-Schalter ist der erste Button der Kopf-Aktionen-Toolbar. */}
 					<span className="logo-btn">
-						<img src="/logo/logo.png" alt="Priority Pilot" />
+						<img src="/logo/logo.png" alt="" />
 					</span>
 					<span className="app-name">Priority Pilot</span>
 				</div>
