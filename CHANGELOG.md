@@ -2,6 +2,10 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.821 - 2026-09-11
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.1.820 - 2026-09-11
 
 ### Other Changes
@@ -546,6 +550,10 @@ _Keine für Nutzer sichtbaren Änderungen._
 _Keine für Nutzer sichtbaren Änderungen._
 
 ## v0.1.723 - 2026-09-06
+
+_Keine für Nutzer sichtbaren Änderungen._
+
+## v0.1.722 - 2026-09-06
 
 _Keine für Nutzer sichtbaren Änderungen._
 
@@ -1105,12 +1113,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v0.1.622 - 2026-08-29
 
 _Keine für Nutzer sichtbaren Änderungen._
-
-## v0.1.621 - 2026-08-29
-
-### Other Changes
-
-- feat(frontend): server-side geo config, alarm distance, interval (#1098) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1103
 
 ## v0.1.621 - 2026-08-29
 
@@ -3044,3 +3046,4 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
+
