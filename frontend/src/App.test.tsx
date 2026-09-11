@@ -475,7 +475,10 @@ describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive 
 		render(<App user={testUser} />);
 
 		await waitFor(() => expect(screen.getByText(/Keine Aufgaben gefunden/)).toBeInTheDocument());
-		expect(document.querySelector('[data-testid="day-done"]')).not.toBeNull();
+		// Test-Pflege #1361: `DayDoneHint` lädt `letzterTag` per eigenem `api.getStreak`-Aufruf (Muster
+		// `StreakCard`) — das löst sich erst NACH dem obigen `waitFor` auf, eine synchrone Prüfung direkt
+		// danach ist eine Race. Auf den Knoten selbst warten statt auf den Filter-Leerzustand.
+		await waitFor(() => expect(document.querySelector('[data-testid="day-done"]')).not.toBeNull());
 	});
 
 	it('zeigt keinen Hinweis, solange eine offene Aufgabe existiert — auch mit aktivem Filter', async () => {

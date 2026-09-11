@@ -31,7 +31,7 @@ Reine Ableitung, keine Netzwerk-/Zeit-Zugriffe (`heuteTag` und `letzterTag` werd
 
 - Eigenständige Komponente (Muster `StreakCard`: lädt `api.getStreak({ tz })` selbst, keine
   Prop-Kette), erhält die aktuelle Aufgabenliste als Prop und rendert bei `istTagGeschafft(...) ===
-  true` einen Knoten `data-testid="day-done"`, sonst keinen Knoten (nicht nur versteckt — nicht im
+true` einen Knoten `data-testid="day-done"`, sonst keinen Knoten (nicht nur versteckt — nicht im
   DOM).
 - Zwei Einbauorte mit identischer Bedingung:
   - Dashboard (`Dashboard.tsx`, neben `<StreakCard />`), Bedingung wertet die volle `tasks`-Liste aus.
