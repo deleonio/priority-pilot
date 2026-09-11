@@ -5,16 +5,21 @@ name: Daily Version
 #
 # Kein PR seit dem letzten Release gemergt -> kein Bump. Erkennung ohne eigene
 # State-Datei: JEDER Merge auf main löst über deploy.yml sofort einen Patch-Bump-
-# Commit + vX.Y.Z-Tag aus. Also gilt "keine neuen Commits seit dem letzten erreichbaren
-# Tag" <=> "kein PR gemergt". `git describe --tags --abbrev=0` folgt dem Commit-Graph
-# (nicht der höchsten Versionsnummer) und ignoriert damit verwaiste/nicht mehr
-# erreichbare Alt-Tags.
+# Commit + vX.Y.Z-Tag aus. Also gilt "keine neuen releasewirksamen Commits seit dem
+# letzten erreichbaren Tag" <=> "kein PR gemergt" — Buchhaltungs-Commits wie
+# `chore(release): ...` und `chore(costs): ... versiegelt` (seal-costs.sh) landen
+# NACH dem Tag auf main, zählen aber nicht als Merge und werden deshalb aus der
+# Commit-Zählung herausgefiltert. `git describe --tags --abbrev=0` folgt dem
+# Commit-Graph (nicht der höchsten Versionsnummer) und ignoriert damit
+# verwaiste/nicht mehr erreichbare Alt-Tags.
 #
 # Cron/DST: GitHub-Crons laufen in UTC; Europe/Berlin wechselt zwischen CEST (UTC+2)
-# und CET (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab, der Job-Guard prüft die
-# tatsächliche Berliner Stunde (TZ=Europe/Berlin) und lässt nur die Feuerung laufen,
-# die auf 05:00 Berlin fällt — DST-korrekt ohne saisonale Drift (gleiches Muster wie
-# cron.resume-pipeline.yml).
+# und CET (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab, der Job-Guard öffnet ein
+# Fenster (05-07 Berlin, TZ=Europe/Berlin) statt strikter Stundengleichheit, damit ein
+# von GitHub verzögerter Lauf nicht ersatzlos ausfällt. Die Doppel-Feuerung (DST-Offset
+# UND ein verzögerter Lauf innerhalb desselben Fensters) fängt der Tages-Check im
+# Merge-Check ab (Tag-Datum == heutiges Berlin-Datum -> bereits erledigt), nicht die
+# Stunde selbst.
 #
 # App-Token noetig: Standard-GITHUB_TOKEN loest keine Folge-Workflows aus; Branch-
 # Protection auf main blockiert direkte Pushes ohne App-Berechtigung (gleiches Muster
@@ -39,9 +44,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Zeitfenster prüfen (nur 05 Uhr Europe/Berlin; manuell immer)
-        # schedule-Feuerungen laufen 2×/Tag (CEST- und CET-Offset); aktiv wird nur die,
-        # deren Berliner Stunde 05 ist. Die DST-Doppel-Feuerung endet hier als No-op.
+      - name: Zeitfenster prüfen (05-07 Uhr Europe/Berlin; manuell immer)
+        # schedule-Feuerungen laufen 2×/Tag (CEST- und CET-Offset), plus mögliche
+        # GitHub-Verzögerung über die Stundengrenze hinweg. Ein offenes Fenster (05-07)
+        # fängt verzögerte Läufe auf; Doppel-Feuerungen innerhalb des Fensters filtert
+        # der Tages-Check im Merge-Check-Schritt (nicht diese Stunde-Prüfung).
         id: timegate
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -53,13 +60,16 @@ jobs:
           fi
           BERLIN_HOUR="$(TZ='Europe/Berlin' date +%H)"
           echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
-          if [ "$BERLIN_HOUR" = "05" ]; then
-            echo "active=true" >> "$GITHUB_OUTPUT"
-            echo "::notice title=🕐 Daily-Version aktiv::05:00 Europe/Berlin."
-          else
-            echo "active=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=⏭️ Übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} != 05) — nichts zu tun."
-          fi
+          case "$BERLIN_HOUR" in
+            05|06|07)
+              echo "active=true" >> "$GITHUB_OUTPUT"
+              echo "::notice title=🕐 Daily-Version aktiv::${BERLIN_HOUR}:00 Europe/Berlin (Fenster 05-07)."
+              ;;
+            *)
+              echo "active=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=⏭️ Übersprungen::Berlin-Stunde ${BERLIN_HOUR} außerhalb des Fensters 05-07 — nichts zu tun."
+              ;;
+          esac
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.timegate.outputs.active == 'true'
@@ -73,9 +83,23 @@ jobs:
         run: |
           git fetch origin --tags --quiet
           LAST_TAG="$(git describe --tags --abbrev=0 origin/main)"
-          COMMITS="$(git rev-list "${LAST_TAG}..origin/main" --count)"
-          echo "Letzter Release-Tag: ${LAST_TAG} — ${COMMITS} Commit(s) seither auf main."
           echo "last_tag=${LAST_TAG}" >> "$GITHUB_OUTPUT"
+
+          # Tages-Check zuerst: fängt Doppel-Feuerungen innerhalb des 05-07-Fensters ab
+          # (DST-Offset UND ein verzögerter Lauf am selben Tag), unabhängig vom Commit-
+          # Zähler unten.
+          LAST_TAG_DATE="$(TZ='Europe/Berlin' date -d "$(git log -1 --format=%cI "$LAST_TAG")" +%Y-%m-%d)"
+          TODAY_BERLIN="$(TZ='Europe/Berlin' date +%Y-%m-%d)"
+          if [ "$LAST_TAG_DATE" = "$TODAY_BERLIN" ]; then
+            echo "has_merges=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Bereits heute erledigt::${LAST_TAG} stammt von heute (${TODAY_BERLIN} Berlin) — kein zweiter Bump."
+            exit 0
+          fi
+
+          # Buchhaltungs-Commits (Release-Bump, versiegelte Kosten) zaehlen nicht als
+          # Merge — sie landen nach dem Tag auf main, ohne dass ein PR gemergt wurde.
+          COMMITS="$(git log "${LAST_TAG}..origin/main" --format=%s | grep -cvE '^chore\((release|costs)\):' || true)"
+          echo "Letzter Release-Tag: ${LAST_TAG} — ${COMMITS} releasewirksame(s) Commit(s) seither auf main."
           if [ "$COMMITS" -eq 0 ]; then
             echo "has_merges=false" >> "$GITHUB_OUTPUT"
             echo "::notice title=⏭️ Kein Bump::Kein PR seit ${LAST_TAG} gemergt — Version bleibt unverändert."
