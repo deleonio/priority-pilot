@@ -99,17 +99,32 @@ export const ApiTokensSection = () => {
 	const [expiresInDays, setExpiresInDays] = useState('');
 	const durationSelectRef = useRef<HTMLKolSelectElement>(null);
 
-	// KolSelect rendert die native `<select>` im Shadow DOM des Hosts — ein `data-testid` nur auf dem
-	// Host würde bei E2E-Interaktionen (`selectOption`) ins Leere laufen, weil Playwright dafür das
-	// native `<select>`-Element selbst braucht. Hydration läuft asynchron, daher MutationObserver statt
-	// einmaligem Query direkt nach dem Mount. Das `data-testid` am Host (JSX unten) bleibt der Unit-
-	// Test-Pfad (jsdom hydriert KoliBri nicht, `shadowRoot` bleibt dort `null`); sobald die native
-	// `<select>` real existiert, wandert das Attribut dorthin, damit genau ein Element matcht.
+	// KolSelect rendert die native `<select>` im offenen Shadow DOM des Hosts (`kol-select-wc`
+	// hat selbst KEIN eigenes Shadow DOM, sondern rendert scoped direkt in den Shadow-Baum des
+	// Hosts) — ein `data-testid` nur auf dem Host würde bei E2E-Interaktionen (`selectOption`) ins
+	// Leere laufen, weil Playwright dafür das native `<select>`-Element selbst braucht. Hydration
+	// läuft asynchron, daher MutationObserver statt einmaligem Query direkt nach dem Mount — und
+	// der Observer muss auf dem `shadowRoot` selbst sitzen (nicht auf dem Host-Element), sonst
+	// sieht er Mutationen im Shadow-Baum gar nicht (MutationObserver überquert Shadow-Grenzen beim
+	// Beobachten des Hosts nicht automatisch).
+	// `data-testid` wird bewusst NICHT als JSX-Prop auf `KolSelect` gesetzt, sondern nur
+	// imperativ über diesen Effekt: der React-Wrapper (`@public-ui/react-v19`) schreibt in
+	// `componentDidUpdate` bei JEDEM Prop-Wechsel (z. B. `_value` nach der Laufzeit-Auswahl) alle
+	// String-Props per `setAttribute` erneut auf den Host — ein per JSX gesetztes `data-testid`
+	// käme dadurch nach der ersten Auswahl zurück und ergäbe zwei Treffer (Host + natives
+	// `<select>`, Strict-Mode-Verletzung bei Playwright). Imperativ gesetzt, taucht es in
+	// `Object.keys(props)` des Wrappers nicht auf und wird nie erneut angefasst. Der Host trägt
+	// das Attribut zunächst selbst (Unit-Test-Pfad: jsdom hydriert KoliBri nicht, `shadowRoot`
+	// bleibt dort `null`); sobald die native `<select>` real existiert, wandert es dorthin, damit
+	// genau ein Element matcht.
 	useEffect(() => {
 		const host = durationSelectRef.current;
 		if (!host) return;
+		host.setAttribute('data-testid', 'api-token-duration-select');
+		const shadowRoot = host.shadowRoot;
+		if (!shadowRoot) return;
 		const tagNativeSelect = (): boolean => {
-			const native = host.shadowRoot?.querySelector('select');
+			const native = shadowRoot.querySelector('select');
 			if (native) {
 				native.setAttribute('data-testid', 'api-token-duration-select');
 				host.removeAttribute('data-testid');
@@ -121,7 +136,7 @@ export const ApiTokensSection = () => {
 		const observer = new MutationObserver(() => {
 			if (tagNativeSelect()) observer.disconnect();
 		});
-		observer.observe(host, { childList: true, subtree: true });
+		observer.observe(shadowRoot, { childList: true, subtree: true });
 		return () => observer.disconnect();
 	}, []);
 	// Klartext des zuletzt erzeugten Tokens — nur im Speicher dieser Sitzung, nie erneut abrufbar.
@@ -219,7 +234,6 @@ export const ApiTokensSection = () => {
 						_label="Laufzeit"
 						_options={DURATION_OPTIONS}
 						_value={expiresInDays}
-						data-testid="api-token-duration-select"
 						_on={{ onChange: (_event, value) => setExpiresInDays(String(value)) }}
 					/>
 					<ButtonAction onClick={() => void handleCreate()}>
