@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.823 - 2026-09-11
+
+### Other Changes
+
+- feat(server): add group_list and group_members_list MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1384
+
 ## v0.1.822 - 2026-09-11
 
 ### Other Changes
@@ -550,6 +556,10 @@ _Keine für Nutzer sichtbaren Änderungen._
 ### Other Changes
 
 - feat(frontend): separate balance switch from recompute button (#1220) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1244
+
+## v0.1.724 - 2026-09-06
+
+_Keine für Nutzer sichtbaren Änderungen._
 
 ## v0.1.724 - 2026-09-06
 
@@ -1105,10 +1115,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 - feat(frontend): app routes for all menus via react router (#1105) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1107
 
 ## v0.1.624 - 2026-08-29
-
-_Keine für Nutzer sichtbaren Änderungen._
-
-## v0.1.623 - 2026-08-29
 
 _Keine für Nutzer sichtbaren Änderungen._
 
