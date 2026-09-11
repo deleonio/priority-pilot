@@ -160,8 +160,8 @@ export const SettingsPage = ({
 	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — deaktiviert den
 	// Schalter aus #1183 und zeigt den Info-Hinweis (die Systemeinstellung hat Vorrang).
 	const prefersReducedMotion = usePrefersReducedMotion();
-	// #1080: Hauptschalter „KI-Features aktiv" und die unabhängige Option „Schnellerfassung aktiv".
-	const { aiEnabled, quickCaptureEnabled, setPreference: setAiPreference } = useAiPreferences();
+	// #1080/#1335: der eine Schalter „KI-Features aktiv".
+	const { aiEnabled, setAiEnabled } = useAiPreferences();
 	const [micDenied, setMicDenied] = useState(false);
 	const [permissionPending, setPermissionPending] = useState(false);
 
@@ -565,7 +565,10 @@ export const SettingsPage = ({
 					{/* Keine H2 „KI-Provider" mehr: Der Tab-Reiter trägt den Namen bereits, und die
 							Provider-Radiogruppe darunter heißt ebenfalls „KI-Provider" — derselbe Name stand
 							dreifach im Accessibility-Baum. */}
-					{/* #1080: Hauptschalter — blendet die KI-Bedienelemente (Säulen-Berater, Lektorate) aus.
+					{/* #1080/#1335: der eine Schalter — blendet die KI-Bedienelemente (KI-Anlege-Dialog mit
+							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
+							Accordion „Einzelne KI-Funktionen" ist mit #1335 entfallen: Schnellerfassung und
+							Berater sind ein einziger Dialog und damit kein eigenständig schaltbares Feature mehr.
 							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile. */}
 					<KolCard className="settings-card" _label="KI-Funktionen" _level={2}>
 						<div className="settings-card-stack">
@@ -573,41 +576,21 @@ export const SettingsPage = ({
 								<KolInputCheckbox
 									_label="KI-Features aktiv"
 									_variant="switch"
-									_hint="Bei deaktivierter KI sind der Säulen-Berater und die Lektorat-Buttons ausgeblendet."
+									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet."
 									_checked={aiEnabled}
 									_on={{
 										onChange: (_event, value) => {
-											setAiPreference('aiEnabled', value === true);
+											setAiEnabled(value === true);
 										},
 									}}
 								/>
 								{!aiEnabled && (
 									<KolAlert _type="info" _label="KI-Features deaktiviert">
-										Säulen-Berater und Lektorat-Buttons sind derzeit ausgeblendet. Auch die Schnellerfassung ist
-										inaktiv, solange die KI deaktiviert ist (#1085).
+										Der KI-Anlege-Dialog (Verarbeiten und Beraten) und die Lektorat-Buttons sind derzeit ausgeblendet.
+										„Neuen Task anlegen“ öffnet direkt das vollständige Formular.
 									</KolAlert>
 								)}
 							</div>
-							{/* Feinschalter „Schnellerfassung aktiv" im selben Accordion-Muster wie die
-									Animations-Feinschalter (docs/ux-pattern-master-detail-settings.md); öffnet
-									synchron mit dem Master „KI-Features aktiv". #1085: bei deaktivierter KI bleibt
-									der Schalter zusätzlich `_disabled`. */}
-							<KolAccordion className="settings-accordion" _label="Einzelne KI-Funktionen" _level={3} _open={aiEnabled}>
-								<div className="settings-llm-switch-row">
-									<KolInputCheckbox
-										_label="Schnellerfassung aktiv"
-										_variant="switch"
-										_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
-										_checked={quickCaptureEnabled}
-										_disabled={!aiEnabled}
-										_on={{
-											onChange: (_event, value) => {
-												setAiPreference('quickCaptureEnabled', value === true);
-											},
-										}}
-									/>
-								</div>
-							</KolAccordion>
 						</div>
 					</KolCard>
 					<LlmSettings />

@@ -143,11 +143,11 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	});
 
 	/**
-	 * AK6 — Dialoge bleiben Modals: Öffnen/Schließen von Task-Dialog, Suche und Säulen-Berater
-	 * ändert Pathname/Query nicht.
+	 * AK6 — Dialoge bleiben Modals: Öffnen/Schließen von Task-Dialog und Suche ändert Pathname/Query
+	 * nicht. (#1335: „Säulen-Berater" existiert nicht mehr als eigener Header-Button.)
 	 */
 	test('AK6: Dialoge ändern die URL nicht', async ({ page }) => {
-		for (const label of ['Neuen Task anlegen', 'Suche', 'Säulen-Berater']) {
+		for (const label of ['Neuen Task anlegen', 'Suche']) {
 			// Je Dialog frisch laden, damit Schließen-Mechanik (Escape/Abbrechen) keine Folge-Klicks blockiert.
 			await page.goto('/');
 			await waitForStableView(page);
