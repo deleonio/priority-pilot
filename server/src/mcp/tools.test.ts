@@ -252,7 +252,17 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 
 		assert.deepEqual(
 			names,
-			['category_list', 'next_task', 'pillar_list', 'task_complete', 'task_create', 'task_list', 'task_update'],
+			[
+				'category_list',
+				'next_task',
+				'pillar_list',
+				'task_complete',
+				'task_create',
+				'task_link_dependency',
+				'task_list',
+				'task_unlink_dependency',
+				'task_update',
+			],
 			'v1-Werkzeugnamen sind ab dem Merge eingefroren (AK8) — eine unbeabsichtigte Änderung muss diesen Test rot machen',
 		);
 		for (const tool of sorted) {
@@ -308,5 +318,40 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			title: 'Nach Hochstufen über MCP',
 		});
 		assert.equal(created.result?.title, 'Nach Hochstufen über MCP');
+	});
+
+	it('task_link_dependency verknüpft zwei Aufgaben mit optionalem Gewicht', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Übergeordnete Aufgabe');
+		const childId = await createTaskViaApi(cookie, 'Unteraufgabe');
+
+		const linked = await mcpCall<{ id: number; title: string }>(token, 'task_link_dependency', {
+			id: parentId,
+			dependingTaskId: childId,
+			weight: 0.8,
+		});
+		assert.equal(linked.result?.id, parentId);
+		assert.ok(linked.result);
+	});
+
+	it('task_unlink_dependency entfernt eine Abhängigkeit zwischen zwei Aufgaben', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Übergeordnete Aufgabe');
+		const childId = await createTaskViaApi(cookie, 'Unteraufgabe');
+
+		// Erst verlinken
+		await mcpCall(token, 'task_link_dependency', {
+			id: parentId,
+			dependingTaskId: childId,
+		});
+
+		// Dann entfernen
+		const unlinked = await mcpCall(token, 'task_unlink_dependency', {
+			id: parentId,
+			dependingTaskId: childId,
+		});
+		assert.ok(!unlinked.error, `task_unlink_dependency sollte erfolgreich sein, war: ${unlinked.error?.message}`);
 	});
 });

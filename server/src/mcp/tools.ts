@@ -142,6 +142,53 @@ export const mcpTools: McpTool[] = [
 		run: (ctx, args) => callApi(ctx, `/tasks/${requireId(args)}`, { method: 'PATCH', body: { status: 'Done' } }),
 	},
 	{
+		name: 'task_link_dependency',
+		description: 'Verknüpft zwei Aufgaben als Abhängigkeit mit optionalem Gewicht.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID der abhängigen Aufgabe.' },
+				dependingTaskId: { type: 'integer', description: 'ID der Vorgänger-Aufgabe.' },
+				weight: { type: 'number', description: 'Gewicht der Abhängigkeit (0–∞, default 1).' },
+			},
+			required: ['id', 'dependingTaskId'],
+		},
+		run: (ctx, args) => {
+			const id = requireId(args);
+			const depId = args.dependingTaskId;
+			if (typeof depId !== 'number' || !Number.isInteger(depId) || depId < 1) {
+				throw new Error('dependingTaskId muss eine Ganzzahl >= 1 sein.');
+			}
+			const weight = args.weight ?? 1;
+			if (typeof weight !== 'number' || !Number.isFinite(weight) || weight < 0) {
+				throw new Error('weight muss eine endliche Zahl >= 0 sein.');
+			}
+			return callApi(ctx, `/tasks/${id}/dependencies`, { method: 'POST', body: { dependingTaskId: depId, weight } });
+		},
+	},
+	{
+		name: 'task_unlink_dependency',
+		description: 'Entfernt eine Abhängigkeit zwischen zwei Aufgaben.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID der abhängigen Aufgabe.' },
+				dependingTaskId: { type: 'integer', description: 'ID der zu entfernenden Vorgänger-Aufgabe.' },
+			},
+			required: ['id', 'dependingTaskId'],
+		},
+		run: (ctx, args) => {
+			const id = requireId(args);
+			const depId = args.dependingTaskId;
+			if (typeof depId !== 'number' || !Number.isInteger(depId) || depId < 1) {
+				throw new Error('dependingTaskId muss eine Ganzzahl >= 1 sein.');
+			}
+			return callApi(ctx, `/tasks/${id}/dependencies/${depId}`, { method: 'DELETE' });
+		},
+	},
+	{
 		name: 'next_task',
 		description: 'Liefert die nächste wichtige Aufgabe des Token-Besitzers oder null.',
 		inputSchema: { type: 'object', properties: {} },
