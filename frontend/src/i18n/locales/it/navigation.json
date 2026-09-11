@@ -7,6 +7,7 @@
 		"ariaLabel": "Viste"
 	},
 	"menu": {
+		"home": "Vai al pannello",
 		"settings": "Impostazioni",
 		"help": "Aiuto",
 		"logout": "Esci",

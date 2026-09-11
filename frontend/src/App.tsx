@@ -92,6 +92,8 @@ const SEARCH_ICON = { left: { icon: 'fa-solid fa-magnifying-glass' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
+// #1334: Home-Schalter-Icon auf dem Logo-Button — dekorativ, die Bedeutung trägt aria-label.
+const HOME_ICON_CLASS = 'fa-solid fa-house';
 
 // #1320: Aktiv-Zustand der Kopf-Aktionen „Einstellungen"/„Hilfe" — der Button der gerade offenen
 // Seite hebt sich sichtbar ab (`primary` gegen `secondary`), damit der Umschalter als verlässliche
@@ -720,8 +722,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			<header role="banner" className="app-header">
 				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
 				<div className="app-header__brand">
-					<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
-						<img src="/logo/logo.png" alt="Priority Pilot" />
+					<button type="button" className="logo-btn" aria-label={t('menu.home')} onClick={handleLogoDashboard}>
+						<img src="/logo/logo.png" alt="" />
+						<i className={HOME_ICON_CLASS} aria-hidden="true" />
 					</button>
 					<span className="app-name">Priority Pilot</span>
 				</div>

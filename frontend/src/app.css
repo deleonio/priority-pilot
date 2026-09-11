@@ -385,6 +385,7 @@ body {
 }
 
 .logo-btn {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
 	padding: 0;
@@ -393,6 +394,29 @@ body {
 	cursor: pointer;
 	border-radius: 0.25rem;
 	flex-shrink: 0;
+}
+
+/*
+ * #1334: Home-Icon als Badge über dem Logo — das 375px-Zeilenbudget ist laut #965 bereits bis auf
+ * wenige Pixel ausgereizt (siehe Kommentar bei .app-header oben), ein zusätzliches, layoutwirksames
+ * Element neben dem Logo würde die Zeile zweizeilig umbrechen. Die Position ist rein deko (das
+ * Icon trägt `aria-hidden`, die Bedeutung liefert `aria-label` am Button), daher `position: absolute`
+ * ohne Auswirkung auf die Button-Breite.
+ */
+.logo-btn i {
+	position: absolute;
+	right: -0.1875rem;
+	bottom: -0.1875rem;
+	font-size: 0.625rem;
+	color: var(--pp-surface-2);
+	background: var(--pp-text);
+	border-radius: 50%;
+	width: 0.875rem;
+	height: 0.875rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
 }
 
 .logo-btn:focus-visible {
