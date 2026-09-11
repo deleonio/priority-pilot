@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.822 - 2026-09-11
+
+### Other Changes
+
+- ci: add daily minor version bump workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1377
+
 ## v0.1.821 - 2026-09-11
 
 _Keine für Nutzer sichtbaren Änderungen._
@@ -557,10 +563,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 _Keine für Nutzer sichtbaren Änderungen._
 
-## v0.1.722 - 2026-09-06
-
-_Keine für Nutzer sichtbaren Änderungen._
-
 ## v0.1.721 - 2026-09-06
 
 _Keine für Nutzer sichtbaren Änderungen._
@@ -1103,6 +1105,10 @@ _Keine für Nutzer sichtbaren Änderungen._
 - feat(frontend): app routes for all menus via react router (#1105) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1107
 
 ## v0.1.624 - 2026-08-29
+
+_Keine für Nutzer sichtbaren Änderungen._
+
+## v0.1.623 - 2026-08-29
 
 _Keine für Nutzer sichtbaren Änderungen._
 
@@ -3046,3 +3052,4 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
+
