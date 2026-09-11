@@ -13,6 +13,15 @@ import { useAddressSearch, type AddressSuggestion } from '../lib/useAddressSearc
  * eigenes Markup mit dem ARIA-1.2-Combobox-Muster.
  */
 
+/** Gespeicherter Ort (#1342) in der Sicht des Adressfelds — Koordinaten optional (Freitext-Ort). */
+export interface PlaceFavoriteSuggestion {
+	id: number;
+	name: string;
+	address: string;
+	lat: number | null;
+	lon: number | null;
+}
+
 interface AddressAutocompleteProps {
 	label: string;
 	value: string;
@@ -22,7 +31,21 @@ interface AddressAutocompleteProps {
 	onSelect?: (suggestion: AddressSuggestion) => void;
 	/** #1111: Element-ID des Koordinaten-Kastens, per `_ariaDetails` dem Feld zugeordnet. */
 	ariaDetails?: string;
+	/** #1342: gespeicherte Orte des Nutzers — stehen VOR den Suchtreffern in derselben Listbox. */
+	favorites?: PlaceFavoriteSuggestion[];
+	/** #1342: Stern in der Trefferzeile — meldet den Treffer zum Speichern, ohne ihn auszuwählen. */
+	onSaveFavorite?: (suggestion: AddressSuggestion) => void;
 }
+
+/**
+ * Vergleichsform für den Favoritenfilter: ohne Diakritika und klein — „munchen" soll „München"
+ * finden (dieselbe Tippfehler-Toleranz, die die Trefferliste vom Upstream schon mitbringt).
+ */
+const normalizeForMatch = (text: string) =>
+	text
+		.normalize('NFD')
+		.replace(/\p{Diacritic}/gu, '')
+		.toLowerCase();
 
 export const AddressAutocomplete = ({
 	label,
@@ -30,19 +53,48 @@ export const AddressAutocomplete = ({
 	onValueChange,
 	onSelect,
 	ariaDetails,
+	favorites = [],
+	onSaveFavorite,
 }: AddressAutocompleteProps) => {
 	// #1310 (AK5): Ein vorbelegter Wert (Schnellerfassung/Bearbeiten) löst KEINE Adresssuche aus —
 	// erst die Eingabe des Nutzers. Ohne diese Sperre würde allein das Öffnen des Formulars mit
 	// gefülltem Adressfeld einen Geocoding-Request absetzen, den niemand angefordert hat.
 	const [touched, setTouched] = useState(false);
-	const { suggestions, loading, error } = useAddressSearch(touched ? value : '');
+	const { suggestions, loading, pending, error } = useAddressSearch(touched ? value : '');
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	// `dismissed` hält die Liste nach Auswahl/Escape zu, obwohl `value` (die übernommene Adresse)
 	// weiter ≥ 3 Zeichen lang ist und die Suche weiterläuft — sonst springt sie sofort wieder auf.
 	const [dismissed, setDismissed] = useState(false);
 	const listId = useId();
 
-	const open = suggestions.length > 0 && !dismissed;
+	// #1342: Favoriten stehen VOR den Suchtreffern in derselben Listbox (AK1) — gleicher
+	// Auswahlpfad, gleiche Tastaturnavigation. Gefiltert wird nach Name UND Adresse; ohne Eingabe
+	// erscheinen alle gespeicherten Orte.
+	const query = normalizeForMatch(value.trim());
+	const favoriteOptions = favorites
+		.filter((favorite) => query === '' || normalizeForMatch(`${favorite.name} ${favorite.address}`).includes(query))
+		.map((favorite) => ({
+			key: `favorite-${favorite.id}`,
+			text: `${favorite.name} — ${favorite.address}`,
+			// Ein Favorit ohne Koordinaten übergibt `null` — keine alte Koordinate bleibt stehen (AK4).
+			suggestion: { address: favorite.address, lat: favorite.lat, lon: favorite.lon } as AddressSuggestion,
+			saveable: false,
+		}));
+	const options = [
+		...favoriteOptions,
+		...suggestions.map((suggestion, index) => ({
+			key: `hit-${suggestion.address}-${index}`,
+			text: suggestion.address,
+			suggestion,
+			saveable: true,
+		})),
+	];
+
+	// `touched` hält die Liste beim Öffnen des Formulars zu: gespeicherte Orte allein dürfen sie
+	// nicht aufklappen lassen (#1310 AK5 — nur die Eingabe des Nutzers öffnet). `pending` hält sie
+	// zu, solange die Suche zum aktuellen Text läuft: sonst stünden erst die Favoriten allein da und
+	// die Trefferliste schöbe sie eine Zeile weiter, sobald sie eintrifft.
+	const open = touched && !pending && options.length > 0 && !dismissed;
 
 	const change = (next: string) => {
 		setTouched(true);
@@ -52,7 +104,7 @@ export const AddressAutocomplete = ({
 	};
 
 	const choose = (index: number) => {
-		const hit = suggestions[index];
+		const hit = options[index]?.suggestion;
 		if (hit) {
 			onSelect?.(hit);
 		}
@@ -75,10 +127,10 @@ export const AddressAutocomplete = ({
 			event.preventDefault();
 			setActiveIndex((current) => {
 				if (current === null) {
-					return event.key === 'ArrowDown' ? 0 : suggestions.length - 1;
+					return event.key === 'ArrowDown' ? 0 : options.length - 1;
 				}
 				const next = current + (event.key === 'ArrowDown' ? 1 : -1);
-				return next < 0 ? suggestions.length - 1 : next >= suggestions.length ? 0 : next;
+				return next < 0 ? options.length - 1 : next >= options.length ? 0 : next;
 			});
 			return;
 		}
@@ -147,7 +199,7 @@ export const AddressAutocomplete = ({
 						id={`${listId}-listbox`}
 						role="listbox"
 						aria-live="polite"
-						aria-label={`${suggestions.length} Treffer`}
+						aria-label={`${options.length} Treffer`}
 						style={{
 							position: 'relative', // In-Flow unter dem Feld — kein Portal/Overlay (375-px-Viewport, AK7)
 							margin: 0,
@@ -159,33 +211,63 @@ export const AddressAutocomplete = ({
 							borderRadius: 'var(--pp-radius-sm, 4px)',
 						}}
 					>
-						{suggestions.map((suggestion, index) => (
-							<li
-								key={`${suggestion.address}-${index}`}
-								id={`${listId}-option-${index}`}
-								role="option"
-								aria-selected={index === activeIndex}
-								onMouseDown={(event) => {
-									// mousedown statt click: der Blur des Feldes (der die Liste schließt) feuert zuerst.
-									event.preventDefault();
-									choose(index);
-								}}
-								onClick={() => {
-									// Zweiter Pfad für reine Click-Events (Screenreader-/AssistTech-Aktivierung,
-									// jsdom-`fireEvent.click`): `choose` ist idempotent, ein Doppel-Feuern ist harmlos.
-									choose(index);
-								}}
-								style={{
-									display: 'block',
-									minHeight: '44px', // Touch-Ziel (Regel 2)
-									padding: '12px',
-									cursor: 'pointer',
-									overflowWrap: 'anywhere', // lange display_name umbrechen, nicht abschneiden (Regel 3)
-									background: index === activeIndex ? 'var(--pp-surface-2, #f2f2f2)' : undefined,
-									fontWeight: index === activeIndex ? 700 : undefined,
-								}}
-							>
-								{suggestion.address}
+						{options.map((option, index) => (
+							/* #1342: Die Zeile ist `role="presentation"` — der Stern darf KEIN Nachfahre der
+							   Option sein (ARIA 1.2 verbietet interaktive Nachfahren in `role="option"`) und
+							   würde vom `onMouseDown`/`preventDefault()` der Option ohnehin nie erreicht. */
+							<li key={option.key} role="presentation" style={{ display: 'flex', alignItems: 'stretch' }}>
+								<div
+									id={`${listId}-option-${index}`}
+									role="option"
+									aria-selected={index === activeIndex}
+									onMouseDown={(event) => {
+										// mousedown statt click: der Blur des Feldes (der die Liste schließt) feuert zuerst.
+										event.preventDefault();
+										choose(index);
+									}}
+									onClick={() => {
+										// Zweiter Pfad für reine Click-Events (Screenreader-/AssistTech-Aktivierung,
+										// jsdom-`fireEvent.click`): `choose` ist idempotent, ein Doppel-Feuern ist harmlos.
+										choose(index);
+									}}
+									style={{
+										flex: 1,
+										minHeight: '44px', // Touch-Ziel (Regel 2)
+										padding: '12px',
+										cursor: 'pointer',
+										overflowWrap: 'anywhere', // lange display_name umbrechen, nicht abschneiden (Regel 3)
+										background: index === activeIndex ? 'var(--pp-surface-2, #f2f2f2)' : undefined,
+										fontWeight: index === activeIndex ? 700 : undefined,
+									}}
+								>
+									{option.text}
+								</div>
+								{option.saveable && onSaveFavorite && (
+									/* KOLIBRI-FIRST-AUSNAHME wie die Liste selbst (s. Dateikopf): der Stern gehört in
+									   dieses eigene Listen-Markup; ein `KolButton` würde hier zusätzlich die
+									   Combobox-Semantik der Zeile mit einem Shadow-DOM-Host durchschneiden. */
+									<button
+										type="button"
+										aria-label={`Als Favorit speichern: ${option.text}`}
+										onMouseDown={(event) => {
+											// Der Blur des Feldes würde die Liste vor dem Klick schließen (wie bei der Option).
+											event.preventDefault();
+										}}
+										onClick={() => onSaveFavorite(option.suggestion)}
+										style={{
+											minWidth: '44px', // Touch-Ziel (Regel 2)
+											minHeight: '44px',
+											border: 'none',
+											background: 'transparent',
+											color: 'var(--pp-ink-muted, #555)',
+											cursor: 'pointer',
+											fontSize: '1.25rem',
+											lineHeight: 1,
+										}}
+									>
+										<span aria-hidden="true">☆</span>
+									</button>
+								)}
 							</li>
 						))}
 					</ul>

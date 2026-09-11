@@ -19,6 +19,12 @@ interface UseAddressSearchResult {
 	suggestions: AddressSuggestion[];
 	/** Ob gerade eine Suche läuft. */
 	loading: boolean;
+	/**
+	 * #1342: Ob für den aktuellen Suchtext noch ein Ergebnis aussteht — anders als `loading` ab dem
+	 * Tastendruck wahr, also INKLUSIVE der Debounce-Zeit. Die Vorschlagsliste hält damit zu, bis die
+	 * Treffer da sind, statt zwischendurch nur die Favoriten zu zeigen und sie gleich zu verschieben.
+	 */
+	pending: boolean;
 	/** #1083 AK5: Suche fehlgeschlagen (Netzwerk/Server) — von „0 Treffer" unterscheidbar machen. */
 	error: boolean;
 }
@@ -31,6 +37,7 @@ interface UseAddressSearchResult {
 export const useAddressSearch = (query: string): UseAddressSearchResult => {
 	const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
 	const [loading, setLoading] = useState(false);
+	const [pending, setPending] = useState(false);
 	const [error, setError] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 
@@ -41,9 +48,13 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 		if (trimmed.length < MIN_QUERY_LENGTH) {
 			setSuggestions([]);
 			setLoading(false);
+			setPending(false);
 			setError(false);
 			return;
 		}
+
+		// Ab hier ist eine Suche für diesen Text unterwegs (erst Debounce, dann Request).
+		setPending(true);
 
 		let controller: AbortController | undefined;
 		const timer = window.setTimeout(() => {
@@ -74,6 +85,7 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 				.finally(() => {
 					if (!current.signal.aborted) {
 						setLoading(false);
+						setPending(false);
 					}
 				});
 		}, DEBOUNCE_MS);
@@ -86,5 +98,5 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 		};
 	}, [query]);
 
-	return { suggestions, loading, error };
+	return { suggestions, loading, pending, error };
 };

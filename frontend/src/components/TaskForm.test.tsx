@@ -227,6 +227,10 @@ vi.mock('../api', () => ({
 		// Tests dieser Datei die (noch nicht existierende) Gruppen-Abfrage nicht mitreißt).
 		listGroups: vi.fn().mockResolvedValue([]),
 		getGroupMembers: vi.fn().mockResolvedValue([]),
+		// #1342: Standort-Favoriten — leere Defaults, damit bestehende Tests dieser Datei die
+		// (noch nicht existierende) Favoriten-Abfrage nicht mitreißen.
+		listPlaceFavorites: vi.fn().mockResolvedValue([]),
+		createPlaceFavorite: vi.fn(),
 	},
 }));
 
@@ -254,6 +258,8 @@ const mockUpdateSeries = api.updateSeries as ReturnType<typeof vi.fn>;
 const mockGeocodeSearch = api.geocodeSearch as ReturnType<typeof vi.fn>;
 const mockListGroups = api.listGroups as ReturnType<typeof vi.fn>;
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
+const mockListPlaceFavorites = api.listPlaceFavorites as ReturnType<typeof vi.fn>;
+const mockCreatePlaceFavorite = api.createPlaceFavorite as ReturnType<typeof vi.fn>;
 
 // --- Fixtures ---
 
@@ -2469,5 +2475,80 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
 
 		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
 		expect(seriesCreate.categoryId).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1342 AK1/AK2 (Spec docs/spec/issue-1342.md) — Standort-Favoriten im
+ * Adressfeld des Task-Formulars: geladene Favoriten stehen im Adressfeld zur Auswahl, ein Klick
+ * übernimmt Adresse + beide Koordinaten; ein Knopf „Als Favorit speichern" existiert nur bei
+ * gefülltem Adressfeld und legt über `api.createPlaceFavorite` einen neuen Favoriten an.
+ */
+describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
+	const FAVORITE = { id: 1, name: 'Büro', address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 };
+
+	it('AK1 — ein geladener Favorit steht in der Vorschlagsliste, ein Klick übernimmt Adresse + Koordinaten', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockListPlaceFavorites.mockResolvedValue([FAVORITE]);
+		mockGeocodeSearch.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		fireEvent.click(screen.getByText('Termin & Ort')); // #1260: erst aufklappen
+
+		// Favorit erscheint ohne Eingabe im Feld (`touched` wird durch den Favoriten-Fetch nicht
+		// ausgelöst) — Klick ins Feld reicht, um die Liste zu öffnen (AK1: „bei geöffneter Liste").
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: 'b' } });
+		});
+		const listbox = await screen.findByRole('listbox', {}, { timeout: 3000 });
+		await act(async () => {
+			fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Büro/ }));
+		});
+
+		const box = coordsBox();
+		expect(within(box).getByText(/Rathausplatz 1, München/)).toBeVisible();
+		expect(box.textContent).toMatch(/48\.1374/);
+		expect(box.textContent).toMatch(/11\.5755/);
+
+		// TEST-PFLEGE #1342 (Impl): Ohne Titel bricht der Submit vor `api.createTask` ab
+		// (TaskForm.tsx:701 „Bitte einen Titel angeben.") — der Spec-Test hatte den Pflichttitel
+		// übersehen. Die Payload-Erwartungen darunter bleiben unverändert.
+		await fillTitle('Aufgabe mit Favoriten-Adresse');
+		await clickSave();
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
+			{ taskCreate: { address?: string | null; latitude?: number | null; longitude?: number | null } },
+		];
+		expect(taskCreate.address).toBe('Rathausplatz 1, München');
+		expect(taskCreate.latitude).toBe(48.1374);
+		expect(taskCreate.longitude).toBe(11.5755);
+	});
+
+	it('AK2 — „Als Favorit speichern" erscheint nur bei gefüllter Adresse und legt den Favoriten an', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockGeocodeSearch.mockResolvedValue(COORD_HITS);
+		mockCreatePlaceFavorite.mockResolvedValue({ id: 9, ...COORD_HITS[0], name: COORD_HITS[0]?.address });
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		fireEvent.click(screen.getByText('Termin & Ort')); // #1260: erst aufklappen
+
+		// Leeres Adressfeld: kein Speichern-Knopf.
+		expect(screen.queryByRole('button', { name: /als favorit speichern/i })).toBeNull();
+
+		await selectAddressHit('munchen', /München Hauptbahnhof/);
+
+		const saveFavoriteButton = screen.getByRole('button', { name: /als favorit speichern/i });
+		await act(async () => {
+			fireEvent.click(saveFavoriteButton);
+		});
+
+		expect(mockCreatePlaceFavorite).toHaveBeenCalledWith(
+			expect.objectContaining({
+				address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München',
+				latitude: 48.1402,
+				longitude: 11.56,
+			}),
+		);
 	});
 });

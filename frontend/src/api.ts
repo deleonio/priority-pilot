@@ -18,6 +18,8 @@ import type {
 	GroupSeries,
 	GroupUpdate,
 	GroupInviteLink,
+	PlaceFavorite,
+	PlaceFavoriteInput,
 	InviteLinkPreview,
 	InviteLinkRedeemResult,
 	ReceivedInvitation,
@@ -159,6 +161,22 @@ async function withRetry<T>(
  * Clients nach (gleiche Signaturen, wirft `ResponseError` bei nicht-erfolgreichen Antworten),
  * damit die UI-Komponenten unverändert bleiben.
  */
+/**
+ * Frontend-Sicht eines gespeicherten Orts (#1342): `lat`/`lon` statt `latitude`/`longitude` — so
+ * heißen die Koordinaten überall im Adress-Frontend (`AddressSuggestion`), und ein Favorit lässt
+ * sich dadurch ohne Umrechnung als Treffer übernehmen.
+ */
+export type PlaceFavoriteView = Omit<PlaceFavorite, 'latitude' | 'longitude'> & {
+	lat: number | null;
+	lon: number | null;
+};
+
+const toPlaceFavoriteView = ({ latitude, longitude, ...rest }: PlaceFavorite): PlaceFavoriteView => ({
+	...rest,
+	lat: latitude,
+	lon: longitude,
+});
+
 export const api = {
 	async listTasks(init: Init = {}): Promise<Task[]> {
 		const { data, error, response } = await client.GET('/tasks', { signal: init.signal });
@@ -950,6 +968,46 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data;
+	},
+
+	// --- Gespeicherte Orte („Standort-Favoriten", #1342) ---
+
+	// Eigene gespeicherte Orte — Quelle der Favoritenliste im Adressfeld und in den Einstellungen.
+	async listPlaceFavorites(init: Init = {}): Promise<PlaceFavoriteView[]> {
+		const { data, error, response } = await client.GET('/place-favorites', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data.map(toPlaceFavoriteView);
+	},
+
+	// Legt einen gespeicherten Ort an; Koordinaten sind optional (Freitext-Ort, AK4).
+	async createPlaceFavorite(favorite: PlaceFavoriteInput): Promise<PlaceFavoriteView> {
+		const { data, error, response } = await client.POST('/place-favorites', { body: favorite });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return toPlaceFavoriteView(data);
+	},
+
+	// Benennt einen eigenen gespeicherten Ort um (Einstellungen → Standort).
+	async updatePlaceFavorite({ id, name }: { id: number; name: string }): Promise<PlaceFavoriteView> {
+		const { data, error, response } = await client.PATCH('/place-favorites/{id}', {
+			params: { path: { id } },
+			body: { name },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return toPlaceFavoriteView(data);
+	},
+
+	// Entfernt einen eigenen gespeicherten Ort endgültig.
+	async deletePlaceFavorite({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/place-favorites/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
 	},
 
 	// Meldet die aktuelle Position (#1101): der Server prüft Aufgaben im Alarmabstand und pusht ggf.

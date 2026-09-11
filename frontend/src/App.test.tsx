@@ -37,6 +37,8 @@ vi.mock('./api', () => ({
 		listLlmProviders: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1352: der neue Tab „Zugriff“ lädt beim Mount die eigenen API-Tokens.
 		listApiTokens: vi.fn().mockResolvedValue([]),
+		// Test-Pflege #1342: der Tab „Standort“ lädt beim Mount die gespeicherten Orte.
+		listPlaceFavorites: vi.fn().mockResolvedValue([]),
 		// Test-Pflege #1360: die neue Dashboard-Card „Streak“ lädt ihre Werte beim Mount selbst.
 		getStreak: vi.fn().mockResolvedValue({ aktuell: 0, best: 0, letzterTag: null }),
 		listGroups: vi.fn().mockResolvedValue([]),

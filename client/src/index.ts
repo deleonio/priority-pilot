@@ -28,6 +28,8 @@ export type GeoConfig = Schemas['GeoConfig'];
 // Persönliche API-Tokens für externe Clients (#1352) — Liste ohne Klartext, Anlege-Antwort mit.
 export type ApiToken = Schemas['ApiToken'];
 export type CreatedApiToken = Schemas['CreatedApiToken'];
+export type PlaceFavorite = Schemas['PlaceFavorite'];
+export type PlaceFavoriteInput = Schemas['PlaceFavoriteInput'];
 export type Profile = Schemas['Profile'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
