@@ -190,6 +190,31 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		expect(hasOverflow).toBe(false);
 	});
 
+	test('Bei 375 px steht der Graph ohne Scrollen im ersten Sichtfeld, die Legende bleibt zugeklappt', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+
+		const childId = await createTask(page, uniqueTitle('Sichtfeld Eins'));
+		const parentId = await createTask(page, uniqueTitle('Sichtfeld Zwei'));
+		await addDependency(page, parentId, childId);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openGraphTab(page);
+
+		// Reihenfolge Blätter-Leiste → Graph → Detail → Erklärungen (TaskGraphPanel.tsx:201-206):
+		// die Oberkante des Canvas muss ohne Scrollen im Sichtfeld liegen.
+		const canvas = page.getByTestId('task-graph-canvas');
+		const box = await canvas.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.y).toBeGreaterThanOrEqual(0);
+		expect(box!.y).toBeLessThan(812);
+
+		// Legende startet zugeklappt (`KolDetails _open={false}`), erklärt erst nachträglich.
+		await expect(page.getByText('Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe')).toBeHidden();
+	});
+
 	/** Zwei getrennte Paare plus eine Aufgabe ohne Abhängigkeit — die Ausgangslage für #1314. */
 	const createTwoTreesAndSolo = async (page: Page): Promise<{ soloId: number }> => {
 		const firstChildId = await createTask(page, uniqueTitle('Baum A unten'));
@@ -240,7 +265,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		await waitForStableView(page);
 		await openGraphTab(page);
 
-		await expect(page.getByText('Sobald es offene Aufgaben mit Abhängigkeiten gibt')).toBeVisible();
+		await expect(page.getByText(/Verknüpfe im Tab/)).toBeVisible();
 		await expect(page.getByText(/Baum \d+ von \d+/)).toHaveCount(0);
 	});
 
