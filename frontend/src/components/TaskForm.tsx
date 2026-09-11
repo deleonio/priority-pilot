@@ -352,6 +352,9 @@ export const TaskForm = ({
 	// Liste liegt im State (nicht nur im Fetch), damit ein neu angelegter Favorit ohne Neuladen
 	// auftaucht (AK2): der Server-Rückgabewert wird angehängt, statt neu zu fetchen.
 	const [placeFavorites, setPlaceFavorites] = useState<PlaceFavoriteSuggestion[]>([]);
+	// Rückmeldung während des Speicherns (Feld-Knopf, AK2): ohne sichtbaren Busy-Zustand bemerkt
+	// niemand, ob der Klick angekommen ist, und ein zweiter Klick legt den Ort doppelt an.
+	const [savingFavorite, setSavingFavorite] = useState(false);
 	// Legt den übergebenen Ort als Favorit an (Stern in der Trefferzeile ODER Knopf am Feld, AK2).
 	// Der Name ist beim Anlegen der Adresstext — umbenannt wird in den Einstellungen (AK3).
 	const savePlaceFavorite = (suggestion: { address: string; lat: number | null; lon: number | null }): void => {
@@ -359,6 +362,7 @@ export const TaskForm = ({
 		if (address === '') {
 			return;
 		}
+		setSavingFavorite(true);
 		void (async () => {
 			try {
 				const created = await api.createPlaceFavorite({
@@ -371,6 +375,8 @@ export const TaskForm = ({
 			} catch {
 				// Ein fehlgeschlagenes Speichern darf das Formular nicht blockieren — der Ort bleibt
 				// ungespeichert, die Aufgabe selbst ist davon unberührt.
+			} finally {
+				setSavingFavorite(false);
 			}
 		})();
 	};
@@ -1270,6 +1276,7 @@ export const TaskForm = ({
 								<KolButton
 									_label="Als Favorit speichern"
 									_variant="ghost"
+									_disabled={savingFavorite}
 									_on={{
 										onClick: () =>
 											savePlaceFavorite({ address: address.trim(), lat: coords.latitude, lon: coords.longitude }),

@@ -81,6 +81,10 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		const saveFavoriteBox = await saveFavoriteButton.boundingBox();
 		expect(saveFavoriteBox!.height).toBeGreaterThanOrEqual(44);
 		await saveFavoriteButton.click();
+		// Busy-Zustand während `api.createPlaceFavorite`: erst nach dessen Ende (Knopf wieder aktiv)
+		// ist der Favorit serverseitig angelegt — sonst reißt die Navigation den Request weg.
+		await expect(saveFavoriteButton).toBeDisabled();
+		await expect(saveFavoriteButton).toBeEnabled();
 
 		// 2) In Einstellungen → Standort umbenennen (AK3).
 		await page.goto('/settings/standort');
