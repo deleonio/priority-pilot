@@ -61,3 +61,40 @@ describe('extractLeaves (#537)', () => {
 		expect(leaves.map((n) => n.id)).toEqual([3, 2]);
 	});
 });
+
+/**
+ * Roter TDD-Vertrag für #1345 AK2–AK4: `extractLeaves` bekommt eine Option `includeParents`.
+ * Ohne die Option (oder `false`) bleibt das Verhalten unverändert (AK2, s. Tests oben). Mit
+ * `includeParents: true` werden zusätzlich die Oberaufgaben (`dependents.length > 0`) im
+ * gemeinsamen `value`-Ranking eingemischt, keine Duplikate (AK3, AK4).
+ */
+describe('extractLeaves mit includeParents (#1345)', () => {
+	it('AK2: ohne includeParents unverändert nur Blätter', () => {
+		const forest = [node(1, 'Eltern', 8, [node(2, 'Kind', 3)])];
+		expect(extractLeaves(forest).map((n) => n.id)).toEqual([2]);
+		expect(extractLeaves(forest, { includeParents: false }).map((n) => n.id)).toEqual([2]);
+	});
+
+	it('AK3: includeParents:true blendet Oberaufgaben mit offener Unteraufgabe zusätzlich ein', () => {
+		const forest = [node(1, 'Eltern', 8, [node(2, 'Kind', 3)]), node(4, 'Solo-Blatt', 6)];
+		const result = extractLeaves(forest, { includeParents: true });
+		expect(result.map((n) => n.id)).toEqual([1, 4, 2]);
+	});
+
+	it('AK3: keine Duplikate — eine Oberaufgabe mit zwei Kindern erscheint genau einmal', () => {
+		const forest = [node(1, 'Eltern', 9, [node(2, 'Kind-1', 3), node(3, 'Kind-2', 5)])];
+		const result = extractLeaves(forest, { includeParents: true });
+		expect(result.filter((n) => n.id === 1)).toHaveLength(1);
+		expect(result.map((n) => n.id)).toEqual([1, 3, 2]);
+	});
+
+	it('AK4: gemeinsame value-Sortierung über Blätter und Oberaufgaben in einem Durchgang', () => {
+		const forest = [
+			node(1, 'Eltern-niedrig', 2, [node(2, 'Kind', 1)]),
+			node(3, 'Blatt-mittel', 5),
+			node(4, 'Eltern-hoch', 9, [node(5, 'Kind-2', 4)]),
+		];
+		const result = extractLeaves(forest, { includeParents: true });
+		expect(result.map((n) => n.id)).toEqual([4, 3, 1, 2, 5]);
+	});
+});
