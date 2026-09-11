@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.826 - 2026-09-11
+
+### Other Changes
+
+- feat(frontend): add milestone badges for streak and points by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1387
+
 ## v0.1.825 - 2026-09-11
 
 ### Other Changes
@@ -1106,12 +1112,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 ### Other Changes
 
 - fix(ci): gate-merge accepts skipping review checks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1112
-
-## v0.1.626 - 2026-08-29
-
-### Other Changes
-
-- docs: stub superseded adr 0006 in 2026-08-29 consolidation sync by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1109
 
 ## v0.1.626 - 2026-08-29
 
