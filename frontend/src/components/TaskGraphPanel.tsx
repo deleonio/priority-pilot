@@ -122,7 +122,7 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 			block: 'nearest',
 			behavior: prefersReducedMotion ? 'auto' : 'smooth',
 		});
-	}, [selected, prefersReducedMotion]);
+	}, [selected?.id, prefersReducedMotion]);
 
 	const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
