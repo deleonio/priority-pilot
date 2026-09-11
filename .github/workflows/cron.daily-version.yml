@@ -1,0 +1,145 @@
+name: Daily Version
+
+# Einmal täglich einen Minor-Bump (0.1.x -> 0.2.0 -> 0.3.0 -> ...) zusätzlich zum
+# Patch-Bump-pro-Merge aus deploy.yml — für einen fortlaufenden Tages-Release-Rhythmus.
+#
+# Kein PR seit dem letzten Release gemergt -> kein Bump. Erkennung ohne eigene
+# State-Datei: JEDER Merge auf main löst über deploy.yml sofort einen Patch-Bump-
+# Commit + vX.Y.Z-Tag aus. Also gilt "keine neuen Commits seit dem letzten erreichbaren
+# Tag" <=> "kein PR gemergt". `git describe --tags --abbrev=0` folgt dem Commit-Graph
+# (nicht der höchsten Versionsnummer) und ignoriert damit verwaiste/nicht mehr
+# erreichbare Alt-Tags.
+#
+# Cron/DST: GitHub-Crons laufen in UTC; Europe/Berlin wechselt zwischen CEST (UTC+2)
+# und CET (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab, der Job-Guard prüft die
+# tatsächliche Berliner Stunde (TZ=Europe/Berlin) und lässt nur die Feuerung laufen,
+# die auf 05:00 Berlin fällt — DST-korrekt ohne saisonale Drift (gleiches Muster wie
+# cron.resume-pipeline.yml).
+#
+# App-Token noetig: Standard-GITHUB_TOKEN loest keine Folge-Workflows aus; Branch-
+# Protection auf main blockiert direkte Pushes ohne App-Berechtigung (gleiches Muster
+# wie deploy.yml). Der Bump-Commit traegt [skip ci] — es aendert sich nur die
+# Versionsnummer, kein Code, ein Deploy waere unnoetig.
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 05:00 Berlin im Sommer (CEST, UTC+2)
+    - cron: '0 4 * * *' # 05:00 Berlin im Winter (CET, UTC+1)
+  workflow_dispatch: {} # manueller Testlauf, umgeht das Zeitfenster-Gate
+
+concurrency:
+  group: daily-version
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  daily-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Zeitfenster prüfen (nur 05 Uhr Europe/Berlin; manuell immer)
+        # schedule-Feuerungen laufen 2×/Tag (CEST- und CET-Offset); aktiv wird nur die,
+        # deren Berliner Stunde 05 ist. Die DST-Doppel-Feuerung endet hier als No-op.
+        id: timegate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" != "schedule" ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "Manueller Lauf — Zeitfenster-Guard übergangen."
+            exit 0
+          fi
+          BERLIN_HOUR="$(TZ='Europe/Berlin' date +%H)"
+          echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
+          if [ "$BERLIN_HOUR" = "05" ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=🕐 Daily-Version aktiv::05:00 Europe/Berlin."
+          else
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} != 05) — nichts zu tun."
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.timegate.outputs.active == 'true'
+        with:
+          # fetch-depth: 0 noetig fuer git describe/rev-list ueber die volle Tag-Historie
+          fetch-depth: 0
+
+      - name: Merge-Check seit letztem Release
+        if: steps.timegate.outputs.active == 'true'
+        id: mergecheck
+        run: |
+          git fetch origin --tags --quiet
+          LAST_TAG="$(git describe --tags --abbrev=0 origin/main)"
+          COMMITS="$(git rev-list "${LAST_TAG}..origin/main" --count)"
+          echo "Letzter Release-Tag: ${LAST_TAG} — ${COMMITS} Commit(s) seither auf main."
+          echo "last_tag=${LAST_TAG}" >> "$GITHUB_OUTPUT"
+          if [ "$COMMITS" -eq 0 ]; then
+            echo "has_merges=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Kein Bump::Kein PR seit ${LAST_TAG} gemergt — Version bleibt unverändert."
+          else
+            echo "has_merges=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: App-Token holen
+        id: app-token
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Git-Identität auf Repo-Owner stellen
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        # Release-Commits laufen unter der Identität des Repo-Owners statt der App-Bot-
+        # Identität — gültige noreply-Adresse, Commits verlinken auf den Owner-Account.
+        # Der PUSH bleibt App-Token (App-only-Pipeline), gleiches Muster wie deploy.yml.
+        run: |
+          git config user.name "deleonio"
+          git config user.email "6279703+deleonio@users.noreply.github.com"
+
+      - name: Minor-Bump + Commit + Push auf main
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git pull --rebase origin main
+          npm version minor --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          git add package.json
+          # --no-verify: siehe deploy.yml — lefthook pre-commit-Hooks sollen den reinen
+          # Versions-Commit nicht ausloesen.
+          git commit --no-verify -m "chore(release): v${NEW_VERSION} (daily) [skip ci]"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
+
+      - name: Tag + GitHub Release (best-effort)
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        # Gleiches idempotente Best-effort-Muster wie deploy.yml: ein fehlgeschlagenes
+        # Release darf den Bump NIE kippen.
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          TAG="v${NEW_VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "⏭️ Tag ${TAG} existiert bereits (Re-Run) — nur Release prüfen."
+          else
+            git tag "$TAG"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "refs/tags/${TAG}" \
+              || { echo "::warning title=Tag-Push fehlgeschlagen::${TAG} konnte nicht gepusht werden — manuell nachholen."; exit 0; }
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "⏭️ Release ${TAG} existiert bereits — nichts zu tun."
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --title "$TAG" --generate-notes --latest \
+              || { echo "::warning title=Release-Creation fehlgeschlagen::${TAG} — manuell nachholen."; exit 0; }
+            echo "🚀 Release ${TAG} mit generierten Notes erstellt."
+          fi
