@@ -358,6 +358,18 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.equal(links.result?.dependsOn[0]?.weight, 1);
 	});
 
+	it('task_link mit Gewicht 0 bleibt beim Auslesen 0', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0 });
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn[0]?.weight, 0);
+	});
+
 	it('task_link auf einer bestehenden Kante ändert nur das Gewicht', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
