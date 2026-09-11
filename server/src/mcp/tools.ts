@@ -39,6 +39,23 @@ export interface McpTool {
 }
 
 /**
+ * Antwortkörper der gespiegelten Route lesen. Ist er kein JSON, hat nicht die Route geantwortet,
+ * sondern etwas davor (Reverse Proxy, Express-Default-Handler mit HTML-Fehlerseite) — dann sagt
+ * der Anfang des Texts, wer es war. Ein durchschlagender `SyntaxError` meldete dem Client
+ * stattdessen nur „Unexpected token <".
+ */
+const parseJsonBody = (text: string, status: number): unknown => {
+	if (text === '') {
+		return null;
+	}
+	try {
+		return JSON.parse(text);
+	} catch {
+		throw new Error(`Unerwartete Antwort (HTTP ${status}): ${text.slice(0, 200)}`);
+	}
+};
+
+/**
  * Loopback-Aufruf gegen die eigene HTTP-API. Ein Fehlerstatus der Route (404 bei fremder Aufgabe,
  * 400 bei ungültiger Eingabe …) wird zu einer Exception, die der JSON-RPC-Rahmen in ein
  * `error`-Objekt übersetzt — die gespiegelte Route bleibt die einzige Entscheidungsinstanz.
@@ -57,21 +74,49 @@ const callApi = async (
 		body: init.body === undefined ? undefined : JSON.stringify(init.body),
 	});
 	const text = await res.text();
-	const payload: unknown = text === '' ? null : JSON.parse(text);
+	const payload = parseJsonBody(text, res.status);
 	if (!res.ok) {
-		const message = (payload as { error?: string } | null)?.error ?? `Anfrage fehlgeschlagen (${res.status}).`;
-		throw new Error(message);
+		// Der zentrale Fehlervertrag (express/http-error.ts) sendet `{ message }` — genau diesen Text
+		// braucht der Client, um zu wissen, WELCHES Feld ihm um die Ohren flog. Der Statuscode reist
+		// immer mit: er ordnet ein, ob die Eingabe (4xx) oder der Server (5xx) schuld ist.
+		const message = (payload as { message?: string } | null)?.message ?? 'Anfrage fehlgeschlagen.';
+		throw new Error(`${message} (HTTP ${res.status})`);
 	}
 	return payload;
 };
 
-/** Ganzzahlige Pflicht-ID aus den Werkzeug-Argumenten. */
-const requireId = (args: Record<string, unknown>): number => {
-	const id = args.id;
-	if (typeof id !== 'number' || !Number.isInteger(id)) {
-		throw new Error('id muss eine Ganzzahl sein.');
+/**
+ * Ganzzahlige Pflicht-ID aus den Werkzeug-Argumenten. Der Schlüsselname steht im Fehlertext, damit
+ * ein Aufruf mit mehreren IDs (`task_link`) sagt, welche davon fehlt.
+ */
+const requireTaskId = (args: Record<string, unknown>, key: string): number => {
+	const id = args[key];
+	if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
+		throw new Error(`${key} muss eine Ganzzahl >= 1 sein (IDs liefert task_list).`);
 	}
 	return id;
+};
+
+/**
+ * Umrechnungsfaktor des Aufwandsfelds: `estimatedEffort` zählt in **Tagen** zu je 14 h regulärer
+ * Wachzeit und läuft von 0.1 bis 1 (openapi.yml, Schema `Task.estimatedEffort`).
+ */
+const HOURS_PER_EFFORT_DAY = 14;
+const MIN_EFFORT = 0.1;
+const MAX_EFFORT = 1;
+
+/**
+ * Rechnet eine Stundenschätzung in das Tage-Feld der API um. Das Kappen an den Rändern ist kein
+ * Informationsverlust, sondern die Auflösung der Skala selbst: das Feld beginnt bei 0.1 Tagen
+ * (~1,4 h) und endet bei einem Tag. Auf zwei Nachkommastellen gerundet (≙ ~8 min), damit in der
+ * Aufwands-Spalte der Oberfläche keine 17-stellige Division steht.
+ */
+const effortFromHours = (hours: unknown): number => {
+	if (typeof hours !== 'number' || !Number.isFinite(hours) || hours <= 0) {
+		throw new Error('estimatedEffortHours muss eine endliche Zahl > 0 sein.');
+	}
+	const days = Math.round((hours / HOURS_PER_EFFORT_DAY) * 100) / 100;
+	return Math.min(MAX_EFFORT, Math.max(MIN_EFFORT, days));
 };
 
 /** Nur die gesetzten Felder übernehmen — die Route unterscheidet „fehlt" von „null". */
@@ -82,44 +127,15 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 			fields[key] = args[key];
 		}
 	}
-	return fields;
-};
-
-/**
- * Löst einen Aufgaben-Bezug zu einer ID auf. Die ID hat Vorrang; sonst wird der Titel gegen die
- * eigenen Aufgaben gematcht, erst wortgleich und dann als Teilstring. Bei keinem oder mehreren
- * Treffern bricht der Aufruf mit der Trefferliste ab, statt eine Aufgabe zu wählen: eine still
- * falsch gesetzte Kante fällt sonst erst auf, wenn der Graph längst schief steht.
- */
-const resolveTaskRef = async (
-	ctx: McpToolContext,
-	args: Record<string, unknown>,
-	idKey: string,
-	titleKey: string,
-): Promise<number> => {
-	const id = args[idKey];
-	if (id !== undefined) {
-		if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
-			throw new Error(`${idKey} muss eine Ganzzahl >= 1 sein.`);
+	if (args.estimatedEffortHours !== undefined) {
+		// Beide Angaben zusammen sind ein Widerspruch, kein Komfort: raten hieße, den Aufwand still
+		// falsch zu speichern.
+		if (args.estimatedEffort !== undefined) {
+			throw new Error('estimatedEffort und estimatedEffortHours schließen sich aus — bitte nur eines angeben.');
 		}
-		return id;
+		fields.estimatedEffort = effortFromHours(args.estimatedEffortHours);
 	}
-	const title = args[titleKey];
-	if (typeof title !== 'string' || title.trim() === '') {
-		throw new Error(`Entweder ${idKey} oder ${titleKey} muss gesetzt sein.`);
-	}
-	const needle = title.trim().toLowerCase();
-	const tasks = (await callApi(ctx, '/tasks')) as { id: number; title: string }[];
-	const exact = tasks.filter((task) => task.title.toLowerCase() === needle);
-	const matches = exact.length > 0 ? exact : tasks.filter((task) => task.title.toLowerCase().includes(needle));
-	if (matches.length === 0) {
-		throw new Error(`Keine Aufgabe mit dem Titel „${title}" gefunden.`);
-	}
-	if (matches.length > 1) {
-		const list = matches.map((task) => `${task.id}: ${task.title}`).join(', ');
-		throw new Error(`Mehrere Aufgaben passen auf „${title}" (${list}). Bitte die ID angeben.`);
-	}
-	return matches[0].id;
+	return fields;
 };
 
 /** Kantengewicht aus den Argumenten; ohne Angabe der Standardwert der Route. */
@@ -133,19 +149,33 @@ const readWeight = (value: unknown): number => {
 	return value;
 };
 
-/** Beide Enden einer Verknüpfung, je über ID oder Titel angebbar. */
+/**
+ * Beide Enden einer Verknüpfung — ausschließlich über die numerische ID. Eine Auflösung über den
+ * Titel gab es einmal; sie ist zurückgebaut, weil sie je Ende einen zusätzlichen Loopback-Aufruf
+ * kostete und bei mehrdeutigen Titeln ohnehin abbrach. Die IDs holt sich der Client vorher über
+ * `task_list`.
+ */
 const linkProperties = {
-	taskId: { type: 'integer', description: 'ID der übergeordneten Aufgabe (Alternative zu taskTitle).' },
-	taskTitle: { type: 'string', description: 'Titel der übergeordneten Aufgabe (Alternative zu taskId).' },
-	dependsOnId: { type: 'integer', description: 'ID der Vorgänger-Aufgabe (Alternative zu dependsOnTitle).' },
-	dependsOnTitle: { type: 'string', description: 'Titel der Vorgänger-Aufgabe (Alternative zu dependsOnId).' },
+	taskId: { type: 'integer', description: 'ID der übergeordneten Aufgabe (aus task_list).' },
+	dependsOnId: { type: 'integer', description: 'ID der Vorgänger-Aufgabe/Unteraufgabe (aus task_list).' },
 } as const;
 
 const taskFieldProperties = {
 	title: { type: 'string', description: 'Titel der Aufgabe.' },
 	description: { type: 'string', description: 'Beschreibung der Aufgabe.' },
-	priority: { type: 'integer', description: 'Priorität (1–5).' },
-	estimatedEffort: { type: 'integer', description: 'Geschätzter Aufwand in Stunden.' },
+	priority: { type: 'integer', description: 'Priorität: Ganzzahl 1 (niedrigste) bis 5 (höchste), Standard 3.' },
+	estimatedEffort: {
+		type: 'number',
+		description:
+			'Geschätzter Eigenaufwand in TAGEN: Zahl zwischen 0.1 und 1, Standard 0.5 (ein Tag ≙ 14 h ' +
+			'reguläre Wachzeit). Wer in Stunden schätzt, nutzt stattdessen estimatedEffortHours.',
+	},
+	estimatedEffortHours: {
+		type: 'number',
+		description:
+			'Geschätzter Eigenaufwand in Stunden; wird in das Tage-Feld umgerechnet (Stunden / 14) und ' +
+			'an den Rändern der Skala auf 0.1–1 Tage begrenzt. Alternative zu estimatedEffort.',
+	},
 	deadline: { type: 'string', description: 'Fälligkeit als ISO-8601-Zeitpunkt.' },
 	categoryId: { type: 'integer', description: 'ID einer eigenen Kategorie.' },
 } as const;
@@ -157,7 +187,9 @@ const taskFieldProperties = {
 export const mcpTools: McpTool[] = [
 	{
 		name: 'task_list',
-		description: 'Listet die Aufgaben des Token-Besitzers.',
+		description:
+			'Listet die Aufgaben des Token-Besitzers samt ihrer IDs. Diese IDs benennen eine Aufgabe in allen ' +
+			'übrigen Werkzeugen (task_update, task_complete, task_link, task_unlink, task_links).',
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/tasks'),
 	},
@@ -179,12 +211,14 @@ export const mcpTools: McpTool[] = [
 		inputSchema: {
 			type: 'object',
 			properties: {
-				id: { type: 'integer', description: 'ID der zu ändernden Aufgabe.' },
+				id: { type: 'integer', description: 'ID der zu ändernden Aufgabe (aus task_list).' },
 				...taskFieldProperties,
+				status: { type: 'string', description: 'Status: "Open", "In process" oder "Done".' },
 			},
 			required: ['id'],
 		},
-		run: (ctx, args) => callApi(ctx, `/tasks/${requireId(args)}`, { method: 'PATCH', body: pickTaskFields(args) }),
+		run: (ctx, args) =>
+			callApi(ctx, `/tasks/${requireTaskId(args, 'id')}`, { method: 'PATCH', body: pickTaskFields(args) }),
 	},
 	{
 		name: 'task_complete',
@@ -192,16 +226,18 @@ export const mcpTools: McpTool[] = [
 		write: true,
 		inputSchema: {
 			type: 'object',
-			properties: { id: { type: 'integer', description: 'ID der zu erledigenden Aufgabe.' } },
+			properties: { id: { type: 'integer', description: 'ID der zu erledigenden Aufgabe (aus task_list).' } },
 			required: ['id'],
 		},
-		run: (ctx, args) => callApi(ctx, `/tasks/${requireId(args)}`, { method: 'PATCH', body: { status: 'Done' } }),
+		run: (ctx, args) =>
+			callApi(ctx, `/tasks/${requireTaskId(args, 'id')}`, { method: 'PATCH', body: { status: 'Done' } }),
 	},
 	{
 		name: 'task_link',
 		description:
 			'Verknüpft eine Aufgabe mit einer Vorgänger-Aufgabe (Unteraufgabe) und setzt das Gewicht der Kante. ' +
-			'Besteht die Verknüpfung schon, ändert der Aufruf nur ihr Gewicht. Beide Enden sind über ID oder Titel angebbar.',
+			'Besteht die Verknüpfung schon, ändert der Aufruf nur ihr Gewicht. Beide Enden werden über ihre ' +
+			'numerische ID angegeben — die IDs liefert task_list, also zuerst dort nachsehen.',
 		write: true,
 		inputSchema: {
 			type: 'object',
@@ -209,12 +245,12 @@ export const mcpTools: McpTool[] = [
 				...linkProperties,
 				weight: { type: 'number', description: 'Gewicht der Verknüpfung, Zahl >= 0. Ohne Angabe 1.' },
 			},
+			required: ['taskId', 'dependsOnId'],
 		},
-		run: async (ctx, args) => {
-			// Gewicht vor der Auflösung prüfen: ein ungültiger Wert kostet sonst zwei Titel-Abfragen.
+		run: (ctx, args) => {
 			const weight = readWeight(args.weight);
-			const taskId = await resolveTaskRef(ctx, args, 'taskId', 'taskTitle');
-			const dependsOnId = await resolveTaskRef(ctx, args, 'dependsOnId', 'dependsOnTitle');
+			const taskId = requireTaskId(args, 'taskId');
+			const dependsOnId = requireTaskId(args, 'dependsOnId');
 			return callApi(ctx, `/tasks/${taskId}/dependencies`, {
 				method: 'POST',
 				body: { dependingTaskId: dependsOnId, weight },
@@ -225,12 +261,12 @@ export const mcpTools: McpTool[] = [
 		name: 'task_unlink',
 		description:
 			'Löst die Verknüpfung zwischen einer Aufgabe und einer ihrer Vorgänger-Aufgaben. ' +
-			'Beide Enden sind über ID oder Titel angebbar.',
+			'Beide Enden werden über ihre numerische ID angegeben — die IDs liefert task_list.',
 		write: true,
-		inputSchema: { type: 'object', properties: { ...linkProperties } },
-		run: async (ctx, args) => {
-			const taskId = await resolveTaskRef(ctx, args, 'taskId', 'taskTitle');
-			const dependsOnId = await resolveTaskRef(ctx, args, 'dependsOnId', 'dependsOnTitle');
+		inputSchema: { type: 'object', properties: { ...linkProperties }, required: ['taskId', 'dependsOnId'] },
+		run: (ctx, args) => {
+			const taskId = requireTaskId(args, 'taskId');
+			const dependsOnId = requireTaskId(args, 'dependsOnId');
 			return callApi(ctx, `/tasks/${taskId}/dependencies/${dependsOnId}`, { method: 'DELETE' });
 		},
 	},
@@ -238,13 +274,15 @@ export const mcpTools: McpTool[] = [
 		name: 'task_links',
 		description:
 			'Listet die Verknüpfungen einer Aufgabe: ihre Vorgänger (Unteraufgaben) und die Aufgaben, die auf ihr ' +
-			'aufbauen, je mit Gewicht. Erledigte Aufgaben fehlen, weil der gespiegelte Graph nur offene Aufgaben führt.',
+			'aufbauen, je mit Gewicht. Die Aufgabe wird über ihre numerische ID angegeben (aus task_list). ' +
+			'Erledigte Aufgaben fehlen, weil der gespiegelte Graph nur offene Aufgaben führt.',
 		inputSchema: {
 			type: 'object',
-			properties: { taskId: linkProperties.taskId, taskTitle: linkProperties.taskTitle },
+			properties: { taskId: linkProperties.taskId },
+			required: ['taskId'],
 		},
 		run: async (ctx, args) => {
-			const taskId = await resolveTaskRef(ctx, args, 'taskId', 'taskTitle');
+			const taskId = requireTaskId(args, 'taskId');
 			const graph = (await callApi(ctx, '/graph')) as {
 				nodes: { id: number; title: string }[];
 				edges: { from: number; to: number; weight: number }[];
