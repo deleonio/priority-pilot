@@ -2,6 +2,7 @@ import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
+import { MilestoneBadges } from './MilestoneBadges';
 import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
@@ -370,6 +371,9 @@ export const Dashboard = ({
 			 * lädt selbst (Muster NearbyCard), daher ohne Prop-Kette und ohne Bedingung.
 			 */}
 			<StreakCard />
+			{/* #1362: eigener Knoten direkt nach der Streak-Card — beide Stufenlisten (Streak/Punkte)
+			 * bauen auf denselben Kennzahlen auf, die Badges fassen sie zu einer Übersicht zusammen. */}
+			<MilestoneBadges />
 			{/* #1361: eigener Knoten neben der Streak-Card, damit deren E2E-Locators (#1360) unberührt
 			 * bleiben. Bedingung wertet die volle `tasks`-Liste aus. */}
 			{showDayDoneHint && <DayDoneHint tasks={tasks} />}

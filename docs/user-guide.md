@@ -474,6 +474,21 @@ Beim Erledigen einer Aufgabe sammelst du Punkte:
 Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 **„Gesamtguthaben"**.
 
+### Meilenstein-Badges
+
+Die Dashboard-Card **„Meilensteine"** zeigt feste Stufen für deinen Streak und deine
+gesammelten Gamification-Punkte. Erreichte Stufen sind hervorgehoben, nicht erreichte
+bleiben sichtbar. Die Auswertung ist rückwirkend: Bestandsdaten oberhalb einer Schwelle
+zählen schon beim ersten Aufruf, ohne dass du dafür etwas Neues erledigen musst.
+
+- **Streak** (gegen deine Bestmarke): 3, 7, 14, 30, 100 Tage.
+- **Punkte** (Summe deiner Gamification-Punkte aus erledigten Aufgaben): 50, 250, 1000,
+  5000 Punkte.
+
+Es gibt keinen gespeicherten Erreicht-Zustand: Ein Punkte-Badge kann nach dem
+**„Wieder öffnen"** einer erledigten Aufgabe wieder erlöschen, wenn deine Punktesumme
+dadurch unter die Schwelle fällt.
+
 ---
 
 ## Einstellungen
