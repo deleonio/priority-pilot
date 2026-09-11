@@ -77,11 +77,12 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 	 *    JSX `slot="tab-1"` → DOM `slot="tabpanel-slot-1"` (shadow.tsx, setAttribute).
 	 * 2. `getByText('Säulen')` löste strict-mode violation aus (matchte zusätzlich das
 	 *    Panel-Heading „Säulen-Gewichtung“) → `getByRole('tab', …)` (pierct Shadow-DOM).
-	 * 3. Spiegel als Bounding-Box-Insets statt computed Padding: `.settings-page` ist
-	 *    max-width 800px und zentriert — der Viewport-Inset enthält bei >832px (Playwright-
-	 *    Default 1280) den Zentrier-Margin (256 statt 16). Vom Border-Box-Inset wird das
-	 *    computed Padding abgezogen (Content-Box-Inset), weil die Tab-Panels im
-	 *    Content-Bereich von `.settings-page` liegen.
+	 * 3. Spiegel als Bounding-Box-Insets statt computed Padding: robust unabhängig davon, ob
+	 *    `.settings-page` (wie aktuell) volle Breite einnimmt oder — wie vor der Dashboard-
+	 *    Paritäts-Änderung dieser PR — per `max-width` zentriert ist; ein Zentrier-Margin würde
+	 *    sonst in den Viewport-Inset einfließen. Vom Border-Box-Inset wird das computed Padding
+	 *    abgezogen (Content-Box-Inset), weil die Tab-Panels im Content-Bereich von
+	 *    `.settings-page` liegen.
 	 */
 	test('AK4: Insets der Tabs „Säulen“ und „LLM“ entsprechen unverändert den .settings-page-Insets', async ({
 		page,
