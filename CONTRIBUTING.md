@@ -81,7 +81,11 @@ Die Root-[`CHANGELOG.md`](CHANGELOG.md) wird **generiert** — nicht von Hand be
 Einträge entstehen automatisch über die Kette PR-Titel → `release:*`-Label des PR-Documenters →
 GitHub-Release-Notes (`.github/release.yml`) → `CHANGELOG.md`; die Deploy-Pipeline ruft dafür
 nach jedem Release `.github/scripts/changelog-render.sh` auf und committet eine geänderte Datei
-mit `[skip ci]`. Zum manuellen Regenerieren (z. B. lokal zur Kontrolle):
+mit `[skip ci]`. `deploy.yml` erzeugt bei jedem Merge ein eigenes Patch-Release,
+`cron.daily-version.yml` zusätzlich einmal täglich einen Minor-Bump — `changelog-render.sh`
+fasst deshalb alle Releases derselben Minor-Version (`MAJOR.MINOR`) zu **einem** Abschnitt in
+`CHANGELOG.md` zusammen; ein neuer Abschnitt beginnt erst mit dem nächsten Minor-Bump. Zum
+manuellen Regenerieren (z. B. lokal zur Kontrolle):
 
 ```bash
 bash .github/scripts/changelog-render.sh --repo <owner>/<repo> --dry-run   # nur Ausgabe, kein Schreiben
