@@ -80,10 +80,16 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await expectWithinViewport(page, saveFavoriteButton);
 		const saveFavoriteBox = await saveFavoriteButton.boundingBox();
 		expect(saveFavoriteBox!.height).toBeGreaterThanOrEqual(44);
+		// Auf die Anlege-Antwort warten: erst danach ist der Favorit serverseitig da — sonst reißt die
+		// Navigation den Request weg. Nicht über den Busy-Zustand des Knopfes, denn der ist ein Rennen
+		// gegen den eigenen Request: antwortet der Server vor dem ersten Poll, war der Knopf nie
+		// disabled und der Test wird grundlos rot (Shard-4-Ausfall in PR #1384).
+		const favoriteCreated = page.waitForResponse(
+			(response) => response.url().includes('/api/v1/place-favorites') && response.request().method() === 'POST',
+		);
 		await saveFavoriteButton.click();
-		// Busy-Zustand während `api.createPlaceFavorite`: erst nach dessen Ende (Knopf wieder aktiv)
-		// ist der Favorit serverseitig angelegt — sonst reißt die Navigation den Request weg.
-		await expect(saveFavoriteButton).toBeDisabled();
+		const favoriteResponse = await favoriteCreated;
+		expect(favoriteResponse.status(), await favoriteResponse.text()).toBe(201);
 		await expect(saveFavoriteButton).toBeEnabled();
 
 		// 2) In Einstellungen → Standort umbenennen (AK3).
