@@ -1,9 +1,10 @@
 import { KolAlert, KolButton, KolCard, KolDetails, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Task, TaskGraph } from 'client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { splitIntoTrees } from '../lib/graphLayout';
+import { usePrefersReducedMotion } from '../lib/reducedMotion';
 import { formatNumber } from '../lib/task';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 import { TaskGraphCanvas } from './TaskGraphCanvas';
@@ -45,6 +46,8 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 	const [error, setError] = useState<string | null>(null);
 	const [selectedId, setSelectedId] = useState<number | null>(null);
 	const [treeIndex, setTreeIndex] = useState(0);
+	const detailRef = useRef<HTMLDivElement | null>(null);
+	const prefersReducedMotion = usePrefersReducedMotion();
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -97,6 +100,30 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 	}, []);
 
 	const selected = visible?.nodes.find((node) => node.id === selectedId) ?? null;
+
+	// Ein Reload über `TASKS_CHANGED_EVENT` kann den ausgewählten Knoten entfernen, während der Baum
+	// bestehen bleibt. Ohne Aufräumen bliebe `selectedId` gesetzt: der Canvas dimmt dann *alle*
+	// Knoten (`isDimmed` prüft nur auf „irgendetwas ausgewählt"), die Detailkarte ist aber weg — ein
+	// grauer Graph ohne erkennbaren Grund.
+	useEffect(() => {
+		if (selectedId !== null && visible !== null && selected === null) {
+			setSelectedId(null);
+		}
+	}, [selectedId, visible, selected]);
+
+	// Auf 375px liegt die Detailkarte unterhalb des Canvas und damit außerhalb des Sichtfelds: ein
+	// Tipp auf einen Knoten sähe folgenlos aus. Deshalb wird sie in den Blick geholt — `block: 'nearest'`
+	// scrollt nur so weit wie nötig, der Canvas bleibt mit im Bild.
+	useEffect(() => {
+		if (selected === null) {
+			return;
+		}
+		detailRef.current?.scrollIntoView?.({
+			block: 'nearest',
+			behavior: prefersReducedMotion ? 'auto' : 'smooth',
+		});
+	}, [selected?.id, prefersReducedMotion]);
+
 	const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
 	const editDependencies = useCallback(
@@ -126,6 +153,8 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 		<section className="task-graph-panel">
 			<KolHeading _label="Priorisierung" _level={2} />
 
+			{/* Ohne Wrapper mit `role="alert"`: `kol-alert` setzt die Rolle bereits im Shadow DOM (`_alert`
+			    ist standardmäßig an), ein zweiter Live-Bereich darüber ließe den Fehler doppelt ansagen. */}
 			{error !== null && (
 				<KolAlert _type="error" _label="Der Aufgabengraph konnte nicht geladen werden">
 					<p>{error}</p>
@@ -133,11 +162,16 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 				</KolAlert>
 			)}
 
-			{error === null && graph === null && <KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}
+			{/* `_label` statt `aria-label`: KoliBri beschriftet den Spinner intern, ein `aria-label` am
+			    Host ohne Rolle wird von Screenreadern nicht vorgelesen. */}
+			{error === null && graph === null && <KolSpin _show _variant="cycle" _label="Graph wird geladen" />}
 
 			{error === null && graph !== null && visible === null && (
-				<KolCard _label="Keine offenen Aufgaben" _level={3}>
-					<p>Sobald es offene Aufgaben mit Abhängigkeiten gibt, erscheinen sie hier als Graph.</p>
+				<KolCard _label="Noch keine verknüpften Aufgaben" _level={3}>
+					<p>
+						Der Graph zeigt Aufgaben, die voneinander abhängen. Verknüpfe im Tab „Aufgaben" zwei Aufgaben über
+						„Abhängigkeiten" — danach steht hier der erste Baum.
+					</p>
 				</KolCard>
 			)}
 
@@ -164,14 +198,12 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 						/>
 					</div>
 
-					<KolCard _label="Legende" _level={4} className="task-graph-legend">
-						<ul>
-							<li>Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.</li>
-							<li>Je dicker die Linie, desto stärker das Gewicht — die Zahl steht an der Linie.</li>
-							<li>Jeder Knoten zeigt Nummer, Titel, Priorität, Wertbeitrag und Fortschritt.</li>
-						</ul>
-					</KolCard>
-
+					{/*
+					 * Reihenfolge bewusst: Blätter-Leiste → Graph → Detail → Erklärungen. Die Legende stand
+					 * früher als aufgeklappte Karte zwischen Leiste und Canvas und kostete auf dem 375px-
+					 * Referenzviewport rund 150px, bevor überhaupt ein Knoten zu sehen war. Sie erklärt
+					 * etwas, das man erst gesehen haben muss — also zugeklappt und unter den Graphen.
+					 */}
 					<TaskGraphCanvas
 						nodes={visible.nodes}
 						edges={visible.edges}
@@ -179,47 +211,59 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 						onSelect={setSelectedId}
 					/>
 
-					{selected !== null && (
-						<KolCard _label={`#${selected.id} – ${selected.title}`} _level={4} className="task-graph-detail">
-							<p>
-								Priorität {selected.priority} · Wert {formatNumber(selected.value)} · Gesamtaufwand{' '}
-								{formatNumber(selected.totalEstimatedEffort)} Tage
-							</p>
-							{selected.progress && (
+					<div ref={detailRef} className="task-graph-detail-anchor">
+						{selected !== null && (
+							<KolCard _label={`#${selected.id} – ${selected.title}`} _level={4} className="task-graph-detail">
 								<p>
-									Fortschritt {selected.progress.done}/{selected.progress.total}. Gezählt werden auch erledigte
-									Unteraufgaben, die im Graphen nicht mehr erscheinen.
+									Priorität {selected.priority} · Wert {formatNumber(selected.value)} · Gesamtaufwand{' '}
+									{formatNumber(selected.totalEstimatedEffort)} Tage
 								</p>
-							)}
-							<p>
-								Hängt ab von:{' '}
-								{relations.dependsOn.length === 0
-									? 'nichts'
-									: relations.dependsOn
-											.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
-											.join(', ')}
-							</p>
-							<p>
-								Ermöglicht:{' '}
-								{relations.enables.length === 0
-									? 'nichts'
-									: relations.enables
-											.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
-											.join(', ')}
-							</p>
-							{taskById.has(selected.id) && (
-								<KolButton
-									_label="Abhängigkeiten bearbeiten"
-									_variant="primary"
-									_on={{ onClick: () => editDependencies(selected.id) }}
-								/>
-							)}
-						</KolCard>
-					)}
+								{selected.progress && (
+									<p>
+										Fortschritt {selected.progress.done}/{selected.progress.total}. Gezählt werden auch erledigte
+										Unteraufgaben, die im Graphen nicht mehr erscheinen.
+									</p>
+								)}
+								<p>
+									Hängt ab von:{' '}
+									{relations.dependsOn.length === 0
+										? 'nichts'
+										: relations.dependsOn
+												.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
+												.join(', ')}
+								</p>
+								<p>
+									Ermöglicht:{' '}
+									{relations.enables.length === 0
+										? 'nichts'
+										: relations.enables
+												.map((relation) => `${relation.title} (${formatNumber(relation.weight)})`)
+												.join(', ')}
+								</p>
+								{taskById.has(selected.id) && (
+									<KolButton
+										_label="Abhängigkeiten bearbeiten"
+										_variant="primary"
+										_on={{ onClick: () => editDependencies(selected.id) }}
+									/>
+								)}
+							</KolCard>
+						)}
+					</div>
 
-					<KolDetails _label="Graph als Liste" _open={false}>
-						<TaskGraphList nodes={visible.nodes} edges={visible.edges} onEditDependencies={editDependencies} />
-					</KolDetails>
+					<div className="task-graph-aside">
+						<KolDetails _label="Legende" _open={false}>
+							<ul className="task-graph-legend">
+								<li>Ein Pfeil zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.</li>
+								<li>Je dicker die Linie, desto stärker das Gewicht — die Zahl steht an der Linie.</li>
+								<li>Jeder Knoten zeigt Nummer, Titel, Priorität, Wertbeitrag und Fortschritt.</li>
+							</ul>
+						</KolDetails>
+
+						<KolDetails _label="Graph als Liste" _open={false}>
+							<TaskGraphList nodes={visible.nodes} edges={visible.edges} onEditDependencies={editDependencies} />
+						</KolDetails>
+					</div>
 				</>
 			)}
 		</section>

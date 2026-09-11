@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import type { Task, TaskGraph, TaskGraphEdge, TaskGraphNode } from 'client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Panel-Vertrag: die drei Zustände (Laden/Fehler/Daten), die Blätterung über die Bäume und der
@@ -10,8 +11,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * `ReactFlow` scheitert dort. KoliBri-Komponenten sind Custom Elements und ebenfalls ersetzt.
  */
 vi.mock('./TaskGraphCanvas', () => ({
-	TaskGraphCanvas: ({ nodes }: { nodes: TaskGraphNode[] }) => (
-		<div data-testid="canvas-stub">{nodes.length} Knoten</div>
+	// Der Stub bietet je Knoten einen Auswahl-Knopf an, damit der Weg „Knoten gewählt ⇒ Detailkarte"
+	// prüfbar ist, ohne ReactFlow in jsdom zu starten.
+	TaskGraphCanvas: ({
+		nodes,
+		selectedId,
+		onSelect,
+	}: {
+		nodes: TaskGraphNode[];
+		selectedId: number | null;
+		onSelect: (id: number | null) => void;
+	}) => (
+		<div>
+			<span data-testid="canvas-stub">{nodes.length} Knoten</span>
+			{/* `selectedId` steuert im echten Canvas das Abdunkeln aller übrigen Knoten — hier sichtbar
+			    gemacht, damit eine hängengebliebene Auswahl im Test auffällt. */}
+			<span data-testid="canvas-selected">{selectedId === null ? 'keine' : String(selectedId)}</span>
+			{nodes.map((node) => (
+				<button key={node.id} type="button" onClick={() => onSelect(node.id)}>
+					{`Knoten ${node.id} wählen`}
+				</button>
+			))}
+		</div>
 	),
 }));
 
@@ -87,13 +108,13 @@ describe('TaskGraphPanel', () => {
 	it('Leerer Graph (keine Kanten) erklärt sich statt leer zu bleiben (AK1/AK8)', async () => {
 		getGraph.mockResolvedValue(graph([]));
 		render(<TaskGraphPanel tasks={[]} onEditDependencies={vi.fn()} />);
-		await waitFor(() => expect(screen.getByText(/Keine offenen Aufgaben/)).toBeTruthy());
+		await waitFor(() => expect(screen.getByText(/Noch keine verknüpften Aufgaben/)).toBeTruthy());
 	});
 
 	it('Nur kantenlose Knoten ⇒ Leerzustand statt Blätter-Leiste (AK1/AK8)', async () => {
 		getGraph.mockResolvedValue(graph([node(1), node(2)], []));
 		render(<TaskGraphPanel tasks={[]} onEditDependencies={vi.fn()} />);
-		await waitFor(() => expect(screen.getByText(/Keine offenen Aufgaben/)).toBeTruthy());
+		await waitFor(() => expect(screen.getByText(/Noch keine verknüpften Aufgaben/)).toBeTruthy());
 		expect(screen.queryByText(/Baum \d+ von \d+/)).toBeNull();
 	});
 
@@ -117,6 +138,35 @@ describe('TaskGraphPanel', () => {
 		await waitFor(() => expect(screen.getByText('Baum 2 von 2')).toBeTruthy());
 		expect(screen.getByTestId('canvas-stub').textContent).toBe('3 Knoten');
 		expect(screen.getByRole('button', { name: /Vor/ }).hasAttribute('disabled')).toBe(true);
+	});
+
+	it('Ein gewählter Knoten bekommt eine Detailkarte mit seinen Beziehungen', async () => {
+		getGraph.mockResolvedValue(graph([node(1), node(2)], [edge(1, 2, 0.5)]));
+		render(<TaskGraphPanel tasks={[task(1), task(2)]} onEditDependencies={vi.fn()} />);
+
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Knoten 2 wählen' })).toBeTruthy());
+		screen.getByRole('button', { name: 'Knoten 2 wählen' }).click();
+
+		await waitFor(() => expect(screen.getByText('#2 – T2')).toBeTruthy());
+		expect(screen.getByText(/Hängt ab von: T1/)).toBeTruthy();
+	});
+
+	it('Verschwindet der gewählte Knoten beim Neuladen, fällt die Auswahl weg (statt den Graphen grau zu lassen)', async () => {
+		// Erst ein Baum 1→2→3, dann derselbe Baum ohne Knoten 3 (z. B. erledigt).
+		getGraph.mockResolvedValueOnce(graph([node(1), node(2), node(3)], [edge(1, 2), edge(2, 3)]));
+		render(<TaskGraphPanel tasks={[]} onEditDependencies={vi.fn()} />);
+
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Knoten 3 wählen' })).toBeTruthy());
+		screen.getByRole('button', { name: 'Knoten 3 wählen' }).click();
+		await waitFor(() => expect(screen.getByText('#3 – T3')).toBeTruthy());
+
+		getGraph.mockResolvedValueOnce(graph([node(1), node(2)], [edge(1, 2)]));
+		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+
+		await waitFor(() => expect(screen.queryByRole('button', { name: 'Knoten 3 wählen' })).toBeNull());
+		expect(screen.queryByText('#3 – T3')).toBeNull();
+		// Der Kern: ohne Aufräumen bliebe `selectedId` auf 3 stehen und der Canvas dimmte 1 und 2 mit.
+		await waitFor(() => expect(screen.getByTestId('canvas-selected').textContent).toBe('keine'));
 	});
 
 	it('Der Listen-Button öffnet den Dialog für die richtige Aufgabe', async () => {

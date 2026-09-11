@@ -1108,7 +1108,14 @@ body {
  */
 .task-graph-canvas {
 	width: 100%;
-	height: clamp(320px, 55vh, 520px);
+	/*
+	 * Untergrenze 16rem statt 20rem: quer gehaltenes Telefon (375×667 ⇒ 667×375) hat nach Kopfzeile,
+	 * Tab-Leiste und Blätter-Leiste keine 20rem mehr übrig — der Canvas hätte die Zoom-Leiste darunter
+	 * aus dem Bild geschoben. `vh` zuerst, `svh` als Verbesserung: `vh` rechnet auf Mobilbrowsern mit
+	 * eingeklappter URL-Leiste, `svh` mit der immer sichtbaren Fläche und springt beim Scrollen nicht.
+	 */
+	height: clamp(16rem, 55vh, 32.5rem);
+	height: clamp(16rem, 55svh, 32.5rem);
 	overflow: hidden;
 	border: 1px solid var(--pp-border);
 	border-radius: var(--pp-radius-md);
@@ -1118,13 +1125,17 @@ body {
 
 @media (min-width: 48rem) {
 	.task-graph-canvas {
-		height: 640px;
+		height: 40rem;
 	}
 }
 
+/*
+ * Zoom-Leiste, seit diesem Pass unterhalb des Canvas (Daumenzone, docs/mobile-ui-rules.md Regel 1).
+ * Der Abstand ist knapp: Leiste und Canvas gehören zusammen, die nächste Gruppe darunter nicht.
+ */
 .task-graph-toolbar {
 	display: block;
-	margin-top: var(--pp-gap-base);
+	margin-top: var(--pp-gap-tight);
 }
 
 /* Knoten: feste Maße, damit das Layout (graphLayout.ts) und die Darstellung nicht auseinanderlaufen. */
@@ -1143,6 +1154,19 @@ body {
 	font-size: var(--pp-font-size-sm);
 	line-height: var(--pp-line-tight);
 	cursor: pointer;
+}
+
+/*
+ * Zeigegeräte bekommen eine Rückmeldung, bevor sie klicken — auf Touch gibt es kein Hover, deshalb
+ * hinter `hover: hover` und nicht als einzige Auskunft über die Anklickbarkeit (die trägt der
+ * Cursor plus die Auswahl-Kontur). Nur Randfarbe und Fläche, keine Transformation: der Knoten sitzt
+ * im Viewport-Transform des Canvas, jede eigene Skalierung würde beim Zoomen doppelt gerechnet.
+ */
+@media (hover: hover) {
+	.task-graph-node:hover {
+		border-color: var(--pp-border-strong);
+		background: var(--pp-surface-2);
+	}
 }
 
 /*
@@ -1192,8 +1216,15 @@ body {
 	/* Zwei Zeilen, danach Ellipse — der volle Titel steht in der Listenansicht. */
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
+	/*
+	 * Ein Titel ohne Trennstelle (kopierter Link, `Rechnungsabgrenzungsposten…`) ist breiter als die
+	 * 180px des Knotens und ragte über dessen Rand hinaus — die Zeilenbegrenzung greift erst nach dem
+	 * Umbruch. `anywhere` erzwingt den Umbruch innerhalb des Worts.
+	 */
+	overflow-wrap: anywhere;
 }
 
 .task-graph-node__meta,
@@ -1248,9 +1279,14 @@ body {
 	fill: var(--pp-surface-1);
 }
 
+/*
+ * Kanten-Beschriftung in `rem` statt `px`: das Gewicht ist der einzige Text im Canvas, der nicht
+ * aus einem Knoten kommt, und eine px-Angabe ignoriert die Schriftgröße des Browsers (WCAG 1.4.4).
+ * Bewusst unter der Knotenschrift — das Label begleitet die Linie, es konkurriert nicht mit Titeln.
+ */
 .task-graph-canvas .react-flow__edge-text {
 	fill: var(--pp-text);
-	font-size: 11px;
+	font-size: 0.6875rem;
 }
 
 /* Andockpunkte sind nur Geometrie für das Kanten-Routing, kein Bedienelement. */
@@ -1268,6 +1304,9 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	/* Bei 200 % Textvergrößerung passen „Zurück“, Position und „Vor“ nicht mehr nebeneinander —
+	   dann bricht die Leiste um, statt über die Viewportbreite zu ragen (WCAG 1.4.10 Reflow). */
+	flex-wrap: wrap;
 	gap: var(--pp-space-3);
 	margin-top: var(--pp-gap-base);
 }
@@ -1279,14 +1318,33 @@ body {
 	text-align: center;
 }
 
-.task-graph-legend ul {
+.task-graph-legend {
 	margin: 0;
 	padding-left: var(--pp-space-4);
+	color: var(--pp-text-muted);
+	font-size: var(--pp-font-size-sm);
+}
+
+/*
+ * Anker für die Detailkarte: der Container steht immer im DOM, damit die Auswahl eines Knotens
+ * nicht erst eine Box einschiebt und die Seite unter dem Finger verrutscht. `scroll-margin-block`
+ * hält beim Hereinscrollen Luft zum Canvas darüber.
+ */
+.task-graph-detail-anchor {
+	scroll-margin-block: var(--pp-gap-base);
 }
 
 .task-graph-detail {
 	display: block;
 	margin-top: var(--pp-gap-base);
+}
+
+/* Legende und Listenfassung: zusammengehörige, zugeklappte Nachschlage-Ebene unter dem Graphen. */
+.task-graph-aside {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	margin-top: var(--pp-gap-generous);
 }
 
 .task-graph-list {
