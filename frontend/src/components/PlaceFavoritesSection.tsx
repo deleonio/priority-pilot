@@ -178,9 +178,12 @@ export const PlaceFavoritesSection = () => {
 									</span>
 								) : (
 									<>
-										{/* `aria-label` zusätzlich zum sichtbaren `_label`: der Name nennt den Ort mit, damit die
-										    Aktion auch aus der Vorlesereihenfolge heraus eindeutig ist (der sichtbare Text ist
-										    im Namen enthalten, WCAG 2.5.3). */}
+										{/* `kol-button` hat keine `_ariaLabel`-Prop und liest kein `aria-label`-Attribut vom
+										    Host — die Shadow-DOM-Taste im Browser bekommt ihren Namen ausschließlich aus
+										    `_label` (im Unit-Test-Mock, einem echten `<button>`, überschreibt `aria-label`
+										    den Textinhalt zwar scheinbar korrekt, das ist mit dem realen Custom Element aber
+										    nicht der Fall — CI: e2e (4) AK6). Der Ort steht deshalb direkt im `_label`, wie es
+										    die Spec ohnehin so benennt (`docs/spec/issue-1342.md`: „Favorit umbenennen"). */}
 										<ButtonAction
 											onClick={() => {
 												setRenameValue(favorite.name);
@@ -188,16 +191,14 @@ export const PlaceFavoritesSection = () => {
 											}}
 										>
 											<KolButton
-												aria-label={`Favorit umbenennen: ${favorite.name}`}
-												_label="Umbenennen"
+												_label={`Favorit umbenennen: ${favorite.name}`}
 												class="settings-action-btn"
 												_variant="secondary"
 											/>
 										</ButtonAction>
 										<ButtonAction onClick={() => setDeleteId(favorite.id)}>
 											<KolButton
-												aria-label={`Favorit löschen: ${favorite.name}`}
-												_label="Löschen"
+												_label={`Favorit löschen: ${favorite.name}`}
 												class="settings-action-btn"
 												_variant="danger"
 											/>

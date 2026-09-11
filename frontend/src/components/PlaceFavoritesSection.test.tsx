@@ -128,7 +128,7 @@ describe('PlaceFavoritesSection (#1342 AK3)', () => {
 		render(<PlaceFavoritesSection />);
 		await flush();
 
-		fireEvent.click(screen.getByLabelText(/favorit umbenennen/i));
+		fireEvent.click(screen.getByRole('button', { name: /favorit umbenennen/i }));
 		const nameInput = screen.getByDisplayValue('Büro');
 		fireEvent.change(nameInput, { target: { value: 'Zweitbüro' } });
 		fireEvent.click(screen.getByText(/^(übernehmen|speichern)$/i));
@@ -144,7 +144,7 @@ describe('PlaceFavoritesSection (#1342 AK3)', () => {
 		render(<PlaceFavoritesSection />);
 		await flush();
 
-		fireEvent.click(screen.getByLabelText(/favorit löschen/i));
+		fireEvent.click(screen.getByRole('button', { name: /favorit löschen/i }));
 		await flush();
 		// Zweistufige Bestätigung (Muster ApiTokensSection/docs/ux-pattern-sequential-confirmation.md)
 		const confirmButtons = screen.getAllByRole('button').filter((b) => /löschen|entfernen/i.test(b.textContent ?? ''));

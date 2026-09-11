@@ -99,9 +99,11 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		expect(renameBox!.height).toBeGreaterThanOrEqual(44);
 		await renameButton.click();
 
-		const nameInput = page.getByRole('textbox', { name: /name/i });
+		// Innerhalb der Zeile suchen: das Anlegen-Formular oben hat ebenfalls ein Feld „Name", ein
+		// seitenweiter `/name/i`-Filter träfe auf beide (strict-mode violation).
+		const nameInput = favoriteRow.getByRole('textbox', { name: /name/i });
 		await nameInput.fill('Büro München');
-		await page.getByRole('button', { name: /^(übernehmen|speichern)$/i }).click();
+		await favoriteRow.getByRole('button', { name: /^(übernehmen|speichern)$/i }).click();
 		await expect(page.getByTestId('place-favorite-row').filter({ hasText: 'Büro München' })).toBeVisible();
 
 		// 3) Im Adressfeld auswählen (AK1): erscheint VOR den Suchtreffern, Klick übernimmt Adresse + Koordinaten.
