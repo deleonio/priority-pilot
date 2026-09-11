@@ -268,3 +268,94 @@ describe('AddressAutocomplete (#1083)', () => {
 		expect(screen.getByText(/keine treffer/i)).toBeInTheDocument();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1342 AK1/AK2/AK4 (Spec docs/spec/issue-1342.md) — Standort-Favoriten im
+ * Adressfeld: gespeicherte Orte stehen VOR den Suchtreffern, ein Klick übernimmt Adresse + beide
+ * Koordinaten (oder `null`, wenn der Favorit keine hat), ein Stern in der Trefferzeile meldet den
+ * Treffer zum Speichern zurück (Geschwister-Element neben der Option, kein interaktiver Nachfahre
+ * von `role="option"` — KI-UX-Block zu #1342).
+ *
+ * Vertrag (Spec-Entscheidung dieser Phase, da noch nicht implementiert): `AddressAutocomplete`
+ * bekommt zwei neue optionale Props — `favorites: PlaceFavoriteSuggestion[]` (Trio `id/name/
+ * address/lat/lon`, `lat`/`lon` `null` bei Freitext-Favoriten) und `onSaveFavorite?: (hit:
+ * AddressSuggestion) => void`. Favoriten rendern als eigene `role="option"`-Zeilen (gleiche
+ * Listbox, gleicher Auswahlpfad wie Suchtreffer) VOR den Suchtreffern; jede Suchtreffer-Zeile
+ * bekommt zusätzlich ein Stern-Bedienelement mit eigenem Klick-Handler.
+ */
+describe('AddressAutocomplete (#1342) — Favoriten im Adressfeld', () => {
+	const FAVORITE_WITH_COORDS = { id: 1, name: 'Büro', address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 };
+	const FAVORITE_WITHOUT_COORDS = { id: 2, name: 'Oma', address: 'Irgendwo 3', lat: null, lon: null };
+
+	/** Direktrender von `AddressAutocomplete` mit Favoriten — nutzt die neuen Props direkt. */
+	const renderWithFavorites = (props: {
+		favorites: { id: number; name: string; address: string; lat: number | null; lon: number | null }[];
+		onSelect?: (suggestion: AddressSuggestion) => void;
+		onSaveFavorite?: (suggestion: AddressSuggestion) => void;
+	}) => {
+		const FavoritesHarness = () => {
+			const [value, setValue] = useState('');
+			return (
+				<AddressAutocomplete
+					label="Adresse (optional)"
+					value={value}
+					onValueChange={setValue}
+					onSelect={props.onSelect}
+					favorites={props.favorites}
+					onSaveFavorite={props.onSaveFavorite}
+				/>
+			);
+		};
+		return render(<FavoritesHarness />);
+	};
+
+	const waitForOptionCount = async (count: number) => {
+		const listbox = await screen.findByRole('listbox', {}, { timeout: 2000 });
+		await waitFor(() => expect(within(listbox).getAllByRole('option')).toHaveLength(count));
+		return within(listbox).getAllByRole('option');
+	};
+
+	it('AK1 — Favoriten stehen vor den Suchtreffern; ein Klick übernimmt Adresse + beide Koordinaten', async () => {
+		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
+		const onSelect = vi.fn();
+		renderWithFavorites({ favorites: [FAVORITE_WITH_COORDS], onSelect });
+
+		await typeQuery('munchen');
+		const options = await waitForOptionCount(MUNICH_HITS.length + 1);
+
+		expect(options[0]?.textContent).toContain('Büro');
+		expect(options[0]?.textContent).toContain('Rathausplatz 1, München');
+		expect(options.slice(1).map((option) => option.textContent)).toEqual(MUNICH_HITS.map((hit) => hit.address));
+
+		fireEvent.mouseDown(options[0] as Element);
+		expect(onSelect).toHaveBeenCalledWith({ address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 });
+	});
+
+	it('AK4 — ein Favorit ohne Koordinaten übergibt lat/lon als null (keine alte Koordinate hängen)', async () => {
+		mockGeocodeSearch.mockResolvedValue([]);
+		const onSelect = vi.fn();
+		renderWithFavorites({ favorites: [FAVORITE_WITHOUT_COORDS], onSelect });
+
+		fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'irgendwo' } });
+		const listbox = await screen.findByRole('listbox', {}, { timeout: 2000 });
+		fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Oma/ }));
+
+		expect(onSelect).toHaveBeenCalledWith({ address: 'Irgendwo 3', lat: null, lon: null });
+	});
+
+	it('AK2 — ein Stern-Bedienelement in der Trefferzeile meldet den Treffer zum Speichern, ohne ihn auszuwählen', async () => {
+		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
+		const onSelect = vi.fn();
+		const onSaveFavorite = vi.fn();
+		renderWithFavorites({ favorites: [], onSelect, onSaveFavorite });
+
+		await typeQuery('munchen');
+		await waitForOptionCount(MUNICH_HITS.length);
+
+		const star = screen.getByRole('button', { name: /als favorit speichern.*münchen hauptbahnhof/i });
+		fireEvent.click(star);
+
+		expect(onSaveFavorite).toHaveBeenCalledWith(MUNICH_HITS[0]);
+		expect(onSelect).not.toHaveBeenCalled();
+	});
+});
