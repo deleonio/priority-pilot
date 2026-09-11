@@ -7,6 +7,37 @@ import { TaskStatus } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
+ * Test-Pflege #1345: `KolInputCheckbox` bleibt für alle Tests dieser Datei die echte (nicht
+ * hochgestufte) Web-Component `<kol-input-checkbox>`, die in jsdom ohne Custom-Element-Definition
+ * weder `_checked` noch `_on.onChange` auswertet — Klick-Interaktion mit den Schaltern im
+ * Aufgaben-Tab ist damit unmöglich zu testen. `importOriginal` behält alle anderen Exporte
+ * unverändert (kein Risiko für bestehende Tests dieser Datei); nur die Checkbox wird durch ein
+ * echtes `<input type="checkbox">` mit `aria-label` ersetzt (Muster aus `TaskForm.test.tsx`).
+ */
+vi.mock('@public-ui/react-v19', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@public-ui/react-v19')>();
+	return {
+		...actual,
+		KolInputCheckbox: ({
+			_label,
+			_checked,
+			_on,
+		}: {
+			_label?: string;
+			_checked?: boolean;
+			_on?: { onChange?: (_e: unknown, checked: boolean) => void };
+		}) => (
+			<input
+				type="checkbox"
+				aria-label={_label}
+				checked={_checked ?? false}
+				onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
+			/>
+		),
+	};
+});
+
+/**
  * `./api` wird vollständig gemockt, damit `App` ohne Backend lädt. Der `vi.mock`-Call wird von
  * Vitest automatisch an den Dateianfang gehoist (vor alle Imports), sodass `App` und `api`
  * bereits die gemockte Fassade erhalten. Die Mock-Rückgabewerte werden bewusst in `beforeEach`
@@ -498,5 +529,94 @@ describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive 
 
 		await waitFor(() => expect(screen.getByText(/Keine Aufgaben gefunden/)).toBeInTheDocument());
 		expect(document.querySelector('[data-testid="day-done"]')).toBeNull();
+	});
+});
+
+/**
+ * Test-Pflege #1345 (TF3/TF4): Schalter „Oberaufgaben anzeigen" — AK1 (Schalter vorhanden, initial
+ * aus), AK10 (rein State-lokal, kein `localStorage`/URL) und AK9 (eingeblendete Oberaufgaben folgen
+ * derselben Titel-/Kategoriefilterung wie Blätter, kein Kontextpfad-Erhalt).
+ */
+describe('App — #1345: Schalter „Oberaufgaben anzeigen"', () => {
+	const parentTask: Task = { ...sampleTask, id: 10, title: 'Elternaufgabe', status: TaskStatus.Open };
+	const childTask: Task = { ...sampleTask, id: 11, title: 'Kindaufgabe', status: TaskStatus.Open };
+	const forestNode = {
+		id: 10,
+		title: 'Elternaufgabe',
+		priority: 3,
+		estimatedEffort: 1,
+		totalEstimatedEffort: 1,
+		value: 5,
+		status: TaskStatus.Open,
+		dependents: [
+			{
+				id: 11,
+				title: 'Kindaufgabe',
+				priority: 3,
+				estimatedEffort: 1,
+				totalEstimatedEffort: 1,
+				value: 3,
+				status: TaskStatus.Open,
+				dependents: [],
+			},
+		],
+	};
+
+	// `KolHeading` bleibt ein nicht hochgestuftes Custom Element (`_label` landet als Attribut, nicht
+	// als Text-Kind) — Sichtbarkeit einer Zeile deshalb über `data-testid` (`TaskTree.tsx`), nicht
+	// über `getByText`.
+	const parentRow = (): Element | null => document.querySelector('[data-testid="task-list-item-10"]');
+	const childRow = (): Element | null => document.querySelector('[data-testid="task-list-item-11"]');
+	const hasParentPersistence = (): boolean => Object.keys(localStorage).some((key) => /parent/i.test(key));
+
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it('AK1/AK10: Schalter ist initial aus, Elternaufgabe bleibt ausgeblendet, kein localStorage-Eintrag', async () => {
+		vi.mocked(api.listTasks).mockResolvedValue([parentTask, childTask]);
+		vi.mocked(api.getForest).mockResolvedValue([forestNode]);
+		window.history.replaceState({}, '', '/aufgaben');
+
+		render(<App user={testUser} />);
+
+		const toggle = await screen.findByLabelText('Oberaufgaben anzeigen');
+		expect(toggle).not.toBeChecked();
+		await waitFor(() => expect(childRow()).not.toBeNull());
+		expect(parentRow()).toBeNull();
+		expect(hasParentPersistence()).toBe(false);
+	});
+
+	it('AK1: Einschalten blendet die Elternaufgabe zusätzlich ein, ohne sie zu persistieren', async () => {
+		vi.mocked(api.listTasks).mockResolvedValue([parentTask, childTask]);
+		vi.mocked(api.getForest).mockResolvedValue([forestNode]);
+		window.history.replaceState({}, '', '/aufgaben');
+
+		render(<App user={testUser} />);
+
+		const toggle = await screen.findByLabelText('Oberaufgaben anzeigen');
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+
+		expect(toggle).toBeChecked();
+		await waitFor(() => expect(parentRow()).not.toBeNull());
+		expect(hasParentPersistence()).toBe(false);
+	});
+
+	it('AK9: eine per Titelsuche nicht treffende Elternaufgabe bleibt trotz Schalter ausgeblendet', async () => {
+		vi.mocked(api.listTasks).mockResolvedValue([parentTask, childTask]);
+		vi.mocked(api.getForest).mockResolvedValue([forestNode]);
+		window.history.replaceState({}, '', '/aufgaben?q=Kind');
+
+		render(<App user={testUser} />);
+
+		const toggle = await screen.findByLabelText('Oberaufgaben anzeigen');
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+
+		await waitFor(() => expect(childRow()).not.toBeNull());
+		expect(parentRow()).toBeNull();
 	});
 });

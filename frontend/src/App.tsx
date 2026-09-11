@@ -33,12 +33,12 @@ import { SeriesTab } from './components/SeriesTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
-import { filterForest } from './lib/filterForest';
+import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
-import { collectTaskValues } from './lib/forest';
+import { collectOpenParents, collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
@@ -171,6 +171,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz). Der Schalter
 	// wechselt nur die Sicht; gerechnet wird live an der Datenlage, ohne eingefrorenen Stand.
 	const [balanceMode, setBalanceMode] = useState(false);
+
+	// #1345: „Oberaufgaben anzeigen" — session-lokal wie `balanceMode` (kein localStorage/URL, AK10).
+	const [showParents, setShowParents] = useState(false);
 
 	// Kategorie-Filter (`?cat=`) — Filterzustand wie `?q=`, damit Deep-Link und Zurück-Taste ihn
 	// wiederherstellen. `null` = keine Einschränkung; ein Wert, zu dem es keine Kategorie (mehr) gibt,
@@ -391,6 +394,19 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const filteredForest = useMemo(
 		() => filterForest(forest, { search: taskSearch, categoryId: categoryFilter }),
 		[forest, taskSearch, categoryFilter],
+	);
+
+	// #1345: bei eingeschaltetem Schalter „Oberaufgaben anzeigen" zusätzlich einzublendende
+	// Oberaufgaben — aus dem UNGEFILTERTEN Wald (AK9: Guard/Badge unabhängig vom Filter), aber selbst
+	// nach denselben Titel-/Kategoriekriterien gefiltert wie Blätter (`nodeMatchesFilter`, kein
+	// Kontextpfad-Erhalt für Oberaufgaben).
+	const openParentNodes = useMemo(() => collectOpenParents(forest), [forest]);
+	const visibleParentNodes = useMemo(
+		() =>
+			showParents
+				? openParentNodes.filter((node) => nodeMatchesFilter(node, { search: taskSearch, categoryId: categoryFilter }))
+				: [],
+		[openParentNodes, showParents, taskSearch, categoryFilter],
 	);
 
 	// Gefilterte erledigte Aufgaben für die Tabelle (Titel-Suche + Kategorie).
@@ -866,6 +882,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													},
 												}}
 											/>
+											<KolInputCheckbox
+												className="task-view-switch"
+												_label="Oberaufgaben anzeigen"
+												_variant="switch"
+												_checked={showParents}
+												_on={{
+													onChange: (_event, checked) => {
+														setShowParents(checked === true);
+													},
+												}}
+											/>
 										</div>
 										<KolInputText
 											ref={taskFilterInputRef}
@@ -925,6 +952,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											taskSearch.trim() === '' ? (
 												<TaskTree
 													forest={filteredForest}
+													fullForest={forest}
+													parentNodes={visibleParentNodes}
 													tasks={tasks}
 													progressMap={progressMap}
 													userId={user.id}
@@ -942,6 +971,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										) : (
 											<TaskTree
 												forest={filteredForest}
+												fullForest={forest}
+												parentNodes={visibleParentNodes}
 												tasks={tasks}
 												progressMap={progressMap}
 												userId={user.id}
