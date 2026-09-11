@@ -3,6 +3,11 @@ Method (stance, steps, collected-comment maintenance): .claude/skills/review-kre
 NOTE: review tier — you read AND write memory (issue-specific notes in .ai-memory; details in the memory sections at the end of the prompt). Code stays off-limits.
 FOCUS: ONLY PR {{PR_NR}}. ONLY check the diff. NO side trips. Save tokens: short, precise, direct.
 
+CI STATUS (the workflow waited for the checks to finish before starting you — this is the result, do NOT poll `gh pr checks` again):
+{{CI_STATUS}}
+  - RED means blocking, in BOTH modes: read the failing job's log (`gh run list --branch <head> --workflow Verify`, then `gh run view <id> --log-failed`), name each failing job as its own finding in the collected comment ("📋 Offene Findings", `Ort` = the failing job/test) and VERDICT: needs-fixup — bundled with your code findings in ONE fixup round. Never verdict `reviewed` while CI is red.
+  - UNKNOWN (timeout/no checks) means: review the diff as usual and note in the collected comment that the CI result was not available.
+
 Determine MODE (VERY FIRST step) per SKILL.md step 5 (marker search for the existing <!-- ai-review --> collected comment):
   - Marker MISSING → MODE = CROSS-EXAMINATION (initial review: full adversarial check of the whole PR).
   - Marker PRESENT → MODE = FIXUP VERIFICATION (follow-up review after fixup: NO new cross-examination — only check the cross-examination result + fixup rounds).
