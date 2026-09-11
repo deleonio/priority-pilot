@@ -2,7 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
 import { resetDb, closeDb, applyTestAuthEnv } from '../test/helpers.js';
-import { NotificationLog, User } from '../models/index.js';
+import { NotificationLog, PushSubscription, User } from '../models/index.js';
 import type { PushSender } from './push.js';
 // @ts-expect-error — Modul existiert noch nicht (roter Spec-Test, #1363).
 import { notifyReachedMilestones } from './milestoneNotification.js';
@@ -45,8 +45,22 @@ describe('notifyReachedMilestones (#1363)', () => {
 	beforeEach(async () => {
 		await resetDb();
 		calls = [];
-		const user = await User.create({ email: 'milestone-user@example.com', displayName: 'Meilenstein-Nutzerin' });
+		const user = await User.create({
+			email: 'milestone-user@example.com',
+			passwordHash: '__test__',
+			displayName: 'Meilenstein-Nutzerin',
+		});
 		userId = user.id;
+		// Ohne Push-Subscription liefert `sendPushToUser` `sent: 0` (kein Versand) — der Vertrag
+		// (docs/spec/issue-1363.md) ruft `sendPushToUser` auf, das erst über eine vorhandene
+		// Subscription den injizierten `send` erreicht (Test-Pflege-Bedarf, s. PR-Body).
+		await PushSubscription.create({
+			endpoint: 'https://push.example/milestone-unit',
+			p256dh: 'p256dh',
+			auth: 'auth',
+			expirationTime: null,
+			userId,
+		});
 	});
 
 	after(async () => {
