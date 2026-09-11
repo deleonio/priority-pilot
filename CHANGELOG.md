@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.829 - 2026-09-11
+
+### Other Changes
+
+- fix(frontend): unify card and tab gaps on dashboard, settings and help by @deleonio in https://github.com/deleonio/priority-pilot/pull/1390
+
 ## v0.1.828 - 2026-09-11
 
 ### 🎉 New Features
@@ -1111,11 +1117,11 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 - feat(frontend): show resolved coordinates in the task form (#1111) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1113
 
-## v0.1.628 - 2026-08-29
+## v0.1.629 - 2026-08-29
 
 ### Other Changes
 
-- feat(server): notify users about nearby tasks via push (#1101) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1102
+- feat(frontend): show resolved coordinates in the task form (#1111) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1113
 
 ## v0.1.628 - 2026-08-29
 
