@@ -124,15 +124,17 @@ for g in $(seq 0 $((GROUP_COUNT - 1))); do
     } >> "$WORK/out.md"
   fi
 
-  # Alle Release-Bodies der Gruppe (chronologisch aufsteigend) in eine Datei je Release
-  # schreiben, damit die AWK-Extraktion unten unverändert pro Release laufen kann.
-  : > "$WORK/group_bullets.txt"
+  # Alle Release-Bodies der Gruppe (chronologisch aufsteigend) EINMAL vor der Kategorie-
+  # Schleife nach je einer Datei extrahieren — sonst parst `jq` das komplette Releases-JSON
+  # Kategorien × Releases mal statt einmal je Release.
+  for r in $(seq 0 $((RELEASE_COUNT - 1))); do
+    printf '%s' "$RELEASES_ASC" | jq -r ".[$r].body // \"\"" > "$WORK/body_$r.txt"
+  done
+
   HAS_ANY="false"
   for CAT in "${CATEGORIES[@]}"; do
     : > "$WORK/cat_bullets.txt"
     for r in $(seq 0 $((RELEASE_COUNT - 1))); do
-      BODY="$(printf '%s' "$RELEASES_ASC" | jq -r ".[$r].body // \"\"")"
-      printf '%s\n' "$BODY" > "$WORK/body.txt"
       # Zerlegt den Body in `###`-Abschnitte; nur Bullet-Zeilen (`- `/`* `) des passenden
       # Abschnitts zählen. Der führende `<!-- Release notes generated … -->`-Kommentar und
       # die abschließende `**Full Changelog**:`-Zeile liegen außerhalb jedes `###`-Abschnitts
@@ -141,7 +143,7 @@ for g in $(seq 0 $((GROUP_COUNT - 1))); do
         /^### / { title=$0; sub(/^### /, "", title); insec = (title == want); next }
         /^## / { insec = 0; next }
         insec && /^[-*] / { sub(/^[-*] /, "- "); print; next }
-      ' "$WORK/body.txt" >> "$WORK/cat_bullets.txt"
+      ' "$WORK/body_$r.txt" >> "$WORK/cat_bullets.txt"
     done
     if [ -s "$WORK/cat_bullets.txt" ]; then
       HAS_ANY="true"
