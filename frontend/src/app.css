@@ -3363,6 +3363,23 @@ kol-heading {
 	font-size: 0.875rem;
 }
 
+.api-tokens__scope {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	font-size: 0.875rem;
+}
+
+/* Der KoliBri-Switch-Host reserviert im internen Grid eine volle `1fr`-Spalte für das
+   `_hideLabel`-Label (unsichtbar, aber layoutwirksam — Bug im aktuellen Theme-Layer: die
+   Theme-Regel überschreibt `display:none` der `--visually-hidden`-Klasse). Ohne feste Breite
+   bliebe rechts vom sichtbaren Schalter eine tote Klickfläche. Feste Breite erzwingt, dass das
+   Grid die `1fr`-Spalte auf den Rest schrumpft statt auf die (unsichtbare) Label-Breite.  */
+.api-tokens__scope kol-input-checkbox[_variant='switch'] {
+	flex: 0 0 auto;
+	width: 3.6em;
+}
+
 .api-tokens__confirm,
 .api-tokens__action {
 	display: flex;

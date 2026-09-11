@@ -927,6 +927,18 @@ export const api = {
 		}
 	},
 
+	// Schaltet die Rechtestufe eines eigenen Tokens um (#1356) — gilt sofort für denselben Token.
+	async updateApiToken({ id, scope }: { id: number; scope: 'read' | 'readwrite' }): Promise<ApiToken> {
+		const { data, error, response } = await client.PATCH('/api-tokens/{id}', {
+			params: { path: { id } },
+			body: { scope },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	// Meldet die aktuelle Position (#1101): der Server prüft Aufgaben im Alarmabstand und pusht ggf.
 	// Fire-and-forget — der Aufrufer erwartet keine Antwortdaten (204).
 	async reportGeoPosition({ lat, lon, signal }: { lat: number; lon: number } & Init): Promise<void> {

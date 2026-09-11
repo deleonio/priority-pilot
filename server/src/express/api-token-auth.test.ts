@@ -45,6 +45,25 @@ const createTask = async (cookie: string, title: string): Promise<number> => {
 	return ((await res.json()) as { id: number }).id;
 };
 
+const postTaskViaBearer = (token: string, title: string): Promise<Response> =>
+	fetch(`${server.baseUrl}/tasks`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({ title }),
+	});
+
+const countTasks = async (cookie: string): Promise<number> => {
+	const res = await server.json('/tasks', { headers: { Cookie: cookie } });
+	return ((await res.json()) as unknown[]).length;
+};
+
+const patchTokenScopeViaSession = (cookie: string, id: number, scope: string): Promise<Response> =>
+	server.json(`/api-tokens/${id}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json', Cookie: cookie },
+		body: JSON.stringify({ scope }),
+	});
+
 describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -131,5 +150,54 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 
 		const res = await fetch(`${server.baseUrl}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
 		assert.equal(res.status, 200);
+	});
+
+	it('AK4: ein Nur-lese-Token liest weiterhin GET /tasks, ein schreibender Request liefert 403 ohne Datenänderung', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+		const before = await countTasks(cookie);
+
+		const read = await withBearer(token);
+		assert.equal(read.status, 200, 'GET bleibt mit scope read erlaubt');
+
+		const write = await postTaskViaBearer(token, 'Über Nur-lese-Token versucht');
+		assert.equal(write.status, 403, 'POST muss mit scope read abgewiesen werden');
+
+		const after = await countTasks(cookie);
+		assert.equal(after, before, 'ein abgewiesener Schreibversuch darf keine Aufgabe anlegen');
+	});
+
+	it('AK5: nach dem Umschalten auf readwrite gelingt derselbe schreibende Request mit demselben Token', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { id, token } = await createToken(cookie);
+
+		const blocked = await postTaskViaBearer(token, 'Erster Versuch');
+		assert.equal(blocked.status, 403, 'Vorbedingung: Token startet als read');
+
+		const patch = await patchTokenScopeViaSession(cookie, id, 'readwrite');
+		assert.equal(patch.status, 200, 'Setup: Umschalten auf readwrite muss gelingen');
+
+		const write = await postTaskViaBearer(token, 'Nach Hochstufen');
+		assert.equal(write.status, 201, 'derselbe Token muss nach dem Umschalten schreiben dürfen');
+	});
+
+	it('AK7: /api-tokens ist über einen Bearer-Token gesperrt (403), über die Session unverändert nutzbar', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { id, token } = await createToken(cookie);
+
+		const listViaBearer = await fetch(`${server.baseUrl}/api-tokens`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		assert.equal(listViaBearer.status, 403, 'ein Token darf die eigene Token-Verwaltung nicht lesen');
+
+		const patchViaBearer = await fetch(`${server.baseUrl}/api-tokens/${id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+			body: JSON.stringify({ scope: 'readwrite' }),
+		});
+		assert.equal(patchViaBearer.status, 403, 'ein Token darf sich nicht selbst hochstufen');
+
+		const listViaSession = await server.json('/api-tokens', { headers: { Cookie: cookie } });
+		assert.equal(listViaSession.status, 200, 'die Browser-Session bleibt unverändert nutzbar');
 	});
 });

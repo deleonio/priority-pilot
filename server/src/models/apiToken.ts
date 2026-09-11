@@ -23,6 +23,9 @@ class ApiToken extends Model {
 	public lastUsedAt?: Date | null;
 	// Gesetzt = zurückgezogen (Soft-Delete); ab dann 401 für jeden Request mit diesem Token.
 	public revokedAt?: Date | null;
+	// Rechtestufe (#1356): 'read' erlaubt nur lesende Requests, 'readwrite' auch schreibende.
+	// Default 'read' — ein neu angelegter Token startet nie mit Schreibrechten (AK2).
+	public scope!: 'read' | 'readwrite';
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -54,6 +57,11 @@ ApiToken.init(
 		revokedAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
+		},
+		scope: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'read',
 		},
 	},
 	{

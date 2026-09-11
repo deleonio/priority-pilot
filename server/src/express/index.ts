@@ -38,7 +38,7 @@ import { buildTaskGraph } from '../logics/graph.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
-import { apiTokenAuth, isApiTokenRequest } from './apiTokenAuth.js';
+import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
 import { createCsrfUtilities } from './csrf.js';
 import { upsertOAuthUser } from '../logics/oauthUser.js';
 import { sendError } from './http-error.js';
@@ -225,6 +225,11 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);
+
+	// Rechtestufe je API-Token durchsetzen (#1356): ein Token mit scope 'read' darf ab hier keine
+	// schreibende Fachroute mehr erreichen, die Token-Verwaltung bleibt über Bearer generell
+	// gesperrt. Browser-Sessions sind unbetroffen (siehe apiTokenScopeGuard-Doku).
+	app.use(apiTokenScopeGuard);
 
 	// Lektorat-Endpunkt (Issue #680) — triggert die bezahlte LLM-Kaskade, daher Session-Pflicht
 	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).

@@ -15,7 +15,12 @@ import { generateApiToken, hashApiToken } from '../apiTokenAuth.js';
 /** Maximale Länge des frei wählbaren Token-Namens (reine Anzeigehilfe in den Einstellungen). */
 const MAX_NAME_LENGTH = 60;
 
-type ApiTokenDto = { id: number; name: string; createdAt: string; lastUsedAt: string | null };
+/** Erlaubte Werte der Rechtestufe je Token (#1356, AK1). */
+const TOKEN_SCOPES = ['read', 'readwrite'] as const;
+type TokenScope = (typeof TOKEN_SCOPES)[number];
+const isTokenScope = (value: unknown): value is TokenScope => TOKEN_SCOPES.includes(value as TokenScope);
+
+type ApiTokenDto = { id: number; name: string; createdAt: string; lastUsedAt: string | null; scope: TokenScope };
 type CreatedApiTokenDto = ApiTokenDto & { token: string };
 
 /** Listen-Repräsentation — enthält bewusst weder Klartext noch Hash (AK1). */
@@ -24,6 +29,7 @@ const serializeApiToken = (token: ApiToken): ApiTokenDto => ({
 	name: token.name,
 	createdAt: token.createdAt.toISOString(),
 	lastUsedAt: token.lastUsedAt ? token.lastUsedAt.toISOString() : null,
+	scope: token.scope,
 });
 
 export const apiTokensRouter = Router();
@@ -85,6 +91,36 @@ apiTokensRouter.delete('/api-tokens/:id', async (req: Request, res: Response<Err
 		}
 		await token.update({ revokedAt: new Date() });
 		res.status(204).end();
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// PATCH /api-tokens/:id — Rechtestufe umschalten (#1356, AK3); fremde/unbekannte Tokens → 404.
+apiTokensRouter.patch('/api-tokens/:id', async (req: Request, res: Response<ApiTokenDto | ErrorDto>) => {
+	const userId = getUserId(req);
+	if (userId === undefined) {
+		sendError(res, 401, 'Anmeldung erforderlich.');
+		return;
+	}
+	const id = Number(req.params.id);
+	if (!Number.isInteger(id)) {
+		sendError(res, 404, 'Token nicht gefunden.');
+		return;
+	}
+	const rawScope = (req.body as { scope?: unknown } | undefined)?.scope;
+	if (!isTokenScope(rawScope)) {
+		sendError(res, 400, `scope muss einer von ${TOKEN_SCOPES.join(', ')} sein.`);
+		return;
+	}
+	try {
+		const token = await ApiToken.findOne({ where: { id, userId, revokedAt: null } });
+		if (!token) {
+			sendError(res, 404, 'Token nicht gefunden.');
+			return;
+		}
+		await token.update({ scope: rawScope });
+		res.json(serializeApiToken(token));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}

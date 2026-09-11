@@ -183,3 +183,14 @@ Konflikte, die er verhindern soll.
   treffen immer auch Specs, die nichts mit dem Ticket zu tun haben.
 - 2026-09-10 · CI/Gate — Ein `gate-runner`-Lauf, der `pnpm format`/`lint`/`test` hintereinander im selben Root ausführt, meldete 467 rote Server-Tests („maxLength undefined", fehlende `userId`), obwohl `pnpm --filter server test` allein 1026/0 grün ist: `pnpm lint` regeneriert `server/src/api.d.ts` und das Root-`pnpm test` fährt die Workspaces parallel. → Bei Massen-Rotfärbung erst die betroffene Suite isoliert laufen lassen, bevor man eine Regression annimmt.
 - 2026-09-10 · E2E/Auth — Eine Spec für eine **pro-Nutzer** gebundene Route (API-Tokens, #1352) lief lokal wie in CI ins Leere: Panel rendert, aber die Aktion liefert nie ein Ergebnis. Ursache ist kein Selektor-Problem, sondern 401 aus der Route selbst — das E2E-Backend läuft im Pass-Through-Modus (`playwright.config.ts` leert GOOGLE_*/Allowlist), dort ist `getUserId(req)` `undefined`, und Routen, die den Nutzer wirklich brauchen (statt nur `ownerScope(undefined)`), weisen ab. Die `/auth/me`-Fixture täuscht: sie macht nur die UI-Gate durchlässig, sie erzeugt keine Server-Session. → Für pro-Nutzer-Routen in der Spec vor dem `page.goto` per `POST /auth/test-login` eine echte Session holen (`page.request` teilt den Cookie-Jar des Kontexts); der Hinweis „Pass-Through, kein Login nötig" gilt nur für Routen mit leerem Owner-Filter.
+- 2026-09-11 · Frontend/KoliBri — `KolInputCheckbox _variant="switch" _hideLabel` (#1356, PR #1358)
+  reserviert im internen Grid trotzdem eine `1fr`-Spalte für das Label: `@public-ui/components@4.4.0`
+  überschreibt `display:none` der `--visually-hidden`-Klasse aus `@layer kol-component` mit
+  `display:flex` aus dem später deklarierten `@layer kol-theme-component` (Layer-Reihenfolge schlägt
+  Selektor-Spezifität). Label bleibt unsichtbar, aber layoutwirksam — Host bis zu 5× breiter als der
+  sichtbare Schalter, Klick auf die Boundingbox-Mitte (Playwright-Default) trifft die tote Zone daneben,
+  kein `change`, kein PATCH. Unit-Tests mit direktem `_on.onChange`-Aufruf übersehen das komplett. →
+  Feste `width` (nicht `fit-content` — Grid-Intrinsic-Sizing bemisst die `1fr`-Spalte am Max-Content
+  des Labels unabhängig davon) auf den Host-Selektor setzen, z. B. `width: 3.6em`.
+- 2026-09-11 · gh CLI — `gh api ... -f body=@datei` liest die Datei NICHT ein, sondern postet den
+  literalen String `@/pfad/datei`. Für Datei-Inhalt in PATCH/POST-Bodies immer `-F` (großes F).

@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolCard, KolInputText } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard, KolInputCheckbox, KolInputText } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api';
@@ -9,6 +9,9 @@ const DEFAULT_TOKEN_NAME = 'Externer Client';
 
 /** Zeitpunkte in der Liste als „TT.MM.JJJJ" — die Uhrzeit trägt hier keine Entscheidung. */
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+
+/** Klartext-Label je Rechtestufe (#1356, AK8) — Farbe trägt nie allein Bedeutung. */
+const SCOPE_LABEL: Record<ApiToken['scope'], string> = { read: 'Nur lesend', readwrite: 'Lesen und Schreiben' };
 
 /** MCP-Endpunkt dieser App — aus der aktuellen Origin abgeleitet, damit er in jeder Umgebung stimmt. */
 const MCP_URL = `${window.location.origin}/api/v1/mcp/v1`;
@@ -24,6 +27,24 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
 	<span className="api-tokens__action" onClick={onClick}>
 		{children}
 	</span>
+);
+
+/**
+ * Rechte-Umschalter je Token (#1356, AK8): `KolInputCheckbox _variant="switch"` wie die übrigen
+ * sieben Schalter im Frontend (`SettingsPage.tsx`). `_on.onChange` ist der einzige Pfad — KoliBri
+ * dispatcht das `change`-Event direkt auf dem Host-Element, ein zusätzlicher Host-Listener würde
+ * im Browser doppelt feuern.
+ */
+const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled: boolean; onToggle: () => void }) => (
+	<KolInputCheckbox
+		_variant="switch"
+		_label={`Rechte für Token ${token.name}`}
+		_hideLabel={true}
+		_checked={token.scope === 'readwrite'}
+		_disabled={disabled}
+		data-testid="api-token-scope-toggle"
+		_on={{ onChange: () => onToggle() }}
+	/>
 );
 
 /**
@@ -48,6 +69,9 @@ export const ApiTokensSection = () => {
 	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
 	const [revokeId, setRevokeId] = useState<number | null>(null);
 	const [mcpUrlCopied, setMcpUrlCopied] = useState(false);
+	// Id des Tokens, dessen Rechtestufe gerade per PATCH umgeschaltet wird (eigene Sperre, unabhängig
+	// von `busy`, damit das Umschalten eines Tokens nicht Anlegen/Zurückziehen eines anderen blockiert).
+	const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
 
 	useEffect(() => {
 		let active = true;
@@ -77,6 +101,22 @@ export const ApiTokensSection = () => {
 			setError((await toApiError(reason)).message);
 		} finally {
 			setBusy(false);
+		}
+	};
+
+	// Sofort-Wechsel ohne Speichern-Klick (#1356, AK8) — Wert bleibt bei einem fehlgeschlagenen PATCH
+	// unverändert sichtbar (State-Update erst nach der Server-Antwort).
+	const handleToggleScope = async (token: ApiToken): Promise<void> => {
+		const nextScope: ApiToken['scope'] = token.scope === 'readwrite' ? 'read' : 'readwrite';
+		setError(null);
+		setScopeBusyId(token.id);
+		try {
+			const updated = await api.updateApiToken({ id: token.id, scope: nextScope });
+			setTokens((previous) => previous.map((entry) => (entry.id === token.id ? updated : entry)));
+		} catch (reason) {
+			setError((await toApiError(reason)).message);
+		} finally {
+			setScopeBusyId(null);
 		}
 	};
 
@@ -165,6 +205,14 @@ export const ApiTokensSection = () => {
 												: `zuletzt genutzt ${formatDate(token.lastUsedAt)}`
 										}`}
 									</span>
+								</span>
+								<span className="api-tokens__scope">
+									<span className="api-tokens__scope-label">{SCOPE_LABEL[token.scope]}</span>
+									<ScopeToggle
+										token={token}
+										disabled={scopeBusyId === token.id}
+										onToggle={() => void handleToggleScope(token)}
+									/>
 								</span>
 								{revokeId === token.id ? (
 									<span className="api-tokens__confirm">
