@@ -31,6 +31,8 @@ export type CreatedApiToken = Schemas['CreatedApiToken'];
 export type Profile = Schemas['Profile'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
+/** #1360: Kalendertage in Folge mit mindestens einer Erledigung plus persönliche Bestmarke. */
+export type Streak = Schemas['Streak'];
 /** Thematische Kategorie (0..1 je Aufgabe/Serie) — die flache Ordnungsebene neben den Säulen. */
 export type Category = Schemas['Category'];
 export type CategoryColor = Schemas['CategoryColor'];

@@ -1,6 +1,6 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 // ROTER Spec-Test (#1360, Spec docs/spec/issue-1360.md): `StreakCard` existiert noch nicht.
 // Der Import schlägt fehl, bis `frontend/src/components/StreakCard.tsx` die Komponente bereitstellt.
 import { StreakCard } from './StreakCard';

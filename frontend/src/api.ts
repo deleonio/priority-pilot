@@ -44,6 +44,7 @@ import type {
 	SeriesCreate,
 	SeriesGenerateInput,
 	SeriesUpdate,
+	Streak,
 	SuggestPillarsInput,
 	Task,
 	TaskCreate,
@@ -877,6 +878,18 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data as NearbyTask[];
+	},
+
+	// --- Streak: Tage in Folge mit mindestens einer Erledigung (#1360) ---
+
+	// `tz` ist die IANA-Zeitzone des Clients — sie bestimmt serverseitig die Kalendertagsgrenze.
+	// Ohne oder mit unbekanntem Wert wertet der Server in seiner eigenen Zeitzone aus (kein Fehler).
+	async getStreak({ tz, signal }: { tz?: string } & Init = {}): Promise<Streak> {
+		const { data, error, response } = await client.GET('/scores/streak', { params: { query: { tz } }, signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 
 	// --- Geo-Konfiguration pro User (#1098) ---
