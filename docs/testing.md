@@ -7,6 +7,11 @@
 - Location: `frontend/e2e/**/*.spec.ts`
 - Zweck: Integrationstests gegen echte UI
 - Ausführung: `npx playwright test` (oder `pnpm test:e2e`)
+- Test-Basis: `test`/`expect` aus `./fixtures` importieren (mockt `/auth/me`) oder aus `./servers`
+  (ohne Mock) — nie direkt aus `@playwright/test`: Beide Basen bringen die Server des Workers mit
+  (eigenes Backend mit eigener `:memory:`-DB, eigener Vite-Server, eigene `baseURL`).
+- Parallelität: `E2E_WORKERS` (Default 2). Tests einer Datei laufen in Reihenfolge im selben
+  Worker und teilen dessen DB; verschiedene Dateien sehen sich nicht.
 
 ### Unit-Tests (Vitest)
 

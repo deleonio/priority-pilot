@@ -139,4 +139,8 @@ In-Memory-SQLite, Tests unter `server/src/**/*.test.ts`.
 
 `pnpm --filter frontend test:e2e` — Playwright (nur Chromium), Specs unter `frontend/e2e/`, gegen
 das **echte** Backend (temporäre In-Memory-DB, kein `page.route`-Mocking). Läuft **nicht** als Teil
-von `pnpm test` — nur separat über `test:e2e`.
+von `pnpm test` — nur separat über `test:e2e`. Jeder Worker startet sich seine eigenen Server
+(Backend 3100+n, Vite 4200+n — Fixture `frontend/e2e/servers.ts`), ein lokal laufendes `pnpm dev`
+auf 3000/4173 stört also nicht. Worker-Zahl über `E2E_WORKERS` (Default 2). Neue Specs importieren
+`test`/`expect` aus `./fixtures` (mit Auth-Mock) oder `./servers` (ohne) — **nie** direkt aus
+`@playwright/test`, sonst fehlen ihnen Server und `baseURL`.

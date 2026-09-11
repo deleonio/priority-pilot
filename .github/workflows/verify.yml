@@ -149,14 +149,15 @@ jobs:
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter server test:coverage
 
-  # E2E gesharded ueber eine Matrix: jeder Shard ist eine EIGENE Runner-VM mit eigenem localhost —
-  # dadurch kollidieren die festen Ports (Backend 3000 / Vite 4173) NICHT zwischen den Shards, und
-  # `workers: 1` / `fullyParallel: false` in playwright.config.ts bleiben unangetastet (jeder Shard
-  # ist fuer sich deterministisch, teilt weiterhin eine In-Memory-DB pro Backend-Prozess).
-  # Playwright startet Backend + Vite selbst (playwright.config.ts webServer) — daher KEIN separater
-  # Pipeline-Build-Step: das Backend baut sich beim Start selbst (server/nodemon.json exec:
-  # `pnpm build && node dist/index.js`, inkl. build:api), das Frontend laeuft ueber `vite dev`. Deshalb
-  # muessen die devDependencies installiert bleiben. KEIN Redis (E2E-Backend nutzt den MemoryStore,
+  # E2E gesharded ueber eine Matrix: jeder Shard ist eine EIGENE Runner-VM. Innerhalb eines Shards
+  # laufen seit #1364 mehrere Playwright-Worker (Default 2, `E2E_WORKERS`), weil jeder Worker seine
+  # EIGENEN Server bekommt: Backend auf 3100+n mit eigener In-Memory-DB, Vite auf 4200+n (Fixture
+  # frontend/e2e/servers.ts). `fullyParallel: false` bleibt — Tests EINER Datei laufen weiter in
+  # Reihenfolge im selben Worker und teilen sich dessen DB.
+  # Die Server startet die Worker-Fixture selbst — daher KEIN separater Pipeline-Build-Step: Das
+  # Backend baut Playwrights `globalSetup` (frontend/e2e/global-setup.ts) EINMAL pro Lauf, das
+  # Frontend laeuft ueber `vite dev`. Deshalb muessen die devDependencies installiert bleiben.
+  # KEIN Redis (E2E-Backend nutzt den MemoryStore,
   # da SESSION_STORE/NODE_ENV ungesetzt — siehe server/src/express/session.ts). Skaliert linear: neue
   # Specs verteilen sich auf die Shards, statt die Pipeline seriell zu verlaengern (E2E war ~58%).
   # ACHTUNG: Wird `shard: [...]` geaendert, MUSS der Nenner in `--shard=…/N` mitgezogen werden —

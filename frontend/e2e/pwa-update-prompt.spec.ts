@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './servers';
 
 /**
  * E2E-Smoke-Test (#353) für den PWA-Update-Prompt — Mobile-First (375px).

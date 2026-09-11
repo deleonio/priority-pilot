@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './servers';
 
 /**
  * Spec-Test (#1136, docs/spec/issue-1136.md, AK4): Der Neu-Nutzer-Sign-up-Pfad über Google
