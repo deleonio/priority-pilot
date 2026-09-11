@@ -1,0 +1,186 @@
+name: Daily Version
+
+# Einmal täglich einen Minor-Bump (0.1.x -> 0.2.0 -> 0.3.0 -> ...) zusätzlich zum
+# Patch-Bump-pro-Merge aus deploy.yml — für einen fortlaufenden Tages-Release-Rhythmus.
+#
+# Kein PR seit dem letzten Release gemergt -> kein Bump. Erkennung ohne eigene
+# State-Datei, aber auch NICHT ueber die Commit-Historie: `deploy.yml` bumpt und
+# taggt erst NACH dem Merge, der Merge-Commit liegt also immer VOR dem Tag und
+# damit strukturell nie in `LAST_TAG..origin/main`. Dort stehen ausschliesslich
+# Buchhaltungs-Commits (`chore(release):`, `chore(costs):`, `docs(changelog):`),
+# eine Commit-Zaehlung wuerde also nie Merges messen. Stattdessen fragen wir die
+# GitHub-API direkt nach gemergten PRs seit dem Zeitstempel des letzten Tags.
+# `git describe --tags --abbrev=0` liefert dafuer nur den Zeitanker; es folgt dem
+# Commit-Graph (nicht der hoechsten Versionsnummer) und ignoriert damit
+# verwaiste/nicht mehr erreichbare Alt-Tags.
+#
+# Cron/DST: GitHub-Crons laufen in UTC; Europe/Berlin wechselt zwischen CEST (UTC+2)
+# und CET (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab, der Job-Guard öffnet ein
+# Fenster (05-07 Berlin, TZ=Europe/Berlin) statt strikter Stundengleichheit, damit ein
+# von GitHub verzögerter Lauf nicht ersatzlos ausfällt. Die Doppel-Feuerung (DST-Offset
+# UND ein verzögerter Lauf innerhalb desselben Fensters) fängt der Tages-Check im
+# Merge-Check ab (Tag-Datum == heutiges Berlin-Datum -> bereits erledigt), nicht die
+# Stunde selbst.
+#
+# App-Token noetig: Standard-GITHUB_TOKEN loest keine Folge-Workflows aus; Branch-
+# Protection auf main blockiert direkte Pushes ohne App-Berechtigung (gleiches Muster
+# wie deploy.yml). Der Bump-Commit traegt [skip ci] — es aendert sich nur die
+# Versionsnummer, kein Code, ein Deploy waere unnoetig.
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 05:00 Berlin im Sommer (CEST, UTC+2)
+    - cron: '0 4 * * *' # 05:00 Berlin im Winter (CET, UTC+1)
+  workflow_dispatch: {} # manueller Testlauf, umgeht das Zeitfenster-Gate
+
+concurrency:
+  group: daily-version
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read # Merge-Check fragt `gh pr list --state merged` ab
+
+jobs:
+  daily-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Zeitfenster prüfen (05-07 Uhr Europe/Berlin; manuell immer)
+        # schedule-Feuerungen laufen 2×/Tag (CEST- und CET-Offset), plus mögliche
+        # GitHub-Verzögerung über die Stundengrenze hinweg. Ein offenes Fenster (05-07)
+        # fängt verzögerte Läufe auf; Doppel-Feuerungen innerhalb des Fensters filtert
+        # der Tages-Check im Merge-Check-Schritt (nicht diese Stunde-Prüfung).
+        id: timegate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" != "schedule" ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "Manueller Lauf — Zeitfenster-Guard übergangen."
+            exit 0
+          fi
+          BERLIN_HOUR="$(TZ='Europe/Berlin' date +%H)"
+          echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
+          case "$BERLIN_HOUR" in
+            05|06|07)
+              echo "active=true" >> "$GITHUB_OUTPUT"
+              echo "::notice title=🕐 Daily-Version aktiv::${BERLIN_HOUR}:00 Europe/Berlin (Fenster 05-07)."
+              ;;
+            *)
+              echo "active=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=⏭️ Übersprungen::Berlin-Stunde ${BERLIN_HOUR} außerhalb des Fensters 05-07 — nichts zu tun."
+              ;;
+          esac
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.timegate.outputs.active == 'true'
+        with:
+          # fetch-depth: 0 noetig fuer git describe ueber die volle Tag-Historie
+          fetch-depth: 0
+
+      - name: Merge-Check seit letztem Release
+        if: steps.timegate.outputs.active == 'true'
+        id: mergecheck
+        env:
+          # Reiner Lesezugriff auf PRs — der App-Token wird erst spaeter fuer Push
+          # und Tag geholt, dieser Schritt laeuft davor.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          git fetch origin --tags --quiet
+          # `|| true`: ohne erreichbaren Tag endet git describe mit Exit 1 und faerbt
+          # den Job rot, statt sauber zu ueberspringen.
+          LAST_TAG="$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)"
+          if [ -z "$LAST_TAG" ]; then
+            echo "has_merges=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Kein Tag::Kein erreichbarer Tag auf origin/main — ohne Zeitanker kein Merge-Check."
+            exit 0
+          fi
+          echo "last_tag=${LAST_TAG}" >> "$GITHUB_OUTPUT"
+
+          # Tages-Check zuerst: fängt Doppel-Feuerungen innerhalb des 05-07-Fensters ab
+          # (DST-Offset UND ein verzögerter Lauf am selben Tag), unabhängig vom Merge-
+          # Zähler unten.
+          LAST_TAG_ISO="$(git log -1 --format=%cI "$LAST_TAG")"
+          LAST_TAG_DATE="$(TZ='Europe/Berlin' date -d "$LAST_TAG_ISO" +%Y-%m-%d)"
+          TODAY_BERLIN="$(TZ='Europe/Berlin' date +%Y-%m-%d)"
+          if [ "$LAST_TAG_DATE" = "$TODAY_BERLIN" ]; then
+            echo "has_merges=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Bereits heute erledigt::${LAST_TAG} stammt von heute (${TODAY_BERLIN} Berlin) — kein zweiter Bump."
+            exit 0
+          fi
+
+          # Gemergte PRs direkt zaehlen statt Commits zu filtern (siehe Kopfkommentar):
+          # der Tag-Zeitstempel ist der Anker, der ihn ausloesende Merge liegt davor und
+          # zaehlt korrekt nicht mit. --limit 100 noetig, sonst deckelt gh bei 30.
+          MERGES="$(gh pr list --repo "$REPO" --state merged --base main \
+            --search "merged:>${LAST_TAG_ISO}" --limit 100 --json number --jq 'length')"
+          echo "Letzter Release-Tag: ${LAST_TAG} (${LAST_TAG_ISO}) — ${MERGES} PR(s) seither gemergt."
+          if [ "$MERGES" -eq 0 ]; then
+            echo "has_merges=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Kein Bump::Kein PR seit ${LAST_TAG} gemergt — Version bleibt unverändert."
+          else
+            echo "has_merges=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        with:
+          node-version-file: .nvmrc
+
+      - name: App-Token holen
+        id: app-token
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Git-Identität auf Repo-Owner stellen
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        # Release-Commits laufen unter der Identität des Repo-Owners statt der App-Bot-
+        # Identität — gültige noreply-Adresse, Commits verlinken auf den Owner-Account.
+        # Der PUSH bleibt App-Token (App-only-Pipeline), gleiches Muster wie deploy.yml.
+        run: |
+          git config user.name "deleonio"
+          git config user.email "6279703+deleonio@users.noreply.github.com"
+
+      - name: Minor-Bump + Commit + Push auf main
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git pull --rebase origin main
+          npm version minor --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          git add package.json
+          # --no-verify: siehe deploy.yml — lefthook pre-commit-Hooks sollen den reinen
+          # Versions-Commit nicht ausloesen.
+          git commit --no-verify -m "chore(release): v${NEW_VERSION} (daily) [skip ci]"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
+
+      - name: Tag + GitHub Release (best-effort)
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        # Gleiches idempotente Best-effort-Muster wie deploy.yml: ein fehlgeschlagenes
+        # Release darf den Bump NIE kippen.
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          TAG="v${NEW_VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "⏭️ Tag ${TAG} existiert bereits (Re-Run) — nur Release prüfen."
+          else
+            git tag "$TAG"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "refs/tags/${TAG}" \
+              || { echo "::warning title=Tag-Push fehlgeschlagen::${TAG} konnte nicht gepusht werden — manuell nachholen."; exit 0; }
+          fi
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "⏭️ Release ${TAG} existiert bereits — nichts zu tun."
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --title "$TAG" --generate-notes --latest \
+              || { echo "::warning title=Release-Creation fehlgeschlagen::${TAG} — manuell nachholen."; exit 0; }
+            echo "🚀 Release ${TAG} mit generierten Notes erstellt."
+          fi
