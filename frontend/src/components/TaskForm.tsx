@@ -649,7 +649,6 @@ export const TaskForm = ({
 		return () => {
 			cancelled = true;
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// #1213 (AK7): Beim Anlegen einmalig Gruppen + deren Mitglieder laden. Personen aus mehreren
