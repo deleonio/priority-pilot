@@ -1,5 +1,5 @@
 {
-	"version": "0.1.813",
+	"version": "0.1.814",
 	"license": "EUPL-1.2",
 	"devDependencies": {
 		"@action-validator/core": "0.6.0",
