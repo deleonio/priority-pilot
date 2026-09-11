@@ -9,6 +9,24 @@ interface DayDoneHintProps {
 }
 
 /**
+ * Kalendertag (`YYYY-MM-DD`) von `jetzt` in `zeitZone` — dieselbe `formatToParts`-Bildung wie
+ * `tagIn` in `server/src/logics/streak.ts`, damit der Vergleich mit dem server-gelieferten
+ * `letzterTag` (ebenfalls über `tagIn` gebildet) dieselbe Kalendertagsgrenze verwendet. Ein
+ * UTC-`toISOString().slice(0, 10)` würde in jeder Zeitzone ≠ UTC täglich ein Zeitfenster
+ * erzeugen, in dem UTC- und lokales Datum auseinanderfallen (Finding #1, PR #1375).
+ */
+const kalendertagIn = (jetzt: Date, zeitZone: string): string => {
+	const teile = new Intl.DateTimeFormat('en-US', {
+		timeZone: zeitZone,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+	}).formatToParts(jetzt);
+	const teil = (type: Intl.DateTimeFormatPartTypes): string => teile.find((p) => p.type === type)?.value ?? '';
+	return `${teil('year')}-${teil('month')}-${teil('day')}`;
+};
+
+/**
  * Abschluss-Hinweis „Tag geschafft" (#1361, docs/spec/issue-1361.md): erscheint nur, wenn keine
  * Aufgabe offen oder in Bearbeitung ist UND die letzte Erledigung heute war. Lädt `letzterTag`
  * selbst über `api.getStreak` (Muster `StreakCard`), die Aufgabenliste kommt als Prop, weil der
@@ -19,11 +37,12 @@ interface DayDoneHintProps {
  */
 export const DayDoneHint = ({ tasks }: DayDoneHintProps) => {
 	const [letzterTag, setLetzterTag] = useState<string | null | undefined>(undefined);
+	const zeitZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 	useEffect(() => {
 		let cancelled = false;
 		api
-			.getStreak({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone })
+			.getStreak({ tz: zeitZone })
 			.then((result) => {
 				if (!cancelled) {
 					setLetzterTag(result.letzterTag);
@@ -37,13 +56,13 @@ export const DayDoneHint = ({ tasks }: DayDoneHintProps) => {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [zeitZone]);
 
 	if (letzterTag === undefined) {
 		return null;
 	}
 
-	const heuteTag = new Date().toISOString().slice(0, 10);
+	const heuteTag = kalendertagIn(new Date(), zeitZone);
 	if (!istTagGeschafft(tasks, letzterTag, heuteTag)) {
 		return null;
 	}
