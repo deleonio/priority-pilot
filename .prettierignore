@@ -29,6 +29,12 @@ pnpm-workspace.yaml
 # Formatierung wäre beim nächsten Update sofort wieder weg und würde den Format-Check brechen.
 .claude/skills/
 
+# Automatisch aus den GitHub-Releases generiert (s. Kopf der Datei, „nicht von Hand bearbeiten").
+# Der Generator liegt außerhalb dieses Repos und committet mit `[skip ci]` — main wird dabei nie
+# geprüft, eine angehängte Leerzeile fällt also erst im nächsten PR auf und macht dort den
+# Format-Check rot (#1384). Einmal zurechtformatieren hält nur bis zum nächsten Release.
+CHANGELOG.md
+
 # Dauergedächtnis + Phasen-Notizen: von KI-Agents frei geschrieben, nicht von Menschen gepflegt.
 # Prettier würde die Einträge bei jedem Commit umbrechen (lefthook `stage_fixed`) — das erzeugt
 # Diff-Rauschen und bricht den union-Merge aus .gitattributes, der auf unveränderten Zeilen beruht.
