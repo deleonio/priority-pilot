@@ -24,6 +24,14 @@ let idCounter = 1;
 
 type JsonRpcResponse<T> = { result?: T; error?: { message: string } };
 
+/** Rückgabe von `task_links`: die Nachbarn einer Aufgabe in beide Richtungen, je mit Kantengewicht. */
+type TaskLinks = {
+	id: number;
+	title: string;
+	dependsOn: { id: number; title: string; weight: number }[];
+	requiredBy: { id: number; title: string; weight: number }[];
+};
+
 // Test-Pflege (#1356): Diese Tests aus #1353 prüfen die Werkzeug-Spiegelung (task_create/
 // task_update), nicht die Rechtestufe — seit #1356 startet ein neuer Token aber immer als
 // `scope: "read"` (AK2) und würde die schreibenden Aufrufe hier sonst mit 403 blockieren. Das
@@ -252,7 +260,18 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 
 		assert.deepEqual(
 			names,
-			['category_list', 'next_task', 'pillar_list', 'task_complete', 'task_create', 'task_list', 'task_update'],
+			[
+				'category_list',
+				'next_task',
+				'pillar_list',
+				'task_complete',
+				'task_create',
+				'task_link',
+				'task_links',
+				'task_list',
+				'task_unlink',
+				'task_update',
+			],
 			'v1-Werkzeugnamen sind ab dem Merge eingefroren (AK8) — eine unbeabsichtigte Änderung muss diesen Test rot machen',
 		);
 		for (const tool of sorted) {
@@ -308,5 +327,165 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			title: 'Nach Hochstufen über MCP',
 		});
 		assert.equal(created.result?.title, 'Nach Hochstufen über MCP');
+	});
+
+	it('task_link setzt das Gewicht, task_links zeigt beide Richtungen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0.8 });
+		assert.ok(!linked.error, `task_link sollte gelingen, war: ${linked.error?.message}`);
+
+		const parentLinks = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.deepEqual(parentLinks.result?.dependsOn, [{ id: childId, title: 'Kapitel schreiben', weight: 0.8 }]);
+		assert.deepEqual(parentLinks.result?.requiredBy, []);
+
+		const childLinks = await mcpCall<TaskLinks>(token, 'task_links', { taskId: childId });
+		assert.deepEqual(childLinks.result?.requiredBy, [{ id: parentId, title: 'Projekt abschließen', weight: 0.8 }]);
+	});
+
+	it('task_link ohne Gewichtsangabe legt die Kante mit dem Standardwert 1 an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId });
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn[0]?.weight, 1);
+	});
+
+	it('task_link mit Gewicht 0 bleibt beim Auslesen 0', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0 });
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn[0]?.weight, 0);
+	});
+
+	it('task_link auf einer bestehenden Kante ändert nur das Gewicht', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0.8 });
+		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0.3 });
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn.length, 1, 'ein zweiter Aufruf darf keine zweite Kante anlegen');
+		assert.equal(links.result?.dependsOn[0]?.weight, 0.3);
+	});
+
+	it('task_unlink löst die Verknüpfung wieder', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId });
+
+		const unlinked = await mcpCall(token, 'task_unlink', { taskId: parentId, dependsOnId: childId });
+		assert.ok(!unlinked.error, `task_unlink sollte gelingen, war: ${unlinked.error?.message}`);
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.deepEqual(links.result?.dependsOn, []);
+	});
+
+	it('beide Enden lassen sich über den Titel statt über die ID benennen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		const linked = await mcpCall(token, 'task_link', {
+			taskTitle: 'Projekt abschließen',
+			dependsOnTitle: 'Kapitel schreiben',
+			weight: 0.8,
+		});
+		assert.ok(!linked.error, `Titel-Auflösung sollte gelingen, war: ${linked.error?.message}`);
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.deepEqual(links.result?.dependsOn, [{ id: childId, title: 'Kapitel schreiben', weight: 0.8 }]);
+	});
+
+	it('ein mehrdeutiger Titel bricht mit der Trefferliste ab und verknüpft nichts', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const firstId = await createTaskViaApi(cookie, 'Bericht schreiben');
+		const secondId = await createTaskViaApi(cookie, 'Bericht prüfen');
+
+		const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnTitle: 'Bericht' });
+		assert.ok(linked.error, 'ein mehrdeutiger Titel muss fehlschlagen');
+		assert.match(linked.error.message, new RegExp(`${firstId}`), 'der Fehler muss die Treffer-IDs nennen');
+		assert.match(linked.error.message, new RegExp(`${secondId}`), 'der Fehler muss die Treffer-IDs nennen');
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.deepEqual(links.result?.dependsOn, [], 'ein abgebrochener Aufruf darf keine Kante hinterlassen');
+	});
+
+	it('ein Titel ohne Treffer bricht ab und verknüpft nichts', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+
+		const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnTitle: 'Gibt es nicht' });
+		assert.ok(linked.error, 'ein Titel ohne Treffer muss fehlschlagen');
+
+		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.deepEqual(links.result?.dependsOn, []);
+	});
+
+	it('eine Verknüpfung, die einen Zyklus erzeugen würde, wird abgelehnt', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const firstId = await createTaskViaApi(cookie, 'Erste Aufgabe');
+		const secondId = await createTaskViaApi(cookie, 'Zweite Aufgabe');
+		await mcpCall(token, 'task_link', { taskId: firstId, dependsOnId: secondId });
+
+		const cyclic = await mcpCall(token, 'task_link', { taskId: secondId, dependsOnId: firstId });
+		assert.ok(cyclic.error, 'die Gegenrichtung schließt den Kreis und muss fehlschlagen');
+	});
+
+	it('eine Verknüpfung zu einer fremden Aufgabe schlägt fehl', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const ownId = await createTaskViaApi(cookieA, 'Eigene Aufgabe');
+		const foreignId = await createTaskViaApi(cookieB, 'Fremde Aufgabe');
+
+		const linked = await mcpCall(tokenA, 'task_link', { taskId: ownId, dependsOnId: foreignId });
+		assert.ok(linked.error, 'eine fremde Aufgabe darf nicht verknüpfbar sein');
+
+		const links = await mcpCall<TaskLinks>(tokenA, 'task_links', { taskId: ownId });
+		assert.deepEqual(links.result?.dependsOn, []);
+	});
+
+	it('ein Nur-lese-Token liest task_links, scheitert aber an task_link und task_unlink', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const writeToken = await createToken(cookie);
+		const { token: readToken } = await createReadOnlyToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+		await mcpCall(writeToken, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0.8 });
+
+		const links = await mcpCall<TaskLinks>(readToken, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn[0]?.weight, 0.8, 'lesen bleibt mit scope read erlaubt');
+
+		const linked = await mcpCall(readToken, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0.1 });
+		assert.ok(linked.error, 'task_link muss mit einem Nur-lese-Token fehlschlagen');
+
+		const unlinked = await mcpCall(readToken, 'task_unlink', { taskId: parentId, dependsOnId: childId });
+		assert.ok(unlinked.error, 'task_unlink muss mit einem Nur-lese-Token fehlschlagen');
+
+		const unchanged = await mcpCall<TaskLinks>(writeToken, 'task_links', { taskId: parentId });
+		assert.deepEqual(unchanged.result?.dependsOn, [{ id: childId, title: 'Kapitel schreiben', weight: 0.8 }]);
 	});
 });
