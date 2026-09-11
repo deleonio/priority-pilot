@@ -2,6 +2,16 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.825 - 2026-09-11
+
+### Other Changes
+
+- feat(frontend): lay out forest dependency graph user-first on mobile by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1386
+
+## v0.1.824 - 2026-09-11
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.1.823 - 2026-09-11
 
 ### Other Changes
@@ -556,10 +566,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 ### Other Changes
 
 - feat(frontend): separate balance switch from recompute button (#1220) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1244
-
-## v0.1.724 - 2026-09-06
-
-_Keine für Nutzer sichtbaren Änderungen._
 
 ## v0.1.724 - 2026-09-06
 
@@ -3058,3 +3064,4 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
+
