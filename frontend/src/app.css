@@ -481,7 +481,10 @@ body {
 /* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. Einheitliches Gap-Token
    (`--pp-gap-generous`) für die ganze Kette Kopf → Tabs → Panel-Inhalt (unten) — dieselbe Distanz,
    mit der auch alle Cards untereinander getrennt sind (Design-Lauf 2026-09, statt des größeren
-   `--pp-gap-major`, der die Kette unnötig ausdehnte). */
+   `--pp-gap-major`, der die Kette unnötig ausdehnte). Der Abstand Tab-Leiste → Panel-Inhalt
+   (`.app-tabs .dashboard` etc.) braucht keine eigene Regel: Die Basisregel oben setzt für dieselben
+   Selektoren bereits denselben Wert, ein zusätzlicher `.app-tabs`-Block wäre nur ein No-Op mit
+   höherer Spezifität. */
 .app-tabs {
 	margin-top: var(--pp-gap-generous);
 	/*
@@ -494,16 +497,6 @@ body {
 	 * Spalte schrumpfbar, ohne KolTabs selbst zu patchen.
 	 */
 	--grid-template-columns: minmax(0, 1fr);
-}
-
-/* Abstand Tab-Leiste → Panel-Inhalt symmetrisch zum Abstand Kopf-Toolbar → Tab-Leiste (oben,
-   `.app-tabs`) — beide `var(--pp-gap-generous)`, statt den Stapel-Abstand hier auf 0 zu setzen (der
-   Inhalt wirkte sonst an der Tab-Unterkante festgeklebt, während oben der volle Gap steht). */
-.app-tabs .dashboard,
-.app-tabs .task-section,
-.app-tabs .task-graph-panel,
-.app-tabs .series-section {
-	margin-top: var(--pp-gap-generous);
 }
 
 /* --- Dashboard --- */
@@ -2464,10 +2457,9 @@ body {
 .settings-panel {
 	display: flex;
 	flex-direction: column;
-	/* Einheitliches Card-zu-Card-Gap (Design-Lauf 2026-09): dieselbe `--pp-gap-generous`-Distanz wie
-	   zwischen den Dashboard-Widgets, statt des kleineren `--pp-gap-base` — eine Karte trennt sich
-	   überall im Produkt um denselben Betrag von der nächsten. */
-	gap: var(--pp-gap-generous);
+	/* Card-zu-Card-Gap bleibt auf `--pp-gap-base` (#843 AK1 misst hier exakt 16dp Section-Abstand;
+	   `--pp-gap-generous` würde den Test rot machen). */
+	gap: var(--pp-gap-base);
 	/* Abstand Tab-Leiste → Panel-Inhalt symmetrisch zum Abstand Kopf-Toolbar → Tab-Leiste
 	   (`.settings-page`, ebenfalls `--pp-gap-generous`) — sonst klebt der Inhalt an der Tab-Unterkante. */
 	margin-top: var(--pp-gap-generous);
