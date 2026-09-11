@@ -11,14 +11,12 @@ import ru from './ru/navigation.json';
 import sv from './sv/navigation.json';
 
 /**
- * ROTER Spec-Test für #1334 AK5 (Vertrag: `docs/spec/issue-1334.md`).
+ * Spec-Test für #1334 AK5 (Vertrag: `docs/spec/issue-1334.md`, Kontrakt inzwischen per Notiz
+ * superseded).
  *
- * Der Home-Schalter (`.logo-btn`, `App.tsx:723`) trägt heute den Accessible Name als
- * hartkodierten String `aria-label="Zum Dashboard"` — das ist kein i18n-Wert und verletzt AK5
- * schon heute. Der Kontrakt verlangt einen neuen Schlüssel `menu.home` im Namespace
- * `navigation`, gepflegt in jeder Sprachdatei.
- *
- * Rot, solange `menu.home` in keiner der Locale-Dateien existiert.
+ * Der Home-Schalter (erster Button der Kopf-Aktionen-Toolbar, `App.tsx`) bezieht seinen
+ * Accessible Name aus dem i18n-Schlüssel `menu.home` im Namespace `navigation`, gepflegt in
+ * jeder Sprachdatei.
  */
 describe('#1334 AK5 — i18n-Schlüssel navigation:menu.home', () => {
 	const locales: Record<string, unknown> = { de, en, es, fr, it: itLocale, nl, pl, pt, ru, sv };

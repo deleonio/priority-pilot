@@ -26,7 +26,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	const readHeaderBoxes = async (page: Page) => {
 		const header = page.getByRole('banner');
-		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		const logoImg = header.locator('.logo-btn img');
 		const toolbarBtn = header.getByRole('toolbar', { name: /Kopf-Aktionen/i }).getByRole('button', {
 			name: 'Neuen Task anlegen',
 		});

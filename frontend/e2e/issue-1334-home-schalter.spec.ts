@@ -2,23 +2,21 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * ROTE Spec-Tests für #1334 „Home-Schalter zum Dashboard" (Vertrag: `docs/spec/issue-1334.md`).
+ * Spec-Tests für #1334 „Home-Schalter zum Dashboard" (Vertrag: `docs/spec/issue-1334.md`, inzwischen
+ * per Notiz superseded).
  *
  * Ziel: Aus jeder Ansicht (Aufgaben, Serien, Wald, Einstellungen) führt ein eindeutig als
  * „Home/Dashboard" erkennbares Bedienelement mit einem Klick zurück zum Dashboard (`/`). Der
- * bestehende Logo-Button (`.logo-btn`, `App.tsx:723`) bleibt Träger der Funktion, wird aber um
- * ein Home-Icon (`fa-solid fa-house`) ergänzt, damit er kein reines Markenlogo mehr ist (AK2).
- *
- * Diese Tests sind **rot**, bis `App.tsx` den Home-Icon-Baustein ergänzt — der Locator
- * `homeSwitch()` verlangt genau dieses Icon-Element und findet vor der Implementierung nichts.
+ * Home-Schalter ist der **erste Button der Kopf-Aktionen-Toolbar** (nicht mehr implizit am
+ * Logo, siehe `header-logo.spec.ts`) und trägt ein Home-Icon (`fa-solid fa-house`).
  */
 
-/** Home-Schalter: Button „…Dashboard" im Banner, der zusätzlich ein Home-Icon trägt (AK2). */
+/** Home-Schalter: erster Button der Kopf-Aktionen-Toolbar mit Accessible Name „…Dashboard…" (AK2). */
 const homeSwitch = (page: import('@playwright/test').Page) =>
 	page
 		.getByRole('banner')
-		.getByRole('button', { name: /Dashboard/i })
-		.filter({ has: page.locator('.fa-house, [class*="fa-house"], kol-icon[_icons*="house"]') });
+		.getByRole('toolbar', { name: /Kopf-Aktionen/i })
+		.getByRole('button', { name: /Dashboard/i });
 
 test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	/**

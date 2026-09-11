@@ -248,8 +248,9 @@ body {
 	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
 	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
 	 * ist seit #965 mobil auf 2rem verkleinert, damit die icon-only Kopf-Aktionen in die
-	 * 375px-Zeile passen — zur Zeit von #965 waren es sechs, seit dem Provider-System sind es fünf
-	 * (header-appearance.spec.ts AK6). Ab 48rem gilt wieder die gewohnte Relation aus #485 AK3 /
+	 * 375px-Zeile passen — seit dem Home-Schalter als eigenem Toolbar-Eintrag sind es wieder
+	 * sechs (zuvor kurzzeitig fünf nach der Provider-System-Konsolidierung, header-appearance.spec.ts
+	 * AK6). Ab 48rem gilt wieder die gewohnte Relation aus #485 AK3 /
 	 * #718 AK6 (siehe Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind
 	 * das WCAG-2.5.5-Minimum, nicht Deko.
 	 *
@@ -270,9 +271,9 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — die fünf icon-only Kopf-Aktionen füllen
-	 * die 375px-Zeile bis auf wenige Pixel aus, hier zählt jedes einzelne; ab 48rem gilt wieder
-	 * der Base-Abstand. */
+	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — die sechs icon-only Kopf-Aktionen (inkl.
+	 * Home-Schalter) füllen die 375px-Zeile bis auf wenige Pixel aus, hier zählt jedes einzelne;
+	 * ab 48rem gilt wieder der Base-Abstand. */
 	gap: 0.25rem;
 
 	/*
@@ -385,43 +386,9 @@ body {
 }
 
 .logo-btn {
-	position: relative;
 	display: inline-flex;
 	align-items: center;
-	padding: 0;
-	border: none;
-	background: transparent;
-	cursor: pointer;
-	border-radius: 0.25rem;
 	flex-shrink: 0;
-}
-
-/*
- * #1334: Home-Icon als Badge über dem Logo — das 375px-Zeilenbudget ist laut #965 bereits bis auf
- * wenige Pixel ausgereizt (siehe Kommentar bei .app-header oben), ein zusätzliches, layoutwirksames
- * Element neben dem Logo würde die Zeile zweizeilig umbrechen. Die Position ist rein deko (das
- * Icon trägt `aria-hidden`, die Bedeutung liefert `aria-label` am Button), daher `position: absolute`
- * ohne Auswirkung auf die Button-Breite.
- */
-.logo-btn i {
-	position: absolute;
-	right: -0.1875rem;
-	bottom: -0.1875rem;
-	font-size: 0.625rem;
-	color: var(--pp-surface-2);
-	background: var(--pp-text);
-	border-radius: 50%;
-	width: 0.875rem;
-	height: 0.875rem;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	pointer-events: none;
-}
-
-.logo-btn:focus-visible {
-	outline: 2px solid var(--pp-focus-ring);
-	outline-offset: 2px;
 }
 
 /*
