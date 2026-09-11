@@ -109,11 +109,19 @@ describe('theme.ts', () => {
 	});
 
 	describe('applyInitialTheme', () => {
-		it('setzt data-theme immer auf "light"', () => {
+		it('setzt data-theme auf "light", wenn keine Präferenz gespeichert und OS hell ist', () => {
 			theme.applyInitialTheme();
 
 			expect(document.documentElement.dataset.theme).toBe('light');
 			expect(document.documentElement.style.colorScheme).toBe('light');
+		});
+
+		it('setzt data-theme auf "dark", wenn "dark" gespeichert ist', () => {
+			mockLocalStorage['pp-theme'] = 'dark';
+			theme.applyInitialTheme();
+
+			expect(document.documentElement.dataset.theme).toBe('dark');
+			expect(document.documentElement.style.colorScheme).toBe('dark');
 		});
 
 		it('wirft keinen Fehler wenn DOM nicht verfügbar', () => {

@@ -27,10 +27,8 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Dunkelmodus ist als App-Feature deaktiviert (P1-2): `data-theme` wird nicht mehr über
-		// localStorage gesteuert, sondern fix auf „light” gesetzt. Die `[data-theme='dark']`-Regeln
-		// in app.css bleiben als Token-Bestand erhalten — für die Rückkehr des Dunkelmodus. Der Test
-		// erzwingt das Attribut deshalb direkt am <html> und misst die Kontrast-Regeln weiter.
+		// Attribut direkt am <html> erzwingen statt über localStorage/useTheme zu gehen — der Test
+		// misst die [data-theme='dark']-Kontrast-Regeln unabhängig von der Nutzer-Präferenz.
 		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
 
 		// Vorbedingung: der Dunkelmodus ist wirklich aktiv, sonst misst der Test den Hellmodus grün.
