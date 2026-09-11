@@ -4,7 +4,7 @@ import { waitForStableBox, waitForStableView } from './helpers';
 /**
  * ROTE Spec-Tests für #1051 „Header-Toolbar-Buttons einheitlich + Mikrofon-Button im Such-Dialog ausrichten".
  *
- * AK1: Alle fünf Toolbar-Buttons haben dieselbe KoliBri-Variante (gleiche berechnete Hintergrundfarbe).
+ * AK1: Alle Toolbar-Buttons haben dieselbe KoliBri-Variante (gleiche berechnete Hintergrundfarbe).
  * AK2: Mikrofon-Button im Such-Dialog ist vertikal mittig in der Inputbox ausgerichtet.
  * AK3: Gleiche Prüfung bei 375px Viewportbreite.
  *
@@ -16,7 +16,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 	const SEARCH_BTN_LABEL = 'Suche';
 
 	/**
-	 * AK1 — Alle fünf Toolbar-Buttons rendern mit derselben KoliBri-Variante.
+	 * AK1 — Alle Toolbar-Buttons rendern mit derselben KoliBri-Variante.
 	 * Geprüft über berechnete Hintergrundfarbe (computed `backgroundColor`),
 	 * da die Variante nur im Shadow-DOM sichtbar wird.
 	 */
@@ -29,7 +29,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 
 		const buttons = toolbar.getByRole('button');
 		const count = await buttons.count();
-		expect(count).toBe(5);
+		expect(count).toBe(6);
 
 		const bgColors = await buttons.evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
 
@@ -99,7 +99,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		await expect(toolbar).toBeVisible();
 		const buttons = toolbar.getByRole('button');
 		const count = await buttons.count();
-		expect(count).toBe(5);
+		expect(count).toBe(6);
 
 		const bgColors = await buttons.evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
 		const uniqueColors = new Set(bgColors);

@@ -3026,4 +3026,3 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
-

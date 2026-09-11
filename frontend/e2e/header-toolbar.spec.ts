@@ -313,6 +313,28 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 });
 
 /**
+ * Spec-Test: Der Home-Schalter ist der erste Button der Kopf-Aktionen-Toolbar (statt implizit am
+ * Logo zu hängen, siehe `header-logo.spec.ts` und `issue-1334-home-schalter.spec.ts`).
+ */
+test.describe('Home-Schalter als erster Toolbar-Button', () => {
+	test('„Zum Dashboard" steht in DOM-Reihenfolge vor allen anderen Kopf-Aktionen', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		const buttons = toolbar.getByRole('button');
+		const names: string[] = await buttons.evaluateAll((els) =>
+			els.map((el) => (el as HTMLElement).getAttribute('aria-label') ?? (el as HTMLElement).textContent?.trim() ?? ''),
+		);
+
+		expect(names.length, 'Toolbar muss mindestens den Home-Schalter enthalten').toBeGreaterThan(0);
+		expect(names[0], 'Erster Button der Toolbar muss der Home-Schalter sein').toMatch(/Dashboard/i);
+	});
+});
+
+/**
  * ROTE Spec-Tests für #335 „Serien-Verwaltung als eigenen Tab statt Modal anbieten"
  * (Stufe 1 TDD, der einklagbare Vertrag) — Header-Seite (AK6).
  *

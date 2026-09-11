@@ -93,8 +93,7 @@ const SEARCH_ICON = { left: { icon: 'fa-solid fa-magnifying-glass' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
-// #1334: Home-Schalter-Icon auf dem Logo-Button — dekorativ, die Bedeutung trägt aria-label.
-const HOME_ICON_CLASS = 'fa-solid fa-house';
+const HOME_ICON = { left: { icon: 'fa-solid fa-house' } };
 
 // #1320: Aktiv-Zustand der Kopf-Aktionen „Einstellungen"/„Hilfe" — der Button der gerade offenen
 // Seite hebt sich sichtbar ab (`primary` gegen `secondary`), damit der Umschalter als verlässliche
@@ -624,7 +623,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		notifyTasksChanged();
 	}, [reload]);
 
-	const handleLogoDashboard = useCallback((): void => {
+	const handleHomeNavigate = useCallback((): void => {
 		navigate('/');
 		void reload();
 	}, [navigate, reload]);
@@ -655,6 +654,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {
 		return [
+			{
+				type: 'button' as const,
+				_label: t('menu.home'),
+				_hideLabel: true,
+				_icons: HOME_ICON,
+				_variant: INACTIVE_VARIANT,
+				_on: { onClick: handleHomeNavigate },
+			},
 			{
 				type: 'button' as const,
 				_label: 'Suche',
@@ -701,6 +708,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		];
 	}, [
 		logoutLoading,
+		handleHomeNavigate,
 		openSearch,
 		openCreateDialog,
 		toggleSettings,
@@ -723,10 +731,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			<header role="banner" className="app-header">
 				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
 				<div className="app-header__brand">
-					<button type="button" className="logo-btn" aria-label={t('menu.home')} onClick={handleLogoDashboard}>
-						<img src="/logo/logo.png" alt="Priority Pilot" />
-						<i className={HOME_ICON_CLASS} aria-hidden="true" />
-					</button>
+					{/* Rein dekorativ: der Home-Schalter ist der erste Button der Kopf-Aktionen-Toolbar. */}
+					<span className="logo-btn">
+						<img src="/logo/logo.png" alt="" />
+					</span>
 					<span className="app-name">Priority Pilot</span>
 				</div>
 				<div className="app-header__primary">

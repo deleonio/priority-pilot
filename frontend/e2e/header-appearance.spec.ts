@@ -69,7 +69,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	const readHeaderBoxes = async (page: Page) => {
 		const header = page.getByRole('banner');
-		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		const logoImg = header.locator('.logo-btn img');
 		const toolbarBtn = header.getByRole('toolbar', { name: /Kopf-Aktionen/i }).getByRole('button', {
 			name: 'Neuen Task anlegen',
 		});
@@ -189,20 +189,17 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 *
 	 * Geändert gegenüber #485: Die 1,25-Relation Avatar/Toolbar-Button gilt bewusst **nur noch ab
 	 * 48rem** (AK3 prüft sie bei 1280px); mobil misst der Avatar 44px (`--pp-avatar-size` =
-	 * `--pp-toolbar-height`, siehe `app.css`). Seit #691 stehen alle fünf Kopf-Aktionen auf JEDER
-	 * Breite direkt in der Toolbar; mit dem Avatar aus der #865-Korrektur füllen Logo (44px),
-	 * Avatar (44px) und die fünf Kopf-Aktionen (~252px) die 375px-Zeile bereits vollständig aus
-	 * (~340 der ~343px Inhaltsbreite). Die frühere sechste Kopf-Aktion — die KI-Modell-Auswahl —
-	 * ist mit dem Provider-System in die Einstellungen (Tab „KI-Provider“) gewandert; die Toolbar
-	 * führt wieder fünf Aktionen. Der
-	 * Klartextname ist seit der #865-Korrektur auf allen Breiten
-	 * entfernt; die Identität steht mobil als Avatar da — deren Sichtbarkeit bei 375px deckt
-	 * `issue-718-avatar-mobile.spec.ts` AK1 ab.
+	 * `--pp-toolbar-height`, siehe `app.css`). Seit #691 stehen alle Kopf-Aktionen auf JEDER
+	 * Breite direkt in der Toolbar; mit dem eigenständigen Home-Schalter als erstem Toolbar-Eintrag
+	 * (statt implizit am Logo) füllen Logo (44px), Avatar (44px) und die sechs Kopf-Aktionen die
+	 * 375px-Zeile wie schon zur Zeit von #965 nahezu vollständig aus. Der Klartextname ist seit der
+	 * #865-Korrektur auf allen Breiten entfernt; die Identität steht mobil als Avatar da — deren
+	 * Sichtbarkeit bei 375px deckt `issue-718-avatar-mobile.spec.ts` AK1 ab.
 	 *
 	 * Was hier zählt: Logo und primäre Aktion stehen sichtbar auf EINER Zeile (Höhen-Vertrag in
-	 * `mobile-shell.spec.ts`), und der Logo-Button bleibt bedienbar. Die Sichtbarkeits-Checks mit
-	 * Retry warten zugleich das asynchrone Shadow-DOM-Layout der KoliBri-Toolbar ab — eine Messung
-	 * davor träfe den Pre-Hydration-Zustand.
+	 * `mobile-shell.spec.ts`), und der Home-Schalter (erster Toolbar-Button) bleibt bedienbar. Die
+	 * Sichtbarkeits-Checks mit Retry warten zugleich das asynchrone Shadow-DOM-Layout der
+	 * KoliBri-Toolbar ab — eine Messung davor träfe den Pre-Hydration-Zustand.
 	 *
 	 * Hinweis: Die reine Overflow-Prüfung (`scrollWidth <= clientWidth`) ist bereits durch
 	 * `header-logo.spec.ts` (#395 AK5 / #406 AK5) abgedeckt und wird hier nicht dupliziert.
@@ -213,7 +210,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
-		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		const logoImg = header.locator('.logo-btn img');
 		const toolbarBtn = header
 			.getByRole('toolbar', { name: /Kopf-Aktionen/i })
 			.getByRole('button', { name: 'Neuen Task anlegen' });
@@ -233,8 +230,12 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 			`Logo (${centerOf(logo)}) und Button (${centerOf(button)}) sollen auf einer Mittellinie liegen`,
 		).toBeLessThanOrEqual(TOLERANCE_PX);
 
-		// Bedienbar: Der Logo-Button reagiert weiterhin auf einen Klick (Dashboard-Tab aktiv).
-		await header.getByRole('button', { name: /Zum Dashboard/i }).click();
+		// Bedienbar: Der Home-Schalter (erster Toolbar-Button) reagiert weiterhin auf einen Klick
+		// (Dashboard-Tab aktiv).
+		await header
+			.getByRole('toolbar', { name: /Kopf-Aktionen/i })
+			.getByRole('button', { name: /Dashboard/i })
+			.click();
 		await expect(page.getByRole('tab', { name: /Dashboard/i })).toHaveAttribute('aria-selected', 'true');
 	});
 });

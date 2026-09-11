@@ -1,5 +1,13 @@
 # Issue #1334 — Home-Schalter zum Dashboard
 
+> **Hinweis:** Der Kontrakt unten (Home-Icon als Badge am Logo-Button) wurde inzwischen ersetzt.
+> Der Home-Schalter ist jetzt ein eigenständiger, erster Button der Kopf-Aktionen-Toolbar
+> (`App.tsx`, `toolbarItems`); das Logo ist rein dekorativ, ohne Button-Rolle und ohne
+> Klick-Handler. Grund: Der implizite Weg über das Logo war nicht erkennbar genug. Das
+> 375px-Zeilenbudget, das damals gegen einen eigenen Toolbar-Eintrag sprach, reicht weiterhin —
+> historisch passten schon vor der Provider-System-Konsolidierung sechs Kopf-Aktionen in die Zeile
+> (siehe Kommentar bei `.app-header` in `app.css`).
+
 ## Ziel
 
 Aus jeder Ansicht (Aufgaben, Serien, Wald, Einstellungen) führt ein eindeutig als
