@@ -60,7 +60,10 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 	try {
 		const record = await ApiToken.findOne({ where: { tokenHash: hashApiToken(token), revokedAt: null } });
 		const user = record ? await User.findByPk(record.userId) : null;
-		if (!record || !user) {
+		// Abgelaufen (#1357, AK4): `expiresAt` liegt in der Vergangenheit. `null` (Bestandstoken ohne
+		// Migration, AK3) gilt weiterhin als unbefristet gültig.
+		const expired = record?.expiresAt != null && new Date(record.expiresAt).getTime() <= Date.now();
+		if (!record || !user || expired) {
 			// Kein Kurzschluss auf 401 (s. o.): Session verwerfen, durchlassen. `requireAuth` erledigt
 			// die Abweisung für alles, was Auth verlangt.
 			req.session.user = undefined;

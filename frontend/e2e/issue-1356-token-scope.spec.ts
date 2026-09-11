@@ -42,6 +42,9 @@ test.describe('Priority Pilot — #1356: Rechte-Umschalter je Token', () => {
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
+		// Test-Pflege (#1357, s. PR-Body): seit #1357 (AK1/AK6) ist die Laufzeit ein Pflichtfeld,
+		// ohne die ist „Token erzeugen" wirkungslos.
+		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
 		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 
 		const row = page.getByTestId('api-token-row').first();
@@ -62,6 +65,7 @@ test.describe('Priority Pilot — #1356: Rechte-Umschalter je Token', () => {
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
+		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
 		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 		const row = page.getByTestId('api-token-row').first();
 		await expect(row).toBeVisible();

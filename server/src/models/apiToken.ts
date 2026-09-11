@@ -26,6 +26,9 @@ class ApiToken extends Model {
 	// Rechtestufe (#1356): 'read' erlaubt nur lesende Requests, 'readwrite' auch schreibende.
 	// Default 'read' — ein neu angelegter Token startet nie mit Schreibrechten (AK2).
 	public scope!: 'read' | 'readwrite';
+	// Ablaufdatum (#1357) — Pflicht beim Anlegen, `null` ausschließlich für Bestandstokens ohne
+	// Migration (kein rückwirkendes Entwerten).
+	public expiresAt?: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -62,6 +65,10 @@ ApiToken.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: 'read',
+		},
+		expiresAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 	},
 	{

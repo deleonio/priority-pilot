@@ -26,7 +26,7 @@ const createToken = async (cookie: string, name = 'MCP-SDK-Client'): Promise<str
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name }),
+		body: JSON.stringify({ name, expiresInDays: 365 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
 	return ((await res.json()) as { token: string }).token;

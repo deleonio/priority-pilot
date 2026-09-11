@@ -49,6 +49,9 @@ test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")',
 		const panel = page.getByTestId('api-tokens-panel');
 		await expect(panel).toBeVisible();
 
+		// Test-Pflege (#1357, s. PR-Body): seit #1357 (AK1/AK6) ist die Laufzeit ein Pflichtfeld,
+		// ohne die ist „Token erzeugen" wirkungslos.
+		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
 		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 
 		const plaintext = page.getByTestId('api-token-plaintext');
@@ -71,6 +74,7 @@ test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")',
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
+		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
 		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 		const plaintext = page.getByTestId('api-token-plaintext');
 		await expect(plaintext).toBeVisible();

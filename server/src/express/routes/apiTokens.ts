@@ -20,7 +20,20 @@ const TOKEN_SCOPES = ['read', 'readwrite'] as const;
 type TokenScope = (typeof TOKEN_SCOPES)[number];
 const isTokenScope = (value: unknown): value is TokenScope => TOKEN_SCOPES.includes(value as TokenScope);
 
-type ApiTokenDto = { id: number; name: string; createdAt: string; lastUsedAt: string | null; scope: TokenScope };
+/** Erlaubte Laufzeiten in Tagen beim Anlegen (#1357, AK1) — 365 ist die Höchstlaufzeit (12 Monate). */
+const TOKEN_EXPIRY_DAYS = [30, 90, 180, 365] as const;
+type TokenExpiryDays = (typeof TOKEN_EXPIRY_DAYS)[number];
+const isTokenExpiryDays = (value: unknown): value is TokenExpiryDays =>
+	TOKEN_EXPIRY_DAYS.includes(value as TokenExpiryDays);
+
+type ApiTokenDto = {
+	id: number;
+	name: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+	scope: TokenScope;
+	expiresAt: string | null;
+};
 type CreatedApiTokenDto = ApiTokenDto & { token: string };
 
 /** Listen-Repräsentation — enthält bewusst weder Klartext noch Hash (AK1). */
@@ -30,6 +43,7 @@ const serializeApiToken = (token: ApiToken): ApiTokenDto => ({
 	createdAt: token.createdAt.toISOString(),
 	lastUsedAt: token.lastUsedAt ? token.lastUsedAt.toISOString() : null,
 	scope: token.scope,
+	expiresAt: token.expiresAt ? token.expiresAt.toISOString() : null,
 });
 
 export const apiTokensRouter = Router();
@@ -56,15 +70,22 @@ apiTokensRouter.post('/api-tokens', async (req: Request, res: Response<CreatedAp
 		sendError(res, 401, 'Anmeldung erforderlich.');
 		return;
 	}
-	const rawName = (req.body as { name?: unknown } | undefined)?.name;
+	const body = req.body as { name?: unknown; expiresInDays?: unknown } | undefined;
+	const rawName = body?.name;
 	const name = typeof rawName === 'string' ? rawName.trim() : '';
 	if (!name || name.length > MAX_NAME_LENGTH) {
 		sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
 		return;
 	}
+	const expiresInDays = body?.expiresInDays;
+	if (!isTokenExpiryDays(expiresInDays)) {
+		sendError(res, 400, `Bitte eine Laufzeit von ${TOKEN_EXPIRY_DAYS.join(', ')} Tagen wählen.`);
+		return;
+	}
 	try {
 		const token = generateApiToken();
-		const created = await ApiToken.create({ userId, name, tokenHash: hashApiToken(token) });
+		const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+		const created = await ApiToken.create({ userId, name, tokenHash: hashApiToken(token), expiresAt });
 		res.status(201).json({ ...serializeApiToken(created), token });
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

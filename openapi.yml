@@ -2122,7 +2122,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreatedApiToken'
         '400':
-          description: Ungültiger Name (leer oder länger als 60 Zeichen)
+          description: >-
+            Ungültiger Name (leer oder länger als 60 Zeichen) oder fehlende/ungültige
+            Laufzeit (expiresInDays muss 30, 90, 180 oder 365 sein, #1357)
           content:
             application/json:
               schema:
@@ -2617,7 +2619,7 @@ components:
       description: >-
         Persönlicher API-Token für externe Clients (#1352) — Metadaten-Sicht ohne
         Klartext und ohne Hash.
-      required: [id, name, createdAt, lastUsedAt, scope]
+      required: [id, name, createdAt, lastUsedAt, scope, expiresAt]
       properties:
         id:
           type: integer
@@ -2638,15 +2640,28 @@ components:
           description: >-
             Rechtestufe des Tokens (#1356). `read` erlaubt nur lesende Requests, `readwrite`
             auch schreibende. Ein neu angelegter Token startet immer als `read`.
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Ablaufdatum des Tokens (#1357). `null` ausschließlich für Bestandstokens ohne
+            Migration — neu angelegte Tokens haben immer ein Ablaufdatum.
     ApiTokenInput:
       type: object
       description: Eingabe zum Anlegen eines API-Tokens (#1352).
-      required: [name]
+      required: [name, expiresInDays]
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 60
+        expiresInDays:
+          type: integer
+          enum: [30, 90, 180, 365]
+          description: >-
+            Feste Laufzeit in Tagen (#1357) — Pflichtfeld, Höchstlaufzeit 365 Tage
+            (12 Monate).
     ApiTokenScopeInput:
       type: object
       description: Eingabe zum Umschalten der Rechtestufe eines API-Tokens (#1356).

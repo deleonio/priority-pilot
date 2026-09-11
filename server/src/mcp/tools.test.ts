@@ -41,7 +41,7 @@ const createToken = async (cookie: string): Promise<string> => {
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name: `Client-${idCounter++}` }),
+		body: JSON.stringify({ name: `Client-${idCounter++}`, expiresInDays: 365 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
 	const { id, token } = (await res.json()) as { id: number; token: string };
@@ -120,7 +120,7 @@ const createReadOnlyToken = async (cookie: string): Promise<{ id: number; token:
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name: `Client-${idCounter++}` }),
+		body: JSON.stringify({ name: `Client-${idCounter++}`, expiresInDays: 365 }),
 	});
 	assert.equal(res.status, 201, 'Setup: Token muss anlegbar sein');
 	const body = (await res.json()) as { id: number; token: string; scope?: string };

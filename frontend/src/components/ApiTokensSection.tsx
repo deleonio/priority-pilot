@@ -1,6 +1,6 @@
-import { KolAlert, KolButton, KolCard, KolInputCheckbox, KolInputText } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard, KolInputCheckbox, KolInputText, KolSelect } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 
@@ -12,6 +12,40 @@ const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de
 
 /** Klartext-Label je Rechtestufe (#1356, AK8) — Farbe trägt nie allein Bedeutung. */
 const SCOPE_LABEL: Record<ApiToken['scope'], string> = { read: 'Nur lesend', readwrite: 'Lesen und Schreiben' };
+
+/**
+ * Feste Laufzeiten beim Anlegen (#1357, AK1) — 365 Tage ist die Höchstlaufzeit (12 Monate). Der
+ * Platzhalter ist als deaktivierte erste Option modelliert: ein natives `<select>` würde sonst
+ * die erste echte Laufzeit vorauswählen, obwohl AK6 „keine Vorauswahl" verlangt.
+ */
+const DURATION_OPTIONS = [
+	{ label: 'Bitte auswählen', value: '', disabled: true },
+	{ label: '30 Tage', value: '30' },
+	{ label: '90 Tage', value: '90' },
+	{ label: '180 Tage', value: '180' },
+	{ label: '365 Tage (12 Monate)', value: '365' },
+];
+
+/** Tippt die Laufzeit-Auswahl auf die vom Server erlaubte Whitelist (#1357, AK1); `''` = keine Wahl. */
+const parseExpiresInDays = (value: string): 30 | 90 | 180 | 365 | undefined => {
+	if (value === '30' || value === '90' || value === '180' || value === '365')
+		return Number(value) as 30 | 90 | 180 | 365;
+	return undefined;
+};
+
+/** Ob ein Ablaufdatum bereits in der Vergangenheit liegt (#1357, AK7). */
+const isExpired = (iso: string): boolean => new Date(iso).getTime() <= Date.now();
+
+/**
+ * Ablaufdatum als „TT.MM.JJJJ" (#1357, AK7) — mit führenden Nullen, anders als `formatDate`
+ * (dessen `toLocaleDateString('de-DE')` Tag/Monat einstellig lässt, z. B. „1.1.2027").
+ */
+const formatExpiryDate = (iso: string): string => {
+	const date = new Date(iso);
+	const day = String(date.getDate()).padStart(2, '0');
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	return `${day}.${month}.${date.getFullYear()}`;
+};
 
 /** MCP-Endpunkt dieser App — aus der aktuellen Origin abgeleitet, damit er in jeder Umgebung stimmt. */
 const MCP_URL = `${window.location.origin}/api/v1/mcp/v1`;
@@ -61,6 +95,50 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
 export const ApiTokensSection = () => {
 	const [tokens, setTokens] = useState<ApiToken[]>([]);
 	const [name, setName] = useState(DEFAULT_TOKEN_NAME);
+	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
+	const [expiresInDays, setExpiresInDays] = useState('');
+	const durationSelectRef = useRef<HTMLKolSelectElement>(null);
+
+	// KolSelect rendert die native `<select>` im offenen Shadow DOM des Hosts (`kol-select-wc`
+	// hat selbst KEIN eigenes Shadow DOM, sondern rendert scoped direkt in den Shadow-Baum des
+	// Hosts) — ein `data-testid` nur auf dem Host würde bei E2E-Interaktionen (`selectOption`) ins
+	// Leere laufen, weil Playwright dafür das native `<select>`-Element selbst braucht. Hydration
+	// läuft asynchron, daher MutationObserver statt einmaligem Query direkt nach dem Mount — und
+	// der Observer muss auf dem `shadowRoot` selbst sitzen (nicht auf dem Host-Element), sonst
+	// sieht er Mutationen im Shadow-Baum gar nicht (MutationObserver überquert Shadow-Grenzen beim
+	// Beobachten des Hosts nicht automatisch).
+	// `data-testid` wird bewusst NICHT als JSX-Prop auf `KolSelect` gesetzt, sondern nur
+	// imperativ über diesen Effekt: der React-Wrapper (`@public-ui/react-v19`) schreibt in
+	// `componentDidUpdate` bei JEDEM Prop-Wechsel (z. B. `_value` nach der Laufzeit-Auswahl) alle
+	// String-Props per `setAttribute` erneut auf den Host — ein per JSX gesetztes `data-testid`
+	// käme dadurch nach der ersten Auswahl zurück und ergäbe zwei Treffer (Host + natives
+	// `<select>`, Strict-Mode-Verletzung bei Playwright). Imperativ gesetzt, taucht es in
+	// `Object.keys(props)` des Wrappers nicht auf und wird nie erneut angefasst. Der Host trägt
+	// das Attribut zunächst selbst (Unit-Test-Pfad: jsdom hydriert KoliBri nicht, `shadowRoot`
+	// bleibt dort `null`); sobald die native `<select>` real existiert, wandert es dorthin, damit
+	// genau ein Element matcht.
+	useEffect(() => {
+		const host = durationSelectRef.current;
+		if (!host) return;
+		host.setAttribute('data-testid', 'api-token-duration-select');
+		const shadowRoot = host.shadowRoot;
+		if (!shadowRoot) return;
+		const tagNativeSelect = (): boolean => {
+			const native = shadowRoot.querySelector('select');
+			if (native) {
+				native.setAttribute('data-testid', 'api-token-duration-select');
+				host.removeAttribute('data-testid');
+				return true;
+			}
+			return false;
+		};
+		if (tagNativeSelect()) return;
+		const observer = new MutationObserver(() => {
+			if (tagNativeSelect()) observer.disconnect();
+		});
+		observer.observe(shadowRoot, { childList: true, subtree: true });
+		return () => observer.disconnect();
+	}, []);
 	// Klartext des zuletzt erzeugten Tokens — nur im Speicher dieser Sitzung, nie erneut abrufbar.
 	const [plaintext, setPlaintext] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -89,14 +167,18 @@ export const ApiTokensSection = () => {
 	}, []);
 
 	const handleCreate = async (): Promise<void> => {
+		// Ohne gewählte Laufzeit ist der Klick wirkungslos (#1357, AK6) — kein API-Aufruf.
+		const days = parseExpiresInDays(expiresInDays);
+		if (days === undefined) return;
 		setError(null);
 		setCopied(false);
 		setBusy(true);
 		try {
-			const { token, ...meta } = await api.createApiToken({ name: name.trim() });
+			const { token, ...meta } = await api.createApiToken({ name: name.trim(), expiresInDays: days });
 			setPlaintext(token);
 			setTokens((previous) => [...previous, meta]);
 			setName(DEFAULT_TOKEN_NAME);
+			setExpiresInDays('');
 		} catch (reason) {
 			setError((await toApiError(reason)).message);
 		} finally {
@@ -146,6 +228,13 @@ export const ApiTokensSection = () => {
 						_label="Name des Tokens"
 						_value={name}
 						_on={{ onInput: (_event, value) => setName(String(value)) }}
+					/>
+					<KolSelect
+						ref={durationSelectRef}
+						_label="Laufzeit"
+						_options={DURATION_OPTIONS}
+						_value={expiresInDays}
+						_on={{ onChange: (_event, value) => setExpiresInDays(String(value)) }}
 					/>
 					<ButtonAction onClick={() => void handleCreate()}>
 						<KolButton _label="Token erzeugen" class="settings-action-btn" _variant="primary" _disabled={busy} />
@@ -211,6 +300,10 @@ export const ApiTokensSection = () => {
 											token.lastUsedAt == null
 												? 'noch nicht genutzt'
 												: `zuletzt genutzt ${formatDate(token.lastUsedAt)}`
+										}${
+											token.expiresAt == null
+												? ''
+												: ` · gültig bis ${formatExpiryDate(token.expiresAt)}${isExpired(token.expiresAt) ? ' (abgelaufen)' : ''}`
 										}`}
 									</span>
 								</span>
