@@ -563,6 +563,10 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 _Keine für Nutzer sichtbaren Änderungen._
 
+## v0.1.727 - 2026-09-06
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.1.726 - 2026-09-06
 
 _Keine für Nutzer sichtbaren Änderungen._
