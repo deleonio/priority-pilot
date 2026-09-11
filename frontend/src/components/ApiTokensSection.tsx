@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolCard, KolInputText } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard, KolInputCheckbox, KolInputText } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
@@ -30,16 +30,16 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
 );
 
 /**
- * Rechte-Umschalter je Token (#1356, AK8): ein natives `<input type="checkbox">`, dessen
- * `checked`-Zustand von `token.scope` gesteuert wird. Der Handler hängt bewusst über
- * `addEventListener('change', …)` an einem Ref statt über die React-`onChange`-Prop: React löst
- * seine synthetische `onChange` für Checkboxen über ein internes `click`-Tracking aus, nicht über
- * das native `change`-Event — ein direkt dispatchtes `change` (Testmuster dieses Tickets, analog
- * zum `ButtonAction`-Klick-Abfangen für `kol-button`) käme sonst nie an. Der native Listener
- * reagiert auf beides: echten Klick im Browser wie den Test-Dispatch.
+ * Rechte-Umschalter je Token (#1356, AK8): `KolInputCheckbox _variant="switch"` wie die übrigen
+ * sieben Schalter im Frontend (`SettingsPage.tsx`), statt eines handgestrickten nativen Inputs.
+ * `_on.onChange` ist der reguläre Pfad (Browser, e2e) — KoliBri ruft ihn intern über das
+ * change-Event des Shadow-DOM-Inputs auf, nie als Event auf dem Host. In jsdom (Unit-Tests) wird
+ * `kol-input-checkbox` nicht hydratisiert (kein Shadow-DOM, `_on` bleibt eine tote Property) —
+ * der zusätzliche `change`-Listener auf dem Host greift dort als Fallback; im Browser feuert er
+ * nie doppelt, weil auf dem Host selbst kein `change` ankommt.
  */
 const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled: boolean; onToggle: () => void }) => {
-	const ref = useRef<HTMLInputElement>(null);
+	const ref = useRef<HTMLKolInputCheckboxElement>(null);
 
 	useEffect(() => {
 		const el = ref.current;
@@ -50,17 +50,15 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
 	}, [onToggle]);
 
 	return (
-		<input
+		<KolInputCheckbox
 			ref={ref}
-			type="checkbox"
-			role="switch"
-			className="api-tokens__scope-input"
-			aria-label={`Rechte für Token ${token.name}`}
-			aria-checked={token.scope === 'readwrite'}
+			_variant="switch"
+			_label={`Rechte für Token ${token.name}`}
+			_hideLabel={true}
+			_checked={token.scope === 'readwrite'}
+			_disabled={disabled}
 			data-testid="api-token-scope-toggle"
-			checked={token.scope === 'readwrite'}
-			disabled={disabled}
-			readOnly
+			_on={{ onChange: () => onToggle() }}
 		/>
 	);
 };

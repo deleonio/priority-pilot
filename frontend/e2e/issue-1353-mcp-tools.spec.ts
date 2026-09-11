@@ -29,11 +29,21 @@ const login = async (page: Page): Promise<void> => {
 	expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
 };
 
-/** Erzeugt einen API-Token für die eingeloggte Session und gibt den Klartext zurück. */
+/**
+ * Erzeugt einen API-Token für die eingeloggte Session und gibt den Klartext zurück.
+ *
+ * Test-Pflege (#1356): neue Tokens starten seit #1356 (AK2) standardmäßig mit `scope: 'read'` —
+ * `task_create` ist ein schreibender MCP-Aufruf und braucht seitdem ein PATCH auf `readwrite`,
+ * sonst weist der neue `apiTokenScopeGuard` mit 403 ab. Diese Spec prüft die MCP-Route selbst,
+ * nicht die Rechtestufe (dafür `e2e/issue-1356-token-scope.spec.ts`).
+ */
 const createApiToken = async (page: Page): Promise<string> => {
 	const res = await page.request.post('/api/v1/api-tokens', { data: { name: 'e2e-mcp' } });
 	expect(res.status(), 'API-Token muss anlegbar sein').toBe(201);
-	return ((await res.json()) as { token: string }).token;
+	const created = (await res.json()) as { id: number; token: string };
+	const patched = await page.request.patch(`/api/v1/api-tokens/${created.id}`, { data: { scope: 'readwrite' } });
+	expect(patched.status(), 'Token muss auf readwrite umschaltbar sein').toBe(200);
+	return created.token;
 };
 
 test.describe('Priority Pilot — #1353: MCP-Werkzeuge v1 (AK9)', () => {
