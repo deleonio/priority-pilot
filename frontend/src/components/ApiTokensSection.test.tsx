@@ -29,6 +29,15 @@ const readToken = {
 	scope: 'read',
 	createdAt: new Date('2026-01-01T00:00:00Z').toISOString(),
 	lastUsedAt: null,
+	expiresAt: new Date('2027-01-01T00:00:00Z').toISOString(),
+};
+
+/** Bereits abgelaufener Token (#1357 AK7) — Datum liegt vor dem festen `vi.setSystemTime`. */
+const expiredToken = {
+	...readToken,
+	id: 2,
+	name: 'Abgelaufen',
+	expiresAt: new Date('2025-12-01T00:00:00Z').toISOString(),
 };
 
 beforeEach(() => {
@@ -118,5 +127,102 @@ describe('ApiTokensSection – #1356 AK8: Rechte-Umschalter je Token', () => {
 		expect(hint, 'Hinweis zur Standard-Rechtestufe fehlt').not.toBeNull();
 		expect(hint?.textContent).toContain('liest standardmäßig nur');
 		expect(hint?.textContent).toContain('task_create');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1357 (Spec docs/spec/issue-1357.md) — Pflicht-Ablaufdatum.
+ *
+ * AK6: „Token erzeugen" ist ohne gewählte Laufzeit wirkungslos (kein POST); nach Auswahl legt der
+ * Klick den Token mit der gewählten Laufzeit an.
+ * AK7: die Zeile zeigt das Ablaufdatum (TT.MM.JJJJ) und kennzeichnet einen bereits abgelaufenen
+ * Token als Text „abgelaufen".
+ *
+ * Rot, bis `ApiTokensSection` eine Laufzeit-Auswahl rendert und `api.createApiToken` sie mitschickt
+ * — heute existiert dafür kein Element (Selektor `api-token-duration-select` findet nichts) und die
+ * Zeile zeigt weder Ablaufdatum noch „abgelaufen".
+ */
+describe('ApiTokensSection – #1357: Pflicht-Ablaufdatum', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-06-01T00:00:00Z'));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('AK6: Klick auf „Token erzeugen" ohne gewählte Laufzeit ruft api.createApiToken nicht auf', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const createButton = container.querySelector('kol-button[_label="Token erzeugen"]');
+		expect(createButton, 'Button „Token erzeugen" fehlt').not.toBeNull();
+
+		await act(async () => {
+			createButton?.dispatchEvent(new Event('click', { bubbles: true }));
+			await Promise.resolve();
+		});
+
+		expect(apiMocks.createApiToken).toBeUndefined();
+	});
+
+	it('AK6: nach Auswahl einer Laufzeit legt der Klick den Token mit dieser Laufzeit an', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
+		apiMocks.createApiToken = vi.fn().mockResolvedValue({ ...readToken, token: 'pp_neu' });
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const select = container.querySelector('[data-testid="api-token-duration-select"]');
+		expect(select, 'Laufzeit-Auswahl fehlt').not.toBeNull();
+
+		await act(async () => {
+			(select as unknown as { _on: { onChange: (e: unknown, v: string) => void } })._on.onChange(
+				{ target: select },
+				'365',
+			);
+			await Promise.resolve();
+		});
+
+		const createButton = container.querySelector('kol-button[_label="Token erzeugen"]');
+		await act(async () => {
+			createButton?.dispatchEvent(new Event('click', { bubbles: true }));
+			await Promise.resolve();
+		});
+
+		expect(apiMocks.createApiToken).toHaveBeenCalledWith(expect.objectContaining({ expiresInDays: 365 }));
+	});
+
+	it('AK7: die Token-Zeile zeigt das Ablaufdatum im Format TT.MM.JJJJ', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const row = container.querySelector('[data-testid="api-token-row"]');
+		expect(row, 'Token-Zeile muss gerendert sein').not.toBeNull();
+		expect(row?.textContent).toContain('01.01.2027');
+	});
+
+	it('AK7: ein abgelaufener Token ist in der Liste als Text „abgelaufen" gekennzeichnet', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([expiredToken]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const row = container.querySelector('[data-testid="api-token-row"]');
+		expect(row, 'Token-Zeile muss gerendert sein').not.toBeNull();
+		expect(row?.textContent).toContain('abgelaufen');
 	});
 });

@@ -38,7 +38,9 @@ const login = async (page: Page): Promise<void> => {
  * nicht die Rechtestufe (dafür `e2e/issue-1356-token-scope.spec.ts`).
  */
 const createApiToken = async (page: Page): Promise<string> => {
-	const res = await page.request.post('/api/v1/api-tokens', { data: { name: 'e2e-mcp' } });
+	// Test-Pflege (#1357, s. PR-Body): seit #1357 (AK1) verlangt die Route ein `expiresInDays`
+	// aus der Whitelist [30, 90, 180, 365].
+	const res = await page.request.post('/api/v1/api-tokens', { data: { name: 'e2e-mcp', expiresInDays: 365 } });
 	expect(res.status(), 'API-Token muss anlegbar sein').toBe(201);
 	const created = (await res.json()) as { id: number; token: string };
 	const patched = await page.request.patch(`/api/v1/api-tokens/${created.id}`, { data: { scope: 'readwrite' } });
