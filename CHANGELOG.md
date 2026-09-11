@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.818 - 2026-09-11
+
+### Other Changes
+
+- fix(mcp): link tasks by id only and surface route error messages by @deleonio in https://github.com/deleonio/priority-pilot/pull/1378
+
 ## v0.1.817 - 2026-09-11
 
 ### Other Changes
@@ -549,11 +555,9 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 _Keine für Nutzer sichtbaren Änderungen._
 
-## v0.1.718 - 2026-09-05
+## v0.1.719 - 2026-09-06
 
-### Other Changes
-
-- feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
+_Keine für Nutzer sichtbaren Änderungen._
 
 ## v0.1.718 - 2026-09-05
 
@@ -3026,3 +3030,4 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
+
