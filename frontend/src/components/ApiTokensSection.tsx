@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolCard, KolInputCheckbox, KolInputText } from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 
@@ -31,37 +31,21 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
 
 /**
  * Rechte-Umschalter je Token (#1356, AK8): `KolInputCheckbox _variant="switch"` wie die übrigen
- * sieben Schalter im Frontend (`SettingsPage.tsx`), statt eines handgestrickten nativen Inputs.
- * `_on.onChange` ist der reguläre Pfad (Browser, e2e) — KoliBri ruft ihn intern über das
- * change-Event des Shadow-DOM-Inputs auf, nie als Event auf dem Host. In jsdom (Unit-Tests) wird
- * `kol-input-checkbox` nicht hydratisiert (kein Shadow-DOM, `_on` bleibt eine tote Property) —
- * der zusätzliche `change`-Listener auf dem Host greift dort als Fallback; im Browser feuert er
- * nie doppelt, weil auf dem Host selbst kein `change` ankommt.
+ * sieben Schalter im Frontend (`SettingsPage.tsx`). `_on.onChange` ist der einzige Pfad — KoliBri
+ * dispatcht das `change`-Event direkt auf dem Host-Element, ein zusätzlicher Host-Listener würde
+ * im Browser doppelt feuern.
  */
-const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled: boolean; onToggle: () => void }) => {
-	const ref = useRef<HTMLKolInputCheckboxElement>(null);
-
-	useEffect(() => {
-		const el = ref.current;
-		if (!el) return;
-		const handleChange = (): void => onToggle();
-		el.addEventListener('change', handleChange);
-		return () => el.removeEventListener('change', handleChange);
-	}, [onToggle]);
-
-	return (
-		<KolInputCheckbox
-			ref={ref}
-			_variant="switch"
-			_label={`Rechte für Token ${token.name}`}
-			_hideLabel={true}
-			_checked={token.scope === 'readwrite'}
-			_disabled={disabled}
-			data-testid="api-token-scope-toggle"
-			_on={{ onChange: () => onToggle() }}
-		/>
-	);
-};
+const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled: boolean; onToggle: () => void }) => (
+	<KolInputCheckbox
+		_variant="switch"
+		_label={`Rechte für Token ${token.name}`}
+		_hideLabel={true}
+		_checked={token.scope === 'readwrite'}
+		_disabled={disabled}
+		data-testid="api-token-scope-toggle"
+		_on={{ onChange: () => onToggle() }}
+	/>
+);
 
 /**
  * Einstellungen → „Zugriff": persönliche API-Tokens für externe Clients (#1352). Ein Klick auf

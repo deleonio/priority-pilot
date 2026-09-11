@@ -68,7 +68,10 @@ describe('ApiTokensSection – #1356 AK8: Rechte-Umschalter je Token', () => {
 		expect(toggle, 'Umschalter für die Token-Rechtestufe fehlt').not.toBeNull();
 
 		await act(async () => {
-			toggle?.dispatchEvent(new Event('change', { bubbles: true }));
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				true,
+			);
 			await Promise.resolve();
 		});
 
@@ -89,7 +92,10 @@ describe('ApiTokensSection – #1356 AK8: Rechte-Umschalter je Token', () => {
 
 		const toggle = container.querySelector('[data-testid="api-token-row"] [data-testid="api-token-scope-toggle"]');
 		await act(async () => {
-			toggle?.dispatchEvent(new Event('change', { bubbles: true }));
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				true,
+			);
 			await Promise.resolve();
 		});
 
