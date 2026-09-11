@@ -723,7 +723,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
 				<div className="app-header__brand">
 					<button type="button" className="logo-btn" aria-label={t('menu.home')} onClick={handleLogoDashboard}>
-						<img src="/logo/logo.png" alt="" />
+						<img src="/logo/logo.png" alt="Priority Pilot" />
 						<i className={HOME_ICON_CLASS} aria-hidden="true" />
 					</button>
 					<span className="app-name">Priority Pilot</span>
