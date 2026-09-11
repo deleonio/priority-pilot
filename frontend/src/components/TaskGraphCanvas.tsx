@@ -28,29 +28,38 @@ interface TaskGraphCanvasProps {
 
 const nodeTypes = { taskGraphNode: TaskGraphNodeCard };
 
-/** Strichstärke aus dem Gewicht (0,1–1 ⇒ 1,3–4 px). Die Zahl steht zusätzlich am Kanten-Label. */
-const strokeWidthOf = (weight: number): number => 1 + weight * 3;
+/**
+ * Strichstärke aus dem Gewicht (0,1–1 ⇒ 1,3–4 px). Die Zahl steht zusätzlich am Kanten-Label.
+ * Das Gewicht wird geklammert: ein Wert außerhalb von 0..1 (Altbestand, künftige Serverregel)
+ * ergäbe sonst einen Balken oder eine unsichtbare Linie statt einer Kante.
+ */
+const strokeWidthOf = (weight: number): number => 1 + Math.min(Math.max(weight, 0), 1) * 3;
 
 const Viewport = ({ nodes, edges, selectedId, onSelect }: TaskGraphCanvasProps) => {
 	const { fitView, zoomIn, zoomOut } = useReactFlow();
 	const prefersReducedMotion = usePrefersReducedMotion();
 	const animationDuration = prefersReducedMotion ? 0 : 200;
 
+	// Das Layout hängt nur an Knoten und Kanten. Getrennt memoisiert, weil jede Auswahl sonst den
+	// kompletten Longest-Path samt zwei Barycenter-Durchläufen neu rechnen würde — der Graph ändert
+	// sich dabei nicht, nur welcher Knoten hervorgehoben ist.
+	const positioned = useMemo(() => layoutGraph(nodes, edges), [nodes, edges]);
+
 	const flowNodes = useMemo<TaskGraphFlowNode[]>(
 		() =>
-			layoutGraph(nodes, edges).map((positioned) => ({
-				id: String(positioned.node.id),
+			positioned.map((entry) => ({
+				id: String(entry.node.id),
 				type: 'taskGraphNode' as const,
-				position: { x: positioned.x, y: positioned.y },
+				position: { x: entry.x, y: entry.y },
 				width: NODE_WIDTH,
 				height: NODE_HEIGHT,
 				data: {
-					node: positioned.node,
-					isSelected: positioned.node.id === selectedId,
-					isDimmed: selectedId !== null && positioned.node.id !== selectedId,
+					node: entry.node,
+					isSelected: entry.node.id === selectedId,
+					isDimmed: selectedId !== null && entry.node.id !== selectedId,
 				},
 			})),
-		[nodes, edges, selectedId],
+		[positioned, selectedId],
 	);
 
 	const flowEdges = useMemo<Edge[]>(
@@ -80,6 +89,37 @@ const Viewport = ({ nodes, edges, selectedId, onSelect }: TaskGraphCanvasProps) 
 
 	return (
 		<>
+			{/*
+			 * Für Screenreader ausgeblendet: ein Canvas aus SVG-Transformationen ist nicht sinnvoll
+			 * navigierbar, eine halbe Tastaturbedienung wäre eine Fokusfalle. Die inhaltsgleiche,
+			 * bedienbare Fassung steht darunter als „Graph als Liste" (TaskGraphList).
+			 */}
+			<div className="task-graph-canvas" aria-hidden="true" data-testid="task-graph-canvas">
+				<ReactFlow
+					nodes={flowNodes}
+					edges={flowEdges}
+					nodeTypes={nodeTypes}
+					proOptions={{ hideAttribution: true }}
+					fitView
+					minZoom={0.2}
+					maxZoom={1.6}
+					nodesDraggable={false}
+					nodesConnectable={false}
+					nodesFocusable={false}
+					edgesFocusable={false}
+					elementsSelectable={false}
+					disableKeyboardA11y
+					zoomOnDoubleClick={false}
+					onlyRenderVisibleElements
+					onNodeClick={handleNodeClick}
+					onPaneClick={() => onSelect(null)}
+				/>
+			</div>
+			{/*
+			 * Zoom-Leiste **unter** dem Canvas: Einpassen und Zoomen werden beim Erkunden dauernd
+			 * gebraucht, und die Daumenzone liegt im unteren Drittel (docs/mobile-ui-rules.md, Regel 1).
+			 * Über dem Canvas schob sie den Graphen zusätzlich aus dem ersten Sichtfeld.
+			 */}
 			<KolToolbar
 				_label="Ansicht des Aufgabengraphen"
 				_orientation="horizontal"
@@ -105,32 +145,6 @@ const Viewport = ({ nodes, edges, selectedId, onSelect }: TaskGraphCanvasProps) 
 					},
 				]}
 			/>
-			{/*
-			 * Für Screenreader ausgeblendet: ein Canvas aus SVG-Transformationen ist nicht sinnvoll
-			 * navigierbar, eine halbe Tastaturbedienung wäre eine Fokusfalle. Die inhaltsgleiche,
-			 * bedienbare Fassung steht direkt darunter als „Graph als Liste" (TaskGraphList).
-			 */}
-			<div className="task-graph-canvas" aria-hidden="true" data-testid="task-graph-canvas">
-				<ReactFlow
-					nodes={flowNodes}
-					edges={flowEdges}
-					nodeTypes={nodeTypes}
-					proOptions={{ hideAttribution: true }}
-					fitView
-					minZoom={0.2}
-					maxZoom={1.6}
-					nodesDraggable={false}
-					nodesConnectable={false}
-					nodesFocusable={false}
-					edgesFocusable={false}
-					elementsSelectable={false}
-					disableKeyboardA11y
-					zoomOnDoubleClick={false}
-					onlyRenderVisibleElements
-					onNodeClick={handleNodeClick}
-					onPaneClick={() => onSelect(null)}
-				/>
-			</div>
 		</>
 	);
 };
