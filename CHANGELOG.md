@@ -2,6 +2,16 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.828 - 2026-09-11
+
+### 🎉 New Features
+
+- feat(frontend): toggle to show parent tasks in task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1388
+
+### Other Changes
+
+- feat(server): notify on milestone when completing a task by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1389
+
 ## v0.1.826 - 2026-09-11
 
 ### Other Changes
@@ -563,10 +573,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 _Keine für Nutzer sichtbaren Änderungen._
 
-## v0.1.727 - 2026-09-06
-
-_Keine für Nutzer sichtbaren Änderungen._
-
 ## v0.1.726 - 2026-09-06
 
 _Keine für Nutzer sichtbaren Änderungen._
@@ -1104,6 +1110,12 @@ _Keine für Nutzer sichtbaren Änderungen._
 ### Other Changes
 
 - feat(frontend): show resolved coordinates in the task form (#1111) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1113
+
+## v0.1.628 - 2026-08-29
+
+### Other Changes
+
+- feat(server): notify users about nearby tasks via push (#1101) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1102
 
 ## v0.1.628 - 2026-08-29
 
