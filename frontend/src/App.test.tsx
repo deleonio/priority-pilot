@@ -452,3 +452,46 @@ describe('App — #1339: Sprachwechsel erhält die Tab-Auswahl', () => {
 		expect(appTabs()?._selected).toBe(2);
 	});
 });
+
+describe('App — #1361 AK4: Abschluss-Hinweis im Aufgaben-Tab ignoriert aktive Filter', () => {
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it('zeigt den Hinweis trotz leerer gefilterter Liste, solange alle Aufgaben erledigt sind', async () => {
+		const doneTask: Task = { ...sampleTask, id: 1, status: TaskStatus.Done };
+		vi.mocked(api.listTasks).mockResolvedValue([doneTask]);
+		vi.mocked(api.getForest).mockResolvedValue([]);
+		vi.mocked(api.getStreak).mockResolvedValue({
+			aktuell: 1,
+			best: 1,
+			letzterTag: new Date().toISOString().slice(0, 10),
+		});
+		// Suchtext ohne Treffer: filteredForest bleibt leer, „Keine Aufgaben gefunden" erscheint —
+		// AK4 verlangt, dass der Abschluss-Hinweis davon unberührt bleibt (hängt an `tasks`, nicht
+		// an `filteredForest`).
+		window.history.replaceState({}, '', '/aufgaben?q=zzz-kein-treffer');
+
+		render(<App user={testUser} />);
+
+		await waitFor(() => expect(screen.getByText(/Keine Aufgaben gefunden/)).toBeInTheDocument());
+		expect(document.querySelector('[data-testid="day-done"]')).not.toBeNull();
+	});
+
+	it('zeigt keinen Hinweis, solange eine offene Aufgabe existiert — auch mit aktivem Filter', async () => {
+		const openTask: Task = { ...sampleTask, id: 1, status: TaskStatus.Open };
+		vi.mocked(api.listTasks).mockResolvedValue([openTask]);
+		vi.mocked(api.getForest).mockResolvedValue([]);
+		vi.mocked(api.getStreak).mockResolvedValue({
+			aktuell: 0,
+			best: 0,
+			letzterTag: null,
+		});
+		window.history.replaceState({}, '', '/aufgaben?q=zzz-kein-treffer');
+
+		render(<App user={testUser} />);
+
+		await waitFor(() => expect(screen.getByText(/Keine Aufgaben gefunden/)).toBeInTheDocument());
+		expect(document.querySelector('[data-testid="day-done"]')).toBeNull();
+	});
+});
