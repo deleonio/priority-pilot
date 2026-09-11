@@ -267,14 +267,6 @@ const LeafItem = ({
 };
 
 /**
- * Flache Listendarstellung ausschließlich der Blatt-Aufgaben (#537): Statt den Aufgabenwald als
- * aufklappbaren Baum (`invertForest`, #363) zu zeigen, werden nur noch die ausführbaren Blatt-Tasks
- * (`dependents.length === 0`) als einfache Liste gerendert — ohne Baumstruktur, ohne
- * Aufklappfunktionalität, sortiert nach Wertbeitrag absteigend. Oberaufgaben bleiben über das
- * ForestPanel (Tab 3) verwaltbar; optional (`parentNodes`, #1345) mischt die Liste zusätzlich
- * offene Oberaufgaben ein.
- */
-/**
  * Indexiert einen Aufgabenwald nach ID (#1345) — Grundlage für den Erledigt-Guard, der pro
  * gerenderter Zeile den ORIGINAL-Knoten (mit ungefilterten `dependents`) nachschlagen muss.
  */
@@ -291,6 +283,14 @@ const indexById = (forest: TaskTreeNode[]): Map<number, TaskTreeNode> => {
 	return byId;
 };
 
+/**
+ * Flache Listendarstellung ausschließlich der Blatt-Aufgaben (#537): Statt den Aufgabenwald als
+ * aufklappbaren Baum (`invertForest`, #363) zu zeigen, werden nur noch die ausführbaren Blatt-Tasks
+ * (`dependents.length === 0`) als einfache Liste gerendert — ohne Baumstruktur, ohne
+ * Aufklappfunktionalität, sortiert nach Wertbeitrag absteigend. Oberaufgaben bleiben über das
+ * ForestPanel (Tab 3) verwaltbar; optional (`parentNodes`, #1345) mischt die Liste zusätzlich
+ * offene Oberaufgaben ein.
+ */
 export const TaskTree = ({
 	forest,
 	fullForest,

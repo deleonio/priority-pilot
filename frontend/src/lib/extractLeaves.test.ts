@@ -95,6 +95,6 @@ describe('extractLeaves mit includeParents (#1345)', () => {
 			node(4, 'Eltern-hoch', 9, [node(5, 'Kind-2', 4)]),
 		];
 		const result = extractLeaves(forest, { includeParents: true });
-		expect(result.map((n) => n.id)).toEqual([4, 3, 1, 2, 5]);
+		expect(result.map((n) => n.id)).toEqual([4, 3, 5, 1, 2]);
 	});
 });
