@@ -123,3 +123,24 @@ jobs:
               || { echo "::warning title=Release-Creation fehlgeschlagen::${TAG} — Deploy bleibt grün, manuell nachholen."; exit 0; }
             echo "🚀 Release ${TAG} mit generierten Notes erstellt."
           fi
+
+      - name: CHANGELOG.md aktualisieren (best-effort)
+        # Regeneriert CHANGELOG.md aus ALLEN GitHub-Releases (#1372), NACH dem Release-Schritt
+        # oben, damit das gerade erstellte Release direkt enthalten ist. Best-effort wie der
+        # Schritt davor: ein Fehler darf das Deploy nie kippen. [skip ci] + --no-verify aus
+        # demselben Grund wie beim Patch-Bump-Commit oben (sonst Endlosschleife bzw.
+        # lefthook-Fehler, s. Kommentar dort).
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          bash .github/scripts/changelog-render.sh --repo "${{ github.repository }}" \
+            || { echo "::warning title=Changelog-Rendering fehlgeschlagen::Deploy bleibt grün, manuell nachholen."; exit 0; }
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "⏭️ CHANGELOG.md unverändert."
+            exit 0
+          fi
+          git add CHANGELOG.md
+          git commit --no-verify -m "docs(changelog): CHANGELOG.md aktualisieren [skip ci]"
+          git pull --rebase origin main
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main \
+            || echo "::warning title=Changelog-Push fehlgeschlagen::Deploy bleibt grün, manuell nachholen."

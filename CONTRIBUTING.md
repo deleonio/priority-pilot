@@ -75,6 +75,19 @@ Eine Änderung gilt als fertig, wenn:
    In der PR-Beschreibung bitte die Ergebnisse von `pnpm format`, `pnpm lint` und `pnpm test`
    dokumentieren.
 
+## Changelog
+
+Die Root-[`CHANGELOG.md`](CHANGELOG.md) wird **generiert** — nicht von Hand bearbeiten. Neue
+Einträge entstehen automatisch über die Kette PR-Titel → `release:*`-Label des PR-Documenters →
+GitHub-Release-Notes (`.github/release.yml`) → `CHANGELOG.md`; die Deploy-Pipeline ruft dafür
+nach jedem Release `.github/scripts/changelog-render.sh` auf und committet eine geänderte Datei
+mit `[skip ci]`. Zum manuellen Regenerieren (z. B. lokal zur Kontrolle):
+
+```bash
+bash .github/scripts/changelog-render.sh --repo <owner>/<repo> --dry-run   # nur Ausgabe, kein Schreiben
+bash .github/scripts/changelog-render.sh --repo <owner>/<repo>             # schreibt CHANGELOG.md
+```
+
 ## Commit-Konventionen
 
 - Aussagekräftige, im Imperativ formulierte Commit-Nachrichten.
