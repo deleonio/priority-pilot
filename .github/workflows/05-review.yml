@@ -6,7 +6,10 @@ name: 05 Review
 #    Rename fällt also lautlos durch — vor jeder `name:`-Änderung die Stelle manuell mitpflegen.
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
-# "ai:needs-review" trägt.
+# "ai:needs-review" trägt — aber ERST, wenn die CI-Checks (Workflow "Verify") fertig sind
+# (Step „⏳ Auf Abschluss der CI-Checks warten"). Damit bewertet der Reviewer rote CI-Jobs
+# als eigene Findings und bündelt sie mit den Code-Findings in EINE Fixup-Runde, statt dass
+# ein blind gestarteter Fixup sie verpasst und eine zweite Runde (Fixup + Review) kostet.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #   - Findings → ai:needs-fixup (→ Fixup)
 #   - Entscheidungs-Findings ("Mensch entscheidet") → ai:reviewed + ai:needs-human (→ wartet auf Mensch)
@@ -157,7 +160,9 @@ jobs:
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 60 statt 30 min: der Lauf wartet seit dem CI-Warte-Gate (s. u.) zuerst auf den Abschluss
+    # der Verify-Checks (Budget 20 min) und reviewt danach mit dem 15-min-Soft-Deadline.
+    timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     permissions:
@@ -172,15 +177,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Startzeit merken (für weiches Zeitlimit)
+      - name: Startzeit merken (Kosten-/Fakten-Basislinie)
+        # NUR die Basislinie für record-cost und die Review-Fakten. Der Soft-Deadline und das
+        # Erklärungs-Gate-Fenster entstehen erst NACH dem CI-Warte-Gate (Step „Zeitfenster für
+        # den LLM-Lauf"), sonst fräße die Wartezeit den Review-Zeitraum auf.
         id: starttime
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT" # 15 min: Re-Reviews lesen CI-Logs + Fixup-Diffs; 10 min rissen bei grossen PRs mitten im Kreuzverhoer
-          # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
-          # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
-          # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
+          # Fallback-Fenster für das Erklärungs-Gate, falls der Lauf das Warte-Gate nie erreicht.
           echo "since_epoch=$((now - 300))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
@@ -225,6 +230,70 @@ jobs:
       # concurrency-Gruppe) lässt Review-Läufe desselben Branches nie parallel laufen, und der
       # precheck dedupliziert über den Label-IST-Zustand. Neu-Triggern bei menschlichem Push
       # übernimmt der Autolabeler (cancel + Neu-Setzen von ai:needs-review).
+
+      - name: ⏳ Auf Abschluss der CI-Checks warten
+        # KOSTEN-GATE (Beobachtung im Harness): Review und CI starten am selben Push. War das
+        # Review zuerst fertig und setzte ai:needs-fixup, lief die Nacharbeit los, OHNE das
+        # CI-Ergebnis zu kennen — fiel CI danach rot aus, behob dieser Fixup die Fehler nicht,
+        # und das Gate stieß eine ZWEITE Fixup-Runde (samt zweitem Review) an. Deshalb wartet
+        # das Review jetzt zuerst auf den Abschluss der Verify-Checks und nimmt rote Jobs als
+        # eigene Findings in DIESELBE Runde mit.
+        #
+        # VOR dem Start-Konsum (bewusst): Während des Wartens klebt ai:needs-review weiter am
+        # PR. Stirbt der Lauf hier (Runner-Ausfall, Cancel durch den Autolabeler bei
+        # menschlichem Push), bleibt der Trigger bewaffnet und der Resume-Sweep heilt — nach
+        # dem Konsum wäre der PR label-los. Das klebende Label ist zugleich das Signal für das
+        # Gate, bei rotem CI NICHT selbst ai:needs-fixup zu setzen (merge-pr.yml).
+        #
+        # Kosten der Wartezeit: Runner-Minuten, keine Token — und ein Platz in der FIFO-Queue
+        # der Phase (statische concurrency-Gruppe llm-review). Das Budget ist deshalb
+        # gedeckelt (vars.REVIEW_CI_WAIT_SECONDS, Default 20 min) und fail-open: Läuft es aus,
+        # reviewt der Lauf trotzdem — mit dem Hinweis „CI-Ergebnis unbekannt" im Prompt.
+        id: ci-wait
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          bash .github/scripts/wait-for-checks.sh \
+            --repo "$GITHUB_REPOSITORY" --pr "$PR" \
+            --timeout-seconds "${{ vars.REVIEW_CI_WAIT_SECONDS || '1200' }}" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: CI-Status für den Prompt aufbereiten
+        # Ein Satz Klartext statt roher Job-Liste: Der Reviewer soll rote Jobs als Findings
+        # behandeln (Details holt er sich selbst per gh run view --log-failed), nicht erst
+        # den Zustand rekonstruieren müssen.
+        id: ci-status
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          STATUS: ${{ steps.ci-wait.outputs.status }}
+          RED: ${{ steps.ci-wait.outputs.red }}
+          PENDING: ${{ steps.ci-wait.outputs.pending }}
+          WAITED: ${{ steps.ci-wait.outputs.waited }}
+        run: |
+          case "$STATUS" in
+            green) text="🟢 CI ist fertig und gruen (Workflow Verify) — keine CI-Findings." ;;
+            red)   text="🔴 CI ist fertig und ROT (Workflow Verify). Fehlgeschlagene Jobs: ${RED}. Das sind blockierende Findings — nenne sie im Sammelkommentar und verdicte needs-fixup." ;;
+            timeout) text="⏳ CI war nach ${WAITED}s noch nicht fertig (offen: ${PENDING:-unbekannt}) — CI-Ergebnis UNBEKANNT. Reviewe den Diff; das Gate faengt ein spaeter rotes CI ab." ;;
+            *)     text="⚠️ Keine CI-Checks (Workflow Verify) am PR sichtbar — CI-Ergebnis UNBEKANNT. Reviewe den Diff." ;;
+          esac
+          echo "text=$text" >> "$GITHUB_OUTPUT"
+          echo "::notice title=CI-Warte-Gate::status='${STATUS:-unbekannt}' gewartet=${WAITED:-?}s ${RED:+rot: $RED}"
+
+      - name: Zeitfenster für den LLM-Lauf setzen (nach dem Warten)
+        # Erst jetzt, NACH dem CI-Warte-Gate: Sonst hätte die Wartezeit den 15-Minuten-
+        # Soft-Deadline des Reviews aufgefressen und jeder gewartete Lauf wäre sofort in den
+        # Soft-Abort gelaufen.
+        id: deadline
+        if: steps.setup.outputs.configured == 'true'
+        run: |
+          now=$(date +%s)
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT" # 15 min: Re-Reviews lesen CI-Logs + Fixup-Diffs; 10 min rissen bei grossen PRs mitten im Kreuzverhoer
+          # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
+          # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
+          # nach unten decken Konsum-/Prompt-Bau-Zeit vor dem LLM-Lauf ab.
+          echo "since_epoch=$((now - 300))" >> "$GITHUB_OUTPUT"
 
       - name: Trigger-Label konsumieren (Start-Konsum)
         # Der precheck (eigener Job) verifiziert ai:needs-review zu SEINEM Zeitpunkt; bis hier
@@ -315,15 +384,20 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
+          # Ueber env statt direkt in den sed-Ausdruck: Der Text enthaelt Job-Namen aus der API
+          # (Slashes, Klammern) und wuerde einen `/`-Trenner zerlegen.
+          CI_STATUS: ${{ steps.ci-status.outputs.text }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/review.md (Quelle fuer CI; Methode:
           # Skill .claude/skills/review-kreuzverhoer/SKILL.md). Snippet-Platzhalter ({{ISSUE_NR}}, {{PHASE}},
           # {{MEMORY_STATUS}}) werden erst NACH dem Anhaengen der Memory-Snippets substituiert.
+          ci_status_esc="${CI_STATUS//&/\\&}" # `&` waere in der sed-Ersetzung der Gesamttreffer
           sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
               -e "s/{{TITLE_OK}}/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" \
               -e "s/{{SUGGESTED_TYPE}}/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" \
               -e "s/{{SUGGESTED_SCOPE}}/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" \
-              -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+              -e "s/{{SOFT_DEADLINE}}/${{ steps.deadline.outputs.soft_deadline_epoch }}/g" \
+              -e "s|{{CI_STATUS}}|${ci_status_esc}|g" \
               .github/prompts/review.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
@@ -358,7 +432,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          START_EPOCH: ${{ steps.starttime.outputs.epoch }}
+          # Ab dem LLM-Fenster zaehlen, nicht ab Job-Start: Waehrend des CI-Warte-Gates
+          # gepostete (menschliche) Inline-Kommentare sind keine Findings dieses Laufes.
+          START_EPOCH: ${{ steps.deadline.outputs.since_epoch || steps.starttime.outputs.epoch }}
         run: |
           set -uo pipefail
 
@@ -431,7 +507,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
+          # deadline-Fenster (nach dem CI-Warte-Gate) primaer; starttime nur als Fallback,
+          # falls der Lauf das Warte-Gate nie erreicht hat.
+          SINCE_EPOCH: ${{ steps.deadline.outputs.since_epoch || steps.starttime.outputs.since_epoch }}
         run: |
           # Verdict-Kanal: Datei primär (Claude schreibt /tmp/claude-verdict per Bash —
           # robuster als Log-Parsing, dessen Brüche PR #524/#530 auslösten), Log-Grep
@@ -499,6 +577,10 @@ jobs:
           esac
 
           if [ "$verdict" = "reviewed" ]; then
+            # BACKSTOP (seit dem CI-Warte-Gate nur noch Ausnahmefall): Normalerweise kennt der
+            # Reviewer das CI-Ergebnis bereits und verdictet rot selbst. Hier greift nur noch,
+            # wer trotzdem gruen verdictet — etwa nach einem Warte-Timeout oder wenn ein Check
+            # erst nach dem Warten rot wurde.
             allow='[]'
             delays=(2 3 5 8)
             for attempt in 1 2 3 4 5; do
