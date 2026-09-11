@@ -2,7 +2,7 @@ import type { Pillar } from 'client';
 
 /**
  * Rechenkern der „Balance-Priorisierung" in der Aufgabenliste — Client-Übertragung der
- * Defizit-Mathematik aus `server/src/logics/find.ts`. Bewusst — wie `heartBalance.ts` und
+ * Defizit-Mathematik aus `server/src/logics/find.ts`. Bewusst — wie `vesselBalance.ts` und
  * `pillar.ts` — als reine Funktionen ohne React, damit die Mathematik ohne DOM prüfbar bleibt.
  *
  * **Maß:** Ein offener Task ist umso dringender, je mehr seiner Säulen-Beiträge in Säulen fallen,
@@ -31,7 +31,7 @@ export interface BalancePriority {
  * `estimatedEffort` je Säule, anteilig nach `share` — Quelle `buildPillarSummaries` wie im
  * Dashboard). Die Funktion ist rein; sie rechnet immer auf dem Stand, den der Aufrufer ihr gibt.
  *
- * Randfälle bewusst wie `heartBalance.ts` festgelegt:
+ * Randfälle bewusst wie `vesselBalance.ts` festgelegt:
  * - **Kein erledigter Aufwand** → jede Säule hat ihr volles Defizit.
  * - **Gesamtgewicht 0** (kein Soll gepflegt) → Gleichverteilung als Soll.
  * - **Säule ohne Soll** → kein Defizit; dort eingezahlte Anteile zählen nicht.

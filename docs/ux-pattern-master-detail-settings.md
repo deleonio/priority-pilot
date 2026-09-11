@@ -19,7 +19,7 @@ sichtbar unter ihrem Master in einem `KolAccordion`.
 
 Vorhandene Umsetzungen dieses Patterns:
 
-- **„Einzelne Animationen"** — Feinschalter „Herz animieren"/„Erledigt animieren" unter dem Master
+- **„Einzelne Animationen"** — Feinschalter „Lebensbalance animieren"/„Erledigt animieren" unter dem Master
   „Animationen" (`SettingsPage.tsx`, Tab „Allgemein").
 - **„Einzelne KI-Funktionen"** — Feinschalter „Schnellerfassung aktiv" unter dem Master
   „KI-Features aktiv" (`SettingsPage.tsx`, Tab „KI-Provider").

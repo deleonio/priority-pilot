@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { HeartBalance } from './HeartBalance';
+import { VesselBalance } from './VesselBalance';
 
 afterEach(cleanup);
 
@@ -10,14 +10,14 @@ const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name
 /**
  * Prüft, was am Bild überhaupt nachvollziehbar ist: dass je Säule genau eine Wassersäule entsteht,
  * dass jede Farbe einen Namen als Text daneben hat (Relief-Regel, ux-design.md §2) und dass der
- * Füllstand auch für Screenreader ankommt. Die Mathematik selbst prüft `lib/heartBalance.test.ts`.
+ * Füllstand auch für Screenreader ankommt. Die Mathematik selbst prüft `lib/vesselBalance.test.ts`.
  */
-describe('HeartBalance', () => {
+describe('VesselBalance', () => {
 	const pillars = [pillar(1, 'Körper', 50), pillar(2, 'Geist', 50)];
 
 	it('zeichnet je Säule genau ein Segment', () => {
 		render(
-			<HeartBalance
+			<VesselBalance
 				pillars={pillars}
 				punkteProSaeule={
 					new Map([
@@ -28,12 +28,12 @@ describe('HeartBalance', () => {
 			/>,
 		);
 
-		expect(screen.getAllByTestId('heart-column')).toHaveLength(2);
+		expect(screen.getAllByTestId('vessel-column')).toHaveLength(2);
 	});
 
 	it('nennt jede Säule als Text in der Legende', () => {
 		render(
-			<HeartBalance
+			<VesselBalance
 				pillars={pillars}
 				punkteProSaeule={
 					new Map([
@@ -44,14 +44,14 @@ describe('HeartBalance', () => {
 			/>,
 		);
 
-		const legend = screen.getByTestId('heart-balance-legend');
+		const legend = screen.getByTestId('vessel-balance-legend');
 		expect(legend.textContent).toContain('Körper');
 		expect(legend.textContent).toContain('Geist');
 	});
 
 	it('gibt den Füllstand sichtbar und als Label der Grafik aus', () => {
 		render(
-			<HeartBalance
+			<VesselBalance
 				pillars={pillars}
 				punkteProSaeule={
 					new Map([
@@ -62,18 +62,18 @@ describe('HeartBalance', () => {
 			/>,
 		);
 
-		expect(screen.getByTestId('heart-balance-value').textContent).toBe('100 %');
-		expect(screen.getByTestId('heart-balance-svg')).toHaveAttribute(
+		expect(screen.getByTestId('vessel-balance-value').textContent).toBe('100 %');
+		expect(screen.getByTestId('vessel-balance-svg')).toHaveAttribute(
 			'aria-label',
-			'Herz-Füllstand 100 Prozent — In Balance',
+			'Füllstand 100 Prozent — In Balance',
 		);
 	});
 
-	it('zeigt ohne Punkte ein leeres Herz statt einer Fehlanzeige', () => {
-		render(<HeartBalance pillars={pillars} punkteProSaeule={new Map()} />);
+	it('zeigt ohne Punkte ein leeres Gefäß statt einer Fehlanzeige', () => {
+		render(<VesselBalance pillars={pillars} punkteProSaeule={new Map()} />);
 
-		expect(screen.getByTestId('heart-balance-value').textContent).toBe('0 %');
-		expect(screen.getAllByTestId('heart-column')).toHaveLength(2);
+		expect(screen.getByTestId('vessel-balance-value').textContent).toBe('0 %');
+		expect(screen.getAllByTestId('vessel-column')).toHaveLength(2);
 	});
 
 	/**
@@ -81,16 +81,16 @@ describe('HeartBalance', () => {
 	 * Wasserfläche unterhalb der Wasserlinie `y_w`, die mit `fill` steigt), nicht mehr nur von den
 	 * Ist-Anteilen. Zwei Szenarien mit identischer Ist-Anteil-Verteilung [0.3, 0.7], aber
 	 * unterschiedlichem Füllstand (0.8 vs. 1.0, über unterschiedliche Soll-Gewichte erzwungen),
-	 * müssen deshalb unterschiedliche Kanten ergeben. Die aktuelle, rein breitenproportionale
-	 * Rechnung (`HeartBalance.tsx:213-224`) ignoriert `balance.fill` komplett und rendert in
-	 * beiden Fällen exakt dieselbe Kante — das ist der Fehler, den diese Spec beheben soll. Die
-	 * eigentliche Flächenkorrektheit prüft `heartGeometry.test.ts` unabhängig vom DOM.
+	 * müssen deshalb unterschiedliche Kanten ergeben. Eine rein breitenproportionale Rechnung, die
+	 * `balance.fill` ignoriert, rendert in beiden Fällen exakt dieselbe Kante — das ist der Fehler,
+	 * den diese Spec behebt. Die eigentliche Flächenkorrektheit prüft `vesselGeometry.test.ts`
+	 * unabhängig vom DOM.
 	 */
 	it('berechnet die Bandkante abhängig vom Füllstand, nicht nur vom Ist-Anteil (AK1/AK4)', () => {
 		// Szenario A: Soll 50/50, Ist 3/7 → Ist-Anteile [0.3, 0.7], fill = min(.5,.3)+min(.5,.7) = 0.8.
 		const scenarioA = [pillar(1, 'Körper', 50), pillar(2, 'Geist', 50)];
 		const { unmount } = render(
-			<HeartBalance
+			<VesselBalance
 				pillars={scenarioA}
 				punkteProSaeule={
 					new Map([
@@ -101,14 +101,14 @@ describe('HeartBalance', () => {
 			/>,
 		);
 		const edgeA = Number(
-			screen.getByTestId('heart-balance-svg').querySelectorAll('clipPath rect')[0].getAttribute('width'),
+			screen.getByTestId('vessel-balance-svg').querySelectorAll('clipPath rect')[0].getAttribute('width'),
 		);
 		unmount();
 
 		// Szenario B: Soll 30/70, Ist 3/7 → dieselben Ist-Anteile [0.3, 0.7], aber fill = 0.3+0.7 = 1.0.
 		const scenarioB = [pillar(1, 'Körper', 30), pillar(2, 'Geist', 70)];
 		render(
-			<HeartBalance
+			<VesselBalance
 				pillars={scenarioB}
 				punkteProSaeule={
 					new Map([
@@ -119,7 +119,7 @@ describe('HeartBalance', () => {
 			/>,
 		);
 		const edgeB = Number(
-			screen.getByTestId('heart-balance-svg').querySelectorAll('clipPath rect')[0].getAttribute('width'),
+			screen.getByTestId('vessel-balance-svg').querySelectorAll('clipPath rect')[0].getAttribute('width'),
 		);
 
 		// Gleiche Ist-Anteile, unterschiedlicher Füllstand → die Kante darf nicht identisch bleiben.
@@ -129,7 +129,7 @@ describe('HeartBalance', () => {
 	it('fällt ohne WebGL auf das SVG zurück, statt ohne Bild dazustehen', () => {
 		// jsdom stellt kein WebGL bereit — genau der Rückfallpfad, den dieser Test sichert.
 		render(
-			<HeartBalance
+			<VesselBalance
 				pillars={pillars}
 				punkteProSaeule={
 					new Map([
@@ -140,7 +140,7 @@ describe('HeartBalance', () => {
 			/>,
 		);
 
-		expect(screen.getByTestId('heart-balance-svg')).toBeInTheDocument();
-		expect(screen.queryByTestId('heart-balance-canvas')).not.toBeInTheDocument();
+		expect(screen.getByTestId('vessel-balance-svg')).toBeInTheDocument();
+		expect(screen.queryByTestId('vessel-balance-canvas')).not.toBeInTheDocument();
 	});
 });

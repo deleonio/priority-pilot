@@ -1,29 +1,30 @@
 import type { Pillar } from 'client';
 import { useCallback, useId, useMemo, useState, type CSSProperties } from 'react';
-import { HeartGlass } from './HeartGlass';
-import { buildHeartBalance, heartHealth } from '../lib/heartBalance';
-import { bandEdges, HEART_BOTTOM, HEART_PATH, HEART_TOP, waterlineY } from '../lib/heartGeometry';
+import { VesselGlass } from './VesselGlass';
+import { buildVesselBalance, vesselHealth } from '../lib/vesselBalance';
+import { bandEdges, SCALE_TICKS, VESSEL_BOTTOM, VESSEL_PATH, VESSEL_TOP, waterlineY } from '../lib/vesselGeometry';
 import { useAnimationsEnabled } from '../lib/animations';
-import { useHeartAnimationEnabled } from '../lib/heartAnimation';
+import { useVesselAnimationEnabled } from '../lib/vesselAnimation';
 import { usePrefersReducedMotion } from '../lib/reducedMotion';
 
 /**
- * Das Herz der Startseite: ein vektorielles Gefäß (SVG), das sich wie ein Wasserglas füllt. Der
- * Füllstand steigt von unten nach oben, je ausgewogener — je balancierter — die Lebenssäulen sind
- * (Rechnung in `lib/heartBalance.ts`); die Oberfläche ist eine durchlaufende Welle.
+ * Das Balance-Gefäß der Startseite: ein vektorieller Messkolben (SVG), der sich wie ein
+ * Füllstandsglas füllt. Der Füllstand steigt von unten nach oben, je ausgewogener — je
+ * balancierter — die Lebenssäulen sind (Rechnung in `lib/vesselBalance.ts`); die Oberfläche ist
+ * eine durchlaufende Welle, die Skalenstriche an den Wänden tragen die Höhen-Ablese.
  *
  * **Das Bild sagt zwei Dinge gleichzeitig:** Die *Höhe* der gemeinsamen Wasserlinie trägt die
  * Gesamt-Balance, die *Fläche* der Farbstreifen unter der Oberfläche die Verteilung — jeder
  * Streifen deckt genau den Anteil der Wasserfläche ab, den seine Säule am Punkte-Saldo hält
- * (`lib/heartGeometry.ts`). Ein kleines Band neben einem großen ist damit auch ohne Zahl eine
+ * (`lib/vesselGeometry.ts`). Ein kleines Band neben einem großen ist damit auch ohne Zahl eine
  * Schieflage.
  *
- * **Warum eine gemeinsame Wasserlinie:** „Wie voll ist das Herz" ist eine einzige Zahl — also
+ * **Warum eine gemeinsame Wasserlinie:** „Wie voll ist das Gefäß" ist eine einzige Zahl — also
  * gibt es im Bild auch nur eine Wasserlinie. Sie steigt einmalig von unten auf ihren Stand und
- * wellt danach über die volle Herzbreite.
+ * wellt danach über die volle Kolbenbreite.
  *
- * **Zwei Fassungen desselben Bildauftrags:** Kann der Browser WebGL2, zeichnet `HeartGlass` das
- * Herz als Glasgefäß (Shader `heart-glass.frag`) — Kontur, Füllstand, Streifen, Welle und
+ * **Zwei Fassungen desselben Bildauftrags:** Kann der Browser WebGL2, zeichnet `VesselGlass` das
+ * Gefäß als Glas-Messkolben (Shader `vessel-glass.frag`) — Kontur, Füllstand, Streifen, Welle und
  * Aufstieg identisch, das Material dazu (Fresnel-Saum, Glanzlichter, Meniskus, Brechung). Ohne
  * WebGL (oder nach Kontextverlust ohne Wiederkehr) steht das SVG hier als Rückfall — dasselbe
  * Bild, nur ohne Glas.
@@ -32,11 +33,11 @@ import { usePrefersReducedMotion } from '../lib/reducedMotion';
  * `role="img"` mit Label, scharf bei jeder Größe — und kein Render-Loop in JavaScript: Die Welle
  * läuft als SMIL/CSS-Animation im Compositor. Die WebGL-Fassung hält dieselben Eigenschaften über
  * Uniforms aus denselben CSS-Rollen und stoppt ihre Loop, wenn nichts zu tun ist (Details in
- * `HeartGlass.tsx`).
+ * `VesselGlass.tsx`).
  *
- * Rechnung, Randfälle und das Balance-Maß stehen in `lib/heartBalance.ts`.
+ * Rechnung, Randfälle und das Balance-Maß stehen in `lib/vesselBalance.ts`.
  */
-interface HeartBalanceProps {
+interface VesselBalanceProps {
 	/** Die Lebenssäulen — je Säule ein Segment, in Anzeigereihenfolge. */
 	pillars: Pillar[];
 	/** Punktestand je Säule (`pillarId → Punkte`), dieselbe Quelle wie „Gesamtguthaben". */
@@ -63,7 +64,7 @@ const WAVE_AMPLITUDE = 1.3;
  *
  * Die Fläche beginnt eine Wellenlänge vor der Zeichenfläche und reicht eine über sie hinaus — die
  * sichtbaren 0–100 bleiben damit über die ganze Verschiebung gedeckt. Nach unten schließt sie weit
- * unter dem Gefäßboden; geclippt wird ohnehin an der Herzkontur.
+ * unter dem Gefäßboden; geclippt wird ohnehin an der Kolbenkontur.
  */
 const buildWavePath = (amplitude: number): string => {
 	const halfWave = WAVE_LENGTH / 2;
@@ -110,8 +111,8 @@ const DEPTH_WAVE_LAYERS = [
 const PILLAR_RAMP_SIZE = 7;
 
 /**
- * Farbklassen aus der Säulen-Rampe — einmal für den Farbstreifen im Bild (`heart-water`), einmal
- * für den Tupfer in der Legende (`heart-legend-dot`). Ab der 8. Säule wird nicht weiter eingefärbt
+ * Farbklassen aus der Säulen-Rampe — einmal für den Farbstreifen im Bild (`vessel-water`), einmal
+ * für den Tupfer in der Legende (`vessel-legend-dot`). Ab der 8. Säule wird nicht weiter eingefärbt
  * (ux-design.md §2, Regel 3): Dann bleibt es bei der Basisklasse, die neutral färbt, und der Name
  * in der Legende trägt die Zuordnung allein.
  *
@@ -145,7 +146,7 @@ const WAVE_DRIFT_DURATION = '7s';
 const asPercent = (share: number): number => Math.round(share * 100);
 
 /** Ein Farbstreifen unter der Wasserlinie: eine Säule mit ihrer horizontalen Spanne über der Gefäßbreite. */
-interface HeartBand {
+interface VesselBand {
 	pillarId: number;
 	colorIndex: number;
 	/** Linke und rechte Kante des Streifens in Nutzereinheiten. */
@@ -158,7 +159,7 @@ interface HeartBand {
  * Bild, nur ohne Glas. `WebGL2RenderingContext` wird zuerst geprüft, damit Umgebungen ohne WebGL
  * (Tests) gar nicht erst `getContext` anfassen müssen.
  */
-const supportsGlassHeart = (): boolean => {
+const supportsGlassVessel = (): boolean => {
 	try {
 		return typeof WebGL2RenderingContext !== 'undefined' && !!document.createElement('canvas').getContext('webgl2');
 	} catch {
@@ -166,31 +167,32 @@ const supportsGlassHeart = (): boolean => {
 	}
 };
 
-export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) => {
-	const balance = useMemo(() => buildHeartBalance(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
-	const health = heartHealth(balance);
+export const VesselBalance = ({ pillars, punkteProSaeule }: VesselBalanceProps) => {
+	const balance = useMemo(() => buildVesselBalance(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
+	const health = vesselHealth(balance);
 
 	/*
-	 * Das Herz schlägt und wellt nur, wenn beide Schalter es erlauben: der Master „Animationen“
-	 * (#1183) und der Feinschalter „Herz animieren“. Die OS-Einstellung „Bewegung reduzieren“ hat
-	 * Vorrang und schaltet hier mit ab — die Wellen-Drift ist SMIL und lässt sich nicht per
-	 * CSS-Media-Query ausnehmen (Schlag und Aufstieg bleiben trotzdem im CSS abgesichert).
+	 * Das Gefäß atmet und wellt nur, wenn beide Schalter es erlauben: der Master „Animationen“
+	 * (#1183) und der Feinschalter „Lebensbalance animieren“. Die OS-Einstellung „Bewegung
+	 * reduzieren“ hat Vorrang und schaltet hier mit ab — die Wellen-Drift ist SMIL und lässt sich
+	 * nicht per CSS-Media-Query ausnehmen (Atmen und Aufstieg bleiben trotzdem im CSS abgesichert).
 	 */
 	const { enabled: animationsEnabled } = useAnimationsEnabled();
-	const { enabled: heartAnimationEnabled } = useHeartAnimationEnabled();
+	const { enabled: vesselAnimationEnabled } = useVesselAnimationEnabled();
 	const prefersReducedMotion = usePrefersReducedMotion();
-	const animated = animationsEnabled && heartAnimationEnabled && !prefersReducedMotion;
+	const animated = animationsEnabled && vesselAnimationEnabled && !prefersReducedMotion;
 
 	/*
 	 * Horizontale Spannen der Farbstreifen: Jeder Streifen deckt genau den Anteil der **gefüllten
 	 * Wasserfläche** ab, den seine Säule am Punkte-Saldo hält (#1302). Die Kanten kommen deshalb aus
-	 * der kumulierten Fläche (`bandEdges` in `lib/heartGeometry.ts`) und nicht aus der Breite — weil
-	 * das Herz oben breit ist und unten spitz zuläuft, trüge sonst dieselbe Breite je nach Position
-	 * unterschiedlich viel Wasser. Die Kanten hängen damit auch vom Füllstand ab. Ohne Punkte gilt
-	 * die Soll-Verteilung, damit das leere Herz schon die Zielaufteilung zeigt. Dieselben Kanten
-	 * liest der Glas-Shader (`toSlotBands`) — so zeigen SVG und Glas dasselbe Bild.
+	 * der kumulierten Fläche (`bandEdges` in `lib/vesselGeometry.ts`) und nicht aus der Breite —
+	 * weil die Kontur an Lippe und Bodenecken über die Wandbreite hinausreicht bzw. einrundet,
+	 * trüge sonst dieselbe Breite je nach Position unterschiedlich viel Wasser. Die Kanten hängen
+	 * damit auch vom Füllstand ab. Ohne Punkte gilt die Soll-Verteilung, damit das leere Gefäß
+	 * schon die Zielaufteilung zeigt. Dieselben Kanten liest der Glas-Shader (`toSlotBands`) — so
+	 * zeigen SVG und Glas dasselbe Bild.
 	 */
-	const bands = useMemo<HeartBand[]>(() => {
+	const bands = useMemo<VesselBand[]>(() => {
 		const shares = balance.segments.map((segment) => (balance.hasPoints ? segment.actualShare : segment.targetShare));
 		const edges = bandEdges(shares, balance.fill);
 		return balance.segments.map((segment, index) => ({
@@ -201,49 +203,49 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 		}));
 	}, [balance]);
 
-	// Eindeutige, aber stabile Präfixe für die SVG-Fragment-Referenzen: mehrere Herzen auf einer
+	// Eindeutige, aber stabile Präfixe für die SVG-Fragment-Referenzen: mehrere Gefäße auf einer
 	// Seite dürfen sich nicht gegenseitig die `clipPath`-IDs überschreiben. Doppelpunkte aus
 	// `useId()` fallen raus, damit die IDs auch für `querySelector` benutzbar bleiben.
 	const uid = useId().replace(/:/g, '');
-	const heartClipId = `${uid}-heart`;
+	const vesselClipId = `${uid}-vessel`;
 	const bandClipId = (index: number): string => `${uid}-band-${index}`;
 
 	const fillPercent = asPercent(balance.fill);
-	const ariaLabel = `Herz-Füllstand ${fillPercent} Prozent — ${health.label}`;
+	const ariaLabel = `Füllstand ${fillPercent} Prozent — ${health.label}`;
 
 	/* Glas zuerst, SVG als Rückfall: WebGL fehlt oder fällt aus → bekanntes Bild. */
 	const [glassBroken, setGlassBroken] = useState(false);
-	const [glassSupported] = useState(supportsGlassHeart);
+	const [glassSupported] = useState(supportsGlassVessel);
 	const renderGlass = glassSupported && !glassBroken;
 	const giveUpGlass = useCallback((): void => setGlassBroken(true), []);
 
 	/*
-	 * Ruhepuls: Je ausgewogener das Herz, desto langsamer und ruhiger schlägt es (1,5 s leer bis
-	 * 2,6 s voll). Der Wert geht als Custom Property ins CSS, damit die Animation dort bleibt,
-	 * wo Bewegung hingehört — und `prefers-reduced-motion` sie an einer Stelle abschalten kann.
+	 * Atem: Je ausgewogener das Gefäß, desto langsamer und ruhiger atmet es (4,5 s leer bis 6 s
+	 * voll) — kein Herzschlag mehr, nur ein subtiler Lebens-Hinweis. Der Wert geht als Custom
+	 * Property ins CSS, damit die Animation dort bleibt, wo Bewegung hingehört — und
+	 * `prefers-reduced-motion` sie an einer Stelle abschalten kann.
 	 */
-	const beatSeconds = (1.5 + balance.fill * 1.1).toFixed(2);
+	const breathSeconds = (4.5 + balance.fill * 1.5).toFixed(2);
 
 	return (
-		<div className="heart-balance">
+		<div className="vessel-balance">
 			{/*
-			 * Zwei Werte, die die CSS-Animationen der Grafik vorgeben: der Ruhepuls und der
-			 * Aufstiegsweg. Die Wellen-Drift selbst läuft per SMIL (s. unten) und braucht hier
-			 * keinen Versatz mehr.
+			 * Zwei Werte, die die CSS-Animationen der Grafik vorgeben: der Atem und der Aufstiegsweg.
+			 * Die Wellen-Drift selbst läuft per SMIL (s. unten) und braucht hier keinen Versatz mehr.
 			 */}
 			<div
-				className={animated ? 'heart-balance-stage' : 'heart-balance-stage heart-balance-stage--still'}
+				className={animated ? 'vessel-balance-stage' : 'vessel-balance-stage vessel-balance-stage--still'}
 				style={
 					{
-						'--pp-heart-beat': `${beatSeconds}s`,
+						'--pp-vessel-breath': `${breathSeconds}s`,
 						// Weg, den das Wasser beim Aufstieg zurücklegt: die volle Gefäßhöhe. Die Animation
-						// (`heart-water-rise` in app.css) startet mit der Oberfläche am Boden und endet hier.
-						'--pp-heart-rise': `${HEART_BOTTOM - HEART_TOP}px`,
+						// (`vessel-water-rise` in app.css) startet mit der Oberfläche am Boden und endet hier.
+						'--pp-vessel-rise': `${VESSEL_BOTTOM - VESSEL_TOP}px`,
 					} as CSSProperties
 				}
 			>
 				{renderGlass ? (
-					<HeartGlass
+					<VesselGlass
 						fill={balance.fill}
 						bands={bands}
 						animated={animated}
@@ -252,15 +254,15 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 					/>
 				) : (
 					<svg
-						className="heart-balance-svg"
+						className="vessel-balance-svg"
 						viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
 						role="img"
 						aria-label={ariaLabel}
-						data-testid="heart-balance-svg"
+						data-testid="vessel-balance-svg"
 					>
 						<defs>
-							<clipPath id={heartClipId}>
-								<path d={HEART_PATH} />
+							<clipPath id={vesselClipId}>
+								<path d={VESSEL_PATH} />
 							</clipPath>
 							{bands.map((band, index) => (
 								<clipPath key={band.pillarId} id={bandClipId(index)}>
@@ -270,20 +272,20 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 						</defs>
 
 						{/* Leeres Gefäß — die eingesenkte Fläche macht sichtbar, wie viel noch fehlt. */}
-						<path d={HEART_PATH} className="heart-vessel" />
+						<path d={VESSEL_PATH} className="vessel-empty" />
 
-						<g clipPath={`url(#${heartClipId})`}>
+						<g clipPath={`url(#${vesselClipId})`}>
 							{/*
 							 * Das Wasser steigt einmalig von unten auf seinen Stand (CSS, Compositor) und wellt
-							 * danach dauerhaft weiter. Eine Oberfläche fürs ganze Herz — Details zur Phasen-
+							 * danach dauerhaft weiter. Eine Oberfläche fürs ganze Gefäß — Details zur Phasen-
 							 * und Clip-Struktur bei den Drift-Konstanten oben.
 							 */}
-							<g className="heart-water-rise">
+							<g className="vessel-water-rise">
 								<g transform={`translate(0 ${waterlineY(balance.fill).toFixed(2)})`}>
 									{bands.map((band, index) => (
-										<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="heart-column">
-											<g className="heart-wave">
-												<path d={WAVE_PATH} className={rampClass('heart-water', band.colorIndex)} />
+										<g key={band.pillarId} clipPath={`url(#${bandClipId(index)})`} data-testid="vessel-column">
+											<g className="vessel-wave">
+												<path d={WAVE_PATH} className={rampClass('vessel-water', band.colorIndex)} />
 												{animated && (
 													<animateTransform
 														attributeName="transform"
@@ -297,11 +299,11 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 											</g>
 										</g>
 									))}
-									{/* Tiefenwellen: dieselben drei Schichten wie im Glas-Herz (STRATUM) — mit 14 s / 23 s
+									{/* Tiefenwellen: dieselben drei Schichten wie im Glas-Shader (STRATUM) — mit 14 s / 23 s
 								   bewusst langsamer als die Oberfläche (7 s) und nie über die Wasserlinie steigend. */}
 									{DEPTH_WAVE_LAYERS.map((layer) => (
 										<g key={layer.duration} transform={`translate(0 ${layer.drop})`}>
-											<g className="heart-depth">
+											<g className="vessel-depth">
 												<path d={layer.path} opacity={layer.opacity} />
 												{animated && (
 													<animateTransform
@@ -330,7 +332,7 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 										band.x1 > band.x0 && (
 											<line
 												key={band.pillarId}
-												className="heart-seam"
+												className="vessel-seam"
 												x1={band.x0}
 												y1={0}
 												x2={band.x0}
@@ -338,22 +340,31 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 											/>
 										),
 								)}
+
+							{/*
+							 * Skala: Striche knapp innerhalb beider Wände bei 25/50/75 % der Gefäßhöhe — die
+							 * Wasserlinie liest den Füllstand direkt an ihnen ab. Über dem Wasser gezeichnet,
+							 * damit sie auch gefüllt ablesbar bleiben.
+							 */}
+							{SCALE_TICKS.map((tick, index) => (
+								<line key={`tick-${index}`} className="vessel-tick" x1={tick.x1} y1={tick.y} x2={tick.x2} y2={tick.y} />
+							))}
 						</g>
 
 						{/* Kontur zuletzt, damit sie über dem Wasser liegt und die Silhouette scharf bleibt. */}
-						<path d={HEART_PATH} className="heart-outline" />
+						<path d={VESSEL_PATH} className="vessel-outline" />
 					</svg>
 				)}
 			</div>
 
-			<p className="heart-balance-readout">
-				<span className="heart-balance-value" data-testid="heart-balance-value">
+			<p className="vessel-balance-readout">
+				<span className="vessel-balance-value" data-testid="vessel-balance-value">
 					{fillPercent} %
 				</span>
-				<span className="heart-balance-state" data-state={health.state}>
+				<span className="vessel-balance-state" data-state={health.state}>
 					{health.label}
 				</span>
-				<span className="heart-balance-hint">{health.hint}</span>
+				<span className="vessel-balance-hint">{health.hint}</span>
 			</p>
 
 			{/*
@@ -361,12 +372,12 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 			 * Farbe — die Farbe allein trägt hier keine Bedeutung. Zugleich ist das die Legende, die
 			 * die Farbstreifen im Bild überhaupt zuordenbar macht.
 			 */}
-			<ul className="heart-balance-legend" data-testid="heart-balance-legend">
+			<ul className="vessel-balance-legend" data-testid="vessel-balance-legend">
 				{balance.segments.map((segment) => (
-					<li key={segment.pillar.id} className="heart-balance-legend-row" data-testid="heart-balance-legend-row">
-						<span className={rampClass('heart-legend-dot', segment.colorIndex)} aria-hidden="true" />
-						<span className="heart-balance-legend-name">{segment.pillar.name}</span>
-						<span className="heart-balance-legend-value">
+					<li key={segment.pillar.id} className="vessel-balance-legend-row" data-testid="vessel-balance-legend-row">
+						<span className={rampClass('vessel-legend-dot', segment.colorIndex)} aria-hidden="true" />
+						<span className="vessel-balance-legend-name">{segment.pillar.name}</span>
+						<span className="vessel-balance-legend-value">
 							{asPercent(segment.actualShare)} % · Ziel {asPercent(segment.targetShare)} %
 						</span>
 					</li>

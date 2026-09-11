@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import fragmentSource from './heart-glass.frag?raw';
+import fragmentSource from './vessel-glass.frag?raw';
 
 /**
- * Das Herz der Startseite als **Glasgefäß in WebGL** — die flüssige Schwester des SVG in
- * `HeartBalance.tsx`. Kontur, Füllstand, Farbstreifen, Welle und Aufstieg folgen exakt demselben
- * Bildauftrag wie das SVG (siehe dort); das Shader-Programm `heart-glass.frag` fügt nur das
- * Material hinzu: Fresnel-Saum, Glanzlichter, Meniskus, Brechung an der Wand.
+ * Das Balance-Gefäß der Startseite als **Glas-Messkolben in WebGL** — die flüssige Schwester des
+ * SVG in `VesselBalance.tsx`. Kontur, Füllstand, Farbstreifen, Welle und Aufstieg folgen exakt
+ * demselben Bildauftrag wie das SVG (siehe dort); das Shader-Programm `vessel-glass.frag` fügt nur
+ * das Material hinzu: Fresnel-Saum, Glanzlichter, Meniskus, Brechung an der Wand — und zeichnet
+ * die Skalenstriche derselben `SCALE_TICKS` über Gefäß und Wasser.
  *
  * **Warum WebGL und trotzdem kein Framework:** Der Effekt ist ein einziges gebundenes Dreieck —
  * three.js (~600 kB) wäre Wartungslast ohne Gegenwert. Der Shader ist bewusst GLSL ES 1.00
@@ -15,15 +16,15 @@ import fragmentSource from './heart-glass.frag?raw';
  * **Kosten-Rahmen (GPU-Floor):** DPR auf 2 geklemmt (gebundene Fläche), die Render-Loop stoppt
  * vollständig, wenn nichts zu tun ist — ohne Animation, außerhalb des Viewports oder bei
  * verstecktem Tab. `prefers-reduced-motion` und beide Animationsschalter wirken über `animated`
- * (still: Standbild in Grundform, wie die Still-Klasse des SVG). Der Puls bleibt CSS auf der
- * Bühne (`heart-balance-stage`) — der Shader skaliert nicht selbst.
+ * (still: Standbild in Grundform, wie die Still-Klasse des SVG). Das Atmen bleibt CSS auf der
+ * Bühne (`vessel-balance-stage`) — der Shader skaliert nicht selbst.
  *
  * **Fallback ist das SVG:** WebGL2 fehlt oder fällt endgültig aus → die Bühne zeigt weiter das
  * bekannte Bild. Alles, was die Seite *sagt* (Zahl, Zustand, Legende), steht ohnehin als DOM
  * neben der Grafik.
  */
 
-/** Ein Farbstreifen unter der Wasserlinie, aus `HeartBalance` (Spannen in Nutzereinheiten). */
+/** Ein Farbstreifen unter der Wasserlinie, aus `VesselBalance` (Spannen in Nutzereinheiten). */
 interface GlassBand {
 	pillarId: number;
 	colorIndex: number;
@@ -31,8 +32,8 @@ interface GlassBand {
 	x1: number;
 }
 
-interface HeartGlassProps {
-	/** Füllstand des Herzens (0–1), derselbe Wert wie die große Prozentzahl. */
+interface VesselGlassProps {
+	/** Füllstand des Gefäßes (0–1), derselbe Wert wie die große Prozentzahl. */
 	fill: number;
 	/** Farbstreifen je Säule in Anzeigereihenfolge. */
 	bands: GlassBand[];
@@ -63,7 +64,7 @@ const RISE_DURATION = 1.4;
 const DEPTH_WAVES = 2;
 const DEPTH_STRENGTH = 0.45;
 
-/** Deckkraft des weichen Schattens unterm Herz (0–0.3). */
+/** Deckkraft des weichen Schattens unterm Gefäß (0–0.3). */
 const SHADOW_OPACITY = 0.12;
 
 /** Zahl der Band-Uniforms im Shader — Streifen darüber laufen im letzten (neutralen) zusammen. */
@@ -106,7 +107,7 @@ const readThemeColors = () => {
 
 type ThemeColors = ReturnType<typeof readThemeColors>;
 
-/** Shader-seitige Bandliste: Farbe plus **linke** Kante als Anteil der sichtbaren Herzbreite (0–1).
+/** Shader-seitige Bandliste: Farbe plus **linke** Kante als Anteil der sichtbaren Gefäßbreite (0–1).
  *  Der Shader wechselt an `u_band_edges[i]` zur Farbe i (`bandColorAt`) — Kante i ist die Grenze,
  *  ab der Farbe i gilt; die Fläche bis zur nächsten Kante (bzw. bis 1.0 beim letzten) bleibt bei i. */
 interface SlotBand {
@@ -228,7 +229,7 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 
 	/*
 	 * Selbst-stoppende Render-Maschine: Sie läuft nur, solange die Welle sich bewegen darf und das
-	 * Herz sichtbar ist — sonst genau ein Standbild je Zustandswechsel. Die Shader-Uhr zählt nur
+	 * Gefäß sichtbar ist — sonst genau ein Standbild je Zustandswechsel. Die Shader-Uhr zählt nur
 	 * gelaufene Sekunden (kein Nachspringen nach der Pause), Zeitschritte sind auf 1/30 s geklemmt.
 	 */
 	let shaderTime = 0;
@@ -288,7 +289,7 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 		if (!looping) draw();
 	};
 
-	// Pause, wenn das Herz den Viewport verlässt oder der Tab versteckt wird.
+	// Pause, wenn das Gefäß den Viewport verlässt oder der Tab versteckt wird.
 	const intersectionObserver = new IntersectionObserver(
 		(entries) => {
 			visible = entries.some((entry) => entry.isIntersecting);
@@ -333,7 +334,7 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 	};
 };
 
-export const HeartGlass = ({ fill, bands, animated, ariaLabel, onGiveUp }: HeartGlassProps) => {
+export const VesselGlass = ({ fill, bands, animated, ariaLabel, onGiveUp }: VesselGlassProps) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const engineRef = useRef<GlassEngine | null>(null);
 	// Letzter Datenstand — nach einer Kontext-Wiederherstellung neu in den neuen Zustand spielen.
@@ -396,10 +397,10 @@ export const HeartGlass = ({ fill, bands, animated, ariaLabel, onGiveUp }: Heart
 	return (
 		<canvas
 			ref={canvasRef}
-			className="heart-glass-canvas"
+			className="vessel-glass-canvas"
 			role="img"
 			aria-label={ariaLabel}
-			data-testid="heart-balance-canvas"
+			data-testid="vessel-balance-canvas"
 		/>
 	);
 };

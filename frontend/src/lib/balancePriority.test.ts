@@ -91,7 +91,7 @@ describe('buildBalancePriorities', () => {
 	});
 
 	it('verteilt bei Gesamtgewicht 0 gleichmäßig als Soll', () => {
-		// Kein Soll gepflegt → Gleichverteilung (Muster heartBalance.ts); Aufwand nur in Säule 1
+		// Kein Soll gepflegt → Gleichverteilung (Muster vesselBalance.ts); Aufwand nur in Säule 1
 		// → Säule 2 behält ihr volles Defizit.
 		const pillars = [pillar(1, 'A', 0), pillar(2, 'B', 0)];
 		const doneEffort = new Map([[1, 4]]);

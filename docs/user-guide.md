@@ -67,8 +67,8 @@ Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist
 begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast, zeigt
 die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
 
-- **Meine Lebensbalance:** ein Herz zeigt, wie ausgeglichen sich dein erledigter
-  Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
+- **Meine Lebensbalance:** ein Füllstandsglas (Messkolben) zeigt, wie ausgeglichen sich dein
+  erledigter Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
   Säule angelegt hast).
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
@@ -488,8 +488,8 @@ sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
   mit **„Anzeigename speichern"** übernehmen.
 - **Darstellung** – die Auswahl (System, Hell, Dunkel) ist aktuell deaktiviert; die
   App nutzt durchgehend das helle Farbschema.
-- **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
-  **„Erledigt animieren"** steuern die Bewegungen des Herzens auf dem Dashboard und
+- **Animationen** – die Schalter **„Animationen"**, **„Lebensbalance animieren"** und
+  **„Erledigt animieren"** steuern die Bewegungen des Balance-Gefäßes auf dem Dashboard und
   den Ablauf beim Erledigen einer Aufgabe.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, wird beim Öffnen
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.

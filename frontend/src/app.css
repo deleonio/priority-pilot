@@ -864,7 +864,7 @@ body {
 	}
 
 	/* Im Hero steuert die Lücke: die Eigenmargins der Widgets entfallen. Spezifität (0,2,1),
-	   damit der Reset auch die erst später im Quelltext liegende .dashboard-heart-Marge schlägt. */
+	   damit der Reset auch die erst später im Quelltext liegende .dashboard-vessel-Marge schlägt. */
 	section.dashboard .dashboard-hero > *,
 	section.dashboard .dashboard-hero-side > * {
 		margin-top: 0;
@@ -2921,40 +2921,52 @@ kol-heading {
 	justify-content: flex-end;
 }
 
-/* --- Herz der Startseite (Lebensbalance) --- */
+/* --- Balance-Gefäß der Startseite (Lebensbalance) --- */
 
 /*
- * Das Herz ist das erste Bild des Dashboards und steht mittig über die ganze Seitenbreite. Die
+ * Das Gefäß ist das erste Bild des Dashboards und steht mittig über die ganze Seitenbreite. Die
  * Grafik skaliert über ihre `viewBox` mit, die Breite begrenzt `max-width` — auf 375 px füllt sie
  * die Karte, auf dem Desktop wächst sie als Hero der Seite, bleibt aber zentriert und gesetzten
  * Grenzen unterworfen, statt zur Plakatwand zu werden.
  */
-.dashboard-heart {
+.dashboard-vessel {
 	display: block;
 	margin-top: var(--pp-gap-generous);
 }
 
-.heart-balance {
+.vessel-balance {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: var(--pp-gap-base);
 }
 
-.heart-balance-stage {
+.vessel-balance-stage {
 	width: 100%;
 	max-width: 24rem;
 	/*
-	 * Ruhepuls des Herzens — ein doppelter Schlag, wie ein echter. Die Dauer liefert die Komponente
-	 * als `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife, keine
-	 * Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms) beschreiben Übergänge auf eine
-	 * Nutzeraktion hin und passen hier bewusst nicht.
+	 * Atem des Gefäßes — ein langsamer, subtiler Hub statt Herzschlag. Die Dauer liefert die
+	 * Komponente als `--pp-vessel-breath` (ruhiger, je ausgewogener, 4,5–6 s). Das ist eine
+	 * Umgebungs-Schleife, keine Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms)
+	 * beschreiben Übergänge auf eine Nutzeraktion hin und passen hier bewusst nicht.
 	 */
-	animation: heart-beat var(--pp-heart-beat, 2s) var(--pp-ease) infinite;
+	animation: vessel-breathe var(--pp-vessel-breath, 5s) var(--pp-ease) infinite;
 	transform-origin: 50% 60%;
 }
 
-.heart-balance-svg {
+/*
+ * Mobile-Deckel: Bei schmalen Viewports füllt die Bühne die Kartenbreite nicht mehr komplett,
+ * damit der Kolben nicht unnötig groß wirkt. Löst den Falz bei 375×812 (design-optimierungsplan.md,
+ * P1) für sich allein NICHT — Legende, Zahlen-Text und Kennzahlen-Kacheln zusammen tragen mehr zur
+ * Höhe bei als die Grafik; „Nächste Aufgabe“ liegt gemessen weiterhin deutlich unter dem Falz.
+ */
+@media (max-width: 30em) {
+	.vessel-balance-stage {
+		max-width: 15rem;
+	}
+}
+
+.vessel-balance-svg {
 	display: block;
 	width: 100%;
 	height: auto;
@@ -2962,10 +2974,10 @@ kol-heading {
 }
 
 /*
- * Glasherz (WebGL): dieselbe Geometrie wie das SVG (Zeichenfläche 100×92, volle Breite der
- * Bühne). Der Puls bleibt CSS auf der Bühne — das Canvas skaliert als Ganzes mit.
+ * Glas-Messkolben (WebGL): dieselbe Geometrie wie das SVG (Zeichenfläche 100×92, volle Breite der
+ * Bühne). Das Atmen bleibt CSS auf der Bühne — das Canvas skaliert als Ganzes mit.
  */
-.heart-glass-canvas {
+.vessel-glass-canvas {
 	display: block;
 	width: 100%;
 	height: auto;
@@ -2973,12 +2985,12 @@ kol-heading {
 }
 
 /* Leeres Gefäß: eingesenkte Fläche, damit das Fehlende genauso ablesbar ist wie das Erreichte. */
-.heart-vessel {
+.vessel-empty {
 	fill: var(--pp-surface-2);
 }
 
 /* Kontur als Grenze eines bedeutungstragenden Elements — `border-strong` hält ≥ 3:1 (WCAG 1.4.11). */
-.heart-outline {
+.vessel-outline {
 	fill: none;
 	stroke: var(--pp-border-strong);
 	stroke-width: 2;
@@ -2990,10 +3002,22 @@ kol-heading {
  * und bewusst zurückhaltend. Eine kräftige Fuge macht aus dem Wasser ein Balkendiagramm; die
  * Segmente trennen sich ohnehin schon über ihre Farbe und ihren Pegel.
  */
-.heart-seam {
+.vessel-seam {
 	stroke: var(--pp-surface-1);
 	stroke-width: 0.5;
 	opacity: 0.55;
+}
+
+/*
+ * Skalenstrich an der Gefäßwand — macht den Füllstand als Messwert ablesbar (25/50/75 % Höhe,
+ * `SCALE_TICKS` in vesselGeometry.ts). Bewusst halbe Fugenstärke und abgeschwächt: Die Skala soll
+ * die Ablesung tragen, nicht als Raster im Bild stehen.
+ */
+.vessel-tick {
+	stroke: var(--pp-border-strong);
+	stroke-width: 0.5;
+	stroke-linecap: round;
+	opacity: 0.5;
 }
 
 /*
@@ -3002,24 +3026,24 @@ kol-heading {
  * SMIL-Dokument-Zeitachse garantiert das, einzelne CSS-Animationsuhren tun es nicht. Hier bleibt
  * nur das Erscheinungsbild. Reine Grafikbewegung: kein JavaScript-Frame-Loop, keine Re-Renders.
  */
-.heart-wave {
+.vessel-wave {
 	/* Leicht durchscheinend: das Gefäß darunter tönt mit, das Wasser wirkt flüssig statt lackiert. */
 	opacity: 0.9;
 }
 
 /*
  * Auftakt: Das Wasser steigt einmalig von unten auf seinen Stand — die Wegstrecke liefert die
- * Komponente als `--pp-heart-rise` (volle Gefäßhöhe) aus. `both` hält den Endzustand auch nach
+ * Komponente als `--pp-vessel-rise` (volle Gefäßhöhe) aus. `both` hält den Endzustand auch nach
  * dem Durchlauf fest; die dauerhafte Wellenbewegung läuft auf den inneren Gruppen und wird davon
  * nicht berührt.
  */
-.heart-water-rise {
-	animation: heart-water-rise 1.4s var(--pp-ease) both;
+.vessel-water-rise {
+	animation: vessel-water-rise 1.4s var(--pp-ease) both;
 }
 
-@keyframes heart-water-rise {
+@keyframes vessel-water-rise {
 	from {
-		transform: translateY(var(--pp-heart-rise, 82px));
+		transform: translateY(var(--pp-vessel-rise, 82px));
 	}
 
 	to {
@@ -3027,26 +3051,14 @@ kol-heading {
 	}
 }
 
-@keyframes heart-beat {
+@keyframes vessel-breathe {
 	0%,
 	100% {
 		transform: scale(1);
 	}
 
-	8% {
-		transform: scale(1.035);
-	}
-
-	17% {
-		transform: scale(1);
-	}
-
-	25% {
-		transform: scale(1.018);
-	}
-
-	34% {
-		transform: scale(1);
+	50% {
+		transform: scale(1.012);
 	}
 }
 
@@ -3056,20 +3068,20 @@ kol-heading {
  * Wassersäule unverändert ab — das Bild bleibt vollständig, nur still.
  */
 @media (prefers-reduced-motion: reduce) {
-	.heart-balance-stage,
-	.heart-water-rise {
+	.vessel-balance-stage,
+	.vessel-water-rise {
 		animation: none;
 	}
 }
 
 /*
- * Bewegung ist abbestellbar: Der Feinschalter „Herz animieren" (gemeinsam mit dem Master
- * „Animationen") setzt die Still-Klasse — alle Herz-Schleifen laufen nicht, das Bild bleibt
+ * Bewegung ist abbestellbar: Der Feinschalter „Lebensbalance animieren" (gemeinsam mit dem Master
+ * „Animationen") setzt die Still-Klasse — alle Gefäß-Schleifen laufen nicht, das Bild bleibt
  * vollständig (Wasser standhaft auf seinem Stand, Oberfläche flach). Die OS-Einstellung oben
  * greift unabhängig davon.
  */
-.heart-balance-stage--still,
-.heart-balance-stage--still .heart-water-rise {
+.vessel-balance-stage--still,
+.vessel-balance-stage--still .vessel-water-rise {
 	animation: none;
 }
 
@@ -3077,40 +3089,40 @@ kol-heading {
  * Wasserfarbe je Säule aus der kategorialen Rampe, der Reihe nach vergeben. Ohne Modifier bleibt
  * das Segment neutral: ab der 8. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
  */
-.heart-water {
+.vessel-water {
 	fill: var(--pp-border-strong);
 }
 
-.heart-water--1 {
+.vessel-water--1 {
 	fill: var(--pp-pillar-1);
 }
 
-.heart-water--2 {
+.vessel-water--2 {
 	fill: var(--pp-pillar-2);
 }
 
-.heart-water--3 {
+.vessel-water--3 {
 	fill: var(--pp-pillar-3);
 }
 
-.heart-water--4 {
+.vessel-water--4 {
 	fill: var(--pp-pillar-4);
 }
 
-.heart-water--5 {
+.vessel-water--5 {
 	fill: var(--pp-pillar-5);
 }
 
-.heart-water--6 {
+.vessel-water--6 {
 	fill: var(--pp-pillar-6);
 }
 
-.heart-water--7 {
+.vessel-water--7 {
 	fill: var(--pp-pillar-7);
 }
 
 /* Ablesung unter dem Bild — die Zahl steht neben ihrer Bezugsgröße, nicht im Wasser. */
-.heart-balance-readout {
+.vessel-balance-readout {
 	margin: 0;
 	display: flex;
 	flex-direction: column;
@@ -3119,7 +3131,7 @@ kol-heading {
 	text-align: center;
 }
 
-.heart-balance-value {
+.vessel-balance-value {
 	font-size: var(--pp-font-size-2xl);
 	font-weight: var(--pp-weight-bold);
 	line-height: var(--pp-line-tight);
@@ -3127,14 +3139,14 @@ kol-heading {
 	font-variant-numeric: tabular-nums;
 }
 
-.heart-balance-state {
+.vessel-balance-state {
 	font-size: var(--pp-font-size-lg);
 	font-weight: var(--pp-weight-bold);
 	line-height: var(--pp-line-tight);
 	color: var(--pp-ink);
 }
 
-.heart-balance-hint {
+.vessel-balance-hint {
 	font-size: var(--pp-font-size-sm);
 	line-height: var(--pp-line-base);
 	color: var(--pp-ink-muted);
@@ -3142,10 +3154,10 @@ kol-heading {
 }
 
 /* Legende im Zeilenmuster der übrigen Dashboard-Listen (Border-getrennt, Wert rechtsbündig).
-   Die max-width hält die Zeilen auf die Breite der Herz-Grafik — auf dem Desktop wächst die
+   Die max-width hält die Zeilen auf die Breite der Gefäß-Grafik — auf dem Desktop wächst die
    Hero-Card über die 24rem der Bühne hinaus, die Legende soll dort nicht auseinandergezogen
    werden; auf 375px (Card < 24rem) bleibt es beim gewohnten Bild. */
-.heart-balance-legend {
+.vessel-balance-legend {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -3158,7 +3170,7 @@ kol-heading {
  * statt den Namen mitten im Wort umzubrechen — Säulennamen sind nutzerdefiniert und können lang
  * sein, aber „Beziehunge/n" ist kein Umbruch, sondern ein Fehler.
  */
-.heart-balance-legend-row {
+.vessel-balance-legend-row {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
@@ -3167,17 +3179,17 @@ kol-heading {
 	border-bottom: 1px solid var(--pp-border-subtle);
 }
 
-.heart-balance-legend-row:last-child {
+.vessel-balance-legend-row:last-child {
 	border-bottom: none;
 }
 
-.heart-balance-legend-name {
+.vessel-balance-legend-name {
 	flex: 1 1 auto;
 	min-width: 0;
 	overflow-wrap: break-word;
 }
 
-.heart-balance-legend-value {
+.vessel-balance-legend-value {
 	flex: 0 0 auto;
 	margin-left: auto;
 	color: var(--pp-ink-muted);
@@ -3186,13 +3198,13 @@ kol-heading {
 }
 
 /* Farbtupfer der Legende — rein dekorativ (aria-hidden), der Name daneben trägt die Bedeutung. */
-/* Tiefenwellen im SVG-Herzen — Abdunkelung wie die STRATUM-Schichten im Glas-Shader; sie liegen
+/* Tiefenwellen im SVG-Gefäß — Abdunkelung wie die STRATUM-Schichten im Glas-Shader; sie liegen
    über den Farbstreifen und unter den Fugen. Opacity je Schicht als Attribut (Markup-Parameter). */
-.heart-depth {
+.vessel-depth {
 	fill: #000;
 }
 
-.heart-legend-dot {
+.vessel-legend-dot {
 	flex-shrink: 0;
 	width: 0.75rem;
 	height: 0.75rem;
@@ -3201,31 +3213,31 @@ kol-heading {
 	align-self: center;
 }
 
-.heart-legend-dot--1 {
+.vessel-legend-dot--1 {
 	background: var(--pp-pillar-1);
 }
 
-.heart-legend-dot--2 {
+.vessel-legend-dot--2 {
 	background: var(--pp-pillar-2);
 }
 
-.heart-legend-dot--3 {
+.vessel-legend-dot--3 {
 	background: var(--pp-pillar-3);
 }
 
-.heart-legend-dot--4 {
+.vessel-legend-dot--4 {
 	background: var(--pp-pillar-4);
 }
 
-.heart-legend-dot--5 {
+.vessel-legend-dot--5 {
 	background: var(--pp-pillar-5);
 }
 
-.heart-legend-dot--6 {
+.vessel-legend-dot--6 {
 	background: var(--pp-pillar-6);
 }
 
-.heart-legend-dot--7 {
+.vessel-legend-dot--7 {
 	background: var(--pp-pillar-7);
 }
 

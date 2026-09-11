@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { HeartBalance } from './HeartBalance';
-import { toSlotBands } from './HeartGlass';
+import { VesselBalance } from './VesselBalance';
+import { toSlotBands } from './VesselGlass';
 
 afterEach(cleanup);
 
@@ -22,7 +22,7 @@ interface GlassBand {
 	x1: number;
 }
 
-/** Bänder über die sichtbare Herzbreite (x 4–96) mit kumulierten Ist-Anteilen — wie das `bands`-useMemo. */
+/** Bänder über die sichtbare Gefäßbreite (x 4–96) mit kumulierten Ist-Anteilen — wie das `bands`-useMemo. */
 const spanBands = (shares: number[]): GlassBand[] => {
 	const bands: GlassBand[] = [];
 	let cum = 0;
@@ -36,17 +36,17 @@ const spanBands = (shares: number[]): GlassBand[] => {
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 const SHARES = [0.49, 0.14, 0.14, 0.11, 0.1, 0.02];
-const heartPillars = SHARES.map((_, index) => pillar(index + 1, `Säule ${index + 1}`, 1));
+const vesselPillars = SHARES.map((_, index) => pillar(index + 1, `Säule ${index + 1}`, 1));
 const punkte = new Map(SHARES.map((share, index) => [index + 1, Math.round(share * 100)]));
 
 /**
- * Spec docs/spec/issue-1284.md — Band-Kanten-Semantik des Glas-Herzens.
+ * Spec docs/spec/issue-1284.md — Band-Kanten-Semantik des Glas-Gefäßes.
  *
  * Der Shader liest `u_band_edges[i]` als linke Kante von Farbe i; `toSlotBands` muss deshalb die
  * linke Band-Kante (`x0`) normiert auf die sichtbare Breite liefern — nicht die rechte (`x1`),
  * sonst malt jedes Band die Spanne seines Nachfolgers (Ticket-Fehler).
  */
-describe('HeartGlass toSlotBands', () => {
+describe('VesselGlass toSlotBands', () => {
 	it('legt jede Slot-Kante auf die linke Kante ihres Bandes (AK1)', () => {
 		const bands = spanBands(SHARES);
 		const slots = toSlotBands(bands, colors);
@@ -79,8 +79,8 @@ describe('HeartGlass toSlotBands', () => {
 	});
 
 	it('legt die Glas-Fugen exakt an die Kanten der SVG-Band-Rects (AK3)', () => {
-		render(<HeartBalance pillars={heartPillars} punkteProSaeule={punkte} />);
-		const svg = screen.getByTestId('heart-balance-svg');
+		render(<VesselBalance pillars={vesselPillars} punkteProSaeule={punkte} />);
+		const svg = screen.getByTestId('vessel-balance-svg');
 		const rects = Array.from(svg.querySelectorAll('clipPath rect'));
 
 		expect(rects).toHaveLength(6);

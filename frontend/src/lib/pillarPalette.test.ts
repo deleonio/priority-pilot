@@ -192,12 +192,12 @@ describe('pillarPalette — AK1: Rampe hat je Theme genau 7 Ränge (Spec #1273)'
 		);
 	});
 
-	it('app.css enthält die Zeichenkette "pp-pillar-8" nicht mehr (Token, .heart-water--8, .heart-legend-dot--8)', () => {
+	it('app.css enthält die Zeichenkette "pp-pillar-8" nicht mehr (Token, .vessel-water--8, .vessel-legend-dot--8)', () => {
 		expect(appCss.match(/pp-pillar-8/g) ?? []).toHaveLength(0);
 	});
 
-	it('PILLAR_RAMP_SIZE ist in HeartBalance.tsx und HeartGlass.tsx jeweils 7', () => {
-		for (const component of ['HeartBalance.tsx', 'HeartGlass.tsx']) {
+	it('PILLAR_RAMP_SIZE ist in VesselBalance.tsx und VesselGlass.tsx jeweils 7', () => {
+		for (const component of ['VesselBalance.tsx', 'VesselGlass.tsx']) {
 			const source = readFileSync(`${dir}../components/${component}`, 'utf8');
 			const match = source.match(/PILLAR_RAMP_SIZE\s*=\s*(\d+)/);
 			expect(match, `${component} muss PILLAR_RAMP_SIZE deklarieren`).not.toBeNull();
