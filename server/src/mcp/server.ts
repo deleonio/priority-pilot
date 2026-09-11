@@ -125,12 +125,12 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 		const payload = await tool.run(context, args);
 		sendResult(res, id, { content: [{ type: 'text', text: JSON.stringify(payload) }] });
 	} catch (error) {
-		sendRpcError(
-			res,
-			id,
-			JSONRPC_INTERNAL_ERROR,
-			error instanceof Error ? error.message : 'Werkzeugaufruf fehlgeschlagen.',
-		);
+		const message = error instanceof Error ? error.message : 'Werkzeugaufruf fehlgeschlagen.';
+		// Auch ins Serverlog: ein fehlgeschlagener Werkzeugaufruf hinterließ bisher NUR den Text im
+		// Client. Bricht ein Client mit „MCP tool call failed" ab, ohne den JSON-RPC-Fehler zu zeigen,
+		// war der Vorfall damit gar nicht nachvollziehbar.
+		console.error(`MCP-Werkzeug "${tool.name}" fehlgeschlagen:`, message);
+		sendRpcError(res, id, JSONRPC_INTERNAL_ERROR, message);
 	}
 });
 

@@ -166,6 +166,80 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.equal(completed.result?.status, 'Done');
 	});
 
+	it('der Klartext der gespiegelten Route erreicht den Client samt Statuscode', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		// Der Fehlervertrag der Routen ist `{ message }` (express/http-error.ts). Wurde stattdessen
+		// `{ error }` gelesen, fiel JEDER Routen-Fehler auf einen generischen Ersatztext zurück — der
+		// Client konnte nicht erfahren, welches Feld ihn scheitern ließ, und probierte blind herum.
+		const created = await mcpCall<{ id: number }>(token, 'task_create', {
+			title: 'Aufwand außerhalb der Skala',
+			estimatedEffort: 5,
+		});
+		assert.ok(created.error, 'ein Aufwand außerhalb 0.1–1 muss fehlschlagen');
+		assert.match(
+			created.error.message,
+			/estimatedEffort/,
+			`Fehlertext muss das schuldige Feld nennen, war: ${created.error.message}`,
+		);
+		assert.match(
+			created.error.message,
+			/400/,
+			`Fehlertext muss den Statuscode einordnen, war: ${created.error.message}`,
+		);
+	});
+
+	it('task_create rechnet estimatedEffortHours in das Tage-Feld um und kappt an der Skala', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		// 1 Tag ≙ 14 h (openapi.yml) — 7 h sind ein halber Tag.
+		const halbtags = await mcpCall<{ estimatedEffort: number }>(token, 'task_create', {
+			title: 'Sieben Stunden',
+			estimatedEffortHours: 7,
+		});
+		assert.equal(halbtags.result?.estimatedEffort, 0.5);
+
+		// Die Skala endet bei einem Tag: alles darüber ist „ein voller Tag", kein Fehler.
+		const ganztags = await mcpCall<{ estimatedEffort: number }>(token, 'task_create', {
+			title: 'Drei Tage',
+			estimatedEffortHours: 42,
+		});
+		assert.equal(ganztags.result?.estimatedEffort, 1);
+
+		// Krumme Divisionen werden gerundet, damit die Aufwands-Spalte keine 17 Nachkommastellen zeigt.
+		const krumm = await mcpCall<{ estimatedEffort: number }>(token, 'task_create', {
+			title: 'Drei Stunden',
+			estimatedEffortHours: 3,
+		});
+		assert.equal(krumm.result?.estimatedEffort, 0.21);
+	});
+
+	it('beide Aufwandsfelder zusammen schlagen fehl und legen nichts an', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall(token, 'task_create', {
+			title: 'Widersprüchlicher Aufwand',
+			estimatedEffort: 0.5,
+			estimatedEffortHours: 3,
+		});
+		assert.ok(created.error, 'widersprüchliche Aufwandsangaben dürfen nicht still eine davon gewinnen lassen');
+
+		const list = await mcpCall<{ title: string }[]>(token, 'task_list');
+		assert.ok(!list.result?.some((t) => t.title === 'Widersprüchlicher Aufwand'));
+	});
+
+	it('task_update setzt den Status auf "In process"', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Wird angefangen');
+
+		const updated = await mcpCall<{ status: string }>(token, 'task_update', { id: taskId, status: 'In process' });
+		assert.equal(updated.result?.status, 'In process');
+	});
+
 	it('AK4: next_task liefert dieselbe Aufgabe wie GET /next', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
@@ -398,49 +472,24 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.deepEqual(links.result?.dependsOn, []);
 	});
 
-	it('beide Enden lassen sich über den Titel statt über die ID benennen', async () => {
+	it('task_link ohne dependsOnId nennt den fehlenden Schlüssel und verknüpft nichts', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
-		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+		await createTaskViaApi(cookie, 'Kapitel schreiben');
 
-		const linked = await mcpCall(token, 'task_link', {
-			taskTitle: 'Projekt abschließen',
-			dependsOnTitle: 'Kapitel schreiben',
-			weight: 0.8,
-		});
-		assert.ok(!linked.error, `Titel-Auflösung sollte gelingen, war: ${linked.error?.message}`);
-
-		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
-		assert.deepEqual(links.result?.dependsOn, [{ id: childId, title: 'Kapitel schreiben', weight: 0.8 }]);
-	});
-
-	it('ein mehrdeutiger Titel bricht mit der Trefferliste ab und verknüpft nichts', async () => {
-		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
-		const token = await createToken(cookie);
-		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
-		const firstId = await createTaskViaApi(cookie, 'Bericht schreiben');
-		const secondId = await createTaskViaApi(cookie, 'Bericht prüfen');
-
-		const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnTitle: 'Bericht' });
-		assert.ok(linked.error, 'ein mehrdeutiger Titel muss fehlschlagen');
-		assert.match(linked.error.message, new RegExp(`${firstId}`), 'der Fehler muss die Treffer-IDs nennen');
-		assert.match(linked.error.message, new RegExp(`${secondId}`), 'der Fehler muss die Treffer-IDs nennen');
+		// Verknüpft wird ausschließlich über IDs (Titel-Auflösung zurückgebaut): ein Aufruf mit einem
+		// Titel statt einer ID muss sagen, welcher Schlüssel fehlt, statt still nichts zu tun.
+		const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnTitle: 'Kapitel schreiben' });
+		assert.ok(linked.error, 'ohne dependsOnId muss task_link fehlschlagen');
+		assert.match(
+			linked.error.message,
+			/dependsOnId/,
+			`Fehlertext muss den fehlenden Schlüssel nennen, war: ${linked.error.message}`,
+		);
 
 		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
 		assert.deepEqual(links.result?.dependsOn, [], 'ein abgebrochener Aufruf darf keine Kante hinterlassen');
-	});
-
-	it('ein Titel ohne Treffer bricht ab und verknüpft nichts', async () => {
-		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
-		const token = await createToken(cookie);
-		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
-
-		const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnTitle: 'Gibt es nicht' });
-		assert.ok(linked.error, 'ein Titel ohne Treffer muss fehlschlagen');
-
-		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
-		assert.deepEqual(links.result?.dependsOn, []);
 	});
 
 	it('eine Verknüpfung, die einen Zyklus erzeugen würde, wird abgelehnt', async () => {
