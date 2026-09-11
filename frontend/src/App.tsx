@@ -141,6 +141,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// funktionieren dadurch browser-nativ (AK1–AK4).
 	const showHelp = location.pathname.startsWith('/hilfe');
 	const showSettings = location.pathname.startsWith('/settings');
+	// Hauptansichten (Dashboard-Tabs) teilen dasselbe Aktiv-Muster: Der Home-Schalter hebt sich
+	// nur ab, wenn Einstellungen oder Hilfe als Seite darüber liegen.
+	const showMainView = !showHelp && !showSettings;
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -659,7 +662,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				_label: t('menu.home'),
 				_hideLabel: true,
 				_icons: HOME_ICON,
-				_variant: INACTIVE_VARIANT,
+				_variant: showMainView ? ACTIVE_VARIANT : INACTIVE_VARIANT,
+				...(showMainView ? { _ariaDescription: t('menu.activeViewDescription') } : {}),
 				_on: { onClick: handleHomeNavigate },
 			},
 			{
@@ -716,6 +720,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		handleLogout,
 		showSettings,
 		showHelp,
+		showMainView,
 		t,
 	]);
 
