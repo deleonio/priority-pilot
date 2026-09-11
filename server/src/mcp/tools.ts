@@ -95,12 +95,14 @@ const callApi = async (
 
 /**
  * Ganzzahlige Pflicht-ID aus den Werkzeug-Argumenten. Der Schlüsselname steht im Fehlertext, damit
- * ein Aufruf mit mehreren IDs (`task_link`) sagt, welche davon fehlt.
+ * ein Aufruf mit mehreren IDs (`task_link`) sagt, welche davon fehlt. Werkzeugunabhängig — der
+ * Fehlertext nennt nur den Schlüssel, keine Herkunft (die IDs von `task_link`/`group_members_list`
+ * kommen aus verschiedenen List-Werkzeugen).
  */
-const requireTaskId = (args: Record<string, unknown>, key: string): number => {
+const requireIntegerId = (args: Record<string, unknown>, key: string): number => {
 	const id = args[key];
 	if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
-		throw new Error(`${key} muss eine Ganzzahl >= 1 sein (IDs liefert task_list).`);
+		throw new Error(`${key} muss eine Ganzzahl >= 1 sein.`);
 	}
 	return id;
 };
@@ -251,7 +253,7 @@ export const mcpTools: McpTool[] = [
 			required: ['id'],
 		},
 		run: (ctx, args) =>
-			callApi(ctx, `/tasks/${requireTaskId(args, 'id')}`, { method: 'PATCH', body: pickTaskFields(args) }),
+			callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'PATCH', body: pickTaskFields(args) }),
 	},
 	{
 		name: 'task_complete',
@@ -263,7 +265,7 @@ export const mcpTools: McpTool[] = [
 			required: ['id'],
 		},
 		run: (ctx, args) =>
-			callApi(ctx, `/tasks/${requireTaskId(args, 'id')}`, { method: 'PATCH', body: { status: 'Done' } }),
+			callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'PATCH', body: { status: 'Done' } }),
 	},
 	{
 		name: 'task_link',
@@ -282,8 +284,8 @@ export const mcpTools: McpTool[] = [
 		},
 		run: (ctx, args) => {
 			const weight = readWeight(args.weight);
-			const taskId = requireTaskId(args, 'taskId');
-			const dependsOnId = requireTaskId(args, 'dependsOnId');
+			const taskId = requireIntegerId(args, 'taskId');
+			const dependsOnId = requireIntegerId(args, 'dependsOnId');
 			return callApi(ctx, `/tasks/${taskId}/dependencies`, {
 				method: 'POST',
 				body: { dependingTaskId: dependsOnId, weight },
@@ -298,8 +300,8 @@ export const mcpTools: McpTool[] = [
 		write: true,
 		inputSchema: { type: 'object', properties: { ...linkProperties }, required: ['taskId', 'dependsOnId'] },
 		run: (ctx, args) => {
-			const taskId = requireTaskId(args, 'taskId');
-			const dependsOnId = requireTaskId(args, 'dependsOnId');
+			const taskId = requireIntegerId(args, 'taskId');
+			const dependsOnId = requireIntegerId(args, 'dependsOnId');
 			return callApi(ctx, `/tasks/${taskId}/dependencies/${dependsOnId}`, { method: 'DELETE' });
 		},
 	},
@@ -315,7 +317,7 @@ export const mcpTools: McpTool[] = [
 			required: ['taskId'],
 		},
 		run: async (ctx, args) => {
-			const taskId = requireTaskId(args, 'taskId');
+			const taskId = requireIntegerId(args, 'taskId');
 			const graph = (await callApi(ctx, '/graph')) as {
 				nodes: { id: number; title: string }[];
 				edges: { from: number; to: number; weight: number }[];
@@ -351,6 +353,22 @@ export const mcpTools: McpTool[] = [
 		description: 'Listet die Kategorien des Token-Besitzers.',
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/categories'),
+	},
+	{
+		name: 'group_list',
+		description: 'Listet die Gruppen, in denen der Token-Besitzer Mitglied ist, samt Rolle und Mitgliederzahl.',
+		inputSchema: { type: 'object', properties: {} },
+		run: (ctx) => callApi(ctx, '/groups'),
+	},
+	{
+		name: 'group_members_list',
+		description: 'Listet die Mitglieder einer eigenen Gruppe. Fremde Gruppen liefern einen Fehler statt Daten.',
+		inputSchema: {
+			type: 'object',
+			properties: { groupId: { type: 'integer', description: 'ID der Gruppe (aus group_list).' } },
+			required: ['groupId'],
+		},
+		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/members`),
 	},
 ];
 

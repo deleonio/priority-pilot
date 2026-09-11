@@ -367,35 +367,6 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		);
 	});
 
-	it('AK8: der v1-Werkzeugvertrag (Namen + Schemas) entspricht dem eingecheckten Snapshot', async () => {
-		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
-		const token = await createToken(cookie);
-
-		const tools = await mcpListTools(token);
-		const sorted = [...tools].sort((a, b) => a.name.localeCompare(b.name));
-		const names = sorted.map((t) => t.name);
-
-		assert.deepEqual(
-			names,
-			[
-				'category_list',
-				'next_task',
-				'pillar_list',
-				'task_complete',
-				'task_create',
-				'task_link',
-				'task_links',
-				'task_list',
-				'task_unlink',
-				'task_update',
-			],
-			'v1-Werkzeugnamen sind ab dem Merge eingefroren (AK8) — eine unbeabsichtigte Änderung muss diesen Test rot machen',
-		);
-		for (const tool of sorted) {
-			assert.ok(tool.inputSchema, `${tool.name} muss ein inputSchema deklarieren`);
-		}
-	});
-
 	// ── #1379: Säulenzuordnung über task_create/task_update ─────────────────────────────
 
 	describe('#1379: pillars über task_create/task_update setzen', () => {
@@ -541,7 +512,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 				);
 			}
 
-			// Der eingefrorene Namens-Snapshot (AK8, #1353) muss unverändert grün bleiben.
+			// Der eingefrorene Namens-Snapshot (AK7, #1381) muss unverändert grün bleiben.
 			const names = tools.map((t) => t.name).sort();
 			assert.ok(names.includes('task_create') && names.includes('task_update'));
 		});
@@ -730,5 +701,163 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 
 		const unchanged = await mcpCall<TaskLinks>(writeToken, 'task_links', { taskId: parentId });
 		assert.deepEqual(unchanged.result?.dependsOn, [{ id: childId, title: 'Kapitel schreiben', weight: 0.8 }]);
+	});
+
+	// Rote Spec-Tests für #1381 (Spec docs/spec/issue-1381.md) — group_list/group_members_list.
+	type GroupDto = { id: number; name: string; role: string; memberCount: number };
+	type MemberDto = { userId: number; displayName: string; role: string };
+
+	const createGroupViaApi = async (cookie: string, name: string): Promise<GroupDto> => {
+		const res = await server.json('/groups', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ name }),
+		});
+		assert.equal(res.status, 201, 'Setup: Gruppe muss über die API anlegbar sein');
+		return (await res.json()) as GroupDto;
+	};
+
+	/** Legt eine Einladung an und lässt sie vom eingeladenen Konto annehmen. */
+	const inviteAndAccept = async (
+		adminCookie: string,
+		groupId: number,
+		invitedUserId: number,
+		invitedCookie: string,
+	): Promise<void> => {
+		const invited = await server.json(`/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+			body: JSON.stringify({ userId: invitedUserId }),
+		});
+		assert.equal(invited.status, 201, 'Setup: Einladung muss anlegbar sein');
+		const { id } = (await invited.json()) as { id: number };
+		const accepted = await server.json(`/invitations/${id}/accept`, {
+			method: 'POST',
+			headers: { Cookie: invitedCookie },
+		});
+		assert.equal(accepted.status, 200, 'Setup: Einladung muss annehmbar sein');
+	};
+
+	/** Ermittelt die eigene userId über einen Suchtreffer auf den eigenen displayName. */
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await server.json(`/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { Cookie: cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	it('AK1: group_list liefert genau die Nutzlast von GET /groups', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await createGroupViaApi(cookie, 'Familie');
+		await createGroupViaApi(cookie, 'Team');
+
+		const direct = await server.json('/groups', { headers: { Cookie: cookie } });
+		const expected = (await direct.json()) as GroupDto[];
+
+		const viaTool = await mcpCall<GroupDto[]>(token, 'group_list');
+		assert.deepEqual(viaTool.result, expected, 'group_list muss die Route 1:1 spiegeln');
+		assert.equal(viaTool.result?.length, 2);
+	});
+
+	it('AK2: group_members_list liefert genau die Nutzlast von GET /groups/:id/members', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const group = await createGroupViaApi(cookieA, 'Familie');
+		const bobId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+		await inviteAndAccept(cookieA, group.id, bobId, cookieB);
+
+		const direct = await server.json(`/groups/${group.id}/members`, { headers: { Cookie: cookieA } });
+		const expected = (await direct.json()) as MemberDto[];
+		assert.equal(expected.length, 2, 'Vorbedingung: zwei Mitglieder nach dem Beitritt');
+
+		const viaTool = await mcpCall<MemberDto[]>(tokenA, 'group_members_list', { groupId: group.id });
+		assert.deepEqual(viaTool.result, expected, 'group_members_list muss die Route 1:1 spiegeln');
+	});
+
+	it('AK3: group_members_list auf eine fremde Gruppe liefert einen JSON-RPC-Fehler statt Daten', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const groupOfB = await createGroupViaApi(cookieB, 'Nur Bob');
+
+		const res = await mcpCall<MemberDto[]>(tokenA, 'group_members_list', { groupId: groupOfB.id });
+		assert.equal(res.result, undefined, 'fremde Gruppe darf keine Mitgliederdaten liefern');
+		assert.match(res.error?.message ?? '', /Gruppe nicht gefunden\./);
+		assert.match(res.error?.message ?? '', /HTTP 404/);
+	});
+
+	it('AK4: group_members_list ohne bzw. mit ungültiger groupId schlägt fehl, ohne einen Loopback abzusetzen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const missing = await mcpCall<MemberDto[]>(token, 'group_members_list', {});
+		assert.ok(missing.error, 'fehlende groupId muss fehlschlagen');
+		assert.match(missing.error!.message, /groupId/);
+
+		const zero = await mcpCall<MemberDto[]>(token, 'group_members_list', { groupId: 0 });
+		assert.ok(zero.error, 'groupId 0 muss fehlschlagen');
+		assert.match(zero.error!.message, /groupId/);
+
+		const asString = await mcpCall<MemberDto[]>(token, 'group_members_list', { groupId: '5' });
+		assert.ok(asString.error, 'groupId als String muss fehlschlagen');
+		assert.match(asString.error!.message, /groupId/);
+	});
+
+	it('AK5: group_list und group_members_list funktionieren mit einem Nur-lese-Token', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+		const group = await createGroupViaApi(cookie, 'Familie');
+
+		const list = await mcpCall<GroupDto[]>(token, 'group_list');
+		assert.ok(list.result, 'group_list muss mit scope read ein Ergebnis liefern');
+		assert.equal(list.error, undefined);
+
+		const members = await mcpCall<MemberDto[]>(token, 'group_members_list', { groupId: group.id });
+		assert.ok(members.result, 'group_members_list muss mit scope read ein Ergebnis liefern');
+		assert.equal(members.error, undefined);
+	});
+
+	it('AK6: group_list von A enthält keine Gruppe, in der nur B Mitglied ist', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		await createGroupViaApi(cookieA, 'Von A');
+		const groupOfB = await createGroupViaApi(cookieB, 'Von B');
+
+		const list = await mcpCall<GroupDto[]>(tokenA, 'group_list');
+		assert.ok(Array.isArray(list.result), `group_list muss ein Ergebnis liefern, Fehler: ${list.error?.message}`);
+		assert.ok(!list.result?.some((g) => g.id === groupOfB.id), 'fremde Gruppe darf in group_list nicht sichtbar sein');
+	});
+
+	it('AK7: der v1-Werkzeugvertrag wächst um group_list/group_members_list auf zwölf Namen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const sorted = [...tools].sort((a, b) => a.name.localeCompare(b.name));
+		const names = sorted.map((t) => t.name);
+
+		assert.deepEqual(names, [
+			'category_list',
+			'group_list',
+			'group_members_list',
+			'next_task',
+			'pillar_list',
+			'task_complete',
+			'task_create',
+			'task_link',
+			'task_links',
+			'task_list',
+			'task_unlink',
+			'task_update',
+		]);
+		for (const tool of sorted) {
+			assert.ok(tool.inputSchema, `${tool.name} muss ein inputSchema deklarieren`);
+		}
 	});
 });
