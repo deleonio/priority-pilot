@@ -140,7 +140,9 @@ jobs:
             exit 0
           fi
           git add CHANGELOG.md
-          git commit --no-verify -m "docs(changelog): CHANGELOG.md aktualisieren [skip ci]"
-          git pull --rebase origin main
+          git commit --no-verify -m "docs(changelog): CHANGELOG.md aktualisieren [skip ci]" \
+            || { echo "::warning title=Changelog-Commit fehlgeschlagen::Deploy bleibt grün, manuell nachholen."; exit 0; }
+          git pull --rebase origin main \
+            || { echo "::warning title=Changelog-Rebase fehlgeschlagen::Deploy bleibt grün, manuell nachholen."; exit 0; }
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main \
             || echo "::warning title=Changelog-Push fehlgeschlagen::Deploy bleibt grün, manuell nachholen."
