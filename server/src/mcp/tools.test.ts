@@ -1,4 +1,5 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
+import { findMcpTool } from './tools.js';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
@@ -188,6 +189,37 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			/400/,
 			`Fehlertext muss den Statuscode einordnen, war: ${created.error.message}`,
 		);
+	});
+
+	it('ein nicht-JSON-Antwortkörper der gespiegelten Route meldet Status und Textanfang statt "Unexpected token"', async () => {
+		// Antwortet nicht die Route, sondern etwas davor (Reverse Proxy, Express-Default-Handler mit
+		// HTML-Fehlerseite), darf der Client keinen rohen `SyntaxError` sehen (tools.ts:47-56).
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			new Response('<html><body>Bad Gateway</body></html>', { status: 502 })) as typeof fetch;
+		try {
+			const tool = findMcpTool('task_list');
+			assert.ok(tool, 'Setup: task_list muss im Katalog existieren');
+			await assert.rejects(
+				tool!.run({ baseUrl: 'http://example.invalid', authorization: 'Bearer x' }, {}),
+				(err: Error) => {
+					assert.match(err.message, /HTTP 502/, `Fehlertext muss den Statuscode nennen, war: ${err.message}`);
+					assert.match(
+						err.message,
+						/Bad Gateway/,
+						`Fehlertext muss einen Ausschnitt des Fremdtexts enthalten, war: ${err.message}`,
+					);
+					assert.doesNotMatch(
+						err.message,
+						/Unexpected token/,
+						`Fehlertext darf kein roher JSON-Parse-Fehler sein, war: ${err.message}`,
+					);
+					return true;
+				},
+			);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	it('task_create rechnet estimatedEffortHours in das Tage-Feld um und kappt an der Skala', async () => {
