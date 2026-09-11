@@ -1113,6 +1113,12 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 - docs: stub superseded adr 0006 in 2026-08-29 consolidation sync by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1109
 
+## v0.1.626 - 2026-08-29
+
+### Other Changes
+
+- docs: stub superseded adr 0006 in 2026-08-29 consolidation sync by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1109
+
 ## v0.1.625 - 2026-08-29
 
 ### Other Changes
