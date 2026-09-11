@@ -71,6 +71,7 @@ vi.mock('../api', () => ({
 		listGroups: vi.fn(),
 		getGroupMembers: vi.fn(),
 		parseText: vi.fn(),
+		advisePillarActivities: vi.fn(),
 		createTask: vi.fn(),
 		updateTask: vi.fn(),
 		createSeries: vi.fn(),
@@ -208,5 +209,90 @@ describe('QuickCaptureModal — erweiterte Schnellerfassung (#1310)', () => {
 		await waitFor(() => {
 			expect(container.querySelectorAll('[data-testid="checklist-item"]').length).toBe(2);
 		});
+	});
+});
+
+// ── #1335 (AK2/AK3/AK6): Verschmelzung mit dem Saeulen-Berater ───────────────────────────────
+
+/**
+ * Rote Spec-Tests fuer #1335 (AK2, AK3, AK6): der Berater-Weg "Beraten lassen" wird Teil des
+ * Capture-Schritts von `QuickCaptureModal` - ohne dass ein zweiter Dialog entsteht oder die
+ * bestehende Dialog-Instanz gewechselt wird. Ein uebernommener Vorschlag ("Als Aufgabe uebernehmen")
+ * landet im selben Textfeld, statt den Dialog zu schliessen.
+ *
+ * Die Tests laufen ROT, weil `QuickCaptureModal` weder den CTA "Beraten lassen" noch
+ * `api.advisePillarActivities` noch eine Uebernahme-Kette ins eigene Textfeld kennt.
+ */
+describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+		cleanup();
+	});
+
+	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
+
+	it('AK2: zeigt im Capture-Schritt "Verarbeiten und weiter" UND "Beraten lassen" nebeneinander', () => {
+		const { container } = render(<QuickCaptureModal {...props} />);
+
+		const labels = [...container.querySelectorAll('kol-button')].map((el) => el.getAttribute('_label'));
+		expect(labels).toContain('Verarbeiten und weiter');
+		expect(labels).toContain('Beraten lassen');
+	});
+
+	it('AK2: "Beraten lassen" zeigt die Vorschlagsliste, ohne den Dialog zu wechseln oder zu duplizieren', async () => {
+		const mockAdvise = api.advisePillarActivities as ReturnType<typeof vi.fn>;
+		mockAdvise.mockResolvedValue({
+			advice: [{ activity: 'Spaziergang im Park', reason: 'Bewegung.', pillarIds: [1] }],
+		});
+
+		const { container } = render(<QuickCaptureModal {...props} />);
+
+		const adviseButton = [...container.querySelectorAll('kol-button')].find(
+			(el) => el.getAttribute('_label') === 'Beraten lassen',
+		);
+		expect(adviseButton, '"Beraten lassen" muss im Capture-Schritt gerendert werden').toBeTruthy();
+		await act(async () => {
+			(adviseButton as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+
+		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
+		// Das Capture-Textfeld bleibt im DOM - kein Dialog-/Schrittwechsel durch die Beratung.
+		expect(container.querySelector('kol-textarea')).toBeTruthy();
+	});
+
+	it('AK3: "Als Aufgabe uebernehmen" schliesst den Dialog nicht, sondern befuellt das Capture-Textfeld', async () => {
+		const mockAdvise = api.advisePillarActivities as ReturnType<typeof vi.fn>;
+		mockAdvise.mockResolvedValue({
+			advice: [{ activity: 'Spaziergang im Park', reason: 'Bewegung.', pillarIds: [1] }],
+		});
+		const onClose = vi.fn();
+
+		const { container } = render(<QuickCaptureModal {...props} onClose={onClose} />);
+
+		const adviseButton = [...container.querySelectorAll('kol-button')].find(
+			(el) => el.getAttribute('_label') === 'Beraten lassen',
+		);
+		await act(async () => {
+			(adviseButton as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
+
+		const adoptButton = [...container.querySelectorAll('kol-button')].find(
+			(el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen',
+		);
+		expect(adoptButton, '"Als Aufgabe übernehmen" muss je Vorschlag gerendert werden').toBeTruthy();
+		(adoptButton as unknown as { onclick?: (event: MouseEvent) => void }).onclick?.(new MouseEvent('click'));
+
+		expect(onClose, 'Übernahme darf den Dialog nicht schließen').not.toHaveBeenCalled();
+
+		const textarea = container.querySelector('kol-textarea');
+		expect(textarea?.getAttribute('_value')).toBe('Spaziergang im Park');
+
+		const processButtonEl = processButton(container);
+		expect(isDisabled(processButtonEl)).toBe(false);
 	});
 });
