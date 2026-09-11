@@ -127,7 +127,10 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 		await deleteButton.click();
 		// Zweistufige Bestätigung (Muster ApiTokensSection/docs/ux-pattern-sequential-confirmation.md).
-		await rowToDelete.getByRole('button', { name: /löschen|entfernen/i }).last().click();
+		await rowToDelete
+			.getByRole('button', { name: /löschen|entfernen/i })
+			.last()
+			.click();
 		await expect(page.getByTestId('place-favorite-row').filter({ hasText: 'Büro München' })).toHaveCount(0);
 
 		await page.goto('/');

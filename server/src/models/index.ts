@@ -16,6 +16,7 @@ import GroupMember from './groupMember.js';
 import GroupInvitation from './groupInvitation.js';
 import GroupInviteLink from './groupInviteLink.js';
 import ApiToken from './apiToken.js';
+import PlaceFavorite from './placeFavorite.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -94,4 +95,5 @@ export {
 	GroupInvitation,
 	GroupInviteLink,
 	ApiToken,
+	PlaceFavorite,
 };

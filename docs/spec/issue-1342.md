@@ -25,12 +25,12 @@ jedem Gerät nach der Anmeldung zur Verfügung.
 
 Hinter `requireAuth`:
 
-| Route                        | Verhalten                                                                                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /place-favorites`       | Body `{name, address, latitude?, longitude?}`. 201 mit dem angelegten Favoriten; `latitude`/`longitude` fehlen im Body → `null` in der Antwort (AK4). Leerer/zu langer Name → 400. |
-| `GET /place-favorites`        | Liste der eigenen Favoriten: je `{id, name, address, latitude, longitude}`.                                                            |
-| `PATCH /place-favorites/{id}` | Body `{name}` — benennt um. Fremder/unbekannter Favorit → 404.                                                                          |
-| `DELETE /place-favorites/{id}`| Entfernt den Favoriten endgültig; 204. Fremder/unbekannter Favorit → 404.                                                               |
+| Route                          | Verhalten                                                                                                                                                                          |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /place-favorites`        | Body `{name, address, latitude?, longitude?}`. 201 mit dem angelegten Favoriten; `latitude`/`longitude` fehlen im Body → `null` in der Antwort (AK4). Leerer/zu langer Name → 400. |
+| `GET /place-favorites`         | Liste der eigenen Favoriten: je `{id, name, address, latitude, longitude}`.                                                                                                        |
+| `PATCH /place-favorites/{id}`  | Body `{name}` — benennt um. Fremder/unbekannter Favorit → 404.                                                                                                                     |
+| `DELETE /place-favorites/{id}` | Entfernt den Favoriten endgültig; 204. Fremder/unbekannter Favorit → 404.                                                                                                          |
 
 Ohne Session antworten alle vier Routen mit 401 (kein Fallthrough).
 
@@ -49,7 +49,7 @@ Ohne Session antworten alle vier Routen mit 401 (kein Fallthrough).
 - `TaskForm.tsx` lädt beim Mount `api.listPlaceFavorites()` und reicht die Liste als `favorites` an
   `AddressAutocomplete` durch (AK1). Ein Knopf „Als Favorit speichern" neben dem Adressfeld ist nur
   sichtbar, wenn die Adresse nicht leer ist; ein Klick ruft `api.createPlaceFavorite({name: address,
-  address, latitude, longitude})` mit den aktuell im Formular stehenden Koordinaten auf (AK2). Nach
+address, latitude, longitude})` mit den aktuell im Formular stehenden Koordinaten auf (AK2). Nach
   Anlegen (Stern ODER Feld-Knopf) erscheint der neue Favorit ohne Neuladen in der Feld-Liste — dafür
   hält `TaskForm` die geladene Favoritenliste selbst im State und hängt den Server-Rückgabewert an,
   statt neu zu fetchen.

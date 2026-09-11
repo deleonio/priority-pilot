@@ -27,6 +27,7 @@ import { AppearanceSetting } from './AppearanceSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
 import { ApiTokensSection } from './ApiTokensSection';
+import { PlaceFavoritesSection } from './PlaceFavoritesSection';
 import { CategoryList } from './CategoryList';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
@@ -751,6 +752,9 @@ export const SettingsPage = ({
 							</div>
 						</KolAccordion>
 					)}
+					{/* #1342 (AK3): Gespeicherte Orte — anlegen, umbenennen, löschen; sie erscheinen im
+					        Adressfeld von Aufgabe und Serie. */}
+					<PlaceFavoritesSection />
 				</div>
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 4, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten

@@ -104,7 +104,9 @@ describe('PlaceFavoritesSection (#1342 AK3)', () => {
 
 	it('Anlegen ruft api.createPlaceFavorite auf und zeigt den neuen Eintrag ohne Neuladen', async () => {
 		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([]);
-		apiMocks.createPlaceFavorite = vi.fn().mockResolvedValue({ id: 2, name: 'Zuhause', address: 'Weg 1', latitude: null, longitude: null });
+		apiMocks.createPlaceFavorite = vi
+			.fn()
+			.mockResolvedValue({ id: 2, name: 'Zuhause', address: 'Weg 1', latitude: null, longitude: null });
 		render(<PlaceFavoritesSection />);
 		await flush();
 
@@ -113,7 +115,9 @@ describe('PlaceFavoritesSection (#1342 AK3)', () => {
 		fireEvent.click(screen.getByText(/anlegen|speichern/i));
 		await flush();
 
-		expect(apiMocks.createPlaceFavorite).toHaveBeenCalledWith(expect.objectContaining({ name: 'Zuhause', address: 'Weg 1' }));
+		expect(apiMocks.createPlaceFavorite).toHaveBeenCalledWith(
+			expect.objectContaining({ name: 'Zuhause', address: 'Weg 1' }),
+		);
 		expect(screen.getAllByTestId('place-favorite-row')).toHaveLength(1);
 		expect(screen.getByTestId('place-favorite-row').textContent).toContain('Zuhause');
 	});

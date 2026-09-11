@@ -34,7 +34,7 @@ import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { readAiPreferences } from '../lib/aiPreferences';
 import { CategoryBadge } from './CategoryBadge';
 import { VoiceField } from './VoiceField';
-import { AddressAutocomplete } from './AddressAutocomplete';
+import { AddressAutocomplete, type PlaceFavoriteSuggestion } from './AddressAutocomplete';
 import { notifyTasksChanged } from '../lib/tasksChanged';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
@@ -348,6 +348,32 @@ export const TaskForm = ({
 		form.current.longitude = hit.lon;
 		setCoords({ latitude: hit.lat, longitude: hit.lon });
 	};
+	// #1342: gespeicherte Orte des Nutzers — stehen im Adressfeld vor den Suchtreffern (AK1). Die
+	// Liste liegt im State (nicht nur im Fetch), damit ein neu angelegter Favorit ohne Neuladen
+	// auftaucht (AK2): der Server-Rückgabewert wird angehängt, statt neu zu fetchen.
+	const [placeFavorites, setPlaceFavorites] = useState<PlaceFavoriteSuggestion[]>([]);
+	// Legt den übergebenen Ort als Favorit an (Stern in der Trefferzeile ODER Knopf am Feld, AK2).
+	// Der Name ist beim Anlegen der Adresstext — umbenannt wird in den Einstellungen (AK3).
+	const savePlaceFavorite = (suggestion: { address: string; lat: number | null; lon: number | null }): void => {
+		const address = suggestion.address.trim();
+		if (address === '') {
+			return;
+		}
+		void (async () => {
+			try {
+				const created = await api.createPlaceFavorite({
+					name: address,
+					address,
+					latitude: suggestion.lat,
+					longitude: suggestion.lon,
+				});
+				setPlaceFavorites((current) => [...current, created]);
+			} catch {
+				// Ein fehlgeschlagenes Speichern darf das Formular nicht blockieren — der Ort bleibt
+				// ungespeichert, die Aufgabe selbst ist davon unberührt.
+			}
+		})();
+	};
 	// #1110 (AK4): Nach einer Auswahl spiegt KoliBri die Treffer-Adresse in das Feld zurück und löst
 	// dafür ein weiteres `onValueChange` aus (Wert-Sync bzw. natives change-Event beim Verlassen).
 	// Ohne Abgleich würfe dieser Echo-Aufruf die eben übernommenen Treffer-Koordinaten als „Freitext"
@@ -603,6 +629,26 @@ export const TaskForm = ({
 			autoTriggered.current = true;
 			void suggestPillars();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// #1342 (AK1): Einmalig die gespeicherten Orte laden. Ein Ladefehler bleibt stumm — das
+	// Adressfeld funktioniert dann wie bisher, nur ohne Favoritenzeilen.
+	useEffect(() => {
+		let cancelled = false;
+		void (async () => {
+			try {
+				const favorites = await api.listPlaceFavorites();
+				if (!cancelled) {
+					setPlaceFavorites(favorites);
+				}
+			} catch {
+				// s. Kommentar oben: kein Fehlerzustand im Formular.
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
@@ -1216,7 +1262,21 @@ export const TaskForm = ({
 									applyAddressCoords(hit);
 								}}
 								ariaDetails={coordsBoxId}
+								favorites={placeFavorites}
+								onSaveFavorite={savePlaceFavorite}
 							/>
+							{/* #1342 (AK2): Speichern der aktuell eingetragenen Adresse — nur bei gefülltem Feld,
+				    mit den Koordinaten, die gerade am Formular hängen (Freitext ohne Treffer: null). */}
+							{address.trim() !== '' && (
+								<KolButton
+									_label="Als Favorit speichern"
+									_variant="ghost"
+									_on={{
+										onClick: () =>
+											savePlaceFavorite({ address: address.trim(), lat: coords.latitude, lon: coords.longitude }),
+									}}
+								/>
+							)}
 							{/* #1111: passive Anzeige des gespeicherten Ortsbezugs (Task UND Serie) — außerhalb des
 				    `role="combobox"`-Containers (dort gehören nur Feld + Listbox hinein) und ohne
 				    `aria-live` (Freitext-Tippen würde pro Tastenschlag ankündigen). Sichtbar nur bei

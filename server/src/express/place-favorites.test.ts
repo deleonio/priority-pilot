@@ -76,7 +76,11 @@ describe('Standort-Favoriten API (#1342)', () => {
 			longitude: 11.5755,
 		});
 		assert.equal(withCoords.status, 201);
-		const withCoordsBody = (await withCoords.json()) as { id: number; latitude: number | null; longitude: number | null };
+		const withCoordsBody = (await withCoords.json()) as {
+			id: number;
+			latitude: number | null;
+			longitude: number | null;
+		};
 		assert.equal(withCoordsBody.latitude, 48.1374);
 		assert.equal(withCoordsBody.longitude, 11.5755);
 
@@ -118,7 +122,10 @@ describe('Standort-Favoriten API (#1342)', () => {
 
 		// Der Eigentümer sieht seinen Favoriten unverändert weiter.
 		const listA = (await (await listFavorites(cookieA)).json()) as { id: number; name: string }[];
-		assert.equal(listA.some((entry) => entry.id === id && entry.name === 'Geheim'), true);
+		assert.equal(
+			listA.some((entry) => entry.id === id && entry.name === 'Geheim'),
+			true,
+		);
 	});
 
 	it('AK3/AK5 — PATCH benennt einen eigenen Favoriten um, DELETE entfernt ihn dauerhaft aus der Liste', async () => {

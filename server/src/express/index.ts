@@ -23,6 +23,7 @@ import { createPushRouter } from './routes/push.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
+import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { profileRouter } from './routes/profile.js';
 import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
@@ -244,6 +245,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);
+
+	// Gespeicherte Orte (#1342): pro Nutzer benannte Adressen für das Adressfeld von Aufgabe/Serie.
+	app.use(placeFavoritesRouter);
 
 	// MCP-Werkzeuge v1 (#1353): POST /mcp/v1. Bewusst HINTER `requireAuth` — ohne gültigen
 	// (Bearer-)Token gibt es 401 und damit keinen Werkzeugaufruf.

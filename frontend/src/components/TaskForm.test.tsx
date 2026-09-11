@@ -2511,6 +2511,10 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 		expect(box.textContent).toMatch(/48\.1374/);
 		expect(box.textContent).toMatch(/11\.5755/);
 
+		// TEST-PFLEGE #1342 (Impl): Ohne Titel bricht der Submit vor `api.createTask` ab
+		// (TaskForm.tsx:701 „Bitte einen Titel angeben.") — der Spec-Test hatte den Pflichttitel
+		// übersehen. Die Payload-Erwartungen darunter bleiben unverändert.
+		await fillTitle('Aufgabe mit Favoriten-Adresse');
 		await clickSave();
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
 			{ taskCreate: { address?: string | null; latitude?: number | null; longitude?: number | null } },
@@ -2540,7 +2544,11 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 		});
 
 		expect(mockCreatePlaceFavorite).toHaveBeenCalledWith(
-			expect.objectContaining({ address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München', latitude: 48.1402, longitude: 11.56 }),
+			expect.objectContaining({
+				address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München',
+				latitude: 48.1402,
+				longitude: 11.56,
+			}),
 		);
 	});
 });
