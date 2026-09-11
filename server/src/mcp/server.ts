@@ -16,6 +16,13 @@ import { findMcpTool, mcpTools, type McpToolContext } from './tools.js';
  * DELETE bleibt unbedient, weil nie eine `Mcp-Session-Id` vergeben wird (kein Grund zu terminieren).
  */
 
+/**
+ * Pfad des Endpunkts — eine Konstante, weil der `apiTokenScopeGuard` (express/apiTokenAuth.ts)
+ * denselben Pfad kennen muss, um die JSON-RPC-Transportroute nicht allein wegen ihrer
+ * HTTP-Methode zu sperren. Route und Ausnahme können so nicht auseinanderlaufen.
+ */
+export const MCP_PATH = '/mcp/v1';
+
 /** Protokollversion, die der Server beim `initialize` meldet. */
 const PROTOCOL_VERSION = '2025-06-18';
 
@@ -41,7 +48,7 @@ const sendRpcError = (res: Response, id: string | number | null, code: number, m
 
 export const mcpRouter: Router = Router();
 
-mcpRouter.post('/mcp/v1', async (req: Request, res: Response) => {
+mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	const body = (req.body ?? {}) as JsonRpcRequest;
 	const id = body.id ?? null;
 	if (body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
@@ -81,6 +88,21 @@ mcpRouter.post('/mcp/v1', async (req: Request, res: Response) => {
 		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, `Unbekanntes Werkzeug: ${String(params.name)}`);
 		return;
 	}
+	// Rechtestufe (#1356) am Werkzeug prüfen, nicht erst am Loopback: die gespiegelte Route würde
+	// denselben Aufruf zwar ebenfalls mit 403 abweisen, der Client bekäme die Ursache aber nur als
+	// durchgereichten HTTP-Text. Hier entsteht stattdessen ein regulärer JSON-RPC-Fehler, der sagt,
+	// was zu tun ist. Die Route bleibt die zweite Verteidigungslinie (Bearer ohne MCP).
+	if (tool.write && req.apiTokenScope === 'read') {
+		sendRpcError(
+			res,
+			id,
+			JSONRPC_INVALID_PARAMS,
+			`Das Werkzeug "${tool.name}" schreibt, dieser Token erlaubt nur lesenden Zugriff. ` +
+				'In den Einstellungen unter „Zugriff" lässt sich der Token auf „Lesen und Schreiben" umschalten.',
+		);
+		return;
+	}
+
 	const args = (typeof params.arguments === 'object' && params.arguments !== null ? params.arguments : {}) as Record<
 		string,
 		unknown
@@ -112,7 +134,7 @@ mcpRouter.post('/mcp/v1', async (req: Request, res: Response) => {
 	}
 });
 
-mcpRouter.get('/mcp/v1', (_req: Request, res: Response) => {
+mcpRouter.get(MCP_PATH, (_req: Request, res: Response) => {
 	res.set('Allow', 'POST');
 	res.status(405).end();
 });

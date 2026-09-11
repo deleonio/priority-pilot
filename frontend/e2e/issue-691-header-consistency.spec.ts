@@ -78,7 +78,8 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 		];
 
 		// Erwartete Buttons bei allen Viewports — alle fünf Kopf-Aktionen (ohne Bürgermenü)
-		const expectedButtons = ['Neuen Task anlegen', 'Säulen-Berater', 'Hilfe', 'Einstellungen', 'Abmelden'];
+		// #1335: Der „Säulen-Berater" ist in „Neuen Task anlegen" verschmolzen — kein eigener Button mehr.
+		const expectedButtons = ['Neuen Task anlegen', 'Hilfe', 'Einstellungen', 'Abmelden'];
 
 		const foundButtons: Map<string, number> = new Map();
 

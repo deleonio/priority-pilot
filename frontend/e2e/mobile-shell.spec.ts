@@ -15,8 +15,8 @@ import { headerAction, waitForStableView } from './helpers';
 const MOBILE = { width: 375, height: 812 } as const;
 const DESKTOP = { width: 1280, height: 800 } as const;
 
-/** Die fünf Kopf-Aktionen, die auf jeder Breite erreichbar bleiben müssen. */
-const HEADER_ACTIONS = ['Neuen Task anlegen', 'Säulen-Berater', 'Einstellungen', 'Hilfe', 'Abmelden'] as const;
+/** Die vier Kopf-Aktionen, die auf jeder Breite erreichbar bleiben müssen (#1335: „Säulen-Berater" entfällt als eigener Button). */
+const HEADER_ACTIONS = ['Neuen Task anlegen', 'Einstellungen', 'Hilfe', 'Abmelden'] as const;
 
 const gotoApp = async (page: Page, viewport: { width: number; height: number }): Promise<void> => {
 	await page.setViewportSize(viewport);

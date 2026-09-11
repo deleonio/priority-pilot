@@ -592,6 +592,7 @@ body {
  */
 .dashboard-nearby,
 .dashboard-next-task,
+.dashboard-streak,
 .dashboard-suggestions,
 .dashboard-top-tasks,
 .dashboard-pillars,
@@ -1017,6 +1018,55 @@ body {
 
 /* Gesamtguthaben: prominente Punktzahl, darunter je Säule eine Zeile mit Wert rechtsbündig —
    gleiches Zeilenmuster wie Meine Themen/Deadlines (Border-getrennte Listenzeilen). */
+/*
+ * #1360: „Streak" — Tage in Folge und Bestmarke. Beide Werte stehen untereinander, nie
+ * nebeneinander: Der Zustandssatz bei gerissenem Streak ist deutlich länger als eine Zahl und
+ * würde eine Zwei-Spalten-Zeile bei 375px sprengen (AK6, kein horizontales Scrollen). Bewusst
+ * ohne Signal-Färbung — die gehört allein der „Nächsten Aufgabe".
+ */
+.dashboard-streak {
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-streak-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-2);
+}
+
+.dashboard-streak-current,
+.dashboard-streak-best {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+}
+
+.dashboard-streak-hint {
+	margin: 0;
+	font-size: var(--pp-font-size-sm);
+}
+
+/* Tabellenziffern, damit die Zahl beim Wechsel von 9 auf 10 Tage nicht springt. */
+.dashboard-streak-value,
+.dashboard-streak-best-value {
+	font-weight: var(--pp-weight-bold);
+	line-height: var(--pp-line-tight);
+	font-variant-numeric: tabular-nums;
+}
+
+.dashboard-streak-value {
+	font-size: var(--pp-font-size-2xl);
+}
+
+.dashboard-streak-best-value {
+	font-size: var(--pp-font-size-xl);
+}
+
+.dashboard-streak-label {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
 .dashboard-balance {
 	margin-top: var(--pp-gap-generous);
 }
@@ -3367,6 +3417,12 @@ kol-heading {
 	display: flex;
 	align-items: center;
 	gap: var(--pp-gap-tight);
+	font-size: 0.875rem;
+}
+
+/* Hinweis über der Token-Liste (#1358): erklärt, warum ein frisch erzeugter oder ein vor der
+   Rechtestufe vergebener Token schreibende MCP-Werkzeuge ablehnt. */
+.api-tokens__scope-hint {
 	font-size: 0.875rem;
 }
 

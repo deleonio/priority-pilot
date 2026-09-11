@@ -103,4 +103,20 @@ describe('ApiTokensSection – #1356 AK8: Rechte-Umschalter je Token', () => {
 		expect(row?.textContent, 'Wert bleibt unverändert sichtbar (read)').toContain('Nur lesend');
 		expect(container.querySelector('kol-alert[_type="error"]'), 'Fehlermeldung fehlt').not.toBeNull();
 	});
+
+	// #1358: Ohne diesen Hinweis war nirgends erklärt, warum ein Token, das vor der Rechtestufe
+	// vergeben wurde, seit dem Update jeden schreibenden MCP-Aufruf ablehnt.
+	it('#1358: erklärt über der Liste, dass ein Token standardmäßig nur liest', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const hint = container.querySelector('.api-tokens__scope-hint');
+		expect(hint, 'Hinweis zur Standard-Rechtestufe fehlt').not.toBeNull();
+		expect(hint?.textContent).toContain('liest standardmäßig nur');
+		expect(hint?.textContent).toContain('task_create');
+	});
 });

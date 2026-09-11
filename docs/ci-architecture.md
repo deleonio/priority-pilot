@@ -553,8 +553,10 @@ billiger. Der Konvergenz-Deckel bleibt darueber bestehen: `ai:continued` erlaubt
 Wiederholung mit Eskalation, der zweite Soft-Abort geht an den Menschen — laenger drehen ohne
 Eskalation ist bei nicht konvergierenden Laeufen teurer (ADR 0004, #932).
 
-Der `starttime`-Step setzt die Soft-Deadline. Der Prompt instruiert den Agenten, VOR jedem
-Teilschritt `date +%s` gegen die Deadline zu prüfen. Bei Erreichen:
+Der `starttime`-Step setzt die Soft-Deadline (im Review (05) der Step `deadline` — er läuft
+**nach** dem CI-Warte-Gate, sonst hätte die Wartezeit die 15 Minuten aufgefressen). Der Prompt
+instruiert den Agenten, VOR jedem Teilschritt `date +%s` gegen die Deadline zu prüfen. Bei
+Erreichen:
 
 1. **Arbeit sichern** — Zwischenstand in Body-Block/Dokumentation schreiben
 2. **Kein Abschluss-Label** setzen — verhindert automatische Weiterleitung
@@ -686,6 +688,69 @@ In **GitHub Actions** läuft das über **Labels**: Der Umsetzungs-Workflow macht
 review-bereit und labelt ihn **selbst** mit `ai:needs-review`. Der separate
 [`pr-needs-review-label.yml`](../.github/workflows/pr-needs-review-label.yml) reagiert bewusst
 **NICHT** auf bot-erzeugte Draft→ready-Übergänge (nur auf menschliche Aktoren).
+
+### CI-Warte-Gate vor dem Review (Kosten)
+
+Das Review startet den LLM-Lauf erst, wenn die Checks des Workflows `Verify` **fertig** sind
+(`.github/scripts/wait-for-checks.sh`; Budget `vars.REVIEW_CI_WAIT_SECONDS`, Default 20 min,
+Poll alle 20 s, Job-Timeout entsprechend 60 min). Der ermittelte Zustand geht als
+`{{CI_STATUS}}` in den Prompt: **rot** heißt blockierend — der Reviewer nennt jeden roten Job
+als Finding und verdictet `needs-fixup`.
+
+Warum: Review und CI starteten beide am selben Push. War das Review zuerst fertig und setzte
+`ai:needs-fixup`, lief die Nacharbeit los, ohne das CI-Ergebnis zu kennen; ein danach rot
+gewordener Check wurde dort nicht behoben, das Gate setzte erneut `ai:needs-fixup` — also
+mindestens **ein zusätzlicher Fixup- plus ein zusätzlicher Review-Lauf pro PR**. Die Wartezeit
+kostet nur Runner-Minuten (keine Token) und einen Platz in der FIFO-Queue der Phase.
+
+Zwei Eigenschaften sichern das ab:
+
+- **Vor dem Start-Konsum:** Während des Wartens klebt `ai:needs-review` weiter. Stirbt der Lauf,
+  bleibt der Trigger bewaffnet (Continue-Sweep heilt), und `gate-merge` erkennt am klebenden
+  Label, dass es bei rotem CI **nicht** selbst labeln darf.
+- **Fail-open:** Reißt das Budget oder taucht nie ein `Verify`-Check auf, reviewt der Lauf
+  trotzdem — mit dem Hinweis „CI-Ergebnis unbekannt". Der Backstop in der Label-Post-Assertion
+  (grünes Verdict + roter Allowlist-Check → Downgrade auf `ai:needs-fixup`) bleibt bestehen.
+
+Gegenstück im Gate: `merge-pr.yml` setzt bei rotem CI **`ai:needs-review`** statt
+`ai:needs-fixup` — der Fixup startet ausschließlich aus dem Review (Ausnahme Merge-Konflikt, dort
+läuft auf dem PR gar kein `pull_request`-Workflow).
+
+## Zuschnitt des CI-Laufs (`verify.yml`)
+
+Der Lauf besteht aus drei Job-Arten, die parallel starten:
+
+`changes` ist ein winziger Vorab-Job (Sparse-Checkout, kein Container, kein Install). Er fragt
+über die API die geänderten Dateien ab und entscheidet mit
+`.github/scripts/diff-touches-app.sh`, ob der Diff Anwendungscode berührt: `frontend/`,
+`server/`, `client/`, `openapi.yml`, die Wurzel-Manifeste und `verify.yml` selbst. Trifft nichts
+davon zu, entfallen die E2E-Shards. Der Filter ist **fail-closed** — API-Fehler, leere Liste
+oder unbekanntes Event lassen E2E laufen.
+
+`verify` läuft **immer** (auch bei reinen Doku-Diffs): Er ist das CI-Signal des Gates und prüft
+Format, Lint, Actions-Schema und die Skript-Tests gerade an den Dateien, die der Filter
+ausschließt.
+
+`e2e` läuft in 8 Shards, jeder in einer eigenen Runner-VM mit eigenem `localhost` — deshalb
+kollidieren die festen Ports nicht und `workers: 1` / `fullyParallel: false` bleiben gültig.
+
+Zahlenbasis für den Zuschnitt (Lauf 34546420325, PR ohne Warteschlange): rund 23 Minuten reine
+E2E-Testzeit, dazu je Shard etwa 60 Sekunden Sockel (Container-Start, Checkout, Node/pnpm,
+Install). Mit 4 Shards bestimmte der langsamste Shard die Wandzeit des Laufs mit 7:34, mit 8
+Shards sind es etwa 4:35. Noch feiner zu teilen bringt wenig: Der Sockel fällt pro Shard erneut
+an, und jeder Shard belegt einen Platz am Job-Limit des Kontos. Genau dieses Limit, nicht die
+Testdauer, bestimmt die Wartezeit, wenn mehrere Läufe gleichzeitig starten (beobachtet am
+Renovate-Schwall vom 11.09.: fünf Läufe, 25 Jobs, 5 bis 8 Minuten Wartezeit vor dem ersten
+Step). Deshalb der Pfad-Filter: Doku- und Workflow-PRs belegen gar keine Läufer mehr.
+
+Übersprungene Shards erscheinen in `gh pr checks` als `skipping`. Gate (`merge-pr.yml`) und
+CI-Warte-Gate (`05-review.yml`) werten das korrekt als „fertig, nicht rot" — beide prüfen auf
+`bucket == "fail"` bzw. `bucket == "pending"`.
+
+Wer die E2E-Zeit weiter drücken will, braucht nicht mehr Shards, sondern mehr Worker je Shard.
+Das scheitert heute daran, dass sich alle Specs eines Shards eine In-Memory-DB im selben
+Backend-Prozess teilen; ein Backend je Worker (Port-Offset, worker-scoped Fixture) würde die
+Testzeit halbieren, ohne einen zusätzlichen Läufer zu belegen.
 
 ## Nightly Spec-Sync (`cron.sync.spec.yml`)
 

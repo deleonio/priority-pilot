@@ -31,13 +31,12 @@ test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 		await waitForStableView(page);
 	};
 
-	/** Öffnet den Säulen-Berater über die Header-Toolbar. */
+	/**
+	 * Öffnet den (seit #1335 verschmolzenen) Anlege-Dialog — der Berater-Weg „Beraten lassen" liegt
+	 * jetzt im selben Dialog/Textfeld wie die Schnellerfassung, kein eigener Header-Button mehr.
+	 */
 	const openAdvisor = async (page: Page): Promise<void> => {
-		await page.goto('/');
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Säulen-Berater' }).click();
-		await expect(page.getByRole('heading', { name: 'Säulen-Berater' })).toBeVisible();
-		await waitForStableView(page);
+		await openQuickCapture(page);
 	};
 
 	test('AK1: HTTP 502 bei parse-text zeigt verständliche Fehlermeldung statt rohem Fehlercode', async ({ page }) => {
@@ -89,7 +88,7 @@ test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 		);
 
 		await openAdvisor(page);
-		await page.getByRole('textbox', { name: /Deine Frage oder Situation/ }).fill('Was tut mir gut?');
+		await page.getByRole('textbox', { name: /Beschreibe/ }).fill('Was tut mir gut?');
 		await page.getByRole('button', { name: 'Beraten lassen' }).click();
 
 		// Vertrag: Verständliche Meldung statt technischem "502 Bad Gateway"
