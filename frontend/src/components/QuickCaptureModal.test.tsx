@@ -1,4 +1,4 @@
-import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QuickCaptureModal } from './QuickCaptureModal';
@@ -12,12 +12,16 @@ const processButton = (container: HTMLElement): Element | undefined =>
 	[...container.querySelectorAll('kol-button')].find((el) => el.getAttribute('_label') === 'Verarbeiten und weiter');
 
 /**
- * `_disabled` liegt als Prop am KoliBri-Custom-Element an. React reicht den booleschen Wert als Attribut
- * durch: `true` → Attribut gesetzt (Wert `""` oder `"true"`), `false` → Attribut nicht vorhanden. Wir
- * lesen den Zustand daher über die Attribut-Präsenz, unabhängig von der genauen Serialisierung.
+ * `_disabled` liegt als Prop am KoliBri-Custom-Element an. Beim **Mount** reicht React den booleschen
+ * Wert als Attribut durch: `true` → Attribut gesetzt (Wert `""` oder `"true"`), `false` → Attribut
+ * nicht vorhanden. Bei **Updates** schreibt React für Custom Elements dagegen die gleichnamige
+ * Eigenschaft — das Attribut bleibt auf dem Mount-Wert stehen (#1335: `_disabled` blieb nach dem
+ * Aktivieren des CTA weiterhin `""`). Deshalb zuerst die Eigenschaft lesen, Attribut nur als Fallback.
  */
 const isDisabled = (button: Element | undefined): boolean => {
 	if (button === undefined) return false;
+	const property = (button as unknown as { _disabled?: unknown })._disabled;
+	if (typeof property === 'boolean') return property;
 	const raw = button.getAttribute('_disabled');
 	return raw !== null && raw !== 'false';
 };
@@ -285,7 +289,14 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 			(el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen',
 		);
 		expect(adoptButton, '"Als Aufgabe übernehmen" muss je Vorschlag gerendert werden').toBeTruthy();
-		(adoptButton as unknown as { onclick?: (event: MouseEvent) => void }).onclick?.(new MouseEvent('click'));
+		// Test-Pflege (#1335): `AdvisorResults` hängt den Übernahme-Klick über React (`onClick`) an —
+		// das ist ein delegierter Listener am Root, KEINE `onclick`-Eigenschaft am Host-Element. Ein
+		// direkter `.onclick?.(…)`-Aufruf liefe wegen des Optional-Chainings wirkungslos ins Leere und
+		// die Assertionen darunter wären ohne Klick rot. `fireEvent.click` ist derselbe Weg, den die
+		// AdvisorResults-Tests seit #327 nutzen (`AdvisorResults.test.tsx:110`).
+		await act(async () => {
+			fireEvent.click(adoptButton as Element);
+		});
 
 		expect(onClose, 'Übernahme darf den Dialog nicht schließen').not.toHaveBeenCalled();
 
@@ -294,5 +305,55 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 
 		const processButtonEl = processButton(container);
 		expect(isDisabled(processButtonEl)).toBe(false);
+	});
+});
+
+/**
+ * Übernommen aus `PillarAdvisorModal.test.tsx` (#440 AK3) — der Empty-State bei 0 Säulen hing am
+ * eigenständigen Berater-Dialog, der mit #1335 entfallen ist. Geprüft wird dieselbe Zusage am neuen
+ * Ort: Ohne Säulen kann der Berater nichts zuordnen, statt einer leeren Liste erscheint der
+ * gestaltete Hinweis — und es geht keine Anfrage an `POST /pillars/advisor` raus.
+ */
+describe('QuickCaptureModal — Berater ohne Säulen (#440 AK3, seit #1335 im Anlege-Dialog)', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+		cleanup();
+	});
+
+	const clickAdvise = async (container: HTMLElement): Promise<void> => {
+		const adviseButton = [...container.querySelectorAll('kol-button')].find(
+			(el) => el.getAttribute('_label') === 'Beraten lassen',
+		);
+		await act(async () => {
+			(adviseButton as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+	};
+
+	it('zeigt bei pillars=[] den Hinweis „Keine Säulen definiert" statt einer Vorschlagsliste', async () => {
+		const mockAdvise = api.advisePillarActivities as ReturnType<typeof vi.fn>;
+		const { container } = render(<QuickCaptureModal pillars={[]} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+		await clickAdvise(container);
+
+		expect(container.querySelector('kol-card')).toBeTruthy();
+		expect(container.textContent ?? '').toMatch(/keine säulen definiert/i);
+		expect(container.textContent ?? '').toMatch(/einstellungen/i);
+		expect(container.querySelector('.advisor-results')).toBeNull();
+		expect(mockAdvise, 'ohne Säulen keine LLM-Anfrage').not.toHaveBeenCalled();
+	});
+
+	it('fragt bei vorhandenen Säulen den Berater an und zeigt die Liste statt des Hinweises', async () => {
+		const mockAdvise = api.advisePillarActivities as ReturnType<typeof vi.fn>;
+		mockAdvise.mockResolvedValue({ advice: [{ activity: 'Yoga', reason: '', pillarIds: [1] }] });
+
+		const { container } = render(<QuickCaptureModal pillars={pillars} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+		await clickAdvise(container);
+
+		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
+		expect(mockAdvise).toHaveBeenCalledTimes(1);
+		expect(container.querySelector('kol-card')).toBeNull();
 	});
 });

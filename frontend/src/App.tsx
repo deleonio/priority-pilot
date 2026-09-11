@@ -26,7 +26,6 @@ import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
-import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { SearchModal } from './components/SearchModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -42,19 +41,18 @@ import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
-import { isQuickCaptureEffective, readAiPreferences } from './lib/aiPreferences';
+import { readAiPreferences } from './lib/aiPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
-	| { kind: 'create'; parentTask?: Task; initialText?: string }
+	| { kind: 'create'; parentTask?: Task }
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
 	| { kind: 'complete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
 	| { kind: 'search' }
-	| { kind: 'advisor' }
 	| null;
 
 // Der Aufgabengraph zieht `@xyflow/react` nach — bewusst nachgeladen, damit die Bibliothek nur im
@@ -91,7 +89,6 @@ const NO_CATEGORY_FILTER = 0;
 
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const SEARCH_ICON = { left: { icon: 'fa-solid fa-magnifying-glass' } };
-const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
@@ -638,23 +635,15 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const openSearch = useCallback((): void => {
 		setDialog({ kind: 'search' });
 	}, []);
-	const openAdvisor = useCallback((): void => {
-		setDialog({ kind: 'advisor' });
-	}, []);
-
-	// #1080: KI-Einstellungen (clientseitig, localStorage). `aiEnabled` blendet die KI-Bedienelemente
-	// aus (Toolbar-Button „Säulen-Berater", Lektorat-Buttons im TaskForm); `quickCaptureEnabled`
-	// entscheidet, ob „Neuen Task anlegen" den Capture-Schritt zeigt oder direkt das Task-Formular.
+	// #1080/#1335: KI-Einstellung (clientseitig, localStorage). `aiEnabled` blendet die
+	// KI-Bedienelemente aus (Lektorat-Buttons im TaskForm) und entscheidet, ob „Neuen Task anlegen"
+	// den KI-Freitext-Einstieg zeigt oder direkt das Task-Formular öffnet.
 	// Absichtlich **kein** State-Hook: `SettingsPage` besitzt die eigene Hook-Instanz und `App`
 	// remountet beim Verlassen der Einstellungen nicht (der App-State lebt außerhalb des Routers)
 	// — ein hier gepufferter Wert wäre veraltet. Jeder Render liest daher frisch aus dem
 	// `localStorage`; der Wechsel zurück aus den Einstellungen ist selbst ein Re-Render, sodass die
 	// Änderung sofort wirkt.
-	const preferences = readAiPreferences();
-	const { aiEnabled } = preferences;
-	// #1085: Die Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird die gespeicherte
-	// Präferenz ignoriert und „Neuen Task anlegen" öffnet direkt das Task-Formular.
-	const quickCaptureEnabled = isQuickCaptureEffective(preferences);
+	const { aiEnabled } = readAiPreferences();
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
@@ -679,20 +668,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				_variant: 'secondary' as const,
 				_on: { onClick: openCreateDialog },
 			},
-			// #1080: Ohne aktive KI wird der Säulen-Berater gar nicht erst gerendert (nicht nur
-			// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
-			...(aiEnabled
-				? [
-						{
-							type: 'button' as const,
-							_label: 'Säulen-Berater',
-							_hideLabel: true,
-							_icons: ADVISOR_ICON,
-							_variant: 'secondary' as const,
-							_on: { onClick: openAdvisor },
-						},
-					]
-				: []),
 			{
 				type: 'button' as const,
 				_label: t('menu.settings'),
@@ -725,11 +700,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		logoutLoading,
 		openSearch,
 		openCreateDialog,
-		openAdvisor,
 		toggleSettings,
 		toggleHelp,
 		handleLogout,
-		aiEnabled,
 		showSettings,
 		showHelp,
 		t,
@@ -999,14 +972,14 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			)}
 
 			{dialog?.kind === 'create' &&
-				// #1080: Ohne Schnellerfassung entfällt der Capture-Schritt — direkt das Task-Formular
-				// (inkl. Übernahme eines Berater-Textes als Beschreibungs-Vorbelegung, #327).
-				(quickCaptureEnabled ? (
+				// #1335: „Neuen Task anlegen" ist der einzige Einstieg — bei aktiver KI der verschmolzene
+				// Freitext-Dialog (Verarbeiten/Beraten/Überspringen), ohne KI direkt das Task-Formular.
+				(aiEnabled ? (
 					<QuickCaptureModal
 						parentTask={dialog.parentTask ?? null}
-						initialText={dialog.initialText}
 						pillars={pillars}
 						categories={categories}
+						distribution={advisorDistribution}
 						onClose={closeDialog}
 						onSaved={afterMutation}
 					/>
@@ -1014,7 +987,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					<TaskFormModal
 						task={null}
 						parentTask={dialog.parentTask ?? null}
-						initialValues={{ description: dialog.initialText }}
 						pillars={pillars}
 						categories={categories}
 						onClose={closeDialog}
@@ -1061,14 +1033,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					categories={categories}
 					onClose={closeDialog}
 					onSaved={afterMutation}
-				/>
-			)}
-			{dialog?.kind === 'advisor' && (
-				<PillarAdvisorModal
-					pillars={pillars}
-					distribution={advisorDistribution}
-					onClose={closeDialog}
-					onAdoptActivity={(text) => setDialog({ kind: 'create', initialText: text })}
 				/>
 			)}
 			{dialog?.kind === 'delete' && (
