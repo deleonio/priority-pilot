@@ -18,6 +18,7 @@ import type {
 	GroupSeries,
 	GroupUpdate,
 	GroupInviteLink,
+	Milestone,
 	PlaceFavorite,
 	PlaceFavoriteInput,
 	InviteLinkPreview,
@@ -904,6 +905,19 @@ export const api = {
 	// Ohne oder mit unbekanntem Wert wertet der Server in seiner eigenen Zeitzone aus (kein Fehler).
 	async getStreak({ tz, signal }: { tz?: string } & Init = {}): Promise<Streak> {
 		const { data, error, response } = await client.GET('/scores/streak', { params: { query: { tz } }, signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Meilenstein-Badges: feste Streak-/Punkte-Stufen (#1362) ---
+
+	async getMilestones({ tz, signal }: { tz?: string } & Init = {}): Promise<Milestone[]> {
+		const { data, error, response } = await client.GET('/scores/milestones', {
+			params: { query: { tz } },
+			signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

@@ -786,6 +786,35 @@ paths:
                 $ref: '#/components/schemas/Streak'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/milestones:
+    get:
+      summary: Meilenstein-Badges — feste Streak- und Punkte-Stufen (#1362)
+      description: >-
+        Wertet Streak (gegen die Bestmarke, #1360) und die Summe der Gamification-Punkte
+        (`ScoreEntry.punkte`) des eingeloggten Nutzers rückwirkend gegen feste Stufen aus. Es gibt
+        keinen gespeicherten Erreicht-Zustand — die Auswertung erfolgt bei jedem Aufruf neu.
+      operationId: getMilestones
+      parameters:
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die die Kalendertagsgrenze des zugrunde
+            liegenden Streaks bestimmt. Fehlt der Wert oder ist er keine gültige Zeitzone, wertet
+            der Server in seiner eigenen Zeitzone aus — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Liste der Meilenstein-Stufen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Milestone'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -3728,6 +3757,29 @@ components:
           type: string
           nullable: true
           description: Jüngster Kalendertag mit einer Erledigung (`YYYY-MM-DD`), oder `null`.
+    Milestone:
+      type: object
+      required:
+        - schluessel
+        - typ
+        - schwelle
+        - erreicht
+      properties:
+        schluessel:
+          type: string
+          description: Eindeutiger Bezeichner der Stufe (Rendering-Key im Frontend).
+        typ:
+          type: string
+          enum:
+            - streak
+            - punkte
+          description: Ob die Stufe eine Streak- oder eine Punkte-Schwelle prüft.
+        schwelle:
+          type: number
+          description: Schwellenwert der Stufe (Streak-Tage bzw. Punkte).
+        erreicht:
+          type: boolean
+          description: Ob die Schwelle mit den aktuellen Bestandsdaten erreicht ist.
     SeriesRhythm:
       type: string
       enum:

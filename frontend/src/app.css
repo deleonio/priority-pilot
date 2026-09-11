@@ -584,6 +584,7 @@ body {
 .dashboard-nearby,
 .dashboard-next-task,
 .dashboard-streak,
+.dashboard-milestones,
 .dashboard-suggestions,
 .dashboard-top-tasks,
 .dashboard-pillars,
@@ -1056,6 +1057,36 @@ body {
 .dashboard-streak-label {
 	font-size: var(--pp-font-size-sm);
 	color: var(--pp-text-muted);
+}
+
+/*
+ * #1362: Meilenstein-Badges. `flex-wrap` statt einer festen Spaltenzahl, damit die neun Badges
+ * (5 Streak + 4 Punkte) bei 375px umbrechen statt die Card horizontal scrollen zu lassen (AK8).
+ * Nicht erreichte Badges bleiben im Layout (kein `hidden`) — nur `KolBadge`s `_color` unterscheidet
+ * sie farblich, zusätzlich trägt `_label` den Erreicht-Status textuell (mobile-ui-rules Regel 9).
+ */
+.dashboard-milestones {
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-milestones-group + .dashboard-milestones-group {
+	margin-top: var(--pp-space-2);
+}
+
+.dashboard-milestones-group-title {
+	margin: 0 0 var(--pp-space-1);
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.dashboard-milestones-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-1);
+}
+
+.dashboard-milestones-badges > [data-erreicht='false'] {
+	opacity: 0.6;
 }
 
 .dashboard-balance {
