@@ -7,6 +7,7 @@
 		"ariaLabel": "Vyer"
 	},
 	"menu": {
+		"home": "Gå till instrumentbrädan",
 		"settings": "Inställningar",
 		"help": "Hjälp",
 		"logout": "Logga ut",
