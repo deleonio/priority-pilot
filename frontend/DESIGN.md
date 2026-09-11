@@ -168,7 +168,7 @@ Diese Datei ist die **einzige** Design-System-Referenz für Impeccable in diesem
 
 ## Project-Specific Overrides
 
-### Herz (HeartBalance / HeartGlass)
+### Balance-Gefäß (VesselBalance / VesselGlass)
 
 - **Drei Wellen, drei Geschwindigkeiten** (Nutzer-Auftrag 2026-09): Oberfläche 7 s, Tiefenschicht 1: 14 s,
   Tiefenschicht 2: 23 s — identisch in SVG (`DEPTH_WAVE_LAYERS`) und Glas-Shader (`STRATUM`).

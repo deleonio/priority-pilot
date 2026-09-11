@@ -1,28 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { bandEdges } from './heartGeometry';
+import { bandEdges } from './vesselGeometry';
 
 /**
  * Spec docs/spec/issue-1302.md — Bandkanten aus kumulierter Fläche statt aus Breite.
  *
  * Die Messung hier ist bewusst **unabhängig** vom Produktionsalgorithmus: Statt `bandEdges`
- * intern zu prüfen, wird die Herzkontur separat als Polygon geflacht und die Fläche je Band per
+ * intern zu prüfen, wird die Kolbenkontur separat als Polygon geflacht und die Fläche je Band per
  * Punkt-in-Polygon-Rasterung ausgezählt. So bestehen die Tests unabhängig davon, wie `bandEdges`
  * die Umkehrfunktion der Flächenintegration konkret bildet.
  */
 
-const HEART_TOP = 6;
-const HEART_BOTTOM = 88;
+const VESSEL_TOP = 6;
+const VESSEL_BOTTOM = 88;
 const VESSEL_LEFT = 4;
 const VESSEL_RIGHT = 96;
 
-/** Dieselbe Kontur wie `HEART_PATH` in `HeartBalance.tsx:53-62` — hier nur als Kontrollpunkte. */
+/** Dieselbe Kontur wie `VESSEL_PATH` in `vesselGeometry.ts` — hier nur als Kontrollpunkte. */
 const CUBIC_SEGMENTS: readonly [number, number, number, number, number, number, number, number][] = [
-	[50, 88, 20, 66, 4, 48, 4, 32],
-	[4, 32, 4, 16, 16, 6, 29, 6],
-	[29, 6, 38, 6, 46, 11, 50, 18],
-	[50, 18, 54, 11, 62, 6, 71, 6],
-	[71, 6, 84, 6, 96, 16, 96, 32],
-	[96, 32, 96, 48, 80, 66, 50, 88],
+	[50, 88, 36, 88, 25, 88, 16, 88],
+	[16, 88, 11.5, 87.4, 9, 84, 9, 79],
+	[9, 79, 9, 60, 9, 40, 9, 20],
+	[9, 20, 9, 13, 6.5, 10.5, 4, 8.4],
+	[4, 8.4, 8.8, 6.6, 28, 6, 50, 6],
+	[50, 6, 72, 6, 91.2, 6.6, 96, 8.4],
+	[96, 8.4, 92.4, 10.2, 91, 14, 91, 20],
+	[91, 20, 91, 40, 91, 60, 91, 79],
+	[91, 79, 91, 84, 88.5, 87.4, 84, 88],
+	[84, 88, 73, 88, 62, 88, 50, 88],
 ];
 
 const cubicPoint = (
@@ -40,8 +44,8 @@ const cubicPoint = (
 
 const STEPS_PER_SEGMENT = 60;
 
-/** Flacht die Herzkontur zu einem geschlossenen Polygon (Nutzereinheiten). */
-const flattenHeartPolygon = (): [number, number][] => {
+/** Flacht die Kolbenkontur zu einem geschlossenen Polygon (Nutzereinheiten). */
+const flattenVesselPolygon = (): [number, number][] => {
 	const points: [number, number][] = [];
 	for (const [x0, y0, x1, y1, x2, y2, x3, y3] of CUBIC_SEGMENTS) {
 		for (let step = 0; step < STEPS_PER_SEGMENT; step += 1) {
@@ -52,14 +56,14 @@ const flattenHeartPolygon = (): [number, number][] => {
 	return points;
 };
 
-const HEART_POLYGON = flattenHeartPolygon();
+const VESSEL_POLYGON = flattenVesselPolygon();
 
 /** Ray-Casting Punkt-in-Polygon-Test (Standardalgorithmus, unabhängig vom Produktionscode). */
-const isInsideHeart = (x: number, y: number): boolean => {
+const isInsideVessel = (x: number, y: number): boolean => {
 	let inside = false;
-	for (let i = 0, j = HEART_POLYGON.length - 1; i < HEART_POLYGON.length; j = i, i += 1) {
-		const [xi, yi] = HEART_POLYGON[i];
-		const [xj, yj] = HEART_POLYGON[j];
+	for (let i = 0, j = VESSEL_POLYGON.length - 1; i < VESSEL_POLYGON.length; j = i, i += 1) {
+		const [xi, yi] = VESSEL_POLYGON[i];
+		const [xj, yj] = VESSEL_POLYGON[j];
 		const intersects = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
 		if (intersects) inside = !inside;
 	}
@@ -73,9 +77,9 @@ const GRID_STEPS = 240;
  * feines Raster — unabhängig von jeder Integrationslogik in `bandEdges`.
  */
 const measureBandShares = (edges: number[], fill: number): number[] => {
-	const yWaterline = HEART_BOTTOM - fill * (HEART_BOTTOM - HEART_TOP);
+	const yWaterline = VESSEL_BOTTOM - fill * (VESSEL_BOTTOM - VESSEL_TOP);
 	const dx = (VESSEL_RIGHT - VESSEL_LEFT) / GRID_STEPS;
-	const dy = (HEART_BOTTOM - HEART_TOP) / GRID_STEPS;
+	const dy = (VESSEL_BOTTOM - VESSEL_TOP) / GRID_STEPS;
 	const bandCounts = new Array<number>(edges.length - 1).fill(0);
 	let totalCount = 0;
 
@@ -84,9 +88,9 @@ const measureBandShares = (edges: number[], fill: number): number[] => {
 		let bandIndex = edges.findIndex((edge, index) => index < edges.length - 1 && x >= edge && x < edges[index + 1]);
 		if (bandIndex === -1) bandIndex = edges.length - 2;
 		for (let iy = 0; iy < GRID_STEPS; iy += 1) {
-			const y = HEART_TOP + (iy + 0.5) * dy;
+			const y = VESSEL_TOP + (iy + 0.5) * dy;
 			if (y < yWaterline) continue;
-			if (!isInsideHeart(x, y)) continue;
+			if (!isInsideVessel(x, y)) continue;
 			bandCounts[bandIndex] += 1;
 			totalCount += 1;
 		}
@@ -96,7 +100,7 @@ const measureBandShares = (edges: number[], fill: number): number[] => {
 	return bandCounts.map((count) => count / totalCount);
 };
 
-describe('heartGeometry.bandEdges', () => {
+describe('vesselGeometry.bandEdges', () => {
 	it('teilt die Wasserfläche je Füllstand flächengetreu auf (AK1)', () => {
 		const shares = [0.5, 0.3, 0.2];
 		for (const fill of [0.25, 0.5, 1.0]) {
@@ -110,7 +114,7 @@ describe('heartGeometry.bandEdges', () => {
 		}
 	});
 
-	it('teilt fünf gleiche Anteile flächengleich, aber breitenungleich auf (AK2)', () => {
+	it('teilt fünf gleiche Anteile flächengleich auf (AK2)', () => {
 		const shares = [0.2, 0.2, 0.2, 0.2, 0.2];
 		const fill = 0.5;
 		const edges = bandEdges(shares, fill);
@@ -121,10 +125,6 @@ describe('heartGeometry.bandEdges', () => {
 				expect(Math.abs(measured[i] - measured[j])).toBeLessThanOrEqual(0.01);
 			}
 		}
-
-		const edgeBandWidth = edges[1] - edges[0];
-		const middleBandWidth = edges[3] - edges[2];
-		expect(edgeBandWidth).toBeGreaterThan(middleBandWidth);
 	});
 
 	it('liefert lückenlose, endliche Kanten von 4 bis 96 (AK4)', () => {
@@ -142,7 +142,7 @@ describe('heartGeometry.bandEdges', () => {
 		}
 	});
 
-	it('fällt bei Füllstand 0 auf die volle Herzfläche zurück, ohne durch 0 zu teilen (AK5)', () => {
+	it('fällt bei Füllstand 0 auf die volle Gefäßfläche zurück, ohne durch 0 zu teilen (AK5)', () => {
 		const shares = [0.5, 0.5];
 		const edges: number[] = bandEdges(shares, 0);
 

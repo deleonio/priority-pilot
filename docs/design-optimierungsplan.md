@@ -22,11 +22,16 @@ erneut ausführen, um den Score-Fortschritt zu sehen.
       „Anstehende Deadlines" und „In der Nähe" sind reiner Text; die Schleife „sehen → entscheiden → tun"
       bricht. Mindestens Vorschläge und Deadlines antippbar machen (Aufgabe öffnen oder Direkt-Aktion).
       → `/impeccable polish`
-- [ ] **Dashboard: Falz bei 375×812** — Herz (≈600px inkl. Legende) schiebt „Nächste Aufgabe" samt
-      Primäraktion „Erledigt" unter den Falz; kollidiert mit der Daumen-Zonen-Regel aus den
-      [Mobile-UI-Regeln](mobile-ui-rules.md). Fix ohne den committed Herz-ersten Eindruck zu brechen:
-      Legende standardmäßig eingeklappt oder Herz-Höhe deckeln — Ziel: Nächste-Aufgabe-Karte im ersten
-      Viewport. → `/impeccable layout`
+- [ ] **Dashboard: Falz bei 375×812** — Balance-Gefäß-Karte (Grafik + Zahl/Text + Legende, gemessen
+      ≈646 px) schiebt „Nächste Aufgabe" samt Primäraktion „Erledigt" weit unter den Falz (gemessen
+      bei y≈1137px von 812px Viewport-Höhe); kollidiert mit der Daumen-Zonen-Regel aus den
+      [Mobile-UI-Regeln](mobile-ui-rules.md). Eine reine Breiten-Deckelung der Grafik (`app.css`,
+      `.vessel-balance-stage` `max-width` bei `max-width: 30em`) wurde versucht, reicht aber nicht:
+      Legende (≈208px) und der Zahlen-/Text-Block (≈141px) tragen mehr zur Höhe bei als die Grafik
+      selbst (≈221px) und bleiben von einer reinen Breitenkappung unberührt. Fix ohne den committed
+      Gefäß-ersten Eindruck zu brechen: Legende standardmäßig eingeklappt oder Kartenreihenfolge so
+      anpassen, dass „Nächste Aufgabe" nicht hinter Gefäß UND Kennzahlen-Kacheln steht — Ziel:
+      Nächste-Aufgabe-Karte im ersten Viewport. → `/impeccable layout`
 
 ### P2
 
@@ -42,7 +47,7 @@ erneut ausführen, um den Score-Fortschritt zu sehen.
       → `/impeccable document` bzw. `polish`
 - [ ] **Dashboard-Redundanz** — „Gesamt"-Kachel = Offen + Erledigt (rechenbar); zwei ähnliche
       Ranglisten („Was ist jetzt dran?" vs. „Wichtigste Tasks"); drei Sichten der Säulen-Wahrheit
-      (Herz-Legende, „Meine Themen", „Gesamtguthaben"). Kacheln zu Statuszeile verdichten, eine
+      (Gefäß-Legende, „Meine Themen", „Gesamtguthaben"). Kacheln zu Statuszeile verdichten, eine
       Rangliste behalten, Säulen-Sichten zusammenführen. → `/impeccable distill`
 - [ ] **Null-Zustand-Choreografie** — neues Konto oder Gruppen-Neuling sieht bis zu sieben leere
       Widgets statt einer Einladung; nach dem Gruppen-Beitritt (#1226) ist die Gruppe auf dem Dashboard
@@ -83,8 +88,8 @@ Critique Dashboard **29/40**.
 ## Bewahren (Positive Findings)
 
 - Token-Kern AA-**berechnet** in beiden Themes (Tabelle oben), nicht nur behauptet.
-- Reduced-Motion dreifach abgesichert: globales CSS, `confetti.ts`, Herz-Hooks (OS-Präferenz gewinnt).
-- WebGL-Disziplin im Herz: Loop nur bei Sichtbarkeit (IntersectionObserver), Stillstand bei Idle,
+- Reduced-Motion dreifach abgesichert: globales CSS, `confetti.ts`, Gefäß-Hooks (OS-Präferenz gewinnt).
+- WebGL-Disziplin im Balance-Gefäß: Loop nur bei Sichtbarkeit (IntersectionObserver), Stillstand bei Idle,
   Kontextverlust mit SVG-Fallback; kein `will-change`, Animationen nur transform/opacity.
 - `--a11y-min-size` an `--pp-toolbar-height` gekoppelt, Sollbruchstelle dokumentiert (app.css:357).
 - Landmarks vollständig (banner/main/contentinfo), Fokus-Fallback auf `<main>`.

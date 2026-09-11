@@ -1,12 +1,14 @@
 precision highp float;
 
 /*
- * Glasherz — WebGL-Fassung des Dashboard-Herzens (Lebensbalance).
+ * Glasgefaess — WebGL-Fassung des Balance-Messkolbens (Lebensbalance).
  *
- * Dieselbe Bildsprache wie das SVG in HeartBalance.tsx, nur das Material ist Glas: Die Kontur ist
- * der selbe Herzpfad (rechte Halfte, an x=50 gespiegelt, als Kantabstand), die gemeinsame
+ * Dieselbe Bildsprache wie das SVG in VesselBalance.tsx, nur das Material ist Glas: Die Kontur ist
+ * derselbe Kolbenpfad (rechte Halfte, an x=50 gespiegelt, als Kantabstand), die gemeinsame
  * Wasserlinie tragt den Fullstand, die Farbstreifen unter der Oberflache die Ist-Verteilung, die
- * Welle lauft mit Wellenlange/Auslenkung/Drift wie im SVG (16/3/7s).
+ * Welle laeuft mit Wellenlaenge/Auslenkung/Drift wie im SVG (16/1.3/7s). Die Skalenstriche an
+ * beiden Waenden (25/50/75 % der Hoehe, `SCALE_TICKS` in vesselGeometry.ts) liegen als duenne
+ * Distanzstreifen ueber Gefaess und Wasser.
  *
  * Dialekt bewusst GLSL ES 1.00 (gl_FragColor, keine Array-Konstruktoren, entrollte Kontur per
  * Makro): lauft unverandert im Preview-Viewer (WebGL1) und im WebGL2-Kontext der App. Ohne
@@ -40,39 +42,49 @@ const float VIEW_W = 100.0;
 const float VIEW_H = 92.0;
 const float PI2 = 6.2831853;
 
-/* ---------- Kontur: rechte Halfte des Herzpfads, 10 Stutzpunkte je Kubikkurve ---------- */
+/* ---------- Kontur: rechte Halfte des Kolbenpfads, 8 Stuetzpunkte je Kubikkurve ---------- */
 
-const vec2 P0 = vec2(50.00, 88.00);
-const vec2 P1 = vec2(58.58, 81.52);
-const vec2 P2 = vec2(66.30, 75.26);
-const vec2 P3 = vec2(73.17, 69.23);
-const vec2 P4 = vec2(79.15, 63.39);
-const vec2 P5 = vec2(84.25, 57.75);
-const vec2 P6 = vec2(88.45, 52.29);
-const vec2 P7 = vec2(91.73, 46.99);
-const vec2 P8 = vec2(94.10, 41.86);
-const vec2 P9 = vec2(95.52, 36.86);
-const vec2 P10 = vec2(96.00, 32.00);
-const vec2 P11 = vec2(95.65, 27.38);
-const vec2 P12 = vec2(94.65, 23.15);
-const vec2 P13 = vec2(93.06, 19.33);
-const vec2 P14 = vec2(90.94, 15.94);
-const vec2 P15 = vec2(88.38, 13.00);
-const vec2 P16 = vec2(85.42, 10.54);
-const vec2 P17 = vec2(82.13, 8.59);
-const vec2 P18 = vec2(78.59, 7.17);
-const vec2 P19 = vec2(74.86, 6.30);
-const vec2 P20 = vec2(71.00, 6.00);
-const vec2 P21 = vec2(68.33, 6.15);
-const vec2 P22 = vec2(65.74, 6.58);
-const vec2 P23 = vec2(63.25, 7.27);
-const vec2 P24 = vec2(60.87, 8.21);
-const vec2 P25 = vec2(58.63, 9.38);
-const vec2 P26 = vec2(56.53, 10.75);
-const vec2 P27 = vec2(54.60, 12.32);
-const vec2 P28 = vec2(52.86, 14.06);
-const vec2 P29 = vec2(51.32, 15.96);
-const vec2 P30 = vec2(50.00, 18.00);
+const vec2 P0 = vec2(50.00, 6.00);
+const vec2 P1 = vec2(58.10, 6.03);
+const vec2 P2 = vec2(65.79, 6.12);
+const vec2 P3 = vec2(72.96, 6.28);
+const vec2 P4 = vec2(79.45, 6.52);
+const vec2 P5 = vec2(85.14, 6.85);
+const vec2 P6 = vec2(89.88, 7.27);
+const vec2 P7 = vec2(93.55, 7.78);
+const vec2 P8 = vec2(96.00, 8.40);
+const vec2 P9 = vec2(94.75, 9.17);
+const vec2 P10 = vec2(93.70, 10.13);
+const vec2 P11 = vec2(92.84, 11.28);
+const vec2 P12 = vec2(92.15, 12.63);
+const vec2 P13 = vec2(91.63, 14.17);
+const vec2 P14 = vec2(91.28, 15.91);
+const vec2 P15 = vec2(91.07, 17.85);
+const vec2 P16 = vec2(91.00, 20.00);
+const vec2 P17 = vec2(91.00, 27.50);
+const vec2 P18 = vec2(91.00, 34.98);
+const vec2 P19 = vec2(91.00, 42.45);
+const vec2 P20 = vec2(91.00, 49.88);
+const vec2 P21 = vec2(91.00, 57.26);
+const vec2 P22 = vec2(91.00, 64.58);
+const vec2 P23 = vec2(91.00, 71.83);
+const vec2 P24 = vec2(91.00, 79.00);
+const vec2 P25 = vec2(90.88, 80.80);
+const vec2 P26 = vec2(90.54, 82.43);
+const vec2 P27 = vec2(89.97, 83.89);
+const vec2 P28 = vec2(89.19, 85.15);
+const vec2 P29 = vec2(88.19, 86.21);
+const vec2 P30 = vec2(86.99, 87.04);
+const vec2 P31 = vec2(85.59, 87.65);
+const vec2 P32 = vec2(84.00, 88.00);
+const vec2 P33 = vec2(79.87, 88.00);
+const vec2 P34 = vec2(75.73, 88.00);
+const vec2 P35 = vec2(71.57, 88.00);
+const vec2 P36 = vec2(67.38, 88.00);
+const vec2 P37 = vec2(63.13, 88.00);
+const vec2 P38 = vec2(58.83, 88.00);
+const vec2 P39 = vec2(54.46, 88.00);
+const vec2 P40 = vec2(50.00, 88.00);
 
 float sdSeg(vec2 p, vec2 a, vec2 b) {
 	vec2 pa = p - a;
@@ -96,6 +108,19 @@ float sdSeg(vec2 p, vec2 a, vec2 b) {
 		float mS = smoothstep(surfS - aa, surfS + aa, p.y) * water * strength; \
 		liquid = mix(liquid, liquid * dark, mS); \
 	}
+
+/* ---------- Skala: waagrechte Striche an beiden Waenden (25/50/75 % der Hoehe) ---------- */
+
+/* `SCALE_TICKS` in vesselGeometry.ts: Strich an der linken Wand, +2 Einheiten insets, 6 Einheiten
+   lang. Die Faltung an x=50 spiegelt die Abstaende automatisch auf die rechte Wand — deshalb
+   genuegen die drei linken Segmente. */
+
+const vec2 TICK_1 = vec2(11.0, 67.5);
+const vec2 TICK_2 = vec2(17.0, 67.5);
+const vec2 TICK_3 = vec2(11.0, 47.0);
+const vec2 TICK_4 = vec2(17.0, 47.0);
+const vec2 TICK_5 = vec2(11.0, 26.5);
+const vec2 TICK_6 = vec2(17.0, 26.5);
 
 /* ---------- Themen: Farben und Bandgrenzen (App: Uniforms, Preview: Konstanten) ---------- */
 
@@ -205,8 +230,21 @@ void main() {
 	E(P27, P28)
 	E(P28, P29)
 	E(P29, P30)
+	E(P30, P31)
+	E(P31, P32)
+	E(P32, P33)
+	E(P33, P34)
+	E(P34, P35)
+	E(P35, P36)
+	E(P36, P37)
+	E(P37, P38)
+	E(P38, P39)
+	E(P39, P40)
 	float sd = inside > 0.5 ? -d : d;
-	float heart = smoothstep(aa, -aa, sd);
+	float silhouette = smoothstep(aa, -aa, sd);
+
+	/* Skala: nur Abstand zu den Strichsegmenten — keine Paritaet, sie sind keine Flaeche. */
+	float tick = min(min(sdSeg(q, TICK_1, TICK_2), sdSeg(q, TICK_3, TICK_4)), sdSeg(q, TICK_5, TICK_6));
 
 	/* Glaswand-Nähe (1 an der Kontur, fällt nach ~3,5 Einheiten ab) und Tiefenmaß 0 oben … 1 unten. */
 	float wall = exp(min(sd, 0.0) / 3.5);
@@ -218,7 +256,7 @@ void main() {
 	float level = mix(88.0, 6.0, fill);
 
 	/*
-	 * Wasserlinie: gemeinsame Welle über die Herzbreite (Drift nach links wie das SVG), an der
+	 * Wasserlinie: gemeinsame Welle über die Kolbenbreite (Drift nach links wie das SVG), an der
 	 * Glaswand steigt die Flüssigkeit meniskenhaft an. Still: Welle in Grundform (Drift 0).
 	 */
 	float drift = u_animated ? u_time : 0.0;
@@ -270,10 +308,10 @@ void main() {
 	col += vec3(0.20) * smoothstep(0.0, 1.0, -sd) * smoothstep(3.4, 1.0, -sd) * (0.25 + 0.75 * lit);
 	col += vec3(0.04) * smoothstep(4.5, 6.0, -sd) * smoothstep(9.5, 6.0, -sd);
 
-	/* Glanzlichter auf den Lappen: Licht von oben links, auf der Fluessigkeit ebenso sichtbar. */
-	col += vec3(0.13) * spec(p, vec2(31.0, 20.0), vec2(10.0, 2.8), -0.55);
-	col += vec3(0.09) * spec(p, vec2(69.0, 25.0), vec2(6.0, 2.2), 0.45);
-	col += vec3(0.05) * spec(p, vec2(24.0, 33.0), vec2(2.0, 2.0), 0.0);
+	/* Glanzlichter auf Kolbenbauch und Rand: Licht von oben links, auf der Fluessigkeit ebenso sichtbar. */
+	col += vec3(0.13) * spec(p, vec2(26.0, 30.0), vec2(7.0, 13.0), -0.15);
+	col += vec3(0.09) * spec(p, vec2(50.0, 10.0), vec2(13.0, 1.8), 0.0);
+	col += vec3(0.05) * spec(p, vec2(70.0, 58.0), vec2(3.0, 3.0), 0.0);
 
 	/*
 	 * Kontur: schmal (Gesamtstaerke 1,2) und mit Lichtrichtung gefärbt — zur Schattenseite dunkler
@@ -284,12 +322,16 @@ void main() {
 	vec3 outlineCol = mix(outlineColor(), outlineColor() * 0.78, 1.0 - lit);
 	col = mix(col, outlineCol, outline);
 
+	/* Skalenstriche: duenn und zurueckhaltend ueber Gefaess und Wasser, in Konturfarbe abgeschwaecht. */
+	float tickLine = (1.0 - smoothstep(0.35 - aa, 0.35 + aa, tick)) * silhouette;
+	col = mix(col, outlineCol, tickLine * 0.5);
+
 	/*
-	 * Weicher Schatten unterm Herz: hebt die Silhouette von der Karte, nur unterhalb der Mitte
-	 * (Licht von oben links) und nur ausserhalb der Kontur.
+	 * Weicher Schatten unterm Kolben: hebt die Silhouette von der Karte, nur unterhalb der Mitte
+	 * (Licht von oben links) und nur ausserhalb der Kontur — beim flachen Boden direkt darunter.
 	 */
-	float alpha = max(heart, outline);
-	float shadowMask = smoothstep(7.0, 1.0, sd) * smoothstep(30.0, 64.0, p.y);
+	float alpha = max(silhouette, outline);
+	float shadowMask = smoothstep(7.0, 1.0, sd) * smoothstep(55.0, 88.0, p.y);
 	float shadowAlpha = (1.0 - alpha) * shadowMask * u_shadow;
 	col = mix(col, vec3(0.42, 0.45, 0.50), (1.0 - alpha) * shadowMask);
 

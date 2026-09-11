@@ -1,6 +1,6 @@
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
-import { HeartBalance } from './HeartBalance';
+import { VesselBalance } from './VesselBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
@@ -116,8 +116,8 @@ export const Dashboard = ({
 	// Punkte je Säule aus dem erledigten Aufwand (Gamification-Balance, §4.4). Tasks ohne
 	// Säulen-Zuweisung fließen gleichmäßig nach Säulen-Gewicht ein, damit erledigte Arbeit auch ohne
 	// explizite Säule sichtbar wird. Eigenes `useMemo`, weil zwei Widgets an derselben Punktequelle
-	// hängen — „Gesamtguthaben" (Anteile) und das Herz (Füllstand); eine je Render neu gebaute Map
-	// würde deren Memoisierung bei jedem Render wegwerfen.
+	// hängen — „Gesamtguthaben" (Anteile) und das Balance-Gefäß (Füllstand); eine je Render neu
+	// gebaute Map würde deren Memoisierung bei jedem Render wegwerfen.
 	const punkteProSaeule = useMemo(() => {
 		const punkte = new Map<number, number>(
 			pillarSummaries.map(({ pillar, doneEstimatedEffort }) => [pillar.id, doneEstimatedEffort]),
@@ -165,20 +165,20 @@ export const Dashboard = ({
 
 			{/*
 			 * Desktop-Hero (ab 48rem): „Meine Lebensbalance" links zwei Drittel, rechts ein Drittel
-			 * die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Herz-Unterkante — die
-			 * „Nächste Aufgabe". Mobil bleibt die gewohnte Einspaltigkeit; das Herz steht weiter ganz
+			 * die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Gefäß-Unterkante — die
+			 * „Nächste Aufgabe". Mobil bleibt die gewohnte Einspaltigkeit; das Balance-Gefäß steht weiter ganz
 			 * oben und mittig: Es beantwortet „wie steht es um mich?", bevor die Zahlen kommen. Es
 			 * bleibt bewusst in der Säulen-Rampe eingefärbt und greift NICHT die Signalfarbe ab — die
 			 * gehört weiterhin allein der „Nächsten Aufgabe" als der einen Hauptaussage (ux-design.md
 			 * §1). Ohne Säulen gibt es nichts zu segmentieren, dann entfällt die Karte ganz und der
 			 * Solo-Modifier (.dashboard-hero--solo) stellt das Raster auf eine Spalte um (die Karte
 			 * „Meine Themen" führt dort zu den Einstellungen). Die DOM-Reihenfolge ist zugleich die
-			 * Lesereihenfolge: Herz → Kacheln → Nächste Aufgabe.
+			 * Lesereihenfolge: Gefäß → Kacheln → Nächste Aufgabe.
 			 */}
 			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
 				{pillars.length > 0 && (
-					<KolCard className="dashboard-heart" _label="Meine Lebensbalance" _level={3}>
-						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} />
+					<KolCard className="dashboard-vessel" _label="Meine Lebensbalance" _level={3}>
+						<VesselBalance pillars={pillars} punkteProSaeule={punkteProSaeule} />
 					</KolCard>
 				)}
 				<div className="dashboard-hero-side">

@@ -241,7 +241,9 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		}
 	});
 
-	test('AK7: Begrüßung/Vorschläge volle Breite, Hero 2/3 Herz + 1/3 Kacheln mit Nächster Aufgabe', async ({ page }) => {
+	test('AK7: Begrüßung/Vorschläge volle Breite, Hero 2/3 Gefäß + 1/3 Kacheln mit Nächster Aufgabe', async ({
+		page,
+	}) => {
 		await seedTasks(page, 2, 'E2E #1118 Breite');
 		await openDashboard(page, 1280, 900);
 
@@ -256,11 +258,11 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		}
 
 		/* Design-Follow-up (Hero, 2026): „Meine Lebensbalance" links zwei Drittel, rechts ein
-		 * Drittel die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Herz-Unterkante —
+		 * Drittel die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Gefäß-Unterkante —
 		 * „Nächste Aufgabe". Ersetzt die frühere Volle-Breite-Forderung für Kacheln/Nächste Aufgabe. */
-		const heroBox = await page.locator('.dashboard-heart').boundingBox();
+		const heroBox = await page.locator('.dashboard-vessel').boundingBox();
 		const sideBox = await page.locator('.dashboard-hero-side').boundingBox();
-		expect(heroBox, 'Herz-Card vorhanden').not.toBeNull();
+		expect(heroBox, 'Gefäß-Card vorhanden').not.toBeNull();
 		expect(sideBox, 'Hero-Seitenspalte vorhanden').not.toBeNull();
 		// Zwei Drittel (±6 % für Gap/Padding) beziehungsweise höchstens ein Drittel zuzüglich Gap.
 		expect(heroBox!.width).toBeGreaterThanOrEqual(gridWidth * 0.6);

@@ -1,12 +1,12 @@
 import type { Pillar } from 'client';
 
 /**
- * Rechenkern des Dashboard-Herzens („Lebensbalance", Konzept §4.4). Bewusst — wie `score.ts` und
+ * Rechenkern des Balance-Gefäßes („Lebensbalance", Konzept §4.4). Bewusst — wie `score.ts` und
  * `pillar.ts` — als reine Funktionen ohne React, damit die Mathematik ohne DOM prüfbar bleibt und
  * die Komponente nur noch zeichnet.
  *
- * **Metapher:** Das Herz ist ein Gefäß, dessen Wasserpegel von unten steigt. Steht eine Säule
- * auf ihrem Soll, trägt ihr Farbsegment voll bei; sind alle Säulen auf Soll, ist das Herz
+ * **Metapher:** Der Messkolben ist ein Gefäß, dessen Wasserpegel von unten steigt. Steht eine
+ * Säule auf ihrem Soll, trägt ihr Farbsegment voll bei; sind alle Säulen auf Soll, ist der Kolben
  * randvoll — die *Höhe* der gemeinsamen Wasserlinie trägt die Aussage „ausgewogen", die
  * Aufschlüsselung je Säule die Legende neben dem Bild.
  *
@@ -17,8 +17,8 @@ import type { Pillar } from 'client';
  * also nachweislich dasselbe.
  */
 
-/** Eine Wassersäule im Herzen: eine Lebenssäule mit ihrem Soll, ihrem Ist und ihrer Farbe. */
-interface HeartSegment {
+/** Eine Wassersäule im Gefäß: eine Lebenssäule mit ihrem Soll, ihrem Ist und ihrer Farbe. */
+interface VesselSegment {
 	pillar: Pillar;
 	/**
 	 * Nullbasierter Rang in der Säulen-Rampe `--pp-pillar-1…7`. Er folgt der **Säulen-`id`**, nicht
@@ -28,7 +28,7 @@ interface HeartSegment {
 	colorIndex: number;
 	/**
 	 * Balance dieses Segments (0–1): Ist-Anteil gemessen am Soll-Anteil, bei 1 gedeckelt. Das
-	 * Herz-Bild zeichnet sie nicht mehr als eigene Wassersäule, sie bleibt Teil des Modells und
+	 * Gefäß-Bild zeichnet sie nicht mehr als eigene Wassersäule, sie bleibt Teil des Modells und
 	 * der Lib-Tests.
 	 */
 	level: number;
@@ -38,27 +38,27 @@ interface HeartSegment {
 	targetShare: number;
 }
 
-/** Gesamtbild des Herzens: sein Füllstand und die Farbsegmente in Anzeigereihenfolge. */
-interface HeartBalance {
-	/** Füllstand des Herzens (0–1) — `Σ min(soll, ist)`, siehe Modulkommentar. */
+/** Gesamtbild des Gefäßes: sein Füllstand und die Farbsegmente in Anzeigereihenfolge. */
+interface VesselBalance {
+	/** Füllstand des Gefäßes (0–1) — `Σ min(soll, ist)`, siehe Modulkommentar. */
 	fill: number;
 	/** Ob überhaupt Punkte vergeben sind. Unterscheidet „noch nichts getan" von „unausgewogen". */
 	hasPoints: boolean;
-	segments: HeartSegment[];
+	segments: VesselSegment[];
 }
 
 /**
- * Baut das Herz-Modell aus den Säulen und ihren Punkteständen (dieselbe Punktequelle wie das
+ * Baut das Gefäß-Modell aus den Säulen und ihren Punkteständen (dieselbe Punktequelle wie das
  * Widget „Gesamtguthaben", `buildPillarBalances`).
  *
  * Randfälle bewusst festgelegt:
- * - **Keine Punkte** → jede Wassersäule 0, Herz leer (`hasPoints: false`).
+ * - **Keine Punkte** → jede Wassersäule 0, Gefäß leer (`hasPoints: false`).
  * - **Alle Gewichte 0** (kein Soll gepflegt) → Gleichverteilung als Soll, damit das Bild trotzdem
  *   eine Aussage trifft statt leer zu bleiben.
  * - **Soll einer Säule = 0** → ihre Wassersäule bleibt leer; dort investierte Punkte zählen nicht
  *   auf den Füllstand ein, sie fehlen den Säulen mit Soll. Genau das soll das Bild zeigen.
  */
-export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): HeartBalance => {
+export const buildVesselBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): VesselBalance => {
 	// Rang in der Farbrampe über die Säulen-id vergeben (stabil gegen Umsortierung der Anzeige).
 	const colorRank = new Map<number, number>(
 		[...pillars].sort((a, b) => a.id - b.id).map((pillar, index): [number, number] => [pillar.id, index]),
@@ -67,7 +67,7 @@ export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMa
 	const totalPoints = pillars.reduce((sum, pillar) => sum + (punkteProSaeule.get(pillar.id) ?? 0), 0);
 	const totalWeight = pillars.reduce((sum, pillar) => sum + pillar.weight, 0);
 
-	const segments = pillars.map((pillar): HeartSegment => {
+	const segments = pillars.map((pillar): VesselSegment => {
 		const targetShare = totalWeight > 0 ? pillar.weight / totalWeight : 1 / pillars.length;
 		const actualShare = totalPoints > 0 ? (punkteProSaeule.get(pillar.id) ?? 0) / totalPoints : 0;
 		return {
@@ -84,8 +84,8 @@ export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMa
 	return { fill, hasPoints: totalPoints > 0, segments };
 };
 
-/** Gesundheitszustand des Herzens: Zustandsschlüssel (fürs Styling) plus Klartext. */
-interface HeartHealth {
+/** Gesundheitszustand des Gefäßes: Zustandsschlüssel (fürs Styling) plus Klartext. */
+interface VesselHealth {
 	state: 'leer' | 'schwach' | 'wackelig' | 'gut' | 'stark';
 	label: string;
 	hint: string;
@@ -96,7 +96,7 @@ interface HeartHealth {
  * Der Füllstand schwankt mit jedem erledigten Task, eine feinere Staffelung würde Rauschen als
  * Zustandswechsel verkaufen.
  */
-const HEALTH_STEPS: readonly (HeartHealth & { min: number })[] = [
+const HEALTH_STEPS: readonly (VesselHealth & { min: number })[] = [
 	{ min: 0.9, state: 'stark', label: 'In Balance', hint: 'Deine Säulen liegen dicht am Soll.' },
 	{
 		min: 0.7,
@@ -114,12 +114,12 @@ const HEALTH_STEPS: readonly (HeartHealth & { min: number })[] = [
 ];
 
 /** Leitet den Gesundheitszustand aus dem Füllstand ab; ohne Punkte gilt der eigene Leer-Zustand. */
-export const heartHealth = (balance: HeartBalance): HeartHealth => {
+export const vesselHealth = (balance: VesselBalance): VesselHealth => {
 	if (!balance.hasPoints) {
 		return {
 			state: 'leer',
 			label: 'Noch leer',
-			hint: 'Erledige Aufgaben, damit sich das Herz füllt.',
+			hint: 'Erledige Aufgaben, damit sich das Gefäß füllt.',
 		};
 	}
 	// Die letzte Stufe hat `min: 0` und greift damit immer; der Fallback ist nur fürs Typsystem.

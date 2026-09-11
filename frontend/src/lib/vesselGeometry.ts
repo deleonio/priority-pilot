@@ -1,51 +1,94 @@
 /**
- * Geometrie des Herz-Gefäßes: Kontur, Wasserlinie und die Kanten der Farbstreifen.
+ * Geometrie des Balance-Gefäßes (Messkolben): Kontur, Wasserlinie, Skalenstriche und die Kanten
+ * der Farbstreifen.
  *
- * Die Streifen im Herz sollen den **Flächenanteil** ihrer Säule zeigen, nicht deren Breite (#1302).
- * Weil das Herz oben breit ist und unten spitz zuläuft, trägt dieselbe Breite je nach Position
- * unterschiedlich viel Wasser — zwei Säulen mit je 20 % sähen verschieden groß aus. Deshalb werden
- * die Kanten hier aus der **kumulierten Wasserfläche** bestimmt: die Kontur wird zu einer Polylinie
- * geflacht, die Säulenhöhe unterhalb der Wasserlinie dicht abgetastet und integriert; jede Kante
- * ist die Umkehrfunktion dieser Integration am kumulierten Anteil.
+ * Die Streifen im Gefäß sollen den **Flächenanteil** ihrer Säule zeigen, nicht deren Breite
+ * (#1302). Weil die Kontur an Lippe und Bodenecken über die Wandbreite hinausreicht bzw.
+ * einrundet, trägt dieselbe Breite je nach Position unterschiedlich viel Wasser — zwei Säulen mit
+ * je 20 % sähen verschieden groß aus. Deshalb werden die Kanten hier aus der **kumulierten
+ * Wasserfläche** bestimmt: die Kontur wird zu einer Polylinie geflacht, die Säulenhöhe unterhalb
+ * der Wasserlinie dicht abgetastet und integriert; jede Kante ist die Umkehrfunktion dieser
+ * Integration am kumulierten Anteil.
  *
  * Bewusst DOM-frei und ohne React — dieselbe Rechnung speist die SVG- und die Glas-Fassung
- * (`HeartGlass`/`toSlotBands` normieren dieselben Kanten), es gibt nur diese eine Kantenquelle.
+ * (`VesselGlass`/`toSlotBands` normieren dieselben Kanten), es gibt nur diese eine Kantenquelle.
  */
 
+/** Wandlage der geraden Kolbenwände — die Skalenstriche setzen knapp innerhalb von ihr an. */
+const WALL_LEFT = 9;
+const WALL_RIGHT = 91;
+
 /**
- * Kontrollpunkte der symmetrischen Herzkontur (an `x = 50` gespiegelt, Bounding-Box x 4–96 /
- * y 6–88) als kubische Bézier-Segmente `[x0,y0, x1,y1, x2,y2, x3,y3]`. Sie sind die **eine**
- * Wahrheit über die Kontur: `HEART_PATH` zeichnet daraus, die Flächenrechnung misst darin.
+ * Kontrollpunkte der symmetrischen Kolbenkontur (an `x = 50` gespiegelt, Bounding-Box x 4–96 /
+ * y 6–88) als kubische Bézier-Segmente `[x0,y0, x1,y1, x2,y2, x3,y3]`: flacher Boden mit
+ * gerundeten Ecken, gerade Wände, oben eine kurze Ausgusslippe, die als einziger Punkt die volle
+ * Breite erreicht. Die Kontur ist **x-einfach** — jede Senkrechte schneidet den Rand genau
+ * zweimal; die vertikalen Wände selbst tragen keine Fläche zwischen benachbarten Spalten. Die
+ * Segmente sind die **eine** Wahrheit über die Kontur: `VESSEL_PATH` zeichnet daraus, die
+ * Flächenrechnung misst darin.
  */
 const CUBIC_SEGMENTS: readonly (readonly [number, number, number, number, number, number, number, number])[] = [
-	[50, 88, 20, 66, 4, 48, 4, 32],
-	[4, 32, 4, 16, 16, 6, 29, 6],
-	[29, 6, 38, 6, 46, 11, 50, 18],
-	[50, 18, 54, 11, 62, 6, 71, 6],
-	[71, 6, 84, 6, 96, 16, 96, 32],
-	[96, 32, 96, 48, 80, 66, 50, 88],
+	// Boden von der Mitte nach links, dann Bodenecke in die linke Wand.
+	[50, 88, 36, 88, 25, 88, 16, 88],
+	[16, 88, 11.5, 87.4, WALL_LEFT, 84, WALL_LEFT, 79],
+	// Linke Wand, bewusst gerade — Messinstrument, keine Vase.
+	[WALL_LEFT, 79, WALL_LEFT, 60, WALL_LEFT, 40, WALL_LEFT, 20],
+	// Ausgusslippe: kurzer Aussteller, erreicht als einziger Punkt die volle Gefäßbreite.
+	[WALL_LEFT, 20, WALL_LEFT, 13, 6.5, 10.5, 4, 8.4],
+	// Randöffnung von der Lippe zur Mitte.
+	[4, 8.4, 8.8, 6.6, 28, 6, 50, 6],
+	// Rechte Hälfte gespiegelt.
+	[50, 6, 72, 6, 91.2, 6.6, 96, 8.4],
+	[96, 8.4, 92.4, 10.2, WALL_RIGHT, 14, WALL_RIGHT, 20],
+	[WALL_RIGHT, 20, WALL_RIGHT, 40, WALL_RIGHT, 60, WALL_RIGHT, 79],
+	[WALL_RIGHT, 79, WALL_RIGHT, 84, 88.5, 87.4, 84, 88],
+	[84, 88, 73, 88, 62, 88, 50, 88],
 ];
 
 /**
- * Herzkontur als SVG-Pfad. Bewusst aus denselben Kontrollpunkten gebaut wie die Flächenrechnung:
+ * Kolbenkontur als SVG-Pfad. Bewusst aus denselben Kontrollpunkten gebaut wie die Flächenrechnung:
  * gezeichnete und gemessene Kontur können so nicht auseinanderlaufen.
  */
-export const HEART_PATH = [
+export const VESSEL_PATH = [
 	`M ${CUBIC_SEGMENTS[0][0]} ${CUBIC_SEGMENTS[0][1]}`,
 	...CUBIC_SEGMENTS.map(([, , x1, y1, x2, y2, x3, y3]) => `C ${x1} ${y1}, ${x2} ${y2}, ${x3} ${y3}`),
 	'Z',
 ].join(' ');
 
-/** Oberkante und Tiefpunkt des Gefäßes — zwischen ihnen bewegt sich die Wasserlinie. */
-export const HEART_TOP = 6;
-export const HEART_BOTTOM = 88;
+/** Oberkante (Randmitte) und Tiefpunkt (Boden) des Gefäßes — zwischen ihnen steigt die Wasserlinie. */
+export const VESSEL_TOP = 6;
+export const VESSEL_BOTTOM = 88;
 
-/** Sichtbare Gefäßbreite (x-Spanne der Herzkontur) — Bandmaß und Glas-Normierung teilen sie. */
+/** Sichtbare Gefäßbreite (x-Spanne der Kontur inklusive Lippen) — Bandmaß und Glas-Normierung teilen sie. */
 const VESSEL_LEFT = 4;
 const VESSEL_RIGHT = 96;
 
-/** Höhe der Wasserlinie zum Füllstand `fill` (0 = leer am Tiefpunkt, 1 = voll an der Oberkante). */
-export const waterlineY = (fill: number): number => HEART_BOTTOM - fill * (HEART_BOTTOM - HEART_TOP);
+/** Höhe der Wasserlinie zum Füllstand `fill` (0 = leer am Boden, 1 = voll an der Oberkante). */
+export const waterlineY = (fill: number): number => VESSEL_BOTTOM - fill * (VESSEL_BOTTOM - VESSEL_TOP);
+
+/**
+ * Waagrechte Skalenstriche knapp innerhalb beider Wände bei 25/50/75 % der Gefäßhöhe. Weil die
+ * Wasserlinie höhenlinear läuft (`waterlineY`), liest sich der Füllstand direkt an ihnen ab —
+ * dieselben Segmente zeichnet das SVG als `<line>` und der Glas-Shader als Distanzstreifen.
+ */
+export interface ScaleTick {
+	/** Linke und rechte Kante des Strichs in Nutzereinheiten. */
+	x1: number;
+	x2: number;
+	/** Höhe des Strichs in Nutzereinheiten. */
+	y: number;
+}
+
+const TICK_INSET = 2;
+const TICK_LENGTH = 6;
+
+export const SCALE_TICKS: readonly ScaleTick[] = [0.25, 0.5, 0.75].flatMap((fraction): ScaleTick[] => {
+	const y = waterlineY(fraction);
+	return [
+		{ x1: WALL_LEFT + TICK_INSET, x2: WALL_LEFT + TICK_INSET + TICK_LENGTH, y },
+		{ x1: WALL_RIGHT - TICK_INSET - TICK_LENGTH, x2: WALL_RIGHT - TICK_INSET, y },
+	];
+});
 
 /* Auflösung der Kontur-Näherung: Stützstellen je Bézier-Segment bzw. Spalten über die Gefäßbreite. */
 const FLATTEN_STEPS = 96;
@@ -75,8 +118,8 @@ const flattenContour = (): [number, number][] => {
 
 /**
  * Ober- und Unterkante der Kontur je Spalte. Die Kontur ist x-einfach — jede Senkrechte schneidet
- * den Rand genau zweimal (auch in der Einkerbung oben) —, also genügen Minimum und Maximum der
- * Schnitt-y-Werte. Einmalig zur Modulladezeit, die Kontur ist konstant.
+ * den Rand genau zweimal (auch an der Lippe und in den Bodenecken) —, also genügen Minimum und
+ * Maximum der Schnitt-y-Werte. Einmalig zur Modulladezeit, die Kontur ist konstant.
  */
 const COLUMN_BOUNDS = ((): { top: Float64Array; bottom: Float64Array } => {
 	const contour = flattenContour();
@@ -101,8 +144,8 @@ const COLUMN_BOUNDS = ((): { top: Float64Array; bottom: Float64Array } => {
 	// Spalten ohne Treffer (Rundung an den Rändern) tragen keine Fläche.
 	for (let column = 0; column <= COLUMNS; column += 1) {
 		if (!Number.isFinite(top[column]) || !Number.isFinite(bottom[column])) {
-			top[column] = HEART_BOTTOM;
-			bottom[column] = HEART_BOTTOM;
+			top[column] = VESSEL_BOTTOM;
+			bottom[column] = VESSEL_BOTTOM;
 		}
 	}
 	return { top, bottom };
@@ -146,14 +189,17 @@ const areaToX = (cumulative: Float64Array, target: number): number => {
  * entspricht dem jeweiligen Anteil an der gefüllten Gesamtfläche. Ein Anteil von 0 ergibt eine
  * Kante ohne Abstand zur vorherigen (Bandbreite 0).
  *
- * **Füllstand 0** (leeres Herz, etwa ohne Punkte) hätte keine Wasserfläche und damit keine
- * teilbare Größe: Dann wird über die **volle** Herzfläche aufgeteilt, statt durch null zu teilen.
+ * **Füllstand 0** (leeres Gefäß, etwa ohne Punkte) hätte keine Wasserfläche und damit keine
+ * teilbare Größe: Dann wird über die **volle** Gefäßfläche aufgeteilt, statt durch null zu teilen.
  */
 export const bandEdges = (shares: readonly number[], fill: number): number[] => {
 	if (shares.length === 0) return [];
 
 	let cumulative = cumulativeArea(fill);
-	if (cumulative[COLUMNS] <= 0) cumulative = cumulativeArea(1);
+	// Füllstand 0 heißt „keine Wasserfläche“ — aber die Bernstein-Auswertung des flachen Bodens
+	// streut um y = 88 und hinterlässt Pseudo-Flächen von ~1e-12. Erst ab einer echten Fläche
+	// (der volle Kolben liegt in der Größenordnung 1e3) gilt der Füllstand als erreicht.
+	if (cumulative[COLUMNS] < 1e-9) cumulative = cumulativeArea(1);
 	const total = cumulative[COLUMNS];
 
 	const shareSum = shares.reduce((sum, share) => sum + Math.max(0, share), 0);

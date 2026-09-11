@@ -135,8 +135,8 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 			if (msg.type() === 'error' || msg.type() === 'warning') {
 				const text = msg.text();
 				// Filter: Nur relevante Errors für Avatar-Entfernung (keine Backend-Probleme)
-				// und keine Meldungen des Grafiktreibers. Letztere stammen vom WebGL-Herz auf der
-				// Startseite (`HeartGlass.tsx`) und sind reine Performance-Hinweise von Chromium
+				// und keine Meldungen des Grafiktreibers. Letztere stammen vom WebGL-Gefäß auf der
+				// Startseite (`VesselGlass.tsx`) und sind reine Performance-Hinweise von Chromium
 				// selbst („GL Driver Message … GPU stall due to ReadPixels"); sie hängen an der
 				// Runner-Hardware, nicht am Anwendungscode.
 				if (!text.includes('Modell-Status') && !text.includes('GL Driver Message')) {

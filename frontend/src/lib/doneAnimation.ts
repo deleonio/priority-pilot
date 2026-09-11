@@ -4,11 +4,11 @@ import { useCallback, useState } from 'react';
  * Feinschalter „Erledigt animieren" für den Konfetti-Regen beim Erledigt-Toggle (#1169) —
  * neben dem Master-Schalter „Animationen" (`animations.ts`, #1183) die zweite Stufe: Konfetti
  * fällt nur, wenn **beide** Schalter an sind. Muster und Best-Effort-Regeln wie in
- * `heartAnimation.ts` („Herz animieren").
+ * `vesselAnimation.ts` („Lebensbalance animieren").
  *
  * Der Default ist **an**: Der Master-Schalter bleibt das Tor (er ist standardmäßig aus), wer
  * Animationen insgesamt freischaltet, feiert Erledigt ohne zweiten Klick mit — und kann den
- * Regen gezielt abbestellen, ohne das Herz oder andere Animationen zu verlieren. OS-Seitig
+ * Regen gezielt abbestellen, ohne das Gefäß oder andere Animationen zu verlieren. OS-Seitig
  * „Bewegung reduzieren" gewinnt ohnehin immer (`confetti.ts` fragt die Query selbst ab).
  */
 
