@@ -1,5 +1,5 @@
 import type { Route } from '@playwright/test';
-import { expect, test } from './servers';
+import { expect, test } from '@playwright/test';
 
 /**
  * Rote Spec-Tests (#225) für die öffentliche Route `/bahn` mit Bahn-Routenplaner-UI.

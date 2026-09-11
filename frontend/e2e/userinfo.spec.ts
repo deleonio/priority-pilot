@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from './servers';
+import { expect, test } from '@playwright/test';
 
 /**
  * Rote Spec-Tests (#192) für die Anzeige aktueller Benutzerinformationen (User Info Display).

@@ -731,22 +731,8 @@ oder unbekanntes Event lassen E2E laufen.
 Format, Lint, Actions-Schema und die Skript-Tests gerade an den Dateien, die der Filter
 ausschließt.
 
-`e2e` läuft in 8 Shards, jeder in einer eigenen Runner-VM. Innerhalb eines Shards arbeiten
-mehrere Playwright-Worker (Default 2, übersteuerbar über `E2E_WORKERS`). Möglich wird das durch
-die worker-scoped Fixture `frontend/e2e/servers.ts`: Sie startet je Worker ein eigenes Backend
-(Port 3100+n, eigene `:memory:`-DB) und einen eigenen Vite-Server (Port 4200+n), dessen Proxy über
-`API_PROXY_TARGET` auf genau dieses Backend zeigt. Vorher startete der `webServer`-Block der
-Playwright-Config genau ein Backend für den ganzen Lauf; alle Specs teilten sich dessen DB, und
-die Suite war deshalb auf `workers: 1` festgenagelt — ein Shard nutzte einen von vier Kernen.
-
-`fullyParallel: false` bleibt: Tests einer Datei laufen weiter in Reihenfolge im selben Worker und
-teilen sich dessen Datenbestand. Was sich ändert: Specs verschiedener Dateien sehen sich nicht mehr
-in der DB. Ein Spec, der sich stillschweigend auf Daten eines vorher gelaufenen Specs verlassen
-hat, fällt dadurch auf.
-
-Das Backend baut `globalSetup` (`frontend/e2e/global-setup.ts`) einmal pro Lauf. Vorher baute es
-jeder Serverstart selbst (`nodemon` exec `pnpm build && node dist/index.js`) — mit mehreren Workern
-je Shard schrieben diese Builds gleichzeitig ins selbe `server/dist`.
+`e2e` läuft in 8 Shards, jeder in einer eigenen Runner-VM mit eigenem `localhost` — deshalb
+kollidieren die festen Ports nicht und `workers: 1` / `fullyParallel: false` bleiben gültig.
 
 Zahlenbasis für den Zuschnitt (Lauf 34546420325, PR ohne Warteschlange): rund 23 Minuten reine
 E2E-Testzeit, dazu je Shard etwa 60 Sekunden Sockel (Container-Start, Checkout, Node/pnpm,
@@ -761,8 +747,10 @@ Step). Deshalb der Pfad-Filter: Doku- und Workflow-PRs belegen gar keine Läufer
 CI-Warte-Gate (`05-review.yml`) werten das korrekt als „fertig, nicht rot" — beide prüfen auf
 `bucket == "fail"` bzw. `bucket == "pending"`.
 
-Die nächste Stellschraube wäre die Shard-Zahl wieder zu senken: Was die Worker je Shard an
-Testzeit einsparen, lässt sich statt in Wandzeit auch in weniger belegte Läufer umsetzen.
+Wer die E2E-Zeit weiter drücken will, braucht nicht mehr Shards, sondern mehr Worker je Shard.
+Das scheitert heute daran, dass sich alle Specs eines Shards eine In-Memory-DB im selben
+Backend-Prozess teilen; ein Backend je Worker (Port-Offset, worker-scoped Fixture) würde die
+Testzeit halbieren, ohne einen zusätzlichen Läufer zu belegen.
 
 ## Nightly Spec-Sync (`cron.sync.spec.yml`)
 

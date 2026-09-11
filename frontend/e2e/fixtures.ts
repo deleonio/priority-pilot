@@ -1,5 +1,5 @@
 import type { Route } from '@playwright/test';
-import { test as base } from './servers';
+import { test as base } from '@playwright/test';
 
 /**
  * Gemeinsame Test-Basis für die **funktionalen** E2E-Specs (`smoke`, `crud`, `balance`, `series`,
@@ -19,9 +19,8 @@ import { test as base } from './servers';
  * **Vorrang spec-eigener Mocks:** Playwright wertet Route-Handler in umgekehrter Registrierungsreihen-
  * folge aus (zuletzt registriert = zuerst geprüft). Da diese Fixture ihren `/auth/me`-Handler **vor**
  * Übergabe der Page registriert, gewinnt jeder spätere `page.route('**\/auth/me', ...)` aus einem Spec
- * (z. B. `login.spec.ts`, das gezielt 401/200 steuert). Specs, die den Mock gar nicht wollen,
- * importieren `test` direkt aus `./servers` — NICHT mehr aus `@playwright/test`: dort fehlten
- * ihnen seit #1364 die Worker-Server (Backend + Vite je Worker) und damit die `baseURL`.
+ * (z. B. `login.spec.ts`, das gezielt 401/200 steuert). `login.spec.ts` importiert daher weiterhin
+ * direkt aus `@playwright/test` und braucht diese Fixture nicht.
  */
 
 const AUTHENTICATED_USER = { id: 1, displayName: 'Test User', email: 'test@example.com' };
