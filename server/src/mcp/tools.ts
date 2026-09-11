@@ -28,6 +28,12 @@ export interface McpTool {
 	name: string;
 	description: string;
 	inputSchema: McpInputSchema;
+	/**
+	 * Gesetzt, wenn das Werkzeug Daten verändert (#1356). Der JSON-RPC-Rahmen weist einen solchen
+	 * Aufruf mit einem Nur-lese-Token ab, bevor der Loopback überhaupt losgeht — so bekommt der
+	 * Client einen lesbaren JSON-RPC-Fehler statt einer nackten HTTP-403 aus der Tiefe der Kette.
+	 */
+	write?: true;
 	/** Führt das Werkzeug aus; wirft bei einem Fehler der gespiegelten Route. */
 	run: (ctx: McpToolContext, args: Record<string, unknown>) => Promise<unknown>;
 }
@@ -102,6 +108,7 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_create',
 		description: 'Legt eine neue Aufgabe für den Token-Besitzer an.',
+		write: true,
 		inputSchema: {
 			type: 'object',
 			properties: { ...taskFieldProperties },
@@ -112,6 +119,7 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_update',
 		description: 'Ändert Felder einer eigenen Aufgabe.',
+		write: true,
 		inputSchema: {
 			type: 'object',
 			properties: {
@@ -125,6 +133,7 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_complete',
 		description: 'Setzt eine eigene Aufgabe auf erledigt.',
+		write: true,
 		inputSchema: {
 			type: 'object',
 			properties: { id: { type: 'integer', description: 'ID der zu erledigenden Aufgabe.' } },

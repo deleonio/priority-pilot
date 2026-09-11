@@ -33,9 +33,9 @@ const createToken = async (cookie: string, name = 'MCP-SDK-Client'): Promise<str
 };
 
 /** Verbindet einen SDK-Client Bearer-authentifiziert mit dem lokalen MCP-Endpunkt. */
-const connectClient = async (token: string): Promise<Client> => {
+const connectClient = async (token: string, path = '/mcp/v1'): Promise<Client> => {
 	const client = new Client({ name: 'mcp-handshake-test', version: '1.0.0' });
-	const transport = new StreamableHTTPClientTransport(new URL(`${server.baseUrl}/mcp/v1`), {
+	const transport = new StreamableHTTPClientTransport(new URL(`${server.baseUrl}${path}`), {
 		requestInit: { headers: { Authorization: `Bearer ${token}` } },
 	});
 	await client.connect(transport);
@@ -88,6 +88,46 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 			]) {
 				assert.ok(names.includes(expected), `erwartete Werkzeug "${expected}" in ${JSON.stringify(names)}`);
 			}
+		} finally {
+			await client.close().catch(() => {});
+		}
+	});
+
+	// Regression zu #1358: eine mit Schrägstrich konfigurierte Endpunkt-URL bedient derselbe Router,
+	// die Rechtestufen-Ausnahme verglich den Pfad aber exakt — der Handshake scheiterte seitdem für
+	// jedes Nur-lese-Token (und das sind nach der Migration alle Bestands-Tokens) an einer 403.
+	it('#1358: der Handshake gelingt auch, wenn die Endpunkt-URL auf einen Schrägstrich endet', async () => {
+		const cookie = await server.register('mcp-h@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const client = await connectClient(token, '/mcp/v1/');
+		try {
+			assert.equal(client.getServerVersion()?.name, 'priority-pilot-mcp-v1');
+			const { tools } = await client.listTools();
+			assert.ok(
+				tools.some((tool) => tool.name === 'task_list'),
+				'tools/list muss auch über die Slash-Variante antworten',
+			);
+		} finally {
+			await client.close().catch(() => {});
+		}
+	});
+
+	// #1358: ein Nur-lese-Token darf am Werkzeug scheitern — aber als JSON-RPC-Fehler, den der
+	// Client anzeigen kann, nicht als HTTP-403, die der Transport als Verbindungsabbruch meldet.
+	it('#1358: ein schreibendes Werkzeug meldet mit Nur-lese-Token einen lesbaren Werkzeugfehler', async () => {
+		const cookie = await server.register('mcp-h@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const client = await connectClient(token);
+		try {
+			await assert.rejects(
+				() => client.callTool({ name: 'task_create', arguments: { title: 'Mit Nur-lese-Token' } }),
+				/nur lesenden Zugriff/,
+			);
+			// Die Verbindung überlebt die Ablehnung — der Client bleibt benutzbar.
+			const list = await client.callTool({ name: 'task_list', arguments: {} });
+			assert.ok(Array.isArray(list.content), 'lesende Werkzeuge bleiben nach der Ablehnung nutzbar');
 		} finally {
 			await client.close().catch(() => {});
 		}
