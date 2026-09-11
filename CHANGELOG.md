@@ -555,6 +555,12 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 - feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
 
+## v0.1.718 - 2026-09-05
+
+### Other Changes
+
+- feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
+
 ## v0.1.717 - 2026-09-05
 
 ### Other Changes
@@ -3020,3 +3026,4 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
+
