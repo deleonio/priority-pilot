@@ -200,4 +200,46 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 		const listViaSession = await server.json('/api-tokens', { headers: { Cookie: cookie } });
 		assert.equal(listViaSession.status, 200, 'die Browser-Session bleibt unverändert nutzbar');
 	});
+
+	// Regression zu #1358: die Ausnahme für die MCP-Transportroute verglich `req.path` exakt gegen
+	// '/mcp/v1'. Der Router bedient (strict: false) aber auch '/mcp/v1/' — ein Client, dessen URL
+	// mit Slash endet, fiel damit in die Schreibregel und bekam auf den Handshake eine nackte 403,
+	// die MCP-Clients ohne Fehlertext als „Verbindung fehlgeschlagen" anzeigen.
+	it('#1358: der MCP-Handshake gelingt mit einem Nur-lese-Token auch bei Pfad mit Schrägstrich', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+
+		for (const path of ['/mcp/v1', '/mcp/v1/']) {
+			const res = await fetch(`${server.baseUrl}${path}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+				body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+			});
+			assert.equal(res.status, 200, `${path} muss den Handshake bedienen, war ${res.status}`);
+			const body = (await res.json()) as { result?: { serverInfo?: { name?: string } } };
+			assert.equal(body.result?.serverInfo?.name, 'priority-pilot-mcp-v1', `${path} liefert kein serverInfo`);
+		}
+	});
+
+	// Gegenprobe zum Test darüber: die Normalisierung darf die Schreibsperre nicht aufweichen —
+	// eine Fachroute mit Schrägstrich bleibt für ein Nur-lese-Token gesperrt.
+	it('#1358: POST /tasks/ bleibt mit einem Nur-lese-Token 403', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+
+		const res = await fetch(`${server.baseUrl}/tasks/`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+			body: JSON.stringify({ title: 'Mit Schrägstrich versucht' }),
+		});
+		assert.equal(res.status, 403);
+	});
+
+	it('#1358: /api-tokens/ bleibt über einen Bearer-Token gesperrt', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+
+		const res = await fetch(`${server.baseUrl}/api-tokens/`, { headers: { Authorization: `Bearer ${token}` } });
+		assert.equal(res.status, 403);
+	});
 });

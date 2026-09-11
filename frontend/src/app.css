@@ -3370,6 +3370,12 @@ kol-heading {
 	font-size: 0.875rem;
 }
 
+/* Hinweis über der Token-Liste (#1358): erklärt, warum ein frisch erzeugter oder ein vor der
+   Rechtestufe vergebener Token schreibende MCP-Werkzeuge ablehnt. */
+.api-tokens__scope-hint {
+	font-size: 0.875rem;
+}
+
 /* Der KoliBri-Switch-Host reserviert im internen Grid eine volle `1fr`-Spalte für das
    `_hideLabel`-Label (unsichtbar, aber layoutwirksam — Bug im aktuellen Theme-Layer: die
    Theme-Regel überschreibt `display:none` der `--visually-hidden`-Klasse). Ohne feste Breite

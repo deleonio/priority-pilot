@@ -273,6 +273,18 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 
 		const created = await mcpCall<{ id: number }>(token, 'task_create', { title: 'Über MCP mit Nur-lese-Token' });
 		assert.ok(created.error, 'task_create muss mit einem Nur-lese-Token fehlschlagen');
+		// #1358: der Fehler muss sagen, was zu tun ist — ein durchgereichtes „403" aus der
+		// gespiegelten Route erreicht den Nutzer im MCP-Client sonst als Text ohne Handlungshinweis.
+		assert.match(
+			created.error.message,
+			/nur lesenden Zugriff/,
+			`Fehlertext muss die Rechtestufe benennen, war: ${created.error.message}`,
+		);
+		assert.match(
+			created.error.message,
+			/Lesen und Schreiben/,
+			`Fehlertext muss den Ausweg nennen, war: ${created.error.message}`,
+		);
 
 		const afterFailedCreate = await mcpCall<{ title: string }[]>(token, 'task_list');
 		assert.ok(

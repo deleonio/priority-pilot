@@ -7,7 +7,8 @@ name: Claude PR Gate & Auto-Merge
 #
 # Beide Zweige teilen denselben App-Token-Preflight, dieselbe PR-Aufloesung und dieselbe
 # Allowlist-Check-Auswertung — sie sind die zwei Haelften EINER Entscheidung:
-#   - mind. ein Allowlist-Check (CI / Reviewer) ROT -> ai:needs-fixup setzen (loest Fixup aus).
+#   - mind. ein Allowlist-Check (CI / Reviewer) ROT -> ai:needs-review setzen (das Review
+#     bewertet die roten Jobs und loest den Fixup aus; der Fixup startet NUR aus dem Review).
 #   - alle GRUEN + ai:reviewed gesetzt + mergebar -> mergen.
 #   - sonst No-op.
 #
@@ -308,30 +309,26 @@ jobs:
             exit 0
           fi
 
-          any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
+          any_ci_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail" and .workflow == "Verify")')"
+          any_review_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail" and .workflow == "05 Review")')"
           has_needs_fixup="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-fixup")')"
 
           # ====================================================================================
-          # GATE-ZWEIG: mind. ein Allowlist-Check ROT -> ai:needs-fixup setzen (loest Fixup aus).
+          # REVIEW-ABSTURZ-ZWEIG: ein "05 Review"-Check selbst ist rot (Job-Crash, nicht dessen
+          # fachliches Ergebnis). Anders als bei roten Verify-Checks kann hier NICHT auf das
+          # Review gewartet werden, das diese roten Checks bewertet — das Review IST der rote
+          # Check. Der GATE-ZWEIG unten wuerde sonst erneut ai:needs-review setzen: das Label ist
+          # nach dem Start-Konsum bereits weg, ein abgestuerzter Review-Lauf erzeugt keine
+          # Commits, und die einzige 0-Commit-Bremse (No-Progress -> ai:needs-human) sitzt im
+          # Fixup, den dieser Zweig gerade umgeht. Daher direkt ai:needs-fixup setzen.
           # ====================================================================================
-          if [ "$any_fail" = "true" ]; then
-            # Oszillationsschutz: Traegt der PR bereits ai:needs-fixup, laeuft (oder steht bewusst)
-            # der Fixup-Loop schon. Erneutes Setzen waere ein No-op; den Zustand NICHT anruehren, um
-            # einen bewussten "Stop"-Zustand (> N Fixup-Commits) nicht zu ueberschreiben.
+          if [ "$any_review_fail" = "true" ]; then
             if [ "$has_needs_fixup" = "true" ]; then
               echo "PR #$pr traegt bereits ai:needs-fixup — Loop laeuft/steht bewusst (No-op)."
               exit 0
             fi
-            red="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail") | (.workflow + " / " + .name)] | join(", ")')"
-            echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-fixup (loest Fixup aus)."
-
-            # EINE atomare Transition zu ai:needs-fixup (PR #890): ersetzt den gesamten
-            # Pipeline-Bestand — ai:reviewed/ai:needs-review sind damit IMMER mit
-            # entfernt, die Invariante „ai:needs-fixup ⇒ kein ai:needs-review"
-            # gilt per Konstruktion. --forbid ai:needs-fixup = Oszillationsschutz zur
-            # Laufzeit (der has_needs_fixup-Check oben las den Zustand nur einmalig).
-            # ai:needs-human schuetzt seit PR #903 Guard 3 in label-transition.sh — eine
-            # geparkte Entscheidung bleibt geparkt, der Gate-Zweig no-opt't dann (applied=false).
+            red_review="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail" and .workflow == "05 Review") | .name] | join(", ")')"
+            echo "Roter 05-Review-Check an PR #$pr: $red_review — Review selbst abgestuerzt, setze ai:needs-fixup direkt."
             if ! OUT="$(bash .github/scripts/label-transition.sh \
                 --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
               echo "::error::Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"
@@ -340,14 +337,74 @@ jobs:
             if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
               echo "PR #$pr: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Fixup-Trigger gesetzt."
             else
-              echo "::notice::PR #$pr: ai:needs-fixup gesetzt (atomar, inkl. Alt-Label-Abbau)."
+              echo "::notice::PR #$pr: ai:needs-fixup gesetzt (Review-Check abgestuerzt)."
+            fi
+            {
+              echo "### CI-Gate #${pr} — ai:needs-fixup wegen abgestuerztem Review-Check gesetzt"
+              echo ""
+              echo "- Rote 05-Review-Checks: ${red_review}"
+              echo "- Folge: 04-claude-implement.yml (Fixup) wird ausgelöst statt eines erneuten Review-Bounce."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # ====================================================================================
+          # GATE-ZWEIG: mind. ein Verify-Check ROT -> ai:needs-review setzen (Review entscheidet).
+          # Beschraenkt auf die Verify-Workflow-Checks (any_ci_fail) — ein rotes 05-Review selbst
+          # wird bereits oben im REVIEW-ABSTURZ-ZWEIG behandelt, sonst wuerde die Allowlist
+          # (die auch die eigenen Review-Checks enthaelt) den gerade abgestuerzten Review-Trigger
+          # hier erneut setzen.
+          #
+          # WARUM NICHT MEHR DIREKT ai:needs-fixup (Harness-Beobachtung, Kosten): Der Fixup darf
+          # NUR aus dem Review kommen. Setzte das Gate ihn selbst, startete die Nacharbeit an den
+          # CI-Fehlern, waehrend das Review noch lief/anstand — dessen Code-Findings kamen dann
+          # erst danach und kosteten eine ZWEITE Fixup-Runde samt zweitem Review. Das Review
+          # wartet seit 05-review.yml selbst auf den Abschluss der Checks, sieht rote Jobs und
+          # buendelt sie mit seinen Findings in EINE Runde.
+          # Ausnahme bleibt der Merge-Konflikt weiter unten: auf einem konfliktbehafteten PR
+          # fuehrt GitHub pull_request-Workflows gar nicht erst aus (PR #899) — ein Review-Trigger
+          # verpufft dort, der Fixup loest den Konflikt.
+          # ====================================================================================
+          if [ "$any_ci_fail" = "true" ]; then
+            # Oszillationsschutz: Traegt der PR bereits ai:needs-fixup, laeuft (oder steht bewusst)
+            # der Fixup-Loop schon. Erneutes Setzen waere ein No-op; den Zustand NICHT anruehren, um
+            # einen bewussten "Stop"-Zustand (> N Fixup-Commits) nicht zu ueberschreiben.
+            if [ "$has_needs_fixup" = "true" ]; then
+              echo "PR #$pr traegt bereits ai:needs-fixup — Loop laeuft/steht bewusst (No-op)."
+              exit 0
+            fi
+            # Klebt der Review-Trigger noch, steht das Review an (oder wartet gerade im
+            # CI-Warte-Gate). Es liest das rote Ergebnis selbst — jeder Label-Write hier wuerde
+            # ihm nur den Trigger unter den Fuessen wegziehen.
+            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
+              echo "PR #$pr traegt ai:needs-review — das Review wartet selbst auf die Checks und bewertet sie mit (No-op)."
+              exit 0
+            fi
+            red="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail") | (.workflow + " / " + .name)] | join(", ")')"
+            echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-review (Review bewertet und loest ggf. den Fixup aus)."
+
+            # EINE atomare Transition zu ai:needs-review (PR #890): ersetzt den gesamten
+            # Pipeline-Bestand — ein altes ai:reviewed ist damit immer mit abgebaut.
+            # --forbid ai:needs-fixup = Oszillationsschutz zur Laufzeit (der
+            # has_needs_fixup-Check oben las den Zustand nur einmalig).
+            # ai:needs-human schuetzt seit PR #903 Guard 3 in label-transition.sh — eine
+            # geparkte Entscheidung bleibt geparkt, der Gate-Zweig no-opt't dann (applied=false).
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$REPO" --pr "$pr" --set ai:needs-review --forbid ai:needs-fixup)"; then
+              echo "::error::Label-Transition zu ai:needs-review endgültig fehlgeschlagen"
+              exit 1
+            fi
+            if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
+              echo "PR #$pr: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Review-Trigger gesetzt."
+            else
+              echo "::notice::PR #$pr: ai:needs-review gesetzt (atomar, inkl. Alt-Label-Abbau)."
             fi
 
             {
-              echo "### CI-Gate #${pr} — ai:needs-fixup gesetzt"
+              echo "### CI-Gate #${pr} — ai:needs-review gesetzt"
               echo ""
               echo "- Rote Allowlist-Checks: ${red}"
-              echo "- Folge: 04-claude-implement.yml (PR-Eingang) wird ausgeloest."
+              echo "- Folge: 05-review.yml bewertet die roten Jobs und setzt ggf. ai:needs-fixup."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

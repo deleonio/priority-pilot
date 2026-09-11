@@ -72,8 +72,9 @@ flowchart TD
     fixup -.->|"menschlicher Push bei klebendem Label<br/>(Re-Arm ai:needs-fixup, kein Review-Reset)"| fixup
     autolabel -->|"label: ai:needs-review<br/>(nur menschliche Aktoren)"| review
 
-    %% ---- Review-Verzweigung ----
-    review -->|"🔴: label ai:needs-fixup"| fixup
+    %% ---- Review-Verzweigung (das Review startet erst, wenn die CI-Checks fertig sind —
+    %% rote Jobs werden zu Findings derselben Runde) ----
+    review -->|"🔴 Findings/CI: label ai:needs-fixup"| fixup
     review -->|"🟢: label ai:reviewed"| gatemerge
     review -->|"⏸️: label ai:needs-human + ai:reviewed"| human
 
@@ -84,7 +85,7 @@ flowchart TD
     %% ---- Deterministisches Gate (workflow_run) ----
     review -.->|"CI/Review fertig (workflow_run)"| gatemerge
     fixup -.->|"Push → CI fertig"| gatemerge
-    gatemerge -->|"CI/Reviewer 🔴 → label: ai:needs-fixup"| fixup
+    gatemerge -->|"CI/Reviewer 🔴 → label: ai:needs-review<br/>(Fixup startet nur aus dem Review)"| review
     gatemerge -->|"alle 🟢 + ai:reviewed → merge"| merged
 
     %% ---- Abschluss ----
@@ -132,15 +133,15 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 
 **Trigger-Labels (`ai:needs-*`)** — jede Phase reagiert auf genau eines und konsumiert es:
 
-| Label                | Gesetzt von                                                          | Entfernt von (Konsum)  | Triggert                  |
-| -------------------- | -------------------------------------------------------------------- | ---------------------- | ------------------------- |
-| `ai:needs-analyse`   | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe)   | triage                 | `triage.yml`              |
-| `ai:needs-po-review` | triage (bei 🟢)                                                      | PO (Mensch)            | —                         |
-| `ai:needs-ux-ui`     | PO (nach Prüfung)                                                    | ux                     | `ux.yml`                  |
-| `ai:needs-spec`      | PO (nach Prüfung), ux (bei Erfolg)                                   | spec                   | `spec.yml`                |
-| `ai:needs-impl`      | PO (nach Prüfung), spec (bei Erfolg)                                 | implement              | `implement.yml`           |
-| `ai:needs-review`    | implement, pr-needs-review-label (nur menschlich), **fixup**         | review                 | `pr-review.yml`           |
-| `ai:needs-fixup`     | review (🔴), **gate-merge**, **conflict-scan**, Autolabeler (Re-Arm) | implement (PR-Eingang) | `04-claude-implement.yml` |
+| Label                | Gesetzt von                                                                               | Entfernt von (Konsum)  | Triggert                  |
+| -------------------- | ----------------------------------------------------------------------------------------- | ---------------------- | ------------------------- |
+| `ai:needs-analyse`   | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe)                        | triage                 | `triage.yml`              |
+| `ai:needs-po-review` | triage (bei 🟢)                                                                           | PO (Mensch)            | —                         |
+| `ai:needs-ux-ui`     | PO (nach Prüfung)                                                                         | ux                     | `ux.yml`                  |
+| `ai:needs-spec`      | PO (nach Prüfung), ux (bei Erfolg)                                                        | spec                   | `spec.yml`                |
+| `ai:needs-impl`      | PO (nach Prüfung), spec (bei Erfolg)                                                      | implement              | `implement.yml`           |
+| `ai:needs-review`    | implement, pr-needs-review-label (nur menschlich), **fixup**, **gate-merge** (CI 🔴)      | review                 | `pr-review.yml`           |
+| `ai:needs-fixup`     | review (🔴), **conflict-scan**, **gate-merge** (nur Merge-Konflikt), Autolabeler (Re-Arm) | implement (PR-Eingang) | `04-claude-implement.yml` |
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 
@@ -242,9 +243,26 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   nicht robust machbar — daher Heuristik alle PR-Commits, Schwelle > 10). **Hinweis:** ein
   0-Commit-Loop (Fixup findet keine Findings und committet nichts) wird davon nicht gebremst — die
   No-Progress-Erkennung im Fixup (HEAD unverändert → `ai:needs-human`) kappt ihn.
+- **Review wartet auf die Checks (Kosten-Gate):** Das Review startet den LLM-Lauf erst, wenn die
+  CI-Checks des Workflows `Verify` fertig sind (`.github/scripts/wait-for-checks.sh`, Budget
+  `vars.REVIEW_CI_WAIT_SECONDS`, Default 20 min, **fail-open**). Vorher liefen Review und CI
+  parallel: War das Review zuerst fertig und setzte `ai:needs-fixup`, arbeitete die Nacharbeit
+  ohne CI-Wissen — ein danach rot gewordener Check kostete eine **zweite** Fixup-Runde samt
+  zweitem Review. Jetzt sind rote Jobs Findings desselben Reviews und werden in **einer** Runde
+  mitbehoben. Das Warten passiert **vor** dem Start-Konsum: `ai:needs-review` klebt währenddessen
+  weiter (stirbt der Lauf, heilt der Continue-Sweep — und das Gate erkennt am klebenden Label,
+  dass es sich bei rotem CI heraushalten muss).
+- **Der Fixup startet ausschließlich aus dem Review** (einzige Ausnahme: Merge-Konflikte über
+  gate-merge/conflict-scan — dort kann ein Review gar nicht laufen). Jeder andere Weg brächte die
+  Nacharbeit vor den Review-Findings ins Rennen und erzwänge eine weitere Runde.
 - **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', '5/7 Review']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:reviewed`):
-  ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-fixup` (stößt fixup an); ist der PR
-  wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-fixup`;
+  ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-review` (das Review bewertet die
+  roten Jobs und stößt den Fixup an — **der Fixup startet nur aus dem Review**, siehe
+  „Review wartet auf die Checks" unten); klebt `ai:needs-review` bereits, ist das ein No-op
+  (das anstehende Review liest das Ergebnis selbst); ist der PR
+  wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → `ai:needs-fixup` (Ausnahme:
+  auf einem konfliktbehafteten PR führt GitHub `pull_request`-Workflows gar nicht aus, ein
+  Review-Trigger verpufft dort);
   sind beide grün und `ai:reviewed` gesetzt UND keines der Labels `ai:needs-fixup`/`ai:needs-review`/
   `ai:needs-human` mehr vorhanden und der PR sauber mergebar → Merge. **Methode:** Squash
   (`gh pr merge --squash`) — seit dem Repo-Umstieg auf `allow_squash_merge=true` /

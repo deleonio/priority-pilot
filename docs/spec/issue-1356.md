@@ -38,6 +38,17 @@ Durchsetzung. Quelle der Akzeptanzkriterien: KI-ANALYSE-Block im Harness-Marker-
   greift auf dem inneren Loopback-Request, den `callApi` (`server/src/mcp/tools.ts`) gegen die
   gespiegelte HTTP-Route schickt — `task_list`/`next_task`/`pillar_list`/`category_list` (GET)
   bleiben erreichbar, `task_create` (POST) liefert einen Fehler (AK6).
+- Nachtrag aus #1358: Die Ausnahme verglich den Pfad exakt gegen `/mcp/v1`, der Router bedient
+  (`strict: false`) aber auch `/mcp/v1/`. Ein Client mit Schrägstrich am Ende der Endpunkt-URL
+  fiel damit in die Schreibregel und bekam schon auf den `initialize`-Handshake eine 403 — ohne
+  JSON-RPC-Rahmen, also für MCP-Clients als Verbindungsfehler ohne Text. Der Guard vergleicht den
+  Pfad jetzt normalisiert (ohne abschließende Schrägstriche) gegen die aus `mcp/server.ts`
+  exportierte Konstante `MCP_PATH`; dasselbe gilt für den `/api-tokens`-Vergleich. Warum der Pfad
+  nur an einer Stelle steht: [ADR 0012](../adr/0012-mcp-endpunkt-ohne-sdk.md).
+- Ebenfalls aus #1358: Ein schreibendes Werkzeug wird am Werkzeug selbst abgewiesen
+  (`write: true` im Katalog, Prüfung in `mcp/server.ts` vor `tool.run`), damit die Ablehnung als
+  JSON-RPC-Fehler mit Handlungshinweis beim Client ankommt statt als durchgereichter HTTP-Text.
+  Die Sperre auf dem Loopback bleibt als zweite Verteidigungslinie bestehen.
 - Die Token-Verwaltung selbst (`/api-tokens`, jede Methode) ist über einen Bearer-Token NICHT
   erreichbar — 403 unabhängig vom `scope` des Tokens, damit sich ein Token nicht selbst oder andere
   Tokens hochstufen kann. Über die Browser-Session bleiben alle vier Routen unverändert nutzbar
@@ -45,6 +56,9 @@ Durchsetzung. Quelle der Akzeptanzkriterien: KI-ANALYSE-Block im Harness-Marker-
 
 ## Frontend-Vertrag (`frontend/src/components/ApiTokensSection.tsx`)
 
+- Über der Token-Liste steht ein Hinweis (#1358), dass ein Token standardmäßig nur liest und
+  schreibende MCP-Werkzeuge bis zum Umschalten einen Fehler melden — das gilt auch für Tokens,
+  die vor der Migration vergeben wurden und von ihr bewusst auf `read` gesetzt worden sind.
 - Jede Token-Zeile (`data-testid="api-token-row"`) zeigt die aktuelle Stufe im Klartext
   („Nur lesend" / „Lesen und Schreiben") und einen Umschalter, der sofort beim Ändern den PATCH
   sendet (kein Speichern-Klick, Muster `handleRevoke`) — `busy`-Sperre während des Requests,

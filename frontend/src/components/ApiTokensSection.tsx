@@ -190,6 +190,14 @@ export const ApiTokensSection = () => {
 			</KolCard>
 
 			<KolCard className="settings-card" _label="Vergebene Tokens" _level={2}>
+				{/*
+					#1358: Die Herabstufung war vorher nirgends sichtbar — ein Token, das gestern noch
+					schreiben durfte, meldete nach dem Update nur einen Fehler im MCP-Client.
+				*/}
+				<p className="api-tokens__scope-hint">
+					Ein Token liest standardmäßig nur. Schreibende MCP-Werkzeuge wie <code>task_create</code> melden einen Fehler,
+					solange der Schalter auf „Nur lesend" steht — auch bei Tokens, die vor dieser Einstellung vergeben wurden.
+				</p>
 				{tokens.length === 0 ? (
 					<p>Noch kein Token vergeben.</p>
 				) : (

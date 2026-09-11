@@ -35,13 +35,62 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (claude-pr-gate-merge.yml) keyt auf den Workflow-
-# NAMEN `CI` (`select(.workflow == "CI")`, `any(.[]; .workflow == "CI")`), NICHT auf einen Job-Namen.
-# Solange dieser Workflow `name: Verify` heisst, zaehlen ALLE Job-Checks (verify + e2e-Shards) als „CI":
-# ein roter -> Gate setzt ai:needs-fixup; alle gruen -> mergebar. `workflow_run` feuert pro Run
-# (nicht pro Job), das Fan-out bleibt also EIN Gate-Trigger. Jobs duerfen frei aufgeteilt/umbenannt
-# werden — der Workflow-Name `CI` aber nicht.
+# GATE-KONTRAKT (nicht brechen): Drei Stellen keyen auf den Workflow-NAMEN `Verify` aus Zeile 1 —
+# NICHT auf einen Job-Namen:
+#   - merge-pr.yml:54  `workflow_run.workflows: ['Verify', '05 Review']` (der Trigger selbst)
+#   - merge-pr.yml:242 Allowlist `select(.workflow == "Verify")`, davon abgeleitet `has_ci` (:243)
+#                      und `any_ci_fail` (:312)
+#   - wait-for-checks.sh `WORKFLOW="Verify"` (Default), genutzt vom Warte-Gate in 05-review.yml
+# Solange dieser Workflow `Verify` heisst, zaehlen ALLE seine Job-Checks (changes + verify +
+# e2e-Shards) als CI-Signal: ein roter -> Gate setzt ai:needs-review (das Review buendelt die
+# CI-Fehler mit seinen eigenen Findings); alle gruen -> mergebar. `workflow_run` feuert pro Run
+# (nicht pro Job), das Fan-out bleibt also EIN Gate-Trigger. Jobs duerfen frei aufgeteilt und
+# umbenannt werden — `name: Verify` in Zeile 1 aber nur zusammen mit den drei Stellen oben.
+# ACHTUNG: Ein Rename schlaegt NICHT fehl, es faerbt das Gate still gruen (leere Allowlist,
+# has_ci=false) — deshalb steht die Warnung hier und nicht nur in 05-review.yml.
 jobs:
+  # Pfad-Filter fuer die E2E-Shards. Bewusst ein EIGENER, winziger Job (sparse-checkout, kein
+  # Container, kein Install, ~20 s) statt eines Steps in den Shards: Ein uebersprungener Shard
+  # startet gar keinen Laeufer. Genau das ist der Punkt — acht Shards belegen acht Plaetze am
+  # Job-Limit des Kontos, und in einem Renovate-/Pipeline-Schwall entscheidet dieses Limit ueber
+  # die Wartezeit ALLER Laeufe, nicht die Testdauer. Ein Doku-PR soll dort nichts belegen.
+  # Der `verify`-Job haengt bewusst NICHT davon ab: er ist das CI-Signal des Gates und prueft
+  # Format/Lint/Skript-Tests gerade an den Dateien, die dieser Filter ausschliesst.
+  # Entscheidungslogik samt Tests: .github/scripts/diff-touches-app.sh (fail-closed).
+  changes:
+    # Draft-PRs bekommen wie verify/e2e gar kein CI — dann auch keinen Filter-Laeufer.
+    # Ein uebersprungener `changes`-Job laesst `e2e` (needs) korrekt mit entfallen.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # gh api pulls/{n}/files
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Nur das Skript holen — der Filter liest den Diff ueber die API, nicht aus dem Worktree.
+          sparse-checkout: .github/scripts
+      - name: Diff gegen den Anwendungscode pruefen
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          if [ -n "$PR" ]; then
+            OUT="$(bash .github/scripts/diff-touches-app.sh --repo "$REPO" --pr "$PR")"
+          else
+            OUT="$(bash .github/scripts/diff-touches-app.sh --repo "$REPO" --base "$BEFORE" --head "$AFTER")"
+          fi
+          printf '%s\n' "$OUT" >> "$GITHUB_OUTPUT"
+          echo "::notice title=E2E-Pfad-Filter::$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+
   # Nicht-E2E-Halbzeit: Format/Lint/Build/Unit/Coverage/Contracts. Laeuft PARALLEL zu den e2e-Shards
   # (frueher seriell VOR E2E). Der build-Step regeneriert die Vertragstypen frisch aus openapi.yml
   # und type-checkt dagegen — so kann API-Drift nicht nach main gelangen (E2E braucht ihn nicht, s. u.).
@@ -120,9 +169,16 @@ jobs:
   # ACHTUNG: Wird `shard: [...]` geaendert, MUSS der Nenner in `--shard=…/N` mitgezogen werden —
   # sonst verteilen sich die Specs falsch (frueher rot via workflow-consistency.test.ts, entfernt).
   e2e:
-    # Kein CI auf Draft-PRs (identisch zu verify) — sonst liefen die teuren E2E-Shards auf dem
-    # noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: changes
+    # Zwei Bedingungen:
+    #  - Kein CI auf Draft-PRs (identisch zu verify) — sonst liefen die teuren E2E-Shards auf dem
+    #    noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.
+    #  - Pfad-Filter: beruehrt der Diff keinen Anwendungscode, entfallen die Shards (s. Job
+    #    `changes`). Die Checks erscheinen dann als `skipping` — Gate (merge-pr.yml) und
+    #    CI-Warte-Gate (05-review.yml) werten das korrekt als „fertig, nicht rot".
+    if: >-
+      needs.changes.outputs.app == 'true'
+      && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     # Playwright-Image: Browser + System-Dependencies sind vorinstalliert (/ms-playwright via
     # PLAYWRIGHT_BROWSERS_PATH) — kein Browser-Install- und kein apt-Lauf (`--with-deps`) mehr.
@@ -134,7 +190,13 @@ jobs:
       # Einen roten Shard NICHT die anderen abbrechen lassen — volles Fehlersignal ueber alle Shards.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        # 8 statt 4 (gemessen an Lauf 34546420325): ~23 min reine Testzeit, der langsamste Shard
+        # bestimmte mit 4 Shards die Wandzeit des ganzen Laufs (6:37 Test + ~1 min Sockel = 7:34).
+        # Bei 8 Shards sind es ~4:35. Weiter zu teilen lohnt kaum noch: pro Shard fallen rund
+        # 60 s Fixkosten an (Container-Start, Checkout, Node/pnpm, Install), ab ~12 Shards steckt
+        # die Haelfte der Job-Zeit darin — und jeder Shard belegt einen Platz am Job-Limit des
+        # Kontos, das im Schwall ueber die Wartezeit ALLER Laeufe entscheidet.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       # git fehlt im Playwright-Image, actions/checkout braucht es (guarded: No-op falls doch vorhanden).
       # safe.directory: Container-Jobs mounten den Workspace mit fremdem UID-Owner — checkout fängt
@@ -153,11 +215,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       # `exec playwright test --shard` (NICHT `test:e2e -- --shard`): pnpm reicht `--` sonst literal
-      # ans Skript durch (bekannte Falle) — `exec` startet das Bin direkt. Nenner /4 == Matrix-Groesse
-      # (Contract-Test E1). Playwrights Shard-Zuteilung ist deterministisch (stabile Test-Sortierung),
+      # ans Skript durch (bekannte Falle) — `exec` startet das Bin direkt. Nenner /8 == Matrix-Groesse
+      # (s. ACHTUNG am Job). Playwrights Shard-Zuteilung ist deterministisch (stabile Test-Sortierung),
       # sichert reproduzierbare Verteilung ueber Wiederholungslaeufe.
-      - name: E2E (shard ${{ matrix.shard }}/4)
-        run: pnpm --filter frontend exec playwright test --shard=${{ matrix.shard }}/4
+      - name: E2E (shard ${{ matrix.shard }}/8)
+        run: pnpm --filter frontend exec playwright test --shard=${{ matrix.shard }}/8
       # Bei Fehlschlag den Playwright-Report als Artefakt sichern, damit Regressionen nachvollziehbar
       # bleiben. Name je Shard eindeutig — actions/upload-artifact@v4 bricht bei doppelten Namen ab.
       - name: Playwright-Report sichern
