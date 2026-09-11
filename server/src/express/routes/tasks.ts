@@ -729,10 +729,14 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			};
 			// #1363: Meilenstein-Stand des Eigentümers vor dem Statuswechsel-Commit festhalten — nur bei
 			// echtem Übergang auf „Done" (gleiche Bedingung wie `awardScoreOnDone` unten), sonst unnötige
-			// Abfrage bei jedem PATCH. Der Eigentümer VOR dem Update ist maßgeblich, auch bei einer
-			// gleichzeitigen Übergabe (#1252) — die Punkte-Vergabe hängt am Task, nicht am neuen Empfänger.
+			// Abfrage bei jedem PATCH. Bei einer gleichzeitigen Übergabe (#1252, `recipientId !== null`)
+			// entfällt der Check bewusst: `awardScoreOnDone` hängt den `ScoreEntry` per `taskId` an den
+			// Task, dessen `userId` nach dem Commit bereits der Empfänger ist — `meilensteinStandVon`
+			// filtert aber live über `Task.userId` und würde den alten Eigentümer nie treffen (Review
+			// #1389, Finding #1). Der Empfänger selbst wird ebenfalls nicht geprüft, da die Übergabe kein
+			// eigener „Done"-Verdienst des Empfängers ist.
 			const meilensteinUserId = task.userId;
-			const istDoneUebergang = !warVorherDone && attrs.status === 'Done';
+			const istDoneUebergang = recipientId === null && !warVorherDone && attrs.status === 'Done';
 			const meilensteineVorher =
 				istDoneUebergang && meilensteinUserId != null ? await meilensteinStandVon(meilensteinUserId) : null;
 			await sequelize.transaction(async (transaction) => {
