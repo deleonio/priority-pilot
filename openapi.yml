@@ -758,6 +758,34 @@ paths:
                   $ref: '#/components/schemas/PillarScore'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/streak:
+    get:
+      summary: Streak — Kalendertage in Folge mit mindestens einer Erledigung
+      description: >-
+        Wertet die Erledigungszeitpunkte der Tasks des eingeloggten Nutzers aus
+        (#1360): `aktuell` ist die ununterbrochene Tagesfolge, die auf heute oder
+        gestern endet, `best` die persönliche Bestmarke. Mehrere Erledigungen am
+        selben Kalendertag zählen als ein Tag.
+      operationId: getStreak
+      parameters:
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die die Kalendertagsgrenze
+            bestimmt. Fehlt der Wert oder ist er keine gültige Zeitzone, wertet
+            der Server in seiner eigenen Zeitzone aus — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Aktueller Streak und Bestmarke
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Streak'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -3523,6 +3551,25 @@ components:
         punkte:
           type: number
           description: Summe der anteilig (nach `share`) auf diese Säule entfallenden Punkte.
+    Streak:
+      type: object
+      required:
+        - aktuell
+        - best
+        - letzterTag
+      properties:
+        aktuell:
+          type: integer
+          description: >-
+            Kalendertage in Folge mit mindestens einer Erledigung, endend auf heute
+            oder gestern. `0`, sobald der Streak gerissen ist.
+        best:
+          type: integer
+          description: Längste je erreichte Tagesfolge (persönliche Bestmarke).
+        letzterTag:
+          type: string
+          nullable: true
+          description: Jüngster Kalendertag mit einer Erledigung (`YYYY-MM-DD`), oder `null`.
     SeriesRhythm:
       type: string
       enum:

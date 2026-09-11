@@ -1,5 +1,6 @@
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
+import { StreakCard } from './StreakCard';
 import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
@@ -355,6 +356,12 @@ export const Dashboard = ({
 					</ul>
 				)}
 			</KolCard>
+			{/*
+			 * #1360: „Streak" direkt vor dem Gesamtguthaben — beide beantworten dieselbe Frage nach
+			 * dem eigenen Durchhalten, das Guthaben als Summe, der Streak als Tagesrhythmus. Die Card
+			 * lädt selbst (Muster NearbyCard), daher ohne Prop-Kette und ohne Bedingung.
+			 */}
+			<StreakCard />
 			<KolCard className="dashboard-balance" _label="Gesamtguthaben" _level={3}>
 				{gesamtPunkte === 0 ? (
 					<p className="dashboard-empty">

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { Pillar, ScoreEntry, Task } from '../../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
+import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
@@ -10,6 +11,7 @@ import type { components } from '../../api';
 type ErrorDto = components['schemas']['Error'];
 type ScoreEntryDto = components['schemas']['ScoreEntry'];
 type PillarScoreDto = components['schemas']['PillarScore'];
+type StreakDto = components['schemas']['Streak'];
 
 export const scoresRouter = Router();
 
@@ -46,6 +48,32 @@ scoresRouter.get('/scores/by-pillar', async (req: Request, res: Response<PillarS
 		});
 		const summen = aggregierePunkteProSaeule(beitraege);
 		res.json([...summen.entries()].map(([pillarId, punkte]) => ({ pillarId, punkte })));
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// GET /scores/streak — Kalendertage in Folge mit mindestens einer Erledigung plus Bestmarke (#1360).
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar); `GET /scores` ist
+// ungescopet und deshalb bewusst NICHT die Quelle.
+scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto | ErrorDto>) => {
+	try {
+		const entries = await ScoreEntry.findAll({
+			include: [{ model: Task, where: ownerScope(getUserId(req)) }],
+		});
+		// Der Client schickt seine IANA-Zeitzone mit (`?tz=`); ohne oder mit unbekanntem Wert wertet
+		// der Server in seiner eigenen Zeitzone aus — die Anzeige verschiebt sich, es gibt keinen Fehler.
+		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const zeitZone = istGueltigeZeitzone(angefragteZone)
+			? angefragteZone
+			: Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+		const { aktuell, best, aktiveTage } = berechneStreak(
+			entries.map((entry) => entry.zeitpunkt),
+			new Date(),
+			zeitZone,
+		);
+		res.json({ aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null });
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
