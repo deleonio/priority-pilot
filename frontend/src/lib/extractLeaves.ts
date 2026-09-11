@@ -14,19 +14,23 @@ import type { TaskTreeNode } from 'client';
  * Rein: Der übergebene Wald wird nicht mutiert; die zurückgegebenen Knoten sind die
  * ursprünglichen Referenzen aus dem Eingabe-Wald (kein Spread nötig, da nur gelesen wird).
  */
-export function extractLeaves(forest: TaskTreeNode[]): TaskTreeNode[] {
-	const leaves: TaskTreeNode[] = [];
+export function extractLeaves(forest: TaskTreeNode[], options?: { includeParents?: boolean }): TaskTreeNode[] {
+	const includeParents = options?.includeParents ?? false;
+	const result: TaskTreeNode[] = [];
 
 	const collect = (nodes: TaskTreeNode[]): void => {
 		for (const node of nodes) {
 			if (node.dependents.length === 0) {
-				leaves.push(node);
+				result.push(node);
 			} else {
+				if (includeParents) {
+					result.push(node);
+				}
 				collect(node.dependents);
 			}
 		}
 	};
 	collect(forest);
 
-	return leaves.sort((a, b) => b.value - a.value);
+	return result.sort((a, b) => b.value - a.value);
 }

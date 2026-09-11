@@ -18,6 +18,21 @@ export interface ForestFilter {
  * Filter): Nur so entscheidet der Kontextpfad-Erhalt über beide Kriterien gemeinsam — eine
  * Unteraufgabe muss Titel UND Kategorie treffen, nicht je eines in verschiedenen Durchgängen.
  */
+/**
+ * Trifft ein einzelner Knoten (ohne seine Nachkommen zu betrachten) die gesetzten Kriterien?
+ * Exportiert für den „Oberaufgaben anzeigen"-Schalter (#1345): eine eingeblendete Oberaufgabe folgt
+ * derselben Regel wie ein Blatt hier — sie muss selbst matchen, ein Kontextpfad über Nachkommen
+ * (wie ihn `filterForest` für Blätter gewährt) gilt für sie nicht.
+ */
+export const nodeMatchesFilter = (node: TaskTreeNode, filter: ForestFilter): boolean => {
+	const query = (filter.search ?? '').trim().toLowerCase();
+	const categoryId = filter.categoryId ?? null;
+	return (
+		(query === '' || node.title.toLowerCase().includes(query)) &&
+		(categoryId === null || node.categoryId === categoryId)
+	);
+};
+
 export const filterForest = (forest: TaskTreeNode[], filter: ForestFilter): TaskTreeNode[] => {
 	const query = (filter.search ?? '').trim().toLowerCase();
 	const categoryId = filter.categoryId ?? null;
@@ -26,13 +41,8 @@ export const filterForest = (forest: TaskTreeNode[], filter: ForestFilter): Task
 		return forest;
 	}
 
-	/** Trifft der Knoten selbst alle gesetzten Kriterien? */
-	const matchesSelf = (node: TaskTreeNode): boolean =>
-		(query === '' || node.title.toLowerCase().includes(query)) &&
-		(categoryId === null || node.categoryId === categoryId);
-
 	// Prüft, ob ein Knoten oder einer seiner Nachkommen passt.
-	const matches = (node: TaskTreeNode): boolean => matchesSelf(node) || node.dependents.some(matches);
+	const matches = (node: TaskTreeNode): boolean => nodeMatchesFilter(node, filter) || node.dependents.some(matches);
 
 	// Filtert die `dependents` eines Knotens rekursiv und behält nur den Pfad zu passenden Nachkommen.
 	const filterDependents = (node: TaskTreeNode): TaskTreeNode => ({

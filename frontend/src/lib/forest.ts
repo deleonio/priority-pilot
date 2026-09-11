@@ -27,3 +27,28 @@ export const collectTaskValues = (forest: TaskTreeNode[]): Map<number, number> =
 	forest.forEach(visit);
 	return values;
 };
+
+/**
+ * Sammelt alle Oberaufgaben (Knoten mit `dependents.length > 0`, also mindestens einer offenen
+ * Unteraufgabe, #392) aus dem ungefilterten Aufgabenwald — Grundlage für den „Oberaufgaben
+ * anzeigen"-Schalter (#1345). Dedupe wie `collectTaskValues`: derselbe Knoten kann über mehrere
+ * Pfade erreichbar sein, wird aber nur einmal aufgenommen.
+ */
+export const collectOpenParents = (forest: TaskTreeNode[]): TaskTreeNode[] => {
+	const result: TaskTreeNode[] = [];
+	const visited = new Set<number>();
+
+	const visit = (node: TaskTreeNode): void => {
+		if (visited.has(node.id)) {
+			return;
+		}
+		visited.add(node.id);
+		if (node.dependents.length > 0) {
+			result.push(node);
+		}
+		node.dependents.forEach(visit);
+	};
+
+	forest.forEach(visit);
+	return result;
+};

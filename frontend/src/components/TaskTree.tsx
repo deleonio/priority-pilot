@@ -5,13 +5,26 @@ import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
 import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
-import { priorityBadge } from '../lib/task';
+import { isDoneBlockedBySubtasks, priorityBadge } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
 interface TaskTreeProps {
-	/** Aufgabenwald (`GET /forest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
+	/** Aufgabenwald (`GET /forest`), ggf. bereits gefiltert (`filterForest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
 	forest: TaskTreeNode[];
+	/**
+	 * Der ORIGINALE, ungefilterte Aufgabenwald (#1345): Grundlage für den Erledigt-Guard. Eine
+	 * Oberaufgabe kann durch `filterForest`s Kontextpfad-Erhalt mit geleerten `dependents` in `forest`
+	 * ankommen und faelschlich wie ein Blatt aussehen — der Guard muss deshalb immer den Original-
+	 * Knoten (per ID) nachschlagen, unabhaengig vom aktiven Filter.
+	 */
+	fullForest: TaskTreeNode[];
+	/**
+	 * Zusaetzlich einzublendende Oberaufgaben (#1345, Schalter „Oberaufgaben anzeigen"), bereits nach
+	 * Titel/Kategorie gefiltert und auf offene Unteraufgaben eingegrenzt. Leer, wenn der Schalter aus
+	 * ist.
+	 */
+	parentNodes?: TaskTreeNode[];
 	/** Alle Tasks, um zu einem Knoten den vollständigen Task für die Aktionen aufzulösen. */
 	tasks: Task[];
 	/** Fortschritt (erledigt/gesamt) je Task-ID; fehlt der Eintrag, hat der Task keine Unter-Tasks. */
@@ -41,6 +54,8 @@ interface LeafItemProps {
 	node: TaskTreeNode;
 	taskById: Map<number, Task>;
 	progressMap: Map<number, { done: number; total: number }>;
+	/** Hat der Knoten im ungefilterten Wald mindestens eine offene Unteraufgabe (#1345, AK6)? */
+	hasOpenSubtasks: boolean;
 	userId: number | null;
 	/** Kategorien des Nutzers — löst die `categoryId` der Aufgabe zum Badge auf. */
 	categories: Category[];
@@ -69,6 +84,7 @@ const LeafItem = ({
 	node,
 	taskById,
 	progressMap,
+	hasOpenSubtasks,
 	userId,
 	categories,
 	balancePriority,
@@ -88,10 +104,11 @@ const LeafItem = ({
 
 	const task = taskById.get(node.id) ?? null;
 	const progress = progressMap.get(node.id);
-	// Blatt-Aufgaben haben per Definition keine Unteraufgaben (`dependents.length === 0`), somit ist
-	// der frühere Guard `isDoneBlockedBySubtasks` (#315) hier obsolet — der Toggle ist stets frei.
 	const isDone = task?.status === TaskStatus.Done;
-	const doneToggleLabel = isDone ? 'Wieder öffnen' : 'Erledigt';
+	// #1345 AK6/AK7: eine Oberaufgabe mit offener Unteraufgabe darf nicht direkt auf „Erledigt"
+	// geschaltet werden (Guard `isDoneBlockedBySubtasks`, #315); Wiedereröffnen bleibt frei.
+	const doneToggleBlocked = !isDone && hasOpenSubtasks;
+	const doneToggleLabel = isDone ? 'Wieder öffnen' : doneToggleBlocked ? 'Erledigt (Unteraufgaben offen)' : 'Erledigt';
 	const priority = task?.priority ?? 1;
 	// Im Balance-Modus zeigt das Badge die virtuelle Priorität (~P{n}, eigene Farbe nach Stufe)
 	// statt der Server-Prio — unterscheidbar per Tilde-Präfix, nie nur per Farbe (KI-UX).
@@ -179,7 +196,7 @@ const LeafItem = ({
 											_hideLabel: true,
 											_icons: { left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } },
 											_variant: isDone ? 'secondary' : 'primary',
-											_disabled: isUpdating,
+											_disabled: isUpdating || doneToggleBlocked,
 											_on: {
 												onClick: () => {
 													setIsUpdating(true);
@@ -254,10 +271,30 @@ const LeafItem = ({
  * aufklappbaren Baum (`invertForest`, #363) zu zeigen, werden nur noch die ausführbaren Blatt-Tasks
  * (`dependents.length === 0`) als einfache Liste gerendert — ohne Baumstruktur, ohne
  * Aufklappfunktionalität, sortiert nach Wertbeitrag absteigend. Oberaufgaben bleiben über das
- * ForestPanel (Tab 3) verwaltbar.
+ * ForestPanel (Tab 3) verwaltbar; optional (`parentNodes`, #1345) mischt die Liste zusätzlich
+ * offene Oberaufgaben ein.
  */
+/**
+ * Indexiert einen Aufgabenwald nach ID (#1345) — Grundlage für den Erledigt-Guard, der pro
+ * gerenderter Zeile den ORIGINAL-Knoten (mit ungefilterten `dependents`) nachschlagen muss.
+ */
+const indexById = (forest: TaskTreeNode[]): Map<number, TaskTreeNode> => {
+	const byId = new Map<number, TaskTreeNode>();
+
+	const visit = (node: TaskTreeNode): void => {
+		if (byId.has(node.id)) return;
+		byId.set(node.id, node);
+		node.dependents.forEach(visit);
+	};
+	forest.forEach(visit);
+
+	return byId;
+};
+
 export const TaskTree = ({
 	forest,
+	fullForest,
+	parentNodes = [],
 	tasks,
 	progressMap,
 	userId = null,
@@ -270,20 +307,29 @@ export const TaskTree = ({
 	balancePriorities = null,
 }: TaskTreeProps) => {
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
+	const fullForestById = indexById(fullForest);
 
 	// Anzuzeigende Blatt-Aufgaben aus dem originalen `/forest`-Wald extrahieren (nicht invertieren).
 	const leaves = extractLeaves(forest);
+	// #1345: eingeblendete Oberaufgaben (Schalter „Oberaufgaben anzeigen") in dieselbe Menge
+	// einmischen — dedupliziert (eine Oberaufgabe kann durch `filterForest`s Kontextpfad-Erhalt
+	// bereits als vermeintliches Blatt in `leaves` stehen) und gemeinsam nach Wertbeitrag sortiert.
+	const parentIds = new Set(parentNodes.map((node) => node.id));
+	const combinedNodes =
+		parentNodes.length === 0
+			? leaves
+			: [...leaves.filter((node) => !parentIds.has(node.id)), ...parentNodes].sort((a, b) => b.value - a.value);
 	// Im Balance-Modus ersetzt die virtuelle Balance-Priorität die Wertbeitrags-Sortierung; die
 	// Original-`priority` bleibt als Sekundärkriterium erhalten.
 	const visibleLeaves =
 		balancePriorities !== null && balancePriorities.size > 0
 			? sortTasksByBalance(
-					leaves.map((node) => ({ ...node, priority: taskById.get(node.id)?.priority ?? 1 })),
+					combinedNodes.map((node) => ({ ...node, priority: taskById.get(node.id)?.priority ?? 1 })),
 					balancePriorities,
 				)
-			: leaves;
+			: combinedNodes;
 
-	if (leaves.length === 0) {
+	if (combinedNodes.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
 
@@ -295,6 +341,7 @@ export const TaskTree = ({
 					node={node}
 					taskById={taskById}
 					progressMap={progressMap}
+					hasOpenSubtasks={isDoneBlockedBySubtasks((fullForestById.get(node.id) ?? node).dependents)}
 					userId={userId}
 					categories={categories}
 					balancePriority={balancePriorities?.get(node.id) ?? null}
