@@ -52,7 +52,7 @@ const run = (rounds: Check[][], args: string[] = []) => {
 	);
 	assert.equal(res.status, 0, `Skript crashte: ${res.stderr}`);
 	const read = (key: string) => res.stdout.match(new RegExp(`^${key}=(.*)$`, 'm'))?.[1] ?? '';
-	return { status: read('status'), red: read('red'), pending: read('pending') };
+	return { status: read('status'), red: read('red'), pending: read('pending'), stderr: res.stderr };
 };
 
 before(() => {
@@ -125,5 +125,17 @@ describe('wait-for-checks.sh', () => {
 	it('bleibt fail-open, wenn gh gar nichts liefert', () => {
 		const { status } = run([[]], ['--appear-seconds', '0']);
 		assert.equal(status, 'absent');
+	});
+
+	// `--timeout-seconds` kommt aus der frei editierbaren Repository-Variable
+	// `vars.REVIEW_CI_WAIT_SECONDS`. Ohne Numerik-Guard scheitert JEDER `[ … -ge … ]` an einem
+	// Nicht-Zahl-Wert; ohne `set -e` gilt der Test dann als „falsch" und die Schleife bricht nie
+	// ab — das Review hing bis zum Job-Timeout. Geprüft wird beides: normaler Abschluss UND dass
+	// Bash keinen Vergleichsfehler mehr wirft.
+	it('fällt bei nicht-numerischem --timeout-seconds auf den Default zurück statt endlos zu warten', () => {
+		const { status, stderr } = run([[ci('pending')], [ci('pass')]], ['--timeout-seconds', '20min']);
+		assert.equal(status, 'green');
+		assert.doesNotMatch(stderr, /integer expression expected/);
+		assert.match(stderr, /--timeout-seconds="20min" ist keine Zahl — nutze Default 1200\./);
 	});
 });

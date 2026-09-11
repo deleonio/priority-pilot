@@ -61,6 +61,26 @@ if [ -z "$REPO" ] || [ -z "$PR" ]; then
   exit 2
 fi
 
+# Numerik-Guard für die drei Zeitwerte. `--timeout-seconds` kommt aus `vars.REVIEW_CI_WAIT_SECONDS`,
+# einer frei editierbaren Repository-Variable: ein Tippfehler („20min", leer) machte JEDEN späteren
+# `[ … -ge … ]`-Vergleich zu einem Syntaxfehler. Ohne `set -e` (bewusst, s. FAIL-OPEN) wertet Bash
+# den fehlgeschlagenen Test als „falsch" — die Schleife bräche nie ab und liefe bis zum
+# Job-Timeout des Workflows. Statt dessen: auf den dokumentierten Default zurückfallen und das
+# im Log sagen.
+numeric_or_default() {
+  local value="$1" default="$2" flag="$3"
+  case "$value" in
+    '' | *[!0-9]*)
+      echo "::warning title=wait-for-checks::${flag}=\"${value}\" ist keine Zahl — nutze Default ${default}." >&2
+      printf '%s' "$default"
+      ;;
+    *) printf '%s' "$value" ;;
+  esac
+}
+TIMEOUT_SECONDS="$(numeric_or_default "$TIMEOUT_SECONDS" 1200 --timeout-seconds)"
+APPEAR_SECONDS="$(numeric_or_default "$APPEAR_SECONDS" 300 --appear-seconds)"
+INTERVAL="$(numeric_or_default "$INTERVAL" 20 --interval)"
+
 # Ein Erscheinungs-Fenster größer als das Gesamtbudget wäre widersprüchlich (der Timeout
 # griffe, bevor „absent" je erreicht wird) — auf das Budget kappen.
 if [ "$APPEAR_SECONDS" -gt "$TIMEOUT_SECONDS" ]; then

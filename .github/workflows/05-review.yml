@@ -384,21 +384,25 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          # Ueber env statt direkt in den sed-Ausdruck: Der Text enthaelt Job-Namen aus der API
-          # (Slashes, Klammern) und wuerde einen `/`-Trenner zerlegen.
+          # Ueber env statt direkt in den sed-Ausdruck: Der Text enthaelt Job-Namen aus der API.
           CI_STATUS: ${{ steps.ci-status.outputs.text }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/review.md (Quelle fuer CI; Methode:
           # Skill .claude/skills/review-kreuzverhoer/SKILL.md). Snippet-Platzhalter ({{ISSUE_NR}}, {{PHASE}},
           # {{MEMORY_STATUS}}) werden erst NACH dem Anhaengen der Memory-Snippets substituiert.
-          ci_status_esc="${CI_STATUS//&/\\&}" # `&` waere in der sed-Ersetzung der Gesamttreffer
           sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
               -e "s/{{TITLE_OK}}/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" \
               -e "s/{{SUGGESTED_TYPE}}/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" \
               -e "s/{{SUGGESTED_SCOPE}}/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" \
               -e "s/{{SOFT_DEADLINE}}/${{ steps.deadline.outputs.soft_deadline_epoch }}/g" \
-              -e "s|{{CI_STATUS}}|${ci_status_esc}|g" \
               .github/prompts/review.md > /tmp/claude-prompt.txt
+
+          # {{CI_STATUS}} BEWUSST nicht per sed: Der Text besteht aus Job-Namen der API, und kein
+          # sed-Trenner ist dort sicher — `/` bricht an einem Shard-Namen wie `e2e (1/8)`, `|` an
+          # einem Namen mit Pipe, und `&` bedeutet in der Ersetzung den Gesamttreffer. Bash-
+          # Parameter-Expansion ersetzt literal und braucht daher gar keine Maskierung.
+          prompt="$(cat /tmp/claude-prompt.txt)"
+          printf '%s\n' "${prompt//\{\{CI_STATUS\}\}/$CI_STATUS}" > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
           # {{ISSUE_NR}} aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
