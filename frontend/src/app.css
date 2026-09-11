@@ -388,17 +388,31 @@ body {
 .logo-btn {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
+	height: var(--pp-logo-size);
+	padding: 0.25rem;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	border-radius: var(--pp-radius-md);
+}
+
+.logo-btn:focus-visible {
+	outline: 2px solid var(--pp-focus-ring);
+	outline-offset: 1px;
 }
 
 /*
  * #485 AK1/AK5: Das Logo zeigt nur noch das Icon (`/logo/logo.png`, ~quadratisch) und treibt die
  * Header-Höhe nicht mehr über den Avatar hinaus — ab 48rem liegt es exakt auf Avatar-Höhe, mobil
- * auf Toolbar-Höhe (siehe --pp-logo-size oben).
+ * auf Toolbar-Höhe (siehe --pp-logo-size oben). Die Klickfläche (`.logo-btn`) bleibt exakt bei
+ * --pp-logo-size (WCAG 2.5.5, seit die Marke wieder zum Dashboard navigiert); das Padding am Button
+ * verkleinert nur die sichtbare Grafik, nicht die Trefferfläche.
  */
 .logo-btn img {
 	display: block;
-	height: var(--pp-logo-size);
+	height: 100%;
 	max-height: none;
 	width: auto;
 	max-width: 100%;

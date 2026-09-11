@@ -51,7 +51,8 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 
 	/**
 	 * AK2 (Tastatur) — der Home-Schalter ist als erster Toolbar-Button auch per Tastatur (Enter)
-	 * auslösbar; mit #395 entfiel die frühere Klick-/Tastatur-Deckung am Logo ersatzlos.
+	 * auslösbar; das Logo selbst bietet inzwischen (wieder) eine gleichwertige Klick-Route zum
+	 * Dashboard (siehe `header-logo.spec.ts`), zusätzlich zu diesem Home-Schalter.
 	 */
 	test('AK2: Home-Schalter navigiert per Enter-Taste zum Dashboard', async ({ page }) => {
 		await page.goto('/aufgaben');
