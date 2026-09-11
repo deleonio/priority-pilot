@@ -1112,6 +1112,12 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 - feat(frontend): server-side geo config, alarm distance, interval (#1098) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1103
 
+## v0.1.621 - 2026-08-29
+
+### Other Changes
+
+- feat(frontend): server-side geo config, alarm distance, interval (#1098) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1103
+
 ## v0.1.620 - 2026-08-28
 
 ### Other Changes
