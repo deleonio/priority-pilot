@@ -117,6 +117,17 @@ const createTaskViaApi = async (cookie: string, title: string): Promise<number> 
 	return ((await res.json()) as { id: number }).id;
 };
 
+/** Legt eine Säule für den Cookie-Besitzer an und gibt ihre ID zurück (Setup für #1379). */
+const createPillarViaApi = async (cookie: string, name: string): Promise<number> => {
+	const res = await server.json('/pillars', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', Cookie: cookie },
+		body: JSON.stringify({ name }),
+	});
+	assert.equal(res.status, 201, 'Setup: Säule muss über die API anlegbar sein');
+	return ((await res.json()) as { id: number }).id;
+};
+
 const createReadOnlyToken = async (cookie: string): Promise<{ id: number; token: string }> => {
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
@@ -354,6 +365,157 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			tools.every((t) => !t.name.toLowerCase().includes('admin')),
 			`Werkzeugliste enthält ein Admin-Werkzeug: ${JSON.stringify(tools.map((t) => t.name))}`,
 		);
+	});
+
+	// ── #1379: Säulenzuordnung über task_create/task_update ─────────────────────────────
+
+	describe('#1379: pillars über task_create/task_update setzen', () => {
+		type TaskWithPillars = { id: number; pillars: { pillarId: number; share: number; confidence: number }[] };
+
+		it('AK1: task_create mit gültigem pillars-Array übernimmt die Beiträge (confidence-Default 100)', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+
+			const created = await mcpCall<TaskWithPillars>(token, 'task_create', {
+				title: 'Mit Säule über MCP',
+				pillars: [{ pillarId: koerper, share: 100 }],
+			});
+			assert.equal(created.error, undefined, 'task_create mit gültigen pillars darf nicht fehlschlagen');
+			assert.deepEqual(created.result?.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+		});
+
+		it('AK1: task_create mit zwei Säulen und expliziter confidence übernimmt beide Beiträge', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			const sinn = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+
+			const created = await mcpCall<TaskWithPillars>(token, 'task_create', {
+				title: 'Zwei Säulen über MCP',
+				pillars: [
+					{ pillarId: koerper, share: 60, confidence: 80 },
+					{ pillarId: sinn, share: 40 },
+				],
+			});
+			assert.equal(created.error, undefined, 'task_create mit gültigen pillars darf nicht fehlschlagen');
+			assert.deepEqual(created.result?.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 80 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
+		});
+
+		it('AK2: task_update ersetzt die Zuordnung vollständig, [] leert sie, fehlendes Feld lässt sie unverändert', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			const sinn = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+			const taskId = await createTaskViaApi(cookie, 'Für Update über MCP');
+
+			const withA = await mcpCall<TaskWithPillars>(token, 'task_update', {
+				id: taskId,
+				pillars: [{ pillarId: koerper, share: 100 }],
+			});
+			assert.deepEqual(withA.result?.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+
+			const withB = await mcpCall<TaskWithPillars>(token, 'task_update', {
+				id: taskId,
+				pillars: [{ pillarId: sinn, share: 100 }],
+			});
+			assert.deepEqual(
+				withB.result?.pillars,
+				[{ pillarId: sinn, share: 100, confidence: 100 }],
+				'task_update muss die bestehende Zuordnung vollständig ersetzen, nicht ergänzen',
+			);
+
+			const cleared = await mcpCall<TaskWithPillars>(token, 'task_update', { id: taskId, pillars: [] });
+			assert.deepEqual(cleared.result?.pillars, [], 'pillars: [] muss alle Beiträge entfernen');
+
+			const untouched = await mcpCall<TaskWithPillars>(token, 'task_update', { id: taskId, title: 'Umbenannt' });
+			assert.deepEqual(
+				untouched.result?.pillars,
+				[],
+				'task_update ohne pillars-Feld darf die (hier leere) Zuordnung nicht ändern',
+			);
+		});
+
+		it('AK3: ungültige Anteilssumme wird abgelehnt, es entsteht keine Aufgabe', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+
+			const before = await mcpCall<{ id: number; title: string }[]>(token, 'task_list');
+			const countBefore = before.result?.length ?? 0;
+
+			const created = await mcpCall(token, 'task_create', {
+				title: 'Ungültige Summe',
+				pillars: [{ pillarId: koerper, share: 50 }],
+			});
+			assert.ok(created.error, 'task_create mit Summe != 100 muss fehlschlagen');
+			assert.match(created.error?.message ?? '', /Ungültige Säulen-Beiträge\..*\(HTTP 400\)/);
+
+			const after = await mcpCall<{ id: number; title: string }[]>(token, 'task_list');
+			assert.equal(after.result?.length, countBefore, 'ein abgelehnter task_create darf keine Aufgabe anlegen');
+		});
+
+		it('AK3: confidence außerhalb 0–100 wird abgelehnt', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+			const koerper = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+
+			const created = await mcpCall(token, 'task_create', {
+				title: 'Ungültige confidence',
+				pillars: [{ pillarId: koerper, share: 100, confidence: 120 }],
+			});
+			assert.ok(created.error, 'task_create mit confidence > 100 muss fehlschlagen');
+			assert.match(created.error?.message ?? '', /Ungültige Säulen-Beiträge\..*\(HTTP 400\)/);
+		});
+
+		it('AK3: eine fremde/unbekannte pillarId wird abgelehnt, die Aufgabe bleibt unverändert', async () => {
+			const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+			const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+			const tokenA = await createToken(cookieA);
+			const fremdeSaeule = await createPillarViaApi(cookieB, `Testsäule-${idCounter++}`);
+			const taskId = await createTaskViaApi(cookieA, 'Für Fremdsäulen-Test');
+
+			const updated = await mcpCall(tokenA, 'task_update', {
+				id: taskId,
+				pillars: [{ pillarId: fremdeSaeule, share: 100 }],
+			});
+			assert.ok(updated.error, 'task_update mit fremder pillarId muss fehlschlagen');
+			assert.match(updated.error?.message ?? '', /pillars verweist auf eine nicht existierende Säule\..*\(HTTP 400\)/);
+
+			const unchanged = await mcpCall<TaskWithPillars>(tokenA, 'task_update', { id: taskId, title: 'Umbenannt' });
+			assert.deepEqual(unchanged.result?.pillars, [], 'ein abgelehnter task_update darf die Zuordnung nicht ändern');
+		});
+
+		it('AK4: tools/list deklariert pillars als array mit items-Objektschema für beide Werkzeuge', async () => {
+			const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+			const token = await createToken(cookie);
+
+			const tools = await mcpListTools(token);
+			for (const name of ['task_create', 'task_update']) {
+				const tool = tools.find((t) => t.name === name);
+				assert.ok(tool, `${name} muss in tools/list enthalten sein`);
+				const properties = (
+					tool?.inputSchema as { properties?: Record<string, { type?: string; items?: unknown }> } | undefined
+				)?.properties;
+				const pillarsSchema = properties?.pillars;
+				assert.equal(pillarsSchema?.type, 'array', `${name}.inputSchema.properties.pillars muss type "array" sein`);
+				const items = pillarsSchema?.items as { properties?: Record<string, unknown> } | undefined;
+				assert.ok(items?.properties, `${name}.inputSchema.properties.pillars.items muss ein Objektschema haben`);
+				assert.ok(
+					'pillarId' in (items?.properties ?? {}) &&
+						'share' in (items?.properties ?? {}) &&
+						'confidence' in (items?.properties ?? {}),
+					`${name}.inputSchema.properties.pillars.items.properties muss pillarId, share, confidence führen`,
+				);
+			}
+
+			// Der eingefrorene Namens-Snapshot (AK7, #1381) muss unverändert grün bleiben.
+			const names = tools.map((t) => t.name).sort();
+			assert.ok(names.includes('task_create') && names.includes('task_update'));
+		});
 	});
 
 	it('AK6 (#1356): ein Nur-lese-Token liest über task_list, task_create schlägt fehl und legt nichts an', async () => {

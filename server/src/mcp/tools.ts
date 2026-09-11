@@ -17,10 +17,18 @@ export interface McpToolContext {
 	authorization: string;
 }
 
+/** JSON-Schema-Eigenschaft eines Werkzeug-Eingangs (Teilmenge, die MCP-Clients auswerten). */
+interface McpPropertySchema {
+	type: string;
+	description: string;
+	/** Nur bei `type: 'array'` gesetzt: Objektschema der Array-Einträge. */
+	items?: { type: 'object'; properties: Record<string, { type: string; description: string }> };
+}
+
 /** JSON-Schema eines Werkzeug-Eingangs (Teilmenge, die MCP-Clients auswerten). */
 interface McpInputSchema {
 	type: 'object';
-	properties: Record<string, { type: string; description: string }>;
+	properties: Record<string, McpPropertySchema>;
 	required?: string[];
 }
 
@@ -124,7 +132,16 @@ const effortFromHours = (hours: unknown): number => {
 /** Nur die gesetzten Felder übernehmen — die Route unterscheidet „fehlt" von „null". */
 const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> => {
 	const fields: Record<string, unknown> = {};
-	for (const key of ['title', 'description', 'priority', 'estimatedEffort', 'deadline', 'categoryId', 'status']) {
+	for (const key of [
+		'title',
+		'description',
+		'priority',
+		'estimatedEffort',
+		'deadline',
+		'categoryId',
+		'status',
+		'pillars',
+	]) {
 		if (args[key] !== undefined) {
 			fields[key] = args[key];
 		}
@@ -180,6 +197,22 @@ const taskFieldProperties = {
 	},
 	deadline: { type: 'string', description: 'Fälligkeit als ISO-8601-Zeitpunkt.' },
 	categoryId: { type: 'integer', description: 'ID einer eigenen Kategorie.' },
+	pillars: {
+		type: 'array',
+		description:
+			'Säulenzuordnung der Aufgabe: Liste von { pillarId, share, confidence? }. Die share-Werte aller ' +
+			'Einträge müssen zusammen 100 ergeben, confidence liegt zwischen 0 und 100 (Standard 100). Das Feld ' +
+			'ersetzt bei task_update die bestehende Zuordnung vollständig; pillars: [] entfernt sie, fehlt das ' +
+			'Feld, bleibt die Zuordnung unverändert. pillarId stammt aus pillar_list.',
+		items: {
+			type: 'object',
+			properties: {
+				pillarId: { type: 'integer', description: 'ID einer eigenen Säule (aus pillar_list).' },
+				share: { type: 'number', description: 'Anteil in Prozent; die Summe über alle Einträge muss 100 sein.' },
+				confidence: { type: 'number', description: 'Zuversicht 0-100 in diesen Beitrag. Ohne Angabe 100.' },
+			},
+		},
+	},
 } as const;
 
 /**

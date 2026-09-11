@@ -2,6 +2,18 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.820 - 2026-09-11
+
+### Other Changes
+
+- feat(mcp): accept pillars array in task_create/task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1385
+
+## v0.1.819 - 2026-09-11
+
+### Other Changes
+
+- feat(frontend): move home switch into the header toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1383
+
 ## v0.1.818 - 2026-09-11
 
 ### Other Changes
@@ -550,10 +562,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 ### Other Changes
 
 - feat(frontend): apply master-detail settings pattern with KolDetails by @deleonio in https://github.com/deleonio/priority-pilot/pull/1243
-
-## v0.1.719 - 2026-09-06
-
-_Keine für Nutzer sichtbaren Änderungen._
 
 ## v0.1.719 - 2026-09-06
 
