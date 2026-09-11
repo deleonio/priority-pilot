@@ -85,6 +85,62 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 	return fields;
 };
 
+/**
+ * Löst einen Aufgaben-Bezug zu einer ID auf. Die ID hat Vorrang; sonst wird der Titel gegen die
+ * eigenen Aufgaben gematcht, erst wortgleich und dann als Teilstring. Bei keinem oder mehreren
+ * Treffern bricht der Aufruf mit der Trefferliste ab, statt eine Aufgabe zu wählen: eine still
+ * falsch gesetzte Kante fällt sonst erst auf, wenn der Graph längst schief steht.
+ */
+const resolveTaskRef = async (
+	ctx: McpToolContext,
+	args: Record<string, unknown>,
+	idKey: string,
+	titleKey: string,
+): Promise<number> => {
+	const id = args[idKey];
+	if (id !== undefined) {
+		if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
+			throw new Error(`${idKey} muss eine Ganzzahl >= 1 sein.`);
+		}
+		return id;
+	}
+	const title = args[titleKey];
+	if (typeof title !== 'string' || title.trim() === '') {
+		throw new Error(`Entweder ${idKey} oder ${titleKey} muss gesetzt sein.`);
+	}
+	const needle = title.trim().toLowerCase();
+	const tasks = (await callApi(ctx, '/tasks')) as { id: number; title: string }[];
+	const exact = tasks.filter((task) => task.title.toLowerCase() === needle);
+	const matches = exact.length > 0 ? exact : tasks.filter((task) => task.title.toLowerCase().includes(needle));
+	if (matches.length === 0) {
+		throw new Error(`Keine Aufgabe mit dem Titel „${title}" gefunden.`);
+	}
+	if (matches.length > 1) {
+		const list = matches.map((task) => `${task.id}: ${task.title}`).join(', ');
+		throw new Error(`Mehrere Aufgaben passen auf „${title}" (${list}). Bitte die ID angeben.`);
+	}
+	return matches[0].id;
+};
+
+/** Kantengewicht aus den Argumenten; ohne Angabe der Standardwert der Route. */
+const readWeight = (value: unknown): number => {
+	if (value === undefined) {
+		return 1;
+	}
+	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+		throw new Error('weight muss eine endliche Zahl >= 0 sein.');
+	}
+	return value;
+};
+
+/** Beide Enden einer Verknüpfung, je über ID oder Titel angebbar. */
+const linkProperties = {
+	taskId: { type: 'integer', description: 'ID der übergeordneten Aufgabe (Alternative zu taskTitle).' },
+	taskTitle: { type: 'string', description: 'Titel der übergeordneten Aufgabe (Alternative zu taskId).' },
+	dependsOnId: { type: 'integer', description: 'ID der Vorgänger-Aufgabe (Alternative zu dependsOnTitle).' },
+	dependsOnTitle: { type: 'string', description: 'Titel der Vorgänger-Aufgabe (Alternative zu dependsOnId).' },
+} as const;
+
 const taskFieldProperties = {
 	title: { type: 'string', description: 'Titel der Aufgabe.' },
 	description: { type: 'string', description: 'Beschreibung der Aufgabe.' },
@@ -142,50 +198,69 @@ export const mcpTools: McpTool[] = [
 		run: (ctx, args) => callApi(ctx, `/tasks/${requireId(args)}`, { method: 'PATCH', body: { status: 'Done' } }),
 	},
 	{
-		name: 'task_link_dependency',
-		description: 'Verknüpft zwei Aufgaben als Abhängigkeit mit optionalem Gewicht.',
+		name: 'task_link',
+		description:
+			'Verknüpft eine Aufgabe mit einer Vorgänger-Aufgabe (Unteraufgabe) und setzt das Gewicht der Kante. ' +
+			'Besteht die Verknüpfung schon, ändert der Aufruf nur ihr Gewicht. Beide Enden sind über ID oder Titel angebbar.',
 		write: true,
 		inputSchema: {
 			type: 'object',
 			properties: {
-				id: { type: 'integer', description: 'ID der abhängigen Aufgabe.' },
-				dependingTaskId: { type: 'integer', description: 'ID der Vorgänger-Aufgabe.' },
-				weight: { type: 'number', description: 'Gewicht der Abhängigkeit (0–∞, default 1).' },
+				...linkProperties,
+				weight: { type: 'number', description: 'Gewicht der Verknüpfung, Zahl >= 0. Ohne Angabe 1.' },
 			},
-			required: ['id', 'dependingTaskId'],
 		},
-		run: (ctx, args) => {
-			const id = requireId(args);
-			const depId = args.dependingTaskId;
-			if (typeof depId !== 'number' || !Number.isInteger(depId) || depId < 1) {
-				throw new Error('dependingTaskId muss eine Ganzzahl >= 1 sein.');
-			}
-			const weight = args.weight ?? 1;
-			if (typeof weight !== 'number' || !Number.isFinite(weight) || weight < 0) {
-				throw new Error('weight muss eine endliche Zahl >= 0 sein.');
-			}
-			return callApi(ctx, `/tasks/${id}/dependencies`, { method: 'POST', body: { dependingTaskId: depId, weight } });
+		run: async (ctx, args) => {
+			// Gewicht vor der Auflösung prüfen: ein ungültiger Wert kostet sonst zwei Titel-Abfragen.
+			const weight = readWeight(args.weight);
+			const taskId = await resolveTaskRef(ctx, args, 'taskId', 'taskTitle');
+			const dependsOnId = await resolveTaskRef(ctx, args, 'dependsOnId', 'dependsOnTitle');
+			return callApi(ctx, `/tasks/${taskId}/dependencies`, {
+				method: 'POST',
+				body: { dependingTaskId: dependsOnId, weight },
+			});
 		},
 	},
 	{
-		name: 'task_unlink_dependency',
-		description: 'Entfernt eine Abhängigkeit zwischen zwei Aufgaben.',
+		name: 'task_unlink',
+		description:
+			'Löst die Verknüpfung zwischen einer Aufgabe und einer ihrer Vorgänger-Aufgaben. ' +
+			'Beide Enden sind über ID oder Titel angebbar.',
 		write: true,
+		inputSchema: { type: 'object', properties: { ...linkProperties } },
+		run: async (ctx, args) => {
+			const taskId = await resolveTaskRef(ctx, args, 'taskId', 'taskTitle');
+			const dependsOnId = await resolveTaskRef(ctx, args, 'dependsOnId', 'dependsOnTitle');
+			return callApi(ctx, `/tasks/${taskId}/dependencies/${dependsOnId}`, { method: 'DELETE' });
+		},
+	},
+	{
+		name: 'task_links',
+		description:
+			'Listet die Verknüpfungen einer Aufgabe: ihre Vorgänger (Unteraufgaben) und die Aufgaben, die auf ihr ' +
+			'aufbauen, je mit Gewicht. Erledigte Aufgaben fehlen, weil der gespiegelte Graph nur offene Aufgaben führt.',
 		inputSchema: {
 			type: 'object',
-			properties: {
-				id: { type: 'integer', description: 'ID der abhängigen Aufgabe.' },
-				dependingTaskId: { type: 'integer', description: 'ID der zu entfernenden Vorgänger-Aufgabe.' },
-			},
-			required: ['id', 'dependingTaskId'],
+			properties: { taskId: linkProperties.taskId, taskTitle: linkProperties.taskTitle },
 		},
-		run: (ctx, args) => {
-			const id = requireId(args);
-			const depId = args.dependingTaskId;
-			if (typeof depId !== 'number' || !Number.isInteger(depId) || depId < 1) {
-				throw new Error('dependingTaskId muss eine Ganzzahl >= 1 sein.');
+		run: async (ctx, args) => {
+			const taskId = await resolveTaskRef(ctx, args, 'taskId', 'taskTitle');
+			const graph = (await callApi(ctx, '/graph')) as {
+				nodes: { id: number; title: string }[];
+				edges: { from: number; to: number; weight: number }[];
+			};
+			const titleById = new Map(graph.nodes.map((node) => [node.id, node.title]));
+			if (!titleById.has(taskId)) {
+				throw new Error('Aufgabe nicht gefunden oder bereits erledigt.');
 			}
-			return callApi(ctx, `/tasks/${id}/dependencies/${depId}`, { method: 'DELETE' });
+			const neighbor = (id: number, weight: number) => ({ id, title: titleById.get(id), weight });
+			return {
+				id: taskId,
+				title: titleById.get(taskId),
+				// Kantenrichtung laut logics/graph.ts: `from` ist der Vorgänger, `to` die übergeordnete Aufgabe.
+				dependsOn: graph.edges.filter((edge) => edge.to === taskId).map((edge) => neighbor(edge.from, edge.weight)),
+				requiredBy: graph.edges.filter((edge) => edge.from === taskId).map((edge) => neighbor(edge.to, edge.weight)),
+			};
 		},
 	},
 	{
