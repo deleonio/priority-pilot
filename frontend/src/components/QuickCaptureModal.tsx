@@ -30,8 +30,6 @@ interface QuickCaptureModalProps {
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
-	/** Optionaler Vorbelegungstext für die Capture-Textarea. */
-	initialText?: string;
 }
 
 /**
@@ -56,7 +54,6 @@ export const QuickCaptureModal = ({
 	distribution,
 	onClose,
 	onSaved,
-	initialText,
 }: QuickCaptureModalProps) => {
 	const [step, setStep] = useState<'capture' | 'form'>('capture');
 	const [prefill, setPrefill] = useState<TaskFormInitialValues>({});
@@ -66,15 +63,18 @@ export const QuickCaptureModal = ({
 	const [adviceError, setAdviceError] = useState<string | null>(null);
 	// `null` = noch keine Beratung angefragt (kein „Keine Vorschläge"-Hinweis vor der ersten Anfrage).
 	const [advice, setAdvice] = useState<ActivityAdvice[] | null>(null);
-	const [hasText, setHasText] = useState(initialText !== undefined && initialText.trim().length > 0);
+	const [hasText, setHasText] = useState(false);
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 	// #334: Spiegelt den im TaskForm gewählten Modus (Aufgabe/Serie) für den Dialog-Titel.
 	const [formMode, setFormMode] = useState<'task' | 'series'>('task');
 
-	const text = useRef(initialText ?? '');
+	// Der Dialog startet immer mit leerem Freitext: Seit #1335 gibt es keinen Aufrufer mehr, der Text
+	// mitbringt — die Berater-Übernahme (AK3) schreibt in denselben laufenden Dialog statt ihn mit
+	// einem Vorbelegungstext neu zu öffnen.
+	const text = useRef('');
 	// State-Mirror für die Capture-Textarea (#264): KoliBri verwaltet den Anzeigewert selbst, aber
 	// ein per Sprach-Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
-	const [captureText, setCaptureText] = useState(initialText ?? '');
+	const [captureText, setCaptureText] = useState('');
 	const textareaRef = useRef<HTMLKolTextareaElement>(null);
 
 	// Autofokus auf die native textarea im Shadow DOM beim Öffnen des Capture-Schritts (#250).
