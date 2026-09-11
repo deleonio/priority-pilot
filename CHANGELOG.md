@@ -2,6 +2,18 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.817 - 2026-09-11
+
+### Other Changes
+
+- feat(ci): generate CHANGELOG.md from GitHub releases (#1372) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1380
+
+## v0.1.816 - 2026-09-11
+
+### Other Changes
+
+- feat(server,frontend): require expiry date for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1376
+
 ## v0.1.815 - 2026-09-11
 
 ### Other Changes
@@ -3008,3 +3020,4 @@ _Keine für Nutzer sichtbaren Änderungen._
 ## v1.0.1 - 2026-06-24
 
 _Keine für Nutzer sichtbaren Änderungen._
+
