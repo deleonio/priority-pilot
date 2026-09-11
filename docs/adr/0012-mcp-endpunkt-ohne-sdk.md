@@ -22,6 +22,8 @@ Der Inspector ist ein lokales Debug-UI und wird bewusst nicht als Abhängigkeit 
 
 GET `/mcp/v1` antwortet mit 405 und `Allow: POST`, wie die Spec für Server ohne Ereignisstrom verlangt. DELETE bleibt unbedient, weil nie eine `Mcp-Session-Id` vergeben wird und es daher nichts zu terminieren gibt.
 
+Der Pfad liegt als Konstante `MCP_PATH` in `server/src/mcp/server.ts`. Jede Middleware, die den Endpunkt gesondert behandeln muss — heute der `apiTokenScopeGuard` aus #1356 —, importiert sie und vergleicht den Pfad normalisiert, ohne abschließende Schrägstriche. Ein eigenes Pfad-Literal an zweiter Stelle hatte in #1358 dazu geführt, dass `/mcp/v1/` anders behandelt wurde als `/mcp/v1`, obwohl der Router (`strict: false`) beide Schreibweisen mit derselben Route bedient.
+
 ## Konsequenzen
 
 - Protokoll-Drift (neue Spec-Versionen, Client-Sonderfälle) wird selbst getragen; die Tests am echten JSON-RPC-Verhalten (`mcp-auth.test.ts`, `tools.test.ts`) sind der Schutz.
