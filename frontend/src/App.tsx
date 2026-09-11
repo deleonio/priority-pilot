@@ -19,6 +19,7 @@ import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { CompleteTaskDialog } from './components/CompleteTaskDialog';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
+import { DayDoneHint } from './components/DayDoneHint';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
@@ -819,6 +820,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									pillars={pillars}
 									displayName={user.displayName}
 									onCompleteTask={openComplete}
+									showDayDoneHint={activeTab === 0}
 								/>
 							</div>
 							<div slot="tab-1">
@@ -899,6 +901,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 											_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 										/>
 									</div>
+									{/* #1361: An der ungefilterten `tasks`-Liste hängen, nicht an `filteredForest` — ein
+									    aktiver Titel-/Kategoriefilter darf die Sichtbarkeit des Hinweises nicht ändern.
+									    Nur bei aktivem Tab mounten (Muster TaskGraphPanel, Zeile ~970): KolTabs hält
+									    inaktive Panels per `hidden` im DOM statt sie zu entfernen — sonst doppelt sich
+									    `data-testid="day-done"` mit der Dashboard-Instanz. */}
+									{taskViewMode === 'open' && activeTab === 1 && <DayDoneHint tasks={tasks} />}
 									{taskViewMode === 'open' ? (
 										filteredForest.length === 0 ? (
 											taskSearch.trim() === '' ? (

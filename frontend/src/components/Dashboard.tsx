@@ -1,5 +1,6 @@
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import { NearbyCard } from './NearbyCard';
+import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
 import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
@@ -40,6 +41,12 @@ interface DashboardProps {
 	displayName?: string;
 	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
 	onCompleteTask?: (task: Task) => void;
+	/**
+	 * #1361: KolTabs hält inaktive Panels per `hidden` im DOM statt sie zu entfernen — ohne diesen
+	 * Schalter würde der Abschluss-Hinweis hier UND im Aufgaben-Tab gleichzeitig mounten und
+	 * `data-testid="day-done"` doppeln. Default `true` (eigenständige Nutzung ohne Tab-Kontext).
+	 */
+	showDayDoneHint?: boolean;
 }
 
 interface StatCard {
@@ -82,6 +89,7 @@ export const Dashboard = ({
 	pillars,
 	displayName = '',
 	onCompleteTask,
+	showDayDoneHint = true,
 }: DashboardProps) => {
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
@@ -362,6 +370,9 @@ export const Dashboard = ({
 			 * lädt selbst (Muster NearbyCard), daher ohne Prop-Kette und ohne Bedingung.
 			 */}
 			<StreakCard />
+			{/* #1361: eigener Knoten neben der Streak-Card, damit deren E2E-Locators (#1360) unberührt
+			 * bleiben. Bedingung wertet die volle `tasks`-Liste aus. */}
+			{showDayDoneHint && <DayDoneHint tasks={tasks} />}
 			<KolCard className="dashboard-balance" _label="Gesamtguthaben" _level={3}>
 				{gesamtPunkte === 0 ? (
 					<p className="dashboard-empty">
