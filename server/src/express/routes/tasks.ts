@@ -12,6 +12,9 @@ import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } fro
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
+import { notifyReachedMilestones } from '../../logics/milestoneNotification.js';
+import { berechneMeilensteine } from '../../logics/milestones.js';
+import { berechneStreak } from '../../logics/streak.js';
 import type { PushSender } from '../../logics/push.js';
 import type { ChecklistItem } from '../../models/task.js';
 import type { components } from '../../api';
@@ -395,6 +398,23 @@ const replaceContributions = (
 const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar] });
 
 /**
+ * Meilenstein-Stand eines Nutzers (#1363) — dieselbe Berechnung wie `GET /scores/milestones`
+ * (`server/src/express/routes/scores.ts`), hier aber ohne Request-Kontext für den PATCH-Handler
+ * aufgerufen: einmal vor, einmal nach dem Statuswechsel-Commit, um neu erreichte Schwellen zu
+ * erkennen. Die Server-Zeitzone dient als Fallback (kein Zeitzonen-Feld am `User`).
+ */
+const meilensteinStandVon = async (userId: number): Promise<ReturnType<typeof berechneMeilensteine>> => {
+	const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: { userId } }] });
+	const { best } = berechneStreak(
+		entries.map((entry) => entry.zeitpunkt),
+		new Date(),
+		Intl.DateTimeFormat().resolvedOptions().timeZone,
+	);
+	const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
+	return berechneMeilensteine({ bestStreak: best, punkteSumme });
+};
+
+/**
  * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau
  * **einmal** je Task (`taskId` unique + `findOrCreate` ⇒ idempotent, erneutes „Done" erzeugt keinen
  * zweiten Eintrag). Basis-Value = `estimatedEffort × priority` (Owner-Vorgabe), pünktlich/verspätet
@@ -707,6 +727,18 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
 				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
 			};
+			// #1363: Meilenstein-Stand des Eigentümers vor dem Statuswechsel-Commit festhalten — nur bei
+			// echtem Übergang auf „Done" (gleiche Bedingung wie `awardScoreOnDone` unten), sonst unnötige
+			// Abfrage bei jedem PATCH. Bei einer gleichzeitigen Übergabe (#1252, `recipientId !== null`)
+			// entfällt der Check bewusst: `awardScoreOnDone` hängt den `ScoreEntry` per `taskId` an den
+			// Task, dessen `userId` nach dem Commit bereits der Empfänger ist — `meilensteinStandVon`
+			// filtert aber live über `Task.userId` und würde den alten Eigentümer nie treffen (Review
+			// #1389, Finding #1). Der Empfänger selbst wird ebenfalls nicht geprüft, da die Übergabe kein
+			// eigener „Done"-Verdienst des Empfängers ist.
+			const meilensteinUserId = task.userId;
+			const istDoneUebergang = recipientId === null && !warVorherDone && attrs.status === 'Done';
+			const meilensteineVorher =
+				istDoneUebergang && meilensteinUserId != null ? await meilensteinStandVon(meilensteinUserId) : null;
 			await sequelize.transaction(async (transaction) => {
 				await task.update(attrs, { transaction });
 				// #1252 (AK6): Bei einer Übergabe (ohne gleichzeitig gesendete `pillars` — die wären
@@ -755,6 +787,17 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					await ScoreEntry.destroy({ where: { taskId: task.id }, transaction });
 				}
 			});
+			// #1363: Nach dem Commit erneut den Meilenstein-Stand ermitteln und neu erreichte Schwellen
+			// melden — erst nach dem Commit, damit die Punkte-/Streak-Vergabe bereits eingerechnet ist.
+			// Wie bei #1224 (`notifyTaskCreated`) bleibt ein Versandfehler folgenlos für den PATCH.
+			if (istDoneUebergang && meilensteineVorher && meilensteinUserId != null) {
+				try {
+					const meilensteineNachher = await meilensteinStandVon(meilensteinUserId);
+					await notifyReachedMilestones(meilensteinUserId, meilensteineVorher, meilensteineNachher, pushSender);
+				} catch (error) {
+					console.warn('Meilenstein-Benachrichtigung fehlgeschlagen:', error);
+				}
+			}
 			const withPillars = await findTaskWithPillars(task.id);
 			if (!withPillars) {
 				sendError(res, 404, 'Task nicht gefunden.');
