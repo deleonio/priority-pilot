@@ -718,6 +718,17 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		);
 		expect(createButton, 'Button „Token erzeugen" fehlt').not.toBeNull();
 
+		// Seit #1357 ist die Laufzeit ein Pflichtfeld ohne Vorauswahl (AK6) — ohne diese Auswahl bliebe
+		// der Klick wirkungslos.
+		const durationSelect = container.querySelector('[data-testid="api-token-duration-select"]');
+		await act(async () => {
+			(durationSelect as unknown as { _on: { onChange: (e: unknown, v: string) => void } })._on.onChange(
+				{ target: durationSelect },
+				'365',
+			);
+			await Promise.resolve();
+		});
+
 		await act(async () => {
 			createButton?.dispatchEvent(new Event('click', { bubbles: true }));
 			await Promise.resolve();

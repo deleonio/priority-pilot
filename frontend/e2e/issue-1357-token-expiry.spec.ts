@@ -49,7 +49,11 @@ test.describe('Priority Pilot — #1357: Pflicht-Ablaufdatum für API-Tokens', (
 
 		const durationSelect = page.getByTestId('api-token-duration-select');
 		await expect(durationSelect).toBeVisible();
-		await durationSelect.selectOption('365');
+		// Test-Pflege (#1357, s. PR-Body): KolSelect schreibt auf die native <option> stets einen
+		// synthetischen Index-Key (z. B. "-4"), nie den logischen `_options`-Wert — `selectOption('365')`
+		// kann dagegen nie matchen. Auswahl über das sichtbare Label trifft dieselbe Option und liefert
+		// über KoliBris onChange-Facade weiterhin den echten Wert ("365") an die Komponente.
+		await durationSelect.selectOption({ label: '365 Tage (12 Monate)' });
 
 		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 

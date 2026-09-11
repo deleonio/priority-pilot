@@ -151,6 +151,7 @@ export const main = async (): Promise<void> => {
 			migrateUsersRoleColumn,
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
+			migrateApiTokenExpiresAt,
 		} = await import('./logics/migrate.js');
 		const { buildTaskForest } = await import('./logics/tree.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
@@ -214,6 +215,10 @@ export const main = async (): Promise<void> => {
 		// Fehlende scope-Spalte (Rechtestufe je API-Token) an api_tokens nachziehen (#1356) — vor
 		// sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateApiTokenScope(sequelize);
+		// Fehlende expiresAt-Spalte (Pflicht-Ablaufdatum je API-Token) an api_tokens nachziehen
+		// (#1357) — vor sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column`
+		// brechen.
+		await migrateApiTokenExpiresAt(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

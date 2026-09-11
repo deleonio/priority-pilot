@@ -558,6 +558,25 @@ export const migrateApiTokenScope = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die nullbare `expiresAt`-Spalte (Pflicht-Ablaufdatum, #1357) auf einer **bestehenden**
+ * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskCreatedById`.
+ * Nullable, daher kein Default nötig: Bestandstokens bleiben ohne Ablaufdatum gültig (kein
+ * rückwirkendes Entwerten, AK3). Idempotent (Spalte vorhanden → No-op); bei frischer DB ebenso
+ * No-op — `sync()` legt die Spalte an.
+ */
+export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('api_tokens')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('expiresAt')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `api_tokens` ADD COLUMN `expiresAt` DATETIME');
+	console.log('Spalte expiresAt an api_tokens nachgezogen.');
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:
