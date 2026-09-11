@@ -115,7 +115,14 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await openAccordionSection(page, 'Termin & Ort');
 
 		const addressInput2 = page.getByLabel('Adresse (optional)');
+		// `favoriteOptions` wird synchron aus den Props berechnet und blitzt daher schon VOR dem
+		// `pending`-Effekt auf — der schließt die Liste gleich wieder, bis die (debouncte) Geocode-
+		// Suche durchgelaufen ist. Ohne auf die Antwort zu warten, kann `toBeVisible()` genau diesen
+		// ersten Blitzer erwischen; das anschließende `boundingBox()` (kein Auto-Retry) träfe dann auf
+		// die bereits wieder geschlossene Liste.
+		const geocodeResponse = page.waitForResponse((response) => response.url().includes('/geocode-search'));
 		await addressInput2.fill('Büro');
+		await geocodeResponse;
 		const favoriteOption = page.getByRole('option', { name: /Büro München/i });
 		await expect(favoriteOption).toBeVisible();
 		const favoriteOptionBox = await favoriteOption.boundingBox();
