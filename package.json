@@ -4,7 +4,7 @@
 	"devDependencies": {
 		"@action-validator/core": "0.6.0",
 		"@evilmartians/lefthook": "2.1.12",
-		"knip": "6.34.0",
+		"knip": "6.35.1",
 		"prettier": "3.9.6",
 		"tsx": "4.23.13"
 	},
