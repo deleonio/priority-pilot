@@ -834,7 +834,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.ok(!list.result?.some((g) => g.id === groupOfB.id), 'fremde Gruppe darf in group_list nicht sichtbar sein');
 	});
 
-	it('AK7: der v1-Werkzeugvertrag wächst um group_list/group_members_list auf zwölf Namen', async () => {
+	it('AK7 (#1381, #1396): der v1-Werkzeugvertrag wächst um group_list/group_members_list/task_delete auf dreizehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
@@ -850,6 +850,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'pillar_list',
 			'task_complete',
 			'task_create',
+			'task_delete',
 			'task_link',
 			'task_links',
 			'task_list',
@@ -859,5 +860,116 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		for (const tool of sorted) {
 			assert.ok(tool.inputSchema, `${tool.name} muss ein inputSchema deklarieren`);
 		}
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1396 (Spec docs/spec/issue-1396.md) — task_delete.
+ *
+ * AK1: Katalog-Snapshot wächst auf dreizehn Namen inkl. task_delete.
+ * AK2: readwrite-Token löscht eine eigene Aufgabe endgültig.
+ * AK3: fremde Aufgabe löschen → JSON-RPC-Fehler mit HTTP 404, Aufgabe bleibt beim Eigentümer.
+ * AK4: Nur-lese-Token → Scope-Fehlertext, Aufgabe bleibt erhalten.
+ * AK5: fehlende/ungültige id → Fehlertext "id muss eine Ganzzahl >= 1 sein.", nichts gelöscht.
+ * AK6: bestehende Suite bleibt (bis auf die Katalog-Assertion oben) grün.
+ *
+ * Rot, bis das Werkzeug task_delete in mcpTools existiert. KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug task_delete (#1396)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf dreizehn Namen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name).sort();
+		assert.equal(names.length, 13, `Katalog sollte dreizehn Namen führen, war: ${names.join(', ')}`);
+		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
+
+		const tool = tools.find((t) => t.name === 'task_delete');
+		const schema = tool?.inputSchema as { required?: string[] } | undefined;
+		assert.deepEqual(schema?.required, ['id'], 'task_delete.inputSchema.required muss genau ["id"] sein');
+	});
+
+	it('AK2: ein readwrite-Token löscht über task_delete eine eigene Aufgabe endgültig', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Wird über MCP gelöscht');
+
+		const deleted = await mcpCall(token, 'task_delete', { id: taskId });
+		assert.equal(deleted.error, undefined, `task_delete sollte keinen Fehler liefern: ${deleted.error?.message}`);
+
+		const list = await mcpCall<{ id: number }[]>(token, 'task_list');
+		assert.ok(
+			!list.result?.some((t) => t.id === taskId),
+			'die gelöschte Aufgabe darf in task_list nicht mehr auftauchen',
+		);
+	});
+
+	it('AK3: task_delete auf eine fremde Aufgabe liefert HTTP 404 und löscht nichts', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const taskIdOfB = await createTaskViaApi(cookieB, 'Von B, bleibt erhalten');
+
+		const res = await mcpCall(tokenA, 'task_delete', { id: taskIdOfB });
+		assert.ok(res.error, 'fremde Aufgabe löschen muss fehlschlagen');
+		assert.match(res.error!.message, /Task nicht gefunden\./);
+		assert.match(res.error!.message, /HTTP 404/);
+
+		const listB = await mcpCall<{ id: number }[]>(await createToken(cookieB), 'task_list');
+		assert.ok(
+			listB.result?.some((t) => t.id === taskIdOfB),
+			'die Aufgabe von B muss nach dem gescheiterten Löschversuch weiterhin existieren',
+		);
+	});
+
+	it('AK4: ein Nur-lese-Token scheitert mit dem Scope-Fehlertext, die Aufgabe bleibt erhalten', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Bleibt bei read-only erhalten');
+
+		const res = await mcpCall(token, 'task_delete', { id: taskId });
+		assert.ok(res.error, 'task_delete muss mit einem Nur-lese-Token fehlschlagen');
+		assert.match(
+			res.error!.message,
+			/nur lesenden Zugriff/,
+			`Fehlertext muss die Rechtestufe benennen, war: ${res.error!.message}`,
+		);
+
+		const readwriteToken = await createToken(cookie);
+		const list = await mcpCall<{ id: number }[]>(readwriteToken, 'task_list');
+		assert.ok(
+			list.result?.some((t) => t.id === taskId),
+			'die Aufgabe muss nach dem abgelehnten Löschversuch weiterhin existieren',
+		);
+	});
+
+	it('AK5: task_delete ohne bzw. mit ungültiger id liefert den festen Fehlertext und löscht nichts', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Bleibt bei ungültiger id erhalten');
+
+		const missing = await mcpCall(token, 'task_delete', {});
+		assert.ok(missing.error, 'fehlende id muss fehlschlagen');
+		assert.equal(missing.error!.message, 'id muss eine Ganzzahl >= 1 sein.');
+
+		const nonInteger = await mcpCall(token, 'task_delete', { id: 'abc' });
+		assert.ok(nonInteger.error, 'nicht-ganzzahlige id muss fehlschlagen');
+		assert.equal(nonInteger.error!.message, 'id muss eine Ganzzahl >= 1 sein.');
+
+		const list = await mcpCall<{ id: number }[]>(token, 'task_list');
+		assert.ok(
+			list.result?.some((t) => t.id === taskId),
+			'ein abgelehnter task_delete-Aufruf darf keine Aufgabe löschen',
+		);
 	});
 });
