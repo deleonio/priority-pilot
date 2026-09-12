@@ -371,12 +371,13 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 												) : (
 													<>
 														{/* Der frische Link ist einmal voll sichtbar — direkt hier kopierbar. */}
-														<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-gap-tight)' }}>
+														<div className="copy-row">
 															<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
 															<CopyButton
 																text={inviteLinkUrl(link.token)}
 																ariaLabel="Link kopieren"
 																onSuccess={() => setCopiedLinkId(link.id)}
+																onError={(message) => setError(message)}
 															/>
 														</div>
 														<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>

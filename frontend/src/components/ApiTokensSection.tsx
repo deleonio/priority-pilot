@@ -244,11 +244,11 @@ export const ApiTokensSection = () => {
 					)}
 					<div className="api-tokens__mcp-url">
 						<span>MCP-Endpunkt für externe Clients:</span>
-						<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-gap-tight)' }}>
+						<div className="copy-row">
 							<span className="api-tokens__plaintext" data-testid="mcp-url">
 								{MCP_URL}
 							</span>
-							<CopyButton text={MCP_URL} ariaLabel="URL kopieren" />
+							<CopyButton text={MCP_URL} ariaLabel="URL kopieren" onError={(message) => setError(message)} />
 						</div>
 						<span>Header-Konfiguration für externe Clients (z. B. Claude-Connector):</span>
 						<span className="api-tokens__plaintext">Authorization: Bearer &lt;Token&gt;</span>
@@ -256,11 +256,11 @@ export const ApiTokensSection = () => {
 					</div>
 					{plaintext !== null && (
 						<KolAlert _type="info" _label="Token einmalig sichtbar">
-							<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-gap-tight)' }}>
+							<div className="copy-row">
 								<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
 									{plaintext}
 								</span>
-								<CopyButton text={plaintext} ariaLabel="Token kopieren" />
+								<CopyButton text={plaintext} ariaLabel="Token kopieren" onError={(message) => setError(message)} />
 							</div>
 						</KolAlert>
 					)}

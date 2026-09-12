@@ -3568,11 +3568,6 @@ kol-alert {
 	overflow-wrap: anywhere;
 }
 
-.api-tokens__copied {
-	color: var(--pp-text-muted);
-	font-size: 0.875rem;
-}
-
 @media (min-width: 48rem) {
 	.api-tokens__item {
 		flex-direction: row;
@@ -3651,4 +3646,11 @@ kol-alert {
 	align-items: center;
 	gap: var(--pp-gap-tight);
 	cursor: pointer;
+}
+
+/* Zeile aus kopierbarem Inhalt + CopyButton. */
+.copy-row {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
 }
