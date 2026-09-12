@@ -188,6 +188,9 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
    mit 0 oder 2 Triggern, und „setzt `ai:needs-fixup` ⇒ `ai:needs-review` weg" gilt per
    Konstruktion. Guard 3 (Menschen-Parker, PR #903): Keine Transition darf ein klebendes
    `ai:needs-human` ersatzlos entfernen — nur der Mensch (UI) darf es entfernen.
+   Guard 0 (Renovate, 12.09.2026): Auf PRs mit Head-Branch `renovate/…` wird **nie** ein
+   Phasen-Label gesetzt — Dependency-Bumps gehören keiner Phase (Renovate rebaset und mergt
+   selbst). `--set-none` bleibt erlaubt, damit ein versehentlich gesetztes Label abräumbar ist.
 2. Start-Konsum: Review und Fixup entfernen ihr Trigger-Label direkt nach dem Setup
    (`--set-none --expect <Trigger>`) — wartende Läufe derselben Phase skippen dann im
    Precheck, und kein Review läuft parallel zum Fixup. Seit PR #903 läuft `check-phase-label.sh`
@@ -361,4 +364,4 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
 - **Entfernen von `ai:analysed`** (`issues.unlabeled`) → `triage.yml` (manuelle Neu-Analyse;
   der Laufzeit-Pre-Check verlangt, dass das Label abwesend bleibt — sonst Trigger konsumiert).
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `pr-conflict-scan.yml`
-  (scannt alle offenen PRs auf Merge-Konflikte).
+  (scannt alle offenen PRs auf Merge-Konflikte — **außer** Renovate-PRs, `renovate/…`).

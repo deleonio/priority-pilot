@@ -27,6 +27,9 @@ let putLogPath: string;
 
 const labels = (...names: string[]) => names.map((name) => ({ name }));
 const fixture = (...names: string[]) => JSON.stringify({ labels: labels(...names) });
+// Wie fixture(), nur mit Head-Branch — Guard 0 (Renovate) liest `headRefName`.
+const fixtureOnBranch = (headRefName: string, ...names: string[]) =>
+	JSON.stringify({ labels: labels(...names), headRefName });
 
 type RunResult = {
 	applied: string;
@@ -149,6 +152,35 @@ describe('label-transition.sh — Guard 3 (Menschen-Parker, PR #903)', () => {
 		assert.equal(r.state, 'ok');
 		const log = putLogContents();
 		assert.ok(log.length > 0, 'PUT muss ausgefuehrt werden');
+	});
+});
+
+describe('label-transition.sh — Guard 0 (Renovate-PRs tragen nie ein Phasen-Label)', () => {
+	it('verwirft jedes Setzen eines Pipeline-Labels auf einem renovate/-Branch', () => {
+		// Konflikt-Scan-Konstellation (#1399, #1331): Lockfile-Konflikt am Dependency-Bump
+		// labelte bisher ai:needs-fixup und startete Fixup + Review darauf.
+		writeFileSync(fixturePath, fixtureOnBranch('renovate/typescript-7.x', 'dependencies'));
+		const r = runTransition(['--set', 'ai:needs-fixup', '--forbid', 'ai:needs-fixup']);
+		assert.equal(r.applied, 'false', 'Guard 0 muss die Transition verwerfen');
+		assert.equal(r.state, 'ok', 'bewusste Ablehnung, kein Fehler — Aufrufer bleibt gruen');
+		assert.match(r.reason, /Renovate/);
+		assert.equal(putLogContents(), '', 'KEIN PUT auf einem Renovate-PR');
+	});
+
+	it('erlaubt --set-none (ein versehentlich gesetztes Label muss abraeumbar sein)', () => {
+		writeFileSync(fixturePath, fixtureOnBranch('renovate/pnpm-12.x', 'ai:needs-fixup', 'dependencies'));
+		const r = runTransition(['--set-none']);
+		assert.equal(r.applied, 'true', 'Abraeumen bleibt erlaubt');
+		const log = putLogContents();
+		assert.ok(log.includes('dependencies'), 'Nicht-Pipeline-Labels bleiben erhalten');
+		assert.ok(!log.includes('ai:needs-fixup'), 'das Phasen-Label muss verschwinden');
+	});
+
+	it('greift nur auf dem Prefix, nicht bei „renovate" irgendwo im Branch-Namen', () => {
+		writeFileSync(fixturePath, fixtureOnBranch('fix/renovate-gruppierung'));
+		const r = runTransition(['--set', 'ai:needs-review']);
+		assert.equal(r.applied, 'true', 'ein normaler PR zum Renovate-Config bleibt Pipeline-PR');
+		assert.ok(putLogContents().includes('ai:needs-review'));
 	});
 });
 
