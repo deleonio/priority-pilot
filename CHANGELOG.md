@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.5._
+_Enthält v0.2.0 – v0.2.6._
 
 ### 🔧 Engineering
 
@@ -20,6 +20,7 @@ _Enthält v0.2.0 – v0.2.5._
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1229
 - chore(deps): update node.js to v26.8.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1327
 - chore(deps): update pnpm to v11.26.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1329
+- fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
 
 ## v0.1 - 2026-09-12
 
@@ -605,7 +606,7 @@ _Enthält v0.1.336 – v0.1.836._
 - refactor(frontend): drop legacy outer sections around dashboard widget cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/1125
 - chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
 - Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
-- Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
+- chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
 - chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
 - chore: rename all workflows with descriptive names by @deleonio in https://github.com/deleonio/priority-pilot/pull/1135
 - docs(guide): sync user guide with actual app behavior (2026-08-31) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1139
