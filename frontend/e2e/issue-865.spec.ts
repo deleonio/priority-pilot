@@ -161,14 +161,17 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const toolbar = page.locator('[role="toolbar"]').first();
 		await expect(toolbar).toBeVisible();
 
-		// Tab-Taste drücken, um in die Toolbar zu gelangen. `kol-toolbar` stellt per Roving-Tabindex
-		// nur EINEN Tab-Stop für die gesamte Toolbar bereit (#1383: der Home-Schalter ist jetzt der
-		// erste Toolbar-Button, ein zusätzlicher Logo-Button-Tab-Stop entfällt) — der Fokus wird
-		// deshalb toolbar-gescoped geprüft, nicht global.
+		// Erster Tab-Stop ist das Logo (`.logo-btn`, seit #1392 selbst klickbar/fokussierbar), noch
+		// vor der Toolbar. `kol-toolbar` stellt per Roving-Tabindex nur EINEN weiteren Tab-Stop für
+		// die gesamte Toolbar bereit — der zweite Tab muss also in der Toolbar ankommen.
 		await page.keyboard.press('Tab');
+		const logoButton = page.locator('.logo-btn:focus');
+		await expect(logoButton, 'Erster Tab muss auf dem Logo-Button liegen').toBeVisible();
+		expect(await logoButton.evaluate((el) => el.tagName)).toBe('BUTTON');
 
+		await page.keyboard.press('Tab');
 		const focusedButton = toolbar.locator('button:focus');
-		await expect(focusedButton, 'Nach einem Tab muss der Fokus auf einem Toolbar-Button liegen').toBeVisible();
+		await expect(focusedButton, 'Zweiter Tab muss auf einem Toolbar-Button liegen').toBeVisible();
 		expect(await focusedButton.evaluate((el) => el.tagName)).toBe('BUTTON');
 	});
 });
