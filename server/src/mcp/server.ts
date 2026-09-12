@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { findMcpTool, mcpTools, type McpToolContext } from './tools.js';
+import { readBearerToken } from '../express/apiTokenAuth.js';
 
 /**
  * MCP-Endpunkt v1 (#1353): JSON-RPC 2.0 über HTTP unter `POST /mcp/v1`.
@@ -114,9 +115,14 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	// `req.socket.localPort` ist der Port, auf dem dieser Prozess tatsächlich lauscht (im Test der
 	// zufällige Port aus `app.listen(0)`), und kommt vom Kernel, nicht vom Aufrufer.
 	const localPort = req.socket.localPort ?? (Number(process.env.PORT) || 3000);
+	// `apiTokenAuth` (express/apiTokenAuth.ts) hat den Token bereits aus Authorization ODER
+	// api-key/x-api-key aufgelöst (#1417); der Loopback unten spricht ausschließlich Authorization,
+	// darum hier immer als `Bearer <token>` neu aufbauen statt den Roh-Header durchzureichen —
+	// sonst scheitert ein allein über api-key angemeldeter `tools/call` mit 401.
+	const token = readBearerToken(req);
 	const context: McpToolContext = {
 		baseUrl: `http://127.0.0.1:${localPort}`,
-		authorization: req.get('authorization') ?? '',
+		authorization: token ? `Bearer ${token}` : '',
 	};
 	try {
 		// CallToolResult per MCP-Spec: das Roh-Payload reist als JSON-Text im ersten Content-Block.

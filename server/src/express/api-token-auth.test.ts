@@ -18,6 +18,11 @@ import { ApiToken } from '../models/index.js';
  * hier immer ein gültiges `expiresInDays` mit (Test-Pflege, Präzedenz api-tokens.test.ts). Die neuen
  * AK4/AK5-Fälle unten prüfen das Ablaufverhalten selbst über einen direkt in die DB geschriebenen
  * `expiresAt`-Wert (die Route legt bislang keinen kurzlebigen Token an).
+ *
+ * Ergänzung #1417 (Spec docs/spec/issue-1417.md, `api-key`-Header): AK1/AK2/AK3/AK6/AK7 —
+ * derselbe Token muss auch über `api-key`/`x-api-key` statt `Authorization` funktionieren, mit
+ * unveränderter Vorrangregel. Rot, bis `readBearerToken()` diese Header liest (heute: nur
+ * `Authorization` wird ausgewertet, jeder Request ohne ihn bleibt bei 401 hängen).
  */
 
 process.env.GOOGLE_ALLOWED_EMAILS =
@@ -247,6 +252,97 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 
 		const res = await fetch(`${server.baseUrl}/api-tokens/`, { headers: { Authorization: `Bearer ${token}` } });
 		assert.equal(res.status, 403);
+	});
+});
+
+describe('api-key-Header — Token auch ohne Authorization annehmen (#1417 AK1/AK2/AK3/AK6/AK7)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: GET /tasks mit api-key liefert denselben Body wie Authorization: Bearer', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		await createTask(cookie, 'Über api-key angelegt');
+		const { token } = await createToken(cookie);
+
+		const viaBearer = await withBearer(token);
+		const viaApiKey = await fetch(`${server.baseUrl}/tasks`, { headers: { 'api-key': token } });
+
+		assert.equal(viaApiKey.status, 200);
+		assert.equal(viaBearer.status, viaApiKey.status);
+		assert.deepEqual(await viaApiKey.json(), await viaBearer.json());
+	});
+
+	it('AK2: GET /tasks mit x-api-key liefert ebenfalls 200 mit demselben Body', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		await createTask(cookie, 'Über x-api-key angelegt');
+		const { token } = await createToken(cookie);
+
+		const viaBearer = await withBearer(token);
+		const viaXApiKey = await fetch(`${server.baseUrl}/tasks`, { headers: { 'x-api-key': token } });
+
+		assert.equal(viaXApiKey.status, 200);
+		assert.deepEqual(await viaXApiKey.json(), await viaBearer.json());
+	});
+
+	it('AK3: api-key mit versehentlichem Bearer-Präfix (auch gemischter Groß-/Kleinschreibung) liefert 200', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+
+		const withPrefix = await fetch(`${server.baseUrl}/tasks`, { headers: { 'api-key': `Bearer ${token}` } });
+		assert.equal(withPrefix.status, 200);
+
+		const withMixedCasePrefix = await fetch(`${server.baseUrl}/tasks`, { headers: { 'api-key': `bEaReR ${token}` } });
+		assert.equal(withMixedCasePrefix.status, 200);
+	});
+
+	it('AK6: ein widerrufener Token liefert über api-key 401 auf GET /tasks', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ revokedAt: new Date() });
+
+		const res = await fetch(`${server.baseUrl}/tasks`, { headers: { 'api-key': token } });
+		assert.equal(res.status, 401);
+	});
+
+	it('AK6: ein abgelaufener Token liefert über api-key 401 auf GET /tasks', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000) });
+
+		const res = await fetch(`${server.baseUrl}/tasks`, { headers: { 'api-key': token } });
+		assert.equal(res.status, 401);
+	});
+
+	it('AK7: gültiges Authorization + unsinniges api-key liefert 200 (Authorization gewinnt)', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+
+		const res = await fetch(`${server.baseUrl}/tasks`, {
+			headers: { Authorization: `Bearer ${token}`, 'api-key': 'pp_does-not-exist' },
+		});
+		assert.equal(res.status, 200);
+	});
+
+	it('AK7: unsinniges Authorization + gültiges api-key liefert 401 (api-key wird nicht als Fallback genutzt)', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const { token } = await createToken(cookie);
+
+		const res = await fetch(`${server.baseUrl}/tasks`, {
+			headers: { Authorization: 'Bearer pp_does-not-exist', 'api-key': token },
+		});
+		assert.equal(res.status, 401);
 	});
 });
 

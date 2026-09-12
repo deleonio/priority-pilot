@@ -10,6 +10,13 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
  * Zusätzlich: GET /mcp/v1 → 405 mit `Allow: POST` (Streamable HTTP ohne SSE-Strom, ADR 0012).
  *
  * Rot, bis `/mcp/v1` existiert (heute: Route fehlt komplett, 404). KEIN Produktivcode.
+ *
+ * Ergänzung #1417 (Spec docs/spec/issue-1417.md, `api-key`-Header): AK4/AK5 — ein `tools/call`,
+ * der ausschließlich über `api-key` angemeldet ist, muss ein Werkzeugergebnis liefern statt 401,
+ * und die Scope-Sperre für schreibende Werkzeuge muss unverändert gelten. Rot, weil der
+ * MCP-Loopback (`mcp/tools.ts`) heute nur den rohen `Authorization`-Header weiterreicht — ein
+ * über `api-key` angemeldeter Request hat dort keinen, der Loopback scheitert an der gespiegelten
+ * HTTP-Route mit 401.
  */
 
 process.env.GOOGLE_ALLOWED_EMAILS = 'mcp-a@example.com';
@@ -109,5 +116,54 @@ describe('MCP-Endpunkt /mcp/v1 — Auth (#1353 AK1/AK2)', () => {
 		});
 		assert.equal(res.status, 405);
 		assert.equal(res.headers.get('allow'), 'POST');
+	});
+});
+
+const mcpCallTool = (token: string, name: string, args: Record<string, unknown> = {}): Promise<Response> =>
+	fetch(`${server.baseUrl}/mcp/v1`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/json, text/event-stream',
+			'api-key': token,
+		},
+		body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
+	});
+
+describe('MCP-Endpunkt /mcp/v1 — Anmeldung über api-key (#1417 AK4/AK5)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK4: tools/call für task_list, allein über api-key angemeldet, liefert ein Werkzeugergebnis', async () => {
+		const cookie = await server.register('mcp-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const res = await mcpCallTool(token, 'task_list');
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { result?: { content?: { text?: string }[] }; error?: unknown };
+		assert.equal(body.error, undefined, 'darf keinen JSON-RPC-Fehler liefern');
+		assert.ok(body.result?.content?.[0]?.text, 'result.content[0].text muss die Nutzdaten enthalten');
+	});
+
+	it('AK5: ein Nur-lese-Token, allein über api-key angemeldet, wird bei task_create mit dem Scope-Hinweis abgewiesen', async () => {
+		const cookie = await server.register('mcp-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const res = await mcpCallTool(token, 'task_create', { title: 'Über api-key versucht' });
+		assert.equal(res.status, 200, 'JSON-RPC-Fehler kommt mit HTTP 200');
+		const body = (await res.json()) as { error?: { message?: string } };
+		assert.match(
+			body.error?.message ?? '',
+			/schreibt, dieser Token erlaubt nur lesenden Zugriff/,
+			'Scope-Hinweistext muss identisch zum Authorization-Pfad sein',
+		);
 	});
 });
