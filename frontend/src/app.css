@@ -3468,14 +3468,17 @@ kol-alert {
    rechtsbündigen Aktionen. Der Klartext-Token bricht um statt zu scrollen (AK9: kein
    horizontales Scrollen bei 375px). */
 /* `.api-tokens` ist der äußere Zwei-Karten-Wrapper (Muster auch in PlaceFavoritesSection.tsx) —
-   Card-zu-Card-Gap einheitlich `--pp-gap-generous`, wie überall sonst im Produkt. `__create` ist
-   der Feld-Stapel INNERHALB der ersten Karte — dieselbe Beziehung wie `.settings-card-stack`,
-   daher `--pp-gap-base`. Beide standen vorher auf `--pp-gap-tight` (8px): zwischen den Karten war
-   das sichtbar zu eng gegenüber jeder anderen Card-Trennung im Produkt. */
+   beide Nutzer sitzen in einem `.settings-panel`-Tab (Zugriff bzw. Standort). Card-zu-Card-Gap
+   deshalb `--pp-gap-base`, wie das Panel-Rezept für alle sechs Settings-Tabs (#843 AK1, s.
+   `.settings-panel` oben) es für jede Karte im Tab-Inhalt vorgibt — `--pp-gap-generous` gehörte
+   zur Dashboard-Konvention und stand hier im Widerspruch dazu (sichtbar größerer Kartenabstand
+   nur in „Zugriff"/„Standort" gegenüber jedem anderen Settings-Tab, Design-Lauf 2026-09-12).
+   `__create` ist der Feld-Stapel INNERHALB der ersten Karte — dieselbe Beziehung wie
+   `.settings-card-stack`, daher ebenfalls `--pp-gap-base`. */
 .api-tokens {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-gap-generous);
+	gap: var(--pp-gap-base);
 }
 
 .api-tokens__create {
