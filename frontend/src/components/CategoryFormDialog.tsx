@@ -91,6 +91,7 @@ export const CategoryFormDialog = ({ category, onClose, onSaved }: CategoryFormD
 					_label="Name"
 					_required
 					_maxLength={CATEGORY_NAME_MAX_LENGTH}
+					_type="search"
 					_value={nameState}
 					_on={{
 						onInput: (_event, value) => {

@@ -1019,6 +1019,7 @@ export const TaskForm = ({
 												_required
 												_maxLength={TITLE_MAX_LENGTH}
 												_hasCounter
+												_type="search"
 												_value={title}
 												_on={{
 													onInput: (_event, value) => {
@@ -1555,6 +1556,7 @@ export const TaskForm = ({
 									<KolInputText
 										_label="Checklisten-Eintrag"
 										_hideLabel
+										_type="search"
 										_value={newChecklistTitle}
 										_on={{
 											onChange: (_event, value) => setNewChecklistTitle(readString(value)),

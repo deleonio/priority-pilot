@@ -120,6 +120,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 			<div className="form-grid">
 				<KolInputText
 					_label="Name"
+					_type="search"
 					_value={nameState}
 					_hint="Anzeigename, z. B. z.ai oder Groq"
 					_on={{
@@ -169,6 +170,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 				/>
 				<KolInputText
 					_label="Modell"
+					_type="search"
 					_value={modelState}
 					_hint="Modellkennung, z. B. glm-4.7 — später änderbar über die Modellliste."
 					_on={{

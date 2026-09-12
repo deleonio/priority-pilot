@@ -112,6 +112,7 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 					_label="Name"
 					_required
 					_maxLength={GROUP_NAME_MAX_LENGTH}
+					_type="search"
 					_value={nameState}
 					_on={{
 						onInput: (_event, value) => {
