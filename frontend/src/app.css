@@ -388,17 +388,31 @@ body {
 .logo-btn {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
+	height: var(--pp-logo-size);
+	padding: 0.25rem;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	border-radius: var(--pp-radius-md);
+}
+
+.logo-btn:focus-visible {
+	outline: 2px solid var(--pp-focus-ring);
+	outline-offset: 1px;
 }
 
 /*
  * #485 AK1/AK5: Das Logo zeigt nur noch das Icon (`/logo/logo.png`, ~quadratisch) und treibt die
  * Header-Höhe nicht mehr über den Avatar hinaus — ab 48rem liegt es exakt auf Avatar-Höhe, mobil
- * auf Toolbar-Höhe (siehe --pp-logo-size oben).
+ * auf Toolbar-Höhe (siehe --pp-logo-size oben). Die Klickfläche (`.logo-btn`) bleibt exakt bei
+ * --pp-logo-size (WCAG 2.5.5, seit die Marke wieder zum Dashboard navigiert); das Padding am Button
+ * verkleinert nur die sichtbare Grafik, nicht die Trefferfläche.
  */
 .logo-btn img {
 	display: block;
-	height: var(--pp-logo-size);
+	height: 100%;
 	max-height: none;
 	width: auto;
 	max-width: 100%;
@@ -473,13 +487,20 @@ body {
 
 .dashboard,
 .task-section,
-.task-graph-panel {
-	margin-top: var(--pp-gap-major);
+.task-graph-panel,
+.series-section {
+	margin-top: var(--pp-gap-generous);
 }
 
-/* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. */
+/* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. Einheitliches Gap-Token
+   (`--pp-gap-generous`) für die ganze Kette Kopf → Tabs → Panel-Inhalt (unten) — dieselbe Distanz,
+   mit der auch alle Cards untereinander getrennt sind (Design-Lauf 2026-09, statt des größeren
+   `--pp-gap-major`, der die Kette unnötig ausdehnte). Der Abstand Tab-Leiste → Panel-Inhalt
+   (`.app-tabs .dashboard` etc.) braucht keine eigene Regel: Die Basisregel oben setzt für dieselben
+   Selektoren bereits denselben Wert, ein zusätzlicher `.app-tabs`-Block wäre nur ein No-Op mit
+   höherer Spezifität. */
 .app-tabs {
-	margin-top: var(--pp-gap-major);
+	margin-top: var(--pp-gap-generous);
 	/*
 	 * KolTabs legt sein Grid (`.kol-tabs`) intern ohne `grid-template-columns` an — die einzige
 	 * Spalte bleibt `auto` und wächst auf den Max-Content jedes Tabpanel-Inhalts (#1020: die
@@ -490,13 +511,6 @@ body {
 	 * Spalte schrumpfbar, ohne KolTabs selbst zu patchen.
 	 */
 	--grid-template-columns: minmax(0, 1fr);
-}
-
-/* Innerhalb eines Tabs ist der jeweilige Bereich der einzige Inhalt – der Stapel-Abstand entfällt. */
-.app-tabs .dashboard,
-.app-tabs .task-section,
-.app-tabs .task-graph-panel {
-	margin-top: 0;
 }
 
 /* --- Dashboard --- */
@@ -1087,6 +1101,13 @@ body {
 
 .dashboard-milestones-badges > [data-erreicht='false'] {
 	opacity: 0.6;
+}
+
+/* #1361: `.day-done-hint` (DayDoneHint.tsx) ist der einzige Dashboard-Knoten ohne `dashboard-`
+   Präfix — trägt denselben Widget-Abstand wie alle Nachbar-Cards, sonst klebt der Hinweis an
+   „Meilensteine" (im Grid ab 48rem übernimmt der Grid-`gap`, hier zählt nur die Einspalten-Ansicht). */
+.day-done-hint {
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-balance {
@@ -2270,7 +2291,7 @@ body {
 
 /* --- Empty-State / Onboarding (keine Tasks) --- */
 .empty-state {
-	margin-top: var(--pp-gap-major);
+	margin-top: var(--pp-gap-generous);
 }
 
 .empty-state p {
@@ -2286,8 +2307,7 @@ body {
    an einem Container-`overflow-x: hidden` — sonst clippen dessen Kinder auch vertikal (Fokus-Ring/
    Schatten) mit, weil ein einseitig gesetztes `overflow-x` `overflow-y` implizit auf `auto` zieht. */
 .help-page {
-	max-width: 800px;
-	margin: var(--pp-gap-major) auto 0;
+	margin: var(--pp-gap-generous) 0 0;
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
@@ -2299,7 +2319,10 @@ body {
 	padding: 2rem;
 }
 
+/* Abstand Tab-Leiste → Panel-Inhalt symmetrisch zum Abstand Kopf-Toolbar → Tab-Leiste
+   (`.help-page`, ebenfalls `--pp-gap-generous`) — sonst klebt der Inhalt an der Tab-Unterkante. */
 .help-page-content {
+	margin-top: var(--pp-gap-generous);
 	word-break: break-word;
 }
 
@@ -2353,14 +2376,14 @@ body {
 
 /* --- Einstellungen-Seite (#271) --- */
 /* #1320: Seiteninhalt INNERHALB der App-Shell (`.app`) statt eigenständiger Seiten-Container —
-   Ränder und Safe-Area trägt seitdem die Shell, hier bleiben nur Lesebreite und Abstand zum Header
-   (Muster `.dashboard`/`.task-section`). Die 334px-Mindestspur von `.pillar-weights-grid` deckelt
-   sich selbst per `min(334px, 100%)` auf die Containerbreite — ein zusätzliches
-   `overflow-x: hidden` hier ist nicht nötig und clippt sonst (per implizitem `overflow-y: auto`)
-   auch Fokus-Ring/Schatten der Settings-Cards vertikal mit. */
+   Ränder und Safe-Area trägt seitdem die Shell, hier bleibt nur der Abstand zum Header (Muster
+   `.dashboard`/`.task-section`, die beide keine eigene Breitenbeschränkung setzen — die 800px
+   hier waren ein Ausreißer). Die 334px-Mindestspur von `.pillar-weights-grid` deckelt sich selbst
+   per `min(334px, 100%)` auf die Containerbreite — ein zusätzliches `overflow-x: hidden` hier ist
+   nicht nötig und clippt sonst (per implizitem `overflow-y: auto`) auch Fokus-Ring/Schatten der
+   Settings-Cards vertikal mit. */
 .settings-page {
-	max-width: 800px;
-	margin: var(--pp-gap-major) auto 0;
+	margin: var(--pp-gap-generous) 0 0;
 	box-sizing: border-box;
 	width: 100%;
 	min-width: 0;
@@ -2448,7 +2471,12 @@ body {
 .settings-panel {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen den Gruppen */
+	/* Card-zu-Card-Gap bleibt auf `--pp-gap-base` (#843 AK1 misst hier exakt 16dp Section-Abstand;
+	   `--pp-gap-generous` würde den Test rot machen). */
+	gap: var(--pp-gap-base);
+	/* Abstand Tab-Leiste → Panel-Inhalt symmetrisch zum Abstand Kopf-Toolbar → Tab-Leiste
+	   (`.settings-page`, ebenfalls `--pp-gap-generous`) — sonst klebt der Inhalt an der Tab-Unterkante. */
+	margin-top: var(--pp-gap-generous);
 	min-width: 0;
 }
 
@@ -2985,7 +3013,10 @@ kol-heading {
 	display: flex;
 	flex-direction: column;
 	gap: var(--pp-gap-tight);
-	margin-top: var(--pp-gap);
+	/* War `var(--pp-gap)` — dieses Token existiert nirgends in der Skala und löste stumm zu 0 auf
+	   (kein Abstand zum Card-Header). `--pp-gap-base` ist der Wert, den `.settings-card-stack`
+	   für dieselbe Innerhalb-Karte-Beziehung überall sonst verwendet. */
+	margin-top: var(--pp-gap-base);
 }
 
 .llm-provider-admin__list {
@@ -3441,11 +3472,21 @@ kol-heading {
 /* Aufbau wie die LLM-Provider-Verwaltung: gestapelte Zeilen auf Mobile, ab 48rem Zeilen mit
    rechtsbündigen Aktionen. Der Klartext-Token bricht um statt zu scrollen (AK9: kein
    horizontales Scrollen bei 375px). */
-.api-tokens,
+/* `.api-tokens` ist der äußere Zwei-Karten-Wrapper (Muster auch in PlaceFavoritesSection.tsx) —
+   Card-zu-Card-Gap einheitlich `--pp-gap-generous`, wie überall sonst im Produkt. `__create` ist
+   der Feld-Stapel INNERHALB der ersten Karte — dieselbe Beziehung wie `.settings-card-stack`,
+   daher `--pp-gap-base`. Beide standen vorher auf `--pp-gap-tight` (8px): zwischen den Karten war
+   das sichtbar zu eng gegenüber jeder anderen Card-Trennung im Produkt. */
+.api-tokens {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-generous);
+}
+
 .api-tokens__create {
 	display: flex;
 	flex-direction: column;
-	gap: var(--pp-gap-tight);
+	gap: var(--pp-gap-base);
 }
 
 .api-tokens__list {

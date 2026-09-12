@@ -753,10 +753,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			<header role="banner" className="app-header">
 				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
 				<div className="app-header__brand">
-					{/* Rein dekorativ: der Home-Schalter ist der erste Button der Kopf-Aktionen-Toolbar. */}
-					<span className="logo-btn">
+					{/* Zusätzlich zum Home-Schalter in der Kopf-Aktionen-Toolbar navigiert auch das Logo
+					    selbst zum Dashboard (reaktiviert nach #395) — gleicher Handler, gleicher a11y-Name. */}
+					<button type="button" className="logo-btn" onClick={handleHomeNavigate} aria-label={t('menu.home')}>
 						<img src="/logo/logo.png" alt="" />
-					</span>
+					</button>
 					<span className="app-name">Priority Pilot</span>
 				</div>
 				<div className="app-header__primary">
