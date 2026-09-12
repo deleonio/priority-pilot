@@ -27,6 +27,7 @@ import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { PushToast } from './components/PushToast';
 import { SearchModal } from './components/SearchModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -1120,6 +1121,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			)}
 			<InstallPrompt />
 			<UpdatePrompt />
+			<PushToast />
 			<SessionExpiredDialog />
 			<Footer version={APP_VERSION} />
 		</main>

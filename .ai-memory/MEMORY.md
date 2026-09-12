@@ -194,3 +194,10 @@ Konflikte, die er verhindern soll.
   des Labels unabhängig davon) auf den Host-Selektor setzen, z. B. `width: 3.6em`.
 - 2026-09-11 · gh CLI — `gh api ... -f body=@datei` liest die Datei NICHT ein, sondern postet den
   literalen String `@/pfad/datei`. Für Datei-Inhalt in PATCH/POST-Bodies immer `-F` (großes F).
+- 2026-09-12 · E2E/Playwright — Init-Script-Fakes für Browser-APIs (`navigator.serviceWorker`,
+  `navigator.geolocation`) sind oft unvollständig: sie kennen nur `addEventListener`. Sobald eine
+  Komponente ihren Listener im Effekt-Cleanup abmeldet, wirft der Fake — und weil die E2E gegen den
+  Vite-**Dev**-Server laufen (React-DEV + `StrictMode` → Cleanup schon beim Mount), reißt das die
+  komplette App-Shell mit: die Seite bleibt leer und der Test scheitert an einem harmlos wirkenden
+  `element(s) not found`. → Beim Hinzufügen eines Listeners immer prüfen, ob alle Fakes des
+  betroffenen Objekts auch `removeEventListener` haben (`grep -rn "navigator, '<api>'" frontend/e2e/`).
