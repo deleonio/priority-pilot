@@ -214,7 +214,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Ganz oben in der
   Vorschlagsliste stehen deine gespeicherten Orte (siehe „Gespeicherte Orte"),
   darunter die Suchtreffer. Am Stern neben einem Suchtreffer legst du ihn als
-  gespeicherten Ort ab, ohne ihn damit auszuwählen. Für Serien gilt das
+  gespeicherten Ort ab, ohne ihn damit auszuwählen. Mit **„Als Favorit speichern"**
+  unter dem Feld sicherst du die Adresse, die gerade eingetragen ist – samt ihrer
+  Koordinaten, falls sie aus einem Treffer stammt. Für Serien gilt das
   Adressfeld genauso.
 - **Beschreibung (optional)** – weiterer Kontext, max. 3000 Zeichen.
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
@@ -581,15 +583,16 @@ Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adr
 direkt aus.
 
 - **Anlegen:** unter **„Gespeicherte Orte"** einen **Namen** („Zuhause", „Büro") und
-  eine **Adresse** eingeben, dann **„Anlegen"**. Für die Adresse hilft dir dieselbe
-  Vorschlagsliste wie im Aufgabenformular.
+  eine **Adresse** eingeben, dann **„Anlegen"**. Die Adresse tippst du hier als freien
+  Text ein – eine Vorschlagsliste gibt es in den Einstellungen nicht.
 - **Meine Orte:** die Karte darunter listet alle gespeicherten Orte. Je Eintrag kannst
   du **umbenennen** (neuen Namen eingeben, **„Übernehmen"**) oder **löschen**
   (**„Endgültig löschen"** nach Rückfrage).
 
 Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
-Suchtreffern. Hat ein Ort Koordinaten, zählt die Aufgabe damit für „In der Nähe";
-hast du ihn als freien Text ohne Treffer gespeichert, fehlen die Koordinaten.
+Suchtreffern. Orte, die du hier in den Einstellungen anlegst, haben keine Koordinaten –
+sie füllen das Adressfeld, zählen aber nicht für „In der Nähe". Koordinaten bekommt ein
+Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
 
 ### Zugriff
 
