@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.1 - 2026-09-12
 
-_Enthält v0.1.336 – v0.1.833._
+_Enthält v0.1.336 – v0.1.834._
 
 ### 💥 Breaking Changes
 
@@ -577,7 +577,6 @@ _Enthält v0.1.336 – v0.1.833._
 - feat(frontend): nearby radius title and real distances (#1110) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1114
 - feat(ci): squash-merge pull requests in the auto-merge gate by @deleonio in https://github.com/deleonio/priority-pilot/pull/1115
 - feat(frontend): render dashboard sections as equal-height Kolibri cards by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1120
-- feat(frontend): render dashboard sections as equal-height Kolibri cards by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1120
 - ci(pipeline): phase outputs live in the harness marker comment by @deleonio in https://github.com/deleonio/priority-pilot/pull/1122
 - feat(frontend): move geo badge next to task title (#1121) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1123
 - test(frontend): assert observable outcomes in useGeolocation (#1119) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1124
@@ -650,6 +649,7 @@ _Enthält v0.1.336 – v0.1.833._
 - feat(frontend): separate balance switch from recompute button (#1220) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1244
 - feat(server): join a group via invite link (#1226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1246
 - docs(guide): sync user guide with current app state (2026-09-06) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1248
+- feat(groups): add group image via https url (#1225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1245
 - feat(groups): add group image via https url (#1225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1245
 - fix(server): creator read access ends with group membership (#1250) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1261
 - fix(server): check pillar contributions against owning account (#1249) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1255
@@ -730,6 +730,7 @@ _Enthält v0.1.336 – v0.1.833._
 - chore(deps): update dependency undici@6 to v8.10.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1326
 - fix(changelog): consolidate CHANGELOG.md blocks by minor version by @deleonio in https://github.com/deleonio/priority-pilot/pull/1393
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
+- feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 
 ## v1.0 - 2026-06-24
 
