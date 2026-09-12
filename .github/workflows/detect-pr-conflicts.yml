@@ -75,8 +75,15 @@ jobs:
           # Alle offenen PRs auflisten (kein --label-Filter: alle offenen PRs prüfen, nicht nur markierte)
           # --repo bleibt Pflicht: der Checkout oben dient NUR label-transition.sh, der Loop
           # laeuft bewusst repo-agnostisch ueber die API.
-          prs=$(gh pr list --repo "$REPO" --state open --json number,isDraft,headRepository \
-            --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == $ENV.REPO) | .number')
+          # Renovate-PRs (Head-Branch `renovate/…`) sind ausgenommen: Ein Dependency-Bump
+          # gehört keiner Pipeline-Phase, Renovate rebaset seine Branches bei Konflikt selbst
+          # und mergt selbst. Ohne diesen Filter labelte jeder main-Push jeden konfliktbehafteten
+          # Lockfile-PR mit ai:needs-fixup und startete darauf einen Fixup-/Review-Loop
+          # (#1399, #1331, #1330 am 12.09.2026). Zweite Leine: Guard 0 in label-transition.sh
+          # verwirft solche Transitionen ohnehin — hier wird zusätzlich gefiltert, damit der
+          # Lauf nicht pro Bump eine irreführende Job-Summary schreibt.
+          prs=$(gh pr list --repo "$REPO" --state open --json number,isDraft,headRepository,headRefName \
+            --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == $ENV.REPO) | select(.headRefName | startswith("renovate/") | not) | .number')
 
           if [ -z "$prs" ]; then
             echo "Keine offenen Nicht-Draft-same-repo-PRs gefunden — nichts zu tun."

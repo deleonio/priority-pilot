@@ -210,3 +210,21 @@ ersetzen.
 - Die Pipeline ist langsamer, da ein manueller Schritt nötig ist
 - Der PO muss aktiv Labels setzen, nachdem die Analyse fertig ist
 - Die Analyse entscheidet nicht mehr über das Routing — nur noch der PO
+
+## Fortschreibung 2026-09-12 — Renovate-PRs bleiben labelfrei (Guard 0)
+
+Dependency-Bumps von Renovate (Head-Branch `renovate/…`) tragen **nie** ein Phasen-Label. Sie
+gehören keiner Pipeline-Phase: Renovate rebaset seine Branches bei Konflikt selbst und mergt
+patch/minor selbst (`renovate.json5`), ein Fixup- oder Review-Lauf darauf verbraucht nur
+LLM-Kontingent. Auslöser: Der Konflikt-Scan prüfte alle offenen PRs und labelte jeden
+konfliktbehafteten Lockfile-PR mit `ai:needs-fixup` (#1399 TypeScript 7, #1331 pnpm 12, #1330
+React 19.3) — der Review-Loop lief darauf an.
+
+Durchgesetzt an der einen Stelle, durch die alle PR-Label-Writes laufen: **Guard 0** in
+`label-transition.sh` verwirft jedes Setzen eines Pipeline-Labels auf einem `renovate/`-Branch
+(`applied=false`, `state=ok` — bewusste Ablehnung, die Aufrufer bleiben grün). `--set-none`
+bleibt erlaubt, sonst wäre ein versehentlich gesetztes Label nicht mehr abräumbar.
+`detect-pr-conflicts.yml` filtert diese PRs zusätzlich beim Auflisten heraus, damit der Scan
+nicht pro Bump eine irreführende Job-Summary schreibt. Der Prefix ist Renovates
+`branchPrefix`-Default; `renovate.json5` überschreibt ihn nicht. Abgesichert in
+`label-transition.test.ts` (inkl. Prefix-Treue: `fix/renovate-…` bleibt ein Pipeline-PR).

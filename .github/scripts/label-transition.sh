@@ -24,6 +24,14 @@
 # dann keine neuere Entscheidung mehr (Stale-Write-Race im Minuten-Fenster
 # zwischen Precheck und Label-Write).
 #
+# RENOVATE-GUARD (Guard 0): Auf Renovate-PRs (Head-Branch `renovate/…`) wird NIE
+# ein Pipeline-Label gesetzt. Sie gehören keiner Phase: Renovate pflegt seine
+# Branches selbst (Rebase bei Konflikt, eigener Automerge), und ein Fixup-Lauf auf
+# einem Dependency-Bump kostet nur LLM-Kontingent. Belegt am 12.09.2026: der
+# Konflikt-Scan labelte jeden konfliktbehafteten Lockfile-PR mit `ai:needs-fixup`
+# (#1399, #1331, #1330), der Review-Loop lief darauf an. `--set-none` bleibt
+# erlaubt — ein versehentlich gesetztes Label muss abräumbar sein.
+#
 # MENSCHEN-PARKER-GUARD (Guard 3): `ai:needs-human` klebt im aktuellen
 # Bestand => KEINE Transition darf es ersatzlos entfernen — weder der Start-
 # Konsum (--set-none) noch Verdict-/Gate-/Scan-/Autolabeler-Writes. Ziel
@@ -51,7 +59,8 @@
 #   applied=true|false
 #   state=ok|read-failed|put-failed
 #   reason=<Klartext, nur wenn nicht angewendet>   # einzeilig, CR/LF gestrippt
-#                                                  # u. a. „ai:needs-human klebt“ (Guard 3)
+#                                                  # u. a. „ai:needs-human klebt“ (Guard 3),
+#                                                  # „Renovate-PR“ (Guard 0)
 #   labels=<Ziel-Bestand, Komma-liste>             # der Zustand nach angewandter Transition
 #   changed=true|false                             # hat der Write den Bestand GEÄNDERT?
 #                                                  # false = IST war bereits der Zielzustand →
@@ -188,11 +197,27 @@ out() { # $1=applied, $2=state, $3=reason
 # IST-Zustand in EINEM API-Aufruf. Lesefehler = KEIN hartes Fail (Exit 0,
 # state=read-failed): Der Aufrufer entscheidet fail-open (Konsum-Step: Phase
 # läuft, Label bleibt unkonsumiert) bzw. fail-closed (Final-Write: Eskalation).
-DATA="$(gh pr view "$PR" --repo "$REPO" --json labels 2>/dev/null)"
+DATA="$(gh pr view "$PR" --repo "$REPO" --json labels,headRefName 2>/dev/null)"
 if [ -z "$DATA" ]; then
   out false read-failed "gh pr view fehlgeschlagen — IST-Zustand unbekannt, nichts geschrieben"
   exit 0
 fi
+
+# Guard 0 — Renovate: Head-Branch `renovate/…` ⇒ kein Pipeline-Label. Steht VOR allen
+# anderen Guards und vor jedem Write: Ein Dependency-Bump ist kein Pipeline-Ticket, er
+# hat keine Phase und soll keine auslösen (Renovate rebaset selbst, automergt selbst).
+# Der Prefix ist Renovates `branchPrefix`-Default; renovate.json5 überschreibt ihn nicht.
+# `--set-none` (Abräumen) bleibt erlaubt, damit ein versehentlich gesetztes Label wieder
+# wegkann.
+HEAD_REF="$(printf '%s' "$DATA" | jq -r '.headRefName? // empty')"
+case "$HEAD_REF" in
+  renovate/*)
+    if [ "${#TARGET[@]}" -gt 0 ]; then
+      out false ok "Renovate-PR ('$HEAD_REF') — Pipeline-Label wird nie gesetzt, Transition verworfen"
+      exit 0
+    fi
+    ;;
+esac
 
 CURRENT_ALL=()
 while IFS= read -r l; do
