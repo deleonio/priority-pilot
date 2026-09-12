@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.4._
+_Enthält v0.2.0 – v0.2.5._
+
+### 🔧 Engineering
+
+- fix(deps): update dependency connect-sqlite3 to v0.9.18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1398
 
 ### Other Changes
 
@@ -12,6 +16,10 @@ _Enthält v0.2.0 – v0.2.4._
 - docs(guide): sync user guide with current ui state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1403
 - docs(arc42): sync architecture docs with mcp endpoint and api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1404
 - docs(guide): sync user guide with current app state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1406
+- chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1332
+- chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1229
+- chore(deps): update node.js to v26.8.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1327
+- chore(deps): update pnpm to v11.26.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1329
 
 ## v0.1 - 2026-09-12
 
@@ -596,7 +604,7 @@ _Enthält v0.1.336 – v0.1.836._
 - docs: sync user guide with implemented state (2026-08-30) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1129
 - refactor(frontend): drop legacy outer sections around dashboard widget cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/1125
 - chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
-- chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
+- Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
 - Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
 - chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
 - chore: rename all workflows with descriptive names by @deleonio in https://github.com/deleonio/priority-pilot/pull/1135
