@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
+import { CopyButton } from './CopyButton';
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (KI-UX #1211). */
 const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
@@ -203,15 +204,10 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 		}
 	};
 
-	const handleCopyInviteLink = async (link: GroupInviteLink): Promise<void> => {
-		try {
-			await navigator.clipboard.writeText(inviteLinkUrl(link.token));
-			// Einmal voll sichtbar, danach maskiert (KI-UX-Block): Nach dem Kopieren ist der
-			// eine Blick gewesen — der Eintrag erscheint fortan nur noch als Ausschnitt.
-			setCopiedLinkId(link.id);
-		} catch {
-			setError('Der Link konnte nicht in die Zwischenablage kopiert werden. Bitte manuell markieren und kopieren.');
-		}
+	const handleCopyInviteLink = (link: GroupInviteLink): void => {
+		// Einmal voll sichtbar, danach maskiert (KI-UX-Block): Nach dem Kopieren ist der
+		// eine Blick gewesen — der Eintrag erscheint fortan nur noch als Ausschnitt.
+		setCopiedLinkId(link.id);
 	};
 
 	const handleRevokeInviteLink = async (link: GroupInviteLink): Promise<void> => {
@@ -381,13 +377,14 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 												) : (
 													<>
 														{/* Der frische Link ist einmal voll sichtbar — direkt hier kopierbar. */}
-														<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
+														<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-gap-tight)' }}>
+															<code className="group-invite-link-token">{inviteLinkUrl(link.token)}</code>
+															<CopyButton
+																text={inviteLinkUrl(link.token)}
+																ariaLabel="Link kopieren"
+															/>
+														</div>
 														<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>
-														<KolButton
-															_label="Link kopieren"
-															_variant="secondary"
-															_on={{ onClick: () => void handleCopyInviteLink(link) }}
-														/>
 													</>
 												)}
 												<KolButton

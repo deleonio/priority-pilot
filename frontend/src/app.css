@@ -3644,3 +3644,11 @@ kol-alert {
 		width: auto;
 	}
 }
+
+/* Icon-only copy button — einfach und elegant neben Inhalten. */
+.copy-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	cursor: pointer;
+}
