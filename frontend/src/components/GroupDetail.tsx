@@ -204,12 +204,6 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 		}
 	};
 
-	const handleCopyInviteLink = (link: GroupInviteLink): void => {
-		// Einmal voll sichtbar, danach maskiert (KI-UX-Block): Nach dem Kopieren ist der
-		// eine Blick gewesen — der Eintrag erscheint fortan nur noch als Ausschnitt.
-		setCopiedLinkId(link.id);
-	};
-
 	const handleRevokeInviteLink = async (link: GroupInviteLink): Promise<void> => {
 		setPendingRevoke(null);
 		try {
@@ -382,6 +376,7 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 															<CopyButton
 																text={inviteLinkUrl(link.token)}
 																ariaLabel="Link kopieren"
+																onSuccess={() => setCopiedLinkId(link.id)}
 															/>
 														</div>
 														<span className="group-invite-link-meta">gültig bis {formatExpiry(link.expiresAt)}</span>
