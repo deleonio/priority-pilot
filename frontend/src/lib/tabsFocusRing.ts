@@ -1,5 +1,5 @@
 /**
- * #1336: `kol-tabs` (v4.4.0) exposes no CSS Parts or focus custom properties for its Shadow-DOM
+ * #1336: `kol-tabs` (bis einschl. v4.4.1) exposes no CSS Parts or focus custom properties for its Shadow-DOM
  * tab buttons (KoliBri-Doku 4.4.0: nur Properties/Methoden, kein `::part`). Ohne eigenen Stil
  * zeigt der fokussierte Tab-Button nur den UA-Default-Ring (browserabhängige Farbe statt
  * `--pp-focus-ring`). Ein `CSSStyleSheet`, adoptiert im offenen Shadow-Root des `kol-tabs`-Hosts
@@ -41,18 +41,29 @@
  */
 const FOCUS_RING_CLASS = 'pp-focus-ring';
 
+/**
+ * Das Element, das den Fokus trägt und damit den Ring malt.
+ *
+ * Seit `@public-ui/components` 4.4.1 rendert `kol-button` nach dem Skeleton-Muster: der
+ * `.kol-button`-Knoten ist nur noch ein Wrapper (`<div>`), fokussiert wird das `<button>` darin.
+ * Bis 4.4.0 war `.kol-button` selbst das fokussierbare Element — eine Regel darauf malte den Ring.
+ * Steht die Regel nach dem Umbau weiter auf dem Wrapper, greift auf dem fokussierten `<button>`
+ * KoliBris eigene `[tabindex]:focus`-Regel (3px, `--color-primary-variant`) statt `--pp-focus-ring`.
+ */
+const INTERACTIVE = '.kol-button__interactive-element';
+
 const FOCUS_RING_CSS = `
 .kol-tabs__button-group {
 	padding-inline: 4px;
 }
-.kol-tabs__button-group .kol-button.${FOCUS_RING_CLASS} {
+.kol-tabs__button-group .kol-button.${FOCUS_RING_CLASS} ${INTERACTIVE} {
 	outline-color: var(--pp-focus-ring);
 	outline-style: solid;
 	outline-width: 2px;
 	outline-offset: 2px;
 	transition-property: none;
 }
-.kol-tabs__button-group .kol-button:focus-visible:not(.${FOCUS_RING_CLASS}) {
+.kol-tabs__button-group .kol-button:not(.${FOCUS_RING_CLASS}) ${INTERACTIVE}:focus-visible {
 	outline: none;
 }
 `;

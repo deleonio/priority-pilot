@@ -37,8 +37,16 @@ ist das die nächste sinnvolle Aufgabe — nicht die Statistik-Karten, nicht die
 
 Farbe wird über **Rollen** angesprochen, nie über Hex-Werte im Komponenten-CSS. Alle Rollen sind in
 `frontend/src/app.css` als `--pp-*`-Custom-Properties definiert, hell in `:root`, dunkel in
-`:root[data-theme='dark']`. Custom Properties vererben sich über Shadow-DOM-Grenzen — KoliBri-Komponenten
-sehen dieselben Werte.
+`:root[data-theme='dark']`. Sie gelten für alles, was die App selbst malt (Light-DOM).
+
+**Zwei Paletten, ein Schalter.** Die KoliBri-Komponenten werten die `--pp-*`-Tokens nicht aus; sie
+fahren ihre eigene, BITV-geprüfte Palette und lösen sie seit `@public-ui/theme-default` 4.4.1 über
+`light-dark()` gegen `color-scheme` auf. Das Theme deklariert `color-scheme` bewusst nicht selbst —
+die Eigenschaft vererbt und die Vererbung überquert die Shadow-Grenze, also besitzt die Anwendung
+den Schalter: `applyTheme()` (`frontend/src/lib/theme.ts`) setzt `data-theme` **und**
+`color-scheme` auf `<html>`. Wer eines von beiden allein umsetzt, bekommt einen Mischzustand.
+Wer KoliBris Farben angleichen will, tut das über `--kolibri-color-*` auf `:root` — nicht über
+Shadow-DOM-Selektoren (unpublizierte API).
 
 | Rolle                             | Bedeutung                                             |
 | --------------------------------- | ----------------------------------------------------- |

@@ -47,51 +47,69 @@ MCP-Nutzung: Vor neuer Komponenten-Nutzung `kolibri-mcp_search` / `kolibri-mcp_f
 
 Definiert in `frontend/src/app.css :root` / `[data-theme='dark']`.
 
+### Zwei Paletten, ein Schalter
+
+Die `--pp-*`-Tokens gelten für alles, was die App selbst malt (Light-DOM). Die KoliBri-Komponenten
+werten sie **nicht** aus — sie fahren ihre eigene, BITV-geprüfte Palette und lösen sie seit
+`@public-ui/theme-default` 4.4.1 über `light-dark()` gegen `color-scheme` auf. Das Theme deklariert
+`color-scheme` bewusst nicht selbst (die Eigenschaft vererbt und überquert dabei die Shadow-Grenze),
+also besitzt die Anwendung den Schalter: `applyTheme()` in `src/lib/theme.ts` setzt `data-theme`
+**und** `color-scheme` auf `<html>`. Eines von beiden allein ergibt einen Mischzustand.
+
+Angleichen — falls je nötig — über `--kolibri-color-*` auf `:root`, nie über Shadow-DOM-Selektoren
+(unpublizierte API). Aktuell bewusst nicht getan: KoliBris Werte sind auf Kontrast geprüft.
+
 ### Farbe (Rollen, keine Hex-Werte im Komponenten-CSS)
 
-| Rolle                   | Light                 | Dark                  | Verwendung                                                   |
-| ----------------------- | --------------------- | --------------------- | ------------------------------------------------------------ |
-| `--pp-ink`              | `#12161d`             | `#e6eaf0`             | Primärer Text                                                |
-| `--pp-text-muted`       | `#4a5568`             | `#a0aec0`             | Sekundärer Text, Meta                                        |
-| `--pp-bg`               | `#f8f9fb`             | `#14181d`             | Seiten-Hintergrund                                           |
-| `--pp-surface-1`        | `#ffffff`             | `#1e242c`             | Karten, Panels                                               |
-| `--pp-surface-2`        | `#eef1f6`             | `#1a1f26`             | Subtle Hintergründe                                          |
-| `--pp-bg-muted`         | `var(--pp-surface-2)` | `var(--pp-surface-2)` | Deprecated alias                                             |
-| `--pp-border`           | `#d1d9e6`             | `#2d3748`             | Rahmen                                                       |
-| `--pp-signal`           | `#f2b155`             | `#f0b357`             | **Primärfarbe / Hauptaussage** (Dashboard "Nächste Aufgabe") |
-| `--pp-signal-wash`      | `#fdf3e3`             | `#2a2318`             | Signal-Hintergrund (10 % Deckkraft)                          |
-| `--pp-signal-ink`       | `#8a4b00`             | `#f0b357`             | Text auf Signal-Hintergrund (Kontrast ≥ 4.5:1)               |
-| `--pp-accent-total`     | `#3b82f6`             | `#60a5fa`             | Dashboard-Karte "Gesamt"                                     |
-| `--pp-accent-open`      | `#f59e0b`             | `#fbbf24`             | Dashboard-Karte "Offen"                                      |
-| `--pp-accent-inprocess` | `#ef4444`             | `#f87171`             | Dashboard-Karte "In Bearbeitung"                             |
-| `--pp-accent-done`      | `#22c55e`             | `#4ade80`             | Dashboard-Karte "Erledigen"                                  |
-| `--pp-danger`           | `#b42318`             | `#ef4444`             | Destruktive Aktionen                                         |
-| `--pp-pillar-1…8`       | Neon (geknickt)       | Neon (pur)            | Herz-Wasserstreifen + Legende-Tupfer (Neon-Palette, 2026-09) |
-| `--pp-success`          | `#22c55e`             | `#4ade80`             | Erfolgs-Zustände                                             |
+| Rolle                   | Light           | Dark       | Verwendung                                                   |
+| ----------------------- | --------------- | ---------- | ------------------------------------------------------------ |
+| `--pp-ink`              | `#12161d`       | `#e6eaf0`  | Primärer Text                                                |
+| `--pp-ink-muted`        | `#525b6a`       | `#a3adba`  | Sekundärer Text, Meta (Alias `--pp-text-muted`)              |
+| `--pp-surface-0`        | `#f7f8fa`       | `#12161c`  | Seitenfläche (Alias `--pp-bg`)                               |
+| `--pp-surface-1`        | `#ffffff`       | `#161b22`  | Karten, Panels                                               |
+| `--pp-surface-2`        | `#eef1f6`       | `#1e242c`  | Eingesenkte Fläche (Alias `--pp-bg-muted`)                   |
+| `--pp-border-subtle`    | `#dfe3ea`       | `#2b323c`  | Trenner ohne Bedienfunktion (Alias `--pp-border`)            |
+| `--pp-border-strong`    | `#7b8493`       | `#646f7e`  | Grenze bedienbarer Elemente (≥ 3:1, WCAG 1.4.11)             |
+| `--pp-brand`            | `#1b3a6b`       | `#8fb3f5`  | Marke, Fokusring (`--pp-focus-ring`)                         |
+| `--pp-signal`           | `#f2b155`       | `#f0b357`  | **Primärfarbe / Hauptaussage** (Dashboard "Nächste Aufgabe") |
+| `--pp-signal-wash`      | `#fdf3e3`       | `#2a2318`  | Signal-Hintergrund                                           |
+| `--pp-signal-ink`       | `#8a4b00`       | `#f0b357`  | Text auf Signal-Hintergrund (Kontrast ≥ 4.5:1)               |
+| `--pp-status-total`     | `#3f4a5c`       | `#98a2b3`  | Dashboard-Karte "Gesamt" (Alias `--pp-accent-total`)         |
+| `--pp-status-open`      | `#1064d0`       | `#5aa2f5`  | Dashboard-Karte "Offen"                                      |
+| `--pp-status-inprocess` | `#b54708`       | `#e8924a`  | Dashboard-Karte "In Bearbeitung"                             |
+| `--pp-status-done`      | `#1a7f37`       | `#52c45f`  | Dashboard-Karte "Erledigt"                                   |
+| `--pp-success`          | `#1a7f37`       | `#52c45f`  | Erfolgs-Zustände                                             |
+| `--pp-warning`          | `#a15c07`       | `#e8924a`  | Warnungen                                                    |
+| `--pp-danger`           | `#b42318`       | `#f97066`  | Destruktive Aktionen                                         |
+| `--pp-pillar-1…7`       | Neon (geknickt) | Neon (pur) | Herz-Wasserstreifen + Legende-Tupfer (Neon-Palette, 2026-09) |
 
 ### Spacing (Skala, mobile-first)
 
 ```
---pp-gap-tight:   0.5rem   /* 8px  — intra-element */
---pp-gap-base:    1rem     /* 16px — inter-group */
---pp-gap-generous: 1.5rem  /* 24px — section break */
---pp-gap-major:   2rem     /* 32px — major section */
---pp-space-1 .. --pp-space-8  /* 0.25rem .. 2rem, für feinere Abstufung */
+--pp-gap-tight:    0.5rem  /* 8px  — intra-group */
+--pp-gap-base:     1rem    /* 16px — inter-group */
+--pp-gap-generous: 2rem    /* 32px — section break */
+--pp-gap-major:    3rem    /* 48px — major section */
+--pp-space-1 .. --pp-space-8  /* 0.25rem .. 4rem, für feinere Abstufung */
 ```
 
 ### Typografie
 
-- Basis: `1rem` (16px), System-UI Stack
-- `--pp-font-size-sm: 0.875rem`
-- `--pp-font-size-lg: 1.125rem`
-- `--pp-weight-bold: 700`
+Genau fünf Größen, genau zwei Gewichte (mobile-ui-rules.md, Regel 6).
+
+- Basis: `--pp-font-size-base: 1rem` (16px), System-UI Stack
+- `--pp-font-size-sm: 0.875rem`, `-lg: 1.125rem`, `-xl: 1.375rem`, `-2xl: 1.75rem`
+- `--pp-weight-regular: 400`, `--pp-weight-bold: 600`
+- `--pp-line-tight: 1.25`, `--pp-line-base: 1.55`
 - `font-variant-numeric: tabular-nums` für Zahlenkolonnen
 
 ### Radius
 
-- `--pp-radius-sm: 0.25rem` (4px)
-- `--pp-radius: 0.5rem` (8px) — Standard für Cards, Panels, Buttons
-- `--pp-radius-lg: 1rem` (16px)
+Drei Stufen (Regel 6): zwei Größen plus die Pille für Marker/Badges.
+
+- `--pp-radius-sm: 0.375rem` (6px)
+- `--pp-radius-md: 0.625rem` (10px) — Standard für Cards, Panels
+- `--pp-radius-pill: 999rem` — Badges, Marker
 
 ### Breakpoints
 

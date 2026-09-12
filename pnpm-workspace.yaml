@@ -11,10 +11,10 @@ allowBuilds:
   esbuild: true
   sqlite3: true
 minimumReleaseAgeExclude:
-  - '@public-ui/components@4.4.0'
-  - '@public-ui/react-v19@4.4.0'
-  - '@public-ui/theme-default@4.4.0'
-  - '@public-ui/theme-kern@4.4.0'
+  - '@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0'
+  - '@public-ui/react-v19@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0'
+  - '@public-ui/theme-default@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0'
+  - '@public-ui/theme-kern@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0'
 # Security-Overrides fuer transitive CVEs (Dependabot-Alerts, 2026-06).
 # Patched-Versionen aus den GHSA-Advisories; version-gescopte Keys (z. B. `undici@6`)
 # treffen nur die verwundbare Major-Linie und lassen bereits saubere Majors unberuehrt.

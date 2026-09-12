@@ -35,17 +35,28 @@ Behoben in `frontend/src/app.css` (Fläche und Textfarbe reisen zusammen), gemes
 festgenagelt durch `frontend/e2e/dark-mode-contrast.spec.ts` (Mutations-Probe: ohne den Fix rot mit
 `rgb(0, 0, 0) auf rgb(30, 36, 44)`).
 
-### P1-2 Dunkelmodus ist ein Flickenteppich
+### P1-2 Dunkelmodus ist ein Flickenteppich — **behoben**
 
-Die App-Fläche wird dunkel, die KoliBri-Komponenten bleiben hell: Karten (Gesamt/Offen/Erledigt),
-der Tab-Bereich und die Säulen-Meter rendern weiter auf Weiß, während Kopfzeile und Panels dunkel
-sind. `@public-ui/theme-default` reagiert nicht auf unser `data-theme`.
-Das Ergebnis wirkt nicht wie ein Dunkelmodus, sondern wie ein Darstellungsfehler.
+Die App-Fläche wurde dunkel, die KoliBri-Komponenten blieben hell: Karten (Gesamt/Offen/Erledigt),
+der Tab-Bereich und die Säulen-Meter renderten weiter auf Weiß, während Kopfzeile und Panels dunkel
+waren. `@public-ui/theme-default` reagierte nicht auf unser `data-theme`.
+Das Ergebnis wirkte nicht wie ein Dunkelmodus, sondern wie ein Darstellungsfehler.
 
-Nötig ist eine Entscheidung: entweder ein eigenes KoliBri-Theme-Objekt, das die `--pp-*`-Tokens
-konsumiert (Registrierung in `frontend/src/main.tsx`), oder Host-Level-CSS für die eingesetzten
-`kol-*`-Elemente. Bis dahin bleibt der Dunkelmodus unfertig.
-Betroffen: `frontend/src/main.tsx`, `frontend/src/app.css`.
+Als Weg standen hier ein eigenes KoliBri-Theme-Objekt auf `--pp-*`-Basis oder Host-Level-CSS je
+`kol-*`-Element. Beides ist mit `@public-ui/*` 4.4.1 hinfällig: Das Theme führt jede Farbe jetzt
+als `light-dark()` und löst sie gegen `color-scheme` auf — eine Eigenschaft, die es bewusst nicht
+selbst deklariert, weil sie vererbt und die Vererbung die Shadow-Grenze überquert. Die App besitzt
+also den Schalter, und `applyTheme()` (`frontend/src/lib/theme.ts`) setzte ihn ohnehin schon. Der
+Versionssprung genügte; KoliBri behält dabei seine eigene, BITV-geprüfte Dunkel-Palette, die App
+ihre `--pp-*`-Rollen.
+
+Festgenagelt in `frontend/e2e/dark-mode-contrast.spec.ts`: die Fläche, die `kol-card` im Shadow-DOM
+malt, muss sich zwischen den Modi ändern und im Dunkelmodus die dunklere sein (Luminanz-Vergleich,
+kein fester Farbwert). Mitsaniert wurde der Testaufbau selbst — die Dunkelmodus-Specs schalteten
+bis dahin nur `data-theme` um und ließen den Inline-Style `color-scheme` stehen; ab 4.4.1 hätten
+sie damit genau den Mischzustand gemessen, den der Sprung beseitigt (`setTheme` in
+`frontend/e2e/helpers.ts`).
+Betroffen: `frontend/package.json`, `frontend/src/app.css`, `frontend/e2e/helpers.ts`.
 
 ### P1-3 `--filter priority-pilot` zeigte ins Leere — **behoben**
 

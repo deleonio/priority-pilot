@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { waitForStableView } from './helpers';
+import { setTheme, waitForStableView } from './helpers';
 
 /**
  * E2E-Verhaltens-Spec für #930 — Transparente KoliBri-Host-Hintergründe
@@ -95,8 +95,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		}) => {
 			await page.setViewportSize({ width, height });
 			// Sicherstellen, dass Light Mode aktiv ist (Default)
-			await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
-			await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+			await setTheme(page, 'light');
 
 			const results: { tag: string; backgroundColor: string; used: boolean }[] = [];
 
@@ -152,8 +151,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 			page,
 		}) => {
 			await page.setViewportSize({ width, height });
-			await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-			await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+			await setTheme(page, 'dark');
 
 			const results: { tag: string; backgroundColor: string; used: boolean }[] = [];
 
@@ -268,7 +266,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		};
 
 		// Light Mode
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+		await setTheme(page, 'light');
 
 		// kol-badge auf Dashboard (Startseite): nur Präsenz, kein Kontrast (siehe Testbeschreibung
 		// oben). Die Task-Liste wird erst nach dem Mount asynchron geladen; explizit auf das Badge
@@ -303,7 +301,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 			`kol-heading Kontrast ${headingSample!.ratio}:1 (${headingSample!.color} auf ${headingSample!.background})`,
 		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+		await setTheme(page, 'dark');
 
 		const headingSampleDark = await measureContrast('kol-heading');
 		expect(headingSampleDark, 'kol-heading (Dark Mode) muss vorhanden sein').not.toBeNull();
@@ -381,8 +379,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 
 		// Light → Dark → Light
 		for (const theme of ['light', 'dark', 'light'] as const) {
-			await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
-			await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+			await setTheme(page, theme);
 
 			const bg = await element.evaluate((el) => window.getComputedStyle(el).backgroundColor);
 			const isTransparent = bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent' || bg === '';
