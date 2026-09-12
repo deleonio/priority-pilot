@@ -99,16 +99,21 @@ jobs:
           fi
           echo "last_tag=${LAST_TAG}" >> "$GITHUB_OUTPUT"
 
-          # Tages-Check zuerst: fängt Doppel-Feuerungen innerhalb des 05-07-Fensters ab
-          # (DST-Offset UND ein verzögerter Lauf am selben Tag), unabhängig vom Merge-
-          # Zähler unten.
+          # Tages-Check zuerst: fängt Doppel-Feuerungen des Daily-Jobs selbst innerhalb
+          # des 05-07-Fensters ab (DST-Offset UND ein verzögerter Lauf am selben Tag).
+          # Greift nur bei einem (daily)-Tag von heute — ein ganz normales Merge-Tag von
+          # deploy.yml (das an aktiven Tagen fast immer schon vor 05 Uhr Berlin
+          # existiert) darf den Minor-Bump nicht verhindern.
           LAST_TAG_ISO="$(git log -1 --format=%cI "$LAST_TAG")"
-          LAST_TAG_DATE="$(TZ='Europe/Berlin' date -d "$LAST_TAG_ISO" +%Y-%m-%d)"
-          TODAY_BERLIN="$(TZ='Europe/Berlin' date +%Y-%m-%d)"
-          if [ "$LAST_TAG_DATE" = "$TODAY_BERLIN" ]; then
-            echo "has_merges=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=⏭️ Bereits heute erledigt::${LAST_TAG} stammt von heute (${TODAY_BERLIN} Berlin) — kein zweiter Bump."
-            exit 0
+          LAST_TAG_SUBJECT="$(git log -1 --format=%s "$LAST_TAG")"
+          if echo "$LAST_TAG_SUBJECT" | grep -q '(daily)'; then
+            LAST_TAG_DATE="$(TZ='Europe/Berlin' date -d "$LAST_TAG_ISO" +%Y-%m-%d)"
+            TODAY_BERLIN="$(TZ='Europe/Berlin' date +%Y-%m-%d)"
+            if [ "$LAST_TAG_DATE" = "$TODAY_BERLIN" ]; then
+              echo "has_merges=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=⏭️ Bereits heute erledigt::${LAST_TAG} stammt von heute (${TODAY_BERLIN} Berlin) — kein zweiter Bump."
+              exit 0
+            fi
           fi
 
           # Gemergte PRs direkt zaehlen statt Commits zu filtern (siehe Kopfkommentar):
