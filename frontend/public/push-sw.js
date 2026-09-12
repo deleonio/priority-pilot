@@ -34,7 +34,16 @@ self.addEventListener('push', (event) => {
 		data: { url: payload.url || '/' },
 	};
 
-	event.waitUntil(self.registration.showNotification(title, options));
+	// #1391: Zusätzlich zur System-Notification die Payload an alle offenen Fenster-Clients schicken —
+	// dort zeigt `PushToast` sie als In-App-Hinweis an (AK2). Ist kein Fenster offen, bleibt es bei
+	// der System-Notification.
+	const notifyClients = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+		for (const client of clientList) {
+			client.postMessage({ type: 'push', payload: { title, body: options.body, url: options.data.url } });
+		}
+	});
+
+	event.waitUntil(Promise.all([self.registration.showNotification(title, options), notifyClients]));
 });
 
 self.addEventListener('notificationclick', (event) => {

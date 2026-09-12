@@ -678,11 +678,13 @@ best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
 
 Direkt danach regeneriert [`changelog-render.sh`](../.github/scripts/changelog-render.sh)
 (#1372) die Root-`CHANGELOG.md` komplett aus **allen** GitHub-Releases (`gh api --paginate`):
-je Release ein `## v<Version> - <Datum>`-Abschnitt, darin `###`-Untergruppen in der
-Reihenfolge von `.github/release.yml` (keine zweite Kategorieliste — anders als
-[`frontend/src/lib/changelog.ts`](../frontend/src/lib/changelog.ts) aus #1206, das dieselben
-Bodys je Kategorie über alle Versionen aggregiert statt je Version, für den In-App-Tab). Die
-Datei wird bei jedem Lauf vollständig neu erzeugt und ist damit idempotent — ohne neue
+alle Releases derselben Minor-Version (`MAJOR.MINOR` aus dem Tag) bilden gemeinsam einen
+`## v<Major.Minor> - <Datum>`-Abschnitt (Datum des neuesten Releases der Gruppe; bei mehr als
+einem Release trägt der Abschnitt zusätzlich `_Enthält <ältester Tag> – <neuester Tag>._`), darin
+`###`-Untergruppen in der Reihenfolge von `.github/release.yml` (keine zweite Kategorieliste —
+anders als [`frontend/src/lib/changelog.ts`](../frontend/src/lib/changelog.ts) aus #1206, das
+dieselben Bodys je Kategorie über alle Versionen aggregiert statt gruppiert nach Minor-Version,
+für den In-App-Tab). Die Datei wird bei jedem Lauf vollständig neu erzeugt und ist damit idempotent — ohne neue
 Releases bleibt sie byte-identisch. Auch dieser Schritt ist best-effort (`::warning` + Exit 0)
 und committet nur bei tatsächlicher Änderung, mit `[skip ci]` + `--no-verify` aus demselben
 Grund wie der Patch-Bump-Commit.

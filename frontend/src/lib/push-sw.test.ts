@@ -119,11 +119,14 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 	it('AK2/T2: der push-Pfad erzeugt keine zweite Notification über einen Nebenkanel', async () => {
 		await dispatchPush({ title: 'Priority Pilot', body: 'Zitat', url: '/' });
 
-		// Genau eine Notification aus dem SW; der push-Pfad darf weder openWindow noch Clients nutzen.
+		// Genau eine Notification aus dem SW; der push-Pfad darf kein zweites Fenster öffnen.
 		// (Die unerwünschte zweite „URL kopieren"-Notification stammt von Chrome selbst, nicht vom SW
 		//  → Plattformverhalten, nur e2e/manuell bzw. über AK3 verifizierbar.)
+		// #1391: `clients.matchAll` ist im push-Pfad inzwischen erlaubt — der SW reicht die Payload
+		// zusätzlich per `postMessage` als In-App-Hinweis an offene Fenster weiter. Das erzeugt keine
+		// zweite Notification, weshalb die frühere Pauschal-Sperre auf `clients` entfallen ist; der
+		// Kern von #504 (genau ein `showNotification`, kein `openWindow`) bleibt geprüft.
 		expect(showNotification).toHaveBeenCalledTimes(1);
-		expect(clientsMatchAll).not.toHaveBeenCalled();
 		expect(openWindow).not.toHaveBeenCalled();
 		// Observable Outcome: die Notification hat die erwarteten Parameter (keine zweite Notification).
 		const options = showNotification.mock.calls[0]?.[1] as { tag?: string; body?: string } | undefined;
