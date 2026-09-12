@@ -78,8 +78,8 @@ describe('changelog-render.sh — AK1/AK2 Versionsabschnitte + Kategorie-Gruppie
 		assert.equal(res.status, 0, res.stderr);
 		const out = readFileSync(outPath, 'utf8');
 
-		const v2Index = out.indexOf('## v2.0.0 - 2026-01-02');
-		const v1Index = out.indexOf('## v1.0.0 - 2026-01-01');
+		const v2Index = out.indexOf('## v2.0 - 2026-01-02');
+		const v1Index = out.indexOf('## v1.0 - 2026-01-01');
 		assert.ok(v2Index >= 0 && v1Index >= 0, out);
 		assert.ok(v2Index < v1Index, 'neueste Version zuerst');
 
@@ -116,7 +116,7 @@ describe('changelog-render.sh — AK3 Release ohne kategorisierte Einträge', ()
 		const res = run([]);
 		assert.equal(res.status, 0, res.stderr);
 		const out = readFileSync(outPath, 'utf8');
-		assert.match(out, /## v1\.0\.0 - 2026-01-01/);
+		assert.match(out, /## v1\.0 - 2026-01-01/);
 		assert.doesNotMatch(out, /### /);
 		const hints = out.match(/_Keine für Nutzer sichtbaren Änderungen\._/g) ?? [];
 		assert.equal(hints.length, 1);
@@ -145,8 +145,8 @@ describe('changelog-render.sh — AK5 Paginierung + Idempotenz', () => {
 		const res = run([]);
 		assert.equal(res.status, 0, res.stderr);
 		const out = readFileSync(outPath, 'utf8');
-		assert.match(out, /## v2\.0\.0 - 2026-01-02/);
-		assert.match(out, /## v1\.0\.0 - 2026-01-01/);
+		assert.match(out, /## v2\.0 - 2026-01-02/);
+		assert.match(out, /## v1\.0 - 2026-01-01/);
 	});
 
 	it('ist idempotent: zweiter Lauf ohne neue Releases ändert die Datei nicht', () => {
@@ -174,8 +174,41 @@ describe('changelog-render.sh — AK5 Paginierung + Idempotenz', () => {
 		const res = run([]);
 		assert.equal(res.status, 0, res.stderr);
 		const out = readFileSync(outPath, 'utf8');
-		assert.doesNotMatch(out, /v2\.0\.0/);
-		assert.match(out, /v1\.0\.0/);
+		assert.doesNotMatch(out, /v2\.0/);
+		assert.match(out, /v1\.0/);
+	});
+});
+
+describe('changelog-render.sh — Minor-Gruppierung', () => {
+	it('fasst Releases derselben Minor-Version zu einem Abschnitt zusammen, Bullets chronologisch aufsteigend', () => {
+		writeFileSync(
+			fixturePath,
+			JSON.stringify([
+				release('v0.2.0', '2026-01-03', bodyWithCategories('v0.1.2', 'v0.2.0')),
+				release('v0.1.2', '2026-01-02', bodyWithCategories('v0.1.1', 'v0.1.2')),
+				release('v0.1.1', '2026-01-01', bodyWithCategories('v0.1.0', 'v0.1.1')),
+			]),
+		);
+		const res = run([]);
+		assert.equal(res.status, 0, res.stderr);
+		const out = readFileSync(outPath, 'utf8');
+
+		const v02Sections = out.match(/## v0\.2 - /g) ?? [];
+		const v01Sections = out.match(/## v0\.1 - /g) ?? [];
+		assert.equal(v02Sections.length, 1, out);
+		assert.equal(v01Sections.length, 1, out);
+
+		const v02Index = out.indexOf('## v0.2 - 2026-01-03');
+		const v01Index = out.indexOf('## v0.1 - ');
+		assert.ok(v02Index >= 0 && v02Index < v01Index, out);
+
+		assert.match(out, /_Enthält v0\.1\.1 – v0\.1\.2\._/);
+		const v01Section = out.slice(v01Index);
+		const v02Section = out.slice(v02Index, v01Index);
+		assert.doesNotMatch(v02Section, /_Enthält /);
+
+		const featBulletsInV01 = v01Section.match(/- feat\(frontend\): add thing by @bot/g) ?? [];
+		assert.equal(featBulletsInV01.length, 2, 'beide Releases der v0.1-Gruppe tragen zum selben Abschnitt bei');
 	});
 });
 
