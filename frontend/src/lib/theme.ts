@@ -61,8 +61,23 @@ export const storeTheme = (preference: ThemePreference): void => {
 };
 
 /**
- * Wendet das effektive Theme auf das `<html>`-Element an: `data-theme` steuert die App-eigenen
- * CSS-Custom-Properties, `color-scheme` lässt native Controls/Scrollbars mitziehen.
+ * Wendet das effektive Theme auf das `<html>`-Element an. Beide Zeilen sind tragend:
+ *
+ * - `data-theme` steuert die App-eigenen `--pp-*`-Custom-Properties (app.css).
+ * - `color-scheme` steuert native Controls/Scrollbars **und die KoliBri-Komponenten**: seit
+ *   `@public-ui/theme-default` 4.4.1 ist jede Themefarbe ein `light-dark()`, das gegen
+ *   `color-scheme` auflöst. Das Theme deklariert die Eigenschaft bewusst nicht selbst — sie
+ *   vererbt über die Shadow-DOM-Grenze, die Anwendung besitzt also den Schalter. Fällt diese
+ *   Zeile weg, wird die App dunkel und die Komponenten bleiben hell.
+ *
+ * Die Zuweisung erfolgt als Inline-Style und schlägt damit die Regel `:root[data-theme='dark']`
+ * in app.css — wer das Farbschema von außen umschaltet (E2E), muss beides setzen (`setTheme` in
+ * e2e/helpers.ts).
+ *
+ * Randnotiz zu `data-theme`: Der Attributname ist zugleich KoliBris eigener Theme-NAMENS-Selektor
+ * (adopted-style-sheets). Folgenlos, weil `register()` in main.tsx das Theme fest auf `default`
+ * nagelt und die DOM-Erkennung dann gar nicht erst greift. Entfiele diese Fixierung, suchte
+ * KoliBri ein Theme namens `dark` und fände keins — dann wäre hier ein eigener Attributname fällig.
  */
 const applyTheme = (resolved: ResolvedTheme): void => {
 	const root = document.documentElement;

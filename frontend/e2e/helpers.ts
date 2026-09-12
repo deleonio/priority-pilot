@@ -43,6 +43,31 @@ export const waitForStableView = async (page: Page, readyText = 'Dashboard'): Pr
 };
 
 /**
+ * Schaltet das Farbschema im Seitenkontext um — für Tests, die einen Modus erzwingen wollen, ohne
+ * über localStorage/`useTheme` und einen Reload zu gehen.
+ *
+ * Spiegelt `applyTheme()` aus `src/lib/theme.ts`: **beide** Schalter werden gesetzt. Das
+ * `data-theme`-Attribut steuert die App-eigenen `--pp-*`-Tokens, `color-scheme` steuert die
+ * KoliBri-Komponenten — deren Theme löst seit `@public-ui/theme-default` 4.4.1 jede Farbe über
+ * `light-dark()` gegen `color-scheme` auf und erbt den Wert über die Shadow-DOM-Grenze.
+ *
+ * Warum nicht nur `setAttribute('data-theme', …)`: `applyTheme()` schreibt `color-scheme` als
+ * **Inline-Style** auf `<html>`. Der gewinnt gegen die Regel `:root[data-theme='dark']` in
+ * `app.css` — wer nur das Attribut umsetzt, bekommt eine dunkle App-Fläche mit hellen
+ * KoliBri-Komponenten und misst damit genau den Flickenteppich, den 4.4.1 beseitigt.
+ */
+export const setTheme = async (page: Page, theme: 'light' | 'dark'): Promise<void> => {
+	await page.evaluate((value) => {
+		document.documentElement.dataset.theme = value;
+		document.documentElement.style.colorScheme = value;
+	}, theme);
+
+	// Vorbedingung für alles Folgende: der Modus ist wirklich aktiv (sonst misst der Test still
+	// das andere Schema).
+	await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+};
+
+/**
  * Liefert eine Kopf-Aktion („Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe",
  * „Abmelden"). Seit #691 stehen alle fünf Aktionen auf JEDER Viewport-Breite direkt in der Toolbar
  * „Kopf-Aktionen" — ein Menü-Fallback existiert nicht mehr.

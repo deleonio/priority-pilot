@@ -35,7 +35,11 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
 
-	await page.getByRole('listitem').filter({ hasText: groupName }).click();
+	// Die Gruppe IST ein Accordion (GroupDetail.tsx) — über den benannten Trigger aufklappen, nicht
+	// über einen Klick auf die Listenzeile: der landet in deren Mitte und traf den Header-Button nur,
+	// solange die Zeile so flach war. Seit `@public-ui/components` 4.4.1 (Skeleton-Umbau von
+	// `kol-button`, eine Wrapper-Ebene mehr) liegt die Mitte daneben und die Gruppe blieb zu.
+	await openAccordionSection(page, groupName);
 	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
 	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfänger');

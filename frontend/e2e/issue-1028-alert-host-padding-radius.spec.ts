@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { waitForStableView } from './helpers';
+import { setTheme, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1028 „KolAlert: leichtes Padding und abgerundete Ecken am Host".
@@ -104,8 +104,7 @@ test.describe('#1028 KolAlert-Host: leichtes Padding + Radius', () => {
 		}
 
 		// AK5: Padding/Radius sind themenneutral — Theme-Wechsel darf die Werte nicht ändern.
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+		await setTheme(page, 'dark');
 		const darkMetrics = await micAlert.evaluate(hostMetrics);
 		expect(darkMetrics).toEqual(rowMetrics);
 	});

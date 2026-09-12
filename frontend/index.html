@@ -12,17 +12,22 @@
 		-->
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 		<!--
-			Browser-/Statusleiste zieht mit dem Farbschema mit. Die Werte spiegeln `--pp-bg` aus app.css
-			(hell #ffffff, dunkel #16191d); das `theme_color` im PWA-Manifest (vite.config.ts) bleibt der
-			Install-Zeit-Fallback für Plattformen ohne Media-abhängige Meta-Auswertung.
+			Browser-/Statusleiste zieht mit dem Farbschema mit. Die Werte spiegeln `--pp-surface-0` aus
+			app.css — die Seitenfläche, an die die Leiste optisch anschließt (hell #f7f8fa, dunkel
+			#12161c). Bei einer Paletten-Änderung hier mitziehen, sonst steht im Dunkelmodus ein
+			sichtbarer Streifen über der App. Das `theme_color` im PWA-Manifest (vite.config.ts) bleibt
+			der Install-Zeit-Fallback für Plattformen ohne Media-abhängige Meta-Auswertung.
 		-->
-		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16191d" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f8fa" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12161c" />
 		<title>Priority Pilot</title>
 		<!--
 			Anti-FOUC-Bootstrap: setzt `data-theme`/`color-scheme` synchron auf <html>, BEVOR das
 			(im Prod-Build als <link> extrahierte) app.css paintet und bevor das deferred Entry-Modul
 			läuft. So sieht ein Nutzer mit gespeichertem Dunkel-Modus keinen kurzen Hell-Blitz.
+			`color-scheme` ist dabei nicht nur für native Controls da: die KoliBri-Komponenten lösen
+			ihre Farben über `light-dark()` dagegen auf (siehe src/lib/theme.ts) — ohne diese Zeile
+			startet die App dunkel, aber mit hellen Komponenten.
 			Schlüssel/Logik spiegeln src/lib/theme.ts (THEME_STORAGE_KEY 'pp-theme'); der useTheme-Hook
 			übernimmt danach die Live-Steuerung. Bewusst inline + ohne Abhängigkeiten, damit es vor
 			allem anderen greift; Fehler werden geschluckt, der App-Start ist nie blockiert.
