@@ -14,8 +14,12 @@ import { setTheme, waitForStableView } from './helpers';
 test.describe('#902 @axe-core/playwright für gezielte E2E-A11y-Tests', () => {
 	test('AxeBuilder-Scan läuft ohne Kontrast-Verstößen auf Dashboard-Panels (Dark Mode)', async ({ page }) => {
 		await page.goto('/');
-		await setTheme(page, 'dark');
+		// Reihenfolge ist tragend: der Mount-Effekt von `useTheme` (theme.ts) ruft `applyTheme` mit der
+		// gespeicherten bzw. System-Präferenz auf und überschreibt dabei `data-theme` UND den
+		// Inline-`color-scheme`. Vor dem Mount gesetzt, wäre der Dunkelmodus also wieder weg — der Test
+		// scannte den Hellmodus und bliebe grün.
 		await waitForStableView(page);
+		await setTheme(page, 'dark');
 
 		// Dashboard-Panels müssen gerendert sein, bevor gescannt wird
 		await expect(page.locator('.dashboard-next-task')).toBeVisible();

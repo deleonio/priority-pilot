@@ -50,9 +50,9 @@ also den Schalter, und `applyTheme()` (`frontend/src/lib/theme.ts`) setzte ihn o
 Versionssprung genügte; KoliBri behält dabei seine eigene, BITV-geprüfte Dunkel-Palette, die App
 ihre `--pp-*`-Rollen.
 
-Festgenagelt in `frontend/e2e/dark-mode-contrast.spec.ts`: die Fläche, die `kol-card` im Shadow-DOM
-malt, muss sich zwischen den Modi ändern und im Dunkelmodus die dunklere sein (Luminanz-Vergleich,
-kein fester Farbwert). Mitsaniert wurde der Testaufbau selbst — die Dunkelmodus-Specs schalteten
+Festgenagelt in `frontend/e2e/dark-mode-contrast.spec.ts`: die Textfarbe, die das Theme dem
+`kol-card`-Host gibt, muss sich zwischen den Modi ändern und im Dunkelmodus die hellere sein
+(Luminanz-Vergleich am Host, kein Shadow-DOM-Zugriff, kein fester Farbwert). Mitsaniert wurde der Testaufbau selbst — die Dunkelmodus-Specs schalteten
 bis dahin nur `data-theme` um und ließen den Inline-Style `color-scheme` stehen; ab 4.4.1 hätten
 sie damit genau den Mischzustand gemessen, den der Sprung beseitigt (`setTheme` in
 `frontend/e2e/helpers.ts`).

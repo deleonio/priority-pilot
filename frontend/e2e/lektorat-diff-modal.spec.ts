@@ -22,10 +22,6 @@ const mockLektoratSuccess = async (page: Page, text: string): Promise<void> => {
 };
 
 /**
- * Öffnet den „Neuen Task anlegen"-Dialog und überbrückt den Schnellerfassungs-Schritt via
- * „Überspringen", sodass das reguläre Formular sichtbar ist.
- */
-/**
  * Issue 720 („Fokus-Vertrag ohne Tab-Freiheit — Fokus-Gefängnis wird nicht gecatched"): Nach einem
  * Tab darf der Fokus weder beim Ausgangs-Button kleben (Gefängnis) noch ins Leere fallen — er muss
  * auf einem anderen, echten Bedienelement landen.
@@ -35,20 +31,46 @@ const mockLektoratSuccess = async (page: Page, text: string): Promise<void> => {
  * sie nur, weil `.kol-button` bis `@public-ui/components` 4.4.0 selbst das fokussierbare Element war;
  * seit dem Skeleton-Umbau in 4.4.1 sitzt der Fokus auf dem `<button>` darin und wandert beim Tab
  * sichtbar weiter — also das gewünschte Verhalten. Geprüft wird deshalb jetzt die Absicht.
+ *
+ * `expectedNext` benennt das Ziel, wo es stabil benennbar ist (im Modal die zweite Schaltfläche).
+ * Ohne Angabe bleibt die schwächere, aber tragfähige Aussage: der Fokus sitzt auf einem sichtbaren,
+ * bedienbaren Element. Im Task-Formular ist der Nachbar ein `kol-input-range` mit generierter ID —
+ * den zu benennen hieße, diesen Test an die Feldreihenfolge des Formulars zu koppeln.
  */
-const expectFocusMovedOn = async (page: Page, from: Locator): Promise<void> => {
+const expectFocusMovedOn = async (page: Page, from: Locator, expectedNext?: Locator): Promise<void> => {
 	await expect(from).not.toBeFocused();
 
-	// Kein Shadow-DOM-Piercing nötig (ESLint-Guard #824): liegt der Fokus in einem Shadow-Root,
-	// zeigt `document.activeElement` auf dessen Host — und damit gerade NICHT auf <body>. Genau
-	// das ist die Aussage, um die es geht: der Fokus ist irgendwo gelandet, nicht ins Nichts gefallen.
+	if (expectedNext) {
+		await expect(expectedNext).toBeFocused();
+		return;
+	}
+
+	// Kein Piercing nötig (ESLint-Guard #824): liegt der Fokus in einem Shadow-Root, zeigt
+	// `document.activeElement` auf dessen Host. Geprüft wird nicht nur „irgendein Element", sondern
+	// dass es tatsächlich gerendert und bedienbar ist — auf <body>, einem ausgeblendeten Rest oder
+	// einem deaktivierten Steuerelement wäre der Fokus verloren.
+	// (`page.locator(':focus')` taugt dafür nicht: `:focus` matcht im Light-DOM nur das fokussierte
+	// Element selbst, nicht den Host — bei KoliBri findet der Selektor deshalb nichts.)
 	const landed = await page.evaluate(() => {
 		const element = document.activeElement;
-		return element === null || element === document.body ? null : element.tagName;
+		if (element === null || element === document.body) return null;
+		const box = element.getBoundingClientRect();
+		return {
+			tag: element.tagName,
+			rendered: box.width > 0 && box.height > 0,
+			disabled: element.matches(':disabled') || element.getAttribute('aria-disabled') === 'true',
+		};
 	});
+
 	expect(landed, 'Fokus darf beim Tab nicht ins Leere fallen (kein Element / <body>)').not.toBeNull();
+	expect(landed?.rendered, `Fokus liegt auf einem unsichtbaren Element (${landed?.tag})`).toBe(true);
+	expect(landed?.disabled, `Fokus liegt auf einem deaktivierten Element (${landed?.tag})`).toBe(false);
 };
 
+/**
+ * Öffnet den „Neuen Task anlegen"-Dialog und überbrückt den Schnellerfassungs-Schritt via
+ * „Überspringen", sodass das reguläre Formular sichtbar ist.
+ */
 const openTaskForm = async (page: Page): Promise<void> => {
 	await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 	await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
@@ -170,9 +192,14 @@ test.describe('Lektorat Diff-Modal', () => {
 			const confirmButton = page.getByRole('button', { name: 'Übernehmen' });
 			await expect(confirmButton).toBeFocused();
 
-			// Issue 720: kein Fokus-Gefängnis — die Tab-Taste muss den Fokus weitertragen können.
+			// Issue 720: kein Fokus-Gefängnis — die Tab-Taste muss den Fokus weitertragen. Im Modal ist
+			// das Ziel stabil benennbar: „Abbrechen" ist die zweite und letzte Schaltfläche.
 			await page.keyboard.press('Tab');
-			await expectFocusMovedOn(page, confirmButton);
+			await expectFocusMovedOn(
+				page,
+				confirmButton,
+				page.locator('.lektorat-diff-modal').getByRole('button', { name: 'Abbrechen' }),
+			);
 		});
 
 		test('Fokus-Management nach Abbrechen', async ({ page }) => {

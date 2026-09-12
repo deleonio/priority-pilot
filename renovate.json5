@@ -124,6 +124,18 @@
 			automerge: false,
 			labels: ['dependencies', 'major'],
 		},
+		{
+			// KoliBri (@public-ui/*) gemeinsam und nie automatisch. Die vier Pakete muessen
+			// zueinander passen — ein einzeln gebumptes Theme gegen alte Komponenten bricht das
+			// Styling stumm. Kein Automerge, weil das Frontend derzeit bewusst auf einem
+			// dev-Snapshot mit Dunkelmodus steht (PR #1405): ein Renovate-Bump auf den
+			// `latest`-Tag waere ein Downgrade und drehte den Dunkelmodus zurueck. Der Re-Pin
+			// auf 4.4.1 stable passiert von Hand, sobald das Release da ist.
+			matchPackageNames: ['@public-ui/**'],
+			groupName: 'KoliBri (@public-ui)',
+			automerge: false,
+			labels: ['dependencies', 'kolibri'],
+		},
 	],
 
 	// Sicherheitslücken (GitHub Advisories) priorisiert beheben.
