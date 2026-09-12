@@ -834,7 +834,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.ok(!list.result?.some((g) => g.id === groupOfB.id), 'fremde Gruppe darf in group_list nicht sichtbar sein');
 	});
 
-	it('AK7 (#1381): der v1-Werkzeugvertrag wächst um group_list/group_members_list auf zwölf Namen', async () => {
+	it('AK7 (#1381, #1396): der v1-Werkzeugvertrag wächst um group_list/group_members_list/task_delete auf dreizehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
@@ -850,6 +850,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'pillar_list',
 			'task_complete',
 			'task_create',
+			'task_delete',
 			'task_link',
 			'task_links',
 			'task_list',
