@@ -236,6 +236,10 @@ jobs:
           # AK 4) muss halten. Schneller Vorab-Check ohne pnpm install — autoritativ bleibt der
           # Node-Test in der CI des PRs; hier verhindert er nur, dass ein kaputtes Handbuch
           # überhaupt gepusht wird.
+          # ACHTUNG: Die Regexe sind eine Kopie aus user-guide.test.ts und müssen mit ihm
+          # mitwandern. Lockert der Test einen Abschnittsnamen, ohne dass es hier nachgezogen
+          # wird, blockiert dieser Vorab-Check den Sync gegen ein Handbuch, das der autoritative
+          # Test längst akzeptiert (passiert mit „Aufgabenwald" → „Aufgabengraph").
           missing=""
           check_section() {
             grep -qiE "$1" docs/user-guide.md || missing="${missing} $2"
@@ -245,7 +249,7 @@ jobs:
           check_section 'ki-schnellerfassung|schnellerfassung' 'Schnellerfassung'
           check_section 'abh.ngigkeiten' 'Abhängigkeiten'
           check_section 's.ulen' 'Säulen'
-          check_section 'aufgabenwald' 'Aufgabenwald'
+          check_section 'aufgabenwald|aufgabengraph' 'Aufgabenwald/Aufgabengraph'
           check_section 'serien' 'Serien'
           check_section 'punkte|gamification' 'Punkte/Gamification'
           check_section 'header-aktionen|header aktionen|kopf-aktionen|kopf aktionen' 'Kopf-Aktionen'
