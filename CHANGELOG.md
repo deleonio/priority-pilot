@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.6._
+_Enthält v0.2.0 – v0.2.7._
 
 ### 🔧 Engineering
 
@@ -21,6 +21,7 @@ _Enthält v0.2.0 – v0.2.6._
 - chore(deps): update node.js to v26.8.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1327
 - chore(deps): update pnpm to v11.26.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1329
 - fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
+- fix(pipeline): never set phase labels on renovate prs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1407
 
 ## v0.1 - 2026-09-12
 
@@ -607,7 +608,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
 - Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
 - chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
-- chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
 - chore: rename all workflows with descriptive names by @deleonio in https://github.com/deleonio/priority-pilot/pull/1135
 - docs(guide): sync user guide with actual app behavior (2026-08-31) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1139
 - chore(fixup): close fixup loop gap for ambiguous findings (#1137) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1138
@@ -676,6 +676,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): clean up invitations and rest cross-member series on group exit (#1251) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1263
 - fix(server): return session user id in /auth/me response (#1262) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1264
 - feat(server): transfer task or series to a group member on edit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1265
+- feat(server): keep self-set display name across OAuth logins (#1256) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1266
 - feat(server): keep self-set display name across OAuth logins (#1256) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1266
 - feat(server): notify owners of foreign-created series instances (#1253) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1267
 - feat(frontend): list series created for other group members (#1254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1268
