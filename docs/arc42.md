@@ -125,13 +125,13 @@ graph TB
     ci --> Repo
 ```
 
-| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen                           |
-| ------------- | --------------------------------------------- | ----------------------------------------------- | ---------------------------------------- |
-| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01                                    |
-| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01                                    |
-| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06                             |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01, IF-02, IF-03, IF-04, IF-05, IF-06 |
-| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —                                        |
+| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen                                  |
+| ------------- | --------------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01                                           |
+| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01                                           |
+| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06                                    |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01, IF-02, IF-03, IF-04, IF-05, IF-06, IF-07 |
+| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —                                               |
 
 ### 5.2 Server (Whitebox `server`)
 
@@ -147,9 +147,11 @@ graph TB
 
 Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*`, `/health`,
 `/api/transit/*`, `/invite-links/{token}`) liegen vor `requireAuth`, alle fachlichen Endpunkte
-danach hinter der Session- oder Bearer-Token-Pflicht. Der MCP-Endpunkt (`/mcp/v1`) hängt hinter
-`requireAuth` und einem zusätzlichen `apiTokenScopeGuard`; `/admin/*` verlangt zusätzlich zu
-`requireAuth` die Rolle `admin` (`requireRole('admin')`, `routes/admin.ts`).
+danach hinter der Session- oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter
+`requireAuth` und nimmt den MCP-Endpunkt (`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für
+MCP-Werkzeuge greift stattdessen eine Ebene tiefer, am Loopback-Request von `mcp/tools.ts` gegen die
+Fachroute selbst; `/admin/*` verlangt zusätzlich zu `requireAuth` die Rolle `admin`
+(`requireRole('admin')`, `routes/admin.ts`).
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
