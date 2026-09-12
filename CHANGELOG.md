@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.13._
+_Enthält v0.2.0 – v0.2.14._
 
 ### 🔧 Engineering
 
@@ -30,6 +30,7 @@ _Enthält v0.2.0 – v0.2.13._
 - design(frontend): unify card spacing in settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1415
 - chore(deps): update playwright (npm + docker image) to v1.63.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1410
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1416
+- feat(server): accept api-key header as bearer token alternative by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1418
 
 ## v0.1 - 2026-09-12
 
@@ -627,7 +628,6 @@ _Enthält v0.1.336 – v0.1.836._
 - refactor(server): central auth and request test helpers (#1142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1150
 - fix(auth): end endless spinner after Google authentication (#1136) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1149
 - feat(frontend): own standort tab for geo settings (#1151) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1152
-- feat(frontend): own standort tab for geo settings (#1151) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1152
 - docs(spec): sync specs to implemented state 2026-09-01 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1154
 - docs(guide): sync user guide to current app state (2026-09-01) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1155
 - ci(prompts): add thread-resolve command, label ban, and trim ux sources by @deleonio in https://github.com/deleonio/priority-pilot/pull/1156
@@ -689,6 +689,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): notify owners of foreign-created series instances (#1253) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1267
 - feat(frontend): list series created for other group members (#1254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1268
 - fix(ci): provider-aware subagent model resolution in setup-claude by @deleonio in https://github.com/deleonio/priority-pilot/pull/1270
+- feat(ci): delegation metrics, review fan-out, kolibri-recherche role by @deleonio in https://github.com/deleonio/priority-pilot/pull/1271
 - feat(ci): delegation metrics, review fan-out, kolibri-recherche role by @deleonio in https://github.com/deleonio/priority-pilot/pull/1271
 - feat(frontend): collapse group detail sections, debounce user search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1269
 - feat(mobile): responsive completed tasks table and mobile layout for … by @deleonio in https://github.com/deleonio/priority-pilot/pull/1272
