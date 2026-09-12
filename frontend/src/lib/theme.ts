@@ -1,16 +1,15 @@
 /**
- * Theme-Logik: Die App unterstützt drei Modi — System/Hell/Dunkel, wobei der Dunkelmodus
- * aktuell deaktiviert ist. Die UI zeigt alle drei Optionen, aber das gesamte Element ist
- * disabled.
+ * Theme-Logik: Drei-Zustands-Modus (System/Hell/Dunkel), Persistenz in `localStorage`,
+ * Ableitung des effektiven Themes aus der OS-Einstellung und Anwendung auf `<html>`.
  *
- * Der Anti-FOUC-Bootstrap in `index.html` und `applyInitialTheme` setzen das `data-theme`
- * Attribut auf `light`. `color-scheme` lässt native Controls/Scrollbars mitziehen.
+ * Der erste, FOUC-freie Anstrich passiert in einem Inline-Bootstrap in `index.html` (gleicher
+ * `THEME_STORAGE_KEY`/`<html>`-Mechanismus) — der `useTheme`-Hook übernimmt danach die Live-Steuerung.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /** Vom Nutzer gewählter Modus. `system` folgt der OS-Einstellung (Standard). */
-type ThemePreference = 'system' | 'light' | 'dark';
+export type ThemePreference = 'system' | 'light' | 'dark';
 
 /** Effektiv angewandtes Theme (aus der Wahl + OS-Einstellung abgeleitet). */
 type ResolvedTheme = 'light' | 'dark';
@@ -62,47 +61,68 @@ export const storeTheme = (preference: ThemePreference): void => {
 };
 
 /**
- * Wendet das hell Theme auf das `<html>`-Element an — vor dem ersten Render
- * aufzurufen, damit beim Laden kein Theme-Wechsel aufblitzt (Anti-FOUC).
- * Diese Funktion wird im Anti-FOUC-Bootstrap aufgerufen und setzt immer `light`.
+ * Wendet das effektive Theme auf das `<html>`-Element an: `data-theme` steuert die App-eigenen
+ * CSS-Custom-Properties, `color-scheme` lässt native Controls/Scrollbars mitziehen.
+ */
+const applyTheme = (resolved: ResolvedTheme): void => {
+	const root = document.documentElement;
+	root.dataset.theme = resolved;
+	root.style.colorScheme = resolved;
+};
+
+/**
+ * Wendet das gespeicherte (bzw. OS-abgeleitete) Theme **einmalig und synchron** an — vor dem
+ * ersten Render aufzurufen, damit beim Laden kein Theme-Wechsel aufblitzt (Anti-FOUC). Der
+ * `useTheme`-Hook übernimmt danach die Live-Steuerung. Fehlende DOM-/Storage-APIs werden
+ * abgefangen, sodass der Aufruf nie den App-Start verhindert.
  */
 export const applyInitialTheme = (): void => {
 	try {
-		const root = document.documentElement;
-		root.dataset.theme = 'light';
-		root.style.colorScheme = 'light';
+		applyTheme(resolveTheme(getStoredTheme(), getSystemTheme()));
 	} catch {
-		// DOM nicht verfügbar — das Standard-Theme greift dann ohne Vorab-Anstrich.
+		// DOM/matchMedia evtl. nicht verfügbar — das Standard-Theme greift dann ohne Vorab-Anstrich.
 	}
 };
 
 /**
- * Hook für Theme-Logik mit Persistenz in localStorage. Liefert die aktuelle
- * Präferenz und das daraus abgeleitete, effektive Theme.
+ * Hook für Theme-Logik mit Persistenz in localStorage. Liefert die aktuelle Präferenz, das daraus
+ * abgeleitete effektive Theme sowie einen Setter, um die Wahl zu ändern (persistiert und sofort
+ * angewandt).
  */
 export const useTheme = (): {
 	preference: ThemePreference;
 	resolvedTheme: ResolvedTheme;
+	setPreference: (preference: ThemePreference) => void;
 } => {
-	const [preference] = useState<ThemePreference>(() => getStoredTheme());
+	const [preference, setPreferenceState] = useState<ThemePreference>(() => getStoredTheme());
 	const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
 	const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(preference, systemTheme));
+
+	// Effektives Theme anwenden, sobald sich Präferenz oder aufgelöstes Theme ändern.
+	useEffect(() => {
+		const next = resolveTheme(preference, systemTheme);
+		applyTheme(next);
+		setResolvedTheme(next);
+	}, [preference, systemTheme]);
 
 	// System-Theme-Änderungen überwachen
 	useEffect(() => {
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const handleChange = (e: MediaQueryListEvent) => {
-			const newSystemTheme = e.matches ? 'dark' : 'light';
-			setSystemTheme(newSystemTheme);
-			setResolvedTheme(resolveTheme(preference, newSystemTheme));
+			setSystemTheme(e.matches ? 'dark' : 'light');
 		};
 
 		// Moderner Browser:addEventListener
 		mediaQuery.addEventListener('change', handleChange);
 		return () => mediaQuery.removeEventListener('change', handleChange);
-	}, [preference]);
+	}, []);
 
-	return { preference, resolvedTheme };
+	const setPreference = useCallback((next: ThemePreference): void => {
+		storeTheme(next);
+		setPreferenceState(next);
+	}, []);
+
+	return { preference, resolvedTheme, setPreference };
 };
 
 /** Export-Konstanten für die UI */
