@@ -211,8 +211,11 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   schlägt die App passende Adressen vor; wählst du eine aus, werden die
   zugehörigen Koordinaten gespeichert und unter dem Feld angezeigt. Du kannst
   auch freien Text ohne Treffer übernehmen – dann liegen keine Koordinaten vor
-  und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Für Serien gilt
-  das Adressfeld genauso.
+  und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Ganz oben in der
+  Vorschlagsliste stehen deine gespeicherten Orte (siehe „Gespeicherte Orte"),
+  darunter die Suchtreffer. Am Stern neben einem Suchtreffer legst du ihn als
+  gespeicherten Ort ab, ohne ihn damit auszuwählen. Für Serien gilt das
+  Adressfeld genauso.
 - **Beschreibung (optional)** – weiterer Kontext, max. 3000 Zeichen.
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
   Einträge können hinzugefügt, abgehakt und entfernt werden.
@@ -571,6 +574,22 @@ Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
   Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
   kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
   wird.
+
+#### Gespeicherte Orte
+
+Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
+direkt aus.
+
+- **Anlegen:** unter **„Gespeicherte Orte"** einen **Namen** („Zuhause", „Büro") und
+  eine **Adresse** eingeben, dann **„Anlegen"**. Für die Adresse hilft dir dieselbe
+  Vorschlagsliste wie im Aufgabenformular.
+- **Meine Orte:** die Karte darunter listet alle gespeicherten Orte. Je Eintrag kannst
+  du **umbenennen** (neuen Namen eingeben, **„Übernehmen"**) oder **löschen**
+  (**„Endgültig löschen"** nach Rückfrage).
+
+Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
+Suchtreffern. Hat ein Ort Koordinaten, zählt die Aufgabe damit für „In der Nähe";
+hast du ihn als freien Text ohne Treffer gespeichert, fehlen die Koordinaten.
 
 ### Zugriff
 
