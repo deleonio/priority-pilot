@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.830 - 2026-09-11
+
+### 🎉 New Features
+
+- feat(header): make logo clickable and visually smaller by @deleonio in https://github.com/deleonio/priority-pilot/pull/1392
+
 ## v0.1.829 - 2026-09-11
 
 ### Other Changes
@@ -1111,11 +1117,11 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 - feat(frontend): nearby radius title and real distances (#1110) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1114
 
-## v0.1.629 - 2026-08-29
+## v0.1.630 - 2026-08-29
 
 ### Other Changes
 
-- feat(frontend): show resolved coordinates in the task form (#1111) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1113
+- feat(frontend): nearby radius title and real distances (#1110) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1114
 
 ## v0.1.629 - 2026-08-29
 
