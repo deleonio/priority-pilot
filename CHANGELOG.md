@@ -4,13 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.3._
+_Enthält v0.2.0 – v0.2.4._
 
 ### Other Changes
 
 - fix(ci): drop the hand-maintained section guard from the guide sync by @deleonio in https://github.com/deleonio/priority-pilot/pull/1402
 - docs(guide): sync user guide with current ui state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1403
 - docs(arc42): sync architecture docs with mcp endpoint and api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1404
+- docs(guide): sync user guide with current app state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1406
 
 ## v0.1 - 2026-09-12
 
@@ -594,7 +595,7 @@ _Enthält v0.1.336 – v0.1.836._
 - refactor(server): central http error contract in one module (#1130) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1131
 - docs: sync user guide with implemented state (2026-08-30) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1129
 - refactor(frontend): drop legacy outer sections around dashboard widget cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/1125
-- refactor(frontend): drop legacy outer sections around dashboard widget cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/1125
+- chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
 - chore(ci): consolidate phase prompts per prompt audit (#1127) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1132
 - Ai/harness/1127 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1133
 - chore: reorganize scheduled workflows into cron.* groups by @deleonio in https://github.com/deleonio/priority-pilot/pull/1134
