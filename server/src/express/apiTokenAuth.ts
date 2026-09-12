@@ -26,12 +26,28 @@ const suppressSessionSave = (req: Request): void => {
 	}) as typeof req.session.save;
 };
 
-/** Liest den Klartext-Token aus dem `Authorization`-Header (`Bearer <token>`), sonst `null`. */
-const readBearerToken = (req: Request): string | null => {
-	const header = req.headers.authorization;
-	if (typeof header !== 'string') return null;
-	const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
-	return match ? match[1]! : null;
+/** Entfernt ein optional mitgeschicktes `Bearer `-Präfix (case-insensitiv), sonst der getrimmte Wert. */
+const stripBearerPrefix = (value: string): string => {
+	const trimmed = value.trim();
+	const match = /^Bearer\s+(\S+)$/i.exec(trimmed);
+	return match ? match[1]! : trimmed;
+};
+
+/**
+ * Liest den Klartext-Token: zuerst `Authorization: Bearer <token>` (unverändertes Format, hat
+ * Vorrang — ein vorhandener, aber ungültiger `Authorization`-Header wird NIE durch `api-key`
+ * gerettet, sonst wäre die Vorrangregel per Zweitheader umgehbar, #1417 AK7). Fehlt `Authorization`
+ * komplett, fallen `api-key` und danach `x-api-key` als gleichwertige Alternativen ein (#1417
+ * AK1/AK2); beide tolerieren ein optional mitgeschicktes `Bearer `-Präfix (AK3).
+ */
+export const readBearerToken = (req: Request): string | null => {
+	const authHeader = req.headers.authorization;
+	if (typeof authHeader === 'string') {
+		const match = /^Bearer\s+(\S+)$/i.exec(authHeader.trim());
+		return match ? match[1]! : null;
+	}
+	const apiKeyHeader = req.headers['api-key'] ?? req.headers['x-api-key'];
+	return typeof apiKeyHeader === 'string' ? stripBearerPrefix(apiKeyHeader) : null;
 };
 
 /**
