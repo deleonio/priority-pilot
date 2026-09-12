@@ -31,7 +31,7 @@ test.describe('Priority Pilot — #1417: api-key-Header im Hinweisblock', () => 
 		const hint = page.locator('.api-tokens__mcp-url');
 		await expect(hint).toBeVisible();
 
-		const lines = hint.locator('span');
+		const lines = hint.locator(':scope > span');
 		const count = await lines.count();
 		expect(count, 'Hinweisblock muss mehrere Zeilen enthalten').toBeGreaterThan(0);
 		for (let i = 0; i < count; i++) {
