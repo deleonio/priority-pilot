@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.1._
+_Enthält v0.2.0 – v0.2.2._
 
 ### Other Changes
 
 - fix(ci): drop the hand-maintained section guard from the guide sync by @deleonio in https://github.com/deleonio/priority-pilot/pull/1402
+- docs(guide): sync user guide with current ui state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1403
 
 ## v0.1 - 2026-09-12
 
@@ -589,7 +590,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): move geo badge next to task title (#1121) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1123
 - test(frontend): assert observable outcomes in useGeolocation (#1119) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1124
 - docs(spec): Ist-Stand-Sync 2026-08-30 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1128
-- refactor(server): central http error contract in one module (#1130) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1131
 - refactor(server): central http error contract in one module (#1130) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1131
 - docs: sync user guide with implemented state (2026-08-30) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1129
 - refactor(frontend): drop legacy outer sections around dashboard widget cards by @deleonio in https://github.com/deleonio/priority-pilot/pull/1125
