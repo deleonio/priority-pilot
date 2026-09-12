@@ -623,6 +623,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(deps): update dependency connect-redis to v10 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1148
 - chore(deps): update dependency knip to v6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1145
 - refactor(server): central auth and request test helpers (#1142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1150
+- refactor(server): central auth and request test helpers (#1142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1150
 - fix(auth): end endless spinner after Google authentication (#1136) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1149
 - feat(frontend): own standort tab for geo settings (#1151) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1152
 - docs(spec): sync specs to implemented state 2026-09-01 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1154
