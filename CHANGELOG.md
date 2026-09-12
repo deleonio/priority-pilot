@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.11._
+_Enthält v0.2.0 – v0.2.12._
 
 ### 🔧 Engineering
 
@@ -28,6 +28,7 @@ _Enthält v0.2.0 – v0.2.11._
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1328
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1411
 - design(frontend): unify card spacing in settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1415
+- chore(deps): update playwright (npm + docker image) to v1.63.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1410
 
 ## v0.1 - 2026-09-12
 
@@ -622,7 +623,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update github actions (major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1147
 - fix(deps): update dependency connect-redis to v10 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1148
 - chore(deps): update dependency knip to v6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1145
-- refactor(server): central auth and request test helpers (#1142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1150
 - refactor(server): central auth and request test helpers (#1142) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1150
 - fix(auth): end endless spinner after Google authentication (#1136) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1149
 - feat(frontend): own standort tab for geo settings (#1151) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1152
