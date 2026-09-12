@@ -3,6 +3,7 @@ import type { ApiToken } from 'client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { CopyButton } from './CopyButton';
 
 /** Vorbelegter Name eines neuen Tokens — ein Klick reicht, der Name bleibt änderbar. */
 const DEFAULT_TOKEN_NAME = 'Externer Client';
@@ -143,10 +144,8 @@ export const ApiTokensSection = () => {
 	const [plaintext, setPlaintext] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [copied, setCopied] = useState(false);
 	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
 	const [revokeId, setRevokeId] = useState<number | null>(null);
-	const [mcpUrlCopied, setMcpUrlCopied] = useState(false);
 	// Id des Tokens, dessen Rechtestufe gerade per PATCH umgeschaltet wird (eigene Sperre, unabhängig
 	// von `busy`, damit das Umschalten eines Tokens nicht Anlegen/Zurückziehen eines anderen blockiert).
 	const [scopeBusyId, setScopeBusyId] = useState<number | null>(null);
@@ -171,7 +170,6 @@ export const ApiTokensSection = () => {
 		const days = parseExpiresInDays(expiresInDays);
 		if (days === undefined) return;
 		setError(null);
-		setCopied(false);
 		setBusy(true);
 		try {
 			const { token, ...meta } = await api.createApiToken({ name: name.trim(), expiresInDays: days });
@@ -246,34 +244,24 @@ export const ApiTokensSection = () => {
 					)}
 					<div className="api-tokens__mcp-url">
 						<span>MCP-Endpunkt für externe Clients:</span>
-						<span className="api-tokens__plaintext" data-testid="mcp-url">
-							{MCP_URL}
-						</span>
-						<ButtonAction
-							onClick={() => {
-								void navigator.clipboard?.writeText(MCP_URL).then(() => setMcpUrlCopied(true));
-							}}
-						>
-							<KolButton _label="URL kopieren" class="settings-action-btn" _variant="secondary" />
-						</ButtonAction>
-						{mcpUrlCopied && <span className="api-tokens__copied">In die Zwischenablage kopiert.</span>}
+						<div className="copy-row">
+							<span className="api-tokens__plaintext" data-testid="mcp-url">
+								{MCP_URL}
+							</span>
+							<CopyButton text={MCP_URL} ariaLabel="URL kopieren" onError={(message) => setError(message)} />
+						</div>
 						<span>Header-Konfiguration für externe Clients (z. B. Claude-Connector):</span>
 						<span className="api-tokens__plaintext">Authorization: Bearer &lt;Token&gt;</span>
 						<span className="api-tokens__plaintext">api-key: &lt;Token&gt;</span>
 					</div>
 					{plaintext !== null && (
 						<KolAlert _type="info" _label="Token einmalig sichtbar">
-							<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
-								{plaintext}
-							</span>
-							<ButtonAction
-								onClick={() => {
-									void navigator.clipboard?.writeText(plaintext).then(() => setCopied(true));
-								}}
-							>
-								<KolButton _label="Token kopieren" class="settings-action-btn" _variant="secondary" />
-							</ButtonAction>
-							{copied && <span className="api-tokens__copied">In die Zwischenablage kopiert.</span>}
+							<div className="copy-row">
+								<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
+									{plaintext}
+								</span>
+								<CopyButton text={plaintext} ariaLabel="Token kopieren" onError={(message) => setError(message)} />
+							</div>
 						</KolAlert>
 					)}
 				</div>

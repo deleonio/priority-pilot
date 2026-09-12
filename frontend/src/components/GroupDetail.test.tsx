@@ -56,6 +56,7 @@ vi.mock('../api', () => ({
 		searchUsers: vi.fn(),
 		removeGroupMember: vi.fn(),
 		updateGroupMemberRole: vi.fn(),
+		createGroupInviteLink: vi.fn(),
 	},
 }));
 
@@ -70,6 +71,8 @@ const mockSearchUsers = api.searchUsers as ReturnType<typeof vi.fn>;
 // über eine lokal erweiterte Sicht, damit der Test unabhängig vom Produktionscode kompiliert.
 const mockUpdateGroupMemberRole = (api as unknown as { updateGroupMemberRole: ReturnType<typeof vi.fn> })
 	.updateGroupMemberRole;
+const mockCreateGroupInviteLink = (api as unknown as { createGroupInviteLink: ReturnType<typeof vi.fn> })
+	.createGroupInviteLink;
 
 afterEach(() => {
 	cleanup();
@@ -388,5 +391,62 @@ describe('GroupDetail — Sektionen initial zugeklappt (#1257 AK3)', () => {
 		expect(screen.getByText('Einladungslinks')).toBeInTheDocument();
 		expect(screen.queryByRole('searchbox')).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Link erzeugen' })).toBeNull();
+	});
+});
+
+// Fixup PR #1422, Finding #1: der Einladungslink darf erst maskiert werden, nachdem er wirklich
+// in die Zwischenablage kopiert wurde — vorher hätte ein falsches Erfolgssignal den Link
+// unwiederbringlich hinter der Maskierung versteckt (Token ist serverseitig nicht abrufbar).
+describe('GroupDetail — Einladungslink wird erst nach echtem Kopieren maskiert (Fixup #1422)', () => {
+	const originalClipboard = navigator.clipboard;
+
+	afterEach(() => {
+		Object.defineProperty(navigator, 'clipboard', { value: originalClipboard, configurable: true, writable: true });
+	});
+
+	const openInviteLinks = async (): Promise<void> => {
+		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+		mockCreateGroupInviteLink.mockResolvedValue({
+			id: 1,
+			token: 'abcdefghij',
+			expiresAt: new Date('2027-01-01T00:00:00Z').toISOString(),
+		});
+
+		render(<GroupDetail groupId={1} ownRole="admin" />);
+		await waitFor(() => {
+			expect(screen.getByText('Alice Admin')).toBeInTheDocument();
+		});
+		fireEvent.click(screen.getByText('Einladungslinks'));
+		fireEvent.click(await screen.findByRole('button', { name: 'Link erzeugen' }));
+		await screen.findByRole('button', { name: 'Link kopieren' });
+	};
+
+	it('maskiert erst NICHT, solange das Kopieren fehlschlägt', async () => {
+		Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true, writable: true });
+		await openInviteLinks();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Link kopieren' }));
+			await Promise.resolve();
+		});
+
+		expect(screen.queryByText(/Link kopiert/)).toBeNull();
+	});
+
+	it('maskiert nach echtem Kopieren', async () => {
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { writeText: vi.fn().mockResolvedValue(undefined) },
+			configurable: true,
+			writable: true,
+		});
+		await openInviteLinks();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Link kopieren' }));
+			await Promise.resolve();
+		});
+
+		expect(await screen.findByText(/Link kopiert/)).toBeInTheDocument();
 	});
 });
