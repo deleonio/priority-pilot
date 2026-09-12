@@ -103,6 +103,14 @@ jobs:
         # generierten Notes (Kategorisierung über .github/release.yml aus den release:*
         # Labels der gemergten PRs — ohne diesen Schritt liefen die Documenter-Labels ins
         # Leere). Best-effort: ein fehlgeschlagenes Release darf das Deploy NIE kippen.
+        #
+        # Race Condition (Changelog-Konsolidierung): 06-document.yml setzt das release:*-
+        # Label ERST NACH dem Merge (pull_request:closed), parallel zu diesem push-getriggerten
+        # Workflow. Der Build/Deploy-Pfad hier ist meist schneller als der LLM-Klassifizierungs-
+        # Pfad des Documenters — `gh release create --generate-notes` snapshottet die PR-Labels
+        # zum Zeitpunkt des Aufrufs, ein danach gesetztes Label wird NIE nachträglich übernommen
+        # (gh release view oben überspringt ein bereits existierendes Release komplett). Daher
+        # hier best-effort kurz auf das Label warten, bevor das Release erzeugt wird.
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -118,6 +126,28 @@ jobs:
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "⏭️ Release ${TAG} existiert bereits — nichts zu tun."
           else
+            # PR-Nummer aus dem Squash-Merge-Commit ableiten (merge-pr.yml merged
+            # ausschließlich per --squash mit Titel = PR-Titel; GitHub hängt an die
+            # Squash-Commit-Message standardmäßig "(#NNN)" an).
+            PR_NUMBER="$(git log -1 --format=%s | grep -oP '\(#\K[0-9]+(?=\)$)' || true)"
+            if [ -n "$PR_NUMBER" ]; then
+              echo "Merge-PR erkannt: #${PR_NUMBER} — warte bis zu 3 Minuten auf release:*-Label des PR-Documenters."
+              WAITED=0
+              while [ "$WAITED" -lt 180 ]; do
+                LABELS="$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels -q '.labels[].name' 2>/dev/null || true)"
+                if printf '%s\n' "$LABELS" | grep -q '^release:'; then
+                  echo "✅ release:*-Label gefunden nach ${WAITED}s."
+                  break
+                fi
+                sleep 15
+                WAITED=$((WAITED + 15))
+              done
+              if ! printf '%s\n' "$LABELS" | grep -q '^release:'; then
+                echo "::warning title=Kein release:-Label::PR #${PR_NUMBER} hat nach ${WAITED}s kein release:*-Label — Release wird trotzdem erstellt (landet in \"Other Changes\")."
+              fi
+            else
+              echo "::warning title=PR-Nummer nicht ermittelbar::Merge-Commit-Message ohne (#NNN) — Label-Wait übersprungen."
+            fi
             gh release create "$TAG" --repo "${{ github.repository }}" \
               --title "$TAG" --generate-notes --latest \
               || { echo "::warning title=Release-Creation fehlgeschlagen::${TAG} — Deploy bleibt grün, manuell nachholen."; exit 0; }

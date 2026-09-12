@@ -58,6 +58,7 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
 graph LR
     Nutzer[Nutzer<br/>Browser / PWA] -->|HTTPS| Caddy
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
+    MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
     subgraph Host[Dedizierter Server]
         Caddy[Caddy, TLS] --> SPA[Priority Pilot SPA]
         Caddy -->|"/api/v1/* → strip"| API[Priority Pilot API]
@@ -78,6 +79,7 @@ graph LR
 | IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                   |
 | IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                |
 | IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                   |
+| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token               |
 
 ## 4. Lösungsstrategie
 
@@ -123,28 +125,33 @@ graph TB
     ci --> Repo
 ```
 
-| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen                           |
-| ------------- | --------------------------------------------- | ----------------------------------------------- | ---------------------------------------- |
-| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01                                    |
-| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01                                    |
-| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06                             |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01, IF-02, IF-03, IF-04, IF-05, IF-06 |
-| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —                                        |
+| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen                                  |
+| ------------- | --------------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01                                           |
+| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01                                           |
+| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06                                    |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01, IF-02, IF-03, IF-04, IF-05, IF-06, IF-07 |
+| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —                                               |
 
 ### 5.2 Server (Whitebox `server`)
 
-| Baustein     | Verantwortung                                                                | Wichtige Dateien                                                                                        |
-| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `express/`   | Routen, Middleware, Fehlervertrag                                            | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `csrf.ts`, `http-error.ts`, `session.ts` |
-| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push-Trigger, Geo, Migrationen          | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `nominatim.ts`, `migrate.ts`                 |
-| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, PushSubscription u. a. | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `llmProvider.ts`                                       |
-| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                            | `llm.ts`, `llmProviders.ts`                                                                             |
-| `scheduler/` | Intervall-Ticker für Push-Trigger                                            | `index.ts`                                                                                              |
-| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                       | `index.ts`, `env.ts`, `database.ts`                                                                     |
+| Baustein     | Verantwortung                                                                          | Wichtige Dateien                                                                                                           |
+| ------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `express/`   | Routen, Middleware, Fehlervertrag                                                      | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `csrf.ts`, `http-error.ts`, `session.ts` |
+| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)             | `server.ts`, `tools.ts`                                                                                                    |
+| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push-Trigger, Geo, Migrationen                    | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `nominatim.ts`, `migrate.ts`                                    |
+| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, PushSubscription u. a. | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`                                           |
+| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                      | `llm.ts`, `llmProviders.ts`                                                                                                |
+| `scheduler/` | Intervall-Ticker für Push-Trigger                                                      | `index.ts`                                                                                                                 |
+| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                 | `index.ts`, `env.ts`, `database.ts`                                                                                        |
 
 Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*`, `/health`,
 `/api/transit/*`, `/invite-links/{token}`) liegen vor `requireAuth`, alle fachlichen Endpunkte
-danach hinter der Session-Pflicht.
+danach hinter der Session- oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter
+`requireAuth` und nimmt den MCP-Endpunkt (`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für
+MCP-Werkzeuge greift stattdessen eine Ebene tiefer, am Loopback-Request von `mcp/tools.ts` gegen die
+Fachroute selbst; `/admin/*` verlangt zusätzlich zu `requireAuth` die Rolle `admin`
+(`requireRole('admin')`, `routes/admin.ts`).
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
@@ -254,8 +261,13 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   (`pnpm build:api` in `server` lint und build).
 - **Authentifizierung und Autorisierung:** Session-basiert (`express-session` + Passport nur als
   OAuth-Brücke); der User lebt in `req.session.user`, `requireAuth` schützt alle fachlichen Routen.
-  Datenisolation je User prüfen eigene Testsuiten (`*-dataisolation.test.ts`); Gruppenrechte
-  folgen der Membership in `group_members`, nicht einem Owner-Feld.
+  Externe Clients (MCP, Skripte) authentifizieren sich alternativ über persönliche API-Tokens
+  (`Authorization: Bearer pp_…`, gehasht in `api_tokens`, geprüft von `apiTokenAuth`); ein Treffer
+  befüllt `req.session.user` im selben Shape wie der Login, ohne die Session zu persistieren.
+  Tokens tragen einen Scope (`read`/`readwrite`, `apiTokenScopeGuard`). Eine zusätzliche Rolle
+  `admin` (`requireRole('admin')`) schützt `/admin/*`. Datenisolation je User prüfen eigene
+  Testsuiten (`*-dataisolation.test.ts`); Gruppenrechte folgen der Membership in `group_members`,
+  nicht einem Owner-Feld.
 - **Fehlervertrag:** Handler antworten über `sendError` mit `{ message }` (`http-error.ts`);
   der globale Handler übersetzt Serverfehler (`server-error-handler.ts`), unbehandelte Fehler
   beenden den Prozess mit Exit-Code 1 (`server/src/index.ts`).
@@ -274,19 +286,20 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 
 Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis.
 
-| ADR                                                     | Titel                                                 | Status                                         |
-| ------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------- |
-| [0001](adr/0001-github-workflows-bleiben-ungetestet.md) | GitHub-Workflows bleiben ungetestet                   | Akzeptiert                                     |
-| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)       | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)      | Akzeptiert; Phasenzahl überholt durch ADR 0005 |
-| [0003](adr/0003-label-schema-ai-needs-und-past.md)      | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>` | Akzeptiert                                     |
-| [0004](adr/0004-analyse-getriebenes-routing.md)         | Analyse-getriebenes Routing statt starrer Phasenkette | Akzeptiert                                     |
-| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) | Fixup und Umsetzung sind eine Phase                   | Akzeptiert                                     |
-| [0006](adr/0006-issue-storage-state-branch.md)          | Issue-Storage: State-Branch pro Issue                 | Ersetzt durch ADR 0007                         |
-| [0007](adr/0007-issue-storage-harness-branch.md)        | Issue-Storage im Harness-Branch                       | Akzeptiert; Transport ersetzt durch ADR 0010   |
-| [0008](adr/0008-delegation-und-mentor-eskalation.md)    | Delegation nach unten, Mentor nach oben               | Akzeptiert                                     |
-| [0009](adr/0009-issue-storage-harness-kommentar.md)     | Phasen-Ausgaben im Harness-Kommentar                  | Akzeptiert                                     |
-| [0010](adr/0010-issue-storage-workflow-artefakt.md)     | Phasen-Notizen als Workflow-Artefakt                  | Akzeptiert                                     |
-| [0011](adr/0011-umsetzung-worktree-isolation.md)        | Worktree-Isolation für parallele Ticket-Läufe         | Vorgeschlagen                                  |
+| ADR                                                     | Titel                                                     | Status                                         |
+| ------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------- |
+| [0001](adr/0001-github-workflows-bleiben-ungetestet.md) | GitHub-Workflows bleiben ungetestet                       | Akzeptiert                                     |
+| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)       | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)          | Akzeptiert; Phasenzahl überholt durch ADR 0005 |
+| [0003](adr/0003-label-schema-ai-needs-und-past.md)      | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`     | Akzeptiert                                     |
+| [0004](adr/0004-analyse-getriebenes-routing.md)         | Analyse-getriebenes Routing statt starrer Phasenkette     | Akzeptiert                                     |
+| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) | Fixup und Umsetzung sind eine Phase                       | Akzeptiert                                     |
+| [0006](adr/0006-issue-storage-state-branch.md)          | Issue-Storage: State-Branch pro Issue                     | Ersetzt durch ADR 0007                         |
+| [0007](adr/0007-issue-storage-harness-branch.md)        | Issue-Storage im Harness-Branch                           | Akzeptiert; Transport ersetzt durch ADR 0010   |
+| [0008](adr/0008-delegation-und-mentor-eskalation.md)    | Delegation nach unten, Mentor nach oben                   | Akzeptiert                                     |
+| [0009](adr/0009-issue-storage-harness-kommentar.md)     | Phasen-Ausgaben im Harness-Kommentar                      | Akzeptiert                                     |
+| [0010](adr/0010-issue-storage-workflow-artefakt.md)     | Phasen-Notizen als Workflow-Artefakt                      | Akzeptiert                                     |
+| [0011](adr/0011-umsetzung-worktree-isolation.md)        | Worktree-Isolation für parallele Ticket-Läufe             | Vorgeschlagen                                  |
+| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)               | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK | Akzeptiert                                     |
 
 ## 10. Qualitätsanforderungen
 
@@ -373,17 +386,19 @@ dokumentiert.
 
 ## 12. Glossar
 
-| Begriff                       | Bedeutung                                                                                                                        |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Säule (Pillar)                | Lebensbereich (fünf feste Stammsäulen oder nutzerdefiniert), auf den Tasks anteilig „einzahlen"; Gewichtung als 100-%-Verteilung |
-| Einzahlung (share/confidence) | Anteil eines Tasks an einer Säule mit Konfidenzwert; n:m über `task_pillars`                                                     |
-| Aufgabenwald (Forest)         | Nach Wertschöpfung sortierter Task-Baum inklusive Abhängigkeiten; `GET /forest`, Aufbau in `server/src/logics/tree.ts`           |
-| Serie (Habit)                 | Vorlage für wiederkehrende Aufgaben; fällige Instanzen werden idempotent materialisiert                                          |
-| Balance                       | Aggregierte Punkte je Säule über `GET /scores/by-pillar`                                                                         |
-| Gamification-Score            | Punkte beim Erledigen eines Tasks; pünktlich volle Punkte, verspätet mit Faktor 0,5 (`server/src/logics/score.ts`)               |
-| Lektorat                      | KI-gestützte Textprüfung über `POST /lektorat` (bezahlte LLM-Kaskade)                                                            |
-| Bahn-Seite                    | Öffentliche Verbindungs-Auskunft unter `/bahn` über den Transitous-Proxy                                                         |
-| Harness-Kommentar             | Von der CI-Pipeline geführter Issue-Kommentar, in dem jede Phase ihre Ausgaben ablegt (ADR 0009)                                 |
-| Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                          |
-| VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                  |
-| Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                       |
+| Begriff                       | Bedeutung                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Säule (Pillar)                | Lebensbereich (fünf feste Stammsäulen oder nutzerdefiniert), auf den Tasks anteilig „einzahlen"; Gewichtung als 100-%-Verteilung       |
+| Einzahlung (share/confidence) | Anteil eines Tasks an einer Säule mit Konfidenzwert; n:m über `task_pillars`                                                           |
+| Aufgabenwald (Forest)         | Nach Wertschöpfung sortierter Task-Baum inklusive Abhängigkeiten; `GET /forest`, Aufbau in `server/src/logics/tree.ts`                 |
+| Serie (Habit)                 | Vorlage für wiederkehrende Aufgaben; fällige Instanzen werden idempotent materialisiert                                                |
+| Balance                       | Aggregierte Punkte je Säule über `GET /scores/by-pillar`                                                                               |
+| Gamification-Score            | Punkte beim Erledigen eines Tasks; pünktlich volle Punkte, verspätet mit Faktor 0,5 (`server/src/logics/score.ts`)                     |
+| Lektorat                      | KI-gestützte Textprüfung über `POST /lektorat` (bezahlte LLM-Kaskade)                                                                  |
+| Bahn-Seite                    | Öffentliche Verbindungs-Auskunft unter `/bahn` über den Transitous-Proxy                                                               |
+| Harness-Kommentar             | Von der CI-Pipeline geführter Issue-Kommentar, in dem jede Phase ihre Ausgaben ablegt (ADR 0009)                                       |
+| Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                |
+| VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                        |
+| Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                             |
+| API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                        |
+| MCP                           | Model Context Protocol; `POST /mcp/v1` bietet externen Clients (Claude Code, ZCode-Connector) `initialize`, `tools/list`, `tools/call` |

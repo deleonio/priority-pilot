@@ -190,11 +190,11 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope ↔ Pflicht-Abschnitte) + Push + PR-Pflege
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Push + PR-Pflege
         # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
-        # behauptet synced/updated — die Mechanik verifiziert Commits, Datei-Scope, den
-        # Handbuch-Vertrag und pusht/pflegt den PR deterministisch (Push/PR ist bewusst KEINE
-        # Agent-Aufgabe).
+        # behauptet synced/updated — die Mechanik verifiziert Commits und Datei-Scope und
+        # pusht/pflegt den PR deterministisch (Push/PR ist bewusst KEINE Agent-Aufgabe).
+        # Den Handbuch-Vertrag prüft user-guide.test.ts in der CI des PRs, nicht dieser Step.
         if: >-
           ${{ always()
               && steps.guard.outputs.skip != 'true'
@@ -232,28 +232,14 @@ jobs:
             exit 1
           fi
 
-          # Sektions-Guard: der Handbuch-Vertrag aus server/src/logics/user-guide.test.ts (AK 2.1–2.9,
-          # AK 4) muss halten. Schneller Vorab-Check ohne pnpm install — autoritativ bleibt der
-          # Node-Test in der CI des PRs; hier verhindert er nur, dass ein kaputtes Handbuch
-          # überhaupt gepusht wird.
-          missing=""
-          check_section() {
-            grep -qiE "$1" docs/user-guide.md || missing="${missing} $2"
-          }
-          check_section 'dashboard' 'Dashboard'
-          check_section 'aufgaben verwalten' 'Aufgaben-verwalten'
-          check_section 'ki-schnellerfassung|schnellerfassung' 'Schnellerfassung'
-          check_section 'abh.ngigkeiten' 'Abhängigkeiten'
-          check_section 's.ulen' 'Säulen'
-          check_section 'aufgabenwald' 'Aufgabenwald'
-          check_section 'serien' 'Serien'
-          check_section 'punkte|gamification' 'Punkte/Gamification'
-          check_section 'header-aktionen|header aktionen|kopf-aktionen|kopf aktionen' 'Kopf-Aktionen'
-          grep -qE '^# ' docs/user-guide.md || missing="${missing} H1-Überschrift"
-          if [ -n "$missing" ]; then
-            echo "::error title=❌ Handbuch-Vertrag verletzt::Fehlende Pflicht-Abschnitte:${missing} (siehe server/src/logics/user-guide.test.ts) — kein Push."
-            exit 1
-          fi
+          # KEIN Sektions-Guard an dieser Stelle — bewusst. Den Handbuch-Vertrag (Pflicht-Abschnitte,
+          # genau eine H1) prüft ausschließlich server/src/logics/user-guide.test.ts in der CI des
+          # Sync-PRs. Hier stand bis #1402 eine handgepflegte Regex-Kopie desselben Vertrags als
+          # Vorab-Check. Die ist gegen den Test gedriftet: der Test akzeptiert seit dem Graph-Umbau
+          # „Aufgabenwald" ODER „Aufgabengraph", die Kopie kannte nur den alten Namen — und
+          # blockierte den Sync gegen ein Handbuch, das der autoritative Test längst annimmt
+          # (Run 34674436214). Ein zweiter Abzug eines Vertrags, den niemand mitpflegt, kostet mehr
+          # Läufe als er rettet; der Sync-PR läuft ohnehin durch CI, Review und Gate.
 
           # Verdict ↔ Commits konsistent?
           if [ "$verdict" = "updated" ] && [ "$count" -eq 0 ]; then

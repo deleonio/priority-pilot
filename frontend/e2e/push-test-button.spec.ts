@@ -40,7 +40,12 @@ const ACTIVE_PUSH_INIT_SCRIPT = `
 				ready: Promise.resolve(fakeRegistration),
 				register: () => Promise.resolve(fakeRegistration),
 				getRegistration: () => Promise.resolve(fakeRegistration),
+				// Beide Listener-Methoden nötig: \`PushToast\` (#1391) registriert im Effekt einen
+				// \`message\`-Listener und räumt ihn im Cleanup wieder ab. Unter StrictMode läuft der
+				// Cleanup schon beim Mount — fehlt \`removeEventListener\`, wirft der Fake und reißt
+				// die gesamte App-Shell mit (leere Seite statt Einstellungen).
 				addEventListener: () => {},
+				removeEventListener: () => {},
 			}),
 		});
 	})();

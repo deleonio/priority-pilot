@@ -40,16 +40,16 @@ dann an den Administrator. Wie der Betreiber Adressen freischaltet, steht in
 
 Ganz oben findest du die **Kopf-Aktionen**:
 
+- **Zum Dashboard** (Haus) – zurück zum Dashboard.
 - **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel und filtert nach Kategorie.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
-- **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen, Kategorien, Zugriff.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
 Rechts daneben siehst du dein Profilbild.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht. Der Säulen-Berater erscheint nur, solange die KI-Features aktiviert sind (siehe „Einstellungen").
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -74,7 +74,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Aufgaben auf einen Blick.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
   erledigt sind.
-  Über **„Erledigt"** schließt du sie in einem Dialog direkt ab. Steht nichts an,
+  Über **„Erledigen"** schließt du sie in einem Dialog direkt ab. Steht nichts an,
   erscheint ein Hinweis (alles erledigt oder durch offene Vorgänger blockiert).
 - **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste mit höchstens fünf Einträgen,
   davon maximal zwei je Säule. Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht
@@ -90,6 +90,12 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
   Anzahl der einzahlenden Aufgaben (offen/erledigt), anteiliger Wert und Aufwand.
+- **Streak:** an wie vielen Tagen in Folge du zuletzt etwas erledigt hast, dazu deine
+  Bestmarke.
+- **Meilensteine:** die erreichten und noch offenen Stufen für Streak und Punkte
+  (siehe „Erledigte Aufgaben und Punkte").
+- **Tag geschafft:** ein kurzer Hinweis, der erscheint, wenn keine Aufgabe mehr offen ist
+  und deine letzte Erledigung von heute stammt.
 - **Gesamtguthaben:** dein Punktestand aus erledigten Aufgaben, aufgeschlüsselt je
   Säule (siehe „Erledigte Aufgaben und Punkte").
 - **Anstehende Deadlines:** offene Aufgaben mit Fälligkeit, nach Datum sortiert.
@@ -103,9 +109,9 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 Im Tab **Aufgaben** stehen deine Aufgaben als **flache Liste der ausführbaren Blatt-Aufgaben**.
 Das sind genau die Aufgaben, die **keine Unteraufgaben** haben – die Aufgaben,
 die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt werden muss.
-Den Überblick über Oberaufgaben und alle Abhängigkeiten findest du im Tab **Wald**.
+Den Überblick über alle Abhängigkeiten findest du im Tab **Wald**.
 
-Oben im Tab findest du drei Bedienelemente:
+Oben im Tab findest du drei Schalter und darunter die Filterzeile:
 
 - einen **Umschalter „Erledigte Aufgaben anzeigen"**, der zwischen der Liste der offenen
   Aufgaben und der Tabelle der erledigten Aufgaben wechselt,
@@ -114,11 +120,15 @@ Oben im Tab findest du drei Bedienelemente:
   Kennzeichen zeigt dann eine abgeleitete Stufe mit Tilde (`~P1` bis `~P5`) statt der eigentlichen
   Priorität; nach dem Ausschalten zeigt es wieder die gewohnten `P1` bis `P5`. Die Sortierung
   rechnet mit deinem aktuellen Stand: Hakst du eine Aufgabe ab, ordnet sich die Liste sofort neu.
-  Deine Aufgaben selbst werden dabei nicht verändert, nur die Reihenfolge der Anzeige, und
+  Deine Aufgaben selbst werden dabei nicht verändert, nur die Reihenfolge der Anzeige,
+- einen **Schalter „Oberaufgaben anzeigen"** – nimmt zusätzlich die Aufgaben in die Liste auf,
+  die selbst Unteraufgaben haben,
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
   Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern"** klickst
   oder Enter drückst. Der Suchtext bleibt beim Umschalten bestehen; bei keinem Treffer
-  erscheint ein Leerhinweis.
+  erscheint ein Leerhinweis, und
+- ein **Kategorie-Filter** daneben, sobald du Kategorien angelegt hast. Eine Auswahl wirkt
+  sofort, ohne den Umweg über „Filtern".
 
 Daneben öffnet die **Lupe in der Kopfzeile** ein Suchfenster: Gib einen Begriff ein
 (optional per Sprache), wähle bei Bedarf eine **Kategorie** und starte die Suche – die App
@@ -132,6 +142,8 @@ Aus „offene Sachen zum Hausbau" wird der Suchbegriff „offene Sachen" plus di
 
 Rechts an jeder Zeile können **Kennzeichen** stehen:
 
+- **Für: {Name}** bzw. **Erstellt von: {Name}** – bei Aufgaben, die du für ein
+  Gruppenmitglied angelegt hast oder die jemand für dich angelegt hat (siehe „Gruppen").
 - **Kategorie** – das farbige Kennzeichen mit dem Namen der Kategorie (siehe „Kategorien").
 - **Serie** – die Aufgabe stammt aus einer Serie.
 - **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
@@ -167,18 +179,20 @@ Aufgabe erscheint in der **Erledigt**-Ansicht.
 ## Aufgaben anlegen
 
 Neue Aufgaben legst du immer über **„Neuen Task anlegen"** in der Kopfzeile an.
-Der Ablauf ist zweistufig. Hast du die Schnellerfassung in den Einstellungen
-deaktiviert, entfällt der erste Schritt und das Formular öffnet sich direkt:
+Der Ablauf ist zweistufig. Hast du die KI-Features in den Einstellungen
+ausgeschaltet, entfällt der erste Schritt und das Formular öffnet sich direkt:
 
 ### Schritt 1 – Schnellerfassung
 
 Beschreibe deine Aufgabe frei im Feld **„Beschreibe deinen Task"**, z. B.:
 _„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag."_
 
-Danach hast du zwei Möglichkeiten:
+Danach hast du drei Möglichkeiten:
 
 - **Verarbeiten und weiter** – eine KI liest den Text und füllt Titel, Beschreibung,
-  Priorität, Aufwand und Deadline im Formular vor.
+  Priorität, Aufwand, Deadline, Adresse, Checkliste und Kategorie im Formular vor.
+  Erkennt sie einen wiederkehrenden Termin, öffnet sich das Formular gleich im Serien-Modus.
+- **Beraten lassen** – der Säulen-Berater antwortet im selben Dialog (siehe „Säulen-Berater").
 - **Überspringen** – öffnet direkt das leere Formular; bereits eingegebener Text
   wandert in die Beschreibung.
 
@@ -186,7 +200,7 @@ Danach hast du zwei Möglichkeiten:
 
 Im selben Dialog erscheint das Aufgabenformular. Felder:
 
-- **Titel** (Pflichtfeld, max. 30 Zeichen) – kurzer, prägnanter Name. Ein Zähler am
+- **Titel** (Pflichtfeld, max. 65 Zeichen) – kurzer, prägnanter Name. Ein Zähler am
   Feld zeigt die aktuelle Zeichenzahl.
 - **Priorität** – Schieberegler, ganze Zahl von **1 bis 5** (Standard 3). Höher =
   wichtiger; fließt direkt in den Wert ein.
@@ -197,9 +211,14 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   schlägt die App passende Adressen vor; wählst du eine aus, werden die
   zugehörigen Koordinaten gespeichert und unter dem Feld angezeigt. Du kannst
   auch freien Text ohne Treffer übernehmen – dann liegen keine Koordinaten vor
-  und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Für Serien gilt
-  das Adressfeld genauso.
-- **Beschreibung (optional)** – weiterer Kontext.
+  und die Aufgabe erscheint nicht in der „In der Nähe"-Liste. Ganz oben in der
+  Vorschlagsliste stehen deine gespeicherten Orte (siehe „Gespeicherte Orte"),
+  darunter die Suchtreffer. Am Stern neben einem Suchtreffer legst du ihn als
+  gespeicherten Ort ab, ohne ihn damit auszuwählen. Mit **„Als Favorit speichern"**
+  unter dem Feld sicherst du die Adresse, die gerade eingetragen ist – samt ihrer
+  Koordinaten, falls sie aus einem Treffer stammt. Für Serien gilt das
+  Adressfeld genauso.
+- **Beschreibung (optional)** – weiterer Kontext, max. 3000 Zeichen.
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
   Einträge können hinzugefügt, abgehakt und entfernt werden.
 - **Automatisches Löschen (optional)** – bei verpasster Deadline die Aufgabe nach 3 Tagen
@@ -252,8 +271,8 @@ Option immer wählbar, da das Startdatum der Serie als Fälligkeit dient.
 
 ## Lektorat
 
-Neben dem **Titel**- und dem **Beschreibungs**-Feld findest du einen Button mit
-Zauberstab-Icon: **Lektorat**.
+Neben dem **Titel**- und dem **Beschreibungs**-Feld findest du je einen Button mit
+Zauberstab-Icon: **„Titel lektorieren"** und **„Beschreibung lektorieren"**.
 
 - Klick schickt den aktuellen Text an die KI – an den Provider, der in den
   Einstellungen aktiviert ist.
@@ -268,8 +287,8 @@ Das Lektorat ist unabhängig von der Schnellerfassung und jederzeit nutzbar.
 
 ## Spracheingabe
 
-Textfelder wie **Titel**, **Beschreibung**, die **Schnellerfassung**, das Suchfeld
-der Kopfzeilen-Suche und das Feld des Säulen-Beraters lassen sich per Sprache füllen –
+Textfelder wie **Titel**, **Beschreibung**, das Freitextfeld der **Schnellerfassung**
+und das Suchfeld der Kopfzeilen-Suche lassen sich per Sprache füllen –
 sofern dein Browser Spracherkennung unterstützt.
 
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
@@ -372,18 +391,22 @@ Priorisierung nach oben.
 
 ## Säulen-Berater
 
-Der **Säulen-Berater** (Glühbirne in der Kopfzeile) ist ein KI-Ratgeber für
-Aktivitäten:
+Der **Säulen-Berater** ist ein KI-Ratgeber für Aktivitäten. Er steckt in der
+Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schritt auf
+**„Beraten lassen"**.
 
 - Er schlägt konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen –
   mit kurzer Begründung.
 - Er kennt deine aktuelle Verteilung aus „Meine Themen" und richtet die Vorschläge
   **bevorzugt auf die schwächsten (am stärksten unterversorgten) Säulen** aus.
-- Optional beschreibst du deine Frage oder Situation (z. B. „Was kann ich am
+- Optional beschreibst du im Textfeld deine Frage oder Situation (z. B. „Was kann ich am
   Wochenende für mich tun?"). Ohne Frage bekommst du Vorschläge über alle Säulen
   hinweg. Das Feld unterstützt **Spracheingabe**.
-- Klick auf **„Beraten lassen"**. Jeden Vorschlag kannst du mit **„Als Aufgabe
-  übernehmen"** direkt in die Schnellerfassung übernehmen.
+- Die Vorschläge erscheinen unter dem Textfeld, der Dialog bleibt offen. Mit **„Als Aufgabe
+  übernehmen"** schreibst du einen Vorschlag in dasselbe Textfeld zurück und gehst von dort
+  mit **„Verarbeiten und weiter"** ins Formular.
+- Hast du noch keine Säulen angelegt, weist dich der Berater darauf hin, statt Vorschläge
+  zu machen.
 
 ---
 
@@ -415,7 +438,7 @@ weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
 ### Serien bearbeiten – Kaskade auf bestehende Instanzen
 
 Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
-(Titel, Priorität, Aufwand, Beschreibung, Adresse, Automatisches Löschen, Säulen), erscheint
+(Titel, Priorität, Aufwand, Beschreibung, Adresse, Automatisches Löschen, Säulen, Kategorie), erscheint
 vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?"**
 
 - **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
@@ -429,7 +452,7 @@ Rhythmus und Startdatum werden **nie** kaskadiert.
 
 ## Aufgabengraph
 
-Der Tab **Wald** zeigt, wie deine Aufgaben zusammenhängen – als Graph statt als Baum.
+Der Tab **Wald** zeigt, wie deine Aufgaben zusammenhängen.
 
 - Ein **Pfeil** zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.
 - Je **dicker die Linie**, desto stärker das Gewicht der Abhängigkeit. Die Zahl steht an
@@ -437,18 +460,24 @@ Der Tab **Wald** zeigt, wie deine Aufgaben zusammenhängen – als Graph statt a
 - Jeder **Knoten** zeigt `#ID`, Titel, **Priorität**, **Wert** und – falls es Unteraufgaben
   gibt – den **Fortschritt**.
 - Eine Aufgabe, die mehreren übergeordneten Aufgaben zuarbeitet, steht **einmal** da und hat
-  mehrere Kanten. Im früheren Baum tauchte sie mehrfach auf.
+  mehrere Kanten.
 
-Über der Grafik sitzen die Schaltflächen **Ansicht einpassen**, **Vergrößern** und
+Gezeigt wird immer eine zusammenhängende Abhängigkeitskette. Hast du mehrere, blätterst du
+über **„Zurück"** und **„Vor"**; dazwischen steht, die wievielte von wie vielen du gerade
+siehst. Aufgaben ganz ohne Abhängigkeit erscheinen hier nicht – verknüpfe zwei Aufgaben im
+Tab „Aufgaben" über **„Abhängigkeiten"**, dann steht die erste Kette hier.
+
+Unter der Grafik sitzen die Schaltflächen **Ansicht einpassen**, **Vergrößern** und
 **Verkleinern**; auf dem Handy schiebst du den Ausschnitt mit dem Finger.
 
-Ein Klick auf einen Knoten öffnet darunter eine Detail-Karte mit Wert, Gesamtaufwand und
-allen Vorgängern und Nachfolgern samt Gewicht. Von dort kommst du direkt zu
-**Abhängigkeiten bearbeiten**. Alles Weitere – anlegen, ändern, abhaken – machst du im Tab
-„Aufgaben".
+Ein Tipp auf einen Knoten öffnet darunter eine Detail-Karte mit Priorität, Wert,
+Gesamtaufwand, Fortschritt und allen Vorgängern und Nachfolgern samt Gewicht. Von dort
+kommst du direkt zu **Abhängigkeiten bearbeiten**. Alles Weitere – anlegen, ändern,
+abhaken – machst du im Tab „Aufgaben".
 
-Unter der Grafik steht der Graph zusätzlich als aufklappbare **Liste**. Sie enthält
-dieselben Angaben in Textform und ist der Weg für Tastatur und Screenreader.
+Darunter lassen sich zwei Bereiche aufklappen: eine **Legende**, die die Pfeile und
+Linienstärken erklärt, und **Graph als Liste** – dieselben Angaben in Textform und der Weg
+für Tastatur und Screenreader.
 
 ---
 
@@ -493,16 +522,16 @@ dadurch unter die Schwelle fällt.
 
 ## Einstellungen
 
-Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit sechs Bereichen:
-Allgemein, Säulen, KI-Provider, Standort, Gruppen und Kategorien. Administratoren der App
-sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
+Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
+Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien und Zugriff. Administratoren
+der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
 
 ### Allgemein
 
 - **Anzeigename** – der Name, mit dem das Dashboard dich begrüßt; nach dem Ändern
   mit **„Anzeigename speichern"** übernehmen.
-- **Darstellung** – die Auswahl (System, Hell, Dunkel) ist aktuell deaktiviert; die
-  App nutzt durchgehend das helle Farbschema.
+- **Darstellung** – wähle das Farbschema: **System**, **Hell** oder **Dunkel**.
+  „System" folgt der Einstellung deines Betriebssystems.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Herzens auf dem Dashboard und
   den Ablauf beim Erledigen einer Aufgabe.
@@ -524,14 +553,9 @@ Modal-Dialoge) samt Farbwahl aus der festen Palette; siehe „Kategorien".
 
 ### KI-Provider
 
-Oben schaltest du die KI-Bedienelemente insgesamt ein und aus:
-
-- **KI-Features aktiv** – ist der Schalter aus, verschwinden der Säulen-Berater
-  aus der Kopfzeile und die Lektorat-Buttons aus dem Aufgabenformular; die
-  Schnellerfassung ist dann ebenfalls inaktiv.
-- **Schnellerfassung aktiv** – ist dieser Schalter aus, öffnet „Neuen Task
-  anlegen" direkt das vollständige Formular. Er lässt sich nur bei aktiver KI
-  einschalten.
+Oben schaltest du mit **„KI-Features aktiv"** die KI-Bedienelemente insgesamt ein und aus.
+Ist der Schalter aus, öffnet „Neuen Task anlegen" direkt das vollständige Formular, und die
+Lektorat-Buttons verschwinden aus dem Aufgabenformular.
 
 Darunter wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
 Lektorat). Du wählst den aktiven Provider und daraus per Dropdown das Modell – die
@@ -552,6 +576,31 @@ Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
   Aufgaben; **Alarm-Entfernung** – liegt eine Aufgabe näher als diese Entfernung,
   kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
   wird.
+
+#### Gespeicherte Orte
+
+Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
+direkt aus.
+
+- **Anlegen:** unter **„Gespeicherte Orte"** einen **Namen** („Zuhause", „Büro") und
+  eine **Adresse** eingeben, dann **„Anlegen"**. Die Adresse tippst du hier als freien
+  Text ein – eine Vorschlagsliste gibt es in den Einstellungen nicht.
+- **Meine Orte:** die Karte darunter listet alle gespeicherten Orte. Je Eintrag kannst
+  du **umbenennen** (neuen Namen eingeben, **„Übernehmen"**) oder **löschen**
+  (**„Endgültig löschen"** nach Rückfrage).
+
+Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
+Suchtreffern. Orte, die du hier in den Einstellungen anlegst, haben keine Koordinaten –
+sie füllen das Adressfeld, zählen aber nicht für „In der Nähe". Koordinaten bekommt ein
+Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
+
+### Zugriff
+
+Hier legst du persönliche **Tokens** an, mit denen externe Programme auf deine Daten
+zugreifen – mit deinen Rechten. **„Token erzeugen"** legt einen an und zeigt seinen
+Schlüssel **genau einmal**; danach siehst du nur noch Name, Rechtestufe, Ablauf und die
+letzte Nutzung. Je Token schaltest du zwischen **Nur lesend** und **Lesen und Schreiben**
+um. **„Zurückziehen"** sperrt einen Token ab dem nächsten Aufruf.
 
 ---
 
@@ -667,7 +716,8 @@ Dieser Planer ist ein eigenständiges Extra und unabhängig von deinen Aufgaben.
 
 - **Strg + Enter** (bzw. **⌘ + Enter**) – löst in Dialogen die primäre Aktion aus
   (z. B. Anlegen/Bearbeiten, „Verarbeiten und weiter", Vorgänger „Hinzufügen",
-  „Beraten lassen", „Speichern" in den Einstellungen, „Endgültig löschen").
+  „Speichern" in den Einstellungen, „Endgültig löschen"). „Beraten lassen" bleibt
+  ein reiner Klick-Weg.
 - **Esc** oder Klick außerhalb – schließt Dialoge und Menüs.
 
 ---

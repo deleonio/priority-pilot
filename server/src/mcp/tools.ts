@@ -268,6 +268,19 @@ export const mcpTools: McpTool[] = [
 			callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'PATCH', body: { status: 'Done' } }),
 	},
 	{
+		name: 'task_delete',
+		description:
+			'Löscht eine eigene Aufgabe endgültig und unwiderruflich. Anders als task_complete bleibt die ' +
+			'Aufgabe danach nicht erhalten — zum bloßen Abschließen stattdessen task_complete verwenden.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID der zu löschenden Aufgabe (aus task_list).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
+	},
+	{
 		name: 'task_link',
 		description:
 			'Verknüpft eine Aufgabe mit einer Vorgänger-Aufgabe (Unteraufgabe) und setzt das Gewicht der Kante. ' +
