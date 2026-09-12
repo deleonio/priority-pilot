@@ -101,17 +101,17 @@ jobs:
 
           # Tages-Check zuerst: fängt Doppel-Feuerungen des Daily-Jobs selbst innerhalb
           # des 05-07-Fensters ab (DST-Offset UND ein verzögerter Lauf am selben Tag).
-          # Greift nur bei einem (daily)-Tag von heute — ein ganz normales Merge-Tag von
-          # deploy.yml (das an aktiven Tagen fast immer schon vor 05 Uhr Berlin
-          # existiert) darf den Minor-Bump nicht verhindern.
+          # Anker ist der letzte (daily)-Release-Commit, nicht LAST_TAG: ein normales
+          # Merge-Tag von deploy.yml darf den Minor-Bump nicht verhindern, aber auch den
+          # Schutz nicht aushebeln, wenn es zeitlich nach dem Daily-Tag liegt.
           LAST_TAG_ISO="$(git log -1 --format=%cI "$LAST_TAG")"
-          LAST_TAG_SUBJECT="$(git log -1 --format=%s "$LAST_TAG")"
-          if echo "$LAST_TAG_SUBJECT" | grep -q '(daily)'; then
-            LAST_TAG_DATE="$(TZ='Europe/Berlin' date -d "$LAST_TAG_ISO" +%Y-%m-%d)"
+          LAST_DAILY_ISO="$(git log -1 --format=%cI --fixed-strings --grep='(daily) [skip ci]' origin/main)"
+          if [ -n "$LAST_DAILY_ISO" ]; then
+            LAST_DAILY_DATE="$(TZ='Europe/Berlin' date -d "$LAST_DAILY_ISO" +%Y-%m-%d)"
             TODAY_BERLIN="$(TZ='Europe/Berlin' date +%Y-%m-%d)"
-            if [ "$LAST_TAG_DATE" = "$TODAY_BERLIN" ]; then
+            if [ "$LAST_DAILY_DATE" = "$TODAY_BERLIN" ]; then
               echo "has_merges=false" >> "$GITHUB_OUTPUT"
-              echo "::notice title=⏭️ Bereits heute erledigt::${LAST_TAG} stammt von heute (${TODAY_BERLIN} Berlin) — kein zweiter Bump."
+              echo "::notice title=⏭️ Bereits heute erledigt::Daily-Bump vom ${TODAY_BERLIN} (Berlin) liegt bereits vor — kein zweiter Bump."
               exit 0
             fi
           fi
