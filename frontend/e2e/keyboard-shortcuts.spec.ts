@@ -60,7 +60,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// und AK8 (Startdatum im Serie-Modus) beide öffnen; die restlichen AKs sind davon unberührt.
 		await openAccordionSection(page, 'Termin & Ort');
 		await openAccordionSection(page, 'Optional');
-		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
 	};
 
 	test('AK1: Strg+Enter im offenen Dialog löst die primäre Aktion aus (Task wird gespeichert)', async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTaskForm(page);
 
 		const title = uniqueTitle('Strg+Enter');
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');
@@ -88,7 +88,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTaskForm(page);
 
 		const title = uniqueTitle('Meta+Enter');
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 
 		// macOS-Simulation: auf Linux gedrückt, muss der Hook `metaKey` gleichwertig behandeln.
 		await page.keyboard.press('Meta+Enter');
@@ -105,10 +105,10 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTaskForm(page);
 
 		// Titel bleibt bewusst leer → der Speichern-Button ist deaktiviert (Pflichtfeld-Validierung).
-		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('');
+		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('');
 
 		// Fokus in das leere Titel-Feld setzen und den Shortcut auslösen.
-		await page.getByRole('textbox', { name: 'Titel' }).click();
+		await page.getByRole('searchbox', { name: 'Titel' }).click();
 		await page.keyboard.press('Control+Enter');
 
 		// Kurz warten, damit ein (fälschlich) ausgelöstes Schließen Zeit hätte, sichtbar zu werden.
@@ -117,7 +117,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Nichts ist passiert: der Dialog ist weiterhin offen (Heading bleibt sichtbar).
 		// Nach dem Überspringen der Schnellerfassung zeigt das Formular den Titel „Aufgabe anlegen" (#334).
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
-		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
 
 		// Gegenprobe: es wurde kein Task angelegt.
 		const response = await page.request.get('/api/v1/tasks');
@@ -134,7 +134,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTaskForm(page);
 
 		const title = uniqueTitle('Textfeld');
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 
 		// Fokus in das mehrzeilige Beschreibungs-Textfeld setzen — hier wäre ein Zeilenumbruch möglich.
 		const description = page.getByLabel('Beschreibung (optional)');
@@ -173,7 +173,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		expect(overflowBefore, 'Kein horizontales Scrollen bei geöffnetem Dialog').toBe(true);
 
 		const title = uniqueTitle('Mobile');
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 
 		await page.keyboard.press('Control+Enter');
 
@@ -198,7 +198,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
@@ -283,7 +283,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
 		await openAccordionSection(page, 'Termin & Ort');
 
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
@@ -332,7 +332,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 		// Nach dem (gemockten) Parsen verschwindet der Capture-Schritt und das Formular ist vorbelegt.
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
-		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Geparster Kurzbefehl-Task');
+		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Geparster Kurzbefehl-Task');
 		// Hier wird nur vorausgefüllt, nicht gespeichert; afterEach räumt evtl. Tasks dennoch ab.
 	});
 

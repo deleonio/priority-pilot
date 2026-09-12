@@ -163,10 +163,10 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
 		// Titel ist vorbefüllt.
-		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(titleOld);
+		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue(titleOld);
 
 		// Titel ändern und speichern.
-		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(titleNew);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		// #553: Titel ist ein kaskadierbares Feld — der Speichern-Klick öffnet jetzt das
 		// `ConfirmSeriesActionModal` („Änderungen übernehmen"). Dieser Test prüft das Bearbeiten,

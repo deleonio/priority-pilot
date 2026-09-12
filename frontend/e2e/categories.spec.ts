@@ -76,7 +76,7 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(name);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
 		await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		// Bewusst auf die LISTE geprüft, nicht auf beliebigen Text: Der Anlege-Dialog zeigt den Namen
@@ -105,7 +105,7 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		const titleField = page.getByRole('textbox', { name: 'Titel', exact: true });
+		const titleField = page.getByRole('searchbox', { name: 'Titel', exact: true });
 		await titleField.fill(title);
 		await expect(titleField).toHaveValue(title);
 		// Die Kategorie steht — wie die Säulen — in der Sektion „Optional" (#1285: zugeklappt beim

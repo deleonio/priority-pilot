@@ -32,7 +32,7 @@ const openGroupsTab = async (page: Page): Promise<void> => {
 const createGroupAndInvite = async (page: Page, groupName: string): Promise<void> => {
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeVisible();
-	await page.getByRole('textbox', { name: 'Name' }).fill(groupName);
+	await page.getByRole('searchbox', { name: 'Name' }).fill(groupName);
 	await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
@@ -67,7 +67,7 @@ const createSeriesForRecipientViaUi = async (page: Page, title: string): Promise
 	// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
 	await openAccordionSection(page, 'Termin & Ort');
 
-	await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+	await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 	await page.getByLabel('Startdatum').fill('2026-12-07');
 	// Empfänger-Auswahl (KolSingleSelect → Combobox mit role="option", Muster groups-foreign-task.spec.ts).
 	await page.getByLabel('Empfänger').click();
@@ -196,7 +196,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await openAccordionSection(page, 'Termin & Ort');
 			await expectWithinViewport(page, 'Empfänger-Auswahl (375 px)', page.getByLabel('Empfänger'));
 
-			await page.getByRole('textbox', { name: 'Titel' }).fill(SERIES_TITLE);
+			await page.getByRole('searchbox', { name: 'Titel' }).fill(SERIES_TITLE);
 			await page.getByLabel('Startdatum').fill('2026-12-07');
 			await page.getByLabel('Empfänger').click();
 			await page.getByRole('option', { name: RECIPIENT_NAME }).click();
@@ -269,7 +269,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			const taskCreated = recipientPage.waitForResponse(
 				(response) => response.url().includes('/api/v1/tasks') && response.request().method() === 'POST',
 			);
-			await recipientPage.getByRole('textbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Task');
+			await recipientPage.getByRole('searchbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Task');
 			await recipientPage.getByRole('button', { name: 'Anlegen', exact: true }).click();
 			const taskResponse = await taskCreated;
 			expect(taskResponse.status(), 'Task-Anlage ohne Eingriff in die Auswahl muss 2xx liefern').toBeLessThan(300);
@@ -287,7 +287,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await openAccordionSection(recipientPage, 'Termin & Ort');
 			await expect(recipientPage.getByRole('combobox', { name: 'Empfänger' })).toBeVisible();
 
-			await recipientPage.getByRole('textbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Serie');
+			await recipientPage.getByRole('searchbox', { name: 'Titel' }).fill('E2E Eigen-Anlage Serie');
 			await recipientPage.getByLabel('Startdatum').fill('2026-12-07');
 			const seriesCreated = recipientPage.waitForResponse(
 				(response) => response.url().includes('/api/v1/series') && response.request().method() === 'POST',

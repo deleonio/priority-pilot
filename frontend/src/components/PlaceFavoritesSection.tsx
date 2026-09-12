@@ -116,7 +116,12 @@ export const PlaceFavoritesSection = () => {
 						Hinterlegte Orte stehen im Adressfeld von Aufgabe und Serie oben in der Vorschlagsliste — ein Klick
 						übernimmt die Adresse.
 					</p>
-					<KolInputText _label="Name" _type="search" _value={name} _on={{ onInput: (_event, value) => setName(String(value)) }} />
+					<KolInputText
+						_label="Name"
+						_type="search"
+						_value={name}
+						_on={{ onInput: (_event, value) => setName(String(value)) }}
+					/>
 					<KolInputText
 						_label="Adresse"
 						_value={address}

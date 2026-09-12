@@ -143,7 +143,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		await waitForStableView(page);
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 
-		const titleInput = page.getByRole('textbox', { name: 'Titel' });
+		const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 		await expect(titleInput).toBeVisible();
 
 		// Mic-Button des Titelfelds (Light-DOM innerhalb des VoiceField-Wrappers).

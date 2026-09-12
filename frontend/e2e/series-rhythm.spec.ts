@@ -86,7 +86,7 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 		await openSeriesCreateForm(page);
 
 		const title = uniqueTitle('Werktags');
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 
 		// Rhythmus über die UI auf „Werktags" (weekdays) setzen — KoliBri SingleSelect

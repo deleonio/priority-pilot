@@ -20,7 +20,7 @@ const createGroupViaUi = async (page: Page, name: string): Promise<void> => {
 	await page.goto('/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
-	await page.getByRole('textbox', { name: 'Name' }).fill(name);
+	await page.getByRole('searchbox', { name: 'Name' }).fill(name);
 	await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');

@@ -135,7 +135,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 			.getByRole('option', { name: /Musterstraße 1/ })
 			.first()
 			.click();
-		await page.getByRole('textbox', { name: 'Titel' }).fill('E2E 1110 Adress-Task');
+		await page.getByRole('searchbox', { name: 'Titel' }).fill('E2E 1110 Adress-Task');
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		await waitForStableView(page);

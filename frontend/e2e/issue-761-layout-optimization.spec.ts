@@ -240,7 +240,7 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await page.setViewportSize({ width: 1024, height: 768 });
 		await openTaskForm(page);
 
-		await expect(page.locator('[data-testid="task-title"]').getByRole('textbox', { name: /titel/i })).toBeVisible();
+		await expect(page.locator('[data-testid="task-title"]').getByRole('searchbox', { name: /titel/i })).toBeVisible();
 		await expect(
 			page.locator('[data-testid="task-description"]').getByRole('textbox', { name: /beschreibung/i }),
 		).toBeVisible();

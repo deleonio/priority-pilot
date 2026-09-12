@@ -29,7 +29,7 @@ const openGroupsTab = async (page: Page): Promise<void> => {
 const createGroupAndInvite = async (page: Page, groupName: string): Promise<void> => {
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeVisible();
-	await page.getByRole('textbox', { name: 'Name' }).fill(groupName);
+	await page.getByRole('searchbox', { name: 'Name' }).fill(groupName);
 	await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
@@ -57,7 +57,7 @@ const createForeignTaskViaUi = async (page: Page, title: string): Promise<void> 
 	await page.getByRole('button', { name: 'Überspringen' }).click();
 	await waitForStableView(page);
 
-	await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+	await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 	// Empfänger-Auswahl (KolSingleSelect → Combobox mit role="option", Muster series-rhythm.spec.ts).
 	await page.getByLabel('Empfänger').click();
 	await page.getByRole('option', { name: INVITEE_NAME }).click();
@@ -186,7 +186,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 			await waitForStableView(page);
 			await expectWithinViewport(page, 'Empfänger-Auswahl', page.getByLabel('Empfänger'));
 
-			await page.getByRole('textbox', { name: 'Titel' }).fill('E2E Übergabe-Aufgabe #2');
+			await page.getByRole('searchbox', { name: 'Titel' }).fill('E2E Übergabe-Aufgabe #2');
 			await page.getByLabel('Empfänger').click();
 			await page.getByRole('option', { name: INVITEE_NAME }).click();
 			await page.getByRole('button', { name: 'Anlegen', exact: true }).click();

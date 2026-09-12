@@ -72,7 +72,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 		await expect(dialog.locator('kol-input-text input[type="text"]')).toHaveCount(1);
 		await expect(dialog.locator('kol-textarea textarea')).toHaveCount(1);
 		// Tag-Vertrag über die rollenbasierten Felder (textbox matcht Input UND Textarea):
-		expect(await dialog.getByRole('textbox', { name: 'Name' }).evaluate((el) => el.tagName)).toBe('INPUT');
+		expect(await dialog.getByRole('searchbox', { name: 'Name' }).evaluate((el) => el.tagName)).toBe('INPUT');
 		expect(await dialog.getByRole('textbox', { name: 'Beschreibung' }).evaluate((el) => el.tagName)).toBe('TEXTAREA');
 		await dialog.getByRole('button', { name: 'Abbrechen' }).click();
 
@@ -102,7 +102,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(name);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
 		await dialog.getByRole('textbox', { name: 'Beschreibung' }).fill(description);
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
@@ -130,7 +130,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
-		const nameInput = dialog.getByRole('textbox', { name: 'Name' });
+		const nameInput = dialog.getByRole('searchbox', { name: 'Name' });
 		await expect(nameInput).toHaveAttribute('maxlength', String(PILLAR_NAME_MAX_LENGTH));
 
 		// Reale Tastatur-Eingabe über die Grenze: Browser-Kappprüfung (hard behavior)

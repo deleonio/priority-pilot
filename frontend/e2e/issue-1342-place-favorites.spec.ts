@@ -107,7 +107,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 
 		// Innerhalb der Zeile suchen: das Anlegen-Formular oben hat ebenfalls ein Feld „Name", ein
 		// seitenweiter `/name/i`-Filter träfe auf beide (strict-mode violation).
-		const nameInput = favoriteRow.getByRole('textbox', { name: /name/i });
+		const nameInput = favoriteRow.getByRole('searchbox', { name: /name/i });
 		await nameInput.fill('Büro München');
 		await favoriteRow.getByRole('button', { name: /^(übernehmen|speichern)$/i }).click();
 		await expect(page.getByTestId('place-favorite-row').filter({ hasText: 'Büro München' })).toBeVisible();

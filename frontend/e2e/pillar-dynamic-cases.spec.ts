@@ -116,7 +116,7 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(name);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
 		if (description !== undefined) {
 			await dialog.getByRole('textbox', { name: 'Beschreibung' }).fill(description);
 		}
@@ -168,7 +168,7 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 
 		const renamed = `${name}-umbenannt`;
 		const dialog = page.locator('kol-dialog');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(renamed);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(renamed);
 		await dialog.getByRole('button', { name: 'Speichern' }).click();
 		await expect(page.getByText(renamed, { exact: true })).toBeVisible();
 

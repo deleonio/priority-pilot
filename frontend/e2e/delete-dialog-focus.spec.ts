@@ -70,7 +70,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
@@ -150,7 +150,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neue Säule anlegen' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
-		await page.locator('kol-dialog').getByRole('textbox', { name: 'Name' }).fill(name);
+		await page.locator('kol-dialog').getByRole('searchbox', { name: 'Name' }).fill(name);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
 
@@ -351,7 +351,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neue Säule anlegen' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
-		await page.locator('kol-dialog').getByRole('textbox', { name: 'Name' }).fill(name);
+		await page.locator('kol-dialog').getByRole('searchbox', { name: 'Name' }).fill(name);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
 

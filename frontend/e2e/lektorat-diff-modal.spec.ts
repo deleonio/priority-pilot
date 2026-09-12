@@ -79,7 +79,7 @@ const openTaskForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	// #1260: Beschreibung liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
 	await openAccordionSection(page, 'Optional');
-	const titleInput = page.getByRole('textbox', { name: 'Titel' });
+	const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 	await expect(titleInput).toBeVisible();
 };
 
@@ -93,7 +93,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Spec Journey 1: Diff-Modal erscheint mit Original und lektoriertem Text
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
+			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 			await titleInput.fill('Grosses projekt DRINGEND');
 
 			await mockLektoratSuccess(page, 'Großes Projekt dringend');
@@ -116,7 +116,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Spec Journey 1: Abbrechen → KEINE Änderung am Titel-Feld
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
+			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 			await titleInput.fill('Original Titel');
 
 			await mockLektoratSuccess(page, 'Lektorierter Titel');
@@ -146,7 +146,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Spec Journey 1: Übernehmen → Titel-Feld wird mit lektoriertem Text überschrieben
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
+			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 			await titleInput.fill('Original Titel');
 
 			await mockLektoratSuccess(page, 'Lektorierter Titel');
@@ -174,7 +174,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Spec Issue 720: Tab-Prüfung gegen Fokus-Gefängnis
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
+			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel');
 
 			await mockLektoratSuccess(page, 'Lektorierter Test');
@@ -207,7 +207,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Spec Issue 720: Tab-Prüfung gegen Fokus-Gefängnis
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
+			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel');
 
 			await mockLektoratSuccess(page, 'Lektorierter Test');
@@ -325,7 +325,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Spec Randfälle: ESC-Taste → verhält sich wie „Abbrechen"
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
+			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
 			await titleInput.fill('Original Titel');
 
 			await mockLektoratSuccess(page, 'Lektorierter Titel');

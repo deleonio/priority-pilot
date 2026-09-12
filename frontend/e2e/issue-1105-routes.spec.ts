@@ -104,7 +104,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 		const createTask = async (title: string): Promise<void> => {
 			await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 			await page.getByRole('button', { name: 'Überspringen' }).click();
-			await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(title);
+			await page.getByRole('searchbox', { name: 'Titel', exact: true }).fill(title);
 			await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 			await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		};
