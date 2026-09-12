@@ -69,7 +69,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 
 		const dialog = page.locator('kol-dialog');
 		// Genau ein einzeiliges Input (Name) und genau eine Textarea (Beschreibung) im Dialog
-		await expect(dialog.locator('kol-input-text input[type="text"]')).toHaveCount(1);
+		await expect(dialog.locator('kol-input-text input[type="search"]')).toHaveCount(1);
 		await expect(dialog.locator('kol-textarea textarea')).toHaveCount(1);
 		// Tag-Vertrag über die rollenbasierten Felder (textbox matcht Input UND Textarea):
 		expect(await dialog.getByRole('searchbox', { name: 'Name' }).evaluate((el) => el.tagName)).toBe('INPUT');
@@ -84,7 +84,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 		await page.locator('li.pillar-item', { hasText: name }).getByRole('button', { name: 'Bearbeiten' }).click();
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(dialog.locator('kol-textarea textarea')).toHaveCount(1);
-		await expect(dialog.locator('kol-input-text input[type="text"]')).toHaveCount(1);
+		await expect(dialog.locator('kol-input-text input[type="search"]')).toHaveCount(1);
 	});
 
 	/**
