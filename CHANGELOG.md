@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.9._
+_Enthält v0.2.0 – v0.2.11._
 
 ### 🔧 Engineering
 
@@ -26,6 +26,8 @@ _Enthält v0.2.0 – v0.2.9._
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1173
 - chore(deps): update pnpm to v12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1331
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1328
+- chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1411
+- design(frontend): unify card spacing in settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1415
 
 ## v0.1 - 2026-09-12
 
@@ -682,7 +684,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): transfer task or series to a group member on edit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1265
 - feat(server): keep self-set display name across OAuth logins (#1256) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1266
 - feat(server): notify owners of foreign-created series instances (#1253) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1267
-- feat(frontend): list series created for other group members (#1254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1268
 - feat(frontend): list series created for other group members (#1254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1268
 - fix(ci): provider-aware subagent model resolution in setup-claude by @deleonio in https://github.com/deleonio/priority-pilot/pull/1270
 - feat(ci): delegation metrics, review fan-out, kolibri-recherche role by @deleonio in https://github.com/deleonio/priority-pilot/pull/1271
