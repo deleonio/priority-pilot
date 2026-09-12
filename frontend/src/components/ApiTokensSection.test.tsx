@@ -226,3 +226,19 @@ describe('ApiTokensSection – #1357: Pflicht-Ablaufdatum', () => {
 		expect(row?.textContent).toContain('abgelaufen');
 	});
 });
+
+describe('ApiTokensSection – #1417 AK8: Hinweisblock nennt auch den api-key-Header', () => {
+	it('zeigt sowohl "Authorization: Bearer <Token>" als auch "api-key: <Token>"', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		const hint = container.querySelector('.api-tokens__mcp-url');
+		expect(hint, 'Hinweisblock muss gerendert sein').not.toBeNull();
+		expect(hint?.textContent).toContain('Authorization: Bearer <Token>');
+		expect(hint?.textContent).toContain('api-key: <Token>');
+	});
+});
