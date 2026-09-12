@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.2 - 2026-09-12
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.1 - 2026-09-12
 
-_Enthält v0.1.336 – v0.1.835._
+_Enthält v0.1.336 – v0.1.836._
 
 ### 💥 Breaking Changes
 
@@ -579,8 +583,8 @@ _Enthält v0.1.336 – v0.1.835._
 - feat(frontend): render dashboard sections as equal-height Kolibri cards by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1120
 - ci(pipeline): phase outputs live in the harness marker comment by @deleonio in https://github.com/deleonio/priority-pilot/pull/1122
 - feat(frontend): move geo badge next to task title (#1121) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1123
-- feat(frontend): move geo badge next to task title (#1121) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1123
 - test(frontend): assert observable outcomes in useGeolocation (#1119) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1124
+- docs(spec): Ist-Stand-Sync 2026-08-30 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1128
 - docs(spec): Ist-Stand-Sync 2026-08-30 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1128
 - refactor(server): central http error contract in one module (#1130) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1131
 - docs: sync user guide with implemented state (2026-08-30) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1129
@@ -732,6 +736,7 @@ _Enthält v0.1.336 – v0.1.835._
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
+- fix(ci): daily-version Tages-Check nur bei (daily)-Tag greifen lassen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1401
 
 ## v1.0 - 2026-06-24
 
