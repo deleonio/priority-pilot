@@ -2,21 +2,22 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * Spec-Tests für #395 „Klickbare Bild-Marke im Header (Link zum Dashboard)", seit dem Home-Schalter
- * als erstem Toolbar-Button (statt implizit am Logo) angepasst.
+ * Spec-Tests für #395 „Klickbare Bild-Marke im Header (Link zum Dashboard)".
  *
  * Ziel ursprünglich: Im Header erscheint links oben ein Logo-Bild als barrierefreier Button „Zum
- * Dashboard". Das Logo ist inzwischen rein dekorativ (kein Button, kein Klick-Handler mehr) — die
- * Navigation zum Dashboard übernimmt der Home-Schalter, der erste Button der Kopf-Aktionen-Toolbar
- * (siehe `issue-1334-home-schalter.spec.ts`). Die bestehende H1 „Priority Pilot" bleibt erhalten.
- * Auf 375px-Viewport kein horizontaler Overflow.
+ * Dashboard". Das war zwischenzeitlich zurückgebaut (Navigation nur noch über den Home-Schalter,
+ * den ersten Button der Kopf-Aktionen-Toolbar), ist inzwischen aber wieder eingebaut: Das Logo ist
+ * zusätzlich zum Home-Schalter (siehe `issue-1334-home-schalter.spec.ts`) klickbar und navigiert
+ * zum Dashboard. Die bestehende H1 „Priority Pilot" bleibt erhalten. Auf 375px-Viewport kein
+ * horizontaler Overflow.
  */
 test.describe('#395 Header – Logo', () => {
 	/**
-	 * AK1 — Logo sichtbar, links oben: Im Header-Banner ist das Logo-Bild sichtbar. Es trägt keine
-	 * `button`-Rolle mehr — die Navigation zum Dashboard läuft über den Home-Schalter in der Toolbar.
+	 * AK1 — Logo sichtbar, links oben, interaktiv: Im Header-Banner ist das Logo-Bild sichtbar und
+	 * als `button` erreichbar — die Navigation zum Dashboard läuft sowohl über das Logo als auch
+	 * über den Home-Schalter in der Toolbar.
 	 */
-	test('AK1: Logo ist im Header sichtbar und nicht interaktiv', async ({ page }) => {
+	test('AK1: Logo ist im Header sichtbar und als Button interaktiv', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -26,8 +27,22 @@ test.describe('#395 Header – Logo', () => {
 		const logoImg = header.locator('.logo-btn img');
 		await expect(logoImg).toBeVisible();
 
-		// Kein Button mehr am Logo — das wäre die frühere, implizite Home-Funktion.
-		await expect(header.locator('.logo-btn')).toHaveJSProperty('tagName', 'SPAN');
+		await expect(header.locator('.logo-btn')).toHaveJSProperty('tagName', 'BUTTON');
+	});
+
+	/**
+	 * AK1 (Klick) — Ein Klick auf das Logo navigiert von einer anderen Ansicht zurück zum Dashboard,
+	 * analog zum Home-Schalter (`issue-1334-home-schalter.spec.ts` AK1).
+	 */
+	test('AK1: Klick auf das Logo navigiert zum Dashboard', async ({ page }) => {
+		await page.goto('/aufgaben');
+		await waitForStableView(page);
+
+		await page.getByRole('banner').locator('.logo-btn').click();
+
+		await expect(page).toHaveURL(/\/$/);
+		const dashboardTab = page.getByRole('tab', { name: /Dashboard/i });
+		await expect(dashboardTab).toHaveAttribute('aria-selected', 'true');
 	});
 
 	/**
@@ -100,7 +115,7 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 		const header = page.getByRole('banner');
 		await expect(header).toBeVisible();
 
-		// Logo bleibt sichtbar (rein dekorativ, kein Button mehr).
+		// Logo bleibt sichtbar (jetzt zusätzlich als Button klickbar).
 		await expect(header.locator('.logo-btn img')).toBeVisible();
 
 		// Kopf-Toolbar bleibt sichtbar.

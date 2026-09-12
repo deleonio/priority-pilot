@@ -2,6 +2,28 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.1.830 - 2026-09-11
+
+### 🎉 New Features
+
+- feat(header): make logo clickable and visually smaller by @deleonio in https://github.com/deleonio/priority-pilot/pull/1392
+
+## v0.1.829 - 2026-09-11
+
+### Other Changes
+
+- fix(frontend): unify card and tab gaps on dashboard, settings and help by @deleonio in https://github.com/deleonio/priority-pilot/pull/1390
+
+## v0.1.828 - 2026-09-11
+
+### 🎉 New Features
+
+- feat(frontend): toggle to show parent tasks in task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1388
+
+### Other Changes
+
+- feat(server): notify on milestone when completing a task by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1389
+
 ## v0.1.826 - 2026-09-11
 
 ### Other Changes
@@ -563,10 +585,6 @@ _Keine für Nutzer sichtbaren Änderungen._
 
 _Keine für Nutzer sichtbaren Änderungen._
 
-## v0.1.727 - 2026-09-06
-
-_Keine für Nutzer sichtbaren Änderungen._
-
 ## v0.1.726 - 2026-09-06
 
 _Keine für Nutzer sichtbaren Änderungen._
@@ -1092,6 +1110,12 @@ _Keine für Nutzer sichtbaren Änderungen._
 ### Other Changes
 
 - feat(ci): squash-merge pull requests in the auto-merge gate by @deleonio in https://github.com/deleonio/priority-pilot/pull/1115
+
+## v0.1.630 - 2026-08-29
+
+### Other Changes
+
+- feat(frontend): nearby radius title and real distances (#1110) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1114
 
 ## v0.1.630 - 2026-08-29
 
