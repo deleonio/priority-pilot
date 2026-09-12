@@ -40,10 +40,10 @@ dann an den Administrator. Wie der Betreiber Adressen freischaltet, steht in
 
 Ganz oben findest du die **Kopf-Aktionen**:
 
-- **Start** (Haus) – zurück zum Dashboard.
+- **Zum Dashboard** (Haus) – zurück zum Dashboard.
 - **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel und filtert nach Kategorie.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen, Kategorien, Zugriff.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
