@@ -12,6 +12,7 @@ import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } fro
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
+import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
 import { notifyReachedMilestones } from '../../logics/milestoneNotification.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
 import { berechneStreak } from '../../logics/streak.js';
@@ -796,6 +797,22 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					await notifyReachedMilestones(meilensteinUserId, meilensteineVorher, meilensteineNachher, pushSender);
 				} catch (error) {
 					console.warn('Meilenstein-Benachrichtigung fehlgeschlagen:', error);
+				}
+			}
+			// #1391: Den Ersteller über die erledigte, von ihm fremd angelegte Aufgabe informieren —
+			// erst nach dem Commit und nur beim echten Übergang auf „Done" (`istDoneUebergang` schließt
+			// eine gleichzeitige Übergabe bereits aus, siehe oben). Selbst angelegte Aufgaben
+			// (`createdById` fehlt oder ist der Eigentümer selbst) bleiben ohne Nachricht (AK3).
+			// Wie bei #1224/#1363 bleibt ein Versandfehler folgenlos für den PATCH (AK5).
+			if (istDoneUebergang && task.createdById != null && task.createdById !== task.userId) {
+				try {
+					await notifyTaskCompleted(
+						{ id: task.id, title: task.title, createdById: task.createdById },
+						requester ? { displayName: requester.displayName } : null,
+						pushSender,
+					);
+				} catch (error) {
+					console.warn('Benachrichtigung zur erledigten Aufgabe fehlgeschlagen:', error);
 				}
 			}
 			const withPillars = await findTaskWithPillars(task.id);

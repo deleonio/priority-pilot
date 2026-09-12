@@ -3546,3 +3546,62 @@ kol-heading {
 		align-items: center;
 	}
 }
+
+/* --- In-App-Hinweis auf eingegangene Push-Nachrichten (#1391) --- */
+/*
+ * Gleiches Muster wie der PWA-Update-Hinweis (`.update-prompt`, #373): am unteren Viewport-Rand
+ * fixiert, Overlay selbst klickdurchlässig, nur die Karte interaktiv. Liegt eine Ebene über dem
+ * Update-Hinweis (z-index 1001), damit beide gleichzeitig lesbar bleiben.
+ * Mobile-First (AK6): `left`/`right: 0` plus Innenabstand halten den Inhalt bei 375px im Viewport.
+ */
+.push-toast {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 1001;
+	padding: 1rem;
+	/* iOS-Safe-Area: Innenabstand unten um den unteren Sicherheitsabstand ergänzen. */
+	padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+	pointer-events: none;
+}
+
+.push-toast kol-alert {
+	pointer-events: auto;
+}
+
+.push-toast__title {
+	display: block;
+}
+
+.push-toast__body {
+	margin: 0.25rem 0 0.5rem;
+}
+
+/* Tap-Fläche ≥44px (WCAG 2.5.8, docs/mobile-ui-rules.md) — volle Breite auf schmalen Viewports. */
+.push-toast__close {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--pp-border, #767676);
+	border-radius: 0.25rem;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+@media (min-width: 768px) {
+	/* Desktop (Muster #1077): unten rechts statt vollbreit. */
+	.push-toast {
+		left: auto;
+		max-width: 480px;
+		margin-left: auto;
+	}
+
+	.push-toast__close {
+		display: inline-block;
+		width: auto;
+	}
+}
