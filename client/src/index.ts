@@ -37,6 +37,9 @@ export type Pillar = Schemas['Pillar'];
 export type Streak = Schemas['Streak'];
 /** #1362: eine Meilenstein-Stufe (Streak oder Punkte) mit fester Schwelle und Erreicht-Status. */
 export type Milestone = Schemas['Milestone'];
+/** Schnappschuss einer vom Auto-Delete-Cron gelöschten Aufgabe (Bewertungssystem-Sichtbarkeit, rein informativ). */
+export type MissedTask = Schemas['MissedTask'];
+export type MissedTasksSummary = Schemas['MissedTasksSummary'];
 /** Thematische Kategorie (0..1 je Aufgabe/Serie) — die flache Ordnungsebene neben den Säulen. */
 export type Category = Schemas['Category'];
 export type CategoryColor = Schemas['CategoryColor'];

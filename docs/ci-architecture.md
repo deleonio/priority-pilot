@@ -291,11 +291,15 @@ Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTING
 - **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call**; es war als Subagent-Modell
   im Spiel und ist seit der Umstellung auf `glm-4.7` (2026-09) nicht mehr konfiguriert. Die
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
-  Die `concurrency`-Gruppen deckeln die Parallelität strukturell: eine eigene statische Gruppe
-  je Phase (`llm-triage` … `llm-document`) plus eine gemeinsame Gruppe `llm-sync` für alle
-  Cron-/Ad-hoc-Läufe (s. [pipeline-flow.md](./pipeline-flow.md)). Obergrenze: **bis zu 7
-  gleichzeitige Agent-Läufe** (6 Phasen + 1 Sync-Slot). Innerhalb einer Gruppe reihen sich
-  weitere Läufe FIFO ein, statt parallel Kontingent zu ziehen.
+  Die `concurrency`-Gruppen deckeln die Parallelität strukturell: die sechs Ticket-Phasen
+  (`01-triage` … `06-document`) teilen sich EINE gemeinsame statische Gruppe `llm` (Teil-
+  Rücktausch von PR #1301, dort noch 6 eigene Phasen-Gruppen); die Cron-/Ad-hoc-Läufe bleiben
+  in ihrer eigenen gemeinsamen Gruppe `llm-sync` (s. [pipeline-flow.md](./pipeline-flow.md)).
+  Obergrenze: **bis zu 2 gleichzeitige Agent-Läufe** (1 Ticket-Pipeline-Slot + 1 Sync-Slot) —
+  ein erschöpftes Kontingent trifft damit unter den Ticket-Läufen höchstens einen Lauf statt
+  bis zu 6 gleichzeitig verlorene/kollidierende. Innerhalb einer Gruppe reihen sich weitere
+  Läufe FIFO ein, statt parallel Kontingent zu ziehen. Bekannte Kehrseite: eine lange
+  Fixup-Schleife kann kurzzeitig eine Triage/ein Review derselben Gruppe blockieren.
 - **Sperrzeiten:** Das einzige gebuchte Modell mit Spitzenzeit-Aufschlag ist `glm-5-turbo`
   (Mo–Fr 14:00–18:00 UTC+8 = dt. Vormittag, DST-abhängig 07:00–11:00 MEZ / 08:00–12:00 MESZ;
   am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Check in `setup-agent`

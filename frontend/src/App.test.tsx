@@ -74,6 +74,8 @@ vi.mock('./api', () => ({
 		getStreak: vi.fn().mockResolvedValue({ aktuell: 0, best: 0, letzterTag: null }),
 		// Test-Pflege #1362: die neue Dashboard-Card „Meilensteine“ lädt ihre Werte beim Mount selbst.
 		getMilestones: vi.fn().mockResolvedValue([]),
+		// Die neue Dashboard-Card „Verpasste Aufgaben“ lädt ihre Werte beim Mount selbst.
+		getMissedTasks: vi.fn().mockResolvedValue({ anzahl: 0, eintraege: [] }),
 		listGroups: vi.fn().mockResolvedValue([]),
 		listReceivedInvitations: vi.fn().mockResolvedValue([]),
 		getVapidPublicKey: vi.fn().mockResolvedValue(null),
