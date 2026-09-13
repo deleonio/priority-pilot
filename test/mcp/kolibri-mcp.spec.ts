@@ -1,5 +1,5 @@
 // KoliBri-MCP Integrationstests – Issue 831
-// Spec: docs/spec/issue-831.md
+// Spec: Issue #831
 //
 // HINWEIS: Diese Tests spezifizieren das Agent-Verhalten mit MCP-Tools.
 // Da MCP-Tools nur im Agent-Kontext verfügbar sind, werden die Erwartungen
