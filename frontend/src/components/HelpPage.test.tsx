@@ -6,9 +6,10 @@ import { HelpPage } from './HelpPage';
  * Rote Spec-Tests für #1190 — „Changelog-Tab neben dem Handbuch" (Spec docs/spec/issue-1190.md).
  *
  * Vertrag: Die Hilfe-Seite bekommt KolTabs mit „Handbuch" (initial aktiv) und „Changelog".
- * Der Changelog-Tab lädt lazy beim ersten Aktivieren die letzten 30 GitHub-Releases; seit
- * #1206 werden die Bodys nach Kategorien aggregiert (Struktur siehe #1206-Describe unten);
- * bei Ladefehler erscheint eine verständliche Meldung mit Retry-Pfad.
+ * Der Changelog-Tab lädt lazy beim ersten Aktivieren die GitHub-Releases vollständig (paginiert,
+ * 100 je Seite); seit #1206 werden die Bodys nach Kategorien aggregiert (Struktur siehe
+ * #1206-Describe unten); die Anzeige-Menge (30/100/alle) schneidet client-seitig; bei
+ * Ladefehler erscheint eine verständliche Meldung mit Retry-Pfad.
  *
  * jsdom rendert `<kol-tabs>` als nicht upgegradetes Element (Muster SettingsPage.test.tsx:301):
  * Panels bleiben im DOM und sind über `[slot="tab-N"]` prüfbar. Der @public-ui-React-Wrapper
@@ -18,9 +19,27 @@ import { HelpPage } from './HelpPage';
  * liefert je Test eine Fixture — kein Live-Abruf in Unit-Tests.
  */
 
-const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=30';
+const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=100';
 
-const USER_GUIDE_MD = '# Priority Pilot Handbuch\n\n- Erster Abschnitt';
+const USER_GUIDE_MD = [
+	'# Priority Pilot Handbuch',
+	'',
+	'## Erster Abschnitt',
+	'',
+	'- Bullet',
+	'',
+	'### Unterabschnitt',
+	'',
+	'Absatz.',
+	'',
+	'## Duplikat',
+	'',
+	'Noch ein Absatz.',
+	'',
+	'## Duplikat',
+	'',
+	'Schluss.',
+].join('\n');
 
 // #1320 (Test-Pflege): Die Handbuch-Überschrift wird als `h2` gerendert, nicht mehr als `h1` —
 // die eine `<h1>` der Ansicht trägt seit dem Layout-Umbau das App-Layout („Hilfe", AK7), die
@@ -45,8 +64,14 @@ let fetchMock: ReturnType<typeof vi.fn>;
 const mdResponse = (text: string): Response =>
 	({ ok: true, status: 200, statusText: 'OK', text: () => Promise.resolve(text) }) as unknown as Response;
 
-const releasesResponse = (releases: unknown[]): Response =>
-	({ ok: true, status: 200, statusText: 'OK', json: () => Promise.resolve(releases) }) as unknown as Response;
+const releasesResponse = (releases: unknown[], link?: string): Response =>
+	({
+		ok: true,
+		status: 200,
+		statusText: 'OK',
+		json: () => Promise.resolve(releases),
+		headers: new Headers(link ? { Link: link } : {}),
+	}) as unknown as Response;
 
 /** Ruft den Tab-Wechsel über den KolTabs-Callback auf (gleicher Pfad wie der echte Klick). */
 const selectTab = (container: HTMLElement, selected: number): void => {
@@ -102,7 +127,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 		expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING), 'Handbuch-Inhalt bleibt im DOM').toBeTruthy();
 	});
 
-	it('AK2: Changelog lädt lazy (kein API-Call bei Mount), per_page=30, neueste zuerst mit Version + de-DE-Datum', async () => {
+	it('AK2: Changelog lädt lazy (kein API-Call bei Mount), paginiert (100 je Seite), neueste zuerst mit Version + de-DE-Datum', async () => {
 		const { container } = render(<HelpPage />);
 
 		// Lazy: vor dem ersten Aktivieren des Changelog-Tabs passiert kein GitHub-Call.
@@ -124,7 +149,7 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 
 		expect(
 			fetchMock.mock.calls.map(([input]) => String(input)).find((url) => url.includes('api.github.com')),
-			'URL fragt genau die letzten 30 Releases ab',
+			'URL fragt die erste Seite mit 100 Releases ab',
 		).toBe(RELEASES_URL);
 	});
 
@@ -301,7 +326,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 			expect(categoryHeadings(container).length).toBeGreaterThan(0);
 		});
 
-		const lis = Array.from(panel(container, 'tab-1')?.querySelectorAll('li') ?? []);
+		const lis = Array.from(panel(container, 'tab-1')?.querySelectorAll('.help-sidebar-main li') ?? []);
 		const liTexts = lis.map((li) => li.textContent ?? '');
 		// Bullet-Summe der Fixture-Bodys: 695 = 2 (Export, Absturz), 694 = 2 (Fehler, Aufräumarbeiten).
 		expect(lis, 'Anzahl Einträge = Summe aller Bullets').toHaveLength(4);
@@ -311,6 +336,141 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 		}
 		// Der HTML-Kommentar aus dem Body wird nicht als Eintrag gerendert.
 		expect(liTexts.join(' '), 'Release-notes-Kommentar fließt nicht ein').not.toContain('Release notes generated');
+	});
+});
+
+describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', () => {
+	// 35 Releases über zwei Seiten: Seite 1 (30 Stück) mit `Link`-Header auf Seite 2 (5 Stück,
+	// ohne weiteren Link) — Deckung für den Folgeseiten-Nachlauf über den Link-Header.
+	const pageOne = Array.from({ length: 30 }, (_, i) => ({
+		tag_name: `v0.1.${600 - i}`,
+		published_at: '2026-09-02T10:00:00Z',
+		body: `### 🐞 Bug Fixes\n\n- Fix ${i}`,
+	}));
+	const pageTwo = Array.from({ length: 5 }, (_, i) => ({
+		tag_name: `v0.1.${570 - i}`,
+		published_at: '2026-08-30T10:00:00Z',
+		body: `### 🐞 Bug Fixes\n\n- Fix ${30 + i}`,
+	}));
+	const PAGE_TWO_URL = `${RELEASES_URL}&page=2`;
+
+	beforeEach(() => {
+		fetchMock = vi.fn((input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url === RELEASES_URL) return Promise.resolve(releasesResponse(pageOne, `<${PAGE_TWO_URL}>; rel="next"`));
+			if (url === PAGE_TWO_URL) return Promise.resolve(releasesResponse(pageTwo));
+			return Promise.resolve(mdResponse(USER_GUIDE_MD));
+		});
+		vi.stubGlobal('fetch', fetchMock);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		cleanup();
+	});
+
+	/** Löst den onChange-Callback des KolSelect über den Wrapper-Pfad aus (jsdom hydratiert nicht). */
+	const changeLimit = (container: HTMLElement, value: string): void => {
+		const selectEl = panel(container, 'tab-1')?.querySelector('kol-select');
+		const on = (selectEl as unknown as { _on?: { onChange?: (event: Event, value: string) => void } } | null)?._on;
+		expect(on?.onChange, 'KolSelect onChange-Callback ist verdrahtet').toBeTypeOf('function');
+		act(() => {
+			on?.onChange?.(new Event('change'), value);
+		});
+	};
+
+	const changelogEntries = (container: HTMLElement): string[] =>
+		Array.from(panel(container, 'tab-1')?.querySelectorAll('.help-sidebar-main li') ?? []).map(
+			(li) => li.textContent ?? '',
+		);
+
+	it('lädt Folgeseiten über den Link-Header nach; Default „30" schneidet, „Alle" zeigt alles ohne Refetch', async () => {
+		const { container } = render(<HelpPage />);
+
+		selectTab(container, 1);
+		await waitFor(() => {
+			expect(changelogEntries(container)).toHaveLength(30);
+		});
+
+		const ghUrls = fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => url.includes('api.github.com'));
+		expect(ghUrls, 'Seite 1 und Folgeseite wurden abgerufen').toEqual([RELEASES_URL, PAGE_TWO_URL]);
+
+		// Alle 35 Releases sind geladen, die Anzeige schneidet client-seitig auf 30.
+		changeLimit(container, 'alle');
+		expect(changelogEntries(container), '„Alle" zeigt alle 35 Einträge').toHaveLength(35);
+		expect(
+			fetchMock.mock.calls.filter(([input]) => String(input).includes('api.github.com')),
+			'kein erneuter Fetch nach Wechsel der Anzeige-Menge',
+		).toHaveLength(2);
+
+		// „Letzte 100" bei nur 35 vorhandenen Releases: ebenfalls alle.
+		changeLimit(container, '100');
+		expect(changelogEntries(container), '„Letzte 100" zeigt alle vorhandenen 35').toHaveLength(35);
+	});
+});
+
+describe('HelpPage – Inhaltsverzeichnis in der Sidebar (Handbuch + Changelog)', () => {
+	beforeEach(() => {
+		fetchMock = vi.fn((input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url.includes('api.github.com')) {
+				return Promise.resolve(releasesResponse(releasesFixture));
+			}
+			return Promise.resolve(mdResponse(USER_GUIDE_MD));
+		});
+		vi.stubGlobal('fetch', fetchMock);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		cleanup();
+	});
+
+	it('Handbuch: TOC listet ##/###-Abschnitte, jeder Link trifft eine vorhandene Anker-Id (Duplikate suffigen)', async () => {
+		const { container } = render(<HelpPage />);
+
+		await waitFor(() => {
+			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
+		});
+
+		const toc = Array.from(panel(container, 'tab-0')?.querySelectorAll('.help-toc a') ?? []);
+		expect(toc.map((a) => a.textContent)).toEqual(['Erster Abschnitt', 'Unterabschnitt', 'Duplikat', 'Duplikat']);
+		for (const link of toc) {
+			const id = (link.getAttribute('href') ?? '').slice(1);
+			expect(id, 'jeder Link trägt einen Anker').not.toBe('');
+			expect(panel(container, 'tab-0')?.querySelector(`[id="${id}"]`), `Anker-Ziel #${id} existiert`).toBeTruthy();
+		}
+		expect(
+			panel(container, 'tab-0')?.querySelector('[id="duplikat-2"]'),
+			'Duplikat erhält deterministisches Suffix',
+		).toBeTruthy();
+		expect(
+			panel(container, 'tab-0')?.querySelector('.help-toc .help-toc-sub')?.textContent,
+			'Unterabschnitte sind als Ebene 3 markiert',
+		).toContain('Unterabschnitt');
+	});
+
+	it('Changelog: TOC listet die Kategorien, Links treffen die Kategorie-Sektionen; Select bleibt in der Sidebar', async () => {
+		const { container } = render(<HelpPage />);
+
+		selectTab(container, 1);
+		await waitFor(() => {
+			expect(panel(container, 'tab-1')?.querySelector('.help-toc a')).toBeTruthy();
+		});
+
+		const toc = Array.from(panel(container, 'tab-1')?.querySelectorAll('.help-toc a') ?? []);
+		expect(toc.map((a) => a.textContent)).toEqual(['💥 Breaking Changes', '🐞 Bug Fixes']);
+		for (const link of toc) {
+			const id = (link.getAttribute('href') ?? '').slice(1);
+			expect(
+				panel(container, 'tab-1')?.querySelector(`section[id="${id}"]`),
+				`Kategorie-Sektion #${id} existiert`,
+			).toBeTruthy();
+		}
+		expect(
+			panel(container, 'tab-1')?.querySelector('.help-sidebar-aside kol-select'),
+			'Auswahl-Regler sitzt in der Sidebar',
+		).toBeTruthy();
 	});
 });
 
