@@ -161,6 +161,11 @@ const LeafItem = ({
 						{task !== null && task.isException && (
 							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
 						)}
+						{/* #1430 (AK1/AK2): Hinweistext vorhanden → Badge, ohne den Eintrag öffnen zu müssen.
+						    Neutrale Farbe (kein Warning-Ton, ein Hinweis ist keine Warnung, KI-UX). */}
+						{task !== null && (task.description ?? '').trim() !== '' && (
+							<KolBadge _label="Hinweis" _color="#5c6570" className="task-tree-badge" />
+						)}
 						{progress !== undefined && (
 							<KolBadge _label={`${progress.done}/${progress.total}`} _color="#2e7d32" className="task-tree-badge" />
 						)}

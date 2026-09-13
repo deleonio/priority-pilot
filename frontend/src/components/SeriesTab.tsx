@@ -208,6 +208,10 @@ export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTa
 										    -löschung) — Text-Badge statt nur Farbe (KI-UX, WCAG 1.4.1). Kein Toggle:
 										    Reaktivieren wäre ein eigenes Ticket; die Toolbar bleibt (nicht sperren). */}
 										{entry.active === false && <KolBadge _label="Ruhend" className="series-tree-badge" />}
+										{/* #1430 (AK3): Hinweistext am Serien-Eintrag, analog TaskTree-Badge. */}
+										{(entry.description ?? '').trim() !== '' && (
+											<KolBadge _label="Hinweis" _color="#5c6570" className="series-tree-badge" />
+										)}
 										{/* #1222: Empfänger-Kennzeichen für den Ersteller (Muster „Für: …" im TaskTree,
 										    #1213). Der Empfänger selbst sieht kein Kennzeichen — für ihn ist die Serie
 										    eine eigene. */}

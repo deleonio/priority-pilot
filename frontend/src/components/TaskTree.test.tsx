@@ -154,3 +154,47 @@ describe('TaskTree — Erledigt-Guard für eingeblendete Oberaufgaben (#1345, Ta
 		await waitFor(() => expect(onDelete).toHaveBeenCalledWith(parentTask));
 	});
 });
+
+// ── #1430 (AK1/AK2): Hinweis-Badge für Tasks mit nicht-leerem `description` ─────────────────
+
+/**
+ * #1430 (AK1/AK2, docs/spec/issue-1430.md): Ein Task mit nicht-leerem `description` (nach
+ * `trim()`) zeigt in der Badge-Zeile zusätzlich ein Text-Badge „Hinweis" (KolBadge, WCAG 1.4.1 —
+ * nie nur Farbe). `null`, `''` und reiner Whitespace zählen als „kein Hinweis"; die übrigen
+ * Badges (hier: Priorität) bleiben unverändert vorhanden. Rot, bis `TaskTree.tsx` das Badge
+ * rendert. KEIN Produktivcode.
+ */
+describe('TaskTree — Hinweis-Badge für Tasks mit description (#1430 AK1/AK2)', () => {
+	it('AK1: Task mit description zeigt das Badge „Hinweis"', () => {
+		const leaf = node(1, 'Aufgabe mit Hinweis');
+		render(
+			<TaskTree
+				{...baseProps}
+				forest={[leaf]}
+				fullForest={[leaf]}
+				tasks={[{ ...task(1, 'Aufgabe mit Hinweis'), description: 'Bitte Schlüssel mitnehmen' }]}
+			/>,
+		);
+
+		expect(screen.getByText('Hinweis')).toBeInTheDocument();
+	});
+
+	it.each([
+		['null', null],
+		['leerer String', ''],
+		['nur Whitespace', '   '],
+	])('AK2: Task mit description=%s zeigt KEIN Badge „Hinweis", Prioritäts-Badge bleibt', (_label, description) => {
+		const leaf = node(1, 'Aufgabe ohne Hinweis');
+		render(
+			<TaskTree
+				{...baseProps}
+				forest={[leaf]}
+				fullForest={[leaf]}
+				tasks={[{ ...task(1, 'Aufgabe ohne Hinweis'), description }]}
+			/>,
+		);
+
+		expect(screen.queryByText('Hinweis')).toBeNull();
+		expect(screen.getByText('P3')).toBeInTheDocument();
+	});
+});

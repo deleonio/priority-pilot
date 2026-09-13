@@ -822,6 +822,26 @@ paths:
                   $ref: '#/components/schemas/Milestone'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/missed:
+    get:
+      summary: Verpasste Aufgaben — vom Auto-Delete-Cron bereinigte Aufgaben (Sichtbarkeit im Bewertungssystem)
+      description: >-
+        Liefert die Aufgaben des eingeloggten Nutzers, die vom Auto-Delete-Cron
+        (`runDeadlineAutoDelete`, Issue #523) wegen abgelaufener Deadline hart gelöscht
+        wurden — als Schnappschuss zum Löschzeitpunkt, da die Original-Aufgabe danach
+        nicht mehr existiert. Rein informativ: fließt NICHT in `berechneScore`,
+        `berechneStreak` oder `berechneMeilensteine` ein — keine Minuspunkte, kein
+        Streak-Malus.
+      operationId: getMissedTasks
+      responses:
+        '200':
+          description: Anzahl und jüngste Einträge der verpassten Aufgaben
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissedTasksSummary'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -3787,6 +3807,42 @@ components:
         erreicht:
           type: boolean
           description: Ob die Schwelle mit den aktuellen Bestandsdaten erreicht ist.
+    MissedTask:
+      type: object
+      required:
+        - taskId
+        - title
+        - deadline
+        - verpasstAm
+      properties:
+        taskId:
+          type: integer
+          description: ID der ursprünglichen (inzwischen gelöschten) Aufgabe.
+        title:
+          type: string
+          description: Titel der Aufgabe zum Zeitpunkt der Löschung.
+        deadline:
+          type: string
+          format: date-time
+          description: Deadline der Aufgabe zum Zeitpunkt der Löschung.
+        verpasstAm:
+          type: string
+          format: date-time
+          description: Zeitpunkt, zu dem der Auto-Delete-Cron die Aufgabe gelöscht hat.
+    MissedTasksSummary:
+      type: object
+      required:
+        - anzahl
+        - eintraege
+      properties:
+        anzahl:
+          type: integer
+          description: Gesamtzahl der bislang vom Auto-Delete-Cron gelöschten Aufgaben des Nutzers.
+        eintraege:
+          type: array
+          description: Die jüngsten verpassten Aufgaben (neueste zuerst, maximal 20 Einträge).
+          items:
+            $ref: '#/components/schemas/MissedTask'
     SeriesRhythm:
       type: string
       enum:
