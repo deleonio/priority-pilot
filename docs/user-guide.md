@@ -232,8 +232,10 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
   (siehe „Lebensbalance-Säulen").
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
-  einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint nur beim Anlegen
-  (nicht beim Bearbeiten) und nur, solange du Mitglied mindestens einer Gruppe bist.
+  einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint, solange du Mitglied
+  mindestens einer Gruppe bist. Wählst du beim **Bearbeiten** ein fremdes Konto,
+  übergibst du die Aufgabe mit dem Speichern – danach siehst du sie nur noch mit
+  dem Kennzeichen „Für: {Name}". Ein Hinweis unter dem Feld sagt dir das vorher.
 
 Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
 
@@ -435,6 +437,11 @@ erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
 Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
 weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
 
+Hat jemand aus einer Gruppe eine Serie für dich angelegt und endet die gemeinsame
+Mitgliedschaft – weil jemand die Gruppe verlässt oder die Gruppe gelöscht wird –,
+trägt diese Serie das Kennzeichen **Ruhend**. Sie erzeugt dann keine neuen Aufgaben
+mehr; bearbeiten und löschen kannst du sie weiterhin.
+
 ### Serien bearbeiten – Kaskade auf bestehende Instanzen
 
 Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
@@ -532,6 +539,14 @@ der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
   mit **„Anzeigename speichern"** übernehmen.
 - **Darstellung** – wähle das Farbschema: **System**, **Hell** oder **Dunkel**.
   „System" folgt der Einstellung deines Betriebssystems.
+- **Sprache** – die Sprache der Oberfläche. Zur Wahl stehen Deutsch, Englisch,
+  Französisch, Italienisch, Niederländisch, Polnisch, Portugiesisch, Russisch,
+  Schwedisch und Spanisch; jede steht in der Liste in ihrer eigenen Schreibweise.
+  Übersetzt sind bislang nur einzelne Bereiche der App – der größte Teil der
+  Beschriftungen bleibt unabhängig von der Wahl deutsch.
+  Die Wahl wirkt sofort und bleibt auf diesem Gerät gespeichert. Ohne eigene Wahl
+  richtet sich die App nach der Spracheinstellung deines Browsers; ist deren
+  Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Herzens auf dem Dashboard und
   den Ablauf beim Erledigen einer Aufgabe.
