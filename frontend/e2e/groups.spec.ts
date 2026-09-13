@@ -24,7 +24,7 @@ const openGroupsTab = async (page: Page): Promise<void> => {
 const createGroupViaUi = async (page: Page, name: string, description?: string): Promise<void> => {
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeVisible();
-	await page.getByRole('textbox', { name: 'Name' }).fill(name);
+	await page.getByRole('searchbox', { name: 'Name' }).fill(name);
 	if (description !== undefined) {
 		await page.getByRole('textbox', { name: 'Beschreibung' }).fill(description);
 	}
@@ -80,7 +80,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 	test('Leerer Name im Dialog bleibt mit deutscher Meldung abgewiesen (AK6/AK4)', async ({ page }) => {
 		await openGroupsTab(page);
 		await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
-		await page.getByRole('textbox', { name: 'Name' }).fill('');
+		await page.getByRole('searchbox', { name: 'Name' }).fill('');
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		// Inline-Validierung (KI-UX): Dialog bleibt offen, Meldung sichtbar, nichts angelegt.
 		await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeVisible();

@@ -76,7 +76,7 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(name);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
 		await dialog.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		// Bewusst auf die LISTE geprüft, nicht auf beliebigen Text: Der Anlege-Dialog zeigt den Namen

@@ -224,6 +224,7 @@ export const ApiTokensSection = () => {
 					</p>
 					<KolInputText
 						_label="Name des Tokens"
+						_type="search"
 						_value={name}
 						_on={{ onInput: (_event, value) => setName(String(value)) }}
 					/>

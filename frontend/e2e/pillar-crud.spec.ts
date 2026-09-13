@@ -55,7 +55,7 @@ test.describe('#439 Säulen-Verwaltung — CRUD im Einstellungen-Tab', () => {
 		await waitForStableView(page, 'Priority Pilot');
 
 		const dialog = page.locator('kol-dialog');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(name);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
 		if (description !== undefined) {
 			await dialog.getByRole('textbox', { name: 'Beschreibung' }).fill(description);
 		}
@@ -118,7 +118,7 @@ test.describe('#439 Säulen-Verwaltung — CRUD im Einstellungen-Tab', () => {
 
 		const dialog = page.locator('kol-dialog');
 		const newName = uniqueName('Umbenennen-B');
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(newName);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(newName);
 		await dialog.getByRole('button', { name: 'Speichern' }).click();
 
 		// Neuer Name muss sichtbar sein
@@ -254,7 +254,7 @@ test.describe('#439 Säulen-Verwaltung — CRUD im Einstellungen-Tab', () => {
 
 		const dialog = page.locator('kol-dialog');
 		const renamed = `${name}-umbenannt`;
-		await dialog.getByRole('textbox', { name: 'Name' }).fill(renamed);
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill(renamed);
 		await dialog.getByRole('button', { name: 'Speichern' }).click();
 		await expect(page.getByText(renamed, { exact: true })).toBeVisible();
 

@@ -62,10 +62,10 @@ test.describe('KI-Provider-Einstellungen', () => {
 		const dialog = page.locator('kol-dialog');
 		await expect(dialog.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeVisible();
 
-		await dialog.getByRole('textbox', { name: 'Name' }).fill('E2E Provider');
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill('E2E Provider');
 		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
 		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
-		await dialog.getByRole('textbox', { name: 'Modell' }).fill('e2e-model');
+		await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model');
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeHidden();
 

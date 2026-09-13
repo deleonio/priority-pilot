@@ -1555,6 +1555,7 @@ export const TaskForm = ({
 									<KolInputText
 										_label="Checklisten-Eintrag"
 										_hideLabel
+										_type="search"
 										_value={newChecklistTitle}
 										_on={{
 											onChange: (_event, value) => setNewChecklistTitle(readString(value)),

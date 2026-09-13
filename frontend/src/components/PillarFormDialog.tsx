@@ -98,6 +98,7 @@ export const PillarFormDialog = ({ pillar, onClose, onSaved }: PillarFormDialogP
 					_label="Name"
 					_required
 					_maxLength={PILLAR_NAME_MAX_LENGTH}
+					_type="search"
 					_value={nameState}
 					_on={{
 						onInput: (_event, value) => {
