@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #236 — „Frontend: Schnellerfassungs-UI für Tasks (Textarea + LLM-Vorausfüllung)".
@@ -103,7 +103,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await openTasksTab(page);
 		// Die Aufgabenliste ist seit #238 keine Table mehr: der Titel ist direkt als
 		// Textinhalt des span.task-tree-title sichtbar (analog crud.spec.ts).
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 
 	test('AC2b: „Überspringen" mit Text setzt eingegebenen Text als Beschreibungs-Vorbelegung', async ({ page }) => {

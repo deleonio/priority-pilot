@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { measureHorizontalScroll, waitForStableView } from './helpers';
+import { measureHorizontalScroll, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests (#228 / #307): die Erledigt-Ansicht — Tabelle NUR mit erledigten Tasks, Punkte je Säule,
@@ -164,11 +164,11 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		await row.getByRole('button', { name: 'Wieder öffnen' }).click();
 
 		// Der Task verschwindet aus den Erledigten (im aktiven Tab nicht mehr sichtbar).
-		await expect(page.getByText(title, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, title)).not.toBeVisible();
 
 		// … und taucht wieder unter „Aufgaben" auf.
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 
 	/**

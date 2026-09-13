@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1213 (AK8, docs/spec/issue-1213.md) — Aufgabe für ein anderes
@@ -132,7 +132,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 
 			// Ersteller-Sicht: Aufgabe lesbar, gekennzeichnet mit „Für: <Empfänger>".
 			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-			const creatorRow = page.getByText('E2E Übergabe-Aufgabe #1', { exact: true });
+			const creatorRow = taskTitleText(page, 'E2E Übergabe-Aufgabe #1');
 			await expect(creatorRow).toBeVisible();
 			await expect(page.getByText(`Für: ${INVITEE_NAME}`)).toBeVisible();
 
@@ -140,7 +140,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 			await inviteePage.goto('/');
 			await waitForStableView(inviteePage);
 			await inviteePage.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-			await expect(inviteePage.getByText('E2E Übergabe-Aufgabe #1', { exact: true })).toBeVisible();
+			await expect(taskTitleText(inviteePage, 'E2E Übergabe-Aufgabe #1')).toBeVisible();
 			await expect(inviteePage.getByText(/Erstellt von: /)).toBeVisible();
 		} finally {
 			await inviteeContext.close();

@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #243 — „CTA Buttons sollen immer mit Strg+Enter abgesendet werden".
@@ -78,7 +78,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Der Dialog schließt sich (Aktion ausgeführt) und der Task erscheint in der Liste.
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 
 	test('AK2: ⌘+Enter (macOS) löst dieselbe primäre Aktion aus wie Strg+Enter', async ({ page }) => {
@@ -95,7 +95,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 
 	test('AK3: bei deaktiviertem CTA (Pflichtfeld leer) passiert bei Strg+Enter nichts', async ({ page }) => {
@@ -148,7 +148,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		// … und der Task wurde angelegt.
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 
 		// Kein Zeilenumbruch: der gespeicherte Beschreibungstext enthält kein „\n".
 		const response = await page.request.get('/api/v1/tasks');
@@ -185,7 +185,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		expect(overflowAfter, 'Kein horizontales Scrollen nach dem Absenden').toBe(true);
 
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 
 	/**
@@ -214,7 +214,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await createTaskViaUi(page, title);
 
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 
 		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
@@ -228,7 +228,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// seinen eigenen Leerzustand (#1259: das Dashboard-„Noch keine Aufgaben" steht nur auf Tab 0).
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 		await expect(page.getByText('Noch keine Tasks vorhanden. Lege oben einen neuen Task an.')).toBeVisible();
-		await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+		await expect(taskTitleText(page, title)).toHaveCount(0);
 	});
 
 	// --- PillarWeightsModal ----------------------------------------------------------------------
