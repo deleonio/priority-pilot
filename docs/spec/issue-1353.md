@@ -27,8 +27,9 @@ pillars.ts:160`, `routes/categories.ts:126`, `logics/find.ts` (`findNextImportan
   `pillar_list`, `category_list`), erweitert um `task_delete`, `task_links`, `task_unlink`,
   `group_list`, `group_members_list` (#1381/#1396/#1400). Kein Werkzeug bedient eine Route aus
   `server/src/express/routes/admin.ts` oder trägt `admin` im Namen.
-- Sprache: Tool-Descriptions und JSON-RPC-Fehlermeldungen sind englisch (#1370 — Sprache der
-  LLM-Clients); durchgereichte Route-Fehlertexte und die Weboberfläche bleiben deutsch.
+- Sprache: Tool-Descriptions und JSON-RPC-Fehlermeldungen sind englisch (#1370, Analyse und
+  Optionen in `docs/spec/issue-1370.md` — Sprache der LLM-Clients); durchgereichte Route-Fehlertexte
+  und die Weboberfläche bleiben deutsch.
 - Auth: gültiger, nicht zurückgezogener Bearer-Token → Werkzeugliste erreichbar. Fehlender,
   unbekannter oder zurückgezogener Token (`ApiToken.revokedAt` gesetzt) → 401, kein Werkzeug
   aufrufbar.
