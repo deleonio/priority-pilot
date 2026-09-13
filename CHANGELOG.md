@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.29._
+_Enthält v0.2.0 – v0.2.30._
 
 ### 🔧 Engineering
 
@@ -43,6 +43,7 @@ _Enthält v0.2.0 – v0.2.29._
 - feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
 - feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
+- feat(server): track and surface auto-deleted missed tasks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1440
 
 ## v0.1 - 2026-09-12
 
@@ -649,6 +650,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): add three-tier hierarchy to task form (#1159) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1160
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1164
 - chore(deps): update dependency undici@6 to v6.28.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1165
+- chore(deps): update dependency undici@6 to v6.28.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1165
 - chore(deps): update node.js to v26.8.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1166
 - feat(frontend): replace dashboard start button with done dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1170
 - chore(deps): update pnpm to v11.25.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1167
@@ -713,7 +715,6 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(frontend): align heart glass distribution bands with legend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1287
 - fix(ci): remove zai peak-time claude fallback, warn only by @deleonio in https://github.com/deleonio/priority-pilot/pull/1289
 - feat(frontend): task form sections as uniform accordions (#1285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1288
-- design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - feat(frontend): pillar weight ranges in a single card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1291
 - design(frontend): dashboard-hero-lebensbalance-2-3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1292
