@@ -16,7 +16,7 @@ WORK SOURCES (rules and dedup — read fresh):
 ORDER:
   1. BESTAND FIRST: if {{UX_ISSUE_NR}} is not 0, read the body of issue {{UX_ISSUE_NR}} (previous report) and list its carry-over items. Then run `gh issue list --state open --limit 200 --json number,title,labels` and keep the titles as the open-work dedup list.
   2. read ALL goal sources, then the work sources.
-  3. LIVE WALKTHROUGH: the app runs at http://localhost:4174 (inspect instance, no login needed). Use the Playwright browser tools. Walk the key flows at 375px AND 1280px: dashboard, quick task creation, checklist completion, balance pillars + advisor, settings. Screenshot what you judge, store the screenshots under /tmp/ux-team-shots/ and reference their file names in the report.
+  3. LIVE WALKTHROUGH: the app runs at http://localhost:4174 (inspect instance, no login needed). Use the Playwright browser tools. Walk the key flows at 375px AND 1280px: dashboard, quick task creation, checklist completion, balance pillars + advisor, settings. Screenshot what you judge, store the screenshots under .playwright-mcp/ (the MCP server's fixed output root, see .mcp.json) and reference their file names in the report.
   4. SESSION per METHOD: the perspectives judge the walked flows.
   5. CONSOLIDATION: rank by experience gain vs. effort, dedup against the open work, resolve the carry-over statuses.
   6. REPORT as below.

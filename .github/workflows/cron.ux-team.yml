@@ -155,7 +155,7 @@ jobs:
           name: ux-team-report
           path: |
             /tmp/ux-team-report.md
-            /tmp/ux-team-shots/
+            .playwright-mcp/
           if-no-files-found: ignore
 
       - name: Post-Assertion (Verdict ↔ Report) + Issue-Anlage/Update
