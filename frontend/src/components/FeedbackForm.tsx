@@ -64,10 +64,13 @@ export const FeedbackForm = () => {
 					_value={category}
 					_on={{ onChange: (_event, value) => setCategory(readString(value)) }}
 				/>
+				{/* Kein `_type="search"`: das Titel-Feld ist eine Freitext-Eingabe, kein Suchfeld.
+				    `type="search"` würde die ARIA-Rolle auf `searchbox` setzen und Screenreadern ein
+				    Suchfeld ansagen — dieselbe Auszeichnung wie beim Task-Titel (`TaskForm.tsx:1017`),
+				    der ebenfalls ohne `_type` auskommt und in den e2e als `textbox` adressiert wird. */}
 				<KolInputText
 					_label="Titel"
 					_required
-					_type="search"
 					_value={title}
 					_on={{
 						onInput: (_event, value) => setTitle(readString(value)),
