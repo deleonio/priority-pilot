@@ -41,7 +41,8 @@ on:
 
 concurrency:
   # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Läufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
-  # Die Pipeline-Phasen haben je eine eigene Gruppe (`llm-<phase>`) und laufen unabhängig.
+  # Die Pipeline-Phasen (01-06) teilen sich seit PR #1301-Rücktausch eine eigene gemeinsame
+  # Gruppe (`llm`, s. 01-triage.yml) und laufen unabhängig von dieser Gruppe.
   group: llm-sync
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller

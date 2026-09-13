@@ -5,7 +5,7 @@ name: 03 Define Spec
 # direkt von der Analyse-Phase bei Nicht-UI-Tickets).
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #
-# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
+# CONCURRENCY: Statische Gruppe für die Ticket-Pipeline (globale Serialisierung, FIFO). Der `precheck`-Job
 # prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
 # TRIGGER-Zeitpunkt falsch wiederholen (Label inzwischen von einem anderen Lauf konsumiert).
 
@@ -14,9 +14,9 @@ on:
     types: [labeled]
 
 concurrency:
-  # Eigene Gruppe pro Phase: maximal 1 Spec-Lauf gleichzeitig, FIFO. Andere Phasen und
-  # die Sync-/Ad-hoc-Läufe (Gruppe `llm-sync`) laufen davon unabhängig parallel.
-  group: llm-spec
+  # EINE gemeinsame Gruppe für die Ticket-Pipeline (Phasen 01-06): max. 1 Agent-Lauf dieser
+  # Phasen gleichzeitig, FIFO. Cron-/Ad-hoc-Sync bleibt außen vor. Details/Rationale: 01-triage.yml.
+  group: llm
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
