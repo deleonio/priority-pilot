@@ -3,11 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
+import { Impress } from './Impress';
 
 // Tab-Leiste der Hilfe-Seite (#1190). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält (Muster SettingsPage.tsx). Reihenfolge: Handbuch (Index 0,
-// initial aktiv), Changelog (Index 1).
-const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }];
+// initial aktiv), Changelog (Index 1), Impressum (Index 2).
+const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }, { _label: 'Impressum' }];
 
 // Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Seite 1 (100 Einträge)
 // deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
@@ -258,8 +259,9 @@ export const HelpPage = () => {
 							<KolSpin _show _variant="cycle" _label="Lädt Handbuch …" />
 						</div>
 					) : (
-						// Layout: mobil TOC unter dem Text, ab Desktop 2/3 Text + 1/3 Sidebar (TOC).
-						<div className="help-sidebar-layout help-sidebar-layout--sidebar-last">
+						// Layout: mobil TOC über dem Text (wie Changelog), ab Desktop 2/3 Text +
+						// 1/3 Sidebar (TOC).
+						<div className="help-sidebar-layout">
 							<div className="help-sidebar-main">
 								<ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
 									{content}
@@ -281,7 +283,7 @@ export const HelpPage = () => {
 					{changelog.status === 'loaded' && (
 						// Layout: mobil Auswahl-Regler + TOC über dem Text, ab Desktop 2/3 Text +
 						// 1/3 Sidebar (Auswahl-Regler, TOC der Kategorien).
-						<div className="help-sidebar-layout help-sidebar-layout--sidebar-first">
+						<div className="help-sidebar-layout">
 							<div className="help-sidebar-main">
 								{changelogCategories.map((category) => (
 									<section key={category.title} id={slugify(category.title)} className="help-changelog-category">
@@ -306,6 +308,9 @@ export const HelpPage = () => {
 							</aside>
 						</div>
 					)}
+				</div>
+				<div slot="tab-2" className="help-page-content">
+					<Impress />
 				</div>
 			</KolTabs>
 		</div>

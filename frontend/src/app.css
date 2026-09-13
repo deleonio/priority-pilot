@@ -2375,27 +2375,17 @@ body {
 	outline-offset: 2px;
 }
 
-/* Hilfe-Seiten-Layout: 2/3 Inhalt + 1/3 Sidebar (TOC, Auswahl-Regler). Mobil einspaltig —
-	 Handbuch mit TOC UNTER dem Text (`--sidebar-last`), Changelog mit Auswahl-Regler/TOC ÜBER
-	 dem Text (`--sidebar-first`), damit der Regler da erreichbar bleibt. Ab Desktop-Standard-
-	 Breakpoint 48rem liegt die Sidebar in beiden Tabs rechts. `minmax(0, …)` hält lange
+/* Hilfe-Seiten-Layout: 2/3 Inhalt + 1/3 Sidebar (TOC, Auswahl-Regler). Mobil einspaltig mit
+	 der Sidebar ÜBER dem Text (Changelog: Auswahl-Regler erreichbar, Handbuch: TOC als Einstieg).
+	 Ab Desktop-Standard-Breakpoint 48rem liegt die Sidebar rechts. `minmax(0, …)` hält lange
 	 Markdown-Inhalte (Autolink-URLs, Codespans) im Raster, statt es aufzublasen. */
 .help-sidebar-layout {
 	display: grid;
 	gap: 1rem;
 	grid-template-columns: minmax(0, 1fr);
-}
-
-.help-sidebar-layout--sidebar-first {
 	grid-template-areas:
 		'sidebar'
 		'main';
-}
-
-.help-sidebar-layout--sidebar-last {
-	grid-template-areas:
-		'main'
-		'sidebar';
 }
 
 .help-sidebar-main {
@@ -2412,8 +2402,7 @@ body {
 }
 
 @media (min-width: 48rem) {
-	.help-sidebar-layout--sidebar-first,
-	.help-sidebar-layout--sidebar-last {
+	.help-sidebar-layout {
 		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 		grid-template-areas: 'main sidebar';
 	}
