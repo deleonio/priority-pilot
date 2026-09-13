@@ -13,4 +13,4 @@ RESULT (the very LAST line of your reply):
 - FOUND: true
 - FOUND: false
 
-TIME LIMIT: conclude within ~15 minutes; if the scan runs long, settle for the best candidate found so far.
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: output the best candidate found so far as the result block, end the turn.
