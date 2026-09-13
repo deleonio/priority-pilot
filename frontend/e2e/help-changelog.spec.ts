@@ -16,7 +16,8 @@ import { waitForStableView } from './helpers';
  * bekommt dadurch Zähne. Repo-Links (`github.com/deleonio/priority-pilot`) erscheinen
  * dagegen bewusst NICHT mehr (Direktauftrag 2026-09-13, fortgeschrieben aus PR #1432):
  * `stripRepoLinks` entfernt Markdown-Repo-Links (Linktext bleibt), Autolinks und nackte
- * Repo-URLs — darauf wird hier regressionsgesichert.
+ * Repo-URLs inklusive GitHub-Attribution (`by @<user> in <URL>`, reales Release-Format
+ * wie CHANGELOG.md) — darauf wird hier regressionsgesichert.
  *
  * Overflow wird per Bounding-Box geprüft (rekursiv inkl. Shadow-DOM), nicht per
  * `scrollWidth`: Die App-Shell clippt `overflow-x: hidden` (Erfahrung 2026-08-24).
@@ -33,7 +34,7 @@ const RELEASES_FIXTURE = [
 			'### 💥 Breaking Changes\n\n- Export entfernt',
 			`### 🐞 Bug Fixes\n\n- Absturz beim Speichern behoben, siehe ${LONG_URL}`,
 			`### 🚀 Improvements\n\n- Speichern beschleunigt ([#1204](${REPO_PR_LINK}))`,
-			'### Other Changes\n\n- Aufräumarbeiten',
+			'### Other Changes\n\n- docs(guide): sync user guide by @deleonio in https://github.com/deleonio/priority-pilot/pull/1403',
 		].join('\n\n'),
 	},
 ];
@@ -64,6 +65,9 @@ test.describe('#1206 Changelog-Aggregation auf der Hilfe-Seite', () => {
 		await expect(page.locator(`a[href="${REPO_PR_LINK}"]`)).toHaveCount(0);
 		await expect(page.locator('a[href*="github.com/deleonio/priority-pilot"]')).toHaveCount(0);
 		await expect(page.getByText('Speichern beschleunigt (#1204)')).toBeVisible();
+		// Reales Release-Format: die Attribution verschwindet mit der URL, der Subject-Text bleibt.
+		await expect(page.getByText('docs(guide): sync user guide')).toBeVisible();
+		await expect(page.getByText('by @deleonio in')).toHaveCount(0);
 		await expect(page.locator(`a[href="${LONG_URL}"]`).first()).toBeVisible();
 
 		// Kein sichtbares Element (inkl. KoliBri-Shadow-DOM) ragt über den Viewport.
