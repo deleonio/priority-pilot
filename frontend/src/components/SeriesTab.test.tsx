@@ -278,3 +278,43 @@ describe('SeriesTab — Doppel-POST-Schutz bei generateAll (isGeneratingRef-Guar
 		});
 	});
 });
+
+/**
+ * Nach dem Generieren muss der Serien-Tab der App melden, dass sich der Aufgabenbestand geändert
+ * hat. Ohne dieses Signal bleiben `tasks`/`forest` in `App` auf dem Stand des Seitenaufrufs stehen
+ * (der Tab-Wechsel lädt nicht nach), die frisch materialisierten Instanzen fehlen im Aufgaben-Tab
+ * und lassen sich dort bis zum nächsten Seiten-Reload nicht abhaken.
+ */
+describe('SeriesTab — Signal an die App nach dem Generieren', () => {
+	it('meldet den geänderten Aufgabenbestand, wenn Instanzen erzeugt wurden', async () => {
+		mockListSeries.mockResolvedValue([]);
+		mockGenerateAllSeries.mockResolvedValue({ created: 3 });
+		const onTasksChanged = vi.fn();
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} onTasksChanged={onTasksChanged} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Fällige Instanzen generieren' }));
+		});
+
+		expect(onTasksChanged).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet nichts, wenn der Lauf keine neue Instanz erzeugt hat', async () => {
+		mockListSeries.mockResolvedValue([]);
+		mockGenerateAllSeries.mockResolvedValue({ created: 0 });
+		const onTasksChanged = vi.fn();
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} onTasksChanged={onTasksChanged} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Fällige Instanzen generieren' }));
+		});
+
+		expect(onTasksChanged).not.toHaveBeenCalled();
+	});
+});
