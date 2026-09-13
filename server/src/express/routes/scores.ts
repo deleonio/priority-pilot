@@ -5,6 +5,7 @@ import { Pillar, ScoreEntry, Task, MissedTask } from '../../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
+import { berechneLebensbalance } from '../../logics/heartBalance.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
@@ -15,6 +16,7 @@ type PillarScoreDto = components['schemas']['PillarScore'];
 type StreakDto = components['schemas']['Streak'];
 type MilestoneDto = components['schemas']['Milestone'];
 type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
+type BalanceStatusDto = components['schemas']['BalanceStatus'];
 
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
@@ -132,6 +134,64 @@ scoresRouter.get('/scores/missed', async (req: Request, res: Response<MissedTask
 				deadline: entry.deadline.toISOString(),
 				verpasstAm: entry.verpasstAm.toISOString(),
 			})),
+		});
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// GET /scores/balance — der Stand des Dashboard-Herzens in einer Antwort (#1423): Füllstand, Säulen
+// mit Punktestand und Gewichtung, Streak und die erreichten Meilensteine. Bündelt, was ein
+// MCP-Client sonst über drei Aufrufe zusammensuchen müsste.
+//
+// Punktequelle ist — wie beim Herzen selbst — der anteilig auf die Säulen verteilte **erledigte
+// Aufwand** (siehe logics/heartBalance.ts), NICHT die Gamification-Punkte aus /scores/by-pillar.
+// Gescopet wird strikt mit `ownerScope` auf Säulen und Tasks: die seit #1213 breitere Task-Leseliste
+// (gruppengeteilte fremde Aufgaben, routes/tasks.ts) gehört bewusst nicht in die eigene Balance.
+scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceStatusDto | ErrorDto>) => {
+	try {
+		const userId = getUserId(req);
+		const [saeulen, tasks, entries] = await Promise.all([
+			Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
+			Task.findAll({ where: ownerScope(userId), include: [Pillar] }),
+			ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
+		]);
+
+		const balance = berechneLebensbalance(
+			saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+			tasks.map((task) => ({
+				status: task.status,
+				estimatedEffort: task.estimatedEffort,
+				pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+					pillarId: pillar.id,
+					share: pillar.TaskPillar.share,
+				})),
+			})),
+		);
+
+		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+		const zeitZone = istGueltigeZeitzone(angefragteZone)
+			? angefragteZone
+			: Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+		const { aktuell, best, aktiveTage } = berechneStreak(
+			entries.map((entry) => entry.zeitpunkt),
+			new Date(),
+			zeitZone,
+		);
+		const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
+
+		res.json({
+			// Eine Dezimalstelle: der Füllstand schwankt mit jeder Erledigung, mehr Stellen wären
+			// Rauschen. Die Säulen-Punkte bleiben roh, damit ein Client selbst weiterrechnen kann.
+			fuellstandProzent: Math.round(balance.fill * 1000) / 10,
+			hatPunkte: balance.hasPoints,
+			saeulen: balance.saeulen,
+			streak: { aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null },
+			// Nur die erreichten Stufen: die vollständige Stufenliste liefert /scores/milestones.
+			meilensteine: berechneMeilensteine({ bestStreak: best, punkteSumme }).filter(
+				(meilenstein) => meilenstein.erreicht,
+			),
 		});
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
