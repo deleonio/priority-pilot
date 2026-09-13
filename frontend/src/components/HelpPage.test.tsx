@@ -1,4 +1,5 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpPage } from './HelpPage';
 
@@ -384,7 +385,10 @@ describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', 
 			(li) => li.textContent ?? '',
 		);
 
-	it('lädt Folgeseiten über den Link-Header nach; Default „30" schneidet, „Alle" zeigt alles ohne Refetch', async () => {
+	// Test-Pflege zu PR #1432 Finding #1: Der Default „Letzte 30" lädt nur noch Seite 1 (deckt
+	// die Fixture mit exakt 30 Einträgen bereits ab) statt eagerly die volle Historie; erst „Alle"
+	// löst das Nachladen der Folgeseite über den Link-Header aus.
+	it('lädt initial nur Seite 1; „Alle" lädt die Folgeseite nach, „Letzte 100" braucht danach keinen weiteren Fetch', async () => {
 		const { container } = render(<HelpPage />);
 
 		selectTab(container, 1);
@@ -392,20 +396,28 @@ describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', 
 			expect(changelogEntries(container)).toHaveLength(30);
 		});
 
-		const ghUrls = fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => url.includes('api.github.com'));
-		expect(ghUrls, 'Seite 1 und Folgeseite wurden abgerufen').toEqual([RELEASES_URL, PAGE_TWO_URL]);
-
-		// Alle 35 Releases sind geladen, die Anzeige schneidet client-seitig auf 30.
-		changeLimit(container, 'alle');
-		expect(changelogEntries(container), '„Alle" zeigt alle 35 Einträge').toHaveLength(35);
 		expect(
-			fetchMock.mock.calls.filter(([input]) => String(input).includes('api.github.com')),
-			'kein erneuter Fetch nach Wechsel der Anzeige-Menge',
-		).toHaveLength(2);
+			fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => url.includes('api.github.com')),
+			'Default „30" genügt Seite 1',
+		).toEqual([RELEASES_URL]);
 
-		// „Letzte 100" bei nur 35 vorhandenen Releases: ebenfalls alle.
+		// „Alle" verlangt mehr als geladen ist → Folgeseite wird nachgeladen.
+		changeLimit(container, 'alle');
+		await waitFor(() => {
+			expect(changelogEntries(container), '„Alle" zeigt alle 35 Einträge').toHaveLength(35);
+		});
+		expect(
+			fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => url.includes('api.github.com')),
+			'Folgeseite wird erst bei Bedarf nachgeladen',
+		).toEqual([RELEASES_URL, PAGE_TWO_URL]);
+
+		// „Letzte 100" bei bereits vollständig geladenen 35 Releases: kein erneuter Fetch.
 		changeLimit(container, '100');
 		expect(changelogEntries(container), '„Letzte 100" zeigt alle vorhandenen 35').toHaveLength(35);
+		expect(
+			fetchMock.mock.calls.filter(([input]) => String(input).includes('api.github.com')),
+			'kein weiterer Fetch, da bereits vollständig geladen',
+		).toHaveLength(2);
 	});
 });
 
@@ -448,6 +460,33 @@ describe('HelpPage – Inhaltsverzeichnis in der Sidebar (Handbuch + Changelog)'
 			panel(container, 'tab-0')?.querySelector('.help-toc .help-toc-sub')?.textContent,
 			'Unterabschnitte sind als Ebene 3 markiert',
 		).toContain('Unterabschnitt');
+	});
+
+	// Regressionstest zu PR #1432 Finding #2: Anker-Vergabe zählte bislang während des Renderns
+	// (Map-Mutation in den Heading-Komponenten) — unter `StrictMode` (doppelter Render-Aufruf je
+	// Komponente) liefen TOC-Links dadurch ins Leere. Der Fix vergibt Ids in einem einzigen reinen
+	// `useMemo`-Durchlauf und schlägt sie beim Rendern nur noch per Zeilen-Lookup nach.
+	it('Handbuch: TOC-Links treffen auch unter <StrictMode> ein vorhandenes Anker-Ziel', async () => {
+		const { container } = render(
+			<StrictMode>
+				<HelpPage />
+			</StrictMode>,
+		);
+
+		await waitFor(() => {
+			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
+		});
+
+		const toc = Array.from(panel(container, 'tab-0')?.querySelectorAll('.help-toc a') ?? []);
+		expect(toc.length, 'Handbuch-TOC hat Einträge').toBeGreaterThan(0);
+		for (const link of toc) {
+			const id = (link.getAttribute('href') ?? '').slice(1);
+			expect(id, 'jeder Link trägt einen Anker').not.toBe('');
+			expect(
+				panel(container, 'tab-0')?.querySelector(`[id="${id}"]`),
+				`Anker-Ziel #${id} existiert auch unter StrictMode`,
+			).toBeTruthy();
+		}
 	});
 
 	it('Changelog: TOC listet die Kategorien, Links treffen die Kategorie-Sektionen; Select bleibt in der Sidebar', async () => {

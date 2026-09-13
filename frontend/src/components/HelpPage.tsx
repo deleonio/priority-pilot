@@ -1,5 +1,5 @@
 import { KolSelect, KolSpin, KolTabs } from '@public-ui/react-v19';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
@@ -9,16 +9,15 @@ import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
 // initial aktiv), Changelog (Index 1).
 const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }];
 
-// Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Die API wird vollständig
-// paginiert abgerufen (100 je Seite, Folgeseiten über den `Link`-Header); wie viel davon
-// angezeigt wird, regelt der Auswahl-Regler im Changelog-Tab (30/100/alle). Renovate-/Dependabot-
-// Einträge werden bereits upstream beim Release-Erzeugen ausgeschlossen (.github/release.yml),
-// das Frontend filtert nichts.
+// Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Seite 1 (100 Einträge)
+// deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
+// Folgeseiten über den `Link`-Header nach. Renovate-/Dependabot-Einträge werden bereits upstream
+// beim Release-Erzeugen ausgeschlossen (.github/release.yml), das Frontend filtert nichts.
 const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=100';
 
 // Auswahl-Regler des Changelog-Tabs: Anzeige-Menge der Releases. Werte als String (KoliBri-
-// Select-Option), Default „30" = bisheriges Verhalten. Der Wechsel schneidet nur client-seitig —
-// kein erneuter Fetch.
+// Select-Option), Default „30" = bisheriges Verhalten. Der Wechsel schneidet client-seitig, außer
+// die gewählte Menge übersteigt die bereits geladenen Releases — dann wird nachgeladen (Finding #1).
 const CHANGELOG_LIMIT_OPTIONS = [
 	{ label: 'Letzte 30', value: '30' },
 	{ label: 'Letzte 100', value: '100' },
@@ -65,15 +64,35 @@ const MARKDOWN_COMPONENTS: Components = {
 const nextPageUrl = (linkHeader: string | null): string | null =>
 	linkHeader?.match(/<([^>]+)>;\s*rel="next"/)?.[1] ?? null;
 
-// Die API liefert neueste zuerst — das Frontend rendert in API-Reihenfolge ohne eigene Sortierung.
-const fetchReleases = async (): Promise<GithubRelease[]> => {
-	const releases: GithubRelease[] = [];
-	let url: string | null = RELEASES_URL;
-	while (url) {
-		const response = await fetch(url);
-		if (!response.ok) throw new Error(response.statusText);
-		releases.push(...((await response.json()) as GithubRelease[]));
-		url = nextPageUrl(response.headers.get('Link'));
+// Deckel gegen einen selbstreferenziellen `Link`-Header (Finding #1, PR #1432) — bei 100 Einträgen
+// je Seite decken 20 Seiten 2000 Releases ab, weit über der real zu erwartenden Historie.
+const MAX_RELEASE_PAGES = 20;
+
+interface ReleasesPage {
+	releases: GithubRelease[];
+	/** URL der nächsten Seite, `null` = Historie vollständig geladen. */
+	nextUrl: string | null;
+}
+
+// Eine einzelne Seite (bis zu 100 Releases, neueste zuerst — keine eigene Sortierung im Frontend).
+const fetchReleasesPage = async (url: string): Promise<ReleasesPage> => {
+	const response = await fetch(url);
+	if (!response.ok) throw new Error(response.statusText);
+	const releases = (await response.json()) as GithubRelease[];
+	return { releases, nextUrl: nextPageUrl(response.headers.get('Link')) };
+};
+
+// Setzt eine begonnene Pagination fort (z. B. wenn „Alle" mehr verlangt, als bereits geladen ist).
+// Finding #1 (PR #1432): mit `per_page=100` genügt Seite 1 für „Letzte 30"/„Letzte 100" so gut wie
+// immer — nur „Alle" muss über die volle, wachsende Release-Historie nachladen. Ein unbegrenztes
+// `while (url)` würde bei einem selbstreferenziellen `Link`-Header endlos laufen, daher der Deckel.
+const fetchRemainingReleases = async (start: GithubRelease[], firstUrl: string): Promise<GithubRelease[]> => {
+	const releases = [...start];
+	let url: string | null = firstUrl;
+	for (let page = 0; url && page < MAX_RELEASE_PAGES; page++) {
+		const nextPage: ReleasesPage = await fetchReleasesPage(url);
+		releases.push(...nextPage.releases);
+		url = nextPage.nextUrl;
 	}
 	return releases;
 };
@@ -89,16 +108,6 @@ const slugify = (text: string): string =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 
-/** Flacht die Inline-Kinder einer Markdown-Überschrift zu reinem Text (Grundlage der Slug-Bildung). */
-const headingText = (children: ReactNode): string => {
-	if (typeof children === 'string' || typeof children === 'number') return String(children);
-	if (Array.isArray(children)) return children.map((child) => headingText(child)).join('');
-	if (typeof children === 'object' && children !== null && 'props' in children) {
-		return headingText((children as { props: { children?: ReactNode } }).props.children);
-	}
-	return '';
-};
-
 /** Inhaltsverzeichnis als Linkliste; Ebene 3 (Unterabschnitte) eingerückt, ohne Einträge nicht gerendert. */
 const HelpToc = ({ items, label }: { items: HelpTocItem[]; label: string }) =>
 	items.length === 0 ? null : (
@@ -113,9 +122,14 @@ const HelpToc = ({ items, label }: { items: HelpTocItem[]; label: string }) =>
 		</nav>
 	);
 
-/** Lazy-Zustand des Changelog-Tabs: `idle`/`error` lösen beim Aktivieren einen (neuen) Versuch aus. */
+/** Lazy-Zustand des Changelog-Tabs: `idle`/`error` lösen beim Aktivieren einen (neuen) Versuch aus.
+ * `nextUrl` im `loaded`-Zustand ist die noch nicht abgerufene Folgeseite (`null` = vollständig
+ * geladen) — Grundlage dafür, ob ein Wechsel der Anzeige-Menge nachladen muss (Finding #1). */
 type ChangelogState =
-	{ status: 'idle' } | { status: 'loading' } | { status: 'error' } | { status: 'loaded'; releases: GithubRelease[] };
+	| { status: 'idle' }
+	| { status: 'loading' }
+	| { status: 'error' }
+	| { status: 'loaded'; releases: GithubRelease[]; nextUrl: string | null };
 
 export const HelpPage = () => {
 	const [content, setContent] = useState<string | null>(null);
@@ -133,43 +147,57 @@ export const HelpPage = () => {
 			.catch(() => setContent('# Hilfe\n\n- Handbuch konnte nicht geladen werden.'));
 	}, []);
 
-	// Inhaltsverzeichnis des Handbuchs: aus den Markdown-Quellzeilen (`##`/`###`) mit demselben
-	// Slug-Zähler wie die Anker-Vergabe in `markdownComponents` — beide Durchläufe gehen die
-	// Überschriften in Dokumentreihenfolge durch, Ids matchen also (Duplikate suffigen gleich).
-	const guideToc = useMemo<HelpTocItem[]>(() => {
+	// Einziger, reiner Durchlauf über die Markdown-Quellzeilen als gemeinsame Grundlage für das
+	// Inhaltsverzeichnis (Ebene 2/3) UND die Anker-Vergabe beim Rendern (PR #1432 Finding #2:
+	// ein Slug-Zähler während des Renderns bricht unter `StrictMode`, weil React-Markdown die
+	// Überschriften-Komponenten dort doppelt aufruft). Erfasst ALLE Ebenen (`#`–`####`), nicht
+	// nur `##`/`###` — sonst würde eine `#`- oder `####`-Überschrift denselben Slug-Namensraum
+	// unbemerkt verschieben (zweiter Fund derselben Review-Anmerkung).
+	const guideHeadings = useMemo<{ line: number; id: string; text: string; level: 1 | 2 | 3 | 4 }[]>(() => {
 		if (content === null) return [];
-		const items: HelpTocItem[] = [];
+		const items: { line: number; id: string; text: string; level: 1 | 2 | 3 | 4 }[] = [];
 		const seen = new Map<string, number>();
-		for (const line of content.split('\n')) {
-			const match = /^(#{2,3}) (.+)$/.exec(line.trim());
-			if (!match) continue;
+		content.split('\n').forEach((line, index) => {
+			const match = /^(#{1,4}) (.+)$/.exec(line.trim());
+			if (!match) return;
 			const base = slugify(match[2]) || 'abschnitt';
 			const count = seen.get(base) ?? 0;
 			seen.set(base, count + 1);
 			items.push({
+				line: index + 1,
 				id: count === 0 ? base : `${base}-${count + 1}`,
 				text: match[2],
-				level: match[1].length as 2 | 3,
+				level: match[1].length as 1 | 2 | 3 | 4,
 			});
-		}
+		});
 		return items;
 	}, [content]);
 
-	// Anker-Ids der gerenderten Handbuch-Überschriften: frischer Slug-Zähler je Render-Durchlauf,
-	// damit Ids deterministisch sind und bei Duplikaten deterministische Suffixe erhalten.
-	const seenSlugs = new Map<string, number>();
-	const slugForHeading = (children: ReactNode): string => {
-		const base = slugify(headingText(children)) || 'abschnitt';
-		const count = seenSlugs.get(base) ?? 0;
-		seenSlugs.set(base, count + 1);
-		return count === 0 ? base : `${base}-${count + 1}`;
+	const guideToc = useMemo<HelpTocItem[]>(
+		() =>
+			guideHeadings
+				.filter(
+					(heading): heading is (typeof guideHeadings)[number] & { level: 2 | 3 } =>
+						heading.level === 2 || heading.level === 3,
+				)
+				.map((heading) => ({ id: heading.id, text: heading.text, level: heading.level })),
+		[guideHeadings],
+	);
+
+	// Quellzeile → Anker-Id: `react-markdown` reicht die Position jedes Knotens im `node`-Prop
+	// durch (`passNode`), damit lässt sich die Id rein per Lookup nachschlagen — keine Zählung,
+	// kein Mutieren während des Renderns, also unter `StrictMode` unverwüstlich.
+	const idByLine = useMemo(() => new Map(guideHeadings.map((heading) => [heading.line, heading.id])), [guideHeadings]);
+	const idForNode = (node: unknown): string | undefined => {
+		const line = (node as { position?: { start?: { line?: number } } } | undefined)?.position?.start?.line;
+		return line === undefined ? undefined : idByLine.get(line);
 	};
 	const markdownComponents: Components = {
 		...MARKDOWN_COMPONENTS,
-		h1: ({ children }) => <h2 id={slugForHeading(children)}>{children}</h2>,
-		h2: ({ children }) => <h3 id={slugForHeading(children)}>{children}</h3>,
-		h3: ({ children }) => <h4 id={slugForHeading(children)}>{children}</h4>,
-		h4: ({ children }) => <h5 id={slugForHeading(children)}>{children}</h5>,
+		h1: ({ children, node }) => <h2 id={idForNode(node)}>{children}</h2>,
+		h2: ({ children, node }) => <h3 id={idForNode(node)}>{children}</h3>,
+		h3: ({ children, node }) => <h4 id={idForNode(node)}>{children}</h4>,
+		h4: ({ children, node }) => <h5 id={idForNode(node)}>{children}</h5>,
 	};
 
 	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
@@ -182,14 +210,29 @@ export const HelpPage = () => {
 				setActiveTab(selected);
 				if (selected === 1 && (changelog.status === 'idle' || changelog.status === 'error')) {
 					setChangelog({ status: 'loading' });
-					void fetchReleases()
-						.then((releases) => setChangelog({ status: 'loaded', releases }))
+					void fetchReleasesPage(RELEASES_URL)
+						.then(({ releases, nextUrl }) => setChangelog({ status: 'loaded', releases, nextUrl }))
 						.catch(() => setChangelog({ status: 'error' }));
 				}
 			},
 		}),
 		[changelog.status],
 	);
+
+	// Wechsel der Anzeige-Menge lädt nur nach, wenn die gewählte Menge über die bereits geladenen
+	// Releases hinausgeht UND noch nicht die volle Historie geladen ist (Finding #1, PR #1432):
+	// „Letzte 30"/„Letzte 100" sind mit Seite 1 (100 Einträge) so gut wie immer schon gedeckt.
+	const handleLimitChange = (value: ChangelogLimit): void => {
+		setLimit(value);
+		if (changelog.status !== 'loaded' || changelog.nextUrl === null) return;
+		const needsMore = value === 'alle' || Number(value) > changelog.releases.length;
+		if (!needsMore) return;
+		const { releases, nextUrl } = changelog;
+		setChangelog({ status: 'loading' });
+		void fetchRemainingReleases(releases, nextUrl)
+			.then((allReleases) => setChangelog({ status: 'loaded', releases: allReleases, nextUrl: null }))
+			.catch(() => setChangelog({ status: 'error' }));
+	};
 
 	// Angezeigte Kategorien (der Auswahl-Regler schneidet client-seitig) — Grundlage für die
 	// Kategorien-Sektionen und das Changelog-Inhaltsverzeichnis.
@@ -257,7 +300,7 @@ export const HelpPage = () => {
 									_label="Anzeige"
 									_options={CHANGELOG_LIMIT_OPTIONS}
 									_value={limit}
-									_on={{ onChange: (_event, value) => setLimit(value as ChangelogLimit) }}
+									_on={{ onChange: (_event, value) => handleLimitChange(value as ChangelogLimit) }}
 								/>
 								<HelpToc items={changelogToc} label="Changelog-Inhaltsverzeichnis" />
 							</aside>
