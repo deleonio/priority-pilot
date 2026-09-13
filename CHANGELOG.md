@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.34._
+_Enthält v0.2.0 – v0.2.35._
 
 ### 🔧 Engineering
 
@@ -48,6 +48,7 @@ _Enthält v0.2.0 – v0.2.34._
 - feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
 - fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
+- feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 
 ## v0.1 - 2026-09-12
 
@@ -658,7 +659,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): replace dashboard start button with done dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1170
 - chore(deps): update pnpm to v11.25.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1167
 - chore(deps): update dependency @evilmartians/lefthook to v2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1174
-- chore(deps): update dependency @evilmartians/lefthook to v2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1174
+- fix(deps): update dependency express-rate-limit to v8.7.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1171
 - fix(deps): update dependency express-rate-limit to v8.7.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1171
 - chore(deps): update dependency @testing-library/jest-dom to v7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1175
 - chore(deps): update dependency @tootallnate/once to v3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1176
