@@ -622,6 +622,21 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			sendError(res, 400, validation.message);
 			return;
 		}
+		// Done-Bearbeitungssperre (#1438): ein bereits erledigter Task ist gegen inhaltliche
+		// Änderungen eingefroren, solange der Request den Status nicht im selben Aufruf von
+		// „Done" wegändert (Reopen bleibt möglich, auch zusammen mit inhaltlichen Feldern).
+		const staysDone =
+			task.status === 'Done' && (validation.attrs.status === undefined || validation.attrs.status === 'Done');
+		if (staysDone) {
+			const hasContentField =
+				Object.keys(validation.attrs).some((key) => key !== 'status') ||
+				validation.pillars !== undefined ||
+				(req.body as { userId?: unknown }).userId !== undefined;
+			if (hasContentField) {
+				sendError(res, 409, 'Ein erledigter Task kann erst nach dem Wiedereröffnen inhaltlich bearbeitet werden.');
+				return;
+			}
+		}
 		const userId = getUserId(req);
 		// #1252: optionaler Empfänger — Übergabe der Aufgabe an ein Gruppenmitglied. Muster
 		// `POST /tasks` (#1213): ohne das Feld (oder mit der eigenen ID) ändert sich am bisherigen

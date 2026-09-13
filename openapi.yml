@@ -94,6 +94,11 @@ paths:
           $ref: '#/components/responses/NotFound'
     patch:
       summary: Einen Task teilweise aktualisieren
+      description: >-
+        Ein bereits erledigter Task (`status: Done`) ist gegen inhaltliche Änderungen
+        eingefroren: solange der Request den Status nicht im selben Aufruf von `Done`
+        wegändert, wird er mit `409` abgelehnt (#1438). Ein reines Wiedereröffnen
+        (`status`, ggf. zusammen mit inhaltlichen Feldern) bleibt möglich.
       operationId: updateTask
       requestBody:
         required: true
@@ -112,6 +117,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       summary: Einen Task löschen
       operationId: deleteTask
