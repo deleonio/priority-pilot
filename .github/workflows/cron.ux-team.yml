@@ -95,7 +95,7 @@ jobs:
           browser-mcp: true
           # review-Tier: volles Lesen (Read/Glob/Grep/Bash) für Quellen + App-Code, aber
           # Code schreibgeschützt (kein Bypass) — der Agent ändert nichts, der Report geht
-          # per Bash-Heredoc nach /tmp (Write-Tool ist hier bewusst nicht erlaubt).
+          # nach /tmp (Tier erlaubt Edit(//tmp/**), Repo-Code bleibt schreibgeschützt).
           tools-tier: review
           event-type: ${{ github.event_name }}
           # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
@@ -153,7 +153,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ux-team-report
-          path: /tmp/ux-team-report.md
+          path: |
+            /tmp/ux-team-report.md
+            /tmp/ux-team-shots/
           if-no-files-found: ignore
 
       - name: Post-Assertion (Verdict ↔ Report) + Issue-Anlage/Update

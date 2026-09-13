@@ -88,15 +88,15 @@ real_text_len() { printf '%s' "$1" | tr -s '[:space:]' ' ' | wc -c | tr -d ' '; 
 # Helper-Report (Prompt-Audit, UX-Team), kein Autoren-Ticket; (3) Legacy:
 # Analyse-Block direkt im Body (Tickets vor der Umstellung). Guete ist dann durch die
 # gelaufene Analyse selbst gesichert.
-LABELS="$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
-  --jq '[.labels[].name]' 2>/dev/null)" || LABELS=""
-IN_PIPELINE="$(printf '%s' "$LABELS" | jq -r 'any(. == "ai:analysed")' 2>/dev/null)" || IN_PIPELINE=""
 # ci:*-Issues (Prompt-Audit, UX-Team) sind maschinell erzeugte Helper-Reports, keine
 # Autoren-Tickets — der Template-Check ist auf sie nicht anwendbar.
-IN_CI="$(printf '%s' "$LABELS" | jq -r 'any(startswith("ci:"))' 2>/dev/null)" || IN_CI=""
+SIGNALS="$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
+  --jq '[.labels[].name] | "\(any(. == "ai:analysed")) \(any(startswith("ci:")))"' 2>/dev/null)" || SIGNALS=""
+IN_PIPELINE="${SIGNALS%% *}"
+IN_CI="${SIGNALS##* }"
 if [ "$IN_PIPELINE" = "true" ] || [ "$IN_CI" = "true" ] || printf '%s' "$BODY" | grep -q 'KI-ANALYSE:START'; then
   echo "skipped=true" >> "$GITHUB_OUTPUT"
-  emit true "Ticket ist in der Pipeline (ai:analysed bzw. Analyse-Block vorhanden) — Vorab-Check uebersprungen." ""
+  emit true "Ticket ist in der Pipeline oder ein maschineller ci:*-Report — Vorab-Check uebersprungen." ""
   exit 0
 fi
 echo "skipped=false" >> "$GITHUB_OUTPUT"

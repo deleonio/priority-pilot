@@ -34,7 +34,7 @@ REPORT (MANDATORY): write via bash heredoc to /tmp/ux-team-report.md. The workfl
   `### Rang <n> — <Fluss/Kontext>`
   Beobachtung (with anchor: screenshot file name, file/line, or guide passage) — why it hurts the experience — concrete suggestion — **Erlebnisgewinn** (hoch/mittel/niedrig) — **Aufwand** (leicht/mittel/schwer). User language, not framework language.
   ## Umsetzungs-Kandidaten
-  EXACTLY 3 (fewer only if there are fewer findings). Each as a paste-ready ticket draft in the issue-template structure: **Was ist das Problem?** / **Wie soll es sein?** / **Wo tritt es auf?** / **Woran messen wir das?** (at least one dash-bullet, verifiable from outside) — plus **Thema**: UX/UI and **Komplexität** (Einfach | Mittel | Komplex).
+  HÖCHSTENS 3 (weniger ist ausdrücklich in Ordnung — lieber zwei tragfähige als drei aufgefüllte). Each as a paste-ready ticket draft in the issue-template structure: **Was ist das Problem?** / **Wie soll es sein?** / **Wo tritt es auf?** / **Woran messen wir das?** (at least one dash-bullet, verifiable from outside) — plus **Thema**: UX/UI and **Komplexität** (Einfach | Mittel | Komplex).
   ## Entscheidung
   One line: der Mensch entscheidet, welche Kandidaten als Tickets angelegt werden.
 
