@@ -226,9 +226,7 @@ export const Dashboard = ({
 							</p>
 						) : (
 							<div className="dashboard-next-task-content">
-								<span className="dashboard-next-task-title">
-									#{nextTask.id} – {nextTask.title}
-								</span>
+								<span className="dashboard-next-task-title">{nextTask.title}</span>
 								<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
 								{onCompleteTask !== undefined && (
 									<KolButton
@@ -261,9 +259,7 @@ export const Dashboard = ({
 					<ol className="dashboard-suggestions-list">
 						{suggestionsFiltered.map((task) => (
 							<li key={task.id} className="dashboard-suggestion">
-								<span className="dashboard-suggestion-title">
-									#{task.id} – {task.title}
-								</span>
+								<span className="dashboard-suggestion-title">{task.title}</span>
 								<span className="dashboard-suggestion-meta">(Priorität {task.priority})</span>
 							</li>
 						))}
