@@ -150,7 +150,7 @@ export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFuncti
 		return;
 	}
 	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read') {
-		sendError(res, 403, 'Dieser Token erlaubt nur lesenden Zugriff.');
+		sendError(res, 403, 'This token allows read access only.');
 		return;
 	}
 	next();

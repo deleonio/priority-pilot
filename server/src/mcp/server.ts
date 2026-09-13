@@ -53,7 +53,7 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	const body = (req.body ?? {}) as JsonRpcRequest;
 	const id = body.id ?? null;
 	if (body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
-		sendRpcError(res, id, JSONRPC_INVALID_REQUEST, 'Ungültiger JSON-RPC-Request.');
+		sendRpcError(res, id, JSONRPC_INVALID_REQUEST, 'Invalid JSON-RPC request.');
 		return;
 	}
 	// Notification (kein `id`): der Client erwartet keine Antwort — nur quittieren.
@@ -79,14 +79,14 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	}
 
 	if (body.method !== 'tools/call') {
-		sendRpcError(res, id, JSONRPC_METHOD_NOT_FOUND, `Unbekannte Methode: ${body.method}`);
+		sendRpcError(res, id, JSONRPC_METHOD_NOT_FOUND, `Unknown method: ${body.method}`);
 		return;
 	}
 
 	const params = (body.params ?? {}) as { name?: unknown; arguments?: unknown };
 	const tool = findMcpTool(params.name);
 	if (!tool) {
-		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, `Unbekanntes Werkzeug: ${String(params.name)}`);
+		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, `Unknown tool: ${String(params.name)}`);
 		return;
 	}
 	// Rechtestufe (#1356) am Werkzeug prüfen, nicht erst am Loopback: die gespiegelte Route würde
@@ -98,8 +98,8 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 			res,
 			id,
 			JSONRPC_INVALID_PARAMS,
-			`Das Werkzeug "${tool.name}" schreibt, dieser Token erlaubt nur lesenden Zugriff. ` +
-				'In den Einstellungen unter „Zugriff" lässt sich der Token auf „Lesen und Schreiben" umschalten.',
+			`The tool "${tool.name}" writes data, but this token allows read access only. ` +
+				'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).',
 		);
 		return;
 	}
@@ -131,7 +131,7 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 		const payload = await tool.run(context, args);
 		sendResult(res, id, { content: [{ type: 'text', text: JSON.stringify(payload) }] });
 	} catch (error) {
-		const message = error instanceof Error ? error.message : 'Werkzeugaufruf fehlgeschlagen.';
+		const message = error instanceof Error ? error.message : 'Tool call failed.';
 		// Auch ins Serverlog: ein fehlgeschlagener Werkzeugaufruf hinterließ bisher NUR den Text im
 		// Client. Bricht ein Client mit „MCP tool call failed" ab, ohne den JSON-RPC-Fehler zu zeigen,
 		// war der Vorfall damit gar nicht nachvollziehbar.
