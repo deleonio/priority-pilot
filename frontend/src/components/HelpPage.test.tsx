@@ -101,14 +101,14 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 		cleanup();
 	});
 
-	it('AK1: KolTabs mit Labels [Handbuch, Changelog, Impressum]; Handbuch bleibt nach Tab-Wechsel erhalten', async () => {
+	it('AK1: KolTabs mit Labels [Handbuch, Changelog, Impressum, Feedback]; Handbuch bleibt nach Tab-Wechsel erhalten', async () => {
 		const { container } = render(<HelpPage />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		expect(
 			tabsEl?._tabs?.map((t) => t._label),
-			'drei Tabs, Handbuch zuerst (= initial aktiv)',
-		).toEqual(['Handbuch', 'Changelog', 'Impressum']);
+			'vier Tabs (Feedback seit #1435), Handbuch zuerst (= initial aktiv)',
+		).toEqual(['Handbuch', 'Changelog', 'Impressum', 'Feedback']);
 
 		// Handbuch-Inhalt ist initial gerendert (Panel slot="tab-0" bleibt gemountet).
 		await waitFor(() => {
