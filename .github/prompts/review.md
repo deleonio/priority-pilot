@@ -5,7 +5,7 @@ FOCUS: ONLY PR {{PR_NR}}. ONLY check the diff. NO side trips. Save tokens: short
 
 CI STATUS (the workflow waited for the checks to finish before starting you — this is the result, do NOT poll `gh pr checks` again):
 {{CI_STATUS}}
-  - RED means blocking, in BOTH modes: read the failing job's log (`gh run list --branch <head> --workflow Verify`, then `gh run view <id> --log-failed`), name each failing job as its own finding in the collected comment ("📋 Offene Findings", `Ort` = the failing job/test) and VERDICT: needs-fixup — bundled with your code findings in ONE fixup round. Never verdict `reviewed` while CI is red.
+  - RED means blocking, in BOTH modes: find the failing run (`gh run list --branch <head> --workflow Verify`), then delegate the log read to the `gate-runner` role (SKILL.md → Delegation) instead of reading `gh run view <id> --log-failed` yourself — it returns job name, exit code, and the first failure signature, never the raw log. Name each failing job as its own finding in the collected comment ("📋 Offene Findings", `Ort` = the failing job/test) and VERDICT: needs-fixup — bundled with your code findings in ONE fixup round. Never verdict `reviewed` while CI is red.
   - UNKNOWN (timeout/no checks) means: review the diff as usual and note in the collected comment that the CI result was not available.
 
 Determine MODE (VERY FIRST step) per SKILL.md step 5 (marker search for the existing <!-- ai-review --> collected comment):
@@ -23,7 +23,8 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
   1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt (CI delta; not in the SKILL). Check line 2 for whether this was a "Review ohne Issue".
-  2. Claim checklist (fixup's <!-- ai-fixup-decisions --> comment: "✅ Behobene Anmerkungen" rows) + delta scoping per
+  2. Claim checklist (fixup's <!-- ai-fixup-decisions --> comment: "✅ Behobene Anmerkungen" rows,
+     `| # | Finding | Behoben via | Datum |`) + delta scoping per
      review-kreuzverhoer SKILL.md step 5 — verify each claim row against the fixup diff; findings without a claim row stay open.
      - If the original review was "ohne Issue": continue using PR description as the informal specification (no AK verification possible).
 

@@ -1,19 +1,24 @@
-Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are ONE phase (ADR 0005) — method: .claude/skills/ticket-implementation/SKILL.md (step 5, cross-examination loop; incl. its Delegation section: gate runs and search questions go to haiku subagent roles).
+Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are ONE phase (ADR 0005) — method: .claude/skills/ticket-implementation/SKILL.md (step 5 — only the findings-handling part [3] and the loop guard ["after 3 rounds, a human decides"]; triggering the cross-examination is the review phase's job, not this one; incl. its Delegation section: gate runs and search questions go to haiku subagent roles).
 
 PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
 2. Read findings SCOPED (mirrors the review's own diff scoping, review-kreuzverhoer SKILL.md step 5): open findings from the collected ai-review comment — the 📋 Offene-Findings table (`Ort` = diff anchor, `#`+`Titel` = claim reference, format per review-kreuzverhoer SKILL.md) + review threads + CI — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
    - ai-review comment: `gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments --jq '.[] | select(.body | startswith("<!-- ai-review -->"))'`
    - threads: `gh api repos/{owner}/{repo}/pulls/{{PR_NR}}/comments`
-3. Fix:
-   - Unambiguous findings → change the code, run the GATE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning), commit+push (your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md stays LOCAL, gitignored — the workflow uploads it as an artifact at phase end, ADR 0010), resolve the thread:
-     `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{path line}}}}}}}' -f o=<owner> -f r=<repo> -F n={{PR_NR}} --jq '.data.repository.pullRequest.reviewThreads.nodes[] | [.id, .isResolved, .comments.nodes[0].path, .comments.nodes[0].line] | @tsv'` (pick the thread ID by path/line, skip `isResolved=true`; threads are GraphQL-only — REST `pulls/{pr}/threads` does NOT exist, and gh has NO native resolve command) → `gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id}}}' -f t=<thread-id>`
-   - **Nachweis-Tabelle MITFUEHREN (every round, not only terminal):** after EVERY fix commit, add a row
-     `| <N> | <finding short title> | <SHA> | <date> |` to "## ✅ Behobene Anmerkungen" of the
-     ai-fixup-decisions collected comment (find the existing one via its marker and PATCH it — never
-     a new comment). The follow-up review verifies THIS table as its claim checklist instead of
-     re-walking the delta — a missing row keeps the finding open and costs a round.
-   - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve; end the round with NO commit and NO verdict — the next run reads the answer); if not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
+3. Fix (batch the whole round — don't repeat GATE/commit/push/resolve per finding, AGENTS.md "Turns bündeln"):
+   - Unambiguous findings → change the code for ALL of them first. Once every unambiguous finding of
+     this round is fixed:
+     a. Run the GATE ONCE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning).
+     b. ONE commit+push for the whole round (your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md stays LOCAL, gitignored — the workflow uploads it as an artifact at phase end, ADR 0010).
+     c. Resolve ALL of this round's threads in one pass — list them, then one mutation call per thread:
+       `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{path line}}}}}}}' -f o=<owner> -f r=<repo> -F n={{PR_NR}} --jq '.data.repository.pullRequest.reviewThreads.nodes[] | [.id, .isResolved, .comments.nodes[0].path, .comments.nodes[0].line] | @tsv'` (pick each thread ID by path/line, skip `isResolved=true`; threads are GraphQL-only — REST `pulls/{pr}/threads` does NOT exist, and gh has NO native resolve command) → `gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id}}}' -f t=<thread-id>`
+     d. **Nachweis-Tabelle MITFUEHREN (every round, not only terminal):** ONE PATCH adds a row for
+        EVERY finding fixed this round, `| <N> | <finding short title> | <SHA> | <date> |`, to
+        "## ✅ Behobene Anmerkungen" of the ai-fixup-decisions collected comment (find the existing
+        one via its marker and PATCH it — never a new comment). The follow-up review verifies THIS
+        table as its claim checklist instead of re-walking the delta — a missing row keeps the
+        finding open and costs a round.
+   - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve, NO verdict — the next run reads the answer). This blocks only THIS finding, not the round: the unambiguous findings of the same round still go through a–d (GATE, commit+push, resolve, ✅ row). Only if the round has NO unambiguous finding at all does it end with no commit. If not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
 4. **Decision findings** → the review's option ID is only a PROPOSAL; wait for the human's choice (their reply comment carries the option ID), then implement EXACTLY that option
 5. **CI red**:
    - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, wait 60s
@@ -25,7 +30,7 @@ PROCEDURE:
 
 WRAP-UP:
 - `VERDICT: needs-human` for decision findings (TERMINAL)
-- `VERDICT: already-done` for "everything done, no commit needed" (justification per finding `Finding #<N> — fixed in <SHA>` in the ✅ Behobene Anmerkungen table of the ai-fixup-decisions comment)
+- `VERDICT: already-done` for "everything done, no commit needed" (add a row per finding to the ✅ Behobene Anmerkungen table of the ai-fixup-decisions comment — same `| <N> | <finding short title> | <SHA> | <date> |` format as step 3)
 - Otherwise NO verdict (commits determine progress)
 
 For needs-human/already-done, deliver it TWICE:

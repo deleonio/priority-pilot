@@ -83,6 +83,15 @@ jobs:
           tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
           tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
 
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # 900s (15 min) Luft vor dem 30-min-Job-Timeout — vorher war "~15 Minuten" nur
+          # Freitext, für den Agenten ohne Zugriff auf seine eigene Startzeit nicht prüfbar.
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"
+
       - name: Bekannte offene Optimierungs-Issues listen
         # DEDUP-Eingabe: Der Agent schlägt nichts erneut vor, was schon als offenes
         # Ticket wartet. Label existiert beim ersten Lauf noch nicht → leere Liste.
@@ -110,6 +119,8 @@ jobs:
             echo "## Bereits bekannte offene Optimierungs-Issues (nicht erneut vorschlagen)"
             if [ -s /tmp/known-issues.md ]; then cat /tmp/known-issues.md; else echo "- (keine)"; fi
           } >> /tmp/claude-prompt.txt
+
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
