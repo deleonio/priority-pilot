@@ -20,6 +20,7 @@ import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
+import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
@@ -34,6 +35,7 @@ import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
+import type { MailSender } from '../logics/mail.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
@@ -59,6 +61,8 @@ export interface AppDeps {
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 	pushSender?: PushSender;
+	/** Testmail-Versand für `POST /mail/test` (#1426) — Tests injizieren hieran einen Mock. */
+	mailSender?: MailSender;
 	/** Upstream für `GET /llm-providers/{id}/models` — Tests injizieren hieran einen Mock. */
 	fetchProviderModels?: FetchProviderModels;
 	/** Test-Prompt-Runner für `POST /llm-providers/{id}/test` — Tests injizieren hieran einen Mock. */
@@ -294,6 +298,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).
 	app.use(createPushRouter(deps.pushSender));
+
+	// SMTP-Mail: Testmail-Endpunkt für Admins (siehe routes/mail.ts, logics/mail.ts). Konfiguration
+	// ausschließlich über die Umgebung, kein client-aufrufbarer Versand außer der Testmail.
+	app.use(createMailRouter(deps.mailSender));
 
 	// Provider-Verwaltung: Custom-Provider (CRUD + activate), fixe Built-ins (Mistral/
 	// OpenRouter, Key aus ENV) sowie deren Modelllisten — alles hinter requireAuth, damit der
