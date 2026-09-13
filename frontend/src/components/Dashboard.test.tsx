@@ -404,3 +404,75 @@ describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/s
 		expect(startButton, 'Button „Jetzt starten" darf nicht mehr existieren').toBeUndefined();
 	});
 });
+
+/**
+ * Issue #1448 (docs/spec/issue-1448.md): die Widgets „Nächste Aufgabe" und „Was ist jetzt dran?"
+ * zeigen aktuell `#{id} – {title}` an. Der Task-ID-Präfix soll aus beiden Widgets verschwinden,
+ * die Prioritätsangabe bleibt unverändert sichtbar.
+ */
+describe('Dashboard — kein Task-ID-Präfix in "Nächste Aufgabe" / "Was ist jetzt dran?" (#1448)', () => {
+	it('AK1: „Nächste Aufgabe" zeigt nur den Titel, keine #<ID>', () => {
+		const nextTask = task(114, [], 2, TaskStatus.Open);
+		nextTask.title = 'Wondershare Filmora kündigen';
+
+		const { container } = render(
+			<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />,
+		);
+
+		const titleEl = container.querySelector('.dashboard-next-task-title');
+		expect(titleEl, '.dashboard-next-task-title fehlt').not.toBeNull();
+		expect(titleEl?.textContent).toContain('Wondershare Filmora kündigen');
+		expect(titleEl?.textContent, 'Task-ID-Präfix #114 darf nicht mehr im Titel stehen').not.toMatch(/#114/);
+	});
+
+	it('AK2: „Was ist jetzt dran?" zeigt je Vorschlag nur den Titel, keine #<ID>', () => {
+		const nextTask = task(1, [], 2, TaskStatus.Open);
+		const suggestionA = task(201, [], 2, TaskStatus.Open);
+		suggestionA.title = 'Steuererklärung einreichen';
+		const suggestionB = task(202, [], 2, TaskStatus.Open);
+		suggestionB.title = 'Zahnarzttermin vereinbaren';
+
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask, suggestionA, suggestionB]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[]}
+				suggestions={[suggestionA, suggestionB]}
+			/>,
+		);
+
+		const titles = [...container.querySelectorAll('.dashboard-suggestion-title')];
+		expect(titles, 'Erwartet zwei Vorschlags-Einträge').toHaveLength(2);
+		for (const el of titles) {
+			expect(el.textContent, `Vorschlagstitel „${el.textContent}" enthält Task-ID-Präfix`).not.toMatch(/#\d+/);
+		}
+		expect(titles.map((el) => el.textContent)).toEqual(
+			expect.arrayContaining([
+				expect.stringContaining('Steuererklärung einreichen'),
+				expect.stringContaining('Zahnarzttermin vereinbaren'),
+			]),
+		);
+	});
+
+	it('AK3: Prioritätsangabe bleibt in beiden Widgets sichtbar', () => {
+		const nextTask = task(114, [], 2, TaskStatus.Open);
+		const suggestion = task(201, [], 2, TaskStatus.Open);
+
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask, suggestion]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[]}
+				suggestions={[suggestion]}
+			/>,
+		);
+
+		const priorityEl = container.querySelector('.dashboard-next-task-priority');
+		expect(priorityEl?.textContent).toContain('Priorität');
+
+		const metaEl = container.querySelector('.dashboard-suggestion-meta');
+		expect(metaEl?.textContent).toContain('Priorität');
+	});
+});
