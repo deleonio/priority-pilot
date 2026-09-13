@@ -201,3 +201,4 @@ Konflikte, die er verhindern soll.
   komplette App-Shell mit: die Seite bleibt leer und der Test scheitert an einem harmlos wirkenden
   `element(s) not found`. → Beim Hinzufügen eines Listeners immer prüfen, ob alle Fakes des
   betroffenen Objekts auch `removeEventListener` haben (`grep -rn "navigator, '<api>'" frontend/e2e/`).
+- 2026-09-13 · E2E lokal — Playwright-CDN-Download in Sandbox blockiert (erwartetes chromium-1243 fehlt) → gecachte Version per Symlink mappen (~/Library/Caches/ms-playwright/chromium-1234 → chromium-1243); Push-Reject trotz scheinbar aktuellem Stand: User rebaset Branches parallel (pull --rebase) → vor Push ls-remote + reflog prüfen, dann --force-with-lease mit bekanntem Remote-SHA.
