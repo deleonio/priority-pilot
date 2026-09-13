@@ -628,10 +628,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		const staysDone =
 			task.status === 'Done' && (validation.attrs.status === undefined || validation.attrs.status === 'Done');
 		if (staysDone) {
+			const recipientCandidate = (req.body as { userId?: unknown }).userId;
 			const hasContentField =
 				Object.keys(validation.attrs).some((key) => key !== 'status') ||
 				validation.pillars !== undefined ||
-				(req.body as { userId?: unknown }).userId !== undefined;
+				(recipientCandidate !== undefined && recipientCandidate !== task.userId);
 			if (hasContentField) {
 				sendError(res, 409, 'Ein erledigter Task kann erst nach dem Wiedereröffnen inhaltlich bearbeitet werden.');
 				return;

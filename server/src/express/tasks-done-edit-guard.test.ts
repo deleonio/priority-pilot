@@ -165,4 +165,14 @@ describe('PATCH /tasks/:id — Done-Bearbeitungssperre (#1438)', () => {
 		const body = (await nachlese.json()) as { userId: number };
 		assert.equal(body.userId, ownerId, 'Eigentümer darf sich durch die abgelehnte Übergabe nicht ändern');
 	});
+
+	it('AK6b: {userId: <eigene ID>} ohne Statuswechsel auf einen Done-Task → 200 (No-Op, #1252)', async () => {
+		const ownerId = await userIdOf(OWNER);
+		const task = await createTask(cookie, { title: 'Bleibt bei mir' });
+		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
+
+		const res = await patchTask(cookie, task.id, { userId: ownerId });
+		assert.equal(res.status, 200);
+		assert.equal(((await res.json()) as { userId: number }).userId, ownerId);
+	});
 });
