@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { Pillar, Series } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -246,6 +246,32 @@ describe('SeriesTab — Ruh-Hinweis für stillgelegte Serien (#1251 AK6)', () =>
 	});
 });
 
+// ── #1430 (AK3): Hinweis-Badge für Serien mit nicht-leerem `description` ────────────────────
+
+/**
+ * #1430 (AK3, docs/spec/issue-1430.md): Ein Serien-Eintrag mit nicht-leerem `description` zeigt
+ * in `div.series-tree-badges` zusätzlich ein Text-Badge „Hinweis"; ein Eintrag ohne Hinweis
+ * zeigt keines. Zeile über `data-testid="series-tree-item-<id>"` eingrenzen, da beide Einträge
+ * im selben DOM stehen. Rot, bis `SeriesTab.tsx` das Badge rendert. KEIN Produktivcode.
+ */
+describe('SeriesTab — Hinweis-Badge für Serien mit description (#1430 AK3)', () => {
+	it('Serie mit description zeigt „Hinweis", Serie ohne description zeigt es nicht', async () => {
+		const withHint = { ...makeSeries('weekly', 'Serie mit Hinweis'), id: 501, description: 'Wochenrhythmus beachten' };
+		const withoutHint = { ...makeSeries('weekly', 'Serie ohne Hinweis'), id: 502, description: null };
+		mockListSeries.mockResolvedValue([withHint, withoutHint]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} />);
+		});
+
+		const rowWithHint = screen.getByTestId('series-tree-item-501');
+		const rowWithoutHint = screen.getByTestId('series-tree-item-502');
+
+		expect(within(rowWithHint).getByText('Hinweis')).toBeInTheDocument();
+		expect(within(rowWithoutHint).queryByText('Hinweis')).toBeNull();
+	});
+});
+
 /**
  * Doppel-POST-Schutz (#1259-Fixup, Review-Nit Runde 1): `generateAll` sichert sich über
  * `isGeneratingRef` SYNCHRON vor dem ersten `await` ab — ein zweiter Aufruf im selben Tick
@@ -276,5 +302,45 @@ describe('SeriesTab — Doppel-POST-Schutz bei generateAll (isGeneratingRef-Guar
 		await act(async () => {
 			resolveGenerate({ created: 0 });
 		});
+	});
+});
+
+/**
+ * Nach dem Generieren muss der Serien-Tab der App melden, dass sich der Aufgabenbestand geändert
+ * hat. Ohne dieses Signal bleiben `tasks`/`forest` in `App` auf dem Stand des Seitenaufrufs stehen
+ * (der Tab-Wechsel lädt nicht nach), die frisch materialisierten Instanzen fehlen im Aufgaben-Tab
+ * und lassen sich dort bis zum nächsten Seiten-Reload nicht abhaken.
+ */
+describe('SeriesTab — Signal an die App nach dem Generieren', () => {
+	it('meldet den geänderten Aufgabenbestand, wenn Instanzen erzeugt wurden', async () => {
+		mockListSeries.mockResolvedValue([]);
+		mockGenerateAllSeries.mockResolvedValue({ created: 3 });
+		const onTasksChanged = vi.fn();
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} onTasksChanged={onTasksChanged} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Fällige Instanzen generieren' }));
+		});
+
+		expect(onTasksChanged).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet nichts, wenn der Lauf keine neue Instanz erzeugt hat', async () => {
+		mockListSeries.mockResolvedValue([]);
+		mockGenerateAllSeries.mockResolvedValue({ created: 0 });
+		const onTasksChanged = vi.fn();
+
+		await act(async () => {
+			render(<SeriesTab pillars={[pillarKoerper]} onTasksChanged={onTasksChanged} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Fällige Instanzen generieren' }));
+		});
+
+		expect(onTasksChanged).not.toHaveBeenCalled();
 	});
 });

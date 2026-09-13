@@ -10,6 +10,7 @@ import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 import PushSubscription from './pushSubscription.js';
 import NotificationLog from './notificationLog.js';
+import MissedTask from './missedTask.js';
 import LlmProvider from './llmProvider.js';
 import Group from './group.js';
 import GroupMember from './groupMember.js';
@@ -70,6 +71,9 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // ohne Sequelize-Assoziation (der Versand-Helper filtert direkt über die `userId`-Spalte).
 // `notification_logs` steht für sich (fachlicher Push-Trigger, Issue #355) — die Isolation läuft über
 // den `dedupeKey` der jeweiligen Auslöser-Entität, keine Assoziation nötig.
+// `missed_tasks` steht für sich (Sichtbarkeit für Auto-Delete-Cron, siehe autoDeleteAfterDeadline.ts) —
+// die referenzierte Aufgabe existiert nach dem Hard-Delete nicht mehr, daher kein FK/Assoziation zu
+// `Task`; `userId` ist direkt denormalisiert, damit die Route ohne Join scopen kann.
 // `llm_configs` steht für sich (LLM-Provider-Konfiguration, Issue #640) — eine instanzweite
 // Singleton-Zeile ohne Nutzer-Bindung, daher keine Assoziation. Dasselbe gilt für
 // `llm_providers` (Single-Provider-System, #951): instanzweite Zeilen ohne Nutzer-Bindung;
@@ -89,6 +93,7 @@ export {
 	User,
 	PushSubscription,
 	NotificationLog,
+	MissedTask,
 	LlmProvider,
 	Group,
 	GroupMember,
