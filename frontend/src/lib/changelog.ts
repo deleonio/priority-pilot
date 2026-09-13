@@ -58,6 +58,21 @@ const stripLeadingHtmlComments = (body: string): string => {
 };
 
 /**
+ * Entfernt Verlinkungen auf das eigene Repo aus einem Bullet: Markdown-Links behalten ihren
+ * Linktext (z. B. `#1234`), autolinkierte/nackte Repo-URLs fallen weg — der Changelog-Tab soll
+ * keine Links in die GitHub-Historie der App zeigen (Nutzer-Anforderung). Reale Release-Bullets
+ * hängen die GitHub-Attribution an (`… by @<user> in <URL>`, Format CHANGELOG.md) — sie wandert
+ * mit der URL, damit kein Satzfragment stehen bleibt; abschließendes Trim fängt den reinen
+ * URL-Bullet.
+ */
+const stripRepoLinks = (text: string): string =>
+	text
+		.replace(/\[([^\]]+)\]\(https:\/\/github\.com\/deleonio\/priority-pilot[^)]*\)/g, '$1')
+		.replace(/\s*<(https:\/\/github\.com\/deleonio\/priority-pilot[^>]*)>/g, '')
+		.replace(/\s*(?:by @\S+\s+in\s+)?https:\/\/github\.com\/deleonio\/priority-pilot\S*/g, '')
+		.trim();
+
+/**
  * Sammelt die Bullet-Zeilen (`- Text`) eines Abschnitts. Eingerückte Fortsetzungszeilen
  * (Mehrzeilen-Bullets) werden an den vorherigen Bullet angehängt, damit kein Eintrag
  * verloren geht (AK3).
@@ -74,7 +89,7 @@ const collectBullets = (sectionBody: string): string[] => {
 			bullets[bullets.length - 1] += ` ${line.trim()}`;
 		}
 	}
-	return bullets;
+	return bullets.map(stripRepoLinks);
 };
 
 /**
