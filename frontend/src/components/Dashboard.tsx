@@ -3,6 +3,7 @@ import { NearbyCard } from './NearbyCard';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
 import { MilestoneBadges } from './MilestoneBadges';
+import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
@@ -374,6 +375,12 @@ export const Dashboard = ({
 			{/* #1362: eigener Knoten direkt nach der Streak-Card — beide Stufenlisten (Streak/Punkte)
 			 * bauen auf denselben Kennzahlen auf, die Badges fassen sie zu einer Übersicht zusammen. */}
 			<MilestoneBadges />
+			{/*
+			 * Verpasste Aufgaben: eigener Knoten nach den Meilensteinen — macht sichtbar, wie viele
+			 * Aufgaben der Auto-Delete-Cron gelöscht hat, ohne Punkte/Streak zu beeinflussen. Lädt
+			 * selbst (Muster StreakCard), daher ohne Prop-Kette und ohne Bedingung.
+			 */}
+			<MissedTasksCard />
 			{/* #1361: eigener Knoten neben der Streak-Card, damit deren E2E-Locators (#1360) unberührt
 			 * bleiben. Bedingung wertet die volle `tasks`-Liste aus. */}
 			{showDayDoneHint && <DayDoneHint tasks={tasks} />}
