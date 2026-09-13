@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-12
+## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.17._
+_Enthält v0.2.0 – v0.2.18._
 
 ### 🔧 Engineering
 
@@ -33,6 +33,7 @@ _Enthält v0.2.0 – v0.2.17._
 - feat(server): accept api-key header as bearer token alternative by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1418
 - docs(arc42): record header-only authentication as a risk in section 11 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1419
 - feat(frontend): add icon-only copy buttons with visual feedback by @deleonio in https://github.com/deleonio/priority-pilot/pull/1422
+- docs(spec): sync specs with implementation 2026-09-13 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1425
 
 ## v0.1 - 2026-09-12
 
