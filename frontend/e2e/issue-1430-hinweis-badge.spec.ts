@@ -52,6 +52,7 @@ test.describe('Priority Pilot — #1430: Hinweis-Badge mobil (375px)', () => {
 		const seriesId = await createSeriesViaApi(page, uniqueTitle('Serie'), 'Wochenrhythmus beachten');
 		await page.goto('/');
 		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 
 		const taskRow = page.getByTestId(`task-list-item-${taskId}`);
 		await expect(taskRow.getByText('Hinweis')).toBeVisible();
