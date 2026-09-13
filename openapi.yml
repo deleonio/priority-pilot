@@ -94,6 +94,11 @@ paths:
           $ref: '#/components/responses/NotFound'
     patch:
       summary: Einen Task teilweise aktualisieren
+      description: >-
+        Ein bereits erledigter Task (`status: Done`) ist gegen inhaltliche Änderungen
+        eingefroren: solange der Request den Status nicht im selben Aufruf von `Done`
+        wegändert, wird er mit `409` abgelehnt (#1438). Ein reines Wiedereröffnen
+        (`status`, ggf. zusammen mit inhaltlichen Feldern) bleibt möglich.
       operationId: updateTask
       requestBody:
         required: true
@@ -112,6 +117,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       summary: Einen Task löschen
       operationId: deleteTask
@@ -835,6 +842,35 @@ paths:
                 $ref: '#/components/schemas/MissedTasksSummary'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/balance:
+    get:
+      summary: Lebensbalance-Stand — Füllstand des Dashboard-Herzens samt Säulen, Streak und Meilensteinen (#1423)
+      description: >-
+        Liefert den Stand des Dashboard-Herzens für den eingeloggten Nutzer in einer Antwort:
+        Gesamt-Füllstand in Prozent, je Säule ihren Punktestand (anteilig auf die Säulen verteilter
+        erledigter Aufwand) samt Gewichtung, den Streak und die **erreichten** Meilenstein-Stufen.
+        Gerechnet wird über Säulen und Tasks des Nutzers (`ownerScope`) — gruppengeteilte fremde
+        Aufgaben zählen bewusst nicht ein, auch wenn sie in `GET /tasks` sichtbar sind.
+      operationId: getBalanceStatus
+      parameters:
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die die Kalendertagsgrenze des Streaks und der
+            Meilensteine bestimmt. Fehlt der Wert oder ist er keine gültige Zeitzone, wertet der
+            Server in seiner eigenen Zeitzone aus — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Aktueller Lebensbalance-Stand
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceStatus'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -1066,6 +1102,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TestPushResult'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /mail/test:
+    post:
+      summary: Testmail über den konfigurierten SMTP-Server versenden
+      description: >-
+        Sendet eine Testmail an die E-Mail-Adresse des angemeldeten Admins
+        (Issue #1426). Nur für Admins (`member` → 403, keine Session → 401).
+        503, wenn SMTP nicht konfiguriert ist; 502, wenn der Transport wirft.
+      operationId: sendTestMail
+      tags: [mail]
+      responses:
+        '200':
+          description: Testmail abgeschickt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestMailResult'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/responses/BadGateway'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
   /llm-providers:
@@ -3836,6 +3904,59 @@ components:
           description: Die jüngsten verpassten Aufgaben (neueste zuerst, maximal 20 Einträge).
           items:
             $ref: '#/components/schemas/MissedTask'
+    PillarBalance:
+      type: object
+      required:
+        - id
+        - name
+        - punkte
+        - gewichtung
+      properties:
+        id:
+          type: integer
+          description: ID der Säule.
+        name:
+          type: string
+          description: Name der Säule.
+        punkte:
+          type: number
+          description: >-
+            Roher (ungerundeter) Punktestand der Säule: der anteilig (nach `share`) auf sie
+            entfallende erledigte Aufwand. Säulen ohne Beitrag erscheinen mit `0`.
+        gewichtung:
+          type: number
+          description: Soll-Gewichtung der Säule (`Pillar.weight`, prozentualer Anteil).
+    BalanceStatus:
+      type: object
+      required:
+        - fuellstandProzent
+        - hatPunkte
+        - saeulen
+        - streak
+        - meilensteine
+      properties:
+        fuellstandProzent:
+          type: number
+          description: >-
+            Füllstand des Dashboard-Herzens in Prozent (`0`–`100`, auf eine Dezimalstelle
+            gerundet): die Überlappung zwischen Ist- und Soll-Verteilung über alle Säulen.
+        hatPunkte:
+          type: boolean
+          description: >-
+            Ob überhaupt Punkte vergeben sind. Unterscheidet „noch nichts erledigt" (`false`,
+            Füllstand `0`) von „unausgewogen".
+        saeulen:
+          type: array
+          description: Punktestand und Gewichtung je Säule des Nutzers, aufsteigend nach Säulen-ID.
+          items:
+            $ref: '#/components/schemas/PillarBalance'
+        streak:
+          $ref: '#/components/schemas/Streak'
+        meilensteine:
+          type: array
+          description: Ausschließlich die **erreichten** Meilenstein-Stufen; ohne Erfolge eine leere Liste.
+          items:
+            $ref: '#/components/schemas/Milestone'
     SeriesRhythm:
       type: string
       enum:
@@ -4231,6 +4352,14 @@ components:
           description: Anzahl der erfolgreich zugestellten Push-Nachrichten.
         quote:
           $ref: '#/components/schemas/Quote'
+    TestMailResult:
+      type: object
+      required:
+        - sent
+      properties:
+        sent:
+          type: boolean
+          description: Ob die Testmail erfolgreich verschickt wurde.
     Quote:
       type: object
       required:

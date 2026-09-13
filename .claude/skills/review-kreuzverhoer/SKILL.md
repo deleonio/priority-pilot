@@ -46,6 +46,11 @@ concurrently on the subagent model. The verdict itself stays sequential in the p
 Return contract lives in the agent file (paths + findings, ≤ 30 lines). If the role isn't
 available locally, the same question to a general-purpose subagent works.
 
+**CI-log triage** goes to `gate-runner` (`.claude/agents/gate-runner.md`): a failing job's
+`gh run view <id> --log-failed` log runs megabytes long for a job name, an exit code, and
+one failure signature — the raw log never needs to reach your context. The verdict (which
+findings the failure produces) stays with you.
+
 ## Step 1 — Understand the PR
 
 - Read the title, description, and **full diff**:
@@ -163,8 +168,9 @@ age with the diff regardless; what gets consolidated is the **collected comment*
 - **Diff scoping on a follow-up review (cost/time savings):** if an existing collected comment is
   found (follow-up review after a fixup push), do NOT walk the entire PR diff again from
   scratch. The primary input is the fixup's **claim checklist**: its `<!-- ai-fixup-decisions -->`
-  collected comment lists every addressed finding as `Finding #<N> — fixed in <SHA>` under
-  "✅ Behobene Anmerkungen" — verify **each row against the fixup diff** (commit exists, actually
+  collected comment lists every addressed finding as a row in its "✅ Behobene Anmerkungen"
+  table (`| # | Finding | Behoben via | Datum |` — see the canonical structure below;
+  `Behoben via` carries the SHA) — verify **each row against the fixup diff** (commit exists, actually
   fixes the finding, introduces nothing new) instead of re-discovering the delta. Findings
   without a claim row stay open. Beyond that, read the review comment's `updatedAt` timestamp
   and check only the commits/diff **since that point in time** (`gh pr view --json commits`

@@ -1,5 +1,5 @@
 /**
- * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400 dreizehn Werkzeuge.
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423 vierzehn Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
@@ -370,6 +370,31 @@ export const mcpTools: McpTool[] = [
 		description: "Lists the token owner's pillars including their weighting.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/pillars'),
+	},
+	{
+		name: 'balance_status',
+		description:
+			"Returns the token owner's current life-balance status in one call: the overall fill level of " +
+			'the dashboard heart in percent, each pillar with its score and weighting, the completion streak ' +
+			'(current and best) and the milestones reached so far.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				timezone: {
+					type: 'string',
+					description:
+						'IANA time zone (e.g. "Europe/Berlin") deciding where the calendar day of the streak ends. ' +
+						'Omitted or unknown values fall back to the server time zone instead of failing.',
+				},
+			},
+		},
+		run: (ctx, args) => {
+			const timezone = args.timezone;
+			// Ungültige Werte reicht das Werkzeug durch: die Route behandelt sie wie „nicht angegeben"
+			// (Fallback Serverzeit) — ein eigener Vorab-Check wäre ein zweiter Validierungspfad.
+			const query = typeof timezone === 'string' && timezone !== '' ? `?tz=${encodeURIComponent(timezone)}` : '';
+			return callApi(ctx, `/scores/balance${query}`);
+		},
 	},
 	{
 		name: 'category_list',

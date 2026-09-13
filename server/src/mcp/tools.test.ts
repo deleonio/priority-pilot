@@ -3,6 +3,7 @@ import { findMcpTool } from './tools.js';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { CATEGORY_COLORS } from '../models/categoryColors.js';
+import { ScoreEntry } from '../models/index.js';
 
 /**
  * Rote Spec-Tests für #1353 (Spec docs/spec/issue-1353.md) — MCP-Werkzeuge v1.
@@ -17,7 +18,10 @@ import { CATEGORY_COLORS } from '../models/categoryColors.js';
  * Rot, bis `/mcp/v1` und die Werkzeug-Handler existieren (heute: Route fehlt, 404). KEIN Produktivcode.
  */
 
-process.env.GOOGLE_ALLOWED_EMAILS = 'mcp-tools-a@example.com,mcp-tools-b@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS =
+	'mcp-tools-a@example.com,mcp-tools-b@example.com,mcp-tools-balance-a@example.com,' +
+	'mcp-tools-balance-b@example.com,mcp-tools-balance-c@example.com,mcp-tools-balance-d-a@example.com,' +
+	'mcp-tools-balance-d-b@example.com';
 applyTestAuthEnv('mcp-tools-test');
 
 let server: TestServer;
@@ -176,6 +180,27 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 
 		const completed = await mcpCall<{ id: number; status: string }>(token, 'task_complete', { id: taskId });
 		assert.equal(completed.result?.status, 'Done');
+	});
+
+	it('#1438 AK8: task_update mit inhaltlichem Feld auf einer erledigten Aufgabe schlägt fehl, Reopen per task_update bleibt möglich', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Wird erledigt');
+
+		const completed = await mcpCall<{ id: number; status: string }>(token, 'task_complete', { id: taskId });
+		assert.equal(completed.result?.status, 'Done', 'Setup: Aufgabe muss zuerst erledigt sein');
+
+		const blocked = await mcpCall<{ id: number; title: string }>(token, 'task_update', {
+			id: taskId,
+			title: 'Sollte nicht durchgehen',
+		});
+		assert.ok(blocked.error, 'eine inhaltliche Änderung ohne Statuswechsel muss an einer erledigten Aufgabe scheitern');
+
+		const reopened = await mcpCall<{ id: number; status: string }>(token, 'task_update', {
+			id: taskId,
+			status: 'Open',
+		});
+		assert.equal(reopened.result?.status, 'Open', 'Reopen per task_update muss weiterhin funktionieren');
 	});
 
 	it('der Klartext der gespiegelten Route erreicht den Client samt Statuscode', async () => {
@@ -834,7 +859,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.ok(!list.result?.some((g) => g.id === groupOfB.id), 'fremde Gruppe darf in group_list nicht sichtbar sein');
 	});
 
-	it('AK7 (#1381, #1396): der v1-Werkzeugvertrag wächst um group_list/group_members_list/task_delete auf dreizehn Namen', async () => {
+	it('AK1 (#1423): der v1-Werkzeugvertrag wächst um balance_status auf vierzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
@@ -843,6 +868,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		const names = sorted.map((t) => t.name);
 
 		assert.deepEqual(names, [
+			'balance_status',
 			'category_list',
 			'group_list',
 			'group_members_list',
@@ -885,13 +911,15 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		closeDb();
 	});
 
-	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf dreizehn Namen', async () => {
+	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf vierzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		assert.equal(names.length, 13, `Katalog sollte dreizehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status). Der Vertrag ist „task_delete ist drin",
+		// nicht „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
+		assert.equal(names.length, 14, `Katalog sollte vierzehn Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -983,7 +1011,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
  * AK4: task_update setzt den Wert nachträglich auf true und wieder auf false.
  * AK5: task_update ohne das Feld lässt einen zuvor gesetzten Wert true unverändert.
  * AK6: ein nicht-boolescher Wert liefert die Routen-Fehlermeldung (HTTP 400), nichts wird angelegt.
- * AK7: der Katalog-Namens-Snapshot (13 Namen, s. oben AK1 task_delete-Block) bleibt unberührt.
+ * AK7: der Katalog-Namens-Snapshot (14 Namen, s. oben AK1 task_delete-Block) bleibt unberührt.
  *
  * Rot, weil taskFieldProperties/pickTaskFields autoDeleteAfterDeadline noch nicht kennen. KEIN
  * Produktivcode in diesem Commit.
@@ -1095,12 +1123,221 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		assert.equal(after.result?.length, countBefore, 'ein abgelehnter task_create darf keine Aufgabe anlegen');
 	});
 
-	it('AK7: der Katalog-Namens-Snapshot bleibt bei dreizehn Namen', async () => {
+	it('AK7: der Katalog-Namens-Snapshot bleibt bei vierzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		assert.equal(names.length, 13, `Katalog sollte dreizehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status) — #1420 selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 14, `Katalog sollte vierzehn Namen führen, war: ${names.join(', ')}`);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1423 (Spec docs/spec/issue-1423.md) — MCP-Werkzeug `balance_status`.
+ *
+ * AK2: Eingabeschema (nur optionale `timezone`, kein `write`), funktioniert mit Nur-lese-Token.
+ * AK3: Gesamt-Füllstand + hatPunkte, inkl. Leerfall.
+ * AK7: `timezone` beeinflusst den Streak-Tagesumbruch, ein ungültiger Wert führt zu keinem Fehler.
+ * AK8: Datenisolation — auch gruppengeteilte fremde Aufgaben zählen nicht ein.
+ *
+ * Rot, bis das Werkzeug existiert (heute: `findMcpTool('balance_status')` liefert `undefined`,
+ * `tools/call` also einen JSON-RPC-Fehler „Unknown tool"). KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug balance_status (#1423)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	type BalanceResult = {
+		fuellstandProzent: number;
+		hatPunkte: boolean;
+		saeulen: { id: number; name: string; punkte: number; gewichtung: number }[];
+		streak: { aktuell: number; best: number };
+		meilensteine: { schluessel: string; typ: string; schwelle: number }[];
+	};
+
+	/** Legt eine Aufgabe über MCP an, erledigt sie und setzt den ScoreEntry-Zeitpunkt fest (Muster streak.test.ts). */
+	const completeTaskAtViaMcp = async (token: string, title: string, zeitpunkt: Date): Promise<void> => {
+		const created = await mcpCall<{ id: number }>(token, 'task_create', { title });
+		assert.ok(created.result?.id, `Setup: ${title} muss über task_create anlegbar sein`);
+		const taskId = created.result!.id;
+		await mcpCall(token, 'task_complete', { id: taskId });
+		const [updated] = await ScoreEntry.update({ zeitpunkt }, { where: { taskId } });
+		assert.equal(updated, 1, 'ScoreEntry für den Task muss existieren, um den Zeitpunkt zu verschieben');
+	};
+
+	const createGroupViaApi = async (cookie: string, name: string): Promise<{ id: number }> => {
+		const res = await server.json('/groups', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ name }),
+		});
+		assert.equal(res.status, 201, 'Setup: Gruppe muss über die API anlegbar sein');
+		return (await res.json()) as { id: number };
+	};
+
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await server.json(`/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { Cookie: cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	const inviteAndAccept = async (
+		adminCookie: string,
+		groupId: number,
+		invitedUserId: number,
+		invitedCookie: string,
+	): Promise<void> => {
+		const invited = await server.json(`/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+			body: JSON.stringify({ userId: invitedUserId }),
+		});
+		assert.equal(invited.status, 201, 'Setup: Einladung muss anlegbar sein');
+		const { id } = (await invited.json()) as { id: number };
+		const accepted = await server.json(`/invitations/${id}/accept`, {
+			method: 'POST',
+			headers: { Cookie: invitedCookie },
+		});
+		assert.equal(accepted.status, 200, 'Setup: Einladung muss annehmbar sein');
+	};
+
+	it('AK2: Eingabeschema hat nur eine optionale timezone, kein write; funktioniert mit Nur-lese-Token', async () => {
+		const cookie = await server.register('mcp-tools-balance-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const tool = tools.find((t) => t.name === 'balance_status');
+		assert.ok(tool, 'balance_status muss im Katalog stehen');
+		const schema = tool!.inputSchema as { properties?: Record<string, unknown>; required?: string[] };
+		assert.deepEqual(Object.keys(schema.properties ?? {}), ['timezone']);
+		assert.deepEqual(schema.required ?? [], []);
+
+		const result = await mcpCall<BalanceResult>(token, 'balance_status');
+		assert.equal(
+			result.error,
+			undefined,
+			`Nur-lese-Token darf balance_status aufrufen, Fehler: ${result.error?.message}`,
+		);
+	});
+
+	it('AK3: ohne Argumente liefert fuellstandProzent in [0,100] und hatPunkte; ohne Erledigung 0/false', async () => {
+		const cookie = await server.register('mcp-tools-balance-b@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const leer = await mcpCall<BalanceResult>(token, 'balance_status');
+		assert.equal(leer.result?.fuellstandProzent, 0);
+		assert.equal(leer.result?.hatPunkte, false);
+
+		// Bewusst eine **gewichtete** Standard-Säule: `POST /pillars` legt neue Säulen mit `weight: 0` an
+		// (routes/pillars.ts:251-255), und Punkte auf einer Säule ohne Soll heben den Füllstand
+		// definitionsgemäß nicht (AK4, dritter Randfall — heartBalance.test.ts).
+		const pillars = await mcpCall<{ id: number; weight: number }[]>(token, 'pillar_list');
+		const gewichtet = pillars.result?.find((pillar) => pillar.weight > 0);
+		assert.ok(gewichtet, 'Setup: der Nutzer muss eine gewichtete Standard-Säule besitzen');
+		await mcpCall(token, 'task_create', {
+			title: 'Erledigt für Füllstand',
+			pillars: [{ pillarId: gewichtet.id, share: 100 }],
+		});
+		const list = await mcpCall<{ id: number; title: string }[]>(token, 'task_list');
+		const taskId = list.result?.find((t) => t.title === 'Erledigt für Füllstand')?.id;
+		assert.ok(taskId, 'Setup: Task muss über task_list auffindbar sein');
+		await mcpCall(token, 'task_complete', { id: taskId });
+
+		const gefuellt = await mcpCall<BalanceResult>(token, 'balance_status');
+		assert.ok(
+			gefuellt.result !== undefined &&
+				gefuellt.result.fuellstandProzent > 0 &&
+				gefuellt.result.fuellstandProzent <= 100,
+			`fuellstandProzent muss nach einer Erledigung positiv sein, war: ${JSON.stringify(gefuellt.result)}`,
+		);
+		assert.equal(gefuellt.result?.hatPunkte, true);
+	});
+
+	it('AK7: unterschiedliche timezone kann den Streak-Stand verändern, ein ungültiger Wert wirft keinen Fehler', async () => {
+		const cookie = await server.register('mcp-tools-balance-c@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const invalid = await mcpCall<BalanceResult>(token, 'balance_status', { timezone: 'Nicht/Existent' });
+		assert.equal(invalid.error, undefined, 'ein unbekannter timezone-Wert darf keinen JSON-RPC-Fehler auslösen');
+
+		// Zwei Erledigungen zwei Stunden auseinander (2026-06-15T09:00Z / T11:00Z): in Pacific/Kiritimati
+		// (UTC+14) liegt der Tageswechsel bei UTC 10:00 → zwei aufeinanderfolgende Kalendertage
+		// (best=2); in Etc/GMT+12 (UTC-12) liegt er bei UTC 12:00 → derselbe Kalendertag (best=1).
+		// `best` hängt (anders als `aktuell`) nicht von der realen Ausführungszeit ab.
+		await completeTaskAtViaMcp(token, 'Grenzfall früh', new Date('2026-06-15T09:00:00.000Z'));
+		await completeTaskAtViaMcp(token, 'Grenzfall spät', new Date('2026-06-15T11:00:00.000Z'));
+
+		const east = await mcpCall<BalanceResult>(token, 'balance_status', { timezone: 'Pacific/Kiritimati' });
+		const west = await mcpCall<BalanceResult>(token, 'balance_status', { timezone: 'Etc/GMT+12' });
+		assert.equal(east.error, undefined);
+		assert.equal(west.error, undefined);
+		assert.equal(east.result?.streak.best, 2, 'Pacific/Kiritimati muss die Erledigungen auf zwei Tage verteilen');
+		assert.equal(west.result?.streak.best, 1, 'Etc/GMT+12 muss beide Erledigungen demselben Tag zuordnen');
+	});
+
+	it('AK8: Token liefert nur eigene Punkte/Streak-Tage, auch eine für ein Gruppenmitglied angelegte Aufgabe zählt nicht ein', async () => {
+		const cookieA = await server.register('mcp-tools-balance-d-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-balance-d-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+
+		await createTaskViaApi(cookieB, 'Von B erledigt');
+		const bTasks = await server.json('/tasks', { headers: { Cookie: cookieB } });
+		const bTaskId = ((await bTasks.json()) as { id: number; title: string }[]).find(
+			(t) => t.title === 'Von B erledigt',
+		)?.id;
+		assert.ok(bTaskId, 'Setup: Task von B muss existieren');
+		await server.json(`/tasks/${bTaskId}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookieB },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+
+		const ohneGruppe = await mcpCall<BalanceResult>(tokenA, 'balance_status');
+		assert.equal(ohneGruppe.result?.hatPunkte, false, 'A darf Bs Erledigung nicht als eigene Punkte sehen');
+		assert.equal(ohneGruppe.result?.streak.aktuell, 0);
+
+		// #1213: A legt für B (Gruppenmitglied) eine Aufgabe an (`userId` im Body = Empfänger). Die
+		// Aufgabe gehört B (`task.userId === B`), taucht aber wegen `createdById === A` in As breiterer
+		// Task-Leseliste auf (routes/tasks.ts:186). Die Balance muss trotzdem strikt `ownerScope` auf
+		// den EIGENTÜMER anwenden — sonst zählt As eigener Blick auf eine fremde, nur mitangelegte
+		// Aufgabe fälschlich mit.
+		const group = await createGroupViaApi(cookieA, 'Familie');
+		const bId = await ownUserId(cookieB, 'mcp-tools-balance-d-b@example.com');
+		await inviteAndAccept(cookieA, group.id, bId, cookieB);
+
+		const handoverRes = await server.json('/tasks', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+			body: JSON.stringify({ title: 'Von A für B angelegt', userId: bId }),
+		});
+		assert.equal(handoverRes.status, 201, 'Setup: A muss eine Aufgabe für B anlegen können');
+		const handoverTaskId = ((await handoverRes.json()) as { id: number }).id;
+		const doneRes = await server.json(`/tasks/${handoverTaskId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', Cookie: cookieB },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(doneRes.status, 200, 'Setup: B muss die eigene (übergebene) Aufgabe erledigen können');
+
+		const nachHandover = await mcpCall<BalanceResult>(tokenA, 'balance_status');
+		assert.equal(
+			nachHandover.result?.hatPunkte,
+			false,
+			'eine für B angelegte, B gehörende Aufgabe darf A keine Punkte geben, obwohl A sie in der Task-Liste sieht',
+		);
 	});
 });

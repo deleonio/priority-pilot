@@ -1,10 +1,27 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { collectDueTaskReminders, runDueTaskReminders } from './dueTaskReminders.js';
 import type { PushSender } from './push.js';
+
+/**
+ * TF5/TF7 (AK5/AK7, #1426, Vertrag: docs/spec/issue-1426.md): der Trigger soll bei konfiguriertem
+ * SMTP zusätzlich zur Push-Nachricht genau eine Mail verschicken; ein Mail-Fehler darf den Lauf
+ * nicht abbrechen. `logics/mail.ts` existiert noch nicht — daher hier bewusst KEIN Import von dort
+ * (würde die ganze Datei per Modul-Fehler rot machen und alle bestehenden Push-only-Tests oben mit
+ * reißen). Stattdessen ein lokal typisierter Mail-Stub plus Cast auf die künftige, um einen
+ * dritten Parameter erweiterte Signatur von `runDueTaskReminders` (Muster: MEMORY.md
+ * 2026-08-23, Intersection-Typ für eine in der Impl-Phase erst entstehende API).
+ */
+type MailSenderStub = (payload: { to: string; subject: string; text: string }) => Promise<void>;
+type RunDueTaskRemindersWithMail = (
+	now: Date,
+	send?: PushSender,
+	mailSend?: MailSenderStub,
+) => Promise<{ usersNotified: number }>;
+const runDueTaskRemindersWithMail = runDueTaskReminders as unknown as RunDueTaskRemindersWithMail;
 
 const NOW = new Date('2026-07-07T08:00:00Z');
 
@@ -27,6 +44,10 @@ const createTask = (overrides: TaskOverrides = {}) =>
 
 const seedSubscription = (userId: number | null, endpoint: string) =>
 	PushSubscription.create({ endpoint, p256dh: 'p256dh', auth: 'auth', expirationTime: null, userId });
+
+/** Legt den `User`-Datensatz für `userId: 1` an — Voraussetzung für `User.findByPk` im Mail-Pfad (AK5/AK7). */
+const seedUser = () =>
+	User.create({ email: 'reminder@example.com', displayName: 'Reminder Empfänger', passwordHash: '__test__' });
 
 /** Erfolgs-Sender: zählt die Aufrufe und liefert die versendete Payload (Vorbild: push.test.ts). */
 const okSender =
@@ -178,5 +199,50 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(result.usersNotified, 0, 'kein Push → nicht als "notified" zählen');
 		assert.equal(calls.length, 0);
 		assert.equal(await NotificationLog.count(), 0, 'ohne gesendeten Push kein Log-Eintrag');
+	});
+
+	it('AK5: verschickt zusätzlich zur Push-Nachricht genau eine Mail; zweiter Lauf sendet auf keinem Kanal erneut', async () => {
+		await seedUser();
+		await seedSubscription(1, 'https://push.example.com/a');
+		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
+		const pushCalls: { endpoint: string; body: string }[] = [];
+		const mailCalls: { to: string; subject: string; text: string }[] = [];
+		const mailSend: MailSenderStub = (payload) => {
+			mailCalls.push(payload);
+			return Promise.resolve();
+		};
+
+		const first = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), mailSend);
+		const second = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), mailSend);
+
+		assert.equal(first.usersNotified, 1);
+		assert.equal(pushCalls.length, 1, 'genau eine Push-Nachricht');
+		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
+		assert.equal(second.usersNotified, 0, 'zweiter Lauf ohne neue fällige Termine sendet auf keinem Kanal erneut');
+		assert.equal(await NotificationLog.count(), 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
+	});
+
+	it('AK7: schlägt der Mail-Versand fehl, wird die Push-Nachricht dennoch zugestellt und der Log-Eintrag geschrieben', async () => {
+		await seedUser();
+		await seedSubscription(1, 'https://push.example.com/a');
+		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
+		const pushCalls: { endpoint: string; body: string }[] = [];
+		let failingMailSendCalls = 0;
+		const failingMailSend: MailSenderStub = () => {
+			failingMailSendCalls++;
+			return Promise.reject(new Error('SMTP-Transport fehlgeschlagen'));
+		};
+
+		const result = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), failingMailSend);
+
+		assert.equal(
+			failingMailSendCalls,
+			1,
+			'der Mail-Versand wird tatsächlich versucht (sonst prüft der Test AK7 nicht)',
+		);
+
+		assert.equal(result.usersNotified, 1, 'ein fehlgeschlagener Mail-Versand bricht den Lauf nicht ab');
+		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
+		assert.equal(await NotificationLog.count(), 1, 'Log-Eintrag entsteht, weil mindestens ein Kanal erfolgreich war');
 	});
 });

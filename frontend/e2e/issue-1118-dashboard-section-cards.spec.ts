@@ -330,7 +330,10 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		// bis zur Umstellung heißt der Button noch „Jetzt starten" und öffnet den Task-Dialog — der
 		// Locator bleibt bewusst label-frei, damit der Test bei der Umbenennung nicht durch einen
 		// Selektor-Fehlschlag, sondern durch die Dialog-Assertion unten rot ist).
-		const startButton = page.locator('.dashboard-next-task kol-button');
+		// #1447: der neue „Bearbeiten"-Button sitzt in `.dashboard-next-task-actions`, nicht als
+		// direktes Kind von `.dashboard-next-task-content` — der Kind-Selektor bleibt damit
+		// weiterhin auf „Erledigen" beschränkt (gleiche Technik wie der #1042-Spec).
+		const startButton = page.locator('.dashboard-next-task-content > kol-button');
 		await expect(startButton).toBeVisible();
 		await page.keyboard.press('Tab');
 		let focused = false;
