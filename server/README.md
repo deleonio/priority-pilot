@@ -69,17 +69,27 @@ Testdateien: `src/**/*.test.ts`. Helper (kein Testfile): `src/test/helpers.ts`.
 
 ## Umgebungsvariablen
 
-| Variable           | Default             | Wirkung                                                            |
-| ------------------ | ------------------- | ------------------------------------------------------------------ |
-| `PORT`             | `3000`              | Port des Express-Servers.                                          |
-| `DB_RESET`         | `false`             | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`). |
-| `DATABASE_STORAGE` | `./database.sqlite` | SQLite-Speicherort; die Tests setzen `:memory:`.                   |
-| `DB_SEED`          | `true`              | Bei `false` wird der Demo-Seed übersprungen (Säulen bleiben).      |
+| Variable           | Default             | Wirkung                                                                 |
+| ------------------ | ------------------- | ----------------------------------------------------------------------- |
+| `PORT`             | `3000`              | Port des Express-Servers.                                               |
+| `DB_RESET`         | `false`             | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`).      |
+| `DATABASE_STORAGE` | `./database.sqlite` | SQLite-Speicherort; die Tests setzen `:memory:`.                        |
+| `DB_SEED`          | `true`              | Bei `false` wird der Demo-Seed übersprungen (Säulen bleiben).           |
+| `SMTP_HOST`        | —                   | Pflicht (mit `MAIL_FROM`): SMTP-Server; ohne bleibt der Mail-Kanal aus. |
+| `SMTP_PORT`        | `587`               | Port des SMTP-Servers.                                                  |
+| `SMTP_SECURE`      | `false`             | `true` = implizites TLS (i. d. R. Port 465), sonst STARTTLS.            |
+| `SMTP_USER`        | —                   | SMTP-Login; nur bei Setzung wird `SMTP_PASSWORD` mitgesendet.           |
+| `SMTP_PASSWORD`    | —                   | Passwort zu `SMTP_USER`; erscheint in keinem Log.                       |
+| `MAIL_FROM`        | —                   | Pflicht (mit `SMTP_HOST`): Absender-Adresse (`From:`).                  |
 
 Ohne `DB_RESET=true` bleiben Daten erhalten; Demo-Tasks werden nur in eine leere DB gesät
 ([`src/index.ts`](src/index.ts)) — mit `DB_SEED=false` bleibt selbst die leere DB ohne Demo-Tasks
 (die fünf Säulen-Stammdaten werden weiterhin gesät). So starten die Playwright-E2E von einem leeren,
 definierten Zustand.
+
+Der SMTP-Mail-Kanal ([#1426](../docs/spec/issue-1426.md)) verschickt bei konfigurierter Umgebung zu
+den drei Push-Triggern zusätzlich je eine Mail; Admins prüfen ihn per `POST /mail/test`. Fehlen
+`SMTP_HOST` oder `MAIL_FROM`, bleibt der Kanal deaktiviert und die App verhält sich wie ohne Mail.
 
 ```bash
 PORT=8080 node dist/index.js       # anderer Port
