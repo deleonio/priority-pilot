@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.28._
+_Enthält v0.2.0 – v0.2.35._
 
 ### 🔧 Engineering
 
@@ -42,6 +42,13 @@ _Enthält v0.2.0 – v0.2.28._
 - feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
 - feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
+- feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
+- feat(server): track and surface auto-deleted missed tasks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1440
+- chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
+- feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
+- feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
+- fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
+- feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 
 ## v0.1 - 2026-09-12
 
@@ -653,6 +660,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update pnpm to v11.25.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1167
 - chore(deps): update dependency @evilmartians/lefthook to v2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1174
 - fix(deps): update dependency express-rate-limit to v8.7.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1171
+- fix(deps): update dependency express-rate-limit to v8.7.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1171
 - chore(deps): update dependency @testing-library/jest-dom to v7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1175
 - chore(deps): update dependency @tootallnate/once to v3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1176
 - chore(deps): update dependency brace-expansion@2 to v5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1178
@@ -711,7 +719,6 @@ _Enthält v0.1.336 – v0.1.836._
 - docs(review): canonical fixup findings table and adr 0011 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1286
 - fix(frontend): align heart glass distribution bands with legend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1287
 - fix(ci): remove zai peak-time claude fallback, warn only by @deleonio in https://github.com/deleonio/priority-pilot/pull/1289
-- feat(frontend): task form sections as uniform accordions (#1285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1288
 - feat(frontend): task form sections as uniform accordions (#1285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1288
 - design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - feat(frontend): pillar weight ranges in a single card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1291

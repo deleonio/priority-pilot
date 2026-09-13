@@ -3,6 +3,7 @@ import { NearbyCard } from './NearbyCard';
 import { DayDoneHint } from './DayDoneHint';
 import { StreakCard } from './StreakCard';
 import { MilestoneBadges } from './MilestoneBadges';
+import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
@@ -42,6 +43,8 @@ interface DashboardProps {
 	displayName?: string;
 	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
 	onCompleteTask?: (task: Task) => void;
+	/** Öffnet den Bearbeiten-Dialog für die nächste Aufgabe („Bearbeiten" im Signal-Panel, #1447). */
+	onEditTask?: (task: Task) => void;
 	/**
 	 * #1361: KolTabs hält inaktive Panels per `hidden` im DOM statt sie zu entfernen — ohne diesen
 	 * Schalter würde der Abschluss-Hinweis hier UND im Aufgaben-Tab gleichzeitig mounten und
@@ -90,6 +93,7 @@ export const Dashboard = ({
 	pillars,
 	displayName = '',
 	onCompleteTask,
+	onEditTask,
 	showDayDoneHint = true,
 }: DashboardProps) => {
 	const greeting = displayName.trim();
@@ -236,6 +240,23 @@ export const Dashboard = ({
 										_on={{ onClick: () => onCompleteTask(nextTask) }}
 									/>
 								)}
+								{/* #1447: Bearbeiten NACH „Erledigen" im DOM — die Signalfarbe bleibt der
+								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der
+								    Präzedenzfall in `TaskTree.tsx:212-223`. Der Wrapper hält die
+								    sekundäre Aktion inhaltsbreit (statt gestreckt wie „Erledigen")
+								    und damit aus dem Breiten-Vertrag von `#1042`
+								    (`.dashboard-next-task-content > kol-button`) heraus. */}
+								{onEditTask !== undefined && (
+									<div className="dashboard-next-task-actions">
+										<KolButton
+											_label="Bearbeiten"
+											_hideLabel
+											_variant="secondary"
+											_icons={{ left: { icon: 'fa-solid fa-pen' } }}
+											_on={{ onClick: () => onEditTask(nextTask) }}
+										/>
+									</div>
+								)}
 							</div>
 						)}
 					</KolCard>
@@ -370,6 +391,12 @@ export const Dashboard = ({
 			{/* #1362: eigener Knoten direkt nach der Streak-Card — beide Stufenlisten (Streak/Punkte)
 			 * bauen auf denselben Kennzahlen auf, die Badges fassen sie zu einer Übersicht zusammen. */}
 			<MilestoneBadges />
+			{/*
+			 * Verpasste Aufgaben: eigener Knoten nach den Meilensteinen — macht sichtbar, wie viele
+			 * Aufgaben der Auto-Delete-Cron gelöscht hat, ohne Punkte/Streak zu beeinflussen. Lädt
+			 * selbst (Muster StreakCard), daher ohne Prop-Kette und ohne Bedingung.
+			 */}
+			<MissedTasksCard />
 			{/* #1361: eigener Knoten neben der Streak-Card, damit deren E2E-Locators (#1360) unberührt
 			 * bleiben. Bedingung wertet die volle `tasks`-Liste aus. */}
 			{showDayDoneHint && <DayDoneHint tasks={tasks} />}

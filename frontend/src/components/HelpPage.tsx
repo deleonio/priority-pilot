@@ -3,12 +3,13 @@ import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { aggregateChangelog, entriesToMarkdown } from '../lib/changelog';
+import { FeedbackForm } from './FeedbackForm';
 import { Impress } from './Impress';
 
 // Tab-Leiste der Hilfe-Seite (#1190). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält (Muster SettingsPage.tsx). Reihenfolge: Handbuch (Index 0,
-// initial aktiv), Changelog (Index 1), Impressum (Index 2).
-const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }, { _label: 'Impressum' }];
+// initial aktiv), Changelog (Index 1), Impressum (Index 2), Feedback (Index 3, #1435).
+const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }, { _label: 'Impressum' }, { _label: 'Feedback' }];
 
 // Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Seite 1 (100 Einträge)
 // deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
@@ -311,6 +312,9 @@ export const HelpPage = () => {
 				</div>
 				<div slot="tab-2" className="help-page-content">
 					<Impress />
+				</div>
+				<div slot="tab-3" className="help-page-content">
+					<FeedbackForm />
 				</div>
 			</KolTabs>
 		</div>
