@@ -535,7 +535,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		// gespiegelten Route erreicht den Nutzer im MCP-Client sonst als Text ohne Handlungshinweis.
 		assert.match(
 			created.error.message,
-			/nur lesenden Zugriff/,
+			/read access only/,
 			`Fehlertext muss die Rechtestufe benennen, war: ${created.error.message}`,
 		);
 		assert.match(
@@ -870,7 +870,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
  * AK2: readwrite-Token löscht eine eigene Aufgabe endgültig.
  * AK3: fremde Aufgabe löschen → JSON-RPC-Fehler mit HTTP 404, Aufgabe bleibt beim Eigentümer.
  * AK4: Nur-lese-Token → Scope-Fehlertext, Aufgabe bleibt erhalten.
- * AK5: fehlende/ungültige id → Fehlertext "id muss eine Ganzzahl >= 1 sein.", nichts gelöscht.
+ * AK5: fehlende/ungültige id → Fehlertext "id must be an integer >= 1.", nichts gelöscht.
  * AK6: bestehende Suite bleibt (bis auf die Katalog-Assertion oben) grün.
  *
  * Rot, bis das Werkzeug task_delete in mcpTools existiert. KEIN Produktivcode.
@@ -941,7 +941,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		assert.ok(res.error, 'task_delete muss mit einem Nur-lese-Token fehlschlagen');
 		assert.match(
 			res.error!.message,
-			/nur lesenden Zugriff/,
+			/read access only/,
 			`Fehlertext muss die Rechtestufe benennen, war: ${res.error!.message}`,
 		);
 
@@ -960,11 +960,11 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 
 		const missing = await mcpCall(token, 'task_delete', {});
 		assert.ok(missing.error, 'fehlende id muss fehlschlagen');
-		assert.equal(missing.error!.message, 'id muss eine Ganzzahl >= 1 sein.');
+		assert.equal(missing.error!.message, 'id must be an integer >= 1.');
 
 		const nonInteger = await mcpCall(token, 'task_delete', { id: 'abc' });
 		assert.ok(nonInteger.error, 'nicht-ganzzahlige id muss fehlschlagen');
-		assert.equal(nonInteger.error!.message, 'id muss eine Ganzzahl >= 1 sein.');
+		assert.equal(nonInteger.error!.message, 'id must be an integer >= 1.');
 
 		const list = await mcpCall<{ id: number }[]>(token, 'task_list');
 		assert.ok(

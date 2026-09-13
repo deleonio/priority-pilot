@@ -123,7 +123,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		try {
 			await assert.rejects(
 				() => client.callTool({ name: 'task_create', arguments: { title: 'Mit Nur-lese-Token' } }),
-				/nur lesenden Zugriff/,
+				/read access only/,
 			);
 			// Die Verbindung überlebt die Ablehnung — der Client bleibt benutzbar.
 			const list = await client.callTool({ name: 'task_list', arguments: {} });

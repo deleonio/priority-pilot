@@ -26,9 +26,9 @@ eigene Aufgabe endgültig löschen — ohne zweiten Fachlogik- oder Auth-Pfad, e
 gefunden."` + `HTTP 404` im Fehlertext, Muster `task_links`/`group_members_list`); die Aufgabe
   bleibt für ihren Eigentümer unverändert erhalten.
 - Nur-lese-Token (`scope: read`) → Fehler mit dem Scope-Hinweis des Rahmens (`server/src/mcp/
-server.ts:100`, Text „schreibt, dieser Token erlaubt nur lesenden Zugriff"); die Aufgabe bleibt
+server.ts:100`, Text „writes data, but this token allows read access only"); die Aufgabe bleibt
   erhalten.
-- Ungültige oder fehlende `id` → Fehlertext `id muss eine Ganzzahl >= 1 sein.`, ohne dass ein
+- Ungültige oder fehlende `id` → Fehlertext `id must be an integer >= 1.`, ohne dass ein
   Loopback-Request abgesetzt wird.
 - Der v1-Namens-Snapshot (`tools.test.ts`) wächst von zwölf auf dreizehn Namen; alle zwölf
   Bestandsnamen bleiben unverändert.
@@ -43,5 +43,5 @@ server.ts:100`, Text „schreibt, dieser Token erlaubt nur lesenden Zugriff"); d
 | AK2 | TF2 — `readwrite`-Token löscht eigene Aufgabe, `task_list` enthält sie danach nicht mehr                        |
 | AK3 | TF3 — fremde Aufgabe löschen → JSON-RPC-Fehler mit `HTTP 404`, Aufgabe bleibt beim Eigentümer erhalten          |
 | AK4 | TF4 — Nur-lese-Token → Scope-Fehlertext, Aufgabe bleibt erhalten                                                |
-| AK5 | TF5 — fehlende/ungültige `id` → Fehlertext `id muss eine Ganzzahl >= 1 sein.`, nichts gelöscht                  |
+| AK5 | TF5 — fehlende/ungültige `id` → Fehlertext `id must be an integer >= 1.`, nichts gelöscht                       |
 | AK6 | TF6 — bestehende Suite `tools.test.ts` bleibt (bis auf die Katalog-Assertion) grün                              |

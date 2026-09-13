@@ -1,12 +1,14 @@
 /**
- * Werkzeugkatalog v1 des MCP-Servers (#1353).
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400 dreizehn Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
  * gegen den eigenen Server. Damit gelten Validierung, Eigentümer-Filter (`ownerScope`),
  * Unteraufgaben-Guard, Score-Vergabe und Push-Versand unverändert — es gibt keinen zweiten
- * Fachlogik- oder Auth-Pfad (AK3, AK6). Der Katalog ist ab dem Merge eingefroren (AK8) und enthält
- * bewusst kein Admin-Werkzeug (AK7, Admin-Werkzeuge gehören nach #1338).
+ * Fachlogik- oder Auth-Pfad (AK3, AK6). Eingefroren (AK8) sind Namen + Schemas; der Katalog wurde
+ * nach dem v1-Merge erweitert. Er enthält bewusst kein Admin-Werkzeug (AK7, Admin-Werkzeuge gehören
+ * nach #1338). Tool-Descriptions und Fehlermeldungen sind seit #1370 englisch — die Sprache der
+ * LLM-Clients, während die Weboberfläche und die durchgereichten Route-Fehlertexte deutsch bleiben.
  */
 
 /** Aufrufkontext eines Werkzeugs: Basis-URL des eigenen Servers + Bearer-Token des Aufrufers. */
@@ -59,7 +61,7 @@ const parseJsonBody = (text: string, status: number): unknown => {
 	try {
 		return JSON.parse(text);
 	} catch {
-		throw new Error(`Unerwartete Antwort (HTTP ${status}): ${text.slice(0, 200)}`);
+		throw new Error(`Unexpected response (HTTP ${status}): ${text.slice(0, 200)}`);
 	}
 };
 
@@ -86,8 +88,9 @@ const callApi = async (
 	if (!res.ok) {
 		// Der zentrale Fehlervertrag (express/http-error.ts) sendet `{ message }` — genau diesen Text
 		// braucht der Client, um zu wissen, WELCHES Feld ihm um die Ohren flog. Der Statuscode reist
-		// immer mit: er ordnet ein, ob die Eingabe (4xx) oder der Server (5xx) schuld ist.
-		const message = (payload as { message?: string } | null)?.message ?? 'Anfrage fehlgeschlagen.';
+		// immer mit: er ordnet ein, ob die Eingabe (4xx) oder der Server (5xx) schuld ist. Der Text
+		// selbst ist der der gespiegelten Route (deutsch, geteilt mit der Weboberfläche).
+		const message = (payload as { message?: string } | null)?.message ?? 'Request failed.';
 		throw new Error(`${message} (HTTP ${res.status})`);
 	}
 	return payload;
@@ -102,7 +105,7 @@ const callApi = async (
 const requireIntegerId = (args: Record<string, unknown>, key: string): number => {
 	const id = args[key];
 	if (typeof id !== 'number' || !Number.isInteger(id) || id < 1) {
-		throw new Error(`${key} muss eine Ganzzahl >= 1 sein.`);
+		throw new Error(`${key} must be an integer >= 1.`);
 	}
 	return id;
 };
@@ -123,7 +126,7 @@ const MAX_EFFORT = 1;
  */
 const effortFromHours = (hours: unknown): number => {
 	if (typeof hours !== 'number' || !Number.isFinite(hours) || hours <= 0) {
-		throw new Error('estimatedEffortHours muss eine endliche Zahl > 0 sein.');
+		throw new Error('estimatedEffortHours must be a finite number > 0.');
 	}
 	const days = Math.round((hours / HOURS_PER_EFFORT_DAY) * 100) / 100;
 	return Math.min(MAX_EFFORT, Math.max(MIN_EFFORT, days));
@@ -150,7 +153,7 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 		// Beide Angaben zusammen sind ein Widerspruch, kein Komfort: raten hieße, den Aufwand still
 		// falsch zu speichern.
 		if (args.estimatedEffort !== undefined) {
-			throw new Error('estimatedEffort und estimatedEffortHours schließen sich aus — bitte nur eines angeben.');
+			throw new Error('estimatedEffort and estimatedEffortHours are mutually exclusive — provide only one.');
 		}
 		fields.estimatedEffort = effortFromHours(args.estimatedEffortHours);
 	}
@@ -163,7 +166,7 @@ const readWeight = (value: unknown): number => {
 		return 1;
 	}
 	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-		throw new Error('weight muss eine endliche Zahl >= 0 sein.');
+		throw new Error('weight must be a finite number >= 0.');
 	}
 	return value;
 };
@@ -175,62 +178,62 @@ const readWeight = (value: unknown): number => {
  * `task_list`.
  */
 const linkProperties = {
-	taskId: { type: 'integer', description: 'ID der übergeordneten Aufgabe (aus task_list).' },
-	dependsOnId: { type: 'integer', description: 'ID der Vorgänger-Aufgabe/Unteraufgabe (aus task_list).' },
+	taskId: { type: 'integer', description: 'ID of the parent task (from task_list).' },
+	dependsOnId: { type: 'integer', description: 'ID of the predecessor task/subtask (from task_list).' },
 } as const;
 
 const taskFieldProperties = {
-	title: { type: 'string', description: 'Titel der Aufgabe.' },
-	description: { type: 'string', description: 'Beschreibung der Aufgabe.' },
-	priority: { type: 'integer', description: 'Priorität: Ganzzahl 1 (niedrigste) bis 5 (höchste), Standard 3.' },
+	title: { type: 'string', description: 'Title of the task.' },
+	description: { type: 'string', description: 'Description of the task.' },
+	priority: { type: 'integer', description: 'Priority: integer 1 (lowest) to 5 (highest), default 3.' },
 	estimatedEffort: {
 		type: 'number',
 		description:
-			'Geschätzter Eigenaufwand in TAGEN: Zahl zwischen 0.1 und 1, Standard 0.5 (ein Tag ≙ 14 h ' +
-			'reguläre Wachzeit). Wer in Stunden schätzt, nutzt stattdessen estimatedEffortHours.',
+			'Estimated own effort in DAYS: number between 0.1 and 1, default 0.5 (one day equals 14 h of ' +
+			'regular waking time). If you think in hours, use estimatedEffortHours instead.',
 	},
 	estimatedEffortHours: {
 		type: 'number',
 		description:
-			'Geschätzter Eigenaufwand in Stunden; wird in das Tage-Feld umgerechnet (Stunden / 14) und ' +
-			'an den Rändern der Skala auf 0.1–1 Tage begrenzt. Alternative zu estimatedEffort.',
+			'Estimated own effort in hours; converted to the days field (hours / 14) and clamped to 0.1-1 ' +
+			'days at the edges of the scale. Alternative to estimatedEffort.',
 	},
-	deadline: { type: 'string', description: 'Fälligkeit als ISO-8601-Zeitpunkt.' },
-	categoryId: { type: 'integer', description: 'ID einer eigenen Kategorie.' },
+	deadline: { type: 'string', description: 'Due date as ISO-8601 timestamp.' },
+	categoryId: { type: 'integer', description: 'ID of one of your own categories.' },
 	pillars: {
 		type: 'array',
 		description:
-			'Säulenzuordnung der Aufgabe: Liste von { pillarId, share, confidence? }. Die share-Werte aller ' +
-			'Einträge müssen zusammen 100 ergeben, confidence liegt zwischen 0 und 100 (Standard 100). Das Feld ' +
-			'ersetzt bei task_update die bestehende Zuordnung vollständig; pillars: [] entfernt sie, fehlt das ' +
-			'Feld, bleibt die Zuordnung unverändert. pillarId stammt aus pillar_list.',
+			'Pillar assignment of the task: list of { pillarId, share, confidence? }. The share values of all ' +
+			'entries must add up to 100, confidence is between 0 and 100 (default 100). On task_update this ' +
+			'field fully replaces the existing assignment; pillars: [] removes it, if the field is missing ' +
+			'the assignment stays unchanged. pillarId comes from pillar_list.',
 		items: {
 			type: 'object',
 			properties: {
-				pillarId: { type: 'integer', description: 'ID einer eigenen Säule (aus pillar_list).' },
-				share: { type: 'number', description: 'Anteil in Prozent; die Summe über alle Einträge muss 100 sein.' },
-				confidence: { type: 'number', description: 'Zuversicht 0-100 in diesen Beitrag. Ohne Angabe 100.' },
+				pillarId: { type: 'integer', description: 'ID of one of your own pillars (from pillar_list).' },
+				share: { type: 'number', description: 'Share in percent; the sum over all entries must be 100.' },
+				confidence: { type: 'number', description: 'Confidence 0-100 in this contribution. Defaults to 100.' },
 			},
 		},
 	},
 } as const;
 
 /**
- * Der eingefrorene v1-Katalog. Reihenfolge = Reihenfolge in `tools/list`; der Snapshot-Test
- * (`tools.test.ts`, AK8) sortiert selbst.
+ * Der Katalog. Reihenfolge = Reihenfolge in `tools/list`; der Snapshot-Test (`tools.test.ts`, AK8)
+ * sortiert selbst.
  */
 export const mcpTools: McpTool[] = [
 	{
 		name: 'task_list',
 		description:
-			'Listet die Aufgaben des Token-Besitzers samt ihrer IDs. Diese IDs benennen eine Aufgabe in allen ' +
-			'übrigen Werkzeugen (task_update, task_complete, task_link, task_unlink, task_links).',
+			"Lists the token owner's tasks including their IDs. These IDs identify a task in all other " +
+			'tools (task_update, task_complete, task_link, task_unlink, task_links).',
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/tasks'),
 	},
 	{
 		name: 'task_create',
-		description: 'Legt eine neue Aufgabe für den Token-Besitzer an.',
+		description: 'Creates a new task for the token owner.',
 		write: true,
 		inputSchema: {
 			type: 'object',
@@ -241,14 +244,14 @@ export const mcpTools: McpTool[] = [
 	},
 	{
 		name: 'task_update',
-		description: 'Ändert Felder einer eigenen Aufgabe.',
+		description: 'Changes fields of one of your own tasks.',
 		write: true,
 		inputSchema: {
 			type: 'object',
 			properties: {
-				id: { type: 'integer', description: 'ID der zu ändernden Aufgabe (aus task_list).' },
+				id: { type: 'integer', description: 'ID of the task to change (from task_list).' },
 				...taskFieldProperties,
-				status: { type: 'string', description: 'Status: "Open", "In process" oder "Done".' },
+				status: { type: 'string', description: 'Status: "Open", "In process" or "Done".' },
 			},
 			required: ['id'],
 		},
@@ -257,11 +260,11 @@ export const mcpTools: McpTool[] = [
 	},
 	{
 		name: 'task_complete',
-		description: 'Setzt eine eigene Aufgabe auf erledigt.',
+		description: 'Marks one of your own tasks as done.',
 		write: true,
 		inputSchema: {
 			type: 'object',
-			properties: { id: { type: 'integer', description: 'ID der zu erledigenden Aufgabe (aus task_list).' } },
+			properties: { id: { type: 'integer', description: 'ID of the task to complete (from task_list).' } },
 			required: ['id'],
 		},
 		run: (ctx, args) =>
@@ -270,12 +273,12 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_delete',
 		description:
-			'Löscht eine eigene Aufgabe endgültig und unwiderruflich. Anders als task_complete bleibt die ' +
-			'Aufgabe danach nicht erhalten — zum bloßen Abschließen stattdessen task_complete verwenden.',
+			'Permanently and irreversibly deletes one of your own tasks. Unlike task_complete the task is ' +
+			'not kept afterwards — to just finish a task, use task_complete instead.',
 		write: true,
 		inputSchema: {
 			type: 'object',
-			properties: { id: { type: 'integer', description: 'ID der zu löschenden Aufgabe (aus task_list).' } },
+			properties: { id: { type: 'integer', description: 'ID of the task to delete (from task_list).' } },
 			required: ['id'],
 		},
 		run: (ctx, args) => callApi(ctx, `/tasks/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
@@ -283,15 +286,15 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_link',
 		description:
-			'Verknüpft eine Aufgabe mit einer Vorgänger-Aufgabe (Unteraufgabe) und setzt das Gewicht der Kante. ' +
-			'Besteht die Verknüpfung schon, ändert der Aufruf nur ihr Gewicht. Beide Enden werden über ihre ' +
-			'numerische ID angegeben — die IDs liefert task_list, also zuerst dort nachsehen.',
+			'Links a task to a predecessor task (subtask) and sets the weight of the edge. If the link ' +
+			'already exists, the call only updates its weight. Both ends are given by their numeric ID — ' +
+			'task_list provides the IDs, so look there first.',
 		write: true,
 		inputSchema: {
 			type: 'object',
 			properties: {
 				...linkProperties,
-				weight: { type: 'number', description: 'Gewicht der Verknüpfung, Zahl >= 0. Ohne Angabe 1.' },
+				weight: { type: 'number', description: 'Weight of the link, number >= 0. Defaults to 1.' },
 			},
 			required: ['taskId', 'dependsOnId'],
 		},
@@ -308,8 +311,8 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_unlink',
 		description:
-			'Löst die Verknüpfung zwischen einer Aufgabe und einer ihrer Vorgänger-Aufgaben. ' +
-			'Beide Enden werden über ihre numerische ID angegeben — die IDs liefert task_list.',
+			'Removes the link between a task and one of its predecessor tasks. ' +
+			'Both ends are given by their numeric ID — task_list provides the IDs.',
 		write: true,
 		inputSchema: { type: 'object', properties: { ...linkProperties }, required: ['taskId', 'dependsOnId'] },
 		run: (ctx, args) => {
@@ -321,9 +324,9 @@ export const mcpTools: McpTool[] = [
 	{
 		name: 'task_links',
 		description:
-			'Listet die Verknüpfungen einer Aufgabe: ihre Vorgänger (Unteraufgaben) und die Aufgaben, die auf ihr ' +
-			'aufbauen, je mit Gewicht. Die Aufgabe wird über ihre numerische ID angegeben (aus task_list). ' +
-			'Erledigte Aufgaben fehlen, weil der gespiegelte Graph nur offene Aufgaben führt.',
+			'Lists the links of a task: its predecessors (subtasks) and the tasks building on it, each with ' +
+			'weight. The task is given by its numeric ID (from task_list). Done tasks are missing because ' +
+			'the mirrored graph only tracks open tasks.',
 		inputSchema: {
 			type: 'object',
 			properties: { taskId: linkProperties.taskId },
@@ -337,7 +340,7 @@ export const mcpTools: McpTool[] = [
 			};
 			const titleById = new Map(graph.nodes.map((node) => [node.id, node.title]));
 			if (!titleById.has(taskId)) {
-				throw new Error('Aufgabe nicht gefunden oder bereits erledigt.');
+				throw new Error('Task not found or already done.');
 			}
 			const neighbor = (id: number, weight: number) => ({ id, title: titleById.get(id), weight });
 			return {
@@ -351,34 +354,34 @@ export const mcpTools: McpTool[] = [
 	},
 	{
 		name: 'next_task',
-		description: 'Liefert die nächste wichtige Aufgabe des Token-Besitzers oder null.',
+		description: "Returns the token owner's next important task, or null.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/next'),
 	},
 	{
 		name: 'pillar_list',
-		description: 'Listet die Säulen des Token-Besitzers samt Gewichtung.',
+		description: "Lists the token owner's pillars including their weighting.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/pillars'),
 	},
 	{
 		name: 'category_list',
-		description: 'Listet die Kategorien des Token-Besitzers.',
+		description: "Lists the token owner's categories.",
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/categories'),
 	},
 	{
 		name: 'group_list',
-		description: 'Listet die Gruppen, in denen der Token-Besitzer Mitglied ist, samt Rolle und Mitgliederzahl.',
+		description: 'Lists the groups the token owner is a member of, including role and member count.',
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/groups'),
 	},
 	{
 		name: 'group_members_list',
-		description: 'Listet die Mitglieder einer eigenen Gruppe. Fremde Gruppen liefern einen Fehler statt Daten.',
+		description: 'Lists the members of one of your own groups. Foreign groups return an error instead of data.',
 		inputSchema: {
 			type: 'object',
-			properties: { groupId: { type: 'integer', description: 'ID der Gruppe (aus group_list).' } },
+			properties: { groupId: { type: 'integer', description: 'ID of the group (from group_list).' } },
 			required: ['groupId'],
 		},
 		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/members`),

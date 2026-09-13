@@ -162,7 +162,7 @@ describe('MCP-Endpunkt /mcp/v1 — Anmeldung über api-key (#1417 AK4/AK5)', () 
 		const body = (await res.json()) as { error?: { message?: string } };
 		assert.match(
 			body.error?.message ?? '',
-			/schreibt, dieser Token erlaubt nur lesenden Zugriff/,
+			/writes data, but this token allows read access only/,
 			'Scope-Hinweistext muss identisch zum Authorization-Pfad sein',
 		);
 	});
