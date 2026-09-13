@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
-import { Pillar, ScoreEntry, Task } from '../../models/index.js';
+import { Pillar, ScoreEntry, Task, MissedTask } from '../../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
@@ -14,6 +14,10 @@ type ScoreEntryDto = components['schemas']['ScoreEntry'];
 type PillarScoreDto = components['schemas']['PillarScore'];
 type StreakDto = components['schemas']['Streak'];
 type MilestoneDto = components['schemas']['Milestone'];
+type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
+
+/** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
+const MISSED_TASKS_LIST_LIMIT = 20;
 
 export const scoresRouter = Router();
 
@@ -103,6 +107,31 @@ scoresRouter.get('/scores/milestones', async (req: Request, res: Response<Milest
 		const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
 
 		res.json(berechneMeilensteine({ bestStreak: best, punkteSumme }));
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// GET /scores/missed — Aufgaben, die der Auto-Delete-Cron wegen abgelaufener Deadline gelöscht hat
+// (Sichtbarkeit im Bewertungssystem, rein informativ). Fließt bewusst NICHT in `berechneScore`,
+// `berechneStreak` oder `berechneMeilensteine` ein — keine Minuspunkte, kein Streak-Malus. Da die
+// Original-Aufgabe nach dem Löschen nicht mehr existiert, gibt es keine `Task`-Assoziation zu scopen;
+// `userId` ist auf `MissedTask` denormalisiert (siehe models/index.ts).
+scoresRouter.get('/scores/missed', async (req: Request, res: Response<MissedTasksSummaryDto | ErrorDto>) => {
+	try {
+		const entries = await MissedTask.findAll({
+			where: ownerScope(getUserId(req)),
+			order: [['verpasstAm', 'DESC']],
+		});
+		res.json({
+			anzahl: entries.length,
+			eintraege: entries.slice(0, MISSED_TASKS_LIST_LIMIT).map((entry) => ({
+				taskId: entry.taskId,
+				title: entry.title,
+				deadline: entry.deadline.toISOString(),
+				verpasstAm: entry.verpasstAm.toISOString(),
+			})),
+		});
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
