@@ -18,7 +18,7 @@ PROCEDURE:
         one via its marker and PATCH it — never a new comment). The follow-up review verifies THIS
         table as its claim checklist instead of re-walking the delta — a missing row keeps the
         finding open and costs a round.
-   - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve; end the round with NO commit and NO verdict — the next run reads the answer); if not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
+   - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve, NO verdict — the next run reads the answer). This blocks only THIS finding, not the round: the unambiguous findings of the same round still go through a–d (GATE, commit+push, resolve, ✅ row). Only if the round has NO unambiguous finding at all does it end with no commit. If not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
 4. **Decision findings** → the review's option ID is only a PROPOSAL; wait for the human's choice (their reply comment carries the option ID), then implement EXACTLY that option
 5. **CI red**:
    - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, wait 60s
