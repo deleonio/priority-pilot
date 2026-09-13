@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.25._
+_Enthält v0.2.0 – v0.2.26._
 
 ### 🔧 Engineering
 
@@ -39,6 +39,7 @@ _Enthält v0.2.0 – v0.2.25._
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1431
 - feat(frontend): add changelog range selector and help page sidebar toc by @deleonio in https://github.com/deleonio/priority-pilot/pull/1432
+- feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
 
 ## v0.1 - 2026-09-12
 
@@ -641,6 +642,7 @@ _Enthält v0.1.336 – v0.1.836._
 - ci(prompts): add thread-resolve command, label ban, and trim ux sources by @deleonio in https://github.com/deleonio/priority-pilot/pull/1156
 - fix(server): scope series routes to owner (data isolation) (#1157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1158
 - chore(deps): update dependency tar to v7.5.22 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1163
+- chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1162
 - chore(deps): pin dependencies by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1162
 - feat(frontend): add three-tier hierarchy to task form (#1159) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1160
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1164
