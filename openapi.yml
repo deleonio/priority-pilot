@@ -1048,6 +1048,38 @@ paths:
                 $ref: '#/components/schemas/TestPushResult'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /mail/test:
+    post:
+      summary: Testmail über den konfigurierten SMTP-Server versenden
+      description: >-
+        Sendet eine Testmail an die E-Mail-Adresse des angemeldeten Admins
+        (Issue #1426). Nur für Admins (`member` → 403, keine Session → 401).
+        503, wenn SMTP nicht konfiguriert ist; 502, wenn der Transport wirft.
+      operationId: sendTestMail
+      tags: [mail]
+      responses:
+        '200':
+          description: Testmail abgeschickt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestMailResult'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /llm-providers:
     get:
       summary: Konfigurierte LLM-Provider auflisten
@@ -4175,6 +4207,14 @@ components:
           description: Anzahl der erfolgreich zugestellten Push-Nachrichten.
         quote:
           $ref: '#/components/schemas/Quote'
+    TestMailResult:
+      type: object
+      required:
+        - sent
+      properties:
+        sent:
+          type: boolean
+          description: Ob die Testmail erfolgreich verschickt wurde.
     Quote:
       type: object
       required:

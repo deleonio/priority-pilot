@@ -1,5 +1,6 @@
-import { NotificationLog } from '../models/index.js';
+import { NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
+import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 
 /**
  * Fachlicher Push-Trigger „Serie von jemand anderem angelegt hat Instanzen erzeugt" (#1253):
@@ -43,12 +44,15 @@ interface Creator {
  * unberührt bleibt (#1253 AK5).
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
+ * @param mailSend injizierbarer Mail-Versand (#1426, siehe `logics/mail.ts`); ohne SMTP-Konfiguration
+ *   und ohne injizierten Sender wird kein Mail-Versuch unternommen (AK6).
  */
 export const notifySeriesGenerated = async (
 	series: GeneratingSeries,
 	createdTasks: GeneratedTask[],
 	creator: Creator | null,
 	send?: PushSender,
+	mailSend?: MailSender,
 ): Promise<void> => {
 	if (createdTasks.length === 0) {
 		return;
@@ -65,16 +69,15 @@ export const notifySeriesGenerated = async (
 		return;
 	}
 	const creatorName = creator?.displayName || creator?.email || 'Jemand';
-	const { sent } = await sendPushToUser(
-		series.userId,
-		{
-			title: `Neue Aufgaben von ${creatorName}`,
-			body: `„${series.title}“: ${createdTasks.length} neue Aufgaben.`,
-			url: '/',
-		},
-		send,
-	);
-	if (sent > 0) {
+	const title = `Neue Aufgaben von ${creatorName}`;
+	const body = `„${series.title}“: ${createdTasks.length} neue Aufgaben.`;
+	const { sent } = await sendPushToUser(series.userId, { title, body, url: '/' }, send);
+	let mailSent = false;
+	if (mailSend || isMailConfigured()) {
+		const recipient = await User.findByPk(series.userId);
+		mailSent = await sendMailToUser({ email: recipient?.email ?? null }, { subject: title, text: body }, mailSend);
+	}
+	if (sent > 0 || mailSent) {
 		await NotificationLog.create({ userId: series.userId, kind: KIND, dedupeKey, sentAt: new Date() });
 	}
 };
