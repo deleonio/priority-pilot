@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { collectDueTaskReminders, runDueTaskReminders } from './dueTaskReminders.js';
 import type { PushSender } from './push.js';
@@ -44,6 +44,10 @@ const createTask = (overrides: TaskOverrides = {}) =>
 
 const seedSubscription = (userId: number | null, endpoint: string) =>
 	PushSubscription.create({ endpoint, p256dh: 'p256dh', auth: 'auth', expirationTime: null, userId });
+
+/** Legt den `User`-Datensatz für `userId: 1` an — Voraussetzung für `User.findByPk` im Mail-Pfad (AK5/AK7). */
+const seedUser = () =>
+	User.create({ email: 'reminder@example.com', displayName: 'Reminder Empfänger', passwordHash: '__test__' });
 
 /** Erfolgs-Sender: zählt die Aufrufe und liefert die versendete Payload (Vorbild: push.test.ts). */
 const okSender =
@@ -198,6 +202,7 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 	});
 
 	it('AK5: verschickt zusätzlich zur Push-Nachricht genau eine Mail; zweiter Lauf sendet auf keinem Kanal erneut', async () => {
+		await seedUser();
 		await seedSubscription(1, 'https://push.example.com/a');
 		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
 		const pushCalls: { endpoint: string; body: string }[] = [];
@@ -218,12 +223,23 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 	});
 
 	it('AK7: schlägt der Mail-Versand fehl, wird die Push-Nachricht dennoch zugestellt und der Log-Eintrag geschrieben', async () => {
+		await seedUser();
 		await seedSubscription(1, 'https://push.example.com/a');
 		await createTask({ title: 'Rechnung zahlen', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
 		const pushCalls: { endpoint: string; body: string }[] = [];
-		const failingMailSend: MailSenderStub = () => Promise.reject(new Error('SMTP-Transport fehlgeschlagen'));
+		let failingMailSendCalls = 0;
+		const failingMailSend: MailSenderStub = () => {
+			failingMailSendCalls++;
+			return Promise.reject(new Error('SMTP-Transport fehlgeschlagen'));
+		};
 
 		const result = await runDueTaskRemindersWithMail(NOW, okSender(pushCalls), failingMailSend);
+
+		assert.equal(
+			failingMailSendCalls,
+			1,
+			'der Mail-Versand wird tatsächlich versucht (sonst prüft der Test AK7 nicht)',
+		);
 
 		assert.equal(result.usersNotified, 1, 'ein fehlgeschlagener Mail-Versand bricht den Lauf nicht ab');
 		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
