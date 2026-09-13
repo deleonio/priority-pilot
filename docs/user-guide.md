@@ -542,8 +542,11 @@ der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
 - **Sprache** – die Sprache der Oberfläche. Zur Wahl stehen Deutsch, Englisch,
   Französisch, Italienisch, Niederländisch, Polnisch, Portugiesisch, Russisch,
   Schwedisch und Spanisch; jede steht in der Liste in ihrer eigenen Schreibweise.
+  Übersetzt sind bislang nur einzelne Bereiche der App – der größte Teil der
+  Beschriftungen bleibt unabhängig von der Wahl deutsch.
   Die Wahl wirkt sofort und bleibt auf diesem Gerät gespeichert. Ohne eigene Wahl
-  richtet sich die App nach der Spracheinstellung deines Browsers.
+  richtet sich die App nach der Spracheinstellung deines Browsers; ist deren
+  Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Herzens auf dem Dashboard und
   den Ablauf beim Erledigen einer Aufgabe.
