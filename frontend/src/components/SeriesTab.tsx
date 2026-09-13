@@ -14,6 +14,15 @@ interface SeriesTabProps {
 	pillars: Pillar[];
 	/** Verfügbare Kategorien — für das Badge in der Liste und die Auswahl im eingebetteten `TaskForm`. */
 	categories?: Category[];
+	/**
+	 * Signal an die App, dass sich der Aufgabenbestand geändert hat: generierte Instanzen, eine
+	 * gelöschte Serie (die Kaskade entfernt offene Instanzen) oder eine Template-Änderung, die offene
+	 * Instanzen mitzieht (`applyToInstances`). Ohne dieses Signal blieben `tasks`/`forest` in `App`
+	 * auf dem Stand des Seitenaufrufs stehen — der Tab-Wechsel lädt nicht nach —, und die frisch
+	 * materialisierten Instanzen fehlten im Aufgaben-Tab bis zum nächsten Seiten-Reload. Muster:
+	 * `onReloaded` in `CompletedTasksTable`.
+	 */
+	onTasksChanged?: () => void;
 }
 
 /** Serie, die aktuell im Bearbeiten-Modal (`TaskForm` im Serie-Modus) geöffnet ist. */
@@ -43,7 +52,7 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
  * generieren" (#244) stößt die serverseitige Materialisierung an. Das Anlegen neuer Serien läuft über
  * den vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
  */
-export const SeriesTab = ({ pillars, categories = [] }: SeriesTabProps) => {
+export const SeriesTab = ({ pillars, categories = [], onTasksChanged }: SeriesTabProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -94,7 +103,10 @@ export const SeriesTab = ({ pillars, categories = [] }: SeriesTabProps) => {
 	const afterSaved = useCallback((): void => {
 		setEditDialog(null);
 		void reload();
-	}, [reload]);
+		// Eine Template-Änderung kann offene Instanzen mitziehen (`applyToInstances`, Kaskade in
+		// PATCH /series) — die App muss ihren Aufgabenbestand daher ebenfalls neu holen.
+		onTasksChanged?.();
+	}, [reload, onTasksChanged]);
 
 	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
 	const generateAll = useCallback(async (): Promise<void> => {
@@ -107,6 +119,11 @@ export const SeriesTab = ({ pillars, categories = [] }: SeriesTabProps) => {
 			setError(null);
 			const msg = created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell';
 			setSuccessMessage(msg);
+			// Die neuen Instanzen sind eigenständige Tasks: ohne dieses Signal stünden sie erst nach
+			// einem Seiten-Reload im Aufgaben-Tab und wären bis dahin nicht abhakbar.
+			if (created > 0) {
+				onTasksChanged?.();
+			}
 			if (successTimerRef.current !== null) clearTimeout(successTimerRef.current);
 			successTimerRef.current = setTimeout(() => setSuccessMessage(null), 5000);
 		} catch (reason) {
@@ -116,12 +133,15 @@ export const SeriesTab = ({ pillars, categories = [] }: SeriesTabProps) => {
 			isGeneratingRef.current = false;
 			setIsGenerating(false);
 		}
-	}, []);
+	}, [onTasksChanged]);
 
 	const handleDeleted = useCallback((): void => {
 		setDeleteTarget(null);
 		void reload();
-	}, [reload]);
+		// Die Lösch-Kaskade entfernt die offenen Instanzen der Serie (series.cascade) — die App zeigt
+		// sie sonst weiter in der Aufgabenliste an.
+		onTasksChanged?.();
+	}, [reload, onTasksChanged]);
 
 	return (
 		<section className="series-section" ref={deleteFallbackRef} tabIndex={-1}>
