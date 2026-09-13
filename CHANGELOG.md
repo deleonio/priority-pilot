@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.22._
+_Enthält v0.2.0 – v0.2.23._
 
 ### 🔧 Engineering
 
@@ -36,6 +36,7 @@ _Enthält v0.2.0 – v0.2.22._
 - docs(spec): sync specs with implementation 2026-09-13 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1425
 - docs(guide): sync user guide with current implementation state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1427
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
+- chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1431
 
 ## v0.1 - 2026-09-12
 
@@ -701,6 +702,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): pillar palette on 7 cvd-validated neon colors (#1273) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1276
 - feat(frontend): collapse optional task form sections into accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1277
 - feat(frontend): keep main tab bar on one line at 375px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1278
+- chore: implement prompt audit #1247 and shared llm concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1279
 - chore: implement prompt audit #1247 and shared llm concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1279
 - docs(review): canonical fixup findings table and adr 0011 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1286
 - fix(frontend): align heart glass distribution bands with legend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1287
