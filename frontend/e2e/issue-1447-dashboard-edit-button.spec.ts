@@ -51,7 +51,10 @@ test.describe('#1447 „Bearbeiten"-Button im Dashboard-Signal-Panel', () => {
 		await page.locator('.dashboard-next-task-content').getByRole('button', { name: 'Bearbeiten' }).click();
 
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten: E2E #1447 Nächste Aufgabe/ })).toBeVisible();
-		await expect(page.getByLabel('Titel')).toHaveValue('E2E #1447 Nächste Aufgabe');
+		// Test-Pflege #1447: `getByLabel('Titel')` trifft vier Elemente (Mikrofon-Button, Filterfeld,
+		// Titel-Input, Lektorat-Button) → strict-mode-Verletzung. Auf die Textbox-Rolle verengt,
+		// Prüfabsicht (Titel vorausgefüllt) unverändert.
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('E2E #1447 Nächste Aufgabe');
 	});
 
 	test('AK4: bei 375×812 sind „Erledigen" und „Bearbeiten" beide vollständig sichtbar und antippbar, kein Overflow', async ({
