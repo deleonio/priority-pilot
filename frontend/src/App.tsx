@@ -314,10 +314,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		};
 	}, []);
 
-	// Bei jedem Tab-Wechsel die Daten neu laden: So zeigt jede Ansicht den aktuellen Server-Stand —
-	// insbesondere wandert eine frisch per Toggle erledigte Aufgabe (#315) erst mit diesem Reload
-	// atomar (ein React-Commit) aus dem Aufgabenbaum in die Erledigte-Tabelle (#228). Stabile
-	// Callback-Identität, damit `KolTabs` nicht bei jedem Render neu verdrahtet.
+	// Tab-Wechsel navigiert nur; `App` bleibt dabei gemountet und lädt NICHT nach. Die Aktualität der
+	// Daten kommt aus den Mutations-Callbacks (`afterMutation`, `handleDoneToggle`,
+	// `handleMasterDataChanged` — letzterer auch für den Serien-Tab, dessen Aktionen Instanzen
+	// erzeugen, löschen oder mitziehen). Stabile Callback-Identität, damit `KolTabs` nicht bei jedem
+	// Render neu verdrahtet.
 	const tabsCallbacks = useMemo(
 		() => ({
 			onSelect: (_event: Event, selected: number): void => {
@@ -1011,7 +1012,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								</section>
 							</div>
 							<div slot="tab-2">
-								<SeriesTab pillars={pillars} categories={categories} />
+								<SeriesTab pillars={pillars} categories={categories} onTasksChanged={handleMasterDataChanged} />
 							</div>
 							<div slot="tab-3">
 								{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
