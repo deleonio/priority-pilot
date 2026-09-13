@@ -119,13 +119,14 @@ scoresRouter.get('/scores/milestones', async (req: Request, res: Response<Milest
 // `userId` ist auf `MissedTask` denormalisiert (siehe models/index.ts).
 scoresRouter.get('/scores/missed', async (req: Request, res: Response<MissedTasksSummaryDto | ErrorDto>) => {
 	try {
-		const entries = await MissedTask.findAll({
+		const { count: anzahl, rows: entries } = await MissedTask.findAndCountAll({
 			where: ownerScope(getUserId(req)),
 			order: [['verpasstAm', 'DESC']],
+			limit: MISSED_TASKS_LIST_LIMIT,
 		});
 		res.json({
-			anzahl: entries.length,
-			eintraege: entries.slice(0, MISSED_TASKS_LIST_LIMIT).map((entry) => ({
+			anzahl,
+			eintraege: entries.map((entry) => ({
 				taskId: entry.taskId,
 				title: entry.title,
 				deadline: entry.deadline.toISOString(),

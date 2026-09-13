@@ -78,4 +78,12 @@ describe('MissedTasksCard', () => {
 
 		await waitFor(() => expect(getMissedTasks).toHaveBeenCalledTimes(1));
 	});
+
+	it('zeigt den neutralen Zustandstext statt dauerhaftem Ladezustand bei Netzwerkfehler', async () => {
+		getMissedTasks.mockRejectedValue(new Error('network error'));
+		render(<MissedTasksCard />);
+
+		await waitFor(() => expect(card().querySelector('[data-testid="missed-tasks-zero"]')).not.toBeNull());
+		expect(card().textContent).not.toContain('Wird geladen');
+	});
 });

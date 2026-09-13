@@ -56,6 +56,7 @@ MissedTask.init(
 		modelName: 'MissedTask',
 		tableName: 'missed_tasks',
 		timestamps: false,
+		indexes: [{ fields: ['userId', 'verpasstAm'] }],
 	},
 );
 

@@ -45,7 +45,7 @@ export const runDeadlineAutoDelete = async (now: Date = new Date()): Promise<{ d
 		return { deleted: 0 };
 	}
 
-	await sequelize.transaction(async (transaction) => {
+	const deleted = await sequelize.transaction(async (transaction) => {
 		await MissedTask.bulkCreate(
 			candidates.map((task) => ({
 				taskId: task.id,
@@ -57,11 +57,11 @@ export const runDeadlineAutoDelete = async (now: Date = new Date()): Promise<{ d
 			})),
 			{ transaction },
 		);
-		await Task.destroy({
-			where: { id: candidates.map((task) => task.id) },
+		return Task.destroy({
+			where: { ...where, id: candidates.map((task) => task.id) },
 			transaction,
 		});
 	});
 
-	return { deleted: candidates.length };
+	return { deleted };
 };

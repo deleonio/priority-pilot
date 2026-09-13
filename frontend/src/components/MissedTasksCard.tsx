@@ -18,6 +18,7 @@ const aufgaben = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Aufgab
 
 export const MissedTasksCard = () => {
 	const [summary, setSummary] = useState<MissedTasksSummary | null>(null);
+	const [failed, setFailed] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -29,9 +30,8 @@ export const MissedTasksCard = () => {
 				}
 			})
 			.catch(() => {
-				// Netzwerk-/Serverfehler bleiben im Ladezustand statt einen Fehlerzustand zu malen.
 				if (!cancelled) {
-					setSummary(null);
+					setFailed(true);
 				}
 			});
 		return () => {
@@ -48,9 +48,9 @@ export const MissedTasksCard = () => {
 			_level={3}
 			data-testid="missed-tasks-card"
 		>
-			{summary === null ? (
+			{summary === null && !failed ? (
 				<p className="dashboard-missed-hint">Wird geladen …</p>
-			) : summary.anzahl === 0 ? (
+			) : failed || summary === null || summary.anzahl === 0 ? (
 				<p className="dashboard-missed-hint" data-testid="missed-tasks-zero">
 					Bisher wurde keine Aufgabe automatisch bereinigt.
 				</p>

@@ -1155,6 +1155,7 @@ body {
 	padding: 0;
 	font-size: var(--pp-font-size-sm);
 	color: var(--pp-text-muted);
+	overflow-wrap: anywhere;
 }
 
 /* #1361: `.day-done-hint` (DayDoneHint.tsx) ist der einzige Dashboard-Knoten ohne `dashboard-`
