@@ -19,6 +19,7 @@ import type {
 	GroupUpdate,
 	GroupInviteLink,
 	Milestone,
+	MissedTasksSummary,
 	PlaceFavorite,
 	PlaceFavoriteInput,
 	InviteLinkPreview,
@@ -918,6 +919,16 @@ export const api = {
 			params: { query: { tz } },
 			signal,
 		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Verpasste Aufgaben: vom Auto-Delete-Cron gelöschte Aufgaben (Bewertungssystem-Sichtbarkeit) ---
+
+	async getMissedTasks(init: Init = {}): Promise<MissedTasksSummary> {
+		const { data, error, response } = await client.GET('/scores/missed', { signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

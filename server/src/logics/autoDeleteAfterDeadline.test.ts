@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task, Series } from '../models/index.js';
+import { Task, Series, ScoreEntry, MissedTask } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { runDeadlineAutoDelete } from './autoDeleteAfterDeadline.js';
 import { generateDueInstances } from './series.js';
@@ -276,5 +276,106 @@ describe('logics/autoDeleteAfterDeadline — greift auch bei Serien-Aufgaben (Is
 		assert.equal(result.deleted, 1, 'nur die überfällige Instanz wird gelöscht');
 		assert.equal(await Task.findByPk(overdue.id), null, 'die überfällige Einzelinstanz ist entfernt');
 		assert.notEqual(await Task.findByPk(upcoming.id), null, 'die zukünftige Instanz bleibt erhalten');
+	});
+});
+
+/**
+ * Sichtbarkeit im Bewertungssystem: für jede gelöschte Aufgabe entsteht ein `MissedTask`-Schnappschuss
+ * (rein informativ, siehe Kommentar in `autoDeleteAfterDeadline.ts`). Punkte/Streak dürfen dadurch NICHT
+ * beeinflusst werden — das wird hier explizit mitgeprüft.
+ */
+describe('logics/autoDeleteAfterDeadline — schreibt MissedTask-Einträge (Bewertungssystem-Sichtbarkeit)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	it('schreibt pro gelöschter Aufgabe genau einen MissedTask-Eintrag mit den Snapshot-Werten', async () => {
+		const task = await createTask({
+			title: 'Müll rausbringen',
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			autoDeleteAfterDeadline: true,
+		});
+
+		await runDeadlineAutoDelete(NOW);
+
+		const entries = await MissedTask.findAll();
+		assert.equal(entries.length, 1, 'genau ein MissedTask-Eintrag wurde geschrieben');
+		assert.equal(entries[0].taskId, task.id);
+		assert.equal(entries[0].title, 'Müll rausbringen');
+		assert.equal(entries[0].deadline.getTime(), task.deadline!.getTime());
+		assert.equal(entries[0].priority, 3);
+		assert.equal(entries[0].verpasstAm.getTime(), NOW.getTime());
+	});
+
+	it('schreibt KEINEN MissedTask-Eintrag für eine Aufgabe, die nicht gelöscht wird', async () => {
+		await createTask({
+			title: 'Erledigt',
+			status: 'Done',
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			autoDeleteAfterDeadline: true,
+		});
+		await createTask({
+			title: 'Ohne Auto-Delete',
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			autoDeleteAfterDeadline: false,
+		});
+
+		await runDeadlineAutoDelete(NOW);
+
+		assert.equal(await MissedTask.count(), 0, 'keine der beiden Aufgaben wurde gelöscht, also kein Eintrag');
+	});
+
+	it('schreibt für mehrere gelöschte Aufgaben je einen korrekt zugeordneten Eintrag', async () => {
+		const a = await createTask({
+			title: 'A',
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			autoDeleteAfterDeadline: true,
+		});
+		const b = await createTask({
+			title: 'B',
+			deadline: new Date(NOW.getTime() - 6 * DAY),
+			autoDeleteAfterDeadline: true,
+		});
+
+		await runDeadlineAutoDelete(NOW);
+
+		const titles = (await MissedTask.findAll()).map((e) => e.title).sort();
+		assert.deepEqual(titles, ['A', 'B']);
+		const taskIds = (await MissedTask.findAll()).map((e) => e.taskId).sort();
+		assert.deepEqual(taskIds, [a.id, b.id].sort());
+	});
+
+	it('Grenzfall exakt 3 Tage: MissedTask-Eintrag entsteht, knapp darunter nicht', async () => {
+		await createTask({
+			title: 'Exakt 3 Tage',
+			deadline: new Date(NOW.getTime() - 3 * DAY),
+			autoDeleteAfterDeadline: true,
+		});
+		await createTask({
+			title: 'Knapp unter 3 Tagen',
+			deadline: new Date(NOW.getTime() - 3 * DAY + 1),
+			autoDeleteAfterDeadline: true,
+		});
+
+		await runDeadlineAutoDelete(NOW);
+
+		const entries = await MissedTask.findAll();
+		assert.equal(entries.length, 1);
+		assert.equal(entries[0].title, 'Exakt 3 Tage');
+	});
+
+	it('rührt Punkte/Streak nicht an — ScoreEntry bleibt unberührt', async () => {
+		await createTask({
+			title: 'Verpasst',
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			autoDeleteAfterDeadline: true,
+		});
+
+		await runDeadlineAutoDelete(NOW);
+
+		assert.equal(await ScoreEntry.count(), 0, 'kein ScoreEntry entsteht durch das Löschen — keine Bestrafung');
 	});
 });
