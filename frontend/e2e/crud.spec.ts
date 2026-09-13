@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Funktionale End-to-End-CRUD-Specs (#92) gegen das **echte** Backend (#91). Anders als die früheren,
@@ -71,7 +71,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der Aufgabenliste ist der Titel direkt
 		// als Textinhalt des span.task-tree-title sichtbar.
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 
 	test('Task bearbeiten: geänderte Priorität bleibt sichtbar', async ({ page }) => {
@@ -112,7 +112,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		await openTasksTab(page);
 		// In der Task-Liste ist der Titel direkt als Textinhalt sichtbar.
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 
 		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
@@ -124,7 +124,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// War es der einzige Task, zeigt der Aufgaben-Tab seinen eigenen Leerzustand (#1259: das
 		// Dashboard-„Noch keine Aufgaben" rendert nur noch auf Tab 0); der Titel ist weg.
 		await expect(page.getByText('Noch keine Tasks vorhanden. Lege oben einen neuen Task an.')).toBeVisible();
-		await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+		await expect(taskTitleText(page, title)).toHaveCount(0);
 	});
 
 	test('Säulen-Gewicht ändern: Wert persistiert über einen Reload', async ({ page }) => {

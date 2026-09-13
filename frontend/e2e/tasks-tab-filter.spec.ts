@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Spec-Tests (#399): Aufgaben und erledigte Aufgaben zusammenführen — ein Aufgaben-Tab mit
@@ -129,7 +129,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 
 		// Default (Umschalter ungeprüft) zeigt den Baum offener Aufgaben.
 		await expect(viewSwitch(page)).not.toBeChecked();
-		await expect(page.getByText(openTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, openTitle)).toBeVisible();
 	});
 
 	test('AK2: Umschalter wechselt zwischen offenem Baum und erledigter Tabelle', async ({ page }) => {
@@ -155,24 +155,24 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 
 		// Default: Umschalter ungeprüft (offen), offener Task sichtbar, erledigter nicht.
 		await expect(viewSwitch(page)).not.toBeChecked();
-		await expect(page.getByText(openTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(doneTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, openTitle)).toBeVisible();
+		await expect(taskTitleText(page, doneTitle)).not.toBeVisible();
 
 		// Umschalten auf „Erledigt" → Tabelle erscheint.
 		await viewSwitch(page).click();
 		await waitForStableView(page);
 
 		await expect(viewSwitch(page)).toBeChecked();
-		await expect(page.getByText(doneTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(openTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, doneTitle)).toBeVisible();
+		await expect(taskTitleText(page, openTitle)).not.toBeVisible();
 
 		// Zurück auf „Offen" → Baum erscheint wieder.
 		await viewSwitch(page).click();
 		await waitForStableView(page);
 
 		await expect(viewSwitch(page)).not.toBeChecked();
-		await expect(page.getByText(openTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(doneTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, openTitle)).toBeVisible();
+		await expect(taskTitleText(page, doneTitle)).not.toBeVisible();
 	});
 
 	test('AK3: Titel-Filter im offenen Baum (per Enter angewandt)', async ({ page }) => {
@@ -190,20 +190,20 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 
 		// Ohne Filter: beide Tasks sichtbar.
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(nonMatchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
+		await expect(taskTitleText(page, nonMatchTitle)).toBeVisible();
 
 		// Filter „Matching" via Enter → Matching bleibt sichtbar, Abweichung verschwindet.
 		await applyFilterViaEnter(page, 'Matching');
 
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(nonMatchTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
+		await expect(taskTitleText(page, nonMatchTitle)).not.toBeVisible();
 
 		// Filter leeren (Enter auf leerem Feld) → wieder beide sichtbar.
 		await applyFilterViaEnter(page, '');
 
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(nonMatchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
+		await expect(taskTitleText(page, nonMatchTitle)).toBeVisible();
 	});
 
 	test('AK4: Titel-Filter in der erledigten Tabelle (per „Filtern"-Button angewandt)', async ({ page }) => {
@@ -231,20 +231,20 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 		await waitForStableView(page);
 
 		// Ohne Filter: beide erledigten Tasks sichtbar.
-		await expect(page.getByText(doneMatchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(doneNonMatchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, doneMatchTitle)).toBeVisible();
+		await expect(taskTitleText(page, doneNonMatchTitle)).toBeVisible();
 
 		// Filter „Matching" via „Filtern"-Button → nur Done Matching sichtbar.
 		await applyFilterViaButton(page, 'Matching');
 
-		await expect(page.getByText(doneMatchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(doneNonMatchTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, doneMatchTitle)).toBeVisible();
+		await expect(taskTitleText(page, doneNonMatchTitle)).not.toBeVisible();
 
 		// Filter leeren (leeres Feld + Button) → wieder beide sichtbar.
 		await applyFilterViaButton(page, '');
 
-		await expect(page.getByText(doneMatchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(doneNonMatchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, doneMatchTitle)).toBeVisible();
+		await expect(taskTitleText(page, doneNonMatchTitle)).toBeVisible();
 	});
 
 	test('AK5: Keine Treffer → klare Leerhinweis-Meldung', async ({ page }) => {

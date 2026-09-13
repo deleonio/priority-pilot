@@ -68,6 +68,18 @@ export const setTheme = async (page: Page, theme: 'light' | 'dark'): Promise<voi
 };
 
 /**
+ * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets
+ * (`.dashboard-next-task-title`, `.dashboard-suggestion-title`) aus. Seit #1448 zeigen diese
+ * Widgets den reinen Titel ohne `#<ID> –`-Präfix, wodurch sie mit gleichnamigen Titeln in
+ * Listen/Formularen textgleich werden — ein seitenweites `getByText(title, { exact: true })`
+ * kollidiert dann mit dem Widget-Span und wirft `strict mode violation`.
+ */
+export const taskTitleText = (page: Page, title: string): Locator =>
+	page
+		.getByText(title, { exact: true })
+		.and(page.locator(':not(.dashboard-next-task-title):not(.dashboard-suggestion-title)'));
+
+/**
  * Liefert eine Kopf-Aktion („Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe",
  * „Abmelden"). Seit #691 stehen alle fünf Aktionen auf JEDER Viewport-Breite direkt in der Toolbar
  * „Kopf-Aktionen" — ein Menü-Fallback existiert nicht mehr.
