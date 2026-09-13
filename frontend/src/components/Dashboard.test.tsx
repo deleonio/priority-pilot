@@ -1,4 +1,5 @@
 import { cleanup, render } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import type { Pillar, Task, TaskPillarContribution, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -402,5 +403,105 @@ describe('Dashboard — „Erledigt"-Button im Signal-Panel (Issue #1168, docs/s
 
 		const startButton = buttons.find((b) => b.getAttribute('_label') === 'Jetzt starten');
 		expect(startButton, 'Button „Jetzt starten" darf nicht mehr existieren').toBeUndefined();
+	});
+});
+
+/**
+ * ROTER Spec-Test für #1447 (AK1, AK3 — docs/spec/issue-1447.md): neben „Erledigen" fehlt im Panel
+ * „Nächste Aufgabe" noch ein Bearbeiten-Button. Rot, bis `Dashboard.tsx` die Prop `onEditTask` sowie
+ * den Icon-only-Button (`_label="Bearbeiten"`, `_hideLabel`, Icon `fa-solid fa-pen`) rendert.
+ */
+describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs/spec/issue-1447.md)', () => {
+	// `onEditTask` ist die Ziel-Prop aus docs/spec/issue-1447.md — existiert auf `DashboardProps` noch
+	// nicht. Der Cast hält den Spec-Commit tsc-sauber (sonst Build-Fehler statt rotem Testlauf); der
+	// eigentliche Rot-Zustand kommt aus der fehlenden Laufzeit-Umsetzung (Button/Callback fehlen).
+	const renderWithEdit = (props: ComponentProps<typeof Dashboard> & { onEditTask?: (task: Task) => void }) =>
+		render(<Dashboard {...(props as ComponentProps<typeof Dashboard>)} />);
+
+	it('AK1: rendert bei gesetztem nextTask und onEditTask einen Icon-only-Button „Bearbeiten" nach „Erledigen"', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+		const onCompleteTask = () => undefined;
+		const onEditTask = () => undefined;
+
+		const { container } = renderWithEdit({
+			tasks: [nextTask],
+			forest: [] as TaskTreeNode[],
+			nextTask,
+			pillars: [],
+			onCompleteTask,
+			onEditTask,
+		});
+
+		const panel = container.querySelector('.dashboard-next-task-content');
+		expect(panel, '.dashboard-next-task-content fehlt bei gesetztem nextTask').not.toBeNull();
+
+		const buttons = [...(panel?.querySelectorAll('kol-button') ?? [])];
+		const editButton = buttons.find((b) => b.getAttribute('_label') === 'Bearbeiten');
+		expect(editButton, 'Button mit _label="Bearbeiten" fehlt im Panel').toBeDefined();
+		expect(editButton?.getAttribute('_hidelabel') ?? editButton?.getAttribute('_hideLabel')).not.toBeNull();
+
+		const doneButton = buttons.find((b) => b.getAttribute('_label') === 'Erledigen');
+		expect(doneButton, 'Button „Erledigen" fehlt weiterhin').toBeDefined();
+
+		// Reihenfolge im DOM: „Erledigen" zuerst, „Bearbeiten" danach (KI-UX: Daumenzone/Tab-Reihenfolge).
+		expect(buttons.indexOf(doneButton!)).toBeLessThan(buttons.indexOf(editButton!));
+	});
+
+	it('AK2: Klick auf „Bearbeiten" ruft onEditTask exakt mit der angezeigten nextTask auf', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+		const calls: Task[] = [];
+		const onEditTask = (t: Task) => calls.push(t);
+
+		const { container } = renderWithEdit({
+			tasks: [nextTask],
+			forest: [] as TaskTreeNode[],
+			nextTask,
+			pillars: [],
+			onCompleteTask: () => undefined,
+			onEditTask,
+		});
+
+		const panel = container.querySelector('.dashboard-next-task-content');
+		const buttons = [...(panel?.querySelectorAll('kol-button') ?? [])];
+		const editButton = buttons.find((b) => b.getAttribute('_label') === 'Bearbeiten');
+		expect(editButton).toBeDefined();
+
+		editButton?.querySelector('button')?.click();
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.id).toBe(42);
+	});
+
+	it('AK3: rendert KEINEN Bearbeiten-Button, wenn nextTask === null', () => {
+		const { container } = renderWithEdit({
+			tasks: [],
+			forest: [] as TaskTreeNode[],
+			nextTask: null,
+			pillars: [],
+			onCompleteTask: () => undefined,
+			onEditTask: () => undefined,
+		});
+
+		const buttons = [...container.querySelectorAll('.dashboard-next-task kol-button')];
+		const editButton = buttons.find((b) => b.getAttribute('_label') === 'Bearbeiten');
+		expect(editButton, 'Bearbeiten-Button darf ohne nextTask nicht existieren').toBeUndefined();
+	});
+
+	it('AK3: rendert KEINEN Bearbeiten-Button, wenn onEditTask nicht übergeben wird', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[]}
+				onCompleteTask={() => undefined}
+			/>,
+		);
+
+		const buttons = [...container.querySelectorAll('.dashboard-next-task kol-button')];
+		const editButton = buttons.find((b) => b.getAttribute('_label') === 'Bearbeiten');
+		expect(editButton, 'Bearbeiten-Button darf ohne onEditTask-Prop nicht existieren').toBeUndefined();
 	});
 });
