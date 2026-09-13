@@ -438,7 +438,11 @@ describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs
 		const buttons = [...(panel?.querySelectorAll('kol-button') ?? [])];
 		const editButton = buttons.find((b) => b.getAttribute('_label') === 'Bearbeiten');
 		expect(editButton, 'Button mit _label="Bearbeiten" fehlt im Panel').toBeDefined();
-		expect(editButton?.getAttribute('_hidelabel') ?? editButton?.getAttribute('_hideLabel')).not.toBeNull();
+		// Test-Pflege #1447: `@public-ui/react-v19` reflektiert Nicht-String-Props dash-case
+		// (`_hideLabel={true}` → Attribut `_hide-label=""`); ein Attribut `_hidelabel` kann der
+		// Wrapper nie erzeugen. Assertion auf den real gerenderten Namen gezogen, Prüfabsicht
+		// (Icon-only) unverändert.
+		expect(editButton?.getAttribute('_hide-label')).not.toBeNull();
 
 		const doneButton = buttons.find((b) => b.getAttribute('_label') === 'Erledigen');
 		expect(doneButton, 'Button „Erledigen" fehlt weiterhin').toBeDefined();
@@ -466,7 +470,11 @@ describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs
 		const editButton = buttons.find((b) => b.getAttribute('_label') === 'Bearbeiten');
 		expect(editButton).toBeDefined();
 
-		editButton?.querySelector('button')?.click();
+		// Test-Pflege #1447: In jsdom ist `kol-button` ein undefiniertes Custom Element — es gibt
+		// weder Shadow-DOM noch einen inneren `<button>`, und `_on` liegt nur als Property am Host
+		// (Wrapper setzt Objekt-Props als Property, nicht als Attribut). Klick daher über die
+		// Property auslösen, wie `ApiTokensSection.test.tsx:186-189` es für `_on.onChange` tut.
+		(editButton as unknown as { _on: { onClick: (event: Event) => void } })._on.onClick(new Event('click'));
 
 		expect(calls).toHaveLength(1);
 		expect(calls[0]?.id).toBe(42);

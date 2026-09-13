@@ -852,6 +852,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									pillars={pillars}
 									displayName={user.displayName}
 									onCompleteTask={openComplete}
+									onEditTask={openEdit}
 									showDayDoneHint={activeTab === 0}
 								/>
 							</div>

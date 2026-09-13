@@ -42,6 +42,8 @@ interface DashboardProps {
 	displayName?: string;
 	/** Markiert die nächste Aufgabe als erledigt („Erledigt" im Signal-Panel, #1168). */
 	onCompleteTask?: (task: Task) => void;
+	/** Öffnet den Bearbeiten-Dialog für die nächste Aufgabe („Bearbeiten" im Signal-Panel, #1447). */
+	onEditTask?: (task: Task) => void;
 	/**
 	 * #1361: KolTabs hält inaktive Panels per `hidden` im DOM statt sie zu entfernen — ohne diesen
 	 * Schalter würde der Abschluss-Hinweis hier UND im Aufgaben-Tab gleichzeitig mounten und
@@ -90,6 +92,7 @@ export const Dashboard = ({
 	pillars,
 	displayName = '',
 	onCompleteTask,
+	onEditTask,
 	showDayDoneHint = true,
 }: DashboardProps) => {
 	const greeting = displayName.trim();
@@ -237,6 +240,23 @@ export const Dashboard = ({
 										_icons={{ left: { icon: 'fa-solid fa-check' } }}
 										_on={{ onClick: () => onCompleteTask(nextTask) }}
 									/>
+								)}
+								{/* #1447: Bearbeiten NACH „Erledigen" im DOM — die Signalfarbe bleibt der
+								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der
+								    Präzedenzfall in `TaskTree.tsx:212-223`. Der Wrapper hält die
+								    sekundäre Aktion inhaltsbreit (statt gestreckt wie „Erledigen")
+								    und damit aus dem Breiten-Vertrag von `#1042`
+								    (`.dashboard-next-task-content > kol-button`) heraus. */}
+								{onEditTask !== undefined && (
+									<div className="dashboard-next-task-actions">
+										<KolButton
+											_label="Bearbeiten"
+											_hideLabel
+											_variant="secondary"
+											_icons={{ left: { icon: 'fa-solid fa-pen' } }}
+											_on={{ onClick: () => onEditTask(nextTask) }}
+										/>
+									</div>
 								)}
 							</div>
 						)}
