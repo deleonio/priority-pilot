@@ -1,0 +1,242 @@
+name: UX Team
+
+# Wöchentlicher LLM-Job (wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
+# Ein UX-Team aus vier Perspektiven (Nutzer-Anwalt, Interaktions-Designer, Gewohnheits-Analyst,
+# Monetarisierungs-Wächter — Methode: .claude/skills/ux-team/SKILL.md) begeht die laufende App
+# und prüft sie gegen die App-Philosophie, den User-Guide und die UX-Regeln. Ziel: nutzer-
+# zentrierte Bedienung und fortlaufende Nutzung — Vorschläge, die sich jeweils als Ticket
+# umsetzen lassen. Zielausrichtung kommt ausschließlich LIVE aus den Quellen (Skill und Prompt
+# tragen nur Pfade/Methode, keine Inhalte).
+#
+# DELIVERY: Genau EIN offenes Issue mit Label ci:ux-team (bewusst KEIN ai:*-Label — das würde
+# die Ticket-Pipeline starten!). Vorhanden → Body durch den neuen Report ersetzen (Titel-Datum
+# wird mit aktualisiert); fehlt → neu anlegen. Issue-Anlegen/Updaten macht der WORKFLOW
+# deterministisch (Muster Audit Prompts: der Agent liefert nur den Report, nie die
+# GitHub-Seiteneffekte). 00-Validate übergeht ci:*-Issues (Skip im verify-issue-quality.sh).
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false). Modell: sonnet (Default,
+# überschreibbar via vars.CLAUDE_MODEL_UX_TEAM).
+#
+# LIVE-GANG: claude-workbench startet die Inspect-Instanz (http://localhost:4174) und
+# installiert Chromium; der Agent begeht die App über Playwright-MCP (browser-mcp: true).
+#
+# KEINE Nummer im Dateinamen: Nummern (00–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '23 2 * * 3' # wöchentlich mittwochs 02:23 UTC (04:23 Berlin), freier Slot im LLM-Nachtblock
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Läufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
+  group: llm-sync
+  cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
+  # workflow_dispatch während eines anderen Laufs würde still verworfen. `max` = FIFO-Schlange.
+  queue: max
+
+permissions:
+  contents: read # Quellen + Skill + App-Code lesen
+  issues: write # UX-Team-Issue anlegen/aktualisieren + gh label create
+  id-token: write # App-Token (setup-agent)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+jobs:
+  ux-team:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichen Lauf)
+        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf denselben SHA,
+        # ist das Ergebnis deterministisch dasselbe → kein Lauf. Fail-open bei API-Fehlern
+        # (leerer last_sha → Lauf). force=true umgeht.
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.ux-team.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ UX-Team übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Lauf."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # 40 min weiche Deadline innerhalb des 60-min-Hart-Limits: der Live-Gang
+          # (App-Start + Browser-Durchläufe) braucht mehr Vorlauf als der Prompt-Audit.
+          echo "soft_deadline_epoch=$((now + 2400))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true'
+        uses: ./.github/actions/setup-agent
+        with:
+          needs-mcp: true
+          browser-mcp: true
+          # review-Tier: volles Lesen (Read/Glob/Grep/Bash) für Quellen + App-Code, aber
+          # Code schreibgeschützt (kein Bypass) — der Agent ändert nichts, der Report geht
+          # per Bash-Heredoc nach /tmp (Write-Tool ist hier bewusst nicht erlaubt).
+          tools-tier: review
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Storage-Namen — Memory ist komplett aus (memory-load: false).
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_UX_TEAM || 'sonnet' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: Arbeitsumgebung + Inspect-Instanz (App unter http://localhost:4174)
+        id: workbench
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/claude-workbench
+
+      - name: UX-Team via Claude
+        id: claude
+        if: >-
+          steps.guard.outputs.skip != 'true'
+          && steps.setup.outputs.configured == 'true'
+          && steps.workbench.outcome == 'success'
+        env:
+          # Der Agent liest den Vorwochen-Report + offene Tickets per gh (Carry-over + Dedup).
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          # Vorheriges UX-Team-Issue auflösen (0 = Erstlauf) — als Platzhalter in den Prompt.
+          prev_issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:ux-team --state open \
+            --json number --jq '.[0].number // 0' 2>/dev/null || echo 0)"
+
+          cp .github/prompts/ux-team.md /tmp/claude-prompt.txt
+          sed -i "s/{{REPORT_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{UX_ISSUE_NR}}/${prev_issue}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Report als Artefakt sichern
+        # Auch bei Folgefehlern (Issue-Step) bleibt der Report auffindbar; bei «clean» ist
+        # er ggf. die einzige Spur des Laufs (kein Issue-Update).
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ux-team-report
+          path: /tmp/ux-team-report.md
+          if-no-files-found: ignore
+
+      - name: Post-Assertion (Verdict ↔ Report) + Issue-Anlage/Update
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows, danach das
+        # Issue-Handling deterministisch (bewusst KEINE Agent-Aufgabe). Genau EIN offenes
+        # UX-Team-Issue: vorhanden → Body durch den neuen Report ersetzen, sonst neu anlegen.
+        # Label ci:ux-team NICHT ai:* — sonst startet die Ticket-Pipeline!
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
+          # Token gewinnt, Prosa/Markdown nach dem Token ist egal.
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'report|clean' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ UX-Team fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller «clean»."
+            exit 1
+          fi
+          if [ "$verdict" != "report" ] && [ "$verdict" != "clean" ]; then
+            echo "::error title=❌ UX-Team ohne Verdict::Weder «report» noch «clean» — Lauf wiederholen."
+            exit 1
+          fi
+
+          if [ "$verdict" = "clean" ]; then
+            echo "::notice title=✅ UX-Team: keine Funde::Kein neuer Report — Issue bleibt unangetastet."
+            {
+              echo "### UX-Team – fertig"
+              echo ""
+              echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+              echo "- Verdict: \`clean\` (keine neuen Funde, Issue unangetastet)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # report → Report muss da und substantiell sein (Ehrlichkeits-Regel), mit dem
+          # belastbaren Kernteil: den paste-fertigen Umsetzungs-Kandidaten.
+          if [ ! -s /tmp/ux-team-report.md ]; then
+            echo "::error title=❌ Verdict ohne Report::VERDICT report, aber /tmp/ux-team-report.md fehlt oder ist leer."
+            exit 1
+          fi
+          if ! grep -q '## Umsetzungs-Kandidaten' /tmp/ux-team-report.md; then
+            echo "::error title=❌ Report ohne Kandidaten::Report muss die Sektion «## Umsetzungs-Kandidaten» tragen."
+            exit 1
+          fi
+
+          gh label create "ci:ux-team" --repo "$GITHUB_REPOSITORY" --color 1D76DB \
+            --description "Wöchentlicher UX-Team-Bericht (Nutzerzentrierung + Fortbestand der Nutzung)" 2>/dev/null || true
+
+          title="ci: UX-Team — Wochenblick ($(date -u +%F))"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:ux-team --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/ux-team-report.md
+            echo "UX_TEAM_ISSUE=$number" >> "$GITHUB_ENV"
+            echo "::notice title=✅ UX-Team-Issue aktualisiert::#$number trägt den Wochenblick von $(date -u +%F)."
+          else
+            url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --label ci:ux-team --body-file /tmp/ux-team-report.md)"
+            number="$(printf '%s\n' "$url" | sed -nE 's#.*/issues/([0-9]+).*#\1#p' | tail -1)"
+            echo "UX_TEAM_ISSUE=${number:-?}" >> "$GITHUB_ENV"
+            echo "::notice title=✅ UX-Team-Issue erstellt::${url:-Nummer nicht auflösbar}"
+          fi
+
+          {
+            echo "### UX-Team – fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Verdict: \`report\` — Wochenblick im UX-Team-Issue #${number:-?} (Label \`ci:ux-team\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
