@@ -7,6 +7,22 @@ import type { PushSender } from './push.js';
 import { notifySeriesGenerated } from './seriesGeneratedNotification.js';
 
 /**
+ * TF5 (AK5, #1426, Vertrag: docs/spec/issue-1426.md): zusätzlich zur Push-Nachricht soll bei
+ * konfiguriertem SMTP genau eine Mail an denselben Empfänger gehen, mit demselben
+ * `NotificationLog`-Eintrag (kein zweiter `kind`). Kein Import von `logics/mail.ts` (existiert noch
+ * nicht) — lokaler Stub + Cast auf die künftige Signatur (Muster: dueTaskReminders.test.ts).
+ */
+type MailSenderStub = (payload: { to: string; subject: string; text: string }) => Promise<void>;
+type NotifySeriesGeneratedWithMail = (
+	series: Parameters<typeof notifySeriesGenerated>[0],
+	createdTasks: Parameters<typeof notifySeriesGenerated>[1],
+	creator: Parameters<typeof notifySeriesGenerated>[2],
+	send?: PushSender,
+	mailSend?: MailSenderStub,
+) => Promise<void>;
+const notifySeriesGeneratedWithMail = notifySeriesGenerated as unknown as NotifySeriesGeneratedWithMail;
+
+/**
  * Rote Spec-Tests für #1253 — Unit-Vertrag des Serien-Benachrichtigungstriggers (TF7 für
  * AK3/AK4/AK7, Vertrag: docs/spec/issue-1253.md): Dedupe-Bindung des Schlüssels an die erzeugte
  * Aufgabe und Bündelung mehrerer Instanzen zu einer Nachricht, isoliert mit gemocktem `send`.
@@ -207,5 +223,24 @@ describe('notifySeriesGenerated (#1253, TF7)', () => {
 		await notifySeriesGenerated(series, [], alice, mockSend);
 
 		assert.equal(calls.length, 0, 'ohne erzeugte Instanzen gibt es nichts zu melden');
+	});
+
+	// AK5 (#1426): Mail zusätzlich zur Push-Nachricht, ein NotificationLog-Eintrag pro Auslöser.
+	it('AK5: verschickt zusätzlich zur Push-Nachricht genau eine Mail; ein Log-Eintrag für beide Kanäle', async () => {
+		const { aliceId, bobId } = await seedUsers();
+		const { series, instances } = await seedSeriesWithInstances(aliceId, bobId, 1);
+		const alice = await User.findByPk(aliceId);
+		const mailCalls: { to: string; subject: string; text: string }[] = [];
+		const mailSend: MailSenderStub = (payload) => {
+			mailCalls.push(payload);
+			return Promise.resolve();
+		};
+
+		await notifySeriesGeneratedWithMail(series, instances, alice, mockSend, mailSend);
+
+		assert.equal(calls.length, 1, 'genau eine Push-Nachricht');
+		assert.equal(mailCalls.length, 1, 'genau eine Mail zusätzlich zur Push-Nachricht');
+		const logs = await NotificationLog.findAll({ where: { kind: 'series-generated' } });
+		assert.equal(logs.length, 1, 'ein NotificationLog-Eintrag pro Auslöser, nicht pro Kanal');
 	});
 });

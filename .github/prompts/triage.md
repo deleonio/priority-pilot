@@ -1,6 +1,7 @@
 FOCUS: ONLY issue #{{ISSUE_NR}}. Research = issue body + delta comments since `stand` if applicable, nothing else. NO side trips. Save tokens: short, precise, direct.
 
-Method + details: .claude/skills/ticket-triage/SKILL.md
+Method + details: .claude/skills/ticket-triage/SKILL.md — including its delegation guidance in
+step 1 (broad code/file research → `recherche` subagent role, ADR 0008; only findings come back).
 
 TRIGGER:
 - Initial triage: no harness marker comment on the issue (no comment whose body
@@ -45,4 +46,4 @@ VERDICT (one line):
   (spec-ready = traffic light 🟢 AND acceptance criteria phrased testably; analyzed = 🟡/🔴;
    needs-human = ambiguous — one needs-human comment with open questions)
 
-TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: write the current state (even if incomplete, with `stand=`) into the ONE harness marker comment, VERDICT: analyzed, end the turn.

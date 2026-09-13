@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
-import { Task, NotificationLog } from '../models/index.js';
+import { Task, NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
+import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
 
 /**
  * Fachlicher Push-Trigger „fällige Aufgaben" (Issue #355). Bündelt je Nutzer **eine** Push-Nachricht
@@ -78,16 +79,29 @@ const buildPayload = (tasks: DueTask[]): { title: string; body: string; url: str
  * zwischenzeitliche Änderungen sendet nichts erneut.
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
+ * @param mailSend injizierbarer Mail-Versand (#1426, siehe `logics/mail.ts`); ohne SMTP-Konfiguration
+ *   und ohne injizierten Sender wird kein Mail-Versuch unternommen (AK6).
  */
 export const runDueTaskReminders = async (
 	now: Date = new Date(),
 	send?: PushSender,
+	mailSend?: MailSender,
 ): Promise<{ usersNotified: number }> => {
 	const groups = await collectDueTaskReminders(now);
 	let usersNotified = 0;
 	for (const group of groups) {
-		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
-		if (sent > 0) {
+		const payload = buildPayload(group.tasks);
+		const { sent } = await sendPushToUser(group.userId, payload, send);
+		let mailSent = false;
+		if (mailSend || isMailConfigured()) {
+			const recipient = await User.findByPk(group.userId);
+			mailSent = await sendMailToUser(
+				{ email: recipient?.email ?? null },
+				{ subject: payload.title, text: payload.body },
+				mailSend,
+			);
+		}
+		if (sent > 0 || mailSent) {
 			await NotificationLog.bulkCreate(
 				group.tasks.map((task) => ({
 					userId: group.userId,

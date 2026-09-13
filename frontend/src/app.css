@@ -657,8 +657,16 @@ body {
 /* #1042: „Jetzt starten“ mobil volle Breite, ab Tablet-Grid (48rem, siehe unten) inhaltsbreit
    linksbündig, analog #1017 — derselbe Breakpoint wie das Grid, damit Button und Spaltenwechsel
    auch bei Textvergrößerung synchron schalten. */
-.dashboard-next-task-content kol-button {
+.dashboard-next-task-content > kol-button {
 	align-self: stretch;
+}
+
+/* #1447: sekundäre Aktion „Bearbeiten" — Icon-only und inhaltsbreit unter dem gestreckten
+   „Erledigen"-Button, damit die Signal-Handlung die eine klare Folgehandlung bleibt
+   (ux-design.md §1). Der Abstand kommt aus dem `gap` des Flex-Containers (≥ 8dp,
+   docs/mobile-ui-rules.md), die 44px-Touch-Fläche aus dem KoliBri-Default `--a11y-min-size`. */
+.dashboard-next-task-actions {
+	display: flex;
 }
 
 .dashboard-next-task-priority {
@@ -897,7 +905,7 @@ body {
 	}
 
 	/* #1042: Ab Tablet-Grid wird der „Erledigt“-Button wieder inhaltsbreit linksbündig. */
-	.dashboard-next-task-content kol-button {
+	.dashboard-next-task-content > kol-button {
 		align-self: flex-start;
 	}
 

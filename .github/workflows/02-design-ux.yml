@@ -7,7 +7,7 @@ name: 02 Design UX
 # unberührt) und übergibt über ai:needs-spec an die Spec-Phase (Trigger wird hier
 # konsumiert).
 #
-# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO).
+# CONCURRENCY: Statische Gruppe für die Ticket-Pipeline (globale Serialisierung, FIFO).
 
 on:
   issues:
@@ -20,8 +20,9 @@ on:
         type: string
 
 concurrency:
-  # Eigene Gruppe pro Phase: max. 1 UX-Lauf gleichzeitig, FIFO — andere Phasen laufen parallel.
-  group: llm-ux
+  # EINE gemeinsame Gruppe für die Ticket-Pipeline (Phasen 01-06): max. 1 Agent-Lauf dieser
+  # Phasen gleichzeitig, FIFO. Cron-/Ad-hoc-Sync bleibt außen vor. Details/Rationale: 01-triage.yml.
+  group: llm
   cancel-in-progress: false
   queue: max
 
