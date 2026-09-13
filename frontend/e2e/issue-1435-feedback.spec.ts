@@ -13,6 +13,14 @@ import { waitForStableView } from './helpers';
  * `POST /api/v1/feedback` wird per `page.route` abgefangen — kein echter GitHub-Aufruf im Test.
  */
 test.describe('Feedback direkt in Obsidian (#1435)', () => {
+	/**
+	 * Die Status-Meldung wird im Alert des Formulars geprüft, nicht seitenweit: „Fehler" steht auch
+	 * in der Einleitung und als Kategorie-Option (die `selectOption({ label: 'Fehler' })` oben
+	 * braucht), „gesendet" im Button-Label während des Sendens — ein seitenweites `getByText`
+	 * verletzt deshalb zwangsläufig den Strict Mode. Muster: `bahn.spec.ts:176`.
+	 */
+	const statusAlert = (page: import('@playwright/test').Page) => page.locator('.feedback-form kol-alert');
+
 	const openFeedbackTab = async (page: import('@playwright/test').Page): Promise<void> => {
 		await page.goto('/hilfe');
 		await waitForStableView(page);
@@ -30,7 +38,8 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 		await page.getByRole('textbox', { name: /Beschreibung/ }).fill('Nach dem Login lädt nichts mehr.');
 		await page.getByRole('button', { name: /Senden/ }).click();
 
-		await expect(page.getByText(/gesendet|danke|erfolgreich/i)).toBeVisible();
+		await expect(statusAlert(page)).toBeVisible();
+		await expect(statusAlert(page)).toContainText(/gesendet|danke|erfolgreich/i);
 		await expect(page.getByRole('textbox', { name: /Titel/ })).toHaveValue('');
 		await expect(page.getByRole('textbox', { name: /Beschreibung/ })).toHaveValue('');
 	});
@@ -57,13 +66,14 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 		await page.getByRole('textbox', { name: /Beschreibung/ }).fill('Nach dem Login lädt nichts mehr.');
 		await page.getByRole('button', { name: /Senden/ }).click();
 
-		await expect(page.getByText(/fehler|fehlgeschlagen/i)).toBeVisible();
+		await expect(statusAlert(page)).toBeVisible();
+		await expect(statusAlert(page)).toContainText(/fehler|fehlgeschlagen/i);
 		await expect(page.getByRole('textbox', { name: /Titel/ })).toHaveValue('Login hängt');
 		await expect(page.getByRole('textbox', { name: /Beschreibung/ })).toHaveValue('Nach dem Login lädt nichts mehr.');
 
 		// Zweiter Versuch (kein stiller Verlust der Eingaben) führt jetzt zum Erfolg.
 		await page.getByRole('button', { name: /Senden/ }).click();
-		await expect(page.getByText(/gesendet|danke|erfolgreich/i)).toBeVisible();
+		await expect(statusAlert(page)).toContainText(/gesendet|danke|erfolgreich/i);
 		expect(callCount).toBe(2);
 	});
 
