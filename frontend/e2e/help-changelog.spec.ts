@@ -49,9 +49,10 @@ test.describe('#1206 Changelog-Aggregation auf der Hilfe-Seite', () => {
 		await waitForStableView(page, 'Handbuch');
 		await page.getByRole('tab', { name: 'Changelog' }).click();
 
-		// Aggregierte Kategorien erscheinen (Ready-Marker für den Lazy-Load).
-		await expect(page.getByText('Breaking Changes')).toBeVisible();
-		await expect(page.getByText('Bug Fixes')).toBeVisible();
+		// Aggregierte Kategorien erscheinen (Ready-Marker für den Lazy-Load) — als Headings
+		// gezielt, seit die Sidebar ein TOC mit denselben Kategorie-Namen als Links trägt.
+		await expect(page.getByRole('heading', { name: /Breaking Changes/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Bug Fixes/ })).toBeVisible();
 		// Autolink wurde gerendert (AK1-Seite des Vertrags im echten Browser).
 		await expect(page.locator('a[href*="priority-pilot/pull/"]').first()).toBeVisible();
 
