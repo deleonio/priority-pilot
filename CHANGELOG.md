@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.23._
+_Enthält v0.2.0 – v0.2.24._
 
 ### 🔧 Engineering
 
@@ -37,6 +37,7 @@ _Enthält v0.2.0 – v0.2.23._
 - docs(guide): sync user guide with current implementation state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1427
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1431
+- feat(frontend): add changelog range selector and help page sidebar toc by @deleonio in https://github.com/deleonio/priority-pilot/pull/1432
 
 ## v0.1 - 2026-09-12
 
@@ -146,6 +147,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(ci): add ZAI→Claude fallback for 08:00-12:00 Europe/Berlin by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/896
 - feat(frontend): Make "Push testen" button inline instead of full-width by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/946
 - feat(frontend): display tab bars horizontally on all viewports by @deleonio in https://github.com/deleonio/priority-pilot/pull/978
+- feat(server): replace geocode rate limiter with express-rate-limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1283
 - feat(server): replace geocode rate limiter with express-rate-limit by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1283
 
 ### 🔧 Engineering
@@ -703,7 +705,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): collapse optional task form sections into accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1277
 - feat(frontend): keep main tab bar on one line at 375px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1278
 - chore: implement prompt audit #1247 and shared llm concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1279
-- chore: implement prompt audit #1247 and shared llm concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1279
+- docs(review): canonical fixup findings table and adr 0011 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1286
 - docs(review): canonical fixup findings table and adr 0011 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1286
 - fix(frontend): align heart glass distribution bands with legend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1287
 - fix(ci): remove zai peak-time claude fallback, warn only by @deleonio in https://github.com/deleonio/priority-pilot/pull/1289
