@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-12
 
-_Enthält v0.2.0 – v0.2.15._
+_Enthält v0.2.0 – v0.2.17._
 
 ### 🔧 Engineering
 
@@ -32,6 +32,7 @@ _Enthält v0.2.0 – v0.2.15._
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1416
 - feat(server): accept api-key header as bearer token alternative by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1418
 - docs(arc42): record header-only authentication as a risk in section 11 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1419
+- feat(frontend): add icon-only copy buttons with visual feedback by @deleonio in https://github.com/deleonio/priority-pilot/pull/1422
 
 ## v0.1 - 2026-09-12
 
@@ -630,7 +631,6 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(auth): end endless spinner after Google authentication (#1136) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1149
 - feat(frontend): own standort tab for geo settings (#1151) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1152
 - docs(spec): sync specs to implemented state 2026-09-01 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1154
-- docs(guide): sync user guide to current app state (2026-09-01) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1155
 - docs(guide): sync user guide to current app state (2026-09-01) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1155
 - ci(prompts): add thread-resolve command, label ban, and trim ux sources by @deleonio in https://github.com/deleonio/priority-pilot/pull/1156
 - fix(server): scope series routes to owner (data isolation) (#1157) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1158
