@@ -2375,6 +2375,66 @@ body {
 	outline-offset: 2px;
 }
 
+/* Hilfe-Seiten-Layout: 2/3 Inhalt + 1/3 Sidebar (TOC, Auswahl-Regler). Mobil einspaltig —
+	 Handbuch mit TOC UNTER dem Text (`--sidebar-last`), Changelog mit Auswahl-Regler/TOC ÜBER
+	 dem Text (`--sidebar-first`), damit der Regler da erreichbar bleibt. Ab Desktop-Standard-
+	 Breakpoint 48rem liegt die Sidebar in beiden Tabs rechts. `minmax(0, …)` hält lange
+	 Markdown-Inhalte (Autolink-URLs, Codespans) im Raster, statt es aufzublasen. */
+.help-sidebar-layout {
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.help-sidebar-layout--sidebar-first {
+	grid-template-areas:
+		'sidebar'
+		'main';
+}
+
+.help-sidebar-layout--sidebar-last {
+	grid-template-areas:
+		'main'
+		'sidebar';
+}
+
+.help-sidebar-main {
+	grid-area: main;
+	min-width: 0;
+}
+
+.help-sidebar-aside {
+	grid-area: sidebar;
+	align-self: start;
+	display: grid;
+	gap: 1rem;
+	min-width: 0;
+}
+
+@media (min-width: 48rem) {
+	.help-sidebar-layout--sidebar-first,
+	.help-sidebar-layout--sidebar-last {
+		grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+		grid-template-areas: 'main sidebar';
+	}
+}
+
+/* Inhaltsverzeichnis der Hilfe-Seiten-Sidebar: schlichte Linkliste (Styling der
+	 `.help-page-content a` gilt weiter), Unterabschnitte eingerückt. */
+.help-toc ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.help-toc li {
+	margin: 0 0 0.25rem;
+}
+
+.help-toc .help-toc-sub {
+	padding-left: 1rem;
+}
+
 /* Changelog-Tab der Hilfe-Seite (#1206): Aggregation nach Kategorien — ein Block je
 	 Kategorie (statt #1190s Sektion je Release), getrennt im Sektions-Rhythmus. */
 .help-changelog-category {
@@ -2965,10 +3025,12 @@ kol-input-range {
    weiterhin in den Shadow-DOM, sodass interne Token (--kol-*, --a11y-*) wirksam bleiben.
 
    Ausnahme: kol-alert behält seinen eigenen Hintergrund (nicht transparent). */
+kol-accordion,
 kol-avatar,
 kol-badge,
 kol-button,
 kol-card,
+kol-combobox,
 kol-details,
 kol-dialog,
 kol-heading,
@@ -2980,8 +3042,11 @@ kol-input-range,
 kol-input-text,
 kol-meter,
 kol-popover-button,
+kol-progress,
+kol-select,
 kol-single-select,
 kol-spin,
+kol-table,
 kol-tabs,
 kol-textarea,
 kol-toolbar {
