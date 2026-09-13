@@ -58,7 +58,7 @@ const openTaskForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	// #1260: Beschreibung liegt im zugeklappten „Optional"-Akkordeon — erst öffnen.
 	await openAccordionSection(page, 'Optional');
-	const titleInput = page.getByRole('searchbox', { name: 'Titel' });
+	const titleInput = page.getByRole('textbox', { name: 'Titel' });
 	await expect(titleInput).toBeVisible();
 };
 
@@ -72,7 +72,7 @@ test.describe('Lektorat Smart Button', () => {
 			// AK 2: TaskForm zeigt an Titel-Input einen "Lektorieren"-Button
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await expect(titleInput).toBeVisible();
 
 			// Smart Button sollte neben dem Titel-Input sichtbar sein (Icon-only, Name über aria-label)
@@ -92,7 +92,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3: Ladezustand wird während des API-Calls angezeigt
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel');
 
 			await mockLektoratSuccess(page, 'Testtitel', 2000);
@@ -134,7 +134,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Assertion wie #620-Muster: auf den nutzerfreundlichen Text, nicht auf KolAlert-Details
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Text mit Fehlern');
 
 			await mockLektoratError(page);
@@ -150,7 +150,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Statt Absturz sollte Alert erscheinen
 			await openTaskForm(page);
 
-			const titleInput = page.getByRole('searchbox', { name: 'Titel' });
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Text mit Fehlern');
 
 			await mockLektoratError(page);

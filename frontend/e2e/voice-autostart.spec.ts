@@ -140,7 +140,7 @@ const openTaskForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Überspringen' }).click();
 	await waitForStableView(page);
-	await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+	await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 };
 
 /** Mic-Button eines bestimmten Feldes. */
@@ -302,7 +302,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		const editButton = page.getByRole('button', { name: /bearbeiten/i }).first();
 		await editButton.click();
 		await waitForStableView(page);
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
 		// Aufnahme am Titel-Feld ist automatisch gestartet.
 		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
@@ -325,7 +325,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await openTaskForm(page);
 		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
 		// Aufnahme am Titel-Feld ist automatisch gestartet.
 		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
@@ -351,8 +351,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 
 		// Titel-Input ist weiterhin normal nutzbar.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeEditable();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeEditable();
 
 		// Keine automatische Aufnahme (da nicht unterstützt).
 		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
@@ -528,7 +528,7 @@ test.describe('#283 Autostart: früh gesprochenes Ergebnis geht nicht verloren',
 		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
 		await page.evaluate(() => window.__fireSpeechResult?.('Sofort gesprochener Titel'));
 
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Sofort gesprochener Titel');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Sofort gesprochener Titel');
 		// Kein Fehler-/Hinweistext — die frühe Eingabe ist ein Erfolgsfall.
 		await expect(page.locator('.mic-error')).toHaveCount(0);
 	});

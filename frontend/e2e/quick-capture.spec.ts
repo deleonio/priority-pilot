@@ -62,7 +62,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('button', { name: 'Überspringen' })).toBeVisible();
 
 		// Das reguläre Formular ist noch nicht sichtbar: das Pflichtfeld „Titel" fehlt im ersten Schritt.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeHidden();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeHidden();
 	});
 
 	test('AC2: „Überspringen" öffnet das reguläre Formular mit leeren Feldern', async ({ page }) => {
@@ -78,13 +78,13 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 
 		// Regulärer Formular-Schritt: das Titel-Feld ist sichtbar und leer (kein vorausgefüllter Wert),
 		// die Quick-Capture-Textarea ist verschwunden.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('');
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
 
 		// Der reguläre Weg funktioniert weiter: Titel ausfüllen, speichern → Task erscheint in der Liste.
 		const title = uniqueTitle('Überspringen');
-		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
@@ -121,11 +121,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await waitForStableView(page);
 
 		// Das reguläre Formular sollte sichtbar sein
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 		// Das Beschreibungsfeld sollte den eingegebenen Text enthalten
 		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Spontaner Einfall als Beschreibung');
 		// Das Titel-Feld sollte leer sein
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('');
 		// Die Textarea sollte verschwunden sein
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
 	});
@@ -191,7 +191,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Nach abgeschlossenem (gemocktem) LLM-Aufruf verschwindet der Schnellerfassungs-Schritt und
 		// das reguläre Formular erscheint mit den vorausgefüllten Werten.
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Geparser Task-Titel');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Geparser Task-Titel');
 		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Auto-Beschreibung');
 		// Priorität/Aufwand sind KolInputRange — wir prüfen am Host, dass die Slider existieren.
 		const prioritySlider = page.locator('kol-input-range').first();
@@ -233,8 +233,8 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
 
 		// Das Formular erscheint (Modal bleibt offen), Titel ist mit dem einzigen gelieferten Feld gefüllt.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Nur-Titel-Task');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Nur-Titel-Task');
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
 
 		// Negativ-Kontrolle: KEIN pageerror (insb. kein `showModal ... not in a Document`) beim Wechsel.
@@ -264,11 +264,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Fehlermeldung erscheint (KolAlert-Label), der Capture-Schritt bleibt stehen, kein Formular.
 		await expect(page.getByText('Verarbeitung fehlgeschlagen')).toBeVisible();
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeHidden();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeHidden();
 
 		// Ausweg: „Überspringen" führt weiterhin ins reguläre Formular — mit dem Text als Beschreibung.
 		await page.getByRole('button', { name: 'Überspringen' }).click();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Text, dessen Verarbeitung fehlschlägt');
 	});
 
@@ -346,7 +346,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await waitForStableView(page);
 
 		// Das TaskForm muss gerendert sein — Fokus-Steuerung unverändert übernommen.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
 		// Kein JS-Fehler (kein showModal/Shadow-DOM-Fehler durch den Autofokus).
 		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
@@ -414,7 +414,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
 		await waitForStableView(page);
 
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Umzug vorbereiten');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Umzug vorbereiten');
 		// Die Checkliste liegt im zugeklappten „Optional"-Accordion (#1285/#1260) — erst aufklappen.
 		await page.getByText('Optional', { exact: true }).click();
 		const items = page.getByTestId('checklist-item');

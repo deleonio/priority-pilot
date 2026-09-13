@@ -99,7 +99,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await modeSwitch(page).getByRole('checkbox').click();
 
 		const title = uniqueTitle('Serie-Anlegen');
-		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — als Anker der Serie setzen.
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 
@@ -126,7 +126,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await openCreateForm(page);
 
 		const title = uniqueTitle('Task-Anlegen');
-		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 
 		const taskRequestPromise = page.waitForRequest(
 			(req) => req.method() === 'POST' && /\/api\/v1\/tasks(\?|$)/.test(req.url()),
@@ -186,16 +186,16 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await openCreateForm(page);
 
 		const title = uniqueTitle('Wert-Erhalt');
-		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 
 		// Umschalten auf „Serie" — Startdatum erscheint, der Titel-Wert überlebt.
 		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue(title);
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 
 		// Zurück auf „Aufgabe" — Deadline erscheint wieder, der Titel-Wert überlebt auch den Rückwechsel.
 		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue(title);
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});
 });

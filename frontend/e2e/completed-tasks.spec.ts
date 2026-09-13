@@ -63,7 +63,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('searchbox', { name: 'Titel', exact: true }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();

@@ -97,7 +97,7 @@ test.describe('#1335 Verschmolzener Anlege-Dialog (Schnellerfassung + Berater)',
 			}),
 		);
 		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Joggen im Park');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Joggen im Park');
 	});
 
 	test('AK7: auf 375px sind Textfeld, alle Wege und die Vorschlagsliste innerhalb des Viewports bedienbar', async ({

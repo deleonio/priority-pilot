@@ -152,8 +152,8 @@ test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
 
 		// Vertrag: Bei transientem Fehler wird Retry versucht, bei Erfolg erscheint das Formular
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue('Nach Retry erfolgreicher Task');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Nach Retry erfolgreicher Task');
 		expect(attemptCount).toBe(2);
 	});
 

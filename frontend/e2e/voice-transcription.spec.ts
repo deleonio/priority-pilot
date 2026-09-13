@@ -66,7 +66,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 	};
 
 	/** Das Titel-Eingabefeld (native Inputbox im KoliBri-Shadow-DOM). */
-	const titleInput = (page: Page) => page.getByRole('searchbox', { name: 'Titel' });
+	const titleInput = (page: Page) => page.getByRole('textbox', { name: 'Titel' });
 
 	/**
 	 * Der Mikrofon-Button eines konkreten Feldes — per aria-label mit Feld-Label (#264: mehrere

@@ -136,7 +136,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// #1260: Startdatum liegt im zugeklappten „Termin & Ort"-Akkordeon — erst öffnen.
 		await openAccordionSection(page, 'Termin & Ort');
 
-		await page.getByRole('searchbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — Startdatum als Anker der Serie setzen.
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 		// Auf das Anlegen-POST warten, bevor der Seiten-Reload den Request abwürgen kann
@@ -368,7 +368,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
 		// Der Titel-Wert ist vorbefüllt.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toHaveValue(title);
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 
 		// #1285 (AK3): „Termin & Ort“ startet im Edit zugeklappt — erst öffnen.
 		await openAccordionSection(page, 'Termin & Ort');
@@ -394,7 +394,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		// Vorbedingung: TaskForm-Serie-Edit-Modus — der Switch ist nicht im DOM (AK3, #334).
 		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
-		await page.getByRole('searchbox', { name: 'Titel' }).fill(titleNew);
+		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
 		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		// #553: Titel ist ein kaskadierbares Feld — der Speichern-Klick öffnet jetzt das

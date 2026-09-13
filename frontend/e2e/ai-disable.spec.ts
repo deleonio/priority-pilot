@@ -91,7 +91,7 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 
 		// Direkt das Task-Formular (Feld „Titel") — kein Freitext-Capture-Schritt.
-		await expect(page.getByRole('searchbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
 		// Und kein „Beraten lassen"-Weg, da bei KI-aus kein KI-Dialog existiert.
 		await expect(page.getByRole('button', { name: 'Beraten lassen' })).toHaveCount(0);
