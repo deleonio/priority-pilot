@@ -890,13 +890,15 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		closeDb();
 	});
 
-	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf dreizehn Namen', async () => {
+	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf vierzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		assert.equal(names.length, 13, `Katalog sollte dreizehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status). Der Vertrag ist „task_delete ist drin",
+		// nicht „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
+		assert.equal(names.length, 14, `Katalog sollte vierzehn Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1087,10 +1089,15 @@ describe('MCP-Werkzeug balance_status (#1423)', () => {
 		assert.equal(leer.result?.fuellstandProzent, 0);
 		assert.equal(leer.result?.hatPunkte, false);
 
-		const koerper = await createPillarViaApi(cookie, `Körper-${idCounter++}`);
+		// Bewusst eine **gewichtete** Standard-Säule: `POST /pillars` legt neue Säulen mit `weight: 0` an
+		// (routes/pillars.ts:251-255), und Punkte auf einer Säule ohne Soll heben den Füllstand
+		// definitionsgemäß nicht (AK4, dritter Randfall — heartBalance.test.ts).
+		const pillars = await mcpCall<{ id: number; weight: number }[]>(token, 'pillar_list');
+		const gewichtet = pillars.result?.find((pillar) => pillar.weight > 0);
+		assert.ok(gewichtet, 'Setup: der Nutzer muss eine gewichtete Standard-Säule besitzen');
 		await mcpCall(token, 'task_create', {
 			title: 'Erledigt für Füllstand',
-			pillars: [{ pillarId: koerper, share: 100 }],
+			pillars: [{ pillarId: gewichtet.id, share: 100 }],
 		});
 		const list = await mcpCall<{ id: number; title: string }[]>(token, 'task_list');
 		const taskId = list.result?.find((t) => t.title === 'Erledigt für Füllstand')?.id;
