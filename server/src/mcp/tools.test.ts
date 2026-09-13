@@ -178,6 +178,27 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.equal(completed.result?.status, 'Done');
 	});
 
+	it('#1438 AK8: task_update mit inhaltlichem Feld auf einer erledigten Aufgabe schlägt fehl, Reopen per task_update bleibt möglich', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Wird erledigt');
+
+		const completed = await mcpCall<{ id: number; status: string }>(token, 'task_complete', { id: taskId });
+		assert.equal(completed.result?.status, 'Done', 'Setup: Aufgabe muss zuerst erledigt sein');
+
+		const blocked = await mcpCall<{ id: number; title: string }>(token, 'task_update', {
+			id: taskId,
+			title: 'Sollte nicht durchgehen',
+		});
+		assert.ok(blocked.error, 'eine inhaltliche Änderung ohne Statuswechsel muss an einer erledigten Aufgabe scheitern');
+
+		const reopened = await mcpCall<{ id: number; status: string }>(token, 'task_update', {
+			id: taskId,
+			status: 'Open',
+		});
+		assert.equal(reopened.result?.status, 'Open', 'Reopen per task_update muss weiterhin funktionieren');
+	});
+
 	it('der Klartext der gespiegelten Route erreicht den Client samt Statuscode', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
