@@ -49,7 +49,6 @@ describe('POST /feedback (#1435)', () => {
 	before(async () => {
 		for (const key of ENV_KEYS) envBackup[key] = process.env[key];
 		server = await startTestServer({
-			// @ts-expect-error — Seam noch nicht in AppDeps deklariert (Umsetzung folgt in Phase 4).
 			obsidianGithubClient: {
 				getBranchSha: async (repo: string, branch: string) => {
 					getBranchShaCalls.push({ repo, branch });

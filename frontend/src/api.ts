@@ -642,6 +642,27 @@ export const api = {
 		return { text: data.text };
 	},
 
+	// Feedback nach Obsidian (#1435): Kategorie/Titel/Beschreibung landen als Markdown im
+	// Feedback-Branch des Vault-Repos. Auth via Session-Cookie (same-origin) — direkter fetch,
+	// nicht im OpenAPI-Spec (Muster `lektorat` oben).
+	async sendFeedback({
+		category,
+		title,
+		description,
+		signal,
+	}: { category: string; title: string; description: string } & Init): Promise<void> {
+		const response = await fetch(`${baseUrl}/feedback`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken() },
+			body: JSON.stringify({ category, title, description }),
+			signal,
+		});
+		if (!response.ok) {
+			const error = await response.json().catch(() => ({ message: 'Unbekannter Fehler' }));
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// --- Serien-Templates (#120/#142) ---
 
 	async listSeries(init: Init = {}): Promise<Series[]> {

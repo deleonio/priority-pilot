@@ -28,6 +28,8 @@ import { profileRouter } from './routes/profile.js';
 import { mcpRouter } from '../mcp/server.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
+import { createFeedbackRouter } from './routes/feedback.js';
+import type { ObsidianGithubClient } from '../logics/obsidianFeedback.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
@@ -63,6 +65,8 @@ export interface AppDeps {
 	fetchProviderModels?: FetchProviderModels;
 	/** Test-Prompt-Runner für `POST /llm-providers/{id}/test` — Tests injizieren hieran einen Mock. */
 	runProviderTest?: RunProviderTest;
+	/** GitHub-Upstream für `POST /feedback` (#1435) — Tests injizieren hieran einen Stub. */
+	obsidianGithubClient?: ObsidianGithubClient;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -235,6 +239,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Lektorat-Endpunkt (Issue #680) — triggert die bezahlte LLM-Kaskade, daher Session-Pflicht
 	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).
 	app.use(lektoratRouter());
+
+	// App-Feedback nach Obsidian (Issue #1435) — bewusst HINTER `requireAuth`: der Endpunkt
+	// schreibt in ein fremdes Repo und ist kein anonymer Hebel (AK7).
+	app.use(createFeedbackRouter({ obsidianGithubClient: deps.obsidianGithubClient }));
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts) — PushSender injiziert für die
 	// Benachrichtigung bei fremd angelegten Aufgaben (#1224, Vorbild createPushRouter).
