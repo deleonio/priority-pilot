@@ -11,6 +11,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
+import sequelize from '../database.js';
 import type { Plan } from '../logics/plans.js';
 
 applyTestAuthEnv('plan-gating-test');
@@ -170,6 +171,63 @@ describe('Serverseitiges Feature-Gating (#1457)', () => {
 				body: JSON.stringify({ address: 'Neue Str. 2' }),
 			});
 			assert.notEqual(res.status, 403, 'PATCH /tasks/:id mit Adressfeld darf für free nicht am Paket scheitern');
+		});
+	});
+
+	describe('AK9 — Free-Nutzer erreicht den KI-Kontingentzähler nicht (#1459)', () => {
+		const AI_ROUTES: { label: string; request: (baseUrl: string, cookie: string) => Promise<Response> }[] = [
+			{
+				label: 'POST /tasks/parse-text',
+				request: (baseUrl, cookie) =>
+					fetch(`${baseUrl}/tasks/parse-text`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', cookie },
+						body: JSON.stringify({ text: 'Text' }),
+					}),
+			},
+			{
+				label: 'POST /lektorat',
+				request: (baseUrl, cookie) =>
+					fetch(`${baseUrl}/lektorat`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json', cookie },
+						body: JSON.stringify({ text: 'Text' }),
+					}),
+			},
+		];
+
+		for (const aiRoute of AI_ROUTES) {
+			it(`${aiRoute.label}: free-Nutzer → 403 plan_required statt Kontingent-Prüfung`, async () => {
+				process.env.MONETIZATION_ENFORCED = 'true';
+				const email = `ak9-${aiRoute.label.replace(/\W+/g, '')}@example.com`;
+				const cookie = await server.register(email);
+				await setPlan(email, 'free');
+
+				const res = await aiRoute.request(server.baseUrl, cookie);
+				assert.equal(res.status, 403, `${aiRoute.label} muss für free 403 liefern, bevor das Kontingent geprüft wird`);
+				const body = (await res.json()) as { code?: string; feature?: string };
+				assert.equal(body.code, 'plan_required');
+				assert.equal(body.feature, 'ai_assist');
+			});
+		}
+
+		it('POST /tasks/parse-text: free-Nutzer legt keine ai_usage-Zeile an', async () => {
+			process.env.MONETIZATION_ENFORCED = 'true';
+			const email = 'ak9-no-row@example.com';
+			const cookie = await server.register(email);
+			await setPlan(email, 'free');
+			const user = await User.findOne({ where: { email } });
+
+			await AI_ROUTES[0].request(server.baseUrl, cookie);
+
+			// Rohes SQL statt Modell-Import: `server/src/models/aiUsage.ts` existiert noch nicht — ein
+			// `import { AiUsage } ...` würde den knip-Gate (unresolved imports) schon beim Commit
+			// blocken UND die ganze (bestehende, grüne) Datei crashen. Die Abfrage wirft aktuell
+			// `SQLITE_ERROR: no such table: ai_usage` — legitimer Erstzustand für die neue Tabelle.
+			const [rows] = await sequelize.query('SELECT * FROM ai_usage WHERE userId = ?', {
+				replacements: [user!.id],
+			});
+			assert.equal((rows as unknown[]).length, 0, 'free-Nutzer darf keinen ai_usage-Eintrag erzeugen');
 		});
 	});
 });

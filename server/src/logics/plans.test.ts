@@ -119,6 +119,16 @@ describe('plans.ts — KI-Kontingent (#1456 AK2)', () => {
 	});
 });
 
+describe('plans.ts — Verbrauchsabhängiges Kontingent (#1459 AK7)', () => {
+	it('getEntitlements(plan, consumed) zieht den Verbrauch vom Kontingent ab', () => {
+		assert.equal(getEntitlements('pro', 5).ai_assist.quotaRemaining, 55, 'Pro mit 5 Verbrauch: 60 - 5 = 55');
+	});
+
+	it('getEntitlements(plan, consumed) geht bei Überverbrauch nicht unter 0', () => {
+		assert.equal(getEntitlements('pro', 999).ai_assist.quotaRemaining, 0, 'Restkontingent darf nicht negativ werden');
+	});
+});
+
 describe('plans.ts — MONETIZATION_ENFORCED (#1456 AK9)', () => {
 	const originalEnv = process.env.MONETIZATION_ENFORCED;
 	const restoreEnv = (): void => {

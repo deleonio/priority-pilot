@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import passport from 'passport';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
+import sequelize from '../database.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen: createApp() liest diese
 // Werte beim Aufbau der Session-/Passport-Middleware.
@@ -146,6 +147,30 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(body.entitlements?.groups?.allowed, true, 'Pro hat groups');
 			assert.equal(body.entitlements?.graph_write?.allowed, false, 'Pro hat kein graph_write');
 			assert.equal(body.entitlements?.graph_write?.requiredPlan, 'max', 'graph_write erfordert Max');
+		});
+
+		// #1459 (AK7, Spec docs/spec/issue-1459.md): /auth/me zieht den KI-Verbrauch vom Kontingent ab.
+		it('#1459 — entitlements.ai_assist.quotaRemaining berücksichtigt den Verbrauch des Monats', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			await (dbUser as unknown as { update: (values: Record<string, unknown>) => Promise<unknown> }).update({
+				plan: 'pro',
+			});
+			// Rohes SQL statt Modell-Import: `server/src/models/aiUsage.ts` existiert noch nicht — ein
+			// `import { AiUsage } ...` würde den knip-Gate (unresolved imports) schon beim Commit
+			// blocken UND die ganze (bestehende, grüne) Datei crashen. Wirft aktuell
+			// `SQLITE_ERROR: no such table: ai_usage` — legitimer Erstzustand für die neue Tabelle.
+			const yearMonth = new Date().toISOString().slice(0, 7);
+			await sequelize.query(
+				"INSERT INTO ai_usage (userId, yearMonth, count, createdAt, updatedAt) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
+				{ replacements: [(dbUser as unknown as { id: number }).id, yearMonth, 2] },
+			);
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { entitlements?: { ai_assist?: { quotaRemaining?: number } } };
+			assert.equal(body.entitlements?.ai_assist?.quotaRemaining, 58, 'Pro (60) minus 2 Verbrauch = 58');
 		});
 	});
 
