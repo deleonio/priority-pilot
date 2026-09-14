@@ -1,6 +1,8 @@
 # Gesamtkonzept: Pakete und Monetarisierung
 
-Stand: 13.09.2026. Grundlagen sind die Arbeitspapiere „philosophischer-anker-priority-pilot" und „priority-planner-pakete" (Fassung mit der Ergänzung zu kontextuellen Upgrade-Angeboten) sowie eine Code-Prüfung des Repos vom 12./13.09.2026. Das Konzept beschreibt Zielbild und Architektur der Monetarisierungsschicht und zerlegt sie in acht Teilaufgaben (T1 bis T8), die später als Issues im Muster von Epic #1340 angelegt werden (Epic, Sub-Issues, `blocked_by`-Kette).
+Stand: 14.09.2026. Grundlagen sind die Arbeitspapiere „philosophischer-anker-priority-pilot" und „priority-planner-pakete" (Fassung mit der Ergänzung zu kontextuellen Upgrade-Angeboten) sowie eine Code-Prüfung des Repos vom 12./13.09.2026. Das Konzept beschreibt Zielbild und Architektur der Monetarisierungsschicht und zerlegt sie in neun Teilaufgaben, angelegt als Epic #1455 mit Sub-Issues im Muster von Epic #1340.
+
+Die Teilaufgaben wurden am 14.09.2026 gegen den Code nachgeschärft: korrigierte Dateipfade, der Fehlervertrag und der Rollout-Schalter nach vorn in T1 gezogen, T2/T4/T5 aus der seriellen Kette gelöst, T3 in Muster (T3a) und Ausrollen (T3b) geteilt.
 
 ## Leitbild: Fürsorge statt Protokoll
 
@@ -112,46 +114,58 @@ Technisch: Die Badges rendern aus der Entitlement-Map in `/auth/me` (Feature-Ide
 
 Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen sind möglich, brauchen aber eine Begründung im jeweiligen Issue.
 
-| Nr  | Punkt                   | Entscheidung (Empfehlung)                                                                                                                           | Alternative, wann prüfen                                          |
-| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1   | Zahlungsweg             | Stripe-Web-Abos für die PWA als Start; App-Store-IAP erst mit späterem nativem Wrapper                                                              | endgültige Entscheidung in T6                                     |
-| 2   | Übergang Bestandsnutzer | Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf einem Übergangs-Tier, danach Free-Default                                          | harte Kante beim Gating-Rollout; Festlegung in T8                 |
-| 3   | Säulenanzahl            | Marketing sagt „individuelle Säulen (5er-Default)"; keine sechste Säule einführen                                                                   | sechste Säule nur bei inhaltlichem Bedarf                         |
-| 4   | Sprachsteuerung         | bestehende lokale Spracheingabe; Paketgrenze nur im Frontend (bewusste Lücke, siehe Ist-Stand)                                                      | serverseitige Durchsetzung erst mit eigenem STT-Endpunkt          |
-| 5   | Fürsorge-Kern           | bleibt vollständig Free (Vorschläge, Balance, Punkte)                                                                                               | keine; Kern des Bindungsversprechens                              |
-| 6   | Aufgaben-Mengenlimit    | keins, in allen Paketen (laut Matrix); das Kostenrisiko tragen die KI-Kontingente                                                                   | nur bei Missbrauchsfällen                                         |
-| 7   | Badge-System            | dauerhaft sichtbare Badges „Pro/Max/Ultimate (i)“ an allen Funktionen oberhalb von Free; grüner Haken statt (i), wenn der Plan die Funktion abdeckt | Badges nur an Grenzstellen; Festlegung folgt dem Fürsorge-Prinzip |
-| 8   | Feature-Katalog         | stabile Feature-Identifiers serverseitig; Entitlement-Map reist in `/auth/me`; Frontend ohne Paketlogik                                             | separater Entitlements-Endpoint, falls Szenarien es brauchen      |
+| Nr  | Punkt                   | Entscheidung (Empfehlung)                                                                                                                           | Alternative, wann prüfen                                                                              |
+| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Zahlungsweg             | Stripe-Web-Abos für die PWA als Start; App-Store-IAP erst mit späterem nativem Wrapper                                                              | endgültige Entscheidung in T6                                                                         |
+| 2   | Übergang Bestandsnutzer | Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf einem Übergangs-Tier, danach Free-Default                                          | harte Kante beim Gating-Rollout; Festlegung in T8                                                     |
+| 3   | Säulenanzahl            | Marketing sagt „individuelle Säulen (5er-Default)"; keine sechste Säule einführen                                                                   | sechste Säule nur bei inhaltlichem Bedarf                                                             |
+| 4   | Sprachsteuerung         | bestehende lokale Spracheingabe; Paketgrenze nur im Frontend (bewusste Lücke, siehe Ist-Stand)                                                      | serverseitige Durchsetzung erst mit eigenem STT-Endpunkt                                              |
+| 5   | Fürsorge-Kern           | bleibt vollständig Free (Vorschläge, Balance, Punkte)                                                                                               | keine; Kern des Bindungsversprechens                                                                  |
+| 6   | Aufgaben-Mengenlimit    | keins, in allen Paketen (laut Matrix); das Kostenrisiko tragen die KI-Kontingente                                                                   | nur bei Missbrauchsfällen                                                                             |
+| 7   | Badge-System            | dauerhaft sichtbare Badges „Pro/Max/Ultimate (i)“ an allen Funktionen oberhalb von Free; grüner Haken statt (i), wenn der Plan die Funktion abdeckt | Badges nur an Grenzstellen; Festlegung folgt dem Fürsorge-Prinzip                                     |
+| 8   | Feature-Katalog         | stabile Feature-Identifiers serverseitig; Entitlement-Map reist in `/auth/me`; Frontend ohne Paketlogik                                             | separater Entitlements-Endpoint, falls Szenarien es brauchen                                          |
+| 9   | Rollout                 | Env-Schalter `MONETIZATION_ENFORCED`, Default aus; gemessen ab T1, durchgesetzt erst in T8 nach der Übergangs-Setzung                               | harte Kante beim T2-Merge — verworfen, entzöge Bestandsnutzern Funktionen für die Dauer von T3 bis T8 |
+| 10  | Preishoheit             | `plans.ts` für die Anzeige, der Zahlungsanbieter für die Abrechnung; Zuordnung Paket mal Zeitraum zu Price-ID in `plans.ts`, Abgleich per Test      | Preise nur beim Anbieter führen, falls die Anzeige sie dort liest                                     |
 
 ## Architektur
 
-**Plan-Modell.** `users.plan` als Enum `free | pro | max | ultimate` mit Default `free`. Für das Grandfathering braucht es kein eigenes Feld: Der Übergang ist eine einmalige Plan-Setzung per Admin-Migration (T8). Die PAT-Session (`apiTokenAuth.ts`) übernimmt den Plan aus dem Nutzerdatensatz, damit das Gating für HTTP und MCP gleich greift.
+**Plan-Modell.** `users.plan` als Enum `free | pro | max | ultimate` mit Default `free`. Für das Grandfathering braucht es kein eigenes Feld: Der Übergang ist eine einmalige Plan-Setzung per Admin-Migration (T8). Die PAT-Session (`apiTokenAuth.ts`) übernimmt den Plan aus dem Nutzerdatensatz, damit das Gating für HTTP und MCP gleich greift — `apiTokenAuth.ts` baut `req.session.user` selbst zusammen, `plan` muss dort ausdrücklich mit hinein. Die Spaltenmigration folgt `migrateUsersRoleColumn` in `server/src/logics/migrate.ts` (PRAGMA-Abfrage, `ALTER TABLE ... ADD COLUMN` mit Default), aufgerufen aus `server/src/index.ts` vor `sequelize.sync()`.
+
+**Rollout-Schalter.** Das Deployment läuft Merge nach Build nach rsync nach PM2. Ohne Schutz entzöge der T2-Merge jedem Bestandsnutzer sofort Gruppen, Graph-Schreiben und Standort, und zwar bis T8 das Grandfathering nachliefert. Ein Env-Schalter `MONETIZATION_ENFORCED` (Default aus) entscheidet deshalb, ob die Rechte durchgesetzt werden; ausgewertet wird er in der Rechte-Zentrale, damit Guards, Kontingent und MCP-Deckel dieselbe Quelle lesen. Gemessen und gezählt wird von Anfang an, durchgesetzt erst in T8 — und dort erst, nachdem die Übergangs-Setzung über alle Bestandskonten gelaufen ist. Nach dem Launch bleibt der Schalter der Weg zurück, ohne Deploy.
 
 **Rechte-Zentrale.** Ein Modul (z. B. `server/src/logics/plans.ts`) ist die einzige Wahrheitsquelle: Paket je Feature, Kontingentwerte, erlaubter MCP-Scope, Preise. Ein öffentlicher `GET /plans` liefert Matrix und Preise aus dieser Quelle für die Preisübersicht und die Angebotstexte; das Frontend konsumiert nur diesen Endpoint und besitzt keine eigene Kopie der Matrix.
 
 **Feature-Katalog und Entitlements.** Jede gegatete Funktion trägt einen stabilen Identifier (etwa `groups`, `voice_input`, `ai_assist`, `graph_write`, `location_reminders`, `mcp_readwrite`); die Rechte-Zentrale ordnet ihm die Pakete zu, bei KI-Funktionen zusätzlich das Kontingent. `/auth/me` liefert neben dem Plan die ausgewertete Entitlement-Map je Feature: erlaubt oder nicht, erforderliches Paket, bei KI der Kontingent-Rest. Ein einziger Request mit der Session beantwortet damit alle UI-Fragen in jedem Szenario; ein separater Batch-Endpoint ist nicht nötig. Das Frontend enthält keine Paketlogik, es rendert Badges, Angebote und Sperrzustände nur aus der Map. Eine reine Server-Korrektur genügt, um eine Funktion app-weit freizugeben oder zu sperren, ohne App-Release. Die Identifiers sind Teil des API-Vertrags (`openapi.yml`); die Zuordnung Bedienelement ↔ Identifier bleibt Code in der UI, die Paketregel dahinter liegt ausschließlich serverseitig. Der 403-/429-Body bleibt die harte Autorität im Aktionsmoment, falls die Map veraltet ist.
 
-**Server-Gating.** Eine Guard-Factory prüft über den Feature-Identifier der Route gegen die Rechte-Zentrale und antwortet bei fehlendem Recht mit 403 und strukturiertem Body (`code: plan_required`, `feature`, `requiredPlan`, `currentPlan`). Dieser Body ist der Vertrag für die kontextuellen Angebote im Frontend. Lesezugriffe bleiben offen, damit die Sperr-statt-Löschen-Regel trägt.
+**Fehlervertrag.** Der zentrale Vertrag ist `{ message }` (`server/src/express/http-error.ts`, abgesichert durch `error-contract.test.ts`, #1130). Die Paketfelder kommen als optionale Felder am bestehenden `Error`-Schema dazu, nicht als zweites Fehlerformat; dazu ein `sendPlanError()` neben `sendError()`. Beide Codes (`plan_required` für 403, `quota_exhausted` für 429) und das Feld für den Kontingent-Rest werden in T1 verabschiedet, obwohl sie erst T2 und T4 befüllen — sonst zieht T3 sie später nach und fasst dieselben Komponenten ein zweites Mal an.
 
-**KI-Kontingent.** Eine Tabelle zählt LLM-Aufrufe je Nutzer und Monat (Schlüssel Jahr-Monat). Es zählen die fünf LLM-Routen; das reine Feedback zu Säulen-Vorschlägen (Speicherung ohne LLM-Call) zählt nicht. Bei Erschöpfung antwortet der Server 429 mit `code: quota_exhausted`; erfolgreiche Responses führen den Kontingent-Rest mit, damit das Frontend kurz vor dem Limit warnen kann.
+**Server-Gating.** Eine Guard-Factory prüft über den Feature-Identifier der Route gegen die Rechte-Zentrale und antwortet bei fehlendem Recht mit 403 und dem strukturierten Body (`code: plan_required`, `feature`, `requiredPlan`, `currentPlan`). Dieser Body ist der Vertrag für die kontextuellen Angebote im Frontend. Lesezugriffe bleiben offen, damit die Sperr-statt-Löschen-Regel trägt. Gegen Drift schützt kein Einzelfall-Test, sondern ein Abdeckungstest nach dem Muster von `api-auth-protection.test.ts`, der prüft, dass jede gegatete Schreibroute einen Guard trägt.
+
+**MCP-Loopback.** `server/src/mcp/tools.ts` ruft die gespiegelte HTTP-Route mit demselben Bearer-Header auf (in `apiTokenAuth.ts` als AK6 dokumentiert). Sobald die Guards greifen, bekommt dieser Loopback einen plan-403 und reicht ihn roh durch. Betroffen sind `task_link`, `task_unlink`, `task_links` (Max) sowie `group_list`, `group_members_list` (Pro). Der plan-403 muss dort in denselben lesbaren JSON-RPC-Fehler wandern, den der Scope-Guard heute liefert.
+
+**KI-Kontingent.** Eine Tabelle zählt LLM-Aufrufe je Nutzer und Monat (Schlüssel Jahr-Monat, Unique-Index auf Nutzer und Monat). Es zählen die fünf LLM-Routen; das reine Feedback zu Säulen-Vorschlägen (Speicherung ohne LLM-Call) zählt nicht. Bei Erschöpfung antwortet der Server 429 mit `code: quota_exhausted`; erfolgreiche Responses führen den Kontingent-Rest mit, damit das Frontend kurz vor dem Limit warnen kann. Gezählt wird reservierend vor dem Call mit Rückbuchung bei Provider-Fehler — nachträgliches Zählen ließe parallele Aufrufe am Deckel vorbei — und als ein `UPDATE ... SET count = count + 1`, nicht als Read-Modify-Write in JavaScript. Der Zähler hängt als Route-Middleware neben dem Plan-Guard, nicht in den fünf Handlern: einen gemeinsamen Choke-Point in `llm/llm.ts` gibt es nicht, weil `lektorat.ts` direkt importiert, während die übrigen vier Routen ihren Parser per Dependency Injection bekommen.
 
 **MCP-Deckel.** Der Plan begrenzt den erlaubten Token-Scope (Max: nur `read`; Ultimate: auch `readwrite`). Geprüft wird beim Anlegen und beim Scope-Umschalten der PATs sowie beim Schreibversuch über `tools/call` mit dem bestehenden lesbaren JSON-RPC-Fehler, ergänzt um einen Pakethinweis.
 
-**Zahlung.** Buchen und Verwalten läuft über einen eigenen Routenbereich (`billing`) hinter einer schmalen Provider-Schnittstelle: Checkout, Webhook-Verarbeitung, Plan-Sync, Abo-Status. Upgrades wirken sofort, Downgrades zum Periodenende. Zahlungsdaten werden nie im eigenen System gespeichert, nur externe Referenzen.
+**Zahlung.** Buchen und Verwalten läuft über einen eigenen Routenbereich (`billing`) hinter einer schmalen Provider-Schnittstelle: Checkout, Webhook-Verarbeitung, Plan-Sync, Abo-Status. Upgrades wirken sofort, Downgrades zum Periodenende. Zahlungsdaten werden nie im eigenen System gespeichert, nur externe Referenzen. Die Webhook-Route braucht den unveränderten Rohbody für die Signaturprüfung und muss deshalb mit `express.raw({ type: 'application/json' })` vor dem globalen `express.json()` in `server/src/express/index.ts` gemountet werden; damit liegt sie zugleich vor CSRF-Prüfung und `requireAuth`, die der Provider ohnehin nicht bedienen kann. Preise stehen doppelt — in `plans.ts` und als Price-IDs beim Provider. Maßgeblich ist `plans.ts` für die Anzeige und der Provider für die Abrechnung; die Zuordnung Paket mal Zeitraum zu Price-ID liegt in `plans.ts`, ein Test vergleicht beide Seiten.
 
-**Downgrade.** Rechte entfallen, Daten bleiben. Die betroffenen Ansichten bleiben lesbar, die Bedienelemente führen auf das kontextuelle Angebot.
+**Downgrade.** Rechte entfallen, Daten bleiben. Die betroffenen Ansichten bleiben lesbar, die Bedienelemente führen auf das kontextuelle Angebot. Bei sauber gebauter Vorkette folgt das von selbst: Ein Downgrade ändert nur den Plan-Wert, und Sperrzustände wie Angebote rendern ausschließlich aus der Entitlement-Map.
 
 **Badges.** Die Frontend-Badge-Komponente rendert aus der Entitlement-Map in `/auth/me`, nicht aus eigener Logik: An jedem Bedienelement, das an einen Feature-Identifier gekoppelt ist, steht das Badge dauerhaft sichtbar; meldet die Map das Feature als erlaubt, zeigt sie einen grünen Haken statt des Info-Schalters. Ein Klick auf (i) öffnet das kontextuelle Angebot derselben Stelle.
+
+**Fehlerweg im Frontend.** Jeder `ResponseError` läuft durch `toApiError` in `frontend/src/lib/apiError.ts`; dort steckt mit dem Session-401-Weg (`SESSION_EXPIRED_EVENT` auf `window`, globaler Dialog) auch das fertige Muster für „Statuscode führt zu globalem Dialog". 403 und 429 folgen ihm, statt die rund 80 Aufrufstellen in `frontend/src/api.ts` anzufassen. Zwei Nebenwirkungen sind zu beachten: Der `onResponse`-Hook in `api.ts` verwirft bei jedem 403 den CSRF-Token und muss den Paket-Code ausnehmen, und der localStorage-Spiegel der Entitlement-Map gehört pro User-Id abgelegt und beim Logout gelöscht — sonst sieht das nächste Konto auf demselben Gerät fremde Badges. Neu geholt wird die Map bei App-Fokus und bei der Rückkehr aus dem Checkout.
 
 **Vertrag und Tests.** Alle neuen Felder, Endpoints und Fehlerbodies werden in `openapi.yml` nachgezogen, die Client-Typen neu generiert. Server-Guards und Kontingent-Logik fallen unter die Coverage-Gates der Server-Logik. Die Frontend-Teile bekommen Vitest-Tests, die Grenzstellen zusätzlich e2e bei 375×812 nach der Mobile-First-Regel, KoliBri black-box.
 
 ## Teilaufgaben
 
-Acht Teilaufgaben in fester Reihenfolge; jede baut auf der vorherigen auf (`blocked_by`). Die Felder entsprechen dem Ticket-Formular (`.github/ISSUE_TEMPLATE/ticket.yml`). Beim Anlegen als Issue werden die viertsten Überschriften dieser Sektion zu dritten (`###`) im Issue-Body. Das Anlegen folgt dem Muster von Epic #1340: ein Epic-Issue, die acht Tickets als Sub-Issues verknüpft, die Reihenfolge über `blocked_by`-Kanten.
+Neun Teilaufgaben. T1 legt Plan-Modell, Rechte-Zentrale und die Verträge fest, auf denen alles Weitere aufsetzt; danach laufen T2, T4 und T5 parallel, weil sie fachlich alle nur an T1 hängen. Das Frontend folgt erst, wenn die drei Server-Verträge stehen — sonst würden dieselben rund vierzehn Komponenten dreimal angefasst, einmal für die Badges, einmal für die Kontingent-Warnung und einmal für die Sperrzustände nach dem Downgrade.
 
 ```
-T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8
+T1 → { T2, T4, T5 } → T3a → T3b → T6 → T7 → T8
 ```
+
+Die Felder entsprechen dem Ticket-Formular (`.github/ISSUE_TEMPLATE/ticket.yml`). Angelegt sind die Teilaufgaben als Epic #1455 mit Sub-Issues nach dem Muster von Epic #1340: #1456 (T1), #1457 (T2), #1459 (T4), #1460 (T5), #1458 (T3a), #1484 (T3b), #1461 (T6), #1462 (T7), #1463 (T8). Die Abschnitte hier sind die Fassung, aus der die Issues entstanden sind; maßgeblich für die Umsetzung ist das jeweilige Issue.
 
 ### Teilaufgabe T1: Plan-Datenmodell und Rechte-Zentrale
 
@@ -164,10 +178,12 @@ Am Nutzer gibt es kein Paket-Modell (`users` unterscheidet nur `role` admin/memb
 ```
 server/src/models/user.ts
 server/src/logics/plans.ts (neu)
+server/src/logics/migrate.ts (Spaltenmigration)
+server/src/index.ts (Migrationsaufruf vor sequelize.sync())
+server/src/express/http-error.ts (Fehlervertrag)
 server/src/express/routes/admin.ts
 server/src/express/routes/auth.ts
 server/src/express/apiTokenAuth.ts
-server/database.ts (Migration)
 openapi.yml
 ```
 
@@ -195,6 +211,8 @@ Mittel
 #### Hinweise
 
 Start der Kette, keine Abhängigkeit. Kontingentwerte zunächst ~60/110/200 (Pro/Max/Ultimate), Free 0; die Feinjustierung erfolgt später ohne Schema-Änderung.
+
+Mit T1 werden zugleich die Verträge verabschiedet, auf denen T2 bis T7 aufsetzen: die Erweiterung des Fehlervertrags um die Paketfelder samt `sendPlanError()`, die Codes `plan_required` und `quota_exhausted`, das Feld für den Kontingent-Rest, der Rollout-Schalter `MONETIZATION_ENFORCED` und der Hinweis, dass `voice_input` ein reines Anzeige-Entitlement ohne Server-Endpunkt ist. Die Migration folgt `migrateUsersRoleColumn` in `server/src/logics/migrate.ts`; `plan` muss außerdem in das `req.session.user` aus `apiTokenAuth.ts`, sonst greift das Gating für Bearer-Requests nicht. Danach können T2, T4 und T5 parallel laufen.
 
 ### Teilaufgabe T2: Serverseitiges Feature-Gating
 
@@ -238,9 +256,13 @@ Komplex
 
 #### Hinweise
 
-`blocked_by`: T1. Die Sprachsteuerung hat keinen Server-Endpunkt (lokale Spracheingabe) und wird erst in T3 gegatet.
+`blocked_by`: T1. Die Sprachsteuerung hat keinen Server-Endpunkt (lokale Spracheingabe) und wird erst im Frontend gegatet.
 
-### Teilaufgabe T3: Frontend-Gating, Badges und kontextuelle Upgrade-Angebote
+Zwei Punkte kommen gegenüber der ersten Fassung dazu: Der Guard wertet den Rollout-Schalter aus (aus heißt durchlassen), und der plan-403 aus dem MCP-Loopback in `server/src/mcp/tools.ts` wird in den lesbaren JSON-RPC-Fehler übersetzt. Die Rechtetests laufen tabellengetrieben, dazu der Abdeckungstest gegen Drift.
+
+### Teilaufgaben T3a und T3b: Frontend-Gating, Badges und kontextuelle Upgrade-Angebote
+
+Der ursprüngliche Zuschnitt umfasste vierzehn Komponenten, drei neue Module, ein neues UX-Muster und e2e — zu viel für einen prüfbaren Durchgang. Geteilt in T3a (#1458: Plan-Kontext, Badge, Angebots-Dialog, Settings-Bereich „Pakete" und drei Referenzstellen, je eine pro Fehlerweg — Gruppen für Pro/403, Relation anlegen für Max/403, KI-Schnellerfassung für Kontingent/429) und T3b (#1484: Ausrollen auf die acht übrigen Komponenten nach Muster-Treue). Der folgende Abschnitt beschreibt beide gemeinsam.
 
 #### Was ist das Problem?
 
@@ -291,7 +313,9 @@ Komplex
 
 #### Hinweise
 
-`blocked_by`: T2 (403-Vertrag). Die Textbausteine zentral pflegen, damit T4 und T7 sie wiederverwenden. Badges sind rein informativ, sie ersetzen das kontextuelle Angebot nicht und sperren nichts.
+`blocked_by`: T3a auf T2 (403-Vertrag) und T4 (429-Vertrag, Kontingent-Rest), T3b auf T3a. Die Textbausteine zentral pflegen, damit T3b, T6 und T7 sie wiederverwenden. Badges sind rein informativ, sie ersetzen das kontextuelle Angebot nicht und sperren nichts.
+
+Die Kontingent-Warnung und die Restanzeige gehören in T3a und nicht in einen eigenen Frontend-Durchgang — sie betreffen dieselben Komponenten. Die 403-/429-Auswertung sitzt in `toApiError` nach dem Muster des Session-401-Wegs; der CSRF-Hook in `api.ts` muss den Paket-Code ausnehmen, und der localStorage-Spiegel gehört pro User-Id abgelegt und beim Logout gelöscht.
 
 ### Teilaufgabe T4: KI-Kontingent-Metering
 
@@ -333,7 +357,9 @@ Mittel
 
 #### Hinweise
 
-`blocked_by`: T3 (Angebots- und Warnkomponenten vorhanden). Basis der Werte: rund 18 % des Abopreises als Token-Budget.
+`blocked_by`: T1 (Fehlervertrag, Kontingentwerte, Rollout-Schalter). Der Serverteil hängt fachlich nicht an T3; die Warnung und die Restanzeige baut T3a in einem Durchgang mit den Badges. Gezählt wird reservierend mit Rückbuchung, atomar und als Route-Middleware neben dem Plan-Guard — nicht in den fünf Handlern verteilt.
+
+Basis der Werte: rund 18 % des Abopreises als Token-Budget.
 
 ### Teilaufgabe T5: MCP-Plan-Deckel
 
@@ -371,7 +397,9 @@ Mittel
 
 #### Hinweise
 
-`blocked_by`: T4. Das Zweistufenmodell (HTTP-Guard plus MCP-Layer) bleibt bestehen; die offenen MCP-Themen #1359, #1370 und #1414 bleiben unberührt.
+`blocked_by`: T1. Diese Teilaufgabe hängt nur am Plan-Modell und am Fehlervertrag, nicht am Kontingent, und kann parallel zu T2 und T4 laufen. Sie deckelt den Scope; der zweite MCP-Fall, in dem ein Plan-Guard über den Loopback zuschlägt, wird in T2 gelöst.
+
+Das Zweistufenmodell (HTTP-Guard plus MCP-Layer) bleibt bestehen; die offenen MCP-Themen #1359, #1370 und #1414 bleiben unberührt.
 
 ### Teilaufgabe T6: Zahlungsweg und Abo-Lifecycle
 
@@ -412,7 +440,9 @@ Komplex
 
 #### Hinweise
 
-`blocked_by`: T5. Zahlungsdaten werden nie im eigenen System gespeichert, nur externe Referenzen.
+`blocked_by`: T5 und T3b. Zahlungsdaten werden nie im eigenen System gespeichert, nur externe Referenzen.
+
+Der Webhook braucht den Rohbody und muss deshalb vor `express.json()`, vor der CSRF-Prüfung und vor `requireAuth` gemountet werden. Die Preishoheit ist vor der Umsetzung zu klären (Entscheidung Nr. 10), und die Rückkehr aus dem Checkout holt die Entitlement-Map neu.
 
 ### Teilaufgabe T7: Downgrade und Kündigung
 
@@ -452,6 +482,8 @@ Mittel
 
 `blocked_by`: T6. Damit ist der offene Punkt „Downgrade-Verhalten" aus der Paketübersicht erledigt.
 
+Bei sauberer Vorkette ist das überwiegend eine Prüf- und Nachweis-Aufgabe: Ein Downgrade ändert nur den Plan-Wert, alles Weitere folgt aus der Entitlement-Map. Jede Stelle, an der das nicht zutrifft, gehört im PR benannt.
+
 ### Teilaufgabe T8: Launch
 
 #### Was ist das Problem?
@@ -470,7 +502,7 @@ Server-Skript oder Admin-Migration für die Übergangs-Setzung
 
 #### Wie soll es sein?
 
-Die Übergangsregel wird umgesetzt (Empfehlung Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf ihrem Übergangs-Tier, gesetzt per Admin-Migration; danach gilt Free als Default). Die kontextuellen Angebote werden scharf geschaltet. Paketmatrix und Preise werden veröffentlicht (Settings-Bereich, Benutzer-Doku). `user-guide.md` und `arc42.md` werden um die Monetarisierungsschicht ergänzt. Die Preisvalidierung wird abgeschlossen (Vergleichswerte Habitica ~5 €, Habitify ~2,50 €, Productive ~11 € monatlich) und die Kontingente nach erster Auswertung justiert.
+Die Übergangsregel wird umgesetzt (Empfehlung Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf ihrem Übergangs-Tier, gesetzt per Admin-Migration; danach gilt Free als Default). Die Reihenfolge entscheidet: erst die Übergangs-Setzung über alle Bestandskonten laufen lassen und das Ergebnis prüfen, dann `MONETIZATION_ENFORCED` einschalten. Umgekehrt verlieren Bestandsnutzer für die Dauer zwischen beiden Schritten ihre Funktionen. Die kontextuellen Angebote werden scharf geschaltet. Paketmatrix und Preise werden veröffentlicht (Settings-Bereich, Benutzer-Doku). `user-guide.md` und `arc42.md` werden um die Monetarisierungsschicht ergänzt. Die Preisvalidierung wird abgeschlossen (Vergleichswerte Habitica ~5 €, Habitify ~2,50 €, Productive ~11 € monatlich) und die Kontingente nach erster Auswertung justiert.
 
 #### Thema
 
