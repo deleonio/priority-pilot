@@ -3,6 +3,8 @@ import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { lektoratTextWithMistral } from '../../llm/llm.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
+import { requirePlanFeature } from '../planGuard.js';
+import { meterAiQuota } from '../aiQuotaMeter.js';
 
 type ErrorDto = { message: string };
 
@@ -59,34 +61,39 @@ const validateBody = (
 export const lektoratRouter = (): Router => {
 	const router = Router();
 
-	router.post('/lektorat', async (req: Request, res: Response<{ text: string } | ErrorDto>) => {
-		// Provider-Query-Parameter validieren (#749)
-		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
-		if (!providerValidation.ok) {
-			sendError(res, 400, providerValidation.message);
-			return;
-		}
-		const provider = providerValidation.provider;
+	router.post(
+		'/lektorat',
+		requirePlanFeature('ai_assist'),
+		meterAiQuota(),
+		async (req: Request, res: Response<{ text: string } | ErrorDto>) => {
+			// Provider-Query-Parameter validieren (#749)
+			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
+			if (!providerValidation.ok) {
+				sendError(res, 400, providerValidation.message);
+				return;
+			}
+			const provider = providerValidation.provider;
 
-		const validation = validateBody(req.body);
-		if (!validation.ok) {
-			sendError(res, 400, validation.message);
-			return;
-		}
+			const validation = validateBody(req.body);
+			if (!validation.ok) {
+				sendError(res, 400, validation.message);
+				return;
+			}
 
-		try {
-			const result = await lektoratTextWithMistral(
-				{
-					text: validation.value.text,
-					maxLength: validation.value.maxLength,
-				},
-				provider,
-			);
-			res.json({ text: result.text });
-		} catch (error) {
-			sendLlmError(res, error);
-		}
-	});
+			try {
+				const result = await lektoratTextWithMistral(
+					{
+						text: validation.value.text,
+						maxLength: validation.value.maxLength,
+					},
+					provider,
+				);
+				res.json({ text: result.text });
+			} catch (error) {
+				sendLlmError(res, error);
+			}
+		},
+	);
 
 	return router;
 };

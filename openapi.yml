@@ -369,6 +369,50 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /lektorat:
+    post:
+      summary: Text lektorieren (LLM-Kaskade)
+      description: >-
+        Lektoriert einen frei formulierten Text (#680) — Rechtschreibung, Grammatik und
+        Formulierung — und kürzt ihn auf Wunsch auf `maxLength` Zeichen. Der Aufruf läuft
+        über die konfigurierte LLM-Kaskade und setzt eine Session voraus: Fehlt der Key,
+        antwortet der Endpoint mit 503; bei Upstream-/Format-Fehlern mit 502.
+      operationId: lektorat
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LektoratInput'
+      responses:
+        '200':
+          description: Lektorierter Text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LektoratResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /pillars/advisor:
     post:
       summary: Aktivitäten-Berater für die Säulen (Mistral)
@@ -410,6 +454,10 @@ paths:
                 $ref: '#/components/schemas/ActivityAdvisorResult'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
         '502':
           $ref: '#/components/responses/BadGateway'
         '503':
@@ -453,6 +501,10 @@ paths:
                 $ref: '#/components/schemas/SuggestPillarsResult'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
         '502':
           $ref: '#/components/responses/BadGateway'
         '503':
@@ -521,6 +573,10 @@ paths:
                 $ref: '#/components/schemas/ParsedSearch'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
         '502':
           $ref: '#/components/responses/BadGateway'
         '503':
@@ -565,6 +621,10 @@ paths:
                 $ref: '#/components/schemas/ParsedTask'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
+        '429':
+          $ref: '#/components/responses/QuotaExhausted'
         '502':
           $ref: '#/components/responses/BadGateway'
         '503':
@@ -2526,6 +2586,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    QuotaExhausted:
+      description: >-
+        Das monatliche KI-Kontingent des Pakets ist aufgebraucht (#1459). Body trägt
+        zusätzlich `code: quota_exhausted`, `feature: ai_assist` und `currentPlan`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     NotFound:
       description: Ressource nicht gefunden
       content:
@@ -3792,6 +3860,12 @@ components:
           description: Vorgeschlagene Aktivitäten samt Säulen-Zuordnung
           items:
             $ref: '#/components/schemas/ActivityAdvice'
+        quotaRemaining:
+          type: integer
+          minimum: 0
+          description: >-
+            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
+            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
     PillarDistributionEntry:
       type: object
       description: >-
@@ -3861,6 +3935,40 @@ components:
           description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
           items:
             $ref: '#/components/schemas/PillarSuggestion'
+        quotaRemaining:
+          type: integer
+          minimum: 0
+          description: >-
+            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
+            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
+    LektoratInput:
+      type: object
+      description: Eingabe des Lektorats (#680) — Text und optionale Maximallänge.
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: Zu lektorierender Text (nicht leer)
+        maxLength:
+          type: integer
+          minimum: 1
+          description: Optionale Maximallänge des lektorierten Textes in Zeichen
+    LektoratResult:
+      type: object
+      description: Ergebnis des Lektorats.
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: Der lektorierte (und bei gesetztem `maxLength` gekürzte) Text
+        quotaRemaining:
+          type: integer
+          minimum: 0
+          description: >-
+            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
+            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
     ParseTaskInput:
       type: object
       description: Eingabe für die Task-Schnellerfassung — frei formulierter Text (#235).
@@ -3924,6 +4032,12 @@ components:
           description: >-
             Optionale Kategorie: ID einer Kategorie des Nutzers, wenn der Text thematisch
             eindeutig zu einer passt. Fehlt, wenn keine passt oder keine angelegt sind.
+        quotaRemaining:
+          type: integer
+          minimum: 0
+          description: >-
+            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
+            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
     ParsedSearch:
       type: object
       description: >-
@@ -3937,6 +4051,12 @@ components:
         categoryId:
           type: integer
           description: ID der gemeinten Kategorie des Nutzers
+        quotaRemaining:
+          type: integer
+          minimum: 0
+          description: >-
+            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
+            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
     PillarFeedbackInput:
       type: object
       description: >-

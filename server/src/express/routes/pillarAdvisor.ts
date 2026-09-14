@@ -4,6 +4,8 @@ import { sendError } from '../http-error.js';
 import { Pillar } from '../../models/index.js';
 import { adviseActivitiesWithMistral, type ActivityAdvisor, type PillarDistribution } from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { requirePlanFeature } from '../planGuard.js';
+import { meterAiQuota } from '../aiQuotaMeter.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import type { components } from '../../api';
 
@@ -86,50 +88,55 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 	const router = Router();
 
 	// POST /pillars/advisor — Aktivitäten samt Säulen-Zuordnung vorschlagen (optional zu einer Frage).
-	router.post('/pillars/advisor', async (req: Request, res: Response<{ advice: ActivityAdviceDto[] } | ErrorDto>) => {
-		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
-		if (!providerValidation.ok) {
-			sendError(res, 400, providerValidation.message);
-			return;
-		}
-
-		const validation = validateBody(req.body);
-		if (!validation.ok) {
-			sendError(res, 400, validation.message);
-			return;
-		}
-
-		let pillars: Pillar[];
-		try {
-			pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
-			if (pillars.length === 0) {
-				sendError(res, 503, 'Es sind keine Säulen konfiguriert.');
+	router.post(
+		'/pillars/advisor',
+		requirePlanFeature('ai_assist'),
+		meterAiQuota(),
+		async (req: Request, res: Response<{ advice: ActivityAdviceDto[] } | ErrorDto>) => {
+			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
+			if (!providerValidation.ok) {
+				sendError(res, 400, providerValidation.message);
 				return;
 			}
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-			return;
-		}
 
-		// Die vom Client mitgeschickte Verteilung defensiv auf die real konfigurierten Säulen
-		// begrenzen (unbekannte pillarIds ignorieren), damit der Prompt nur gültige Säulen nennt.
-		const validPillarIds = new Set(pillars.map((pillar) => pillar.id));
-		const distribution = validation.distribution?.filter((entry) => validPillarIds.has(entry.pillarId));
+			const validation = validateBody(req.body);
+			if (!validation.ok) {
+				sendError(res, 400, validation.message);
+				return;
+			}
 
-		try {
-			const advice = await advisor(
-				{
-					question: validation.question,
-					pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name, description: pillar.description })),
-					distribution: distribution && distribution.length > 0 ? distribution : undefined,
-				},
-				providerValidation.provider,
-			);
-			res.json({ advice });
-		} catch (error) {
-			sendLlmError(res, error);
-		}
-	});
+			let pillars: Pillar[];
+			try {
+				pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
+				if (pillars.length === 0) {
+					sendError(res, 503, 'Es sind keine Säulen konfiguriert.');
+					return;
+				}
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
+			}
+
+			// Die vom Client mitgeschickte Verteilung defensiv auf die real konfigurierten Säulen
+			// begrenzen (unbekannte pillarIds ignorieren), damit der Prompt nur gültige Säulen nennt.
+			const validPillarIds = new Set(pillars.map((pillar) => pillar.id));
+			const distribution = validation.distribution?.filter((entry) => validPillarIds.has(entry.pillarId));
+
+			try {
+				const advice = await advisor(
+					{
+						question: validation.question,
+						pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name, description: pillar.description })),
+						distribution: distribution && distribution.length > 0 ? distribution : undefined,
+					},
+					providerValidation.provider,
+				);
+				res.json({ advice });
+			} catch (error) {
+				sendLlmError(res, error);
+			}
+		},
+	);
 
 	return router;
 };
