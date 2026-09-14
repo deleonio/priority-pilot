@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { CopyButton } from './CopyButton';
+import { PlanBadge } from './PlanBadge';
 
 /** Vorbelegter Name eines neuen Tokens — ein Klick reicht, der Name bleibt änderbar. */
 const DEFAULT_TOKEN_NAME = 'Externer Client';
@@ -71,15 +72,20 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  * im Browser doppelt feuern.
  */
 const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled: boolean; onToggle: () => void }) => (
-	<KolInputCheckbox
-		_variant="switch"
-		_label={`Rechte für Token ${token.name}`}
-		_hideLabel={true}
-		_checked={token.scope === 'readwrite'}
-		_disabled={disabled}
-		data-testid="api-token-scope-toggle"
-		_on={{ onChange: () => onToggle() }}
-	/>
+	<>
+		<KolInputCheckbox
+			_variant="switch"
+			_label={`Rechte für Token ${token.name}`}
+			_hideLabel={true}
+			_checked={token.scope === 'readwrite'}
+			_disabled={disabled}
+			data-testid="api-token-scope-toggle"
+			_on={{ onChange: () => onToggle() }}
+		/>
+		{/* #1484 (T3b AK3): Grenzstelle `mcp_readwrite` — das Badge gehört an den Umschalter selbst.
+		    `.api-tokens__scope` bricht dafür bei 375 px um (KI-UX-Block: dichteste der acht Zeilen). */}
+		<PlanBadge feature="mcp_readwrite" />
+	</>
 );
 
 /**

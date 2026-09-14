@@ -40,17 +40,17 @@ export interface PlansCatalog {
 }
 
 /**
- * Paket-Matrix laut Gesamtkonzept. `voice_input` ist bewusst für ALLE Pakete erlaubt: die
- * Spracheingabe läuft rein lokal im Browser, es gibt weder Server-Endpunkt noch Guard — der
- * Eintrag existiert nur, damit die UI ein Anzeige-Entitlement hat (AK10).
+ * Paket-Matrix laut Gesamtkonzept. `voice_input` ist ab Pro enthalten; die Spracheingabe läuft rein
+ * lokal im Browser, es gibt weder Server-Endpunkt noch Guard — der Eintrag existiert nur, damit die
+ * UI ein Anzeige-Entitlement hat und die Aufnahme clientseitig sperren kann (#1484).
  */
 const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] },
-	{ feature: 'voice_input', allowedPlans: ['free', 'pro', 'max', 'ultimate'] },
+	{ feature: 'voice_input', allowedPlans: ['pro', 'max', 'ultimate'] },
 	{ feature: 'ai_assist', allowedPlans: ['pro', 'max', 'ultimate'] },
 	{ feature: 'graph_write', allowedPlans: ['max', 'ultimate'] },
 	{ feature: 'location_reminders', allowedPlans: ['max', 'ultimate'] },
-	{ feature: 'mcp_readwrite', allowedPlans: ['max', 'ultimate'] },
+	{ feature: 'mcp_readwrite', allowedPlans: ['ultimate'] },
 ];
 
 /** Preise je Paket in Euro (Monats-/Jahresabrechnung), laut Gesamtkonzept. */

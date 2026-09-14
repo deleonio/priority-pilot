@@ -38,6 +38,7 @@ import { AddressAutocomplete, type PlaceFavoriteSuggestion } from './AddressAuto
 import { notifyTasksChanged } from '../lib/tasksChanged';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
+import { PlanBadge } from './PlanBadge';
 import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
@@ -996,7 +997,7 @@ export const TaskForm = ({
 			    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
-							<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+							<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' }}>
 								<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
 									<VoiceField
 										variant="input"
@@ -1038,21 +1039,26 @@ export const TaskForm = ({
 								</div>
 								{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
 								{aiEnabled && (
-									<KolButton
-										ref={lektoratTitleTriggerRef}
-										_label="Titel lektorieren"
-										_hideLabel
-										_variant="minimal"
-										_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-										_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-										_on={{
-											onClick: () => void runLektorat('title', TITLE_MAX_LENGTH),
-										}}
-										style={{
-											flexShrink: 0,
-										}}
-										className="lektorat-button-align"
-									/>
+									<>
+										{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — nur zusammen mit dem Lektorat-Button,
+										    damit ohne aktive KI keine leere Zeile entsteht. */}
+										<PlanBadge feature="ai_assist" />
+										<KolButton
+											ref={lektoratTitleTriggerRef}
+											_label="Titel lektorieren"
+											_hideLabel
+											_variant="minimal"
+											_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+											_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+											_on={{
+												onClick: () => void runLektorat('title', TITLE_MAX_LENGTH),
+											}}
+											style={{
+												flexShrink: 0,
+											}}
+											className="lektorat-button-align"
+										/>
+									</>
 								)}
 							</div>
 							{/* #1213 (AK7): Empfängerauswahl — nur mit mindestens einer Gruppe, vorbelegt mit
@@ -1355,7 +1361,7 @@ export const TaskForm = ({
 					<div className="accordion-body">
 						{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
 				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
-						<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+						<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' }}>
 							<div style={{ flex: 1, minWidth: 0 }} data-testid="task-description">
 								<VoiceField
 									variant="textarea"
@@ -1392,21 +1398,25 @@ export const TaskForm = ({
 							</div>
 							{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
 							{aiEnabled && (
-								<KolButton
-									ref={lektoratDescriptionTriggerRef}
-									_label="Beschreibung lektorieren"
-									_hideLabel
-									_variant="minimal"
-									_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-									_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-									_on={{
-										onClick: () => void runLektorat('description'),
-									}}
-									style={{
-										flexShrink: 0,
-									}}
-									className="lektorat-button-align"
-								/>
+								<>
+									{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — wie beim Titel-Lektorat. */}
+									<PlanBadge feature="ai_assist" />
+									<KolButton
+										ref={lektoratDescriptionTriggerRef}
+										_label="Beschreibung lektorieren"
+										_hideLabel
+										_variant="minimal"
+										_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+										_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+										_on={{
+											onClick: () => void runLektorat('description'),
+										}}
+										style={{
+											flexShrink: 0,
+										}}
+										className="lektorat-button-align"
+									/>
+								</>
 							)}
 						</div>
 						{/* Kategorie: thematische Ordnung, höchstens eine je Aufgabe. Bewusst getrennt von den
@@ -1457,6 +1467,9 @@ export const TaskForm = ({
 							<div className="pillar-editor">
 								<div className="pillar-editor-head">
 									<span className="pillar-editor-label">Säulen (optional)</span>
+									{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — der Säulen-Vorschlag ist der zweite
+									    KI-Einstieg im Formular. */}
+									<PlanBadge feature="ai_assist" />
 									<KolButton
 										_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
 										_variant="secondary"

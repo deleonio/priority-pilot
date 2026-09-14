@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useGeolocation } from '../lib/useGeolocation';
 import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
+import { PlanBadge } from './PlanBadge';
 
 /**
  * Dashboard-Card „In der Nähe" (#1066): zeigt maximal 10 offene Tasks mit Koordinaten, aufsteigend
@@ -101,6 +102,10 @@ export const NearbyCard = () => {
 			_level={0}
 			data-testid="nearby-card"
 		>
+			{/* #1484 (T3b AK3): Grenzstelle `location_reminders`. Der Kartentitel kommt aus der
+			    KoliBri-Prop `_label` — das Badge steht deshalb als erstes Element im Kartenkörper
+			    (einheitlich mit `PlaceFavoritesSection`/`GroupFormDialog`, KI-UX-Block). */}
+			<PlanBadge feature="location_reminders" />
 			{permissionDenied || !supported || unavailable ? (
 				<p className="dashboard-nearby-hint" data-testid="nearby-denied">
 					Der Browser hat die Standortfreigabe verweigert, ist nicht verfügbar oder unterstützt keine
