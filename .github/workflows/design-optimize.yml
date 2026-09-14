@@ -27,7 +27,7 @@ name: Design Optimize
 # erstellt den Non-Draft-PR gegen den Dispatch-Ref (App-Token). Danach setzt der Workflow das
 # Label `ai:needs-review` selbst (App-Token → labeled-Event startet den Kreuzverhör-Review);
 # nach grünem Review übernehmen merge-pr.yml/cron.merge-prs.yml den Auto-Merge. Kein
-# record-cost/issue-state-save: stateless Lauf ohne Ticket (Muster cron.optimize-architecture).
+# record-cost/issue-state-save: stateless Lauf ohne Ticket (Muster cron.code-review-team).
 
 on:
   workflow_dispatch:
@@ -94,7 +94,7 @@ jobs:
           tools-tier: full
           event-type: issues
           # Stateless Helper-Run ohne Ticket: Nummer bleibt bewusst leer — verbraucht wird sie
-          # nur für Memory-Load/Save, beides hier deaktiviert (Muster arch-opt).
+          # nur für Memory-Load/Save, beides hier deaktiviert (Muster code-review-team).
           ticket-ref: ''
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -140,7 +140,7 @@ jobs:
           fi
 
           # Kontext als angehängter Block statt sed-Substitution über Freitext
-          # (Muster arch-opt — kein Escaping-Problem mit beliebigen Ziel-Texten).
+          # (Muster code-review-team — kein Escaping-Problem mit beliebigen Ziel-Texten).
           cp .github/prompts/design-optimize.md /tmp/claude-prompt.txt
           {
             echo ""
@@ -165,7 +165,7 @@ jobs:
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
       - name: Ergebnis parsen (PR-URL + DESIGN-RUN-Marker, fail-loud)
-        # Formatbruch = lauter Fehler, kein stiller No-op (Muster FOUND-Parsing arch-opt):
+        # Formatbruch = lauter Fehler, kein stiller No-op (Muster VERDICT-Parsing code-review-team):
         # Der letzte gewonnene Marker gilt, Prosadeco davor/hinter dem Token ist egal.
         id: parse
         if: steps.setup.outputs.configured == 'true' && steps.agent.outcome == 'success'

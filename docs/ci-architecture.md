@@ -462,7 +462,7 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
-documenter, dazu die Nightly-Helfer spec-sync/guide-sync/prompt-audit;
+documenter, dazu die Nightly-Helfer spec-sync/guide-sync/prompt-audit/code-review-team;
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des
@@ -896,3 +896,53 @@ Antworten kommen aus dem Code, nicht aus einem Nutzergespräch.
 - **Herkunft:** Ersetzt das tote `cron.arc42.yml` (rief ein nie existierendes `pnpm ai run
 /arc42-weekly` auf — im CI lief nichts davon je). Die `arc42-*`-Skills bleiben erhalten und
   werden vom Prompt als Methode genutzt; nur der tote Workflow ist gefallen.
+
+## Tägliches Code-Review-Team (`cron.code-review-team.yml`)
+
+Keine Pipeline-Phase, sondern ein Helper-Workflow (täglich 04:27 UTC im LLM-Nachtblock, plus
+`workflow_dispatch`): Ein Team aus vier Perspektiven — Architekt, Clean-Code-Reviewer,
+Test-Ingenieur, Betriebs- und Sicherheits-Wächter (Methode:
+[`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) — begeht `server/src/`,
+`frontend/src/` und `.github/scripts/` gegen die Vorgaben des Repos (`AGENTS.md`,
+`.ai-knowledge/`, `docs/arc42.md`, `docs/adr/`, `docs/testing.md`, `docs/mobile-ui-rules.md`).
+Der Moderator prüft zusätzlich die Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit
+Drift, unkonkrete und veraltete Regeln — jede Beobachtung mit beiden Fundstellen und einem
+Konsolidierungsvorschlag. Aus allen Findings setzt der Lauf genau **einen** unkritischen,
+wertvollen Fix um: ein Code-Fix oder eine Konsolidierung der Vorgaben (ADRs bleiben tabu, ein
+ADR-Konflikt wird nur gemeldet). Bei Gleichstand gewinnt die Konsolidierung, weil eine vage Regel
+an jedem Folgetag falsche Code-Findings erzeugt.
+
+**Mechanik:**
+
+- **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
+  übersprungen; `workflow_dispatch` mit `force: true` umgeht ihn.
+- **In-Flight-Guard = Fix-Pause, nicht Lauf-Skip:** Trägt der offene Fix-PR gerade
+  `ai:needs-review`, `ai:needs-fixup`, `ai:reviewed` oder `ai:needs-human`, läuft das Review
+  trotzdem und das Protokoll wird aktualisiert — nur der Fix pausiert (`FIX_ALLOWED=false` im
+  Prompt, der Agent darf dann nichts committen).
+- **Protokoll-Issue:** Genau ein offenes Issue mit Label `ci:code-review-team` (kein `ai:*`-Label,
+  sonst startet die Ticket-Pipeline). Der Agent liest das Vortags-Protokoll per `gh` zurück und
+  führt es fort — stabile Finding-Nummern (`F-n` Code, `V-n` Vorgaben), Status
+  `offen | umgesetzt | ausgesetzt | weggefallen`, Historie auf 30 Zeilen gedeckelt. Der Workflow
+  trägt die PR-Nummer ein und ersetzt den Issue-Body (Muster UX-Team).
+- **Branch/PR:** Der Agent committed genau einmal lokal auf `chore/code-review-team`; der Branch
+  wird je Lauf auf `origin/main` zurückgesetzt und per Force-Push ersetzt. PR-Titel = Commit-Subject
+  (Conventional Commits), PR-Body = Abschnitt „Heutiger Fix" des Protokolls. Push und PR-Pflege
+  sind Workflow-Steps, keine Agent-Aufgabe.
+- **Post-Assertion (VERDICT-Muster):** `VERDICT: fixed` ↔ genau ein Commit und Fix erlaubt,
+  `VERDICT: review-only` ↔ null Commits; Protokoll mit den Pflicht-Abschnitten „Heutiger Fix",
+  „Offene Findings", „Vorgaben: Widersprüche & Lücken", „Historie". **Scope-Guard:** kein Fix
+  unter `.github/`, `pnpm-lock.yaml`, `package.json`, `docs/adr/`, `openapi.yml`,
+  `server/src/db/`. **Größen-Guard:** höchstens 6 Dateien und 200 geänderte Zeilen (Konstanten
+  `MAX_FILES`/`MAX_LINES` im Workflow). Verstoß = rot, kein Push.
+- **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token**
+  (erst entfernen, dann setzen — Re-Arm-Muster #536) → Review → Gate → Auto-Merge.
+- **Bewusst stateless:** Kein pro-Issue-Memory — Protokoll-Issue und offener Fix-PR sind der
+  einzige Zustand.
+- **Modell:** `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM` (Default `sonnet`), Fan-out-Recherche auf
+  `vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT` (Default `haiku`), Provider wie alle LLM-Phasen
+  via `vars.LLM_PROVIDER` (setup-agent, `tools-tier: full`, inkl. Tailscale-Egress und
+  Fair-Usage-Check).
+- **Herkunft:** Ersetzt `cron.optimize-architecture.yml` (`nightly-arch-opt`), das denselben
+  Suchraum wöchentlich nur bis zum Ticket brachte. Label `nightly-arch-opt` und offene
+  `[arch-opt]`-Issues bleiben bestehen und dienen dem Agenten als Dedup-Inventar.
