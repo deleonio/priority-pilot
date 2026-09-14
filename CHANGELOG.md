@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.55._
+_Enthält v0.2.0 – v0.2.56._
 
 ### 🔧 Engineering
 
@@ -762,7 +762,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): paginate forest tab by connected task tree (#1314) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1316
 - feat(frontend): even out avatar spacing in the header bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1318
 - chore(frontend): update kolibri to v4.4.0 and raise pwa cache limit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1319
-- chore(frontend): update kolibri to v4.4.0 and raise pwa cache limit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1319
+- chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
 - chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
 - feat(frontend): unify settings tabs with cards and accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1324
 - fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
