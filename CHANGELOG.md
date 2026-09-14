@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-13
+## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.38._
+_Enthält v0.2.0 – v0.2.39._
 
 ### 🔧 Engineering
 
@@ -729,7 +729,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(ci): arc42-sync LLM-basiert nach Guide-/Spec-Sync-Muster by @deleonio in https://github.com/deleonio/priority-pilot/pull/1293
 - refactor(frontend): remove balance prioritization (#1220) from task list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1295
 - chore(ci): concurrency group per phase instead of global llm queue by @deleonio in https://github.com/deleonio/priority-pilot/pull/1301
-- chore(ci): concurrency group per phase instead of global llm queue by @deleonio in https://github.com/deleonio/priority-pilot/pull/1301
+- fix(server): handle oauth callback errors and lowercase email search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1299
 - fix(server): handle oauth callback errors and lowercase email search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1299
 - feat(frontend): raise title limit to 65, cap description at 3000 chars by @deleonio in https://github.com/deleonio/priority-pilot/pull/1298
 - feat(frontend): unify series tab badges and restore list gap rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1297
