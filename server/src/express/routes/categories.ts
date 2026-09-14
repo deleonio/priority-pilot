@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
+import { createCrudRateLimiter } from './rateLimit.js';
 import { sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Category, Series, Task } from '../../models/index.js';
@@ -112,15 +112,9 @@ const validateUpdateBody = (
 export const categoriesRouter = Router();
 
 // Rate-Limit auf die Kategorie-CRUD-Endpunkte (CodeQL js/missing-rate-limiting), identisch zum
-// Säulen-Limiter. Nur in Produktion aktiv — Dev/E2E wären sonst gedrosselt.
-const categoriesLimiter = rateLimit({
-	windowMs: 60_000,
-	max: 120,
-	standardHeaders: true,
-	legacyHeaders: false,
-	skip: () => process.env.NODE_ENV !== 'production',
-});
-categoriesRouter.use(categoriesLimiter);
+// Säulen-Limiter (`rateLimit.ts`). Der Pfad `/categories` ist aus demselben Grund Pflicht
+// wie dort (#1479): an der Wurzel montierter Router, pfadlose Middleware liefe für jede Anfrage.
+categoriesRouter.use('/categories', createCrudRateLimiter());
 
 // GET /categories — alle Kategorien des eingeloggten Nutzers auflisten.
 categoriesRouter.get('/categories', requireAuth, async (req: Request, res: Response<CategoryDto[] | ErrorDto>) => {

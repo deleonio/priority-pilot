@@ -36,12 +36,33 @@ const mockLektoratSuccess = async (page: Page, text: string): Promise<void> => {
  * Ohne Angabe bleibt die schwächere, aber tragfähige Aussage: der Fokus sitzt auf einem sichtbaren,
  * bedienbaren Element. Im Task-Formular ist der Nachbar ein `kol-input-range` mit generierter ID —
  * den zu benennen hieße, diesen Test an die Feldreihenfolge des Formulars zu koppeln.
+ *
+ * Mechanik wie in `delete-dialog-focus.spec.ts` (SETTLE_MS = 150 plus gestaffelte Tab-Anschläge):
+ * KoliBris `setFocus()` wiederholt den Fokus über bis zu 10 Frames und zieht ein in dieses Fenster
+ * fallendes Tab einmalig zurück — beim Öffnen wie beim Schließen, wo `Modal.tsx` den Auslöser über
+ * `trigger.focus()` (ebenfalls KoliBri) zurückholt. Der Tastendruck gehört deshalb in diesen Helper
+ * und nicht davor: Nur mit Wartefenster und Wiederholung prüft der Test den Fokus-Vertrag statt des
+ * Timings. Auf langsamen CI-Runnern schlug die Variante ohne Wartefenster sporadisch fehl
+ * (#1479-PR, e2e Shard 5; derselbe Fehlschlag auf `main`).
  */
-const expectFocusMovedOn = async (page: Page, from: Locator, expectedNext?: Locator): Promise<void> => {
-	await expect(from).not.toBeFocused();
+const expectTabMovesFocusOn = async (page: Page, from: Locator, expectedNext?: Locator): Promise<void> => {
+	const SETTLE_MS = 150;
+	const PULLBACK_MS = 250;
+	await expect(from).toBeFocused();
+	await page.waitForTimeout(SETTLE_MS);
+
+	await expect(async () => {
+		await page.keyboard.press('Tab');
+		// Pull-back-Fenster des KoliBri-setFocus-Loops abwarten, DANN prüfen: ein nur transient
+		// gelandeter Fokus wird zurückgezogen und zählt nicht als angekommen.
+		await page.waitForTimeout(PULLBACK_MS);
+		await expect(from).not.toBeFocused({ timeout: PULLBACK_MS });
+		if (expectedNext) {
+			await expect(expectedNext).toBeFocused({ timeout: PULLBACK_MS });
+		}
+	}).toPass({ timeout: 4000 });
 
 	if (expectedNext) {
-		await expect(expectedNext).toBeFocused();
 		return;
 	}
 
@@ -194,8 +215,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			// Issue 720: kein Fokus-Gefängnis — die Tab-Taste muss den Fokus weitertragen. Im Modal ist
 			// das Ziel stabil benennbar: „Abbrechen" ist die zweite und letzte Schaltfläche.
-			await page.keyboard.press('Tab');
-			await expectFocusMovedOn(
+			await expectTabMovesFocusOn(
 				page,
 				confirmButton,
 				page.locator('.lektorat-diff-modal').getByRole('button', { name: 'Abbrechen' }),
@@ -233,8 +253,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			await expect(lektoratButton).toBeFocused();
 
 			// Issue 720: kein Fokus-Gefängnis — die Tab-Taste muss den Fokus weitertragen können.
-			await page.keyboard.press('Tab');
-			await expectFocusMovedOn(page, lektoratButton);
+			await expectTabMovesFocusOn(page, lektoratButton);
 		});
 	});
 

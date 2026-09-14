@@ -175,3 +175,45 @@ describe('toApiError — llmMapping abschaltbar (#1465)', () => {
 		expect(result.message).toBe(KI_DIENT_TEXT);
 	});
 });
+
+/**
+ * #1479: Drosselung (429). Der Server bremst hier bewusst; der Nutzer soll erfahren, dass er nur
+ * kurz innehalten muss, statt eine technische Server- oder KI-Meldung zu sehen. Die Wartezeit
+ * kommt aus dem `Retry-After`-Header von express-rate-limit.
+ */
+describe('toApiError — Drosselung (#1479)', () => {
+	/** ResponseError mit Headern; `throttledMessage` liest `Retry-After`. */
+	const throttledError = (retryAfter?: string, body?: unknown): ResponseError => {
+		const response = {
+			status: 429,
+			headers: new Headers(retryAfter === undefined ? {} : { 'retry-after': retryAfter }),
+			clone: () => ({
+				json: body === undefined ? async () => Promise.reject(new Error('kein JSON')) : async () => body,
+			}),
+		} as unknown as Response;
+		return new ResponseError(response);
+	};
+
+	it('nennt die Wartezeit aus Retry-After', async () => {
+		const result = await toApiError(throttledError('10'));
+
+		expect(result.status).toBe(429);
+		expect(result.message).toBe(
+			'Zu viele Anfragen in kurzer Zeit. Bitte 10 Sekunden warten und es dann noch einmal versuchen.',
+		);
+	});
+
+	it('bleibt ohne Retry-After beim allgemeinen Hinweis', async () => {
+		const result = await toApiError(throttledError());
+
+		expect(result.message).toBe(
+			'Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und es dann noch einmal versuchen.',
+		);
+	});
+
+	it('übergeht die technische Server-Message', async () => {
+		const result = await toApiError(throttledError('5', { message: 'Too many requests, please try again later.' }));
+
+		expect(result.message).toContain('Bitte 5 Sekunden warten');
+	});
+});

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
+import { createCrudRateLimiter } from './rateLimit.js';
 import { sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Pillar, TaskPillar, SeriesPillar } from '../../models/index.js';
@@ -140,16 +140,11 @@ const validateUpdatePillarBody = (
 
 export const pillarsRouter = Router();
 
-// Rate-Limit auf die Säulen-CRUD-Endpunkte (CodeQL js/missing-rate-limiting), nach dem Muster des
-// Transit-Limiters. Nur in Produktion aktiv — Dev/E2E wären sonst gedrosselt.
-const pillarsLimiter = rateLimit({
-	windowMs: 60_000,
-	max: 120,
-	standardHeaders: true,
-	legacyHeaders: false,
-	skip: () => process.env.NODE_ENV !== 'production',
-});
-pillarsRouter.use(pillarsLimiter);
+// Rate-Limit auf die Säulen-CRUD-Endpunkte (CodeQL js/missing-rate-limiting), Konfiguration siehe
+// `rateLimit.ts`. Der Pfad `/pillars` ist Pflicht (#1479): Dieser Router hängt per
+// `app.use(pillarsRouter)` an der Wurzel, pfadlose Middleware liefe deshalb für jede Anfrage mit
+// und würde auch fremde Endpunkte (`/scores`, `/series`, …) aus diesem Kontingent bedienen.
+pillarsRouter.use('/pillars', createCrudRateLimiter());
 
 // ── Auth-Middleware für alle Säulen-Endpunkte (Teil 2, #428) ────────────────────────────
 // Alle Endpunkte benötigen eine gültige Session (requireAuth). Der Scoping erfolgt über
