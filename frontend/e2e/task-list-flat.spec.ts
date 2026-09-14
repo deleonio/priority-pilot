@@ -241,7 +241,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 
 		await expect(list(page)).toBeVisible();
 		await expect(item(page, childId)).toHaveCount(1);
-		await expect(page.getByText(childTitle, { exact: true })).toHaveCount(1);
+		await expect(taskTitleText(page, childTitle)).toHaveCount(1);
 	});
 
 	test('AK5/#1449: dieselbe geteilte Unteraufgabe bleibt bei 375×812 einzeilig', async ({ page }) => {

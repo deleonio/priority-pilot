@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { sendError } from '../http-error.js';
+import { readAppVersion } from '../../logics/appInfo.js';
 import { githubObsidianClient, type ObsidianGithubClient } from '../../logics/obsidianFeedback.js';
 
 type ErrorDto = { message: string };
@@ -18,21 +16,6 @@ const DEFAULT_BRANCH = 'app-feedback';
 const DEFAULT_DIR = 'Feedback';
 /** Quell-Branch, von dem der Feedback-Branch bei Bedarf abgezweigt wird (AK6). */
 const SOURCE_BRANCH = 'main';
-
-/**
- * App-Version fürs Frontmatter. Der Server kennt keine eigene Version — sie steht im
- * Repo-`package.json`; ist die Datei nicht lesbar (z. B. schlanker Container), bleibt das
- * Frontmatter-Feld auf „unbekannt" statt den Request scheitern zu lassen.
- */
-const readAppVersion = (): string => {
-	try {
-		const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '../../../../package.json');
-		const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string };
-		return typeof pkg.version === 'string' && pkg.version !== '' ? pkg.version : 'unbekannt';
-	} catch {
-		return 'unbekannt';
-	}
-};
 
 interface FeedbackInput {
 	category: Category;
