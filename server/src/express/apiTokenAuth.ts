@@ -100,7 +100,8 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		};
 		suppressSessionSave(req);
 		next();
-	} catch {
+	} catch (error) {
+		console.error('API-Token-Prüfung fehlgeschlagen:', error);
 		res.status(500).json({ message: 'Interner Serverfehler.' });
 	}
 };
