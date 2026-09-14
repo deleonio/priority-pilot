@@ -28,7 +28,7 @@ name: Code Review Team
 # Protokoll laufen täglich weiter, der Agent darf dann nichts committen.
 #
 # POST-ASSERTION (Ehrlichkeits-Kreuzcheck): VERDICT fixed ↔ genau ein Commit, review-only ↔ null
-# Commits; Scope-Guard (keine Workflows, Lockfile, package.json, ADRs, OpenAPI, DB-Schicht) und
+# Commits; Scope-Guard (nichts unter .github/ außer scripts/, kein Lockfile, package.json, ADRs, OpenAPI, DB-Schicht) und
 # Größen-Guard (≤ 6 Dateien, ≤ 200 Zeilen) machen „unkritisch" mechanisch prüfbar; das
 # Protokoll muss die Pflicht-Abschnitte tragen. Formatbruch endet laut rot, nie als stiller No-op.
 #
@@ -83,9 +83,12 @@ jobs:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
       - name: Skip-Guard (main unverändert seit letztem erfolgreichen Lauf)
-        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf denselben SHA,
-        # ist das Ergebnis deterministisch dasselbe → kein Lauf. Fail-open bei API-Fehlern
-        # (leerer last_sha → Lauf). force=true umgeht.
+        # Budget-Heuristik: Hat main seit dem letzten erfolgreichen Lauf denselben SHA, liefert
+        # das Review dasselbe Protokoll → kein Lauf. Nicht ganz deterministisch: War der Fix im
+        # Vorlauf ausgesetzt (In-Flight-Guard) und wurde dessen PR danach OHNE Merge geschlossen,
+        # wäre der Fix heute bei unverändertem main möglich — der Skip verzögert ihn um einen Tag,
+        # force=true holt ihn sofort nach. (Ein gemergter Fix-PR ändert main, dann greift der Skip
+        # ohnehin nicht.) Fail-open bei API-Fehlern (leerer last_sha → Lauf).
         id: guard
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
         env:
@@ -300,9 +303,12 @@ jobs:
             exit 0
           fi
 
-          # Scope-Guard: „unkritisch" mechanisch — keine Workflows, Lockfile, package.json, ADRs,
-          # OpenAPI, DB-Schicht. Erlaubt bleiben Code, Tests und die Vorgaben-Doku.
+          # Scope-Guard: „unkritisch" mechanisch — alles unter .github/ ist gesperrt (Workflows,
+          # Actions, Prompts, Agents, Hooks, pi, Release-Config; auch künftige Unterordner), einzige
+          # Ausnahme .github/scripts/ (getesteter Code, pnpm test:scripts). Dazu kein Lockfile,
+          # package.json, ADRs, OpenAPI, DB-Schicht. Erlaubt bleiben Code, Tests, die Vorgaben-Doku.
           bad="$(git diff --name-only origin/main..HEAD \
+            | grep -vE '^\.github/scripts/' \
             | grep -E '^(\.github/|pnpm-lock\.yaml$|docs/adr/|openapi\.yml$|server/src/db/)|(^|/)package\.json$' || true)"
           if [ -n "$bad" ]; then
             echo "::error title=❌ Scope verletzt::Fix berührt verbotene Pfade: $(printf '%s' "$bad" | tr '\n' ' ')"

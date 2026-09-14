@@ -905,9 +905,10 @@ Test-Ingenieur, Betriebs- und Sicherheits-Wächter (Methode:
 [`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) — begeht `server/src/`,
 `frontend/src/` und `.github/scripts/` gegen die Vorgaben des Repos (`AGENTS.md`,
 `.ai-knowledge/`, `docs/arc42.md`, `docs/adr/`, `docs/testing.md`, `docs/mobile-ui-rules.md`).
-Der Moderator prüft zusätzlich die Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit
-Drift, unkonkrete und veraltete Regeln — jede Beobachtung mit beiden Fundstellen und einem
-Konsolidierungsvorschlag. Aus allen Findings setzt der Lauf genau **einen** unkritischen,
+Maßstab für den Wert eines Findings ist die Qualitätsziel-Tabelle in `docs/arc42.md`
+Abschnitt 1.2; jedes Finding nennt das Ziel, dem es dient. Der Moderator prüft zusätzlich die
+Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit Drift, unkonkrete und veraltete
+Regeln — jede Beobachtung mit beiden Fundstellen und einem Konsolidierungsvorschlag. Aus allen Findings setzt der Lauf genau **einen** unkritischen,
 wertvollen Fix um: ein Code-Fix oder eine Konsolidierung der Vorgaben (ADRs bleiben tabu, ein
 ADR-Konflikt wird nur gemeldet). Bei Gleichstand gewinnt die Konsolidierung, weil eine vage Regel
 an jedem Folgetag falsche Code-Findings erzeugt.
@@ -915,7 +916,8 @@ an jedem Folgetag falsche Code-Findings erzeugt.
 **Mechanik:**
 
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
-  übersprungen; `workflow_dispatch` mit `force: true` umgeht ihn.
+  übersprungen (Budget-Heuristik; ein im Vorlauf ausgesetzter Fix, dessen PR ohne Merge geschlossen
+  wurde, verzögert sich dadurch um einen Tag); `workflow_dispatch` mit `force: true` umgeht ihn.
 - **In-Flight-Guard = Fix-Pause, nicht Lauf-Skip:** Trägt der offene Fix-PR gerade
   `ai:needs-review`, `ai:needs-fixup`, `ai:reviewed` oder `ai:needs-human`, läuft das Review
   trotzdem und das Protokoll wird aktualisiert — nur der Fix pausiert (`FIX_ALLOWED=false` im
@@ -932,8 +934,10 @@ an jedem Folgetag falsche Code-Findings erzeugt.
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: fixed` ↔ genau ein Commit und Fix erlaubt,
   `VERDICT: review-only` ↔ null Commits; Protokoll mit den Pflicht-Abschnitten „Heutiger Fix",
   „Offene Findings", „Vorgaben: Widersprüche & Lücken", „Historie". **Scope-Guard:** kein Fix
-  unter `.github/`, `pnpm-lock.yaml`, `package.json`, `docs/adr/`, `openapi.yml`,
-  `server/src/db/`. **Größen-Guard:** höchstens 6 Dateien und 200 geänderte Zeilen (Konstanten
+  unter `.github/` (einzige Ausnahme `.github/scripts/` als getesteter Code; Findings im Rest der
+  CI-Schicht werden wie ADR-Konflikte nur gemeldet), `pnpm-lock.yaml`, `package.json`,
+  `docs/adr/`, `openapi.yml`, `server/src/db/`.
+  **Größen-Guard:** höchstens 6 Dateien und 200 geänderte Zeilen (Konstanten
   `MAX_FILES`/`MAX_LINES` im Workflow). Verstoß = rot, kein Push.
 - **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token**
   (erst entfernen, dann setzen — Re-Arm-Muster #536) → Review → Gate → Auto-Merge.

@@ -53,7 +53,9 @@ edited; a conflict with one is reported as a finding only.
    only `file:line` candidates come back into the moderator's context; the judgement stays here.
 4. Sitzung: each perspective states its findings, with evidence. The rulebook check reports its
    observations.
-5. Konsolidierung: rank by value against risk, drop duplicates, resolve carry-over statuses.
+5. Konsolidierung: rank by value against risk, drop duplicates, resolve carry-over statuses. Value
+   is the contribution to the quality goals the architecture documentation ranks (its quality-goal
+   table is the yardstick, read fresh); every finding names the goal it serves.
 6. Fix-Auswahl and Umsetzung (below), if the run prompt allows a fix today.
 7. Protokoll.
 
@@ -66,13 +68,21 @@ Exactly one finding becomes today's fix. It must satisfy all of these:
 - no dependency or workflow change;
 - small: as a guide at most 200 changed lines across at most 6 files;
 - verifiable with the project's existing gate;
-- among the qualifying candidates the one with the highest value.
+- among the qualifying candidates the one with the highest value: the strongest contribution to
+  the quality goal with the highest priority. Goals of the same priority are equal in rank; among
+  them the finding with the lower risk wins, then the smaller change.
 
 Two fix classes qualify equally: a code fix (findings of the four perspectives) and a rule
 consolidation (findings of the rulebook check: a contradiction resolved, a duplicate merged into one
 place, a vague rule made checkable — in the agent instructions, the knowledge base or the
 documentation, never in the decision records). On a tie the consolidation wins: a vague rule produces
 wrong code findings every following day. If nothing qualifies, there is no fix today — say so.
+
+Findings in the CI orchestration layer — everything in the pipeline directory except its tested
+scripts: workflows, composite actions, run prompts, agent definitions, hooks, model routing, release
+configuration — are reported only, like conflicts with a decision record: a change there cannot be
+verified by the gate and can break every following run. The pipeline's scripts are ordinary tested
+code and qualify as a fix target.
 
 ## Umsetzung
 
