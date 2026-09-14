@@ -47,12 +47,13 @@ const increment = async (userId: number, yearMonth: string, limit: number | null
 
 /**
  * Bucht einen Punkt: erst das bedingte `UPDATE`, und nur falls es ins Leere lief, die Monatszeile
- * anlegen und genau einmal nachbuchen. Bewusst OHNE `findOrCreate` — das eröffnet eine Transaktion,
- * und bei gleichzeitigen Anfragen auf derselben SQLite-Verbindung (`pool.max = 1` im Testbetrieb)
- * überlagern sich die Transaktionen. Beim Wettlauf um die erste Zeile gewinnt genau ein `create`,
- * die Verlierer laufen in den Unique-Index (`UniqueConstraintError`) und buchen in ihrem eigenen
- * nächsten Versuch nicht mehr nach — steht die Zeile bereits am Limit, ist das genau die richtige
- * Antwort: Kontingent erschöpft.
+ * anlegen und nachbuchen. Bewusst OHNE `findOrCreate` — das eröffnet eine Transaktion, und bei
+ * gleichzeitigen Anfragen auf derselben SQLite-Verbindung (`pool.max = 1` im Testbetrieb) überlagern
+ * sich die Transaktionen. Beim Wettlauf um die erste Zeile gewinnt genau ein `create`, die Verlierer
+ * laufen in den Unique-Index (`UniqueConstraintError`). Das heißt NICHT "Kontingent erschöpft": die
+ * Zeile steht nach dem Konflikt garantiert und ist in aller Regel noch fast leer (erster Request des
+ * Monats). Deshalb buchen die Verlierer über dasselbe bedingte `UPDATE` nach — erst wenn auch das ins
+ * Leere läuft, ist das Kontingent wirklich aufgebraucht.
  */
 const book = async (userId: number, yearMonth: string, limit: number | null): Promise<boolean> => {
 	if (await increment(userId, yearMonth, limit)) {
@@ -61,10 +62,9 @@ const book = async (userId: number, yearMonth: string, limit: number | null): Pr
 	try {
 		await AiUsage.create({ userId, yearMonth, count: 0 });
 	} catch (error) {
-		if (error instanceof UniqueConstraintError) {
-			return false;
+		if (!(error instanceof UniqueConstraintError)) {
+			throw error;
 		}
-		throw error;
 	}
 	return increment(userId, yearMonth, limit);
 };
@@ -124,7 +124,15 @@ export const meterAiQuota = (): AiQuotaHandler => {
 		const sendJson = res.json.bind(res);
 		res.json = (body: unknown): Response => {
 			if (res.statusCode >= 400) {
-				void refund(userId, yearMonth).then(() => sendJson(body));
+				// Ohne `.catch()` endet eine fehlgeschlagene Rückbuchung als unbehandelte Rejection —
+				// `index.ts` beendet den Prozess darauf mit `process.exit(1)` und reißt alle Nutzer mit.
+				// Eine verlorene Rückbuchung kostet einen Kontingentpunkt, mehr nicht; die Fehlerantwort
+				// muss in jedem Fall raus.
+				void refund(userId, yearMonth)
+					.catch((error: unknown) => {
+						console.warn('KI-Kontingent-Rückbuchung fehlgeschlagen', error);
+					})
+					.then(() => sendJson(body));
 				return res;
 			}
 			const enriched =
