@@ -68,16 +68,25 @@ export const setTheme = async (page: Page, theme: 'light' | 'dark'): Promise<voi
 };
 
 /**
- * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets
- * (`.dashboard-next-task-title`, `.dashboard-suggestion-title`) aus. Seit #1448 zeigen diese
- * Widgets den reinen Titel ohne `#<ID> –`-Präfix, wodurch sie mit gleichnamigen Titeln in
- * Listen/Formularen textgleich werden — ein seitenweites `getByText(title, { exact: true })`
- * kollidiert dann mit dem Widget-Span und wirft `strict mode violation`.
+ * Findet einen Task-Titel per Exakt-Text, klammert dabei aber die Dashboard-Widgets aus. Seit #1448
+ * („Nächste Aufgabe", „Was ist jetzt dran?") und #1465 („Wichtigste Tasks", „Anstehende Deadlines",
+ * „In der Nähe") zeigen diese Widgets den reinen Titel ohne `#<ID> –`-Präfix, wodurch sie mit
+ * gleichnamigen Titeln in Listen/Formularen textgleich werden — ein seitenweites
+ * `getByText(title, { exact: true })` kollidiert dann mit dem Widget-Span und wirft
+ * `strict mode violation`.
  */
+const DASHBOARD_TITLE_CLASSES = [
+	'dashboard-next-task-title',
+	'dashboard-suggestion-title',
+	'dashboard-top-task-title',
+	'dashboard-deadline-title',
+	'dashboard-nearby-title',
+];
+
 export const taskTitleText = (page: Page, title: string): Locator =>
 	page
 		.getByText(title, { exact: true })
-		.and(page.locator(':not(.dashboard-next-task-title):not(.dashboard-suggestion-title)'));
+		.and(page.locator(DASHBOARD_TITLE_CLASSES.map((className) => `:not(.${className})`).join('')));
 
 /**
  * Liefert eine Kopf-Aktion („Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe",

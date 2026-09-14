@@ -108,9 +108,9 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 
 		await openCompletedTab(page);
 		// Der erledigte Task ist gelistet …
-		await expect(page.getByText(doneTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, doneTitle)).toBeVisible();
 		// … der offene Task NICHT (im aktiven Tab nicht sichtbar; inaktive Tabs bleiben im Light-DOM).
-		await expect(page.getByText(openTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, openTitle)).not.toBeVisible();
 	});
 
 	test('AK-2: Je Zeile Titel + Punkte je Säule, Säulenwerte summieren sich zu den Gesamtpunkten (kein NaN)', async ({
