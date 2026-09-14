@@ -98,3 +98,56 @@ describe('extractLeaves mit includeParents (#1345)', () => {
 		expect(result.map((n) => n.id)).toEqual([4, 3, 5, 1, 2]);
 	});
 });
+
+/**
+ * Roter TDD-Vertrag für #1449: `buildTaskForest` materialisiert eine Unteraufgabe, die
+ * Vorgänger mehrerer Oberaufgaben ist, als mehrere frische Knoten-Objekte mit derselben `id`
+ * (einmal pro Pfad). `extractLeaves` muss über `node.id` deduplizieren, nicht über
+ * Objekt-Identität — sonst landet derselbe Task mehrfach in der flachen Liste.
+ */
+describe('extractLeaves dedupliziert geteilte Knoten (#1449)', () => {
+	it('AK1: ein Blatt mit gleicher id unter zwei Oberaufgaben erscheint genau einmal', () => {
+		// Gleiche id (2), aber zwei eigenständige Objekt-Referenzen — wie bei buildTaskForest.
+		const sharedA = node(2, 'Geteiltes Blatt', 3);
+		const sharedB = node(2, 'Geteiltes Blatt', 3);
+		const forest = [node(1, 'Eltern-A', 8, [sharedA]), node(4, 'Eltern-B', 6, [sharedB])];
+
+		const leaves = extractLeaves(forest);
+
+		expect(leaves.filter((n) => n.id === 2)).toHaveLength(1);
+		expect(leaves.map((n) => n.id)).toEqual([2]);
+	});
+
+	it('AK2: includeParents dedupliziert auch mehrfach materialisierte Oberaufgaben-Knoten', () => {
+		// Oberaufgabe 1 hängt (mehrfach materialisiert) unter zwei Großeltern; Blatt 2 ebenfalls geteilt.
+		const childA = node(2, 'Kind', 3);
+		const childB = node(2, 'Kind', 3);
+		const parentA = node(1, 'Eltern', 7, [childA]);
+		const parentB = node(1, 'Eltern', 7, [childB]);
+		const forest = [node(10, 'Großeltern-A', 9, [parentA]), node(11, 'Großeltern-B', 5, [parentB])];
+
+		const result = extractLeaves(forest, { includeParents: true });
+
+		expect(result.filter((n) => n.id === 1)).toHaveLength(1);
+		expect(result.filter((n) => n.id === 2)).toHaveLength(1);
+		expect(new Set(result.map((n) => n.id)).size).toBe(result.length);
+	});
+
+	it('AK3: bei Duplikaten gewinnt das erste Antreffen der Tiefen-Traversierung (Reihenfolge unverändert)', () => {
+		const sharedLow = node(2, 'Geteilt-niedrig', 1);
+		const sharedLowDup = node(2, 'Geteilt-niedrig', 1);
+		const forest = [
+			node(1, 'Eltern-hoch', 9, [sharedLow]),
+			node(3, 'Solo-mittel', 5),
+			node(4, 'Eltern-niedrig', 2, [sharedLowDup]),
+		];
+
+		const leaves = extractLeaves(forest);
+
+		// Eindeutige Blätter nach Dedup: id 2 (value 1, erste Sichtung unter Eltern-hoch) und id 3
+		// (value 5); sortiert nach value absteigend ergibt [3, 2]. Das Duplikat von id 2 unter
+		// Eltern-niedrig entfällt.
+		expect(leaves.map((n) => n.id)).toEqual([3, 2]);
+		expect(leaves.filter((n) => n.id === 2)).toHaveLength(1);
+	});
+});
