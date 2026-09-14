@@ -1,5 +1,10 @@
 # Spec #1346 — Task-ID grau im Bearbeiten-Modal und in Dialogen anzeigen
 
+> **Abgelöst durch #1465:** Die Task-ID verschwindet aus Bearbeiten-Modal-Titel und Bestätigungs-
+> dialogen wieder, statt dort gezeigt zu werden (#1465, AK A5). AK7 dieser Spec (ID im Titel bzw.
+> im Löschen-Dialog) trifft damit nicht mehr zu; `frontend/e2e/issue-1346-task-id.spec.ts` ist
+> entfernt, die übrigen Testfälle bleiben gültig.
+
 **Issue:** #1346 · **Stand:** 2026-09-10 (Spec-Phase) · **Vertragstyp:** Anzeige-Vertrag (Frontend)
 
 ## Ziel
