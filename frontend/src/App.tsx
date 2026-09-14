@@ -11,7 +11,7 @@ import {
 } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
@@ -25,6 +25,7 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
+import { PlanOfferDialog } from './components/PlanOfferDialog';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PushToast } from './components/PushToast';
@@ -41,6 +42,7 @@ import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectOpenParents, collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
+import { clearPlanMirror, PlanProvider, usePlanState } from './lib/usePlan';
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
 import { readAiPreferences } from './lib/aiPreferences';
@@ -428,6 +430,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		setLogoutError(null);
 		try {
 			await api.logout();
+			// #1458 AK2: Paket-Spiegel des Kontos löschen — auf einem geteilten Gerät darf das nächste
+			// Konto nie die Badges des vorigen sehen.
+			clearPlanMirror(user.id);
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
@@ -436,7 +441,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
 			setLogoutLoading(false);
 		}
-	}, []);
+	}, [user.id]);
 
 	/** Nach erfolgreicher Mutation: Dialog schließen und Daten neu laden. */
 	const afterMutation = useCallback((): void => {
@@ -1127,6 +1132,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			<UpdatePrompt />
 			<PushToast />
 			<SessionExpiredDialog />
+			<PlanOfferDialog />
 			<Footer version={APP_VERSION} />
 		</main>
 	);
@@ -1137,11 +1143,35 @@ const AppShell = ({ user }: { user: AuthUser }) => {
  * damit Bestands-Unit-Tests `App` weiterhin ohne Router rendern können. Der App-State (Tasks,
  * Säulen …) lebt außerhalb des Routers — eine Navigation remountet die App also nicht.
  */
+/**
+ * Paket-Kontext (#1458): Der Zustand (Spiegel + `/auth/me`) hängt EINMAL hier oben, damit jedes
+ * Badge ihn über `usePlan()` liest, statt selbst zu laden.
+ */
+const AppWithPlan = ({ user }: { user: AuthUser }) => {
+	const planState = usePlanState(user.id);
+	return (
+		<PlanProvider value={planState}>
+			<MemoAppShell user={user} />
+		</PlanProvider>
+	);
+};
+
+/**
+ * `AppShell` hängt seit #1458 unter `AppWithPlan`, dessen Zustand sich nach dem Mount asynchron
+ * ändert (Spiegel → `/auth/me`, erneut bei App-Fokus). Ohne `memo` würde jede dieser Antworten den
+ * kompletten Baum neu rendern — und dabei kontrollierte KoliBri-Props auf ihren abgeleiteten Wert
+ * zurücksetzen. Konkret schloss das in den Einstellungen das manuell geöffnete `KolAccordion`
+ * „Einzelne Animationen" (`_open={animationsEnabled}`) wieder zu; der Touch-Target-Test aus #971 maß
+ * danach die Höhe 0. Den Paket-Zustand brauchen ohnehin nur die `usePlan()`-Verbraucher, und die
+ * hängen am Context, nicht an diesem Render-Pfad.
+ */
+const MemoAppShell = memo(AppShell);
+
 export const App = ({ user }: { user: AuthUser }) => (
 	// `future`-Flags opt-in: ohne sie loggt der Router bei jedem Start zwei Future-Flag-Warnings
 	// in die Konsole (e2e-Vertrag #865 AK6: keine console.warnings). Splat-Routen gibt es hier
 	// nicht, daher ist `v7_relativeSplatPath` verhaltensneutral.
 	<BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-		<AppShell user={user} />
+		<AppWithPlan user={user} />
 	</BrowserRouter>
 );

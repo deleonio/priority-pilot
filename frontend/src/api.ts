@@ -57,6 +57,7 @@ import type {
 	TaskUpdate,
 } from 'client';
 import createClient from 'openapi-fetch';
+import { planRequiredDetail } from './lib/apiError';
 import { sortCategoriesByName } from './lib/categories';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
@@ -87,10 +88,25 @@ client.use({
 			request.headers.set('x-csrf-token', await ensureCsrfToken());
 		}
 	},
-	onResponse: ({ response }) => {
-		if (response.status === 403) {
-			csrfToken = null;
+	onResponse: async ({ response }) => {
+		if (response.status !== 403) {
+			return;
 		}
+		// Paket-Ablehnung (#1458 AK8): Ein 403 mit `code: plan_required` ist KEIN CSRF-Problem — der
+		// Token bleibt gültig, sonst holt jede gesperrte Aktion unnötig einen neuen. Entscheidend ist
+		// der Body, nicht der Status: der echte CSRF-403 (server/src/express/csrf.ts) trägt den Code
+		// nicht und verwirft den Token weiterhin. Der `clone()` lässt den Original-Body unberührt,
+		// den openapi-fetch danach selbst liest.
+		let body: unknown;
+		try {
+			body = await response.clone().json();
+		} catch {
+			body = undefined;
+		}
+		if (planRequiredDetail(body, 'plan_required') !== null) {
+			return;
+		}
+		csrfToken = null;
 	},
 });
 
@@ -186,6 +202,18 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data.map(reviveTask);
+	},
+
+	/**
+	 * Paket-Katalog (`GET /plans`, #1456): Feature-Matrix und Preise. Einzige Preisquelle des
+	 * Frontends — im Code stehen weder Preise noch Matrixzeilen (#1458 AK11).
+	 */
+	async getPlansCatalog(init: Init = {}): Promise<components['schemas']['PlansCatalog']> {
+		const { data, error, response } = await client.GET('/plans', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
 	},
 
 	async getForest(init: Init = {}): Promise<TaskTreeNode[]> {

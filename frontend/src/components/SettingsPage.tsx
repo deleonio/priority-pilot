@@ -33,6 +33,7 @@ import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
+import { PlansSection } from './PlansSection';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
@@ -366,6 +367,11 @@ export const SettingsPage = ({
 								_on={{ onClick: saveDisplayName }}
 							/>
 						</div>
+					</KolCard>
+
+					{/* #1458 AK11: Sekundärbereich „Pakete" — Matrix und Preise kommen aus `GET /plans`. */}
+					<KolCard className="settings-card" _label="Pakete" _level={2}>
+						<PlansSection />
 					</KolCard>
 
 					{/* Darstellung und Spracheingabe teilen sich eine Karte: beide beschreiben, wie die App

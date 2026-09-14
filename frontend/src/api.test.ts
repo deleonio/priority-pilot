@@ -36,6 +36,13 @@ describe('CSRF-Middleware (client.use)', () => {
 			onResponse: (c: { response: { status: number } }) => void;
 		};
 	const postRequest = () => ({ method: 'POST', headers: new Headers() });
+	// `onResponse` liest seit #1458 den Body (`response.clone().json()`) und ist damit asynchron.
+	// Dieser Helfer baut eine Response-Attrappe mit `clone()` und wartet den Handler ab; ohne `body`
+	// schlaegt `clone()` bewusst fehl (wie bei einer Antwort ohne JSON) und der Token wird verworfen.
+	const asyncOnResponse = async ({ status, body }: { status: number; body?: unknown }) => {
+		const response = body === undefined ? { status } : { status, clone: () => ({ json: async () => body }) };
+		await (middleware().onResponse as (c: { response: unknown }) => Promise<void> | void)({ response });
+	};
 	const csrfFetch = (token: string) =>
 		vi.fn().mockResolvedValue({ ok: true, json: async () => ({ csrfToken: token }) });
 
@@ -80,6 +87,35 @@ describe('CSRF-Middleware (client.use)', () => {
 		middleware().onResponse({ response: { status: 500 } });
 		await middleware().onRequest({ request: postRequest() });
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	// #1458 AK8: Ein 403 mit `code: plan_required` ist eine Paket-Ablehnung, kein CSRF-Problem — der
+	// gecachte Token muss ihn ueberleben, sonst holt jede gesperrte Aktion unnoetig einen neuen.
+	// Entscheidend ist der Body, nicht der Status.
+	it('onResponse behaelt den Token bei 403 mit code plan_required', async () => {
+		// Ausgangslage: Cache leeren, dann genau einen Token holen.
+		await asyncOnResponse({ status: 403 });
+		const fetchMock = csrfFetch('csrf-plan');
+		vi.stubGlobal('fetch', fetchMock);
+		await middleware().onRequest({ request: postRequest() });
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+
+		await asyncOnResponse({
+			status: 403,
+			body: { code: 'plan_required', feature: 'graph_write', requiredPlan: 'pro', currentPlan: 'free' },
+		});
+
+		// Token unveraendert im Cache: der naechste Write loest KEINEN zweiten Token-Fetch aus.
+		const request = postRequest();
+		await middleware().onRequest({ request });
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(request.headers.get('x-csrf-token')).toBe('csrf-plan');
+
+		// Gegenprobe: ein 403 OHNE den Code bleibt ein CSRF-403 und verwirft den Token weiterhin.
+		await asyncOnResponse({ status: 403, body: { message: 'invalid csrf token' } });
+		const afterPlainRejection = postRequest();
+		await middleware().onRequest({ request: afterPlainRejection });
+		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
 	it('logout() invalidiert den Token-Cache', async () => {

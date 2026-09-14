@@ -1,4 +1,4 @@
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 
@@ -773,5 +773,57 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 
 		const rowsAfter = container.querySelectorAll('[data-testid="api-tokens-panel"] [data-testid="api-token-row"]');
 		expect(rowsAfter.length, 'Token muss nach Zurückziehen aus der Liste verschwinden').toBe(0);
+	});
+});
+
+/**
+ * #1458 AK11: Sekundärbereich „Pakete" in den Einstellungen. Feature-Matrix und Preise kommen
+ * vollständig aus `GET /plans` — im Frontend steht keine Preisliste, deshalb prüft der Test, dass
+ * genau die gemockten Server-Werte gerendert werden. Die Tab-Panels bleiben gemountet (siehe
+ * `beforeEach`), die Karte ist also unabhängig vom aktiven Tab im DOM.
+ */
+describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
+	const catalog = {
+		features: [
+			{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] },
+			{ feature: 'graph_write', allowedPlans: ['max', 'ultimate'] },
+		],
+		prices: {
+			free: { monthly: 0, yearly: 0 },
+			pro: { monthly: 4, yearly: 40 },
+		},
+	};
+
+	beforeEach(() => {
+		// Den gecachten Proxy-Mock gezielt ersetzen, damit `getPlansCatalog` einen gültigen Katalog
+		// liefert statt des `undefined`-Defaults (das landet bewusst im Fehlerzustand der Karte).
+		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue(catalog);
+	});
+
+	it('rendert die Karte „Pakete" mit Matrix und Preisen aus GET /plans', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
+
+		expect(container.querySelector('kol-card[_label="Pakete"]')).not.toBeNull();
+		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
+
+		const matrix = container.querySelector('.plans-matrix');
+		expect(matrix).not.toBeNull();
+		// Preise: exakt die Server-Werte, keine im Frontend hinterlegte Liste.
+		expect(matrix?.textContent).toContain('0 €');
+		expect(matrix?.textContent).toContain('4 €');
+		// Matrixzeilen: je Feature eine Zeile mit „enthalten"/„—" je Paket.
+		expect(matrix?.querySelectorAll('tbody tr')).toHaveLength(2);
+		expect(matrix?.textContent).toContain('enthalten');
+	});
+
+	it('zeigt den Ladefehler, wenn GET /plans scheitert — statt halber Daten', async () => {
+		apiMocks.getPlansCatalog = vi.fn().mockRejectedValue(new Error('boom'));
+
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Pakete"]')).not.toBeNull());
+		expect(container.querySelector('[data-testid="plans-section"]')).toBeNull();
 	});
 });

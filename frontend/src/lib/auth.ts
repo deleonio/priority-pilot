@@ -1,3 +1,5 @@
+import type { EntitlementMap, Plan } from './planOffers';
+
 export type AuthUser = {
 	id: number;
 	displayName: string;
@@ -5,6 +7,10 @@ export type AuthUser = {
 	avatarUrl: string | null;
 	/** Rollensystem admin/member — steuert Admin-Views und -API-Endpunkte. */
 	role: 'admin' | 'member';
+	/** Paket des Nutzers (#1456); fehlt bei Alt-Antworten ohne Paketfelder. */
+	plan?: Plan;
+	/** Entitlement-Map je Feature (#1456) — Grundlage aller Badges (#1458 AK1). */
+	entitlements?: EntitlementMap;
 };
 
 /**

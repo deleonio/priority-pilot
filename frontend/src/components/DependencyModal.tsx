@@ -4,10 +4,12 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
+import { useClosingOnPlanRequired } from '../lib/useClosingOnPlanRequired';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
 import { Modal } from './Modal';
+import { PlanBadge } from './PlanBadge';
 
 interface DependencyModalProps {
 	/** Task, dessen Abhängigkeiten (Vorgänger) bearbeitet werden. */
@@ -118,8 +120,13 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		() => !busy && selectedIdRef.current !== null,
 	);
 
+	// #1458 Entscheidung 7.1: Kein Modal-in-Modal — dieses Modal weicht dem globalen Angebots-Dialog.
+	useClosingOnPlanRequired(onClose);
+
 	return (
 		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>
+			{/* #1458 AK12: Referenzstelle `graph_write`. */}
+			<PlanBadge feature="graph_write" />
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}

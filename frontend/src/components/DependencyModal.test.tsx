@@ -3,6 +3,7 @@ import { TaskStatus } from 'client';
 import type { Task } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
 
 /**
  * Rote Spec-Tests für #1429 — AK7/AK8: der Abhängigkeits-Dialog zeigt und ändert das Gewicht
@@ -172,5 +173,37 @@ describe('DependencyModal — Gewicht eines bestehenden Vorgängers (#1429, AK7/
 			dependencyInput: { dependingTaskId: 2, weight: 0.4 },
 		});
 		expect(onChanged).toHaveBeenCalledTimes(1);
+	});
+});
+
+// ── #1458 Entscheidung 7.1: kein Modal-in-Modal ─────────────────────────────────────────────────
+
+/**
+ * `PlanOfferDialog` hängt als EIN globaler Dialog in `App.tsx` und lauscht auf `pp:plan-required`
+ * (AK7). Der (i)-Schalter am `PlanBadge` in diesem Modal und eine serverseitige 403-Antwort feuern
+ * dasselbe Event — das Angebot öffnete sich damit ÜBER dem offenen Modal, was
+ * `docs/mobile-ui-rules.md` als Anti-Pattern führt. Menschliche Entscheidung zum Review von
+ * PR #1488: Option 7.1 — das auslösende Modal schließt sich, bevor der Dialog öffnet.
+ */
+describe('DependencyModal — weicht dem Angebots-Dialog (#1458, Entscheidung 7.1)', () => {
+	it('ruft onClose, sobald ein Paket-Angebot angefordert wird', async () => {
+		const task = sampleTask(1, 'Ziel');
+		const onClose = vi.fn();
+
+		await act(async () => {
+			render(<DependencyModal task={task} allTasks={[task]} dependencies={[]} onClose={onClose} onChanged={vi.fn()} />);
+		});
+
+		expect(onClose).not.toHaveBeenCalled();
+
+		await act(async () => {
+			window.dispatchEvent(
+				new CustomEvent(PLAN_REQUIRED_EVENT, {
+					detail: { feature: 'graph_write', requiredPlan: 'pro', currentPlan: 'free' },
+				}),
+			);
+		});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });
