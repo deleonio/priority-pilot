@@ -28,7 +28,7 @@ name: Code Review Team
 # Protokoll laufen täglich weiter, der Agent darf dann nichts committen.
 #
 # POST-ASSERTION (Ehrlichkeits-Kreuzcheck): VERDICT fixed ↔ genau ein Commit, review-only ↔ null
-# Commits; Scope-Guard (keine Workflows/Actions/Prompts, Lockfile, package.json, ADRs, OpenAPI, DB-Schicht) und
+# Commits; Scope-Guard (nichts unter .github/ außer scripts/, kein Lockfile, package.json, ADRs, OpenAPI, DB-Schicht) und
 # Größen-Guard (≤ 6 Dateien, ≤ 200 Zeilen) machen „unkritisch" mechanisch prüfbar; das
 # Protokoll muss die Pflicht-Abschnitte tragen. Formatbruch endet laut rot, nie als stiller No-op.
 #
@@ -303,11 +303,13 @@ jobs:
             exit 0
           fi
 
-          # Scope-Guard: „unkritisch" mechanisch — keine CI-Orchestrierung (Workflows, Actions,
-          # Prompts), kein Lockfile, package.json, ADRs, OpenAPI, DB-Schicht. Erlaubt bleiben Code,
-          # Tests, die Vorgaben-Doku und .github/scripts/ (getesteter Code, pnpm test:scripts).
+          # Scope-Guard: „unkritisch" mechanisch — alles unter .github/ ist gesperrt (Workflows,
+          # Actions, Prompts, Agents, Hooks, pi, Release-Config; auch künftige Unterordner), einzige
+          # Ausnahme .github/scripts/ (getesteter Code, pnpm test:scripts). Dazu kein Lockfile,
+          # package.json, ADRs, OpenAPI, DB-Schicht. Erlaubt bleiben Code, Tests, die Vorgaben-Doku.
           bad="$(git diff --name-only origin/main..HEAD \
-            | grep -E '^(\.github/(workflows|actions|prompts)/|pnpm-lock\.yaml$|docs/adr/|openapi\.yml$|server/src/db/)|(^|/)package\.json$' || true)"
+            | grep -vE '^\.github/scripts/' \
+            | grep -E '^(\.github/|pnpm-lock\.yaml$|docs/adr/|openapi\.yml$|server/src/db/)|(^|/)package\.json$' || true)"
           if [ -n "$bad" ]; then
             echo "::error title=❌ Scope verletzt::Fix berührt verbotene Pfade: $(printf '%s' "$bad" | tr '\n' ' ')"
             exit 1

@@ -37,7 +37,8 @@ Menschliche Autorinnen und Autoren nutzen denselben PR-Weg; `main` ist der einzi
 | mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                                          |
 
 Diese Tabelle ist der Maßstab, nach dem das tägliche Code-Review-Team
-([`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) den Wert seiner Findings gewichtet.
+([`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) den Wert seiner Findings gewichtet;
+Ziele gleicher Priorität sind gleichrangig.
 Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 10 beschrieben; für
 `#flexible` und `#efficient` fehlen dort noch nachprüfbare Szenarien.
 
@@ -311,13 +312,15 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 Jedes Szenario benennt eine im Code nachprüfbare Größe; Ziele ohne Code-Beleg sind nicht
 dokumentiert.
 
-| Q42-Eigenschaft | Szenarien    |
-| --------------- | ------------ |
-| `#suitable`     | QS-01, QS-02 |
-| `#secure`       | QS-03, QS-04 |
-| `#reliable`     | QS-05, QS-06 |
-| `#usable`       | QS-07        |
-| `#operable`     | QS-08        |
+| Q42-Eigenschaft | Szenarien          |
+| --------------- | ------------------ |
+| `#suitable`     | QS-01, QS-02       |
+| `#secure`       | QS-03, QS-04       |
+| `#reliable`     | QS-05, QS-06       |
+| `#usable`       | QS-07              |
+| `#operable`     | QS-08              |
+| `#flexible`     | — (Szenario offen) |
+| `#efficient`    | — (Szenario offen) |
 
 ### QS-01 — Domäne vollständig über den Vertrag
 
