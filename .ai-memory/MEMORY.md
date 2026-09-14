@@ -208,3 +208,4 @@ Konflikte, die er verhindern soll.
   auswählt, oder in einem Fließtext der Seite. Keine Implementierung macht das eindeutig. →
   Statusmeldungen im Alert prüfen statt seitenweit: `page.locator("<form-klasse> kol-alert")` +
   `toBeVisible()` + `toContainText(/…/i)` (Muster `frontend/e2e/bahn.spec.ts:176`).
+- 2026-09-14 · SMTP/Hetzner — Prod-Versand still (ETIMEDOUT): Hetzner blockt ausgehend 25+465, nur 587 frei → SMTP_PORT=587 + SMTP_SECURE=false (STARTTLS, .env.example-Default) Host+lokal, pm2 reload; Direkttest vom Host verifiziert 250 OK. Warnungen landen in pm2-ERROR-Log (console.warn=stderr), nicht out-Log.
