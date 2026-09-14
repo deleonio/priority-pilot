@@ -8,6 +8,7 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
 import { Modal } from './Modal';
+import { PlanBadge } from './PlanBadge';
 
 interface DependencyModalProps {
 	/** Task, dessen Abhängigkeiten (Vorgänger) bearbeitet werden. */
@@ -120,6 +121,8 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 
 	return (
 		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>
+			{/* #1458 AK12: Referenzstelle `graph_write`. */}
+			<PlanBadge feature="graph_write" />
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}

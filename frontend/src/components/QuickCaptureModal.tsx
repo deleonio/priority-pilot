@@ -12,6 +12,8 @@ import { AdvisorResults } from './AdvisorResults';
 import { Modal } from './Modal';
 import { TaskForm, type TaskFormInitialValues } from './TaskForm';
 import { VoiceField } from './VoiceField';
+import { AiQuotaHint } from './AiQuotaHint';
+import { PlanBadge } from './PlanBadge';
 
 interface QuickCaptureModalProps {
 	/** Beim Anlegen einer Unteraufgabe: die Eltern-Aufgabe (durchgereicht an das reguläre Formular). */
@@ -191,6 +193,9 @@ export const QuickCaptureModal = ({
 				/>
 			) : (
 				<>
+					{/* #1458 AK12/AK10: Referenzstelle `ai_assist` — Badge plus Rest des Monatskontingents. */}
+					<PlanBadge feature="ai_assist" />
+					<AiQuotaHint />
 					{error !== null && (
 						<KolAlert _type="error" _label="Verarbeitung fehlgeschlagen">
 							{error}

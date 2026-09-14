@@ -41,7 +41,16 @@ const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
  * lesbaren Header bleibt es beim allgemeinen Hinweis.
  */
 const throttledMessage = (response: Response): string => {
-	const retryAfter = Number(response.headers.get('retry-after'));
+	// Der Header-Zugriff ist abgesichert, weil `toApiError` auch `ResponseError` aus fremden Quellen
+	// verarbeitet (Test-Doubles, manuell konstruierte Responses) — dort kann `headers` fehlen. Ohne
+	// lesbaren Header bleibt es beim allgemeinen Hinweis, statt die Fehlerbehandlung abstürzen zu lassen.
+	let retryAfterHeader: string | null;
+	try {
+		retryAfterHeader = response.headers.get('retry-after');
+	} catch {
+		retryAfterHeader = null;
+	}
+	const retryAfter = Number(retryAfterHeader);
 	if (Number.isFinite(retryAfter) && retryAfter > 0) {
 		const sekunden = Math.ceil(retryAfter);
 		return `Zu viele Anfragen in kurzer Zeit. Bitte ${sekunden} Sekunden warten und es dann noch einmal versuchen.`;
@@ -54,6 +63,51 @@ const throttledMessage = (response: Response): string => {
  * Der globale `SessionExpiredDialog` lauscht darauf und bietet das Neuladen der App an.
  */
 export const SESSION_EXPIRED_EVENT = 'pp:session-expired';
+
+/**
+ * DOM-Event-Name für das kontextuelle Paket-Angebot (#1458). `toApiError` feuert ihn, sobald der
+ * Server eine Aktion mit `code: plan_required` (403) oder `code: quota_exhausted` (429) ablehnt;
+ * der globale `PlanOfferDialog` lauscht darauf. Genau wie beim Session-401 wertet **keine**
+ * einzelne Aufrufstelle diese Codes aus — die Weiche liegt allein hier.
+ */
+export const PLAN_REQUIRED_EVENT = 'pp:plan-required';
+
+/** Nutzdaten des `pp:plan-required`-Events — Feld für Feld aus dem Fehler-Body des Servers. */
+export interface PlanRequiredDetail {
+	/** Feature-Identifier aus dem Serververtrag (`server/src/logics/plans.ts`), z. B. `groups`. */
+	feature: string;
+	/** Kleinstes Paket, das das Feature enthält. */
+	requiredPlan: string;
+	/** Paket des Nutzers im Moment der Ablehnung. */
+	currentPlan: string;
+}
+
+/**
+ * Erkennt die Paket-Fehlerfelder aus `server/src/express/http-error.ts` im Antwort-Body. Über den
+ * **Body** — nicht über den Status — läuft auch die CSRF-Ausnahme in `api.ts` (AK8): ein echter
+ * CSRF-403 trägt diesen Code nicht und verwirft den Token weiterhin.
+ */
+export const planRequiredDetail = (
+	body: unknown,
+	expectedCode: 'plan_required' | 'quota_exhausted',
+): PlanRequiredDetail | null => {
+	if (typeof body !== 'object' || body === null) {
+		return null;
+	}
+	const { code, feature, requiredPlan, currentPlan } = body as Record<string, unknown>;
+	if (
+		code !== expectedCode ||
+		typeof feature !== 'string' ||
+		typeof requiredPlan !== 'string' ||
+		typeof currentPlan !== 'string'
+	) {
+		return null;
+	}
+	return { feature, requiredPlan, currentPlan };
+};
+
+/** Fallback-Text, solange der Server keine `message` mitschickt. */
+const PLAN_REQUIRED_TEXT = 'Diese Funktion gehört zu einem größeren Paket. Das Angebot dazu ist gerade aufgegangen.';
 
 /**
  * Aufrufer-Kontext (#1465). Die 502/503/504-Übersetzung aus #620 spricht von „KI-Dienst" und passt
@@ -69,11 +123,6 @@ interface ToApiErrorOptions {
 export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiErrorOptions = {}): Promise<ApiError> => {
 	if (reason instanceof ResponseError) {
 		const { status } = reason.response;
-		// Drosselung (#1479) vor allen anderen Zweigen: Der Grund ist unabhängig vom Endpunkt und
-		// vom Body immer derselbe, die KI- und Session-Übersetzungen passen hier nicht.
-		if (status === 429) {
-			return { status, message: throttledMessage(reason.response) };
-		}
 		const isLlmUpstream = llmMapping && (status === 502 || status === 503 || status === 504);
 		let message = `Serverfehler (HTTP ${status}).`;
 		// Body-Beschaffung in zwei Stufen (#948): openapi-fetch liest den Body JEDER non-ok Response
@@ -88,6 +137,23 @@ export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiEr
 			} catch {
 				body = undefined;
 			}
+		}
+		// Paket-Angebot (#1458) vor der Drosselung: Ein 429 mit `code: quota_exhausted` ist kein
+		// Rate-Limit, sondern ein aufgebrauchtes Monatskontingent — der Nutzer soll das Angebot sehen
+		// und nicht „Bitte kurz warten“. Der Body entscheidet, nicht der Status; ein 403/429 ohne
+		// diese Felder läuft unverändert weiter (echter CSRF-403, reines Rate-Limit).
+		if (status === 403 || status === 429) {
+			const detail = planRequiredDetail(body, status === 403 ? 'plan_required' : 'quota_exhausted');
+			if (detail !== null) {
+				window.dispatchEvent(new CustomEvent<PlanRequiredDetail>(PLAN_REQUIRED_EVENT, { detail }));
+				const serverMessage = (body as { message?: unknown }).message;
+				return { status, message: typeof serverMessage === 'string' ? serverMessage : PLAN_REQUIRED_TEXT };
+			}
+		}
+		// Drosselung (#1479) vor den übrigen Zweigen: Der Grund ist unabhängig vom Endpunkt und
+		// vom Body immer derselbe, die KI- und Session-Übersetzungen passen hier nicht.
+		if (status === 429) {
+			return { status, message: throttledMessage(reason.response) };
 		}
 		if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {
 			const serverMessage = (body as { message: string }).message;

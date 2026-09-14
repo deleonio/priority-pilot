@@ -3785,3 +3785,38 @@ kol-alert {
 	align-items: center;
 	gap: var(--pp-gap-tight);
 }
+
+/* Paket-Badge (#1458 AK14): Badge und (i)-Schalter stehen in einer Zeile, brechen in engen Zeilen
+   aber um, statt die Zeile breiter zu machen — bei 375px darf nichts horizontal überlaufen. Der
+   (i)-Schalter behält 44px Touch-Target (docs/mobile-ui-rules.md). */
+.plan-badge {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem;
+	max-width: 100%;
+}
+
+.plan-badge span[data-testid] kol-button {
+	display: inline-block;
+	min-width: 44px;
+	min-height: 44px;
+}
+
+/* Paket-Matrix in den Einstellungen (#1458 AK11): auf schmalen Geräten scrollt die Tabelle in
+   ihrem eigenen Container, damit die Seite selbst nicht horizontal überläuft. */
+.plans-section {
+	overflow-x: auto;
+	max-width: 100%;
+}
+
+.plans-matrix {
+	border-collapse: collapse;
+	min-width: 100%;
+}
+
+.plans-matrix th,
+.plans-matrix td {
+	padding: 0.25rem 0.5rem;
+	text-align: left;
+}

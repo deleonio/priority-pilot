@@ -15,6 +15,7 @@ import { toApiError } from '../lib/apiError';
 import { GroupDeleteDialog } from './GroupDeleteDialog';
 import { GroupDetail } from './GroupDetail';
 import { GroupFormDialog } from './GroupFormDialog';
+import { PlanBadge } from './PlanBadge';
 
 type DialogState =
 	{ kind: 'closed' } | { kind: 'create' } | { kind: 'edit'; group: Group } | { kind: 'delete'; group: Group };
@@ -104,6 +105,9 @@ export const GroupsSection = () => {
 
 	return (
 		<div className="groups-section" ref={deleteFallbackRef} tabIndex={-1}>
+			{/* #1458 AK12: Referenzstelle `groups`. Das Badge beschriftet nur — angelegt wird weiterhin,
+			    erst die Server-Ablehnung (403 `plan_required`) öffnet das Angebot (AK13). */}
+			<PlanBadge feature="groups" />
 			{/* Keine H2 „Gruppen" mehr: Der Tab-Reiter trägt den Namen bereits — die Überschrift stand
 			    doppelt im Accessibility-Baum (Design-Lauf 2026-09). */}
 			{error !== null && (
