@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import { Task, User, NotificationLog } from '../models/index.js';
 import { haversineKm } from './geo.js';
 import { sendPushToUser, type PushSender } from './push.js';
+import { shouldBlockFeature } from './plans.js';
 
 /**
  * Fachlicher Push-Trigger „Aufgaben in der Nähe" (Issue #1101). Der Client meldet im
@@ -151,6 +152,13 @@ export const runGeoPushNotifications = async (
 	// F3: Serialisierung pro User via In-Memory-Queue.
 	// Parallele Aufrufe für denselben User warten auf das bereits laufende Promise.
 	const processUserGroup = async (group: GeoPushGroup): Promise<void> => {
+		// #1457 AK9: Standort-Push ist Teil von `location_reminders`. Bei eingeschaltetem Rollout
+		// bekommt ein Nutzer ohne passendes Paket keine Nachricht — die Entscheidung fällt wie in
+		// jedem Guard allein `shouldBlockFeature()`, damit die Matrix in `plans.ts` bleibt.
+		const plan = (await User.findByPk(group.userId))?.plan;
+		if (plan !== undefined && shouldBlockFeature(plan, 'location_reminders')) {
+			return;
+		}
 		const intervalMs = await intervalMsFor(group.userId);
 		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
 		if (sent > 0) {

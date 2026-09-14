@@ -4,6 +4,7 @@ import { sendError, type ErrorDto } from '../http-error.js';
 import { User } from '../../models/index.js';
 import { getUserId, isAuthActive } from '../requireAuth.js';
 import { runGeoPushNotifications } from '../../logics/geo-background-job.js';
+import { requirePlanFeature } from '../planGuard.js';
 
 /**
  * Pro-User Geo-Konfiguration (#1098 AK7): Anzeige-Entfernung (Default 5 km),
@@ -104,28 +105,32 @@ geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigD
 });
 
 // PUT /geo-config — validierte Konfiguration speichern; bei Verstoß 400 ohne Persistenz.
-geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigDto | ErrorDto>) => {
-	try {
-		const user = await resolveGeoUser(req);
-		if (!user) {
-			sendError(res, 401, 'Anmeldung erforderlich.');
-			return;
+geoConfigRouter.put(
+	'/geo-config',
+	requirePlanFeature('location_reminders'),
+	async (req: Request, res: Response<GeoConfigDto | ErrorDto>) => {
+		try {
+			const user = await resolveGeoUser(req);
+			if (!user) {
+				sendError(res, 401, 'Anmeldung erforderlich.');
+				return;
+			}
+			const config = validateGeoConfig(req.body);
+			if (!config) {
+				sendError(
+					res,
+					400,
+					'Ungültige Geo-Konfiguration: alarmDistanceKm ∈ [1, displayDistanceKm], displayDistanceKm ∈ [alarmDistanceKm, 50], intervalMinutes ∈ [1, 60] (ganze Zahlen).',
+				);
+				return;
+			}
+			await User.update(config, { where: { id: user.id } });
+			res.json(config);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
 		}
-		const config = validateGeoConfig(req.body);
-		if (!config) {
-			sendError(
-				res,
-				400,
-				'Ungültige Geo-Konfiguration: alarmDistanceKm ∈ [1, displayDistanceKm], displayDistanceKm ∈ [alarmDistanceKm, 50], intervalMinutes ∈ [1, 60] (ganze Zahlen).',
-			);
-			return;
-		}
-		await User.update(config, { where: { id: user.id } });
-		res.json(config);
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+	},
+);
 
 /**
  * POST /geo/position — Positionsmeldung des Clients (Issue #1101 AK1): der Client ermittelt im
@@ -134,26 +139,30 @@ geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigD
  * an (`logics/geo-background-job.ts`). Fire-and-forget: die Antwort wartet nicht auf den Versand —
  * ein Push-Fehler darf die Positionsbehandlung nicht blockieren.
  */
-geoConfigRouter.post('/geo/position', async (req: Request, res: Response<ErrorDto>) => {
-	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
-	const parseCoord = (value: unknown): number =>
-		typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
-	const body = (req.body ?? {}) as { lat?: unknown; lon?: unknown };
-	const lat = parseCoord(body.lat);
-	const lon = parseCoord(body.lon);
-	// F1 (#1102-Review): NaN-Vergleche sind immer false — NaN muss explizit abgelehnt werden,
-	// sonst läuft `{"lat":"abc"}` ohne 400 in den Push-Job.
-	if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-		sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
-		return;
-	}
-	const user = await resolveGeoUser(req);
-	if (!user) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
-	runGeoPushNotifications([{ userId: user.id, lat, lon }]).catch((error: unknown) => {
-		console.error('Geo-Push nach Positionsmeldung fehlgeschlagen:', error);
-	});
-	res.status(204).send();
-});
+geoConfigRouter.post(
+	'/geo/position',
+	requirePlanFeature('location_reminders'),
+	async (req: Request, res: Response<ErrorDto>) => {
+		// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
+		const parseCoord = (value: unknown): number =>
+			typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
+		const body = (req.body ?? {}) as { lat?: unknown; lon?: unknown };
+		const lat = parseCoord(body.lat);
+		const lon = parseCoord(body.lon);
+		// F1 (#1102-Review): NaN-Vergleche sind immer false — NaN muss explizit abgelehnt werden,
+		// sonst läuft `{"lat":"abc"}` ohne 400 in den Push-Job.
+		if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+			return;
+		}
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		runGeoPushNotifications([{ userId: user.id, lat, lon }]).catch((error: unknown) => {
+			console.error('Geo-Push nach Positionsmeldung fehlgeschlagen:', error);
+		});
+		res.status(204).send();
+	},
+);

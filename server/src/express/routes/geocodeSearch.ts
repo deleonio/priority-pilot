@@ -1,6 +1,7 @@
 import express from 'express';
 import type { components } from '../../api.js';
 import { NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { requirePlanFeature } from '../planGuard.js';
 
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
 type ErrorDto = components['schemas']['Error'];
@@ -42,30 +43,34 @@ export const geocodeSearchRouter = express.Router();
  * Rate-Limit 1 req/sec: geteilter Limiter (`geocodeRateLimit.ts`, vor dem Router montiert).
  * Fallback: Bei Fehler/Timeout/Rate-Limit wird eine leere Liste zurückgegeben.
  */
-geocodeSearchRouter.get('/', async (req, res: express.Response<GeocodeSearchResultDto[] | ErrorDto>) => {
-	const q = req.query.q;
-	if (typeof q !== 'string' || q.trim() === '') {
-		res.status(400).json({ message: 'q als nicht-leerer Query-Parameter erforderlich.' });
-		return;
-	}
-
-	try {
-		// #1083 AK1: Photon primär — typo-tolerant. 0 Treffer sind ein legitimes Ergebnis (AK3) und
-		// lösen bewusst KEINEN Fallback aus (schont das 1-req/sec-Kontingent der OSM-Dienste).
-		const photonResults = await searchPhoton(q.trim());
-		if (photonResults !== null) {
-			res.json(photonResults);
+geocodeSearchRouter.get(
+	'/',
+	requirePlanFeature('location_reminders'),
+	async (req, res: express.Response<GeocodeSearchResultDto[] | ErrorDto>) => {
+		const q = req.query.q;
+		if (typeof q !== 'string' || q.trim() === '') {
+			res.status(400).json({ message: 'q als nicht-leerer Query-Parameter erforderlich.' });
 			return;
 		}
 
-		// #1083 AK2: Photon nicht erreichbar/abgelehnt → Nominatim-Fallback.
-		res.json(await searchNominatim(q.trim()));
-	} catch (error) {
-		// Timeout, Netzwerkfehler → leere Liste zurückgeben
-		console.warn('Adress-Suche-Fehler:', error);
-		res.json([]);
-	}
-});
+		try {
+			// #1083 AK1: Photon primär — typo-tolerant. 0 Treffer sind ein legitimes Ergebnis (AK3) und
+			// lösen bewusst KEINEN Fallback aus (schont das 1-req/sec-Kontingent der OSM-Dienste).
+			const photonResults = await searchPhoton(q.trim());
+			if (photonResults !== null) {
+				res.json(photonResults);
+				return;
+			}
+
+			// #1083 AK2: Photon nicht erreichbar/abgelehnt → Nominatim-Fallback.
+			res.json(await searchNominatim(q.trim()));
+		} catch (error) {
+			// Timeout, Netzwerkfehler → leere Liste zurückgeben
+			console.warn('Adress-Suche-Fehler:', error);
+			res.json([]);
+		}
+	},
+);
 
 /** `null` = Photon nicht nutzbar (429/5xx/Timeout/Netzwerkfehler) → Fallback nötig; sonst Trefferliste (auch leer). */
 const searchPhoton = async (query: string): Promise<GeocodeSearchResultDto[] | null> => {

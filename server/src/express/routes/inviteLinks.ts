@@ -5,6 +5,7 @@ import { sendError, type ErrorDto } from '../http-error.js';
 import { Group, GroupInviteLink, GroupMember, User } from '../../models/index.js';
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
+import { requirePlanFeature } from '../planGuard.js';
 
 /**
  * Einladungslink-Preisgabe (#1226). Dieser Router ist der ÖFFENTLICHE Teil: Er hängt bewusst
@@ -53,6 +54,7 @@ inviteLinksPublicRouter.get('/invite-links/:token', async (req: Request, res: Re
 // durch früheres Einlösen desselben Links oder anderweitig (persönliche Einladung).
 inviteLinksPublicRouter.post(
 	'/invite-links/:token/redeem',
+	requirePlanFeature('groups'),
 	async (req: Request, res: Response<{ groupId: number } | ErrorDto>) => {
 		try {
 			const user = await resolveGeoUser(req);

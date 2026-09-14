@@ -90,7 +90,17 @@ const callApi = async (
 		// braucht der Client, um zu wissen, WELCHES Feld ihm um die Ohren flog. Der Statuscode reist
 		// immer mit: er ordnet ein, ob die Eingabe (4xx) oder der Server (5xx) schuld ist. Der Text
 		// selbst ist der der gespiegelten Route (deutsch, geteilt mit der Weboberfläche).
-		const message = (payload as { message?: string } | null)?.message ?? 'Request failed.';
+		const body = payload as { message?: string; code?: string; feature?: string; requiredPlan?: string } | null;
+		const message = body?.message ?? 'Request failed.';
+		if (body?.code === 'plan_required') {
+			// Paketbedingte Ablehnung (#1457): generisch am Fehlercode erkannt, nicht an einer
+			// Werkzeugliste — sonst driftet die Übersetzung, sobald eine Route neu gegatet wird.
+			// Der Client soll lesen, WELCHES Feature fehlt und ab WELCHEM Paket es verfügbar ist,
+			// statt ein nacktes „HTTP 403" zu sehen.
+			const feature = body.feature ?? 'unbekannt';
+			const requiredPlan = body.requiredPlan ?? 'unbekannt';
+			throw new Error(`${message} (Feature: ${feature}, erforderliches Paket: ${requiredPlan})`);
+		}
 		throw new Error(`${message} (HTTP ${res.status})`);
 	}
 	return payload;
