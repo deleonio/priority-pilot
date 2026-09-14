@@ -95,6 +95,9 @@ authRouter.post('/auth/register', async (req, res) => {
 			displayName: normalizedEmail,
 			avatarUrl: null,
 			role: created.role,
+			// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+			// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+			plan: created.plan,
 		};
 		req.session.save((saveErr) => {
 			if (saveErr) {
@@ -141,6 +144,9 @@ authRouter.post('/auth/login', async (req, res) => {
 		displayName: user.displayName,
 		avatarUrl: null,
 		role: effectiveRole,
+		// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+		// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+		plan: user.plan,
 	};
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
@@ -226,7 +232,9 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 		'google',
 		(
 			err: Error | null,
-			user: { id: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole } | false,
+			user:
+				| { id: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole; plan: Plan }
+				| false,
 		) => {
 			if (err) {
 				console.error('Google-OAuth-Callback fehlgeschlagen:', err);
@@ -264,6 +272,9 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 					displayName: user.displayName,
 					avatarUrl: user.avatarUrl ?? null,
 					role: user.role,
+					// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+					// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+					plan: user.plan,
 				};
 				req.session.save(() => res.redirect(silentReturnTo ?? '/'));
 			});
@@ -382,6 +393,9 @@ if (process.env.NODE_ENV === 'test') {
 				displayName: resolvedDisplayName,
 				avatarUrl: avatarUrl ?? null,
 				role: effectiveRole,
+				// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+				// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+				plan: dbUser.plan,
 			};
 			req.session.save(() => {
 				res.json({ message: 'Eingeloggt.' });

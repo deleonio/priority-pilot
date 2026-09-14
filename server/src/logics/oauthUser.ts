@@ -1,5 +1,6 @@
 import { User } from '../models/index.js';
 import type { UserRole } from '../models/user.js';
+import type { Plan } from './plans.js';
 import { resolveRole } from './auth.js';
 
 /**
@@ -24,7 +25,7 @@ export async function upsertOAuthUser({
 	email: string;
 	displayName: string | null;
 	avatarUrl: string | null;
-}): Promise<{ id: number; email: string; displayName: string; avatarUrl: string | null; role: UserRole }> {
+}): Promise<{ id: number; email: string; displayName: string; avatarUrl: string | null; role: UserRole; plan: Plan }> {
 	// Fallback wie bisher: ohne Profilname gilt die E-Mail (identisch in Zeile und Rückgabe).
 	const resolvedDisplayName = displayName ?? email;
 
@@ -55,5 +56,14 @@ export async function upsertOAuthUser({
 		});
 	}
 
-	return { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl, role: user.role };
+	// #1456: `plan` gehört zur Session-Basis — der Callback in `routes/auth.ts` setzt es eager in
+	// den Snapshot, damit Guards es ohne vorherigen `/auth/me`-Aufruf lesen können.
+	return {
+		id: user.id,
+		email: user.email,
+		displayName: user.displayName,
+		avatarUrl: user.avatarUrl,
+		role: user.role,
+		plan: user.plan,
+	};
 }

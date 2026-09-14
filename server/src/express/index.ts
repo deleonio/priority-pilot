@@ -208,6 +208,8 @@ export const createApp = (deps: AppDeps = {}) => {
 							displayName: user.displayName,
 							avatarUrl: user.avatarUrl,
 							role: user.role,
+							// #1456: Paket mitgeben — der Callback setzt es eager in den Session-Snapshot.
+							plan: user.plan,
 						});
 					} catch (err) {
 						return done(err as Error);
