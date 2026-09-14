@@ -2,6 +2,7 @@ import { KolAlert, KolButton, KolCard, KolInputText } from '@public-ui/react-v19
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, type PlaceFavoriteView } from '../api';
 import { toApiError } from '../lib/apiError';
+import { PlanBadge } from './PlanBadge';
 
 /**
  * Aktions-Hülle um einen `KolButton` (Muster `ApiTokensSection.tsx`): der Klick wird am umgebenden
@@ -111,6 +112,9 @@ export const PlaceFavoritesSection = () => {
 	return (
 		<div className="api-tokens" data-testid="place-favorites-panel">
 			<KolCard className="settings-card" _label="Gespeicherte Orte" _level={2}>
+				{/* #1484 (T3b AK3): Grenzstelle `location_reminders` — Badge als erstes Element im
+				    Kartenkörper, weil der Titel über die KoliBri-Prop `_label` läuft (KI-UX-Block). */}
+				<PlanBadge feature="location_reminders" />
 				<div className="api-tokens__create">
 					<p>
 						Hinterlegte Orte stehen im Adressfeld von Aufgabe und Serie oben in der Vorschlagsliste — ein Klick

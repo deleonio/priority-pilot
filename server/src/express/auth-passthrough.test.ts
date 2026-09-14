@@ -63,7 +63,10 @@ describe('Pass-Through-Modus (kein Auth-Kontext konfiguriert)', () => {
 		// (kein Import aus plans.ts — das Modul existiert noch nicht, s. AK2/plans.test.ts).
 		assert.equal(body.entitlements?.groups?.allowed, false, 'Free hat kein groups');
 		assert.equal(body.entitlements?.groups?.requiredPlan, 'pro', 'groups erfordert Pro');
-		assert.equal(body.entitlements?.voice_input?.allowed, true, 'voice_input ist für alle Pakete an');
+		// Test-Pflege #1484 (Entscheidung A1 des Autors, 2026-09-14): `voice_input` ist nicht mehr für
+		// alle Pakete an, sondern ab Pro — Free sieht an der Spracheingabe das Pro-Badge.
+		assert.equal(body.entitlements?.voice_input?.allowed, false, 'Free hat kein voice_input (ab Pro)');
+		assert.equal(body.entitlements?.voice_input?.requiredPlan, 'pro', 'voice_input erfordert Pro');
 	});
 
 	it('geschützte Routen bleiben erreichbar (Konsistenz zu requireAuth)', async () => {

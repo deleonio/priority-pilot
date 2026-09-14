@@ -1,6 +1,7 @@
 import { KolAlert, KolInputText, KolSpin } from '@public-ui/react-v19';
 import { useId, useState } from 'react';
 import { useAddressSearch, type AddressSuggestion } from '../lib/useAddressSearch';
+import { PlanBadge } from './PlanBadge';
 
 /**
  * Adress-Autovervollständigung mit EIGENER Vorschlagsliste (#1083).
@@ -150,129 +151,135 @@ export const AddressAutocomplete = ({
 	};
 
 	return (
-		/* COMBOBOX-CONTAINER (ARIA-1.2, Fix F2): `role="combobox"` + State liegen auf einem echten
-		   DOM-Element, das Feld UND Listbox besitzt — `aria-activedescendant` zeigt dadurch auf
-		   echte Nachfahren. Auf dem KoliBri-Host wären die Props unbekannte Attribute und das
-		   fokussierte `<input>` im Shadow-DOM bekäme sie nie (KolInputText 4.3.0 hat diese Props
-		   nicht, siehe `spec/input-text`). Keydown/Blur delegiert der Container: Events aus dem
-		   Shadow-DOM bubbeln composed an den Host und weiter in das Licht-DOM. */
-		<div
-			style={{ position: 'relative' }}
-			role="combobox"
-			aria-haspopup="listbox"
-			aria-autocomplete="list"
-			aria-expanded={open}
-			aria-controls={open ? listId : undefined}
-			aria-activedescendant={activeIndex === null ? undefined : `${listId}-option-${activeIndex}`}
-			onBlur={blur}
-			onKeyDown={(event) => keyDown(event as unknown as KeyboardEvent)}
-		>
-			<KolInputText
-				_label={label}
-				_type="search" // #1111 AK6: als Suchfeld ausgezeichnet (wie das Kopfzeilen-Suchfeld)
-				_ariaDetails={ariaDetails}
-				_placeholder="Straße, Hausnummer, Ort …"
-				_value={value}
-				_on={{
-					onChange: (_event, next) => change(String(next ?? '')),
-					onInput: (_event, next) => change(String(next ?? '')),
-				}}
-			/>
+		<>
+			{/* #1484 (T3b AK3): Grenzstelle `location_reminders`. Das Badge steht als Geschwister VOR
+		    dem Combobox-Container — als Nachfahre würde es die erwartete DOM-Struktur des
+		    Combobox-Patterns verschieben (KI-UX-Block). */}
+			<PlanBadge feature="location_reminders" />
+			{/* COMBOBOX-CONTAINER (ARIA-1.2, Fix F2): `role="combobox"` + State liegen auf einem echten
+		    DOM-Element, das Feld UND Listbox besitzt — `aria-activedescendant` zeigt dadurch auf
+		    echte Nachfahren. Auf dem KoliBri-Host wären die Props unbekannte Attribute und das
+		    fokussierte native Eingabefeld im Shadow-DOM bekäme sie nie (KolInputText 4.3.0 hat diese
+		    Props nicht, siehe `spec/input-text`). Keydown/Blur delegiert der Container: Events aus dem
+		    Shadow-DOM bubbeln composed an den Host und weiter in das Licht-DOM. */}
+			<div
+				style={{ position: 'relative' }}
+				role="combobox"
+				aria-haspopup="listbox"
+				aria-autocomplete="list"
+				aria-expanded={open}
+				aria-controls={open ? listId : undefined}
+				aria-activedescendant={activeIndex === null ? undefined : `${listId}-option-${activeIndex}`}
+				onBlur={blur}
+				onKeyDown={(event) => keyDown(event as unknown as KeyboardEvent)}
+			>
+				<KolInputText
+					_label={label}
+					_type="search" // #1111 AK6: als Suchfeld ausgezeichnet (wie das Kopfzeilen-Suchfeld)
+					_ariaDetails={ariaDetails}
+					_placeholder="Straße, Hausnummer, Ort …"
+					_value={value}
+					_on={{
+						onChange: (_event, next) => change(String(next ?? '')),
+						onInput: (_event, next) => change(String(next ?? '')),
+					}}
+				/>
 
-			{/* Asynchrone Zustände (mobile-ui-rules Regel 7): Laden / Fehler / Leer / Erfolg. */}
-			{loading && (
-				<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-space-2, 8px)', padding: '8px 0' }}>
-					<KolSpin _label="Adresse wird gesucht …" />
-				</div>
-			)}
-			{!loading && error && (
-				<KolAlert _type="warning" _label="Adresssuche nicht erreichbar — Adresse bitte manuell eintippen." />
-			)}
-			{!loading && !error && value.trim().length >= 3 && !open && (
-				<div style={{ padding: '8px 0' }}>Keine Treffer — Adresse direkt übernehmen.</div>
-			)}
+				{/* Asynchrone Zustände (mobile-ui-rules Regel 7): Laden / Fehler / Leer / Erfolg. */}
+				{loading && (
+					<div style={{ display: 'flex', alignItems: 'center', gap: 'var(--pp-space-2, 8px)', padding: '8px 0' }}>
+						<KolSpin _label="Adresse wird gesucht …" />
+					</div>
+				)}
+				{!loading && error && (
+					<KolAlert _type="warning" _label="Adresssuche nicht erreichbar — Adresse bitte manuell eintippen." />
+				)}
+				{!loading && !error && value.trim().length >= 3 && !open && (
+					<div style={{ padding: '8px 0' }}>Keine Treffer — Adresse direkt übernehmen.</div>
+				)}
 
-			{open && (
-				/* Wrapper = `aria-controls`-Ziel: der kontrollierte Bereich, der die listbox enthält. */
-				<div id={listId}>
-					<ul
-						id={`${listId}-listbox`}
-						role="listbox"
-						aria-live="polite"
-						aria-label={`${options.length} Treffer`}
-						style={{
-							position: 'relative', // In-Flow unter dem Feld — kein Portal/Overlay (375-px-Viewport, AK7)
-							margin: 0,
-							padding: 0,
-							listStyle: 'none',
-							background: 'var(--pp-surface-1, #fff)',
-							color: 'var(--pp-ink, #1a1a1a)',
-							border: '1px solid var(--pp-border-strong, #666)',
-							borderRadius: 'var(--pp-radius-sm, 4px)',
-						}}
-					>
-						{options.map((option, index) => (
-							/* #1342: Die Zeile ist `role="presentation"` — der Stern darf KEIN Nachfahre der
+				{open && (
+					/* Wrapper = `aria-controls`-Ziel: der kontrollierte Bereich, der die listbox enthält. */
+					<div id={listId}>
+						<ul
+							id={`${listId}-listbox`}
+							role="listbox"
+							aria-live="polite"
+							aria-label={`${options.length} Treffer`}
+							style={{
+								position: 'relative', // In-Flow unter dem Feld — kein Portal/Overlay (375-px-Viewport, AK7)
+								margin: 0,
+								padding: 0,
+								listStyle: 'none',
+								background: 'var(--pp-surface-1, #fff)',
+								color: 'var(--pp-ink, #1a1a1a)',
+								border: '1px solid var(--pp-border-strong, #666)',
+								borderRadius: 'var(--pp-radius-sm, 4px)',
+							}}
+						>
+							{options.map((option, index) => (
+								/* #1342: Die Zeile ist `role="presentation"` — der Stern darf KEIN Nachfahre der
 							   Option sein (ARIA 1.2 verbietet interaktive Nachfahren in `role="option"`) und
 							   würde vom `onMouseDown`/`preventDefault()` der Option ohnehin nie erreicht. */
-							<li key={option.key} role="presentation" style={{ display: 'flex', alignItems: 'stretch' }}>
-								<div
-									id={`${listId}-option-${index}`}
-									role="option"
-									aria-selected={index === activeIndex}
-									onMouseDown={(event) => {
-										// mousedown statt click: der Blur des Feldes (der die Liste schließt) feuert zuerst.
-										event.preventDefault();
-										choose(index);
-									}}
-									onClick={() => {
-										// Zweiter Pfad für reine Click-Events (Screenreader-/AssistTech-Aktivierung,
-										// jsdom-`fireEvent.click`): `choose` ist idempotent, ein Doppel-Feuern ist harmlos.
-										choose(index);
-									}}
-									style={{
-										flex: 1,
-										minHeight: '44px', // Touch-Ziel (Regel 2)
-										padding: '12px',
-										cursor: 'pointer',
-										overflowWrap: 'anywhere', // lange display_name umbrechen, nicht abschneiden (Regel 3)
-										background: index === activeIndex ? 'var(--pp-surface-2, #f2f2f2)' : undefined,
-										fontWeight: index === activeIndex ? 700 : undefined,
-									}}
-								>
-									{option.text}
-								</div>
-								{option.saveable && onSaveFavorite && (
-									/* KOLIBRI-FIRST-AUSNAHME wie die Liste selbst (s. Dateikopf): der Stern gehört in
-									   dieses eigene Listen-Markup; ein `KolButton` würde hier zusätzlich die
-									   Combobox-Semantik der Zeile mit einem Shadow-DOM-Host durchschneiden. */
-									<button
-										type="button"
-										aria-label={`Als Favorit speichern: ${option.text}`}
+								<li key={option.key} role="presentation" style={{ display: 'flex', alignItems: 'stretch' }}>
+									<div
+										id={`${listId}-option-${index}`}
+										role="option"
+										aria-selected={index === activeIndex}
 										onMouseDown={(event) => {
-											// Der Blur des Feldes würde die Liste vor dem Klick schließen (wie bei der Option).
+											// mousedown statt click: der Blur des Feldes (der die Liste schließt) feuert zuerst.
 											event.preventDefault();
+											choose(index);
 										}}
-										onClick={() => onSaveFavorite(option.suggestion)}
+										onClick={() => {
+											// Zweiter Pfad für reine Click-Events (Screenreader-/AssistTech-Aktivierung,
+											// jsdom-`fireEvent.click`): `choose` ist idempotent, ein Doppel-Feuern ist harmlos.
+											choose(index);
+										}}
 										style={{
-											minWidth: '44px', // Touch-Ziel (Regel 2)
-											minHeight: '44px',
-											border: 'none',
-											background: 'transparent',
-											color: 'var(--pp-ink-muted, #555)',
+											flex: 1,
+											minHeight: '44px', // Touch-Ziel (Regel 2)
+											padding: '12px',
 											cursor: 'pointer',
-											fontSize: '1.25rem',
-											lineHeight: 1,
+											overflowWrap: 'anywhere', // lange display_name umbrechen, nicht abschneiden (Regel 3)
+											background: index === activeIndex ? 'var(--pp-surface-2, #f2f2f2)' : undefined,
+											fontWeight: index === activeIndex ? 700 : undefined,
 										}}
 									>
-										<span aria-hidden="true">☆</span>
-									</button>
-								)}
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-		</div>
+										{option.text}
+									</div>
+									{option.saveable && onSaveFavorite && (
+										/* KOLIBRI-FIRST-AUSNAHME wie die Liste selbst (s. Dateikopf): der Stern gehört in
+									   dieses eigene Listen-Markup; ein `KolButton` würde hier zusätzlich die
+									   Combobox-Semantik der Zeile mit einem Shadow-DOM-Host durchschneiden. */
+										<button
+											type="button"
+											aria-label={`Als Favorit speichern: ${option.text}`}
+											onMouseDown={(event) => {
+												// Der Blur des Feldes würde die Liste vor dem Klick schließen (wie bei der Option).
+												event.preventDefault();
+											}}
+											onClick={() => onSaveFavorite(option.suggestion)}
+											style={{
+												minWidth: '44px', // Touch-Ziel (Regel 2)
+												minHeight: '44px',
+												border: 'none',
+												background: 'transparent',
+												color: 'var(--pp-ink-muted, #555)',
+												cursor: 'pointer',
+												fontSize: '1.25rem',
+												lineHeight: 1,
+											}}
+										>
+											<span aria-hidden="true">☆</span>
+										</button>
+									)}
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
+			</div>
+		</>
 	);
 };

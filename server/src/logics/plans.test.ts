@@ -17,8 +17,11 @@ import {
  * Kontingente 0/60/110/200 für `ai_assist`.
  * AK9: `MONETIZATION_ENFORCED` steuert ausschließlich `shouldBlockFeature`; `getEntitlements`
  * bleibt in beiden Schalterstellungen identisch (wahrheitsgemäße Auswertung des Pakets).
- * AK10: `voice_input` ist reines Anzeige-Entitlement (kein Guard — hier indirekt über die
- * Entitlement-Map geprüft: für alle Pakete erlaubt, kein `requiredPlan`-Anspruch).
+ * AK10 (T1, überholt durch #1484 A1): `voice_input` war ursprünglich für alle Pakete an.
+ *
+ * #1484 (T3b) Autoren-Entscheidung A1/B1 vom 2026-09-14 ändert den Katalog:
+ * AK1: `voice_input` erfordert mindestens Pro (Free: allowed=false, requiredPlan='pro').
+ * AK2: `mcp_readwrite` erfordert Ultimate (Max: allowed=false, requiredPlan='ultimate').
  *
  * Rot, bis `server/src/logics/plans.ts` existiert (heute: Modul fehlt komplett). KEIN Produktivcode.
  */
@@ -53,7 +56,22 @@ describe('plans.ts — Entitlement-Auswertung je Paket (#1456 AK2)', () => {
 		assert.equal(map.graph_write.allowed, false, 'Free ohne graph_write');
 		assert.equal(map.location_reminders.allowed, false, 'Free ohne location_reminders');
 		assert.equal(map.mcp_readwrite.allowed, false, 'Free ohne mcp_readwrite');
-		assert.equal(map.voice_input.allowed, true, 'voice_input ist für alle Pakete an');
+	});
+
+	// #1484 AK1: voice_input erfordert seit der Autoren-Entscheidung A1 mindestens Pro.
+	it('voice_input erfordert mindestens Pro (#1484 AK1)', () => {
+		assert.equal(getEntitlements('free').voice_input.allowed, false, 'Free ohne voice_input');
+		assert.equal(getEntitlements('free').voice_input.requiredPlan, 'pro', 'Free: requiredPlan pro');
+		assert.equal(getEntitlements('pro').voice_input.allowed, true, 'Pro mit voice_input');
+		assert.equal(getEntitlements('max').voice_input.allowed, true, 'Max mit voice_input');
+		assert.equal(getEntitlements('ultimate').voice_input.allowed, true, 'Ultimate mit voice_input');
+	});
+
+	// #1484 AK2: mcp_readwrite erfordert seit der Autoren-Entscheidung B1 Ultimate (nicht mehr Max).
+	it('mcp_readwrite erfordert Ultimate, Max reicht nicht mehr (#1484 AK2)', () => {
+		assert.equal(getEntitlements('max').mcp_readwrite.allowed, false, 'Max ohne mcp_readwrite');
+		assert.equal(getEntitlements('max').mcp_readwrite.requiredPlan, 'ultimate', 'Max: requiredPlan ultimate');
+		assert.equal(getEntitlements('ultimate').mcp_readwrite.allowed, true, 'Ultimate mit mcp_readwrite');
 	});
 
 	it('Pro hat groups, aber nicht graph_write/location_reminders/mcp_readwrite', () => {
@@ -64,12 +82,13 @@ describe('plans.ts — Entitlement-Auswertung je Paket (#1456 AK2)', () => {
 		assert.equal(map.mcp_readwrite.allowed, false, 'Pro ohne mcp_readwrite');
 	});
 
-	it('Max hat location_reminders und mcp_readwrite (lesend+schreibend) sowie graph_write', () => {
+	// #1484 B1: die alte Erwartung "Max mit mcp_readwrite" widerspricht AK2 (Max→Ultimate) und
+	// entfällt hier; die neue Erwartung steht im eigenen Test weiter unten (AK2).
+	it('Max hat location_reminders und graph_write', () => {
 		const map = getEntitlements('max');
 		assert.equal(map.groups.allowed, true, 'Max mit groups');
 		assert.equal(map.graph_write.allowed, true, 'Max mit graph_write');
 		assert.equal(map.location_reminders.allowed, true, 'Max mit location_reminders');
-		assert.equal(map.mcp_readwrite.allowed, true, 'Max mit mcp_readwrite');
 	});
 
 	it('Ultimate hat vollen Zugriff auf alle sechs Features', () => {

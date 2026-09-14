@@ -1,6 +1,9 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiTokensSection } from './ApiTokensSection';
+import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 
 /**
  * Rote Spec-Tests für #1356 AK8 (Spec docs/spec/issue-1356.md) — Rechte-Umschalter je Token.
@@ -240,5 +243,64 @@ describe('ApiTokensSection – #1417 AK8: Hinweisblock nennt auch den api-key-He
 		expect(hint, 'Hinweisblock muss gerendert sein').not.toBeNull();
 		expect(hint?.textContent).toContain('Authorization: Bearer <Token>');
 		expect(hint?.textContent).toContain('api-key: <Token>');
+	});
+});
+
+// ── #1484 (T3b AK3/AK4/AK5): Paket-Badge an der ScopeToggle-Zeile ──────────────────────────────
+
+/**
+ * AK3/AK4: `ApiTokensSection` rendert `<PlanBadge feature="mcp_readwrite" />` an der
+ * `ScopeToggle`-Zeile (`ApiTokensSection.tsx:73-80`,`:300-305`); Badge-Ausgabe kippt ausschließlich
+ * mit der gemockten Entitlement-Map. AK5: der (i)-Schalter feuert genau ein
+ * `pp:plan-required`-Event. Heute kein Badge — rot, bis `PlanBadge` eingebunden ist
+ * (docs/spec/issue-1484.md AK3/AK4/AK5).
+ */
+describe('ApiTokensSection — Paket-Badge an der ScopeToggle-Zeile (#1484 AK3/AK4/AK5)', () => {
+	const renderWithEntitlement = async (allowed: boolean) => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
+		const entitlements: EntitlementMap = {
+			mcp_readwrite: { allowed, requiredPlan: 'ultimate' } as EntitlementMap['mcp_readwrite'],
+		};
+		const result = render(
+			<PlanProvider value={{ plan: allowed ? 'ultimate' : 'max', entitlements }}>
+				<ApiTokensSection />
+			</PlanProvider>,
+		);
+		await act(async () => {
+			await Promise.resolve();
+		});
+		return result;
+	};
+
+	it('allowed=true (Ultimate) → Haken-Badge ohne (i)-Schalter', async () => {
+		const { container } = await renderWithEntitlement(true);
+
+		expect(container.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).not.toBeNull();
+		expect(container.querySelector('[data-testid="plan-badge-info-mcp_readwrite"]')).toBeNull();
+	});
+
+	it('allowed=false (Max) → Paket-Badge mit (i)-Schalter, keine eigene Paketlogik im Bauteil', async () => {
+		const { container } = await renderWithEntitlement(false);
+
+		expect(container.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).not.toBeNull();
+		expect(container.querySelector('[data-testid="plan-badge-info-mcp_readwrite"]')).not.toBeNull();
+	});
+
+	it('der (i)-Schalter feuert genau ein pp:plan-required-Event mit feature=mcp_readwrite', async () => {
+		const { container } = await renderWithEntitlement(false);
+		const handler = vi.fn();
+		window.addEventListener(PLAN_REQUIRED_EVENT, handler);
+
+		const info = container.querySelector('[data-testid="plan-badge-info-mcp_readwrite"]');
+		expect(info, '(i)-Schalter des mcp_readwrite-Badges fehlt').not.toBeNull();
+		await act(async () => {
+			(info as HTMLElement).dispatchEvent(new Event('click', { bubbles: true }));
+		});
+
+		expect(handler).toHaveBeenCalledTimes(1);
+		const event = handler.mock.calls[0][0] as CustomEvent<{ feature: string; requiredPlan: string }>;
+		expect(event.detail.feature).toBe('mcp_readwrite');
+		expect(event.detail.requiredPlan).toBe('ultimate');
+		window.removeEventListener(PLAN_REQUIRED_EVENT, handler);
 	});
 });

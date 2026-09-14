@@ -57,6 +57,8 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
+	// #1484: `PlanBadge` (T3a, unverändert) nutzt KolBadge zusätzlich zu KolButton (bereits oben).
+	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
 }));
 
 const apiMocks: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -70,6 +72,8 @@ vi.mock('../api', () => ({
 }));
 
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 
 const FAVORITE = {
 	id: 1,
@@ -153,5 +157,29 @@ describe('PlaceFavoritesSection (#1342 AK3)', () => {
 
 		expect(apiMocks.deletePlaceFavorite).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
 		expect(screen.queryByTestId('place-favorite-row')).toBeNull();
+	});
+});
+
+// ── #1484 (T3b AK3): Paket-Badge auf der Karte „Gespeicherte Orte" ─────────────────────────────
+
+/**
+ * AK3: `PlaceFavoritesSection` rendert `<PlanBadge feature="location_reminders" />` auf der Karte
+ * „Gespeicherte Orte" (`PlaceFavoritesSection.tsx:113`). Heute kein Badge — rot, bis `PlanBadge`
+ * eingebunden ist (docs/spec/issue-1484.md AK3).
+ */
+describe('PlaceFavoritesSection — Paket-Badge auf der Karte (#1484 AK3)', () => {
+	it('zeigt das location_reminders-Badge auf der Karte', async () => {
+		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([]);
+		const entitlements: EntitlementMap = {
+			location_reminders: { allowed: false, requiredPlan: 'max' } as EntitlementMap['location_reminders'],
+		};
+		render(
+			<PlanProvider value={{ plan: 'free', entitlements }}>
+				<PlaceFavoritesSection />
+			</PlanProvider>,
+		);
+		await flush();
+
+		expect(screen.getByTestId('plan-badge-location_reminders')).toBeInTheDocument();
 	});
 });

@@ -3,9 +3,11 @@ import type { Group } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useClosingOnPlanRequired } from '../lib/useClosingOnPlanRequired';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
 import { Modal } from './Modal';
+import { PlanBadge } from './PlanBadge';
 
 /** #1211: Gruppenname ist Pflicht und auf 60 Zeichen begrenzt (Server-Validierung, AK4). */
 const GROUP_NAME_MAX_LENGTH = 60;
@@ -100,8 +102,14 @@ export const GroupFormDialog = ({ group, onClose, onSaved }: GroupFormDialogProp
 	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA aus — nur wenn kein Request läuft.
 	useCtrlEnter(() => void submit(), !saving);
 
+	// #1458 Entscheidung 7.1 / #1484 AK7: Kein Modal-in-Modal — dieses Modal weicht dem globalen
+	// Angebots-Dialog (`DependencyModal.tsx:124`-Muster).
+	useClosingOnPlanRequired(onClose);
+
 	return (
 		<Modal title={isEdit ? 'Gruppe bearbeiten' : 'Gruppe anlegen'} onClose={onClose}>
+			{/* #1484 (T3b AK3): Grenzstelle `groups` — Badge als erstes Element unter dem Modal-Titel. */}
+			<PlanBadge feature="groups" />
 			{error !== null && (
 				<KolAlert _type="error" _label={isEdit ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'}>
 					{error}

@@ -249,6 +249,8 @@ vi.mock('./ConfirmSeriesActionModal', () => ({
 
 import { api } from '../api';
 import { TaskForm, type TaskFormInitialValues } from './TaskForm';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 
 const mockSuggestPillars = api.suggestPillars as ReturnType<typeof vi.fn>;
 const mockCreateTask = api.createTask as ReturnType<typeof vi.fn>;
@@ -2550,5 +2552,32 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 				longitude: 11.56,
 			}),
 		);
+	});
+});
+
+// ── #1484 (T3b AK3): Paket-Badge an Lektorat und „Säulen vorschlagen" ──────────────────────────
+
+/**
+ * AK3: `TaskForm` rendert `<PlanBadge feature="ai_assist" />` sowohl bei den Lektorat-Buttons
+ * (Titel/Beschreibung, `TaskForm.tsx:1039-1054`) als auch bei „Säulen vorschlagen"
+ * (`TaskForm.tsx:1461`). Heute kein Badge an beiden Stellen — rot, bis `PlanBadge` eingebunden ist
+ * (docs/spec/issue-1484.md AK3).
+ */
+describe('TaskForm — Paket-Badge bei Lektorat und Säulen-Vorschlag (#1484 AK3)', () => {
+	const renderWithEntitlement = (allowed: boolean) => {
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		return render(
+			<PlanProvider value={{ plan: allowed ? 'pro' : 'free', entitlements }}>
+				<TaskForm {...defaultProps} task={null} />
+			</PlanProvider>,
+		);
+	};
+
+	it('zeigt mindestens ein ai_assist-Badge im Formular (Lektorat und/oder Säulen-Vorschlag)', () => {
+		renderWithEntitlement(false);
+
+		expect(screen.getAllByTestId('plan-badge-ai_assist').length).toBeGreaterThan(0);
 	});
 });

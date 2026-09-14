@@ -1,5 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { PLAN_REQUIRED_EVENT, type PlanRequiredDetail } from '../lib/apiError';
+import { useEntitlement, usePlan } from '../lib/usePlan';
 import { useVoiceInput } from '../lib/useVoiceInput';
+import { PlanBadge } from './PlanBadge';
 
 interface VoiceFieldProps {
 	/** Positionierungs-Variante: `textarea` → Mic-Button unten rechts, `input` → rechts vertikal mittig. */
@@ -53,6 +56,25 @@ export const VoiceField = ({
 }: VoiceFieldProps) => {
 	const { isRecording, startRecording, stopRecording, isSupported, voiceError } = useVoiceInput({ onTranscript });
 
+	// #1484 (T3b AK6): Die Spracheingabe ist die EINZIGE Grenzstelle, die clientseitig sperrt — sie
+	// läuft rein lokal im Browser, es gibt keinen Server-Endpunkt, der ablehnen könnte. Ohne
+	// geladenes Entitlement (`undefined`) wird NICHT gesperrt: unbekannt ist kein „nein" (PlanBadge
+	// AK1, gleiche Regel).
+	const { plan } = usePlan();
+	const entitlement = useEntitlement('voice_input');
+	const blocked = entitlement !== undefined && !entitlement.allowed;
+	const openOffer = (): void => {
+		if (entitlement === undefined) {
+			return;
+		}
+		const detail: PlanRequiredDetail = {
+			feature: 'voice_input',
+			requiredPlan: entitlement.requiredPlan,
+			currentPlan: plan ?? 'free',
+		};
+		window.dispatchEvent(new CustomEvent<PlanRequiredDetail>(PLAN_REQUIRED_EVENT, { detail }));
+	};
+
 	// Auto-Start (#272): beim Mount die Aufnahme starten, sofern unterstützt. Der Cleanup setzt das
 	// Ein-Schuss-Flag zurück, damit der StrictMode-Zyklus (setup → cleanup → setup) im Dev-Build die
 	// zwischenzeitlich abgebrochene Aufnahme im zweiten Setup erneut startet. Ohne
@@ -60,14 +82,14 @@ export const VoiceField = ({
 	const autoStarted = useRef(false);
 	const hintId = useId();
 	useEffect(() => {
-		if (autoStart && isSupported && !autoStarted.current) {
+		if (autoStart && isSupported && !blocked && !autoStarted.current) {
 			autoStarted.current = true;
 			startRecording({ auto: true });
 		}
 		return () => {
 			autoStarted.current = false;
 		};
-	}, [autoStart, isSupported, startRecording]);
+	}, [autoStart, isSupported, blocked, startRecording]);
 
 	return (
 		<>
@@ -89,7 +111,9 @@ export const VoiceField = ({
 						aria-pressed={isRecording}
 						className={`mic-button${isRecording ? ' mic-button--recording' : ''}`}
 						onClick={() => {
-							if (isRecording) stopRecording();
+							// AK6: Ohne Entitlement startet keine Aufnahme — stattdessen öffnet das Angebot.
+							if (blocked) openOffer();
+							else if (isRecording) stopRecording();
 							else startRecording();
 						}}
 					>
@@ -97,6 +121,10 @@ export const VoiceField = ({
 					</button>
 				)}
 			</div>
+			{/* #1484 (T3b AK3): Grenzstelle `voice_input`. Das Badge liegt als Geschwister AUSSERHALB
+			    des `.voice-field`-Wrappers (wie der Hinweistext): der Wrapper ist der
+			    Positionierungs-Kontext des Mic-Buttons, ein Kind würde ihn aus der Feldbox drängen. */}
+			<PlanBadge feature="voice_input" />
 			{hint !== undefined && hint !== '' && (
 				<p id={hintId} role="note" className="voice-field-hint">
 					{hint}

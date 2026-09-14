@@ -5,6 +5,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
 import { CopyButton } from './CopyButton';
+import { PlanBadge } from './PlanBadge';
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (KI-UX #1211). */
 const roleLabel = (role: GroupMember['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
@@ -230,6 +231,8 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 					{/* Kein eigener Detailkopf mehr (#1257): Avatar und Name stehen bereits im
 					    Kartenkopf direkt darüber — die Duplizierung verdrängte die Mitglieder
 					    unnötig nach unten. */}
+					{/* #1484 (T3b AK3): Grenzstelle `groups` — das Badge beschriftet nur, gesperrt wird nichts. */}
+					<PlanBadge feature="groups" />
 					<KolHeading _label="Mitglieder" _level={4} />
 					<ul className="group-members">
 						{members.map((member) => (
