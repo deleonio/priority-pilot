@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.50._
+_Enthält v0.2.0 – v0.2.51._
 
 ### 🔧 Engineering
 
@@ -63,6 +63,7 @@ _Enthält v0.2.0 – v0.2.50._
 - chore(deps): update renovatebot/github-action action to v46.3.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1477
 - fix(server): log API-Token-Prüfung Fehler statt sie zu verschlucken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1480
 - docs: deduplicate a11y guidance and refresh spec naming convention by @deleonio in https://github.com/deleonio/priority-pilot/pull/1483
+- feat(server): enforce dependency weight range 0.1-1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1482
 
 ## v0.1 - 2026-09-12
 
@@ -683,7 +684,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update dependency undici@6 to v8 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1191
 - feat(frontend): fix clipped focus outline in task popover (#1186) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1189
 - feat(frontend): master switch for animations (confetti default off) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1188
-- feat(frontend): master switch for animations (confetti default off) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1188
+- fix(deps): update dependency redis to v6.2.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1172
 - fix(deps): update dependency redis to v6.2.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1172
 - feat(frontend): surface OS reduced-motion state in app settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1195
 - feat(ci): add turn-primary measurement report "Turn-Übersicht" (#1197) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1200
