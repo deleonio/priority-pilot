@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { Task, TaskTreeNode } from 'client';
+import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { forwardRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -155,46 +155,53 @@ describe('TaskTree — Erledigt-Guard für eingeblendete Oberaufgaben (#1345, Ta
 	});
 });
 
-// ── #1430 (AK1/AK2): Hinweis-Badge für Tasks mit nicht-leerem `description` ─────────────────
+// ── #1465: Säulen-Badge statt des beschreibungs-getriebenen „Hinweis"-Badges (#1430) ────────
 
 /**
- * #1430 (AK1/AK2, docs/spec/issue-1430.md): Ein Task mit nicht-leerem `description` (nach
- * `trim()`) zeigt in der Badge-Zeile zusätzlich ein Text-Badge „Hinweis" (KolBadge, WCAG 1.4.1 —
- * nie nur Farbe). `null`, `''` und reiner Whitespace zählen als „kein Hinweis"; die übrigen
- * Badges (hier: Priorität) bleiben unverändert vorhanden. Rot, bis `TaskTree.tsx` das Badge
- * rendert. KEIN Produktivcode.
+ * #1465: Zahlt eine Aufgabe auf keine Säule ein (`pillars: []`), trägt ihre Zeile das Icon-Badge
+ * „Keine Säulen-Gewichtung gesetzt" — sonst nicht. Die Beschreibung spielt keine Rolle mehr, das
+ * „Hinweis"-Badge aus #1430 ist ersatzlos entfallen. Ohne angelegte Säulen bleibt das Badge aus,
+ * sonst trüge es jede Zeile. Die übrigen Badges (hier: Priorität) bleiben unverändert.
  */
-describe('TaskTree — Hinweis-Badge für Tasks mit description (#1430 AK1/AK2)', () => {
-	it('AK1: Task mit description zeigt das Badge „Hinweis"', () => {
-		const leaf = node(1, 'Aufgabe mit Hinweis');
+const pillar: Pillar = { id: 7, name: 'Körper', description: '', weight: 100 };
+
+describe('TaskTree — Säulen-Badge für Aufgaben ohne Säulen-Gewichtung (#1465)', () => {
+	it('Aufgabe ohne Säulen-Beitrag zeigt das Badge, Prioritäts-Badge bleibt', () => {
+		const leaf = node(1, 'Aufgabe ohne Säule');
 		render(
 			<TaskTree
 				{...baseProps}
 				forest={[leaf]}
 				fullForest={[leaf]}
-				tasks={[{ ...task(1, 'Aufgabe mit Hinweis'), description: 'Bitte Schlüssel mitnehmen' }]}
+				pillars={[pillar]}
+				tasks={[{ ...task(1, 'Aufgabe ohne Säule'), description: 'Bitte Schlüssel mitnehmen' }]}
 			/>,
 		);
 
-		expect(screen.getByText('Hinweis')).toBeInTheDocument();
+		expect(screen.getByTestId('pillar-missing-badge')).toBeInTheDocument();
+		expect(screen.getByText('P3')).toBeInTheDocument();
+		expect(screen.queryByText('Hinweis')).toBeNull();
 	});
 
-	it.each([
-		['null', null],
-		['leerer String', ''],
-		['nur Whitespace', '   '],
-	])('AK2: Task mit description=%s zeigt KEIN Badge „Hinweis", Prioritäts-Badge bleibt', (_label, description) => {
-		const leaf = node(1, 'Aufgabe ohne Hinweis');
+	it('Aufgabe mit Säulen-Beitrag zeigt kein Badge', () => {
+		const leaf = node(1, 'Aufgabe mit Säule');
 		render(
 			<TaskTree
 				{...baseProps}
 				forest={[leaf]}
 				fullForest={[leaf]}
-				tasks={[{ ...task(1, 'Aufgabe ohne Hinweis'), description }]}
+				pillars={[pillar]}
+				tasks={[{ ...task(1, 'Aufgabe mit Säule'), pillars: [{ pillarId: pillar.id, share: 100, confidence: 100 }] }]}
 			/>,
 		);
 
-		expect(screen.queryByText('Hinweis')).toBeNull();
-		expect(screen.getByText('P3')).toBeInTheDocument();
+		expect(screen.queryByTestId('pillar-missing-badge')).toBeNull();
+	});
+
+	it('ohne angelegte Säulen bleibt das Badge aus', () => {
+		const leaf = node(1, 'Aufgabe ohne Säule');
+		render(<TaskTree {...baseProps} forest={[leaf]} fullForest={[leaf]} tasks={[task(1, 'Aufgabe ohne Säule')]} />);
+
+		expect(screen.queryByTestId('pillar-missing-badge')).toBeNull();
 	});
 });

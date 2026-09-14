@@ -153,3 +153,25 @@ describe('toApiError — Session-Expired-Event (#1231, Spec issue-1231.md)', () 
 		expect(fired).toBe(0);
 	});
 });
+
+/**
+ * #1465: Die 502/503/504-Übersetzung aus #620 spricht vom „KI-Dienst" und passt nur für die
+ * LLM-Endpunkte. Nicht-LLM-Aufrufer (Feedback-Formular) schalten sie mit `{ llmMapping: false }`
+ * ab und bekommen die Server-`message` durchgereicht; ohne Option bleibt alles wie bisher.
+ */
+describe('toApiError — llmMapping abschaltbar (#1465)', () => {
+	it.each([502, 503] as const)('%i mit llmMapping:false → Server-Message statt KI-Meldung', async (status) => {
+		const message = 'Feedback ist aktuell nicht konfiguriert. Bitte später erneut versuchen.';
+
+		const result = await toApiError(responseError(status, { message }), { llmMapping: false });
+
+		expect(result.status).toBe(status);
+		expect(result.message).toBe(message);
+	});
+
+	it('503 ohne Option → KI-Meldung wie bisher (#620 unverändert)', async () => {
+		const result = await toApiError(responseError(503, { message: 'egal' }));
+
+		expect(result.message).toBe(KI_DIENT_TEXT);
+	});
+});

@@ -70,7 +70,7 @@ export const TaskGraphList = ({ nodes, edges, onEditDependencies }: TaskGraphLis
 				const enables = successors.get(node.id) ?? [];
 				return (
 					<li key={node.id} data-testid={`graph-list-item-${node.id}`}>
-						<KolCard _label={`#${node.id} – ${node.title}`} _level={4}>
+						<KolCard _label={node.title} _level={4}>
 							<div className="task-graph-list-badges">
 								<KolBadge _label={`Priorität ${node.priority}`} />
 								<KolBadge _label={STATUS_LABEL[node.status] ?? node.status} />
@@ -86,7 +86,7 @@ export const TaskGraphList = ({ nodes, edges, onEditDependencies }: TaskGraphLis
 								<ul>
 									{dependsOn.map((relation) => (
 										<li key={relation.id}>
-											#{relation.id} – {relation.title} (Gewicht {formatNumber(relation.weight)})
+											{relation.title} (Gewicht {formatNumber(relation.weight)})
 										</li>
 									))}
 								</ul>
@@ -98,7 +98,7 @@ export const TaskGraphList = ({ nodes, edges, onEditDependencies }: TaskGraphLis
 								<ul>
 									{enables.map((relation) => (
 										<li key={relation.id}>
-											#{relation.id} – {relation.title} (Gewicht {formatNumber(relation.weight)})
+											{relation.title} (Gewicht {formatNumber(relation.weight)})
 										</li>
 									))}
 								</ul>

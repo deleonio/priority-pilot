@@ -191,14 +191,10 @@ describe('SeriesTab — Für-Kennzeichen und fremde Serien (#1222 AK9)', () => {
 	});
 });
 
-// ── #1346 (AK3): Serien-Bearbeiten-Modal zeigt die ID im Titel ──────────────────────────────
+// ── #1465: Bearbeiten-Modal nennt die Serie beim Titel, ohne ID (löst #1346 AK3 ab) ─────────
 
-/**
- * Rot, solange `SeriesTab.tsx:238` den Modal-Titel ohne `(#<id>)` baut.
- * Spezifikation: `docs/spec/issue-1346.md`.
- */
-describe('SeriesTab — Bearbeiten-Modal-Titel zeigt die Serien-ID (#1346, AK3)', () => {
-	it('Klick auf „Bearbeiten" öffnet das Modal mit Titel „Serie bearbeiten: <title> (#<id>)"', async () => {
+describe('SeriesTab — Bearbeiten-Modal-Titel ohne Serien-ID (#1465)', () => {
+	it('Klick auf „Bearbeiten" öffnet das Modal mit Titel „Serie bearbeiten: <title>"', async () => {
 		const series = { ...makeSeries('weekly', 'Übergabe-Routine'), id: 99, forUserId: null, forUserName: null };
 		mockListSeries.mockResolvedValue([series]);
 
@@ -210,7 +206,7 @@ describe('SeriesTab — Bearbeiten-Modal-Titel zeigt die Serien-ID (#1346, AK3)'
 			fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }));
 		});
 
-		expect(screen.getByRole('heading', { name: 'Serie bearbeiten: Übergabe-Routine (#99)' })).toBeInTheDocument();
+		expect(screen.getByRole('heading', { name: 'Serie bearbeiten: Übergabe-Routine' })).toBeInTheDocument();
 	});
 });
 
@@ -246,29 +242,47 @@ describe('SeriesTab — Ruh-Hinweis für stillgelegte Serien (#1251 AK6)', () =>
 	});
 });
 
-// ── #1430 (AK3): Hinweis-Badge für Serien mit nicht-leerem `description` ────────────────────
+// ── #1465: Säulen-Badge statt des beschreibungs-getriebenen „Hinweis"-Badges (#1430) ────────
 
 /**
- * #1430 (AK3, docs/spec/issue-1430.md): Ein Serien-Eintrag mit nicht-leerem `description` zeigt
- * in `div.series-tree-badges` zusätzlich ein Text-Badge „Hinweis"; ein Eintrag ohne Hinweis
- * zeigt keines. Zeile über `data-testid="series-tree-item-<id>"` eingrenzen, da beide Einträge
- * im selben DOM stehen. Rot, bis `SeriesTab.tsx` das Badge rendert. KEIN Produktivcode.
+ * #1465: Eine Serie ohne Säulen-Beitrag (`pillars: []`) trägt das Icon-Badge „Keine
+ * Säulen-Gewichtung gesetzt"; eine Serie mit Beitrag trägt keines. Die Beschreibung spielt keine
+ * Rolle mehr — das „Hinweis"-Badge aus #1430 ist ersatzlos entfallen. Zeile über
+ * `data-testid="series-tree-item-<id>"` eingrenzen, da beide Einträge im selben DOM stehen.
  */
-describe('SeriesTab — Hinweis-Badge für Serien mit description (#1430 AK3)', () => {
-	it('Serie mit description zeigt „Hinweis", Serie ohne description zeigt es nicht', async () => {
-		const withHint = { ...makeSeries('weekly', 'Serie mit Hinweis'), id: 501, description: 'Wochenrhythmus beachten' };
-		const withoutHint = { ...makeSeries('weekly', 'Serie ohne Hinweis'), id: 502, description: null };
-		mockListSeries.mockResolvedValue([withHint, withoutHint]);
+describe('SeriesTab — Säulen-Badge für Serien ohne Säulen-Gewichtung (#1465)', () => {
+	it('Serie ohne Säulen zeigt das Badge, Serie mit Säulen nicht — unabhängig von der Beschreibung', async () => {
+		const withoutPillars = {
+			...makeSeries('weekly', 'Serie ohne Säulen'),
+			id: 501,
+			description: 'Wochenrhythmus beachten',
+			pillars: [],
+		};
+		const withPillars = {
+			...makeSeries('weekly', 'Serie mit Säulen'),
+			id: 502,
+			description: null,
+			pillars: [{ pillarId: pillarKoerper.id, share: 100, confidence: 100 }],
+		};
+		mockListSeries.mockResolvedValue([withoutPillars, withPillars]);
 
 		await act(async () => {
 			render(<SeriesTab pillars={[pillarKoerper]} />);
 		});
 
-		const rowWithHint = screen.getByTestId('series-tree-item-501');
-		const rowWithoutHint = screen.getByTestId('series-tree-item-502');
+		expect(within(screen.getByTestId('series-tree-item-501')).getByTestId('pillar-missing-badge')).toBeInTheDocument();
+		expect(within(screen.getByTestId('series-tree-item-502')).queryByTestId('pillar-missing-badge')).toBeNull();
+		expect(screen.queryByText('Hinweis')).toBeNull();
+	});
 
-		expect(within(rowWithHint).getByText('Hinweis')).toBeInTheDocument();
-		expect(within(rowWithoutHint).queryByText('Hinweis')).toBeNull();
+	it('ohne angelegte Säulen bleibt das Badge aus', async () => {
+		mockListSeries.mockResolvedValue([{ ...makeSeries('weekly', 'Serie ohne Säulen'), id: 503, pillars: [] }]);
+
+		await act(async () => {
+			render(<SeriesTab pillars={[]} />);
+		});
+
+		expect(screen.queryByTestId('pillar-missing-badge')).toBeNull();
 	});
 });
 

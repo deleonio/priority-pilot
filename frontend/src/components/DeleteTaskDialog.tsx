@@ -18,9 +18,8 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 		title="Task löschen"
 		body={
 			<p>
-				Soll der Task <strong>„{task.title}"</strong> (
-				<span style={{ color: 'var(--pp-ink-muted, #525b6a)' }}>#{task.id}</span>) wirklich gelöscht werden? Diese
-				Aktion kann nicht rückgängig gemacht werden.
+				Soll der Task <strong>„{task.title}"</strong> wirklich gelöscht werden? Diese Aktion kann nicht rückgängig
+				gemacht werden.
 			</p>
 		}
 		confirmLabel="Endgültig löschen"

@@ -162,19 +162,15 @@ describe('DeleteSeriesDialog — Kaskade-Auswahl Ja/Nein (#553)', () => {
 	});
 });
 
-// ── #1346 (AK6): Serien-ID als „#<id>" in muted Farbe (neu, bisher ohne ID) ──────────────────
+// ── #1465: keine Serien-ID mehr im Dialogtext (löst #1346 AK6 ab) ───────────────────────────
 
-/**
- * Rot, solange `DeleteSeriesDialog.tsx` keine ID nennt. Spezifikation: `docs/spec/issue-1346.md`.
- */
-describe('DeleteSeriesDialog — Serien-ID als „#<id>" in muted Farbe (#1346, AK6)', () => {
-	it('zeigt die Serien-ID als „#7" in --pp-ink-muted', async () => {
+describe('DeleteSeriesDialog — Serie wird beim Titel benannt, ohne ID (#1465)', () => {
+	it('nennt den Titel und zeigt keine „#7"', async () => {
 		await act(async () => {
 			render(<DeleteSeriesDialog series={sampleSeries()} onClose={vi.fn()} onDeleted={vi.fn()} />);
 		});
 
-		const idText = screen.getByText('#7');
-		expect(idText).toBeInTheDocument();
-		expect(idText).toHaveStyle({ color: 'var(--pp-ink-muted, #525b6a)' });
+		expect(screen.getByText(/Wöchentlicher Sport/)).toBeInTheDocument();
+		expect(screen.queryByText('#7')).toBeNull();
 	});
 });

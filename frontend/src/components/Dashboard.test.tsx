@@ -585,3 +585,73 @@ describe('Dashboard — „Bearbeiten"-Button im Signal-Panel (Issue #1447, docs
 		expect(editButton, 'Bearbeiten-Button darf ohne onEditTask-Prop nicht existieren').toBeUndefined();
 	});
 });
+
+/**
+ * #1465 (A): Die interne Task-ID verschwindet auch aus den übrigen Dashboard-Widgets — #1448 hatte
+ * sie nur aus „Nächste Aufgabe" und „Was ist jetzt dran?" entfernt. Priorität, Wert und Datum
+ * bleiben sichtbar.
+ */
+describe('Dashboard — kein Task-ID-Präfix in „Wichtigste Tasks" / „Anstehende Deadlines" (#1465)', () => {
+	it('„Wichtigste Tasks" zeigt nur den Titel, keine #<ID>', () => {
+		// Das Widget speist sich aus dem Wald (`forest`), nicht aus `tasks`.
+		const top: TaskTreeNode = {
+			id: 307,
+			title: 'Kur-Tochter',
+			priority: 5,
+			estimatedEffort: 1,
+			totalEstimatedEffort: 1,
+			value: 5,
+			status: 'Open',
+			dependents: [],
+		};
+
+		const { container } = render(<Dashboard tasks={[]} forest={[top]} nextTask={null} pillars={[]} />);
+
+		const title = container.querySelector('.dashboard-top-task-title');
+		expect(title?.textContent).toBe('Kur-Tochter');
+		const meta = container.querySelector('.dashboard-top-task-meta');
+		expect(meta?.textContent).toContain('Priorität');
+	});
+
+	it('„Anstehende Deadlines" zeigt nur den Titel, keine #<ID>', () => {
+		const withDeadline = task(380, [], 2, TaskStatus.Open);
+		withDeadline.title = 'Handy-Anbieter für Amira finden';
+		withDeadline.deadline = new Date('2026-07-14T00:00:00.000Z');
+
+		const { container } = render(
+			<Dashboard tasks={[withDeadline]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+		);
+
+		const title = container.querySelector('.dashboard-deadline-title');
+		expect(title?.textContent).toBe('Handy-Anbieter für Amira finden');
+		expect(container.querySelector('.dashboard-deadline-date')?.textContent).toMatch(/\d{2}\.\d{2}\.\d{4}/);
+	});
+});
+
+/**
+ * #1465 (B): „Erledigen" und der Bearbeiten-Stift liegen in EINER Aktionszeile
+ * (`.dashboard-next-task-actions`) statt untereinander — „Erledigen" bleibt der erste Knoten im
+ * DOM, damit Tab-Reihenfolge und Signal-Priorität unverändert bleiben (#1447).
+ */
+describe('Dashboard — „Erledigen" und „Bearbeiten" in einer Aktionszeile (#1465)', () => {
+	it('beide Buttons sind Kinder derselben Zeile, „Erledigen" zuerst', () => {
+		const nextTask = task(42, [], 2, TaskStatus.Open);
+
+		const { container } = render(
+			<Dashboard
+				tasks={[nextTask]}
+				forest={[] as TaskTreeNode[]}
+				nextTask={nextTask}
+				pillars={[]}
+				onCompleteTask={() => undefined}
+				onEditTask={() => undefined}
+			/>,
+		);
+
+		const actions = container.querySelector('.dashboard-next-task-actions');
+		expect(actions, '.dashboard-next-task-actions fehlt').not.toBeNull();
+
+		const labels = [...(actions?.children ?? [])].map((child) => child.getAttribute('_label'));
+		expect(labels).toEqual(['Erledigen', 'Bearbeiten']);
+	});
+});

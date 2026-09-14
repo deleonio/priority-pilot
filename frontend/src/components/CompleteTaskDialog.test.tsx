@@ -60,15 +60,14 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
-describe('CompleteTaskDialog — Task-ID als „#<id>" in muted Farbe (#1346, AK5)', () => {
-	it('zeigt die ID als „#42" in --pp-ink-muted, nicht mehr „ID 42"', async () => {
+// #1465 löst #1346 AK5 ab: Der Dialog benennt die Aufgabe beim Titel, die interne ID entfällt.
+describe('CompleteTaskDialog — Aufgabe wird beim Titel benannt, ohne ID (#1465)', () => {
+	it('nennt den Titel und zeigt keine „#42"', async () => {
 		await act(async () => {
 			render(<CompleteTaskDialog task={sampleTask()} onConfirm={vi.fn()} onClose={vi.fn()} onCompleted={vi.fn()} />);
 		});
 
-		const idText = screen.getByText('#42');
-		expect(idText).toBeInTheDocument();
-		expect(idText).toHaveStyle({ color: 'var(--pp-ink-muted, #525b6a)' });
-		expect(screen.queryByText(/ID 42/)).toBeNull();
+		expect(screen.getByText(/Kundenbericht fertigstellen/)).toBeInTheDocument();
+		expect(screen.queryByText(/#42/)).toBeNull();
 	});
 });

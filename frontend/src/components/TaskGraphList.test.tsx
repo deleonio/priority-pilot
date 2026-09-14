@@ -60,11 +60,11 @@ describe('TaskGraphList', () => {
 		);
 		// Alpha ermöglicht Beta …
 		const alpha = within(screen.getByTestId('graph-list-item-1'));
-		expect(alpha.getByText(/#2 – Beta \(Gewicht 0,5\)/)).toBeTruthy();
+		expect(alpha.getByText('Beta (Gewicht 0,5)')).toBeTruthy();
 		expect(alpha.getByText(/Keine Unteraufgaben/)).toBeTruthy();
 		// … und Beta hängt von Alpha ab.
 		const beta = within(screen.getByTestId('graph-list-item-2'));
-		expect(beta.getByText(/#1 – Alpha \(Gewicht 0,5\)/)).toBeTruthy();
+		expect(beta.getByText('Alpha (Gewicht 0,5)')).toBeTruthy();
 		expect(beta.getByText(/Keine übergeordnete Aufgabe/)).toBeTruthy();
 	});
 

@@ -57,7 +57,6 @@ export const TaskGraphNodeCard = ({ data }: NodeProps<TaskGraphFlowNode>) => {
 			    Nicht verbindbar — Kanten entstehen ausschließlich über den Abhängigkeits-Dialog. */}
 			<Handle type="target" position={Position.Top} isConnectable={false} />
 			<div className="task-graph-node__head">
-				<span className="task-graph-node__id">#{node.id}</span>
 				<span className="task-graph-node__priority">P{node.priority}</span>
 			</div>
 			<p className="task-graph-node__title">{node.title}</p>

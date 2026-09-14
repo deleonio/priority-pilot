@@ -232,29 +232,31 @@ export const Dashboard = ({
 							<div className="dashboard-next-task-content">
 								<span className="dashboard-next-task-title">{nextTask.title}</span>
 								<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
-								{onCompleteTask !== undefined && (
-									<KolButton
-										_label="Erledigen"
-										_variant="primary"
-										_icons={{ left: { icon: 'fa-solid fa-check' } }}
-										_on={{ onClick: () => onCompleteTask(nextTask) }}
-									/>
-								)}
-								{/* #1447: Bearbeiten NACH „Erledigen" im DOM — die Signalfarbe bleibt der
-								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der
-								    Präzedenzfall in `TaskTree.tsx:212-223`. Der Wrapper hält die
-								    sekundäre Aktion inhaltsbreit (statt gestreckt wie „Erledigen")
-								    und damit aus dem Breiten-Vertrag von `#1042`
-								    (`.dashboard-next-task-content > kol-button`) heraus. */}
-								{onEditTask !== undefined && (
+								{/* #1465: Beide Aktionen liegen in EINER Zeile (`.dashboard-next-task-actions`) —
+								    „Erledigen" nimmt die Restbreite, der Stift bleibt inhaltsbreit daneben.
+								    #1447: Bearbeiten steht NACH „Erledigen" im DOM, die Signalfarbe bleibt der
+								    Hauptaussage vorbehalten (ux-design.md §1), Icon-only wie der Präzedenzfall
+								    in `TaskTree.tsx:212-223`. Der Breiten-Vertrag aus #1042 gilt jetzt für die
+								    Zeile: sie füllt mobil die Innenbreite, ab Tablet ist sie inhaltsbreit. */}
+								{(onCompleteTask !== undefined || onEditTask !== undefined) && (
 									<div className="dashboard-next-task-actions">
-										<KolButton
-											_label="Bearbeiten"
-											_hideLabel
-											_variant="secondary"
-											_icons={{ left: { icon: 'fa-solid fa-pen' } }}
-											_on={{ onClick: () => onEditTask(nextTask) }}
-										/>
+										{onCompleteTask !== undefined && (
+											<KolButton
+												_label="Erledigen"
+												_variant="primary"
+												_icons={{ left: { icon: 'fa-solid fa-check' } }}
+												_on={{ onClick: () => onCompleteTask(nextTask) }}
+											/>
+										)}
+										{onEditTask !== undefined && (
+											<KolButton
+												_label="Bearbeiten"
+												_hideLabel
+												_variant="secondary"
+												_icons={{ left: { icon: 'fa-solid fa-pen' } }}
+												_on={{ onClick: () => onEditTask(nextTask) }}
+											/>
+										)}
 									</div>
 								)}
 							</div>
@@ -303,9 +305,7 @@ export const Dashboard = ({
 					<ol className="dashboard-top-tasks-list">
 						{topTasks.map((task) => (
 							<li key={task.id} className="dashboard-top-task">
-								<span className="dashboard-top-task-title">
-									#{task.id} – {task.title}
-								</span>
+								<span className="dashboard-top-task-title">{task.title}</span>
 								<span className="dashboard-top-task-meta">
 									(Priorität {task.priority}, Wert {formatNumber(task.value)})
 								</span>
@@ -432,9 +432,7 @@ export const Dashboard = ({
 							const urgency = deadlineUrgency(task.deadline, now);
 							return (
 								<li key={task.id} className="dashboard-deadline">
-									<span className="dashboard-deadline-title">
-										#{task.id} – {task.title}
-									</span>
+									<span className="dashboard-deadline-title">{task.title}</span>
 									<span className="dashboard-deadline-aside">
 										{urgency !== 'later' && (
 											<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
