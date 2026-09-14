@@ -669,6 +669,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update dependency @tootallnate/once to v3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1176
 - chore(deps): update dependency brace-expansion@2 to v5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1178
 - feat(frontend): add confetti success feedback on task completion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1177
+- feat(frontend): add confetti success feedback on task completion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1177
 - chore(deps): update dependency picomatch@2 to v4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1180
 - feat(frontend): confetti when completing via dashboard signal panel (#1182) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1185
 - chore(deps): update dependency undici@6 to v8 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1191
