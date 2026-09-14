@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.46._
+_Enthält v0.2.0 – v0.2.47._
 
 ### 🔧 Engineering
 
@@ -59,6 +59,7 @@ _Enthält v0.2.0 – v0.2.46._
 - fix(ci): scope guard opens .github/scripts, quality goals as yardstick by @deleonio in https://github.com/deleonio/priority-pilot/pull/1469
 - feat(server): optional cc for status mail, new imprint contact by @deleonio in https://github.com/deleonio/priority-pilot/pull/1473
 - refactor(server): ownerScope in logics statt express verlagern by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1470
+- feat(frontend): hide task ids, add pillar badge, show feedback reason by @deleonio in https://github.com/deleonio/priority-pilot/pull/1472
 
 ## v0.1 - 2026-09-12
 
@@ -677,7 +678,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update dependency picomatch@2 to v4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1180
 - feat(frontend): confetti when completing via dashboard signal panel (#1182) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1185
 - chore(deps): update dependency undici@6 to v8 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1191
-- chore(deps): update dependency undici@6 to v8 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1191
 - feat(frontend): fix clipped focus outline in task popover (#1186) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1189
 - feat(frontend): master switch for animations (confetti default off) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1188
 - fix(deps): update dependency redis to v6.2.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1172
@@ -745,6 +745,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): add admin/member role system with user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1300
 - feat(frontend): split pillars settings tab into management and weighting by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1306
 - refactor(admin): apply review nits from PR #1300 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1307
+- docs: document google login allowlist and first-login account creation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1308
 - docs: document google login allowlist and first-login account creation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1308
 - feat(frontend): compact header bar and pillar metrics as value pairs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1303
 - feat(frontend): restore balance prioritization switch with live sorting by @deleonio in https://github.com/deleonio/priority-pilot/pull/1311
