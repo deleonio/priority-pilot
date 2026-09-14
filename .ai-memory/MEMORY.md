@@ -210,3 +210,9 @@ Konflikte, die er verhindern soll.
   `toBeVisible()` + `toContainText(/…/i)` (Muster `frontend/e2e/bahn.spec.ts:176`).
 - 2026-09-14 · SMTP/Hetzner — Prod-Versand still (ETIMEDOUT): Hetzner blockt ausgehend 25+465, nur 587 frei → SMTP_PORT=587 + SMTP_SECURE=false (STARTTLS, .env.example-Default) Host+lokal, pm2 reload; Direkttest vom Host verifiziert 250 OK. Warnungen landen in pm2-ERROR-Log (console.warn=stderr), nicht out-Log.
 - 2026-09-14 · E2E/Playwright — `locator.boundingBox()` nur in CI `null`, obwohl `toBeVisible()` direkt davor grün war: die Methode misst EINMALIG und wartet nicht nach, ein React-Re-Render im Messmoment liefert `null` (lokal nie getroffen, langsamer Runner schon) → Box in einer kurzen Schleife (z. B. 30 × 100 ms) nachmessen statt einmal greifen; die Assertion selbst unverändert lassen. Gleiches Muster bereits in `frontend/e2e/helpers.ts:25-32` für `kol-tabs` dokumentiert.
+- 2026-09-14 · Server/Sequelize+SQLite — Ein atomarer Zähler über `Model.findOrCreate()` riss bei 10
+  gleichzeitigen Requests 9 × HTTP 500 („Rolling back transaction … cannot rollback - no transaction
+  is active"): `findOrCreate` eröffnet intern eine Transaktion, und bei `pool.max = 1` (In-Memory-
+  SQLite im Testbetrieb) überlagern sich die parallelen Transaktionen auf derselben Verbindung. →
+  Zeile ohne Transaktion sicherstellen: erst das bedingte `UPDATE`, nur bei 0 betroffenen Zeilen ein
+  `create()` und EIN Retry; `UniqueConstraintError` der Wettlauf-Verlierer abfangen statt werfen.
