@@ -138,7 +138,9 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 		if (visible === null || selected === null) {
 			return { dependsOn: [], enables: [] };
 		}
-		const titleOf = (id: number): string => visible.nodes.find((node) => node.id === id)?.title ?? `#${id}`;
+		// #1465: Aufgaben werden mit ihrem Titel angesprochen, nie mit der internen ID — auch der
+		// Fallback für einen im Ausschnitt fehlenden Knoten bleibt deshalb ohne Nummer.
+		const titleOf = (id: number): string => visible.nodes.find((node) => node.id === id)?.title ?? 'Unbekannte Aufgabe';
 		return {
 			dependsOn: visible.edges
 				.filter((edge) => edge.to === selected.id)
@@ -213,7 +215,7 @@ export const TaskGraphPanel = ({ tasks, onEditDependencies }: TaskGraphPanelProp
 
 					<div ref={detailRef} className="task-graph-detail-anchor">
 						{selected !== null && (
-							<KolCard _label={`#${selected.id} – ${selected.title}`} _level={4} className="task-graph-detail">
+							<KolCard _label={selected.title} _level={4} className="task-graph-detail">
 								<p>
 									Priorität {selected.priority} · Wert {formatNumber(selected.value)} · Gesamtaufwand{' '}
 									{formatNumber(selected.totalEstimatedEffort)} Tage

@@ -92,3 +92,29 @@ describe('NearbyCard — Titel mit Anzeige-Entfernung (#1110 AK1)', () => {
 		await waitFor(() => expect(card().getAttribute('data-label')).toBe('In der Nähe (7 km)'));
 	});
 });
+
+/**
+ * #1465 (A): Auch „In der Nähe" spricht die Aufgabe mit ihrem Titel an — die interne ID steht in
+ * keiner Liste mehr. Die Distanz in Klammern (#1098 AK6) bleibt unverändert.
+ */
+describe('NearbyCard — kein Task-ID-Präfix im Eintrag (#1465)', () => {
+	beforeEach(() => {
+		getGeoConfig.mockResolvedValue(config(5));
+		listNearbyTasks.mockResolvedValue([
+			{ id: 380, title: 'Handy-Anbieter für Amira finden', distanceKm: 2.4 } as NearbyTask,
+		]);
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	it('zeigt nur den Titel, keine #<ID> — die Distanz bleibt', async () => {
+		render(<NearbyCard />);
+
+		await waitFor(() => expect(document.querySelector('.dashboard-nearby-title')).not.toBeNull());
+		expect(document.querySelector('.dashboard-nearby-title')?.textContent).toBe('Handy-Anbieter für Amira finden');
+		expect(document.querySelector('.dashboard-nearby-distance')?.textContent).toBe('(2,4 km)');
+	});
+});

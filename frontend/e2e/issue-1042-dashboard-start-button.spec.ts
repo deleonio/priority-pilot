@@ -18,6 +18,10 @@ import { waitForStableView } from './helpers';
  * #1168 (TF7): Der Button wurde umbenannt in „Erledigt" (`docs/spec/issue-1168.md` AK1/AK7) — der
  * Layout-Vertrag (AK1–AK3 hier) bleibt für den umbenannten Button inhaltlich gültig und wird unter
  * dem neuen Label geprüft.
+ *
+ * #1465: „Erledigen" und der Bearbeiten-Stift (#1447) liegen jetzt nebeneinander in
+ * `.dashboard-next-task-actions`. Der Breiten-Vertrag zieht damit vom einzelnen Button auf die
+ * Zeile um (AK1/AK2 gemessen an der Zeile bzw. am ersten Button darin); AK4 sichert die eine Zeile.
  */
 
 const deleteAllTasks = async (page: Page): Promise<void> => {
@@ -60,7 +64,14 @@ async function containerMetrics(page: Page): Promise<{ innerLeft: number; innerW
 		});
 }
 
-const startButtonHost = (page: Page) => page.locator('.dashboard-next-task-content > kol-button');
+/**
+ * #1465: Der Breiten-Vertrag gilt jetzt für die Aktionszeile — „Erledigen" und der Bearbeiten-Stift
+ * (#1447) liegen nebeneinander in `.dashboard-next-task-actions` statt untereinander im
+ * Content-Container. Gemessen wird weiterhin der HOST `kol-button` (Repo-Konvention).
+ */
+const actionsRow = (page: Page) => page.locator('.dashboard-next-task-actions');
+const startButtonHost = (page: Page) => page.locator('.dashboard-next-task-actions > kol-button').first();
+const editButtonHost = (page: Page) => page.locator('.dashboard-next-task-actions > kol-button').nth(1);
 
 test.describe('#1042 „Jetzt starten"-Button responsiv', () => {
 	test.afterEach(async ({ page }) => {
@@ -68,17 +79,54 @@ test.describe('#1042 „Jetzt starten"-Button responsiv', () => {
 	});
 
 	/**
-	 * AK1 (Schutz, heute grün): Mobil (375px) füllt der Button die Container-Innenbreite
-	 * (Toleranz 2px) — heutiger Ist-Zustand durch Flex-Default `align-self: stretch`.
+	 * AK1 (Schutz): Mobil (375px) füllt die Aktionszeile die Container-Innenbreite (Toleranz 2px),
+	 * „Erledigen" nimmt darin die Restbreite neben dem Stift ein. Vor #1465 galt dieselbe Zusicherung
+	 * für den Button selbst — der Stift stand damals in einer eigenen Zeile darunter.
 	 */
-	test('AK1: mobil (375px) füllt der Button die Innenbreite von .dashboard-next-task-content', async ({ page }) => {
+	test('AK1: mobil (375px) füllt die Aktionszeile die Innenbreite, „Erledigen" die Restbreite', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openDashboardWithStartButton(page);
 
 		const { innerWidth } = await containerMetrics(page);
-		const box = await startButtonHost(page).boundingBox();
-		expect(box).toBeTruthy();
-		expect(Math.abs(box!.width - innerWidth)).toBeLessThanOrEqual(2);
+		const [rowBox, doneBox, editBox] = await Promise.all([
+			actionsRow(page).boundingBox(),
+			startButtonHost(page).boundingBox(),
+			editButtonHost(page).boundingBox(),
+		]);
+		expect(rowBox).toBeTruthy();
+		expect(doneBox).toBeTruthy();
+		expect(editBox).toBeTruthy();
+
+		expect(Math.abs(rowBox!.width - innerWidth)).toBeLessThanOrEqual(2);
+		// „Erledigen" beginnt links in der Zeile und endet vor dem Stift, der rechts abschließt.
+		expect(Math.abs(doneBox!.x - rowBox!.x)).toBeLessThanOrEqual(2);
+		expect(doneBox!.x + doneBox!.width).toBeLessThanOrEqual(editBox!.x + 1);
+		expect(Math.abs(editBox!.x + editBox!.width - (rowBox!.x + rowBox!.width))).toBeLessThanOrEqual(2);
+	});
+
+	/**
+	 * AK4 (#1465): Beide Aktionen stehen in EINER Zeile — gleiche Oberkante, beide ≥44px hoch
+	 * (Mobile-UI-Regel 2), kein horizontaler Überlauf.
+	 */
+	test('AK4 (#1465): „Erledigen" und Stift liegen bei 375px in derselben Zeile', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await openDashboardWithStartButton(page);
+
+		const [doneBox, editBox] = await Promise.all([
+			startButtonHost(page).boundingBox(),
+			editButtonHost(page).boundingBox(),
+		]);
+		expect(doneBox).toBeTruthy();
+		expect(editBox).toBeTruthy();
+
+		expect(Math.abs(doneBox!.y - editBox!.y), 'gleiche Oberkante = eine Zeile').toBeLessThanOrEqual(2);
+		expect(doneBox!.height).toBeGreaterThanOrEqual(44);
+		expect(editBox!.height).toBeGreaterThanOrEqual(44);
+
+		const overflowsHorizontally = await page.evaluate(
+			() => document.documentElement.scrollWidth > window.innerWidth + 1,
+		);
+		expect(overflowsHorizontally).toBe(false);
 	});
 
 	/**

@@ -147,7 +147,7 @@ describe('TaskGraphPanel', () => {
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Knoten 2 wählen' })).toBeTruthy());
 		screen.getByRole('button', { name: 'Knoten 2 wählen' }).click();
 
-		await waitFor(() => expect(screen.getByText('#2 – T2')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText('T2')).toBeTruthy());
 		expect(screen.getByText(/Hängt ab von: T1/)).toBeTruthy();
 	});
 
@@ -158,13 +158,13 @@ describe('TaskGraphPanel', () => {
 
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Knoten 3 wählen' })).toBeTruthy());
 		screen.getByRole('button', { name: 'Knoten 3 wählen' }).click();
-		await waitFor(() => expect(screen.getByText('#3 – T3')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText('T3')).toBeTruthy());
 
 		getGraph.mockResolvedValueOnce(graph([node(1), node(2)], [edge(1, 2)]));
 		window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
 
 		await waitFor(() => expect(screen.queryByRole('button', { name: 'Knoten 3 wählen' })).toBeNull());
-		expect(screen.queryByText('#3 – T3')).toBeNull();
+		expect(screen.queryByText('T3')).toBeNull();
 		// Der Kern: ohne Aufräumen bliebe `selectedId` auf 3 stehen und der Canvas dimmte 1 und 2 mit.
 		await waitFor(() => expect(screen.getByTestId('canvas-selected').textContent).toBe('keine'));
 	});

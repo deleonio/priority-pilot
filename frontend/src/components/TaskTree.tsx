@@ -1,10 +1,11 @@
 import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
-import type { Category, Task, TaskTreeNode } from 'client';
+import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
 import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
+import { PillarMissingBadge } from './PillarMissingBadge';
 import { isDoneBlockedBySubtasks, priorityBadge } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
@@ -36,6 +37,11 @@ interface TaskTreeProps {
 	userId?: number | null;
 	/** Kategorien des Nutzers — löst die `categoryId` einer Aufgabe zum Badge auf. */
 	categories?: Category[];
+	/**
+	 * Säulen des Nutzers (#1465): Ohne angelegte Säulen bleibt das Badge „keine Säulen-Gewichtung"
+	 * aus — es trüge sonst jede Zeile, ohne dass es etwas zu entscheiden gäbe.
+	 */
+	pillars?: Pillar[];
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -59,6 +65,8 @@ interface LeafItemProps {
 	userId: number | null;
 	/** Kategorien des Nutzers — löst die `categoryId` der Aufgabe zum Badge auf. */
 	categories: Category[];
+	/** Hat der Nutzer überhaupt Säulen angelegt? Nur dann ist ein fehlender Beitrag eine Aussage. */
+	pillarsConfigured: boolean;
 	/** Virtuelle Balance-Priorität dieses Tasks; `null` → Original-P-Badge. */
 	balancePriority?: BalancePriority | null;
 	onEdit: (task: Task) => void;
@@ -87,6 +95,7 @@ const LeafItem = ({
 	hasOpenSubtasks,
 	userId,
 	categories,
+	pillarsConfigured,
 	balancePriority,
 	onEdit,
 	onDelete,
@@ -161,11 +170,11 @@ const LeafItem = ({
 						{task !== null && task.isException && (
 							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
 						)}
-						{/* #1430 (AK1/AK2): Hinweistext vorhanden → Badge, ohne den Eintrag öffnen zu müssen.
-						    Neutrale Farbe (kein Warning-Ton, ein Hinweis ist keine Warnung, KI-UX). */}
-						{task !== null && (task.description ?? '').trim() !== '' && (
-							<KolBadge _label="Hinweis" _color="#5c6570" className="task-tree-badge" />
-						)}
+						{/* #1465: Zahlt die Aufgabe auf keine Säule ein, zeigt die Zeile das Säulen-Badge —
+						    sichtbar, ohne den Eintrag zu öffnen. Es ersetzt das beschreibungs-getriebene
+						    „Hinweis"-Badge aus #1430. Ohne angelegte Säulen bleibt es aus, sonst trüge es
+						    jede Zeile. */}
+						{task !== null && pillarsConfigured && (task.pillars ?? []).length === 0 && <PillarMissingBadge />}
 						{progress !== undefined && (
 							<KolBadge _label={`${progress.done}/${progress.total}`} _color="#2e7d32" className="task-tree-badge" />
 						)}
@@ -309,8 +318,10 @@ export const TaskTree = ({
 	onAddSubtask,
 	onDoneToggle,
 	categories = [],
+	pillars = [],
 	balancePriorities = null,
 }: TaskTreeProps) => {
+	const pillarsConfigured = pillars.length > 0;
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 	const fullForestById = indexById(fullForest);
 
@@ -349,6 +360,7 @@ export const TaskTree = ({
 					hasOpenSubtasks={isDoneBlockedBySubtasks((fullForestById.get(node.id) ?? node).dependents)}
 					userId={userId}
 					categories={categories}
+					pillarsConfigured={pillarsConfigured}
 					balancePriority={balancePriorities?.get(node.id) ?? null}
 					onEdit={onEdit}
 					onDelete={onDelete}

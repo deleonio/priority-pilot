@@ -29,8 +29,9 @@ interface DependencyModalProps {
 export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChanged }: DependencyModalProps) => {
 	const dependencyIds = new Set(dependencies.map((dependency) => dependency.id));
 	const candidates = allTasks.filter((candidate) => candidate.id !== task.id && !dependencyIds.has(candidate.id));
+	// #1465: Die Auswahl zeigt den Titel; eindeutig bleibt sie über den `value` (die Task-ID).
 	const options = candidates.map((candidate) => ({
-		label: `#${candidate.id} – ${candidate.title}`,
+		label: candidate.title,
 		value: candidate.id,
 	}));
 
@@ -100,7 +101,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 	);
 
 	return (
-		<Modal title={`Abhängigkeiten: #${task.id} – ${task.title}`} onClose={onClose}>
+		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}
@@ -115,11 +116,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 					<ul className="dependency-list">
 						{dependencies.map((dependency) => (
 							<li key={dependency.id}>
-								<span>
-									#{dependency.id} – {dependency.title}
-								</span>
+								<span>{dependency.title}</span>
 								<KolButton
-									_label={`Vorgänger #${dependency.id} – ${dependency.title} entfernen`}
+									_label={`Vorgänger ${dependency.title} entfernen`}
 									_hideLabel
 									_icons={{ left: { icon: 'kolicon-cross' } }}
 									_variant="danger"

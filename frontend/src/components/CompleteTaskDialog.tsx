@@ -62,8 +62,7 @@ export const CompleteTaskDialog = ({
 				</div>
 			)}
 			<p>
-				Soll die Aufgabe <strong>„{task.title}"</strong> (
-				<span style={{ color: 'var(--pp-ink-muted, #525b6a)' }}>#{task.id}</span>) als erledigt markiert werden?
+				Soll die Aufgabe <strong>„{task.title}"</strong> als erledigt markiert werden?
 			</p>
 			<div className="modal-actions">
 				<KolButton

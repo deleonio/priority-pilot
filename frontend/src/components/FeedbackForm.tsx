@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolInputText, KolSelect, KolTextarea } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { api } from '../api';
+import { toApiError } from '../lib/apiError';
 
 // Kategorien des Feedback-Formulars (#1435). Die Werte sind der Vertrag mit dem Server
 // (`server/src/express/routes/feedback.ts`), die Labels sind die deutsche Anzeige.
@@ -40,9 +41,14 @@ export const FeedbackForm = () => {
 			setTitle('');
 			setDescription('');
 			setStatus({ type: 'success', message: 'Danke! Dein Feedback wurde gesendet.' });
-		} catch {
+		} catch (reason) {
+			// #1465: Der Server unterscheidet „nicht konfiguriert" (503) von „gerade nicht gespeichert"
+			// (502) — die frühere Pauschalzeile verschluckte den Unterschied, und niemand konnte sehen,
+			// ob ein zweiter Versuch etwas bringt. `llmMapping: false`, weil das kein KI-Endpunkt ist
+			// und die 502/503-Übersetzung aus #620 hier vom Thema ablenkt.
 			// Eingaben bewusst NICHT zurücksetzen (AK9) — erneutes Senden ohne Neutippen.
-			setStatus({ type: 'error', message: 'Senden fehlgeschlagen. Bitte später erneut versuchen.' });
+			const { message } = await toApiError(reason, { llmMapping: false });
+			setStatus({ type: 'error', message });
 		} finally {
 			setSending(false);
 		}

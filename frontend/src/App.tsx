@@ -962,6 +962,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													progressMap={progressMap}
 													userId={user.id}
 													categories={categories}
+													pillars={pillars}
 													balancePriorities={balancePriorities}
 													onEdit={openEdit}
 													onDelete={openDelete}
@@ -981,6 +982,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												progressMap={progressMap}
 												userId={user.id}
 												categories={categories}
+												pillars={pillars}
 												balancePriorities={balancePriorities}
 												onEdit={openEdit}
 												onDelete={openDelete}

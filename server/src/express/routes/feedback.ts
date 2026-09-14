@@ -142,7 +142,11 @@ export const createFeedbackRouter = ({
 			}
 			await obsidianGithubClient.commitFile(repo, branch, path, buildContent(validation.value, user, now));
 			res.status(201).json({ path });
-		} catch {
+		} catch (error) {
+			// #1465: Ohne Log war ein Fehlschlag von außen wie von innen unsichtbar — der Grund stand
+			// nirgends. Die Meldungen aus `obsidianFeedback.ts` nennen nur Methode, Pfad und Status
+			// (kein Tokenwert, kein Upstream-Body), sind also loggbar. Muster: `routes/auth.ts`.
+			console.error('Feedback konnte nicht gespeichert werden:', error instanceof Error ? error.message : error);
 			// Upstream-Fehlertext bewusst verschlucken (PAT/Details dürfen nicht nach außen).
 			sendError(res, 502, 'Feedback konnte gerade nicht gespeichert werden. Bitte später erneut versuchen.');
 		}

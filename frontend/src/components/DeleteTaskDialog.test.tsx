@@ -98,21 +98,15 @@ describe('DeleteTaskDialog — Session-401 statt KI-Meldung (#948, AK4)', () => 
 	});
 });
 
-// ── #1346 (AK4): ID als „#<id>" in muted Farbe, statt „ID <id>" ─────────────────────────────
+// ── #1465: keine Task-ID mehr im Dialogtext (löst #1346 AK4 ab) ─────────────────────────────
 
-/**
- * Rot, solange `DeleteTaskDialog.tsx:21` `(ID {task.id})` statt `(#{task.id})` in muted Farbe
- * rendert. Spezifikation: `docs/spec/issue-1346.md`.
- */
-describe('DeleteTaskDialog — Task-ID als „#<id>" in muted Farbe (#1346, AK4)', () => {
-	it('zeigt die ID als „#42" in --pp-ink-muted, nicht mehr „ID 42"', async () => {
+describe('DeleteTaskDialog — Aufgabe wird beim Titel benannt, ohne ID (#1465)', () => {
+	it('nennt den Titel und zeigt keine „#42"', async () => {
 		await act(async () => {
 			render(<DeleteTaskDialog task={sampleTask()} onClose={vi.fn()} onDeleted={vi.fn()} />);
 		});
 
-		const idText = screen.getByText('#42');
-		expect(idText).toBeInTheDocument();
-		expect(idText).toHaveStyle({ color: 'var(--pp-ink-muted, #525b6a)' });
-		expect(screen.queryByText(/ID 42/)).toBeNull();
+		expect(screen.getByText(/Kundenbericht fertigstellen/)).toBeInTheDocument();
+		expect(screen.queryByText(/#42/)).toBeNull();
 	});
 });

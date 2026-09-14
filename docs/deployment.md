@@ -115,6 +115,14 @@ GOOGLE_CLIENT_SECRET=
 GOOGLE_CALLBACK_URL=https://priority-pilot.example.de/auth/google/callback
 GOOGLE_ALLOWED_EMAILS=          # freigeschaltete Adressen, Komma-getrennt
 ADMIN_EMAILS=                   # davon: Administratoren
+
+# Feedback-Formular (Hilfe → Feedback, #1435): PAT mit Contents-Schreibrecht auf dem Vault-Repo.
+# Fehlt er, antwortet POST /feedback mit 503 und das Formular meldet „Feedback ist aktuell nicht
+# konfiguriert" — die Einreichung geht dann verloren.
+FEEDBACK_GITHUB_TOKEN=
+# FEEDBACK_GITHUB_REPO=deleonio/Obsidian    # Default, siehe server/src/express/routes/feedback.ts
+# FEEDBACK_GITHUB_BRANCH=app-feedback       # Default; wird bei Bedarf von main abgezweigt
+# FEEDBACK_GITHUB_DIR=Feedback              # Default-Ablageordner im Repo
 ```
 
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
@@ -133,7 +141,8 @@ Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [d
 Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load),
 `server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`,
 `SESSION_SECRET`, `GOOGLE_*`), `server/src/logics/allowedEmails.ts` (`GOOGLE_ALLOWED_EMAILS`),
-`server/src/logics/adminEmails.ts` (`ADMIN_EMAILS`).
+`server/src/logics/adminEmails.ts` (`ADMIN_EMAILS`), `server/src/express/routes/feedback.ts` und
+`server/src/logics/obsidianFeedback.ts` (`FEEDBACK_GITHUB_*`).
 
 ---
 

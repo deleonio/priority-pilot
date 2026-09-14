@@ -1,5 +1,10 @@
 # Spec #1430 — Hinweis-Badge in Aufgabenliste und Serienliste
 
+> **Abgelöst durch #1465:** Das „Hinweis"-Badge sagte nicht, was es aussagt, und hatte mit der
+> Lebensbalance nichts zu tun. An seiner Stelle steht in beiden Listen das Icon-Badge „Keine
+> Säulen-Gewichtung gesetzt" (`PillarMissingBadge`). Die Beschreibung eines Eintrags erzeugt kein
+> Badge mehr; die Tests dieser Spec sind entsprechend ersetzt.
+
 **Issue:** #1430 · **Stand:** 2026-09-13 (Spec-Phase) · **Vertragstyp:** Anzeige-Vertrag (Frontend, kein API-Vertrag)
 
 ## Ziel

@@ -36,9 +36,22 @@ const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
  * Der globale `SessionExpiredDialog` lauscht darauf und bietet das Neuladen der App an.
  */
 export const SESSION_EXPIRED_EVENT = 'pp:session-expired';
-export const toApiError = async (reason: unknown): Promise<ApiError> => {
+
+/**
+ * Aufrufer-Kontext (#1465). Die 502/503/504-Übersetzung aus #620 spricht von „KI-Dienst" und passt
+ * nur für die LLM-Endpunkte — beim Feedback-Endpunkt verdeckte sie den Grund („nicht konfiguriert"
+ * vs. „gerade nicht gespeichert"). Default `true`, damit alle bestehenden Aufrufer unverändert
+ * bleiben; Nicht-LLM-Aufrufer schalten die Übersetzung mit `{ llmMapping: false }` ab und bekommen
+ * die Server-`message` durchgereicht.
+ */
+interface ToApiErrorOptions {
+	llmMapping?: boolean;
+}
+
+export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiErrorOptions = {}): Promise<ApiError> => {
 	if (reason instanceof ResponseError) {
 		const { status } = reason.response;
+		const isLlmUpstream = llmMapping && (status === 502 || status === 503 || status === 504);
 		let message = `Serverfehler (HTTP ${status}).`;
 		// Body-Beschaffung in zwei Stufen (#948): openapi-fetch liest den Body JEDER non-ok Response
 		// selbst (`response.text()`), ein nachgelagertes `response.clone().json()` wirft danach
@@ -56,19 +69,19 @@ export const toApiError = async (reason: unknown): Promise<ApiError> => {
 		if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {
 			const serverMessage = (body as { message: string }).message;
 			// Für LLM-Dienst-Fehler: nutzerfreundliche Meldung statt technischem Server-Text
-			if (status === 502 || status === 503 || status === 504) {
+			if (isLlmUpstream) {
 				message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
 			} else if (status === 401 && SESSION_MESSAGES.has(serverMessage)) {
 				// Session-401 (#948): bekannte Session-Auth-Message → Login-Hinweis statt KI-Meldung
 				message = SESSION_TEXT;
-			} else if (status === 401) {
+			} else if (status === 401 && llmMapping) {
 				message = 'Die KI-Konfiguration ist ungültig. Bitte prüfe die Einstellungen.';
 			} else {
 				message = serverMessage;
 			}
 		} else if (body === undefined) {
 			// Body nicht lesbar (weder Body-Feld noch clone) — für wichtige Statuscodes nutzerfreundliche Meldung
-			if (status === 502 || status === 503 || status === 504) {
+			if (isLlmUpstream) {
 				message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
 			} else if (status === 401) {
 				// Ohne lesbaren Body ist ein 401 laut Serververtrag Session-Auth (#948)
