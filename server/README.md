@@ -91,7 +91,8 @@ Der SMTP-Mail-Kanal ([#1426](../docs/spec/issue-1426.md)) verschickt bei konfigu
 den drei Push-Triggern zusätzlich je eine Mail; Admins prüfen ihn per `POST /mail/test`. Fehlen
 `SMTP_HOST` oder `MAIL_FROM`, bleibt der Kanal deaktiviert und die App verhält sich wie ohne Mail.
 In Produktion verschickt der Server beim Start zudem eine Status-Mail an alle Admin-Nutzer
-(Commit-SHA, Zeitpunkt, Node-Version) — in Dev und Tests bleibt sie aus.
+(Commit-SHA, Zeitpunkt, Node-Version) — in Dev und Tests bleibt sie aus. Optional erhält jedes
+Status-Mail ein CC an `STATUS_MAIL_CC`.
 
 ```bash
 PORT=8080 node dist/index.js       # anderer Port
