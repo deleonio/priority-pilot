@@ -158,6 +158,7 @@ export const main = async (): Promise<void> => {
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
+		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
 		const { startScheduler, startDeadlineAutoDeleteScheduler } = await import('./scheduler/index.js');
 
@@ -251,6 +252,10 @@ export const main = async (): Promise<void> => {
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,
 		// abschaltbar via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false`.
 		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
+
+		// Status-Mail an alle Admin-Nutzer — nur in Produktion mit konfiguriertem SMTP (siehe
+		// logics/startupStatusMail.ts); fire-and-forget, der Start wartet nicht auf den SMTP-Versand.
+		void sendStartupStatusMail().catch((error) => console.error('Status-Mail fehlgeschlagen.', error));
 
 		// Spec-Test (AK3): Bei korrektem Startup kurzes Delay, damit nothing-timer im Test vermeiden
 		if (process.env.RUN_MAIN !== 'false') {

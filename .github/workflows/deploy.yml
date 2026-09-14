@@ -32,6 +32,16 @@ jobs:
       - name: Server-Prod-Deps bündeln
         run: pnpm --filter ./server --prod deploy --legacy server/deploy
 
+      - name: Commit-SHA in die deployte package.json stempeln
+        run: |
+          node --input-type=module -e "
+            import { readFileSync, writeFileSync } from 'node:fs';
+            const path = 'server/deploy/package.json';
+            const pkg = JSON.parse(readFileSync(path, 'utf8'));
+            pkg.gitSha = process.env.GITHUB_SHA.slice(0, 12);
+            writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+          "
+
       - name: SSH-Key bereitstellen
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
