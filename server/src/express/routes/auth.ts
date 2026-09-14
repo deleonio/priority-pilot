@@ -10,6 +10,7 @@ import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
+import { THROTTLED_MESSAGE } from './rateLimit.js';
 
 // Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
 // damit Angreifer per Zeitmessung keine gültigen Adressen ermitteln können.
@@ -24,9 +25,15 @@ const authLimiter = rateLimit({
 	max: 30,
 	standardHeaders: true,
 	legacyHeaders: false,
+	// Antwortkörper nach dem Fehlervertrag, identisch zum CRUD-Limiter (#1479).
+	message: THROTTLED_MESSAGE,
 	skip: () => process.env.NODE_ENV !== 'production',
 });
-authRouter.use(authLimiter);
+// Der Pfad `/auth` ist Pflicht (#1479): Dieser Router hängt per `app.use(authRouter)` an der Wurzel
+// und steht vor allen anderen Routern. Pfadlos registriert lief der Limiter deshalb für JEDE
+// Anfrage mit und deckelte die gesamte API auf 30 Anfragen pro Minute und IP — ein Seitenaufbau
+// kostet 14, ein Löschen weitere 7, entsprechend kam kurz nach dem Löschen auf alles ein 429.
+authRouter.use('/auth', authLimiter);
 
 // POST /auth/register — E-Mail-/Passwort-Registrierung (Issue #206, AK 1).
 // Legt einen neuen User an (409 bei bereits vergebener E-Mail), meldet ihn direkt

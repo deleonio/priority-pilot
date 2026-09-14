@@ -19,6 +19,9 @@ interface ApiError {
  * Fehlermeldungen in nutzerfreundliche Texte übersetzt, damit Nutzer verstehen, dass der
  * KI-Dienst vorübergehend nicht erreichbar ist.
  *
+ * **Drosselung (#1479):** Ein 429 bekommt einen eigenen Text mit Wartehinweis, damit der Nutzer
+ * weiß, dass er nur kurz innehalten muss — statt einer technischen Server- oder KI-Meldung.
+ *
  * **Session-401 (#948):** Der Serververtrag liefert 401 fast ausschließlich aus der Session-Auth
  * (`requireAuth` → „Nicht eingeloggt.", Auth-Routen → „Ungültige Zugangsdaten."). Nur für diese
  * bekannten Session-Messages (und bei unlesbarem Body) erscheint eine Session-Meldung; ein 401
@@ -30,6 +33,21 @@ const SESSION_MESSAGES = new Set(['Nicht eingeloggt.', 'Ungültige Zugangsdaten.
 
 /** Session-Meldung für abgelaufene/ungültige Session statt der irreführenden KI-Meldung (#948). */
 const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
+
+/**
+ * Drosselung (429, #1479). Der Serververtrag liefert zwar eine `message`, die ist aber technisch
+ * („Too many requests…"). Hier steht stattdessen, was der Nutzer tun soll: kurz innehalten. Die
+ * Wartezeit kommt aus dem `Retry-After`-Header, den `express-rate-limit` mitschickt; ohne
+ * lesbaren Header bleibt es beim allgemeinen Hinweis.
+ */
+const throttledMessage = (response: Response): string => {
+	const retryAfter = Number(response.headers.get('retry-after'));
+	if (Number.isFinite(retryAfter) && retryAfter > 0) {
+		const sekunden = Math.ceil(retryAfter);
+		return `Zu viele Anfragen in kurzer Zeit. Bitte ${sekunden} Sekunden warten und es dann noch einmal versuchen.`;
+	}
+	return 'Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und es dann noch einmal versuchen.';
+};
 
 /**
  * DOM-Event-Name, den `toApiError` bei einem erkannten Session-401 auf `window` feuert (#1231).
@@ -51,6 +69,11 @@ interface ToApiErrorOptions {
 export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiErrorOptions = {}): Promise<ApiError> => {
 	if (reason instanceof ResponseError) {
 		const { status } = reason.response;
+		// Drosselung (#1479) vor allen anderen Zweigen: Der Grund ist unabhängig vom Endpunkt und
+		// vom Body immer derselbe, die KI- und Session-Übersetzungen passen hier nicht.
+		if (status === 429) {
+			return { status, message: throttledMessage(reason.response) };
+		}
 		const isLlmUpstream = llmMapping && (status === 502 || status === 503 || status === 504);
 		let message = `Serverfehler (HTTP ${status}).`;
 		// Body-Beschaffung in zwei Stufen (#948): openapi-fetch liest den Body JEDER non-ok Response
