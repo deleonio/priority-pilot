@@ -13,17 +13,27 @@ import type { TaskTreeNode } from 'client';
  *
  * Rein: Der übergebene Wald wird nicht mutiert; die zurückgegebenen Knoten sind die
  * ursprünglichen Referenzen aus dem Eingabe-Wald (kein Spread nötig, da nur gelesen wird).
+ *
+ * Dedup (#1449): `buildTaskForest` materialisiert eine Unteraufgabe, die Vorgänger mehrerer
+ * Oberaufgaben ist, als mehrere frische Knoten-Objekte mit derselben `id` (einmal pro Pfad).
+ * Dedupliziert wird daher über `node.id`, nicht über Objekt-Identität; bei mehreren Vorkommen
+ * gewinnt das erste Antreffen der Tiefen-Traversierung.
  */
 export function extractLeaves(forest: TaskTreeNode[], options?: { includeParents?: boolean }): TaskTreeNode[] {
 	const includeParents = options?.includeParents ?? false;
 	const result: TaskTreeNode[] = [];
+	const seen = new Set<number>();
 
 	const collect = (nodes: TaskTreeNode[]): void => {
 		for (const node of nodes) {
 			if (node.dependents.length === 0) {
-				result.push(node);
+				if (!seen.has(node.id)) {
+					seen.add(node.id);
+					result.push(node);
+				}
 			} else {
-				if (includeParents) {
+				if (includeParents && !seen.has(node.id)) {
+					seen.add(node.id);
 					result.push(node);
 				}
 				collect(node.dependents);
