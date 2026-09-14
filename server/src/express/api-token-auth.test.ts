@@ -1,7 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
-import { ApiToken } from '../models/index.js';
+import { ApiToken, User } from '../models/index.js';
 
 /**
  * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — Bearer-Auth neben Session.
@@ -117,6 +117,23 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 		assert.equal(viaBearer.status, 200);
 		assert.equal(viaSession.status, viaBearer.status);
 		assert.deepEqual(await viaBearer.json(), await viaSession.json());
+	});
+
+	// #1456 (AK5, Spec docs/spec/issue-1456.md): ein Bearer-Request trägt den Plan des
+	// Token-Besitzers in req.session.user — beobachtbar über /auth/me mit demselben Token.
+	it('#1456 — ein Bearer-Token trägt den Plan seines Besitzers (beobachtbar über /auth/me)', async () => {
+		const cookie = await server.register('bearer-a@example.com', 'password123');
+		const dbUser = await User.findOne({ where: { email: 'bearer-a@example.com' } });
+		assert.ok(dbUser, 'Setup: Nutzer muss existieren');
+		await (dbUser as unknown as { update: (values: Record<string, unknown>) => Promise<unknown> }).update({
+			plan: 'max',
+		});
+		const { token } = await createToken(cookie);
+
+		const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { plan?: string };
+		assert.equal(body.plan, 'max', 'req.session.user.plan muss dem Plan des Token-Besitzers entsprechen');
 	});
 
 	it('AK5: das Token von Nutzer A liefert keine Aufgabe von Nutzer B', async () => {

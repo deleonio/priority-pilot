@@ -17,6 +17,7 @@ import { ValidationError as SequelizeValidationError } from 'sequelize';
 
 // ── Modul (noch nicht vorhanden → legitimer erster roter Zustand) ──────────────────────────
 import { sendError, handleWriteError, parseId } from './http-error.js';
+import * as httpErrorModule from './http-error.js';
 
 const ROUTE_FILES = [
 	'express/routes/tasks.ts',
@@ -146,5 +147,62 @@ describe('Issue #1130 — parseId (AK4, TF2)', () => {
 		for (const raw of ['0', '-1', '2.5', 'abc', '', ['0'], ['-1']]) {
 			assert.equal(parseId(raw as never), null, `parseId(${JSON.stringify(raw)}) sollte null liefern`);
 		}
+	});
+});
+
+// #1456 (AK7, Spec docs/spec/issue-1456.md): `sendPlanError` existiert noch nicht — Zugriff über
+// den Namespace + Cast (Muster migrate.test.ts), damit tsc grün bleibt, bis die Impl-Phase sie anlegt.
+describe('Issue #1456 — sendPlanError (AK7)', () => {
+	const sendPlanError = (
+		httpErrorModule as unknown as {
+			sendPlanError?: (
+				res: unknown,
+				status: number,
+				message: string,
+				fields: { code: string; feature: string; requiredPlan?: string; currentPlan?: string },
+			) => void;
+		}
+	).sendPlanError;
+
+	it('sendError bleibt unverändert exakt { message } (keine Paketfelder)', () => {
+		const res = mockRes();
+		sendError(res as never, 403, 'Kein Zugriff.');
+		assert.deepEqual(res.calls.body, { message: 'Kein Zugriff.' }, 'sendError darf keine Paketfelder ergänzen');
+	});
+
+	it('setzt Status 403 und { message, code: plan_required, feature, requiredPlan, currentPlan }', () => {
+		assert.ok(sendPlanError, 'sendPlanError muss in http-error.ts exportiert werden');
+		const res = mockRes();
+		sendPlanError!(res, 403, 'Dieses Feature erfordert mindestens Pro.', {
+			code: 'plan_required',
+			feature: 'groups',
+			requiredPlan: 'pro',
+			currentPlan: 'free',
+		});
+		assert.equal(res.calls.status, 403);
+		assert.deepEqual(res.calls.body, {
+			message: 'Dieses Feature erfordert mindestens Pro.',
+			code: 'plan_required',
+			feature: 'groups',
+			requiredPlan: 'pro',
+			currentPlan: 'free',
+		});
+	});
+
+	it('setzt Status 429 und code quota_exhausted', () => {
+		assert.ok(sendPlanError, 'sendPlanError muss in http-error.ts exportiert werden');
+		const res = mockRes();
+		sendPlanError!(res, 429, 'Monatskontingent aufgebraucht.', {
+			code: 'quota_exhausted',
+			feature: 'ai_assist',
+			currentPlan: 'pro',
+		});
+		assert.equal(res.calls.status, 429);
+		assert.deepEqual(res.calls.body, {
+			message: 'Monatskontingent aufgebraucht.',
+			code: 'quota_exhausted',
+			feature: 'ai_assist',
+			currentPlan: 'pro',
+		});
 	});
 });

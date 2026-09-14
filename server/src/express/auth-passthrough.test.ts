@@ -49,6 +49,23 @@ describe('Pass-Through-Modus (kein Auth-Kontext konfiguriert)', () => {
 		assert.ok(body.name, 'Das Frontend (AuthUser.name) rendert den Anzeigenamen im Header');
 	});
 
+	// #1456 (AK4, Spec docs/spec/issue-1456.md): auch im Pass-Through-Fall liefert /auth/me
+	// plan + entitlements, ohne die DB zu befragen (synthetischer Nutzer ist paketlos → 'free').
+	it('#1456 — GET /auth/me liefert plan "free" und die zugehörige entitlements-Map, ohne DB-Zugriff', async () => {
+		const res = await fetch(`${server.baseUrl}/auth/me`);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as {
+			plan?: string;
+			entitlements?: Record<string, { allowed: boolean; requiredPlan: string }>;
+		};
+		assert.equal(body.plan, 'free', 'Pass-Through-Nutzer ist paketlos → free');
+		// Paket-Matrix laut docs/spec/issue-1456.md: Free hat weder groups noch ai_assist
+		// (kein Import aus plans.ts — das Modul existiert noch nicht, s. AK2/plans.test.ts).
+		assert.equal(body.entitlements?.groups?.allowed, false, 'Free hat kein groups');
+		assert.equal(body.entitlements?.groups?.requiredPlan, 'pro', 'groups erfordert Pro');
+		assert.equal(body.entitlements?.voice_input?.allowed, true, 'voice_input ist für alle Pakete an');
+	});
+
 	it('geschützte Routen bleiben erreichbar (Konsistenz zu requireAuth)', async () => {
 		const res = await fetch(`${server.baseUrl}/tasks`);
 		assert.equal(res.status, 200);

@@ -124,6 +124,29 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.ok(dbUser, 'Session-User muss in der DB existieren');
 			assert.equal(body.id, dbUser.id, 'body.id muss der id des User-Datensatzes entsprechen');
 		});
+
+		// #1456 (AK4, Spec docs/spec/issue-1456.md): /auth/me trägt Plan + Entitlement-Map.
+		it('#1456 — liefert plan und entitlements passend zum Paket des Nutzers', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			await (dbUser as unknown as { update: (values: Record<string, unknown>) => Promise<unknown> }).update({
+				plan: 'pro',
+			});
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as {
+				plan?: string;
+				entitlements?: Record<string, { allowed: boolean; requiredPlan: string }>;
+			};
+			assert.equal(body.plan, 'pro', 'body.plan muss dem gesetzten Paket entsprechen');
+			// Paket-Matrix laut docs/spec/issue-1456.md: Pro hat groups, aber nicht graph_write
+			// (kein Import aus plans.ts — das Modul existiert noch nicht, s. AK2/plans.test.ts).
+			assert.equal(body.entitlements?.groups?.allowed, true, 'Pro hat groups');
+			assert.equal(body.entitlements?.graph_write?.allowed, false, 'Pro hat kein graph_write');
+			assert.equal(body.entitlements?.graph_write?.requiredPlan, 'max', 'graph_write erfordert Max');
+		});
 	});
 
 	// ── AC 5 — /auth/me ohne Session → 401 ───────────────────────────────────
