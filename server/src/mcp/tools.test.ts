@@ -182,6 +182,27 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.equal(completed.result?.status, 'Done');
 	});
 
+	it('#1438 AK8: task_update mit inhaltlichem Feld auf einer erledigten Aufgabe schlägt fehl, Reopen per task_update bleibt möglich', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Wird erledigt');
+
+		const completed = await mcpCall<{ id: number; status: string }>(token, 'task_complete', { id: taskId });
+		assert.equal(completed.result?.status, 'Done', 'Setup: Aufgabe muss zuerst erledigt sein');
+
+		const blocked = await mcpCall<{ id: number; title: string }>(token, 'task_update', {
+			id: taskId,
+			title: 'Sollte nicht durchgehen',
+		});
+		assert.ok(blocked.error, 'eine inhaltliche Änderung ohne Statuswechsel muss an einer erledigten Aufgabe scheitern');
+
+		const reopened = await mcpCall<{ id: number; status: string }>(token, 'task_update', {
+			id: taskId,
+			status: 'Open',
+		});
+		assert.equal(reopened.result?.status, 'Open', 'Reopen per task_update muss weiterhin funktionieren');
+	});
+
 	it('der Klartext der gespiegelten Route erreicht den Client samt Statuscode', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
@@ -978,6 +999,138 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 			list.result?.some((t) => t.id === taskId),
 			'ein abgelehnter task_delete-Aufruf darf keine Aufgabe löschen',
 		);
+	});
+});
+
+/**
+ * #1420: autoDeleteAfterDeadline über task_create/task_update setzbar (docs/spec/issue-1420.md).
+ *
+ * AK1/AK2: tools/list deklariert für task_create und task_update autoDeleteAfterDeadline als
+ * optionales boolean-Feld, dessen Beschreibung "deadline" nennt.
+ * AK3: task_create mit autoDeleteAfterDeadline: true + deadline übernimmt den Wert in die Antwort.
+ * AK4: task_update setzt den Wert nachträglich auf true und wieder auf false.
+ * AK5: task_update ohne das Feld lässt einen zuvor gesetzten Wert true unverändert.
+ * AK6: ein nicht-boolescher Wert liefert die Routen-Fehlermeldung (HTTP 400), nichts wird angelegt.
+ * AK7: der Katalog-Namens-Snapshot (14 Namen, s. oben AK1 task_delete-Block) bleibt unberührt.
+ *
+ * Rot, weil taskFieldProperties/pickTaskFields autoDeleteAfterDeadline noch nicht kennen. KEIN
+ * Produktivcode in diesem Commit.
+ */
+describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	it('AK1/AK2: tools/list deklariert autoDeleteAfterDeadline als optionales boolean-Feld für beide Werkzeuge', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		for (const { name, requiredKey } of [
+			{ name: 'task_create', requiredKey: 'title' },
+			{ name: 'task_update', requiredKey: 'id' },
+		]) {
+			const tool = tools.find((t) => t.name === name);
+			assert.ok(tool, `${name} muss in tools/list enthalten sein`);
+			const schema = tool?.inputSchema as
+				{ properties?: Record<string, { type?: string; description?: string }>; required?: string[] } | undefined;
+			const property = schema?.properties?.autoDeleteAfterDeadline;
+			assert.equal(
+				property?.type,
+				'boolean',
+				`${name}.inputSchema.properties.autoDeleteAfterDeadline muss type "boolean" sein`,
+			);
+			assert.match(
+				property?.description ?? '',
+				/deadline/i,
+				`${name}.inputSchema.properties.autoDeleteAfterDeadline.description muss "deadline" nennen`,
+			);
+			assert.ok(
+				!schema?.required?.includes('autoDeleteAfterDeadline'),
+				`${name}.inputSchema.required darf autoDeleteAfterDeadline nicht enthalten`,
+			);
+			assert.ok(
+				schema?.required?.includes(requiredKey),
+				`${name}.inputSchema.required muss weiterhin "${requiredKey}" enthalten`,
+			);
+		}
+	});
+
+	it('AK3: task_create mit autoDeleteAfterDeadline: true und gesetzter deadline übernimmt den Wert in die Antwort', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<{ id: number; autoDeleteAfterDeadline: boolean }>(token, 'task_create', {
+			title: 'Mit Auto-Löschung über MCP',
+			deadline: '2030-01-01T00:00:00.000Z',
+			autoDeleteAfterDeadline: true,
+		});
+		assert.equal(created.error, undefined, 'task_create mit gültigem autoDeleteAfterDeadline darf nicht fehlschlagen');
+		assert.equal(created.result?.autoDeleteAfterDeadline, true);
+	});
+
+	it('AK4/AK5: task_update setzt autoDeleteAfterDeadline auf true und false; ein Update ohne das Feld lässt true unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const taskId = await createTaskViaApi(cookie, 'Für Auto-Löschung-Update über MCP');
+
+		const setTrue = await mcpCall<{ autoDeleteAfterDeadline: boolean }>(token, 'task_update', {
+			id: taskId,
+			deadline: '2030-01-01T00:00:00.000Z',
+			autoDeleteAfterDeadline: true,
+		});
+		assert.equal(setTrue.error, undefined);
+		assert.equal(setTrue.result?.autoDeleteAfterDeadline, true);
+
+		const untouched = await mcpCall<{ autoDeleteAfterDeadline: boolean }>(token, 'task_update', {
+			id: taskId,
+			title: 'Umbenannt',
+		});
+		assert.equal(
+			untouched.result?.autoDeleteAfterDeadline,
+			true,
+			'task_update ohne autoDeleteAfterDeadline-Feld darf einen zuvor gesetzten Wert true nicht ändern',
+		);
+
+		const setFalse = await mcpCall<{ autoDeleteAfterDeadline: boolean }>(token, 'task_update', {
+			id: taskId,
+			autoDeleteAfterDeadline: false,
+		});
+		assert.equal(setFalse.error, undefined);
+		assert.equal(setFalse.result?.autoDeleteAfterDeadline, false);
+	});
+
+	it('AK6: ein nicht-boolescher Wert wird abgelehnt, es entsteht keine Aufgabe', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const before = await mcpCall<{ id: number }[]>(token, 'task_list');
+		const countBefore = before.result?.length ?? 0;
+
+		const created = await mcpCall(token, 'task_create', {
+			title: 'Ungültiges autoDeleteAfterDeadline',
+			autoDeleteAfterDeadline: 'ja',
+		});
+		assert.ok(created.error, 'task_create mit nicht-booleschem autoDeleteAfterDeadline muss fehlschlagen');
+		assert.match(created.error?.message ?? '', /autoDeleteAfterDeadline muss ein Boolean sein\..*\(HTTP 400\)/);
+
+		const after = await mcpCall<{ id: number }[]>(token, 'task_list');
+		assert.equal(after.result?.length, countBefore, 'ein abgelehnter task_create darf keine Aufgabe anlegen');
+	});
+
+	it('AK7: der Katalog-Namens-Snapshot bleibt bei vierzehn Namen', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name).sort();
+		// Zähler wächst mit dem Katalog (#1423: balance_status) — #1420 selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 14, `Katalog sollte vierzehn Namen führen, war: ${names.join(', ')}`);
 	});
 });
 

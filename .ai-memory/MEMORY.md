@@ -202,3 +202,9 @@ Konflikte, die er verhindern soll.
   `element(s) not found`. → Beim Hinzufügen eines Listeners immer prüfen, ob alle Fakes des
   betroffenen Objekts auch `removeEventListener` haben (`grep -rn "navigator, '<api>'" frontend/e2e/`).
 - 2026-09-13 · E2E lokal — Playwright-CDN-Download in Sandbox blockiert (erwartetes chromium-1243 fehlt) → gecachte Version per Symlink mappen (~/Library/Caches/ms-playwright/chromium-1234 → chromium-1243); Push-Reject trotz scheinbar aktuellem Stand: User rebaset Branches parallel (pull --rebase) → vor Push ls-remote + reflog prüfen, dann --force-with-lease mit bekanntem Remote-SHA.
+- 2026-09-13 · e2e/Playwright — Seitenweite `page.getByText(/…/i)`-Assertions auf Status-Texte
+  kippen im Strict Mode, sobald dasselbe Wort noch irgendwo auf der Seite steht: im Button-Label
+  („Wird gesendet …" trifft `/gesendet/`), in einer Option, die derselbe Test per `selectOption`
+  auswählt, oder in einem Fließtext der Seite. Keine Implementierung macht das eindeutig. →
+  Statusmeldungen im Alert prüfen statt seitenweit: `page.locator("<form-klasse> kol-alert")` +
+  `toBeVisible()` + `toContainText(/…/i)` (Muster `frontend/e2e/bahn.spec.ts:176`).
