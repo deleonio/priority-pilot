@@ -46,9 +46,25 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
+/**
+ * `boundingBox()` misst EINMALIG und wartet — anders als `toBeVisible()` — nicht nach: Fällt die
+ * Messung in einen Re-Render des Formulars (das Lektorat-/Säulen-Umfeld der Badges rendert nach
+ * dem Schließen des Vorlagen-Schritts noch nach), liefert sie `null`, obwohl das Element eine
+ * Zeile später wieder Layout hat. Genau daran scheiterte `e2e (4)` in CI, während dieselbe Stelle
+ * lokal grün war. Deshalb bis zum Playwright-Timeout nachmessen statt einmal zu greifen.
+ */
+const boundingBoxWhenLaidOut = async (locator: ReturnType<Page['locator']>) => {
+	for (let attempt = 0; attempt < 30; attempt++) {
+		const box = await locator.boundingBox();
+		if (box !== null) return box;
+		await locator.page().waitForTimeout(100);
+	}
+	return null;
+};
+
 /** Bounding-Box darf den 375px-Viewport nicht überragen (kein horizontales Scrollen). */
 const expectWithinViewport = async (locator: ReturnType<Page['locator']>): Promise<void> => {
-	const box = await locator.boundingBox();
+	const box = await boundingBoxWhenLaidOut(locator);
 	expect(box, 'Element muss eine Bounding-Box haben').not.toBeNull();
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 };
