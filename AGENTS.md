@@ -13,6 +13,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Ticket-Spec](.claude/skills/ticket-spec/SKILL.md) — rote Tests (Vertrag) für `ai:needs-spec`-Issues
 - [Ticket-Umsetzung](.claude/skills/ticket-implementation/SKILL.md) — freigegebene Issues (`ai:needs-impl`) umsetzen
 - [PR-Review (Kreuzverhör)](.claude/skills/review-kreuzverhoer/SKILL.md) — PRs adversarial prüfen, Findings kommentieren
+- [Code-Review-Team](.claude/skills/code-review-team/SKILL.md) — tägliches Architektur-/Qualitäts-Review in vier Perspektiven plus Regelwerk-Prüfung (Widersprüche/Lücken in den Vorgaben), fortlaufendes Protokoll-Issue, genau ein unkritischer Fix je Lauf (Code oder Vorgaben-Konsolidierung)
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 - [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — Farbrollen, Skalen-Tokens, Komponentenwahl
 - [Dauergedächtnis](.ai-memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))

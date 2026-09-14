@@ -1,0 +1,459 @@
+name: Code Review Team
+
+# Täglicher LLM-Job (wie die Phasen 01–06 über setup-agent, aber KEINE Pipeline-Phase):
+# Ein Code-Review-Team aus vier Perspektiven (Architekt, Clean-Code-Reviewer, Test-Ingenieur,
+# Betriebs- und Sicherheits-Wächter — Methode: .claude/skills/code-review-team/SKILL.md) begeht
+# den Code gegen die Vorgaben des Repos (AGENTS.md, .ai-knowledge/, docs/, ADRs) und prüft
+# zugleich die Vorgaben selbst auf Widersprüche, Dopplungen und unkonkrete Regeln. Aus allen
+# Findings setzt der Lauf genau EINEN unkritischen, wertvollen Fix um (Code-Fix oder
+# Konsolidierung der Vorgaben) und liefert ihn als Review-fertigen PR.
+#
+# ABLÖSUNG: Ersetzt cron.optimize-architecture.yml (nightly-arch-opt), das denselben Suchraum
+# nur bis zum Ticket brachte. Das Label `nightly-arch-opt` und offene [arch-opt]-Issues bleiben
+# bestehen; der Agent liest offene Issues/PRs ohnehin als Dedup-Inventar.
+#
+# DELIVERY (zwei Kanäle, beide vom WORKFLOW deterministisch, der Agent liefert nur Commit + Datei):
+#   1. Protokoll: genau EIN offenes Issue mit Label ci:code-review-team (bewusst KEIN ai:*-Label —
+#      das würde die Ticket-Pipeline starten!). Vorhanden → Body durch das neue Protokoll ersetzen
+#      (Titel-Datum wird mit aktualisiert); fehlt → neu anlegen. Der Agent liest das Vortags-
+#      Protokoll per gh zurück (Carry-over mit stabilen Finding-Nummern). 00-Validate übergeht
+#      ci:*-Issues (Skip im verify-issue-quality.sh). Muster cron.ux-team.yml.
+#   2. Fix: PR vom festen Branch chore/code-review-team. Der Branch wird je Lauf auf origin/main
+#      zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt immer nur den heutigen Fix.
+#      Der PR hängt an der KI-Pipeline (ai:needs-review per App-Token → Kreuzverhör-Review →
+#      Gate → Auto-Merge). Muster cron.sync-arc42.yml inkl. Re-Arm (#536).
+#
+# IN-FLIGHT-LOGIK (Abweichung von arc42-sync): Läuft die Pipeline noch auf dem offenen Fix-PR,
+# wird NICHT der ganze Lauf ausgesetzt, sondern nur der Fix (FIX_ALLOWED=false) — Review und
+# Protokoll laufen täglich weiter, der Agent darf dann nichts committen.
+#
+# POST-ASSERTION (Ehrlichkeits-Kreuzcheck): VERDICT fixed ↔ genau ein Commit, review-only ↔ null
+# Commits; Scope-Guard (keine Workflows, Lockfile, package.json, ADRs, OpenAPI, DB-Schicht) und
+# Größen-Guard (≤ 6 Dateien, ≤ 200 Zeilen) machen „unkritisch" mechanisch prüfbar; das
+# Protokoll muss die Pflicht-Abschnitte tragen. Formatbruch endet laut rot, nie als stiller No-op.
+#
+# APP-TOKEN-PFLICHT: Von GITHUB_TOKEN gesetzte Labels lösen KEINE Folge-Workflows aus — der
+# Review würde nie starten. Deshalb Push, PR und ai:needs-review über steps.setup.outputs.gh-token.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false). Das Protokoll-Issue und der offene
+# Fix-PR sind der einzige Zustand. Modell: sonnet (überschreibbar via vars.CLAUDE_MODEL_CODE_REVIEW_TEAM),
+# Fan-out-Recherche auf dem billigen Subagent-Modell (vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT).
+#
+# KEINE Nummer im Dateinamen: Nummern (00–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '27 4 * * *' # täglich 04:27 UTC — im LLM-Nachtblock hinter Cache-Cleanup (03:17), vor dem z.ai-Peak (ab 06:00 UTC)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Läufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
+  # Die Pipeline-Phasen (01-06) teilen sich eine eigene Gruppe (`llm`, s. 01-triage.yml).
+  group: llm-sync
+  cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
+  # workflow_dispatch während eines anderen Laufs würde still verworfen. `max` = FIFO-Schlange.
+  queue: max
+
+permissions:
+  contents: write # Branch-Push chore/code-review-team
+  pull-requests: write # Fix-PR anlegen/aktualisieren + Labels
+  issues: write # Protokoll-Issue anlegen/aktualisieren + gh label create
+  id-token: write # App-Token (setup-agent)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+env:
+  FIX_BRANCH: chore/code-review-team
+  PROTOCOL_LABEL: ci:code-review-team
+  # Größen-Guard für „unkritisch" — Richtwerte, hier zentral anpassbar.
+  MAX_FILES: '6'
+  MAX_LINES: '200'
+
+jobs:
+  code-review-team:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichen Lauf)
+        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf denselben SHA,
+        # ist das Ergebnis deterministisch dasselbe → kein Lauf. Fail-open bei API-Fehlern
+        # (leerer last_sha → Lauf). force=true umgeht.
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow cron.code-review-team.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ Code-Review-Team übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Lauf."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Fix-PR → heute kein Fix)
+        # Der Force-Push ersetzt den Branch komplett. Trägt der offene Fix-PR ein aktives
+        # Pipeline-Label (ai:needs-review, ai:needs-fixup), ai:reviewed (Merge steht an) oder
+        # ai:needs-human (Mensch entscheidet), pausiert NUR der Fix — Review + Protokoll laufen.
+        # Fail-open: ist der Label-Abruf nicht möglich, ist der Fix erlaubt (wie beim Skip-Guard).
+        # force=true umgeht diesen Guard NICHT — er schützt fremde Läufe, nicht das Budget.
+        id: inflight
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$FIX_BRANCH" --state open \
+            --json labels \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-fixup" or . == "ai:reviewed" or . == "ai:needs-human")) | join(", ")' \
+            2>/dev/null || true)"
+          if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
+            echo "::notice title=⏸️ Fix ausgesetzt::Offener Fix-PR ist noch in der Pipeline (${blocking}) — heute nur Review + Protokoll."
+            echo "fix_allowed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fix_allowed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # Ohne if: der Fair-Usage-Check (always) ist eine lokale Action und braucht den Checkout.
+        with:
+          # Muster aller Claude-Workflows: kein GITHUB_TOKEN-Credential hinterlassen —
+          # setup-agent legt das App-Token als einzige origin-Credential ab.
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # 30 min weich innerhalb des 45-min-Hart-Limits: Review + Fix + Gate brauchen
+          # mehr Vorlauf als ein reiner Doku-Sync; Restpuffer für Post-Steps.
+          echo "soft_deadline_epoch=$((now + 1800))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true'
+        uses: ./.github/actions/setup-agent
+        with:
+          needs-mcp: false
+          tools-tier: full # Write/Edit auf Code + Doku, Gate laufen lassen, git commit — Push/PR macht der Workflow
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Storage-Namen — Memory ist komplett aus (memory-load: false).
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM || 'sonnet' }}
+          effort: 'high'
+          # Fan-out-Lesen (Code-Durchsicht) auf dem billigen Modell, Muster Triage —
+          # sonst liefe der recherche-Subagent auf dem teuren Hauptmodell.
+          subagent-model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM_SUBAGENT || 'haiku' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: pnpm einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+
+      - name: Node.js einrichten
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren (Gate läuft lokal im Agent-Lauf)
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Fix-Branch frisch aufsetzen (Basis = origin/main)
+        # Nur wenn der Fix heute erlaubt ist: der offene Fix-PR zeigt danach nur den heutigen
+        # Fix. Ist der Fix ausgesetzt, bleibt der Checkout auf main — der Agent darf dann
+        # ohnehin nichts committen (Post-Assertion prüft null Commits).
+        # Git-Identität stellt setup-agent zentral bereit (Repo-Owner, gültige noreply).
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && steps.inflight.outputs.fix_allowed == 'true'
+        run: git switch -C "$FIX_BRANCH" origin/main
+
+      - name: Code-Review-Team via Claude
+        id: claude
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        env:
+          # Der Agent liest das Vortags-Protokoll + offene Issues/PRs per gh (Carry-over + Dedup).
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          FIX_ALLOWED: ${{ steps.inflight.outputs.fix_allowed }}
+        run: |
+          # Vorheriges Protokoll-Issue auflösen (0 = Erstlauf) — als Platzhalter in den Prompt.
+          prev_issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$PROTOCOL_LABEL" --state open \
+            --json number --jq '.[0].number // 0' 2>/dev/null || echo 0)"
+
+          cp .github/prompts/code-review-team.md /tmp/claude-prompt.txt
+          sed -i "s/{{REPORT_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PROTOCOL_ISSUE_NR}}/${prev_issue}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{FIX_ALLOWED}}/${FIX_ALLOWED:-true}/g" /tmp/claude-prompt.txt
+          sed -i "s#{{BRANCH}}#${FIX_BRANCH}#g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Protokoll als Artefakt sichern
+        # Auch bei Folgefehlern (Post-Assertion, Issue-Step) bleibt das Protokoll auffindbar.
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: code-review-team-protokoll
+          path: |
+            /tmp/code-review-protokoll.md
+            /tmp/claude-output.log
+          if-no-files-found: ignore
+
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope ↔ Größe ↔ Protokoll) + Push + PR-Pflege
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
+        # behauptet fixed/review-only — die Mechanik verifiziert Commits, Datei-Scope, Diff-Größe
+        # und das Protokoll und pusht/pflegt den PR deterministisch (bewusst KEINE Agent-Aufgabe).
+        id: assert
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          FIX_ALLOWED: ${{ steps.inflight.outputs.fix_allowed }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
+          # Token gewinnt, Prosa/Markdown nach dem Token ist egal (#1017-Klasse).
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'review-only|fixed' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+          echo "verdict=${verdict:-keins}" >> "$GITHUB_OUTPUT"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ Code-Review-Team fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stilles review-only."
+            exit 1
+          fi
+          if [ "$verdict" != "fixed" ] && [ "$verdict" != "review-only" ]; then
+            echo "::error title=❌ Code-Review-Team ohne Verdict::Weder fixed noch review-only — Lauf wiederholen."
+            exit 1
+          fi
+
+          # Protokoll-Vertrag: Datei da, substantiell, Pflicht-Abschnitte vorhanden.
+          PROTOCOL=/tmp/code-review-protokoll.md
+          if [ ! -s "$PROTOCOL" ]; then
+            echo "::error title=❌ Protokoll fehlt::$PROTOCOL fehlt oder ist leer."
+            exit 1
+          fi
+          missing=""
+          for heading in '## Heutiger Fix' '## Offene Findings' '## Vorgaben: Widersprüche & Lücken' '## Historie'; do
+            grep -qF "$heading" "$PROTOCOL" || missing="${missing} «${heading}»"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=❌ Protokoll-Vertrag verletzt::Fehlt:${missing} (siehe .github/prompts/code-review-team.md)."
+            exit 1
+          fi
+
+          count="$(git rev-list --count origin/main..HEAD)"
+          echo "Commits seit origin/main: $count"
+
+          # Verdict ↔ Commits ↔ Fix-Erlaubnis konsistent?
+          if [ "$verdict" = "fixed" ] && [ "$FIX_ALLOWED" != "true" ]; then
+            echo "::error title=❌ Fix trotz Pause::VERDICT fixed, aber der Fix war heute ausgesetzt."
+            exit 1
+          fi
+          if [ "$verdict" = "fixed" ] && [ "$count" -ne 1 ]; then
+            echo "::error title=❌ Verdict ohne genau einen Commit::VERDICT fixed, aber ${count} Commits (erwartet: 1)."
+            exit 1
+          fi
+          if [ "$verdict" = "review-only" ] && [ "$count" -gt 0 ]; then
+            echo "::error title=❌ Commits ohne Verdict::VERDICT review-only, aber ${count} Commits vorhanden."
+            exit 1
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            echo "::notice title=✅ Nur Review::Kein Fix heute — Protokoll wird aktualisiert, kein Push, kein PR."
+            echo "pr_number=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Scope-Guard: „unkritisch" mechanisch — keine Workflows, Lockfile, package.json, ADRs,
+          # OpenAPI, DB-Schicht. Erlaubt bleiben Code, Tests und die Vorgaben-Doku.
+          bad="$(git diff --name-only origin/main..HEAD \
+            | grep -E '^(\.github/|pnpm-lock\.yaml$|docs/adr/|openapi\.yml$|server/src/db/)|(^|/)package\.json$' || true)"
+          if [ -n "$bad" ]; then
+            echo "::error title=❌ Scope verletzt::Fix berührt verbotene Pfade: $(printf '%s' "$bad" | tr '\n' ' ')"
+            exit 1
+          fi
+
+          # Größen-Guard: ≤ MAX_FILES Dateien, ≤ MAX_LINES geänderte Zeilen (add + del).
+          files="$(git diff --name-only origin/main..HEAD | wc -l | tr -d ' ')"
+          lines="$(git diff --numstat origin/main..HEAD | awk '{ a += ($1 == "-" ? 0 : $1) + ($2 == "-" ? 0 : $2) } END { print a + 0 }')"
+          echo "Diff: ${files} Dateien, ${lines} Zeilen"
+          if [ "$files" -gt "$MAX_FILES" ] || [ "$lines" -gt "$MAX_LINES" ]; then
+            echo "::error title=❌ Fix zu groß::${files} Dateien / ${lines} Zeilen überschreiten ${MAX_FILES} / ${MAX_LINES} — kein Push."
+            exit 1
+          fi
+
+          git push --force origin "$FIX_BRANCH"
+
+          # PR-Titel = Commit-Subject (Conventional Commits — der Reviewer prüft die CC-Regex).
+          title="$(git log -1 --format=%s)"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          {
+            echo "> 🤖 Automatisch erstellt vom Code-Review-Team am $(date -u +%F) — [Run #${GITHUB_RUN_ID}](${run_url}). Protokoll: Issue mit Label \`${PROTOCOL_LABEL}\`."
+            echo ""
+            # Abschnitt „Heutiger Fix" aus dem Protokoll (bis zur nächsten H2).
+            awk '/^## Heutiger Fix/ { f = 1 } /^## / && !/^## Heutiger Fix/ { f = 0 } f' "$PROTOCOL" | grep -v '^PR: '
+            echo ""
+            echo "## Gate"
+            echo ""
+            echo "Der Agent-Lauf hat \`pnpm format\`, \`pnpm lint\`, \`pnpm knip\` und \`pnpm test\` vor dem Commit ausgeführt; das Ergebnis liegt im Run-Log. Verify läuft auf diesem PR erneut."
+          } > /tmp/pr-body.md
+
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$FIX_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/pr-body.md
+            echo "::notice title=✅ Fix-PR aktualisiert::#$pr_number zeigt den Fix von heute."
+          else
+            # PR-Nummer aus der Create-Ausgabe (PR-URL) ziehen statt neu zu listen: ein direkt
+            # folgendes `gh pr list` kann durch API-Replikationsverzögerung noch leer sein und
+            # der Review würde nie angestoßen. List-Abruf nur als Fallback.
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$FIX_BRANCH" --base main \
+              --title "$title" --body-file /tmp/pr-body.md)"
+            pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
+            if [ -z "$pr_number" ]; then
+              pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$FIX_BRANCH" --state open \
+                --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+            fi
+            echo "::notice title=✅ Fix-PR erstellt::${FIX_BRANCH} → #${pr_number:-?}"
+          fi
+
+          if [ -z "$pr_number" ]; then
+            echo "::error title=❌ PR nicht auflösbar::Push erfolgt, aber kein offener PR auf ${FIX_BRANCH} gefunden — Review nicht anstoßbar."
+            exit 1
+          fi
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Protokoll-Issue anlegen/aktualisieren (genau eines, Label ci:code-review-team)
+        # Deterministisch (bewusst KEINE Agent-Aufgabe). PR-Nummer wird vorher in die
+        # Platzhalter-Zeilen des Protokolls eingetragen. Label ci:* NICHT ai:* — sonst startet
+        # die Ticket-Pipeline!
+        if: steps.assert.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR_NUMBER: ${{ steps.assert.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          PROTOCOL=/tmp/code-review-protokoll.md
+          if [ -n "$PR_NUMBER" ]; then
+            pr_ref="#${PR_NUMBER}"
+          else
+            pr_ref="keiner"
+          fi
+          sed -i "s|^PR: (wird vom Workflow eingetragen)|PR: ${pr_ref}|" "$PROTOCOL"
+          # Historie: nur die heutige (erste) Zeile trägt noch den Platzhalter — ältere Zeilen
+          # kamen bereits mit eingetragener Nummer aus dem Vortags-Issue.
+          sed -i "0,/PR: (wird vom Workflow eingetragen)/s//PR: ${pr_ref}/" "$PROTOCOL"
+
+          size="$(wc -c < "$PROTOCOL" | tr -d ' ')"
+          if [ "$size" -gt 60000 ]; then
+            echo "::warning title=⚠️ Protokoll nahe am Issue-Limit::${size} Zeichen (GitHub-Limit 65536) — Historie/Findings im Prompt straffen."
+          fi
+
+          gh label create "$PROTOCOL_LABEL" --repo "$GITHUB_REPOSITORY" --color 1D76DB \
+            --description "Tägliches Code-Review-Team-Protokoll (Architektur, Code-Qualität, Vorgaben)" 2>/dev/null || true
+
+          title="ci: Code-Review-Team — Protokoll ($(date -u +%F))"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$PROTOCOL_LABEL" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$PROTOCOL"
+            echo "::notice title=✅ Protokoll-Issue aktualisiert::#$number trägt das Protokoll von $(date -u +%F)."
+          else
+            url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --label "$PROTOCOL_LABEL" --body-file "$PROTOCOL")"
+            number="$(printf '%s\n' "$url" | sed -nE 's#.*/issues/([0-9]+).*#\1#p' | tail -1)"
+            echo "::notice title=✅ Protokoll-Issue erstellt::${url:-Nummer nicht auflösbar}"
+          fi
+          echo "PROTOCOL_ISSUE=${number:-?}" >> "$GITHUB_ENV"
+
+      - name: Review anstoßen (ai:needs-review per App-Token, Re-Arm-Muster #536)
+        # Der Fix-PR hängt an der KI-Pipeline: Review → Gate → Auto-Merge.
+        # label-pr-review.yml labelt NUR menschliche Akteure (sender.type != 'Bot') und
+        # springt hier deshalb nicht ein — das Label wird hier explizit gesetzt.
+        # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
+        # reines --add-label ein No-op ohne `labeled`-Event → 05-review.yml startet nie.
+        # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
+        if: ${{ steps.assert.outcome == 'success' && steps.assert.outputs.pr_number != '' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.assert.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+            --description "PR wartet auf KI-Review" 2>/dev/null || true
+
+          for label in ai:needs-fixup ai:reviewed ai:needs-review; do
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
+          done
+
+          for attempt in 1 2 3; do
+            if gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label ai:needs-review; then
+              echo "::notice title=✅ Review angestoßen::PR #$PR_NUMBER trägt ai:needs-review — Kreuzverhör-Review startet."
+              exit 0
+            fi
+            sleep "$attempt"
+          done
+          echo "::error title=❌ ai:needs-review fehlgeschlagen::PR #$PR_NUMBER nach 3 Versuchen ungelabelt — Review startet nicht."
+          exit 1
+
+      - name: Ergebnis zusammenfassen
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        env:
+          OUTCOME: ${{ steps.claude.outcome }}
+          VERDICT: ${{ steps.assert.outputs.verdict }}
+          PR_NUMBER: ${{ steps.assert.outputs.pr_number }}
+          FIX_ALLOWED: ${{ steps.inflight.outputs.fix_allowed }}
+        run: |
+          {
+            echo "### Code-Review-Team – fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Verdict: \`${VERDICT:-keins}\` (Fix erlaubt: ${FIX_ALLOWED:-?})"
+            echo "- Fix-PR: ${PR_NUMBER:+#}${PR_NUMBER:-keiner}"
+            echo "- Protokoll-Issue: ${PROTOCOL_ISSUE:+#}${PROTOCOL_ISSUE:-nicht aktualisiert} (Label \`${PROTOCOL_LABEL}\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
