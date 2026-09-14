@@ -1,7 +1,7 @@
 import { ResponseError } from 'client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { toApiError } from './apiError';
+import { PLAN_REQUIRED_EVENT, toApiError } from './apiError';
 
 /**
  * Rote Spec-Tests für #948 — Session-401 vs. KI-401 in `toApiError`.
@@ -181,6 +181,67 @@ describe('toApiError — llmMapping abschaltbar (#1465)', () => {
  * kurz innehalten muss, statt eine technische Server- oder KI-Meldung zu sehen. Die Wartezeit
  * kommt aus dem `Retry-After`-Header von express-rate-limit.
  */
+/**
+ * Rote Spec-Tests für #1458 AK6/AK8/AK9 (Spec docs/spec/issue-1458.md). Ein 403 mit
+ * `code: plan_required` bzw. ein 429 mit `code: quota_exhausted` feuern `pp:plan-required` mit
+ * `feature`/`requiredPlan`/`currentPlan` im `detail` — der `quota_exhausted`-Zweig muss vor dem
+ * generischen Drosselungstext (#1479) greifen. `PLAN_REQUIRED_EVENT` existiert in `apiError.ts`
+ * noch nicht → roter Zustand durch fehlenden Export (neue Funktionalität).
+ */
+describe('toApiError — Plan-Angebot (#1458, Spec issue-1458.md)', () => {
+	let fired: CustomEvent<{ feature: string; requiredPlan: string; currentPlan: string }>[];
+	const listener = (event: Event): void => {
+		fired.push(event as CustomEvent<{ feature: string; requiredPlan: string; currentPlan: string }>);
+	};
+
+	beforeEach(() => {
+		fired = [];
+		window.addEventListener(PLAN_REQUIRED_EVENT, listener);
+	});
+
+	afterEach(() => {
+		window.removeEventListener(PLAN_REQUIRED_EVENT, listener);
+	});
+
+	const planBody = (code: 'plan_required' | 'quota_exhausted') => ({
+		code,
+		feature: 'groups',
+		requiredPlan: 'pro',
+		currentPlan: 'free',
+		message: 'Dieses Feature erfordert das Pro-Paket.',
+	});
+
+	it('AK6: 403 mit code:plan_required feuert pp:plan-required genau 1× mit feature/requiredPlan/currentPlan', async () => {
+		const result = await toApiError(responseError(403, planBody('plan_required')));
+
+		expect(result.status).toBe(403);
+		expect(fired).toHaveLength(1);
+		expect(fired[0].detail).toEqual({ feature: 'groups', requiredPlan: 'pro', currentPlan: 'free' });
+	});
+
+	it('AK9: 429 mit code:quota_exhausted feuert pp:plan-required statt des Drosselungstexts aus #1479', async () => {
+		const result = await toApiError(responseError(429, planBody('quota_exhausted')));
+
+		expect(result.status).toBe(429);
+		expect(fired).toHaveLength(1);
+		expect(fired[0].detail).toEqual({ feature: 'groups', requiredPlan: 'pro', currentPlan: 'free' });
+		expect(result.message).not.toContain('Zu viele Anfragen in kurzer Zeit');
+	});
+
+	it('AK9: regulärer 429 ohne code behält den Drosselungstext aus #1479 und feuert pp:plan-required NICHT', async () => {
+		const result = await toApiError(responseError(429, { message: 'Too many requests' }));
+
+		expect(result.message).toContain('Zu viele Anfragen in kurzer Zeit');
+		expect(fired).toHaveLength(0);
+	});
+
+	it('AK6: 403 ohne code:plan_required feuert pp:plan-required NICHT', async () => {
+		await toApiError(responseError(403, { message: 'Nicht eingeloggt.' }));
+
+		expect(fired).toHaveLength(0);
+	});
+});
+
 describe('toApiError — Drosselung (#1479)', () => {
 	/** ResponseError mit Headern; `throttledMessage` liest `Retry-After`. */
 	const throttledError = (retryAfter?: string, body?: unknown): ResponseError => {
