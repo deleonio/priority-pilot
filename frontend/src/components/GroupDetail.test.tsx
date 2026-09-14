@@ -61,6 +61,9 @@ vi.mock('../api', () => ({
 }));
 
 import { api } from '../api';
+import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 import { GroupDetail } from './GroupDetail';
 
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
@@ -448,5 +451,49 @@ describe('GroupDetail — Einladungslink wird erst nach echtem Kopieren maskiert
 		});
 
 		expect(await screen.findByText(/Link kopiert/)).toBeInTheDocument();
+	});
+});
+
+// ── #1484 (T3b AK3/AK5): Paket-Badge im Kopfbereich ─────────────────────────────────────────────
+
+/**
+ * AK3: `GroupDetail` rendert `<PlanBadge feature="groups" />` im Kopfbereich (bei der
+ * `KolHeading "Mitglieder"`-Zeile, `GroupDetail.tsx:233`). AK5: der (i)-Schalter feuert genau ein
+ * `pp:plan-required`-Event. Heute rendert `GroupDetail` kein Badge — rot, bis `PlanBadge` dort
+ * eingebunden ist (docs/spec/issue-1484.md AK3/AK5).
+ */
+describe('GroupDetail — Paket-Badge im Kopfbereich (#1484 AK3/AK5)', () => {
+	const renderWithEntitlement = (allowed: boolean) => {
+		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
+		mockGetGroupInvitations.mockResolvedValue([]);
+		const entitlements: EntitlementMap = {
+			groups: { allowed, requiredPlan: 'pro' } as EntitlementMap['groups'],
+		};
+		return render(
+			<PlanProvider value={{ plan: allowed ? 'pro' : 'free', entitlements }}>
+				<GroupDetail groupId={1} ownRole="admin" />
+			</PlanProvider>,
+		);
+	};
+
+	it('zeigt das groups-Badge im Kopfbereich', async () => {
+		renderWithEntitlement(false);
+
+		expect(await screen.findByTestId('plan-badge-groups')).toBeInTheDocument();
+	});
+
+	it('der (i)-Schalter feuert genau ein pp:plan-required-Event mit feature=groups', async () => {
+		renderWithEntitlement(false);
+		const handler = vi.fn();
+		window.addEventListener(PLAN_REQUIRED_EVENT, handler);
+
+		const info = await screen.findByTestId('plan-badge-info-groups');
+		fireEvent.click(info);
+
+		expect(handler).toHaveBeenCalledTimes(1);
+		const event = handler.mock.calls[0][0] as CustomEvent<{ feature: string; requiredPlan: string }>;
+		expect(event.detail.feature).toBe('groups');
+		expect(event.detail.requiredPlan).toBe('pro');
+		window.removeEventListener(PLAN_REQUIRED_EVENT, handler);
 	});
 });

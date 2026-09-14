@@ -1,6 +1,9 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceField } from './VoiceField';
+import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 
 /**
  * Tests für `VoiceField` (#264) — Wrapper, der ein Textfeld um Audiotranskription per
@@ -271,5 +274,77 @@ describe('VoiceField (#264)', () => {
 			const alert = await screen.findByRole('alert');
 			expect(alert).toHaveTextContent('Nichts erkannt – bitte erneut sprechen.');
 		});
+	});
+});
+
+// ── #1484 (T3b AK3/AK6): Paket-Badge und Entitlement-Gate der Aufnahme ─────────────────────────
+
+/**
+ * AK3: `VoiceField` rendert `<PlanBadge feature="voice_input" />` (Analyse-Block: Grenzstelle
+ * VoiceField.tsx). AK6: ohne `voice_input`-Entitlement löst der Mic-Button `startRecording` NICHT
+ * aus (auch `autoStart` startet nicht) — stattdessen öffnet ein `pp:plan-required`-Event. Mit
+ * Entitlement bleibt das Verhalten aus #264/#283 unverändert (genau 1× `startRecording`). Heute
+ * gibt es weder Badge noch Entitlement-Gate — rot (docs/spec/issue-1484.md AK3/AK6).
+ */
+describe('VoiceField — Paket-Badge und Entitlement-Gate (#1484 AK3/AK6)', () => {
+	beforeEach(() => {
+		MockSpeechRecognition.instances = [];
+		speechWindow.SpeechRecognition = MockSpeechRecognition;
+		delete speechWindow.webkitSpeechRecognition;
+	});
+
+	afterEach(() => {
+		cleanup();
+		delete speechWindow.SpeechRecognition;
+		delete speechWindow.webkitSpeechRecognition;
+		vi.clearAllMocks();
+	});
+
+	const renderWithEntitlement = (allowed: boolean, extraProps: Partial<Parameters<typeof VoiceField>[0]> = {}) => {
+		const entitlements: EntitlementMap = {
+			voice_input: { allowed, requiredPlan: 'pro' } as EntitlementMap['voice_input'],
+		};
+		return render(
+			<PlanProvider value={{ plan: allowed ? 'pro' : 'free', entitlements }}>
+				<VoiceField variant="input" fieldLabel="Titel" onTranscript={vi.fn()} {...extraProps}>
+					<textarea aria-label="Titel" />
+				</VoiceField>
+			</PlanProvider>,
+		);
+	};
+
+	it('zeigt das voice_input-Badge', () => {
+		renderWithEntitlement(false);
+
+		expect(screen.getByTestId('plan-badge-voice_input')).toBeInTheDocument();
+	});
+
+	it('ohne Entitlement: Klick auf den Mic-Button startet keine Aufnahme, sondern öffnet das Angebot', () => {
+		renderWithEntitlement(false);
+		const handler = vi.fn();
+		window.addEventListener(PLAN_REQUIRED_EVENT, handler);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' }));
+
+		expect(MockSpeechRecognition.instances).toHaveLength(0);
+		expect(handler).toHaveBeenCalledTimes(1);
+		const event = handler.mock.calls[0][0] as CustomEvent<{ feature: string }>;
+		expect(event.detail.feature).toBe('voice_input');
+		window.removeEventListener(PLAN_REQUIRED_EVENT, handler);
+	});
+
+	it('ohne Entitlement startet auch autoStart keine Aufnahme', () => {
+		renderWithEntitlement(false, { autoStart: true });
+
+		expect(MockSpeechRecognition.instances).toHaveLength(0);
+	});
+
+	it('mit Entitlement bleibt das bisherige Verhalten: Klick startet genau 1× die Aufnahme', () => {
+		renderWithEntitlement(true);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' }));
+
+		expect(MockSpeechRecognition.instances).toHaveLength(1);
+		expect(MockSpeechRecognition.instances[0]?.start).toHaveBeenCalledTimes(1);
 	});
 });

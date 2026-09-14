@@ -44,6 +44,11 @@ vi.mock('@public-ui/react-v19', () => ({
 		/>
 	),
 	KolSpin: ({ _label }: { _label?: string }) => <span role="status">{_label ?? 'wird geladen'}</span>,
+	// #1484: `PlanBadge` (T3a, unverändert) nutzt KolBadge/KolButton aus demselben Modul.
+	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
+	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }) => (
+		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
+	),
 	KolAlert: ({ _label, _type, children }: { _label?: string; _type?: string; children?: React.ReactNode }) => (
 		<div role="alert" data-type={_type}>
 			{_label}
@@ -66,6 +71,8 @@ vi.mock('../api', () => ({
 import { api } from '../api';
 import { AddressAutocomplete } from './AddressAutocomplete';
 import type { AddressSuggestion } from '../lib/useAddressSearch';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 
 const mockGeocodeSearch = api.geocodeSearch as ReturnType<typeof vi.fn>;
 
@@ -357,5 +364,31 @@ describe('AddressAutocomplete (#1342) — Favoriten im Adressfeld', () => {
 
 		expect(onSaveFavorite).toHaveBeenCalledWith(MUNICH_HITS[0]);
 		expect(onSelect).not.toHaveBeenCalled();
+	});
+});
+
+// ── #1484 (T3b AK3): Paket-Badge in der Feld-Zeile ──────────────────────────────────────────────
+
+/**
+ * AK3: `AddressAutocomplete` rendert `<PlanBadge feature="location_reminders" />` in der
+ * Feld-Label-Zeile (`AddressAutocomplete.tsx:171`), als Geschwister-Element außerhalb der
+ * `role="combobox"`-Struktur (KI-UX-Block: nicht als Kind der Listbox). Heute kein Badge — rot,
+ * bis `PlanBadge` eingebunden ist (docs/spec/issue-1484.md AK3).
+ */
+describe('AddressAutocomplete — Paket-Badge in der Feld-Zeile (#1484 AK3)', () => {
+	it('zeigt das location_reminders-Badge, ohne die Combobox-DOM-Struktur zu verändern', () => {
+		const entitlements: EntitlementMap = {
+			location_reminders: { allowed: false, requiredPlan: 'max' } as EntitlementMap['location_reminders'],
+		};
+		render(
+			<PlanProvider value={{ plan: 'free', entitlements }}>
+				<Harness />
+			</PlanProvider>,
+		);
+
+		expect(screen.getByTestId('plan-badge-location_reminders')).toBeInTheDocument();
+		// Das Badge darf nicht innerhalb der Combobox-Rolle landen (KI-UX-Block).
+		const combobox = screen.getByRole('combobox');
+		expect(within(combobox).queryByTestId('plan-badge-location_reminders')).toBeNull();
 	});
 });

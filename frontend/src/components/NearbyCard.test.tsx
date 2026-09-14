@@ -1,8 +1,10 @@
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NearbyCard } from './NearbyCard';
 import type { GeoConfig, NearbyTask } from 'client';
+import type { EntitlementMap } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 
 /**
  * Spec-Tests (#1110, Spec docs/spec/issue-1110.md) — Card-Titel mit Anzeige-Entfernung.
@@ -34,6 +36,11 @@ vi.mock('@public-ui/react-v19', () => ({
 		<div data-comp="kol-card" data-label={_label}>
 			{children}
 		</div>
+	),
+	// #1484: `PlanBadge` (T3a, unverändert) nutzt KolBadge/KolButton aus demselben Modul.
+	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
+	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }) => (
+		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
 	),
 }));
 
@@ -116,5 +123,50 @@ describe('NearbyCard — kein Task-ID-Präfix im Eintrag (#1465)', () => {
 		await waitFor(() => expect(document.querySelector('.dashboard-nearby-title')).not.toBeNull());
 		expect(document.querySelector('.dashboard-nearby-title')?.textContent).toBe('Handy-Anbieter für Amira finden');
 		expect(document.querySelector('.dashboard-nearby-distance')?.textContent).toBe('(2,4 km)');
+	});
+});
+
+// ── #1484 (T3b AK3/AK4): Paket-Badge im Kartenkopf ──────────────────────────────────────────────
+
+/**
+ * AK3: `NearbyCard` rendert `<PlanBadge feature="location_reminders" />` im Kartenkopf. AK4: die
+ * Badge-Ausgabe kippt ausschließlich mit der gemockten Entitlement-Map, `NearbyCard` selbst wertet
+ * keinen Plan-Wert aus (dieselbe Komponente, zwei Entitlement-Zustände). Heute rendert `NearbyCard`
+ * kein Badge — rot, bis `PlanBadge` eingebunden ist (docs/spec/issue-1484.md AK3/AK4).
+ */
+describe('NearbyCard — Paket-Badge im Kartenkopf (#1484 AK3/AK4)', () => {
+	beforeEach(() => {
+		getGeoConfig.mockResolvedValue(config(5));
+		listNearbyTasks.mockResolvedValue([]);
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	const renderWithEntitlement = (allowed: boolean) => {
+		const entitlements: EntitlementMap = {
+			location_reminders: { allowed, requiredPlan: 'max' } as EntitlementMap['location_reminders'],
+		};
+		return render(
+			<PlanProvider value={{ plan: allowed ? 'max' : 'free', entitlements }}>
+				<NearbyCard />
+			</PlanProvider>,
+		);
+	};
+
+	it('allowed=true → Haken-Badge ohne (i)-Schalter', async () => {
+		renderWithEntitlement(true);
+
+		expect(await screen.findByTestId('plan-badge-location_reminders')).toBeInTheDocument();
+		expect(screen.queryByTestId('plan-badge-info-location_reminders')).toBeNull();
+	});
+
+	it('allowed=false → Paket-Badge mit (i)-Schalter, keine eigene Paketlogik in NearbyCard', async () => {
+		renderWithEntitlement(false);
+
+		expect(await screen.findByTestId('plan-badge-location_reminders')).toBeInTheDocument();
+		expect(screen.getByTestId('plan-badge-info-location_reminders')).toBeInTheDocument();
 	});
 });
