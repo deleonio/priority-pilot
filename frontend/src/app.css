@@ -667,14 +667,16 @@ body {
 	align-self: stretch;
 }
 
-/* „Erledigen" (erster Button) nimmt die Restbreite, der Icon-only-Stift bleibt inhaltsbreit —
-   so bleibt die Signal-Handlung die eine klare Folgehandlung (ux-design.md §1). */
-.dashboard-next-task-actions > kol-button:first-child {
+/* „Erledigen" (Primary-Variante) nimmt die Restbreite, der Icon-only-Stift bleibt inhaltsbreit —
+   so bleibt die Signal-Handlung die eine klare Folgehandlung (ux-design.md §1). An `_variant`
+   statt an der DOM-Position gebunden (#1447): ist nur der Stift gerendert, ist er ohne
+   `kol-button + kol-button` allein in der Zeile und würde sonst über die volle Breite greifen. */
+.dashboard-next-task-actions > kol-button[_variant='primary'] {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.dashboard-next-task-actions > kol-button + kol-button {
+.dashboard-next-task-actions > kol-button[_variant='secondary'] {
 	flex: 0 0 auto;
 }
 
