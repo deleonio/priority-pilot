@@ -1,7 +1,7 @@
 import webpush from 'web-push';
 import type { PushSubscription as WebPushSubscription, SendResult } from 'web-push';
 import { PushSubscription } from '../models/index.js';
-import { ownerScope } from '../express/requireAuth.js';
+import { ownerScope } from './ownerScope.js';
 
 /**
  * Web-Push-Versand (Issue #355). Dieser Helfer ist **server-intern**: es gibt bewusst keinen
