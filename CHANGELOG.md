@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-13
 
-_Enthält v0.2.0 – v0.2.36._
+_Enthält v0.2.0 – v0.2.37._
 
 ### 🔧 Engineering
 
@@ -50,6 +50,7 @@ _Enthält v0.2.0 – v0.2.36._
 - fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
 - feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 - feat(server): block content edits on done tasks until reopened by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1444
+- feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
 
 ## v0.1 - 2026-09-12
 

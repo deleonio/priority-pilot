@@ -144,6 +144,7 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 		'categoryId',
 		'status',
 		'pillars',
+		'autoDeleteAfterDeadline',
 	]) {
 		if (args[key] !== undefined) {
 			fields[key] = args[key];
@@ -215,6 +216,12 @@ const taskFieldProperties = {
 				confidence: { type: 'number', description: 'Confidence 0-100 in this contribution. Defaults to 100.' },
 			},
 		},
+	},
+	autoDeleteAfterDeadline: {
+		type: 'boolean',
+		description:
+			'If true, the task is deleted automatically once its deadline has been overdue for 3 days. ' +
+			'Requires a set deadline; without one the auto-delete job has nothing to act on.',
 	},
 } as const;
 
