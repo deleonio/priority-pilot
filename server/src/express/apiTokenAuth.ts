@@ -97,6 +97,8 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 			displayName: user.displayName,
 			avatarUrl: user.avatarUrl ?? null,
 			role: user.role,
+			// #1456: Paket mitführen, damit Guards (T2) und MCP-Gating (T5) auch über Bearer greifen.
+			plan: user.plan,
 		};
 		suppressSessionSave(req);
 		next();

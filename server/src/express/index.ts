@@ -15,6 +15,7 @@ import { scoresRouter } from './routes/scores.js';
 import { createSeriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
 import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
+import { plansPublicRouter } from './routes/plans.js';
 import { usersRouter } from './routes/users.js';
 import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
@@ -231,6 +232,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	// VOR requireAuth, damit ein Link ohne Session geöffnet werden kann (redeem prüft die
 	// Session selbst und antwortet sonst 401).
 	app.use(inviteLinksPublicRouter);
+
+	// Öffentlicher Paket-Katalog (#1456): Preise und Feature-Matrix sind ohne Session lesbar —
+	// deshalb ebenfalls VOR requireAuth gemountet.
+	app.use(plansPublicRouter);
 
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);

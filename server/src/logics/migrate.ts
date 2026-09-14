@@ -540,6 +540,25 @@ export const migrateUsersRoleColumn = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `plan`-Spalte (Paket `'free' | 'pro' | 'max' | 'ultimate'`, #1456) auf einer
+ * **bestehenden** `users`-Tabelle nach — analog `migrateUsersRoleColumn`. Bestandskonten starten
+ * als `'free'` (kein stilles Hochstufen); Pakete vergibt bis T7 ausschließlich ein Admin über
+ * `PATCH /admin/users/:id/plan`. Idempotent; No-op bei frischer DB (dann legt `sync()` die Spalte
+ * samt Default an).
+ */
+export const migrateUsersPlanColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('plan')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `users` ADD COLUMN `plan` VARCHAR(255) NOT NULL DEFAULT 'free'");
+	console.log('Spalte plan an users nachgezogen.');
+};
+
+/**
  * Zieht die `scope`-Spalte (Rechtestufe `'read'` | `'readwrite'`, #1356) auf einer **bestehenden**
  * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateUsersRoleColumn`.
  * Bestandszeilen erhalten `'read'` (kein stilles Hochstufen bereits vergebener Tokens). Idempotent

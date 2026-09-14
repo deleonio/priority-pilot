@@ -1,5 +1,6 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
+import type { Plan } from '../logics/plans.js';
 
 /** Systemweite Nutzerrolle (Rollensystem admin/member) — getrennt von `GroupRole` (Gruppen-Mitgliedschaft). */
 export type UserRole = 'admin' | 'member';
@@ -28,6 +29,8 @@ class User extends Model {
 	public intervalMinutes!: number;
 	/** Systemweite Rolle (Rollensystem admin/member) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
+	/** Gebuchtes Paket (#1456) — Quelle der Entitlement-Auswertung in `logics/plans.ts`. */
+	public plan!: Plan;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -82,6 +85,11 @@ User.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: 'member',
+		},
+		plan: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'free',
 		},
 	},
 	{

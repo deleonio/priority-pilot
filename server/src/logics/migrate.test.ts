@@ -507,6 +507,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`avatarUrl` VARCHAR(255), ' +
 				'`displayNameCustom` TINYINT NOT NULL DEFAULT 0, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
+				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -728,6 +729,7 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -798,6 +800,7 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
+				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',

@@ -1709,6 +1709,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/users/{id}/plan:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Nutzers
+        schema:
+          type: integer
+    patch:
+      summary: Paket eines Nutzers setzen
+      description: >-
+        Manuelle Paketvergabe durch einen Admin (#1456) — nur für Admins (403 sonst).
+        Bis zur Selbstbedienung (T7) der einzige Weg, ein Paket zu vergeben; ohne
+        Zahlungsbezug.
+      operationId: updateAdminUserPlan
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserPlanUpdate'
+      responses:
+        '200':
+          description: Nutzer mit aktualisiertem Paket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          description: Ungültige Nutzer-Id oder ungültiger Paketwert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Nutzer unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /groups/{id}/members:
     parameters:
       - name: id
@@ -2014,6 +2061,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /plans:
+    get:
+      summary: Paket-Katalog öffentlich abrufen
+      description: >-
+        Öffentlich ohne Anmeldung (#1456): Feature-Matrix und Preise je Paket.
+        Der Inhalt stammt unverändert aus der Rechte-Zentrale
+        (`server/src/logics/plans.ts`) — es gibt keine zweite Kopie der Matrix.
+      operationId: getPlans
+      tags: [plans]
+      responses:
+        '200':
+          description: Feature-Matrix und Preise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlansCatalog'
   /invite-links/{token}:
     parameters:
       - name: token
@@ -2570,7 +2633,7 @@ components:
     AdminUser:
       type: object
       description: Nutzer-Eintrag der Admin-Nutzerverwaltung (Rollensystem admin/member).
-      required: [id, email, displayName, role, createdAt]
+      required: [id, email, displayName, role, plan, createdAt]
       properties:
         id:
           type: integer
@@ -2581,6 +2644,8 @@ components:
         role:
           type: string
           enum: [admin, member]
+        plan:
+          $ref: '#/components/schemas/Plan'
         createdAt:
           type: string
           format: date-time
@@ -2592,6 +2657,69 @@ components:
         role:
           type: string
           enum: [admin, member]
+    AdminUserPlanUpdate:
+      type: object
+      description: Payload zum Setzen des Pakets eines Nutzers (#1456, manuelle Vergabe bis T7).
+      required: [plan]
+      properties:
+        plan:
+          $ref: '#/components/schemas/Plan'
+    Plan:
+      type: string
+      description: Buchbares Paket. Reihenfolge der Werte ist die Rangfolge (aufsteigend).
+      enum: [free, pro, max, ultimate]
+    FeatureEntitlement:
+      type: object
+      description: >-
+        Auswertung eines Features für ein Paket (#1456). `allowed` ist die
+        wahrheitsgemäße Paketauswertung und bleibt unabhängig vom Rollout-Schalter
+        `MONETIZATION_ENFORCED` — durchgesetzt wird erst in T8.
+      required: [allowed, requiredPlan]
+      properties:
+        allowed:
+          type: boolean
+        requiredPlan:
+          $ref: '#/components/schemas/Plan'
+        quotaRemaining:
+          type: integer
+          description: >-
+            Nur bei `ai_assist`: Rest des monatlichen KI-Kontingents (0/60/110/200
+            je Paket). Bis T4 der Startwert des Pakets, danach der tatsächliche Rest —
+            dasselbe Feld beziffert das Restkontingent in LLM-Antworten.
+    FeatureCatalogEntry:
+      type: object
+      description: Ein Feature und die Pakete, die es enthalten (#1456).
+      required: [feature, allowedPlans]
+      properties:
+        feature:
+          type: string
+          enum: [groups, voice_input, ai_assist, graph_write, location_reminders, mcp_readwrite]
+        allowedPlans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plan'
+    PlanPrice:
+      type: object
+      description: Preis eines Pakets in Euro je Abrechnungszeitraum (#1456).
+      required: [monthly, yearly]
+      properties:
+        monthly:
+          type: number
+        yearly:
+          type: number
+    PlansCatalog:
+      type: object
+      description: Feature-Matrix und Preise aller Pakete (#1456) — Antwort von `GET /plans`.
+      required: [features, prices]
+      properties:
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureCatalogEntry'
+        prices:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PlanPrice'
     GroupMember:
       type: object
       description: Mitglied einer Gruppe mit Anzeigename und Rolle (#1212).
@@ -4293,6 +4421,23 @@ components:
         message:
           type: string
           description: Fehlerbeschreibung
+        code:
+          type: string
+          enum: [plan_required, quota_exhausted]
+          description: >-
+            Nur bei paketbedingten Ablehnungen (#1456): maschinenlesbarer Grund.
+            `plan_required` (403) heißt „Feature nicht im Paket",
+            `quota_exhausted` (429) „Monatskontingent aufgebraucht". Alle übrigen
+            Fehler tragen weiterhin ausschließlich `message`.
+        feature:
+          type: string
+          description: Stabiler Feature-Identifier der Ablehnung (z. B. `groups`, `ai_assist`).
+        requiredPlan:
+          type: string
+          description: Kleinstes Paket, das das Feature enthält.
+        currentPlan:
+          type: string
+          description: Paket des anfragenden Nutzers.
     VapidPublicKey:
       type: object
       required:

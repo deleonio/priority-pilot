@@ -26,6 +26,36 @@ export function handleWriteError(res: Response<ErrorDto>, error: unknown): void 
 	sendError(res, 500, 'Interner Serverfehler.');
 }
 
+/**
+ * Maschinenlesbarer Grund einer paketbedingten Ablehnung (#1456 AK7).
+ * @public Vertrag für die Guards aus T2 — in T1 selbst noch ohne Aufrufer.
+ */
+export type PlanErrorCode = 'plan_required' | 'quota_exhausted';
+
+/**
+ * Fehlervertrag für paketbedingte Ablehnungen (#1456 AK7): zusätzlich zu `message` trägt der Body
+ * die optionalen Felder `code`, `feature`, `requiredPlan`, `currentPlan`, damit das Frontend einen
+ * gezielten Upgrade-Hinweis statt eines generischen Fehlers zeigen kann. `plan_required` gehört zu
+ * 403, `quota_exhausted` zu 429 — der Status kommt vom Aufrufer. Alle anderen Fehler nutzen
+ * weiterhin `sendError` und bleiben exakt `{ message }`.
+ * @public Vertrag für die Guards aus T2 — in T1 selbst noch ohne Aufrufer (nur Tests).
+ */
+export function sendPlanError(
+	res: Response<ErrorDto>,
+	status: number,
+	message: string,
+	fields: { code: PlanErrorCode; feature: string; requiredPlan?: string; currentPlan?: string },
+): void {
+	const body: ErrorDto = { message, code: fields.code, feature: fields.feature };
+	if (fields.requiredPlan !== undefined) {
+		body.requiredPlan = fields.requiredPlan;
+	}
+	if (fields.currentPlan !== undefined) {
+		body.currentPlan = fields.currentPlan;
+	}
+	res.status(status).json(body);
+}
+
 /** Pfad-Parameter als positive Ganzzahl parsen; sonst `null`. */
 export function parseId(raw: string | string[]): number | null {
 	const id = Number(Array.isArray(raw) ? raw[0] : raw);
