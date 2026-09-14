@@ -26,15 +26,20 @@ Menschliche Autorinnen und Autoren nutzen denselben PR-Weg; `main` ist der einzi
 
 ### 1.2 Qualitätsziele
 
-| Priorität | Qualitätsziel | Szenario-Motiv                                                                                                     |
-| --------- | ------------- | ------------------------------------------------------------------------------------------------------------------ |
-| hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`) |
-| hoch      | #secure       | Nur eingeloggte, auf der E-Mail-Allowlist stehende Nutzer erreichen die fachlichen Endpunkte                       |
-| mittel    | #reliable     | Server bricht bei unbehebbaren Fehlern kontrolliert ab statt in undefiniertem Zustand weiterzulaufen               |
-| mittel    | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                         |
-| mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                          |
+| Priorität | Qualitätsziel | Szenario-Motiv                                                                                                                     |
+| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| hoch      | #flexible     | Entkopplung, Wartbarkeit, Änderbarkeit: Bausteine mit klarer Abhängigkeitsrichtung, ein Muster je Problem, jede Zeile Wartungslast |
+| hoch      | #secure       | Nur eingeloggte, auf der E-Mail-Allowlist stehende Nutzer erreichen die fachlichen Endpunkte                                       |
+| hoch      | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                                         |
+| hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`)                 |
+| mittel    | #efficient    | Skalierbarkeit: Antwortzeiten und Ressourcen wachsen mit Nutzern und Daten kontrolliert, nicht sprunghaft                          |
+| mittel    | #reliable     | Server bricht bei unbehebbaren Fehlern kontrolliert ab statt in undefiniertem Zustand weiterzulaufen                               |
+| mittel    | #operable     | Release ist ein reproduzierbarer Merge-Build mit `rsync` und `pm2 reload`                                                          |
 
-Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 10 beschrieben.
+Diese Tabelle ist der Maßstab, nach dem das tägliche Code-Review-Team
+([`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) den Wert seiner Findings gewichtet.
+Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 10 beschrieben; für
+`#flexible` und `#efficient` fehlen dort noch nachprüfbare Szenarien.
 
 ## 2. Rahmenbedingungen
 

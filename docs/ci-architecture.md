@@ -905,7 +905,9 @@ Test-Ingenieur, Betriebs- und Sicherheits-Wächter (Methode:
 [`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) — begeht `server/src/`,
 `frontend/src/` und `.github/scripts/` gegen die Vorgaben des Repos (`AGENTS.md`,
 `.ai-knowledge/`, `docs/arc42.md`, `docs/adr/`, `docs/testing.md`, `docs/mobile-ui-rules.md`).
-Der Moderator prüft zusätzlich die Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit
+Maßstab für den Wert eines Findings sind die Qualitätsziele in `docs/arc42.md` Abschnitt 1.2
+(`#flexible`, `#secure`, `#usable`, `#suitable`, `#efficient`, `#reliable`, `#operable`); jedes
+Finding nennt das Ziel, dem es dient. Der Moderator prüft zusätzlich die Vorgaben selbst: Widersprüche zwischen Quellen, Dopplungen mit
 Drift, unkonkrete und veraltete Regeln — jede Beobachtung mit beiden Fundstellen und einem
 Konsolidierungsvorschlag. Aus allen Findings setzt der Lauf genau **einen** unkritischen,
 wertvollen Fix um: ein Code-Fix oder eine Konsolidierung der Vorgaben (ADRs bleiben tabu, ein

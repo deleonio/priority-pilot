@@ -53,7 +53,9 @@ edited; a conflict with one is reported as a finding only.
    only `file:line` candidates come back into the moderator's context; the judgement stays here.
 4. Sitzung: each perspective states its findings, with evidence. The rulebook check reports its
    observations.
-5. Konsolidierung: rank by value against risk, drop duplicates, resolve carry-over statuses.
+5. Konsolidierung: rank by value against risk, drop duplicates, resolve carry-over statuses. Value
+   is the contribution to the quality goals the architecture documentation ranks (its quality-goal
+   table is the yardstick, read fresh); every finding names the goal it serves.
 6. Fix-Auswahl and Umsetzung (below), if the run prompt allows a fix today.
 7. Protokoll.
 
@@ -66,7 +68,8 @@ Exactly one finding becomes today's fix. It must satisfy all of these:
 - no dependency or workflow change;
 - small: as a guide at most 200 changed lines across at most 6 files;
 - verifiable with the project's existing gate;
-- among the qualifying candidates the one with the highest value.
+- among the qualifying candidates the one with the highest value: the strongest contribution to
+  the highest-ranked quality goal.
 
 Two fix classes qualify equally: a code fix (findings of the four perspectives) and a rule
 consolidation (findings of the rulebook check: a contradiction resolved, a duplicate merged into one

@@ -7,7 +7,7 @@ RULE SOURCES (yardstick for the perspectives AND subject of the rulebook check �
   2. .ai-knowledge/project.md
   3. .ai-knowledge/tdd-strategy.md
   4. .ai-knowledge/ux-design.md
-  5. docs/arc42.md
+  5. docs/arc42.md (section 1.2 ranks the quality goals — the yardstick for Wert; section 10 holds the measurable scenarios)
   6. docs/adr/ (read only — never edit; a conflict with an ADR is a finding, not a fix)
   7. docs/testing.md
   8. docs/mobile-ui-rules.md
@@ -36,7 +36,7 @@ PROTOCOL (MANDATORY): write via bash heredoc to /tmp/code-review-protokoll.md. T
   The chosen finding (F-n or V-n), its title, why it is uncritical AND valuable, the commit subject — or `keiner — <Grund>` (nothing qualified) or `ausgesetzt — Vortags-PR noch in der Pipeline` (fix not allowed today).
   PR: (wird vom Workflow eingetragen)
   ## Offene Findings
-  Table, ranked by value: `| # | Perspektive | Ort | Finding | Wert | Risiko | Status |` — # = F-n (stable, never reused), Ort = Datei:Zeile, Wert/Risiko = hoch|mittel|gering, Status = offen|ausgesetzt. Every row names the violated rule (source path) in the Finding cell.
+  Table, ranked by value: `| # | Perspektive | Qualitätsziel | Ort | Finding | Wert | Risiko | Status |` — # = F-n (stable, never reused), Qualitätsziel = Q42-Tag aus docs/arc42.md §1.2 (#flexible, #secure, #usable, #suitable, #efficient, #reliable, #operable), Ort = Datei:Zeile, Wert = Beitrag zu diesem Ziel (hoch|mittel|gering, gewichtet nach der Priorität des Ziels), Risiko = hoch|mittel|gering, Status = offen|ausgesetzt. Every row names the violated rule (source path) in the Finding cell.
   ## Vorgaben: Widersprüche & Lücken
   Table: `| # | Art | Quelle A | Quelle B | Vorschlag | Status |` — # = V-n (stable), Art = Widerspruch|Dopplung|unkonkret|veraltet, Quelle = Datei:Zeile (Quelle B may be `Code: Datei:Zeile` or `—` for unkonkret), Vorschlag = one line: which location keeps the truth, what is deleted or made concrete. If nothing was found: `keine — Vorgaben konsistent`.
   ## Umgesetzt / Weggefallen
