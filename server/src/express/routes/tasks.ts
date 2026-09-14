@@ -10,6 +10,7 @@ import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
@@ -463,45 +464,49 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 	// GET /tasks/nearby — offene Tasks mit Koordinaten, aufsteigend nach Distanz zur Position (#1066).
 	// Muss VOR `/tasks/:id` registriert sein, damit der Pfad nicht als id gefangen wird.
 
-	tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
-		// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
-		const parseCoord = (value: unknown): number =>
-			typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
-		const lat = parseCoord(req.query.lat);
-		const lon = parseCoord(req.query.lon);
-		if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
-			sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
-			return;
-		}
-		try {
-			// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
-			// Dieselbe User-Auflösung und derselbe Default wie /geo-config (#1103 F5) — inkl.
-			// Dev-Pass-Through-Nutzer, damit Dev/E2E die gespeicherte Config nicht still ignorieren.
-			const geoUser = await resolveGeoUser(req);
-			const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
-			// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
-			const tasks = await Task.findAll({
-				where: {
-					status: { [Op.ne]: 'Done' },
-					latitude: { [Op.ne]: null },
-					longitude: { [Op.ne]: null },
-					...ownerScope(getUserId(req)),
-				},
-			});
-			const items = tasks
-				.map((task) => ({
-					id: task.id,
-					title: task.title,
-					distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
-				}))
-				.sort((a, b) => a.distanceKm - b.distanceKm)
-				.filter((item) => item.distanceKm <= maxDisplayKm)
-				.slice(0, 10);
-			res.json(items);
-		} catch (error) {
-			handleWriteError(res, error);
-		}
-	});
+	tasksRouter.get(
+		'/tasks/nearby',
+		requirePlanFeature('location_reminders'),
+		async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
+			// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
+			const parseCoord = (value: unknown): number =>
+				typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+			const lat = parseCoord(req.query.lat);
+			const lon = parseCoord(req.query.lon);
+			if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+				sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+				return;
+			}
+			try {
+				// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
+				// Dieselbe User-Auflösung und derselbe Default wie /geo-config (#1103 F5) — inkl.
+				// Dev-Pass-Through-Nutzer, damit Dev/E2E die gespeicherte Config nicht still ignorieren.
+				const geoUser = await resolveGeoUser(req);
+				const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
+				// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
+				const tasks = await Task.findAll({
+					where: {
+						status: { [Op.ne]: 'Done' },
+						latitude: { [Op.ne]: null },
+						longitude: { [Op.ne]: null },
+						...ownerScope(getUserId(req)),
+					},
+				});
+				const items = tasks
+					.map((task) => ({
+						id: task.id,
+						title: task.title,
+						distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
+					}))
+					.sort((a, b) => a.distanceKm - b.distanceKm)
+					.filter((item) => item.distanceKm <= maxDisplayKm)
+					.slice(0, 10);
+				res.json(items);
+			} catch (error) {
+				handleWriteError(res, error);
+			}
+		},
+	);
 
 	// POST /tasks — neuen Task anlegen
 	tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
@@ -856,93 +861,101 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 	});
 
 	// POST /tasks/:id/dependencies — Abhängigkeit (Vorgänger) hinzufügen
-	tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 404, 'Task nicht gefunden.');
-			return;
-		}
-
-		const body: unknown = req.body;
-		if (typeof body !== 'object' || body === null) {
-			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
-			return;
-		}
-		const input = body as Record<string, unknown>;
-
-		if (
-			typeof input.dependingTaskId !== 'number' ||
-			!Number.isInteger(input.dependingTaskId) ||
-			input.dependingTaskId < 1
-		) {
-			sendError(res, 400, 'dependingTaskId muss eine Ganzzahl >= 1 sein.');
-			return;
-		}
-		if (
-			input.weight !== undefined &&
-			(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0.1 || input.weight > 1)
-		) {
-			sendError(res, 400, 'weight muss eine endliche Zahl zwischen 0,1 und 1 sein.');
-			return;
-		}
-		const weight = typeof input.weight === 'number' ? input.weight : 1;
-
-		// Beide Enden müssen dem Nutzer gehören (Datenisolation, #207) — fremde Tasks → 404.
-		const userId = getUserId(req);
-		const dependentTask = await findOwnTask(id, userId);
-		if (!dependentTask) {
-			sendError(res, 404, 'Task nicht gefunden.');
-			return;
-		}
-		const dependingTask = await findOwnTask(input.dependingTaskId, userId);
-		if (!dependingTask) {
-			sendError(res, 404, 'Abhängiger Task (dependingTaskId) nicht gefunden.');
-			return;
-		}
-
-		if (await wouldCreateCycle(dependentTask, dependingTask)) {
-			sendError(res, 409, 'Abhängigkeit kann nicht hinzugefügt werden: Es würde ein Zyklus entstehen.');
-			return;
-		}
-
-		try {
-			// Idempotent: Besteht die Kante bereits, aktualisiert addDependency() nur das Gewicht der
-			// vorhandenen Join-Zeile (kein Duplikat, kein Constraint-Fehler) — die Antwort bleibt 201.
-			await dependentTask.addDependency(dependingTask, { through: { weight } });
-			const withPillars = await findTaskWithPillars(dependentTask.id);
-			if (!withPillars) {
+	tasksRouter.post(
+		'/tasks/:id/dependencies',
+		requirePlanFeature('graph_write'),
+		async (req: Request, res: Response<TaskDto | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			if (id === null) {
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.status(201).json(serializeTask(withPillars));
-		} catch (error) {
-			handleWriteError(res, error);
-		}
-	});
+
+			const body: unknown = req.body;
+			if (typeof body !== 'object' || body === null) {
+				sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+				return;
+			}
+			const input = body as Record<string, unknown>;
+
+			if (
+				typeof input.dependingTaskId !== 'number' ||
+				!Number.isInteger(input.dependingTaskId) ||
+				input.dependingTaskId < 1
+			) {
+				sendError(res, 400, 'dependingTaskId muss eine Ganzzahl >= 1 sein.');
+				return;
+			}
+			if (
+				input.weight !== undefined &&
+				(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0.1 || input.weight > 1)
+			) {
+				sendError(res, 400, 'weight muss eine endliche Zahl zwischen 0,1 und 1 sein.');
+				return;
+			}
+			const weight = typeof input.weight === 'number' ? input.weight : 1;
+
+			// Beide Enden müssen dem Nutzer gehören (Datenisolation, #207) — fremde Tasks → 404.
+			const userId = getUserId(req);
+			const dependentTask = await findOwnTask(id, userId);
+			if (!dependentTask) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			const dependingTask = await findOwnTask(input.dependingTaskId, userId);
+			if (!dependingTask) {
+				sendError(res, 404, 'Abhängiger Task (dependingTaskId) nicht gefunden.');
+				return;
+			}
+
+			if (await wouldCreateCycle(dependentTask, dependingTask)) {
+				sendError(res, 409, 'Abhängigkeit kann nicht hinzugefügt werden: Es würde ein Zyklus entstehen.');
+				return;
+			}
+
+			try {
+				// Idempotent: Besteht die Kante bereits, aktualisiert addDependency() nur das Gewicht der
+				// vorhandenen Join-Zeile (kein Duplikat, kein Constraint-Fehler) — die Antwort bleibt 201.
+				await dependentTask.addDependency(dependingTask, { through: { weight } });
+				const withPillars = await findTaskWithPillars(dependentTask.id);
+				if (!withPillars) {
+					sendError(res, 404, 'Task nicht gefunden.');
+					return;
+				}
+				res.status(201).json(serializeTask(withPillars));
+			} catch (error) {
+				handleWriteError(res, error);
+			}
+		},
+	);
 
 	// DELETE /tasks/:id/dependencies/:depId — Abhängigkeit (Vorgänger) entfernen
-	tasksRouter.delete('/tasks/:id/dependencies/:depId', async (req: Request, res: Response<ErrorDto>) => {
-		const id = parseId(req.params.id);
-		const depId = parseId(req.params.depId);
-		const task = id === null ? null : await findOwnTask(id, getUserId(req));
-		if (!task) {
-			sendError(res, 404, 'Task nicht gefunden.');
-			return;
-		}
-		if (depId === null) {
-			sendError(res, 404, 'Abhängigkeit nicht gefunden.');
-			return;
-		}
-		// Existenz der Kante prüfen, damit ein stilles "Löschen" einer nicht vorhandenen Abhängigkeit
-		// laut Vertrag mit 404 (statt 204) beantwortet wird.
-		const dependencies = await task.getDependencies();
-		if (!dependencies.some((dependency) => dependency.id === depId)) {
-			sendError(res, 404, 'Abhängigkeit nicht gefunden.');
-			return;
-		}
-		await task.removeDependency(depId);
-		res.status(204).send();
-	});
+	tasksRouter.delete(
+		'/tasks/:id/dependencies/:depId',
+		requirePlanFeature('graph_write'),
+		async (req: Request, res: Response<ErrorDto>) => {
+			const id = parseId(req.params.id);
+			const depId = parseId(req.params.depId);
+			const task = id === null ? null : await findOwnTask(id, getUserId(req));
+			if (!task) {
+				sendError(res, 404, 'Task nicht gefunden.');
+				return;
+			}
+			if (depId === null) {
+				sendError(res, 404, 'Abhängigkeit nicht gefunden.');
+				return;
+			}
+			// Existenz der Kante prüfen, damit ein stilles "Löschen" einer nicht vorhandenen Abhängigkeit
+			// laut Vertrag mit 404 (statt 204) beantwortet wird.
+			const dependencies = await task.getDependencies();
+			if (!dependencies.some((dependency) => dependency.id === depId)) {
+				sendError(res, 404, 'Abhängigkeit nicht gefunden.');
+				return;
+			}
+			await task.removeDependency(depId);
+			res.status(204).send();
+		},
+	);
 
 	return tasksRouter;
 };

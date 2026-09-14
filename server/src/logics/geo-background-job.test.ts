@@ -238,6 +238,47 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.equal(logs.length, 0);
 	});
 
+	// #1457 AK9: Standort-Push gehört zu `location_reminders` — bei eingeschaltetem Rollout
+	// bekommen Nutzer ohne passendes Paket keine Nachricht mehr, bei ausgeschaltetem alle wie bisher.
+	describe('AK9 (#1457): Paket-Gating des Standort-Push', () => {
+		const seedNearbyTaskFor = async (userId: number, email: string, plan: 'free' | 'max') => {
+			await User.create({ id: userId, email, passwordHash: 'x', displayName: 'Test', plan });
+			await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId });
+			await seedSubscription(userId, `https://push.example/${userId}`);
+		};
+
+		after(() => {
+			delete process.env.MONETIZATION_ENFORCED;
+		});
+
+		it('MONETIZATION_ENFORCED=true: free-Nutzer bekommt keinen Push, max-Nutzer schon', async () => {
+			await seedNearbyTaskFor(1, 'geo-free@example.com', 'free');
+			await seedNearbyTaskFor(2, 'geo-max@example.com', 'max');
+			process.env.MONETIZATION_ENFORCED = 'true';
+			const calls: { endpoint: string; body: string }[] = [];
+
+			const result = await runGeoPushNotifications([position, { userId: 2, lat: LAT, lon: LON }], okSender(calls), NOW);
+
+			assert.equal(result.usersNotified, 1, 'nur der Nutzer mit passendem Paket wird benachrichtigt');
+			assert.deepEqual(
+				calls.map((call) => call.endpoint),
+				['https://push.example/2'],
+			);
+		});
+
+		it('Rollout aus: beide Nutzer bekommen ihren Push wie bisher', async () => {
+			await seedNearbyTaskFor(1, 'geo-free-off@example.com', 'free');
+			await seedNearbyTaskFor(2, 'geo-max-off@example.com', 'max');
+			delete process.env.MONETIZATION_ENFORCED;
+			const calls: { endpoint: string; body: string }[] = [];
+
+			const result = await runGeoPushNotifications([position, { userId: 2, lat: LAT, lon: LON }], okSender(calls), NOW);
+
+			assert.equal(result.usersNotified, 2, 'ohne Rollout bleibt der Versand unverändert');
+			assert.equal(calls.length, 2);
+		});
+	});
+
 	it('F3: parallele Läufe für denselben User werden serialisiert (kein Doppelpush)', async () => {
 		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
 		await seedSubscription(1, 'https://push.example/a');

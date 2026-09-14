@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { PlaceFavorite } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
+import { requirePlanFeature } from '../planGuard.js';
 
 /**
  * Gespeicherte Orte („Standort-Favoriten", Issue #1342). Der Router hängt hinter dem globalen
@@ -55,89 +56,101 @@ placeFavoritesRouter.get('/place-favorites', async (req: Request, res: Response<
 });
 
 // POST /place-favorites — legt einen Favoriten an; Koordinaten dürfen fehlen (AK4).
-placeFavoritesRouter.post('/place-favorites', async (req: Request, res: Response<PlaceFavoriteDto | ErrorDto>) => {
-	const userId = getUserId(req);
-	if (userId === undefined) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
-	const body = req.body as { name?: unknown; address?: unknown; latitude?: unknown; longitude?: unknown } | undefined;
-	const name = typeof body?.name === 'string' ? body.name.trim() : '';
-	const address = typeof body?.address === 'string' ? body.address.trim() : '';
-	if (!name || name.length > MAX_NAME_LENGTH) {
-		sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
-		return;
-	}
-	if (!address || address.length > MAX_ADDRESS_LENGTH) {
-		sendError(res, 400, `Bitte eine Adresse mit 1 bis ${MAX_ADDRESS_LENGTH} Zeichen angeben.`);
-		return;
-	}
-	try {
-		const created = await PlaceFavorite.create({
-			userId,
-			name,
-			address,
-			latitude: toCoordinate(body?.latitude),
-			longitude: toCoordinate(body?.longitude),
-		});
-		res.status(201).json(serializePlaceFavorite(created));
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+placeFavoritesRouter.post(
+	'/place-favorites',
+	requirePlanFeature('location_reminders'),
+	async (req: Request, res: Response<PlaceFavoriteDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const body = req.body as { name?: unknown; address?: unknown; latitude?: unknown; longitude?: unknown } | undefined;
+		const name = typeof body?.name === 'string' ? body.name.trim() : '';
+		const address = typeof body?.address === 'string' ? body.address.trim() : '';
+		if (!name || name.length > MAX_NAME_LENGTH) {
+			sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
+			return;
+		}
+		if (!address || address.length > MAX_ADDRESS_LENGTH) {
+			sendError(res, 400, `Bitte eine Adresse mit 1 bis ${MAX_ADDRESS_LENGTH} Zeichen angeben.`);
+			return;
+		}
+		try {
+			const created = await PlaceFavorite.create({
+				userId,
+				name,
+				address,
+				latitude: toCoordinate(body?.latitude),
+				longitude: toCoordinate(body?.longitude),
+			});
+			res.status(201).json(serializePlaceFavorite(created));
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
 
 // PATCH /place-favorites/:id — benennt einen eigenen Favoriten um; fremde/unbekannte → 404.
-placeFavoritesRouter.patch('/place-favorites/:id', async (req: Request, res: Response<PlaceFavoriteDto | ErrorDto>) => {
-	const userId = getUserId(req);
-	if (userId === undefined) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id)) {
-		sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
-		return;
-	}
-	const rawName = (req.body as { name?: unknown } | undefined)?.name;
-	const name = typeof rawName === 'string' ? rawName.trim() : '';
-	if (!name || name.length > MAX_NAME_LENGTH) {
-		sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
-		return;
-	}
-	try {
-		const favorite = await PlaceFavorite.findOne({ where: { id, userId } });
-		if (!favorite) {
+placeFavoritesRouter.patch(
+	'/place-favorites/:id',
+	requirePlanFeature('location_reminders'),
+	async (req: Request, res: Response<PlaceFavoriteDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const id = Number(req.params.id);
+		if (!Number.isInteger(id)) {
 			sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
 			return;
 		}
-		await favorite.update({ name });
-		res.json(serializePlaceFavorite(favorite));
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+		const rawName = (req.body as { name?: unknown } | undefined)?.name;
+		const name = typeof rawName === 'string' ? rawName.trim() : '';
+		if (!name || name.length > MAX_NAME_LENGTH) {
+			sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
+			return;
+		}
+		try {
+			const favorite = await PlaceFavorite.findOne({ where: { id, userId } });
+			if (!favorite) {
+				sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
+				return;
+			}
+			await favorite.update({ name });
+			res.json(serializePlaceFavorite(favorite));
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
 
 // DELETE /place-favorites/:id — entfernt den Favoriten endgültig; fremde/unbekannte → 404.
-placeFavoritesRouter.delete('/place-favorites/:id', async (req: Request, res: Response<ErrorDto>) => {
-	const userId = getUserId(req);
-	if (userId === undefined) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
-	const id = Number(req.params.id);
-	if (!Number.isInteger(id)) {
-		sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
-		return;
-	}
-	try {
-		const favorite = await PlaceFavorite.findOne({ where: { id, userId } });
-		if (!favorite) {
+placeFavoritesRouter.delete(
+	'/place-favorites/:id',
+	requirePlanFeature('location_reminders'),
+	async (req: Request, res: Response<ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const id = Number(req.params.id);
+		if (!Number.isInteger(id)) {
 			sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
 			return;
 		}
-		await favorite.destroy();
-		res.status(204).end();
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+		try {
+			const favorite = await PlaceFavorite.findOne({ where: { id, userId } });
+			if (!favorite) {
+				sendError(res, 404, 'Gespeicherter Ort nicht gefunden.');
+				return;
+			}
+			await favorite.destroy();
+			res.status(204).end();
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
