@@ -7,7 +7,9 @@ import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
  * (Rolle `admin`) nach erfolgreichem Start eine kurze Mail mit Commit-SHA, Zeitpunkt und
  * Node-Version — so ist nach einem Deploy (PM2-Reload) oder Crash-Restart sichtbar, welcher Stand
  * läuft. Gated auf `NODE_ENV === 'production'` + {@link isMailConfigured}: in Dev (nodemon
- * startet bei jeder Speicherung neu) und in der Test-Suite wird nie gesendet.
+ * startet bei jeder Speicherung neu) und in der Test-Suite wird nie gesendet. Bewusste
+ * Entscheidungen: keine Rücksicht auf Notification-Preferences (reine Betriebsmeldung an Admins,
+ * kein fachlicher Trigger) und keine Drossel — je Neustart (auch Crash-Restart) geht eine Mail.
  */
 
 /** Kurze Anzeige-Form der Commit-SHA (oder „unbekannt", solange deploy.yml nichts gestempelt hat). */
