@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
+import { useClosingOnPlanRequired } from '../lib/useClosingOnPlanRequired';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { deepActiveElement } from '../lib/focus';
 import { taskFormModalTitle } from '../lib/task';
@@ -171,6 +172,11 @@ export const QuickCaptureModal = ({
 		() => void process(),
 		() => step === 'capture' && !parsing && !advising && text.current.trim().length > 0,
 	);
+
+	// #1458 Entscheidung 7.1: Kein Modal-in-Modal — dieses Modal weicht dem globalen Angebots-Dialog.
+	// Der Preis (Teil der Entscheidung): eine serverseitige Ablehnung mitten im Erfassen verwirft den
+	// bis dahin eingegebenen Text.
+	useClosingOnPlanRequired(onClose);
 
 	// Der Modal-Heading bleibt im Capture-Schritt „Neuen Task anlegen"; im Formular-Schritt spiegelt er
 	// den Anlege-Kontext (bei einer Unteraufgabe die Eltern-Aufgabe) — dieselbe Beschriftung wie im

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
+import { useClosingOnPlanRequired } from '../lib/useClosingOnPlanRequired';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
@@ -118,6 +119,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		() => void add(),
 		() => !busy && selectedIdRef.current !== null,
 	);
+
+	// #1458 Entscheidung 7.1: Kein Modal-in-Modal — dieses Modal weicht dem globalen Angebots-Dialog.
+	useClosingOnPlanRequired(onClose);
 
 	return (
 		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>

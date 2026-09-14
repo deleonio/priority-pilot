@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
 import type { EntitlementMap, Plan } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 import { QuickCaptureModal } from './QuickCaptureModal';
@@ -419,5 +420,35 @@ describe('QuickCaptureModal — KI-Kontingent (#1458 AK10)', () => {
 
 		expect(container.querySelector('.ai-quota-hint')).toBeNull();
 		expect(container.textContent).not.toContain('KI-Anfragen');
+	});
+});
+
+// ── #1458 Entscheidung 7.1: kein Modal-in-Modal ─────────────────────────────────────────────────
+
+/**
+ * `PlanOfferDialog` hängt als EIN globaler Dialog in `App.tsx` und lauscht auf `pp:plan-required`
+ * (AK7). Der (i)-Schalter am `PlanBadge` in diesem Modal und eine serverseitige 403/429-Antwort
+ * feuern dasselbe Event — das Angebot öffnete sich damit ÜBER dem offenen Modal, was
+ * `docs/mobile-ui-rules.md` als Anti-Pattern führt. Menschliche Entscheidung zum Review von
+ * PR #1488: Option 7.1 — das auslösende Modal schließt sich, bevor der Dialog öffnet.
+ */
+describe('QuickCaptureModal — weicht dem Angebots-Dialog (#1458, Entscheidung 7.1)', () => {
+	afterEach(cleanup);
+
+	it('ruft onClose, sobald ein Paket-Angebot angefordert wird', () => {
+		const onClose = vi.fn();
+		render(<QuickCaptureModal pillars={pillars} onClose={onClose} onSaved={vi.fn()} />);
+
+		expect(onClose).not.toHaveBeenCalled();
+
+		act(() => {
+			window.dispatchEvent(
+				new CustomEvent(PLAN_REQUIRED_EVENT, {
+					detail: { feature: 'ai_assist', requiredPlan: 'pro', currentPlan: 'free' },
+				}),
+			);
+		});
+
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });

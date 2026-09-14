@@ -11,7 +11,7 @@ import {
 } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
@@ -1151,10 +1151,21 @@ const AppWithPlan = ({ user }: { user: AuthUser }) => {
 	const planState = usePlanState(user.id);
 	return (
 		<PlanProvider value={planState}>
-			<AppShell user={user} />
+			<MemoAppShell user={user} />
 		</PlanProvider>
 	);
 };
+
+/**
+ * `AppShell` hängt seit #1458 unter `AppWithPlan`, dessen Zustand sich nach dem Mount asynchron
+ * ändert (Spiegel → `/auth/me`, erneut bei App-Fokus). Ohne `memo` würde jede dieser Antworten den
+ * kompletten Baum neu rendern — und dabei kontrollierte KoliBri-Props auf ihren abgeleiteten Wert
+ * zurücksetzen. Konkret schloss das in den Einstellungen das manuell geöffnete `KolAccordion`
+ * „Einzelne Animationen" (`_open={animationsEnabled}`) wieder zu; der Touch-Target-Test aus #971 maß
+ * danach die Höhe 0. Den Paket-Zustand brauchen ohnehin nur die `usePlan()`-Verbraucher, und die
+ * hängen am Context, nicht an diesem Render-Pfad.
+ */
+const MemoAppShell = memo(AppShell);
 
 export const App = ({ user }: { user: AuthUser }) => (
 	// `future`-Flags opt-in: ohne sie loggt der Router bei jedem Start zwei Future-Flag-Warnings
