@@ -436,12 +436,14 @@ describe('Tasks API', () => {
 			const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
 			const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
 			await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 1 });
-			const res2 = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 2 });
+			// #1429: weight 2 lag vor der Bereichsverschärfung (0,1–1) noch im gültigen Bereich; hier durch
+			// 0.5 ersetzt (Test-Pflege), der Idempotenz-Anspruch der Assertion bleibt unverändert.
+			const res2 = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0.5 });
 			assert.equal(res2.status, 201);
 			// Keine Duplikat-Kante, und das Gewicht wurde tatsächlich aktualisiert (nicht nur Status 201).
 			const edges = await Dependency.findAll({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
 			assert.equal(edges.length, 1);
-			assert.equal(edges[0].dataValues.weight, 2);
+			assert.equal(edges[0].dataValues.weight, 0.5);
 		});
 
 		it('400 wenn dependingTaskId fehlt', async () => {
@@ -461,6 +463,71 @@ describe('Tasks API', () => {
 			const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
 			const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: -1 });
 			assert.equal(res.status, 400);
+		});
+
+		// #1429: Der gültige Bereich für weight ist 0,1 bis 1 (bisher nur >= 0 geprüft).
+		describe('#1429: weight-Bereich 0,1–1', () => {
+			it('201 bei weight = 0.1 (untere Grenze), Wert wird gespeichert', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0.1 });
+				assert.equal(res.status, 201);
+				const edge = await Dependency.findOne({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
+				assert.equal(edge?.dataValues.weight, 0.1);
+			});
+
+			it('201 bei weight = 1 (obere Grenze), Wert wird gespeichert', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 1 });
+				assert.equal(res.status, 201);
+				const edge = await Dependency.findOne({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
+				assert.equal(edge?.dataValues.weight, 1);
+			});
+
+			it('400 bei weight = 0 (unterhalb der Untergrenze), Fehlermeldung nennt den Bereich', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0 });
+				assert.equal(res.status, 400);
+				const body = (await res.json()) as { message: string };
+				assert.match(body.message, /0,1/);
+				assert.match(body.message, /\b1\b/);
+			});
+
+			it('400 bei weight = 0.05 (unterhalb der Untergrenze)', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0.05 });
+				assert.equal(res.status, 400);
+			});
+
+			it('400 bei weight = 1.1 (oberhalb der Obergrenze)', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 1.1 });
+				assert.equal(res.status, 400);
+			});
+
+			it('201 ohne weight speichert weiterhin den Default 1 (unverändert)', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id });
+				assert.equal(res.status, 201);
+				const edge = await Dependency.findOne({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
+				assert.equal(edge?.dataValues.weight, 1);
+			});
+
+			it('201 bei erneutem POST mit gültigem, geändertem weight aktualisiert die bestehende Kante', async () => {
+				const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
+				const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
+				await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0.5 });
+				const res = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0.3 });
+				assert.equal(res.status, 201);
+				const edges = await Dependency.findAll({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
+				assert.equal(edges.length, 1);
+				assert.equal(edges[0].dataValues.weight, 0.3);
+			});
 		});
 
 		it('400 wenn Body kein Objekt', async () => {

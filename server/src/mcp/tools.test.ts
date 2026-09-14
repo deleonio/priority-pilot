@@ -622,16 +622,40 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.equal(links.result?.dependsOn[0]?.weight, 1);
 	});
 
-	it('task_link mit Gewicht 0 bleibt beim Auslesen 0', async () => {
+	// #1429: Der gültige Bereich für weight ist 0,1 bis 1 (bisher nur >= 0 geprüft). Ersetzt den
+	// alten Test „mit Gewicht 0 bleibt beim Auslesen 0" (Test-Pflege-Bedarf) — 0 gilt jetzt als
+	// außerhalb des Bereichs und muss fehlschlagen, statt gespeichert zu werden.
+	it('task_link mit Gewicht außerhalb 0,1–1 (0, 0.05, 1.1) schlägt fehl und nennt den Bereich', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
 		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
 
-		await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0 });
+		for (const weight of [0, 0.05, 1.1]) {
+			const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight });
+			assert.ok(linked.error, `weight=${weight} sollte fehlschlagen`);
+			assert.match(linked.error!.message, /0,1/);
+		}
 
 		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
-		assert.equal(links.result?.dependsOn[0]?.weight, 0);
+		assert.deepEqual(links.result?.dependsOn, [], 'keine der abgelehnten Kanten darf angelegt worden sein');
+	});
+
+	it('task_link mit Gewicht an den Grenzen 0,1 und 1 gelingt', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const parentId = await createTaskViaApi(cookie, 'Projekt abschließen');
+		const childId = await createTaskViaApi(cookie, 'Kapitel schreiben');
+
+		const low = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 0.1 });
+		assert.ok(!low.error, `weight=0.1 sollte gelingen, war: ${low.error?.message}`);
+		let links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn[0]?.weight, 0.1);
+
+		const high = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight: 1 });
+		assert.ok(!high.error, `weight=1 sollte gelingen, war: ${high.error?.message}`);
+		links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });
+		assert.equal(links.result?.dependsOn[0]?.weight, 1);
 	});
 
 	it('task_link auf einer bestehenden Kante ändert nur das Gewicht', async () => {
