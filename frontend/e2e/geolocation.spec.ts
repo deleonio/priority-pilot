@@ -152,7 +152,11 @@ test('AK5: Permission denied → Schalter bleibt aus, KolAlert warning sichtbar'
 	// Mutations-Probe: Schalter muss wieder aus sein
 	await expect(switchLocator).not.toBeChecked();
 
-	// KolAlert warning muss sichtbar sein (Shadow-DOM-fähiger Locator)
-	const alertLocator = page.locator('[class*="alert"], kol-alert, [role="alert"]').first();
+	// KolAlert warning muss sichtbar sein (Shadow-DOM-fähiger Locator). Seit #1458 liegt im
+	// Allgemein-Tab (`slot="tab-0"`) die Karte „Pakete", die im Fehlerfall ein eigenes `kol-alert`
+	// rendert. KolTabs hält die inaktiven Panels im DOM — ein ungefiltertes `.first()` griff deshalb
+	// auf dieses unsichtbare Alert statt auf die Geo-Warnung. Der Locator ist darum auf das
+	// Standort-Panel (`.settings-geo`) eingegrenzt.
+	const alertLocator = page.locator('.settings-geo').locator('[class*="alert"], kol-alert, [role="alert"]').first();
 	await expect(alertLocator).toBeVisible();
 });

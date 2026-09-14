@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { EntitlementMap, Plan } from '../lib/planOffers';
+import { PlanProvider } from '../lib/usePlan';
 import { QuickCaptureModal } from './QuickCaptureModal';
 
 afterEach(cleanup);
@@ -367,5 +369,55 @@ describe('QuickCaptureModal — Berater ohne Säulen (#440 AK3, seit #1335 im An
 		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
 		expect(mockAdvise).toHaveBeenCalledTimes(1);
 		expect(container.querySelector('kol-card')).toBeNull();
+	});
+});
+
+// ── #1458 (AK10): Rest des KI-Monatskontingents in der Schnellerfassung ──────────────────────
+
+/**
+ * AK10: Der Capture-Schritt zeigt neben dem Paket-Badge den Rest des KI-Monatskontingents
+ * (`AiQuotaHint`). Der Wert kommt ausschliesslich aus `entitlements.ai_assist.quotaRemaining`
+ * (`GET /auth/me`) — im Test ueber den `PlanProvider` gesetzt, ohne Netzwerk. Geprueft werden die
+ * drei Faelle aus dem Harness-Marker: 60 (voll, keine Warnung), 5 (unter 10 Prozent von 60 →
+ * Warnung) und 0 auf `free` (kein Kontingent im Paket → gar keine Anzeige).
+ */
+describe('QuickCaptureModal — KI-Kontingent (#1458 AK10)', () => {
+	afterEach(() => {
+		vi.clearAllMocks();
+		cleanup();
+	});
+
+	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
+
+	const renderWithPlan = (plan: Plan, quotaRemaining: number) => {
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed: true, requiredPlan: 'pro', quotaRemaining } as EntitlementMap['ai_assist'],
+		};
+		return render(
+			<PlanProvider value={{ plan, entitlements }}>
+				<QuickCaptureModal {...props} />
+			</PlanProvider>,
+		);
+	};
+
+	it('zeigt bei 60 verbleibenden Anfragen den Rest ohne Warnung', () => {
+		const { container } = renderWithPlan('pro', 60);
+
+		expect(container.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 60 KI-Anfragen');
+		expect(container.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeNull();
+	});
+
+	it('warnt bei 5 verbleibenden Anfragen zusaetzlich zum Rest (unter 10 Prozent von 60)', () => {
+		const { container } = renderWithPlan('pro', 5);
+
+		expect(container.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 5 KI-Anfragen');
+		expect(container.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeTruthy();
+	});
+
+	it('zeigt auf free (Paket ohne Kontingent) gar keinen Kontingent-Hinweis statt "Noch 0"', () => {
+		const { container } = renderWithPlan('free', 0);
+
+		expect(container.querySelector('.ai-quota-hint')).toBeNull();
+		expect(container.textContent).not.toContain('KI-Anfragen');
 	});
 });

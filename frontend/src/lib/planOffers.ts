@@ -73,6 +73,9 @@ const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = {
 	ultimate: 200,
 };
 
+/** Hat das Paket überhaupt ein KI-Monatskontingent? `free` hat keines — dort gibt es nichts anzuzeigen. */
+export const hasAiQuota = (plan: Plan): boolean => AI_ASSIST_MONTHLY_QUOTA[plan] > 0;
+
 /**
  * Warnschwelle für das KI-Kontingent (AK10): unter 10 Prozent des Monatskontingents erscheint
  * zusätzlich zum Rest eine Warnung. Ohne bekanntes Monatskontingent (Paket ohne Kontingent) gibt es

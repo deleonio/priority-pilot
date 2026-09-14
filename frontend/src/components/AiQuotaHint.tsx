@@ -1,5 +1,5 @@
 import { KolAlert } from '@public-ui/react-v19';
-import { isQuotaLow } from '../lib/planOffers';
+import { hasAiQuota, isQuotaLow } from '../lib/planOffers';
 import { usePlan, useEntitlement } from '../lib/usePlan';
 
 /**
@@ -13,7 +13,9 @@ export const AiQuotaHint = () => {
 	const entitlement = useEntitlement('ai_assist');
 	const remaining = entitlement?.quotaRemaining;
 
-	if (remaining === undefined || plan === null) {
+	// Ohne Kontingent im Paket (free) ist auch ein gelieferter Rest von 0 keine Aussage über ein
+	// Monatskontingent — „Noch 0 KI-Anfragen" wäre irreführend. Dieselbe Schranke wie in `isQuotaLow`.
+	if (remaining === undefined || plan === null || !hasAiQuota(plan)) {
 		return null;
 	}
 
