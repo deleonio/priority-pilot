@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.49._
+_Enthält v0.2.0 – v0.2.50._
 
 ### 🔧 Engineering
 
@@ -62,6 +62,7 @@ _Enthält v0.2.0 – v0.2.49._
 - feat(frontend): hide task ids, add pillar badge, show feedback reason by @deleonio in https://github.com/deleonio/priority-pilot/pull/1472
 - chore(deps): update renovatebot/github-action action to v46.3.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1477
 - fix(server): log API-Token-Prüfung Fehler statt sie zu verschlucken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1480
+- docs: deduplicate a11y guidance and refresh spec naming convention by @deleonio in https://github.com/deleonio/priority-pilot/pull/1483
 
 ## v0.1 - 2026-09-12
 
@@ -98,7 +99,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(issue-704): Aufgabenbaum-Layout sauber darstellen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/706
 - feat(llm): add LLM provider toggles for Mistral and OpenRouter by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/765
 - feat(frontend): add groups tab with CRUD, roles and delete confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1214
-- feat(frontend): show task dependencies as weighted graph instead of tree by @deleonio in https://github.com/deleonio/priority-pilot/pull/1309
 - feat(frontend): show task dependencies as weighted graph instead of tree by @deleonio in https://github.com/deleonio/priority-pilot/pull/1309
 - feat(frontend): toggle to show parent tasks in task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1388
 - feat(header): make logo clickable and visually smaller by @deleonio in https://github.com/deleonio/priority-pilot/pull/1392
@@ -683,6 +683,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update dependency undici@6 to v8 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1191
 - feat(frontend): fix clipped focus outline in task popover (#1186) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1189
 - feat(frontend): master switch for animations (confetti default off) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1188
+- feat(frontend): master switch for animations (confetti default off) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1188
 - fix(deps): update dependency redis to v6.2.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1172
 - feat(frontend): surface OS reduced-motion state in app settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1195
 - feat(ci): add turn-primary measurement report "Turn-Übersicht" (#1197) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1200
@@ -750,7 +751,6 @@ _Enthält v0.1.336 – v0.1.836._
 - refactor(admin): apply review nits from PR #1300 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1307
 - docs: document google login allowlist and first-login account creation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1308
 - feat(frontend): compact header bar and pillar metrics as value pairs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1303
-- feat(frontend): restore balance prioritization switch with live sorting by @deleonio in https://github.com/deleonio/priority-pilot/pull/1311
 - feat(frontend): restore balance prioritization switch with live sorting by @deleonio in https://github.com/deleonio/priority-pilot/pull/1311
 - feat(frontend): extract series, address, checklist from free text by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1312
 - fix(ci): repair documenter artifact upload, /tmp write access, note gate by @deleonio in https://github.com/deleonio/priority-pilot/pull/1313
