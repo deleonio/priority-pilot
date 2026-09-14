@@ -1,9 +1,18 @@
 import 'express-session';
 import type { UserRole } from '../models/user.js';
+import type { Plan } from '../logics/plans.js';
 
 declare module 'express-session' {
 	interface SessionData {
-		user?: { id?: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole };
+		user?: {
+			id?: number;
+			email: string;
+			displayName: string;
+			avatarUrl?: string | null;
+			role: UserRole;
+			/** Gebuchtes Paket (#1456) — in Alt-Sessions noch nicht gesetzt, `/auth/me` zieht nach. */
+			plan?: Plan;
+		};
 		/** Issue #396 PR B: markiert einen laufenden stillen Google-Login — der gemeinsame Callback
 		 *  leitet bei Interaktionsfehlern (login_required u. ä.) auf /?silent=unavailable statt /auth/error. */
 		silentPending?: boolean;

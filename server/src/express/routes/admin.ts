@@ -5,6 +5,7 @@ import sequelize from '../../database.js';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
+import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
 
 /**
@@ -18,6 +19,7 @@ type AdminUserDto = {
 	email: string;
 	displayName: string;
 	role: UserRole;
+	plan: Plan;
 	createdAt: string;
 };
 
@@ -26,6 +28,7 @@ const toDto = (user: User): AdminUserDto => ({
 	email: user.email,
 	displayName: user.displayName,
 	role: user.role,
+	plan: user.plan,
 	createdAt: user.createdAt.toISOString(),
 });
 
@@ -110,6 +113,37 @@ adminRouter.patch(
 			} else {
 				await target.update({ role: body.role });
 			}
+			res.json(toDto(target));
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
+
+// PATCH /admin/users/:id/plan — Paket eines Nutzers setzen (nur Admins, #1456 AK6). Bis zur
+// Selbstbedienung (T7) ist das der einzige Weg, ein Paket zu vergeben; deshalb bewusst manuell
+// und ohne Zahlungsbezug. Muster wie oben bei der Rolle — nur ohne Letzter-Admin-Schutz.
+adminRouter.patch(
+	'/admin/users/:id/plan',
+	requireRole('admin'),
+	async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+		try {
+			const id = Number(req.params.id);
+			if (!Number.isInteger(id) || id <= 0) {
+				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
+			const body = (req.body ?? {}) as { plan?: unknown };
+			if (!PLAN_VALUES.includes(body.plan as Plan)) {
+				sendError(res, 400, `Das Paket muss eines von ${PLAN_VALUES.join(', ')} sein.`);
+				return;
+			}
+			const target = await User.findByPk(id);
+			if (!target) {
+				sendError(res, 404, 'Nutzer nicht gefunden.');
+				return;
+			}
+			await target.update({ plan: body.plan as Plan });
 			res.json(toDto(target));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');

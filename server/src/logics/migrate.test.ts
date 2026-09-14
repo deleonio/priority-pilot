@@ -507,6 +507,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`avatarUrl` VARCHAR(255), ' +
 				'`displayNameCustom` TINYINT NOT NULL DEFAULT 0, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
+				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -728,6 +729,7 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -798,6 +800,7 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
+				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -920,5 +923,83 @@ describe('migrateApiTokenScope (#1356 AK1)', () => {
 		await assert.doesNotReject(() => migrateApiTokenScope!(sequelize), 'Migration ohne Tabelle ist No-op');
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
 		assert.ok((await apiTokenColumns()).includes('scope'), 'frische Tabelle enthält scope');
+	});
+});
+
+// Vertrag laut docs/spec/issue-1456.md (T1), Muster migrateUsersRoleColumn: `users.plan`.
+describe('migrateUsersPlanColumn (#1456 AK1)', () => {
+	// #1456: `migrateUsersPlanColumn` existiert noch nicht (rote Spec-Tests) — Zugriff über den
+	// Namespace + Cast, damit tsc grün bleibt, bis die Impl-Phase sie anlegt.
+	const migrateUsersPlanColumn = (
+		migrateModule as unknown as { migrateUsersPlanColumn?: (db: typeof sequelize) => Promise<void> }
+	).migrateUsersPlanColumn;
+
+	/** Spaltennamen der users-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const userColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('users')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine users-Tabelle im Alt-Schema (vor #1456) — alle übrigen Modell-Spalten
+	 * vorhanden, nur `plan` fehlt (sonst bräche `User.findAll()` unten an einer anderen Spalte). */
+	const createLegacyUsersTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `users` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`email` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`passwordHash` VARCHAR(255) NOT NULL, ' +
+				"`displayName` VARCHAR(255) NOT NULL DEFAULT '', " +
+				'`avatarUrl` VARCHAR(255), ' +
+				'`displayNameCustom` TINYINT NOT NULL DEFAULT 0, ' +
+				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
+				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
+				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it("zieht auf einem Alt-Schema plan mit Default 'free' nach — Bestandsdaten bleiben erhalten", async () => {
+		assert.ok(migrateUsersPlanColumn, 'migrateUsersPlanColumn muss in migrate.ts exportiert werden');
+		await createLegacyUsersTable();
+		await sequelize.query(
+			'INSERT INTO users (email, passwordHash, displayName, createdAt, updatedAt) ' +
+				"VALUES ('alt@local', 'hash', 'Alt', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+		assert.ok(!(await userColumns()).includes('plan'), 'Alt-Schema hat den Plan noch nicht');
+
+		await migrateUsersPlanColumn!(sequelize);
+		await sequelize.sync();
+
+		assert.ok((await userColumns()).includes('plan'), 'Spalte ist nachgezogen');
+		const users = await User.findAll();
+		assert.equal(users.length, 1, 'Bestands-Zeile bleibt nach sync() erhalten');
+		assert.equal(users[0]?.email, 'alt@local', 'Bestandsdaten unverändert');
+		assert.equal(
+			(users[0] as unknown as { plan?: string })?.plan,
+			'free',
+			"Bestandskonto startet als 'free' (kein stilles Hochstufen)",
+		);
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und legt keine doppelte Spalte an', async () => {
+		assert.ok(migrateUsersPlanColumn, 'migrateUsersPlanColumn muss in migrate.ts exportiert werden');
+		await createLegacyUsersTable();
+		await migrateUsersPlanColumn!(sequelize);
+		await assert.doesNotReject(() => migrateUsersPlanColumn!(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await userColumns()).filter((name) => name === 'plan').length, 1, 'plan genau einmal');
+	});
+
+	it('ist auf einer DB ohne users-Tabelle ein No-op und sync() legt sie inkl. Spalte an', async () => {
+		assert.ok(migrateUsersPlanColumn, 'migrateUsersPlanColumn muss in migrate.ts exportiert werden');
+		await sequelize.getQueryInterface().dropAllTables();
+		assert.deepEqual(await userColumns(), [], 'Vorbedingung: keine users-Tabelle');
+
+		await assert.doesNotReject(() => migrateUsersPlanColumn!(sequelize), 'Migration ohne Tabelle ist No-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		assert.ok((await userColumns()).includes('plan'), 'frische Tabelle enthält plan');
 	});
 });

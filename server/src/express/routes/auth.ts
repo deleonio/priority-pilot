@@ -8,6 +8,7 @@ import { Pillar, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
+import { getEntitlements, type Plan } from '../../logics/plans.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
@@ -94,6 +95,9 @@ authRouter.post('/auth/register', async (req, res) => {
 			displayName: normalizedEmail,
 			avatarUrl: null,
 			role: created.role,
+			// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+			// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+			plan: created.plan,
 		};
 		req.session.save((saveErr) => {
 			if (saveErr) {
@@ -140,6 +144,9 @@ authRouter.post('/auth/login', async (req, res) => {
 		displayName: user.displayName,
 		avatarUrl: null,
 		role: effectiveRole,
+		// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+		// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+		plan: user.plan,
 	};
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
@@ -225,7 +232,9 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 		'google',
 		(
 			err: Error | null,
-			user: { id: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole } | false,
+			user:
+				| { id: number; email: string; displayName: string; avatarUrl?: string | null; role: UserRole; plan: Plan }
+				| false,
 		) => {
 			if (err) {
 				console.error('Google-OAuth-Callback fehlgeschlagen:', err);
@@ -263,6 +272,9 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 					displayName: user.displayName,
 					avatarUrl: user.avatarUrl ?? null,
 					role: user.role,
+					// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+					// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+					plan: user.plan,
 				};
 				req.session.save(() => res.redirect(silentReturnTo ?? '/'));
 			});
@@ -281,7 +293,16 @@ authRouter.get('/auth/me', async (req, res) => {
 	// `/auth/google` noch `/auth/google/silent` registriert. Der synthetische Nutzer trägt keine Id,
 	// bleibt damit ohne Eigentümer-Bindung (`ownerScope`) und sieht wie bisher alle Ressourcen.
 	if (!req.session?.user && !isAuthActive()) {
-		res.json({ email: 'dev@localhost', displayName: 'Lokaler Modus', name: 'Lokaler Modus', avatarUrl: null });
+		// #1456: auch hier Paket + Entitlement-Map — der synthetische Nutzer hat keine DB-Zeile
+		// (und keine Id), ist damit paketlos und bekommt 'free'.
+		res.json({
+			email: 'dev@localhost',
+			displayName: 'Lokaler Modus',
+			name: 'Lokaler Modus',
+			avatarUrl: null,
+			plan: 'free',
+			entitlements: getEntitlements('free'),
+		});
 		return;
 	}
 	if (!req.session || !req.session.user) {
@@ -290,9 +311,13 @@ authRouter.get('/auth/me', async (req, res) => {
 	}
 	const user = req.session.user;
 	let role: UserRole;
+	// #1456: Paket wie die Rolle frisch aus der DB — eine Änderung über die Admin-API wirkt damit
+	// sofort, ohne Neu-Login. Alt-Sessions ohne `plan` fallen auf 'free'.
+	let plan: Plan;
 	try {
-		const dbRole = typeof user.id === 'number' ? (await User.findByPk(user.id))?.role : undefined;
-		role = dbRole ?? user.role ?? 'member';
+		const dbUser = typeof user.id === 'number' ? await User.findByPk(user.id) : undefined;
+		role = dbUser?.role ?? user.role ?? 'member';
+		plan = dbUser?.plan ?? user.plan ?? 'free';
 	} catch {
 		res.status(500).json({ message: 'Interner Serverfehler.' });
 		return;
@@ -301,12 +326,17 @@ authRouter.get('/auth/me', async (req, res) => {
 	if (user.role !== role) {
 		user.role = role;
 	}
+	if (user.plan !== plan) {
+		user.plan = plan;
+	}
 	res.json({
 		id: user.id,
 		email: user.email,
 		displayName: user.displayName,
 		avatarUrl: user.avatarUrl ?? null,
 		role,
+		plan,
+		entitlements: getEntitlements(plan),
 	});
 });
 
@@ -363,6 +393,9 @@ if (process.env.NODE_ENV === 'test') {
 				displayName: resolvedDisplayName,
 				avatarUrl: avatarUrl ?? null,
 				role: effectiveRole,
+				// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
+				// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
+				plan: dbUser.plan,
 			};
 			req.session.save(() => {
 				res.json({ message: 'Eingeloggt.' });

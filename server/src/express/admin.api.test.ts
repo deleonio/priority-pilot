@@ -189,4 +189,80 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		});
 		assert.equal(res.status, 400);
 	});
+
+	// #1456 (AK6, Spec docs/spec/issue-1456.md): PATCH /admin/users/:id/plan — Muster oben
+	// (PATCH /admin/users/:id/role).
+	it('#1456 — PATCH /admin/users/:id/plan liefert 403 für einen Member', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberCookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const listRes = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: adminCookie } });
+		const users = (await listRes.json()) as AdminUserDto[];
+		const member = users.find((u) => u.email === MEMBER_EMAIL);
+		assert.ok(member, 'Setup: Member muss existieren');
+
+		const res = await fetch(`${server.baseUrl}/admin/users/${member.id}/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: memberCookie },
+			body: JSON.stringify({ plan: 'max' }),
+		});
+		assert.equal(res.status, 403, 'Member darf den Plan nicht ändern');
+	});
+
+	it('#1456 — PATCH /admin/users/:id/plan setzt den Plan als Admin und persistiert ihn', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const listRes = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: adminCookie } });
+		const users = (await listRes.json()) as AdminUserDto[];
+		const member = users.find((u) => u.email === MEMBER_EMAIL);
+		assert.ok(member, 'Setup: Member muss existieren');
+
+		const res = await fetch(`${server.baseUrl}/admin/users/${member.id}/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ plan: 'max' }),
+		});
+		assert.equal(res.status, 200);
+		const updated = (await res.json()) as AdminUserDto & { plan?: string };
+		assert.equal(updated.plan, 'max', 'Response-DTO trägt den neuen Plan');
+
+		const persisted = await User.findOne({ where: { email: MEMBER_EMAIL } });
+		assert.equal((persisted as unknown as { plan?: string })?.plan, 'max', 'Plan ist in der DB persistiert');
+	});
+
+	it('#1456 — PATCH /admin/users/:id/plan liefert 400 bei ungültigem Plan-Wert', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const listRes = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: adminCookie } });
+		const users = (await listRes.json()) as AdminUserDto[];
+		const admin = users.find((u) => u.email === ADMIN_EMAIL);
+		assert.ok(admin, 'Setup: Admin muss existieren');
+
+		const res = await fetch(`${server.baseUrl}/admin/users/${admin.id}/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ plan: 'gold' }),
+		});
+		assert.equal(res.status, 400);
+	});
+
+	it('#1456 — PATCH /admin/users/:id/plan liefert 404 für unbekannte Id', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+
+		const res = await fetch(`${server.baseUrl}/admin/users/99999/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ plan: 'max' }),
+		});
+		assert.equal(res.status, 404);
+	});
+
+	it('#1456 — PATCH /admin/users/abc/plan liefert 400 bei nicht-numerischer Id', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+
+		const res = await fetch(`${server.baseUrl}/admin/users/abc/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ plan: 'max' }),
+		});
+		assert.equal(res.status, 400);
+	});
 });
