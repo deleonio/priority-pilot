@@ -436,12 +436,14 @@ describe('Tasks API', () => {
 			const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
 			const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
 			await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 1 });
-			const res2 = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 2 });
+			// #1429: weight 2 lag vor der Bereichsverschärfung (0,1–1) noch im gültigen Bereich; hier durch
+			// 0.5 ersetzt (Test-Pflege), der Idempotenz-Anspruch der Assertion bleibt unverändert.
+			const res2 = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 0.5 });
 			assert.equal(res2.status, 201);
 			// Keine Duplikat-Kante, und das Gewicht wurde tatsächlich aktualisiert (nicht nur Status 201).
 			const edges = await Dependency.findAll({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
 			assert.equal(edges.length, 1);
-			assert.equal(edges[0].dataValues.weight, 2);
+			assert.equal(edges[0].dataValues.weight, 0.5);
 		});
 
 		it('400 wenn dependingTaskId fehlt', async () => {

@@ -21,6 +21,11 @@ interface TaskTreeNode {
 	/** Thematische Kategorie (0..1); trägt den Kategorie-Filter der Aufgabenliste. */
 	categoryId: number | null;
 	/**
+	 * Gewicht (0,1–1) der Kante von der Elternaufgabe zu diesem Knoten (#1429) — `null` bei
+	 * Wurzelknoten, die keine Unteraufgabe/Vorgänger eines anderen Tasks sind.
+	 */
+	weight: number | null;
+	/**
 	 * Direkte Unteraufgaben dieses Knotens (Eltern → Kind). Eine Unteraufgabe wird als **Vorgänger**
 	 * der Eltern-Aufgabe angelegt (`parent.getDependencies() ∋ child`, siehe `TaskForm.tsx`); der Wald
 	 * bildet daher die `getDependencies()` als Kinder ab (#336). Der Feldname bleibt aus
@@ -84,8 +89,9 @@ const getEstimatedEffort = async (task: Task): Promise<number> => {
 	return estimatedEffort;
 };
 
-// Rekursive Funktion, um den Baum eines Tasks zu erstellen
-const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
+// Rekursive Funktion, um den Baum eines Tasks zu erstellen. `weight` ist das Gewicht der Kante vom
+// Elternknoten zu `task` (aus dessen `getDependencies()`-Aufruf) — `null` für Wurzelknoten (#1429).
+const buildTaskTree = async (task: Task, weight: number | null = null): Promise<TaskTreeNode> => {
 	// Kinder = direkte Unteraufgaben = Vorgänger dieses Tasks (`getDependencies()`), analog zum
 	// Aufwands-Rollup oben. Damit erscheint die Eltern-Aufgabe über ihren Unteraufgaben (#336, AK4).
 	// Erledigte Unteraufgaben werden ausgeblendet — sie blockieren nicht mehr und müssen nicht
@@ -98,7 +104,8 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 	const totalEstimatedEffort = await getEstimatedEffort(task);
 
 	for (const subtask of subtasks) {
-		children.push(await buildTaskTree(subtask));
+		const edgeWeight = subtask.Dependency?.dataValues?.weight || 1;
+		children.push(await buildTaskTree(subtask, edgeWeight));
 	}
 
 	return {
@@ -111,6 +118,7 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 		status: task.status,
 		progress: await computeProgress(task),
 		categoryId: task.categoryId ?? null,
+		weight,
 		dependents: children,
 	};
 };

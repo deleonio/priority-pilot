@@ -4,6 +4,8 @@ import type { TaskTreeNode } from 'client';
 export interface DependencyRef {
 	id: number;
 	title: string;
+	/** Gewicht (0,1–1) der Kante von diesem Vorgänger zum betrachteten Task (#1429). */
+	weight: number;
 }
 
 /**
@@ -31,7 +33,7 @@ export const buildDependencyMap = (forest: TaskTreeNode[]): Map<number, Dependen
 			const list = map.get(node.id) ?? [];
 			for (const child of node.dependents) {
 				if (!list.some((dependency) => dependency.id === child.id)) {
-					list.push({ id: child.id, title: child.title });
+					list.push({ id: child.id, title: child.title, weight: child.weight ?? 1 });
 				}
 			}
 			map.set(node.id, list);

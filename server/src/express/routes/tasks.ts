@@ -880,9 +880,9 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		}
 		if (
 			input.weight !== undefined &&
-			(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0)
+			(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0.1 || input.weight > 1)
 		) {
-			sendError(res, 400, 'weight muss eine endliche Zahl >= 0 sein.');
+			sendError(res, 400, 'weight muss eine endliche Zahl zwischen 0,1 und 1 sein.');
 			return;
 		}
 		const weight = typeof input.weight === 'number' ? input.weight : 1;

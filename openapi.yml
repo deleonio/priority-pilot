@@ -3201,9 +3201,10 @@ components:
         weight:
           type: number
           format: float
-          minimum: 0
+          minimum: 0.1
+          maximum: 1
           default: 1
-          description: Gewicht der Abhängigkeit
+          description: Gewicht der Abhängigkeit (0,1–1)
     TaskPillarContribution:
       type: object
       description: >-
@@ -3333,6 +3334,13 @@ components:
           description: >-
             Thematische Kategorie der Aufgabe (0..1, siehe Schema `Category`) — trägt den
             Kategorie-Filter der Aufgabenliste. `null`, wenn keine zugeordnet ist.
+        weight:
+          type: number
+          format: float
+          nullable: true
+          description: >-
+            Gewicht (0,1–1) der Kante von der Elternaufgabe zu diesem Knoten — `null` bei
+            Wurzelknoten, die keine Vorgänger eines anderen Tasks sind (#1429).
         dependents:
           type: array
           items:

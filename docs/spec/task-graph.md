@@ -15,6 +15,16 @@ als eingerückte Kartenliste. Zwei Probleme der Baumdarstellung fallen damit weg
 
 Die flache Aufgabenliste unter `/aufgaben` bleibt unverändert.
 
+## Wirkung des Kantengewichts (#1429)
+
+Das Kantengewicht (`dependencies.weight`, gültiger Bereich 0,1–1, durchgesetzt in
+`POST /tasks/:id/dependencies`) wirkt an zwei Stellen:
+
+- `calculateValueContribution` (`server/src/logics/value.ts`) multipliziert den Wertbeitrag
+  jedes Vorgängers mit dem Kantengewicht, bevor er in den Wert der abhängigen Aufgabe einfließt.
+- `buildTaskGraph` (`server/src/logics/graph.ts`) übernimmt dasselbe Gewicht in `TaskGraph.edges`
+  für die Wertberechnung des Graph-Tabs.
+
 ## Voraussetzungen
 
 - Angemeldeter Nutzer; `GET /graph` liegt hinter `requireAuth`.

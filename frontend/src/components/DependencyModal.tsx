@@ -79,6 +79,24 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		}
 	};
 
+	/** AK8: Gewicht eines bestehenden Vorgängers ändern — derselbe idempotente POST wie beim Hinzufügen. */
+	const changeWeight = async (dependingTaskId: number, newWeight: number): Promise<void> => {
+		setError(null);
+		setBusy(true);
+		try {
+			await api.addDependency({
+				id: task.id,
+				dependencyInput: { dependingTaskId, weight: newWeight },
+			});
+			onChanged();
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		} finally {
+			setBusy(false);
+		}
+	};
+
 	const remove = async (depId: number): Promise<void> => {
 		setError(null);
 		setBusy(true);
@@ -117,6 +135,22 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 						{dependencies.map((dependency) => (
 							<li key={dependency.id}>
 								<span>{dependency.title}</span>
+								<KolInputRange
+									_label={`Gewicht: ${dependency.title}`}
+									_min={0.1}
+									_max={1}
+									_step={0.1}
+									_value={dependency.weight}
+									_disabled={busy}
+									_on={{
+										onChange: (_event, value) => {
+											const next = readNumber(value);
+											if (next !== null) {
+												void changeWeight(dependency.id, next);
+											}
+										},
+									}}
+								/>
 								<KolButton
 									_label={`Vorgänger ${dependency.title} entfernen`}
 									_hideLabel

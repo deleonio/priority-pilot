@@ -301,7 +301,7 @@ export const mcpTools: McpTool[] = [
 			type: 'object',
 			properties: {
 				...linkProperties,
-				weight: { type: 'number', description: 'Weight of the link, number >= 0. Defaults to 1.' },
+				weight: { type: 'number', description: 'Weight of the link, number between 0.1 and 1. Defaults to 1.' },
 			},
 			required: ['taskId', 'dependsOnId'],
 		},
