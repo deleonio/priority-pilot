@@ -226,4 +226,39 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		});
 		expect(overflowsHorizontally).toBe(false);
 	});
+
+	test('AK4/#1449: eine Unteraufgabe mit zwei Oberaufgaben erscheint genau einmal in der Liste', async ({ page }) => {
+		const childTitle = uniqueTitle('Geteilt');
+		const parentAId = await createTask(page, uniqueTitle('Eltern-A'));
+		const parentBId = await createTask(page, uniqueTitle('Eltern-B'));
+		const childId = await createTask(page, childTitle);
+		await addSubtask(page, parentAId, childId);
+		await addSubtask(page, parentBId, childId);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		await expect(list(page)).toBeVisible();
+		await expect(item(page, childId)).toHaveCount(1);
+		await expect(page.getByText(childTitle, { exact: true })).toHaveCount(1);
+	});
+
+	test('AK5/#1449: dieselbe geteilte Unteraufgabe bleibt bei 375×812 einzeilig', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+
+		const childTitle = uniqueTitle('Geteilt-Mobil');
+		const parentAId = await createTask(page, uniqueTitle('Eltern-A'));
+		const parentBId = await createTask(page, uniqueTitle('Eltern-B'));
+		const childId = await createTask(page, childTitle);
+		await addSubtask(page, parentAId, childId);
+		await addSubtask(page, parentBId, childId);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		await expect(list(page)).toBeVisible();
+		await expect(item(page, childId)).toHaveCount(1);
+	});
 });
