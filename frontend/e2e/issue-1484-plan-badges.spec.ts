@@ -22,6 +22,12 @@ const login = async (page: Page): Promise<void> => {
 		data: { email: TEST_EMAIL, displayName: 'Badge Tester' },
 	});
 	expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
+	// Der `/auth/me`-Mock der Fixture (`fixtures.ts`) liefert nur `{id, displayName, email}` — ohne
+	// `plan`/`entitlements`. `PlanBadge` rendert ohne Entitlement bewusst `null` (`PlanBadge.tsx:22`),
+	// damit kein falsches Badge erscheint; mit dem Mock wäre hier also KEIN Badge im DOM. Diese Spec
+	// braucht die echte Serverantwort (Paket `free` + Entitlement-Map, `auth.ts:339`), deshalb wird der
+	// Fixture-Handler abgeräumt — die Session aus `test-login` trägt den Cookie bereits.
+	await page.unroute('**/auth/me');
 };
 
 const deleteAllTasks = async (page: Page): Promise<void> => {
