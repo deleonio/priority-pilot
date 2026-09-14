@@ -143,7 +143,7 @@ Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen si
 
 **MCP-Loopback.** `server/src/mcp/tools.ts` ruft die gespiegelte HTTP-Route mit demselben Bearer-Header auf (in `apiTokenAuth.ts` als AK6 dokumentiert). Sobald die Guards greifen, bekommt dieser Loopback einen plan-403 und reicht ihn roh durch. Betroffen sind `task_link`, `task_unlink`, `task_links` (Max) sowie `group_list`, `group_members_list` (Pro). Der plan-403 muss dort in denselben lesbaren JSON-RPC-Fehler wandern, den der Scope-Guard heute liefert.
 
-**KI-Kontingent.** Eine Tabelle zählt LLM-Aufrufe je Nutzer und Monat (Schlüssel Jahr-Monat, Unique-Index auf Nutzer und Monat). Es zählen die fünf LLM-Routen; das reine Feedback zu Säulen-Vorschlägen (Speicherung ohne LLM-Call) zählt nicht. Bei Erschöpfung antwortet der Server 429 mit `code: quota_exhausted`; erfolgreiche Responses führen den Kontingent-Rest mit, damit das Frontend kurz vor dem Limit warnen kann. Gezählt wird reservierend vor dem Call mit Rückbuchung bei Provider-Fehler — nachträgliches Zählen ließe parallele Aufrufe am Deckel vorbei — und als ein `UPDATE ... SET count = count + 1`, nicht als Read-Modify-Write in JavaScript. Der Zähler hängt als Route-Middleware neben dem Plan-Guard, nicht in den fünf Handlern: einen gemeinsamen Choke-Point in `llm/llm.ts` gibt es nicht, weil `lektorat.ts` direkt importiert, während die übrigen vier Routen ihren Parser per Dependency Injection bekommen.
+**KI-Kontingent.** Eine Tabelle zählt LLM-Aufrufe je Nutzer und Monat (Schlüssel Jahr-Monat, Unique-Index auf Nutzer und Monat). Es zählen die fünf LLM-Routen; das reine Feedback zu Säulen-Vorschlägen (Speicherung ohne LLM-Call) zählt nicht. Bei Erschöpfung antwortet der Server 429 mit `code: quota_exhausted`; erfolgreiche Responses führen den Kontingent-Rest mit, damit das Frontend kurz vor dem Limit warnen kann. Gezählt wird reservierend vor dem Call mit Rückbuchung bei Provider-Fehler — nachträgliches Zählen ließe parallele Aufrufe am Deckel vorbei — und als ein `UPDATE ... SET count = count + 1`, nicht als Read-Modify-Write in JavaScript. Der Zähler hängt als Route-Middleware neben dem Plan-Guard, nicht in den fünf Handlern: `requestModelJson` (`server/src/llm/llm.ts:434`) ist zwar der gemeinsame Call, an dem alle fünf Parser vorbeilaufen, kennt aber weder Request noch Nutzer — die Router-Naht führt an ihm vorbei, weil `lektorat.ts` ihn direkt importiert, während die übrigen vier Routen ihren Parser per Dependency Injection bekommen und im Test ersetzt werden.
 
 **MCP-Deckel.** Der Plan begrenzt den erlaubten Token-Scope (Max: nur `read`; Ultimate: auch `readwrite`). Geprüft wird beim Anlegen und beim Scope-Umschalten der PATs sowie beim Schreibversuch über `tools/call` mit dem bestehenden lesbaren JSON-RPC-Fehler, ergänzt um einen Pakethinweis.
 
@@ -159,10 +159,11 @@ Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen si
 
 ## Teilaufgaben
 
-Neun Teilaufgaben. T1 legt Plan-Modell, Rechte-Zentrale und die Verträge fest, auf denen alles Weitere aufsetzt; danach laufen T2, T4 und T5 parallel, weil sie fachlich alle nur an T1 hängen. Das Frontend folgt erst, wenn die drei Server-Verträge stehen — sonst würden dieselben rund vierzehn Komponenten dreimal angefasst, einmal für die Badges, einmal für die Kontingent-Warnung und einmal für die Sperrzustände nach dem Downgrade.
+Neun Teilaufgaben. T1 legt Plan-Modell, Rechte-Zentrale und die Verträge fest, auf denen alles Weitere aufsetzt; danach laufen T2, T4 und T5 parallel, weil sie fachlich alle nur an T1 hängen. T3a wartet nur auf T2 und T4, nicht auf T5, das als eigener Strang von T1 direkt zu T6 läuft. Das Frontend folgt erst, wenn die drei Server-Verträge stehen — sonst würden dieselben rund vierzehn Komponenten dreimal angefasst, einmal für die Badges, einmal für die Kontingent-Warnung und einmal für die Sperrzustände nach dem Downgrade.
 
 ```
-T1 → { T2, T4, T5 } → T3a → T3b → T6 → T7 → T8
+T1 → { T2, T4 } → T3a → T3b → T6 → T7 → T8
+T1 → T5 → T6
 ```
 
 Die Felder entsprechen dem Ticket-Formular (`.github/ISSUE_TEMPLATE/ticket.yml`). Angelegt sind die Teilaufgaben als Epic #1455 mit Sub-Issues nach dem Muster von Epic #1340: #1456 (T1), #1457 (T2), #1459 (T4), #1460 (T5), #1458 (T3a), #1484 (T3b), #1461 (T6), #1462 (T7), #1463 (T8). Die Abschnitte hier sind die Fassung, aus der die Issues entstanden sind; maßgeblich für die Umsetzung ist das jeweilige Issue.
