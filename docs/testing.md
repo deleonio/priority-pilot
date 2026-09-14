@@ -16,7 +16,10 @@
 
 ## 2. Testorganisation
 
-- Struktur: Issue-bezogene Spec-Dateien (z. B. `issue-727-range-inputs-layout.spec.ts`)
+- Struktur: Spec-Dateien sind feature-benannt (z. B. `help.spec.ts`, `keyboard-shortcuts.spec.ts`,
+  `voice-autostart.spec.ts`). Eine Issue-Nummer im Dateinamen
+  (`issue-727-range-inputs-layout.spec.ts`) bleibt Einzelfall-Regressionstests vorbehalten; ältere
+  Specs tragen sie noch aus der früheren Konvention.
 - Beschreibung: Jeder Test hat einen klaren AK-Bezug (Akzeptanzkriterium)
 - Isolation: Tests räumen in `afterEach` auf
 
