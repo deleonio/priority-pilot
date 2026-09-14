@@ -7,7 +7,7 @@ RULE SOURCES (yardstick for the perspectives AND subject of the rulebook check �
   2. .ai-knowledge/project.md
   3. .ai-knowledge/tdd-strategy.md
   4. .ai-knowledge/ux-design.md
-  5. docs/arc42.md
+  5. docs/arc42.md (section 1.2 ranks the quality goals — the yardstick for Wert; section 10 holds the measurable scenarios)
   6. docs/adr/ (read only — never edit; a conflict with an ADR is a finding, not a fix)
   7. docs/testing.md
   8. docs/mobile-ui-rules.md
@@ -18,7 +18,7 @@ FIX ALLOWED TODAY: {{FIX_ALLOWED}}
   - true: you are on branch {{BRANCH}} (reset to main). Implement exactly one fix per METHOD, run the gate once at the end (pnpm format && pnpm lint && pnpm knip && pnpm test), then `git add -A && git commit -m "<conventional-commit-subject>"` — exactly ONE commit, nothing else.
   - false: yesterday's fix is still in the review pipeline. Review and protocol only — do NOT edit files, do NOT commit; note the fix candidate under "Heutiger Fix" as ausgesetzt.
 
-FORBIDDEN in a fix (the workflow rejects the commit): .github/**, pnpm-lock.yaml, any package.json, docs/adr/**, openapi.yml, server/src/db/**. Allowed for a rule consolidation: AGENTS.md, .ai-knowledge/**, docs/*.md. Size: at most 200 changed lines across at most 6 files.
+FORBIDDEN in a fix (the workflow rejects the commit): everything under .github/** EXCEPT .github/scripts/** (tested code), pnpm-lock.yaml, any package.json, docs/adr/**, openapi.yml, server/src/db/**. Allowed for a rule consolidation: AGENTS.md, .ai-knowledge/**, docs/*.md. A finding anywhere else under .github/ (workflows, actions, prompts, agents, hooks, pi, release config) is reported only, like an ADR conflict. Size: at most 200 changed lines across at most 6 files.
 
 ORDER:
   1. BESTAND FIRST: if {{PROTOCOL_ISSUE_NR}} is not 0, read the body of issue {{PROTOCOL_ISSUE_NR}} (`gh issue view {{PROTOCOL_ISSUE_NR}} --json body --jq .body`) — this is the previous protocol; take over its open F- and V-findings with their numbers. Then `gh issue list --state open --limit 200 --json number,title` and `gh pr list --state open --limit 100 --json number,title,headRefName` as the open-work dedup list.
@@ -36,7 +36,7 @@ PROTOCOL (MANDATORY): write via bash heredoc to /tmp/code-review-protokoll.md. T
   The chosen finding (F-n or V-n), its title, why it is uncritical AND valuable, the commit subject — or `keiner — <Grund>` (nothing qualified) or `ausgesetzt — Vortags-PR noch in der Pipeline` (fix not allowed today).
   PR: (wird vom Workflow eingetragen)
   ## Offene Findings
-  Table, ranked by value: `| # | Perspektive | Ort | Finding | Wert | Risiko | Status |` — # = F-n (stable, never reused), Ort = Datei:Zeile, Wert/Risiko = hoch|mittel|gering, Status = offen|ausgesetzt. Every row names the violated rule (source path) in the Finding cell.
+  Table, ranked by value: `| # | Perspektive | Qualitätsziel | Ort | Finding | Wert | Risiko | Status |` — # = F-n (stable, never reused), Qualitätsziel = one of the Q42 tags listed in docs/arc42.md §1.2 (read the table, do not assume), Ort = Datei:Zeile, Wert = Beitrag zu diesem Ziel (hoch|mittel|gering, gewichtet nach der Priorität des Ziels), Risiko = hoch|mittel|gering, Status = offen|ausgesetzt. Every row names the violated rule (source path) in the Finding cell.
   ## Vorgaben: Widersprüche & Lücken
   Table: `| # | Art | Quelle A | Quelle B | Vorschlag | Status |` — # = V-n (stable), Art = Widerspruch|Dopplung|unkonkret|veraltet, Quelle = Datei:Zeile (Quelle B may be `Code: Datei:Zeile` or `—` for unkonkret), Vorschlag = one line: which location keeps the truth, what is deleted or made concrete. If nothing was found: `keine — Vorgaben konsistent`.
   ## Umgesetzt / Weggefallen

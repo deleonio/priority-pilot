@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.41._
+_Enthält v0.2.0 – v0.2.44._
 
 ### 🔧 Engineering
 
@@ -54,6 +54,9 @@ _Enthält v0.2.0 – v0.2.41._
 - feat(server): allow autoDeleteAfterDeadline via MCP task tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1445
 - fix(frontend): hide task id prefix in dashboard widget titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1451
 - fix(frontend): dedup extractLeaves by node.id (#1449) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1464
+- feat(ci): tägliches Code-Review-Team ersetzt nightly-arch-opt by @deleonio in https://github.com/deleonio/priority-pilot/pull/1468
+- feat(server): send startup status mail with commit sha to admins by @deleonio in https://github.com/deleonio/priority-pilot/pull/1466
+- fix(ci): scope guard opens .github/scripts, quality goals as yardstick by @deleonio in https://github.com/deleonio/priority-pilot/pull/1469
 
 ## v0.1 - 2026-09-12
 
@@ -668,7 +671,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update dependency @testing-library/jest-dom to v7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1175
 - chore(deps): update dependency @tootallnate/once to v3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1176
 - chore(deps): update dependency brace-expansion@2 to v5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1178
-- feat(frontend): add confetti success feedback on task completion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1177
 - feat(frontend): add confetti success feedback on task completion by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1177
 - chore(deps): update dependency picomatch@2 to v4 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1180
 - feat(frontend): confetti when completing via dashboard signal panel (#1182) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1185
