@@ -74,6 +74,10 @@ place, a vague rule made checkable — in the agent instructions, the knowledge 
 documentation, never in the decision records). On a tie the consolidation wins: a vague rule produces
 wrong code findings every following day. If nothing qualifies, there is no fix today — say so.
 
+Findings in the CI orchestration layer (workflows, composite actions, run prompts) are reported only,
+like conflicts with a decision record: a change there cannot be verified by the gate and can break
+every following run. The pipeline's scripts are ordinary tested code and qualify as a fix target.
+
 ## Umsetzung
 
 Follow the project's TDD rules. Run the gate once at the end over all changes (`pnpm format`,

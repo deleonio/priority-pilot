@@ -915,7 +915,8 @@ an jedem Folgetag falsche Code-Findings erzeugt.
 **Mechanik:**
 
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
-  übersprungen; `workflow_dispatch` mit `force: true` umgeht ihn.
+  übersprungen (Budget-Heuristik; ein im Vorlauf ausgesetzter Fix, dessen PR ohne Merge geschlossen
+  wurde, verzögert sich dadurch um einen Tag); `workflow_dispatch` mit `force: true` umgeht ihn.
 - **In-Flight-Guard = Fix-Pause, nicht Lauf-Skip:** Trägt der offene Fix-PR gerade
   `ai:needs-review`, `ai:needs-fixup`, `ai:reviewed` oder `ai:needs-human`, läuft das Review
   trotzdem und das Protokoll wird aktualisiert — nur der Fix pausiert (`FIX_ALLOWED=false` im
@@ -932,8 +933,9 @@ an jedem Folgetag falsche Code-Findings erzeugt.
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: fixed` ↔ genau ein Commit und Fix erlaubt,
   `VERDICT: review-only` ↔ null Commits; Protokoll mit den Pflicht-Abschnitten „Heutiger Fix",
   „Offene Findings", „Vorgaben: Widersprüche & Lücken", „Historie". **Scope-Guard:** kein Fix
-  unter `.github/`, `pnpm-lock.yaml`, `package.json`, `docs/adr/`, `openapi.yml`,
-  `server/src/db/`. **Größen-Guard:** höchstens 6 Dateien und 200 geänderte Zeilen (Konstanten
+  unter `.github/workflows/`, `.github/actions/`, `.github/prompts/`, `pnpm-lock.yaml`,
+  `package.json`, `docs/adr/`, `openapi.yml`, `server/src/db/` (`.github/scripts/` ist als
+  getesteter Code erlaubt; Findings in der CI-Orchestrierung werden wie ADR-Konflikte nur gemeldet). **Größen-Guard:** höchstens 6 Dateien und 200 geänderte Zeilen (Konstanten
   `MAX_FILES`/`MAX_LINES` im Workflow). Verstoß = rot, kein Push.
 - **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token**
   (erst entfernen, dann setzen — Re-Arm-Muster #536) → Review → Gate → Auto-Merge.

@@ -18,7 +18,7 @@ FIX ALLOWED TODAY: {{FIX_ALLOWED}}
   - true: you are on branch {{BRANCH}} (reset to main). Implement exactly one fix per METHOD, run the gate once at the end (pnpm format && pnpm lint && pnpm knip && pnpm test), then `git add -A && git commit -m "<conventional-commit-subject>"` — exactly ONE commit, nothing else.
   - false: yesterday's fix is still in the review pipeline. Review and protocol only — do NOT edit files, do NOT commit; note the fix candidate under "Heutiger Fix" as ausgesetzt.
 
-FORBIDDEN in a fix (the workflow rejects the commit): .github/**, pnpm-lock.yaml, any package.json, docs/adr/**, openapi.yml, server/src/db/**. Allowed for a rule consolidation: AGENTS.md, .ai-knowledge/**, docs/*.md. Size: at most 200 changed lines across at most 6 files.
+FORBIDDEN in a fix (the workflow rejects the commit): .github/workflows/**, .github/actions/**, .github/prompts/**, pnpm-lock.yaml, any package.json, docs/adr/**, openapi.yml, server/src/db/**. Allowed: .github/scripts/** (tested code), and for a rule consolidation AGENTS.md, .ai-knowledge/**, docs/*.md. A finding in the CI orchestration layer (workflows, actions, prompts) is reported only, like an ADR conflict. Size: at most 200 changed lines across at most 6 files.
 
 ORDER:
   1. BESTAND FIRST: if {{PROTOCOL_ISSUE_NR}} is not 0, read the body of issue {{PROTOCOL_ISSUE_NR}} (`gh issue view {{PROTOCOL_ISSUE_NR}} --json body --jq .body`) — this is the previous protocol; take over its open F- and V-findings with their numbers. Then `gh issue list --state open --limit 200 --json number,title` and `gh pr list --state open --limit 100 --json number,title,headRefName` as the open-work dedup list.
