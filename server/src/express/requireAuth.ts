@@ -4,6 +4,8 @@ import { sendError } from './http-error.js';
 import type { UserRole } from '../models/user.js';
 import { User } from '../models/index.js';
 
+export { ownerScope } from '../logics/ownerScope.js';
+
 /** Prüft, ob ein Allowlist-Gate konfiguriert ist (Plural oder Singular gesetzt). */
 const hasAllowlist = (): boolean =>
 	!!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
@@ -28,13 +30,6 @@ export const getUserId = (req: Request): number | undefined => {
 	const id = req.session?.user?.id;
 	return typeof id === 'number' ? id : undefined;
 };
-
-/**
- * Eigentümer-Filter für Queries (Issue #207, AK5). Bei gesetzter `userId` wird auf den
- * eingeloggten Nutzer eingeschränkt; im Pass-Through-Modus (`undefined`) bleibt der Filter leer,
- * sodass reine CRUD-Setups ohne Login unverändert alle Ressourcen sehen (Abwärtskompatibilität).
- */
-export const ownerScope = (userId: number | undefined): { userId?: number } => (userId !== undefined ? { userId } : {});
 
 /**
  * Middleware: Anfrage ohne gültige Session abweisen (Issue #207, AK4).
