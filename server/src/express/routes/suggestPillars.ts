@@ -5,6 +5,8 @@ import { Pillar, PillarFeedback } from '../../models/index.js';
 import { classifyPillarsWithMistral, type FeedbackExample, type PillarClassifier } from '../../llm/llm.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { requirePlanFeature } from '../planGuard.js';
+import { meterAiQuota } from '../aiQuotaMeter.js';
 import type { components } from '../../api';
 
 type SuggestPillarsInputDto = components['schemas']['SuggestPillarsInput'];
@@ -143,6 +145,8 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 	// POST /tasks/suggest-pillars — Säulen-Klassifikation (mit Konfidenz) für Titel/Beschreibung vorschlagen
 	router.post(
 		'/tasks/suggest-pillars',
+		requirePlanFeature('ai_assist'),
+		meterAiQuota(),
 		async (req: Request, res: Response<{ suggestions: PillarSuggestionDto[] } | ErrorDto>) => {
 			// Provider-Query-Parameter validieren (#749)
 			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);

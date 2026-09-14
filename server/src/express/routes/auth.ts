@@ -11,6 +11,7 @@ import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js'
 import { getEntitlements, type Plan } from '../../logics/plans.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
+import { getAiUsageCount } from '../aiQuotaMeter.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
 
 // Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
@@ -329,6 +330,14 @@ authRouter.get('/auth/me', async (req, res) => {
 	if (user.plan !== plan) {
 		user.plan = plan;
 	}
+	// #1459: Das Restkontingent der KI-Unterstützung ist verbrauchsabhängig — der Monatszähler
+	// kommt aus `ai_usage` (Best-Effort: ein Lesefehler darf `/auth/me` nicht mit 500 reißen).
+	let aiAssistConsumed = 0;
+	try {
+		aiAssistConsumed = typeof user.id === 'number' ? await getAiUsageCount(user.id) : 0;
+	} catch (error) {
+		console.warn('KI-Verbrauch konnte nicht gelesen werden — quotaRemaining zeigt das volle Kontingent.', error);
+	}
 	res.json({
 		id: user.id,
 		email: user.email,
@@ -336,7 +345,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		avatarUrl: user.avatarUrl ?? null,
 		role,
 		plan,
-		entitlements: getEntitlements(plan),
+		entitlements: getEntitlements(plan, aiAssistConsumed),
 	});
 });
 

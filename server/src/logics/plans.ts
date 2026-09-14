@@ -71,7 +71,7 @@ interface FeatureEntitlement {
 	allowed: boolean;
 	/** Kleinstes Paket, das das Feature enthält. */
 	requiredPlan: Plan;
-	/** Nur bei `ai_assist` gesetzt: Rest des Monatskontingents (T4 zieht den Verbrauch ab). */
+	/** Nur bei `ai_assist` gesetzt: Rest des Monatskontingents (Verbrauch bereits abgezogen, T4). */
 	quotaRemaining?: number;
 }
 export type EntitlementMap = Record<FeatureId, FeatureEntitlement>;
@@ -85,14 +85,18 @@ const requiredPlanFor = (entry: FeatureCatalogEntry): Plan =>
  * wahrheitsgemäße Paketauswertung, aus der die UI Badges und Hinweise rendert (Gesamtkonzept
  * „gemessen ab T1, durchgesetzt erst in T8"). Ob tatsächlich geblockt wird, entscheidet allein
  * `shouldBlockFeature()`.
+ *
+ * `aiAssistConsumed` ist der bereits verbrauchte Teil des Monatskontingents (#1459, T4). Der
+ * Parameter bleibt optional: `getEntitlements` läuft auch dort, wo es keinen Nutzer und damit
+ * keinen Verbrauch gibt (Pass-Through-Modus in `routes/auth.ts`, `shouldBlockFeature`).
  */
-export function getEntitlements(plan: Plan): EntitlementMap {
+export function getEntitlements(plan: Plan, aiAssistConsumed = 0): EntitlementMap {
 	const map = {} as EntitlementMap;
 	for (const entry of FEATURE_CATALOG) {
 		const allowed = entry.allowedPlans.includes(plan);
 		const entitlement: FeatureEntitlement = { allowed, requiredPlan: requiredPlanFor(entry) };
 		if (entry.feature === 'ai_assist') {
-			entitlement.quotaRemaining = AI_ASSIST_MONTHLY_QUOTA[plan];
+			entitlement.quotaRemaining = Math.max(0, AI_ASSIST_MONTHLY_QUOTA[plan] - aiAssistConsumed);
 		}
 		map[entry.feature] = entitlement;
 	}

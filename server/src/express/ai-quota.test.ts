@@ -9,7 +9,14 @@
  */
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
+import {
+	resetDb,
+	closeDb,
+	startTestServer,
+	applyTestAuthEnv,
+	setTestLlmProvider,
+	type TestServer,
+} from '../test/helpers.js';
 import { User, Pillar } from '../models/index.js';
 import sequelize from '../database.js';
 import { AI_ASSIST_MONTHLY_QUOTA } from '../logics/plans.js';
@@ -182,6 +189,9 @@ describe('KI-Kontingent-Metering (#1459)', () => {
 	});
 	beforeEach(async () => {
 		await resetDb();
+		// `/lektorat` ruft die LLM-Kaskade direkt auf (keine AppDeps-Injektion): ohne konfigurierten
+		// Provider antwortet die Route 503, bevor der fetch-Stub greift (Muster `lektorat.test.ts`).
+		await setTestLlmProvider(true);
 		delete process.env.MONETIZATION_ENFORCED;
 	});
 	after(async () => {
@@ -195,7 +205,7 @@ describe('KI-Kontingent-Metering (#1459)', () => {
 		for (const routeCase of ROUTES) {
 			it(`${routeCase.label}: erhöht ai_usage.count um 1`, async () => {
 				process.env.MONETIZATION_ENFORCED = 'true';
-				const email = `ak1-${routeCase.label.replace(/\W+/g, '')}@example.com`;
+				const email = `ak1-${routeCase.label.replace(/\W+/g, '')}@example.com`.toLowerCase();
 				const cookie = await server.register(email);
 				await setPlan(email, 'pro');
 				if (routeCase.needsPillar) await seedPillar(email);
@@ -234,7 +244,7 @@ describe('KI-Kontingent-Metering (#1459)', () => {
 		for (const routeCase of [ROUTES[0], ROUTES[4]]) {
 			it(`${routeCase.label}: Provider-Fehler (>=500) lässt den Zähler unverändert`, async () => {
 				process.env.MONETIZATION_ENFORCED = 'true';
-				const email = `ak4-${routeCase.label.replace(/\W+/g, '')}@example.com`;
+				const email = `ak4-${routeCase.label.replace(/\W+/g, '')}@example.com`.toLowerCase();
 				const cookie = await server.register(email);
 				await setPlan(email, 'pro');
 				const user = await User.findOne({ where: { email } });

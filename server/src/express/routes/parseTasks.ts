@@ -12,6 +12,8 @@ import {
 import { Category } from '../../models/index.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { requirePlanFeature } from '../planGuard.js';
+import { meterAiQuota } from '../aiQuotaMeter.js';
 import type { components } from '../../api';
 
 type ErrorDto = components['schemas']['Error'];
@@ -59,58 +61,68 @@ export const createParseTasksRouter = (
 
 	// POST /tasks/parse-text — strukturierte Task-Felder aus Freitext extrahieren.
 	// Optionaler Query-Parameter `provider` (#749): pinnt die LLM-Kaskade auf den genannten Provider.
-	router.post('/tasks/parse-text', async (req: Request, res: Response<ParsedTask | ErrorDto>) => {
-		// Provider-Query-Parameter validieren (#749)
-		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
-		if (!providerValidation.ok) {
-			res.status(400).json({ message: providerValidation.message });
-			return;
-		}
-		const provider = providerValidation.provider;
+	router.post(
+		'/tasks/parse-text',
+		requirePlanFeature('ai_assist'),
+		meterAiQuota(),
+		async (req: Request, res: Response<ParsedTask | ErrorDto>) => {
+			// Provider-Query-Parameter validieren (#749)
+			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
+			if (!providerValidation.ok) {
+				res.status(400).json({ message: providerValidation.message });
+				return;
+			}
+			const provider = providerValidation.provider;
 
-		const validation = validateText(req.body);
-		if (!validation.ok) {
-			res.status(400).json({ message: validation.message });
-			return;
-		}
+			const validation = validateText(req.body);
+			if (!validation.ok) {
+				res.status(400).json({ message: validation.message });
+				return;
+			}
 
-		try {
-			const result = await parser(validation.text, provider, await loadCategoryOptions(req));
-			res.json(result);
-		} catch (error) {
-			sendLlmError(res, error);
-		}
-	});
+			try {
+				const result = await parser(validation.text, provider, await loadCategoryOptions(req));
+				res.json(result);
+			} catch (error) {
+				sendLlmError(res, error);
+			}
+		},
+	);
 
 	// POST /tasks/parse-search — gesprochene/getippte Suchanfrage in Suchbegriff und Kategorie
 	// zerlegen. Ohne angelegte Kategorien gäbe es nichts zu erkennen: Dann antwortet die Route
 	// direkt mit dem unveränderten Text, statt einen LLM-Aufruf zu verbrennen.
-	router.post('/tasks/parse-search', async (req: Request, res: Response<ParsedSearch | ErrorDto>) => {
-		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
-		if (!providerValidation.ok) {
-			res.status(400).json({ message: providerValidation.message });
-			return;
-		}
-		const provider = providerValidation.provider;
+	router.post(
+		'/tasks/parse-search',
+		requirePlanFeature('ai_assist'),
+		meterAiQuota(),
+		async (req: Request, res: Response<ParsedSearch | ErrorDto>) => {
+			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
+			if (!providerValidation.ok) {
+				res.status(400).json({ message: providerValidation.message });
+				return;
+			}
+			const provider = providerValidation.provider;
 
-		const validation = validateText(req.body);
-		if (!validation.ok) {
-			res.status(400).json({ message: validation.message });
-			return;
-		}
+			const validation = validateText(req.body);
+			if (!validation.ok) {
+				res.status(400).json({ message: validation.message });
+				return;
+			}
 
-		const categories = await loadCategoryOptions(req);
-		if (categories.length === 0) {
-			res.json({ text: validation.text.trim() });
-			return;
-		}
+			const categories = await loadCategoryOptions(req);
+			if (categories.length === 0) {
+				res.json({ text: validation.text.trim() });
+				return;
+			}
 
-		try {
-			res.json(await searchParser(validation.text, provider, categories));
-		} catch (error) {
-			sendLlmError(res, error);
-		}
-	});
+			try {
+				res.json(await searchParser(validation.text, provider, categories));
+			} catch (error) {
+				sendLlmError(res, error);
+			}
+		},
+	);
 
 	return router;
 };
