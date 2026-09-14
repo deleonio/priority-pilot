@@ -12,7 +12,7 @@ import type { MailSender } from './mail.js';
  * siehe `logics/mail.test.ts`), das Env-Handling folgt dem Save/Restore-Muster derselben Datei.
  */
 
-const SAVED_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'NODE_ENV'] as const;
+const SAVED_KEYS = ['SMTP_HOST', 'MAIL_FROM', 'NODE_ENV', 'STATUS_MAIL_CC'] as const;
 
 /** Setzt die gegebenen Env-Variablen und liefert eine Restore-Funktion (Muster: mail.test.ts). */
 const withEnv = (values: Partial<Record<(typeof SAVED_KEYS)[number], string>>): (() => void) => {
@@ -34,7 +34,7 @@ const withEnv = (values: Partial<Record<(typeof SAVED_KEYS)[number], string>>): 
 
 /** Erfolgs-Sender: sammelt die versendeten Payloads (Muster: mail.test.ts). */
 const recordingSender =
-	(calls: { to: string; subject: string; text: string }[]): MailSender =>
+	(calls: { to: string; subject: string; text: string; cc?: string }[]): MailSender =>
 	(payload) => {
 		calls.push(payload);
 		return Promise.resolve();
@@ -76,6 +76,38 @@ describe('logics/startupStatusMail — Status-Mail beim Serverstart', () => {
 			}
 		} finally {
 			restore();
+		}
+	});
+
+	it('setzt STATUS_MAIL_CC als cc auf jeder Mail — ohne die Env bleibt cc leer', async () => {
+		await createAdmin('admin@example.com');
+		const calls: { to: string; subject: string; text: string; cc?: string }[] = [];
+
+		const restoreCc = withEnv({
+			NODE_ENV: 'production',
+			SMTP_HOST: 'smtp.example.com',
+			MAIL_FROM: 'noreply@example.com',
+			STATUS_MAIL_CC: 'betrieb@example.com',
+		});
+		try {
+			await sendStartupStatusMail(recordingSender(calls));
+			assert.equal(calls[0].cc, 'betrieb@example.com');
+		} finally {
+			restoreCc();
+		}
+
+		calls.length = 0;
+		const restoreNoCc = withEnv({
+			NODE_ENV: 'production',
+			SMTP_HOST: 'smtp.example.com',
+			MAIL_FROM: 'noreply@example.com',
+			STATUS_MAIL_CC: undefined,
+		});
+		try {
+			await sendStartupStatusMail(recordingSender(calls));
+			assert.equal(calls[0].cc, undefined);
+		} finally {
+			restoreNoCc();
 		}
 	});
 

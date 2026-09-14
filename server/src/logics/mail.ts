@@ -10,6 +10,8 @@ interface MailPayload {
 	to: string;
 	subject: string;
 	text: string;
+	/** Optionale CC-Adresse (z. B. Betriebs-Postfach bei der Status-Mail). */
+	cc?: string;
 }
 
 /**
@@ -25,7 +27,7 @@ export const isMailConfigured = (): boolean => !!(process.env.SMTP_HOST?.trim() 
  * Standard-Versand über nodemailer. Wird nur erreicht, wenn kein Test-Sender injiziert ist;
  * die aufrufenden Endpunkte/Trigger haben SMTP zuvor über {@link isMailConfigured} abgesichert.
  */
-const defaultSender: MailSender = async ({ to, subject, text }) => {
+const defaultSender: MailSender = async ({ to, cc, subject, text }) => {
 	const transport = nodemailer.createTransport({
 		host: process.env.SMTP_HOST?.trim(),
 		port: Number(process.env.SMTP_PORT?.trim() || 587),
@@ -34,7 +36,7 @@ const defaultSender: MailSender = async ({ to, subject, text }) => {
 			? { user: process.env.SMTP_USER?.trim(), pass: process.env.SMTP_PASSWORD?.trim() }
 			: undefined,
 	});
-	await transport.sendMail({ from: process.env.MAIL_FROM?.trim(), to, subject, text });
+	await transport.sendMail({ from: process.env.MAIL_FROM?.trim(), to, cc, subject, text });
 };
 
 /** Empfänger (Ausschnitt) — Nutzer ohne `email` werden übersprungen. */
@@ -54,14 +56,14 @@ interface MailRecipient {
  */
 export const sendMailToUser = async (
 	user: MailRecipient,
-	payload: { subject: string; text: string },
+	payload: { subject: string; text: string; cc?: string },
 	send: MailSender = defaultSender,
 ): Promise<boolean> => {
 	if (!user.email) {
 		return false;
 	}
 	try {
-		await send({ to: user.email, subject: payload.subject, text: payload.text });
+		await send({ to: user.email, cc: payload.cc, subject: payload.subject, text: payload.text });
 		return true;
 	} catch {
 		// Bewusst KEINE Fehlerdetails loggen (könnten Transport-Meldungen mit Zugangsdaten enthalten) —

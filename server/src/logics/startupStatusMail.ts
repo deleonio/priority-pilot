@@ -31,12 +31,15 @@ export const sendStartupStatusMail = async (send?: MailSender): Promise<number> 
 	const admins = await User.findAll({ where: { role: 'admin' } });
 	const sha = shortSha();
 	const startedAt = new Date().toLocaleString('de-DE');
+	// Optionales CC-Ziel (z. B. Betriebs-Postfach) auf jeder Status-Mail — via Env, wie der Rest des Kanals.
+	const cc = process.env.STATUS_MAIL_CC?.trim() || undefined;
 	let sent = 0;
 	for (const admin of admins) {
 		const delivered = await sendMailToUser(
 			{ email: admin.email },
 			{
 				subject: `Priority Pilot neu gestartet (${sha})`,
+				cc,
 				text: [
 					'Der Server wurde soeben neu gestartet.',
 					'',

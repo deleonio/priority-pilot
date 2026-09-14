@@ -9,7 +9,7 @@ const OPERATOR = {
 	/** Ladungsfähige Anschrift (Zeilen). */
 	address: ['Am Silberblick 32', '98716 Elgersburg'],
 	/** Erreichbarkeit: mindestens eine gültige E-Mail-Adresse. */
-	email: 'info@modevel.de',
+	email: 'balamentum@modevel.de',
 	/** Bei Einzelunternehmen: Inhaber; bei Gesellschaft: gesetzliche Vertretung. */
 	representative: 'Martin Oppitz (Inhaber)',
 	/** Umsatzsteuer-Identifikationsnummer gemäß § 27 a UStG — nur bei Vorhandensein. */
