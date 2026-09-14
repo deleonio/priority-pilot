@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-14
 
-_Enthält v0.2.0 – v0.2.53._
+_Enthält v0.2.0 – v0.2.54._
 
 ### 🔧 Engineering
 
@@ -66,6 +66,7 @@ _Enthält v0.2.0 – v0.2.53._
 - feat(server): enforce dependency weight range 0.1-1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1482
 - docs: sharpen the monetization concept against the code by @deleonio in https://github.com/deleonio/priority-pilot/pull/1485
 - fix(server): mount rate limiters on their own paths only (#1479) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1481
+- feat(server): add plan model and entitlement center (#1456) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1486
 
 ## v0.1 - 2026-09-12
 
@@ -758,7 +759,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(ci): repair documenter artifact upload, /tmp write access, note gate by @deleonio in https://github.com/deleonio/priority-pilot/pull/1313
 - fix(templates): remove duplicate field ids in ticket.yml by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1317
 - feat(frontend): paginate forest tab by connected task tree (#1314) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1316
-- feat(frontend): paginate forest tab by connected task tree (#1314) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1316
+- feat(frontend): even out avatar spacing in the header bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1318
 - feat(frontend): even out avatar spacing in the header bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1318
 - chore(frontend): update kolibri to v4.4.0 and raise pwa cache limit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1319
 - chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
