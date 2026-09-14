@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Roter TDD-Vertrag für #537 „Aufgabenliste auf Blatt-Aufgaben beschränken". Die `TaskTree`-
@@ -96,7 +96,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 
 		// … die Nicht-Blatt-Oberaufgabe hingegen wird in der Aufgabenliste NICHT gerendert.
 		await expect(item(page, parentId)).toHaveCount(0);
-		await expect(page.getByText(parentTitle, { exact: true })).toHaveCount(0);
+		await expect(taskTitleText(page, parentTitle)).toHaveCount(0);
 	});
 
 	test('AK1/T1: Einzelaufgabe ohne Unteraufgaben ist als Blatt sichtbar', async ({ page }) => {
@@ -216,7 +216,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		await openTasksTab(page);
 
 		await expect(list(page)).toBeVisible();
-		await expect(page.getByText(aTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, aTitle)).toBeVisible();
 
 		// Kein horizontaler Überlauf: die Liste ragt nicht über die Viewport-Breite hinaus.
 		const overflowsHorizontally = await page.evaluate(() => {

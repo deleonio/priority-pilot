@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Fokus-Vertrag der Lösch-Bestätigungsdialoge — eine Datei für das gesamte Verhalten.
@@ -80,7 +80,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	const openTaskDeleteDialog = async (page: Page, title: string) => {
 		await createTaskViaUi(page, title);
 		await openTasksTab(page);
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 
 		const moreButton = page.getByRole('button', { name: 'Weitere Aktionen' }).first();
 		await moreButton.click();

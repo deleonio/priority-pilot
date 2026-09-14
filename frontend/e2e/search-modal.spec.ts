@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * E2E-Specs für die globale Suche (#8009e9bf-9e02-491c-8c73-6b4bac74f087, PR #1048):
@@ -73,8 +73,8 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		// (eine Navigation mit explizitem Pfad, keine konkurrierende Query-Änderung).
 		await expect(page).toHaveURL(/\/aufgaben\?(.*&)?q=Match/);
 		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toHaveAttribute('aria-selected', 'true');
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(otherTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
+		await expect(taskTitleText(page, otherTitle)).not.toBeVisible();
 
 		// Der aktive Filter bleibt im Filterfeld des Aufgaben-Tabs sichtbar (Review F4).
 		await expect(tabFilterInput(page)).toHaveValue('Match');
@@ -92,7 +92,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		await modalSearchInput(page).press('Enter');
 
 		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
 	});
 
 	test('375px: Such-Modal und Toolbar-Button bleiben nutzbar, kein Layoutbruch', async ({ page }) => {
@@ -115,7 +115,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 
 		await modalSearchInput(page).fill('Mobil');
 		await page.getByRole('button', { name: 'Suche starten' }).click();
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
 	});
 
 	// #1067 — Nach dem Schließen des Suchdialogs liegt der Fokus im Filterfeld des Aufgaben-Tabs
@@ -136,8 +136,8 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		// Modal zu, Aufgaben-Tab aktiv, Liste gefiltert — und der Fokus im Filterfeld.
 		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
 		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toHaveAttribute('aria-selected', 'true');
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(otherTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
+		await expect(taskTitleText(page, otherTitle)).not.toBeVisible();
 		await expect(
 			tabFilterInput(page),
 			'Nach der Suche muss der Fokus programmatisch im Filterfeld liegen',
@@ -159,8 +159,8 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		await modalSearchInput(page).press('Enter');
 
 		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
-		await expect(page.getByText(alphaTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(betaTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, alphaTitle)).toBeVisible();
+		await expect(taskTitleText(page, betaTitle)).toBeVisible();
 		await expect(tabFilterInput(page)).toBeFocused();
 
 		// Weitertippen OHNE Klick: Zeichen landen im Filterfeld (AK2)…
@@ -169,8 +169,8 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 
 		// …und der ergänzte Begriff verengt die Liste (deferred Filter per Enter, App.tsx:552-558).
 		await page.keyboard.press('Enter');
-		await expect(page.getByText(alphaTitle, { exact: true })).toBeVisible();
-		await expect(page.getByText(betaTitle, { exact: true })).not.toBeVisible();
+		await expect(taskTitleText(page, alphaTitle)).toBeVisible();
+		await expect(taskTitleText(page, betaTitle)).not.toBeVisible();
 	});
 
 	test('AK3: 375px — nach der Suche liegt der Fokus im Filterfeld', async ({ page }) => {
@@ -186,7 +186,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		await page.getByRole('button', { name: 'Suche starten' }).click();
 
 		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
-		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, matchTitle)).toBeVisible();
 		await expect(tabFilterInput(page), 'Auch mobil muss der Fokus im Filterfeld landen').toBeFocused();
 	});
 

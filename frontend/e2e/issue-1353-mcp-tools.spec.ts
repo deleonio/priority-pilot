@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Funktionale E2E-Spec für #1353 (AK9) — MCP-Werkzeuge v1 gegen das **echte** Backend.
@@ -96,6 +96,6 @@ test.describe('Priority Pilot — #1353: MCP-Werkzeuge v1 (AK9)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await expect(page.getByText(title, { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, title)).toBeVisible();
 	});
 });

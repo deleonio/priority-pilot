@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote E2E-Specs für #1346 — AK7: Bearbeiten-Dialog nennt die Task-ID im Titel (`(#<id>)`), bleibt
@@ -45,7 +45,7 @@ test.describe('Priority Pilot — Task-ID in Bearbeiten-/Löschen-Dialog (#1346,
 
 		await createTaskViaUi(page, 'E2E #1346 Bearbeiten');
 		await openTasksTab(page);
-		await expect(page.getByText('E2E #1346 Bearbeiten', { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, 'E2E #1346 Bearbeiten')).toBeVisible();
 
 		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
@@ -67,7 +67,7 @@ test.describe('Priority Pilot — Task-ID in Bearbeiten-/Löschen-Dialog (#1346,
 
 		await createTaskViaUi(page, 'E2E #1346 Löschen');
 		await openTasksTab(page);
-		await expect(page.getByText('E2E #1346 Löschen', { exact: true })).toBeVisible();
+		await expect(taskTitleText(page, 'E2E #1346 Löschen')).toBeVisible();
 
 		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
