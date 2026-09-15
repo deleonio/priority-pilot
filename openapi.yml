@@ -2808,13 +2808,17 @@ components:
             $ref: '#/components/schemas/Plan'
     PlanPrice:
       type: object
-      description: Preis eines Pakets in Euro je Abrechnungszeitraum (#1456).
-      required: [monthly, yearly]
+      description: >-
+        Preis eines Pakets je Abrechnungszeitraum in Cent (#1494). `quarterly`/`yearly` sind der
+        kaufmännisch gerundete Monatspreis mal 3×0,9 bzw. 12×0,8.
+      required: [monthly, quarterly, yearly]
       properties:
         monthly:
-          type: number
+          type: integer
+        quarterly:
+          type: integer
         yearly:
-          type: number
+          type: integer
     PlansCatalog:
       type: object
       description: Feature-Matrix und Preise aller Pakete (#1456) — Antwort von `GET /plans`.

@@ -2,6 +2,7 @@ import { KolAlert, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
+import { formatEuro } from '../lib/format';
 import { featureOffer, planLabel } from '../lib/planOffers';
 import { usePlan } from '../lib/usePlan';
 
@@ -66,7 +67,7 @@ export const PlansSection = () => {
 					<tr>
 						<th scope="row">Preis je Monat</th>
 						{plans.map((key) => (
-							<td key={key}>{`${catalog.prices[key].monthly} €`}</td>
+							<td key={key}>{formatEuro(catalog.prices[key].monthly)}</td>
 						))}
 					</tr>
 				</thead>

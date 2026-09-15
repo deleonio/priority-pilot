@@ -69,6 +69,15 @@ describe('Pass-Through-Modus (kein Auth-Kontext konfiguriert)', () => {
 		assert.equal(body.entitlements?.voice_input?.requiredPlan, 'pro', 'voice_input erfordert Pro');
 	});
 
+	// #1494 (AK7, Spec docs/spec/issue-1494.md): auch im Pass-Through-Fall liefert /auth/me den
+	// definierten Leerwert für subscription, ohne DB-Zugriff (synthetischer Nutzer ist abo-los).
+	it('#1494 — GET /auth/me liefert subscription: null im Pass-Through-Modus', async () => {
+		const res = await fetch(`${server.baseUrl}/auth/me`);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { subscription?: unknown };
+		assert.equal(body.subscription, null, 'Pass-Through-Nutzer hat kein Abo');
+	});
+
 	it('geschützte Routen bleiben erreichbar (Konsistenz zu requireAuth)', async () => {
 		const res = await fetch(`${server.baseUrl}/tasks`);
 		assert.equal(res.status, 200);

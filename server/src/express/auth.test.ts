@@ -172,6 +172,43 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const body = (await res.json()) as { entitlements?: { ai_assist?: { quotaRemaining?: number } } };
 			assert.equal(body.entitlements?.ai_assist?.quotaRemaining, 58, 'Pro (60) minus 2 Verbrauch = 58');
 		});
+
+		// #1494 (AK7, Spec docs/spec/issue-1494.md): /auth/me trägt den Abo-Status zusätzlich zu plan/entitlements.
+		it('#1494 — ohne Abo ist subscription null', async () => {
+			const cookie = await testLogin();
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { subscription?: unknown };
+			assert.equal(body.subscription, null, 'Ohne Abo muss subscription den definierten Leerwert null tragen');
+		});
+
+		it('#1494 — mit Abo enthält subscription Paket, Zeitraum, Status und aktuelle Periode', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const userId = (dbUser as unknown as { id: number }).id;
+			// Rohes SQL statt Modell-Import: `server/src/models/subscription.ts` existiert noch nicht —
+			// ein Import würde den knip-Gate (unresolved imports) schon beim Commit blocken UND diese
+			// (bestehende, grüne) Datei crashen. Wirft aktuell `SQLITE_ERROR: no such table:
+			// subscriptions` — legitimer Erstzustand für die neue Tabelle (Muster ai_usage oben).
+			await sequelize.query(
+				`INSERT INTO subscriptions
+					(userId, provider, externalSubscriptionId, plan, period, status, currentPeriodEnd, invoiceReference, createdAt, updatedAt)
+					VALUES (?, 'paypal', 'I-TEST123', 'pro', 'monthly', 'active', datetime('now', '+30 days'), 'INV-1', datetime('now'), datetime('now'))`,
+				{ replacements: [userId] },
+			);
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as {
+				subscription?: { plan?: string; period?: string; status?: string; currentPeriodEnd?: string } | null;
+			};
+			assert.ok(body.subscription, 'Mit Abo darf subscription nicht null sein');
+			assert.equal(body.subscription?.plan, 'pro');
+			assert.equal(body.subscription?.period, 'monthly');
+			assert.equal(body.subscription?.status, 'active');
+			assert.ok(body.subscription?.currentPeriodEnd, 'currentPeriodEnd muss gesetzt sein');
+		});
 	});
 
 	// ── AC 5 — /auth/me ohne Session → 401 ───────────────────────────────────

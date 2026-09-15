@@ -4,7 +4,7 @@ import passport from 'passport';
 import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import sequelize from '../../database.js';
-import { Pillar, User } from '../../models/index.js';
+import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
@@ -296,6 +296,8 @@ authRouter.get('/auth/me', async (req, res) => {
 	if (!req.session?.user && !isAuthActive()) {
 		// #1456: auch hier Paket + Entitlement-Map — der synthetische Nutzer hat keine DB-Zeile
 		// (und keine Id), ist damit paketlos und bekommt 'free'.
+		// #1494 (AK7): der synthetische Nutzer hat keine Id und damit auch kein Abo — definierter
+		// Leerwert `null`, ohne DB-Zugriff.
 		res.json({
 			email: 'dev@localhost',
 			displayName: 'Lokaler Modus',
@@ -303,6 +305,7 @@ authRouter.get('/auth/me', async (req, res) => {
 			avatarUrl: null,
 			plan: 'free',
 			entitlements: getEntitlements('free'),
+			subscription: null,
 		});
 		return;
 	}
@@ -338,6 +341,28 @@ authRouter.get('/auth/me', async (req, res) => {
 	} catch (error) {
 		console.warn('KI-Verbrauch konnte nicht gelesen werden — quotaRemaining zeigt das volle Kontingent.', error);
 	}
+	// #1494 (AK7): Abo-Status zusätzlich zu plan/entitlements — kein Abo → definierter Leerwert
+	// `null`. Best-Effort wie der KI-Verbrauch: ein Lesefehler darf `/auth/me` nicht mit 500 reißen.
+	let subscription: {
+		plan: string;
+		period: string;
+		status: string;
+		currentPeriodEnd: Date;
+	} | null = null;
+	try {
+		const dbSubscription =
+			typeof user.id === 'number' ? await Subscription.findOne({ where: { userId: user.id } }) : null;
+		if (dbSubscription) {
+			subscription = {
+				plan: dbSubscription.plan,
+				period: dbSubscription.period,
+				status: dbSubscription.status,
+				currentPeriodEnd: dbSubscription.currentPeriodEnd,
+			};
+		}
+	} catch (error) {
+		console.warn('Abo-Status konnte nicht gelesen werden — subscription zeigt null.', error);
+	}
 	res.json({
 		id: user.id,
 		email: user.email,
@@ -346,6 +371,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		role,
 		plan,
 		entitlements: getEntitlements(plan, aiAssistConsumed),
+		subscription,
 	});
 });
 
