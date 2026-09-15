@@ -214,17 +214,17 @@ importers:
   frontend:
     dependencies:
       '@public-ui/components':
-        specifier: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
-        version: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25)
+        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
       '@public-ui/react-v19':
-        specifier: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
-        version: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@public-ui/theme-default':
-        specifier: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
-        version: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25))
+        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))
       '@public-ui/theme-kern':
-        specifier: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
-        version: 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25))
+        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))
       '@xyflow/react':
         specifier: 12.11.6
         version: 12.11.6(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1580,28 +1580,28 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0':
-    resolution: {integrity: sha512-GyIkQVtjWzWfmYHbHseaddagrb8XFmclNc6ZB8TeCO3OtD9CfIyagQt2vO7+ZEPHsuMkwrVdiCCaBmlFmzksVQ==}
+  '@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
+    resolution: {integrity: sha512-X3K6fFaSyZZ6kG1qlnMJJaOLejz+sWnJB0kDhj6KVSUIZqeYtTgyfamIpGxyMiUiwMDFLhp1s2Q4sd3yN9uSKw==}
     hasBin: true
     peerDependencies:
       adopted-style-sheets: 1.1.9-rc.25
 
-  '@public-ui/react-v19@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0':
-    resolution: {integrity: sha512-4j2tcUjPD9Ug5jxzmFdaZKqbEVs/vQZTdurXBo7SSWTrievcLIaVtbcdVZpZ2fUeGtvZbT9il8QnJH/sxUXYDA==}
+  '@public-ui/react-v19@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
+    resolution: {integrity: sha512-2w4GC5F4rASXAvDBHf01ClIqagSuMyVPnu5E97xDA8pJ/btjp/icLKfveigFVMslrXa8/G35NBWZuXzHP2NF3Q==}
     peerDependencies:
-      '@public-ui/components': 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
+      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
       react: 19.x
       react-dom: 19.x
 
-  '@public-ui/theme-default@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0':
-    resolution: {integrity: sha512-XCWh0SV6AcpaXZOdoKAh56aolSGo0Dn2GpbV+vYJ8wq6IiB1ot+ckM/Pd0m7+fcGd+Cg9QjkG+6JHjrCPeURSA==}
+  '@public-ui/theme-default@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
+    resolution: {integrity: sha512-nhapGkP9JL0SSePnoZPOJZcU84jbfJiv77uZOUDc6lMxhr+n5Kp/asyxmyNf6uH7KWxs+f9ltlvWlbnU6t5PSg==}
     peerDependencies:
-      '@public-ui/components': 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
+      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
 
-  '@public-ui/theme-kern@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0':
-    resolution: {integrity: sha512-qp9I94MIbioui8/N1DSV8/AI7XsNU6iY7W5yaTXSB9F9tAdtu1B1fzu1zl36Htp38i0Llhx2D3iEaMsV+oSiQg==}
+  '@public-ui/theme-kern@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
+    resolution: {integrity: sha512-HrgoaFG6vlRxNA4XJLrmfhmzuPO831oV5f8EIJyI9pW8LEU88+CW2BgBR0CSowNWPDDzMZHIXdMliYvPx/mDmQ==}
     peerDependencies:
-      '@public-ui/components': 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0
+      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
 
   '@redis/bloom@6.2.1':
     resolution: {integrity: sha512-huQgNLaCIZfQ9SeLn4q9124uOUd8HbZDYHwwUzNcRgHqCHiHKl2dDxMqJCeWh8cMqZAoWuHR8XnWbDMIf+o7ag==}
@@ -6369,7 +6369,7 @@ snapshots:
     dependencies:
       playwright: 1.63.0
 
-  '@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25)':
+  '@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)':
     dependencies:
       '@floating-ui/dom': 1.8.0
       adopted-style-sheets: 1.1.9-rc.25
@@ -6381,19 +6381,19 @@ snapshots:
       typed-bem: 1.0.2
       wcag-contrast: 3.0.0
 
-  '@public-ui/react-v19@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@public-ui/react-v19@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@public-ui/components': 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@public-ui/theme-default@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-default@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
-      '@public-ui/components': 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
 
-  '@public-ui/theme-kern@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(@public-ui/components@4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-kern@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
-      '@public-ui/components': 4.4.1-bde9d4afe5ffb980a06192e5a34307404ba14869.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
 
   '@redis/bloom@6.2.1(@redis/client@6.2.1)':
     dependencies:
