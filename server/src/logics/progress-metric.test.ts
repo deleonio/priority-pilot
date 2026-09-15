@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateProgressMetric, checkNoProgressThreshold, ProgressMetricError } from './progress-metric';
+import { calculateProgressMetric, checkNoProgressThreshold, ProgressMetricError } from './progress-metric.js';
 
 /**
  * Issue 611: CI Fortschrittsmetrik
