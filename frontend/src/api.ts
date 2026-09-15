@@ -216,6 +216,56 @@ export const api = {
 		return data;
 	},
 
+	// --- Buchungs-/Verwaltungsflow (#1496, T6c) — Backend bereits fertig (#1505/#1506) ---
+
+	/** Legt ein Abo an (AK1); die Antwort trägt die PayPal-Zustimmungs-URL zum Weiterleiten. */
+	async createBillingSubscription(
+		input: components['schemas']['BillingSubscriptionInput'],
+	): Promise<components['schemas']['BillingApproval']> {
+		const { data, error, response } = await client.POST('/billing/subscriptions', { body: input });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Kündigt das laufende Abo (AK3); wirksam wird sie erst über das Webhook-Ereignis. */
+	async cancelBillingSubscription(): Promise<void> {
+		const { error, response } = await client.POST('/billing/subscriptions/cancel', {});
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	/** Wechselt Paket/Zeitraum (AK3); `approvalUrl` fehlt, wenn PayPal keine erneute Zustimmung verlangt. */
+	async changeBillingSubscription(
+		input: components['schemas']['BillingSubscriptionInput'],
+	): Promise<components['schemas']['BillingApproval']> {
+		const { data, error, response } = await client.POST('/billing/subscriptions/change', { body: input });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Eigene Rechnungen, neueste zuerst (AK5). */
+	async listBillingInvoices(init: Init = {}): Promise<components['schemas']['Invoice'][]> {
+		const { data, error, response } = await client.GET('/billing/invoices', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Einzelne eigene Rechnung; fremde oder unbekannte Id liefert 404. */
+	async getBillingInvoice({ id }: { id: number }): Promise<components['schemas']['Invoice']> {
+		const { data, error, response } = await client.GET('/billing/invoices/{id}', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	async getForest(init: Init = {}): Promise<TaskTreeNode[]> {
 		const { data, error, response } = await client.GET('/forest', { signal: init.signal });
 		if (!response.ok || data === undefined) {

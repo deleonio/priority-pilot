@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { checkAuth } from './auth';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { checkAuth, type Subscription } from './auth';
 import type { EntitlementMap, FeatureEntitlement, FeatureId, Plan } from './planOffers';
 
 /**
@@ -17,6 +17,18 @@ export interface PlanState {
 	plan: Plan | null;
 	/** Entitlement-Map des Servers — die einzige Quelle für `allowed`/`requiredPlan` (AK4). */
 	entitlements: EntitlementMap;
+	/**
+	 * Abo-Status aus `/auth/me` (#1496 AK6); `undefined` vor dem ersten Laden, `null` ohne Abo.
+	 * Optional, damit bestehende `PlanProvider`-Testwerte (nur `plan`/`entitlements`) unverändert
+	 * gültig bleiben.
+	 */
+	subscription?: Subscription | null;
+	/**
+	 * Erneuter `/auth/me`-Abruf, der Zustand + Spiegel aktualisiert (#1496 AK4) — die EINZIGE
+	 * Stelle, die den Spiegel schreibt. Optional, weil Test-Provider ohne echten Kontext oft keinen
+	 * Refresh brauchen.
+	 */
+	refresh?: () => Promise<void>;
 }
 
 const EMPTY_STATE: PlanState = { plan: null, entitlements: {} };
@@ -78,6 +90,9 @@ export const useEntitlement = (feature: FeatureId): FeatureEntitlement | undefin
  */
 export const usePlanState = (userId: number): PlanState => {
 	const [state, setState] = useState<PlanState>(() => readPlanMirror(userId));
+	// Abo-Status wird bewusst NICHT im Spiegel gehalten (#1496 AK6) — er ist nur für die laufende
+	// Sitzung relevant und ändert sich ausschließlich über das Webhook-Ereignis auf dem Server.
+	const [subscription, setSubscription] = useState<Subscription | null | undefined>(undefined);
 
 	const refresh = useCallback(async (): Promise<void> => {
 		try {
@@ -88,6 +103,7 @@ export const usePlanState = (userId: number): PlanState => {
 			const next: PlanState = { plan: user.plan ?? null, entitlements: user.entitlements ?? {} };
 			setState(next);
 			storePlanMirror(userId, next);
+			setSubscription(user.subscription ?? null);
 		} catch {
 			// Netzwerkfehler ändern den Zustand nicht — der Spiegel bleibt stehen.
 		}
@@ -101,5 +117,66 @@ export const usePlanState = (userId: number): PlanState => {
 		return () => window.removeEventListener('focus', onFocus);
 	}, [userId, refresh]);
 
-	return state;
+	return { ...state, subscription, refresh };
+};
+
+/** Zustand des Rückkehr-Pollings (#1496 AK4). */
+export interface BillingReturnPollState {
+	status: 'waiting' | 'confirmed' | 'timeout';
+}
+
+/** Default-Intervall/Obergrenze laut Spec (docs/spec/issue-1496.md AK4). */
+const DEFAULT_POLL_INTERVAL_MS = 3000;
+const DEFAULT_POLL_MAX_ATTEMPTS = 10;
+
+/**
+ * Rückkehr-Wartezustand nach Buchung/Wechsel ohne sofortige `approvalUrl`-Navigation (#1496 AK4).
+ * Löst bei Mount **genau einen** sofortigen `refresh()` aus, schreibt selbst NIE den Plan-Spiegel
+ * (das bleibt allein `refresh()` — hier nur aufgerufen, nicht dupliziert) und pollt danach in
+ * festen Abständen nach, bis `currentPlan` dem erwarteten Paket entspricht oder die Obergrenze
+ * erreicht ist.
+ */
+export const useBillingReturnPoll = (
+	refresh: () => Promise<void>,
+	expectedPlan: Plan,
+	currentPlan: Plan | null,
+	options: { intervalMs?: number; maxAttempts?: number } = {},
+): BillingReturnPollState => {
+	const { intervalMs = DEFAULT_POLL_INTERVAL_MS, maxAttempts = DEFAULT_POLL_MAX_ATTEMPTS } = options;
+	const [status, setStatus] = useState<BillingReturnPollState['status']>(
+		currentPlan === expectedPlan ? 'confirmed' : 'waiting',
+	);
+	const attemptsRef = useRef(0);
+	const refreshRef = useRef(refresh);
+	useEffect(() => {
+		refreshRef.current = refresh;
+	}, [refresh]);
+
+	// Genau ein sofortiger Refresh bei Mount — unabhängig vom Poll-Intervall unten.
+	useEffect(() => {
+		void refreshRef.current();
+	}, []);
+
+	useEffect(() => {
+		if (currentPlan === expectedPlan) {
+			setStatus('confirmed');
+		}
+	}, [currentPlan, expectedPlan]);
+
+	useEffect(() => {
+		if (status !== 'waiting') {
+			return;
+		}
+		const id = setInterval(() => {
+			attemptsRef.current += 1;
+			if (attemptsRef.current >= maxAttempts) {
+				setStatus('timeout');
+				return;
+			}
+			void refreshRef.current();
+		}, intervalMs);
+		return () => clearInterval(id);
+	}, [status, intervalMs, maxAttempts]);
+
+	return { status };
 };
