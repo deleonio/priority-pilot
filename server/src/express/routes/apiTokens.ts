@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, type ErrorDto } from '../http-error.js';
-import { ApiToken } from '../../models/index.js';
+import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
+import { ApiToken, User } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { generateApiToken, hashApiToken } from '../apiTokenAuth.js';
+import { getEntitlements, shouldBlockFeature } from '../../logics/plans.js';
+import { FEATURE_LABELS } from '../planGuard.js';
 
 /**
  * Persönliche API-Tokens für externe Clients (Issue #1352). Der Router hängt hinter dem globalen
@@ -139,6 +141,22 @@ apiTokensRouter.patch('/api-tokens/:id', async (req: Request, res: Response<ApiT
 		if (!token) {
 			sendError(res, 404, 'Token nicht gefunden.');
 			return;
+		}
+		// Plan-Deckel (#1460): Hochstufen auf readwrite bleibt Paket `ultimate` vorbehalten;
+		// Herabstufen auf read ist nie paketbeschränkt.
+		if (rawScope === 'readwrite') {
+			const user = await User.findByPk(userId);
+			const plan = user?.plan;
+			if (plan !== undefined && shouldBlockFeature(plan, 'mcp_readwrite')) {
+				const { requiredPlan } = getEntitlements(plan).mcp_readwrite;
+				sendPlanError(res, 403, `${FEATURE_LABELS.mcp_readwrite} ist ab Paket „${requiredPlan}" verfügbar.`, {
+					code: 'plan_required',
+					feature: 'mcp_readwrite',
+					requiredPlan,
+					currentPlan: plan,
+				});
+				return;
+			}
 		}
 		await token.update({ scope: rawScope });
 		res.json(serializeApiToken(token));

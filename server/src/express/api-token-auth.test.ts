@@ -400,3 +400,82 @@ describe('Bearer-Token-Auth — Pflicht-Ablaufdatum (#1357 AK4/AK5)', () => {
 		assert.equal(res.status, 200, 'ein noch gültiger Token darf weiterhin Zugriff gewähren');
 	});
 });
+
+/** Setzt den Plan eines per E-Mail bekannten Nutzers direkt in der DB (Test-Only-Shortcut, Muster ai-quota.test.ts). */
+const setPlan = (email: string, plan: string): Promise<unknown> => User.update({ plan }, { where: { email } });
+
+describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/AK6, Spec docs/spec/issue-1460.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK5/AK6: ein in der DB readwrite stehender Token eines max-Nutzers schreibt nicht mehr, der Spaltenwert bleibt readwrite', async () => {
+		const email = 'bearer-a@example.com';
+		const cookie = await server.register(email, 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ scope: 'readwrite' });
+		await setPlan(email, 'max');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const write = await postTaskViaBearer(token, 'Über gekappten Token versucht');
+		assert.equal(write.status, 403, 'ein readwrite-Token ohne ultimate darf nicht schreiben');
+		const body = (await write.json()) as {
+			message?: string;
+			code?: string;
+			feature?: string;
+			requiredPlan?: string;
+		};
+		assert.equal(body.code, 'plan_required');
+		assert.equal(body.feature, 'mcp_readwrite');
+		assert.equal(body.requiredPlan, 'ultimate');
+
+		const read = await withBearer(token);
+		assert.equal(read.status, 200, 'Lesen bleibt trotz Herabstufung erlaubt');
+
+		const afterRecord = await ApiToken.findByPk(id);
+		assert.equal(afterRecord!.get('scope'), 'readwrite', 'der gespeicherte Scope darf sich nicht ändern');
+	});
+
+	it('AK6: ein echter read-Token (kein Downgrade) erhält weiterhin byte-identisch die alte Meldung ohne Zusatzfelder', async () => {
+		const email = 'bearer-b@example.com';
+		const cookie = await server.register(email, 'password123');
+		const { token } = await createToken(cookie);
+		await setPlan(email, 'max');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const write = await postTaskViaBearer(token, 'Über echten Nur-lese-Token versucht');
+
+		assert.equal(write.status, 403);
+		const body = (await write.json()) as Record<string, unknown>;
+		assert.deepEqual(
+			body,
+			{ message: 'This token allows read access only.' },
+			'keine Zusatzfelder für einen echten read-Token',
+		);
+	});
+
+	it('AK8: bei ausgeschaltetem Rollout schreibt ein readwrite-Token eines max-Nutzers unverändert', async () => {
+		const email = 'bearer-a@example.com';
+		const cookie = await server.register(email, 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ scope: 'readwrite' });
+		await setPlan(email, 'max');
+
+		const write = await postTaskViaBearer(token, 'Rollout aus');
+
+		assert.equal(write.status, 201, 'ohne MONETIZATION_ENFORCED bleibt das Verhalten wie heute');
+	});
+});

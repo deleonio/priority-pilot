@@ -2443,6 +2443,8 @@ paths:
                 $ref: '#/components/schemas/ApiToken'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/PlanRequired'
         '404':
           $ref: '#/components/responses/NotFound'
   /place-favorites:

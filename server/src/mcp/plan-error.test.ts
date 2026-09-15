@@ -88,6 +88,12 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 		await closeDb();
 	});
 
+	// Test-Pflege (#1460): `createToken()` liefert seit T5 einen Token, der bei jedem Paket ohne
+	// `mcp_readwrite` (alle außer `ultimate`) am Werkzeug selbst (mcp/server.ts) abgewiesen wird,
+	// bevor der Loopback-Request die tool-eigene `graph_write`-Prüfung überhaupt erreicht — der
+	// generische Scope-Deckel aus #1460 tritt vor die spezifischere Feature-Prüfung aus #1457.
+	// Für `free` war das schon vorher blockiert (fehlt beides), nur der Fehlertext nennt jetzt
+	// `mcp_readwrite`/`ultimate` statt `graph_write`/`max`.
 	for (const tool of ['task_link', 'task_unlink'] as const) {
 		it(`${tool}: free-Nutzer erhält Feature und Paket im Fehlertext statt „HTTP 403"`, async () => {
 			const email = `mcp-plan-${tool}@example.com`;
@@ -101,8 +107,7 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 			const { error } = await mcpCall(token, tool, { taskId: from, dependsOnId: to });
 
 			assert.ok(error, `${tool} muss einen JSON-RPC-Fehler liefern`);
-			assert.match(error.message, /graph_write/, 'Fehlertext muss das fehlende Feature nennen');
-			assert.match(error.message, /max/, 'Fehlertext muss das erforderliche Paket nennen');
+			assert.match(error.message, /ultimate/, 'Fehlertext muss das erforderliche Paket nennen');
 			assert.doesNotMatch(error.message, /HTTP 403/, 'kein nacktes „HTTP 403" mehr');
 		});
 	}
@@ -132,5 +137,36 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 
 		assert.equal(error, undefined, 'Gruppenliste bleibt nach einem Downgrade lesbar');
 		assert.ok(text, 'group_list muss ein Ergebnis liefern');
+	});
+});
+
+describe('MCP-Loopback — Plan-Deckel für schreibende Werkzeuge (#1460 AK7, Spec docs/spec/issue-1460.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('task_link: ein readwrite-Token eines max-Nutzers erhält bei eingeschaltetem Rollout einen JSON-RPC-Fehler, der ultimate nennt', async () => {
+		const email = 'mcp-plan-cap-max@example.com';
+		const cookie = await server.register(email);
+		const token = await createToken(cookie);
+		const from = await createTask(cookie, 'A');
+		const to = await createTask(cookie, 'B');
+		await setPlan(email, 'max');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const { error } = await mcpCall(token, 'task_link', { taskId: from, dependsOnId: to });
+
+		assert.ok(error, 'task_link muss einen JSON-RPC-Fehler liefern');
+		assert.match(error.message, /ultimate/, 'Fehlertext muss das erforderliche Paket nennen');
+		assert.doesNotMatch(error.message, /read access only/, 'kein generischer Nur-lese-Text mehr');
 	});
 });

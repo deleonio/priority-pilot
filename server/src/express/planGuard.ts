@@ -9,8 +9,12 @@ import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { User } from '../models/index.js';
 
-/** Lesbare Feature-Namen für die Fehlermeldung — rein sprachlich, keine Paketzuordnung. */
-const FEATURE_LABELS: Record<FeatureId, string> = {
+/**
+ * Lesbare Feature-Namen für die Fehlermeldung — rein sprachlich, keine Paketzuordnung. Exportiert,
+ * weil `apiTokenAuth.ts`/`routes/apiTokens.ts` (#1460) denselben Wortlaut für die MCP-Plan-Deckelung
+ * brauchen und die Matrix nicht ein zweites Mal kodieren sollen.
+ */
+export const FEATURE_LABELS: Record<FeatureId, string> = {
 	groups: 'Gruppen',
 	voice_input: 'Spracheingabe',
 	ai_assist: 'KI-Unterstützung',

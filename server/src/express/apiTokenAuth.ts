@@ -2,7 +2,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { ApiToken, User } from '../models/index.js';
 import { MCP_PATH } from '../mcp/server.js';
-import { sendError } from './http-error.js';
+import { sendError, sendPlanError } from './http-error.js';
+import { getEntitlements, shouldBlockFeature } from '../logics/plans.js';
 
 /** Präfix des Klartext-Tokens — erlaubt es, ihn später von anderen Secret-Arten zu unterscheiden. */
 const TOKEN_PREFIX = 'pp_';
@@ -89,8 +90,13 @@ export const apiTokenAuth = async (req: Request, res: Response, next: NextFuncti
 		}
 		await record.update({ lastUsedAt: new Date() });
 
+		// Plan-Deckel (#1460): ein in der DB auf readwrite stehender Token schreibt nur noch, wenn
+		// das aktuelle Paket des Besitzers mcp_readwrite enthält. Der Spaltenwert bleibt unverändert
+		// (ein Upgrade wirkt sofort wieder) — nur der für diesen Request wirksame Scope wird herabgestuft.
+		const planCapped = record.scope === 'readwrite' && shouldBlockFeature(user.plan, 'mcp_readwrite');
 		req.apiTokenId = record.id;
-		req.apiTokenScope = record.scope;
+		req.apiTokenScope = planCapped ? 'read' : record.scope;
+		req.apiTokenPlanCapped = planCapped;
 		req.session.user = {
 			id: user.id,
 			email: user.email,
@@ -153,6 +159,17 @@ export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFuncti
 		return;
 	}
 	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read') {
+		if (req.apiTokenPlanCapped) {
+			const currentPlan = req.session.user?.plan;
+			const { requiredPlan } = getEntitlements(currentPlan ?? 'free').mcp_readwrite;
+			sendPlanError(res, 403, 'This token allows read access only.', {
+				code: 'plan_required',
+				feature: 'mcp_readwrite',
+				requiredPlan,
+				currentPlan,
+			});
+			return;
+		}
 		sendError(res, 403, 'This token allows read access only.');
 		return;
 	}
