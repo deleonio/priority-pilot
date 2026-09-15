@@ -7,6 +7,9 @@ import { usePlan } from '../lib/usePlan';
 
 type PlansCatalog = components['schemas']['PlansCatalog'];
 
+/** Cent-Betrag aus `GET /plans` (#1494) als Euro-String mit Komma, z. B. 799 → "7,99 €". */
+const formatEuro = (cents: number): string => `${(cents / 100).toFixed(2).replace('.', ',')} €`;
+
 /**
  * Sekundärbereich „Pakete" in den Einstellungen (#1458 AK11). Feature-Matrix und Preise kommen
  * vollständig aus `GET /plans` — im Frontend steht weder eine Preisliste noch eine Matrixzeile, so
@@ -66,7 +69,7 @@ export const PlansSection = () => {
 					<tr>
 						<th scope="row">Preis je Monat</th>
 						{plans.map((key) => (
-							<td key={key}>{`${catalog.prices[key].monthly} €`}</td>
+							<td key={key}>{formatEuro(catalog.prices[key].monthly)}</td>
 						))}
 					</tr>
 				</thead>

@@ -26,8 +26,11 @@ export const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = { free: 0, pro: 60,
 
 interface PlanPrice {
 	monthly: number;
+	quarterly: number;
 	yearly: number;
 }
+
+type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
 
 interface FeatureCatalogEntry {
 	feature: FeatureId;
@@ -53,12 +56,43 @@ const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'mcp_readwrite', allowedPlans: ['ultimate'] },
 ];
 
-/** Preise je Paket in Euro (Monats-/Jahresabrechnung), laut Gesamtkonzept. */
+/**
+ * Preise je Paket in Cent (Monats-/Quartals-/Jahresabrechnung), laut Konzepttabelle
+ * (`docs/gesamtkonzept-monetarisierung.md:75-81`). `quarterly`/`yearly` sind der kaufmännisch
+ * gerundete Monatspreis mal 3×0,9 bzw. 12×0,8 (#1494 AK3).
+ */
 const PLAN_PRICES: Record<Plan, PlanPrice> = {
-	free: { monthly: 0, yearly: 0 },
-	pro: { monthly: 4, yearly: 40 },
-	max: { monthly: 9, yearly: 90 },
-	ultimate: { monthly: 19, yearly: 190 },
+	free: { monthly: 0, quarterly: 0, yearly: 0 },
+	pro: { monthly: 799, quarterly: 2157, yearly: 7670 },
+	max: { monthly: 1499, quarterly: 4047, yearly: 14390 },
+	ultimate: { monthly: 2499, quarterly: 6747, yearly: 23990 },
+};
+
+/**
+ * PayPal-Abo-Plan-ID je kostenpflichtiger Kombination Paket×Zeitraum (#1494 AK4). `envVar` benennt
+ * nur den Namen der Umgebungsvariable mit der echten Plan-ID zur Laufzeit — kein Secret im Code.
+ * `amountCents` MUSS `PLAN_PRICES[plan][period]` entsprechen, damit ein Test jedes Auseinanderdriften
+ * von Anzeige und hinterlegter Anbieter-Plan-ID bemerkt. `free` hat keinen Eintrag (kein Abo-Produkt).
+ */
+export const PAYPAL_PLAN_IDS: Record<
+	Exclude<Plan, 'free'>,
+	Record<BillingPeriod, { envVar: string; amountCents: number }>
+> = {
+	pro: {
+		monthly: { envVar: 'PAYPAL_PLAN_ID_PRO_MONTHLY', amountCents: PLAN_PRICES.pro.monthly },
+		quarterly: { envVar: 'PAYPAL_PLAN_ID_PRO_QUARTERLY', amountCents: PLAN_PRICES.pro.quarterly },
+		yearly: { envVar: 'PAYPAL_PLAN_ID_PRO_YEARLY', amountCents: PLAN_PRICES.pro.yearly },
+	},
+	max: {
+		monthly: { envVar: 'PAYPAL_PLAN_ID_MAX_MONTHLY', amountCents: PLAN_PRICES.max.monthly },
+		quarterly: { envVar: 'PAYPAL_PLAN_ID_MAX_QUARTERLY', amountCents: PLAN_PRICES.max.quarterly },
+		yearly: { envVar: 'PAYPAL_PLAN_ID_MAX_YEARLY', amountCents: PLAN_PRICES.max.yearly },
+	},
+	ultimate: {
+		monthly: { envVar: 'PAYPAL_PLAN_ID_ULTIMATE_MONTHLY', amountCents: PLAN_PRICES.ultimate.monthly },
+		quarterly: { envVar: 'PAYPAL_PLAN_ID_ULTIMATE_QUARTERLY', amountCents: PLAN_PRICES.ultimate.quarterly },
+		yearly: { envVar: 'PAYPAL_PLAN_ID_ULTIMATE_YEARLY', amountCents: PLAN_PRICES.ultimate.yearly },
+	},
 };
 
 /** Katalog + Preise — einzige Quelle, von `GET /plans` unverändert durchgereicht. */
