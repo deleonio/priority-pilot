@@ -134,3 +134,34 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 		assert.ok(text, 'group_list muss ein Ergebnis liefern');
 	});
 });
+
+describe('MCP-Loopback — Plan-Deckel für schreibende Werkzeuge (#1460 AK7, Spec docs/spec/issue-1460.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('task_link: ein readwrite-Token eines max-Nutzers erhält bei eingeschaltetem Rollout einen JSON-RPC-Fehler, der ultimate nennt', async () => {
+		const email = 'mcp-plan-cap-max@example.com';
+		const cookie = await server.register(email);
+		const token = await createToken(cookie);
+		const from = await createTask(cookie, 'A');
+		const to = await createTask(cookie, 'B');
+		await setPlan(email, 'max');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const { error } = await mcpCall(token, 'task_link', { taskId: from, dependsOnId: to });
+
+		assert.ok(error, 'task_link muss einen JSON-RPC-Fehler liefern');
+		assert.match(error.message, /ultimate/, 'Fehlertext muss das erforderliche Paket nennen');
+		assert.doesNotMatch(error.message, /read access only/, 'kein generischer Nur-lese-Text mehr');
+	});
+});

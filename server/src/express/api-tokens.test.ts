@@ -2,6 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import sequelize from '../database.js';
+import { User } from '../models/index.js';
 
 /**
  * Rote Spec-Tests für #1352 (Spec docs/spec/issue-1352.md) — persönliche API-Tokens.
@@ -59,6 +60,9 @@ const patchTokenScope = (cookie: string, id: number, scope: unknown): Promise<Re
 		headers: { 'Content-Type': 'application/json', Cookie: cookie },
 		body: JSON.stringify({ scope }),
 	});
+
+/** Setzt den Plan eines per E-Mail bekannten Nutzers direkt in der DB (Test-Only-Shortcut, Muster ai-quota.test.ts). */
+const setPlan = (email: string, plan: string): Promise<unknown> => User.update({ plan }, { where: { email } });
 
 describe('Persönliche API-Tokens — Verwaltung (#1352 AK1/AK2/AK4)', () => {
 	before(async () => {
@@ -278,5 +282,76 @@ describe('Persönliche API-Tokens — Pflicht-Ablaufdatum (#1357 AK1/AK2/AK3)', 
 		assert.ok(listed, 'Token muss in der Liste stehen');
 		assert.equal(typeof listed!.expiresAt, 'string', 'GET muss expiresAt je Token mitliefern');
 		assert.equal(listed!.expiresAt, created.expiresAt, 'GET muss denselben Wert wie POST liefern');
+	});
+});
+
+describe('Persönliche API-Tokens — Plan-Deckel für readwrite (#1460 AK1/AK2/AK3, Spec docs/spec/issue-1460.md)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: PATCH auf readwrite liefert für max bei eingeschaltetem Rollout 403 mit plan_required-Feldern, Scope bleibt read', async () => {
+		const email = 'plan-cap-max@example.com';
+		const cookie = await server.register(email, 'password123');
+		await setPlan(email, 'max');
+		const created = (await (await createToken(cookie, 'CLI')).json()) as CreatedToken;
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const patched = await patchTokenScope(cookie, created.id, 'readwrite');
+
+		assert.equal(patched.status, 403);
+		const body = (await patched.json()) as {
+			code?: string;
+			feature?: string;
+			requiredPlan?: string;
+			currentPlan?: string;
+		};
+		assert.equal(body.code, 'plan_required');
+		assert.equal(body.feature, 'mcp_readwrite');
+		assert.equal(body.requiredPlan, 'ultimate');
+		assert.equal(body.currentPlan, 'max');
+
+		const list = (await (await listTokens(cookie)).json()) as (ListedToken & { scope: string })[];
+		assert.equal(list.find((entry) => entry.id === created.id)?.scope, 'read', 'Scope darf nach 403 nicht wechseln');
+	});
+
+	it('AK2: PATCH auf read gelingt bei eingeschaltetem Rollout unabhängig vom Paket (Herabstufen ist nie paketbeschränkt)', async () => {
+		const email = 'plan-cap-downgrade@example.com';
+		const cookie = await server.register(email, 'password123');
+		await setPlan(email, 'ultimate');
+		const created = (await (await createToken(cookie, 'CLI')).json()) as CreatedToken;
+		const upgrade = await patchTokenScope(cookie, created.id, 'readwrite');
+		assert.equal(upgrade.status, 200, 'Setup: ultimate darf hochstufen');
+		await setPlan(email, 'free');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const downgrade = await patchTokenScope(cookie, created.id, 'read');
+
+		assert.equal(downgrade.status, 200, 'Herabstufen darf nicht am Paket scheitern');
+		const list = (await (await listTokens(cookie)).json()) as (ListedToken & { scope: string })[];
+		assert.equal(list.find((entry) => entry.id === created.id)?.scope, 'read');
+	});
+
+	it('AK3: PATCH auf readwrite liefert für ultimate bei eingeschaltetem Rollout weiterhin 200 mit scope readwrite', async () => {
+		const email = 'plan-cap-ultimate@example.com';
+		const cookie = await server.register(email, 'password123');
+		await setPlan(email, 'ultimate');
+		const created = (await (await createToken(cookie, 'CLI')).json()) as CreatedToken;
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const patched = await patchTokenScope(cookie, created.id, 'readwrite');
+
+		assert.equal(patched.status, 200);
+		const body = (await patched.json()) as { scope: string };
+		assert.equal(body.scope, 'readwrite');
 	});
 });
