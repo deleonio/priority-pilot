@@ -12,7 +12,11 @@ import { expect } from '@playwright/test';
  */
 export const waitForStableView = async (page: Page, readyText = 'Dashboard'): Promise<void> => {
 	// 1. Stabiles Element abwarten (rendert erst nach React-Mount + KoliBri-Upgrade sichtbar).
-	await expect(page.getByText(readyText, { exact: true }).first()).toBeVisible();
+	// `:visible` filtern, NICHT bloß `.first()`: Settings mountet inaktive KolTabs-Panels
+	// dauerhaft mit (nur [hidden]) — ein exakter Text kann dort VOR dem eigentlichen Ziel im DOM
+	// stehen (z. B. „Gruppen" als Feature-Zeile der Pakete-Tabelle vor dem Gruppen-Tab-Inhalt),
+	// ohne `:visible` würde `.first()` dauerhaft auf dem verdeckten Treffer hängen bleiben (#1509).
+	await expect(page.getByText(readyText, { exact: true }).and(page.locator(':visible')).first()).toBeVisible();
 
 	// 2. Auf das Upgrade der KoliBri-Custom-Elements warten: ein definiertes Element (`kol-button`)
 	//    muss registriert sein und sein Shadow-DOM aufgebaut haben. Solange noch ein nicht-aufgelöstes
