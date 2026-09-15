@@ -194,4 +194,47 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 			'quotaRemaining muss unter free (Kontingent 0) 0 sein, auch wenn der Verbrauch aus dem max-Paket stammt',
 		);
 	});
+
+	it('AK5: im Folgemonat trägt die neue yearMonth-Zeile das volle Kontingent des dann gebuchten Pakets', async () => {
+		const email = 'ak5-folgemonat@example.com';
+		const cookie = await server.register(email);
+		await setPlan(email, 'max');
+		const user = await User.findOne({ where: { email } });
+		const userId = user!.get('id') as number;
+
+		// Der Monatswechsel wird über das Abrechnungsfenster modelliert, nicht über die Uhr:
+		// `getAiUsageCount` (aiQuotaMeter.ts:28) liest ausschließlich die Zeile des laufenden Monats.
+		// Der ausgeschöpfte max-Verbrauch liegt deshalb im Vormonat — der laufende Monat IST der
+		// Folgemonat nach dem Downgrade.
+		const now = new Date();
+		const previousYearMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+			.toISOString()
+			.slice(0, 7);
+		const currentYearMonth = now.toISOString().slice(0, 7);
+		await AiUsage.create({ userId, yearMonth: previousYearMonth, count: AI_ASSIST_MONTHLY_QUOTA.max });
+
+		await setPlan(email, 'free');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		// Im Folgemonat gebuchtes Paket: pro (weder das alte max noch das free des Downgrade-Monats).
+		await setPlan(email, 'pro');
+
+		const me = await server.json('/auth/me', { headers: { Cookie: cookie } });
+		assert.equal(me.status, 200);
+		const meBody = (await me.json()) as { entitlements: Record<string, { quotaRemaining?: number }> };
+		assert.equal(
+			meBody.entitlements.ai_assist?.quotaRemaining,
+			AI_ASSIST_MONTHLY_QUOTA.pro,
+			'Der Vormonatsverbrauch darf das Kontingent des Folgemonats nicht schmälern — es gilt das volle Kontingent des dann gebuchten Pakets',
+		);
+
+		const currentRow = await AiUsage.findOne({ where: { userId, yearMonth: currentYearMonth } });
+		assert.equal(currentRow, null, 'Für den Folgemonat existiert noch keine Zeile — der Zähler startet bei 0');
+		const previousRow = await AiUsage.findOne({ where: { userId, yearMonth: previousYearMonth } });
+		assert.equal(
+			previousRow?.get('count'),
+			AI_ASSIST_MONTHLY_QUOTA.max,
+			'Die Vormonatszeile bleibt als Historie unverändert erhalten (kein Datenverlust, AK5)',
+		);
+	});
 });
