@@ -113,7 +113,7 @@ export const createBillingRouter = (deps: BillingDeps = {}): Router => {
 			stored = existing;
 		}
 
-		const externalSubscriptionId = event.resource?.id ?? event.resource?.billing_agreement_id ?? '';
+		const externalSubscriptionId = event.resource?.billing_agreement_id ?? event.resource?.id ?? '';
 		const subscription = await Subscription.findOne({
 			where: { provider: PROVIDER, externalSubscriptionId },
 		});

@@ -356,6 +356,39 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
 	});
 
+	it('AK1: bei gleichzeitig gesetztem resource.id (Sale-ID) und resource.billing_agreement_id (Abo-ID) gewinnt billing_agreement_id für die Abo-Suche', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 104,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PAY-BOTH',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'past_due',
+			firstFailureAt: new Date('2026-01-05'),
+			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-PAY-BOTH',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { id: 'SALE-TXN-NOT-A-SUBSCRIPTION-ID', billing_agreement_id: 'I-PAY-BOTH' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PAY-BOTH' } });
+		assert.equal(
+			sub?.get('status'),
+			'active',
+			'Die Abo-Suche muss über billing_agreement_id treffen, obwohl resource.id (Sale-/Transaktions-ID) ebenfalls gesetzt ist',
+		);
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
+	});
+
 	it('AK2: dasselbe PAYMENT.SALE.COMPLETED zweimal zugestellt erzeugt keine zweite Rechnung und verschiebt die Periode nicht erneut', async () => {
 		server = await startTestServer(withVerifierAndMail('verified'));
 		await Subscription.create({
