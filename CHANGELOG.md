@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-15
 
-_Enthält v0.2.0 – v0.2.69._
+_Enthält v0.2.0 – v0.2.70._
 
 ### 🔧 Engineering
 
@@ -80,6 +80,7 @@ _Enthält v0.2.0 – v0.2.69._
 - fix(dashboard): score life balance imbalances honestly again by @deleonio in https://github.com/deleonio/priority-pilot/pull/1500
 - chore: resolve the four open findings from review protocol #1471 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1503
 - feat(server): process PayPal payment events and enforce grace period by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1508
+- feat(frontend): add billing subscription management flow to settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1509
 
 ## v0.1 - 2026-09-12
 
