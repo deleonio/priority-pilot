@@ -349,6 +349,9 @@ authRouter.get('/auth/me', async (req, res) => {
 		period: string;
 		status: string;
 		currentPeriodEnd: Date;
+		pendingPlan: string | null;
+		pendingPlanEffectiveAt: Date | null;
+		graceUntil: null;
 	} | null = null;
 	try {
 		const dbSubscription =
@@ -362,6 +365,11 @@ authRouter.get('/auth/me', async (req, res) => {
 				period: dbSubscription.period,
 				status: dbSubscription.status,
 				currentPeriodEnd: dbSubscription.currentPeriodEnd,
+				// #1505 (AK6): vorgemerkter Wechsel bleibt nach dem etwaigen Anwenden oben `null`.
+				pendingPlan: dbSubscription.pendingPlan ?? null,
+				pendingPlanEffectiveAt: dbSubscription.pendingPlanEffectiveAt ?? null,
+				// Kulanzfrist bei Zahlungsausfall — konstant `null`, bis T6e (#1506) sie befüllt.
+				graceUntil: null,
 			};
 		}
 	} catch (error) {
