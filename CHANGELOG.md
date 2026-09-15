@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-15
 
-_Enthält v0.2.0 – v0.2.65._
+_Enthält v0.2.0 – v0.2.66._
 
 ### 🔧 Engineering
 
@@ -77,6 +77,7 @@ _Enthält v0.2.0 – v0.2.65._
 - feat(server): add subscription model, cent pricing and quarterly tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1497
 - fix(server): add .js extension to progress-metric test import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1499
 - feat(server): handle paypal webhooks and generate invoices by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1498
+- fix(dashboard): score life balance imbalances honestly again by @deleonio in https://github.com/deleonio/priority-pilot/pull/1500
 
 ## v0.1 - 2026-09-12
 
@@ -112,6 +113,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(679): kolInput zeichenzähler basierend auf KolInputText/KolTextarea by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/681
 - feat(issue-704): Aufgabenbaum-Layout sauber darstellen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/706
 - feat(llm): add LLM provider toggles for Mistral and OpenRouter by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/765
+- feat(frontend): add groups tab with CRUD, roles and delete confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1214
 - feat(frontend): add groups tab with CRUD, roles and delete confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1214
 - feat(frontend): show task dependencies as weighted graph instead of tree by @deleonio in https://github.com/deleonio/priority-pilot/pull/1309
 - feat(frontend): toggle to show parent tasks in task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1388
