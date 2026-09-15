@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-15
 
-_Enthält v0.2.0 – v0.2.64._
+_Enthält v0.2.0 – v0.2.65._
 
 ### 🔧 Engineering
 
@@ -76,6 +76,7 @@ _Enthält v0.2.0 – v0.2.64._
 - Claude/peaceful goldberg zfdcng by @deleonio in https://github.com/deleonio/priority-pilot/pull/1493
 - feat(server): add subscription model, cent pricing and quarterly tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1497
 - fix(server): add .js extension to progress-metric test import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1499
+- feat(server): handle paypal webhooks and generate invoices by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1498
 
 ## v0.1 - 2026-09-12
 
@@ -778,7 +779,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): show task/series id in edit title and confirm dialogs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1350
 - feat(frontend): category badge below select, removable, sorted list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1347
 - feat(frontend): add i18next with language selection for ten locales by @deleonio in https://github.com/deleonio/priority-pilot/pull/1348
-- feat(frontend): add focus ring for kol-tabs shadow-dom buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1351
 - feat(frontend): add focus ring for kol-tabs shadow-dom buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1351
 - feat(server): add personal api tokens with bearer auth by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1354
 - feat(server): add mcp tools v1 for member role by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1355
