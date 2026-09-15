@@ -94,13 +94,13 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 	// durchgereichten HTTP-Text. Hier entsteht stattdessen ein regulärer JSON-RPC-Fehler, der sagt,
 	// was zu tun ist. Die Route bleibt die zweite Verteidigungslinie (Bearer ohne MCP).
 	if (tool.write && req.apiTokenScope === 'read') {
-		sendRpcError(
-			res,
-			id,
-			JSONRPC_INVALID_PARAMS,
-			`The tool "${tool.name}" writes data, but this token allows read access only. ` +
-				'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).',
-		);
+		// Plan-Deckel (#1460): eine paketbedingte Herabstufung nennt das benötigte Paket statt des
+		// generischen Nur-lese-Texts — ein echter read-Token bekommt weiterhin die alte Meldung.
+		const message = req.apiTokenPlanCapped
+			? `The tool "${tool.name}" writes data, but your plan does not include MCP write access. Upgrade to "ultimate" to use it.`
+			: `The tool "${tool.name}" writes data, but this token allows read access only. ` +
+				'In the settings under "Zugriff" (Access) you can switch the token to "Lesen und Schreiben" (read and write).';
+		sendRpcError(res, id, JSONRPC_INVALID_PARAMS, message);
 		return;
 	}
 
