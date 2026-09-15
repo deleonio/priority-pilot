@@ -155,6 +155,24 @@ export const applyPlanChange = async (
 };
 
 /**
+ * Wendet einen fälligen, vorgemerkten Paketwechsel an (AK4): ist `pendingPlanEffectiveAt` erreicht,
+ * wird `pendingPlan` zum aktiven Paket und die Vormerkung gelöscht.
+ *
+ * Bewusst beim Lesen des Abos aufgerufen (statt über einen eigenen wiederkehrenden Lauf): der
+ * Wechsel wirkt genau dann, wenn der Zustand gebraucht wird, und hängt nicht daran, dass PayPal
+ * zufällig ein weiteres Ereignis schickt. Ohne fällige Vormerkung ist der Aufruf ein No-Op.
+ */
+export const applyDuePendingPlan = async (subscription: Subscription, now: Date): Promise<boolean> => {
+	const pendingPlan = subscription.get('pendingPlan') as string | null | undefined;
+	const effectiveAt = subscription.get('pendingPlanEffectiveAt') as Date | string | null | undefined;
+	if (!pendingPlan || !effectiveAt || new Date(effectiveAt).getTime() > now.getTime()) {
+		return false;
+	}
+	await subscription.update({ plan: pendingPlan, pendingPlan: null, pendingPlanEffectiveAt: null });
+	return true;
+};
+
+/**
  * Ob die Kulanzfrist nach dem ersten fehlgeschlagenen Einzug abgelaufen ist (AK7). Tag 14 ist noch
  * innerhalb der Frist, ab Tag 15 ist sie abgelaufen — der Zugang wird erst dann eingeschränkt.
  */

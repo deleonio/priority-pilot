@@ -93,11 +93,19 @@ export const createBillingRouter = (deps: BillingDeps = {}): Router => {
 				receivedAt: new Date(),
 			});
 		} catch (error) {
-			if (error instanceof UniqueConstraintError) {
+			if (!(error instanceof UniqueConstraintError)) throw error;
+			// Die Zeile existiert schon — zwei Fälle, die der Unique-Index nicht unterscheidet:
+			// (a) echtes Duplikat einer bereits verarbeiteten Zustellung → ohne Wirkung mit 200 quittieren;
+			// (b) Wiederholung nach einem `unreachable`-Eingang (Zeile liegt unverifiziert und
+			//     unverarbeitet vor) → die Verifikation jetzt nachholen, statt das Ereignis dauerhaft
+			//     unverifiziert liegen zu lassen (ADR 0013: die Verifikation muss wiederholbar sein).
+			const existing = await WebhookEvent.findOne({ where: { provider: PROVIDER, externalEventId } });
+			if (!existing || existing.get('verified') === true || existing.get('processedAt')) {
 				res.status(200).json({ status: 'duplicate' });
 				return;
 			}
-			throw error;
+			await existing.update({ eventType, rawPayload: rawBody.toString('utf8'), verified: true });
+			stored = existing;
 		}
 
 		const subscription = await Subscription.findOne({
