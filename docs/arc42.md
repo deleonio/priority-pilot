@@ -306,7 +306,7 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 | [0010](adr/0010-issue-storage-workflow-artefakt.md)     | Phasen-Notizen als Workflow-Artefakt                      | Akzeptiert                                     |
 | [0011](adr/0011-umsetzung-worktree-isolation.md)        | Worktree-Isolation für parallele Ticket-Läufe             | Vorgeschlagen                                  |
 | [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)               | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK | Akzeptiert                                     |
-| [0013](adr/0013-zahlungsweg-stripe-web-abos.md)         | Zahlungsweg: Stripe-Web-Abos mit PayPal als Zahlungsart   | Akzeptiert                                     |
+| [0013](adr/0013-zahlungsweg-paypal-abos.md)             | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild      | Akzeptiert                                     |
 
 ## 10. Qualitätsanforderungen
 

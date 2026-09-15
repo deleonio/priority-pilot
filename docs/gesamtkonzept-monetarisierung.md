@@ -82,7 +82,7 @@ Randnotizen für die Umsetzung:
 
 ### Umsatzskizze
 
-Netto nach 15 % Store-Gebühr, ohne Werbung. Der Start läuft über Web-Abos, dort liegt der Abzug bei rund 5 bis 6 % (Stripe-Transaktionsgebühr plus 0,7 % Stripe Billing, siehe Gebührentabelle in [ADR 0013](adr/0013-zahlungsweg-stripe-web-abos.md)). Die Zahlen unten sind damit um etwa ein Zehntel zu niedrig; sie bleiben als konservative Untergrenze stehen.
+Netto nach 15 % Store-Gebühr, ohne Werbung. Der Start läuft über Web-Abos mit PayPal, dort liegt der Abzug je nach Betrag zwischen rund 3 % (Jahresabo Ultimate) und rund 7 % (Monatsabo Pro), siehe Gebührentabelle in [ADR 0013](adr/0013-zahlungsweg-paypal-abos.md). Die Zahlen unten sind damit zu niedrig; sie bleiben als konservative Untergrenze stehen.
 
 | Szenario      | Installs/Jahr | Bei 2 % Conversion | Bei 5 % Conversion |
 | ------------- | ------------- | ------------------ | ------------------ |
@@ -107,25 +107,25 @@ Technisch: Die Badges rendern aus der Entitlement-Map in `/auth/me` (Feature-Ide
 ### Offene Punkte
 
 - Exakte KI-Kontingente (Basis: rund 18 % des Abopreises als Token-Budget). Die Werte stehen konfigurierbar in der Rechte-Zentrale; die Feinjustierung folgt nach Auswertung im Betrieb (T4, T8).
-- Der finale Preis je Paket ist in T6 (#1461) entschieden: Es gilt die Preistabelle oben. Die Vergleichswerte (Habitica ~5 €, Habitify ~2,50 €, Productive ~11 € monatlich) lagen der Entscheidung vor. Die Preise sind Endpreise ohne Umsatzsteuer, siehe [ADR 0013](adr/0013-zahlungsweg-stripe-web-abos.md).
+- Der finale Preis je Paket ist in T6 (#1461) entschieden: Es gilt die Preistabelle oben. Die Vergleichswerte (Habitica ~5 €, Habitify ~2,50 €, Productive ~11 € monatlich) lagen der Entscheidung vor. Die Preise sind Endpreise ohne Umsatzsteuer, siehe [ADR 0013](adr/0013-zahlungsweg-paypal-abos.md).
 - Das Downgrade-Verhalten ist hier festgelegt (sperren statt löschen) und wird in T7 umgesetzt.
 
 ## Entscheidungen und Annahmen
 
 Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen sind möglich, brauchen aber eine Begründung im jeweiligen Issue.
 
-| Nr  | Punkt                   | Entscheidung (Empfehlung)                                                                                                                           | Alternative, wann prüfen                                                                              |
-| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | Zahlungsweg             | Entschieden in T6: Stripe-Web-Abos, Zahlungsart PayPal, kein Wero, Kleinunternehmerregelung — [ADR 0013](adr/0013-zahlungsweg-stripe-web-abos.md)   | App-Store-IAP erst mit späterem nativem Wrapper, dann neu zu entscheiden                              |
-| 2   | Übergang Bestandsnutzer | Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf einem Übergangs-Tier, danach Free-Default                                          | harte Kante beim Gating-Rollout; Festlegung in T8                                                     |
-| 3   | Säulenanzahl            | Marketing sagt „individuelle Säulen (5er-Default)"; keine sechste Säule einführen                                                                   | sechste Säule nur bei inhaltlichem Bedarf                                                             |
-| 4   | Sprachsteuerung         | bestehende lokale Spracheingabe; Paketgrenze nur im Frontend (bewusste Lücke, siehe Ist-Stand)                                                      | serverseitige Durchsetzung erst mit eigenem STT-Endpunkt                                              |
-| 5   | Fürsorge-Kern           | bleibt vollständig Free (Vorschläge, Balance, Punkte)                                                                                               | keine; Kern des Bindungsversprechens                                                                  |
-| 6   | Aufgaben-Mengenlimit    | keins, in allen Paketen (laut Matrix); das Kostenrisiko tragen die KI-Kontingente                                                                   | nur bei Missbrauchsfällen                                                                             |
-| 7   | Badge-System            | dauerhaft sichtbare Badges „Pro/Max/Ultimate (i)“ an allen Funktionen oberhalb von Free; grüner Haken statt (i), wenn der Plan die Funktion abdeckt | Badges nur an Grenzstellen; Festlegung folgt dem Fürsorge-Prinzip                                     |
-| 8   | Feature-Katalog         | stabile Feature-Identifiers serverseitig; Entitlement-Map reist in `/auth/me`; Frontend ohne Paketlogik                                             | separater Entitlements-Endpoint, falls Szenarien es brauchen                                          |
-| 9   | Rollout                 | Env-Schalter `MONETIZATION_ENFORCED`, Default aus; gemessen ab T1, durchgesetzt erst in T8 nach der Übergangs-Setzung                               | harte Kante beim T2-Merge — verworfen, entzöge Bestandsnutzern Funktionen für die Dauer von T3 bis T8 |
-| 10  | Preishoheit             | `plans.ts` für die Anzeige, der Zahlungsanbieter für die Abrechnung; Zuordnung Paket mal Zeitraum zu Price-ID in `plans.ts`, Abgleich per Test      | Preise nur beim Anbieter führen, falls die Anzeige sie dort liest                                     |
+| Nr  | Punkt                   | Entscheidung (Empfehlung)                                                                                                                             | Alternative, wann prüfen                                                                              |
+| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Zahlungsweg             | Entschieden in T6: PayPal-Abos direkt, Wero und Stripe als spätere Phasen, Kleinunternehmerregelung — [ADR 0013](adr/0013-zahlungsweg-paypal-abos.md) | App-Store-IAP erst mit späterem nativem Wrapper, dann neu zu entscheiden                              |
+| 2   | Übergang Bestandsnutzer | Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf einem Übergangs-Tier, danach Free-Default                                            | harte Kante beim Gating-Rollout; Festlegung in T8                                                     |
+| 3   | Säulenanzahl            | Marketing sagt „individuelle Säulen (5er-Default)"; keine sechste Säule einführen                                                                     | sechste Säule nur bei inhaltlichem Bedarf                                                             |
+| 4   | Sprachsteuerung         | bestehende lokale Spracheingabe; Paketgrenze nur im Frontend (bewusste Lücke, siehe Ist-Stand)                                                        | serverseitige Durchsetzung erst mit eigenem STT-Endpunkt                                              |
+| 5   | Fürsorge-Kern           | bleibt vollständig Free (Vorschläge, Balance, Punkte)                                                                                                 | keine; Kern des Bindungsversprechens                                                                  |
+| 6   | Aufgaben-Mengenlimit    | keins, in allen Paketen (laut Matrix); das Kostenrisiko tragen die KI-Kontingente                                                                     | nur bei Missbrauchsfällen                                                                             |
+| 7   | Badge-System            | dauerhaft sichtbare Badges „Pro/Max/Ultimate (i)“ an allen Funktionen oberhalb von Free; grüner Haken statt (i), wenn der Plan die Funktion abdeckt   | Badges nur an Grenzstellen; Festlegung folgt dem Fürsorge-Prinzip                                     |
+| 8   | Feature-Katalog         | stabile Feature-Identifiers serverseitig; Entitlement-Map reist in `/auth/me`; Frontend ohne Paketlogik                                               | separater Entitlements-Endpoint, falls Szenarien es brauchen                                          |
+| 9   | Rollout                 | Env-Schalter `MONETIZATION_ENFORCED`, Default aus; gemessen ab T1, durchgesetzt erst in T8 nach der Übergangs-Setzung                                 | harte Kante beim T2-Merge — verworfen, entzöge Bestandsnutzern Funktionen für die Dauer von T3 bis T8 |
+| 10  | Preishoheit             | `plans.ts` für die Anzeige, der Zahlungsanbieter für die Abrechnung; Zuordnung Paket mal Zeitraum zu Price-ID in `plans.ts`, Abgleich per Test        | Preise nur beim Anbieter führen, falls die Anzeige sie dort liest                                     |
 
 ## Architektur
 
@@ -445,7 +445,9 @@ Komplex
 
 Der Webhook braucht den Rohbody und muss deshalb vor `express.json()`, vor der CSRF-Prüfung und vor `requireAuth` gemountet werden. Die Preishoheit ist vor der Umsetzung zu klären (Entscheidung Nr. 10), und die Rückkehr aus dem Checkout holt die Entitlement-Map neu.
 
-Zahlungsweg, Zahlungsart, Rechnungsstellung und Umsatzsteuer sind in [ADR 0013](adr/0013-zahlungsweg-stripe-web-abos.md) entschieden. T6 ist in drei aufeinander folgende Teile geschnitten: Abo-Datenmodell samt Preis- und Zeitraumzuordnung und Abo-Status in `/auth/me`; danach die Stripe-Anbindung mit Checkout-Route und Webhook; zuletzt der Buchungsflow im Frontend. Die Kulanzfrist bei Zahlungsausfall beträgt 14 Tage, Stripes Wiederholungsfenster wird darauf konfiguriert.
+Zahlungsweg, Zahlungsart, Rechnungsstellung und Umsatzsteuer sind in [ADR 0013](adr/0013-zahlungsweg-paypal-abos.md) entschieden: PayPal direkt über die Subscriptions-API, Wero und Stripe als spätere Phasen. T6 ist in drei aufeinander folgende Teile geschnitten: Abo-Datenmodell samt Preis- und Zeitraumzuordnung und Abo-Status in `/auth/me`; danach die PayPal-Anbindung mit Checkout-Route und Webhook; zuletzt der Buchungsflow im Frontend samt Verwaltung und Rechnungsansicht.
+
+Zwei Eigenheiten von PayPal prägen die Umsetzung. Die Webhook-Signatur wird nicht lokal nachgerechnet, sondern per Aufruf gegen PayPal geprüft; Ereignisse müssen deshalb angenommen, persistiert und bei Nichterreichbarkeit erneut verifiziert werden. Und die Subscriptions-API stellt keine Rechnungen je Abrechnungszeitraum aus, die Rechnungserzeugung gehört damit in den eigenen Umfang. Die Kulanzfrist bei Zahlungsausfall beträgt 15 Tage: PayPal wiederholt in festen Abständen von fünf Tagen, steuerbar ist allein die Anzahl der Versuche.
 
 ### Teilaufgabe T7: Downgrade und Kündigung
 
