@@ -10,11 +10,21 @@ import type { Pillar } from 'client';
  * randvoll — die *Höhe* der gemeinsamen Wasserlinie trägt die Aussage „ausgewogen", die
  * Aufschlüsselung je Säule die Legende neben dem Bild.
  *
- * **Maß:** Der Füllstand ist die Überlappung zwischen Ist- und Soll-Verteilung,
- * `füllstand = Σ min(sollᵢ, istᵢ)`. Das ist das Komplement der Totalvariations-Distanz und liegt
- * damit garantiert zwischen 0 (Ist und Soll disjunkt) und 1 (Ist = Soll). Es ist zugleich exakt
- * das soll-gewichtete Mittel der Segment-Füllstände — die große Prozentzahl und das Bild sagen
- * also nachweislich dasselbe.
+ * **Maß:** Der Füllstand ist die normierte quadratische Abweichung vom Soll,
+ * `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min sollᵢ)` mit `defizitᵢ = 1 − levelᵢ`, also der
+ * relativen Unterdeckung der Säule. Zwei Eigenschaften, die das Vorgängermaß `Σ min(sollᵢ, istᵢ)`
+ * nicht hatte:
+ *
+ * - **Quadratisch:** Eine stark vernachlässigte Säule wiegt schwerer als dieselbe Menge Defizit,
+ *   dünn über alle Säulen verteilt. Genau das liest ein Mensch als Schieflage.
+ * - **Normiert:** Der Nenner ist das Maximum, das die Summe über alle denkbaren Verteilungen
+ *   annehmen kann (sie ist konvex, ihr Maximum liegt an einer Ecke der Simplex und beträgt dort
+ *   `1 − min sollᵢ`). Der Füllstand ist damit 0, wenn alles an einer einzigen Säule hängt, und 1
+ *   genau dann, wenn Ist = Soll — die Skala nutzt ihren vollen Bereich. `Σ min(sollᵢ, istᵢ)` kam
+ *   bei fünf gleich gewichteten Säulen nie unter 20 % und hat Schieflagen dadurch beschönigt.
+ *
+ * Die große Prozentzahl und die Höhe der Wasserlinie bleiben derselbe Wert; das Bild kann der Zahl
+ * also weiterhin nicht widersprechen.
  */
 
 /** Eine Wassersäule im Herzen: eine Lebenssäule mit ihrem Soll, ihrem Ist und ihrer Farbe. */
@@ -40,7 +50,7 @@ interface HeartSegment {
 
 /** Gesamtbild des Herzens: sein Füllstand und die Farbsegmente in Anzeigereihenfolge. */
 interface HeartBalance {
-	/** Füllstand des Herzens (0–1) — `Σ min(soll, ist)`, siehe Modulkommentar. */
+	/** Füllstand des Herzens (0–1) — normierte quadratische Abweichung, siehe Modulkommentar. */
 	fill: number;
 	/** Ob überhaupt Punkte vergeben sind. Unterscheidet „noch nichts getan" von „unausgewogen". */
 	hasPoints: boolean;
@@ -57,6 +67,8 @@ interface HeartBalance {
  *   eine Aussage trifft statt leer zu bleiben.
  * - **Soll einer Säule = 0** → ihre Wassersäule bleibt leer; dort investierte Punkte zählen nicht
  *   auf den Füllstand ein, sie fehlen den Säulen mit Soll. Genau das soll das Bild zeigen.
+ * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine Schieflage, die das Maß messen
+ *   könnte (der Nenner wäre 0); das Herz ist dann voll, sobald überhaupt Punkte da sind.
  */
 export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): HeartBalance => {
 	// Rang in der Farbrampe über die Säulen-id vergeben (stabil gegen Umsortierung der Anzeige).
@@ -79,9 +91,15 @@ export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMa
 		};
 	});
 
-	const fill = segments.reduce((sum, segment) => sum + Math.min(segment.targetShare, segment.actualShare), 0);
+	// Soll-gewichtete Summe der quadrierten Unterdeckungen und ihr denkbares Maximum (Modulkommentar).
+	// Dieselbe Rechnung steht auf dem Server in `server/src/logics/heartBalance.ts` — beide Seiten
+	// müssen zahlengleich bleiben, sonst nennt das MCP-Werkzeug eine andere Zahl als das Dashboard.
+	const spread = segments.reduce((sum, segment) => sum + segment.targetShare * (1 - segment.level) ** 2, 0);
+	const worstSpread = segments.length > 0 ? 1 - Math.min(...segments.map((segment) => segment.targetShare)) : 0;
+	const hasPoints = totalPoints > 0;
+	const fill = !hasPoints ? 0 : worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : 1;
 
-	return { fill, hasPoints: totalPoints > 0, segments };
+	return { fill, hasPoints, segments };
 };
 
 /** Gesundheitszustand des Herzens: Zustandsschlüssel (fürs Styling) plus Klartext. */
@@ -97,21 +115,62 @@ interface HeartHealth {
  * Zustandswechsel verkaufen.
  */
 const HEALTH_STEPS: readonly (HeartHealth & { min: number })[] = [
-	{ min: 0.9, state: 'stark', label: 'In Balance', hint: 'Deine Säulen liegen dicht am Soll.' },
+	{ min: 0.85, state: 'stark', label: 'In Balance', hint: 'Deine Säulen liegen dicht am Soll.' },
 	{
-		min: 0.7,
+		min: 0.65,
 		state: 'gut',
 		label: 'Gut in Balance',
 		hint: 'Die Verteilung ist solide, kleine Abweichungen sind normal.',
 	},
 	{
-		min: 0.45,
+		min: 0.4,
 		state: 'wackelig',
 		label: 'Leichte Schieflage',
 		hint: 'Einzelne Säulen ziehen davon, andere kommen zu kurz.',
 	},
 	{ min: 0, state: 'schwach', label: 'Aus der Balance', hint: 'Fast alle Punkte hängen an wenigen Säulen.' },
 ];
+
+/** Ab 10 % unter Soll gilt eine Säule als „kommt zu kurz" — darunter ist es Rauschen. */
+const SHORTFALL_LEVEL = 0.9;
+/** Ab 5 Prozentpunkten über Soll gilt eine Säule als „zieht davon". */
+const EXCESS_SHARE = 0.05;
+
+/**
+ * Prozentzahl fürs Fließtext-Zitat einer Säule (die Rechnung selbst bleibt ungerundet). Zwischen
+ * Zahl und Zeichen steht ein geschütztes Leerzeichen, sonst bricht der Hinweis auf schmalen
+ * Viewports zwischen „20" und „%" um.
+ */
+const percent = (share: number): string => `${Math.round(share * 100)}\u00A0%`;
+
+/**
+ * Benennt die Schieflage im Klartext: die Säule mit der größten relativen Unterdeckung und die mit
+ * dem größten Überhang. Ohne auffällige Säule bleibt der Stufentext stehen — das ist der Fall, in
+ * dem es nichts zu benennen gibt.
+ */
+const concreteHint = (segments: readonly HeartSegment[]): string | undefined => {
+	const withTarget = segments.filter((segment) => segment.targetShare > 0);
+	const weakest = withTarget.reduce<HeartSegment | undefined>(
+		(worst, segment) => (!worst || segment.level < worst.level ? segment : worst),
+		undefined,
+	);
+	const strongest = withTarget.reduce<HeartSegment | undefined>(
+		(best, segment) =>
+			!best || segment.actualShare - segment.targetShare > best.actualShare - best.targetShare ? segment : best,
+		undefined,
+	);
+
+	const teile: string[] = [];
+	if (weakest && weakest.level < SHORTFALL_LEVEL) {
+		teile.push(
+			`${weakest.pillar.name} kommt am kürzesten (${percent(weakest.actualShare)} statt ${percent(weakest.targetShare)})`,
+		);
+	}
+	if (strongest && strongest.actualShare - strongest.targetShare >= EXCESS_SHARE) {
+		teile.push(`${strongest.pillar.name} zieht davon (${percent(strongest.actualShare)})`);
+	}
+	return teile.length > 0 ? `${teile.join(', ')}.` : undefined;
+};
 
 /** Leitet den Gesundheitszustand aus dem Füllstand ab; ohne Punkte gilt der eigene Leer-Zustand. */
 export const heartHealth = (balance: HeartBalance): HeartHealth => {
@@ -123,5 +182,6 @@ export const heartHealth = (balance: HeartBalance): HeartHealth => {
 		};
 	}
 	// Die letzte Stufe hat `min: 0` und greift damit immer; der Fallback ist nur fürs Typsystem.
-	return HEALTH_STEPS.find((step) => balance.fill >= step.min) ?? HEALTH_STEPS[HEALTH_STEPS.length - 1];
+	const step = HEALTH_STEPS.find((s) => balance.fill >= s.min) ?? HEALTH_STEPS[HEALTH_STEPS.length - 1];
+	return { state: step.state, label: step.label, hint: concreteHint(balance.segments) ?? step.hint };
 };

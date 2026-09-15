@@ -7,8 +7,11 @@
  * der MCP-Wert dieselbe Zahl nennt wie die Oberfläche, ist genau diese Rechnung hier portiert —
  * reine Funktionen ohne DB-Zugriff, damit die Mathematik ohne Express prüfbar bleibt.
  *
- * **Maß:** `füllstand = Σ min(sollᵢ, istᵢ)` — die Überlappung zwischen Ist- und Soll-Verteilung
- * (Komplement der Totalvariations-Distanz), garantiert zwischen 0 und 1.
+ * **Maß:** `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min sollᵢ)` mit `defizitᵢ` = relative
+ * Unterdeckung der Säule (`1 − min(1, ist/soll)`). Quadratisch, damit eine stark vernachlässigte
+ * Säule schwerer wiegt als dünn verteiltes Defizit; normiert auf das denkbare Maximum der Summe,
+ * damit 0 („alles an einer Säule") und 1 („Ist = Soll") beide erreichbar sind. Begründung und
+ * Herleitung stehen ausführlich in `frontend/src/lib/heartBalance.ts`.
  */
 
 /** Eine Säule, so wie die Rechnung sie braucht: Identität, Anzeigename und ihr Soll-Gewicht. */
@@ -94,21 +97,34 @@ const punkteProSaeule = (saeulen: BalanceSaeule[], tasks: BalanceTask[]): Map<nu
  *   eine Aussage trifft statt 0 zu bleiben.
  * - **Soll einer Säule = 0** → dort investierte Punkte zählen nicht auf den Füllstand ein, sie
  *   fehlen den Säulen mit Soll. Genau das soll die Zahl zeigen.
+ * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine Schieflage, die das Maß messen
+ *   könnte (der Nenner wäre 0); der Füllstand ist dann 1, sobald überhaupt Punkte da sind.
  */
 export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTask[]): Lebensbalance => {
 	const punkte = punkteProSaeule(saeulen, tasks);
 	const gesamtPunkte = saeulen.reduce((summe, saeule) => summe + (punkte.get(saeule.id) ?? 0), 0);
 	const gesamtGewicht = saeulen.reduce((summe, saeule) => summe + saeule.weight, 0);
+	const hasPoints = gesamtPunkte > 0;
 
-	const fill = saeulen.reduce((summe, saeule) => {
-		const sollAnteil = gesamtGewicht > 0 ? saeule.weight / gesamtGewicht : 1 / saeulen.length;
-		const istAnteil = gesamtPunkte > 0 ? (punkte.get(saeule.id) ?? 0) / gesamtPunkte : 0;
-		return summe + Math.min(sollAnteil, istAnteil);
+	const sollAnteile = saeulen.map((saeule) => (gesamtGewicht > 0 ? saeule.weight / gesamtGewicht : 1 / saeulen.length));
+	// Soll-gewichtete Summe der quadrierten Unterdeckungen und ihr denkbares Maximum — dieselbe
+	// Rechnung wie `buildHeartBalance` im Frontend, beide Seiten müssen zahlengleich bleiben.
+	const abweichung = saeulen.reduce((summe, saeule, index) => {
+		const sollAnteil = sollAnteile[index];
+		const istAnteil = hasPoints ? (punkte.get(saeule.id) ?? 0) / gesamtPunkte : 0;
+		const defizit = sollAnteil > 0 ? 1 - Math.min(1, istAnteil / sollAnteil) : 1;
+		return summe + sollAnteil * defizit ** 2;
 	}, 0);
+	const maximaleAbweichung = sollAnteile.length > 0 ? 1 - Math.min(...sollAnteile) : 0;
+	const fill = !hasPoints
+		? 0
+		: maximaleAbweichung > 0
+			? Math.max(0, 1 - Math.sqrt(abweichung / maximaleAbweichung))
+			: 1;
 
 	return {
 		fill,
-		hasPoints: gesamtPunkte > 0,
+		hasPoints,
 		saeulen: saeulen.map((saeule) => ({
 			id: saeule.id,
 			name: saeule.name,

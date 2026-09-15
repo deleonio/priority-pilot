@@ -3472,6 +3472,21 @@ kol-alert {
 	font-variant-numeric: tabular-nums;
 }
 
+/* Abweichung vom Ziel in Prozentpunkten. Das Vorzeichen im Text trägt die Aussage allein
+   (Relief-Regel ux-design.md §2, Regel 4); die Warnfarbe markiert nur zusätzlich, ab wann aus einer
+   Delle eine Schieflage wird. */
+.heart-balance-legend-delta {
+	flex: 0 0 auto;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.heart-balance-legend-delta[data-abweichung='stark'] {
+	color: var(--pp-warning);
+	font-weight: var(--pp-weight-bold);
+}
+
 /* Farbtupfer der Legende — rein dekorativ (aria-hidden), der Name daneben trägt die Bedeutung. */
 /* Tiefenwellen im SVG-Herzen — Abdunkelung wie die STRATUM-Schichten im Glas-Shader; sie liegen
    über den Farbstreifen und unter den Fugen. Opacity je Schicht als Attribut (Markup-Parameter). */

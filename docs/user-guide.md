@@ -69,7 +69,11 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 
 - **Meine Lebensbalance:** ein Herz zeigt, wie ausgeglichen sich dein erledigter
   Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
-  Säule angelegt hast).
+  Säule angelegt hast). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
+  alles hängt an einer einzigen Säule. Eine stark vernachlässigte Säule drückt den
+  Wert deutlicher als viele kleine Abweichungen. Die Legende nennt je Säule den
+  Ist-Anteil, das Ziel und die Abweichung in Prozentpunkten (`pp`), und der Text
+  unter der Zahl sagt, welche Säule zurückliegt und welche davonzieht.
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle

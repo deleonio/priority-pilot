@@ -1266,20 +1266,26 @@ describe('MCP-Werkzeug balance_status (#1423)', () => {
 		assert.equal(leer.result?.fuellstandProzent, 0);
 		assert.equal(leer.result?.hatPunkte, false);
 
-		// Bewusst eine **gewichtete** Standard-Säule: `POST /pillars` legt neue Säulen mit `weight: 0` an
-		// (routes/pillars.ts:251-255), und Punkte auf einer Säule ohne Soll heben den Füllstand
-		// definitionsgemäß nicht (AK4, dritter Randfall — heartBalance.test.ts).
+		// Bewusst **alle gewichteten** Standard-Säulen gleichmäßig bedienen: `POST /pillars` legt neue
+		// Säulen mit `weight: 0` an (routes/pillars.ts:251-255), und Punkte auf einer Säule ohne Soll
+		// heben den Füllstand definitionsgemäß nicht (AK4, dritter Randfall — heartBalance.test.ts).
+		// Alles auf eine einzige Säule zu werfen ergäbe die größtmögliche Schieflage und damit
+		// Füllstand 0 — das ist der Boden der Skala, nicht ein fehlender Punktestand.
 		const pillars = await mcpCall<{ id: number; weight: number }[]>(token, 'pillar_list');
-		const gewichtet = pillars.result?.find((pillar) => pillar.weight > 0);
-		assert.ok(gewichtet, 'Setup: der Nutzer muss eine gewichtete Standard-Säule besitzen');
-		await mcpCall(token, 'task_create', {
-			title: 'Erledigt für Füllstand',
-			pillars: [{ pillarId: gewichtet.id, share: 100 }],
-		});
+		const gewichtet = pillars.result?.filter((pillar) => pillar.weight > 0) ?? [];
+		assert.ok(gewichtet.length > 0, 'Setup: der Nutzer muss gewichtete Standard-Säulen besitzen');
+		for (const saeule of gewichtet) {
+			await mcpCall(token, 'task_create', {
+				title: `Erledigt für Füllstand ${saeule.id}`,
+				pillars: [{ pillarId: saeule.id, share: 100 }],
+			});
+		}
 		const list = await mcpCall<{ id: number; title: string }[]>(token, 'task_list');
-		const taskId = list.result?.find((t) => t.title === 'Erledigt für Füllstand')?.id;
-		assert.ok(taskId, 'Setup: Task muss über task_list auffindbar sein');
-		await mcpCall(token, 'task_complete', { id: taskId });
+		for (const saeule of gewichtet) {
+			const taskId = list.result?.find((t) => t.title === `Erledigt für Füllstand ${saeule.id}`)?.id;
+			assert.ok(taskId, 'Setup: Task muss über task_list auffindbar sein');
+			await mcpCall(token, 'task_complete', { id: taskId });
+		}
 
 		const gefuellt = await mcpCall<BalanceResult>(token, 'balance_status');
 		assert.ok(

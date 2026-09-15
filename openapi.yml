@@ -4235,7 +4235,9 @@ components:
           type: number
           description: >-
             Füllstand des Dashboard-Herzens in Prozent (`0`–`100`, auf eine Dezimalstelle
-            gerundet): die Überlappung zwischen Ist- und Soll-Verteilung über alle Säulen.
+            gerundet): `100` bei Ist = Soll, `0`, wenn aller erledigter Aufwand an einer einzigen
+            Säule hängt. Gemessen als normierte quadratische Abweichung vom Soll, große Defizite
+            einzelner Säulen wiegen dabei schwerer als dünn verteilte.
         hatPunkte:
           type: boolean
           description: >-
