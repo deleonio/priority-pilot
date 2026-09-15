@@ -30,7 +30,7 @@ export interface PaypalClient {
 }
 
 /** Kulanzfrist nach dem ersten fehlgeschlagenen Einzug, in Tagen (AK7). */
-const GRACE_PERIOD_DAYS = 14;
+export const GRACE_PERIOD_DAYS = 15;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -202,8 +202,12 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 export interface PaypalWebhookEvent {
 	id?: string;
 	event_type?: string;
-	resource?: { id?: string; plan_id?: string };
+	/** `billing_agreement_id` trägt die Abo-Referenz bei Zahlungsereignissen (#1506). */
+	resource?: { id?: string; plan_id?: string; billing_agreement_id?: string };
 }
+
+/** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
+const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
 
 /**
  * Wendet ein verifiziertes Ereignis auf das Abo an (AK4/AK6):
@@ -267,8 +271,72 @@ export const applyDuePendingPlan = async (subscription: Subscription, now: Date)
 };
 
 /**
- * Ob die Kulanzfrist nach dem ersten fehlgeschlagenen Einzug abgelaufen ist (AK7). Tag 14 ist noch
- * innerhalb der Frist, ab Tag 15 ist sie abgelaufen — der Zugang wird erst dann eingeschränkt.
+ * Ob die Kulanzfrist nach dem ersten fehlgeschlagenen Einzug abgelaufen ist (AK7). Tag 15 ist noch
+ * innerhalb der Frist, ab Tag 16 ist sie abgelaufen — der Zugang wird erst dann eingeschränkt.
  */
 export const isGracePeriodExpired = (firstFailureAt: Date, now: Date): boolean =>
 	now.getTime() - firstFailureAt.getTime() > GRACE_PERIOD_DAYS * DAY_MS;
+
+/** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */
+export interface ApplyPaymentEventDeps {
+	issueInvoice?: (subscription: Subscription, now: Date) => Promise<unknown>;
+}
+
+/**
+ * Wendet ein verifiziertes Zahlungsereignis auf das Abo an (AK1/AK3/AK4, T6e/#1506):
+ *
+ * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`, ersatzweise
+ *   `BILLING.SUBSCRIPTION.ACTIVATED`) → Periode um einen Zeitraum verschieben, `status: 'active'`,
+ *   `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
+ * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
+ *   `firstFailureAt` setzen und `status: 'past_due'`; ein weiterer Fehlschlag verlängert die
+ *   bereits laufende Frist nicht.
+ * - `BILLING.SUBSCRIPTION.SUSPENDED` → `status: 'suspended'`, `firstFailureAt` unverändert — die
+ *   Frist läuft unabhängig vom PayPal-eigenen Status weiter.
+ * - Unbekannter Ereignistyp → No-Op.
+ */
+export const applyPaymentEvent = async (
+	subscription: Subscription,
+	event: PaypalWebhookEvent,
+	now: Date,
+	deps: ApplyPaymentEventDeps = {},
+): Promise<void> => {
+	const eventType = event.event_type ?? '';
+
+	if (eventType === 'PAYMENT.SALE.COMPLETED' || eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+		const period = String(subscription.get('period'));
+		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
+		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));
+		await subscription.update({ currentPeriodEnd, status: 'active', firstFailureAt: null });
+		await deps.issueInvoice?.(subscription, now);
+		return;
+	}
+
+	if (eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED') {
+		if (!subscription.get('firstFailureAt')) {
+			await subscription.update({ firstFailureAt: now, status: 'past_due' });
+		}
+		return;
+	}
+
+	if (eventType === 'BILLING.SUBSCRIPTION.SUSPENDED') {
+		await subscription.update({ status: 'suspended' });
+	}
+};
+
+/**
+ * Wendet eine fällige Kulanzfrist an (AK6, T6e/#1506): ist `firstFailureAt` gesetzt und
+ * {@link isGracePeriodExpired}, wird `status: 'grace_expired'` gesetzt und `firstFailureAt`
+ * zurückgesetzt — `plan` bleibt unverändert (der Downgrade selbst ist T7, #1462).
+ *
+ * Bewusst beim Lesen des Abos aufgerufen (Muster `applyDuePendingPlan`). Ohne fällige Frist ein
+ * No-Op.
+ */
+export const applyDueGracePeriod = async (subscription: Subscription, now: Date): Promise<boolean> => {
+	const firstFailureAt = subscription.get('firstFailureAt') as Date | string | null | undefined;
+	if (!firstFailureAt || !isGracePeriodExpired(new Date(firstFailureAt), now)) {
+		return false;
+	}
+	await subscription.update({ status: 'grace_expired', firstFailureAt: null });
+	return true;
+};

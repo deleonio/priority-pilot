@@ -89,7 +89,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die
 	// Signaturprüfung, und PayPal ruft ohne Session und ohne CSRF-Token auf (Muster
 	// `inviteLinksPublicRouter`, `plansPublicRouter`). Der Router bringt sein `express.raw()` selbst mit.
-	app.use(createBillingRouter({ paypalVerifier: deps.paypalVerifier }));
+	app.use(createBillingRouter({ paypalVerifier: deps.paypalVerifier, mailSender: deps.mailSender }));
 
 	// JSON-Body parsen.
 	app.use(express.json());
