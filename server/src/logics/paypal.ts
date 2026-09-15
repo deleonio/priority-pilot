@@ -14,6 +14,21 @@ export type PaypalVerificationResult = 'verified' | 'invalid' | 'unreachable';
 /** Signatur des injizierbaren Verifiers (Vorbild `MailSender`) — Tests reichen einen Fake herein. */
 export type PaypalVerifier = (rawBody: Buffer, headers: Record<string, string>) => Promise<PaypalVerificationResult>;
 
+/** Abrechnungszeitraum eines Abos, wie ihn `PAYPAL_PLAN_IDS` als Schlüssel führt. */
+type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
+
+/**
+ * Signatur des injizierbaren Abo-Clients (Issue #1505, T6d; Muster `PaypalVerifier`). Tests
+ * reichen einen Fake herein (`AppDeps.paypalClient`), Produktion nutzt {@link createPaypalClient}.
+ * Wirksam wird eine Anlage/ein Wechsel ausschließlich über das verifizierte Webhook-Ereignis
+ * (ADR 0013) — dieser Client löst nur den PayPal-Aufruf aus.
+ */
+export interface PaypalClient {
+	createSubscription(planId: string): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
+	cancel(externalSubscriptionId: string): Promise<void>;
+	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
+}
+
 /** Kulanzfrist nach dem ersten fehlgeschlagenen Einzug, in Tagen (AK7). */
 const GRACE_PERIOD_DAYS = 14;
 
@@ -103,6 +118,85 @@ const planFromPaypalPlanId = (planId: string): Plan | undefined => {
 
 /** Rang eines Pakets in der Paketreihenfolge (`PLAN_VALUES`) — Grundlage für „Upgrade oder Downgrade?". */
 const rankOf = (plan: string): number => PLAN_VALUES.indexOf(plan as Plan);
+
+/**
+ * Umkehrung von {@link planFromPaypalPlanId} (#1505 AK1/AK4): PayPal-Plan-ID zu Paket×Zeitraum,
+ * für den Aufruf von `PaypalClient.createSubscription`/`revise`. Fällt wie dort ohne gesetzte
+ * Umgebungsvariable auf den Variablennamen selbst zurück.
+ */
+export const paypalPlanIdFor = (plan: Exclude<Plan, 'free'>, period: BillingPeriod): string => {
+	const entry = PAYPAL_PLAN_IDS[plan][period];
+	return process.env[entry.envVar]?.trim() || entry.envVar;
+};
+
+/** Holt ein OAuth-Zugangstoken bei PayPal (Client-Credentials) — Vorbild `verifyWebhookSignature`. */
+const getAccessToken = async (fetchImpl: typeof fetch): Promise<string> => {
+	const clientId = process.env.PAYPAL_CLIENT_ID?.trim() ?? '';
+	const clientSecret = process.env.PAYPAL_CLIENT_SECRET?.trim() ?? '';
+	const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+	const res = await fetchImpl(`${apiBase()}/v1/oauth2/token`, {
+		method: 'POST',
+		headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: 'grant_type=client_credentials',
+	});
+	if (!res.ok) {
+		throw new Error('PayPal-Zugangstoken konnte nicht geholt werden.');
+	}
+	return ((await res.json()) as { access_token?: string }).access_token ?? '';
+};
+
+/** Genehmigungslink aus der PayPal-Antwort (`links[].rel === 'approve'`). */
+const approveLinkOf = (body: { links?: { rel?: string; href?: string }[] }): string | undefined =>
+	body.links?.find((link) => link.rel === 'approve')?.href;
+
+/**
+ * Produktiver Abo-Client (#1505, T6d): Anlegen, Kündigen und Wechseln über die PayPal-
+ * Subscriptions-API. Tests injizieren stattdessen einen Fake (`AppDeps.paypalClient`) — Muster
+ * `verifyWebhookSignature`/`paypalVerifier`. `returnUrl`/`cancelUrl` zeigen auf eine
+ * Frontend-Route der Einstellungen (T6c, #1496), nicht auf `GET /billing/return`.
+ */
+export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClient => ({
+	async createSubscription(planId) {
+		const token = await getAccessToken(fetchImpl);
+		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
+		const cancelUrl = process.env.PAYPAL_CANCEL_URL?.trim() || returnUrl;
+		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ plan_id: planId, application_context: { return_url: returnUrl, cancel_url: cancelUrl } }),
+		});
+		if (!res.ok) {
+			throw new Error('PayPal-Abo konnte nicht angelegt werden.');
+		}
+		const body = (await res.json()) as { id?: string; links?: { rel?: string; href?: string }[] };
+		return { approvalUrl: approveLinkOf(body) ?? '', externalSubscriptionId: body.id ?? '' };
+	},
+	async cancel(externalSubscriptionId) {
+		const token = await getAccessToken(fetchImpl);
+		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}/cancel`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ reason: 'Vom Nutzer gekündigt.' }),
+		});
+		if (!res.ok) {
+			throw new Error('PayPal-Abo konnte nicht gekündigt werden.');
+		}
+	},
+	async revise(externalSubscriptionId, targetPlanId) {
+		const token = await getAccessToken(fetchImpl);
+		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions/${externalSubscriptionId}/revise`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ plan_id: targetPlanId }),
+		});
+		if (!res.ok) {
+			throw new Error('PayPal-Abo konnte nicht gewechselt werden.');
+		}
+		const body = (await res.json().catch(() => ({}))) as { links?: { rel?: string; href?: string }[] };
+		const approvalUrl = approveLinkOf(body);
+		return approvalUrl ? { approvalUrl } : {};
+	},
+});
 
 /** Ereignis-Ausschnitt, den die Planänderung braucht (PayPal-Webhook-Body). */
 export interface PaypalWebhookEvent {

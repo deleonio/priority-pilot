@@ -2543,6 +2543,174 @@ paths:
           $ref: '#/components/responses/PlanRequired'
         '404':
           $ref: '#/components/responses/NotFound'
+  /auth/me:
+    get:
+      summary: Angemeldeten Nutzer lesen
+      description: >-
+        Liefert Session-Daten, Paket, Entitlements und Abo-Status des angemeldeten
+        Nutzers (Issue #206/#1456/#1494). Im lokalen Pass-Through-Modus (kein
+        Auth-Kontext konfiguriert) antwortet ein synthetischer Entwicklungs-Nutzer
+        statt 401.
+      operationId: getMe
+      tags: [auth]
+      responses:
+        '200':
+          description: Aktueller Nutzer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          description: Anmeldung erforderlich (Auth-Kontext konfiguriert, keine Session)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /billing/subscriptions:
+    post:
+      summary: Abo anlegen
+      description: >-
+        Legt bei PayPal ein Abo zum gewählten Paket/Zeitraum an, persistiert einen
+        `Subscription`-Datensatz mit Status `approval_pending` und liefert die
+        Zustimmungs-URL (Issue #1505, T6d, AK1). Wirksam wird das Abo erst über das
+        verifizierte Webhook-Ereignis (ADR 0013). Besteht für den Nutzer bereits ein
+        laufendes oder ausstehendes Abo, antwortet die Route mit 409 (AK2).
+      operationId: createBillingSubscription
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingSubscriptionInput'
+      responses:
+        '201':
+          description: Angelegtes Abo — Zustimmungs-URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingApproval'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Es besteht bereits ein laufendes oder ausstehendes Abo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /billing/subscriptions/cancel:
+    post:
+      summary: Abo kündigen
+      description: >-
+        Ruft bei PayPal die Kündigung des eigenen Abos auf (Issue #1505, T6d, AK3).
+        `plan` am Datensatz bleibt unverändert — wirksam wird die Kündigung erst
+        über das Webhook-Ereignis `BILLING.SUBSCRIPTION.CANCELLED` (ADR 0013).
+      operationId: cancelBillingSubscription
+      tags: [billing]
+      responses:
+        '200':
+          description: Kündigung bei PayPal ausgelöst
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /billing/subscriptions/change:
+    post:
+      summary: Paket wechseln
+      description: >-
+        Ruft bei PayPal den Wechsel des eigenen Abos auf Paket/Zeitraum auf (Issue
+        #1505, T6d, AK4) und liefert, falls PayPal eine erneute Zustimmung verlangt,
+        die Zustimmungs-URL. `plan` am Datensatz bleibt unverändert — wirksam wird
+        der Wechsel erst über das Webhook-Ereignis (`applyPlanChange`, ADR 0013).
+      operationId: changeBillingSubscription
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingSubscriptionInput'
+      responses:
+        '200':
+          description: Wechsel bei PayPal ausgelöst — Zustimmungs-URL, falls PayPal eine verlangt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingApproval'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /billing/invoices:
+    get:
+      summary: Eigene Rechnungen auflisten
+      description: >-
+        Liefert die Rechnungen des angemeldeten Nutzers (Issue #1505, T6d, AK5),
+        neueste zuerst. Kein PDF, keine Zahlungsdaten (AK9).
+      operationId: listBillingInvoices
+      tags: [billing]
+      responses:
+        '200':
+          description: Liste der eigenen Rechnungen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /billing/invoices/{id}:
+    get:
+      summary: Eigene Rechnung lesen
+      description: >-
+        Liefert eine einzelne Rechnung des angemeldeten Nutzers (Issue #1505, T6d,
+        AK5). Fremde oder unbekannte Rechnungen liefern 404 — weder inhaltlich noch
+        über den Status wird eine fremde Rechnung verraten (Muster `/api-tokens/{id}`).
+      operationId: getBillingInvoice
+      tags: [billing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id der Rechnung
+      responses:
+        '200':
+          description: Eigene Rechnung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   parameters:
     SeriesId:
@@ -4579,6 +4747,109 @@ components:
         created:
           type: integer
           description: Anzahl der neu materialisierten Task-Instanzen.
+    MeSubscription:
+      type: object
+      description: Abo-Status im Vertrag von `GET /auth/me` (#1494/#1495/#1505).
+      required: [plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
+      properties:
+        plan:
+          $ref: '#/components/schemas/Plan'
+        period:
+          type: string
+          enum: [monthly, quarterly, yearly]
+        status:
+          type: string
+          description: Abo-Status bei PayPal (z. B. `approval_pending`, `active`, `cancelled`).
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        pendingPlan:
+          type: [string, 'null']
+          description: >-
+            Vorgemerkter Paketwechsel nach unten (#1495 AK4); wirkt erst ab
+            `pendingPlanEffectiveAt`. `null` ohne anstehenden Wechsel.
+        pendingPlanEffectiveAt:
+          type: [string, 'null']
+          format: date-time
+          description: Zeitpunkt, ab dem `pendingPlan` wirkt; `null` ohne anstehenden Wechsel.
+        graceUntil:
+          type: [string, 'null']
+          format: date-time
+          description: >-
+            Ende der Kulanzfrist nach Zahlungsausfall (#1505 AK6). Konstant `null`, bis
+            T6e (#1506) sie befüllt.
+    Me:
+      type: object
+      description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494) — Session, Paket, Entitlements, Abo.
+      required: [email, displayName, avatarUrl, plan, entitlements, subscription]
+      properties:
+        id:
+          type: integer
+          description: Fehlt im lokalen Pass-Through-Modus (synthetischer Entwicklungs-Nutzer).
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        avatarUrl:
+          type: [string, 'null']
+        role:
+          type: string
+          enum: [admin, member]
+          description: Fehlt im lokalen Pass-Through-Modus.
+        plan:
+          $ref: '#/components/schemas/Plan'
+        entitlements:
+          type: object
+          description: Entitlement-Map je Feature-Identifier (#1456).
+          additionalProperties:
+            $ref: '#/components/schemas/FeatureEntitlement'
+        subscription:
+          allOf:
+            - $ref: '#/components/schemas/MeSubscription'
+          nullable: true
+          description: Abo-Status; `null` ohne Abo.
+    BillingSubscriptionInput:
+      type: object
+      description: Eingabe zum Anlegen/Wechseln eines Abos (#1505 AK1/AK4).
+      required: [plan, period]
+      properties:
+        plan:
+          $ref: '#/components/schemas/Plan'
+        period:
+          type: string
+          enum: [monthly, quarterly, yearly]
+    BillingApproval:
+      type: object
+      description: >-
+        Antwort auf Anlegen/Wechseln eines Abos (#1505 AK1/AK4). `approvalUrl` fehlt beim
+        Wechsel, wenn PayPal keine erneute Zustimmung verlangt.
+      properties:
+        approvalUrl:
+          type: string
+          description: Zustimmungs-URL des PayPal-Clients.
+    Invoice:
+      type: object
+      description: >-
+        Rechnung zu einem Abrechnungszeitraum (#1505 AK5). Kein PDF, kein
+        Zahlungsmittel (AK9) — `taxNote` trägt den §19-UStG-Hinweis.
+      required: [id, number, periodStart, periodEnd, amountCents, taxNote]
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+          description: Fortlaufende Rechnungsnummer (`INV-<Jahr>-<6-stellig>`).
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        amountCents:
+          type: integer
+        taxNote:
+          type: string
     Error:
       type: object
       required:

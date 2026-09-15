@@ -209,6 +209,59 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(body.subscription?.status, 'active');
 			assert.ok(body.subscription?.currentPeriodEnd, 'currentPeriodEnd muss gesetzt sein');
 		});
+
+		// #1505 (AK6, Spec docs/spec/issue-1505.md): subscription trägt zusätzlich pendingPlan,
+		// pendingPlanEffectiveAt und graceUntil (Letzteres bis T6e/#1506 konstant null).
+		it('#1505 AK6 — subscription enthält pendingPlan und pendingPlanEffectiveAt bei vorgemerktem Downgrade', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const userId = (dbUser as unknown as { id: number }).id;
+			const { default: Subscription } = await import('../models/subscription.js');
+			const pendingEffectiveAt = new Date('2026-12-01T00:00:00.000Z');
+			await Subscription.create({
+				userId,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-AK6-PENDING',
+				plan: 'max',
+				period: 'monthly',
+				status: 'active',
+				currentPeriodEnd: pendingEffectiveAt,
+				pendingPlan: 'pro',
+				pendingPlanEffectiveAt: pendingEffectiveAt,
+			});
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as {
+				subscription?: { pendingPlan?: string | null; pendingPlanEffectiveAt?: string | null } | null;
+			};
+			assert.equal(body.subscription?.pendingPlan, 'pro', 'Der vorgemerkte Paketwechsel muss sichtbar sein');
+			assert.ok(body.subscription?.pendingPlanEffectiveAt, 'pendingPlanEffectiveAt muss gesetzt sein');
+		});
+
+		it('#1505 AK6 — subscription trägt graceUntil als Feld (konstant null, bis T6e/#1506 umgesetzt ist)', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const userId = (dbUser as unknown as { id: number }).id;
+			const { default: Subscription } = await import('../models/subscription.js');
+			await Subscription.create({
+				userId,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-AK6-GRACE',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'active',
+				currentPeriodEnd: new Date('2026-12-01'),
+			});
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { subscription?: Record<string, unknown> | null };
+			assert.ok(body.subscription && 'graceUntil' in body.subscription, 'subscription muss das Feld graceUntil tragen');
+			assert.equal(body.subscription?.graceUntil, null, 'graceUntil ist vor T6e/#1506 konstant null');
+		});
 	});
 
 	// ── AC 5 — /auth/me ohne Session → 401 ───────────────────────────────────

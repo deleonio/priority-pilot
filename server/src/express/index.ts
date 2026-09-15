@@ -36,7 +36,8 @@ import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
 import { createBillingRouter } from './routes/billing.js';
-import type { PaypalVerifier } from '../logics/paypal.js';
+import { createBillingSubscriptionsRouter } from './routes/billingSubscriptions.js';
+import type { PaypalVerifier, PaypalClient } from '../logics/paypal.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -76,6 +77,8 @@ export interface AppDeps {
 	obsidianGithubClient?: ObsidianGithubClient;
 	/** Signaturprüfung der PayPal-Webhooks (#1495) — Tests injizieren hieran einen Fake. */
 	paypalVerifier?: PaypalVerifier;
+	/** Abo-Client für Anlegen/Kündigen/Wechseln (#1505) — Tests injizieren hieran einen Fake. */
+	paypalClient?: PaypalClient;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -274,6 +277,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);
+
+	// Abo-Verwaltung: Anlegen, Kündigen, Wechseln und Rechnungsabruf (#1505, T6d). Bewusst HINTER
+	// `requireAuth` — anders als der öffentliche `createBillingRouter` (Webhook + Rückkehr-URL, #1495).
+	app.use(createBillingSubscriptionsRouter({ paypalClient: deps.paypalClient }));
 
 	// Gespeicherte Orte (#1342): pro Nutzer benannte Adressen für das Adressfeld von Aufgabe/Serie.
 	app.use(placeFavoritesRouter);
