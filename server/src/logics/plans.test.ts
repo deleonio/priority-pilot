@@ -182,3 +182,43 @@ describe('plans.ts — MONETIZATION_ENFORCED (#1456 AK9)', () => {
 		}
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1494 (Spec docs/spec/issue-1494.md) AK1-AK3 — Cent-Preise mit
+ * Quartalsstaffel. Nutzt weiterhin `getPlansCatalog()` (existiert bereits), daher kein
+ * Import-Absturz — anders als AK4 (`PAYPAL_PLAN_IDS`), das in `plans-paypal.test.ts` steckt.
+ *
+ * Rot, weil `plans.ts:57-62` heute nur `monthly`/`yearly` in Euro liefert.
+ */
+describe('plans.ts — Cent-Preise und Quartalsstaffel (#1494 AK1-AK3)', () => {
+	it('jedes Paket trägt monthly, quarterly und yearly als Ganzzahl in Cent (AK1)', () => {
+		const catalog = getPlansCatalog();
+		for (const plan of ['free', 'pro', 'max', 'ultimate'] as Plan[]) {
+			const price = catalog.prices[plan] as unknown as Record<string, number>;
+			assert.ok(price, `Preis für ${plan} fehlt`);
+			assert.equal(typeof price.quarterly, 'number', `${plan}.quarterly fehlt oder ist keine Zahl`);
+			assert.ok(Number.isInteger(price.monthly), `${plan}.monthly muss Ganzzahl (Cent) sein`);
+			assert.ok(Number.isInteger(price.quarterly), `${plan}.quarterly muss Ganzzahl (Cent) sein`);
+			assert.ok(Number.isInteger(price.yearly), `${plan}.yearly muss Ganzzahl (Cent) sein`);
+		}
+	});
+
+	it('Beträge entsprechen der Konzepttabelle in Cent (AK2)', () => {
+		const catalog = getPlansCatalog();
+		assert.deepEqual(catalog.prices.free, { monthly: 0, quarterly: 0, yearly: 0 });
+		assert.deepEqual(catalog.prices.pro, { monthly: 799, quarterly: 2157, yearly: 7670 });
+		assert.deepEqual(catalog.prices.max, { monthly: 1499, quarterly: 4047, yearly: 14390 });
+		assert.deepEqual(catalog.prices.ultimate, { monthly: 2499, quarterly: 6747, yearly: 23990 });
+	});
+
+	it('Quartal = 3× Monat minus 10 %, Jahr = 12× Monat minus 20 %, kaufmännisch gerundet (AK3)', () => {
+		const catalog = getPlansCatalog();
+		for (const plan of ['pro', 'max', 'ultimate'] as Plan[]) {
+			const price = catalog.prices[plan] as unknown as Record<string, number>;
+			const expectedQuarterly = Math.round(price.monthly * 3 * 0.9);
+			const expectedYearly = Math.round(price.monthly * 12 * 0.8);
+			assert.equal(price.quarterly, expectedQuarterly, `${plan}: Quartalsstaffel stimmt nicht`);
+			assert.equal(price.yearly, expectedYearly, `${plan}: Jahresstaffel stimmt nicht`);
+		}
+	});
+});

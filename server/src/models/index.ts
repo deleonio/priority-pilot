@@ -19,6 +19,7 @@ import GroupInviteLink from './groupInviteLink.js';
 import ApiToken from './apiToken.js';
 import PlaceFavorite from './placeFavorite.js';
 import AiUsage from './aiUsage.js';
+import Subscription from './subscription.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -81,6 +82,8 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // „Genau ein Provider aktiv“ wird von der Service-Schicht garantiert, nicht per DB-Constraint.
 // `api_tokens` steht für sich (persönliche Bearer-Tokens, Issue #1352) — pro Nutzer über `userId`
 // gefiltert, ohne Sequelize-Assoziation (Router und Auth-Middleware filtern direkt über die Spalte).
+// `subscriptions` steht für sich (Zahlungsanbieter-Abo, Issue #1494) — pro Nutzer über `userId`
+// gefiltert, ohne Sequelize-Assoziation (Muster `api_tokens`); Beträge bleiben in `plans.ts`.
 export {
 	Task,
 	Category,
@@ -103,4 +106,5 @@ export {
 	ApiToken,
 	PlaceFavorite,
 	AiUsage,
+	Subscription,
 };

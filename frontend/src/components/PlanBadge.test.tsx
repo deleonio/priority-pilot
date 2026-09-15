@@ -34,7 +34,7 @@ const withPlan = (plan: Plan | null, entitlements: EntitlementMap, children: Rea
 beforeEach(() => {
 	getPlansCatalog.mockResolvedValue({
 		features: [{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] }],
-		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 4, yearly: 40 } },
+		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 799, yearly: 7670 } },
 	});
 });
 
@@ -90,7 +90,7 @@ describe('PlanOfferDialog (#1458 AK5/AK7)', () => {
 
 		const dialog = await screen.findByRole('dialog');
 		expect(dialog.getAttribute('aria-label')).toContain('Pro');
-		expect(await screen.findByText(/4 € im Monat/)).toBeTruthy();
+		expect(await screen.findByText(/7,99 € im Monat/)).toBeTruthy();
 	});
 
 	it('AK7: drei Events hintereinander erzeugen genau einen Dialog', () => {

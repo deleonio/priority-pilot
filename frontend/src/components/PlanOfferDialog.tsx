@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { api } from '../api';
 import { PLAN_REQUIRED_EVENT, type PlanRequiredDetail } from '../lib/apiError';
+import { formatEuro } from '../lib/format';
 import { featureOffer, planLabel, type Plan } from '../lib/planOffers';
 import { Modal } from './Modal';
 
@@ -65,7 +66,7 @@ export const PlanOfferDialog = () => {
 			<p>{benefit}</p>
 			<p>
 				Enthalten ab Paket <strong>{planLabel(offer.requiredPlan)}</strong>
-				{monthly === undefined ? '' : ` — ${monthly} € im Monat`}. Dein Paket: {planLabel(offer.currentPlan)}.
+				{monthly === undefined ? '' : ` — ${formatEuro(monthly)} im Monat`}. Dein Paket: {planLabel(offer.currentPlan)}.
 			</p>
 			<div className="modal-actions">
 				<span ref={closeRef} data-testid="plan-offer-close" tabIndex={-1} onClick={() => setOffer(null)}>
