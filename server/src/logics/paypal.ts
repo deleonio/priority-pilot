@@ -1,4 +1,5 @@
 import type Subscription from '../models/subscription.js';
+import User from '../models/user.js';
 import { PAYPAL_PLAN_IDS, PLAN_VALUES, type Plan } from './plans.js';
 
 /**
@@ -120,6 +121,21 @@ const planFromPaypalPlanId = (planId: string): Plan | undefined => {
 const rankOf = (plan: string): number => PLAN_VALUES.indexOf(plan as Plan);
 
 /**
+ * Gleicht das für die Durchsetzung maßgebliche Paket am Nutzer ab (#1462, T7 AK3). Alle Guards
+ * lesen `User.plan` (`express/planGuard.ts`, `express/apiTokenAuth.ts`, `routes/auth.ts`), nicht
+ * `Subscription.plan` — ohne diesen Abgleich bliebe eine Kündigung für die Durchsetzung wirkungslos.
+ * Bewusst nur ein Spaltenwechsel: es wird kein Datensatz gelöscht, gesperrt wird allein der
+ * Schreibzugriff.
+ */
+const syncUserPlan = async (subscription: Subscription, plan: Plan): Promise<void> => {
+	const userId = subscription.get('userId') as number | null | undefined;
+	if (!userId) {
+		return;
+	}
+	await User.update({ plan }, { where: { id: userId } });
+};
+
+/**
  * Umkehrung von {@link planFromPaypalPlanId} (#1505 AK1/AK4): PayPal-Plan-ID zu Paket×Zeitraum,
  * für den Aufruf von `PaypalClient.createSubscription`/`revise`. Fällt wie dort ohne gesetzte
  * Umgebungsvariable auf den Variablennamen selbst zurück.
@@ -229,6 +245,7 @@ export const applyPlanChange = async (
 
 	if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
 		await subscription.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
+		await syncUserPlan(subscription, 'free');
 		return;
 	}
 
@@ -241,6 +258,7 @@ export const applyPlanChange = async (
 	const current = String(subscription.get('plan'));
 	if (rankOf(target) > rankOf(current)) {
 		await subscription.update({ plan: target, status: 'active', pendingPlan: null, pendingPlanEffectiveAt: null });
+		await syncUserPlan(subscription, target);
 		return;
 	}
 	if (rankOf(target) < rankOf(current)) {
@@ -267,6 +285,7 @@ export const applyDuePendingPlan = async (subscription: Subscription, now: Date)
 		return false;
 	}
 	await subscription.update({ plan: pendingPlan, pendingPlan: null, pendingPlanEffectiveAt: null });
+	await syncUserPlan(subscription, pendingPlan as Plan);
 	return true;
 };
 
