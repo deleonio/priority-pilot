@@ -74,9 +74,8 @@ interface HeartBalance {
  * - **Soll einer Säule = 0** → ihre Wassersäule bleibt leer; dort investierte Punkte zählen nicht
  *   auf den Füllstand ein, sie fehlen den Säulen mit Soll. Genau das soll das Bild zeigen.
  * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Ziel steht auf 0, das Herz ist leer.
- * - **Eine einzige Säule trägt das ganze Soll** → zwischen den Zielen gibt es keine Schieflage,
- *   die das Maß messen könnte (der Nenner ist 0); dann entscheidet allein, ob diese Säule ihr Ziel
- *   hält.
+ * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine zweite, gegen die sie schieflaufen
+ *   könnte; der Füllstand ist dann ihr Erfüllungsgrad (`level`), also 0,95 bei 95 % des Aufwands.
  */
 export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): HeartBalance => {
 	// Rang in der Farbrampe über die Säulen-id vergeben (stabil gegen Umsortierung der Anzeige).
@@ -105,16 +104,20 @@ export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMa
 	 * — beide Seiten müssen zahlengleich bleiben, sonst nennt das MCP-Werkzeug eine andere Zahl als
 	 * das Dashboard.
 	 *
+	 * Das Maximum ist der schlechteste Fall unter den Zielen: aller Aufwand in der am geringsten
+	 * gewichteten Ziel-Säule (`1 − min soll`). Gibt es nur **eine** Ziel-Säule, gibt es dafür keine
+	 * zweite — der schlechteste Fall ist dann, dass sie leer ausgeht, und das Maximum ist 1 (Soll 1,
+	 * Defizit 1). Der Füllstand ist dort stetig ihr eigener Erfüllungsgrad.
+	 *
 	 * Der Deckel bei 0 ist Fachlogik, keine Absicherung: Liegt aller Aufwand in Säulen **ohne** Ziel,
-	 * wird `spread` größer als sein Maximum unter den Zielen — leerer geht das Herz nicht.
-	 * Trägt umgekehrt nur eine einzige Säule ein Ziel, ist das Maximum 0 und es gibt zwischen den
-	 * Zielen nichts zu vergleichen; dann zählt allein, ob diese Säule ihr Ziel hält.
+	 * wird `spread` größer als dieses Maximum — leerer geht das Herz nicht.
 	 */
 	const spread = segments.reduce((sum, segment) => sum + segment.targetShare * (1 - segment.level) ** 2, 0);
 	const zielAnteile = segments.map((segment) => segment.targetShare).filter((targetShare) => targetShare > 0);
-	const worstSpread = zielAnteile.length > 0 ? 1 - Math.min(...zielAnteile) : 0;
+	const worstSpread = zielAnteile.length > 1 ? 1 - Math.min(...zielAnteile) : zielAnteile.length === 1 ? 1 : 0;
 	const hasPoints = totalPoints > 0;
-	const fill = !hasPoints ? 0 : worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : spread > 0 ? 0 : 1;
+	// `worstSpread` ist nur ohne jede Säule 0 — dann greift schon `!hasPoints`, der Zweig ist Typsache.
+	const fill = !hasPoints ? 0 : worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : 1;
 
 	return { fill, hasPoints, segments };
 };

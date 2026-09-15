@@ -100,8 +100,8 @@ const punkteProSaeule = (saeulen: BalanceSaeule[], tasks: BalanceTask[]): Map<nu
  * - **Soll einer Säule = 0** → dort investierte Punkte zählen nicht auf den Füllstand ein, sie
  *   fehlen den Säulen mit Soll. Genau das soll die Zahl zeigen.
  * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Soll steht auf 0, Füllstand 0.
- * - **Eine einzige Säule trägt das ganze Soll** → zwischen den Zielen gibt es keine Schieflage, die
- *   das Maß messen könnte (der Nenner ist 0); dann entscheidet allein, ob diese Säule ihr Ziel hält.
+ * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine zweite, gegen die sie schieflaufen
+ *   könnte; der Füllstand ist dann ihr Erfüllungsgrad, also 0,95 bei 95 % des Aufwands.
  */
 export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTask[]): Lebensbalance => {
 	const punkte = punkteProSaeule(saeulen, tasks);
@@ -118,17 +118,16 @@ export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTa
 		const defizit = sollAnteil > 0 ? 1 - Math.min(1, istAnteil / sollAnteil) : 1;
 		return summe + sollAnteil * defizit ** 2;
 	}, 0);
-	// Maximum nur über die Säulen mit Ziel; der Deckel bei 0 fängt den Fall „aller Aufwand in Säulen
-	// ohne Ziel" ab, der Zweig darunter den Fall „nur eine Säule trägt überhaupt ein Ziel".
+	// Maximum nur über die Säulen mit Ziel: aller Aufwand in der am geringsten gewichteten von ihnen.
+	// Bei nur einer Ziel-Säule gibt es keine zweite — dort ist der schlechteste Fall, dass sie leer
+	// ausgeht, das Maximum also 1. Der Deckel bei 0 fängt „aller Aufwand in Säulen ohne Ziel" ab.
 	const mitZiel = sollAnteile.filter((sollAnteil) => sollAnteil > 0);
-	const maximaleAbweichung = mitZiel.length > 0 ? 1 - Math.min(...mitZiel) : 0;
+	const maximaleAbweichung = mitZiel.length > 1 ? 1 - Math.min(...mitZiel) : mitZiel.length === 1 ? 1 : 0;
 	const fill = !hasPoints
 		? 0
 		: maximaleAbweichung > 0
 			? Math.max(0, 1 - Math.sqrt(abweichung / maximaleAbweichung))
-			: abweichung > 0
-				? 0
-				: 1;
+			: 1;
 
 	return {
 		fill,

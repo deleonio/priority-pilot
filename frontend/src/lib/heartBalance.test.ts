@@ -100,6 +100,24 @@ describe('buildHeartBalance', () => {
 		expect(allesAufEiner.fill).toBeCloseTo(0);
 	});
 
+	/*
+	 * Der Zustand direkt nachdem jemand seine erste Säule gewichtet hat: eine Säule mit Ziel, daneben
+	 * eine frisch angelegte ohne. Der Füllstand muss dem Erfüllungsgrad der gewichteten Säule folgen
+	 * und darf nicht zum Schalter werden (jede Abweichung = leer).
+	 */
+	it('folgt bei nur einer Säule mit Ziel deren Erfüllungsgrad', () => {
+		const pillars = [pillar(1, 'Mit Ziel', 100), pillar(2, 'Frisch angelegt', 0)];
+		const balance = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 95],
+				[2, 5],
+			]),
+		);
+
+		expect(balance.fill).toBeCloseTo(0.95);
+	});
+
 	it('lässt das Herz leer, wenn aller Aufwand in Säulen ohne Soll liegt', () => {
 		const pillars = [pillar(1, 'Mit Ziel', 100), pillar(2, 'Ohne Ziel', 0)];
 		const balance = buildHeartBalance(pillars, new Map([[2, 10]]));
