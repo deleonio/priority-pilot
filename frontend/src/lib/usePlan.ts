@@ -155,7 +155,6 @@ export const useBillingReturnPoll = (
 	// Genau ein sofortiger Refresh bei Mount — unabhängig vom Poll-Intervall unten.
 	useEffect(() => {
 		void refreshRef.current();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	useEffect(() => {
