@@ -9,11 +9,13 @@ import type { UserRole } from '../../models/user.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
-import { applyDuePendingPlan } from '../../logics/paypal.js';
+import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/paypal.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { getAiUsageCount } from '../aiQuotaMeter.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
 // damit Angreifer per Zeitmessung keine gültigen Adressen ermitteln können.
@@ -351,15 +353,19 @@ authRouter.get('/auth/me', async (req, res) => {
 		currentPeriodEnd: Date;
 		pendingPlan: string | null;
 		pendingPlanEffectiveAt: Date | null;
-		graceUntil: null;
+		graceUntil: Date | null;
 	} | null = null;
 	try {
 		const dbSubscription =
 			typeof user.id === 'number' ? await Subscription.findOne({ where: { userId: user.id } }) : null;
 		if (dbSubscription) {
+			const now = new Date();
 			// #1495 (AK4): ein vorgemerkter Downgrade wirkt zum `currentPeriodEnd` — hier, beim Lesen,
 			// wird er fällig angewendet, damit er nicht auf ein weiteres PayPal-Ereignis wartet.
-			await applyDuePendingPlan(dbSubscription, new Date());
+			await applyDuePendingPlan(dbSubscription, now);
+			// #1506 (AK6): eine abgelaufene Kulanzfrist wird beim Lesen wirksam (Muster oben).
+			await applyDueGracePeriod(dbSubscription, now);
+			const firstFailureAt = dbSubscription.get('firstFailureAt') as Date | null;
 			subscription = {
 				plan: dbSubscription.plan,
 				period: dbSubscription.period,
@@ -368,8 +374,8 @@ authRouter.get('/auth/me', async (req, res) => {
 				// #1505 (AK6): vorgemerkter Wechsel bleibt nach dem etwaigen Anwenden oben `null`.
 				pendingPlan: dbSubscription.pendingPlan ?? null,
 				pendingPlanEffectiveAt: dbSubscription.pendingPlanEffectiveAt ?? null,
-				// Kulanzfrist bei Zahlungsausfall — konstant `null`, bis T6e (#1506) sie befüllt.
-				graceUntil: null,
+				// #1506 (AK7): während laufender Kulanzfrist firstFailureAt + Frist, sonst null.
+				graceUntil: firstFailureAt ? new Date(firstFailureAt.getTime() + GRACE_PERIOD_DAYS * DAY_MS) : null,
 			};
 		}
 	} catch (error) {

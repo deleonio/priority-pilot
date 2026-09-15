@@ -51,4 +51,33 @@ describe('Subscription-Modell (#1494 AK6)', () => {
 			assert.ok(!attrs.includes(key), `Subscription darf kein Feld "${key}" tragen`);
 		}
 	});
+
+	// #1506 AK8 (Spec docs/spec/issue-1506.md): einziger Modellzuwachs ist `firstFailureAt`,
+	// nullable — kein Betrags-/Zahlungsfeld.
+	it('#1506 AK8 — trägt ein nullable firstFailureAt und weiterhin keine Betrags-/Zahlungsfelder', async () => {
+		const attrs = Subscription.getAttributes();
+		assert.ok('firstFailureAt' in attrs, 'Subscription muss firstFailureAt tragen (Kulanzfrist, #1506)');
+		assert.equal(
+			attrs.firstFailureAt?.allowNull,
+			true,
+			'firstFailureAt muss nullable sein (kein Fehlschlag = kein Wert)',
+		);
+
+		const created = await Subscription.create({
+			userId: 2,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-AK8-NOFAIL',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-10-15'),
+		});
+		const found = await Subscription.findByPk(created.get('id') as number);
+		assert.equal(found?.get('firstFailureAt'), null, 'Ohne Zahlungsausfall bleibt firstFailureAt leer');
+
+		const forbidden = ['amount', 'amountCents', 'price', 'priceCents', 'cardNumber', 'paymentMethod', 'iban'];
+		for (const key of forbidden) {
+			assert.ok(!Object.keys(attrs).includes(key), `Subscription darf auch nach #1506 kein Feld "${key}" tragen`);
+		}
+	});
 });

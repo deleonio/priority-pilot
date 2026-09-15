@@ -2,6 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { Subscription, WebhookEvent } from '../models/index.js';
+import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
 import { applyDuePendingPlan, type PaypalVerificationResult } from '../logics/paypal.js';
 
@@ -20,6 +21,17 @@ let server: TestServer;
 const withVerifier = (result: PaypalVerificationResult | ((rawBody: Buffer) => PaypalVerificationResult)): AppDeps =>
 	({
 		paypalVerifier: async (rawBody: Buffer) => (typeof result === 'function' ? result(rawBody) : result),
+	}) as unknown as AppDeps;
+
+// #1506: Zahlungsereignisse stoßen `issueInvoiceForPeriod` an, dessen Default-Versand echten SMTP
+// erreichen würde — ein injizierter Fake hält den Test ohne Netzwerk deterministisch (Vertrag
+// `BillingDeps.mailSender`, docs/spec/issue-1506.md).
+const withVerifierAndMail = (
+	result: PaypalVerificationResult | ((rawBody: Buffer) => PaypalVerificationResult),
+): AppDeps =>
+	({
+		paypalVerifier: async (rawBody: Buffer) => (typeof result === 'function' ? result(rawBody) : result),
+		mailSender: async () => {},
 	}) as unknown as AppDeps;
 
 const rawPost = (path: string, rawBody: string, headers: Record<string, string> = {}) =>
@@ -289,5 +301,216 @@ describe('Billing/Webhook-API (#1495)', () => {
 		assert.equal(applied, false);
 		assert.equal(sub.get('plan'), 'max', 'Vor dem Periodenende bleibt das bezahlte Paket aktiv');
 		assert.equal(sub.get('pendingPlan'), 'pro');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1506 (Spec docs/spec/issue-1506.md) — Zahlungsereignisse (AK1-AK4). Die
+ * Abo-Suche über `resource.billing_agreement_id`, `applyPaymentEvent` und die Rechnungsauslösung
+ * über den injizierten `mailSender` existieren noch nicht: bis dahin bleibt `currentPeriodEnd`/
+ * `status`/`firstFailureAt` unverändert und es entsteht keine Rechnung — legitimer Erst-Zustand.
+ * KEIN Produktivcode.
+ */
+describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK1: PAYMENT.SALE.COMPLETED verlängert die Periode um einen Zeitraum, setzt active, löscht firstFailureAt und erzeugt genau eine Rechnung', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 101,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PAY-1',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'past_due',
+			firstFailureAt: new Date('2026-01-05'),
+			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-PAY-1',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { billing_agreement_id: 'I-PAY-1' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PAY-1' } });
+		assert.equal(sub?.get('status'), 'active', 'Eine erfolgreiche Abbuchung muss den Status auf active setzen');
+		assert.equal(sub?.get('firstFailureAt'), null, 'Eine erfolgreiche Abbuchung muss firstFailureAt löschen');
+		assert.equal(
+			new Date(sub?.get('currentPeriodEnd') as Date).toISOString().slice(0, 10),
+			'2026-03-01',
+			'Die Periode muss um genau einen Monat (period=monthly) verschoben werden',
+		);
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
+	});
+
+	it('AK1: bei gleichzeitig gesetztem resource.id (Sale-ID) und resource.billing_agreement_id (Abo-ID) gewinnt billing_agreement_id für die Abo-Suche', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 104,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PAY-BOTH',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'past_due',
+			firstFailureAt: new Date('2026-01-05'),
+			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-PAY-BOTH',
+				event_type: 'PAYMENT.SALE.COMPLETED',
+				resource: { id: 'SALE-TXN-NOT-A-SUBSCRIPTION-ID', billing_agreement_id: 'I-PAY-BOTH' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PAY-BOTH' } });
+		assert.equal(
+			sub?.get('status'),
+			'active',
+			'Die Abo-Suche muss über billing_agreement_id treffen, obwohl resource.id (Sale-/Transaktions-ID) ebenfalls gesetzt ist',
+		);
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(invoices.length, 1, 'Genau eine Rechnung muss entstehen');
+	});
+
+	it('AK2: dasselbe PAYMENT.SALE.COMPLETED zweimal zugestellt erzeugt keine zweite Rechnung und verschiebt die Periode nicht erneut', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 102,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PAY-2',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+		});
+		const body = JSON.stringify({
+			id: 'WH-PAY-2',
+			event_type: 'PAYMENT.SALE.COMPLETED',
+			resource: { billing_agreement_id: 'I-PAY-2' },
+		});
+
+		await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
+		await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PAY-2' } });
+		assert.equal(
+			new Date(sub?.get('currentPeriodEnd') as Date).toISOString().slice(0, 10),
+			'2026-03-01',
+			'Eine doppelt zugestellte Zahlungsbestätigung darf die Periode nur einmal verschieben',
+		);
+		const invoices = await Invoice.findAll({ where: { subscriptionId: sub?.get('id') as number } });
+		assert.equal(
+			invoices.length,
+			1,
+			'Eine doppelt zugestellte Zahlungsbestätigung darf keine zweite Rechnung erzeugen',
+		);
+	});
+
+	it('AK3: BILLING.SUBSCRIPTION.PAYMENT.FAILED setzt beim ersten Mal firstFailureAt und status past_due', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 103,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-FAIL-1',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-02-01'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-FAIL-1',
+				event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+				resource: { billing_agreement_id: 'I-FAIL-1' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-FAIL-1' } });
+		assert.ok(sub?.get('firstFailureAt'), 'Der erste Fehlschlag muss firstFailureAt setzen');
+		assert.equal(sub?.get('status'), 'past_due', 'Der erste Fehlschlag muss den Status auf past_due setzen');
+	});
+
+	it('AK3: ein weiteres PAYMENT.FAILED lässt firstFailureAt unverändert (Frist startet nicht neu)', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		await Subscription.create({
+			userId: 104,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-FAIL-2',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'past_due',
+			firstFailureAt: new Date('2026-01-05T00:00:00.000Z'),
+			currentPeriodEnd: new Date('2026-02-01'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-FAIL-3',
+				event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+				resource: { billing_agreement_id: 'I-FAIL-2' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-FAIL-2' } });
+		assert.equal(
+			new Date(sub?.get('firstFailureAt') as Date).toISOString(),
+			'2026-01-05T00:00:00.000Z',
+			'Ein weiterer Fehlschlag darf die bereits laufende Frist nicht verlängern',
+		);
+	});
+
+	it('AK4: BILLING.SUBSCRIPTION.SUSPENDED setzt status suspended und lässt firstFailureAt unverändert', async () => {
+		server = await startTestServer(withVerifierAndMail('verified'));
+		const firstFailureAt = new Date('2026-01-05T00:00:00.000Z');
+		await Subscription.create({
+			userId: 105,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-SUSPEND-1',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'past_due',
+			firstFailureAt,
+			currentPeriodEnd: new Date('2026-02-01'),
+		});
+
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-SUSPEND-1',
+				event_type: 'BILLING.SUBSCRIPTION.SUSPENDED',
+				resource: { billing_agreement_id: 'I-SUSPEND-1' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-SUSPEND-1' } });
+		assert.equal(sub?.get('status'), 'suspended', 'SUSPENDED muss den Status auf suspended setzen');
+		assert.equal(
+			new Date(sub?.get('firstFailureAt') as Date).toISOString(),
+			firstFailureAt.toISOString(),
+			'SUSPENDED darf die laufende Kulanzfrist nicht verändern',
+		);
 	});
 });

@@ -5,11 +5,14 @@ import Subscription from '../../models/subscription.js';
 import WebhookEvent from '../../models/webhookEvent.js';
 import {
 	applyPlanChange,
+	applyPaymentEvent,
 	verifyWebhookSignature,
 	type PaypalVerifier,
 	type PaypalWebhookEvent,
 } from '../../logics/paypal.js';
+import { issueInvoiceForPeriod } from '../../logics/invoices.js';
 import { sendError } from '../http-error.js';
+import type { MailSender } from '../../logics/mail.js';
 
 /**
  * Zahlungsanbieter-Schnittstelle (Issue #1495, T6b): Webhook-Eingang und Rückkehr-URL.
@@ -27,6 +30,8 @@ import { sendError } from '../http-error.js';
 export interface BillingDeps {
 	/** Signaturprüfung — Tests injizieren einen Fake, Produktion nutzt den PayPal-Aufruf. */
 	paypalVerifier?: PaypalVerifier;
+	/** Rechnungsversand (#1506) — Muster `paypalVerifier`; Tests injizieren einen Fake. */
+	mailSender?: MailSender;
 }
 
 const PROVIDER = 'paypal';
@@ -108,11 +113,16 @@ export const createBillingRouter = (deps: BillingDeps = {}): Router => {
 			stored = existing;
 		}
 
+		const externalSubscriptionId = event.resource?.billing_agreement_id ?? event.resource?.id ?? '';
 		const subscription = await Subscription.findOne({
-			where: { provider: PROVIDER, externalSubscriptionId: event.resource?.id ?? '' },
+			where: { provider: PROVIDER, externalSubscriptionId },
 		});
 		if (subscription) {
-			await applyPlanChange(subscription, event, new Date());
+			const now = new Date();
+			await applyPlanChange(subscription, event, now);
+			await applyPaymentEvent(subscription, event, now, {
+				issueInvoice: (s, n) => issueInvoiceForPeriod(s, n, deps.mailSender),
+			});
 		}
 		await stored.update({ processedAt: new Date() });
 

@@ -22,6 +22,8 @@ class Subscription extends Model {
 	/** Geplanter Paketwechsel nach unten (#1495 AK4) — wirkt erst ab `pendingPlanEffectiveAt`. */
 	public pendingPlan?: string | null;
 	public pendingPlanEffectiveAt?: Date | null;
+	/** Zeitpunkt des ersten fehlgeschlagenen Einzugs (#1506 AK8) — Basis der Kulanzfrist. */
+	public firstFailureAt?: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -71,6 +73,10 @@ Subscription.init(
 			allowNull: true,
 		},
 		pendingPlanEffectiveAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		firstFailureAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
