@@ -465,6 +465,31 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		);
 	});
 
+	it('#1462 AK6: ein readwrite-Token überlebt den Downgrade und schreibt nach dem Upgrade wieder', async () => {
+		const email = 'bearer-a@example.com';
+		const cookie = await server.register(email, 'password123');
+		const { id, token } = await createToken(cookie);
+		const record = await ApiToken.findByPk(id);
+		assert.ok(record, 'Setup: Token-Zeile muss existieren');
+		await record!.update({ scope: 'readwrite' });
+		await setPlan(email, 'ultimate');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		await setPlan(email, 'free');
+		const blocked = await postTaskViaBearer(token, 'Nach Downgrade versucht');
+		assert.equal(blocked.status, 403, 'unter free ist der wirksame Scope nur noch read');
+		assert.equal(((await blocked.json()) as { code?: string }).code, 'plan_required');
+
+		const afterDowngrade = await ApiToken.findByPk(id);
+		assert.ok(afterDowngrade, 'die Token-Zeile darf durch den Downgrade nicht gelöscht werden');
+		assert.equal(afterDowngrade!.get('scope'), 'readwrite', 'der gespeicherte Scope bleibt readwrite');
+		assert.equal(afterDowngrade!.get('revokedAt') ?? null, null, 'der Token wird nicht widerrufen');
+
+		await setPlan(email, 'ultimate');
+		const restored = await postTaskViaBearer(token, 'Nach Upgrade erneut');
+		assert.equal(restored.status, 201, 'nach dem Upgrade schreibt derselbe Token wieder');
+	});
+
 	it('AK8: bei ausgeschaltetem Rollout schreibt ein readwrite-Token eines max-Nutzers unverändert', async () => {
 		const email = 'bearer-a@example.com';
 		const cookie = await server.register(email, 'password123');
