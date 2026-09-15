@@ -106,7 +106,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				sendError(res, 401, 'Anmeldung erforderlich.');
 				return;
 			}
-			const subscription = await Subscription.findOne({ where: { userId } });
+			const subscription = await Subscription.findOne({
+				where: { userId, status: ['active', 'approval_pending'] },
+			});
 			if (!subscription) {
 				sendError(res, 404, 'Kein Abo gefunden.');
 				return;
@@ -133,7 +135,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const subscription = await Subscription.findOne({ where: { userId } });
+		const subscription = await Subscription.findOne({
+			where: { userId, status: ['active', 'approval_pending'] },
+		});
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
