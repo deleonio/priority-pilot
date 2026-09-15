@@ -19,6 +19,9 @@ class Subscription extends Model {
 	public status!: string;
 	public currentPeriodEnd!: Date;
 	public invoiceReference?: string | null;
+	/** Geplanter Paketwechsel nach unten (#1495 AK4) — wirkt erst ab `pendingPlanEffectiveAt`. */
+	public pendingPlan?: string | null;
+	public pendingPlanEffectiveAt?: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -61,6 +64,14 @@ Subscription.init(
 		},
 		invoiceReference: {
 			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		pendingPlan: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		pendingPlanEffectiveAt: {
+			type: DataTypes.DATE,
 			allowNull: true,
 		},
 	},
