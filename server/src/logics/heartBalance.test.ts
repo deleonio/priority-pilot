@@ -9,8 +9,6 @@ import { berechneLebensbalance } from './heartBalance.js';
  * (frontend/src/lib/heartBalance.ts, frontend/src/lib/pillar.ts:131-190 via Dashboard.tsx). Diese
  * Tests rechnen die Dashboard-Formel unabhängig hier im Test nach (kein Import aus dem Frontend,
  * das ist keine Server-Abhängigkeit) und vergleichen den Füllstand — Abweichung < 1e-9.
- *
- * Rot, bis `server/src/logics/heartBalance.ts` existiert (heute: Modul fehlt). KEIN Produktivcode.
  */
 
 interface Saeule {
@@ -45,11 +43,19 @@ const erwarteterFuellstand = (saeulen: Saeule[], tasks: TaskFixture[]): number =
 		}
 	}
 	const totalPoints = [...punkte.values()].reduce((sum, p) => sum + p, 0);
-	return saeulen.reduce((sum, s) => {
-		const targetShare = totalWeight > 0 ? s.weight / totalWeight : 1 / saeulen.length;
-		const actualShare = totalPoints > 0 ? (punkte.get(s.id) ?? 0) / totalPoints : 0;
-		return sum + Math.min(targetShare, actualShare);
+	if (totalPoints === 0) return 0;
+
+	const targetShares = saeulen.map((s) => (totalWeight > 0 ? s.weight / totalWeight : 1 / saeulen.length));
+	const spread = saeulen.reduce((sum, s, index) => {
+		const targetShare = targetShares[index];
+		const actualShare = (punkte.get(s.id) ?? 0) / totalPoints;
+		const deficit = targetShare > 0 ? 1 - Math.min(1, actualShare / targetShare) : 1;
+		return sum + targetShare * deficit ** 2;
 	}, 0);
+	const mitZiel = targetShares.filter((t) => t > 0);
+	const worstSpread = mitZiel.length > 1 ? 1 - Math.min(...mitZiel) : mitZiel.length === 1 ? 1 : 0;
+	if (worstSpread === 0) return 1;
+	return Math.max(0, 1 - Math.sqrt(spread / worstSpread));
 };
 
 describe('berechneLebensbalance (#1423 AK4)', () => {

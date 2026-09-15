@@ -69,6 +69,27 @@ describe('HeartBalance', () => {
 		);
 	});
 
+	it('weist je Säule die Abweichung vom Ziel in Prozentpunkten aus', () => {
+		render(
+			<HeartBalance
+				pillars={pillars}
+				punkteProSaeule={
+					new Map([
+						[1, 8],
+						[2, 2],
+					])
+				}
+			/>,
+		);
+
+		const deltas = screen.getAllByTestId('heart-balance-legend-delta');
+		expect(deltas.map((delta) => delta.textContent)).toEqual([
+			'+30 pp Abweichung vom Ziel',
+			'−30 pp Abweichung vom Ziel',
+		]);
+		expect(deltas[0]).toHaveAttribute('data-abweichung', 'stark');
+	});
+
 	it('zeigt ohne Punkte ein leeres Herz statt einer Fehlanzeige', () => {
 		render(<HeartBalance pillars={pillars} punkteProSaeule={new Map()} />);
 

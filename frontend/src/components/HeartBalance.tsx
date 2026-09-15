@@ -144,6 +144,9 @@ const WAVE_DRIFT_DURATION = '7s';
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
 const asPercent = (share: number): number => Math.round(share * 100);
 
+/** Ab dieser Abweichung ist eine Säule keine Delle mehr, sondern eine Schieflage (Prozentpunkte). */
+const DELTA_STARK = 5;
+
 /** Ein Farbstreifen unter der Wasserlinie: eine Säule mit ihrer horizontalen Spanne über der Gefäßbreite. */
 interface HeartBand {
 	pillarId: number;
@@ -362,15 +365,33 @@ export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) =>
 			 * die Farbstreifen im Bild überhaupt zuordenbar macht.
 			 */}
 			<ul className="heart-balance-legend" data-testid="heart-balance-legend">
-				{balance.segments.map((segment) => (
-					<li key={segment.pillar.id} className="heart-balance-legend-row" data-testid="heart-balance-legend-row">
-						<span className={rampClass('heart-legend-dot', segment.colorIndex)} aria-hidden="true" />
-						<span className="heart-balance-legend-name">{segment.pillar.name}</span>
-						<span className="heart-balance-legend-value">
-							{asPercent(segment.actualShare)} % · Ziel {asPercent(segment.targetShare)} %
-						</span>
-					</li>
-				))}
+				{balance.segments.map((segment) => {
+					/*
+					 * Abweichung aus den **angezeigten** Prozenten, nicht aus den rohen Anteilen: Sonst
+					 * steht neben „16 % · Ziel 20 %" womöglich „−5 pp", weil beide Zahlen einzeln gerundet
+					 * wurden. Die Zeile muss in sich aufgehen.
+					 */
+					const delta = asPercent(segment.actualShare) - asPercent(segment.targetShare);
+					return (
+						<li key={segment.pillar.id} className="heart-balance-legend-row" data-testid="heart-balance-legend-row">
+							<span className={rampClass('heart-legend-dot', segment.colorIndex)} aria-hidden="true" />
+							<span className="heart-balance-legend-name">{segment.pillar.name}</span>
+							<span className="heart-balance-legend-value">
+								{asPercent(segment.actualShare)} % · Ziel {asPercent(segment.targetShare)} %
+							</span>
+							{delta !== 0 && (
+								<span
+									className="heart-balance-legend-delta"
+									data-abweichung={Math.abs(delta) >= DELTA_STARK ? 'stark' : 'leicht'}
+									data-testid="heart-balance-legend-delta"
+								>
+									{delta > 0 ? '+' : '−'}
+									{Math.abs(delta)} pp<span className="visually-hidden"> Abweichung vom Ziel</span>
+								</span>
+							)}
+						</li>
+					);
+				})}
 			</ul>
 		</div>
 	);
