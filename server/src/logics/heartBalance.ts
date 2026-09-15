@@ -7,11 +7,13 @@
  * der MCP-Wert dieselbe Zahl nennt wie die Oberfläche, ist genau diese Rechnung hier portiert —
  * reine Funktionen ohne DB-Zugriff, damit die Mathematik ohne Express prüfbar bleibt.
  *
- * **Maß:** `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min sollᵢ)` mit `defizitᵢ` = relative
- * Unterdeckung der Säule (`1 − min(1, ist/soll)`). Quadratisch, damit eine stark vernachlässigte
- * Säule schwerer wiegt als dünn verteiltes Defizit; normiert auf das denkbare Maximum der Summe,
- * damit 0 („alles an einer Säule") und 1 („Ist = Soll") beide erreichbar sind. Begründung und
- * Herleitung stehen ausführlich in `frontend/src/lib/heartBalance.ts`.
+ * **Maß:** `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min{sollᵢ | sollᵢ > 0})` mit `defizitᵢ` =
+ * relative Unterdeckung der Säule (`1 − min(1, ist/soll)`). Quadratisch, damit eine stark
+ * vernachlässigte Säule schwerer wiegt als dünn verteiltes Defizit; normiert auf das Maximum der
+ * Summe über die Säulen **mit** Ziel, damit 0 („alles an einer Säule") und 1 („Ist = Soll") beide
+ * erreichbar sind. Säulen ohne Gewicht bleiben aus dem Nenner heraus — sie sind der Normalfall
+ * (`POST /pillars` legt mit `weight: 0` an) und würden die Normierung sonst abschalten. Begründung
+ * und Herleitung stehen ausführlich in `frontend/src/lib/heartBalance.ts`.
  */
 
 /** Eine Säule, so wie die Rechnung sie braucht: Identität, Anzeigename und ihr Soll-Gewicht. */
@@ -97,8 +99,9 @@ const punkteProSaeule = (saeulen: BalanceSaeule[], tasks: BalanceTask[]): Map<nu
  *   eine Aussage trifft statt 0 zu bleiben.
  * - **Soll einer Säule = 0** → dort investierte Punkte zählen nicht auf den Füllstand ein, sie
  *   fehlen den Säulen mit Soll. Genau das soll die Zahl zeigen.
- * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine Schieflage, die das Maß messen
- *   könnte (der Nenner wäre 0); der Füllstand ist dann 1, sobald überhaupt Punkte da sind.
+ * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Soll steht auf 0, Füllstand 0.
+ * - **Eine einzige Säule trägt das ganze Soll** → zwischen den Zielen gibt es keine Schieflage, die
+ *   das Maß messen könnte (der Nenner ist 0); dann entscheidet allein, ob diese Säule ihr Ziel hält.
  */
 export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTask[]): Lebensbalance => {
 	const punkte = punkteProSaeule(saeulen, tasks);
@@ -115,12 +118,17 @@ export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTa
 		const defizit = sollAnteil > 0 ? 1 - Math.min(1, istAnteil / sollAnteil) : 1;
 		return summe + sollAnteil * defizit ** 2;
 	}, 0);
-	const maximaleAbweichung = sollAnteile.length > 0 ? 1 - Math.min(...sollAnteile) : 0;
+	// Maximum nur über die Säulen mit Ziel; der Deckel bei 0 fängt den Fall „aller Aufwand in Säulen
+	// ohne Ziel" ab, der Zweig darunter den Fall „nur eine Säule trägt überhaupt ein Ziel".
+	const mitZiel = sollAnteile.filter((sollAnteil) => sollAnteil > 0);
+	const maximaleAbweichung = mitZiel.length > 0 ? 1 - Math.min(...mitZiel) : 0;
 	const fill = !hasPoints
 		? 0
 		: maximaleAbweichung > 0
 			? Math.max(0, 1 - Math.sqrt(abweichung / maximaleAbweichung))
-			: 1;
+			: abweichung > 0
+				? 0
+				: 1;
 
 	return {
 		fill,

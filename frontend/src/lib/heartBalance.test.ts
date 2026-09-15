@@ -54,6 +54,60 @@ describe('buildHeartBalance', () => {
 		expect(balance.fill).toBeCloseTo(1 - Math.sqrt(spread / worst));
 	});
 
+	/*
+	 * Der Ausgangsfall des Tickets mit hart erwarteter Zahl: 16/20/5/12/47 bei Soll je 20 ergibt
+	 * `spread` 0,1525 und Maximum 0,8, also 1 − √0,190625 = 0,5634. Der Test oben sichert nur die
+	 * innere Stimmigkeit der Formel; erst diese feste Zahl macht eine stille Verschiebung sichtbar.
+	 */
+	it('bewertet den Ausgangsfall 16/20/5/12/47 mit 56 Prozent', () => {
+		const pillars = [1, 2, 3, 4, 5].map((id) => pillar(id, `S${id}`, 20));
+		const balance = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 16],
+				[2, 20],
+				[3, 5],
+				[4, 12],
+				[5, 47],
+			]),
+		);
+
+		expect(balance.fill).toBeCloseTo(0.5634, 4);
+	});
+
+	/*
+	 * `POST /pillars` legt jede neue Säule mit `weight: 0` an — eine gewichtslose Säule ist der
+	 * Normalfall. Sie darf den Füllstand nicht verschieben, sonst hinge die Bewertung daran, wie
+	 * viele Säulen jemand angelegt, aber noch nicht gewichtet hat.
+	 */
+	it('lässt eine Säule ohne Soll den Füllstand unberührt', () => {
+		const gewichtet = [1, 2, 3, 4, 5].map((id) => pillar(id, `S${id}`, 20));
+		const punkte = new Map([
+			[1, 16],
+			[2, 20],
+			[3, 5],
+			[4, 12],
+			[5, 47],
+		]);
+
+		const ohne = buildHeartBalance(gewichtet, punkte);
+		const mit = buildHeartBalance([...gewichtet, pillar(6, 'Frisch angelegt', 0)], punkte);
+
+		expect(mit.fill).toBeCloseTo(ohne.fill, 10);
+
+		// Auch der Boden der Skala bleibt erreichbar, statt bei 0,106 hängen zu bleiben.
+		const allesAufEiner = buildHeartBalance([...gewichtet, pillar(6, 'Frisch angelegt', 0)], new Map([[1, 10]]));
+		expect(allesAufEiner.fill).toBeCloseTo(0);
+	});
+
+	it('lässt das Herz leer, wenn aller Aufwand in Säulen ohne Soll liegt', () => {
+		const pillars = [pillar(1, 'Mit Ziel', 100), pillar(2, 'Ohne Ziel', 0)];
+		const balance = buildHeartBalance(pillars, new Map([[2, 10]]));
+
+		expect(balance.fill).toBe(0);
+		expect(balance.hasPoints).toBe(true);
+	});
+
 	it('bewertet eine vernachlässigte Säule schlechter als dasselbe Defizit dünn verteilt', () => {
 		const pillars = [1, 2, 3, 4, 5].map((id) => pillar(id, `S${id}`, 20));
 		// Beide Verteilungen haben dasselbe Gesamtdefizit von 20 Prozentpunkten gegenüber dem Soll.
@@ -146,5 +200,21 @@ describe('heartHealth', () => {
 		const { hint } = heartHealth(balance);
 		expect(hint).toContain('Sinn');
 		expect(hint).toContain('Wirksamkeit');
+	});
+
+	it('hält im Zustand „In Balance" den Stufentext, statt ihm eine Säule entgegenzusetzen', () => {
+		const pillars = [pillar(1, 'A', 20), pillar(2, 'B', 20), pillar(3, 'C', 20)];
+		const balance = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 28],
+				[2, 36],
+				[3, 36],
+			]),
+		);
+
+		const health = heartHealth(balance);
+		expect(health.state).toBe('stark');
+		expect(health.hint).toBe('Deine Säulen liegen dicht am Soll.');
 	});
 });

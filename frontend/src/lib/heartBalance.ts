@@ -11,17 +11,23 @@ import type { Pillar } from 'client';
  * Aufschlüsselung je Säule die Legende neben dem Bild.
  *
  * **Maß:** Der Füllstand ist die normierte quadratische Abweichung vom Soll,
- * `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min sollᵢ)` mit `defizitᵢ = 1 − levelᵢ`, also der
- * relativen Unterdeckung der Säule. Zwei Eigenschaften, die das Vorgängermaß `Σ min(sollᵢ, istᵢ)`
- * nicht hatte:
+ * `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min{sollᵢ | sollᵢ > 0})` mit
+ * `defizitᵢ = 1 − levelᵢ`, also der relativen Unterdeckung der Säule. Zwei Eigenschaften, die das
+ * Vorgängermaß `Σ min(sollᵢ, istᵢ)` nicht hatte:
  *
  * - **Quadratisch:** Eine stark vernachlässigte Säule wiegt schwerer als dieselbe Menge Defizit,
  *   dünn über alle Säulen verteilt. Genau das liest ein Mensch als Schieflage.
- * - **Normiert:** Der Nenner ist das Maximum, das die Summe über alle denkbaren Verteilungen
- *   annehmen kann (sie ist konvex, ihr Maximum liegt an einer Ecke der Simplex und beträgt dort
- *   `1 − min sollᵢ`). Der Füllstand ist damit 0, wenn alles an einer einzigen Säule hängt, und 1
+ * - **Normiert:** Der Nenner ist das Maximum, das die Summe über die Säulen **mit** Ziel annehmen
+ *   kann (sie ist konvex, ihr Maximum liegt an einer Ecke der Simplex und beträgt dort
+ *   `1 − min soll`). Der Füllstand ist damit 0, wenn alles an einer einzigen Säule hängt, und 1
  *   genau dann, wenn Ist = Soll — die Skala nutzt ihren vollen Bereich. `Σ min(sollᵢ, istᵢ)` kam
  *   bei fünf gleich gewichteten Säulen nie unter 20 % und hat Schieflagen dadurch beschönigt.
+ *
+ * **Warum der Nenner Säulen ohne Ziel überspringt:** `POST /pillars` legt jede neue Säule mit
+ * `weight: 0` an, gewichtslose Säulen sind also der Normalfall, nicht die Ausnahme. Zöge das
+ * Minimum sie mit, wäre der Nenner konstant 1, sobald eine einzige davon existiert — die Normierung
+ * wäre praktisch abgeschaltet und der Füllstand spränge, ohne dass sich an der Verteilung etwas
+ * ändert. Verankert wird deshalb an den Säulen, die überhaupt ein Ziel tragen.
  *
  * Die große Prozentzahl und die Höhe der Wasserlinie bleiben derselbe Wert; das Bild kann der Zahl
  * also weiterhin nicht widersprechen.
@@ -67,8 +73,10 @@ interface HeartBalance {
  *   eine Aussage trifft statt leer zu bleiben.
  * - **Soll einer Säule = 0** → ihre Wassersäule bleibt leer; dort investierte Punkte zählen nicht
  *   auf den Füllstand ein, sie fehlen den Säulen mit Soll. Genau das soll das Bild zeigen.
- * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine Schieflage, die das Maß messen
- *   könnte (der Nenner wäre 0); das Herz ist dann voll, sobald überhaupt Punkte da sind.
+ * - **Alle Punkte in Säulen ohne Soll** → jede Säule mit Ziel steht auf 0, das Herz ist leer.
+ * - **Eine einzige Säule trägt das ganze Soll** → zwischen den Zielen gibt es keine Schieflage,
+ *   die das Maß messen könnte (der Nenner ist 0); dann entscheidet allein, ob diese Säule ihr Ziel
+ *   hält.
  */
 export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): HeartBalance => {
 	// Rang in der Farbrampe über die Säulen-id vergeben (stabil gegen Umsortierung der Anzeige).
@@ -91,13 +99,22 @@ export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMa
 		};
 	});
 
-	// Soll-gewichtete Summe der quadrierten Unterdeckungen und ihr denkbares Maximum (Modulkommentar).
-	// Dieselbe Rechnung steht auf dem Server in `server/src/logics/heartBalance.ts` — beide Seiten
-	// müssen zahlengleich bleiben, sonst nennt das MCP-Werkzeug eine andere Zahl als das Dashboard.
+	/*
+	 * Soll-gewichtete Summe der quadrierten Unterdeckungen und ihr Maximum über die Säulen mit Ziel
+	 * (Modulkommentar). Dieselbe Rechnung steht auf dem Server in `server/src/logics/heartBalance.ts`
+	 * — beide Seiten müssen zahlengleich bleiben, sonst nennt das MCP-Werkzeug eine andere Zahl als
+	 * das Dashboard.
+	 *
+	 * Der Deckel bei 0 ist Fachlogik, keine Absicherung: Liegt aller Aufwand in Säulen **ohne** Ziel,
+	 * wird `spread` größer als sein Maximum unter den Zielen — leerer geht das Herz nicht.
+	 * Trägt umgekehrt nur eine einzige Säule ein Ziel, ist das Maximum 0 und es gibt zwischen den
+	 * Zielen nichts zu vergleichen; dann zählt allein, ob diese Säule ihr Ziel hält.
+	 */
 	const spread = segments.reduce((sum, segment) => sum + segment.targetShare * (1 - segment.level) ** 2, 0);
-	const worstSpread = segments.length > 0 ? 1 - Math.min(...segments.map((segment) => segment.targetShare)) : 0;
+	const zielAnteile = segments.map((segment) => segment.targetShare).filter((targetShare) => targetShare > 0);
+	const worstSpread = zielAnteile.length > 0 ? 1 - Math.min(...zielAnteile) : 0;
 	const hasPoints = totalPoints > 0;
-	const fill = !hasPoints ? 0 : worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : 1;
+	const fill = !hasPoints ? 0 : worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : spread > 0 ? 0 : 1;
 
 	return { fill, hasPoints, segments };
 };
@@ -183,5 +200,12 @@ export const heartHealth = (balance: HeartBalance): HeartHealth => {
 	}
 	// Die letzte Stufe hat `min: 0` und greift damit immer; der Fallback ist nur fürs Typsystem.
 	const step = HEALTH_STEPS.find((s) => balance.fill >= s.min) ?? HEALTH_STEPS[HEALTH_STEPS.length - 1];
-	return { state: step.state, label: step.label, hint: concreteHint(balance.segments) ?? step.hint };
+	/*
+	 * Im Zustand „In Balance" bleibt der Stufentext stehen: Eine Säule knapp unter der Schwelle gibt
+	 * es dort fast immer, und „X kommt am kürzesten" unter der Überschrift „In Balance" zöge die
+	 * beiden Zeilen auseinander. Ab „Gut in Balance" ersetzt der konkrete Hinweis die Floskel — dort
+	 * ist das Benennen der Schieflage die nützlichere Auskunft.
+	 */
+	const hint = (step.state !== 'stark' ? concreteHint(balance.segments) : undefined) ?? step.hint;
+	return { state: step.state, label: step.label, hint };
 };

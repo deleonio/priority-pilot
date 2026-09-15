@@ -52,8 +52,10 @@ const erwarteterFuellstand = (saeulen: Saeule[], tasks: TaskFixture[]): number =
 		const deficit = targetShare > 0 ? 1 - Math.min(1, actualShare / targetShare) : 1;
 		return sum + targetShare * deficit ** 2;
 	}, 0);
-	const worstSpread = 1 - Math.min(...targetShares);
-	return worstSpread > 0 ? 1 - Math.sqrt(spread / worstSpread) : 1;
+	const mitZiel = targetShares.filter((t) => t > 0);
+	const worstSpread = mitZiel.length > 0 ? 1 - Math.min(...mitZiel) : 0;
+	if (worstSpread === 0) return spread > 0 ? 0 : 1;
+	return Math.max(0, 1 - Math.sqrt(spread / worstSpread));
 };
 
 describe('berechneLebensbalance (#1423 AK4)', () => {
