@@ -54,7 +54,10 @@ describe('PlansSection (#1494 AK9)', () => {
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('0,00 €')).toBeTruthy();
+		// Test-Pflege (#1496 AK2): seit der Drei-Zeiträume-Matrix steht "0,00 €" für free in allen
+		// drei Preiszeilen (monatlich/quartalsweise/jährlich) — `getByText` fände hier drei Treffer
+		// und schlüge fehl, `getAllByText` prüft die neue, weiterhin korrekte Erwartung.
+		expect(screen.getAllByText('0,00 €')).toHaveLength(3);
 	});
 
 	it('zeigt Ultimate-Monatspreis als "24,99 €"', async () => {

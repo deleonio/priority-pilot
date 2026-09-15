@@ -57,7 +57,9 @@ const mockEmptyInvoices = async (page: Page): Promise<void> => {
 };
 
 const gotoSettings = async (page: Page): Promise<void> => {
-	await page.goto('/settings');
+	// Test-Pflege (#1496): `/settings` ohne Tab-Segment landet auf dem Säulen-Tab (Index 1, Default
+	// von `SettingsPage.tsx:110`) — die Pakete-Sektion liegt im Allgemein-Tab (`/settings/general`).
+	await page.goto('/settings/general');
 	await expect(page.getByTestId('plans-section')).toBeVisible();
 };
 
@@ -76,6 +78,12 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 				body: JSON.stringify({ approvalUrl: 'https://paypal.example/approve/abc' }),
 			});
 		});
+		// Test-Pflege (#1496): `.example` ist eine reservierte, nicht auflösbare Domain (RFC 2606) —
+		// ohne eigenen Mock scheitert die echte Top-Level-Navigation an einem DNS-Fehler
+		// (chrome-error://chromewebdata/) statt der erwarteten `approvalUrl` zu folgen.
+		await page.route('https://paypal.example/**', (route: Route) =>
+			route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>PayPal-Sandbox</body></html>' }),
+		);
 
 		await gotoSettings(page);
 		await page.getByTestId('book-pro-monthly').click();
@@ -102,12 +110,16 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		await gotoSettings(page);
 		await page.getByTestId('change-plan-max-monthly').click();
 
-		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible();
-		await expect(dialog).toContainText(/Restbetrag/);
-		await expect(dialog).toContainText(/angerechnet/);
+		await expect(page.getByRole('dialog')).toBeVisible();
+		// Test-Pflege (#1496): `KolDialog` projiziert den Inhalt per Shadow-DOM-`<slot>` in das
+		// native `<dialog>` — dessen eigenes `textContent()`/scoped `getByRole()` sieht nur die
+		// Card-Chrome (Titel, Schließen-Button), NICHT den projizierten Inhalt (das ist reines
+		// Light-DOM der äußeren `<kol-dialog>`). Scoping auf den Host-Tag statt auf die Dialog-Rolle.
+		const dialogHost = page.locator('kol-dialog');
+		await expect(dialogHost).toContainText(/Restbetrag/);
+		await expect(dialogHost).toContainText(/angerechnet/);
 
-		await dialog.getByRole('button', { name: /bestätigen|wechseln/i }).click();
+		await dialogHost.getByRole('button', { name: /bestätigen|wechseln/i }).click();
 
 		await expect
 			.poll(() => capturedBody, { message: 'POST /billing/subscriptions/change muss plan+period senden' })
@@ -133,11 +145,14 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		await gotoSettings(page);
 		await page.getByTestId('cancel-subscription').click();
 
-		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible();
-		const dangerButton = dialog.getByRole('button', { name: /kündigen/i });
-		await expect(dangerButton).toHaveAttribute('data-variant', 'danger');
-		await dangerButton.click();
+		await expect(page.getByRole('dialog')).toBeVisible();
+		// Test-Pflege (#1496): siehe Wechsel-Test oben — Host-Scoping statt Dialog-Rolle, weil der
+		// projizierte Inhalt (Buttons) sonst nicht auffindbar ist. `data-variant` steht zudem auf dem
+		// `<kol-button>`-Host, nicht auf dem inneren nativen `<button>`, das `getByRole` liefert.
+		const dialogHost = page.locator('kol-dialog');
+		const dangerHost = dialogHost.locator('kol-button[data-variant="danger"]');
+		await expect(dangerHost).toHaveAttribute('data-variant', 'danger');
+		await dialogHost.getByRole('button', { name: /kündigen/i }).click();
 
 		await expect.poll(() => cancelCalled).toBe(true);
 	});
@@ -172,8 +187,11 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		);
 
 		await gotoSettings(page);
-		await expect(page.getByText('INV-2026-000001')).toBeVisible();
-		await expect(page.getByText('7,99 €')).toBeVisible();
+		const invoices = page.getByTestId('billing-invoices');
+		await expect(invoices.getByText('INV-2026-000001')).toBeVisible();
+		// Test-Pflege (#1496): "7,99 €" steht in der Preis-Zeile der Matrix (AK2, pro/monatlich)
+		// UND in der Rechnungszeile — auf die Rechnungsliste scopen, um die Mehrdeutigkeit zu lösen.
+		await expect(invoices.getByText('7,99 €')).toBeVisible();
 		await expect(page.getByTestId('invoices-empty')).toHaveCount(0);
 	});
 

@@ -1,4 +1,8 @@
+import type { components } from 'client';
 import type { EntitlementMap, Plan } from './planOffers';
+
+/** Abo-Status laut Serververtrag (`openapi.yml` → `MeSubscription`, #1496 AK6). */
+export type Subscription = components['schemas']['MeSubscription'];
 
 export type AuthUser = {
 	id: number;
@@ -11,6 +15,8 @@ export type AuthUser = {
 	plan?: Plan;
 	/** Entitlement-Map je Feature (#1456) — Grundlage aller Badges (#1458 AK1). */
 	entitlements?: EntitlementMap;
+	/** Abo-Status (#1496 AK6); `null` ohne Abo, fehlt bei Alt-Antworten ohne Billing-Felder. */
+	subscription?: Subscription | null;
 };
 
 /**
