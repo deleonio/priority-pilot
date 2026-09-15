@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-15
 
-_Enthält v0.2.0 – v0.2.66._
+_Enthält v0.2.0 – v0.2.67._
 
 ### 🔧 Engineering
 
@@ -78,6 +78,7 @@ _Enthält v0.2.0 – v0.2.66._
 - fix(server): add .js extension to progress-metric test import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1499
 - feat(server): handle paypal webhooks and generate invoices by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1498
 - fix(dashboard): score life balance imbalances honestly again by @deleonio in https://github.com/deleonio/priority-pilot/pull/1500
+- chore: resolve the four open findings from review protocol #1471 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1503
 
 ## v0.1 - 2026-09-12
 
@@ -113,7 +114,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(679): kolInput zeichenzähler basierend auf KolInputText/KolTextarea by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/681
 - feat(issue-704): Aufgabenbaum-Layout sauber darstellen by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/706
 - feat(llm): add LLM provider toggles for Mistral and OpenRouter by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/765
-- feat(frontend): add groups tab with CRUD, roles and delete confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1214
 - feat(frontend): add groups tab with CRUD, roles and delete confirmation by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1214
 - feat(frontend): show task dependencies as weighted graph instead of tree by @deleonio in https://github.com/deleonio/priority-pilot/pull/1309
 - feat(frontend): toggle to show parent tasks in task list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1388
@@ -709,6 +709,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): aggregate changelog by category with autolinks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1207
 - chore(deps): update github actions to v7 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1204
 - fix(e2e): AK3 in issue-1186 per echter Tab-Navigation prüfen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1208
+- feat(server): add group invitations and membership management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1215
 - feat(server): add group invitations and membership management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1215
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1217
 - feat(frontend): add heart-shaped life-balance widget to the dashboard by @deleonio in https://github.com/deleonio/priority-pilot/pull/1216
