@@ -14,16 +14,28 @@ describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
 			throw new Error('ECONNREFUSED');
 		}) as unknown as typeof fetch;
 
-		const result = await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), { 'paypal-transmission-sig': 'x' }, unreachableFetch);
+		const result = await verifyWebhookSignature(
+			Buffer.from('{"id":"WH-1"}'),
+			{ 'paypal-transmission-sig': 'x' },
+			unreachableFetch,
+		);
 
-		assert.equal(result, 'unreachable', 'Netzfehler darf nicht als "invalid" durchgehen (sonst geht das Ereignis verloren)');
+		assert.equal(
+			result,
+			'unreachable',
+			'Netzfehler darf nicht als "invalid" durchgehen (sonst geht das Ereignis verloren)',
+		);
 	});
 
 	it('bei erreichbarem PayPal mit verification_status=SUCCESS liefert die Prüfung "verified"', async () => {
 		const okFetch = (async () =>
 			new Response(JSON.stringify({ verification_status: 'SUCCESS' }), { status: 200 })) as unknown as typeof fetch;
 
-		const result = await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), { 'paypal-transmission-sig': 'ok' }, okFetch);
+		const result = await verifyWebhookSignature(
+			Buffer.from('{"id":"WH-1"}'),
+			{ 'paypal-transmission-sig': 'ok' },
+			okFetch,
+		);
 
 		assert.equal(result, 'verified');
 	});
@@ -32,7 +44,11 @@ describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
 		const failFetch = (async () =>
 			new Response(JSON.stringify({ verification_status: 'FAILURE' }), { status: 200 })) as unknown as typeof fetch;
 
-		const result = await verifyWebhookSignature(Buffer.from('{"id":"WH-1"}'), { 'paypal-transmission-sig': 'bad' }, failFetch);
+		const result = await verifyWebhookSignature(
+			Buffer.from('{"id":"WH-1"}'),
+			{ 'paypal-transmission-sig': 'bad' },
+			failFetch,
+		);
 
 		assert.equal(result, 'invalid');
 	});

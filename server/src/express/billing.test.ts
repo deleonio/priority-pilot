@@ -17,9 +17,7 @@ import type { PaypalVerificationResult } from '../logics/paypal.js';
 
 let server: TestServer;
 
-const withVerifier = (
-	result: PaypalVerificationResult | ((rawBody: Buffer) => PaypalVerificationResult),
-): AppDeps =>
+const withVerifier = (result: PaypalVerificationResult | ((rawBody: Buffer) => PaypalVerificationResult)): AppDeps =>
 	({
 		paypalVerifier: async (rawBody: Buffer) => (typeof result === 'function' ? result(rawBody) : result),
 	}) as unknown as AppDeps;
@@ -48,7 +46,11 @@ describe('Billing/Webhook-API (#1495)', () => {
 			JSON.stringify({ id: 'WH-FORGED', event_type: 'BILLING.SUBSCRIPTION.ACTIVATED', resource: {} }),
 			{ 'paypal-transmission-sig': 'forged' },
 		);
-		assert.equal(res.status, 400, 'Eine ungültige Signatur muss abgelehnt werden (kein 401/403 — kein Auth-Konzept hier)');
+		assert.equal(
+			res.status,
+			400,
+			'Eine ungültige Signatur muss abgelehnt werden (kein 401/403 — kein Auth-Konzept hier)',
+		);
 	});
 
 	it('AK1: der Handler verarbeitet den unveränderten Rohbody (Byte-Vergleich über den injizierten Verifier)', async () => {
@@ -61,7 +63,11 @@ describe('Billing/Webhook-API (#1495)', () => {
 			}),
 		);
 		await rawPost('/webhooks/paypal', sentRaw, { 'paypal-transmission-sig': 'ok' });
-		assert.equal(seenRaw, sentRaw, 'Der Verifier muss exakt die gesendeten Bytes sehen (kein Re-Serialisieren vor der Prüfung)');
+		assert.equal(
+			seenRaw,
+			sentRaw,
+			'Der Verifier muss exakt die gesendeten Bytes sehen (kein Re-Serialisieren vor der Prüfung)',
+		);
 	});
 
 	it('AK3: dasselbe verifizierte Ereignis zweimal zugestellt wird nur einmal verarbeitet (Dedup über die Ereignis-ID)', async () => {

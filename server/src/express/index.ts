@@ -35,6 +35,8 @@ import type { ObsidianGithubClient } from '../logics/obsidianFeedback.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
+import { createBillingRouter } from './routes/billing.js';
+import type { PaypalVerifier } from '../logics/paypal.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -72,11 +74,19 @@ export interface AppDeps {
 	runProviderTest?: RunProviderTest;
 	/** GitHub-Upstream für `POST /feedback` (#1435) — Tests injizieren hieran einen Stub. */
 	obsidianGithubClient?: ObsidianGithubClient;
+	/** Signaturprüfung der PayPal-Webhooks (#1495) — Tests injizieren hieran einen Fake. */
+	paypalVerifier?: PaypalVerifier;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
 	app.set('trust proxy', 1);
+
+	// Zahlungsanbieter-Schnittstelle (#1495): bewusst VOR `express.json()`, der CSRF-Prüfung und
+	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die
+	// Signaturprüfung, und PayPal ruft ohne Session und ohne CSRF-Token auf (Muster
+	// `inviteLinksPublicRouter`, `plansPublicRouter`). Der Router bringt sein `express.raw()` selbst mit.
+	app.use(createBillingRouter({ paypalVerifier: deps.paypalVerifier }));
 
 	// JSON-Body parsen.
 	app.use(express.json());
