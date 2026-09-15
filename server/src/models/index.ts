@@ -20,6 +20,11 @@ import ApiToken from './apiToken.js';
 import PlaceFavorite from './placeFavorite.js';
 import AiUsage from './aiUsage.js';
 import Subscription from './subscription.js';
+import WebhookEvent from './webhookEvent.js';
+// Nur Registrierung: `invoices`/`invoice_sequences` werden von `logics/invoices.ts` direkt
+// importiert; hier zählt allein, dass `sequelize.sync()` die Tabellen kennt.
+import './invoice.js';
+import './invoiceSequence.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -84,6 +89,10 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // gefiltert, ohne Sequelize-Assoziation (Router und Auth-Middleware filtern direkt über die Spalte).
 // `subscriptions` steht für sich (Zahlungsanbieter-Abo, Issue #1494) — pro Nutzer über `userId`
 // gefiltert, ohne Sequelize-Assoziation (Muster `api_tokens`); Beträge bleiben in `plans.ts`.
+// `webhook_events`, `invoices` und `invoice_sequences` (Zahlungsanbieter-Webhooks + Rechnungen,
+// Issue #1495) stehen ebenfalls für sich: `invoices` ist über `userId`/`subscriptionId` gefiltert,
+// `webhook_events` hat gar keine Nutzer-Bindung (PayPal sendet ohne Session, der Bezug entsteht
+// erst über `externalSubscriptionId`).
 export {
 	Task,
 	Category,
@@ -107,4 +116,5 @@ export {
 	PlaceFavorite,
 	AiUsage,
 	Subscription,
+	WebhookEvent,
 };

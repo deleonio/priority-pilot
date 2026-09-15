@@ -162,6 +162,11 @@ export const startTestServer = async (deps: AppDeps = {}): Promise<TestServer> =
 				reject(new Error('Could not get server address'));
 				return;
 			}
+			// Der lauschende Socket darf den Prozess nicht am Leben halten: Suiten, die pro Testfall
+			// einen eigenen Server starten (z. B. `express/billing.test.ts`, #1495), schließen nur den
+			// zuletzt gestarteten — die übrigen Handles ließen `node --test` sonst nach dem letzten
+			// grünen Testfall bis zum Timeout hängen. Laufende Requests halten ihre eigenen Sockets.
+			server.unref();
 			const baseUrl = `http://localhost:${addr.port}`;
 			const testServer: TestServer = {
 				baseUrl,

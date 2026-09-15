@@ -9,6 +9,7 @@ import type { UserRole } from '../../models/user.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
+import { applyDuePendingPlan } from '../../logics/paypal.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { getAiUsageCount } from '../aiQuotaMeter.js';
@@ -353,6 +354,9 @@ authRouter.get('/auth/me', async (req, res) => {
 		const dbSubscription =
 			typeof user.id === 'number' ? await Subscription.findOne({ where: { userId: user.id } }) : null;
 		if (dbSubscription) {
+			// #1495 (AK4): ein vorgemerkter Downgrade wirkt zum `currentPeriodEnd` — hier, beim Lesen,
+			// wird er fällig angewendet, damit er nicht auf ein weiteres PayPal-Ereignis wartet.
+			await applyDuePendingPlan(dbSubscription, new Date());
 			subscription = {
 				plan: dbSubscription.plan,
 				period: dbSubscription.period,
