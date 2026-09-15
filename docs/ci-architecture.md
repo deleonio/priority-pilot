@@ -838,10 +838,12 @@ mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
   deterministische Workflow-Steps, keine Agent-Aufgabe. Fehlt der Agent-Report
   (`/tmp/guide-sync-report.md`), ersetzt ein `git log`-Fallback den PR-Body (mit Warning).
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
-  Commits vorhanden, geänderte Dateien ⊆ `docs/user-guide.md`, **plus Sektions-Guard**: die
-  Pflicht-Abschnitte aus [`server/src/logics/user-guide.test.ts`](../server/src/logics/user-guide.test.ts)
-  (AK 2.1–2.9) und die H1 müssen vorhanden sein, sonst kein Push. Der Guard ist nur der schnelle
-  Vorab-Check (kein `pnpm install` im Workflow) — autoritativ bleibt der Node-Test in der CI des PRs.
+  Commits vorhanden, geänderte Dateien ⊆ `docs/user-guide.md`. **Kein Sektions-Guard** — die
+  handgepflegte Regex-Kopie des Handbuch-Vertrags fiel mit #1402 weg (sie war gegen den damaligen
+  Vertragstest gedriftet und blockierte gültige Syncs); der Test selbst fiel mit #1471/F-3 weg, weil
+  Markdown-Inhalt laut [ADR 0001](adr/0001-github-workflows-bleiben-ungetestet.md) kein Testziel ist.
+  Die Pflicht-Abschnitte stehen als Vorgabe im Prompt (`.github/prompts/guide-sync.md`); geprüft
+  werden sie im Review des Sync-PRs.
 - **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token** →
   `04 Review` → Gate → Auto-Merge; das Handbuch aktualisiert sich ohne Menschen. Das Label wird
   dabei **erst entfernt, dann gesetzt** (Re-Arm-Muster #536): klebt es noch vom Vorlauf, wäre ein

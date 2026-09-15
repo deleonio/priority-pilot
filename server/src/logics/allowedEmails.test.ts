@@ -74,24 +74,45 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 		assert.equal(isEmailAllowed(' a@b.com '), true);
 	});
 
-	it('AK-9: getConfiguredEmails() loggt die erlaubten E-Mails mit Präfix [auth] Allowed emails:', () => {
-		clearEnv();
-		process.env.GOOGLE_ALLOWED_EMAIL = 'a@b.com';
-
+	// Hilfsfunktion: fängt console.log während eines Aufrufs ab.
+	const captureLog = (run: () => void): string[] => {
 		const logged: string[] = [];
 		const originalLog = console.log;
 		console.log = (...args: unknown[]): void => {
 			logged.push(args.map((a) => String(a)).join(' '));
 		};
 		try {
-			getConfiguredEmails();
+			run();
 		} finally {
 			console.log = originalLog;
 		}
+		return logged;
+	};
 
-		assert.ok(
-			logged.some((line) => line.includes('[auth] Allowed emails:')),
-			'getConfiguredEmails() sollte mit dem Präfix "[auth] Allowed emails:" loggen',
-		);
+	// AK-9 (angepasst #1471/F-5): Die Startmeldung bleibt, die Adressen erscheinen aber nur noch
+	// maskiert — die Allowlist ist Zugangskonfiguration und gehört nicht im Klartext in die Logs.
+	it('AK-9: getConfiguredEmails() loggt die erlaubten E-Mails maskiert mit Präfix [auth] Allowed emails:', () => {
+		clearEnv();
+		process.env.GOOGLE_ALLOWED_EMAILS = 'alice@example.com,bob@example.org';
+
+		const logged = captureLog(() => getConfiguredEmails());
+		const line = logged.find((entry) => entry.includes('[auth] Allowed emails:'));
+
+		assert.ok(line, 'getConfiguredEmails() sollte mit dem Präfix "[auth] Allowed emails:" loggen');
+		assert.ok(line.includes('a***@example.com'), 'Die erste Adresse sollte maskiert erscheinen');
+		assert.ok(line.includes('b***@example.org'), 'Die zweite Adresse sollte maskiert erscheinen');
+		assert.ok(!line.includes('alice@example.com'), 'Die vollständige Adresse darf nicht im Log stehen');
+		assert.ok(!line.includes('bob@example.org'), 'Die vollständige Adresse darf nicht im Log stehen');
+	});
+
+	// Randfall der Maskierung: ohne `@` oder mit leerem Local-Part bleibt nichts Erkennbares übrig.
+	it('AK-9b: Adressen ohne Local-Part werden vollständig maskiert', () => {
+		clearEnv();
+		process.env.GOOGLE_ALLOWED_EMAILS = '@example.com,kaputt';
+
+		const logged = captureLog(() => getConfiguredEmails());
+		const line = logged.find((entry) => entry.includes('[auth] Allowed emails:'));
+
+		assert.equal(line, '[auth] Allowed emails: ***, ***');
 	});
 });

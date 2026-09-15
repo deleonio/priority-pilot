@@ -41,9 +41,24 @@ const parseEmails = (raw: string): string[] => {
 };
 
 /**
+ * Maskiert eine E-Mail-Adresse fürs Log: vom Local-Part bleibt nur das erste Zeichen stehen,
+ * die Domain bleibt vollständig (`alice@example.com` → `a***@example.com`). Adressen ohne `@`
+ * oder mit leerem Local-Part werden komplett zu `***` — lieber unbrauchbar als durchgereicht.
+ */
+const maskEmail = (email: string): string => {
+	const at = email.lastIndexOf('@');
+	if (at < 1) {
+		return '***';
+	}
+	return `${email.slice(0, 1)}***${email.slice(at)}`;
+};
+
+/**
  * Liefert die konfigurierten, normalisierten E-Mail-Adressen.
  * Wirft, wenn keine Allowlist konfiguriert ist (weder Plural noch Singular).
- * Loggt die erlaubten Adressen mit dem Präfix `[auth] Allowed emails:`.
+ * Loggt die erlaubten Adressen maskiert mit dem Präfix `[auth] Allowed emails:` — die
+ * Startmeldung zeigt, dass und wie viele Adressen konfiguriert sind, ohne die Zugangs-
+ * konfiguration im Klartext in die Logs zu schreiben.
  */
 export const getConfiguredEmails = (): string[] => {
 	const raw = process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim() || '';
@@ -55,7 +70,7 @@ export const getConfiguredEmails = (): string[] => {
 		);
 	}
 
-	console.log(`[auth] Allowed emails: ${emails.join(', ')}`);
+	console.log(`[auth] Allowed emails: ${emails.map(maskEmail).join(', ')}`);
 	return emails;
 };
 

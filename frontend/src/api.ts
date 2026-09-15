@@ -905,34 +905,28 @@ export const api = {
 
 	// Reverse Geocoding: Koordinaten → Adresse (Nominatim).
 	async reverseGeocode({ lat, lon, signal }: { lat: number; lon: number } & Init): Promise<{ address: string }> {
-		const { data, error, response } = await (client.GET as unknown as typeof client.GET & { __unsafe: true })(
-			'/reverse-geocode',
-			{
-				params: { query: { lat: String(lat), lon: String(lon) } } as never,
-				signal,
-			},
-		);
+		const { data, error, response } = await client.GET('/reverse-geocode', {
+			params: { query: { lat: String(lat), lon: String(lon) } },
+			signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
-		return data as { address: string };
+		return data;
 	},
 
 	// --- Adresssuche / Forward Geocoding (Aufgaben-Ortsbezug) ---
 
 	// Adresssuche: Suchtext → Vorschlagsliste (Nominatim).
 	async geocodeSearch({ q, signal }: { q: string } & Init): Promise<GeocodeSearchResultDto[]> {
-		const { data, error, response } = await (client.GET as unknown as typeof client.GET & { __unsafe: true })(
-			'/geocode-search',
-			{
-				params: { query: { q } } as never,
-				signal,
-			},
-		);
+		const { data, error, response } = await client.GET('/geocode-search', {
+			params: { query: { q } },
+			signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
-		return data as GeocodeSearchResultDto[];
+		return data;
 	},
 
 	// --- Aufgaben in der Nähe (#1066) ---
