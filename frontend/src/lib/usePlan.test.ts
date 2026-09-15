@@ -1,3 +1,5 @@
+import { act, renderHook } from '@testing-library/react';
+import type { Plan } from './planOffers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -7,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * abgesichert (AK3) — dann bleibt nur der Weg über `/auth/me`.
  */
 
-import { clearPlanMirror, planMirrorKey, readPlanMirror, storePlanMirror } from './usePlan';
+import { clearPlanMirror, planMirrorKey, readPlanMirror, storePlanMirror, useBillingReturnPoll } from './usePlan';
 
 beforeEach(() => {
 	localStorage.clear();
@@ -65,5 +67,80 @@ describe('Paket-Spiegel (#1458 AK1–AK3)', () => {
 		localStorage.setItem(planMirrorKey(3), '{kein json');
 
 		expect(readPlanMirror(3)).toEqual({ plan: null, entitlements: {} });
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1496 AK4 (Spec docs/spec/issue-1496.md) — `useBillingReturnPoll` löst nach
+ * der Rückkehr aus dem Buchungsvorgang genau einen sofortigen Refresh aus, schreibt selbst keinen
+ * Plan-Wert und pollt danach in Abständen mit Obergrenze, bis das erwartete Paket ankommt.
+ */
+describe('useBillingReturnPoll (#1496 AK4)', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('löst bei Mount genau einen sofortigen refresh()-Aufruf aus', () => {
+		const refresh = vi.fn().mockResolvedValue(undefined);
+		renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
+			initialProps: { currentPlan: 'free' as Plan },
+		});
+
+		expect(refresh).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet "waiting", solange currentPlan vom erwarteten Paket abweicht', () => {
+		const refresh = vi.fn().mockResolvedValue(undefined);
+		const { result } = renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
+			initialProps: { currentPlan: 'free' as Plan },
+		});
+
+		expect(result.current.status).toBe('waiting');
+	});
+
+	it('wechselt zu "confirmed", sobald currentPlan dem erwarteten Paket entspricht', () => {
+		const refresh = vi.fn().mockResolvedValue(undefined);
+		const { result, rerender } = renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
+			initialProps: { currentPlan: 'free' as Plan },
+		});
+
+		rerender({ currentPlan: 'pro' as const });
+
+		expect(result.current.status).toBe('confirmed');
+	});
+
+	it('pollt in Abständen nach, bis die Obergrenze erreicht ist, dann "timeout" ohne weiteren Poll', () => {
+		const refresh = vi.fn().mockResolvedValue(undefined);
+		const { result } = renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
+			initialProps: { currentPlan: 'free' as Plan },
+		});
+
+		// Default-Obergrenze laut Spec: 10 Versuche à 3000ms. Nach genügend Intervallen muss der Hook
+		// selbst abbrechen (kein Endlos-Polling) und darf danach nicht mehr aufrufen.
+		act(() => {
+			vi.advanceTimersByTime(3000 * 12);
+		});
+
+		expect(result.current.status).toBe('timeout');
+		const callsAtTimeout = refresh.mock.calls.length;
+
+		act(() => {
+			vi.advanceTimersByTime(3000 * 5);
+		});
+
+		expect(refresh.mock.calls.length).toBe(callsAtTimeout);
+	});
+
+	it('schreibt selbst keinen Plan-Wert in den localStorage-Spiegel (nur refresh() darf das)', () => {
+		const refresh = vi.fn().mockResolvedValue(undefined);
+		renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
+			initialProps: { currentPlan: 'free' as Plan },
+		});
+
+		expect(localStorage.getItem(planMirrorKey(1))).toBeNull();
 	});
 });

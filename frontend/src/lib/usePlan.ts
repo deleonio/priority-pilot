@@ -103,3 +103,24 @@ export const usePlanState = (userId: number): PlanState => {
 
 	return state;
 };
+
+/** Zustand des Rückkehr-Pollings (#1496 AK4). */
+export interface BillingReturnPollState {
+	status: 'waiting' | 'confirmed' | 'timeout';
+}
+
+/**
+ * Typ-Stub für #1496 AK4 (Spec docs/spec/issue-1496.md) — nur die Signatur, damit der Lint-Gate
+ * (tsc) die Spec-PR-Tests annimmt; die Poll-/Timeout-Logik ist ABSICHTLICH nicht implementiert
+ * (Spec-PR-Scope, keine Produktionslogik) und folgt in der Implementierungsphase.
+ */
+export const useBillingReturnPoll = (
+	refresh: () => Promise<void>,
+	expectedPlan: Plan,
+	currentPlan: Plan | null,
+): BillingReturnPollState => {
+	void refresh;
+	void expectedPlan;
+	void currentPlan;
+	throw new Error('useBillingReturnPoll: not implemented (#1496 impl phase)');
+};
