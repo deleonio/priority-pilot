@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-15
 
-_Enthält v0.2.0 – v0.2.61._
+_Enthält v0.2.0 – v0.2.63._
 
 ### 🔧 Engineering
 
@@ -73,6 +73,8 @@ _Enthält v0.2.0 – v0.2.61._
 - feat(server): meter ai assist quota on llm routes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1490
 - feat(server): cap MCP readwrite scope by plan (#1460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1491
 - docs(monetarisierung): Zahlungsweg als ADR 0013 festhalten (#1461) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1492
+- Claude/peaceful goldberg zfdcng by @deleonio in https://github.com/deleonio/priority-pilot/pull/1493
+- feat(server): add subscription model, cent pricing and quarterly tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1497
 
 ## v0.1 - 2026-09-12
 
