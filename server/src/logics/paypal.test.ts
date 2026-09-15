@@ -54,16 +54,19 @@ describe('paypal.ts — verifyWebhookSignature (#1495 AK2)', () => {
 	});
 });
 
-describe('paypal.ts — isGracePeriodExpired (#1495 AK7)', () => {
+// #1506 AK5 (Spec docs/spec/issue-1506.md, Test-Pflege-Bedarf): die Kulanzfrist wurde von 14 auf
+// 15 Tage verlängert (PO-Entscheidung #1461, ADR 0013) — die alten Tag-14/15-Fälle widersprechen
+// der neuen Grenze und wurden durch Tag-15/16 ersetzt.
+describe('paypal.ts — isGracePeriodExpired (#1506 AK5)', () => {
 	const firstFailureAt = new Date('2026-01-01T00:00:00Z');
 
-	it('an Tag 14 nach dem ersten Fehlschlag ist die Kulanzfrist noch nicht abgelaufen', () => {
-		const day14 = new Date('2026-01-15T00:00:00Z');
-		assert.equal(isGracePeriodExpired(firstFailureAt, day14), false);
+	it('an Tag 15 nach dem ersten Fehlschlag ist die Kulanzfrist noch nicht abgelaufen', () => {
+		const day15 = new Date('2026-01-16T00:00:00Z');
+		assert.equal(isGracePeriodExpired(firstFailureAt, day15), false);
 	});
 
-	it('ab Tag 15 nach dem ersten Fehlschlag ist die Kulanzfrist abgelaufen', () => {
-		const day15 = new Date('2026-01-16T00:00:00Z');
-		assert.equal(isGracePeriodExpired(firstFailureAt, day15), true);
+	it('ab Tag 16 nach dem ersten Fehlschlag ist die Kulanzfrist abgelaufen', () => {
+		const day16 = new Date('2026-01-17T00:00:00Z');
+		assert.equal(isGracePeriodExpired(firstFailureAt, day16), true);
 	});
 });

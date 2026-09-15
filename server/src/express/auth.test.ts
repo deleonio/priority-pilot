@@ -262,6 +262,91 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.ok(body.subscription && 'graceUntil' in body.subscription, 'subscription muss das Feld graceUntil tragen');
 			assert.equal(body.subscription?.graceUntil, null, 'graceUntil ist vor T6e/#1506 konstant null');
 		});
+
+		// #1506 AK6/AK7 (Spec docs/spec/issue-1506.md): graceUntil während laufender Kulanzfrist,
+		// grace_expired nach Ablauf (angewendet beim Lesen, Muster applyDuePendingPlan). Relative
+		// Zeitstempel um den Testlaufzeitpunkt, da /auth/me keinen injizierbaren Takt hat.
+		const DAY_MS = 24 * 60 * 60 * 1000;
+
+		it('#1506 AK7 — subscription.graceUntil zeigt firstFailureAt + 15 Tage während laufender Kulanzfrist', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const userId = (dbUser as unknown as { id: number }).id;
+			const { default: Subscription } = await import('../models/subscription.js');
+			const firstFailureAt = new Date(Date.now() - 5 * DAY_MS);
+			await Subscription.create({
+				userId,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-AK7-GRACE-ONGOING',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'past_due',
+				currentPeriodEnd: new Date(Date.now() + 10 * DAY_MS),
+				firstFailureAt,
+			});
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { subscription?: { graceUntil?: string | null; plan?: string } | null };
+			assert.ok(body.subscription?.graceUntil, 'Während laufender Kulanzfrist muss graceUntil gesetzt sein');
+			const expected = new Date(firstFailureAt.getTime() + 15 * DAY_MS);
+			assert.equal(
+				new Date(body.subscription!.graceUntil as string).toISOString().slice(0, 10),
+				expected.toISOString().slice(0, 10),
+				'graceUntil muss firstFailureAt + 15 Tage sein',
+			);
+			assert.equal(body.subscription?.plan, 'pro', 'Während der Frist bleibt das Paket unverändert');
+		});
+
+		it('#1506 AK6/AK7 — nach Ablauf der Kulanzfrist wird status grace_expired gesetzt, graceUntil ist wieder null und plan bleibt unverändert', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const userId = (dbUser as unknown as { id: number }).id;
+			const { default: Subscription } = await import('../models/subscription.js');
+			const firstFailureAt = new Date(Date.now() - 20 * DAY_MS);
+			await Subscription.create({
+				userId,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-AK6-GRACE-EXPIRED',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'past_due',
+				currentPeriodEnd: new Date(Date.now() + 10 * DAY_MS),
+				firstFailureAt,
+			});
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as {
+				subscription?: { status?: string; graceUntil?: string | null; plan?: string } | null;
+			};
+			assert.equal(body.subscription?.status, 'grace_expired', 'Nach Fristablauf muss der Status grace_expired sein');
+			assert.equal(body.subscription?.graceUntil, null, 'Nach Fristablauf muss graceUntil wieder null sein');
+			assert.equal(body.subscription?.plan, 'pro', 'Der Downgrade selbst ist nicht Teil dieses Issues (T7, #1462)');
+		});
+
+		it('#1506 AK7 — ohne Zahlungsausfall bleibt graceUntil null', async () => {
+			const cookie = await testLogin();
+			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
+			assert.ok(dbUser, 'Setup: Session-User muss existieren');
+			const userId = (dbUser as unknown as { id: number }).id;
+			const { default: Subscription } = await import('../models/subscription.js');
+			await Subscription.create({
+				userId,
+				provider: 'paypal',
+				externalSubscriptionId: 'I-AK7-NOFAIL',
+				plan: 'pro',
+				period: 'monthly',
+				status: 'active',
+				currentPeriodEnd: new Date(Date.now() + 10 * DAY_MS),
+			});
+
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			const body = (await res.json()) as { subscription?: { graceUntil?: string | null } | null };
+			assert.equal(body.subscription?.graceUntil, null, 'Ohne Zahlungsausfall bleibt graceUntil null');
+		});
 	});
 
 	// ── AC 5 — /auth/me ohne Session → 401 ───────────────────────────────────
