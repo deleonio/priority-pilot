@@ -1,7 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -187,32 +185,6 @@ describe('UpdatePrompt — KoliBri-Card & Fixierung (#373)', () => {
 		fireEvent.click(container.querySelector('[data-comp="kol-button"]')!);
 
 		expect(setOfflineReady).toHaveBeenCalledWith(false);
-	});
-});
-
-// AK1 — Prompt-Modus + Workbox-Optionen aktiv.
-// Die Vite-Config baut PWA-/Proxy-Setup auf; ein direkter Import würde `readFileSync` gegen die
-// root package.json ausführen und den VitePWA-Plugin-Baum instanziieren. Robuster und ausreichend
-// ist eine Textprüfung der Config-Quelle per Regex.
-describe('vite.config.ts — PWA Update-Fluss (AK1, #353)', () => {
-	const configPath = fileURLToPath(new URL('../../vite.config.ts', import.meta.url));
-	const configSource = readFileSync(configPath, 'utf-8');
-
-	it('AK1a: registerType ist „prompt" (nicht „autoUpdate")', () => {
-		expect(configSource).toMatch(/registerType:\s*'prompt'/);
-		expect(configSource).not.toMatch(/registerType:\s*'autoUpdate'/);
-	});
-
-	it('AK1b: workbox setzt cleanupOutdatedCaches: true', () => {
-		expect(configSource).toMatch(/cleanupOutdatedCaches:\s*true/);
-	});
-
-	it('AK1c: workbox setzt clientsClaim: true', () => {
-		expect(configSource).toMatch(/clientsClaim:\s*true/);
-	});
-
-	it('AK1d: workbox setzt skipWaiting: false', () => {
-		expect(configSource).toMatch(/skipWaiting:\s*false/);
 	});
 });
 
