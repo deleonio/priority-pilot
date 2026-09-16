@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, Series } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { collectDailyTopTasks, runDailyTopTasksPush } from './dailyTopTasks.js';
 import type { PushSender } from './push.js';
@@ -172,5 +172,42 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 
 		assert.equal(result.usersNotified, 0, 'Tasks ohne Eigentümer lösen keinen Daily-Push aus');
 		assert.equal(calls.length, 0);
+	});
+	// #1518 (Spec docs/spec/issue-1518.md, Journey 2): der 06:00-Push nennt drei verschiedene Aufgaben,
+	// keine Serie doppelt — auch wenn die Serie fünf Instanzen höchster Priorität hat.
+	it('#1518: eine Serie mit fünf Instanzen belegt nur einen der drei Plätze', async () => {
+		const series = await Series.create({
+			title: 'Sport',
+			rhythm: 'daily',
+			priority: 1,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: NOW,
+		});
+		for (let offset = 0; offset < 5; offset += 1) {
+			const occurrence = new Date(NOW.getTime() + offset * 24 * 60 * 60 * 1000);
+			await Task.create({
+				title: 'Sport',
+				status: 'Open',
+				priority: 1,
+				estimatedEffort: 0.5,
+				deadline: occurrence,
+				seriesId: series.id,
+				seriesOccurrence: occurrence,
+				originSeriesId: series.id,
+				userId: 1,
+			});
+		}
+		await createTask({ title: 'Steuer', priority: 2, userId: 1 });
+		await createTask({ title: 'Garten', priority: 3, userId: 1 });
+
+		const groups = await collectDailyTopTasks(NOW);
+		assert.equal(groups.length, 1);
+		const ids = groups[0].tasks.map((task) => task.id);
+		assert.equal(new Set(ids).size, 3, 'drei verschiedene Aufgaben, keine doppelt');
+		assert.deepEqual(
+			groups[0].tasks.map((task) => task.title),
+			['Sport', 'Steuer', 'Garten'],
+		);
 	});
 });

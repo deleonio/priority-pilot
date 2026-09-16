@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog, User } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, User, Series } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import {
 	DEFAULT_ALARM_DISTANCE_KM,
@@ -290,5 +290,39 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 
 		// Ohne Serialisierung wären es 2 Aufrufe; mit Queue nur 1.
 		assert.equal(calls.length, 1, 'parallele Läufe senden nicht doppelt');
+	});
+	// #1518 AK8 (Spec docs/spec/issue-1518.md, Journey 2): fünf nahe Instanzen derselben Serie → „1 Aufgabe in der Nähe".
+	it('#1518 AK8: fünf nahe Instanzen derselben Serie ergeben eine Gruppe mit genau einer Aufgabe', async () => {
+		const series = await Series.create({
+			title: 'Einkaufen',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: NOW,
+			latitude: LAT_NEAR,
+			longitude: LON,
+		});
+		for (let offset = 0; offset < 5; offset += 1) {
+			const occurrence = new Date(NOW.getTime() + offset * 24 * 60 * 60 * 1000);
+			await Task.create({
+				title: 'Einkaufen',
+				status: 'Open',
+				priority: 3,
+				estimatedEffort: 0.5,
+				deadline: occurrence,
+				latitude: LAT_NEAR,
+				longitude: LON,
+				seriesId: series.id,
+				seriesOccurrence: occurrence,
+				originSeriesId: series.id,
+				userId: 1,
+			});
+		}
+
+		const groups = await collectGeoPushGroups([position], NOW);
+		assert.equal(groups.length, 1);
+		assert.equal(groups[0].tasks.length, 1, 'genau eine Aufgabe statt einer Sammelmeldung über alle Instanzen');
+		assert.equal(groups[0].tasks[0].title, 'Einkaufen');
 	});
 });

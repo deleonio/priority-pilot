@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog, User } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, User, Series } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { collectDueTaskReminders, runDueTaskReminders } from './dueTaskReminders.js';
 import type { PushSender } from './push.js';
@@ -244,5 +244,36 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(result.usersNotified, 1, 'ein fehlgeschlagener Mail-Versand bricht den Lauf nicht ab');
 		assert.equal(pushCalls.length, 1, 'die Push-Nachricht wird trotz Mail-Fehler zugestellt');
 		assert.equal(await NotificationLog.count(), 1, 'Log-Eintrag entsteht, weil mindestens ein Kanal erfolgreich war');
+	});
+	// #1518 AK7 (Spec docs/spec/issue-1518.md, Journey 2): je Serie höchstens eine Instanz im Fälligkeits-Push.
+	it('#1518 AK7: fünf fällige Instanzen derselben Serie ergeben genau einen Eintrag', async () => {
+		const series = await Series.create({
+			title: 'Täglich',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: NOW,
+		});
+		for (let offset = 0; offset < 5; offset += 1) {
+			const occurrence = new Date(NOW.getTime() - offset * 60 * 60 * 1000);
+			await Task.create({
+				title: 'Täglich',
+				status: 'Open',
+				priority: 3,
+				estimatedEffort: 0.5,
+				deadline: occurrence,
+				seriesId: series.id,
+				seriesOccurrence: occurrence,
+				originSeriesId: series.id,
+				userId: 1,
+			});
+		}
+		await createTask({ title: 'Einzeln', deadline: NOW, userId: 1 });
+
+		const groups = await collectDueTaskReminders(NOW);
+		assert.equal(groups.length, 1);
+		const titles = groups[0].tasks.map((task) => task.title).sort();
+		assert.deepEqual(titles, ['Einzeln', 'Täglich'], 'die Serie erscheint genau einmal');
 	});
 });

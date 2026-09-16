@@ -204,13 +204,18 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 			data: { until: '2026-09-30T23:59:59.000Z' },
 		});
 		expect(generate.ok()).toBeTruthy();
+		// Test-Pflege #1518: die Liste zeigt je Serie nur die früheste offene Instanz ab heute — also
+		// gezielt diese wählen statt der ersten Instanz in DB-Reihenfolge.
 		const instance = (
 			(await (await page.request.get('/api/v1/tasks')).json()) as {
 				id: number;
 				title: string;
 				seriesId: number | null;
+				deadline: string | null;
 			}[]
-		).find((task) => task.seriesId === seriesId);
+		)
+			.filter((task) => task.seriesId === seriesId)
+			.sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''))[0];
 		expect(instance, 'Serie generiert mindestens eine sichtbare Instanz').toBeTruthy();
 
 		await page.goto('/');
@@ -219,11 +224,13 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 
 		const row = page.getByTestId(`task-list-item-${instance!.id}`);
 		await expect(row).toBeVisible();
-		// Reihenfolge im Light DOM: die Serie-Instanz trägt genau die zwei Status-Badges
-		// (Serie, Priorität; TaskTree.tsx:92-107) — das Prioritäts-Badge (`task-tree-badge--priority`)
-		// ist das letzte von ihnen, beide innerhalb der Badge-Gruppe vor dem „…"-Menüschalter.
+		// Reihenfolge im Light DOM: die Serie-Instanz trägt das Serien-Icon (seit #1518 `role="img"`
+		// statt Text-Badge, Test-Pflege) und genau ein Status-Badge (Priorität; TaskTree.tsx:92-107) —
+		// das Prioritäts-Badge (`task-tree-badge--priority`) ist das letzte, beide innerhalb der
+		// Badge-Gruppe vor dem „…"-Menüschalter.
+		await expect(row.locator('.task-tree-badges').getByRole('img', { name: 'Serienaufgabe' })).toBeVisible();
 		const badges = row.locator('.task-tree-badges .task-tree-badge');
-		await expect(badges).toHaveCount(2);
+		await expect(badges).toHaveCount(1);
 		const lastIsPriority = await row
 			.locator('.task-tree-badges .task-tree-badge')
 			.last()

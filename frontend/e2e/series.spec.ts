@@ -171,11 +171,16 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: dayFromTodayUtc(0) });
 		await generateInstancesViaApi(page, seriesId, dayFromTodayUtc(7));
 
-		// Eine der beiden Instanzen individuell ändern → das Backend markiert sie als `isException`.
-		const instances = (await listTasksViaApi(page)).filter((task) => task.seriesId === seriesId);
+		// Die früheste Instanz individuell ändern → das Backend markiert sie als `isException`.
+		// Test-Pflege #1518: Die Liste zeigt je Serie nur die früheste offene Instanz ab heute; damit die
+		// Ausnahme sichtbar bleibt, wird die heutige Instanz nur um drei Tage verschoben (bleibt vor der
+		// Geschwister-Instanz in sieben Tagen) statt wie früher auf +21.
+		const instances = (await listTasksViaApi(page))
+			.filter((task) => task.seriesId === seriesId)
+			.sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
 		expect(instances.length).toBe(2);
 		const exceptionResponse = await page.request.patch(`/api/v1/tasks/${instances[0].id}`, {
-			data: { deadline: dayFromTodayUtc(21) },
+			data: { deadline: dayFromTodayUtc(3) },
 		});
 		expect(exceptionResponse.ok()).toBeTruthy();
 
@@ -183,13 +188,15 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Beide Instanzen tragen den Serien-Titel in der Tabelle. Auf die Aufgaben-Sektion gescoped:
+		// #1518: je Serie genau EINE Zeile in der Aufgabenliste. Auf die Aufgaben-Sektion gescoped:
 		// SeriesTab bleibt stets gerendert, ihr verstecktes Panel listet den Serien-Titel zusätzlich
 		// im Light-DOM (KolTabs mountet inaktive Panels).
-		await expect(page.locator('.task-section').getByText(title, { exact: true })).toHaveCount(2);
+		await expect(page.locator('.task-section').getByText(title, { exact: true })).toHaveCount(1);
 
-		// AK 2: sichtbare Kennzeichnung „zur Serie gehörig" — das Serien-Badge erscheint in der Tabelle.
-		await expect(page.getByText('Serie', { exact: true }).first()).toBeVisible();
+		// AK 2: sichtbare Kennzeichnung „zur Serie gehörig" — seit #1518 ein Serien-Icon mit
+		// Screenreader-Text statt des Text-Badges „Serie".
+		await expect(page.locator('.task-section').getByRole('img', { name: 'Serienaufgabe' }).first()).toBeVisible();
+		await expect(page.locator('.task-section').getByText('Serie', { exact: true })).toHaveCount(0);
 		// AK 2: die individuell geänderte Instanz ist zusätzlich als Ausnahme („geändert") ausgewiesen.
 		await expect(page.getByText(/geändert/).first()).toBeVisible();
 	});

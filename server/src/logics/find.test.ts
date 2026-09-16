@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task, Pillar, ScoreEntry } from '../models/index.js';
+import { Series, Task, Pillar, ScoreEntry } from '../models/index.js';
 import { findNextImportantTask, findSuggestedTasks } from './find.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
@@ -198,5 +198,74 @@ describe('findSuggestedTasks (Vorschlags-Engine #122)', () => {
 		}
 		const liste = await findSuggestedTasks();
 		assert.ok(liste.length <= 5, `Liste höchstens 5 Einträge, war ${liste.length}`);
+	});
+});
+
+// Rote Spec-Tests für #1518 (Spec docs/spec/issue-1518.md, Journey 1): „Nächste Aufgabe" (`GET /next`,
+// MCP `next_task`) und „Was ist jetzt dran?" (`GET /suggestions`) enthalten je Serie höchstens eine
+// Instanz — die früheste offene ab heute. KEIN Produktivcode.
+describe('find — eine Instanz je Serie (#1518)', () => {
+	const dayFromToday = (offset: number): Date => {
+		const day = new Date();
+		day.setUTCHours(0, 0, 0, 0);
+		day.setUTCDate(day.getUTCDate() + offset);
+		return day;
+	};
+
+	const seedDailySeries = async (priority: number): Promise<Task[]> => {
+		const series = await Series.create({
+			title: 'Täglich',
+			rhythm: 'daily',
+			priority,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: dayFromToday(0),
+		});
+		// Bewusst in umgekehrter Reihenfolge angelegt (heute+4 zuerst): die DB-Reihenfolge darf die
+		// Wahl nicht treffen, nur die Deadline-Regel. `instances[0]` bleibt die heutige Instanz.
+		const instances: Task[] = [];
+		for (let offset = 4; offset >= 0; offset -= 1) {
+			const occurrence = dayFromToday(offset);
+			instances.unshift(
+				await Task.create({
+					title: 'Täglich',
+					priority,
+					estimatedEffort: 0.5,
+					deadline: occurrence,
+					seriesId: series.id,
+					seriesOccurrence: occurrence,
+					originSeriesId: series.id,
+				}),
+			);
+		}
+		return instances;
+	};
+
+	it('AK6: findNextImportantTask liefert die Instanz mit Deadline heute, nicht eine beliebige', async () => {
+		const instances = await seedDailySeries(5);
+		// Später angelegte Instanz mit früherer Deadline darf die Wahl nicht verschieben: die Regel
+		// entscheidet nach Deadline, nicht nach Anlage-Reihenfolge.
+		await Task.create({ title: 'Einzeln', priority: 2, estimatedEffort: 1 });
+
+		const result = await findNextImportantTask();
+		assert.ok(result !== null);
+		assert.equal(result.id, instances[0].id);
+	});
+
+	it('AK6: findSuggestedTasks nennt je Serie höchstens eine Instanz und drei verschiedene Aufgaben', async () => {
+		const instances = await seedDailySeries(5);
+		const b = await Task.create({ title: 'Steuer', priority: 4, estimatedEffort: 1 });
+		const c = await Task.create({ title: 'Garten', priority: 3, estimatedEffort: 1 });
+
+		const suggestions = await findSuggestedTasks();
+		const seriesHits = suggestions.filter((task) => task.seriesId !== null && task.seriesId !== undefined);
+		assert.equal(seriesHits.length, 1, 'je Serie höchstens eine Instanz');
+		assert.equal(seriesHits[0].id, instances[0].id, 'die Instanz mit Deadline heute');
+		const ids = suggestions.slice(0, 3).map((task) => task.id);
+		assert.equal(new Set(ids).size, 3, 'drei verschiedene Aufgaben');
+		assert.deepEqual(
+			[...ids].sort((x, y) => x - y),
+			[instances[0].id, b.id, c.id].sort((x, y) => x - y),
+		);
 	});
 });

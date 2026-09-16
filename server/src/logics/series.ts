@@ -13,6 +13,57 @@ interface GenerateOptions {
 	pushSender?: PushSender;
 }
 
+/**
+ * Höchstzahl offener Instanzen (`status != 'Done'`) je Serie, die die Generierung vorhält (#1518).
+ * Der Horizont `until` bleibt als Obergrenze bestehen — für tägliche Serien greift die Fünfer-Grenze,
+ * wöchentliche/monatliche erreichen sie innerhalb der 30 Tage nicht. Bestand über der Grenze wird
+ * nicht gelöscht; er verschwindet über {@link selectSeriesRepresentatives} aus den Lesestellen.
+ */
+const MAX_OPEN_INSTANCES = 5;
+
+/** Minimalvertrag der Auswahlregel — passt auf `Task`-Modelle wie auf serialisierte DTOs. */
+interface SeriesCandidate {
+	seriesId?: number | null;
+	deadline?: Date | string | null;
+	status?: string;
+}
+
+/**
+ * Auswahlregel #1518: je `seriesId` genau EINE Instanz — die früheste offene mit Deadline ab heute
+ * (UTC-Kalendertag von `now`), sonst die jüngste vergangene offene. Erledigte Instanzen sind nie
+ * Repräsentant; Aufgaben ohne `seriesId` (auch abgekoppelte mit `originSeriesId`) bleiben unverändert.
+ * Die Eingabereihenfolge bleibt erhalten — nur nicht gewählte Instanzen fallen weg. Zentrale Funktion
+ * für Wald, `/next`, `/suggestions`, `/tasks/nearby` und die drei Push-Collector.
+ */
+export const selectSeriesRepresentatives = <T extends SeriesCandidate>(tasks: T[], now: Date = new Date()): T[] => {
+	const today = new Date(now.getTime());
+	today.setUTCHours(0, 0, 0, 0);
+	const todayTime = today.getTime();
+	const deadlineTime = (task: T): number | null => (task.deadline == null ? null : new Date(task.deadline).getTime());
+
+	// Rang je Instanz: kommende (ab heute) vor vergangenen, jeweils näher an heute = besser;
+	// ohne Deadline nur als letzter Fallback.
+	const rank = (task: T): number => {
+		const time = deadlineTime(task);
+		if (time === null) {
+			return Number.POSITIVE_INFINITY;
+		}
+		return time >= todayTime ? time - todayTime : Number.MAX_SAFE_INTEGER / 2 + (todayTime - time);
+	};
+
+	const chosen = new Map<number, T>();
+	for (const task of tasks) {
+		if (task.seriesId == null || task.status === 'Done') {
+			continue;
+		}
+		const current = chosen.get(task.seriesId);
+		if (current === undefined || rank(task) < rank(current)) {
+			chosen.set(task.seriesId, task);
+		}
+	}
+	return tasks.filter((task) => task.seriesId == null || chosen.get(task.seriesId) === task);
+};
+
 /** Ob der UTC-Wochentag `day` (0=So … 6=Sa) zum Rhythmus `weekdays` (Mo–Fr) bzw. `weekend` (Sa+So) gehört. */
 const matchesGroup = (day: number, rhythm: 'weekdays' | 'weekend'): boolean =>
 	rhythm === 'weekdays' ? day >= 1 && day <= 5 : day === 0 || day === 6;
@@ -85,6 +136,9 @@ export const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: numb
  *
  * Ein inaktives Template (`active=false`) erzeugt keine Instanzen.
  *
+ * **Fünfer-Grenze (#1518):** je Serie werden höchstens {@link MAX_OPEN_INSTANCES} offene Instanzen
+ * vorgehalten; erledigte Instanzen geben ihren Platz frei, sodass der nächste Lauf nachfüllt.
+ *
  * **Nur zukünftige Termine:** Die Generierung beginnt ab dem aktuellen Datum (heute), um zu vermeiden,
  * dass rückwirkend vergangene Serien-Aufgaben angelegt werden (z. B. wenn eine Serie gelöscht und
  * später wieder aktiviert wurde).
@@ -131,11 +185,18 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 	// Snapshot der Pillar-Vorlage einmal vor der Schleife laden (AK3: Snapshot-Zeitpunkt).
 	const pillarRows = await SeriesPillar.findAll({ where: { seriesId: series.id } });
 
+	// Fünfer-Grenze (#1518): nur so viele neue Instanzen, wie bis MAX_OPEN_INSTANCES offen fehlen.
+	let budget = MAX_OPEN_INSTANCES - existing.filter((task) => task.status !== 'Done').length;
+
 	const created: Task[] = [];
 	for (const occurrence of occurrences) {
+		if (budget <= 0) {
+			break;
+		}
 		if (materialized.has(occurrence.getTime())) {
 			continue;
 		}
+		budget -= 1;
 		const instance = await Task.create({
 			title: series.title,
 			priority: series.priority,

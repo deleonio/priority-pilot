@@ -3,6 +3,7 @@ import { Task, User, NotificationLog } from '../models/index.js';
 import { haversineKm } from './geo.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { shouldBlockFeature } from './plans.js';
+import { selectSeriesRepresentatives } from './series.js';
 
 /**
  * Fachlicher Push-Trigger „Aufgaben in der Nähe" (Issue #1101). Der Client meldet im
@@ -74,14 +75,18 @@ export const collectGeoPushGroups = async (positions: GeoPosition[], now: Date):
 	for (const position of positions) {
 		const alarmDistanceKm = await alarmDistanceFor(position.userId);
 		const intervalMs = await intervalMsFor(position.userId);
-		const candidates = await Task.findAll({
-			where: {
-				userId: position.userId,
-				status: { [Op.ne]: 'Done' },
-				latitude: { [Op.ne]: null },
-				longitude: { [Op.ne]: null },
-			},
-		});
+		// #1518 AK8: je Serie nur die aktuelle Instanz — „1 Aufgabe in der Nähe" statt Sammelmeldung.
+		const candidates = selectSeriesRepresentatives(
+			await Task.findAll({
+				where: {
+					userId: position.userId,
+					status: { [Op.ne]: 'Done' },
+					latitude: { [Op.ne]: null },
+					longitude: { [Op.ne]: null },
+				},
+			}),
+			now,
+		);
 		const nearby = candidates
 			.map((task) => ({
 				id: task.id,

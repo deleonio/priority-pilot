@@ -1,5 +1,6 @@
 import type { components } from '../api';
 import { Task } from '../models/index.js';
+import { selectSeriesRepresentatives } from './series.js';
 import { calculateValueContribution } from './value.js';
 
 interface TaskTreeNode {
@@ -125,13 +126,17 @@ const buildTaskTree = async (task: Task, weight: number | null = null): Promise<
 
 // Funktion, um den gesamten Aufgabenwald (nach Wertschöpfung sortiert) zu erstellen
 export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> => {
-	const tasks = await Task.findAll({
-		where: {
-			status: ['Open', 'In process'],
-			// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
-			...(userId !== undefined ? { userId } : {}),
-		},
-	});
+	// #1518: je Serie nur die aktuelle Instanz — der Wald speist Aufgabenliste und „Wichtigste Tasks".
+	// Unteraufgaben kommen weiterhin ungefiltert über die `buildTaskTree`-Rekursion.
+	const tasks = selectSeriesRepresentatives(
+		await Task.findAll({
+			where: {
+				status: ['Open', 'In process'],
+				// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
+				...(userId !== undefined ? { userId } : {}),
+			},
+		}),
+	);
 
 	// Wurzeln = Tasks, die selbst keine Unteraufgabe (Vorgänger) einer anderen Aufgabe sind — also
 	// Tasks ohne Dependents (#336, AK4). Ihre Unteraufgaben hängen als `getDependencies()` darunter.

@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import { Task, NotificationLog, User } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from './mail.js';
+import { selectSeriesRepresentatives } from './series.js';
 
 /**
  * Fachlicher Push-Trigger „fällige Aufgaben" (Issue #355). Bündelt je Nutzer **eine** Push-Nachricht
@@ -34,13 +35,18 @@ const dedupeKeyFor = (taskId: number, deadline: Date): string => `${taskId}:${de
  */
 export const collectDueTaskReminders = async (now: Date): Promise<DueTaskGroup[]> => {
 	const threshold = new Date(now.getTime() + DUE_WINDOW_MS);
-	const dueTasks = await Task.findAll({
-		where: {
-			status: { [Op.ne]: 'Done' },
-			deadline: { [Op.ne]: null, [Op.lte]: threshold },
-			userId: { [Op.ne]: null },
-		},
-	});
+	// #1518 AK7: je Serie nur die aktuelle Instanz — vor dem Dedup, damit das NotificationLog
+	// weiterhin genau die gemeldete Instanz kennt.
+	const dueTasks = selectSeriesRepresentatives(
+		await Task.findAll({
+			where: {
+				status: { [Op.ne]: 'Done' },
+				deadline: { [Op.ne]: null, [Op.lte]: threshold },
+				userId: { [Op.ne]: null },
+			},
+		}),
+		now,
+	);
 	if (dueTasks.length === 0) {
 		return [];
 	}
