@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.75._
+_Enthält v0.2.0 – v0.2.76._
 
 ### 🔧 Engineering
 
@@ -86,6 +86,7 @@ _Enthält v0.2.0 – v0.2.75._
 - feat(server): add MCP tools to create, update and delete categories by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1514
 - feat(frontend): add archivo as primary font by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1516
 - fix(frontend): enforce archivo font on all kolibri host elements by @deleonio in https://github.com/deleonio/priority-pilot/pull/1517
+- feat(server): add pillar create/update/delete/weights MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1515
 
 ## v0.1 - 2026-09-12
 
@@ -724,7 +725,6 @@ _Enthält v0.1.336 – v0.1.836._
 - Move animation sub-options into a KolDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1234
 - feat(frontend,server): session-expired dialog with silent re-login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1232
 - feat(frontend,server): editable display name in settings (#1219) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1233
-- feat(frontend,server): editable display name in settings (#1219) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1233
 - feat(frontend): use KolDetails for animation sub-options by @deleonio in https://github.com/deleonio/priority-pilot/pull/1235
 - feat(server,frontend): change group member role (#1221) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1236
 - feat(server): notify recipient when a task is created for them (#1224) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1240
@@ -797,6 +797,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(mcp): restore connection for read-only api tokens by @deleonio in https://github.com/deleonio/priority-pilot/pull/1369
 - feat(frontend): show streak of consecutive done-days on dashboard by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1365
 - feat(frontend): merge quick capture and pillar advisor into one dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1366
+- feat(frontend): add home icon to logo button for dashboard switch by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1371
 - feat(frontend): add home icon to logo button for dashboard switch by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1371
 - feat(frontend): add location favorites to address field and settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1367
 - feat(server): add mcp tools for task dependency links by @deleonio in https://github.com/deleonio/priority-pilot/pull/1373
