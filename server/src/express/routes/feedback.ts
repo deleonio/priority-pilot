@@ -3,6 +3,8 @@ import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { readAppVersion } from '../../logics/appInfo.js';
 import { githubObsidianClient, type ObsidianGithubClient } from '../../logics/obsidianFeedback.js';
+import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/mail.js';
+import { User } from '../../models/index.js';
 
 type ErrorDto = { message: string };
 
@@ -88,14 +90,49 @@ const buildContent = (input: FeedbackInput, user: string, now: Date): string =>
 		'',
 	].join('\n');
 
+/** Betreff/Text der Admin-Benachrichtigung (AK2): keine Tokenwerte, keine Zugangsdaten. */
+const buildAdminMail = (input: FeedbackInput, user: string): { subject: string; text: string } => ({
+	subject: `Neues Feedback (${input.category}): ${input.title}`,
+	text: [
+		`Kategorie: ${input.category}`,
+		`Titel: ${input.title}`,
+		'',
+		input.description,
+		'',
+		`Nutzer: ${user}`,
+		`App-Version: ${readAppVersion()}`,
+		'',
+	].join('\n'),
+});
+
+/**
+ * Benachrichtigt alle Admin-Nutzer per Mail (Issue #1502, AK1). Läuft unabhängig vom
+ * Ausgang des Obsidian-Commits (AK5) — der Aufrufer ruft dies nach dem try/catch-Block auf.
+ * Ohne SMTP-Konfiguration wird kein Versandversuch gemacht (AK3); Transportfehler werden
+ * bereits von {@link sendMailToUser} verschluckt und ohne Details geloggt (AK4).
+ */
+const notifyAdmins = async (input: FeedbackInput, user: string, mailSender?: MailSender): Promise<void> => {
+	if (!isMailConfigured()) {
+		return;
+	}
+	const admins = await User.findAll({ where: { role: 'admin' } });
+	const mail = buildAdminMail(input, user);
+	for (const admin of admins) {
+		await sendMailToUser({ email: admin.email }, mail, mailSender);
+	}
+};
+
 /**
  * Router für `POST /feedback` (Issue #1435). Auth via Session — `requireAuth` ist in
  * `index.ts` VOR diesem Router registriert, der Endpunkt ist also nie anonym erreichbar (AK7).
- * Der GitHub-Zugriff läuft über den injizierbaren {@link ObsidianGithubClient}.
+ * Der GitHub-Zugriff läuft über den injizierbaren {@link ObsidianGithubClient}. Zusätzlich
+ * werden alle Admin-Nutzer per Mail informiert (Issue #1502) — über den injizierbaren
+ * {@link MailSender}.
  */
 export const createFeedbackRouter = ({
 	obsidianGithubClient = githubObsidianClient,
-}: { obsidianGithubClient?: ObsidianGithubClient } = {}): Router => {
+	mailSender,
+}: { obsidianGithubClient?: ObsidianGithubClient; mailSender?: MailSender } = {}): Router => {
 	const router = Router();
 
 	router.post('/feedback', async (req: Request, res: Response<{ path: string } | ErrorDto>) => {
@@ -118,21 +155,31 @@ export const createFeedbackRouter = ({
 		const path = buildPath(dir, validation.value, now);
 		const user = req.session?.user?.email ?? 'unbekannt';
 
+		let commitFailed = false;
 		try {
 			// Branch zuerst sicherstellen — ohne ihn würde die Contents-API auf `main` schreiben.
 			if ((await obsidianGithubClient.getBranchSha(repo, branch)) === null) {
 				await obsidianGithubClient.createBranch(repo, branch, SOURCE_BRANCH);
 			}
 			await obsidianGithubClient.commitFile(repo, branch, path, buildContent(validation.value, user, now));
-			res.status(201).json({ path });
 		} catch (error) {
 			// #1465: Ohne Log war ein Fehlschlag von außen wie von innen unsichtbar — der Grund stand
 			// nirgends. Die Meldungen aus `obsidianFeedback.ts` nennen nur Methode, Pfad und Status
 			// (kein Tokenwert, kein Upstream-Body), sind also loggbar. Muster: `routes/auth.ts`.
 			console.error('Feedback konnte nicht gespeichert werden:', error instanceof Error ? error.message : error);
+			commitFailed = true;
+		}
+
+		// #1502: läuft unabhängig vom Ausgang des Commits (AK5) — und wird VOR der Response
+		// abgewartet, damit der Mailversand für den Aufrufer bereits abgeschlossen ist.
+		await notifyAdmins(validation.value, user, mailSender);
+
+		if (commitFailed) {
 			// Upstream-Fehlertext bewusst verschlucken (PAT/Details dürfen nicht nach außen).
 			sendError(res, 502, 'Feedback konnte gerade nicht gespeichert werden. Bitte später erneut versuchen.');
+			return;
 		}
+		res.status(201).json({ path });
 	});
 
 	return router;
