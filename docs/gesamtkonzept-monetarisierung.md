@@ -16,7 +16,7 @@ Für die Monetarisierung folgen daraus vier Regeln:
 
 1. Der regelbasierte Fürsorge-Kern bleibt in jedem Paket erhalten, auch in Free: nächste Aufgabe vorschlagen (`GET /next`, `GET /suggestions`), Balance-Stand je Säule, Punkte und Streaks. Bindung entsteht vor dem Kauf; die Pakete unterscheiden Umfang und Werkzeuge, nicht das Grundgefühl.
 2. Die KI-gestützte Beratung (Freitext-Verarbeitung, Säulen-Vorschlag, Lektorat, Aktivitäten-Berater) ist der kostenwirksame Teil der Fürsorge und läuft über monatliche Kontingente.
-3. Upgrade-Kommunikation spricht im selben Ton wie die App: Ein Hinweis an der Stelle, an der der Nutzer an eine Grenze stößt, mit dem konkreten Nutzen im Moment des Bedarfs. Kein Banner, kein Druck, keine generelle Werbung.
+3. Upgrade-Kommunikation spricht im selben Ton wie die App: kein Banner, kein Druck, keine generelle Werbung. Seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) steht der Hinweis allerdings nicht mehr im Arbeitsfluss, sondern in den Einstellungen am deaktivierten Schalter der Funktion. Eine Funktion, die das Paket nicht enthält, wird im Fluss gar nicht erst angeboten; ein Badge an verwandten Stellen zeigt weiterhin, zu welchem Paket sie gehört.
 4. Beim Downgrade gilt sperren statt löschen. Wer weniger zahlt, verliert Daten nie, nur Funktionen.
 
 ## Ist-Stand
@@ -31,7 +31,7 @@ Ergebnis der Code-Prüfung: Alle Features der Paket-Matrix sind umgesetzt. Die M
 | Balance-Analyse                        | Free (Basis)            | vorhanden; 5 Defaultsäulen (Petzold), nutzerdefinierbar   | `server/src/models/pillarData.ts`, `server/src/models/taskPillar.ts`, `server/src/express/routes/scores.ts`                                            |
 | Proaktive Vorschläge                   | Free (nicht in Matrix)  | vorhanden                                                 | `GET /next`, `GET /suggestions` in `server/src/express/index.ts`                                                                                       |
 | Gruppen                                | Pro                     | vorhanden                                                 | `server/src/models/group*.ts`, `server/src/express/routes/groups.ts`, `server/src/express/routes/inviteLinks.ts`                                       |
-| Sprachsteuerung                        | Pro                     | vorhanden als lokale Spracheingabe (kein Server-Endpunkt) | `frontend/src/components/VoiceField.tsx`, `frontend/src/lib/useVoiceInput.ts`                                                                          |
+| Sprachsteuerung                        | Free (ab ADR 0014)      | vorhanden als lokale Spracheingabe (kein Server-Endpunkt) | `frontend/src/components/VoiceField.tsx`, `frontend/src/lib/useVoiceInput.ts`                                                                          |
 | KI-Assistenz                           | Pro/Max/Ultimate        | vorhanden, unbegrenzt                                     | `server/src/express/routes/{parseTasks,suggestPillars,pillarAdvisor,lektorat}.ts`, `server/src/llm/llm.ts`                                             |
 | Aufgaben-Graph (gewichtete Relationen) | Max                     | vorhanden                                                 | `server/src/models/dependency.ts` (`weight`), `server/src/logics/graph.ts`, `GET /graph`                                                               |
 | Standortbasierte Erinnerungen          | Max                     | vorhanden                                                 | `server/src/logics/geo-background-job.ts`, `server/src/express/routes/{geoConfig,geocodeSearch,reverseGeocode,placeFavorites}.ts`, `GET /tasks/nearby` |
@@ -50,7 +50,7 @@ Was fehlt, ist die komplette Monetarisierungsschicht:
 
 Randnotizen für die Umsetzung:
 
-- Die Spracheingabe läuft lokal im Browser; es gibt keinen Server-Endpunkt dafür. Die Paketgrenze lässt sich dort nur im Frontend durchsetzen. Das ist akzeptiert, weil sie ein Komfort-Feature ist.
+- Die Spracheingabe läuft lokal im Browser; es gibt keinen Server-Endpunkt dafür. Eine Paketgrenze wäre dort nur im Frontend durchsetzbar — genau deshalb hat [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) sie nach Free verschoben, statt eine Grenze zu pflegen, die niemand durchsetzen kann.
 - Die einzigen Limitierungsmuster im Code sind der Nominatim-Rate-Limiter (`geocodeRateLimit.ts`, 1 Anfrage/s) und die Push-Dedupe über `notification_logs`. Ein Kontingent-Zähler ist Neubau und kann sich an diesen Mustern orientieren.
 - Der API-Vertrag liegt zentral in `openapi.yml`. Neue Felder und Fehlerbodies (403, 429) müssen dort eingetragen und die Client-Typen neu generiert werden.
 
@@ -58,19 +58,27 @@ Randnotizen für die Umsetzung:
 
 ### Paket-Matrix
 
-| Feature                                                               | Free  | Pro (7,99 €/Monat) | Max (14,99 €/Monat) | Ultimate (24,99 €/Monat) |
-| --------------------------------------------------------------------- | ----- | ------------------ | ------------------- | ------------------------ |
-| Aufgaben-Mengenlimit                                                  | Keins | Keins              | Keins               | Keins                    |
-| Kategorien                                                            | ✅    | ✅                 | ✅                  | ✅                       |
-| Checklisten, Deadlines, Aufwandsschätzung                             | ✅    | ✅                 | ✅                  | ✅                       |
-| Belohnungssystem (Punkte)                                             | ✅    | ✅                 | ✅                  | ✅                       |
-| Balance-Analyse (individuelle Säulen, Basis)                          | ✅    | ✅                 | ✅                  | ✅                       |
-| Gruppen                                                               | ❌    | ✅                 | ✅                  | ✅                       |
-| Sprachsteuerung                                                       | ❌    | ✅                 | ✅                  | ✅                       |
-| KI-Assistenz (Kontingent/Monat)                                       | ❌    | ~60 Anfragen       | ~110 Anfragen       | ~200 Anfragen            |
-| Aufgaben-Graph (gewichtete Relationen)                                | ❌    | ❌                 | ✅                  | ✅                       |
-| Standortbasierte Erinnerungen                                         | ❌    | ❌                 | ✅                  | ✅                       |
-| MCP-Zugriff (alles lesend oder alles schreibend, keine Unterfeatures) | ❌    | ❌                 | Nur lesend          | Lesend & schreibend      |
+| Feature                                      | Free  | Pro (7,99 €/Monat) | Max (14,99 €/Monat) | Ultimate (24,99 €/Monat) |
+| -------------------------------------------- | ----- | ------------------ | ------------------- | ------------------------ |
+| Aufgaben-Mengenlimit                         | Keins | Keins              | Keins               | Keins                    |
+| Kategorien                                   | ✅    | ✅                 | ✅                  | ✅                       |
+| Checklisten, Deadlines, Aufwandsschätzung    | ✅    | ✅                 | ✅                  | ✅                       |
+| Belohnungssystem (Punkte)                    | ✅    | ✅                 | ✅                  | ✅                       |
+| Balance-Analyse (individuelle Säulen, Basis) | ✅    | ✅                 | ✅                  | ✅                       |
+| Sprachsteuerung                              | ✅    | ✅                 | ✅                  | ✅                       |
+| Gruppen                                      | ❌    | ✅                 | ✅                  | ✅                       |
+| KI-Assistenz (Kontingent/Monat)              | ❌    | ~60 Anfragen       | ~110 Anfragen       | ~200 Anfragen            |
+| Aufgaben-Graph (gewichtete Relationen)       | ❌    | ❌                 | ✅                  | ✅                       |
+| Standortbasierte Erinnerungen                | ❌    | ❌                 | ✅                  | ✅                       |
+| MCP-Zugriff lesend (`mcp_read`)              | ❌    | ❌                 | ✅                  | ✅                       |
+| MCP-Zugriff schreibend (`mcp_readwrite`)     | ❌    | ❌                 | ❌                  | ✅                       |
+
+Stand 16.09.2026, nachgeschärft mit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md): Die
+Sprachsteuerung läuft lokal im Browser und kostet keine Serverleistung — sie gehört damit in jedes
+Paket. Der MCP-Zugriff hat zwei Grenzen statt einer, damit das Lesen als eigene Zeile in der
+Paket-Tabelle steht und auch durchgesetzt werden kann. Free bekommt kein KI-Kontingent; wer ohne Abo
+KI nutzen will, hinterlegt einen eigenen LLM-Provider, dessen Aufrufe nicht gegen ein Kontingent
+gebucht werden.
 
 ### Preise und Zeitraumstaffelung
 
@@ -94,15 +102,15 @@ Annahmen: Nutzerverteilung etwa 60 % Pro, 30 % Max, 10 % Ultimate. Reine Modellr
 
 ### Konversionsprinzip: kontextuelle Upgrade-Angebote
 
-Der Upgrade-Hinweis erscheint genau an der Stelle, an der der Nutzer an eine Paketgrenze stößt, nicht in einer generellen Preisliste oder Werbung. Grenzstellen sind: Gruppen-Aktion ohne Pro, Relation anlegen oder Standort-Feld ohne Max, KI-Aufruf ohne Kontingent, Schreib-Token ohne Ultimate. Das Framing folgt der Fürsorgefunktion: Der Hinweis nennt den konkreten Nutzen an dieser Stelle (etwa „Das würde dir hier helfen: Abhängigkeiten zeigen, was deine Aufgabe blockiert"), nicht den Preis allein. Eine Preisübersicht gibt es nur als Sekundärbereich in den Einstellungen. Die Erwartung aus dem Arbeitspapier: Der Wert wird im Moment des Bedarfs sichtbar, das erhöht die Konversion stärker als klassische Preis-Kommunikation.
+Seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) gibt es keinen Angebots-Dialog im Arbeitsfluss mehr: Eine Funktion, die das Paket nicht enthält, wird im Fluss gar nicht erst angeboten. Der Upgrade-Hinweis steht stattdessen an der Einstellungsseite der Funktion (deaktiviertes Bedienelement mit Alert, etwa der KI-Schalter in `SettingsPage` oder die Schreibrechte in `ApiTokensSection`) und, falls der Server eine Aktion trotzdem mit 403 `plan_required` oder 429 `quota_exhausted` ablehnt, in der Fehlerzeile der jeweiligen Ansicht. Das Framing folgt weiterhin der Fürsorgefunktion: Der Hinweis nennt den konkreten Nutzen (etwa „Das würde dir hier helfen: Abhängigkeiten zeigen, was deine Aufgabe blockiert"), nicht den Preis allein. Eine Preisübersicht gibt es als Sekundärbereich in den Einstellungen.
 
 ### Badge-System: sichtbare Paketkennzeichnung
 
-Die kontextuellen Angebote sind reaktiv, sie erscheinen erst im Grenzmoment. Ergänzend bekommt jede Funktion, die oberhalb von Free liegt, ein dauerhaft sichtbares Badge direkt am Bedienelement: „Pro (i)“, „Max (i)“ oder „Ultimate (i)“. Das Badge steht immer sichtbar, nicht erst beim Versuch. Betroffen sind der Gruppenbereich, die Spracheingabe, die KI-Bedienelemente (Schnellerfassung, Lektorat, Berater), der Relationen-Editor, die Standort-Felder und der MCP-Scope-Umschalter in den Token-Einstellungen. Free-Funktionen tragen kein Badge.
+Jede Funktion, die oberhalb von Free liegt, bekommt ein dauerhaft sichtbares Badge direkt am Bedienelement mit dem Paketnamen. Das Badge steht immer sichtbar, nicht erst beim Versuch. Betroffen sind der Gruppenbereich, die KI-Bedienelemente (Schnellerfassung, Lektorat, Berater), der Relationen-Editor, die Standort-Felder und der MCP-Scope-Umschalter in den Token-Einstellungen. Free-Funktionen — einschließlich der Spracheingabe, seit ADR 0014 in jedem Paket — tragen kein Badge.
 
-Hat der Nutzer ein Paket, das die Funktion abdeckt, steht statt des Info-Schalters ein grüner Haken. Beide Zustände haben eine Aufgabe: Das (i) öffnet an jeder Stelle das kontextuelle Angebot, auch ohne Grenzkontakt, damit Nutzer früh erfahren, wo und wofür sie upgraden können. Der grüne Haken zeigt Inhabern sichtbar, welche Funktionen sie genießen; er ist Wertschätzung, kein Verkaufsdruck.
+Hat der Nutzer ein Paket, das die Funktion abdeckt, steht statt des Paketnamens ein grüner Haken. Seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) hat das Badge keinen eigenen Info-Schalter mehr: Es verlinkt direkt auf den Pakete-Reiter der Einstellungen, damit Nutzer früh erfahren, wo und wofür sie upgraden können. Der grüne Haken zeigt Inhabern sichtbar, welche Funktionen sie genießen; er ist Wertschätzung, kein Verkaufsdruck.
 
-Technisch: Die Badges rendern aus der Entitlement-Map in `/auth/me` (Feature-Identifier, erlaubt oder nicht, erforderliches Paket); Paketlogik liegt nur serverseitig. Der Client kennt die Kopplung Bedienelement ↔ Identifier, aber nicht die Regel dahinter; eine Server-Korrektur in der Rechte-Zentrale ändert alle Badges ohne App-Release. Die Badges sind rein informativ und ersetzen das kontextuelle Angebot nicht, sie verlinken es. KoliBri-First: Badge aus der KoliBri-Bibliothek, der Info-Schalter hält die Touch-Target-Regeln (44 px) ein. Prüfen in Umsetzung und e2e bei 375×812, ob die Badges in engen Toolbar- und Formularzeilen umbrechen, statt das Layout zu sprengen.
+Technisch: Die Badges rendern aus der Entitlement-Map in `/auth/me` (Feature-Identifier, erlaubt oder nicht, erforderliches Paket); Paketlogik liegt nur serverseitig. Der Client kennt die Kopplung Bedienelement ↔ Identifier, aber nicht die Regel dahinter; eine Server-Korrektur in der Rechte-Zentrale ändert alle Badges ohne App-Release. Die Badges sind rein informativ, sie verlinken auf den Pakete-Reiter der Einstellungen. KoliBri-First: Badge aus der KoliBri-Bibliothek. Prüfen in Umsetzung und e2e bei 375×812, ob die Badges in engen Toolbar- und Formularzeilen umbrechen, statt das Layout zu sprengen.
 
 ### Offene Punkte
 
@@ -114,18 +122,18 @@ Technisch: Die Badges rendern aus der Entitlement-Map in `/auth/me` (Feature-Ide
 
 Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen sind möglich, brauchen aber eine Begründung im jeweiligen Issue.
 
-| Nr  | Punkt                   | Entscheidung (Empfehlung)                                                                                                                             | Alternative, wann prüfen                                                                              |
-| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | Zahlungsweg             | Entschieden in T6: PayPal-Abos direkt, Wero und Stripe als spätere Phasen, Kleinunternehmerregelung — [ADR 0013](adr/0013-zahlungsweg-paypal-abos.md) | App-Store-IAP erst mit späterem nativem Wrapper, dann neu zu entscheiden                              |
-| 2   | Übergang Bestandsnutzer | Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf einem Übergangs-Tier, danach Free-Default                                            | harte Kante beim Gating-Rollout; Festlegung in T8                                                     |
-| 3   | Säulenanzahl            | Marketing sagt „individuelle Säulen (5er-Default)"; keine sechste Säule einführen                                                                     | sechste Säule nur bei inhaltlichem Bedarf                                                             |
-| 4   | Sprachsteuerung         | bestehende lokale Spracheingabe; Paketgrenze nur im Frontend (bewusste Lücke, siehe Ist-Stand)                                                        | serverseitige Durchsetzung erst mit eigenem STT-Endpunkt                                              |
-| 5   | Fürsorge-Kern           | bleibt vollständig Free (Vorschläge, Balance, Punkte)                                                                                                 | keine; Kern des Bindungsversprechens                                                                  |
-| 6   | Aufgaben-Mengenlimit    | keins, in allen Paketen (laut Matrix); das Kostenrisiko tragen die KI-Kontingente                                                                     | nur bei Missbrauchsfällen                                                                             |
-| 7   | Badge-System            | dauerhaft sichtbare Badges „Pro/Max/Ultimate (i)“ an allen Funktionen oberhalb von Free; grüner Haken statt (i), wenn der Plan die Funktion abdeckt   | Badges nur an Grenzstellen; Festlegung folgt dem Fürsorge-Prinzip                                     |
-| 8   | Feature-Katalog         | stabile Feature-Identifiers serverseitig; Entitlement-Map reist in `/auth/me`; Frontend ohne Paketlogik                                               | separater Entitlements-Endpoint, falls Szenarien es brauchen                                          |
-| 9   | Rollout                 | Env-Schalter `MONETIZATION_ENFORCED`, Default aus; gemessen ab T1, durchgesetzt erst in T8 nach der Übergangs-Setzung                                 | harte Kante beim T2-Merge — verworfen, entzöge Bestandsnutzern Funktionen für die Dauer von T3 bis T8 |
-| 10  | Preishoheit             | `plans.ts` für die Anzeige, der Zahlungsanbieter für die Abrechnung; Zuordnung Paket mal Zeitraum zu Price-ID in `plans.ts`, Abgleich per Test        | Preise nur beim Anbieter führen, falls die Anzeige sie dort liest                                     |
+| Nr  | Punkt                   | Entscheidung (Empfehlung)                                                                                                                                                                                                                                                   | Alternative, wann prüfen                                                                              |
+| --- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Zahlungsweg             | Entschieden in T6: PayPal-Abos direkt, Wero und Stripe als spätere Phasen, Kleinunternehmerregelung — [ADR 0013](adr/0013-zahlungsweg-paypal-abos.md)                                                                                                                       | App-Store-IAP erst mit späterem nativem Wrapper, dann neu zu entscheiden                              |
+| 2   | Übergang Bestandsnutzer | Grandfathering: Bestandsnutzer bleiben bis zum Payment-Start auf einem Übergangs-Tier, danach Free-Default                                                                                                                                                                  | harte Kante beim Gating-Rollout; Festlegung in T8                                                     |
+| 3   | Säulenanzahl            | Marketing sagt „individuelle Säulen (5er-Default)"; keine sechste Säule einführen                                                                                                                                                                                           | sechste Säule nur bei inhaltlichem Bedarf                                                             |
+| 4   | Sprachsteuerung         | lokal im Browser, kostet keine Serverleistung, in jedem Paket, keine Durchsetzungslücke ([ADR 0014](adr/0014-paket-angebote-ohne-dialog.md))                                                                                                                                | keine; serverseitige Durchsetzung entfällt, solange es keinen eigenen STT-Endpunkt gibt               |
+| 5   | Fürsorge-Kern           | bleibt vollständig Free (Vorschläge, Balance, Punkte)                                                                                                                                                                                                                       | keine; Kern des Bindungsversprechens                                                                  |
+| 6   | Aufgaben-Mengenlimit    | keins, in allen Paketen (laut Matrix); das Kostenrisiko tragen die KI-Kontingente                                                                                                                                                                                           | nur bei Missbrauchsfällen                                                                             |
+| 7   | Badge-System            | dauerhaft sichtbare Badges mit Paketname an allen Funktionen oberhalb von Free, ohne eigenen Info-Schalter ([ADR 0014](adr/0014-paket-angebote-ohne-dialog.md)); grüner Haken statt Paketname, wenn der Plan die Funktion abdeckt; das Badge verlinkt auf den Pakete-Reiter | Badges nur an Grenzstellen; Festlegung folgt dem Fürsorge-Prinzip                                     |
+| 8   | Feature-Katalog         | stabile Feature-Identifiers serverseitig; Entitlement-Map reist in `/auth/me`; Frontend ohne Paketlogik                                                                                                                                                                     | separater Entitlements-Endpoint, falls Szenarien es brauchen                                          |
+| 9   | Rollout                 | Env-Schalter `MONETIZATION_ENFORCED`, Default aus; gemessen ab T1, durchgesetzt erst in T8 nach der Übergangs-Setzung                                                                                                                                                       | harte Kante beim T2-Merge — verworfen, entzöge Bestandsnutzern Funktionen für die Dauer von T3 bis T8 |
+| 10  | Preishoheit             | `plans.ts` für die Anzeige, der Zahlungsanbieter für die Abrechnung; Zuordnung Paket mal Zeitraum zu Price-ID in `plans.ts`, Abgleich per Test                                                                                                                              | Preise nur beim Anbieter führen, falls die Anzeige sie dort liest                                     |
 
 ## Architektur
 
@@ -135,7 +143,7 @@ Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen si
 
 **Rechte-Zentrale.** Ein Modul (z. B. `server/src/logics/plans.ts`) ist die einzige Wahrheitsquelle: Paket je Feature, Kontingentwerte, erlaubter MCP-Scope, Preise. Ein öffentlicher `GET /plans` liefert Matrix und Preise aus dieser Quelle für die Preisübersicht und die Angebotstexte; das Frontend konsumiert nur diesen Endpoint und besitzt keine eigene Kopie der Matrix.
 
-**Feature-Katalog und Entitlements.** Jede gegatete Funktion trägt einen stabilen Identifier (etwa `groups`, `voice_input`, `ai_assist`, `graph_write`, `location_reminders`, `mcp_readwrite`); die Rechte-Zentrale ordnet ihm die Pakete zu, bei KI-Funktionen zusätzlich das Kontingent. `/auth/me` liefert neben dem Plan die ausgewertete Entitlement-Map je Feature: erlaubt oder nicht, erforderliches Paket, bei KI der Kontingent-Rest. Ein einziger Request mit der Session beantwortet damit alle UI-Fragen in jedem Szenario; ein separater Batch-Endpoint ist nicht nötig. Das Frontend enthält keine Paketlogik, es rendert Badges, Angebote und Sperrzustände nur aus der Map. Eine reine Server-Korrektur genügt, um eine Funktion app-weit freizugeben oder zu sperren, ohne App-Release. Die Identifiers sind Teil des API-Vertrags (`openapi.yml`); die Zuordnung Bedienelement ↔ Identifier bleibt Code in der UI, die Paketregel dahinter liegt ausschließlich serverseitig. Der 403-/429-Body bleibt die harte Autorität im Aktionsmoment, falls die Map veraltet ist.
+**Feature-Katalog und Entitlements.** Jede gegatete Funktion trägt einen stabilen Identifier (etwa `groups`, `ai_assist`, `graph_write`, `location_reminders`, `mcp_read`, `mcp_readwrite`); die Rechte-Zentrale ordnet ihm die Pakete zu, bei KI-Funktionen zusätzlich das Kontingent. `/auth/me` liefert neben dem Plan die ausgewertete Entitlement-Map je Feature: erlaubt oder nicht, erforderliches Paket, bei KI der Kontingent-Rest. Ein einziger Request mit der Session beantwortet damit alle UI-Fragen in jedem Szenario; ein separater Batch-Endpoint ist nicht nötig. Das Frontend enthält keine Paketlogik, es rendert Badges, Angebote und Sperrzustände nur aus der Map. Eine reine Server-Korrektur genügt, um eine Funktion app-weit freizugeben oder zu sperren, ohne App-Release. Die Identifiers sind Teil des API-Vertrags (`openapi.yml`); die Zuordnung Bedienelement ↔ Identifier bleibt Code in der UI, die Paketregel dahinter liegt ausschließlich serverseitig. Der 403-/429-Body bleibt die harte Autorität im Aktionsmoment, falls die Map veraltet ist.
 
 **Fehlervertrag.** Der zentrale Vertrag ist `{ message }` (`server/src/express/http-error.ts`, abgesichert durch `error-contract.test.ts`, #1130). Die Paketfelder kommen als optionale Felder am bestehenden `Error`-Schema dazu, nicht als zweites Fehlerformat; dazu ein `sendPlanError()` neben `sendError()`. Beide Codes (`plan_required` für 403, `quota_exhausted` für 429) und das Feld für den Kontingent-Rest werden in T1 verabschiedet, obwohl sie erst T2 und T4 befüllen — sonst zieht T3 sie später nach und fasst dieselben Komponenten ein zweites Mal an.
 
@@ -151,7 +159,7 @@ Die folgenden Punkte sind im Konzept als Empfehlung entschieden. Abweichungen si
 
 **Downgrade.** Rechte entfallen, Daten bleiben. Die betroffenen Ansichten bleiben lesbar, die Bedienelemente führen auf das kontextuelle Angebot. Bei sauber gebauter Vorkette folgt das von selbst: Ein Downgrade ändert nur den Plan-Wert, und Sperrzustände wie Angebote rendern ausschließlich aus der Entitlement-Map.
 
-**Badges.** Die Frontend-Badge-Komponente rendert aus der Entitlement-Map in `/auth/me`, nicht aus eigener Logik: An jedem Bedienelement, das an einen Feature-Identifier gekoppelt ist, steht das Badge dauerhaft sichtbar; meldet die Map das Feature als erlaubt, zeigt sie einen grünen Haken statt des Info-Schalters. Ein Klick auf (i) öffnet das kontextuelle Angebot derselben Stelle.
+**Badges.** Die Frontend-Badge-Komponente rendert aus der Entitlement-Map in `/auth/me`, nicht aus eigener Logik: An jedem Bedienelement, das an einen Feature-Identifier gekoppelt ist, steht das Badge dauerhaft sichtbar; meldet die Map das Feature als erlaubt, zeigt sie einen grünen Haken statt des Paketnamens. Seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) hat das Badge keinen Info-Schalter mehr; es verlinkt direkt auf den Pakete-Reiter der Einstellungen.
 
 **Fehlerweg im Frontend.** Jeder `ResponseError` läuft durch `toApiError` in `frontend/src/lib/apiError.ts`; dort steckt mit dem Session-401-Weg (`SESSION_EXPIRED_EVENT` auf `window`, globaler Dialog) auch das fertige Muster für „Statuscode führt zu globalem Dialog". 403 und 429 folgen ihm, statt die rund 80 Aufrufstellen in `frontend/src/api.ts` anzufassen. Zwei Nebenwirkungen sind zu beachten: Der `onResponse`-Hook in `api.ts` verwirft bei jedem 403 den CSRF-Token und muss den Paket-Code ausnehmen, und der localStorage-Spiegel der Entitlement-Map gehört pro User-Id abgelegt und beim Logout gelöscht — sonst sieht das nächste Konto auf demselben Gerät fremde Badges. Neu geholt wird die Map bei App-Fokus und bei der Rückkehr aus dem Checkout.
 
@@ -190,7 +198,7 @@ openapi.yml
 
 #### Wie soll es sein?
 
-`users.plan` als Enum `free | pro | max | ultimate` mit Default `free`; Migration ohne Datenverlust. Ein Modul `plans.ts` ist die einzige Wahrheitsquelle: Es führt einen Feature-Katalog mit stabilen Identifiern (etwa `groups`, `voice_input`, `ai_assist`, `graph_write`, `location_reminders`, `mcp_readwrite`), ordnet jedem Identifier die Pakete zu, bei KI-Funktionen zusätzlich das Kontingent, und hält die Preise. Ein öffentlicher `GET /plans` liefert Matrix und Preise aus dieser Quelle. `/auth/me` und die PAT-Session liefern den Plan und die ausgewertete Entitlement-Map je Feature (erlaubt oder nicht, erforderliches Paket, Kontingent-Rest). `PATCH /admin/users/:id/plan` hinter `requireRole('admin')` setzt den Plan manuell (Tests, Support, Grandfathering). `openapi.yml` erweitern — die Identifiers sind API-Vertrag —, Client-Typen generieren.
+`users.plan` als Enum `free | pro | max | ultimate` mit Default `free`; Migration ohne Datenverlust. Ein Modul `plans.ts` ist die einzige Wahrheitsquelle: Es führt einen Feature-Katalog mit stabilen Identifiern (etwa `groups`, `ai_assist`, `graph_write`, `location_reminders`, `mcp_read`, `mcp_readwrite`), ordnet jedem Identifier die Pakete zu, bei KI-Funktionen zusätzlich das Kontingent, und hält die Preise. Ein öffentlicher `GET /plans` liefert Matrix und Preise aus dieser Quelle. `/auth/me` und die PAT-Session liefern den Plan und die ausgewertete Entitlement-Map je Feature (erlaubt oder nicht, erforderliches Paket, Kontingent-Rest). `PATCH /admin/users/:id/plan` hinter `requireRole('admin')` setzt den Plan manuell (Tests, Support, Grandfathering). `openapi.yml` erweitern — die Identifiers sind API-Vertrag —, Client-Typen generieren.
 
 #### Thema
 
@@ -213,7 +221,7 @@ Mittel
 
 Start der Kette, keine Abhängigkeit. Kontingentwerte zunächst ~60/110/200 (Pro/Max/Ultimate), Free 0; die Feinjustierung erfolgt später ohne Schema-Änderung.
 
-Mit T1 werden zugleich die Verträge verabschiedet, auf denen T2 bis T7 aufsetzen: die Erweiterung des Fehlervertrags um die Paketfelder samt `sendPlanError()`, die Codes `plan_required` und `quota_exhausted`, das Feld für den Kontingent-Rest, der Rollout-Schalter `MONETIZATION_ENFORCED` und der Hinweis, dass `voice_input` ein reines Anzeige-Entitlement ohne Server-Endpunkt ist. Die Migration folgt `migrateUsersRoleColumn` in `server/src/logics/migrate.ts`; `plan` muss außerdem in das `req.session.user` aus `apiTokenAuth.ts`, sonst greift das Gating für Bearer-Requests nicht. Danach können T2, T4 und T5 parallel laufen.
+Mit T1 werden zugleich die Verträge verabschiedet, auf denen T2 bis T7 aufsetzen: die Erweiterung des Fehlervertrags um die Paketfelder samt `sendPlanError()`, die Codes `plan_required` und `quota_exhausted`, das Feld für den Kontingent-Rest und der Rollout-Schalter `MONETIZATION_ENFORCED`. Die Sprachsteuerung ist seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) kein gegatetes Feature mehr und trägt deshalb keinen eigenen Identifier. Die Migration folgt `migrateUsersRoleColumn` in `server/src/logics/migrate.ts`; `plan` muss außerdem in das `req.session.user` aus `apiTokenAuth.ts`, sonst greift das Gating für Bearer-Requests nicht. Danach können T2, T4 und T5 parallel laufen.
 
 ### Teilaufgabe T2: Serverseitiges Feature-Gating
 
@@ -257,13 +265,15 @@ Komplex
 
 #### Hinweise
 
-`blocked_by`: T1. Die Sprachsteuerung hat keinen Server-Endpunkt (lokale Spracheingabe) und wird erst im Frontend gegatet.
+`blocked_by`: T1. Die Sprachsteuerung hat keinen Server-Endpunkt (lokale Spracheingabe) und ist seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) ungegatet in jedem Paket enthalten.
 
 Zwei Punkte kommen gegenüber der ersten Fassung dazu: Der Guard wertet den Rollout-Schalter aus (aus heißt durchlassen), und der plan-403 aus dem MCP-Loopback in `server/src/mcp/tools.ts` wird in den lesbaren JSON-RPC-Fehler übersetzt. Die Rechtetests laufen tabellengetrieben, dazu der Abdeckungstest gegen Drift.
 
 ### Teilaufgaben T3a und T3b: Frontend-Gating, Badges und kontextuelle Upgrade-Angebote
 
 Der ursprüngliche Zuschnitt umfasste vierzehn Komponenten, drei neue Module, ein neues UX-Muster und e2e — zu viel für einen prüfbaren Durchgang. Geteilt in T3a (#1458: Plan-Kontext, Badge, Angebots-Dialog, Settings-Bereich „Pakete" und drei Referenzstellen, je eine pro Fehlerweg — Gruppen für Pro/403, Relation anlegen für Max/403, KI-Schnellerfassung für Kontingent/429) und T3b (#1484: Ausrollen auf die acht übrigen Komponenten nach Muster-Treue). Der folgende Abschnitt beschreibt beide gemeinsam.
+
+> **Historischer Hinweis:** Diese Beschreibung dokumentiert den bei Erstellung dieses Konzepts geplanten Zuschnitt von T3a/T3b, einschließlich Info-Schalter und Angebots-Dialog im Arbeitsfluss. Nach der Umsetzung hat [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) den Dialog und den Info-Schalter wieder abgeschafft (Entscheidungen 3–5); maßgeblich für den aktuellen Stand ist die ADR, nicht dieser Abschnitt.
 
 #### Was ist das Problem?
 
@@ -319,6 +329,8 @@ Komplex
 Die Kontingent-Warnung und die Restanzeige gehören in T3a und nicht in einen eigenen Frontend-Durchgang — sie betreffen dieselben Komponenten. Die 403-/429-Auswertung sitzt in `toApiError` nach dem Muster des Session-401-Wegs; der CSRF-Hook in `api.ts` muss den Paket-Code ausnehmen, und der localStorage-Spiegel gehört pro User-Id abgelegt und beim Logout gelöscht.
 
 ### Teilaufgabe T4: KI-Kontingent-Metering
+
+> Seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) verweist „das kontextuelle Angebot aus T3" weiter unten auf die Einstellungsseite der Funktion (Alert am deaktivierten Schalter), nicht mehr auf einen Dialog im Arbeitsfluss.
 
 #### Was ist das Problem?
 

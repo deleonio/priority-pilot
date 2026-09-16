@@ -18,11 +18,11 @@ Play four perspectives in one moderated session; the moderator (you) collects, f
 
 ## Verfahren
 
-1. Bestand: collect what already exists — the previous report (if the run prompt carries an issue number), the list of open issues, and the open findings in the supplied optimization plan. This is the dedup inventory: a finding that duplicates open work is dropped or reduced to a status note.
+1. Bestand: collect what already exists — the previous report (if the run prompt carries an issue number), the list of open issues, and the open findings in the supplied optimization plan. This is the dedup inventory: a finding that duplicates open work is dropped or reduced to a status note. Also read the recorded decisions that cover the walked flows: `docs/adr/`, the matching `docs/spec/issue-*.md`, and the doc comments of the files a finding touches. Behaviour that a recorded decision deliberately chose is not a defect — name it as a decision, link the record, and say what it costs, so the report argues against the decision instead of reporting it as a bug.
 2. Quellen lesen: goal sources first, then work sources — all fresh, none skimmed.
 3. Live-Gang: walk the key flows of the running app at mobile and desktop width, as named by the run prompt. Collect evidence while walking: screenshots, file and line references, guide passages.
 4. Sitzung: each perspective states its view per walked flow. Only observations with evidence stand.
-5. Konsolidierung: rank by experience gain versus effort, drop duplicates, resolve carry-over statuses.
+5. Konsolidierung: rank by experience gain versus effort, drop duplicates, resolve carry-over statuses. A carry-over finding that would stand as "offen" for the second time has to leave the queue in this run: it goes into the Umsetzungs-Kandidaten, or it is set to "weggefallen" with a stated reason. A third "offen, unverändert" is not an allowed status — a finding nobody acts on twice is either worth a ticket or not worth carrying.
 
 ## Belege
 
