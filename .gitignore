@@ -40,3 +40,7 @@ data/
 
 # Obsidian-Vault-Konfiguration (lokal-personal, ändert sich je Session), kein Repo-Inhalt.
 .obsidian/
+
+# Screenshots des Zifferblatt-Bildmachers (e2e/zifferblatt-shots.spec.ts) — auf Zuruf erzeugt,
+# nicht versioniert: Binaerdateien, die bei jeder Farb- oder Geometrieaenderung veralten.
+frontend/e2e/__shots__/

@@ -192,17 +192,41 @@ describe('pillarPalette — AK1: Rampe hat je Theme genau 7 Ränge (Spec #1273)'
 		);
 	});
 
-	it('app.css enthält die Zeichenkette "pp-pillar-8" nicht mehr (Token, .heart-water--8, .heart-legend-dot--8)', () => {
+	it('app.css enthält die Zeichenkette "pp-pillar-8" nicht mehr (Token, .balance-orb--8, .heart-legend-dot--8)', () => {
 		expect(appCss.match(/pp-pillar-8/g) ?? []).toHaveLength(0);
 	});
 
-	it('PILLAR_RAMP_SIZE ist in HeartBalance.tsx und HeartGlass.tsx jeweils 7', () => {
-		for (const component of ['HeartBalance.tsx', 'HeartGlass.tsx']) {
-			const source = readFileSync(`${dir}../components/${component}`, 'utf8');
-			const match = source.match(/PILLAR_RAMP_SIZE\s*=\s*(\d+)/);
-			expect(match, `${component} muss PILLAR_RAMP_SIZE deklarieren`).not.toBeNull();
-			expect(Number(match?.[1]), `${component}: Rampe muss 7 Ränge haben`).toBe(PILLAR_COUNT);
+	/*
+	 * Die Rampengrenze steht an genau **einer** Stelle (`lib/pillarRamp.ts`), von der alle vier
+	 * Balance-Bilder und beide Legenden sie beziehen. Eine zweite Deklaration wäre eine Kopie, die
+	 * still abdriften kann — genau das soll dieser Test verhindern.
+	 */
+	it('PILLAR_RAMP_SIZE steht nur in lib/pillarRamp.ts und ist 7', () => {
+		const ramp = readFileSync(`${dir}pillarRamp.ts`, 'utf8');
+		const match = ramp.match(/PILLAR_RAMP_SIZE\s*=\s*(\d+)/);
+		expect(match, 'lib/pillarRamp.ts muss PILLAR_RAMP_SIZE deklarieren').not.toBeNull();
+		expect(Number(match?.[1]), 'Rampe muss 7 Ränge haben').toBe(PILLAR_COUNT);
+
+		for (const file of ['HeartBalance.tsx', 'HeartGlass.tsx', 'BalanceFigureGL.tsx']) {
+			const source = readFileSync(`${dir}../components/${file}`, 'utf8');
+			expect(source, `${file} darf die Konstante importieren, nicht neu deklarieren`).not.toMatch(
+				/(const|let)\s+PILLAR_RAMP_SIZE/,
+			);
 		}
+	});
+
+	/*
+	 * Die Neon-Rampe färbt die Flächen der Balance-Bilder. Sie hat dieselben sieben Ränge wie die
+	 * Lese-Rampe und ist in beiden Themes gleich — also genau sieben Deklarationen in der ganzen
+	 * Datei. Ein achter Rang oder ein Dark-Duplikat liefe der Rampen-Regel zuwider.
+	 */
+	it('die Neon-Rampe hat 7 Ränge, themeübergreifend einmal deklariert', () => {
+		const neon = [...appCss.matchAll(/--pp-pillar-neon-(\d+):\s*(#[0-9a-fA-F]{6})/g)];
+		expect(neon.map((match) => Number(match[1]))).toEqual(
+			Array.from({ length: PILLAR_COUNT }, (_, index) => index + 1),
+		);
+		// Die Werte sind die Dark-Werte der Lese-Rampe — damit gilt deren CVD-Nachweis auch hier.
+		expect(neon.map((match) => match[2].toLowerCase())).toEqual(pillarTokens.dark.map((hex) => hex.toLowerCase()));
 	});
 });
 

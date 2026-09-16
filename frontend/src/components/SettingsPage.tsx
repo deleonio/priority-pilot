@@ -24,6 +24,7 @@ import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
+import { BalanceVariantSetting } from './BalanceVariantSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
 import { ApiTokensSection } from './ApiTokensSection';
@@ -381,6 +382,9 @@ export const SettingsPage = ({
 						<div className="settings-card-stack">
 							<AppearanceSetting />
 							<LanguageSetting />
+							{/* Bildwahl für die Lebensbalance auf der Startseite — gehört zur Darstellung, nicht
+									zu den Animationen: Sie gilt auch, wenn gar nichts animiert wird. */}
+							<BalanceVariantSetting />
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">

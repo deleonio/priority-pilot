@@ -33,7 +33,7 @@ import type { Pillar } from 'client';
  * also weiterhin nicht widersprechen.
  */
 
-/** Eine Wassersäule im Herzen: eine Lebenssäule mit ihrem Soll, ihrem Ist und ihrer Farbe. */
+/** Eine Lebenssäule im Bild: mit ihrem Soll, ihrem Ist und ihrer Farbe. */
 interface HeartSegment {
 	pillar: Pillar;
 	/**
@@ -54,8 +54,8 @@ interface HeartSegment {
 	targetShare: number;
 }
 
-/** Gesamtbild des Herzens: sein Füllstand und die Farbsegmente in Anzeigereihenfolge. */
-interface HeartBalance {
+/** Gesamtbild: der Füllstand und die Segmente in Anzeigereihenfolge. */
+export interface BalanceModel {
 	/** Füllstand des Herzens (0–1) — normierte quadratische Abweichung, siehe Modulkommentar. */
 	fill: number;
 	/** Ob überhaupt Punkte vergeben sind. Unterscheidet „noch nichts getan" von „unausgewogen". */
@@ -77,7 +77,7 @@ interface HeartBalance {
  * - **Eine einzige Säule trägt das ganze Soll** → es gibt keine zweite, gegen die sie schieflaufen
  *   könnte; der Füllstand ist dann ihr Erfüllungsgrad (`level`), also 0,95 bei 95 % des Aufwands.
  */
-export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): HeartBalance => {
+export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMap<number, number>): BalanceModel => {
 	// Rang in der Farbrampe über die Säulen-id vergeben (stabil gegen Umsortierung der Anzeige).
 	const colorRank = new Map<number, number>(
 		[...pillars].sort((a, b) => a.id - b.id).map((pillar, index): [number, number] => [pillar.id, index]),
@@ -193,12 +193,12 @@ const concreteHint = (segments: readonly HeartSegment[]): string | undefined => 
 };
 
 /** Leitet den Gesundheitszustand aus dem Füllstand ab; ohne Punkte gilt der eigene Leer-Zustand. */
-export const heartHealth = (balance: HeartBalance): HeartHealth => {
+export const heartHealth = (balance: BalanceModel): HeartHealth => {
 	if (!balance.hasPoints) {
 		return {
 			state: 'leer',
 			label: 'Noch leer',
-			hint: 'Erledige Aufgaben, damit sich das Herz füllt.',
+			hint: 'Erledige Aufgaben, damit sich das Bild füllt.',
 		};
 	}
 	// Die letzte Stufe hat `min: 0` und greift damit immer; der Fallback ist nur fürs Typsystem.

@@ -30,7 +30,7 @@ Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag au
 - Persönliche Aufgabenplanung, Desktop und mobil; als PWA installierbar (Install-/Update-Prompt, Web-Push).
 - Spracheingabe (Voice-Field mit Mikrofon-Freigabe, Autostart-Option), Quick-Capture, Geolocation-Nutzung im Frontend vorhanden.
 - KI-Features — Säulen-Berater (Pillar Advisor, `suggest-pillars`) und Lektorat (Diff-Übernahme für Titel/Beschreibung) — laufen über im Settings-Tab »KI-Provider« verwaltete LLM-Provider: genau ein aktiver Provider, Custom-Provider mit eigenem Key anlegbar (LLM-Verwaltung, Test-Verbindung).
-- Herz-Balance auf dem Dashboard: `HeartBalance` füllt ein Herz-Gefäß je Lebensbalance — WebGL2-Glas (Shader `heart-glass.frag`) mit SVG-Rückfall; Füllstand = Gesamt-Balance, Farbstreifenbreite = Säulen-Verteilung. Reduced-Motion-Präferenz wird respektiert, kein JS-Render-Loop.
+- Lebensbalance auf dem Dashboard: vier wählbare Bilder desselben Ergebnisses („Zifferblätter“, `docs/zifferblatt-konzept.md`) — Herz-Gefäß, Blasen, Ringe, Strahlen. Je Säule dieselbe Kennzahl (Ist ÷ Soll, ungedeckelt), außen ein Zifferblatt aus 100 Strichen für die Gesamt-Balance. WebGL2 mit vollwertigem SVG-Rückfall; Reduced-Motion-Präferenz wird respektiert, kein JS-Render-Loop.
 - Zwei Betriebsarten: Cloud (dedizierter Linux-Server, Caddy TLS, PM2, Deploy via GitHub Actions) und Local (Entwicklung/Selbsthosting); nightly SQLite-Backup via `maintenance.sh`.
 - UI durchgehend Deutsch, Du-Form.
 - Mobile Einhandbedienung ist der Leitfall: Referenz-Viewport 375px.

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import fragmentSource from './heart-glass.frag?raw';
+import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
 
 /**
  * Das Herz der Startseite als **Glasgefäß in WebGL** — die flüssige Schwester des SVG in
@@ -68,8 +69,6 @@ const SHADOW_OPACITY = 0.12;
 
 /** Zahl der Band-Uniforms im Shader — Streifen darüber laufen im letzten (neutralen) zusammen. */
 const BAND_SLOTS = 8;
-/** Höchster Rang der Säulen-Rampe (`--pp-pillar-1…7`) — wie `PILLAR_RAMP_SIZE` im SVG. */
-const PILLAR_RAMP_SIZE = 7;
 
 /** Liest eine CSS-Farbe (`#rgb`, `#rrggbb`, `rgb()`) als 0–1-Vektor; unlesbar bleibt schwarz. */
 const parseColor = (value: string): [number, number, number] => {
@@ -90,12 +89,16 @@ const parseColor = (value: string): [number, number, number] => {
 	return [0, 0, 0];
 };
 
-/** Theme-Farben aus den CSS-Rollen lesen — dieselben Variablen, die das SVG füllen. */
+/**
+ * Theme-Farben aus den CSS-Rollen lesen — dieselben Variablen, die das SVG füllt. Das Wasser nimmt
+ * die **Neon**-Rampe (`--pp-pillar-neon-*`): Das Bild der Lebensbalance soll leuchten; die
+ * kontrastgeprüfte Lese-Rampe bleibt dem Farbtupfer der Legende vorbehalten.
+ */
 const readThemeColors = () => {
 	const style = getComputedStyle(document.documentElement);
 	const read = (name: string): [number, number, number] => parseColor(style.getPropertyValue(name));
 	return {
-		pillars: Array.from({ length: PILLAR_RAMP_SIZE }, (_, index) => read(`--pp-pillar-${index + 1}`)),
+		pillars: Array.from({ length: PILLAR_RAMP_SIZE }, (_, index) => read(`--pp-pillar-neon-${index + 1}`)),
 		vessel: read('--pp-surface-2'),
 		outline: read('--pp-border-strong'),
 		// Fugen wie das SVG in Kartenfarbe; ab der 8. Säule färbt die Kontur-Farbe neutral.
@@ -184,7 +187,7 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 		time: uniform('u_time'),
 		fill: uniform('u_fill'),
 		animated: uniform('u_animated'),
-		riseDuration: uniform('u_rise_duration'),
+		rise: uniform('u_rise'),
 		waveLength: uniform('u_wave_length'),
 		waveAmplitude: uniform('u_wave_amplitude'),
 		waveDuration: uniform('u_wave_duration'),
@@ -199,7 +202,6 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 		seam: uniform('u_seam'),
 	};
 
-	gl.uniform1f(locations.riseDuration, RISE_DURATION);
 	gl.uniform1f(locations.waveLength, WAVE_LENGTH);
 	gl.uniform1f(locations.waveAmplitude, WAVE_AMPLITUDE);
 	gl.uniform1f(locations.waveDuration, WAVE_DRIFT_DURATION);
@@ -242,6 +244,13 @@ const createEngine = (canvas: HTMLCanvasElement): GlassEngine => {
 	const draw = (): void => {
 		resize();
 		gl.uniform1f(locations.time, shaderTime);
+		/*
+		 * Aufstieg nur, solange die Loop ihn auch abspielen kann. Ein Standbild zeigt immer den
+		 * **fertigen** Stand: Wird das Dashboard in einem Hintergrund-Tab aufgebaut, läuft nie ein
+		 * Frame — ein an die Shader-Uhr gebundener Aufstieg bliebe dort auf 0 stehen und das Herz
+		 * wäre leer statt gefüllt.
+		 */
+		gl.uniform1f(locations.rise, looping ? Math.min(1, shaderTime / RISE_DURATION) : 1);
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);

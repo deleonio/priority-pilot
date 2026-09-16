@@ -67,10 +67,16 @@ Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist
 begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast, zeigt
 die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
 
-- **Meine Lebensbalance:** ein Herz zeigt, wie ausgeglichen sich dein erledigter
+- **Meine Lebensbalance:** ein Bild zeigt, wie ausgeglichen sich dein erledigter
   Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
   Säule angelegt hast). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
-  alles hängt an einer einzigen Säule. Eine stark vernachlässigte Säule drückt den
+  alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
+  Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
+  **Ringe** oder **Strahlen**. Alle vier zeigen dieselben Zahlen: Je Säule steht
+  die Größe für das Verhältnis von Ist zu Ziel, die stärkste Säule bekommt die
+  größte Form. Bei den drei Ring-Bildern läuft außen herum ein Zifferblatt aus
+  100 Strichen, das von Dunkelrot über Orange nach Dunkelgrün wechselt – die
+  leuchtenden Striche sind dein Balance-Wert in Prozent. Eine stark vernachlässigte Säule drückt den
   Wert deutlicher als viele kleine Abweichungen. Die Legende nennt je Säule den
   Ist-Anteil, das Ziel und die Abweichung in Prozentpunkten (`pp`), und der Text
   unter der Zahl sagt, welche Säule zurückliegt und welche davonzieht.
@@ -551,9 +557,13 @@ der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
   Die Wahl wirkt sofort und bleibt auf diesem Gerät gespeichert. Ohne eigene Wahl
   richtet sich die App nach der Spracheinstellung deines Browsers; ist deren
   Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
+- **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Ringe** und
+  **Strahlen**. Alle vier zeigen dieselbe Rechnung, nur anders dargestellt. Die
+  Wahl gilt auf diesem Gerät.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
-  **„Erledigt animieren"** steuern die Bewegungen des Herzens auf dem Dashboard und
-  den Ablauf beim Erledigen einer Aufgabe.
+  **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
+  Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
+  Bild vollständig, es steht nur still.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, wird beim Öffnen
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
