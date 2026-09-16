@@ -6,6 +6,11 @@ import { expect, test, type Page } from './fixtures';
  * Verwaltungsflow in den Einstellungen. `/auth/me` und die Billing-Routen werden per `page.route`
  * gemockt (Muster `fixtures.ts` + `crud.spec.ts`); Navigation zur `approvalUrl` wird abgefangen,
  * es findet kein echter PayPal-Aufruf statt.
+ *
+ * Test-Pflege (#1529, Spec docs/spec/issue-1529.md AK1/AK2/AK8): die Sektion „Pakete" zieht vom
+ * Allgemein-Tab auf zwei eigene Reiter um — Matrix/Buchen/Wechseln bleiben bei `plans-section` auf
+ * `/settings/pakete`, Abo-Status/Kündigen/Rechnungen wandern auf `/settings/abo`. Die Tests unten
+ * bleiben inhaltlich unverändert (AK8), nur die Zielroute je Test wechselt entsprechend.
  */
 
 const CATALOG = {
@@ -56,11 +61,16 @@ const mockEmptyInvoices = async (page: Page): Promise<void> => {
 	);
 };
 
-const gotoSettings = async (page: Page): Promise<void> => {
-	// Test-Pflege (#1496): `/settings` ohne Tab-Segment landet auf dem Säulen-Tab (Index 1, Default
-	// von `SettingsPage.tsx:110`) — die Pakete-Sektion liegt im Allgemein-Tab (`/settings/general`).
-	await page.goto('/settings/general');
+/** Test-Pflege (#1529): Matrix/Buchen/Wechseln liegen seit #1529 auf dem eigenen Pakete-Reiter. */
+const gotoPakete = async (page: Page): Promise<void> => {
+	await page.goto('/settings/pakete');
 	await expect(page.getByTestId('plans-section')).toBeVisible();
+};
+
+/** Test-Pflege (#1529): Abo-Status/Kündigen/Rechnungen liegen seit #1529 auf dem eigenen Abo-Reiter. */
+const gotoAbo = async (page: Page): Promise<void> => {
+	await page.goto('/settings/abo');
+	await expect(page.getByTestId('billing-invoices')).toBeVisible();
 };
 
 test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
@@ -85,7 +95,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 			route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>PayPal-Sandbox</body></html>' }),
 		);
 
-		await gotoSettings(page);
+		await gotoPakete(page);
 		await page.getByTestId('book-pro-monthly').click();
 
 		await expect
@@ -107,7 +117,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 			return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
 		});
 
-		await gotoSettings(page);
+		await gotoPakete(page);
 		await page.getByTestId('change-plan-max-monthly').click();
 
 		await expect(page.getByRole('dialog')).toBeVisible();
@@ -142,7 +152,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 			return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
 		});
 
-		await gotoSettings(page);
+		await gotoAbo(page);
 		await page.getByTestId('cancel-subscription').click();
 
 		await expect(page.getByRole('dialog')).toBeVisible();
@@ -162,7 +172,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		await mockAuthMe(page, USER_NO_SUBSCRIPTION);
 		await mockEmptyInvoices(page);
 
-		await gotoSettings(page);
+		await gotoAbo(page);
 		await expect(page.getByTestId('invoices-empty')).toBeVisible();
 	});
 
@@ -186,11 +196,12 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 			}),
 		);
 
-		await gotoSettings(page);
+		await gotoAbo(page);
 		const invoices = page.getByTestId('billing-invoices');
 		await expect(invoices.getByText('INV-2026-000001')).toBeVisible();
-		// Test-Pflege (#1496): "7,99 €" steht in der Preis-Zeile der Matrix (AK2, pro/monatlich)
-		// UND in der Rechnungszeile — auf die Rechnungsliste scopen, um die Mehrdeutigkeit zu lösen.
+		// Test-Pflege (#1529): die Preis-Matrix (AK2, pro/monatlich "7,99 €") liegt seit #1529 auf
+		// dem separaten Pakete-Reiter, nicht mehr auf derselben Seite wie die Rechnungsliste — die
+		// frühere Mehrdeutigkeits-Sorge (#1496) besteht nicht mehr, das Scoping bleibt trotzdem.
 		await expect(invoices.getByText('7,99 €')).toBeVisible();
 		await expect(page.getByTestId('invoices-empty')).toHaveCount(0);
 	});
@@ -208,7 +219,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		});
 		await mockEmptyInvoices(page);
 
-		await gotoSettings(page);
+		await gotoAbo(page);
 		await expect(page.getByTestId('subscription-status')).toBeVisible();
 		await expect(page.getByTestId('subscription-status')).toContainText(/max/i);
 		await expect(page.getByTestId('subscription-status')).toContainText(/2026/);
@@ -219,7 +230,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });
 		await mockEmptyInvoices(page);
 
-		await gotoSettings(page);
+		await gotoAbo(page);
 		await expect(page.getByTestId('subscription-pending-plan')).toHaveCount(0);
 		await expect(page.getByTestId('subscription-grace-until')).toHaveCount(0);
 	});
@@ -230,7 +241,7 @@ test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
 		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });
 		await mockEmptyInvoices(page);
 
-		await gotoSettings(page);
+		await gotoPakete(page);
 
 		const box = await page.getByTestId('plans-section').boundingBox();
 		expect(box, 'plans-section muss eine Bounding-Box haben').not.toBeNull();

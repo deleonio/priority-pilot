@@ -1,22 +1,42 @@
-import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
+import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
+import { KolAlert, KolButton, KolSpin, KolTableStateful } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
 import { toApiError } from '../lib/apiError';
 import { formatEuro } from '../lib/format';
 import { featureOffer, planLabel, type Plan } from '../lib/planOffers';
+import { renderIntoCell } from '../lib/reactCellRoot';
 import { useBillingReturnPoll, usePlan } from '../lib/usePlan';
 import { Modal } from './Modal';
 
 type PlansCatalog = components['schemas']['PlansCatalog'];
-type Invoice = components['schemas']['Invoice'];
 
 const PERIODS = ['monthly', 'quarterly', 'yearly'] as const;
 type Period = (typeof PERIODS)[number];
 const PERIOD_LABELS: Record<Period, string> = { monthly: 'monatlich', quarterly: 'quartalsweise', yearly: 'jährlich' };
 
-/** Zeitpunkte in Abo-Status und Rechnungsliste als „TT.MM.JJJJ" (Muster `ApiTokensSection.tsx`). */
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+/** Spaltenschlüssel der Zeilenbezeichnung („Funktion") — erste, beim Scrollen stehende Spalte. */
+const LABEL_KEY = 'label';
+/** Feste Spaltenbreiten (AK3): die Matrix behält ihre Breite und scrollt in sich selbst (ADR 0014,
+ * Entscheidung 6). Die Werte sind so bemessen, dass keine Kopfzelle auf mehr als zwei Zeilen
+ * umbricht (AK6) — „Ultimate (dein Paket)" ist der längste Kopftext. */
+const LABEL_COLUMN_WIDTH = 170;
+const PLAN_COLUMN_WIDTH = 150;
+
+/** Zeilenarten der Matrix: Preis-, Buchen- und Feature-Zeilen liegen gemeinsam im Tabellenkörper. */
+type RowKind = 'price' | 'action' | 'feature';
+
+/**
+ * Eine Zeile der Paket-Matrix: Zeilenbezeichnung (`label`) plus je Paket eine Spalte. `_kind` ist ein
+ * privates, nicht als Spalte gerendertes Feld (Muster `_task` in `CompletedTasksTable`-Zeilen) — es
+ * unterscheidet die drei Zeilenarten im gemeinsamen Körper.
+ */
+interface PlanRow extends KoliBriTableDataType {
+	label: string;
+	_kind: RowKind;
+	[key: string]: unknown;
+}
 
 /**
  * Wartezustand nach Rückkehr aus einem Buchungs-/Wechselvorgang ohne `approvalUrl` (#1496 AK4) —
@@ -105,72 +125,30 @@ const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: ChangeDi
 	);
 };
 
-interface CancelDialogProps {
-	onClose: () => void;
-	onCancelled: () => void;
-}
-
-/** Bestätigungsdialog vor der Kündigung (#1496 AK3) — Kündigen-Button trägt `data-variant="danger"`. */
-const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const cancelRef = useRef<HTMLKolButtonElement>(null);
-
-	const confirm = async (): Promise<void> => {
-		setError(null);
-		setBusy(true);
-		try {
-			await api.cancelBillingSubscription();
-			onCancelled();
-		} catch (reason) {
-			setError((await toApiError(reason)).message);
-			setBusy(false);
-		}
-	};
-
-	return (
-		<Modal title="Abo kündigen" onClose={onClose} initialFocusRef={cancelRef as RefObject<HTMLElement | null>}>
-			{error !== null && (
-				<KolAlert _type="error" _label="Kündigung fehlgeschlagen">
-					{error}
-				</KolAlert>
-			)}
-			<p>Soll das laufende Abo wirklich gekündigt werden? Es bleibt bis zum Ende der laufenden Periode aktiv.</p>
-			<div className="modal-actions">
-				<KolButton
-					ref={cancelRef}
-					_label="Abbrechen"
-					_variant="secondary"
-					_disabled={busy}
-					_on={{ onClick: () => onClose() }}
-				/>
-				<KolButton
-					data-variant="danger"
-					_label={busy ? 'Wird gekündigt…' : 'Kündigen'}
-					_variant="danger"
-					_disabled={busy}
-					_on={{ onClick: () => void confirm() }}
-				/>
-			</div>
-		</Modal>
-	);
-};
-
 /**
- * Sekundärbereich „Pakete" in den Einstellungen (#1458 AK11, erweitert um #1496 T6c). Feature-Matrix
- * und Preise kommen vollständig aus `GET /plans`; Buchen/Wechseln/Kündigen laufen über die Abo-Routen
- * (#1505/#1506) — der angezeigte Plan ändert sich erst, wenn `/auth/me` ihn liefert (AK3/AK4).
+ * Reiter „Pakete" in den Einstellungen (#1458 AK11, erweitert um #1496 T6c; eigener Reiter seit
+ * #1529 AK1). Feature-Matrix und Preise kommen vollständig aus `GET /plans`; Buchen/Wechseln laufen
+ * über die Abo-Routen (#1505/#1506) — der angezeigte Plan ändert sich erst, wenn `/auth/me` ihn
+ * liefert (AK3/AK4). Abo-Status, Kündigung und Rechnungen liegen im Reiter „Abo"
+ * (`SubscriptionSection`).
  */
 export const PlansSection = () => {
 	const { plan, subscription, refresh } = usePlan();
+	const matrixRef = useRef<HTMLDivElement>(null);
+	/**
+	 * #1529 AK5: `KolTableStateful` entscheidet EINMAL beim Laden (`componentDidLoad`), ob die
+	 * fixierten Spalten stehen bleiben — und schaltet sie ab, sobald ihre Summenbreite die
+	 * Containerbreite erreicht. In einem noch nicht sichtbaren Tab-Panel ist diese Breite 0, die
+	 * Funktionsspalte bliebe also dauerhaft ungefixt (die Korrektur per ResizeObserver kommt nur
+	 * verzögert). Die Tabelle wird deshalb erst gemountet, wenn ihr Platz tatsächlich vermessen ist.
+	 * Ohne `ResizeObserver` (JSDOM in den Unit-Tests) entfällt das Messen — dort gibt es kein Layout.
+	 */
+	const [matrixReady, setMatrixReady] = useState(typeof ResizeObserver === 'undefined');
 	const [catalog, setCatalog] = useState<PlansCatalog | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
-	const [invoicesError, setInvoicesError] = useState<string | null>(null);
 	const [bookingKey, setBookingKey] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [changeTarget, setChangeTarget] = useState<{ plan: Exclude<Plan, 'free'>; period: Period } | null>(null);
-	const [cancelOpen, setCancelOpen] = useState(false);
 	const [pendingWait, setPendingWait] = useState<{ expectedPlan: Plan } | null>(null);
 
 	useEffect(() => {
@@ -200,17 +178,22 @@ export const PlansSection = () => {
 	}, []);
 
 	useEffect(() => {
-		const controller = new AbortController();
-		void Promise.resolve()
-			.then(() => api.listBillingInvoices({ signal: controller.signal }))
-			.then((value: Invoice[] | undefined) => setInvoices(value ?? []))
-			.catch(() => {
-				if (!controller.signal.aborted) {
-					setInvoicesError('Die Rechnungen konnten nicht geladen werden.');
-				}
-			});
-		return () => controller.abort();
-	}, []);
+		const node = matrixRef.current;
+		if (node === null || typeof ResizeObserver === 'undefined') {
+			return;
+		}
+		const check = (): void => {
+			if (node.clientWidth > 0) {
+				setMatrixReady(true);
+			}
+		};
+		check();
+		const observer = new ResizeObserver(check);
+		observer.observe(node);
+		return () => observer.disconnect();
+		// `catalog` in den Abhängigkeiten: der Messcontainer existiert erst, wenn der Katalog geladen
+		// ist (davor stehen Ladefehler bzw. Spinner an seiner Stelle).
+	}, [catalog]);
 
 	const handleBook = async (targetPlan: Exclude<Plan, 'free'>, period: Period): Promise<void> => {
 		const key = `${targetPlan}-${period}`;
@@ -274,6 +257,75 @@ export const PlansSection = () => {
 		);
 	};
 
+	/** Reiner Textwert einer Buchen-Zelle — Sortier-/Filterwert der Zelle und Fallback ohne `render`. */
+	const actionCellText = (planKey: string, period: Period): string => {
+		if (planKey === 'free') {
+			return '—';
+		}
+		if (subscription === undefined) {
+			return '';
+		}
+		if (subscription !== null && subscription.plan === planKey && subscription.period === period) {
+			return 'Aktuelles Paket';
+		}
+		return subscription === null ? 'Buchen' : 'Wechseln';
+	};
+
+	// #1529 AK3: Preis-, Buchen- UND Feature-Zeilen liegen gemeinsam im Tabellenkörper (`_data`) —
+	// vor #1529 hingen Preis- und Buchen-Zeilen im `<thead>`, was sie für die Tabellen-Komponente
+	// unzugänglich machte.
+	const rows: PlanRow[] = [
+		...PERIODS.map((period) => {
+			const row: PlanRow = { label: `Preis ${PERIOD_LABELS[period]}`, _kind: 'price' };
+			for (const key of plans) {
+				row[key] = formatEuro(catalog.prices[key][period]);
+			}
+			return row;
+		}),
+		...PERIODS.map((period) => {
+			const row: PlanRow = { label: `Buchen ${PERIOD_LABELS[period]}`, _kind: 'action', _period: period };
+			for (const key of plans) {
+				row[key] = actionCellText(key, period);
+			}
+			return row;
+		}),
+		...catalog.features.map((entry) => {
+			const row: PlanRow = { label: featureOffer(entry.feature).title, _kind: 'feature' };
+			for (const key of plans) {
+				row[key] = entry.allowedPlans.includes(key as never) ? 'enthalten' : '—';
+			}
+			return row;
+		}),
+	];
+
+	const headers: { horizontal: KoliBriTableHeaderCellWithLogic[][] } = {
+		horizontal: [
+			[
+				{ key: LABEL_KEY, label: 'Funktion', width: LABEL_COLUMN_WIDTH },
+				...plans.map((key) => ({
+					key,
+					label: `${planLabel(key)}${key === plan ? ' (dein Paket)' : ''}`,
+					width: PLAN_COLUMN_WIDTH,
+					// Buchen-Zellen tragen eine Web Component (KolButton); sie passt nicht deklarativ in
+					// eine KoliBri-Zelle und wird wie in `CompletedTasksTable` über `render` in eine pro
+					// Zelle gecachte React-Root gemountet. Preis- und Feature-Zellen bleiben Text — der
+					// Datenwert der Zeile ist bereits die fertige Anzeige.
+					render: (domNode: HTMLElement, _cell: unknown, tupel: unknown) => {
+						const row = tupel as PlanRow;
+						if (row._kind !== 'action') {
+							renderIntoCell(domNode, <span>{String(row[key] ?? '')}</span>);
+							return;
+						}
+						renderIntoCell(
+							domNode,
+							key === 'free' ? <span>—</span> : renderActionCell(key as Exclude<Plan, 'free'>, row._period as Period),
+						);
+					},
+				})),
+			],
+		],
+	};
+
 	return (
 		<div className="plans-section" data-testid="plans-section">
 			{actionError !== null && (
@@ -282,104 +334,28 @@ export const PlansSection = () => {
 				</KolAlert>
 			)}
 
-			{subscription != null && (
-				<section className="subscription-status" data-testid="subscription-status">
-					<p>
-						Aktuelles Paket: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
-					</p>
-					<p>Periodenende: {formatDate(subscription.currentPeriodEnd)}</p>
-					{subscription.pendingPlan !== null && (
-						<p data-testid="subscription-pending-plan">
-							Wechsel zu {planLabel(subscription.pendingPlan)}
-							{subscription.pendingPlanEffectiveAt !== null
-								? ` ab ${formatDate(subscription.pendingPlanEffectiveAt)}`
-								: ''}
-						</p>
-					)}
-					{subscription.graceUntil !== null && (
-						<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(subscription.graceUntil)}</p>
-					)}
-					<KolButton
-						data-testid="cancel-subscription"
-						_label="Abo kündigen"
-						_variant="danger"
-						_on={{ onClick: () => setCancelOpen(true) }}
-					/>
-				</section>
-			)}
-
 			{pendingWait !== null && refresh !== undefined && (
 				<BillingReturnWait refresh={refresh} expectedPlan={pendingWait.expectedPlan} currentPlan={plan} />
 			)}
 
-			<table className="plans-matrix">
-				<thead>
-					<tr>
-						<th scope="col">Funktion</th>
-						{plans.map((key) => (
-							<th key={key} scope="col">
-								{planLabel(key)}
-								{key === plan ? ' (dein Paket)' : ''}
-							</th>
-						))}
-					</tr>
-					{PERIODS.map((period) => (
-						<tr key={`price-${period}`}>
-							<th scope="row">{`Preis ${PERIOD_LABELS[period]}`}</th>
-							{plans.map((key) => (
-								<td key={key}>{formatEuro(catalog.prices[key][period])}</td>
-							))}
-						</tr>
-					))}
-					{PERIODS.map((period) => (
-						<tr key={`action-${period}`}>
-							<th scope="row">{`Buchen ${PERIOD_LABELS[period]}`}</th>
-							{plans.map((key) =>
-								key === 'free' ? (
-									<td key={key}>—</td>
-								) : (
-									<td key={key}>{renderActionCell(key as Exclude<Plan, 'free'>, period)}</td>
-								),
-							)}
-						</tr>
-					))}
-				</thead>
-				<tbody>
-					{catalog.features.map((entry) => (
-						<tr key={entry.feature}>
-							<th scope="row">{featureOffer(entry.feature).title}</th>
-							{plans.map((key) => (
-								<td key={key}>{entry.allowedPlans.includes(key as never) ? 'enthalten' : '—'}</td>
-							))}
-						</tr>
-					))}
-				</tbody>
-			</table>
-
-			<section className="billing-invoices" data-testid="billing-invoices">
-				<h3>Rechnungen</h3>
-				{invoicesError !== null ? (
-					<KolAlert _type="error" _label="Rechnungen">
-						{invoicesError}
-					</KolAlert>
-				) : invoices === null ? (
-					<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
-				) : invoices.length === 0 ? (
-					<p data-testid="invoices-empty">Noch keine Rechnungen vorhanden.</p>
-				) : (
-					<ul className="billing-invoices__list">
-						{invoices.map((invoice) => (
-							<li key={invoice.id} className="billing-invoices__item">
-								<span>{invoice.number}</span>
-								<span>
-									{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
-								</span>
-								<span>{formatEuro(invoice.amountCents)}</span>
-							</li>
-						))}
-					</ul>
+			{/*
+			 * #1529 AK3-AK6 (ADR 0014, Entscheidung 6): Die Preis-Matrix bleibt bewusst eine Tabelle und
+			 * wird NICHT nach Mobile-Regel 3 auf 375px in Karten zerlegt — der Vergleich mehrerer Pakete
+			 * lebt vom Nebeneinander. Stattdessen feste Spaltenbreiten plus seitliches Scrollen innerhalb
+			 * der Tabelle. `_fixedCols` ist hier — anders als im Vorbild `CompletedTasksTable` — auch
+			 * mobil gesetzt, damit die Funktionsspalte beim Scrollen stehen bleibt (AK5).
+			 *
+			 * `[1, 0]` (nur die erste Spalte) statt des `[1, 1]` aus `CompletedTasksTable`: KoliBri
+			 * schaltet die Sticky-Spalten komplett ab, sobald ihre Summenbreite die Containerbreite
+			 * erreicht (`checkAndUpdateStickyState`, kol-table-stateless). Bei 375px wären
+			 * 170 + 150 px breiter als der Container — mit `[1, 1]` bliebe die Funktionsspalte also
+			 * ausgerechnet dort NICHT stehen, wo AK5 sie braucht.
+			 */}
+			<div className="plans-matrix" ref={matrixRef}>
+				{matrixReady && (
+					<KolTableStateful _label="Pakete im Vergleich" _data={rows} _headers={headers} _fixedCols={[1, 0]} />
 				)}
-			</section>
+			</div>
 
 			{changeTarget !== null && (
 				<ChangeDialog
@@ -397,8 +373,6 @@ export const PlansSection = () => {
 					}}
 				/>
 			)}
-
-			{cancelOpen && <CancelDialog onClose={() => setCancelOpen(false)} onCancelled={() => setCancelOpen(false)} />}
 		</div>
 	);
 };

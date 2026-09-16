@@ -2576,8 +2576,15 @@ kol-toolbar {
  * Breite — „Wald" brach allein in Zeile 2 und war als Abschnitts-Überschrift misslesbar (#1274).
  * Die `@property`-Registrierung kappt genau diese Vererbung: `inherits: false` gibt der
  * konsumierenden `.kol-tabs__button-group` den Initialwert, während die innere 32px-Deklaration
- * wirkungslos bleibt. 12px (4-dp-Skala) halten den ≥8dp-Abstand zwischen Touch-Targets
- * (docs/mobile-ui-rules.md, Regel 2): 276px + 3×12px = 312px ≤ 351px.
+ * wirkungslos bleibt. 8px (4-dp-Skala) halten den ≥8dp-Abstand zwischen Touch-Targets
+ * (docs/mobile-ui-rules.md, Regel 2): 276px + 3×8px = 300px ≤ 351px.
+ *
+ * #1529: von 12px auf 8px verkleinert. Mit den Reitern „Pakete" und „Abo" umfasst die
+ * Settings-Leiste neun Tabs; gemessen bei 768px (Desktop-Grenzfall aus #703 AK2,
+ * `frontend/e2e/tabs-viewport.spec.ts`): Buttons 641px + 8×12px Gap = 737px > 720px nutzbare
+ * Hostbreite → zweizeilig. Mit 8px: 641px + 8×8px = 705px ≤ 720px, die Leiste bleibt einzeilig.
+ * Admins haben mit „Nutzerverwaltung" einen zehnten Tab — deren Leiste bricht bei 768px weiterhin
+ * um; das ist der bewusst beibehaltene saubere Umbruch bei Platzmangel (#968), kein Überlauf.
  *
  * Sollbruchstellen: (1) Der Property-Name ist KoliBri-intern (theme-default 4.3.0 — im Geiste der
  * bestehenden `--grid-template-columns`-Klammer am `.app-tabs` ebenfalls unpublizierte API); ein
@@ -2585,12 +2592,12 @@ kol-toolbar {
  * „Tab-Leiste der Hauptansichten bleibt einzeilig" in `frontend/e2e/mobile-shell.spec.ts` an.
  * (2) Browser ohne `@property` (Safari < 16.4, Firefox < 128) behalten das 32px-Gap und damit den
  * alten Umbruch. (3) Die Registrierung gilt für ALLE `kol-tabs` (App, Settings, Hilfe) — die
- * Leisten erhalten dadurch einheitlich 12px Gap.
+ * Leisten erhalten dadurch einheitlich 8px Gap.
  */
 @property --button-group-gap {
 	syntax: '<length>';
 	inherits: false;
-	initial-value: 12px;
+	initial-value: 8px;
 }
 
 .settings-placeholder {
@@ -3855,18 +3862,14 @@ kol-alert {
 
 /* Paket-Matrix in den Einstellungen (#1458 AK11): auf schmalen Geräten scrollt die Tabelle in
    ihrem eigenen Container, damit die Seite selbst nicht horizontal überläuft. */
+/*
+ * #1529: Die Matrix ist eine `KolTableStateful` und bringt ihren eigenen, seitlich scrollenden
+ * Container mit (ADR 0014, Entscheidung 6). Der Wrapper darf deshalb NICHT selbst scrollen —
+ * sonst läge der Überlauf außerhalb der Tabelle und die stehende Funktionsspalte (AK5) hätte
+ * keinen Bezug. Muster `.completed-tasks` (ebenfalls ohne eigenes `overflow`).
+ */
 .plans-section {
-	overflow-x: auto;
 	max-width: 100%;
-}
-
-.plans-matrix {
-	border-collapse: collapse;
-	min-width: 100%;
-}
-
-.plans-matrix th,
-.plans-matrix td {
-	padding: 0.25rem 0.5rem;
-	text-align: left;
+	/* Preis-Spalten sind Zahlenkolonnen — gleich breite Ziffern lassen sie sauber untereinander stehen. */
+	font-variant-numeric: tabular-nums;
 }
