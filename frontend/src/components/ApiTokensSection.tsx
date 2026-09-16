@@ -233,9 +233,9 @@ export const ApiTokensSection = () => {
 					</p>
 					{/* #1526 AK2: fehlt `mcp_read`, ist das gesamte Erzeugen-Formular gesperrt — der Alert
 					    steht direkt darüber, damit die Sperrung sofort erklärt ist. */}
-					{formLocked && (
+					{readEntitlement !== undefined && !readEntitlement.allowed && (
 						<KolAlert _type="info" _label="Paket erforderlich">
-							Token erzeugen ist ab dem Paket {planLabel(readEntitlement!.requiredPlan)} enthalten.
+							Token erzeugen ist ab dem Paket {planLabel(readEntitlement.requiredPlan)} enthalten.
 						</KolAlert>
 					)}
 					<KolInputText
@@ -335,9 +335,9 @@ export const ApiTokensSection = () => {
 									</span>
 									{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
 									    unterhalb der Scope-Zeile, direkt neben dem gesperrten Regler. */}
-									{scopeLocked && (
+									{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
 										<KolAlert _type="info" _label="Paket erforderlich">
-											Lesen und Schreiben ist ab dem Paket {planLabel(readwriteEntitlement!.requiredPlan)} enthalten.
+											Lesen und Schreiben ist ab dem Paket {planLabel(readwriteEntitlement.requiredPlan)} enthalten.
 										</KolAlert>
 									)}
 								</span>
