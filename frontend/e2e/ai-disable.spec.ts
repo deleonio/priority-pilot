@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1335 — „Schnellerfassung und Berater verschmelzen" (AK4, AK5).
@@ -152,5 +152,104 @@ test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
 		// Kein Lektorat-Button im Formular, obwohl die Präferenz an ist.
 		await expect(page.getByRole('button', { name: /lektorieren/ })).toHaveCount(0);
+	});
+});
+
+// ── #1527 (Spec docs/spec/issue-1527.md AK5/AK6) ────────────────────────────────────────────────
+
+/**
+ * Rote Spec-e2e für #1527 AK5/AK6 — letzter ungegateter KI-Einstieg: der Säulen-Berater im
+ * Aufgabenformular (`.pillar-editor-head`, `TaskForm.tsx:1469-1480`). Ein Free-Konto ohne
+ * `ai_assist`-Berechtigung darf im gesamten Anlege-Weg kein KI-Bedienelement mehr finden und keinen
+ * KI-Endpunkt aufrufen — auch nicht `/tasks/suggest-pillars`. `.pillar-editor-head` rendert nur,
+ * wenn mindestens eine Säule existiert (`test-login` legt keine an, s. `issue-1484-plan-badges.spec.ts`),
+ * daher wird hier selbst eine angelegt.
+ */
+test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
+	const TEST_EMAIL = 'ai-gate-1527@example.com';
+
+	const loginAsFree = async (page: Page): Promise<void> => {
+		const res = await page.request.post('/auth/test-login', {
+			data: { email: TEST_EMAIL, displayName: 'AI Gate Pillar Tester' },
+		});
+		expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
+		await page.unroute('**/auth/me');
+	};
+
+	const ensurePillar = async (page: Page): Promise<void> => {
+		const existing = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
+		if (existing.length > 0) return;
+		await page.request.post('/api/v1/pillars', { data: { name: 'Gate-Test-Säule', description: 'Dummy' } });
+	};
+
+	const deleteAllPillars = async (page: Page): Promise<void> => {
+		const res = await page.request.get('/api/v1/pillars');
+		if (!res.ok()) return;
+		for (const pillar of (await res.json()) as { id: number }[]) {
+			await page.request.delete(`/api/v1/pillars/${pillar.id}`);
+		}
+	};
+
+	/** `boundingBox()` bis zum Layout nachmessen — Muster `issue-1484-plan-badges.spec.ts:80-87`. */
+	const boundingBoxWhenLaidOut = async (locator: ReturnType<Page['locator']>) => {
+		for (let attempt = 0; attempt < 30; attempt++) {
+			const box = await locator.boundingBox();
+			if (box !== null) return box;
+			await locator.page().waitForTimeout(100);
+		}
+		return null;
+	};
+
+	test.beforeEach(async ({ page }) => {
+		initAiEnabled(page, true);
+		await loginAsFree(page);
+		await ensurePillar(page);
+	});
+
+	test.afterEach(async ({ page }) => {
+		await deleteAllPillars(page);
+	});
+
+	test('AK5: kein Säulen-Vorschlag-Bedienelement und kein Request an /tasks/suggest-pillars', async ({ page }) => {
+		const requestedUrls: string[] = [];
+		page.on('request', (req) => requestedUrls.push(req.url()));
+
+		await page.goto('/aufgaben');
+		await waitForStableView(page);
+		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+
+		await openAccordionSection(page, 'Optional');
+
+		await expect(page.getByRole('button', { name: /Säulen vorschlagen/ })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: /lektorieren/ })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Verarbeiten und weiter' })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Beraten lassen' })).toHaveCount(0);
+		await expect(page.getByTestId('plan-badge-ai_assist')).toHaveCount(0);
+
+		expect(requestedUrls.some((url) => url.includes('/pillars/advisor'))).toBe(false);
+		expect(requestedUrls.some((url) => url.includes('/tasks/parse-text'))).toBe(false);
+		expect(requestedUrls.some((url) => url.includes('/tasks/suggest-pillars'))).toBe(false);
+	});
+
+	test('AK6 (375px): .pillar-editor-head enthält nur die Überschrift und bleibt im Viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+
+		await page.goto('/aufgaben');
+		await waitForStableView(page);
+		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+
+		await openAccordionSection(page, 'Optional');
+
+		const head = page.locator('.pillar-editor-head');
+		const box = await boundingBoxWhenLaidOut(head);
+		expect(box, '.pillar-editor-head muss eine Bounding-Box haben').not.toBeNull();
+		expect(box!.height).toBeLessThan(48); // eine Textzeile, kein Badge/Button erzeugt eine zweite
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
+
+		await expect(head.getByText('Säulen (optional)')).toBeVisible();
+		await expect(head.getByRole('button', { name: /Säulen vorschlagen/ })).toHaveCount(0);
+		await expect(head.getByTestId('plan-badge-ai_assist')).toHaveCount(0);
 	});
 });

@@ -283,6 +283,16 @@ const defaultProps = {
 	onSaved: vi.fn(),
 };
 
+// TEST-PFLEGE #1527: Der Säulen-Vorschlag (Button + Auto-Trigger-Effekt) hängt jetzt am KI-Gate.
+// Ohne `PlanProvider` liefert `useEntitlement('ai_assist')` `undefined` → Gate aus. Tests, die einen
+// tatsächlichen Säulen-Vorschlag auslösen (Button-Klick oder Mount-Effekt), rendern daher mit
+// eingeschaltetem Gate; Tests, die "kein Vorschlag" erwarten, bleiben unverändert.
+const gateOnEntitlements: EntitlementMap = {
+	ai_assist: { allowed: true, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+};
+const renderWithAiGateOn = (ui: ReactNode) =>
+	render(<PlanProvider value={{ plan: 'pro', entitlements: gateOnEntitlements }}>{ui}</PlanProvider>);
+
 /**
  * Serien-Fixture für #316: ein bestehendes Serien-Template. Beim Bearbeiten reicht der Container das
  * Template über die (erwartete) neue Prop `series` an das Formular; der Umschalter startet dann fest
@@ -321,7 +331,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
-			render(<TaskForm task={null} initialValues={{ title: 'Steuererklärung 2025' }} {...defaultProps} />);
+			renderWithAiGateOn(<TaskForm task={null} initialValues={{ title: 'Steuererklärung 2025' }} {...defaultProps} />);
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
@@ -376,13 +386,17 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 	it('AK5 — bleibt bei genau einem Aufruf auch bei Re-Render / StrictMode-Doppelmount (Ref-Guard)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
-		const { rerender } = render(
+		const { rerender } = renderWithAiGateOn(
 			<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />,
 		);
 
 		// Erster Mount kann noch laufen; anschließend Re-Render simulieren.
 		await act(async () => {
-			rerender(<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />);
+			rerender(
+				<PlanProvider value={{ plan: 'pro', entitlements: gateOnEntitlements }}>
+					<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />
+				</PlanProvider>,
+			);
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
@@ -393,7 +407,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		mockSuggestPillars.mockResolvedValue([{ pillarId: 1, confidence: 80 }]);
 
 		await act(async () => {
-			render(<TaskForm task={null} initialValues={{ title: 'Karriere planen' }} {...defaultProps} />);
+			renderWithAiGateOn(<TaskForm task={null} initialValues={{ title: 'Karriere planen' }} {...defaultProps} />);
 		});
 
 		// Nach dem Auto-Trigger soll mindestens eine pillar-row im DOM erscheinen
@@ -712,7 +726,7 @@ describe('AK6 — QuickCapture/LLM + Säulen-Vorschlag in Serie-Modus (#316)', (
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
-			render(<TaskForm task={null} {...defaultProps} />);
+			renderWithAiGateOn(<TaskForm task={null} {...defaultProps} />);
 		});
 
 		await switchToSeriesMode();
@@ -2575,9 +2589,102 @@ describe('TaskForm — Paket-Badge bei Lektorat und Säulen-Vorschlag (#1484 AK3
 		);
 	};
 
+	// TEST-PFLEGE #1527: Mit dem KI-Gate um Badge + Säulen-Vorschlag (siehe unten) verschwindet das
+	// Badge bei `allowed: false`, weil das gesamte Gate dann aus ist (kein `ai_assist` und kein
+	// Custom-Provider). #1527 hebt die #1484-Grenzstelle an dieser Stelle bewusst auf (siehe
+	// harness marker comment, Randbedingungen) — die Aussage „mindestens ein Badge" gilt nur noch
+	// für berechtigte Konten.
 	it('zeigt mindestens ein ai_assist-Badge im Formular (Lektorat und/oder Säulen-Vorschlag)', () => {
-		renderWithEntitlement(false);
+		renderWithEntitlement(true);
 
 		expect(screen.getAllByTestId('plan-badge-ai_assist').length).toBeGreaterThan(0);
+	});
+});
+
+// ── #1527: Säulen-Berater ohne KI-Berechtigung ausblenden ──────────────────────────────────────
+//
+// Spezifikation: docs/spec/issue-1527.md
+//
+// `.pillar-editor-head` (TaskForm.tsx:1469-1480) rendert Badge und Button „Säulen vorschlagen"
+// heute ungeschützt — anders als der Lektorat-Block (TaskForm.tsx:1041-1046), der bereits in
+// `aiEnabled &&` gekapselt ist. Rot, bis dasselbe Muster hier übernommen ist (AK1-AK4).
+describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
+	const renderPillarEditor = (allowed: boolean, initialValues?: TaskFormInitialValues) => {
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		return render(
+			<PlanProvider value={{ plan: allowed ? 'pro' : 'free', entitlements }}>
+				<TaskForm {...defaultProps} task={null} initialValues={initialValues} />
+			</PlanProvider>,
+		);
+	};
+
+	/** Bearbeitungsfall mit bereits zugeordneter Säule, damit Regler + Entfernen-Button existieren. */
+	const renderPillarEditorWithContribution = (allowed: boolean) => {
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		const task: Task = { ...minimalNewTask(), pillars: [{ pillarId: 1, share: 100, confidence: 90 }] };
+		return render(
+			<PlanProvider value={{ plan: allowed ? 'pro' : 'free', entitlements }}>
+				<TaskForm {...defaultProps} task={task} />
+			</PlanProvider>,
+		);
+	};
+
+	it('AK1 — Gate aus: weder Button „Säulen vorschlagen" noch Badge in .pillar-editor-head', () => {
+		renderPillarEditor(false);
+		fireEvent.click(screen.getByText('Optional')); // #1260: Sektion ist standardmäßig zugeklappt
+
+		expect(screen.queryByRole('button', { name: /Säulen vorschlagen/ })).toBeNull();
+		expect(screen.queryAllByTestId('plan-badge-ai_assist')).toHaveLength(0);
+	});
+
+	it('AK2 — Gate aus: Überschrift, Säulen-Regler und Entfernen-Button bleiben vorhanden und bedienbar', () => {
+		renderPillarEditorWithContribution(false);
+		fireEvent.click(screen.getByText('Optional'));
+
+		expect(screen.getByText('Säulen (optional)')).toBeVisible();
+		expect(screen.getByRole('slider', { name: /Körper – Anteil/ })).toBeVisible();
+		expect(screen.getByRole('slider', { name: /Konfidenz/ })).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Körper entfernen' })).toBeVisible();
+	});
+
+	it('AK3 — Gate an: Button und Badge erscheinen, Klick löst weiterhin suggestPillars aus', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		renderPillarEditor(true);
+		fireEvent.click(screen.getByText('Optional'));
+		await fillTitle('Büro aufräumen'); // #305: suggestPillars bricht ohne Titel früh ab
+
+		const button = screen.getByRole('button', { name: /Säulen vorschlagen/ });
+		expect(button).toBeVisible();
+		expect(screen.getAllByTestId('plan-badge-ai_assist').length).toBeGreaterThan(0);
+
+		await act(async () => {
+			fireEvent.click(button);
+		});
+
+		expect(mockSuggestPillars).toHaveBeenCalled();
+	});
+
+	it('AK4 — Gate aus: der Auto-Vorschlag-Effekt beim Anlegen mit vorbelegtem Titel ruft suggestPillars NICHT auf', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			renderPillarEditor(false, { title: 'Büro aufräumen' });
+		});
+
+		expect(mockSuggestPillars).not.toHaveBeenCalled();
+	});
+
+	it('AK4 (Regression) — Gate an: der Auto-Vorschlag-Effekt ruft suggestPillars weiterhin genau einmal auf', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			renderPillarEditor(true, { title: 'Büro aufräumen' });
+		});
+
+		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
 	});
 });
