@@ -277,16 +277,19 @@ describe('VoiceField (#264)', () => {
 	});
 });
 
-// ── #1484 (T3b AK3/AK6): Paket-Badge und Entitlement-Gate der Aufnahme ─────────────────────────
+// ── #1524 AK2: voice_input hat weder Badge noch Sperre mehr, auch nicht bei Free ───────────────
 
 /**
- * AK3: `VoiceField` rendert `<PlanBadge feature="voice_input" />` (Analyse-Block: Grenzstelle
- * VoiceField.tsx). AK6: ohne `voice_input`-Entitlement löst der Mic-Button `startRecording` NICHT
- * aus (auch `autoStart` startet nicht) — stattdessen öffnet ein `pp:plan-required`-Event. Mit
- * Entitlement bleibt das Verhalten aus #264/#283 unverändert (genau 1× `startRecording`). Heute
- * gibt es weder Badge noch Entitlement-Gate — rot (docs/spec/issue-1484.md AK3/AK6).
+ * #1524 AK2 macht die #1484-Grenzstelle (AK3/AK6, s. Git-Historie) rückgängig: Spracheingabe ist
+ * nach der Katalogänderung (AK1: `voice_input` für jedes Paket erlaubt) für JEDES Paket frei, auch
+ * `free`. `VoiceField` darf daher kein `PlanBadge` für `voice_input` mehr rendern und die Aufnahme
+ * nicht mehr sperren — unabhängig vom Entitlement-Wert, den der Test hier bewusst künstlich auf
+ * `allowed:false` setzt, um zu belegen, dass die Sperre nicht mehr an das Entitlement gekoppelt ist
+ * (Test-Pflege: ersetzt die alte Badge-/Gate-Beschreibung `VoiceField — Paket-Badge und
+ * Entitlement-Gate (#1484 AK3/AK6)`, die direkt das Gegenteil erwartete — Badge sichtbar, Klick
+ * blockiert). Rot, bis `VoiceField.tsx` das Badge und das `blocked`-Gate entfernt.
  */
-describe('VoiceField — Paket-Badge und Entitlement-Gate (#1484 AK3/AK6)', () => {
+describe('VoiceField — keine Badge/Sperre mehr für voice_input (#1524 AK2)', () => {
 	beforeEach(() => {
 		MockSpeechRecognition.instances = [];
 		speechWindow.SpeechRecognition = MockSpeechRecognition;
@@ -305,7 +308,7 @@ describe('VoiceField — Paket-Badge und Entitlement-Gate (#1484 AK3/AK6)', () =
 			voice_input: { allowed, requiredPlan: 'pro' } as EntitlementMap['voice_input'],
 		};
 		return render(
-			<PlanProvider value={{ plan: allowed ? 'pro' : 'free', entitlements }}>
+			<PlanProvider value={{ plan: 'free', entitlements }}>
 				<VoiceField variant="input" fieldLabel="Titel" onTranscript={vi.fn()} {...extraProps}>
 					<textarea aria-label="Titel" />
 				</VoiceField>
@@ -313,33 +316,32 @@ describe('VoiceField — Paket-Badge und Entitlement-Gate (#1484 AK3/AK6)', () =
 		);
 	};
 
-	it('zeigt das voice_input-Badge', () => {
+	it('rendert kein voice_input-Badge, selbst wenn das (künstliche) Entitlement allowed:false meldet', () => {
 		renderWithEntitlement(false);
 
-		expect(screen.getByTestId('plan-badge-voice_input')).toBeInTheDocument();
+		expect(screen.queryByTestId('plan-badge-voice_input')).not.toBeInTheDocument();
 	});
 
-	it('ohne Entitlement: Klick auf den Mic-Button startet keine Aufnahme, sondern öffnet das Angebot', () => {
+	it('ein Klick auf den Mic-Button startet die Aufnahme, auch mit allowed:false, statt ein Angebot zu öffnen', () => {
 		renderWithEntitlement(false);
 		const handler = vi.fn();
 		window.addEventListener(PLAN_REQUIRED_EVENT, handler);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' }));
 
-		expect(MockSpeechRecognition.instances).toHaveLength(0);
-		expect(handler).toHaveBeenCalledTimes(1);
-		const event = handler.mock.calls[0][0] as CustomEvent<{ feature: string }>;
-		expect(event.detail.feature).toBe('voice_input');
+		expect(MockSpeechRecognition.instances).toHaveLength(1);
+		expect(MockSpeechRecognition.instances[0]?.start).toHaveBeenCalledTimes(1);
+		expect(handler).not.toHaveBeenCalled();
 		window.removeEventListener(PLAN_REQUIRED_EVENT, handler);
 	});
 
-	it('ohne Entitlement startet auch autoStart keine Aufnahme', () => {
+	it('autoStart startet die Aufnahme auch mit allowed:false', () => {
 		renderWithEntitlement(false, { autoStart: true });
 
-		expect(MockSpeechRecognition.instances).toHaveLength(0);
+		expect(MockSpeechRecognition.instances).toHaveLength(1);
 	});
 
-	it('mit Entitlement bleibt das bisherige Verhalten: Klick startet genau 1× die Aufnahme', () => {
+	it('mit allowed:true bleibt das bisherige Verhalten: Klick startet genau 1× die Aufnahme', () => {
 		renderWithEntitlement(true);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' }));

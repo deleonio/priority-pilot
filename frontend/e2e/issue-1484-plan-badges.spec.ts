@@ -13,6 +13,11 @@ import { waitForStableView } from './helpers';
  * AK8: Badge und umgebende Zeile bleiben innerhalb des 375px-Viewports (Bounding-Box, keine
  * `scrollWidth`-Prüfung, MEMORY 2026-08-24 — die App-Shell clippt mit `overflow-x: hidden`).
  * AK9: außerhalb des geöffneten Angebots-Dialogs erscheint kein Preis-/Werbetext.
+ *
+ * #1524 (Spec docs/spec/issue-1524.md) macht die voice_input-Grenzstelle aus #1484 rückgängig
+ * (AK2: kein Badge, keine Sperre mehr, auch nicht für Free) und ergänzt am Ende der Datei einen
+ * eigenen Test für die um `mcp_read` erweiterte Paket-Tabelle (AK9 von #1524, nicht zu verwechseln
+ * mit dem gleichnamigen AK9 von #1484 oben).
  */
 
 const TEST_EMAIL = 'plan-badges-1484@example.com';
@@ -80,9 +85,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await deleteAllTokens(page);
 	});
 
-	test('AK3/AK8: Aufgabenformular zeigt ai_assist- und voice_input-Badges ohne horizontalen Overflow', async ({
-		page,
-	}) => {
+	test('AK3/AK8: Aufgabenformular zeigt das ai_assist-Badge ohne horizontalen Overflow', async ({ page }) => {
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -94,10 +97,22 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		const aiAssistBadge = page.getByTestId('plan-badge-ai_assist').first();
 		await expect(aiAssistBadge).toBeVisible();
 		await expectWithinViewport(aiAssistBadge);
+	});
 
-		const voiceBadge = page.getByTestId('plan-badge-voice_input').first();
-		await expect(voiceBadge).toBeVisible();
-		await expectWithinViewport(voiceBadge);
+	// #1524 AK2 (Spec docs/spec/issue-1524.md) macht die #1484-Grenzstelle rückgängig: voice_input
+	// ist wieder für jedes Paket erlaubt, `VoiceField` rendert daher kein Badge mehr — auch nicht für
+	// Free. Ersetzt den voice_input-Teil des Tests oben (Test-Pflege: der alte Test erwartete ein
+	// sichtbares `plan-badge-voice_input`, das AK2 explizit entfernt).
+	test('#1524 AK2: kein voice_input-Badge mehr im Aufgabenformular, auch nicht für Free', async ({ page }) => {
+		await page.goto('/aufgaben');
+		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
+
+		await expect(page.getByTestId('plan-badge-voice_input').first()).not.toBeVisible();
 	});
 
 	test('AK5: der (i)-Schalter am ai_assist-Badge öffnet das Angebot, kein zweiter Dialog', async ({ page }) => {
@@ -144,5 +159,28 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 			.locator('body >> text=/\\d+\\s?€/')
 			.filter({ hasNot: page.locator('[data-testid^="plan-badge"]') });
 		await expect(priceOutsideBadge).toHaveCount(0);
+	});
+
+	/**
+	 * #1524 AK9 (Spec docs/spec/issue-1524.md) — die um `mcp_read` erweiterte Paket-Tabelle
+	 * (`PlansSection.tsx`, Einstellungen → Allgemein) bleibt bei 375px vollständig lesbar. Prüft
+	 * bewusst die ZEILENANZAHL (sieben Feature-Zeilen statt sechs) statt eines fest verdrahteten
+	 * Zeilentitels — der genaue Wortlaut von `FEATURE_OFFERS.mcp_read` ist Implementierungsdetail.
+	 * Rot, bis der Katalog um `mcp_read` wächst (heute: sechs Zeilen in `tbody`).
+	 */
+	test('#1524 AK9: die erweiterte Paket-Tabelle (7 Feature-Zeilen) bleibt ohne horizontalen Overflow', async ({
+		page,
+	}) => {
+		await page.goto('/settings/general');
+		await waitForStableView(page, 'Allgemein');
+
+		const table = page.getByTestId('plans-section').locator('table');
+		await expect(table).toBeVisible();
+
+		const featureRows = table.locator('tbody tr');
+		await expect(featureRows).toHaveCount(7);
+
+		const lastRow = featureRows.last();
+		await expectWithinViewport(lastRow);
 	});
 });

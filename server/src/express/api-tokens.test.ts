@@ -355,3 +355,69 @@ describe('Persönliche API-Tokens — Plan-Deckel für readwrite (#1460 AK1/AK2/
 		assert.equal(body.scope, 'readwrite');
 	});
 });
+
+/**
+ * #1524 AK6 (Spec docs/spec/issue-1524.md) — `POST /api-tokens` erfordert `mcp_read` (ab Max): ohne
+ * mindestens Max ist schon das ANLEGEN eines Tokens gesperrt, nicht erst dessen Nutzung. Rot, bis
+ * ein `requirePlanFeature('mcp_read')`-Guard vor der Route hängt (heute: `POST /api-tokens` legt für
+ * jedes Paket unverändert einen Token an, solange der Rollout an ist).
+ */
+describe('Persönliche API-Tokens — Plan-Deckel fürs Anlegen (#1524 AK6)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK6: POST /api-tokens liefert für pro bei eingeschaltetem Rollout 403 mit plan_required/mcp_read/max, kein Token wird angelegt', async () => {
+		const email = 'plan-cap-create-pro@example.com';
+		const cookie = await server.register(email, 'password123');
+		await setPlan(email, 'pro');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const res = await createToken(cookie, 'CLI');
+
+		assert.equal(res.status, 403);
+		const body = (await res.json()) as {
+			code?: string;
+			feature?: string;
+			requiredPlan?: string;
+			currentPlan?: string;
+		};
+		assert.equal(body.code, 'plan_required');
+		assert.equal(body.feature, 'mcp_read');
+		assert.equal(body.requiredPlan, 'max');
+		assert.equal(body.currentPlan, 'pro');
+
+		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
+		assert.equal(list.length, 0, 'ein abgewiesenes Anlegen darf keinen Token hinterlassen');
+	});
+
+	it('AK6: POST /api-tokens liefert für max bei eingeschaltetem Rollout weiterhin 201', async () => {
+		const email = 'plan-cap-create-max@example.com';
+		const cookie = await server.register(email, 'password123');
+		await setPlan(email, 'max');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const res = await createToken(cookie, 'CLI');
+
+		assert.equal(res.status, 201);
+	});
+
+	it('AK6-Analogie: bei ausgeschaltetem Rollout legt ein pro-Nutzer unverändert einen Token an', async () => {
+		const email = 'plan-cap-create-rollout-off@example.com';
+		const cookie = await server.register(email, 'password123');
+		await setPlan(email, 'pro');
+
+		const res = await createToken(cookie, 'CLI');
+
+		assert.equal(res.status, 201, 'ohne MONETIZATION_ENFORCED bleibt das Verhalten wie heute');
+	});
+});

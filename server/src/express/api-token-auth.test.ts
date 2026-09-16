@@ -504,3 +504,82 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		assert.equal(write.status, 201, 'ohne MONETIZATION_ENFORCED bleibt das Verhalten wie heute');
 	});
 });
+
+/**
+ * #1524 AK4/AK5 (Spec docs/spec/issue-1524.md) — Plan-Deckel für LESENDEN MCP-Zugriff (`mcp_read`,
+ * ab Max). Anders als `mcp_readwrite` (#1460, nur der Scope eines Tokens wird herabgestuft) blockt
+ * dieser Deckel jeden lesenden Bearer-Request, dessen Token-Besitzer `mcp_read` fehlt — unabhängig
+ * vom gespeicherten `scope` des Tokens. Rot, bis der Read-Guard existiert (heute: `GET /tasks`
+ * antwortet über Bearer unabhängig vom Paket immer 200/401, nie 403 mit `feature: 'mcp_read'`).
+ */
+describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4/AK5)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	for (const plan of ['free', 'pro'] as const) {
+		it(`AK4: ein ${plan}-Nutzer erhält auf GET /tasks über Bearer 403 mit plan_required/mcp_read/max, Token-Zeile bleibt unverändert`, async () => {
+			const email = `bearer-mcp-read-${plan}@example.com`;
+			const cookie = await server.register(email, 'password123');
+			const { id, token } = await createToken(cookie);
+			await setPlan(email, plan);
+			process.env.MONETIZATION_ENFORCED = 'true';
+
+			const read = await withBearer(token);
+
+			assert.equal(read.status, 403, `${plan} darf lesend nicht über Bearer zugreifen`);
+			const body = (await read.json()) as {
+				code?: string;
+				feature?: string;
+				requiredPlan?: string;
+				currentPlan?: string;
+			};
+			assert.equal(body.code, 'plan_required');
+			assert.equal(body.feature, 'mcp_read');
+			assert.equal(body.requiredPlan, 'max');
+			assert.equal(body.currentPlan, plan);
+
+			const record = await ApiToken.findByPk(id);
+			assert.equal(record!.get('scope'), 'read', 'der gespeicherte Scope darf sich durch die Ablehnung nicht ändern');
+			assert.equal(
+				record!.get('revokedAt') ?? null,
+				null,
+				'ein abgewiesener Lesezugriff darf den Token nicht widerrufen',
+			);
+		});
+	}
+
+	for (const plan of ['max', 'ultimate'] as const) {
+		it(`AK5: ein ${plan}-Nutzer liest über Bearer weiterhin GET /tasks (keine Regression)`, async () => {
+			const email = `bearer-mcp-read-ok-${plan}@example.com`;
+			const cookie = await server.register(email, 'password123');
+			const { token } = await createToken(cookie);
+			await setPlan(email, plan);
+			process.env.MONETIZATION_ENFORCED = 'true';
+
+			const read = await withBearer(token);
+
+			assert.equal(read.status, 200, `${plan} muss weiterhin lesen dürfen`);
+		});
+	}
+
+	it('AK8-Analogie: bei ausgeschaltetem Rollout liest ein free-Nutzer über Bearer unverändert', async () => {
+		const email = 'bearer-mcp-read-rollout-off@example.com';
+		const cookie = await server.register(email, 'password123');
+		const { token } = await createToken(cookie);
+		await setPlan(email, 'free');
+
+		const read = await withBearer(token);
+
+		assert.equal(read.status, 200, 'ohne MONETIZATION_ENFORCED bleibt das Verhalten wie heute');
+	});
+});

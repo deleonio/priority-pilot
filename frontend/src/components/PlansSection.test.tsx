@@ -105,3 +105,48 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 		expect(screen.queryByText('21,57 €')).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1524 AK7 (Spec docs/spec/issue-1524.md) — die Paket-Tabelle zeigt lesenden
+ * und schreibenden MCP-Zugriff als ZWEI unterscheidbare Zeilen. Die Tabelle rendert datengetrieben
+ * aus `catalog.features` (`PlansSection.tsx:348-355`) über `featureOffer(entry.feature).title`
+ * (`frontend/src/lib/planOffers.ts`) — heute kennt `FEATURE_OFFERS` nur `mcp_readwrite`, für
+ * `mcp_read` fällt `featureOffer()` auf den neutralen Fallback-Titel "Mehr Funktionen" zurück. Rot,
+ * bis `FEATURE_OFFERS.mcp_read` einen eigenen, von `mcp_readwrite` sprachlich unterscheidbaren
+ * Titel trägt.
+ */
+describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibenden MCP-Zugriff)', () => {
+	const CATALOG_MCP = {
+		features: [
+			{ feature: 'mcp_read', allowedPlans: ['max', 'ultimate'] },
+			{ feature: 'mcp_readwrite', allowedPlans: ['ultimate'] },
+		],
+		prices: CATALOG_CENTS.prices,
+	};
+
+	it('zeigt zwei unterscheidbare Zeilen mit korrekter Paket-Zuordnung', async () => {
+		getPlansCatalog.mockResolvedValue(CATALOG_MCP);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+
+		// `tbody` enthält genau eine Zeile je `catalog.features`-Eintrag, in Katalog-Reihenfolge
+		// (PlansSection.tsx:348-355) — hier also [mcp_read, mcp_readwrite].
+		const featureRows = document.querySelectorAll('tbody tr');
+		expect(featureRows).toHaveLength(2);
+		const [readTitle, readwriteTitle] = Array.from(featureRows).map(
+			(row) => row.querySelector('th[scope="row"]')?.textContent,
+		);
+		expect(readTitle).toBeTruthy();
+		expect(readwriteTitle).toBeTruthy();
+		expect(readTitle).not.toBe(readwriteTitle);
+
+		// mcp_read: max enthalten, ultimate enthalten, free/pro nicht.
+		const readCells = Array.from(featureRows[0]!.querySelectorAll('td')).map((cell) => cell.textContent);
+		expect(readCells).toEqual(['—', '—', 'enthalten', 'enthalten']);
+
+		// mcp_readwrite: nur ultimate enthalten (unverändert).
+		const readwriteCells = Array.from(featureRows[1]!.querySelectorAll('td')).map((cell) => cell.textContent);
+		expect(readwriteCells).toEqual(['—', '—', '—', 'enthalten']);
+	});
+});
