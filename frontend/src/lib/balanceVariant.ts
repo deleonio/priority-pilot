@@ -3,13 +3,17 @@ import { useCallback, useState } from 'react';
 /**
  * Welches Bild die Startseite für die Lebensbalance zeichnet — die „Zifferblätter" der App.
  *
- * Alle vier Varianten rechnen mit **denselben** Zahlen (`lib/heartBalance.ts`): Sie sind vier
- * Lesarten derselben Auskunft, keine vier Kennzahlen. Was sie unterscheidet, ist die Frage, die
+ * Alle Varianten rechnen mit **denselben** Zahlen (`lib/heartBalance.ts`): Sie sind vier
+ * Lesarten derselben Auskunft, keine eigenen Kennzahlen. Was sie unterscheidet, ist die Frage, die
  * das Bild in den Vordergrund stellt:
  *
  * - **Herz** — das gewohnte Gefäß, das sich wie ein Wasserglas füllt. Füllstand = Gesamt-Balance,
  *   Streifenbreite = Verteilung (`HeartVessel`/`heartGeometry.ts`).
- * - **Blasen** — je Säule eine schwingende Ellipse, gestapelt von groß nach klein.
+ * - **Blasen** — je Säule eine schwingende Ellipse, gestapelt von groß nach klein; Seifenblasen-Glas
+ *   mit Fresnel-Saum und Neon-Schein.
+ * - **Scheiben** — derselbe Stapel, aber deckend und scharfkantig. Dieselbe Geometrie, entgegen-
+ *   gesetztes Material: Wo die Blasen die Farbe in eine Haut legen und den Rest durchscheinen
+ *   lassen, ist hier jede Scheibe eine satte Fläche mit harter Kante.
  * - **Ringe** — je Säule ein Bogen wie die Aktivitätsringe einer Uhr, stärkste Säule außen.
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, längster auf 12 Uhr.
  *
@@ -23,8 +27,8 @@ import { useCallback, useState } from 'react';
  * Einstellungen teilt.
  */
 
-/** Schlüssel der vier Bilder. Der gespeicherte Wert ist genau einer davon. */
-export type BalanceVariant = 'herz' | 'blasen' | 'ringe' | 'strahlen';
+/** Schlüssel der Bilder. Der gespeicherte Wert ist genau einer davon. */
+export type BalanceVariant = 'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen';
 
 /** Die drei Figuren, die sich Zifferblatt, Kennzahl und Material teilen (`BalanceFigure`). */
 export type FigureKind = Exclude<BalanceVariant, 'herz'>;
@@ -33,6 +37,7 @@ export type FigureKind = Exclude<BalanceVariant, 'herz'>;
 export const BALANCE_VARIANTS: readonly { value: BalanceVariant; label: string }[] = [
 	{ value: 'herz', label: 'Herz' },
 	{ value: 'blasen', label: 'Blasen' },
+	{ value: 'scheiben', label: 'Scheiben' },
 	{ value: 'ringe', label: 'Ringe' },
 	{ value: 'strahlen', label: 'Strahlen' },
 ];

@@ -96,14 +96,29 @@ Standbild auf 0 — und das Bild ist leer statt fertig (genau der Fall „Dashbo
 geöffnet"). Der Fortschritt kommt deshalb als Uniform `u_rise` aus der Komponente, und ein Standbild
 setzt ihn auf 1.
 
-## 6. Die vier Zifferblätter heute
+## 6. Die Zifferblätter heute
 
-| Schlüssel  | Bild       | Größe ist …                                | Soll-Marke                 |
-| ---------- | ---------- | ------------------------------------------ | -------------------------- |
-| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite              | Füllstand 100 %            |
-| `blasen`   | Blasen     | Radius, größte hinten                      | gestrichelter Kreis        |
-| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge | Strich quer über jede Spur |
-| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                 | gestrichelter Kreis        |
+| Schlüssel  | Bild       | Größe ist …                                | Material                          |
+| ---------- | ---------- | ------------------------------------------ | --------------------------------- |
+| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite              | Glas, Welle, Meniskus             |
+| `blasen`   | Blasen     | Radius, größte hinten                      | Seifenhaut, Fresnel-Saum, Schein  |
+| `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben) | deckend, harte Kante, kein Schein |
+| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge | Bogen mit hellem Kopf             |
+| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                 | Lichtkeil mit auslaufendem Puls   |
+
+**„Blasen" und „Scheiben" sind derselbe Stapel in zwei Materialien** — gleiche Geometrie, gleiche
+Bewegung, gleiche Slots. Sie teilen sich im Shader einen Zweig (`bool sharp`), weil jede Trennung
+der Ellipsen-Mathematik zwei Stellen erzeugte, die auseinanderlaufen können. Die Blase legt ihre
+Farbe in eine dünne Haut und lässt den Rest durchscheinen; die Scheibe ist eine satte Fläche mit
+harter Kante. Das ist keine Geschmacksfrage im Code, sondern die eine Stelle, an der ein neues
+Zifferblatt allein durch Material entstehen darf.
+
+**Die Soll-Marke** ist bei Blasen, Scheiben und Strahlen ein gestrichelter Kreis, bei den Ringen ein
+Strich quer über jede Spur; das Herz trägt sie in seinem Füllstand.
+
+**Was die Scheiben nicht bekommen:** keinen Kontaktschatten und keinen Neon-Schein. Ein weicher Saum
+um eine harte Kante nimmt genau die Schärfe zurück, die ihr Stilmittel ist — ihre Tiefe trägt die
+helle Lippe an der Kante.
 
 Gewählt wird in **Einstellungen → Darstellung und Eingabe → „Bild der Lebensbalance"**, gespeichert
 pro Gerät (`localStorage`, `pp-balance-variant`). Default ist `herz` — das Bild, das bestehende

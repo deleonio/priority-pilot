@@ -58,7 +58,7 @@ const SHADOW_STRENGTH = 0.06;
 const SLOTS = 8;
 
 /** Reihenfolge der Figuren im Shader (`u_figure`). */
-const FIGURE_INDEX: Record<FigureKind, number> = { blasen: 0, ringe: 1, strahlen: 2 };
+const FIGURE_INDEX: Record<FigureKind, number> = { blasen: 0, ringe: 1, strahlen: 2, scheiben: 3 };
 
 /** Stützstellen der Ring-Farbrampe in `app.css` (`--pp-balance-ring-0` … `-100`). */
 const RING_STOPS = [0, 25, 50, 75, 100] as const;
@@ -165,6 +165,7 @@ export const toSlots = (
 			target: rays[0]?.targetLength ?? 0,
 		};
 	}
+	// Blasen und Scheiben teilen sich die Geometrie — nur ihr Material trennt sie (siehe Shader).
 	const orbs = buildOrbs(state.metrics).slice(0, SLOTS);
 	return {
 		colors: orbs.map((orb) => colorOf(orb.colorIndex)),

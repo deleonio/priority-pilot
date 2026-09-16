@@ -3,7 +3,7 @@ import { waitForStableView } from './helpers';
 
 /**
  * **Kein Prüf-Spec, sondern ein Bildmacher.** Er fährt das Dashboard mit einer echten Session hoch,
- * schaltet die vier Zifferblätter durch (`docs/zifferblatt-konzept.md`) und legt von jedem einen
+ * schaltet die Zifferblätter durch (`docs/zifferblatt-konzept.md`) und legt von jedem einen
  * Screenshot in `e2e/__shots__/` ab — zum Anschauen, nicht zum Vergleichen.
  *
  * Läuft nur auf Zuruf (`pnpm exec playwright test e2e/zifferblatt-shots.spec.ts`), nicht im
@@ -17,7 +17,7 @@ import { waitForStableView } from './helpers';
  * unabhängig davon, was auf dem jeweiligen Rechner in der `.env` steht.
  */
 
-const VARIANTEN = ['herz', 'blasen', 'ringe', 'strahlen'] as const;
+const VARIANTEN = ['herz', 'blasen', 'scheiben', 'ringe', 'strahlen'] as const;
 
 /** Säulen mit gleichem Ziel und ungleichem Ist — die Schieflage, an der man die Bilder liest. */
 const SAEULEN = [

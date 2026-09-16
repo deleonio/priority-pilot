@@ -3,8 +3,9 @@ precision highp float;
 /*
  * Balance-Figuren — WebGL-Fassung der drei Startseiten-Bilder der Lebensbalance.
  *
- * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material ist Neon-Glas. Drei
- * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2). Sie bekommen **dieselben** Werte —
+ * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Vier
+ * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3). Sie bekommen dieselben
+ * Werte —
  * je Saeule das Verhaeltnis Ist zu Soll (lib/balanceMetric.ts) — und unterscheiden sich allein
  * darin, wie sie es zeigen. Radien, Winkel und Phasen kommen aus lib/balanceFigure.ts; beide
  * Fassungen rechnen dieselbe Geometrie, hier nur je Bildpunkt statt je Element.
@@ -32,7 +33,7 @@ uniform float u_rise;
 /* Ruhepuls: Sekunden je Schlag, ruhiger je ausgewogener. */
 uniform float u_beat;
 
-/* 0 = Blasen, 1 = Ringe, 2 = Strahlen. */
+/* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material). */
 uniform float u_figure;
 
 /* Je Saeule: Farbe und Bewegung — in allen drei Figuren dieselbe. */
@@ -166,8 +167,17 @@ void main() {
 	vec3 acc = vec3(0.0);
 	float alpha = 0.0;
 
-	if (u_figure < 0.5) {
-		/* ── Blasen: von hinten nach vorn, Slot 0 ist die groesste ────────────────────────────── */
+	if (u_figure < 0.5 || u_figure > 2.5) {
+		/*
+		 * ── Blasen (0) und Scheiben (3): derselbe Stapel, zwei Materialien ─────────────────────
+		 *
+		 * Geometrie, Reihenfolge und Bewegung sind identisch — nur das Shading trennt sie. Die
+		 * Blase traegt ihre Farbe in einer duennen Haut und laesst den Rest durchscheinen; die
+		 * Scheibe ist eine satte Flaeche mit harter Kante. Ein gemeinsamer Zweig, weil jede
+		 * Trennung der Ellipsen-Mathematik zwei Stellen erzeugte, die auseinanderlaufen koennen.
+		 */
+		bool sharp = u_figure > 2.5;
+
 		for (int i = 0; i < 8; i++) {
 			float used = step(float(i), u_count - 1.0);
 
@@ -197,13 +207,21 @@ void main() {
 			 */
 			vec2 shadowLocal = local - vec2(1.1 * cs + 1.5 * sn, -1.1 * sn + 1.5 * cs);
 			float ks = length(shadowLocal / vec2(ax, ay));
-			float shadowAlpha = smoothstep(1.0 + w * 3.0, 1.0 - w, ks) * (1.0 - inside) * u_shadow * used;
+			// Scheiben bekommen **keinen** Schatten: Ein weicher Saum um eine harte Kante nimmt genau
+			// die Schaerfe zurueck, die ihr Stilmittel ist. Ihre Tiefe traegt die Kantenlippe.
+			float shadowAlpha = sharp ? 0.0 : smoothstep(1.0 + w * 3.0, 1.0 - w, ks) * (1.0 - inside) * u_shadow * used;
 			acc *= 1.0 - shadowAlpha;
 			alpha = shadowAlpha + alpha * (1.0 - shadowAlpha);
 
-			/* Fuellung: zur Mitte hin leicht abgedunkelt, nach aussen aufgehellt — das gibt der Blase
-			 * Woelbung, ohne die Farbzuordnung zu verwaessern. */
-			vec3 body = mix(u_colors[i], u_surface, FILL_TINT) * mix(0.95, 1.12, clamp(k, 0.0, 1.0));
+			/*
+			 * Fuellung. Blase: stark zur Kartenfarbe aufgehellt und fast klar — sonst liefen fuenf
+			 * uebereinanderliegende Saeulenfarben zu einem grauen Klumpen zusammen. Scheibe: die
+			 * **reine** Saeulenfarbe, nur zur Mitte hin leicht abgedunkelt, damit die Flaeche eine
+			 * Woelbung behaelt statt als Papierkreis zu wirken.
+			 */
+			vec3 body = sharp
+				? u_colors[i] * mix(0.86, 1.04, clamp(k, 0.0, 1.0))
+				: mix(u_colors[i], u_surface, FILL_TINT) * mix(0.95, 1.12, clamp(k, 0.0, 1.0));
 
 			/*
 			 * Seifenhaut: ein schmaler Fresnel-Saum kurz innerhalb der Kante, zur Lichtseite (oben
@@ -220,17 +238,26 @@ void main() {
 			/* Glanzlicht oben links, mit der Blase mitskaliert. */
 			float glint = spec(local, vec2(-0.40, -0.45) * r, vec2(0.30, 0.16) * r, 0.6);
 
-			vec3 orbCol = mix(body, rimCol, rim) + vec3(0.22) * glint * inside * (1.0 - rim);
-			float orbAlpha = clamp(inside * FILL_ALPHA + rim * 0.9, 0.0, 1.0) * used;
+			/*
+			 * Scheibe: volle Deckkraft, harte Kante, kein Saum und kein Schein. Statt des Fresnel-
+			 * Saums nur eine schmale helle Lippe direkt an der Kante — sie trennt zwei gleich satte
+			 * Scheiben voneinander, ohne die Flaeche aufzuweichen.
+			 */
+			float lip = smoothstep(0.93, 1.0, k) * inside;
+			vec3 discCol = mix(body, mix(u_colors[i], vec3(1.0), 0.7), lip);
+
+			vec3 orbCol = sharp ? discCol : mix(body, rimCol, rim) + vec3(0.22) * glint * inside * (1.0 - rim);
+			float orbAlpha = sharp ? inside * used : clamp(inside * FILL_ALPHA + rim * 0.9, 0.0, 1.0) * used;
 			acc = orbCol * orbAlpha + acc * (1.0 - orbAlpha);
 			alpha = orbAlpha + alpha * (1.0 - orbAlpha);
 
 			/*
 			 * Neon-Schein: ein weicher Hauch der Saeulenfarbe **ausserhalb** der Kante. Er wird
 			 * addiert, nicht ueberblendet — Licht legt sich auf den Untergrund, es deckt ihn nicht zu.
-			 * Das ist der Unterschied zwischen einer bunten Scheibe und einer leuchtenden Blase.
+			 * Das ist der Unterschied zwischen einer bunten Scheibe und einer leuchtenden Blase — und
+			 * genau deshalb bekommt die Scheibe ihn nicht: Ihre Schaerfe ist ihr Stilmittel.
 			 */
-			float halo = exp(-max(k - 1.0, 0.0) * 9.0) * (1.0 - inside) * used;
+			float halo = sharp ? 0.0 : exp(-max(k - 1.0, 0.0) * 9.0) * (1.0 - inside) * used;
 			acc += u_colors[i] * halo * GLOW;
 			alpha = min(1.0, alpha + halo * GLOW);
 		}

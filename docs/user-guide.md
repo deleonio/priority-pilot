@@ -72,9 +72,11 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Säule angelegt hast). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
   alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
   Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
-  **Ringe** oder **Strahlen**. Alle vier zeigen dieselben Zahlen: Je Säule steht
+  **Scheiben**, **Ringe** oder **Strahlen**. Alle zeigen dieselben Zahlen: Je Säule steht
   die Größe für das Verhältnis von Ist zu Ziel, die stärkste Säule bekommt die
-  größte Form. Bei den drei Ring-Bildern läuft außen herum ein Zifferblatt aus
+  größte Form. „Blasen" und „Scheiben" zeigen denselben Stapel – einmal
+  durchscheinend und leuchtend, einmal satt und scharfkantig. Bei diesen vier
+  Bildern läuft außen herum ein Zifferblatt aus
   100 Strichen, das von Dunkelrot über Orange nach Dunkelgrün wechselt – die
   leuchtenden Striche sind dein Balance-Wert in Prozent. Eine stark vernachlässigte Säule drückt den
   Wert deutlicher als viele kleine Abweichungen. Die Legende nennt je Säule den
@@ -557,9 +559,9 @@ der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
   Die Wahl wirkt sofort und bleibt auf diesem Gerät gespeichert. Ohne eigene Wahl
   richtet sich die App nach der Spracheinstellung deines Browsers; ist deren
   Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
-- **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Ringe** und
-  **Strahlen**. Alle vier zeigen dieselbe Rechnung, nur anders dargestellt. Die
-  Wahl gilt auf diesem Gerät.
+- **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
+  **Ringe** und **Strahlen**. Alle zeigen dieselbe Rechnung, nur anders
+  dargestellt. Die Wahl gilt auf diesem Gerät.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das

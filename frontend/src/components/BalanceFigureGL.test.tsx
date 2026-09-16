@@ -37,7 +37,7 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 	};
 };
 
-const stateOf = (metrics: BalanceMetrics, figure: 'blasen' | 'ringe' | 'strahlen') => ({
+const stateOf = (metrics: BalanceMetrics, figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen') => ({
 	figure,
 	metrics,
 	activeTicks: 50,
@@ -89,6 +89,17 @@ describe('BalanceFigureGL toSlots', () => {
 				.slice(0, 8)
 				.map((orb) => orb.radius),
 		);
+	});
+
+	/* Scheiben sind Blasen in anderem Material — die Slots müssen deshalb identisch belegt sein. */
+	it('belegt die Slots für Scheiben genau wie für Blasen', () => {
+		const metrics = metricsOf([0.2, 1, 0.6]);
+		const blasen = toSlots(stateOf(metrics, 'blasen'), colors);
+		const scheiben = toSlots(stateOf(metrics, 'scheiben'), colors);
+
+		expect(scheiben.orbRadius).toEqual(blasen.orbRadius);
+		expect(scheiben.colors).toEqual(blasen.colors);
+		expect(scheiben.target).toBe(blasen.target);
 	});
 
 	it('füllt je Figur nur deren eigene Felder', () => {

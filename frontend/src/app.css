@@ -3410,6 +3410,47 @@ kol-alert {
 }
 
 /*
+ * Scheiben: derselbe Stapel wie die Blasen, entgegengesetztes Material — volle Deckkraft, harte
+ * Kante, kein Saum. Jede kleinere Scheibe liegt auf der größeren, sichtbar bleibt von jeder ein
+ * Ring; die Farbe steht damit satt im Bild statt durchzuscheinen. Die helle Lippe an der Kante
+ * trennt zwei gleich kräftige Scheiben, ohne die Fläche aufzuweichen.
+ */
+.balance-disc {
+	fill: var(--pp-border-strong);
+	stroke: var(--pp-surface-1);
+	stroke-width: 1;
+	stroke-opacity: 0.9;
+}
+
+.balance-disc--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-disc--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-disc--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-disc--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-disc--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-disc--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-disc--7 {
+	fill: var(--pp-pillar-neon-7);
+}
+
+/*
  * Ringe: je Säule eine Spur. Die blasse Grundspur zeigt, wie weit es noch wäre; darüber liegt der
  * gefüllte Bogen. Beide teilen sich Radius und Strichstärke — die Komponente setzt sie als
  * Attribute, weil sie von der Zahl der Säulen abhängen.

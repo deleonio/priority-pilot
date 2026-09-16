@@ -24,13 +24,15 @@ import { rampClass } from '../lib/pillarRamp';
 import { supportsWebGl2 } from '../lib/webgl';
 
 /**
- * Die drei **Figuren-Varianten** der Lebensbalance: Blasen, Ringe, Strahlen — außen herum immer
- * dasselbe Zifferblatt aus 100 Strichen.
+ * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen — außen herum
+ * immer dasselbe Zifferblatt aus 100 Strichen.
  *
  * **Alle drei zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
  * ungedeckelt: 1 heißt „genau auf Ziel", 1,5 heißt „zieht davon". Die stärkste Säule bekommt
- * überall die größte Form — bei den Blasen die unterste, bei den Ringen die äußerste Spur, bei den
- * Strahlen den längsten Strahl auf 12 Uhr. Eine gemeinsame Soll-Marke zeigt, wo „auf Ziel" läge.
+ * überall die größte Form — bei Blasen und Scheiben die unterste, bei den Ringen die äußerste Spur,
+ * bei den Strahlen den längsten Strahl auf 12 Uhr. „Blasen" und „Scheiben" teilen sich Geometrie
+ * und Bewegung und unterscheiden sich allein im Material: durchscheinende Haut gegen deckende
+ * Fläche mit harter Kante. Eine gemeinsame Soll-Marke zeigt, wo „auf Ziel" läge.
  * *Außen* trägt das Zifferblatt die Gesamt-Balance: ein Strich je Prozentpunkt, dunkelrot bei 0
  * über orange bis dunkelgrün bei 100. Die Striche bis zum Wert leuchten, die übrigen bleiben
  * abgedunkelt stehen — die Skala ist immer ganz zu sehen, der Stand liest sich als Bogenlänge.
@@ -225,7 +227,9 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 			 */}
 			<g className="balance-figure-rise">
 				<g className="balance-figure-beat">
-					{figure === 'blasen' && <Orbs metrics={metrics} animated={animated} />}
+					{(figure === 'blasen' || figure === 'scheiben') && (
+						<Orbs metrics={metrics} animated={animated} sharp={figure === 'scheiben'} />
+					)}
 					{figure === 'ringe' && <Arcs metrics={metrics} animated={animated} />}
 					{figure === 'strahlen' && <Rays metrics={metrics} animated={animated} />}
 				</g>
@@ -234,8 +238,20 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 	);
 };
 
-/** Figur „Blasen": gestapelte Ellipsen, stärkste hinten, dazu der gemeinsame Soll-Kreis. */
-const Orbs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+/**
+ * Figuren „Blasen" und „Scheiben": derselbe Stapel, stärkste Ellipse hinten, dazu der gemeinsame
+ * Soll-Kreis. `sharp` entscheidet allein über das Material — halbtransparente Haut oder deckende
+ * Fläche mit harter Kante (Klassen in `app.css`).
+ */
+const Orbs = ({
+	metrics,
+	animated,
+	sharp,
+}: {
+	metrics: ReturnType<typeof balanceMetrics>;
+	animated: boolean;
+	sharp: boolean;
+}) => {
 	const orbs = buildOrbs(metrics);
 	const target = targetRadius(metrics);
 	return (
@@ -247,7 +263,7 @@ const Orbs = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics
 					key={orb.pillarId}
 					motion={orb}
 					radius={orb.radius}
-					className={rampClass('balance-orb', orb.colorIndex)}
+					className={rampClass(sharp ? 'balance-disc' : 'balance-orb', orb.colorIndex)}
 					testId="heart-column"
 					animated={animated}
 				/>

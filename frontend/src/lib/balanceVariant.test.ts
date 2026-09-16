@@ -42,7 +42,13 @@ describe('balanceVariant', () => {
 		expect(() => storeBalanceVariant('ringe')).not.toThrow();
 	});
 
-	it('führt genau vier Varianten in fester Reihenfolge', () => {
-		expect(BALANCE_VARIANTS.map((variant) => variant.value)).toEqual(['herz', 'blasen', 'ringe', 'strahlen']);
+	it('führt die Varianten in fester Reihenfolge — das Herz zuerst, die Stapel-Bilder nebeneinander', () => {
+		expect(BALANCE_VARIANTS.map((variant) => variant.value)).toEqual([
+			'herz',
+			'blasen',
+			'scheiben',
+			'ringe',
+			'strahlen',
+		]);
 	});
 });

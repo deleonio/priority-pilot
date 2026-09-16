@@ -66,7 +66,7 @@ describe('HeartBalance', () => {
 		 * dieselbe Zahl, die unter dem Bild steht.
 		 */
 		it('gibt jeder Figur dasselbe Zifferblatt mit 100 Strichen', () => {
-			for (const value of ['blasen', 'ringe', 'strahlen'] as const) {
+			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen'] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 
@@ -83,7 +83,7 @@ describe('HeartBalance', () => {
 
 		/* Die Soll-Marke sagt in jeder Figur dasselbe: „hier stünde die Säule genau auf ihrem Ziel". */
 		it('markiert in jeder Figur, wo das Soll liegt', () => {
-			for (const value of ['blasen', 'ringe', 'strahlen'] as const) {
+			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen'] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 				expect(screen.getAllByTestId('balance-target').length, value).toBeGreaterThan(0);
@@ -129,8 +129,24 @@ describe('HeartBalance', () => {
 		});
 	});
 
-	describe('Figur „Blasen"', () => {
+	describe('Figuren „Blasen" und „Scheiben"', () => {
 		beforeEach(() => chooseVariant('blasen'));
+
+		/*
+		 * Die beiden teilen sich Geometrie und Bewegung und unterscheiden sich allein im Material —
+		 * das muss im Markup auch so ankommen: gleiche Radien, andere Klasse.
+		 */
+		it('zeichnet Scheiben mit derselben Geometrie wie die Blasen, nur in anderer Klasse', () => {
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+			const blasen = orbRadii();
+			expect(screen.getAllByTestId('heart-column')[0].getAttribute('class')).toContain('balance-orb');
+			cleanup();
+
+			chooseVariant('scheiben');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+			expect(orbRadii()).toEqual(blasen);
+			expect(screen.getAllByTestId('heart-column')[0].getAttribute('class')).toContain('balance-disc');
+		});
 
 		/*
 		 * Die Kernaussage des Bildes: Die Säule, die am weitesten zurückliegt, ist die kleinste Blase
