@@ -127,7 +127,20 @@ Nutzer kennen.
 Das Herz ist der Sonderfall: Es kam zuerst, hat eine eigene Geometrie (`heartGeometry.ts`) und ein
 eigenes Shader-Programm. Die drei anderen teilen sich Programm, Zifferblatt und Rahmen.
 
-## 7. Ein neues Zifferblatt bauen
+## 7. Bilder zum Anschauen erzeugen
+
+`frontend/e2e/zifferblatt-shots.spec.ts` fährt das Dashboard mit echter Session hoch, schaltet alle
+Zifferblätter durch und legt je einen Screenshot in `frontend/e2e/__shots__/` ab:
+
+```bash
+SHOTS=1 pnpm --filter frontend exec playwright test e2e/zifferblatt-shots.spec.ts
+```
+
+Ohne `SHOTS` überspringt er sich — er nagelt nichts fest und hat im normalen Lauf nichts verloren.
+Die Bilder selbst sind nicht versioniert (`.gitignore`): Sie veralten mit jeder Farb- oder
+Geometrieänderung.
+
+## 8. Ein neues Zifferblatt bauen
 
 1. **Geometrie** in `lib/balanceFigure.ts` ergänzen: eine `buildX(metrics)`-Funktion, die
    `FigureMotion` mitführt und `byStrength` benutzt.

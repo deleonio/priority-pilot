@@ -6,9 +6,17 @@ import { waitForStableView } from './helpers';
  * schaltet die Zifferblätter durch (`docs/zifferblatt-konzept.md`) und legt von jedem einen
  * Screenshot in `e2e/__shots__/` ab — zum Anschauen, nicht zum Vergleichen.
  *
- * Läuft nur auf Zuruf (`pnpm exec playwright test e2e/zifferblatt-shots.spec.ts`), nicht im
- * normalen Gate: Er hat keine Assertion, die etwas festnagelt, und Screenshots im CI wären nur
- * Ballast.
+ * **Läuft nur mit gesetztem `SHOTS`:**
+ *
+ * ```
+ * SHOTS=1 pnpm exec playwright test e2e/zifferblatt-shots.spec.ts
+ * ```
+ *
+ * Ohne die Variable überspringt er sich. Der Grund ist nicht Geschmack: Er nagelt nichts fest, was
+ * in CI fehlschlagen dürfte, kostet dort aber eine halbe Minute — und liegt als `.spec.ts` sonst
+ * mitten im normalen Lauf (`testDir: 'e2e'` greift jede Datei). Ein `testIgnore` in der Config
+ * schiede ihn auch beim ausdrücklichen Aufruf aus; das Env-Gate lässt ihn starten, wenn man ihn
+ * will.
  *
  * **Warum `POST /auth/test-login` und nicht die Fixture allein:** Die Fixture mockt `/auth/me` nur
  * im Browser. Sobald in einer lokalen `server/.env` ein `SESSION_SECRET` steht, ist `isAuthActive()`
@@ -29,6 +37,8 @@ const SAEULEN = [
 ];
 
 test.describe('Zifferblätter — Bilder fürs Auge', () => {
+	test.skip(!process.env.SHOTS, 'Bildmacher, kein Prüf-Spec — mit SHOTS=1 starten (siehe Kopfkommentar).');
+
 	test('legt von jeder Variante einen Screenshot ab', async ({ page }) => {
 		// Echte Session, unabhängig von der lokalen `.env` (siehe Kopfkommentar).
 		const login = await page.request.post('/auth/test-login', {
@@ -78,7 +88,12 @@ test.describe('Zifferblätter — Bilder fürs Auge', () => {
 			await expect(bild).toBeVisible();
 			// Kurz laufen lassen: Auftakt (1,4 s) plus ein Stück Schwingung.
 			await page.waitForTimeout(2500);
-			await page.locator('.dashboard-heart').screenshot({ path: `e2e/__shots__/${variante}.png` });
+			// `animations: 'disabled'` ist Pflicht, nicht Kosmetik: Der Ruhepuls skaliert dauerhaft,
+			// ohne das Einfrieren wartet Playwright ewig darauf, dass das Element „stabil" wird.
+			await page.locator('.dashboard-heart').screenshot({
+				path: `e2e/__shots__/${variante}.png`,
+				animations: 'disabled',
+			});
 		}
 	});
 });
