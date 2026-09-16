@@ -190,7 +190,9 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		const bodyRows = host.getByRole('row').filter({ hasNot: page.getByRole('columnheader') });
 		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 7);
 
-		const lastRow = bodyRows.last();
-		await expectWithinViewport(lastRow);
+		// Geprüft wird „kein Seitenüberlauf", nicht „jede Zeile passt in den Viewport": seit #1529
+		// (AK4, ADR 0014 Entscheidung 6) scrollt die Matrix bewusst seitlich IM Tabellen-Host. Die
+		// Zeilen sind deshalb breiter als 375px — der Host selbst darf den Viewport nicht überragen.
+		await expectWithinViewport(host);
 	});
 });
