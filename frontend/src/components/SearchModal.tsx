@@ -2,7 +2,7 @@ import { KolButton, KolInputText, KolSingleSelect } from '@public-ui/react-v19';
 import type { Category } from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
-import { readAiPreferences } from '../lib/aiPreferences';
+import { useAiFeaturesGate } from '../lib/aiPreferences';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { Modal } from './Modal';
 import { VoiceField } from './VoiceField';
@@ -41,7 +41,8 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 	// bereits der reine Suchbegriff, und der Filter steht als eigenes Feld daneben.
 	const [fromVoice, setFromVoice] = useState(false);
 	const inputRef = useRef<HTMLKolInputTextElement>(null);
-	const aiEnabled = useMemo(() => readAiPreferences().aiEnabled, []);
+	// #1525: an die Paket-Freischaltung `ai_assist` (oder einen eigenen Provider) gekoppelt.
+	const aiEnabled = useAiFeaturesGate();
 
 	const categoryOptions = useMemo(
 		() => [

@@ -31,7 +31,7 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
 import { buildRecipientOptions } from '../lib/recipientOptions';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
-import { readAiPreferences } from '../lib/aiPreferences';
+import { useAiFeaturesGate } from '../lib/aiPreferences';
 import { CategoryBadge } from './CategoryBadge';
 import { VoiceField } from './VoiceField';
 import { AddressAutocomplete, type PlaceFavoriteSuggestion } from './AddressAutocomplete';
@@ -270,7 +270,8 @@ export const TaskForm = ({
 
 	// #1080: Ohne aktive KI werden die Lektorat-Buttons (Titel/Beschreibung) nicht gerendert —
 	// die Präferenz ist clientseitig gespeichert und ändert sich nur über die Einstellungen.
-	const aiEnabled = useMemo(() => readAiPreferences().aiEnabled, []);
+	// #1525: zusätzlich an die Paket-Freischaltung `ai_assist` (oder einen eigenen Provider) gekoppelt.
+	const aiEnabled = useAiFeaturesGate();
 
 	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
 	// Im Anlege-Modus wechselt der Umschalter zwischen beiden; im Bearbeiten-Modus ist er gesperrt.

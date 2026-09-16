@@ -1,4 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '../api';
+import { useEntitlement } from './usePlan';
+import type { Plan } from './planOffers';
 
 /**
  * Persistenz der KI-Einstellungen (#1080, seit #1335 nur noch eine): „KI-Features aktiv".
@@ -12,6 +15,11 @@ import { useCallback, useState } from 'react';
  * die Server-Endpunkte bleiben erreichbar. #1335: Der frühere Feinschalter „Schnellerfassung aktiv"
  * (Key `pp-quick-capture-enabled`) ist ersatzlos entfallen — die Schnellerfassung ist kein eigenes
  * Feature mehr, sondern der eine KI-Anlege-Dialog.
+ *
+ * #1525: Die Präferenz allein reicht nicht mehr — KI-Bedienelemente brauchen zusätzlich die
+ * Berechtigung `ai_assist` ODER einen eigenen LLM-Provider (`kind === 'custom'`). Das effektive
+ * Gate ist `computeAiFeaturesEnabled` (reine Funktion, Wahrheitstabelle siehe Tests) plus der Hook
+ * `useAiFeaturesEnabled`, der Präferenz, Entitlement und Custom-Provider-Status zusammenführt.
  */
 
 /** `localStorage`-Schlüssel der KI-Präferenz (muss mit den e2e-Tests übereinstimmen). */
@@ -56,7 +64,7 @@ interface UseAiPreferencesResult extends AiPreferences {
 }
 
 /** React-Hook zur KI-Einstellung. Liest initial aus `localStorage`, persistiert bei Änderung. */
-export const useAiPreferences = (): UseAiPreferencesResult => {
+const useAiPreferences = (): UseAiPreferencesResult => {
 	const [preferences, setPreferences] = useState<AiPreferences>(readAiPreferences);
 
 	const setAiEnabled = useCallback((value: boolean): void => {
@@ -66,4 +74,117 @@ export const useAiPreferences = (): UseAiPreferencesResult => {
 	}, []);
 
 	return { ...preferences, setAiEnabled };
+};
+
+interface AiFeatureGateInput {
+	/** Nutzerwunsch aus `readAiPreferences().aiEnabled`. */
+	preferenceEnabled: boolean;
+	/** `useEntitlement('ai_assist')?.allowed`; `undefined` solange noch nicht geladen. */
+	entitlementAllowed: boolean | undefined;
+	/** Mindestens ein hinterlegter Provider mit `kind === 'custom'`. */
+	hasCustomProvider: boolean;
+}
+
+/**
+ * Effektives KI-Gate (#1525): Präferenz UND (Berechtigung `ai_assist` ODER eigener Provider).
+ * Solange die Berechtigung noch nicht geladen ist, gilt der sichere Default `false` — auch mit
+ * eigenem Provider, damit KI-Elemente nicht erst auf- und dann wieder zublitzen (AK5).
+ */
+export const computeAiFeaturesEnabled = ({
+	preferenceEnabled,
+	entitlementAllowed,
+	hasCustomProvider,
+}: AiFeatureGateInput): boolean => {
+	if (!preferenceEnabled || entitlementAllowed === undefined) {
+		return false;
+	}
+	return entitlementAllowed || hasCustomProvider;
+};
+
+/** Cache über die Laufzeit der Seite (mehrere Hook-Instanzen teilen sich einen Request). */
+let customProviderCache: boolean | null = null;
+let customProviderRequest: Promise<boolean> | null = null;
+
+const loadHasCustomProvider = async (): Promise<boolean> => {
+	if (customProviderCache !== null) {
+		return customProviderCache;
+	}
+	customProviderRequest ??= (async (): Promise<boolean> => {
+		try {
+			const providers = await api.listLlmProviders();
+			return providers.some((provider) => provider.kind === 'custom');
+		} catch {
+			// Best-Effort wie der Rest dieser Datei: eine fehlende/fehlschlagende Provider-Liste
+			// darf das Gate nicht crashen, sie zählt nur als "kein eigener Provider".
+			return false;
+		}
+	})().then((result) => {
+		customProviderCache = result;
+		return result;
+	});
+	return customProviderRequest;
+};
+
+/** Ob mindestens ein eigener LLM-Provider (`kind === 'custom'`) hinterlegt ist (#1525 AK4). */
+const useHasCustomLlmProvider = (): boolean => {
+	const [hasCustomProvider, setHasCustomProvider] = useState(customProviderCache ?? false);
+
+	useEffect(() => {
+		let cancelled = false;
+		loadHasCustomProvider().then((result) => {
+			if (!cancelled) {
+				setHasCustomProvider(result);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	return hasCustomProvider;
+};
+
+interface UseAiFeaturesEnabledResult extends UseAiPreferencesResult {
+	/** Effektives Gate — ob KI-Bedienelemente tatsächlich erscheinen dürfen. */
+	aiFeaturesEnabled: boolean;
+	/** Berechtigung `ai_assist`; `undefined` solange noch nicht geladen. */
+	entitlementAllowed: boolean | undefined;
+	/** Paket aus dem Entitlement, für den Angebots-Alert (`SettingsPage.tsx` AK1). */
+	requiredPlan: Plan | undefined;
+	hasCustomProvider: boolean;
+}
+
+/** Führt Präferenz, Entitlement `ai_assist` und Custom-Provider-Status zum effektiven Gate zusammen. */
+export const useAiFeaturesEnabled = (): UseAiFeaturesEnabledResult => {
+	const preferences = useAiPreferences();
+	const entitlement = useEntitlement('ai_assist');
+	const hasCustomProvider = useHasCustomLlmProvider();
+
+	return {
+		...preferences,
+		aiFeaturesEnabled: computeAiFeaturesEnabled({
+			preferenceEnabled: preferences.aiEnabled,
+			entitlementAllowed: entitlement?.allowed,
+			hasCustomProvider,
+		}),
+		entitlementAllowed: entitlement?.allowed,
+		requiredPlan: entitlement?.requiredPlan,
+		hasCustomProvider,
+	};
+};
+
+/**
+ * Nur-Lese-Gate für Konsumenten ohne eigenen Schalter (`App.tsx`, `TaskForm.tsx`,
+ * `SearchModal.tsx`, #1525 AK3). Liest die Präferenz bewusst PRO RENDER frisch über
+ * `readAiPreferences()` statt über `useAiPreferences()`-State: Diese Komponenten besitzen keine
+ * eigene Hook-Instanz, die bei `setAiEnabled` in `SettingsPage` aktualisiert würde — ein
+ * gepufferter State-Wert bliebe nach einem Wechsel in die Einstellungen und zurück veraltet
+ * stehen (Muster wie zuvor bei `App.tsx`s direktem `readAiPreferences()`-Aufruf).
+ */
+export const useAiFeaturesGate = (): boolean => {
+	const { aiEnabled: preferenceEnabled } = readAiPreferences();
+	const entitlementAllowed = useEntitlement('ai_assist')?.allowed;
+	const hasCustomProvider = useHasCustomLlmProvider();
+
+	return computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed, hasCustomProvider });
 };

@@ -113,3 +113,44 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 		await expect(switchControl(page, /^KI-Features aktiv$/)).not.toBeChecked();
 	});
 });
+
+// ── #1525 (TF4, Spec docs/spec/issue-1525.md AK3) ───────────────────────────────────────────────
+
+/**
+ * Rote Spec-e2e für #1525 AK3 — Free-Konto (keine `ai_assist`-Berechtigung, kein eigener Provider):
+ * `pp-ai-enabled = 'true'` allein darf kein KI-Bedienelement mehr erreichbar machen — weder den
+ * KI-Anlege-Dialog noch die Lektorat-Buttons. Läuft gegen das echte Backend (Muster
+ * `issue-1484-plan-badges.spec.ts`): `POST /auth/test-login` liefert standardmäßig Paket `free`.
+ *
+ * Heute rot: `App.tsx`/`TaskForm.tsx` blenden die KI-Elemente ausschließlich anhand von
+ * `readAiPreferences().aiEnabled` ein — ohne Rücksicht auf die fehlende `ai_assist`-Berechtigung.
+ */
+test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
+	const TEST_EMAIL = 'ai-gate-1525@example.com';
+
+	const loginAsFree = async (page: Page): Promise<void> => {
+		const res = await page.request.post('/auth/test-login', {
+			data: { email: TEST_EMAIL, displayName: 'AI Gate Tester' },
+		});
+		expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
+		// Echte Serverantwort (Paket + Entitlement-Map) statt des Fixture-Mocks — wie in
+		// issue-1484-plan-badges.spec.ts (der Fixture-Mock liefert keine Entitlements).
+		await page.unroute('**/auth/me');
+	};
+
+	test('AK3: pp-ai-enabled=true, Free-Konto → kein KI-Anlege-Dialog, keine Lektorat-Buttons', async ({ page }) => {
+		initAiEnabled(page, true);
+		await loginAsFree(page);
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
+
+		// Direkt das Task-Formular — kein Freitext-Capture-Schritt, obwohl `pp-ai-enabled=true`.
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
+		// Kein Lektorat-Button im Formular, obwohl die Präferenz an ist.
+		await expect(page.getByRole('button', { name: /lektorieren/ })).toHaveCount(0);
+	});
+});

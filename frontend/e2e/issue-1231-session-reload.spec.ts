@@ -19,7 +19,16 @@ import { waitForStableView } from './helpers';
  * Auth-Mocks wie in silent-login.spec.ts (echter OAuth-Zyklus nicht deterministisch).
  */
 
-const USER = { id: 1, displayName: 'Peter', email: 'peter@example.com' };
+// #1525: ohne `entitlements` bleibt `ai_assist` dauerhaft `undefined` und das KI-Gate sperrt den
+// Freitext-Einstieg (`QuickCaptureModal`) — diese Journey braucht ihn aber (Session-401 beim
+// Absenden von „Verarbeiten und weiter"), daher wie `fixtures.ts`s `AUTHENTICATED_USER` auf Pro.
+const USER = {
+	id: 1,
+	displayName: 'Peter',
+	email: 'peter@example.com',
+	plan: 'pro',
+	entitlements: { ai_assist: { allowed: true, requiredPlan: 'pro' } },
+};
 
 const SAMPLE_TASK = {
 	id: 1,

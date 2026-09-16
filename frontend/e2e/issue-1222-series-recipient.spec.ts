@@ -256,10 +256,11 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await waitForStableView(recipientPage);
 
 			// AK2 — Task-Modus: Anlegen ohne Eingriff in die Empfängerauswahl → POST /tasks mit 2xx.
+			// Test-Pflege (#1525): das Empfänger-Konto liegt auf Free ohne `ai_assist` — das neue
+			// KI-Gate öffnet daher direkt das Task-Formular („Aufgabe anlegen"), kein Freitext-Einstieg
+			// mit „Überspringen" mehr.
 			await recipientPage.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-			await expect(recipientPage.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
-			await waitForStableView(recipientPage);
-			await recipientPage.getByRole('button', { name: 'Überspringen' }).click();
+			await expect(recipientPage.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 			await waitForStableView(recipientPage);
 			// Combobox-Rolle statt getByLabel: Der Anzeigename des eigenen Kontos enthält hier
 			// „Empfänger", der Avatar der Vorauswahl (aria-label „Avatar von Ronny Empfänger")
@@ -274,12 +275,10 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			const taskResponse = await taskCreated;
 			expect(taskResponse.status(), 'Task-Anlage ohne Eingriff in die Auswahl muss 2xx liefern').toBeLessThan(300);
 			expect(taskResponse.status()).toBeGreaterThanOrEqual(200);
-			await expect(recipientPage.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
+			await expect(recipientPage.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeHidden();
 
 			// AK3 — Serie-Modus: dieselbe Vorauswahl, POST /series mit 2xx.
 			await recipientPage.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-			await waitForStableView(recipientPage);
-			await recipientPage.getByRole('button', { name: 'Überspringen' }).click();
 			await waitForStableView(recipientPage);
 			await recipientPage.getByTestId('mode-switch').getByRole('checkbox').click();
 			await waitForStableView(recipientPage);

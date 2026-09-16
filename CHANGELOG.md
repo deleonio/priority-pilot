@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.83._
+_Enthält v0.2.0 – v0.2.85._
 
 ### 🔧 Engineering
 
@@ -94,6 +94,8 @@ _Enthält v0.2.0 – v0.2.83._
 - docs(adr): record package boundaries without offer dialog (adr 0014) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1523
 - feat(server): free voice input for all plans, gate mcp_read to max+ by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1533
 - feat(frontend): split plans/subscription into settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1534
+- feat(frontend): add five selectable life balance dials to the dashboard by @deleonio in https://github.com/deleonio/priority-pilot/pull/1535
+- feat(frontend): couple ai toggle to plan entitlement (#1525) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1536
 
 ## v0.1 - 2026-09-12
 

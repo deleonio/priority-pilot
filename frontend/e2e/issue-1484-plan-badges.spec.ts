@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1484 (T3b, Spec docs/spec/issue-1484.md AK8/AK9) — Paket-Badges an den
@@ -51,6 +51,25 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
+// Test-Pflege (#1525): mit KI-Gate ausgeblendetem Lektorat-Block (Titel/Beschreibung, `aiEnabled`
+// jetzt false für Free) ist der Säulen-Vorschlag (`TaskForm.tsx:1473`, nicht `aiEnabled`-gegated)
+// die einzige verbliebene `ai_assist`-Grenzstelle im Aufgabenformular — die aber nur rendert, wenn
+// mindestens eine Säule existiert. `test-login` legt (anders als der echte Google-Signup-Pfad) KEINE
+// Standard-Säulen an, daher hier selbst eine anlegen.
+const ensurePillar = async (page: Page): Promise<void> => {
+	const existing = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
+	if (existing.length > 0) return;
+	await page.request.post('/api/v1/pillars', { data: { name: 'Badge-Test-Säule', description: 'Dummy' } });
+};
+
+const deleteAllPillars = async (page: Page): Promise<void> => {
+	const res = await page.request.get('/api/v1/pillars');
+	if (!res.ok()) return;
+	for (const pillar of (await res.json()) as { id: number }[]) {
+		await page.request.delete(`/api/v1/pillars/${pillar.id}`);
+	}
+};
+
 /**
  * `boundingBox()` misst EINMALIG und wartet — anders als `toBeVisible()` — nicht nach: Fällt die
  * Messung in einen Re-Render des Formulars (das Lektorat-/Säulen-Umfeld der Badges rendert nach
@@ -78,21 +97,27 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
+		await ensurePillar(page);
 	});
 
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 		await deleteAllTokens(page);
+		await deleteAllPillars(page);
 	});
 
+	// Test-Pflege (#1525): Free ohne `ai_assist` öffnet über das neue KI-Gate direkt das
+	// Task-Formular („Aufgabe anlegen") — kein Freitext-Einstieg mit „Überspringen" mehr. Die
+	// Lektorat-Badges bei Titel/Beschreibung sind mit dem Lektorat-Button selbst ausgeblendet
+	// (`{aiEnabled && …}`, `TaskForm.tsx:1042/1401`); übrig bleibt die zweite KI-Grenzstelle beim
+	// Säulen-Vorschlag (`TaskForm.tsx:1473`, ungated), die im „Optional"-Akkordeon liegt.
 	test('AK3/AK8: Aufgabenformular zeigt das ai_assist-Badge ohne horizontalen Overflow', async ({ page }) => {
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Überspringen' }).click();
-		await waitForStableView(page);
+		await openAccordionSection(page, 'Optional');
 
 		const aiAssistBadge = page.getByTestId('plan-badge-ai_assist').first();
 		await expect(aiAssistBadge).toBeVisible();
@@ -107,9 +132,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('plan-badge-voice_input').first()).not.toBeVisible();
@@ -119,10 +142,11 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Überspringen' }).click();
-		await waitForStableView(page);
+		// Test-Pflege (#1525): Lektorat-Badges ausgeblendet (s. Test oben) — der (i)-Schalter sitzt
+		// jetzt nur noch beim Säulen-Vorschlag im „Optional"-Akkordeon.
+		await openAccordionSection(page, 'Optional');
 
 		await page.getByTestId('plan-badge-info-ai_assist').first().click();
 
@@ -160,9 +184,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		// Kein offener Angebots-Dialog in diesem Zustand — daher darf kein Preistext (€) im

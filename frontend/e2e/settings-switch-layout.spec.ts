@@ -138,9 +138,14 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" im Kollapsbereich unter dem
 		// Master-Schalter — geschlossen kollabiert deren Zeilenhöhe auf 0. Für die Touch-Target-
-		// Prüfung erst öffnen. Design-Lauf 2026-09: Das ist jetzt ein `KolAccordion` „Einzelne
-		// Animationen" (vorher `KolDetails` „Animations-Details").
-		await page.getByRole('button', { name: 'Einzelne Animationen' }).click();
+		// Prüfung erst öffnen. `_open={animationsEnabled}` (`SettingsPage.tsx`) macht das Accordion
+		// zum kontrollierten Unter-Abschnitt (docs/ux-pattern-master-detail-settings.md) — der Klick
+		// auf den Accordion-Header selbst (wie in AK8) öffnet zwar ebenfalls, hydratisiert im
+		// Kollaps-Zweig aber sichtbar langsamer/instabiler als der garantierte Sync-Pfad über den
+		// Master-Schalter (Fixup #1525: 3 identisch fehlgeschlagene Läufe mit dem Header-Klick, AK9
+		// bestätigt den Master-Schalter als eigenständigen, zuverlässigen Öffnungsweg).
+		const animationsSwitch = switchControl(page, /^Animationen$/);
+		await animationsSwitch.click();
 
 		const switches = page.locator('.settings-general kol-input-checkbox[_variant="switch"]');
 		// Seit #1183: 3 Switches, seit #1227 5 (Sprachaufnahme, Animationen, Herz animieren,

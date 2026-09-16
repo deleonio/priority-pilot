@@ -52,11 +52,17 @@ const fieldRow = (page: Page, testId: string): Locator => page.locator(`[data-te
  * Prüft, dass der Feld-Wrapper die volle Restbreite seiner Zeile einnimmt: Er beginnt am linken
  * Zeilenrand und reicht bis auf Lektorat-Button + Gap an den rechten Zeilenrand. Ohne `flex: 1`
  * würde der Wrapper auf seine Inhaltsbreite schrumpfen und rechts Leerraum stehen lassen.
+ *
+ * Test-Pflege (#1525-Fixup): Titel- und Beschreibung-Zeile tragen zusätzlich das `PlanBadge`
+ * (`feature="ai_assist"`, #1458) VOR dem Lektorat-Button — bei `entitlement.allowed:true` (dieser
+ * Fixture-Nutzer, `fixtures.ts`) ein sichtbares „Im Paket enthalten"-Badge mit eigener Breite und
+ * einem zweiten Flex-Gap. Ungezählt ergab das einen Rest von Badge-Breite + Gap statt nur Gap.
  */
 const expectFieldFillsRow = async (page: Page, testId: string, controlSelector: string): Promise<void> => {
 	const wrapper = page.locator(`[data-testid="${testId}"]`);
 	const row = fieldRow(page, testId);
 	const lektoratButton = row.locator('kol-button');
+	const planBadge = row.locator('[data-testid^="plan-badge-"]');
 
 	await expect(wrapper).toBeVisible();
 	await expect(lektoratButton).toBeVisible();
@@ -64,14 +70,17 @@ const expectFieldFillsRow = async (page: Page, testId: string, controlSelector: 
 	const wrapperBox = await wrapper.boundingBox();
 	const rowBox = await row.boundingBox();
 	const buttonBox = await lektoratButton.boundingBox();
+	const badgeCount = await planBadge.count();
+	const badgeBox = badgeCount > 0 ? await planBadge.first().boundingBox() : null;
 	expect(wrapperBox).not.toBeNull();
 	expect(rowBox).not.toBeNull();
 	expect(buttonBox).not.toBeNull();
 
 	// Linksbündig am Zeilenanfang …
 	expect(Math.abs(wrapperBox!.x - rowBox!.x)).toBeLessThanOrEqual(1);
-	// … und bis auf Lektorat-Button + Gap bis zum rechten Zeilenrand.
-	const remainder = rowBox!.width - wrapperBox!.width - buttonBox!.width;
+	// … und bis auf Lektorat-Button (+ ggf. PlanBadge davor) + je einem Gap bis zum rechten Zeilenrand.
+	const badgeWidthWithGap = badgeBox === null ? 0 : badgeBox.width + FIELD_ROW_GAP;
+	const remainder = rowBox!.width - wrapperBox!.width - buttonBox!.width - badgeWidthWithGap;
 	expect(remainder).toBeGreaterThanOrEqual(FIELD_ROW_GAP - 1);
 	expect(remainder).toBeLessThanOrEqual(FIELD_ROW_GAP + 1);
 

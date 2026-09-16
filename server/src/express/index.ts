@@ -266,7 +266,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// App-Feedback nach Obsidian (Issue #1435) — bewusst HINTER `requireAuth`: der Endpunkt
 	// schreibt in ein fremdes Repo und ist kein anonymer Hebel (AK7).
-	app.use(createFeedbackRouter({ obsidianGithubClient: deps.obsidianGithubClient }));
+	app.use(createFeedbackRouter({ obsidianGithubClient: deps.obsidianGithubClient, mailSender: deps.mailSender }));
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts) — PushSender injiziert für die
 	// Benachrichtigung bei fremd angelegten Aufgaben (#1224, Vorbild createPushRouter).

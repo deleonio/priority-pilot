@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AI_ENABLED_STORAGE_KEY, readAiPreferences, storeAiPreferences } from './aiPreferences';
+import {
+	AI_ENABLED_STORAGE_KEY,
+	computeAiFeaturesEnabled,
+	readAiPreferences,
+	storeAiPreferences,
+} from './aiPreferences';
 
 /**
  * Rote Spec-Tests für #1335 — „Schnellerfassung und Berater verschmelzen" (AK4).
@@ -78,4 +83,42 @@ describe('aiPreferences — readAiPreferences / storeAiPreferences (#1335 AK4)',
 			storeAiPreferences({ aiEnabled: false } as unknown as Parameters<typeof storeAiPreferences>[0]),
 		).not.toThrow();
 	});
+});
+
+// ── #1525 (TF3, Spec docs/spec/issue-1525.md AK1/AK3/AK4/AK5) ──────────────────────────────────
+
+/**
+ * Rote Spec-Tests für #1525 — effektives KI-Gate: Präferenz UND (Berechtigung `ai_assist` ODER
+ * eigener Custom-Provider). `computeAiFeaturesEnabled` existiert noch nicht in `aiPreferences.ts`
+ * (roter Import-Fehler bis zur Implementierung — echte neue Funktionalität, kein Bestandscode).
+ *
+ * Vertrag (Wahrheitstabelle):
+ * - `preferenceEnabled: false` → immer `false`, unabhängig von Berechtigung/Custom-Provider (AK3).
+ * - `preferenceEnabled: true`, `entitlementAllowed: true` → immer `true` (AK2).
+ * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: true` → `true` (AK4).
+ * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: false` → `false` (AK1).
+ * - `preferenceEnabled: true`, `entitlementAllowed: undefined` (noch nicht geladen) → immer `false`,
+ *   auch mit `hasCustomProvider: true` — sicherer Default, kein Aufblitzen (AK5).
+ */
+describe('aiPreferences — computeAiFeaturesEnabled (#1525 AK1/AK3/AK4/AK5)', () => {
+	it.each<[boolean, boolean | undefined, boolean, boolean]>([
+		// preferenceEnabled, entitlementAllowed, hasCustomProvider, expected
+		[false, true, true, false],
+		[false, true, false, false],
+		[false, false, true, false],
+		[false, false, false, false],
+		[false, undefined, true, false],
+		[false, undefined, false, false],
+		[true, true, true, true],
+		[true, true, false, true],
+		[true, false, true, true],
+		[true, false, false, false],
+		[true, undefined, true, false],
+		[true, undefined, false, false],
+	])(
+		'preferenceEnabled=%s x entitlementAllowed=%s x hasCustomProvider=%s → %s',
+		(preferenceEnabled, entitlementAllowed, hasCustomProvider, expected) => {
+			expect(computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed, hasCustomProvider })).toBe(expected);
+		},
+	);
 });
