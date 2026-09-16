@@ -3,8 +3,8 @@ import { useCallback, useState } from 'react';
 /**
  * Welches Bild die Startseite für die Lebensbalance zeichnet — die „Zifferblätter" der App.
  *
- * Alle Varianten rechnen mit **denselben** Zahlen (`lib/heartBalance.ts`): Sie sind vier
- * Lesarten derselben Auskunft, keine eigenen Kennzahlen. Was sie unterscheidet, ist die Frage, die
+ * Alle Varianten rechnen mit **denselben** Zahlen (`lib/heartBalance.ts`): Sie sind Lesarten
+ * derselben Auskunft, keine eigenen Kennzahlen. Was sie unterscheidet, ist die Frage, die
  * das Bild in den Vordergrund stellt:
  *
  * - **Herz** — das gewohnte Gefäß, das sich wie ein Wasserglas füllt. Füllstand = Gesamt-Balance,
@@ -17,7 +17,7 @@ import { useCallback, useState } from 'react';
  * - **Ringe** — je Säule ein Bogen wie die Aktivitätsringe einer Uhr, stärkste Säule außen.
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, längster auf 12 Uhr.
  *
- * Die drei Figuren zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
+ * Die vier Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
  * Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
  * Auftakt, Ruhepuls und Material (`balanceFigure.ts`, `balance-figure.frag`).
  *
@@ -30,7 +30,7 @@ import { useCallback, useState } from 'react';
 /** Schlüssel der Bilder. Der gespeicherte Wert ist genau einer davon. */
 export type BalanceVariant = 'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen';
 
-/** Die drei Figuren, die sich Zifferblatt, Kennzahl und Material teilen (`BalanceFigure`). */
+/** Die Figuren, die sich Zifferblatt, Kennzahl und Rahmen teilen (`BalanceFigure`) — alles außer dem Herz. */
 export type FigureKind = Exclude<BalanceVariant, 'herz'>;
 
 /** Reihenfolge und Beschriftung für die Auswahl in den Einstellungen. */

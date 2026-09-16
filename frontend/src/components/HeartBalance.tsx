@@ -10,10 +10,10 @@ import { usePrefersReducedMotion } from '../lib/reducedMotion';
 import { rampClass } from '../lib/pillarRamp';
 
 /**
- * Die Lebensbalance auf der Startseite: **ein** gerechnetes Ergebnis, vier mögliche Bilder davon.
+ * Die Lebensbalance auf der Startseite: **ein** gerechnetes Ergebnis, mehrere Bilder davon.
  *
  * Diese Komponente rechnet und beschriftet; gezeichnet wird in `HeartVessel` (das Herz-Gefäß) oder
- * `BalanceFigure` (Blasen, Ringe, Strahlen). Welches Bild läuft, wählt der Nutzer in den
+ * `BalanceFigure` (Blasen, Scheiben, Ringe, Strahlen). Welches Bild läuft, wählt der Nutzer in den
  * Einstellungen — wie das Zifferblatt einer Uhr (`lib/balanceVariant.ts`, Default „Herz").
  *
  * **Was über allen Varianten gleich bleibt**, und zwar absichtlich:

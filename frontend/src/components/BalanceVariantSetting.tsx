@@ -6,11 +6,11 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 /**
  * Bildwahl für die Lebensbalance im Einstellungen-Tab „Allgemein" — das Zifferblatt der Startseite.
  *
- * Benannte Radiogruppe mit den vier Bildern; Zustand und Persistenz kommen aus `useBalanceVariant`
+ * Benannte Radiogruppe mit allen Bildern; Zustand und Persistenz kommen aus `useBalanceVariant`
  * (`balanceVariant.ts`, localStorage-Key `pp-balance-variant`). Aufbau bewusst wie
  * `AppearanceSetting` daneben: Beide wählen, **wie** die App aussieht, nicht **was** sie rechnet.
  *
- * Senkrecht statt waagerecht: Vier Optionen mit sprechenden Namen passen auf 375 px nicht
+ * Senkrecht statt waagerecht: Fünf Optionen mit sprechenden Namen passen auf 375 px nicht
  * nebeneinander, ohne dass die Beschriftungen umbrechen (mobile-ui-rules.md).
  */
 export const BalanceVariantSetting = () => {
@@ -31,7 +31,7 @@ export const BalanceVariantSetting = () => {
 				_orientation="vertical"
 				_options={options}
 				_value={variant}
-				_hint="Alle vier Bilder zeigen dieselbe Rechnung. „Herz“ füllt ein Gefäß; die Blasen-Bilder zeigen je Säule eine Blase — nach Erfüllung des eigenen Ziels, nach Anteil am Aufwand, oder nach Anteil mit einem Ring auf Ziel-Größe."
+				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile."
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {

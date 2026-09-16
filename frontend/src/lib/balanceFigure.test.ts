@@ -18,9 +18,9 @@ import {
 import type { BalanceMetrics } from './balanceMetric';
 
 /**
- * Die Geometrie der drei Figuren und des gemeinsamen Zifferblatts.
+ * Die Geometrie der Figuren und des gemeinsamen Zifferblatts.
  *
- * Der rote Faden dieser Datei: Alle drei Figuren bekommen **dieselben** Werte und müssen daraus
+ * Der rote Faden dieser Datei: Alle Figuren bekommen **dieselben** Werte und müssen daraus
  * dieselbe Ordnung bauen — stärkste Säule zuerst. Und keine von ihnen darf ins Zifferblatt laufen.
  */
 

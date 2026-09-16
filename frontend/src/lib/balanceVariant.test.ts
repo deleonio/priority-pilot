@@ -17,7 +17,7 @@ describe('balanceVariant', () => {
 		expect(readBalanceVariant()).toBe('herz');
 	});
 
-	it('liest jede der vier Varianten zurück, die sie geschrieben hat', () => {
+	it('liest jede Variante zurück, die sie geschrieben hat', () => {
 		for (const { value } of BALANCE_VARIANTS) {
 			storeBalanceVariant(value);
 			expect(readBalanceVariant()).toBe(value);

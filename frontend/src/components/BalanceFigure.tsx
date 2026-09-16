@@ -27,7 +27,7 @@ import { supportsWebGl2 } from '../lib/webgl';
  * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen — außen herum
  * immer dasselbe Zifferblatt aus 100 Strichen.
  *
- * **Alle drei zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
+ * **Alle zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
  * ungedeckelt: 1 heißt „genau auf Ziel", 1,5 heißt „zieht davon". Die stärkste Säule bekommt
  * überall die größte Form — bei Blasen und Scheiben die unterste, bei den Ringen die äußerste Spur,
  * bei den Strahlen den längsten Strahl auf 12 Uhr. „Blasen" und „Scheiben" teilen sich Geometrie
@@ -56,7 +56,7 @@ import { supportsWebGl2 } from '../lib/webgl';
 interface BalanceFigureProps {
 	/** Das gerechnete Gesamtbild aus `buildHeartBalance`. */
 	balance: BalanceModel;
-	/** Welche der drei Figuren gezeichnet wird. */
+	/** Welche Figur gezeichnet wird. */
 	figure: FigureKind;
 	/** Bewegung erlauben (beide Animationsschalter + OS-Einstellung). */
 	animated: boolean;

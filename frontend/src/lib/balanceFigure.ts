@@ -1,15 +1,15 @@
 import type { BalanceMetrics, PillarMetric } from './balanceMetric';
 
 /**
- * Geometrie und Bewegung der Balance-Figuren — der drei Bilder, die dieselbe Kennzahl je Säule
- * (`balanceMetric.ts`) auf drei Arten zeichnen, und des Zifferblatts, das sie alle umgibt.
+ * Geometrie und Bewegung der Balance-Figuren — der Bilder, die dieselbe Kennzahl je Säule
+ * (`balanceMetric.ts`) jeweils anders zeichnen, und des Zifferblatts, das sie alle umgibt.
  *
  * **Die Arbeitsteilung:** `balanceMetric.ts` sagt *was* gezeigt wird (ein Wert je Säule, 0–1, plus
  * die Marke, an der „auf Ziel" liegt). Diese Datei sagt *wo* das im Bild landet. Bewusst DOM-frei
  * und ohne React, damit dieselbe Rechnung die SVG- und die WebGL-Fassung speist — es gibt nur diese
  * eine Quelle für Radien, Winkel und Phasen.
  *
- * **Die drei Figuren**, alle um denselben Mittelpunkt, alle innerhalb desselben Zifferblatts:
+ * **Die Figuren**, alle um denselben Mittelpunkt, alle innerhalb desselben Zifferblatts:
  *
  * - **Blasen** — je Säule eine schwingende Ellipse, gestapelt von groß nach klein. Die Säule, die
  *   am weitesten zurückliegt, ist die kleinste Blase und liegt ganz vorn.
@@ -18,7 +18,7 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, gleichmäßig über den Kreis
  *   verteilt. Die Länge ist der Wert, der längste Strahl steht auf 12 Uhr.
  *
- * Alle drei ordnen nach derselben Regel: **stärkste Säule zuerst** (`byStrength`). Wer das Bild
+ * Alle ordnen nach derselben Regel: **stärkste Säule zuerst** (`byStrength`). Wer das Bild
  * wechselt, findet dieselbe Säule an derselben Stelle der Reihenfolge wieder.
  *
  * **Warum jede Säule eine eigene Phase bekommt:** Liegen alle Säulen gleich, sind alle Formen
@@ -91,7 +91,7 @@ const TAU = Math.PI * 2;
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
-/** Die Bewegung einer Säule — in allen drei Figuren dieselbe, damit ein Wechsel nichts umwirft. */
+/** Die Bewegung einer Säule — in jeder Figur dieselbe, damit ein Wechsel nichts umwirft. */
 export interface FigureMotion {
 	/** Startphase in Radiant — zugleich die Grunddrehung der Form. */
 	phase: number;
@@ -114,7 +114,7 @@ const motionOf = (colorIndex: number): FigureMotion => ({
 const toRadius = (value: number): number => R_MIN + clamp01(value) * (FIGURE_MAX - R_MIN);
 
 /**
- * Die gemeinsame Ordnung aller drei Figuren: **stärkste Säule zuerst**, bei Gleichstand nach
+ * Die gemeinsame Ordnung aller Figuren: **stärkste Säule zuerst**, bei Gleichstand nach
  * Säulen-`id`. Sie entscheidet bei den Blasen, welche hinten liegt, bei den Ringen, welche Spur die
  * äußere ist, und bei den Strahlen, welcher zuerst steht.
  *

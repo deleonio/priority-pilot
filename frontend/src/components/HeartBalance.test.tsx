@@ -61,7 +61,7 @@ describe('HeartBalance', () => {
 		});
 
 		/*
-		 * Das Zifferblatt ist der gemeinsame Rahmen der drei Figuren: Bild und Zahl dürfen sich nicht
+		 * Das Zifferblatt ist der gemeinsame Rahmen aller Figuren: Bild und Zahl dürfen sich nicht
 		 * widersprechen — ein Strich ist ein Prozentpunkt, und die Zahl der leuchtenden Striche ist
 		 * dieselbe Zahl, die unter dem Bild steht.
 		 */

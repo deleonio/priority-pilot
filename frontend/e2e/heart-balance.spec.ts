@@ -7,7 +7,7 @@ import { waitForStableView } from './helpers';
  * Nagelt den Kernpunkt fest, den nur die echte Seite belegen kann: Das Bild steht als erstes Widget
  * des Dashboards, ist horizontal mittig und bleibt auf schmalen Viewports innerhalb der Seite. Die
  * Segmentierung je Säule und die Rechnung prüfen die Komponenten- und Unit-Tests. Geprüft wird die
- * Standard-Variante „Herz" (`docs/zifferblatt-konzept.md`); die drei anderen Bilder teilen sich
+ * Standard-Variante „Herz" (`docs/zifferblatt-konzept.md`); die übrigen Bilder teilen sich
  * Bühne und Layout mit ihr.
  *
  * Die Breiten-Prüfung misst **Bounding-Boxen**, nicht `documentElement.scrollWidth`: Die App-Shell

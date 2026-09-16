@@ -15,9 +15,10 @@ import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
  * three.js (~600 kB) wäre Wartungslast ohne Gegenwert. Der Shader ist bewusst GLSL ES 1.00
  * gehalten (kein `#version`, `gl_FragColor`), läuft also in WebGL1- wie WebGL2-Kontexten.
  *
- * **Warum ein Programm für drei Figuren:** Sie zeigen dieselben Zahlen und teilen sich Zifferblatt,
- * Auftakt, Ruhepuls und Material. Drei Programme wären dreimal dieselbe Umgebung mit drei
- * Gelegenheiten, auseinanderzulaufen; die Figur ist deshalb ein Uniform (`u_figure`).
+ * **Warum ein Programm für alle Figuren:** Sie zeigen dieselben Zahlen und teilen sich Zifferblatt,
+ * Auftakt, Ruhepuls und Material-Grundlage. Ein Programm je Figur wäre dieselbe Umgebung mehrfach,
+ * mit ebenso vielen Gelegenheiten, auseinanderzulaufen; die Figur ist deshalb ein Uniform
+ * (`u_figure`).
  *
  * **Kosten-Rahmen (GPU-Floor):** DPR auf 2 geklemmt (gebundene Fläche), die Render-Loop stoppt
  * vollständig, wenn nichts zu tun ist — ohne Animation, außerhalb des Viewports oder bei
@@ -30,7 +31,7 @@ import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
  */
 
 interface BalanceFigureGLProps {
-	/** Welche der drei Figuren gezeichnet wird. */
+	/** Welche Figur gezeichnet wird. */
 	figure: FigureKind;
 	/** Die Kennzahlen je Säule plus die Soll-Marke. */
 	metrics: BalanceMetrics;

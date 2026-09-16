@@ -13,7 +13,7 @@
  *
  * Beide Rampen haben **sieben** Ränge. Ab der 8. Säule wird nicht weiter eingefärbt (Regel 3):
  * Dann bleibt es bei der Basisklasse, die neutral färbt, und der Name in der Legende trägt die
- * Zuordnung allein. Weil alle vier Balance-Bilder und beide Legenden durch dieselbe Funktion
+ * Zuordnung allein. Weil alle Balance-Bilder und beide Legenden durch dieselbe Funktion
  * gehen, kann diese Grenze nicht an einer Stelle abdriften.
  */
 

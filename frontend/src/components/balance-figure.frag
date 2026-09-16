@@ -36,7 +36,7 @@ uniform float u_beat;
 /* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material). */
 uniform float u_figure;
 
-/* Je Saeule: Farbe und Bewegung — in allen drei Figuren dieselbe. */
+/* Je Saeule: Farbe und Bewegung — in jeder Figur dieselbe. */
 uniform vec3 u_colors[8];
 uniform float u_phase[8];
 uniform float u_swing[8];
@@ -59,7 +59,7 @@ uniform float u_ray_length[8];
 
 /*
  * Die Soll-Marke, in der Einheit der jeweiligen Figur: Blasen-Radius, Bogen-Anteil oder
- * Strahl-Laenge. Sie ist in allen drei Figuren dieselbe Aussage — „hier steht die Saeule genau auf
+ * Strahl-Laenge. Sie ist in jeder Figur dieselbe Aussage — „hier steht die Saeule genau auf
  * ihrem Ziel" — und macht die Abweichung ohne Zahl ablesbar.
  */
 uniform float u_target;

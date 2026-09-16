@@ -4,7 +4,7 @@ import { balanceMetrics } from './balanceMetric';
 import { buildHeartBalance } from './heartBalance';
 
 /**
- * Die Kennzahl, die alle vier Bilder zeichnen. Geprüft wird vor allem das, was sie von `level`
+ * Die Kennzahl, die alle Bilder zeichnen. Geprüft wird vor allem das, was sie von `level`
  * unterscheidet: Sie ist **nicht** bei 1 gedeckelt. Wer sein Ziel überschreitet, muss im Bild
  * größer werden als wer es genau trifft — sonst sähe „zieht alles an sich" aus wie „passt".
  */

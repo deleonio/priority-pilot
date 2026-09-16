@@ -13,7 +13,7 @@ import type { BalanceModel } from './heartBalance';
  * Verteilung nicht besser) und steht zahlengleich auch auf dem Server. Diese Datei rührt daran
  * nicht; sie liefert die ungedeckelte Schwester allein fürs Bild.
  *
- * **Warum eine gemeinsame Skala:** Alle vier Bilder sind Darstellungen derselben Zahlenreihe — sie
+ * **Warum eine gemeinsame Skala:** Alle Bilder sind Darstellungen derselben Zahlenreihe — sie
  * unterscheiden sich in der Form, nie im Inhalt. Die Normierung passiert deshalb hier, einmal, und
  * nicht in jeder Figur neu.
  */

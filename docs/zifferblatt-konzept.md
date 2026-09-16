@@ -125,7 +125,7 @@ pro Gerät (`localStorage`, `pp-balance-variant`). Default ist `herz` — das Bi
 Nutzer kennen.
 
 Das Herz ist der Sonderfall: Es kam zuerst, hat eine eigene Geometrie (`heartGeometry.ts`) und ein
-eigenes Shader-Programm. Die drei anderen teilen sich Programm, Zifferblatt und Rahmen.
+eigenes Shader-Programm. Die übrigen teilen sich Programm, Zifferblatt und Rahmen.
 
 ## 7. Bilder zum Anschauen erzeugen
 
