@@ -63,10 +63,10 @@ describe('Pass-Through-Modus (kein Auth-Kontext konfiguriert)', () => {
 		// (kein Import aus plans.ts — das Modul existiert noch nicht, s. AK2/plans.test.ts).
 		assert.equal(body.entitlements?.groups?.allowed, false, 'Free hat kein groups');
 		assert.equal(body.entitlements?.groups?.requiredPlan, 'pro', 'groups erfordert Pro');
-		// Test-Pflege #1484 (Entscheidung A1 des Autors, 2026-09-14): `voice_input` ist nicht mehr für
-		// alle Pakete an, sondern ab Pro — Free sieht an der Spracheingabe das Pro-Badge.
-		assert.equal(body.entitlements?.voice_input?.allowed, false, 'Free hat kein voice_input (ab Pro)');
-		assert.equal(body.entitlements?.voice_input?.requiredPlan, 'pro', 'voice_input erfordert Pro');
+		// Test-Pflege #1524 AK1 (macht #1484 A1 rückgängig, 2026-09-16): `voice_input` ist wieder für
+		// jedes Paket erlaubt, auch Free — kein Badge, keine Sperre mehr an der Spracheingabe.
+		assert.equal(body.entitlements?.voice_input?.allowed, true, 'Free hat voice_input');
+		assert.equal(body.entitlements?.voice_input?.requiredPlan, 'free', 'voice_input erfordert nur Free');
 	});
 
 	// #1494 (AK7, Spec docs/spec/issue-1494.md): auch im Pass-Through-Fall liefert /auth/me den

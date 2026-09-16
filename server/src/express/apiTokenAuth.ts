@@ -4,6 +4,7 @@ import { ApiToken, User } from '../models/index.js';
 import { MCP_PATH } from '../mcp/server.js';
 import { sendError, sendPlanError } from './http-error.js';
 import { getEntitlements, shouldBlockFeature } from '../logics/plans.js';
+import { FEATURE_LABELS } from './planGuard.js';
 
 /** Präfix des Klartext-Tokens — erlaubt es, ihn später von anderen Secret-Arten zu unterscheiden. */
 const TOKEN_PREFIX = 'pp_';
@@ -143,6 +144,12 @@ const normalizePath = (path: string): string => (path.length > 1 ? path.replace(
  *   `/mcp/v1` und `/mcp/v1/` mit derselben Route, also muss diese Ausnahme das auch tun.
  * - Alle übrigen schreibenden Requests (POST/PUT/PATCH/DELETE) eines Tokens mit `scope: 'read'`
  *   werden mit 403 abgewiesen, bevor die Fachroute läuft (AK4).
+ * - `mcp_read` (#1524 AK4/AK5) deckelt JEDEN Bearer-Request unabhängig von HTTP-Methode und vom
+ *   gespeicherten `scope` des Tokens — anders als `mcp_readwrite` wird hier nicht nur der Scope für
+ *   diesen Request herabgestuft, sondern der gesamte Zugriff abgelehnt. Die MCP-Werkzeug-Loopbacks
+ *   (`mcp/tools.ts`, `callApi`) laufen mit demselben Bearer-Header ein zweites Mal durch diesen
+ *   Guard und übersetzen den `plan_required`-Fehlerkörper generisch in einen JSON-RPC-Fehler —
+ *   `mcp/server.ts`/`mcp/tools.ts` brauchen dafür keine eigene Änderung.
  */
 export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFunction): void => {
 	if (!isApiTokenRequest(req)) {
@@ -156,6 +163,17 @@ export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFuncti
 	}
 	if (path === MCP_PATH) {
 		next();
+		return;
+	}
+	const currentPlan = req.session.user?.plan;
+	if (currentPlan !== undefined && shouldBlockFeature(currentPlan, 'mcp_read')) {
+		const { requiredPlan } = getEntitlements(currentPlan).mcp_read;
+		sendPlanError(res, 403, `${FEATURE_LABELS.mcp_read} ist ab Paket „${requiredPlan}" verfügbar.`, {
+			code: 'plan_required',
+			feature: 'mcp_read',
+			requiredPlan,
+			currentPlan,
+		});
 		return;
 	}
 	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read') {

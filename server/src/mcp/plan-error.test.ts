@@ -111,33 +111,60 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 			assert.doesNotMatch(error.message, /HTTP 403/, 'kein nacktes „HTTP 403" mehr');
 		});
 	}
+});
 
-	it('task_links (Leseoperation) bleibt für free-Nutzer erfolgreich', async () => {
-		const email = 'mcp-plan-task-links@example.com';
-		const cookie = await server.register(email);
-		const token = await createToken(cookie);
-		const taskId = await createTask(cookie, 'A');
-		await setPlan(email, 'free');
-		process.env.MONETIZATION_ENFORCED = 'true';
-
-		const { text, error } = await mcpCall(token, 'task_links', { taskId });
-
-		assert.equal(error, undefined, 'Lesen darf nicht am Paket scheitern');
-		assert.ok(text, 'task_links muss ein Ergebnis liefern');
+/**
+ * #1524 AK4/AK5 (Spec docs/spec/issue-1524.md) — `mcp_read` deckelt JEDEN lesenden MCP-Loopback ab
+ * `max`. Ersetzt die beiden Tests oben (Test-Pflege: `task_links (Leseoperation) bleibt für
+ * free-Nutzer erfolgreich` und `group_list (Leseoperation) bleibt für free-Nutzer erfolgreich
+ * (AK4)`), die #1524 AK4 direkt widersprechen — #1457 AK4 galt nur für die dort geprüften
+ * `graph_write`-Werkzeuge, nicht für einen paketweiten Lese-Deckel. Rot, bis der `mcp_read`-Guard
+ * existiert (heute: `task_links`/`group_list` liefern für `free` weiterhin ein Ergebnis).
+ */
+describe('MCP-Loopback — Plan-Deckel für lesende Werkzeuge (#1524 AK4/AK5)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
 	});
 
-	it('group_list (Leseoperation) bleibt für free-Nutzer erfolgreich (AK4)', async () => {
-		const email = 'mcp-plan-group-list@example.com';
-		const cookie = await server.register(email);
-		const token = await createToken(cookie);
-		await setPlan(email, 'free');
-		process.env.MONETIZATION_ENFORCED = 'true';
+	for (const tool of ['task_links', 'group_list'] as const) {
+		it(`${tool}: ein free-Nutzer erhält einen JSON-RPC-Fehler, der max und mcp_read nennt (AK4)`, async () => {
+			const email = `mcp-plan-read-${tool}@example.com`;
+			const cookie = await server.register(email);
+			const token = await createToken(cookie);
+			const taskId = await createTask(cookie, 'A');
+			await setPlan(email, 'free');
+			process.env.MONETIZATION_ENFORCED = 'true';
 
-		const { text, error } = await mcpCall(token, 'group_list');
+			const { error, text } = await mcpCall(token, tool, tool === 'task_links' ? { taskId } : {});
 
-		assert.equal(error, undefined, 'Gruppenliste bleibt nach einem Downgrade lesbar');
-		assert.ok(text, 'group_list muss ein Ergebnis liefern');
-	});
+			assert.ok(error, `${tool} muss einen JSON-RPC-Fehler liefern`);
+			assert.match(error.message, /max/, 'Fehlertext muss das erforderliche Paket nennen');
+			assert.equal(text, undefined, `${tool} darf bei Ablehnung kein Ergebnis liefern`);
+		});
+
+		it(`${tool}: ein max-Nutzer erhält weiterhin ein Ergebnis (AK5, keine Regression)`, async () => {
+			const email = `mcp-plan-read-ok-${tool}@example.com`;
+			const cookie = await server.register(email);
+			const token = await createToken(cookie);
+			const taskId = await createTask(cookie, 'A');
+			await setPlan(email, 'max');
+			process.env.MONETIZATION_ENFORCED = 'true';
+
+			const { error, text } = await mcpCall(token, tool, tool === 'task_links' ? { taskId } : {});
+
+			assert.equal(error, undefined, `${tool} darf für max nicht am Paket scheitern`);
+			assert.ok(text, `${tool} muss ein Ergebnis liefern`);
+		});
+	}
 });
 
 describe('MCP-Loopback — Plan-Deckel für schreibende Werkzeuge (#1460 AK7, Spec docs/spec/issue-1460.md)', () => {

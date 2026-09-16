@@ -5,7 +5,7 @@ import { ApiToken, User } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
 import { generateApiToken, hashApiToken } from '../apiTokenAuth.js';
 import { getEntitlements, shouldBlockFeature } from '../../logics/plans.js';
-import { FEATURE_LABELS } from '../planGuard.js';
+import { FEATURE_LABELS, requirePlanFeature } from '../planGuard.js';
 
 /**
  * Persönliche API-Tokens für externe Clients (Issue #1352). Der Router hängt hinter dem globalen
@@ -66,33 +66,38 @@ apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDt
 });
 
 // POST /api-tokens — legt einen Token an und liefert den Klartext genau in dieser einen Antwort.
-apiTokensRouter.post('/api-tokens', async (req: Request, res: Response<CreatedApiTokenDto | ErrorDto>) => {
-	const userId = getUserId(req);
-	if (userId === undefined) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
-	const body = req.body as { name?: unknown; expiresInDays?: unknown } | undefined;
-	const rawName = body?.name;
-	const name = typeof rawName === 'string' ? rawName.trim() : '';
-	if (!name || name.length > MAX_NAME_LENGTH) {
-		sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
-		return;
-	}
-	const expiresInDays = body?.expiresInDays;
-	if (!isTokenExpiryDays(expiresInDays)) {
-		sendError(res, 400, `Bitte eine Laufzeit von ${TOKEN_EXPIRY_DAYS.join(', ')} Tagen wählen.`);
-		return;
-	}
-	try {
-		const token = generateApiToken();
-		const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
-		const created = await ApiToken.create({ userId, name, tokenHash: hashApiToken(token), expiresAt });
-		res.status(201).json({ ...serializeApiToken(created), token });
-	} catch {
-		sendError(res, 500, 'Interner Serverfehler.');
-	}
-});
+// #1524 AK6: `mcp_read` (ab Max) sperrt schon das Anlegen, nicht erst die Nutzung.
+apiTokensRouter.post(
+	'/api-tokens',
+	requirePlanFeature('mcp_read'),
+	async (req: Request, res: Response<CreatedApiTokenDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const body = req.body as { name?: unknown; expiresInDays?: unknown } | undefined;
+		const rawName = body?.name;
+		const name = typeof rawName === 'string' ? rawName.trim() : '';
+		if (!name || name.length > MAX_NAME_LENGTH) {
+			sendError(res, 400, `Bitte einen Namen mit 1 bis ${MAX_NAME_LENGTH} Zeichen angeben.`);
+			return;
+		}
+		const expiresInDays = body?.expiresInDays;
+		if (!isTokenExpiryDays(expiresInDays)) {
+			sendError(res, 400, `Bitte eine Laufzeit von ${TOKEN_EXPIRY_DAYS.join(', ')} Tagen wählen.`);
+			return;
+		}
+		try {
+			const token = generateApiToken();
+			const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+			const created = await ApiToken.create({ userId, name, tokenHash: hashApiToken(token), expiresAt });
+			res.status(201).json({ ...serializeApiToken(created), token });
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
 
 // DELETE /api-tokens/:id — Soft-Delete über `revokedAt`; fremde/unbekannte Tokens → 404.
 apiTokensRouter.delete('/api-tokens/:id', async (req: Request, res: Response<ErrorDto>) => {

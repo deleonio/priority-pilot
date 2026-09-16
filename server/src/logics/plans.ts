@@ -11,7 +11,8 @@ export type Plan = 'free' | 'pro' | 'max' | 'ultimate';
 export const PLAN_VALUES: readonly Plan[] = ['free', 'pro', 'max', 'ultimate'];
 
 /** Stabile Feature-Identifier — von Guards, Fehlervertrag und UI-Badges referenziert. */
-export type FeatureId = 'groups' | 'voice_input' | 'ai_assist' | 'graph_write' | 'location_reminders' | 'mcp_readwrite';
+export type FeatureId =
+	'groups' | 'voice_input' | 'ai_assist' | 'graph_write' | 'location_reminders' | 'mcp_readwrite' | 'mcp_read';
 export const FEATURE_IDS: readonly FeatureId[] = [
 	'groups',
 	'voice_input',
@@ -19,6 +20,7 @@ export const FEATURE_IDS: readonly FeatureId[] = [
 	'graph_write',
 	'location_reminders',
 	'mcp_readwrite',
+	'mcp_read',
 ];
 
 /** Monatliches KI-Kontingent je Paket — nur für `ai_assist` relevant. */
@@ -43,17 +45,19 @@ export interface PlansCatalog {
 }
 
 /**
- * Paket-Matrix laut Gesamtkonzept. `voice_input` ist ab Pro enthalten; die Spracheingabe läuft rein
- * lokal im Browser, es gibt weder Server-Endpunkt noch Guard — der Eintrag existiert nur, damit die
- * UI ein Anzeige-Entitlement hat und die Aufnahme clientseitig sperren kann (#1484).
+ * Paket-Matrix laut Gesamtkonzept. `voice_input` ist für jedes Paket enthalten, auch `free` — die
+ * Spracheingabe läuft rein lokal im Browser, es gibt weder Server-Endpunkt noch Guard, der sie
+ * einschränken könnte (#1524 AK1, macht die vormalige Pro-Sperre aus #1484 rückgängig). `mcp_read`
+ * ist der lesende MCP-/API-Token-Zugriff, eine Stufe früher als `mcp_readwrite` (#1524 AK3).
  */
 const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] },
-	{ feature: 'voice_input', allowedPlans: ['pro', 'max', 'ultimate'] },
+	{ feature: 'voice_input', allowedPlans: ['free', 'pro', 'max', 'ultimate'] },
 	{ feature: 'ai_assist', allowedPlans: ['pro', 'max', 'ultimate'] },
 	{ feature: 'graph_write', allowedPlans: ['max', 'ultimate'] },
 	{ feature: 'location_reminders', allowedPlans: ['max', 'ultimate'] },
 	{ feature: 'mcp_readwrite', allowedPlans: ['ultimate'] },
+	{ feature: 'mcp_read', allowedPlans: ['max', 'ultimate'] },
 ];
 
 /**

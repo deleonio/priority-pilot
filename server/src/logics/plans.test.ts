@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import type { FeatureId } from './plans.js';
 import {
 	FEATURE_IDS,
 	AI_ASSIST_MONTHLY_QUOTA,
@@ -19,18 +20,33 @@ import {
  * bleibt in beiden Schalterstellungen identisch (wahrheitsgemäße Auswertung des Pakets).
  * AK10 (T1, überholt durch #1484 A1): `voice_input` war ursprünglich für alle Pakete an.
  *
- * #1484 (T3b) Autoren-Entscheidung A1/B1 vom 2026-09-14 ändert den Katalog:
+ * #1484 (T3b) Autoren-Entscheidung A1/B1 vom 2026-09-14 änderte den Katalog:
  * AK1: `voice_input` erfordert mindestens Pro (Free: allowed=false, requiredPlan='pro').
  * AK2: `mcp_readwrite` erfordert Ultimate (Max: allowed=false, requiredPlan='ultimate').
+ *
+ * #1524 (Spec docs/spec/issue-1524.md) macht #1484 AK1 rückgängig und ergänzt ein siebtes Feature:
+ * AK1: `voice_input` ist wieder für ALLE Pakete (auch `free`) erlaubt — der Test `voice_input
+ * erfordert mindestens Pro (#1484 AK1)` unten wird durch die neue Erwartung ersetzt (Test-Pflege,
+ * direkter Widerspruch: #1484 erwartete `allowed=false` für Free, #1524 AK1 verlangt `true`).
+ * AK3: neuer Identifier `mcp_read` (lesender MCP-Zugriff) — erlaubt ab `max` (nicht erst `ultimate`
+ * wie `mcp_readwrite`), `EXPECTED_FEATURES` wächst von sechs auf sieben Einträge.
  *
  * Rot, bis `server/src/logics/plans.ts` existiert (heute: Modul fehlt komplett). KEIN Produktivcode.
  */
 
-const EXPECTED_FEATURES = ['groups', 'voice_input', 'ai_assist', 'graph_write', 'location_reminders', 'mcp_readwrite'];
+const EXPECTED_FEATURES = [
+	'groups',
+	'voice_input',
+	'ai_assist',
+	'graph_write',
+	'location_reminders',
+	'mcp_readwrite',
+	'mcp_read',
+];
 
-describe('plans.ts — Feature-Katalog (#1456 AK2/AK10)', () => {
-	it('FEATURE_IDS deckt alle sechs stabilen Identifier ab', () => {
-		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die sechs Identifier');
+describe('plans.ts — Feature-Katalog (#1456 AK2/AK10, #1524 AK3)', () => {
+	it('FEATURE_IDS deckt alle sieben stabilen Identifier ab, inklusive mcp_read (#1524 AK3)', () => {
+		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die sieben Identifier');
 	});
 
 	it('getPlansCatalog() liefert für jedes Feature einen Katalog-Eintrag', () => {
@@ -58,13 +74,25 @@ describe('plans.ts — Entitlement-Auswertung je Paket (#1456 AK2)', () => {
 		assert.equal(map.mcp_readwrite.allowed, false, 'Free ohne mcp_readwrite');
 	});
 
-	// #1484 AK1: voice_input erfordert seit der Autoren-Entscheidung A1 mindestens Pro.
-	it('voice_input erfordert mindestens Pro (#1484 AK1)', () => {
-		assert.equal(getEntitlements('free').voice_input.allowed, false, 'Free ohne voice_input');
-		assert.equal(getEntitlements('free').voice_input.requiredPlan, 'pro', 'Free: requiredPlan pro');
-		assert.equal(getEntitlements('pro').voice_input.allowed, true, 'Pro mit voice_input');
-		assert.equal(getEntitlements('max').voice_input.allowed, true, 'Max mit voice_input');
-		assert.equal(getEntitlements('ultimate').voice_input.allowed, true, 'Ultimate mit voice_input');
+	// #1524 AK1 macht #1484 AK1 rückgängig: voice_input ist wieder für JEDES Paket erlaubt, auch
+	// Free. Ersetzt den alten Test oben (Test-Pflege: die alte Erwartung "Free ohne voice_input"
+	// widerspricht AK1 direkt).
+	it('voice_input ist für jedes Paket erlaubt, auch Free (#1524 AK1)', () => {
+		for (const plan of ['free', 'pro', 'max', 'ultimate'] as Plan[]) {
+			assert.equal(getEntitlements(plan).voice_input.allowed, true, `${plan} mit voice_input`);
+		}
+		const originalEnv = process.env.MONETIZATION_ENFORCED;
+		process.env.MONETIZATION_ENFORCED = 'true';
+		try {
+			// Auch bei eingeschaltetem Rollout darf voice_input niemand blockieren (echte Bissigkeit:
+			// mit dem alten Katalog [#1484] wäre Free hier `true`, also fälschlich blockiert).
+			for (const plan of ['free', 'pro', 'max', 'ultimate'] as Plan[]) {
+				assert.equal(shouldBlockFeature(plan, 'voice_input'), false, `${plan} wird bei "an" nicht blockiert`);
+			}
+		} finally {
+			if (originalEnv === undefined) delete process.env.MONETIZATION_ENFORCED;
+			else process.env.MONETIZATION_ENFORCED = originalEnv;
+		}
 	});
 
 	// #1484 AK2: mcp_readwrite erfordert seit der Autoren-Entscheidung B1 Ultimate (nicht mehr Max).
@@ -72,6 +100,19 @@ describe('plans.ts — Entitlement-Auswertung je Paket (#1456 AK2)', () => {
 		assert.equal(getEntitlements('max').mcp_readwrite.allowed, false, 'Max ohne mcp_readwrite');
 		assert.equal(getEntitlements('max').mcp_readwrite.requiredPlan, 'ultimate', 'Max: requiredPlan ultimate');
 		assert.equal(getEntitlements('ultimate').mcp_readwrite.allowed, true, 'Ultimate mit mcp_readwrite');
+	});
+
+	// #1524 AK3: mcp_read ist der lesende MCP-Zugriff, ab Max (eine Stufe früher als mcp_readwrite,
+	// das Ultimate erfordert). Zugriff über eine per Cast erzwungene Indizierung, weil `FeatureId`
+	// bis zur Implementierung noch keinen `mcp_read`-Literal enthält (legitimer roter Zustand für
+	// neue Funktionalität).
+	it('mcp_read ist ab Max erlaubt, Free/Pro nicht (#1524 AK3)', () => {
+		const mcpRead = 'mcp_read' as unknown as FeatureId;
+		assert.equal(getEntitlements('free')[mcpRead]?.allowed, false, 'Free ohne mcp_read');
+		assert.equal(getEntitlements('pro')[mcpRead]?.allowed, false, 'Pro ohne mcp_read');
+		assert.equal(getEntitlements('max')[mcpRead]?.allowed, true, 'Max mit mcp_read');
+		assert.equal(getEntitlements('ultimate')[mcpRead]?.allowed, true, 'Ultimate mit mcp_read');
+		assert.equal(getEntitlements('free')[mcpRead]?.requiredPlan, 'max', 'Free: requiredPlan max');
 	});
 
 	it('Pro hat groups, aber nicht graph_write/location_reminders/mcp_readwrite', () => {
@@ -91,7 +132,7 @@ describe('plans.ts — Entitlement-Auswertung je Paket (#1456 AK2)', () => {
 		assert.equal(map.location_reminders.allowed, true, 'Max mit location_reminders');
 	});
 
-	it('Ultimate hat vollen Zugriff auf alle sechs Features', () => {
+	it('Ultimate hat vollen Zugriff auf alle sieben Features (#1524 AK3)', () => {
 		const map = getEntitlements('ultimate');
 		for (const feature of EXPECTED_FEATURES) {
 			assert.equal((map as Record<string, { allowed: boolean }>)[feature]!.allowed, true, `Ultimate mit ${feature}`);

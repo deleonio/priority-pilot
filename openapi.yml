@@ -3015,7 +3015,7 @@ components:
       properties:
         feature:
           type: string
-          enum: [groups, voice_input, ai_assist, graph_write, location_reminders, mcp_readwrite]
+          enum: [groups, voice_input, ai_assist, graph_write, location_reminders, mcp_readwrite, mcp_read]
         allowedPlans:
           type: array
           items:
