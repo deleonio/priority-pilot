@@ -19,7 +19,7 @@ const TAG_MS = 24 * 60 * 60 * 1000;
  * Die Teile werden einzeln aus `formatToParts` zusammengesetzt statt über ein Locale-Format:
  * Welches Locale `YYYY-MM-DD` liefert, ist Umgebungssache — die Teile sind es nicht.
  */
-const tagIn = (zeitpunkt: Date, zeitZone: string): string => {
+export const tagIn = (zeitpunkt: Date, zeitZone: string): string => {
 	const teile = new Intl.DateTimeFormat('en-US', {
 		timeZone: zeitZone,
 		year: 'numeric',

@@ -21,7 +21,8 @@ import { ScoreEntry } from '../models/index.js';
 process.env.GOOGLE_ALLOWED_EMAILS =
 	'mcp-tools-a@example.com,mcp-tools-b@example.com,mcp-tools-balance-a@example.com,' +
 	'mcp-tools-balance-b@example.com,mcp-tools-balance-c@example.com,mcp-tools-balance-d-a@example.com,' +
-	'mcp-tools-balance-d-b@example.com,mcp-tools-pillar-a@example.com,mcp-tools-pillar-b@example.com';
+	'mcp-tools-balance-d-b@example.com,mcp-tools-pillar-a@example.com,mcp-tools-pillar-b@example.com,' +
+	'mcp-tools-history-a@example.com,mcp-tools-history-b@example.com,mcp-tools-history-c@example.com';
 applyTestAuthEnv('mcp-tools-test');
 
 let server: TestServer;
@@ -905,6 +906,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		const names = sorted.map((t) => t.name);
 
 		assert.deepEqual(names, [
+			'balance_history',
 			'balance_status',
 			'category_create',
 			'category_delete',
@@ -964,7 +966,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: drei Kategorie-Werkzeuge,
 		// #1413: vier Säulen-Werkzeuge). Der Vertrag ist „task_delete ist drin", nicht „es gibt genau
 		// dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1175,8 +1177,8 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
-		// #1413: vier Säulen-Werkzeuge) — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen, war: ${names.join(', ')}`);
+		// #1413: vier Säulen-Werkzeuge, #1424: balance_history) — #1420 selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1647,7 +1649,7 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen (#1412), war: ${names.join(', ')}`);
+		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen (#1412), war: ${names.join(', ')}`);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
 		assert.ok(names.includes('category_delete'), 'category_delete muss im Katalog stehen');
@@ -1826,5 +1828,101 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 
 		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
 		assert.equal(list.result?.length, 0, 'keiner der drei abgelehnten Aufrufe darf eine Kategorie angelegt haben');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1424 (Spec docs/spec/issue-1424.md) — MCP-Werkzeug `balance_history`.
+ *
+ * AK8: Werkzeug im Katalog, Nur-Lese (kein `write`), Pflichtfelder `from`/`to` + optional
+ * `timezone`, reicht Fehler der Route unverändert als JSON-RPC-Fehler durch.
+ *
+ * Rot, bis das Werkzeug existiert (heute: `findMcpTool('balance_history')` liefert `undefined`,
+ * `tools/call` also einen JSON-RPC-Fehler „Unknown tool"). KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug balance_history (#1424)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	type HistoryEntry = {
+		tag: string;
+		fuellstandProzent: number;
+		hatPunkte: boolean;
+		saeulen: { id: number; name: string; punkte: number; gewichtung: number }[];
+	};
+
+	/** Legt eine Aufgabe über MCP an, erledigt sie und setzt den ScoreEntry-Zeitpunkt fest (Muster streak.test.ts). */
+	const completeTaskAtViaMcp = async (token: string, title: string, zeitpunkt: Date): Promise<void> => {
+		const created = await mcpCall<{ id: number }>(token, 'task_create', { title });
+		assert.ok(created.result?.id, `Setup: ${title} muss über task_create anlegbar sein`);
+		const taskId = created.result!.id;
+		await mcpCall(token, 'task_complete', { id: taskId });
+		const [updated] = await ScoreEntry.update({ zeitpunkt }, { where: { taskId } });
+		assert.equal(updated, 1, 'ScoreEntry für den Task muss existieren, um den Zeitpunkt zu verschieben');
+	};
+
+	it('AK8: Eingabeschema hat from/to als Pflichtfelder, timezone optional, kein write; Nur-lese-Token darf aufrufen', async () => {
+		const cookie = await server.register('mcp-tools-history-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const tool = tools.find((t) => t.name === 'balance_history');
+		assert.ok(tool, 'balance_history muss im Katalog stehen');
+		assert.ok(
+			!('write' in (tool as { write?: boolean })) || (tool as { write?: boolean }).write !== true,
+			'balance_history darf kein write-Werkzeug sein',
+		);
+		const schema = tool!.inputSchema as { properties?: Record<string, unknown>; required?: string[] };
+		assert.deepEqual(new Set(Object.keys(schema.properties ?? {})), new Set(['from', 'to', 'timezone']));
+		assert.deepEqual(new Set(schema.required ?? []), new Set(['from', 'to']));
+
+		const result = await mcpCall<HistoryEntry[]>(token, 'balance_history', { from: '2026-06-01', to: '2026-06-01' });
+		assert.equal(
+			result.error,
+			undefined,
+			`Nur-lese-Token darf balance_history aufrufen, Fehler: ${result.error?.message}`,
+		);
+		assert.equal(result.result?.length, 1);
+	});
+
+	it('AK8: from == to liefert genau einen Eintrag; die Route rechnet mit den echten Erledigungen', async () => {
+		const cookie = await server.register('mcp-tools-history-b@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		await completeTaskAtViaMcp(token, 'Für den Verlauf', new Date('2026-06-01T10:00:00.000Z'));
+
+		const result = await mcpCall<HistoryEntry[]>(token, 'balance_history', { from: '2026-06-01', to: '2026-06-02' });
+		assert.equal(result.error, undefined);
+		assert.equal(result.result?.length, 2);
+		assert.equal(result.result?.[0].hatPunkte, true, 'Tag 1 muss die Erledigung bereits sehen');
+		assert.deepEqual(
+			result.result?.[1].saeulen,
+			result.result?.[0].saeulen,
+			'Tag 2 ohne Erledigung muss Tag 1 spiegeln',
+		);
+	});
+
+	it('AK8: eine ungültige Datumsangabe liefert denselben Fehlertext wie die Route (400), keine zweite Validierung im Werkzeug', async () => {
+		const cookie = await server.register('mcp-tools-history-c@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const fehlend = await mcpCall<HistoryEntry[]>(token, 'balance_history', { from: '2026-06-01' });
+		assert.ok(fehlend.error, 'fehlendes "to" muss einen JSON-RPC-Fehler auslösen');
+		assert.match(fehlend.error!.message, /HTTP 400/, 'der Fehlertext muss den Statuscode der Route enthalten');
+
+		const bisVorVon = await mcpCall<HistoryEntry[]>(token, 'balance_history', {
+			from: '2026-06-05',
+			to: '2026-06-01',
+		});
+		assert.ok(bisVorVon.error, '"to" vor "from" muss einen JSON-RPC-Fehler auslösen');
+		assert.match(bisVorVon.error!.message, /HTTP 400/);
 	});
 });
