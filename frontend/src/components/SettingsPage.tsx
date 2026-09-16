@@ -615,6 +615,7 @@ export const SettingsPage = ({
 									</KolAlert>
 								)}
 								<KolInputCheckbox
+									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
 									_label="KI-Features aktiv"
 									_variant="switch"
 									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet."

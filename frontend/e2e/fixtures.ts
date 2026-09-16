@@ -1,4 +1,4 @@
-import type { Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { test as base } from '@playwright/test';
 
 /**
@@ -37,6 +37,31 @@ const AUTHENTICATED_USER = {
 	entitlements: { ai_assist: { allowed: true, requiredPlan: 'pro' } },
 };
 
+/**
+ * `usePlanState` liest den Paket-Spiegel (`pp-plan-<userId>`, `usePlan.ts:36-54`) als SYNCHRONEN
+ * Anfangszustand, bevor `/auth/me` überhaupt geantwortet hat — genau dafür gebaut (Kommentar
+ * `usePlan.ts:9-12`). Ohne Spiegel startet `entitlementAllowed` in jeder frischen Test-Session als
+ * `undefined`, und das KI-Gate hält sich an den sicheren Default `false` (AK5), bis `/auth/me`
+ * zurück ist — dieser kurze Sprung false→true verschob in CI das Layout-Timing auch in KI-fernen
+ * Specs (Lektorat-Button-Sichtbarkeit im TaskForm, #761/#971). Der vorab gesetzte Spiegel macht
+ * `AUTHENTICATED_USER`s Paket von Anfang an synchron verfügbar.
+ */
+const seedPlanMirror = async (page: Page): Promise<void> => {
+	await page.addInitScript(
+		(entry: { key: string; value: string }) => {
+			try {
+				localStorage.setItem(entry.key, entry.value);
+			} catch {
+				/* ignore */
+			}
+		},
+		{
+			key: `pp-plan-${AUTHENTICATED_USER.id}`,
+			value: JSON.stringify({ plan: AUTHENTICATED_USER.plan, entitlements: AUTHENTICATED_USER.entitlements }),
+		},
+	);
+};
+
 export const test = base.extend({
 	// Zweiter Parameter ist die Playwright-Fixture-Übergabe (`use`); bewusst `runTest` benannt, damit
 	// die `react-hooks/rules-of-hooks`-Heuristik den Aufruf nicht als React-Hook fehldeutet.
@@ -48,6 +73,7 @@ export const test = base.extend({
 				body: JSON.stringify(AUTHENTICATED_USER),
 			}),
 		);
+		await seedPlanMirror(page);
 		await runTest(page);
 	},
 });

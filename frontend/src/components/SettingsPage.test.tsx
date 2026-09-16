@@ -928,4 +928,36 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 		});
 		expect(localStorage.getItem('pp-ai-enabled')).toBe('false');
 	});
+
+	it('AK4: eigener Custom-Provider hebt die Sperre auf, obwohl allowed=false → kein Paket-Alert', async () => {
+		// `useHasCustomLlmProvider` cached das Ergebnis von `listLlmProviders` modulweit
+		// (`aiPreferences.ts`) — AK1/AK2 oben haben den Cache bereits mit dem Leer-Default (kein
+		// Custom-Provider) gefüllt. Frischer Modul-Graph + eigener Mock-Rückgabewert stellen sicher,
+		// dass DIESER Test wirklich `hasCustomProvider: true` durchläuft statt den alten Cache-Wert.
+		vi.resetModules();
+		apiMocks.listLlmProviders = vi.fn().mockResolvedValue([{ id: 1, kind: 'custom' }]);
+		const { SettingsPage: FreshSettingsPage } = await import('./SettingsPage');
+		const { PlanProvider: FreshPlanProvider } = await import('../lib/usePlan');
+
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed: false, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		const { container } = render(
+			<FreshPlanProvider value={{ plan: 'free', entitlements }}>
+				<FreshSettingsPage {...defaultProps} />
+			</FreshPlanProvider>,
+		);
+
+		// Re-query bei jedem Poll: der `key`-Wechsel (Finding #1 dieser Runde) remountet den Schalter
+		// beim Kippen von `hasCustomProvider`, eine einmal eingesammelte Referenz bliebe stehen.
+		const queryToggle = () => container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]');
+		await waitFor(() => {
+			const toggle = queryToggle();
+			expect(toggle, 'KI-Schalter fehlt').not.toBeNull();
+			expect(bound(toggle!, '_disabled')).not.toBe('true');
+		});
+
+		const row = queryToggle()!.closest('.settings-llm-switch-row');
+		expect(row?.querySelector('kol-alert')).toBeNull();
+	});
 });
