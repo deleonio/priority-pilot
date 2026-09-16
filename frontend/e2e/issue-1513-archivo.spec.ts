@@ -1,3 +1,4 @@
+import type { Page } from './fixtures';
 import { expect, test } from './fixtures';
 import { setTheme, waitForStableView } from './helpers';
 
@@ -20,11 +21,35 @@ import { setTheme, waitForStableView } from './helpers';
  * die öffentliche Schnittstelle. Da `font-family` eine vererbte CSS-Eigenschaft ist und über die
  * Shadow-Grenze in den internen Baum hineinwirkt (frontend/DESIGN.md:145-158), spiegelt der
  * Host-Wert exakt das, was auch der Shadow-Inhalt erbt.
+ *
+ * Root Cause AK2/AK6-Flackern (Review-Fund PR #1516): `waitForStableView` prüft die Hydration nur
+ * über `kol-button.shadowRoot !== null` (helpers.ts) — Stencil legt den Shadow-Root aber schon
+ * mehrere Frames VOR der endgültigen Style-Auflösung des Hosts an. Reproduziert lokal (Chromium):
+ * `kol-input-text.task-filter-search__field` (in `App.tsx`, Tab-1-Panel) hat direkt nach dem
+ * `hydrated`-Klassenwechsel noch `getComputedStyle(host).fontFamily === ''`, obwohl `--pp-font-family`
+ * korrekt via `kol-input-text { font-family: var(--pp-font-family) }` (app.css:213-219) gesetzt ist —
+ * derselbe Host liefert wenige Frames später den korrekten Wert. Kein CSS-/Produktionsbug, sondern
+ * eine reine Mess-Race: `waitForHostFontsResolved` unten pollt gezielt bis alle in `HOST_SELECTORS`
+ * vorhandenen Hosts eine nicht-leere `font-family` haben, bevor AK2/AK6 messen.
  */
 
 const HOST_SELECTORS = ['kol-button', 'kol-input-text', 'kol-heading', 'kol-alert', 'kol-table'];
 
 const getBodyFontFamily = () => (document.body ? getComputedStyle(document.body).fontFamily : '');
+
+/**
+ * Wartet, bis jeder im DOM vorhandene Host aus `selectors` eine aufgelöste (nicht-leere)
+ * `font-family` hat — schließt die Mess-Race aus dem Datei-Header oben.
+ */
+const waitForHostFontsResolved = (page: Page, selectors: string[]) =>
+	page.waitForFunction(
+		(sel: string[]) =>
+			sel.every((selector) => {
+				const host = document.querySelector(selector);
+				return host === null || getComputedStyle(host).fontFamily !== '';
+			}),
+		selectors,
+	);
 
 const getHostFontFamilies = (selectors: string[]) =>
 	selectors.map((selector) => {
@@ -51,6 +76,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	test('AK2: KoliBri-Komponenten übernehmen Archivo als Host-Font-Family', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
+		await waitForHostFontsResolved(page, HOST_SELECTORS);
 
 		const results = await page.evaluate(getHostFontFamilies, HOST_SELECTORS);
 		const present = results.filter((r) => r.present);
@@ -76,6 +102,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 		await setTheme(page, 'dark');
+		await waitForHostFontsResolved(page, HOST_SELECTORS);
 
 		const fontFamily = await page.evaluate(getBodyFontFamily);
 		expect(fontFamily.split(',')[0].trim().replace(/['"]/g, ''), `dark mode body font-family war "${fontFamily}"`).toBe(
