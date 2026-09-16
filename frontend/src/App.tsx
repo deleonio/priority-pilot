@@ -45,7 +45,7 @@ import { buildPillarSummaries } from './lib/pillar';
 import { clearPlanMirror, PlanProvider, usePlanState } from './lib/usePlan';
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
-import { readAiPreferences } from './lib/aiPreferences';
+import { useAiFeaturesGate } from './lib/aiPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
 
@@ -677,12 +677,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// #1080/#1335: KI-Einstellung (clientseitig, localStorage). `aiEnabled` blendet die
 	// KI-Bedienelemente aus (Lektorat-Buttons im TaskForm) und entscheidet, ob „Neuen Task anlegen"
 	// den KI-Freitext-Einstieg zeigt oder direkt das Task-Formular öffnet.
-	// Absichtlich **kein** State-Hook: `SettingsPage` besitzt die eigene Hook-Instanz und `App`
-	// remountet beim Verlassen der Einstellungen nicht (der App-State lebt außerhalb des Routers)
-	// — ein hier gepufferter Wert wäre veraltet. Jeder Render liest daher frisch aus dem
-	// `localStorage`; der Wechsel zurück aus den Einstellungen ist selbst ein Re-Render, sodass die
-	// Änderung sofort wirkt.
-	const { aiEnabled } = readAiPreferences();
+	// #1525: zusätzlich an die Paket-Freischaltung `ai_assist` (oder einen eigenen Provider)
+	// gekoppelt — `useAiFeaturesGate` liest die Präferenz weiterhin pro Render frisch aus dem
+	// `localStorage` (kein gepufferter State, `SettingsPage` besitzt die eigene Hook-Instanz und
+	// `App` remountet beim Verlassen der Einstellungen nicht), kombiniert sie aber mit der
+	// Berechtigung aus dem `PlanProvider`-Kontext.
+	const aiEnabled = useAiFeaturesGate();
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
