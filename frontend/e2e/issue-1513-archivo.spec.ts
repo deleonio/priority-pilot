@@ -23,30 +23,69 @@ import { setTheme, waitForStableView } from './helpers';
  * Host-Wert exakt das, was auch der Shadow-Inhalt erbt.
  *
  * Root Cause AK2/AK6-Flackern (Review-Fund PR #1516): `waitForStableView` prüft die Hydration nur
- * über `kol-button.shadowRoot !== null` (helpers.ts) — Stencil legt den Shadow-Root aber schon
- * mehrere Frames VOR der endgültigen Style-Auflösung des Hosts an. Reproduziert lokal (Chromium):
- * `kol-input-text.task-filter-search__field` (in `App.tsx`, Tab-1-Panel) hat direkt nach dem
- * `hydrated`-Klassenwechsel noch `getComputedStyle(host).fontFamily === ''`, obwohl `--pp-font-family`
- * korrekt via `kol-input-text { font-family: var(--pp-font-family) }` (app.css:213-219) gesetzt ist —
- * derselbe Host liefert wenige Frames später den korrekten Wert. Kein CSS-/Produktionsbug, sondern
- * eine reine Mess-Race: `waitForHostFontsResolved` unten pollt gezielt bis alle in `HOST_SELECTORS`
- * vorhandenen Hosts eine nicht-leere `font-family` haben, bevor AK2/AK6 messen.
+ * über `kol-button.shadowRoot !== null` bzw. `:not(:defined)` (helpers.ts) — ein Custom Element
+ * ist damit bereits als „hydriert" erkannt, sobald sein Konstruktor gelaufen ist, nicht erst wenn
+ * Stencil die `hydrated`-Klasse setzt und seine Styles final aufgelöst hat. Reproduziert lokal
+ * (Chromium, Vite-Dev-Server): `EmptyState`s `kol-button` („Ersten Task anlegen") liefert direkt
+ * nach `waitForStableView` noch `getComputedStyle(host).fontFamily === '"Times New Roman"'` (UA-
+ * Default vor Style-Auflösung) statt Archivo, obwohl `--pp-font-family` korrekt via
+ * `kol-button { font-family: var(--pp-font-family) }` (app.css:213-240) gesetzt ist — derselbe
+ * Host liefert wenige Frames später den korrekten Wert. Kein CSS-/Produktionsbug, sondern eine
+ * reine Mess-Race: ein reiner Leerstring-Check auf `fontFamily` (frühere Fassung dieses Tests)
+ * lässt sich davon täuschen, da der UA-Default-Wert bereits nicht-leer ist. `waitForHostFontsResolved`
+ * unten pollt daher gezielt auf die `hydrated`-Klasse jedes in `HOST_SELECTORS` vorhandenen Hosts,
+ * bevor AK2/AK6 messen.
+ *
+ * HOST_SELECTORS deckt das komplette in app.css:213-240 abgesicherte Tag-Set ab (Review-Fund
+ * #1513-Follow-up: die vorherige 5er-Teilmenge inkl. des toten `kol-table`-Selektors hätte eine
+ * unvollständige Host-Regel nicht erkannt, da `present: false` fehlende Hosts stillschweigend
+ * herausfiltert).
  */
 
-const HOST_SELECTORS = ['kol-button', 'kol-input-text', 'kol-heading', 'kol-alert', 'kol-table'];
+const HOST_SELECTORS = [
+	'kol-accordion',
+	'kol-alert',
+	'kol-avatar',
+	'kol-badge',
+	'kol-button',
+	'kol-card',
+	'kol-combobox',
+	'kol-details',
+	'kol-dialog',
+	'kol-heading',
+	'kol-input-checkbox',
+	'kol-input-date',
+	'kol-input-password',
+	'kol-input-radio',
+	'kol-input-range',
+	'kol-input-text',
+	'kol-meter',
+	'kol-popover-button',
+	'kol-progress',
+	'kol-select',
+	'kol-single-select',
+	'kol-spin',
+	'kol-table-stateful',
+	'kol-tabs',
+	'kol-textarea',
+	'kol-toolbar',
+];
 
 const getBodyFontFamily = () => (document.body ? getComputedStyle(document.body).fontFamily : '');
 
 /**
- * Wartet, bis jeder im DOM vorhandene Host aus `selectors` eine aufgelöste (nicht-leere)
- * `font-family` hat — schließt die Mess-Race aus dem Datei-Header oben.
+ * Wartet, bis jeder im DOM vorhandene Host aus `selectors` die `hydrated`-Klasse trägt —
+ * schließt die Mess-Race aus dem Datei-Header oben. Ein `:defined`, aber noch NICHT
+ * `hydrated`-Custom-Element liefert bereits eine nicht-leere `font-family` (den UA-Default vor
+ * der Style-Auflösung, z. B. „Times New Roman"), ein reiner Leerstring-Check auf `fontFamily`
+ * hätte diesen Zwischenzustand also fälschlich als „aufgelöst" durchgehen lassen.
  */
 const waitForHostFontsResolved = (page: Page, selectors: string[]) =>
 	page.waitForFunction(
 		(sel: string[]) =>
 			sel.every((selector) => {
 				const host = document.querySelector(selector);
-				return host === null || getComputedStyle(host).fontFamily !== '';
+				return host === null || host.classList.contains('hydrated');
 			}),
 		selectors,
 	);

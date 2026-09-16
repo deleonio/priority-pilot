@@ -210,11 +210,32 @@ body {
  * Abschnitt „KoliBri Shadow-DOM Styling"), das Theme setzt aber ggf. eine eigene `font-family` im
  * Shadow-Stylesheet. Explizite Host-Regel stellt Archivo unabhängig davon sicher.
  */
+kol-accordion,
 kol-alert,
+kol-avatar,
+kol-badge,
 kol-button,
+kol-card,
+kol-combobox,
+kol-details,
+kol-dialog,
 kol-heading,
+kol-input-checkbox,
+kol-input-date,
+kol-input-password,
+kol-input-radio,
+kol-input-range,
 kol-input-text,
-kol-table {
+kol-meter,
+kol-popover-button,
+kol-progress,
+kol-select,
+kol-single-select,
+kol-spin,
+kol-table-stateful,
+kol-tabs,
+kol-textarea,
+kol-toolbar {
 	font-family: var(--pp-font-family);
 }
 
