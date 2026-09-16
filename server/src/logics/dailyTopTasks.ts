@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { Task, NotificationLog } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
+import { selectSeriesRepresentatives } from './series.js';
 
 /**
  * Fachlicher Push-Trigger „3 wichtigste Aufgaben um 6 Uhr" (Issue #518). Sendet **tagesunabhängig
@@ -37,17 +38,21 @@ const dedupeKeyFor = (userId: number, date: Date): string => `${userId}:${dayKey
  * aufsteigend = wichtiger; P1 am höchsten). Tasks ohne Eigentümer (`userId = null`) werden nicht
  * gruppiert (kein Broadcast an alle Subscriptions).
  */
-export const collectDailyTopTasks = async (_now: Date): Promise<TopTaskGroup[]> => {
-	const tasks = await Task.findAll({
-		where: {
-			status: { [Op.ne]: 'Done' },
-			userId: { [Op.ne]: null },
-		},
-		order: [
-			['priority', 'ASC'],
-			['id', 'ASC'],
-		],
-	});
+export const collectDailyTopTasks = async (now: Date): Promise<TopTaskGroup[]> => {
+	// #1518: je Serie nur die aktuelle Instanz — sonst belegte eine Serie alle drei Plätze.
+	const tasks = selectSeriesRepresentatives(
+		await Task.findAll({
+			where: {
+				status: { [Op.ne]: 'Done' },
+				userId: { [Op.ne]: null },
+			},
+			order: [
+				['priority', 'ASC'],
+				['id', 'ASC'],
+			],
+		}),
+		now,
+	);
 	if (tasks.length === 0) {
 		return [];
 	}

@@ -55,7 +55,8 @@ const RHYTHM_WEEKDAY: ReadonlyMap<SeriesRhythm, number> = new Map([
 /**
  * Produktpolicy: maximale Vorlauf-Horizont in Tagen, den `/series/generate-all`
  * materialisiert. Verhindert, dass bei jedem Cron-Lauf ein unbegrenztes Fenster
- * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt.
+ * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt. Zusätzlich hält die
+ * Generierung je Serie höchstens fünf offene Instanzen vor (#1518, `logics/series.ts`).
  */
 const GENERATE_HORIZON_DAYS = 30;
 

@@ -6,6 +6,7 @@ import { extractLeaves } from '../lib/extractLeaves';
 import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
 import { PillarMissingBadge } from './PillarMissingBadge';
+import { SeriesBadge } from './SeriesBadge';
 import { isDoneBlockedBySubtasks, priorityBadge } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
@@ -164,9 +165,9 @@ const LeafItem = ({
 							/>
 						)}
 						<CategoryBadge category={categories.find((category) => category.id === node.categoryId)} />
-						{task !== null && task.seriesId != null && (
-							<KolBadge _label="Serie" _color="#005b99" className="task-tree-badge" />
-						)}
+						{/* #1518: Serien-Icon mit Screenreader-Text statt Text-Badge „Serie" — die Liste zeigt je
+						    Serie nur die aktuelle Instanz. */}
+						{task !== null && task.seriesId != null && <SeriesBadge />}
 						{task !== null && task.isException && (
 							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
 						)}

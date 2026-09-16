@@ -2292,7 +2292,7 @@ kol-toolbar {
 
 .series-tree-badge {
 	/* Skala für die KolBadge-Hosts (erbt in den Shadow-DOM); Farbgebung übernimmt KoliBri
-	   (`_color`, Muster „Serie“-Badge im TaskTree, #1258) — hier bewusst keine harten Farben. */
+	   (`_color`, Muster „geändert“-Badge im TaskTree, #1258) — hier bewusst keine harten Farben. */
 	font-size: 0.75rem;
 }
 
@@ -2301,9 +2301,11 @@ kol-toolbar {
    beide Chips in der Serienzeile bündig ausrichten). Dezent statt Signal-Farbe: Geolocation ist
    Information, keine Aktion (KI-UX-Entscheidung). Kein Wachstum mit Inhalt — nur ein Icon. */
 /* #1465: Das Säulen-Badge („keine Säulen-Gewichtung gesetzt") ist derselbe Icon-Chip — ein
-   gemeinsamer Block statt eines zweiten Badge-Stils. */
+   gemeinsamer Block statt eines zweiten Badge-Stils. #1518: ebenso das Serien-Badge („Serienaufgabe"),
+   das in der Aufgabenliste das Text-Badge „Serie" ersetzt. */
 .geo-badge,
-.pillar-missing-badge {
+.pillar-missing-badge,
+.series-badge {
 	display: inline-flex;
 	align-items: center;
 	font-size: 0.75rem;

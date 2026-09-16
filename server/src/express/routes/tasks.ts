@@ -6,6 +6,7 @@ import sequelize from '../../database.js';
 import { GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
+import { selectSeriesRepresentatives } from '../../logics/series.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
@@ -484,14 +485,17 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				const geoUser = await resolveGeoUser(req);
 				const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
 				// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
-				const tasks = await Task.findAll({
-					where: {
-						status: { [Op.ne]: 'Done' },
-						latitude: { [Op.ne]: null },
-						longitude: { [Op.ne]: null },
-						...ownerScope(getUserId(req)),
-					},
-				});
+				// #1518 AK5: je Serie nur die aktuelle Instanz.
+				const tasks = selectSeriesRepresentatives(
+					await Task.findAll({
+						where: {
+							status: { [Op.ne]: 'Done' },
+							latitude: { [Op.ne]: null },
+							longitude: { [Op.ne]: null },
+							...ownerScope(getUserId(req)),
+						},
+					}),
+				);
 				const items = tasks
 					.map((task) => ({
 						id: task.id,

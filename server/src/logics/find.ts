@@ -1,5 +1,6 @@
 import { Pillar, ScoreEntry, Task } from '../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from './score.js';
+import { selectSeriesRepresentatives } from './series.js';
 import type { PillarWithContribution } from '../models/task.js';
 
 /**
@@ -8,14 +9,17 @@ import type { PillarWithContribution } from '../models/task.js';
  * Der Abhängigkeitsfilter (AC3) bleibt damit für beide Wege identisch.
  */
 const ladeFreieTasks = async (userId?: number): Promise<Task[]> => {
-	const tasks = await Task.findAll({
-		where: {
-			status: ['Open', 'In process'],
-			// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
-			...(userId !== undefined ? { userId } : {}),
-		},
-		include: [Pillar],
-	});
+	// #1518: je Serie nur die aktuelle Instanz (deckt /next, /suggestions und MCP next_task).
+	const tasks = selectSeriesRepresentatives(
+		await Task.findAll({
+			where: {
+				status: ['Open', 'In process'],
+				// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
+				...(userId !== undefined ? { userId } : {}),
+			},
+			include: [Pillar],
+		}),
+	);
 
 	const independentTasks: Task[] = [];
 	for (const task of tasks) {
