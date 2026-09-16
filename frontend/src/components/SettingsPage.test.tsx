@@ -1,6 +1,8 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
+import { PlanProvider } from '../lib/usePlan';
+import type { EntitlementMap } from '../lib/planOffers';
 
 /**
  * Rote Spec-Tests für #933 — „Geolokation manuell anstoßen + aktuelle Adresse stets sichtbar".
@@ -847,5 +849,83 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 
 		await waitFor(() => expect(container.querySelector('kol-alert[_label="Pakete"]')).not.toBeNull());
 		expect(container.querySelector('[data-testid="plans-section"]')).toBeNull();
+	});
+});
+
+// ── #1525 (TF1/TF2, Spec docs/spec/issue-1525.md AK1/AK2) ──────────────────────────────────────
+
+/**
+ * Rote Spec-Tests für #1525 — „KI-Schalter an Paket-Freischaltung koppeln" (AK1/AK2).
+ *
+ * Ohne `ai_assist`-Berechtigung und ohne eigenen Provider ist der Schalter „KI-Features aktiv"
+ * deaktiviert; darüber steht ein `KolAlert` mit dem Paketnamen aus `requiredPlan` und einem
+ * `KolButton`, der auf den Pakete-Reiter springt (Muster `SubscriptionSection.tsx` →
+ * `tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX)`, hier über `onTabChange`
+ * nachgewiesen). Mit `allowed:true` bleibt der Schalter bedienbar wie bisher, ohne Alert.
+ *
+ * Heute rot: `SettingsPage` liest den Schalterzustand ausschließlich aus `useAiPreferences()`
+ * (`aiEnabled`), es existiert weder `_disabled` noch ein Paket-Alert an dieser Stelle.
+ */
+describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
+	/** KoliBri-Adapter setzt numerische/boolesche Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const renderKiTab = (allowed: boolean, onTabChange = vi.fn()) => {
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		const result = render(
+			<PlanProvider value={{ plan: 'free', entitlements }}>
+				<SettingsPage {...defaultProps} onTabChange={onTabChange} />
+			</PlanProvider>,
+		);
+		return { ...result, onTabChange };
+	};
+
+	afterEach(() => {
+		localStorage.removeItem('pp-ai-enabled');
+	});
+
+	it('AK1: allowed=false → Schalter deaktiviert, Paket-Alert mit Paketname "Pro" und Sprung-CTA', async () => {
+		const { container, onTabChange } = renderKiTab(false);
+
+		const toggle = container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]');
+		expect(toggle, 'KI-Schalter fehlt').not.toBeNull();
+		await waitFor(() => expect(bound(toggle!, '_disabled')).toBe('true'));
+
+		const row = toggle!.closest('.settings-llm-switch-row');
+		expect(row, 'Zeile .settings-llm-switch-row fehlt').not.toBeNull();
+		const planAlert = row!.querySelector('kol-alert[_label*="Pro"]') ?? row!.querySelector('kol-alert');
+		expect(planAlert, 'Paket-Alert fehlt').not.toBeNull();
+		expect(planAlert!.textContent).toContain('Pro');
+
+		const cta = planAlert!.querySelector('kol-button');
+		expect(cta, 'CTA-Button im Alert fehlt').not.toBeNull();
+		await act(async () => {
+			(cta as unknown as { _on: { onClick: (e: unknown) => void } })._on.onClick({});
+		});
+		expect(onTabChange).toHaveBeenCalledWith(6);
+	});
+
+	it('AK2: allowed=true → Schalter bedienbar, kein Paket-Alert, Umlegen persistiert weiterhin', async () => {
+		const { container } = renderKiTab(true);
+
+		const toggle = container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]');
+		expect(toggle, 'KI-Schalter fehlt').not.toBeNull();
+		await waitFor(() => expect(bound(toggle!, '_disabled')).not.toBe('true'));
+
+		const row = toggle!.closest('.settings-llm-switch-row');
+		expect(row?.querySelector('kol-alert')).toBeNull();
+
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(localStorage.getItem('pp-ai-enabled')).toBe('false');
 	});
 });
