@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-15
 
-_Enthält v0.2.0 – v0.2.71._
+_Enthält v0.2.0 – v0.2.72._
 
 ### 🔧 Engineering
 
@@ -82,6 +82,7 @@ _Enthält v0.2.0 – v0.2.71._
 - feat(server): process PayPal payment events and enforce grace period by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1508
 - feat(frontend): add billing subscription management flow to settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1509
 - feat(server): sync user plan on downgrade and cancellation (#1462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1510
+- chore(deps): bump @public-ui packages to 4.4.1 prerelease 7b9d0237 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1511
 
 ## v0.1 - 2026-09-12
 
@@ -788,7 +789,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): add personal api tokens with bearer auth by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1354
 - feat(server): add mcp tools v1 for member role by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1355
 - feat(server): add read/write scope toggle for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1358
-- feat(server): add read/write scope toggle for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1358
+- fix(ci): review waits for all checks, e2e in 8 shards with path filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1364
 - fix(ci): review waits for all checks, e2e in 8 shards with path filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1364
 - fix(mcp): restore connection for read-only api tokens by @deleonio in https://github.com/deleonio/priority-pilot/pull/1369
 - feat(frontend): show streak of consecutive done-days on dashboard by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1365
