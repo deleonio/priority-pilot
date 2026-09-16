@@ -14,6 +14,7 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
+		"@fontsource/archivo": "5.3.0",
 		"@public-ui/components": "4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0",
 		"@public-ui/react-v19": "4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0",
 		"@public-ui/theme-default": "4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0",

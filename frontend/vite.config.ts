@@ -72,6 +72,10 @@ export default defineConfig({
 		VitePWA({
 			registerType: 'prompt',
 			workbox: {
+				// Explizit gesetzt (statt der Standardabdeckung js|css|html|Icons), damit die
+				// selbst gehosteten Archivo-Schriftdateien (#1513) in den Precache gelangen und
+				// die App auch offline in der richtigen Schriftart rendert.
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
 				cleanupOutdatedCaches: true,
 				clientsClaim: true,
 				skipWaiting: false,
