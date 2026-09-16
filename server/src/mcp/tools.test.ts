@@ -906,7 +906,10 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 
 		assert.deepEqual(names, [
 			'balance_status',
+			'category_create',
+			'category_delete',
 			'category_list',
+			'category_update',
 			'group_list',
 			'group_members_list',
 			'next_task',
@@ -952,16 +955,16 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		closeDb();
 	});
 
-	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf achtzehn Namen', async () => {
+	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf einundzwanzig Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		// Zähler wächst mit dem Katalog (#1423: balance_status, #1413: vier Säulen-Werkzeuge). Der
-		// Vertrag ist „task_delete ist drin", nicht „es gibt genau dreizehn Werkzeuge" — die
-		// vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 18, `Katalog sollte achtzehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: drei Kategorie-Werkzeuge,
+		// #1413: vier Säulen-Werkzeuge). Der Vertrag ist „task_delete ist drin", nicht „es gibt genau
+		// dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
+		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1165,15 +1168,15 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		assert.equal(after.result?.length, countBefore, 'ein abgelehnter task_create darf keine Aufgabe anlegen');
 	});
 
-	it('AK7: der Katalog-Namens-Snapshot bleibt bei achtzehn Namen', async () => {
+	it('AK7: der Katalog-Namens-Snapshot bleibt bei einundzwanzig Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		// Zähler wächst mit dem Katalog (#1423: balance_status, #1413: vier Säulen-Werkzeuge) — #1420
-		// selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 18, `Katalog sollte achtzehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
+		// #1413: vier Säulen-Werkzeuge) — #1420 selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1598,5 +1601,230 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 			before.result,
 			'der Datenbestand darf nach den abgelehnten Aufrufen unverändert sein',
 		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1412 (Spec docs/spec/issue-1412.md) — MCP-Werkzeuge
+ * `category_create`/`category_update`/`category_delete`.
+ *
+ * AK1: Katalog-Snapshot wächst auf einundzwanzig Namen inkl. der drei neuen Werkzeuge + deren `required`.
+ * AK2: readwrite-Token legt über category_create eine Kategorie an, category_list enthält sie danach.
+ * AK3: category_update ändert Name und Farbe einer eigenen Kategorie.
+ * AK4: category_delete entfernt aus category_list, zugeordnete Aufgabe bleibt mit categoryId null.
+ * AK5: Namenskollision bei category_create/category_update → 409-Fehlertext der Route.
+ * AK6: fremde/unbekannte id bei category_update/category_delete → 404-Fehlertext der Route.
+ * AK7: Nur-lese-Token scheitert am Scope-Hinweis, category_list bleibt erfolgreich.
+ * AK8: ungültige Eingaben (Name, Farbe) → 400-Fehlertext der Route, nichts angelegt.
+ *
+ * Rot, bis die drei Werkzeuge in mcpTools existieren (heute: "Unknown tool"-Fehler). KEIN Produktivcode.
+ */
+describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	type CategoryResult = { id: number; name: string; color: string };
+
+	const createCategoryViaApi = async (cookie: string, name: string, color: string): Promise<CategoryResult> => {
+		const res = await server.json('/categories', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ name, color }),
+		});
+		assert.equal(res.status, 201, 'Setup: Kategorie muss über die API anlegbar sein');
+		return (await res.json()) as CategoryResult;
+	};
+
+	it('AK1: tools/list wächst auf einundzwanzig Namen; die drei neuen Werkzeuge tragen die vorgesehenen required-Felder', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name).sort();
+		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen (#1412), war: ${names.join(', ')}`);
+		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
+		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
+		assert.ok(names.includes('category_delete'), 'category_delete muss im Katalog stehen');
+
+		const requiredOf = (name: string) => {
+			const tool = tools.find((t) => t.name === name);
+			return (tool?.inputSchema as { required?: string[] } | undefined)?.required;
+		};
+		assert.deepEqual(requiredOf('category_create'), ['name', 'color']);
+		assert.deepEqual(requiredOf('category_update'), ['id']);
+		assert.deepEqual(requiredOf('category_delete'), ['id']);
+	});
+
+	it('AK2: ein readwrite-Token legt über category_create eine Kategorie an, category_list enthält sie danach', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<CategoryResult>(token, 'category_create', {
+			name: 'MCP-Test',
+			color: CATEGORY_COLORS[0],
+		});
+		assert.equal(created.error, undefined, `category_create sollte keinen Fehler liefern: ${created.error?.message}`);
+		assert.ok(created.result?.id, 'category_create muss eine id liefern');
+		assert.equal(created.result?.color, CATEGORY_COLORS[0]);
+
+		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
+		assert.ok(
+			list.result?.some((c) => c.id === created.result?.id && c.name === 'MCP-Test'),
+			'category_list muss die neu angelegte Kategorie enthalten',
+		);
+	});
+
+	it('AK3: category_update ändert Name und Farbe einer eigenen Kategorie', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const category = await createCategoryViaApi(cookie, 'Vorher', CATEGORY_COLORS[0]);
+		const newColor = CATEGORY_COLORS[1];
+
+		const updated = await mcpCall<CategoryResult>(token, 'category_update', {
+			id: category.id,
+			name: 'Nachher',
+			color: newColor,
+		});
+		assert.equal(updated.error, undefined, `category_update sollte keinen Fehler liefern: ${updated.error?.message}`);
+
+		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
+		const found = list.result?.find((c) => c.id === category.id);
+		assert.equal(found?.name, 'Nachher');
+		assert.equal(found?.color, newColor);
+	});
+
+	it('AK4: category_delete entfernt die Kategorie aus category_list, eine zugeordnete Aufgabe bleibt mit categoryId null erhalten', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const category = await createCategoryViaApi(cookie, 'Wird gelöscht', CATEGORY_COLORS[0]);
+		const created = await mcpCall<{ id: number; categoryId: number | null }>(token, 'task_create', {
+			title: 'Mit Kategorie über MCP',
+			categoryId: category.id,
+		});
+		assert.equal(created.result?.categoryId, category.id, 'Setup: Aufgabe muss die Kategorie zugewiesen bekommen');
+		const taskId = created.result!.id;
+
+		const deleted = await mcpCall(token, 'category_delete', { id: category.id });
+		assert.equal(deleted.error, undefined, `category_delete sollte keinen Fehler liefern: ${deleted.error?.message}`);
+
+		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
+		assert.ok(
+			!list.result?.some((c) => c.id === category.id),
+			'die gelöschte Kategorie darf in category_list nicht mehr auftauchen',
+		);
+
+		const tasks = await mcpCall<{ id: number; categoryId: number | null }[]>(token, 'task_list');
+		const task = tasks.result?.find((t) => t.id === taskId);
+		assert.ok(task, 'die Aufgabe muss nach dem Löschen der Kategorie weiterhin existieren');
+		assert.equal(task?.categoryId, null, 'categoryId der Aufgabe muss nach dem Löschen null sein');
+	});
+
+	it('AK5: ein bereits vergebener Name führt bei category_create und category_update zu einem 409-Fehler, ohne etwas zu ändern', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await createCategoryViaApi(cookie, 'Doppelt', CATEGORY_COLORS[0]);
+
+		const createdDupe = await mcpCall(token, 'category_create', { name: 'Doppelt', color: CATEGORY_COLORS[1] });
+		assert.ok(createdDupe.error, 'category_create mit vergebenem Namen muss fehlschlagen');
+		assert.match(createdDupe.error!.message, /Eine Kategorie mit diesem Namen existiert bereits\./);
+		assert.match(createdDupe.error!.message, /HTTP 409/);
+
+		const other = await createCategoryViaApi(cookie, 'Anders', CATEGORY_COLORS[1]);
+		const updatedDupe = await mcpCall(token, 'category_update', { id: other.id, name: 'Doppelt' });
+		assert.ok(updatedDupe.error, 'category_update auf einen vergebenen Namen muss fehlschlagen');
+		assert.match(updatedDupe.error!.message, /Eine Kategorie mit diesem Namen existiert bereits\./);
+		assert.match(updatedDupe.error!.message, /HTTP 409/);
+
+		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
+		assert.equal(
+			list.result?.length,
+			2,
+			'nach beiden abgelehnten Aufrufen dürfen weiterhin nur die zwei ursprünglichen Kategorien existieren',
+		);
+		assert.ok(
+			list.result?.some((c) => c.id === other.id && c.name === 'Anders'),
+			'der Name der zweiten Kategorie darf unverändert bleiben',
+		);
+	});
+
+	it('AK6: eine fremde oder unbekannte id liefert bei category_update und category_delete einen 404-Fehler, die fremde Kategorie bleibt unverändert', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const categoryOfB = await createCategoryViaApi(cookieB, 'Von B', CATEGORY_COLORS[0]);
+
+		const updateForeign = await mcpCall(tokenA, 'category_update', { id: categoryOfB.id, name: 'Umbenannt von A' });
+		assert.ok(updateForeign.error, 'category_update auf eine fremde Kategorie muss fehlschlagen');
+		assert.match(updateForeign.error!.message, /Kategorie nicht gefunden\./);
+		assert.match(updateForeign.error!.message, /HTTP 404/);
+
+		const deleteForeign = await mcpCall(tokenA, 'category_delete', { id: categoryOfB.id });
+		assert.ok(deleteForeign.error, 'category_delete auf eine fremde Kategorie muss fehlschlagen');
+		assert.match(deleteForeign.error!.message, /Kategorie nicht gefunden\./);
+		assert.match(deleteForeign.error!.message, /HTTP 404/);
+
+		const unknownId = await mcpCall(tokenA, 'category_delete', { id: 999999 });
+		assert.ok(unknownId.error, 'category_delete mit unbekannter id muss fehlschlagen');
+		assert.match(unknownId.error!.message, /Kategorie nicht gefunden\./);
+
+		const listB = await mcpCall<CategoryResult[]>(await createToken(cookieB), 'category_list');
+		const stillThere = listB.result?.find((c) => c.id === categoryOfB.id);
+		assert.equal(
+			stillThere?.name,
+			'Von B',
+			'die Kategorie von B muss nach beiden gescheiterten Zugriffen unverändert erhalten bleiben',
+		);
+	});
+
+	it('AK7: ein Nur-lese-Token scheitert bei allen drei Werkzeugen am Scope-Hinweis, category_list bleibt erfolgreich und unverändert', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+		const category = await createCategoryViaApi(cookie, 'Bleibt unverändert', CATEGORY_COLORS[0]);
+
+		const create = await mcpCall(token, 'category_create', { name: 'Neu', color: CATEGORY_COLORS[1] });
+		assert.ok(create.error, 'category_create muss mit einem Nur-lese-Token fehlschlagen');
+		assert.match(create.error!.message, /read access only/);
+
+		const update = await mcpCall(token, 'category_update', { id: category.id, name: 'Geändert' });
+		assert.ok(update.error, 'category_update muss mit einem Nur-lese-Token fehlschlagen');
+		assert.match(update.error!.message, /read access only/);
+
+		const del = await mcpCall(token, 'category_delete', { id: category.id });
+		assert.ok(del.error, 'category_delete muss mit einem Nur-lese-Token fehlschlagen');
+		assert.match(del.error!.message, /read access only/);
+
+		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
+		assert.equal(list.error, undefined, 'category_list muss mit demselben Nur-lese-Token weiterhin funktionieren');
+		assert.deepEqual(
+			list.result?.map((c) => c.name).sort(),
+			['Bleibt unverändert'],
+			'die Kategorienliste darf durch die drei abgelehnten Aufrufe nicht verändert worden sein',
+		);
+	});
+
+	it('AK8: ungültige Eingaben (leerer Name, zu langer Name, Farbe außerhalb der Palette) werden mit dem 400-Text der Route abgelehnt, es entsteht nichts', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const emptyName = await mcpCall(token, 'category_create', { name: '', color: CATEGORY_COLORS[0] });
+		assert.ok(emptyName.error, 'leerer Name muss fehlschlagen');
+		assert.match(emptyName.error!.message, /HTTP 400/);
+
+		const tooLongName = await mcpCall(token, 'category_create', { name: 'x'.repeat(41), color: CATEGORY_COLORS[0] });
+		assert.ok(tooLongName.error, 'Name über 40 Zeichen muss fehlschlagen');
+		assert.match(tooLongName.error!.message, /HTTP 400/);
+
+		const invalidColor = await mcpCall(token, 'category_create', { name: 'Gültiger Name', color: '#123456' });
+		assert.ok(invalidColor.error, 'Farbe außerhalb der Palette muss fehlschlagen');
+		assert.match(invalidColor.error!.message, /HTTP 400/);
+
+		const list = await mcpCall<CategoryResult[]>(token, 'category_list');
+		assert.equal(list.result?.length, 0, 'keiner der drei abgelehnten Aufrufe darf eine Kategorie angelegt haben');
 	});
 });

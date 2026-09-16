@@ -97,7 +97,8 @@ Angleichen — falls je nötig — über `--kolibri-color-*` auf `:root`, nie ü
 
 Genau fünf Größen, genau zwei Gewichte (mobile-ui-rules.md, Regel 6).
 
-- Basis: `--pp-font-size-base: 1rem` (16px), System-UI Stack
+- Schrift: `--pp-font-family: Archivo, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif` — Archivo selbst gehostet (`@fontsource/archivo`, Schnitte 400/600), kein Google-Fonts-CDN (#1513)
+- Basis: `--pp-font-size-base: 1rem` (16px)
 - `--pp-font-size-sm: 0.875rem`, `-lg: 1.125rem`, `-xl: 1.375rem`, `-2xl: 1.75rem`
 - `--pp-weight-regular: 400`, `--pp-weight-bold: 600`
 - `--pp-line-tight: 1.25`, `--pp-line-base: 1.55`

@@ -1,5 +1,5 @@
 /**
- * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1413 achtzehn Werkzeuge.
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413 einundzwanzig Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
@@ -167,6 +167,17 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 			throw new Error('estimatedEffort and estimatedEffortHours are mutually exclusive — provide only one.');
 		}
 		fields.estimatedEffort = effortFromHours(args.estimatedEffortHours);
+	}
+	return fields;
+};
+
+/** Nur die gesetzten Kategorie-Felder übernehmen — `category_update` ändert sonst ungewollt mit. */
+const pickCategoryFields = (args: Record<string, unknown>): Record<string, unknown> => {
+	const fields: Record<string, unknown> = {};
+	for (const key of ['name', 'color']) {
+		if (args[key] !== undefined) {
+			fields[key] = args[key];
+		}
 	}
 	return fields;
 };
@@ -405,6 +416,54 @@ export const mcpTools: McpTool[] = [
 			const query = typeof timezone === 'string' && timezone !== '' ? `?tz=${encodeURIComponent(timezone)}` : '';
 			return callApi(ctx, `/scores/balance${query}`);
 		},
+	},
+	{
+		name: 'category_create',
+		description:
+			'Creates a new category for the token owner. The color must be one of the palette values ' +
+			'already used by the existing categories (see category_list).',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				name: { type: 'string', description: 'Name of the category, at most 40 characters.' },
+				color: { type: 'string', description: 'Palette color as a hex value, e.g. "#1a7f37" (from category_list).' },
+			},
+			required: ['name', 'color'],
+		},
+		run: (ctx, args) => callApi(ctx, '/categories', { method: 'POST', body: pickCategoryFields(args) }),
+	},
+	{
+		name: 'category_update',
+		description: 'Renames or recolors one of your own categories. Fields left out stay unchanged.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the category to change (from category_list).' },
+				name: { type: 'string', description: 'New name of the category, at most 40 characters.' },
+				color: { type: 'string', description: 'New palette color as a hex value (from category_list).' },
+			},
+			required: ['id'],
+		},
+		run: (ctx, args) =>
+			callApi(ctx, `/categories/${requireIntegerId(args, 'id')}`, {
+				method: 'PATCH',
+				body: pickCategoryFields(args),
+			}),
+	},
+	{
+		name: 'category_delete',
+		description:
+			'Permanently deletes one of your own categories. Tasks and series keep everything except the ' +
+			'assignment — their category falls back to none.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID of the category to delete (from category_list).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/categories/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
 	},
 	{
 		name: 'category_list',
