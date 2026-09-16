@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.73._
+_Enthält v0.2.0 – v0.2.74._
 
 ### 🔧 Engineering
 
@@ -84,6 +84,7 @@ _Enthält v0.2.0 – v0.2.73._
 - feat(server): sync user plan on downgrade and cancellation (#1462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1510
 - chore(deps): bump @public-ui packages to 4.4.1 prerelease 7b9d0237 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1511
 - feat(server): add MCP tools to create, update and delete categories by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1514
+- feat(frontend): add archivo as primary font by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1516
 
 ## v0.1 - 2026-09-12
 
@@ -721,6 +722,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): virtual balance prioritization for the task list (#1220) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1228
 - Move animation sub-options into a KolDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1234
 - feat(frontend,server): session-expired dialog with silent re-login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1232
+- feat(frontend,server): session-expired dialog with silent re-login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1232
 - feat(frontend,server): editable display name in settings (#1219) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1233
 - feat(frontend): use KolDetails for animation sub-options by @deleonio in https://github.com/deleonio/priority-pilot/pull/1235
 - feat(server,frontend): change group member role (#1221) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1236
@@ -791,7 +793,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): add mcp tools v1 for member role by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1355
 - feat(server): add read/write scope toggle for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1358
 - fix(ci): review waits for all checks, e2e in 8 shards with path filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1364
-- fix(mcp): restore connection for read-only api tokens by @deleonio in https://github.com/deleonio/priority-pilot/pull/1369
 - fix(mcp): restore connection for read-only api tokens by @deleonio in https://github.com/deleonio/priority-pilot/pull/1369
 - feat(frontend): show streak of consecutive done-days on dashboard by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1365
 - feat(frontend): merge quick capture and pillar advisor into one dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1366
