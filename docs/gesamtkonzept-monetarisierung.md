@@ -16,7 +16,7 @@ Für die Monetarisierung folgen daraus vier Regeln:
 
 1. Der regelbasierte Fürsorge-Kern bleibt in jedem Paket erhalten, auch in Free: nächste Aufgabe vorschlagen (`GET /next`, `GET /suggestions`), Balance-Stand je Säule, Punkte und Streaks. Bindung entsteht vor dem Kauf; die Pakete unterscheiden Umfang und Werkzeuge, nicht das Grundgefühl.
 2. Die KI-gestützte Beratung (Freitext-Verarbeitung, Säulen-Vorschlag, Lektorat, Aktivitäten-Berater) ist der kostenwirksame Teil der Fürsorge und läuft über monatliche Kontingente.
-3. Upgrade-Kommunikation spricht im selben Ton wie die App: Ein Hinweis an der Stelle, an der der Nutzer an eine Grenze stößt, mit dem konkreten Nutzen im Moment des Bedarfs. Kein Banner, kein Druck, keine generelle Werbung.
+3. Upgrade-Kommunikation spricht im selben Ton wie die App: kein Banner, kein Druck, keine generelle Werbung. Seit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) steht der Hinweis allerdings nicht mehr im Arbeitsfluss, sondern in den Einstellungen am deaktivierten Schalter der Funktion. Eine Funktion, die das Paket nicht enthält, wird im Fluss gar nicht erst angeboten; ein Badge an verwandten Stellen zeigt weiterhin, zu welchem Paket sie gehört.
 4. Beim Downgrade gilt sperren statt löschen. Wer weniger zahlt, verliert Daten nie, nur Funktionen.
 
 ## Ist-Stand
@@ -31,7 +31,7 @@ Ergebnis der Code-Prüfung: Alle Features der Paket-Matrix sind umgesetzt. Die M
 | Balance-Analyse                        | Free (Basis)            | vorhanden; 5 Defaultsäulen (Petzold), nutzerdefinierbar   | `server/src/models/pillarData.ts`, `server/src/models/taskPillar.ts`, `server/src/express/routes/scores.ts`                                            |
 | Proaktive Vorschläge                   | Free (nicht in Matrix)  | vorhanden                                                 | `GET /next`, `GET /suggestions` in `server/src/express/index.ts`                                                                                       |
 | Gruppen                                | Pro                     | vorhanden                                                 | `server/src/models/group*.ts`, `server/src/express/routes/groups.ts`, `server/src/express/routes/inviteLinks.ts`                                       |
-| Sprachsteuerung                        | Pro                     | vorhanden als lokale Spracheingabe (kein Server-Endpunkt) | `frontend/src/components/VoiceField.tsx`, `frontend/src/lib/useVoiceInput.ts`                                                                          |
+| Sprachsteuerung                        | Free (ab ADR 0014)      | vorhanden als lokale Spracheingabe (kein Server-Endpunkt) | `frontend/src/components/VoiceField.tsx`, `frontend/src/lib/useVoiceInput.ts`                                                                          |
 | KI-Assistenz                           | Pro/Max/Ultimate        | vorhanden, unbegrenzt                                     | `server/src/express/routes/{parseTasks,suggestPillars,pillarAdvisor,lektorat}.ts`, `server/src/llm/llm.ts`                                             |
 | Aufgaben-Graph (gewichtete Relationen) | Max                     | vorhanden                                                 | `server/src/models/dependency.ts` (`weight`), `server/src/logics/graph.ts`, `GET /graph`                                                               |
 | Standortbasierte Erinnerungen          | Max                     | vorhanden                                                 | `server/src/logics/geo-background-job.ts`, `server/src/express/routes/{geoConfig,geocodeSearch,reverseGeocode,placeFavorites}.ts`, `GET /tasks/nearby` |
@@ -50,7 +50,7 @@ Was fehlt, ist die komplette Monetarisierungsschicht:
 
 Randnotizen für die Umsetzung:
 
-- Die Spracheingabe läuft lokal im Browser; es gibt keinen Server-Endpunkt dafür. Die Paketgrenze lässt sich dort nur im Frontend durchsetzen. Das ist akzeptiert, weil sie ein Komfort-Feature ist.
+- Die Spracheingabe läuft lokal im Browser; es gibt keinen Server-Endpunkt dafür. Eine Paketgrenze wäre dort nur im Frontend durchsetzbar — genau deshalb hat [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md) sie nach Free verschoben, statt eine Grenze zu pflegen, die niemand durchsetzen kann.
 - Die einzigen Limitierungsmuster im Code sind der Nominatim-Rate-Limiter (`geocodeRateLimit.ts`, 1 Anfrage/s) und die Push-Dedupe über `notification_logs`. Ein Kontingent-Zähler ist Neubau und kann sich an diesen Mustern orientieren.
 - Der API-Vertrag liegt zentral in `openapi.yml`. Neue Felder und Fehlerbodies (403, 429) müssen dort eingetragen und die Client-Typen neu generiert werden.
 
@@ -58,19 +58,27 @@ Randnotizen für die Umsetzung:
 
 ### Paket-Matrix
 
-| Feature                                                               | Free  | Pro (7,99 €/Monat) | Max (14,99 €/Monat) | Ultimate (24,99 €/Monat) |
-| --------------------------------------------------------------------- | ----- | ------------------ | ------------------- | ------------------------ |
-| Aufgaben-Mengenlimit                                                  | Keins | Keins              | Keins               | Keins                    |
-| Kategorien                                                            | ✅    | ✅                 | ✅                  | ✅                       |
-| Checklisten, Deadlines, Aufwandsschätzung                             | ✅    | ✅                 | ✅                  | ✅                       |
-| Belohnungssystem (Punkte)                                             | ✅    | ✅                 | ✅                  | ✅                       |
-| Balance-Analyse (individuelle Säulen, Basis)                          | ✅    | ✅                 | ✅                  | ✅                       |
-| Gruppen                                                               | ❌    | ✅                 | ✅                  | ✅                       |
-| Sprachsteuerung                                                       | ❌    | ✅                 | ✅                  | ✅                       |
-| KI-Assistenz (Kontingent/Monat)                                       | ❌    | ~60 Anfragen       | ~110 Anfragen       | ~200 Anfragen            |
-| Aufgaben-Graph (gewichtete Relationen)                                | ❌    | ❌                 | ✅                  | ✅                       |
-| Standortbasierte Erinnerungen                                         | ❌    | ❌                 | ✅                  | ✅                       |
-| MCP-Zugriff (alles lesend oder alles schreibend, keine Unterfeatures) | ❌    | ❌                 | Nur lesend          | Lesend & schreibend      |
+| Feature                                      | Free  | Pro (7,99 €/Monat) | Max (14,99 €/Monat) | Ultimate (24,99 €/Monat) |
+| -------------------------------------------- | ----- | ------------------ | ------------------- | ------------------------ |
+| Aufgaben-Mengenlimit                         | Keins | Keins              | Keins               | Keins                    |
+| Kategorien                                   | ✅    | ✅                 | ✅                  | ✅                       |
+| Checklisten, Deadlines, Aufwandsschätzung    | ✅    | ✅                 | ✅                  | ✅                       |
+| Belohnungssystem (Punkte)                    | ✅    | ✅                 | ✅                  | ✅                       |
+| Balance-Analyse (individuelle Säulen, Basis) | ✅    | ✅                 | ✅                  | ✅                       |
+| Sprachsteuerung                              | ✅    | ✅                 | ✅                  | ✅                       |
+| Gruppen                                      | ❌    | ✅                 | ✅                  | ✅                       |
+| KI-Assistenz (Kontingent/Monat)              | ❌    | ~60 Anfragen       | ~110 Anfragen       | ~200 Anfragen            |
+| Aufgaben-Graph (gewichtete Relationen)       | ❌    | ❌                 | ✅                  | ✅                       |
+| Standortbasierte Erinnerungen                | ❌    | ❌                 | ✅                  | ✅                       |
+| MCP-Zugriff lesend (`mcp_read`)              | ❌    | ❌                 | ✅                  | ✅                       |
+| MCP-Zugriff schreibend (`mcp_readwrite`)     | ❌    | ❌                 | ❌                  | ✅                       |
+
+Stand 16.09.2026, nachgeschärft mit [ADR 0014](adr/0014-paket-angebote-ohne-dialog.md): Die
+Sprachsteuerung läuft lokal im Browser und kostet keine Serverleistung — sie gehört damit in jedes
+Paket. Der MCP-Zugriff hat zwei Grenzen statt einer, damit das Lesen als eigene Zeile in der
+Paket-Tabelle steht und auch durchgesetzt werden kann. Free bekommt kein KI-Kontingent; wer ohne Abo
+KI nutzen will, hinterlegt einen eigenen LLM-Provider, dessen Aufrufe nicht gegen ein Kontingent
+gebucht werden.
 
 ### Preise und Zeitraumstaffelung
 

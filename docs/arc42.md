@@ -307,6 +307,7 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 | [0011](adr/0011-umsetzung-worktree-isolation.md)        | Worktree-Isolation für parallele Ticket-Läufe             | Vorgeschlagen                                  |
 | [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)               | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK | Akzeptiert                                     |
 | [0013](adr/0013-zahlungsweg-paypal-abos.md)             | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild      | Akzeptiert                                     |
+| [0014](adr/0014-paket-angebote-ohne-dialog.md)          | Paketgrenzen: Angebote in den Einstellungen               | Akzeptiert; ersetzt #1458 AK5/AK7/AK13         |
 
 ## 10. Qualitätsanforderungen
 
