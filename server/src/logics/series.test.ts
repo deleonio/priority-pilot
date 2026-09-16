@@ -734,3 +734,45 @@ describe('generateDueInstances — Kategorie-Snapshot', () => {
 		}
 	});
 });
+
+// Rote Spec-Tests für #1518 (Spec docs/spec/issue-1518.md, Journey 3): die Generierung hält je Serie
+// höchstens FÜNF offene Instanzen vor — der 30-Tage-Horizont bleibt als Obergrenze. KEIN Produktivcode.
+describe('generateDueInstances — Fünfer-Grenze offener Instanzen (#1518)', () => {
+	const dailySeries = () =>
+		Series.create({
+			title: 'Täglich',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(0),
+		});
+
+	it('AK10: tägliche Serie mit 30-Tage-Fenster erzeugt genau fünf Instanzen; ein zweiter Lauf keine sechste', async () => {
+		const series = await dailySeries();
+		const until = futureDate(30);
+
+		const first = await generateDueInstances(series, { until });
+		assert.equal(first.length, 5, 'erster Lauf materialisiert fünf Instanzen');
+		const deadlines = first.map((t) => new Date(t.deadline as unknown as Date).getTime()).sort((a, b) => a - b);
+		for (let i = 0; i < deadlines.length; i += 1) {
+			assert.equal(deadlines[i], futureDate(i).getTime(), `Instanz ${i} liegt auf heute+${i}`);
+		}
+
+		const second = await generateDueInstances(series, { until });
+		assert.equal(second.length, 0, 'zweiter Lauf erzeugt keine sechste Instanz');
+		assert.equal(await Task.count({ where: { seriesId: series.id, status: ['Open', 'In process'] } }), 5);
+	});
+
+	it('AK10: nach dem Erledigen einer Instanz füllt der nächste Lauf genau eine nach', async () => {
+		const series = await dailySeries();
+		const until = futureDate(30);
+		const first = await generateDueInstances(series, { until });
+		await first[0].update({ status: 'Done' });
+
+		const third = await generateDueInstances(series, { until });
+		assert.equal(third.length, 1, 'genau eine Instanz rückt nach');
+		assert.equal(new Date(third[0].deadline as unknown as Date).getTime(), futureDate(5).getTime());
+		assert.equal(await Task.count({ where: { seriesId: series.id, status: ['Open', 'In process'] } }), 5);
+	});
+});

@@ -205,3 +205,27 @@ describe('TaskTree — Säulen-Badge für Aufgaben ohne Säulen-Gewichtung (#146
 		expect(screen.queryByTestId('pillar-missing-badge')).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1518 AK11 (Spec docs/spec/issue-1518.md, Journey 1): die Zeile einer
+ * Serien-Instanz trägt ein Serien-Icon mit dem Screenreader-Text „Serienaufgabe" (`role="img"` +
+ * `aria-label`, Muster `PillarMissingBadge`); das Text-Badge „Serie" existiert nicht mehr.
+ */
+describe('TaskTree — Serien-Icon statt Text-Badge (#1518)', () => {
+	it('AK11: Serien-Instanz zeigt das Icon mit Screenreader-Text „Serienaufgabe", kein Text-Badge „Serie"', () => {
+		const leaf = node(1, 'Täglich');
+		render(
+			<TaskTree {...baseProps} forest={[leaf]} fullForest={[leaf]} tasks={[{ ...task(1, 'Täglich'), seriesId: 7 }]} />,
+		);
+
+		expect(screen.getByRole('img', { name: 'Serienaufgabe' })).toBeInTheDocument();
+		expect(screen.queryByText('Serie', { exact: true })).toBeNull();
+	});
+
+	it('AK11: Einzelaufgabe trägt kein Serien-Icon', () => {
+		const leaf = node(1, 'Einzeln');
+		render(<TaskTree {...baseProps} forest={[leaf]} fullForest={[leaf]} tasks={[task(1, 'Einzeln')]} />);
+
+		expect(screen.queryByRole('img', { name: 'Serienaufgabe' })).toBeNull();
+	});
+});

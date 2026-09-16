@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task } from '../models/index.js';
+import { Series, Task } from '../models/index.js';
 import { buildTaskForest } from './tree.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
@@ -126,5 +126,64 @@ describe('buildTaskForest', () => {
 		const forest = await buildTaskForest();
 		assert.equal(forest.length, 1);
 		assert.equal(forest[0].id, inProcess.id);
+	});
+});
+
+// Rote Spec-Tests für #1518 (Spec docs/spec/issue-1518.md, Journey 1): der Wald (`GET /forest`, speist die
+// Aufgabenliste und „Wichtigste Tasks") zeigt je Serie nur die früheste offene Instanz ab heute; wird
+// sie erledigt, rückt die nächste nach (AK9). KEIN Produktivcode.
+describe('buildTaskForest — eine Instanz je Serie (#1518)', () => {
+	const dayFromToday = (offset: number): Date => {
+		const day = new Date();
+		day.setUTCHours(0, 0, 0, 0);
+		day.setUTCDate(day.getUTCDate() + offset);
+		return day;
+	};
+
+	const seedDailySeries = async (): Promise<{ seriesId: number; instances: Task[] }> => {
+		const series = await Series.create({
+			title: 'Täglich',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: dayFromToday(0),
+		});
+		const instances: Task[] = [];
+		for (let offset = 0; offset < 5; offset += 1) {
+			const occurrence = dayFromToday(offset);
+			instances.push(
+				await Task.create({
+					title: 'Täglich',
+					priority: 3,
+					estimatedEffort: 0.5,
+					deadline: occurrence,
+					seriesId: series.id,
+					seriesOccurrence: occurrence,
+					originSeriesId: series.id,
+				}),
+			);
+		}
+		return { seriesId: series.id, instances };
+	};
+
+	it('AK4: fünf offene Instanzen erscheinen als genau eine Wurzel — die mit Deadline heute', async () => {
+		const { instances } = await seedDailySeries();
+		await Task.create({ title: 'Einzeln', priority: 3, estimatedEffort: 1 });
+
+		const forest = await buildTaskForest();
+		const seriesRoots = forest.filter((node) => node.title === 'Täglich');
+		assert.equal(seriesRoots.length, 1, 'genau eine Zeile je Serie');
+		assert.equal(seriesRoots[0].id, instances[0].id, 'die Instanz mit Deadline heute');
+		assert.equal(forest.length, 2, 'die Einzelaufgabe bleibt unverändert');
+	});
+
+	it('AK9: wird die gezeigte Instanz erledigt, rückt die nächste Instanz derselben Serie nach', async () => {
+		const { instances } = await seedDailySeries();
+		await instances[0].update({ status: 'Done' });
+
+		const forest = await buildTaskForest();
+		assert.equal(forest.length, 1);
+		assert.equal(forest[0].id, instances[1].id, 'die Instanz mit Deadline heute+1');
 	});
 });
