@@ -163,24 +163,34 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 
 	/**
 	 * #1524 AK9 (Spec docs/spec/issue-1524.md) — die um `mcp_read` erweiterte Paket-Tabelle
-	 * (`PlansSection.tsx`, Einstellungen → Allgemein) bleibt bei 375px vollständig lesbar. Prüft
+	 * (`PlansSection.tsx`, Einstellungen → Pakete) bleibt bei 375px vollständig lesbar. Prüft
 	 * bewusst die ZEILENANZAHL (sieben Feature-Zeilen statt sechs) statt eines fest verdrahteten
 	 * Zeilentitels — der genaue Wortlaut von `FEATURE_OFFERS.mcp_read` ist Implementierungsdetail.
 	 * Rot, bis der Katalog um `mcp_read` wächst (heute: sechs Zeilen in `tbody`).
+	 *
+	 * Test-Pflege (#1529, Spec docs/spec/issue-1529.md AK1/AK2/AK3): die Pakete-Sektion zieht vom
+	 * Allgemein-Tab auf den eigenen `/settings/pakete`-Reiter um. Die Matrix ist außerdem keine
+	 * native `<table>` mehr, sondern ein `<kol-table-stateful>`-Host mit eigenem Shadow-DOM (rohe
+	 * CSS-Selektoren wie `table`/`tbody tr` finden dort nichts, Rollen-Locators piercen aber nativ
+	 * durch — Vorbild `completed-tasks.spec.ts`). Und: seit AK3 liegen zusätzlich die 3 Preis- und
+	 * 3 Buchen-Zeilen mit im Körper (vorher nur Feature-Zeilen) — Datenzeilen werden deshalb über
+	 * „Zeile ohne `columnheader`-Zelle" von der Kopfzeile abgegrenzt, die erwartete Feature-
+	 * Zeilenanzahl ergibt sich als Gesamtzahl der Datenzeilen minus dieser 6 konstanten Zeilen.
 	 */
 	test('#1524 AK9: die erweiterte Paket-Tabelle (7 Feature-Zeilen) bleibt ohne horizontalen Overflow', async ({
 		page,
 	}) => {
-		await page.goto('/settings/general');
+		await page.goto('/settings/pakete');
 		await waitForStableView(page, 'Allgemein');
 
-		const table = page.getByTestId('plans-section').locator('table');
-		await expect(table).toBeVisible();
+		const host = page.getByTestId('plans-section').locator('kol-table-stateful');
+		await expect(host).toBeVisible();
 
-		const featureRows = table.locator('tbody tr');
-		await expect(featureRows).toHaveCount(7);
+		const PRICE_AND_ACTION_ROWS = 3 + 3;
+		const bodyRows = host.getByRole('row').filter({ hasNot: page.getByRole('columnheader') });
+		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 7);
 
-		const lastRow = featureRows.last();
+		const lastRow = bodyRows.last();
 		await expectWithinViewport(lastRow);
 	});
 });

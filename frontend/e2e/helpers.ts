@@ -193,6 +193,76 @@ export const measureHorizontalScroll = (
 };
 
 /**
+ * #1529: wie `measureHorizontalScroll`, aber POSITIV — sucht den ersten horizontal scrollbaren
+ * Container (auch im Shadow-DOM: `KolTableStateful` rendert als `<kol-table-stateful>`-Host mit
+ * eigenem Shadow-Root, Vorbild `CompletedTasksTable`), scrollt ihn ganz nach rechts und liefert die
+ * Bounding-Rects von Container und erster Kopf-/Körperzelle zurück (AK5: Funktionsspalte bleibt
+ * nach dem Scrollen sichtbar). Alles in EINEM Aufruf, weil ein im Shadow-DOM gefundener Knoten sich
+ * nicht als Playwright-`Locator` zurückreichen lässt.
+ */
+export const scrollMatrixAndMeasureFirstCell = (
+	el: HTMLElement,
+): { container: { left: number; right: number }; firstCell: { left: number; right: number } } | null => {
+	const scan = (root: ParentNode): HTMLElement | null => {
+		for (const node of Array.from(root.querySelectorAll('*'))) {
+			if (node instanceof HTMLElement) {
+				const overflowX = getComputedStyle(node).overflowX;
+				if ((overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth + 1) {
+					return node;
+				}
+				const shadow = node.shadowRoot;
+				if (shadow) {
+					const hit = scan(shadow);
+					if (hit) return hit;
+				}
+			}
+		}
+		return null;
+	};
+	const scroller = scan(el.shadowRoot ?? el);
+	if (!scroller) return null;
+	scroller.scrollLeft = scroller.scrollWidth;
+	const firstCell = scroller.querySelector('thead th, tbody th, tbody td');
+	if (!firstCell) return null;
+	const containerRect = scroller.getBoundingClientRect();
+	const cellRect = firstCell.getBoundingClientRect();
+	return {
+		container: { left: containerRect.left, right: containerRect.right },
+		firstCell: { left: cellRect.left, right: cellRect.right },
+	};
+};
+
+/**
+ * #1529: sammelt rekursiv (auch durch offene Shadow-Roots) alle `th` innerhalb eines `thead` und
+ * liefert Höhe, `line-height` und vertikales Padding je Zelle (Vorbild `kolHeaderGeometry`,
+ * `completed-tasks.spec.ts`) — AK6: keine Kopfzelle bricht auf mehr als zwei Zeilen um.
+ */
+export const headerCellMetrics = (
+	el: HTMLElement,
+): { height: number; lineHeight: number; paddingTop: number; paddingBottom: number }[] => {
+	const collect = (root: ParentNode, acc: HTMLElement[]): HTMLElement[] => {
+		for (const node of Array.from(root.querySelectorAll('*'))) {
+			if (node instanceof HTMLElement) {
+				acc.push(node);
+				const shadow = node.shadowRoot;
+				if (shadow) collect(shadow, acc);
+			}
+		}
+		return acc;
+	};
+	const headers = collect(el.shadowRoot ?? el, []).filter((node) => node.tagName === 'TH' && node.closest('thead'));
+	return headers.map((cell) => {
+		const style = getComputedStyle(cell);
+		return {
+			height: cell.getBoundingClientRect().height,
+			lineHeight: parseFloat(style.lineHeight) || 0,
+			paddingTop: parseFloat(style.paddingTop) || 0,
+			paddingBottom: parseFloat(style.paddingBottom) || 0,
+		};
+	});
+};
+
+/**
  * Init-Script (als String, vor dem Seitenaufbau injiziert), das die Web Speech API mockt:
  *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onstart`, `onresult`, `onend`,
  *  2. Zuweisung an `window.SpeechRecognition` und `window.webkitSpeechRecognition`,
