@@ -283,6 +283,16 @@ const defaultProps = {
 	onSaved: vi.fn(),
 };
 
+// TEST-PFLEGE #1527: Der Säulen-Vorschlag (Button + Auto-Trigger-Effekt) hängt jetzt am KI-Gate.
+// Ohne `PlanProvider` liefert `useEntitlement('ai_assist')` `undefined` → Gate aus. Tests, die einen
+// tatsächlichen Säulen-Vorschlag auslösen (Button-Klick oder Mount-Effekt), rendern daher mit
+// eingeschaltetem Gate; Tests, die "kein Vorschlag" erwarten, bleiben unverändert.
+const gateOnEntitlements: EntitlementMap = {
+	ai_assist: { allowed: true, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+};
+const renderWithAiGateOn = (ui: ReactNode) =>
+	render(<PlanProvider value={{ plan: 'pro', entitlements: gateOnEntitlements }}>{ui}</PlanProvider>);
+
 /**
  * Serien-Fixture für #316: ein bestehendes Serien-Template. Beim Bearbeiten reicht der Container das
  * Template über die (erwartete) neue Prop `series` an das Formular; der Umschalter startet dann fest
@@ -321,7 +331,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
-			render(<TaskForm task={null} initialValues={{ title: 'Steuererklärung 2025' }} {...defaultProps} />);
+			renderWithAiGateOn(<TaskForm task={null} initialValues={{ title: 'Steuererklärung 2025' }} {...defaultProps} />);
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
@@ -376,13 +386,17 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 	it('AK5 — bleibt bei genau einem Aufruf auch bei Re-Render / StrictMode-Doppelmount (Ref-Guard)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
-		const { rerender } = render(
+		const { rerender } = renderWithAiGateOn(
 			<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />,
 		);
 
 		// Erster Mount kann noch laufen; anschließend Re-Render simulieren.
 		await act(async () => {
-			rerender(<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />);
+			rerender(
+				<PlanProvider value={{ plan: 'pro', entitlements: gateOnEntitlements }}>
+					<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />
+				</PlanProvider>,
+			);
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
@@ -393,7 +407,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		mockSuggestPillars.mockResolvedValue([{ pillarId: 1, confidence: 80 }]);
 
 		await act(async () => {
-			render(<TaskForm task={null} initialValues={{ title: 'Karriere planen' }} {...defaultProps} />);
+			renderWithAiGateOn(<TaskForm task={null} initialValues={{ title: 'Karriere planen' }} {...defaultProps} />);
 		});
 
 		// Nach dem Auto-Trigger soll mindestens eine pillar-row im DOM erscheinen
@@ -712,7 +726,7 @@ describe('AK6 — QuickCapture/LLM + Säulen-Vorschlag in Serie-Modus (#316)', (
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
-			render(<TaskForm task={null} {...defaultProps} />);
+			renderWithAiGateOn(<TaskForm task={null} {...defaultProps} />);
 		});
 
 		await switchToSeriesMode();

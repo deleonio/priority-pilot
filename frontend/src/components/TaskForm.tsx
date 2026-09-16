@@ -633,7 +633,7 @@ export const TaskForm = ({
 	// Der Ref-Guard sichert die „einmal"-Garantie gegen den StrictMode-Doppelmount ab; die leere
 	// Dependency-Liste bindet den Effekt bewusst an den Mount (kein onChange/onBlur-Trigger).
 	useEffect(() => {
-		if (!isEdit && (initialValues?.title?.trim() ?? '') !== '' && !autoTriggered.current) {
+		if (aiEnabled && !isEdit && (initialValues?.title?.trim() ?? '') !== '' && !autoTriggered.current) {
 			autoTriggered.current = true;
 			void suggestPillars();
 		}
@@ -1468,15 +1468,19 @@ export const TaskForm = ({
 							<div className="pillar-editor">
 								<div className="pillar-editor-head">
 									<span className="pillar-editor-label">Säulen (optional)</span>
-									{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — der Säulen-Vorschlag ist der zweite
-									    KI-Einstieg im Formular. */}
-									<PlanBadge feature="ai_assist" />
-									<KolButton
-										_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
-										_variant="secondary"
-										_disabled={saving || suggesting}
-										_on={{ onClick: () => void suggestPillars() }}
-									/>
+									{/* #1527: Ohne KI-Berechtigung bleiben Badge und Vorschlag-Button ausgeblendet
+									    — der Säulen-Editor selbst (Regler, Entfernen) bleibt unberührt. */}
+									{aiEnabled && (
+										<>
+											<PlanBadge feature="ai_assist" />
+											<KolButton
+												_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
+												_variant="secondary"
+												_disabled={saving || suggesting}
+												_on={{ onClick: () => void suggestPillars() }}
+											/>
+										</>
+									)}
 								</div>
 								{suggesting && (
 									<div className="pillar-editor-loading">
