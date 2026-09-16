@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.81._
+_Enthält v0.2.0 – v0.2.82._
 
 ### 🔧 Engineering
 
@@ -92,6 +92,7 @@ _Enthält v0.2.0 – v0.2.81._
 - feat(server): collapse series instances across lists and pushes by @deleonio in https://github.com/deleonio/priority-pilot/pull/1522
 - chore(deps): update dependency brace-expansion@2 to v5.0.12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1501
 - docs(adr): record package boundaries without offer dialog (adr 0014) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1523
+- feat(server): free voice input for all plans, gate mcp_read to max+ by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1533
 
 ## v0.1 - 2026-09-12
 
@@ -735,7 +736,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): notify recipient when a task is created for them (#1224) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1240
 - feat(frontend): list tasks created for fellow members (#1223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1239
 - fix(server): sync google display name into users on oauth login (#1238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1241
-- fix(server): sync google display name into users on oauth login (#1238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1241
+- feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
 - feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
 - feat(frontend): apply master-detail settings pattern with KolDetails by @deleonio in https://github.com/deleonio/priority-pilot/pull/1243
 - feat(frontend): separate balance switch from recompute button (#1220) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1244
