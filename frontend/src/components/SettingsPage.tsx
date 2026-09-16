@@ -34,6 +34,7 @@ import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 import { PlansSection } from './PlansSection';
+import { SubscriptionSection } from './SubscriptionSection';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
@@ -52,8 +53,8 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
 // KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211), Kategorien (Index 5),
-// optional Nutzerverwaltung (Index 6, nur für Admins) und Zugriff (#1352, letzter Tab: Index 6 ohne
-// bzw. 7 mit Admin-Tab). Muss index-paritätisch mit
+// Pakete (Index 6, #1529), Abo (Index 7, #1529), optional Nutzerverwaltung (Index 8, nur für Admins)
+// und Zugriff (#1352, letzter Tab: Index 8 ohne bzw. 9 mit Admin-Tab). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
 // statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
@@ -63,7 +64,13 @@ const BASE_SETTINGS_TABS = [
 	{ _label: 'Standort' },
 	{ _label: 'Gruppen' },
 	{ _label: 'Kategorien' },
+	{ _label: 'Pakete' },
+	{ _label: 'Abo' },
 ];
+
+/** #1529 AK7: Index des Pakete-Reiters — unabhängig von der Rolle, weil er vor den rollenabhängigen
+ * Reitern liegt. Der Abo-Reiter verweist mit „Pakete ansehen" hierher. */
+const PLANS_TAB_INDEX = 6;
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
 const formatGeoTimestamp = (updatedAt: number): string => {
@@ -105,7 +112,7 @@ export const SettingsPage = ({
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
 	const settingsTabs = useMemo(
-		// „Zugriff" (#1352) hängt bewusst HINTER dem Admin-Tab, damit dessen Index 6 unverändert bleibt.
+		// „Zugriff" (#1352) hängt bewusst HINTER dem Admin-Tab, damit dessen Index 8 unverändert bleibt.
 		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : []), { _label: 'Zugriff' }],
 		[isAdmin],
 	);
@@ -367,11 +374,6 @@ export const SettingsPage = ({
 								_on={{ onClick: saveDisplayName }}
 							/>
 						</div>
-					</KolCard>
-
-					{/* #1458 AK11: Sekundärbereich „Pakete" — Matrix und Preise kommen aus `GET /plans`. */}
-					<KolCard className="settings-card" _label="Pakete" _level={2}>
-						<PlansSection />
 					</KolCard>
 
 					{/* Darstellung und Spracheingabe teilen sich eine Karte: beide beschreiben, wie die App
@@ -759,15 +761,27 @@ export const SettingsPage = ({
 						<CategoryList onCategoryChanged={onCategoryChanged} />
 					</KolCard>
 				</div>
+				{/* #1529 AK1: „Pakete" (Matrix, Preise, Buchen/Wechseln) und „Abo" (Status, Kündigung,
+				    Rechnungen) als eigene Reiter — vorher lag beides gemeinsam als Karte im Allgemein-Tab. */}
+				<div slot="tab-6" className="settings-plans settings-panel">
+					<KolCard className="settings-card" _label="Pakete im Vergleich" _level={2}>
+						<PlansSection />
+					</KolCard>
+				</div>
+				<div slot="tab-7" className="settings-subscription settings-panel">
+					<KolCard className="settings-card" _label="Abo und Rechnungen" _level={2}>
+						<SubscriptionSection onShowPlans={() => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX)} />
+					</KolCard>
+				</div>
 				{isAdmin && (
-					<div slot="tab-6" className="settings-admin-users settings-panel">
+					<div slot="tab-8" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
 							<AdminUsersSection />
 						</KolCard>
 					</div>
 				)}
 				{/* Persönliche API-Tokens (#1352) — letzter Tab, daher Slot-Index abhängig vom Admin-Tab. */}
-				<div slot={isAdmin ? 'tab-7' : 'tab-6'} className="settings-api-tokens settings-panel">
+				<div slot={isAdmin ? 'tab-9' : 'tab-8'} className="settings-api-tokens settings-panel">
 					<ApiTokensSection />
 				</div>
 			</KolTabs>

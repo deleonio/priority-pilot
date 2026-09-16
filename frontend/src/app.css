@@ -3855,18 +3855,14 @@ kol-alert {
 
 /* Paket-Matrix in den Einstellungen (#1458 AK11): auf schmalen Geräten scrollt die Tabelle in
    ihrem eigenen Container, damit die Seite selbst nicht horizontal überläuft. */
+/*
+ * #1529: Die Matrix ist eine `KolTableStateful` und bringt ihren eigenen, seitlich scrollenden
+ * Container mit (ADR 0014, Entscheidung 6). Der Wrapper darf deshalb NICHT selbst scrollen —
+ * sonst läge der Überlauf außerhalb der Tabelle und die stehende Funktionsspalte (AK5) hätte
+ * keinen Bezug. Muster `.completed-tasks` (ebenfalls ohne eigenes `overflow`).
+ */
 .plans-section {
-	overflow-x: auto;
 	max-width: 100%;
-}
-
-.plans-matrix {
-	border-collapse: collapse;
-	min-width: 100%;
-}
-
-.plans-matrix th,
-.plans-matrix td {
-	padding: 0.25rem 0.5rem;
-	text-align: left;
+	/* Preis-Spalten sind Zahlenkolonnen — gleich breite Ziffern lassen sie sauber untereinander stehen. */
+	font-variant-numeric: tabular-nums;
 }

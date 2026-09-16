@@ -648,10 +648,11 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * Rote Spec-Tests für Fixup PR #1300 (Finding #2) — Tab-Gating „Nutzerverwaltung" (Rollensystem
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
- * als letzter Tab (Index 6, ans Ende angehängt) mit `AdminUsersSection` im Panel `slot="tab-6"`.
+ * als letzter Tab (Index 8 seit #1529, ans Ende angehängt) mit `AdminUsersSection` im Panel
+ * `slot="tab-8"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
-	// Test-Pflege #1352: Seit dem Tab „Zugriff" (letzter Tab) ist `slot="tab-6"` ohne Admin-Rolle vom
+	// Test-Pflege #1352: Seit dem Tab „Zugriff" (letzter Tab) ist der letzte Slot ohne Admin-Rolle vom
 	// API-Token-Panel belegt. Der #1300-Vertrag bleibt derselbe — geprüft wird jetzt die Abwesenheit
 	// der `AdminUsersSection` statt die des Slots.
 	it('ohne isAdmin fehlt der Tab „Nutzerverwaltung" in der Tab-Liste und es gibt kein Panel mit AdminUsersSection', () => {
@@ -662,7 +663,10 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(container.querySelector('.admin-users')).toBeNull();
 	});
 
-	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-6"', () => {
+	// Test-Pflege #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
+	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8. Der geprüfte Vertrag (#1300:
+	// Admin-Reiter am Ende, AdminUsersSection in seinem Panel) bleibt unverändert.
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-8"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -673,13 +677,15 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Standort',
 			'Gruppen',
 			'Kategorien',
+			'Pakete',
+			'Abo',
 			'Nutzerverwaltung',
-			// Test-Pflege #1352: „Zugriff" hängt hinter dem Admin-Tab — Index 6 bleibt Nutzerverwaltung.
+			// Test-Pflege #1352: „Zugriff" hängt hinter dem Admin-Tab — Index 8 bleibt Nutzerverwaltung.
 			'Zugriff',
 		]);
-		const adminPanel = container.querySelector('[slot="tab-6"]');
-		expect(adminPanel, 'letzter Slot tab-6 existiert').not.toBeNull();
-		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-6-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-8"]');
+		expect(adminPanel, 'letzter Slot tab-8 existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-8-Panel').toBeTruthy();
 	});
 });
 
@@ -689,7 +695,8 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  *
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
- * `slot="tab-6"` (letzter Tab, s. Spec-Dokument).
+ * `slot="tab-8"` (letzter Tab; Test-Pflege #1529: vorher `tab-6`, seit den Reitern „Pakete"/„Abo"
+ * um zwei Positionen verschoben).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 	beforeEach(() => {
@@ -698,7 +705,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		delete apiMocks.deleteApiToken;
 	});
 
-	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-6"] [data-testid="api-tokens-panel"]');
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-8"] [data-testid="api-tokens-panel"]');
 
 	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
@@ -711,7 +718,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		});
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container), 'Panel „Zugriff" (tab-6) fehlt').not.toBeNull();
+		expect(panel(container), 'Panel „Zugriff" (tab-8) fehlt').not.toBeNull();
 
 		const createButton = container.querySelector(
 			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',
@@ -800,22 +807,37 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue(catalog);
 	});
 
+	/*
+	 * Test-Pflege #1529 (Spec docs/spec/issue-1529.md AK1/AK2/AK3): Die Sektion liegt seit #1529 im
+	 * eigenen Reiter „Pakete" (`slot="tab-6"`) statt im Allgemein-Tab, und die Matrix ist keine
+	 * handgebaute `.plans-matrix`-Tabelle mehr, sondern eine `KolTableStateful`. In JSDOM hydriert
+	 * die Web Component nicht — ihre Zeilen stehen deshalb nicht im DOM, sondern im `_data`-Prop
+	 * (Muster `kol-tabs`/`_tabs` weiter oben in dieser Datei). Der geprüfte #1458-AK11-Vertrag
+	 * bleibt derselbe: Preise und Feature-Zeilen kommen ausschließlich aus `GET /plans`.
+	 */
 	it('rendert die Karte „Pakete" mit Matrix und Preisen aus GET /plans', async () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
-		expect(container.querySelector('kol-card[_label="Pakete"]')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-6"] [data-testid="plans-section"]')).not.toBeNull();
+		expect(container.querySelector('kol-card[_label="Pakete im Vergleich"]')).not.toBeNull();
 		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
 
-		const matrix = container.querySelector('.plans-matrix');
+		const matrix = container.querySelector('kol-table-stateful') as unknown as {
+			_data?: (Record<string, unknown> & { _kind?: string })[];
+		} | null;
 		expect(matrix).not.toBeNull();
+		const rows = matrix?._data ?? [];
 		// Preise: exakt die Server-Werte, keine im Frontend hinterlegte Liste.
-		expect(matrix?.textContent).toContain('0 €');
-		expect(matrix?.textContent).toContain('4 €');
+		const monthlyPrices = rows.find((row) => row._kind === 'price' && row.label === 'Preis monatlich');
+		expect(monthlyPrices?.free).toBe('0,00 €');
+		expect(monthlyPrices?.pro).toBe('0,04 €');
 		// Matrixzeilen: je Feature eine Zeile mit „enthalten"/„—" je Paket.
-		expect(matrix?.querySelectorAll('tbody tr')).toHaveLength(2);
-		expect(matrix?.textContent).toContain('enthalten');
+		const featureRows = rows.filter((row) => row._kind === 'feature');
+		expect(featureRows).toHaveLength(2);
+		expect(featureRows[0]?.pro).toBe('enthalten');
+		expect(featureRows[0]?.free).toBe('—');
 	});
 
 	it('zeigt den Ladefehler, wenn GET /plans scheitert — statt halber Daten', async () => {
