@@ -113,5 +113,38 @@
 		"turns": 8,
 		"valueCost": 0.1227354,
 		"effort": "low"
+	},
+	{
+		"timestamp": "2026-09-16T03:14:45.764Z",
+		"tokensIn": 1694042,
+		"tokensOut": 8102,
+		"cost": 0.9151257,
+		"issueId": "1513",
+		"phase": "review",
+		"model": "claude-sonnet-5",
+		"provider": "claude",
+		"cacheCreationTokens": 82690,
+		"cacheReadTokens": 1611314,
+		"turns": 19,
+		"valueCost": 0.9151257,
+		"effort": "medium",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 0
+	},
+	{
+		"timestamp": "2026-09-16T03:16:45.024Z",
+		"tokensIn": 392054,
+		"tokensOut": 5009,
+		"cost": 0.11037855,
+		"issueId": "1513",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 40059,
+		"cacheReadTokens": 351928,
+		"turns": 8,
+		"valueCost": 0.11037855,
+		"effort": "low"
 	}
 ]
