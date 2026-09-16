@@ -1,5 +1,5 @@
 /**
- * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423 vierzehn Werkzeuge.
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1413 achtzehn Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
@@ -427,6 +427,79 @@ export const mcpTools: McpTool[] = [
 			required: ['groupId'],
 		},
 		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/members`),
+	},
+	{
+		name: 'pillar_create',
+		description:
+			'Creates a new pillar for the token owner. New pillars start with weight 0 (redistribute via pillar_weights_set).',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				name: { type: 'string', description: 'Name of the pillar. Must be unique for the token owner.' },
+				description: { type: 'string', description: 'Description of the pillar.' },
+			},
+			required: ['name'],
+		},
+		run: (ctx, args) => callApi(ctx, '/pillars', { method: 'POST', body: args }),
+	},
+	{
+		name: 'pillar_update',
+		description: "Changes name and/or description of one of your own pillars. Doesn't touch its weight.",
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the pillar to change (from pillar_list).' },
+				name: { type: 'string', description: 'New name of the pillar.' },
+				description: { type: 'string', description: 'New description of the pillar.' },
+			},
+			required: ['id'],
+		},
+		run: (ctx, args) => {
+			const id = requireIntegerId(args, 'id');
+			const { id: _id, ...body } = args;
+			return callApi(ctx, `/pillars/${id}`, { method: 'PATCH', body });
+		},
+	},
+	{
+		name: 'pillar_delete',
+		description:
+			'Permanently deletes one of your own pillars, including its contributions to tasks and series. ' +
+			'Remaining contributions of the affected tasks/series and the weights of the remaining pillars are ' +
+			'renormalized to 100%.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID of the pillar to delete (from pillar_list).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/pillars/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
+	},
+	{
+		name: 'pillar_weights_set',
+		description:
+			"Sets the token owner's full weight distribution across all pillars at once. The list must cover " +
+			'every existing pillar exactly once and its weights must add up to 100.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				weights: {
+					type: 'array',
+					description: 'One entry per existing pillar (from pillar_list); the weight values must add up to 100.',
+					items: {
+						type: 'object',
+						properties: {
+							id: { type: 'integer', description: 'ID of the pillar (from pillar_list).' },
+							weight: { type: 'number', description: 'Weight of the pillar; the sum over all entries must be 100.' },
+						},
+					},
+				},
+			},
+			required: ['weights'],
+		},
+		run: (ctx, args) => callApi(ctx, '/pillars/weights', { method: 'PUT', body: args }),
 	},
 ];
 

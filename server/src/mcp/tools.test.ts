@@ -883,7 +883,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.ok(!list.result?.some((g) => g.id === groupOfB.id), 'fremde Gruppe darf in group_list nicht sichtbar sein');
 	});
 
-	it('AK1 (#1423): der v1-Werkzeugvertrag wächst um balance_status auf vierzehn Namen', async () => {
+	it('AK1 (#1423): der v1-Werkzeugvertrag wächst um balance_status auf achtzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
@@ -897,7 +897,11 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'group_list',
 			'group_members_list',
 			'next_task',
+			'pillar_create',
+			'pillar_delete',
 			'pillar_list',
+			'pillar_update',
+			'pillar_weights_set',
 			'task_complete',
 			'task_create',
 			'task_delete',
@@ -935,15 +939,16 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		closeDb();
 	});
 
-	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf vierzehn Namen', async () => {
+	it('AK1: tools/list enthält task_delete mit inputSchema.required = ["id"], Katalog wächst auf achtzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		// Zähler wächst mit dem Katalog (#1423: balance_status). Der Vertrag ist „task_delete ist drin",
-		// nicht „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 14, `Katalog sollte vierzehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status, #1413: vier Säulen-Werkzeuge). Der
+		// Vertrag ist „task_delete ist drin", nicht „es gibt genau dreizehn Werkzeuge" — die
+		// vollständige Namensliste prüft der Snapshot-Test.
+		assert.equal(names.length, 18, `Katalog sollte achtzehn Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1147,14 +1152,15 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		assert.equal(after.result?.length, countBefore, 'ein abgelehnter task_create darf keine Aufgabe anlegen');
 	});
 
-	it('AK7: der Katalog-Namens-Snapshot bleibt bei vierzehn Namen', async () => {
+	it('AK7: der Katalog-Namens-Snapshot bleibt bei achtzehn Namen', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		// Zähler wächst mit dem Katalog (#1423: balance_status) — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 14, `Katalog sollte vierzehn Namen führen, war: ${names.join(', ')}`);
+		// Zähler wächst mit dem Katalog (#1423: balance_status, #1413: vier Säulen-Werkzeuge) — #1420
+		// selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 18, `Katalog sollte achtzehn Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
