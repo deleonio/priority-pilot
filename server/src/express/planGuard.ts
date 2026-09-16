@@ -21,6 +21,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
 	graph_write: 'Abhängigkeiten im Aufgabengraph',
 	location_reminders: 'Standort-Erinnerungen',
 	mcp_readwrite: 'Schreibzugriff über MCP',
+	mcp_read: 'Lesezugriff über MCP',
 };
 
 /**

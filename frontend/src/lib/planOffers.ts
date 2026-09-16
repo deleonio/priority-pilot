@@ -56,6 +56,10 @@ const FEATURE_OFFERS: Record<FeatureId, { title: string; benefit: string }> = {
 		title: 'MCP-Schreibzugriff',
 		benefit: 'Eigene Werkzeuge und Assistenten dürfen Aufgaben nicht nur lesen, sondern auch anlegen und ändern.',
 	},
+	mcp_read: {
+		title: 'MCP-Lesezugriff',
+		benefit: 'Eigene Werkzeuge und Assistenten dürfen über einen persönlichen API-Token Aufgaben und Daten lesen.',
+	},
 };
 
 /** Angebotstext zu einem Feature; unbekannte Identifier bekommen einen neutralen Text. */
