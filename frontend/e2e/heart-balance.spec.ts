@@ -2,11 +2,13 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * E2E-Spec für das Herz der Startseite (Lebensbalance).
+ * E2E-Spec für das Balance-Bild der Startseite (Lebensbalance).
  *
- * Nagelt den Kernpunkt fest, den nur die echte Seite belegen kann: Das Herz steht als erstes Widget
+ * Nagelt den Kernpunkt fest, den nur die echte Seite belegen kann: Das Bild steht als erstes Widget
  * des Dashboards, ist horizontal mittig und bleibt auf schmalen Viewports innerhalb der Seite. Die
- * Segmentierung je Säule und die Rechnung prüfen die Komponenten- und Unit-Tests.
+ * Segmentierung je Säule und die Rechnung prüfen die Komponenten- und Unit-Tests. Geprüft wird die
+ * Standard-Variante „Herz" (`docs/zifferblatt-konzept.md`); die übrigen Bilder teilen sich
+ * Bühne und Layout mit ihr.
  *
  * Die Breiten-Prüfung misst **Bounding-Boxen**, nicht `documentElement.scrollWidth`: Die App-Shell
  * clippt mit `overflow-x: hidden`, `scrollWidth` bleibt dadurch strukturell unter der Viewport-Breite
@@ -65,9 +67,9 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 		expect(cardBox!.y).toBeLessThan(cardsBox!.y);
 	});
 
-	// Die Grafik rendert mit `overflow: visible`, der Puls skaliert über die Viewbox hinaus und der
-	// Wellenpfad steht seitlich über die Zeichenfläche — genau die Kombination, die auf schmalen
-	// Geräten überläuft, wenn eine Breite einmal absolut statt relativ gesetzt wird.
+	// Die Grafik rendert mit `overflow: visible` und der Herzschlag skaliert über die Viewbox hinaus —
+	// genau die Kombination, die auf schmalen Geräten überläuft, wenn eine Breite einmal absolut
+	// statt relativ gesetzt wird.
 	for (const width of [375, 320]) {
 		test(`bleibt bei ${width} px innerhalb der Seitenbreite`, async ({ page }) => {
 			await page.setViewportSize({ width, height: 812 });

@@ -19,7 +19,13 @@ uniform float u_time;
 
 uniform float u_fill;
 uniform bool u_animated;
-uniform float u_rise_duration;
+/*
+ * Fortschritt des Aufstiegs, 0–1, **von der Komponente gerechnet** — nicht aus u_time abgeleitet.
+ * Grund: Die Render-Loop laeuft nur, wenn das Herz sichtbar und der Tab im Vordergrund ist. Waere
+ * der Aufstieg an die Shader-Uhr gebunden, stuende sie bei einem Standbild auf 0 und das Herz waere
+ * leer statt gefuellt — genau der Fall „Dashboard im Hintergrund-Tab geoeffnet".
+ */
+uniform float u_rise;
 uniform float u_wave_length;
 uniform float u_wave_amplitude;
 uniform float u_wave_duration;
@@ -213,7 +219,7 @@ void main() {
 	float depth = clamp((p.y - 6.0) / 82.0, 0.0, 1.0);
 
 	/* Aufstieg einmalig von unten (still gesetzt: sofort auf Stand, wie die Still-Klasse im SVG). */
-	float rise = u_animated ? easeOutCubic(clamp(u_time / u_rise_duration, 0.0, 1.0)) : 1.0;
+	float rise = easeOutCubic(clamp(u_rise, 0.0, 1.0));
 	float fill = clamp(u_fill, 0.0, 1.0) * rise;
 	float level = mix(88.0, 6.0, fill);
 
