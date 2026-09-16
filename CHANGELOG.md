@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.77._
+_Enthält v0.2.0 – v0.2.78._
 
 ### 🔧 Engineering
 
@@ -88,6 +88,7 @@ _Enthält v0.2.0 – v0.2.77._
 - fix(frontend): enforce archivo font on all kolibri host elements by @deleonio in https://github.com/deleonio/priority-pilot/pull/1517
 - feat(server): add pillar create/update/delete/weights MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1515
 - refactor(frontend): drop type assertion in address autocomplete keydown by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1519
+- feat(server): add balance history endpoint and MCP tool by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1520
 
 ## v0.1 - 2026-09-12
 
@@ -800,7 +801,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): merge quick capture and pillar advisor into one dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1366
 - feat(frontend): add home icon to logo button for dashboard switch by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1371
 - feat(frontend): add location favorites to address field and settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1367
-- feat(frontend): add location favorites to address field and settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1367
+- feat(server): add mcp tools for task dependency links by @deleonio in https://github.com/deleonio/priority-pilot/pull/1373
 - feat(server): add mcp tools for task dependency links by @deleonio in https://github.com/deleonio/priority-pilot/pull/1373
 - feat(frontend): add day-done completion hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1375
 - feat(server,frontend): require expiry date for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1376
