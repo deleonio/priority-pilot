@@ -70,6 +70,34 @@ const deleteAllPillars = async (page: Page): Promise<void> => {
 	}
 };
 
+// Test-Pflege (#1527): der Säulen-Vorschlag (`TaskForm.tsx:1473`) rendert Badge und Button jetzt
+// nur noch, wenn `useAiFeaturesGate()` true ist — für Free (kein `ai_assist`) ist das nur über
+// einen eigenen LLM-Provider der Fall (`computeAiFeaturesEnabled`: `entitlementAllowed ||
+// hasCustomProvider`). Mit Custom-Provider bleibt die `ai_assist`-Berechtigung selbst weiterhin
+// `false`, `PlanBadge` zeigt also unverändert den Angebots-Zweig (mit (i)-Schalter) — genau der
+// Zustand, den AK3/AK5/AK8 prüfen. Payload-Vorbild: `issue-1037-llm-action-buttons.spec.ts`.
+const createCustomProvider = async (page: Page): Promise<void> => {
+	const response = await page.request.post('/api/v1/llm-providers', {
+		data: {
+			name: 'Badge-Test-Provider',
+			endpoint: 'http://localhost:9/v1',
+			apiKey: 'test-key',
+			model: 'test-model',
+		},
+	});
+	expect(response.ok(), 'Custom-LLM-Provider muss serverseitig anlegbar sein').toBe(true);
+};
+
+const deleteAllCustomProviders = async (page: Page): Promise<void> => {
+	const res = await page.request.get('/api/v1/llm-providers');
+	if (!res.ok()) return;
+	for (const provider of (await res.json()) as { id: number; kind: 'custom' | 'builtin' }[]) {
+		if (provider.kind === 'custom') {
+			await page.request.delete(`/api/v1/llm-providers/${provider.id}`);
+		}
+	}
+};
+
 /**
  * `boundingBox()` misst EINMALIG und wartet — anders als `toBeVisible()` — nicht nach: Fällt die
  * Messung in einen Re-Render des Formulars (das Lektorat-/Säulen-Umfeld der Badges rendert nach
@@ -104,17 +132,25 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await deleteAllTasks(page);
 		await deleteAllTokens(page);
 		await deleteAllPillars(page);
+		await deleteAllCustomProviders(page);
 	});
 
-	// Test-Pflege (#1525): Free ohne `ai_assist` öffnet über das neue KI-Gate direkt das
+	// Test-Pflege (#1525/#1527): Free ohne `ai_assist` öffnet über das neue KI-Gate direkt das
 	// Task-Formular („Aufgabe anlegen") — kein Freitext-Einstieg mit „Überspringen" mehr. Die
 	// Lektorat-Badges bei Titel/Beschreibung sind mit dem Lektorat-Button selbst ausgeblendet
-	// (`{aiEnabled && …}`, `TaskForm.tsx:1042/1401`); übrig bleibt die zweite KI-Grenzstelle beim
-	// Säulen-Vorschlag (`TaskForm.tsx:1473`, ungated), die im „Optional"-Akkordeon liegt.
+	// (`{aiEnabled && …}`, `TaskForm.tsx:1042/1401`); die zweite KI-Grenzstelle beim
+	// Säulen-Vorschlag (`TaskForm.tsx:1473`) liegt seit #1527 ebenfalls hinter `aiEnabled` — ohne
+	// eigenen LLM-Provider bliebe sie für Free ganz unsichtbar. Ein Custom-Provider hebt das Gate,
+	// ohne die `ai_assist`-Berechtigung selbst zu ändern, sodass der Angebots-Badge weiter erscheint.
 	test('AK3/AK8: Aufgabenformular zeigt das ai_assist-Badge ohne horizontalen Overflow', async ({ page }) => {
+		await createCustomProvider(page);
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		// Mit Custom-Provider ist `aiEnabled` (App.tsx) jetzt true — „Neuen Task anlegen" öffnet daher
+		// den verschmolzenen Freitext-Dialog (QuickCaptureModal, #1335) statt direkt das Task-Formular.
+		// „Überspringen" führt ohne LLM-Aufruf ins leere Formular, das AK3/AK8 hier prüfen sollen.
+		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
 		await openAccordionSection(page, 'Optional');
@@ -138,10 +174,15 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await expect(page.getByTestId('plan-badge-voice_input').first()).not.toBeVisible();
 	});
 
+	// Test-Pflege (#1527): wie AK3/AK8 oben — der (i)-Schalter sitzt nur noch hinter `aiEnabled`
+	// (`TaskForm.tsx:1473`), ein Custom-Provider hebt das Gate ohne die Berechtigung zu ändern.
 	test('AK5: der (i)-Schalter am ai_assist-Badge öffnet das Angebot, kein zweiter Dialog', async ({ page }) => {
+		await createCustomProvider(page);
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		// s. AK3/AK8 oben: mit Custom-Provider öffnet „Neuen Task anlegen" erst das QuickCaptureModal.
+		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
 		// Test-Pflege (#1525): Lektorat-Badges ausgeblendet (s. Test oben) — der (i)-Schalter sitzt
