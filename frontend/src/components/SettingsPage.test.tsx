@@ -680,8 +680,9 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Pakete',
 			'Abo',
 			'Nutzerverwaltung',
-			// Test-Pflege #1352: „Zugriff" hängt hinter dem Admin-Tab — Index 8 bleibt Nutzerverwaltung.
-			'Zugriff',
+			// Test-Pflege #1526: Tab-Label „Zugriff" → „Access-Token" (AK1); Route/Index unverändert,
+			// Index 8 bleibt Nutzerverwaltung.
+			'Access-Token',
 		]);
 		const adminPanel = container.querySelector('[slot="tab-8"]');
 		expect(adminPanel, 'letzter Slot tab-8 existiert').not.toBeNull();

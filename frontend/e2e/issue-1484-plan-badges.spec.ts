@@ -130,7 +130,11 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await expect(page.getByRole('dialog').filter({ hasText: /Pro|Max|Ultimate/ })).toHaveCount(1);
 	});
 
-	test('AK3/AK8: Zugriff-Einstellungen zeigen das mcp_readwrite-Badge an der Rechte-Zeile ohne Overflow', async ({
+	// Test-Pflege #1526 AK6 (Spec docs/spec/issue-1526.md): das mcp_readwrite-Badge an der
+	// Rechte-Zeile entfällt — die Paket-Erklärung steht jetzt ausschließlich im Gating-Alert unter
+	// dem Regler (#1526 AK4). Ersetzt den vorigen Test „zeigt das mcp_readwrite-Badge …", der genau
+	// das Gegenteil erwartete.
+	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Ultimate-Alert ohne Overflow', async ({
 		page,
 	}) => {
 		await page.goto('/settings/zugriff');
@@ -138,9 +142,11 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
 		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 
-		const badge = page.getByTestId('plan-badge-mcp_readwrite').first();
-		await expect(badge).toBeVisible();
-		await expectWithinViewport(badge);
+		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
+
+		const alert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Ultimate' }).first();
+		await expect(alert).toBeVisible();
+		await expectWithinViewport(alert);
 	});
 
 	test('AK9: außerhalb des Angebots-Dialogs erscheint kein Preis-/Werbetext', async ({ page }) => {

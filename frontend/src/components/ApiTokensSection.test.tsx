@@ -1,7 +1,6 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiTokensSection } from './ApiTokensSection';
-import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 
@@ -246,17 +245,18 @@ describe('ApiTokensSection – #1417 AK8: Hinweisblock nennt auch den api-key-He
 	});
 });
 
-// ── #1484 (T3b AK3/AK4/AK5): Paket-Badge an der ScopeToggle-Zeile ──────────────────────────────
+// ── #1526: Access-Token-Gating ohne Paket-Badge (löst #1484 AK3/AK4/AK5 an dieser Zeile ab) ────
 
 /**
- * AK3/AK4: `ApiTokensSection` rendert `<PlanBadge feature="mcp_readwrite" />` an der
- * `ScopeToggle`-Zeile (`ApiTokensSection.tsx:73-80`,`:300-305`); Badge-Ausgabe kippt ausschließlich
- * mit der gemockten Entitlement-Map. AK5: der (i)-Schalter feuert genau ein
- * `pp:plan-required`-Event. Heute kein Badge — rot, bis `PlanBadge` eingebunden ist
- * (docs/spec/issue-1484.md AK3/AK4/AK5).
+ * Test-Pflege #1526 AK6 (Spec docs/spec/issue-1526.md): die vorige Describe „Paket-Badge an der
+ * ScopeToggle-Zeile (#1484 AK3/AK4/AK5)" erwartete `[data-testid="plan-badge-mcp_readwrite"]` in
+ * beiden Entitlement-Zuständen — AK6 verlangt genau das Gegenteil (kein Badge mehr an dieser
+ * Stelle, die Paket-Erklärung wandert in den Alert unter dem Regler). Diese Describe ersetzt sie
+ * vollständig statt sie anzupassen, weil auch die (i)-Schalter/Event-Erwartung aus #1484 AK5 mit
+ * dem Badge zusammen entfällt.
  */
-describe('ApiTokensSection — Paket-Badge an der ScopeToggle-Zeile (#1484 AK3/AK4/AK5)', () => {
-	const renderWithEntitlement = async (allowed: boolean) => {
+describe('ApiTokensSection — #1526 AK4/AK5/AK6: Rechte-Regler ohne mcp_readwrite gesperrt, kein Badge mehr', () => {
+	const renderWithReadwrite = async (allowed: boolean) => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
 		const entitlements: EntitlementMap = {
 			mcp_readwrite: { allowed, requiredPlan: 'ultimate' } as EntitlementMap['mcp_readwrite'],
@@ -272,35 +272,138 @@ describe('ApiTokensSection — Paket-Badge an der ScopeToggle-Zeile (#1484 AK3/A
 		return result;
 	};
 
-	it('allowed=true (Ultimate) → Haken-Badge ohne (i)-Schalter', async () => {
-		const { container } = await renderWithEntitlement(true);
+	it('AK6: kein plan-badge-mcp_readwrite mehr im Panel, weder gesperrt noch freigeschaltet', async () => {
+		const { container: lockedContainer } = await renderWithReadwrite(false);
+		expect(lockedContainer.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).toBeNull();
+		cleanup();
 
-		expect(container.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).not.toBeNull();
-		expect(container.querySelector('[data-testid="plan-badge-info-mcp_readwrite"]')).toBeNull();
+		const { container: unlockedContainer } = await renderWithReadwrite(true);
+		expect(unlockedContainer.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).toBeNull();
 	});
 
-	it('allowed=false (Max) → Paket-Badge mit (i)-Schalter, keine eigene Paketlogik im Bauteil', async () => {
-		const { container } = await renderWithEntitlement(false);
+	it('AK4: ohne mcp_readwrite ist der Rechte-Regler deaktiviert, ein Alert nennt „Ultimate", PATCH bleibt aus', async () => {
+		const { container } = await renderWithReadwrite(false);
 
-		expect(container.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).not.toBeNull();
-		expect(container.querySelector('[data-testid="plan-badge-info-mcp_readwrite"]')).not.toBeNull();
-	});
+		const toggle = container.querySelector('[data-testid="api-token-row"] [data-testid="api-token-scope-toggle"]');
+		expect(toggle, 'Rechte-Regler fehlt').not.toBeNull();
+		expect((toggle as unknown as { _disabled?: boolean })._disabled, 'Regler muss _disabled sein').toBe(true);
 
-	it('der (i)-Schalter feuert genau ein pp:plan-required-Event mit feature=mcp_readwrite', async () => {
-		const { container } = await renderWithEntitlement(false);
-		const handler = vi.fn();
-		window.addEventListener(PLAN_REQUIRED_EVENT, handler);
+		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
+			.map((el) => el.textContent ?? '')
+			.join(' ');
+		expect(alertText, 'Alert muss „Ultimate" nennen').toContain('Ultimate');
 
-		const info = container.querySelector('[data-testid="plan-badge-info-mcp_readwrite"]');
-		expect(info, '(i)-Schalter des mcp_readwrite-Badges fehlt').not.toBeNull();
 		await act(async () => {
-			(info as HTMLElement).dispatchEvent(new Event('click', { bubbles: true }));
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				true,
+			);
+			await Promise.resolve();
+		});
+		expect(apiMocks.updateApiToken).toBeUndefined();
+	});
+
+	it('AK5: mit mcp_readwrite ist der Rechte-Regler bedienbar, kein Ultimate-Alert, PATCH wird gerufen', async () => {
+		apiMocks.updateApiToken = vi.fn().mockResolvedValue({ ...readToken, scope: 'readwrite' });
+		const { container } = await renderWithReadwrite(true);
+
+		const toggle = container.querySelector('[data-testid="api-token-row"] [data-testid="api-token-scope-toggle"]');
+		expect(toggle, 'Rechte-Regler fehlt').not.toBeNull();
+		expect((toggle as unknown as { _disabled?: boolean })._disabled, 'Regler darf nicht _disabled sein').not.toBe(true);
+
+		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
+			.map((el) => el.textContent ?? '')
+			.join(' ');
+		expect(alertText, 'kein Ultimate-Alert bei Freigabe').not.toContain('Ultimate');
+
+		await act(async () => {
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				true,
+			);
+			await Promise.resolve();
+		});
+		expect(apiMocks.updateApiToken).toHaveBeenCalledWith({ id: readToken.id, scope: 'readwrite' });
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1526 AK2/AK3 (Spec docs/spec/issue-1526.md) — Erzeugen-Formular ohne
+ * `mcp_read` gesperrt.
+ */
+describe('ApiTokensSection — #1526 AK2/AK3: Erzeugen-Formular ohne mcp_read gesperrt', () => {
+	const renderWithRead = async (allowed: boolean) => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
+		const entitlements: EntitlementMap = {
+			mcp_read: { allowed, requiredPlan: 'max' } as EntitlementMap['mcp_read'],
+		};
+		const result = render(
+			<PlanProvider value={{ plan: allowed ? 'max' : 'free', entitlements }}>
+				<ApiTokensSection />
+			</PlanProvider>,
+		);
+		await act(async () => {
+			await Promise.resolve();
+		});
+		return result;
+	};
+
+	it('AK2: ohne mcp_read sind Name, Laufzeit und „Token erzeugen" deaktiviert, ein Alert nennt „Max"', async () => {
+		const { container } = await renderWithRead(false);
+
+		const nameInput = container.querySelector('kol-input-text');
+		const durationSelect = container.querySelector('[data-testid="api-token-duration-select"]');
+		const createButton = container.querySelector('kol-button[_label="Token erzeugen"]');
+		expect((nameInput as unknown as { _disabled?: boolean } | null)?._disabled).toBe(true);
+		expect((durationSelect as unknown as { _disabled?: boolean } | null)?._disabled).toBe(true);
+		expect((createButton as unknown as { _disabled?: boolean } | null)?._disabled).toBe(true);
+
+		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
+			.map((el) => el.textContent ?? '')
+			.join(' ');
+		expect(alertText, 'Alert muss „Max" nennen').toContain('Max');
+	});
+
+	it('AK3: mit mcp_read sind Name, Laufzeit und „Token erzeugen" bedienbar, kein Max-Alert', async () => {
+		const { container } = await renderWithRead(true);
+
+		const nameInput = container.querySelector('kol-input-text');
+		const durationSelect = container.querySelector('[data-testid="api-token-duration-select"]');
+		const createButton = container.querySelector('kol-button[_label="Token erzeugen"]');
+		expect((nameInput as unknown as { _disabled?: boolean } | null)?._disabled).not.toBe(true);
+		expect((durationSelect as unknown as { _disabled?: boolean } | null)?._disabled).not.toBe(true);
+		expect((createButton as unknown as { _disabled?: boolean } | null)?._disabled).toBe(false);
+
+		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
+			.map((el) => el.textContent ?? '')
+			.join(' ');
+		expect(alertText, 'kein Max-Alert bei Freigabe').not.toContain('Max');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1526 AK7 (Spec docs/spec/issue-1526.md) — ohne geladenes Entitlement
+ * (`undefined`, kein `PlanProvider`-Wert) sperrt die neue Gating-Logik nichts zusätzlich.
+ */
+describe('ApiTokensSection — #1526 AK7: kein Sperren vor der ersten Entitlement-Antwort', () => {
+	it('ohne PlanProvider-Wert bleiben Formular und Regler unverändert bedienbar, kein Alert', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
 		});
 
-		expect(handler).toHaveBeenCalledTimes(1);
-		const event = handler.mock.calls[0][0] as CustomEvent<{ feature: string; requiredPlan: string }>;
-		expect(event.detail.feature).toBe('mcp_readwrite');
-		expect(event.detail.requiredPlan).toBe('ultimate');
-		window.removeEventListener(PLAN_REQUIRED_EVENT, handler);
+		const nameInput = container.querySelector('kol-input-text');
+		const durationSelect = container.querySelector('[data-testid="api-token-duration-select"]');
+		const createButton = container.querySelector('kol-button[_label="Token erzeugen"]');
+		const toggle = container.querySelector('[data-testid="api-token-row"] [data-testid="api-token-scope-toggle"]');
+
+		expect((nameInput as unknown as { _disabled?: boolean } | null)?._disabled).not.toBe(true);
+		expect((durationSelect as unknown as { _disabled?: boolean } | null)?._disabled).not.toBe(true);
+		expect((createButton as unknown as { _disabled?: boolean } | null)?._disabled).toBe(false);
+		expect((toggle as unknown as { _disabled?: boolean } | null)?._disabled).not.toBe(true);
+
+		expect(container.querySelector('kol-alert[_type="info"]')).toBeNull();
 	});
 });
