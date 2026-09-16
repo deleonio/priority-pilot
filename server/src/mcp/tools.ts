@@ -418,6 +418,40 @@ export const mcpTools: McpTool[] = [
 		},
 	},
 	{
+		name: 'balance_history',
+		description:
+			"Returns the token owner's life-balance history over a date range: one entry per calendar day " +
+			'with the overall fill level and each pillar score at the end of that day. A day without a ' +
+			'completion carries the previous day’s values.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				from: { type: 'string', description: 'First day of the range, inclusive (YYYY-MM-DD).' },
+				to: {
+					type: 'string',
+					description: 'Last day of the range, inclusive (YYYY-MM-DD), at most 366 days after "from".',
+				},
+				timezone: {
+					type: 'string',
+					description:
+						'IANA time zone (e.g. "Europe/Berlin") deciding where the calendar day of a completion ends. ' +
+						'Omitted or unknown values fall back to the server time zone instead of failing.',
+				},
+			},
+			required: ['from', 'to'],
+		},
+		run: (ctx, args) => {
+			const { from, to, timezone } = args;
+			// Keine zweite Validierung hier — ungültige/fehlende Werte reicht die Route als Fehler
+			// durch (Muster balance_status: Werkzeuge spiegeln nur, sie prüfen nicht selbst).
+			const params = new URLSearchParams();
+			if (typeof from === 'string') params.set('von', from);
+			if (typeof to === 'string') params.set('bis', to);
+			if (typeof timezone === 'string' && timezone !== '') params.set('tz', timezone);
+			return callApi(ctx, `/scores/balance/history?${params.toString()}`);
+		},
+	},
+	{
 		name: 'category_create',
 		description:
 			'Creates a new category for the token owner. The color must be one of the palette values ' +

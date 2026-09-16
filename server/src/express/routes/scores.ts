@@ -6,6 +6,7 @@ import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/scor
 import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
 import { berechneLebensbalance } from '../../logics/heartBalance.js';
+import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
@@ -17,6 +18,10 @@ type StreakDto = components['schemas']['Streak'];
 type MilestoneDto = components['schemas']['Milestone'];
 type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
 type BalanceStatusDto = components['schemas']['BalanceStatus'];
+type BalanceHistoryEntryDto = components['schemas']['BalanceHistoryEntry'];
+
+/** Ein Zeitraum darf höchstens so viele Tage umfassen — deckelt die Antwortgröße von `/scores/balance/history`. */
+const MAX_BALANCE_HISTORY_TAGE = 366;
 
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
@@ -197,3 +202,65 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
 });
+
+// GET /scores/balance/history — Verlauf der Lebensbalance über einen Zeitraum (#1424): je Kalendertag
+// des geschlossenen Intervalls `[von, bis]` genau ein Eintrag, kumulierend gerechnet aus den
+// Erledigungszeitpunkten (`ScoreEntry.zeitpunkt`). Gescopet wie `/scores/balance` strikt mit
+// `ownerScope` auf Säulen und Tasks.
+scoresRouter.get(
+	'/scores/balance/history',
+	async (req: Request, res: Response<BalanceHistoryEntryDto[] | ErrorDto>) => {
+		try {
+			const { von, bis } = req.query;
+			if (typeof von !== 'string' || typeof bis !== 'string') {
+				sendError(res, 400, '"von" und "bis" sind Pflichtparameter (Format YYYY-MM-DD).');
+				return;
+			}
+			if (!istGueltigesDatum(von) || !istGueltigesDatum(bis)) {
+				sendError(res, 400, '"von" und "bis" müssen ein existierendes Datum im Format YYYY-MM-DD angeben.');
+				return;
+			}
+			if (bis < von) {
+				sendError(res, 400, '"bis" darf nicht vor "von" liegen.');
+				return;
+			}
+			if (zeitraumInTagen(von, bis) > MAX_BALANCE_HISTORY_TAGE) {
+				sendError(res, 400, `Der Zeitraum darf höchstens ${MAX_BALANCE_HISTORY_TAGE} Tage umfassen.`);
+				return;
+			}
+
+			const userId = getUserId(req);
+			const [saeulen, tasks, entries] = await Promise.all([
+				Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
+				Task.findAll({ where: { ...ownerScope(userId), status: 'Done' }, include: [Pillar] }),
+				ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
+			]);
+			const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+
+			const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+			const zeitZone = istGueltigeZeitzone(angefragteZone)
+				? angefragteZone
+				: Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+			const verlauf = berechneBalanceVerlauf(
+				saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+				tasks.map((task) => ({
+					status: task.status,
+					estimatedEffort: task.estimatedEffort,
+					pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+						pillarId: pillar.id,
+						share: pillar.TaskPillar.share,
+					})),
+					zeitpunkt: zeitpunktProTask.get(task.id) ?? null,
+				})),
+				von,
+				bis,
+				zeitZone,
+			);
+
+			res.json(verlauf);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);

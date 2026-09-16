@@ -941,6 +941,52 @@ paths:
                 $ref: '#/components/schemas/BalanceStatus'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/balance/history:
+    get:
+      summary: Verlauf der Lebensbalance über einen Zeitraum (#1424)
+      description: >-
+        Rekonstruiert je Kalendertag des geschlossenen Intervalls `[von, bis]` den Stand des
+        Dashboard-Herzens des eingeloggten Nutzers aus den Erledigungszeitpunkten
+        (`ScoreEntry.zeitpunkt`) — kumulierend, sodass ein Tag ohne Erledigung den Vortag spiegelt.
+        Ist `bis` der heutige Tag, stimmt der letzte Eintrag exakt mit `GET /scores/balance` überein.
+        Gerechnet wird über Säulen und Tasks des Nutzers (`ownerScope`) — gruppengeteilte fremde
+        Aufgaben zählen bewusst nicht ein.
+      operationId: getBalanceHistory
+      parameters:
+        - name: von
+          in: query
+          required: true
+          description: Erster Tag des Zeitraums (`YYYY-MM-DD`, inklusive).
+          schema:
+            type: string
+        - name: bis
+          in: query
+          required: true
+          description: Letzter Tag des Zeitraums (`YYYY-MM-DD`, inklusive, höchstens 366 Tage nach `von`).
+          schema:
+            type: string
+        - name: tz
+          in: query
+          required: false
+          description: >-
+            IANA-Zeitzone (z. B. `Europe/Berlin`), die die Kalendertagsgrenze der Erledigungen
+            bestimmt. Fehlt der Wert oder ist er keine gültige Zeitzone, wertet der Server in
+            seiner eigenen Zeitzone aus — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verlauf der Lebensbalance, ein Eintrag je Kalendertag des Zeitraums
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BalanceHistoryEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -4427,6 +4473,30 @@ components:
           description: Ausschließlich die **erreichten** Meilenstein-Stufen; ohne Erfolge eine leere Liste.
           items:
             $ref: '#/components/schemas/Milestone'
+    BalanceHistoryEntry:
+      type: object
+      required:
+        - tag
+        - fuellstandProzent
+        - hatPunkte
+        - saeulen
+      properties:
+        tag:
+          type: string
+          description: Kalendertag dieses Eintrags (`YYYY-MM-DD`).
+        fuellstandProzent:
+          type: number
+          description: >-
+            Füllstand des Dashboard-Herzens zum Ende dieses Tages in Prozent, auf eine
+            Dezimalstelle gerundet — dieselbe Rechnung wie `BalanceStatus.fuellstandProzent`.
+        hatPunkte:
+          type: boolean
+          description: Ob bis zu diesem Tag überhaupt Punkte vergeben sind.
+        saeulen:
+          type: array
+          description: Punktestand und Gewichtung je Säule zum Ende dieses Tages.
+          items:
+            $ref: '#/components/schemas/PillarBalance'
     SeriesRhythm:
       type: string
       enum:

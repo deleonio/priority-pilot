@@ -223,7 +223,7 @@ describe('GET /scores/balance/history (#1424)', () => {
 		const vorherBody = (await vorher.json()) as { hatPunkte: boolean }[];
 		assert.equal(vorherBody[0].hatPunkte, false);
 
-		await completeTaskAt(cookieB, 'Fremde Erledigung', 5, [], new Date('2026-06-01T10:00:00.000Z'));
+		await completeTaskAt(cookieB, 'Fremde Erledigung', 1, [], new Date('2026-06-01T10:00:00.000Z'));
 
 		const nachher = await getHistory(cookieA, '?von=2026-06-01&bis=2026-06-01');
 		const nachherBody = (await nachher.json()) as { hatPunkte: boolean }[];

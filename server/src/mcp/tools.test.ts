@@ -906,6 +906,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		const names = sorted.map((t) => t.name);
 
 		assert.deepEqual(names, [
+			'balance_history',
 			'balance_status',
 			'category_create',
 			'category_delete',
@@ -965,7 +966,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: drei Kategorie-Werkzeuge,
 		// #1413: vier Säulen-Werkzeuge). Der Vertrag ist „task_delete ist drin", nicht „es gibt genau
 		// dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1176,8 +1177,8 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
-		// #1413: vier Säulen-Werkzeuge) — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen, war: ${names.join(', ')}`);
+		// #1413: vier Säulen-Werkzeuge, #1424: balance_history) — #1420 selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1648,7 +1649,7 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		assert.equal(names.length, 21, `Katalog sollte einundzwanzig Namen führen (#1412), war: ${names.join(', ')}`);
+		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen (#1412), war: ${names.join(', ')}`);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
 		assert.ok(names.includes('category_delete'), 'category_delete muss im Katalog stehen');
