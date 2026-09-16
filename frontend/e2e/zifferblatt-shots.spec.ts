@@ -78,8 +78,14 @@ test.describe('Zifferblätter — Bilder fürs Auge', () => {
 		});
 
 		for (const variante of VARIANTEN) {
-			await page.addInitScript((value) => localStorage.setItem('pp-balance-variant', value), variante);
-			await page.goto('/');
+			/*
+			 * Wahl über `evaluate` + `reload`, nicht über `addInitScript`: Ein Init-Skript je Durchlauf
+			 * zu registrieren staffelt sie auf, und es gewänne nur deshalb die richtige Variante, weil
+			 * das zuletzt registrierte zuletzt läuft — eine Reihenfolge-Eigenschaft, auf die sich
+			 * niemand festlegt.
+			 */
+			await page.evaluate((value) => localStorage.setItem('pp-balance-variant', value), variante);
+			await page.reload();
 			await waitForStableView(page);
 			await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 			await waitForStableView(page);
