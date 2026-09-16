@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.79._
+_Enthält v0.2.0 – v0.2.80._
 
 ### 🔧 Engineering
 
@@ -90,6 +90,7 @@ _Enthält v0.2.0 – v0.2.79._
 - refactor(frontend): drop type assertion in address autocomplete keydown by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1519
 - feat(server): add balance history endpoint and MCP tool by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1520
 - feat(server): collapse series instances across lists and pushes by @deleonio in https://github.com/deleonio/priority-pilot/pull/1522
+- chore(deps): update dependency brace-expansion@2 to v5.0.12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1501
 
 ## v0.1 - 2026-09-12
 
@@ -731,7 +732,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): use KolDetails for animation sub-options by @deleonio in https://github.com/deleonio/priority-pilot/pull/1235
 - feat(server,frontend): change group member role (#1221) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1236
 - feat(server): notify recipient when a task is created for them (#1224) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1240
-- feat(server): notify recipient when a task is created for them (#1224) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1240
+- feat(frontend): list tasks created for fellow members (#1223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1239
 - feat(frontend): list tasks created for fellow members (#1223) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1239
 - fix(server): sync google display name into users on oauth login (#1238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1241
 - feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
