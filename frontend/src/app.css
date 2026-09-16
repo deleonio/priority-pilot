@@ -95,6 +95,7 @@
 	 * Typografie — GENAU fünf Schriftgrößen, Fließtext ≥ 16px, GENAU zwei Gewichte.
 	 * Vorgabe aus docs/mobile-ui-rules.md, Regel 6 („Feste Skalen statt freier Werte").
 	 */
+	--pp-font-family: Archivo, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 	--pp-font-size-sm: 0.875rem;
 	--pp-font-size-base: 1rem;
 	--pp-font-size-lg: 1.125rem;
@@ -197,16 +198,24 @@
 
 body {
 	margin: 0;
-	font-family:
-		system-ui,
-		-apple-system,
-		'Segoe UI',
-		Roboto,
-		sans-serif;
+	font-family: var(--pp-font-family);
 	font-size: var(--pp-font-size-base);
 	line-height: var(--pp-line-base);
 	background-color: var(--pp-surface-0);
 	color: var(--pp-ink);
+}
+
+/*
+ * #1513: KoliBri-Komponenten erben `font-family` zwar über die Shadow-Grenze (siehe DESIGN.md,
+ * Abschnitt „KoliBri Shadow-DOM Styling"), das Theme setzt aber ggf. eine eigene `font-family` im
+ * Shadow-Stylesheet. Explizite Host-Regel stellt Archivo unabhängig davon sicher.
+ */
+kol-alert,
+kol-button,
+kol-heading,
+kol-input-text,
+kol-table {
+	font-family: var(--pp-font-family);
 }
 
 /*

@@ -18,6 +18,11 @@ import '../node_modules/@public-ui/components/assets/kolicons/style.css';
 // freigibt; `fontawesome.min.css` liefert die Glyphen, `solid.min.css` die Solid-Schriftart.
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/fontawesome.min.css';
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/solid.min.css';
+// Archivo als primäre Schriftart (#1513): selbst gehostet über @fontsource statt Google-Fonts-CDN,
+// damit die App offline (Service-Worker-Precache, siehe vite.config.ts) und ohne externen Request
+// funktioniert. Genau die zwei Schnitte, die die Typo-Skala kennt (app.css: --pp-weight-regular/-bold).
+import '@fontsource/archivo/400.css';
+import '@fontsource/archivo/600.css';
 import './app.css';
 
 // Farbschema vor dem ersten Render absichern. Der eigentliche Anti-FOUC-Anstrich passiert bereits
