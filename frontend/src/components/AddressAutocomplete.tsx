@@ -171,7 +171,7 @@ export const AddressAutocomplete = ({
 				aria-controls={open ? listId : undefined}
 				aria-activedescendant={activeIndex === null ? undefined : `${listId}-option-${activeIndex}`}
 				onBlur={blur}
-				onKeyDown={(event) => keyDown(event as unknown as KeyboardEvent)}
+				onKeyDown={keyDown}
 			>
 				<KolInputText
 					_label={label}
