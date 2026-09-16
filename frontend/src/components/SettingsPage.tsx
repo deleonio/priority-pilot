@@ -21,7 +21,8 @@ import { useGeolocation, GEO_CONFIG_CHANGED_EVENT } from '../lib/useGeolocation'
 import { notifyProfileChanged } from '../lib/profileChanged';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
-import { useAiPreferences } from '../lib/aiPreferences';
+import { useAiFeaturesEnabled } from '../lib/aiPreferences';
+import { planLabel } from '../lib/planOffers';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
 import { BalanceVariantSetting } from './BalanceVariantSetting';
@@ -170,8 +171,15 @@ export const SettingsPage = ({
 	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — deaktiviert den
 	// Schalter aus #1183 und zeigt den Info-Hinweis (die Systemeinstellung hat Vorrang).
 	const prefersReducedMotion = usePrefersReducedMotion();
-	// #1080/#1335: der eine Schalter „KI-Features aktiv".
-	const { aiEnabled, setAiEnabled } = useAiPreferences();
+	// #1080/#1335: der eine Schalter „KI-Features aktiv". #1525: zusätzlich an die Paket-Freischaltung
+	// gekoppelt — ohne Berechtigung `ai_assist` und ohne eigenen Provider ist der Schalter gesperrt.
+	const { aiEnabled, setAiEnabled, entitlementAllowed, requiredPlan, hasCustomProvider } = useAiFeaturesEnabled();
+	// Gesperrt, solange die Berechtigung nicht explizit vorliegt (auch während des Ladens, AK5) —
+	// unabhängig vom aktuellen Schalterwert selbst, sonst wäre die Sperre zirkulär.
+	const aiSwitchLocked = entitlementAllowed !== true && !hasCustomProvider;
+	// Der Angebots-Alert erscheint erst, wenn die Ablehnung feststeht (nicht während `undefined`).
+	const showAiPlanAlert = entitlementAllowed === false && !hasCustomProvider;
+	const aiSwitchDisabled = toKolibriDisabled(aiSwitchLocked ? 'true' : undefined);
 	const [micDenied, setMicDenied] = useState(false);
 	const [permissionPending, setPermissionPending] = useState(false);
 
@@ -582,22 +590,44 @@ export const SettingsPage = ({
 							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
 							Accordion „Einzelne KI-Funktionen" ist mit #1335 entfallen: Schnellerfassung und
 							Berater sind ein einziger Dialog und damit kein eigenständig schaltbares Feature mehr.
-							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile. */}
+							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile.
+							#1525: ohne Paket-Freischaltung ist der Schalter gesperrt; der Angebots-Alert steht
+							VOR dem Schalter im DOM (nicht nur per CSS), damit die 375px-Stapelreihenfolge (AK6)
+							und die Fokus-/Lesereihenfolge (WCAG 1.3.2) übereinstimmen. */}
 					<KolCard className="settings-card" _label="KI-Funktionen" _level={2}>
 						<div className="settings-card-stack">
 							<div className="settings-llm-switch-row">
+								{showAiPlanAlert && (
+									<KolAlert
+										_type="info"
+										_label={`KI-Features benötigen das Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“`}
+									>
+										KI-Features (Anlege-Dialog mit Berater, Lektorate) sind Teil des Pakets „
+										{requiredPlan ? planLabel(requiredPlan) : ''}“. Wer einen eigenen LLM-Provider hinterlegt, kann die
+										KI-Features ohne dieses Paket nutzen.
+										<KolButton
+											_label="Zu den Paketen wechseln"
+											_variant="ghost"
+											_on={{
+												onClick: () => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX),
+											}}
+										/>
+									</KolAlert>
+								)}
 								<KolInputCheckbox
+									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
 									_label="KI-Features aktiv"
 									_variant="switch"
 									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet."
 									_checked={aiEnabled}
+									_disabled={aiSwitchDisabled}
 									_on={{
 										onChange: (_event, value) => {
 											setAiEnabled(value === true);
 										},
 									}}
 								/>
-								{!aiEnabled && (
+								{!showAiPlanAlert && !aiEnabled && (
 									<KolAlert _type="info" _label="KI-Features deaktiviert">
 										Der KI-Anlege-Dialog (Verarbeiten und Beraten) und die Lektorat-Buttons sind derzeit ausgeblendet.
 										„Neuen Task anlegen“ öffnet direkt das vollständige Formular.

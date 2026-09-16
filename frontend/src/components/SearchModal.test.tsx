@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import type { Category } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../api';
+import { PlanProvider } from '../lib/usePlan';
+import type { EntitlementMap } from '../lib/planOffers';
 import { SearchModal } from './SearchModal';
 
 vi.mock('../api', () => ({ api: { parseSearch: vi.fn() } }));
@@ -94,9 +96,19 @@ describe('SearchModal — Sprachsuche mit Kategorie-Erkennung', () => {
 		localStorage.clear();
 	});
 
+	// #1525: die Sprachsuche-Zerlegung hängt jetzt zusätzlich am KI-Gate (Präferenz UND Berechtigung
+	// `ai_assist`) — ohne `PlanProvider` bliebe `entitlementAllowed` `undefined` und das Gate damit
+	// aus (sicherer Default), die Zerlegung würde in diesen Tests nie aufgerufen (Test-Pflege-Bedarf,
+	// siehe PR-Beschreibung).
+	const aiAssistAllowed: EntitlementMap = { ai_assist: { allowed: true, requiredPlan: 'pro' } };
+
 	/** Öffnet den Dialog, spielt ein Transkript ein und startet die Suche. */
 	const searchByVoice = async (onSearch: (query: string, categoryId: number | null) => void): Promise<void> => {
-		render(<SearchModal categories={categories} onClose={vi.fn()} onSearch={onSearch} />);
+		render(
+			<PlanProvider value={{ plan: 'pro', entitlements: aiAssistAllowed }}>
+				<SearchModal categories={categories} onClose={vi.fn()} onSearch={onSearch} />
+			</PlanProvider>,
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Transkript einspielen' }));
 		fireEvent.click(screen.getByRole('button', { name: /suche starten/i }));
 		await waitFor(() => expect(onSearch).toHaveBeenCalled());

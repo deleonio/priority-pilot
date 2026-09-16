@@ -1,4 +1,4 @@
-import type { Route } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { test as base } from '@playwright/test';
 
 /**
@@ -23,7 +23,44 @@ import { test as base } from '@playwright/test';
  * direkt aus `@playwright/test` und braucht diese Fixture nicht.
  */
 
-const AUTHENTICATED_USER = { id: 1, displayName: 'Test User', email: 'test@example.com' };
+// #1525: `entitlements` ist optional im Client-Typ (`AuthUser`, `auth.ts:17`), aber ohne sie bleibt
+// `ai_assist` dauerhaft `undefined` → das neue KI-Gate sperrt sicherheitshalber (AK5) alle
+// KI-Bedienelemente, darunter den Schalter „KI-Features aktiv" in `ai-disable.spec.ts` (#1335).
+// Diese Fixture steht für den generischen, voll berechtigten Testnutzer alle funktionalen Specs —
+// `ai_assist: allowed:true` hält den Status quo (Pro-Pfad) für Specs, die keine eigene
+// Paket-Gegenprobe machen.
+const AUTHENTICATED_USER = {
+	id: 1,
+	displayName: 'Test User',
+	email: 'test@example.com',
+	plan: 'pro',
+	entitlements: { ai_assist: { allowed: true, requiredPlan: 'pro' } },
+};
+
+/**
+ * `usePlanState` liest den Paket-Spiegel (`pp-plan-<userId>`, `usePlan.ts:36-54`) als SYNCHRONEN
+ * Anfangszustand, bevor `/auth/me` überhaupt geantwortet hat — genau dafür gebaut (Kommentar
+ * `usePlan.ts:9-12`). Ohne Spiegel startet `entitlementAllowed` in jeder frischen Test-Session als
+ * `undefined`, und das KI-Gate hält sich an den sicheren Default `false` (AK5), bis `/auth/me`
+ * zurück ist — dieser kurze Sprung false→true verschob in CI das Layout-Timing auch in KI-fernen
+ * Specs (Lektorat-Button-Sichtbarkeit im TaskForm, #761/#971). Der vorab gesetzte Spiegel macht
+ * `AUTHENTICATED_USER`s Paket von Anfang an synchron verfügbar.
+ */
+const seedPlanMirror = async (page: Page): Promise<void> => {
+	await page.addInitScript(
+		(entry: { key: string; value: string }) => {
+			try {
+				localStorage.setItem(entry.key, entry.value);
+			} catch {
+				/* ignore */
+			}
+		},
+		{
+			key: `pp-plan-${AUTHENTICATED_USER.id}`,
+			value: JSON.stringify({ plan: AUTHENTICATED_USER.plan, entitlements: AUTHENTICATED_USER.entitlements }),
+		},
+	);
+};
 
 export const test = base.extend({
 	// Zweiter Parameter ist die Playwright-Fixture-Übergabe (`use`); bewusst `runTest` benannt, damit
@@ -36,6 +73,7 @@ export const test = base.extend({
 				body: JSON.stringify(AUTHENTICATED_USER),
 			}),
 		);
+		await seedPlanMirror(page);
 		await runTest(page);
 	},
 });
