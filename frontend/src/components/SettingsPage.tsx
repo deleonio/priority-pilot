@@ -113,8 +113,9 @@ export const SettingsPage = ({
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
 	const settingsTabs = useMemo(
-		// „Zugriff" (#1352) hängt bewusst HINTER dem Admin-Tab, damit dessen Index 8 unverändert bleibt.
-		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : []), { _label: 'Zugriff' }],
+		// „Access-Token" (#1352, Label seit #1526) hängt bewusst HINTER dem Admin-Tab, damit dessen
+		// Index 8 unverändert bleibt. Das Routen-Segment bleibt `zugriff` (App.tsx).
+		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : []), { _label: 'Access-Token' }],
 		[isAdmin],
 	);
 	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`

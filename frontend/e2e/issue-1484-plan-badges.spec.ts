@@ -137,10 +137,17 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Ultimate-Alert ohne Overflow', async ({
 		page,
 	}) => {
+		// #1526 AK2 sperrt „Token erzeugen" auf Paket `free` (kein `mcp_read`) — ein Klick durch die
+		// UI liefe hier ins Leere (Button `_disabled`). Seed direkt per API, wie in
+		// `issue-1526-access-token-gating.spec.ts` (`seedApiToken`): der Server-Guard bleibt ohne
+		// `MONETIZATION_ENFORCED` inaktiv, das Anlegen gelingt trotz `mcp_read.allowed === false`.
+		const created = await page.request.post('/api/v1/api-tokens', {
+			data: { name: 'mcp-badge-1484', expiresInDays: 30 },
+		});
+		expect(created.status(), 'API-Token muss serverseitig anlegbar sein (Guard bleibt unverändert)').toBe(201);
+
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
-		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
-		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 
 		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
 

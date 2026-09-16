@@ -4080,11 +4080,17 @@ kol-alert {
 	font-size: 0.875rem;
 }
 
+/* #1526 AK8: eigener Block um Scope-Zeile + optionalen Gating-Alert — bleibt bei jeder
+   Breakpoint-Breite EIN Flex-Kind von `.api-tokens__item`, damit der Alert immer unter dem
+   Regler bleibt statt als viertes Element in dessen Zeilen-Layout zu geraten. */
+.api-tokens__scope-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
 .api-tokens__scope {
 	display: flex;
-	/* #1484 (AK8): Label + Schalter + Paket-Badge passen bei 375 px nicht in eine Zeile — der
-	   Umbruch hält den Container innerhalb der Viewport-Breite statt ihn überlaufen zu lassen. */
-	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--pp-gap-tight);
 	font-size: 0.875rem;
