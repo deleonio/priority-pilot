@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.74._
+_Enthält v0.2.0 – v0.2.75._
 
 ### 🔧 Engineering
 
@@ -85,6 +85,7 @@ _Enthält v0.2.0 – v0.2.74._
 - chore(deps): bump @public-ui packages to 4.4.1 prerelease 7b9d0237 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1511
 - feat(server): add MCP tools to create, update and delete categories by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1514
 - feat(frontend): add archivo as primary font by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1516
+- fix(frontend): enforce archivo font on all kolibri host elements by @deleonio in https://github.com/deleonio/priority-pilot/pull/1517
 
 ## v0.1 - 2026-09-12
 
@@ -722,7 +723,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): virtual balance prioritization for the task list (#1220) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1228
 - Move animation sub-options into a KolDialog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1234
 - feat(frontend,server): session-expired dialog with silent re-login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1232
-- feat(frontend,server): session-expired dialog with silent re-login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1232
+- feat(frontend,server): editable display name in settings (#1219) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1233
 - feat(frontend,server): editable display name in settings (#1219) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1233
 - feat(frontend): use KolDetails for animation sub-options by @deleonio in https://github.com/deleonio/priority-pilot/pull/1235
 - feat(server,frontend): change group member role (#1221) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1236
