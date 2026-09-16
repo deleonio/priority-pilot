@@ -132,6 +132,19 @@ const createPillarViaApi = async (cookie: string, name: string): Promise<number>
 	return ((await res.json()) as { id: number }).id;
 };
 
+/**
+ * Baut die vollständige Gewichtsliste für pillar_weights_set: jede Registrierung sät 5
+ * Standard-Säulen (SEED_PILLARS), die Route verlangt exakte ID-Abdeckung aller Säulen des
+ * Nutzers. Seed-Säulen ohne expliziten Wert bekommen Gewicht 0.
+ */
+const weightsForAllPillars = async (
+	token: string,
+	overrides: Record<number, number>,
+): Promise<{ id: number; weight: number }[]> => {
+	const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
+	return (list.result ?? []).map((p) => ({ id: p.id, weight: overrides[p.id] ?? 0 }));
+};
+
 const createReadOnlyToken = async (cookie: string): Promise<{ id: number; token: string }> => {
 	const res = await server.json('/api-tokens', {
 		method: 'POST',
@@ -1482,10 +1495,7 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 		const pillarB = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 
 		const result = await mcpCall<PillarResult[]>(token, 'pillar_weights_set', {
-			weights: [
-				{ id: pillarA, weight: 70 },
-				{ id: pillarB, weight: 30 },
-			],
+			weights: await weightsForAllPillars(token, { [pillarA]: 70, [pillarB]: 30 }),
 		});
 		assert.equal(result.error, undefined, `pillar_weights_set sollte gelingen: ${result.error?.message}`);
 
@@ -1502,10 +1512,7 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 		const pillarB = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 
 		const initial = await mcpCall<PillarResult[]>(token, 'pillar_weights_set', {
-			weights: [
-				{ id: pillarA, weight: 60 },
-				{ id: pillarB, weight: 40 },
-			],
+			weights: await weightsForAllPillars(token, { [pillarA]: 60, [pillarB]: 40 }),
 		});
 		assert.equal(initial.error, undefined, `Setup: pillar_weights_set sollte gelingen: ${initial.error?.message}`);
 
@@ -1515,10 +1522,7 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 		assert.match(incomplete.error!.message, /HTTP 400/);
 
 		const wrongSum = await mcpCall(token, 'pillar_weights_set', {
-			weights: [
-				{ id: pillarA, weight: 60 },
-				{ id: pillarB, weight: 60 },
-			],
+			weights: await weightsForAllPillars(token, { [pillarA]: 60, [pillarB]: 60 }),
 		});
 		assert.ok(wrongSum.error, 'eine Summe != 100 muss fehlschlagen');
 		assert.match(wrongSum.error!.message, /Summe der Gewichte muss 100 ergeben/);
