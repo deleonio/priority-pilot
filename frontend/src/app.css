@@ -2619,12 +2619,19 @@ kol-toolbar {
  * wirkungslos bleibt. 8px (4-dp-Skala) halten den ≥8dp-Abstand zwischen Touch-Targets
  * (docs/mobile-ui-rules.md, Regel 2): 276px + 3×8px = 300px ≤ 351px.
  *
- * #1529: von 12px auf 8px verkleinert. Mit den Reitern „Pakete" und „Abo" umfasst die
+ * #1529: von 12px auf 8px verkleinert. Mit den Reitern „Pakete" und „Abo" umfasste die
  * Settings-Leiste neun Tabs; gemessen bei 768px (Desktop-Grenzfall aus #703 AK2,
  * `frontend/e2e/tabs-viewport.spec.ts`): Buttons 641px + 8×12px Gap = 737px > 720px nutzbare
- * Hostbreite → zweizeilig. Mit 8px: 641px + 8×8px = 705px ≤ 720px, die Leiste bleibt einzeilig.
+ * Hostbreite → zweizeilig. Mit 8px: 641px + 8×8px = 705px ≤ 720px, die Leiste blieb einzeilig.
  * Admins haben mit „Nutzerverwaltung" einen zehnten Tab — deren Leiste bricht bei 768px weiterhin
  * um; das ist der bewusst beibehaltene saubere Umbruch bei Platzmangel (#968), kein Überlauf.
+ *
+ * #1526: der letzte Tab heißt seither „Access-Token" statt „Zugriff" (breiter) — Buttons jetzt
+ * 705px, Budget damit 705px + 64px Gap = 769px > 720px, auch der Member-Fall bricht seither in
+ * eine zweite Zeile um (49px Overflow, gemessen). Weiteres Verengen des Gaps ist keine Option
+ * (8px ist bereits die a11y-Untergrenze, Regel 2 oben); der Umbruch fällt unter dieselbe #968-
+ * Ausnahme wie der Admin-Fall. `frontend/e2e/tabs-viewport.spec.ts` AK2 prüft entsprechend nur
+ * noch auf „kein Vollstapel" statt „strikt einzeilig".
  *
  * Sollbruchstellen: (1) Der Property-Name ist KoliBri-intern (theme-default 4.3.0 — im Geiste der
  * bestehenden `--grid-template-columns`-Klammer am `.app-tabs` ebenfalls unpublizierte API); ein
@@ -4080,11 +4087,17 @@ kol-alert {
 	font-size: 0.875rem;
 }
 
+/* #1526 AK8: eigener Block um Scope-Zeile + optionalen Gating-Alert — bleibt bei jeder
+   Breakpoint-Breite EIN Flex-Kind von `.api-tokens__item`, damit der Alert immer unter dem
+   Regler bleibt statt als viertes Element in dessen Zeilen-Layout zu geraten. */
+.api-tokens__scope-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
 .api-tokens__scope {
 	display: flex;
-	/* #1484 (AK8): Label + Schalter + Paket-Badge passen bei 375 px nicht in eine Zeile — der
-	   Umbruch hält den Container innerhalb der Viewport-Breite statt ihn überlaufen zu lassen. */
-	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--pp-gap-tight);
 	font-size: 0.875rem;

@@ -3,8 +3,9 @@ import type { ApiToken } from 'client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { planLabel } from '../lib/planOffers';
+import { useEntitlement } from '../lib/usePlan';
 import { CopyButton } from './CopyButton';
-import { PlanBadge } from './PlanBadge';
 
 /** Vorbelegter Name eines neuen Tokens — ein Klick reicht, der Name bleibt änderbar. */
 const DEFAULT_TOKEN_NAME = 'Externer Client';
@@ -72,20 +73,15 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  * im Browser doppelt feuern.
  */
 const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled: boolean; onToggle: () => void }) => (
-	<>
-		<KolInputCheckbox
-			_variant="switch"
-			_label={`Rechte für Token ${token.name}`}
-			_hideLabel={true}
-			_checked={token.scope === 'readwrite'}
-			_disabled={disabled}
-			data-testid="api-token-scope-toggle"
-			_on={{ onChange: () => onToggle() }}
-		/>
-		{/* #1484 (T3b AK3): Grenzstelle `mcp_readwrite` — das Badge gehört an den Umschalter selbst.
-		    `.api-tokens__scope` bricht dafür bei 375 px um (KI-UX-Block: dichteste der acht Zeilen). */}
-		<PlanBadge feature="mcp_readwrite" />
-	</>
+	<KolInputCheckbox
+		_variant="switch"
+		_label={`Rechte für Token ${token.name}`}
+		_hideLabel={true}
+		_checked={token.scope === 'readwrite'}
+		_disabled={disabled}
+		data-testid="api-token-scope-toggle"
+		_on={{ onChange: () => onToggle() }}
+	/>
 );
 
 /**
@@ -105,6 +101,13 @@ export const ApiTokensSection = () => {
 	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
 	const [expiresInDays, setExpiresInDays] = useState('');
 	const durationSelectRef = useRef<HTMLKolSelectElement>(null);
+
+	// #1526 AK2/AK4/AK7: `undefined` (kein Entitlement geladen) sperrt bewusst NICHT zusätzlich —
+	// erst eine bekannte, ablehnende Serverantwort (`allowed === false`) sperrt Formular bzw. Regler.
+	const readEntitlement = useEntitlement('mcp_read');
+	const readwriteEntitlement = useEntitlement('mcp_readwrite');
+	const formLocked = readEntitlement !== undefined && !readEntitlement.allowed;
+	const scopeLocked = readwriteEntitlement !== undefined && !readwriteEntitlement.allowed;
 
 	// KolSelect rendert die native `<select>` im offenen Shadow DOM des Hosts (`kol-select-wc`
 	// hat selbst KEIN eigenes Shadow DOM, sondern rendert scoped direkt in den Shadow-Baum des
@@ -228,10 +231,18 @@ export const ApiTokensSection = () => {
 						Ein Token spricht dieselben Schnittstellen an wie diese Oberfläche — mit deinen Daten und deinen Rechten.
 						Der Klartext ist nur direkt nach dem Erzeugen sichtbar.
 					</p>
+					{/* #1526 AK2: fehlt `mcp_read`, ist das gesamte Erzeugen-Formular gesperrt — der Alert
+					    steht direkt darüber, damit die Sperrung sofort erklärt ist. */}
+					{readEntitlement !== undefined && !readEntitlement.allowed && (
+						<KolAlert _type="info" _label="Paket erforderlich">
+							Token erzeugen ist ab dem Paket {planLabel(readEntitlement.requiredPlan)} enthalten.
+						</KolAlert>
+					)}
 					<KolInputText
 						_label="Name des Tokens"
 						_type="search"
 						_value={name}
+						_disabled={formLocked}
 						_on={{ onInput: (_event, value) => setName(String(value)) }}
 					/>
 					<KolSelect
@@ -239,10 +250,16 @@ export const ApiTokensSection = () => {
 						_label="Laufzeit"
 						_options={DURATION_OPTIONS}
 						_value={expiresInDays}
+						_disabled={formLocked}
 						_on={{ onChange: (_event, value) => setExpiresInDays(String(value)) }}
 					/>
 					<ButtonAction onClick={() => void handleCreate()}>
-						<KolButton _label="Token erzeugen" class="settings-action-btn" _variant="primary" _disabled={busy} />
+						<KolButton
+							_label="Token erzeugen"
+							class="settings-action-btn"
+							_variant="primary"
+							_disabled={busy || formLocked}
+						/>
 					</ButtonAction>
 					{error !== null && (
 						<KolAlert _type="error" _label="Fehler">
@@ -303,13 +320,26 @@ export const ApiTokensSection = () => {
 										}`}
 									</span>
 								</span>
-								<span className="api-tokens__scope">
-									<span className="api-tokens__scope-label">{SCOPE_LABEL[token.scope]}</span>
-									<ScopeToggle
-										token={token}
-										disabled={scopeBusyId === token.id}
-										onToggle={() => void handleToggleScope(token)}
-									/>
+								<span className="api-tokens__scope-group">
+									<span className="api-tokens__scope">
+										<span className="api-tokens__scope-label">{SCOPE_LABEL[token.scope]}</span>
+										<ScopeToggle
+											token={token}
+											disabled={scopeBusyId === token.id || scopeLocked}
+											onToggle={() => {
+												// #1526 AK4: `_disabled` verhindert nur den echten Browser-Klick — der Guard hier
+												// hält den Regler auch dann wirkungslos, wenn `onChange` direkt ausgelöst wird.
+												if (!scopeLocked) void handleToggleScope(token);
+											}}
+										/>
+									</span>
+									{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
+									    unterhalb der Scope-Zeile, direkt neben dem gesperrten Regler. */}
+									{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
+										<KolAlert _type="info" _label="Paket erforderlich">
+											Lesen und Schreiben ist ab dem Paket {planLabel(readwriteEntitlement.requiredPlan)} enthalten.
+										</KolAlert>
+									)}
 								</span>
 								{revokeId === token.id ? (
 									<span className="api-tokens__confirm">

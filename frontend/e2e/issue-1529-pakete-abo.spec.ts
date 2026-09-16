@@ -102,7 +102,7 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 		await expect(page.getByRole('tab', { name: 'Kategorien', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		await page.goto('/settings/zugriff');
-		await expect(page.getByRole('tab', { name: 'Zugriff', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
 	test('AK4: bei 375px scrollt der Matrix-Container seitlich, die Seite selbst scrollt nicht mit', async ({ page }) => {

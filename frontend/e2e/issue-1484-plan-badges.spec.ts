@@ -154,17 +154,30 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await expect(page.getByRole('dialog').filter({ hasText: /Pro|Max|Ultimate/ })).toHaveCount(1);
 	});
 
-	test('AK3/AK8: Zugriff-Einstellungen zeigen das mcp_readwrite-Badge an der Rechte-Zeile ohne Overflow', async ({
+	// Test-Pflege #1526 AK6 (Spec docs/spec/issue-1526.md): das mcp_readwrite-Badge an der
+	// Rechte-Zeile entfällt — die Paket-Erklärung steht jetzt ausschließlich im Gating-Alert unter
+	// dem Regler (#1526 AK4). Ersetzt den vorigen Test „zeigt das mcp_readwrite-Badge …", der genau
+	// das Gegenteil erwartete.
+	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Ultimate-Alert ohne Overflow', async ({
 		page,
 	}) => {
+		// #1526 AK2 sperrt „Token erzeugen" auf Paket `free` (kein `mcp_read`) — ein Klick durch die
+		// UI liefe hier ins Leere (Button `_disabled`). Seed direkt per API, wie in
+		// `issue-1526-access-token-gating.spec.ts` (`seedApiToken`): der Server-Guard bleibt ohne
+		// `MONETIZATION_ENFORCED` inaktiv, das Anlegen gelingt trotz `mcp_read.allowed === false`.
+		const created = await page.request.post('/api/v1/api-tokens', {
+			data: { name: 'mcp-badge-1484', expiresInDays: 30 },
+		});
+		expect(created.status(), 'API-Token muss serverseitig anlegbar sein (Guard bleibt unverändert)').toBe(201);
+
 		await page.goto('/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
-		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });
-		await page.getByRole('button', { name: 'Token erzeugen' }).click();
 
-		const badge = page.getByTestId('plan-badge-mcp_readwrite').first();
-		await expect(badge).toBeVisible();
-		await expectWithinViewport(badge);
+		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
+
+		const alert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Ultimate' }).first();
+		await expect(alert).toBeVisible();
+		await expectWithinViewport(alert);
 	});
 
 	test('AK9: außerhalb des Angebots-Dialogs erscheint kein Preis-/Werbetext', async ({ page }) => {
