@@ -140,6 +140,10 @@ describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibend
 		expect(readTitle).toBeTruthy();
 		expect(readwriteTitle).toBeTruthy();
 		expect(readTitle).not.toBe(readwriteTitle);
+		// Bissigkeit: `featureOffer()` fällt für unbekannte Identifier auf den neutralen Titel
+		// "Mehr Funktionen" zurück (planOffers.ts) — der wäre zufällig auch von mcp_readwrite
+		// unterscheidbar. Erst dieser Check erzwingt einen ECHTEN `FEATURE_OFFERS.mcp_read`-Eintrag.
+		expect(readTitle).not.toBe('Mehr Funktionen');
 
 		// mcp_read: max enthalten, ultimate enthalten, free/pro nicht.
 		const readCells = Array.from(featureRows[0]!.querySelectorAll('td')).map((cell) => cell.textContent);

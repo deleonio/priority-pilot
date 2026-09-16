@@ -526,9 +526,15 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 		await closeDb();
 	});
 
-	for (const plan of ['free', 'pro'] as const) {
+	// #1524-Fallstrick: `GOOGLE_ALLOWED_EMAILS` (Dateikopf) begrenzt requireAuth auch für
+	// Passwort-Sessions auf die vier dort gelisteten Adressen — andere Adressen registrieren sich
+	// zwar (201), bleiben aber „Nicht eingeloggt." (401) auf jeder nachfolgenden Route. Deshalb
+	// ausschließlich `bearer-a`/`bearer-b` wiederverwenden (resetDb() pro Test macht das sicher).
+	for (const [plan, email] of [
+		['free', 'bearer-a@example.com'],
+		['pro', 'bearer-b@example.com'],
+	] as const) {
 		it(`AK4: ein ${plan}-Nutzer erhält auf GET /tasks über Bearer 403 mit plan_required/mcp_read/max, Token-Zeile bleibt unverändert`, async () => {
-			const email = `bearer-mcp-read-${plan}@example.com`;
 			const cookie = await server.register(email, 'password123');
 			const { id, token } = await createToken(cookie);
 			await setPlan(email, plan);
@@ -558,9 +564,11 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 		});
 	}
 
-	for (const plan of ['max', 'ultimate'] as const) {
+	for (const [plan, email] of [
+		['max', 'bearer-a@example.com'],
+		['ultimate', 'bearer-b@example.com'],
+	] as const) {
 		it(`AK5: ein ${plan}-Nutzer liest über Bearer weiterhin GET /tasks (keine Regression)`, async () => {
-			const email = `bearer-mcp-read-ok-${plan}@example.com`;
 			const cookie = await server.register(email, 'password123');
 			const { token } = await createToken(cookie);
 			await setPlan(email, plan);
@@ -573,7 +581,7 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 	}
 
 	it('AK8-Analogie: bei ausgeschaltetem Rollout liest ein free-Nutzer über Bearer unverändert', async () => {
-		const email = 'bearer-mcp-read-rollout-off@example.com';
+		const email = 'bearer-a@example.com';
 		const cookie = await server.register(email, 'password123');
 		const { token } = await createToken(cookie);
 		await setPlan(email, 'free');
