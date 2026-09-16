@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.85._
+_Enthält v0.2.0 – v0.2.86._
 
 ### 🔧 Engineering
 
@@ -96,6 +96,7 @@ _Enthält v0.2.0 – v0.2.85._
 - feat(frontend): split plans/subscription into settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1534
 - feat(frontend): add five selectable life balance dials to the dashboard by @deleonio in https://github.com/deleonio/priority-pilot/pull/1535
 - feat(frontend): couple ai toggle to plan entitlement (#1525) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1536
+- feat(server): send admin email notification on new feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1538
 
 ## v0.1 - 2026-09-12
 
