@@ -1,5 +1,5 @@
 /**
- * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413 einundzwanzig Werkzeuge.
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413/#1542 fünfundzwanzig Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
@@ -175,6 +175,17 @@ const pickTaskFields = (args: Record<string, unknown>): Record<string, unknown> 
 const pickCategoryFields = (args: Record<string, unknown>): Record<string, unknown> => {
 	const fields: Record<string, unknown> = {};
 	for (const key of ['name', 'color']) {
+		if (args[key] !== undefined) {
+			fields[key] = args[key];
+		}
+	}
+	return fields;
+};
+
+/** Nur die gesetzten Gruppen-Felder übernehmen — `group_update` ändert sonst ungewollt mit. */
+const pickGroupFields = (args: Record<string, unknown>): Record<string, unknown> => {
+	const fields: Record<string, unknown> = {};
+	for (const key of ['name', 'description', 'imageUrl']) {
 		if (args[key] !== undefined) {
 			fields[key] = args[key];
 		}
@@ -506,6 +517,32 @@ export const mcpTools: McpTool[] = [
 		run: (ctx) => callApi(ctx, '/categories'),
 	},
 	{
+		name: 'group_create',
+		description: 'Creates a new group with the token owner as its only admin member.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				name: { type: 'string', description: 'Name of the group.' },
+				description: { type: 'string', description: 'Optional description of the group.' },
+			},
+			required: ['name'],
+		},
+		run: (ctx, args) => callApi(ctx, '/groups', { method: 'POST', body: pickGroupFields(args) }),
+	},
+	{
+		name: 'group_delete',
+		description:
+			'Permanently deletes one of the groups you administer — including memberships and pending invitations.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID of the group to delete (from group_list).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
+	},
+	{
 		name: 'group_list',
 		description: 'Lists the groups the token owner is a member of, including role and member count.',
 		inputSchema: { type: 'object', properties: {} },
@@ -520,6 +557,23 @@ export const mcpTools: McpTool[] = [
 			required: ['groupId'],
 		},
 		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/members`),
+	},
+	{
+		name: 'group_update',
+		description: 'Renames or redescribes one of the groups you administer. Fields left out stay unchanged.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				id: { type: 'integer', description: 'ID of the group to change (from group_list).' },
+				name: { type: 'string', description: 'New name of the group.' },
+				description: { type: 'string', description: 'New description of the group.' },
+				imageUrl: { type: 'string', description: 'New image URL of the group; null removes the image.' },
+			},
+			required: ['id'],
+		},
+		run: (ctx, args) =>
+			callApi(ctx, `/groups/${requireIntegerId(args, 'id')}`, { method: 'PATCH', body: pickGroupFields(args) }),
 	},
 	{
 		name: 'pillar_create',
