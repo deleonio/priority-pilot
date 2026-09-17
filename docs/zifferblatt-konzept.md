@@ -105,6 +105,8 @@ setzt ihn auf 1.
 | `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben) | deckend, harte Kante, kein Schein |
 | `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge | Bogen mit hellem Kopf             |
 | `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                 | Lichtkeil mit auslaufendem Puls   |
+| `bluete`   | Blüte      | Lappenlänge, weitester auf 12 Uhr          | weiche Neon-Kontur, irisierend    |
+| `kristall` | Kristall   | Lappenlänge (Stützpunkte wie oben)         | Facetten, helle Kanten und Knoten |
 
 **„Blasen" und „Scheiben" sind derselbe Stapel in zwei Materialien** — gleiche Geometrie, gleiche
 Bewegung, gleiche Slots. Sie teilen sich im Shader einen Zweig (`bool sharp`), weil jede Trennung
@@ -113,8 +115,16 @@ Farbe in eine dünne Haut und lässt den Rest durchscheinen; die Scheibe ist ein
 harter Kante. Das ist keine Geschmacksfrage im Code, sondern die eine Stelle, an der ein neues
 Zifferblatt allein durch Material entstehen darf.
 
-**Die Soll-Marke** ist bei Blasen, Scheiben und Strahlen ein gestrichelter Kreis, bei den Ringen ein
-Strich quer über jede Spur; das Herz trägt sie in seinem Füllstand.
+**„Blüte" und „Kristall" folgen demselben Muster mit anderer Geometrie**: Alle Säulen bilden
+**eine** Silhouette — je Säule ein Stützpunkt auf ihrem Winkel (`buildPetals`), so weit außen wie
+ihr Wert, stärkste Säule auf 12 Uhr. Zwischen den Stützpunkten mischt die Kontur Radien **und**
+Farben der Nachbarn (Partition der Eins, `petalRadiusAt`): Die Blüte glättet die Mischung zu weichen
+Lappen mit irisierendem Saum, der Kristall lässt sie kantig — Fächerflächen aus der Mitte, deren
+Facetten das Licht je nach Lage anders fangen, dazu helle Knoten auf den Spitzen. Auch sie teilen
+sich einen Shader-Zweig (`bool soft`).
+
+**Die Soll-Marke** ist bei Blasen, Scheiben, Strahlen, Blüte und Kristall ein gestrichelter Kreis,
+bei den Ringen ein Strich quer über jede Spur; das Herz trägt sie in seinem Füllstand.
 
 **Was die Scheiben nicht bekommen:** keinen Kontaktschatten und keinen Neon-Schein. Ein weicher Saum
 um eine harte Kante nimmt genau die Schärfe zurück, die ihr Stilmittel ist — ihre Tiefe trägt die

@@ -17,6 +17,9 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  *   ist der Wert, die stärkste Säule bekommt die äußerste Spur.
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, gleichmäßig über den Kreis
  *   verteilt. Die Länge ist der Wert, der längste Strahl steht auf 12 Uhr.
+ * - **Blüte und Kristall** — alle Säulen als **eine** Silhouette: je Säule ein Stützpunkt auf ihrem
+ *   Winkel, so weit außen wie ihr Wert. Die Blüte verbindet sie weich, der Kristall mit harten
+ *   Kanten — derselbe Stapel in zwei Materialien wie Blasen und Scheiben.
  *
  * Alle ordnen nach derselben Regel: **stärkste Säule zuerst** (`byStrength`). Wer das Bild
  * wechselt, findet dieselbe Säule an derselben Stelle der Reihenfolge wieder.
@@ -234,6 +237,90 @@ export const buildRays = (metrics: BalanceMetrics): Ray[] => {
 		targetLength: toLength(metrics.targetMark),
 		...motionOf(pillar.colorIndex),
 	}));
+};
+
+// ── Figuren „Blüte" und „Kristall" ──────────────────────────────────────────────────────────────
+
+/**
+ * Ein Stützpunkt der gemeinsamen Silhouette: die Spitze des Lappens einer Säule.
+ *
+ * Die Atmung der Spitzen (±6 % um den Wert, ±1,6° Wippen um den Winkel) lebt allein im Shader
+ * (`PETAL_SWING`/`PETAL_SWAY` in `balance-figure.frag`) — das SVG atmet, wie die Strahlen, nur in
+ * der Deckkraft und im Puls der Knoten.
+ */
+export interface Petal extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Mittelwinkel in Grad, 0 zeigt nach rechts, −90 nach oben (SVG-Konvention). */
+	angle: number;
+	/** Halber Winkelabstand zum Nachbarn — so breit ist der eigene Anteil an der Kontur. */
+	spread: number;
+	/** Abstand der Spitze vom Mittelpunkt in Nutzereinheiten (`R_MIN`–`FIGURE_MAX`) — der Wert. */
+	radius: number;
+}
+
+/**
+ * Baut die Stützpunkte der Silhouette wie die Strahlen: gleichmäßig über den Kreis ab 12 Uhr im
+ * Uhrzeigersinn, **stärkste Säule zuerst**. Der weiteste Lappen steht damit immer auf 12 Uhr.
+ *
+ * Blüte und Kristall teilen sich diese Punkte (wie Blasen und Scheiben ihren Stapel) — sie
+ * unterscheiden sich allein darin, wie die Kontur zwischen ihnen verläuft: weich oder kantig.
+ */
+export const buildPetals = (metrics: BalanceMetrics): Petal[] => {
+	const pillars = byStrength(metrics.pillars);
+	const step = 360 / Math.max(1, pillars.length);
+	return pillars.map((pillar, index): Petal => ({
+		pillarId: pillar.pillarId,
+		colorIndex: pillar.colorIndex,
+		angle: -90 + index * step,
+		spread: step / 2,
+		radius: toRadius(pillar.scaled),
+		...motionOf(pillar.colorIndex),
+	}));
+};
+
+const smoothstep = (t: number): number => t * t * (3 - 2 * t);
+
+/**
+ * Radius der Silhouette zu einem Winkel. Die Stützpunkte tragen Dreiecksgewichte über den Ring
+ * (Partition der Eins): An der Spitze selbst wiegt allein die eigene Säule, zur Mitte zwischen zwei
+ * Nachbarn mischen sie sich. `smooth` wählt den weichen Übergang der Blüte, sonst entsteht die
+ * gerade Kante des Kristalls — dieselbe Rechnung führt der Shader je Bildpunkt aus.
+ */
+export const petalRadiusAt = (petals: readonly Petal[], angle: number, smooth: boolean): number => {
+	const count = petals.length;
+	if (count === 0) return 0;
+	const step = 360 / count;
+	// Position auf dem Ring, bezogen auf den ersten Stützpunkt (steht immer auf −90°, also 0).
+	const position = ((((angle + 90) % 360) + 360) % 360) / step;
+	let radius = 0;
+	for (let index = 0; index < count; index += 1) {
+		let distance = Math.abs(position - index);
+		distance = Math.min(distance, count - distance);
+		if (distance >= 1) continue;
+		const share = smooth ? 1 - smoothstep(distance) : 1 - distance;
+		radius += petals[index].radius * share;
+	}
+	return radius;
+};
+
+/**
+ * Stützpunkte eines Lappens für den Strich der Blüte: der Bogen vom halben Winkelabstand vor bis
+ * hinter seiner Spitze. Alle Lappen aneinandergelegt ergeben die geschlossene Kontur — jeder
+ * Stützpunkt gehört genau einem Lappen, und damit genau einer Säulenfarbe.
+ */
+export const petalArcPoints = (
+	petals: readonly Petal[],
+	index: number,
+	smooth: boolean,
+	samples = 16,
+): { x: number; y: number }[] => {
+	const petal = petals[index];
+	if (!petal) return [];
+	return Array.from({ length: samples + 1 }, (_, step): { x: number; y: number } => {
+		const angle = petal.angle - petal.spread + (petal.spread * 2 * step) / samples;
+		return polar(angle, petalRadiusAt(petals, angle, smooth));
+	});
 };
 
 // ── Das Zifferblatt ─────────────────────────────────────────────────────────────────────────────

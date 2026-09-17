@@ -1,6 +1,14 @@
 import { useEffect, useRef } from 'react';
 import fragmentSource from './balance-figure.frag?raw';
-import { buildArcs, buildOrbs, buildRays, RISE_DURATION, targetRadius, type FigureMotion } from '../lib/balanceFigure';
+import {
+	buildArcs,
+	buildOrbs,
+	buildPetals,
+	buildRays,
+	RISE_DURATION,
+	targetRadius,
+	type FigureMotion,
+} from '../lib/balanceFigure';
 import type { BalanceMetrics } from '../lib/balanceMetric';
 import type { FigureKind } from '../lib/balanceVariant';
 import { PILLAR_RAMP_SIZE } from '../lib/pillarRamp';
@@ -59,7 +67,14 @@ const SHADOW_STRENGTH = 0.06;
 const SLOTS = 8;
 
 /** Reihenfolge der Figuren im Shader (`u_figure`). */
-const FIGURE_INDEX: Record<FigureKind, number> = { blasen: 0, ringe: 1, strahlen: 2, scheiben: 3 };
+const FIGURE_INDEX: Record<FigureKind, number> = {
+	blasen: 0,
+	ringe: 1,
+	strahlen: 2,
+	scheiben: 3,
+	bluete: 4,
+	kristall: 5,
+};
 
 /** Stützstellen der Ring-Farbrampe in `app.css` (`--pp-balance-ring-0` … `-100`). */
 const RING_STOPS = [0, 25, 50, 75, 100] as const;
@@ -164,6 +179,23 @@ export const toSlots = (
 			raySpread: rays.map((ray) => ray.spread),
 			rayLength: rays.map((ray) => ray.length),
 			target: rays[0]?.targetLength ?? 0,
+		};
+	}
+	// Blüte und Kristall teilen sich die Stützpunkte der Silhouette — Winkel und Radius belegen
+	// dieselben Plätze wie die Strahlen (Mittelwinkel und Länge); nur ihr Material trennt sie.
+	if (state.figure === 'bluete' || state.figure === 'kristall') {
+		const petals = buildPetals(state.metrics).slice(0, SLOTS);
+		return {
+			colors: petals.map((petal) => colorOf(petal.colorIndex)),
+			motions: petals,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
+			rayAngle: petals.map((petal) => petal.angle),
+			raySpread: [],
+			rayLength: petals.map((petal) => petal.radius),
+			target: targetRadius(state.metrics),
 		};
 	}
 	// Blasen und Scheiben teilen sich die Geometrie — nur ihr Material trennt sie (siehe Shader).

@@ -37,7 +37,10 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 	};
 };
 
-const stateOf = (metrics: BalanceMetrics, figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen') => ({
+const stateOf = (
+	metrics: BalanceMetrics,
+	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall',
+) => ({
 	figure,
 	metrics,
 	activeTicks: 50,
@@ -117,6 +120,24 @@ describe('BalanceFigureGL toSlots', () => {
 		const strahlen = toSlots(stateOf(metrics, 'strahlen'), colors);
 		expect(strahlen.rayAngle[0]).toBe(-90);
 		expect(strahlen.arcRadius).toHaveLength(0);
+
+		const bluete = toSlots(stateOf(metrics, 'bluete'), colors);
+		expect(bluete.rayAngle[0]).toBe(-90);
+		expect(bluete.rayLength).toHaveLength(2);
+		expect(bluete.orbRadius).toHaveLength(0);
+		expect(bluete.arcRadius).toHaveLength(0);
+	});
+
+	/* Blüte und Kristall teilen sich die Stützpunkte wie Blasen und Scheiben ihren Stapel. */
+	it('belegt die Slots für Kristall genau wie für die Blüte', () => {
+		const metrics = metricsOf([0.2, 1, 0.6]);
+		const bluete = toSlots(stateOf(metrics, 'bluete'), colors);
+		const kristall = toSlots(stateOf(metrics, 'kristall'), colors);
+
+		expect(kristall.rayAngle).toEqual(bluete.rayAngle);
+		expect(kristall.rayLength).toEqual(bluete.rayLength);
+		expect(kristall.colors).toEqual(bluete.colors);
+		expect(kristall.target).toBe(bluete.target);
 	});
 
 	/* Die Soll-Marke kommt in der Einheit der jeweiligen Figur — Radius, Bogenanteil oder Länge. */
@@ -133,5 +154,8 @@ describe('BalanceFigureGL toSlots', () => {
 		// Strahlen: die Länge der Säule auf Ziel.
 		const strahlen = toSlots(stateOf(metrics, 'strahlen'), colors);
 		expect(strahlen.target).toBeCloseTo(strahlen.rayLength[1], 6);
+		// Blüte und Kristall: der Radius der Lappenspitze auf Ziel.
+		const bluete = toSlots(stateOf(metrics, 'bluete'), colors);
+		expect(bluete.target).toBeCloseTo(bluete.rayLength[1], 6);
 	});
 });

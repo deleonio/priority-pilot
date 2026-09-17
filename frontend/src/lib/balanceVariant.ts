@@ -16,6 +16,10 @@ import { useCallback, useState } from 'react';
  *   lassen, ist hier jede Scheibe eine satte Fläche mit harter Kante.
  * - **Ringe** — je Säule ein Bogen wie die Aktivitätsringe einer Uhr, stärkste Säule außen.
  * - **Strahlen** — je Säule ein Lichtstrahl vom Mittelpunkt nach außen, längster auf 12 Uhr.
+ * - **Blüte** — alle Säulen als **eine** Silhouette: eine geschlossene Kurve, deren Lappen je Säule
+ *   so weit reichen wie ihr Wert. Weiches, organisches Material.
+ * - **Kristall** — dieselbe Silhouette mit harten Kanten: Stützpunkte und Facetten statt weicher
+ *   Lappen, leuchtende Knoten an den Spitzen.
  *
  * Die vier Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
  * Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
@@ -28,7 +32,7 @@ import { useCallback, useState } from 'react';
  */
 
 /** Schlüssel der Bilder. Der gespeicherte Wert ist genau einer davon. */
-export type BalanceVariant = 'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen';
+export type BalanceVariant = 'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall';
 
 /** Die Figuren, die sich Zifferblatt, Kennzahl und Rahmen teilen (`BalanceFigure`) — alles außer dem Herz. */
 export type FigureKind = Exclude<BalanceVariant, 'herz'>;
@@ -40,6 +44,8 @@ export const BALANCE_VARIANTS: readonly { value: BalanceVariant; label: string }
 	{ value: 'scheiben', label: 'Scheiben' },
 	{ value: 'ringe', label: 'Ringe' },
 	{ value: 'strahlen', label: 'Strahlen' },
+	{ value: 'bluete', label: 'Blüte' },
+	{ value: 'kristall', label: 'Kristall' },
 ];
 
 /**

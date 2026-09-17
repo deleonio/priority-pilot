@@ -1,14 +1,14 @@
 precision highp float;
 
 /*
- * Balance-Figuren — WebGL-Fassung der drei Startseiten-Bilder der Lebensbalance.
+ * Balance-Figuren — WebGL-Fassung der Startseiten-Bilder der Lebensbalance.
  *
- * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Vier
- * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3). Sie bekommen dieselben
- * Werte —
- * je Saeule das Verhaeltnis Ist zu Soll (lib/balanceMetric.ts) — und unterscheiden sich allein
- * darin, wie sie es zeigen. Radien, Winkel und Phasen kommen aus lib/balanceFigure.ts; beide
- * Fassungen rechnen dieselbe Geometrie, hier nur je Bildpunkt statt je Element.
+ * Dieselbe Bildsprache wie das SVG in BalanceFigure.tsx, nur das Material kommt hinzu. Sechs
+ * Figuren, ein Programm: Blasen (0), Ringe (1), Strahlen (2), Scheiben (3), Blüte (4), Kristall (5).
+ * Sie bekommen dieselben Werte — je Saeule das Verhaeltnis Ist zu Soll (lib/balanceMetric.ts) — und
+ * unterscheiden sich allein darin, wie sie es zeigen. Radien, Winkel und Phasen kommen aus
+ * lib/balanceFigure.ts; beide Fassungen rechnen dieselbe Geometrie, hier nur je Bildpunkt statt je
+ * Element.
  *
  * Dialekt bewusst GLSL ES 1.00 (gl_FragColor, keine dynamische Array-Indizierung ausserhalb von
  * Schleifen mit konstanten Grenzen): laeuft unveraendert in WebGL1- und WebGL2-Kontexten.
@@ -33,7 +33,8 @@ uniform float u_rise;
 /* Ruhepuls: Sekunden je Schlag, ruhiger je ausgewogener. */
 uniform float u_beat;
 
-/* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material). */
+/* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material),
+ * 4 = Blüte, 5 = Kristall (dieselbe Silhouette wie 4, anderes Material). */
 uniform float u_figure;
 
 /* Je Saeule: Farbe und Bewegung — in jeder Figur dieselbe. */
@@ -52,7 +53,8 @@ uniform float u_arc_radius[8];
 uniform float u_arc_width[8];
 uniform float u_arc_sweep[8];
 
-/* Strahlen: Mittelwinkel (Grad), halbe Oeffnung (Grad) und Laenge. */
+/* Strahlen: Mittelwinkel (Grad), halbe Oeffnung (Grad) und Laenge. Blüte und Kristall nutzen
+ * Winkel und Laenge als Stützpunkte ihrer Silhouette (Laenge = Radius der Lappenspitze). */
 uniform float u_ray_angle[8];
 uniform float u_ray_spread[8];
 uniform float u_ray_length[8];
@@ -105,6 +107,11 @@ const float GLOW = 0.45;
 
 /* Striche der Soll-Marke ueber den vollen Umlauf — gleiche Anmutung wie `stroke-dasharray` im SVG. */
 const float TARGET_DASHES = 36.0;
+
+/* Atmung und Wippen der Lappen — bewusst kleiner als die Blasen-Auslenkung: Der Radius ist hier
+ * der Wert selbst, eine grosse Auslenkung liesse eine schwache Saeule zeitweise stark aussehen. */
+const float PETAL_SWING = 0.06;
+const float PETAL_SWAY = 1.6;
 
 /* Deckkraft der unausgefuellten Ringspur — sie zeigt, wie weit es noch waere. */
 const float ARC_TRACK_ALPHA = 0.16;
@@ -167,7 +174,101 @@ void main() {
 	vec3 acc = vec3(0.0);
 	float alpha = 0.0;
 
-	if (u_figure < 0.5 || u_figure > 2.5) {
+	if (u_figure > 3.5) {
+		/*
+		 * ── Blüte (4) und Kristall (5): eine Silhouette, zwei Materialien ───────────────────────
+		 *
+		 * Alle Säulen bilden EINE geschlossene Form: je Säule ein Stützpunkt auf ihrem Winkel, so
+		 * weit aussen wie ihr Wert. Die Kontur zwischen den Stützunkten mischt ihre Radien und
+		 * Farben mit Dreiecksgewichten ueber den Ring (Partition der Eins, zahlengleich zu
+		 * `petalRadiusAt` in lib/balanceFigure.ts) — die Blüte glaettet die Mischung, der Kristall
+		 * laesst sie kantig. Damit traegt die Kante unterwegs beide Säulenfarben zugleich.
+		 */
+		bool soft = u_figure < 4.5;
+
+		/* Position auf dem Ring: Stützpunkt 0 steht auf 12 Uhr, die Abstände sind gleich. */
+		float count = max(u_count, 1.0);
+		float gridStep = 360.0 / count;
+		float position = degAngle / gridStep;
+
+		float contour = 0.0;
+		vec3 contourCol = vec3(0.0);
+		float nodeAcc = 0.0;
+		vec3 nodeColAcc = vec3(0.0);
+
+		for (int k = 0; k < 8; k++) {
+			float used = step(float(k), u_count - 1.0);
+
+			/* Atmen der Spitze um ihren Wert; Wippen um den Winkel in eigener Richtung und Takt. */
+			float phase = u_phase[k] + PI2 * time / u_swing[k];
+			float r = u_ray_length[k] * rise * beat * (1.0 + PETAL_SWING * sin(phase));
+			float a = radians(u_ray_angle[k] + 90.0 + u_dir[k] * PETAL_SWAY * sin(u_phase[k] + PI2 * time / u_rot[k]));
+
+			float dist = abs(position - float(k));
+			dist = min(dist, count - dist);
+			if (dist < 1.0) {
+				float share = soft ? 1.0 - smoothstep(0.0, 1.0, dist) : 1.0 - dist;
+				contour += r * share * used;
+				contourCol += u_colors[k] * share * used;
+			}
+
+			/* Leuchtender Knoten auf der Spitze — im Kristall der Kristallisationspunkt, in der
+			 * Blüte ein sanfter Lichtpunkt. Er ankert jede Säule im Bild, auch im Gleichstand. */
+			vec2 vertex = vec2(cos(a - 1.5707963), sin(a - 1.5707963)) * r;
+			float nodeDist2 = dot(d - vertex, d - vertex);
+			float node = exp(-nodeDist2 * (soft ? 1.1 : 0.85)) * used;
+			float nodeGlow = exp(-nodeDist2 * 0.06) * 0.45 * used;
+			nodeAcc += node;
+			nodeColAcc += mix(u_colors[k], vec3(1.0), 0.55) * node + u_colors[k] * nodeGlow;
+		}
+
+		/* Konturfeld: negativ innerhalb der Silhouette. */
+		float f = radius - contour;
+
+		/*
+		 * Fuellung. Blüte: wie eine Blase zur Kartenfarbe aufgehellt und fast klar — die Flaeche
+		 * traegt Licht, die Kante die Farbe. Kristall: Facetten, die je nach Lage das Licht
+		 * unterschiedlich fangen — die Helligkeit springt an den Kanten, das macht die Flaeche zum
+		 * Kristall statt zum Kreis.
+		 */
+		float inside = smoothstep(aa, -aa, f);
+		float facet = floor(position);
+		float facetLum = 0.78 + 0.22 * sin((facet + 0.5) * 2.39996);
+		vec3 fillColor = soft
+			? mix(contourCol, u_surface, 0.45)
+			: mix(contourCol, u_surface, 0.30) * facetLum;
+		float fillAlpha = inside * (soft ? 0.10 : 0.22);
+		acc = fillColor * fillAlpha + acc * (1.0 - fillAlpha);
+		alpha = fillAlpha + alpha * (1.0 - fillAlpha);
+
+		/* Knoten auf den Spitzen, ueber der Fuellung. */
+		float nodeAlpha = clamp(nodeAcc, 0.0, 1.0);
+		acc = nodeColAcc * nodeAlpha + acc * (1.0 - nodeAlpha);
+		alpha = min(1.0, alpha + nodeAcc);
+
+		/* Die Kante: schmal und hell, die Farbe wechselt unterwegs in die der Nachbar-Säule. */
+		float edgeWidth = soft ? 0.9 + aa : 0.55 + aa;
+		float edge = 1.0 - smoothstep(0.0, edgeWidth, abs(f));
+		vec3 sheen = 0.5 + 0.5 * cos(PI2 * (vec3(0.0, 0.33, 0.67) + turn * 1.2 + time * 0.03));
+		vec3 edgeCol = mix(contourCol, vec3(1.0), soft ? 0.16 : 0.30);
+		if (soft) edgeCol = mix(edgeCol, sheen, 0.22);
+		float edgeAlpha = edge * 0.95;
+		acc = edgeCol * edgeAlpha + acc * (1.0 - edgeAlpha);
+		alpha = edgeAlpha + alpha * (1.0 - edgeAlpha);
+
+		/* Neon-Schein ausserhalb der Kontur — beim Kristall enger, seine Schaerfe bleibt Stilmittel. */
+		float halo = exp(-max(f, 0.0) / (soft ? 1.8 : 1.1)) * (1.0 - inside);
+		acc += contourCol * halo * GLOW * 0.8;
+		alpha = min(1.0, alpha + halo * GLOW * 0.8);
+
+		/* Soll-Marke als gestrichelter Kreis wie bei den Blasen: Spitze innerhalb heisst „kommt zu
+		   kurz", ausserhalb „zieht davon". */
+		float tr = u_target * rise * beat;
+		float mark = (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - tr)))
+			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
+		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
+		alpha = mark + alpha * (1.0 - mark);
+	} else if (u_figure < 0.5 || u_figure > 2.5) {
 		/*
 		 * ── Blasen (0) und Scheiben (3): derselbe Stapel, zwei Materialien ─────────────────────
 		 *
