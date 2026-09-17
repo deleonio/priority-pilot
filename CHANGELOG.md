@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-17
 
-_Enthält v0.2.0 – v0.2.90._
+_Enthält v0.2.0 – v0.2.91._
 
 ### 🔧 Engineering
 
@@ -101,6 +101,7 @@ _Enthält v0.2.0 – v0.2.90._
 - feat(frontend): gate pillar advisor ui behind ai entitlement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1539
 - fix(server): use english error message in mcp readWeight validator by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1540
 - feat(frontend): increase mobile element sizes by one pixel step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1546
+- feat(server): add group create, update and delete MCP tools (#1542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1545
 
 ## v0.1 - 2026-09-12
 
@@ -823,7 +824,6 @@ _Enthält v0.1.336 – v0.1.836._
 - ci: add daily minor version bump workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1377
 - feat(server): add group_list and group_members_list MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1384
 - feat(frontend): lay out forest dependency graph user-first on mobile by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1386
-- feat(frontend): add milestone badges for streak and points by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1387
 - feat(frontend): add milestone badges for streak and points by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1387
 - feat(server): notify on milestone when completing a task by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1389
 - fix(frontend): unify card and tab gaps on dashboard, settings and help by @deleonio in https://github.com/deleonio/priority-pilot/pull/1390
