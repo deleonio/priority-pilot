@@ -19,7 +19,7 @@ import { ScoreEntry } from '../models/index.js';
  */
 
 process.env.GOOGLE_ALLOWED_EMAILS =
-	'mcp-tools-a@example.com,mcp-tools-b@example.com,mcp-tools-balance-a@example.com,' +
+	'mcp-tools-a@example.com,mcp-tools-b@example.com,mcp-tools-c@example.com,mcp-tools-balance-a@example.com,' +
 	'mcp-tools-balance-b@example.com,mcp-tools-balance-c@example.com,mcp-tools-balance-d-a@example.com,' +
 	'mcp-tools-balance-d-b@example.com,mcp-tools-pillar-a@example.com,mcp-tools-pillar-b@example.com,' +
 	'mcp-tools-history-a@example.com,mcp-tools-history-b@example.com,mcp-tools-history-c@example.com';
@@ -912,8 +912,12 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'category_delete',
 			'category_list',
 			'category_update',
+			// #1542: die drei Gruppen-Schreibwerkzeuge kommen alphabetisch vor/hinter group_list.
+			'group_create',
+			'group_delete',
 			'group_list',
 			'group_members_list',
+			'group_update',
 			'next_task',
 			'pillar_create',
 			'pillar_delete',
@@ -964,9 +968,10 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: drei Kategorie-Werkzeuge,
-		// #1413: vier Säulen-Werkzeuge). Der Vertrag ist „task_delete ist drin", nicht „es gibt genau
-		// dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen, war: ${names.join(', ')}`);
+		// #1413: vier Säulen-Werkzeuge, #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist
+		// „task_delete ist drin", nicht „es gibt genau dreizehn Werkzeuge" — die vollständige
+		// Namensliste prüft der Snapshot-Test.
+		assert.equal(names.length, 25, `Katalog sollte fünfundzwanzig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1177,8 +1182,9 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
-		// #1413: vier Säulen-Werkzeuge, #1424: balance_history) — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen, war: ${names.join(', ')}`);
+		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
+		// — #1420 selbst fügt kein Werkzeug hinzu.
+		assert.equal(names.length, 25, `Katalog sollte fünfundzwanzig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1649,7 +1655,11 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
-		assert.equal(names.length, 22, `Katalog sollte zweiundzwanzig Namen führen (#1412), war: ${names.join(', ')}`);
+		assert.equal(
+			names.length,
+			25,
+			`Katalog sollte fünfundzwanzig Namen führen (#1412, #1542), war: ${names.join(', ')}`,
+		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
 		assert.ok(names.includes('category_delete'), 'category_delete muss im Katalog stehen');
@@ -1924,5 +1934,197 @@ describe('MCP-Werkzeug balance_history (#1424)', () => {
 		});
 		assert.ok(bisVorVon.error, '"to" vor "from" muss einen JSON-RPC-Fehler auslösen');
 		assert.match(bisVorVon.error!.message, /HTTP 400/);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1542 (Spec docs/spec/issue-1542.md) — MCP-Werkzeuge
+ * `group_create`/`group_update`/`group_delete` (Teil 1 von 3 zu #1414).
+ *
+ * AK1: Katalog enthält die drei neuen Werkzeuge (Snapshot-Tests oben wachsen auf 25 Namen).
+ * AK2: readwrite-Token legt über group_create eine Gruppe an; group_list zeigt sie mit Rolle admin.
+ * AK3: group_update ändert Name/Beschreibung (nachweisbar in group_list), group_delete entfernt sie.
+ * AK4: Mitglied ohne Adminrolle → 403-Text der Route; fremdes Konto → 404-Text; Gruppe bleibt unverändert.
+ * AK5: Nur-lese-Token scheitert an allen drei Werkzeugen am Scope-Gate, Daten unverändert.
+ *
+ * Rot, bis die drei Werkzeuge in mcpTools existieren (heute: „Unknown tool"-Fehler). KEIN Produktivcode.
+ */
+describe('MCP-Werkzeuge group_create/group_update/group_delete (#1542)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	type GroupEntry = { id: number; name: string; description: string | null; role: string };
+
+	const createGroupViaApi = async (cookie: string, name: string): Promise<{ id: number }> => {
+		const res = await server.json('/groups', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ name }),
+		});
+		assert.equal(res.status, 201, 'Setup: Gruppe muss über die API anlegbar sein');
+		return (await res.json()) as { id: number };
+	};
+
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await server.json(`/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { Cookie: cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	const inviteAndAccept = async (
+		adminCookie: string,
+		groupId: number,
+		invitedUserId: number,
+		invitedCookie: string,
+	): Promise<void> => {
+		const invited = await server.json(`/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+			body: JSON.stringify({ userId: invitedUserId }),
+		});
+		assert.equal(invited.status, 201, 'Setup: Einladung muss anlegbar sein');
+		const { id } = (await invited.json()) as { id: number };
+		const accepted = await server.json(`/invitations/${id}/accept`, {
+			method: 'POST',
+			headers: { Cookie: invitedCookie },
+		});
+		assert.equal(accepted.status, 200, 'Setup: Einladung muss annehmbar sein');
+	};
+
+	it('AK1: tools/list enthält group_create, group_update und group_delete mit den vorgesehenen required-Feldern', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name);
+		for (const name of ['group_create', 'group_update', 'group_delete']) {
+			assert.ok(names.includes(name), `${name} muss im Katalog stehen`);
+		}
+
+		const requiredOf = (name: string) => {
+			const tool = tools.find((t) => t.name === name);
+			assert.ok(tool?.inputSchema, `${name} muss ein inputSchema deklarieren`);
+			return (tool?.inputSchema as { required?: string[] } | undefined)?.required;
+		};
+		assert.deepEqual(requiredOf('group_create'), ['name']);
+		assert.deepEqual(requiredOf('group_update'), ['id']);
+		assert.deepEqual(requiredOf('group_delete'), ['id']);
+	});
+
+	it('AK2: ein readwrite-Token legt über group_create eine Gruppe an und ist darin admin', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const created = await mcpCall<GroupEntry>(token, 'group_create', {
+			name: 'Familie',
+			description: 'Gemeinsame Aufgaben',
+		});
+		assert.equal(created.error, undefined, `group_create sollte gelingen: ${created.error?.message}`);
+		assert.equal(created.result?.name, 'Familie');
+
+		const list = await mcpCall<GroupEntry[]>(token, 'group_list');
+		const found = list.result?.find((g) => g.id === created.result?.id);
+		assert.ok(found, 'group_list muss die neu angelegte Gruppe enthalten');
+		assert.equal(found.name, 'Familie');
+		assert.equal(found.role, 'admin', 'der Ersteller muss in group_list als admin geführt sein');
+	});
+
+	it('AK3: group_update ändert Name und Beschreibung, group_delete entfernt die Gruppe aus group_list', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const group = await createGroupViaApi(cookie, 'Vorher');
+
+		const updated = await mcpCall<GroupEntry>(token, 'group_update', {
+			id: group.id,
+			name: 'Nachher',
+			description: 'Neue Beschreibung',
+		});
+		assert.equal(updated.error, undefined, `group_update sollte gelingen: ${updated.error?.message}`);
+
+		const listAfterUpdate = await mcpCall<GroupEntry[]>(token, 'group_list');
+		const changed = listAfterUpdate.result?.find((g) => g.id === group.id);
+		assert.equal(changed?.name, 'Nachher', 'group_list muss den neuen Namen zeigen');
+		assert.equal(changed?.description, 'Neue Beschreibung', 'group_list muss die neue Beschreibung zeigen');
+
+		const deleted = await mcpCall(token, 'group_delete', { id: group.id });
+		assert.equal(deleted.error, undefined, `group_delete sollte gelingen: ${deleted.error?.message}`);
+
+		const listAfterDelete = await mcpCall<GroupEntry[]>(token, 'group_list');
+		assert.ok(
+			!listAfterDelete.result?.some((g) => g.id === group.id),
+			'die gelöschte Gruppe darf in group_list nicht mehr auftauchen',
+		);
+	});
+
+	it('AK4: ohne Adminrolle bzw. auf fremde Gruppe liefern die Werkzeuge den Routen-Fehlertext samt Statuscode, die Gruppe bleibt unverändert', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const cookieC = await server.register('mcp-tools-c@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const tokenC = await createToken(cookieC);
+		const group = await createGroupViaApi(cookieA, 'Bleibt unverändert');
+		// B wird normales Mitglied (Rolle member) — group_update muss an der Route mit 403 scheitern.
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+		await inviteAndAccept(cookieA, group.id, bId, cookieB);
+
+		const noAdmin = await mcpCall(tokenB, 'group_update', { id: group.id, name: 'Umbenannt von B' });
+		assert.ok(noAdmin.error, 'group_update ohne Adminrolle muss fehlschlagen');
+		assert.match(noAdmin.error!.message, /Nur Administratoren dürfen die Gruppe bearbeiten\./);
+		assert.match(noAdmin.error!.message, /HTTP 403/);
+
+		// C ist kein Mitglied — fremdes group_delete muss an der Route mit 404 scheitern (kein Existenz-Leak).
+		const foreign = await mcpCall(tokenC, 'group_delete', { id: group.id });
+		assert.ok(foreign.error, 'group_delete auf eine fremde Gruppe muss fehlschlagen');
+		assert.match(foreign.error!.message, /Gruppe nicht gefunden\./);
+		assert.match(foreign.error!.message, /HTTP 404/);
+
+		const list = await mcpCall<GroupEntry[]>(tokenA, 'group_list');
+		const unchanged = list.result?.find((g) => g.id === group.id);
+		assert.ok(unchanged, 'die Gruppe muss nach beiden gescheiterten Aufrufen weiterhin existieren');
+		assert.equal(unchanged.name, 'Bleibt unverändert', 'der Gruppenname darf nicht geändert worden sein');
+	});
+
+	it('AK5: ein Nur-lese-Token scheitert an allen drei Werkzeugen am Scope-Hinweis, es ändern sich keine Daten', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const { token } = await createReadOnlyToken(cookie);
+		const group = await createGroupViaApi(cookie, 'Bleibt bei read-only erhalten');
+
+		for (const [tool, args] of [
+			['group_create', { name: 'Sollte nicht entstehen' }],
+			['group_update', { id: group.id, name: 'Sollte nicht ändern' }],
+			['group_delete', { id: group.id }],
+		] as const) {
+			const res = await mcpCall(token, tool, args);
+			assert.ok(res.error, `${tool} muss mit einem Nur-lese-Token fehlschlagen`);
+			assert.match(
+				res.error!.message,
+				/read access only/,
+				`${tool}: Fehlertext muss die Rechtestufe benennen, war: ${res.error!.message}`,
+			);
+			assert.match(
+				res.error!.message,
+				/Lesen und Schreiben/,
+				`${tool}: Fehlertext muss den Ausweg nennen, war: ${res.error!.message}`,
+			);
+		}
+
+		const list = await mcpCall<GroupEntry[]>(token, 'group_list');
+		assert.equal(list.error, undefined, 'group_list muss mit demselben Nur-lese-Token weiterhin funktionieren');
+		assert.deepEqual(
+			list.result?.map((g) => g.name),
+			['Bleibt bei read-only erhalten'],
+			'der Gruppenbestand darf durch die drei abgelehnten Aufrufe nicht verändert worden sein',
+		);
 	});
 });
