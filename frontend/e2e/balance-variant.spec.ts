@@ -43,9 +43,13 @@ test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
 			await expect(variantOption(page, label)).toBeEnabled();
 		}
 
-		// Der längere Hinweis darf den schmalen Viewport nicht horizontal überlaufen lassen.
-		const overflowsHorizontally = await page.evaluate(() => document.body.scrollWidth > window.innerWidth + 1);
-		expect(overflowsHorizontally).toBe(false);
+		// Der längere Hinweis darf den schmalen Viewport nicht horizontal überlaufen lassen. Die
+		// App-Shell clippt overflow-x (scrollWidth wäre strukturell ≤ Viewport) — daher Bounding-Box
+		// wie in `balance-priority.spec.ts`: die Gruppen-Kante bleibt vollständig im 375px-Viewport.
+		const groupBox = await variantGroup(page).boundingBox();
+		expect(groupBox).not.toBeNull();
+		expect(groupBox!.x).toBeGreaterThanOrEqual(0);
+		expect(groupBox!.x + groupBox!.width).toBeLessThanOrEqual(375);
 
 		// „Blüte" wählen — Persistenz wie beim Theme: reine localStorage-Wahl, kein Schreibrequest.
 		await variantOption(page, 'Blüte').click();

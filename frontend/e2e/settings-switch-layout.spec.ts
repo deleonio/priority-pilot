@@ -300,22 +300,11 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await page.getByRole('button', { name: 'Einzelne Animationen' }).click();
 
 		/*
-		 * Test-Pflege #1552: Das Accordion ist über `_open={animationsEnabled}` gesteuert
-		 * (`SettingsPage.tsx`), der Header-Klick wirkt nur auf KoliBris internem Zustand. Ein
-		 * unbeteiligter asynchroner Re-Render (z. B. Layout-Effekte der Nachbar-Karten) reconciliert
-		 * das gesteuerte `_open=false` zurück und klappt das Accordion mitten im Test wieder zu —
-		 * als Rennen Klick↔Re-Render zweimal rot geworden (CI-Läufe auf 07a97713 und cdecf5c0).
-		 * Deshalb nach dem Öffnen kurz beruhigen und bei Zuklappen erneut öffnen (max. 3 Versuche);
-		 * die Assertions selbst bleiben unverändert.
+		 * #1552: Die frühere Deflake-Schleife (Nachöffnen bei Zuklappen, max. 3 Versuche) ist mit
+		 * dem app-seitigen Fix entfallen — `SettingsPage.tsx` führt seit dieser Runde einen lokalen
+		 * Klappzustand mit `_on.onClick`, der Header-Klick reconciliert nicht mehr zurück. Ein
+		 * einziges Assert-Paar genügt wieder.
 		 */
-		const accordionButton = page.getByRole('button', { name: 'Einzelne Animationen' });
-		for (let attempt = 1; attempt <= 3; attempt += 1) {
-			await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
-			await page.waitForTimeout(300);
-			if (await switchControl(page, /Erledigt animieren/i).isVisible()) break;
-			await accordionButton.click();
-		}
-
 		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
 
