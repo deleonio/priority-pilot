@@ -21,7 +21,7 @@ import { useCallback, useState } from 'react';
  * - **Kristall** — dieselbe Silhouette mit harten Kanten: Stützpunkte und Facetten statt weicher
  *   Lappen, leuchtende Knoten an den Spitzen.
  *
- * Die vier Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
+ * Die sechs Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
  * Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
  * Auftakt, Ruhepuls und Material (`balanceFigure.ts`, `balance-figure.frag`).
  *
