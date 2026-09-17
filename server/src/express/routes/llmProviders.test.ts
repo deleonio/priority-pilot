@@ -443,4 +443,63 @@ describe('LLM-Providers API', () => {
 		assertNoLeak('activate', await (await activateProvider(cookie, id)).text());
 		assertNoLeak('models', await (await getModels(cookie, id)).text());
 	});
+
+	it('#1547 Review Runde 1: nutzerlose Requests (Auth aktiv, kein Cookie) schreiben keine Provider', async () => {
+		// Auth ist in dieser Suite aktiv (applyTestAuthEnv) — ein Request ohne Session-Cookie ist
+		// der nutzerlose Fall aus resolveProviderUserId. Schreib-Endpunkte müssen ihn mit 401
+		// abweisen (Defense-in-Depth neben requireAuth), GET bleibt bei instanzweiten offen.
+		const { LlmProvider } = await import('../../models/index.js');
+		const shared = await LlmProvider.create({
+			name: 'instanzweit-guard',
+			endpoint: 'https://shared.example.com/v1',
+			apiKey: 'shared-key',
+			model: 'shared-model',
+			kind: 'custom',
+		});
+		const jsonHeaders = { 'Content-Type': 'application/json' };
+		const noSession = (path: string, init?: RequestInit) => fetch(`${server.baseUrl}${path}`, init);
+
+		assert.equal(
+			(
+				await noSession('/llm-providers', {
+					method: 'POST',
+					headers: jsonHeaders,
+					body: JSON.stringify(customPayload),
+				})
+			).status,
+			401,
+			'POST ohne Session darf keinen (instanzweiten) Provider anlegen',
+		);
+		assert.equal(
+			(
+				await noSession(`/llm-providers/${shared.id}`, {
+					method: 'PUT',
+					headers: jsonHeaders,
+					body: JSON.stringify({ name: 'gekapert' }),
+				})
+			).status,
+			401,
+			'PUT auf instanzweite Zeile ohne Session → 401',
+		);
+		assert.equal(
+			(await noSession(`/llm-providers/${shared.id}`, { method: 'DELETE' })).status,
+			401,
+			'DELETE auf instanzweite Zeile ohne Session → 401',
+		);
+		assert.equal(
+			(await noSession(`/llm-providers/${shared.id}/activate`, { method: 'POST' })).status,
+			401,
+			'activate ohne Session → 401',
+		);
+		assert.equal(
+			(await noSession(`/llm-providers/${shared.id}/test`, { method: 'POST' })).status,
+			401,
+			'test ohne Session → 401 (kein Upstream-Call auf instanzweite Kosten)',
+		);
+
+		assert.equal(await LlmProvider.count({ where: { name: customPayload.name } }), 0, 'POST hat keine Zeile angelegt');
+		const row = await LlmProvider.findByPk(shared.id);
+		assert.ok(row, 'Instanzweite Zeile bleibt bestehen');
+		assert.equal(row.name, 'instanzweit-guard', 'Instanzweite Zeile unverändert');
+	});
 });
