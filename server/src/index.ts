@@ -147,6 +147,7 @@ export const main = async (): Promise<void> => {
 			migrateUserGeoConfigColumns,
 			migrateUsersDisplayNameCustom,
 			migrateLlmProviderKindColumns,
+			migrateLlmProviderUserId,
 			migrateTaskCreatedById,
 			migrateUsersRoleColumn,
 			migrateUsersPlanColumn,
@@ -205,6 +206,9 @@ export const main = async (): Promise<void> => {
 		// Fehlende kind/builtin_key-Spalten an llm_providers nachziehen (Built-in-Provider) — vor
 		// sync(), damit Provider-Zugriffe auf Bestands-DBs aus #951 nicht mit `no such column` brechen.
 		await migrateLlmProviderKindColumns(sequelize);
+		// Fehlende userId-Spalte an llm_providers nachziehen (#1547 — Provider pro Nutzer) — vor
+		// sync(), damit der nutzerbezogene Scope auf Bestands-DBs nicht mit `no such column` bricht.
+		await migrateLlmProviderUserId(sequelize);
 		// Fehlende createdById-Spalte an tasks nachziehen (#1213 — Ersteller-Konto) — vor sync(),
 		// damit der erweiterte Lese-Scope auf Bestands-DBs nicht mit `no such column` bricht.
 		await migrateTaskCreatedById(sequelize);

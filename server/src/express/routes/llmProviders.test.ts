@@ -359,4 +359,147 @@ describe('LLM-Providers API', () => {
 		const { builtinModelFallback } = await import('../../llm/llmProviders.js');
 		assert.equal(builtinModelFallback(await LlmProvider.findByPk(openrouter.id)), null, 'OpenRouter ohne Katalog');
 	});
+
+	// ── #1547: nutzergebundene Custom-Provider (Spec docs/spec/issue-1547.md) ──
+	it('#1547 TF1 (AK1): GET zeigt instanzweite + eigene Provider, fremde nicht; Zeilen tragen userId', async () => {
+		const cookieA = await register('user-a@1547.example.com');
+		const cookieB = await register('user-b@1547.example.com');
+		const { LlmProvider, User } = await import('../../models/index.js');
+
+		const idA = await createProviderAndGetId(cookieA, { ...customPayload, name: 'A-privat' });
+		const idB = await createProviderAndGetId(cookieB, { ...customPayload, name: 'B-privat' });
+		// Instanzweite Custom-Zeile (userId = null) direkt anlegen — muss für beide sichtbar bleiben.
+		const shared = await LlmProvider.create({
+			name: 'instanzweit',
+			endpoint: 'https://shared.example.com/v1',
+			apiKey: 'shared-key',
+			model: 'shared-model',
+			kind: 'custom',
+		});
+
+		const userA = await User.findOne({ where: { email: 'user-a@1547.example.com' } });
+		const userB = await User.findOne({ where: { email: 'user-b@1547.example.com' } });
+		assert.ok(userA && userB, 'Beide Testnutzer existieren');
+		const rowA = await LlmProvider.findByPk(idA);
+		const rowB = await LlmProvider.findByPk(idB);
+		assert.equal(
+			(rowA as unknown as { userId?: number | null }).userId,
+			userA.id,
+			'Angelegt von A → Zeile trägt userId von A (AK1)',
+		);
+		assert.equal(
+			(rowB as unknown as { userId?: number | null }).userId,
+			userB.id,
+			'Angelegt von B → Zeile trägt userId von B (AK1)',
+		);
+
+		const listA = await listProviders(cookieA);
+		const idsA = listA.map((p) => p.id);
+		assert.equal(listA.length, 4, 'A sieht 2 Built-ins + instanzweite + eigenen');
+		assert.ok(idsA.includes(idA) && idsA.includes(shared.id), 'Eigener + instanzweiter Provider sichtbar');
+		assert.ok(!idsA.includes(idB), 'Provider von B erscheinen für A nicht (AK1)');
+
+		const listB = await listProviders(cookieB);
+		const idsB = listB.map((p) => p.id);
+		assert.equal(listB.length, 4, 'B sieht 2 Built-ins + instanzweite + eigenen');
+		assert.ok(idsB.includes(idB) && idsB.includes(shared.id));
+		assert.ok(!idsB.includes(idA), 'Provider von A erscheinen für B nicht (AK1)');
+	});
+
+	it('#1547 TF2 (AK1): PUT/activate/DELETE auf fremde Provider-ID → 404; Eigentümer darf löschen', async () => {
+		const cookieA = await register('owner@1547.example.com');
+		const cookieB = await register('intruder@1547.example.com');
+		const idA = await createProviderAndGetId(cookieA, { ...customPayload, name: 'A-privat' });
+
+		assert.equal(
+			(await updateProvider(cookieB, idA, { name: 'gekapert' })).status,
+			404,
+			'PUT auf fremden Provider → 404 (AK1)',
+		);
+		assert.equal((await activateProvider(cookieB, idA)).status, 404, 'activate auf fremden Provider → 404 (AK1)');
+		assert.equal((await deleteProvider(cookieB, idA)).status, 404, 'DELETE auf fremden Provider → 404 (AK1)');
+
+		const listA = await listProviders(cookieA);
+		assert.ok(
+			listA.some((p) => p.id === idA),
+			"Nach Fremd-Zugriffen ist A's Provider unverändert da",
+		);
+
+		assert.equal((await deleteProvider(cookieA, idA)).status, 204, 'Eigentümer darf löschen');
+		assert.ok(!(await listProviders(cookieA)).some((p) => p.id === idA));
+	});
+
+	it('#1547 TF3 (AK2): GET/PUT/activate/models leaken weder apiKey-Feld noch Schlüsselwert', async () => {
+		const cookie = await register('leak@1547.example.com');
+		const id = await createProviderAndGetId(cookie, { ...customPayload, apiKey: 'leak-check-key-4711' });
+
+		const assertNoLeak = (label: string, text: string) => {
+			assert.ok(!text.includes('"apiKey"'), `${label}: Feld apiKey darf nicht serialisiert werden (AK2)`);
+			assert.ok(!text.includes('leak-check-key-4711'), `${label}: Schlüsselwert darf nicht vorkommen (AK2)`);
+		};
+
+		assertNoLeak('GET-Liste', await (await getProviders(cookie)).text());
+		assertNoLeak('PUT', await (await updateProvider(cookie, id, { name: 'leak-check-renamed' })).text());
+		assertNoLeak('activate', await (await activateProvider(cookie, id)).text());
+		assertNoLeak('models', await (await getModels(cookie, id)).text());
+	});
+
+	it('#1547 Review Runde 1: nutzerlose Requests (Auth aktiv, kein Cookie) schreiben keine Provider', async () => {
+		// Auth ist in dieser Suite aktiv (applyTestAuthEnv) — ein Request ohne Session-Cookie ist
+		// der nutzerlose Fall aus resolveProviderUserId. Schreib-Endpunkte müssen ihn mit 401
+		// abweisen (Defense-in-Depth neben requireAuth), GET bleibt bei instanzweiten offen.
+		const { LlmProvider } = await import('../../models/index.js');
+		const shared = await LlmProvider.create({
+			name: 'instanzweit-guard',
+			endpoint: 'https://shared.example.com/v1',
+			apiKey: 'shared-key',
+			model: 'shared-model',
+			kind: 'custom',
+		});
+		const jsonHeaders = { 'Content-Type': 'application/json' };
+		const noSession = (path: string, init?: RequestInit) => fetch(`${server.baseUrl}${path}`, init);
+
+		assert.equal(
+			(
+				await noSession('/llm-providers', {
+					method: 'POST',
+					headers: jsonHeaders,
+					body: JSON.stringify(customPayload),
+				})
+			).status,
+			401,
+			'POST ohne Session darf keinen (instanzweiten) Provider anlegen',
+		);
+		assert.equal(
+			(
+				await noSession(`/llm-providers/${shared.id}`, {
+					method: 'PUT',
+					headers: jsonHeaders,
+					body: JSON.stringify({ name: 'gekapert' }),
+				})
+			).status,
+			401,
+			'PUT auf instanzweite Zeile ohne Session → 401',
+		);
+		assert.equal(
+			(await noSession(`/llm-providers/${shared.id}`, { method: 'DELETE' })).status,
+			401,
+			'DELETE auf instanzweite Zeile ohne Session → 401',
+		);
+		assert.equal(
+			(await noSession(`/llm-providers/${shared.id}/activate`, { method: 'POST' })).status,
+			401,
+			'activate ohne Session → 401',
+		);
+		assert.equal(
+			(await noSession(`/llm-providers/${shared.id}/test`, { method: 'POST' })).status,
+			401,
+			'test ohne Session → 401 (kein Upstream-Call auf instanzweite Kosten)',
+		);
+
+		assert.equal(await LlmProvider.count({ where: { name: customPayload.name } }), 0, 'POST hat keine Zeile angelegt');
+		const row = await LlmProvider.findByPk(shared.id);
+		assert.ok(row, 'Instanzweite Zeile bleibt bestehen');
+		assert.equal(row.name, 'instanzweit-guard', 'Instanzweite Zeile unverändert');
+	});
 });
