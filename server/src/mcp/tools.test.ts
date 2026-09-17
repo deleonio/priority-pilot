@@ -648,7 +648,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		for (const weight of [0, 0.05, 1.1]) {
 			const linked = await mcpCall(token, 'task_link', { taskId: parentId, dependsOnId: childId, weight });
 			assert.ok(linked.error, `weight=${weight} sollte fehlschlagen`);
-			assert.match(linked.error!.message, /0,1/);
+			assert.match(linked.error!.message, /0\.1/);
 		}
 
 		const links = await mcpCall<TaskLinks>(token, 'task_links', { taskId: parentId });

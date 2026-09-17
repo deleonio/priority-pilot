@@ -188,7 +188,7 @@ const readWeight = (value: unknown): number => {
 		return 1;
 	}
 	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0.1 || value > 1) {
-		throw new Error('weight muss eine endliche Zahl zwischen 0,1 und 1 sein.');
+		throw new Error('weight must be a finite number between 0.1 and 1.');
 	}
 	return value;
 };
