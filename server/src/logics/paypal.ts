@@ -208,7 +208,12 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 		if (!res.ok) {
 			throw new Error('PayPal-Abo konnte nicht gewechselt werden.');
 		}
-		const body = (await res.json().catch(() => ({}))) as { links?: { rel?: string; href?: string }[] };
+		// PayPal hat den Wechsel bestätigt (res.ok), nur der Body ist unlesbar → kontrolliert mit
+		// {}-Fallback weiterlaufen lassen, den Parse-Fehler aber sichtbar protokollieren (#1471 AK1).
+		const body = (await res.json().catch((error: unknown) => {
+			console.warn('PayPal revise(): Antwort konnte nicht als JSON gelesen werden', error);
+			return {};
+		})) as { links?: { rel?: string; href?: string }[] };
 		const approvalUrl = approveLinkOf(body);
 		return approvalUrl ? { approvalUrl } : {};
 	},

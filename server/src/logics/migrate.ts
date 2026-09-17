@@ -102,6 +102,8 @@ const SERIES_TABLE_COLUMNS = [
 export async function migrateSeriesRenameFields(seq: Sequelize): Promise<void> {
 	// Tabelle existiert nicht → No-Op
 	const [tableCheck] = await seq.query("SELECT name FROM sqlite_master WHERE type='table' AND name='series'");
+	// Rohabfrage ohne generierten Sequelize-Typ: `sqlite_master` liefert nur plain Name-Zeilen,
+	// deshalb der Cast auf unknown[] statt eines Modell-Typs (Muster `graph.ts`, #1471).
 	if ((tableCheck as unknown[]).length === 0) return;
 
 	const [rows] = await seq.query("PRAGMA table_info('series')");
