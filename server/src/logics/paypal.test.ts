@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyWebhookSignature, isGracePeriodExpired } from './paypal.js';
+import { verifyWebhookSignature, isGracePeriodExpired, createPaypalClient } from './paypal.js';
 
 /**
  * Rote Spec-Tests für #1495 (Spec docs/spec/issue-1495.md) — Webhook-Signaturprüfung (AK2) und
@@ -68,5 +68,62 @@ describe('paypal.ts — isGracePeriodExpired (#1506 AK5)', () => {
 	it('ab Tag 16 nach dem ersten Fehlschlag ist die Kulanzfrist abgelaufen', () => {
 		const day16 = new Date('2026-01-17T00:00:00Z');
 		assert.equal(isGracePeriodExpired(firstFailureAt, day16), true);
+	});
+});
+
+// #1471 AK1 (Spec docs/spec/issue-1471.md): revise() bei HTTP 200 mit unlesbarem Body —
+// kontrollierter {}/approvalUrl-Fallback bleibt, aber der Parse-Fehler wird genau 1× per
+// console.warn protokolliert (statt still geschluckt, Muster PR #1480).
+describe('paypal.ts — createPaypalClient().revise (#1471 AK1)', () => {
+	const tokenAndReviseFetch = (reviseResponse: Response): typeof fetch =>
+		(async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (url.endsWith('/v1/oauth2/token')) {
+				return new Response(JSON.stringify({ access_token: 'test-token' }), { status: 200 });
+			}
+			if (url.endsWith('/revise')) {
+				return reviseResponse;
+			}
+			throw new Error(`unerwarteter fetch: ${url}`);
+		}) as unknown as typeof fetch;
+
+	it('bei 200 mit ungültigem JSON: löst mit {} und warnt genau 1× mit Fehlerkontext', async () => {
+		const warn = console.warn;
+		const calls: unknown[][] = [];
+		console.warn = (...args: unknown[]) => calls.push(args);
+		try {
+			const brokenFetch = tokenAndReviseFetch(
+				new Response('<html>Gateway-Fehler</html>', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+			);
+			const result = await createPaypalClient(brokenFetch).revise('SUB-1', 'PLAN-X');
+			assert.deepEqual(result, {}, 'res.ok: Abo-Wechsel war erfolgreich, revise darf nicht werfen');
+			assert.equal(calls.length, 1, 'Parse-Fehler wird genau einmal protokolliert');
+			assert.ok(
+				calls[0]!.some((arg) => typeof arg === 'string' && /revise/i.test(arg)) ||
+					calls[0]!.some((arg) => arg instanceof Error),
+				'die Warnung nennt Fehlerkontext (revise/Parse-Fehler)',
+			);
+		} finally {
+			console.warn = warn;
+		}
+	});
+
+	it('bei 200 mit gültiger approve-Link-Antwort: Rückgabe { approvalUrl }, keine Warnung', async () => {
+		const warn = console.warn;
+		const calls: unknown[][] = [];
+		console.warn = (...args: unknown[]) => calls.push(args);
+		try {
+			const okFetch = tokenAndReviseFetch(
+				new Response(JSON.stringify({ links: [{ rel: 'approve', href: 'https://paypal.approve/xyz' }] }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				}),
+			);
+			const result = await createPaypalClient(okFetch).revise('SUB-1', 'PLAN-X');
+			assert.deepEqual(result, { approvalUrl: 'https://paypal.approve/xyz' });
+			assert.equal(calls.length, 0, 'gültige Antwort darf keine Warnung erzeugen');
+		} finally {
+			console.warn = warn;
+		}
 	});
 });
