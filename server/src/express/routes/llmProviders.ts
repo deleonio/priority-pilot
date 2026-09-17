@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { sendError, parseId } from '../http-error.js';
 import type { components } from '../../api';
 import {
@@ -7,6 +7,7 @@ import {
 	builtinModelFallback,
 	createProvider,
 	deleteProvider,
+	isProviderAccessible,
 	listProviders,
 	toRuntimeConfig,
 	updateProvider,
@@ -14,6 +15,7 @@ import {
 } from '../../llm/llmProviders.js';
 import { LlmProvider } from '../../models/index.js';
 import { upstreamErrorDetail } from '../../llm/upstreamError.js';
+import { resolveGeoUser } from './geoConfig.js';
 
 type LlmProviderDto = components['schemas']['LlmProvider'];
 type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
@@ -253,6 +255,17 @@ const fetchProviderModelsFromUpstream = async (runtime: ProviderRuntime): Promis
 /** Injizierbarer Upstream für Tests (deterministisch ohne echte Provider-Anbindung). */
 export type FetchProviderModels = typeof fetchProviderModelsFromUpstream;
 
+/**
+ * Nutzer-ID des Aufrufers für den Provider-Scope (#1547): der Session-Nutzer, sonst im
+ * lokalen Pass-Through-Modus der gemeinsame Entwicklungs-Nutzer — dieselbe Auflösung wie
+ * die Geo-Config (#1103: eine Wahrheit über den Nutzerkontext, inkl. Dev-Fallback).
+ * `null` = kein Nutzerkonto → nur instanzweite Provider.
+ */
+const resolveProviderUserId = async (req: Request): Promise<number | null> => {
+	const user = await resolveGeoUser(req);
+	return user?.id ?? null;
+};
+
 /** Modul-Level-Cache pro Provider-ID; Tests resettet ihn via `resetProviderModelsCache`. */
 let modelsCache = new Map<number, { models: LlmModelDto[]; expiresAt: number }>();
 
@@ -268,18 +281,19 @@ export const createLlmProvidersRouter = (
 	const router = Router();
 
 	/**
-	 * Alle Provider inklusive effektiver Aktiv-Markierung — Built-ins zuerst, ohne API-Keys
-	 * (Write-Only). Legt fehlende Built-in-Zeilen lazy an.
+	 * Alle für den Aufrufer sichtbaren Provider inklusive effektiver Aktiv-Markierung —
+	 * instanzweite plus eigene (#1547), Built-ins zuerst, ohne API-Keys (Write-Only).
+	 * Legt fehlende Built-in-Zeilen lazy an.
 	 */
-	router.get('/llm-providers', async (_req, res: Response<LlmProviderDto[] | ErrorDto>) => {
+	router.get('/llm-providers', async (req, res: Response<LlmProviderDto[] | ErrorDto>) => {
 		try {
-			res.json(await listProviders());
+			res.json(await listProviders(await resolveProviderUserId(req)));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
 
-	/** Provider anlegen — inaktiv; die Aktivierung erfolgt über die Radio-Auswahl. */
+	/** Provider anlegen — inaktiv und an den Aufrufer gebunden (#1547); Aktivierung über die Radio-Auswahl. */
 	router.post('/llm-providers', async (req, res: Response<LlmProviderDto | ErrorDto>) => {
 		const validation = validateCreate(req.body);
 		if (!validation.ok) {
@@ -287,7 +301,7 @@ export const createLlmProvidersRouter = (
 			return;
 		}
 		try {
-			res.status(201).json(await createProvider(validation.input));
+			res.status(201).json(await createProvider(validation.input, await resolveProviderUserId(req)));
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
@@ -296,6 +310,7 @@ export const createLlmProvidersRouter = (
 	/**
 	 * Provider aktualisieren — abwesende Felder unverändert, `apiKey` nur bei nicht-leerem
 	 * String. Für Built-ins ist nur `model` erlaubt (Modellwahl aus der Modellliste).
+	 * Fremde Provider-IDs (#1547) verhalten sich wie unbekannte: 404.
 	 */
 	router.put('/llm-providers/:id', async (req, res: Response<LlmProviderDto | ErrorDto>) => {
 		const validation = validateUpdate(req.body);
@@ -309,7 +324,7 @@ export const createLlmProvidersRouter = (
 			return;
 		}
 		try {
-			const updated = await updateProvider(id, validation.input);
+			const updated = await updateProvider(id, validation.input, await resolveProviderUserId(req));
 			// Endpoint/API-Key können sich geändert haben — die gecachte Modellliste und das
 			// Test-Ergebnis der alten Konfiguration wären bis zum TTL-Ablauf veraltet.
 			modelsCache.delete(id);
@@ -320,7 +335,10 @@ export const createLlmProvidersRouter = (
 		}
 	});
 
-	/** Custom-Provider löschen (Built-ins sind fix). War er aktiv, greift der Built-in-Fallback. */
+	/**
+	 * Custom-Provider löschen (Built-ins sind fix). War er aktiv, greift der Built-in-Fallback.
+	 * Fremde Provider-IDs (#1547) verhalten sich wie unbekannte: 404.
+	 */
 	router.delete('/llm-providers/:id', async (req, res: Response<ErrorDto | { message: string }>) => {
 		const id = parseId(req.params.id);
 		if (id === null) {
@@ -328,7 +346,7 @@ export const createLlmProvidersRouter = (
 			return;
 		}
 		try {
-			await deleteProvider(id);
+			await deleteProvider(id, await resolveProviderUserId(req));
 			modelsCache.delete(id); // Cache-Einträge des gelöschten Providers freigeben.
 			testResultsCache.delete(id);
 			res.status(204).end();
@@ -346,7 +364,7 @@ export const createLlmProvidersRouter = (
 			return;
 		}
 		try {
-			res.json(await activateProvider(id));
+			res.json(await activateProvider(id, await resolveProviderUserId(req)));
 		} catch (error) {
 			if (sendServiceError(res, error)) return;
 			sendError(res, 500, 'Interner Serverfehler.');
@@ -363,6 +381,7 @@ export const createLlmProvidersRouter = (
 			sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
 			return;
 		}
+		const userId = await resolveProviderUserId(req);
 		let row: LlmProvider | null;
 		try {
 			row = await LlmProvider.findByPk(id);
@@ -370,7 +389,7 @@ export const createLlmProvidersRouter = (
 			sendError(res, 500, 'Interner Serverfehler.');
 			return;
 		}
-		if (row === null) {
+		if (row === null || !isProviderAccessible(row, userId)) {
 			sendError(res, 404, 'Provider nicht gefunden.');
 			return;
 		}
@@ -424,6 +443,7 @@ export const createLlmProvidersRouter = (
 				sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
 				return;
 			}
+			const userId = await resolveProviderUserId(req);
 			let row: LlmProvider | null;
 			try {
 				row = await LlmProvider.findByPk(id);
@@ -431,7 +451,7 @@ export const createLlmProvidersRouter = (
 				sendError(res, 500, 'Interner Serverfehler.');
 				return;
 			}
-			if (row === null) {
+			if (row === null || !isProviderAccessible(row, userId)) {
 				sendError(res, 404, 'Provider nicht gefunden.');
 				return;
 			}

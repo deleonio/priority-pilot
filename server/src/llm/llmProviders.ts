@@ -1,4 +1,5 @@
-import { col, fn, where } from 'sequelize';
+import { col, fn, where, Op } from 'sequelize';
+import type { WhereOptions } from 'sequelize';
 import { LlmProvider } from '../models/index.js';
 
 /**
@@ -126,6 +127,23 @@ export const builtinModelFallback = (provider: LlmProvider): { id: string; name:
 };
 
 /**
+ * Nutzer-Scope der Provider-Zeilen (#1547): instanzweite Zeilen (`userId = null`, inkl.
+ * Built-ins) plus die eigenen. `null` = nur instanzweite (Aufrufer ohne Nutzerkonto);
+ * `undefined` = kein Scope (interne Aufrufe ohne Nutzerkontext, z. B. Unit-Tests) —
+ * dann gelten weiterhin alle Zeilen.
+ */
+const providerScope = (userId: number | null | undefined): WhereOptions | undefined =>
+	userId === undefined ? undefined : { [Op.or]: [{ userId: null }, { userId }] };
+
+/**
+ * Ob ein Nutzer eine Provider-Zeile sehen/verwalten darf (#1547): instanzweite Zeilen
+ * für alle, nutzereigene nur für den Eigentümer. `undefined` = kein Nutzerkontext
+ * erzwungen (interner Aufruf) → alles erlaubt.
+ */
+export const isProviderAccessible = (provider: LlmProvider, userId: number | null | undefined): boolean =>
+	userId === undefined || provider.userId === null || provider.userId === userId;
+
+/**
  * Der Fallback-Built-in: Mistral, wenn dessen ENV-Key gesetzt ist, sonst OpenRouter —
  * `null`, wenn kein Built-in konfiguriert ist (dann ist ohne aktiven Custom-Provider
  * gar kein Provider aktiv und LLM-Aufrufe antworten 503).
@@ -249,10 +267,13 @@ const effectiveActive = (providers: LlmProvider[]): LlmProvider | null => {
 	return providers.find((provider) => provider.kind === 'builtin' && provider.builtinKey === fallbackKey) ?? null;
 };
 
-/** Alle Provider (ohne API-Keys) — Built-ins zuerst (feste Reihenfolge für die Radio-Group). */
-export const listProviders = async (): Promise<LlmProviderDto[]> => {
+/**
+ * Alle für einen Nutzer sichtbaren Provider (ohne API-Keys) — instanzweite plus eigene
+ * (#1547); Built-ins zuerst (feste Reihenfolge für die Radio-Group).
+ */
+export const listProviders = async (userId?: number | null): Promise<LlmProviderDto[]> => {
 	await ensureBuiltins();
-	const providers = await LlmProvider.findAll({ order: [['id', 'ASC']] });
+	const providers = await LlmProvider.findAll({ where: providerScope(userId), order: [['id', 'ASC']] });
 	const active = effectiveActive(providers);
 	const builtins = BUILTIN_DEFINITIONS.map(
 		(definition) =>
@@ -297,21 +318,30 @@ export const findProviderByName = async (name: string): Promise<LlmProvider | nu
 
 /**
  * Legt einen Custom-Provider an — inaktiv; die Aktivierung erfolgt bewusst über die
- * Radio-Auswahl (`activateProvider`), nicht automatisch.
+ * Radio-Auswahl (`activateProvider`), nicht automatisch. Die Zeile gehört dem anlegenden
+ * Nutzer (`userId`, #1547); `null` = instanzweit (Aufrufer ohne Nutzerkonto).
  */
-export const createProvider = async (input: LlmProviderCreateInput): Promise<LlmProviderDto> => {
-	const created = await LlmProvider.create({ ...input, isActive: false, kind: 'custom', builtinKey: null });
+export const createProvider = async (
+	input: LlmProviderCreateInput,
+	userId: number | null = null,
+): Promise<LlmProviderDto> => {
+	const created = await LlmProvider.create({ ...input, isActive: false, kind: 'custom', builtinKey: null, userId });
 	return toDto(created, false);
 };
 
 /**
  * Aktualisiert einen Provider. Built-ins sind bis auf die Modell-Wahl unveränderlich
  * (`BUILTIN_IMMUTABLE`); bei Custom-Providern wird `apiKey` nur bei nicht-leerem String
- * gesetzt. Wirft bei unbekannter ID (`NOT_FOUND`).
+ * gesetzt. Wirft bei unbekannter ID (`NOT_FOUND`) — und mit Nutzerkontext (#1547) ebenso
+ * bei der ID eines fremden Nutzers.
  */
-export const updateProvider = async (id: number, input: LlmProviderUpdateInput): Promise<LlmProviderDto> => {
+export const updateProvider = async (
+	id: number,
+	input: LlmProviderUpdateInput,
+	userId?: number | null,
+): Promise<LlmProviderDto> => {
 	const provider = await LlmProvider.findByPk(id);
-	if (provider === null) {
+	if (provider === null || !isProviderAccessible(provider, userId)) {
 		throw new Error('NOT_FOUND');
 	}
 	const patch: LlmProviderUpdateInput = {};
@@ -332,11 +362,12 @@ export const updateProvider = async (id: number, input: LlmProviderUpdateInput):
 
 /**
  * Löscht einen Custom-Provider (Built-ins: `BUILTIN_IMMUTABLE`). War er aktiv, übernimmt
- * automatisch der Built-in-Fallback. Wirft bei unbekannter ID.
+ * automatisch der Built-in-Fallback. Wirft bei unbekannter ID — und mit Nutzerkontext
+ * (#1547) ebenso bei der ID eines fremden Nutzers.
  */
-export const deleteProvider = async (id: number): Promise<void> => {
+export const deleteProvider = async (id: number, userId?: number | null): Promise<void> => {
 	const provider = await LlmProvider.findByPk(id);
-	if (provider === null) {
+	if (provider === null || !isProviderAccessible(provider, userId)) {
 		throw new Error('NOT_FOUND');
 	}
 	if (provider.kind === 'builtin') {
@@ -347,11 +378,12 @@ export const deleteProvider = async (id: number): Promise<void> => {
 
 /**
  * Setzt genau einen Provider aktiv und deaktiviert alle anderen (Radio-Button-Logik) —
- * für Custom- UND Built-in-Provider. Wirft bei unbekannter ID.
+ * für Custom- UND Built-in-Provider. Wirft bei unbekannter ID — und mit Nutzerkontext
+ * (#1547) ebenso bei der ID eines fremden Nutzers.
  */
-export const activateProvider = async (id: number): Promise<LlmProviderDto> => {
+export const activateProvider = async (id: number, userId?: number | null): Promise<LlmProviderDto> => {
 	const provider = await LlmProvider.findByPk(id);
-	if (provider === null) {
+	if (provider === null || !isProviderAccessible(provider, userId)) {
 		throw new Error('NOT_FOUND');
 	}
 	await LlmProvider.update({ isActive: false }, { where: { isActive: true } });

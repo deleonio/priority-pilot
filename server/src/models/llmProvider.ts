@@ -15,8 +15,9 @@ import sequelize from '../database.js';
  *   ENV-Werte in jeden LLM-Aufruf ein.
  *
  * Genau EIN Provider ist effektiv aktiv (`isActive`) und erhält sämtliche LLM-Aufrufe
- * (Radio-Button-Auswahl, siehe `POST /llm-providers/{id}/activate`). Wie `llm_configs`
- * (#640) bewusst instanzweit ohne `userId` — die Konfiguration gilt für die ganze Instanz.
+ * (Radio-Button-Auswahl, siehe `POST /llm-providers/{id}/activate`). Seit #1547 tragen
+ * Custom-Provider die `userId` ihres Eigentümers; Zeilen mit `userId = null` (Built-ins,
+ * historische Bestandszeilen) gelten instanzweit wie `llm_configs` (#640).
  *
  * Spalten-Semantik bei Builtins: `endpoint` und `apiKey` bleiben leer (Runtime-Auflösung über
  * ENV), `model` ist leer, solange der Nutzer kein Modell gewählt hat (dann greift der
@@ -39,6 +40,11 @@ class LlmProvider extends Model {
 	public kind!: 'custom' | 'builtin';
 	/** Bei Builtins der feste Schlüssel ('mistral'|'openrouter'), bei Custom-Zeilen null. */
 	public builtinKey!: string | null;
+	/**
+	 * Eigentümer der Zeile (#1547): `null` = instanzweit (Built-ins, historische Custom-Zeilen),
+	 * sonst die User-ID — der Provider ist dann nur für diesen Nutzer sichtbar/verwaltbar.
+	 */
+	public userId!: number | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -87,6 +93,11 @@ LlmProvider.init(
 			allowNull: true,
 			defaultValue: null,
 			field: 'builtin_key',
+		},
+		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
 		},
 	},
 	{

@@ -427,6 +427,28 @@ export const migrateLlmProviderKindColumns = async (db: Sequelize): Promise<void
 };
 
 /**
+ * Zieht die nullbare `userId`-Spalte an `llm_providers` nach (#1547 — Provider pro Nutzer), BEVOR
+ * `sequelize.sync()` läuft. `sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue Spalten
+ * — ohne Nachziehen bräche der nutzerbezogene Scope (`userId IS NULL OR userId = …`) mit
+ * `SQLITE_ERROR: no such column: userId`.
+ *
+ * Idempotent: Bereits vorhandene Spalten werden übersprungen, mehrfache Aufrufe bleiben stabil.
+ * Fehlt die Tabelle ganz (frische DB), ist die Migration ein No-op — `sync()` legt danach Tabelle
+ * inkl. Spalte korrekt an. Die Spalte bleibt nullbar: Bestandszeilen (inkl. Built-ins) gelten
+ * weiter instanzweit und bleiben für alle Nutzer sichtbar.
+ */
+export const migrateLlmProviderUserId = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('llm_providers')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('userId')) {
+		return;
+	}
+	await db.query('ALTER TABLE `llm_providers` ADD COLUMN `userId` INTEGER');
+	console.log('Spalte userId an llm_providers nachgezogen (#1547).');
+};
+
+/**
  * Zieht die `checklist`-Spalte (JSON-Array, #531) auf einer **bestehenden** `tasks`-Tabelle nach,
  * BEVOR `sequelize.sync()` läuft. `sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue
  * Spalten — ohne Nachziehen bräche jeder Lese-/Schreibzugriff mit `no such column`. Bestehende Tasks

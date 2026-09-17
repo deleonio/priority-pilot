@@ -12,6 +12,7 @@ import {
 	migrateTaskCreatedById,
 	migrateUserGeoConfigColumns,
 	migrateLlmProviderKindColumns,
+	migrateLlmProviderUserId,
 	migrateUsersRoleColumn,
 	migrateCategoryIdColumns,
 } from './migrate.js';
@@ -428,7 +429,13 @@ describe('migrateLlmProviderKindColumns', () => {
 		return (rows as { name: string }[]).map((row) => row.name);
 	};
 
-	/** Erzeugt eine `llm_providers`-Tabelle im Alt-Schema von #951 — ohne kind/builtin_key. */
+	/**
+	 * Erzeugt eine `llm_providers`-Tabelle im Alt-Schema von #951 — ohne kind/builtin_key.
+	 * Test-Pflege (#1547): `userId` ergänzt — das LlmProvider-Modell selectiert die Spalte
+	 * inzwischen, ohne sie bräche `LlmProvider.findAll()` unten mit `no such column`
+	 * (Konvention wie bei der Legacy-`users`-Tabelle weiter unten; die userId-Migration selbst
+	 * deckt die eigene Suite `migrateLlmProviderUserId` mit einem Schema ohne die Spalte ab).
+	 */
 	const createLegacyLlmProvidersTable = async (): Promise<void> => {
 		await sequelize.query(
 			'CREATE TABLE `llm_providers` (' +
@@ -438,6 +445,7 @@ describe('migrateLlmProviderKindColumns', () => {
 				"`api_key` VARCHAR(255) NOT NULL DEFAULT '', " +
 				'`model` VARCHAR(255) NOT NULL, ' +
 				'`is_active` INTEGER NOT NULL DEFAULT 0, ' +
+				'`userId` INTEGER, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -481,6 +489,68 @@ describe('migrateLlmProviderKindColumns', () => {
 		const columns = await llmProviderColumns();
 		assert.ok(columns.includes('kind'), 'frische Tabelle enthält kind');
 		assert.ok(columns.includes('builtin_key'), 'frische Tabelle enthält builtin_key');
+	});
+});
+
+describe('migrateLlmProviderUserId', () => {
+	/** Spaltennamen der `llm_providers`-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const llmProviderColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('llm_providers')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine `llm_providers`-Tabelle im Alt-Schema vor #1547 — mit kind/builtin_key, ohne userId. */
+	const createPre1547LlmProvidersTable = async (): Promise<void> => {
+		await sequelize.query(
+			'CREATE TABLE `llm_providers` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`endpoint` VARCHAR(255) NOT NULL, ' +
+				"`api_key` VARCHAR(255) NOT NULL DEFAULT '', " +
+				'`model` VARCHAR(255) NOT NULL, ' +
+				'`is_active` INTEGER NOT NULL DEFAULT 0, ' +
+				"`kind` VARCHAR(255) NOT NULL DEFAULT 'custom', " +
+				'`builtin_key` VARCHAR(255), ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it('zieht auf einem Alt-Schema ohne userId nach; Bestandszeilen bleiben instanzweit (NULL)', async () => {
+		await createPre1547LlmProvidersTable();
+		await sequelize.query(
+			'INSERT INTO llm_providers (name, endpoint, api_key, model, is_active, "createdAt", "updatedAt") ' +
+				"VALUES ('Alt-Provider', 'https://alt.example.com/v1', 'key', 'm1', 0, datetime('now'), datetime('now'))",
+		);
+
+		await migrateLlmProviderUserId(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		const columns = await llmProviderColumns();
+		assert.ok(columns.includes('userId'), 'userId wurde nachgezogen');
+
+		// Bestandszeilen gelten weiter instanzweit; LlmProvider.findAll() läuft ohne SQLITE_ERROR.
+		const { LlmProvider } = await import('../models/index.js');
+		const rows = await LlmProvider.findAll();
+		assert.equal(rows.length, 1);
+		assert.equal(rows[0]?.userId, null, 'Bestandszeile bleibt instanzweit (userId = NULL)');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelte Spalte', async () => {
+		await createPre1547LlmProvidersTable();
+		await migrateLlmProviderUserId(sequelize);
+		await assert.doesNotReject(() => migrateLlmProviderUserId(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await llmProviderColumns()).filter((name) => name === 'userId').length, 1, 'userId genau einmal');
+	});
+
+	it('ist auf einer DB ohne llm_providers-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await llmProviderColumns(), [], 'Vorbedingung: keine llm_providers-Tabelle');
+
+		await assert.doesNotReject(() => migrateLlmProviderUserId(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		assert.ok((await llmProviderColumns()).includes('userId'), 'frische Tabelle enthält userId');
 	});
 });
 
