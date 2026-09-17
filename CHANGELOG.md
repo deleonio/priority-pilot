@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-16
 
-_Enthält v0.2.0 – v0.2.87._
+_Enthält v0.2.0 – v0.2.88._
 
 ### 🔧 Engineering
 
@@ -98,6 +98,7 @@ _Enthält v0.2.0 – v0.2.87._
 - feat(frontend): couple ai toggle to plan entitlement (#1525) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1536
 - feat(server): send admin email notification on new feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1538
 - feat(frontend): gate access-token controls, rename tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1537
+- feat(frontend): gate pillar advisor ui behind ai entitlement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1539
 
 ## v0.1 - 2026-09-12
 
@@ -818,7 +819,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): move home switch into the header toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1383
 - feat(mcp): accept pillars array in task_create/task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1385
 - ci: add daily minor version bump workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1377
-- feat(server): add group_list and group_members_list MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1384
 - feat(server): add group_list and group_members_list MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1384
 - feat(frontend): lay out forest dependency graph user-first on mobile by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1386
 - feat(frontend): add milestone badges for streak and points by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1387
