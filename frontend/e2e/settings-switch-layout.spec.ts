@@ -299,6 +299,12 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 
 		await page.getByRole('button', { name: 'Einzelne Animationen' }).click();
 
+		/*
+		 * #1552: Die frühere Deflake-Schleife (Nachöffnen bei Zuklappen, max. 3 Versuche) ist mit
+		 * dem app-seitigen Fix entfallen — `SettingsPage.tsx` führt seit dieser Runde einen lokalen
+		 * Klappzustand mit `_on.onClick`, der Header-Klick reconciliert nicht mehr zurück. Ein
+		 * einziges Assert-Paar genügt wieder.
+		 */
 		await expect(switchControl(page, /Herz animieren/i)).toBeVisible();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeVisible();
 

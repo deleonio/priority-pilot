@@ -10,7 +10,7 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  * (`balanceVariant.ts`, localStorage-Key `pp-balance-variant`). Aufbau bewusst wie
  * `AppearanceSetting` daneben: Beide wählen, **wie** die App aussieht, nicht **was** sie rechnet.
  *
- * Senkrecht statt waagerecht: Fünf Optionen mit sprechenden Namen passen auf 375 px nicht
+ * Senkrecht statt waagerecht: Sieben Optionen mit sprechenden Namen passen auf 375 px nicht
  * nebeneinander, ohne dass die Beschriftungen umbrechen (mobile-ui-rules.md).
  */
 export const BalanceVariantSetting = () => {
@@ -31,7 +31,7 @@ export const BalanceVariantSetting = () => {
 				_orientation="vertical"
 				_options={options}
 				_value={variant}
-				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile."
+				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal."
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {

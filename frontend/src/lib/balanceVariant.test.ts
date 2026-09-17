@@ -49,6 +49,8 @@ describe('balanceVariant', () => {
 			'scheiben',
 			'ringe',
 			'strahlen',
+			'bluete',
+			'kristall',
 		]);
 	});
 });

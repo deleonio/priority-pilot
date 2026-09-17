@@ -66,7 +66,7 @@ describe('HeartBalance', () => {
 		 * dieselbe Zahl, die unter dem Bild steht.
 		 */
 		it('gibt jeder Figur dasselbe Zifferblatt mit 100 Strichen', () => {
-			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen'] as const) {
+			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall'] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 
@@ -83,7 +83,7 @@ describe('HeartBalance', () => {
 
 		/* Die Soll-Marke sagt in jeder Figur dasselbe: „hier stünde die Säule genau auf ihrem Ziel". */
 		it('markiert in jeder Figur, wo das Soll liegt', () => {
-			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen'] as const) {
+			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall'] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 				expect(screen.getAllByTestId('balance-target').length, value).toBeGreaterThan(0);
@@ -192,6 +192,41 @@ describe('HeartBalance', () => {
 			const radii = orbRadii();
 			expect(radii).toHaveLength(3);
 			expect(radii[2]).toBeCloseTo(R_MIN, 2);
+		});
+	});
+
+	describe('Figuren „Blüte" und „Kristall"', () => {
+		/** Position des Lappen-Knotens je Säule (`.balance-node` in jeder `heart-column`-Gruppe). */
+		const nodePositions = (): { cx: number; cy: number }[] =>
+			screen.getAllByTestId('heart-column').map((column) => {
+				const node = column.querySelector('.balance-node');
+				return { cx: Number(node?.getAttribute('cx')), cy: Number(node?.getAttribute('cy')) };
+			});
+
+		/*
+		 * Die beiden teilen sich die Stützpunkte wie Blasen und Scheiben den Stapel — im Markup muss
+		 * dasselbe ankommen: gleiche Knotenpositionen, anderes Material.
+		 */
+		it('zeichnet Kristall mit denselben Stützpunkten wie die Blüte, nur in anderer Klasse', () => {
+			chooseVariant('bluete');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+			const bluete = nodePositions();
+			expect(screen.getAllByTestId('heart-column')[0].querySelector('.balance-petal')).not.toBeNull();
+			cleanup();
+
+			chooseVariant('kristall');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+			expect(nodePositions()).toEqual(bluete);
+			expect(screen.getAllByTestId('heart-column')[0].querySelector('.balance-facet')).not.toBeNull();
+		});
+
+		it('stellt den Knoten der stärksten Säule auf 12 Uhr — über der Mitte', () => {
+			chooseVariant('kristall');
+			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
+
+			const [staerkste] = nodePositions();
+			expect(staerkste.cx).toBeCloseTo(50, 1);
+			expect(staerkste.cy).toBeLessThan(50);
 		});
 	});
 });

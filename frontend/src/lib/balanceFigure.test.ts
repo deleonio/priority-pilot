@@ -3,10 +3,12 @@ import {
 	activeTicks,
 	buildArcs,
 	buildOrbs,
+	buildPetals,
 	buildRays,
 	CENTER,
 	FIGURE_MAX,
 	orbAxes,
+	petalRadiusAt,
 	RING_INNER,
 	R_MIN,
 	ringTicks,
@@ -42,21 +44,24 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 describe('Ordnung über alle Figuren', () => {
 	const metrics = metricsOf([0.4, 1.6, 1.0]);
 
-	it('ordnet Blasen, Ringe und Strahlen nach derselben Regel: stärkste Säule zuerst', () => {
+	it('ordnet Blasen, Ringe, Strahlen und Lappen nach derselben Regel: stärkste Säule zuerst', () => {
 		const erwartet = [2, 3, 1];
 		expect(buildOrbs(metrics).map((orb) => orb.pillarId)).toEqual(erwartet);
 		expect(buildArcs(metrics).map((arc) => arc.pillarId)).toEqual(erwartet);
 		expect(buildRays(metrics).map((ray) => ray.pillarId)).toEqual(erwartet);
+		expect(buildPetals(metrics).map((petal) => petal.pillarId)).toEqual(erwartet);
 	});
 
 	it('gibt derselben Säule in jeder Figur dieselbe Bewegung', () => {
 		const orb = buildOrbs(metrics)[0];
 		const arc = buildArcs(metrics)[0];
 		const ray = buildRays(metrics)[0];
+		const petal = buildPetals(metrics)[0];
 
 		for (const key of ['phase', 'swingPeriod', 'rotPeriod', 'rotDirection'] as const) {
 			expect(arc[key]).toBe(orb[key]);
 			expect(ray[key]).toBe(orb[key]);
+			expect(petal[key]).toBe(orb[key]);
 		}
 	});
 
@@ -94,6 +99,7 @@ describe('Ordnung über alle Figuren', () => {
 		for (const arc of buildArcs(voll)) expect(arc.radius + arc.width / 2).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const ray of buildRays(voll)) expect(ray.length).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const orb of buildOrbs(voll)) expect(orb.radius).toBeLessThanOrEqual(FIGURE_MAX);
+		for (const petal of buildPetals(voll)) expect(petal.radius).toBeLessThanOrEqual(FIGURE_MAX);
 	});
 
 	/*
@@ -106,6 +112,7 @@ describe('Ordnung über alle Figuren', () => {
 		for (const orb of buildOrbs(leer)) expect(orb.radius).toBe(R_MIN);
 		for (const ray of buildRays(leer)) expect(ray.length).toBeGreaterThan(0);
 		for (const arc of buildArcs(leer)) expect(arc.width).toBeGreaterThan(0);
+		for (const petal of buildPetals(leer)) expect(petal.radius).toBe(R_MIN);
 	});
 
 	it('schwingt gegenläufig — die Fläche atmet, sie wächst nicht', () => {
@@ -141,6 +148,14 @@ describe('Die Soll-Marke', () => {
 		const aufZiel = rays.find((ray) => ray.pillarId === 2);
 
 		expect(rays[0].targetLength).toBeCloseTo(aufZiel?.length ?? -1, 6);
+	});
+
+	it('liegt bei Blüte und Kristall auf dem Radius, die eine Säule auf Ziel hätte', () => {
+		const metrics = metricsOf([2, 1]);
+		const petals = buildPetals(metrics);
+		const aufZiel = petals.find((petal) => petal.pillarId === 2);
+
+		expect(targetRadius(metrics)).toBeCloseTo(aufZiel?.radius ?? -1, 6);
 	});
 });
 
@@ -180,6 +195,54 @@ describe('Figur „Strahlen"', () => {
 		const step = 360 / rays.length;
 
 		for (const ray of rays) expect(ray.spread * 2).toBeLessThan(step);
+	});
+});
+
+describe('Figuren „Blüte" und „Kristall"', () => {
+	it('stellt den weitesten Lappen auf 12 Uhr und verteilt den Rest gleichmäßig', () => {
+		const petals = buildPetals(metricsOf([0.4, 1.6, 1.0]));
+
+		expect(petals[0].angle).toBe(-90);
+		expect(petals[1].angle).toBeCloseTo(-90 + 120, 6);
+		expect(petals[2].angle).toBeCloseTo(-90 + 240, 6);
+		expect(petals[0].radius).toBeGreaterThan(petals[2].radius);
+	});
+
+	/*
+	 * Die Kontur muss die Spitze jeder Säule exakt treffen — nur dann ist der Abstand der Spitze vom
+	 * Mittelpunkt wirklich der Wert, in beiden Materialien.
+	 */
+	it('trifft die Lappenspitzen exakt — weich wie kantig', () => {
+		const petals = buildPetals(metricsOf([0.4, 1.6, 1.0]));
+
+		for (const petal of petals) {
+			expect(petalRadiusAt(petals, petal.angle, true)).toBeCloseTo(petal.radius, 6);
+			expect(petalRadiusAt(petals, petal.angle, false)).toBeCloseTo(petal.radius, 6);
+		}
+	});
+
+	it('bleibt zwischen zwei Stützpunkten innerhalb ihrer Radien — Blüte weicher als Kristall', () => {
+		const petals = buildPetals(metricsOf([0.4, 1.6]));
+		const zwischen = -90 + 45; // Ein Viertel des Abstands hinter dem ersten Stützpunkt.
+		const tief = Math.min(...petals.map((petal) => petal.radius));
+		const hoch = Math.max(...petals.map((petal) => petal.radius));
+		const weich = petalRadiusAt(petals, zwischen, true);
+		const kantig = petalRadiusAt(petals, zwischen, false);
+
+		expect(weich).toBeGreaterThanOrEqual(tief);
+		expect(weich).toBeLessThanOrEqual(hoch);
+		// Kristall mischt linear (ein Viertel des Wegs zum Nachbarn), die Blüte schiebt die Mischung zur Spitze.
+		expect(kantig).toBeCloseTo(0.75 * hoch + 0.25 * tief, 6);
+		expect(weich).toBeGreaterThan(kantig);
+	});
+
+	/* Im Gleichstand ist die Silhouette ein Kreis — die Bewegung hält die Lappen trotzdem auseinander. */
+	it('gibt gleich großen Lappen paarweise verschiedene Bewegung (Gleichstand)', () => {
+		const petals = buildPetals(metricsOf([1, 1, 1, 1, 1]));
+
+		expect(new Set(petals.map((petal) => petal.radius)).size).toBe(1);
+		expect(new Set(petals.map((petal) => petal.phase)).size).toBe(petals.length);
+		expect(new Set(petals.map((petal) => petal.swingPeriod)).size).toBe(petals.length);
 	});
 });
 

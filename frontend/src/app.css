@@ -3627,6 +3627,107 @@ kol-alert {
 }
 
 /*
+ * Blüte: alle Säulen als eine Silhouette. Der Körper bleibt neutral und leicht — die Farbe tragen
+ * die Lappenränder, jeder in der Neon-Farbe seiner Säule. Ohne Modifier bleibt der Rand neutral:
+ * ab der 8. Säule wird nicht weiter eingefärbt (ux-design.md §2, Regel 3).
+ */
+.balance-petal-mass {
+	fill: color-mix(in srgb, var(--pp-border-strong) 55%, var(--pp-surface-1));
+	fill-opacity: 0.1;
+	stroke: none;
+}
+
+.balance-petal {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 1.5;
+	stroke-linecap: round;
+}
+
+.balance-petal--1 {
+	stroke: var(--pp-pillar-neon-1);
+}
+
+.balance-petal--2 {
+	stroke: var(--pp-pillar-neon-2);
+}
+
+.balance-petal--3 {
+	stroke: var(--pp-pillar-neon-3);
+}
+
+.balance-petal--4 {
+	stroke: var(--pp-pillar-neon-4);
+}
+
+.balance-petal--5 {
+	stroke: var(--pp-pillar-neon-5);
+}
+
+.balance-petal--6 {
+	stroke: var(--pp-pillar-neon-6);
+}
+
+.balance-petal--7 {
+	stroke: var(--pp-pillar-neon-7);
+}
+
+/*
+ * Kristall: Fächerflächen aus der Mitte, deren Füllung die Komponente als `color-mix()` der beiden
+ * Nachbar-Neons setzt (Muster `tickStroke` — Theme-Wechsel färbt ohne JavaScript um). Die Basis
+ * hier trägt nur die Transparenz; die Kante zeichnet die Komponente als eigene Linie.
+ */
+.balance-facet {
+	fill: var(--pp-border-strong);
+	fill-opacity: 0.55;
+	stroke: none;
+}
+
+.balance-facet-edge {
+	fill: none;
+	stroke: var(--pp-border-strong);
+	stroke-width: 0.9;
+	stroke-linecap: round;
+	stroke-opacity: 0.95;
+}
+
+/*
+ * Knoten auf den Lappenspitzen — in Blüte und Kristall dieselbe Klasse, die Größe setzt die
+ * Komponente als Attribut (Blüte kleiner, Kristall größer).
+ */
+.balance-node {
+	fill: var(--pp-border-strong);
+}
+
+.balance-node--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-node--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-node--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-node--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-node--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-node--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-node--7 {
+	fill: var(--pp-pillar-neon-7);
+}
+
+/*
  * Zwei Gruppen, zwei Bewegungen: außen der einmalige Auftakt, innen der Ruhepuls. Sie müssen
  * getrennt bleiben — zwei `animation`-Regeln auf demselben Element schreiben dieselbe
  * `transform`-Eigenschaft und die spätere gewinnt.

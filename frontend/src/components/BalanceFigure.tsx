@@ -4,9 +4,11 @@ import {
 	activeTicks,
 	buildArcs,
 	buildOrbs,
+	buildPetals,
 	buildRays,
 	CENTER,
 	orbAxes,
+	petalArcPoints,
 	polar,
 	ringTicks,
 	targetRadius,
@@ -14,25 +16,29 @@ import {
 	VIEW_SIZE,
 	type Arc,
 	type FigureMotion,
+	type Petal,
 	type Ray,
 	type RingTick,
 } from '../lib/balanceFigure';
 import { balanceMetrics } from '../lib/balanceMetric';
 import type { BalanceModel } from '../lib/heartBalance';
 import type { FigureKind } from '../lib/balanceVariant';
-import { rampClass } from '../lib/pillarRamp';
+import { PILLAR_RAMP_SIZE, rampClass } from '../lib/pillarRamp';
 import { supportsWebGl2 } from '../lib/webgl';
 
 /**
- * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen — außen herum
- * immer dasselbe Zifferblatt aus 100 Strichen.
+ * Die **Figuren-Varianten** der Lebensbalance: Blasen, Scheiben, Ringe, Strahlen, Blüte, Kristall —
+ * außen herum immer dasselbe Zifferblatt aus 100 Strichen.
  *
  * **Alle zeigen dieselben Zahlen.** Je Säule das Verhältnis Ist zu Soll (`balanceMetric.ts`),
  * ungedeckelt: 1 heißt „genau auf Ziel", 1,5 heißt „zieht davon". Die stärkste Säule bekommt
  * überall die größte Form — bei Blasen und Scheiben die unterste, bei den Ringen die äußerste Spur,
  * bei den Strahlen den längsten Strahl auf 12 Uhr. „Blasen" und „Scheiben" teilen sich Geometrie
  * und Bewegung und unterscheiden sich allein im Material: durchscheinende Haut gegen deckende
- * Fläche mit harter Kante. Eine gemeinsame Soll-Marke zeigt, wo „auf Ziel" läge.
+ * Fläche mit harter Kante. „Blüte" und „Kristall" folgen demselben Muster mit anderen Stützpunkten:
+ * Alle Säulen bilden **eine** Silhouette, deren Lappen je Säule so weit reichen wie ihr Wert —
+ * weich verbunden bei der Blüte, mit harten Kanten und Knoten beim Kristall. Eine gemeinsame
+ * Soll-Marke zeigt, wo „auf Ziel" läge.
  * *Außen* trägt das Zifferblatt die Gesamt-Balance: ein Strich je Prozentpunkt, dunkelrot bei 0
  * über orange bis dunkelgrün bei 100. Die Striche bis zum Wert leuchten, die übrigen bleiben
  * abgedunkelt stehen — die Skala ist immer ganz zu sehen, der Stand liest sich als Bogenlänge.
@@ -232,6 +238,8 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 					)}
 					{figure === 'ringe' && <Arcs metrics={metrics} animated={animated} />}
 					{figure === 'strahlen' && <Rays metrics={metrics} animated={animated} />}
+					{figure === 'bluete' && <Petals metrics={metrics} animated={animated} />}
+					{figure === 'kristall' && <Crystal metrics={metrics} animated={animated} />}
 				</g>
 			</g>
 		</svg>
@@ -359,6 +367,148 @@ const Rays = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics
 					)}
 				</polygon>
 			))}
+		</>
+	);
+};
+
+/** Pfadangabe aus Stützpunkten — offen (`close` falsch) für Lappenränder, geschlossen für die Kontur. */
+const toPath = (points: { x: number; y: number }[], close: boolean): string =>
+	`M ${points.map((point) => `${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' L ')}${close ? ' Z' : ''}`;
+
+/** Spottpreis eines Farbrangs als Token-Referenz; jenseits der Rampe die Neutralfarbe. */
+const neonVar = (colorIndex: number): string =>
+	colorIndex < PILLAR_RAMP_SIZE ? `var(--pp-pillar-neon-${colorIndex + 1})` : 'var(--pp-border-strong)';
+
+/** Mischfarbe zweier Farbränge als Inline-`color-mix()` aus den Tokens (Muster `tickStroke`). */
+const mixVars = (a: number, b: number, dilution: number): string =>
+	`color-mix(in srgb, color-mix(in srgb, ${neonVar(a)} 50%, ${neonVar(b)} 50%) ${dilution}%, var(--pp-surface-1))`;
+
+/** Der Lichtpunkt auf einer Lappenspitze — pulsiert im Takt der Säule, still ohne Animation. */
+const TipNode = ({ petal, radius, animated }: { petal: Petal; radius: number; animated: boolean }) => {
+	const position = polar(petal.angle, petal.radius);
+	return (
+		<circle
+			className={rampClass('balance-node', petal.colorIndex)}
+			cx={position.x.toFixed(2)}
+			cy={position.y.toFixed(2)}
+			r={radius.toFixed(2)}
+		>
+			{animated && (
+				<animate
+					attributeName="r"
+					values={`${(radius * 0.72).toFixed(2)};${(radius * 1.28).toFixed(2)};${(radius * 0.72).toFixed(2)}`}
+					dur={`${petal.swingPeriod}s`}
+					repeatCount="indefinite"
+				/>
+			)}
+		</circle>
+	);
+};
+
+/**
+ * Figur „Blüte": alle Säulen als **eine** weiche Silhouette. Der Körper bleibt neutral und leicht,
+ * die Farbe tragen die Lappenränder — jeder in der Neon-Farbe seiner Säule, vom Tal zur Nachbar-
+ * Säule hin. Die Soll-Marke ist der gestrichelte Kreis wie bei den Blasen.
+ */
+const Petals = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+	const petals = buildPetals(metrics);
+	const lobes = petals.map((_, index) => petalArcPoints(petals, index, true));
+	return (
+		<>
+			{petals.length > 0 && (
+				<>
+					<circle
+						className="balance-target"
+						data-testid="balance-target"
+						cx={CENTER}
+						cy={CENTER}
+						r={targetRadius(metrics).toFixed(2)}
+					/>
+					{/* Körper der Blüte: die geschlossene Kontur, leicht und neutral gefüllt. */}
+					<path className="balance-petal-mass" d={toPath(lobes.flat(), true)} />
+				</>
+			)}
+			{petals.map((petal, index) => (
+				<g key={petal.pillarId} data-testid="heart-column">
+					<path className={rampClass('balance-petal', petal.colorIndex)} d={toPath(lobes[index], false)}>
+						{animated && (
+							<animate
+								attributeName="opacity"
+								values="0.74;1;0.74"
+								dur={`${petal.swingPeriod}s`}
+								repeatCount="indefinite"
+							/>
+						)}
+					</path>
+					<TipNode petal={petal} radius={1.3} animated={animated} />
+				</g>
+			))}
+		</>
+	);
+};
+
+/**
+ * Figur „Kristall": dieselben Stützpunkte wie die Blüte, aber kantig — Fächerflächen aus der Mitte,
+ * geradlinige Kanten und helle Knoten auf den Spitzen. Die Facette gehört der Säule, an deren Winkel
+ * sie beginnt; ihre Farbe mischt deren Neon mit der des Nachbar-Stützpunkts, denn die Kante gehört
+ * beiden. Bei einer einzigen Säule ist die Silhouette ein Kreis — Umriss und Knoten genügen.
+ */
+const Crystal = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+	const petals = buildPetals(metrics);
+	return (
+		<>
+			{petals.length > 0 && (
+				<circle
+					className="balance-target"
+					data-testid="balance-target"
+					cx={CENTER}
+					cy={CENTER}
+					r={targetRadius(metrics).toFixed(2)}
+				/>
+			)}
+			{petals.length === 1 && (
+				<circle
+					className={rampClass('balance-petal', petals[0].colorIndex)}
+					data-testid="heart-column"
+					cx={CENTER}
+					cy={CENTER}
+					r={petals[0].radius.toFixed(2)}
+				/>
+			)}
+			{petals.map((petal, index) => {
+				if (petals.length < 2) return null;
+				const next = petals[(index + 1) % petals.length];
+				const from = polar(petal.angle, petal.radius);
+				const to = polar(next.angle, next.radius);
+				return (
+					<g key={petal.pillarId} data-testid="heart-column">
+						<polygon
+							className="balance-facet"
+							style={{ fill: mixVars(petal.colorIndex, next.colorIndex, 62) }}
+							points={`${CENTER},${CENTER} ${from.x.toFixed(2)},${from.y.toFixed(2)} ${to.x.toFixed(2)},${to.y.toFixed(2)}`}
+						>
+							{animated && (
+								<animate
+									attributeName="opacity"
+									values="0.78;1;0.78"
+									dur={`${petal.swingPeriod}s`}
+									repeatCount="indefinite"
+								/>
+							)}
+						</polygon>
+						<line
+							className="balance-facet-edge"
+							style={{ stroke: mixVars(petal.colorIndex, next.colorIndex, 85) }}
+							x1={from.x.toFixed(2)}
+							y1={from.y.toFixed(2)}
+							x2={to.x.toFixed(2)}
+							y2={to.y.toFixed(2)}
+						/>
+						<TipNode petal={petal} radius={1.7} animated={animated} />
+					</g>
+				);
+			})}
+			{petals.length === 1 && <TipNode petal={petals[0]} radius={1.7} animated={animated} />}
 		</>
 	);
 };

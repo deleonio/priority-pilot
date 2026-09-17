@@ -165,6 +165,11 @@ export const SettingsPage = ({
 	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
 	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
 	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
+	// #1552: Klappzustand des Accordion „Einzelne Animationen" — bewusst app-seitig geführt. Das
+	// Accordion folgt dem Master (AK9), darf sich aber durch Header-Klick auch unabhängig davon
+	// zu-/aufklappen lassen: ein rein gesteuertes `_open={animationsEnabled}` ohne Handler wird vom
+	// nächsten unbeteiligten Re-Render wieder zurückreconciliert (CI-Rennen zweimal rot).
+	const [animationsOpen, setAnimationsOpen] = useState(animationsEnabled);
 	// Feinschalter „Herz animieren“ — gilt nur gemeinsam mit dem Master (das Herz im HeartBalance).
 	const { enabled: heartAnimationEnabled, setEnabled: setHeartAnimationEnabled } = useHeartAnimationEnabled();
 	// Feinschalter „Erledigt animieren“ — gilt nur gemeinsam mit dem Master (Konfetti, #1169).
@@ -434,6 +439,9 @@ export const SettingsPage = ({
 									_on={{
 										onChange: (_event, value) => {
 											setAnimationsEnabled(value === true);
+											// #1552: Master-Schalter klappt das Accordion mit auf/zu
+											// (AK9) — der lokale Klappzustand läuft synchron mit.
+											setAnimationsOpen(value === true);
 										},
 									}}
 								/>
@@ -454,7 +462,10 @@ export const SettingsPage = ({
 								className="settings-accordion"
 								_label="Einzelne Animationen"
 								_level={3}
-								_open={animationsEnabled}
+								_open={animationsOpen}
+								_on={{
+									onClick: (_event, open) => setAnimationsOpen(open === true),
+								}}
 							>
 								<div className="settings-card-stack">
 									<div className="settings-switch-row">
