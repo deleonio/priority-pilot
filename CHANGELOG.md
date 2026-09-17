@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-16
+## v0.2 - 2026-09-17
 
-_Enthält v0.2.0 – v0.2.88._
+_Enthält v0.2.0 – v0.2.89._
 
 ### 🔧 Engineering
 
@@ -99,6 +99,7 @@ _Enthält v0.2.0 – v0.2.88._
 - feat(server): send admin email notification on new feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1538
 - feat(frontend): gate access-token controls, rename tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1537
 - feat(frontend): gate pillar advisor ui behind ai entitlement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1539
+- fix(server): use english error message in mcp readWeight validator by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1540
 
 ## v0.1 - 2026-09-12
 
@@ -744,6 +745,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(server): sync google display name into users on oauth login (#1238) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1241
 - feat(server): create task series for a group member (#1222) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1242
 - feat(frontend): apply master-detail settings pattern with KolDetails by @deleonio in https://github.com/deleonio/priority-pilot/pull/1243
+- feat(frontend): separate balance switch from recompute button (#1220) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1244
 - feat(frontend): separate balance switch from recompute button (#1220) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1244
 - feat(server): join a group via invite link (#1226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1246
 - docs(guide): sync user guide with current app state (2026-09-06) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1248
