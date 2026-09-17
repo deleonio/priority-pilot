@@ -40,7 +40,7 @@ Diese Tabelle ist der Maßstab, nach dem das tägliche Code-Review-Team
 ([`code-review-team`](../.claude/skills/code-review-team/SKILL.md)) den Wert seiner Findings gewichtet;
 Ziele gleicher Priorität sind gleichrangig.
 Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 10 beschrieben; für
-`#flexible` und `#efficient` fehlen dort noch nachprüfbare Szenarien.
+`#efficient` fehlt dort noch ein nachprüfbares Szenario.
 
 ## 2. Rahmenbedingungen
 
@@ -321,7 +321,7 @@ dokumentiert.
 | `#reliable`     | QS-05, QS-06       |
 | `#usable`       | QS-07              |
 | `#operable`     | QS-08              |
-| `#flexible`     | — (Szenario offen) |
+| `#flexible`     | QS-09              |
 | `#efficient`    | — (Szenario offen) |
 
 ### QS-01 — Domäne vollständig über den Vertrag
@@ -382,6 +382,16 @@ dokumentiert.
 - **Szenario:** Ein Merge auf `main` wird ausgeliefert.
 - **Erfolgsmessung:** Der Ablauf ist ohne manuelle Schritte: Build in GitHub Actions, `rsync` der
   `dist`-Verzeichnisse, `pm2 reload priority-pilot` ([deployment.md](deployment.md)).
+
+### QS-09 — Muster-Treue bei der Änderung
+
+- **Qualitätseigenschaft:** `#flexible` — Änderbarkeit
+- **Szenario:** Eine Änderung oder ein Review läuft über eine bestehende Problemklasse
+  (Fehlerbehandlung, Rohabfragen, Layout, API-Vertrag).
+- **Erfolgsmessung:** Pro Problemklasse gibt es ein etabliertes Muster, das die Änderung übernimmt
+  statt ein zweites zu erfinden — geprüft am Code-Review-Protokoll: Abweichungen werden als Finding
+  mit Begründung gemeldet oder im PR begründet (z. B. `console.warn`-Protokollierung nach PR-#1480-Muster,
+  Cast-Begründungen nach `graph.ts`-Muster, Review #1471 F-10/F-11).
 
 ## 11. Risiken und technische Schulden
 
