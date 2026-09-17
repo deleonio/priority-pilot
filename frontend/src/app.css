@@ -166,6 +166,42 @@
 	--pp-modal-width-desktop: 44rem;
 }
 
+/*
+ * Mobile-Typografie eine Pixelstufe größer (Nutzer-Auftrag „Elemente im Mobile etwas größer,
+ * ohne dass das Responsive-Design umbricht"). Die fünf Größen behalten ihre Stellung auf der
+ * Skala (Regel 6, mobile-ui-rules.md), stehen mobil nur einen Pixel höher: 15/17/19/23/29px
+ * statt 14/16/18/22/28px — Fließtext weiterhin ≥ 16px.
+ *
+ * Warum über die Tokens und NICHT über `html { font-size }` (der nahe liegende
+ * „Skalierungsfaktor"): Die rem-Geometrie würde mitskalieren. Die 375px-Kopfzeile ist bis auf
+ * ~2px ausgereizt (Messkommentar an `.app-header`, Vertrag in e2e/mobile-shell.spec.ts ≤ 64px)
+ * und jedes --pp-space-* würde von der 4px-Raster-Skala rutschen (Anti-Pattern „Abstandswerte
+ * außerhalb der 4-dp-Skala"). Der Token-Override skaliert bewusst NUR die Schrift:
+ *
+ * - App-Text (Light-DOM) folgt den Tokens direkt; die KoliBri-Hosts folgen über ihre
+ *   `font-size`-Host-Regel (siehe unten) derselben Basis, KoliBris em-basierte Interna wachsen
+ *   proportional mit.
+ * - KoliBris px-definierte Innenabstände bleiben konstant: Das Theme rechnet sie als
+ *   `calc(N * 1rem / var(--kolibri-root-font-size, 16))` — mit unangetastetem Root (16px) ist
+ *   das exakt N px, unabhängig von der geerbten Schriftgröße. Touch-Mindestmaße
+ *   (`--a11y-min-size`, hier 2.75rem) und die Kopfzeilen-Maße (`--pp-toolbar-height`,
+ *   `--pp-avatar-size`) sind rem-basiert und bleiben ebenfalls unangetastet.
+ * - Breakpoints (48rem/768px) lesen sich gegen die Initial-Schriftgröße und merken von dem
+ *   Override nichts; Desktop (≥ 48rem) behält die unveränderte Skala.
+ *
+ * Die Basis am `:root` bleibt 1rem (Guard: fontAssets.test.ts AK5, #1513) — die Mobile-Werte
+ * stehen ausschließlich in diesem Media-Query, komplementär zum 48rem-Aufwärts-Schalter.
+ */
+@media (max-width: 767px) {
+	:root {
+		--pp-font-size-sm: 0.9375rem; /* 15px */
+		--pp-font-size-base: 1.0625rem; /* 17px */
+		--pp-font-size-lg: 1.1875rem; /* 19px */
+		--pp-font-size-xl: 1.4375rem; /* 23px */
+		--pp-font-size-2xl: 1.8125rem; /* 29px */
+	}
+}
+
 /* Lektorat-Buttons (#997): Gemeinsame Ausrichtungsregel für beide Buttons (Titel/Beschreibung).
    #1159: Oberkante des Knopfs fluchtet mit der Oberkante der Eingabebox — das heißt unter
    dem KoliBri-Feldlabel (24,8 px) plus dessen Bodenabstand (8 px) → 2 rem statt 1 rem. */
@@ -249,6 +285,14 @@ body {
  * #1513: KoliBri-Komponenten erben `font-family` zwar über die Shadow-Grenze (siehe DESIGN.md,
  * Abschnitt „KoliBri Shadow-DOM Styling"), das Theme setzt aber ggf. eine eigene `font-family` im
  * Shadow-Stylesheet. Explizite Host-Regel stellt Archivo unabhängig davon sicher.
+ *
+ * `font-size` ebenso als Host-Regel: KoliBri pinnt jeden Host in `@layer kol-global` auf
+ * `font-size: calc(16 * 1rem / var(--kolibri-root-font-size, 16))` — das ist bei 16px-Root exakt
+ * 16px und schneidet die Vererbung ab. Ohne diese Regel erreichte die Mobile-Typo-Stufe (oben)
+ * die KoliBri-Texte (Button-Labels, Tabs, Felder, Badges) nicht — mit ihr folgen die Hosts der
+ * App-Skala: mobil 17px, ab 48rem unverändert 1rem. Ungeschichtete Dokument-Styles schlagen die
+ * @layer-Regel des Components (dasselbe Muster wie `kol-avatar` weiter unten); die Regel greift
+ * ausschließlich am Host-Element, ohne Shadow-DOM-Selektoren.
  */
 kol-accordion,
 kol-alert,
@@ -277,6 +321,7 @@ kol-tabs,
 kol-textarea,
 kol-toolbar {
 	font-family: var(--pp-font-family);
+	font-size: var(--pp-font-size-base);
 }
 
 /*
@@ -1589,6 +1634,20 @@ kol-toolbar {
 .task-list-item {
 	margin: var(--pp-gap-tight) 0;
 	min-width: 0;
+}
+
+/*
+ * Dichte-Ausgleich zur Mobile-Typo-Stufe am Dateianfang: Die Titelzeile jeder Aufgabe wächst um
+ * ~2px — die vierte Aufgabe rutschte damit 6px unter den 812px-Viewport (Vertrag #1258 AK2:
+ * mindestens vier offene Aufgaben gleichzeitig sichtbar, e2e/issue-1258-tasks-mobile.spec.ts).
+ * Der Außenabstand kollabiert zwischen Geschwistern auf 8px; halbiert auf 4px (weiterhin
+ * 4px-Raster) gibt er 12px zurück und hält den Vertrag. Der 8dp-Abstand der Touch-Targets bleibt
+ * gewahrt — ihr Freiraum zählt ab dem Zeilen-Innenabstand, nicht ab der Kante.
+ */
+@media (max-width: 767px) {
+	.task-list-item {
+		margin-block: var(--pp-space-1);
+	}
 }
 
 /*
