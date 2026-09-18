@@ -1,14 +1,12 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Rote Spec-Tests für #1484 (T3b, Spec docs/spec/issue-1484.md AK3/AK7) — `GroupFormDialog`.
  *
- * AK3: der Modal-Kopf trägt `<PlanBadge feature="groups" />`.
- * AK7: `GroupFormDialog` ruft (anders als heute) `useClosingOnPlanRequired(onClose)` wie
- * `DependencyModal.tsx:124`/`QuickCaptureModal.tsx:179` — ein `pp:plan-required`-Event während der
- * Dialog offen ist, schließt ihn (kein Modal-in-Modal, docs/mobile-ui-rules.md).
+ * AK3: der Modal-Kopf trägt `<PlanBadge feature="groups" />` — seit #1528 mit `inModal`, also
+ * reine Beschriftung ohne Klickziel (AK3, Entscheidung B des Autors).
  *
  * Muster: `DependencyModal.test.tsx` (Modal-Mock ohne Schließverhalten, `useCtrlEnter` gestubbt).
  */
@@ -77,7 +75,6 @@ vi.mock('../api', () => ({
 	api: { createGroup: vi.fn().mockResolvedValue({}), updateGroup: vi.fn().mockResolvedValue({}) },
 }));
 
-import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 import { GroupFormDialog } from './GroupFormDialog';
@@ -98,27 +95,19 @@ const renderDialog = (onClose: () => void) => {
 	);
 };
 
-describe('GroupFormDialog — Paket-Badge und Schließen vor dem Angebot (#1484 AK3/AK7)', () => {
-	it('zeigt das groups-Badge im Modal-Kopf', () => {
-		renderDialog(vi.fn());
-
-		expect(screen.getByTestId('plan-badge-groups')).toBeInTheDocument();
-	});
-
-	it('ruft onClose genau einmal, sobald ein Paket-Angebot angefordert wird (kein Modal-in-Modal)', () => {
+// Test-Pflege (#1528): Angebots-Dialog und useClosingOnPlanRequired entfallen (AK1) — der
+// Schließen-Test (Entscheidung 7.1) ist gegenstandslos. Entscheidung B des Autors (2026-09-17):
+// das Badge ist im Modal reine Beschriftung (`inModal`, kein Klickziel) und schließt nichts.
+describe('GroupFormDialog — Paket-Badge im Modal-Kopf (#1484 AK3, #1528)', () => {
+	it('zeigt das groups-Badge im Modal-Kopf als Beschriftung ohne Klickziel', () => {
 		const onClose = vi.fn();
 		renderDialog(onClose);
 
+		const badge = screen.getByTestId('plan-badge-groups');
+		expect(badge.closest('a')).toBeNull();
+
+		fireEvent.click(badge);
+
 		expect(onClose).not.toHaveBeenCalled();
-
-		act(() => {
-			window.dispatchEvent(
-				new CustomEvent(PLAN_REQUIRED_EVENT, {
-					detail: { feature: 'groups', requiredPlan: 'pro', currentPlan: 'free' },
-				}),
-			);
-		});
-
-		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });

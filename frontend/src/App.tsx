@@ -25,7 +25,6 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
-import { PlanOfferDialog } from './components/PlanOfferDialog';
 import { SessionExpiredDialog } from './components/SessionExpiredDialog';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PushToast } from './components/PushToast';
@@ -1144,7 +1143,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			<UpdatePrompt />
 			<PushToast />
 			<SessionExpiredDialog />
-			<PlanOfferDialog />
 			<Footer version={APP_VERSION} />
 		</main>
 	);

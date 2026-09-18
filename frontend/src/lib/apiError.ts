@@ -1,4 +1,5 @@
 import { ResponseError } from 'client';
+import { featureOffer, planLabel } from './planOffers';
 
 /** Normalisierte Fehlerinformation aus einem fehlgeschlagenen API-Aufruf. */
 interface ApiError {
@@ -65,10 +66,9 @@ const throttledMessage = (response: Response): string => {
 export const SESSION_EXPIRED_EVENT = 'pp:session-expired';
 
 /**
- * DOM-Event-Name für das kontextuelle Paket-Angebot (#1458). `toApiError` feuert ihn, sobald der
- * Server eine Aktion mit `code: plan_required` (403) oder `code: quota_exhausted` (429) ablehnt;
- * der globale `PlanOfferDialog` lauscht darauf. Genau wie beim Session-401 wertet **keine**
- * einzelne Aufrufstelle diese Codes aus — die Weiche liegt allein hier.
+ * Ehemaliger DOM-Event-Name des kontextuellen Paket-Angebots (#1458). Seit #1528 (AK1) wird er
+ * nirgends mehr gefeuert und nicht mehr belauscht — der Export bleibt als kanonischer Name für
+ * die Regression-Spys in `apiError.test.ts`, die verifizieren, dass KEIN Dispatch zurückkommt.
  */
 export const PLAN_REQUIRED_EVENT = 'pp:plan-required';
 
@@ -106,8 +106,14 @@ export const planRequiredDetail = (
 	return { feature, requiredPlan, currentPlan };
 };
 
-/** Fallback-Text, solange der Server keine `message` mitschickt. */
-const PLAN_REQUIRED_TEXT = 'Diese Funktion gehört zu einem größeren Paket. Das Angebot dazu ist gerade aufgegangen.';
+/**
+ * Inline-Text bei einer Paket-Ablehnung (#1528 AK4, Regel 7 mobile-ui-rules.md: Problem +
+ * Recovery). Er nennt Funktion, nötiges Paket und den Weg zum Pakete-Reiter — die Anzeige läuft
+ * als `KolAlert _type="error"` in der Fehlerzeile der jeweiligen Ansicht, nicht in einem Dialog.
+ */
+const planRequiredMessage = (detail: PlanRequiredDetail): string =>
+	`${featureOffer(detail.feature).title} braucht das Paket ${planLabel(detail.requiredPlan)}. ` +
+	'Paket wechseln: Einstellungen → Pakete.';
 
 /**
  * Aufrufer-Kontext (#1465). Die 502/503/504-Übersetzung aus #620 spricht von „KI-Dienst" und passt
@@ -138,16 +144,15 @@ export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiEr
 				body = undefined;
 			}
 		}
-		// Paket-Angebot (#1458) vor der Drosselung: Ein 429 mit `code: quota_exhausted` ist kein
-		// Rate-Limit, sondern ein aufgebrauchtes Monatskontingent — der Nutzer soll das Angebot sehen
-		// und nicht „Bitte kurz warten“. Der Body entscheidet, nicht der Status; ein 403/429 ohne
-		// diese Felder läuft unverändert weiter (echter CSRF-403, reines Rate-Limit).
+		// Paket-Ablehnung (#1458, umgebaut in #1528 AK4) vor der Drosselung: Ein 429 mit
+		// `code: quota_exhausted` ist kein Rate-Limit, sondern ein aufgebrauchtes Monatskontingent —
+		// der Nutzer soll Paket + Weg sehen und nicht „Bitte kurz warten“. Der Body entscheidet,
+		// nicht der Status; ein 403/429 ohne diese Felder läuft unverändert weiter (echter CSRF-403,
+		// reines Rate-Limit). Kein Event-Dispatch mehr: die Meldung läuft inline an Ort und Stelle.
 		if (status === 403 || status === 429) {
 			const detail = planRequiredDetail(body, status === 403 ? 'plan_required' : 'quota_exhausted');
 			if (detail !== null) {
-				window.dispatchEvent(new CustomEvent<PlanRequiredDetail>(PLAN_REQUIRED_EVENT, { detail }));
-				const serverMessage = (body as { message?: unknown }).message;
-				return { status, message: typeof serverMessage === 'string' ? serverMessage : PLAN_REQUIRED_TEXT };
+				return { status, message: planRequiredMessage(detail) };
 			}
 		}
 		// Drosselung (#1479) vor den übrigen Zweigen: Der Grund ist unabhängig vom Endpunkt und

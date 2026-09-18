@@ -53,6 +53,9 @@ const fieldRow = (page: Page, testId: string): Locator => page.locator(`[data-te
  * Zeilenrand und reicht bis auf Lektorat-Button + Gap an den rechten Zeilenrand. Ohne `flex: 1`
  * würde der Wrapper auf seine Inhaltsbreite schrumpfen und rechts Leerraum stehen lassen.
  *
+ * Test-Pflege (#1528): sitzt das breitere Funktions-/Paket-Badge nicht mehr neben dem Feld
+ * (375px, es bricht unter das Label), füllt der Wrapper die Zeile allein — s. Assertion unten.
+ *
  * Test-Pflege (#1525-Fixup): Titel- und Beschreibung-Zeile tragen zusätzlich das `PlanBadge`
  * (`feature="ai_assist"`, #1458) VOR dem Lektorat-Button — bei `entitlement.allowed:true` (dieser
  * Fixture-Nutzer, `fixtures.ts`) ein sichtbares „Im Paket enthalten"-Badge mit eigener Breite und
@@ -79,10 +82,20 @@ const expectFieldFillsRow = async (page: Page, testId: string, controlSelector: 
 	// Linksbündig am Zeilenanfang …
 	expect(Math.abs(wrapperBox!.x - rowBox!.x)).toBeLessThanOrEqual(1);
 	// … und bis auf Lektorat-Button (+ ggf. PlanBadge davor) + je einem Gap bis zum rechten Zeilenrand.
-	const badgeWidthWithGap = badgeBox === null ? 0 : badgeBox.width + FIELD_ROW_GAP;
-	const remainder = rowBox!.width - wrapperBox!.width - buttonBox!.width - badgeWidthWithGap;
-	expect(remainder).toBeGreaterThanOrEqual(FIELD_ROW_GAP - 1);
-	expect(remainder).toBeLessThanOrEqual(FIELD_ROW_GAP + 1);
+	// Test-Pflege (#1528): das Badge beschriftet jetzt Funktion + Paket und ist damit breiter als
+	// der frühere Kurztext — bei 375px passt es nicht mehr neben das Feld. Die Zeile hat
+	// `flex-wrap: wrap`, das Badge bricht dann unter das Label (vom KI-UX-Block zu #1528 explizit
+	// so empfohlen). Nur im nebeneinander-Fall gilt die Restbreiten-Arithmetik; im gebrochenen
+	// Fall füllt der Wrapper die Zeilenbreite allein.
+	const badgeInline = badgeBox !== null && Math.abs(badgeBox.y - wrapperBox!.y) <= 1;
+	if (badgeInline) {
+		const badgeWidthWithGap = badgeBox === null ? 0 : badgeBox.width + FIELD_ROW_GAP;
+		const remainder = rowBox!.width - wrapperBox!.width - buttonBox!.width - badgeWidthWithGap;
+		expect(remainder).toBeGreaterThanOrEqual(FIELD_ROW_GAP - 1);
+		expect(remainder).toBeLessThanOrEqual(FIELD_ROW_GAP + 1);
+	} else {
+		expect(wrapperBox!.width).toBeGreaterThanOrEqual(rowBox!.width - 1);
+	}
 
 	// Das Eingabe-Element selbst füllt den Wrapper vollständig aus (kein eingerücktes Feld).
 	const controlBox = await wrapper.locator(controlSelector).boundingBox();

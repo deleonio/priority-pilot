@@ -1043,7 +1043,7 @@ export const TaskForm = ({
 									<>
 										{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — nur zusammen mit dem Lektorat-Button,
 										    damit ohne aktive KI keine leere Zeile entsteht. */}
-										<PlanBadge feature="ai_assist" />
+										<PlanBadge feature="ai_assist" inModal />
 										<KolButton
 											ref={lektoratTitleTriggerRef}
 											_label="Titel lektorieren"
@@ -1401,7 +1401,7 @@ export const TaskForm = ({
 							{aiEnabled && (
 								<>
 									{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — wie beim Titel-Lektorat. */}
-									<PlanBadge feature="ai_assist" />
+									<PlanBadge feature="ai_assist" inModal />
 									<KolButton
 										ref={lektoratDescriptionTriggerRef}
 										_label="Beschreibung lektorieren"
@@ -1472,7 +1472,7 @@ export const TaskForm = ({
 									    — der Säulen-Editor selbst (Regler, Entfernen) bleibt unberührt. */}
 									{aiEnabled && (
 										<>
-											<PlanBadge feature="ai_assist" />
+											<PlanBadge feature="ai_assist" inModal />
 											<KolButton
 												_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
 												_variant="secondary"

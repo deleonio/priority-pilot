@@ -211,21 +211,25 @@ describe('toApiError — Plan-Angebot (#1458, Spec issue-1458.md)', () => {
 		message: 'Dieses Feature erfordert das Pro-Paket.',
 	});
 
-	it('AK6: 403 mit code:plan_required feuert pp:plan-required genau 1× mit feature/requiredPlan/currentPlan', async () => {
+	// #1528 AK4/TF1: kein globaler Dialog mehr — die Meldung läuft inline an Ort und Stelle und
+	// nennt Paket + Weg zum Pakete-Reiter; `pp:plan-required` wird nicht mehr dispatched.
+	it('#1528: 403 mit code:plan_required feuert pp:plan-required NICHT und nennt Paket + Weg', async () => {
 		const result = await toApiError(responseError(403, planBody('plan_required')));
 
 		expect(result.status).toBe(403);
-		expect(fired).toHaveLength(1);
-		expect(fired[0].detail).toEqual({ feature: 'groups', requiredPlan: 'pro', currentPlan: 'free' });
+		expect(fired).toHaveLength(0);
+		expect(result.message).toContain('Pro');
+		expect(result.message).toContain('Einstellungen');
 	});
 
-	it('AK9: 429 mit code:quota_exhausted feuert pp:plan-required statt des Drosselungstexts aus #1479', async () => {
+	it('#1528: 429 mit code:quota_exhausted feuert pp:plan-required NICHT und nennt Paket + Weg statt Drosselungstext', async () => {
 		const result = await toApiError(responseError(429, planBody('quota_exhausted')));
 
 		expect(result.status).toBe(429);
-		expect(fired).toHaveLength(1);
-		expect(fired[0].detail).toEqual({ feature: 'groups', requiredPlan: 'pro', currentPlan: 'free' });
+		expect(fired).toHaveLength(0);
 		expect(result.message).not.toContain('Zu viele Anfragen in kurzer Zeit');
+		expect(result.message).toContain('Pro');
+		expect(result.message).toContain('Einstellungen');
 	});
 
 	it('AK9: regulärer 429 ohne code behält den Drosselungstext aus #1479 und feuert pp:plan-required NICHT', async () => {

@@ -61,10 +61,14 @@ vi.mock('../api', () => ({
 }));
 
 import { api } from '../api';
-import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 import { GroupDetail } from './GroupDetail';
+
+// Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
+// (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
+// Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 
 const mockGetGroupMembers = api.getGroupMembers as ReturnType<typeof vi.fn>;
 const mockGetGroupInvitations = api.getGroupInvitations as ReturnType<typeof vi.fn>;
@@ -458,11 +462,13 @@ describe('GroupDetail — Einladungslink wird erst nach echtem Kopieren maskiert
 
 /**
  * AK3: `GroupDetail` rendert `<PlanBadge feature="groups" />` im Kopfbereich (bei der
- * `KolHeading "Mitglieder"`-Zeile, `GroupDetail.tsx:233`). AK5: der (i)-Schalter feuert genau ein
- * `pp:plan-required`-Event. Heute rendert `GroupDetail` kein Badge — rot, bis `PlanBadge` dort
- * eingebunden ist (docs/spec/issue-1484.md AK3/AK5).
+ * `KolHeading "Mitglieder"`-Zeile, `GroupDetail.tsx:233`).
+ *
+ * Test-Pflege (#1528): der (i)-Schalter und sein `pp:plan-required`-Event sind entfallen (AK1) —
+ * statt des Event-Feuers gilt jetzt die Verlinkung des Badges auf den Pakete-Reiter (AK3), das
+ * Klick-Verhalten selbst deckt `PlanBadge.test.tsx`; hier bleibt der Render-Nachweis.
  */
-describe('GroupDetail — Paket-Badge im Kopfbereich (#1484 AK3/AK5)', () => {
+describe('GroupDetail — Paket-Badge im Kopfbereich (#1484 AK3, #1528)', () => {
 	const renderWithEntitlement = (allowed: boolean) => {
 		mockGetGroupMembers.mockResolvedValue([{ userId: 1, displayName: 'Alice Admin', role: 'admin' }]);
 		mockGetGroupInvitations.mockResolvedValue([]);
@@ -482,18 +488,11 @@ describe('GroupDetail — Paket-Badge im Kopfbereich (#1484 AK3/AK5)', () => {
 		expect(await screen.findByTestId('plan-badge-groups')).toBeInTheDocument();
 	});
 
-	it('der (i)-Schalter feuert genau ein pp:plan-required-Event mit feature=groups', async () => {
+	it('allowed=false → Badge ist ein Link auf den Pakete-Reiter, kein (i)-Schalter (#1528 AK3)', async () => {
 		renderWithEntitlement(false);
-		const handler = vi.fn();
-		window.addEventListener(PLAN_REQUIRED_EVENT, handler);
 
-		const info = await screen.findByTestId('plan-badge-info-groups');
-		fireEvent.click(info);
-
-		expect(handler).toHaveBeenCalledTimes(1);
-		const event = handler.mock.calls[0][0] as CustomEvent<{ feature: string; requiredPlan: string }>;
-		expect(event.detail.feature).toBe('groups');
-		expect(event.detail.requiredPlan).toBe('pro');
-		window.removeEventListener(PLAN_REQUIRED_EVENT, handler);
+		const badge = await screen.findByTestId('plan-badge-groups');
+		expect(badge.closest('a')).toHaveAttribute('href', '/settings/pakete');
+		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
 	});
 });
