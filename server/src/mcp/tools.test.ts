@@ -916,6 +916,9 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'group_create',
 			'group_delete',
 			'group_list',
+			// #1543: die beiden Mitglieder-Werkzeuge kommen alphabetisch vor group_members_list.
+			'group_member_remove',
+			'group_member_role_set',
 			'group_members_list',
 			'group_update',
 			'next_task',
@@ -971,7 +974,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// #1413: vier Säulen-Werkzeuge, #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist
 		// „task_delete ist drin", nicht „es gibt genau dreizehn Werkzeuge" — die vollständige
 		// Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 25, `Katalog sollte fünfundzwanzig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 27, `Katalog sollte siebenundzwanzig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1184,7 +1187,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 25, `Katalog sollte fünfundzwanzig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 27, `Katalog sollte siebenundzwanzig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1657,8 +1660,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			25,
-			`Katalog sollte fünfundzwanzig Namen führen (#1412, #1542), war: ${names.join(', ')}`,
+			27,
+			`Katalog sollte siebenundzwanzig Namen führen (#1412, #1542, #1543), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2125,6 +2128,276 @@ describe('MCP-Werkzeuge group_create/group_update/group_delete (#1542)', () => {
 			list.result?.map((g) => g.name),
 			['Bleibt bei read-only erhalten'],
 			'der Gruppenbestand darf durch die drei abgelehnten Aufrufe nicht verändert worden sein',
+		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1543 (Spec docs/spec/issue-1543.md) — Gruppenmitglieder über MCP.
+ *
+ * AK1: Katalog wächst um group_member_role_set und group_member_remove (25 → 27 Namen).
+ * AK2: Rolle ändern, Mitglied entfernen, Selbstaustritt über die eigene userId.
+ * AK3: Letzter-Admin-Guard (409-Text der Route) greift durch beide Werkzeuge.
+ * AK4: Ohne Adminrolle bzw. auf fremde Gruppe Routen-Fehlertext + Statuscode, Daten unverändert.
+ * AK5: Nur-lese-Token scheitert am Scope-Gate, es ändern sich keine Daten.
+ *
+ * Rot, bis beide Werkzeuge in mcpTools existieren. KEIN Produktivcode.
+ */
+describe('MCP-Werkzeuge group_member_role_set/group_member_remove (#1543)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	type MemberEntry = { userId: number; displayName: string; role: string };
+	type GroupEntry = { id: number; name: string; description: string | null; role: string };
+
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await server.json(`/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { Cookie: cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	const inviteAndAccept = async (
+		adminCookie: string,
+		groupId: number,
+		invitedUserId: number,
+		invitedCookie: string,
+	): Promise<void> => {
+		const invited = await server.json(`/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+			body: JSON.stringify({ userId: invitedUserId }),
+		});
+		assert.equal(invited.status, 201, 'Setup: Einladung muss anlegbar sein');
+		const { id } = (await invited.json()) as { id: number };
+		const accepted = await server.json(`/invitations/${id}/accept`, {
+			method: 'POST',
+			headers: { Cookie: invitedCookie },
+		});
+		assert.equal(accepted.status, 200, 'Setup: Einladung muss annehmbar sein');
+	};
+
+	const membersOf = async (token: string, groupId: number): Promise<MemberEntry[]> => {
+		const list = await mcpCall<MemberEntry[]>(token, 'group_members_list', { groupId });
+		assert.equal(list.error, undefined, `group_members_list sollte gelingen: ${list.error?.message}`);
+		return list.result ?? [];
+	};
+
+	it('AK1: tools/list enthält group_member_role_set und group_member_remove mit den vorgesehenen required-Feldern', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name);
+		for (const name of ['group_member_role_set', 'group_member_remove']) {
+			assert.ok(names.includes(name), `${name} muss im Katalog stehen`);
+		}
+
+		const requiredOf = (name: string) => {
+			const tool = tools.find((t) => t.name === name);
+			assert.ok(tool?.inputSchema, `${name} muss ein inputSchema deklarieren`);
+			return (tool?.inputSchema as { required?: string[] } | undefined)?.required;
+		};
+		assert.deepEqual(requiredOf('group_member_role_set'), ['groupId', 'userId', 'role']);
+		assert.deepEqual(requiredOf('group_member_remove'), ['groupId', 'userId']);
+	});
+
+	it('AK2: group_member_role_set befördert ein Mitglied zum Admin, group_member_remove entfernt es — beides in group_members_list nachweisbar', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const created = await mcpCall<GroupEntry>(tokenA, 'group_create', { name: 'Rollen-Test' });
+		assert.equal(created.error, undefined, `group_create sollte gelingen: ${created.error?.message}`);
+		const groupId = created.result!.id;
+		await inviteAndAccept(cookieA, groupId, bId, cookieB);
+
+		const promoted = await mcpCall<MemberEntry>(tokenA, 'group_member_role_set', {
+			groupId,
+			userId: bId,
+			role: 'admin',
+		});
+		assert.equal(promoted.error, undefined, `group_member_role_set sollte gelingen: ${promoted.error?.message}`);
+		assert.equal(promoted.result?.role, 'admin', 'die Antwort muss die neue Rolle tragen');
+
+		const afterPromotion = await membersOf(tokenA, groupId);
+		assert.equal(
+			afterPromotion.find((m) => m.userId === bId)?.role,
+			'admin',
+			'group_members_list muss die neue Rolle zeigen',
+		);
+
+		// B ist jetzt selbst Admin — A bleibt Admin, damit nach dem Entfernen noch einer übrig ist (AK3-Guard).
+		const removed = await mcpCall(tokenA, 'group_member_remove', { groupId, userId: bId });
+		assert.equal(removed.error, undefined, `group_member_remove sollte gelingen: ${removed.error?.message}`);
+
+		const afterRemoval = await membersOf(tokenA, groupId);
+		assert.ok(
+			!afterRemoval.some((m) => m.userId === bId),
+			'das entfernte Mitglied darf in group_members_list nicht mehr auftauchen',
+		);
+	});
+
+	it('AK2: group_member_remove mit der eigenen userId bewirkt den Austritt', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const created = await mcpCall<GroupEntry>(tokenA, 'group_create', { name: 'Austritt' });
+		const groupId = created.result!.id;
+		await inviteAndAccept(cookieA, groupId, bId, cookieB);
+
+		const left = await mcpCall(tokenB, 'group_member_remove', { groupId, userId: bId });
+		assert.equal(
+			left.error,
+			undefined,
+			`Selbstaustritt über die eigene userId sollte gelingen: ${left.error?.message}`,
+		);
+
+		const members = await membersOf(tokenA, groupId);
+		assert.ok(!members.some((m) => m.userId === bId), 'der Ausgetretene darf nicht mehr Mitglied sein');
+
+		const listB = await mcpCall<GroupEntry[]>(tokenB, 'group_list');
+		assert.ok(
+			!listB.result?.some((g) => g.id === groupId),
+			'die Gruppe muss aus group_list des Ausgetretenen verschwinden',
+		);
+	});
+
+	it('AK3: der letzte Admin darf sich weder degradieren noch entfernen — 409-Text der Route, Rolle bleibt admin', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const aId = await ownUserId(cookie, 'mcp-tools-a@example.com');
+
+		const created = await mcpCall<GroupEntry>(token, 'group_create', { name: 'Letzter Admin' });
+		const groupId = created.result!.id;
+
+		const degrade = await mcpCall(token, 'group_member_role_set', { groupId, userId: aId, role: 'member' });
+		assert.ok(degrade.error, 'Degradieren des letzten Admins muss fehlschlagen');
+		assert.match(
+			degrade.error!.message,
+			/Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person\./,
+		);
+		assert.match(degrade.error!.message, /HTTP 409/);
+
+		const leave = await mcpCall(token, 'group_member_remove', { groupId, userId: aId });
+		assert.ok(leave.error, 'Selbstaustritt des letzten Admins muss fehlschlagen');
+		assert.match(
+			leave.error!.message,
+			/Die Gruppe braucht mindestens einen Administrator — ernenne zuerst eine andere Person\./,
+		);
+		assert.match(leave.error!.message, /HTTP 409/);
+
+		const members = await membersOf(token, groupId);
+		assert.equal(
+			members.find((m) => m.userId === aId)?.role,
+			'admin',
+			'der letzte Admin muss nach beiden abgelehnten Aufrufen weiter admin sein',
+		);
+	});
+
+	it('AK4: ohne Adminrolle bzw. auf eine fremde Gruppe liefern beide Werkzeuge den Routen-Fehlertext samt Statuscode, die Mitglieder bleiben unverändert', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const cookieC = await server.register('mcp-tools-c@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const tokenC = await createToken(cookieC);
+		const aId = await ownUserId(cookieA, 'mcp-tools-a@example.com');
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const created = await mcpCall<GroupEntry>(tokenA, 'group_create', { name: 'Bleibt unverändert' });
+		const groupId = created.result!.id;
+		// B wird normales Mitglied (Rolle member) — beide Werkzeuge müssen an der Route mit 403 scheitern.
+		await inviteAndAccept(cookieA, groupId, bId, cookieB);
+
+		const noAdminRole = await mcpCall(tokenB, 'group_member_role_set', {
+			groupId,
+			userId: bId,
+			role: 'admin',
+		});
+		assert.ok(noAdminRole.error, 'group_member_role_set ohne Adminrolle muss fehlschlagen');
+		assert.match(noAdminRole.error!.message, /Nur Administratoren dürfen Rollen ändern\./);
+		assert.match(noAdminRole.error!.message, /HTTP 403/);
+
+		const noAdminRemove = await mcpCall(tokenB, 'group_member_remove', { groupId, userId: aId });
+		assert.ok(noAdminRemove.error, 'group_member_remove auf ein anderes Mitglied ohne Adminrolle muss fehlschlagen');
+		assert.match(noAdminRemove.error!.message, /Nur Administratoren dürfen andere Mitglieder entfernen\./);
+		assert.match(noAdminRemove.error!.message, /HTTP 403/);
+
+		// C ist kein Mitglied — beide Aufrufe müssen an der Route mit 404 scheitern (kein Existenz-Leak).
+		for (const [tool, args] of [
+			['group_member_role_set', { groupId, userId: bId, role: 'member' }],
+			['group_member_remove', { groupId, userId: bId }],
+		] as const) {
+			const foreign = await mcpCall(tokenC, tool, args);
+			assert.ok(foreign.error, `${tool} auf eine fremde Gruppe muss fehlschlagen`);
+			assert.match(foreign.error!.message, /Gruppe nicht gefunden\./);
+			assert.match(foreign.error!.message, /HTTP 404/);
+		}
+
+		const members = await membersOf(tokenA, groupId);
+		assert.deepEqual(
+			members.map((m) => ({ userId: m.userId, role: m.role })).sort((x, y) => x.userId - y.userId),
+			[
+				{ userId: aId, role: 'admin' },
+				{ userId: bId, role: 'member' },
+			],
+			'die Mitgliederliste darf durch die gescheiterten Aufrufe nicht verändert worden sein',
+		);
+	});
+
+	it('AK5: ein Nur-lese-Token scheitert an beiden Werkzeugen am Scope-Hinweis, es ändern sich keine Daten', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const created = await mcpCall<GroupEntry>(tokenA, 'group_create', { name: 'Bleibt bei read-only erhalten' });
+		const groupId = created.result!.id;
+		await inviteAndAccept(cookieA, groupId, bId, cookieB);
+
+		const { token } = await createReadOnlyToken(cookieA);
+		for (const [tool, args] of [
+			['group_member_role_set', { groupId, userId: bId, role: 'member' }],
+			['group_member_remove', { groupId, userId: bId }],
+		] as const) {
+			const res = await mcpCall(token, tool, args);
+			assert.ok(res.error, `${tool} muss mit einem Nur-lese-Token fehlschlagen`);
+			assert.match(
+				res.error!.message,
+				/read access only/,
+				`${tool}: Fehlertext muss die Rechtestufe benennen, war: ${res.error!.message}`,
+			);
+			assert.match(
+				res.error!.message,
+				/Lesen und Schreiben/,
+				`${tool}: Fehlertext muss den Ausweg nennen, war: ${res.error!.message}`,
+			);
+		}
+
+		const members = await mcpCall<MemberEntry[]>(token, 'group_members_list', { groupId });
+		assert.equal(
+			members.error,
+			undefined,
+			'group_members_list muss mit demselben Nur-lese-Token weiterhin funktionieren',
+		);
+		assert.equal(
+			members.result?.length,
+			2,
+			'die Mitgliederliste darf durch die abgelehnten Aufrufe nicht verändert worden sein',
 		);
 	});
 });
