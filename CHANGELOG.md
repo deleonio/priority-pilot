@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-18
 
-_Enthält v0.2.0 – v0.2.98._
+_Enthält v0.2.0 – v0.2.99._
 
 ### 🔧 Engineering
 
@@ -109,6 +109,7 @@ _Enthält v0.2.0 – v0.2.98._
 - feat(frontend): allow admins to switch their own plan for free (#1556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1563
 - feat(frontend): hint on strongly unbalanced pillar weight distribution by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1562
 - docs: align tdd-strategy test scope with adr 0004 and test:scripts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1560
+- feat(server): per-user llm provider selection, gate and quota bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1557
 
 ## v0.1 - 2026-09-12
 
@@ -758,7 +759,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): join a group via invite link (#1226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1246
 - docs(guide): sync user guide with current app state (2026-09-06) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1248
 - feat(groups): add group image via https url (#1225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1245
-- feat(groups): add group image via https url (#1225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1245
+- fix(server): creator read access ends with group membership (#1250) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1261
 - fix(server): creator read access ends with group membership (#1250) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1261
 - fix(server): check pillar contributions against owning account (#1249) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1255
 - feat(server): clean up invitations and rest cross-member series on group exit (#1251) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1263
