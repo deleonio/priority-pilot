@@ -1,5 +1,6 @@
 /**
- * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413/#1542 fünfundzwanzig Werkzeuge.
+ * Werkzeugkatalog des MCP-Servers (#1353) — seit #1381/#1396/#1400/#1423/#1412/#1413/#1542/#1543
+ * siebenundzwanzig Werkzeuge.
  *
  * Die Werkzeuge **spiegeln** die vorhandenen HTTP-Routen, statt deren Fachlogik ein zweites Mal zu
  * bauen: jeder Aufruf geht als Loopback-Request mit demselben `Authorization: Bearer …`-Header
@@ -547,6 +548,47 @@ export const mcpTools: McpTool[] = [
 		description: 'Lists the groups the token owner is a member of, including role and member count.',
 		inputSchema: { type: 'object', properties: {} },
 		run: (ctx) => callApi(ctx, '/groups'),
+	},
+	{
+		name: 'group_member_remove',
+		description:
+			'Removes a member from one of your groups. Admins may remove any member; every member may ' +
+			'remove themselves by passing their own userId. The last remaining admin cannot be removed.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				groupId: { type: 'integer', description: 'ID of the group (from group_list).' },
+				userId: { type: 'integer', description: 'ID of the member to remove (from group_members_list).' },
+			},
+			required: ['groupId', 'userId'],
+		},
+		run: (ctx, args) =>
+			callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/members/${requireIntegerId(args, 'userId')}`, {
+				method: 'DELETE',
+			}),
+	},
+	{
+		name: 'group_member_role_set',
+		description:
+			"Changes a member's role (admin or member) in one of the groups you administer. The last " +
+			'remaining admin cannot be degraded.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				groupId: { type: 'integer', description: 'ID of the group (from group_list).' },
+				userId: { type: 'integer', description: 'ID of the member whose role changes (from group_members_list).' },
+				role: { type: 'string', description: "New role: 'admin' or 'member'." },
+			},
+			required: ['groupId', 'userId', 'role'],
+		},
+		run: (ctx, args) => {
+			const groupId = requireIntegerId(args, 'groupId');
+			const userId = requireIntegerId(args, 'userId');
+			const { role } = args;
+			return callApi(ctx, `/groups/${groupId}/members/${userId}`, { method: 'PATCH', body: { role } });
+		},
 	},
 	{
 		name: 'group_members_list',
