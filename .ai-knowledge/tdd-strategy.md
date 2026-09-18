@@ -137,8 +137,11 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
   Menge. Deshalb gehört zu jedem All-Quantor eine Assertion, dass die Menge nicht leer ist.
 
 **Was bewusst NICHT getestet wird — Workflows/CI-Plumbing, Config und Markdown-Inhalt (ADR, [#567](https://github.com/deleonio/priority-pilot/issues/567)):**
-Getestet wird **nur Anwendungscode** (`server/src/**`, `frontend/src/**`) sowie Frontend-E2E
-(`frontend/e2e/**`). Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Actions,
+Getestet wird **nur Anwendungscode** (`server/src/**`, `frontend/src/**`), Frontend-E2E
+(`frontend/e2e/**`) sowie die Entscheidungslogik in `.github/scripts/*.ts` (Carve-out aus
+[ADR 0004](../docs/adr/0004-analyse-getriebenes-routing.md): Skripte sind lokal ausführbar und
+mit `gh`-Stubs via `pnpm test:scripts` testbar — Teil von `pnpm test`; ungetestet bleibt die
+YAML-Verdrahtung). Für `.github/workflows/`, die `setup-claude`-Composite-Actions,
 die `ci.yml`/`deploy.yml`-Plumbing, Config-Dateien (`.yml`/`.json`/`.toml`) und **Markdown-Inhalt
 (jede `.md`-Datei, egal wo — auch CI-Prompts (`.github/prompts/*.md`) und `docs/spec/*.md`)** werden
 **keine** Tests geschrieben oder gepflegt. Meta-Tests auf diese Dateien sind überwiegend
