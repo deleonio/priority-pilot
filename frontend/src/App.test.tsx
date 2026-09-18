@@ -625,3 +625,22 @@ describe('App — #1345: Schalter „Oberaufgaben anzeigen"', () => {
 		expect(parentRow()).toBeNull();
 	});
 });
+
+/**
+ * #1428 — Kopfzeilen-Position: Die App übernimmt die Präferenz aus `pp-header-position`
+ * (Hook `useHeaderPosition`, Muster `useTheme`) als Layout-Klasse am `.app`-Container.
+ * Rot-Zustand: `header-bottom` existiert noch nicht — der erste Test fällt auf der
+ * Klassen-Assertion rot; der zweite sichert den Default (AK4) und ist bewusst schon grün.
+ */
+describe('App — Kopfzeilen-Position (#1428, TF3)', () => {
+	it('wendet gespeicherte Präferenz "bottom" als Layout-Klasse am .app-Container an (AK2)', () => {
+		localStorage.setItem('pp-header-position', 'bottom');
+		render(<App user={testUser} />);
+		expect(document.querySelector('.app')?.className).toContain('header-bottom');
+	});
+
+	it('bleibt ohne gespeicherte Präferenz beim heutigen Aufbau — keine Bottom-Klasse (AK4)', () => {
+		render(<App user={testUser} />);
+		expect(document.querySelector('.app')?.className).not.toContain('header-bottom');
+	});
+});
