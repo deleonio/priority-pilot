@@ -3,16 +3,13 @@ import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Tests zu #1458 AK4/AK5/AK7 — Paket-Badge und globaler Angebots-Dialog.
+ * Rote Spec-Tests für #1528 AK2/AK3 — Paket-Badge als Beschriftung/Verweis statt Angebots-Dialog.
  *
- * `Modal` ist gemockt (KolDialog ist in JSDOM nicht hydrierbar), die KoliBri-Komponenten folgen dem
- * `SessionExpiredDialog.test.tsx`-Muster; geklickt wird über die native `data-testid`-Naht.
+ * Spezifikation: `docs/spec/issue-1528.md`. Außerhalb von Modalen ist das Badge ein Navigationsziel
+ * auf den Pakete-Reiter (Entscheidung B des Autors), innerhalb von Modalen reine Beschriftung ohne
+ * Klickziel. Der (i)-Schalter (`plan-badge-info-{feature}`) entfällt. Die Tests sind rot, solange
+ * `PlanBadge` noch den (i)-Schalter rendert und `pp:plan-required` dispatched.
  */
-
-vi.mock('./Modal', () => ({
-	Modal: ({ title, children }: { title: string; children?: ReactNode }) =>
-		createElement('div', { role: 'dialog', 'aria-label': title }, children),
-}));
 
 vi.mock('@public-ui/react-v19', () => ({
 	KolBadge: ({ _label }: { _label?: string }) => createElement('span', { 'data-testid': 'badge' }, _label),
@@ -22,11 +19,13 @@ vi.mock('@public-ui/react-v19', () => ({
 const getPlansCatalog = vi.fn();
 vi.mock('../api', () => ({ api: { getPlansCatalog: () => getPlansCatalog() } }));
 
-import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
+const navigate = vi.fn();
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
+
 import type { EntitlementMap, Plan } from '../lib/planOffers';
+import { featureOffer, planLabel } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 import { PlanBadge } from './PlanBadge';
-import { PlanOfferDialog } from './PlanOfferDialog';
 
 const withPlan = (plan: Plan | null, entitlements: EntitlementMap, children: ReactNode) =>
 	createElement(PlanProvider, { value: { plan, entitlements } }, children);
@@ -43,8 +42,8 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
-describe('PlanBadge (#1458 AK4)', () => {
-	it('allowed=true → Haken-Badge ohne (i)-Schalter', () => {
+describe('PlanBadge Beschriftung (#1528 AK2, Spec issue-1528.md)', () => {
+	it('allowed=true → nennt Funktion und Paket und zeigt ein Häkchen; kein (i)-Schalter', () => {
 		render(
 			withPlan(
 				'pro',
@@ -53,11 +52,15 @@ describe('PlanBadge (#1458 AK4)', () => {
 			),
 		);
 
-		expect(screen.getByTestId('plan-badge-groups')).toBeTruthy();
+		const badge = screen.getByTestId('plan-badge-groups');
+		expect(badge.textContent).toContain(featureOffer('groups').title);
+		expect(badge.textContent).toContain(planLabel('pro'));
+		// Häkchen (Text + Icon, WCAG 1.4.1 — UX-Block) statt nacktem Farb-Marker
+		expect(badge.textContent.toLowerCase()).toContain('enthalten');
 		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
 	});
 
-	it('allowed=false → Paketname aus requiredPlan plus (i)-Schalter', () => {
+	it('allowed=false → nennt Funktion und nötiges Paket; kein (i)-Schalter', () => {
 		render(
 			withPlan(
 				'free',
@@ -66,44 +69,45 @@ describe('PlanBadge (#1458 AK4)', () => {
 			),
 		);
 
-		expect(screen.getByTestId('badge').textContent).toBe('Pro');
-		expect(screen.getByTestId('plan-badge-info-groups')).toBeTruthy();
+		const badge = screen.getByTestId('plan-badge-groups');
+		expect(badge.textContent).toContain(featureOffer('groups').title);
+		expect(badge.textContent).toContain(planLabel('pro'));
+		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
 	});
 
-	it('ohne Entitlement rendert das Badge nichts (AK1: kein falscher Zustand vor der Antwort)', () => {
+	it('ohne Entitlement rendert das Badge nichts (kein falscher Zustand vor der Antwort)', () => {
 		render(withPlan(null, {}, createElement(PlanBadge, { feature: 'groups' })));
 
 		expect(screen.queryByTestId('plan-badge-groups')).toBeNull();
 	});
 });
 
-describe('PlanOfferDialog (#1458 AK5/AK7)', () => {
-	it('AK5: Klick auf (i) öffnet das Angebot mit Ziel-Paket und Preis', async () => {
+describe('PlanBadge Klick-Verhalten (#1528 AK3, Entscheidung B)', () => {
+	it('außerhalb von Modalen: Klick navigiert auf den Pakete-Reiter', () => {
 		render(
-			withPlan('free', { groups: { allowed: false, requiredPlan: 'pro' } }, [
-				createElement(PlanBadge, { key: 'badge', feature: 'groups' }),
-				createElement(PlanOfferDialog, { key: 'dialog' }),
-			]),
+			withPlan(
+				'free',
+				{ groups: { allowed: false, requiredPlan: 'pro' } },
+				createElement(PlanBadge, { feature: 'groups' }),
+			),
 		);
 
-		fireEvent.click(screen.getByTestId('plan-badge-info-groups'));
+		fireEvent.click(screen.getByTestId('plan-badge-groups'));
 
-		const dialog = await screen.findByRole('dialog');
-		expect(dialog.getAttribute('aria-label')).toContain('Pro');
-		expect(await screen.findByText(/7,99 € im Monat/)).toBeTruthy();
+		expect(navigate).toHaveBeenCalledWith('/settings/pakete');
 	});
 
-	it('AK7: drei Events hintereinander erzeugen genau einen Dialog', () => {
-		render(withPlan('free', {}, createElement(PlanOfferDialog, null)));
+	it('in Modal-Kontext (inModal): kein Klickziel — Klick navigiert nicht', () => {
+		render(
+			withPlan(
+				'free',
+				{ groups: { allowed: false, requiredPlan: 'pro' } },
+				createElement(PlanBadge, { feature: 'groups', inModal: true }),
+			),
+		);
 
-		for (let i = 0; i < 3; i++) {
-			window.dispatchEvent(
-				new CustomEvent(PLAN_REQUIRED_EVENT, {
-					detail: { feature: 'groups', requiredPlan: 'pro', currentPlan: 'free' },
-				}),
-			);
-		}
+		fireEvent.click(screen.getByTestId('plan-badge-groups'));
 
-		expect(screen.getAllByRole('dialog')).toHaveLength(1);
+		expect(navigate).not.toHaveBeenCalled();
 	});
 });
