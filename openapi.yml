@@ -5118,6 +5118,7 @@ components:
         - isActive
         - kind
         - hasApiKey
+        - own
       description: >-
         Ein LLM-Provider. Zwei Arten: `kind=custom` (frei anlegbar, bearbeitbar,
         löschbar; Key liegt write-only in der DB) und `kind=builtin` („Mistral“
@@ -5157,6 +5158,13 @@ components:
           description: >-
             Ob ein Key vorhanden ist (Built-in: ENV-Variable gesetzt; Custom: DB-Key
             gesetzt). Signalisiert nur die Präsenz, nie den Wert.
+        own:
+          type: boolean
+          description: >-
+            Gehört diese Zeile dem abfragenden Nutzer (#1549)? `true` nur für eigene
+            Custom-Provider; instanzweite Zeilen (`userId = null`, inkl. Built-ins)
+            und fremde Zeilen sind `false`. Basis des UI-Markers „eigen“/„instanzweit“
+            und des Free-Gates (nur eigene Custom-Provider öffnen KI-Features).
     LlmProviderInput:
       type: object
       required:

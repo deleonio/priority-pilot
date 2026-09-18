@@ -93,6 +93,8 @@ vi.mock('@public-ui/react-v19', () => ({
 			))}
 		</select>
 	),
+	// Eigentums-Marker der Verwaltungsliste (#1549): natives Inline-Element als Ersatzrender.
+	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
 }));
 
 const mistral: LlmProvider = {
@@ -103,6 +105,7 @@ const mistral: LlmProvider = {
 	isActive: true,
 	kind: 'builtin',
 	hasApiKey: true,
+	own: false,
 };
 const openrouter: LlmProvider = {
 	id: 2,
@@ -112,6 +115,7 @@ const openrouter: LlmProvider = {
 	isActive: false,
 	kind: 'builtin',
 	hasApiKey: false,
+	own: false,
 };
 const custom: LlmProvider = {
 	id: 3,
@@ -121,6 +125,7 @@ const custom: LlmProvider = {
 	isActive: false,
 	kind: 'custom',
 	hasApiKey: true,
+	own: true,
 };
 
 beforeEach(() => {

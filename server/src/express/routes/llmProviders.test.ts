@@ -527,8 +527,11 @@ describe('LLM-Providers API', () => {
 		assert.equal(byName.get('A-eigen')?.own, true, 'Eigene Custom-Zeile → own=true (AK8a)');
 		// Instanzweite Custom-Zeile → own: false.
 		assert.equal(byName.get('instanzweit')?.own, false, 'Instanzweite Custom-Zeile → own=false (AK8a)');
-		// Fremde Zeile (userId von B) → own: false.
-		assert.equal(byName.get('B-eigen')?.own, false, 'Fremde Custom-Zeile → own=false (AK8a)');
+		// Fremde Zeile (userId von B): bleibt nach dem Zugriffsmodell von #1547 unsichtbar —
+		// „own: false für fremde Zeilen“ ist über die API nicht erreichbar, weil der Scope
+		// fremde Zeilen herausfiltert (Test-Pflege #1549: ursprünglich als sichtbare Zeile mit
+		// own:false angenommen; widerspricht #1547 TF1, das ihre Unsichtbarkeit verankert).
+		assert.equal(byName.has('B-eigen'), false, 'Fremde Custom-Zeile bleibt unsichtbar (#1547 AK1)');
 		// Built-ins sind nie eigen.
 		assert.equal(byName.get('Mistral')?.own, false, 'Built-in → own=false (AK8a)');
 		assert.equal(byName.get('OpenRouter')?.own, false, 'Built-in → own=false (AK8a)');
