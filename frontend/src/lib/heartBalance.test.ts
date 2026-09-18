@@ -175,6 +175,107 @@ describe('buildHeartBalance', () => {
 		expect(balance.fill).toBeCloseTo(1);
 	});
 
+	/*
+	 * Rote Spec-Tests für #1474 (Spec docs/spec/issue-1474.md): Strengste-Prinzip. Neben der
+	 * soll-gewichteten Komponente misst eine ungewichtete die Schieflage direkt; der Füllstand ist
+	 * das Minimum aus beiden. Der Problemfall des Tickets — dominierende Säule, eine leer, Rest am
+	 * Soll — wird von der Gewichtung doppelt gedämpft (kleines Soll quadriert, Normierung gekappt)
+	 * und kam mit 0,6667 durch die „Gut in Balance“-Schwelle.
+	 */
+	it('stuft 60/0/10/10/10 bei Gewichten 60/10/10/10/10 nicht mehr als gut ein (#1474 AK1)', () => {
+		const pillars = [
+			pillar(1, 'Dom', 60),
+			pillar(2, 'Leer', 10),
+			pillar(3, 'S3', 10),
+			pillar(4, 'S4', 10),
+			pillar(5, 'S5', 10),
+		];
+		const balance = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 60],
+				[3, 10],
+				[4, 10],
+				[5, 10],
+			]),
+		);
+
+		// Gepinnt nach docs/spec/issue-1474.md: ungewichtete Komponente 1 − √(1/5) = 0,5528 schlägt
+		// die gewichtete (0,6667) — Stufe „Leichte Schieflage“ statt „Gut in Balance“.
+		expect(balance.fill).toBeCloseTo(0.5527864045, 6);
+		expect(balance.fill).toBeLessThan(0.65);
+
+		const health = heartHealth(balance);
+		expect(health.label).not.toBe('Gut in Balance');
+		expect(health.state).not.toBe('gut');
+		expect(health.state).not.toBe('stark');
+	});
+
+	it('drückt die leere Säule auf Prozentwert UND Einstufung, nicht nur auf den Hinweistext (#1474 AK2)', () => {
+		const pillars = [
+			pillar(1, 'Dom', 60),
+			pillar(2, 'Gefüllt', 10),
+			pillar(3, 'S3', 10),
+			pillar(4, 'S4', 10),
+			pillar(5, 'S5', 10),
+		];
+		const leer = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 60],
+				[3, 10],
+				[4, 10],
+				[5, 10],
+			]),
+		);
+		const gefuellt = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 60],
+				[2, 10],
+				[3, 10],
+				[4, 10],
+				[5, 10],
+			]),
+		);
+
+		// Gepinnt: 1 − (1 − √0,2) = 0,4472 — die Differenz ist die volle ungewichtete Strafe der
+		// leeren Säule und muss deutlich über der Rauschgrenze von 0,10 liegen.
+		expect(gefuellt.fill - leer.fill).toBeCloseTo(0.4472135955, 6);
+		expect(gefuellt.fill - leer.fill).toBeGreaterThanOrEqual(0.1);
+	});
+
+	it('belohnt verteilt gepflegte Gewichte weiter mit „In Balance“ (#1474 AK3)', () => {
+		const pillars = [
+			pillar(1, 'Dom', 60),
+			pillar(2, 'S2', 10),
+			pillar(3, 'S3', 10),
+			pillar(4, 'S4', 10),
+			pillar(5, 'S5', 10),
+		];
+		const balance = buildHeartBalance(
+			pillars,
+			new Map([
+				[1, 60],
+				[2, 10],
+				[3, 10],
+				[4, 10],
+				[5, 10],
+			]),
+		);
+
+		// Ist = Soll → beide Komponenten 1; die Stufe darf durch die neue Formel nicht kippen.
+		expect(balance.fill).toBeGreaterThanOrEqual(0.85);
+		expect(heartHealth(balance).label).toBe('In Balance');
+
+		/*
+		 * Der Ausgangsfall 16/20/5/12/47 bleibt beim gepinnten Wert 0,5634 (Test weiter oben): Die
+		 * gewichtete Komponente (0,5634) bleibt dort strenger als die ungewichtete (0,6095) — das
+		 * Strengste-Prinzip ändert diesen Pin nicht. Er ist damit zugleich die AK3-Abdeckung für
+		 * „stabile Stufe ohne Übersteuern“.
+		 */
+	});
+
 	it('vergibt die Farbrampe nach Säulen-id, damit Umsortieren nicht umfärbt', () => {
 		const a = pillar(7, 'Später angelegt', 50);
 		const b = pillar(3, 'Früher angelegt', 50);
