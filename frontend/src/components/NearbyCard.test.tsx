@@ -6,6 +6,11 @@ import type { GeoConfig, NearbyTask } from 'client';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 
+// Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
+// (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
+// Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+
 /**
  * Spec-Tests (#1110, Spec docs/spec/issue-1110.md) — Card-Titel mit Anzeige-Entfernung.
  *
@@ -163,10 +168,12 @@ describe('NearbyCard — Paket-Badge im Kartenkopf (#1484 AK3/AK4)', () => {
 		expect(screen.queryByTestId('plan-badge-info-location_reminders')).toBeNull();
 	});
 
-	it('allowed=false → Paket-Badge mit (i)-Schalter, keine eigene Paketlogik in NearbyCard', async () => {
+	// Test-Pflege (#1528 AK2/AK3): (i)-Schalter entfallen — außerhalb des Modals ist das Badge der Link.
+	it('allowed=false → Paket-Badge als Link, keine eigene Paketlogik in NearbyCard (#1528)', async () => {
 		renderWithEntitlement(false);
 
-		expect(await screen.findByTestId('plan-badge-location_reminders')).toBeInTheDocument();
-		expect(screen.getByTestId('plan-badge-info-location_reminders')).toBeInTheDocument();
+		const badge = await screen.findByTestId('plan-badge-location_reminders');
+		expect(badge.closest('a')).toHaveAttribute('href', '/settings/pakete');
+		expect(screen.queryByTestId('plan-badge-info-location_reminders')).toBeNull();
 	});
 });

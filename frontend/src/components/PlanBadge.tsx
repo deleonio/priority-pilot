@@ -1,22 +1,48 @@
-import { KolBadge, KolButton } from '@public-ui/react-v19';
-import { PLAN_REQUIRED_EVENT, type PlanRequiredDetail } from '../lib/apiError';
-import { planLabel, type FeatureId } from '../lib/planOffers';
-import { useEntitlement, usePlan } from '../lib/usePlan';
+import { KolBadge } from '@public-ui/react-v19';
+import { useNavigate } from 'react-router-dom';
+import { featureOffer, planLabel, type FeatureId } from '../lib/planOffers';
+import { useEntitlement } from '../lib/usePlan';
+
+/** Zielroute des Badges: der Pakete-Reiter der Einstellungen (Tab 6, `SettingsPage.tsx`). */
+const PAKETE_ROUTE = '/settings/pakete';
 
 /**
- * Paket-Badge an einer Bedienstelle (#1458 AK4). Rendert AUSSCHLIESSLICH aus `allowed` und
- * `requiredPlan` des übergebenen Feature-Identifiers — kein Plan-Vergleich, keine Rangfolge im
- * Frontend: Welches Paket ein Feature enthält, weiß allein der Server (`GET /auth/me`).
- *
- * Das Badge sperrt nichts (AK13). Es beschriftet nur; die Aktion läuft bis zum Server, erst dessen
- * 403/429 öffnet das Angebot. Der (i)-Schalter feuert dasselbe `pp:plan-required`-Event wie
- * `toApiError`, damit Klick und Server-Ablehnung in EINEM Dialog zusammenlaufen (AK5/AK7).
- *
- * Klick-Naht wie im `SessionExpiredDialog`: `KolButton._on.onClick` löst in JSDOM nicht über einen
- * echten DOM-Klick aus, deshalb sitzt der Handler auf einem nativen `<span>` mit `data-testid`.
+ * Link-Variante außerhalb von Modalen (AK3, Entscheidung B). Eigenes Bauteil, damit der
+ * Router-Hook NUR in dieser Variante läuft — Modals und „enthalten"-Badges rendern ohne
+ * Router-Kontext (isolierte Unit-Tests der Host-Komponenten bleiben routerfrei).
  */
-export const PlanBadge = ({ feature }: { feature: FeatureId }) => {
-	const { plan } = usePlan();
+const PlanBadgeLink = ({ feature, label }: { feature: FeatureId; label: string }) => {
+	const navigate = useNavigate();
+	return (
+		<a
+			className="plan-badge plan-badge--link"
+			data-testid={`plan-badge-${feature}`}
+			href={PAKETE_ROUTE}
+			onClick={(event) => {
+				// Router-Navigation statt Dokument-Reload; das href bleibt für Mittelklick/„In neuem Tab öffnen".
+				event.preventDefault();
+				navigate(PAKETE_ROUTE);
+			}}
+		>
+			<KolBadge _label={label} _color="var(--pp-status-total)" />
+		</a>
+	);
+};
+
+/**
+ * Paket-Badge an einer Bedienstelle (#1458 AK4, umgebaut in #1528). Rendert AUSSCHLIESSLICH aus
+ * `allowed` und `requiredPlan` des übergebenen Feature-Identifiers — kein Plan-Vergleich, keine
+ * Rangfolge im Frontend: Welches Paket ein Feature enthält, weiß allein der Server (`GET /auth/me`).
+ *
+ * Das Badge sperrt nichts (AK13). Es beschriftet Funktion und Paket direkt (AK2); der globale
+ * Angebots-Dialog mit dem `pp:plan-required`-Event ist entfallen (AK1). Klick-Verhalten nach der
+ * Autoren-Entscheidung „B" (2026-09-17, AK3): außerhalb von Modalen führt es als echtes `<a>` auf
+ * den Pakete-Reiter (Tastatur-/Screenreader-Semantik, Klick-Naht für JSDOM über den Testid am
+ * `<a>` selbst); innerhalb von Modalen (`inModal`) ist es reine Beschriftung ohne Klickziel, damit
+ * eingetippter Text nicht durch eine Navigation verloren geht. Das grüne „enthalten"-Badge hat
+ * nirgends ein Klickziel — auf dem Pakete-Reiter gäbe es dort nichts zu tun.
+ */
+export const PlanBadge = ({ feature, inModal = false }: { feature: FeatureId; inModal?: boolean }) => {
 	const entitlement = useEntitlement(feature);
 
 	if (entitlement === undefined) {
@@ -24,34 +50,29 @@ export const PlanBadge = ({ feature }: { feature: FeatureId }) => {
 		return null;
 	}
 
+	const { title } = featureOffer(feature);
+	const paket = planLabel(entitlement.requiredPlan);
+
 	if (entitlement.allowed) {
+		// Häkchen nie als alleiniger Bedeutungsträger: Icon + Text „enthalten" (WCAG 1.4.1).
 		return (
 			<span className="plan-badge plan-badge--included" data-testid={`plan-badge-${feature}`}>
-				<KolBadge _label="Im Paket enthalten" _color="#1a7f37" _icons={{ left: { icon: 'fa-solid fa-check' } }} />
+				<KolBadge
+					_label={`${title} · ${paket} · enthalten`}
+					_color="var(--pp-success)"
+					_icons={{ left: { icon: 'fa-solid fa-check' } }}
+				/>
 			</span>
 		);
 	}
 
-	const openOffer = (): void => {
-		const detail: PlanRequiredDetail = {
-			feature,
-			requiredPlan: entitlement.requiredPlan,
-			currentPlan: plan ?? 'free',
-		};
-		window.dispatchEvent(new CustomEvent<PlanRequiredDetail>(PLAN_REQUIRED_EVENT, { detail }));
-	};
-
-	return (
-		<span className="plan-badge plan-badge--offer" data-testid={`plan-badge-${feature}`}>
-			<KolBadge _label={planLabel(entitlement.requiredPlan)} _color="#5a3fc0" />
-			<span data-testid={`plan-badge-info-${feature}`} onClick={openOffer}>
-				<KolButton
-					_label={`Was bietet ${planLabel(entitlement.requiredPlan)}?`}
-					_hideLabel
-					_variant="ghost"
-					_icons={{ left: { icon: 'fa-solid fa-circle-info' } }}
-				/>
+	if (inModal) {
+		return (
+			<span className="plan-badge plan-badge--label" data-testid={`plan-badge-${feature}`}>
+				<KolBadge _label={`${title} · ${paket}`} _color="var(--pp-status-total)" />
 			</span>
-		</span>
-	);
+		);
+	}
+
+	return <PlanBadgeLink feature={feature} label={`${title} · ${paket}`} />;
 };

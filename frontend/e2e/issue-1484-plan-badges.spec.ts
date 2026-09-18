@@ -8,7 +8,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * Läuft gegen das echte Backend (Muster `issue-1352-api-tokens.spec.ts`): eine frische Session
  * über `POST /auth/test-login` liegt standardmäßig auf Paket `free` — Free hat weder `ai_assist`
  * noch `voice_input` (seit #1484 A1) noch `mcp_readwrite`, jede Grenzstelle zeigt also den
- * Paket-Badge-Zweig (mit (i)-Schalter), nicht den Haken.
+ * Paket-Badge-Zweig (seit #1528: Beschriftung + Link, kein (i)-Schalter mehr), nicht den Haken.
  *
  * AK8: Badge und umgebende Zeile bleiben innerhalb des 375px-Viewports (Bounding-Box, keine
  * `scrollWidth`-Prüfung, MEMORY 2026-08-24 — die App-Shell clippt mit `overflow-x: hidden`).
@@ -174,25 +174,45 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		await expect(page.getByTestId('plan-badge-voice_input').first()).not.toBeVisible();
 	});
 
-	// Test-Pflege (#1527): wie AK3/AK8 oben — der (i)-Schalter sitzt nur noch hinter `aiEnabled`
-	// (`TaskForm.tsx:1473`), ein Custom-Provider hebt das Gate ohne die Berechtigung zu ändern.
-	test('AK5: der (i)-Schalter am ai_assist-Badge öffnet das Angebot, kein zweiter Dialog', async ({ page }) => {
+	// Test-Pflege (#1528 AK1/AK3): der (i)-Schalter und der globale Angebots-Dialog sind entfallen —
+	// außerhalb von Modalen ist das Badge selbst der Link auf den Pakete-Reiter (Entscheidung B des
+	// Autors). Grenzstelle hier: `GroupsSection` auf /settings/gruppen (kein Modal, kein KI-Gate).
+	test('#1528 AK1/AK3: Badge-Klick außerhalb eines Modals öffnet den Pakete-Reiter, kein Dialog', async ({ page }) => {
+		await page.goto('/settings/gruppen');
+		await waitForStableView(page, 'Allgemein');
+
+		const badge = page.getByTestId('plan-badge-groups');
+		await expect(badge).toBeVisible();
+		await badge.click();
+
+		await expect(page.getByTestId('plans-section')).toBeVisible();
+		await expect(page.getByRole('dialog').filter({ hasText: /Pro|Max|Ultimate/ })).toHaveCount(0);
+	});
+
+	// #1528 AK3/TF5: innerhalb der Schnellerfassung hat das Badge kein Klickziel (`inModal`) — ein
+	// Klick schließt nichts und der eingetippte Text bleibt im Feld, bei 375px und 1280px.
+	test('#1528 AK3: Schnellerfassungs-Text bleibt nach Badge-Klick im Modal erhalten (375px und 1280px)', async ({
+		page,
+	}) => {
 		await createCustomProvider(page);
 		await page.goto('/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		// s. AK3/AK8 oben: mit Custom-Provider öffnet „Neuen Task anlegen" erst das QuickCaptureModal.
-		await page.getByRole('button', { name: 'Überspringen' }).click();
-		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
-		await waitForStableView(page);
-		// Test-Pflege (#1525): Lektorat-Badges ausgeblendet (s. Test oben) — der (i)-Schalter sitzt
-		// jetzt nur noch beim Säulen-Vorschlag im „Optional"-Akkordeon.
-		await openAccordionSection(page, 'Optional');
+		const capture = page.getByRole('textbox', { name: /Beschreibe/ });
+		await expect(capture).toBeVisible();
+		const badge = page.getByTestId('plan-badge-ai_assist');
+		await expect(badge).toBeVisible();
 
-		await page.getByTestId('plan-badge-info-ai_assist').first().click();
+		await capture.fill('Laufen gehen am Sonntag');
+		await badge.click();
+		await expect(capture).toHaveValue('Laufen gehen am Sonntag');
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 
-		// Genau EIN Angebots-Dialog (PlanOfferDialog, App.tsx) — kein Modal-in-Modal.
-		await expect(page.getByRole('dialog').filter({ hasText: /Pro|Max|Ultimate/ })).toHaveCount(1);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await capture.fill('Zweiter Entwurf');
+		await badge.click();
+		await expect(capture).toHaveValue('Zweiter Entwurf');
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 	});
 
 	// Test-Pflege #1526 AK6 (Spec docs/spec/issue-1526.md): das mcp_readwrite-Badge an der

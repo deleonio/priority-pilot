@@ -70,6 +70,12 @@ vi.mock('../api', () => ({
 
 import { api } from '../api';
 import { AddressAutocomplete } from './AddressAutocomplete';
+
+// Test-Pflege (#1528 AK3): das nicht-enthaltene Badge ist außerhalb von Modalen ein Router-Link
+// (`<a href="/settings/pakete">` + useNavigate). Diese Suite rendert die Host-Komponente ohne
+// Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+
 import type { AddressSuggestion } from '../lib/useAddressSearch';
 import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
