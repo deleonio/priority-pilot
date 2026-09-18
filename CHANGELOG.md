@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-18
 
-_Enthält v0.2.0 – v0.2.104._
+_Enthält v0.2.0 – v0.2.105._
 
 ### 🔧 Engineering
 
@@ -16,7 +16,6 @@ _Enthält v0.2.0 – v0.2.104._
 - fix(ci): drop the hand-maintained section guard from the guide sync by @deleonio in https://github.com/deleonio/priority-pilot/pull/1402
 - docs(guide): sync user guide with current ui state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1403
 - docs(arc42): sync architecture docs with mcp endpoint and api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1404
-- docs(guide): sync user guide with current app state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1406
 - docs(guide): sync user guide with current app state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1406
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1332
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1229
@@ -115,6 +114,7 @@ _Enthält v0.2.0 – v0.2.104._
 - feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
 - feat(server): balance score measures unweighted skew (#1474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1568
 - feat(frontend): consolidate feedback categories to three by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1569
+- feat(frontend): move own-package switch into packages tab (#1565) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1570
 
 ## v0.1 - 2026-09-12
 
