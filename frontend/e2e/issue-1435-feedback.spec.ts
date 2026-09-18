@@ -41,7 +41,13 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 		await expect(combobox).toBeVisible();
 		const options = (await combobox.locator('option').allTextContents()).map((label) => label.trim());
 		expect(options).toEqual(['Fragen und Hilfe', 'Wünsche und Ideen', 'Fehler melden']);
-		await expect(combobox).toHaveValue('bug');
+		// Test-Pflege (#1475, Impl-Phase; Muster #1357): KolSelect schreibt der nativen <option>
+		// einen synthetischen Index-Key (z. B. "-2"), nie den logischen `_options`-Wert —
+		// `toHaveValue('bug')` ist damit unerfüllbar. Die Vorauswahl wird über die gewählte
+		// Option geprüft (Wert `bug` wird in AK8/AK9 über die API-Mock-Payload mitgedeckt).
+		await expect
+			.poll(async () => combobox.evaluate((el: HTMLSelectElement) => el.selectedOptions[0]?.textContent?.trim() ?? ''))
+			.toBe('Fehler melden');
 	});
 
 	test('AK8: erfolgreiches Absenden zeigt eine Bestätigung und leert die Felder', async ({ page }) => {

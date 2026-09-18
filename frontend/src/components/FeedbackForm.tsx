@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 
-// Kategorien des Feedback-Formulars (#1435). Die Werte sind der Vertrag mit dem Server
-// (`server/src/express/routes/feedback.ts`), die Labels sind die deutsche Anzeige.
-// Modulkonstante, damit `KolSelect` nicht bei jedem Render eine neue Optionsliste erhält.
+// Kategorien des Feedback-Formulars (#1435, in #1475 auf drei konsolidiert). Die Werte sind
+// der Vertrag mit dem Server (`server/src/express/routes/feedback.ts`), die Labels sind die
+// deutsche Anzeige. Modulkonstante, damit `KolSelect` nicht bei jedem Render eine neue
+// Optionsliste erhält.
 const FEEDBACK_CATEGORIES = [
-	{ label: 'Fehler', value: 'bug' },
-	{ label: 'Funktionswunsch', value: 'feature' },
-	{ label: 'Idee', value: 'idee' },
-	{ label: 'Frage', value: 'frage' },
+	{ label: 'Fragen und Hilfe', value: 'frage' },
+	{ label: 'Wünsche und Ideen', value: 'wunsch' },
+	{ label: 'Fehler melden', value: 'bug' },
 ];
 
 /** Liest den Wert eines KoliBri-Events als String (die Events liefern `unknown`). */
@@ -56,7 +56,10 @@ export const FeedbackForm = () => {
 
 	return (
 		<div className="feedback-form">
-			<p>Fehler, Wünsche, Ideen oder Fragen landen direkt im Notizbuch der Entwicklung — kein GitHub-Konto nötig.</p>
+			<p>
+				Fragen, Wünsche und Ideen oder Fehlerberichte landen direkt im Notizbuch der Entwicklung — kein GitHub-Konto
+				nötig.
+			</p>
 			{status !== null && (
 				<KolAlert _type={status.type} _label={status.type === 'success' ? 'Gesendet' : 'Fehler'}>
 					{status.message}

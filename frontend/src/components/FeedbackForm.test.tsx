@@ -129,7 +129,9 @@ describe('FeedbackForm — Intro-Text zur neuen Kategorien-Aufteilung (#1475 AK4
 	it('nennt Fragen, Wünsche und Fehler — nicht mehr die alte Vierer-Formulierung', () => {
 		const { container } = render(<FeedbackForm />);
 		const intro = container.querySelector('.feedback-form > p');
-		expect(intro).not.toBeNull('Intro-Absatz muss gerendert werden');
+		// Test-Pflege (#1475, Impl-Phase): Assertion-Nachricht entfernt — die Vitest-Typisierung
+		// von `toBeNull` nimmt kein Argument (tsc-Fehler TS2554), die Nachricht ist rein dekorativ.
+		expect(intro).not.toBeNull();
 		const text = intro!.textContent ?? '';
 		expect(text).not.toMatch(/Fehler, Wünsche, Ideen oder Fragen/);
 		expect(text).toMatch(/Fragen/);

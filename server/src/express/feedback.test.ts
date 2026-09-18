@@ -186,6 +186,9 @@ describe('POST /feedback (#1435)', () => {
 			assert.equal(commitFileCalls.length, 1, `Kategorie ${category} muss genau einen Commit erzeugen`);
 		}
 
+		// Test-Pflege (#1475, Impl-Phase): Reset vor der Ablehn-Schleife — der letzte akzeptierte
+		// Commit („bug") steht sonst noch im Array und die Schluss-Assertion ist unerfüllbar.
+		commitFileCalls = [];
 		for (const category of ['feature', 'idee', 'sonstwas']) {
 			const res = await submit(cookie, { ...validBody, category });
 			assert.equal(res.status, 400, `Alte/unbekannte Kategorie ${category} muss 400 liefern (statt ${res.status})`);
