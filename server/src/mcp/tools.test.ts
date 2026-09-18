@@ -915,12 +915,21 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			// #1542: die drei Gruppen-Schreibwerkzeuge kommen alphabetisch vor/hinter group_list.
 			'group_create',
 			'group_delete',
+			// #1544: die beiden Gruppen-Einladungswerkzeuge kommen alphabetisch vor group_list.
+			'group_invitation_create',
+			'group_invitation_list',
 			'group_list',
 			// #1543: die beiden Mitglieder-Werkzeuge kommen alphabetisch vor group_members_list.
 			'group_member_remove',
 			'group_member_role_set',
 			'group_members_list',
 			'group_update',
+			// #1544: die persönlichen Einladungs- und Einladungslink-Werkzeuge vor next_task.
+			'invitation_accept',
+			'invitation_decline',
+			'invitation_list',
+			'invite_link_create',
+			'invite_link_delete',
 			'next_task',
 			'pillar_create',
 			'pillar_delete',
@@ -974,7 +983,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// #1413: vier Säulen-Werkzeuge, #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist
 		// „task_delete ist drin", nicht „es gibt genau dreizehn Werkzeuge" — die vollständige
 		// Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 27, `Katalog sollte siebenundzwanzig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1187,7 +1196,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 27, `Katalog sollte siebenundzwanzig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1660,8 +1669,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			27,
-			`Katalog sollte siebenundzwanzig Namen führen (#1412, #1542, #1543), war: ${names.join(', ')}`,
+			34,
+			`Katalog sollte vierunddreißig Namen führen (#1412, #1542, #1543, #1544), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2398,6 +2407,297 @@ describe('MCP-Werkzeuge group_member_role_set/group_member_remove (#1543)', () =
 			members.result?.length,
 			2,
 			'die Mitgliederliste darf durch die abgelehnten Aufrufe nicht verändert worden sein',
+		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1544 (Spec docs/spec/issue-1544.md) — Einladungen und Einladungslinks
+ * über MCP: group_invitation_list, group_invitation_create, invitation_list,
+ * invitation_accept, invitation_decline, invite_link_create, invite_link_delete.
+ *
+ * AK1: Katalog wächst auf 34 Namen, alle sieben neuen Werkzeuge mit vorgesehenen required-Feldern.
+ * AK2: einladen → in beiden Listen sichtbar → annehmen macht Mitglied / ablehnen macht kein Mitglied.
+ * AK3: invite_link_create liefert nutzbaren Link, invite_link_delete entzieht ihn (öffentlich 410).
+ * AK4: Nicht-Admin (403) und fremdes Konto (404) erhalten den Routen-Fehlertext samt Statuscode,
+ *      die Einladungsliste bleibt leer.
+ * AK5: Nur-lese-Token scheitert an allen fünf schreibenden Werkzeugen am Scope-Hinweis; beide
+ *      List-Werkzeuge bleiben nutzbar, die Einladung bleibt pending.
+ *
+ * Rot, bis die sieben Werkzeuge in mcpTools existieren (heute: "Unknown tool"-Fehler). KEIN Produktivcode.
+ */
+describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		closeDb();
+	});
+
+	type GroupEntry = { id: number; name: string; description: string | null; role: string };
+	type MemberEntry = { userId: number; displayName: string; role: string };
+	type GroupInvitationEntry = { id: number; groupId: number; userId: number; displayName: string; status: string };
+	type ReceivedInvitationEntry = { id: number; groupId: number; groupName: string; invitedByName: string };
+	type InviteLinkEntry = { id: number; token: string; expiresAt: string };
+
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await server.json(`/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { Cookie: cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	/** Legt Gruppe per MCP an (Admin = Token-Besitzer) und lädt B per API ein — Setup für Rollenfälle. */
+	const createGroupViaMcp = async (token: string, name: string): Promise<number> => {
+		const created = await mcpCall<GroupEntry>(token, 'group_create', { name });
+		assert.equal(created.error, undefined, `Setup: group_create sollte gelingen: ${created.error?.message}`);
+		return created.result!.id;
+	};
+
+	const inviteViaApi = async (adminCookie: string, groupId: number, invitedUserId: number): Promise<number> => {
+		const res = await server.json(`/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: adminCookie },
+			body: JSON.stringify({ userId: invitedUserId }),
+		});
+		assert.equal(res.status, 201, 'Setup: Einladung muss anlegbar sein');
+		return ((await res.json()) as { id: number }).id;
+	};
+
+	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (34 gesamt)', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const names = tools.map((t) => t.name);
+		assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
+		for (const name of [
+			'group_invitation_list',
+			'group_invitation_create',
+			'invitation_list',
+			'invitation_accept',
+			'invitation_decline',
+			'invite_link_create',
+			'invite_link_delete',
+		]) {
+			assert.ok(names.includes(name), `${name} muss im Katalog stehen`);
+		}
+
+		const requiredOf = (name: string) => {
+			const tool = tools.find((t) => t.name === name);
+			assert.ok(tool?.inputSchema, `${name} muss ein inputSchema deklarieren`);
+			return (tool?.inputSchema as { required?: string[] } | undefined)?.required;
+		};
+		assert.deepEqual(requiredOf('group_invitation_list'), ['groupId']);
+		assert.deepEqual(requiredOf('group_invitation_create'), ['groupId', 'userId']);
+		assert.ok(!requiredOf('invitation_list')?.length, 'invitation_list darf keine Pflichtfelder haben');
+		assert.deepEqual(requiredOf('invitation_accept'), ['id']);
+		assert.deepEqual(requiredOf('invitation_decline'), ['id']);
+		assert.deepEqual(requiredOf('invite_link_create'), ['groupId']);
+		assert.deepEqual(requiredOf('invite_link_delete'), ['id']);
+	});
+
+	it('AK2: group_invitation_create lädt B ein — sichtbar in group_invitation_list und invitation_list —, invitation_accept macht B zum Mitglied', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const groupId = await createGroupViaMcp(tokenA, 'Einladungs-Test');
+
+		const invited = await mcpCall<GroupInvitationEntry>(tokenA, 'group_invitation_create', {
+			groupId,
+			userId: bId,
+		});
+		assert.equal(invited.error, undefined, `group_invitation_create sollte gelingen: ${invited.error?.message}`);
+		assert.equal(invited.result?.userId, bId);
+		assert.equal(invited.result?.status, 'pending');
+
+		const groupInvitations = await mcpCall<GroupInvitationEntry[]>(tokenA, 'group_invitation_list', { groupId });
+		assert.equal(
+			groupInvitations.error,
+			undefined,
+			`group_invitation_list sollte gelingen: ${groupInvitations.error?.message}`,
+		);
+		assert.ok(
+			groupInvitations.result?.some((i) => i.userId === bId && i.status === 'pending'),
+			'group_invitation_list muss die offene Einladung für B enthalten',
+		);
+
+		const received = await mcpCall<ReceivedInvitationEntry[]>(tokenB, 'invitation_list');
+		assert.equal(received.error, undefined, `invitation_list sollte gelingen: ${received.error?.message}`);
+		const own = received.result?.find((i) => i.id === invited.result?.id);
+		assert.ok(own, 'invitation_list des eingeladenen Kontos muss die Einladung enthalten');
+		assert.equal(own.groupId, groupId);
+		assert.equal(own.groupName, 'Einladungs-Test');
+
+		const accepted = await mcpCall<{ groupId: number }>(tokenB, 'invitation_accept', { id: invited.result!.id });
+		assert.equal(accepted.error, undefined, `invitation_accept sollte gelingen: ${accepted.error?.message}`);
+		assert.equal(accepted.result?.groupId, groupId);
+
+		const members = await mcpCall<MemberEntry[]>(tokenA, 'group_members_list', { groupId });
+		const joined = members.result?.find((m) => m.userId === bId);
+		assert.ok(joined, 'B muss nach invitation_accept in group_members_list auftauchen');
+		assert.equal(joined.role, 'member');
+
+		const receivedAfter = await mcpCall<ReceivedInvitationEntry[]>(tokenB, 'invitation_list');
+		assert.ok(
+			!receivedAfter.result?.some((i) => i.id === invited.result!.id),
+			'die angenommene Einladung darf nicht mehr in invitation_list stehen',
+		);
+	});
+
+	it('AK2: invitation_decline lässt B ohne Mitgliedschaft, die Einladung ist erledigt', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const groupId = await createGroupViaMcp(tokenA, 'Ablehn-Test');
+		const invitationId = await inviteViaApi(cookieA, groupId, bId);
+
+		const declined = await mcpCall<{ groupId: number }>(tokenB, 'invitation_decline', { id: invitationId });
+		assert.equal(declined.error, undefined, `invitation_decline sollte gelingen: ${declined.error?.message}`);
+		assert.equal(declined.result?.groupId, groupId);
+
+		const members = await mcpCall<MemberEntry[]>(tokenA, 'group_members_list', { groupId });
+		assert.ok(!members.result?.some((m) => m.userId === bId), 'B darf nach invitation_decline nicht Mitglied sein');
+
+		const groupInvitations = await mcpCall<GroupInvitationEntry[]>(tokenA, 'group_invitation_list', { groupId });
+		assert.ok(
+			!groupInvitations.result?.some((i) => i.userId === bId && i.status === 'pending'),
+			'die abgelehnte Einladung darf nicht mehr als pending geführt sein',
+		);
+	});
+
+	it('AK3: invite_link_create liefert einen nutzbaren Link, invite_link_delete entzieht ihn (öffentlicher Check 410)', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const groupId = await createGroupViaMcp(token, 'Link-Test');
+
+		const created = await mcpCall<InviteLinkEntry>(token, 'invite_link_create', { groupId });
+		assert.equal(created.error, undefined, `invite_link_create sollte gelingen: ${created.error?.message}`);
+		assert.ok(created.result?.id, 'die Antwort muss eine Link-ID tragen');
+		assert.ok(
+			typeof created.result?.token === 'string' && created.result.token.length >= 32,
+			'Token muss hex ≥ 32 Zeichen sein',
+		);
+		assert.ok(created.result?.expiresAt, 'die Antwort muss expiresAt tragen');
+
+		const beforeRevoke = await fetch(`${server.baseUrl}/invite-links/${created.result!.token}`);
+		assert.equal(beforeRevoke.status, 200, 'der frische Link muss öffentlich nutzbar sein (200)');
+
+		const deleted = await mcpCall(token, 'invite_link_delete', { id: created.result!.id });
+		assert.equal(deleted.error, undefined, `invite_link_delete sollte gelingen (Route 204): ${deleted.error?.message}`);
+
+		const afterRevoke = await fetch(`${server.baseUrl}/invite-links/${created.result!.token}`);
+		assert.equal(afterRevoke.status, 410, 'der widerrufene Link muss öffentlich unbrauchbar sein (410)');
+	});
+
+	it('AK4: Nicht-Admin (403) und fremdes Konto (404) erhalten den Routen-Fehlertext samt Statuscode, es entsteht keine Einladung', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const cookieC = await server.register('mcp-tools-c@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const tokenB = await createToken(cookieB);
+		const tokenC = await createToken(cookieC);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+		const cId = await ownUserId(cookieC, 'mcp-tools-c@example.com');
+
+		const groupId = await createGroupViaMcp(tokenA, 'Bleibt unverändert');
+		// B wird normales Mitglied (Rolle member) — Einladen muss an der Route mit 403 scheitern.
+		const invitationId = await inviteViaApi(cookieA, groupId, bId);
+		const accept = await server.json(`/invitations/${invitationId}/accept`, {
+			method: 'POST',
+			headers: { Cookie: cookieB },
+		});
+		assert.equal(accept.status, 200, 'Setup: Einladung muss annehmbar sein');
+
+		const noAdmin = await mcpCall(tokenB, 'group_invitation_create', { groupId, userId: cId });
+		assert.ok(noAdmin.error, 'group_invitation_create ohne Adminrolle muss fehlschlagen');
+		assert.match(noAdmin.error!.message, /Nur Administratoren dürfen einladen\./);
+		assert.match(noAdmin.error!.message, /HTTP 403/);
+
+		const foreign = await mcpCall(tokenC, 'group_invitation_create', { groupId, userId: bId });
+		assert.ok(foreign.error, 'group_invitation_create auf eine fremde Gruppe muss fehlschlagen');
+		assert.match(foreign.error!.message, /Gruppe nicht gefunden\./);
+		assert.match(foreign.error!.message, /HTTP 404/);
+
+		const groupInvitations = await mcpCall<GroupInvitationEntry[]>(tokenA, 'group_invitation_list', { groupId });
+		assert.equal(
+			groupInvitations.result?.length,
+			0,
+			'durch die gescheiterten Aufrufe darf keine Einladung entstanden sein',
+		);
+	});
+
+	it('AK5: ein Nur-lese-Token scheitert an allen fünf schreibenden Werkzeugen am Scope-Hinweis; die List-Werkzeuge bleiben nutzbar, die Einladung bleibt pending', async () => {
+		const cookieA = await server.register('mcp-tools-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const groupId = await createGroupViaMcp(tokenA, 'Bleibt bei read-only erhalten');
+		const invitationId = await inviteViaApi(cookieA, groupId, bId);
+		const link = await server.json(`/groups/${groupId}/invite-links`, {
+			method: 'POST',
+			headers: { Cookie: cookieA },
+		});
+		assert.equal(link.status, 201, 'Setup: Einladungslink muss anlegbar sein');
+		const linkId = ((await link.json()) as { id: number }).id;
+
+		const { token: readA } = await createReadOnlyToken(cookieA);
+		const { token: readB } = await createReadOnlyToken(cookieB);
+		for (const [tool, token, args] of [
+			['group_invitation_create', readA, { groupId, userId: bId }],
+			['invite_link_create', readA, { groupId }],
+			['invite_link_delete', readA, { id: linkId }],
+			['invitation_accept', readB, { id: invitationId }],
+			['invitation_decline', readB, { id: invitationId }],
+		] as const) {
+			const res = await mcpCall(token, tool, args as Record<string, unknown>);
+			assert.ok(res.error, `${tool} muss mit einem Nur-lese-Token fehlschlagen`);
+			assert.match(
+				res.error!.message,
+				/read access only/,
+				`${tool}: Fehlertext muss die Rechtestufe benennen, war: ${res.error!.message}`,
+			);
+			assert.match(
+				res.error!.message,
+				/Lesen und Schreiben/,
+				`${tool}: Fehlertext muss den Ausweg nennen, war: ${res.error!.message}`,
+			);
+		}
+
+		const groupInvitations = await mcpCall<GroupInvitationEntry[]>(readA, 'group_invitation_list', { groupId });
+		assert.equal(
+			groupInvitations.error,
+			undefined,
+			'group_invitation_list muss mit demselben Nur-lese-Token funktionieren',
+		);
+		assert.ok(
+			groupInvitations.result?.some((i) => i.userId === bId && i.status === 'pending'),
+			'die Einladung muss nach den abgelehnten Aufrufen unverändert pending sein',
+		);
+
+		const received = await mcpCall<ReceivedInvitationEntry[]>(readB, 'invitation_list');
+		assert.equal(received.error, undefined, 'invitation_list muss mit demselben Nur-lese-Token funktionieren');
+		assert.ok(
+			received.result?.some((i) => i.id === invitationId),
+			'die Einladung darf durch die abgelehnten Aufrufe nicht verschwunden sein',
+		);
+
+		const members = await mcpCall<MemberEntry[]>(tokenA, 'group_members_list', { groupId });
+		assert.ok(
+			!members.result?.some((m) => m.userId === bId),
+			'B darf durch die abgelehnten Aufrufe nicht Mitglied geworden sein',
 		);
 	});
 });
