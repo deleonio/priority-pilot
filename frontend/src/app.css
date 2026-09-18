@@ -3764,10 +3764,12 @@ kol-alert {
 }
 
 /*
- * Ruhepuls — ein gemeinsames, leises Atmen über alle Blasen. Die Dauer liefert die Komponente als
- * `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife, keine
- * Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms) beschreiben Übergänge auf eine
- * Nutzeraktion hin und passen hier bewusst nicht.
+ * Ruhepuls — ein gemeinsamer **Doppelschlag** über alle Figuren, wie ein echter Herzschlag und in
+ * derselben Form wie `@keyframes heart-beat` der Herz-Variante und der `beat`-Formel im Shader
+ * (`balance-figure.frag`): Hauptschlag, kurze Ruhe, Nachschlag, Pause. Die Dauer liefert die
+ * Komponente als `--pp-heart-beat` (ruhiger, je ausgewogener). Das ist eine Umgebungs-Schleife,
+ * keine Interaktions-Bewegung: die `--pp-motion-*`-Stufen (120/200 ms) beschreiben Übergänge auf
+ * eine Nutzeraktion hin und passen hier bewusst nicht.
  */
 .balance-figure-beat {
 	animation: balance-figure-beat var(--pp-heart-beat, 2s) var(--pp-ease) infinite;
@@ -3775,12 +3777,21 @@ kol-alert {
 
 @keyframes balance-figure-beat {
 	0%,
+	34%,
 	100% {
 		transform: scale(1);
 	}
 
-	50% {
-		transform: scale(1.03);
+	8% {
+		transform: scale(1.045);
+	}
+
+	17% {
+		transform: scale(1);
+	}
+
+	25% {
+		transform: scale(1.018);
 	}
 }
 

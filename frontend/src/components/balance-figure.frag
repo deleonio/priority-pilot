@@ -113,12 +113,30 @@ const float TARGET_DASHES = 36.0;
 const float PETAL_SWING = 0.06;
 const float PETAL_SWAY = 1.6;
 
-/* Deckkraft der unausgefuellten Ringspur — sie zeigt, wie weit es noch waere. */
-const float ARC_TRACK_ALPHA = 0.16;
+/* Deckkraft der unausgefuellten Ringspur — sie zeigt, wie weit es noch waere. Leise gehalten:
+ * Zusammen mit dem Halo einer gesaettigten Saeulenfarbe (z. B. Neon-1-Rot) wirkt eine kräftige
+ * Grundspur wie ein Flutlicht um das ganze Bild. */
+const float ARC_TRACK_ALPHA = 0.13;
 
 float easeOutCubic(float x) {
 	float v = 1.0 - x;
 	return 1.0 - v * v * v;
+}
+
+/* Gauß-Huegel um c mit Halbbreite w — der Baustein des Herzschlags. */
+float hump(float x, float c, float w) {
+	float d = (x - c) / w;
+	return exp(-d * d);
+}
+
+/*
+ * Der gemeinsame Ruhepuls als **Doppelschlag** wie ein echtes Herz: ein Hauptschlag, ein Nachschlag,
+ * dann Pause — dieselbe Form wie `@keyframes heart-beat` im CSS der Herz-Variante. Die Dauer liefert
+ * `u_beat` (ruhiger, je ausgewogener das Bild).
+ */
+float beatPulse(float t) {
+	float x = fract(t / max(u_beat, 0.1));
+	return 0.72 * hump(x, 0.08, 0.055) + 0.38 * hump(x, 0.27, 0.085);
 }
 
 /* Weicher elliptischer Glanzpunkt (rotiert), Staerke 1 im Zentrum, gaussartig abfallend. */
@@ -166,9 +184,15 @@ void main() {
 	/* Auftakt: die Figur waechst aus dem Nichts, der Ring zieht sich auf. Still: sofort auf Stand. */
 	float rise = easeOutCubic(clamp(u_rise, 0.0, 1.0));
 
-	/* Gemeinsamer Ruhepuls — ein leises Atmen ueber die Figur, nicht ueber den Ring: das
-	 * Zifferblatt ist die Skala und darf nicht mitwackeln. */
-	float beat = 1.0 + 0.03 * sin(PI2 * time / max(u_beat, 0.1));
+	/*
+	 * Gemeinsamer Ruhepuls — ein Doppelschlag ueber die Figur, nicht ueber den Ring: das Zifferblatt
+	 * ist die Skala und wackelt geometrisch nicht mit. Still steht der Puls auf 0 (Grundform), und
+	 * das Licht atmet mit: `beatGlow` staerkt und dämpft die Neon-Scheine im selben Takt — ein
+	 * Helligkeitspuls liest sich kraeftiger als reine Groesse.
+	 */
+	float pulse = u_animated ? beatPulse(time) : 0.0;
+	float beat = 1.0 + 0.045 * pulse;
+	float beatGlow = 0.86 + 0.28 * pulse;
 
 	/* Premultiplizierte Akkumulation. */
 	vec3 acc = vec3(0.0);
@@ -213,11 +237,13 @@ void main() {
 			}
 
 			/* Leuchtender Knoten auf der Spitze — im Kristall der Kristallisationspunkt, in der
-			 * Blüte ein sanfter Lichtpunkt. Er ankert jede Säule im Bild, auch im Gleichstand. */
+			 * Blüte ein sanfter Lichtpunkt. Er ankert jede Säule im Bild, auch im Gleichstand, und
+			 * pulsiert im Schwingungstakt seiner Säule (wie der r-Puls des SVG). */
 			vec2 vertex = vec2(cos(a - 1.5707963), sin(a - 1.5707963)) * r;
 			float nodeDist2 = dot(d - vertex, d - vertex);
-			float node = exp(-nodeDist2 * (soft ? 1.1 : 0.85)) * used;
-			float nodeGlow = exp(-nodeDist2 * 0.06) * 0.45 * used;
+			float nodePulse = 0.75 + 0.25 * sin(phase);
+			float node = exp(-nodeDist2 * (soft ? 1.1 : 0.85)) * used * nodePulse;
+			float nodeGlow = exp(-nodeDist2 * 0.06) * 0.45 * used * nodePulse;
 			nodeAcc += node;
 			nodeColAcc += mix(u_colors[k], vec3(1.0), 0.55) * node + u_colors[k] * nodeGlow;
 		}
@@ -233,7 +259,9 @@ void main() {
 		 */
 		float inside = smoothstep(aa, -aa, f);
 		float facet = floor(position);
-		float facetLum = 0.78 + 0.22 * sin((facet + 0.5) * 2.39996);
+		/* Facetten-Schimmer: Die Leuchtkraft wandert langsam von Facette zu Facette — das Licht
+		   faengt sie nacheinander ein, ohne die harte Kante aufzuweichen. */
+		float facetLum = 0.80 + 0.20 * sin((facet + 0.5) * 2.39996 + time * 0.25);
 		vec3 fillColor = soft
 			? mix(contourCol, u_surface, 0.45)
 			: mix(contourCol, u_surface, 0.30) * facetLum;
@@ -249,7 +277,7 @@ void main() {
 		/* Die Kante: schmal und hell, die Farbe wechselt unterwegs in die der Nachbar-Säule. */
 		float edgeWidth = soft ? 0.9 + aa : 0.55 + aa;
 		float edge = 1.0 - smoothstep(0.0, edgeWidth, abs(f));
-		vec3 sheen = 0.5 + 0.5 * cos(PI2 * (vec3(0.0, 0.33, 0.67) + turn * 1.2 + time * 0.03));
+		vec3 sheen = 0.5 + 0.5 * cos(PI2 * (vec3(0.0, 0.33, 0.67) + turn * 1.2 + time * 0.15));
 		vec3 edgeCol = mix(contourCol, vec3(1.0), soft ? 0.16 : 0.30);
 		if (soft) edgeCol = mix(edgeCol, sheen, 0.22);
 		float edgeAlpha = edge * 0.95;
@@ -258,8 +286,8 @@ void main() {
 
 		/* Neon-Schein ausserhalb der Kontur — beim Kristall enger, seine Schaerfe bleibt Stilmittel. */
 		float halo = exp(-max(f, 0.0) / (soft ? 1.8 : 1.1)) * (1.0 - inside);
-		acc += contourCol * halo * GLOW * 0.8;
-		alpha = min(1.0, alpha + halo * GLOW * 0.8);
+		acc += contourCol * halo * GLOW * 0.8 * beatGlow;
+		alpha = min(1.0, alpha + halo * GLOW * 0.8 * beatGlow);
 
 		/* Soll-Marke als gestrichelter Kreis wie bei den Blasen: Spitze innerhalb heisst „kommt zu
 		   kurz", ausserhalb „zieht davon". */
@@ -342,9 +370,10 @@ void main() {
 			/*
 			 * Scheibe: volle Deckkraft, harte Kante, kein Saum und kein Schein. Statt des Fresnel-
 			 * Saums nur eine schmale helle Lippe direkt an der Kante — sie trennt zwei gleich satte
-			 * Scheiben voneinander, ohne die Flaeche aufzuweichen.
+			 * Scheiben voneinander, ohne die Flaeche aufzuweichen. Ihre Helligkeit atmet im Schwingungs-
+			 * takt der Saeule: die Kante bleibt hart, aber das Licht pulsiert.
 			 */
-			float lip = smoothstep(0.93, 1.0, k) * inside;
+			float lip = smoothstep(0.93, 1.0, k) * inside * (0.72 + 0.28 * sin(phase));
 			vec3 discCol = mix(body, mix(u_colors[i], vec3(1.0), 0.7), lip);
 
 			vec3 orbCol = sharp ? discCol : mix(body, rimCol, rim) + vec3(0.22) * glint * inside * (1.0 - rim);
@@ -359,8 +388,8 @@ void main() {
 			 * genau deshalb bekommt die Scheibe ihn nicht: Ihre Schaerfe ist ihr Stilmittel.
 			 */
 			float halo = sharp ? 0.0 : exp(-max(k - 1.0, 0.0) * 9.0) * (1.0 - inside) * used;
-			acc += u_colors[i] * halo * GLOW;
-			alpha = min(1.0, alpha + halo * GLOW);
+			acc += u_colors[i] * halo * GLOW * beatGlow;
+			alpha = min(1.0, alpha + halo * GLOW * beatGlow);
 		}
 
 		/* Soll-Marke als gestrichelter Kreis: Blase innerhalb heisst „kommt zu kurz", ausserhalb
@@ -399,10 +428,24 @@ void main() {
 			acc = arcCol * arcAlpha + acc * (1.0 - arcAlpha);
 			alpha = arcAlpha + alpha * (1.0 - arcAlpha);
 
-			/* Neon-Schein quer zur Spur. */
-			float halo = exp(-max(abs(radius - u_arc_radius[i]) - halfWidth, 0.0) / 1.8) * filled * used;
-			acc += u_colors[i] * halo * GLOW * 0.5;
-			alpha = min(1.0, alpha + halo * GLOW * 0.5);
+			/*
+			 * Die Ringspuren tragen bewusst **keinen** Neon-Schein: Ihr Material ist der „Bogen mit
+			 * hellem Kopf" (zifferblatt-konzept.md §6), nicht die leuchtende Haut. Vor allem aber
+			 * laeuft die aeussere Spur einmal ums ganze Bild — ein Halo um eine gesaettigte Farbe
+			 * (z. B. das Neon-Rot der ersten Saeule) liess das Bild wie einen Alarm gluehen. Ihr
+			 * Leben tragen die atmende Strichstaerke und der laufende Lichtpunkt.
+			 */
+
+			/*
+			 * Ein Lichtpunkt laeuft je Spur einmal um — Start und Tempo haengen an der Phase der
+			 * Saeule, jede Spur laeuft also fuer sich. Er laeuft nur auf dem gefuellten Bogen und
+			 * steht still, wenn die Figur still steht.
+			 */
+			float lap = fract(time * 0.16 + u_phase[i] * 0.061);
+			float dTurn = mod(turn - lap + 1.0, 1.0);
+			float spark = exp(-pow(dTurn / 0.05, 2.0)) * filled * used * step(0.001, time);
+			acc += mix(u_colors[i], vec3(1.0), 0.45) * spark * 0.35;
+			alpha = min(1.0, alpha + spark * 0.30);
 
 			/* Soll-Marke: ein Strich quer ueber die Spur an der Stelle, an der die Saeule genau auf
 			   ihrem Ziel stuende. */
@@ -440,8 +483,8 @@ void main() {
 
 			/* Neon-Schein quer zum Strahl. */
 			float halo = exp(-max(delta - spread, 0.0) / 6.0) * along * used;
-			acc += u_colors[i] * halo * GLOW * 0.6;
-			alpha = min(1.0, alpha + halo * GLOW * 0.6);
+			acc += u_colors[i] * halo * GLOW * 0.6 * beatGlow;
+			alpha = min(1.0, alpha + halo * GLOW * 0.6 * beatGlow);
 		}
 
 		/* Soll-Marke als gestrichelter Kreis quer ueber alle Strahlen. */
@@ -469,14 +512,15 @@ void main() {
 		* smoothstep(outer + aa, outer - aa, radius);
 
 	/* Leuchtend bis zum Wert, danach dieselbe Farbe stark abgedunkelt: Die Skala bleibt sichtbar,
-	   der Stand liest sich als Bogenlaenge. */
+	   der Stand liest sich als Bogenlaenge. Allein die Helligkeit der leuchtenden Striche atmet im
+	   Beat-Takt (`beatGlow`) — geometrisch bleibt das Zifferblatt starr, es ist die Skala. */
 	float on = step(index + 0.5, u_ring_active * rise);
 	vec3 tickCol = ringColor(index);
-	float tickAlpha = tick * mix(0.22, 1.0, on);
+	float tickAlpha = tick * mix(0.22, beatGlow, on);
 
 	/* Schwacher Schein um die leuchtenden Striche — nur aussen, damit er die Figur nicht antastet. */
 	float glow = exp(-max(abs(radius - (RING_INNER + 2.5)) - 2.5, 0.0) / 2.2) * on * 0.10
-		* smoothstep(RING_INNER - 3.0, RING_INNER + 1.0, radius);
+		* smoothstep(RING_INNER - 3.0, RING_INNER + 1.0, radius) * beatGlow;
 
 	acc = tickCol * tickAlpha + acc * (1.0 - tickAlpha) + tickCol * glow;
 	alpha = tickAlpha + alpha * (1.0 - tickAlpha) + glow;

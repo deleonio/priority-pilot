@@ -59,7 +59,8 @@ ungedeckelte Schwester: „schießt über das Ziel hinaus" ist genauso eine Auss
    nicht der Position). Ab dem 8. Rang neutral — nie zyklisch neu einfärben.
 5. **Das gemeinsame Zifferblatt**: 100 Striche ab 12 Uhr im Uhrzeigersinn, einer je Prozentpunkt
    Gesamt-Balance, dunkelrot → orange → dunkelgrün. Striche bis zum Wert leuchten, der Rest bleibt
-   abgedunkelt stehen. Das Zifferblatt **bewegt sich nie** — es ist die Skala.
+   abgedunkelt stehen. Das Zifferblatt **bewegt sich geometrisch nie** — es ist die Skala; allein
+   die Helligkeit der leuchtenden Striche atmet minimal im Beat-Takt mit (Licht, kein Wackeln).
 6. **Zwei Fassungen**: WebGL fürs Material, SVG als vollwertiger Rückfall. Dasselbe Bild, nur ohne
    Leuchten. Beide lesen dieselbe Geometrie aus `balanceFigure.ts`.
 7. **Bewegung ist abbestellbar.** Master „Animationen", Feinschalter „Herz animieren" und
@@ -69,16 +70,16 @@ ungedeckelte Schwester: „schießt über das Ziel hinaus" ist genauso eine Auss
 
 ## 4. Der gemeinsame Rahmen
 
-| Größe               | Wert                            | Warum                                                             |
-| ------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| Zeichenfläche       | `100×100`, Mitte `(50, 50)`     | quadratisch, weil alle Figuren um einen Mittelpunkt liegen        |
-| Zifferblatt innen   | `RING_INNER = 40`               | Strichlängen 5 bzw. 7,5 (Zehner-Marke)                            |
-| Figurenfeld außen   | `FIGURE_MAX = 33`               | plus Schwingungsreserve 12 % → 37 < 40, nichts läuft in die Skala |
-| Kleinste Form       | `R_MIN = 8`                     | eine Säule ohne Ziel darf nicht verschwinden                      |
-| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`                                          |
-| Ruhepuls            | `1,5–2,6 s` je nach Balance     | `--pp-heart-beat`; ruhiger, je ausgewogener                       |
-| Schwingung je Säule | `6,5–9,9 s`, Phase golden       | damit gleich große Formen unterscheidbar bleiben                  |
-| Drehung je Säule    | `19–26,5 s`, Richtung wechselnd | dasselbe                                                          |
+| Größe               | Wert                            | Warum                                                                                                                                |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Zeichenfläche       | `100×100`, Mitte `(50, 50)`     | quadratisch, weil alle Figuren um einen Mittelpunkt liegen                                                                           |
+| Zifferblatt innen   | `RING_INNER = 40`               | Strichlängen 5 bzw. 7,5 (Zehner-Marke)                                                                                               |
+| Figurenfeld außen   | `FIGURE_MAX = 33`               | plus Schwingungsreserve 12 % → 37 < 40, nichts läuft in die Skala                                                                    |
+| Kleinste Form       | `R_MIN = 8`                     | eine Säule ohne Ziel darf nicht verschwinden                                                                                         |
+| Auftakt             | `RISE_DURATION = 1,4 s`         | einmalig, `easeOutCubic`                                                                                                             |
+| Ruhepuls            | `1,5–2,6 s` je nach Balance     | `--pp-heart-beat`; **Doppelschlag** wie beim Herz (~4,5 % / 1,7 %), ruhiger je ausgewogener; das Neon-Licht atmet im selben Takt mit |
+| Schwingung je Säule | `6,5–9,9 s`, Phase golden       | damit gleich große Formen unterscheidbar bleiben                                                                                     |
+| Drehung je Säule    | `19–26,5 s`, Richtung wechselnd | dasselbe                                                                                                                             |
 
 **Die Bewegung hängt am Farbrang, nicht an der Figur.** Dieselbe Säule schwingt in jedem
 Zifferblatt gleich — wer das Bild wechselt, erkennt sie wieder.
