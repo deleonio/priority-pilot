@@ -130,6 +130,7 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 						distribution: distribution && distribution.length > 0 ? distribution : undefined,
 					},
 					providerValidation.provider,
+					getUserId(req),
 				);
 				res.json({ advice });
 			} catch (error) {

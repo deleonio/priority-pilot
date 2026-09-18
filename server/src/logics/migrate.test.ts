@@ -578,6 +578,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`displayNameCustom` TINYINT NOT NULL DEFAULT 0, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
+				'`selectedLlmProviderId` INTEGER, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -800,6 +801,7 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
+				'`selectedLlmProviderId` INTEGER, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -871,6 +873,7 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
+				'`selectedLlmProviderId` INTEGER, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1026,6 +1029,7 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
+				'`selectedLlmProviderId` INTEGER, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',

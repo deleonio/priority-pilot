@@ -41,7 +41,11 @@ export interface ClassifyPillarsInput {
 }
 
 /** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type PillarClassifier = (input: ClassifyPillarsInput, provider?: LlmProvider) => Promise<PillarSuggestion[]>;
+export type PillarClassifier = (
+	input: ClassifyPillarsInput,
+	provider?: LlmProvider,
+	userId?: number,
+) => Promise<PillarSuggestion[]>;
 
 /**
  * Aus einem frei formulierten Text extrahierte Task-Felder (Schnellerfassung, #235). Nur `title`
@@ -80,6 +84,7 @@ export type ParseTaskParser = (
 	text: string,
 	provider?: LlmProvider,
 	categories?: CategoryOption[],
+	userId?: number,
 ) => Promise<ParsedTask>;
 
 /** Aus einer frei formulierten Suchanfrage extrahierter Filter (Suchbegriff + Kategorie). */
@@ -93,6 +98,7 @@ export type ParseSearchParser = (
 	text: string,
 	provider?: LlmProvider,
 	categories?: CategoryOption[],
+	userId?: number,
 ) => Promise<ParsedSearch>;
 
 /**
@@ -420,12 +426,12 @@ const toDynamicProviderConfig = (provider: LlmProviderRow): ProviderConfig => {
  * `null` = kein Provider im Spiel (nicht konfiguriert oder Tabelle fehlt) → Aufrufer
  * wirft {@link MissingApiKeyError} (HTTP 503).
  */
-const resolveProvider = async (pinned?: LlmProvider): Promise<LlmProviderRow | null> => {
+const resolveProvider = async (pinned?: LlmProvider, userId?: number): Promise<LlmProviderRow | null> => {
 	try {
 		if (pinned !== undefined && pinned !== '') {
 			return await findProviderByName(pinned);
 		}
-		return await loadActiveProvider();
+		return await loadActiveProvider(userId);
 	} catch {
 		return null;
 	}
@@ -434,9 +440,11 @@ const resolveProvider = async (pinned?: LlmProvider): Promise<LlmProviderRow | n
 const requestModelJson = async (
 	messages: { role: string; content: string }[],
 	provider?: LlmProvider,
+	userId?: number,
 ): Promise<unknown> => {
 	// GENAU EIN Call an den aufgelösten Provider — keine Kaskade, kein Provider-Fallback.
-	const resolved = await resolveProvider(provider);
+	// Mit userId (#1548) gewinnt die eigene Provider-Auswahl des Nutzers.
+	const resolved = await resolveProvider(provider, userId);
 	if (resolved === null) {
 		throw new MissingApiKeyError(
 			'Kein aktiver LLM-Provider — wähle einen unter Einstellungen → KI-Provider und teste ihn dort.',
@@ -461,7 +469,7 @@ const requestModelJson = async (
  * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
  */
-export const classifyPillarsWithMistral: PillarClassifier = async (input, provider) => {
+export const classifyPillarsWithMistral: PillarClassifier = async (input, provider, userId) => {
 	const parsed = await requestModelJson(
 		[
 			{ role: 'system', content: buildSystemPrompt(input.pillars) },
@@ -470,6 +478,7 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input, provid
 			{ role: 'user', content: buildUserMessage(input) },
 		],
 		provider,
+		userId,
 	);
 	return extractSuggestions(parsed, input);
 };
@@ -593,13 +602,14 @@ const extractParsedTask = (parsed: unknown, categories: CategoryOption[] = []): 
  * {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
  */
-export const parseTaskTextWithMistral: ParseTaskParser = async (text, provider, categories = []) => {
+export const parseTaskTextWithMistral: ParseTaskParser = async (text, provider, categories = [], userId) => {
 	const parsed = await requestModelJson(
 		[
 			{ role: 'system', content: buildParseTaskSystemPrompt(new Date(), categories) },
 			{ role: 'user', content: text },
 		],
 		provider,
+		userId,
 	);
 	return extractParsedTask(parsed, categories);
 };
@@ -646,13 +656,14 @@ const extractParsedSearch = (parsed: unknown, categories: CategoryOption[] = [])
 };
 
 /** Realer Suchanfragen-Parser (Muster {@link parseTaskTextWithMistral}). */
-export const parseSearchQueryWithMistral: ParseSearchParser = async (text, provider, categories = []) => {
+export const parseSearchQueryWithMistral: ParseSearchParser = async (text, provider, categories = [], userId) => {
 	const parsed = await requestModelJson(
 		[
 			{ role: 'system', content: buildParseSearchSystemPrompt(categories) },
 			{ role: 'user', content: text },
 		],
 		provider,
+		userId,
 	);
 	return extractParsedSearch(parsed, categories);
 };
@@ -682,7 +693,11 @@ export interface LektoratOutput {
 
 /** Funktionssignatur des Lektorats — injizierbar für Tests. */
 // knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
-export type LektoratFunction = (input: LektoratInput, provider?: LlmProvider) => Promise<LektoratOutput>;
+export type LektoratFunction = (
+	input: LektoratInput,
+	provider?: LlmProvider,
+	userId?: number,
+) => Promise<LektoratOutput>;
 
 /**
  * Ein Verteilungs-Eintrag einer Säule, so wie ihn der Client (Dashboard „Meine Themen") darstellt:
@@ -715,7 +730,11 @@ export interface AdviseActivitiesInput {
 }
 
 /** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type ActivityAdvisor = (input: AdviseActivitiesInput, provider?: LlmProvider) => Promise<ActivityAdvice[]>;
+export type ActivityAdvisor = (
+	input: AdviseActivitiesInput,
+	provider?: LlmProvider,
+	userId?: number,
+) => Promise<ActivityAdvice[]>;
 
 /** Obergrenze der zurückgegebenen Vorschläge — hält die Antwort klein und die UI übersichtlich. */
 const MAX_ADVICE_ENTRIES = 8;
@@ -885,7 +904,7 @@ export const extractLektoratOutput = (parsed: unknown): LektoratOutput => {
  * bei jedem Upstream-/Format-Problem.
  */
 // knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
-export const lektoratTextWithMistral: LektoratFunction = async (input, provider) => {
+export const lektoratTextWithMistral: LektoratFunction = async (input, provider, userId) => {
 	// Eingabe-Validierung VOR dem LLM-Call (Review #647): leerer Text verschwendet API-Calls,
 	// nicht-positive maxLength erzeugt kaputte Prompt-Outputs.
 	if (input.text.trim() === '') {
@@ -900,6 +919,7 @@ export const lektoratTextWithMistral: LektoratFunction = async (input, provider)
 			{ role: 'user', content: buildLektoratUserMessage(input) },
 		],
 		provider,
+		userId,
 	);
 	return extractLektoratOutput(parsed);
 };
@@ -909,13 +929,14 @@ export const lektoratTextWithMistral: LektoratFunction = async (input, provider)
  * und schlägt Aktivitäten samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError},
  * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
-export const adviseActivitiesWithMistral: ActivityAdvisor = async (input, provider) => {
+export const adviseActivitiesWithMistral: ActivityAdvisor = async (input, provider, userId) => {
 	const parsed = await requestModelJson(
 		[
 			{ role: 'system', content: ADVISOR_SYSTEM_PROMPT },
 			{ role: 'user', content: buildAdvisorUserMessage(input) },
 		],
 		provider,
+		userId,
 	);
 	return extractActivityAdvice(parsed, input);
 };

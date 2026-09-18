@@ -583,6 +583,25 @@ export const migrateUsersPlanColumn = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `selectedLlmProviderId`-Spalte (eigene Provider-Auswahl, #1548) auf einer
+ * **bestehenden** `users`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
+ * `migrateUsersPlanColumn`. Bestandskonten starten ohne Auswahl (`NULL` = instanzweit aktiver
+ * Provider). Idempotent (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()`
+ * legt Tabelle inkl. Spalte an.
+ */
+export const migrateUsersSelectedLlmProvider = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('selectedLlmProviderId')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `users` ADD COLUMN `selectedLlmProviderId` INTEGER NULL');
+	console.log('Spalte selectedLlmProviderId an users nachgezogen.');
+};
+
+/**
  * Zieht die `scope`-Spalte (Rechtestufe `'read'` | `'readwrite'`, #1356) auf einer **bestehenden**
  * `api_tokens`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateUsersRoleColumn`.
  * Bestandszeilen erhalten `'read'` (kein stilles Hochstufen bereits vergebener Tokens). Idempotent

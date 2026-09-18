@@ -8,6 +8,7 @@ import { getEntitlements, shouldBlockFeature, type FeatureId } from '../logics/p
 import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { User } from '../models/index.js';
+import { hasOwnProviderSelection } from '../llm/llmProviders.js';
 
 /**
  * Lesbare Feature-Namen für die Fehlermeldung — rein sprachlich, keine Paketzuordnung. Exportiert,
@@ -54,6 +55,12 @@ export const requirePlanFeature = (feature: FeatureId): PlanFeatureHandler => {
 		const userId = getUserId(req);
 		const plan = typeof userId === 'number' ? (await User.findByPk(userId))?.plan : undefined;
 		if (plan === undefined || !shouldBlockFeature(plan, feature)) {
+			next();
+			return;
+		}
+		// #1548: KI-Aufrufe über einen eigenen Provider des Nutzers laufen auf dessen Key —
+		// dann greift das Paket-Gate nicht, auch Free erhält fachliche Antworten (AK4).
+		if (feature === 'ai_assist' && typeof userId === 'number' && (await hasOwnProviderSelection(userId))) {
 			next();
 			return;
 		}

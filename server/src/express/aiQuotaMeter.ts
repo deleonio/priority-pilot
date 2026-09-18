@@ -11,6 +11,7 @@ import { AI_ASSIST_MONTHLY_QUOTA, isMonetizationEnforced } from '../logics/plans
 import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { AiUsage, User } from '../models/index.js';
+import { hasOwnProviderSelection } from '../llm/llmProviders.js';
 
 /**
  * Ein von {@link meterAiQuota} erzeugter Handler trägt die Marker-Eigenschaft — der Abdeckungstest
@@ -99,6 +100,12 @@ export const meterAiQuota = (): AiQuotaHandler => {
 		}
 		const userId = getUserId(req);
 		if (typeof userId !== 'number') {
+			next();
+			return;
+		}
+		// #1548: Aufrufe über den eigenen Provider des Nutzers kosten die Instanz nichts — weder
+		// buchen noch (bei Fehlerantworten) zurückbuchen; der Monatszähler bleibt unangetastet (AK5).
+		if (await hasOwnProviderSelection(userId)) {
 			next();
 			return;
 		}

@@ -29,6 +29,12 @@ class User extends Model {
 	public intervalMinutes!: number;
 	/** Systemweite Rolle (Rollensystem admin/member) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
+	/**
+	 * Ausgewählter LLM-Provider für die KI-Aufrufe dieses Nutzers (#1548) — `null` = keine
+	 * Auswahl (Auflösung fällt auf den instanzweit aktiven Provider zurück). Wirksam wird nur
+	 * eine Auswahl auf einen EIGENEN Provider (#1547).
+	 */
+	public selectedLlmProviderId!: number | null;
 	/** Gebuchtes Paket (#1456) — Quelle der Entitlement-Auswertung in `logics/plans.ts`. */
 	public plan!: Plan;
 
@@ -85,6 +91,11 @@ User.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: 'member',
+		},
+		selectedLlmProviderId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
 		},
 		plan: {
 			type: DataTypes.STRING,

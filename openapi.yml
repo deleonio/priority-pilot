@@ -1299,6 +1299,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /llm-providers/selection:
+    get:
+      summary: Gewählten LLM-Provider des Nutzers abfragen
+      description: >-
+        Liefert die Provider-Auswahl des eingeloggten Nutzers für seine KI-Aufrufe
+        (#1548). `providerId: null` = keine Auswahl — die Auflösung fällt auf den
+        instanzweit aktiven Provider zurück.
+      operationId: getLlmProviderSelection
+      tags: [llm]
+      responses:
+        '200':
+          description: Aktuelle Auswahl des Nutzers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProviderSelection'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Provider für die KI-Aufrufe des Nutzers wählen
+      description: >-
+        Speichert die Provider-Auswahl des eingeloggten Nutzers (#1548): eigene oder
+        instanzweite Provider-ID; `null` hebt die Auswahl auf. Nur eine Auswahl auf einen
+        EIGENEN Provider ist wirksam (Gate- und Kontingent-Bypass); instanzweite Provider
+        sind wählbar, wirken aber wie keine Auswahl. Eine fremde Provider-ID antwortet 404.
+      operationId: setLlmProviderSelection
+      tags: [llm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmProviderSelection'
+      responses:
+        '200':
+          description: Auswahl gespeichert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProviderSelection'
+        '400':
+          description: Ungültiger Payload (providerId keine positive Ganzzahl/null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider nicht gefunden (fremde ID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /llm-providers/{id}:
     parameters:
       - name: id
@@ -5032,6 +5094,20 @@ components:
         author:
           type: string
           description: Urheber des Zitats.
+    LlmProviderSelection:
+      type: object
+      required:
+        - providerId
+      description: >-
+        Die Provider-Auswahl eines Nutzers für seine KI-Aufrufe (#1548). `providerId`
+        referenziert einen eigenen (#1547) oder instanzweiten Provider; `null` = keine
+        Auswahl. Wirksam (Gate- und Kontingent-Bypass auf den KI-Endpunkten) ist nur eine
+        Auswahl auf einen eigenen Provider — bei instanzweiten Providern und ohne Auswahl
+        läuft die Auflösung wie bisher über den instanzweit aktiven Provider.
+      properties:
+        providerId:
+          type: [integer, 'null']
+          description: ID des gewählten Providers oder null (keine Auswahl).
     LlmProvider:
       type: object
       required:

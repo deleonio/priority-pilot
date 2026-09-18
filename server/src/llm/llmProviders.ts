@@ -1,6 +1,6 @@
 import { col, fn, where, Op } from 'sequelize';
 import type { WhereOptions } from 'sequelize';
-import { LlmProvider } from '../models/index.js';
+import { LlmProvider, User } from '../models/index.js';
 
 /**
  * Service-Schicht des Provider-Systems: CRUD + Aktivierung der `llm_providers`-Zeilen,
@@ -286,17 +286,75 @@ export const listProviders = async (userId?: number | null): Promise<LlmProvider
 };
 
 /**
+ * Die wirksame Auswahl eines Nutzers als Provider-Zeile (#1548): `users.selectedLlmProviderId`
+ * muss auf einen EIGENEN Provider zeigen — sonst (`null`, instanzweiter Provider, gelöschte
+ * Zeile) ist die Auswahl wirkungslos und der Aufrufer bleibt beim instanzweit aktiven Provider.
+ */
+const loadOwnSelection = async (userId: number): Promise<LlmProvider | null> => {
+	const selectedId = (await User.findByPk(userId))?.selectedLlmProviderId ?? null;
+	if (selectedId === null) {
+		return null;
+	}
+	const selected = await LlmProvider.findByPk(selectedId);
+	return selected !== null && selected.userId === userId ? selected : null;
+};
+
+/**
  * Der effektiv aktive Provider als DB-Zeile (Raw-Model inkl. `apiKey` — NUR für den
  * LLM-Aufruf via {@link toRuntimeConfig}, nie serialisieren). Explizit aktive Zeile,
  * sonst Fallback-Built-in; `null`, wenn gar kein Provider verfügbar ist.
+ *
+ * Mit `userId` (#1548) gewinnt die eigene Provider-Auswahl des Nutzers; ohne Nutzerkontext
+ * (oder wirkungsloser Auswahl) bleibt es beim instanzweit aktiven Provider.
  */
-export const loadActiveProvider = async (): Promise<LlmProvider | null> => {
+export const loadActiveProvider = async (userId?: number): Promise<LlmProvider | null> => {
 	await ensureBuiltins();
 	try {
+		if (userId !== undefined) {
+			const own = await loadOwnSelection(userId);
+			if (own !== null) {
+				return own;
+			}
+		}
 		const providers = await LlmProvider.findAll({ order: [['id', 'ASC']] });
 		return effectiveActive(providers);
 	} catch {
 		return null;
+	}
+};
+
+/**
+ * Aktuell gewählte Provider-ID eines Nutzers (#1548) — `null` = keine Auswahl (seine Aufrufe
+ * laufen über den instanzweit aktiven Provider).
+ */
+export const loadProviderSelection = async (userId: number): Promise<number | null> =>
+	(await User.findByPk(userId))?.selectedLlmProviderId ?? null;
+
+/**
+ * Speichert die Provider-Auswahl eines Nutzers (#1548): eigene oder instanzweite ID, `null`
+ * hebt die Auswahl auf. Eine fremde Provider-ID wirft `NOT_FOUND` (Zugriffsmodell #1547) —
+ * instanzweite Provider sind wählbar, wirken in der Auflösung aber wie keine Auswahl.
+ */
+export const setProviderSelection = async (userId: number, providerId: number | null): Promise<void> => {
+	if (providerId !== null) {
+		const provider = await LlmProvider.findByPk(providerId);
+		if (provider === null || !isProviderAccessible(provider, userId)) {
+			throw new Error('NOT_FOUND');
+		}
+	}
+	await User.update({ selectedLlmProviderId: providerId }, { where: { id: userId } });
+};
+
+/**
+ * Ob für den Nutzer ein eigener Provider als wirksame Auswahl eingetragen ist (#1548) —
+ * Grundlage der Gate- und Kontingent-Bypasses auf den KI-Endpunkten: Aufrufe über den
+ * eigenen Provider laufen auf dessen Key, nicht auf dem Kontingent der Instanz.
+ */
+export const hasOwnProviderSelection = async (userId: number): Promise<boolean> => {
+	try {
+		return (await loadOwnSelection(userId)) !== null;
+	} catch {
+		return false;
 	}
 };
 

@@ -81,7 +81,7 @@ export const createParseTasksRouter = (
 			}
 
 			try {
-				const result = await parser(validation.text, provider, await loadCategoryOptions(req));
+				const result = await parser(validation.text, provider, await loadCategoryOptions(req), getUserId(req));
 				res.json(result);
 			} catch (error) {
 				sendLlmError(res, error);
@@ -117,7 +117,7 @@ export const createParseTasksRouter = (
 			}
 
 			try {
-				res.json(await searchParser(validation.text, provider, categories));
+				res.json(await searchParser(validation.text, provider, categories, getUserId(req)));
 			} catch (error) {
 				sendLlmError(res, error);
 			}

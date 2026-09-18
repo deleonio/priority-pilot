@@ -183,10 +183,10 @@ describe('Eigener LLM-Provider pro Nutzer (#1548)', () => {
 			const cookie = await register('quota-free@1548.example.com');
 			const providerId = await createOwnProvider(cookie);
 			assert.equal((await putSelection(cookie, providerId)).status, 200);
-			const [row] = (await sequelize.query('SELECT id FROM users WHERE email = ?', {
+			const [rows] = (await sequelize.query('SELECT id FROM users WHERE email = ?', {
 				replacements: ['quota-free@1548.example.com'],
-			})) as { id: number }[];
-			const userId = row.id;
+			})) as unknown as { id: number }[][];
+			const userId = rows[0]?.id;
 
 			const before = await aiUsageCount(userId);
 			const res = await postLektorat(cookie);

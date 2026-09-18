@@ -9,6 +9,8 @@ import {
 	deleteProvider,
 	isProviderAccessible,
 	listProviders,
+	loadProviderSelection,
+	setProviderSelection,
 	toRuntimeConfig,
 	updateProvider,
 	type ProviderRuntime,
@@ -21,6 +23,7 @@ type LlmProviderDto = components['schemas']['LlmProvider'];
 type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
 type LlmProviderUpdateDto = components['schemas']['LlmProviderUpdate'];
 type LlmModelDto = components['schemas']['LlmModel'];
+type LlmProviderSelectionDto = components['schemas']['LlmProviderSelection'];
 type ErrorDto = components['schemas']['Error'];
 
 /** Prüft, ob ein String eine gültige http(s)-URL ist. */
@@ -321,6 +324,44 @@ export const createLlmProvidersRouter = (
 		try {
 			res.status(201).json(await createProvider(validation.input, userId));
 		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
+
+	/**
+	 * Aktuell gewählter Provider des Aufrufers (#1548) — `providerId: null` = keine Auswahl,
+	 * seine KI-Aufrufe laufen dann über den instanzweit aktiven Provider.
+	 */
+	router.get('/llm-providers/selection', async (req, res: Response<LlmProviderSelectionDto | ErrorDto>) => {
+		const userId = await requireProviderUser(req, res);
+		if (userId === null) return;
+		try {
+			res.json({ providerId: await loadProviderSelection(userId) });
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
+
+	/**
+	 * Wählt den Provider für die KI-Aufrufe des Aufrufers (#1548): eigene oder instanzweite
+	 * Provider-ID, `null` hebt die Auswahl auf. Eine fremde Provider-ID verhält sich wie eine
+	 * unbekannte: 404 (#1547-Zugriffsmodell). Muss VOR `PUT /llm-providers/:id` registriert
+	 * sein, sonst frisst der `:id`-Pfad die schlichte ID-Auswahl.
+	 */
+	router.put('/llm-providers/selection', async (req, res: Response<LlmProviderSelectionDto | ErrorDto>) => {
+		const userId = await requireProviderUser(req, res);
+		if (userId === null) return;
+		const raw = (req.body as Record<string, unknown> | null | undefined)?.providerId;
+		if (raw !== null && (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0)) {
+			sendError(res, 400, 'providerId muss eine positive Ganzzahl oder null sein.');
+			return;
+		}
+		const providerId = raw === null ? null : (raw as number);
+		try {
+			await setProviderSelection(userId, providerId);
+			res.json({ providerId });
+		} catch (error) {
+			if (sendServiceError(res, error)) return;
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	});
