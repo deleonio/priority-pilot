@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	AI_ENABLED_STORAGE_KEY,
 	computeAiFeaturesEnabled,
+	hasOwnCustomProvider,
 	readAiPreferences,
 	storeAiPreferences,
 } from './aiPreferences';
@@ -121,4 +122,65 @@ describe('aiPreferences — computeAiFeaturesEnabled (#1525 AK1/AK3/AK4/AK5)', (
 			expect(computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed, hasCustomProvider })).toBe(expected);
 		},
 	);
+});
+
+// ── #1549 (AK8b, Spec docs/spec/issue-1549.md) ─────────────────────────────────────────────────
+
+/**
+ * Rote Spec-Tests für #1549 — das KI-Gate zählt nur noch **eigene** Custom-Provider.
+ *
+ * `hasOwnCustomProvider` existiert noch nicht in `aiPreferences.ts` (roter Import-Fehler bis zur
+ * Implementierung — echte neue Funktionalität). Vertrag: eine Provider-Liste (DTO von
+ * `GET /llm-providers`, inkl. `own`) zählt genau dann als „hat eigenen Custom-Provider“, wenn
+ * mindestens eine Zeile `kind === 'custom'` UND `own === true` ist. Instanzweite Customs
+ * (`own: false`) öffnen das Free-Gate NICHT — der Server liefert dort 403 `plan_required`
+ * (#1548 AK7), das Frontend darf das Gate nicht weiter fassen.
+ */
+describe('aiPreferences — hasOwnCustomProvider (#1549 AK8b)', () => {
+	it.each([
+		['leere Liste', [], false],
+		['nur instanzweiter Custom', [{ kind: 'custom', own: false }], false],
+		['nur Built-ins', [{ kind: 'builtin', own: false }], false],
+		['Built-in mit own:true (erwartet nie real)', [{ kind: 'builtin', own: true }], false],
+		['eigener Custom', [{ kind: 'custom', own: true }], true],
+		[
+			'instanzweiter + eigener Custom',
+			[
+				{ kind: 'custom', own: false },
+				{ kind: 'custom', own: true },
+			],
+			true,
+		],
+		['fehlendes own-Feld zählt nicht als eigen', [{ kind: 'custom' }], false],
+	])(' %s → %s', (_name, providers, expected) => {
+		expect(hasOwnCustomProvider(providers as never[])).toBe(expected);
+	});
+
+	it('AK8b: Free (kein ai_assist) + nur instanzweite Customs → KI-Schalter aus', () => {
+		const instanceWideOnly = [
+			{ kind: 'builtin', own: false },
+			{ kind: 'custom', own: false },
+		];
+		expect(
+			computeAiFeaturesEnabled({
+				preferenceEnabled: true,
+				entitlementAllowed: false,
+				hasCustomProvider: hasOwnCustomProvider(instanceWideOnly as never[]),
+			}),
+		).toBe(false);
+	});
+
+	it('AK8b: Free (kein ai_assist) + eigener Custom → KI-Schalter an', () => {
+		const withOwn = [
+			{ kind: 'custom', own: false },
+			{ kind: 'custom', own: true },
+		];
+		expect(
+			computeAiFeaturesEnabled({
+				preferenceEnabled: true,
+				entitlementAllowed: false,
+				hasCustomProvider: hasOwnCustomProvider(withOwn as never[]),
+			}),
+		).toBe(true);
+	});
 });

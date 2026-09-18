@@ -502,4 +502,47 @@ describe('LLM-Providers API', () => {
 		assert.ok(row, 'Instanzweite Zeile bleibt bestehen');
 		assert.equal(row.name, 'instanzweit-guard', 'Instanzweite Zeile unverändert');
 	});
+
+	// ── #1549 (AK8a): own-Marker im DTO — Spec docs/spec/issue-1549.md ──
+	it('#1549 AK8a: own=true nur für Zeilen des angemeldeten Nutzers, instanzweit/fremd/builtin = false', async () => {
+		const cookieA = await register('own-a@1549.example.com');
+		const cookieB = await register('own-b@1549.example.com');
+		const { LlmProvider } = await import('../../models/index.js');
+
+		const idA = await createProviderAndGetId(cookieA, { ...customPayload, name: 'A-eigen' });
+		await createProviderAndGetId(cookieB, { ...customPayload, name: 'B-eigen' });
+		// Instanzweite Custom-Zeile (userId = null) direkt anlegen — wie #1547 TF1.
+		await LlmProvider.create({
+			name: 'instanzweit',
+			endpoint: 'https://shared.example.com/v1',
+			apiKey: 'shared-key',
+			model: 'shared-model',
+			kind: 'custom',
+		});
+
+		const rowsA = await listProviders(cookieA);
+		const byName = new Map(rowsA.map((row) => [row.name as string, row]));
+
+		// Eigene Zeile des angemeldeten Nutzers → own: true.
+		assert.equal(byName.get('A-eigen')?.own, true, 'Eigene Custom-Zeile → own=true (AK8a)');
+		// Instanzweite Custom-Zeile → own: false.
+		assert.equal(byName.get('instanzweit')?.own, false, 'Instanzweite Custom-Zeile → own=false (AK8a)');
+		// Fremde Zeile (userId von B) → own: false.
+		assert.equal(byName.get('B-eigen')?.own, false, 'Fremde Custom-Zeile → own=false (AK8a)');
+		// Built-ins sind nie eigen.
+		assert.equal(byName.get('Mistral')?.own, false, 'Built-in → own=false (AK8a)');
+		assert.equal(byName.get('OpenRouter')?.own, false, 'Built-in → own=false (AK8a)');
+		// Jede Zeile trägt das Feld (abwärtskompatibler boolescher Marker, kein Fehlen/undefined).
+		for (const row of rowsA) {
+			assert.equal(typeof row.own, 'boolean', `Zeile "${row.name}" trägt boolesches own-Feld`);
+		}
+
+		// Ohne Nutzerkontext (auth aktiv, kein Cookie): GET bleibt abweisend — own definiert sich
+		// ausschließlich über die Session (Randbedingung „ohne Nutzerkontext → own: false“ greift
+		// nur für offene Instanzen; hier ist der 401-Vertrag von #1547 stärker).
+		assert.equal((await fetch(`${server.baseUrl}/llm-providers`)).status, 401, 'GET ohne Session → 401');
+		// Eigenes DTO-Feld darf den apiKey nicht mit zurückgeben (TF3-Vertrag von #1547 bleibt).
+		assert.ok(idA > 0);
+		assert.equal('apiKey' in (byName.get('A-eigen') ?? {}), false, 'DTO leaked keinen apiKey');
+	});
 });
