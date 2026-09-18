@@ -1062,3 +1062,51 @@ describe('SettingsPage – #1555: Hinweis bei unausgewogener Säulen-Gewichtung'
 		});
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1565 — „Paket-Selbstwechsel des Admins zieht in den Tab Pakete um".
+ *
+ * Spec-Bezug: docs/spec/issue-1565.md (AK1 Platzierung, AK4 Rollen-Gating).
+ *
+ * Strukturvertrag ( dieselbe Technik wie der #1151-Block): KoliBri-Elemente werden als
+ * Custom-Elements mit Attributen gerendert und über Attribut-Selektoren geprüft. Die
+ * Verhaltens-Tests der Karte (updateUserPlan + refresh) liegen in OwnPlanCard.test.tsx —
+ * hier nur: die Karte lebt im Panel tab-6 („Pakete") und nur für Admins.
+ */
+describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
+	/** Slot-Container eines Tabs (KolTabs-Panel-Host), Muster #1151-Block. */
+	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
+		container.querySelector(`[slot="${slot}"]`);
+
+	it('AK1: mit Admin-Rolle rendert die Auswahl-Karte „Eigenes Paket" im Panel tab-6 (Pakete)', () => {
+		const { container } = render(<SettingsPage {...defaultProps} isAdmin currentUserId={7} />);
+
+		const tab6 = panel(container, 'tab-6');
+		expect(tab6, 'Pakete-Panel existiert').not.toBeNull();
+		// Komponentenagnostisch: KI-UX empfiehlt KolSingleSelect, toleriert das native KolSelect.
+		const ownSelection = tab6?.querySelector(
+			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
+		);
+		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-6-Panel').toBeTruthy();
+
+		// Nicht auch in der Nutzerverwaltung (dort ist das Paket nur noch Badge, AK2).
+		const tab8 = panel(container, 'tab-8');
+		expect(
+			tab8?.querySelector('kol-single-select, kol-select'),
+			'Nutzerverwaltung hat keine Auswahl-Komponente mehr',
+		).toBeNull();
+	});
+
+	it('AK4: ohne Admin-Rolle rendert das Pakete-Panel keine Auswahl-Karte', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tab6 = panel(container, 'tab-6');
+		expect(tab6, 'Pakete-Panel existiert auch für Mitglieder (Matrix bleibt, AK4)').not.toBeNull();
+		expect(
+			tab6?.querySelector(
+				'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
+			),
+			'Mitgliedern wird die Auswahl-Karte nicht gerendert',
+		).toBeNull();
+	});
+});
