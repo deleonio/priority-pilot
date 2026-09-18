@@ -544,6 +544,37 @@ export const mcpTools: McpTool[] = [
 		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
 	},
 	{
+		name: 'group_invitation_create',
+		description:
+			'Invites an account into one of your groups. Requires the admin role in that group; the ' +
+			'invitation stays pending until the invitee accepts or declines it.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: {
+				groupId: { type: 'integer', description: 'ID of the group (from group_list).' },
+				userId: { type: 'integer', description: 'ID of the account to invite (from the user search).' },
+			},
+			required: ['groupId', 'userId'],
+		},
+		run: (ctx, args) => {
+			const groupId = requireIntegerId(args, 'groupId');
+			const { userId } = args;
+			return callApi(ctx, `/groups/${groupId}/invitations`, { method: 'POST', body: { userId } });
+		},
+	},
+	{
+		name: 'group_invitation_list',
+		description:
+			'Lists the pending invitations of one of your own groups. Foreign groups return an error instead of data.',
+		inputSchema: {
+			type: 'object',
+			properties: { groupId: { type: 'integer', description: 'ID of the group (from group_list).' } },
+			required: ['groupId'],
+		},
+		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/invitations`),
+	},
+	{
 		name: 'group_list',
 		description: 'Lists the groups the token owner is a member of, including role and member count.',
 		inputSchema: { type: 'object', properties: {} },
@@ -616,6 +647,63 @@ export const mcpTools: McpTool[] = [
 		},
 		run: (ctx, args) =>
 			callApi(ctx, `/groups/${requireIntegerId(args, 'id')}`, { method: 'PATCH', body: pickGroupFields(args) }),
+	},
+	{
+		name: 'invitation_accept',
+		description:
+			"Accepts one of the token owner's pending invitations. On success the owner becomes a member of " +
+			'the inviting group; the invitation is consumed.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID of the invitation (from invitation_list).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/invitations/${requireIntegerId(args, 'id')}/accept`, { method: 'POST' }),
+	},
+	{
+		name: 'invitation_decline',
+		description:
+			"Declines one of the token owner's pending invitations. The invitation is consumed; no membership is created.",
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID of the invitation (from invitation_list).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/invitations/${requireIntegerId(args, 'id')}/decline`, { method: 'POST' }),
+	},
+	{
+		name: 'invitation_list',
+		description: "Lists the token owner's pending invitations across all groups, including who invited them.",
+		inputSchema: { type: 'object', properties: {} },
+		run: (ctx) => callApi(ctx, '/invitations'),
+	},
+	{
+		name: 'invite_link_create',
+		description:
+			'Creates a fresh invite link for one of your groups (admin only). The returned token is redeemable ' +
+			'by anyone holding it until it expires or is revoked.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { groupId: { type: 'integer', description: 'ID of the group (from group_list).' } },
+			required: ['groupId'],
+		},
+		run: (ctx, args) => callApi(ctx, `/groups/${requireIntegerId(args, 'groupId')}/invite-links`, { method: 'POST' }),
+	},
+	{
+		name: 'invite_link_delete',
+		description:
+			'Revokes one of your group invite links. Redeeming the token afterwards fails; already created ' +
+			'memberships stay intact.',
+		write: true,
+		inputSchema: {
+			type: 'object',
+			properties: { id: { type: 'integer', description: 'ID of the invite link (from invite_link_create).' } },
+			required: ['id'],
+		},
+		run: (ctx, args) => callApi(ctx, `/invite-links/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
 	},
 	{
 		name: 'pillar_create',
