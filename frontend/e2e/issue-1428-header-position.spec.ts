@@ -58,7 +58,10 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 		await waitForStableView(page, 'Priority Pilot');
 
 		const header = page.locator('.app-header');
-		const content = page.locator('main, [role="main"]').first();
+		// Inhalts-Container der Einstellungen-Seite (`.settings-page`, SettingsPage.tsx) — das
+		// einzige `<main>` der App ist der `.app`-Container selbst, der Vergleich gegen das
+		// eigene Elternelement wäre bedeutungslos (Locator-Feinschliff lt. Spec-Notiz).
+		const content = page.locator('.settings-page');
 
 		// Ausgangslage: Kopfzeile über dem Inhalt (heutiger Zustand, „Oben").
 		expect((await header.boundingBox())!.y).toBeLessThan((await content.boundingBox())!.y);

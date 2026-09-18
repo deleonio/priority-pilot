@@ -41,6 +41,7 @@ import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectOpenParents, collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
+import { useHeaderPosition } from './lib/headerPosition';
 import { clearPlanMirror, PlanProvider, usePlanState } from './lib/usePlan';
 import { notifyTasksChanged } from './lib/tasksChanged';
 import { APP_VERSION } from './lib/version';
@@ -135,6 +136,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const { t } = useTranslation('navigation');
 	const location = useLocation();
 	const navigate = useNavigate();
+	// #1428: Kopfzeilen-Position — die Verschiebung passiert rein per Layout (`.app.header-bottom`),
+	// die DOM-Reihenfolge (banner bleibt first) bleibt unverändert.
+	const { position: headerPosition } = useHeaderPosition();
 
 	// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
 	// `KolTabs`). Das `useMemo` hält die Objektidentität stabil, weil `KolTabs` bei einer neuen
@@ -765,7 +769,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const pageTitle = showSettings ? t('menu.settings') : showHelp ? t('menu.help') : t('tabs.dashboard');
 
 	return (
-		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
+		<main
+			className={headerPosition === 'bottom' ? 'app header-bottom' : 'app'}
+			ref={deleteFallbackRef}
+			tabIndex={-1}
+			data-focus-fallback
+		>
 			<header role="banner" className="app-header">
 				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
 				<div className="app-header__brand">

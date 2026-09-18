@@ -25,6 +25,7 @@ import { useAiFeaturesEnabled } from '../lib/aiPreferences';
 import { planLabel } from '../lib/planOffers';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
+import { HeaderPositionSetting } from './HeaderPositionSetting';
 import { BalanceVariantSetting } from './BalanceVariantSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
@@ -400,6 +401,8 @@ export const SettingsPage = ({
 					<KolCard className="settings-card" _label="Darstellung und Eingabe" _level={2}>
 						<div className="settings-card-stack">
 							<AppearanceSetting />
+							{/* #1428: Kopfzeile oben/unten — ebenfalls eine Darstellungsfrage der App-Shell. */}
+							<HeaderPositionSetting />
 							<LanguageSetting />
 							{/* Bildwahl für die Lebensbalance auf der Startseite — gehört zur Darstellung, nicht
 									zu den Animationen: Sie gilt auch, wenn gar nichts animiert wird. */}
