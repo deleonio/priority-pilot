@@ -8,8 +8,8 @@ import { Impress } from './Impress';
 
 // Tab-Leiste der Hilfe-Seite (#1190). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält (Muster SettingsPage.tsx). Reihenfolge: Handbuch (Index 0,
-// initial aktiv), Changelog (Index 1), Impressum (Index 2), Feedback (Index 3, #1435).
-const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Changelog' }, { _label: 'Impressum' }, { _label: 'Feedback' }];
+// initial aktiv), Feedback (Index 1), Impressum (Index 2), Changelog (Index 3, #1435).
+const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Feedback' }, { _label: 'Impressum' }, { _label: 'Changelog' }];
 
 // Öffentliche GitHub-Releases-API (Repo ist public, kein Token nötig). Seite 1 (100 Einträge)
 // deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
@@ -210,7 +210,7 @@ export const HelpPage = () => {
 		() => ({
 			onSelect: (_event: Event, selected: number): void => {
 				setActiveTab(selected);
-				if (selected === 1 && (changelog.status === 'idle' || changelog.status === 'error')) {
+				if (selected === 3 && (changelog.status === 'idle' || changelog.status === 'error')) {
 					setChangelog({ status: 'loading' });
 					void fetchReleasesPage(RELEASES_URL)
 						.then(({ releases, nextUrl }) => setChangelog({ status: 'loaded', releases, nextUrl }))
@@ -275,6 +275,12 @@ export const HelpPage = () => {
 					)}
 				</div>
 				<div slot="tab-1" className="help-page-content">
+					<FeedbackForm />
+				</div>
+				<div slot="tab-2" className="help-page-content">
+					<Impress />
+				</div>
+				<div slot="tab-3" className="help-page-content">
 					{changelog.status === 'loading' && (
 						<div className="help-page-loading">
 							<KolSpin _show _variant="cycle" _label="Lädt Changelog …" />
@@ -309,12 +315,6 @@ export const HelpPage = () => {
 							</aside>
 						</div>
 					)}
-				</div>
-				<div slot="tab-2" className="help-page-content">
-					<Impress />
-				</div>
-				<div slot="tab-3" className="help-page-content">
-					<FeedbackForm />
 				</div>
 			</KolTabs>
 		</div>

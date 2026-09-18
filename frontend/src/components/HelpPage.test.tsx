@@ -101,14 +101,14 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 		cleanup();
 	});
 
-	it('AK1: KolTabs mit Labels [Handbuch, Changelog, Impressum, Feedback]; Handbuch bleibt nach Tab-Wechsel erhalten', async () => {
+	it('AK1: KolTabs mit Labels [Handbuch, Feedback, Impressum, Changelog]; Handbuch bleibt nach Tab-Wechsel erhalten', async () => {
 		const { container } = render(<HelpPage />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
 		expect(
 			tabsEl?._tabs?.map((t) => t._label),
 			'vier Tabs (Feedback seit #1435), Handbuch zuerst (= initial aktiv)',
-		).toEqual(['Handbuch', 'Changelog', 'Impressum', 'Feedback']);
+		).toEqual(['Handbuch', 'Feedback', 'Impressum', 'Changelog']);
 
 		// Handbuch-Inhalt ist initial gerendert (Panel slot="tab-0" bleibt gemountet).
 		await waitFor(() => {
@@ -118,9 +118,9 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 			).toBeTruthy();
 		});
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 		await waitFor(() => {
-			expect(panel(container, 'tab-1')).toBeTruthy();
+			expect(panel(container, 'tab-3')).toBeTruthy();
 		});
 
 		const guideCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('user-guide.md'));
@@ -140,12 +140,12 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 			'lazy: kein API-Call beim Betreten der Hilfe-Seite',
 		).toBe(false);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 
 		// #1206 hat die h2-je-Release-/`<time>`-Struktur durch Kategorien-Aggregation ersetzt:
 		// Ready-Marker ist jetzt die erste Kategorie-Überschrift (Test-Pflege zu #1190).
 		await waitFor(() => {
-			expect(panel(container, 'tab-1')?.textContent).toContain('Breaking Changes');
+			expect(panel(container, 'tab-3')?.textContent).toContain('Breaking Changes');
 		});
 
 		expect(
@@ -157,13 +157,13 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 	it('AK3: Release-Body wird gerendert — Kategorie-Abschnitte als Überschrift, Items als li', async () => {
 		const { container } = render(<HelpPage />);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 
 		await waitFor(() => {
-			expect(panel(container, 'tab-1')?.textContent).toContain('v0.1.695');
+			expect(panel(container, 'tab-3')?.textContent).toContain('v0.1.695');
 		});
 
-		const changelog = panel(container, 'tab-1');
+		const changelog = panel(container, 'tab-3');
 		expect(changelog?.textContent, 'Kategorie-Überschrift aus dem Body').toContain('Breaking Changes');
 		expect(changelog?.querySelector('li')?.textContent, 'Body-Listen werden gerendert').toContain('Export entfernt');
 	});
@@ -183,16 +183,16 @@ describe('HelpPage – #1190: Changelog-Tab neben dem Handbuch', () => {
 			expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING)).toBeTruthy();
 		});
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 
 		await waitFor(() => {
-			expect(panel(container, 'tab-1')?.textContent ?? '').toMatch(/konnte nicht geladen werden/i);
+			expect(panel(container, 'tab-3')?.textContent ?? '').toMatch(/konnte nicht geladen werden/i);
 		});
 		expect(panel(container, 'tab-0')?.querySelector(GUIDE_HEADING), 'Handbuch-Tab bleibt funktionsfähig').toBeTruthy();
 
 		// Recovery-Pfad (KI-UX): Weg- und Zurückschalten startet einen neuen Versuch.
 		selectTab(container, 0);
-		selectTab(container, 1);
+		selectTab(container, 3);
 		await waitFor(() => {
 			const ghCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('api.github.com'));
 			expect(ghCalls, 'Retry: API wird beim erneuten Aktivieren wieder aufgerufen').toHaveLength(2);
@@ -261,18 +261,18 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 
 	/** Textinhalte aller Kategorie-Überschriften (h2/h3) im Changelog-Panel, in DOM-Reihenfolge. */
 	const categoryHeadings = (container: HTMLElement): string[] =>
-		Array.from(panel(container, 'tab-1')?.querySelectorAll('h2, h3') ?? []).map((h) => h.textContent ?? '');
+		Array.from(panel(container, 'tab-3')?.querySelectorAll('h2, h3') ?? []).map((h) => h.textContent ?? '');
 
 	it('AK1: Markdown-Links zu Fremdseiten werden zu <a href>, Repo-Verlinkungen im Changelog werden entfernt', async () => {
 		const { container } = render(<HelpPage />);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 
 		await waitFor(() => {
-			expect(panel(container, 'tab-1')?.querySelectorAll('li').length).toBeGreaterThan(0);
+			expect(panel(container, 'tab-3')?.querySelectorAll('li').length).toBeGreaterThan(0);
 		});
 
-		const changelog = panel(container, 'tab-1');
+		const changelog = panel(container, 'tab-3');
 		// Repo-URLs (nackte Autolinks wie Markdown-Links) fließen nicht als Verlinkung ein —
 		// der Changelog-Tab soll nicht auf die eigene GitHub-Historie verlinken.
 		expect(
@@ -298,7 +298,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 	it('AK2: Je Kategorie genau eine Überschrift, feste Reihenfolge, leere Kategorien entfallen; Bullets aller Versionen unter derselben Kategorie', async () => {
 		const { container } = render(<HelpPage />);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 
 		await waitFor(() => {
 			expect(categoryHeadings(container).length).toBeGreaterThan(0);
@@ -326,7 +326,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 		// Bug-Fix-Bullets beider Versionen unter demselben (einzigen) Bug-Fix-Abschnitt:
 		// Bullets, die im DOM NACH der Bug-Fix-Überschrift und VOR der nächsten Kategorie-
 		// Überschrift liegen.
-		const headingEls = Array.from(panel(container, 'tab-1')?.querySelectorAll('h2, h3') ?? []);
+		const headingEls = Array.from(panel(container, 'tab-3')?.querySelectorAll('h2, h3') ?? []);
 		const bugFixHeading = headingEls.find((h) => (h.textContent ?? '').includes('Bug Fixes'));
 		expect(bugFixHeading, 'Bug-Fix-Überschrift existiert').toBeTruthy();
 		const nextHeading = headingEls[headingEls.indexOf(bugFixHeading!) + 1];
@@ -338,7 +338,7 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 				: true;
 			return Boolean(afterBugFix && beforeNext);
 		};
-		const liTexts = Array.from(panel(container, 'tab-1')?.querySelectorAll('li') ?? [])
+		const liTexts = Array.from(panel(container, 'tab-3')?.querySelectorAll('li') ?? [])
 			.filter(isBetween)
 			.map((li) => li.textContent ?? '');
 		expect(
@@ -354,13 +354,13 @@ describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () =>
 	it('AK3: Kein Eintrag geht verloren — li-Gesamtzahl = Bullet-Summe; Ursprungs-Version je Bullet sichtbar', async () => {
 		const { container } = render(<HelpPage />);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 
 		await waitFor(() => {
 			expect(categoryHeadings(container).length).toBeGreaterThan(0);
 		});
 
-		const lis = Array.from(panel(container, 'tab-1')?.querySelectorAll('.help-sidebar-main li') ?? []);
+		const lis = Array.from(panel(container, 'tab-3')?.querySelectorAll('.help-sidebar-main li') ?? []);
 		const liTexts = lis.map((li) => li.textContent ?? '');
 		// Bullet-Summe der Fixture-Bodys: 695 = 4 (Export, Absturz, #1204, sync user guide),
 		// 694 = 2 (Fehler, Aufräumarbeiten).
@@ -406,7 +406,7 @@ describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', 
 
 	/** Löst den onChange-Callback des KolSelect über den Wrapper-Pfad aus (jsdom hydratiert nicht). */
 	const changeLimit = (container: HTMLElement, value: string): void => {
-		const selectEl = panel(container, 'tab-1')?.querySelector('kol-select');
+		const selectEl = panel(container, 'tab-3')?.querySelector('kol-select');
 		const on = (selectEl as unknown as { _on?: { onChange?: (event: Event, value: string) => void } } | null)?._on;
 		expect(on?.onChange, 'KolSelect onChange-Callback ist verdrahtet').toBeTypeOf('function');
 		act(() => {
@@ -415,7 +415,7 @@ describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', 
 	};
 
 	const changelogEntries = (container: HTMLElement): string[] =>
-		Array.from(panel(container, 'tab-1')?.querySelectorAll('.help-sidebar-main li') ?? []).map(
+		Array.from(panel(container, 'tab-3')?.querySelectorAll('.help-sidebar-main li') ?? []).map(
 			(li) => li.textContent ?? '',
 		);
 
@@ -425,7 +425,7 @@ describe('HelpPage – Pagination und Auswahl der Anzeige-Menge (30/100/alle)', 
 	it('lädt initial nur Seite 1; „Alle" lädt die Folgeseite nach, „Letzte 100" braucht danach keinen weiteren Fetch', async () => {
 		const { container } = render(<HelpPage />);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 		await waitFor(() => {
 			expect(changelogEntries(container)).toHaveLength(30);
 		});
@@ -526,22 +526,22 @@ describe('HelpPage – Inhaltsverzeichnis in der Sidebar (Handbuch + Changelog)'
 	it('Changelog: TOC listet die Kategorien, Links treffen die Kategorie-Sektionen; Select bleibt in der Sidebar', async () => {
 		const { container } = render(<HelpPage />);
 
-		selectTab(container, 1);
+		selectTab(container, 3);
 		await waitFor(() => {
-			expect(panel(container, 'tab-1')?.querySelector('.help-toc a')).toBeTruthy();
+			expect(panel(container, 'tab-3')?.querySelector('.help-toc a')).toBeTruthy();
 		});
 
-		const toc = Array.from(panel(container, 'tab-1')?.querySelectorAll('.help-toc a') ?? []);
+		const toc = Array.from(panel(container, 'tab-3')?.querySelectorAll('.help-toc a') ?? []);
 		expect(toc.map((a) => a.textContent)).toEqual(['💥 Breaking Changes', '🐞 Bug Fixes']);
 		for (const link of toc) {
 			const id = (link.getAttribute('href') ?? '').slice(1);
 			expect(
-				panel(container, 'tab-1')?.querySelector(`section[id="${id}"]`),
+				panel(container, 'tab-3')?.querySelector(`section[id="${id}"]`),
 				`Kategorie-Sektion #${id} existiert`,
 			).toBeTruthy();
 		}
 		expect(
-			panel(container, 'tab-1')?.querySelector('.help-sidebar-aside kol-select'),
+			panel(container, 'tab-3')?.querySelector('.help-sidebar-aside kol-select'),
 			'Auswahl-Regler sitzt in der Sidebar',
 		).toBeTruthy();
 	});
