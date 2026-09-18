@@ -7,13 +7,16 @@
  * der MCP-Wert dieselbe Zahl nennt wie die Oberfläche, ist genau diese Rechnung hier portiert —
  * reine Funktionen ohne DB-Zugriff, damit die Mathematik ohne Express prüfbar bleibt.
  *
- * **Maß:** `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min{sollᵢ | sollᵢ > 0})` mit `defizitᵢ` =
- * relative Unterdeckung der Säule (`1 − min(1, ist/soll)`). Quadratisch, damit eine stark
- * vernachlässigte Säule schwerer wiegt als dünn verteiltes Defizit; normiert auf das Maximum der
- * Summe über die Säulen **mit** Ziel, damit 0 („alles an einer Säule") und 1 („Ist = Soll") beide
- * erreichbar sind. Säulen ohne Gewicht bleiben aus dem Nenner heraus — sie sind der Normalfall
- * (`POST /pillars` legt mit `weight: 0` an) und würden die Normierung sonst abschalten. Begründung
- * und Herleitung stehen ausführlich in `frontend/src/lib/heartBalance.ts`.
+ * **Maß:** `füllstand = min(füllstandGewichtet, füllstandUngewichtet)` — das **Strengste-Prinzip**
+ * (#1474) — mit `defizitᵢ` = relativer Unterdeckung der Säule (`1 − min(1, ist/soll)`). Die
+ * gewichtete Komponente `1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min{sollᵢ | sollᵢ > 0})` misst das
+ * Defizit nach Soll-Gewicht; die ungewichtete `1 − √(Σ_{sollᵢ > 0} defizitᵢ² / |{sollᵢ > 0}|)`
+ * misst die Schieflage direkt, eine Säule pro Ziel. Quadratisch, damit eine stark vernachlässigte
+ * Säule schwerer wiegt als dünn verteiltes Defizit; normiert auf das Maximum der Summe über die
+ * Säulen **mit** Ziel, damit 0 („alles an einer Säule") und 1 („Ist = Soll") beide erreichbar sind.
+ * Säulen ohne Gewicht bleiben aus dem Nenner heraus — sie sind der Normalfall (`POST /pillars` legt
+ * mit `weight: 0` an) und würden die Normierung sonst abschalten. Begründung und Herleitung stehen
+ * ausführlich in `frontend/src/lib/heartBalance.ts`.
  */
 
 /** Eine Säule, so wie die Rechnung sie braucht: Identität, Anzeigename und ihr Soll-Gewicht. */
@@ -123,11 +126,24 @@ export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTa
 	// ausgeht, das Maximum also 1. Der Deckel bei 0 fängt „aller Aufwand in Säulen ohne Ziel" ab.
 	const mitZiel = sollAnteile.filter((sollAnteil) => sollAnteil > 0);
 	const maximaleAbweichung = mitZiel.length > 1 ? 1 - Math.min(...mitZiel) : mitZiel.length === 1 ? 1 : 0;
-	const fill = !hasPoints
-		? 0
-		: maximaleAbweichung > 0
-			? Math.max(0, 1 - Math.sqrt(abweichung / maximaleAbweichung))
-			: 1;
+	const fillGewichtet = maximaleAbweichung > 0 ? Math.max(0, 1 - Math.sqrt(abweichung / maximaleAbweichung)) : 1;
+
+	/*
+	 * Ungewichtete Komponente (#1474, Strengste-Prinzip): Dieselbe Defizit-Summe ohne Soll-Gewichtung
+	 * über die Ziel-Säulen — die Gewichtung allein dämpfte eine leere, niedrig gewichtete Säule
+	 * mehrfach. Ziel-Säulen zählen hier einzeln, der Füllstand nimmt das Minimum beider Komponenten.
+	 */
+	const defizitQuadratSumme = saeulen.reduce((summe, saeule, index) => {
+		const sollAnteil = sollAnteile[index];
+		if (sollAnteil <= 0) {
+			return summe;
+		}
+		const istAnteil = hasPoints ? (punkte.get(saeule.id) ?? 0) / gesamtPunkte : 0;
+		return summe + (1 - Math.min(1, istAnteil / sollAnteil)) ** 2;
+	}, 0);
+	const fillUngewichtet = mitZiel.length > 0 ? 1 - Math.sqrt(defizitQuadratSumme / mitZiel.length) : 1;
+
+	const fill = !hasPoints ? 0 : Math.min(fillGewichtet, fillUngewichtet);
 
 	return {
 		fill,

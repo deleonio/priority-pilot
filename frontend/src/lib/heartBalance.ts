@@ -10,10 +10,18 @@ import type { Pillar } from 'client';
  * randvoll — die *Höhe* der gemeinsamen Wasserlinie trägt die Aussage „ausgewogen", die
  * Aufschlüsselung je Säule die Legende neben dem Bild.
  *
- * **Maß:** Der Füllstand ist die normierte quadratische Abweichung vom Soll,
- * `füllstand = 1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min{sollᵢ | sollᵢ > 0})` mit
- * `defizitᵢ = 1 − levelᵢ`, also der relativen Unterdeckung der Säule. Zwei Eigenschaften, die das
- * Vorgängermaß `Σ min(sollᵢ, istᵢ)` nicht hatte:
+ * **Maß:** Der Füllstand ist das **Strengste-Prinzip** (#1474) aus zwei normierten quadratischen
+ * Abweichungen vom Soll, `füllstand = min(füllstandGewichtet, füllstandUngewichtet)` mit
+ * `defizitᵢ = 1 − levelᵢ`, also der relativen Unterdeckung der Säule:
+ *
+ * - **Gewichtet:** `1 − √(Σ sollᵢ · defizitᵢ²) / √(1 − min{sollᵢ | sollᵢ > 0})` — misst, wie schwer
+ *   die Abweichung **nach Soll-Gewicht** wiegt.
+ * - **Ungewichtet:** `1 − √(Σ_{sollᵢ > 0} defizitᵢ² / |{sollᵢ > 0}|)` — misst die Schieflage direkt,
+ *   eine Säule pro Ziel. Allein die gewichtete Komponente dämpfte eine leere, niedrig gewichtete
+ *   Säule mehrfach (kleines Soll quadriert, Normierung gekappt): 60/0/10/10/10 kam auf 0,6667
+ *   und damit durch die „Gut in Balance"-Schwelle; ungewichtet liegt der Fall bei 0,5528.
+ *
+ * Zwei Eigenschaften, die das Vorgängermaß `Σ min(sollᵢ, istᵢ)` nicht hatte:
  *
  * - **Quadratisch:** Eine stark vernachlässigte Säule wiegt schwerer als dieselbe Menge Defizit,
  *   dünn über alle Säulen verteilt. Genau das liest ein Mensch als Schieflage.
@@ -117,7 +125,23 @@ export const buildHeartBalance = (pillars: Pillar[], punkteProSaeule: ReadonlyMa
 	const worstSpread = zielAnteile.length > 1 ? 1 - Math.min(...zielAnteile) : zielAnteile.length === 1 ? 1 : 0;
 	const hasPoints = totalPoints > 0;
 	// `worstSpread` ist nur ohne jede Säule 0 — dann greift schon `!hasPoints`, der Zweig ist Typsache.
-	const fill = !hasPoints ? 0 : worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : 1;
+	const fillGewichtet = worstSpread > 0 ? Math.max(0, 1 - Math.sqrt(spread / worstSpread)) : 1;
+
+	/*
+	 * Ungewichtete Komponente (#1474): Die Soll-Gewichtung dämpft eine leere, niedrig gewichtete
+	 * Säule mehrfach (kleines Soll quadriert, Normierung gekappt) — 60/0/10/10/10 kam mit 0,6667
+	 * durch die „Gut in Balance"-Schwelle. Deshalb misst eine zweite, ungewichtete Summe die
+	 * Schieflage direkt über die Ziel-Säulen, und der Füllstand nimmt das **Strengste-Prinzip**:
+	 * das Minimum beider Komponenten. Säulen ohne Ziel zählen nicht mit (gleiche Begründung wie
+	 * beim Nenner oben), eine leere Ziel-Säule schlägt sofort mit `1/n_ziel` durch.
+	 */
+	const defizitQuadratSumme = segments.reduce(
+		(sum, segment) => (segment.targetShare > 0 ? sum + (1 - segment.level) ** 2 : sum),
+		0,
+	);
+	const fillUngewichtet = zielAnteile.length > 0 ? 1 - Math.sqrt(defizitQuadratSumme / zielAnteile.length) : 1;
+
+	const fill = !hasPoints ? 0 : Math.min(fillGewichtet, fillUngewichtet);
 
 	return { fill, hasPoints, segments };
 };

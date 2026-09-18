@@ -48,6 +48,15 @@ Balance-Rechnung (mehr als sein Soll zu erfüllen macht die Verteilung nicht bes
 zahlengleich auch auf dem Server (`server/src/logics/heartBalance.ts`). Das Bild braucht die
 ungedeckelte Schwester: „schießt über das Ziel hinaus" ist genauso eine Aussage wie „bleibt zurück".
 
+**Die Gesamt-Balance misst zweifach (Strengste-Prinzip, #1474):** Der Füllstand ist das Minimum aus
+zwei normierten quadratischen Abweichungen über die Säulen mit Ziel — einer soll-gewichteten und
+einer ungewichteten, die jede Ziel-Säule einzeln zählt. Die Gewichtung allein dämpfte eine leere,
+niedrig gewichtete Säule mehrfach (kleines Soll quadriert, Normierung gekappt): 60/0/10/10/10 bei
+Gewichten 60/10/10/10/10 kam auf 0,6667 und damit durch die „Gut in Balance"-Schwelle; die
+ungewichtete Komponente zieht den Fall auf 0,5528 („Leichte Schieflage"). Bei Ist = Soll stehen
+beide Komponenten auf 1 — ausgewogene Verteilungen verlieren dadurch nichts. Der `level`-Deckel
+trägt weiterhin in beide Komponenten dieselbe Unterdeckung bei und widerspricht dem Prinzip nicht.
+
 ## 3. Was jedes Zifferblatt mitbringen muss
 
 1. **Die Kennzahl je Säule als Größe.** Größer heißt mehr. Keine Ausnahme.
