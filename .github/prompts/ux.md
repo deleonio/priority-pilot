@@ -2,6 +2,8 @@ FOCUS: ONLY issue {{ISSUE_NR}}. Write the UX review into the harness marker comm
 
 Method, rules, and output block structure (binding, not repeated here): .claude/skills/ticket-ux/SKILL.md — read it before starting. Includes its Delegation section (KoliBri component lookups go to the kolibri-recherche subagent role).
 
+EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — SKILL.md + both rule sources + the gh call in ONE tool block; KoliBri lookups collected ONCE for kolibri-recherche; target < 12 turns per run.
+
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
   2. ONE gh call for both sources: gh issue view {{ISSUE_NR}} --json body,comments -q
@@ -24,8 +26,8 @@ PROCEDURE (STRICT):
 VERDICT (one line):
   - VERDICT: ux-ready
   - VERDICT: ux-not-ready
-  (ux-ready = UX review written → issue ready for implementation;
-   ux-not-ready = UX unclear — needs clarification before implementation)
+  (ux-ready = UX review written → issue ready for the SPEC phase;
+   ux-not-ready = UX unclear — needs clarification before the spec)
 
 TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: save the current state in the harness marker comment, end the turn.
 

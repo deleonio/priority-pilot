@@ -18,7 +18,7 @@
 **IMPORTANT**:
 - Write for SOMEONE WITHOUT YOUR CONTEXT → name files, lines, identifiers
 - Statements must be verifiable (file:line plus what was there) — file states go stale!
-- Write the FIRST snapshot IMMEDIATELY after the analysis; afterwards keep the note current at natural checkpoints (after each completed sub-step and before long-running commands) — bundle updates, don't rewrite per step
+- Write the FIRST snapshot IMMEDIATELY after the analysis; afterwards bundle snapshot updates at natural checkpoints — before long-running commands and after completed sections, not per individual step
 - Fill empty sections with `-`, don't omit them
 
 ---

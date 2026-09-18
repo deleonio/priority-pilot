@@ -35,7 +35,7 @@ WRAP-UP (both modes):
   - NIT-ONLY (style/naming/minor simplification, no behavioral risk — severity per SKILL.md step 4):
     NO fixup round. Nits as one bundled inline list + section "📝 Nits (nicht blockierend)" in the
     collected comment; if the ACs are covered and green, VERDICT: reviewed (🟢 with nits noted).
-    A fixup round plus re-review costs dozens of turns (measured: AGENTS.md "Turns bündeln") — a nit doesn't justify that.
+    Rationale per SKILL.md step 4.
   - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the
     "## ⏸️ Entscheidungs-Findings" section per the SKILL.md step 5 template.
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed

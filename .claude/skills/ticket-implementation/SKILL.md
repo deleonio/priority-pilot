@@ -25,7 +25,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 
 - Take the **acceptance criteria + test cases** from the harness marker comment (legacy fallback: issue body block).
 - **Check affected files:** do the files named there still exist?
-- **Traffic light 🔴** → don't implement, comment with a justification, and end the run as not ready.
+- **Traffic light 🔴** → don't implement and end the run as not ready — the justification goes in your phase note, not an issue comment.
 - **Traffic light 🟢/🟡** → proceed directly to step 3.
 
 **No full re-triage.** The triage stage already did the work — implementation trusts it.
@@ -97,6 +97,11 @@ The freshly created PR is actively cross-examined and reworked — in rounds, un
    - **Valid, small, unambiguous →** fix it: commit + push the fix, `pnpm format && prettier && lint`, reply in the thread and resolve.
    - **Ambiguous or architecturally relevant →** ask a follow-up question and wait for an answer.
    - **Not valid →** comment factually on why nothing is changed, and resolve.
+   - **Resolve mechanics** (threads are GraphQL-only — REST has no threads endpoint, gh has NO
+     native resolve command): list them via
+     `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{path line}}}}}}}' -f o=<owner> -f r=<repo> -F n=<pr> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | [.id, .isResolved, .comments.nodes[0].path, .comments.nodes[0].line] | @tsv'`
+     (pick each thread ID by path/line, skip `isResolved=true`), then one mutation per thread:
+     `gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id}}}' -f t=<thread-id>`
 4. **Cross-examine again** — after the fix commits, review the updated diff again.
 
 **Exit condition:** the loop ends once the cross-examination verdict is **🟢** and **no open findings** remain.

@@ -3,6 +3,8 @@ FOCUS: ONLY issue #{{ISSUE_NR}}. Research = issue body + delta comments since `s
 Method + details: .claude/skills/ticket-triage/SKILL.md — including its delegation guidance in
 step 1 (broad code/file research → `recherche` subagent role, ADR 0008; only findings come back).
 
+EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — SKILL.md + issue + comments in ONE tool block; target < 10 turns per run.
+
 TRIGGER:
 - Initial triage: no harness marker comment on the issue (no comment whose body
   STARTS with `<!-- ai-harness -->`). Research = issue body + ALL comments (they may
@@ -15,7 +17,7 @@ TRIGGER:
   again what was decided.
 
 PROCEDURE:
-1. Load the issue (gh issue view {{ISSUE_NR}} --json title,body)
+1. Load the issue (gh issue view {{ISSUE_NR}} --json title,body,comments — one call covers initial triage's "body + ALL comments" AND the re-triage delta)
 2. Only change the title if it's substantively wrong — ONE edit, not a copyedit.
    NEVER `gh issue edit --body` — ADR 0009, re-triggers the issue validator; details SKILL.md step 2.
 3. CLARIFY AMBIGUITY FIRST (BEFORE the analysis): if the task can't be resolved unambiguously

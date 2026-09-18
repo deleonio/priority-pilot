@@ -4,6 +4,8 @@ FOCUS: ONLY issue {{ISSUE_NR}}. ONLY red tests per acceptance criterion (with de
 
 Method, test concept, and rules (binding, not repeated here): .claude/skills/ticket-spec/SKILL.md — read it before the first test.
 
+EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — SKILL.md + AK fetch + the resume branch check in ONE tool block; test runs stay with the gate-runner role.
+
 {{RESUME_HINT}}
 
 PROCEDURE (STRICT):
