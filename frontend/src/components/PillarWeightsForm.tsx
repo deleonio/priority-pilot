@@ -10,6 +10,7 @@ import {
 	RAW_WEIGHT_MAX,
 	RAW_WEIGHT_MIN,
 	RAW_WEIGHT_STEP,
+	isDistributionUnbalanced,
 	isRawDistributionValid,
 	normalizeToTotalWeight,
 	sumWeights,
@@ -48,6 +49,12 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 	// Gültig, sobald jeder Wert ≥ 0 ist und mindestens einer > 0 (sonst nicht auf 100 % normierbar).
 	const distributionValid = isRawDistributionValid(weights.current);
 
+	// #1555: rein informativer Hinweis auf starke Unausgewogenheit (Anteil > 2× oder < ½ des
+	// gleichmäßigen Anteils) — kein Validierungskriterium, blockiert das Speichern nicht. Wie
+	// `distributionValid` bei jedem Render aus dem Ref abgeleitet; das Re-Render-Signal liefert
+	// der bestehende `setSum`-Aufruf, der bei jeder Slider-Eingabe feuert.
+	const unbalanced = isDistributionUnbalanced(weights.current);
+
 	const save = async (): Promise<void> => {
 		if (!isRawDistributionValid(weights.current)) {
 			setError('Jedes Gewicht muss eine Zahl ≥ 0 sein und mindestens eine Säule muss > 0 sein.');
@@ -84,6 +91,21 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 				<KolAlert _type="error" _label="Speichern fehlgeschlagen">
 					{error}
 				</KolAlert>
+			)}
+
+			{/* #1555: freundlicher, nicht blockierender Hinweis bei starker Unausgewogenheit — über
+			    den Slidern, damit die Ursache vor den Reglern steht (gleicher Slot wie der
+			    Fehler-Alert, semantisch über das eigene Label getrennt; beide können gleichzeitig
+			    sichtbar sein). `aria-live="polite"` statt KoliBris `_alert` (assertiv): der Hinweis
+			    schlägt live bei jedem Reglerzug um und soll den Slider-Fokus nicht zusätzlich
+			    beschreien — die ohnehin höfliche Summenzeile unten bleibt die zweite Rückmeldung. */}
+			{unbalanced && (
+				<div aria-live="polite">
+					<KolAlert _type="warning" _label="Verteilung stark unausgewogen">
+						Diese Verteilung weicht stark vom gleichmäßigen Zustand ab — Säulen sind üblicherweise eher ausgeglichen
+						gewichtet. Das ist nur ein Hinweis: Du kannst trotzdem speichern.
+					</KolAlert>
+				</div>
 			)}
 
 			{pillars.length === 0 ? (

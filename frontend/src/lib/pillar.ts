@@ -49,6 +49,32 @@ export const isRawDistributionValid = (raws: readonly (number | null)[]): boolea
 	raws.every((raw) => raw !== null && Number.isFinite(raw) && raw >= 0) && sumWeights(raws) > 0;
 
 /**
+ * Prüft, ob eine Roh-Verteilung **stark unausgewogen** ist (#1555): der Anteil einer Säule an der
+ * Gesamtsumme (`shareᵢ = rohᵢ / Σroh`, `null` zählt als 0) liegt strikt über dem **Doppelten**
+ * oder strikt unter der **Hälfte** des gleichmäßigen Anteils `1/n`. Exakt 2× bzw. exakt ½ gelten
+ * noch als ausgewogen (Float-Toleranz wie beim Summenvergleich). Die Prüfung ist skaleninvariant
+ * (`5 × 0,1` ≡ `5 × 1`), denn nur die Anteile zählen.
+ *
+ * Nicht normierbar (Σroh ≤ 0, z. B. alles 0/null) → `false`: dafür ist der bestehende
+ * Summen-Fehlerzustand zuständig, kein Doppelmelden. Rein informativ — der Aufrufer blockiert
+ * daraus nichts (Speichern bleibt möglich).
+ */
+export const isDistributionUnbalanced = (raws: readonly (number | null)[]): boolean => {
+	if (raws.length === 0) {
+		return false;
+	}
+	const total = sumWeights(raws);
+	if (total <= 0) {
+		return false;
+	}
+	const evenShare = 1 / raws.length;
+	return raws.some((raw) => {
+		const share = (raw ?? 0) / total;
+		return share > 2 * evenShare + WEIGHT_SUM_EPSILON || share < 0.5 * evenShare - WEIGHT_SUM_EPSILON;
+	});
+};
+
+/**
  * Optionen für die „Säule hinzufügen"-Auswahl im Task-Formular: eine Platzhalter-Option (Sentinel
  * `ADD_PILLAR_PLACEHOLDER`) gefolgt von den noch **nicht** zugeordneten Säulen. Werte sind numerisch
  * (Säulen-`id`). `available` enthält bereits nur die wählbaren Säulen.
