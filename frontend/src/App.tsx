@@ -818,6 +818,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					onPillarChanged={handleMasterDataChanged}
 					onCategoryChanged={handleMasterDataChanged}
 					isAdmin={isAdmin}
+					currentUserId={user.id}
 				/>
 			) : showHelp ? (
 				<HelpPage />

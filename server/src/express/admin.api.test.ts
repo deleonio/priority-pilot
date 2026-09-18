@@ -265,4 +265,36 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		});
 		assert.equal(res.status, 400);
 	});
+
+	// #1556 (AK4, Spec docs/spec/issue-1556.md): Selbst-Versetzen über die eigene Id — der einzige
+	// Call ist der Plan-PATCH (kein Zahlungs-/Abo-Pfad), und danach liefern GET /admin/users UND
+	// GET /auth/me (gleiche Session, ohne Re-Login) das neue Paket. Bewusst als grüner
+	// Vertragstest angelegt: das Backend aus #1456 existiert bereits, dieser Test bewacht den
+	// Session-Sync, auf den sich die Frontend-Wirksamkeit („nach Neuladen") stützt.
+	it('#1556 — PATCH /admin/users/:id/plan auf das eigene Konto wirkt sofort in /admin/users und /auth/me', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const listRes = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: adminCookie } });
+		const users = (await listRes.json()) as AdminUserDto[];
+		const admin = users.find((u) => u.email === ADMIN_EMAIL);
+		assert.ok(admin, 'Setup: eigenes Konto muss existieren');
+
+		const patchRes = await fetch(`${server.baseUrl}/admin/users/${admin.id}/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ plan: 'pro' }),
+		});
+		assert.equal(patchRes.status, 200);
+
+		const refreshed = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: adminCookie } });
+		const refreshedUsers = (await refreshed.json()) as Array<AdminUserDto & { plan?: string }>;
+		assert.equal(
+			refreshedUsers.find((u) => u.email === ADMIN_EMAIL)?.plan,
+			'pro',
+			'GET /admin/users liefert den neuen Plan',
+		);
+
+		const meRes = await fetch(`${server.baseUrl}/auth/me`, { headers: { cookie: adminCookie } });
+		assert.equal(meRes.status, 200);
+		assert.equal(((await meRes.json()) as { plan?: string }).plan, 'pro', 'auth/me synct ohne Re-Login');
+	});
 });

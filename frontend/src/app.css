@@ -2193,6 +2193,18 @@ kol-toolbar {
 	overflow-wrap: anywhere;
 }
 
+/* #1556: Paket-Auswahl der eigenen Zeile — bleibt so breit wie die Zeile und bricht bei Enge
+   (375px) in die nächste Zeile um (die Zeile ist flex-wrap), statt sie zu verbreitern (AK6).
+   `--a11y-min-size` vererbt durch die Shadow-Grenze und hebt das Touch-Ziel auf 44px
+   (Muster `.app-header__primary kol-toolbar`, #485). */
+.admin-user-plan {
+	max-width: 100%;
+	min-width: 10rem;
+	flex: 1 1 10rem;
+	display: inline-flex;
+	--a11y-min-size: 2.75rem;
+}
+
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
    untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
 .deadline-group {
