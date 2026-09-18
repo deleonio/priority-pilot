@@ -72,9 +72,8 @@ vi.mock('../api', () => ({
 }));
 
 import { api } from '../api';
-// #1565: `OwnPlanCard` existiert noch nicht (roter Zustand) — der Default-Import scheitert bis zur
-// Implementierung am Modulauflöser; alle Tests dieses Files sind genau dafür rot.
-// @ts-expect-error fehlendes Modul ist der erwartete rote Zustand (Spec-Phase)
+// #1565: Der rote Spec-Zustand (fehlendes Modul, deshalb `@ts-expect-error` auf dem Import) ist
+// mit der Implementierung entfallen — das Directive wäre ein unused-Fehler gegen tsc.
 import { OwnPlanCard } from './OwnPlanCard';
 
 const mockUpdateUserPlan = api.updateUserPlan as ReturnType<typeof vi.fn>;
