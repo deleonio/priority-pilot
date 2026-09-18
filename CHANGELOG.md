@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-18
 
-_Enthält v0.2.0 – v0.2.95._
+_Enthält v0.2.0 – v0.2.96._
 
 ### 🔧 Engineering
 
@@ -106,6 +106,7 @@ _Enthält v0.2.0 – v0.2.95._
 - feat(server): scope llm providers to users via userId column (#1547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1551
 - feat(frontend): add bloom and crystal life balance dial variants by @deleonio in https://github.com/deleonio/priority-pilot/pull/1552
 - feat(server): manage group members via mcp tools (#1543) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1553
+- feat(frontend): allow admins to switch their own plan for free (#1556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1563
 
 ## v0.1 - 2026-09-12
 
@@ -833,6 +834,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(frontend): unify card and tab gaps on dashboard, settings and help by @deleonio in https://github.com/deleonio/priority-pilot/pull/1390
 - chore(deps): update dependency undici@6 to v8.10.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1326
 - fix(changelog): consolidate CHANGELOG.md blocks by minor version by @deleonio in https://github.com/deleonio/priority-pilot/pull/1393
+- feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
