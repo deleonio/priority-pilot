@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
 test.describe('Feedback direkt in Obsidian (#1435)', () => {
 	/**
 	 * Die Status-Meldung wird im Alert des Formulars geprüft, nicht seitenweit: „Fehler" steht auch
-	 * in der Einleitung und als Kategorie-Option (die `selectOption({ label: 'Fehler' })` oben
+	 * in der Einleitung und als Kategorie-Option (die `selectOption({ label: 'Fehler melden' })` oben
 	 * braucht), „gesendet" im Button-Label während des Sendens — ein seitenweites `getByText`
 	 * verletzt deshalb zwangsläufig den Strict Mode. Muster: `bahn.spec.ts:176`.
 	 */
@@ -27,13 +27,30 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 		await page.getByRole('tab', { name: 'Feedback', exact: true }).click();
 	};
 
+	/**
+	 * #1475 AK1: Das Kategorie-Select fasst die bisherigen vier Optionen zu drei zusammen —
+	 * Label-Vertrag: „Fragen und Hilfe" (frage), „Wünsche und Ideen" (wunsch), „Fehler melden"
+	 * (bug), in genau dieser Reihenfolge. Die Vorauswahl bleibt die Fehler-Kategorie (Wert `bug`).
+	 */
+	test('AK1 (#1475): Kategorie-Select bietet genau die drei neuen Optionen in Reihenfolge, Vorauswahl ist die Fehler-Kategorie', async ({
+		page,
+	}) => {
+		await openFeedbackTab(page);
+
+		const combobox = page.getByRole('combobox', { name: /Kategorie/ });
+		await expect(combobox).toBeVisible();
+		const options = (await combobox.locator('option').allTextContents()).map((label) => label.trim());
+		expect(options).toEqual(['Fragen und Hilfe', 'Wünsche und Ideen', 'Fehler melden']);
+		await expect(combobox).toHaveValue('bug');
+	});
+
 	test('AK8: erfolgreiches Absenden zeigt eine Bestätigung und leert die Felder', async ({ page }) => {
 		await page.route('**/api/v1/feedback', (route: Route) =>
 			route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ ok: true }) }),
 		);
 
 		await openFeedbackTab(page);
-		await page.getByRole('combobox', { name: /Kategorie/ }).selectOption({ label: 'Fehler' });
+		await page.getByRole('combobox', { name: /Kategorie/ }).selectOption({ label: 'Fehler melden' });
 		await page.getByRole('textbox', { name: /Titel/ }).fill('Login hängt');
 		await page.getByRole('textbox', { name: /Beschreibung/ }).fill('Nach dem Login lädt nichts mehr.');
 		await page.getByRole('button', { name: /Senden/ }).click();
@@ -61,7 +78,7 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 		});
 
 		await openFeedbackTab(page);
-		await page.getByRole('combobox', { name: /Kategorie/ }).selectOption({ label: 'Fehler' });
+		await page.getByRole('combobox', { name: /Kategorie/ }).selectOption({ label: 'Fehler melden' });
 		await page.getByRole('textbox', { name: /Titel/ }).fill('Login hängt');
 		await page.getByRole('textbox', { name: /Beschreibung/ }).fill('Nach dem Login lädt nichts mehr.');
 		await page.getByRole('button', { name: /Senden/ }).click();

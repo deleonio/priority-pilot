@@ -118,3 +118,22 @@ describe('FeedbackForm — Fehlermeldung nennt den Grund des Servers (#1465)', (
 		expect((screen.getByLabelText('Beschreibung') as HTMLTextAreaElement).value).toBe('');
 	});
 });
+
+describe('FeedbackForm — Intro-Text zur neuen Kategorien-Aufteilung (#1475 AK4)', () => {
+	/**
+	 * Die drei Kategorien heißen jetzt „Fragen und Hilfe", „Wünsche und Ideen", „Fehler melden".
+	 * Der Intro-Text darf die Aufteilung weiter beschreiben, aber nicht mehr die alte
+	 * Vierer-Formulierung „Fehler, Wünsche, Ideen oder Fragen" verwenden. „Ideen" allein ist
+	 * nicht verboten — es steckt im neuen Label „Wünsche und Ideen".
+	 */
+	it('nennt Fragen, Wünsche und Fehler — nicht mehr die alte Vierer-Formulierung', () => {
+		const { container } = render(<FeedbackForm />);
+		const intro = container.querySelector('.feedback-form > p');
+		expect(intro).not.toBeNull('Intro-Absatz muss gerendert werden');
+		const text = intro!.textContent ?? '';
+		expect(text).not.toMatch(/Fehler, Wünsche, Ideen oder Fragen/);
+		expect(text).toMatch(/Fragen/);
+		expect(text).toMatch(/Wünsche/);
+		expect(text).toMatch(/Fehler/);
+	});
+});
