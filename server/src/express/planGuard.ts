@@ -9,6 +9,7 @@ import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { User } from '../models/index.js';
 import { hasOwnProviderSelection } from '../llm/llmProviders.js';
+import { hasProviderPin } from './llmProviderQuery.js';
 
 /**
  * Lesbare Feature-Namen für die Fehlermeldung — rein sprachlich, keine Paketzuordnung. Exportiert,
@@ -60,7 +61,15 @@ export const requirePlanFeature = (feature: FeatureId): PlanFeatureHandler => {
 		}
 		// #1548: KI-Aufrufe über einen eigenen Provider des Nutzers laufen auf dessen Key —
 		// dann greift das Paket-Gate nicht, auch Free erhält fachliche Antworten (AK4).
-		if (feature === 'ai_assist' && typeof userId === 'number' && (await hasOwnProviderSelection(userId))) {
+		// Ein `?provider=`-Pin übersteuert die eigene Auswahl (resolveProvider ist pin-first)
+		// und läuft je nach Name auf einem instanzweiten Provider — dann greift das Gate wie
+		// bisher, damit Instanz-Provider-Nutzung nicht ungegated ist (AK6).
+		if (
+			feature === 'ai_assist' &&
+			typeof userId === 'number' &&
+			!hasProviderPin(req.query as Record<string, unknown>) &&
+			(await hasOwnProviderSelection(userId))
+		) {
 			next();
 			return;
 		}

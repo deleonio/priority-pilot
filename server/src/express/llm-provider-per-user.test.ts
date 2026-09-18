@@ -11,16 +11,16 @@ import {
 import sequelize from '../database.js';
 
 /**
- * Rote Spec-Tests für #1548 (Spec docs/spec/issue-1548.md) — Auswahl-Endpunkt, Gate- und
+ * Regressionstests für #1548 (Spec docs/spec/issue-1548.md) — Auswahl-Endpunkt, Gate- und
  * Kontingent-Bypass für eigene Provider.
  *
- * AK3 (API): PUT/GET /llm-providers/selection persistieren die Auswahl pro Nutzer
- *   (heute rot: PUT läuft in die :id-Route → 400 „Provider-ID muss eine positive Ganzzahl sein").
+ * AK3 (API): PUT/GET /llm-providers/selection persistieren die Auswahl pro Nutzer.
  * AK4: Free-Nutzer mit ausgewähltem eigenem Provider bekommt auf /lektorat eine fachliche
- *   Antwort statt 403 plan_required; der LLM-Call geht an Endpoint + Key des eigenen Providers
- *   (heute rot: 403, noch bevor die Route den Provider auflöst).
+ *   Antwort statt 403 plan_required; der LLM-Call geht an Endpoint + Key des eigenen Providers.
  * AK5: Derselbe Aufruf bucht keinen Kontingentpunkt — kein 429 trotz Free-Limit 0, ai_usage
- *   vor/nach identisch (heute rot: 403).
+ *   vor/nach identisch.
+ * AK6: Ein `?provider=`-Pin übersteuert die eigene Auswahl — Aufrufe über einen Instanz-
+ *   Provider bleiben trotz Auswahl gated (403) und gezählt (Review PR #1557, Finding 1).
  * AK7: Free-Nutzer mit angelegtem, aber NICHT ausgewähltem eigenem Provider → 403 plan_required
  *   an allen vier KI-Endpunkten (Vollmatrix free-ohne-Provider deckt plan-gating.test.ts AK2 ab).
  *
@@ -193,6 +193,56 @@ describe('Eigener LLM-Provider pro Nutzer (#1548)', () => {
 			assert.notEqual(res.status, 429, 'eigener Provider darf nie am Kontingent scheitern');
 			assert.equal(res.status, 200);
 			assert.equal(await aiUsageCount(userId), before, 'Aufruf über den eigenen Provider darf nicht gezählt werden');
+		});
+	});
+
+	describe('AK6 — Pin auf Instanz-Provider trotz eigener Auswahl', () => {
+		const postLektoratPinned = (cookie: string): Promise<Response> =>
+			fetch(`${server.baseUrl}/lektorat?provider=mistral`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Cookie: cookie },
+				body: JSON.stringify({ text: 'Text mit Tippfeln.' }),
+			});
+
+		it('Free mit Auswahl + ?provider=mistral: 403 plan_required — Gate-Bypass greift nicht', async () => {
+			process.env.MONETIZATION_ENFORCED = 'true';
+			const cookie = await register('pin-gate@1548.example.com');
+			const providerId = await createOwnProvider(cookie);
+			assert.equal((await putSelection(cookie, providerId)).status, 200);
+
+			const res = await postLektoratPinned(cookie);
+			assert.equal(res.status, 403, `Pin auf Instanz-Provider muss gated bleiben, war ${res.status}`);
+			const error = (await res.json()) as { code?: string; feature?: string };
+			assert.equal(error.code, 'plan_required');
+			assert.equal(error.feature, 'ai_assist');
+			assert.equal(llmCalls.length, 0, 'nach dem Gate darf kein LLM-Call gelaufen sein');
+		});
+
+		it('Free mit Auswahl + ?provider=mistral: Aufruf wird gezählt und läuft auf dem Instanz-Provider', async () => {
+			const cookie = await register('pin-meter@1548.example.com');
+			const providerId = await createOwnProvider(cookie);
+			assert.equal((await putSelection(cookie, providerId)).status, 200);
+			const [rows] = (await sequelize.query('SELECT id FROM users WHERE email = ?', {
+				replacements: ['pin-meter@1548.example.com'],
+			})) as unknown as { id: number }[][];
+			const userId = rows[0]?.id;
+
+			const before = await aiUsageCount(userId);
+			const res = await postLektoratPinned(cookie);
+			assert.equal(res.status, 200, `Pin ohne Gate (Monetisierung aus) muss durchreichen, war ${res.status}`);
+			const body = (await res.json()) as { text?: string };
+			assert.equal(body.text, 'Lektoriert.');
+			assert.equal(llmCalls.length, 1, 'genau ein LLM-Call');
+			assert.ok(
+				llmCalls[0]?.url.includes(INSTANCE_ENDPOINT),
+				'Call muss an den Instanz-Provider gehen, nicht an den eigenen',
+			);
+			assert.ok(!llmCalls[0]?.url.includes(OWN_ENDPOINT), 'eigener Endpoint darf nicht benutzt werden');
+			assert.equal(
+				await aiUsageCount(userId),
+				before + 1,
+				'Instanz-Provider-Nutzung muss trotz eigener Auswahl gezählt werden',
+			);
 		});
 	});
 

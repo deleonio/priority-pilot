@@ -12,6 +12,7 @@ import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { AiUsage, User } from '../models/index.js';
 import { hasOwnProviderSelection } from '../llm/llmProviders.js';
+import { hasProviderPin } from './llmProviderQuery.js';
 
 /**
  * Ein von {@link meterAiQuota} erzeugter Handler trägt die Marker-Eigenschaft — der Abdeckungstest
@@ -105,7 +106,9 @@ export const meterAiQuota = (): AiQuotaHandler => {
 		}
 		// #1548: Aufrufe über den eigenen Provider des Nutzers kosten die Instanz nichts — weder
 		// buchen noch (bei Fehlerantworten) zurückbuchen; der Monatszähler bleibt unangetastet (AK5).
-		if (await hasOwnProviderSelection(userId)) {
+		// Ein `?provider=`-Pin übersteuert die eigene Auswahl (resolveProvider ist pin-first) und
+		// läuft je nach Name auf einem instanzweiten Provider — dann wird gezählt wie bisher (AK6).
+		if (!hasProviderPin(req.query as Record<string, unknown>) && (await hasOwnProviderSelection(userId))) {
 			next();
 			return;
 		}
