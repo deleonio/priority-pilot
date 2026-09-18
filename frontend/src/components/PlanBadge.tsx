@@ -7,6 +7,16 @@ import { useEntitlement } from '../lib/usePlan';
 const PAKETE_ROUTE = '/settings/pakete';
 
 /**
+ * Badge-Farben als Hex-Statische (Review #1564 F2): KolBris `_color` validiert Hex
+ * (`#rgb`/`#rrggbb`/`#rrggbbaa`, dist `color-*.js`) und verwirft alles andere stumm mit
+ * Dev-Warnung — `var(--…)` ließ die Badges bisher ungefärbt. Werte = helle Theme-Varianten
+ * `--pp-status-total`/`--pp-success` (app.css); die Kontrast-Vordergrundfarbe rechnet KoliBri
+ * selbst aus dem Hex, das Badge ist damit in beiden Themes kontrastsicher.
+ */
+const COLOR_STATUS = '#3f4a5c';
+const COLOR_SUCCESS = '#1a7f37';
+
+/**
  * Link-Variante außerhalb von Modalen (AK3, Entscheidung B). Eigenes Bauteil, damit der
  * Router-Hook NUR in dieser Variante läuft — Modals und „enthalten"-Badges rendern ohne
  * Router-Kontext (isolierte Unit-Tests der Host-Komponenten bleiben routerfrei).
@@ -24,7 +34,7 @@ const PlanBadgeLink = ({ feature, label }: { feature: FeatureId; label: string }
 				navigate(PAKETE_ROUTE);
 			}}
 		>
-			<KolBadge _label={label} _color="var(--pp-status-total)" />
+			<KolBadge _label={label} _color={COLOR_STATUS} />
 		</a>
 	);
 };
@@ -59,7 +69,7 @@ export const PlanBadge = ({ feature, inModal = false }: { feature: FeatureId; in
 			<span className="plan-badge plan-badge--included" data-testid={`plan-badge-${feature}`}>
 				<KolBadge
 					_label={`${title} · ${paket} · enthalten`}
-					_color="var(--pp-success)"
+					_color={COLOR_SUCCESS}
 					_icons={{ left: { icon: 'fa-solid fa-check' } }}
 				/>
 			</span>
@@ -69,7 +79,7 @@ export const PlanBadge = ({ feature, inModal = false }: { feature: FeatureId; in
 	if (inModal) {
 		return (
 			<span className="plan-badge plan-badge--label" data-testid={`plan-badge-${feature}`}>
-				<KolBadge _label={`${title} · ${paket}`} _color="var(--pp-status-total)" />
+				<KolBadge _label={`${title} · ${paket}`} _color={COLOR_STATUS} />
 			</span>
 		);
 	}

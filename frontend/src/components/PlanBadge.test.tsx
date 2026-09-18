@@ -9,10 +9,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * auf den Pakete-Reiter (Entscheidung B des Autors), innerhalb von Modalen reine Beschriftung ohne
  * Klickziel. Der (i)-Schalter (`plan-badge-info-{feature}`) entfällt. Die Tests sind rot, solange
  * `PlanBadge` noch den (i)-Schalter rendert und `pp:plan-required` dispatched.
+ *
+ * Review #1564 F2: KolBris `_color` akzeptiert nur Hex — `var(…)` wird still verworfen und das
+ * Badge bliebe ungefärbt. Der Mock fängt `_color` mit ab, damit AK2s Farben (grünes „enthalten",
+ * graues Status-Badge) testabgedeckt sind statt nur sichtbar zu sein.
  */
+const badgeColors = vi.hoisted(() => [] as string[]);
 
 vi.mock('@public-ui/react-v19', () => ({
-	KolBadge: ({ _label }: { _label?: string }) => createElement('span', { 'data-testid': 'badge' }, _label),
+	KolBadge: ({ _label, _color }: { _label?: string; _color?: string }) => {
+		badgeColors.push(_color ?? '(ohne _color)');
+		return createElement('span', { 'data-testid': 'badge' }, _label);
+	},
 	KolButton: ({ _label }: { _label?: string }) => createElement('button', null, _label),
 }));
 
@@ -40,6 +48,7 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	badgeColors.length = 0;
 });
 
 describe('PlanBadge Beschriftung (#1528 AK2, Spec issue-1528.md)', () => {
@@ -58,6 +67,8 @@ describe('PlanBadge Beschriftung (#1528 AK2, Spec issue-1528.md)', () => {
 		// Häkchen (Text + Icon, WCAG 1.4.1 — UX-Block) statt nacktem Farb-Marker
 		expect(badge.textContent.toLowerCase()).toContain('enthalten');
 		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
+		// #1564 F2: „enthalten" ist Erfolgs-Grün als Hex (KoliBri verwirft var(…) still)
+		expect(badgeColors).toContain('#1a7f37');
 	});
 
 	it('allowed=false → nennt Funktion und nötiges Paket; kein (i)-Schalter', () => {
@@ -73,6 +84,8 @@ describe('PlanBadge Beschriftung (#1528 AK2, Spec issue-1528.md)', () => {
 		expect(badge.textContent).toContain(featureOffer('groups').title);
 		expect(badge.textContent).toContain(planLabel('pro'));
 		expect(screen.queryByTestId('plan-badge-info-groups')).toBeNull();
+		// #1564 F2: Verweis-Badge in der neutralen Status-Farbe (Hex statt var)
+		expect(badgeColors).toContain('#3f4a5c');
 	});
 
 	it('ohne Entitlement rendert das Badge nichts (kein falscher Zustand vor der Antwort)', () => {
