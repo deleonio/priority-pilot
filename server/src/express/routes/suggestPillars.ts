@@ -200,6 +200,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 						examples,
 					},
 					provider,
+					getUserId(req),
 				);
 				res.json({ suggestions });
 			} catch (error) {

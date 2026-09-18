@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
+import { getUserId } from '../requireAuth.js';
 import { lektoratTextWithMistral } from '../../llm/llm.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -87,6 +88,7 @@ export const lektoratRouter = (): Router => {
 						maxLength: validation.value.maxLength,
 					},
 					provider,
+					getUserId(req),
 				);
 				res.json({ text: result.text });
 			} catch (error) {

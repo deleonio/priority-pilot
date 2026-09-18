@@ -26,6 +26,20 @@ export const sendLlmError = (res: Response<components['schemas']['Error']>, erro
 };
 
 /**
+ * Ob die Anfrage einen Provider über den `provider`-Query-Parameter pinned (#749) — derselbe
+ * „gesetzt“-Begriff wie in {@link validateProviderQuery} (undefined/null/leer = kein Pin).
+ *
+ * Die Gate- und Kontingent-Bypasses für eigene Provider (#1548) werten das aus: Die
+ * Provider-Auflösung ist pin-first (`resolveProvider`), ein Pin übersteuert also die eigene
+ * Auswahl des Nutzers — läuft der Aufruf damit auf einem instanzweiten Provider, bleibt es
+ * beim Status quo aus Gate und Zählung (AK6).
+ */
+export const hasProviderPin = (query: Record<string, unknown>): boolean => {
+	const raw = query.provider;
+	return raw !== undefined && raw !== null && raw !== '';
+};
+
+/**
  * Validiert den optionalen `provider`-Query-Parameter — für alle LLM-Routen
  * (`/pillars/advisor`, `/tasks/parse-text`, `/tasks/suggest-pillars`, `/lektorat`).
  *

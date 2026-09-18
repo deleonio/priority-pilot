@@ -151,6 +151,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskCreatedById,
 			migrateUsersRoleColumn,
 			migrateUsersPlanColumn,
+			migrateUsersSelectedLlmProvider,
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
@@ -219,6 +220,9 @@ export const main = async (): Promise<void> => {
 		// sync(), damit Login, /auth/me und die Admin-API auf Bestands-DBs nicht mit
 		// `no such column` brechen.
 		await migrateUsersPlanColumn(sequelize);
+		// Fehlende selectedLlmProviderId-Spalte (eigene Provider-Auswahl, #1548) an users nachziehen —
+		// vor sync(), damit Auswahl/Auflösung auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateUsersSelectedLlmProvider(sequelize);
 		// Fehlende categoryId-Spalte an tasks und series nachziehen (thematische Kategorien) — vor
 		// sync(), damit Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateCategoryIdColumns(sequelize);
