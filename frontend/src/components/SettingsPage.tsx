@@ -51,6 +51,8 @@ interface SettingsPageProps {
 	onCategoryChanged?: () => void;
 	/** Rollensystem admin/member: blendet den Tab „Nutzerverwaltung" ein (Server erzwingt, UI blendet nur aus). */
 	isAdmin?: boolean;
+	/** #1556: Id des eingeloggten Nutzers — nur deren Zeile bekommt die Paket-Auswahl (App → hier → AdminUsersSection). */
+	currentUserId?: number;
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
@@ -110,6 +112,7 @@ export const SettingsPage = ({
 	onPillarChanged,
 	onCategoryChanged,
 	isAdmin = false,
+	currentUserId,
 }: SettingsPageProps) => {
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
@@ -822,7 +825,7 @@ export const SettingsPage = ({
 				{isAdmin && (
 					<div slot="tab-8" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
-							<AdminUsersSection />
+							<AdminUsersSection currentUserId={currentUserId} />
 						</KolCard>
 					</div>
 				)}

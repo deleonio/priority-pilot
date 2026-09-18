@@ -519,6 +519,18 @@ export const api = {
 		return data;
 	},
 
+	/** #1556: Kostenfreier Paket-Wechsel des eigenen Kontos (Route aus #1456, ohne Zahlungsweg). */
+	async updateUserPlan({ id, plan }: { id: number; plan: AdminUser['plan'] }): Promise<AdminUser> {
+		const { data, error, response } = await client.PATCH('/admin/users/{id}/plan', {
+			params: { path: { id } },
+			body: { plan },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	async getGroupMembers({ id, ...init }: { id: number } & Init): Promise<GroupMember[]> {
 		const { data, error, response } = await client.GET('/groups/{id}/members', {
 			params: { path: { id } },

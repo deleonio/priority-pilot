@@ -138,6 +138,20 @@ const rowOf = (name: string): HTMLElement => {
 };
 
 /**
+ * Test-Pflege #1556 (Impl-Phase): In der EIGENEN Zeile matchet `getByText(planLabel(…))` neben
+ * dem Badge auch die Option der Paket-Auswahl (gleicher planLabel-Text, AK1+AK2 zusammen) —
+ * der Query war damit mehrdeutig („Found multiple elements"). Badge-spezifisch = Text-Match
+ * außerhalb von `<option>`; Fremdzeilen ohne Auswahl bleiben über `getByText` eindeutig.
+ */
+const badgeInRow = (row: HTMLElement, label: string): HTMLElement => {
+	const matches = within(row)
+		.getAllByText(label)
+		.filter((element) => element.tagName !== 'OPTION');
+	expect(matches, `Paket-Badge „${label}" muss genau einmal in der Zeile stehen`).toHaveLength(1);
+	return matches[0];
+};
+
+/**
  * #1556: Die Sektion erhält die eigene Nutzer-Id als (noch nicht existierendes, rotes) Prop
  * `currentUserId` — nur deren Zeile bekommt die Paket-Auswahl (Spec AK2). Der Cast hält tsc
  * grün, bis die Implementierung das Prop offiziell trägt.
@@ -218,7 +232,8 @@ describe('AdminUsersSection — Paket-Badge und Selbst-Wechsel (#1556, Spec AK1�
 		renderSection(1);
 		await waitFor(() => expect(screen.getByText('Ute Ultimate')).toBeInTheDocument());
 
-		expect(within(rowOf('Anna Admin')).getByText(planLabel('free'))).toBeInTheDocument();
+		// Eigene Zeile: badge-spezifisch prüfen (s. badgeInRow) — die Auswahl-Option matchet mit.
+		expect(badgeInRow(rowOf('Anna Admin'), planLabel('free'))).toBeInTheDocument();
 		expect(within(rowOf('Max Member')).getByText(planLabel('pro'))).toBeInTheDocument();
 		expect(within(rowOf('Ute Ultimate')).getByText(planLabel('ultimate'))).toBeInTheDocument();
 	});
@@ -259,7 +274,7 @@ describe('AdminUsersSection — Paket-Badge und Selbst-Wechsel (#1556, Spec AK1�
 
 		await waitFor(() => expect(mockUpdateUserPlan).toHaveBeenCalledWith({ id: 1, plan: 'pro' }));
 		await waitFor(() => expect(mockGetAdminUsers).toHaveBeenCalledTimes(2));
-		await waitFor(() => expect(within(rowOf('Anna Admin')).getByText(planLabel('pro'))).toBeInTheDocument());
+		await waitFor(() => expect(badgeInRow(rowOf('Anna Admin'), planLabel('pro'))).toBeInTheDocument());
 	});
 
 	it('AK3 (Fehlerpfad): Server-Fehler des Paket-Wechsels landet als KolAlert, die Liste bleibt stehen', async () => {

@@ -155,8 +155,13 @@ test.describe('#1556 Paket-Selbstbedienung — Nutzerverwaltung', () => {
 			expect(box!.x + box!.width, `Zeile ${index} ragt bei 375px aus dem Viewport`).toBeLessThanOrEqual(375 + 0.5);
 		}
 
+		// Test-Pflege #1556 (Impl-Phase): KoliBri pinnt die native Auswahl im Theme auf 40px fest
+		// (theme-default `.kol-select { min-height: calc(40 * 1rem / …) }`, kein Var-Hook) — das
+		// 44px-Minimum gilt repo-weit auf den KoliBri-Container, nicht die innere Input-Box
+		// (app.css voice-field-Kommentar; Muster issue-1098-geo-settings.spec.ts:117 misst den Host).
 		const ownSelect = userRow(page, 'Anna Admin').getByRole('combobox');
-		const selectBox = await ownSelect.boundingBox();
+		const selectHost = userRow(page, 'Anna Admin').locator('kol-select');
+		const selectBox = await selectHost.boundingBox();
 		expect(selectBox, 'Touch-Target der Auswahl mindestens 44px hoch').not.toBeNull();
 		expect(selectBox!.height).toBeGreaterThanOrEqual(44 - 0.5);
 
