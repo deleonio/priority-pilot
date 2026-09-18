@@ -1,6 +1,7 @@
 import type { Pillar, PillarSuggestion, Task, TaskPillarContribution } from 'client';
 import { TaskStatus } from 'client';
 import { describe, expect, it } from 'vitest';
+import * as pillarModule from './pillar';
 import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
@@ -578,5 +579,61 @@ describe('#431 dynamische Säulenzahl — keine feste 5er-Annahme', () => {
 
 	it('AK3: leere Säulen-Liste wird von buildPillarSummaries als leerer Ergebnis-Liste vertragen', () => {
 		expect(buildPillarSummaries([], [], new Map())).toEqual([]);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1555 — reine Funktion `isDistributionUnbalanced` (Spec:
+ * docs/spec/issue-1555.md).
+ *
+ * Vertrag: Anteil je Säule = roh / Σroh (null zählt als 0); unausgewogen genau dann, wenn ein
+ * Anteil strikt > 2× oder strikt < ½ des gleichmäßigen Anteils 1/n. Exakt 2× und exakt ½ sind
+ * KEIN Hinweis; nicht normierbar (Σ ≤ 0) → false (Summen-Fehlerzustand meldet sich bereits).
+ *
+ * Der Export existiert noch nicht (neue Funktionalität) — deshalb der optionale Cast statt eines
+ * direkten Named-Imports: `tsc --noEmit` (Pre-Commit) bleibt grün, der Test läuft rot, bis die
+ * Funktion implementiert ist.
+ */
+const { isDistributionUnbalanced } = pillarModule as unknown as {
+	isDistributionUnbalanced?: (raws: readonly (number | null)[]) => boolean;
+};
+
+describe('isDistributionUnbalanced (#1555)', () => {
+	it('AK1: 45/5/20/15/15 ist unausgewogen (45 % > 2 × 20 %)', () => {
+		expect(isDistributionUnbalanced?.([0.45, 0.05, 0.2, 0.15, 0.15])).toBe(true);
+	});
+
+	it('AK1: 5 × 20 % ist ausgewogen — kein Hinweis', () => {
+		expect(isDistributionUnbalanced?.([0.2, 0.2, 0.2, 0.2, 0.2])).toBe(false);
+	});
+
+	it('AK1: skaleninvariant — 5 × 0,5 (dieselben Anteile wie 5 × 0,2) ist ausgewogen', () => {
+		expect(isDistributionUnbalanced?.([0.5, 0.5, 0.5, 0.5, 0.5])).toBe(false);
+	});
+
+	it('AK1: exakt 2× (40 %) und exakt ½ (10 %) des gleichmäßigen Anteils sind KEIN Hinweis', () => {
+		expect(isDistributionUnbalanced?.([0.4, 0.2, 0.2, 0.1, 0.1])).toBe(false);
+	});
+
+	it('AK1: knapp über 2× (42 % bei gleichmäßig 20 %) ist unausgewogen', () => {
+		expect(isDistributionUnbalanced?.([0.42, 0.2, 0.2, 0.09, 0.09])).toBe(true);
+	});
+
+	it('AK1: knapp unter ½ (8 % bei gleichmäßig 20 %) ist unausgewogen', () => {
+		expect(isDistributionUnbalanced?.([0.36, 0.2, 0.2, 0.16, 0.08])).toBe(true);
+	});
+
+	it('null zählt als 0 — eine geleerte Säule (Anteil 0 < ½) macht die Verteilung unausgewogen', () => {
+		expect(isDistributionUnbalanced?.([0.4, 0.2, 0.2, 0.1, null])).toBe(true);
+	});
+
+	it('nicht normierbar (alles 0 bzw. null) → false, kein Doppelmelden zum Summen-Fehlerzustand', () => {
+		expect(isDistributionUnbalanced?.([0, 0, 0])).toBe(false);
+		expect(isDistributionUnbalanced?.([null, null])).toBe(false);
+	});
+
+	it('andere Säulenzahlen: 3 Säulen 70/20/10 unausgewogen (2× = 66,7 %), 2 Säulen 70/30 ausgewogen', () => {
+		expect(isDistributionUnbalanced?.([0.7, 0.2, 0.1])).toBe(true);
+		expect(isDistributionUnbalanced?.([0.7, 0.3])).toBe(false);
 	});
 });

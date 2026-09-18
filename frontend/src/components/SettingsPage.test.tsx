@@ -962,3 +962,103 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 		expect(row?.querySelector('kol-alert')).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1555 — Hinweis bei stark unausgewogener Säulen-Gewichtung
+ * (Spec: docs/spec/issue-1555.md).
+ *
+ * Der Hinweis ist ein `KolAlert _type="warning"` im Säulen-Panel (`slot="tab-1"`), friendly und
+ * NICHT blockierend: er erscheint bei ungleicher Verteilung (Anteil > 2× oder < ½ des
+ * gleichmäßigen Anteils), live bei jedem Reglerzug und schon beim Laden einer gespeicherten
+ * ungleichen Verteilung; Speichern bleibt möglich. Die Grenzfälle der Formel selbst testet
+ * `pillar.test.ts` (#1555-Block) — hier der UI-Vertrag des Formulars.
+ */
+describe('SettingsPage – #1555: Hinweis bei unausgewogener Säulen-Gewichtung', () => {
+	const unbalancedPillars = [45, 5, 20, 15, 15].map((weight, index) => ({
+		id: index + 1,
+		name: `S${index + 1}`,
+		description: '',
+		weight,
+	}));
+	const balancedPillars = [20, 20, 20, 20, 20].map((weight, index) => ({
+		id: index + 1,
+		name: `S${index + 1}`,
+		description: '',
+		weight,
+	}));
+
+	/** Warn-Alert im Säulen-Panel (nur dort suchen: die Settings-Seite zeigt weitere Alerts). */
+	const warningAlert = (container: HTMLElement): Element | null =>
+		container.querySelector('.settings-pillars kol-alert[_type="warning"]');
+
+	const slider = (container: HTMLElement, index: number): Element =>
+		container.querySelectorAll('.pillar-weights-grid kol-input-range')[index];
+
+	const input = async (el: Element, value: string): Promise<void> => {
+		await act(async () => {
+			(el as unknown as { _on: { onInput: (_event: unknown, value: string) => void } })._on.onInput({}, value);
+		});
+	};
+
+	beforeEach(() => {
+		delete apiMocks.setPillarWeights;
+	});
+
+	// AK1 (positiv) + AK3: gespeicherte ungleiche Verteilung (45/5/20/15/15) zeigt den Hinweis
+	// direkt beim Öffnen des Formulars — ohne jegliche Nutzerinteraktion (Remount-Key nimmt die
+	// Gewichtswerte aus `pillars` auf).
+	it('AK1+AK3: ungleiche gespeicherte Verteilung zeigt Warn-Alert sofort, ohne Interaktion', () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		expect(warningAlert(container), 'Warn-Alert fehlt bei 45/5/20/15/15').not.toBeNull();
+	});
+
+	// AK1 (negativ): ausgewogene Verteilung (5 × 20 %) zeigt keinen Hinweis.
+	it('AK1: ausgewogene Verteilung (5 × 20 %) zeigt KEINEN Warn-Alert', () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={balancedPillars} />);
+		expect(warningAlert(container)).toBeNull();
+	});
+
+	// AK2: Live-Umschlag in beide Richtungen — derselbe Event-Kanal, der bereits `setSum` feuert.
+	it('AK2: Reglerzug ausgewogen → unausgewogen zeigt den Alert, Rückkehr entfernt ihn', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={balancedPillars} />);
+		expect(warningAlert(container)).toBeNull();
+
+		// Erste Säule auf Maximum (Rohwert 1,0): 100 % > 2 × 20 % → Hinweis erscheint.
+		await input(slider(container, 0), '1');
+		expect(warningAlert(container), 'Alert erscheint nicht nach Reglerzug').not.toBeNull();
+
+		// Zurück auf 0,2 (wieder 5 × 20 %) → Hinweis verschwindet.
+		await input(slider(container, 0), '0.2');
+		expect(warningAlert(container), 'Alert verschwindet nicht bei Rückkehr zur Balance').toBeNull();
+	});
+
+	// AK4: Der Hinweis blockiert nicht — Speichern-Button bleibt aktiv und der API-Aufruf
+	// (normieren → PUT /pillars/weights) erfolgt unverändert.
+	it('AK4: trotz Hinweis bleibt Speichern aktiv und ruft api.setPillarWeights auf', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		expect(warningAlert(container)).not.toBeNull();
+
+		const save = container.querySelector('.settings-pillars kol-button[_label="Speichern"]');
+		expect(save, 'Speichern-Button fehlt').not.toBeNull();
+		expect(save?.hasAttribute('_disabled'), 'Speichern darf durch den Hinweis NICHT deaktiviert werden').toBe(false);
+
+		await act(async () => {
+			(save as unknown as { _on: { onClick: (event: unknown) => void } })._on.onClick({});
+		});
+		await waitFor(() => {
+			expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
+		});
+		// Rohwerte [0.45, 0.05, 0.2, 0.15, 0.15] normieren auf genau die gespeicherten Prozente zurück.
+		expect(apiMocks.setPillarWeights).toHaveBeenCalledWith({
+			pillarWeightsInput: {
+				weights: [
+					{ id: 1, weight: 45 },
+					{ id: 2, weight: 5 },
+					{ id: 3, weight: 20 },
+					{ id: 4, weight: 15 },
+					{ id: 5, weight: 15 },
+				],
+			},
+		});
+	});
+});
