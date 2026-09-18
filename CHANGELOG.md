@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-18
 
-_Enthält v0.2.0 – v0.2.97._
+_Enthält v0.2.0 – v0.2.98._
 
 ### 🔧 Engineering
 
@@ -108,6 +108,7 @@ _Enthält v0.2.0 – v0.2.97._
 - feat(server): manage group members via mcp tools (#1543) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1553
 - feat(frontend): allow admins to switch their own plan for free (#1556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1563
 - feat(frontend): hint on strongly unbalanced pillar weight distribution by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1562
+- docs: align tdd-strategy test scope with adr 0004 and test:scripts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1560
 
 ## v0.1 - 2026-09-12
 
@@ -757,6 +758,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): join a group via invite link (#1226) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1246
 - docs(guide): sync user guide with current app state (2026-09-06) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1248
 - feat(groups): add group image via https url (#1225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1245
+- feat(groups): add group image via https url (#1225) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1245
 - fix(server): creator read access ends with group membership (#1250) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1261
 - fix(server): check pillar contributions against owning account (#1249) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1255
 - feat(server): clean up invitations and rest cross-member series on group exit (#1251) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1263
@@ -836,7 +838,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(deps): update dependency undici@6 to v8.10.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1326
 - fix(changelog): consolidate CHANGELOG.md blocks by minor version by @deleonio in https://github.com/deleonio/priority-pilot/pull/1393
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
-- feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
 - fix(ci): daily-version Tages-Check nur bei (daily)-Tag greifen lassen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1401
