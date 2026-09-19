@@ -9,8 +9,10 @@ Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operat
 Priority Pilot ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
 mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewichtung und
 Punkte-Konto (Gamification), wiederkehrende Aufgaben (Serien), Gruppen mit geteilten Tasks und
-Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite) und KI-Unterstützung
-(Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater, Lektorat).
+Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite), KI-Unterstützung
+(Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater, Lektorat) sowie ein
+Paketmodell mit PayPal-Abos (Free-/Pro-/Max-/Ultimate-Stufen). Erinnerungen gehen als
+Web-Push oder E-Mail raus.
 
 Das Repository ist ein pnpm-Monorepo mit drei Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
 
@@ -44,7 +46,7 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
 
 ## 2. Rahmenbedingungen
 
-- **Laufzeit:** Node.js >= 26, pnpm als Paketmanager, TypeScript `strict`, ESM überall
+- **Laufzeit:** Node.js 26 (`.nvmrc`), pnpm als Paketmanager, TypeScript `strict`, ESM überall
   ([AGENTS.md](../AGENTS.md), [project.md](../.ai-knowledge/project.md)).
 - **Lizenz:** EUPL-1.2 (Root-`package.json`).
 - **UI-Vorgabe:** KoliBri-Web-Components (`@public-ui/*`) bevorzugt; eigenes Styling nur, wenn keine
@@ -54,7 +56,9 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
 - **Externe Verträge:** Google-OAuth-Credentials (ENV), Nominatim-Nutzungsbedingungen
   (Rate-Limit 1 req/s, geteilter Limiter in `server/src/express/routes/geocodeRateLimit.ts`),
   Transitous/MOTIS-API (CORS erzwingt den Server-Proxy, `server/src/express/routes/transit.ts`),
-  Web-Push mit eigenen VAPID-Keys.
+  Web-Push mit eigenen VAPID-Keys, SMTP-Versand (`SMTP_*`/`MAIL_FROM`), PayPal-API für Abos
+  und Webhooks (`PAYPAL_*`), GitHub-Contents-API für Feedback-Ablage
+  (`FEEDBACK_GITHUB_TOKEN`, `server/src/logics/obsidianFeedback.ts`).
 - **Organisatorisch:** Die KI-Pipeline in `.github/workflows/` orchestriert Ticket-Arbeit; ihre
   Ausgaben leben im Harness-Kommentar des Issues bzw. als Workflow-Artefakt (ADR 0009, ADR 0010).
 
@@ -75,22 +79,27 @@ graph LR
     API -->|IF-04 Geocoding| Nominatim[Nominatim]
     API -->|IF-05 Fahrplandaten| Transitous[Transitous / MOTIS]
     API -->|IF-06 Web-Push| Push[Push-Dienst des Browsers]
+    API -->|IF-08 Subscriptions + Webhooks| PayPal[PayPal]
+    API -->|IF-09 SMTP| Mail[Mailserver]
+    API -->|IF-10 Contents-API| GitHub[GitHub / Obsidian-Repo]
 ```
 
-| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                          |
-| ----- | ------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab      |
-| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                         |
-| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; aktiver Provider in der DB (`llm_providers`), Fix-Provider Mistral über `MISTRAL_API_KEY` |
-| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                   |
-| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                |
-| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                   |
-| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token               |
+| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                           |
+| ----- | ------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                       |
+| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                          |
+| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`             |
+| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                    |
+| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                                                                 |
+| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                    |
+| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token                                                                |
+| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`) |
+| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate)                                                                                |
+| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                |
 
 ## 4. Lösungsstrategie
 
-- **API-first:** `openapi.yml` ist der zentrale API-Vertrag; der Lektorat-Endpunkt liegt als
-  bekannte Schuld noch außerhalb (s. §11). `pnpm build` generiert daraus Typen
+- **API-first:** `openapi.yml` ist der zentrale API-Vertrag. `pnpm build` generiert daraus Typen
   für `client/` (Frontend) und `server/src/api.d.ts`; das Frontend ruft die API typsicher mit
   `openapi-fetch` auf (`frontend/src/api.ts`). Der Server arbeitet mit denselben `components`-Typen.
 - **Getrennte Zuständigkeiten im Server:** HTTP-Schicht (`server/src/express/`), Fachlogik
@@ -102,14 +111,20 @@ graph LR
   Workbox). Auth-Zustand und Navigation laufen clientseitig (`frontend/src/Root.tsx`,
   `react-router-dom` in `frontend/src/App.tsx`); der App-State lebt in React-Hooks, ohne globales
   State-Framework.
-- **UI über KoliBri:** `frontend/src/main.tsx` registriert `@public-ui/components` mit dem
-  KERN-V2-Theme (Fallback Default-Theme). Die öffentliche Bahn-Seite nutzt bewusst native
+- **UI über KoliBri:** `frontend/src/main.tsx` registriert `@public-ui/components` mit den Themes
+  Default und KERN-V2. Die öffentliche Bahn-Seite nutzt bewusst native
   HTML-Elemente (`frontend/src/components/BahnPage.tsx`).
 - **Sicherheit:** Google-OAuth-Login mit E-Mail-Allowlist, Session-Cookies (`httpOnly`,
   `SameSite=lax`, `Secure` in Produktion), CSRF-Schutz für schreibende Endpunkte in Produktion
   (`server/src/express/csrf.ts`), Rate-Limits für Auth- und Geocode-Routen.
 - **Gamification als eigene Fachlogik:** Punktevergabe (`server/src/logics/score.ts`, getrennt vom
   Wertschöpfungs-Beitrag `value.ts`), Balance-Aggregation je Säule über `/scores/by-pillar`.
+- **Monetarisierung mit einer Rechte-Zentrale:** Paket-Katalog, Preise, Kontingente und
+  Entitlements (`free`/`pro`/`max`/`ultimate`) existieren nur in `server/src/logics/plans.ts`
+  (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklorieren ihren
+  Feature-Bedarf über `planGuard.ts`, LLM-Routen zählen verbrauchende Nutzungen über
+  `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
+  Abos laufen über PayPal (ADR 0013), die Paket-Angebote leben in den Einstellungen (ADR 0014).
 
 ## 5. Bausteinsicht
 
@@ -131,44 +146,47 @@ graph TB
     ci --> Repo
 ```
 
-| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen                                  |
-| ------------- | --------------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
-| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01                                           |
-| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01                                           |
-| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06                                    |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01, IF-02, IF-03, IF-04, IF-05, IF-06, IF-07 |
-| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —                                               |
+| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen |
+| ------------- | --------------------------------------------- | ----------------------------------------------- | -------------- |
+| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01          |
+| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
+| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06   |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01 … IF-10  |
+| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —              |
 
 ### 5.2 Server (Whitebox `server`)
 
-| Baustein     | Verantwortung                                                                          | Wichtige Dateien                                                                                                           |
-| ------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `express/`   | Routen, Middleware, Fehlervertrag                                                      | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `csrf.ts`, `http-error.ts`, `session.ts` |
-| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)             | `server.ts`, `tools.ts`                                                                                                    |
-| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push-Trigger, Geo, Migrationen                    | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `nominatim.ts`, `migrate.ts`                                    |
-| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, PushSubscription u. a. | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`                                           |
-| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                      | `llm.ts`, `llmProviders.ts`                                                                                                |
-| `scheduler/` | Intervall-Ticker für Push-Trigger                                                      | `index.ts`                                                                                                                 |
-| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                 | `index.ts`, `env.ts`, `database.ts`                                                                                        |
+| Baustein     | Verantwortung                                                                                             | Wichtige Dateien                                                                                                                                              |
+| ------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `express/`   | Routen, Middleware, Fehlervertrag                                                                         | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `planGuard.ts`, `aiQuotaMeter.ts`, `csrf.ts`, `http-error.ts`, `session.ts` |
+| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)                                | `server.ts`, `tools.ts`                                                                                                                                       |
+| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push/Mail-Trigger, Geo, Pakete, Zahlungen, Migrationen               | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `mail.ts`, `nominatim.ts`, `plans.ts`, `paypal.ts`, `invoices.ts`, `migrate.ts`                    |
+| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, Subscription, Invoice, WebhookEvent u. a. | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`, `subscription.ts`, `invoice.ts`, `webhookEvent.ts`                          |
+| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                                         | `llm.ts`, `llmProviders.ts`                                                                                                                                   |
+| `scheduler/` | Intervall-Ticker für Push-Trigger                                                                         | `index.ts`                                                                                                                                                    |
+| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                                    | `index.ts`, `env.ts`, `database.ts`                                                                                                                           |
 
 Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*`, `/health`,
-`/api/transit/*`, `/invite-links/{token}`) liegen vor `requireAuth`, alle fachlichen Endpunkte
-danach hinter der Session- oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter
-`requireAuth` und nimmt den MCP-Endpunkt (`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für
-MCP-Werkzeuge greift stattdessen eine Ebene tiefer, am Loopback-Request von `mcp/tools.ts` gegen die
-Fachroute selbst; `/admin/*` verlangt zusätzlich zu `requireAuth` die Rolle `admin`
-(`requireRole('admin')`, `routes/admin.ts`).
+`/api/transit/*`, `/invite-links/{token}`, `/plans`, der PayPal-Webhook `/webhooks/paypal` und
+`/billing/return`) liegen vor `requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
+oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requireAuth`, sperrt die
+Token-Verwaltung (`/api-tokens`) für Bearer-Zugriffe komplett und nimmt den MCP-Endpunkt
+(`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für MCP-Werkzeuge greift stattdessen eine Ebene
+tiefer, am Loopback-Request von `mcp/tools.ts` gegen die Fachroute selbst. Nutzer tragen eine Rolle
+`admin`/`member`/`tester`: die Nutzerverwaltung unter `/admin/users*` verlangt
+`requireRole('admin')`, die übrigen Admin-Routen erlauben zusätzlich `tester`
+(`requireRole(['admin', 'tester'])`, `routes/admin.ts`).
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
-| Baustein      | Verantwortung                                                                                         | Wichtige Dateien                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                      | `main.tsx`, `Root.tsx`                                                             |
-| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                              | `App.tsx`                                                                          |
-| `components/` | Seiten- und Dialogkomponenten (Dashboard, TaskTable, TaskTree, Groups, Series, Settings, BahnPage, …) | `frontend/src/components/`                                                         |
-| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Push, Geolocation, Theme, Voice-Input)                  | `frontend/src/lib/`                                                                |
-| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                            | `frontend/src/api.ts`                                                              |
-| PWA           | Service Worker, Install-/Update-Prompts                                                               | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
+| Baustein      | Verantwortung                                                                                                                                                                             | Wichtige Dateien                                                                   |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                          | `main.tsx`, `Root.tsx`                                                             |
+| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                  | `App.tsx`                                                                          |
+| `components/` | Seiten- und Dialogkomponenten (Dashboard, TaskTable, TaskTree, TaskGraph, Groups, Series, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, BahnPage, …) | `frontend/src/components/`                                                         |
+| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input)                                                      | `frontend/src/lib/`                                                                |
+| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                | `frontend/src/api.ts`                                                              |
+| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                   | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
 
 ## 6. Laufzeitsicht
 
@@ -217,12 +235,13 @@ Fehlt ein konfigurierter Provider oder Key, antworten die LLM-Routen mit HTTP 50
 
 ### 6.3 Hintergrundläufe
 
-Der Scheduler (`server/src/scheduler/index.ts`) prüft alle 15 Minuten, ob die konfigurierte
-UTC-Stunde erreicht ist, und feuert jeden Trigger höchstens einmal pro Tag: fällige Aufgaben
-(`dueTaskReminders`), die drei wichtigsten Aufgaben (`dailyTopTasksPush`). Beide laufen nur mit
-Web-Push-Konfiguration und `PUSH_REMINDERS_ENABLED=true`. Die Deadline-Auto-Löschung
-(`autoDeleteAfterDeadline`) läuft push-unabhängig und ist über
-`AUTO_DELETE_AFTER_DEADLINE_ENABLED` abschaltbar; Serien-Instanzen materialisieren über
+Zwei Scheduler teilen sich das 15-Minuten-Intervall (`server/src/scheduler/index.ts`): Der
+Erinnerungs-Ticker feuert jeden Trigger höchstens einmal pro Tag, sobald die konfigurierte
+UTC-Stunde erreicht ist — fällige Aufgaben (`dueTaskReminders`), die drei wichtigsten Aufgaben
+(`dailyTopTasksPush`) — und läuft nur mit Web-Push-Konfiguration und
+`PUSH_REMINDERS_ENABLED=true`. Die Deadline-Auto-Löschung (`autoDeleteAfterDeadline`) läuft
+push-unabhängig im zweiten Ticker und ist standardmäßig aktiv; sie lässt sich über
+`AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten. Serien-Instanzen materialisieren über
 `POST /series/generate-all` (idempotent) statt über einen Scheduler.
 
 ## 7. Verteilungssicht
@@ -268,12 +287,20 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 - **Authentifizierung und Autorisierung:** Session-basiert (`express-session` + Passport nur als
   OAuth-Brücke); der User lebt in `req.session.user`, `requireAuth` schützt alle fachlichen Routen.
   Externe Clients (MCP, Skripte) authentifizieren sich alternativ über persönliche API-Tokens
-  (`Authorization: Bearer pp_…`, gehasht in `api_tokens`, geprüft von `apiTokenAuth`); ein Treffer
-  befüllt `req.session.user` im selben Shape wie der Login, ohne die Session zu persistieren.
-  Tokens tragen einen Scope (`read`/`readwrite`, `apiTokenScopeGuard`). Eine zusätzliche Rolle
-  `admin` (`requireRole('admin')`) schützt `/admin/*`. Datenisolation je User prüfen eigene
+  (`Authorization: Bearer pp_…` oder `api-key`/`x-api-key`, gehasht in `api_tokens`, mit
+  Pflicht-Ablaufdatum, geprüft von `apiTokenAuth`); ein Treffer befüllt `req.session.user` im
+  selben Shape wie der Login, ohne die Session zu persistieren. Tokens tragen einen Scope
+  (`read`/`readwrite`, `apiTokenScopeGuard`). Nutzer-Rollen `admin`/`member`/`tester` schützen
+  `/admin/*` (`requireRole`, Nutzerverwaltung nur `admin`). Datenisolation je User prüfen eigene
   Testsuiten (`*-dataisolation.test.ts`); Gruppenrechte folgen der Membership in `group_members`,
   nicht einem Owner-Feld.
+- **Paket-Gating und KI-Kontingente:** Feature-Freigaben und Verbrauchszähler entstehen allein in
+  `logics/plans.ts` plus `planGuard.ts`/`aiQuotaMeter.ts`; die Tests
+  `plan-gating-coverage.test.ts` und `ai-quota-coverage.test.ts` misslingen, wenn eine neue
+  Route Gating oder Zähler überspringt.
+- **Benachrichtigungen:** Web-Push (`logics/push.ts`, VAPID aus ENV) und E-Mail (`logics/mail.ts`,
+  SMTP aus ENV) sind zwei gleichartig injizierbare Kanäle; wiederholte Scheduler-Läufe
+  deduplizieren ihre Trigger über Einträge im `notification_log`.
 - **Fehlervertrag:** Handler antworten über `sendError` mit `{ message }` (`http-error.ts`);
   der globale Handler übersetzt Serverfehler (`server-error-handler.ts`), unbehandelte Fehler
   beenden den Prozess mit Exit-Code 1 (`server/src/index.ts`).
@@ -327,10 +354,11 @@ dokumentiert.
 ### QS-01 — Domäne vollständig über den Vertrag
 
 - **Qualitätseigenschaft:** `#suitable` — Vollständigkeit
-- **Szenario:** Jede fachliche Operation (Tasks, Säulen, Serien, Gruppen, Push, Geo, LLM-Funktionen)
-  ist als Pfad in `openapi.yml` erfasst und über generierte Typen ansprechbar — mit Ausnahme des
-  Lektorat-Endpunkts (`POST /lektorat`), der außerhalb des Vertrags liegt
-  (`server/src/express/routes/lektorat.ts`).
+- **Szenario:** Jede fachliche Operation (Tasks, Säulen, Kategorien, Serien, Gruppen, Push, Mail,
+  Geo, LLM-Funktionen, Pakete, Abos, Rechnungen, Token- und Nutzerverwaltung) ist als Pfad in
+  `openapi.yml` erfasst und über generierte Typen ansprechbar. Infrastruktur-Endpunkte ohne
+  vertragliche DTOs (Auth-Routen, `/api/transit`, PayPal-Webhook, MCP-Transport) liegen bewusst
+  außerhalb.
 - **Erfolgsmessung:** `pnpm build` scheitert, sobald Vertrag und generierte Typen auseinanderlaufen.
 
 ### QS-02 — fachliche Kernlogik abgedeckt
@@ -402,7 +430,6 @@ dokumentiert.
 | SQLite als Single-File-Store                                                        | Keine horizontale Skalierung; Betrieb auf genau einem Host ist dem Datenmodell eingeschrieben                                                                                                                                                                                                            | `server/src/database.ts`                                                                                |
 | `/api/v1`-Prefix wird an zwei Stellen gestreift                                     | Vite-Dev-Proxy und Caddy-Handle müssen dasselbe Strip-Verhalten nachführen                                                                                                                                                                                                                               | `frontend/vite.config.ts`, [server-setup.md](server-setup.md)                                           |
 | Legacy-Spaltenprüfung bei jedem Start                                               | `migrateLegacySinglePillar` liest per `PRAGMA` die `tasks`-Tabelle, solange `task_pillars` leer ist                                                                                                                                                                                                      | `server/src/index.ts`                                                                                   |
-| Lektorat-Endpunkt fehlt im API-Vertrag                                              | `POST /lektorat` ist umgesetzt, aber nicht in `openapi.yml` erfasst; QS-01 gilt nur mit dieser Ausnahme                                                                                                                                                                                                  | `server/src/express/routes/lektorat.ts`                                                                 |
 | Externe Clients melden sich ausschließlich über einen HTTP-Header an                | Welche Header-Namen zulässig sind, entscheidet der Connector-Anbieter; streicht er die statische Header-Anmeldung, verlangt ein Client zwingend OAuth oder soll ein Connector mehrere Nutzer bedienen, braucht der Endpunkt zusätzlich eine OAuth-Token-Ausgabe (additiv — Leser und `ApiToken` bleiben) | bewusst akzeptiert, `server/src/express/apiTokenAuth.ts`, [ADR 0012](adr/0012-mcp-endpunkt-ohne-sdk.md) |
 
 ## 12. Glossar
@@ -421,5 +448,7 @@ dokumentiert.
 | Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                |
 | VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                        |
 | Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                             |
+| Paket (Plan)                  | Buchbare Stufe `free`/`pro`/`max`/`ultimate` am User; Katalog und Rechte allein in `server/src/logics/plans.ts`                        |
+| Entitlement                   | Feature-Freigabe je Paket (`shouldBlockFeature`), deklariert pro Route über `planGuard.ts`                                             |
 | API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                        |
 | MCP                           | Model Context Protocol; `POST /mcp/v1` bietet externen Clients (Claude Code, ZCode-Connector) `initialize`, `tools/list`, `tools/call` |
