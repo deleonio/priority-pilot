@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-19
 
-_Enthält v0.2.0 – v0.2.111._
+_Enthält v0.2.0 – v0.2.113._
 
 ### 🔧 Engineering
 
@@ -28,7 +28,6 @@ _Enthält v0.2.0 – v0.2.111._
 - chore(deps): update pnpm to v12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1331
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1328
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1411
-- design(frontend): unify card spacing in settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1415
 - design(frontend): unify card spacing in settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1415
 - chore(deps): update playwright (npm + docker image) to v1.63.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1410
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1416
@@ -122,6 +121,8 @@ _Enthält v0.2.0 – v0.2.111._
 - feat(server): add tester role with admin access except user management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1572
 - feat(frontend): make header sticky with uniform padding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1575
 - fix(server): ungescopten Aufgabenwald beim Start nicht mehr in die Logs schreiben by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1579
+- docs(arc42): sync architecture doc to current state 2026-09-19 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1580
+- docs: canonical gate as verify mirror + prompt-audit coverage (#1576) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1581
 
 ## v0.1 - 2026-09-12
 
