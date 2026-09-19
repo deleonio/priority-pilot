@@ -12,8 +12,8 @@ import { toApiError } from '../lib/apiError';
  *
  * Drei gestaltete Zustände (docs/mobile-ui-rules.md Regel 7): Laden (`KolSpin`), Fehler
  * (`KolAlert` + „Erneut versuchen") und Erfolg (Liste mit Kurzbeschreibungen, #934). Ein
- * Anlege-CTA im Leerzustand wäre eine Sackgasse — stattdessen erklärt der Info-Hinweis die
- * festen Säulen (KI-UX-Block zu #1573).
+ * Anlege-CTA im Leerzustand wäre eine Sackgasse — der Info-Hinweis zu den festen Säulen
+ * sitzt einmalig in der SettingsPage über der Liste (KI-UX-Block zu #1573).
  */
 export const PillarList = () => {
 	const [pillars, setPillars] = useState<Pillar[]>([]);
@@ -55,14 +55,11 @@ export const PillarList = () => {
 			{loading ? (
 				<KolSpin _show _variant="cycle" _label="Säulen werden geladen …" />
 			) : pillars.length === 0 && error === null ? (
-				/* Kein Anlege-CTA mehr (Anlegen ist gesperrt) — der Info-Hinweis erklärt die festen
-				   Säulen. Der durchgehende Hinweis über der Liste sitzt in SettingsPage (#1573 AK2). */
-				<KolAlert _type="info" _label="Feste Säulen">
-					<p>
-						Diese 5 Säulen adressieren per Definition die Balance im Leben und gelten stets. Deine Gewichtung bleibt
-						individuell anpassbar.
-					</p>
-				</KolAlert>
+				/* Kein Anlege-CTA mehr (Anlegen ist gesperrt) und kein zweiter Info-Alert: Der
+				   durchgehende Hinweis zu den festen Säulen sitzt in SettingsPage (#1573 AK2) —
+				   hier nur ein schlichter Marker, damit der Leerzustand (nach der Migration
+				   praktisch unerreichbar) nicht leer wirkt. */
+				<p className="hint">Derzeit sind keine Säulen vorhanden.</p>
 			) : (
 				<ul className="pillar-items">
 					{pillars.map((pillar) => (

@@ -45,8 +45,6 @@ export type Category = Schemas['Category'];
 export type CategoryColor = Schemas['CategoryColor'];
 export type CategoryCreate = Schemas['CategoryCreate'];
 export type CategoryUpdate = Schemas['CategoryUpdate'];
-export type PillarCreate = Schemas['PillarCreate'];
-export type PillarUpdate = Schemas['PillarUpdate'];
 /** #1211: Gruppen (Name Pflicht ≤ 60 Zeichen, Beschreibung optional) mit eigener Rolle. */
 export type Group = Schemas['Group'];
 export type GroupInput = Schemas['GroupInput'];

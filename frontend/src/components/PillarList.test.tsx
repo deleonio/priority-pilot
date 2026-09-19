@@ -13,9 +13,6 @@ const apiError = (status: number, message: string): ResponseError =>
 // Mocke die API, damit die Komponententests deterministisch und ohne Netzwerk auskommen.
 vi.mock('../api', () => ({
 	api: {
-		createPillar: vi.fn(),
-		updatePillar: vi.fn(),
-		deletePillar: vi.fn(),
 		listPillars: vi.fn(),
 	},
 }));
@@ -154,7 +151,7 @@ describe('PillarList — Säulen-Ansicht (#439 Fehlerbehandlung, #1573 feste Sä
 
 	// ── #1573: feste Säulen — keine CRUD-Kontrollen, Hinweis statt Verwaltung ─────────────
 
-	describe('#1573 — feste Säulen: keine CRUD-Kontrollen, Hinweistext', () => {
+	describe('#1573 — feste Säulen: keine CRUD-Kontrollen, kein Hinweis-Duplikat', () => {
 		it('rendert die Liste ohne Anlegen-/Bearbeiten-/Löschen-Buttons', async () => {
 			vi.mocked(api.listPillars).mockResolvedValue([
 				pillar(1, 'Körper', 'Leiblichkeit', 20),
@@ -171,20 +168,18 @@ describe('PillarList — Säulen-Ansicht (#439 Fehlerbehandlung, #1573 feste Sä
 			expect(screen.queryByRole('button', { name: /löschen/i })).not.toBeInTheDocument();
 		});
 
-		it('zeigt den Info-Hinweis (Balance, gelten stets, Gewichtung anpassbar) — auch bei leerer Liste ohne Anlege-CTA', async () => {
+		it('kennt im Leerzustand keinen Info-Alert-Duplikat und keinen Anlege-CTA — nur einen schlichten Marker', async () => {
 			vi.mocked(api.listPillars).mockResolvedValue([]);
 
 			render(<PillarList />);
 
-			const hint = await waitFor(() => {
-				const alert = screen.getByRole('alert');
-				expect(alert).toHaveTextContent(/balance/i);
-				return alert;
+			// Der Hinweis zu den festen Säulen sitzt einmalig in der SettingsPage (Spiegel dort,
+			// SettingsPage.test.tsx) — hier steht kein zweiter `KolAlert` im Leerzustand.
+			await waitFor(() => {
+				expect(screen.getByText(/derzeit sind keine säulen vorhanden/i)).toBeInTheDocument();
 			});
-			expect(hint).toHaveTextContent(/gelten stets/i);
-			expect(hint).toHaveTextContent(/gewichtung/i);
+			expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 			// Leerzustand ohne Anlege-CTA (die Karte wäre eine Sackgasse, KI-UX-Block).
-			expect(screen.queryByText(/noch keine säulen/i)).not.toBeInTheDocument();
 			expect(screen.queryByRole('button', { name: /neue säule anlegen/i })).not.toBeInTheDocument();
 		});
 	});

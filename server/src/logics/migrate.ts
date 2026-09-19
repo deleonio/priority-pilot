@@ -413,9 +413,12 @@ export const migratePillarRestore = async (db: Sequelize): Promise<void> => {
 	const userIds = (userRows as { id: number }[]).map((row) => row.id);
 
 	for (const userId of userIds) {
-		const [ownRows] = await db.query('SELECT `id`, `name`, `weight` FROM `pillars` WHERE `userId` = ?', {
-			replacements: [userId],
-		});
+		const [ownRows] = await db.query(
+			'SELECT `id`, `name`, `weight` FROM `pillars` WHERE `userId` = ? ORDER BY `id` ASC',
+			{
+				replacements: [userId],
+			},
+		);
 		const own = ownRows as { id: number; name: string; weight: number }[];
 
 		const owned = new Set(own.map((row) => row.name));
