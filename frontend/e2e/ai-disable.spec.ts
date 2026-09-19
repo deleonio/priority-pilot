@@ -162,32 +162,29 @@ test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
  * Aufgabenformular (`.pillar-editor-head`, `TaskForm.tsx:1469-1480`). Ein Free-Konto ohne
  * `ai_assist`-Berechtigung darf im gesamten Anlege-Weg kein KI-Bedienelement mehr finden und keinen
  * KI-Endpunkt aufrufen — auch nicht `/tasks/suggest-pillars`. `.pillar-editor-head` rendert nur,
- * wenn mindestens eine Säule existiert (`test-login` legt keine an, s. `issue-1484-plan-badges.spec.ts`),
- * daher wird hier selbst eine angelegt.
+ * wenn mindestens eine Säule existiert — das Seeding kommt seit #1573 aus der Registrierung
+ * (loginAsFree unten), ein CRUD-Fallback ist serverseitig gesperrt.
  */
 test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
-	const TEST_EMAIL = 'ai-gate-1527@example.com';
-
+	// #1573-Test-Pflege: `/auth/test-login` säht KEINE Säulen (findOrCreate ohne Seeding — nur
+	// register legt die fünf Standard-Säulen an, auth.ts). `.pillar-editor-head` rendert aber erst
+	// ab einer Säule, daher wird hier ein frischer Nutzer per register angemeldet (eindeutige
+	// E-Mail je Test, Passwort egal — die Session kommt mit der Registrierung).
 	const loginAsFree = async (page: Page): Promise<void> => {
-		const res = await page.request.post('/auth/test-login', {
-			data: { email: TEST_EMAIL, displayName: 'AI Gate Pillar Tester' },
+		const email = `ai-gate-1527-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+		const res = await page.request.post('/auth/register', {
+			data: { email, password: 'e2e-saeulen-1527' },
 		});
-		expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
+		expect(res.status(), 'register muss eine Session und Standard-Säulen liefern').toBe(200);
 		await page.unroute('**/auth/me');
 	};
 
+	// Früher POST /pillars als Fallback — seit #1573 serverseitig gesperrt (403). register
+	// garantiert die Standard-Säulen, daher bleibt dies ein lauter Guard: ohne Säule rendert
+	// `.pillar-editor-head` nicht und AK5/AK6 würden aus dem falschen Grund rot.
 	const ensurePillar = async (page: Page): Promise<void> => {
 		const existing = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
-		if (existing.length > 0) return;
-		await page.request.post('/api/v1/pillars', { data: { name: 'Gate-Test-Säule', description: 'Dummy' } });
-	};
-
-	const deleteAllPillars = async (page: Page): Promise<void> => {
-		const res = await page.request.get('/api/v1/pillars');
-		if (!res.ok()) return;
-		for (const pillar of (await res.json()) as { id: number }[]) {
-			await page.request.delete(`/api/v1/pillars/${pillar.id}`);
-		}
+		expect(existing.length, 'Test-Nutzer braucht Standard-Säulen (register-Seeding)').toBeGreaterThan(0);
 	};
 
 	/** `boundingBox()` bis zum Layout nachmessen — Muster `issue-1484-plan-badges.spec.ts:80-87`. */
@@ -204,10 +201,6 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 		initAiEnabled(page, true);
 		await loginAsFree(page);
 		await ensurePillar(page);
-	});
-
-	test.afterEach(async ({ page }) => {
-		await deleteAllPillars(page);
 	});
 
 	test('AK5: kein Säulen-Vorschlag-Bedienelement und kein Request an /tasks/suggest-pillars', async ({ page }) => {

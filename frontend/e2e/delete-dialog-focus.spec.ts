@@ -140,29 +140,6 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
-	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
-		await installDeleteFocusWatcher(page);
-		await page.goto('/settings/pillars');
-		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
-
-		const name = uniqueTitle('Säule');
-		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Säule anlegen' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
-		await page.locator('kol-dialog').getByRole('searchbox', { name: 'Name' }).fill(name);
-		await page.locator('kol-dialog').getByRole('button', { name: 'Anlegen' }).click();
-		await expect(page.getByText(name, { exact: true })).toBeVisible();
-
-		await page.getByRole('button', { name: 'Löschen' }).first().click();
-		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
-
-		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
-
-		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen (Mechanik s. Helper-Kommentar).
-		await assertTabFreedomInOpenDeleteDialog(page);
-	});
-
 	// #553/#1106: Der Serien-Löschdialog hat drei Buttons (Abbrechen → Nein → Ja) und keinen
 	// „Endgültig löschen"-Button — seit der #1106-Konsolidierung auf `ConfirmDeleteDialog` gilt
 	// derselbe Fokus-Vertrag wie für Task/Säule (Initialfokus „Abbrechen", Danger zuletzt). Die
@@ -229,7 +206,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	 * Konsolidierung: ein `focusin`-Redirect in Modal.tsx hielt den Fokus 500 ms lang fest.
 	 *
 	 * Mechanik (SETTLE_MS, gestaffeltes Tab, shadow-bewusste Lande-Erkennung) teilt sich dieser
-	 * Test mit AK1/AK2/AK8 über assertTabFreedomInOpenDeleteDialog — Begründung im Helper-Kommentar.
+	 * Test mit AK1/AK4 über assertTabFreedomInOpenDeleteDialog — Begründung im Helper-Kommentar.
 	 */
 	test('AK4 — Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)', async ({ page }) => {
 		await page.goto('/');
@@ -299,8 +276,8 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	/**
-	 * Tab-Freiheit im offenen Task-/Säulen-Löschdialog — geteilter Vertrags-Check (AK1, AK2, AK4,
-	 * AK8; #522 hatte die Lücke ursprünglich für die Säulen-/Serien-Dialoge geflaggt, AK4 deckt den
+	 * Tab-Freiheit im offenen Task-Löschdialog — geteilter Vertrags-Check (AK1, AK4; #522 hatte
+	 * die Lücke ursprünglich für die Serien-Dialoge geflaggt, AK4 deckt den
 	 * Task-Dialog ab). AK9 (Serien) prüft inline — der Serien-Dialog hat seit #1106 zwar denselben
 	 * Vertrag (Initialfokus „Abbrechen", Danger zuletzt), aber andere Button-Texte („Nein"/
 	 * „Ja (Serie + alle Aufgaben)" statt „Endgültig löschen"), auf die dieser Helper zielt.
@@ -341,26 +318,6 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(deleteButton, 'Tab muss den Fokus weiterbewegen dürfen').toBeFocused();
 		await expect(cancelButton).not.toBeFocused();
 	};
-
-	test('AK8 — Säulen-Löschdialog: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)', async ({ page }) => {
-		await page.goto('/settings/pillars');
-		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
-
-		const name = uniqueTitle('TabSäule');
-		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Säule anlegen' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
-		await page.locator('kol-dialog').getByRole('searchbox', { name: 'Name' }).fill(name);
-		await page.locator('kol-dialog').getByRole('button', { name: 'Anlegen' }).click();
-		await expect(page.getByText(name, { exact: true })).toBeVisible();
-
-		await page.getByRole('button', { name: 'Löschen' }).first().click();
-		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
-
-		await assertTabFreedomInOpenDeleteDialog(page);
-	});
 
 	test('AK9 — Serien-Löschdialog: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)', async ({ page }) => {
 		const title = uniqueTitle('TabSerie');
