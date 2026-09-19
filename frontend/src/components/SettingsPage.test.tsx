@@ -1155,3 +1155,42 @@ describe('SettingsPage – #1566: Tester sieht die Paket-Karte, aber nicht die N
 		expect(container.querySelector('.admin-users'), 'kein AdminUsersSection-Panel für Tester').toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1573 — „Säulen-Tab ohne CRUD-Kontrollen, mit Hinweistext".
+ *
+ * Spec-Bezug: docs/spec/issue-1573.md (AK2). PillarList wird zur reinen Leseansicht: Im
+ * Säulen-Panel (.settings-pillars) gibt es keinen Anlegen-/Bearbeiten-/Löschen-Button und
+ * keine Anlege-CTA im Leerzustand, dafür durchgehend einen statischen Info-Hinweis
+ * (KolAlert _type="info": Balance, „gelten stets", Gewichtung bleibt anpassbar).
+ * Die Komponente selbst testet PillarList.test.tsx (#1573-Block) — hier der Spiegel, dass
+ * die Seite die Leseansicht tatsächlich im Säulen-Tab verdrahtet.
+ */
+describe('SettingsPage – #1573: Säulen-Tab ohne CRUD-Kontrollen, mit Hinweis', () => {
+	const fivePillars = ['Körper', 'Mentale Gesundheit', 'Beziehungen', 'Wirksamkeit', 'Sinn'].map((name, index) => ({
+		id: index + 1,
+		name,
+		description: '',
+		weight: 20,
+	}));
+
+	it('rendert im Säulen-Panel den Info-Hinweis und keine CRUD-Buttons', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={fivePillars} />);
+
+		const panel = container.querySelector('.settings-pillars');
+		expect(panel, 'Säulen-Panel existiert').not.toBeNull();
+
+		const hint = await waitFor(() => {
+			const alert = panel!.querySelector('kol-alert[_type="info"]');
+			expect(alert, 'Info-Hinweis (KolAlert _type="info") fehlt im Säulen-Panel').not.toBeNull();
+			return alert!;
+		});
+		expect(hint.textContent).toMatch(/balance/i);
+		expect(hint.textContent).toMatch(/gelten stets/i);
+		expect(hint.textContent).toMatch(/gewichtung/i);
+
+		expect(panel!.querySelector('kol-button[_label="Neue Säule anlegen"]')).toBeNull();
+		expect(panel!.querySelector('kol-button[_label="Bearbeiten"]')).toBeNull();
+		expect(panel!.querySelector('kol-button[_label="Löschen"]')).toBeNull();
+	});
+});
