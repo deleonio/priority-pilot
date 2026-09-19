@@ -86,8 +86,9 @@ code and qualify as a fix target.
 
 ## Umsetzung
 
-Follow the project's TDD rules. Run the gate once at the end over all changes (`pnpm format`,
-`pnpm lint`, `pnpm knip`, `pnpm test`) and fix what it reports. Commit locally exactly once with a
+Follow the project's TDD rules. Run the canonical gate from AGENTS.md (mirror of CI Verify) once
+at the end over all changes — `pnpm knip` may follow as deliberate extra sharpness — and fix what
+it reports. Commit locally exactly once with a
 Conventional Commits subject (`refactor(...)`, `test(...)`, `chore(...)`, `docs(...)` for a
 consolidation). Never push, never open a pull request.
 
