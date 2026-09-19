@@ -249,6 +249,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	 * Rollensystem admin/member: Das Segment `nutzer` (Index 5) existiert nur für Admins — für Member
 	 * gilt es als unbekannt, sonst zeigte `KolTabs` mit `_selected=5` bei fünf Tabs ein leeres Panel. */
 	const isAdmin = user.role === 'admin';
+	// #1566: Tester arbeitet wie ein Admin, sieht aber die Nutzerverwaltung nicht — das Tab-Gating
+	// unten bleibt an `isAdmin` gebunden, nur die eigene Paket-Karte öffnet sich zusätzlich.
+	const isTester = user.role === 'tester';
 	const settingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
 	const settingsTabIndex =
 		!isAdmin && ADMIN_ONLY_SETTINGS_SEGMENTS.has(settingsSegment)
@@ -826,6 +829,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					onPillarChanged={handleMasterDataChanged}
 					onCategoryChanged={handleMasterDataChanged}
 					isAdmin={isAdmin}
+					isTester={isTester}
 					currentUserId={user.id}
 				/>
 			) : showHelp ? (

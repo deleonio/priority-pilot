@@ -53,6 +53,8 @@ interface SettingsPageProps {
 	onCategoryChanged?: () => void;
 	/** Rollensystem admin/member: blendet den Tab „Nutzerverwaltung" ein (Server erzwingt, UI blendet nur aus). */
 	isAdmin?: boolean;
+	/** #1566: Rolle tester — sieht die eigene Paket-Karte wie ein Admin, aber NICHT die Nutzerverwaltung. */
+	isTester?: boolean;
 	/** #1565: Id des eingeloggten Nutzers — Ziel des eigenen Paket-Wechsels (App → hier → OwnPlanCard). */
 	currentUserId?: number;
 }
@@ -114,6 +116,7 @@ export const SettingsPage = ({
 	onPillarChanged,
 	onCategoryChanged,
 	isAdmin = false,
+	isTester = false,
 	currentUserId,
 }: SettingsPageProps) => {
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
@@ -819,8 +822,9 @@ export const SettingsPage = ({
 				<div slot="tab-6" className="settings-plans settings-panel">
 					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER der Matrix —
 					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit
-					        spätere Rollen (z. B. tester) sie ohne Tab-Umbau aufnehmen können (AK4). */}
-					{isAdmin && typeof currentUserId === 'number' && <OwnPlanCard userId={currentUserId} />}
+					        spätere Rollen sie ohne Tab-Umbau aufnehmen können (AK4): Tester (#1566) sieht
+					        dieselbe Karte, der Server begrenzt sie auf die eigene Id. */}
+					{(isAdmin || isTester) && typeof currentUserId === 'number' && <OwnPlanCard userId={currentUserId} />}
 					<KolCard className="settings-card" _label="Pakete im Vergleich" _level={2}>
 						<PlansSection />
 					</KolCard>

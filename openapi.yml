@@ -1855,9 +1855,9 @@ paths:
     patch:
       summary: Rolle eines Nutzers ändern
       description: >-
-        Rollensystem admin/member: nur für Admins (403 sonst). Der letzte
-        verbleibende Administrator kann nicht auf `member` zurückgestuft
-        werden (409), damit die App nie ohne Administrator dasteht.
+        Rollensystem admin/member/tester: nur für Admins (403 sonst). Der letzte
+        verbleibende Administrator kann nicht auf `member` oder `tester`
+        zurückgestuft werden (409), damit die App nie ohne Administrator dasteht.
       operationId: updateAdminUserRole
       tags: [admin]
       requestBody:
@@ -1908,9 +1908,9 @@ paths:
     patch:
       summary: Paket eines Nutzers setzen
       description: >-
-        Manuelle Paketvergabe durch einen Admin (#1456) — nur für Admins (403 sonst).
-        Bis zur Selbstbedienung (T7) der einzige Weg, ein Paket zu vergeben; ohne
-        Zahlungsbezug.
+        Manuelle Paketvergabe durch einen Admin (#1456) — für Admins und Tester (#1566);
+        ein Tester darf nur die eigene Id setzen (403 sonst). Bis zur Selbstbedienung
+        (T7) der einzige Weg, ein Paket zu vergeben; ohne Zahlungsbezug.
       operationId: updateAdminUserPlan
       tags: [admin]
       requestBody:
@@ -3016,7 +3016,7 @@ components:
           type: string
     AdminUser:
       type: object
-      description: Nutzer-Eintrag der Admin-Nutzerverwaltung (Rollensystem admin/member).
+      description: Nutzer-Eintrag der Admin-Nutzerverwaltung (Rollensystem admin/member/tester).
       required: [id, email, displayName, role, plan, createdAt]
       properties:
         id:
@@ -3027,7 +3027,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, member]
+          enum: [admin, member, tester]
         plan:
           $ref: '#/components/schemas/Plan'
         createdAt:
@@ -3035,12 +3035,12 @@ components:
           format: date-time
     AdminUserRoleUpdate:
       type: object
-      description: Payload zum Ändern der Rolle eines Nutzers (Rollensystem admin/member).
+      description: Payload zum Ändern der Rolle eines Nutzers (Rollensystem admin/member/tester).
       required: [role]
       properties:
         role:
           type: string
-          enum: [admin, member]
+          enum: [admin, member, tester]
     AdminUserPlanUpdate:
       type: object
       description: Payload zum Setzen des Pakets eines Nutzers (#1456, manuelle Vergabe bis T7).
@@ -4927,7 +4927,7 @@ components:
           type: [string, 'null']
         role:
           type: string
-          enum: [admin, member]
+          enum: [admin, member, tester]
           description: Fehlt im lokalen Pass-Through-Modus.
         plan:
           $ref: '#/components/schemas/Plan'

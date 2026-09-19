@@ -6,7 +6,8 @@ import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (analog GroupDetail). */
-const roleLabel = (role: AdminUser['role']): string => (role === 'admin' ? 'Admin' : 'Mitglied');
+const roleLabel = (role: AdminUser['role']): string =>
+	role === 'admin' ? 'Admin' : role === 'tester' ? 'Tester' : 'Mitglied';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member): listet alle Nutzer der App und

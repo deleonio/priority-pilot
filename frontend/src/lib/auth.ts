@@ -9,8 +9,8 @@ export type AuthUser = {
 	displayName: string;
 	email: string;
 	avatarUrl: string | null;
-	/** Rollensystem admin/member — steuert Admin-Views und -API-Endpunkte. */
-	role: 'admin' | 'member';
+	/** Rollensystem admin/member/tester — steuert Admin-Views und -API-Endpunkte (#1566). */
+	role: 'admin' | 'member' | 'tester';
 	/** Paket des Nutzers (#1456); fehlt bei Alt-Antworten ohne Paketfelder. */
 	plan?: Plan;
 	/** Entitlement-Map je Feature (#1456) — Grundlage aller Badges (#1458 AK1). */

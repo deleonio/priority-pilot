@@ -15,30 +15,34 @@ type ErrorDto = components['schemas']['Error'];
 export const createMailRouter = (mailSender?: MailSender) => {
 	const router = Router();
 
-	// POST /mail/test — Testmail an die E-Mail-Adresse des angemeldeten Admins (#1426). Nur für
-	// Admins (Vorbild: `routes/admin.ts` `requireRole('admin')`). 503, wenn SMTP nicht konfiguriert
-	// ist; 502, wenn der Transport wirft (Meldung ohne SMTP_USER/SMTP_PASSWORD).
-	router.post('/mail/test', requireRole('admin'), async (req: Request, res: Response<TestMailResultDto | ErrorDto>) => {
-		if (!isMailConfigured()) {
-			sendError(res, 503, 'SMTP ist nicht konfiguriert (SMTP_HOST/MAIL_FROM fehlen).');
-			return;
-		}
-		const email = req.session?.user?.email;
-		if (!email) {
-			sendError(res, 401, 'Nicht eingeloggt.');
-			return;
-		}
-		const sent = await sendMailToUser(
-			{ email },
-			{ subject: 'Testmail', text: 'Dies ist eine Testmail von Priority Pilot.' },
-			mailSender,
-		);
-		if (!sent) {
-			sendError(res, 502, 'Testmail konnte nicht versendet werden (SMTP-Transport fehlgeschlagen).');
-			return;
-		}
-		res.json({ sent: true });
-	});
+	// POST /mail/test — Testmail an die E-Mail-Adresse des angemeldeten Admins (#1426). Für Admins
+	// und Tester (`#1566`: alle Admin-Bereiche außer der Nutzerverwaltung). 503, wenn SMTP nicht
+	// konfiguriert ist; 502, wenn der Transport wirft (Meldung ohne SMTP_USER/SMTP_PASSWORD).
+	router.post(
+		'/mail/test',
+		requireRole(['admin', 'tester']),
+		async (req: Request, res: Response<TestMailResultDto | ErrorDto>) => {
+			if (!isMailConfigured()) {
+				sendError(res, 503, 'SMTP ist nicht konfiguriert (SMTP_HOST/MAIL_FROM fehlen).');
+				return;
+			}
+			const email = req.session?.user?.email;
+			if (!email) {
+				sendError(res, 401, 'Nicht eingeloggt.');
+				return;
+			}
+			const sent = await sendMailToUser(
+				{ email },
+				{ subject: 'Testmail', text: 'Dies ist eine Testmail von Priority Pilot.' },
+				mailSender,
+			);
+			if (!sent) {
+				sendError(res, 502, 'Testmail konnte nicht versendet werden (SMTP-Transport fehlgeschlagen).');
+				return;
+			}
+			res.json({ sent: true });
+		},
+	);
 
 	return router;
 };
