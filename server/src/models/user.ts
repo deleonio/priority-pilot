@@ -2,8 +2,8 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 import type { Plan } from '../logics/plans.js';
 
-/** Systemweite Nutzerrolle (Rollensystem admin/member) — getrennt von `GroupRole` (Gruppen-Mitgliedschaft). */
-export type UserRole = 'admin' | 'member';
+/** Systemweite Nutzerrolle (Rollensystem admin/member/tester) — getrennt von `GroupRole` (Gruppen-Mitgliedschaft). */
+export type UserRole = 'admin' | 'member' | 'tester';
 
 /**
  * Ein Benutzer mit E-Mail-/Passwort-Authentifizierung (Issue #206).
@@ -27,7 +27,7 @@ class User extends Model {
 	public displayDistanceKm!: number;
 	public alarmDistanceKm!: number;
 	public intervalMinutes!: number;
-	/** Systemweite Rolle (Rollensystem admin/member) — steuert Admin-Views und -API-Endpunkte. */
+	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
 	/**
 	 * Ausgewählter LLM-Provider für die KI-Aufrufe dieses Nutzers (#1548) — `null` = keine

@@ -52,7 +52,9 @@ type TestUser = {
 	id: number;
 	email: string;
 	displayName: string;
-	role: 'admin' | 'member';
+	// #1566: lokale Union um 'tester' erweitert — der Client-Typ (AdminUser['role']) zieht in
+	// der Impl-Phase nach (openapi-Regeneration); der Mock umgeht ihn hier bewusst.
+	role: 'admin' | 'member' | 'tester';
 	plan: 'free' | 'pro' | 'max' | 'ultimate';
 	createdAt: string;
 };
@@ -191,5 +193,27 @@ describe('AdminUsersSection — Paket-Badge je Zeile, rein lesend (#1556 AK1, #1
 		// Die Badges bleiben (lesend): Information weiterhin je Konto sichtbar.
 		expect(badgeInRow(rowOf('Anna Admin'), planLabel('free'))).toBeInTheDocument();
 		expect(within(rowOf('Max Member')).getByText(planLabel('pro'))).toBeInTheDocument();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1566 (Spec docs/spec/issue-1566.md, AK1): Die Rolle `tester` erscheint
+ * in der Nutzerverwaltung als Badge „Tester" — Text, nie nur Farbe (WCAG 1.4.1). Rot: heute
+ * fällt `roleLabel` für jeden unbekannten Wert auf „Mitglied" zurück.
+ */
+describe('AdminUsersSection — Rollen-Badge „Tester" (#1566 AK1)', () => {
+	it('AK1: Zeile mit Rolle tester zeigt das Rollen-Badge „Tester"', async () => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin', role: 'admin' }),
+			user({ id: 2, displayName: 'Tina Tester', role: 'tester' }),
+		]);
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Tina Tester')).toBeInTheDocument());
+
+		expect(within(rowOf('Tina Tester')).getByText('Tester')).toBeInTheDocument();
+		// Schwestertexte bleiben unberührt — kein globales „Mitglied" als Fallback für tester.
+		expect(within(rowOf('Tina Tester')).queryByText('Mitglied')).not.toBeInTheDocument();
+		expect(within(rowOf('Anna Admin')).getByText('Admin')).toBeInTheDocument();
 	});
 });

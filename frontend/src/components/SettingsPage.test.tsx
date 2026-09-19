@@ -1,4 +1,5 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react';
+import type { ComponentProps, ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 import { PlanProvider } from '../lib/usePlan';
@@ -1108,5 +1109,49 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 			),
 			'Mitgliedern wird die Auswahl-Karte nicht gerendert',
 		).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1566 (Spec docs/spec/issue-1566.md) — Rolle „Tester": Admin ohne
+ * Nutzerverwaltung.
+ *
+ * Seam: `SettingsPage` bekommt analog zu `isAdmin` ein optionales Prop `isTester` (App:
+ * `user.role === 'tester'`); das OwnPlanCard-Gate (SettingsPage.tsx:823) öffnet sich für
+ * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-8 bleiben ausschließlich an
+ * `isAdmin` gebunden. Das Prop existiert noch nicht (rote Spec-Phase) — der Cast hält tsc
+ * in beiden Zuständen grün (Intersection-Muster MEMORY 2026-08-23 / mail.test.ts).
+ */
+describe('SettingsPage – #1566: Tester sieht die Paket-Karte, aber nicht die Nutzerverwaltung', () => {
+	type SettingsPageProps = ComponentProps<typeof SettingsPage>;
+	const SettingsPageWithTester = SettingsPage as unknown as (
+		props: SettingsPageProps & {
+			isTester?: boolean;
+		},
+	) => ReactElement;
+
+	/** Slot-Container eines Tabs (KolTabs-Panel-Host), Muster #1565-Block. */
+	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
+		container.querySelector(`[slot="${slot}"]`);
+
+	it('AK3: mit isTester rendert das Pakete-Panel die Auswahl-Karte „Eigenes Paket"', () => {
+		const { container } = render(<SettingsPageWithTester {...defaultProps} isTester currentUserId={7} />);
+
+		const tab6 = panel(container, 'tab-6');
+		expect(tab6, 'Pakete-Panel existiert auch für Tester').not.toBeNull();
+		const ownSelection = tab6?.querySelector(
+			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
+		);
+		expect(ownSelection, 'Tester erhält dieselbe Auswahl-Karte wie ein Admin (#1565 AK1)').toBeTruthy();
+	});
+
+	it('AK2: mit isTester (ohne isAdmin) bleibt die Nutzerverwaltung komplett draußen', () => {
+		const { container } = render(<SettingsPageWithTester {...defaultProps} isTester currentUserId={7} />);
+
+		// #1080-Muster: Tab gar nicht aufgenommen (nicht nur ausgeblendet) — der Tester ist
+		// kein Admin, `isAdmin` bleibt false.
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		expect(tabsEl?._tabs?.map((t) => t._label)).not.toContain('Nutzerverwaltung');
+		expect(container.querySelector('.admin-users'), 'kein AdminUsersSection-Panel für Tester').toBeNull();
 	});
 });

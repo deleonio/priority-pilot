@@ -11,7 +11,12 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import { User } from '../models/index.js';
+import type { UserRole } from '../models/user.js';
 import type { MailSender } from '../logics/mail.js';
+
+// #1566: `UserRole` kennt 'tester' noch nicht (rote Spec-Phase) — Doppel-Cast für den tsc-Gate
+// (MEMORY-Muster 2026-08-23); der Laufzeitwert ist schlicht 'tester'.
+const TESTER_ROLE = 'tester' as unknown as UserRole;
 
 applyTestAuthEnv('test-secret-issue-1435');
 
@@ -435,5 +440,35 @@ describe('POST /feedback (#1502) — Admin-Mail', () => {
 		assert.equal(mailCalls.length, 1, 'Genau eine Admin-Mail');
 		assert.match(mailCalls[0].subject, /wunsch/, 'Betreff nennt den neuen Kategorie-Slug');
 		assert.match(mailCalls[0].text, /Kategorie:\s*wunsch/, 'Text nennt den neuen Kategorie-Slug');
+	});
+
+	// #1566 (Spec docs/spec/issue-1566.md, AK5): Guard — der Empfangsfilter bleibt exakt
+	// `role: 'admin'`; ein Tester-Konto erhält die Feedback-Rundmail nie. Bewusst als grüner
+	// Vertragstest angelegt (#1556-AK4-Prezedenz): die Rolle 'tester' existiert bis zur
+	// Implementierung noch nicht, der Filter darf aber auch danach NICHT auf Tester erweitert
+	// werden.
+	it('#1566 AK5: ein Tester-Konto erhält keine Feedback-Rundmail — nur der Admin', async () => {
+		await User.create({
+			email: 'admin-1566@example.com',
+			passwordHash: '__test__',
+			displayName: 'Admin 1566',
+			role: 'admin',
+		});
+		await User.create({
+			email: 'tester-1566@example.com',
+			passwordHash: '__test__',
+			displayName: 'Tester 1566',
+			role: TESTER_ROLE,
+		});
+		const cookie = await mailServer.register('sender-1566@example.com');
+
+		const res = await submitMail(cookie);
+		assert.equal(res.status, 201);
+		assert.equal(mailCalls.length, 1, 'nur der Admin erhält die Rundmail');
+		assert.equal(mailCalls[0].to, 'admin-1566@example.com');
+		assert.ok(
+			!mailCalls.some((call) => call.to === 'tester-1566@example.com'),
+			'der Tester geht als Rundmail-Empfänger leer aus',
+		);
 	});
 });

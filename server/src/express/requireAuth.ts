@@ -54,8 +54,10 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 };
 
 /**
- * Middleware-Fabrik: Rollensystem admin/member. Weist eine Anfrage mit 403 ab, wenn die
- * aktuelle Rolle (frisch aus der DB, nicht der Session-Snapshot) nicht der geforderten entspricht.
+ * Middleware-Fabrik: Rollensystem admin/member/tester. Weist eine Anfrage mit 403 ab, wenn die
+ * aktuelle Rolle (frisch aus der DB, nicht der Session-Snapshot) keiner der geforderten entspricht —
+ * eine einzelne Rolle bleibt shorthand für ein Einelement-Array (`#1566` öffnet die Fabrik für
+ * `requireRole(['admin', 'tester'])`).
  * Der Session-Snapshot hält nur den Stand vom Login — eine Rückstufung über `PATCH
  * /admin/users/:id/role` müsste sonst bis zum Re-Login der Zielperson wirkungslos bleiben (die
  * zurückgestufte Person könnte sich in diesem Fenster sogar selbst wieder befördern). Setzt eine
@@ -63,15 +65,16 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
  * (kein Auth-Kontext konfiguriert) bleibt auch diese Prüfung deaktiviert — konsistent mit `requireAuth`.
  */
 export const requireRole =
-	(role: UserRole) =>
+	(role: UserRole | UserRole[]) =>
 	async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		if (!isAuthActive()) {
 			next();
 			return;
 		}
+		const roles = Array.isArray(role) ? role : [role];
 		const userId = req.session?.user?.id;
 		const currentRole = typeof userId === 'number' ? (await User.findByPk(userId))?.role : undefined;
-		if (currentRole !== role) {
+		if (currentRole === undefined || !roles.includes(currentRole)) {
 			sendError(res, 403, 'Keine Berechtigung.');
 			return;
 		}

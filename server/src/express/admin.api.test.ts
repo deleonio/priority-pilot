@@ -2,16 +2,23 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { User } from '../models/index.js';
+import type { UserRole } from '../models/user.js';
 
 // Rote Spec-Tests für das Rollensystem admin/member — Nutzerverwaltung (GET/PATCH /admin/users).
 // Muster: groups-dataisolation.test.ts — zwei Konten, eines Admin (per Test-Login-Rolle), eines
 // Member; Autorisierung läuft über `requireRole('admin')` (server/src/express/requireAuth.ts).
-process.env.GOOGLE_ALLOWED_EMAILS = 'admin@example.com,member@example.com,admin2@example.com';
+process.env.GOOGLE_ALLOWED_EMAILS = 'admin@example.com,member@example.com,admin2@example.com,tester@example.com';
 applyTestAuthEnv('admin-api-test');
 
 const ADMIN_EMAIL = 'admin@example.com';
 const MEMBER_EMAIL = 'member@example.com';
 const OTHER_ADMIN_EMAIL = 'admin2@example.com';
+const TESTER_EMAIL = 'tester@example.com';
+
+// #1566: `UserRole` kennt 'tester' noch nicht (rote Spec-Tests) — Doppel-Cast statt Literal,
+// damit der Pre-Commit-tsc nicht an dieser Stelle stirbt (MEMORY-Muster 2026-08-23). Der
+// Laufzeitwert ist schlicht 'tester'; test-login validiert die Rolle zur Laufzeit nicht.
+const TESTER_ROLE = 'tester' as unknown as UserRole;
 
 let server: TestServer;
 
@@ -296,5 +303,86 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		const meRes = await fetch(`${server.baseUrl}/auth/me`, { headers: { cookie: adminCookie } });
 		assert.equal(meRes.status, 200);
 		assert.equal(((await meRes.json()) as { plan?: string }).plan, 'pro', 'auth/me synct ohne Re-Login');
+	});
+
+	// #1566 (Spec docs/spec/issue-1566.md): Rolle „Tester" — Admin ohne Nutzerverwaltung. Die
+	// 403-Assertions für tester auf den nutzerverwaltungs-spezifischen Routen sind Guards (der
+	// Status-Quo liefert sie bereits); Rot kommt aus AK1 (Rollen-PATCH auf tester, heute 400)
+	// und AK4 (Paket-PATCH auf die eigene Id, heute 403).
+	it('#1566 AK1 — PATCH /admin/users/:id/role auf tester: 200, Response und DB tragen tester', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const member = await User.findOne({ where: { email: MEMBER_EMAIL } });
+		assert.ok(member, 'Setup: Ziel-Konto muss existieren');
+
+		const res = await fetch(`${server.baseUrl}/admin/users/${member.id}/role`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ role: TESTER_ROLE }),
+		});
+		assert.equal(res.status, 200, 'Admin darf die Rolle tester vergeben');
+		assert.equal(((await res.json()) as AdminUserDto).role, 'tester', 'Response-DTO trägt tester');
+
+		const persisted = await User.findOne({ where: { email: MEMBER_EMAIL } });
+		assert.equal(persisted?.role, 'tester', 'Rolle tester ist in der DB persistiert');
+	});
+
+	it('#1566 AK1 — Rückstufung des letzten Admins auf tester liefert 409 (Letzter-Admin-Guard)', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const admin = await User.findOne({ where: { email: ADMIN_EMAIL } });
+		assert.ok(admin, 'Setup: Admin muss existieren');
+
+		const res = await fetch(`${server.baseUrl}/admin/users/${admin.id}/role`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
+			body: JSON.stringify({ role: TESTER_ROLE }),
+		});
+		assert.equal(res.status, 409, 'die App darf nie ohne Administrator dastehen — auch nicht via tester');
+	});
+
+	it('#1566 AK2 — GET /admin/users mit Rolle tester liefert 403 (Nutzerliste bleibt Admin-only)', async () => {
+		await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const testerCookie = await server.login(TESTER_EMAIL, { role: TESTER_ROLE });
+
+		const res = await fetch(`${server.baseUrl}/admin/users`, { headers: { cookie: testerCookie } });
+		assert.equal(res.status, 403, 'Tester darf die Nutzerliste nicht sehen — auch nicht nach Öffnung für Arrays');
+	});
+
+	it('#1566 AK4 — tester: PATCH plan auf eigene Id 200, auf fremde Id 403, PATCH role 403', async () => {
+		await server.login(ADMIN_EMAIL, { role: 'admin' });
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const testerCookie = await server.login(TESTER_EMAIL, { role: TESTER_ROLE });
+		const tester = await User.findOne({ where: { email: TESTER_EMAIL } });
+		const member = await User.findOne({ where: { email: MEMBER_EMAIL } });
+		assert.ok(tester && member, 'Setup: beide Konten müssen existieren');
+
+		const ownRes = await fetch(`${server.baseUrl}/admin/users/${tester.id}/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: testerCookie },
+			body: JSON.stringify({ plan: 'pro' }),
+		});
+		assert.equal(
+			ownRes.status,
+			200,
+			'Tester darf das eigene Paket setzen (kostenfreier Selbstwechsel, #1565 für tester)',
+		);
+
+		const foreignRes = await fetch(`${server.baseUrl}/admin/users/${member.id}/plan`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: testerCookie },
+			body: JSON.stringify({ plan: 'max' }),
+		});
+		assert.equal(
+			foreignRes.status,
+			403,
+			'Frontend-Gating allein reicht nicht: fremdes Paket ist serverseitig gesperrt',
+		);
+
+		const roleRes = await fetch(`${server.baseUrl}/admin/users/${member.id}/role`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json', cookie: testerCookie },
+			body: JSON.stringify({ role: 'member' }),
+		});
+		assert.equal(roleRes.status, 403, 'Rollenvergabe bleibt Admin-only');
 	});
 });

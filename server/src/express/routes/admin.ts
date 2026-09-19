@@ -9,9 +9,9 @@ import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
 
 /**
- * Nutzerverwaltung für Admins (Rollensystem admin/member). Der Router hängt hinter dem globalen
- * `requireAuth` UND zusätzlich hinter `requireRole('admin')` (siehe unten) — nur Admins sehen
- * die Nutzerliste oder ändern Rollen.
+ * Nutzerverwaltung für Admins (Rollensystem admin/member/tester). Der Router hängt hinter dem
+ * globalen `requireAuth` — Nutzerliste und Rollenvergabe bleiben `requireRole('admin')`-gated
+ * (Tester, #1566), nur der Paket-PATCH ist für Tester auf die eigene Id geöffnet.
  */
 
 type AdminUserDto = {
@@ -35,7 +35,8 @@ const toDto = (user: User): AdminUserDto => ({
 const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ernenne zuerst eine andere Person.';
 
 /**
- * Stuft `id` auf `member` zurück — aber nur, wenn danach noch mindestens ein Admin übrig bleibt.
+ * Stuft `id` auf eine Nicht-Admin-Rolle (`member`/`tester`) zurück — aber nur, wenn danach noch
+ * mindestens ein Admin übrig bleibt.
  * Die Prüfung steckt als Subquery in EINEM bedingten UPDATE statt in „erst zählen, dann
  * schreiben“: Zwei parallele Rückstufungen der beiden letzten Admins könnten sonst beide den
  * Count `2` sehen und die App ohne Administrator zurücklassen (TOCTOU). Ein einzelnes UPDATE ist
@@ -44,7 +45,7 @@ const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ern
  * Konten (`role <> 'admin'`) bleiben idempotent erreichbar (kein falsches 409).
  * @returns `false`, wenn `id` der letzte verbleibende Admin ist und nichts geändert wurde.
  */
-const demoteUnlessLastAdmin = async (id: number): Promise<boolean> => {
+const demoteUnlessLastAdmin = async (id: number, targetRole: Exclude<UserRole, 'admin'>): Promise<boolean> => {
 	// Tabellen-/Spaltenname und Quoting kommen aus Modell und Dialekt (kein hart kodiertes
 	// Backtick-SQL) — ein Dialekt- oder Tabellenwechsel bricht die Subquery dann nicht still.
 	const qi = sequelize.getQueryInterface();
@@ -53,7 +54,7 @@ const demoteUnlessLastAdmin = async (id: number): Promise<boolean> => {
 	const roleColumn = qi.quoteIdentifier('role');
 	const adminCount = sequelize.literal(`(SELECT COUNT(*) FROM ${usersTable} WHERE ${roleColumn} = 'admin')`);
 	const [affected] = await User.update(
-		{ role: 'member' },
+		{ role: targetRole },
 		{
 			where: {
 				id,
@@ -95,8 +96,8 @@ adminRouter.patch(
 				return;
 			}
 			const body = (req.body ?? {}) as { role?: unknown };
-			if (body.role !== 'admin' && body.role !== 'member') {
-				sendError(res, 400, 'Die Rolle muss "admin" oder "member" sein.');
+			if (body.role !== 'admin' && body.role !== 'member' && body.role !== 'tester') {
+				sendError(res, 400, 'Die Rolle muss "admin", "member" oder "tester" sein.');
 				return;
 			}
 			const target = await User.findByPk(id);
@@ -104,8 +105,10 @@ adminRouter.patch(
 				sendError(res, 404, 'Nutzer nicht gefunden.');
 				return;
 			}
-			if (body.role === 'member') {
-				if (!(await demoteUnlessLastAdmin(target.id))) {
+			if (body.role !== 'admin') {
+				// Jede Rückstufung eines Admins (auf member ODER tester) hängt am Letzter-Admin-Guard —
+				// auch via tester darf die App nie ohne Administrator dastehen (#1566 AK1).
+				if (!(await demoteUnlessLastAdmin(target.id, body.role))) {
 					sendError(res, 409, LAST_ADMIN_MESSAGE);
 					return;
 				}
@@ -120,17 +123,25 @@ adminRouter.patch(
 	},
 );
 
-// PATCH /admin/users/:id/plan — Paket eines Nutzers setzen (nur Admins, #1456 AK6). Bis zur
-// Selbstbedienung (T7) ist das der einzige Weg, ein Paket zu vergeben; deshalb bewusst manuell
-// und ohne Zahlungsbezug. Muster wie oben bei der Rolle — nur ohne Letzter-Admin-Schutz.
+// PATCH /admin/users/:id/plan — Paket eines Nutzers setzen (Admins; Tester nur die eigene Id,
+// #1566 AK3/AK4). Bis zur Selbstbedienung (T7) ist das der einzige Weg, ein Paket zu vergeben;
+// deshalb bewusst manuell und ohne Zahlungsbezug. Muster wie oben bei der Rolle — nur ohne
+// Letzter-Admin-Schutz. Das eigene-Id-Limit für Tester erzwingt der Server (403), das
+// Frontend-Gating allein reichte nicht.
 adminRouter.patch(
 	'/admin/users/:id/plan',
-	requireRole('admin'),
+	requireRole(['admin', 'tester']),
 	async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
 		try {
 			const id = Number(req.params.id);
 			if (!Number.isInteger(id) || id <= 0) {
 				sendError(res, 400, 'Ungültige Nutzer-Id.');
+				return;
+			}
+			const requesterId = req.session?.user?.id;
+			const requester = typeof requesterId === 'number' ? await User.findByPk(requesterId) : undefined;
+			if (requester?.role === 'tester' && requester.id !== id) {
+				sendError(res, 403, 'Tester dürfen nur das eigene Paket setzen.');
 				return;
 			}
 			const body = (req.body ?? {}) as { plan?: unknown };
