@@ -181,4 +181,18 @@ describe('LlmProviderFormDialog — Testen vor dem Speichern (#1577)', () => {
 		});
 		expect((screen.getByRole('button', { name: 'Abbrechen' }) as HTMLButtonElement).disabled).toBe(false);
 	});
+
+	it('Review #1585: Test-Ergebnis verschwindet, sobald ein Feld geändert wird', async () => {
+		draftMock.mockResolvedValue({ ok: true, model: 'glm-4.7', latencyMs: 123 });
+		render(<LlmProviderFormDialog onClose={vi.fn()} onSaved={vi.fn()} />);
+
+		await fillAndTest();
+		expect(await screen.findByRole('alert')).toBeTruthy();
+
+		// Jede Feldänderung erklärt das Ergebnis für die alten Werte als überholt
+		fireEvent.change(screen.getByLabelText('Endpoint'), { target: { value: 'https://other.example.com/v1' } });
+		await waitFor(() => {
+			expect(screen.queryByRole('alert')).toBeNull();
+		});
+	});
 });

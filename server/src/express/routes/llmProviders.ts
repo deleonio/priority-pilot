@@ -428,6 +428,15 @@ export const createLlmProvidersRouter = (
 			apiKey = row.apiKey;
 			label = row.name;
 			keySource = `API-Key von ${row.name}`;
+			if (apiKey === '') {
+				// Built-in-Zeilen speichern nie einen Key — klare Vorab-Meldung statt eines
+				// sinnlosen Upstream-Calls (analog zum Vorab-Check in `:id/test`).
+				res.json({
+					ok: false,
+					message: `Kein API-Key vorhanden (${row.name} hat keinen gespeicherten Key) — Provider kann keine Anfragen stellen.`,
+				});
+				return;
+			}
 		}
 		const baseUrl = toBaseUrl(endpoint);
 		res.json(

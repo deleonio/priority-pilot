@@ -160,4 +160,26 @@ describe('POST /llm-providers/test-dry (#1577)', () => {
 		assert.match(body.message ?? '', /endpoint/, 'Meldung nennt das fehlerhafte Feld');
 		assert.equal(seenRuntimes.length, 0, 'Kein Upstream-Call bei ungültigem Body');
 	});
+
+	it('TF1g (Review #1585): leerer apiKey + Built-in-providerId → Vorab-Meldung, ohne Upstream-Call', async () => {
+		const cookie = await registerOn(server, 'dry-builtin@example.com');
+		const { LlmProvider } = await import('../../models/index.js');
+		const builtin = await LlmProvider.create({ name: 'Mistral', endpoint: '', kind: 'builtin' });
+
+		const res = await postDry(cookie, {
+			endpoint: draftPayload.endpoint,
+			apiKey: '',
+			model: 'glm-4.7',
+			providerId: builtin.id,
+		});
+		assert.equal(res.status, 200, 'Vorab-Check ist ein Ergebnis, kein HTTP-Fehler');
+		const body = (await res.json()) as { ok: boolean; message?: string };
+		assert.equal(body.ok, false);
+		assert.match(
+			body.message ?? '',
+			/Kein API-Key vorhanden/,
+			'Built-ins speichern keinen Key — klare Meldung statt sinnlosem Upstream-Call',
+		);
+		assert.equal(seenRuntimes.length, 0, 'Runner wird nie gefragt');
+	});
 });

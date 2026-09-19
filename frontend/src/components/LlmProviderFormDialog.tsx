@@ -62,6 +62,19 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		setTestResult(null);
 	}, [provider]);
 
+	/**
+	 * Feld-Handler (onInput/onChange teilen sich die Logik): schreibt den Wert in Ref+State
+	 * und verwirft ein vorhandenes Test-Ergebnis — der Alert gilt für die alten Werte und
+	 * würde sonst einen Erfolg für die noch ungetestete Konfiguration behaupten.
+	 */
+	const fieldHandler =
+		(field: 'name' | 'endpoint' | 'apiKey' | 'model', setState: (value: string) => void) =>
+		(_event: unknown, value: unknown): void => {
+			form.current[field] = readString(value);
+			setState(form.current[field]);
+			setTestResult(null);
+		};
+
 	const submit = async (): Promise<void> => {
 		const name = form.current.name.trim();
 		const endpoint = form.current.endpoint.trim();
@@ -150,14 +163,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					_value={nameState}
 					_hint="Anzeigename, z. B. z.ai oder Groq"
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.name = readString(v);
-							setNameState(form.current.name);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.name = readString(v);
-							setNameState(form.current.name);
-						},
+						onInput: fieldHandler('name', setNameState),
+						onChange: fieldHandler('name', setNameState),
 					}}
 				/>
 				<KolInputText
@@ -165,14 +172,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					_value={endpointState}
 					_hint="OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1"
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.endpoint = readString(v);
-							setEndpointState(form.current.endpoint);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.endpoint = readString(v);
-							setEndpointState(form.current.endpoint);
-						},
+						onInput: fieldHandler('endpoint', setEndpointState),
+						onChange: fieldHandler('endpoint', setEndpointState),
 					}}
 				/>
 				<KolInputPassword
@@ -184,14 +185,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 							: 'Wird nie angezeigt oder zurückgelesen.'
 					}
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.apiKey = readString(v);
-							setApiKeyState(form.current.apiKey);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.apiKey = readString(v);
-							setApiKeyState(form.current.apiKey);
-						},
+						onInput: fieldHandler('apiKey', setApiKeyState),
+						onChange: fieldHandler('apiKey', setApiKeyState),
 					}}
 				/>
 				<KolInputText
@@ -200,14 +195,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					_value={modelState}
 					_hint="Modellkennung, z. B. glm-4.7 — später änderbar über die Modellliste."
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.model = readString(v);
-							setModelState(form.current.model);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.model = readString(v);
-							setModelState(form.current.model);
-						},
+						onInput: fieldHandler('model', setModelState),
+						onChange: fieldHandler('model', setModelState),
 					}}
 				/>
 			</div>
