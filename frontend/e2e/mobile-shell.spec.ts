@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
 import { headerAction, waitForStableView } from './helpers';
 
@@ -24,6 +25,12 @@ const gotoApp = async (page: Page, viewport: { width: number; height: number }):
 	await page.goto('/');
 	await waitForStableView(page);
 };
+
+/** localStorage-Schlüssel der Kopfzeilen-Position (#1428) — steuert den Modus Oben/Unten. */
+const HEADER_POSITION_KEY = 'pp-header-position';
+
+/** Kurze Pause fürs boundingBox-Nachmessen (100ms, ohne zusätzlichen Import). */
+const pageDelay = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 100));
 
 test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 	test('375×812: Kopfbereich ist einzeilig', async ({ page }) => {
@@ -137,5 +144,128 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 		}
 
 		await expect(page.getByRole('button', { name: 'Mein Konto' })).toHaveCount(0);
+	});
+
+	/**
+	 * Sticky-Verhalten + Abstandsschild (Nutzerauftrag des Sticky-Umbaus): Die Kopfzeile muss in
+	 * BEIDEN Positionen beim Scrollen an ihrer Viewport-Kante kleben, und der unsichtbare Schild
+	 * (`.app-header`-Padding in Seitenfarbe) muss den Inhalt mit --pp-space-2 Abstand hinter der
+	 * Leiste verschwinden lassen. Ohne `position: sticky` oder ohne Schild liefe die Suite weiter
+	 * grün — deshalb hier gemessen statt nur gesichtet (Review #1575, F2):
+	 *  - Modus „Oben": nach dem Scrollen klebt der Header bei y = 0; direkt unter der sichtbaren
+	 *    Leiste liegt noch Header-Fläche (der Schild übermalt den Inhalt), unterhalb des Schildes
+	 *    beginnt der Inhalt.
+	 *  - Modus „Unten": Kleben an der Unterkante (y + Höhe = 812), Schild oberhalb der Leiste.
+	 *
+	 * Für einen scrollbaren Körper sorgt eine echte Aufgabenliste über die API (Muster
+	 * `issue-1258-tasks-mobile.spec.ts`); `afterEach` räumt auf.
+	 */
+	test.describe('Sticky-Kopfzeile mit Abstandsschild', () => {
+		const createTasksViaApi = async (page: Page, count: number): Promise<void> => {
+			for (let i = 0; i < count; i += 1) {
+				const response = await page.request.post('/api/v1/tasks', {
+					data: { title: `E2E Mobile-Shell Sticky ${i}`, priority: 3 },
+				});
+				expect(response.ok()).toBeTruthy();
+			}
+		};
+
+		const deleteAllTasks = async (page: Page): Promise<void> => {
+			for (const task of (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[]) {
+				await page.request.delete(`/api/v1/tasks/${task.id}`);
+			}
+		};
+
+		test.afterEach(async ({ page }) => {
+			await deleteAllTasks(page);
+		});
+
+		/** Macht die Seite scrollbar (Liste länger als der Viewport) und scrollt 600px herunter. */
+		const scrollDown = async (page: Page): Promise<void> => {
+			await page.waitForFunction(() => document.documentElement.scrollHeight > window.innerHeight + 100, undefined, {
+				timeout: 10_000,
+			});
+			await page.evaluate(() => window.scrollTo(0, 600));
+		};
+
+		/** boundingBox in Kurzloop nachmessen — CI-Runner rendern zwischendurch um (helpers.ts-Muster). */
+		const stableBox = async (locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> => {
+			let box = await locator.boundingBox();
+			for (let attempt = 0; attempt < 10 && box !== null; attempt += 1) {
+				const recheck = await locator.boundingBox();
+				if (recheck !== null && recheck.y === box.y && recheck.height === box.height) break;
+				box = recheck;
+				await pageDelay();
+			}
+			expect(box, 'Element muss messbar sein').not.toBeNull();
+			return box!;
+		};
+
+		/** Ob der Punkt (in einer offenen Shadow-DOM-Komponente) beim Header landet. */
+		const pointInHeader = async (page: Page, x: number, y: number): Promise<boolean> => {
+			return page.evaluate(
+				({ x, y }) => {
+					const hit = document.elementFromPoint(x, y);
+					if (hit === null) return false;
+					return hit.closest('.app-header') !== null || document.querySelector('.app-header')?.contains(hit) === true;
+				},
+				{ x, y },
+			);
+		};
+
+		test('Modus Oben: Leiste klebt bei y=0, Schild hält 8px Abstand zum Inhalt', async ({ page }) => {
+			await page.setViewportSize(MOBILE);
+			await createTasksViaApi(page, 14);
+			await page.goto('/');
+			await waitForStableView(page);
+			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+			await waitForStableView(page);
+			await scrollDown(page);
+
+			const headerBox = await stableBox(page.locator('.app-header'));
+			expect(headerBox.y, 'Kopfzeile klebt beim Scrollen an der Viewport-Oberkante').toBe(0);
+
+			const barBox = await stableBox(page.locator('.app-header__bar'));
+			expect(barBox.y, 'Schild über der Leiste (Leiste klebt NICHT pixelbündig oben)').toBeGreaterThanOrEqual(8 - 1);
+
+			// Direkt unter der Leiste liegt der untere Schild: Header-Fläche übermalt den Inhalt
+			// (genau dieser fehlende Pixelabstand war der Nutzerauftrag).
+			expect(
+				await pointInHeader(page, 187, barBox.y + barBox.height + 4),
+				'Schild unter der Leiste gehört zur Kopfzeile',
+			).toBe(true);
+			expect(
+				await pointInHeader(page, 187, headerBox.y + headerBox.height + 2),
+				'unterhalb des Schildes beginnt der Inhalt',
+			).toBe(false);
+		});
+
+		test('Modus Unten: Leiste klebt an der Unterkante, Schild oberhalb der Leiste', async ({ page }) => {
+			await page.setViewportSize(MOBILE);
+			await page.addInitScript((key) => localStorage.setItem(key, 'bottom'), HEADER_POSITION_KEY);
+			await createTasksViaApi(page, 14);
+			await page.goto('/');
+			await waitForStableView(page);
+			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+			await waitForStableView(page);
+			await scrollDown(page);
+
+			const headerBox = await stableBox(page.locator('.app-header'));
+			expect(
+				Math.round(headerBox.y + headerBox.height),
+				'Kopfzeile klebt beim Scrollen an der Viewport-Unterkante',
+			).toBe(812);
+
+			const barBox = await stableBox(page.locator('.app-header__bar'));
+			expect(barBox.y + barBox.height, 'Schild unter der Leiste (Home-Indicator-Zone)').toBeLessThanOrEqual(
+				headerBox.y + headerBox.height + 1,
+			);
+			expect(barBox.y, 'Leiste sitzt nicht pixelbündig an der Unterkante').toBeLessThan(
+				headerBox.y + headerBox.height - 8 + 1,
+			);
+
+			expect(await pointInHeader(page, 187, barBox.y - 4), 'Schild über der Leiste gehört zur Kopfzeile').toBe(true);
+			expect(await pointInHeader(page, 187, headerBox.y - 2), 'oberhalb des Schildes liegt Inhalt').toBe(false);
+		});
 	});
 });

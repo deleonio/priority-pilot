@@ -779,31 +779,36 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			data-focus-fallback
 		>
 			<header role="banner" className="app-header">
-				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
-				<div className="app-header__brand">
-					{/* Zusätzlich zum Home-Schalter in der Kopf-Aktionen-Toolbar navigiert auch das Logo
-					    selbst zum Dashboard (reaktiviert nach #395) — gleicher Handler, gleicher a11y-Name. */}
-					<button type="button" className="logo-btn" onClick={handleHomeNavigate} aria-label={t('menu.home')}>
-						<img src="/logo/logo.png" alt="" />
-					</button>
-					<span className="app-name">Priority Pilot</span>
-				</div>
-				<div className="app-header__primary">
-					{/*
-					 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
-					 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
-					 *
-					 * BEWUSST ohne eigenes `role="toolbar"`: `kol-toolbar` bringt die Rolle (inkl. der von ihr
-					 * erwarteten Pfeiltasten-Navigation) bereits in seinem Shadow-DOM mit. Ein zweites
-					 * `role="toolbar"` am Wrapper erzeugte eine verschachtelte Toolbar mit identischem
-					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
-					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
-					 */}
-					<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
-				</div>
-				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
-				<div className="app-header__user">
-					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+				{/* Die sichtbare Leiste trägt `.app-header__bar` — der Header selbst ist der Sticky-Rahmen
+				    mit Abstandsschild (siehe `.app-header` in app.css): Beim Scrollen hält er in beiden
+				    Positionen (--pp-space-2) Abstand zwischen Leiste und Inhalt. */}
+				<div className="app-header__bar">
+					{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
+					<div className="app-header__brand">
+						{/* Zusätzlich zum Home-Schalter in der Kopf-Aktionen-Toolbar navigiert auch das Logo
+						    selbst zum Dashboard (reaktiviert nach #395) — gleicher Handler, gleicher a11y-Name. */}
+						<button type="button" className="logo-btn" onClick={handleHomeNavigate} aria-label={t('menu.home')}>
+							<img src="/logo/logo.png" alt="" />
+						</button>
+						<span className="app-name">Priority Pilot</span>
+					</div>
+					<div className="app-header__primary">
+						{/*
+						 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
+						 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
+						 *
+						 * BEWUSST ohne eigenes `role="toolbar"`: `kol-toolbar` bringt die Rolle (inkl. der von ihr
+						 * erwarteten Pfeiltasten-Navigation) bereits in seinem Shadow-DOM mit. Ein zweites
+						 * `role="toolbar"` am Wrapper erzeugte eine verschachtelte Toolbar mit identischem
+						 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
+						 * eine Pfeiltasten-Navigation, die er nicht implementiert.
+						 */}
+						<KolToolbar _label={t('menu.headerActions')} _orientation="horizontal" _items={toolbarItems} />
+					</div>
+					{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
+					<div className="app-header__user">
+						<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+					</div>
 				</div>
 			</header>
 			{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier

@@ -272,6 +272,30 @@
 	}
 }
 
+/*
+ * #485: Höhe der Kopf-Toolbar-Buttons (2.75rem = 44px, WCAG-2.5.5-Mindestgröße — kleiner darf sie
+ * nicht sein). Stand ursprünglich an `.app-header`; seit die Kopfzeile sticky pinnt, braucht auch
+ * das Scroll-Reservat am `html` (unten) dasselbe Maß — deshalb heute als geteiltes Maß auf `:root`,
+ * die Kopfzeile erbt es weiter.
+ */
+:root {
+	--pp-toolbar-height: 2.75rem;
+}
+
+/*
+ * Scroll-Reservat hinter der gepinnten Kopfzeile: `scrollIntoView`/Fokus-Scrolling (z. B. Detailkarte
+ * des Wald-Tabs, TaskGraphPanel) dürfen ihr Ziel nicht unter der klebenden Zeile ablegen — die
+ * Browser rechnen `scroll-padding` am Scroll-Container (hier: Viewport/`html`) gegen jede
+ * programmatische als auch Fokus-Scrollung. Der Wert entspricht exakt dem gepinnten Schild
+ * (Inset + Schild + Leiste + Schild, siehe `.app-header`); er gilt für beide Positionen, in der
+ * jeweils anderen bleibt er als unschädlicher Vorhalt stehen (scroll-padding verschiebt kein
+ * Layout, es reserviert nur den Scroll-Rand).
+ */
+html {
+	scroll-padding-top: calc(env(safe-area-inset-top) + var(--pp-space-2) + var(--pp-toolbar-height) + var(--pp-space-2));
+	scroll-padding-bottom: calc(var(--pp-space-2) + var(--pp-toolbar-height) + var(--pp-space-2));
+}
+
 body {
 	margin: 0;
 	font-family: var(--pp-font-family);
@@ -335,22 +359,35 @@ kol-toolbar {
  * zusammen mit `viewport-fit=cover` im Viewport-Meta (index.html). Im normalen Browser-Tab sind sie 0,
  * `max()`/`calc()` fallen dann exakt auf die Basiswerte zurück — deshalb braucht es keinen Zweig für
  * „Browser vs. PWA". Der untere Inset verhindert, dass die Fußzeile unter dem Home-Indicator liegt.
+ *
+ * Der OBERE Inset sitzt seit dem Sticky-Umbau nicht mehr hier, sondern im Abstandsschild der
+ * Kopfzeile (`.app-header`): Gepinnt muss die Leiste die Notch-Zone selbst übermalen — stünde der
+ * Inset zusätzlich hier, läge die Leiste im Standzustand doppelt so tief unter der Notch. Im Modus
+ * „Kopfzeile unten" erreicht dagegen der INHALT die Viewport-Oberkante und trägt den Inset selbst
+ * (`.app.header-bottom` unten).
+ *
+ * #1258: Das Stand-Padding oben entfällt seit dem Sticky-Umbau vollständig — der untere
+ * Abstandsschild der Kopfzeile liefert selbst --pp-space-2 Abstand zwischen Leiste und Inhalt,
+ * jedes zusätzliche Stand-Padding würde diesen Abstand doppelt zahlen. Die Kopfzeilen-Geometrie
+ * (Schild + Leiste + Schild) summiert sich dadurch auf exakt das alte Vertikalbudget von 60px
+ * @375px (vorher: 16px Padding + 44px Leiste), das #1258 AK2 (vier Aufgaben ohne Scrollen)
+ * verlangt; ab 48rem gilt dasselbe zurückgegebene Budget (—space-5 statt —space-6).
  */
 .app {
 	max-width: 80rem;
 	margin: 0 auto;
-	padding-top: calc(1rem + env(safe-area-inset-top));
-	padding-right: max(0.75rem, env(safe-area-inset-right));
-	padding-bottom: calc(3rem + env(safe-area-inset-bottom));
-	padding-left: max(0.75rem, env(safe-area-inset-left));
+	padding-top: 0;
+	padding-right: max(var(--pp-space-3), env(safe-area-inset-right));
+	padding-bottom: calc(var(--pp-space-7) + env(safe-area-inset-bottom));
+	padding-left: max(var(--pp-space-3), env(safe-area-inset-left));
 }
 
 @media (min-width: 48rem) {
 	.app {
-		padding-top: calc(2rem + env(safe-area-inset-top));
-		padding-right: max(1.5rem, env(safe-area-inset-right));
-		padding-bottom: calc(4rem + env(safe-area-inset-bottom));
-		padding-left: max(1.5rem, env(safe-area-inset-left));
+		padding-top: var(--pp-space-5);
+		padding-right: max(var(--pp-space-5), env(safe-area-inset-right));
+		padding-bottom: calc(var(--pp-space-8) + env(safe-area-inset-bottom));
+		padding-left: max(var(--pp-space-5), env(safe-area-inset-left));
 	}
 }
 
@@ -364,6 +401,14 @@ kol-toolbar {
 .app.header-bottom {
 	display: flex;
 	flex-direction: column;
+	/* Ohne Kopfzeile oben trägt der Inhalt den oberen Safe-Area-Inset selbst (siehe `.app`-Kommentar). */
+	padding-top: calc(var(--pp-space-4) + env(safe-area-inset-top));
+}
+
+@media (min-width: 48rem) {
+	.app.header-bottom {
+		padding-top: calc(var(--pp-space-6) + env(safe-area-inset-top));
+	}
 }
 
 .app.header-bottom .app-header {
@@ -377,13 +422,16 @@ kol-toolbar {
 	 * die klebende Zeile malt; Updates/Toasts (1000/1001) bleiben darüber.
 	 */
 	position: sticky;
+	/* Basis-Pinning ist `top: 0` (`.app-header`) — hier wird es auf die Unterkante gedreht. */
+	top: auto;
 	bottom: 0;
 	z-index: 1;
 	/*
-	 * Der untere Safe-Area-Inset steckt sonst nur im Seiten-Padding unter dem Fuß — die unten
-	 * stehende Kopfzeile braucht eigenen Abstand, sonst liegen die Toolbar-Buttons auf dem
-	 * Home-Indicator (AK5). Basis bleibt das Regel-Padding ab 48rem (`--pp-space-2`).
+	 * Der Schild braucht unten keinen oberen Inset (dort liegt Inhalt, kein Notch-Bereich), dafür
+	 * den unteren: die Toolbar-Buttons dürfen nicht auf dem Home-Indicator liegen (AK5). Der Inset
+	 * gehört zum Schild, nicht zur Leiste — dadurch bleibt der sichtbare Abstand rundum gleich.
 	 */
+	padding-top: var(--pp-space-2);
 	padding-bottom: calc(var(--pp-space-2) + env(safe-area-inset-bottom));
 }
 
@@ -393,12 +441,10 @@ kol-toolbar {
 
 .app-header {
 	/*
-	 * #485: Eine gemeinsame Maß-Basis für Logo, Toolbar-Buttons und Avatar.
-	 * `--pp-toolbar-height` ist die Höhe der Toolbar-Buttons: 2.75rem = 44px entspricht der
-	 * WCAG-2.5.5-Mindestgröße (`--a11y-min-size` der KoliBri-Buttons) — kleiner darf sie nicht sein.
-	 * Der Avatar leitet sich davon ab 48rem mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
+	 * #485: `--pp-toolbar-height` (44px, WCAG-2.5.5) ist die gemeinsame Maß-Basis für Logo,
+	 * Toolbar-Buttons und Avatar — definiert auf `:root` (siehe dort), der Avatar leitet sich ab
+	 * 48rem mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
 	 */
-	--pp-toolbar-height: 2.75rem;
 	/*
 	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
 	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
@@ -418,27 +464,58 @@ kol-toolbar {
 	--pp-logo-size: var(--pp-toolbar-height);
 
 	/*
-	 * P1: Header in 3 semantische Gruppen (Brand | Primary | User).
-	 * Das Markup gruppiert die Elemente in .app-header__brand,
-	 * .app-header__primary und .app-header__user. Der Header selbst
-	 * nutzt das Gap-Token zur Trennung der Gruppen.
+	 * Nutzerauftrag „einheitliche Kopfzeile": Die Kopfzeile pinnt in BEIDEN Positionen beim
+	 * Scrollen — „Oben" hier an der Viewport-Oberkante, „Unten" an der Unterkante
+	 * (`.app.header-bottom .app-header` oben). Ohne Sticky liefen die Kopf-Aktionen (Anlegen,
+	 * Suche) im Modus „Oben" aus dem Sichtfenster, während „Unten" sie in der Daumenzone hielt —
+	 * dasselbe Bedienelement mit zwei unterschiedlichen Verhalten. Der z-Index hält die gepinnte
+	 * Zeile über dem Inhalt; Updates/Toasts (1000/1001) bleiben wie gehabt darüber.
 	 */
+	position: sticky;
+	top: 0;
+	z-index: 1;
+
+	/*
+	 * Abstandsschild: Das Block-Padding ist in Seitenfarbe gemalt, damit beim Scrollen der Inhalt
+	 * IMMER mit --pp-space-2 Abstand hinter der Leiste verschwindet, statt pixelbündig an der
+	 * gerundeten Kante zu kleben — genau dieser fehlende Pixelabstand störte die Abgrenzung von
+	 * Leiste und Inhalt (Nutzerauftrag). Die Leiste selbst (`.app-header__bar`) bleibt die
+	 * kompakte Pille auf --pp-surface-2; der Schild ist unsichtbar, weil er die Seitenfarbe trägt.
+	 *
+	 * Höhen-Budget @375px: 8px Schild + 44px Leiste + 8px Schild = 60px und bleibt damit im
+	 * 64px-Vertrag der Kopfzeile (mobile-shell.spec.ts).
+	 *
+	 * Der obere Safe-Area-Inset gehört zum Schild: Gepinnt bliebe die Leiste sonst in der
+	 * Notch-Zone stehen (mobile-ui-rules Regel 8) — im Standzustand rückt sie dadurch nicht tiefer,
+	 * der Inset ist aus dem Seiten-Padding von `.app` entfernt (siehe Kommentar dort). Im Modus
+	 * „Unten" wird er unten getragen (Regel dort).
+	 */
+	padding-top: calc(var(--pp-space-2) + env(safe-area-inset-top));
+	padding-bottom: var(--pp-space-2);
+	background: var(--pp-surface-0);
+}
+
+/*
+ * Die sichtbare Kopfleiste (im Markup das einzige Kind von `.app-header`): Der Header selbst ist
+ * der Sticky-Rahmen mit Abstandsschild, diese Ebene ist die kompakte Kommandoleiste, nicht eine
+ * Titelzone — eigene Fläche auf --pp-surface-2, feiner Rahmen und Radius setzen sie gegen den
+ * Inhalt darunter ab. Die Höhe bleibt an --pp-toolbar-height gebunden (siehe --pp-logo-size oben)
+ * — die Leiste beansprucht dadurch auf allen Breiten nur die WCAG-Mindesthöhe der Buttons.
+ *
+ * P1: Das Markup gruppiert die Elemente in .app-header__brand, .app-header__primary und
+ * .app-header__user; die Leiste nutzt das Gap-Token zur Trennung der Gruppen.
+ */
+.app-header__bar {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — die sechs icon-only Kopf-Aktionen (inkl.
-	 * Home-Schalter) füllen die 375px-Zeile bis auf wenige Pixel aus, hier zählt jedes einzelne;
-	 * ab 48rem gilt wieder der Base-Abstand. */
+	   Home-Schalter) füllen die 375px-Zeile bis auf wenige Pixel aus, hier zählt jedes einzelne;
+	   ab 48rem gilt wieder der Base-Abstand. `column-gap` bleibt mobil aus: auf 375px zählt jedes
+	   Pixel der Zeile, das Budget verträgt hier keinen zusätzlichen Abstand zwischen den Gruppen. */
 	gap: 0.25rem;
 
 	/*
-	 * Der Header liest als kompakte Kommandoleiste, nicht als Titelzone: eigene Fläche auf
-	 * --pp-surface-2, feiner Rahmen und Radius setzen ihn gegen den weißen Inhalt darunter ab.
-	 * Die Höhe bleibt an --pp-toolbar-height gebunden (siehe --pp-logo-size oben) — die
-	 * Leiste beansprucht dadurch auf allen Breiten nur die WCAG-Mindesthöhe der Buttons.
-	 * `column-gap` bleibt mobil aus (siehe 48rem-Media-Query): auf 375px zählt laut #965 jedes
-	 * Pixel der Zeile, das Budget verträgt hier keinen zusätzlichen Abstand zwischen den Gruppen.
-	 *
 	 * Auch das Padding bleibt auf der Basis-Breite aus (siehe die 24rem-Regel unten): Die 375px-Zeile
 	 * ist mit Logo (44px), sechs Kopf-Aktionen (6 × 44px) und Avatar (32px) plus Gruppen-Abstand bei
 	 * gemessenen ~349 von 351px Inhaltsbreite ausgereizt — jedes zusätzliche Pixel bricht sie
@@ -447,7 +524,7 @@ kol-toolbar {
 	 * Die Kante ist ein inset-Schatten, kein `border`: ein Rahmen verkleinert die Innenbreite um
 	 * 2 px und brach damit die 375px-Zeile zweizeilig um (mobile-shell.spec.ts, #718 AK4). Der
 	 * Schatten malt ohne Layout-Wirkung — dasselbe Muster nutzt der Signal-Akzent der
-	 * „Nächsten Aufgabe" aus dem gleichen Grund.
+	 * „Nächsten Aufgabe" aus demselben Grund.
 	 */
 	background: var(--pp-surface-2);
 	box-shadow: inset 0 0 0 1px var(--pp-border-subtle);
@@ -466,7 +543,7 @@ kol-toolbar {
  * Aufwärts-Kaskade folgt damit demselben Mobile-First-Muster wie `column-gap`/`padding` ab 48rem.
  */
 @media (min-width: 24rem) {
-	.app-header {
+	.app-header__bar {
 		padding-inline-end: calc((var(--pp-toolbar-height) - var(--pp-avatar-size)) / 2);
 	}
 }
@@ -475,7 +552,9 @@ kol-toolbar {
 	.app-header {
 		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
 		--pp-logo-size: var(--pp-avatar-size);
+	}
 
+	.app-header__bar {
 		/* Nur der Zeilenabstand wächst; `column-gap` bleibt eng, damit die Leiste kompakt liest. */
 		row-gap: var(--pp-gap-base);
 		column-gap: var(--pp-space-2);

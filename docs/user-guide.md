@@ -49,7 +49,7 @@ Ganz oben findest du die **Kopf-Aktionen**:
 
 Rechts daneben siehst du dein Profilbild.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht. Beim Scrollen bleibt die Leiste sichtbar; mit etwas Abstand zum Inhalt, damit beides getrennt lesbar bleibt.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -553,6 +553,9 @@ der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
   mit **„Anzeigename speichern"** übernehmen.
 - **Darstellung** – wähle das Farbschema: **System**, **Hell** oder **Dunkel**.
   „System" folgt der Einstellung deines Betriebssystems.
+- **Kopfzeile** – legt fest, ob die Kopfzeile **oben** oder **unten** am Bildschirm
+  steht. In beiden Positionen bleibt sie beim Scrollen eingeblendet. Die Wahl gilt
+  auf diesem Gerät.
 - **Sprache** – die Sprache der Oberfläche. Zur Wahl stehen Deutsch, Englisch,
   Französisch, Italienisch, Niederländisch, Polnisch, Portugiesisch, Russisch,
   Schwedisch und Spanisch; jede steht in der Liste in ihrer eigenen Schreibweise.
