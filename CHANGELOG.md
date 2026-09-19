@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-18
+## v0.2 - 2026-09-19
 
-_Enthält v0.2.0 – v0.2.106._
+_Enthält v0.2.0 – v0.2.107._
 
 ### 🔧 Engineering
 
@@ -22,7 +22,7 @@ _Enthält v0.2.0 – v0.2.106._
 - chore(deps): update node.js to v26.8.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1327
 - chore(deps): update pnpm to v11.26.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1329
 - fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
-- fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
+- fix(pipeline): never set phase labels on renovate prs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1407
 - fix(pipeline): never set phase labels on renovate prs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1407
 - feat(frontend): enable dark mode with KoliBri 4.4.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1405
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1173
@@ -117,6 +117,7 @@ _Enthält v0.2.0 – v0.2.106._
 - feat(frontend): consolidate feedback categories to three by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1569
 - feat(frontend): move own-package switch into packages tab (#1565) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1570
 - feat(frontend): add header position setting (top/bottom) (#1428) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1571
+- chore(prompts): apply prompt-audit #1467 options 1-3 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1559
 
 ## v0.1 - 2026-09-12
 
