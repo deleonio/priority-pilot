@@ -140,10 +140,12 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		await openPillarWeights();
 
-		// Erste Säule auf das Maximum (Rohwert 1,0), alle übrigen auf 0 setzen. Die Rohwerte werden beim
-		// Speichern auf 100 % normiert → erste Säule 100 %, Rest 0 %. Beim erneuten Laden rechnet die UI
-		// 100 % zurück auf den Rohwert 1,0 (bzw. 0 % → 0), sodass die Werte deterministisch round-trippen.
-		// `End`/`Home` setzen den nativen Range-Input zuverlässig auf Max bzw. Min (kein `fill` auf Range).
+		// Erste Säule auf 0,6 heben, übrige auf 0,1 senken (Ausgangswert je 0,2 bei 5 × 20 %).
+		// Die Rohwerte summieren auf 1,0 → die Normierung ist die Identität und die Werte
+		// round-trippen deterministisch (60/10/10/10/10). Bewusst KEIN `End`/`Home` mehr
+		// (100 %/0 %-Extremverteilung): Solche Verteilungen blockiert #1574 (AK4) vollständig;
+		// das Speichern der unausgewogenen Verteilung läuft seit #1574 über das
+		// Bestätigungs-Modal („Trotzdem speichern").
 		//
 		// KoliBris `KolInputRange` exponiert KEIN `role="slider"` und kein `aria-label` aus seinem
 		// `_label`; im (offenen) Shadow-DOM steckt jedoch ein natives `<input type="range">`. Playwrights
@@ -153,12 +155,16 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
 		const sliderCount = await sliders.count();
 		expect(sliderCount).toBeGreaterThan(1);
-		await sliders.first().press('End');
+		for (let press = 0; press < 4; press += 1) {
+			await sliders.first().press('ArrowRight');
+		}
 		for (let index = 1; index < sliderCount; index += 1) {
-			await sliders.nth(index).press('Home');
+			await sliders.nth(index).press('ArrowLeft');
 		}
 
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		// #1574: Die Verteilung ist unausgewogen (60 % > 2 × 20 %) → Bestätigungs-Modal.
+		await page.getByRole('button', { name: 'Trotzdem speichern' }).click();
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
 
 		// Harter Reload: lädt die Säulen frisch aus dem Backend — beweist die Persistenz in der DB.
@@ -168,7 +174,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		// Wie oben: auf das Säulen-Gewichtungs-Grid scopen (Geo-Regler aus #1098 stören sonst `.first()`).
 		const reloadedSliders = page.locator('.pillar-weights-grid input[type="range"]');
-		await expect(reloadedSliders.first()).toHaveValue('1');
-		await expect(reloadedSliders.nth(1)).toHaveValue('0');
+		await expect(reloadedSliders.first()).toHaveValue('0.6');
+		await expect(reloadedSliders.nth(1)).toHaveValue('0.1');
 	});
 });
