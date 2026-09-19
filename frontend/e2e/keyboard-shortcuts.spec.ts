@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, taskTitleText, waitForStableView } from './helpers';
+import { openAccordionSection, setEqualPillarWeights, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #243 — „CTA Buttons sollen immer mit Strg+Enter abgesendet werden".
@@ -240,17 +240,15 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await waitForStableView(page);
 
 		// Neuer Flow: direkt zur Settings-Route navigieren
+		// #1574: Gleichverteilungs-Reset (geteilte In-Memory-DB im Shard) UND bewusst KEIN Regler-
+		// zug mehr: `End` machte die Verteilung unausgewogen, und seit #1574 (AK1) öffnet Strg+Enter
+		// bei unausgewogener Verteilung das Bestätigungs-Modal, statt direkt zu speichern. Die
+		// gespeicherte Gleichverteilung ist gültig — der Shortcut allein muss sie speichern.
+		await setEqualPillarWeights(page);
 		await page.goto('/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
-
-		// Ersten Slider auf das Maximum setzen (gültige Verteilung sichergestellt), CTA bleibt aktiv.
-		// Scoping auf `.pillar-weights-grid`: seit #1098 stehen im (mitgemounteten, ausgeblendeten)
-		// Allgemein-Panel weitere Range-Regler earlier in document order im DOM.
-		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
-		await expect(sliders.first()).toBeVisible();
-		await sliders.first().press('End');
 
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');

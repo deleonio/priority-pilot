@@ -1099,7 +1099,11 @@ describe('SettingsPage – #1574: Bestätigungs-Modal vor dem Speichern unausgew
 	};
 
 	beforeEach(() => {
-		delete apiMocks.setPillarWeights;
+		// Frischen Spy setzen (statt nur `delete`): die AK1-/AK4-Tests asserten
+		// `not.toHaveBeenCalled()` OHNE vorherigen API-Zugriff — ohne initialisierten Mock steht
+		// dort `undefined` und vitest wirft „undefined is not a spy or a call to a spy!". Der Mock
+		// entstünde sonst erst lazily beim ersten `api.setPillarWeights`-Aufruf (api-Proxy oben).
+		apiMocks.setPillarWeights = vi.fn().mockResolvedValue(undefined);
 	});
 
 	// AK1: Klick auf „Speichern" bei aktiver Warnung öffnet das Modal mit dem Hinweistext — kein PUT.

@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1574 — „Speichern unausgewogener Säulen-Gewichtungen nur mit Bestätigung"
@@ -43,6 +43,11 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 			return route.continue();
 		});
 
+		// Ausgangszustand deterministisch herstellen (Gleichverteilung, s. Helper-Doku): parallele
+		// Specs im selben Shard teilen die DB — der Reset-PUT läuft via page.request an der
+		// Route-Abfangung (und damit am putCount) vorbei.
+		await setEqualPillarWeights(page);
+
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
@@ -56,7 +61,11 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 		await save.click();
 
 		const dialog = page.locator('kol-dialog');
-		await expect(dialog).toBeVisible();
+		// KolDialog meldet den Host-Knoten selbst als „hidden" (der sichtbare Inhalt läuft über
+		// das native <dialog> im Shadow-DOM, der Host selbst hat keine Box) — Sichtbarkeit und
+		// Bounding-Box deshalb über die Dialog-ROLLE, Kindelemente über den Host (Light-DOM).
+		const dialogRole = page.getByRole('dialog', { name: 'Verteilung stark unausgewogen' });
+		await expect(dialogRole).toBeVisible();
 		await expect(dialog.locator('kol-alert[_type="warning"]'), '#1555-Hinweis fehlt im Modal').toBeVisible();
 
 		const confirm = dialog.getByRole('button', { name: 'Trotzdem speichern' });
@@ -67,7 +76,7 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 
 		// AK6 (375px): Dialog bleibt im Viewport; Buttons untereinander in voller Breite mit
 		// Touch-Höhe ≥ 44px und vertikalem Abstand ≥ 8px (KI-UX-Block, Regeln 2 und 3).
-		const dialogBox = await dialog.boundingBox();
+		const dialogBox = await dialogRole.boundingBox();
 		expect(dialogBox, 'Dialog hat keine Bounding-Box').not.toBeNull();
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
 		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(375);
@@ -83,13 +92,13 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 
 		// AK2: „Abbrechen" — kein PUT, Modal zu, Regler unverändert.
 		await cancel.click();
-		await expect(dialog).toBeHidden();
+		await expect(dialogRole).toBeHidden();
 		await expect(page.locator('.pillar-weights-grid input[type="range"]').first()).toHaveValue('0.6');
 		expect(putCount, 'Abbrechen darf keinen PUT senden').toBe(0);
 
 		// AK2: Erneutes Speichern ist wieder möglich → Bestätigen sendet genau einen PUT.
 		await save.click();
-		await expect(dialog).toBeVisible();
+		await expect(dialogRole).toBeVisible();
 		await confirm.click();
 		await expect.poll(() => putCount, 'Bestätigen muss genau einen PUT /pillars/weights senden').toBe(1);
 

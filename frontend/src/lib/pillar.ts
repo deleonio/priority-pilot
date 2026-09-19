@@ -75,6 +75,30 @@ export const isDistributionUnbalanced = (raws: readonly (number | null)[]): bool
 };
 
 /**
+ * Prüft, ob eine Roh-Verteilung nach der Normierung eine Säule mit **0 % oder 100 %** Anteil
+ * ergeben würde (#1574, AK4): `shareᵢ = rohᵢ / Σroh` (null zählt als 0 — dieselbe
+ * Anteilsrechnung wie `isDistributionUnbalanced`, ebenfalls skaleninvariant). Solche
+ * Extremverteilungen blockiert das Formular, statt sie bestätigbar zu machen.
+ *
+ * Ausnahme: Bei höchstens **einer** Säule ist 100 % die einzig gültige Verteilung → `false`.
+ * Nicht normierbar (Σroh ≤ 0) → `false`: dafür ist der bestehende Summen-Fehlerzustand
+ * zuständig, kein Doppelmelden.
+ */
+export const hasExtremeShare = (raws: readonly (number | null)[]): boolean => {
+	if (raws.length <= 1) {
+		return false;
+	}
+	const total = sumWeights(raws);
+	if (total <= 0) {
+		return false;
+	}
+	return raws.some((raw) => {
+		const share = (raw ?? 0) / total;
+		return share <= WEIGHT_SUM_EPSILON || share >= 1 - WEIGHT_SUM_EPSILON;
+	});
+};
+
+/**
  * Optionen für die „Säule hinzufügen"-Auswahl im Task-Formular: eine Platzhalter-Option (Sentinel
  * `ADD_PILLAR_PLACEHOLDER`) gefolgt von den noch **nicht** zugeordneten Säulen. Werte sind numerisch
  * (Säulen-`id`). `available` enthält bereits nur die wählbaren Säulen.

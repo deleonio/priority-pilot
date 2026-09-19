@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1555 — „Hinweis bei stark unausgewogener Säulen-Gewichtung"
@@ -24,6 +24,9 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 	 * Der Alert läuft bei 375px nicht horizontal aus dem Viewport.
 	 */
 	test('AK1+AK2+AK5: Warn-Alert schaltet live mit der Verteilung und läuft bei 375px nicht über', async ({ page }) => {
+		// #1574: Ausgangszustand Gleichverteilung deterministisch herstellen (parallele Specs im
+		// Shard teilen die DB) — der Test assertiert „kein Alert bei Start".
+		await setEqualPillarWeights(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
@@ -65,6 +68,9 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 	test('AK4: Speichern einer ungleichen Verteilung bleibt trotz Hinweis möglich (via Bestätigung)', async ({
 		page,
 	}) => {
+		// #1574: Regler-Flow geht von 5 × 0,2 aus (0,2 → 0,6/0,1) — Gleichverteilung aktiv
+		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.
+		await setEqualPillarWeights(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
