@@ -15,7 +15,7 @@ RULE SOURCES (yardstick for the perspectives AND subject of the rulebook check �
 CODE SOURCES (subject of the four perspectives): server/src/**, frontend/src/**, .github/scripts/** — broad reads via the `recherche` subagent role (ADR 0008), only file:line candidates back into your context.
 
 FIX ALLOWED TODAY: {{FIX_ALLOWED}}
-  - true: you are on branch {{BRANCH}} (reset to main). Implement exactly one fix per METHOD, run the gate once at the end (pnpm format && pnpm lint && pnpm knip && pnpm test), then `git add -A && git commit -m "<conventional-commit-subject>"` — exactly ONE commit, nothing else.
+  - true: you are on branch {{BRANCH}} (reset to main). Implement exactly one fix per METHOD, run the canonical gate from AGENTS.md (mirror of CI Verify) once at the end over all changes — `pnpm knip` may follow as deliberate extra sharpness — then `git add -A && git commit -m "<conventional-commit-subject>"` — exactly ONE commit, nothing else.
   - false: yesterday's fix is still in the review pipeline. Review and protocol only — do NOT edit files, do NOT commit; note the fix candidate under "Heutiger Fix" as ausgesetzt.
 
 FORBIDDEN in a fix (the workflow rejects the commit): everything under .github/** EXCEPT .github/scripts/** (tested code), pnpm-lock.yaml, any package.json, docs/adr/**, openapi.yml, server/src/db/**. Allowed for a rule consolidation: AGENTS.md, .ai-knowledge/**, docs/*.md. Fix criteria, exclusions and size limit binding per SKILL.md (Fix-Auswahl/Umsetzung); CI orchestration outside the tested scripts is reported only (SKILL.md).

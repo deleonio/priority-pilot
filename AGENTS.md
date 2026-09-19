@@ -76,9 +76,13 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   ([Spec](.claude/skills/ticket-spec/SKILL.md), [Umsetzung](.claude/skills/ticket-implementation/SKILL.md) — beide
   Eingänge) committen, pushen und erstellen/aktualisieren PRs als ausdrücklichen Teil ihres Auftrags,
   inkl. eines etwaigen [Memory](#memory)-Eintrags im Phasen-Commit.
-- Jeder PR führt `pnpm format`, `pnpm lint` **und `pnpm test`** aus (grün ist Pflicht,
-  [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und dokumentiert die Ergebnisse in der
-  PR-Beschreibung.
+- **Kanonisches Gate** (Spiegel der CI-Verify-Kette,
+  [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2): Jeder PR führt vor dem Push
+  `pnpm format` && `pnpm exec prettier --check .` && `pnpm lint` && `pnpm -r build` &&
+  `pnpm test` aus — grün ist Pflicht; E2E scoped: nur die Playwright-Specs der berührten
+  UI-Fläche, sofern eine existiert (CI fährt die volle Suite sharded über jeden App-Code-PR).
+  Ergebnisse in die PR-Beschreibung. `pnpm knip` bleibt bewusste Zusatzschärfe des
+  Implement-Skills, nicht Teil des kanonischen Gates.
 
 ## Memory
 
