@@ -365,11 +365,18 @@ kol-toolbar {
  * Inset zusätzlich hier, läge die Leiste im Standzustand doppelt so tief unter der Notch. Im Modus
  * „Kopfzeile unten" erreicht dagegen der INHALT die Viewport-Oberkante und trägt den Inset selbst
  * (`.app.header-bottom` unten).
+ *
+ * #1258: Das Stand-Padding oben entfällt seit dem Sticky-Umbau vollständig — der untere
+ * Abstandsschild der Kopfzeile liefert selbst --pp-space-2 Abstand zwischen Leiste und Inhalt,
+ * jedes zusätzliche Stand-Padding würde diesen Abstand doppelt zahlen. Die Kopfzeilen-Geometrie
+ * (Schild + Leiste + Schild) summiert sich dadurch auf exakt das alte Vertikalbudget von 60px
+ * @375px (vorher: 16px Padding + 44px Leiste), das #1258 AK2 (vier Aufgaben ohne Scrollen)
+ * verlangt; ab 48rem gilt dasselbe zurückgegebene Budget (—space-5 statt —space-6).
  */
 .app {
 	max-width: 80rem;
 	margin: 0 auto;
-	padding-top: var(--pp-space-4);
+	padding-top: 0;
 	padding-right: max(var(--pp-space-3), env(safe-area-inset-right));
 	padding-bottom: calc(var(--pp-space-7) + env(safe-area-inset-bottom));
 	padding-left: max(var(--pp-space-3), env(safe-area-inset-left));
@@ -377,7 +384,7 @@ kol-toolbar {
 
 @media (min-width: 48rem) {
 	.app {
-		padding-top: var(--pp-space-6);
+		padding-top: var(--pp-space-5);
 		padding-right: max(var(--pp-space-5), env(safe-area-inset-right));
 		padding-bottom: calc(var(--pp-space-8) + env(safe-area-inset-bottom));
 		padding-left: max(var(--pp-space-5), env(safe-area-inset-left));
