@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { headerAction, waitForStableView } from './helpers';
+import { headerAction, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #270 „Einstellungen: Popover durch Zahnrad-Toolbar-Button und Route
@@ -84,6 +84,10 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 * unverändert gegenüber dem bisherigen Modal).
 	 */
 	test('AK5: „Speichern" löst einen PUT /pillars/weights aus', async ({ page }) => {
+		// #1574: Nur eine ausgewogene Verteilung speichert direkt (sonst öffnet das
+		// Bestätigungs-Modal und der PUT bliebe aus) — Gleichverteilungs-Reset gegen parallele
+		// Specs im selben Shard (geteilte In-Memory-DB).
+		await setEqualPillarWeights(page);
 		await page.goto('/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 

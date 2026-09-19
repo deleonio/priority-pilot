@@ -637,3 +637,52 @@ describe('isDistributionUnbalanced (#1555)', () => {
 		expect(isDistributionUnbalanced?.([0.7, 0.3])).toBe(false);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1574 — reine Funktion `hasExtremeShare` (Spec: docs/spec/issue-1574.md).
+ *
+ * Vertrag: Anteil je Säule = roh / Σroh (null zählt als 0); Extremanteil genau dann, wenn bei
+ * n ≥ 2 ein Anteil ≈ 0 % oder ≈ 100 % ist (Float-Toleranz analog WEIGHT_SUM_EPSILON). Ausnahme:
+ * Bei höchstens einer Säule ist 100 % die einzig gültige Verteilung → false. Nicht normierbar
+ * (Σ ≤ 0) → false (der bestehende Summen-Fehlerzustand meldet sich bereits).
+ *
+ * Der Export existiert noch nicht (neue Funktionalität) — deshalb der optionale Cast statt eines
+ * direkten Named-Imports (Muster #1555-Block): `tsc --noEmit` (Pre-Commit) bleibt grün, der Test
+ * läuft rot, bis die Funktion implementiert ist.
+ */
+const { hasExtremeShare } = pillarModule as unknown as {
+	hasExtremeShare?: (raws: readonly (number | null)[]) => boolean;
+};
+
+describe('hasExtremeShare (#1574)', () => {
+	it('AK4: 100 %/0 %-Verteilung ([1, 0]) hat einen Extremanteil', () => {
+		expect(hasExtremeShare?.([1, 0])).toBe(true);
+	});
+
+	it('AK4: 0 %-Säule am Ende ist ein Extremanteil ([0.2, 0.2, 0.2, 0.2, 0])', () => {
+		expect(hasExtremeShare?.([0.2, 0.2, 0.2, 0.2, 0])).toBe(true);
+	});
+
+	it('AK4: null zählt als 0 — geleerte Säule ist ein Extremanteil ([0.4, null])', () => {
+		expect(hasExtremeShare?.([0.4, null])).toBe(true);
+	});
+
+	it('unausgewogen OHNE Extrem ist KEIN Blockiergrund — das ist der Confirm-Fall (AK1/AK2)', () => {
+		expect(hasExtremeShare?.([0.45, 0.05, 0.2, 0.15, 0.15])).toBe(false);
+		expect(hasExtremeShare?.([0.6, 0.1, 0.1, 0.1, 0.1])).toBe(false);
+	});
+
+	it('Grenzfälle exakt 2×/½ des gleichmäßigen Anteils sind keine Extreme (40/20/20/10/10)', () => {
+		expect(hasExtremeShare?.([0.4, 0.2, 0.2, 0.1, 0.1])).toBe(false);
+	});
+
+	it('AK4-Ausnahme: einzelne Säule (100 % einzig gültige Verteilung) ist nie extrem', () => {
+		expect(hasExtremeShare?.([1])).toBe(false);
+		expect(hasExtremeShare?.([0.7])).toBe(false);
+	});
+
+	it('nicht normierbar (alles 0 bzw. leer) → false, kein Doppelmelden zum Summen-Fehlerzustand', () => {
+		expect(hasExtremeShare?.([0, 0, 0])).toBe(false);
+		expect(hasExtremeShare?.([])).toBe(false);
+	});
+});

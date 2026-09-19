@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolInputRange } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -10,12 +10,14 @@ import {
 	RAW_WEIGHT_MAX,
 	RAW_WEIGHT_MIN,
 	RAW_WEIGHT_STEP,
+	hasExtremeShare,
 	isDistributionUnbalanced,
 	isRawDistributionValid,
 	normalizeToTotalWeight,
 	sumWeights,
 	weightToRaw,
 } from '../lib/pillar';
+import { Modal } from './Modal';
 
 interface PillarWeightsFormProps {
 	/** Aktuelle Säulen samt Gewichten (`GET /pillars`); Reihenfolge wie geliefert (nach id). */
@@ -25,6 +27,10 @@ interface PillarWeightsFormProps {
 	/** Optionaler Abbrechen-Handler; nur wenn gesetzt, wird der „Abbrechen"-Button gerendert (Modal). */
 	onCancel?: () => void;
 }
+
+/** #1555-Hinweistext — wortgleich im Formular-Alert und im #1574-Bestätigungs-Modal. */
+const UNBALANCED_HINT =
+	'Diese Verteilung weicht stark vom gleichmäßigen Zustand ab — Säulen sind üblicherweise eher ausgeglichen gewichtet. Das ist nur ein Hinweis: Du kannst trotzdem speichern.';
 
 /**
  * Gemeinsame Gewichtungs-Formularlogik für die Lebensbalance-Säulen: je Säule ein freier Rohwert von
@@ -45,22 +51,27 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 	const [sum, setSum] = useState(() => sumWeights(weights.current));
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	// #1574: Bestätigungs-Modal für stark unausgewogene Verteilungen — `true` heißt „offen",
+	// geschlossen wird per `setConfirmOpen(false)` (Button, Esc, Backdrop via `Modal.onClose`).
+	const [confirmOpen, setConfirmOpen] = useState(false);
+
+	// „Abbrechen" im Bestätigungs-Modal ist der sicherere Initialfokus (#472-Muster aus
+	// ConfirmDeleteDialog): Bestätigen soll nicht versehentlich per Enter auslösbar sein.
+	const cancelRef = useRef<HTMLKolButtonElement>(null);
 
 	// Gültig, sobald jeder Wert ≥ 0 ist und mindestens einer > 0 (sonst nicht auf 100 % normierbar).
 	const distributionValid = isRawDistributionValid(weights.current);
 
 	// #1555: rein informativer Hinweis auf starke Unausgewogenheit (Anteil > 2× oder < ½ des
-	// gleichmäßigen Anteils) — kein Validierungskriterium, blockiert das Speichern nicht. Wie
+	// gleichmäßigen Anteils) — blockiert das Speichern nicht, fragt seit #1574 aber nach. Wie
 	// `distributionValid` bei jedem Render aus dem Ref abgeleitet; das Re-Render-Signal liefert
 	// der bestehende `setSum`-Aufruf, der bei jeder Slider-Eingabe feuert.
 	const unbalanced = isDistributionUnbalanced(weights.current);
 
-	const save = async (): Promise<void> => {
-		if (!isRawDistributionValid(weights.current)) {
-			setError('Jedes Gewicht muss eine Zahl ≥ 0 sein und mindestens eine Säule muss > 0 sein.');
-			return;
-		}
-		// Durch die Validierung oben sind alle Werte nicht-`null`; vor dem Speichern auf 100 % normieren.
+	// Der eigentliche Speichervorgang (normieren → PUT) — vom #1574-Gate in `save()` entkoppelt,
+	// damit der Bestätigungspfad denselben Code unmittelbar (ohne Wartefrist, AK5) auslösen kann.
+	const performSave = async (): Promise<void> => {
+		// `save()` hat die Verteilung vorab geprüft; alle Werte sind dort nicht-`null`.
 		const normalized = normalizeToTotalWeight(weights.current.map((weight) => weight ?? 0));
 		const entries = pillars.map((pillar, index) => ({ id: pillar.id, weight: normalized[index] }));
 
@@ -81,9 +92,47 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 		}
 	};
 
+	// Gate vor dem PUT (#1574) — Speichern-Button und Strg+Enter laufen beide hier durch, beide
+	// Einbindungen (Settings-Seite, PillarWeightsModal) erben es.
+	const save = async (): Promise<void> => {
+		if (!isRawDistributionValid(weights.current)) {
+			setError('Jedes Gewicht muss eine Zahl ≥ 0 sein und mindestens eine Säule muss > 0 sein.');
+			return;
+		}
+		// AK4: Nach der Normierung würde eine Säule komplett leer (0 %) oder voll (100 %) — mit
+		// mehreren Säulen fast sicher ein Versehen, daher blockierend statt bestätigbar. Die
+		// Sliderwerte bleiben unverändert, der Nutzer kann die Regler nachziehen.
+		if (hasExtremeShare(weights.current)) {
+			setError(
+				'Nach der Normierung würde eine Säule 0 % oder 100 % erhalten — jede Säule braucht einen Anteil größer 0 (bei nur einer Säule ist 100 % in Ordnung).',
+			);
+			return;
+		}
+		// AK1: Bei starker Unausgewogenheit (#1555-Warnung) nach Bestätigung fragen — erst „Trotzdem speichern"
+		// sendet den PUT. Die Sliderwerte bleiben unverändert, erneutes Speichern ist möglich.
+		if (unbalanced) {
+			setConfirmOpen(true);
+			return;
+		}
+		await performSave();
+	};
+
+	// Bestätigen im #1574-Modal: Modal schließen und den PUT unmittelbar auslösen (AK5 — keine
+	// Wartefrist im Save-Pfad). Strg+Enter im Modal läuft über denselben Weg.
+	const confirmSave = (): void => {
+		setConfirmOpen(false);
+		void performSave();
+	};
+
+	// Strg+Enter (bzw. ⌘+Enter) im Bestätigungs-Modal bestätigt (ConfirmDeleteDialog-Muster). Der
+	// Formular-Shortcut unten ist bei offenem Modal gesperrt, damit ein Kürzel nicht doppelt feuert
+	// (kein zweites Modal, kein zweiter PUT).
+	useCtrlEnter(() => confirmSave(), confirmOpen && !saving);
+
 	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Speichern" aus — nur wenn er nicht deaktiviert ist
-	// (kein laufendes Speichern, Säulen vorhanden, gültige Verteilung), analog zu dessen `_disabled`.
-	useCtrlEnter(() => void save(), !saving && pillars.length > 0 && distributionValid);
+	// (kein laufendes Speichern, Säulen vorhanden, gültige Verteilung, Bestätigungs-Modal zu), analog
+	// zu dessen `_disabled`.
+	useCtrlEnter(() => void save(), !saving && !confirmOpen && pillars.length > 0 && distributionValid);
 
 	return (
 		<>
@@ -102,8 +151,7 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 			{unbalanced && (
 				<div aria-live="polite">
 					<KolAlert _type="warning" _label="Verteilung stark unausgewogen">
-						Diese Verteilung weicht stark vom gleichmäßigen Zustand ab — Säulen sind üblicherweise eher ausgeglichen
-						gewichtet. Das ist nur ein Hinweis: Du kannst trotzdem speichern.
+						{UNBALANCED_HINT}
 					</KolAlert>
 				</div>
 			)}
@@ -175,6 +223,36 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 					<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onCancel() }} />
 				)}
 			</div>
+
+			{/* #1574: Bestätigungs-Modal bei aktiver #1555-Warnung (AK1/AK2). Esc und Backdrop wirken wie
+			    „Abbrechen" (kein PUT) — `Modal.onClose` deckt alle drei Wege ab. Der Warn-Alert zeigt den
+			    Hinweistext wortgleich zum Formular; „Abbrechen" erhält den Initialfokus (#472-Muster). */}
+			{confirmOpen && (
+				<Modal
+					title="Verteilung stark unausgewogen"
+					onClose={() => setConfirmOpen(false)}
+					initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
+				>
+					<KolAlert _type="warning" _label="Verteilung stark unausgewogen">
+						{UNBALANCED_HINT}
+					</KolAlert>
+					<div className="modal-actions pillar-confirm-actions">
+						<KolButton
+							ref={cancelRef}
+							_label="Abbrechen"
+							_variant="secondary"
+							_disabled={saving}
+							_on={{ onClick: () => setConfirmOpen(false) }}
+						/>
+						<KolButton
+							_label={saving ? 'Speichern…' : 'Trotzdem speichern'}
+							_variant="primary"
+							_disabled={saving}
+							_on={{ onClick: () => confirmSave() }}
+						/>
+					</div>
+				</Modal>
+			)}
 		</>
 	);
 };
