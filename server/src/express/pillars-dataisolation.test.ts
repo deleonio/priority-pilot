@@ -79,17 +79,14 @@ describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)',
 	// ── POST /tasks mit Säulen-Beiträgen — nur eigene Säulen zulässig ─────────────────────
 
 	it('POST /tasks mit Säulen-Beiträgen wird 400, wenn pillarId fremder Säule gehört (AK4)', async () => {
-		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
+		// Login legt Alice als Nutzer id 1 an (Grundlage für seedPillarsForUser); ihr Cookie wird
+		// hier nicht gebraucht — der Task-Post läuft mit Bobs Cookie gegen Alices Säulen-id.
+		await server.login(TEST_EMAIL_ALICE);
 		const bobCookie = await server.login(TEST_EMAIL_BOB);
 
-		// Alice legt Säule an
-		const alicePillarRes = await fetch(`${server.baseUrl}/pillars`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
-			body: JSON.stringify({ name: 'AlicePillar', description: 'Nur für Alice' }),
-		});
-		assert.equal(alicePillarRes.status, 201);
-		const alicePillarId = (await alicePillarRes.json()).id as number;
+		// Alice' Säulen stehen per Seed bereit (Säulen-CRUD ist seit #1573 gesperrt)
+		const alicePillars = await seedPillarsForUser(1);
+		const alicePillarId = alicePillars[0]!.id;
 
 		// Bob versucht Task mit Alices Säule zu erstellen → 400 (Säule nicht für Bob existent)
 		const bobTaskRes = await fetch(`${server.baseUrl}/tasks`, {
@@ -104,67 +101,5 @@ describe('Säulen-Datenisolation — nutzer-eigene Säulen (Teil 2, #428, AK4)',
 			}),
 		});
 		assert.equal(bobTaskRes.status, 400, 'Bob darf Alices Säule nicht verwenden');
-	});
-
-	// ── PATCH /pillars/:id — nur eigene Säulen änderbar ─────────────────────────────────
-
-	it('PATCH /pillars/:id liefert 404 bei fremder Säule (AK4)', async () => {
-		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
-		const bobCookie = await server.login(TEST_EMAIL_BOB);
-
-		// Alice legt Säule an
-		const alicePillarRes = await fetch(`${server.baseUrl}/pillars`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
-			body: JSON.stringify({ name: 'AliceOriginal', description: '' }),
-		});
-		assert.equal(alicePillarRes.status, 201);
-		const alicePillarId = (await alicePillarRes.json()).id as number;
-
-		// Bob versucht Alices Säule zu patchen → 404
-		const bobPatchRes = await fetch(`${server.baseUrl}/pillars/${alicePillarId}`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json', cookie: bobCookie },
-			body: JSON.stringify({ name: 'Geklaut', description: '' }),
-		});
-		assert.equal(bobPatchRes.status, 404, 'Bob darf Alices Säule nicht ändern');
-
-		// Alice darf sie ändern → 200
-		const alicePatchRes = await fetch(`${server.baseUrl}/pillars/${alicePillarId}`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
-			body: JSON.stringify({ name: 'AliceUmbenannt', description: 'Geht' }),
-		});
-		assert.equal(alicePatchRes.status, 200, 'Alice darf ihre eigene Säule ändern');
-	});
-
-	// ── DELETE /pillars/:id — nur eigene Säulen löschbar ────────────────────────────────
-
-	it('DELETE /pillars/:id liefert 404 bei fremder Säule (AK4)', async () => {
-		const aliceCookie = await server.login(TEST_EMAIL_ALICE);
-		const bobCookie = await server.login(TEST_EMAIL_BOB);
-
-		// Alice legt Säule an
-		const alicePillarRes = await fetch(`${server.baseUrl}/pillars`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
-			body: JSON.stringify({ name: 'AliceDelete', description: '' }),
-		});
-		assert.equal(alicePillarRes.status, 201);
-		const alicePillarId = (await alicePillarRes.json()).id as number;
-
-		// Bob versucht Alices Säule zu löschen → 404
-		const bobDeleteRes = await fetch(`${server.baseUrl}/pillars/${alicePillarId}`, {
-			method: 'DELETE',
-			headers: { cookie: bobCookie },
-		});
-		assert.equal(bobDeleteRes.status, 404, 'Bob darf Alices Säule nicht löschen');
-
-		// Alice darf sie löschen → 204
-		const aliceDeleteRes = await fetch(`${server.baseUrl}/pillars/${alicePillarId}`, {
-			method: 'DELETE',
-			headers: { cookie: aliceCookie },
-		});
-		assert.equal(aliceDeleteRes.status, 204, 'Alice darf ihre eigene Säule löschen');
 	});
 });

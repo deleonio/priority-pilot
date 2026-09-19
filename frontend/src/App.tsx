@@ -831,7 +831,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					tab={settingsTab}
 					onTabChange={changeSettingsTab}
 					onSaved={afterSettingsSaved}
-					onPillarChanged={handleMasterDataChanged}
 					onCategoryChanged={handleMasterDataChanged}
 					isAdmin={isAdmin}
 					isTester={isTester}

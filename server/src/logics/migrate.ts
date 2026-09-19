@@ -379,6 +379,108 @@ export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Führt den Säulen-Bestand jedes Nutzers auf EXAKT die fünf festen Standard-Säulen zurück
+ * (#1573), BEVOR `sequelize.sync()` läuft und NACH `migratePillarPerUser` (braucht dessen
+ * `userId`-Spalte). Pro Nutzer:
+ *
+ *   1. umbenannte Standard-Säulen: Zeilen ohne Standard-Namen füllen die Lücken fehlender
+ *      Standard-Namen (Reihenfolge: Zeilen nach id, Lücken in SEED-PILLARS-Reihenfolge) —
+ *      die id bleibt dieselbe, damit die id-basierten Beiträge (task_pillars/series_pillars)
+ *      unverändert erhalten bleiben;
+ *   2. zusätzliche Säulen (überschüssige Zeilen ohne Standard-Namen): mitsamt ihrer Beiträge
+ *      entfernt (folgt der bisherigen DELETE-Semantik aus `routes/pillars.ts`);
+ *   3. fehlende Standard-Säulen: neu angelegt — Gewicht nach AK5: Ist die Summe der
+ *      verbliebenen Gewichte <= 100, füllen die neuen den Rest gleichmäßig auf, sonst werden
+ *      alle proportional auf 100 renormiert und die neuen starten bei 0.
+ *
+ * Idempotent: Ein zweiter Lauf findet exakt die 5 Standard-Namen vor und ändert nichts.
+ * No-op bei frischer DB (keine `pillars`-Tabelle) — Seed und sync() übernehmen dort.
+ */
+export const migratePillarRestore = async (db: Sequelize): Promise<void> => {
+	const [pillarCols] = await db.query("PRAGMA table_info('pillars')");
+	if ((pillarCols as { name: string }[]).length === 0) {
+		return;
+	}
+
+	const [tableRows] = await db.query("SELECT `name` FROM `sqlite_master` WHERE `type` = 'table'");
+	const tables = new Set((tableRows as { name: string }[]).map((row) => row.name));
+	if (!tables.has('users')) {
+		return;
+	}
+
+	const standardNames = SEED_PILLARS.map((pillar) => pillar.name);
+	const [userRows] = await db.query('SELECT `id` FROM `users`');
+	const userIds = (userRows as { id: number }[]).map((row) => row.id);
+
+	for (const userId of userIds) {
+		const [ownRows] = await db.query('SELECT `id`, `name`, `weight` FROM `pillars` WHERE `userId` = ?', {
+			replacements: [userId],
+		});
+		const own = ownRows as { id: number; name: string; weight: number }[];
+
+		const owned = new Set(own.map((row) => row.name));
+		const missing = standardNames.filter((name) => !owned.has(name));
+		const extras = own.filter((row) => !standardNames.includes(row.name));
+
+		// 1. Umbenannte Zeilen füllen die Lücken (id-Reihenfolge auf SEED-Reihenfolge gepaart) —
+		// Reset per UPDATE auf demselben Datensatz, damit Beiträge an der id hängen bleiben.
+		const renamedCount = Math.min(missing.length, extras.length);
+		for (let i = 0; i < renamedCount; i += 1) {
+			await db.query('UPDATE `pillars` SET `name` = ? WHERE `id` = ?', {
+				replacements: [missing[i], extras[i]!.id],
+			});
+		}
+
+		// 2. Überschüssige zusätzliche Säulen mitsamt Beiträgen entfernen (DELETE-Semantik #428/#1573).
+		for (let i = renamedCount; i < extras.length; i += 1) {
+			const extraId = extras[i]!.id;
+			if (tables.has('task_pillars')) {
+				await db.query('DELETE FROM `task_pillars` WHERE `pillarId` = ?', { replacements: [extraId] });
+			}
+			if (tables.has('series_pillars')) {
+				await db.query('DELETE FROM `series_pillars` WHERE `pillarId` = ?', { replacements: [extraId] });
+			}
+			await db.query('DELETE FROM `pillars` WHERE `id` = ?', { replacements: [extraId] });
+		}
+
+		// 3. Fehlende Standard-Säulen anlegen (Name/Beschreibung aus SEED_PILLARS, Gewicht nach AK5).
+		const toCreate = missing.slice(renamedCount);
+		if (toCreate.length === 0) {
+			continue;
+		}
+		const [currentRows] = await db.query('SELECT `id`, `weight` FROM `pillars` WHERE `userId` = ?', {
+			replacements: [userId],
+		});
+		const current = currentRows as { id: number; weight: number }[];
+		const keptSum = current.reduce((acc, row) => acc + row.weight, 0);
+
+		let createWeight: number;
+		if (keptSum > 100) {
+			// Renormierung der verbliebenen Säulen auf 100 (Faktor), neue Säulen starten bei 0.
+			const factor = 100 / keptSum;
+			for (const row of current) {
+				await db.query('UPDATE `pillars` SET `weight` = ? WHERE `id` = ?', {
+					replacements: [row.weight * factor, row.id],
+				});
+			}
+			createWeight = 0;
+		} else {
+			// Rest bis 100 gleichmäßig auf die neuen Säulen verteilen.
+			createWeight = (100 - keptSum) / toCreate.length;
+		}
+
+		for (const name of toCreate) {
+			const seed = SEED_PILLARS.find((pillar) => pillar.name === name)!;
+			await db.query(
+				'INSERT INTO `pillars` (`name`, `weight`, `description`, `userId`, `createdAt`, `updatedAt`) ' +
+					'VALUES (:name, :weight, :description, :userId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+				{ replacements: { name: seed.name, weight: createWeight, description: seed.description, userId } },
+			);
+		}
+	}
+};
+
+/**
  * Zieht die nullbare `userId`-Spalte an `pillar_feedback` nach (#430, AK3), BEVOR `sequelize.sync()`
  * läuft. `sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue Spalten — die Spalte fehlt
  * auf einer Bestands-DB, und `loadFeedbackExamples({ where: { userId } })` bräche mit
