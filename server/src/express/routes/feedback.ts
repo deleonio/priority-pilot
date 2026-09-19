@@ -8,8 +8,8 @@ import { User } from '../../models/index.js';
 
 type ErrorDto = { message: string };
 
-/** Erlaubte Feedback-Kategorien (Issue #1435, AK4) — alles andere ist ein 400. */
-const CATEGORIES = ['bug', 'feature', 'idee', 'frage'] as const;
+/** Erlaubte Feedback-Kategorien (Issue #1435, in #1475 auf drei konsolidiert) — alles andere ist ein 400. */
+const CATEGORIES = ['frage', 'wunsch', 'bug'] as const;
 type Category = (typeof CATEGORIES)[number];
 
 /** Code-Defaults der Konfiguration; überschreibbar über die `FEEDBACK_GITHUB_*`-Variablen. */

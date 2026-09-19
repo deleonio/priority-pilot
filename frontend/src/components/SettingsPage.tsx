@@ -25,6 +25,7 @@ import { useAiFeaturesEnabled } from '../lib/aiPreferences';
 import { planLabel } from '../lib/planOffers';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
+import { HeaderPositionSetting } from './HeaderPositionSetting';
 import { BalanceVariantSetting } from './BalanceVariantSetting';
 import { LanguageSetting } from './LanguageSetting';
 import { AdminUsersSection } from './AdminUsersSection';
@@ -33,6 +34,7 @@ import { PlaceFavoritesSection } from './PlaceFavoritesSection';
 import { CategoryList } from './CategoryList';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
+import { OwnPlanCard } from './OwnPlanCard';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 import { PlansSection } from './PlansSection';
@@ -51,7 +53,7 @@ interface SettingsPageProps {
 	onCategoryChanged?: () => void;
 	/** Rollensystem admin/member: blendet den Tab „Nutzerverwaltung" ein (Server erzwingt, UI blendet nur aus). */
 	isAdmin?: boolean;
-	/** #1556: Id des eingeloggten Nutzers — nur deren Zeile bekommt die Paket-Auswahl (App → hier → AdminUsersSection). */
+	/** #1565: Id des eingeloggten Nutzers — Ziel des eigenen Paket-Wechsels (App → hier → OwnPlanCard). */
 	currentUserId?: number;
 }
 
@@ -400,6 +402,8 @@ export const SettingsPage = ({
 					<KolCard className="settings-card" _label="Darstellung und Eingabe" _level={2}>
 						<div className="settings-card-stack">
 							<AppearanceSetting />
+							{/* #1428: Kopfzeile oben/unten — ebenfalls eine Darstellungsfrage der App-Shell. */}
+							<HeaderPositionSetting />
 							<LanguageSetting />
 							{/* Bildwahl für die Lebensbalance auf der Startseite — gehört zur Darstellung, nicht
 									zu den Animationen: Sie gilt auch, wenn gar nichts animiert wird. */}
@@ -813,6 +817,10 @@ export const SettingsPage = ({
 				{/* #1529 AK1: „Pakete" (Matrix, Preise, Buchen/Wechseln) und „Abo" (Status, Kündigung,
 				    Rechnungen) als eigene Reiter — vorher lag beides gemeinsam als Karte im Allgemein-Tab. */}
 				<div slot="tab-6" className="settings-plans settings-panel">
+					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER der Matrix —
+					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit
+					        spätere Rollen (z. B. tester) sie ohne Tab-Umbau aufnehmen können (AK4). */}
+					{isAdmin && typeof currentUserId === 'number' && <OwnPlanCard userId={currentUserId} />}
 					<KolCard className="settings-card" _label="Pakete im Vergleich" _level={2}>
 						<PlansSection />
 					</KolCard>
@@ -825,7 +833,7 @@ export const SettingsPage = ({
 				{isAdmin && (
 					<div slot="tab-8" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
-							<AdminUsersSection currentUserId={currentUserId} />
+							<AdminUsersSection />
 						</KolCard>
 					</div>
 				)}

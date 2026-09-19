@@ -233,3 +233,10 @@ Konflikte, die er verhindern soll.
   Schwestertests auf Widersprüche lesen, bevor der erste Rot-Fix umgesetzt wird; bei Kollision
   gilt der etablierte Bestandsvertrag, die Spec-Assertion wird als begründete Test-Pflege
   geändert (file:line + Warum im PR-Body).
+- 2026-09-18 · CI/gh — `gh issue edit <nr> --add-assignee @me` scheitert in dieser Harness-Umgebung
+  an der GitHub-App-Installation („Assigning agents is not supported with GitHub App installation
+  tokens", GraphQL replaceActorsForAssignable) → Zuweisung weglassen und direkt weiterarbeiten; der
+  offene PR ist der Fortschrittsmarker, das Label-Setzen macht der Workflow. Und: wächst der
+  MCP-Werkzeugkatalog, gibt es einen FÜNFTEN Zähler neben tools.test.ts —
+  `server/src/express/mcp-handshake.test.ts` (Handshake-Regressionstest) zählt den Katalog hart
+  mit; bei jedem Katalog-Zuwachs mitpflegen und als Test-Pflege im PR-Body dokumentieren.

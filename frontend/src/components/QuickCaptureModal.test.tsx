@@ -1,7 +1,6 @@
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
 import type { EntitlementMap, Plan } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 import { QuickCaptureModal } from './QuickCaptureModal';
@@ -423,32 +422,36 @@ describe('QuickCaptureModal — KI-Kontingent (#1458 AK10)', () => {
 	});
 });
 
-// ── #1458 Entscheidung 7.1: kein Modal-in-Modal ─────────────────────────────────────────────────
+// ── #1528 AK3/TF4: Badge im Modal ohne Klickziel, Eingabetext bleibt ────────────────────────────
 
 /**
- * `PlanOfferDialog` hängt als EIN globaler Dialog in `App.tsx` und lauscht auf `pp:plan-required`
- * (AK7). Der (i)-Schalter am `PlanBadge` in diesem Modal und eine serverseitige 403/429-Antwort
- * feuern dasselbe Event — das Angebot öffnete sich damit ÜBER dem offenen Modal, was
- * `docs/mobile-ui-rules.md` als Anti-Pattern führt. Menschliche Entscheidung zum Review von
- * PR #1488: Option 7.1 — das auslösende Modal schließt sich, bevor der Dialog öffnet.
+ * Test-Pflege (#1528): der globale Angebots-Dialog und das `useClosingOnPlanRequired`-Weichen sind
+ * entfallen (AK1) — der frühere „weicht dem Angebots-Dialog"-Test (Entscheidung 7.1) ist damit
+ * gegenstandslos. Entscheidung B des Autors (2026-09-17) stattdessen: das Badge ist im Modal reine
+ * Beschriftung (`inModal`, kein Klickziel) — ein Klick schließt nichts und ein getippter Text
+ * bleibt im State erhalten (AK3/TF4; 375px/1280px deckt die e2e-Spec).
  */
-describe('QuickCaptureModal — weicht dem Angebots-Dialog (#1458, Entscheidung 7.1)', () => {
+describe('QuickCaptureModal — Badge im Modal schließt nichts (#1528 AK3/TF4)', () => {
 	afterEach(cleanup);
 
-	it('ruft onClose, sobald ein Paket-Angebot angefordert wird', () => {
+	it('Badge-Klick navigiert nicht, schließt das Modal nicht, Eingabetext bleibt erhalten', async () => {
 		const onClose = vi.fn();
-		render(<QuickCaptureModal pillars={pillars} onClose={onClose} onSaved={vi.fn()} />);
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed: false, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		const { container } = render(
+			<PlanProvider value={{ plan: 'free', entitlements }}>
+				<QuickCaptureModal pillars={pillars} onClose={onClose} onSaved={vi.fn()} />
+			</PlanProvider>,
+		);
+
+		await typeCapture(container, 'Laufen gehen');
+		const badge = screen.getByTestId('plan-badge-ai_assist');
+		expect(badge.closest('a')).toBeNull();
+
+		fireEvent.click(badge);
 
 		expect(onClose).not.toHaveBeenCalled();
-
-		act(() => {
-			window.dispatchEvent(
-				new CustomEvent(PLAN_REQUIRED_EVENT, {
-					detail: { feature: 'ai_assist', requiredPlan: 'pro', currentPlan: 'free' },
-				}),
-			);
-		});
-
-		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(container.querySelector('kol-textarea')?.getAttribute('_value')).toBe('Laufen gehen');
 	});
 });

@@ -9,10 +9,10 @@ import { planLabel } from '../lib/planOffers';
  * inkl. Fehlerpfad (409 „letzter Administrator"), Anzeige von Name/E-Mail/Rolle je Eintrag.
  * Muster: GroupsSection.test.tsx (Mock von `@public-ui/react-v19` + `../api`).
  *
- * #1556 (Spec `docs/spec/issue-1556.md`, AK1–AK3): Paket-Badge je Zeile + Paket-Wechsel
- * (nur eigene Zeile) über `api.updateUserPlan`. Auswahl-Mock bewusst komponentenagnostisch:
- * `KolSelect` UND `KolDropdown` rendern als native Combobox, damit die Implementierung die
- * KoliBri-Komponente frei wählen kann (KI-UX-Block lässt beide zu).
+ * #1556 (Spec `docs/spec/issue-1556.md`, AK1) + #1565 (Spec `docs/spec/issue-1565.md`, AK2):
+ * Paket-Badge je Zeile; die Auswahl zum Selbst-Wechsel ist seit #1565 in die eigene Karte im
+ * Tab Pakete gezogen (`OwnPlanCard.test.tsx`) — die Nutzerverwaltung ist rein lesend, keinerlei
+ * Combobox mehr (auch nicht in der eigenen Zeile).
  */
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -30,75 +30,15 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h4>{_label}</h4>,
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
-	// #1556: Auswahl als native Combobox — `_options` akzeptiert Strings wie Objekte
-	// (`SelectOption`-Form), `_value` die Vorauswahl, Change reicht den Wert durch.
-	KolSelect: ({
-		_label,
-		_options,
-		_value,
-		_disabled,
-		_on,
-	}: {
-		_label?: string;
-		_options?: Array<string | { label?: string; value?: string }>;
-		_value?: string;
-		_disabled?: boolean;
-		_on?: { onChange?: (event: Event, value: string) => void };
-	}) => (
-		<select
-			aria-label={_label}
-			value={_value ?? ''}
-			disabled={_disabled}
-			onChange={(event) => _on?.onChange?.(event as unknown as Event, event.currentTarget.value)}
-		>
-			{_options?.map((option, index) => {
-				const label = typeof option === 'string' ? option : (option.label ?? String(option.value));
-				const value = typeof option === 'string' ? option : String(option.value);
-				return (
-					<option key={index} value={value}>
-						{label}
-					</option>
-				);
-			})}
-		</select>
-	),
-	KolDropdown: ({
-		_label,
-		_options,
-		_value,
-		_disabled,
-		_on,
-	}: {
-		_label?: string;
-		_options?: Array<string | { label?: string; value?: string }>;
-		_value?: string;
-		_disabled?: boolean;
-		_on?: { onChange?: (event: Event, value: string) => void };
-	}) => (
-		<select
-			aria-label={_label}
-			value={_value ?? ''}
-			disabled={_disabled}
-			onChange={(event) => _on?.onChange?.(event as unknown as Event, event.currentTarget.value)}
-		>
-			{_options?.map((option, index) => {
-				const label = typeof option === 'string' ? option : (option.label ?? String(option.value));
-				const value = typeof option === 'string' ? option : String(option.value);
-				return (
-					<option key={index} value={value}>
-						{label}
-					</option>
-				);
-			})}
-		</select>
-	),
+	// Noch vorhanden, weil der AK2-Test gegen den HEUTIGEN Code rot sein muss (Zeilen-Select
+	// existiert); nach der #1565-Implementierung kann der Mock ersatzlos entfallen.
+	KolSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
 }));
 
 vi.mock('../api', () => ({
 	api: {
 		getAdminUsers: vi.fn(),
 		updateUserRole: vi.fn(),
-		updateUserPlan: vi.fn(),
 	},
 }));
 
@@ -107,9 +47,6 @@ import { AdminUsersSection } from './AdminUsersSection';
 
 const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
-// #1556: `updateUserPlan` existiert noch nicht auf dem echten `api`-Objekt (roter Zustand) —
-// der Mock oben stellt es bereit, der Cast hält tsc grün, bis die Implementierung es anlegt.
-const mockUpdateUserPlan = (api as unknown as { updateUserPlan: ReturnType<typeof vi.fn> }).updateUserPlan;
 
 type TestUser = {
 	id: number;
@@ -138,10 +75,18 @@ const rowOf = (name: string): HTMLElement => {
 };
 
 /**
- * Test-Pflege #1556 (Impl-Phase): In der EIGENEN Zeile matchet `getByText(planLabel(…))` neben
- * dem Badge auch die Option der Paket-Auswahl (gleicher planLabel-Text, AK1+AK2 zusammen) —
- * der Query war damit mehrdeutig („Found multiple elements"). Badge-spezifisch = Text-Match
- * außerhalb von `<option>`; Fremdzeilen ohne Auswahl bleiben über `getByText` eindeutig.
+ * #1565: `currentUserId` entfällt mit der Zeilen-Auswahl aus der Komponente. Bis dahin wird es
+ * weiter übergeben (Cast-Muster wie in #1556, hält tsc in beiden Zuständen grün) — genau SO ist
+ * der AK2-Test rot: Der aktuelle Code rendert damit das Zeilen-Select, der Zielzustand keins.
+ */
+const SectionWithOwnId = AdminUsersSection as unknown as (props: { currentUserId?: number }) => ReactElement;
+const renderSection = (currentUserId?: number): ReturnType<typeof render> =>
+	render(<SectionWithOwnId currentUserId={currentUserId} />);
+
+/**
+ * Badge-spezifischer Zeilen-Match: Text außerhalb von `<option>` — historisch aus #1556 (die
+ * Zeilen-Auswahl existiert nicht mehr, #1565), der Filter hält den Query robust gegen künftige
+ * Auswahlelemente in der Zeile.
  */
 const badgeInRow = (row: HTMLElement, label: string): HTMLElement => {
 	const matches = within(row)
@@ -150,15 +95,6 @@ const badgeInRow = (row: HTMLElement, label: string): HTMLElement => {
 	expect(matches, `Paket-Badge „${label}" muss genau einmal in der Zeile stehen`).toHaveLength(1);
 	return matches[0];
 };
-
-/**
- * #1556: Die Sektion erhält die eigene Nutzer-Id als (noch nicht existierendes, rotes) Prop
- * `currentUserId` — nur deren Zeile bekommt die Paket-Auswahl (Spec AK2). Der Cast hält tsc
- * grün, bis die Implementierung das Prop offiziell trägt.
- */
-const SectionWithOwnId = AdminUsersSection as unknown as (props: { currentUserId?: number }) => ReactElement;
-const renderSection = (currentUserId?: number): ReturnType<typeof render> =>
-	render(<SectionWithOwnId currentUserId={currentUserId} />);
 
 afterEach(() => {
 	cleanup();
@@ -221,7 +157,7 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member)', (
 	});
 });
 
-describe('AdminUsersSection — Paket-Badge und Selbst-Wechsel (#1556, Spec AK1–AK3)', () => {
+describe('AdminUsersSection — Paket-Badge je Zeile, rein lesend (#1556 AK1, #1565 AK2)', () => {
 	it('AK1: zeigt in jeder Zeile ein Paket-Badge mit planLabel-Text — auch bei fremden Konten', async () => {
 		mockGetAdminUsers.mockResolvedValue([
 			user({ id: 1, displayName: 'Anna Admin', plan: 'free' }),
@@ -229,66 +165,31 @@ describe('AdminUsersSection — Paket-Badge und Selbst-Wechsel (#1556, Spec AK1�
 			user({ id: 3, displayName: 'Ute Ultimate', role: 'member', plan: 'ultimate' }),
 		]);
 
-		renderSection(1);
+		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Ute Ultimate')).toBeInTheDocument());
 
-		// Eigene Zeile: badge-spezifisch prüfen (s. badgeInRow) — die Auswahl-Option matchet mit.
 		expect(badgeInRow(rowOf('Anna Admin'), planLabel('free'))).toBeInTheDocument();
 		expect(within(rowOf('Max Member')).getByText(planLabel('pro'))).toBeInTheDocument();
 		expect(within(rowOf('Ute Ultimate')).getByText(planLabel('ultimate'))).toBeInTheDocument();
 	});
 
-	it('AK2: eigene Zeile hat eine Combobox mit genau den vier Paketen (aktuelles vorausgewählt), fremde Zeilen keine', async () => {
+	it('AK2 (#1565): keinerlei Paket-Auswahl mehr — auch die eigene Zeile hat keine Combobox', async () => {
 		mockGetAdminUsers.mockResolvedValue([
 			user({ id: 1, displayName: 'Anna Admin', plan: 'free' }),
 			user({ id: 2, displayName: 'Max Member', role: 'member', plan: 'pro' }),
 		]);
 
+		// Bewusst MIT eigener Id gerendert: Der aktuelle Code zeigt das Select genau dann —
+		// der Zielzustand (#1565) zeigt es nirgends, unabhängig vom Prop.
 		renderSection(1);
 		await waitFor(() => expect(screen.getByText('Max Member')).toBeInTheDocument());
 
-		const ownRow = rowOf('Anna Admin');
-		const ownSelect = within(ownRow).getByRole('combobox');
-		const options = within(ownSelect).getAllByRole('option');
-		expect(options.map((option) => option.textContent)).toEqual([
-			planLabel('free'),
-			planLabel('pro'),
-			planLabel('max'),
-			planLabel('ultimate'),
-		]);
-		expect(ownSelect, 'aktuelles Paket ist vorausgewählt').toHaveValue('free');
+		// Der Selbst-Wechsel ist in die eigene Karte im Tab Pakete gezogen (#1565 AK1,
+		// OwnPlanCard.test.tsx) — hier gibt es kein Select/Combobox mehr, in keiner Zeile.
+		expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 
-		expect(within(rowOf('Max Member')).queryByRole('combobox')).not.toBeInTheDocument();
-	});
-
-	it('AK3: Wechsel ruft updateUserPlan mit der eigenen Id und dem Paket und lädt die Liste neu (Badge ohne Reload)', async () => {
-		mockGetAdminUsers
-			.mockResolvedValueOnce([user({ id: 1, displayName: 'Anna Admin', plan: 'free' })])
-			.mockResolvedValueOnce([user({ id: 1, displayName: 'Anna Admin', plan: 'pro' })]);
-		mockUpdateUserPlan.mockResolvedValue(user({ id: 1, plan: 'pro' }));
-
-		renderSection(1);
-		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
-
-		fireEvent.change(within(rowOf('Anna Admin')).getByRole('combobox'), { target: { value: 'pro' } });
-
-		await waitFor(() => expect(mockUpdateUserPlan).toHaveBeenCalledWith({ id: 1, plan: 'pro' }));
-		await waitFor(() => expect(mockGetAdminUsers).toHaveBeenCalledTimes(2));
-		await waitFor(() => expect(badgeInRow(rowOf('Anna Admin'), planLabel('pro'))).toBeInTheDocument());
-	});
-
-	it('AK3 (Fehlerpfad): Server-Fehler des Paket-Wechsels landet als KolAlert, die Liste bleibt stehen', async () => {
-		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin', plan: 'free' })]);
-		mockUpdateUserPlan.mockRejectedValue(new Error('Das Paket muss eines von free, pro, max, ultimate sein.'));
-
-		renderSection(1);
-		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
-
-		fireEvent.change(within(rowOf('Anna Admin')).getByRole('combobox'), { target: { value: 'max' } });
-
-		await waitFor(() =>
-			expect(screen.getByRole('alert')).toHaveTextContent('Das Paket muss eines von free, pro, max, ultimate sein.'),
-		);
-		expect(screen.getByText('Anna Admin')).toBeInTheDocument();
+		// Die Badges bleiben (lesend): Information weiterhin je Konto sichtbar.
+		expect(badgeInRow(rowOf('Anna Admin'), planLabel('free'))).toBeInTheDocument();
+		expect(within(rowOf('Max Member')).getByText(planLabel('pro'))).toBeInTheDocument();
 	});
 });

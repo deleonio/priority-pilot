@@ -104,7 +104,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		try {
 			const { tools } = await client.listTools();
 			const names = tools.map((tool) => tool.name).sort();
-			assert.equal(names.length, 27, `Katalog sollte siebenundzwanzig Namen führen, war: ${names.join(', ')}`);
+			assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
 			for (const expected of [
 				'task_list',
 				'task_create',

@@ -354,6 +354,43 @@ kol-toolbar {
 	}
 }
 
+/*
+ * #1428: Kopfzeile unten — die Verschiebung passiert bewusst rein per Layout: `.app` wird zur
+ * Flex-Spalte, `order` sortiert die Kopfzeile visuell unter den Inhalt, der Seitenfuß bleibt
+ * letztes Element (order 3). Die DOM-Reihenfolge — `role="banner"` bleibt erstes Kind — und damit
+ * Lese- und Screenreader-Reihenfolge bleiben unverändert; bekannt bleibt die dadurch entstehende
+ * Divergenz zwischen visuelle(r) und Tab-Reihenfolge (WCAG 2.4.3), siehe PR-Diskussion.
+ */
+.app.header-bottom {
+	display: flex;
+	flex-direction: column;
+}
+
+.app.header-bottom .app-header {
+	order: 2;
+	/*
+	 * Unten = Daumenzone (mobile-ui-rules Regel 1): Die Kopf-Aktionen müssen ohne Scrollen
+	 * erreichbar sein — auf langen Seiten läge der Fluss-Platz am Dokumentende unter dem
+	 * Sichtfenster. `sticky` pinnt die Zeile deshalb an den unteren Viewport-Rand (natürlicher
+	 * Platz bleibt das Dokumentende, der Seitenfuß folgt darunter). Der Header steht in der
+	 * DOM-Reihenfolge vor dem Inhalt, braucht also ein z-Index, damit der Inhalt nicht über
+	 * die klebende Zeile malt; Updates/Toasts (1000/1001) bleiben darüber.
+	 */
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	/*
+	 * Der untere Safe-Area-Inset steckt sonst nur im Seiten-Padding unter dem Fuß — die unten
+	 * stehende Kopfzeile braucht eigenen Abstand, sonst liegen die Toolbar-Buttons auf dem
+	 * Home-Indicator (AK5). Basis bleibt das Regel-Padding ab 48rem (`--pp-space-2`).
+	 */
+	padding-bottom: calc(var(--pp-space-2) + env(safe-area-inset-bottom));
+}
+
+.app.header-bottom .app-footer {
+	order: 3;
+}
+
 .app-header {
 	/*
 	 * #485: Eine gemeinsame Maß-Basis für Logo, Toolbar-Buttons und Avatar.
@@ -4402,9 +4439,10 @@ kol-alert {
 	gap: var(--pp-gap-tight);
 }
 
-/* Paket-Badge (#1458 AK14): Badge und (i)-Schalter stehen in einer Zeile, brechen in engen Zeilen
-   aber um, statt die Zeile breiter zu machen — bei 375px darf nichts horizontal überlaufen. Der
-   (i)-Schalter behält 44px Touch-Target (docs/mobile-ui-rules.md). */
+/* Paket-Badge (#1458 AK14, umgebaut in #1528): das Badge beschriftet Funktion + Paket und bricht
+   in engen Zeilen um, statt sie breiter zu machen — bei 375px darf nichts horizontal überlaufen.
+   Der (i)-Schalter ist entfallen; außerhalb von Modalen ist das Badge selbst das Link-Element
+   (Entscheidung B) und behält 44px Touch-Target (docs/mobile-ui-rules.md Regel 2). */
 .plan-badge {
 	display: inline-flex;
 	flex-wrap: wrap;
@@ -4413,10 +4451,17 @@ kol-alert {
 	max-width: 100%;
 }
 
-.plan-badge span[data-testid] kol-button {
-	display: inline-block;
-	min-width: 44px;
+a.plan-badge {
 	min-height: 44px;
+	align-content: center;
+	text-decoration: none;
+	color: inherit;
+}
+
+a.plan-badge:focus-visible {
+	outline: 2px solid var(--pp-focus-ring);
+	outline-offset: 1px;
+	border-radius: var(--pp-radius-pill);
 }
 
 /* Paket-Matrix in den Einstellungen (#1458 AK11): auf schmalen Geräten scrollt die Tabelle in

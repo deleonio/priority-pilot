@@ -175,6 +175,36 @@ describe('POST /feedback (#1435)', () => {
 		assert.equal(commitFileCalls.length, 0);
 		assert.equal(getBranchShaCalls.length, 0);
 	});
+
+	it('AK2 (#1475): akzeptiert genau frage, wunsch, bug — feature, idee und Fremdwerte antworten 400', async () => {
+		const cookie = await server.register('feedback-1475-ak2@example.com');
+
+		for (const category of ['frage', 'wunsch', 'bug']) {
+			commitFileCalls = [];
+			const res = await submit(cookie, { ...validBody, category });
+			assert.equal(res.status, 201, `Kategorie ${category} muss akzeptiert werden: ${await res.text()}`);
+			assert.equal(commitFileCalls.length, 1, `Kategorie ${category} muss genau einen Commit erzeugen`);
+		}
+
+		// Test-Pflege (#1475, Impl-Phase): Reset vor der Ablehn-Schleife — der letzte akzeptierte
+		// Commit („bug") steht sonst noch im Array und die Schluss-Assertion ist unerfüllbar.
+		commitFileCalls = [];
+		for (const category of ['feature', 'idee', 'sonstwas']) {
+			const res = await submit(cookie, { ...validBody, category });
+			assert.equal(res.status, 400, `Alte/unbekannte Kategorie ${category} muss 400 liefern (statt ${res.status})`);
+		}
+		assert.equal(commitFileCalls.length, 0, 'Kein Commit für abgelehnte Kategorien');
+	});
+
+	it('AK3 (#1475): gewählte Kategorie landet in Dateipfad und Frontmatter (Beispiel wunsch)', async () => {
+		const cookie = await server.register('feedback-1475-ak3@example.com');
+
+		const res = await submit(cookie, { ...validBody, category: 'wunsch', title: 'Dunkelmodus bitten' });
+		assert.equal(res.status, 201, `Erwartet 201, erhalten ${res.status}: ${await res.text()}`);
+		assert.equal(commitFileCalls.length, 1);
+		assert.match(commitFileCalls[0].path, /^Feedback\/\d{4}-\d{2}-\d{2}-wunsch-.+\.md$/, 'Kategorie im Dateinamen');
+		assert.match(commitFileCalls[0].content, /kategorie:\s*wunsch/, 'Kategorie im Frontmatter');
+	});
 });
 
 /**
@@ -385,5 +415,25 @@ describe('POST /feedback (#1502) — Admin-Mail', () => {
 		const res = await submitMail(cookie);
 		assert.equal(res.status, 502, 'Der Obsidian-Fehler bleibt bei 502');
 		assert.equal(mailCalls.length, 2, 'Der Mailversand scheitert nicht am Obsidian-Weg (Ticket-Formulierung, AK5)');
+	});
+
+	it('AK5 (#1475): Admin-Mail enthält den neuen Kategorie-Wert in Betreff und Text', async () => {
+		await User.create({
+			email: 'admin-1475@example.com',
+			passwordHash: '__test__',
+			displayName: 'Admin 1475',
+			role: 'admin',
+		});
+		const cookie = await mailServer.register('sender-1475@example.com');
+
+		const res = await fetch(`${mailServer.baseUrl}/feedback`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify({ ...body1502, category: 'wunsch' }),
+		});
+		assert.equal(res.status, 201, `Erwartet 201, erhalten ${res.status}: ${await res.text()}`);
+		assert.equal(mailCalls.length, 1, 'Genau eine Admin-Mail');
+		assert.match(mailCalls[0].subject, /wunsch/, 'Betreff nennt den neuen Kategorie-Slug');
+		assert.match(mailCalls[0].text, /Kategorie:\s*wunsch/, 'Text nennt den neuen Kategorie-Slug');
 	});
 });

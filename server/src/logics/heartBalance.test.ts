@@ -124,3 +124,69 @@ describe('berechneLebensbalance (#1423 AK4)', () => {
 		assert.ok(Math.abs(result.fill - 0) < 1e-9);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1474 (Spec docs/spec/issue-1474.md), AK4 — Parität mit den gepinnten
+ * Frontend-Werten der neuen Formel (Strengste-Prinzip: min aus soll-gewichteter und ungewichteter
+ * Komponente). Die Erwartungswerte sind die aus `frontend/src/lib/heartBalance.test.ts` gepinnten
+ * Zahlen; der Server muss sie für gleichwertige Eingänge auf mindestens 4 Dezimalen treffen.
+ */
+describe('berechneLebensbalance (#1474 AK4 Parität)', () => {
+	it('Problemfall 60/0/10/10/10 bei Gewichten 60/10/10/10/10 → 0,5528', () => {
+		const saeulen: Saeule[] = [60, 10, 10, 10, 10].map((weight, index) => ({
+			id: index + 1,
+			name: `S${index + 1}`,
+			weight,
+		}));
+		const tasks: TaskFixture[] = [
+			{ status: 'Done', estimatedEffort: 60, pillars: [{ pillarId: 1, share: 100 }] },
+			{ status: 'Done', estimatedEffort: 10, pillars: [{ pillarId: 3, share: 100 }] },
+			{ status: 'Done', estimatedEffort: 10, pillars: [{ pillarId: 4, share: 100 }] },
+			{ status: 'Done', estimatedEffort: 10, pillars: [{ pillarId: 5, share: 100 }] },
+		];
+
+		const result = berechneLebensbalance(saeulen, tasks);
+		assert.ok(
+			Math.abs(result.fill - 0.5527864045) < 1e-4,
+			`fill=${result.fill} muss dem gepinnten Frontend-Wert 0,5527864 entsprechen (AK1/#1474)`,
+		);
+	});
+
+	it('gefüllter Fall 60/10/10/10/10 → 1,0', () => {
+		const saeulen: Saeule[] = [60, 10, 10, 10, 10].map((weight, index) => ({
+			id: index + 1,
+			name: `S${index + 1}`,
+			weight,
+		}));
+		const tasks: TaskFixture[] = [60, 10, 10, 10, 10].map((effort, index) => ({
+			status: 'Done' as const,
+			estimatedEffort: effort,
+			pillars: [{ pillarId: index + 1, share: 100 }],
+		}));
+
+		const result = berechneLebensbalance(saeulen, tasks);
+		assert.ok(
+			Math.abs(result.fill - 1) < 1e-4,
+			`fill=${result.fill} muss dem gepinnten Frontend-Wert 1 entsprechen (AK2/#1474)`,
+		);
+	});
+
+	it('Ausgangsfall 16/20/5/12/47 → unverändert 0,5634', () => {
+		const saeulen: Saeule[] = [20, 20, 20, 20, 20].map((weight, index) => ({
+			id: index + 1,
+			name: `S${index + 1}`,
+			weight,
+		}));
+		const tasks: TaskFixture[] = [16, 20, 5, 12, 47].map((effort, index) => ({
+			status: 'Done' as const,
+			estimatedEffort: effort,
+			pillars: [{ pillarId: index + 1, share: 100 }],
+		}));
+
+		const result = berechneLebensbalance(saeulen, tasks);
+		assert.ok(
+			Math.abs(result.fill - 0.5633937701) < 1e-4,
+			`fill=${result.fill} muss dem gepinnten Frontend-Wert 0,5633938 entsprechen (AK3/#1474)`,
+		);
+	});
+});

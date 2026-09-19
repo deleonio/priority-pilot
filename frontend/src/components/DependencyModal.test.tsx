@@ -3,7 +3,7 @@ import { TaskStatus } from 'client';
 import type { Task } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PLAN_REQUIRED_EVENT } from '../lib/apiError';
+import { PlanProvider } from '../lib/usePlan';
 
 /**
  * Rote Spec-Tests für #1429 — AK7/AK8: der Abhängigkeits-Dialog zeigt und ändert das Gewicht
@@ -23,6 +23,9 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
+	// #1528-Test-Pflege: das Badge rendert im Modal sichtbar (PlanProvider siehe unten) — deshalb
+	// braucht der Mock jetzt auch KolBadge.
+	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
 	KolButton: ({
 		_label,
 		_hideLabel,
@@ -176,34 +179,33 @@ describe('DependencyModal — Gewicht eines bestehenden Vorgängers (#1429, AK7/
 	});
 });
 
-// ── #1458 Entscheidung 7.1: kein Modal-in-Modal ─────────────────────────────────────────────────
+// ── #1528 AK3: Badge im Modal ohne Klickziel ────────────────────────────────────────────────────
 
 /**
- * `PlanOfferDialog` hängt als EIN globaler Dialog in `App.tsx` und lauscht auf `pp:plan-required`
- * (AK7). Der (i)-Schalter am `PlanBadge` in diesem Modal und eine serverseitige 403-Antwort feuern
- * dasselbe Event — das Angebot öffnete sich damit ÜBER dem offenen Modal, was
- * `docs/mobile-ui-rules.md` als Anti-Pattern führt. Menschliche Entscheidung zum Review von
- * PR #1488: Option 7.1 — das auslösende Modal schließt sich, bevor der Dialog öffnet.
+ * Test-Pflege (#1528): der globale Angebots-Dialog und das `useClosingOnPlanRequired`-Weichen sind
+ * entfallen (AK1) — der frühere „weicht dem Angebots-Dialog"-Test (Entscheidung 7.1) ist damit
+ * gegenstandslos. Entscheidung B des Autors (2026-09-17) stattdessen: das Badge ist im Modal reine
+ * Beschriftung (`inModal`, kein Klickziel) und schließt das Modal nicht.
  */
-describe('DependencyModal — weicht dem Angebots-Dialog (#1458, Entscheidung 7.1)', () => {
-	it('ruft onClose, sobald ein Paket-Angebot angefordert wird', async () => {
+describe('DependencyModal — Badge im Modal ohne Klickziel (#1528 AK3)', () => {
+	it('Badge-Klick schließt das Modal nicht', async () => {
 		const task = sampleTask(1, 'Ziel');
 		const onClose = vi.fn();
 
-		await act(async () => {
-			render(<DependencyModal task={task} allTasks={[task]} dependencies={[]} onClose={onClose} onChanged={vi.fn()} />);
-		});
-
-		expect(onClose).not.toHaveBeenCalled();
-
-		await act(async () => {
-			window.dispatchEvent(
-				new CustomEvent(PLAN_REQUIRED_EVENT, {
-					detail: { feature: 'graph_write', requiredPlan: 'pro', currentPlan: 'free' },
-				}),
+		const { container } = await act(async () => {
+			return render(
+				<PlanProvider value={{ plan: 'free', entitlements: { graph_write: { allowed: false, requiredPlan: 'pro' } } }}>
+					<DependencyModal task={task} allTasks={[task]} dependencies={[]} onClose={onClose} onChanged={vi.fn()} />
+				</PlanProvider>,
 			);
 		});
 
-		expect(onClose).toHaveBeenCalledTimes(1);
+		const badge = screen.getByTestId('plan-badge-graph_write');
+		expect(badge.closest('a')).toBeNull();
+
+		fireEvent.click(badge);
+
+		expect(onClose).not.toHaveBeenCalled();
+		expect(container).toBeTruthy();
 	});
 });
