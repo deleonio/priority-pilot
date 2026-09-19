@@ -10,8 +10,8 @@ PROCEDURE:
      this round is fixed:
      a. Run the GATE ONCE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning).
      b. ONE commit+push for the whole round (your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md stays LOCAL, gitignored — the workflow uploads it as an artifact at phase end, ADR 0010).
-     c. Resolve ALL of this round's threads in one pass — list them, then one mutation call per thread:
-       `gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{path line}}}}}}}' -f o=<owner> -f r=<repo> -F n={{PR_NR}} --jq '.data.repository.pullRequest.reviewThreads.nodes[] | [.id, .isResolved, .comments.nodes[0].path, .comments.nodes[0].line] | @tsv'` (pick each thread ID by path/line, skip `isResolved=true`; threads are GraphQL-only — REST `pulls/{pr}/threads` does NOT exist, and gh has NO native resolve command) → `gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{id}}}' -f t=<thread-id>`
+     c. Resolve ALL of this round's threads in one pass (listing + resolve mechanics incl. both
+       gh api graphql commands and the GraphQL-only note: SKILL.md step 5).
      d. **Nachweis-Tabelle MITFUEHREN (every round, not only terminal):** ONE PATCH adds a row for
         EVERY finding fixed this round, `| <N> | <finding short title> | <SHA> | <date> |`, to
         "## ✅ Behobene Anmerkungen" of the ai-fixup-decisions collected comment (find the existing

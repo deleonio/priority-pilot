@@ -5,11 +5,13 @@ FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the accep
 
 Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting. Includes the Delegation section (gate runs and search questions go to haiku subagent roles).
 
+EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — analysis + SKILL.md + context reads in ONE tool block; run the GATE once at the end over ALL changes (SKILL.md step 3c).
+
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
   2. Read the analysis & quick-check it per SKILL.md step 2 (NO full re-triage;
      AKs per SKILL.md step 1) — traffic light 🔴 →
-     do NOT implement, stop (VERDICT not-ready).
+     do NOT implement, stop (VERDICT: not-ready; justification in your phase note, no issue comment).
   3. Implement per SKILL.md step 3 (test-driven) — one of two modes:
      a. SPEC MODE (the normal case): check out the existing DRAFT PR — including the closing-keyword trap and
         the idempotency rule (SKILL.md step 1). Turn its RED tests GREEN — do NOT change the tests

@@ -50,11 +50,7 @@ STIL (die Doku ist Entwickler-Prosa):
   - KEINE Soll-/Absichts-/Ankündigungs-Formulierungen — nur Ist.
   - KEINE Änderungs-Historie: kein „wurde geändert“, kein „seit/neu/jetzt“ im Sinne von „früher war es anders“ — die Doku beschreibt den aktuellen Zustand, als gäbe es nie einen anderen.
   - §9 listet NUR Verweise auf docs/adr/ (Nummer + Titel + Status) — der Langtext lebt allein im ADR.
-  - Vermenschlicht schreiben (skill:vermenschlichen):
-    KEINE Werbesprache, keine Bedeutungsaufblähung, keine "nicht nur … sondern auch"-Konstruktionen,
-    keine Fazit-/Herausforderungen-Abschnitte, kein Schema "Fett: Erklärung", keine gehäuften
-    Gedankenstriche, schlichte Verben statt steifer Synonyme, keine Synonym-Rotation, keine
-    Chatbot-Reste ("Ich hoffe, das hilft"), keine Emojis in sachlichen Texten.
+  - Vermenschlicht schreiben — Regeln verbindlich per skill:vermenschlichen.
 
 CONSTRAINTS:
   - NUR docs/arc42.md ändern — kein Code, keine anderen Dokumente, KEINE ADR-Dateien.
