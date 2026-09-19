@@ -122,15 +122,18 @@ const createTaskViaApi = async (cookie: string, title: string): Promise<number> 
 	return ((await res.json()) as { id: number }).id;
 };
 
-/** Legt eine Säule für den Cookie-Besitzer an und gibt ihre ID zurück (Setup für #1379). */
-const createPillarViaApi = async (cookie: string, name: string): Promise<number> => {
-	const res = await server.json('/pillars', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json', Cookie: cookie },
-		body: JSON.stringify({ name }),
-	});
-	assert.equal(res.status, 201, 'Setup: Säule muss über die API anlegbar sein');
-	return ((await res.json()) as { id: number }).id;
+/**
+ * Gibt eine id aus dem Säulen-Bestand des Cookie-Besitzers zurück (Setup für #1379/#1413).
+ * Seit #1573 ist Säulen-CRUD gesperrt — die Registrierung sät fünf feste Standard-Säulen; statt
+ * anzulegen, zyklisch durch diesen Bestand gehen (aufeinanderfolgende Aufrufe: unterschiedliche ids).
+ */
+let seedPillarCursor = 0;
+const createPillarViaApi = async (cookie: string, _name: string): Promise<number> => {
+	const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+	assert.equal(res.status, 200, 'Setup: Säulen müssen über die API lesbar sein');
+	const pillars = (await res.json()) as { id: number }[];
+	assert.ok(pillars.length > 1, 'Setup: Registrierung sollte fünf Standard-Säulen säen');
+	return pillars[seedPillarCursor++ % pillars.length]!.id;
 };
 
 /**
@@ -931,10 +934,7 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'invite_link_create',
 			'invite_link_delete',
 			'next_task',
-			'pillar_create',
-			'pillar_delete',
 			'pillar_list',
-			'pillar_update',
 			'pillar_weights_set',
 			'task_complete',
 			'task_create',
@@ -980,10 +980,10 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name).sort();
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: drei Kategorie-Werkzeuge,
-		// #1413: vier Säulen-Werkzeuge, #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist
-		// „task_delete ist drin", nicht „es gibt genau dreizehn Werkzeuge" — die vollständige
-		// Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
+		// #1413: zwei Säulen-Werkzeuge — die CRUD-Werkzeuge sind mit #1573 entfallen —,
+		// #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist „task_delete ist drin", nicht
+		// „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
+		assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1196,7 +1196,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1415,23 +1415,18 @@ describe('MCP-Werkzeug balance_status (#1423)', () => {
 });
 
 /**
- * Rote Spec-Tests für #1413 (Spec docs/spec/issue-1413.md) — Säulen anlegen/ändern/löschen/gewichten
- * über MCP.
+ * Spec-Tests zu #1413/#1573 — Säulen über MCP. Die fünf Säulen sind fest (#1573): Die
+ * CRUD-Werkzeuge pillar_create/pillar_update/pillar_delete sind ENTFALLEN (die Routes antworten
+ * mit 403); übrig bleiben:
  *
- * AK2: pillar_create legt eine Säule mit weight 0 an.
- * AK3: pillar_update ändert Name/Beschreibung einer eigenen Säule.
- * AK4: pillar_delete entfernt die Säule, verbleibende Task-Anteile renormieren auf 100.
  * AK5: pillar_weights_set setzt alle Gewichte.
  * AK6: unvollständige Gewichtsliste/Summe != 100 → Routen-Fehlertext (HTTP 400), Gewichte unverändert.
- * AK7: fremde/unbekannte ID → "Säule nicht gefunden." (HTTP 404) bzw. Abdeckungs-Fehlertext
- *      (HTTP 400); doppelter Name → "…existiert bereits." (HTTP 409).
- * AK8: Nur-lese-Token scheitert an allen vier Werkzeugen, Datenbestand bleibt unverändert.
- *
- * Rot, bis die vier Werkzeuge im Katalog existieren (heute: "Unknown tool"). KEIN Produktivcode.
+ * AK7: fremde/unbekannte ID im Gewichts-Set → Abdeckungs-Fehlertext (HTTP 400).
+ * AK8: Nur-lese-Token scheitert am Schreibwerkzeug, Datenbestand bleibt unverändert.
  */
 type PillarResult = { id: number; name: string; description: string; weight: number };
 
-describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
+describe('MCP-Werkzeuge Säulen-Gewichte (#1413/#1573)', () => {
 	before(async () => {
 		server = await startTestServer();
 	});
@@ -1439,76 +1434,6 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 	after(async () => {
 		await server.close();
 		await closeDb();
-	});
-
-	it('AK2: pillar_create legt eine Säule an, die danach mit weight 0 in pillar_list steht', async () => {
-		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
-		const token = await createToken(cookie);
-
-		const created = await mcpCall<PillarResult>(token, 'pillar_create', {
-			name: 'Gesundheit',
-			description: 'Körper und Geist',
-		});
-		assert.equal(created.error, undefined, `pillar_create sollte gelingen: ${created.error?.message}`);
-		assert.equal(created.result?.name, 'Gesundheit');
-		assert.equal(created.result?.weight, 0);
-
-		const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
-		assert.ok(
-			list.result?.some((p) => p.name === 'Gesundheit' && p.weight === 0),
-			'pillar_list muss die neu angelegte Säule mit weight 0 enthalten',
-		);
-	});
-
-	it('AK3: pillar_update ändert Name und Beschreibung einer eigenen Säule', async () => {
-		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
-		const token = await createToken(cookie);
-		const id = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
-
-		const updated = await mcpCall<PillarResult>(token, 'pillar_update', {
-			id,
-			name: 'Neuer Name',
-			description: 'Neue Beschreibung',
-		});
-		assert.equal(updated.error, undefined, `pillar_update sollte gelingen: ${updated.error?.message}`);
-		assert.equal(updated.result?.name, 'Neuer Name');
-		assert.equal(updated.result?.description, 'Neue Beschreibung');
-	});
-
-	it('AK4: pillar_delete entfernt die Säule, verbleibende Task-Anteile renormieren auf 100', async () => {
-		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
-		const token = await createToken(cookie);
-		const pillarA = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
-		const pillarB = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
-
-		const created = await mcpCall<{ id: number }>(token, 'task_create', {
-			title: 'Mit zwei Säulen',
-			pillars: [
-				{ pillarId: pillarA, share: 50 },
-				{ pillarId: pillarB, share: 50 },
-			],
-		});
-		assert.equal(created.error, undefined, `Setup: task_create sollte gelingen: ${created.error?.message}`);
-		const taskId = created.result!.id;
-
-		const deleted = await mcpCall(token, 'pillar_delete', { id: pillarA });
-		assert.equal(deleted.error, undefined, `pillar_delete sollte gelingen: ${deleted.error?.message}`);
-
-		const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
-		assert.ok(
-			!list.result?.some((p) => p.id === pillarA),
-			'die gelöschte Säule darf in pillar_list nicht mehr auftauchen',
-		);
-
-		const task = await mcpCall<{ id: number; pillars: { pillarId: number; share: number }[] }>(token, 'task_update', {
-			id: taskId,
-			title: 'Mit zwei Säulen',
-		});
-		assert.deepEqual(
-			task.result?.pillars,
-			[{ pillarId: pillarB, share: 100, confidence: 100 }],
-			'der verbleibende Beitrag muss nach dem Löschen auf 100 renormiert sein',
-		);
 	});
 
 	it('AK5: pillar_weights_set setzt alle Gewichte, pillar_list zeigt danach genau diese Werte', async () => {
@@ -1557,21 +1482,11 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 		assert.equal(byId.get(pillarB), 40, 'Gewicht von pillarB darf nach abgelehnten Aufrufen unverändert bleiben');
 	});
 
-	it('AK7: fremde/unbekannte ID liefert "Säule nicht gefunden." bzw. den Abdeckungs-Fehlertext, doppelter Name liefert 409', async () => {
+	it('AK7: fremde/unbekannte ID im Gewichts-Set liefert den Abdeckungs-Fehlertext', async () => {
 		const cookieA = await server.register('mcp-tools-pillar-a@example.com', 'password123');
 		const cookieB = await server.register('mcp-tools-pillar-b@example.com', 'password123');
 		const tokenA = await createToken(cookieA);
 		const fremdeSaeule = await createPillarViaApi(cookieB, `Testsäule-${idCounter++}`);
-
-		const updateFremd = await mcpCall(tokenA, 'pillar_update', { id: fremdeSaeule, name: 'Übernommen' });
-		assert.ok(updateFremd.error, 'pillar_update auf fremde Säule muss fehlschlagen');
-		assert.match(updateFremd.error!.message, /Säule nicht gefunden\./);
-		assert.match(updateFremd.error!.message, /HTTP 404/);
-
-		const deleteFremd = await mcpCall(tokenA, 'pillar_delete', { id: fremdeSaeule });
-		assert.ok(deleteFremd.error, 'pillar_delete auf fremde Säule muss fehlschlagen');
-		assert.match(deleteFremd.error!.message, /Säule nicht gefunden\./);
-		assert.match(deleteFremd.error!.message, /HTTP 404/);
 
 		const weightsUnknown = await mcpCall(tokenA, 'pillar_weights_set', {
 			weights: [{ id: fremdeSaeule, weight: 100 }],
@@ -1579,28 +1494,16 @@ describe('MCP-Werkzeuge Säulen-CRUD (#1413)', () => {
 		assert.ok(weightsUnknown.error, 'pillar_weights_set mit fremder ID muss fehlschlagen');
 		assert.match(weightsUnknown.error!.message, /existierenden Säulen enthalten/);
 		assert.match(weightsUnknown.error!.message, /HTTP 400/);
-
-		const nameA = `Doppelname-${idCounter++}`;
-		await createPillarViaApi(cookieA, nameA);
-		const duplicate = await mcpCall(tokenA, 'pillar_create', { name: nameA });
-		assert.ok(duplicate.error, 'pillar_create mit doppeltem Namen muss fehlschlagen');
-		assert.match(duplicate.error!.message, /existiert bereits/);
-		assert.match(duplicate.error!.message, /HTTP 409/);
 	});
 
-	it('AK8: ein Nur-lese-Token scheitert an allen vier Werkzeugen, pillar_list bleibt unverändert', async () => {
+	it('AK8: ein Nur-lese-Token scheitert am Schreibwerkzeug pillar_weights_set, pillar_list bleibt unverändert', async () => {
 		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
 		const { token } = await createReadOnlyToken(cookie);
 		const pillarId = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 
 		const before = await mcpCall<PillarResult[]>(await createToken(cookie), 'pillar_list');
 
-		for (const [tool, args] of [
-			['pillar_create', { name: 'Sollte nicht entstehen' }],
-			['pillar_update', { id: pillarId, name: 'Sollte nicht ändern' }],
-			['pillar_delete', { id: pillarId }],
-			['pillar_weights_set', { weights: [{ id: pillarId, weight: 100 }] }],
-		] as const) {
+		for (const [tool, args] of [['pillar_weights_set', { weights: [{ id: pillarId, weight: 100 }] }]] as const) {
 			const res = await mcpCall(token, tool, args);
 			assert.ok(res.error, `${tool} muss mit einem Nur-lese-Token fehlschlagen`);
 			assert.match(
@@ -1669,8 +1572,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			34,
-			`Katalog sollte vierunddreißig Namen führen (#1412, #1542, #1543, #1544), war: ${names.join(', ')}`,
+			31,
+			`Katalog sollte einunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2469,13 +2372,13 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 		return ((await res.json()) as { id: number }).id;
 	};
 
-	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (34 gesamt)', async () => {
+	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (31 gesamt)', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
