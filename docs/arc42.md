@@ -121,7 +121,7 @@ graph LR
   Wertschöpfungs-Beitrag `value.ts`), Balance-Aggregation je Säule über `/scores/by-pillar`.
 - **Monetarisierung mit einer Rechte-Zentrale:** Paket-Katalog, Preise, Kontingente und
   Entitlements (`free`/`pro`/`max`/`ultimate`) existieren nur in `server/src/logics/plans.ts`
-  (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklorieren ihren
+  (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklarieren ihren
   Feature-Bedarf über `planGuard.ts`, LLM-Routen zählen verbrauchende Nutzungen über
   `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
   Abos laufen über PayPal (ADR 0013), die Paket-Angebote leben in den Einstellungen (ADR 0014).
@@ -173,9 +173,10 @@ oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requi
 Token-Verwaltung (`/api-tokens`) für Bearer-Zugriffe komplett und nimmt den MCP-Endpunkt
 (`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für MCP-Werkzeuge greift stattdessen eine Ebene
 tiefer, am Loopback-Request von `mcp/tools.ts` gegen die Fachroute selbst. Nutzer tragen eine Rolle
-`admin`/`member`/`tester`: die Nutzerverwaltung unter `/admin/users*` verlangt
-`requireRole('admin')`, die übrigen Admin-Routen erlauben zusätzlich `tester`
-(`requireRole(['admin', 'tester'])`, `routes/admin.ts`).
+`admin`/`member`/`tester`: Nutzerliste und Rollenvergabe unter `/admin/users*` verlangen
+`requireRole('admin')`; die Paket-Vergabe (`PATCH /admin/users/:id/plan`) erlaubt zusätzlich
+`tester`, serverseitig auf die eigene Id begrenzt (`routes/admin.ts`). Weitere Admin-Routen gibt
+es nicht.
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
@@ -288,10 +289,12 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   OAuth-Brücke); der User lebt in `req.session.user`, `requireAuth` schützt alle fachlichen Routen.
   Externe Clients (MCP, Skripte) authentifizieren sich alternativ über persönliche API-Tokens
   (`Authorization: Bearer pp_…` oder `api-key`/`x-api-key`, gehasht in `api_tokens`, mit
-  Pflicht-Ablaufdatum, geprüft von `apiTokenAuth`); ein Treffer befüllt `req.session.user` im
+  Pflicht-Ablaufdatum für Neuanlagen — Altbestand ohne `expiresAt` bleibt unbefristet —, geprüft
+  von `apiTokenAuth`); ein Treffer befüllt `req.session.user` im
   selben Shape wie der Login, ohne die Session zu persistieren. Tokens tragen einen Scope
   (`read`/`readwrite`, `apiTokenScopeGuard`). Nutzer-Rollen `admin`/`member`/`tester` schützen
-  `/admin/*` (`requireRole`, Nutzerverwaltung nur `admin`). Datenisolation je User prüfen eigene
+  `/admin/*` (`requireRole`, Nutzerliste und Rollenvergabe nur `admin`, Paket-Vergabe zusätzlich
+  `tester` auf die eigene Id). Datenisolation je User prüfen eigene
   Testsuiten (`*-dataisolation.test.ts`); Gruppenrechte folgen der Membership in `group_members`,
   nicht einem Owner-Feld.
 - **Paket-Gating und KI-Kontingente:** Feature-Freigaben und Verbrauchszähler entstehen allein in
