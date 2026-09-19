@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolCard, KolInputRadio, KolSingleSelect } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolCard, KolInputRadio, KolSingleSelect } from '@public-ui/react-v19';
 import type { LlmModel, LlmProvider, LlmProviderTestResult } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
@@ -158,13 +158,16 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 		[testingId],
 	);
 
-	// Optionen: je Provider eine Option „Name (Modell)“ (Built-ins zuerst — Server-Reihenfolge),
-	// damit die Radio-Group direkt zeigt, mit welchem Modell jeder Provider läuft. Ist kein
-	// Provider aktiv (kein ENV-Key, keine Wahl), bekommt die Gruppe eine passende „inaktiv“-Option —
-	// sonst markiert KoliBri nativ die erste Option als gewählt und signalisiert falsch eine Auswahl.
+	// Optionen: je Provider eine Option „Name (Modell) · eigen/instanzweit“ (Built-ins zuerst —
+	// Server-Reihenfolge), damit die Radio-Group direkt zeigt, mit welchem Modell jeder Provider
+	// läuft. Der Eigentums-Marker (#1549, DTO-Feld `own`) steht im Label und damit im Accessible
+	// Name — Screenreader melden den Unterschied, ohne die Zeile visuell zu scannen (WCAG 1.4.1:
+	// nie nur Farbe/Badge). Ist kein Provider aktiv (kein ENV-Key, keine Wahl), bekommt die Gruppe
+	// eine passende „inaktiv“-Option — sonst markiert KoliBri nativ die erste Option als gewählt
+	// und signalisiert falsch eine Auswahl.
 	const options = useMemo(() => {
 		const providerOptions = (providers ?? []).map((p) => ({
-			label: p.model !== '' ? `${p.name} (${p.model})` : p.name,
+			label: `${p.model !== '' ? `${p.name} (${p.model})` : p.name} · ${p.own ? 'eigen' : 'instanzweit'}`,
 			value: String(p.id),
 		}));
 		return activeProvider === null
@@ -319,6 +322,9 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 									<span className="llm-provider-admin__name">
 										{provider.name}
 										{provider.isActive ? ' (aktiv)' : ''}
+										{/* Eigentums-Marker als KolBadge (#1549, Text statt nur Farbe — WCAG 1.4.1):
+										    „eigen“ = eigene Zeile des Nutzers, „instanzweit“ = Built-in oder geteilt. */}
+										<KolBadge className="llm-provider-admin__badge" _label={provider.own ? 'eigen' : 'instanzweit'} />
 										<span className="llm-provider-admin__meta">
 											{provider.kind === 'builtin' ? ' · fix, Key aus Server-ENV' : ` · ${provider.endpoint}`}
 											{provider.model !== '' ? ` · ${provider.model}` : ' · kein Modell gewählt'}

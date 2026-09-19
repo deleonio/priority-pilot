@@ -120,4 +120,73 @@ test.describe('KI-Provider-Einstellungen', () => {
 		const response = await page.request.delete(`/api/v1/llm-providers/${mistral?.id}`);
 		expect(response.status()).toBe(400);
 	});
+
+	// ── #1549 AK8 (Spec docs/spec/issue-1549.md): own-Marker + 375px-Bounding-Box ──────────────
+	test('#1549 AK8: eigene und instanzweite Provider sind markiert unterscheidbar (eigen/instanzweit)', async ({
+		page,
+	}) => {
+		await openLlmTab(page);
+
+		// Eigenen Provider anlegen (Anlegen + Radio-Aktivierung deckt der Bestandstest ab —
+		// hier geht es um den Unterscheidbarkeits-Marker je Zeile).
+		await page.getByRole('button', { name: 'Neuer Provider' }).click();
+		const dialog = page.locator('kol-dialog');
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill('E2E Eigen');
+		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
+		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
+		await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model');
+		await dialog.getByRole('button', { name: 'Anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeHidden();
+
+		// Verwaltungsliste: eigene Zeile trägt den Marker „eigen“ (KolBadge, Text-Marker —
+		// nie nur Farbe, WCAG 1.4.1), Built-ins tragen „instanzweit“.
+		const ownRow = page.locator('.llm-provider-admin__item', { hasText: 'E2E Eigen' });
+		await expect(ownRow).toBeVisible();
+		await expect(ownRow.locator('kol-badge', { hasText: 'eigen' })).toBeVisible();
+		const builtinRow = page.locator('.llm-provider-admin__item', { hasText: 'Mistral' });
+		await expect(builtinRow.locator('kol-badge', { hasText: 'instanzweit' })).toBeVisible();
+
+		// Radio-Gruppe: der Marker steht im Accessible Name der Option (Screenreader), die
+		// Option bleibt wählbar.
+		const radio = page.locator('kol-input-radio[_label="KI-Provider"]');
+		const ownRadio = radio.getByRole('radio', { name: /E2E Eigen \(e2e-model\).*eigen/ });
+		await expect(ownRadio).toBeVisible();
+		await ownRadio.click();
+		const after = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
+		expect(after.find((p) => p.name === 'E2E Eigen')?.isActive).toBe(true);
+		// Auch die Built-in-Option nennt ihren Marker im Accessible Name.
+		await expect(radio.getByRole('radio', { name: /Mistral.*instanzweit/ })).toBeVisible();
+	});
+
+	test('#1549 AK8: 375×812 — kein Element ragt über den Viewport (Bounding-Box statt scrollWidth)', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await openLlmTab(page);
+
+		// Eigene Zeile erzeugen, damit der Marker selbst im engsten Layout vermessen wird.
+		await page.getByRole('button', { name: 'Neuer Provider' }).click();
+		const dialog = page.locator('kol-dialog');
+		await dialog.getByRole('searchbox', { name: 'Name' }).fill('E2E Eigen Eng');
+		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
+		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
+		await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model-mit-langer-kennung');
+		await dialog.getByRole('button', { name: 'Anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeHidden();
+
+		await expect(page.locator('.llm-provider-admin__item', { hasText: 'E2E Eigen Eng' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Neuer Provider' })).toBeVisible();
+
+		// Bounding-Box: jedes sichtbare Element des Settings-Bereichs bleibt innerhalb des
+		// 375-px-Viewports (die App-Shell clippt overflow-x:hidden, scrollWidth täuscht grün).
+		const overflows = await page
+			.locator('.settings-page *:visible')
+			.evaluateAll(
+				(els) =>
+					els
+						.map((el) => el.getBoundingClientRect())
+						.filter((box) => box.width > 0 && (box.right > 375.5 || box.left < -0.5)).length,
+			);
+		expect(overflows).toBe(0);
+	});
 });

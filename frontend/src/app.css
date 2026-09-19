@@ -3363,6 +3363,17 @@ kol-alert {
 .llm-provider-admin__name {
 	font-size: 0.875rem;
 	overflow-wrap: anywhere;
+	/* Ab 48rem Flex-Item in der Zeile: ohne min-width: 0 würde ein langer Endpoint die
+	   Action-Buttons herausschieben (#1549 AK8, 375-px-Bounding-Box). */
+	min-width: 0;
+}
+
+.llm-provider-admin__badge {
+	/* Skala für den KolBadge-Host (erbt in den Shadow-DOM, Muster series-tree-badge #1258) —
+	   Farbgebung übernimmt KoliBri, bewusst keine harten Farben (UX-Lauf #1549). */
+	font-size: 0.75rem;
+	margin-left: var(--pp-gap-tight);
+	vertical-align: middle;
 }
 
 .llm-provider-admin__meta {

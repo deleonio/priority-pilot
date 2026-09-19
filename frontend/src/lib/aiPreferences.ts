@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { LlmProvider } from 'client';
 import { api } from '../api';
 import { useEntitlement } from './usePlan';
 import type { Plan } from './planOffers';
@@ -101,6 +102,16 @@ export const computeAiFeaturesEnabled = ({
 	return entitlementAllowed || hasCustomProvider;
 };
 
+/**
+ * Ob in einer Provider-Liste mindestens ein **eigener** Custom-Provider steckt (#1549 AK8b):
+ * `kind === 'custom'` UND `own === true`. Instanzweite Customs (`own: false`) öffnen das
+ * Free-Gate nicht — der Server liefert dort 403 `plan_required` (#1548 AK7), das Frontend darf
+ * das Gate nicht weiter fassen als der Server. Reine Funktion als eigene Seam (analog
+ * `computeAiFeaturesEnabled`), weil `loadHasCustomProvider` nicht exportiert ist und cachet.
+ */
+export const hasOwnCustomProvider = (providers: LlmProvider[]): boolean =>
+	providers.some((provider) => provider.kind === 'custom' && provider.own === true);
+
 /** Cache über die Laufzeit der Seite (mehrere Hook-Instanzen teilen sich einen Request). */
 let customProviderCache: boolean | null = null;
 let customProviderRequest: Promise<boolean> | null = null;
@@ -112,7 +123,7 @@ const loadHasCustomProvider = async (): Promise<boolean> => {
 	customProviderRequest ??= (async (): Promise<boolean> => {
 		try {
 			const providers = await api.listLlmProviders();
-			return providers.some((provider) => provider.kind === 'custom');
+			return hasOwnCustomProvider(providers);
 		} catch {
 			// Best-Effort wie der Rest dieser Datei: eine fehlende/fehlschlagende Provider-Liste
 			// darf das Gate nicht crashen, sie zählt nur als "kein eigener Provider".

@@ -31,6 +31,8 @@ interface LlmProviderDto {
 	kind: 'custom' | 'builtin';
 	/** Ob ein Key vorhanden ist (Built-in: ENV gesetzt; Custom: DB-Key gesetzt). */
 	hasApiKey: boolean;
+	/** Gehört die Zeile dem abfragenden Nutzer? #1549: instanzweit (inkl. Built-ins) und fremd = false. */
+	own: boolean;
 }
 
 interface LlmProviderCreateInput {
@@ -230,8 +232,16 @@ const ensureBuiltins = async (): Promise<void> => {
 	}
 };
 
+/**
+ * Ob eine Zeile dem abfragenden Nutzer gehört (#1549): nur nutzereigene Custom-Provider
+ * sind `own`; instanzweite Zeilen (`userId = null`, inkl. Built-ins), fremde Zeilen und
+ * Aufrufe ohne Nutzerkontext (`undefined`) liefern `false` (abwärtskompatibel).
+ */
+const isOwnProvider = (provider: LlmProvider, userId: number | null | undefined): boolean =>
+	provider.userId !== null && provider.userId === userId;
+
 /** Effektive Serialisierung einer Zeile: Built-ins lösen Endpoint/Modell/Key-Präsenz aus ENV auf. */
-const toDto = (provider: LlmProvider, isActive: boolean): LlmProviderDto => {
+const toDto = (provider: LlmProvider, isActive: boolean, userId?: number | null): LlmProviderDto => {
 	if (provider.kind === 'builtin') {
 		const runtime = toRuntimeConfig(provider);
 		return {
@@ -242,6 +252,7 @@ const toDto = (provider: LlmProvider, isActive: boolean): LlmProviderDto => {
 			isActive,
 			kind: 'builtin',
 			hasApiKey: runtime.apiKey !== '',
+			own: isOwnProvider(provider, userId),
 		};
 	}
 	return {
@@ -252,6 +263,7 @@ const toDto = (provider: LlmProvider, isActive: boolean): LlmProviderDto => {
 		isActive,
 		kind: 'custom',
 		hasApiKey: provider.apiKey !== '',
+		own: isOwnProvider(provider, userId),
 	};
 };
 
@@ -282,7 +294,7 @@ export const listProviders = async (userId?: number | null): Promise<LlmProvider
 	const customs = providers.filter((provider) => provider.kind === 'custom');
 	return [...builtins, ...customs]
 		.filter((provider): provider is LlmProvider => provider !== null)
-		.map((provider) => toDto(provider, provider.id === active?.id));
+		.map((provider) => toDto(provider, provider.id === active?.id, userId));
 };
 
 /**
@@ -384,7 +396,7 @@ export const createProvider = async (
 	userId: number | null = null,
 ): Promise<LlmProviderDto> => {
 	const created = await LlmProvider.create({ ...input, isActive: false, kind: 'custom', builtinKey: null, userId });
-	return toDto(created, false);
+	return toDto(created, false, userId);
 };
 
 /**
@@ -415,7 +427,7 @@ export const updateProvider = async (
 	}
 	await provider.update(patch);
 	const active = await loadActiveProvider();
-	return toDto(provider, provider.id === active?.id);
+	return toDto(provider, provider.id === active?.id, userId);
 };
 
 /**
@@ -446,5 +458,5 @@ export const activateProvider = async (id: number, userId?: number | null): Prom
 	}
 	await LlmProvider.update({ isActive: false }, { where: { isActive: true } });
 	await provider.update({ isActive: true });
-	return toDto(provider, true);
+	return toDto(provider, true, userId);
 };

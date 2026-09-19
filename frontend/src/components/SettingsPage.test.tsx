@@ -936,7 +936,7 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 		// Custom-Provider) gefüllt. Frischer Modul-Graph + eigener Mock-Rückgabewert stellen sicher,
 		// dass DIESER Test wirklich `hasCustomProvider: true` durchläuft statt den alten Cache-Wert.
 		vi.resetModules();
-		apiMocks.listLlmProviders = vi.fn().mockResolvedValue([{ id: 1, kind: 'custom' }]);
+		apiMocks.listLlmProviders = vi.fn().mockResolvedValue([{ id: 1, kind: 'custom', own: true }]);
 		const { SettingsPage: FreshSettingsPage } = await import('./SettingsPage');
 		const { PlanProvider: FreshPlanProvider } = await import('../lib/usePlan');
 

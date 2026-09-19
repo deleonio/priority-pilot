@@ -225,6 +225,14 @@ Konflikte, die er verhindern soll.
   `beforeEach`-Reset landet der Effekt dadurch im NÄCHSTEN Testfall (Off-by-one: 0 statt 2, dann 2
   statt 1, …), nicht als offensichtlicher Fehler im selben Test. → Nebenwirkungen, deren Abschluss
   der Aufrufer/Test beobachten soll, IMMER vor `res.status/json`/`sendError` abwarten, nicht danach.
+- 2026-09-18 · Impl-Phase/Spec-Tests — die Rot-Verifizierung eines Spec-Tests (node:test/vitest)
+  stoppt an der ERSTEN fehlschlagenden Assertion; dahinter können weitere stecken, die mit einem
+  Bestandstest in derselben Datei unvereinbar sind (#1549: „fremde Zeile own:false“ vs. #1547 TF1
+  „fremde Zeilen unsichtbar“ — Rot lief bei Z. 527, die Kollision bei Z. 531 wurde erst grün
+  laufend sichtbar). → Beim Aufgreifen roter Tests zuerst die GESAMTE Testdatei gegen
+  Schwestertests auf Widersprüche lesen, bevor der erste Rot-Fix umgesetzt wird; bei Kollision
+  gilt der etablierte Bestandsvertrag, die Spec-Assertion wird als begründete Test-Pflege
+  geändert (file:line + Warum im PR-Body).
 - 2026-09-18 · CI/gh — `gh issue edit <nr> --add-assignee @me` scheitert in dieser Harness-Umgebung
   an der GitHub-App-Installation („Assigning agents is not supported with GitHub App installation
   tokens", GraphQL replaceActorsForAssignable) → Zuweisung weglassen und direkt weiterarbeiten; der
