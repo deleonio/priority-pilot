@@ -1,9 +1,14 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { User } from '../models/index.js';
+import type { UserRole } from '../models/user.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import { sendStartupStatusMail } from './startupStatusMail.js';
 import type { MailSender } from './mail.js';
+
+// #1566: `UserRole` kennt 'tester' noch nicht (rote Spec-Phase) — Doppel-Cast für den tsc-Gate
+// (MEMORY-Muster 2026-08-23); der Laufzeitwert ist schlicht 'tester'.
+const TESTER_ROLE = 'tester' as unknown as UserRole;
 
 /**
  * Status-Mail beim Serverstart — Vertrag: nur in Produktion mit konfiguriertem SMTP wird je
@@ -136,6 +141,38 @@ describe('logics/startupStatusMail — Status-Mail beim Serverstart', () => {
 
 			assert.equal(sent, 0);
 			assert.equal(calls.length, 0, 'ohne SMTP-Konfiguration wird kein Versand versucht');
+		} finally {
+			restore();
+		}
+	});
+
+	// #1566 (Spec docs/spec/issue-1566.md, AK5): Guard — der Empfangsfilter bleibt exakt
+	// `role: 'admin'`; ein Tester-Konto erhält die Status-Mail nie. Bewusst als grüner
+	// Vertragstest angelegt (#1556-AK4-Prezedenz).
+	it('#1566 AK5: ein Tester-Konto erhält keine Status-Mail — nur der Admin', async () => {
+		const restore = withEnv({
+			NODE_ENV: 'production',
+			SMTP_HOST: 'smtp.example.com',
+			MAIL_FROM: 'noreply@example.com',
+		});
+		try {
+			await createAdmin('admin@example.com');
+			await User.create({
+				email: 'tester@example.com',
+				displayName: 'Tester',
+				passwordHash: '__test__',
+				role: TESTER_ROLE,
+			});
+
+			const calls: { to: string; subject: string; text: string }[] = [];
+			const sent = await sendStartupStatusMail(recordingSender(calls));
+
+			assert.equal(sent, 1, 'nur der Admin erhält die Status-Mail');
+			assert.deepEqual(
+				calls.map((call) => call.to),
+				['admin@example.com'],
+				'der Tester geht als Empfänger leer aus',
+			);
 		} finally {
 			restore();
 		}

@@ -2,6 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import type { MailSender } from '../logics/mail.js';
+import type { UserRole } from '../models/user.js';
 
 /**
  * ROTE Spec-Tests für #1426 (SMTP-Feature) — TF1-TF4, Vertrag: docs/spec/issue-1426.md.
@@ -21,6 +22,10 @@ process.env.MAIL_FROM = 'noreply@example.com';
 
 const ADMIN_EMAIL = 'admin@example.com';
 const MEMBER_EMAIL = 'member@example.com';
+
+// #1566: `UserRole` kennt 'tester' noch nicht (rote Spec-Phase) — Doppel-Cast für den tsc-Gate
+// (MEMORY-Muster 2026-08-23); der Laufzeitwert ist schlicht 'tester'.
+const TESTER_ROLE = 'tester' as unknown as UserRole;
 
 let server: TestServer;
 let sentTo: string[] = [];
@@ -129,6 +134,23 @@ describe('POST /mail/test — SMTP-Testmail für Admins (#1426, TF1-TF4)', () =>
 		} finally {
 			console.warn = originalWarn;
 			console.error = originalError;
+			await server.close();
+		}
+	});
+
+	// #1566 (Spec docs/spec/issue-1566.md, AK2): Alle Admin-Bereiche AUSSER der Nutzerverwaltung
+	// darf ein Tester nutzen — exemplarisch diese Admin-Route. Rot: heute blockiert
+	// `requireRole('admin')` den Tester mit 403.
+	it('#1566 AK2: 200 für die Rolle tester — Mail-Versand-Route bleibt erreichbar', async () => {
+		server = await startMailTestServer(recordingSender);
+		try {
+			const cookie = await server.login(MEMBER_EMAIL, { role: TESTER_ROLE });
+
+			const res = await postMailTest(cookie);
+			assert.equal(res.status, 200, 'Tester passiert das Rollen-Gate der Mail-Route (kein 403)');
+			assert.equal(sentTo.length, 1, 'die Testmail wird versendet');
+			assert.equal(sentTo[0], MEMBER_EMAIL, 'Empfänger ist die E-Mail des angemeldeten Testers');
+		} finally {
 			await server.close();
 		}
 	});
