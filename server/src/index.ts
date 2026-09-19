@@ -156,7 +156,6 @@ export const main = async (): Promise<void> => {
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
 		} = await import('./logics/migrate.js');
-		const { buildTaskForest } = await import('./logics/tree.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
@@ -254,7 +253,6 @@ export const main = async (): Promise<void> => {
 		// einmalig idempotent beim Start bereinigen; die Routen räumen inzwischen selbst mit auf.
 		await cleanupOrphanedGroupInvitations();
 
-		console.log(JSON.stringify(await buildTaskForest(), null, 2));
 		await launchServer();
 
 		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
