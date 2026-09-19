@@ -156,7 +156,7 @@ describe('LlmProviderFormDialog — Testen vor dem Speichern (#1577)', () => {
 		draftMock.mockResolvedValue({ ok: true, model: 'glm-4.7', latencyMs: 12 });
 		render(<LlmProviderFormDialog provider={editProvider} onClose={vi.fn()} onSaved={vi.fn()} />);
 
-		await fillAndTest(); // API-Key-Feld bleibt leer (Edit-Modus startet leer)
+		await fillAndTest(''); // API-Key-Feld bleibt leer (Edit-Modus startet leer)
 
 		await waitFor(() => {
 			expect(draftMock).toHaveBeenCalledTimes(1);

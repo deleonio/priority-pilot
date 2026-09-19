@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
-import type { LlmProvider, LlmProviderInput, LlmProviderUpdate } from 'client';
+import type { LlmProvider, LlmProviderInput, LlmProviderTestResult, LlmProviderUpdate } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -44,6 +44,9 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	/** Ergebnis des Verbindungstests (`null` = noch keins) — #1577. */
+	const [testResult, setTestResult] = useState<LlmProviderTestResult | null>(null);
+	const [testing, setTesting] = useState(false);
 
 	useEffect(() => {
 		form.current = {
@@ -56,6 +59,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		setEndpointState(form.current.endpoint);
 		setApiKeyState(form.current.apiKey);
 		setModelState(form.current.model);
+		setTestResult(null);
 	}, [provider]);
 
 	const submit = async (): Promise<void> => {
@@ -109,6 +113,28 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 
 	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA aus, solange kein Speichern läuft.
 	useCtrlEnter(() => void submit(), !saving);
+
+	// Verbindungstest des ENTWURFS (#1577): prüft die ungespeicherten Formulardaten ohne
+	// Anlegen/Verändern. Im Bearbeiten-Modus mit leerem Key-Feld wird die providerId mitgegeben —
+	// der Server nutzt den gespeicherten Key („leer = unverändert", AK2).
+	const runDryTest = async (): Promise<void> => {
+		setTestResult(null);
+		setTesting(true);
+		try {
+			const result = await api.testLlmProviderDraft({
+				endpoint: form.current.endpoint.trim(),
+				apiKey: form.current.apiKey.trim(),
+				model: form.current.model.trim(),
+				...(isEdit && provider !== undefined ? { providerId: provider.id } : {}),
+			});
+			setTestResult(result);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setTestResult({ ok: false, message: apiError.message });
+		} finally {
+			setTesting(false);
+		}
+	};
 
 	return (
 		<Modal title={isEdit ? 'Provider bearbeiten' : 'Neuen Provider anlegen'} onClose={onClose}>
@@ -185,12 +211,28 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					}}
 				/>
 			</div>
+			{testResult !== null && testResult.ok && (
+				<KolAlert _type="success" _alert _label="Verbindungstest erfolgreich">
+					{`${testResult.model ?? 'Modell'} antwortete in ${testResult.latencyMs ?? '?'} ms.`}
+				</KolAlert>
+			)}
+			{testResult !== null && !testResult.ok && (
+				<KolAlert _type="error" _alert _label="Verbindungstest fehlgeschlagen">
+					{testResult.message ?? 'Unbekannter Fehler.'}
+				</KolAlert>
+			)}
 			<div className="modal-actions">
 				<KolButton
 					_label={isEdit ? 'Speichern' : 'Anlegen'}
 					_variant="primary"
 					_disabled={saving}
 					_on={{ onClick: () => void submit() }}
+				/>
+				<KolButton
+					_label={testing ? 'Testen…' : 'Testen'}
+					_variant="secondary"
+					_disabled={saving || testing}
+					_on={{ onClick: () => void runDryTest() }}
 				/>
 				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
 			</div>

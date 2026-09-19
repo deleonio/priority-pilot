@@ -11,6 +11,7 @@ import {
 	listProviders,
 	loadProviderSelection,
 	setProviderSelection,
+	toBaseUrl,
 	toRuntimeConfig,
 	updateProvider,
 	type ProviderRuntime,
@@ -364,6 +365,81 @@ export const createLlmProvidersRouter = (
 			if (sendServiceError(res, error)) return;
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
+	});
+
+	/**
+	 * Verbindungstest des Provider-ENTWURFS (#1577): prüft die ungespeicherten Formulardaten aus
+	 * dem Anlege-/Bearbeiten-Dialog — dieselbe Runner-Logik wie `:id/test`, aber mit einer
+	 * Laufzeit-Konfiguration aus dem Request-Body statt aus einer DB-Zeile. Legt nichts an,
+	 * verändert nichts und cacht nicht (das Ergebnis ändert sich mit jedem Tastenanschlag).
+	 * Muss VOR den `:id`-Pfaden registriert sein (Muster `/selection`).
+	 */
+	router.post('/llm-providers/test-dry', async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
+		const userId = await requireProviderUser(req, res);
+		if (userId === null) return;
+		const raw = req.body as Record<string, unknown> | null | undefined;
+		if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+			sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+			return;
+		}
+		if (typeof raw.endpoint !== 'string' || !isValidHttpUrl(raw.endpoint.trim())) {
+			sendError(res, 400, 'endpoint muss eine gültige http(s)-URL sein.');
+			return;
+		}
+		if (!isNonEmptyString(raw.model)) {
+			sendError(res, 400, 'model muss ein nicht-leerer String sein.');
+			return;
+		}
+		if (typeof raw.apiKey !== 'string') {
+			sendError(res, 400, 'apiKey muss ein String sein (leer = gespeicherter Key bei providerId).');
+			return;
+		}
+		let providerId: number | null = null;
+		if (raw.providerId !== undefined) {
+			if (typeof raw.providerId !== 'number' || !Number.isInteger(raw.providerId) || raw.providerId <= 0) {
+				sendError(res, 400, 'providerId muss eine positive Ganzzahl sein.');
+				return;
+			}
+			providerId = raw.providerId;
+		}
+		const endpoint = raw.endpoint.trim();
+		const model = raw.model.trim();
+		let apiKey = raw.apiKey.trim();
+		let label = 'Provider-Entwurf';
+		let keySource = 'API-Key aus dem Dialog';
+		if (apiKey === '') {
+			if (providerId === null) {
+				// Analog zum Vorab-Check in `:id/test`: kein Upstream-Call ohne Key.
+				res.json({ ok: false, message: 'Kein API-Key angegeben — der Test kann keine Anfrage stellen.' });
+				return;
+			}
+			let row: LlmProvider | null;
+			try {
+				row = await LlmProvider.findByPk(providerId);
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
+			}
+			if (row === null || !isProviderAccessible(row, userId)) {
+				sendError(res, 404, 'Provider nicht gefunden.');
+				return;
+			}
+			// Key-Fallback des Bearbeiten-Modus: leeres Formularfeld = gespeicherter Key (AK2).
+			apiKey = row.apiKey;
+			label = row.name;
+			keySource = `API-Key von ${row.name}`;
+		}
+		const baseUrl = toBaseUrl(endpoint);
+		res.json(
+			await runTest({
+				baseUrl,
+				chatEndpoint: endpoint.endsWith('/chat/completions') ? endpoint : `${baseUrl}/chat/completions`,
+				apiKey,
+				model,
+				label,
+				keySource,
+			}),
+		);
 	});
 
 	/**
