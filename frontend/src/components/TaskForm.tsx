@@ -999,7 +999,7 @@ export const TaskForm = ({
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
 							<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' }}>
-								<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
+								<div style={{ flex: '1 1 16rem', minWidth: 'min(100%, 16rem)' }} data-testid="task-title">
 									<VoiceField
 										variant="input"
 										fieldLabel="Titel"
@@ -1363,7 +1363,7 @@ export const TaskForm = ({
 						{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
 				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
 						<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'flex-start' }}>
-							<div style={{ flex: 1, minWidth: 0 }} data-testid="task-description">
+							<div style={{ flex: '1 1 16rem', minWidth: 'min(100%, 16rem)' }} data-testid="task-description">
 								<VoiceField
 									variant="textarea"
 									fieldLabel="Beschreibung"
