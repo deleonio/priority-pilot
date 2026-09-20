@@ -94,6 +94,8 @@ export type LlmProviderUpdate = Schemas['LlmProviderUpdate'];
 export type LlmModel = Schemas['LlmModel'];
 export type LlmModels = Schemas['LlmModels'];
 export type LlmProviderTestResult = Schemas['LlmProviderTestResult'];
+/** #1577: Formulardaten des Provider-Dialogs für den Verbindungstest ohne Speichern. */
+export type LlmProviderTestDraft = Schemas['LlmProviderTestDraft'];
 
 // Web-Push (#355): Opt-in-Subscription-Flow der PWA.
 export type PushSubscriptionInput = Schemas['PushSubscriptionInput'];

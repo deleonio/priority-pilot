@@ -340,3 +340,28 @@ export const SPEECH_MOCK_INIT_SCRIPT = `
 		};
 	})();
 `;
+
+/**
+ * Setzt die Gewichte aller vorhandenen Säulen über die echte API auf Gleichverteilung (je
+ * `100 / n` %). Muster: `setEqualWeightsViaApi` in `pillar-dynamic-cases.spec.ts`.
+ *
+ * #1574: Die e2e-Suite teilt sich eine In-Memory-DB über alle parallelen Worker eines Shards, und
+ * jede Spec, die Gewichte speichert (crud, #1555, #1574), hinterlässt ihre Verteilung allen
+ * parallelen/nachfolgenden Tests. Vor #1574 waren die typischerweise gespeicherten Extrem-
+ * verteilungen ([1, 0, 0, 0, 0]) Fixpunkte der Regler-Interaktion (`End`/`Home` klemmten genau
+ * darauf); die #1574-Flows (0,2 → 0,6 bzw. 0,1) sind keine Fixpunkte — ohne Reset lief z. B.
+ * `ArrowLeft` von 0,1 auf 0,0 weiter und traf statt des Bestätigungs-Modals den 0-%/100-%-Block
+ * (AK4). Specs, die vom ausgeglichenen Seed (5 × 20 %) ausgehen, stellen ihn mit diesem Helper
+ * aktiv her. `page.request` läuft dabei bewusst an `page.route`-Countern vorbei (API-Requests
+ * werden nicht abgefangen) —PUT-Zähler der Specs bleiben unberührt.
+ */
+export const setEqualPillarWeights = async (page: Page): Promise<void> => {
+	const response = await page.request.get('/api/v1/pillars');
+	const pillars = (await response.json()) as { id: number }[];
+	if (pillars.length === 0) {
+		return;
+	}
+	await page.request.put('/api/v1/pillars/weights', {
+		data: { weights: pillars.map((pillar) => ({ id: pillar.id, weight: 100 / pillars.length })) },
+	});
+};

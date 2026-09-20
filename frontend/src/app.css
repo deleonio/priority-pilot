@@ -2061,6 +2061,30 @@ kol-toolbar {
 	}
 }
 
+/* Bestätigungs-Modal der Säulen-Gewichtung (#1574): Auf Mobilgeräten stapeln die Aktionen
+   untereinander in voller Breite (Touch-Targets ≥ 44px, Muster .session-dialog-actions #1231 /
+   .update-prompt #1034), ab 768px wieder kompakt rechts. Gap --pp-space-3 statt --pp-gap-tight:
+   der e2e-Check (AK6) vermisst ≥ 8px zwischen den Buttons — 12px hält Subpixel-Rundung aus. */
+.pillar-confirm-actions {
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--pp-space-3);
+}
+
+.pillar-confirm-actions kol-button {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
+@media (min-width: 768px) {
+	.pillar-confirm-actions kol-button {
+		display: inline-block;
+		width: auto;
+		min-height: 0;
+	}
+}
+
 .dependency-list {
 	list-style: none;
 	padding: 0;

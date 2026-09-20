@@ -1,0 +1,20 @@
+[
+	{
+		"timestamp": "2026-09-20T03:49:14.637Z",
+		"tokensIn": 1923432,
+		"tokensOut": 3645,
+		"cost": 0,
+		"issueId": "1591",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1468800,
+		"turns": 20,
+		"valueCost": 3.0986849999999997,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 0
+	}
+]

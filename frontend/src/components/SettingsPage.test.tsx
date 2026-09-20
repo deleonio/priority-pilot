@@ -1,5 +1,5 @@
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import type { ComponentProps, ReactElement } from 'react';
+import type { ComponentProps, ReactElement, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 import { PlanProvider } from '../lib/usePlan';
@@ -56,6 +56,14 @@ vi.mock('../api', () => ({
 			get: (_target, prop: string) => (apiMocks[prop] ??= vi.fn().mockResolvedValue(apiDefaults[prop])),
 		},
 	),
+}));
+
+// #1574: Das Bestätigungs-Modal des Gewichtungs-Formulars baut auf `Modal` (KolDialog, natives
+// `<dialog>`) — das in jsdom nicht lauffähig ist (`dialog.close is not a function`, Begründung in
+// PillarWeightsModal.test.tsx). Hier ein Passthrough, der die Kinder wie das echte Modal in
+// `.modal-body` rendert; kein anderer Test dieser Datei mountet ein Modal.
+vi.mock('./Modal', () => ({
+	Modal: ({ children }: { children: ReactNode }) => <div className="modal-body">{children}</div>,
 }));
 
 // Neben-Hooks der Seite durch no-op-Doubles ersetzen (jsdom hat kein ServiceWorker/Mic).
@@ -971,7 +979,8 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
  * Der Hinweis ist ein `KolAlert _type="warning"` im Säulen-Panel (`slot="tab-1"`), friendly und
  * NICHT blockierend: er erscheint bei ungleicher Verteilung (Anteil > 2× oder < ½ des
  * gleichmäßigen Anteils), live bei jedem Reglerzug und schon beim Laden einer gespeicherten
- * ungleichen Verteilung; Speichern bleibt möglich. Die Grenzfälle der Formel selbst testet
+ * ungleichen Verteilung; Speichern bleibt möglich (seit #1574 über das Bestätigungs-Modal,
+ * siehe #1574-Block unten). Die Grenzfälle der Formel selbst testet
  * `pillar.test.ts` (#1555-Block) — hier der UI-Vertrag des Formulars.
  */
 describe('SettingsPage – #1555: Hinweis bei unausgewogener Säulen-Gewichtung', () => {
@@ -1033,19 +1042,98 @@ describe('SettingsPage – #1555: Hinweis bei unausgewogener Säulen-Gewichtung'
 		expect(warningAlert(container), 'Alert verschwindet nicht bei Rückkehr zur Balance').toBeNull();
 	});
 
-	// AK4: Der Hinweis blockiert nicht — Speichern-Button bleibt aktiv und der API-Aufruf
-	// (normieren → PUT /pillars/weights) erfolgt unverändert.
-	it('AK4: trotz Hinweis bleibt Speichern aktiv und ruft api.setPillarWeights auf', async () => {
-		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
-		expect(warningAlert(container)).not.toBeNull();
+	// AK4 (#1555) ist seit #1574 in den Confirm-Flow überführt: „Speichern bleibt möglich" heißt
+	// jetzt „nach Bestätigung im Modal" — der Test lebt im #1574-Block unten weiter (dort als
+	// „Trotzdem speichern sendet genau einen PUT mit normierten Gewichten").
+});
 
-		const save = container.querySelector('.settings-pillars kol-button[_label="Speichern"]');
-		expect(save, 'Speichern-Button fehlt').not.toBeNull();
-		expect(save?.hasAttribute('_disabled'), 'Speichern darf durch den Hinweis NICHT deaktiviert werden').toBe(false);
+/**
+ * Rote Spec-Tests für #1574 — „Speichern unausgewogener Säulen-Gewichtungen nur mit Bestätigung"
+ * (Spec: docs/spec/issue-1574.md).
+ *
+ * Der gemeinsame Save-Pfad von `PillarWeightsForm` (Settings-Seite UND PillarWeightsModal) erhält
+ * ein Confirm-Gate: Bei aktiver #1555-Warnung (unausgewogen, aber OHNE 0-%-/100-%-Extremanteil)
+ * öffnet „Speichern"/Strg+Enter ein Bestätigungs-Modal — erst „Trotzdem speichern" sendet den PUT.
+ * Verteilungen mit Extremanteil werden blockiert (AK4; Ausnahme: genau eine Säule). `Modal` ist
+ * oben per Passthrough-Mock auf `.modal-body` reduziert — Präsenz des Modals = `.modal-body`.
+ */
+describe('SettingsPage – #1574: Bestätigungs-Modal vor dem Speichern unausgewogener Gewichte', () => {
+	const mkPillars = (weights: number[]): { id: number; name: string; description: string; weight: number }[] =>
+		weights.map((weight, index) => ({ id: index + 1, name: `S${index + 1}`, description: '', weight }));
+	// 45/5/20/15/15: unausgewogen (45 % > 2 × 20 %), aber ohne Extremanteil → Confirm-Fall.
+	const unbalancedPillars = mkPillars([45, 5, 20, 15, 15]);
+	const balancedPillars = mkPillars([20, 20, 20, 20, 20]);
+	const twoPillars = mkPillars([50, 50]);
+	const singlePillar = mkPillars([100]);
 
+	/** Bestätigungs-Modal (`.modal-body` stammt aus dem Modal-Passthrough-Mock oben). */
+	const modalBody = (container: HTMLElement): Element | null =>
+		container.querySelector('.settings-pillars .modal-body');
+
+	const slider = (container: HTMLElement, index: number): Element =>
+		container.querySelectorAll('.pillar-weights-grid kol-input-range')[index];
+
+	const input = async (el: Element, value: string): Promise<void> => {
 		await act(async () => {
-			(save as unknown as { _on: { onClick: (event: unknown) => void } })._on.onClick({});
+			(el as unknown as { _on: { onInput: (_event: unknown, value: string) => void } })._on.onInput({}, value);
 		});
+	};
+
+	const click = async (el: Element): Promise<void> => {
+		await act(async () => {
+			(el as unknown as { _on: { onClick: (event: unknown) => void } })._on.onClick({});
+		});
+	};
+
+	/** Strg+Enter, wie es `useCtrlEnter` an `window` lauscht. */
+	const pressCtrlEnter = async (): Promise<void> => {
+		await act(async () => {
+			window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+		});
+	};
+
+	const saveButton = (container: HTMLElement): Element => {
+		const el = container.querySelector('.settings-pillars kol-button[_label="Speichern"]');
+		expect(el, 'Speichern-Button fehlt').not.toBeNull();
+		return el!;
+	};
+
+	beforeEach(() => {
+		// Frischen Spy setzen (statt nur `delete`): die AK1-/AK4-Tests asserten
+		// `not.toHaveBeenCalled()` OHNE vorherigen API-Zugriff — ohne initialisierten Mock steht
+		// dort `undefined` und vitest wirft „undefined is not a spy or a call to a spy!". Der Mock
+		// entstünde sonst erst lazily beim ersten `api.setPillarWeights`-Aufruf (api-Proxy oben).
+		apiMocks.setPillarWeights = vi.fn().mockResolvedValue(undefined);
+	});
+
+	// AK1: Klick auf „Speichern" bei aktiver Warnung öffnet das Modal mit dem Hinweistext — kein PUT.
+	it('AK1: Speichern bei aktiver Warnung öffnet das Bestätigungs-Modal, ohne PUT', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		await click(saveButton(container));
+		expect(modalBody(container), 'Bestätigungs-Modal fehlt').not.toBeNull();
+		expect(
+			modalBody(container)!.querySelector('kol-alert[_type="warning"]'),
+			'#1555-Hinweis fehlt im Modal',
+		).not.toBeNull();
+		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
+	});
+
+	// AK1: Strg+Enter nimmt denselben Gate-Pfad — Modal statt PUT.
+	it('AK1: Strg+Enter öffnet ebenfalls das Modal statt zu speichern', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		await pressCtrlEnter();
+		expect(modalBody(container), 'Bestätigungs-Modal fehlt').not.toBeNull();
+		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
+	});
+
+	// AK2: „Trotzdem speichern" sendet genau einen PUT mit normierten Gewichten (Summe 100).
+	it('AK2: „Trotzdem speichern" sendet genau einen PUT mit normierten Gewichten', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		await click(saveButton(container));
+		expect(modalBody(container), 'Bestätigungs-Modal fehlt').not.toBeNull();
+		const confirm = modalBody(container)!.querySelector('kol-button[_label="Trotzdem speichern"]');
+		expect(confirm, 'Bestätigen-Button fehlt').not.toBeNull();
+		await click(confirm!);
 		await waitFor(() => {
 			expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
 		});
@@ -1061,6 +1149,96 @@ describe('SettingsPage – #1555: Hinweis bei unausgewogener Säulen-Gewichtung'
 				],
 			},
 		});
+		expect(modalBody(container), 'Modal schließt nach Bestätigen nicht').toBeNull();
+	});
+
+	// AK2: „Abbrechen" schließt ohne PUT, Regler unverändert, erneutes Speichern wieder möglich.
+	it('AK2: „Abbrechen" schließt das Modal ohne PUT und ohne Änderung der Reglerwerte', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		await click(saveButton(container));
+		expect(modalBody(container), 'Bestätigungs-Modal fehlt').not.toBeNull();
+		const cancel = modalBody(container)!.querySelector('kol-button[_label="Abbrechen"]');
+		expect(cancel, 'Abbrechen-Button fehlt').not.toBeNull();
+		await click(cancel!);
+		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
+		expect(modalBody(container), 'Modal ist nach Abbrechen noch offen').toBeNull();
+		// Reglerwerte stehen im Ref — sie dürfen durch Abbrechen nicht angefasst werden.
+		const rawValue = (el: Element): string =>
+			String((el as unknown as Record<string, unknown>)._value ?? el.getAttribute('_value') ?? '');
+		expect(rawValue(slider(container, 0)), 'Reglerwert wurde durch Abbrechen verändert').toBe('0.45');
+		// Erneutes Speichern öffnet das Modal wieder (kein Einweg-Sperren nach Abbrechen).
+		await click(saveButton(container));
+		expect(modalBody(container), 'erneutes Speichern öffnet kein Modal mehr').not.toBeNull();
+		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
+	});
+
+	// AK3: Ohne Warnung (ausgewogen) speichert der Klick direkt — ohne Modal (Regression-Guard
+	// gegen ein Über-Gating; e2e-seitig deckt settings-page.spec AK5 den PUT bereits ab).
+	it('AK3: ausgewogene Verteilung speichert direkt — ohne Modal', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={balancedPillars} />);
+		await click(saveButton(container));
+		expect(modalBody(container), 'ausgewogene Verteilung darf kein Modal öffnen').toBeNull();
+		await waitFor(() => {
+			expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
+		});
+		expect(apiMocks.setPillarWeights).toHaveBeenCalledWith({
+			pillarWeightsInput: {
+				weights: [20, 20, 20, 20, 20].map((weight, index) => ({ id: index + 1, weight })),
+			},
+		});
+	});
+
+	// AK4: Extremverteilung (nach Normierung 100 %/0 %) wird nicht gespeichert — blockierender
+	// Fehler im Formular, kein Modal, kein PUT.
+	it('AK4: Verteilung mit 0-%-/100 %-Anteil wird blockiert — Fehler statt PUT', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={twoPillars} />);
+		await input(slider(container, 0), '1');
+		await input(slider(container, 1), '0');
+		await click(saveButton(container));
+		expect(
+			container.querySelector('.settings-pillars kol-alert[_type="error"]'),
+			'blockierender Fehler-Alert fehlt',
+		).not.toBeNull();
+		expect(modalBody(container), 'Extremverteilung gehört nicht ins Bestätigungs-Modal').toBeNull();
+		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
+	});
+
+	// AK4-Ausnahme: Bei genau einer Säule ist 100 % die einzig gültige Verteilung → speicherbar.
+	it('AK4-Ausnahme: einzelne Säule (100 %) bleibt ohne Modal speicherbar', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={singlePillar} />);
+		await click(saveButton(container));
+		expect(modalBody(container), 'Einzel-Säule darf kein Modal öffnen').toBeNull();
+		await waitFor(() => {
+			expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
+		});
+		expect(apiMocks.setPillarWeights).toHaveBeenCalledWith({
+			pillarWeightsInput: { weights: [{ id: 1, weight: 100 }] },
+		});
+	});
+
+	// AK5: Der PUT feuert unmittelbar nach dem Bestätigungs-Klick — bewusst KEIN waitFor und kein
+	// Timer-Advance: eine Wartefrist im Save-Pfad (setTimeout o. ä.) ließe diesen Zähler bei 0.
+	it('AK5: nach „Trotzdem speichern" feuert der PUT unmittelbar — ohne Timer-Vorlauf', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		await click(saveButton(container));
+		expect(modalBody(container), 'Bestätigungs-Modal fehlt').not.toBeNull();
+		const confirm = modalBody(container)!.querySelector('kol-button[_label="Trotzdem speichern"]');
+		expect(confirm, 'Bestätigen-Button fehlt').not.toBeNull();
+		await click(confirm!);
+		expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
+	});
+
+	// KI-UX (#1574): Strg+Enter im geöffneten Modal bestätigt — der Formular-Shortcut darf dabei
+	// nicht zusätzlich feuern: genau ein PUT, kein zweites Modal.
+	it('KI-UX: Strg+Enter im geöffneten Modal bestätigt mit genau einem PUT', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} pillars={unbalancedPillars} />);
+		await click(saveButton(container));
+		await pressCtrlEnter();
+		await waitFor(() => {
+			expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
+		});
+		expect(apiMocks.setPillarWeights).toHaveBeenCalledTimes(1);
+		expect(modalBody(container), 'Modal schließt nach Bestätigen nicht').toBeNull();
 	});
 });
 

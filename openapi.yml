@@ -1331,6 +1331,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /llm-providers/test-dry:
+    post:
+      summary: Provider-Entwurf testen (ohne Speichern)
+      description: >-
+        Prüft die Verbindung mit den unveränderten Formulardaten aus dem
+        Anlege-/Bearbeiten-Dialog (#1577): dieselbe Test-Logik wie
+        `POST /llm-providers/{id}/test`, aber mit einer Laufzeit-Konfiguration
+        aus dem Request-Body statt aus einer DB-Zeile. Legt oder verändert
+        keinen Provider und schreibt kein Test-Ergebnis in den Cooldown-Cache.
+        Bei leerem `apiKey` mit `providerId` wird der gespeicherte Key des
+        Providers genutzt; fremde oder unbekannte `providerId` antworten 404.
+      operationId: testLlmProviderDraft
+      tags: [llm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmProviderTestDraft'
+      responses:
+        '200':
+          description: Testergebnis (Feld `ok` unterscheidet Erfolg/Misserfolg)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProviderTestResult'
+        '400':
+          description: Ungültiger Payload (endpoint/model/apiKey/providerId)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Nicht angemeldet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Provider nicht gefunden (fremde providerId)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /llm-providers/{id}:
     parameters:
       - name: id
@@ -5185,6 +5229,30 @@ components:
         name:
           type: string
           description: Anzeigename — fiel der Upstream keinen, gilt die Modellkennung.
+    LlmProviderTestDraft:
+      type: object
+      required:
+        - endpoint
+        - apiKey
+        - model
+      description: >-
+        Eingabe für `POST /llm-providers/test-dry`: die Formulardaten des
+        Provider-Dialogs (#1577). Leeres `apiKey` mit gesetztem `providerId`
+        nutzt den gespeicherten Key des Providers (Bearbeiten-Modus,
+        „leer = unverändert").
+      properties:
+        endpoint:
+          type: string
+          description: OpenAI-kompatible Basis-URL (http/https) aus dem Formular.
+        apiKey:
+          type: string
+          description: API-Key aus dem Formular (leer = gespeicherter Key bei providerId).
+        model:
+          type: string
+          description: Modellkennung aus dem Formular.
+        providerId:
+          type: integer
+          description: ID des bearbeiteten Providers (optional; Besitz wird geprüft).
     LlmProviderTestResult:
       type: object
       required:

@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
-import type { LlmProvider, LlmProviderInput, LlmProviderUpdate } from 'client';
+import type { LlmProvider, LlmProviderInput, LlmProviderTestResult, LlmProviderUpdate } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -44,6 +44,9 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	/** Ergebnis des Verbindungstests (`null` = noch keins) — #1577. */
+	const [testResult, setTestResult] = useState<LlmProviderTestResult | null>(null);
+	const [testing, setTesting] = useState(false);
 
 	useEffect(() => {
 		form.current = {
@@ -56,7 +59,21 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		setEndpointState(form.current.endpoint);
 		setApiKeyState(form.current.apiKey);
 		setModelState(form.current.model);
+		setTestResult(null);
 	}, [provider]);
+
+	/**
+	 * Feld-Handler (onInput/onChange teilen sich die Logik): schreibt den Wert in Ref+State
+	 * und verwirft ein vorhandenes Test-Ergebnis — der Alert gilt für die alten Werte und
+	 * würde sonst einen Erfolg für die noch ungetestete Konfiguration behaupten.
+	 */
+	const fieldHandler =
+		(field: 'name' | 'endpoint' | 'apiKey' | 'model', setState: (value: string) => void) =>
+		(_event: unknown, value: unknown): void => {
+			form.current[field] = readString(value);
+			setState(form.current[field]);
+			setTestResult(null);
+		};
 
 	const submit = async (): Promise<void> => {
 		const name = form.current.name.trim();
@@ -110,6 +127,28 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA aus, solange kein Speichern läuft.
 	useCtrlEnter(() => void submit(), !saving);
 
+	// Verbindungstest des ENTWURFS (#1577): prüft die ungespeicherten Formulardaten ohne
+	// Anlegen/Verändern. Im Bearbeiten-Modus mit leerem Key-Feld wird die providerId mitgegeben —
+	// der Server nutzt den gespeicherten Key („leer = unverändert", AK2).
+	const runDryTest = async (): Promise<void> => {
+		setTestResult(null);
+		setTesting(true);
+		try {
+			const result = await api.testLlmProviderDraft({
+				endpoint: form.current.endpoint.trim(),
+				apiKey: form.current.apiKey.trim(),
+				model: form.current.model.trim(),
+				...(isEdit && provider !== undefined ? { providerId: provider.id } : {}),
+			});
+			setTestResult(result);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setTestResult({ ok: false, message: apiError.message });
+		} finally {
+			setTesting(false);
+		}
+	};
+
 	return (
 		<Modal title={isEdit ? 'Provider bearbeiten' : 'Neuen Provider anlegen'} onClose={onClose}>
 			{error !== null && (
@@ -124,14 +163,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					_value={nameState}
 					_hint="Anzeigename, z. B. z.ai oder Groq"
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.name = readString(v);
-							setNameState(form.current.name);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.name = readString(v);
-							setNameState(form.current.name);
-						},
+						onInput: fieldHandler('name', setNameState),
+						onChange: fieldHandler('name', setNameState),
 					}}
 				/>
 				<KolInputText
@@ -139,14 +172,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					_value={endpointState}
 					_hint="OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1"
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.endpoint = readString(v);
-							setEndpointState(form.current.endpoint);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.endpoint = readString(v);
-							setEndpointState(form.current.endpoint);
-						},
+						onInput: fieldHandler('endpoint', setEndpointState),
+						onChange: fieldHandler('endpoint', setEndpointState),
 					}}
 				/>
 				<KolInputPassword
@@ -158,14 +185,8 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 							: 'Wird nie angezeigt oder zurückgelesen.'
 					}
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.apiKey = readString(v);
-							setApiKeyState(form.current.apiKey);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.apiKey = readString(v);
-							setApiKeyState(form.current.apiKey);
-						},
+						onInput: fieldHandler('apiKey', setApiKeyState),
+						onChange: fieldHandler('apiKey', setApiKeyState),
 					}}
 				/>
 				<KolInputText
@@ -174,23 +195,33 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 					_value={modelState}
 					_hint="Modellkennung, z. B. glm-4.7 — später änderbar über die Modellliste."
 					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.model = readString(v);
-							setModelState(form.current.model);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.model = readString(v);
-							setModelState(form.current.model);
-						},
+						onInput: fieldHandler('model', setModelState),
+						onChange: fieldHandler('model', setModelState),
 					}}
 				/>
 			</div>
+			{testResult !== null && testResult.ok && (
+				<KolAlert _type="success" _alert _label="Verbindungstest erfolgreich">
+					{`${testResult.model ?? 'Modell'} antwortete in ${testResult.latencyMs ?? '?'} ms.`}
+				</KolAlert>
+			)}
+			{testResult !== null && !testResult.ok && (
+				<KolAlert _type="error" _alert _label="Verbindungstest fehlgeschlagen">
+					{testResult.message ?? 'Unbekannter Fehler.'}
+				</KolAlert>
+			)}
 			<div className="modal-actions">
 				<KolButton
 					_label={isEdit ? 'Speichern' : 'Anlegen'}
 					_variant="primary"
 					_disabled={saving}
 					_on={{ onClick: () => void submit() }}
+				/>
+				<KolButton
+					_label={testing ? 'Testen…' : 'Testen'}
+					_variant="secondary"
+					_disabled={saving || testing}
+					_on={{ onClick: () => void runDryTest() }}
 				/>
 				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
 			</div>

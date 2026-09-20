@@ -29,6 +29,7 @@ import type {
 	LlmModels,
 	LlmProvider,
 	LlmProviderTestResult,
+	LlmProviderTestDraft,
 	LlmProviderInput,
 	LlmProviderUpdate,
 	NearbyTask,
@@ -914,6 +915,26 @@ export const api = {
 		const { data, error, response } = await client.POST('/llm-providers/{id}/test', {
 			params: { path: { id } },
 		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Verbindungstest eines Provider-ENTWURFS aus dem Anlege-/Bearbeiten-Dialog (#1577): prüft
+	// die ungespeicherten Formulardaten (Key-Fallback über providerId im Bearbeiten-Modus),
+	// ohne dass ein Provider angelegt oder verändert wird.
+	async testLlmProviderDraft({
+		endpoint,
+		apiKey,
+		model,
+		providerId,
+	}: LlmProviderTestDraft): Promise<LlmProviderTestResult> {
+		const body: LlmProviderTestDraft = { endpoint, apiKey, model };
+		if (providerId !== undefined) {
+			body.providerId = providerId; // Nur im Bearbeiten-Modus — im Anlegen-Modus bleibt der Key weg.
+		}
+		const { data, error, response } = await client.POST('/llm-providers/test-dry', { body });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

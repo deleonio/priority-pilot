@@ -157,7 +157,8 @@ const builtinFallbackKey = (): 'mistral' | 'openrouter' | null => {
 };
 
 /** Entfernt einen `/chat/completions`-Suffix und abschließende Slashes → OpenAI-kompatible Basis-URL. */
-const toBaseUrl = (endpoint: string): string => endpoint.replace(/\/chat\/completions\/?$/, '').replace(/\/+$/, '');
+export const toBaseUrl = (endpoint: string): string =>
+	endpoint.replace(/\/chat\/completions\/?$/, '').replace(/\/+$/, '');
 
 /**
  * Laufzeit-Konfiguration eines Providers für LLM- und Modelllisten-Aufrufe.

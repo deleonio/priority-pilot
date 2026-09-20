@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1555 — „Hinweis bei stark unausgewogener Säulen-Gewichtung"
@@ -26,6 +26,9 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 	 * Der Alert läuft bei 375px nicht horizontal aus dem Viewport.
 	 */
 	test('AK1+AK2+AK5: Warn-Alert schaltet live mit der Verteilung und läuft bei 375px nicht über', async ({ page }) => {
+		// #1574: Ausgangszustand Gleichverteilung deterministisch herstellen (parallele Specs im
+		// Shard teilen die DB) — der Test assertiert „kein Alert bei Start".
+		await setEqualPillarWeights(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
@@ -56,27 +59,41 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 	});
 
 	/**
-	 * AK4: Trotz sichtbarem Hinweis bleibt Speichern möglich — der Button ist nicht deaktiviert
-	 * und der Speicher-Fluss schließt erfolgreich ab (Karte/Ansicht verlässt den Editierzustand,
-	 * Muster crud.spec.ts:161–162).
+	 * AK4: Trotz sichtbarem Hinweis bleibt Speichern möglich — seit #1574 über das
+	 * Bestätigungs-Modal („Trotzdem speichern"); der Speicher-Fluss schließt erfolgreich ab
+	 * (Karte/Ansicht verlässt den Editierzustand, Muster crud.spec.ts:161–162).
+	 *
+	 * Verteilung bewusst NICHT mehr per `End`/`Home` (100 % vs. 0 %): Solche Extremverteilungen
+	 * blockiert #1574 (AK4) vollständig. Stattdessen unausgewogen ohne Extremanteil: erste Säule
+	 * 0,2 → 0,6, übrige → 0,1 (Summe 1,0 → Normierung ist die Identität).
 	 */
-	test('AK4: Speichern einer ungleichen Verteilung bleibt trotz Hinweis möglich', async ({ page }) => {
+	test('AK4: Speichern einer ungleichen Verteilung bleibt trotz Hinweis möglich (via Bestätigung)', async ({
+		page,
+	}) => {
+		// #1574: Regler-Flow geht von 5 × 0,2 aus (0,2 → 0,6/0,1) — Gleichverteilung aktiv
+		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.
+		await setEqualPillarWeights(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Ungleich: erste Säule Maximum, übrige Minimum (100 % vs. 0 %).
+		// Ungleich ohne Extremanteil: erste Säule 0,6 (60 % > 2 × 20 %), übrige je 0,1.
 		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
 		const sliderCount = await sliders.count();
-		await sliders.first().press('End');
+		for (let press = 0; press < 4; press += 1) {
+			await sliders.first().press('ArrowRight');
+		}
 		for (let index = 1; index < sliderCount; index += 1) {
-			await sliders.nth(index).press('Home');
+			await sliders.nth(index).press('ArrowLeft');
 		}
 		await expect(page.locator('.settings-pillars kol-alert[_type="warning"]')).toBeVisible();
 
 		const save = page.locator('.settings-pillars kol-button[_label="Speichern"]');
 		await expect(save).not.toHaveAttribute('_disabled', 'true');
 		await save.click();
+
+		// #1574: Bei aktiver Warnung fragt das Bestätigungs-Modal nach (Spec docs/spec/issue-1574.md).
+		await page.getByRole('button', { name: 'Trotzdem speichern' }).click();
 
 		// Erfolg des Speicherns: die Karte verlässt den Editierzustand (Heading verschwindet,
 		// identisch zum Persistenz-Test in crud.spec.ts).
