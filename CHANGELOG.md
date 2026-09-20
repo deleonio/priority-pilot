@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-20
 
-_Enthält v0.2.0 – v0.2.118._
+_Enthält v0.2.0 – v0.2.119._
 
 ### 🔧 Engineering
 
@@ -35,7 +35,6 @@ _Enthält v0.2.0 – v0.2.118._
 - feat(server): accept api-key header as bearer token alternative by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1418
 - docs(arc42): record header-only authentication as a risk in section 11 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1419
 - feat(frontend): add icon-only copy buttons with visual feedback by @deleonio in https://github.com/deleonio/priority-pilot/pull/1422
-- docs(spec): sync specs with implementation 2026-09-13 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1425
 - docs(spec): sync specs with implementation 2026-09-13 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1425
 - docs(guide): sync user guide with current implementation state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1427
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
@@ -130,6 +129,7 @@ _Enthält v0.2.0 – v0.2.118._
 - docs(AGENTS.md): Align frontend test path with testing.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1592
 - chore(deps): update pnpm to v12.5.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1541
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1476
+- feat(frontend): Header bar full-width with continuous edge (#1587) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1589
 
 ## v0.1 - 2026-09-12
 
