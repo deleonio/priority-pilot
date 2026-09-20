@@ -31,6 +31,7 @@ vi.mock('@public-ui/react-v19', () => ({
 		</table>
 	),
 	KolToolbar: () => null,
+	KolInputCheckbox: () => null,
 }));
 
 // renderIntoCell mountet in jsdom keine React-Root in eine Web-Component-Zelle → no-op.
@@ -44,6 +45,7 @@ vi.mock('../lib/series', () => ({
 
 vi.mock('../lib/task', () => ({
 	formatDeadline: () => '',
+	sortPinnedFirst: (tasks: Task[]) => tasks,
 }));
 
 import { TaskTable } from './TaskTable';
@@ -80,6 +82,7 @@ const defaultProps = {
 	onDelete: vi.fn(),
 	onEditDependencies: vi.fn(),
 	onAddSubtask: vi.fn(),
+	onPinToggle: vi.fn(),
 };
 
 describe('TaskTable — Checklisten-Fortschritt (#531, AK6/T11)', () => {

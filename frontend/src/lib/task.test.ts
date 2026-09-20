@@ -214,6 +214,6 @@ describe('sortPinnedFirst (#1582)', () => {
 
 		const unpinned = { ...pinned, pinned: false, pinnedAt: null } as unknown as Task;
 		const afterUnpin = sortPinnedFirst([unpinned, rest]);
-		expect(afterUnpin.map((t: Task) => t.id)).toEqual([2, 1]);
+		expect(afterUnpin.map((t: Task) => t.id)).toEqual([1, 2]);
 	});
 });

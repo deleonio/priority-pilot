@@ -1,11 +1,11 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
-import { KolBadge, KolTableStateful, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolInputCheckbox, KolTableStateful, KolToolbar } from '@public-ui/react-v19';
 import type { ChecklistItem, Task } from 'client';
 import { memo } from 'react';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { seriesBadge } from '../lib/series';
-import { formatDeadline } from '../lib/task';
+import { formatDeadline, sortPinnedFirst } from '../lib/task';
 import { priorityBadge } from '../lib/task';
 
 interface TaskTableProps {
@@ -17,6 +17,8 @@ interface TaskTableProps {
 	onEditDependencies: (task: Task) => void;
 	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
 	onAddSubtask: (task: Task) => void;
+	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
+	onPinToggle: (task: Task) => void;
 }
 
 /**
@@ -72,12 +74,13 @@ const renderPriorityBadge = (priority: number) => {
  * Auslöser-Button verlöre den Fokus (Voraussetzung: die Callback-Props sind in `App` stabil).
  */
 export const TaskTable = memo((props: TaskTableProps) => {
-	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask } = props;
+	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask, onPinToggle } = props;
 	if (tasks.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
 
-	const data: TaskRow[] = tasks.map((task) => ({
+	// #1582 AK2/AK5: angepinnte Tasks unabhängig von der Tabellensortierung immer oben.
+	const data: TaskRow[] = sortPinnedFirst(tasks).map((task) => ({
 		id: task.id,
 		title: task.title,
 		status: task.status,
@@ -115,12 +118,16 @@ export const TaskTable = memo((props: TaskTableProps) => {
 					label: 'Angepinnt',
 					render: (domNode, _cell, tupel) => {
 						const row = tupel as TaskRow;
-						if (row.pinned === '') return;
 						renderIntoCell(
 							domNode,
-							<span role="img" aria-label="Angepinnt">
-								<i className="fa-solid fa-thumbtack" aria-hidden="true" />
-							</span>,
+							<KolInputCheckbox
+								_variant="button"
+								_label={row.pinned === '' ? `${row.title} anpinnen` : `${row.title} abpinnen`}
+								_hideLabel={true}
+								_checked={row.pinned !== ''}
+								_icons={{ checked: 'fa-solid fa-thumbtack', unchecked: 'fa-solid fa-thumbtack' }}
+								_on={{ onChange: () => onPinToggle(row._task) }}
+							/>,
 						);
 					},
 				},
