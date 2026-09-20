@@ -2374,6 +2374,16 @@ kol-toolbar {
 	--a11y-min-size: 2.75rem;
 }
 
+/* Batch-Trigger zur Neuberechnung der Säulenverteilung (Admin): Button und Ergebnis unter
+   der Nutzerliste, mit Abstand statt direkt angeklebt. */
+.admin-reassign {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--pp-space-3);
+	margin-top: var(--pp-space-3);
+}
+
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
    untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
 .deadline-group {

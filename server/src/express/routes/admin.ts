@@ -7,12 +7,19 @@ import { User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
+import { validateProviderQuery } from '../llmProviderQuery.js';
+import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
+import type { components } from '../../api';
+import { reassignTaskPillarsForAllUsers } from '../../logics/reassignTaskPillars.js';
 
 /**
- * Nutzerverwaltung für Admins (Rollensystem admin/member/tester). Der Router hängt hinter dem
- * globalen `requireAuth` — Nutzerliste und Rollenvergabe bleiben `requireRole('admin')`-gated
+ * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
+ * Neuberechnung der Säulenverteilung aller Aufgaben. Der Router hängt hinter dem globalen
+ * `requireAuth` — Nutzerliste und Rollenvergabe bleiben `requireRole('admin')`-gated
  * (Tester, #1566), nur der Paket-PATCH ist für Tester auf die eigene Id geöffnet.
  */
+
+type ReassignPillarsResultDto = components['schemas']['ReassignPillarsResult'];
 
 type AdminUserDto = {
 	id: number;
@@ -38,7 +45,7 @@ const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ern
  * Stuft `id` auf eine Nicht-Admin-Rolle (`member`/`tester`) zurück — aber nur, wenn danach noch
  * mindestens ein Admin übrig bleibt.
  * Die Prüfung steckt als Subquery in EINEM bedingten UPDATE statt in „erst zählen, dann
- * schreiben“: Zwei parallele Rückstufungen der beiden letzten Admins könnten sonst beide den
+ * schreiben": Zwei parallele Rückstufungen der beiden letzten Admins könnten sonst beide den
  * Count `2` sehen und die App ohne Administrator zurücklassen (TOCTOU). Ein einzelnes UPDATE ist
  * in SQLite atomar; auf eine Transaktion wird bewusst verzichtet (Tests laufen mit `:memory:` und
  * einer einzigen Verbindung, parallele `BEGIN`s würden dort kollidieren). Bereits zurückgestufte
@@ -65,99 +72,133 @@ const demoteUnlessLastAdmin = async (id: number, targetRole: Exclude<UserRole, '
 	return affected > 0;
 };
 
-export const adminRouter = Router();
+/**
+ * Erstellt den Admin-Router. Der Säulen-Klassifikator des Backfill-Endpunkts ist injizierbar
+ * (Default: realer Mistral-Aufruf), damit Tests ohne echten API-Call laufen — Muster
+ * `createSuggestPillarsRouter`.
+ */
+export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyPillarsWithMistral): Router => {
+	const adminRouter = Router();
 
-// GET /admin/users — alle Nutzer der App (nur Admins). `requireRole` läuft als Route-Middleware
-// (nicht als `router.use(...)`) — ein pfadloses `.use()` auf einem ohne Präfix gemounteten Router
-// (siehe express/index.ts) würde JEDEN nachfolgenden Request abfangen, nicht nur `/admin/*`.
-adminRouter.get(
-	'/admin/users',
-	requireRole('admin'),
-	async (_req: Request, res: Response<AdminUserDto[] | ErrorDto>) => {
-		try {
-			const users = await User.findAll({ order: [['displayName', 'ASC']] });
-			res.json(users.map(toDto));
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-		}
-	},
-);
+	// GET /admin/users — alle Nutzer der App (nur Admins). `requireRole` läuft als Route-Middleware
+	// (nicht als `router.use(...)`) — ein pfadloses `.use()` auf einem ohne Präfix gemounteten Router
+	// (siehe express/index.ts) würde JEDEN nachfolgenden Request abfangen, nicht nur `/admin/*`.
+	adminRouter.get(
+		'/admin/users',
+		requireRole('admin'),
+		async (_req: Request, res: Response<AdminUserDto[] | ErrorDto>) => {
+			try {
+				const users = await User.findAll({ order: [['displayName', 'ASC']] });
+				res.json(users.map(toDto));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
 
-// PATCH /admin/users/:id/role — Rolle eines Nutzers ändern (nur Admins). Der letzte verbleibende
-// Admin darf nicht zurückgestuft werden (409), damit die App nie ohne Administrator dasteht.
-adminRouter.patch(
-	'/admin/users/:id/role',
-	requireRole('admin'),
-	async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
-		try {
-			const id = Number(req.params.id);
-			if (!Number.isInteger(id) || id <= 0) {
-				sendError(res, 400, 'Ungültige Nutzer-Id.');
-				return;
-			}
-			const body = (req.body ?? {}) as { role?: unknown };
-			if (body.role !== 'admin' && body.role !== 'member' && body.role !== 'tester') {
-				sendError(res, 400, 'Die Rolle muss "admin", "member" oder "tester" sein.');
-				return;
-			}
-			const target = await User.findByPk(id);
-			if (!target) {
-				sendError(res, 404, 'Nutzer nicht gefunden.');
-				return;
-			}
-			if (body.role !== 'admin') {
-				// Jede Rückstufung eines Admins (auf member ODER tester) hängt am Letzter-Admin-Guard —
-				// auch via tester darf die App nie ohne Administrator dastehen (#1566 AK1).
-				if (!(await demoteUnlessLastAdmin(target.id, body.role))) {
-					sendError(res, 409, LAST_ADMIN_MESSAGE);
+	// PATCH /admin/users/:id/role — Rolle eines Nutzers ändern (nur Admins). Der letzte verbleibende
+	// Admin darf nicht zurückgestuft werden (409), damit die App nie ohne Administrator dasteht.
+	adminRouter.patch(
+		'/admin/users/:id/role',
+		requireRole('admin'),
+		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+			try {
+				const id = Number(req.params.id);
+				if (!Number.isInteger(id) || id <= 0) {
+					sendError(res, 400, 'Ungültige Nutzer-Id.');
 					return;
 				}
-				await target.reload();
-			} else {
-				await target.update({ role: body.role });
+				const body = (req.body ?? {}) as { role?: unknown };
+				if (body.role !== 'admin' && body.role !== 'member' && body.role !== 'tester') {
+					sendError(res, 400, 'Die Rolle muss "admin", "member" oder "tester" sein.');
+					return;
+				}
+				const target = await User.findByPk(id);
+				if (!target) {
+					sendError(res, 404, 'Nutzer nicht gefunden.');
+					return;
+				}
+				if (body.role !== 'admin') {
+					// Jede Rückstufung eines Admins (auf member ODER tester) hängt am Letzter-Admin-Guard —
+					// auch via tester darf die App nie ohne Administrator dastehen (#1566 AK1).
+					if (!(await demoteUnlessLastAdmin(target.id, body.role))) {
+						sendError(res, 409, LAST_ADMIN_MESSAGE);
+						return;
+					}
+					await target.reload();
+				} else {
+					await target.update({ role: body.role });
+				}
+				res.json(toDto(target));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
 			}
-			res.json(toDto(target));
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-		}
-	},
-);
+		},
+	);
 
-// PATCH /admin/users/:id/plan — Paket eines Nutzers setzen (Admins; Tester nur die eigene Id,
-// #1566 AK3/AK4). Bis zur Selbstbedienung (T7) ist das der einzige Weg, ein Paket zu vergeben;
-// deshalb bewusst manuell und ohne Zahlungsbezug. Muster wie oben bei der Rolle — nur ohne
-// Letzter-Admin-Schutz. Das eigene-Id-Limit für Tester erzwingt der Server (403), das
-// Frontend-Gating allein reichte nicht.
-adminRouter.patch(
-	'/admin/users/:id/plan',
-	requireRole(['admin', 'tester']),
-	async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
-		try {
-			const id = Number(req.params.id);
-			if (!Number.isInteger(id) || id <= 0) {
-				sendError(res, 400, 'Ungültige Nutzer-Id.');
+	// PATCH /admin/users/:id/plan — Paket eines Nutzers setzen (Admins; Tester nur die eigene Id,
+	// #1566 AK3/AK4). Bis zur Selbstbedienung (T7) ist das der einzige Weg, ein Paket zu vergeben;
+	// deshalb bewusst manuell und ohne Zahlungsbezug. Muster wie oben bei der Rolle — nur ohne
+	// Letzter-Admin-Schutz. Das eigene-Id-Limit für Tester erzwingt der Server (403), das
+	// Frontend-Gating allein reichte nicht.
+	adminRouter.patch(
+		'/admin/users/:id/plan',
+		requireRole(['admin', 'tester']),
+		async (req: Request, res: Response<AdminUserDto | ErrorDto>) => {
+			try {
+				const id = Number(req.params.id);
+				if (!Number.isInteger(id) || id <= 0) {
+					sendError(res, 400, 'Ungültige Nutzer-Id.');
+					return;
+				}
+				const requesterId = req.session?.user?.id;
+				const requester = typeof requesterId === 'number' ? await User.findByPk(requesterId) : undefined;
+				if (requester?.role === 'tester' && requester.id !== id) {
+					sendError(res, 403, 'Tester dürfen nur das eigene Paket setzen.');
+					return;
+				}
+				const body = (req.body ?? {}) as { plan?: unknown };
+				if (!PLAN_VALUES.includes(body.plan as Plan)) {
+					sendError(res, 400, `Das Paket muss eines von ${PLAN_VALUES.join(', ')} sein.`);
+					return;
+				}
+				const target = await User.findByPk(id);
+				if (!target) {
+					sendError(res, 404, 'Nutzer nicht gefunden.');
+					return;
+				}
+				await target.update({ plan: body.plan as Plan });
+				res.json(toDto(target));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// POST /admin/tasks/reassign-pillars — Batch: Säulenverteilung ALLER Aufgaben (aller Konten,
+	// inklusive erledigter) anhand des Aufgabenkontexts (Titel/Beschreibung) per KI-Klassifikator
+	// neu berechnen und speichern. Status/Punkte/Streak bleiben unberührt (kein Reopen im
+	// Status-Sinn), siehe logics/reassignTaskPillars.ts. Admin-Trigger: nach einer Änderung am
+	// Säulensystem (umbenannt, neu angelegt) einmal manuell auslösen — bewusst KEIN Cron, damit
+	// niemand unbemerkt laufend Kontingente verbrennt.
+	adminRouter.post(
+		'/admin/tasks/reassign-pillars',
+		requireRole('admin'),
+		async (req: Request, res: Response<ReassignPillarsResultDto | ErrorDto>) => {
+			// Provider-Query-Parameter validieren (#749) — gleiche Pinning-Regel wie suggest-pillars.
+			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
+			if (!providerValidation.ok) {
+				sendError(res, 400, providerValidation.message);
 				return;
 			}
-			const requesterId = req.session?.user?.id;
-			const requester = typeof requesterId === 'number' ? await User.findByPk(requesterId) : undefined;
-			if (requester?.role === 'tester' && requester.id !== id) {
-				sendError(res, 403, 'Tester dürfen nur das eigene Paket setzen.');
-				return;
+			try {
+				const result = await reassignTaskPillarsForAllUsers(pillarClassifier, providerValidation.provider);
+				res.json(result);
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
 			}
-			const body = (req.body ?? {}) as { plan?: unknown };
-			if (!PLAN_VALUES.includes(body.plan as Plan)) {
-				sendError(res, 400, `Das Paket muss eines von ${PLAN_VALUES.join(', ')} sein.`);
-				return;
-			}
-			const target = await User.findByPk(id);
-			if (!target) {
-				sendError(res, 404, 'Nutzer nicht gefunden.');
-				return;
-			}
-			await target.update({ plan: body.plan as Plan });
-			res.json(toDto(target));
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-		}
-	},
-);
+		},
+	);
+
+	return adminRouter;
+};

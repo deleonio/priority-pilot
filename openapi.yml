@@ -1958,6 +1958,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/tasks/reassign-pillars:
+    post:
+      summary: Säulenverteilung aller Aufgaben neu berechnen (Batch)
+      description: >-
+        Admin-getriggert: Berechnet die Säulen-Beiträge ALLER Aufgaben (aller
+        Konten, einschließlich der erledigten) anhand des Aufgabenkontexts
+        (Titel/Beschreibung) per KI-Klassifikator neu und speichert sie. Status,
+        Punkte und Streak bleiben unberührt — der Batch öffnet Aufgaben nur für
+        die Neuberechnung ihrer Verteilung, nicht im Status-Sinn. Aufgaben ohne
+        brauchbaren Vorschlag behalten ihre bisherige Zuordnung; ein Fehler bei
+        einer Aufgabe reißt den Lauf nicht ab. Bewusst manuell (kein Cron), damit
+        der LLM-Upstream nicht unbemerkt dauerhaft läuft.
+      operationId: reassignTaskPillars
+      tags: [admin]
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen Aufruf.
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        '200':
+          description: Ergebnis des Batch-Laufs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReassignPillarsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /groups/{id}/members:
     parameters:
       - name: id
@@ -3070,6 +3111,25 @@ components:
       properties:
         plan:
           $ref: '#/components/schemas/Plan'
+    ReassignPillarsResult:
+      type: object
+      description: >-
+        Ergebnis des Batch-Laufs zur Neuberechnung der Säulenverteilung aller
+        Aufgaben (POST /admin/tasks/reassign-pillars).
+      required: [updated, failed, skipped, users]
+      properties:
+        updated:
+          type: integer
+          description: Aufgaben mit erfolgreich ersetzter Säulenverteilung.
+        failed:
+          type: integer
+          description: Aufgaben, deren Klassifikation oder Speichern fehlschlug (Lauf lief weiter).
+        skipped:
+          type: integer
+          description: Aufgaben ohne gültigen Vorschlag — Zuordnung unverändert gelassen.
+        users:
+          type: integer
+          description: Konten mit verarbeiteten Aufgaben im Lauf.
     Plan:
       type: string
       description: Buchbares Paket. Reihenfolge der Werte ist die Rangfolge (aufsteigend).

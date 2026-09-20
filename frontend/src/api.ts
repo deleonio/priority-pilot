@@ -37,6 +37,7 @@ import type {
 	Profile,
 	ParsedSearch,
 	ParsedTask,
+	ReassignPillarsResult,
 	paths,
 	Pillar,
 	PillarFeedbackInput,
@@ -502,6 +503,14 @@ export const api = {
 		return data;
 	},
 
+	/** Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger. */
+	async reassignTaskPillars(): Promise<ReassignPillarsResult> {
+		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars');
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
 	async getGroupMembers({ id, ...init }: { id: number } & Init): Promise<GroupMember[]> {
 		const { data, error, response } = await client.GET('/groups/{id}/members', {
 			params: { path: { id } },

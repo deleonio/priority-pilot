@@ -1,9 +1,10 @@
 import { KolAlert, KolBadge, KolButton, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser } from 'client';
+import type { AdminUser, ReassignPillarsResult } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
+import { Modal } from './Modal';
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (analog GroupDetail). */
 const roleLabel = (role: AdminUser['role']): string =>
@@ -38,6 +39,27 @@ export const AdminUsersSection = () => {
 		void load();
 	}, [load]);
 
+	// Batch: Säulenverteilung aller Aufgaben neu berechnen (Admin-Trigger). Zweistufige
+	// Bestätigung nach dem UX-Pattern „Sequenzielle Bestätigung“: erst die Absicht, dann
+	// der Hinweis auf die KI-Kosten — pro Schritt nur eine Ja/Nein-Entscheidung.
+	const [confirmStep, setConfirmStep] = useState<'closed' | 'intent' | 'costs'>('closed');
+	const [running, setRunning] = useState(false);
+	const [summary, setSummary] = useState<ReassignPillarsResult | null>(null);
+	const startReassign = useCallback(async (): Promise<void> => {
+		setRunning(true);
+		try {
+			const result = await api.reassignTaskPillars();
+			setSummary(result);
+			setConfirmStep('closed');
+			setError(null);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+			setConfirmStep('closed');
+		} finally {
+			setRunning(false);
+		}
+	}, []);
 	const handleRoleChange = async (id: number, role: AdminUser['role']): Promise<void> => {
 		try {
 			await api.updateUserRole({ id, role });
@@ -84,6 +106,64 @@ export const AdminUsersSection = () => {
 						))}
 					</ul>
 				</>
+			)}
+			<div className="admin-reassign">
+				<KolButton
+					_label="Säulenverteilung aller Aufgaben neu berechnen"
+					_variant="secondary"
+					_disabled={running}
+					_on={{ onClick: () => setConfirmStep('intent') }}
+				/>
+				{summary !== null && (
+					<KolAlert _type="info" _label="Neuberechnung abgeschlossen">
+						{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
+						fehlgeschlagen ({summary.users} Konten).
+					</KolAlert>
+				)}
+			</div>
+			{confirmStep === 'intent' && (
+				<Modal title="Säulenverteilung neu berechnen" onClose={() => setConfirmStep('closed')}>
+					<p>
+						Sollen die Säulen-Beiträge ALLER Aufgaben — auch der erledigten — anhand von Titel und Beschreibung neu
+						berechnet werden? Status, Punkte und Streak bleiben unverändert.
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							_label="Abbrechen"
+							_variant="secondary"
+							_disabled={running}
+							_on={{ onClick: () => setConfirmStep('closed') }}
+						/>
+						<KolButton
+							_label="Weiter"
+							_variant="primary"
+							_disabled={running}
+							_on={{ onClick: () => setConfirmStep('costs') }}
+						/>
+					</div>
+				</Modal>
+			)}
+			{confirmStep === 'costs' && (
+				<Modal title="KI-Kosten bestätigen" onClose={() => setConfirmStep('closed')}>
+					<p>
+						Jede Aufgabe wird einzeln per KI klassifiziert — das verbraucht Kontingent und kann bei vielen Aufgaben
+						dauern. Aufgaben ohne brauchbaren Vorschlag behalten ihre bisherige Zuordnung.
+					</p>
+					<div className="modal-actions">
+						<KolButton
+							_label="Abbrechen"
+							_variant="secondary"
+							_disabled={running}
+							_on={{ onClick: () => setConfirmStep('closed') }}
+						/>
+						<KolButton
+							_label={running ? 'Berechne …' : 'Jetzt neu berechnen'}
+							_variant="primary"
+							_disabled={running}
+							_on={{ onClick: () => void startReassign() }}
+						/>
+					</div>
+				</Modal>
 			)}
 		</div>
 	);
