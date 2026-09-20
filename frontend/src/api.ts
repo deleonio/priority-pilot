@@ -38,8 +38,6 @@ import type {
 	ParsedSearch,
 	ParsedTask,
 	paths,
-	PillarCreate,
-	PillarUpdate,
 	Pillar,
 	PillarFeedbackInput,
 	PushSubscriptionInput,
@@ -381,34 +379,6 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data;
-	},
-
-	async createPillar({ pillarCreate }: { pillarCreate: PillarCreate }): Promise<Pillar> {
-		const { data, error, response } = await client.POST('/pillars', {
-			body: { name: pillarCreate.name, description: pillarCreate.description ?? '' },
-		});
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response, error);
-		}
-		return data;
-	},
-
-	async updatePillar({ id, pillarUpdate }: { id: number; pillarUpdate: PillarUpdate }): Promise<Pillar> {
-		const { data, error, response } = await client.PATCH('/pillars/{id}', {
-			params: { path: { id } },
-			body: pillarUpdate,
-		});
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response, error);
-		}
-		return data;
-	},
-
-	async deletePillar({ id }: { id: number }): Promise<void> {
-		const { error, response } = await client.DELETE('/pillars/{id}', { params: { path: { id } } });
-		if (!response.ok) {
-			throw new ResponseError(response, error);
-		}
 	},
 
 	// ── Kategorien (thematische Ordnungsebene neben den Säulen) ────────────────

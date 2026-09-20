@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { setEqualPillarWeights, waitForStableView } from './helpers';
+import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1555 — „Hinweis bei stark unausgewogener Säulen-Gewichtung"
@@ -11,13 +11,21 @@ import { setEqualPillarWeights, waitForStableView } from './helpers';
  * blockierend). AK5 prüft die mobile Lesbarkeit bei 375px per Bounding-Box — `scrollWidth` ist
  * unbrauchbar, da die App-Shell `overflow-x: hidden` clippt (siehe Erinnerung zu früheren Specs).
  *
- * Slider-Lokatoren sind auf `.pillar-weights-grid` gescoped: seit #1098 stehen im (mitgemounteten,
+ * #1573-Test-Pflege: Der Alert-Locator ist auf `_type="warning"` gescoped, seit der Info-Alert
+ * „Feste Säulen" (SettingsPage.tsx) im selben Panel steht und `kol-alert` allein zwei Treffer
+ * liefert (Strict Mode). Slider-Lokatoren sind auf `.pillar-weights-grid` gescoped: seit #1098 stehen im (mitgemounteten,
  * ausgeblendeten) Allgemein-Panel weitere Range-Regler früher in der Dokumentreihenfolge
  * (Muster crud.spec.ts:151–159).
  */
 test.use({ viewport: { width: 375, height: 800 } });
 
 test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
+	// #1573-Test-Pflege: Beide Tests setzen GENAU FÜNF Säulen voraus. Ohne eigene Session liefert
+	// `GET /pillars` den ganzen Säulen-Bestand der Shard-DB — Begründung siehe `registerOwnSession`.
+	test.beforeEach(async ({ page }) => {
+		await registerOwnSession(page, '1555');
+	});
+
 	/**
 	 * AK1 + AK2 + AK5: Ausgangsverteilung ausgewogen → kein Alert; ein Reglerzug auf das Maximum
 	 * (100 % > 2 × 20 %) zeigt den Warn-Alert live; Rückkehr auf Gleichverteilung entfernt ihn.
@@ -31,7 +39,7 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
 
-		const alert = page.locator('.settings-pillars kol-alert');
+		const alert = page.locator('.settings-pillars kol-alert[_type="warning"]');
 		await expect(alert).toHaveCount(0);
 
 		// Erste Säule auf Maximum (`End` setzt den nativen Range-Input zuverlässig, kein `fill`).
@@ -84,7 +92,7 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 		for (let index = 1; index < sliderCount; index += 1) {
 			await sliders.nth(index).press('ArrowLeft');
 		}
-		await expect(page.locator('.settings-pillars kol-alert')).toBeVisible();
+		await expect(page.locator('.settings-pillars kol-alert[_type="warning"]')).toBeVisible();
 
 		const save = page.locator('.settings-pillars kol-button[_label="Speichern"]');
 		await expect(save).not.toHaveAttribute('_disabled', 'true');

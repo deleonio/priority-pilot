@@ -270,214 +270,85 @@ describe('Pillars API', () => {
 			});
 			assert.equal(res.status, 400);
 		});
+	});
 
-		// ── POST /pillars (AK1) ─────────────────────────────────────────────────────
+	// ── CRUD-Sperre (#1573, AK1) ─────────────────────────────────────────────────────────────
+	// Die fünf Säulen sind fest: Anlegen/Umbenennen/Löschen ist serverseitig gesperrt. Die früheren
+	// POST/PATCH/DELETE-Erfolgs- und Validierungstests (#428) beschreiben seither verbotenes
+	// Verhalten und wurden ersatzlos entfernt (Spec: docs/spec/issue-1573.md, AK1).
 
-		describe('POST /pillars', () => {
-			it('201 legt Säule mit name+description, weight=0 beim Nutzer an (AK1)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
+	describe('CRUD-Sperre (#1573)', () => {
+		/** Sperr-Antwort: 4xx mit erklärendem Hinweistext („fest"/„gesperrt"), kein Nebeneffekt. */
+		const assertLocked = async (res: Response, context: string): Promise<void> => {
+			assert.ok(res.status >= 400 && res.status < 500, `${context}: erwartet 4xx, erhalten ${res.status}`);
+			const body = (await res.json()) as { message?: string };
+			assert.ok(typeof body.message === 'string' && body.message.length > 0, `${context}: Fehlermeldung vorhanden`);
+			assert.match(body.message, /fest|gesperrt/i, `${context}: Hinweistext erklärt die Sperre`);
+			assert.notEqual(res.status, 401, `${context}: gesperrt ≠ nicht angemeldet`);
+			assert.notEqual(res.status, 500, `${context}: Sperre ist kein Serverfehler`);
+		};
 
-				const res = await post('/pillars', { name: 'Meditation', description: 'Innere Ruhe' }, aliceCookie);
-				assert.equal(res.status, 201, 'Säule wird angelegt');
+		it('POST /pillars antwortet mit 4xx + Hinweis und legt nichts an', async () => {
+			const aliceCookie = await server.login('alice@example.com');
+			const userId = 1; // test-login legt Nutzer mit id=1 an (alice@example.com)
+			await seedPillarsForUser(userId);
+			const before = await Pillar.count({ where: { userId } });
 
-				const created = (await res.json()) as { id: number; name: string; description: string; weight: number };
-				assert.equal(created.name, 'Meditation');
-				assert.equal(created.description, 'Innere Ruhe');
-				assert.equal(created.weight, 0, 'neue Säule startet mit Gewicht 0');
+			const res = await post('/pillars', { name: 'Neue Säule', description: 'sollte nicht gehen' }, aliceCookie);
+			await assertLocked(res, 'POST /pillars');
 
-				const alicePillars = await Pillar.findAll({ where: { name: 'Meditation' } });
-				assert.equal(alicePillars.length, 1, 'genau eine Meditation-Säule existiert');
-			});
-
-			it('400 bei leerem Namen (AK1)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-
-				const res = await post('/pillars', { name: '', description: 'Leer' }, aliceCookie);
-				assert.equal(res.status, 400, 'leerer Name wird abgewiesen');
-			});
-
-			it('409 bei Dublette (name, userId) (AK2)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				await post('/pillars', { name: 'Meditation', description: 'Erste' }, aliceCookie);
-
-				const res = await post('/pillars', { name: 'Meditation', description: 'Zweite' }, aliceCookie);
-				assert.equal(res.status, 409, 'Dublette für denselben Nutzer wird mit 409 abgewiesen (AK2)');
-			});
-
-			it('401 ohne Auth (nicht eingeloggt)', async () => {
-				const res = await post('/pillars', { name: 'NoAuth', description: 'Sollte nicht gehen' });
-				assert.equal(res.status, 401, 'ohne Cookie wird 401 verlangt');
-			});
+			assert.equal(await Pillar.count({ where: { userId } }), before, 'es wurde keine Säule angelegt');
+			assert.equal(await Pillar.count({ where: { name: 'Neue Säule' } }), 0, 'keine Zeile mit dem Namen existiert');
 		});
 
-		// ── PATCH /pillars/:id (AK2) ────────────────────────────────────────────────
+		it('PATCH /pillars/:id antwortet mit 4xx + Hinweis und ändert nichts', async () => {
+			const aliceCookie = await server.login('alice@example.com');
+			const userId = 1;
+			await seedPillarsForUser(userId);
+			const pillar = (await Pillar.findAll({ where: { userId }, order: [['id', 'ASC']] }))[0]!;
+			const nameBefore = pillar.name;
 
-		describe('PATCH /pillars/:id', () => {
-			it('200 benennt um und ändert Beschreibung nur beim Besitzer (AK2)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const aliceId = (await (await post('/pillars', { name: 'Sport', description: 'Bewegung' }, aliceCookie)).json())
-					.id as number;
+			const res = await patch(`/pillars/${pillar.id}`, { name: 'Umbenannt' }, aliceCookie);
+			await assertLocked(res, 'PATCH /pillars/:id');
 
-				const res = await patch(`/pillars/${aliceId}`, { name: 'Fitness', description: 'Workouts' }, aliceCookie);
-				assert.equal(res.status, 200, 'Umbenennung funktioniert');
-
-				const updated = (await res.json()) as { name: string; description: string };
-				assert.equal(updated.name, 'Fitness');
-				assert.equal(updated.description, 'Workouts');
-			});
-
-			it('404 bei fremder ID (AK2)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const aliceId = (await (await post('/pillars', { name: 'AlicePillar', description: '' }, aliceCookie)).json())
-					.id as number;
-
-				const bobCookie = await server.login('bob@example.com');
-				const res = await patch(`/pillars/${aliceId}`, { name: 'Geklaut', description: '' }, bobCookie);
-				assert.equal(res.status, 404, 'Bob darf Alices Säule nicht sehen/ändern');
-			});
-
-			it('400 bei leerem Namen', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const aliceId = (await (await post('/pillars', { name: 'Kultur', description: '' }, aliceCookie)).json())
-					.id as number;
-
-				const res = await patch(`/pillars/${aliceId}`, { name: '' }, aliceCookie);
-				assert.equal(res.status, 400, 'leerer Name wird abgewiesen');
-			});
-
-			it('409 bei Umbenennung auf bereits vergebenen Namen (AK2)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-
-				await post('/pillars', { name: 'Sport', description: 'Erste' }, aliceCookie);
-				await post('/pillars', { name: 'Büro', description: 'Zweite' }, aliceCookie);
-
-				// 'Büro' auf 'Sport' umbenennen → 409 (Name bereits vergeben)
-				const bisRes = await Pillar.findAll({ where: { name: 'Büro' } });
-				const bueroId = bisRes[0]!.id;
-				const res = await patch(`/pillars/${bueroId}`, { name: 'Sport' }, aliceCookie);
-				assert.equal(res.status, 409, 'Umbenennung auf bereits existierenden Namen wird mit 409 abgewiesen (AK2)');
-			});
-
-			it('200 bei Umbenennung auf denselben Namen (idempotent, kein Konflikt)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const created = (await (await post('/pillars', { name: 'Yoga', description: '' }, aliceCookie)).json()) as {
-					id: number;
-				};
-
-				// Gleicher Name → kein Konflikt (es ist dieselbe Säule)
-				const res = await patch(`/pillars/${created.id}`, { name: 'Yoga' }, aliceCookie);
-				assert.equal(res.status, 200, 'Umbenennung auf denselben Namen ist idempotent');
-			});
+			const reloaded = await Pillar.findByPk(pillar.id);
+			assert.equal(reloaded?.name, nameBefore, 'der Name wurde nicht geändert');
+			assert.equal(reloaded?.description, pillar.description, 'die Beschreibung wurde nicht geändert');
 		});
 
-		// ── DELETE /pillars/:id (AK3) ────────────────────────────────────────────────
-
-		describe('DELETE /pillars/:id', () => {
-			it('204 entfernt Säule + Beiträge; renormiert verbleibende share je Task auf 100 (AK3)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const userId = 1;
-
-				await seedPillarsForUser(userId);
-				const pillars = await Pillar.findAll({ where: { userId }, order: [['id', 'ASC']] });
-				const toDelete = pillars[0]!;
-				const toKeep = pillars[1]!;
-
-				const taskRes = await fetch(`${server.baseUrl}/tasks`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
-					body: JSON.stringify({
-						title: 'Test-Task',
-						status: 'Open',
-						priority: 3,
-						estimatedEffort: 1,
-						pillars: [
-							{ pillarId: toDelete.id, share: 50, confidence: 100 },
-							{ pillarId: toKeep.id, share: 50, confidence: 100 },
-						],
-					}),
-				});
-				assert.equal(taskRes.status, 201);
-				const taskId = (await taskRes.json()).id as number;
-
-				const deleteRes = await del(`/pillars/${toDelete.id}`, aliceCookie);
-				assert.equal(deleteRes.status, 204, 'Löschen liefert 204');
-
-				assert.equal(await Pillar.count({ where: { id: toDelete.id } }), 0, 'gelöschte Säule existiert nicht mehr');
-				assert.equal(await Pillar.count({ where: { id: toKeep.id } }), 1, 'andere Säule existiert noch');
-
-				const deletedContributions = await TaskPillar.findAll({ where: { pillarId: toDelete.id } });
-				assert.equal(deletedContributions.length, 0, 'Beiträge der gelöschten Säule sind entfernt');
-
-				const remaining = await TaskPillar.findAll({ where: { taskId, pillarId: toKeep.id } });
-				assert.equal(remaining.length, 1, 'genau ein Beitrag verbleibt');
-				assert.equal(remaining[0]!.share, 100, 'verbleibender Beitrag wurde auf 100 renormiert');
+		it('DELETE /pillars/:id antwortet mit 4xx + Hinweis und entfernt nichts (inkl. Beiträge)', async () => {
+			const aliceCookie = await server.login('alice@example.com');
+			const userId = 1;
+			const pillars = await seedPillarsForUser(userId);
+			const victim = pillars[0]!;
+			const keep = pillars[1]!;
+			const taskRes = await fetch(`${server.baseUrl}/tasks`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+				body: JSON.stringify({
+					title: 'Sperr-Task',
+					status: 'Open',
+					priority: 3,
+					estimatedEffort: 1,
+					pillars: [
+						{ pillarId: victim.id, share: 50, confidence: 100 },
+						{ pillarId: keep.id, share: 50, confidence: 100 },
+					],
+				}),
 			});
+			assert.equal(taskRes.status, 201);
+			const taskId = (await taskRes.json()).id as number;
 
-			it('204 renormiert Rest-Gewichte der übrigen Säulen auf 100 (AK3)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const userId = 1;
+			const res = await del(`/pillars/${victim.id}`, aliceCookie);
+			await assertLocked(res, 'DELETE /pillars/:id');
 
-				await Pillar.bulkCreate([
-					{ name: 'A', weight: 30, userId },
-					{ name: 'B', weight: 40, userId },
-					{ name: 'C', weight: 30, userId },
-				]);
-				const pillars = await Pillar.findAll({ where: { userId }, order: [['id', 'ASC']] });
-				const toDelete = pillars[1]!;
+			assert.equal(await Pillar.count({ where: { id: victim.id } }), 1, 'die Säule existiert weiterhin');
+			assert.equal(await TaskPillar.count({ where: { taskId } }), 2, 'beide Beiträge sind unverändert erhalten');
+		});
 
-				const deleteRes = await del(`/pillars/${toDelete.id}`, aliceCookie);
-				assert.equal(deleteRes.status, 204);
-
-				const remaining = await Pillar.findAll({ where: { userId }, order: [['id', 'ASC']] });
-				const weights = remaining.map((p) => p.weight).sort((a, b) => a - b);
-				assert.deepEqual(weights, [50, 50], 'Rest-Gewichte wurden proportional auf 100 renormiert (30+30→60, je 50%)');
-			});
-
-			it('404 bei fremder ID', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-				const aliceId = (await (await post('/pillars', { name: 'AliceDelete', description: '' }, aliceCookie)).json())
-					.id as number;
-
-				const bobCookie = await server.login('bob@example.com');
-				const res = await del(`/pillars/${aliceId}`, bobCookie);
-				assert.equal(res.status, 404, 'Bob darf Alices Säule nicht löschen');
-			});
-
-			it('204 ermöglicht Löschen der letzten Säule (Task wird neutral)', async () => {
-				const aliceCookie = await server.login('alice@example.com');
-
-				// Nur eine Säule anlegen
-				const created = (await (await post('/pillars', { name: 'Einzige', description: '' }, aliceCookie)).json()) as {
-					id: number;
-				};
-				const taskRes = await fetch(`${server.baseUrl}/tasks`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
-					body: JSON.stringify({
-						title: 'Task mit einziger Säule',
-						status: 'Open',
-						priority: 3,
-						estimatedEffort: 1,
-						pillars: [{ pillarId: created.id, share: 100, confidence: 100 }],
-					}),
-				});
-				assert.equal(taskRes.status, 201);
-				const taskId = (await taskRes.json()).id as number;
-
-				// Letzte Säule löschen
-				const deleteRes = await del(`/pillars/${created.id}`, aliceCookie);
-				assert.equal(deleteRes.status, 204, 'letzte Säule kann gelöscht werden');
-
-				// Task hat keine Beiträge mehr → neutral
-				const { TaskPillar } = await import('../models/index.js');
-				const contributions = await TaskPillar.findAll({ where: { taskId } });
-				assert.equal(contributions.length, 0, 'Task hat nach Löschen der letzten Säule keine Beiträge mehr');
-			});
-
-			it('401 ohne Auth', async () => {
-				const res = await del('/pillars/1');
-				assert.equal(res.status, 401);
-			});
+		it('401 ohne Auth bleibt für die gesperrten Endpunkte bestehen', async () => {
+			const res = await post('/pillars', { name: 'NoAuth', description: '' });
+			assert.equal(res.status, 401, 'ohne Cookie wird weiterhin 401 verlangt (Auth vor Sperre)');
 		});
 	});
 });

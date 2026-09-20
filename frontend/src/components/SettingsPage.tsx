@@ -47,9 +47,7 @@ interface SettingsPageProps {
 	/** #1105: Tab-Wechsel → App navigiert auf `/settings/:tab` (URL ist die Quelle). */
 	onTabChange?: (tab: number) => void;
 	onSaved: () => void;
-	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
-	onPillarChanged?: () => void;
-	/** Analog zu `onPillarChanged` für die Kategorien (Formulare und Filter halten sie im State). */
+	/** Analog zu `onSaved` für die Kategorien (Formulare und Filter halten sie im State). */
 	onCategoryChanged?: () => void;
 	/** Rollensystem admin/member: blendet den Tab „Nutzerverwaltung" ein (Server erzwingt, UI blendet nur aus). */
 	isAdmin?: boolean;
@@ -113,7 +111,6 @@ export const SettingsPage = ({
 	tab,
 	onTabChange,
 	onSaved,
-	onPillarChanged,
 	onCategoryChanged,
 	isAdmin = false,
 	isTester = false,
@@ -578,18 +575,23 @@ export const SettingsPage = ({
 					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
 					    verwerfen und bei jeder Rückkehr einen erneuten Provider-Fetch auslösen (#886). */}
 				{/*
-				 * Der Tab „Säulen" trägt zwei getrennte Aufgaben: die Stammdaten-Verwaltung (anlegen,
-				 * bearbeiten, löschen) und die Gewichtung. Beide sind jetzt genau EINE Karte mit genau
-				 * EINER Überschrift — vorher stand über der Gewichtungskarte („Verteilung je Säule") noch
-				 * eine H2 „Säulen-Gewichtung", also zwei Namen für dieselbe Sache. Die Vertragsüberschrift
-				 * „Säulen-Gewichtung" (#270, settings-page.spec.ts) ist jetzt das Karten-Label und benennt
-				 * damit genau den Abschnitt, für den sie gilt.
+				 * Der Tab „Säulen" trägt zwei getrennte Aufgaben: die Stammdaten-Ansicht und die
+				 * Gewichtung. Beide sind genau EINE Karte mit genau EINER Überschrift — die
+				 * Vertragsüberschrift „Säulen-Gewichtung" (#270, settings-page.spec.ts) ist das
+				 * Karten-Label der Gewichtungskarte.
 				 */}
 				<div slot="tab-1" className="settings-pillars settings-panel">
-					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+					{/* #1573: Die fünf Säulen sind fest — durchgehender Info-Hinweis statt der früheren
+					    CRUD-Verwaltung (KoliBri-Info-Alert, Muster wie die übrigen Settings-Hinweise). */}
+					<KolAlert _type="info" _label="Feste Säulen">
+						<p>
+							Diese 5 Säulen adressieren per Definition die Balance im Leben und gelten stets. Deine Gewichtung bleibt
+							individuell anpassbar.
+						</p>
+					</KolAlert>
+					{/* Säulen-Ansicht (#439 → #1573): reine Leseansicht, Gewichtung siehe unten. */}
 					<KolCard className="settings-card" _label="Säulen verwalten" _level={2}>
-						<PillarList onPillarChanged={onPillarChanged} />
+						<PillarList />
 					</KolCard>
 					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
 					    Gruppierungsfläche, Muster wie die Dashboard-Karten); die Slider-Zeilen selbst
