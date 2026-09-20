@@ -20,6 +20,12 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  * - **Blüte und Kristall** — alle Säulen als **eine** Silhouette: je Säule ein Stützpunkt auf ihrem
  *   Winkel, so weit außen wie ihr Wert. Die Blüte verbindet sie weich, der Kristall mit harten
  *   Kanten — derselbe Stapel in zwei Materialien wie Blasen und Scheiben.
+ * - **Segmente** — der Ring als Tortengrafik der Zielanteile: je Säule ein Stück, so breit wie ihr
+ *   Zielanteil, gefüllt bis auf ihren Wert. Das Breitenmaß ist bewusst der Soll- und nicht der
+ *   Ist-Anteil — die Größe der Form bleibt die Kennzahl, die Breite zeigt, wem wie viel vom Ring
+ *   zusteht.
+ * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
+ *   verteilt wie die Strahlen, aber mit schmalerer Spitze. Der längste Zeiger steht auf 12 Uhr.
  *
  * Alle ordnen nach derselben Regel: **stärkste Säule zuerst** (`byStrength`). Wer das Bild
  * wechselt, findet dieselbe Säule an derselben Stelle der Reihenfolge wieder.
@@ -321,6 +327,115 @@ export const petalArcPoints = (
 		const angle = petal.angle - petal.spread + (petal.spread * 2 * step) / samples;
 		return polar(angle, petalRadiusAt(petals, angle, smooth));
 	});
+};
+
+// ── Figur „Segmente“ ───────────────────────────────────────────────────────────────
+
+/** Innerer Radius der Ringstücke — gemeinsam für alle, die Breite trägt allein der Winkel. */
+const WEDGE_INNER = 8;
+/** Sichtbare Fuge zwischen zwei Stücken, je Seite in Grad — sonst liest der Ring als Fläche. */
+const WEDGE_GAP = 0.8;
+/**
+ * Kleinster Winkel eines Stücks — das Breiten-Pendant zu `R_MIN`: Eine Säule ohne Ziel hat keinen
+ * Anteil am Ring, ihr Stück wäre unsichtbar. Das Mindeststück hält sie im Bild; den Rest des
+ * Ringes verteilen die Zielanteile weiter exakt.
+ */
+const WEDGE_MIN_SPAN = 3;
+
+/**
+ * Ein Ringstück: so breit wie der Anteil der Säule, gefüllt von innen bis auf ihren Wert.
+ */
+export interface Wedge extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Startwinkel in Grad, 0 zeigt nach rechts, −90 nach oben (SVG-Konvention). */
+	start: number;
+	/** Endwinkel in Grad (exklusiv) — zwischen ihm und dem Nachbarn liegt die Fuge. */
+	end: number;
+	/** Voller Winkelanteil am Ring in Grad, inklusive Fugen — die Stücke schließen den Ring. */
+	span: number;
+	/** Mittlerer Winkel des Stücks — dort steht seine Soll-Marke quer über den Ring. */
+	angle: number;
+	/** Innerer Radius in Nutzereinheiten (bei allen Stücken `WEDGE_INNER`). */
+	inner: number;
+	/** Äußerer Radius in Nutzereinheiten (`R_MIN`–`FIGURE_MAX`) — der Wert der Säule. */
+	outer: number;
+	/** Radius, bei dem die Säule genau auf ihrem Ziel stünde — als Strich quer über das Stück. */
+	targetRadius: number;
+}
+
+/**
+ * Baut die Ringstücke als Tortengrafik der **Ist**-Anteile: Die Anteile summieren auf 100 % und
+ * teilen den Ring daher vollständig auf — kein Luftanteil, kein klappender Startwinkel. Die
+ * Reihenfolge ist wie bei allen Figuren **stärkste Säule zuerst**, ab 12 Uhr im Uhrzeigersinn.
+ *
+ * Das Mindeststück (`WEDGE_MIN_SPAN`) bekommen alle Säulen zuerst, der Rest des Ringes geht nach
+ * Zielanteil daran — so bleibt eine Säule ohne Ziel als schmales, aber sichtbares Haar stehen
+ * (dieselbe Pflicht, die `R_MIN` für die Radien erfüllt). Die Fuge schrumpft mit dem Stück, damit
+ * ein Mindeststück nicht zur Zahl 0 zusammenfällt.
+ */
+export const buildWedges = (metrics: BalanceMetrics): Wedge[] => {
+	const pillars = byStrength(metrics.pillars);
+	const count = pillars.length;
+	if (count === 0) return [];
+	const totalActual = metrics.pillars.reduce((sum, pillar) => sum + pillar.actualShare, 0);
+	const reserve = Math.min(WEDGE_MIN_SPAN, 360 / count);
+	let start = -90;
+	return pillars.map((pillar): Wedge => {
+		const share = totalActual > 0 ? pillar.actualShare / totalActual : 0;
+		const span = reserve + (360 - reserve * count) * share;
+		const gap = Math.min(WEDGE_GAP, span / 4);
+		const wedge: Wedge = {
+			pillarId: pillar.pillarId,
+			colorIndex: pillar.colorIndex,
+			start: start + gap,
+			end: start + span - gap,
+			span,
+			angle: start + span / 2,
+			inner: WEDGE_INNER,
+			outer: toRadius(pillar.scaled),
+			targetRadius: toRadius(metrics.targetMark),
+			...motionOf(pillar.colorIndex),
+		};
+		start += span;
+		return wedge;
+	});
+};
+
+// ── Figur „Zeiger“ ───────────────────────────────────────────────────────────────────
+
+/** Ein Zeiger auf dem gemeinsamen Zifferblatt — einer je Säule. */
+export interface Hand extends FigureMotion {
+	pillarId: number;
+	colorIndex: number;
+	/** Mittelwinkel in Grad, 0 zeigt nach rechts, −90 nach oben (SVG-Konvention). */
+	angle: number;
+	/** Halbe Öffnung des Zeigers in Grad — schmaler als ein Strahl, die Skala steht im Zentrum. */
+	spread: number;
+	/** Länge des Zeigers in Nutzereinheiten (`R_MIN`–`FIGURE_MAX`) — der Wert der Säule. */
+	length: number;
+	/** Länge, bei der die Säule genau auf ihrem Ziel stünde — als Marke im Bild. */
+	targetLength: number;
+}
+
+/**
+ * Baut die Zeiger wie die Strahlen: gleichmäßig über den Kreis ab 12 Uhr im Uhrzeigersinn,
+ * **stärkste Säule zuerst**. Der längste Zeiger steht damit auf 12 Uhr und das Bild liest sich
+ * wie ein Uhrwerk, das die Stärken der Säulen anzeigt.
+ */
+export const buildHands = (metrics: BalanceMetrics): Hand[] => {
+	const pillars = byStrength(metrics.pillars);
+	const step = 360 / Math.max(1, pillars.length);
+	const toLength = (value: number): number => R_MIN + clamp01(value) * (FIGURE_MAX - R_MIN);
+	return pillars.map((pillar, index): Hand => ({
+		pillarId: pillar.pillarId,
+		colorIndex: pillar.colorIndex,
+		angle: -90 + index * step,
+		spread: (step / 2) * 0.42,
+		length: toLength(pillar.scaled),
+		targetLength: toLength(metrics.targetMark),
+		...motionOf(pillar.colorIndex),
+	}));
 };
 
 // ── Das Zifferblatt ─────────────────────────────────────────────────────────────────────────────

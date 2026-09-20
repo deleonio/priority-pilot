@@ -34,7 +34,8 @@ uniform float u_rise;
 uniform float u_beat;
 
 /* 0 = Blasen, 1 = Ringe, 2 = Strahlen, 3 = Scheiben (derselbe Stapel wie 0, anderes Material),
- * 4 = Blüte, 5 = Kristall (dieselbe Silhouette wie 4, anderes Material). */
+ * 4 = Blüte, 5 = Kristall (dieselbe Silhouette wie 4, anderes Material), 6 = Segmente,
+ * 7 = Zeiger. */
 uniform float u_figure;
 
 /* Je Saeule: Farbe und Bewegung — in jeder Figur dieselbe. */
@@ -58,6 +59,12 @@ uniform float u_arc_sweep[8];
 uniform float u_ray_angle[8];
 uniform float u_ray_spread[8];
 uniform float u_ray_length[8];
+
+/* Segmente: Startwinkel (Grad), Spannweite (Grad), innerer und aeusserer Radius. */
+uniform float u_wedge_start[8];
+uniform float u_wedge_span[8];
+uniform float u_wedge_inner[8];
+uniform float u_wedge_outer[8];
 
 /*
  * Die Soll-Marke, in der Einheit der jeweiligen Figur: Blasen-Radius, Bogen-Anteil oder
@@ -174,7 +181,7 @@ void main() {
 	vec3 acc = vec3(0.0);
 	float alpha = 0.0;
 
-	if (u_figure > 3.5) {
+	if (u_figure > 3.5 && u_figure < 5.5) {
 		/*
 		 * ── Blüte (4) und Kristall (5): eine Silhouette, zwei Materialien ───────────────────────
 		 *
@@ -268,7 +275,7 @@ void main() {
 			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
 		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
 		alpha = mark + alpha * (1.0 - mark);
-	} else if (u_figure < 0.5 || u_figure > 2.5) {
+	} else if (u_figure < 0.5 || (u_figure > 2.5 && u_figure < 3.5)) {
 		/*
 		 * ── Blasen (0) und Scheiben (3): derselbe Stapel, zwei Materialien ─────────────────────
 		 *
@@ -407,6 +414,108 @@ void main() {
 			/* Soll-Marke: ein Strich quer ueber die Spur an der Stelle, an der die Saeule genau auf
 			   ihrem Ziel stuende. */
 			float mark = band * (1.0 - smoothstep(0.0, aaTurn + 0.004, abs(turn - u_target * rise))) * used;
+			acc = u_surface * mark + acc * (1.0 - mark);
+			alpha = mark + alpha * (1.0 - mark);
+		}
+	} else if (u_figure > 6.5) {
+		/*
+		 * ── Zeiger: ein Uhrwerk, die Laenge traegt den Wert ───────────────────────────────────────
+		 *
+		 * Wie die Strahlen gleichmaessig ueber den Kreis verteilt, aber schlanker und mit
+		 * Spitzkopf: Das Zifferblatt ist hier Teil der Figur, ein breiter Keil wuerde die Skala
+		 * unter sich begraben. Die Zeigerspitze ist das Ende der Strecke, auf die das Auge
+		 * faellt — sie leuchtet hell.
+		 */
+		for (int i = 0; i < 8; i++) {
+			float used = step(float(i), u_count - 1.0);
+
+			float phase = u_phase[i] + PI2 * time / u_swing[i];
+			float len = u_ray_length[i] * rise * (1.0 + 0.05 * sin(phase));
+			float delta = abs(angleDelta(degAngle - 90.0, u_ray_angle[i]));
+
+			/* Der Zeiger ist schlank und laeuft zur Spitze hin weiter spitz zu wie eine Uhr. */
+			float taper = mix(0.34, 1.0, clamp(radius / max(len, 0.001), 0.0, 1.0));
+			float spread = u_ray_spread[i] * taper;
+			float aaDeg = degrees(aa / max(radius, 0.5));
+			float across = smoothstep(spread + aaDeg, spread - aaDeg, delta);
+			/* Wurzel: der Zeiger beginnt als Punkt in der Mitte — wie eine Uhr. */
+			float along = smoothstep(len + aa, len - aa, radius) * smoothstep(0.0, 2.0, radius);
+			float body = across * along * used;
+
+			/* Ein Lichtpuls laeuft nach aussen — dieselbe Bewegung wie ein Strahl. */
+			float pulse = 0.5 + 0.5 * sin(radius * 0.45 - time * 1.6 + u_phase[i]);
+			vec3 handCol = mix(u_colors[i], vec3(1.0), 0.30 * pulse);
+
+			float handAlpha = body * 0.85;
+			acc = handCol * handAlpha + acc * (1.0 - handAlpha);
+			alpha = handAlpha + alpha * (1.0 - handAlpha);
+
+			/* Helles Koepfchen auf der Spitze — das Ende der Strecke leuchtet. */
+			vec2 tip = vec2(cos(radians(u_ray_angle[i])), sin(radians(u_ray_angle[i]))) * len;
+			float tipDist2 = dot(d - tip, d - tip);
+			float head = exp(-tipDist2 * 0.55) * used;
+			acc += mix(u_colors[i], vec3(1.0), 0.5) * head;
+			alpha = min(1.0, alpha + head);
+
+			/* Neon-Schein quer zum Zeiger, schmaler als beim Strahl. */
+			float halo = exp(-max(delta - spread, 0.0) / 4.0) * along * used;
+			acc += u_colors[i] * halo * GLOW * 0.6;
+			alpha = min(1.0, alpha + halo * GLOW * 0.6);
+		}
+
+		/* Soll-Marke als gestrichelter Kreis quer ueber alle Zeiger. */
+		float tr = u_target * rise;
+		float mark = (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - tr)))
+			* step(0.45, fract(turn * TARGET_DASHES)) * 0.5;
+		acc = u_surface * 0.35 * mark + acc * (1.0 - mark);
+		alpha = mark + alpha * (1.0 - mark);
+	} else if (u_figure > 5.5) {
+		/*
+		 * ── Segmente: der Ring als Tortengrafik, der aeussere Radius traegt den Wert ─────
+		 *
+		 * Ein Ring, in Stuecke geteilt: so breit wie der Ist-Anteil der Saeule, gefuellt von
+		 * innen bis auf ihren Wert. Die Groesse der Form bleibt die Kennzahl, die Breite zeigt,
+		 * wie viel von der Gesamtinvestition auf die Saeule entfaellt. Die Stuecke schliessen
+		 * den Ring; die Fuge zwischen ihnen ist Teil der Geometrie (`buildWedges`).
+		 */
+		for (int i = 0; i < 8; i++) {
+			float used = step(float(i), u_count - 1.0);
+
+			/* Atmen des Stuecks: der aeussere Radius schwingt leicht um seinen Wert. */
+			float phase = u_phase[i] + PI2 * time / u_swing[i];
+			float outer = u_wedge_outer[i] * rise * (1.0 + 0.05 * sin(phase));
+			float inner = u_wedge_inner[i];
+			float wOuter = aa / max(outer, 0.001);
+			float wInner = aa / max(inner, 0.001);
+			float ring = smoothstep(outer + wOuter, outer - wOuter, radius)
+				* smoothstep(inner - wInner, inner + wInner, radius);
+
+			/* Winkel-Feld: um die Fuge (1 Grad je Seite) schmaler als die Spannweite. */
+			float delta = angleDelta(degAngle - 90.0, u_wedge_start[i] + 0.5 * u_wedge_span[i]);
+			float halfSpan = 0.5 * u_wedge_span[i] - 1.0;
+			float aaDeg = degrees(aa / max(radius, 0.5));
+			float inWedge = smoothstep(halfSpan + aaDeg, halfSpan - aaDeg, delta) * ring * used;
+
+			/* Fuellung: satt in der Saeulenfarbe, zur Mitte hin abgedunkelt wie eine Scheibe. */
+			float k = clamp((radius - inner) / max(outer - inner, 0.001), 0.0, 1.0);
+			vec3 segCol = u_colors[i] * mix(0.84, 1.04, k);
+			float segAlpha = inWedge;
+			acc = segCol * segAlpha + acc * (1.0 - segAlpha);
+			alpha = segAlpha + alpha * (1.0 - segAlpha);
+
+			/* Helle Lippe an der aeusseren Kante — sie trennt die Stuecke, ohne die Flaeche
+		   aufzuweichen (Muster der Scheiben). */
+			float lip = smoothstep(0.90, 1.0, k) * inWedge;
+			acc = mix(acc, mix(u_colors[i], vec3(1.0), 0.7), lip * 0.55);
+
+			/* Neon-Schein um die aeussere Kante — Licht, kein Decken. */
+			float halo = exp(-max(abs(radius - outer), 0.0) / 1.6) * inWedge;
+			acc += u_colors[i] * halo * GLOW * 0.5;
+			alpha = min(1.0, alpha + halo * GLOW * 0.5);
+
+			/* Soll-Marke: ein Strich quer ueber die Breite des Stuecks, wo die Saeule genau
+			   auf ihrem Ziel stuende. */
+			float mark = inWedge * (1.0 - smoothstep(0.0, 0.5 + aa, abs(radius - u_target * rise)));
 			acc = u_surface * mark + acc * (1.0 - mark);
 			alpha = mark + alpha * (1.0 - mark);
 		}

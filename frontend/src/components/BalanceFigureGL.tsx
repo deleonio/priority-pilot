@@ -2,9 +2,11 @@ import { useEffect, useRef } from 'react';
 import fragmentSource from './balance-figure.frag?raw';
 import {
 	buildArcs,
+	buildHands,
 	buildOrbs,
 	buildPetals,
 	buildRays,
+	buildWedges,
 	RISE_DURATION,
 	targetRadius,
 	type FigureMotion,
@@ -74,6 +76,8 @@ const FIGURE_INDEX: Record<FigureKind, number> = {
 	scheiben: 3,
 	bluete: 4,
 	kristall: 5,
+	segmente: 6,
+	zeiger: 7,
 };
 
 /** Stützstellen der Ring-Farbrampe in `app.css` (`--pp-balance-ring-0` … `-100`). */
@@ -146,6 +150,10 @@ export const toSlots = (
 	rayAngle: number[];
 	raySpread: number[];
 	rayLength: number[];
+	wedgeStart: number[];
+	wedgeSpan: number[];
+	wedgeInner: number[];
+	wedgeOuter: number[];
 	target: number;
 } => {
 	const colorOf = (colorIndex: number): Rgb =>
@@ -163,6 +171,10 @@ export const toSlots = (
 			rayAngle: [],
 			raySpread: [],
 			rayLength: [],
+			wedgeStart: [],
+			wedgeSpan: [],
+			wedgeInner: [],
+			wedgeOuter: [],
 			target: arcs[0]?.target ?? 0,
 		};
 	}
@@ -178,6 +190,10 @@ export const toSlots = (
 			rayAngle: rays.map((ray) => ray.angle),
 			raySpread: rays.map((ray) => ray.spread),
 			rayLength: rays.map((ray) => ray.length),
+			wedgeStart: [],
+			wedgeSpan: [],
+			wedgeInner: [],
+			wedgeOuter: [],
 			target: rays[0]?.targetLength ?? 0,
 		};
 	}
@@ -195,7 +211,51 @@ export const toSlots = (
 			rayAngle: petals.map((petal) => petal.angle),
 			raySpread: [],
 			rayLength: petals.map((petal) => petal.radius),
+			wedgeStart: [],
+			wedgeSpan: [],
+			wedgeInner: [],
+			wedgeOuter: [],
 			target: targetRadius(state.metrics),
+		};
+	}
+	// Zeiger belegen die Strahlen-Plätze mit ihrer eigenen, schmaleren Geometrie.
+	if (state.figure === 'zeiger') {
+		const hands = buildHands(state.metrics).slice(0, SLOTS);
+		return {
+			colors: hands.map((hand) => colorOf(hand.colorIndex)),
+			motions: hands,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
+			rayAngle: hands.map((hand) => hand.angle),
+			raySpread: hands.map((hand) => hand.spread),
+			rayLength: hands.map((hand) => hand.length),
+			wedgeStart: [],
+			wedgeSpan: [],
+			wedgeInner: [],
+			wedgeOuter: [],
+			target: hands[0]?.targetLength ?? 0,
+		};
+	}
+	// Segmente: Tortengrafik der Ist-Anteile auf eigenen Uniform-Plätzen.
+	if (state.figure === 'segmente') {
+		const wedges = buildWedges(state.metrics).slice(0, SLOTS);
+		return {
+			colors: wedges.map((wedge) => colorOf(wedge.colorIndex)),
+			motions: wedges,
+			orbRadius: [],
+			arcRadius: [],
+			arcWidth: [],
+			arcSweep: [],
+			rayAngle: [],
+			raySpread: [],
+			rayLength: [],
+			wedgeStart: wedges.map((wedge) => wedge.start),
+			wedgeSpan: wedges.map((wedge) => wedge.span),
+			wedgeInner: wedges.map((wedge) => wedge.inner),
+			wedgeOuter: wedges.map((wedge) => wedge.outer),
+			target: wedges[0]?.targetRadius ?? 0,
 		};
 	}
 	// Blasen und Scheiben teilen sich die Geometrie — nur ihr Material trennt sie (siehe Shader).
@@ -210,6 +270,10 @@ export const toSlots = (
 		rayAngle: [],
 		raySpread: [],
 		rayLength: [],
+		wedgeStart: [],
+		wedgeSpan: [],
+		wedgeInner: [],
+		wedgeOuter: [],
 		target: targetRadius(state.metrics),
 	};
 };
@@ -284,6 +348,10 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 		rayAngle: uniform('u_ray_angle[0]'),
 		raySpread: uniform('u_ray_spread[0]'),
 		rayLength: uniform('u_ray_length[0]'),
+		wedgeStart: uniform('u_wedge_start[0]'),
+		wedgeSpan: uniform('u_wedge_span[0]'),
+		wedgeInner: uniform('u_wedge_inner[0]'),
+		wedgeOuter: uniform('u_wedge_outer[0]'),
 		target: uniform('u_target'),
 		ringActive: uniform('u_ring_active'),
 		ringStops: uniform('u_ring_stops[0]'),
@@ -413,6 +481,10 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 		writeFloats(locations.rayAngle, slots.rayAngle);
 		writeFloats(locations.raySpread, slots.raySpread, 1);
 		writeFloats(locations.rayLength, slots.rayLength);
+		writeFloats(locations.wedgeStart, slots.wedgeStart);
+		writeFloats(locations.wedgeSpan, slots.wedgeSpan);
+		writeFloats(locations.wedgeInner, slots.wedgeInner, 1);
+		writeFloats(locations.wedgeOuter, slots.wedgeOuter);
 
 		if (!looping) draw();
 	};

@@ -25,12 +25,14 @@ const colors = {
 /** Kennzahlen von Hand, ohne den Umweg über `buildHeartBalance`. */
 const metricsOf = (ratios: number[]): BalanceMetrics => {
 	const scale = Math.max(1, ...ratios);
+	const total = ratios.reduce((sum, ratio) => sum + ratio, 0);
 	return {
 		pillars: ratios.map((ratio, index) => ({
 			pillarId: index + 1,
 			colorIndex: index,
 			ratio,
 			scaled: ratio / scale,
+			actualShare: total > 0 ? ratio / total : 0,
 		})),
 		targetMark: 1 / scale,
 		scale,
@@ -39,7 +41,7 @@ const metricsOf = (ratios: number[]): BalanceMetrics => {
 
 const stateOf = (
 	metrics: BalanceMetrics,
-	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall',
+	figure: 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger',
 ) => ({
 	figure,
 	metrics,
@@ -157,5 +159,33 @@ describe('BalanceFigureGL toSlots', () => {
 		// Blüte und Kristall: der Radius der Lappenspitze auf Ziel.
 		const bluete = toSlots(stateOf(metrics, 'bluete'), colors);
 		expect(bluete.target).toBeCloseTo(bluete.rayLength[1], 6);
+	});
+
+	/* Segmente belegen eigene Uniform-Plätze; ihre Slots dürfen keine Strahlen-/Bogen-Felder tragen. */
+	it('belegt die Slots für Segmente mit Start, Spannweite und Radien', () => {
+		const metrics = metricsOf([0.2, 1, 0.6]);
+		const slots = toSlots(stateOf(metrics, 'segmente'), colors);
+		expect(slots.colors).toHaveLength(3);
+		expect(slots.wedgeStart).toHaveLength(3);
+		expect(slots.wedgeSpan).toHaveLength(3);
+		expect(slots.wedgeInner).toHaveLength(3);
+		expect(slots.wedgeOuter).toHaveLength(3);
+		expect(slots.orbRadius).toHaveLength(0);
+		expect(slots.rayAngle).toHaveLength(0);
+		expect(slots.arcRadius).toHaveLength(0);
+		// Reihenfolge stärkste → schwächste: Das größte Stück gehört zur stärksten Säule.
+		expect(slots.wedgeOuter[0]).toBeGreaterThan(slots.wedgeOuter[2]);
+	});
+
+	/* Zeiger belegen die Strahlen-Plätze — aber mit ihrer eigenen, schmaleren Geometrie. */
+	it('belegt die Slots für Zeiger auf den Strahlen-Plätzen, schmaler als Strahlen', () => {
+		const metrics = metricsOf([0.2, 1, 0.6]);
+		const hands = toSlots(stateOf(metrics, 'zeiger'), colors);
+		const rays = toSlots(stateOf(metrics, 'strahlen'), colors);
+		// Winkel wie die Strahlen, Länge und Öffnung aber aus der eigenen Geometrie.
+		expect(hands.rayAngle).toEqual(rays.rayAngle);
+		expect(hands.rayLength[0]).toBeGreaterThan(hands.rayLength[2]);
+		expect(hands.raySpread[0]).toBeLessThan(rays.raySpread[0]);
+		expect(hands.wedgeStart).toHaveLength(0);
 	});
 });

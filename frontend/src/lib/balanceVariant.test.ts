@@ -51,6 +51,8 @@ describe('balanceVariant', () => {
 			'strahlen',
 			'bluete',
 			'kristall',
+			'segmente',
+			'zeiger',
 		]);
 	});
 });
