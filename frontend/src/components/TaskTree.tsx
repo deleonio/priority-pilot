@@ -1,4 +1,4 @@
-import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolHeading, KolInputCheckbox, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
@@ -7,7 +7,7 @@ import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
 import { PillarMissingBadge } from './PillarMissingBadge';
 import { SeriesBadge } from './SeriesBadge';
-import { isDoneBlockedBySubtasks, priorityBadge } from '../lib/task';
+import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
@@ -50,6 +50,8 @@ interface TaskTreeProps {
 	onAddSubtask: (task: Task) => void;
 	/** Schaltet eine Aufgabe per binärem Toggle zwischen „Erledigt" und „Offen" um (#315). */
 	onDoneToggle: (task: Task) => Promise<void>;
+	/** Pinnt die Aufgabe an bzw. wieder ab (#1582). */
+	onPinToggle: (task: Task) => void;
 	/**
 	 * Virtuelle Balance-Prioritäten je Task-ID. `null`/leer → originale Wertbeitrags-Sortierung und
 	 * `P{n}`-Badges; gesetzt → Liste nach Balance-Score sortiert, Badges als `~P{n}`.
@@ -75,6 +77,7 @@ interface LeafItemProps {
 	onEditDependencies: (task: Task) => void;
 	onAddSubtask: (task: Task) => void;
 	onDoneToggle: (task: Task) => Promise<void>;
+	onPinToggle: (task: Task) => void;
 }
 
 /**
@@ -103,6 +106,7 @@ const LeafItem = ({
 	onEditDependencies,
 	onAddSubtask,
 	onDoneToggle,
+	onPinToggle,
 }: LeafItemProps) => {
 	const [isUpdating, setIsUpdating] = useState(false);
 	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover. KolPopoverButton regelt
@@ -189,6 +193,14 @@ const LeafItem = ({
 					</div>
 					{task !== null && !handedOff && (
 						<div className="task-tree-actions">
+							<KolInputCheckbox
+								_variant="button"
+								_label={task.pinned ? `${task.title} abpinnen` : `${task.title} anpinnen`}
+								_hideLabel={true}
+								_checked={task.pinned}
+								_icons={{ checked: 'fa-solid fa-thumbtack', unchecked: 'fa-solid fa-thumbtack' }}
+								_on={{ onChange: () => onPinToggle(task) }}
+							/>
 							<KolPopoverButton
 								ref={popoverRef}
 								className="task-tree-more"
@@ -318,6 +330,7 @@ export const TaskTree = ({
 	onEditDependencies,
 	onAddSubtask,
 	onDoneToggle,
+	onPinToggle,
 	categories = [],
 	pillars = [],
 	balancePriorities = null,
@@ -338,7 +351,7 @@ export const TaskTree = ({
 			: [...leaves.filter((node) => !parentIds.has(node.id)), ...parentNodes].sort((a, b) => b.value - a.value);
 	// Im Balance-Modus ersetzt die virtuelle Balance-Priorität die Wertbeitrags-Sortierung; die
 	// Original-`priority` bleibt als Sekundärkriterium erhalten.
-	const visibleLeaves =
+	const balanceSortedLeaves =
 		balancePriorities !== null && balancePriorities.size > 0
 			? sortTasksByBalance(
 					combinedNodes.map((node) => ({ ...node, priority: taskById.get(node.id)?.priority ?? 1 })),
@@ -349,6 +362,20 @@ export const TaskTree = ({
 	if (combinedNodes.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
+
+	// #1582 AK2/AK5: angepinnte Aufgaben stehen unabhängig von Wertbeitrags-/Balance-Sortierung immer
+	// oben — deshalb als letzter Schritt vor dem Rendern über die zugehörigen Tasks angewendet.
+	const nodeByTaskId = new Map(balanceSortedLeaves.map((node) => [node.id, node]));
+	const tasksInOrder = balanceSortedLeaves
+		.map((node) => taskById.get(node.id))
+		.filter((task): task is Task => task !== undefined);
+	const pinnedOrderedTasks = sortPinnedFirst(tasksInOrder);
+	const visibleLeaves = [
+		...pinnedOrderedTasks
+			.map((task) => nodeByTaskId.get(task.id))
+			.filter((node): node is TaskTreeNode => node !== undefined),
+		...balanceSortedLeaves.filter((node) => !taskById.has(node.id)),
+	];
 
 	return (
 		<ul className="task-list" data-testid="task-list">
@@ -368,6 +395,7 @@ export const TaskTree = ({
 					onEditDependencies={onEditDependencies}
 					onAddSubtask={onAddSubtask}
 					onDoneToggle={onDoneToggle}
+					onPinToggle={onPinToggle}
 				/>
 			))}
 		</ul>
