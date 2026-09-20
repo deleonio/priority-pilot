@@ -141,7 +141,7 @@ In-Memory-SQLite, Tests unter `server/src/**/*.test.ts`.
 ## Tests (Frontend)
 
 `pnpm --filter frontend test` — Vitest + jsdom + Testing Library, Tests unter
-`frontend/src/**/*.test.tsx`.
+`frontend/src/**/*.test.{ts,tsx}`.
 
 `pnpm --filter frontend test:e2e` — Playwright (nur Chromium), Specs unter `frontend/e2e/`, gegen
 das **echte** Backend (temporäre In-Memory-DB, kein `page.route`-Mocking). Läuft **nicht** als Teil
