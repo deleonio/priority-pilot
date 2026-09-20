@@ -1881,6 +1881,21 @@ kol-toolbar {
 }
 
 /*
+ * #1582: `KolInputCheckbox _variant="button" _hideLabel` ist block-level und reserviert ohne
+ * feste Breite trotzdem die volle verfügbare Zeilenbreite für das nur visuell versteckte Label
+ * (dasselbe Layout-Bug-Muster wie beim `switch`-Host, siehe `.settings-switch-row
+ * kol-input-checkbox[_variant='switch']` weiter oben) — der Pin-Toggle wuchs dadurch auf ~324px
+ * statt der sichtbaren Icon-Größe, riss `.task-tree-actions` über die 375px-Breite und drückte
+ * den „…"-Button in eine zweite Zeile (#1582 Fixup-Runde 3, AK7/#1258-Regression). Feste Breite
+ * = das Touch-Target-Minimum (44×44, wie der „…"-Trigger daneben).
+ */
+.task-tree-actions kol-input-checkbox[_variant='button'] {
+	flex: none;
+	width: 44px;
+	height: 44px;
+}
+
+/*
  * Touch-Target-Minimum (44×44) für den „…"-Trigger (#361): KoliBri erzwingt die Mindestgröße
  * bereits im Shadow-DOM über `--a11y-min-size`; wir lassen den Host im Fluss, damit das Panel
  * daran verankert werden kann.
