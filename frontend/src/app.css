@@ -435,6 +435,15 @@ kol-toolbar {
 	padding-bottom: calc(var(--pp-space-2) + env(safe-area-inset-bottom));
 }
 
+/*
+ * #1587: Im Modus „Unten" liegt die Inhaltsseite OBERHALB der Leiste — die durchgehende Kante
+ * wandert an die Oberkante (die Unterkante grenzt an den Safe-Area-Schild des Home-Indicators).
+ */
+.app.header-bottom .app-header__bar {
+	border-bottom: 0;
+	border-top: 1px solid var(--pp-border);
+}
+
 .app.header-bottom .app-footer {
 	order: 3;
 }
@@ -516,19 +525,30 @@ kol-toolbar {
 	gap: 0.25rem;
 
 	/*
-	 * Auch das Padding bleibt auf der Basis-Breite aus (siehe die 24rem-Regel unten): Die 375px-Zeile
-	 * ist mit Logo (44px), sechs Kopf-Aktionen (6 × 44px) und Avatar (32px) plus Gruppen-Abstand bei
-	 * gemessenen ~349 von 351px Inhaltsbreite ausgereizt — jedes zusätzliche Pixel bricht sie
-	 * zweizeilig um (mobile-shell.spec.ts).
+	 * Auch das Padding bleibt auf der Basis-Breite so schmal wie bisher (siehe die 24rem-Regel
+	 * unten): Die 375px-Zeile ist mit Logo (44px), sechs Kopf-Aktionen (6 × 44px) und Avatar (32px)
+	 * plus Gruppen-Abstand bei gemessenen ~349 von 351px Inhaltsbreite ausgereizt — jedes
+	 * zusätzliche Pixel bricht sie zweizeilig um (mobile-shell.spec.ts).
 	 *
-	 * Die Kante ist ein inset-Schatten, kein `border`: ein Rahmen verkleinert die Innenbreite um
-	 * 2 px und brach damit die 375px-Zeile zweizeilig um (mobile-shell.spec.ts, #718 AK4). Der
-	 * Schatten malt ohne Layout-Wirkung — dasselbe Muster nutzt der Signal-Akzent der
-	 * „Nächsten Aufgabe" aus demselben Grund.
+	 * #1587: Die Leiste ist keine eingerückte Pille mehr, sondern läuft über die volle Shell-Breite.
+	 * Full-Bleed ohne Strukturwechsel: negatives margin-inline hebt das Seiten-Padding der Shell
+	 * `.app` auf, dasselbe Padding kommt hier zurück — die Inhaltsgeometrie (und damit das
+	 * 375px-Budget oben) bleibt pixelidentisch, Fläche und Kante reichen nur bis zur Shell-Kante.
+	 * Beide Shell-Breakpoints (—space-3, ab 48rem —space-5) werden gespiegelt, inklusive
+	 * Safe-Area-Insets (mobile-ui-rules Regel 8).
+	 *
+	 * Die Abgrenzung zur Inhaltsseite ist eine 1px-`border-bottom`-Kante statt des früheren
+	 * Rundum-inset-Schattens. Breitenempfindlich war nur ein VOLLER Rahmen (−2 px Inline-Breite,
+	 * brach die 375px-Zeile, mobile-shell.spec.ts #718 AK4): eine rein horizontale Kante kostet
+	 * kein Pixel Inline-Breite, das Höhenbudget wächst um 1 px auf 61 von 64 px. Im Modus „Unten"
+	 * wandert die Kante an die Oberkante (Regel dort).
 	 */
+	margin-left: calc(-1 * max(var(--pp-space-3), env(safe-area-inset-left)));
+	margin-right: calc(-1 * max(var(--pp-space-3), env(safe-area-inset-right)));
+	padding-left: max(var(--pp-space-3), env(safe-area-inset-left));
+	padding-right: max(var(--pp-space-3), env(safe-area-inset-right));
 	background: var(--pp-surface-2);
-	box-shadow: inset 0 0 0 1px var(--pp-border-subtle);
-	border-radius: var(--pp-radius-md);
+	border-bottom: 1px solid var(--pp-border);
 }
 
 /*
@@ -544,7 +564,10 @@ kol-toolbar {
  */
 @media (min-width: 24rem) {
 	.app-header__bar {
-		padding-inline-end: calc((var(--pp-toolbar-height) - var(--pp-avatar-size)) / 2);
+		/* #1587: Full-Bleed — das Shell-Padding kommt zusätzlich zum Avatar-Aufschlag zurück. */
+		padding-inline-end: calc(
+			max(var(--pp-space-3), env(safe-area-inset-right)) + (var(--pp-toolbar-height) - var(--pp-avatar-size)) / 2
+		);
 	}
 }
 
@@ -559,12 +582,18 @@ kol-toolbar {
 		row-gap: var(--pp-gap-base);
 		column-gap: var(--pp-space-2);
 		/*
-		 * Rundum derselbe Innenabstand: Ab 48rem ist der Avatar das höchste Element der Zeile und
-		 * bestimmt die Innenhöhe — sein Abstand nach oben und unten ist damit genau das Padding.
-		 * Rechts galt vorher --pp-space-3, der Avatar saß also seitlich weiter von der Kante weg
-		 * als oben/unten. Ein einheitlicher Wert macht den Rahmen um ihn gleichmäßig.
+		 * Rundum derselbe Innenabstand wie bisher: Ab 48rem ist der Avatar das höchste Element
+		 * der Zeile und bestimmt die Innenhöhe — sein Abstand nach oben und unten ist das
+		 * Block-Padding. #1587: Das Shell-Inset wächst auf —space-5, negatives margin und
+		 * zurückgegebenes Padding ziehen mit (siehe Basis-Regel); das bisherige —space-2 bleibt
+		 * als Inline-Aufschlag erhalten, die Inhaltsgeometrie ändert sich nicht.
 		 */
-		padding: var(--pp-space-2);
+		margin-left: calc(-1 * max(var(--pp-space-5), env(safe-area-inset-left)));
+		margin-right: calc(-1 * max(var(--pp-space-5), env(safe-area-inset-right)));
+		padding-top: var(--pp-space-2);
+		padding-bottom: var(--pp-space-2);
+		padding-left: calc(max(var(--pp-space-5), env(safe-area-inset-left)) + var(--pp-space-2));
+		padding-right: calc(max(var(--pp-space-5), env(safe-area-inset-right)) + var(--pp-space-2));
 	}
 }
 
