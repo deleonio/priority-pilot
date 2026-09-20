@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-20
 
-_Enthält v0.2.0 – v0.2.116._
+_Enthält v0.2.0 – v0.2.117._
 
 ### 🔧 Engineering
 
@@ -126,6 +126,7 @@ _Enthält v0.2.0 – v0.2.116._
 - docs: canonical gate as verify mirror + prompt-audit coverage (#1576) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1581
 - feat(frontend): confirm modal before saving unbalanced pillar weights by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1588
 - feat(frontend): dry-run connection test in llm provider dialog (#1577) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1585
+- docs(AGENTS.md): Align frontend test path with testing.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1592
 
 ## v0.1 - 2026-09-12
 
@@ -786,6 +787,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(ci): provider-aware subagent model resolution in setup-claude by @deleonio in https://github.com/deleonio/priority-pilot/pull/1270
 - feat(ci): delegation metrics, review fan-out, kolibri-recherche role by @deleonio in https://github.com/deleonio/priority-pilot/pull/1271
 - feat(frontend): collapse group detail sections, debounce user search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1269
+- feat(mobile): responsive completed tasks table and mobile layout for … by @deleonio in https://github.com/deleonio/priority-pilot/pull/1272
 - feat(mobile): responsive completed tasks table and mobile layout for … by @deleonio in https://github.com/deleonio/priority-pilot/pull/1272
 - feat(frontend): responsive series tree layout for mobile (#1259) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1275
 - feat(frontend): pillar palette on 7 cvd-validated neon colors (#1273) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1276
