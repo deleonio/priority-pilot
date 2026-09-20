@@ -240,3 +240,10 @@ Konflikte, die er verhindern soll.
   MCP-Werkzeugkatalog, gibt es einen FÜNFTEN Zähler neben tools.test.ts —
   `server/src/express/mcp-handshake.test.ts` (Handshake-Regressionstest) zählt den Katalog hart
   mit; bei jedem Katalog-Zuwachs mitpflegen und als Test-Pflege im PR-Body dokumentieren.
+- 2026-09-20 · Impl-Phase/E2E — „locator resolved to … unexpected value „hidden"" kostete eine ganze
+  Phase mit zwei Produktivcode-Umbauten (KolBadge → Light-DOM-Span), obwohl nicht das Element, sondern
+  sein VORFAHRE unsichtbar war: die Spec hatte den Tab-Wechsel vergessen (inaktive KolTabs-Panels
+  bleiben gemountet + `hidden`) und den zugeklappten `KolAccordion` nicht aufgeklappt. → Bei
+  „gefunden, aber hidden" ZUERST die Navigation der Spec gegen eine Schwester-Spec desselben Bereichs
+  vergleichen (Tab-Klick, `openAccordionSection` aus `frontend/e2e/helpers.ts`), erst danach das
+  Rendering anfassen; die Korrektur ist dann Test-Pflege mit file:line im PR-Body.

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1521 — Aufgabe an eine ganze Gruppe zuweisen (AK6–AK8,
@@ -71,12 +71,14 @@ test.describe('#1521 Gruppen-Aufgabe', () => {
 
 		// AK7: Aufgabenliste zeigt den Gruppennamen im „Für:"-Kennzeichen statt eines Personennamens.
 		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		const badge = page.getByTestId('group-task-badge').filter({ hasText: `Für: ${GROUP_NAME}` });
 		await expect(badge.first()).toBeVisible();
 
 		// AK6: Gruppendetail listet die offene Gruppen-Aufgabe.
 		await openGroupsTab(page);
 		await page.getByRole('button', { name: GROUP_NAME, exact: true }).click();
+		await openAccordionSection(page, 'Offene Gruppen-Aufgaben');
 		const openTasks = page.getByTestId('group-open-tasks');
 		await expect(openTasks.getByText(TASK_TITLE)).toBeVisible();
 
@@ -117,6 +119,7 @@ test.describe('#1521 Gruppen-Aufgabe', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		const badge = page.getByTestId('group-task-badge').filter({ hasText: `Für: ${GROUP_NAME}` });
 		await expect(badge.first()).toBeVisible();
 		const badgeBox = await badge.first().boundingBox();
