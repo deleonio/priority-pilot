@@ -9,6 +9,29 @@ import {
 	statusAccentClass,
 	taskFormModalTitle,
 } from './task';
+import * as taskLib from './task';
+
+/**
+ * #1584 AK7: `isTaskFormDirty`/`TaskFormSnapshot` existieren noch nicht in `./task` (Impl-Phase).
+ * Über einen Cast statt eines direkten Imports angesprochen, damit `tsc --noEmit` im Pre-Commit-Hook
+ * nicht am fehlenden Export scheitert (Muster MEMORY.md 2026-08-23) — der Aufruf bleibt zur
+ * Laufzeit rot (`TypeError: isTaskFormDirty is not a function`), bis die Impl-Phase den echten
+ * Export liefert.
+ */
+interface TaskFormSnapshot {
+	title: string;
+	priority: number | null;
+	estimatedEffort: number | null;
+	description: string;
+	address: string;
+	deadline: string;
+	categoryId: number | null;
+	mode: 'task' | 'series';
+	contributions: { pillarId: number; share: number; confidence: number }[];
+}
+const isTaskFormDirty = (
+	taskLib as unknown as { isTaskFormDirty?: (a: TaskFormSnapshot, b: TaskFormSnapshot) => boolean }
+).isTaskFormDirty!;
 
 /** Fixer Bezugszeitpunkt für deterministische Dringlichkeits-Tests (UTC-Mittag). */
 const NOW = new Date('2026-07-09T12:00:00.000Z');
@@ -160,5 +183,68 @@ describe('taskFormModalTitle (#334)', () => {
 
 	it('Fallback ohne Modus → „Neuen Task anlegen"', () => {
 		expect(taskFormModalTitle(null, null)).toBe('Neuen Task anlegen');
+	});
+});
+
+// #1584 AK7: reine Dirty-Erkennung für die Schließen-Rückfrage — Snapshot beim Öffnen vs. Stand
+// beim Schließzeitpunkt, keine Re-Render-getriebene Zustandsverfolgung.
+describe('isTaskFormDirty', () => {
+	const baseSnapshot = (): TaskFormSnapshot => ({
+		title: 'Steuererklärung',
+		priority: 3,
+		estimatedEffort: 0.5,
+		description: 'Belege sammeln',
+		address: 'Musterstraße 1',
+		deadline: '2026-10-01',
+		categoryId: 2,
+		mode: 'task',
+		contributions: [
+			{ pillarId: 1, share: 0.5, confidence: 80 },
+			{ pillarId: 2, share: 0.5, confidence: 60 },
+		],
+	});
+
+	it('meldet unverändert, wenn Anfangs- und aktueller Stand identisch sind', () => {
+		const initial = baseSnapshot();
+		const current = baseSnapshot();
+		expect(isTaskFormDirty(initial, current)).toBe(false);
+	});
+
+	it('meldet geändert, wenn der Titel abweicht', () => {
+		const initial = baseSnapshot();
+		const current = { ...baseSnapshot(), title: 'Steuererklärung 2026' };
+		expect(isTaskFormDirty(initial, current)).toBe(true);
+	});
+
+	it('meldet geändert, wenn sich die Kategorie oder die Säulen-Verteilung ändert', () => {
+		const initial = baseSnapshot();
+		expect(isTaskFormDirty(initial, { ...baseSnapshot(), categoryId: 5 })).toBe(true);
+		expect(
+			isTaskFormDirty(initial, {
+				...baseSnapshot(),
+				contributions: [
+					{ pillarId: 1, share: 0.7, confidence: 80 },
+					{ pillarId: 2, share: 0.3, confidence: 60 },
+				],
+			}),
+		).toBe(true);
+	});
+
+	it('meldet unverändert, wenn ein Feld getippt und wieder auf den Ausgangswert zurückgesetzt wurde', () => {
+		const initial = baseSnapshot();
+		// Simuliert: Nutzer tippt in den Titel, löscht die Änderung wieder → Endstand === Anfangsstand.
+		const current = baseSnapshot();
+		current.title = 'Steuererklärung (Entwurf)';
+		current.title = initial.title;
+		expect(isTaskFormDirty(initial, current)).toBe(false);
+	});
+
+	it('vergleicht Säulen-Beiträge reihenfolge-unabhängig (gleiches Muster wie pillarsEqual)', () => {
+		const initial = baseSnapshot();
+		const reordered: TaskFormSnapshot = {
+			...baseSnapshot(),
+			contributions: [...baseSnapshot().contributions].reverse(),
+		};
+		expect(isTaskFormDirty(initial, reordered)).toBe(false);
 	});
 });
