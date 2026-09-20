@@ -306,7 +306,10 @@ const minimalSeries = (): Series => ({
 	estimatedEffort: 0.5,
 	active: true,
 	startDate: new Date('2026-09-07T00:00:00.000Z'),
-	pillars: [],
+	// TEST-PFLEGE #1596: vollständige Säulen-Verteilung (hier die eine Säule aus `defaultProps` mit
+	// 100 %). Eine Vorlage ohne Beiträge würde beim Öffnen vervollständigt — das ist dann eine echte
+	// Änderung am Template und löst zu Recht die Kaskade-Rückfrage aus.
+	pillars: [{ pillarId: 1, share: 100, confidence: 100 }],
 });
 
 /**
@@ -868,35 +871,31 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 });
 
 /**
- * Rote Spec-Tests für #440 (AK2): Bei 0 Säulen zeigt das Task-Formular kein leeres
- * Säulen-Auswahlfeld; stattdessen einen dezenten Hinweis „Keine Säulen definiert".
- * Der Test ist rot, solange TaskForm bei pillars=[] noch die Pillar-Auswahl rendert.
+ * #440 (AK2) in der Fassung von #1596: Die fünf Säulen sind fest, hinzugefügt oder entfernt wird
+ * nichts mehr. Solange `GET /pillars` noch nicht geantwortet hat (pillars = []), steht statt der
+ * Regler ein Ladehinweis; mit Säulen erscheint die Verteilung.
  */
-describe('TaskForm — Empty-State bei 0 Säulen (Issue #440, AK2)', () => {
-	it('AK2: blendet die Säulen-Auswahl aus, wenn pillars leer ist', async () => {
+describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', () => {
+	it('zeigt den Ladehinweis, wenn pillars leer ist', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} pillars={[]} onClose={vi.fn()} onSaved={vi.fn()} />);
 		});
 
-		// Kein Select für die Säulen-Auswahl, wenn keine Säulen existieren.
-		expect(screen.queryByLabelText('Säule hinzufügen')).toBeNull();
-
-		// Stattdessen erscheint ein dezentner Hinweis.
-		expect(screen.getByText(/keine säulen definiert/i)).toBeInTheDocument();
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(0);
+		expect(screen.getByText(/säulen werden geladen/i)).toBeInTheDocument();
 	});
 
-	it('AK2: zeigt die Säulen-Auswahl, wenn pillars nicht leer ist', async () => {
+	it('zeigt je Säule einen Regler, sobald pillars geladen sind', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} pillars={[pillarKoerper]} onClose={vi.fn()} onSaved={vi.fn()} />);
 		});
 
-		// Bei vorhandenen Säulen erscheint die Säulen-Auswahl wieder.
-		expect(screen.queryByLabelText('Säule hinzufügen')).not.toBeNull();
-		expect(screen.queryByText(/keine säulen definiert/i)).toBeNull();
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
+		expect(screen.queryByText(/säulen werden geladen/i)).toBeNull();
 	});
 });
 
@@ -2641,14 +2640,11 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 		expect(screen.queryAllByTestId('plan-badge-ai_assist')).toHaveLength(0);
 	});
 
-	it('AK2 — Gate aus: Überschrift, Säulen-Regler und Entfernen-Button bleiben vorhanden und bedienbar', () => {
+	it('AK2 — Gate aus: Überschrift und Säulen-Regler bleiben vorhanden und bedienbar', () => {
 		renderPillarEditorWithContribution(false);
-		fireEvent.click(screen.getByText('Optional'));
 
-		expect(screen.getByText('Säulen (optional)')).toBeVisible();
-		expect(screen.getByRole('slider', { name: /Körper – Anteil/ })).toBeVisible();
-		expect(screen.getByRole('slider', { name: /Konfidenz/ })).toBeVisible();
-		expect(screen.getByRole('button', { name: 'Körper entfernen' })).toBeVisible();
+		expect(screen.getByText('Säulen-Verteilung')).toBeVisible();
+		expect(screen.getByRole('slider', { name: /Körper/ })).toBeVisible();
 	});
 
 	it('AK3 — Gate an: Button und Badge erscheinen, Klick löst weiterhin suggestPillars aus', async () => {

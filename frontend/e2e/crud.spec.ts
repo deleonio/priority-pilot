@@ -128,12 +128,12 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 	});
 
 	test('Säulen-Gewicht ändern: Wert persistiert über einen Reload', async ({ page }) => {
-		// #1573-Test-Pflege: Der Regler-Flow unten setzt GENAU FÜNF Säulen voraus (5 × 0,2 → 0,6 plus
-		// 4 × 0,1, Summe 1,0). Ohne eigene Session sieht die Spec den ganzen Säulen-Bestand der
+		// #1573-Test-Pflege: Der Regler-Flow unten setzt GENAU FÜNF Säulen voraus (5 × 20 % → 80 %
+		// plus 4 × 5 %). Ohne eigene Session sieht die Spec den ganzen Säulen-Bestand der
 		// Shard-DB — Begründung siehe `registerOwnSession`.
 		await registerOwnSession(page, 'crud');
 
-		// #1574: Regler-Flow geht von 5 × 0,2 aus (0,2 → 0,6/0,1) — Gleichverteilung aktiv
+		// #1574: Regler-Flow geht von 5 × 20 % aus — Gleichverteilung aktiv
 		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.
 		await setEqualPillarWeights(page);
 		await page.goto('/');
@@ -148,12 +148,10 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		await openPillarWeights();
 
-		// Erste Säule auf 0,6 heben, übrige auf 0,1 senken (Ausgangswert je 0,2 bei 5 × 20 %).
-		// Die Rohwerte summieren auf 1,0 → die Normierung ist die Identität und die Werte
-		// round-trippen deterministisch (60/10/10/10/10). Bewusst KEIN `End`/`Home` mehr
-		// (100 %/0 %-Extremverteilung): Solche Verteilungen blockiert #1574 (AK4) vollständig;
-		// das Speichern der unausgewogenen Verteilung läuft seit #1574 über das
-		// Bestätigungs-Modal („Trotzdem speichern").
+		// TEST-PFLEGE #1596: Die Regler führen Prozentwerte und sind gekoppelt — ein Zug verschiebt
+		// die übrigen Säulen automatisch mit, die Summe bleibt 100 %. `End` schiebt die erste Säule
+		// ans Maximum (80 %, der Rest steht dann am Mindestanteil 5 %). Das frühere Nachziehen der
+		// anderen Regler entfällt damit; eine 100-%-/0-%-Extremverteilung ist nicht mehr einstellbar.
 		//
 		// KoliBris `KolInputRange` exponiert KEIN `role="slider"` und kein `aria-label` aus seinem
 		// `_label`; im (offenen) Shadow-DOM steckt jedoch ein natives `<input type="range">`. Playwrights
@@ -162,16 +160,11 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// Allgemein-Panel weitere Range-Regler earlier in document order im DOM.
 		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
 		const sliderCount = await sliders.count();
-		expect(sliderCount).toBeGreaterThan(1);
-		for (let press = 0; press < 4; press += 1) {
-			await sliders.first().press('ArrowRight');
-		}
-		for (let index = 1; index < sliderCount; index += 1) {
-			await sliders.nth(index).press('ArrowLeft');
-		}
+		expect(sliderCount).toBe(5);
+		await sliders.first().press('End');
 
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		// #1574: Die Verteilung ist unausgewogen (60 % > 2 × 20 %) → Bestätigungs-Modal.
+		// #1574: Die Verteilung ist unausgewogen (80 % > 2 × 20 %) → Bestätigungs-Modal.
 		await page.getByRole('button', { name: 'Trotzdem speichern' }).click();
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
 
@@ -182,7 +175,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		// Wie oben: auf das Säulen-Gewichtungs-Grid scopen (Geo-Regler aus #1098 stören sonst `.first()`).
 		const reloadedSliders = page.locator('.pillar-weights-grid input[type="range"]');
-		await expect(reloadedSliders.first()).toHaveValue('0.6');
-		await expect(reloadedSliders.nth(1)).toHaveValue('0.1');
+		await expect(reloadedSliders.first()).toHaveValue('80');
+		await expect(reloadedSliders.nth(1)).toHaveValue('5');
 	});
 });

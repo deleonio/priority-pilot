@@ -5,8 +5,8 @@ import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './
  * ROTE Spec-Tests für #1574 — „Speichern unausgewogener Säulen-Gewichtungen nur mit Bestätigung"
  * (Spec: docs/spec/issue-1574.md).
  *
- * Gegen das echte Backend: Eine unausgewogene, aber extremfreie Verteilung (erste Säule 0,6,
- * übrige 0,1 — Summe 1,0, Anteil 60 % > 2 × 20 %) öffnet beim „Speichern" ein
+ * Gegen das echte Backend: Eine unausgewogene, aber extremfreie Verteilung (erste Säule 80 %,
+ * übrige je 5 % — Anteil 80 % > 2 × 20 %) öffnet beim „Speichern" ein
  * Bestätigungs-Modal; erst „Trotzdem speichern" sendet den PUT. „Abbrechen" speichert nicht und
  * lässt die Regler unverändert; erneutes Speichern ist wieder möglich. AK6 prüft die mobile
  * Nutzbarkeit bei 375px per Bounding-Box (`scrollWidth` ist unbrauchbar, die App-Shell clippt
@@ -19,17 +19,14 @@ import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './
 test.use({ viewport: { width: 375, height: 800 } });
 
 test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgewogener Verteilungen', () => {
-	/** Ungleich machen ohne Extremanteil: erste Säule 0,2 → 0,6, übrige 0,2 → 0,1 (Summe 1,0). */
+	/**
+	 * Ungleich machen ohne Extremanteil (#1596): `End` hebt die erste Säule auf ihr Maximum (80 %),
+	 * die gekoppelten Regler stellen die übrigen auf den Mindestanteil 5 %.
+	 */
 	const makeUnbalanced = async (page: import('@playwright/test').Page): Promise<void> => {
 		const sliders = page.locator('.pillar-weights-grid input[type="range"]');
-		const sliderCount = await sliders.count();
-		expect(sliderCount).toBeGreaterThan(1);
-		for (let press = 0; press < 4; press += 1) {
-			await sliders.first().press('ArrowRight');
-		}
-		for (let index = 1; index < sliderCount; index += 1) {
-			await sliders.nth(index).press('ArrowLeft');
-		}
+		expect(await sliders.count()).toBeGreaterThan(1);
+		await sliders.first().press('End');
 	};
 
 	test('AK1+AK2+AK6: Modal vor dem PUT, Abbrechen ohne PUT, Bestätigen sendet genau einen PUT — bei 375px nutzbar', async ({
@@ -98,7 +95,7 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 		// AK2: „Abbrechen" — kein PUT, Modal zu, Regler unverändert.
 		await cancel.click();
 		await expect(dialogRole).toBeHidden();
-		await expect(page.locator('.pillar-weights-grid input[type="range"]').first()).toHaveValue('0.6');
+		await expect(page.locator('.pillar-weights-grid input[type="range"]').first()).toHaveValue('80');
 		expect(putCount, 'Abbrechen darf keinen PUT senden').toBe(0);
 
 		// AK2: Erneutes Speichern ist wieder möglich → Bestätigen sendet genau einen PUT.

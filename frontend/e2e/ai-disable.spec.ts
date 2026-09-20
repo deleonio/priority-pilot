@@ -159,7 +159,7 @@ test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
 
 /**
  * Rote Spec-e2e für #1527 AK5/AK6 — letzter ungegateter KI-Einstieg: der Säulen-Berater im
- * Aufgabenformular (`.pillar-editor-head`, `TaskForm.tsx:1469-1480`). Ein Free-Konto ohne
+ * Aufgabenformular (`.pillar-editor-head` in den Basisangaben, seit #1596). Ein Free-Konto ohne
  * `ai_assist`-Berechtigung darf im gesamten Anlege-Weg kein KI-Bedienelement mehr finden und keinen
  * KI-Endpunkt aufrufen — auch nicht `/tasks/suggest-pillars`. `.pillar-editor-head` rendert nur,
  * wenn mindestens eine Säule existiert — das Seeding kommt seit #1573 aus der Registrierung
@@ -229,15 +229,14 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
-		await openAccordionSection(page, 'Optional');
-
+		// #1596: Die Säulen-Verteilung liegt in den Basisangaben (immer offen) — kein Aufklappen nötig.
 		const head = page.locator('.pillar-editor-head');
 		const box = await boundingBoxWhenLaidOut(head);
 		expect(box, '.pillar-editor-head muss eine Bounding-Box haben').not.toBeNull();
 		expect(box!.height).toBeLessThan(48); // eine Textzeile, kein Badge/Button erzeugt eine zweite
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 
-		await expect(head.getByText('Säulen (optional)')).toBeVisible();
+		await expect(head.getByText('Säulen-Verteilung')).toBeVisible();
 		await expect(head.getByRole('button', { name: /Säulen vorschlagen/ })).toHaveCount(0);
 		await expect(head.getByTestId('plan-badge-ai_assist')).toHaveCount(0);
 	});

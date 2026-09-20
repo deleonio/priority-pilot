@@ -40,16 +40,12 @@ import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
 import { PlanBadge } from './PlanBadge';
 import {
-	ADD_PILLAR_PLACEHOLDER,
-	addPillarOptions,
-	isRawDistributionValid,
-	normalizeToTotalWeight,
-	RAW_WEIGHT_MAX,
-	RAW_WEIGHT_MIN,
-	RAW_WEIGHT_STEP,
+	fillContributions,
+	redistributeShares,
+	SHARE_MIN,
+	SHARE_STEP,
+	shareMax,
 	suggestionsToContributions,
-	sumWeights,
-	weightToRaw,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber } from '../lib/task';
 import type { AddressSuggestion } from '../lib/useAddressSearch';
@@ -307,12 +303,13 @@ export const TaskForm = ({
 		rhythm: series?.rhythm ?? 'weekly',
 	});
 
-	// Säulen-Beiträge im State (nicht im Ref): Hinzufügen/Entfernen und die Anteils-/Konfidenz-Slider
-	// müssen neu rendern (Live-Summe). Slider verursachen — anders als Textfelder — kein Cursor-Springen.
-	// `share` wird als Rohwert 0,0–1,0 gehalten (#82): der gespeicherte Prozentwert (0–100) wird für die
-	// Anzeige zurückgerechnet und erst beim Speichern wieder auf 100 % normiert. `confidence` bleibt 0–100.
+	// Säulen-Verteilung im State (nicht im Ref): Jeder Reglerzug verschiebt alle Anteile und muss neu
+	// rendern. Slider verursachen — anders als Textfelder — kein Cursor-Springen. `share` ist der
+	// Prozentwert (0–100), den auch der Server führt; die Verteilung enthält stets alle Säulen und
+	// summiert sich auf 100 (#1596). `confidence` bleibt 0–100 und wird nicht mehr im Formular
+	// bearbeitet: Bestandswerte bleiben, neue Beiträge bekommen 100 bzw. den Wert des KI-Vorschlags.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
-		(task?.pillars ?? series?.pillars ?? []).map((entry) => ({ ...entry, share: weightToRaw(entry.share) })),
+		fillContributions(pillars, task?.pillars ?? series?.pillars ?? []),
 	);
 
 	// Kategorie im State (nicht im Ref): Die Auswahl muss neu rendern, damit das Badge daneben
@@ -507,28 +504,25 @@ export const TaskForm = ({
 		}
 		return parsed.getUTCDay() !== target ? target : null;
 	})();
-	const pillarIds = useMemo(() => new Set(pillars.map((pillar) => pillar.id)), [pillars]);
-	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
-	const availablePillars = pillars.filter((pillar) => !contributions.some((entry) => entry.pillarId === pillar.id));
-	const shareSum = sumWeights(contributions.map((entry) => entry.share));
-	// Gültig, sobald jeder Roh-Anteil ≥ 0 ist und mindestens einer > 0 (sonst nicht auf 100 % normierbar).
-	const shareValid = isRawDistributionValid(contributions.map((entry) => entry.share));
+	// Obergrenze eines einzelnen Reglers: Was bleibt, wenn alle anderen Säulen am Mindestanteil
+	// stehen (bei fünf Säulen 80 %).
+	const shareCeiling = shareMax(contributions.length);
 
-	const updateContribution = (pillarId: number, patch: Partial<TaskPillarContribution>): void =>
-		setContributions((prev) => prev.map((entry) => (entry.pillarId === pillarId ? { ...entry, ...patch } : entry)));
-
-	const addPillar = (raw: unknown): void => {
-		const id = readNumber(raw);
-		if (id === null || id === ADD_PILLAR_PLACEHOLDER || contributions.some((entry) => entry.pillarId === id)) {
+	// Ein Reglerzug verschiebt die ganze Verteilung: Die anderen Säulen ziehen proportional nach,
+	// die Summe bleibt 100 % (#1596).
+	const setShare = (index: number, next: number | null): void => {
+		if (next === null) {
 			return;
 		}
-		// Neuer Beitrag erhält den vollen Roh-Anteil 1,0 — bei gleichen Werten zahlen alle Säulen gleich
-		// stark ein (Normierung beim Speichern verteilt sie anteilig auf 100 %).
-		setContributions((prev) => [...prev, { pillarId: id, share: RAW_WEIGHT_MAX, confidence: 100 }]);
+		setContributions((prev) => {
+			const shares = redistributeShares(
+				prev.map((entry) => entry.share),
+				index,
+				next,
+			);
+			return prev.map((entry, position) => ({ ...entry, share: shares[position] }));
+		});
 	};
-
-	const removePillar = (pillarId: number): void =>
-		setContributions((prev) => prev.filter((entry) => entry.pillarId !== pillarId));
 
 	// #531: Checklisten-Eintrag anlegen (neue UUID, completed = false), entfernen oder abhaken.
 	const addChecklistItem = (): void => {
@@ -559,13 +553,13 @@ export const TaskForm = ({
 			const suggestions = await api.suggestPillars({
 				suggestPillarsInput: { title, description: description === '' ? undefined : description },
 			});
-			const next = suggestionsToContributions(suggestions, pillarIds);
+			const next = suggestionsToContributions(suggestions, pillars);
 			if (next.length === 0) {
 				setSuggestError('Es konnte keine passende Säule vorgeschlagen werden.');
 				return;
 			}
-			// Vorschläge kommen als 100-%-Verteilung (0–100); für die Roh-Anzeige auf 0,0–1,0 zurückrechnen (#82).
-			setContributions(next.map((entry) => ({ ...entry, share: weightToRaw(entry.share) })));
+			// Der Vorschlag ist eine vollständige Verteilung über alle Säulen (Summe 100 %, #1596).
+			setContributions(next);
 			suggestionApplied.current = true;
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -639,6 +633,18 @@ export const TaskForm = ({
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// #1596: Die Säulenliste kommt per `GET /pillars` und kann beim Mount noch leer sein. Sobald sie
+	// eintrifft (oder sich ändert), wird die Verteilung darauf vervollständigt: fehlende Säulen
+	// bekommen den Mindestanteil, vorhandene Anteile werden proportional zurückgerechnet.
+	// Gespeichert wird das erst mit dem Formular.
+	useEffect(() => {
+		setContributions((prev) => {
+			const matchesPillars =
+				prev.length === pillars.length && prev.every((entry, index) => entry.pillarId === pillars[index].id);
+			return matchesPillars ? prev : fillContributions(pillars, prev);
+		});
+	}, [pillars]);
 
 	// #1342 (AK1): Einmalig die gespeicherten Orte laden. Ein Ladefehler bleibt stumm — das
 	// Adressfeld funktioniert dann wie bisher, nur ohne Favoritenzeilen.
@@ -737,21 +743,12 @@ export const TaskForm = ({
 			setError('Das Startdatum ist kein gültiges Datum.');
 			return;
 		}
-		// Roh-Anteile 0,0–1,0: mindestens ein Anteil muss > 0 sein, damit sich die Verteilung auf 100 %
-		// normieren lässt (#82).
-		if (contributions.length > 0 && !isRawDistributionValid(contributions.map((entry) => entry.share))) {
-			setError('Mindestens eine Säule muss einen Anteil > 0 haben.');
-			return;
-		}
-
 		setError(null);
 		setSaving(true);
 		try {
-			// Roh-Anteile vor dem Speichern auf die interne 100-%-Verteilung normieren (gespeicherte
-			// Repräsentation und Ranking bleiben unverändert). `confidence` bleibt unverändert (0–100).
-			const normalizedShares =
-				contributions.length > 0 ? normalizeToTotalWeight(contributions.map((entry) => entry.share)) : [];
-			const pillars = contributions.map((entry, index) => ({ ...entry, share: normalizedShares[index] }));
+			// Die Verteilung liegt bereits als ganzzahlige Prozentwerte mit Summe 100 vor (#1596) —
+			// sie geht unverändert ins Payload. `confidence` bleibt wie geladen (0–100).
+			const pillars = contributions;
 			// #1252 (AK9): Übergabe-Kondition — gewählter Empfänger ist ein fremdes Konto. Nur dann geht
 			// `userId` mit raus; die Edit-Pfade lassen in dem Fall zusätzlich `pillars` weg (s. u.), damit
 			// der Server den Säulen-Namen-Remap (AK6) fährt statt die IDs des bisherigen Eigentümers
@@ -1143,6 +1140,58 @@ export const TaskForm = ({
 									}}
 								/>
 							</div>
+							{/* #1596: Säulen-Verteilung als Pflichtangabe — die fünf Säulen sind fest (#1573),
+							    daher stehen sie alle immer da und der Nutzer verschiebt nur die Verteilung.
+							    Ein Reglerzug zieht die anderen Säulen nach, die Summe bleibt 100 %; unter den
+							    Mindestanteil (5 %) fällt keine Säule, weil jede Aufgabe auf jeden Lebensbereich
+							    einzahlt — nur unterschiedlich stark. */}
+							{contributions.length === 0 ? (
+								<p className="hint">Säulen werden geladen …</p>
+							) : (
+								<div className="pillar-editor">
+									<div className="pillar-editor-head">
+										<span className="pillar-editor-label">Säulen-Verteilung</span>
+										{/* #1527: Ohne KI-Berechtigung bleiben Badge und Vorschlag-Button ausgeblendet
+										    — die Regler selbst bleiben unberührt. */}
+										{aiEnabled && (
+											<>
+												<PlanBadge feature="ai_assist" inModal />
+												<KolButton
+													_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
+													_variant="secondary"
+													_disabled={saving || suggesting}
+													_on={{ onClick: () => void suggestPillars() }}
+												/>
+											</>
+										)}
+									</div>
+									{suggesting && (
+										<div className="pillar-editor-loading">
+											<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
+										</div>
+									)}
+									{suggestError !== null && (
+										<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
+											{suggestError}
+										</KolAlert>
+									)}
+									{contributions.map((entry, index) => (
+										<div key={entry.pillarId} className="pillar-row">
+											<KolInputRange
+												_label={`${pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}: ${formatNumber(entry.share)} %`}
+												_min={SHARE_MIN}
+												_max={shareCeiling}
+												_step={SHARE_STEP}
+												_value={entry.share}
+												_on={{
+													onInput: (_event, value) => setShare(index, readNumber(value)),
+													onChange: (_event, value) => setShare(index, readNumber(value)),
+												}}
+											/>
+										</div>
+									))}
+								</div>
+							)}
 						</div>
 					</KolAccordion>
 				</section>
@@ -1420,6 +1469,14 @@ export const TaskForm = ({
 								</>
 							)}
 						</div>
+						{/* #680: Lektorat-Fehler für Titel und Beschreibung. Steht hier, weil der
+						    Beschreibungs-Knopf direkt darüber liegt; der Titel-Knopf meldet zusätzlich über das
+						    Diff-Modal. */}
+						{lektoratError !== null && (
+							<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
+								{lektoratError}
+							</KolAlert>
+						)}
 						{/* Kategorie: thematische Ordnung, höchstens eine je Aufgabe. Bewusst getrennt von den
 						    Säulen darunter — der Hinweis benennt den Unterschied in einem Satz, damit niemand
 						    eine Säule als Ordner missbraucht (das verzerrt die Balance-Rechnung). Die lange
@@ -1456,111 +1513,6 @@ export const TaskForm = ({
 											_on={{ onClick: () => setCategoryId(null) }}
 										/>
 									</div>
-								)}
-							</div>
-						)}
-						{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
-						{pillars.length === 0 ? (
-							<p className="hint">
-								Keine Säulen definiert — lege zuerst Säulen in den <a href="/settings">Einstellungen</a> an.
-							</p>
-						) : (
-							<div className="pillar-editor">
-								<div className="pillar-editor-head">
-									<span className="pillar-editor-label">Säulen (optional)</span>
-									{/* #1527: Ohne KI-Berechtigung bleiben Badge und Vorschlag-Button ausgeblendet
-									    — der Säulen-Editor selbst (Regler, Entfernen) bleibt unberührt. */}
-									{aiEnabled && (
-										<>
-											<PlanBadge feature="ai_assist" inModal />
-											<KolButton
-												_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
-												_variant="secondary"
-												_disabled={saving || suggesting}
-												_on={{ onClick: () => void suggestPillars() }}
-											/>
-										</>
-									)}
-								</div>
-								{suggesting && (
-									<div className="pillar-editor-loading">
-										<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
-									</div>
-								)}
-								{suggestError !== null && (
-									<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
-										{suggestError}
-									</KolAlert>
-								)}
-								{lektoratError !== null && (
-									<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
-										{lektoratError}
-									</KolAlert>
-								)}
-								{contributions.length === 0 ? (
-									<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
-								) : (
-									contributions.map((entry) => {
-										const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
-										return (
-											<div key={entry.pillarId} className="pillar-row">
-												<KolInputRange
-													_label={`${name} – Anteil: ${formatNumber(entry.share)}`}
-													_min={RAW_WEIGHT_MIN}
-													_max={RAW_WEIGHT_MAX}
-													_step={RAW_WEIGHT_STEP}
-													_value={entry.share}
-													_on={{
-														onInput: (_event, value) =>
-															updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
-														onChange: (_event, value) =>
-															updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
-													}}
-												/>
-												<KolInputRange
-													_label={`Konfidenz: ${formatNumber(entry.confidence)} %`}
-													_min={0}
-													_max={100}
-													_step={1}
-													_value={entry.confidence}
-													_on={{
-														onInput: (_event, value) =>
-															updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
-														onChange: (_event, value) =>
-															updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
-													}}
-												/>
-												<KolButton
-													_label={`${name} entfernen`}
-													_hideLabel
-													_icons={{ left: { icon: 'kolicon-cross' } }}
-													_variant="danger"
-													_on={{ onClick: () => removePillar(entry.pillarId) }}
-												/>
-											</div>
-										);
-									})
-								)}
-								{availablePillars.length > 0 && (
-									<KolSingleSelect
-										_label="Säule hinzufügen"
-										_hideLabel
-										_options={addPillarOptions(availablePillars)}
-										_value={ADD_PILLAR_PLACEHOLDER}
-										_on={{ onChange: (_event, value) => addPillar(value) }}
-									/>
-								)}
-								{contributions.length > 0 && (
-									<p
-										className={
-											shareValid
-												? 'pillar-weights-sum pillar-weights-sum-ok'
-												: 'pillar-weights-sum pillar-weights-sum-invalid'
-										}
-									>
-										Summe der Roh-Anteile: {formatNumber(shareSum)}{' '}
-										{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
-									</p>
 								)}
 							</div>
 						)}

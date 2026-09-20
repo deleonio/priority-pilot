@@ -1,15 +1,18 @@
 import type { Pillar, PillarSuggestion, Task, TaskPillarContribution } from 'client';
 import { TaskStatus } from 'client';
 
-/**
- * Sentinel-Wert der „Säule hinzufügen"-Auswahl (Platzhalter-Option). Säulen-IDs sind serverseitig
- * `>= 1` (siehe `openapi.yml`), daher kollidiert `0` mit keiner echten Säule und steht eindeutig für
- * „noch keine Säule gewählt".
- */
-export const ADD_PILLAR_PLACEHOLDER = 0;
+/** Soll-Summe der Anteile/Gewichte über alle Säulen (100 %-Verteilung; siehe Server-Vertrag). */
+export const SHARE_TOTAL = 100;
 
-/** Soll-Summe der Gewichte über alle Säulen (100 %-Verteilung; siehe Server-Vertrag). */
-const TOTAL_WEIGHT = 100;
+/**
+ * Mindestanteil einer Säule in Prozent. Die fünf Säulen sind fest (#1573) und jede Aufgabe zahlt
+ * auf jede von ihnen ein — nur unterschiedlich stark. Deshalb lässt sich keine Säule auf 0 ziehen;
+ * sie bleibt mit einem kleinen Anteil dabei.
+ */
+export const SHARE_MIN = 5;
+
+/** Schrittweite der Verteilungs-Regler in Prozent. */
+export const SHARE_STEP = 1;
 
 /**
  * Float-Toleranz für den Summenvergleich (z. B. 33,33 + 33,33 + 33,34). Spiegelt die
@@ -17,139 +20,36 @@ const TOTAL_WEIGHT = 100;
  */
 const WEIGHT_SUM_EPSILON = 1e-6;
 
-/**
- * Eingabe-Skala für die Roh-Gewichte in der UI: pro Säule ein freier Wert von 0,0 bis 1,0 (#82).
- * Die absolute Skala ist bewusst egal — `5 × 0,1` und `5 × 1` ergeben nach der Normierung dieselbe
- * Verteilung. Erst beim Speichern werden die Rohwerte auf die interne 100-%-Verteilung normiert.
- */
-export const RAW_WEIGHT_MIN = 0;
-export const RAW_WEIGHT_MAX = 1;
-export const RAW_WEIGHT_STEP = 0.1;
-
-/** Roh-Anzeigewert (0,0–1,0) aus dem intern gespeicherten Prozentwert (0–100). */
-export const weightToRaw = (stored: number): number => stored / TOTAL_WEIGHT;
-
-/**
- * Normiert eine Roh-Verteilung (0,0–1,0 je Eintrag) auf die interne 100-%-Verteilung, sodass die
- * Summe genau `TOTAL_WEIGHT` ergibt (`anteilᵢ = rohᵢ / Σroh · 100`). Dadurch bleibt die gespeicherte
- * Repräsentation — und damit die Ranking-Berechnung — unverändert; nur die Eingabe-UX wird einfacher.
- * Der Aufrufer muss `Σroh > 0` sicherstellen (siehe `isRawDistributionValid`), sonst ist die
- * Verteilung nicht normierbar (Division durch 0).
- */
-export const normalizeToTotalWeight = (raws: readonly number[]): number[] => {
-	const total = raws.reduce((acc, raw) => acc + raw, 0);
-	return raws.map((raw) => (raw / total) * TOTAL_WEIGHT);
-};
-
-/**
- * Prüft, ob eine Roh-Verteilung gültig (normierbar) ist: jeder Wert eine endliche Zahl ≥ 0 und die
- * Summe > 0. Eine reine Null-Verteilung lässt sich nicht auf 100 % normieren und ist daher ungültig.
- */
-export const isRawDistributionValid = (raws: readonly (number | null)[]): boolean =>
-	raws.every((raw) => raw !== null && Number.isFinite(raw) && raw >= 0) && sumWeights(raws) > 0;
-
-/**
- * Prüft, ob eine Roh-Verteilung **stark unausgewogen** ist (#1555): der Anteil einer Säule an der
- * Gesamtsumme (`shareᵢ = rohᵢ / Σroh`, `null` zählt als 0) liegt strikt über dem **Doppelten**
- * oder strikt unter der **Hälfte** des gleichmäßigen Anteils `1/n`. Exakt 2× bzw. exakt ½ gelten
- * noch als ausgewogen (Float-Toleranz wie beim Summenvergleich). Die Prüfung ist skaleninvariant
- * (`5 × 0,1` ≡ `5 × 1`), denn nur die Anteile zählen.
- *
- * Nicht normierbar (Σroh ≤ 0, z. B. alles 0/null) → `false`: dafür ist der bestehende
- * Summen-Fehlerzustand zuständig, kein Doppelmelden. Rein informativ — der Aufrufer blockiert
- * daraus nichts (Speichern bleibt möglich).
- */
-export const isDistributionUnbalanced = (raws: readonly (number | null)[]): boolean => {
-	if (raws.length === 0) {
-		return false;
-	}
-	const total = sumWeights(raws);
-	if (total <= 0) {
-		return false;
-	}
-	const evenShare = 1 / raws.length;
-	return raws.some((raw) => {
-		const share = (raw ?? 0) / total;
-		return share > 2 * evenShare + WEIGHT_SUM_EPSILON || share < 0.5 * evenShare - WEIGHT_SUM_EPSILON;
-	});
-};
-
-/**
- * Prüft, ob eine Roh-Verteilung nach der Normierung eine Säule mit **0 % oder 100 %** Anteil
- * ergeben würde (#1574, AK4): `shareᵢ = rohᵢ / Σroh` (null zählt als 0 — dieselbe
- * Anteilsrechnung wie `isDistributionUnbalanced`, ebenfalls skaleninvariant). Solche
- * Extremverteilungen blockiert das Formular, statt sie bestätigbar zu machen.
- *
- * Ausnahme: Bei höchstens **einer** Säule ist 100 % die einzig gültige Verteilung → `false`.
- * Nicht normierbar (Σroh ≤ 0) → `false`: dafür ist der bestehende Summen-Fehlerzustand
- * zuständig, kein Doppelmelden.
- */
-export const hasExtremeShare = (raws: readonly (number | null)[]): boolean => {
-	if (raws.length <= 1) {
-		return false;
-	}
-	const total = sumWeights(raws);
-	if (total <= 0) {
-		return false;
-	}
-	return raws.some((raw) => {
-		const share = (raw ?? 0) / total;
-		return share <= WEIGHT_SUM_EPSILON || share >= 1 - WEIGHT_SUM_EPSILON;
-	});
-};
-
-/**
- * Optionen für die „Säule hinzufügen"-Auswahl im Task-Formular: eine Platzhalter-Option (Sentinel
- * `ADD_PILLAR_PLACEHOLDER`) gefolgt von den noch **nicht** zugeordneten Säulen. Werte sind numerisch
- * (Säulen-`id`). `available` enthält bereits nur die wählbaren Säulen.
- */
-export const addPillarOptions = (available: Pillar[]): { label: string; value: number }[] => [
-	{ label: '— Säule hinzufügen —', value: ADD_PILLAR_PLACEHOLDER },
-	...available.map((pillar) => ({ label: pillar.name, value: pillar.id })),
-];
-
-/** Summe der übergebenen Gewichte (`null`/fehlend zählt als 0). */
-export const sumWeights = (weights: readonly (number | null)[]): number =>
-	weights.reduce<number>((acc, weight) => acc + (weight ?? 0), 0);
-
-/** Prüft, ob die Summe der Gewichte (innerhalb der Toleranz) genau `TOTAL_WEIGHT` ergibt. */
-export const isWeightSumValid = (sum: number): boolean => Math.abs(sum - TOTAL_WEIGHT) <= WEIGHT_SUM_EPSILON;
-
 /** Begrenzt einen Wert auf das Intervall `[min, max]`. */
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
 /**
- * Wandelt KI-Vorschläge (`pillarId` + Konfidenz) in übernehmbare Säulen-Beiträge für das Formular um.
- *
- * - Nur Vorschläge zu **bekannten** Säulen (`validPillarIds`) mit **positiver** Konfidenz werden
- *   übernommen — der Server kann theoretisch unbekannte IDs oder 0 %-Säulen liefern.
- * - Die Anteile (`share`) werden **proportional zur Konfidenz** auf `TOTAL_WEIGHT` (100 %) verteilt.
- *   Die Rundung auf Ganzzahlen nutzt das **Largest-Remainder-Verfahren** (Hamilton): jeder Anteil
- *   bleibt in `[0, TOTAL_WEIGHT]` (nie negativ) und die Summe ergibt **exakt** `TOTAL_WEIGHT`
- *   (erfüllt `isWeightSumValid`). Ein naives „abrunden + Rest auf die letzte Säule" könnte dagegen
- *   bei mehreren aufgerundeten Anteilen einen negativen Rest erzeugen (Server lehnt `share < 0` ab).
- * - Die Konfidenz wird auf `[0, 100]` geklemmt und gerundet (passend zum Slider-`_step={1}`).
- *
- * Das Ergebnis ist ein Vorschlag, den der Nutzer vor dem Speichern weiter **korrigieren** kann.
+ * Obergrenze eines einzelnen Reglers: Was übrig bleibt, wenn alle anderen Säulen auf dem
+ * Mindestanteil stehen (bei fünf Säulen 80 %). Bei höchstens einer Säule sind es 100 %.
  */
-export const suggestionsToContributions = (
-	suggestions: readonly PillarSuggestion[],
-	validPillarIds: ReadonlySet<number>,
-): TaskPillarContribution[] => {
-	const relevant = suggestions.filter((entry) => validPillarIds.has(entry.pillarId) && entry.confidence > 0);
-	if (relevant.length === 0) {
-		return [];
-	}
-	const totalConfidence = relevant.reduce((acc, entry) => acc + entry.confidence, 0);
-	// Largest-Remainder-Verfahren (Hamilton): erst abrunden, dann die fehlenden Ganzanteile bis
-	// `TOTAL_WEIGHT` an die Säulen mit dem größten Nachkomma-Rest vergeben. Hält jeden `share` in
-	// `[0, TOTAL_WEIGHT]` und die Summe exakt bei `TOTAL_WEIGHT`.
-	const quotas = relevant.map((entry) => (entry.confidence / totalConfidence) * TOTAL_WEIGHT);
-	const shares = quotas.map((quota) => Math.floor(quota));
-	let remainder = TOTAL_WEIGHT - shares.reduce((acc, share) => acc + share, 0);
-	const byRemainderDesc = quotas
-		.map((quota, index) => ({ index, fraction: quota - Math.floor(quota) }))
-		.sort((a, b) => b.fraction - a.fraction);
+export const shareMax = (count: number): number => (count <= 1 ? SHARE_TOTAL : SHARE_TOTAL - (count - 1) * SHARE_MIN);
+
+/**
+ * Rundet eine exakte (gebrochene) Verteilung auf Ganzzahlen, deren Summe **exakt** `SHARE_TOTAL`
+ * ergibt — Largest-Remainder-Verfahren (Hamilton): erst abrunden, dann die fehlenden Ganzanteile
+ * an die Einträge mit dem größten Nachkomma-Rest vergeben. Ein naives „abrunden + Rest auf den
+ * letzten Eintrag" könnte dagegen einen negativen Rest erzeugen.
+ *
+ * Liegt jeder Eingabewert ≥ `SHARE_MIN`, gilt das auch für das Ergebnis (Abrunden eines Werts
+ * ≥ 5,0 bleibt ≥ 5). Der Aufrufer stellt sicher, dass die Eingabe-Summe bereits `SHARE_TOTAL`
+ * ergibt; nur die Rundungsreste werden hier verteilt.
+ *
+ * `tieBreak` entscheidet bei gleichem Nachkomma-Rest, wer den Ganzanteil bekommt: der Eintrag mit
+ * dem **kleinsten** Wert dort. Beim Reglerzug sind das die aktuellen Anteile — so wandert das
+ * freiwerdende Prozent reihum an die jeweils kleinste Säule, statt bei jedem Zug dieselbe zu
+ * mästen. Ohne Angabe entscheidet die Reihenfolge.
+ */
+const roundSharesToTotal = (exact: readonly number[], tieBreak?: readonly number[]): number[] => {
+	const shares = exact.map((value) => Math.floor(value));
+	let remainder = SHARE_TOTAL - shares.reduce((acc, share) => acc + share, 0);
+	const byRemainderDesc = exact
+		.map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+		.sort((a, b) => b.fraction - a.fraction || (tieBreak?.[a.index] ?? 0) - (tieBreak?.[b.index] ?? 0));
 	for (const { index } of byRemainderDesc) {
 		if (remainder <= 0) {
 			break;
@@ -157,10 +57,181 @@ export const suggestionsToContributions = (
 		shares[index] += 1;
 		remainder -= 1;
 	}
-	return relevant.map((entry, index) => ({
-		pillarId: entry.pillarId,
+	return shares;
+};
+
+/** Gleichverteilung über `count` Säulen: ganzzahlig, Summe exakt 100 (5 → `[20, 20, 20, 20, 20]`). */
+export const evenShares = (count: number): number[] =>
+	count <= 0 ? [] : roundSharesToTotal(new Array<number>(count).fill(SHARE_TOTAL / count));
+
+/**
+ * Bringt eine beliebige Vorgabe (`base`, z. B. gespeicherte Anteile oder KI-Konfidenzen) auf eine
+ * gültige Verteilung: Summe exakt `SHARE_TOTAL`, jeder Anteil ≥ `SHARE_MIN`, Verhältnisse der
+ * Vorgabe so weit wie möglich erhalten.
+ *
+ * Verfahren („Auffüllen"): Die Vorgabe wird proportional auf 100 % skaliert; Einträge, die dabei
+ * unter den Mindestanteil rutschen (auch 0-Einträge), werden dort **festgesetzt** und der Rest wird
+ * unter den verbleibenden neu verteilt — bis keiner mehr unter den Mindestanteil fällt. Eine
+ * Vorgabe, die bereits gültig ist, bleibt damit unverändert. Ohne verwertbare Vorgabe (alles 0)
+ * ergibt sich die Gleichverteilung.
+ */
+const distributeWithMinimum = (base: readonly number[]): number[] => {
+	const count = base.length;
+	if (count === 0) {
+		return [];
+	}
+	if (count === 1) {
+		return [SHARE_TOTAL];
+	}
+	const atMinimum = base.map(() => false);
+	for (;;) {
+		const freeIndices = base.map((_value, index) => index).filter((index) => !atMinimum[index]);
+		if (freeIndices.length === 0) {
+			return evenShares(count);
+		}
+		const pool = SHARE_TOTAL - (count - freeIndices.length) * SHARE_MIN;
+		const freeSum = freeIndices.reduce((acc, index) => acc + Math.max(base[index], 0), 0);
+		const exact = base.map((value, index) => {
+			if (atMinimum[index]) {
+				return SHARE_MIN;
+			}
+			return freeSum > 0 ? (Math.max(value, 0) / freeSum) * pool : pool / freeIndices.length;
+		});
+		const below = freeIndices.filter((index) => exact[index] < SHARE_MIN);
+		if (below.length === 0) {
+			return roundSharesToTotal(exact);
+		}
+		for (const index of below) {
+			atMinimum[index] = true;
+		}
+	}
+};
+
+/**
+ * Setzt den Regler `index` auf `next` und zieht die übrigen Säulen nach, sodass die Summe wieder
+ * exakt `SHARE_TOTAL` ergibt (#1596). `next` wird auf `[SHARE_MIN, shareMax(n)]` geklemmt und exakt
+ * übernommen; der Rest (`100 − next`) geht an die anderen Säulen, und zwar je nach Richtung:
+ *
+ * - **hochgezogen** (die anderen müssen abgeben): proportional zu ihrer freien Masse über dem
+ *   Mindestanteil (`sᵢ − SHARE_MIN`). So bleiben ihre Verhältnisse erhalten und keine fällt unter
+ *   den Mindestanteil. Ist dort nichts mehr frei (alle am Mindestanteil), wird gleichmäßig verteilt.
+ * - **heruntergezogen** (es ist etwas zu verteilen): zu gleichen Teilen. Proportional wäre hier
+ *   tückisch — stünden alle anderen am Mindestanteil, bekäme die erste, die durch die Rundung ein
+ *   Prozent abbekommt, auch jedes weitere.
+ *
+ * Ergebnis: ganzzahlige Anteile, jeder ≥ `SHARE_MIN`, Summe exakt `SHARE_TOTAL`.
+ */
+export const redistributeShares = (shares: readonly number[], index: number, next: number): number[] => {
+	if (shares.length === 0 || index < 0 || index >= shares.length) {
+		return [...shares];
+	}
+	if (shares.length === 1) {
+		return [SHARE_TOTAL];
+	}
+	const target = clamp(Math.round(next), SHARE_MIN, shareMax(shares.length));
+	const others = shares.filter((_share, position) => position !== index);
+	const gain = shares[index] - target;
+	const pool = SHARE_TOTAL - target - others.length * SHARE_MIN;
+	const totalFree = others.reduce((acc, share) => acc + Math.max(share - SHARE_MIN, 0), 0);
+	const exact = shares.map((share, position) => {
+		if (position === index) {
+			return target;
+		}
+		if (gain > 0) {
+			return share + gain / others.length;
+		}
+		const free = Math.max(share - SHARE_MIN, 0);
+		const portion = totalFree > 0 ? (free / totalFree) * pool : pool / others.length;
+		return SHARE_MIN + portion;
+	});
+	// Der gezogene Regler muss exakt auf seinem Wert bleiben; gerundet werden nur die anderen.
+	const roundedOthers = roundSharesToTotal(
+		exact.map((value, position) => (position === index ? target : value)),
+		shares,
+	);
+	roundedOthers[index] = target;
+	return roundedOthers;
+};
+
+/**
+ * Macht aus den vorhandenen Beiträgen einer Aufgabe/Serie eine **vollständige** Verteilung über
+ * alle Säulen (#1596, `distributeWithMinimum`): Ohne Beitrag ergibt sich die Gleichverteilung;
+ * fehlende Säulen bekommen den Mindestanteil, die vorhandenen Anteile werden proportional auf den
+ * verbleibenden Rest gestaucht. Eine bereits gültige Verteilung bleibt unverändert. Die
+ * `confidence` bestehender Beiträge bleibt erhalten, neue bekommen 100.
+ *
+ * Die Reihenfolge folgt der übergebenen Säulenliste (`GET /pillars`, nach id). Gespeichert wird das
+ * Ergebnis erst mit dem nächsten Speichern der Aufgabe.
+ */
+export const fillContributions = (
+	pillars: readonly Pillar[],
+	existing: readonly TaskPillarContribution[],
+): TaskPillarContribution[] => {
+	if (pillars.length === 0) {
+		return [];
+	}
+	const byId = new Map(existing.map((entry) => [entry.pillarId, entry]));
+	const shares = distributeWithMinimum(pillars.map((pillar) => byId.get(pillar.id)?.share ?? 0));
+	return pillars.map((pillar, index) => ({
+		pillarId: pillar.id,
 		share: shares[index],
-		confidence: Math.round(clamp(entry.confidence, 0, 100)),
+		confidence: byId.get(pillar.id)?.confidence ?? 100,
+	}));
+};
+
+/**
+ * Prüft, ob eine Verteilung **stark unausgewogen** ist (#1555): der Anteil einer Säule an der
+ * Gesamtsumme liegt strikt über dem **Doppelten** oder strikt unter der **Hälfte** des
+ * gleichmäßigen Anteils `1/n`. Exakt 2× bzw. exakt ½ gelten noch als ausgewogen (Float-Toleranz
+ * wie beim Summenvergleich). Die Prüfung ist skaleninvariant, denn nur die Anteile zählen.
+ *
+ * Summe ≤ 0 → `false`. Rein informativ — der Aufrufer blockiert daraus nichts (Speichern bleibt
+ * möglich).
+ */
+export const isDistributionUnbalanced = (shares: readonly number[]): boolean => {
+	if (shares.length === 0) {
+		return false;
+	}
+	const total = shares.reduce((acc, share) => acc + share, 0);
+	if (total <= 0) {
+		return false;
+	}
+	const evenShare = 1 / shares.length;
+	return shares.some((value) => {
+		const share = value / total;
+		return share > 2 * evenShare + WEIGHT_SUM_EPSILON || share < 0.5 * evenShare - WEIGHT_SUM_EPSILON;
+	});
+};
+
+/**
+ * Wandelt KI-Vorschläge (`pillarId` + Konfidenz) in eine vollständige Verteilung über **alle**
+ * Säulen um (#1596) — auch die nicht vorgeschlagenen sind dabei, sie bekommen den Mindestanteil.
+ *
+ * - Nur Vorschläge zu **bekannten** Säulen mit **positiver** Konfidenz wirken auf die Verteilung —
+ *   der Server kann theoretisch unbekannte IDs oder 0 %-Säulen liefern.
+ * - Die Anteile verteilen sich **proportional zur Konfidenz** (`distributeWithMinimum`): nicht
+ *   vorgeschlagene Säulen landen beim Mindestanteil, ohne verwertbaren Vorschlag ergibt sich die
+ *   Gleichverteilung. Die Anteile sind ganzzahlig und summieren sich exakt auf `SHARE_TOTAL`.
+ * - Die Konfidenz wird auf `[0, 100]` geklemmt und gerundet; Säulen ohne Vorschlag bekommen 100
+ *   (Default des Servers, siehe `server/src/logics/pillarContributions.ts`).
+ *
+ * Das Ergebnis ist ein Vorschlag, den der Nutzer vor dem Speichern weiter **korrigieren** kann.
+ */
+export const suggestionsToContributions = (
+	suggestions: readonly PillarSuggestion[],
+	pillars: readonly Pillar[],
+): TaskPillarContribution[] => {
+	if (pillars.length === 0) {
+		return [];
+	}
+	const byId = new Map(
+		suggestions.filter((entry) => entry.confidence > 0).map((entry) => [entry.pillarId, entry.confidence]),
+	);
+	const shares = distributeWithMinimum(pillars.map((pillar) => byId.get(pillar.id) ?? 0));
+	return pillars.map((pillar, index) => ({
+		pillarId: pillar.id,
+		share: shares[index],
+		confidence: byId.has(pillar.id) ? Math.round(clamp(byId.get(pillar.id) ?? 0, 0, 100)) : 100,
 	}));
 };
 
@@ -226,7 +297,7 @@ export const buildPillarSummaries = (
 			if (contribution === undefined) {
 				continue;
 			}
-			const shareFraction = contribution.share / TOTAL_WEIGHT;
+			const shareFraction = contribution.share / SHARE_TOTAL;
 			const effort = task.estimatedEffort * shareFraction;
 			const isDone = task.status === TaskStatus.Done;
 			taskCount += 1;
@@ -270,7 +341,7 @@ export const getTaskPillarPoints = (task: Task, pillars: Pillar[]): Map<number, 
 	for (const pillar of pillars) {
 		const contribution = task.pillars.find((entry) => entry.pillarId === pillar.id);
 		const share = contribution?.share ?? 0;
-		points.set(pillar.id, task.estimatedEffort * (share / TOTAL_WEIGHT));
+		points.set(pillar.id, task.estimatedEffort * (share / SHARE_TOTAL));
 	}
 	return points;
 };
@@ -285,7 +356,7 @@ export const getTaskPillarPoints = (task: Task, pillars: Pillar[]): Map<number, 
  * @param target - Der Zielwert als Prozent (0-100), z.B. 20 für 20%
  * @returns Der niedrige Schwellwert (75% des Zielwerts) als Dezimalbruch (0-1), z.B. 0.15 für 15%
  */
-export const calculateMeterThreshold = (target: number): number => (target * 0.75) / TOTAL_WEIGHT;
+export const calculateMeterThreshold = (target: number): number => (target * 0.75) / SHARE_TOTAL;
 
 /**
  * Berechnet den hohen Schwellwert (100% des Zielwerts) für das Säulen-Meter (Issue #410).
@@ -293,4 +364,4 @@ export const calculateMeterThreshold = (target: number): number => (target * 0.7
  * @param target - Der Zielwert als Prozent (0-100), z.B. 20 für 20%
  * @returns Der mittlere Schwellwert (100% des Zielwerts) als Dezimalbruch (0-1), z.B. 0.20 für 20%
  */
-export const calculateMeterHighThreshold = (target: number): number => target / TOTAL_WEIGHT;
+export const calculateMeterHighThreshold = (target: number): number => target / SHARE_TOTAL;
