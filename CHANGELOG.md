@@ -2,14 +2,15 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-19
+## v0.2 - 2026-09-20
 
-_Enthält v0.2.0 – v0.2.114._
+_Enthält v0.2.0 – v0.2.116._
 
 ### 🔧 Engineering
 
 - fix(deps): update dependency connect-sqlite3 to v0.9.18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1398
 - chore(ci): wöchentliches UX-Team als cron-LLM-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1433
+- docs(guide): Ist-Stand-Sync 2026-09-20 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1591
 
 ### Other Changes
 
@@ -124,6 +125,7 @@ _Enthält v0.2.0 – v0.2.114._
 - docs(arc42): sync architecture doc to current state 2026-09-19 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1580
 - docs: canonical gate as verify mirror + prompt-audit coverage (#1576) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1581
 - feat(frontend): confirm modal before saving unbalanced pillar weights by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1588
+- feat(frontend): dry-run connection test in llm provider dialog (#1577) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1585
 
 ## v0.1 - 2026-09-12
 
@@ -781,7 +783,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(server): keep self-set display name across OAuth logins (#1256) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1266
 - feat(server): notify owners of foreign-created series instances (#1253) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1267
 - feat(frontend): list series created for other group members (#1254) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1268
-- fix(ci): provider-aware subagent model resolution in setup-claude by @deleonio in https://github.com/deleonio/priority-pilot/pull/1270
 - fix(ci): provider-aware subagent model resolution in setup-claude by @deleonio in https://github.com/deleonio/priority-pilot/pull/1270
 - feat(ci): delegation metrics, review fan-out, kolibri-recherche role by @deleonio in https://github.com/deleonio/priority-pilot/pull/1271
 - feat(frontend): collapse group detail sections, debounce user search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1269

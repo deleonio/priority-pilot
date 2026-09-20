@@ -88,18 +88,19 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Aufgaben auf einen Blick.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
   erledigt sind.
-  Über **„Erledigen"** schließt du sie in einem Dialog direkt ab. Steht nichts an,
+  Über **„Erledigen"** schließt du sie in einem Dialog direkt ab; daneben steht ein
+  **Bearbeiten-Button** (Stift-Icon), der das Aufgabenformular öffnet. Steht nichts an,
   erscheint ein Hinweis (alles erledigt oder durch offene Vorgänger blockiert).
-- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste mit höchstens fünf Einträgen,
-  davon maximal zwei je Säule. Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht
-  hier nicht erneut auf.
+- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste (serverseitig begrenzt auf
+  höchstens fünf Einträge, davon maximal zwei je Säule). Die bereits als „Nächste
+  Aufgabe" angezeigte Aufgabe taucht hier nicht erneut auf.
 - **In der Nähe:** offene Aufgaben mit Ortsbezug, aufsteigend nach Entfernung zu
-  deiner aktuellen Position (höchstens zehn Einträge). Jeder Eintrag nennt Titel
-  und Entfernung in Kilometern; im Kartentitel steht die eingestellte
-  Anzeige-Entfernung. Die Karte erscheint nur, solange die Standort-Erfassung in
-  den Einstellungen aktiviert ist – ist sie aus, fehlt die Karte ganz. Verweigert
-  der Browser die Standort-Freigabe, bleibt die Karte stehen und zeigt stattdessen
-  einen Hinweis.
+  deiner aktuellen Position (serverseitig begrenzt auf höchstens zehn Einträge).
+  Jeder Eintrag nennt Titel und Entfernung in Kilometern; im Kartentitel steht die
+  eingestellte Anzeige-Entfernung. Die Karte erscheint nur, solange die
+  Standort-Erfassung in den Einstellungen aktiviert ist – ist sie aus, fehlt die
+  Karte ganz. Verweigert der Browser die Standort-Freigabe, bleibt die Karte stehen
+  und zeigt stattdessen einen Hinweis.
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -459,7 +460,7 @@ mehr; bearbeiten und löschen kannst du sie weiterhin.
 ### Serien bearbeiten – Kaskade auf bestehende Instanzen
 
 Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
-(Titel, Priorität, Aufwand, Beschreibung, Adresse, Automatisches Löschen, Säulen, Kategorie), erscheint
+(Titel, Priorität, Aufwand, Beschreibung, Adresse, **Koordinaten**, Automatisches Löschen, Säulen, Kategorie), erscheint
 vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?"**
 
 - **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
@@ -544,8 +545,9 @@ dadurch unter die Schwelle fällt.
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien und Zugriff. Administratoren
-der App sehen zusätzlich den Bereich **Nutzerverwaltung** (siehe unten).
+Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien, **Pakete**, **Abo** und
+Zugriff. Administratoren der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+(siehe unten).
 
 ### Allgemein
 
@@ -629,6 +631,20 @@ Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
 Suchtreffern. Orte, die du hier in den Einstellungen anlegst, haben keine Koordinaten –
 sie füllen das Adressfeld, zählen aber nicht für „In der Nähe". Koordinaten bekommt ein
 Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
+
+---
+
+## Pakete
+
+Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
+
+---
+
+## Abo
+
+Im Bereich **Abo** siehst du deinen aktuellen Abonnement-Status, kannst Kündigungen einleiten und Rechnungen einsehen.
+
+---
 
 ### Zugriff
 
