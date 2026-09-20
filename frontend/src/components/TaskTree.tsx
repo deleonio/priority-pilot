@@ -158,6 +158,15 @@ const LeafItem = ({
 						{task !== null && task.forUserName != null && (
 							<KolBadge _label={`Für: ${task.forUserName}`} className="task-tree-badge task-tree-badge--provenance" />
 						)}
+						{/* #1521 (AK7): Gruppen-Aufgabe trägt den Gruppennamen statt eines Personennamens —
+						    für jedes Mitglied sichtbar, solange sie niemand erledigt hat. */}
+						{task !== null && task.groupName != null && task.userId == null && (
+							// Der Test-Anker sitzt am Light-DOM-Wrapper: KolBadge rendert sein Label im
+							// Shadow-DOM und nimmt keine Fremd-Attribute entgegen.
+							<span data-testid="group-task-badge" className="task-tree-badge-anchor">
+								<KolBadge _label={`Für: ${task.groupName}`} className="task-tree-badge task-tree-badge--provenance" />
+							</span>
+						)}
 						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
 							<KolBadge
 								_label={`Erstellt von: ${task.createdByName}`}

@@ -1849,6 +1849,16 @@ kol-toolbar {
 	min-width: 0;
 }
 
+/*
+ * #1521: Light-DOM-Anker für das Gruppen-Badge (Test-ID). `inline-flex` statt `display: contents`,
+ * damit der Wrapper eine eigene Box hat (AK8 misst die Bounding-Box); `min-width: 0` lässt das
+ * Badge in der umbrechenden Badge-Zeile schrumpfen statt zu überlaufen.
+ */
+.task-tree-badge-anchor {
+	display: inline-flex;
+	min-width: 0;
+}
+
 @media (min-width: 48rem) {
 	.task-tree-row-controls {
 		flex: 0 1 auto;

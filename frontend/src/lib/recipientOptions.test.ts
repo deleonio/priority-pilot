@@ -49,7 +49,6 @@ describe('buildRecipientOptions', () => {
 		const members = [{ userId: 2, displayName: 'Bob' }];
 		const groups = [{ id: 7, name: 'Familie' }];
 
-		// @ts-expect-error #1521: dritter Parameter "groups" existiert erst nach der Implementierung.
 		const options = buildRecipientOptions(own, members, groups);
 
 		const personOptions = options.filter((option) => !option.value.startsWith('group:'));

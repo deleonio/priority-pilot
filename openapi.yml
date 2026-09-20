@@ -3529,6 +3529,17 @@ components:
           type: string
           nullable: true
           description: Anzeigename des Empfängers (E-Mail-Fallback, #1213); synchron zu `forUserId`.
+        groupId:
+          type: integer
+          nullable: true
+          description: >-
+            Gruppe, an die die Aufgabe gerichtet ist (#1521). Solange `userId` `null` ist,
+            sehen alle Mitglieder der Gruppe die Aufgabe; das erledigende Mitglied wird als
+            `userId` eingetragen und bekommt die Gutschrift. `null` bei Einzel-Aufgaben.
+        groupName:
+          type: string
+          nullable: true
+          description: Name der adressierten Gruppe (#1521); synchron zu `groupId`.
         pillars:
           type: array
           description: >-
@@ -3563,6 +3574,13 @@ components:
             Optionaler Empfänger (#1213): das Konto, dem die Aufgabe gehören soll.
             Der Aufrufer muss mit ihm eine Gruppe teilen (sonst 403); ohne das Feld
             oder mit der eigenen ID gehört die Aufgabe dem Aufrufer wie bisher.
+        groupId:
+          type: integer
+          nullable: true
+          description: >-
+            Optionale Gruppen-Adressierung (#1521): die Aufgabe wird an alle Mitglieder der
+            Gruppe gerichtet und entsteht ohne Eigentümer. Der Aufrufer muss Mitglied der
+            Gruppe sein (sonst 403); zusammen mit `userId` ist das Feld ungültig (400).
         status:
           $ref: '#/components/schemas/TaskStatus'
         priority:

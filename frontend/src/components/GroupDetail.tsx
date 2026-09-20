@@ -1,5 +1,13 @@
 import { KolAccordion, KolAlert, KolBadge, KolButton, KolHeading, KolInputText, KolSpin } from '@public-ui/react-v19';
-import type { GroupInviteLink, GroupInvitation, GroupMember, GroupSeries, GroupTask, UserSearchHit } from 'client';
+import type {
+	GroupInviteLink,
+	GroupInvitation,
+	GroupMember,
+	GroupSeries,
+	GroupTask,
+	Task,
+	UserSearchHit,
+} from 'client';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -56,6 +64,10 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 	// Füreinander angelegte Serien (#1254): analoge Lese-Ansicht, wird im selben Ladevorgang
 	// mitgezogen (KI-UX Regel 7: kein zweiter Spinner-Lauf, kein Springen von leer auf voll).
 	const [seriesList, setSeriesList] = useState<GroupSeries[] | null>(null);
+	// Offene Aufgaben der Gruppe (#1521, AK6): an die Gruppe gerichtete Aufgaben, die noch niemand
+	// erledigt hat. Quelle ist die normale Aufgabenliste — der Lese-Scope liefert Mitgliedern die
+	// unclaimten Gruppen-Aufgaben bereits mit; erledigte fallen durch den Claim heraus.
+	const [openGroupTasks, setOpenGroupTasks] = useState<Task[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState('');
 	const [hits, setHits] = useState<UserSearchHit[] | null>(null);
@@ -94,6 +106,19 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
+		}
+		// #1521 (AK6): Offene Gruppen-Aufgaben aus der normalen Aufgabenliste filtern — bewusst
+		// außerhalb des Haupt-Ladevorgangs: dieser Abschnitt ist Zusatzinformation und darf die
+		// Mitglieder-/Einladungsansicht bei einem Fehler nicht mit einer Fehlermeldung ersetzen.
+		try {
+			const allTasks = await api.listTasks();
+			setOpenGroupTasks(
+				(Array.isArray(allTasks) ? allTasks : []).filter(
+					(task) => task.groupId === groupId && task.userId == null && task.status !== 'Done',
+				),
+			);
+		} catch {
+			setOpenGroupTasks([]);
 		}
 	}, [groupId, ownRole]);
 
@@ -270,6 +295,25 @@ export const GroupDetail = ({ groupId, ownRole, refreshKey = 0, id }: GroupDetai
 							</ul>
 						</KolAccordion>
 					)}
+					{/* #1521 (AK6): Offene Aufgaben, die an die ganze Gruppe gerichtet sind — jedes Mitglied
+					    kann sie erledigen. Abgegrenzt von „Füreinander angelegt" (#1223, Einzel-Empfänger). */}
+					<KolAccordion _label="Offene Gruppen-Aufgaben" _level={4}>
+						<div data-testid="group-open-tasks">
+							{openGroupTasks === null ? (
+								<KolSpin _show _variant="cycle" _label="Offene Gruppen-Aufgaben werden geladen …" />
+							) : openGroupTasks.length === 0 ? (
+								<p className="hint">Für diese Gruppe ist gerade keine Aufgabe offen.</p>
+							) : (
+								<ul className="group-tasks">
+									{openGroupTasks.map((task) => (
+										<li key={task.id} className="group-task">
+											<div className="group-task-title">{task.title}</div>
+										</li>
+									))}
+								</ul>
+							)}
+						</div>
+					</KolAccordion>
 					<KolAccordion _label="Füreinander angelegt" _level={4}>
 						{tasks === null ? (
 							<KolSpin _show _variant="cycle" _label="Gruppen-Aufgaben werden geladen …" />
