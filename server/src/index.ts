@@ -141,6 +141,7 @@ export const main = async (): Promise<void> => {
 			migrateUserIdColumns,
 			migratePillarDescription,
 			migratePillarPerUser,
+			migratePillarRestore,
 			migratePillarFeedbackUserId,
 			migrateTaskChecklist,
 			migrateTaskAddress,
@@ -188,6 +189,10 @@ export const main = async (): Promise<void> => {
 		// (name, userId) umstellen, je Nutzer eigene Klone anlegen und task_pillars/series_pillars
 		// umhängen — vor sync(), damit das neue Modell (userId + Index) sauber greift.
 		await migratePillarPerUser(sequelize);
+		// Säulen-Bestand je Nutzer auf die fünf festen Standard-Säulen zurückführen (#1573):
+		// umbenannte zurücksetzen (id + Beiträge bleiben), fehlende ergänzen, zusätzliche mitsamt
+		// Beiträgen entfernen — nach migratePillarPerUser (userId-Spalte), vor sync().
+		await migratePillarRestore(sequelize);
 		// Fehlende userId-Spalte an pillar_feedback nachziehen (#430, AK3) — vor sync(), damit
 		// loadFeedbackExamples({ where: { userId } }) nicht mit `no such column` bricht.
 		await migratePillarFeedbackUserId(sequelize);

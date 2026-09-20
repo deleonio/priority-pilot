@@ -4,17 +4,16 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Rote Spec-Tests für #438: Validiert, dass openapi.yml die drei Pillar-CRUD-Pfade
- * (POST /pillars, PATCH /pillars/:id, DELETE /pillars/:id) definiert.
- *
- * Diese Tests schlagen aktuell fehl (ROT), weil die Pfade im OpenAPI-Vertrag noch
- * nicht definiert sind. Sie werden grün, sobald die Umsetzung (Implementierung) die
- * Pfade im openapi.yml ergänzt hat.
+ * OpenAPI-Vertrag der Pillar-CRUD-Pfade (#438 → gesperrt seit #1573): Validiert, dass
+ * openapi.yml die drei Pfade (POST /pillars, PATCH /pillars/{id}, DELETE /pillars/{id})
+ * als gesperrte Operationen dokumentiert — antwortet immer 403 (PillarsLocked), keine
+ * Erfolgs-Statuscodes mehr. Die Operationen bleiben im Vertrag, weil die Routen
+ * existieren und die Sperre bewusst 403 (nicht 404/405) liefert.
  *
  * Die Validierung erfolgt über String-Matching im YAML-Rohformat, um keine
  * zusätzliche Abhängigkeit zu benötigen (bewusst kein 'yaml'-Package-Import).
  */
-describe('#438 OpenAPI: Pillar-CRUD-Pfade (AK1)', () => {
+describe('#1573 OpenAPI: Pillar-CRUD-Pfade gesperrt (403)', () => {
 	const ymlPath = join(import.meta.dirname, '..', '..', '..', 'openapi.yml');
 	const yml = readFileSync(ymlPath, 'utf-8');
 
@@ -33,67 +32,67 @@ describe('#438 OpenAPI: Pillar-CRUD-Pfade (AK1)', () => {
 	const pillarsBlock = extractPathBlock('/pillars');
 	const pillarsIdBlock = extractPathBlock('/pillars/{id}');
 
-	it('definiert POST /pillars zum Anlegen einer neuen Säule', () => {
-		const hasPostPillars = /^ {2}\/pillars:\s*$/m.test(yml) && /\n {4}post:/m.test(yml);
+	it('definiert POST /pillars als gesperrte Operation', () => {
+		const hasPostPillars = /^ {2}\/pillars:\s*$/m.test(yml) && /\n {4}post:/m.test(pillarsBlock);
 		assert.ok(hasPostPillars, '/pillars muss im OpenAPI-Vertrag eine POST-Methode definieren');
 	});
 
 	it('POST /pillars hat operationId createPillar', () => {
-		// operationId muss innerhalb des POST-Blocks unter /pillars definiert sein.
-		const hasCreatePillarOp = /operationId:\s*createPillar/m.test(yml);
+		const hasCreatePillarOp = /operationId:\s*createPillar/m.test(pillarsBlock);
 		assert.ok(hasCreatePillarOp, 'POST /pillars muss operationId "createPillar" haben');
 	});
 
-	it('POST /pillars erwartet einen Request-Body', () => {
-		const hasRequestBody = /requestBody:/m.test(yml);
-		assert.ok(hasRequestBody, 'POST /pillars braucht einen requestBody (true)');
+	it('POST /pillars dokumentiert nur 403 (PillarsLocked), keinen Erfolgs-Status', () => {
+		assert.ok(/'403':/m.test(pillarsBlock), 'POST /pillars muss die 403-Sperre definieren');
+		assert.ok(
+			/PillarsLocked/m.test(pillarsBlock),
+			'POST /pillars muss auf die Response-Komponente PillarsLocked verweisen',
+		);
+		assert.ok(!/'201':/.test(pillarsBlock), 'POST /pillars darf 201 (Anlegen) nicht mehr dokumentieren');
+		assert.ok(!/'409':/.test(pillarsBlock), 'POST /pillars darf 409 (Namenskonflikt) nicht mehr dokumentieren');
 	});
 
-	it('POST /pillars antwortet mit 201 und 409', () => {
-		// 201 (Created) und 409 (Conflict) muessen innerhalb des /pillars-Blocks definiert sein.
-		const has201 = /'201':/m.test(pillarsBlock);
-		const has409 = /'409':/m.test(pillarsBlock);
-		assert.ok(has201, 'POST /pillars muss die Status-Code-Antwort 201 definieren');
-		assert.ok(has409, 'POST /pillars muss die Status-Code-Antwort 409 (Namenskonflikt) definieren');
-	});
-
-	it('definiert PATCH /pillars/{id} zum Aktualisieren einer Säule', () => {
-		const hasPatchPillarsId = /^ {2}\/pillars\/\{id\}:\s*$/m.test(yml) && /\n {4}patch:/m.test(yml);
+	it('definiert PATCH /pillars/{id} als gesperrte Operation', () => {
+		const hasPatchPillarsId = /^ {2}\/pillars\/\{id\}:\s*$/m.test(yml) && /\n {4}patch:/m.test(pillarsIdBlock);
 		assert.ok(hasPatchPillarsId, '/pillars/{id} muss im OpenAPI-Vertrag eine PATCH-Methode definieren');
 	});
 
 	it('PATCH /pillars/{id} hat operationId updatePillar', () => {
-		const hasUpdatePillarOp = /operationId:\s*updatePillar/m.test(yml);
+		const hasUpdatePillarOp = /operationId:\s*updatePillar/m.test(pillarsIdBlock);
 		assert.ok(hasUpdatePillarOp, 'PATCH /pillars/{id} muss operationId "updatePillar" haben');
 	});
 
-	it('PATCH /pillars/{id} antwortet mit 200, 404 und 409', () => {
-		const has200 = /'200':/m.test(pillarsIdBlock);
-		const has404 = /'404':/m.test(pillarsIdBlock);
-		assert.ok(has200, 'PATCH /pillars/{id} muss 200 (Erfolg) definieren');
-		assert.ok(has404, 'PATCH /pillars/{id} muss 404 (nicht gefunden) definieren');
-		// 409 muss explizit für PATCH definiert sein (nicht nur POST)
-		const has409count = (pillarsIdBlock.match(/'409':/g) ?? []).length;
-		assert.ok(has409count >= 1, 'PATCH /pillars/{id} muss 409 (Namenskonflikt) definieren');
+	it('PATCH /pillars/{id} dokumentiert nur 403, keinen Erfolgs-Status', () => {
+		assert.ok(/'403':/m.test(pillarsIdBlock), 'PATCH /pillars/{id} muss die 403-Sperre definieren');
+		assert.ok(!/'200':/.test(pillarsIdBlock), 'PATCH /pillars/{id} darf 200 (Erfolg) nicht mehr dokumentieren');
+		assert.ok(!/'404':/.test(pillarsIdBlock), 'PATCH /pillars/{id} darf 404 (nicht gefunden) nicht mehr dokumentieren');
+		assert.ok(!/'409':/.test(pillarsIdBlock), 'PATCH /pillars/{id} darf 409 (Namenskonflikt) nicht mehr dokumentieren');
 	});
 
-	it('definiert DELETE /pillars/{id} zum Löschen einer Säule', () => {
-		const hasDeletePillarsId = /^ {2}\/pillars\/\{id\}:\s*$/m.test(yml) && /\n {4}delete:/m.test(yml);
+	it('definiert DELETE /pillars/{id} als gesperrte Operation', () => {
+		const hasDeletePillarsId = /^ {2}\/pillars\/\{id\}:\s*$/m.test(yml) && /\n {4}delete:/m.test(pillarsIdBlock);
 		assert.ok(hasDeletePillarsId, '/pillars/{id} muss im OpenAPI-Vertrag eine DELETE-Methode definieren');
 	});
 
 	it('DELETE /pillars/{id} hat operationId deletePillar', () => {
-		const hasDeletePillarOp = /operationId:\s*deletePillar/m.test(yml);
+		const hasDeletePillarOp = /operationId:\s*deletePillar/m.test(pillarsIdBlock);
 		assert.ok(hasDeletePillarOp, 'DELETE /pillars/{id} muss operationId "deletePillar" haben');
 	});
 
-	it('DELETE /pillars/{id} antwortet mit 204 (No Content) bei Erfolg', () => {
-		const has204 = /'204':/m.test(pillarsIdBlock);
-		assert.ok(has204, 'DELETE /pillars/{id} muss 204 (No Content) bei Erfolg definieren');
+	it('DELETE /pillars/{id} dokumentiert nur 403, keinen Erfolgs-Status', () => {
+		assert.ok(/'403':/m.test(pillarsIdBlock), 'DELETE /pillars/{id} muss die 403-Sperre definieren');
+		assert.ok(!/'204':/.test(pillarsIdBlock), 'DELETE /pillars/{id} darf 204 (No Content) nicht mehr dokumentieren');
+		assert.ok(
+			!/'404':/.test(pillarsIdBlock),
+			'DELETE /pillars/{id} darf 404 (nicht gefunden) nicht mehr dokumentieren',
+		);
 	});
 
-	it('DELETE /pillars/{id} antwortet mit 404 bei nicht gefundener Säule', () => {
-		const has404 = /'404':/m.test(pillarsIdBlock);
-		assert.ok(has404, 'DELETE /pillars/{id} muss 404 (nicht gefunden) definieren');
+	it('dokumentiert die Sperre als Response-Komponente PillarsLocked mit Hinweistext', () => {
+		assert.ok(/PillarsLocked:/.test(yml), 'Response-Komponente PillarsLocked muss definiert sein');
+		assert.ok(
+			/Gesperrt \(#1573\)/.test(yml),
+			'Die PillarsLocked-Komponente muss die Sperre (#1573) im Beschreibungstext nennen',
+		);
 	});
 });

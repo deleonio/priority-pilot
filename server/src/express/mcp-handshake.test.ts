@@ -96,7 +96,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 	// Regression zu #1358: eine mit Schrägstrich konfigurierte Endpunkt-URL bedient derselbe Router,
 	// die Rechtestufen-Ausnahme verglich den Pfad aber exakt — der Handshake scheiterte seitdem für
 	// jedes Nur-lese-Token (und das sind nach der Migration alle Bestands-Tokens) an einer 403.
-	it('#1413 AK1: tools/list enthält alle 21 Namen (17 Bestand + 4 neue Säulen-Werkzeuge)', async () => {
+	it('#1413 AK1: tools/list enthält den erwartenden Katalog (Säulen-CRUD-Werkzeuge seit #1573 entfallen)', async () => {
 		const cookie = await server.register('mcp-h-1413@example.com', 'password123');
 		const token = await createToken(cookie);
 
@@ -104,7 +104,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		try {
 			const { tools } = await client.listTools();
 			const names = tools.map((tool) => tool.name).sort();
-			assert.equal(names.length, 34, `Katalog sollte vierunddreißig Namen führen, war: ${names.join(', ')}`);
+			assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
 			for (const expected of [
 				'task_list',
 				'task_create',
@@ -128,9 +128,6 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 				'group_member_role_set',
 				'group_members_list',
 				'group_update',
-				'pillar_create',
-				'pillar_update',
-				'pillar_delete',
 				'pillar_weights_set',
 			]) {
 				assert.ok(names.includes(expected), `erwartete Werkzeug "${expected}" in ${JSON.stringify(names)}`);

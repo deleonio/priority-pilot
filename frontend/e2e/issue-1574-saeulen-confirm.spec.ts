@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { setEqualPillarWeights, waitForStableView } from './helpers';
+import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1574 — „Speichern unausgewogener Säulen-Gewichtungen nur mit Bestätigung"
@@ -35,6 +35,11 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 	test('AK1+AK2+AK6: Modal vor dem PUT, Abbrechen ohne PUT, Bestätigen sendet genau einen PUT — bei 375px nutzbar', async ({
 		page,
 	}) => {
+		// #1573-Test-Pflege: `makeUnbalanced` setzt GENAU FÜNF Säulen voraus. Ohne eigene Session
+		// liefert `GET /pillars` den ganzen Säulen-Bestand der Shard-DB — Begründung siehe
+		// `registerOwnSession`. Vor der Route-Registrierung, damit der Seed-PUT nicht mitzählt.
+		await registerOwnSession(page, '1574');
+
 		let putCount = 0;
 		await page.route('**/pillars/weights', (route) => {
 			if (route.request().method() === 'PUT') {

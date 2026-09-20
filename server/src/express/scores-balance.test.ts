@@ -23,14 +23,18 @@ let idCounter = 1;
 const getBalance = (cookie: string, query = ''): Promise<Response> =>
 	server.json(`/scores/balance${query}`, { headers: { Cookie: cookie } });
 
-const createPillar = async (cookie: string, name: string): Promise<{ id: number; weight: number }> => {
-	const res = await server.json('/pillars', {
-		method: 'POST',
-		headers: { Cookie: cookie },
-		body: JSON.stringify({ name, description: '' }),
-	});
-	assert.equal(res.status, 201, 'Setup: Säule muss über die API anlegbar sein');
-	return (await res.json()) as { id: number; weight: number };
+/**
+ * Gibt eine der fünf festen Standard-Säulen des Nutzers zurück (Setup). Säulen-CRUD ist seit
+ * #1573 gesperrt — die Registrierung sät fünf Standard-Säulen; statt anzulegen wird aus diesem
+ * Bestand gewählt (Zyklus, damit aufeinanderfolgende Aufrufe unterschiedliche ids liefern).
+ */
+let seedPillarCursor = 0;
+const createPillar = async (cookie: string, _name: string): Promise<{ id: number; weight: number }> => {
+	const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+	assert.equal(res.status, 200, 'Setup: Säulen müssen über die API lesbar sein');
+	const pillars = (await res.json()) as { id: number; weight: number }[];
+	assert.ok(pillars.length > 1, 'Setup: Registrierung sollte fünf Standard-Säulen säen');
+	return pillars[seedPillarCursor++ % pillars.length]!;
 };
 
 /** Legt einen Task mit Säulenanteilen an und erledigt ihn. */

@@ -706,54 +706,6 @@ export const mcpTools: McpTool[] = [
 		run: (ctx, args) => callApi(ctx, `/invite-links/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
 	},
 	{
-		name: 'pillar_create',
-		description:
-			'Creates a new pillar for the token owner. New pillars start with weight 0 (redistribute via pillar_weights_set).',
-		write: true,
-		inputSchema: {
-			type: 'object',
-			properties: {
-				name: { type: 'string', description: 'Name of the pillar. Must be unique for the token owner.' },
-				description: { type: 'string', description: 'Description of the pillar.' },
-			},
-			required: ['name'],
-		},
-		run: (ctx, args) => callApi(ctx, '/pillars', { method: 'POST', body: args }),
-	},
-	{
-		name: 'pillar_update',
-		description: "Changes name and/or description of one of your own pillars. Doesn't touch its weight.",
-		write: true,
-		inputSchema: {
-			type: 'object',
-			properties: {
-				id: { type: 'integer', description: 'ID of the pillar to change (from pillar_list).' },
-				name: { type: 'string', description: 'New name of the pillar.' },
-				description: { type: 'string', description: 'New description of the pillar.' },
-			},
-			required: ['id'],
-		},
-		run: (ctx, args) => {
-			const id = requireIntegerId(args, 'id');
-			const { id: _id, ...body } = args;
-			return callApi(ctx, `/pillars/${id}`, { method: 'PATCH', body });
-		},
-	},
-	{
-		name: 'pillar_delete',
-		description:
-			'Permanently deletes one of your own pillars, including its contributions to tasks and series. ' +
-			'Remaining contributions of the affected tasks/series and the weights of the remaining pillars are ' +
-			'renormalized to 100%.',
-		write: true,
-		inputSchema: {
-			type: 'object',
-			properties: { id: { type: 'integer', description: 'ID of the pillar to delete (from pillar_list).' } },
-			required: ['id'],
-		},
-		run: (ctx, args) => callApi(ctx, `/pillars/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
-	},
-	{
 		name: 'pillar_weights_set',
 		description:
 			"Sets the token owner's full weight distribution across all pillars at once. The list must cover " +

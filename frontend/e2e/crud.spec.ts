@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { setEqualPillarWeights, taskTitleText, waitForStableView } from './helpers';
+import { registerOwnSession, setEqualPillarWeights, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Funktionale End-to-End-CRUD-Specs (#92) gegen das **echte** Backend (#91). Anders als die früheren,
@@ -128,6 +128,11 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 	});
 
 	test('Säulen-Gewicht ändern: Wert persistiert über einen Reload', async ({ page }) => {
+		// #1573-Test-Pflege: Der Regler-Flow unten setzt GENAU FÜNF Säulen voraus (5 × 0,2 → 0,6 plus
+		// 4 × 0,1, Summe 1,0). Ohne eigene Session sieht die Spec den ganzen Säulen-Bestand der
+		// Shard-DB — Begründung siehe `registerOwnSession`.
+		await registerOwnSession(page, 'crud');
+
 		// #1574: Regler-Flow geht von 5 × 0,2 aus (0,2 → 0,6/0,1) — Gleichverteilung aktiv
 		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.
 		await setEqualPillarWeights(page);
