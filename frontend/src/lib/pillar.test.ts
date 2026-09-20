@@ -35,6 +35,7 @@ const task = (
 	deadline: null,
 	seriesId: null,
 	isException: false,
+	pinned: false,
 	pillars,
 });
 

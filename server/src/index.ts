@@ -155,6 +155,7 @@ export const main = async (): Promise<void> => {
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
+			migrateTaskPinnedColumns,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
@@ -232,6 +233,9 @@ export const main = async (): Promise<void> => {
 		// (#1357) — vor sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column`
 		// brechen.
 		await migrateApiTokenExpiresAt(sequelize);
+		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit
+		// Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateTaskPinnedColumns(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

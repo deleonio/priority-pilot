@@ -41,6 +41,8 @@ interface TaskRow extends KoliBriTableDataType {
 	deadline: string;
 	/** Checklisten-Fortschritt „erledigt/gesamt" (leer ohne Einträge, #531). */
 	checklist: string;
+	/** Pin-Kennzeichnung (#1582): „Angepinnt" bei angepinnten Tasks, sonst leer. */
+	pinned: string;
 	predecessors: number;
 	/** Serien-Kennzeichnung (leer bei Einzelaufgaben) — markiert generierte Instanzen sichtbar (#142). */
 	series: string;
@@ -83,6 +85,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 		estimatedEffort: task.estimatedEffort,
 		deadline: formatDeadline(task.deadline),
 		checklist: checklistProgress(task.checklist),
+		pinned: task.pinned ? 'Angepinnt' : '',
 		predecessors: dependencyMap.get(task.id)?.length ?? 0,
 		series: seriesBadge(task)?.label ?? '',
 		_task: task,
@@ -107,6 +110,20 @@ export const TaskTable = memo((props: TaskTableProps) => {
 				{ key: 'estimatedEffort', label: 'Aufwand (Tage)' },
 				{ key: 'deadline', label: 'Deadline' },
 				{ key: 'checklist', label: 'Checkliste' },
+				{
+					key: 'pinned',
+					label: 'Angepinnt',
+					render: (domNode, _cell, tupel) => {
+						const row = tupel as TaskRow;
+						if (row.pinned === '') return;
+						renderIntoCell(
+							domNode,
+							<span role="img" aria-label="Angepinnt">
+								<i className="fa-solid fa-thumbtack" aria-hidden="true" />
+							</span>,
+						);
+					},
+				},
 				{ key: 'series', label: 'Serie' },
 				{ key: 'predecessors', label: 'Vorgänger' },
 				{

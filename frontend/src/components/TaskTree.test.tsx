@@ -67,6 +67,7 @@ const task = (id: number, title: string, status: TaskStatus = TaskStatus.Open): 
 	deadline: null,
 	seriesId: null,
 	isException: false,
+	pinned: false,
 	pillars: [],
 });
 

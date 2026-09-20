@@ -274,6 +274,7 @@ const minimalNewTask = (): Task => ({
 	priority: 3,
 	estimatedEffort: 0.5,
 	isException: false,
+	pinned: false,
 	pillars: [],
 });
 
