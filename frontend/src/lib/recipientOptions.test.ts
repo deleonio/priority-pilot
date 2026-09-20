@@ -41,4 +41,22 @@ describe('buildRecipientOptions', () => {
 
 		expect(options).toEqual([{ label: 'Own', value: '42' }]);
 	});
+
+	// #1521 AK1: Gruppen des Nutzers stehen neben den Personen als eigene, unterscheidbare Option
+	// (Präfix „Gruppe: ", Value `group:<id>`) — Personen-Optionen bleiben davon unberührt.
+	it('ergänzt Gruppen-Optionen mit Präfix und group:<id>-Value, ohne die Personen-Optionen zu verändern', () => {
+		const own = { id: 1, displayName: 'Eigenes Konto' };
+		const members = [{ userId: 2, displayName: 'Bob' }];
+		const groups = [{ id: 7, name: 'Familie' }];
+
+		// @ts-expect-error #1521: dritter Parameter "groups" existiert erst nach der Implementierung.
+		const options = buildRecipientOptions(own, members, groups);
+
+		const personOptions = options.filter((option) => !option.value.startsWith('group:'));
+		expect(personOptions).toEqual([
+			{ label: 'Eigenes Konto', value: '1' },
+			{ label: 'Bob', value: '2' },
+		]);
+		expect(options).toContainEqual({ label: 'Gruppe: Familie', value: 'group:7' });
+	});
 });
