@@ -179,6 +179,15 @@ const LeafItem = ({
 						{progress !== undefined && (
 							<KolBadge _label={`${progress.done}/${progress.total}`} _color="#2e7d32" className="task-tree-badge" />
 						)}
+						{/* #1583 AK6: Checklisten-Fortschritt bleibt sichtbar, solange nicht alle Einträge
+						    abgehakt sind — dieselbe „erledigt/gesamt"-Formatierung wie in TaskTable.tsx. */}
+						{task !== null && (task.checklist?.length ?? 0) > 0 && (
+							<KolBadge
+								_label={`${task.checklist!.filter((item) => item.completed).length}/${task.checklist!.length}`}
+								_color="#005b99"
+								className="task-tree-badge task-tree-badge--checklist"
+							/>
+						)}
 						{task !== null && (
 							<KolBadge
 								_label={priorityBadgeLabel}

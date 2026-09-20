@@ -104,7 +104,7 @@ test.describe('#1583 Checklisten beim Erledigen abhaken müssen', () => {
 		// Kein PATCH beim bloßen Öffnen des Dialogs (AK1) — Status bleibt Open.
 		expect((await fetchTask(page, id)).status).toBe('Open');
 
-		await page.locator('[data-testid="checklist-item"]').first().getByRole('switch').click();
+		await page.locator('[data-testid="checklist-item"]').first().getByRole('checkbox').click();
 		await page.getByRole('button', { name: 'Checkliste speichern' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe erledigen' })).toBeHidden();
 

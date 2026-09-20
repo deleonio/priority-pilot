@@ -9,14 +9,14 @@ import {
 	KolTabs,
 	KolToolbar,
 } from '@public-ui/react-v19';
-import type { Category, Pillar, Task, TaskTreeNode } from 'client';
+import type { Category, ChecklistItem, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
-import { CompleteTaskDialog } from './components/CompleteTaskDialog';
+import { CompleteTaskDialog, hasOpenChecklistItems } from './components/CompleteTaskDialog';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
 import { DayDoneHint } from './components/DayDoneHint';
@@ -590,6 +590,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		async (task: Task): Promise<void> => {
 			const next = task.status === TaskStatus.Done ? TaskStatus.Open : TaskStatus.Done;
 			const markingDone = task.status !== TaskStatus.Done;
+			// #1583 AK1: offene Checklisten-Einträge stoppen den Direkt-Toggle — der Erledigen-Dialog
+			// übernimmt (Checkliste + Status in einem Aufruf). Zurücksetzen auf Offen bleibt ungefragt.
+			if (markingDone && hasOpenChecklistItems(task.checklist)) {
+				setDialog({ kind: 'complete', task });
+				return;
+			}
 			try {
 				setUpdateError(null);
 				await api.updateTask({
@@ -640,24 +646,33 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// #1168: Signal-Panel-Aktion „Erledigt" — setzt die Aufgabe auf `Done`. Anders als
 	// `handleDoneToggle` kein sticky-Pfad (`DONE_REMOVAL_DELAY_MS`): der greift für die Aufgabenliste,
 	// das Panel lädt stattdessen sofort per `reload()` die nächste Aufgabe (`afterMutation`).
-	const completeTask = useCallback(async (task: Task): Promise<void> => {
-		await api.updateTask({
-			id: task.id,
-			taskUpdate: {
-				title: task.title,
-				description: task.description,
-				status: TaskStatus.Done,
-				priority: task.priority,
-				estimatedEffort: task.estimatedEffort,
-				deadline: task.deadline,
-			},
-		});
-		// #1182: Konfetti auch über den Dashboard-Pfad (Signal-Panel → Dialog) — dieselbe
-		// Übergangs-Regel wie in `handleDoneToggle` (#1169); reduce prüft `launchConfetti` selbst.
-		if (shouldCelebrateDone(task.status, TaskStatus.Done)) {
-			launchConfetti();
-		}
-	}, []);
+	const completeTask = useCallback(
+		async (task: Task, checklist: ChecklistItem[], allChecked: boolean): Promise<void> => {
+			// #1583 AK5/AK6/AK8: nur bei einer beim Öffnen unvollständigen Checkliste geht der Stand
+			// mit ins Payload; Status wechselt dann nur, wenn beim Speichern alle Einträge abgehakt sind.
+			// Ohne (oder bereits vollständige) Checkliste bleibt das Payload unverändert wie vor #1583.
+			const hasEditableChecklist = hasOpenChecklistItems(task.checklist);
+			const markingDone = !hasEditableChecklist || allChecked;
+			await api.updateTask({
+				id: task.id,
+				taskUpdate: {
+					title: task.title,
+					description: task.description,
+					...(markingDone ? { status: TaskStatus.Done } : {}),
+					priority: task.priority,
+					estimatedEffort: task.estimatedEffort,
+					deadline: task.deadline,
+					...(hasEditableChecklist ? { checklist } : {}),
+				},
+			});
+			// #1182: Konfetti auch über den Dashboard-Pfad (Signal-Panel → Dialog) — dieselbe
+			// Übergangs-Regel wie in `handleDoneToggle` (#1169); reduce prüft `launchConfetti` selbst.
+			if (markingDone && shouldCelebrateDone(task.status, TaskStatus.Done)) {
+				launchConfetti();
+			}
+		},
+		[],
+	);
 
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
 	// Das Signal zieht zusätzlich den Aufgabengraphen nach, der seine Daten selbst lädt.
@@ -1141,7 +1156,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			{dialog?.kind === 'complete' && (
 				<CompleteTaskDialog
 					task={dialog.task}
-					onConfirm={() => completeTask(dialog.task)}
+					onConfirm={(checklist, allChecked) => completeTask(dialog.task, checklist, allChecked)}
 					onClose={closeDialog}
 					onCompleted={afterMutation}
 					fallbackFocusRef={deleteFallbackRef}
