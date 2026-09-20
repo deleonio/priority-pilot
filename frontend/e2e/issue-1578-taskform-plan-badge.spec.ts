@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-E2E für #1578 (docs/spec/issue-1578.md AK1–AK5) — Paket-Hinweis (`PlanBadge`) und
@@ -7,18 +7,17 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * Feld-Wrapper `minWidth: 0` trägt (`TaskForm.tsx:1002`/`1366`) und damit nie umbricht.
  *
  * Läuft gegen das echte Backend (Muster `issue-1484-plan-badges.spec.ts`): eine frische Session
- * über `POST /auth/test-login` liegt auf Paket `free`; ein eigener Custom-LLM-Provider hebt das
- * KI-Gate (`aiEnabled`), ohne die `ai_assist`-Berechtigung selbst zu ändern — der Paket-Hinweis
- * bleibt damit sichtbar (Free ohne `ai_assist`), genau der Zustand, den AK1–AK5 prüfen.
+ * liegt auf Paket `free`; ein eigener Custom-LLM-Provider hebt das KI-Gate (`aiEnabled`), ohne die
+ * `ai_assist`-Berechtigung selbst zu ändern — der Paket-Hinweis bleibt damit sichtbar (Free ohne
+ * `ai_assist`), genau der Zustand, den AK1–AK5 prüfen.
+ *
+ * Test-Pflege (#1573, siehe PR-Body): `POST /auth/test-login` sät keine Säulen mehr — nur die
+ * echte Registrierung tut das, `POST /pillars` ist seit #1573 gesperrt (403). Login/Pillar-Setup
+ * folgen daher dem in `ai-disable.spec.ts` etablierten Muster (`registerOwnSession` + lauter Guard).
  */
 
-const TEST_EMAIL = 'plan-badge-1578@example.com';
-
 const login = async (page: Page): Promise<void> => {
-	const res = await page.request.post('/auth/test-login', {
-		data: { email: TEST_EMAIL, displayName: 'Badge Layout Tester' },
-	});
-	expect(res.status(), 'test-login muss eine Session liefern').toBe(200);
+	await registerOwnSession(page, 'plan-badge-1578');
 	// Muster issue-1484-plan-badges.spec.ts:30-36: der Fixture-/auth/me-Mock liefert kein
 	// Entitlement, `PlanBadge` rendert dann bewusst `null` — die echte Serverantwort wird gebraucht.
 	await page.unroute('**/auth/me');
@@ -40,11 +39,14 @@ const deleteAllPillars = async (page: Page): Promise<void> => {
 	}
 };
 
-/** AK5 braucht eine bestehende Säule, sonst rendert `.pillar-editor-head` gar nicht. */
+/**
+ * AK5 braucht eine bestehende Säule, sonst rendert `.pillar-editor-head` gar nicht. Seit #1573 ist
+ * `POST /pillars` gesperrt (403) — `registerOwnSession` garantiert die fünf Standard-Säulen bereits,
+ * dies bleibt ein lauter Guard (Muster `ai-disable.spec.ts`).
+ */
 const ensurePillar = async (page: Page): Promise<void> => {
 	const existing = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
-	if (existing.length > 0) return;
-	await page.request.post('/api/v1/pillars', { data: { name: 'Layout-Test-Säule', description: 'Dummy' } });
+	expect(existing.length, 'Test-Nutzer braucht Standard-Säulen (register-Seeding)').toBeGreaterThan(0);
 };
 
 /** Hebt `aiEnabled` ohne die `ai_assist`-Berechtigung zu ändern (Muster issue-1484). */
