@@ -311,6 +311,14 @@ describe('Figur „Segmente“', () => {
 			expect(wedge.end).toBeGreaterThan(wedge.start);
 		}
 	});
+
+	it('teilt den Ring im Leerzustand (keine Punkte vergeben) gleichmäßig auf statt auf Haarlinien zu schrumpfen', () => {
+		const wedges = buildWedges(metricsOf([0, 0, 0]));
+
+		const totalSpan = wedges.reduce((sum, wedge) => sum + wedge.span, 0);
+		expect(totalSpan).toBeCloseTo(360, 5);
+		for (const wedge of wedges) expect(wedge.span).toBeCloseTo(120, 5);
+	});
 });
 
 describe('Figur „Zeiger“', () => {

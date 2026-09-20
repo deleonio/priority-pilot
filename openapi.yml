@@ -1982,6 +1982,17 @@ paths:
           schema:
             type: string
             maxLength: 64
+        - name: limit
+          in: query
+          required: false
+          description: >-
+            Obergrenze der in diesem Lauf verarbeiteten Aufgaben (Default 200).
+            So lässt sich ein großer Bestand in mehreren Aufrufen abarbeiten,
+            statt den Request bis zum offenen HTTP-Timeout laufen zu lassen —
+            `remaining` in der Antwort zeigt, wie viele Aufgaben noch offen sind.
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: Ergebnis des Batch-Laufs
@@ -1993,6 +2004,14 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '403':
           description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: >-
+            Es läuft bereits ein Batch-Lauf (prozessweites Lauf-Flag) — erst
+            dessen Ende abwarten.
           content:
             application/json:
               schema:
@@ -3116,7 +3135,7 @@ components:
       description: >-
         Ergebnis des Batch-Laufs zur Neuberechnung der Säulenverteilung aller
         Aufgaben (POST /admin/tasks/reassign-pillars).
-      required: [updated, failed, skipped, users]
+      required: [updated, failed, skipped, users, remaining]
       properties:
         updated:
           type: integer
@@ -3130,6 +3149,12 @@ components:
         users:
           type: integer
           description: Konten mit verarbeiteten Aufgaben im Lauf.
+        remaining:
+          type: integer
+          description: >-
+            Noch nicht verarbeitete Aufgaben, weil `limit` erreicht wurde — 0,
+            wenn der Bestand komplett durchlief. Ein erneuter Aufruf setzt den
+            Batch bei den verbleibenden Aufgaben fort.
     Plan:
       type: string
       description: Buchbares Paket. Reihenfolge der Werte ist die Rangfolge (aufsteigend).

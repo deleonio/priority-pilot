@@ -141,4 +141,69 @@ describe('POST /admin/tasks/reassign-pillars — Batch-Neuzuordnung der Säulenv
 		const res = await postAs(memberCookie, '/admin/tasks/reassign-pillars');
 		assert.equal(res.status, 403);
 	});
+
+	it('begrenzt den Lauf auf limit und meldet die restlichen Aufgaben (remaining)', async () => {
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Aufgabe 1', status: 'Open', userId: memberId });
+		await Task.create({ title: 'Aufgabe 2', status: 'Open', userId: memberId });
+
+		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=1`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { updated: number; remaining: number };
+		assert.equal(body.updated, 1, 'nur eine Aufgabe im ersten Lauf');
+		assert.equal(body.remaining, 1, 'die zweite Aufgabe bleibt für den nächsten Lauf offen');
+	});
+
+	it('weist ein ungültiges limit mit 400 ab', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=0`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		assert.equal(res.status, 400);
+	});
+
+	it('weist einen zweiten, gleichzeitigen Lauf mit 409 ab', async () => {
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Aufgabe', status: 'Open', userId: memberId });
+
+		// Klassifikator hängt, bis der zweite Aufruf schon unterwegs war — simuliert die lange
+		// Laufzeit eines echten Batches, gegen die das Lauf-Flag schützen soll.
+		let release: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const slowClassifier: PillarClassifier = (async (input: ClassifyPillarsInput) => {
+			await gate;
+			return input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
+		}) as PillarClassifier;
+		const slowServer = await startTestServer({ pillarClassifier: slowClassifier });
+		const postOnSlowServer = (cookie: string) =>
+			fetch(`${slowServer.baseUrl}/admin/tasks/reassign-pillars`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+			});
+		try {
+			const slowAdminCookie = await slowServer.login(ADMIN_EMAIL, { role: 'admin' });
+			const first = postOnSlowServer(slowAdminCookie);
+			// Kurz warten, damit der erste Request das Lauf-Flag sicher gesetzt hat.
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			const second = await postOnSlowServer(slowAdminCookie);
+			assert.equal(second.status, 409);
+			release();
+			const firstRes = await first;
+			assert.equal(firstRes.status, 200);
+		} finally {
+			await slowServer.close();
+		}
+	});
 });

@@ -10,7 +10,7 @@ import { requireRole } from '../requireAuth.js';
 import { validateProviderQuery } from '../llmProviderQuery.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import type { components } from '../../api';
-import { reassignTaskPillarsForAllUsers } from '../../logics/reassignTaskPillars.js';
+import { DEFAULT_REASSIGN_LIMIT, reassignTaskPillarsForAllUsers } from '../../logics/reassignTaskPillars.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -40,6 +40,15 @@ const toDto = (user: User): AdminUserDto => ({
 });
 
 const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ernenne zuerst eine andere Person.';
+
+/**
+ * Prozessweites Lauf-Flag für den Säulen-Reassign-Batch (Finding #4): der Batch läuft
+ * unbeschränkt lange über den gesamten Aufgabenbestand — ein zweiter, gleichzeitiger Aufruf
+ * würde denselben Bestand doppelt bearbeiten und Klassifikator-Kontingent verbrennen, statt
+ * dem Admin zu sagen, dass bereits ein Lauf unterwegs ist. Modul-Scope statt Router-Scope,
+ * damit auch zwei Router-Instanzen (z. B. Tests) sich nicht gegenseitig überlappen können.
+ */
+let reassignRunning = false;
 
 /**
  * Stuft `id` auf eine Nicht-Admin-Rolle (`member`/`tester`) zurück — aber nur, wenn danach noch
@@ -191,11 +200,28 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				sendError(res, 400, providerValidation.message);
 				return;
 			}
+			const rawLimit = (req.query as Record<string, unknown>).limit;
+			let limit = DEFAULT_REASSIGN_LIMIT;
+			if (rawLimit !== undefined) {
+				const parsed = Number(rawLimit);
+				if (!Number.isInteger(parsed) || parsed < 1) {
+					sendError(res, 400, 'limit muss eine ganze Zahl >= 1 sein.');
+					return;
+				}
+				limit = parsed;
+			}
+			if (reassignRunning) {
+				sendError(res, 409, 'Es läuft bereits ein Batch-Lauf — erst dessen Ende abwarten.');
+				return;
+			}
+			reassignRunning = true;
 			try {
-				const result = await reassignTaskPillarsForAllUsers(pillarClassifier, providerValidation.provider);
+				const result = await reassignTaskPillarsForAllUsers(pillarClassifier, providerValidation.provider, limit);
 				res.json(result);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
+			} finally {
+				reassignRunning = false;
 			}
 		},
 	);

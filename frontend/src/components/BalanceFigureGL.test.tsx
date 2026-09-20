@@ -162,12 +162,12 @@ describe('BalanceFigureGL toSlots', () => {
 	});
 
 	/* Segmente belegen eigene Uniform-Plätze; ihre Slots dürfen keine Strahlen-/Bogen-Felder tragen. */
-	it('belegt die Slots für Segmente mit Start, Spannweite und Radien', () => {
+	it('belegt die Slots für Segmente mit Mitte, Halbbreite und Radien', () => {
 		const metrics = metricsOf([0.2, 1, 0.6]);
 		const slots = toSlots(stateOf(metrics, 'segmente'), colors);
 		expect(slots.colors).toHaveLength(3);
-		expect(slots.wedgeStart).toHaveLength(3);
-		expect(slots.wedgeSpan).toHaveLength(3);
+		expect(slots.wedgeMid).toHaveLength(3);
+		expect(slots.wedgeHalf).toHaveLength(3);
 		expect(slots.wedgeInner).toHaveLength(3);
 		expect(slots.wedgeOuter).toHaveLength(3);
 		expect(slots.orbRadius).toHaveLength(0);
@@ -186,6 +186,6 @@ describe('BalanceFigureGL toSlots', () => {
 		expect(hands.rayAngle).toEqual(rays.rayAngle);
 		expect(hands.rayLength[0]).toBeGreaterThan(hands.rayLength[2]);
 		expect(hands.raySpread[0]).toBeLessThan(rays.raySpread[0]);
-		expect(hands.wedgeStart).toHaveLength(0);
+		expect(hands.wedgeMid).toHaveLength(0);
 	});
 });

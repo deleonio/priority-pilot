@@ -82,12 +82,19 @@ export interface ReassignPillarsResult {
  * Läuft synchron über die Aufgaben (Sequenz statt Parallelität): Der Klassifikator
  * schlägt gegen einen bezahlten LLM-Upstream, parallele Aufrufe würden Lastspitzen
  * und Rate-Limit-Fehler häufen.
+ *
+ * `budget`, sofern gesetzt, begrenzt die Zahl der in diesem Aufruf verarbeiteten
+ * Aufgaben (Portionierung eines großen Batch-Laufs, siehe `reassignTaskPillarsForAllUsers`).
  */
-export const reassignTaskPillarsForUser = async (
+const reassignTaskPillarsForUser = async (
 	userId: number | undefined,
 	classifier: PillarClassifier,
 	provider?: Parameters<PillarClassifier>[1],
+	budget?: number,
 ): Promise<ReassignPillarsResult> => {
+	if (budget !== undefined && budget <= 0) {
+		return { updated: 0, failed: 0, skipped: 0 };
+	}
 	const pillars = await Pillar.findAll({
 		where: userId !== undefined ? { userId } : { userId: null },
 		order: [['id', 'ASC']],
@@ -97,12 +104,15 @@ export const reassignTaskPillarsForUser = async (
 	}
 	const validIds = new Set(pillars.map((pillar) => pillar.id));
 
-	const tasks = await Task.findAll({
+	let tasks = await Task.findAll({
 		where: userId !== undefined ? { userId } : { userId: null },
 		attributes: ['id', 'title', 'description'],
 	});
 	if (tasks.length === 0) {
 		return { updated: 0, failed: 0, skipped: 0 };
+	}
+	if (budget !== undefined) {
+		tasks = tasks.slice(0, budget);
 	}
 
 	let examples: FeedbackExample[] = [];
@@ -154,23 +164,39 @@ export const reassignTaskPillarsForUser = async (
 	return result;
 };
 
+/** Fällt auf 200 Aufgaben je Lauf zurück, wenn kein `limit` übergeben wird (Finding #4). */
+export const DEFAULT_REASSIGN_LIMIT = 200;
+
 /**
  * App-weiter Backfill: berechnet die Säulen-Verteilung ALLER Aufgaben (aller Konten,
  * inklusive erledigter) neu. Admin-Trigger („Änderung des Systems" — z. B. nach Umbenennung
  * oder Neu-Anlage von Säulen), siehe routes/admin.ts.
+ *
+ * `limit` begrenzt die Gesamtzahl der in diesem Aufruf verarbeiteten Aufgaben (Default
+ * `DEFAULT_REASSIGN_LIMIT`) — ein großer Bestand läuft sonst unbeschränkt im offenen
+ * HTTP-Request und übersteht keinen Proxy-Timeout. `remaining` im Ergebnis zeigt, wie viele
+ * Aufgaben noch offen sind; ein erneuter Aufruf setzt den Batch dort fort.
  */
 export const reassignTaskPillarsForAllUsers = async (
 	classifier: PillarClassifier,
 	provider?: Parameters<PillarClassifier>[1],
-): Promise<ReassignPillarsResult & { users: number }> => {
+	limit: number = DEFAULT_REASSIGN_LIMIT,
+): Promise<ReassignPillarsResult & { users: number; remaining: number }> => {
+	const totalTasks = await Task.count();
 	const users = await User.findAll({ attributes: ['id'] });
 	let aggregated: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
 	let processed = 0;
+	let attempted = 0;
+	let budget = limit;
 	for (const user of users) {
-		const result = await reassignTaskPillarsForUser(user.id, classifier, provider);
-		if (result.updated + result.failed + result.skipped > 0) {
+		if (budget <= 0) break;
+		const result = await reassignTaskPillarsForUser(user.id, classifier, provider, budget);
+		const consumed = result.updated + result.failed + result.skipped;
+		if (consumed > 0) {
 			processed++;
 		}
+		attempted += consumed;
+		budget -= consumed;
 		aggregated = {
 			updated: aggregated.updated + result.updated,
 			failed: aggregated.failed + result.failed,
@@ -178,14 +204,18 @@ export const reassignTaskPillarsForAllUsers = async (
 		};
 	}
 	// Pass-Through-Bestand (Aufgaben ohne Eigentümerkonto) — NULL-owned Stammsäulen.
-	const legacy = await reassignTaskPillarsForUser(undefined, classifier, provider);
-	aggregated = {
-		updated: aggregated.updated + legacy.updated,
-		failed: aggregated.failed + legacy.failed,
-		skipped: aggregated.skipped + legacy.skipped,
-	};
-	if (legacy.updated + legacy.failed + legacy.skipped > 0) {
-		processed++;
+	if (budget > 0) {
+		const legacy = await reassignTaskPillarsForUser(undefined, classifier, provider, budget);
+		const consumed = legacy.updated + legacy.failed + legacy.skipped;
+		attempted += consumed;
+		aggregated = {
+			updated: aggregated.updated + legacy.updated,
+			failed: aggregated.failed + legacy.failed,
+			skipped: aggregated.skipped + legacy.skipped,
+		};
+		if (consumed > 0) {
+			processed++;
+		}
 	}
-	return { ...aggregated, users: processed };
+	return { ...aggregated, users: processed, remaining: Math.max(0, totalTasks - attempted) };
 };

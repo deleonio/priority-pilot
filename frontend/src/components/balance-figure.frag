@@ -60,9 +60,11 @@ uniform float u_ray_angle[8];
 uniform float u_ray_spread[8];
 uniform float u_ray_length[8];
 
-/* Segmente: Startwinkel (Grad), Spannweite (Grad), innerer und aeusserer Radius. */
-uniform float u_wedge_start[8];
-uniform float u_wedge_span[8];
+/* Segmente: Mittelwinkel (Grad), halbe sichtbare Spannweite ohne Fuge (Grad), innerer und
+ * aeusserer Radius. Mitte und Halbbreite kommen fertig aus `buildWedges` (start/end) statt im
+ * Shader aus Start+Spannweite und einer geratenen Fugenbreite zurueckgerechnet zu werden. */
+uniform float u_wedge_mid[8];
+uniform float u_wedge_half[8];
 uniform float u_wedge_inner[8];
 uniform float u_wedge_outer[8];
 
@@ -490,9 +492,9 @@ void main() {
 			float ring = smoothstep(outer + wOuter, outer - wOuter, radius)
 				* smoothstep(inner - wInner, inner + wInner, radius);
 
-			/* Winkel-Feld: um die Fuge (1 Grad je Seite) schmaler als die Spannweite. */
-			float delta = angleDelta(degAngle - 90.0, u_wedge_start[i] + 0.5 * u_wedge_span[i]);
-			float halfSpan = 0.5 * u_wedge_span[i] - 1.0;
+			/* Winkel-Feld: Mitte und Halbbreite sind bereits um die Fuge schmaler als die Spannweite. */
+			float delta = angleDelta(degAngle - 90.0, u_wedge_mid[i]);
+			float halfSpan = u_wedge_half[i];
 			float aaDeg = degrees(aa / max(radius, 0.5));
 			float inWedge = smoothstep(halfSpan + aaDeg, halfSpan - aaDeg, delta) * ring * used;
 

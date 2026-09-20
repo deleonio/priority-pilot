@@ -20,9 +20,9 @@ import type { BalanceMetrics, PillarMetric } from './balanceMetric';
  * - **Blüte und Kristall** — alle Säulen als **eine** Silhouette: je Säule ein Stützpunkt auf ihrem
  *   Winkel, so weit außen wie ihr Wert. Die Blüte verbindet sie weich, der Kristall mit harten
  *   Kanten — derselbe Stapel in zwei Materialien wie Blasen und Scheiben.
- * - **Segmente** — der Ring als Tortengrafik der Zielanteile: je Säule ein Stück, so breit wie ihr
- *   Zielanteil, gefüllt bis auf ihren Wert. Das Breitenmaß ist bewusst der Soll- und nicht der
- *   Ist-Anteil — die Größe der Form bleibt die Kennzahl, die Breite zeigt, wem wie viel vom Ring
+ * - **Segmente** — der Ring als Tortengrafik der Ist-Anteile: je Säule ein Stück, so breit wie ihr
+ *   Ist-Anteil, gefüllt bis auf ihren Wert. Das Breitenmaß ist bewusst der Ist- und nicht der
+ *   Soll-Anteil — die Größe der Form bleibt die Kennzahl, die Breite zeigt, wem wie viel vom Ring
  *   zusteht.
  * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
  *   verteilt wie die Strahlen, aber mit schmalerer Spitze. Der längste Zeiger steht auf 12 Uhr.
@@ -370,7 +370,7 @@ export interface Wedge extends FigureMotion {
  * Reihenfolge ist wie bei allen Figuren **stärkste Säule zuerst**, ab 12 Uhr im Uhrzeigersinn.
  *
  * Das Mindeststück (`WEDGE_MIN_SPAN`) bekommen alle Säulen zuerst, der Rest des Ringes geht nach
- * Zielanteil daran — so bleibt eine Säule ohne Ziel als schmales, aber sichtbares Haar stehen
+ * Ist-Anteil daran — so bleibt eine Säule ohne Punkte als schmales, aber sichtbares Haar stehen
  * (dieselbe Pflicht, die `R_MIN` für die Radien erfüllt). Die Fuge schrumpft mit dem Stück, damit
  * ein Mindeststück nicht zur Zahl 0 zusammenfällt.
  */
@@ -382,7 +382,9 @@ export const buildWedges = (metrics: BalanceMetrics): Wedge[] => {
 	const reserve = Math.min(WEDGE_MIN_SPAN, 360 / count);
 	let start = -90;
 	return pillars.map((pillar): Wedge => {
-		const share = totalActual > 0 ? pillar.actualShare / totalActual : 0;
+		// Ohne vergebene Punkte hat keine Säule einen Ist-Anteil — dann teilen sich alle den Ring zu
+		// gleichen Teilen, statt auf das Mindeststück zusammenzufallen (Leerzustand eines neuen Kontos).
+		const share = totalActual > 0 ? pillar.actualShare / totalActual : 1 / count;
 		const span = reserve + (360 - reserve * count) * share;
 		const gap = Math.min(WEDGE_GAP, span / 4);
 		const wedge: Wedge = {

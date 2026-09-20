@@ -39,7 +39,15 @@ vi.mock('../api', () => ({
 	api: {
 		getAdminUsers: vi.fn(),
 		updateUserRole: vi.fn(),
+		reassignTaskPillars: vi.fn(),
 	},
+}));
+
+// `Modal` nutzt KoliBris `KolDialog` (natives `<dialog>`), das in jsdom nicht lauffähig ist —
+// Muster `PillarWeightsModal.test.tsx`: auf einen reinen Passthrough reduzieren, damit die
+// Bestätigungslogik isoliert und deterministisch prüfbar bleibt.
+vi.mock('./Modal', () => ({
+	Modal: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 import { api } from '../api';
@@ -47,6 +55,7 @@ import { AdminUsersSection } from './AdminUsersSection';
 
 const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
+const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.fn>;
 
 type TestUser = {
 	id: number;
@@ -215,5 +224,93 @@ describe('AdminUsersSection — Rollen-Badge „Tester" (#1566 AK1)', () => {
 		// Schwestertexte bleiben unberührt — kein globales „Mitglied" als Fallback für tester.
 		expect(within(rowOf('Tina Tester')).queryByText('Mitglied')).not.toBeInTheDocument();
 		expect(within(rowOf('Anna Admin')).getByText('Admin')).toBeInTheDocument();
+	});
+});
+
+/**
+ * Fixup PR #1602, Finding #3: die Säulenverteilungs-Neuberechnung (zweistufige Bestätigung,
+ * `commit 24505348`) kam ohne einen einzigen Test. Deckt genau die Pfade ab, die teuer sind,
+ * wenn sie brechen: kein Start ohne beide Bestätigungsstufen, „Abbrechen" löst in keiner Stufe
+ * etwas aus, ein Fehler schließt die Modals statt sie mit laufendem `running` hängen zu lassen.
+ */
+describe('AdminUsersSection — Säulenverteilung neu berechnen (Fixup #1602, Finding #3)', () => {
+	const openBothConfirmSteps = async (): Promise<void> => {
+		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
+		await waitFor(() => expect(screen.getByText(/Sollen die Säulen-Beiträge/)).toBeInTheDocument());
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+		await waitFor(() => expect(screen.getByText(/wird einzeln per KI klassifiziert/)).toBeInTheDocument());
+	};
+
+	it('der Button allein löst noch keinen Batch-Lauf aus', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
+		await waitFor(() => expect(screen.getByText(/Sollen die Säulen-Beiträge/)).toBeInTheDocument());
+
+		expect(mockReassignTaskPillars).not.toHaveBeenCalled();
+	});
+
+	it('„Abbrechen" in der ersten Stufe schließt den Dialog ohne API-Aufruf', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
+		await waitFor(() => expect(screen.getByText(/Sollen die Säulen-Beiträge/)).toBeInTheDocument());
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+		await waitFor(() => expect(screen.queryByText(/Sollen die Säulen-Beiträge/)).not.toBeInTheDocument());
+		expect(mockReassignTaskPillars).not.toHaveBeenCalled();
+	});
+
+	it('„Abbrechen" in der Kosten-Stufe schließt den Dialog ohne API-Aufruf', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await openBothConfirmSteps();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+
+		await waitFor(() => expect(screen.queryByText(/wird einzeln per KI klassifiziert/)).not.toBeInTheDocument());
+		expect(mockReassignTaskPillars).not.toHaveBeenCalled();
+	});
+
+	it('erst nach beiden Bestätigungsstufen startet der Batch und das Ergebnis erscheint als Alert', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockReassignTaskPillars.mockResolvedValue({ updated: 3, failed: 1, skipped: 2, users: 1, remaining: 0 });
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await openBothConfirmSteps();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt neu berechnen' }));
+
+		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByRole('alert')).toHaveTextContent('3 Aufgaben neu zugeordnet, 2 unverändert gelassen, 1'),
+		);
+		expect(screen.queryByText(/wird einzeln per KI klassifiziert/)).not.toBeInTheDocument();
+	});
+
+	it('ein fehlgeschlagener Aufruf zeigt die Fehlermeldung und schließt beide Modals', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockReassignTaskPillars.mockRejectedValue(new Error('Interner Serverfehler.'));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await openBothConfirmSteps();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt neu berechnen' }));
+
+		await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Interner Serverfehler.'));
+		expect(screen.queryByText(/wird einzeln per KI klassifiziert/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Sollen die Säulen-Beiträge/)).not.toBeInTheDocument();
+		// Nicht mehr `running` hängengeblieben — der Auslöse-Button ist wieder aktiv nutzbar.
+		expect(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' })).toBeEnabled();
 	});
 });

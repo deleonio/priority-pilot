@@ -6,7 +6,7 @@ import type { FeedbackExample } from '../llm/llm.js';
  * Begrenzt, damit der Prompt nicht unbegrenzt wächst (Token-/Kosten-Schutz); die neuesten Samples
  * sind am aussagekräftigsten (siehe #45).
  */
-export const MAX_FEEDBACK_EXAMPLES = 10;
+const MAX_FEEDBACK_EXAMPLES = 10;
 
 /**
  * Wie viele jüngste Zeilen maximal aus `pillar_feedback` gescannt werden, um daraus die
@@ -16,7 +16,7 @@ export const MAX_FEEDBACK_EXAMPLES = 10;
  * still ohne die noch vorhandenen, nützlichen Korrekturen (siehe #45). Der Scan bleibt gedeckelt,
  * damit eine voll laufende Tabelle den Aufruf nicht ausbremst.
  */
-export const FEEDBACK_SCAN_LIMIT = MAX_FEEDBACK_EXAMPLES * 10;
+const FEEDBACK_SCAN_LIMIT = MAX_FEEDBACK_EXAMPLES * 10;
 
 /**
  * Lädt die jüngsten **nicht-leeren** Korrektur-Samples als gelernte Few-Shot-Beispiele. Leere

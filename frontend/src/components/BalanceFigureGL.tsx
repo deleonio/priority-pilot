@@ -150,8 +150,8 @@ export const toSlots = (
 	rayAngle: number[];
 	raySpread: number[];
 	rayLength: number[];
-	wedgeStart: number[];
-	wedgeSpan: number[];
+	wedgeMid: number[];
+	wedgeHalf: number[];
 	wedgeInner: number[];
 	wedgeOuter: number[];
 	target: number;
@@ -171,8 +171,8 @@ export const toSlots = (
 			rayAngle: [],
 			raySpread: [],
 			rayLength: [],
-			wedgeStart: [],
-			wedgeSpan: [],
+			wedgeMid: [],
+			wedgeHalf: [],
 			wedgeInner: [],
 			wedgeOuter: [],
 			target: arcs[0]?.target ?? 0,
@@ -190,8 +190,8 @@ export const toSlots = (
 			rayAngle: rays.map((ray) => ray.angle),
 			raySpread: rays.map((ray) => ray.spread),
 			rayLength: rays.map((ray) => ray.length),
-			wedgeStart: [],
-			wedgeSpan: [],
+			wedgeMid: [],
+			wedgeHalf: [],
 			wedgeInner: [],
 			wedgeOuter: [],
 			target: rays[0]?.targetLength ?? 0,
@@ -211,8 +211,8 @@ export const toSlots = (
 			rayAngle: petals.map((petal) => petal.angle),
 			raySpread: [],
 			rayLength: petals.map((petal) => petal.radius),
-			wedgeStart: [],
-			wedgeSpan: [],
+			wedgeMid: [],
+			wedgeHalf: [],
 			wedgeInner: [],
 			wedgeOuter: [],
 			target: targetRadius(state.metrics),
@@ -231,8 +231,8 @@ export const toSlots = (
 			rayAngle: hands.map((hand) => hand.angle),
 			raySpread: hands.map((hand) => hand.spread),
 			rayLength: hands.map((hand) => hand.length),
-			wedgeStart: [],
-			wedgeSpan: [],
+			wedgeMid: [],
+			wedgeHalf: [],
 			wedgeInner: [],
 			wedgeOuter: [],
 			target: hands[0]?.targetLength ?? 0,
@@ -251,8 +251,8 @@ export const toSlots = (
 			rayAngle: [],
 			raySpread: [],
 			rayLength: [],
-			wedgeStart: wedges.map((wedge) => wedge.start),
-			wedgeSpan: wedges.map((wedge) => wedge.span),
+			wedgeMid: wedges.map((wedge) => wedge.angle),
+			wedgeHalf: wedges.map((wedge) => (wedge.end - wedge.start) / 2),
 			wedgeInner: wedges.map((wedge) => wedge.inner),
 			wedgeOuter: wedges.map((wedge) => wedge.outer),
 			target: wedges[0]?.targetRadius ?? 0,
@@ -270,8 +270,8 @@ export const toSlots = (
 		rayAngle: [],
 		raySpread: [],
 		rayLength: [],
-		wedgeStart: [],
-		wedgeSpan: [],
+		wedgeMid: [],
+		wedgeHalf: [],
 		wedgeInner: [],
 		wedgeOuter: [],
 		target: targetRadius(state.metrics),
@@ -348,8 +348,8 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 		rayAngle: uniform('u_ray_angle[0]'),
 		raySpread: uniform('u_ray_spread[0]'),
 		rayLength: uniform('u_ray_length[0]'),
-		wedgeStart: uniform('u_wedge_start[0]'),
-		wedgeSpan: uniform('u_wedge_span[0]'),
+		wedgeMid: uniform('u_wedge_mid[0]'),
+		wedgeHalf: uniform('u_wedge_half[0]'),
 		wedgeInner: uniform('u_wedge_inner[0]'),
 		wedgeOuter: uniform('u_wedge_outer[0]'),
 		target: uniform('u_target'),
@@ -481,8 +481,8 @@ const createEngine = (canvas: HTMLCanvasElement): FigureEngine => {
 		writeFloats(locations.rayAngle, slots.rayAngle);
 		writeFloats(locations.raySpread, slots.raySpread, 1);
 		writeFloats(locations.rayLength, slots.rayLength);
-		writeFloats(locations.wedgeStart, slots.wedgeStart);
-		writeFloats(locations.wedgeSpan, slots.wedgeSpan);
+		writeFloats(locations.wedgeMid, slots.wedgeMid);
+		writeFloats(locations.wedgeHalf, slots.wedgeHalf);
 		writeFloats(locations.wedgeInner, slots.wedgeInner, 1);
 		writeFloats(locations.wedgeOuter, slots.wedgeOuter);
 
