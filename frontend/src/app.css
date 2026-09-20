@@ -1855,8 +1855,10 @@ kol-toolbar {
  * Badge in der umbrechenden Badge-Zeile schrumpfen statt zu überlaufen.
  */
 .task-tree-badge-anchor {
-	display: inline-flex;
-	min-width: 0;
+	display: inline-block;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	white-space: normal;
 }
 
 @media (min-width: 48rem) {

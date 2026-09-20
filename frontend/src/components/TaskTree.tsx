@@ -161,11 +161,13 @@ const LeafItem = ({
 						{/* #1521 (AK7): Gruppen-Aufgabe trägt den Gruppennamen statt eines Personennamens —
 						    für jedes Mitglied sichtbar, solange sie niemand erledigt hat. */}
 						{task !== null && task.groupName != null && task.userId == null && (
-							// Der Test-Anker sitzt am Light-DOM-Wrapper: KolBadge rendert sein Label im
-							// Shadow-DOM und nimmt keine Fremd-Attribute entgegen.
-							<span data-testid="group-task-badge" className="task-tree-badge-anchor">
-								<KolBadge _label={`Für: ${task.groupName}`} className="task-tree-badge task-tree-badge--provenance" />
-							</span>
+							// Bewusst ein Light-DOM-Span statt KolBadge: der Test-Anker (`data-testid`) muss am
+							// sichtbaren Element hängen, und KolBadge nimmt weder Fremd-Attribute entgegen noch
+							// liefert sein Shadow-Label eine messbare Box für die 375px-Prüfung (AK8).
+							<span
+								data-testid="group-task-badge"
+								className="task-tree-badge task-tree-badge--provenance task-tree-badge-anchor"
+							>{`Für: ${task.groupName}`}</span>
 						)}
 						{task !== null && task.forUserName == null && task.createdByName != null && task.createdById !== userId && (
 							<KolBadge
