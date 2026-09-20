@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { headerAction, openAccordionSection, waitForStableView } from './helpers';
+import { headerAction, openAccordionSection, registerOwnSession, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1335 — „Schnellerfassung und Berater verschmelzen" (AK4, AK5).
@@ -168,14 +168,10 @@ test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
 test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 	// #1573-Test-Pflege: `/auth/test-login` säht KEINE Säulen (findOrCreate ohne Seeding — nur
 	// register legt die fünf Standard-Säulen an, auth.ts). `.pillar-editor-head` rendert aber erst
-	// ab einer Säule, daher wird hier ein frischer Nutzer per register angemeldet (eindeutige
-	// E-Mail je Test, Passwort egal — die Session kommt mit der Registrierung).
+	// ab einer Säule, daher wird hier ein frischer Nutzer per register angemeldet
+	// (`registerOwnSession`). Danach `unroute`, damit `/auth/me` die echte Session spiegelt.
 	const loginAsFree = async (page: Page): Promise<void> => {
-		const email = `ai-gate-1527-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
-		const res = await page.request.post('/auth/register', {
-			data: { email, password: 'e2e-saeulen-1527' },
-		});
-		expect(res.status(), 'register muss eine Session und Standard-Säulen liefern').toBe(200);
+		await registerOwnSession(page, 'ai-gate-1527');
 		await page.unroute('**/auth/me');
 	};
 

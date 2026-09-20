@@ -355,6 +355,28 @@ export const SPEECH_MOCK_INIT_SCRIPT = `
  * aktiv her. `page.request` läuft dabei bewusst an `page.route`-Countern vorbei (API-Requests
  * werden nicht abgefangen) —PUT-Zähler der Specs bleiben unberührt.
  */
+/**
+ * Meldet einen frischen Nutzer per `POST /auth/register` an, damit die Spec serverseitig auf ihre
+ * eigenen Daten eingeschränkt ist.
+ *
+ * #1573: Ohne Session greift `ownerScope(undefined)` nicht (`logics/ownerScope.ts`,
+ * Pass-Through-Modus) — `GET /pillars` liefert dann den gesamten Säulen-Bestand der Shard-DB,
+ * also auch die fünf Standard-Säulen jedes Nutzers, den eine parallele Spec registriert hat.
+ * Specs, deren Regler-Choreografie GENAU FÜNF Säulen voraussetzt (erste auf 0,6, übrige auf 0,1),
+ * treffen sonst je nach Shard-Zuschnitt neun oder mehr Regler auf 0,0 und landen im 0-%-Block von
+ * `PillarWeightsForm` (`hasExtremeShare`) statt im Bestätigungs-Modal. Gegensteuern per Anlegen
+ * oder Löschen geht seit der CRUD-Sperre nicht mehr.
+ *
+ * Die Registrierung setzt das Session-Cookie im Browser-Context (`page.request` teilt sich den
+ * Cookie-Jar mit der Seite) und säht die fünf Standard-Säulen (`auth.ts`, `SEED_PILLARS`).
+ * `/auth/me` bleibt von der Fixture gemockt — die Auth-Gate im Frontend ist davon unberührt.
+ */
+export const registerOwnSession = async (page: Page, label: string): Promise<void> => {
+	const email = `e2e-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+	const response = await page.request.post('/auth/register', { data: { email, password: `e2e-${label}-pw` } });
+	expect(response.status(), 'register muss eine Session und die fünf Standard-Säulen liefern').toBe(201);
+};
+
 export const setEqualPillarWeights = async (page: Page): Promise<void> => {
 	const response = await page.request.get('/api/v1/pillars');
 	const pillars = (await response.json()) as { id: number }[];

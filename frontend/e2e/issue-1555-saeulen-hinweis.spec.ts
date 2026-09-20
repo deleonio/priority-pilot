@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { setEqualPillarWeights, waitForStableView } from './helpers';
+import { registerOwnSession, setEqualPillarWeights, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #1555 — „Hinweis bei stark unausgewogener Säulen-Gewichtung"
@@ -20,6 +20,12 @@ import { setEqualPillarWeights, waitForStableView } from './helpers';
 test.use({ viewport: { width: 375, height: 800 } });
 
 test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
+	// #1573-Test-Pflege: Beide Tests setzen GENAU FÜNF Säulen voraus. Ohne eigene Session liefert
+	// `GET /pillars` den ganzen Säulen-Bestand der Shard-DB — Begründung siehe `registerOwnSession`.
+	test.beforeEach(async ({ page }) => {
+		await registerOwnSession(page, '1555');
+	});
+
 	/**
 	 * AK1 + AK2 + AK5: Ausgangsverteilung ausgewogen → kein Alert; ein Reglerzug auf das Maximum
 	 * (100 % > 2 × 20 %) zeigt den Warn-Alert live; Rückkehr auf Gleichverteilung entfernt ihn.
