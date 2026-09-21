@@ -631,27 +631,38 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
 	const rawValue = (el: Element): string =>
 		String((el as unknown as Record<string, unknown>)._value ?? el.getAttribute('_value'));
 
-	it('identische ID-Folge (nur Gewicht geändert) remountet NICHT — Ref-Wert bleibt der alte', () => {
-		const { container, rerender } = render(
-			<SettingsPage {...defaultProps} pillars={[{ id: 1, name: 'Körper', description: '', weight: 20 }]} />,
-		);
-		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('0.2');
+	// TEST-PFLEGE #1596: Die Regler führen jetzt Prozentwerte (0–100) statt der Rohskala 0,0–1,0.
+	// Zwei Säulen, weil eine einzelne Säule immer 100 % trägt und der Remount dann nicht sichtbar wäre.
+	const twoPillars = (koerper: number, geist: number) => [
+		{ id: 1, name: 'Körper', description: '', weight: koerper },
+		{ id: 2, name: 'Geist', description: '', weight: geist },
+	];
 
-		rerender(<SettingsPage {...defaultProps} pillars={[{ id: 1, name: 'Körper', description: '', weight: 50 }]} />);
-		// Ohne Remount bleibt der Ref-Rohwert unverändert bei 0,2 (Anzeige folgt nicht dem neuen Prop).
-		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('0.2');
+	it('identische ID-Folge (nur Gewicht geändert) remountet NICHT — der Reglerwert bleibt der alte', () => {
+		const { container, rerender } = render(<SettingsPage {...defaultProps} pillars={twoPillars(20, 80)} />);
+		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('20');
+
+		rerender(<SettingsPage {...defaultProps} pillars={twoPillars(50, 50)} />);
+		// Ohne Remount bleibt der Zustand unverändert bei 20 % (Anzeige folgt nicht dem neuen Prop).
+		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('20');
 	});
 
-	it('gleiche Anzahl, andere ID-Folge remountet — Ref-Wert übernimmt das neue Gewicht', () => {
-		const { container, rerender } = render(
-			<SettingsPage {...defaultProps} pillars={[{ id: 1, name: 'Körper', description: '', weight: 20 }]} />,
-		);
-		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('0.2');
+	it('gleiche Anzahl, andere ID-Folge remountet — der Reglerwert übernimmt das neue Gewicht', () => {
+		const { container, rerender } = render(<SettingsPage {...defaultProps} pillars={twoPillars(20, 80)} />);
+		expect(rawValue(sliderFor(container, 'Körper')!)).toBe('20');
 
-		rerender(<SettingsPage {...defaultProps} pillars={[{ id: 2, name: 'Geist', description: '', weight: 50 }]} />);
-		// Andere ID-Folge → neuer `key` → Remount → Ref initialisiert sich aus dem neuen Prop (0,5).
+		rerender(
+			<SettingsPage
+				{...defaultProps}
+				pillars={[
+					{ id: 3, name: 'Sinn', description: '', weight: 50 },
+					{ id: 4, name: 'Geist', description: '', weight: 50 },
+				]}
+			/>,
+		);
+		// Andere ID-Folge → neuer `key` → Remount → der Zustand initialisiert sich aus dem neuen Prop.
 		expect(sliderFor(container, 'Körper')).toBeUndefined();
-		expect(rawValue(sliderFor(container, 'Geist')!)).toBe('0.5');
+		expect(rawValue(sliderFor(container, 'Sinn')!)).toBe('50');
 	});
 });
 
@@ -1033,12 +1044,12 @@ describe('SettingsPage – #1555: Hinweis bei unausgewogener Säulen-Gewichtung'
 		const { container } = render(<SettingsPage {...defaultProps} pillars={balancedPillars} />);
 		expect(warningAlert(container)).toBeNull();
 
-		// Erste Säule auf Maximum (Rohwert 1,0): 100 % > 2 × 20 % → Hinweis erscheint.
-		await input(slider(container, 0), '1');
+		// Erste Säule ans Maximum (80 %, der Rest steht am Mindestanteil) → Hinweis erscheint.
+		await input(slider(container, 0), '100');
 		expect(warningAlert(container), 'Alert erscheint nicht nach Reglerzug').not.toBeNull();
 
-		// Zurück auf 0,2 (wieder 5 × 20 %) → Hinweis verschwindet.
-		await input(slider(container, 0), '0.2');
+		// Zurück auf 20 % (wieder 5 × 20 %) → Hinweis verschwindet.
+		await input(slider(container, 0), '20');
 		expect(warningAlert(container), 'Alert verschwindet nicht bei Rückkehr zur Balance').toBeNull();
 	});
 
@@ -1162,10 +1173,10 @@ describe('SettingsPage – #1574: Bestätigungs-Modal vor dem Speichern unausgew
 		await click(cancel!);
 		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
 		expect(modalBody(container), 'Modal ist nach Abbrechen noch offen').toBeNull();
-		// Reglerwerte stehen im Ref — sie dürfen durch Abbrechen nicht angefasst werden.
+		// Die Verteilung darf durch Abbrechen nicht angefasst werden.
 		const rawValue = (el: Element): string =>
 			String((el as unknown as Record<string, unknown>)._value ?? el.getAttribute('_value') ?? '');
-		expect(rawValue(slider(container, 0)), 'Reglerwert wurde durch Abbrechen verändert').toBe('0.45');
+		expect(rawValue(slider(container, 0)), 'Reglerwert wurde durch Abbrechen verändert').toBe('45');
 		// Erneutes Speichern öffnet das Modal wieder (kein Einweg-Sperren nach Abbrechen).
 		await click(saveButton(container));
 		expect(modalBody(container), 'erneutes Speichern öffnet kein Modal mehr').not.toBeNull();
@@ -1188,19 +1199,17 @@ describe('SettingsPage – #1574: Bestätigungs-Modal vor dem Speichern unausgew
 		});
 	});
 
-	// AK4: Extremverteilung (nach Normierung 100 %/0 %) wird nicht gespeichert — blockierender
-	// Fehler im Formular, kein Modal, kein PUT.
-	it('AK4: Verteilung mit 0-%-/100 %-Anteil wird blockiert — Fehler statt PUT', async () => {
+	// AK4 in der Fassung von #1596: Eine Extremverteilung (0 %/100 %) ist gar nicht mehr
+	// einstellbar — der Mindestanteil klemmt den Regler. Kein blockierender Fehler mehr nötig.
+	it('AK4: 0 %/100 % ist nicht einstellbar — der Mindestanteil klemmt den Regler', async () => {
 		const { container } = render(<SettingsPage {...defaultProps} pillars={twoPillars} />);
-		await input(slider(container, 0), '1');
-		await input(slider(container, 1), '0');
-		await click(saveButton(container));
-		expect(
-			container.querySelector('.settings-pillars kol-alert[_type="error"]'),
-			'blockierender Fehler-Alert fehlt',
-		).not.toBeNull();
-		expect(modalBody(container), 'Extremverteilung gehört nicht ins Bestätigungs-Modal').toBeNull();
-		expect(apiMocks.setPillarWeights).not.toHaveBeenCalled();
+		await input(slider(container, 0), '100');
+
+		const rawValue = (el: Element): string =>
+			String((el as unknown as Record<string, unknown>)._value ?? el.getAttribute('_value') ?? '');
+		expect(rawValue(slider(container, 0))).toBe('95');
+		expect(rawValue(slider(container, 1))).toBe('5');
+		expect(container.querySelector('.settings-pillars kol-alert[_type="error"]')).toBeNull();
 	});
 
 	// AK4-Ausnahme: Bei genau einer Säule ist 100 % die einzig gültige Verteilung → speicherbar.

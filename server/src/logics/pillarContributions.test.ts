@@ -155,4 +155,17 @@ describe('arePillarsExistent', () => {
 		const fremdPillar = await Pillar.create({ name: 'Körper', weight: 20, userId: fremd.id });
 		assert.equal(await arePillarsExistent([ids[0], fremdPillar.id], userId), false);
 	});
+
+	// Pass-Through (#1596): Ohne Konto am Request liefert `GET /pillars` über `ownerScope(undefined)`
+	// jede Säule — die Existenz-Prüfung muss dann genauso weit sein, sonst bietet die Liste Säulen an,
+	// die das Anlegen anschließend mit 400 ablehnt (E2E-Shard lief genau darauf auf).
+	it('ohne Konto (null) zählt jede existierende Säule → true', async () => {
+		const { ids } = await seedTwoPillars();
+		assert.equal(await arePillarsExistent(ids, null), true);
+	});
+
+	it('ohne Konto (null) bleibt eine unbekannte pillarId → false', async () => {
+		const { ids } = await seedTwoPillars();
+		assert.equal(await arePillarsExistent([ids[0], 99999], null), false);
+	});
 });

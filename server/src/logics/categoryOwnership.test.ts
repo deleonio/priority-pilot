@@ -63,11 +63,15 @@ describe('isCategoryExistent — Kontobindung der Kategorie', () => {
 		assert.equal(await isCategoryExistent(999, 7), false);
 	});
 
-	it('userId null matcht nur Kategorien ohne Eigentümer (Dev-Pass-Through)', async () => {
+	// #1596: Ohne Konto am Request (Dev-/Test-Pass-Through) scopt das Lesen über
+	// `ownerScope(undefined)` gar nicht. Die Existenz-Prüfung folgt dem, sonst bietet die Liste
+	// Stammdaten an, die das Speichern anschließend mit 400 ablehnt.
+	it('userId null akzeptiert jede existierende Kategorie (Dev-Pass-Through wie beim Lesen)', async () => {
 		const ownerless = await Category.create({ name: 'Ohne Konto', userId: null });
 		const owned = await Category.create({ name: 'Mit Konto', userId: 7 });
 		assert.equal(await isCategoryExistent(ownerless.id, null), true);
-		assert.equal(await isCategoryExistent(owned.id, null), false);
+		assert.equal(await isCategoryExistent(owned.id, null), true);
+		assert.equal(await isCategoryExistent(999, null), false);
 	});
 });
 

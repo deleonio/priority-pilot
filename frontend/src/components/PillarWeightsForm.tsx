@@ -7,15 +7,12 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
 import {
-	RAW_WEIGHT_MAX,
-	RAW_WEIGHT_MIN,
-	RAW_WEIGHT_STEP,
-	hasExtremeShare,
+	SHARE_MIN,
+	SHARE_STEP,
+	fillContributions,
 	isDistributionUnbalanced,
-	isRawDistributionValid,
-	normalizeToTotalWeight,
-	sumWeights,
-	weightToRaw,
+	redistributeShares,
+	shareMax,
 } from '../lib/pillar';
 import { Modal } from './Modal';
 
@@ -33,22 +30,26 @@ const UNBALANCED_HINT =
 	'Diese Verteilung weicht stark vom gleichmäßigen Zustand ab — Säulen sind üblicherweise eher ausgeglichen gewichtet. Das ist nur ein Hinweis: Du kannst trotzdem speichern.';
 
 /**
- * Gemeinsame Gewichtungs-Formularlogik für die Lebensbalance-Säulen: je Säule ein freier Rohwert von
- * **0,0 bis 1,0** (#82). Beim Speichern werden die Rohwerte auf die interne 100-%-Verteilung
- * **normiert** (`normalizeToTotalWeight`) und via `PUT /pillars/weights` abgelegt — die gespeicherte
- * Repräsentation und damit das Ranking bleiben unverändert.
+ * Gemeinsame Gewichtungs-Formularlogik für die Lebensbalance-Säulen: eine 100-%-Verteilung über die
+ * fünf festen Säulen (#1596, Muster wie die Säulen-Verteilung im Aufgabenformular). Je Säule ein
+ * Prozent-Regler; ein Zug verschiebt die anderen Säulen proportional mit, sodass die Summe immer
+ * 100 % ergibt. Unter den Mindestanteil (`SHARE_MIN`) fällt keine Säule. Gespeichert wird via
+ * `PUT /pillars/weights` — die serverseitige Repräsentation und damit das Ranking bleiben
+ * unverändert.
  *
  * Wird von `PillarWeightsModal` (mit Abbrechen) und der Settings-Seite (#271, ohne Abbrechen)
- * genutzt. Die Eingaben liegen — wie im übrigen UI (siehe `TaskFormModal`) — in einem Ref, damit die
- * KoliBri-Felder ihren Anzeigewert selbst verwalten (kein Cursor-Springen). Für die Live-Summe wird
- * zusätzlich ein abgeleiteter `sum`-State bei jeder Eingabe nachgeführt.
+ * genutzt.
  */
 export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsFormProps) => {
-	// Rohwerte 0,0–1,0: der gespeicherte Prozentwert wird für die Anzeige zurückgerechnet (#82).
-	// `null` erlaubt: ein geleertes Feld setzt den Eintrag auf `null`, damit die Validierung greift,
-	// statt still den alten Wert weiterzuverwenden.
-	const weights = useRef<(number | null)[]>(pillars.map((pillar) => weightToRaw(pillar.weight)));
-	const [sum, setSum] = useState(() => sumWeights(weights.current));
+	// Prozentwerte (0–100) je Säule, Summe stets 100. Der gespeicherte Stand wird beim Mount über
+	// `fillContributions` auf ganzzahlige Anteile ≥ `SHARE_MIN` gebracht — Altbestände, die den
+	// Mindestanteil unterschreiten, rücken damit beim ersten Speichern glatt.
+	const [weights, setWeights] = useState<number[]>(() =>
+		fillContributions(
+			pillars,
+			pillars.map((pillar) => ({ pillarId: pillar.id, share: pillar.weight, confidence: 100 })),
+		).map((entry) => entry.share),
+	);
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 	// #1574: Bestätigungs-Modal für stark unausgewogene Verteilungen — `true` heißt „offen",
@@ -59,21 +60,27 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 	// ConfirmDeleteDialog): Bestätigen soll nicht versehentlich per Enter auslösbar sein.
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 
-	// Gültig, sobald jeder Wert ≥ 0 ist und mindestens einer > 0 (sonst nicht auf 100 % normierbar).
-	const distributionValid = isRawDistributionValid(weights.current);
+	// Obergrenze eines einzelnen Reglers: Was bleibt, wenn alle anderen Säulen am Mindestanteil
+	// stehen (bei fünf Säulen 80 %).
+	const weightCeiling = shareMax(weights.length);
 
 	// #1555: rein informativer Hinweis auf starke Unausgewogenheit (Anteil > 2× oder < ½ des
-	// gleichmäßigen Anteils) — blockiert das Speichern nicht, fragt seit #1574 aber nach. Wie
-	// `distributionValid` bei jedem Render aus dem Ref abgeleitet; das Re-Render-Signal liefert
-	// der bestehende `setSum`-Aufruf, der bei jeder Slider-Eingabe feuert.
-	const unbalanced = isDistributionUnbalanced(weights.current);
+	// gleichmäßigen Anteils) — blockiert das Speichern nicht, fragt seit #1574 aber nach.
+	const unbalanced = isDistributionUnbalanced(weights);
 
-	// Der eigentliche Speichervorgang (normieren → PUT) — vom #1574-Gate in `save()` entkoppelt,
-	// damit der Bestätigungspfad denselben Code unmittelbar (ohne Wartefrist, AK5) auslösen kann.
+	// Ein Reglerzug verschiebt die ganze Verteilung: Die anderen Säulen ziehen proportional nach,
+	// die Summe bleibt 100 % (#1596).
+	const setWeight = (index: number, next: number | null): void => {
+		if (next === null) {
+			return;
+		}
+		setWeights((prev) => redistributeShares(prev, index, next));
+	};
+
+	// Der eigentliche Speichervorgang (PUT) — vom #1574-Gate in `save()` entkoppelt, damit der
+	// Bestätigungspfad denselben Code unmittelbar (ohne Wartefrist, AK5) auslösen kann.
 	const performSave = async (): Promise<void> => {
-		// `save()` hat die Verteilung vorab geprüft; alle Werte sind dort nicht-`null`.
-		const normalized = normalizeToTotalWeight(weights.current.map((weight) => weight ?? 0));
-		const entries = pillars.map((pillar, index) => ({ id: pillar.id, weight: normalized[index] }));
+		const entries = pillars.map((pillar, index) => ({ id: pillar.id, weight: weights[index] }));
 
 		setError(null);
 		setSaving(true);
@@ -95,19 +102,8 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 	// Gate vor dem PUT (#1574) — Speichern-Button und Strg+Enter laufen beide hier durch, beide
 	// Einbindungen (Settings-Seite, PillarWeightsModal) erben es.
 	const save = async (): Promise<void> => {
-		if (!isRawDistributionValid(weights.current)) {
-			setError('Jedes Gewicht muss eine Zahl ≥ 0 sein und mindestens eine Säule muss > 0 sein.');
-			return;
-		}
-		// AK4: Nach der Normierung würde eine Säule komplett leer (0 %) oder voll (100 %) — mit
-		// mehreren Säulen fast sicher ein Versehen, daher blockierend statt bestätigbar. Die
-		// Sliderwerte bleiben unverändert, der Nutzer kann die Regler nachziehen.
-		if (hasExtremeShare(weights.current)) {
-			setError(
-				'Nach der Normierung würde eine Säule 0 % oder 100 % erhalten — jede Säule braucht einen Anteil größer 0 (bei nur einer Säule ist 100 % in Ordnung).',
-			);
-			return;
-		}
+		// #1574 AK4 (0 %/100 %) braucht keine eigene Prüfung mehr: Der Mindestanteil der gekoppelten
+		// Regler (#1596) macht solche Verteilungen unerreichbar.
 		// AK1: Bei starker Unausgewogenheit (#1555-Warnung) nach Bestätigung fragen — erst „Trotzdem speichern"
 		// sendet den PUT. Die Sliderwerte bleiben unverändert, erneutes Speichern ist möglich.
 		if (unbalanced) {
@@ -130,9 +126,8 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 	useCtrlEnter(() => confirmSave(), confirmOpen && !saving);
 
 	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Speichern" aus — nur wenn er nicht deaktiviert ist
-	// (kein laufendes Speichern, Säulen vorhanden, gültige Verteilung, Bestätigungs-Modal zu), analog
-	// zu dessen `_disabled`.
-	useCtrlEnter(() => void save(), !saving && !confirmOpen && pillars.length > 0 && distributionValid);
+	// (kein laufendes Speichern, Säulen vorhanden, Bestätigungs-Modal zu), analog zu dessen `_disabled`.
+	useCtrlEnter(() => void save(), !saving && !confirmOpen && pillars.length > 0);
 
 	return (
 		<>
@@ -161,31 +156,22 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 			) : (
 				<>
 					<p className="hint">
-						Gib je Säule einen Wert von 0,0 bis 1,0 ein. Die Werte werden beim Speichern automatisch auf 100 % normiert
-						— die absolute Skala ist egal (5 × 0,1 ergibt dasselbe wie 5 × 1).
+						Verteile 100 % auf die fünf Säulen. Ziehst du einen Regler, ziehen die anderen mit — jede Säule behält
+						mindestens {SHARE_MIN} %.
 					</p>
 					<div className="form-grid pillar-weights-grid">
 						{pillars.map((pillar, index) => (
 							<div key={pillar.id} className="pillar-weight-row">
 								<KolInputRange
-									// Freie Roh-Skala 0,0–1,0 → Slider. Der aktuelle Wert steht im Label, da ein reiner
-									// Slider den exakten Wert nicht anzeigt.
-									_label={`${pillar.name}: ${formatNumber(weights.current[index] ?? 0)}`}
-									_min={RAW_WEIGHT_MIN}
-									_max={RAW_WEIGHT_MAX}
-									_step={RAW_WEIGHT_STEP}
-									// An den Ref-Wert binden (nicht den statischen `pillar.weight`): die Komponente rendert
-									// bei jeder Eingabe neu (`setSum`), sonst würde `_value` pro Tastendruck zurückgesetzt.
-									_value={weights.current[index] ?? undefined}
+									// Der aktuelle Wert steht im Label, da ein reiner Slider ihn nicht anzeigt.
+									_label={`${pillar.name}: ${formatNumber(weights[index] ?? 0)} %`}
+									_min={SHARE_MIN}
+									_max={weightCeiling}
+									_step={SHARE_STEP}
+									_value={weights[index] ?? SHARE_MIN}
 									_on={{
-										onInput: (_event, value) => {
-											weights.current[index] = readNumber(value);
-											setSum(sumWeights(weights.current));
-										},
-										onChange: (_event, value) => {
-											weights.current[index] = readNumber(value);
-											setSum(sumWeights(weights.current));
-										},
+										onInput: (_event, value) => setWeight(index, readNumber(value)),
+										onChange: (_event, value) => setWeight(index, readNumber(value)),
 									}}
 								/>
 								{/* #934: Keine Säulen-Beschreibung mehr je Slider — dieselben Beschreibungen
@@ -193,21 +179,12 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 							</div>
 						))}
 					</div>
-					{/* `aria-live`: Die Summe ist die einzige Rückmeldung darauf, ob die Verteilung speicherbar
-					    ist — sie ändert sich bei jedem Reglerzug, ohne dass der Fokus sie berührt. Ohne
-					    Live-Region erfährt ein Screenreader den Umschlag gültig/ungültig nie.
-					    Das frühere „✓“-Zeichen ist raus: als Glyphe im Fließtext wird es je nach
-					    Screenreader vorgelesen („Häkchen“) oder verschluckt — die Aussage steht im Text. */}
-					<p
-						aria-live="polite"
-						className={
-							distributionValid
-								? 'pillar-weights-sum pillar-weights-sum-ok'
-								: 'pillar-weights-sum pillar-weights-sum-invalid'
-						}
-					>
-						Summe der Rohwerte: {formatNumber(sum)}{' '}
-						{distributionValid ? '— wird auf 100 % normiert' : '— mindestens eine Säule muss > 0 sein'}
+					{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — ein Zug verschiebt die anderen
+					    Säulen mit, deren Label-Änderung sonst nirgends vorgelesen wird (WCAG 4.1.3). Visuell
+					    versteckt (`.visually-hidden`): der Wert steht bereits sichtbar im Label jedes Reglers,
+					    nur Screenreadern fehlt sonst die Zusammenfassung nach dem Zug. */}
+					<p aria-live="polite" className="visually-hidden">
+						{pillars.map((pillar, index) => `${pillar.name}: ${formatNumber(weights[index] ?? 0)} %`).join(', ')}
 					</p>
 				</>
 			)}
@@ -216,7 +193,7 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 				<KolButton
 					_label={saving ? 'Speichern…' : 'Speichern'}
 					_variant="primary"
-					_disabled={saving || pillars.length === 0 || !distributionValid}
+					_disabled={saving || pillars.length === 0}
 					_on={{ onClick: () => void save() }}
 				/>
 				{onCancel !== undefined && (

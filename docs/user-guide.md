@@ -9,10 +9,10 @@ Zwei Ideen stecken dahinter:
 - **Wertbeitrag statt Bauchgefühl.** Aus Priorität, Aufwand und den (gewichteten)
   Abhängigkeiten berechnet Priority Pilot pro Aufgabe einen Wert. Die wertvollsten
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
-- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf eine oder mehrere deiner persönlichen
-  Lebens­bereiche ein. Die Säulen sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst,
-  gewichtest und löschst sie. Über eine Gewichtung steuerst du, welche Bereiche gerade
-  wichtig sind – und siehst, ob deine Zeit dorthin fließt.
+- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf **alle fünf** Lebensbereiche ein, nur
+  unterschiedlich stark: Du verteilst je Aufgabe 100 % auf die Säulen. Die fünf Säulen stehen
+  fest. Über die Gewichtung in den Einstellungen steuerst du, welche Bereiche gerade wichtig
+  sind – und siehst, ob deine Zeit dorthin fließt.
 
 Dieses Handbuch erklärt alle Funktionen der Anwendung.
 
@@ -246,8 +246,8 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Kategorie (optional)** – das Thema, zu dem die Aufgabe gehört (siehe „Kategorien").
   Höchstens eine je Aufgabe; sie ordnet nur, sie verändert die Priorisierung nicht.
-- **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
-  (siehe „Lebensbalance-Säulen").
+- **Säulen-Verteilung** – wie stark die Aufgabe auf jeden der fünf Lebensbereiche einzahlt
+  (siehe „Lebensbalance-Säulen"). Pflichtangabe, vorbelegt mit einer Gleichverteilung.
 - **Empfänger** – für wen die Aufgabe bestimmt ist: dich selbst oder ein Mitglied
   einer deiner Gruppen (siehe „Gruppen"). Das Feld erscheint, solange du Mitglied
   mindestens einer Gruppe bist. Wählst du beim **Bearbeiten** ein fremdes Konto,
@@ -378,31 +378,30 @@ Speichern änderbar. Eine Serie vererbt ihre Kategorie an jede generierte Aufgab
 
 ## Lebensbalance-Säulen
 
-Lebensbalance-Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt.
-Sie sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst, gewichtest und löschst sie.
-Zu Beginn hast du noch keine Säulen – im Aufgabenformular erscheint dann der Hinweis,
-zuerst welche in den Einstellungen anzulegen. Jede Säule besteht aus einem Namen und
-einer kurzen Beschreibung.
+Lebensbalance-Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt. Es gibt
+**fünf feste Säulen**; anlegen, umbenennen oder löschen lassen sie sich nicht. Jede Säule
+besteht aus einem Namen und einer kurzen Beschreibung.
 
-### Beitrag je Aufgabe (Anteil und Konfidenz)
+### Verteilung je Aufgabe
 
-Im Aufgabenformular ordnest du unter **„Säulen"** eine oder mehrere Säulen zu. Je Säule:
+Im Aufgabenformular steht unter **„Säulen-Verteilung"** je Säule ein Regler. Die Regler teilen
+sich 100 %: Ziehst du einen hoch, geben die anderen ab. Eine neue Aufgabe startet gleich
+verteilt (fünf Säulen, je 20 %).
 
-- **Anteil** – wie stark die Aufgabe auf diese Säule einzahlt. Die Anteile aller
-  Säulen einer Aufgabe werden beim Speichern automatisch auf 100 % normiert – die
-  absolute Skala ist egal.
-- **Konfidenz (%)** – wie sicher die Zuordnung ist (0 % = unsicher, 100 % = sicher).
+Unter **5 %** fällt keine Säule. Dahinter steht die Annahme, dass jede Aufgabe auf jeden
+Lebensbereich ein Stück weit einzahlt – bei manchen eben stärker als bei anderen. Aufgaben aus
+der Zeit davor, die noch keine oder nur einzelne Säulen tragen, werden beim Öffnen des
+Formulars auf eine vollständige Verteilung ergänzt; gespeichert wird das mit der Aufgabe.
 
-Ohne Säulen-Zuordnung bleibt die Aufgabe **wertneutral**. Mit **„Säulen vorschlagen"**
-kann eine KI aus Titel und Beschreibung passende Säulen samt Anteil und Konfidenz
-vorschlagen. Nach der Schnellerfassung mit vorbelegtem Titel passiert das automatisch –
-den Vorschlag kannst du vor dem Speichern anpassen.
+Mit **„Säulen vorschlagen"** verteilt eine KI die Anteile aus Titel und Beschreibung. Nach der
+Schnellerfassung mit vorbelegtem Titel passiert das automatisch – den Vorschlag kannst du vor
+dem Speichern anpassen.
 
 ### Säulen-Gewichtung anpassen
 
-Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben.
-Jede Säule bekommt einen Wert von 0,0 bis 1,0; beim Speichern wird auf 100 %
-normiert. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper",
+Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben. Auch hier
+verteilst du 100 % über die fünf Säulen: Ein Regler zieht die anderen mit, keine Säule fällt
+unter 5 %. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper",
 steigen Aufgaben, die stark auf „Körper" einzahlen, im Wert – und rücken damit in der
 Priorisierung nach oben.
 

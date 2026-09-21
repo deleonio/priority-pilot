@@ -588,10 +588,15 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 	};
 
 	test('AK3 — Bearbeiten + Speichern ohne Änderung erhält die Säulenzuordnung (Round-Trip)', async ({ page }) => {
-		// 1. Erste verfügbare Säule aus dem Backend holen.
+		// 1. Säulen aus dem Backend holen.
 		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as Array<{ id: number; name: string }>;
 		expect(pillars.length).toBeGreaterThan(0);
-		const pillar = pillars[0];
+		// TEST-PFLEGE #1596: vollständige Verteilung über alle Säulen (Summe 100). Eine Vorlage mit
+		// nur einer Säule würde das Formular beim Öffnen vervollständigen — das ist dann eine echte
+		// Änderung und der Speichern-Klick liefe in die Kaskade-Rückfrage statt direkt zu speichern.
+		const evenShares = pillars.map((_pillar, index) =>
+			index < 100 % pillars.length ? Math.floor(100 / pillars.length) + 1 : Math.floor(100 / pillars.length),
+		);
 
 		// 2. Serie mit dieser Säule via API anlegen.
 		// #582: Titel ≤30 Zeichen — Date.now() base36 statt Dezimal (13→~8 Zeichen).
@@ -604,7 +609,7 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 				estimatedEffort: 0.5,
 				active: true,
 				startDate: '2026-09-07T00:00:00.000Z',
-				pillars: [{ pillarId: pillar.id, share: 100, confidence: 80 }],
+				pillars: pillars.map((entry, index) => ({ pillarId: entry.id, share: evenShares[index], confidence: 80 })),
 			},
 		});
 		expect(createResponse.ok()).toBeTruthy();
@@ -642,10 +647,8 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await waitForStableView(page);
 
-		// #1285 (AK3): „Optional“ startet im Edit zugeklappt — Säulen-Zeile erst freischalten.
-		await openAccordionSection(page, 'Optional');
-
 		// 11. Die Säulen-Zeile ist im Formular sichtbar (die Zuordnung wurde ins Formular geladen).
+		// #1596: Die Verteilung steht in den Basisangaben und ist ohne Aufklappen sichtbar.
 		await expect(page.locator('.pillar-row').first()).toBeVisible();
 	});
 });

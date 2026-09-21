@@ -179,8 +179,10 @@ test.describe('Priority Pilot — #1578: Paket-Hinweise verengen/schneiden Formu
 
 		const descriptionRow = page.locator('[data-testid="task-description"]').locator('xpath=..');
 		const descriptionField = page.getByTestId('task-description');
-		// Reihenfolge im DOM: Titel-Badge zuerst, danach das Beschreibungs-Badge (nth(1)).
-		const badge = page.getByTestId('plan-badge-ai_assist').nth(1);
+		// #1604-Fixup: nicht mehr per globalem `nth(1)` — seit der Säulen-Verteilung (#1596) liegt
+		// deren eigenes Badge im DOM zwischen Titel- und Beschreibungs-Badge, das globale Zählen bricht.
+		// Auf die Beschreibungs-Zeile scopen (Muster: AK5 scoped analog auf `.pillar-editor-head`).
+		const badge = descriptionRow.getByTestId('plan-badge-ai_assist');
 		const lektoratButton = page.getByRole('button', { name: 'Beschreibung lektorieren' });
 
 		await expect(descriptionField).toBeVisible();

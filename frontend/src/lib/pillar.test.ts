@@ -3,18 +3,17 @@ import { TaskStatus } from 'client';
 import { describe, expect, it } from 'vitest';
 import * as pillarModule from './pillar';
 import {
-	ADD_PILLAR_PLACEHOLDER,
-	addPillarOptions,
+	SHARE_MIN,
+	SHARE_TOTAL,
 	buildPillarSummaries,
 	calculateMeterHighThreshold,
 	calculateMeterThreshold,
+	evenShares,
+	fillContributions,
 	getTaskPillarPoints,
-	isRawDistributionValid,
-	isWeightSumValid,
-	normalizeToTotalWeight,
+	redistributeShares,
+	shareMax,
 	suggestionsToContributions,
-	sumWeights,
-	weightToRaw,
 } from './pillar';
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
@@ -39,144 +38,160 @@ const task = (
 	pillars,
 });
 
-describe('addPillarOptions', () => {
-	it('stellt die Platzhalter-Option voran und bildet die verfügbaren Säulen ab', () => {
-		const options = addPillarOptions([pillar(1, 'Körper', 20), pillar(2, 'Sinn', 80)]);
-		expect(options).toEqual([
-			{ label: '— Säule hinzufügen —', value: ADD_PILLAR_PLACEHOLDER },
-			{ label: 'Körper', value: 1 },
-			{ label: 'Sinn', value: 2 },
-		]);
+describe('evenShares', () => {
+	it('verteilt 100 % gleichmäßig auf fünf Säulen', () => {
+		expect(evenShares(5)).toEqual([20, 20, 20, 20, 20]);
 	});
 
-	it('liefert bei leerer Liste nur die Platzhalter-Option', () => {
-		expect(addPillarOptions([])).toEqual([{ label: '— Säule hinzufügen —', value: ADD_PILLAR_PLACEHOLDER }]);
-	});
-});
-
-describe('sumWeights', () => {
-	it('summiert die Gewichte und zählt null als 0', () => {
-		expect(sumWeights([20, 20, null, 40])).toBe(80);
+	it('hält die Summe auch bei nicht glatt teilbarer Säulenzahl exakt bei 100', () => {
+		const shares = evenShares(3);
+		expect(shares.reduce((acc, share) => acc + share, 0)).toBe(SHARE_TOTAL);
+		expect(shares.every(Number.isInteger)).toBe(true);
 	});
 
-	it('liefert 0 für eine leere Liste', () => {
-		expect(sumWeights([])).toBe(0);
+	it('liefert für keine Säule eine leere Verteilung', () => {
+		expect(evenShares(0)).toEqual([]);
 	});
 });
 
-describe('isWeightSumValid', () => {
-	it('akzeptiert exakt 100', () => {
-		expect(isWeightSumValid(100)).toBe(true);
+describe('shareMax', () => {
+	it('lässt bei fünf Säulen höchstens 80 % für eine einzelne Säule', () => {
+		expect(shareMax(5)).toBe(80);
 	});
 
-	it('akzeptiert Float-Rundungsfehler innerhalb der Toleranz', () => {
-		expect(isWeightSumValid(33.33 + 33.33 + 33.34)).toBe(true);
-	});
-
-	it('lehnt eine abweichende Summe ab', () => {
-		expect(isWeightSumValid(99)).toBe(false);
-		expect(isWeightSumValid(101)).toBe(false);
+	it('erlaubt bei einer einzigen Säule volle 100 %', () => {
+		expect(shareMax(1)).toBe(SHARE_TOTAL);
 	});
 });
 
-describe('weightToRaw', () => {
-	it('rechnet den gespeicherten Prozentwert (0–100) auf den Rohwert (0,0–1,0) zurück', () => {
-		expect(weightToRaw(20)).toBe(0.2);
-		expect(weightToRaw(100)).toBe(1);
-		expect(weightToRaw(0)).toBe(0);
+describe('redistributeShares (#1596)', () => {
+	const even = [20, 20, 20, 20, 20];
+
+	it('zieht die anderen Säulen proportional nach, Summe bleibt 100', () => {
+		expect(redistributeShares(even, 0, 40)).toEqual([40, 15, 15, 15, 15]);
+	});
+
+	it('erhält die Verhältnisse der übrigen Säulen untereinander', () => {
+		// Die freie Masse über dem Mindestanteil ist 5 / 15 / 15 / 15 — sie schrumpft gleichmäßig.
+		const result = redistributeShares([40, 10, 20, 20, 10], 0, 50);
+		expect(result[0]).toBe(50);
+		expect(result.reduce((acc, share) => acc + share, 0)).toBe(SHARE_TOTAL);
+		expect(result[2]).toBe(result[3]);
+		expect(result[1]).toBe(result[4]);
+		expect(result[2]).toBeGreaterThan(result[1]);
+	});
+
+	it('klemmt auf den Mindestanteil und die Obergrenze', () => {
+		expect(redistributeShares(even, 1, 0)).toEqual([24, SHARE_MIN, 24, 24, 23]);
+		expect(redistributeShares(even, 2, 999)).toEqual([5, 5, 80, 5, 5]);
+	});
+
+	it('verteilt gleichmäßig, wenn alle anderen Säulen am Mindestanteil stehen', () => {
+		expect(redistributeShares([80, 5, 5, 5, 5], 0, 40)).toEqual([40, 15, 15, 15, 15]);
+	});
+
+	it('hält über eine Folge von Zügen Summe 100 und jeden Anteil ≥ Mindestanteil', () => {
+		let shares = even;
+		for (const [index, next] of [
+			[0, 73],
+			[3, 5],
+			[1, 41],
+			[4, 12],
+			[2, 5],
+		] as [number, number][]) {
+			shares = redistributeShares(shares, index, next);
+			expect(shares.reduce((acc, share) => acc + share, 0)).toBe(SHARE_TOTAL);
+			expect(shares.every((share) => share >= SHARE_MIN && Number.isInteger(share))).toBe(true);
+			expect(shares[index]).toBe(Math.min(Math.max(next, SHARE_MIN), shareMax(shares.length)));
+		}
+	});
+
+	it('lässt eine einzelne Säule auf 100 % stehen', () => {
+		expect(redistributeShares([100], 0, 40)).toEqual([100]);
 	});
 });
 
-describe('normalizeToTotalWeight', () => {
-	it('normiert gleiche Rohwerte auf eine Gleichverteilung (5 × 1 ⇒ je 20 %)', () => {
-		const result = normalizeToTotalWeight([1, 1, 1, 1, 1]);
-		expect(result).toEqual([20, 20, 20, 20, 20]);
-		expect(isWeightSumValid(sumWeights(result))).toBe(true);
+describe('fillContributions (#1596)', () => {
+	const fivePillars = [1, 2, 3, 4, 5].map((id) => pillar(id, `S${id}`, 20));
+
+	it('macht aus einer Aufgabe ohne Zuordnung die Gleichverteilung', () => {
+		expect(fillContributions(fivePillars, [])).toEqual(
+			fivePillars.map((entry) => ({ pillarId: entry.id, share: 20, confidence: 100 })),
+		);
 	});
 
-	it('ist skaleninvariant: 5 × 0,1 ergibt dieselbe Verteilung wie 5 × 1', () => {
-		expect(normalizeToTotalWeight([0.1, 0.1, 0.1, 0.1, 0.1])).toEqual(normalizeToTotalWeight([1, 1, 1, 1, 1]));
+	it('gibt fehlenden Säulen den Mindestanteil und staucht die vorhandenen proportional', () => {
+		const result = fillContributions(fivePillars, [{ pillarId: 1, share: 100, confidence: 90 }]);
+		expect(result.map((entry) => entry.share)).toEqual([80, 5, 5, 5, 5]);
+		expect(result[0].confidence).toBe(90);
+		expect(result[1].confidence).toBe(100);
 	});
 
-	it('verteilt gemischte Rohwerte proportional und ergibt in Summe 100 %', () => {
-		// 2 × 0,5 + 3 × 1 ⇒ Σroh = 4 ⇒ 12,5 / 12,5 / 25 / 25 / 25.
-		const result = normalizeToTotalWeight([0.5, 0.5, 1, 1, 1]);
-		expect(result).toEqual([12.5, 12.5, 25, 25, 25]);
-		expect(isWeightSumValid(sumWeights(result))).toBe(true);
+	it('erhält eine bereits vollständige Verteilung', () => {
+		const existing = fivePillars.map((entry, index) => ({
+			pillarId: entry.id,
+			share: [40, 30, 10, 10, 10][index],
+			confidence: 80,
+		}));
+		expect(fillContributions(fivePillars, existing)).toEqual(existing);
 	});
 
-	it('normiert einen einzelnen positiven Wert auf 100 %', () => {
-		expect(normalizeToTotalWeight([0.3])).toEqual([100]);
-	});
-});
-
-describe('isRawDistributionValid', () => {
-	it('akzeptiert eine Verteilung mit mindestens einem Wert > 0', () => {
-		expect(isRawDistributionValid([0, 0.5, 1])).toBe(true);
+	it('ignoriert Beiträge zu unbekannten Säulen', () => {
+		const result = fillContributions(fivePillars, [{ pillarId: 99, share: 100, confidence: 50 }]);
+		expect(result.map((entry) => entry.share)).toEqual([20, 20, 20, 20, 20]);
 	});
 
-	it('lehnt eine reine Null-Verteilung ab (nicht auf 100 % normierbar)', () => {
-		expect(isRawDistributionValid([0, 0, 0])).toBe(false);
-		expect(isRawDistributionValid([])).toBe(false);
-	});
-
-	it('lehnt fehlende oder negative Werte ab', () => {
-		expect(isRawDistributionValid([0.5, null])).toBe(false);
-		expect(isRawDistributionValid([0.5, -0.1])).toBe(false);
+	it('liefert ohne Säulen eine leere Verteilung', () => {
+		expect(fillContributions([], [])).toEqual([]);
 	});
 });
 
 describe('suggestionsToContributions', () => {
-	const validIds = new Set([1, 2, 3]);
+	const fivePillars = [1, 2, 3, 4, 5].map((id) => pillar(id, `S${id}`, 20));
 	const suggestion = (pillarId: number, confidence: number): PillarSuggestion => ({ pillarId, confidence });
 
-	it('übernimmt eine einzelne Säule mit vollem Anteil (100 %)', () => {
-		expect(suggestionsToContributions([suggestion(2, 80)], validIds)).toEqual([
-			{ pillarId: 2, share: 100, confidence: 80 },
+	it('gibt der vorgeschlagenen Säule den Löwenanteil, die übrigen bleiben am Mindestanteil', () => {
+		expect(suggestionsToContributions([suggestion(2, 80)], fivePillars)).toEqual([
+			{ pillarId: 1, share: 5, confidence: 100 },
+			{ pillarId: 2, share: 80, confidence: 80 },
+			{ pillarId: 3, share: 5, confidence: 100 },
+			{ pillarId: 4, share: 5, confidence: 100 },
+			{ pillarId: 5, share: 5, confidence: 100 },
 		]);
 	});
 
-	it('verteilt die Anteile proportional zur Konfidenz und ergibt in Summe genau 100 %', () => {
-		const result = suggestionsToContributions([suggestion(1, 75), suggestion(2, 25)], validIds);
-		expect(result).toEqual([
-			{ pillarId: 1, share: 75, confidence: 75 },
-			{ pillarId: 2, share: 25, confidence: 25 },
-		]);
-		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
+	it('verteilt den Rest proportional zur Konfidenz, Summe exakt 100', () => {
+		const result = suggestionsToContributions([suggestion(1, 75), suggestion(2, 25)], fivePillars);
+		expect(result.map((entry) => entry.share)).toEqual([64, 21, 5, 5, 5]);
+		expect(result.reduce((acc, entry) => acc + entry.share, 0)).toBe(SHARE_TOTAL);
 	});
 
-	it('verteilt den Rundungsrest (Largest Remainder), sodass die Summe exakt 100 % bleibt', () => {
-		const result = suggestionsToContributions([suggestion(1, 33), suggestion(2, 33), suggestion(3, 33)], validIds);
-		expect(sumWeights(result.map((entry) => entry.share))).toBe(100);
-		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
-	});
-
-	it('erzeugt nie einen negativen Anteil, wenn mehrere Anteile aufrunden (Hamilton statt „Rest auf letzte")', () => {
-		// Regression: naives „runden + Rest auf die letzte Säule" ergäbe hier für die letzte Säule
-		// 100 − 101 = −1. Largest-Remainder hält jeden Anteil ≥ 0 bei exakt 100 % Summe.
-		const ids = new Set([1, 2, 3, 4, 5]);
-		const result = suggestionsToContributions(
-			[suggestion(1, 24.5), suggestion(2, 24.5), suggestion(3, 24.5), suggestion(4, 25.5), suggestion(5, 1)],
-			ids,
-		);
-		expect(result.every((entry) => entry.share >= 0)).toBe(true);
-		expect(sumWeights(result.map((entry) => entry.share))).toBe(100);
-		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
+	it('verteilt den Rundungsrest (Largest Remainder), sodass die Summe exakt 100 bleibt', () => {
+		const result = suggestionsToContributions([suggestion(1, 33), suggestion(2, 33), suggestion(3, 33)], fivePillars);
+		expect(result.reduce((acc, entry) => acc + entry.share, 0)).toBe(SHARE_TOTAL);
+		expect(result.every((entry) => entry.share >= SHARE_MIN && Number.isInteger(entry.share))).toBe(true);
 	});
 
 	it('ignoriert unbekannte Säulen und solche mit Konfidenz 0', () => {
-		const result = suggestionsToContributions([suggestion(1, 60), suggestion(99, 90), suggestion(2, 0)], validIds);
-		expect(result).toEqual([{ pillarId: 1, share: 100, confidence: 60 }]);
+		const result = suggestionsToContributions([suggestion(1, 60), suggestion(99, 90), suggestion(2, 0)], fivePillars);
+		expect(result.map((entry) => entry.share)).toEqual([80, 5, 5, 5, 5]);
+		expect(result[1].confidence).toBe(100);
 	});
 
-	it('liefert eine leere Liste, wenn kein gültiger Vorschlag übrig bleibt', () => {
-		expect(suggestionsToContributions([suggestion(99, 90), suggestion(2, 0)], validIds)).toEqual([]);
-		expect(suggestionsToContributions([], validIds)).toEqual([]);
+	it('fällt ohne verwertbaren Vorschlag auf die Gleichverteilung zurück', () => {
+		expect(suggestionsToContributions([suggestion(99, 90)], fivePillars).map((entry) => entry.share)).toEqual([
+			20, 20, 20, 20, 20,
+		]);
+		expect(suggestionsToContributions([], fivePillars).map((entry) => entry.share)).toEqual([20, 20, 20, 20, 20]);
+	});
+
+	it('liefert ohne Säulen eine leere Liste', () => {
+		expect(suggestionsToContributions([suggestion(1, 60)], [])).toEqual([]);
 	});
 
 	it('klemmt und rundet die Konfidenz auf [0, 100] passend zum Slider-Step', () => {
-		const result = suggestionsToContributions([suggestion(1, 142.6)], validIds);
-		expect(result).toEqual([{ pillarId: 1, share: 100, confidence: 100 }]);
+		const result = suggestionsToContributions([suggestion(1, 142.6)], fivePillars);
+		expect(result[0]).toEqual({ pillarId: 1, share: 80, confidence: 100 });
 	});
 });
 
@@ -537,34 +552,27 @@ describe('#410 calculateMeterHighThreshold — mittlerer Schwellwert für Säule
 /**
  * #431 — Säulen-Verwaltung + dynamische Grenzfälle (Schritt 5/5 von #420).
  *
- * Die Client-Logik (`normalizeToTotalWeight`, `sumWeights`, `isWeightSumValid`,
- * `buildPillarSummaries`) darf keine feste 5er-Säulen-Annahme enthalten. Dieser Block sichert
- * dynamische Säulenzahlen (1, 3, 8) ab: gleiche Rohwerte müssen in jedem Fall eine gültige
- * 100 %-Verteilung ergeben, und `buildPillarSummaries` muss mit beliebiger Säulenzahl arbeiten
- * (ein Eintrag je Säule, Reihenfolge erhalten). Diese Tests sind der einklagbare Vertrag aus
- * dem Body-Block AK3 („UI rendert korrekt bei 1, 3 und 8 Säulen").
+ * Die Client-Logik (`evenShares`, `redistributeShares`, `buildPillarSummaries`) darf keine feste
+ * 5er-Säulen-Annahme enthalten. Dieser Block sichert dynamische Säulenzahlen (1, 3, 8) ab: die
+ * Gleichverteilung muss in jedem Fall 100 % ergeben, und `buildPillarSummaries` muss mit beliebiger
+ * Säulenzahl arbeiten (ein Eintrag je Säule, Reihenfolge erhalten). Diese Tests sind der
+ * einklagbare Vertrag aus dem Body-Block AK3 („UI rendert korrekt bei 1, 3 und 8 Säulen").
  */
 describe('#431 dynamische Säulenzahl — keine feste 5er-Annahme', () => {
-	it.each([1, 3, 8] as const)(
-		'AK3: %i Säulen mit gleichen Rohwerten normieren auf eine 100 %-Gleichverteilung',
-		(count) => {
-			const raws = Array.from({ length: count }, () => 1);
-			const normalized = normalizeToTotalWeight(raws);
-			expect(normalized).toHaveLength(count);
-			// Jeder Anteil gleich groß …
-			const expected = 100 / count;
-			for (const value of normalized) {
-				expect(value).toBeCloseTo(expected, 6);
-			}
-			// … und die Summe ergibt (innerhalb der Toleranz) exakt 100.
-			expect(isWeightSumValid(sumWeights(normalized))).toBe(true);
-		},
-	);
+	it.each([1, 3, 8] as const)('AK3: %i Säulen ergeben eine 100 %-Gleichverteilung', (count) => {
+		const shares = evenShares(count);
+		expect(shares).toHaveLength(count);
+		// Jeder Anteil (bis auf den Rundungsrest) gleich groß …
+		for (const value of shares) {
+			expect(Math.abs(value - SHARE_TOTAL / count)).toBeLessThanOrEqual(1);
+		}
+		// … und die Summe ergibt exakt 100.
+		expect(shares.reduce((acc, share) => acc + share, 0)).toBe(SHARE_TOTAL);
+	});
 
-	it('AK3: ein einzelner Rohwert normiert auf 100 % (Grenzfall 1 Säule)', () => {
-		const normalized = normalizeToTotalWeight([0.7]);
-		expect(normalized).toEqual([100]);
-		expect(isWeightSumValid(sumWeights(normalized))).toBe(true);
+	it('AK3: eine einzelne Säule trägt 100 % (Grenzfall 1 Säule)', () => {
+		expect(evenShares(1)).toEqual([SHARE_TOTAL]);
+		expect(redistributeShares([SHARE_TOTAL], 0, 40)).toEqual([SHARE_TOTAL]);
 	});
 
 	it('AK3: buildPillarSummaries liefert für beliebige Säulenzahl einen Eintrag je Säule (Reihenfolge erhalten)', () => {
@@ -636,54 +644,5 @@ describe('isDistributionUnbalanced (#1555)', () => {
 	it('andere Säulenzahlen: 3 Säulen 70/20/10 unausgewogen (2× = 66,7 %), 2 Säulen 70/30 ausgewogen', () => {
 		expect(isDistributionUnbalanced?.([0.7, 0.2, 0.1])).toBe(true);
 		expect(isDistributionUnbalanced?.([0.7, 0.3])).toBe(false);
-	});
-});
-
-/**
- * Rote Spec-Tests für #1574 — reine Funktion `hasExtremeShare` (Spec: docs/spec/issue-1574.md).
- *
- * Vertrag: Anteil je Säule = roh / Σroh (null zählt als 0); Extremanteil genau dann, wenn bei
- * n ≥ 2 ein Anteil ≈ 0 % oder ≈ 100 % ist (Float-Toleranz analog WEIGHT_SUM_EPSILON). Ausnahme:
- * Bei höchstens einer Säule ist 100 % die einzig gültige Verteilung → false. Nicht normierbar
- * (Σ ≤ 0) → false (der bestehende Summen-Fehlerzustand meldet sich bereits).
- *
- * Der Export existiert noch nicht (neue Funktionalität) — deshalb der optionale Cast statt eines
- * direkten Named-Imports (Muster #1555-Block): `tsc --noEmit` (Pre-Commit) bleibt grün, der Test
- * läuft rot, bis die Funktion implementiert ist.
- */
-const { hasExtremeShare } = pillarModule as unknown as {
-	hasExtremeShare?: (raws: readonly (number | null)[]) => boolean;
-};
-
-describe('hasExtremeShare (#1574)', () => {
-	it('AK4: 100 %/0 %-Verteilung ([1, 0]) hat einen Extremanteil', () => {
-		expect(hasExtremeShare?.([1, 0])).toBe(true);
-	});
-
-	it('AK4: 0 %-Säule am Ende ist ein Extremanteil ([0.2, 0.2, 0.2, 0.2, 0])', () => {
-		expect(hasExtremeShare?.([0.2, 0.2, 0.2, 0.2, 0])).toBe(true);
-	});
-
-	it('AK4: null zählt als 0 — geleerte Säule ist ein Extremanteil ([0.4, null])', () => {
-		expect(hasExtremeShare?.([0.4, null])).toBe(true);
-	});
-
-	it('unausgewogen OHNE Extrem ist KEIN Blockiergrund — das ist der Confirm-Fall (AK1/AK2)', () => {
-		expect(hasExtremeShare?.([0.45, 0.05, 0.2, 0.15, 0.15])).toBe(false);
-		expect(hasExtremeShare?.([0.6, 0.1, 0.1, 0.1, 0.1])).toBe(false);
-	});
-
-	it('Grenzfälle exakt 2×/½ des gleichmäßigen Anteils sind keine Extreme (40/20/20/10/10)', () => {
-		expect(hasExtremeShare?.([0.4, 0.2, 0.2, 0.1, 0.1])).toBe(false);
-	});
-
-	it('AK4-Ausnahme: einzelne Säule (100 % einzig gültige Verteilung) ist nie extrem', () => {
-		expect(hasExtremeShare?.([1])).toBe(false);
-		expect(hasExtremeShare?.([0.7])).toBe(false);
-	});
-
-	it('nicht normierbar (alles 0 bzw. leer) → false, kein Doppelmelden zum Summen-Fehlerzustand', () => {
-		expect(hasExtremeShare?.([0, 0, 0])).toBe(false);
-		expect(hasExtremeShare?.([])).toBe(false);
 	});
 });
