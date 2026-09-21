@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-21
 
-_Enthält v0.2.0 – v0.2.126._
+_Enthält v0.2.0 – v0.2.127._
 
 ### 🔧 Engineering
 
@@ -41,7 +41,7 @@ _Enthält v0.2.0 – v0.2.126._
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1431
 - feat(frontend): add changelog range selector and help page sidebar toc by @deleonio in https://github.com/deleonio/priority-pilot/pull/1432
 - feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
-- feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
+- feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
 - feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
@@ -138,6 +138,7 @@ _Enthält v0.2.0 – v0.2.126._
 - feat(frontend): assign tasks to a whole group by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1603
 - feat(frontend): add pin/unpin support for tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1594
 - ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
+- docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 
 ## v0.1 - 2026-09-12
 
