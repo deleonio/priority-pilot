@@ -18,9 +18,6 @@ import { TaskTree } from './TaskTree';
 vi.mock('@public-ui/react-v19', () => ({
 	KolHeading: ({ _label }: { _label?: string }) => <h4>{_label}</h4>,
 	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
-	KolInputCheckbox: ({ _label, _on }: { _label?: string; _on?: { onChange?: () => void } }) => (
-		<button onClick={() => _on?.onChange?.()}>{_label}</button>
-	),
 	KolPopoverButton: forwardRef<{ hidePopover: () => Promise<void> }, { children?: React.ReactNode }>(
 		({ children }, ref) => {
 			if (ref !== null && typeof ref === 'object') {
@@ -232,5 +229,39 @@ describe('TaskTree — Serien-Icon statt Text-Badge (#1518)', () => {
 		render(<TaskTree {...baseProps} forest={[leaf]} fullForest={[leaf]} tasks={[task(1, 'Einzeln')]} />);
 
 		expect(screen.queryByRole('img', { name: 'Serienaufgabe' })).toBeNull();
+	});
+});
+
+/**
+ * #1582 (Nachzug): Die Pin-Aktion liegt als Toolbar-Item vor „Löschen" statt als eigener Schalter
+ * in der Zeile; sichtbar bleibt der Zustand als Icon-Badge „Angepinnt" (Muster `SeriesBadge`).
+ */
+describe('TaskTree — Pin-Aktion in der Aktions-Toolbar (#1582)', () => {
+	it('angepinnte Aufgabe zeigt das Pin-Badge, die Toolbar bietet „Abpinnen"', () => {
+		const leaf = node(1, 'Angepinnt');
+		render(
+			<TaskTree
+				{...baseProps}
+				forest={[leaf]}
+				fullForest={[leaf]}
+				tasks={[{ ...task(1, 'Angepinnt'), pinned: true }]}
+			/>,
+		);
+
+		expect(screen.getByRole('img', { name: 'Angepinnt' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Abpinnen' })).toBeInTheDocument();
+	});
+
+	it('unangepinnte Aufgabe trägt kein Pin-Badge; „Anpinnen" ruft onPinToggle mit der Aufgabe', () => {
+		const leaf = node(1, 'Offen');
+		const pinnable = task(1, 'Offen');
+		const onPinToggle = vi.fn();
+		render(
+			<TaskTree {...baseProps} forest={[leaf]} fullForest={[leaf]} tasks={[pinnable]} onPinToggle={onPinToggle} />,
+		);
+
+		expect(screen.queryByRole('img', { name: 'Angepinnt' })).toBeNull();
+		fireEvent.click(screen.getByRole('button', { name: 'Anpinnen' }));
+		expect(onPinToggle).toHaveBeenCalledWith(pinnable);
 	});
 });

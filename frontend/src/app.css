@@ -1893,21 +1893,6 @@ kol-toolbar {
 }
 
 /*
- * #1582: `KolInputCheckbox _variant="button" _hideLabel` ist block-level und reserviert ohne
- * feste Breite trotzdem die volle verfügbare Zeilenbreite für das nur visuell versteckte Label
- * (dasselbe Layout-Bug-Muster wie beim `switch`-Host, siehe `.settings-switch-row
- * kol-input-checkbox[_variant='switch']` weiter oben) — der Pin-Toggle wuchs dadurch auf ~324px
- * statt der sichtbaren Icon-Größe, riss `.task-tree-actions` über die 375px-Breite und drückte
- * den „…"-Button in eine zweite Zeile (#1582 Fixup-Runde 3, AK7/#1258-Regression). Feste Breite
- * = das Touch-Target-Minimum (44×44, wie der „…"-Trigger daneben).
- */
-.task-tree-actions kol-input-checkbox[_variant='button'] {
-	flex: none;
-	width: 44px;
-	height: 44px;
-}
-
-/*
  * Touch-Target-Minimum (44×44) für den „…"-Trigger (#361): KoliBri erzwingt die Mindestgröße
  * bereits im Shadow-DOM über `--a11y-min-size`; wir lassen den Host im Fluss, damit das Panel
  * daran verankert werden kann.
@@ -2619,9 +2604,11 @@ kol-toolbar {
    Information, keine Aktion (KI-UX-Entscheidung). Kein Wachstum mit Inhalt — nur ein Icon. */
 /* #1465: Das Säulen-Badge („keine Säulen-Gewichtung gesetzt") ist derselbe Icon-Chip — ein
    gemeinsamer Block statt eines zweiten Badge-Stils. #1518: ebenso das Serien-Badge („Serienaufgabe"),
-   das in der Aufgabenliste das Text-Badge „Serie" ersetzt. */
+   das in der Aufgabenliste das Text-Badge „Serie" ersetzt; #1582: ebenso das Pin-Badge
+   („Angepinnt"), das den Pin-Schalter in der Zeile ersetzt (die Aktion liegt im „…"-Popover). */
 .geo-badge,
 .pillar-missing-badge,
+.pinned-badge,
 .series-badge {
 	display: inline-flex;
 	align-items: center;
