@@ -1,4 +1,4 @@
-import { KolBadge, KolHeading, KolInputCheckbox, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Category, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
@@ -6,6 +6,7 @@ import { extractLeaves } from '../lib/extractLeaves';
 import { CategoryBadge } from './CategoryBadge';
 import { GeoBadge } from './GeoBadge';
 import { PillarMissingBadge } from './PillarMissingBadge';
+import { PinnedBadge } from './PinnedBadge';
 import { SeriesBadge } from './SeriesBadge';
 import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
@@ -183,6 +184,9 @@ const LeafItem = ({
 						{/* #1518: Serien-Icon mit Screenreader-Text statt Text-Badge „Serie" — die Liste zeigt je
 						    Serie nur die aktuelle Instanz. */}
 						{task !== null && task.seriesId != null && <SeriesBadge />}
+						{/* #1582: Der Pin-Zustand steht als Icon-Badge in derselben Zeile wie Serie/Ort — die
+						    Pin-Aktion selbst liegt im „…"-Popover (siehe Toolbar unten). */}
+						{task !== null && task.pinned && <PinnedBadge />}
 						{task !== null && task.isException && (
 							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
 						)}
@@ -213,20 +217,6 @@ const LeafItem = ({
 					</div>
 					{task !== null && !handedOff && (
 						<div className="task-tree-actions">
-							{/* #1582: Generisches, titel-freies Label — `_hideLabel` blendet den Text nur visuell
-							    aus, der Text-Node bleibt im DOM (zusätzlich dupliziert ihn der Tooltip der
-							    Button-Variante). Mit dem Aufgabentitel im Label matchten textbasierte Selektoren
-							    denselben Titel mehrfach pro Zeile (issue-1258-tasks-mobile.spec.ts AK3). Die
-							    Zuordnung zur Aufgabe trägt der Zeilenkontext — dasselbe Muster wie der
-							    „Weitere Aktionen"-Trigger unten. */}
-							<KolInputCheckbox
-								_variant="button"
-								_label={task.pinned ? 'Abpinnen' : 'Anpinnen'}
-								_hideLabel={true}
-								_checked={task.pinned}
-								_icons={{ checked: 'fa-solid fa-thumbtack', unchecked: 'fa-solid fa-thumbtack' }}
-								_on={{ onChange: () => onPinToggle(task) }}
-							/>
 							<KolPopoverButton
 								ref={popoverRef}
 								className="task-tree-more"
@@ -292,6 +282,19 @@ const LeafItem = ({
 													void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onAddSubtask(task));
 												},
 											},
+										},
+										{
+											// #1582: Der Pin-Toggle liegt als vorletztes Toolbar-Item vor „Löschen", statt als
+											// eigener Schalter in der Zeile. Wie beim Erledigt-Toggle bewusst KEIN
+											// `hidePopover()`: mehrfaches Umschalten soll ohne Neuöffnen möglich bleiben.
+											// `KolButton` kennt kein `aria-pressed` — den Zustand tragen das wechselnde Label
+											// (auch als Tooltip der `_hideLabel`-Variante) und das Pin-Badge in der Zeile.
+											type: 'button',
+											_label: task.pinned ? 'Abpinnen' : 'Anpinnen',
+											_hideLabel: true,
+											_icons: { left: { icon: 'fa-solid fa-thumbtack' } },
+											_variant: 'secondary',
+											_on: { onClick: () => onPinToggle(task) },
 										},
 										{
 											type: 'button',
