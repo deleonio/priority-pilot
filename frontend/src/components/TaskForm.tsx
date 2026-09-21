@@ -1190,6 +1190,16 @@ export const TaskForm = ({
 											/>
 										</div>
 									))}
+									{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — analog zu
+									    `PillarWeightsForm.tsx`, dort gab es nie eine Live-Region für diesen Block. */}
+									<p aria-live="polite" className="visually-hidden">
+										{contributions
+											.map(
+												(entry) =>
+													`${pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`}: ${formatNumber(entry.share)} %`,
+											)
+											.join(', ')}
+									</p>
 								</div>
 							)}
 						</div>

@@ -179,6 +179,13 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 							</div>
 						))}
 					</div>
+					{/* #1596-Fixup: `aria-live` für die gekoppelten Regler — ein Zug verschiebt die anderen
+					    Säulen mit, deren Label-Änderung sonst nirgends vorgelesen wird (WCAG 4.1.3). Visuell
+					    versteckt (`.visually-hidden`): der Wert steht bereits sichtbar im Label jedes Reglers,
+					    nur Screenreadern fehlt sonst die Zusammenfassung nach dem Zug. */}
+					<p aria-live="polite" className="visually-hidden">
+						{pillars.map((pillar, index) => `${pillar.name}: ${formatNumber(weights[index] ?? 0)} %`).join(', ')}
+					</p>
 				</>
 			)}
 
