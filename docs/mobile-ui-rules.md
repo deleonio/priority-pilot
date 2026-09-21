@@ -29,9 +29,9 @@ Bestands-Konventionen.
   bewährte Muster. Die Daumen-Zonen-Hierarchie (Primäraktion im unteren Drittel, Bottom-Navigation statt
   Hamburger) gilt als Maßstab für **neue Screens, Flows und künftige Navigations-Entscheidungen** — nicht als
   Umbau-Auftrag für die bestehende Shell.
-- **Design Tokens:** Farben sind tokenisiert (`--pp-*` in `frontend/src/app.css`);
-  Spacing-/Radien-/Typografie-Tokens existieren (noch) nicht. Die 4/8/12/16/24/32px-Skala ist de-facto
-  eingehalten (app.css nutzt genau diese rem-Werte) — Token-Pflicht gilt für neues CSS.
+- **Design Tokens:** Alle Skalen sind tokenisiert (`--pp-*` in `frontend/src/app.css`) — Farbe,
+  Abstand, Typografie, Radius, Schatten, Bewegung; vollständige Token-Liste in
+  [Design-Sprache „Cockpit" §3](../.ai-knowledge/ux-design.md#3-skalen). Token-Pflicht gilt für neues CSS.
 
 ---
 
