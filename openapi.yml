@@ -3594,6 +3594,20 @@ components:
           description: >-
             `true`, wenn diese generierte Serien-Instanz individuell geändert
             wurde — Template-Generierung lässt solche Instanzen unberührt.
+        pinned:
+          type: boolean
+          default: false
+          description: >-
+            `true`, wenn die Aufgabe angepinnt ist (#1582) — angepinnte Aufgaben
+            stehen unabhängig von der Sortierung über der restlichen Liste.
+        pinnedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Zeitpunkt des Anpinnens (#1582), rein serverseitig abgeleitet — bestimmt
+            die Reihenfolge unter mehreren angepinnten Aufgaben (zuletzt angepinnt
+            zuerst). `null`, wenn die Aufgabe nicht angepinnt ist.
         userId:
           type: integer
           nullable: true
@@ -3819,6 +3833,12 @@ components:
           description: >-
             Wenn `true`, wird die Aufgabe 3 Tage nach einer verpassten Deadline
             automatisch gelöscht (nur wenn nicht erledigt, #523).
+        pinned:
+          type: boolean
+          description: >-
+            Pinnt die Aufgabe an (`true`) oder wieder ab (`false`, #1582). Der
+            Server leitet `pinnedAt` daraus ab — beim Anpinnen der aktuelle
+            Zeitpunkt, beim Abpinnen `null`; `pinnedAt` ist nicht direkt setzbar.
         pillars:
           type: array
           description: >-

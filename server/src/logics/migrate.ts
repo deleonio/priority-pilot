@@ -796,3 +796,27 @@ export const migrateCategoryIdColumns = async (db: Sequelize): Promise<void> => 
 		console.log(`Spalte categoryId an ${table} nachgezogen.`);
 	}
 };
+
+/**
+ * Zieht die Pin-Spalten (#1582) auf einer **bestehenden** `tasks`-Tabelle nach, BEVOR
+ * `sequelize.sync()` läuft — analog `migrateUserGeoConfigColumns`. `pinned` ist `NOT NULL DEFAULT
+ * 0` (ALTER TABLE ADD COLUMN NOT NULL erfordert einen DEFAULT-Wert), `pinnedAt` bleibt nullable
+ * (nur beim Anpinnen gesetzt). Idempotent: bereits vorhandene Spalten werden übersprungen; bei
+ * frischer DB No-op — `sync()` legt beide Spalten an.
+ */
+export const migrateTaskPinnedColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('pinned')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `pinned` BOOLEAN NOT NULL DEFAULT 0');
+		console.log('Spalte pinned an tasks nachgezogen.');
+	}
+	if (!existing.includes('pinnedAt')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `pinnedAt` DATETIME');
+		console.log('Spalte pinnedAt an tasks nachgezogen.');
+	}
+};
