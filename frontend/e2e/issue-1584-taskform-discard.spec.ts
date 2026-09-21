@@ -7,6 +7,8 @@ import { taskTitleText, waitForStableView } from './helpers';
  * `docs/spec/issue-1584.md`). Deckt AK1–AK6 ab (AK7 in `frontend/src/lib/task.test.ts`, AK8 —
  * unverändertes Verhalten von `QuickCaptureModal`/`ConfirmDeleteDialog` — durch die bestehenden
  * Suiten `quick-capture.spec.ts` und `delete-dialog-focus.spec.ts` gedeckt, hier nicht dupliziert).
+ * AK1–AK6 laufen über den Anlege-Flow (`QuickCaptureModal`, POST); der zusätzliche PATCH-Pfad-Test
+ * (Fixup PR #1600, Finding #3) deckt denselben AK4-Vertrag für `TaskFormModal` beim Bearbeiten ab.
  */
 test.describe('Aufgabenformular — Rückfrage beim Verlassen ohne Speichern', () => {
 	let runId = 0;
@@ -59,14 +61,23 @@ test.describe('Aufgabenformular — Rückfrage beim Verlassen ohne Speichern', (
 		await page.keyboard.press('Escape');
 
 		const confirmDialog = page.locator('kol-dialog').filter({ hasText: /Verwerfen/i });
-		await expect(confirmDialog).toBeVisible();
-		// Das Aufgabenformular ist zu diesem Zeitpunkt noch nicht geschlossen (AK2).
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		// Test-Pflege (Fixup PR #1600, Finding #1): der `<kol-dialog>`-Host hat wegen Shadow-DOM-`<slot>`
+		// + Top-Layer-Rendering immer `{width:0,height:0}` und gilt Playwright daher unabhängig vom
+		// tatsächlichen Öffnungszustand als „hidden" (Präzedenz `billing.spec.ts`/`lektorat-diff-modal.spec.ts`).
+		// `toHaveCount(1)` prüft die Existenz, der rollenscoped Button-Locator die tatsächliche Sichtbarkeit.
+		await expect(confirmDialog).toHaveCount(1);
+		await expect(confirmDialog.getByRole('button', { name: 'Weiter bearbeiten' })).toBeVisible();
+		// Das Aufgabenformular ist zu diesem Zeitpunkt noch nicht geschlossen (AK2). Test-Pflege
+		// (Fixup PR #1600, Test-Pflege-Hinweis „Defekt 2" der PR-Beschreibung): nach „Überspringen"
+		// lautet die Dialog-Überschrift „Aufgabe anlegen" (QuickCaptureModal-Default `formMode: 'task'`
+		// → `taskFormModalTitle(null, null, 'task')`), NICHT „Neuen Task anlegen" — das gilt nur für den
+		// Capture-Schritt selbst (Zeile 36 oben). Unverändertes Verhalten gegenüber main, kein Defekt von #1584.
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 
 		await confirmDialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
 
 		await expect(confirmDialog).toBeHidden();
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});
 
@@ -88,7 +99,12 @@ test.describe('Aufgabenformular — Rückfrage beim Verlassen ohne Speichern', (
 
 		await page.keyboard.press('Escape');
 		const confirmDialog = page.locator('kol-dialog').filter({ hasText: /Verwerfen/i });
-		await expect(confirmDialog).toBeVisible();
+		// Test-Pflege (Fixup PR #1600, Finding #1): der `<kol-dialog>`-Host hat wegen Shadow-DOM-`<slot>`
+		// + Top-Layer-Rendering immer `{width:0,height:0}` und gilt Playwright daher unabhängig vom
+		// tatsächlichen Öffnungszustand als „hidden" (Präzedenz `billing.spec.ts`/`lektorat-diff-modal.spec.ts`).
+		// `toHaveCount(1)` prüft die Existenz, der rollenscoped Button-Locator die tatsächliche Sichtbarkeit.
+		await expect(confirmDialog).toHaveCount(1);
+		await expect(confirmDialog.getByRole('button', { name: 'Weiter bearbeiten' })).toBeVisible();
 		await confirmDialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
@@ -97,6 +113,49 @@ test.describe('Aufgabenformular — Rückfrage beim Verlassen ohne Speichern', (
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await expect(taskTitleText(page, title)).toHaveCount(0);
 		expect(postSent).toBe(false);
+	});
+
+	test('AK4 (PATCH-Pfad, TaskFormModal): „Verwerfen" beim Bearbeiten schließt ohne PATCH, ursprünglicher Titel bleibt erhalten', async ({
+		page,
+	}) => {
+		// Finding #3 (Fixup PR #1600): AK1-AK6 liefen bisher ausschließlich über den Anlege-Flow
+		// (QuickCaptureModal → POST). `TaskFormModal` mit `task != null` (Bearbeiten, PATCH) war
+		// ungetestet — hier explizit der direkt verdrahtete Bearbeiten-Dialog (`App.tsx`, `dialog.kind === 'edit'`).
+		await openNewTaskForm(page);
+		const originalTitle = uniqueTitle('PatchOriginal');
+		await page.getByRole('textbox', { name: 'Titel' }).fill(originalTitle);
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
+
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await expect(taskTitleText(page, originalTitle)).toBeVisible();
+
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
+		await waitForStableView(page);
+
+		let patchSent = false;
+		await page.route('**/api/v1/tasks/*', (route: Route) => {
+			if (route.request().method() === 'PATCH') {
+				patchSent = true;
+			}
+			return route.continue();
+		});
+
+		await page.getByRole('textbox', { name: 'Titel' }).fill(uniqueTitle('PatchGeaendert'));
+		await page.keyboard.press('Escape');
+
+		const confirmDialog = page.locator('kol-dialog').filter({ hasText: /Verwerfen/i });
+		await expect(confirmDialog).toHaveCount(1);
+		await expect(confirmDialog.getByRole('button', { name: 'Weiter bearbeiten' })).toBeVisible();
+		await confirmDialog.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
+		await expect(confirmDialog).toBeHidden();
+
+		await expect(taskTitleText(page, originalTitle)).toBeVisible();
+		expect(patchSent).toBe(false);
 	});
 
 	test('AK5: erfolgreiches Speichern schließt ohne Rückfrage, obwohl Werte geändert wurden', async ({ page }) => {
@@ -121,7 +180,12 @@ test.describe('Aufgabenformular — Rückfrage beim Verlassen ohne Speichern', (
 		await page.keyboard.press('Escape');
 
 		const confirmDialog = page.locator('kol-dialog').filter({ hasText: /Verwerfen/i });
-		await expect(confirmDialog).toBeVisible();
+		// Test-Pflege (Fixup PR #1600, Finding #1): der `<kol-dialog>`-Host hat wegen Shadow-DOM-`<slot>`
+		// + Top-Layer-Rendering immer `{width:0,height:0}` und gilt Playwright daher unabhängig vom
+		// tatsächlichen Öffnungszustand als „hidden" (Präzedenz `billing.spec.ts`/`lektorat-diff-modal.spec.ts`).
+		// `toHaveCount(1)` prüft die Existenz, der rollenscoped Button-Locator die tatsächliche Sichtbarkeit.
+		await expect(confirmDialog).toHaveCount(1);
+		await expect(confirmDialog.getByRole('button', { name: 'Weiter bearbeiten' })).toBeVisible();
 
 		const continueButton = confirmDialog.getByRole('button', { name: 'Weiter bearbeiten' });
 		const discardButton = confirmDialog.getByRole('button', { name: 'Verwerfen', exact: true });
