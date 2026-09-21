@@ -687,7 +687,15 @@ export const TaskForm = ({
 				}
 				setOwnUserId(own.id);
 				setRecipientId(String(own.id));
-				setRecipientOptions(buildRecipientOptions(own, memberLists.flat()));
+				// #1521 (AK1): Gruppen des Nutzers als eigene Optionen — dieselben Gruppen, deren
+				// Mitglieder oben eingesammelt wurden.
+				setRecipientOptions(
+					buildRecipientOptions(
+						own,
+						memberLists.flat(),
+						groups.map((group) => ({ id: group.id, name: group.name })),
+					),
+				);
 			} catch {
 				if (!cancelled) {
 					setRecipientError(true);
@@ -702,6 +710,22 @@ export const TaskForm = ({
 			cancelled = true;
 		};
 	}, []);
+
+	// #1521 (Review-Finding 2): Gruppen-Aufgaben gibt es nur als Einzel-Task — der Serien-Zweig kennt
+	// kein `groupId` und würde die Auswahl still verwerfen. Im Serien-Modus stehen die Gruppen-Optionen
+	// deshalb gar nicht erst zur Wahl; der Personen-Zweig (#1213/#1222) bleibt unverändert.
+	const visibleRecipientOptions = useMemo(
+		() => (isSeriesMode ? recipientOptions.filter((option) => !option.value.startsWith('group:')) : recipientOptions),
+		[isSeriesMode, recipientOptions],
+	);
+
+	// Wechselt jemand nach der Gruppen-Auswahl auf „Serie", verschwindet die Option aus der Liste —
+	// die Auswahl fällt dann auf das eigene Konto zurück, statt als unsichtbarer Wert stehen zu bleiben.
+	useEffect(() => {
+		if (isSeriesMode && recipientId.startsWith('group:')) {
+			setRecipientId(ownUserId === null ? '' : String(ownUserId));
+		}
+	}, [isSeriesMode, recipientId, ownUserId]);
 
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
@@ -756,7 +780,11 @@ export const TaskForm = ({
 			// `userId` mit raus; die Edit-Pfade lassen in dem Fall zusätzlich `pillars` weg (s. u.), damit
 			// der Server den Säulen-Namen-Remap (AK6) fährt statt die IDs des bisherigen Eigentümers
 			// gegen das Empfänger-Konto mit 400 abzulehnen.
-			const isHandover = recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId;
+			// #1521 (AK1): Gruppen-Option (`group:<id>`) adressiert die ganze Gruppe statt einer Person —
+			// sie ist damit KEINE Übergabe an ein Konto und darf nie als `userId` rausgehen.
+			const selectedGroupId = recipientId.startsWith('group:') ? Number(recipientId.slice('group:'.length)) : null;
+			const isHandover =
+				selectedGroupId === null && recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId;
 			if (seriesEdit) {
 				// Serien-Edit (#316): gesetzte Felder gelten für künftige Instanzen. `startDate` nur mitschicken,
 				// wenn das Feld gefüllt ist (leer → unverändert lassen).
@@ -808,9 +836,7 @@ export const TaskForm = ({
 					categoryId,
 					// #1222 (AK8): Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
 					// (oder eigene ID) fehlt das Feld und die Serie gehört dem Aufrufer wie bisher (AK1).
-					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
-						? { userId: Number(recipientId) }
-						: {}),
+					...(isHandover ? { userId: Number(recipientId) } : {}),
 				};
 				await api.createSeries({ seriesCreate });
 			} else if (taskEdit) {
@@ -852,9 +878,10 @@ export const TaskForm = ({
 					checklist,
 					// #1213: Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
 					// (oder eigene ID) fehlt das Feld und der Ablauf bleibt wie bisher (AK1).
-					...(recipientId !== '' && ownUserId !== null && Number(recipientId) !== ownUserId
-						? { userId: Number(recipientId) }
-						: {}),
+					...(isHandover ? { userId: Number(recipientId) } : {}),
+					// #1521 (AK1): Gruppen-Option gewählt → die Aufgabe wird an die Gruppe gerichtet und
+					// entsteht ohne Einzel-Empfänger (der Server setzt `userId` erst beim Erledigen).
+					...(selectedGroupId !== null ? { groupId: selectedGroupId } : {}),
 				};
 				// Bei erneutem Submit nach fehlgeschlagener Verknüpfung den bereits angelegten Task
 				// wiederverwenden, statt ein Duplikat anzulegen.
@@ -1072,9 +1099,9 @@ export const TaskForm = ({
 								<>
 									<KolSingleSelect
 										_label="Empfänger"
-										_options={recipientOptions}
+										_options={visibleRecipientOptions}
 										_value={recipientId}
-										_disabled={recipientsLoading || recipientOptions.length === 0}
+										_disabled={recipientsLoading || visibleRecipientOptions.length === 0}
 										_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
 									/>
 									{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}

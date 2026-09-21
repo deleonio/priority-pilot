@@ -574,6 +574,22 @@ export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `groupId`-Spalte (Gruppen-Adressierung, #1521) auf einer **bestehenden** `tasks`-Tabelle
+ * nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist`. Nullable, daher kein Default;
+ * Bestandsaufgaben bleiben ohne Gruppenbezug (`NULL`). Idempotent (Spalte vorhanden → No-op).
+ */
+export const migrateTaskGroupId = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('groupId')) {
+		return;
+	}
+	await db.query('ALTER TABLE `tasks` ADD COLUMN `groupId` INTEGER');
+	console.log('Spalte groupId an tasks nachgezogen (#1521).');
+};
+
+/**
  * Zieht die `address`-Spalte (Aufgabenort, Adresssuche im Formular) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Adresse (`NULL`). Idempotent (Spalte
