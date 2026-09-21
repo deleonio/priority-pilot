@@ -44,6 +44,8 @@ interface TaskAttributes {
 	autoDeleteAfterDeadline?: boolean;
 	checklist?: ChecklistItem[];
 	categoryId?: number | null;
+	pinned?: boolean;
+	pinnedAt?: Date | null;
 }
 
 type ValidationResult =
@@ -163,6 +165,8 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		categoryId: task.categoryId ?? null,
 		seriesId: task.seriesId ?? null,
 		isException: task.isException ?? false,
+		pinned: task.pinned ?? false,
+		pinnedAt: task.pinnedAt ? task.pinnedAt.toISOString() : null,
 		// #1222: Eigentümer im DTO (Spiegel zu `Series.userId`) — generierte Instanzen einer
 		// Empfänger-Serie tragen den Serien-Eigentümer (AK4).
 		userId: task.userId ?? null,
@@ -412,6 +416,16 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 			return { ok: false, message: result };
 		}
 		attrs.checklist = result;
+	}
+
+	// Anpinnen (#1582): `pinned` ist der einzige vom Client steuerbare Wert — `pinnedAt` ist rein
+	// serverseitig abgeleitet (nicht vom Client vorgebbar) und folgt hier direkt aus `pinned`.
+	if (input.pinned !== undefined) {
+		if (typeof input.pinned !== 'boolean') {
+			return { ok: false, message: 'pinned muss ein Boolean sein.' };
+		}
+		attrs.pinned = input.pinned;
+		attrs.pinnedAt = input.pinned ? new Date() : null;
 	}
 
 	// Thematische Kategorie (0..1). Die Zugehörigkeit zum Konto prüft die Route gegen die DB
