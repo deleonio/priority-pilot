@@ -180,6 +180,26 @@ export const migrateGroupImageUrl = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Entfernt die `name`-Spalte von einer **bestehenden** `place_favorites`-Tabelle (#1595). Seit dem
+ * Wegfall des Anzeigenamens schreibt keine Route mehr `name`; die Spalte ist auf Bestands-DBs aber
+ * `NOT NULL` ohne Default, jedes `INSERT` bräche sonst mit `NOT NULL constraint failed`.
+ * `sequelize.sync()` ohne `alter` entfernt Spalten nicht. Die Adresse bleibt unverändert erhalten,
+ * verloren geht nur der (laut Ticket ersatzlos entfallende) Name.
+ * Idempotent (Spalte fehlt → übersprungen); No-op bei frischer DB.
+ */
+export const migratePlaceFavoriteDropName = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('place_favorites')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || !existing.has('name')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `place_favorites` DROP COLUMN `name`');
+	console.log('Spalte name aus place_favorites entfernt (#1595).');
+};
+
+/**
  * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalte an `tasks` (nullable,
  * Abwärtskompatibilität). **Achtung:** `pillars.userId` gehört bewusst NICHT mehr dazu — Säulen sind
  * globale Stammdaten; die Spalte wird von {@link migratePillarDropUserId} auf Bestands-DBs

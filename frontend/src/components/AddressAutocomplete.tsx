@@ -17,7 +17,6 @@ import { PlanBadge } from './PlanBadge';
 /** Gespeicherter Ort (#1342) in der Sicht des Adressfelds — Koordinaten optional (Freitext-Ort). */
 export interface PlaceFavoriteSuggestion {
 	id: number;
-	name: string;
 	address: string;
 	lat: number | null;
 	lon: number | null;
@@ -69,18 +68,22 @@ export const AddressAutocomplete = ({
 	const listId = useId();
 
 	// #1342: Favoriten stehen VOR den Suchtreffern in derselben Listbox (AK1) — gleicher
-	// Auswahlpfad, gleiche Tastaturnavigation. Gefiltert wird nach Name UND Adresse; ohne Eingabe
-	// erscheinen alle gespeicherten Orte.
+	// Auswahlpfad, gleiche Tastaturnavigation. Gefiltert wird nach der Adresse (seit #1595 die
+	// einzige Bezeichnung); ohne Eingabe erscheinen alle gespeicherten Orte.
 	const query = normalizeForMatch(value.trim());
 	const favoriteOptions = favorites
-		.filter((favorite) => query === '' || normalizeForMatch(`${favorite.name} ${favorite.address}`).includes(query))
+		.filter((favorite) => query === '' || normalizeForMatch(favorite.address).includes(query))
 		.map((favorite) => ({
 			key: `favorite-${favorite.id}`,
-			text: `${favorite.name} — ${favorite.address}`,
+			text: favorite.address,
 			// Ein Favorit ohne Koordinaten übergibt `null` — keine alte Koordinate bleibt stehen (AK4).
 			suggestion: { address: favorite.address, lat: favorite.lat, lon: favorite.lon } as AddressSuggestion,
 			saveable: false,
+			saved: true,
 		}));
+	// #1595 (AK4): Ein Suchtreffer, dessen Adresse schon gespeichert ist, bietet kein zweites
+	// Speichern an — der Stern zeigt stattdessen den Zustand „bereits gespeichert".
+	const savedAddresses = new Set(favorites.map((favorite) => normalizeForMatch(favorite.address.trim())));
 	const options = [
 		...favoriteOptions,
 		...suggestions.map((suggestion, index) => ({
@@ -88,6 +91,7 @@ export const AddressAutocomplete = ({
 			text: suggestion.address,
 			suggestion,
 			saveable: true,
+			saved: savedAddresses.has(normalizeForMatch(suggestion.address.trim())),
 		})),
 	];
 
@@ -254,24 +258,35 @@ export const AddressAutocomplete = ({
 									   Combobox-Semantik der Zeile mit einem Shadow-DOM-Host durchschneiden. */
 										<button
 											type="button"
-											aria-label={`Als Favorit speichern: ${option.text}`}
+											/* #1595 (AK4): Ist die Adresse schon gespeichert, wechselt der Stern in den gefüllten,
+											   deaktivierten Zustand — Farbe UND Text/ARIA ändern sich (WCAG 1.4.1), es kommt kein
+											   zweites Element für denselben Zustand hinzu (KI-UX-Block). */
+											disabled={option.saved}
+											aria-pressed={option.saved}
+											aria-label={
+												option.saved ? `Bereits gespeichert: ${option.text}` : `Als Favorit speichern: ${option.text}`
+											}
 											onMouseDown={(event) => {
 												// Der Blur des Feldes würde die Liste vor dem Klick schließen (wie bei der Option).
 												event.preventDefault();
 											}}
-											onClick={() => onSaveFavorite(option.suggestion)}
+											onClick={() => {
+												if (!option.saved) {
+													onSaveFavorite(option.suggestion);
+												}
+											}}
 											style={{
 												minWidth: '44px', // Touch-Ziel (Regel 2)
 												minHeight: '44px',
 												border: 'none',
 												background: 'transparent',
-												color: 'var(--pp-ink-muted, #555)',
-												cursor: 'pointer',
+												color: option.saved ? 'var(--pp-accent, #b8860b)' : 'var(--pp-ink-muted, #555)',
+												cursor: option.saved ? 'default' : 'pointer',
 												fontSize: '1.25rem',
 												lineHeight: 1,
 											}}
 										>
-											<span aria-hidden="true">☆</span>
+											<span aria-hidden="true">{option.saved ? '★' : '☆'}</span>
 										</button>
 									)}
 								</li>

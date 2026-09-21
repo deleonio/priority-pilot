@@ -86,7 +86,6 @@ const EXPECTED: Record<string, FeatureId | null> = {
 	// placeFavorites.ts
 	'GET /place-favorites': null,
 	'POST /place-favorites': 'location_reminders',
-	'PATCH /place-favorites/:id': 'location_reminders',
 	'DELETE /place-favorites/:id': 'location_reminders',
 	// geocodeSearch.ts / reverseGeocode.ts (Mount siehe express/index.ts)
 	'GET /geocode-search': 'location_reminders',

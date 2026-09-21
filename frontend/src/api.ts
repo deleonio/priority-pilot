@@ -1133,18 +1133,6 @@ export const api = {
 		return toPlaceFavoriteView(data);
 	},
 
-	// Benennt einen eigenen gespeicherten Ort um (Einstellungen → Standort).
-	async updatePlaceFavorite({ id, name }: { id: number; name: string }): Promise<PlaceFavoriteView> {
-		const { data, error, response } = await client.PATCH('/place-favorites/{id}', {
-			params: { path: { id } },
-			body: { name },
-		});
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response, error);
-		}
-		return toPlaceFavoriteView(data);
-	},
-
 	// Entfernt einen eigenen gespeicherten Ort endgültig.
 	async deletePlaceFavorite({ id }: { id: number }): Promise<void> {
 		const { error, response } = await client.DELETE('/place-favorites/{id}', { params: { path: { id } } });

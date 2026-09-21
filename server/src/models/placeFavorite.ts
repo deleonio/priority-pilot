@@ -2,7 +2,12 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Ein gespeicherter Ort eines Nutzers (Issue #1342): benannte Adresse, optional mit Koordinaten.
+ * Ein gespeicherter Ort eines Nutzers (Issue #1342): eine Adresse, optional mit Koordinaten.
+ *
+ * Seit #1595 ohne Anzeigenamen — die Adresse IST die Bezeichnung (der frühere `name` war auf 60
+ * Zeichen begrenzt und ließ echte Nominatim-Adressen am Anlegen scheitern). Bestandsspalten in
+ * schon bestehenden Datenbanken bleiben unberührt liegen: `sequelize.sync()` löscht keine Spalten,
+ * und die Spalte wird nirgends mehr gelesen oder geschrieben.
  *
  * **Pro Nutzer isoliert** (`userId` Pflicht, Muster {@link ./apiToken.ts}) — fremde Favoriten sind
  * über die `userId`-Bedingung der Routen schlicht unsichtbar (404 statt 403, Datenisolation #207).
@@ -13,7 +18,6 @@ class PlaceFavorite extends Model {
 	public id!: number;
 	// Eigentümer des Favoriten (Datenisolation #207) — Pflicht, siehe Klassenkommentar.
 	public userId!: number;
-	public name!: string;
 	public address!: string;
 	// `null`, solange der Ort nur als Freitext existiert (kein Geocoding-Treffer, AK4).
 	public latitude?: number | null;
@@ -32,10 +36,6 @@ PlaceFavorite.init(
 		},
 		userId: {
 			type: DataTypes.INTEGER,
-			allowNull: false,
-		},
-		name: {
-			type: DataTypes.STRING,
 			allowNull: false,
 		},
 		address: {

@@ -423,26 +423,33 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 	// Rückmeldung während des Speicherns (Feld-Knopf, AK2): ohne sichtbaren Busy-Zustand bemerkt
 	// niemand, ob der Klick angekommen ist, und ein zweiter Klick legt den Ort doppelt an.
 	const [savingFavorite, setSavingFavorite] = useState(false);
+	// #1595 (AK2): Scheitert das Anlegen (500 oder 403 aus `requirePlanFeature`), erscheint die
+	// Meldung sichtbar im Formular statt in einem stummen `catch`. Die Aufgabe selbst bleibt
+	// unberührt bearbeitbar — nur der Ort wurde nicht gespeichert.
+	const [favoriteError, setFavoriteError] = useState<string | null>(null);
 	// Legt den übergebenen Ort als Favorit an (Stern in der Trefferzeile ODER Knopf am Feld, AK2).
-	// Der Name ist beim Anlegen der Adresstext — umbenannt wird in den Einstellungen (AK3).
+	// Der Ort trägt seit #1595 nur seine Adresse — kein Name, kein Umbenennen.
 	const savePlaceFavorite = (suggestion: { address: string; lat: number | null; lon: number | null }): void => {
 		const address = suggestion.address.trim();
 		if (address === '') {
 			return;
 		}
 		setSavingFavorite(true);
+		setFavoriteError(null);
 		void (async () => {
 			try {
 				const created = await api.createPlaceFavorite({
-					name: address,
 					address,
 					latitude: suggestion.lat,
 					longitude: suggestion.lon,
 				});
-				setPlaceFavorites((current) => [...current, created]);
-			} catch {
-				// Ein fehlgeschlagenes Speichern darf das Formular nicht blockieren — der Ort bleibt
-				// ungespeichert, die Aufgabe selbst ist davon unberührt.
+				// #1595 (AK4): Der Server liefert bei einer schon gespeicherten Adresse den bestehenden
+				// Eintrag — er darf die Liste nicht ein zweites Mal betreten.
+				setPlaceFavorites((current) =>
+					current.some((entry) => entry.id === created.id) ? current : [...current, created],
+				);
+			} catch (reason) {
+				setFavoriteError((await toApiError(reason)).message);
 			} finally {
 				setSavingFavorite(false);
 			}
@@ -1458,6 +1465,13 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 											savePlaceFavorite({ address: address.trim(), lat: coords.latitude, lon: coords.longitude }),
 									}}
 								/>
+							)}
+							{/* #1595 (AK2): Fehler beim Anlegen inline im Formular (kein Toast — Anti-Pattern der
+				    Mobile-UI-Regeln); `KolAlert` kündigt den Text an, ohne den Fokus zu verschieben. */}
+							{favoriteError !== null && (
+								<KolAlert _type="error" _label="Ort konnte nicht gespeichert werden">
+									{favoriteError}
+								</KolAlert>
 							)}
 							{/* #1111: passive Anzeige des gespeicherten Ortsbezugs (Task UND Serie) — außerhalb des
 				    `role="combobox"`-Containers (dort gehören nur Feld + Listbox hinein) und ohne
