@@ -643,6 +643,36 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		[reload],
 	);
 
+	// #1582: Pinnt eine Aufgabe an bzw. wieder ab. Bleibt (anders als `handleDoneToggle`) im
+	// `forest` sichtbar — kein sticky-Removal-Pfad nötig, ein `reload()` genügt, damit die neue
+	// `pinned`/`pinnedAt`-Sortierung (`sortPinnedFirst` in `TaskTree`) sofort greift.
+	const handlePinToggle = useCallback(
+		(task: Task): void => {
+			void (async () => {
+				try {
+					setUpdateError(null);
+					await api.updateTask({
+						id: task.id,
+						taskUpdate: {
+							title: task.title,
+							description: task.description,
+							status: task.status,
+							priority: task.priority,
+							estimatedEffort: task.estimatedEffort,
+							deadline: task.deadline,
+							pinned: !task.pinned,
+						},
+					});
+					await reload();
+				} catch (reason) {
+					const apiError = await toApiError(reason);
+					setUpdateError(apiError.message);
+				}
+			})();
+		},
+		[reload],
+	);
+
 	// #1168: Signal-Panel-Aktion „Erledigt" — setzt die Aufgabe auf `Done`. Anders als
 	// `handleDoneToggle` kein sticky-Pfad (`DONE_REMOVAL_DELAY_MS`): der greift für die Aufgabenliste,
 	// das Panel lädt stattdessen sofort per `reload()` die nächste Aufgabe (`afterMutation`).
@@ -1017,6 +1047,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onEditDependencies={openDependencies}
 													onAddSubtask={openAddSubtask}
 													onDoneToggle={handleDoneToggle}
+													onPinToggle={handlePinToggle}
 												/>
 											) : (
 												<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
@@ -1037,6 +1068,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												onEditDependencies={openDependencies}
 												onAddSubtask={openAddSubtask}
 												onDoneToggle={handleDoneToggle}
+												onPinToggle={handlePinToggle}
 											/>
 										)
 									) : filteredCompletedTasks.length === 0 ? (

@@ -15,6 +15,7 @@ import {
 	migrateLlmProviderUserId,
 	migrateUsersRoleColumn,
 	migrateCategoryIdColumns,
+	migrateTaskPinnedColumns,
 	migrateTaskGroupId,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
@@ -123,10 +124,11 @@ describe('migrateSeriesColumns', () => {
 		// Alt-Schema, migrieren, dann sync() (legt den Unique-Index an).
 		await createLegacyTasksTable();
 		await migrateSeriesColumns(sequelize);
-		// `checklist` (#531) ist Teil des aktuellen Task-Modells und wird vom Task.create()-INSERT
-		// mitgeschrieben — eigene Migration hier nachziehen, damit der Insert nicht an der fehlenden
-		// Spalte bricht (nicht Teil der Serien-Spalten).
+		// `checklist` (#531) und `pinned`/`pinnedAt` (#1582) sind Teil des aktuellen Task-Modells und
+		// werden vom Task.create()-INSERT mitgeschrieben — eigene Migrationen hier nachziehen, damit
+		// der Insert nicht an einer fehlenden Spalte bricht (nicht Teil der Serien-Spalten).
 		await migrateTaskChecklist(sequelize);
+		await migrateTaskPinnedColumns(sequelize);
 		await sequelize.sync();
 
 		const occurrence = new Date('2026-01-01T00:00:00.000Z');
@@ -340,6 +342,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskAddress(sequelize);
 		await migrateTaskCreatedById(sequelize); // #1213: Ersteller-Spalte, ebenfalls von Task.findAll mitselektiert
 		await migrateCategoryIdColumns(sequelize); // Kategorie-Spalte, ebenfalls von Task.findAll mitselektiert
+		await migrateTaskPinnedColumns(sequelize); // #1582: Pin-Spalten, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskGroupId(sequelize); // #1521: Gruppen-Spalte, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
@@ -642,11 +645,12 @@ describe('migrateUserGeoConfigColumns', () => {
 describe('migrateTaskAddress', () => {
 	it('zieht auf einem Alt-Schema die address-Spalte nach, sodass sync() nicht mehr bricht', async () => {
 		await createLegacyTasksTable();
-		// Serien-Spalten + checklist nachziehen (Vorbedingung für sync()/Task.create() auf dem
-		// Alt-Schema, siehe migrateSeriesColumns/migrateTaskChecklist) — nicht Teil dieser Migration,
-		// aber ohne sie bricht sync() bzw. das INSERT an anderer Stelle.
+		// Serien-Spalten + checklist + pinned/pinnedAt nachziehen (Vorbedingung für sync()/Task.create()
+		// auf dem Alt-Schema, siehe migrateSeriesColumns/migrateTaskChecklist/migrateTaskPinnedColumns)
+		// — nicht Teil dieser Migration, aber ohne sie bricht sync() bzw. das INSERT an anderer Stelle.
 		await migrateSeriesColumns(sequelize);
 		await migrateTaskChecklist(sequelize);
+		await migrateTaskPinnedColumns(sequelize);
 
 		assert.ok(!(await taskColumns()).includes('address'), 'Alt-Schema hat address noch nicht');
 
@@ -684,6 +688,7 @@ describe('migrateCategoryIdColumns', () => {
 		await migrateSeriesColumns(sequelize);
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskAddress(sequelize);
+		await migrateTaskPinnedColumns(sequelize);
 
 		assert.ok(!(await taskColumns()).includes('categoryId'), 'Alt-Schema hat categoryId noch nicht');
 
@@ -710,6 +715,52 @@ describe('migrateCategoryIdColumns', () => {
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabellen frisch an');
 
 		assert.ok((await taskColumns()).includes('categoryId'), 'frische tasks-Tabelle enthält categoryId');
+	});
+});
+
+// ── #1582: migrateTaskPinnedColumns — pinned (NOT NULL DEFAULT false) + pinnedAt (nullable) ──
+describe('migrateTaskPinnedColumns', () => {
+	it('zieht auf einem Alt-Schema pinned/pinnedAt nach, sodass sync() nicht mehr bricht', async () => {
+		await createLegacyTasksTable();
+		await migrateSeriesColumns(sequelize);
+		await migrateTaskChecklist(sequelize);
+		await migrateTaskAddress(sequelize);
+		await migrateCategoryIdColumns(sequelize);
+
+		const before = await taskColumns();
+		assert.ok(!before.includes('pinned'), 'Alt-Schema hat pinned noch nicht');
+		assert.ok(!before.includes('pinnedAt'), 'Alt-Schema hat pinnedAt noch nicht');
+
+		await migrateTaskPinnedColumns(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		const after = await taskColumns();
+		assert.ok(after.includes('pinned'), 'pinned wurde nachgezogen');
+		assert.ok(after.includes('pinnedAt'), 'pinnedAt wurde nachgezogen');
+
+		const task = await Task.create({ title: 'Ohne Pin' });
+		assert.equal(task.pinned, false, 'Bestands-Tasks bleiben unangepinnt (NOT NULL DEFAULT false)');
+		assert.equal(task.pinnedAt ?? null, null, 'Bestands-Tasks bleiben ohne pinnedAt (NULL)');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelten Spalten', async () => {
+		await createLegacyTasksTable();
+		await migrateTaskPinnedColumns(sequelize);
+		await assert.doesNotReject(() => migrateTaskPinnedColumns(sequelize), 'zweiter Lauf bleibt stabil');
+		const columns = await taskColumns();
+		assert.equal(columns.filter((name) => name === 'pinned').length, 1, 'pinned genau einmal');
+		assert.equal(columns.filter((name) => name === 'pinnedAt').length, 1, 'pinnedAt genau einmal');
+	});
+
+	it('ist auf einer DB ohne tasks-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
+
+		await assert.doesNotReject(() => migrateTaskPinnedColumns(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		const columns = await taskColumns();
+		assert.ok(columns.includes('pinned'), 'frische Tabelle enthält pinned');
+		assert.ok(columns.includes('pinnedAt'), 'frische Tabelle enthält pinnedAt');
 	});
 });
 

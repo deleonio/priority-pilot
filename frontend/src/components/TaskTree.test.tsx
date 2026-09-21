@@ -18,6 +18,9 @@ import { TaskTree } from './TaskTree';
 vi.mock('@public-ui/react-v19', () => ({
 	KolHeading: ({ _label }: { _label?: string }) => <h4>{_label}</h4>,
 	KolBadge: ({ _label }: { _label?: string }) => <span>{_label}</span>,
+	KolInputCheckbox: ({ _label, _on }: { _label?: string; _on?: { onChange?: () => void } }) => (
+		<button onClick={() => _on?.onChange?.()}>{_label}</button>
+	),
 	KolPopoverButton: forwardRef<{ hidePopover: () => Promise<void> }, { children?: React.ReactNode }>(
 		({ children }, ref) => {
 			if (ref !== null && typeof ref === 'object') {
@@ -67,6 +70,7 @@ const task = (id: number, title: string, status: TaskStatus = TaskStatus.Open): 
 	deadline: null,
 	seriesId: null,
 	isException: false,
+	pinned: false,
 	pillars: [],
 });
 
@@ -78,6 +82,7 @@ const baseProps = {
 	onEditDependencies: vi.fn(),
 	onAddSubtask: vi.fn(),
 	onDoneToggle: vi.fn().mockResolvedValue(undefined),
+	onPinToggle: vi.fn(),
 };
 
 describe('TaskTree — Erledigt-Guard für eingeblendete Oberaufgaben (#1345, TaskTree.tsx:110)', () => {

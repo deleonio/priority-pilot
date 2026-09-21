@@ -54,6 +54,11 @@ class Task extends Model {
 	public seriesId?: number | null;
 	public isException!: boolean;
 	public seriesOccurrence?: Date | null;
+	// Anpinnen (#1582): angepinnte Tasks stehen unabhängig von Sortierung oben. `pinnedAt` ist rein
+	// serverseitig abgeleitet (Zeitpunkt des Anpinnens) und bestimmt die Reihenfolge unter mehreren
+	// angepinnten Tasks (zuletzt angepinnt zuerst); beim Abpinnen wird sie auf `null` zurückgesetzt.
+	public pinned!: boolean;
+	public pinnedAt?: Date | null;
 	// Provenienz (#553): dauerhafte, FK-freie Spalte, die beim Generieren einmalig auf `series.id`
 	// gesetzt wird und NIE wieder geändert wird — auch nicht beim Löschen der Serie. Während `seriesId`
 	// die Live-Verbindung zur (ggf. zwischenzeitlich gelöschten) Serie hält und beim Abkoppeln auf null
@@ -199,6 +204,16 @@ Task.init(
 			defaultValue: false,
 		},
 		seriesOccurrence: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Anpinnen (#1582). Default `false`, damit Bestandsaufgaben unangepinnt bleiben.
+		pinned: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
+		},
+		pinnedAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
