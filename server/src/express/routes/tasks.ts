@@ -857,7 +857,10 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// filtert aber live über `Task.userId` und würde den alten Eigentümer nie treffen (Review
 			// #1389, Finding #1). Der Empfänger selbst wird ebenfalls nicht geprüft, da die Übergabe kein
 			// eigener „Done"-Verdienst des Empfängers ist.
-			const meilensteinUserId = task.userId;
+			// #1521 (Review-Finding 1): Bei einem Gruppen-Claim ist `task.userId` vor dem Commit noch
+			// `null` — der Erlediger steht nur in `claimUserId`. Ohne die Auflösung hier bliebe
+			// `meilensteinUserId` null und der Meilenstein-Push zur erledigten Gruppen-Aufgabe entfiele.
+			const meilensteinUserId = claimUserId ?? task.userId;
 			const istDoneUebergang = recipientId === null && !warVorherDone && attrs.status === 'Done';
 			const meilensteineVorher =
 				istDoneUebergang && meilensteinUserId != null ? await meilensteinStandVon(meilensteinUserId) : null;

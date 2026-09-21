@@ -711,6 +711,22 @@ export const TaskForm = ({
 		};
 	}, []);
 
+	// #1521 (Review-Finding 2): Gruppen-Aufgaben gibt es nur als Einzel-Task — der Serien-Zweig kennt
+	// kein `groupId` und würde die Auswahl still verwerfen. Im Serien-Modus stehen die Gruppen-Optionen
+	// deshalb gar nicht erst zur Wahl; der Personen-Zweig (#1213/#1222) bleibt unverändert.
+	const visibleRecipientOptions = useMemo(
+		() => (isSeriesMode ? recipientOptions.filter((option) => !option.value.startsWith('group:')) : recipientOptions),
+		[isSeriesMode, recipientOptions],
+	);
+
+	// Wechselt jemand nach der Gruppen-Auswahl auf „Serie", verschwindet die Option aus der Liste —
+	// die Auswahl fällt dann auf das eigene Konto zurück, statt als unsichtbarer Wert stehen zu bleiben.
+	useEffect(() => {
+		if (isSeriesMode && recipientId.startsWith('group:')) {
+			setRecipientId(ownUserId === null ? '' : String(ownUserId));
+		}
+	}, [isSeriesMode, recipientId, ownUserId]);
+
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
 		if (title === '') {
@@ -1083,9 +1099,9 @@ export const TaskForm = ({
 								<>
 									<KolSingleSelect
 										_label="Empfänger"
-										_options={recipientOptions}
+										_options={visibleRecipientOptions}
 										_value={recipientId}
-										_disabled={recipientsLoading || recipientOptions.length === 0}
+										_disabled={recipientsLoading || visibleRecipientOptions.length === 0}
 										_on={{ onChange: (_event, value) => setRecipientId(readString(value)) }}
 									/>
 									{recipientsLoading && <p className="hint">Empfänger werden geladen …</p>}
