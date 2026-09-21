@@ -1849,6 +1849,18 @@ kol-toolbar {
 	min-width: 0;
 }
 
+/*
+ * #1521: Light-DOM-Anker für das Gruppen-Badge (Test-ID). `inline-flex` statt `display: contents`,
+ * damit der Wrapper eine eigene Box hat (AK8 misst die Bounding-Box); `min-width: 0` lässt das
+ * Badge in der umbrechenden Badge-Zeile schrumpfen statt zu überlaufen.
+ */
+.task-tree-badge-anchor {
+	display: inline-block;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
 @media (min-width: 48rem) {
 	.task-tree-row-controls {
 		flex: 0 1 auto;
@@ -2359,6 +2371,16 @@ kol-toolbar {
 	flex: 1 1 10rem;
 	display: inline-flex;
 	--a11y-min-size: 2.75rem;
+}
+
+/* Batch-Trigger zur Neuberechnung der Säulenverteilung (Admin): Button und Ergebnis unter
+   der Nutzerliste, mit Abstand statt direkt angeklebt. */
+.admin-reassign {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--pp-space-3);
+	margin-top: var(--pp-space-3);
 }
 
 /* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
@@ -3893,6 +3915,93 @@ kol-alert {
 
 .balance-node--7 {
 	fill: var(--pp-pillar-neon-7);
+}
+
+/*
+ * Segmente: der Ring als Tortengrafik der Ist-Anteile. Satt gefüllt in der Neon-Rampe wie die
+ * Scheiben — die Stücke grenzen aneinander, eine halbtransparente Füllung liefe ineinander.
+ * Ohne Modifier bleibt die Füllung neutral: Ab der 8. Säule wird nicht weiter eingefärbt.
+ */
+.balance-wedge {
+	fill: var(--pp-border-strong);
+	stroke: var(--pp-surface-1);
+	stroke-width: 0.5;
+	stroke-linejoin: round;
+}
+
+.balance-wedge--1 {
+	fill: var(--pp-pillar-neon-1);
+}
+
+.balance-wedge--2 {
+	fill: var(--pp-pillar-neon-2);
+}
+
+.balance-wedge--3 {
+	fill: var(--pp-pillar-neon-3);
+}
+
+.balance-wedge--4 {
+	fill: var(--pp-pillar-neon-4);
+}
+
+.balance-wedge--5 {
+	fill: var(--pp-pillar-neon-5);
+}
+
+.balance-wedge--6 {
+	fill: var(--pp-pillar-neon-6);
+}
+
+.balance-wedge--7 {
+	fill: var(--pp-pillar-neon-7);
+}
+
+/*
+ * Zeiger: je Säule ein Zeiger auf dem Zifferblatt. Halbtransparent gefüllt mit kräftiger
+ * Kante wie die Strahlen — dieselbe Aufteilung, nur schlanker, damit die Skala frei bleibt.
+ */
+.balance-hand {
+	fill: color-mix(in srgb, var(--pp-border-strong) 55%, var(--pp-surface-1));
+	fill-opacity: 0.5;
+	stroke: var(--pp-border-strong);
+	stroke-width: 0.5;
+	stroke-linejoin: round;
+}
+
+.balance-hand--1 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-1) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-1);
+}
+
+.balance-hand--2 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-2) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-2);
+}
+
+.balance-hand--3 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-3) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-3);
+}
+
+.balance-hand--4 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-4) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-4);
+}
+
+.balance-hand--5 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-5) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-5);
+}
+
+.balance-hand--6 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-6) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-6);
+}
+
+.balance-hand--7 {
+	fill: color-mix(in srgb, var(--pp-pillar-neon-7) 55%, var(--pp-surface-1));
+	stroke: var(--pp-pillar-neon-7);
 }
 
 /*

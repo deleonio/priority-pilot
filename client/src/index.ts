@@ -67,6 +67,7 @@ export type UserSearchHit = Schemas['UserSearchHit'];
 /** Rollensystem admin/member: Nutzer-Eintrag der Admin-Nutzerverwaltung. */
 export type AdminUser = Schemas['AdminUser'];
 export type AdminUserRoleUpdate = Schemas['AdminUserRoleUpdate'];
+export type ReassignPillarsResult = Schemas['ReassignPillarsResult'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];
 export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];
 export type ChecklistItem = Schemas['ChecklistItem'];

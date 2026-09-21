@@ -145,6 +145,7 @@ export const main = async (): Promise<void> => {
 			migratePillarFeedbackUserId,
 			migrateTaskChecklist,
 			migrateTaskAddress,
+			migrateTaskGroupId,
 			migrateUserGeoConfigColumns,
 			migrateUsersDisplayNameCustom,
 			migrateLlmProviderKindColumns,
@@ -201,6 +202,8 @@ export const main = async (): Promise<void> => {
 		// Fehlende address-Spalte an tasks nachziehen — vor sync(), damit Lese-/Schreibzugriffe auf
 		// bestehenden DBs nicht mit `no such column` brechen.
 		await migrateTaskAddress(sequelize);
+		// Fehlende groupId-Spalte an tasks nachziehen (#1521) — vor sync().
+		await migrateTaskGroupId(sequelize);
 		// Fehlende Geo-Config-Spalten an users nachziehen (#1098) — vor sync(), damit Login,
 		// /geo-config und /tasks/nearby auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateUserGeoConfigColumns(sequelize);

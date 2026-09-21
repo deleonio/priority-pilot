@@ -25,7 +25,17 @@ import { waitForStableView } from './helpers';
  * unabhängig davon, was auf dem jeweiligen Rechner in der `.env` steht.
  */
 
-const VARIANTEN = ['herz', 'blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall'] as const;
+const VARIANTEN = [
+	'herz',
+	'blasen',
+	'scheiben',
+	'ringe',
+	'strahlen',
+	'bluete',
+	'kristall',
+	'segmente',
+	'zeiger',
+] as const;
 
 /** Säulen mit gleichem Ziel und ungleichem Ist — die Schieflage, an der man die Bilder liest. */
 const SAEULEN = [

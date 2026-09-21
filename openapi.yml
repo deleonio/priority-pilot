@@ -1958,6 +1958,77 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/tasks/reassign-pillars:
+    post:
+      summary: Säulenverteilung aller Aufgaben neu berechnen (Batch)
+      description: >-
+        Admin-getriggert: Berechnet die Säulen-Beiträge ALLER Aufgaben (aller
+        Konten, einschließlich der erledigten) anhand des Aufgabenkontexts
+        (Titel/Beschreibung) per KI-Klassifikator neu und speichert sie. Status,
+        Punkte und Streak bleiben unberührt — der Batch öffnet Aufgaben nur für
+        die Neuberechnung ihrer Verteilung, nicht im Status-Sinn. Aufgaben ohne
+        brauchbaren Vorschlag behalten ihre bisherige Zuordnung; ein Fehler bei
+        einer Aufgabe reißt den Lauf nicht ab. Bewusst manuell (kein Cron), damit
+        der LLM-Upstream nicht unbemerkt dauerhaft läuft.
+      operationId: reassignTaskPillars
+      tags: [admin]
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen Aufruf.
+          schema:
+            type: string
+            maxLength: 64
+        - name: limit
+          in: query
+          required: false
+          description: >-
+            Obergrenze der in diesem Lauf verarbeiteten Aufgaben (Default 200).
+            So lässt sich ein großer Bestand in mehreren Aufrufen abarbeiten,
+            statt den Request bis zum offenen HTTP-Timeout laufen zu lassen —
+            `remaining` in der Antwort zeigt, wie viele Aufgaben noch offen sind.
+          schema:
+            type: integer
+            minimum: 1
+        - name: offset
+          in: query
+          required: false
+          description: >-
+            Anzahl bereits verarbeiteter Aufgaben vorheriger Läufe derselben
+            Portionierungs-Serie (Default 0) — ohne ihn träfe jeder Aufruf
+            wieder dieselbe erste `limit`-Portion. Zum Fortsetzen die Summe aus
+            `updated`+`failed`+`skipped` aller vorherigen Läufe übergeben.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Ergebnis des Batch-Laufs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReassignPillarsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: >-
+            Es läuft bereits ein Batch-Lauf (prozessweites Lauf-Flag) — erst
+            dessen Ende abwarten.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /groups/{id}/members:
     parameters:
       - name: id
@@ -3070,6 +3141,31 @@ components:
       properties:
         plan:
           $ref: '#/components/schemas/Plan'
+    ReassignPillarsResult:
+      type: object
+      description: >-
+        Ergebnis des Batch-Laufs zur Neuberechnung der Säulenverteilung aller
+        Aufgaben (POST /admin/tasks/reassign-pillars).
+      required: [updated, failed, skipped, users, remaining]
+      properties:
+        updated:
+          type: integer
+          description: Aufgaben mit erfolgreich ersetzter Säulenverteilung.
+        failed:
+          type: integer
+          description: Aufgaben, deren Klassifikation oder Speichern fehlschlug (Lauf lief weiter).
+        skipped:
+          type: integer
+          description: Aufgaben ohne gültigen Vorschlag — Zuordnung unverändert gelassen.
+        users:
+          type: integer
+          description: Konten mit verarbeiteten Aufgaben im Lauf.
+        remaining:
+          type: integer
+          description: >-
+            Noch nicht verarbeitete Aufgaben, weil `limit` erreicht wurde — 0,
+            wenn der Bestand komplett durchlief. Ein erneuter Aufruf setzt den
+            Batch bei den verbleibenden Aufgaben fort.
     Plan:
       type: string
       description: Buchbares Paket. Reihenfolge der Werte ist die Rangfolge (aufsteigend).
@@ -3529,6 +3625,17 @@ components:
           type: string
           nullable: true
           description: Anzeigename des Empfängers (E-Mail-Fallback, #1213); synchron zu `forUserId`.
+        groupId:
+          type: integer
+          nullable: true
+          description: >-
+            Gruppe, an die die Aufgabe gerichtet ist (#1521). Solange `userId` `null` ist,
+            sehen alle Mitglieder der Gruppe die Aufgabe; das erledigende Mitglied wird als
+            `userId` eingetragen und bekommt die Gutschrift. `null` bei Einzel-Aufgaben.
+        groupName:
+          type: string
+          nullable: true
+          description: Name der adressierten Gruppe (#1521); synchron zu `groupId`.
         pillars:
           type: array
           description: >-
@@ -3563,6 +3670,13 @@ components:
             Optionaler Empfänger (#1213): das Konto, dem die Aufgabe gehören soll.
             Der Aufrufer muss mit ihm eine Gruppe teilen (sonst 403); ohne das Feld
             oder mit der eigenen ID gehört die Aufgabe dem Aufrufer wie bisher.
+        groupId:
+          type: integer
+          nullable: true
+          description: >-
+            Optionale Gruppen-Adressierung (#1521): die Aufgabe wird an alle Mitglieder der
+            Gruppe gerichtet und entsteht ohne Eigentümer. Der Aufrufer muss Mitglied der
+            Gruppe sein (sonst 403); zusammen mit `userId` ist das Feld ungültig (400).
         status:
           $ref: '#/components/schemas/TaskStatus'
         priority:
