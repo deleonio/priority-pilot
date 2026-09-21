@@ -1,6 +1,16 @@
 import { KolDialog } from '@public-ui/react-v19';
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode, type RefObject } from 'react';
 import { deepActiveElement } from '../lib/focus';
+
+/**
+ * Imperatives Handle für Aufrufer, die den Dialog nach einem Nutzer-Close (Escape/Backdrop/X)
+ * wieder öffnen müssen (#1584): das native `<dialog>` schließt sich SELBST, BEVOR `onClose` feuert
+ * (s. Kommentar unten) — ein Aufrufer, der das Schließen an dieser Stelle doch noch abbrechen will
+ * (z. B. eine Rückfrage bei ungespeicherten Änderungen), muss `showModal()` erneut auslösen.
+ */
+export interface ModalHandle {
+	reopen: () => void;
+}
 
 interface ModalProps {
 	/** Überschrift des Dialogs (wird als `_label` zum Card-Titel und accessible name des Dialogs). */
@@ -44,15 +54,17 @@ interface ModalProps {
  * unmountet). Die Cleanup-`close()` macht den Öffnen-Effekt idempotent gegenüber StrictMode — sonst
  * liefe beim simulierten Re-Mount ein zweites `showModal()` auf den bereits offenen Dialog.
  */
-export const Modal = ({
-	title,
-	onClose,
-	width = 'var(--pp-modal-width-desktop)',
-	fallbackFocusRef,
-	initialFocusRef,
-	children,
-}: ModalProps) => {
+export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
+	{ title, onClose, width = 'var(--pp-modal-width-desktop)', fallbackFocusRef, initialFocusRef, children }: ModalProps,
+	forwardedRef,
+) {
 	const ref = useRef<HTMLKolDialogElement>(null);
+
+	useImperativeHandle(forwardedRef, () => ({
+		reopen: () => {
+			void ref.current?.showModal();
+		},
+	}));
 
 	// `onClose` über einen Ref ansprechen, damit der Öffnen-Effekt unabhängig von der Callback-Identität
 	// genau einmal (beim Mount) läuft.
@@ -159,4 +171,4 @@ export const Modal = ({
 			<div className="modal-body">{children}</div>
 		</KolDialog>
 	);
-};
+});

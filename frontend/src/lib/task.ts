@@ -141,3 +141,46 @@ export const priorityBadge = (priority: number): { label: string; type: 'info' |
 	if (priority >= 2) return { label: `P${priority}`, type: 'warning' };
 	return { label: `P${priority}`, type: 'info' };
 };
+
+/** Snapshot der Aufgabenformular-Werte für die Dirty-Erkennung beim Schließen (#1584, AK7). */
+export interface TaskFormSnapshot {
+	title: string;
+	priority: number | null;
+	estimatedEffort: number | null;
+	description: string;
+	address: string;
+	deadline: string;
+	categoryId: number | null;
+	mode: 'task' | 'series';
+	contributions: { pillarId: number; share: number; confidence: number }[];
+}
+
+/**
+ * Reihenfolge-unabhängiger Vergleich der Säulen-Beiträge — gleiches Muster wie `pillarsEqual` in
+ * `TaskForm.tsx` (dort nicht exportiert, daher hier eigenständig für den Snapshot-Vergleich).
+ */
+const contributionsEqual = (a: TaskFormSnapshot['contributions'], b: TaskFormSnapshot['contributions']): boolean => {
+	if (a.length !== b.length) return false;
+	const signature = (list: TaskFormSnapshot['contributions']) =>
+		list
+			.map((entry) => `${entry.pillarId}:${entry.share}:${entry.confidence}`)
+			.sort()
+			.join('|');
+	return signature(a) === signature(b);
+};
+
+/**
+ * Reine Dirty-Erkennung für die Schließen-Rückfrage im Aufgabenformular (#1584, AK7): vergleicht den
+ * Snapshot beim Öffnen gegen den aktuellen Stand beim Schließzeitpunkt (Wert-Vergleich, nicht
+ * „wurde berührt" — ein getippt-und-zurückgesetztes Feld gilt als unverändert).
+ */
+export const isTaskFormDirty = (initial: TaskFormSnapshot, current: TaskFormSnapshot): boolean =>
+	initial.title !== current.title ||
+	initial.priority !== current.priority ||
+	initial.estimatedEffort !== current.estimatedEffort ||
+	initial.description !== current.description ||
+	initial.address !== current.address ||
+	initial.deadline !== current.deadline ||
+	initial.categoryId !== current.categoryId ||
+	initial.mode !== current.mode ||
+	!contributionsEqual(initial.contributions, current.contributions);

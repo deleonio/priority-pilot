@@ -9,8 +9,8 @@ import { deepActiveElement } from '../lib/focus';
 import { taskFormModalTitle } from '../lib/task';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { AdvisorResults } from './AdvisorResults';
-import { Modal } from './Modal';
-import { TaskForm, type TaskFormInitialValues } from './TaskForm';
+import { Modal, type ModalHandle } from './Modal';
+import { TaskForm, type TaskFormHandle, type TaskFormInitialValues } from './TaskForm';
 import { VoiceField } from './VoiceField';
 import { AiQuotaHint } from './AiQuotaHint';
 import { PlanBadge } from './PlanBadge';
@@ -101,6 +101,14 @@ export const QuickCaptureModal = ({
 		triggerRef.current = active instanceof HTMLElement ? active : null;
 	}, []);
 
+	// #1584 (AK8): Der Capture-Schritt (Freitext) schließt weiterhin direkt über X/Escape/Backdrop —
+	// unverändertes Verhalten. Erst im Formular-Schritt (`step === 'form'`, dasselbe `TaskForm` wie in
+	// `TaskFormModal`) fragt `TaskForm.requestClose()` bei geänderten Werten nach (AK1-AK5).
+	const taskFormRef = useRef<TaskFormHandle>(null);
+	// Muss den (im Formular-Schritt) bereits selbst geschlossenen Dialog wieder öffnen können, wenn
+	// `requestClose()` das Schließen abbricht (s. `Modal.tsx`/`TaskFormModal.tsx`).
+	const modalRef = useRef<ModalHandle>(null);
+
 	const process = async (): Promise<void> => {
 		setError(null);
 		setParsing(true);
@@ -178,9 +186,21 @@ export const QuickCaptureModal = ({
 	const title = step === 'capture' ? 'Neuen Task anlegen' : taskFormModalTitle(null, parentTask, formMode);
 
 	return (
-		<Modal title={title} onClose={onClose} fallbackFocusRef={triggerRef}>
+		<Modal
+			ref={modalRef}
+			title={title}
+			onClose={() => {
+				if (step === 'form' && taskFormRef.current !== null) {
+					taskFormRef.current.requestClose();
+				} else {
+					onClose();
+				}
+			}}
+			fallbackFocusRef={triggerRef}
+		>
 			{step === 'form' ? (
 				<TaskForm
+					ref={taskFormRef}
 					task={null}
 					parentTask={parentTask}
 					pillars={pillars}
@@ -190,6 +210,7 @@ export const QuickCaptureModal = ({
 					onClose={onClose}
 					onSaved={onSaved}
 					onModeChange={setFormMode}
+					reopenModal={() => modalRef.current?.reopen()}
 				/>
 			) : (
 				<>
