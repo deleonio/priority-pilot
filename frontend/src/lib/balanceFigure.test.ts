@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
 	activeTicks,
 	buildArcs,
+	buildHands,
 	buildOrbs,
 	buildPetals,
 	buildRays,
+	buildWedges,
 	CENTER,
 	FIGURE_MAX,
 	orbAxes,
@@ -29,12 +31,14 @@ import type { BalanceMetrics } from './balanceMetric';
 /** Kennzahlen von Hand, ohne den Umweg über `buildHeartBalance`. */
 const metricsOf = (ratios: number[]): BalanceMetrics => {
 	const scale = Math.max(1, ...ratios);
+	const total = ratios.reduce((sum, ratio) => sum + ratio, 0);
 	return {
 		pillars: ratios.map((ratio, index) => ({
 			pillarId: index + 1,
 			colorIndex: index,
 			ratio,
 			scaled: ratio / scale,
+			actualShare: total > 0 ? ratio / total : 0,
 		})),
 		targetMark: 1 / scale,
 		scale,
@@ -50,6 +54,8 @@ describe('Ordnung über alle Figuren', () => {
 		expect(buildArcs(metrics).map((arc) => arc.pillarId)).toEqual(erwartet);
 		expect(buildRays(metrics).map((ray) => ray.pillarId)).toEqual(erwartet);
 		expect(buildPetals(metrics).map((petal) => petal.pillarId)).toEqual(erwartet);
+		expect(buildWedges(metrics).map((wedge) => wedge.pillarId)).toEqual(erwartet);
+		expect(buildHands(metrics).map((hand) => hand.pillarId)).toEqual(erwartet);
 	});
 
 	it('gibt derselben Säule in jeder Figur dieselbe Bewegung', () => {
@@ -57,11 +63,15 @@ describe('Ordnung über alle Figuren', () => {
 		const arc = buildArcs(metrics)[0];
 		const ray = buildRays(metrics)[0];
 		const petal = buildPetals(metrics)[0];
+		const wedge = buildWedges(metrics)[0];
+		const hand = buildHands(metrics)[0];
 
 		for (const key of ['phase', 'swingPeriod', 'rotPeriod', 'rotDirection'] as const) {
 			expect(arc[key]).toBe(orb[key]);
 			expect(ray[key]).toBe(orb[key]);
 			expect(petal[key]).toBe(orb[key]);
+			expect(wedge[key]).toBe(orb[key]);
+			expect(hand[key]).toBe(orb[key]);
 		}
 	});
 
@@ -100,6 +110,8 @@ describe('Ordnung über alle Figuren', () => {
 		for (const ray of buildRays(voll)) expect(ray.length).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const orb of buildOrbs(voll)) expect(orb.radius).toBeLessThanOrEqual(FIGURE_MAX);
 		for (const petal of buildPetals(voll)) expect(petal.radius).toBeLessThanOrEqual(FIGURE_MAX);
+		for (const wedge of buildWedges(voll)) expect(wedge.outer).toBeLessThanOrEqual(FIGURE_MAX);
+		for (const hand of buildHands(voll)) expect(hand.length).toBeLessThanOrEqual(FIGURE_MAX);
 	});
 
 	/*
@@ -113,6 +125,12 @@ describe('Ordnung über alle Figuren', () => {
 		for (const ray of buildRays(leer)) expect(ray.length).toBeGreaterThan(0);
 		for (const arc of buildArcs(leer)) expect(arc.width).toBeGreaterThan(0);
 		for (const petal of buildPetals(leer)) expect(petal.radius).toBe(R_MIN);
+		// Segmente: das Mindeststück hält die Säule im Bild, der Radius bleibt auf dem Minimum.
+		for (const wedge of buildWedges(leer)) {
+			expect(wedge.span).toBeGreaterThan(0);
+			expect(wedge.outer).toBe(R_MIN);
+		}
+		for (const hand of buildHands(leer)) expect(hand.length).toBe(R_MIN);
 	});
 
 	it('schwingt gegenläufig — die Fläche atmet, sie wächst nicht', () => {
@@ -156,6 +174,22 @@ describe('Die Soll-Marke', () => {
 		const aufZiel = petals.find((petal) => petal.pillarId === 2);
 
 		expect(targetRadius(metrics)).toBeCloseTo(aufZiel?.radius ?? -1, 6);
+	});
+
+	it('liegt bei den Segmenten auf dem Radius, den eine Säule auf Ziel hätte', () => {
+		const metrics = metricsOf([2, 1]);
+		const wedges = buildWedges(metrics);
+		const aufZiel = wedges.find((wedge) => wedge.pillarId === 2);
+
+		expect(wedges[0].targetRadius).toBeCloseTo(aufZiel?.outer ?? -1, 6);
+	});
+
+	it('liegt bei den Zeigern auf der Länge, die eine Säule auf Ziel hätte', () => {
+		const metrics = metricsOf([2, 1]);
+		const hands = buildHands(metrics);
+		const aufZiel = hands.find((hand) => hand.pillarId === 2);
+
+		expect(hands[0].targetLength).toBeCloseTo(aufZiel?.length ?? -1, 6);
 	});
 });
 
@@ -243,6 +277,67 @@ describe('Figuren „Blüte" und „Kristall"', () => {
 		expect(new Set(petals.map((petal) => petal.radius)).size).toBe(1);
 		expect(new Set(petals.map((petal) => petal.phase)).size).toBe(petals.length);
 		expect(new Set(petals.map((petal) => petal.swingPeriod)).size).toBe(petals.length);
+	});
+});
+
+describe('Figur „Segmente“', () => {
+	/*
+	 * Die Breite ist der Ist-Anteil: Sie muss dieselbe Reihenfolge wie die Kennzahl bauen und den
+	 * Ring vollständig schließen — sonst klaffte eine Lücke und das Bild würde Anteile erfinden.
+	 */
+	it('teilt den Ring vollständig unter den Stücken auf, stärkste Säule zuerst', () => {
+		const wedges = buildWedges(metricsOf([0.4, 1.6, 1.0]));
+
+		expect(wedges).toHaveLength(3);
+		expect(wedges.reduce((sum, wedge) => sum + wedge.span, 0)).toBeCloseTo(360, 6);
+		expect(wedges[0].span).toBeGreaterThan(wedges[1].span);
+		expect(wedges[1].span).toBeGreaterThan(wedges[2].span);
+		// Ohne Lücke: Das Ende eines Stücks ist der Start des nächsten.
+		expect(wedges[1].start).toBeCloseTo(wedges[0].start + wedges[0].span, 6);
+	});
+
+	it('beginnt das erste Stück auf 12 Uhr und behält zwischen allen eine Fuge', () => {
+		const wedges = buildWedges(metricsOf([0.4, 1.6, 1.0]));
+
+		expect(wedges[0].start).toBeGreaterThan(-90);
+		for (const wedge of wedges) expect(wedge.end).toBeGreaterThan(wedge.start);
+	});
+
+	it('behält bei vielen Säulen ein sichtbares Mindeststück je Säule', () => {
+		const wedges = buildWedges(metricsOf([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
+
+		for (const wedge of wedges) {
+			expect(wedge.span).toBeGreaterThan(0);
+			expect(wedge.end).toBeGreaterThan(wedge.start);
+		}
+	});
+
+	it('teilt den Ring im Leerzustand (keine Punkte vergeben) gleichmäßig auf statt auf Haarlinien zu schrumpfen', () => {
+		const wedges = buildWedges(metricsOf([0, 0, 0]));
+
+		const totalSpan = wedges.reduce((sum, wedge) => sum + wedge.span, 0);
+		expect(totalSpan).toBeCloseTo(360, 5);
+		for (const wedge of wedges) expect(wedge.span).toBeCloseTo(120, 5);
+	});
+});
+
+describe('Figur „Zeiger“', () => {
+	it('stellt den längsten Zeiger auf 12 Uhr und verteilt den Rest gleichmäßig', () => {
+		const hands = buildHands(metricsOf([0.4, 1.6, 1.0]));
+
+		expect(hands[0].angle).toBe(-90);
+		expect(hands[1].angle).toBeCloseTo(-90 + 120, 6);
+		expect(hands[2].angle).toBeCloseTo(-90 + 240, 6);
+		expect(hands[0].length).toBeGreaterThan(hands[2].length);
+	});
+
+	it('hält die Zeiger schmaler als die Strahlen — die Skala bleibt lesbar', () => {
+		const metrics = metricsOf([1, 1, 1, 1]);
+		const hands = buildHands(metrics);
+		const step = 360 / hands.length;
+
+		expect(hands[0].spread).toBeLessThan(buildRays(metrics)[0].spread);
+		for (const hand of hands) expect(hand.spread * 2).toBeLessThan(step);
 	});
 });
 

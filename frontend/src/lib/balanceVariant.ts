@@ -20,8 +20,12 @@ import { useCallback, useState } from 'react';
  *   so weit reichen wie ihr Wert. Weiches, organisches Material.
  * - **Kristall** — dieselbe Silhouette mit harten Kanten: Stützpunkte und Facetten statt weicher
  *   Lappen, leuchtende Knoten an den Spitzen.
+ * - **Segmente** — der Ring als Tortengrafik der Ist-Anteile: Jedes Stück ist so breit wie der
+ *   Anteil seiner Säule und gefüllt von innen bis auf ihren Wert.
+ * - **Zeiger** — je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den Kreis
+ *   verteilt; der längste steht auf 12 Uhr.
  *
- * Die sechs Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
+ * Die acht Figuren (alles außer dem Herz) zeichnen **dieselbe Zahlenreihe** (`balanceMetric.ts`): je Säule das Verhältnis
  * Ist zu Soll. Sie unterscheiden sich in der Form, nie im Inhalt — und teilen sich Zifferblatt,
  * Auftakt, Ruhepuls und Material (`balanceFigure.ts`, `balance-figure.frag`).
  *
@@ -32,7 +36,8 @@ import { useCallback, useState } from 'react';
  */
 
 /** Schlüssel der Bilder. Der gespeicherte Wert ist genau einer davon. */
-export type BalanceVariant = 'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall';
+export type BalanceVariant =
+	'herz' | 'blasen' | 'scheiben' | 'ringe' | 'strahlen' | 'bluete' | 'kristall' | 'segmente' | 'zeiger';
 
 /** Die Figuren, die sich Zifferblatt, Kennzahl und Rahmen teilen (`BalanceFigure`) — alles außer dem Herz. */
 export type FigureKind = Exclude<BalanceVariant, 'herz'>;
@@ -46,6 +51,8 @@ export const BALANCE_VARIANTS: readonly { value: BalanceVariant; label: string }
 	{ value: 'strahlen', label: 'Strahlen' },
 	{ value: 'bluete', label: 'Blüte' },
 	{ value: 'kristall', label: 'Kristall' },
+	{ value: 'segmente', label: 'Segmente' },
+	{ value: 'zeiger', label: 'Zeiger' },
 ];
 
 /**
