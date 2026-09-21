@@ -4,12 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-21
 
-_Enthält v0.2.0 – v0.2.125._
+_Enthält v0.2.0 – v0.2.126._
 
 ### 🔧 Engineering
 
 - fix(deps): update dependency connect-sqlite3 to v0.9.18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1398
-- chore(ci): wöchentliches UX-Team als cron-LLM-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1433
 - chore(ci): wöchentliches UX-Team als cron-LLM-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1433
 - docs(guide): Ist-Stand-Sync 2026-09-20 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1591
 
@@ -41,6 +40,7 @@ _Enthält v0.2.0 – v0.2.125._
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1431
 - feat(frontend): add changelog range selector and help page sidebar toc by @deleonio in https://github.com/deleonio/priority-pilot/pull/1432
+- feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
 - feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
 - feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
@@ -137,6 +137,7 @@ _Enthält v0.2.0 – v0.2.125._
 - feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
 - feat(frontend): assign tasks to a whole group by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1603
 - feat(frontend): add pin/unpin support for tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1594
+- ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
 
 ## v0.1 - 2026-09-12
 
