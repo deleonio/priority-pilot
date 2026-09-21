@@ -24,7 +24,7 @@ import type {
 	TaskUpdate,
 } from 'client';
 import { checkAuth } from '../lib/auth';
-import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -36,6 +36,7 @@ import { CategoryBadge } from './CategoryBadge';
 import { VoiceField } from './VoiceField';
 import { AddressAutocomplete, type PlaceFavoriteSuggestion } from './AddressAutocomplete';
 import { notifyTasksChanged } from '../lib/tasksChanged';
+import { ConfirmDiscardDialog } from './ConfirmDiscardDialog';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
 import { PlanBadge } from './PlanBadge';
@@ -51,7 +52,7 @@ import {
 	sumWeights,
 	weightToRaw,
 } from '../lib/pillar';
-import { deadlineToDateInput, formatNumber } from '../lib/task';
+import { deadlineToDateInput, formatNumber, isTaskFormDirty, type TaskFormSnapshot } from '../lib/task';
 import type { AddressSuggestion } from '../lib/useAddressSearch';
 import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 import { DESCRIPTION_MAX_LENGTH } from '../lib/descriptionLengthValidation';
@@ -208,6 +209,26 @@ interface TaskFormProps {
 	onSaved: () => void;
 	/** Meldet einen Moduswechsel (Aufgabe/Serie) an den Container — z. B. für den Dialog-Titel (#334). */
 	onModeChange?: (mode: 'task' | 'series') => void;
+	/**
+	 * Öffnet den umschließenden `Modal`-Dialog erneut (#1584): dessen natives `<dialog>` schließt sich
+	 * bei X/Escape/Backdrop SELBST, bevor `onClose` feuert (s. `Modal.tsx`) — bricht `requestClose()`
+	 * das Schließen wegen ungespeicherter Änderungen ab, muss der Container-Dialog aktiv wieder
+	 * geöffnet werden, damit er (bzw. die Rückfrage darüber) sichtbar bleibt. Ohne Angabe (z. B.
+	 * `SeriesTab.tsx`, das `TaskForm` ohne `requestClose`-Nutzung einbettet) bleibt `requestClose`
+	 * wirkungslos für diesen Teil.
+	 */
+	reopenModal?: () => void;
+}
+
+/**
+ * Imperatives Handle für Container, die das Schließen selbst orchestrieren (#1584): `TaskFormModal`
+ * ruft `requestClose()` auf, wenn der umschließende `Modal`-Dialog per X/Escape/Backdrop schließen
+ * will — bei geänderten Werten zeigt `TaskForm` dann selbst die Rückfrage, statt sofort `onClose`
+ * aufzurufen. Der explizite „Abbrechen"-Button im Formular bleibt davon unberührt und ruft `onClose`
+ * weiterhin direkt auf.
+ */
+export interface TaskFormHandle {
+	requestClose: () => void;
 }
 
 /** Liefert für `KolInputDate` ein `date`-Input-taugliches `YYYY-MM-DD` aus einem ISO-String, sonst ''. */
@@ -250,18 +271,22 @@ const COORDS_BOX_BASE_STYLE = {
  * hinweg, #236). Diese Trennung vermeidet den Remount des `KolDialog` beim Schrittwechsel capture→form
  * — genau die Race, die `showModal()` „not in a Document" werfen ließ und das Modal abriss.
  */
-export const TaskForm = ({
-	task,
-	series = null,
-	initialMode = 'task',
-	parentTask = null,
-	pillars,
-	categories = [],
-	initialValues,
-	onClose,
-	onSaved,
-	onModeChange,
-}: TaskFormProps) => {
+export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskForm(
+	{
+		task,
+		series = null,
+		initialMode = 'task',
+		parentTask = null,
+		pillars,
+		categories = [],
+		initialValues,
+		onClose,
+		onSaved,
+		onModeChange,
+		reopenModal,
+	}: TaskFormProps,
+	ref,
+) {
 	// #316: Serien-Edit (bearbeiten einer Serie) vs. Task-Edit (bearbeiten eines Tasks). `isEdit`
 	// gilt für beide Bearbeiten-Fälle (Umschalter gesperrt); im Anlege-Fall ist beides `false`.
 	const seriesEdit = series != null;
@@ -326,6 +351,50 @@ export const TaskForm = ({
 	// #553: vorbereitetes Series-Update, das auf die Kaskade-Entscheidung (Ja/Nein) wartet. `null`
 	// ⇒ kein Kaskade-Modal sichtbar. Beim Bestätigen geht es (mit `applyToInstances`) raus.
 	const [pendingSeriesUpdate, setPendingSeriesUpdate] = useState<SeriesUpdate | null>(null);
+
+	// #1584 (AK1-AK7): Snapshot der Formularwerte beim Öffnen — Vergleichsbasis für `isTaskFormDirty`
+	// zum Schließzeitpunkt (lesend, nicht re-render-getrieben). `form.current` ist zu diesem Zeitpunkt
+	// bereits mit `task`/`series`/`initialValues` vorbelegt (s. o.), `contributions`/`categoryId`/`mode`
+	// entsprechend ihrer Initial-States.
+	const initialSnapshotRef = useRef<TaskFormSnapshot>({
+		title: form.current.title,
+		priority: form.current.priority,
+		estimatedEffort: form.current.estimatedEffort,
+		description: form.current.description,
+		address: form.current.address,
+		deadline: form.current.deadline,
+		categoryId,
+		mode,
+		contributions,
+	});
+	// #1584 (AK2): steuert die verschachtelte Rückfrage (Muster `ConfirmSeriesActionModal`), die
+	// `TaskFormModal` über `requestClose()` auslöst, wenn der umschließende Dialog per X/Escape/
+	// Backdrop schließen will.
+	const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+
+	const requestClose = (): void => {
+		const current: TaskFormSnapshot = {
+			title: form.current.title,
+			priority: form.current.priority,
+			estimatedEffort: form.current.estimatedEffort,
+			description: form.current.description,
+			address: form.current.address,
+			deadline: form.current.deadline,
+			categoryId,
+			mode,
+			contributions,
+		};
+		if (isTaskFormDirty(initialSnapshotRef.current, current)) {
+			// Das native `<dialog>` hat sich bereits selbst geschlossen (s. `Modal.tsx`) — Abbruch des
+			// Schließens erfordert, es aktiv wieder zu öffnen, bevor die Rückfrage erscheint (AK2).
+			reopenModal?.();
+			setConfirmDiscardOpen(true);
+			return;
+		}
+		onClose();
+	};
+
+	useImperativeHandle(ref, () => ({ requestClose }));
 
 	// State-Mirror für die Textfelder mit Spracheingabe (#264): KoliBri verwaltet den Anzeigewert
 	// selbst, aber ein per Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
@@ -1653,6 +1722,15 @@ export const TaskForm = ({
 					onClose={() => setPendingSeriesUpdate(null)}
 				/>
 			)}
+			{confirmDiscardOpen && (
+				<ConfirmDiscardDialog
+					onContinueEditing={() => setConfirmDiscardOpen(false)}
+					onDiscard={() => {
+						setConfirmDiscardOpen(false);
+						onClose();
+					}}
+				/>
+			)}
 		</>
 	);
-};
+});
