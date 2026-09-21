@@ -202,9 +202,15 @@ const LeafItem = ({
 					</div>
 					{task !== null && !handedOff && (
 						<div className="task-tree-actions">
+							{/* #1582: Generisches, titel-freies Label — `_hideLabel` blendet den Text nur visuell
+							    aus, der Text-Node bleibt im DOM (zusätzlich dupliziert ihn der Tooltip der
+							    Button-Variante). Mit dem Aufgabentitel im Label matchten textbasierte Selektoren
+							    denselben Titel mehrfach pro Zeile (issue-1258-tasks-mobile.spec.ts AK3). Die
+							    Zuordnung zur Aufgabe trägt der Zeilenkontext — dasselbe Muster wie der
+							    „Weitere Aktionen"-Trigger unten. */}
 							<KolInputCheckbox
 								_variant="button"
-								_label={task.pinned ? `${task.title} abpinnen` : `${task.title} anpinnen`}
+								_label={task.pinned ? 'Abpinnen' : 'Anpinnen'}
 								_hideLabel={true}
 								_checked={task.pinned}
 								_icons={{ checked: 'fa-solid fa-thumbtack', unchecked: 'fa-solid fa-thumbtack' }}
