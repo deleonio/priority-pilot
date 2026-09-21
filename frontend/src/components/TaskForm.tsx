@@ -1182,7 +1182,12 @@ export const TaskForm = ({
 							    Mindestanteil (5 %) fällt keine Säule, weil jede Aufgabe auf jeden Lebensbereich
 							    einzahlt — nur unterschiedlich stark. */}
 							{contributions.length === 0 ? (
-								<p className="hint">Säulen werden geladen …</p>
+								// Die Säulenliste kommt aus dem App-Zustand (`GET /pillars`). Sie ist hier leer, solange
+								// der Abruf läuft — und bleibt es, wenn er fehlschlug. Der Satz gilt in beiden Fällen und
+								// benennt die Folge, statt einen Ladezustand zu behaupten, der womöglich nie endet.
+								<p className="hint">
+									Keine Säulen geladen — die Aufgabe wird ohne Verteilung gespeichert. Ein Neuladen der Seite holt sie.
+								</p>
 							) : (
 								<div className="pillar-editor">
 									<div className="pillar-editor-head">

@@ -64,14 +64,20 @@ export const validatePillars = (raw: unknown[]): { ok: true; pillars: PillarCont
 /**
  * DB-gestützte Prüfung, ob alle referenzierten Säulen für ein Konto existieren (Teil 2, #428).
  * Säulen sind nutzer-eigen; der Kontobezug ist Pflichtparameter (#1249, AK5) — die frühere globale
- * Prüfung ohne Konto ist entfallen. `null` (Datensatz ohne Eigentümer-Konto) matcht nur die
- * historischen NULL-owned Säulen (`pillars.userId` ist nullable; ownership-konsistent im
- * Dev-Pass-Through); produktiv ist der Kontobezug stets gesetzt. `[]` ist trivial `true`.
+ * Prüfung ohne Konto ist entfallen. `[]` ist trivial `true`.
+ *
+ * `null` heißt „kein Konto am Request" und tritt nur im Dev-/Test-Pass-Through auf (produktiv setzt
+ * `requireAuth` die Session, der Kontobezug ist dort immer eine Id). In dem Fall gilt dasselbe
+ * Scoping wie beim Lesen: `GET /pillars` filtert über `ownerScope(undefined)` gar nicht und liefert
+ * jede Säule (siehe `logics/ownerScope.ts` — Abwärtskompatibilität für Setups ohne Login), also
+ * akzeptiert die Existenz-Prüfung hier ebenfalls jede existierende Säule. Beides unterschiedlich zu
+ * scopen hieß: Das Formular bekommt Säulen angeboten, die es anschließend nicht speichern darf.
  */
 export const arePillarsExistent = async (pillarIds: number[], userId: number | null): Promise<boolean> => {
 	if (pillarIds.length === 0) {
 		return true;
 	}
-	const count = await Pillar.count({ where: { id: pillarIds, userId } });
+	const scope = userId === null ? {} : { userId };
+	const count = await Pillar.count({ where: { id: pillarIds, ...scope } });
 	return count === pillarIds.length;
 };

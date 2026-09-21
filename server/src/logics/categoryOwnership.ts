@@ -18,15 +18,19 @@ export const validateCategoryId = (value: unknown): { ok: true; categoryId: numb
 /**
  * DB-gestützte Prüfung, ob die referenzierte Kategorie dem Konto gehört — das Gegenstück zu
  * {@link ../logics/pillarContributions.ts arePillarsExistent} für die 0..1-Beziehung. Kategorien
- * sind nutzer-eigen, deshalb ist der Kontobezug Pflichtparameter: `null` (Datensatz ohne
- * Eigentümer-Konto im Dev-Pass-Through) matcht nur Kategorien ohne `userId`. `null` als
- * `categoryId` (= keine Zuordnung) ist trivial `true`.
+ * sind nutzer-eigen, deshalb ist der Kontobezug Pflichtparameter. `null` als `categoryId`
+ * (= keine Zuordnung) ist trivial `true`.
+ *
+ * `userId === null` (kein Konto am Request, nur im Dev-/Test-Pass-Through) scopt wie das Lesen über
+ * `ownerScope(undefined)` gar nicht — dieselbe Begründung wie bei `arePillarsExistent`: Was die
+ * Liste anbietet, muss auch speicherbar sein.
  */
 export const isCategoryExistent = async (categoryId: number | null, userId: number | null): Promise<boolean> => {
 	if (categoryId === null) {
 		return true;
 	}
-	return (await Category.count({ where: { id: categoryId, userId } })) === 1;
+	const scope = userId === null ? {} : { userId };
+	return (await Category.count({ where: { id: categoryId, ...scope } })) === 1;
 };
 
 /**

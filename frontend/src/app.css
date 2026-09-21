@@ -2454,14 +2454,10 @@ kol-toolbar {
 .pillar-row {
 	/* #1596: eine Säule = ein Regler (Konfidenz-Regler und Entfernen-Knopf sind entfallen).
 	   Die Zeile bleibt als eigener Block erhalten, damit die fünf Regler in den Basisangaben
-	   voneinander abgesetzt sind — auf Mobil wie auf Desktop einspaltig. */
-	display: grid;
-	gap: var(--pp-gap-tight);
+	   voneinander abgesetzt sind. Ein Kind heißt: kein Grid, kein Gap — nur die Abgrenzung. */
 	padding: 0.5rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.375rem;
-	grid-template-columns: 1fr;
-	align-items: start;
 }
 
 .pillar-row kol-input-range {

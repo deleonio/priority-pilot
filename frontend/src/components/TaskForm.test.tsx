@@ -873,11 +873,11 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 
 /**
  * #440 (AK2) in der Fassung von #1596: Die fünf Säulen sind fest, hinzugefügt oder entfernt wird
- * nichts mehr. Solange `GET /pillars` noch nicht geantwortet hat (pillars = []), steht statt der
- * Regler ein Ladehinweis; mit Säulen erscheint die Verteilung.
+ * nichts mehr. Ohne geladene Säulen (`pillars = []` — Abruf läuft noch oder ist fehlgeschlagen)
+ * steht statt der Regler ein Hinweis samt Folge; mit Säulen erscheint die Verteilung.
  */
 describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', () => {
-	it('zeigt den Ladehinweis, wenn pillars leer ist', async () => {
+	it('zeigt den Hinweis samt Folge, wenn pillars leer ist', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
@@ -885,7 +885,7 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 		});
 
 		expect(document.querySelectorAll('.pillar-row')).toHaveLength(0);
-		expect(screen.getByText(/säulen werden geladen/i)).toBeInTheDocument();
+		expect(screen.getByText(/keine säulen geladen/i)).toBeInTheDocument();
 	});
 
 	it('zeigt je Säule einen Regler, sobald pillars geladen sind', async () => {
@@ -896,7 +896,7 @@ describe('TaskForm — Säulen-Verteilung ohne geladene Säulen (#440/#1596)', (
 		});
 
 		expect(document.querySelectorAll('.pillar-row')).toHaveLength(1);
-		expect(screen.queryByText(/säulen werden geladen/i)).toBeNull();
+		expect(screen.queryByText(/keine säulen geladen/i)).toBeNull();
 	});
 });
 
