@@ -3,12 +3,16 @@ import { expect, test } from './fixtures';
 import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
- * Rote Spec-e2e für #1342 (Spec docs/spec/issue-1342.md) — Standort-Favoriten.
+ * Rote Spec-e2e für #1342/#1595 (Spec docs/spec/issue-1595.md) — Standort-Favoriten.
  *
  * AK6: kompletter Weg bei 375px — Favorit am Formular speichern, in Einstellungen → Standort
- * umbenennen, im Adressfeld auswählen, löschen; Favoritenzeilen/Verwaltungskarte bleiben im
+ * ansehen, im Adressfeld auswählen, löschen; Favoritenzeilen/Verwaltungskarte bleiben im
  * sichtbaren Bereich (Bounding-Box statt `scrollWidth`, MEMORY 2026-08-24/2026-09-10 — die
  * App-Shell clippt mit `overflow-x: hidden`), jedes Bedienelement hat ein Touch-Ziel ≥ 44px Höhe.
+ *
+ * Test-Pflege #1595: der Umbenennen-Schritt (AK3 aus #1342) entfällt — es gibt kein Namensfeld
+ * mehr. Die Testadresse ist absichtlich > 60 Zeichen (AK1 #1595: die alte Namensgrenze darf die
+ * Adresse nicht mehr kappen).
  *
  * Läuft gegen das echte Backend (Vite-Proxy). Die Favoriten-Routen sind pro Nutzer gebunden
  * (Muster `apiTokens`/#1352) und antworten im Pass-Through-Modus ohne echte Session mit 401 —
@@ -17,7 +21,11 @@ import { openAccordionSection, waitForStableView } from './helpers';
  */
 
 const TEST_EMAIL = 'place-favorites@example.com';
-const HIT = { address: 'Rathausplatz 1, 80331 München, Bayern, Deutschland', lat: 48.1374, lon: 11.5755 };
+const HIT = {
+	address: 'Rathausplatz 1, Erdgeschoss rechts, 80331 München, Bayern, Deutschland, Europa',
+	lat: 48.1374,
+	lon: 11.5755,
+};
 
 const login = async (page: Page): Promise<void> => {
 	const res = await page.request.post('/auth/test-login', {
