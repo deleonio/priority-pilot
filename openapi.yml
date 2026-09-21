@@ -1993,6 +1993,17 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: offset
+          in: query
+          required: false
+          description: >-
+            Anzahl bereits verarbeiteter Aufgaben vorheriger Läufe derselben
+            Portionierungs-Serie (Default 0) — ohne ihn träfe jeder Aufruf
+            wieder dieselbe erste `limit`-Portion. Zum Fortsetzen die Summe aus
+            `updated`+`failed`+`skipped` aller vorherigen Läufe übergeben.
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
           description: Ergebnis des Batch-Laufs

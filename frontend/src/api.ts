@@ -503,9 +503,16 @@ export const api = {
 		return data;
 	},
 
-	/** Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger. */
-	async reassignTaskPillars(): Promise<ReassignPillarsResult> {
-		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars');
+	/**
+	 * Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger.
+	 * `offset` (Finding #5) setzt einen portionierten Lauf fort: Summe aus `updated`+`failed`+
+	 * `skipped` aller vorherigen Läufe derselben Serie übergeben, sonst trifft jeder Aufruf
+	 * wieder dieselbe erste Portion.
+	 */
+	async reassignTaskPillars(offset?: number): Promise<ReassignPillarsResult> {
+		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars', {
+			params: { query: offset !== undefined && offset > 0 ? { offset } : {} },
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

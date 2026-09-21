@@ -45,21 +45,29 @@ export const AdminUsersSection = () => {
 	const [confirmStep, setConfirmStep] = useState<'closed' | 'intent' | 'costs'>('closed');
 	const [running, setRunning] = useState(false);
 	const [summary, setSummary] = useState<ReassignPillarsResult | null>(null);
-	const startReassign = useCallback(async (): Promise<void> => {
-		setRunning(true);
-		try {
-			const result = await api.reassignTaskPillars();
-			setSummary(result);
-			setConfirmStep('closed');
-			setError(null);
-		} catch (reason) {
-			const apiError = await toApiError(reason);
-			setError(apiError.message);
-			setConfirmStep('closed');
-		} finally {
-			setRunning(false);
-		}
-	}, []);
+	// Offset der Portionierungs-Serie (Finding #5): ohne ihn träfe „Fortsetzen" wieder dieselbe
+	// erste Portion. Summe aus updated+failed+skipped aller Läufe dieser Serie; ein neuer Start
+	// (Button „Säulenverteilung … neu berechnen") beginnt wieder bei 0.
+	const [offset, setOffset] = useState(0);
+	const startReassign = useCallback(
+		async (resume: boolean): Promise<void> => {
+			setRunning(true);
+			try {
+				const result = await api.reassignTaskPillars(resume ? offset : 0);
+				setSummary(result);
+				setOffset((resume ? offset : 0) + result.updated + result.failed + result.skipped);
+				setConfirmStep('closed');
+				setError(null);
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setError(apiError.message);
+				setConfirmStep('closed');
+			} finally {
+				setRunning(false);
+			}
+		},
+		[offset],
+	);
 	const handleRoleChange = async (id: number, role: AdminUser['role']): Promise<void> => {
 		try {
 			await api.updateUserRole({ id, role });
@@ -112,13 +120,26 @@ export const AdminUsersSection = () => {
 					_label="Säulenverteilung aller Aufgaben neu berechnen"
 					_variant="secondary"
 					_disabled={running}
-					_on={{ onClick: () => setConfirmStep('intent') }}
+					_on={{
+						onClick: () => {
+							setOffset(0);
+							setConfirmStep('intent');
+						},
+					}}
 				/>
 				{summary !== null && (
 					<KolAlert _type="info" _label="Neuberechnung abgeschlossen">
 						{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
-						fehlgeschlagen ({summary.users} Konten).
+						fehlgeschlagen ({summary.users} Konten). {summary.remaining} Aufgaben noch offen.
 					</KolAlert>
+				)}
+				{summary !== null && summary.remaining > 0 && (
+					<KolButton
+						_label="Weitere Aufgaben neu berechnen (Fortsetzen)"
+						_variant="secondary"
+						_disabled={running}
+						_on={{ onClick: () => void startReassign(true) }}
+					/>
 				)}
 			</div>
 			{confirmStep === 'intent' && (
@@ -160,7 +181,7 @@ export const AdminUsersSection = () => {
 							_label={running ? 'Berechne …' : 'Jetzt neu berechnen'}
 							_variant="primary"
 							_disabled={running}
-							_on={{ onClick: () => void startReassign() }}
+							_on={{ onClick: () => void startReassign(false) }}
 						/>
 					</div>
 				</Modal>

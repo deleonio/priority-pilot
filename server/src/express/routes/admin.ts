@@ -210,13 +210,31 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				}
 				limit = parsed;
 			}
+			// offset (Finding #5): setzt einen portionierten Lauf bei den Aufgaben fort, die vorherige
+			// Aufrufe bereits verarbeitet (oder übersprungen) haben — ohne ihn träfe jeder Aufruf wieder
+			// dieselbe erste `limit`-Portion, `remaining` bliebe konstant.
+			const rawOffset = (req.query as Record<string, unknown>).offset;
+			let offset = 0;
+			if (rawOffset !== undefined) {
+				const parsed = Number(rawOffset);
+				if (!Number.isInteger(parsed) || parsed < 0) {
+					sendError(res, 400, 'offset muss eine ganze Zahl >= 0 sein.');
+					return;
+				}
+				offset = parsed;
+			}
 			if (reassignRunning) {
 				sendError(res, 409, 'Es läuft bereits ein Batch-Lauf — erst dessen Ende abwarten.');
 				return;
 			}
 			reassignRunning = true;
 			try {
-				const result = await reassignTaskPillarsForAllUsers(pillarClassifier, providerValidation.provider, limit);
+				const result = await reassignTaskPillarsForAllUsers(
+					pillarClassifier,
+					providerValidation.provider,
+					limit,
+					offset,
+				);
 				res.json(result);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');

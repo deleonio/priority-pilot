@@ -85,31 +85,40 @@ export interface ReassignPillarsResult {
  *
  * `budget`, sofern gesetzt, begrenzt die Zahl der in diesem Aufruf verarbeiteten
  * Aufgaben (Portionierung eines großen Batch-Laufs, siehe `reassignTaskPillarsForAllUsers`).
+ * `offset` überspringt die ersten `offset` Aufgaben des Kontos (feste Reihenfolge nach `id`) —
+ * damit ein Folgeaufruf mit demselben `offset + <in diesem Lauf verbrauchte Aufgaben>` bei den
+ * noch unbearbeiteten Aufgaben fortsetzt, statt immer wieder dieselbe erste Portion zu treffen
+ * (Finding #5). `total` im Ergebnis ist die Gesamtzahl der Aufgaben des Kontos VOR Offset/Budget
+ * — der Aufrufer braucht sie, um den Offset für das nächste Konto zu verrechnen.
  */
 const reassignTaskPillarsForUser = async (
 	userId: number | undefined,
 	classifier: PillarClassifier,
 	provider?: Parameters<PillarClassifier>[1],
 	budget?: number,
-): Promise<ReassignPillarsResult> => {
+	offset = 0,
+): Promise<ReassignPillarsResult & { total: number }> => {
 	if (budget !== undefined && budget <= 0) {
-		return { updated: 0, failed: 0, skipped: 0 };
+		return { updated: 0, failed: 0, skipped: 0, total: 0 };
 	}
 	const pillars = await Pillar.findAll({
 		where: userId !== undefined ? { userId } : { userId: null },
 		order: [['id', 'ASC']],
 	});
 	if (pillars.length === 0) {
-		return { updated: 0, failed: 0, skipped: 0 };
+		return { updated: 0, failed: 0, skipped: 0, total: 0 };
 	}
 	const validIds = new Set(pillars.map((pillar) => pillar.id));
 
-	let tasks = await Task.findAll({
+	const allTasks = await Task.findAll({
 		where: userId !== undefined ? { userId } : { userId: null },
 		attributes: ['id', 'title', 'description'],
+		order: [['id', 'ASC']],
 	});
+	const total = allTasks.length;
+	let tasks = offset > 0 ? allTasks.slice(offset) : allTasks;
 	if (tasks.length === 0) {
-		return { updated: 0, failed: 0, skipped: 0 };
+		return { updated: 0, failed: 0, skipped: 0, total };
 	}
 	if (budget !== undefined) {
 		tasks = tasks.slice(0, budget);
@@ -161,7 +170,7 @@ const reassignTaskPillarsForUser = async (
 			result.failed++;
 		}
 	}
-	return result;
+	return { ...result, total };
 };
 
 /** Fällt auf 200 Aufgaben je Lauf zurück, wenn kein `limit` übergeben wird (Finding #4). */
@@ -175,22 +184,31 @@ export const DEFAULT_REASSIGN_LIMIT = 200;
  * `limit` begrenzt die Gesamtzahl der in diesem Aufruf verarbeiteten Aufgaben (Default
  * `DEFAULT_REASSIGN_LIMIT`) — ein großer Bestand läuft sonst unbeschränkt im offenen
  * HTTP-Request und übersteht keinen Proxy-Timeout. `remaining` im Ergebnis zeigt, wie viele
- * Aufgaben noch offen sind; ein erneuter Aufruf setzt den Batch dort fort.
+ * Aufgaben noch offen sind.
+ *
+ * `offset` (Finding #5): ohne ihn würde jeder Folgeaufruf wieder bei Konto 1/Aufgabe 1 anfangen
+ * und dieselbe erste Portion neu (und nur die) verarbeiten — `remaining` bliebe über beliebig
+ * viele Läufe konstant. Konten werden nach `id` sortiert durchlaufen (feste Reihenfolge), der
+ * Aufrufer reicht als `offset` die Summe aus `attempted` aller vorherigen Läufe derselben Serie
+ * ein; der Batch überspringt dann genau so viele Aufgaben, bevor er wieder `limit` verarbeitet.
  */
 export const reassignTaskPillarsForAllUsers = async (
 	classifier: PillarClassifier,
 	provider?: Parameters<PillarClassifier>[1],
 	limit: number = DEFAULT_REASSIGN_LIMIT,
+	offset = 0,
 ): Promise<ReassignPillarsResult & { users: number; remaining: number }> => {
 	const totalTasks = await Task.count();
-	const users = await User.findAll({ attributes: ['id'] });
+	const users = await User.findAll({ attributes: ['id'], order: [['id', 'ASC']] });
 	let aggregated: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
 	let processed = 0;
 	let attempted = 0;
 	let budget = limit;
+	let skip = offset;
 	for (const user of users) {
 		if (budget <= 0) break;
-		const result = await reassignTaskPillarsForUser(user.id, classifier, provider, budget);
+		const result = await reassignTaskPillarsForUser(user.id, classifier, provider, budget, skip);
+		skip = Math.max(0, skip - result.total);
 		const consumed = result.updated + result.failed + result.skipped;
 		if (consumed > 0) {
 			processed++;
@@ -205,7 +223,7 @@ export const reassignTaskPillarsForAllUsers = async (
 	}
 	// Pass-Through-Bestand (Aufgaben ohne Eigentümerkonto) — NULL-owned Stammsäulen.
 	if (budget > 0) {
-		const legacy = await reassignTaskPillarsForUser(undefined, classifier, provider, budget);
+		const legacy = await reassignTaskPillarsForUser(undefined, classifier, provider, budget, skip);
 		const consumed = legacy.updated + legacy.failed + legacy.skipped;
 		attempted += consumed;
 		aggregated = {
@@ -217,5 +235,5 @@ export const reassignTaskPillarsForAllUsers = async (
 			processed++;
 		}
 	}
-	return { ...aggregated, users: processed, remaining: Math.max(0, totalTasks - attempted) };
+	return { ...aggregated, users: processed, remaining: Math.max(0, totalTasks - offset - attempted) };
 };

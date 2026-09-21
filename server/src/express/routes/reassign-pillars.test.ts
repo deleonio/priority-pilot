@@ -161,6 +161,45 @@ describe('POST /admin/tasks/reassign-pillars — Batch-Neuzuordnung der Säulenv
 		assert.equal(body.remaining, 1, 'die zweite Aufgabe bleibt für den nächsten Lauf offen');
 	});
 
+	it('setzt mit offset beim zweiten Lauf disjunkt fort, statt dieselbe Portion erneut zu verarbeiten (Finding #5)', async () => {
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Aufgabe 1', status: 'Open', userId: memberId });
+		await Task.create({ title: 'Aufgabe 2', status: 'Open', userId: memberId });
+
+		const first = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=1`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		assert.equal(first.status, 200);
+		const firstBody = (await first.json()) as { updated: number; failed: number; skipped: number; remaining: number };
+		const firstTitles = recorded.map((entry) => entry.title);
+		assert.equal(firstTitles.length, 1, 'erster Lauf klassifiziert genau eine Aufgabe');
+
+		recorded = [];
+		const secondOffset = firstBody.updated + firstBody.failed + firstBody.skipped;
+		const second = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=1&offset=${secondOffset}`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		assert.equal(second.status, 200);
+		const secondBody = (await second.json()) as { updated: number; remaining: number };
+		const secondTitles = recorded.map((entry) => entry.title);
+		assert.equal(secondTitles.length, 1, 'zweiter Lauf klassifiziert genau eine Aufgabe');
+
+		assert.notDeepEqual(firstTitles, secondTitles, 'zweiter Lauf verarbeitet eine ANDERE Aufgabe als der erste');
+		assert.deepEqual(
+			[...firstTitles, ...secondTitles].sort(),
+			['Aufgabe 1', 'Aufgabe 2'],
+			'beide Aufgaben zusammen einmal verarbeitet',
+		);
+		assert.equal(secondBody.updated, 1);
+		assert.equal(secondBody.remaining, 0, 'nach beiden Läufen bleibt nichts mehr offen');
+	});
+
 	it('weist ein ungültiges limit mit 400 ab', async () => {
 		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
 		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=0`, {
