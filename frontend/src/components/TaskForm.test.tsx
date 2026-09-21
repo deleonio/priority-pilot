@@ -274,6 +274,7 @@ const minimalNewTask = (): Task => ({
 	priority: 3,
 	estimatedEffort: 0.5,
 	isException: false,
+	pinned: false,
 	pillars: [],
 });
 
@@ -2001,6 +2002,82 @@ describe('TaskForm — Empfängerauswahl (#1213 AK7)', () => {
 		});
 
 		expect(screen.queryByTestId('select-Empfänger')).toBeNull();
+	});
+});
+
+// ── #1521 (Review-Finding 2): Gruppen-Optionen nur im Aufgaben-Modus ─────────────────────────
+
+/**
+ * Gruppen-Aufgaben gibt es nur als Einzel-Task — der `seriesCreate`-Zweig kennt kein `groupId` und
+ * würde eine Gruppen-Auswahl still verwerfen. Im Serie-Modus darf die Option daher gar nicht erst
+ * angeboten werden; eine vorher getroffene Gruppen-Wahl fällt beim Umschalten aufs eigene Konto
+ * zurück (statt als unsichtbarer Wert stehen zu bleiben).
+ */
+describe('TaskForm — Gruppen-Option nur im Aufgaben-Modus (#1521)', () => {
+	const ownUser = { id: 1, displayName: 'Alex Selbst', email: 'alex@example.com', avatarUrl: null };
+	const groups: Group[] = [{ id: 5, name: 'E2E Gruppe', description: null, role: 'admin', memberCount: 2 }];
+	const members: GroupMember[] = [
+		{ userId: 1, displayName: 'Alex Selbst', role: 'admin' },
+		{ userId: 2, displayName: 'Bobi Anderes', role: 'member' },
+	];
+
+	/** Stubbt den rohen fetch von checkAuth (`GET /api/v1/auth/me`) auf das eigene Konto. */
+	const stubAuthMe = (): void => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (input: RequestInfo | URL) => {
+				if (String(input).includes('/auth/me')) {
+					return new Response(JSON.stringify(ownUser), { status: 200 });
+				}
+				return new Response('{}', { status: 404 });
+			}),
+		);
+	};
+
+	const renderForm = async (): Promise<HTMLSelectElement> => {
+		mockListGroups.mockResolvedValue(groups);
+		mockGetGroupMembers.mockResolvedValue(members);
+		mockSuggestPillars.mockResolvedValue([]);
+		stubAuthMe();
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		return (await screen.findByTestId('select-Empfänger')) as HTMLSelectElement;
+	};
+
+	const optionLabels = (select: HTMLSelectElement): (string | null)[] =>
+		[...select.querySelectorAll('option')].map((option) => option.textContent);
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('Aufgaben-Modus: Gruppen-Option steht zur Wahl', async () => {
+		const select = await renderForm();
+
+		expect(optionLabels(select)).toContain('Gruppe: E2E Gruppe');
+	});
+
+	it('Serie-Modus: Gruppen-Option fehlt, Personen bleiben wählbar', async () => {
+		await renderForm();
+		await switchToSeriesMode();
+
+		const labels = optionLabels(screen.getByTestId('select-Empfänger') as HTMLSelectElement);
+		expect(labels).not.toContain('Gruppe: E2E Gruppe');
+		expect(labels).toContain('Bobi Anderes');
+	});
+
+	it('Gruppen-Wahl fällt beim Umschalten auf Serie aufs eigene Konto zurück', async () => {
+		const select = await renderForm();
+		await act(async () => {
+			fireEvent.change(select, { target: { value: 'group:5' } });
+		});
+
+		await switchToSeriesMode();
+
+		const seriesSelect = screen.getByTestId('select-Empfänger') as HTMLSelectElement;
+		expect(seriesSelect.value).toBe('1');
 	});
 });
 

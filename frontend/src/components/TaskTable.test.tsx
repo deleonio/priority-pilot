@@ -31,6 +31,7 @@ vi.mock('@public-ui/react-v19', () => ({
 		</table>
 	),
 	KolToolbar: () => null,
+	KolInputCheckbox: () => null,
 }));
 
 // renderIntoCell mountet in jsdom keine React-Root in eine Web-Component-Zelle → no-op.
@@ -44,6 +45,7 @@ vi.mock('../lib/series', () => ({
 
 vi.mock('../lib/task', () => ({
 	formatDeadline: () => '',
+	sortPinnedFirst: (tasks: Task[]) => tasks,
 }));
 
 import { TaskTable } from './TaskTable';
@@ -80,6 +82,7 @@ const defaultProps = {
 	onDelete: vi.fn(),
 	onEditDependencies: vi.fn(),
 	onAddSubtask: vi.fn(),
+	onPinToggle: vi.fn(),
 };
 
 describe('TaskTable — Checklisten-Fortschritt (#531, AK6/T11)', () => {
@@ -88,5 +91,38 @@ describe('TaskTable — Checklisten-Fortschritt (#531, AK6/T11)', () => {
 
 		expect(screen.getByTestId('task-table')).toBeInTheDocument();
 		expect(screen.getByText('2/5')).toBeInTheDocument();
+	});
+});
+
+/**
+ * ROTE Spec-Tests (#1582, AK4) — angepinnte Aufgaben müssen in der Tabelle visuell erkennbar
+ * sein. `TaskRow` (`frontend/src/components/TaskTable.tsx`) kennt bisher kein von `task.pinned`
+ * abgeleitetes Feld, daher taucht der Text „Angepinnt" in keiner Zeile auf → rot, bis die
+ * Umsetzung die Pin-Kennzeichnung (Icon-Zelle o. Ä. mit Accessible Name „Angepinnt") ergänzt
+ * (docs/spec/issue-1582.md). `pinned` ist im Client-Typ `Task` noch nicht vorhanden, daher der
+ * Cast `as unknown as Task` (wie beim Checklisten-Feld #531).
+ */
+const makePinnableTask = (id: number, pinned: boolean): Task =>
+	({
+		id,
+		title: `Task ${id}`,
+		status: TaskStatus.Open,
+		priority: 1,
+		estimatedEffort: 0.5,
+		pillars: [],
+		pinned,
+	}) as unknown as Task;
+
+describe('TaskTable — Pin-Kennzeichnung (#1582, AK4)', () => {
+	it('kennzeichnet eine angepinnte Aufgabe sichtbar als „Angepinnt"', () => {
+		render(<TaskTable tasks={[makePinnableTask(1, true)]} {...defaultProps} />);
+
+		expect(screen.getByText('Angepinnt')).toBeInTheDocument();
+	});
+
+	it('zeigt bei einer unangepinnten Aufgabe keine Pin-Kennzeichnung', () => {
+		render(<TaskTable tasks={[makePinnableTask(2, false)]} {...defaultProps} />);
+
+		expect(screen.queryByText('Angepinnt')).not.toBeInTheDocument();
 	});
 });

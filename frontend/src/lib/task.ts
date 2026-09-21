@@ -184,3 +184,17 @@ export const isTaskFormDirty = (initial: TaskFormSnapshot, current: TaskFormSnap
 	initial.categoryId !== current.categoryId ||
 	initial.mode !== current.mode ||
 	!contributionsEqual(initial.contributions, current.contributions);
+
+/**
+ * Stellt angepinnte Tasks (#1582) vor alle unangepinnten — unabhängig von der Sortierung des
+ * übergebenen Arrays. Unter mehreren angepinnten Tasks steht der zuletzt angepinnte zuerst
+ * (`pinnedAt` absteigend); unangepinnte Tasks behalten untereinander ihre relative
+ * Ausgangsreihenfolge (stabile Sortierung, kein Vergleich der beiden Gruppen gegeneinander).
+ */
+export const sortPinnedFirst = (tasks: Task[]): Task[] => {
+	const pinned = tasks
+		.filter((task) => task.pinned)
+		.sort((a, b) => new Date(b.pinnedAt ?? 0).getTime() - new Date(a.pinnedAt ?? 0).getTime());
+	const unpinned = tasks.filter((task) => !task.pinned);
+	return [...pinned, ...unpinned];
+};

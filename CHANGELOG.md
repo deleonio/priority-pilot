@@ -2,13 +2,14 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-20
+## v0.2 - 2026-09-21
 
-_Enthält v0.2.0 – v0.2.120._
+_Enthält v0.2.0 – v0.2.125._
 
 ### 🔧 Engineering
 
 - fix(deps): update dependency connect-sqlite3 to v0.9.18 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1398
+- chore(ci): wöchentliches UX-Team als cron-LLM-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1433
 - chore(ci): wöchentliches UX-Team als cron-LLM-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1433
 - docs(guide): Ist-Stand-Sync 2026-09-20 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1591
 
@@ -131,6 +132,11 @@ _Enthält v0.2.0 – v0.2.120._
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1476
 - feat(frontend): Header bar full-width with continuous edge (#1587) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1589
 - feat(server)!: lock pillar crud and restore five default pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1586
+- feat(frontend): tick off checklist items when marking task as done by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1593
+- fix(frontend): task form fields no longer narrowed by plan hints by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1599
+- feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
+- feat(frontend): assign tasks to a whole group by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1603
+- feat(frontend): add pin/unpin support for tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1594
 
 ## v0.1 - 2026-09-12
 
@@ -792,7 +798,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(ci): delegation metrics, review fan-out, kolibri-recherche role by @deleonio in https://github.com/deleonio/priority-pilot/pull/1271
 - feat(frontend): collapse group detail sections, debounce user search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1269
 - feat(mobile): responsive completed tasks table and mobile layout for … by @deleonio in https://github.com/deleonio/priority-pilot/pull/1272
-- feat(frontend): responsive series tree layout for mobile (#1259) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1275
 - feat(frontend): responsive series tree layout for mobile (#1259) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1275
 - feat(frontend): pillar palette on 7 cvd-validated neon colors (#1273) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1276
 - feat(frontend): collapse optional task form sections into accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1277

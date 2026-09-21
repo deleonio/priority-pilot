@@ -54,6 +54,11 @@ class Task extends Model {
 	public seriesId?: number | null;
 	public isException!: boolean;
 	public seriesOccurrence?: Date | null;
+	// Anpinnen (#1582): angepinnte Tasks stehen unabhängig von Sortierung oben. `pinnedAt` ist rein
+	// serverseitig abgeleitet (Zeitpunkt des Anpinnens) und bestimmt die Reihenfolge unter mehreren
+	// angepinnten Tasks (zuletzt angepinnt zuerst); beim Abpinnen wird sie auf `null` zurückgesetzt.
+	public pinned!: boolean;
+	public pinnedAt?: Date | null;
 	// Provenienz (#553): dauerhafte, FK-freie Spalte, die beim Generieren einmalig auf `series.id`
 	// gesetzt wird und NIE wieder geändert wird — auch nicht beim Löschen der Serie. Während `seriesId`
 	// die Live-Verbindung zur (ggf. zwischenzeitlich gelöschten) Serie hält und beim Abkoppeln auf null
@@ -72,6 +77,11 @@ class Task extends Model {
 	// Thematische Kategorie (0..1, siehe models/category.ts). Nullable: Die Zuordnung ist optional,
 	// und beim Löschen einer Kategorie fällt sie auf `null` zurück, ohne die Aufgabe anzutasten.
 	public categoryId?: number | null;
+	// Gruppen-Adressierung (#1521): eine Aufgabe kann statt an eine Person an eine ganze Gruppe
+	// gerichtet sein. Unclaimte Gruppen-Aufgabe = `groupId != null` UND `userId == null`; sobald ein
+	// Mitglied sie erledigt, wird es als `userId` eingetragen („Claim") und die Aufgabe verschwindet
+	// aus der Gruppen-Sicht der übrigen Mitglieder. `groupId` bleibt danach als Herkunft erhalten.
+	public groupId?: number | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
@@ -197,6 +207,16 @@ Task.init(
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
+		// Anpinnen (#1582). Default `false`, damit Bestandsaufgaben unangepinnt bleiben.
+		pinned: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
+		},
+		pinnedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
 		// Provenienz (#553) — FK-frei: nur Daten, keine referenzielle Integrität (Serie kann gelöscht
 		// sein). Nullable für alle Tasks, die nie aus einer Serie generiert wurden.
 		originSeriesId: {
@@ -215,6 +235,11 @@ Task.init(
 		},
 		// Kategorie-Bindung (0..1, siehe Feld-Kommentar oben) — nullable, ohne Default.
 		categoryId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		// Gruppen-Bindung (#1521, siehe Feld-Kommentar oben) — nullable, ohne Default.
+		groupId: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
 		},

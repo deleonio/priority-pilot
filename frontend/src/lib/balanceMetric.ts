@@ -27,6 +27,12 @@ export interface PillarMetric {
 	ratio: number;
 	/** `ratio` auf die gemeinsame Skala normiert (0–1) — das Maß, das jede Figur direkt zeichnet. */
 	scaled: number;
+	/**
+	 * Ist-Anteil an der Gesamtinvestition (0–1; Summe 1, sobald Punkte vergeben sind). Kein
+	 * Konkurrenz-Maß zur Kennzahl, sondern eine Größe daneben: Die Figur „Segmente“ legt ihn
+	 * als Winkelanteil aus — so breit wie der Anteil —, während ihre Füllung `scaled` zeigt.
+	 */
+	actualShare: number;
 }
 
 /** Was die Figuren brauchen: die Säulen und die Marke, an der „auf Ziel" liegt. */
@@ -63,6 +69,7 @@ export const balanceMetrics = (balance: BalanceModel): BalanceMetrics => {
 		colorIndex: segment.colorIndex,
 		ratio: segment.targetShare > 0 ? segment.actualShare / segment.targetShare : 0,
 		scaled: 0,
+		actualShare: segment.actualShare,
 	}));
 
 	const scale = Math.max(1, ...pillars.map((pillar) => pillar.ratio));

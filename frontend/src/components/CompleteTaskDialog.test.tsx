@@ -69,6 +69,7 @@ const sampleTask = (checklist?: ChecklistItem[]): Task => ({
 	priority: 3,
 	estimatedEffort: 0.5,
 	isException: false,
+	pinned: false,
 	pillars: [],
 	...(checklist !== undefined ? { checklist } : {}),
 });

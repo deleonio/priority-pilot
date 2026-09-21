@@ -107,15 +107,17 @@ setzt ihn auf 1.
 
 ## 6. Die Zifferblätter heute
 
-| Schlüssel  | Bild       | Größe ist …                                | Material                          |
-| ---------- | ---------- | ------------------------------------------ | --------------------------------- |
-| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite              | Glas, Welle, Meniskus             |
-| `blasen`   | Blasen     | Radius, größte hinten                      | Seifenhaut, Fresnel-Saum, Schein  |
-| `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben) | deckend, harte Kante, kein Schein |
-| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge | Bogen mit hellem Kopf             |
-| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                 | Lichtkeil mit auslaufendem Puls   |
-| `bluete`   | Blüte      | Lappenlänge, weitester auf 12 Uhr          | weiche Neon-Kontur, irisierend    |
-| `kristall` | Kristall   | Lappenlänge (Stützpunkte wie oben)         | Facetten, helle Kanten und Knoten |
+| Schlüssel  | Bild       | Größe ist …                                  | Material                          |
+| ---------- | ---------- | -------------------------------------------- | --------------------------------- |
+| `herz`     | Herz-Gefäß | Füllfläche und Streifenbreite                | Glas, Welle, Meniskus             |
+| `blasen`   | Blasen     | Radius, größte hinten                        | Seifenhaut, Fresnel-Saum, Schein  |
+| `scheiben` | Scheiben   | Radius, größte hinten (Geometrie wie oben)   | deckend, harte Kante, kein Schein |
+| `ringe`    | Ringe      | Spur (außen = stärkste) **und** Bogenlänge   | Bogen mit hellem Kopf             |
+| `strahlen` | Strahlen   | Länge, längster auf 12 Uhr                   | Lichtkeil mit auslaufendem Puls   |
+| `bluete`   | Blüte      | Lappenlänge, weitester auf 12 Uhr            | weiche Neon-Kontur, irisierend    |
+| `kristall` | Kristall   | Lappenlänge (Stützpunkte wie oben)           | Facetten, helle Kanten und Knoten |
+| `segmente` | Segmente   | äußerer Radius je Stück; Breite = Ist-Anteil | satt, Fuge, helle Lippe           |
+| `zeiger`   | Zeiger     | Länge, längster auf 12 Uhr                   | schlanker Lichtkeil, helle Spitze |
 
 **„Blasen" und „Scheiben" sind derselbe Stapel in zwei Materialien** — gleiche Geometrie, gleiche
 Bewegung, gleiche Slots. Sie teilen sich im Shader einen Zweig (`bool sharp`), weil jede Trennung
@@ -132,7 +134,16 @@ Lappen mit irisierendem Saum, der Kristall lässt sie kantig — Fächerflächen
 Facetten das Licht je nach Lage anders fangen, dazu helle Knoten auf den Spitzen. Auch sie teilen
 sich einen Shader-Zweig (`bool soft`).
 
-**Die Soll-Marke** ist bei Blasen, Scheiben, Strahlen, Blüte und Kristall ein gestrichelter Kreis,
+**„Segmente“ teilt den Ring nach Ist-Anteilen auf** — ein bewusstes zweites Maß neben der
+Kennzahl: Jedes Stück ist so breit wie der Anteil seiner Säule an der Gesamtinvestition, gefüllt
+von innen bis auf seinen Wert. Die Größe der Form bleibt die Kennzahl (die Regel aus §2, keine
+Ausnahme); die Breite zeigt, wem wie viel vom Ring zusteht. Das ist die eine Stelle, an der eine
+Figur eine zweite Größe aus der Auskunft nutzt — die Kennzahl selbst bleibt unangetastet, am
+gering gewichteten Stück bleibt die Form klein. **„Zeiger“** folgt dem Muster der Strahlen mit
+schlankerer Geometrie — dieselben Winkel- und Längen-Slots, nur schmaler: Das Zifferblatt ist
+bei ihr Teil der Figur, ein breiter Keil würde die Skala unter sich begraben.
+
+**Die Soll-Marke** ist bei Blasen, Scheiben, Strahlen, Blüte, Kristall und Zeigern ein gestrichelter Kreis,
 bei den Ringen ein Strich quer über jede Spur; das Herz trägt sie in seinem Füllstand.
 
 **Was die Scheiben nicht bekommen:** keinen Kontaktschatten und keinen Neon-Schein. Ein weicher Saum

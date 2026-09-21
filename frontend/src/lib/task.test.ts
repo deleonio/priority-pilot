@@ -6,6 +6,7 @@ import {
 	deadlineUrgency,
 	doneBlockedHint,
 	formatRelativeDeadline,
+	sortPinnedFirst,
 	statusAccentClass,
 	taskFormModalTitle,
 } from './task';
@@ -246,5 +247,59 @@ describe('isTaskFormDirty', () => {
 			contributions: [...baseSnapshot().contributions].reverse(),
 		};
 		expect(isTaskFormDirty(initial, reordered)).toBe(false);
+	});
+});
+
+/**
+ * ROTE Spec-Tests (#1582, AK2/AK5) — `sortPinnedFirst` gibt es in `frontend/src/lib/task.ts`
+ * noch nicht (Modul kennt kein `pinned`/`pinnedAt`) → der Import oben und jeder Aufruf hier sind
+ * rot, bis die Umsetzung die Funktion ergänzt (docs/spec/issue-1582.md). `pinned`/`pinnedAt` sind
+ * im Client-Typ `Task` noch nicht vorhanden, daher der Cast `as unknown as Task` (wie beim
+ * Checklisten-Feld #531) als einzige Typ-Grenze des Vertrags.
+ */
+describe('sortPinnedFirst (#1582)', () => {
+	const makeTask = (id: number, pinned: boolean, pinnedAt: string | null = null): Task =>
+		({ id, title: `Task ${id}`, pinned, pinnedAt }) as unknown as Task;
+
+	it('AK2: angepinnte Tasks stehen vor unangepinnten, unabhängig von der Ausgangsreihenfolge', () => {
+		const a = makeTask(1, false);
+		const b = makeTask(2, true, '2026-09-01T10:00:00.000Z');
+		const c = makeTask(3, false);
+		const d = makeTask(4, true, '2026-09-02T10:00:00.000Z');
+
+		const sorted = sortPinnedFirst([a, b, c, d]);
+
+		expect(sorted.map((t: Task) => t.id)).toEqual([4, 2, 1, 3]);
+	});
+
+	it('AK2: unter mehreren angepinnten Tasks steht der zuletzt angepinnte zuerst (pinnedAt absteigend)', () => {
+		const older = makeTask(1, true, '2026-09-01T10:00:00.000Z');
+		const newer = makeTask(2, true, '2026-09-05T10:00:00.000Z');
+
+		const sorted = sortPinnedFirst([older, newer]);
+
+		expect(sorted.map((t: Task) => t.id)).toEqual([2, 1]);
+	});
+
+	it('AK2: unangepinnte Tasks behalten untereinander ihre relative Ausgangsreihenfolge (stabil)', () => {
+		const a = makeTask(1, false);
+		const b = makeTask(2, false);
+		const c = makeTask(3, false);
+
+		const sorted = sortPinnedFirst([c, a, b]);
+
+		expect(sorted.map((t: Task) => t.id)).toEqual([3, 1, 2]);
+	});
+
+	it('AK5: nach dem Abpinnen (pinned: false) steht der Task sofort wieder an seiner normalen Position', () => {
+		const pinned = makeTask(1, true, '2026-09-01T10:00:00.000Z');
+		const rest = makeTask(2, false);
+
+		const stillPinned = sortPinnedFirst([pinned, rest]);
+		expect(stillPinned.map((t: Task) => t.id)).toEqual([1, 2]);
+
+		const unpinned = { ...pinned, pinned: false, pinnedAt: null } as unknown as Task;
+		const afterUnpin = sortPinnedFirst([unpinned, rest]);
+		expect(afterUnpin.map((t: Task) => t.id)).toEqual([1, 2]);
 	});
 });

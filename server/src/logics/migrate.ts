@@ -574,6 +574,22 @@ export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
 };
 
 /**
+ * Zieht die `groupId`-Spalte (Gruppen-Adressierung, #1521) auf einer **bestehenden** `tasks`-Tabelle
+ * nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist`. Nullable, daher kein Default;
+ * Bestandsaufgaben bleiben ohne Gruppenbezug (`NULL`). Idempotent (Spalte vorhanden → No-op).
+ */
+export const migrateTaskGroupId = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('groupId')) {
+		return;
+	}
+	await db.query('ALTER TABLE `tasks` ADD COLUMN `groupId` INTEGER');
+	console.log('Spalte groupId an tasks nachgezogen (#1521).');
+};
+
+/**
  * Zieht die `address`-Spalte (Aufgabenort, Adresssuche im Formular) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Adresse (`NULL`). Idempotent (Spalte
@@ -778,5 +794,29 @@ export const migrateCategoryIdColumns = async (db: Sequelize): Promise<void> => 
 		}
 		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`categoryId\` INTEGER`);
 		console.log(`Spalte categoryId an ${table} nachgezogen.`);
+	}
+};
+
+/**
+ * Zieht die Pin-Spalten (#1582) auf einer **bestehenden** `tasks`-Tabelle nach, BEVOR
+ * `sequelize.sync()` läuft — analog `migrateUserGeoConfigColumns`. `pinned` ist `NOT NULL DEFAULT
+ * 0` (ALTER TABLE ADD COLUMN NOT NULL erfordert einen DEFAULT-Wert), `pinnedAt` bleibt nullable
+ * (nur beim Anpinnen gesetzt). Idempotent: bereits vorhandene Spalten werden übersprungen; bei
+ * frischer DB No-op — `sync()` legt beide Spalten an.
+ */
+export const migrateTaskPinnedColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('pinned')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `pinned` BOOLEAN NOT NULL DEFAULT 0');
+		console.log('Spalte pinned an tasks nachgezogen.');
+	}
+	if (!existing.includes('pinnedAt')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `pinnedAt` DATETIME');
+		console.log('Spalte pinnedAt an tasks nachgezogen.');
 	}
 };

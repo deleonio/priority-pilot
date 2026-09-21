@@ -72,12 +72,14 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Säule angelegt hast). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
   alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
   Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
-  **Scheiben**, **Ringe**, **Strahlen**, **Blüte** oder **Kristall**. Alle zeigen dieselben Zahlen: Je Säule steht
+  **Scheiben**, **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** oder **Zeiger**. Alle zeigen dieselben Zahlen: Je Säule steht
   die Größe für das Verhältnis von Ist zu Ziel, die stärkste Säule bekommt die
   größte Form. „Blasen" und „Scheiben" zeigen denselben Stapel – einmal
   durchscheinend und leuchtend, einmal satt und scharfkantig. „Blüte" und
   „Kristall" fassen alle Säulen zu einer gemeinsamen Silhouette zusammen, deren
-  Lappen je Säule so weit reichen wie ihr Wert – einmal weich, einmal kantig. Bei diesen sechs
+  Lappen je Säule so weit reichen wie ihr Wert – einmal weich, einmal kantig. „Segmente“
+  teilt den Ring nach Ist-Anteilen auf, „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt.
+  Bei diesen acht
   Bildern läuft außen herum ein Zifferblatt aus
   100 Strichen, das von Dunkelrot über Orange nach Dunkelgrün wechselt – die
   leuchtenden Striche sind dein Balance-Wert in Prozent. Eine stark vernachlässigte Säule drückt den
@@ -567,7 +569,7 @@ Zugriff. Administratoren der App sehen zusätzlich den Bereich **Nutzerverwaltun
   richtet sich die App nach der Spracheinstellung deines Browsers; ist deren
   Sprache nicht dabei, erscheint die Oberfläche auf Deutsch.
 - **Bild der Lebensbalance** – wähle zwischen **Herz**, **Blasen**, **Scheiben**,
-  **Ringe**, **Strahlen**, **Blüte** und **Kristall**. Alle zeigen dieselbe Rechnung, nur anders
+  **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** und **Zeiger**. Alle zeigen dieselbe Rechnung, nur anders
   dargestellt. Die Wahl gilt auf diesem Gerät.
 - **Animationen** – die Schalter **„Animationen"**, **„Herz animieren"** und
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem

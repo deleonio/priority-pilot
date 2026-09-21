@@ -145,6 +145,7 @@ export const main = async (): Promise<void> => {
 			migratePillarFeedbackUserId,
 			migrateTaskChecklist,
 			migrateTaskAddress,
+			migrateTaskGroupId,
 			migrateUserGeoConfigColumns,
 			migrateUsersDisplayNameCustom,
 			migrateLlmProviderKindColumns,
@@ -156,6 +157,7 @@ export const main = async (): Promise<void> => {
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
+			migrateTaskPinnedColumns,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
@@ -201,6 +203,8 @@ export const main = async (): Promise<void> => {
 		// Fehlende address-Spalte an tasks nachziehen — vor sync(), damit Lese-/Schreibzugriffe auf
 		// bestehenden DBs nicht mit `no such column` brechen.
 		await migrateTaskAddress(sequelize);
+		// Fehlende groupId-Spalte an tasks nachziehen (#1521) — vor sync().
+		await migrateTaskGroupId(sequelize);
 		// Fehlende Geo-Config-Spalten an users nachziehen (#1098) — vor sync(), damit Login,
 		// /geo-config und /tasks/nearby auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateUserGeoConfigColumns(sequelize);
@@ -237,6 +241,9 @@ export const main = async (): Promise<void> => {
 		// (#1357) — vor sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column`
 		// brechen.
 		await migrateApiTokenExpiresAt(sequelize);
+		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit
+		// Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateTaskPinnedColumns(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
