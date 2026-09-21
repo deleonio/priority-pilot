@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError, handleWriteError, parseId } from '../http-error.js';
 import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
-import { GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
+import { Group, GroupMember, Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { haversineKm } from '../../logics/geo.js';
 import { selectSeriesRepresentatives } from '../../logics/series.js';
@@ -103,6 +103,8 @@ const validateChecklist = (value: unknown): ChecklistItem[] | string => {
 export interface TaskSerializeContext {
 	requesterId?: number | null;
 	names?: Map<number, string>;
+	/** Gruppennamen zu den referenzierten `groupId`s (#1521) — ein Sammel-Query statt je Task. */
+	groupNames?: Map<number, string>;
 }
 
 /**
@@ -116,6 +118,18 @@ export const loadUserNames = async (ids: number[]): Promise<Map<number, string>>
 	}
 	const users = await User.findAll({ where: { id: unique } });
 	return new Map(users.map((user) => [user.id, user.displayName ?? user.email]));
+};
+
+/**
+ * Lädt die Namen der referenzierten Gruppen (#1521) — Sammel-Query, Muster `loadUserNames`.
+ */
+const loadGroupNames = async (ids: number[]): Promise<Map<number, string>> => {
+	const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+	if (unique.length === 0) {
+		return new Map();
+	}
+	const groups = await Group.findAll({ where: { id: unique } });
+	return new Map(groups.map((group) => [group.id, group.name]));
 };
 
 /**
@@ -160,6 +174,11 @@ export const serializeTask = (task: Task, context: TaskSerializeContext = {}): T
 		createdByName: createdBy !== null ? (context.names?.get(createdBy) ?? null) : null,
 		forUserId: handedOff ? task.userId : null,
 		forUserName: handedOff ? (context.names?.get(task.userId as number) ?? null) : null,
+		// #1521: Gruppen-Adressierung. `groupName` trägt das „Für:"-Kennzeichen der Aufgabenliste
+		// (AK7) — anders als `forUserName` ohne Ersteller-Bedingung: die Gruppen-Aufgabe ist für
+		// jedes Mitglied eine Gruppen-Aufgabe.
+		groupId: task.groupId ?? null,
+		groupName: task.groupId != null ? (context.groupNames?.get(task.groupId) ?? null) : null,
 		pillars: (task.Pillars ?? [])
 			.map((pillar) => ({
 				pillarId: pillar.id,
@@ -189,6 +208,15 @@ export const loadSharedUserIds = async (requesterId: number): Promise<number[]> 
 };
 
 /**
+ * Gruppen-IDs, in denen der Requester aktuell Mitglied ist (#1521). Basis wie `loadSharedUserIds`
+ * die vorhandenen `group_members`-Zeilen — Austritt/Löschung entziehen die Sichtbarkeit sofort.
+ */
+const loadOwnGroupIds = async (requesterId: number): Promise<number[]> => {
+	const memberships = await GroupMember.findAll({ where: { userId: requesterId }, attributes: ['groupId'] });
+	return [...new Set(memberships.map((membership) => membership.groupId))];
+};
+
+/**
  * Lese-Scope der Task-Liste (#1213, AK3/AK5): eigene Aufgaben (`ownerScope`) OER Aufgaben, die der
  * Nutzer für ein anderes Gruppenmitglied angelegt hat (`createdById`). Der Schreib-Scope
  * (`findOwnTask`) bleibt ausschließlich `ownerScope` — der Ersteller einer fremden Aufgabe erhält
@@ -207,8 +235,16 @@ const taskReadScope = async (userId: number | undefined, requesterId: number | n
 		return { userId };
 	}
 	const sharedUserIds = await loadSharedUserIds(requesterId);
+	const ownGroupIds = await loadOwnGroupIds(requesterId);
 	return {
-		[Op.or]: [{ userId }, { createdById: requesterId, userId: { [Op.in]: sharedUserIds } }],
+		[Op.or]: [
+			{ userId },
+			{ createdById: requesterId, userId: { [Op.in]: sharedUserIds } },
+			// #1521 (AK2/AK3): unclaimte Gruppen-Aufgaben der eigenen Gruppen. `userId: null` ist der
+			// Unclaimed-Marker — sobald ein Mitglied die Aufgabe erledigt hat (Claim), greift für alle
+			// anderen nur noch der `userId`-Zweig, die Aufgabe verschwindet also aus ihrer Liste.
+			{ groupId: { [Op.in]: ownGroupIds }, userId: null },
+		],
 	};
 };
 
@@ -220,7 +256,8 @@ const taskReadScope = async (userId: number | undefined, requesterId: number | n
 const serializeTasksFor = async (req: Request, tasks: Task[]): Promise<TaskDto[]> => {
 	const requester = await resolveGeoUser(req);
 	const names = await loadUserNames(tasks.flatMap((task) => [task.createdById ?? 0, task.userId ?? 0]));
-	return tasks.map((task) => serializeTask(task, { requesterId: requester?.id ?? null, names }));
+	const groupNames = await loadGroupNames(tasks.map((task) => task.groupId ?? 0));
+	return tasks.map((task) => serializeTask(task, { requesterId: requester?.id ?? null, names, groupNames }));
 };
 
 /**
@@ -230,6 +267,22 @@ const serializeTasksFor = async (req: Request, tasks: Task[]): Promise<TaskDto[]
  */
 const findOwnTask = (id: number, userId: number | undefined): Promise<Task | null> =>
 	Task.findOne({ where: { id, ...ownerScope(userId) } });
+
+/**
+ * Lädt eine noch unclaimte Gruppen-Aufgabe (#1521, AK3), sofern der Nutzer Mitglied der adressierten
+ * Gruppe ist — der Schreib-Scope von `findOwnTask` greift dort nicht, weil die Aufgabe (noch) keinen
+ * Eigentümer hat. Ohne Session (Pass-Through) bleibt `findOwnTask` zuständig (leerer Owner-Filter).
+ */
+const findClaimableGroupTask = async (id: number, userId: number | undefined): Promise<Task | null> => {
+	if (userId === undefined) {
+		return null;
+	}
+	const ownGroupIds = await loadOwnGroupIds(userId);
+	if (ownGroupIds.length === 0) {
+		return null;
+	}
+	return Task.findOne({ where: { id, userId: null, groupId: { [Op.in]: ownGroupIds } } });
+};
 
 /**
  * Validiert den Request-Body für Anlegen/Aktualisieren eines Tasks.
@@ -560,6 +613,27 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 					recipientId = recipientInput;
 				}
 			}
+			// #1521 (AK1): Alternativ zur Person kann eine Gruppe Empfänger sein. Die Aufgabe entsteht
+			// dann ohne Eigentümer (`userId = null`) und gehört der Gruppe, bis ein Mitglied sie erledigt.
+			// Nur eigene Gruppen sind adressierbar; Person UND Gruppe zugleich ist kein gültiger Vertrag.
+			let groupTargetId: number | null = null;
+			const groupInput = (req.body as { groupId?: unknown }).groupId;
+			if (groupInput !== undefined && groupInput !== null) {
+				if (typeof groupInput !== 'number' || !Number.isInteger(groupInput)) {
+					sendError(res, 400, 'groupId muss eine Ganzzahl sein.');
+					return;
+				}
+				if (recipientId !== null) {
+					sendError(res, 400, 'Eine Aufgabe kann entweder an eine Person oder an eine Gruppe gerichtet sein.');
+					return;
+				}
+				const membership = await GroupMember.findOne({ where: { groupId: groupInput, userId: requesterId ?? -1 } });
+				if (membership === null) {
+					sendError(res, 403, 'Du bist kein Mitglied dieser Gruppe.');
+					return;
+				}
+				groupTargetId = groupInput;
+			}
 			// #1249: Säulen gegen das Konto prüfen, dem die Aufgabe gehören wird — bei einem Empfänger
 			// gegen dessen Konto statt gegen den Ersteller (Empfänger-Auflösung inkl. 403 bleibt davor).
 			if (
@@ -585,7 +659,13 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				// Neuen Task an den Eigentümer binden (Datenisolation, #207; Empfänger #1213, sonst der
 				// eingeloggte Nutzer; `null` im Pass-Through) und den Ersteller festhalten (AK3).
 				const task = await Task.create(
-					{ ...validation.attrs, userId: recipientId ?? userId ?? null, createdById: requesterId },
+					{
+						...validation.attrs,
+						// #1521: Gruppen-Aufgabe startet ohne Eigentümer — der Claim beim Erledigen trägt ihn nach.
+						userId: groupTargetId !== null ? null : (recipientId ?? userId ?? null),
+						groupId: groupTargetId,
+						createdById: requesterId,
+					},
 					{ transaction },
 				);
 				if (validation.pillars !== undefined && validation.pillars.length > 0) {
@@ -634,8 +714,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 	// PATCH /tasks/:id — einen Task teilweise aktualisieren
 	tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
 		const id = parseId(req.params.id);
-		// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
-		const task = id === null ? null : await findOwnTask(id, getUserId(req));
+		// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5). #1521: zusätzlich sind
+		// unclaimte Gruppen-Aufgaben der eigenen Gruppen schreibbar — jedes Mitglied darf sie erledigen.
+		const task =
+			id === null
+				? null
+				: ((await findOwnTask(id, getUserId(req))) ?? (await findClaimableGroupTask(id, getUserId(req))));
 		if (!task) {
 			sendError(res, 404, 'Task nicht gefunden.');
 			return;
@@ -687,6 +771,16 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				recipientId = recipientInput;
 			}
 		}
+		// #1521 (AK3–AK5): Erledigt ein Mitglied eine unclaimte Gruppen-Aufgabe, übernimmt es sie mit
+		// demselben Request („Claim") — `awardScoreOnDone` hängt den ScoreEntry über `taskId` an den
+		// Task, dessen `userId` nach dem Commit der Erlediger ist, damit landet die Gutschrift bei ihm.
+		const claimUserId =
+			task.groupId != null && task.userId == null && recipientId === null && validation.attrs.status === 'Done'
+				? (userId ?? null)
+				: null;
+		// Konto, auf das Säulen/Kategorie umgehängt werden: bei einer Übergabe der Empfänger (#1252),
+		// beim Gruppen-Claim der Erlediger (#1521) — sonst keines.
+		const remapTargetId = recipientId ?? claimUserId;
 		// #1249/#1252: Säulen gegen das Konto prüfen, dem die Aufgabe nach diesem Request gehört —
 		// bei einer Übergabe gegen das Empfänger-Konto statt gegen den Aufrufer.
 		if (
@@ -758,13 +852,15 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// Kategorie gehört dem alten Eigentümer. Der Empfänger übernimmt sie, wenn er eine gleichen
 			// Namens hat, sonst verliert die Aufgabe die Zuordnung — nie zeigt sie auf fremde Stammdaten.
 			const handoverCategoryId =
-				recipientId !== null && validation.attrs.categoryId === undefined && task.categoryId != null
-					? await remapCategoryForRecipient(task.categoryId, recipientId)
+				remapTargetId !== null && validation.attrs.categoryId === undefined && task.categoryId != null
+					? await remapCategoryForRecipient(task.categoryId, remapTargetId)
 					: undefined;
 			const attrs = {
 				...validation.attrs,
 				...(task.seriesId != null ? { isException: true } : {}),
 				...(recipientId !== null ? { userId: recipientId, createdById: requesterId } : {}),
+				// #1521: Claim — der Erlediger wird Eigentümer, `createdById` bleibt beim Anleger.
+				...(claimUserId !== null ? { userId: claimUserId } : {}),
 				...(handoverCategoryId !== undefined ? { categoryId: handoverCategoryId } : {}),
 			};
 			// #1363: Meilenstein-Stand des Eigentümers vor dem Statuswechsel-Commit festhalten — nur bei
@@ -775,7 +871,10 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// filtert aber live über `Task.userId` und würde den alten Eigentümer nie treffen (Review
 			// #1389, Finding #1). Der Empfänger selbst wird ebenfalls nicht geprüft, da die Übergabe kein
 			// eigener „Done"-Verdienst des Empfängers ist.
-			const meilensteinUserId = task.userId;
+			// #1521 (Review-Finding 1): Bei einem Gruppen-Claim ist `task.userId` vor dem Commit noch
+			// `null` — der Erlediger steht nur in `claimUserId`. Ohne die Auflösung hier bliebe
+			// `meilensteinUserId` null und der Meilenstein-Push zur erledigten Gruppen-Aufgabe entfiele.
+			const meilensteinUserId = claimUserId ?? task.userId;
 			const istDoneUebergang = recipientId === null && !warVorherDone && attrs.status === 'Done';
 			const meilensteineVorher =
 				istDoneUebergang && meilensteinUserId != null ? await meilensteinStandVon(meilensteinUserId) : null;
@@ -785,7 +884,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				// bereits gegen das Empfänger-Konto validiert und ersetzen unten komplett) dürfen Beiträge
 				// nicht auf Säulen des bisherigen Eigentümers zeigen: Übernahme per gleichem Säulen-Namen
 				// des Empfängers (#1249-Regel), sonst verwerfen. Nur die Eigentumsfelder ändern sich.
-				if (recipientId !== null && validation.pillars === undefined) {
+				if (remapTargetId !== null && validation.pillars === undefined) {
 					const contributions = await TaskPillar.findAll({ where: { taskId: task.id }, transaction });
 					if (contributions.length > 0) {
 						const oldPillars = await Pillar.findAll({
@@ -793,7 +892,7 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 						});
 						const names = oldPillars.map((pillar) => pillar.name);
 						const replacements =
-							names.length > 0 ? await Pillar.findAll({ where: { userId: recipientId, name: names } }) : [];
+							names.length > 0 ? await Pillar.findAll({ where: { userId: remapTargetId, name: names } }) : [];
 						const byName = new Map(replacements.map((pillar) => [pillar.name, pillar]));
 						const mapped = contributions.flatMap((entry) => {
 							const source = oldPillars.find((pillar) => pillar.id === entry.pillarId);

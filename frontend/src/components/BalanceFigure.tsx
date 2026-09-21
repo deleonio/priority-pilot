@@ -3,9 +3,11 @@ import { BalanceFigureGL } from './BalanceFigureGL';
 import {
 	activeTicks,
 	buildArcs,
+	buildHands,
 	buildOrbs,
 	buildPetals,
 	buildRays,
+	buildWedges,
 	CENTER,
 	orbAxes,
 	petalArcPoints,
@@ -16,9 +18,11 @@ import {
 	VIEW_SIZE,
 	type Arc,
 	type FigureMotion,
+	type Hand,
 	type Petal,
 	type Ray,
 	type RingTick,
+	type Wedge,
 } from '../lib/balanceFigure';
 import { balanceMetrics } from '../lib/balanceMetric';
 import type { BalanceModel } from '../lib/heartBalance';
@@ -171,6 +175,26 @@ const rayPoints = (ray: Ray): string => {
 	return [left, tipLeft, tip, tipRight, right].map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
 };
 
+/**
+ * Der Umriss eines Zeigers: innen schmal, außen spitz zulaufend wie der Zeiger einer Uhr —
+ * quer zur Skala, statt sie wie ein Keil zu überdecken.
+ */
+const handPoints = (hand: Hand): string => {
+	const tip = polar(hand.angle, hand.length);
+	const left = polar(hand.angle - hand.spread * 0.34, 1);
+	const right = polar(hand.angle + hand.spread * 0.34, 1);
+	const tipLeft = polar(hand.angle - hand.spread * 0.12, hand.length);
+	const tipRight = polar(hand.angle + hand.spread * 0.12, hand.length);
+	return [left, tipLeft, tip, tipRight, right].map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+};
+
+/** Die vier Ecken eines Ringstücks — Start und Ende seines Winkelanteils, innen und außen. */
+const wedgePoints = (wedge: Wedge): string =>
+	[wedge.start, wedge.end]
+		.flatMap((angle): { x: number; y: number }[] => [polar(angle, wedge.inner), polar(angle, wedge.outer)])
+		.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+		.join(' ');
+
 export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabel }: BalanceFigureProps) => {
 	const metrics = useMemo(() => balanceMetrics(balance), [balance]);
 	const ticks = useMemo(() => ringTicks(balance.fill), [balance.fill]);
@@ -240,6 +264,8 @@ export const BalanceFigure = ({ balance, figure, animated, beatSeconds, ariaLabe
 					{figure === 'strahlen' && <Rays metrics={metrics} animated={animated} />}
 					{figure === 'bluete' && <Petals metrics={metrics} animated={animated} />}
 					{figure === 'kristall' && <Crystal metrics={metrics} animated={animated} />}
+					{figure === 'segmente' && <Wedges metrics={metrics} animated={animated} />}
+					{figure === 'zeiger' && <Hands metrics={metrics} animated={animated} />}
 				</g>
 			</g>
 		</svg>
@@ -509,6 +535,90 @@ const Crystal = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetr
 				);
 			})}
 			{petals.length === 1 && <TipNode petal={petals[0]} radius={1.7} animated={animated} />}
+		</>
+	);
+};
+
+/**
+ * Figur „Segmente“: der Ring als Tortengrafik der Ist-Anteile. Jedes Stück ist so breit wie
+ * der Anteil seiner Säule und gefüllt von innen bis auf seinen Wert — die Soll-Marke steht als
+ * Strich quer über jedes Stück. Die Fuge zwischen den Stücken ist Teil der Geometrie
+ * (`buildWedges`); hier bleibt nur das Erscheinungsbild.
+ */
+const Wedges = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+	const wedges = buildWedges(metrics);
+	return (
+		<>
+			{wedges.map((wedge) => {
+				const inner = polar(wedge.angle, wedge.inner);
+				const outer = polar(wedge.angle, wedge.outer);
+				return (
+					<g key={wedge.pillarId} data-testid="heart-column">
+						<polygon className={rampClass('balance-wedge', wedge.colorIndex)} points={wedgePoints(wedge)}>
+							{animated && (
+								<animate
+									attributeName="opacity"
+									values="0.86;1;0.86"
+									dur={`${wedge.swingPeriod}s`}
+									repeatCount="indefinite"
+								/>
+							)}
+						</polygon>
+						{/* Soll-Marke: ein Strich quer über die Breite des Stücks. */}
+						<line
+							className="balance-target-mark"
+							data-testid="balance-target"
+							x1={inner.x.toFixed(2)}
+							y1={inner.y.toFixed(2)}
+							x2={outer.x.toFixed(2)}
+							y2={outer.y.toFixed(2)}
+						/>
+					</g>
+				);
+			})}
+		</>
+	);
+};
+
+/**
+ * Figur „Zeiger“: je Säule ein Zeiger auf dem gemeinsamen Zifferblatt, gleichmäßig über den
+ * Kreis verteilt wie die Strahlen, aber schlanker — der längste steht auf 12 Uhr. Die Soll-
+ * Marke ist der gestrichelte Kreis wie bei den Strahlen.
+ */
+const Hands = ({ metrics, animated }: { metrics: ReturnType<typeof balanceMetrics>; animated: boolean }) => {
+	const hands = buildHands(metrics);
+	return (
+		<>
+			{hands.length > 0 && (
+				<circle
+					className="balance-target"
+					data-testid="balance-target"
+					cx={CENTER}
+					cy={CENTER}
+					r={hands[0].targetLength.toFixed(2)}
+				/>
+			)}
+			{hands.map((hand) => (
+				<g key={hand.pillarId} data-testid="heart-column">
+					<polygon className={rampClass('balance-hand', hand.colorIndex)} points={handPoints(hand)}>
+						{animated && (
+							<animate
+								attributeName="opacity"
+								values="0.82;1;0.82"
+								dur={`${hand.swingPeriod}s`}
+								repeatCount="indefinite"
+							/>
+						)}
+					</polygon>
+					{/* Helles Köpfchen auf der Spitze — das Ende der Strecke, auf die das Auge fällt. */}
+					<circle
+						className={rampClass('balance-node', hand.colorIndex)}
+						cx={polar(hand.angle, hand.length).x.toFixed(2)}
+						cy={polar(hand.angle, hand.length).y.toFixed(2)}
+						r={1.1}
+					/>
+				</g>
+			))}
 		</>
 	);
 };

@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-20
+## v0.2 - 2026-09-21
 
-_Enthält v0.2.0 – v0.2.120._
+_Enthält v0.2.0 – v0.2.123._
 
 ### 🔧 Engineering
 
@@ -131,6 +131,9 @@ _Enthält v0.2.0 – v0.2.120._
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1476
 - feat(frontend): Header bar full-width with continuous edge (#1587) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1589
 - feat(server)!: lock pillar crud and restore five default pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1586
+- feat(frontend): tick off checklist items when marking task as done by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1593
+- fix(frontend): task form fields no longer narrowed by plan hints by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1599
+- feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
 
 ## v0.1 - 2026-09-12
 
@@ -793,9 +796,9 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): collapse group detail sections, debounce user search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1269
 - feat(mobile): responsive completed tasks table and mobile layout for … by @deleonio in https://github.com/deleonio/priority-pilot/pull/1272
 - feat(frontend): responsive series tree layout for mobile (#1259) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1275
-- feat(frontend): responsive series tree layout for mobile (#1259) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1275
 - feat(frontend): pillar palette on 7 cvd-validated neon colors (#1273) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1276
 - feat(frontend): collapse optional task form sections into accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1277
+- feat(frontend): keep main tab bar on one line at 375px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1278
 - feat(frontend): keep main tab bar on one line at 375px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1278
 - chore: implement prompt audit #1247 and shared llm concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1279
 - docs(review): canonical fixup findings table and adr 0011 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1286

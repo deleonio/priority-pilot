@@ -31,7 +31,7 @@ export const BalanceVariantSetting = () => {
 				_orientation="vertical"
 				_options={options}
 				_value={variant}
-				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal."
+				_hint="Alle Bilder zeigen dieselbe Rechnung: je Säule das Verhältnis von Ist zu Ziel — die stärkste Säule bekommt überall die größte Form. „Herz“ füllt ein Gefäß; „Blasen“ und „Scheiben“ stapeln dieselben Formen in zwei Materialien, „Ringe“ zeigt sie als Bögen, „Strahlen“ als Lichtkeile. „Blüte“ und „Kristall“ fassen alle Säulen zu einer Silhouette zusammen — weich einmal, kantig einmal. „Segmente“ teilt den Ring nach Ist-Anteilen auf, „Zeiger“ zeigt je Säule einen Zeiger auf dem Zifferblatt."
 				_on={{
 					onChange: (_event, value) => {
 						if (typeof value === 'string') {

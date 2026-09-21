@@ -16,6 +16,7 @@ import {
 	migrateUsersRoleColumn,
 	migrateCategoryIdColumns,
 	migrateTaskPinnedColumns,
+	migrateTaskGroupId,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -342,6 +343,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskCreatedById(sequelize); // #1213: Ersteller-Spalte, ebenfalls von Task.findAll mitselektiert
 		await migrateCategoryIdColumns(sequelize); // Kategorie-Spalte, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskPinnedColumns(sequelize); // #1582: Pin-Spalten, ebenfalls von Task.findAll mitselektiert
+		await migrateTaskGroupId(sequelize); // #1521: Gruppen-Spalte, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
 		await assert.doesNotReject(

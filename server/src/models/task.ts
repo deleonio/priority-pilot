@@ -77,6 +77,11 @@ class Task extends Model {
 	// Thematische Kategorie (0..1, siehe models/category.ts). Nullable: Die Zuordnung ist optional,
 	// und beim Löschen einer Kategorie fällt sie auf `null` zurück, ohne die Aufgabe anzutasten.
 	public categoryId?: number | null;
+	// Gruppen-Adressierung (#1521): eine Aufgabe kann statt an eine Person an eine ganze Gruppe
+	// gerichtet sein. Unclaimte Gruppen-Aufgabe = `groupId != null` UND `userId == null`; sobald ein
+	// Mitglied sie erledigt, wird es als `userId` eingetragen („Claim") und die Aufgabe verschwindet
+	// aus der Gruppen-Sicht der übrigen Mitglieder. `groupId` bleibt danach als Herkunft erhalten.
+	public groupId?: number | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
@@ -230,6 +235,11 @@ Task.init(
 		},
 		// Kategorie-Bindung (0..1, siehe Feld-Kommentar oben) — nullable, ohne Default.
 		categoryId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		// Gruppen-Bindung (#1521, siehe Feld-Kommentar oben) — nullable, ohne Default.
+		groupId: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
 		},

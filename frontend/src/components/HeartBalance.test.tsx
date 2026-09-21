@@ -66,7 +66,16 @@ describe('HeartBalance', () => {
 		 * dieselbe Zahl, die unter dem Bild steht.
 		 */
 		it('gibt jeder Figur dasselbe Zifferblatt mit 100 Strichen', () => {
-			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall'] as const) {
+			for (const value of [
+				'blasen',
+				'scheiben',
+				'ringe',
+				'strahlen',
+				'bluete',
+				'kristall',
+				'segmente',
+				'zeiger',
+			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 
@@ -83,7 +92,16 @@ describe('HeartBalance', () => {
 
 		/* Die Soll-Marke sagt in jeder Figur dasselbe: „hier stünde die Säule genau auf ihrem Ziel". */
 		it('markiert in jeder Figur, wo das Soll liegt', () => {
-			for (const value of ['blasen', 'scheiben', 'ringe', 'strahlen', 'bluete', 'kristall'] as const) {
+			for (const value of [
+				'blasen',
+				'scheiben',
+				'ringe',
+				'strahlen',
+				'bluete',
+				'kristall',
+				'segmente',
+				'zeiger',
+			] as const) {
 				chooseVariant(value);
 				render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 				expect(screen.getAllByTestId('balance-target').length, value).toBeGreaterThan(0);

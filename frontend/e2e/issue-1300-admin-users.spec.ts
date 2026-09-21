@@ -104,4 +104,49 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await roleButton.click();
 		await expect(page.getByRole('button', { name: 'Test User zur Mitgliedschaft zurückstufen' })).toBeVisible();
 	});
+
+	// Fixup PR #1602, Finding #3: 375px-Nachweis der zweistufigen Bestätigungs-Dialogleiste
+	// (Säulenverteilung neu berechnen) — zwei Modals mit je zwei Buttons und ein Button mit sehr
+	// langem Label sind genau der Fall, der auf Telefonbreite umbricht.
+	test('Dialogleiste „Säulenverteilung neu berechnen" bricht bei 375px nicht um', async ({ page }) => {
+		await mockAuthMe(page, ADMIN_USER);
+		await mockAdminUsers(page);
+		await page.route('**/api/v1/admin/tasks/reassign-pillars', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ updated: 2, failed: 0, skipped: 1, users: 1, remaining: 0 }),
+			}),
+		);
+		await page.setViewportSize(MOBILE);
+		await page.goto('/settings/nutzer');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }).click();
+		await expect(page.getByRole('heading', { name: 'Säulenverteilung neu berechnen' })).toBeVisible();
+		const intentDialog = page.locator('kol-dialog');
+		const { scroller: intentScroller } = await intentDialog.evaluate(measureHorizontalScroll);
+		expect(intentScroller, 'kein horizontaler Scroll im Bestätigungs-Dialog bei 375px').toBeNull();
+
+		await page.getByRole('button', { name: 'Weiter' }).click();
+		await expect(page.getByRole('heading', { name: 'KI-Kosten bestätigen' })).toBeVisible();
+		const costsDialog = page.locator('kol-dialog');
+		const { scroller: costsScroller } = await costsDialog.evaluate(measureHorizontalScroll);
+		expect(costsScroller, 'kein horizontaler Scroll im Kosten-Dialog bei 375px').toBeNull();
+
+		const runButton = page.getByRole('button', { name: 'Jetzt neu berechnen' });
+		await expect(runButton).toBeVisible();
+		const box = await runButton.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.height, 'Primär-Button im Kosten-Dialog mindestens 44px hoch (Touch-Target)').toBeGreaterThanOrEqual(
+			44 - 0.5,
+		);
+
+		const [response] = await Promise.all([
+			page.waitForResponse('**/api/v1/admin/tasks/reassign-pillars'),
+			runButton.click(),
+		]);
+		expect(response.status(), 'Batch-Antwort muss 200 sein').toBe(200);
+		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+	});
 });
