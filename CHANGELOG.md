@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-21
 
-_Enthält v0.2.0 – v0.2.128._
+_Enthält v0.2.0 – v0.2.129._
 
 ### 🔧 Engineering
 
@@ -43,6 +43,7 @@ _Enthält v0.2.0 – v0.2.128._
 - feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
 - feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
+- feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
 - feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
 - feat(server): track and surface auto-deleted missed tasks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1440
 - chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
@@ -139,6 +140,7 @@ _Enthält v0.2.0 – v0.2.128._
 - ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
 - docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
+- feat(frontend): confirm before discarding unsaved task form changes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1600
 
 ## v0.1 - 2026-09-12
 
@@ -807,7 +809,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore: implement prompt audit #1247 and shared llm concurrency group by @deleonio in https://github.com/deleonio/priority-pilot/pull/1279
 - docs(review): canonical fixup findings table and adr 0011 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1286
 - fix(frontend): align heart glass distribution bands with legend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1287
-- fix(ci): remove zai peak-time claude fallback, warn only by @deleonio in https://github.com/deleonio/priority-pilot/pull/1289
 - fix(ci): remove zai peak-time claude fallback, warn only by @deleonio in https://github.com/deleonio/priority-pilot/pull/1289
 - feat(frontend): task form sections as uniform accordions (#1285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1288
 - design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
