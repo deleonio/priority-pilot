@@ -825,12 +825,18 @@ export const TaskForm = ({
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					latitude: form.current.latitude,
 					longitude: form.current.longitude,
-					pillars,
+					// #1604-Fixup: bei einer Übergabe (Muster #1252 AK6 oben) `pillars` weglassen — die
+					// Säulen-IDs gehören zum eigenen Konto und existieren beim Empfänger nicht (Server
+					// lehnt sonst mit 400 ab, #1249). Ohne das Feld startet die Serie beim Empfänger ohne
+					// Verteilung; der Empfänger trägt sie selbst nach.
+					...(isHandover ? {} : { pillars }),
 					startDate,
 					rhythm: form.current.rhythm,
 					active: true,
 					autoDeleteAfterDeadline: autoDelete,
-					categoryId,
+					// Kategorie wie `pillars` bei einer Übergabe weglassen (siehe Kommentar oben) — sie
+					// gehört zum eigenen Konto.
+					...(isHandover ? {} : { categoryId }),
 					// #1222 (AK8): Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
 					// (oder eigene ID) fehlt das Feld und die Serie gehört dem Aufrufer wie bisher (AK1).
 					...(isHandover ? { userId: Number(recipientId) } : {}),
@@ -870,8 +876,11 @@ export const TaskForm = ({
 					longitude: form.current.longitude,
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
-					pillars,
-					categoryId,
+					// #1604-Fixup: bei einer Übergabe (Muster #1252 AK6, s. `taskUpdate`/`seriesCreate` oben)
+					// `pillars`/`categoryId` weglassen — beide IDs gehören zum eigenen Konto und existieren
+					// beim Empfänger nicht (Server lehnt sonst mit 400 ab, #1249). Der Task entsteht dann
+					// beim Empfänger ohne Verteilung/Kategorie; der Empfänger trägt sie selbst nach.
+					...(isHandover ? {} : { pillars, categoryId }),
 					checklist,
 					// #1213: Gewählter Empfänger, wenn es nicht das eigene Konto ist — ohne Auswahl
 					// (oder eigene ID) fehlt das Feld und der Ablauf bleibt wie bisher (AK1).

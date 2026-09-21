@@ -309,9 +309,12 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		await openTaskForm(page);
 
-		// Titel-Mic liegt im ersten Blick; das Beschreibungs-Feld steht unter dem Fold —
-		// dort genügt die Vollständigkeits-Prüfung nach dem Hinscrollen (kein Abschneiden).
+		// #1604-Fixup: `openTaskForm` öffnet „Optional" (fürs Beschreibungsfeld) — Playwrights
+		// Auto-Scroll zum weiter unten liegenden Trigger scrollt den Titel-Mic dabei aus dem Fold
+		// (die Säulen-Verteilung, #1596, macht die Basisangaben deutlich höher). Beide Buttons
+		// werden daher gleich behandelt: erst hinscrollen, dann auf vollständige Sichtbarkeit prüfen.
 		const titleMic = micButton(page, 'Titel');
+		await titleMic.scrollIntoViewIfNeeded();
 		await expect(titleMic).toBeVisible();
 		await expect(titleMic).toBeInViewport({ ratio: 1 });
 
