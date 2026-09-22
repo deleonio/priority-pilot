@@ -148,9 +148,15 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 		await deleteButton.click();
 
-		const dialog = page.getByRole('dialog');
-		await expect(dialog).toBeVisible();
-		await dialog.getByRole('button', { name: /endgültig löschen/i }).click();
+		// `kol-dialog` statt `getByRole('dialog')`: die ARIA-Rolle sitzt am nativen `<dialog>` im
+		// Shadow-DOM, die Buttons kommen als Licht-DOM-Slot des Hosts — nur der Host-Locator umfasst
+		// beide (Muster `categories.spec.ts:193`).
+		// Der Host selbst ist nie „visible" (Größe null, das native `<dialog>` sitzt im Shadow-DOM) —
+		// er dient nur als Geltungsbereich; geprüft wird der Knopf im Licht-DOM-Slot.
+		const dialog = page.locator('kol-dialog');
+		const confirmButton = dialog.getByRole('button', { name: 'Endgültig löschen' });
+		await expect(confirmButton).toBeVisible();
+		await confirmButton.click();
 		await expect(page.getByTestId('place-favorite-row')).toHaveCount(0);
 
 		await page.goto('/');
@@ -164,6 +170,8 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await geocodeAfterDelete;
 		// Nur noch der Suchtreffer steht in der Liste — kein gespeicherter Ort mehr davor.
 		await expect(page.getByRole('option', { name: new RegExp('Rathausplatz 1', 'i') })).toHaveCount(1);
-		await expect(page.getByRole('button', { name: /als favorit speichern/i })).toBeEnabled();
+		// Genau der Stern in der Trefferzeile (der Knopf unter dem Feld heißt fast gleich) — er bietet
+		// das Speichern wieder an, ist also nicht mehr „Bereits gespeichert".
+		await expect(page.getByRole('button', { name: `Als Favorit speichern: ${HIT.address}` })).toBeEnabled();
 	});
 });
