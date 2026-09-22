@@ -8,7 +8,7 @@ import {
 	KolInputText,
 	KolTabs,
 } from '@public-ui/react-v19';
-import type { GeoConfig, Pillar } from 'client';
+import type { GeoConfig, Pillar, Task } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
@@ -37,11 +37,13 @@ import { LlmSettings } from './LlmSettings';
 import { OwnPlanCard } from './OwnPlanCard';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
+import { RecalcPillarModal } from './RecalcPillarModal';
 import { PlansSection } from './PlansSection';
 import { SubscriptionSection } from './SubscriptionSection';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
+	tasks: Task[];
 	/** #1105: Aktiver Tab, von `App` aus der Route `/settings/:tab` abgeleitet (AK4). */
 	tab?: number;
 	/** #1105: Tab-Wechsel → App navigiert auf `/settings/:tab` (URL ist die Quelle). */
@@ -108,6 +110,7 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
  */
 export const SettingsPage = ({
 	pillars,
+	tasks,
 	tab,
 	onTabChange,
 	onSaved,
@@ -129,6 +132,9 @@ export const SettingsPage = ({
 	// Verwendung in Unit-Tests) gilt der Säulen-Tab als Default; `localTab` hält den letzten Select.
 	const [localTab, setLocalTab] = useState(1);
 	const activeTab = tab ?? localTab;
+
+	// #1614: Modal für Säulen-Neuberechnung
+	const [recalcPillarModalOpen, setRecalcPillarModalOpen] = useState(false);
 
 	// #843: Ref für Settings-General Container
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
@@ -592,6 +598,13 @@ export const SettingsPage = ({
 					{/* Säulen-Ansicht (#439 → #1573): reine Leseansicht, Gewichtung siehe unten. */}
 					<KolCard className="settings-card" _label="Säulen verwalten" _level={2}>
 						<PillarList />
+						<div className="form-actions" style={{ marginTop: '1rem' }}>
+							<KolButton
+								_label="Säulen aller Aufgaben neu berechnen"
+								_variant="secondary"
+								_on={{ onClick: () => setRecalcPillarModalOpen(true) }}
+							/>
+						</div>
 					</KolCard>
 					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
 					    Gruppierungsfläche, Muster wie die Dashboard-Karten); die Slider-Zeilen selbst
@@ -848,6 +861,19 @@ export const SettingsPage = ({
 					<ApiTokensSection />
 				</div>
 			</KolTabs>
+
+			{/* #1614: Modal für Säulen-Neuberechnung */}
+			{recalcPillarModalOpen && (
+				<RecalcPillarModal
+					onClose={() => setRecalcPillarModalOpen(false)}
+					tasks={tasks}
+					pillars={pillars}
+					onCompleted={() => {
+						setRecalcPillarModalOpen(false);
+						onSaved();
+					}}
+				/>
+			)}
 		</div>
 	);
 };

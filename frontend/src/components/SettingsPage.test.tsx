@@ -79,6 +79,7 @@ vi.mock('../lib/micPermission', () => ({ requestMicrophonePermission: vi.fn() })
 // aktiven Toolbar-Button im App-Header.
 const defaultProps = {
 	pillars: [],
+	tasks: [],
 	onSaved: vi.fn(),
 };
 

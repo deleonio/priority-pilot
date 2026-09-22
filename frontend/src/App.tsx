@@ -890,6 +890,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				{showSettings ? (
 					<SettingsPage
 						pillars={pillars}
+						tasks={tasks ?? []}
 						tab={settingsTab}
 						onTabChange={changeSettingsTab}
 						onSaved={afterSettingsSaved}
