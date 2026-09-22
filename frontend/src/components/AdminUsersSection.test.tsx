@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { planLabel } from '../lib/planOffers';
@@ -30,6 +30,35 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h4>{_label}</h4>,
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
+	KolInputRadio: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (_e: Event, _value: string) => void };
+	}) => (
+		<fieldset>
+			<legend>{_label}</legend>
+			{(_options ?? []).map((option) => (
+				<label key={option.value}>
+					<input
+						type="radio"
+						name="reassign-filter"
+						checked={_value === option.value}
+						onChange={() => _on?.onChange?.(new Event('change'), option.value)}
+					/>
+					{option.label}
+				</label>
+			))}
+		</fieldset>
+	),
+	KolProgress: ({ _label, _max, _value }: { _label?: string; _max?: number; _value?: number }) => (
+		<div role="progressbar" aria-label={_label} aria-valuemin={0} aria-valuemax={_max} aria-valuenow={_value} />
+	),
 	// Noch vorhanden, weil der AK2-Test gegen den HEUTIGEN Code rot sein muss (Zeilen-Select
 	// existiert); nach der #1565-Implementierung kann der Mock ersatzlos entfallen.
 	KolSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
@@ -312,5 +341,107 @@ describe('AdminUsersSection — Säulenverteilung neu berechnen (Fixup #1602, Fi
 		expect(screen.queryByText(/Sollen die Säulen-Beiträge/)).not.toBeInTheDocument();
 		// Nicht mehr `running` hängengeblieben — der Auslöse-Button ist wieder aktiv nutzbar.
 		expect(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' })).toBeEnabled();
+	});
+});
+
+/**
+ * #1614: Der bestehende Trigger bekommt die Statusauswahl und die Fortschrittsanzeige aus dem
+ * Ticket. Der Lauf setzt sich außerdem selbst fort, statt den Admin „Fortsetzen" klicken zu
+ * lassen — genau daran scheiterte die Neuberechnung bisher: ohne mitgezählten Offset traf jeder
+ * Folgeaufruf wieder dieselbe erste Portion, und der Rest blieb liegen.
+ */
+describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
+	const portion = (over: Partial<Record<string, number>> = {}) => ({
+		updated: 0,
+		failed: 0,
+		skipped: 0,
+		users: 1,
+		remaining: 0,
+		...over,
+	});
+
+	const startRun = async (): Promise<void> => {
+		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
+		await waitFor(() => expect(screen.getByText(/Sollen die Säulen-Beiträge/)).toBeInTheDocument());
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+		await waitFor(() => expect(screen.getByText(/wird einzeln per KI klassifiziert/)).toBeInTheDocument());
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt neu berechnen' }));
+	};
+
+	it.each([
+		['Nur offene Aufgaben', 'open'],
+		['Nur erledigte Aufgaben', 'done'],
+	])('reicht „%s" als status=%s an den Server durch', async (label, expected) => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockReassignTaskPillars.mockResolvedValue(portion({ updated: 1 }));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
+		await waitFor(() => expect(screen.getByText(/Sollen die Säulen-Beiträge/)).toBeInTheDocument());
+		fireEvent.click(screen.getByRole('radio', { name: label }));
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Jetzt neu berechnen' }));
+
+		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalled());
+		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ status: expected });
+	});
+
+	it('fordert die nächste Portion mit fortgezähltem offset an, bis nichts mehr offen ist', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockReassignTaskPillars
+			.mockResolvedValueOnce(portion({ updated: 2, remaining: 3 }))
+			.mockResolvedValueOnce(portion({ updated: 2, skipped: 1, remaining: 0 }));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await startRun();
+
+		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(2));
+		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ offset: 0 });
+		expect(mockReassignTaskPillars.mock.calls[1][0]).toMatchObject({ offset: 2 });
+
+		// Das Ergebnis summiert beide Portionen, statt nur die letzte zu zeigen.
+		await waitFor(() =>
+			expect(screen.getByRole('alert')).toHaveTextContent('4 Aufgaben neu zugeordnet, 1 unverändert gelassen'),
+		);
+		// Der manuelle „Fortsetzen"-Weg entfällt — der Lauf erledigt das selbst.
+		expect(screen.queryByRole('button', { name: /Fortsetzen/ })).not.toBeInTheDocument();
+	});
+
+	it('zeigt während des Laufs einen zugänglichen Fortschrittsbalken', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		const resolvers: ((value: unknown) => void)[] = [];
+		mockReassignTaskPillars.mockImplementation(() => new Promise((resolve) => resolvers.push(resolve)));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await startRun();
+
+		await waitFor(() => expect(screen.getByRole('progressbar')).toBeInTheDocument());
+
+		await act(async () => {
+			resolvers[0](portion({ updated: 2, remaining: 3 }));
+		});
+
+		const bar = screen.getByRole('progressbar');
+		expect(bar).toHaveAttribute('aria-valuemax', '5');
+		expect(bar).toHaveAttribute('aria-valuenow', '2');
+	});
+
+	it('bricht ab, wenn eine Portion nichts mehr verarbeitet, statt endlos zu laufen', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockReassignTaskPillars.mockResolvedValue(portion({ remaining: 9 }));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await startRun();
+
+		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1));
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' })).toBeEnabled(),
+		);
+		expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1);
 	});
 });

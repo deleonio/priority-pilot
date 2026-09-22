@@ -8,7 +8,7 @@ import {
 	KolInputText,
 	KolTabs,
 } from '@public-ui/react-v19';
-import type { GeoConfig, Pillar, Task } from 'client';
+import type { GeoConfig, Pillar } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useAnimationsEnabled } from '../lib/animations';
@@ -43,7 +43,6 @@ import { SubscriptionSection } from './SubscriptionSection';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
-	tasks: Task[];
 	/** #1105: Aktiver Tab, von `App` aus der Route `/settings/:tab` abgeleitet (AK4). */
 	tab?: number;
 	/** #1105: Tab-Wechsel → App navigiert auf `/settings/:tab` (URL ist die Quelle). */
@@ -110,7 +109,6 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
  */
 export const SettingsPage = ({
 	pillars,
-	tasks,
 	tab,
 	onTabChange,
 	onSaved,
@@ -866,8 +864,6 @@ export const SettingsPage = ({
 			{recalcPillarModalOpen && (
 				<RecalcPillarModal
 					onClose={() => setRecalcPillarModalOpen(false)}
-					tasks={tasks}
-					pillars={pillars}
 					onCompleted={() => {
 						setRecalcPillarModalOpen(false);
 						onSaved();

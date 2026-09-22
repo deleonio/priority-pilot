@@ -38,6 +38,8 @@ import type {
 	ParsedSearch,
 	ParsedTask,
 	ReassignPillarsResult,
+	OwnReassignPillarsResult,
+	ReassignStatusFilter,
 	paths,
 	Pillar,
 	PillarFeedbackInput,
@@ -327,12 +329,11 @@ export const api = {
 		return data;
 	},
 
-	async updateTask({ id, taskUpdate, signal }: { id: number; taskUpdate: TaskUpdate } & Init): Promise<Task> {
+	async updateTask({ id, taskUpdate }: { id: number; taskUpdate: TaskUpdate }): Promise<Task> {
 		const { deadline, ...rest } = taskUpdate;
 		const { data, error, response } = await client.PATCH('/tasks/{id}', {
 			params: { path: { id } },
 			body: { ...rest, deadline: toRawDeadline(deadline) },
-			signal,
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
@@ -510,15 +511,46 @@ export const api = {
 	 * `skipped` aller vorherigen Läufe derselben Serie übergeben, sonst trifft jeder Aufruf
 	 * wieder dieselbe erste Portion.
 	 */
-	async reassignTaskPillars(offset?: number): Promise<ReassignPillarsResult> {
+	async reassignTaskPillars({
+		offset,
+		status,
+		signal,
+	}: { offset?: number; status?: ReassignStatusFilter } & Init = {}): Promise<ReassignPillarsResult> {
 		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars', {
-			params: { query: offset !== undefined && offset > 0 ? { offset } : {} },
+			params: { query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status } },
+			signal,
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}
 		return data;
 	},
+	/**
+	 * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614). Portioniert wie der
+	 * Admin-Batch: ein Aufruf verarbeitet höchstens `limit` Aufgaben, der Aufrufer setzt mit
+	 * `offset` fort (Summe aus `updated`+`failed`+`skipped` aller bisherigen Läufe) und liest den
+	 * Fortschritt aus `remaining`.
+	 */
+	async reassignOwnTaskPillars({
+		status,
+		limit,
+		offset,
+		signal,
+	}: {
+		status?: ReassignStatusFilter;
+		limit?: number;
+		offset?: number;
+	} & Init = {}): Promise<OwnReassignPillarsResult> {
+		const { data, error, response } = await client.POST('/tasks/reassign-pillars', {
+			params: { query: { status, limit, offset } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	async getGroupMembers({ id, ...init }: { id: number } & Init): Promise<GroupMember[]> {
 		const { data, error, response } = await client.GET('/groups/{id}/members', {
 			params: { path: { id } },

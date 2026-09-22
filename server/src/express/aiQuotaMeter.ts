@@ -76,6 +76,46 @@ const refund = async (userId: number, yearMonth: string): Promise<void> => {
 	await AiUsage.update({ count: literal('count - 1') }, { where: { userId, yearMonth, count: { [Op.gt]: 0 } } });
 };
 
+/** Bucht und storniert einzelne Punkte innerhalb EINES Requests — siehe {@link createAiQuotaCounter}. */
+export interface AiQuotaCounter {
+	/** Bucht einen Punkt; `false` heißt „Kontingent erschöpft". */
+	book: () => Promise<boolean>;
+	/** Nimmt eine Buchung zurück, deren Provider-Aufruf nichts geliefert hat. */
+	refund: () => Promise<void>;
+}
+
+/**
+ * Kontingent-Haken für Läufe, die in EINEM Request mehrere Provider-Aufrufe auslösen — der
+ * Säulen-Batch über die eigenen Aufgaben (#1614) klassifiziert je Aufgabe einmal.
+ * {@link meterAiQuota} bucht pro Request; ein Batch über N Aufgaben käme damit für N Aufrufe mit
+ * einem einzigen Punkt davon und hebelte das Monatskontingent aus.
+ *
+ * Liefert `undefined`, wenn für diesen Aufruf gar nichts zu zählen ist — dieselben Ausnahmen wie
+ * in der Middleware: Pass-Through-Modus ohne Auth, kein Nutzer, eigener Provider des Nutzers ohne
+ * `?provider=`-Pin (#1548), oder ein Konto ohne auflösbares Paket.
+ */
+export const createAiQuotaCounter = async (
+	userId: number | undefined,
+	providerPinned: boolean,
+): Promise<AiQuotaCounter | undefined> => {
+	if (!isAuthActive() || typeof userId !== 'number') {
+		return undefined;
+	}
+	if (!providerPinned && (await hasOwnProviderSelection(userId))) {
+		return undefined;
+	}
+	const plan = (await User.findByPk(userId))?.plan;
+	if (plan === undefined) {
+		return undefined;
+	}
+	const yearMonth = currentYearMonth();
+	const limit = isMonetizationEnforced() ? AI_ASSIST_MONTHLY_QUOTA[plan] : null;
+	return {
+		book: () => book(userId, yearMonth, limit),
+		refund: () => refund(userId, yearMonth),
+	};
+};
+
 /**
  * Middleware-Fabrik: bucht vor dem Routen-Handler einen Punkt des Monatskontingents und weist bei
  * erschöpftem Kontingent mit 429 `quota_exhausted` ab (AK1, AK6).

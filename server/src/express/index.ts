@@ -9,6 +9,7 @@ import { createTasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { categoriesRouter } from './routes/categories.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
+import { createReassignPillarsRouter } from './routes/reassignPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { scoresRouter } from './routes/scores.js';
@@ -300,6 +301,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Mistral-gestützte Säulen-Klassifikation (siehe routes/suggestPillars.ts).
 	app.use(createSuggestPillarsRouter(deps.pillarClassifier));
+
+	// Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (siehe routes/reassignPillars.ts).
+	app.use(createReassignPillarsRouter(deps.pillarClassifier));
 
 	// Mistral-gestützte Task-Schnellerfassung: Freitext → strukturierte Felder (siehe routes/parseTasks.ts).
 	app.use(createParseTasksRouter(deps.taskTextParser, deps.searchTextParser));

@@ -10,7 +10,12 @@ import { requireRole } from '../requireAuth.js';
 import { validateProviderQuery } from '../llmProviderQuery.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import type { components } from '../../api';
-import { DEFAULT_REASSIGN_LIMIT, reassignTaskPillarsForAllUsers } from '../../logics/reassignTaskPillars.js';
+import {
+	DEFAULT_REASSIGN_LIMIT,
+	parseStatusFilter,
+	reassignTaskPillarsForAllUsers,
+} from '../../logics/reassignTaskPillars.js';
+import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -40,15 +45,6 @@ const toDto = (user: User): AdminUserDto => ({
 });
 
 const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ernenne zuerst eine andere Person.';
-
-/**
- * Prozessweites Lauf-Flag für den Säulen-Reassign-Batch (Finding #4): der Batch läuft
- * unbeschränkt lange über den gesamten Aufgabenbestand — ein zweiter, gleichzeitiger Aufruf
- * würde denselben Bestand doppelt bearbeiten und Klassifikator-Kontingent verbrennen, statt
- * dem Admin zu sagen, dass bereits ein Lauf unterwegs ist. Modul-Scope statt Router-Scope,
- * damit auch zwei Router-Instanzen (z. B. Tests) sich nicht gegenseitig überlappen können.
- */
-let reassignRunning = false;
 
 /**
  * Stuft `id` auf eine Nicht-Admin-Rolle (`member`/`tester`) zurück — aber nur, wenn danach noch
@@ -223,23 +219,29 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				}
 				offset = parsed;
 			}
-			if (reassignRunning) {
+			// Statusauswahl (#1614): begrenzt den Lauf auf offene bzw. erledigte Aufgaben.
+			const status = parseStatusFilter((req.query as Record<string, unknown>).status);
+			if (status === null) {
+				sendError(res, 400, 'status muss all, open oder done sein.');
+				return;
+			}
+			if (!acquireGlobalRun()) {
 				sendError(res, 409, 'Es läuft bereits ein Batch-Lauf — erst dessen Ende abwarten.');
 				return;
 			}
-			reassignRunning = true;
 			try {
-				const result = await reassignTaskPillarsForAllUsers(
-					pillarClassifier,
-					providerValidation.provider,
+				const result = await reassignTaskPillarsForAllUsers({
+					classifier: pillarClassifier,
+					provider: providerValidation.provider,
 					limit,
 					offset,
-				);
+					status,
+				});
 				res.json(result);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			} finally {
-				reassignRunning = false;
+				releaseGlobalRun();
 			}
 		},
 	);
