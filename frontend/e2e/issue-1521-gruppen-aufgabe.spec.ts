@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { accordionTrigger, openAccordionSection, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1521 — Aufgabe an eine ganze Gruppe zuweisen (AK6–AK8,
@@ -77,7 +77,7 @@ test.describe('#1521 Gruppen-Aufgabe', () => {
 
 		// AK6: Gruppendetail listet die offene Gruppen-Aufgabe.
 		await openGroupsTab(page);
-		await page.getByRole('button', { name: GROUP_NAME, exact: true }).click();
+		await accordionTrigger(page, GROUP_NAME).click();
 		await openAccordionSection(page, 'Offene Gruppen-Aufgaben');
 		const openTasks = page.getByTestId('group-open-tasks');
 		await expect(openTasks.getByText(TASK_TITLE)).toBeVisible();
@@ -92,7 +92,7 @@ test.describe('#1521 Gruppen-Aufgabe', () => {
 
 		// AK6: nach dem Erledigen ist die Aufgabe nicht mehr in den offenen Gruppen-Aufgaben.
 		await openGroupsTab(page);
-		await page.getByRole('button', { name: GROUP_NAME, exact: true }).click();
+		await accordionTrigger(page, GROUP_NAME).click();
 		await expect(page.getByTestId('group-open-tasks').getByText(TASK_TITLE)).toHaveCount(0);
 	});
 

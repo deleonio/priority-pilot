@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1211 (AK6/AK7/AK8) — Settings-Tab „Gruppen" unter /settings/gruppen
@@ -67,7 +67,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		const card = page.getByRole('listitem').filter({ hasText: 'E2E Familie' });
 		await expect(card).toBeVisible();
 		// Design-Lauf 2026-09: Beschreibung und Metazeile liegen im Accordion-Körper.
-		await page.getByRole('button', { name: 'E2E Familie', exact: true }).click();
+		await accordionTrigger(page, 'E2E Familie').click();
 		await expect(card.getByText('E2E Beschreibung')).toBeVisible();
 		// Auf die Metazeile gescopet: Mit dem Aufklappen lädt darunter das Gruppendetail, dessen
 		// Mitgliederliste dieselbe Rolle als zweites „Admin"-Badge trägt — kartenweit wäre das eine
@@ -101,7 +101,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 
 		const card = page.getByRole('listitem').filter({ hasText: 'E2E Edit' });
 		// Design-Lauf 2026-09: Jede Gruppe ist ein KolAccordion — Aktionen liegen im Körper.
-		await page.getByRole('button', { name: 'E2E Edit', exact: true }).click();
+		await accordionTrigger(page, 'E2E Edit').click();
 		await card.getByRole('button', { name: 'Bearbeiten' }).click();
 		await expect(page.getByRole('heading', { name: /Gruppe bearbeiten/ })).toBeVisible();
 		// Name-Feld unangetastet lassen: Der Dialog sendet nur geänderte Felder — ohne den
@@ -113,7 +113,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		// 'Gruppen' statt Default-'Dashboard' (gleiche Begründung wie in openGroupsTab).
 		await waitForStableView(page, 'Gruppen');
 		const updatedCard = page.getByRole('listitem').filter({ hasText: 'E2E Edit' });
-		await page.getByRole('button', { name: 'E2E Edit', exact: true }).click();
+		await accordionTrigger(page, 'E2E Edit').click();
 		await expect(updatedCard.getByText('Neue Beschreibung')).toBeVisible();
 		await expect(updatedCard.getByText('E2E Edit')).toBeVisible();
 	});
@@ -125,7 +125,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		await createGroupViaUi(page, 'E2E Weg damit');
 
 		const card = page.getByRole('listitem').filter({ hasText: 'E2E Weg damit' });
-		await page.getByRole('button', { name: 'E2E Weg damit', exact: true }).click();
+		await accordionTrigger(page, 'E2E Weg damit').click();
 		await card.getByRole('button', { name: 'Löschen' }).click();
 
 		// Schritt 1: Intentionsprüfung — Bestätigen erst nach dem zweiten Schritt wirksam.
@@ -160,7 +160,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 
 		const card = page.getByRole('listitem').filter({ hasText: 'E2E Schmal' });
 		await expect(card).toBeVisible();
-		await page.getByRole('button', { name: 'E2E Schmal', exact: true }).click();
+		await accordionTrigger(page, 'E2E Schmal').click();
 		const box = await card.boundingBox();
 		expect(box).not.toBeNull();
 		expect(box!.x + box!.width, 'Karte ragt nicht über den Viewport hinaus').toBeLessThanOrEqual(375);
@@ -174,7 +174,7 @@ test.describe('Settings-Tab „Gruppen“ (#1211)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await openGroupsTab(page);
 		await createGroupViaUi(page, 'E2E Rolle Schmal');
-		await page.getByRole('button', { name: 'E2E Rolle Schmal', exact: true }).click();
+		await accordionTrigger(page, 'E2E Rolle Schmal').click();
 
 		const memberRow = page.locator('.group-members').getByRole('listitem').first();
 		await expect(memberRow.getByRole('button', { name: /zur Mitgliedschaft zurückstufen/i })).toBeVisible();
@@ -196,7 +196,7 @@ test('Gruppenliste zeigt das hinterlegte Gruppenbild als Avatar neben dem Namen 
 	await createGroupViaUi(page, 'E2E Bild', 'Mit Gruppenbild');
 
 	const card = page.getByRole('listitem').filter({ hasText: 'E2E Bild' });
-	await page.getByRole('button', { name: 'E2E Bild', exact: true }).click();
+	await accordionTrigger(page, 'E2E Bild').click();
 	await card.getByRole('button', { name: 'Bearbeiten' }).click();
 	await page.getByRole('textbox', { name: 'Bildadresse' }).fill('https://example.com/gruppe.png');
 	await page.getByRole('button', { name: 'Speichern', exact: true }).click();
@@ -212,7 +212,7 @@ test('Gruppe ohne Bild zeigt Initialen statt leerer Fläche (#1225 AK4)', async 
 	await createGroupViaUi(page, 'E2E Initiales');
 
 	const card = page.getByRole('listitem').filter({ hasText: 'E2E Initiales' });
-	await page.getByRole('button', { name: 'E2E Initiales', exact: true }).click();
+	await accordionTrigger(page, 'E2E Initiales').click();
 	await expect(card.locator('kol-avatar')).toBeVisible();
 	await expect(card.locator('kol-avatar img')).toHaveCount(0); // ohne Bild keine <img> — Initialen
 });
@@ -222,7 +222,7 @@ test('Gruppenzeile mit Bild bleibt bei 375px ohne horizontalen Überlauf (#1225 
 	await createGroupViaUi(page, 'E2E Mobil Bild', 'Lange Beschreibung, die mobil umbricht');
 
 	const card = page.getByRole('listitem').filter({ hasText: 'E2E Mobil Bild' });
-	await page.getByRole('button', { name: 'E2E Mobil Bild', exact: true }).click();
+	await accordionTrigger(page, 'E2E Mobil Bild').click();
 	await card.getByRole('button', { name: 'Bearbeiten' }).click();
 	await page.getByRole('textbox', { name: 'Bildadresse' }).fill('https://example.com/gruppe.png');
 	await page.getByRole('button', { name: 'Speichern', exact: true }).click();
