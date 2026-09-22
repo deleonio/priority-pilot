@@ -147,20 +147,21 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 	});
 
 	/**
-	 * Sticky-Verhalten + Abstandsschild (Nutzerauftrag des Sticky-Umbaus): Die Kopfzeile muss in
-	 * BEIDEN Positionen beim Scrollen an ihrer Viewport-Kante kleben, und der unsichtbare Schild
-	 * (`.app-header`-Padding in Seitenfarbe) muss den Inhalt mit --pp-space-2 Abstand hinter der
-	 * Leiste verschwinden lassen. Ohne `position: sticky` oder ohne Schild liefe die Suite weiter
-	 * grün — deshalb hier gemessen statt nur gesichtet (Review #1575, F2):
-	 *  - Modus „Oben": nach dem Scrollen klebt der Header bei y = 0; direkt unter der sichtbaren
-	 *    Leiste liegt noch Header-Fläche (der Schild übermalt den Inhalt), unterhalb des Schildes
-	 *    beginnt der Inhalt.
-	 *  - Modus „Unten": Kleben an der Unterkante (y + Höhe = 812), Schild oberhalb der Leiste.
+	 * Randbündige Kopfzeile + Abstandsschild (Nutzerauftrag 2026-09-22): Die Kopfzeile hängt in
+	 * BEIDEN Positionen fest an ihrer Viewport-Kante und schließt dort BÜNDIG ab — die sichtbare
+	 * Leiste selbst berührt die Kante, nicht nur der Header-Rahmen. Der unsichtbare Schild
+	 * (`.app-header`-Padding in Seitenfarbe) liegt auf der Inhaltsseite und lässt den Inhalt mit
+	 * --pp-header-gap Abstand hinter der Leiste verschwinden. Ohne `position: fixed` oder ohne
+	 * Schild liefe die Suite weiter grün — deshalb hier gemessen statt nur gesichtet (Review
+	 * #1575, F2):
+	 *  - Modus „Oben": nach dem Scrollen liegt die Leiste bei y = 0; direkt unter ihr liegt noch
+	 *    Header-Fläche (der Schild übermalt den Inhalt), unterhalb des Schildes beginnt der Inhalt.
+	 *  - Modus „Unten": Leisten-Unterkante bei y = 812, Schild oberhalb der Leiste.
 	 *
 	 * Für einen scrollbaren Körper sorgt eine echte Aufgabenliste über die API (Muster
 	 * `issue-1258-tasks-mobile.spec.ts`); `afterEach` räumt auf.
 	 */
-	test.describe('Sticky-Kopfzeile mit Abstandsschild', () => {
+	test.describe('Randbündige Kopfzeile mit Abstandsschild', () => {
 		const createTasksViaApi = async (page: Page, count: number): Promise<void> => {
 			for (let i = 0; i < count; i += 1) {
 				const response = await page.request.post('/api/v1/tasks', {
@@ -213,7 +214,7 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 			);
 		};
 
-		test('Modus Oben: Leiste klebt bei y=0, Schild hält 8px Abstand zum Inhalt', async ({ page }) => {
+		test('Modus Oben: Leiste schließt bei y=0 bündig ab, Schild hält 8px Abstand zum Inhalt', async ({ page }) => {
 			await page.setViewportSize(MOBILE);
 			await createTasksViaApi(page, 14);
 			await page.goto('/');
@@ -223,10 +224,10 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 			await scrollDown(page);
 
 			const headerBox = await stableBox(page.locator('.app-header'));
-			expect(headerBox.y, 'Kopfzeile klebt beim Scrollen an der Viewport-Oberkante').toBe(0);
+			expect(headerBox.y, 'Kopfzeile hängt beim Scrollen an der Viewport-Oberkante').toBe(0);
 
 			const barBox = await stableBox(page.locator('.app-header__bar'));
-			expect(barBox.y, 'Schild über der Leiste (Leiste klebt NICHT pixelbündig oben)').toBeGreaterThanOrEqual(8 - 1);
+			expect(barBox.y, 'Leiste schließt randbündig mit der Viewport-Oberkante ab').toBe(0);
 
 			// Direkt unter der Leiste liegt der untere Schild: Header-Fläche übermalt den Inhalt
 			// (genau dieser fehlende Pixelabstand war der Nutzerauftrag).
@@ -240,7 +241,7 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 			).toBe(false);
 		});
 
-		test('Modus Unten: Leiste klebt an der Unterkante, Schild oberhalb der Leiste', async ({ page }) => {
+		test('Modus Unten: Leiste schließt an der Unterkante bündig ab, Schild oberhalb der Leiste', async ({ page }) => {
 			await page.setViewportSize(MOBILE);
 			await page.addInitScript((key) => localStorage.setItem(key, 'bottom'), HEADER_POSITION_KEY);
 			await createTasksViaApi(page, 14);
@@ -253,15 +254,12 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 			const headerBox = await stableBox(page.locator('.app-header'));
 			expect(
 				Math.round(headerBox.y + headerBox.height),
-				'Kopfzeile klebt beim Scrollen an der Viewport-Unterkante',
+				'Kopfzeile hängt beim Scrollen an der Viewport-Unterkante',
 			).toBe(812);
 
 			const barBox = await stableBox(page.locator('.app-header__bar'));
-			expect(barBox.y + barBox.height, 'Schild unter der Leiste (Home-Indicator-Zone)').toBeLessThanOrEqual(
-				headerBox.y + headerBox.height + 1,
-			);
-			expect(barBox.y, 'Leiste sitzt nicht pixelbündig an der Unterkante').toBeLessThan(
-				headerBox.y + headerBox.height - 8 + 1,
+			expect(Math.round(barBox.y + barBox.height), 'Leiste schließt randbündig mit der Viewport-Unterkante ab').toBe(
+				812,
 			);
 
 			expect(await pointInHeader(page, 187, barBox.y - 4), 'Schild über der Leiste gehört zur Kopfzeile').toBe(true);
