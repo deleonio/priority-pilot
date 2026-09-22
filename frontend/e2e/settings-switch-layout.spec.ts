@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { accordionTrigger, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #971 „Switch-Layout im Tab Allgemein der Einstellungen".
@@ -297,7 +297,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 		await expect(switchControl(page, /Herz animieren/i)).toBeHidden();
 		await expect(switchControl(page, /Erledigt animieren/i)).toBeHidden();
 
-		await page.getByRole('button', { name: 'Einzelne Animationen' }).click();
+		await accordionTrigger(page, 'Einzelne Animationen').click();
 
 		/*
 		 * #1552: Die frühere Deflake-Schleife (Nachöffnen bei Zuklappen, max. 3 Versuche) ist mit

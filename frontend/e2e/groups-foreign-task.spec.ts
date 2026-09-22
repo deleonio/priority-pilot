@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, taskTitleText, waitForStableView } from './helpers';
+import { accordionTrigger, openAccordionSection, taskTitleText, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #1213 (AK8, docs/spec/issue-1213.md) — Aufgabe für ein anderes
@@ -34,7 +34,7 @@ const createGroupAndInvite = async (page: Page, groupName: string): Promise<void
 	await expect(page.getByRole('heading', { name: /Gruppe anlegen/ })).toBeHidden();
 	await waitForStableView(page, 'Gruppen');
 
-	await page.getByRole('button', { name: groupName, exact: true }).click();
+	await accordionTrigger(page, groupName).click();
 	// #1257: Nutzersuche liegt im zugeklappten Accordion — erst aufklappen.
 	await openAccordionSection(page, 'Mitglieder einladen');
 	await page.getByRole('searchbox').fill('Empfängerin');
