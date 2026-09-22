@@ -1,5 +1,6 @@
 import { KolDialog } from '@public-ui/react-v19';
 import { forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { deepActiveElement } from '../lib/focus';
 
 /**
@@ -159,7 +160,14 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	return (
+	// Portal auf `document.body` (#1613-Folgefund): `KolDialog` rendert seit KoliBri 4.5.0-rc.0 ein
+	// natives `<dialog>` und öffnet per `showModal()`. Bleibt das Element ein DOM-Nachfahre eines
+	// bereits offenen `<dialog>` (z. B. LektoratDiffModal im TaskForm-Modal), bleibt `showModal()`
+	// zwar ohne Fehler, das verschachtelte `<dialog>` erscheint aber weder visuell noch im
+	// Accessibility-Baum (verifiziert: DOM zeigt `open`, Screenshot und A11y-Snapshot zeigen nichts).
+	// Der Portal macht jedes `Modal` zu einem DOM-Geschwister statt -Nachfahren, unabhängig davon, aus
+	// welcher Tiefe der Aufrufer es rendert.
+	return createPortal(
 		<KolDialog
 			ref={ref}
 			_label={title}
@@ -169,6 +177,7 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
 			_on={{ onClose: () => onCloseRef.current() }}
 		>
 			<div className="modal-body">{children}</div>
-		</KolDialog>
+		</KolDialog>,
+		document.body,
 	);
 });

@@ -217,17 +217,17 @@ importers:
         specifier: 5.3.0
         version: 5.3.0
       '@public-ui/components':
-        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
-        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
+        specifier: 4.5.0-rc.0
+        version: 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
       '@public-ui/react-v19':
-        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
-        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 4.5.0-rc.0
+        version: 4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@public-ui/theme-default':
-        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
-        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))
+        specifier: 4.5.0-rc.0
+        version: 4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
       '@public-ui/theme-kern':
-        specifier: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
-        version: 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))
+        specifier: 4.5.0-rc.0
+        version: 4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))
       '@xyflow/react':
         specifier: 12.11.6
         version: 12.11.6(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1586,28 +1586,28 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
-    resolution: {integrity: sha512-X3K6fFaSyZZ6kG1qlnMJJaOLejz+sWnJB0kDhj6KVSUIZqeYtTgyfamIpGxyMiUiwMDFLhp1s2Q4sd3yN9uSKw==}
+  '@public-ui/components@4.5.0-rc.0':
+    resolution: {integrity: sha512-uELZBXDrvVIvT2RQ/uP+E011YFp9zjwNRYB71ZR3xRHUUq//a2zrtEY4jDCoDeSMXZsOePAVKfB6OhMKb0jVng==}
     hasBin: true
     peerDependencies:
       adopted-style-sheets: 1.1.9-rc.25
 
-  '@public-ui/react-v19@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
-    resolution: {integrity: sha512-2w4GC5F4rASXAvDBHf01ClIqagSuMyVPnu5E97xDA8pJ/btjp/icLKfveigFVMslrXa8/G35NBWZuXzHP2NF3Q==}
+  '@public-ui/react-v19@4.5.0-rc.0':
+    resolution: {integrity: sha512-5SelsYt79m0/MgQvI/KBDIiRrs08H6xwG8wHS55IofhEPwhEtg4/03L2nicyLttNDJIrKvMukyV/BsBIkLJ3yQ==}
     peerDependencies:
-      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+      '@public-ui/components': 4.5.0-rc.0
       react: 19.x
       react-dom: 19.x
 
-  '@public-ui/theme-default@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
-    resolution: {integrity: sha512-nhapGkP9JL0SSePnoZPOJZcU84jbfJiv77uZOUDc6lMxhr+n5Kp/asyxmyNf6uH7KWxs+f9ltlvWlbnU6t5PSg==}
+  '@public-ui/theme-default@4.5.0-rc.0':
+    resolution: {integrity: sha512-27Z7OjmawI5TrzxvhUXXPOeyaiHyVxTYpvktdLqGu1BTMK2N+fund+y8CV3nsTkItwgoDFRSxKyrVRWcPAdS3g==}
     peerDependencies:
-      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+      '@public-ui/components': 4.5.0-rc.0
 
-  '@public-ui/theme-kern@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0':
-    resolution: {integrity: sha512-HrgoaFG6vlRxNA4XJLrmfhmzuPO831oV5f8EIJyI9pW8LEU88+CW2BgBR0CSowNWPDDzMZHIXdMliYvPx/mDmQ==}
+  '@public-ui/theme-kern@4.5.0-rc.0':
+    resolution: {integrity: sha512-fiaJPQbSAh7ZtoAlBggj0mo2jtp700jQtrEKLMIXRaJio6LVZC0YDr6a7jOb1rIA0dzhmlAYXfjQqqYPBjrS5g==}
     peerDependencies:
-      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0
+      '@public-ui/components': 4.5.0-rc.0
 
   '@redis/bloom@6.2.1':
     resolution: {integrity: sha512-huQgNLaCIZfQ9SeLn4q9124uOUd8HbZDYHwwUzNcRgHqCHiHKl2dDxMqJCeWh8cMqZAoWuHR8XnWbDMIf+o7ag==}
@@ -3729,8 +3729,8 @@ packages:
     resolution: {integrity: sha512-+zopwDy7DNknmwPQplem5lAZX/eCOzSvSNNcSKm5eVwTkOBzoktEfXsa9L23J/GIRhxRsaxzkPEhrJEpE2F4Gg==}
     engines: {node: '>= 10'}
 
-  markdown-it@14.3.0:
-    resolution: {integrity: sha512-RCEsPjR+sr0x+AuYp601tKTkgFG4YEPLCzHST3cQ/fhlJkqAkz1L2/Qbp1j9qw5SBwQHFBoW8+hoN5xssOF0Tw==}
+  markdown-it@14.3.2:
+    resolution: {integrity: sha512-sHHjZ5fJKlgrG4qns2YwVcdNep35h5fERrfkD2YNsb9UFk0UIHarbiTaHKVMlPuWAoiilyK8Fv/jAm11slsY7Q==}
     hasBin: true
 
   markdown-table@3.0.4:
@@ -6381,31 +6381,31 @@ snapshots:
     dependencies:
       playwright: 1.63.0
 
-  '@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)':
+  '@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)':
     dependencies:
       '@floating-ui/dom': 1.8.0
       adopted-style-sheets: 1.1.9-rc.25
       color-convert: 3.1.3
       color-rgba: 2.4.0
       lodash-es: 4.18.1
-      markdown-it: 14.3.0
+      markdown-it: 14.3.2
       rgba-convert: 0.3.0
       typed-bem: 1.0.2
       wcag-contrast: 3.0.0
 
-  '@public-ui/react-v19@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@public-ui/react-v19@4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@public-ui/theme-default@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-default@4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
-      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
 
-  '@public-ui/theme-kern@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(@public-ui/components@4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25))':
+  '@public-ui/theme-kern@4.5.0-rc.0(@public-ui/components@4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25))':
     dependencies:
-      '@public-ui/components': 4.4.1-7b9d0237557064506ca27572fd67a6d3955cdf19.0(adopted-style-sheets@1.1.9-rc.25)
+      '@public-ui/components': 4.5.0-rc.0(adopted-style-sheets@1.1.9-rc.25)
 
   '@redis/bloom@6.2.1(@redis/client@6.2.1)':
     dependencies:
@@ -8788,7 +8788,7 @@ snapshots:
       - supports-color
     optional: true
 
-  markdown-it@14.3.0:
+  markdown-it@14.3.2:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0

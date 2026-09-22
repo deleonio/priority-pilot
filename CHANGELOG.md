@@ -4,7 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.3 - 2026-09-22
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.3.0 – v0.3.2._
+
+### Other Changes
+
+- refactor(server): extract shared recipient-authorization helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1612
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1608
 
 ## v0.2 - 2026-09-22
 
@@ -55,6 +60,7 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
 - feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 - feat(server): block content edits on done tasks until reopened by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1444
+- feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
 - feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
 - feat(server): allow autoDeleteAfterDeadline via MCP task tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1445
 - fix(frontend): hide task id prefix in dashboard widget titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1451
@@ -820,8 +826,6 @@ _Enthält v0.1.336 – v0.1.836._
 - design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - feat(frontend): pillar weight ranges in a single card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1291
 - design(frontend): dashboard-hero-lebensbalance-2-3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1292
-- feat(frontend): even accordion padding and section rhythm in task form by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1294
-- feat(ci): arc42-sync LLM-basiert nach Guide-/Spec-Sync-Muster by @deleonio in https://github.com/deleonio/priority-pilot/pull/1293
 - feat(frontend): even accordion padding and section rhythm in task form by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1294
 - feat(ci): arc42-sync LLM-basiert nach Guide-/Spec-Sync-Muster by @deleonio in https://github.com/deleonio/priority-pilot/pull/1293
 - refactor(frontend): remove balance prioritization (#1220) from task list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1295
