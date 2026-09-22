@@ -199,6 +199,23 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member/test
 		expect(screen.getByText('Anna Admin')).toBeInTheDocument();
 	});
 
+	// PR #1616 Finding #1: `kol-input-radio` hält den angeklickten Wert als eigenen Zustand — anders
+	// als beim alten `KolButton` (kein eigener Zustand) bleibt die Radiogruppe nach einer abgelehnten
+	// Rollenänderung sonst auf der (falschen) angeklickten Rolle stehen, während Badge/Server die alte
+	// zeigen. `handleRoleChange` muss darum auch im Fehlerfall neu laden.
+	it('lädt die Nutzerliste auch nach einer abgelehnten Rollenänderung neu (Radiogruppe bleibt synchron)', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin', role: 'admin' })]);
+		mockUpdateUserRole.mockRejectedValue(new Error('Es muss mindestens einen Administrator geben.'));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+
+		fireEvent.click(within(rowOf('Anna Admin')).getByRole('radio', { name: 'Mitglied' }));
+
+		await waitFor(() => expect(mockGetAdminUsers).toHaveBeenCalledTimes(2));
+		expect(screen.getByRole('alert')).toHaveTextContent('Es muss mindestens einen Administrator geben.');
+	});
+
 	it('zeigt eine Fehlermeldung, wenn das initiale Laden fehlschlägt (z. B. 403 nach Rückstufung)', async () => {
 		mockGetAdminUsers.mockRejectedValue(new Error('Keine Berechtigung.'));
 

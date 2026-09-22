@@ -83,6 +83,11 @@ export const AdminUsersSection = () => {
 		} catch (reason) {
 			// 409 „letzter Administrator" kommt als Server-Meldung und bleibt als KolAlert stehen.
 			const apiError = await toApiError(reason);
+			// Neu laden, damit die Radiogruppe (eigener Zustand im Custom Element, #1616 Finding #1)
+			// nicht auf der abgelehnten Rolle stehen bleibt, während Badge/Server die alte zeigen.
+			// Nach `setError`, da `load()` bei Erfolg `setError(null)` setzt — sonst verschwände
+			// die Fehlermeldung sofort wieder.
+			await load();
 			setError(apiError.message);
 		}
 	};

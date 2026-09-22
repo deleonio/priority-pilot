@@ -104,13 +104,25 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		const adminOption = roleOption(testUserRow, 'Admin');
 		await expect(adminOption).toBeVisible();
 
+		// Touch-Target sitzt nicht auf dem nativen `<input>` selbst (das misst nur `--input-size`,
+		// deutlich unter 44px), sondern auf dem umschließenden `<label>`, das KoliBri per
+		// `--a11y-min-size` auf mindestens 44px setzt (`kol-input-radio.js`) — das Label ist die
+		// tatsächlich tappbare Fläche (native Label-Klick-Weiterleitung an den Input).
+		const adminOptionTarget = adminOption.locator('xpath=parent::label');
+		const box = await adminOptionTarget.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.height, 'Rollen-Option mindestens 44px hoch (Touch-Target)').toBeGreaterThanOrEqual(44 - 0.5);
+
 		const panel = page.locator('.settings-admin-users');
 		const { scroller } = await panel.evaluate(measureHorizontalScroll);
 		expect(scroller, 'kein horizontaler Scroll-Container im Nutzerverwaltungs-Panel bei 375px').toBeNull();
 
 		const [response] = await Promise.all([page.waitForResponse('**/api/v1/admin/users/*/role'), adminOption.click()]);
 		expect(response.status(), 'Rollenwechsel-Antwort muss 200 sein').toBe(200);
-		await expect(adminOption).toBeChecked();
+		// Gezielt der `radio`-Rolle zugewiesen (kein `option`/`button`-Fallback wie bei `roleOption`):
+		// `toBeChecked()` setzt eine Checkbox/Radio-Semantik voraus und würde über den Fallback einen
+		// technischen statt einen fachlichen Fehler werfen (PR #1616 Finding #3).
+		await expect(testUserRow.getByRole('radio', { name: 'Admin' })).toBeChecked();
 	});
 
 	// Fixup PR #1602, Finding #3: 375px-Nachweis der zweistufigen Bestätigungs-Dialogleiste
