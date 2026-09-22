@@ -10,8 +10,10 @@ afterEach(cleanup);
 const pillars: Pillar[] = [{ id: 1, name: 'Körper', description: '', weight: 20 }];
 
 /** Der Primär-CTA „Verarbeiten und weiter" als DOM-Element (gerendertes `kol-button`-Custom-Element). */
-const processButton = (container: HTMLElement): Element | undefined =>
-	[...container.querySelectorAll('kol-button')].find((el) => el.getAttribute('_label') === 'Verarbeiten und weiter');
+const processButton = (): Element | undefined =>
+	[...document.body.querySelectorAll('kol-button')].find(
+		(el) => el.getAttribute('_label') === 'Verarbeiten und weiter',
+	);
 
 /**
  * `_disabled` liegt als Prop am KoliBri-Custom-Element an. Beim **Mount** reicht React den booleschen
@@ -32,8 +34,8 @@ const isDisabled = (button: Element | undefined): boolean => {
  * Tippt in die Capture-Textarea, indem der KoliBri-`onInput`-Callback am Host-Element aufgerufen wird
  * (Custom Elements sind in jsdom inert, ein echtes `input`-Event erreicht den Handler nicht).
  */
-const typeCapture = async (container: HTMLElement, value: string): Promise<void> => {
-	const textarea = container.querySelector('kol-textarea');
+const typeCapture = async (value: string): Promise<void> => {
+	const textarea = document.body.querySelector('kol-textarea');
 	await act(async () => {
 		(textarea as unknown as { _on?: { onInput?: (event: Event, value: unknown) => void } })._on?.onInput?.(
 			new Event('input'),
@@ -53,18 +55,18 @@ describe('QuickCaptureModal — Freitext-Gate des Primär-CTA (#327)', () => {
 	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
 
 	it('lässt den CTA ohne Text deaktiviert (Ausgangsverhalten)', () => {
-		const { container } = render(<QuickCaptureModal {...props} />);
+		render(<QuickCaptureModal {...props} />);
 
-		expect(isDisabled(processButton(container))).toBe(true);
+		expect(isDisabled(processButton())).toBe(true);
 	});
 
 	it('aktiviert „Verarbeiten und weiter", sobald Text im Feld steht', async () => {
-		const { container } = render(<QuickCaptureModal {...props} />);
+		render(<QuickCaptureModal {...props} />);
 
-		await typeCapture(container, 'Laufen gehen');
+		await typeCapture('Laufen gehen');
 
-		expect(container.querySelector('kol-textarea')?.getAttribute('_value')).toBe('Laufen gehen');
-		expect(isDisabled(processButton(container))).toBe(false);
+		expect(document.body.querySelector('kol-textarea')?.getAttribute('_value')).toBe('Laufen gehen');
+		expect(isDisabled(processButton())).toBe(false);
 	});
 });
 
@@ -127,11 +129,11 @@ describe('QuickCaptureModal — Empfängerauswahl im Formular-Schritt (#1213 AK7
 			}),
 		);
 
-		const { container } = render(<QuickCaptureModal {...{ pillars, onClose: vi.fn(), onSaved: vi.fn() }} />);
+		render(<QuickCaptureModal {...{ pillars, onClose: vi.fn(), onSaved: vi.fn() }} />);
 
 		// „Überspringen": KoliBri ist hier ungemockt und in jsdom inaktiv (kein Shadow-DOM, keine
 		// Rolle) — der Click-Handler liegt als `_on`-Eigenschaft am Host und wird direkt gerufen.
-		const skipButton = [...container.querySelectorAll('kol-button')].find(
+		const skipButton = [...document.body.querySelectorAll('kol-button')].find(
 			(el) => el.getAttribute('_label') === 'Überspringen',
 		);
 		expect(skipButton, '„Überspringen"-Button muss im Capture-Schritt gerendert werden').toBeTruthy();
@@ -141,7 +143,7 @@ describe('QuickCaptureModal — Empfängerauswahl im Formular-Schritt (#1213 AK7
 			);
 		});
 
-		const select = container.querySelector('kol-single-select[_label="Empfänger"]');
+		const select = document.body.querySelector('kol-single-select[_label="Empfänger"]');
 		expect(select, 'Empfänger-Auswahl muss im Formular-Schritt gerendert werden').toBeTruthy();
 
 		const options = (select as unknown as { _options?: { label: string; value: string }[] })._options ?? [];
@@ -169,8 +171,8 @@ describe('QuickCaptureModal — erweiterte Schnellerfassung (#1310)', () => {
 	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
 
 	/** Löst den Klick auf „Verarbeiten und weiter" aus (Host-`_on.onClick`, siehe processButton oben). */
-	const clickProcess = async (container: HTMLElement): Promise<void> => {
-		const button = processButton(container);
+	const clickProcess = async (): Promise<void> => {
+		const button = processButton();
 		await act(async () => {
 			(button as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
 				new MouseEvent('click'),
@@ -180,14 +182,14 @@ describe('QuickCaptureModal — erweiterte Schnellerfassung (#1310)', () => {
 
 	it('AK2: isSeries:true startet TaskForm im Serien-Modus (Rhythmus-Feld sichtbar)', async () => {
 		mockParseText.mockResolvedValue({ title: 'Wöchentliches Teammeeting', isSeries: true });
-		const { container } = render(<QuickCaptureModal {...props} />);
-		await typeCapture(container, 'Jeden Montag Teammeeting');
+		render(<QuickCaptureModal {...props} />);
+		await typeCapture('Jeden Montag Teammeeting');
 
-		await clickProcess(container);
+		await clickProcess();
 
 		await waitFor(() =>
 			expect(
-				container.querySelector('kol-single-select[_label="Rhythmus"]'),
+				document.body.querySelector('kol-single-select[_label="Rhythmus"]'),
 				'Rhythmus-Feld = Serien-Modus',
 			).toBeTruthy(),
 		);
@@ -195,37 +197,37 @@ describe('QuickCaptureModal — erweiterte Schnellerfassung (#1310)', () => {
 
 	it('AK2: isSeries fehlend bleibt im Aufgaben-Modus (kein Rhythmus-Feld)', async () => {
 		mockParseText.mockResolvedValue({ title: 'Einfacher Task' });
-		const { container } = render(<QuickCaptureModal {...props} />);
-		await typeCapture(container, 'Einfacher Task');
+		render(<QuickCaptureModal {...props} />);
+		await typeCapture('Einfacher Task');
 
-		await clickProcess(container);
+		await clickProcess();
 
-		await waitFor(() => expect(container.querySelector('[data-testid="task-title"]')).toBeTruthy());
-		expect(container.querySelector('kol-single-select[_label="Rhythmus"]')).toBeNull();
+		await waitFor(() => expect(document.body.querySelector('[data-testid="task-title"]')).toBeTruthy());
+		expect(document.body.querySelector('kol-single-select[_label="Rhythmus"]')).toBeNull();
 	});
 
 	it('AK5: eine geparste Adresse befüllt das Adressfeld im Formular', async () => {
 		mockParseText.mockResolvedValue({ title: 'Task mit Ortsbezug', address: 'Musterstraße 1, 12345 Musterstadt' });
-		const { container } = render(<QuickCaptureModal {...props} />);
-		await typeCapture(container, 'Termin in der Musterstraße 1');
+		render(<QuickCaptureModal {...props} />);
+		await typeCapture('Termin in der Musterstraße 1');
 
-		await clickProcess(container);
+		await clickProcess();
 
 		await waitFor(() => {
-			const field = container.querySelector('kol-input-text[_label="Adresse (optional)"]');
+			const field = document.body.querySelector('kol-input-text[_label="Adresse (optional)"]');
 			expect(field?.getAttribute('_value')).toBe('Musterstraße 1, 12345 Musterstadt');
 		});
 	});
 
 	it('AK6: geparste Checklisten-Punkte erzeugen Checklisten-Einträge im Formular', async () => {
 		mockParseText.mockResolvedValue({ title: 'Task mit Checkliste', checklist: ['Punkt A', 'Punkt B'] });
-		const { container } = render(<QuickCaptureModal {...props} />);
-		await typeCapture(container, 'Erledige Punkt A und Punkt B');
+		render(<QuickCaptureModal {...props} />);
+		await typeCapture('Erledige Punkt A und Punkt B');
 
-		await clickProcess(container);
+		await clickProcess();
 
 		await waitFor(() => {
-			expect(container.querySelectorAll('[data-testid="checklist-item"]').length).toBe(2);
+			expect(document.body.querySelectorAll('[data-testid="checklist-item"]').length).toBe(2);
 		});
 	});
 });
@@ -250,9 +252,9 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
 
 	it('AK2: zeigt im Capture-Schritt "Verarbeiten und weiter" UND "Beraten lassen" nebeneinander', () => {
-		const { container } = render(<QuickCaptureModal {...props} />);
+		render(<QuickCaptureModal {...props} />);
 
-		const labels = [...container.querySelectorAll('kol-button')].map((el) => el.getAttribute('_label'));
+		const labels = [...document.body.querySelectorAll('kol-button')].map((el) => el.getAttribute('_label'));
 		expect(labels).toContain('Verarbeiten und weiter');
 		expect(labels).toContain('Beraten lassen');
 	});
@@ -263,9 +265,9 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 			advice: [{ activity: 'Spaziergang im Park', reason: 'Bewegung.', pillarIds: [1] }],
 		});
 
-		const { container } = render(<QuickCaptureModal {...props} />);
+		render(<QuickCaptureModal {...props} />);
 
-		const adviseButton = [...container.querySelectorAll('kol-button')].find(
+		const adviseButton = [...document.body.querySelectorAll('kol-button')].find(
 			(el) => el.getAttribute('_label') === 'Beraten lassen',
 		);
 		expect(adviseButton, '"Beraten lassen" muss im Capture-Schritt gerendert werden').toBeTruthy();
@@ -275,9 +277,9 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 			);
 		});
 
-		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
+		await waitFor(() => expect(document.body.querySelector('.advisor-results')).toBeTruthy());
 		// Das Capture-Textfeld bleibt im DOM - kein Dialog-/Schrittwechsel durch die Beratung.
-		expect(container.querySelector('kol-textarea')).toBeTruthy();
+		expect(document.body.querySelector('kol-textarea')).toBeTruthy();
 	});
 
 	it('AK3: "Als Aufgabe uebernehmen" schliesst den Dialog nicht, sondern befuellt das Capture-Textfeld', async () => {
@@ -287,9 +289,9 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 		});
 		const onClose = vi.fn();
 
-		const { container } = render(<QuickCaptureModal {...props} onClose={onClose} />);
+		render(<QuickCaptureModal {...props} onClose={onClose} />);
 
-		const adviseButton = [...container.querySelectorAll('kol-button')].find(
+		const adviseButton = [...document.body.querySelectorAll('kol-button')].find(
 			(el) => el.getAttribute('_label') === 'Beraten lassen',
 		);
 		await act(async () => {
@@ -297,9 +299,9 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 				new MouseEvent('click'),
 			);
 		});
-		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
+		await waitFor(() => expect(document.body.querySelector('.advisor-results')).toBeTruthy());
 
-		const adoptButton = [...container.querySelectorAll('kol-button')].find(
+		const adoptButton = [...document.body.querySelectorAll('kol-button')].find(
 			(el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen',
 		);
 		expect(adoptButton, '"Als Aufgabe übernehmen" muss je Vorschlag gerendert werden').toBeTruthy();
@@ -314,10 +316,10 @@ describe('QuickCaptureModal — Berater-Verschmelzung (#1335)', () => {
 
 		expect(onClose, 'Übernahme darf den Dialog nicht schließen').not.toHaveBeenCalled();
 
-		const textarea = container.querySelector('kol-textarea');
+		const textarea = document.body.querySelector('kol-textarea');
 		expect(textarea?.getAttribute('_value')).toBe('Spaziergang im Park');
 
-		const processButtonEl = processButton(container);
+		const processButtonEl = processButton();
 		expect(isDisabled(processButtonEl)).toBe(false);
 	});
 });
@@ -334,8 +336,8 @@ describe('QuickCaptureModal — Berater ohne Säulen (#440 AK3, seit #1335 im An
 		cleanup();
 	});
 
-	const clickAdvise = async (container: HTMLElement): Promise<void> => {
-		const adviseButton = [...container.querySelectorAll('kol-button')].find(
+	const clickAdvise = async (): Promise<void> => {
+		const adviseButton = [...document.body.querySelectorAll('kol-button')].find(
 			(el) => el.getAttribute('_label') === 'Beraten lassen',
 		);
 		await act(async () => {
@@ -347,14 +349,14 @@ describe('QuickCaptureModal — Berater ohne Säulen (#440 AK3, seit #1335 im An
 
 	it('zeigt bei pillars=[] den Hinweis „Keine Säulen definiert" statt einer Vorschlagsliste', async () => {
 		const mockAdvise = api.advisePillarActivities as ReturnType<typeof vi.fn>;
-		const { container } = render(<QuickCaptureModal pillars={[]} onClose={vi.fn()} onSaved={vi.fn()} />);
+		render(<QuickCaptureModal pillars={[]} onClose={vi.fn()} onSaved={vi.fn()} />);
 
-		await clickAdvise(container);
+		await clickAdvise();
 
-		expect(container.querySelector('kol-card')).toBeTruthy();
-		expect(container.textContent ?? '').toMatch(/keine säulen definiert/i);
-		expect(container.textContent ?? '').toMatch(/einstellungen/i);
-		expect(container.querySelector('.advisor-results')).toBeNull();
+		expect(document.body.querySelector('kol-card')).toBeTruthy();
+		expect(document.body.textContent ?? '').toMatch(/keine säulen definiert/i);
+		expect(document.body.textContent ?? '').toMatch(/einstellungen/i);
+		expect(document.body.querySelector('.advisor-results')).toBeNull();
 		expect(mockAdvise, 'ohne Säulen keine LLM-Anfrage').not.toHaveBeenCalled();
 	});
 
@@ -362,13 +364,13 @@ describe('QuickCaptureModal — Berater ohne Säulen (#440 AK3, seit #1335 im An
 		const mockAdvise = api.advisePillarActivities as ReturnType<typeof vi.fn>;
 		mockAdvise.mockResolvedValue({ advice: [{ activity: 'Yoga', reason: '', pillarIds: [1] }] });
 
-		const { container } = render(<QuickCaptureModal pillars={pillars} onClose={vi.fn()} onSaved={vi.fn()} />);
+		render(<QuickCaptureModal pillars={pillars} onClose={vi.fn()} onSaved={vi.fn()} />);
 
-		await clickAdvise(container);
+		await clickAdvise();
 
-		await waitFor(() => expect(container.querySelector('.advisor-results')).toBeTruthy());
+		await waitFor(() => expect(document.body.querySelector('.advisor-results')).toBeTruthy());
 		expect(mockAdvise).toHaveBeenCalledTimes(1);
-		expect(container.querySelector('kol-card')).toBeNull();
+		expect(document.body.querySelector('kol-card')).toBeNull();
 	});
 });
 
@@ -401,24 +403,24 @@ describe('QuickCaptureModal — KI-Kontingent (#1458 AK10)', () => {
 	};
 
 	it('zeigt bei 60 verbleibenden Anfragen den Rest ohne Warnung', () => {
-		const { container } = renderWithPlan('pro', 60);
+		renderWithPlan('pro', 60);
 
-		expect(container.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 60 KI-Anfragen');
-		expect(container.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeNull();
+		expect(document.body.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 60 KI-Anfragen');
+		expect(document.body.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeNull();
 	});
 
 	it('warnt bei 5 verbleibenden Anfragen zusaetzlich zum Rest (unter 10 Prozent von 60)', () => {
-		const { container } = renderWithPlan('pro', 5);
+		renderWithPlan('pro', 5);
 
-		expect(container.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 5 KI-Anfragen');
-		expect(container.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeTruthy();
+		expect(document.body.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 5 KI-Anfragen');
+		expect(document.body.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeTruthy();
 	});
 
 	it('zeigt auf free (Paket ohne Kontingent) gar keinen Kontingent-Hinweis statt "Noch 0"', () => {
-		const { container } = renderWithPlan('free', 0);
+		renderWithPlan('free', 0);
 
-		expect(container.querySelector('.ai-quota-hint')).toBeNull();
-		expect(container.textContent).not.toContain('KI-Anfragen');
+		expect(document.body.querySelector('.ai-quota-hint')).toBeNull();
+		expect(document.body.textContent).not.toContain('KI-Anfragen');
 	});
 });
 
@@ -439,19 +441,19 @@ describe('QuickCaptureModal — Badge im Modal schließt nichts (#1528 AK3/TF4)'
 		const entitlements: EntitlementMap = {
 			ai_assist: { allowed: false, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
 		};
-		const { container } = render(
+		render(
 			<PlanProvider value={{ plan: 'free', entitlements }}>
 				<QuickCaptureModal pillars={pillars} onClose={onClose} onSaved={vi.fn()} />
 			</PlanProvider>,
 		);
 
-		await typeCapture(container, 'Laufen gehen');
+		await typeCapture('Laufen gehen');
 		const badge = screen.getByTestId('plan-badge-ai_assist');
 		expect(badge.closest('a')).toBeNull();
 
 		fireEvent.click(badge);
 
 		expect(onClose).not.toHaveBeenCalled();
-		expect(container.querySelector('kol-textarea')?.getAttribute('_value')).toBe('Laufen gehen');
+		expect(document.body.querySelector('kol-textarea')?.getAttribute('_value')).toBe('Laufen gehen');
 	});
 });

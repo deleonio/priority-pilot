@@ -106,28 +106,47 @@ export const headerAction = async (page: Page, label: string | RegExp): Promise<
 	return inToolbar;
 };
 
+const escapeForRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
- * Öffnet einen zugeklappten KolAccordion-Abschnitt über seine Überschrift — der Trigger-Button
- * trägt das Label. `exact: true`, damit z. B. „Füreinander angelegt“ nicht den Abschnitt „…
- * angelegte Serien“ mittrifft (Substring-Match).
+ * Locator für einen KolAccordion-Trigger über seine Überschrift. Verankerter Regex statt
+ * `exact: true`, damit z. B. „Füreinander angelegt“ nicht den Abschnitt „… angelegte Serien“
+ * mittrifft (Substring-Match).
  *
- * Idempotent: der Trigger (kol-button-wc im Shadow-DOM) trägt `aria-expanded`; nur bei `false`
- * wird geklickt — ein schon offener Abschnitt (#1260: TaskForm startet im Edit mit gefüllten
- * Werten aufgeklappt) wird nicht zugklappt.
+ * Seit KoliBri 4.5.0-rc.0 ist der Trigger ein natives `<summary>` in einem `<details>` (vorher
+ * `kol-button-wc`) — verifizierter Upstream-Regressions-Befund: Chromium exponiert dafür weder
+ * eine ARIA-Rolle noch `aria-expanded`, `page.getByRole('button', …)` findet den Trigger also
+ * nicht mehr. Der CSS-Selektor `kol-accordion summary` durchdringt das Shadow-DOM automatisch
+ * (Playwright-Standardverhalten) und trifft weiterhin zuverlässig.
+ */
+export const accordionTrigger = (page: Page, label: string): Locator =>
+	page.locator('kol-accordion summary').filter({ hasText: new RegExp(`^${escapeForRegExp(label)}$`) });
+
+/** Auf-/Zugeklappt-Zustand kommt seit `<details>`/`<summary>` nur noch aus der nativen `open`-Eigenschaft. */
+export const isAccordionOpen = (trigger: Locator): Promise<boolean> =>
+	trigger.evaluate((el) => el.closest('details')?.open === true);
+
+/**
+ * Öffnet einen zugeklappten KolAccordion-Abschnitt über seine Überschrift.
+ *
+ * Idempotent: nur bei geschlossenem Abschnitt wird geklickt — ein schon offener Abschnitt
+ * (#1260: TaskForm startet im Edit mit gefüllten Werten aufgeklappt) wird nicht zugeklappt.
  */
 export const openAccordionSection = async (page: Page, label: string): Promise<void> => {
-	const trigger = page.getByRole('button', { name: label, exact: true });
-	if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+	const trigger = accordionTrigger(page, label);
+	if (!(await isAccordionOpen(trigger))) {
 		await trigger.click();
-		await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+		await expect.poll(() => isAccordionOpen(trigger)).toBe(true);
 		// Öffnungs-Animation abwarten (KolAccordion: grid-template-rows 0.3s), bevor der Aufrufer
 		// weitermisst — sonst landen Bounding-Box-Assertions in der laufenden Expansion
 		// (#1072-AK4-/#1159-AK5-Flakes).
-		// `.last()`: seit dem Design-Lauf 2026-09 können Accordions verschachtelt sein (z. B. die
-		// Gruppen-Karte umschließt „Mitglieder einladen") — der Filter matcht dann auch das äußere
-		// Accordion als Vorfahren des Triggers. Im Dokument-Quelltext steht der Vorfahre vor dem
-		// Nachfahren, `.last()` trifft daher zuverlässig das unmittelbar umschließende Accordion.
-		await waitForStableBox(page, page.locator('kol-accordion').filter({ has: trigger }).last());
+		// `xpath=ancestor::details[1]` statt eines `kol-accordion`-Filters: Trigger und `<details>`
+		// stehen im selben Shadow-Root, die relative XPath-Achse trifft daher unabhängig von
+		// Verschachtelung (z. B. Gruppen-Karte umschließt „Mitglieder einladen") immer exakt das
+		// unmittelbar umschließende Accordion — `page.locator('kol-accordion').filter({ has: trigger })`
+		// hängt sich mit dem gefilterten `summary`-Trigger-Locator auf (Playwright kombiniert
+		// verschachtelte `.filter()`-Locators nicht zuverlässig als `has`-Selektor).
+		await waitForStableBox(page, trigger.locator('xpath=ancestor::details[1]'));
 	}
 };
 
