@@ -1,0 +1,343 @@
+name: Team
+
+# Übergibt EIN Ticket komplett an das Dev-Team (.claude/skills/dev-team/SKILL.md), sobald ein
+# Mensch das Label `ai:needs-team` setzt: Analyse → rote Tests → Umsetzung → kanonisches Gate →
+# review-ready PR → lokale Kreuzverhör-Schleife. Am Ende setzt der Workflow `ai:needs-review` an
+# den PR, damit der unabhängige CI-Review (05-review.yml) und das Merge-Gate greifen.
+#
+# EIGENER EINGANG, KEINE SIEBTE PHASE: Der Lauf ersetzt die Phasen 2–4 für dieses eine Ticket.
+# Er ist die manuelle Alternative zur Label-Kette, nicht ihre Fortsetzung — deshalb setzt die
+# Triage `ai:needs-team` nie selbst. Klebt zusätzlich ein Ketten-Trigger, gewinnt die Kette und
+# dieser Lauf skippt (Doppel-Armung, s. check-phase-label.sh Phase `team`).
+#
+# CONCURRENCY: Dieselbe statische `llm`-Gruppe wie die Phasen 01–06 (globale Serialisierung,
+# FIFO). Der Lauf ist mit bis zu 120 Minuten der längste im Repo und blockiert die Queue
+# entsprechend lange — bewusst: zwei Agenten gleichzeitig auf demselben Repo ziehen dasselbe
+# LLM-Kontingent und kollidieren auf den Ports der Playwright-Läufe.
+#
+# ADR 0001 (Workflows bleiben ungetestet) gilt auch hier: getestet ist nur, was in
+# .github/scripts/ liegt (check-phase-label.sh kennt die Phase `team` und hat dafür Tests).
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: llm
+  cancel-in-progress: false
+  # queue: max — sonst hält GitHub pro Gruppe nur EINEN pending-Run und verwirft wartende
+  # still (Begründung ausführlich in 03-define-spec.yml).
+  queue: max
+
+jobs:
+  precheck:
+    # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — der
+    # Workflow feuert auf JEDES `labeled` im Repo).
+    if: ${{ github.event.label.name == 'ai:needs-team' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        id: check
+        uses: ./.github/actions/check-phase-label
+        with:
+          phase: team
+          ticket: ${{ github.event.issue.number }}
+
+  team:
+    needs: precheck
+    # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
+    # bewusst auf "laufen lassen" zurück, aber ein Fehler AUSSERHALB (Checkout, Timeout,
+    # Runner-Ausfall) würde den Hauptjob sonst stumm überspringen — Trigger konsumiert,
+    # niemand arbeitet, nichts re-armt.
+    if: >-
+      ${{ always()
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
+    runs-on: ubuntu-latest
+    # 120 min: Der Lauf macht in EINEM Job, wofür die Kette drei Phasen braucht (Spec,
+    # Umsetzung, Review-Runden) — inklusive Setup, Gate und mehrfachen e2e-Läufen.
+    timeout-minutes: 120
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    permissions:
+      contents: read
+      id-token: write
+      actions: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          # 90 min Soft-Deadline in einem 120-min-Job: 30 Minuten Rest sind der Puffer für
+          # Abschluss-Commit, Push und Phasen-Notiz. Wird die Deadline gerissen, endet der
+          # Lauf mit not-ready und der Wiederanlauf setzt über die Phasen-Notiz fort.
+          echo "soft_deadline_epoch=$((now + 5400))" >> "$GITHUB_OUTPUT"
+
+      - name: Phasen-Routing aus ai-phase-routing-Tabelle
+        # Bewusst die `impl`-Zeile: Der Team-Lauf IST die Umsetzung dieses Tickets, und die
+        # Triage hat Modell+Effort genau dafür geroutet (ADR 0004). Eine eigene `team`-Zeile
+        # gäbe es in keiner Tabelle — resolve-phase-routing.sh kennt nur ux|spec|impl|review.
+        # Fail-open: keine Tabelle (Ticket ohne Triage) -> leere Outputs -> Defaults unten.
+        id: routing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/resolve-phase-routing.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --issue "${{ github.event.issue.number }}" \
+            --phase impl || true
+
+      - name: Setup Claude Code (mit Memory-Load)
+        id: setup
+        uses: ./.github/actions/setup-agent
+        with:
+          needs-mcp: true
+          tools-tier: full
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.issue.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          # vars.* = manueller Not-Override; sonst Tabelle; sonst Default. Der Team-Lauf
+          # orchestriert und urteilt über einen ganzen Ticket-Durchlauf — Sonnet ist der
+          # Boden, nicht Haiku.
+          model: ${{ vars.CLAUDE_MODEL_TEAM || steps.routing.outputs.model || 'sonnet' }}
+          effort: ${{ steps.routing.outputs.effort || 'medium' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'true'
+          expect-memory: 'true'
+
+      - name: Doppel-Run-Guard (fertiger PR existiert)
+        id: doppel-guard
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          # Ready-PR (Nicht-Draft) existiert -> Umsetzung ist schon passiert (Kette oder ein
+          # früherer Team-Lauf) -> nicht doppelt arbeiten, nur das Review-Label nachziehen.
+          ready="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft no --out count)"
+          if [ "${ready:-0}" -gt 0 ]; then
+            echo "::notice::Team-Lauf übersprungen – fertiger PR existiert bereits für Issue #$ISSUE."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fortsetzungs-Lauf erkennen
+        id: continued-before
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
+
+      - name: pnpm einrichten
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+
+      - name: Node.js einrichten
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Git-Hooks installieren (lefthook)
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        run: pnpm exec lefthook install
+
+      - name: Team-Lauf via Claude
+        id: claude
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          # Prompt liegt kanonisch in .github/prompts/team.md — die Methode selbst steht im
+          # Skill (.claude/skills/dev-team/SKILL.md), hier nur die Laufmechanik.
+          cp .github/prompts/team.md /tmp/claude-prompt.txt
+
+          # Memory-Snippets anhängen (der Lauf restauriert UND schreibt). Vor den seds, damit
+          # deren Platzhalter mit substituiert werden.
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          bash .github/scripts/render-memory-context.sh >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
+
+          sed -i "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/team/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          if [ "${{ steps.continued-before.outputs.already }}" = "true" ]; then
+            sed -i "s|{{RESUME_HINT}}|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST die Phasen-Notiz in .ai-memory/ und SETZE FORT: bestehenden Branch auschecken, Stand prüfen, nichts wiederholen, was dort als erledigt steht. Pre-Flight nur für das, was noch offen ist.|g" /tmp/claude-prompt.txt
+          else
+            sed -i "s/{{RESUME_HINT}}//g" /tmp/claude-prompt.txt
+          fi
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure Fehlläufe
+        # gehören in die Messreihe. `phase: team` ist derselbe Phasen-Name, den der lokale
+        # Lauf schreibt: lokale und CI-Team-Läufe bleiben damit vergleichbar.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || github.event.issue.number }}
+          phase: team
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+          effort: ${{ steps.setup.outputs.effort }}
+          runtime: ${{ steps.setup.outputs.runtime }}
+          session-dir: ${{ steps.setup.outputs.session-dir }}
+
+      - name: Issue-Storage sichern (Artefakt)
+        # ADR 0010: Phasen-Notiz als Workflow-Artefakt — kein Commit am Lauf-Ende. Sie ist der
+        # Resume-Anker, wenn die Soft-Deadline gerissen wurde.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/issue-state-save
+        with:
+          issue-number: ${{ steps.setup.outputs.issue-number || github.event.issue.number }}
+          phase: team
+
+      - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled' || steps.doppel-guard.outputs.skip == 'true')
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
+          GUARD_SKIP: ${{ steps.doppel-guard.outputs.skip }}
+        run: |
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            # Erster bekannter Token gewinnt; Prosa nach dem Token ist egal (#1017-Klasse).
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'needs-review|not-ready' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "${GUARD_SKIP:-false}" = "true" ]; then
+            verdict="needs-review"
+            echo "::notice::Doppel-Run-Guard: fertiger PR existiert bereits — behandele als needs-review."
+          fi
+
+          # PR finden: primär closingIssuesReferences, Fallback Closing-Keyword im Body.
+          PR_NR="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft no --out first)"
+          ARTIFACTS_OK="false"
+          if [ -n "$PR_NR" ] && [ "$PR_NR" != "null" ]; then
+            PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
+            PR_COMMITS="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length' 2>/dev/null || echo "0")"
+            if [ "$PR_DRAFT" != "true" ] && [ "${PR_COMMITS:-0}" -gt 0 ]; then
+              ARTIFACTS_OK="true"
+            fi
+          fi
+          echo "::notice::Team-PR: #${PR_NR:-keiner} (artefakt-ok=$ARTIFACTS_OK)"
+
+          # Das ARTEFAKT entscheidet, nicht die Selbstauskunft: ein fertiger PR ist ein fertiger
+          # PR, auch wenn der Lauf vorher abbrach — und ohne PR hilft kein grünes Verdict.
+          if [ "$ARTIFACTS_OK" = "true" ]; then
+            final="needs-review"
+          elif [ "$verdict" = "needs-review" ]; then
+            echo "::error title=❌ PR fehlt::VERDICT needs-review, aber kein fertiger PR gefunden."
+            final="not-ready"
+          elif [ "$verdict" = "not-ready" ]; then
+            final="not-ready"
+          else
+            # ABSTURZ (kein verwertbares VERDICT, kein PR): Der Trigger ist konsumiert, das
+            # Ticket stünde sonst still und ohne Hinweis da. Sichtbar beim Menschen parken.
+            echo "::warning::Kein VERDICT und kein PR — Ticket wird beim Menschen geparkt."
+            bash .github/scripts/phase-crash-park.sh \
+              --repo "$GITHUB_REPOSITORY" --issue "$ISSUE" \
+              --phase team --trigger ai:needs-team || true
+            exit 0
+          fi
+
+          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color 1D76DB 2>/dev/null || true
+
+          if [ "$final" = "needs-review" ]; then
+            # Trigger konsumieren, Review-Trigger an den PR (Übergang Issue → PR). Remove-vor-Add
+            # erzwingt genau ein labeled-Event, auch wenn das Label schon klebte — sonst wäre das
+            # Setzen ein No-op und 05-review.yml startete nie.
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-team" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
+            gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
+            gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
+            echo "::notice title=✅ Team-Lauf fertig::Label ai:needs-review an PR #${PR_NR} gesetzt."
+          elif [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
+            # Zweiter Soft-Abort: nicht endlos weiterlaufen lassen. ai:to-big-issue ist ein
+            # reines Info-Signal an den Menschen und löst bewusst nichts aus.
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-team" 2>/dev/null || true
+            gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+            echo "::warning title=⏹️ Obergrenze::Zweiter Soft-Abort — ai:to-big-issue gesetzt, Team-Lauf nicht erneut angestoßen."
+          else
+            # Erster Soft-Abort: mit ai:continued markieren und den eigenen Trigger neu setzen.
+            gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-team" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-team"
+            echo "::notice title=⏸️ Soft-Abort::ai:continued gesetzt, ai:needs-team retriggert — der Folgelauf setzt über die Phasen-Notiz fort."
+          fi
+
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_DOPPEL: ${{ steps.doppel-guard.outputs.skip }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "${SKIP_DOPPEL:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Team-Lauf übersprungen::Issue #${ISSUE} — fertiger PR existiert bereits"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Team-Lauf erfolgreich::Issue #${ISSUE}"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Team-Lauf abgebrochen"
+          else
+            echo "::error title=❌ Team-Lauf fehlgeschlagen"
+          fi
+          {
+            echo "### Team-Lauf #${ISSUE} – fertig"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Labels: ${labels:-keine}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check

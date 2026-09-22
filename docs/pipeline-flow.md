@@ -27,6 +27,7 @@ flowchart TD
     %% ====== Eintritt ======
     start([Mensch gibt Issue frei<br/>Label ai:needs-analyse]):::evt
     pushmain([Push auf main<br/>z. B. nach Merge]):::evt
+    teamstart([Mensch übergibt Ticket<br/>Label ai:needs-team]):::evt
 
     %% ====== Issue-Phase ======
     subgraph ISSUE [Issue-Phase]
@@ -34,6 +35,7 @@ flowchart TD
         spec[spec.yml<br/>rote Tests + Draft-PR]:::wf
         ux[ux.yml<br/>UX-Beratung + Review]:::wf
         implement[implement.yml<br/>Umsetzung + PR ready]:::wf
+        team[team.yml<br/>Dev-Team: ganzes Ticket → PR]:::wf
         unblock[issue-unblock.yml<br/>Nachfolger freigeben]:::wf
     end
 
@@ -66,6 +68,11 @@ flowchart TD
     %% letzten Schritt — pr-needs-review-label.yml reagiert bewusst NICHT auf bot-erzeugte
     %% Draft→ready-Uebergaenge, nur auf menschliche PR-Erstellung/-Freigabe) ----
     implement -->|"label: ai:needs-review (PR)"| review
+
+    %% ---- Manueller Team-Eingang neben der Kette: ersetzt ux/spec/implement fuer EIN Ticket
+    %% und muendet an derselben Stelle in die PR-Phase ----
+    teamstart -->|"issues.labeled: ai:needs-team"| team
+    team -->|"label: ai:needs-review (PR)"| review
 
     %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) + menschlich erstellte PRs ----
     gatemerge -.->|"menschlicher Push<br/>(Reset ai:reviewed)"| autolabel
@@ -142,6 +149,7 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 | `ai:needs-impl`      | PO (nach Prüfung), spec (bei Erfolg)                                                      | implement              | `implement.yml`           |
 | `ai:needs-review`    | implement, pr-needs-review-label (nur menschlich), **fixup**, **gate-merge** (CI 🔴)      | review                 | `pr-review.yml`           |
 | `ai:needs-fixup`     | review (🔴), **conflict-scan**, **gate-merge** (nur Merge-Konflikt), Autolabeler (Re-Arm) | implement (PR-Eingang) | `04-claude-implement.yml` |
+| `ai:needs-team`      | **nur Mensch** (übergibt das ganze Ticket an das Dev-Team)                                | team                   | `team.yml`                |
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 
@@ -158,7 +166,7 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 | `ai:needs-human`                                                             | ux, review, fixup (+ PR/Issue-Kommentar) | KI kommt nicht weiter: **Warum** + **was der Mensch beitragen/entscheiden soll** |
 | `ai:needs-po-review`                                                         | triage (🟢)                              | PO-Review nach Triage-Analyse — PO prüft und setzt Phasen-Label                  |
 | `ai:to-big-issue`                                                            | triage, implement (2. Soft-Abort)        | Aufgabe zu groß für die Pipeline — Signal an den Menschen, löst nichts aus       |
-| `ai:continued`                                                               | implement (1. Soft-Abort)                | Fortsetzungs-Marker für den Folgelauf                                            |
+| `ai:continued`                                                               | implement, team (1. Soft-Abort)          | Fortsetzungs-Marker für den Folgelauf                                            |
 | `ai:spec-ready`/`ux:ready`/`ai:ready`/`ai:needs-changes`/`ai:ready-to-merge` | —                                        | **Entfallen** (Issue #851): ersetzt durch `ai:needs-*`/`ai:<past>`-Schema        |
 | `ai:ux-reviewed`/`ai:specified`/`ai:implemented`/`ai:fixed`                  | —                                        | **Entfallen** (Issue #873): tote Marker ohne Leser, jedes Add = No-Op-Runs       |
 
@@ -366,6 +374,12 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   Einstieg für neue Issues**; ein `issues.opened` startet nichts (bewusst entfernt, s. o.).
   Gesetzt von Mensch oder `issue-unblock.yml` beim Merge des Blockers; wirkt auf ein bereits
   analysiertes Ticket als erzwungene Neu-Analyse.
+- **Setzen von `ai:needs-team`** (`issues.labeled`) → `team.yml`. Der **manuelle Eingang neben der
+  Kette**: ein Mensch übergibt das ganze Ticket an das Dev-Team
+  ([SKILL](../.claude/skills/dev-team/SKILL.md)), das es in einem Lauf bis zum review-ready PR
+  führt und am Ende `ai:needs-review` an den PR setzt — ab da läuft die normale Kette weiter.
+  Klebt gleichzeitig ein Ketten-Trigger (`ai:needs-ux-ui`/`ai:needs-spec`/`ai:needs-impl`),
+  gewinnt die Kette und der Team-Lauf skippt. Kein Agent setzt dieses Label.
 - **Entfernen von `ai:analysed`** (`issues.unlabeled`) → `triage.yml` (manuelle Neu-Analyse;
   der Laufzeit-Pre-Check verlangt, dass das Label abwesend bleibt — sonst Trigger konsumiert).
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `pr-conflict-scan.yml`

@@ -899,6 +899,38 @@ Antworten kommen aus dem Code, nicht aus einem Nutzergespräch.
 /arc42-weekly` auf — im CI lief nichts davon je). Die `arc42-*`-Skills bleiben erhalten und
   werden vom Prompt als Methode genutzt; nur der tote Workflow ist gefallen.
 
+## Ticket an das Dev-Team übergeben (`team.yml`)
+
+Der **manuelle Eingang neben der Phasenkette**: Ein Mensch setzt `ai:needs-team` an ein offenes
+Issue, und das Dev-Team ([SKILL](../.claude/skills/dev-team/SKILL.md), Gotcha-Katalog daneben)
+führt das Ticket in **einem** Lauf durch — Pre-Flight-Gates, Akzeptanzkriterien aus dem
+Harness-Kommentar (ohne Triage: selbst hergeleitet und im PR-Body festgehalten), rote Tests,
+Umsetzung, kanonisches Gate, review-ready PR, lokale Kreuzverhör-Schleife bis 🟢. Der Lauf ersetzt
+für dieses Ticket die Phasen 2–4; keine Phase setzt das Label je selbst.
+
+**Mechanik:**
+
+- **Doppel-Armung:** Klebt zusätzlich ein Ketten-Trigger (`ai:needs-ux-ui`, `ai:needs-spec`,
+  `ai:needs-impl`), gewinnt die Kette und der Team-Lauf skippt (`check-phase-label.sh`, Phase
+  `team`) — sonst arbeiteten zwei Agenten am selben Branch.
+- **Doppel-Run-Guard:** Existiert bereits ein fertiger (Nicht-Draft-)PR zum Issue, wird nicht
+  erneut umgesetzt; der Lauf zieht nur das Review-Label nach.
+- **Zeitfenster:** 120 min Job, Soft-Deadline nach 90 min. Erster Soft-Abort → `ai:continued` +
+  `ai:needs-team` neu gesetzt (Folgelauf setzt über die Phasen-Notiz fort, ADR 0010), zweiter →
+  `ai:to-big-issue` (Info-Signal, löst nichts aus). Gemeinsame `llm`-Concurrency-Gruppe: der lange
+  Lauf blockiert die Ticket-Pipeline bewusst, statt parallel dasselbe Kontingent zu ziehen.
+- **Post-Assertion:** Das **Artefakt** entscheidet — ein fertiger PR mit Commits ergibt
+  `ai:needs-review` am PR (Trigger für Phase 5 und damit das Merge-Gate), auch wenn der Lauf
+  vorher abbrach. Kein Verdict und kein PR → `phase-crash-park.sh` parkt beim Menschen.
+- **Kosten:** Ein Datensatz je Lauf mit `phase: team` über `record-cost` (Artefakt, versiegelt vom
+  Documenter). Derselbe Phasen-Name, den ein lokaler Team-Lauf schreibt — `tokens-report.ts`
+  zählt ein so umgesetztes Ticket als `extern-vollstaendig`. Der Agent selbst fasst `.costs/` im
+  CI-Lauf nicht an (doppelte Zählung).
+- **Modell:** `vars.CLAUDE_MODEL_TEAM`, sonst die `impl`-Zeile der `ai-phase-routing`-Tabelle
+  (ADR 0004 — der Team-Lauf IST die Umsetzung des Tickets), sonst `sonnet`.
+- **Pädagoge:** Der Bericht (Soll/Ist-Kosten, Rollen-Feedback, Gate-Abweichungen) geht in die
+  Job-Summary; dauerhafte Lehren nach `.ai-memory/MEMORY.md`.
+
 ## Tägliches Code-Review-Team (`cron.code-review-team.yml`)
 
 Keine Pipeline-Phase, sondern ein Helper-Workflow (täglich 04:27 UTC im LLM-Nachtblock, plus

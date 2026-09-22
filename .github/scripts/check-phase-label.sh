@@ -44,6 +44,11 @@
 #   implement     Issue   offen        ai:needs-impl                         —
 #   implement-pr  PR      offen, kein  ai:needs-fixup                        —
 #                         Draft
+#   team          Issue   offen        ai:needs-team                         ai:needs-ux-ui
+#                                      (Mensch uebergibt das ganze Ticket     ai:needs-spec
+#                                       an das Dev-Team, team.yml)            ai:needs-impl
+#                                                                            (Doppel-Armung:
+#                                                                             Kette gewinnt)
 #   review        PR      offen, kein  ai:needs-review                       ai:needs-fixup
 #                         Draft                                             (Doppel-Armung:
 #                                                                            Fixup gewinnt)
@@ -127,6 +132,13 @@ case "$PHASE" in
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-spec") ;;
   implement)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-impl") ;;
+  team)
+    # Eigener Eingang NEBEN der Phasenkette (team.yml): ein Mensch uebergibt ein Ticket
+    # komplett an das Dev-Team. ABSENT deckt die Doppel-Armung ab — klebt zusaetzlich ein
+    # Ketten-Trigger, gewinnt die Kette und der Team-Lauf skippt, sonst arbeiten beide am
+    # selben Ticket (dieselbe Begruendung wie review/ai:needs-fixup).
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-team")
+    ABSENT=("ai:needs-ux-ui" "ai:needs-spec" "ai:needs-impl") ;;
   implement-pr)
     KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-fixup") ;;
   review)
@@ -149,7 +161,7 @@ case "$PHASE" in
     # was nicht rückgängig zu machen ist. Also im Zweifel NICHT laufen.
     KIND="pr"; WANT_STATE="merged"; ABSENT=("ai:documented"); FAIL_MODE="closed" ;;
   *)
-    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse ux spec implement implement-pr review documenter)" >&2
+    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse ux spec implement implement-pr team review documenter)" >&2
     exit 2
     ;;
 esac

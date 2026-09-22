@@ -14,7 +14,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Ticket-Umsetzung](.claude/skills/ticket-implementation/SKILL.md) — freigegebene Issues (`ai:needs-impl`) umsetzen
 - [PR-Review (Kreuzverhör)](.claude/skills/review-kreuzverhoer/SKILL.md) — PRs adversarial prüfen, Findings kommentieren
 - [Code-Review-Team](.claude/skills/code-review-team/SKILL.md) — tägliches Architektur-/Qualitäts-Review in vier Perspektiven plus Regelwerk-Prüfung (Widersprüche/Lücken in den Vorgaben), fortlaufendes Protokoll-Issue, genau ein unkritischer Fix je Lauf (Code oder Vorgaben-Konsolidierung)
-- [Dev-Team](.claude/skills/dev-team/SKILL.md) — lokaler Multi-Agent-Lauf (Architect orchestriert Developer/Tester/Reviewer/Documenter/Pädagoge): Ticket-Modus führt ein Issue bis zum grünen Kreuzverhör, freier Modus bearbeitet Aufgaben ohne Ticket; liest die Kennzahlen aus `.costs/` für Modell-/Effort-Wahl und schreibt je Lauf einen Kostensatz (`phase: team`) zurück
+- [Dev-Team](.claude/skills/dev-team/SKILL.md) — Multi-Agent-Lauf (Architect orchestriert Developer/Tester/Reviewer/Documenter/Pädagoge): Ticket-Modus führt ein Issue bis zum grünen Kreuzverhör — lokal über `/dev-team #N`, in GitHub über das Label `ai:needs-team` (`team.yml`); freier Modus bearbeitet Aufgaben ohne Ticket. Liest die Kennzahlen aus `.costs/` für Modell-/Effort-Wahl, je Lauf ein Kostensatz (`phase: team`)
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 - [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — Farbrollen, Skalen-Tokens, Komponentenwahl
 - [Dauergedächtnis](.ai-memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))

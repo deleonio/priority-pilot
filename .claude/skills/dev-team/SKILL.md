@@ -37,6 +37,12 @@ Doku, Analyse). Kein Branch-, kein PR-Zwang, **kein Commit ohne ausdrücklichen 
 
 Beide Modi durchlaufen dieselben Gates. Nur der Abschluss unterscheidet sich.
 
+**Der Ticket-Modus hat zwei Eingänge.** Lokal startet ihn der User mit einer Nummer. In GitHub
+startet ihn das Label `ai:needs-team` am Issue — dann läuft derselbe Modus in Actions, und der
+Run-Prompt des Workflows regelt, was dort anders ist: die Kostenerfassung übernimmt der Workflow
+(nie selbst `.costs/` anfassen), der Pädagoge-Bericht geht in die Job-Summary statt in eine Datei,
+Labels setzt ausschließlich der Workflow, und am Ende übernimmt der unabhängige CI-Review den PR.
+
 ## Globale Praemissen
 
 - **Autonomie:** Nur der User ist Mensch. Rückfragen (per AskUserQuestion, nie still entscheiden)
@@ -116,9 +122,14 @@ Dieses Repo hat eine label-getriebene KI-Pipeline (`ai:needs-*` → `ai:<Vergang
 sie bereits auf dem Ticket, ist lokale Parallelarbeit doppelt teuer: doppelte Kosten **und**
 Edit-War auf demselben Branch.
 
-- `gh issue view <nr> --json labels,assignees` und `gh pr list --search "<nr>"`: Trägt das Issue ein
-  `ai:needs-*`-Label, ist es zugewiesen oder existiert ein Pipeline-PR → **Rückfrage an den User**,
-  nicht loslaufen.
+- `gh issue view <nr> --json labels,assignees` und `gh pr list --search "<nr>"`: Trägt das Issue
+  einen **Ketten-Trigger** (`ai:needs-ux-ui`, `ai:needs-spec`, `ai:needs-impl`, am PR
+  `ai:needs-review`/`ai:needs-fixup`), ist es zugewiesen oder existiert ein Pipeline-PR →
+  **Rückfrage an den User**, nicht loslaufen.
+- **`ai:needs-team` ist der eigene Trigger, kein Blocker.** Es bedeutet, dass ein Mensch das Ticket
+  an das Team übergeben hat — im CI-Lauf hat der Workflow es beim Start konsumiert, lokal setzt es
+  niemand. Wer daran abbricht, bricht an sich selbst ab. `ai:continued` markiert einen Folgelauf
+  nach Soft-Abort: fortsetzen, nicht neu anfangen (Phasen-Notiz lesen).
 - **Working-Tree-Drift mittendrin** (`git status` ändert sich zwischen zwei Befehlen, fremde
   Edit-Prozesse in `ps`): **nicht zurückdrehen** (kein `reset --hard`), sondern melden und
   User-Entscheid einholen. Ein Edit-War auf einem geteilten Branch ist nicht reversibel.
@@ -372,7 +383,11 @@ den Commit vor.
 
 ## Kostenerfassung am Laufende
 
-Vor dem Pädagoge-Report, nachdem die Arbeit steht:
+**Nur im lokalen Lauf.** Startet der Lauf über das Label `ai:needs-team` in GitHub, misst der
+Workflow nach deinem Zug und lädt den Satz als Artefakt hoch — eine zusätzliche Selbst-Erfassung
+zählte dieselben Token doppelt. Dort also `.costs/` nicht anfassen.
+
+Lokal, vor dem Pädagoge-Report, nachdem die Arbeit steht:
 
 ```
 pnpm cost:record -- --issue <nr|0> --phase team \

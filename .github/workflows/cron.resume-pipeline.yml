@@ -144,6 +144,10 @@ jobs:
             [4-implement]="04-implement.yml|ai:needs-impl|issue"
             [4-implement-pr]="04-implement.yml|ai:needs-fixup|pr"
             [5-review]="05-review.yml|ai:needs-review|pr"
+            # Kein Ketten-Eingang, sondern der manuelle Team-Eingang (team.yml). Er gehört
+            # trotzdem in den Sweep: ein klebendes ai:needs-team nach einem verlorenen Lauf
+            # bliebe sonst für immer liegen — der Mensch hat übergeben und wartet.
+            [6-team]="team.yml|ai:needs-team|issue"
           )
 
           for ENTRY in $(printf '%s\n' "${!PHASES[@]}" | sort); do

@@ -114,6 +114,20 @@ describe('check-phase-label.sh — die zwei Eingänge der Umsetzungsphase', () =
 		assert.match(reason, /ai:needs-fixup/);
 	});
 
+	it('team verlangt ai:needs-team am OFFENEN ISSUE', () => {
+		writeFileSync(fixturePath, issue('OPEN', 'ai:needs-team'));
+		assert.equal(runPhase('team').proceed, 'true');
+	});
+
+	it('team skippt bei Doppel-Armung mit der Phasenkette (die Kette gewinnt)', () => {
+		// Ohne diesen Ausschluss liefen Team-Lauf und Umsetzungsphase am selben Ticket:
+		// zwei Agenten auf demselben Branch, doppelte Kosten, Edit-War.
+		writeFileSync(fixturePath, issue('OPEN', 'ai:needs-team', 'ai:needs-impl'));
+		const { proceed, reason } = runPhase('team');
+		assert.equal(proceed, 'false');
+		assert.match(reason, /ai:needs-impl/);
+	});
+
 	it('der alte Phasen-Name `fixup` ist ein HARTER Fehler, kein stiller Skip', () => {
 		// Ein Aufrufer, der beim Zusammenlegen übersehen wurde, muss laut scheitern
 		// (exit 2 = Konfigurationsfehler). Ein Fail-open hätte den Fixup-Eingang

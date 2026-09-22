@@ -18,6 +18,9 @@ gh label create "ai:analysed" --color 0E8A16 2>/dev/null || true
 gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null || true
 gh label create "ai:needs-spec" --color FBCA04 2>/dev/null || true
 gh label create "ai:needs-impl" --color FBCA04 2>/dev/null || true
+# Setzt kein Agent, sondern ein Mensch (übergibt das Ticket an das Dev-Team, team.yml) —
+# es muss trotzdem existieren, bevor es jemand in der Oberfläche auswählen kann.
+gh label create "ai:needs-team" --color FBCA04 --description "Ticket komplett an das Dev-Team uebergeben" 2>/dev/null || true
 
 for m in haiku sonnet opus; do
   gh label create "ai:model:$m" --color C5DEF5 --description "Modell der Folgephasen" 2>/dev/null || true

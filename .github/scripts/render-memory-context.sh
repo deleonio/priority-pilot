@@ -15,7 +15,7 @@ dir="${1:-.ai-memory}"
 
 # Pipeline-Reihenfolge, damit der Agent den Verlauf chronologisch liest und nicht alphabetisch
 # (ein "fixup" vor dem "implement" wäre irreführend). Unbekannte Phasen landen hinten.
-order="triage ux spec implement fixup review documenter"
+order="triage ux spec implement team fixup review documenter"
 
 files=()
 for phase in $order; do
