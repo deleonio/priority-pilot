@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -23,34 +23,44 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolButton: ({
 		_label,
 		_on,
+		_disabled,
 		...rest
 	}: {
 		_label?: string;
 		_on?: { onClick?: () => void };
+		_disabled?: boolean;
 		'data-testid'?: string;
 	}) => (
-		<button type="button" onClick={() => _on?.onClick?.()} {...rest}>
+		<button type="button" disabled={_disabled} onClick={() => _on?.onClick?.()} {...rest}>
 			{_label}
 		</button>
 	),
+	// TEST-PFLEGE #1595 (AK5): Das Anlege-Formular nutzt jetzt `AddressAutocomplete` — der Mock muss
+	// deshalb `_type` und die ARIA-Combobox-Props durchreichen (Muster `AddressAutocomplete.test.tsx`).
 	KolInputText: ({
 		_label,
 		_value,
+		_type,
 		_on,
+		...rest
 	}: {
 		_label?: string;
 		_value?: string;
+		_type?: string;
 		_on?: { onInput?: (_e: unknown, v: string) => void; onChange?: (_e: unknown, v: string) => void };
 	}) => (
 		<input
 			aria-label={_label}
+			type={_type ?? 'text'}
 			value={_value ?? ''}
 			onChange={(e) => {
 				_on?.onInput?.(e.nativeEvent, e.target.value);
 				_on?.onChange?.(e.nativeEvent, e.target.value);
 			}}
+			{...(rest as Record<string, unknown>)}
 		/>
 	),
+	KolSpin: ({ _label }: { _label?: string }) => <span role="status">{_label ?? 'wird geladen'}</span>,
 	KolAlert: ({ _label, children }: { _label?: string; children?: React.ReactNode }) => (
 		<div role="alert">
 			{_label}
@@ -59,6 +69,16 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 	// #1484: `PlanBadge` (T3a, unverändert) nutzt KolBadge zusätzlich zu KolButton (bereits oben).
 	KolBadge: ({ _label }: { _label?: string }) => <span data-testid="badge">{_label}</span>,
+}));
+
+// TEST-PFLEGE #1595 (AK6): Gelöscht wird über `ConfirmDeleteDialog`, der auf `Modal`/`KolDialog`
+// sitzt — wie in `ConfirmDeleteDialog.test.tsx` wird `Modal` auf ein schlichtes `div` reduziert.
+vi.mock('./Modal', () => ({
+	Modal: ({ title, children }: { title?: string; children?: React.ReactNode }) => (
+		<div data-testid="modal" aria-label={title}>
+			{children}
+		</div>
+	),
 }));
 
 const apiMocks: Record<string, ReturnType<typeof vi.fn>> = {};
@@ -80,9 +100,10 @@ import { PlanProvider } from '../lib/usePlan';
 // Router — der Hook wird deshalb auf einen Stub geleitet; das Klick-Verhalten deckt PlanBadge.test.
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 
+// TEST-PFLEGE #1595 (AK3): Ein gespeicherter Ort hat nur noch eine Adresse — `name` ist aus Modell,
+// DTO und UI entfallen.
 const FAVORITE = {
 	id: 1,
-	name: 'Büro',
 	address: 'Rathausplatz 1, München',
 	latitude: 48.1374,
 	longitude: 11.5755,
@@ -90,6 +111,8 @@ const FAVORITE = {
 
 beforeEach(() => {
 	for (const key of Object.keys(apiMocks)) delete apiMocks[key];
+	// `AddressAutocomplete` im Anlege-Formular (AK5) fragt die Adresssuche an — ohne Treffer.
+	apiMocks.geocodeSearch = vi.fn().mockResolvedValue([]);
 });
 
 afterEach(cleanup);
@@ -100,54 +123,81 @@ const flush = async () => {
 	});
 };
 
-describe('PlaceFavoritesSection (#1342 AK3)', () => {
-	it('zeigt die geladenen Favoriten mit Name und Adresse', async () => {
+describe('PlaceFavoritesSection (#1342 AK3, #1595)', () => {
+	it('zeigt die geladenen Favoriten mit der Adresse', async () => {
 		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([FAVORITE]);
 		render(<PlaceFavoritesSection />);
 		await flush();
 
 		const row = screen.getByTestId('place-favorite-row');
-		expect(row.textContent).toContain('Büro');
 		expect(row.textContent).toContain('Rathausplatz 1, München');
 	});
 
-	it('Anlegen ruft api.createPlaceFavorite auf und zeigt den neuen Eintrag ohne Neuladen', async () => {
+	it('Anlegen ruft api.createPlaceFavorite mit der Adresse auf und zeigt den neuen Eintrag ohne Neuladen', async () => {
 		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([]);
 		apiMocks.createPlaceFavorite = vi
 			.fn()
-			.mockResolvedValue({ id: 2, name: 'Zuhause', address: 'Weg 1', latitude: null, longitude: null });
+			.mockResolvedValue({ id: 2, address: 'Weg 1', latitude: null, longitude: null });
 		render(<PlaceFavoritesSection />);
 		await flush();
 
-		fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Zuhause' } });
 		fireEvent.change(screen.getByLabelText(/adresse/i), { target: { value: 'Weg 1' } });
 		fireEvent.click(screen.getByText(/anlegen|speichern/i));
 		await flush();
 
-		expect(apiMocks.createPlaceFavorite).toHaveBeenCalledWith(
-			expect.objectContaining({ name: 'Zuhause', address: 'Weg 1' }),
-		);
+		expect(apiMocks.createPlaceFavorite).toHaveBeenCalledWith(expect.objectContaining({ address: 'Weg 1' }));
+		expect(apiMocks.createPlaceFavorite.mock.calls[0]?.[0]).not.toHaveProperty('name');
 		expect(screen.getAllByTestId('place-favorite-row')).toHaveLength(1);
-		expect(screen.getByTestId('place-favorite-row').textContent).toContain('Zuhause');
+		expect(screen.getByTestId('place-favorite-row').textContent).toContain('Weg 1');
 	});
 
-	it('Umbenennen ruft api.updatePlaceFavorite mit dem neuen Namen auf und aktualisiert die Zeile', async () => {
+	// #1595 AK3 — Ersatz für den entfallenen Umbenennen-Test: Name und Umbenennen sind weg.
+	it('AK3 — die Karte hat weder ein Namensfeld noch einen Umbenennen-Knopf', async () => {
 		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([FAVORITE]);
-		apiMocks.updatePlaceFavorite = vi.fn().mockResolvedValue({ ...FAVORITE, name: 'Zweitbüro' });
 		render(<PlaceFavoritesSection />);
 		await flush();
 
-		fireEvent.click(screen.getByRole('button', { name: /favorit umbenennen/i }));
-		const nameInput = screen.getByDisplayValue('Büro');
-		fireEvent.change(nameInput, { target: { value: 'Zweitbüro' } });
-		fireEvent.click(screen.getByText(/^(übernehmen|speichern)$/i));
-		await flush();
-
-		expect(apiMocks.updatePlaceFavorite).toHaveBeenCalledWith(expect.objectContaining({ id: 1, name: 'Zweitbüro' }));
-		expect(screen.getByTestId('place-favorite-row').textContent).toContain('Zweitbüro');
+		expect(screen.queryByLabelText(/^name$/i)).toBeNull();
+		expect(screen.queryByRole('button', { name: /umbenennen/i })).toBeNull();
+		expect(screen.getByTestId('place-favorite-row').textContent).not.toContain('Büro');
 	});
 
-	it('Löschen ruft api.deletePlaceFavorite auf; der Eintrag verschwindet danach aus der Liste', async () => {
+	// #1595 AK5 — dieselbe Adressvervollständigung wie im Aufgabenformular; die Auswahl übernimmt
+	// Adresse UND Koordinaten in den anschließenden `createPlaceFavorite`-Aufruf.
+	it('AK5 — das Anlege-Formular vervollständigt Adressen und übernimmt die Koordinaten des Treffers', async () => {
+		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([]);
+		apiMocks.geocodeSearch = vi
+			.fn()
+			.mockResolvedValue([
+				{ address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München', lat: 48.1402, lon: 11.56 },
+			]);
+		apiMocks.createPlaceFavorite = vi.fn().mockResolvedValue({
+			id: 3,
+			address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München',
+			latitude: 48.1402,
+			longitude: 11.56,
+		});
+		render(<PlaceFavoritesSection />);
+		await flush();
+
+		fireEvent.change(screen.getByLabelText(/adresse/i), { target: { value: 'munchen' } });
+		const listbox = await screen.findByRole('listbox', {}, { timeout: 3000 });
+		await act(async () => {
+			fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Bahnhofplatz 1/ }));
+		});
+		fireEvent.click(screen.getByText(/anlegen|speichern/i));
+		await flush();
+
+		expect(apiMocks.createPlaceFavorite).toHaveBeenCalledWith({
+			address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München',
+			latitude: 48.1402,
+			longitude: 11.56,
+		});
+	});
+
+	// #1595 AK6 — gelöscht wird über den gemeinsamen Bestätigungsdialog
+	// (docs/ux-pattern-sequential-confirmation.md), nicht mehr über eine Inline-Bestätigung.
+	it('AK6 — Löschen läuft über den Bestätigungsdialog; der Eintrag verschwindet danach aus der Liste', async () => {
 		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([FAVORITE]);
 		apiMocks.deletePlaceFavorite = vi.fn().mockResolvedValue(undefined);
 		render(<PlaceFavoritesSection />);
@@ -155,13 +205,29 @@ describe('PlaceFavoritesSection (#1342 AK3)', () => {
 
 		fireEvent.click(screen.getByRole('button', { name: /favorit löschen/i }));
 		await flush();
-		// Zweistufige Bestätigung (Muster ApiTokensSection/docs/ux-pattern-sequential-confirmation.md)
-		const confirmButtons = screen.getAllByRole('button').filter((b) => /löschen|entfernen/i.test(b.textContent ?? ''));
-		fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+		const dialog = screen.getByTestId('modal');
+		expect(dialog).toHaveAttribute('aria-label', 'Ort löschen');
+		fireEvent.click(within(dialog).getByRole('button', { name: /endgültig löschen/i }));
 		await flush();
 
 		expect(apiMocks.deletePlaceFavorite).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
 		expect(screen.queryByTestId('place-favorite-row')).toBeNull();
+	});
+
+	it('AK6 — „Abbrechen" im Dialog lässt den Ort stehen', async () => {
+		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([FAVORITE]);
+		apiMocks.deletePlaceFavorite = vi.fn().mockResolvedValue(undefined);
+		render(<PlaceFavoritesSection />);
+		await flush();
+
+		fireEvent.click(screen.getByRole('button', { name: /favorit löschen/i }));
+		await flush();
+		fireEvent.click(within(screen.getByTestId('modal')).getByRole('button', { name: /abbrechen/i }));
+		await flush();
+
+		expect(apiMocks.deletePlaceFavorite).not.toHaveBeenCalled();
+		expect(screen.getByTestId('place-favorite-row')).toBeInTheDocument();
 	});
 });
 

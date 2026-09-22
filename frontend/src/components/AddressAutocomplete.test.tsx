@@ -297,12 +297,14 @@ describe('AddressAutocomplete (#1083)', () => {
  * bekommt zusätzlich ein Stern-Bedienelement mit eigenem Klick-Handler.
  */
 describe('AddressAutocomplete (#1342) — Favoriten im Adressfeld', () => {
-	const FAVORITE_WITH_COORDS = { id: 1, name: 'Büro', address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 };
-	const FAVORITE_WITHOUT_COORDS = { id: 2, name: 'Oma', address: 'Irgendwo 3', lat: null, lon: null };
+	// TEST-PFLEGE #1595 (AK3): ein gespeicherter Ort hat KEINEN Namen mehr — `name` ist aus
+	// `PlaceFavoriteSuggestion` entfallen, die Option zeigt ausschließlich die Adresse.
+	const FAVORITE_WITH_COORDS = { id: 1, address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 };
+	const FAVORITE_WITHOUT_COORDS = { id: 2, address: 'Irgendwo 3', lat: null, lon: null };
 
 	/** Direktrender von `AddressAutocomplete` mit Favoriten — nutzt die neuen Props direkt. */
 	const renderWithFavorites = (props: {
-		favorites: { id: number; name: string; address: string; lat: number | null; lon: number | null }[];
+		favorites: { id: number; address: string; lat: number | null; lon: number | null }[];
 		onSelect?: (suggestion: AddressSuggestion) => void;
 		onSaveFavorite?: (suggestion: AddressSuggestion) => void;
 	}) => {
@@ -336,7 +338,6 @@ describe('AddressAutocomplete (#1342) — Favoriten im Adressfeld', () => {
 		await typeQuery('munchen');
 		const options = await waitForOptionCount(MUNICH_HITS.length + 1);
 
-		expect(options[0]?.textContent).toContain('Büro');
 		expect(options[0]?.textContent).toContain('Rathausplatz 1, München');
 		expect(options.slice(1).map((option) => option.textContent)).toEqual(MUNICH_HITS.map((hit) => hit.address));
 
@@ -351,7 +352,7 @@ describe('AddressAutocomplete (#1342) — Favoriten im Adressfeld', () => {
 
 		fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'irgendwo' } });
 		const listbox = await screen.findByRole('listbox', {}, { timeout: 2000 });
-		fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Oma/ }));
+		fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Irgendwo 3/ }));
 
 		expect(onSelect).toHaveBeenCalledWith({ address: 'Irgendwo 3', lat: null, lon: null });
 	});

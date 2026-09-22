@@ -38,7 +38,7 @@ const seedFullPortfolio = async (email: string): Promise<{ userId: number }> => 
 	const taskB = await Task.create({ title: 'Task B', userId, latitude: 48.137, longitude: 11.575 });
 	await taskA.addDependency(taskB, { through: { weight: 1 } });
 
-	await PlaceFavorite.create({ userId, name: 'Büro', address: 'Musterstr. 1', latitude: 52.52, longitude: 13.405 });
+	await PlaceFavorite.create({ userId, address: 'Musterstr. 1', latitude: 52.52, longitude: 13.405 });
 
 	return { userId };
 };

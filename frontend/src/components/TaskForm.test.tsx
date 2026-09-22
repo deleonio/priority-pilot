@@ -2577,7 +2577,9 @@ describe('TaskForm — Kategorie: Kennzeichen unter dem Feld und Abwahl', () => 
  * gefülltem Adressfeld und legt über `api.createPlaceFavorite` einen neuen Favoriten an.
  */
 describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
-	const FAVORITE = { id: 1, name: 'Büro', address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 };
+	// TEST-PFLEGE #1595 (AK3): gespeicherte Orte haben keinen Namen mehr — die Option der
+	// Vorschlagsliste trägt die Adresse als zugänglichen Namen.
+	const FAVORITE = { id: 1, address: 'Rathausplatz 1, München', lat: 48.1374, lon: 11.5755 };
 
 	it('AK1 — ein geladener Favorit steht in der Vorschlagsliste, ein Klick übernimmt Adresse + Koordinaten', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
@@ -2590,12 +2592,14 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 
 		// Favorit erscheint ohne Eingabe im Feld (`touched` wird durch den Favoriten-Fetch nicht
 		// ausgelöst) — Klick ins Feld reicht, um die Liste zu öffnen (AK1: „bei geöffneter Liste").
+		// TEST-PFLEGE #1595 (AK3): Gefiltert wird seit dem Wegfall des Namens über die Adresse — das
+		// alte „b" traf nur „Büro" und lässt „Rathausplatz 1, München" heute durchs Raster.
 		await act(async () => {
-			fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: 'b' } });
+			fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: 'rathaus' } });
 		});
 		const listbox = await screen.findByRole('listbox', {}, { timeout: 3000 });
 		await act(async () => {
-			fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Büro/ }));
+			fireEvent.mouseDown(within(listbox).getByRole('option', { name: /Rathausplatz 1, München/ }));
 		});
 
 		const box = coordsBox();
@@ -2619,7 +2623,7 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 	it('AK2 — „Als Favorit speichern" erscheint nur bei gefüllter Adresse und legt den Favoriten an', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockGeocodeSearch.mockResolvedValue(COORD_HITS);
-		mockCreatePlaceFavorite.mockResolvedValue({ id: 9, ...COORD_HITS[0], name: COORD_HITS[0]?.address });
+		mockCreatePlaceFavorite.mockResolvedValue({ id: 9, ...COORD_HITS[0] });
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
@@ -2642,6 +2646,38 @@ describe('TaskForm — Standort-Favoriten im Adressfeld (#1342)', () => {
 				longitude: 11.56,
 			}),
 		);
+	});
+
+	// #1595 (AK2): Scheitert `createPlaceFavorite` (403 aus `requirePlanFeature`, 500), darf der
+	// Fehler nicht im `catch` verschwinden — er steht sichtbar im Formular, und die Aufgabe selbst
+	// bleibt bearbeitbar (der Ort wurde nicht gespeichert, mehr nicht).
+	it('AK2 — ein fehlgeschlagenes Speichern zeigt einen sichtbaren Fehler, das Formular bleibt bedienbar', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockGeocodeSearch.mockResolvedValue(COORD_HITS);
+		mockCreatePlaceFavorite.mockRejectedValue(new Error('Gespeicherte Orte gehören zum Pro-Paket.'));
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		fireEvent.click(screen.getByText('Termin & Ort')); // #1260: erst aufklappen
+
+		await selectAddressHit('munchen', /München Hauptbahnhof/);
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: /als favorit speichern/i }));
+		});
+
+		// `findAllByRole` statt `findByRole`: im aufgeklappten Formular können weitere Alerts stehen
+		// (z. B. der Auto-Löschen-Hinweis) — gesucht ist der Favoriten-Fehler.
+		const alerts = await screen.findAllByRole('alert');
+		const alert = alerts.find((node) => /Ort konnte nicht gespeichert werden/.test(node.textContent ?? ''));
+		expect(alert, 'Fehler-Alert zum gespeicherten Ort fehlt').toBeDefined();
+		expect(alert?.textContent).toMatch(/Pro-Paket/);
+
+		// Das Formular ist nicht blockiert: Titel eintragen und speichern funktioniert weiterhin,
+		// die Adresse steht unverändert am Task (nur der Favorit fehlt).
+		await fillTitle('Aufgabe trotz fehlgeschlagenem Favorit');
+		await clickSave();
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [{ taskCreate: { address?: string | null } }];
+		expect(taskCreate.address).toBe('München Hauptbahnhof, Bahnhofplatz 1, 80331 München');
 	});
 });
 

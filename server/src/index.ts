@@ -138,6 +138,8 @@ export const main = async (): Promise<void> => {
 			migrateSeriesTable,
 			migrateUsersAvatarUrl,
 			migrateGroupImageUrl,
+			migratePlaceFavoriteDropName,
+			migratePlaceFavoriteAddressUnique,
 			migrateUserIdColumns,
 			migratePillarDescription,
 			migratePillarPerUser,
@@ -181,6 +183,13 @@ export const main = async (): Promise<void> => {
 		await migrateUsersAvatarUrl(sequelize);
 		// Fehlende imageUrl-Spalte (Gruppenbild, #1225) an groups nachziehen — vor sync().
 		await migrateGroupImageUrl(sequelize);
+		// Überflüssige name-Spalte aus place_favorites entfernen (#1595) — vor sync(), damit das
+		// Anlegen eines Orts auf einer Bestands-DB nicht am NOT-NULL-Zwang der Altspalte scheitert.
+		await migratePlaceFavoriteDropName(sequelize);
+		// Altbestands-Duplikate zusammenführen und den Unique-Index (userId, address) anlegen (#1595
+		// AK4) — vor sync(), das den Index auf einer Bestands-DB mit Duplikaten sonst nicht anlegen
+		// kann.
+		await migratePlaceFavoriteAddressUnique(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
 		await migrateUserIdColumns(sequelize);
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen

@@ -2682,39 +2682,6 @@ paths:
         '403':
           $ref: '#/components/responses/PlanRequired'
   /place-favorites/{id}:
-    patch:
-      summary: Gespeicherten Ort umbenennen
-      description: >-
-        Ändert den Anzeigenamen eines eigenen gespeicherten Orts (#1342). Fremde oder
-        unbekannte Einträge liefern 404.
-      operationId: updatePlaceFavorite
-      tags: [place-favorites]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: Id des gespeicherten Orts
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PlaceFavoriteNameInput'
-      responses:
-        '200':
-          description: Aktualisierter gespeicherter Ort
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PlaceFavorite'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '403':
-          $ref: '#/components/responses/PlanRequired'
-        '404':
-          $ref: '#/components/responses/NotFound'
     delete:
       summary: Gespeicherten Ort löschen
       description: >-
@@ -3434,14 +3401,12 @@ components:
     PlaceFavorite:
       type: object
       description: >-
-        Gespeicherter Ort eines Nutzers (#1342) — benannte Adresse, Koordinaten optional.
-      required: [id, name, address, latitude, longitude]
+        Gespeicherter Ort eines Nutzers (#1342) — eine Adresse, Koordinaten optional.
+        Seit #1595 ohne Anzeigenamen: die Adresse ist die Bezeichnung.
+      required: [id, address, latitude, longitude]
       properties:
         id:
           type: integer
-        name:
-          type: string
-          description: Anzeigename (1–60 Zeichen); beim Anlegen am Formular der Adresstext
         address:
           type: string
         latitude:
@@ -3456,13 +3421,12 @@ components:
           description: Längengrad; null bei einem Freitext-Ort ohne Geocoding-Treffer
     PlaceFavoriteInput:
       type: object
-      description: Eingabe zum Anlegen eines gespeicherten Orts (#1342).
-      required: [name, address]
+      description: >-
+        Eingabe zum Anlegen eines gespeicherten Orts (#1342). Eine bereits gespeicherte Adresse
+        (getrimmt, Groß-/Kleinschreibung egal) legt keinen zweiten Eintrag an, sondern liefert den
+        bestehenden zurück (#1595).
+      required: [address]
       properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 60
         address:
           type: string
           minLength: 1
@@ -3475,15 +3439,6 @@ components:
           type: number
           format: float
           nullable: true
-    PlaceFavoriteNameInput:
-      type: object
-      description: Eingabe zum Umbenennen eines gespeicherten Orts (#1342).
-      required: [name]
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 60
     Health:
       type: object
       required:

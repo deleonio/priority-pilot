@@ -3,12 +3,16 @@ import { expect, test } from './fixtures';
 import { openAccordionSection, waitForStableView } from './helpers';
 
 /**
- * Rote Spec-e2e für #1342 (Spec docs/spec/issue-1342.md) — Standort-Favoriten.
+ * Rote Spec-e2e für #1342/#1595 (Spec docs/spec/issue-1595.md) — Standort-Favoriten.
  *
  * AK6: kompletter Weg bei 375px — Favorit am Formular speichern, in Einstellungen → Standort
- * umbenennen, im Adressfeld auswählen, löschen; Favoritenzeilen/Verwaltungskarte bleiben im
+ * ansehen, im Adressfeld auswählen, löschen; Favoritenzeilen/Verwaltungskarte bleiben im
  * sichtbaren Bereich (Bounding-Box statt `scrollWidth`, MEMORY 2026-08-24/2026-09-10 — die
  * App-Shell clippt mit `overflow-x: hidden`), jedes Bedienelement hat ein Touch-Ziel ≥ 44px Höhe.
+ *
+ * Test-Pflege #1595: der Umbenennen-Schritt (AK3 aus #1342) entfällt — es gibt kein Namensfeld
+ * mehr; gelöscht wird über `ConfirmDeleteDialog` (AK6) statt inline. Die Testadresse ist absichtlich
+ * > 60 Zeichen (AK1 #1595: die alte Namensgrenze darf die Adresse nicht mehr kappen).
  *
  * Läuft gegen das echte Backend (Vite-Proxy). Die Favoriten-Routen sind pro Nutzer gebunden
  * (Muster `apiTokens`/#1352) und antworten im Pass-Through-Modus ohne echte Session mit 401 —
@@ -17,7 +21,11 @@ import { openAccordionSection, waitForStableView } from './helpers';
  */
 
 const TEST_EMAIL = 'place-favorites@example.com';
-const HIT = { address: 'Rathausplatz 1, 80331 München, Bayern, Deutschland', lat: 48.1374, lon: 11.5755 };
+const HIT = {
+	address: 'Rathausplatz 1, Erdgeschoss rechts, 80331 München, Bayern, Deutschland, Europa',
+	lat: 48.1374,
+	lon: 11.5755,
+};
 
 const login = async (page: Page): Promise<void> => {
 	const res = await page.request.post('/auth/test-login', {
@@ -57,7 +65,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await deleteAllFavorites(page);
 	});
 
-	test('AK6: kompletter Weg — Favorit speichern, umbenennen, auswählen, löschen (375px, Touch-Ziele ≥ 44px)', async ({
+	test('AK6: kompletter Weg — Favorit speichern, ansehen, auswählen, löschen (375px, Touch-Ziele ≥ 44px)', async ({
 		page,
 	}) => {
 		await login(page);
@@ -92,27 +100,18 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		expect(favoriteResponse.status(), await favoriteResponse.text()).toBe(201);
 		await expect(saveFavoriteButton).toBeEnabled();
 
-		// 2) In Einstellungen → Standort umbenennen (AK3).
+		// 2) In Einstellungen → Standort ansehen (AK3): die Zeile trägt NUR die Adresse — es gibt weder
+		// ein Namensfeld noch einen Umbenennen-Knopf mehr.
 		await page.goto('/settings/standort');
 		await waitForStableView(page, 'Standort');
 
 		const favoriteRow = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		await expect(favoriteRow).toBeVisible();
 		await expectWithinViewport(page, favoriteRow);
+		await expect(favoriteRow.getByRole('button', { name: /umbenennen/i })).toHaveCount(0);
 
-		const renameButton = favoriteRow.getByRole('button', { name: /favorit umbenennen/i });
-		const renameBox = await renameButton.boundingBox();
-		expect(renameBox!.height).toBeGreaterThanOrEqual(44);
-		await renameButton.click();
-
-		// Innerhalb der Zeile suchen: das Anlegen-Formular oben hat ebenfalls ein Feld „Name", ein
-		// seitenweiter `/name/i`-Filter träfe auf beide (strict-mode violation).
-		const nameInput = favoriteRow.getByRole('searchbox', { name: /name/i });
-		await nameInput.fill('Büro München');
-		await favoriteRow.getByRole('button', { name: /^(übernehmen|speichern)$/i }).click();
-		await expect(page.getByTestId('place-favorite-row').filter({ hasText: 'Büro München' })).toBeVisible();
-
-		// 3) Im Adressfeld auswählen (AK1): erscheint VOR den Suchtreffern, Klick übernimmt Adresse + Koordinaten.
+		// 3) Im Adressfeld auswählen (AK1): der gespeicherte Ort steht VOR den Suchtreffern, ein Klick
+		// übernimmt Adresse + Koordinaten.
 		await page.goto('/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
@@ -127,30 +126,38 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		// ersten Blitzer erwischen; das anschließende `boundingBox()` (kein Auto-Retry) träfe dann auf
 		// die bereits wieder geschlossene Liste.
 		const geocodeResponse = page.waitForResponse((response) => response.url().includes('/geocode-search'));
-		await addressInput2.fill('Büro');
+		await addressInput2.fill('Rathausplatz');
 		await geocodeResponse;
-		const favoriteOption = page.getByRole('option', { name: /Büro München/i });
+		// Test-Pflege #1595: Favorit UND Suchtreffer tragen dieselbe Adresse als Text (der Name als
+		// eigene Bezeichnung ist entfallen) — der Favorit ist per Vertrag (AK1) die erste Option.
+		const favoriteOption = page.getByRole('option', { name: new RegExp('Rathausplatz 1', 'i') }).first();
 		await expect(favoriteOption).toBeVisible();
 		const favoriteOptionBox = await favoriteOption.boundingBox();
 		expect(favoriteOptionBox!.height).toBeGreaterThanOrEqual(44);
 		await favoriteOption.click();
 		await expect(addressInput2).toHaveValue(HIT.address);
 
-		// 4) Löschen (AK3) — der Favorit erscheint danach nicht mehr im Adressfeld.
+		// 4) Löschen (AK6) — über den Bestätigungsdialog, nicht mehr inline. Danach bietet der Stern in
+		// der Trefferzeile das Speichern wieder an (AK4: „bereits gespeichert" ist aufgehoben).
 		await page.goto('/settings/standort');
 		await waitForStableView(page, 'Standort');
 
-		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: 'Büro München' });
+		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		const deleteButton = rowToDelete.getByRole('button', { name: /favorit löschen/i });
 		const deleteBox = await deleteButton.boundingBox();
 		expect(deleteBox!.height).toBeGreaterThanOrEqual(44);
 		await deleteButton.click();
-		// Zweistufige Bestätigung (Muster ApiTokensSection/docs/ux-pattern-sequential-confirmation.md).
-		await rowToDelete
-			.getByRole('button', { name: /löschen|entfernen/i })
-			.last()
-			.click();
-		await expect(page.getByTestId('place-favorite-row').filter({ hasText: 'Büro München' })).toHaveCount(0);
+
+		// `kol-dialog` statt `getByRole('dialog')`: die ARIA-Rolle sitzt am nativen `<dialog>` im
+		// Shadow-DOM, die Buttons kommen als Licht-DOM-Slot des Hosts — nur der Host-Locator umfasst
+		// beide (Muster `categories.spec.ts:193`).
+		// Der Host selbst ist nie „visible" (Größe null, das native `<dialog>` sitzt im Shadow-DOM) —
+		// er dient nur als Geltungsbereich; geprüft wird der Knopf im Licht-DOM-Slot.
+		const dialog = page.locator('kol-dialog');
+		const confirmButton = dialog.getByRole('button', { name: 'Endgültig löschen' });
+		await expect(confirmButton).toBeVisible();
+		await confirmButton.click();
+		await expect(page.getByTestId('place-favorite-row')).toHaveCount(0);
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -158,7 +165,13 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 		await openAccordionSection(page, 'Termin & Ort');
-		await page.getByLabel('Adresse (optional)').fill('Büro');
-		await expect(page.getByRole('option', { name: /Büro München/i })).toHaveCount(0);
+		const geocodeAfterDelete = page.waitForResponse((response) => response.url().includes('/geocode-search'));
+		await page.getByLabel('Adresse (optional)').fill('Rathausplatz');
+		await geocodeAfterDelete;
+		// Nur noch der Suchtreffer steht in der Liste — kein gespeicherter Ort mehr davor.
+		await expect(page.getByRole('option', { name: new RegExp('Rathausplatz 1', 'i') })).toHaveCount(1);
+		// Genau der Stern in der Trefferzeile (der Knopf unter dem Feld heißt fast gleich) — er bietet
+		// das Speichern wieder an, ist also nicht mehr „Bereits gespeichert".
+		await expect(page.getByRole('button', { name: `Als Favorit speichern: ${HIT.address}` })).toBeEnabled();
 	});
 });

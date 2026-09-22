@@ -1,7 +1,9 @@
-import { KolAlert, KolButton, KolCard, KolInputText } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolCard } from '@public-ui/react-v19';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, type PlaceFavoriteView } from '../api';
 import { toApiError } from '../lib/apiError';
+import { AddressAutocomplete } from './AddressAutocomplete';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { PlanBadge } from './PlanBadge';
 
 /**
@@ -17,10 +19,11 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
 );
 
 /**
- * Einstellungen → „Standort": gespeicherte Orte („Standort-Favoriten", #1342 AK3). Anlegen (Name +
- * Adresse, ohne Koordinaten — dieser Weg ist für manuell erfasste Orte gedacht, AK4), Umbenennen
- * (inline im Zeilen-Feld) und Löschen mit zweistufiger Bestätigung
- * (`docs/ux-pattern-sequential-confirmation.md`). Ein gelöschter Ort verschwindet aus der Liste und
+ * Einstellungen → „Standort": gespeicherte Orte („Standort-Favoriten", #1342 AK3). Seit #1595 hat
+ * ein Ort NUR eine Adresse: kein Namensfeld, kein Umbenennen. Angelegt wird über dieselbe
+ * `AddressAutocomplete` wie im Aufgabenformular (AK5) — die Auswahl übernimmt Adresse UND
+ * Koordinaten. Gelöscht wird über `ConfirmDeleteDialog` (AK6,
+ * `docs/ux-pattern-sequential-confirmation.md`); ein gelöschter Ort verschwindet aus der Liste und
  * damit auch aus dem Adressfeld von Aufgabe und Serie (Server ist die Quelle der Wahrheit).
  *
  * Aufbau wie `ApiTokensSection.tsx`: `KolCard` als Gruppierungsfläche, `ul`/`li` mit
@@ -28,15 +31,13 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
  */
 export const PlaceFavoritesSection = () => {
 	const [favorites, setFavorites] = useState<PlaceFavoriteView[]>([]);
-	const [name, setName] = useState('');
 	const [address, setAddress] = useState('');
+	// Koordinaten des zuletzt gewählten Vorschlags (AK5) — Freitext ohne Auswahl bleibt `null`.
+	const [coords, setCoords] = useState<{ lat: number | null; lon: number | null }>({ lat: null, lon: null });
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	// Id des Orts, dessen Name gerade inline bearbeitet wird (plus sein Entwurfswert).
-	const [renameId, setRenameId] = useState<number | null>(null);
-	const [renameValue, setRenameValue] = useState('');
-	// Id des Orts, für den die Rückfrage „wirklich löschen?" gerade offen steht.
-	const [deleteId, setDeleteId] = useState<number | null>(null);
+	// Ort, für den der Lösch-Dialog gerade offen steht (AK6).
+	const [deleteTarget, setDeleteTarget] = useState<PlaceFavoriteView | null>(null);
 
 	useEffect(() => {
 		let active = true;
@@ -54,54 +55,26 @@ export const PlaceFavoritesSection = () => {
 	}, []);
 
 	const handleCreate = async (): Promise<void> => {
-		const trimmedName = name.trim();
 		const trimmedAddress = address.trim();
-		if (trimmedName === '' || trimmedAddress === '') {
-			setError('Bitte Name und Adresse angeben.');
+		if (trimmedAddress === '') {
+			setError('Bitte eine Adresse angeben.');
 			return;
 		}
 		setError(null);
 		setBusy(true);
 		try {
-			// Ohne Koordinaten: der Ort wird als Freitext hinterlegt (AK4) und übernimmt im Adressfeld
-			// nur den Adresstext.
-			const created = await api.createPlaceFavorite({ name: trimmedName, address: trimmedAddress });
-			setFavorites((previous) => [...previous, created]);
-			setName('');
+			const created = await api.createPlaceFavorite({
+				address: trimmedAddress,
+				latitude: coords.lat,
+				longitude: coords.lon,
+			});
+			// #1595 (AK4): Bei einer bereits gespeicherten Adresse liefert der Server den bestehenden
+			// Eintrag zurück — die Liste darf ihn kein zweites Mal aufnehmen.
+			setFavorites((previous) =>
+				previous.some((entry) => entry.id === created.id) ? previous : [...previous, created],
+			);
 			setAddress('');
-		} catch (reason) {
-			setError((await toApiError(reason)).message);
-		} finally {
-			setBusy(false);
-		}
-	};
-
-	const handleRename = async (id: number): Promise<void> => {
-		const trimmed = renameValue.trim();
-		if (trimmed === '') {
-			setError('Bitte einen Namen angeben.');
-			return;
-		}
-		setError(null);
-		setBusy(true);
-		try {
-			const updated = await api.updatePlaceFavorite({ id, name: trimmed });
-			setFavorites((previous) => previous.map((entry) => (entry.id === id ? updated : entry)));
-			setRenameId(null);
-		} catch (reason) {
-			setError((await toApiError(reason)).message);
-		} finally {
-			setBusy(false);
-		}
-	};
-
-	const handleDelete = async (id: number): Promise<void> => {
-		setError(null);
-		setBusy(true);
-		try {
-			await api.deletePlaceFavorite({ id });
-			setFavorites((previous) => previous.filter((entry) => entry.id !== id));
-			setDeleteId(null);
+			setCoords({ lat: null, lon: null });
 		} catch (reason) {
 			setError((await toApiError(reason)).message);
 		} finally {
@@ -120,16 +93,25 @@ export const PlaceFavoritesSection = () => {
 						Hinterlegte Orte stehen im Adressfeld von Aufgabe und Serie oben in der Vorschlagsliste — ein Klick
 						übernimmt die Adresse.
 					</p>
-					<KolInputText
-						_label="Name"
-						_type="search"
-						_value={name}
-						_on={{ onInput: (_event, value) => setName(String(value)) }}
-					/>
-					<KolInputText
-						_label="Adresse"
-						_value={address}
-						_on={{ onInput: (_event, value) => setAddress(String(value)) }}
+					{/* #1595 (AK5): dieselbe Vervollständigung wie im Aufgabenformular — ab drei Zeichen
+					    Vorschläge, per Tastatur bedienbar, die Auswahl übernimmt Adresse UND Koordinaten.
+					    Ohne `onSaveFavorite`: der Stern in der Trefferzeile wäre hier der zweite Weg zur
+					    selben Aktion wie der „Anlegen"-Knopf darunter. */}
+					<AddressAutocomplete
+						label="Adresse"
+						/* Die Karte weist die Grenzstelle `location_reminders` oben schon aus (#1484 AK3) —
+						   ein zweites Badge direkt darunter wäre reine Wiederholung. */
+						showPlanBadge={false}
+						value={address}
+						onValueChange={(next) => {
+							setAddress(next);
+							// Freitext-Änderung verwirft die Koordinaten des vorher gewählten Treffers.
+							setCoords({ lat: null, lon: null });
+						}}
+						onSelect={(hit) => {
+							setAddress(hit.address);
+							setCoords({ lat: hit.lat, lon: hit.lon });
+						}}
 					/>
 					<ButtonAction onClick={() => void handleCreate()}>
 						<KolButton _label="Anlegen" class="settings-action-btn" _variant="primary" _disabled={busy} />
@@ -149,77 +131,39 @@ export const PlaceFavoritesSection = () => {
 					<ul className="api-tokens__list">
 						{favorites.map((favorite) => (
 							<li key={favorite.id} className="api-tokens__item" data-testid="place-favorite-row">
-								<span className="api-tokens__name">
-									{favorite.name}
-									<span className="api-tokens__meta">{` · ${favorite.address}`}</span>
-								</span>
-								{renameId === favorite.id ? (
-									<span className="api-tokens__confirm">
-										<KolInputText
-											_label={`Neuer Name für ${favorite.name}`}
-											_type="search"
-											_value={renameValue}
-											_on={{ onInput: (_event, value) => setRenameValue(String(value)) }}
-										/>
-										<ButtonAction onClick={() => setRenameId(null)}>
-											<KolButton _label="Abbrechen" class="settings-action-btn" _variant="secondary" _disabled={busy} />
-										</ButtonAction>
-										<ButtonAction onClick={() => void handleRename(favorite.id)}>
-											<KolButton _label="Übernehmen" class="settings-action-btn" _variant="primary" _disabled={busy} />
-										</ButtonAction>
-									</span>
-								) : deleteId === favorite.id ? (
-									<span className="api-tokens__confirm">
-										<span className="api-tokens__confirm-question">
-											Wirklich löschen? Der Ort verschwindet aus dem Adressfeld.
-										</span>
-										<ButtonAction onClick={() => setDeleteId(null)}>
-											<KolButton _label="Abbrechen" class="settings-action-btn" _variant="secondary" _disabled={busy} />
-										</ButtonAction>
-										<ButtonAction onClick={() => void handleDelete(favorite.id)}>
-											<KolButton
-												data-testid="place-favorite-delete-confirm"
-												_label="Endgültig löschen"
-												class="settings-action-btn"
-												_variant="danger"
-												_disabled={busy}
-											/>
-										</ButtonAction>
-									</span>
-								) : (
-									<>
-										{/* `kol-button` hat keine `_ariaLabel`-Prop und liest kein `aria-label`-Attribut vom
-										    Host — die Shadow-DOM-Taste im Browser bekommt ihren Namen ausschließlich aus
-										    `_label` (im Unit-Test-Mock, einem echten `<button>`, überschreibt `aria-label`
-										    den Textinhalt zwar scheinbar korrekt, das ist mit dem realen Custom Element aber
-										    nicht der Fall — CI: e2e (4) AK6). Der Ort steht deshalb direkt im `_label`, wie es
-										    die Spec ohnehin so benennt (`docs/spec/issue-1342.md`: „Favorit umbenennen"). */}
-										<ButtonAction
-											onClick={() => {
-												setRenameValue(favorite.name);
-												setRenameId(favorite.id);
-											}}
-										>
-											<KolButton
-												_label={`Favorit umbenennen: ${favorite.name}`}
-												class="settings-action-btn"
-												_variant="secondary"
-											/>
-										</ButtonAction>
-										<ButtonAction onClick={() => setDeleteId(favorite.id)}>
-											<KolButton
-												_label={`Favorit löschen: ${favorite.name}`}
-												class="settings-action-btn"
-												_variant="danger"
-											/>
-										</ButtonAction>
-									</>
-								)}
+								<span className="api-tokens__name">{favorite.address}</span>
+								{/* `kol-button` hat keine `_ariaLabel`-Prop und liest kein `aria-label`-Attribut vom
+								    Host — die Shadow-DOM-Taste im Browser bekommt ihren Namen ausschließlich aus
+								    `_label` (CI: e2e (4) AK6). Die Adresse steht deshalb direkt im `_label`. */}
+								<ButtonAction onClick={() => setDeleteTarget(favorite)}>
+									<KolButton
+										_label={`Favorit löschen: ${favorite.address}`}
+										class="settings-action-btn"
+										_variant="danger"
+									/>
+								</ButtonAction>
 							</li>
 						))}
 					</ul>
 				)}
 			</KolCard>
+
+			{/* #1595 (AK6): Löschen läuft über den gemeinsamen Bestätigungsdialog — „Abbrechen" lässt
+			    den Ort stehen, die Bestätigung entfernt ihn aus der Liste und damit aus den
+			    Adressfeldern von Aufgabe und Serie. */}
+			{deleteTarget !== null && (
+				<ConfirmDeleteDialog
+					title="Ort löschen"
+					body={<p>Wirklich löschen? Der Ort verschwindet aus dem Adressfeld von Aufgabe und Serie.</p>}
+					confirmLabel="Endgültig löschen"
+					onConfirm={() => api.deletePlaceFavorite({ id: deleteTarget.id })}
+					onClose={() => setDeleteTarget(null)}
+					onDeleted={() => {
+						setFavorites((previous) => previous.filter((entry) => entry.id !== deleteTarget.id));
+						setDeleteTarget(null);
+					}}
+				/>
+			)}
 		</div>
 	);
 };
