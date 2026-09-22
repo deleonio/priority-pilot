@@ -17,6 +17,8 @@ import {
 	migrateCategoryIdColumns,
 	migrateTaskPinnedColumns,
 	migrateTaskGroupId,
+	migratePlaceFavoriteDropName,
+	migratePlaceFavoriteAddressUnique,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1128,5 +1130,139 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 		await assert.doesNotReject(() => migrateUsersPlanColumn!(sequelize), 'Migration ohne Tabelle ist No-op');
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
 		assert.ok((await userColumns()).includes('plan'), 'frische Tabelle enthält plan');
+	});
+});
+
+// ── #1595 AK3/AK4: place_favorites — Namensspalte entfernen, Adresse je Nutzer eindeutig ──────
+// Bestands-DBs aus #1342 haben eine `NOT NULL`-Spalte `name` (jedes INSERT der neuen Route bräche
+// sonst mit „NOT NULL constraint failed") und dürfen dieselbe Adresse doppelt enthalten (bis #1595
+// prüfte nur die Route, ohne DB-Constraint). Beide Migrationen laufen in index.ts VOR `sync()`;
+// bricht eine, startet die App für jede bestehende Installation nicht mehr.
+describe('migratePlaceFavoriteDropName / migratePlaceFavoriteAddressUnique (#1595 AK3/AK4)', () => {
+	/** Spaltennamen der place_favorites-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const favoriteColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('place_favorites')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Index-Namen der place_favorites-Tabelle. */
+	const favoriteIndexes = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA index_list('place_favorites')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Gespeicherte Orte, älteste zuerst. */
+	const favoriteRows = async (): Promise<{ id: number; userId: number; address: string }[]> => {
+		const [rows] = await sequelize.query('SELECT id, userId, address FROM `place_favorites` ORDER BY id ASC');
+		return rows as { id: number; userId: number; address: string }[];
+	};
+
+	/** Erzeugt place_favorites im Alt-Schema aus #1342: mit `name NOT NULL`, ohne Unique-Index. */
+	const createLegacyPlaceFavoritesTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `place_favorites` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`userId` INTEGER NOT NULL, ' +
+				'`name` VARCHAR(60) NOT NULL, ' +
+				'`address` VARCHAR(255) NOT NULL, ' +
+				'`latitude` FLOAT, ' +
+				'`longitude` FLOAT, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	/** Legt einen Alt-Favoriten an (Alt-Schema, daher mit `name`). */
+	const insertLegacyFavorite = async (userId: number, name: string, address: string): Promise<void> => {
+		await sequelize.query(
+			'INSERT INTO `place_favorites` (`userId`, `name`, `address`, `createdAt`, `updatedAt`) ' +
+				`VALUES (${userId}, '${name}', '${address}', datetime('now'), datetime('now'))`,
+		);
+	};
+
+	it('entfernt die name-Spalte auf einem Alt-Schema, die Adresse bleibt erhalten', async () => {
+		await createLegacyPlaceFavoritesTable();
+		await insertLegacyFavorite(1, 'Büro', 'Rathausplatz 1, München');
+
+		await migratePlaceFavoriteDropName(sequelize);
+
+		const columns = await favoriteColumns();
+		assert.ok(!columns.includes('name'), 'name-Spalte ist entfernt');
+		assert.ok(columns.includes('address'), 'address-Spalte bleibt');
+		assert.equal((await favoriteRows())[0].address, 'Rathausplatz 1, München', 'Adresse unverändert');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht');
+	});
+
+	it('ist idempotent: der zweite Lauf wirft nicht und lässt die Adresse stehen', async () => {
+		await createLegacyPlaceFavoritesTable();
+		await insertLegacyFavorite(1, 'Büro', 'Rathausplatz 1, München');
+		await migratePlaceFavoriteDropName(sequelize);
+
+		await assert.doesNotReject(() => migratePlaceFavoriteDropName(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await favoriteRows()).length, 1, 'Bestandszeile bleibt erhalten');
+	});
+
+	it('ist ohne place_favorites-Tabelle ein No-op, sync() legt sie ohne name an', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		assert.deepEqual(await favoriteColumns(), [], 'Vorbedingung: keine place_favorites-Tabelle');
+
+		await assert.doesNotReject(() => migratePlaceFavoriteDropName(sequelize), 'Migration ohne Tabelle ist No-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		const columns = await favoriteColumns();
+		assert.ok(columns.includes('address'), 'frische Tabelle hat address');
+		assert.ok(!columns.includes('name'), 'frische Tabelle hat keinen name');
+	});
+
+	it('AK4 — führt Bestands-Duplikate zusammen (ältester Eintrag bleibt) und legt den Unique-Index an', async () => {
+		await createLegacyPlaceFavoritesTable();
+		await insertLegacyFavorite(1, 'Büro', 'Rathausplatz 1, München');
+		// Groß-/Kleinschreibung und Leerraum zählen als dasselbe (gleiche Normalisierung wie die Route).
+		await insertLegacyFavorite(1, 'Arbeit', '  rathausplatz 1, münchen ');
+		// Fremder Nutzer mit derselben Adresse: bleibt unangetastet (Datenisolation #207).
+		await insertLegacyFavorite(2, 'Büro', 'Rathausplatz 1, München');
+		await migratePlaceFavoriteDropName(sequelize);
+
+		await migratePlaceFavoriteAddressUnique(sequelize);
+
+		const rows = await favoriteRows();
+		assert.equal(rows.length, 2, 'ein Eintrag je Nutzer bleibt übrig');
+		assert.equal(rows[0].id, 1, 'der zuerst gespeicherte Eintrag überlebt');
+		assert.equal(rows[1].userId, 2, 'der Favorit des anderen Nutzers bleibt erhalten');
+		assert.ok(
+			(await favoriteIndexes()).includes('place_favorites_user_id_address'),
+			'Unique-Index (userId, address) ist angelegt',
+		);
+		await assert.rejects(
+			() =>
+				sequelize.query(
+					'INSERT INTO `place_favorites` (`userId`, `address`, `createdAt`, `updatedAt`) ' +
+						"VALUES (1, 'Rathausplatz 1, München', datetime('now'), datetime('now'))",
+				),
+			'ein zweiter Eintrag derselben Adresse wird von der DB abgewiesen',
+		);
+	});
+
+	it('AK4 — ist idempotent und ohne Tabelle ein No-op; sync() legt den Index auf frischer DB an', async () => {
+		await createLegacyPlaceFavoritesTable();
+		await insertLegacyFavorite(1, 'Büro', 'Rathausplatz 1, München');
+		await migratePlaceFavoriteDropName(sequelize);
+		await migratePlaceFavoriteAddressUnique(sequelize);
+
+		await assert.doesNotReject(() => migratePlaceFavoriteAddressUnique(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal(
+			(await favoriteIndexes()).filter((name) => name === 'place_favorites_user_id_address').length,
+			1,
+			'Index genau einmal',
+		);
+
+		await sequelize.getQueryInterface().dropAllTables();
+		await assert.doesNotReject(() => migratePlaceFavoriteAddressUnique(sequelize), 'ohne Tabelle ist No-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		assert.ok(
+			(await favoriteIndexes()).includes('place_favorites_user_id_address'),
+			'frische DB bekommt den Index aus dem Modell',
+		);
 	});
 });

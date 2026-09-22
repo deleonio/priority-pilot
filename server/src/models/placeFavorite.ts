@@ -56,6 +56,12 @@ PlaceFavorite.init(
 		modelName: 'PlaceFavorite',
 		tableName: 'place_favorites',
 		timestamps: true,
+		// #1595 (AK4): Die Eindeutigkeit der Adresse je Nutzer gehört in die Datenbank, nicht nur in
+		// die Routenlogik — ein Read-then-Write in der Route lässt zwei gleichzeitige POSTs (Doppel-
+		// klick auf den Stern) beide durchrutschen. Auf Bestands-DBs legt
+		// `migratePlaceFavoriteAddressUnique` denselben Index an, nachdem sie Altbestands-Duplikate
+		// zusammengeführt hat. Muster: `categories_name_user_id`.
+		indexes: [{ unique: true, fields: ['userId', 'address'], name: 'place_favorites_user_id_address' }],
 	},
 );
 

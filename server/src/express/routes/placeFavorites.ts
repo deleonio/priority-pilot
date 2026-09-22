@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { UniqueConstraintError } from 'sequelize';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { PlaceFavorite } from '../../models/index.js';
 import { getUserId } from '../requireAuth.js';
@@ -38,6 +39,12 @@ const toCoordinate = (value: unknown): number | null =>
 /** Vergleichsform für die Duplikatprüfung (#1595 AK4): getrimmt und ohne Groß-/Kleinschreibung. */
 const normalizeAddress = (address: string): string => address.trim().toLowerCase();
 
+/** Der bereits gespeicherte Ort des Nutzers mit derselben Adresse — oder `undefined` (#1595 AK4). */
+const findExisting = async (userId: number, address: string): Promise<PlaceFavorite | undefined> =>
+	(await PlaceFavorite.findAll({ where: { userId } })).find(
+		(favorite) => normalizeAddress(favorite.address) === normalizeAddress(address),
+	);
+
 export const placeFavoritesRouter = Router();
 
 // GET /place-favorites — eigene Favoriten, älteste zuerst (stabile Reihenfolge im Adressfeld).
@@ -75,9 +82,7 @@ placeFavoritesRouter.post(
 			// #1595 (AK4): Dieselbe Adresse existiert genau einmal. Ein zweiter Speicherversuch ist
 			// kein Fehler, sondern liefert den bestehenden Eintrag zurück — das Frontend braucht so
 			// keinen Sonderfall und der Stern bleibt idempotent.
-			const existing = (await PlaceFavorite.findAll({ where: { userId } })).find(
-				(favorite) => normalizeAddress(favorite.address) === normalizeAddress(address),
-			);
+			const existing = await findExisting(userId, address);
 			if (existing) {
 				res.status(201).json(serializePlaceFavorite(existing));
 				return;
@@ -89,7 +94,18 @@ placeFavoritesRouter.post(
 				longitude: toCoordinate(body?.longitude),
 			});
 			res.status(201).json(serializePlaceFavorite(created));
-		} catch {
+		} catch (error) {
+			// Zwei gleichzeitige POSTs derselben Adresse (Doppelklick auf den Stern) sehen beide noch
+			// keinen Eintrag; der Unique-Index `place_favorites_user_id_address` lässt nur den ersten
+			// durch. Der Verlierer liefert denselben bestehenden Eintrag zurück wie der Prüfpfad oben
+			// — AK4 gilt damit auch nebenläufig, nicht nur im Normalfall.
+			if (error instanceof UniqueConstraintError) {
+				const existing = await findExisting(userId, address);
+				if (existing) {
+					res.status(201).json(serializePlaceFavorite(existing));
+					return;
+				}
+			}
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
 	},

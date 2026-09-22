@@ -36,6 +36,11 @@ interface AddressAutocompleteProps {
 	/** #1342: Stern in der Trefferzeile — meldet den Treffer zum Speichern, ohne ihn auszuwählen. */
 	onSaveFavorite?: (suggestion: AddressSuggestion) => void;
 	/**
+	 * #1595 (AK4): Läuft gerade ein Speichervorgang? Dann ist der Stern gesperrt — sonst setzt ein
+	 * Doppelklick zwei parallele POSTs für dieselbe Adresse ab.
+	 */
+	savingFavorite?: boolean;
+	/**
 	 * #1595 (AK5): Das Paket-Badge `location_reminders` (#1484) abschalten, wenn der Aufrufer die
 	 * Grenzstelle bereits selbst ausweist — in der Karte „Gespeicherte Orte" stünde es sonst zweimal
 	 * unmittelbar übereinander.
@@ -61,6 +66,7 @@ export const AddressAutocomplete = ({
 	ariaDetails,
 	favorites = [],
 	onSaveFavorite,
+	savingFavorite = false,
 	showPlanBadge = true,
 }: AddressAutocompleteProps) => {
 	// #1310 (AK5): Ein vorbelegter Wert (Schnellerfassung/Bearbeiten) löst KEINE Adresssuche aus —
@@ -268,7 +274,7 @@ export const AddressAutocomplete = ({
 											/* #1595 (AK4): Ist die Adresse schon gespeichert, wechselt der Stern in den gefüllten,
 											   deaktivierten Zustand — Farbe UND Text/ARIA ändern sich (WCAG 1.4.1), es kommt kein
 											   zweites Element für denselben Zustand hinzu (KI-UX-Block). */
-											disabled={option.saved}
+											disabled={option.saved || savingFavorite}
 											aria-pressed={option.saved}
 											aria-label={
 												option.saved ? `Bereits gespeichert: ${option.text}` : `Als Favorit speichern: ${option.text}`
@@ -278,7 +284,7 @@ export const AddressAutocomplete = ({
 												event.preventDefault();
 											}}
 											onClick={() => {
-												if (!option.saved) {
+												if (!option.saved && !savingFavorite) {
 													onSaveFavorite(option.suggestion);
 												}
 											}}
@@ -288,7 +294,7 @@ export const AddressAutocomplete = ({
 												border: 'none',
 												background: 'transparent',
 												color: option.saved ? 'var(--pp-accent, #b8860b)' : 'var(--pp-ink-muted, #555)',
-												cursor: option.saved ? 'default' : 'pointer',
+												cursor: option.saved || savingFavorite ? 'default' : 'pointer',
 												fontSize: '1.25rem',
 												lineHeight: 1,
 											}}

@@ -1452,6 +1452,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								ariaDetails={coordsBoxId}
 								favorites={placeFavorites}
 								onSaveFavorite={savePlaceFavorite}
+								savingFavorite={savingFavorite}
 							/>
 							{/* #1342 (AK2): Speichern der aktuell eingetragenen Adresse — nur bei gefülltem Feld,
 				    mit den Koordinaten, die gerade am Formular hängen (Freitext ohne Treffer: null). */}

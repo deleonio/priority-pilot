@@ -103,6 +103,30 @@ describe('Standort-Favoriten API (#1595)', () => {
 		);
 	});
 
+	// #1595 (AK4, Review): Der Prüfpfad oben ist ein Read-then-Write — zwei gleichzeitige POSTs
+	// (Doppelklick auf den Stern) sehen beide noch keinen Eintrag. Der Unique-Index
+	// `place_favorites_user_id_address` lässt nur einen durch, der Verlierer liefert denselben
+	// bestehenden Eintrag zurück statt eines 500ers.
+	it('AK4 — zwei gleichzeitige POSTs derselben Adresse ergeben genau einen Eintrag', async () => {
+		const cookie = await register('race@example.com');
+		const responses = await Promise.all([
+			createFavorite(cookie, { address: 'Marienplatz 8, München' }),
+			createFavorite(cookie, { address: 'Marienplatz 8, München' }),
+		]);
+
+		for (const res of responses) {
+			assert.equal(res.status, 201, 'beide Anfragen werden erfolgreich beantwortet');
+		}
+		const list = (await (await listFavorites(cookie)).json()) as { id: number; address: string }[];
+		assert.equal(
+			list.filter((entry) => entry.address === 'Marienplatz 8, München').length,
+			1,
+			'die Adresse steht trotz zweier paralleler POSTs genau einmal in der Liste',
+		);
+		const bodies = (await Promise.all(responses.map((res) => res.json()))) as { id: number }[];
+		assert.equal(bodies[0].id, bodies[1].id, 'beide Antworten zeigen auf denselben Eintrag');
+	});
+
 	it('AK5 — GET /place-favorites ohne Session antwortet 401', async () => {
 		const res = await listFavorites();
 		assert.equal(res.status, 401);
