@@ -111,7 +111,9 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	test('Dialogleiste „Säulenverteilung neu berechnen" bricht bei 375px nicht um', async ({ page }) => {
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
-		await page.route('**/api/v1/admin/tasks/reassign-pillars', (route: Route) =>
+		// Regex statt Glob: der Aufruf trägt seit #1614 die Statusauswahl als Query (`?status=all`),
+		// und ein Glob ohne Platzhalter am Ende matcht eine URL mit Query-String nicht mehr.
+		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars/, (route: Route) =>
 			route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -143,7 +145,7 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		);
 
 		const [response] = await Promise.all([
-			page.waitForResponse('**/api/v1/admin/tasks/reassign-pillars'),
+			page.waitForResponse(/\/api\/v1\/admin\/tasks\/reassign-pillars/),
 			runButton.click(),
 		]);
 		expect(response.status(), 'Batch-Antwort muss 200 sein').toBe(200);
