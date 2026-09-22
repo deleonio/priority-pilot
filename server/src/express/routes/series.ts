@@ -3,14 +3,14 @@ import type { Request, Response } from 'express';
 import { sendError, handleWriteError, parseId } from '../http-error.js';
 import { Op, Transaction, type WhereOptions } from 'sequelize';
 import sequelize from '../../database.js';
-import { GroupMember, Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
+import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import type { PushSender } from '../../logics/push.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
 import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } from '../../logics/categoryOwnership.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import { serializeTask, loadUserNames, loadSharedUserIds } from './tasks.js';
+import { serializeTask, loadUserNames, loadSharedUserIds, resolveRecipientId } from './tasks.js';
 import { resolveGeoUser } from './geoConfig.js';
 import type { components } from '../../api';
 
@@ -433,25 +433,12 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 			// einen Datensatz anzulegen (AK2).
 			const requester = await resolveGeoUser(req);
 			const requesterId = requester?.id ?? null;
-			let recipientId: number | null = null;
-			const recipientInput = (req.body as { userId?: unknown }).userId;
-			if (recipientInput !== undefined) {
-				if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
-					sendError(res, 400, 'userId muss eine Ganzzahl sein.');
-					return;
-				}
-				if (recipientInput !== requesterId) {
-					const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
-					const shared = await GroupMember.findOne({
-						where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
-					});
-					if (shared === null) {
-						sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
-						return;
-					}
-					recipientId = recipientInput;
-				}
+			const recipientResolution = await resolveRecipientId(requesterId, (req.body as { userId?: unknown }).userId);
+			if (!recipientResolution.ok) {
+				sendError(res, recipientResolution.status, recipientResolution.message);
+				return;
 			}
+			const recipientId = recipientResolution.recipientId;
 			// #1249: Säulen gegen das Konto prüfen, dem die Serie gehören wird — bei einem Empfänger gegen
 			// dessen Konto statt gegen den Aufrufer (Empfänger-Auflösung inkl. 403 bleibt davor).
 			if (
@@ -548,25 +535,12 @@ export const createSeriesRouter = ({ pushSender }: SeriesRouterDeps = {}): Route
 		// abgelehnt, ohne dass Feldänderungen aus demselben Request durchkommen.
 		const requester = await resolveGeoUser(req);
 		const requesterId = requester?.id ?? null;
-		let recipientId: number | null = null;
-		const recipientInput = (req.body as { userId?: unknown }).userId;
-		if (recipientInput !== undefined) {
-			if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
-				sendError(res, 400, 'userId muss eine Ganzzahl sein.');
-				return;
-			}
-			if (recipientInput !== requesterId) {
-				const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
-				const shared = await GroupMember.findOne({
-					where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
-				});
-				if (shared === null) {
-					sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
-					return;
-				}
-				recipientId = recipientInput;
-			}
+		const recipientResolution = await resolveRecipientId(requesterId, (req.body as { userId?: unknown }).userId);
+		if (!recipientResolution.ok) {
+			sendError(res, recipientResolution.status, recipientResolution.message);
+			return;
 		}
+		const recipientId = recipientResolution.recipientId;
 		// #1249/#1252: Säulen gegen das Konto prüfen, dem die Serie nach diesem Request gehört — bei
 		// einer Übergabe gegen das Empfänger-Konto statt gegen den bisherigen Eigentümer.
 		if (
