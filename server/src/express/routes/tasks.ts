@@ -207,6 +207,35 @@ export const loadSharedUserIds = async (requesterId: number): Promise<number[]> 
 	return [...new Set(shared.map((membership) => membership.userId))];
 };
 
+export type RecipientResolution =
+	{ ok: true; recipientId: number | null } | { ok: false; status: 400 | 403; message: string };
+
+/**
+ * Validiert und löst den optionalen Empfänger (`userId` im Body) gegen die Gruppenmitgliedschaft auf
+ * (#1213/#1222/#1252): Fehlt das Feld oder entspricht es dem Aufrufer, bleibt der Datensatz beim
+ * Aufrufer (`recipientId: null`); sonst muss der Empfänger mindestens eine Gruppe mit dem Aufrufer
+ * teilen (403), keine Ganzzahl scheitert mit 400.
+ */
+export const resolveRecipientId = async (
+	requesterId: number | null,
+	recipientInput: unknown,
+): Promise<RecipientResolution> => {
+	if (recipientInput === undefined) {
+		return { ok: true, recipientId: null };
+	}
+	if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
+		return { ok: false, status: 400, message: 'userId muss eine Ganzzahl sein.' };
+	}
+	if (recipientInput === requesterId) {
+		return { ok: true, recipientId: null };
+	}
+	const sharedUserIds = await loadSharedUserIds(requesterId ?? -1);
+	if (!sharedUserIds.includes(recipientInput)) {
+		return { ok: false, status: 403, message: 'Der Empfänger teilt keine Gruppe mit dir.' };
+	}
+	return { ok: true, recipientId: recipientInput };
+};
+
 /**
  * Gruppen-IDs, in denen der Requester aktuell Mitglied ist (#1521). Basis wie `loadSharedUserIds`
  * die vorhandenen `group_members`-Zeilen — Austritt/Löschung entziehen die Sichtbarkeit sofort.
@@ -594,25 +623,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			// der Aufrufer keine Gruppe teilt, wird mit 403 abgelehnt, ohne einen Datensatz anzulegen (AK2).
 			const requester = await resolveGeoUser(req);
 			const requesterId = requester?.id ?? null;
-			let recipientId: number | null = null;
-			const recipientInput = (req.body as { userId?: unknown }).userId;
-			if (recipientInput !== undefined) {
-				if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
-					sendError(res, 400, 'userId muss eine Ganzzahl sein.');
-					return;
-				}
-				if (recipientInput !== requesterId) {
-					const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
-					const shared = await GroupMember.findOne({
-						where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
-					});
-					if (shared === null) {
-						sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
-						return;
-					}
-					recipientId = recipientInput;
-				}
+			const recipientResolution = await resolveRecipientId(requesterId, (req.body as { userId?: unknown }).userId);
+			if (!recipientResolution.ok) {
+				sendError(res, recipientResolution.status, recipientResolution.message);
+				return;
 			}
+			const recipientId = recipientResolution.recipientId;
 			// #1521 (AK1): Alternativ zur Person kann eine Gruppe Empfänger sein. Die Aufgabe entsteht
 			// dann ohne Eigentümer (`userId = null`) und gehört der Gruppe, bis ein Mitglied sie erledigt.
 			// Nur eigene Gruppen sind adressierbar; Person UND Gruppe zugleich ist kein gültiger Vertrag.
@@ -752,25 +768,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 		// ohne dass Feldänderungen aus demselben Request durchkommen (AK2).
 		const requester = await resolveGeoUser(req);
 		const requesterId = requester?.id ?? null;
-		let recipientId: number | null = null;
-		const recipientInput = (req.body as { userId?: unknown }).userId;
-		if (recipientInput !== undefined) {
-			if (typeof recipientInput !== 'number' || !Number.isInteger(recipientInput)) {
-				sendError(res, 400, 'userId muss eine Ganzzahl sein.');
-				return;
-			}
-			if (recipientInput !== requesterId) {
-				const ownGroups = await GroupMember.findAll({ where: { userId: requesterId ?? -1 } });
-				const shared = await GroupMember.findOne({
-					where: { groupId: ownGroups.map((membership) => membership.groupId), userId: recipientInput },
-				});
-				if (shared === null) {
-					sendError(res, 403, 'Der Empfänger teilt keine Gruppe mit dir.');
-					return;
-				}
-				recipientId = recipientInput;
-			}
+		const recipientResolution = await resolveRecipientId(requesterId, (req.body as { userId?: unknown }).userId);
+		if (!recipientResolution.ok) {
+			sendError(res, recipientResolution.status, recipientResolution.message);
+			return;
 		}
+		const recipientId = recipientResolution.recipientId;
 		// #1521 (AK3–AK5): Erledigt ein Mitglied eine unclaimte Gruppen-Aufgabe, übernimmt es sie mit
 		// demselben Request („Claim") — `awardScoreOnDone` hängt den ScoreEntry über `taskId` an den
 		// Task, dessen `userId` nach dem Commit der Erlediger ist, damit landet die Gutschrift bei ihm.
