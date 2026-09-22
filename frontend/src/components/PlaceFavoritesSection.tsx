@@ -99,6 +99,9 @@ export const PlaceFavoritesSection = () => {
 					    selben Aktion wie der „Anlegen"-Knopf darunter. */}
 					<AddressAutocomplete
 						label="Adresse"
+						/* Die Karte weist die Grenzstelle `location_reminders` oben schon aus (#1484 AK3) —
+						   ein zweites Badge direkt darunter wäre reine Wiederholung. */
+						showPlanBadge={false}
 						value={address}
 						onValueChange={(next) => {
 							setAddress(next);

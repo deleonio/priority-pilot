@@ -35,6 +35,12 @@ interface AddressAutocompleteProps {
 	favorites?: PlaceFavoriteSuggestion[];
 	/** #1342: Stern in der Trefferzeile — meldet den Treffer zum Speichern, ohne ihn auszuwählen. */
 	onSaveFavorite?: (suggestion: AddressSuggestion) => void;
+	/**
+	 * #1595 (AK5): Das Paket-Badge `location_reminders` (#1484) abschalten, wenn der Aufrufer die
+	 * Grenzstelle bereits selbst ausweist — in der Karte „Gespeicherte Orte" stünde es sonst zweimal
+	 * unmittelbar übereinander.
+	 */
+	showPlanBadge?: boolean;
 }
 
 /**
@@ -55,6 +61,7 @@ export const AddressAutocomplete = ({
 	ariaDetails,
 	favorites = [],
 	onSaveFavorite,
+	showPlanBadge = true,
 }: AddressAutocompleteProps) => {
 	// #1310 (AK5): Ein vorbelegter Wert (Schnellerfassung/Bearbeiten) löst KEINE Adresssuche aus —
 	// erst die Eingabe des Nutzers. Ohne diese Sperre würde allein das Öffnen des Formulars mit
@@ -159,7 +166,7 @@ export const AddressAutocomplete = ({
 			{/* #1484 (T3b AK3): Grenzstelle `location_reminders`. Das Badge steht als Geschwister VOR
 		    dem Combobox-Container — als Nachfahre würde es die erwartete DOM-Struktur des
 		    Combobox-Patterns verschieben (KI-UX-Block). */}
-			<PlanBadge feature="location_reminders" />
+			{showPlanBadge && <PlanBadge feature="location_reminders" />}
 			{/* COMBOBOX-CONTAINER (ARIA-1.2, Fix F2): `role="combobox"` + State liegen auf einem echten
 		    DOM-Element, das Feld UND Listbox besitzt — `aria-activedescendant` zeigt dadurch auf
 		    echte Nachfahren. Auf dem KoliBri-Host wären die Props unbekannte Attribute und das
