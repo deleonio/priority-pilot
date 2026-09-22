@@ -1,6 +1,7 @@
-import { KolAlert, KolButton, KolInputRadio } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskStatus } from 'client';
-import { useRef, useState } from 'react';
+import { KolAlert, KolButton, KolInputRadio, KolProgress } from '@public-ui/react-v19';
+import { TaskStatus } from 'client';
+import type { Pillar, Task } from 'client';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { fillContributions } from '../lib/pillar';
@@ -38,17 +39,20 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 
 	const abortControllerRef = useRef<AbortController | null>(null);
 
+	// Beim Schließen/Unmount den laufenden Request abbrechen, damit die Schleife nicht
+	// weiterläuft und keinen Zustand einer ausgehängten Komponente mehr setzt.
+	useEffect(() => () => abortControllerRef.current?.abort(), []);
+
 	// Gefilterte Tasks bestimmen
 	const getFilteredTasks = (filter: FilterType): Task[] => {
 		if (filter === 'all') {
 			return tasks;
 		}
-		const openStatuses: TaskStatus[] = ['Open' as TaskStatus, 'InProcess' as TaskStatus];
 		if (filter === 'open') {
-			return tasks.filter((t) => openStatuses.includes(t.status as TaskStatus));
+			return tasks.filter((t) => t.status === TaskStatus.Open || t.status === TaskStatus.InProcess);
 		}
 		// filter === 'done'
-		return tasks.filter((t) => t.status === 'Done');
+		return tasks.filter((t) => t.status === TaskStatus.Done);
 	};
 
 	const handleFilterChange = (newFilter: FilterType) => {
@@ -79,7 +83,8 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 			errors: [],
 		}));
 
-		abortControllerRef.current = new AbortController();
+		const controller = new AbortController();
+		abortControllerRef.current = controller;
 
 		// Iterative Verarbeitung
 		let successful = 0;
@@ -87,9 +92,8 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 		const errors: Array<{ taskId: number; message: string }> = [];
 
 		for (let i = 0; i < filtered.length; i += 1) {
-			// Abort-Prüfung
-			if (abortControllerRef.current.signal.aborted) {
-				break;
+			if (controller.signal.aborted) {
+				return;
 			}
 
 			const task = filtered[i];
@@ -103,10 +107,15 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 					taskUpdate: {
 						pillars: newContributions,
 					},
+					signal: controller.signal,
 				});
 
 				successful += 1;
 			} catch (reason) {
+				// Der Abbruch bricht den laufenden Request ab — das ist kein Fehler der Aufgabe.
+				if (controller.signal.aborted) {
+					return;
+				}
 				failed += 1;
 				const apiError = await toApiError(reason);
 				errors.push({
@@ -141,8 +150,6 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 		}
 		onClose();
 	};
-
-	const progress = state.total === 0 ? 0 : Math.round((state.processed / state.total) * 100);
 
 	const closeRef = useRef<HTMLKolButtonElement>(null);
 
@@ -209,26 +216,12 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 						</strong>
 					</p>
 
-					{/* Fortschrittsbalken */}
-					<div className="progress-container" style={{ marginBottom: '1rem' }}>
-						<div
-							className="progress-bar"
-							style={{
-								width: `${progress}%`,
-								height: '24px',
-								backgroundColor: '#4CAF50',
-								borderRadius: '4px',
-								transition: 'width 0.3s ease',
-								display: 'flex',
-								alignItems: 'center',
-								justifyContent: 'center',
-								color: 'white',
-								fontSize: '12px',
-							}}
-						>
-							{progress}%
-						</div>
-					</div>
+					<KolProgress
+						_variant="bar"
+						_max={state.total}
+						_value={state.processed}
+						_label="Fortschritt der Neuberechnung"
+					/>
 
 					{state.errors.length > 0 && (
 						<KolAlert _type="warning" _label={`${state.errors.length} Fehler`}>
@@ -244,7 +237,7 @@ export const RecalcPillarModal = ({ onClose, tasks, pillars, onCompleted }: Reca
 					)}
 
 					<div className="modal-actions">
-						<KolButton _label="Schließen" _variant="secondary" _disabled _on={{ onClick: handleClose }} />
+						<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: handleClose }} />
 					</div>
 				</>
 			)}

@@ -327,11 +327,12 @@ export const api = {
 		return data;
 	},
 
-	async updateTask({ id, taskUpdate }: { id: number; taskUpdate: TaskUpdate }): Promise<Task> {
+	async updateTask({ id, taskUpdate, signal }: { id: number; taskUpdate: TaskUpdate } & Init): Promise<Task> {
 		const { deadline, ...rest } = taskUpdate;
 		const { data, error, response } = await client.PATCH('/tasks/{id}', {
 			params: { path: { id } },
 			body: { ...rest, deadline: toRawDeadline(deadline) },
+			signal,
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
