@@ -5,9 +5,14 @@
 .ai-memory/issue-*.md
 .claude/worktrees/
 .claude/settings.local.json
+
+# Pädagoge-Berichte lokaler Team-Läufe (.claude/skills/dev-team/SKILL.md) — Sitzungsprotokolle
+# einer einzelnen Maschine, kein Repo-Inhalt; dauerhafte Lehren wandern nach .ai-memory/MEMORY.md.
+.claude/team-reports/
 .zcode/
 dist/
 node_modules/
+server/sessions.db
 .env
 
 # Aus dem API-Vertrag (openapi.yml) generiert – wird per prepare/build erzeugt, nicht versioniert.

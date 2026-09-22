@@ -224,6 +224,11 @@ describe('tokens-report', () => {
 			'fixup-bein',
 			'fixup erst nach dem ersten Siegel = Nacharbeit eines versiegelten Tickets',
 		);
+		assert.equal(
+			classifyTicket([at('team', 10), at('documenter', 12)]),
+			'extern-vollstaendig',
+			'ein lokaler Team-Lauf setzt das Ticket ausserhalb der Pipeline um — ohne diese Zeile fiele er als „sonstiges" aus jeder Auswertung',
+		);
 		assert.equal(classifyTicket([at('review', 10)]), 'abgebrochen');
 		assert.equal(classifyTicket([at('analyse', 10), at('documenter', 12)]), 'sonstiges');
 		assert.equal(

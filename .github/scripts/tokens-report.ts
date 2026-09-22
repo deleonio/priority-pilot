@@ -185,7 +185,11 @@ export function classifyTicket(entries: readonly CostEntry[]): TicketClass {
 	if (firstSeal < 0) return 'abgebrochen';
 	if (sorted.some((e) => e.phase === 'implement')) return 'vollstaendig';
 	const beforeSeal = sorted.slice(0, firstSeal);
-	if (beforeSeal.some((e) => e.phase === 'review' || e.phase === 'fixup')) return 'extern-vollstaendig';
+	// `team` = lokaler Dev-Team-Lauf (.claude/skills/dev-team/SKILL.md): Umsetzung UND Review
+	// passieren ausserhalb der Pipeline, es gibt also weder implement- noch review-Eintrag.
+	// Ohne diese Phase hier fiele so ein Ticket trotz Siegel als „sonstiges" aus jeder Kennzahl.
+	if (beforeSeal.some((e) => e.phase === 'review' || e.phase === 'fixup' || e.phase === 'team'))
+		return 'extern-vollstaendig';
 	if (sorted.slice(firstSeal + 1).some((e) => e.phase === 'fixup')) return 'fixup-bein';
 	return 'sonstiges';
 }
