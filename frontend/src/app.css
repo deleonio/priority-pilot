@@ -839,6 +839,26 @@ kol-toolbar {
 
 /* --- Dashboard --- */
 
+/* #1617: Tag/Woche-Umschalter über dem Dashboard-Inhalt. */
+.dashboard-view-switch {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+	margin-bottom: var(--pp-space-2);
+}
+
+/* #1617: Wochenansicht — 7 Tageskarten, responsiv umbrechend statt horizontal zu scrollen. */
+.week-view-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: var(--pp-gap-base);
+}
+
+.week-view-tasks {
+	margin: 0 0 var(--pp-space-1);
+	padding-inline-start: 1.2em;
+}
+
 /* Personalisierte Begrüßung zwischen H2 und Kennzahlen-Kacheln. */
 .dashboard-heading {
 	display: flex;

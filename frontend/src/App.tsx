@@ -19,6 +19,7 @@ import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { CompleteTaskDialog, hasOpenChecklistItems } from './components/CompleteTaskDialog';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
+import { WeekView } from './components/WeekView';
 import { DayDoneHint } from './components/DayDoneHint';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
@@ -189,6 +190,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// der Filter wird erst per „Filtern"-Button oder Enter übernommen (deferred filter).
 	const taskSearch = searchParams.get('q') ?? '';
 	const taskViewMode: 'open' | 'done' = searchParams.get('view') === 'done' ? 'done' : 'open';
+	// #1617: Tag/Woche-Umschalter des Dashboards — eigener Query-Parameter (`planview`), damit er
+	// nicht mit `view` (Offen/Erledigt-Umschalter des Aufgaben-Tabs) kollidiert. Deep-Link-fähig wie
+	// die übrigen Filterzustände.
+	const dashboardView: 'day' | 'week' = searchParams.get('planview') === 'week' ? 'week' : 'day';
 	const [searchDraft, setSearchDraft] = useState(taskSearch);
 	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
 	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
@@ -278,6 +283,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					next.delete('view');
 				}
 				return next;
+			});
+		},
+		[setSearchParams],
+	);
+
+	/** Wechselt zwischen Tages- und Wochenansicht des Dashboards und spiegelt es als `?planview=`. */
+	const changeDashboardView = useCallback(
+		(next: 'day' | 'week'): void => {
+			setSearchParams((prev) => {
+				const params = new URLSearchParams(prev);
+				if (next === 'week') {
+					params.set('planview', 'week');
+				} else {
+					params.delete('planview');
+				}
+				return params;
 			});
 		},
 		[setSearchParams],
@@ -939,17 +960,40 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								_on={tabsCallbacks}
 							>
 								<div slot="tab-0">
-									<Dashboard
-										tasks={tasks}
-										forest={forest}
-										nextTask={nextTask}
-										suggestions={suggestions}
-										pillars={pillars}
-										displayName={user.displayName}
-										onCompleteTask={openComplete}
-										onEditTask={openEdit}
-										showDayDoneHint={activeTab === 0}
-									/>
+									{/* #1617: Tag/Woche-Umschalter — reines Anzeigeumschalten, kein eigener Tab (der
+									    Wechsel bleibt Teil desselben Dashboard-Slots, deep-link-fähig über `?planview=`). */}
+									<div className="dashboard-view-switch">
+										<KolButton
+											_label="Tagesansicht"
+											_variant={dashboardView === 'day' ? ACTIVE_VARIANT : INACTIVE_VARIANT}
+											_on={{ onClick: () => changeDashboardView('day') }}
+										/>
+										<KolButton
+											_label="Wochenansicht"
+											_variant={dashboardView === 'week' ? ACTIVE_VARIANT : INACTIVE_VARIANT}
+											_on={{ onClick: () => changeDashboardView('week') }}
+										/>
+									</div>
+									{dashboardView === 'week' ? (
+										<WeekView
+											tasks={tasks}
+											nextTask={nextTask}
+											suggestions={suggestions}
+											onSelectDay={() => changeDashboardView('day')}
+										/>
+									) : (
+										<Dashboard
+											tasks={tasks}
+											forest={forest}
+											nextTask={nextTask}
+											suggestions={suggestions}
+											pillars={pillars}
+											displayName={user.displayName}
+											onCompleteTask={openComplete}
+											onEditTask={openEdit}
+											showDayDoneHint={activeTab === 0}
+										/>
+									)}
 								</div>
 								<div slot="tab-1">
 									<section className="task-section">
