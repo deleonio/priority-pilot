@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.2 - 2026-09-22
 
-_Enthält v0.2.0 – v0.2.131._
+_Enthält v0.2.0 – v0.2.133._
 
 ### 🔧 Engineering
 
@@ -45,7 +45,6 @@ _Enthält v0.2.0 – v0.2.131._
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
 - feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
 - feat(server): track and surface auto-deleted missed tasks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1440
-- chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
 - chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
 - feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
@@ -142,6 +141,7 @@ _Enthält v0.2.0 – v0.2.131._
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
 - feat(frontend): confirm before discarding unsaved task form changes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1600
 - feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
+- feat(place-favorites): save by address only, dedupe, and show errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1610
 
 ## v0.1 - 2026-09-12
 
