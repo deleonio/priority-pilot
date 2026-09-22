@@ -1,6 +1,12 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { openAccordionSection, waitForStableBox, waitForStableView } from './helpers';
+import {
+	accordionTrigger,
+	isAccordionOpen,
+	openAccordionSection,
+	waitForStableBox,
+	waitForStableView,
+} from './helpers';
 
 /**
  * E2E-Layout-Tests für #1159 „Layout-Optimierung Aufgaben-Formular" + #1285
@@ -67,7 +73,7 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 		await page.setViewportSize({ width: 1280, height: 900 });
 		await openForm(page);
 
-		const trigger = page.getByRole('button', { name: 'Basisangaben', exact: true });
+		const trigger = accordionTrigger(page, 'Basisangaben');
 		await expect(trigger).toHaveCount(1);
 		// Inhalt ohne Interaktion sichtbar (AK2: `_open={true}`).
 		await expect(page.locator('[data-testid="task-title"]')).toBeVisible();
@@ -95,9 +101,9 @@ test.describe('#1285 TaskForm-Sektionen als Accordions', () => {
 
 		// AK4: erneuter Klick klappt wieder zu.
 		for (const label of ['Termin & Ort', 'Optional']) {
-			const trigger = page.getByRole('button', { name: label, exact: true });
+			const trigger = accordionTrigger(page, label);
 			await trigger.click();
-			await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+			await expect.poll(() => isAccordionOpen(trigger)).toBe(false);
 		}
 		await expect(page.locator('[data-testid="deadline-group"]')).not.toBeVisible();
 		await expect(page.locator('[data-testid="task-description"]')).not.toBeVisible();
