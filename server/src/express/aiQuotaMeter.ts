@@ -7,7 +7,7 @@
  */
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Op, UniqueConstraintError, literal } from 'sequelize';
-import { AI_ASSIST_MONTHLY_QUOTA, isMonetizationEnforced } from '../logics/plans.js';
+import { AI_ASSIST_MONTHLY_QUOTA, isMonetizationEnforced, type Plan } from '../logics/plans.js';
 import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { AiUsage, User } from '../models/index.js';
@@ -82,7 +82,22 @@ export interface AiQuotaCounter {
 	book: () => Promise<boolean>;
 	/** Nimmt eine Buchung zurück, deren Provider-Aufruf nichts geliefert hat. */
 	refund: () => Promise<void>;
+	/** Paket des Kontos — die 429-Antwort nennt es. */
+	plan: Plan;
+	/** Monatsgrenze des Pakets (unabhängig vom Rollout-Schalter), für die Fehlermeldung. */
+	monthlyLimit: number;
+	/** Verbleibende Anfragen des Monats, frisch gelesen — erst NACH dem Lauf aussagekräftig. */
+	remaining: () => Promise<number>;
 }
+
+/**
+ * Hängt die Marker-Eigenschaft an einen Handler, den der Abdeckungstest
+ * (`ai-quota-coverage.test.ts`, AK5) im Router-Stack sucht. {@link meterAiQuota} nutzt sie für
+ * die Middleware; eine Route, die ihr Kontingent selbst je Provider-Aufruf bucht (Säulen-Batch,
+ * #1614), markiert damit ihren eigenen Handler — gezählt wird sie, nur nicht von der Middleware.
+ */
+export const markAiQuotaMetered = (handler: RequestHandler): AiQuotaHandler =>
+	Object.assign(handler, { aiQuotaMetered: true as const });
 
 /**
  * Kontingent-Haken für Läufe, die in EINEM Request mehrere Provider-Aufrufe auslösen — der
@@ -109,10 +124,15 @@ export const createAiQuotaCounter = async (
 		return undefined;
 	}
 	const yearMonth = currentYearMonth();
-	const limit = isMonetizationEnforced() ? AI_ASSIST_MONTHLY_QUOTA[plan] : null;
+	const monthlyLimit = AI_ASSIST_MONTHLY_QUOTA[plan];
+	// `null` bucht ohne Obergrenze — bei ausgeschaltetem Rollout deckelt nichts (AK8).
+	const limit = isMonetizationEnforced() ? monthlyLimit : null;
 	return {
 		book: () => book(userId, yearMonth, limit),
 		refund: () => refund(userId, yearMonth),
+		plan,
+		monthlyLimit,
+		remaining: async () => Math.max(0, monthlyLimit - (await getAiUsageCount(userId))),
 	};
 };
 
@@ -193,5 +213,5 @@ export const meterAiQuota = (): AiQuotaHandler => {
 		};
 		next();
 	};
-	return Object.assign(handler as RequestHandler, { aiQuotaMetered: true as const });
+	return markAiQuotaMetered(handler as RequestHandler);
 };

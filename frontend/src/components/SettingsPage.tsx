@@ -864,10 +864,11 @@ export const SettingsPage = ({
 			{recalcPillarModalOpen && (
 				<RecalcPillarModal
 					onClose={() => setRecalcPillarModalOpen(false)}
-					onCompleted={() => {
-						setRecalcPillarModalOpen(false);
-						onSaved();
-					}}
+					// Schließt bewusst NICHT: `onCompleted` heißt „Daten neu laden", nicht „fertig, weg
+					// damit". Schlösse es das Modal, unmountete die Komponente im selben Commit, in dem
+					// sie ihr Ergebnis rendert — Erfolgsmeldung, Fehler und die Warnung über das
+					// aufgebrauchte KI-Kontingent wären nie sichtbar. Geschlossen wird über den Button.
+					onCompleted={onSaved}
 				/>
 			)}
 		</div>

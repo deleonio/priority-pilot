@@ -1,7 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../../test/helpers.js';
-import { Pillar, Task, TaskPillar, User } from '../../models/index.js';
+import { AiUsage, Pillar, Task, TaskPillar, User } from '../../models/index.js';
 import type { ClassifyPillarsInput, PillarClassifier, PillarSuggestion } from '../../llm/llm.js';
 
 /**
@@ -212,5 +212,138 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 		} finally {
 			await slowServer.close();
 		}
+	});
+});
+
+/**
+ * #1614: Die Buchung des KI-Kontingents liegt bei diesem Endpunkt NICHT in der Middleware, sondern
+ * je klassifizierter Aufgabe im Lauf — ein Request löst N Provider-Aufrufe aus. Ein Zählfehler hier
+ * fällt im Betrieb nirgends auf: nicht im UI, nicht in den Logs, sondern erst auf der Rechnung oder
+ * beim Nutzer, dem das Kontingent zu früh ausgeht. Deshalb wird gegen `AiUsage` geprüft.
+ */
+describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
+	let server: TestServer;
+
+	const yearMonth = (): string => new Date().toISOString().slice(0, 7);
+
+	const usageOf = async (userId: number): Promise<number> =>
+		(await AiUsage.findOne({ where: { userId, yearMonth: yearMonth() } }))?.count ?? 0;
+
+	const seedUsage = async (userId: number, count: number): Promise<void> => {
+		await AiUsage.create({ userId, yearMonth: yearMonth(), count });
+	};
+
+	/** Konto mit zählbarem Paket: `free` hat Kontingent 0, damit liefe jeder Lauf sofort in die 429. */
+	const preparePayingMember = async (): Promise<number> => {
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await User.update({ plan: 'pro' }, { where: { id: memberId } });
+		return memberId;
+	};
+
+	before(async () => {
+		server = await startTestServer({ pillarClassifier: firstPillarClassifier });
+	});
+	beforeEach(async () => {
+		await resetDb();
+		process.env.MONETIZATION_ENFORCED = 'true';
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) {
+			await server.close();
+		}
+		await closeDb();
+	});
+
+	const run = (cookie: string, baseUrl = server.baseUrl): Promise<Response> =>
+		fetch(`${baseUrl}/tasks/reassign-pillars`, { method: 'POST', headers: { Cookie: cookie } });
+
+	it('bucht genau einen Punkt je Aufgabe — nicht zusätzlich einen für den Request', async () => {
+		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await preparePayingMember();
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		for (const title of ['A', 'B', 'C']) {
+			await Task.create({ title, status: 'Open', userId: memberId });
+		}
+
+		const res = await run(cookie);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { updated: number; quotaRemaining?: number };
+		assert.equal(body.updated, 3);
+
+		// Drei Aufgaben, drei Punkte. Mit zusätzlich mitlaufender Zähler-Middleware wären es vier.
+		assert.equal(await usageOf(memberId), 3, 'genau ein Punkt je klassifizierter Aufgabe');
+		// `quotaRemaining` muss den Stand NACH dem Lauf melden, nicht den davor.
+		assert.equal(body.quotaRemaining, 60 - 3);
+	});
+
+	it('storniert eine gescheiterte Klassifikation, behält aber die ohne brauchbaren Vorschlag', async () => {
+		const failing: PillarClassifier = (async () => {
+			throw new Error('Upstream tot');
+		}) as PillarClassifier;
+		const emptySuggestion: PillarClassifier = (async () => []) as PillarClassifier;
+
+		for (const [classifier, expected, label] of [
+			[failing, 0, 'gescheiterte Klassifikation wird storniert'],
+			[emptySuggestion, 1, 'Antwort ohne brauchbaren Vorschlag bleibt gebucht'],
+		] as const) {
+			await resetDb();
+			const scoped = await startTestServer({ pillarClassifier: classifier });
+			try {
+				const cookie = await scoped.login(MEMBER_EMAIL, { role: 'member' });
+				const memberId = await preparePayingMember();
+				await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+				await Task.create({ title: 'Eine Aufgabe', status: 'Open', userId: memberId });
+
+				const res = await run(cookie, scoped.baseUrl);
+				assert.equal(res.status, 200);
+				assert.equal(await usageOf(memberId), expected, label);
+			} finally {
+				await scoped.close();
+			}
+		}
+	});
+
+	it('hält an, wenn das Kontingent mitten im Lauf ausgeht, und lässt den Rest unberührt', async () => {
+		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await preparePayingMember();
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'A', status: 'Open', userId: memberId });
+		const zweite = await Task.create({ title: 'B', status: 'Open', userId: memberId });
+		const dritte = await Task.create({ title: 'C', status: 'Open', userId: memberId });
+		// Genau ein Punkt bleibt übrig (Paket „pro": 60).
+		await seedUsage(memberId, 59);
+
+		const res = await run(cookie);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as {
+			updated: number;
+			failed: number;
+			skipped: number;
+			remaining: number;
+			quotaExhausted: boolean;
+		};
+		assert.equal(body.updated, 1, 'nur die erste Aufgabe passt noch ins Kontingent');
+		assert.equal(body.quotaExhausted, true);
+		assert.ok(body.remaining > 0, 'die unbearbeiteten Aufgaben bleiben als offen gemeldet');
+		// Der Rest zählt weder als Fehler noch als übersprungen — er wurde schlicht nicht angefasst.
+		assert.equal(body.failed, 0);
+		assert.equal(body.skipped, 0);
+		assert.equal((await contributionsOf(zweite.id)).length, 0);
+		assert.equal((await contributionsOf(dritte.id)).length, 0);
+	});
+
+	it('weist mit 429 ab, wenn das Kontingent schon vor dem ersten Aufruf erschöpft ist', async () => {
+		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await preparePayingMember();
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'A', status: 'Open', userId: memberId });
+		await seedUsage(memberId, 60);
+
+		const res = await run(cookie);
+		assert.equal(res.status, 429);
+		const body = (await res.json()) as { code?: string; currentPlan?: string };
+		assert.equal(body.code, 'quota_exhausted');
+		assert.equal(body.currentPlan, 'pro');
 	});
 });

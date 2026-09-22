@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, type ErrorDto } from '../http-error.js';
+import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import { getUserId } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
-import { createAiQuotaCounter, meterAiQuota } from '../aiQuotaMeter.js';
+import { createAiQuotaCounter, markAiQuotaMetered } from '../aiQuotaMeter.js';
 import { hasProviderPin, validateProviderQuery } from '../llmProviderQuery.js';
 import { acquireUserRun, releaseUserRun, type ReassignRunKey } from '../../logics/reassignLock.js';
 import {
@@ -35,12 +35,13 @@ export const createReassignPillarsRouter = (
 	router.post(
 		'/tasks/reassign-pillars',
 		requirePlanFeature('ai_assist'),
-		// Der Zähler der Middleware bucht einen Punkt für den Request; die eigentliche Abrechnung
-		// läuft über `createAiQuotaCounter` je Aufgabe. Er bleibt trotzdem stehen: er setzt die
-		// 429-Abweisung bei bereits erschöpftem Kontingent, bevor überhaupt ein Lauf startet, und
-		// ergänzt `quotaRemaining` in der Antwort.
-		meterAiQuota(),
-		async (req: Request, res: Response<OwnReassignPillarsResultDto | ErrorDto>) => {
+		// Bewusst OHNE `meterAiQuota()`: die Middleware bucht einen Punkt je Request und storniert
+		// ihn nur bei Status >= 400. Zusammen mit der Buchung je Aufgabe kostete eine Portion über
+		// N Aufgaben N+1 Punkte, und das von ihr ergänzte `quotaRemaining` stammte von VOR dem Lauf
+		// und läge um bis zu N zu hoch. Diese Route bucht deshalb ausschließlich selbst, weist bei
+		// erschöpftem Kontingent mit demselben 429 ab und liest `quotaRemaining` am Ende frisch.
+		// `markAiQuotaMetered` hält sie für den Abdeckungstest (AK5) trotzdem als gezählt sichtbar.
+		markAiQuotaMetered(async (req: Request, res: Response<OwnReassignPillarsResultDto | ErrorDto>) => {
 			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 			if (!providerValidation.ok) {
 				sendError(res, 400, providerValidation.message);
@@ -92,17 +93,32 @@ export const createReassignPillarsRouter = (
 					status,
 					quota,
 				});
+				const consumed = result.updated + result.failed + result.skipped;
+
+				// Schon vor dem ersten Provider-Aufruf erschöpft: derselbe 429 wie in der Middleware,
+				// statt einer 200 mit einem Lauf, der nichts getan hat.
+				if (result.quotaExhausted && consumed === 0 && quota !== undefined) {
+					sendPlanError(res, 429, `Das monatliche KI-Kontingent von ${quota.monthlyLimit} Anfragen ist aufgebraucht.`, {
+						code: 'quota_exhausted',
+						feature: 'ai_assist',
+						currentPlan: quota.plan,
+					});
+					return;
+				}
+
 				const { total, ...rest } = result;
 				res.json({
 					...rest,
-					remaining: Math.max(0, total - offset - (result.updated + result.failed + result.skipped)),
+					remaining: Math.max(0, total - offset - consumed),
+					// Erst hier frisch gelesen — die N Buchungen des Laufs sind darin enthalten.
+					...(quota === undefined ? {} : { quotaRemaining: await quota.remaining() }),
 				});
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			} finally {
 				releaseUserRun(runKey);
 			}
-		},
+		}),
 	);
 
 	return router;
