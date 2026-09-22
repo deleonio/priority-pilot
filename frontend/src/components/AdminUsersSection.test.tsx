@@ -5,14 +5,15 @@ import { planLabel } from '../lib/planOffers';
 
 /**
  * Unit-Tests für `AdminUsersSection` (Fixup PR #1300, Finding #2) — bislang ungetestetes
- * Frontend-Verhalten des Rollensystems admin/member: Laden der Nutzerliste, Rollenwechsel
- * inkl. Fehlerpfad (409 „letzter Administrator"), Anzeige von Name/E-Mail/Rolle je Eintrag.
- * Muster: GroupsSection.test.tsx (Mock von `@public-ui/react-v19` + `../api`).
+ * Frontend-Verhalten des Rollensystems admin/member/tester: Laden der Nutzerliste, Rollenwechsel
+ * über die Rollen-Radiogruppe je Zeile (#1566) inkl. Fehlerpfad (409 „letzter Administrator"),
+ * Anzeige von Name/E-Mail/Rolle je Eintrag. Muster: GroupsSection.test.tsx (Mock von
+ * `@public-ui/react-v19` + `../api`).
  *
  * #1556 (Spec `docs/spec/issue-1556.md`, AK1) + #1565 (Spec `docs/spec/issue-1565.md`, AK2):
  * Paket-Badge je Zeile; die Auswahl zum Selbst-Wechsel ist seit #1565 in die eigene Karte im
- * Tab Pakete gezogen (`OwnPlanCard.test.tsx`) — die Nutzerverwaltung ist rein lesend, keinerlei
- * Combobox mehr (auch nicht in der eigenen Zeile).
+ * Tab Pakete gezogen (`OwnPlanCard.test.tsx`) — die Nutzerverwaltung zeigt das Paket nur noch
+ * lesend an (die Rollen-Radiogruppe daneben bleibt davon unberührt).
  */
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -30,9 +31,33 @@ vi.mock('@public-ui/react-v19', () => ({
 	),
 	KolHeading: ({ _label }: { _label?: string }) => <h4>{_label}</h4>,
 	KolSpin: ({ _label }: { _label?: string }) => <div role="status">{_label}</div>,
-	// Noch vorhanden, weil der AK2-Test gegen den HEUTIGEN Code rot sein muss (Zeilen-Select
-	// existiert); nach der #1565-Implementierung kann der Mock ersatzlos entfallen.
-	KolSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
+	KolInputRadio: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (event: Event, value: string) => void };
+	}) => (
+		<fieldset>
+			<legend>{_label}</legend>
+			{_options?.map((option) => (
+				<label key={option.value}>
+					<input
+						type="radio"
+						name={_label}
+						value={option.value}
+						checked={option.value === _value}
+						onChange={(e) => _on?.onChange?.(e.nativeEvent, option.value)}
+					/>
+					{option.label}
+				</label>
+			))}
+		</fieldset>
+	),
 }));
 
 vi.mock('../api', () => ({
@@ -95,15 +120,15 @@ const renderSection = (currentUserId?: number): ReturnType<typeof render> =>
 	render(<SectionWithOwnId currentUserId={currentUserId} />);
 
 /**
- * Badge-spezifischer Zeilen-Match: Text außerhalb von `<option>` — historisch aus #1556 (die
- * Zeilen-Auswahl existiert nicht mehr, #1565), der Filter hält den Query robust gegen künftige
- * Auswahlelemente in der Zeile.
+ * Badge-spezifischer Zeilen-Match: Text außerhalb von `<option>` bzw. der Rollen-Radiogruppe
+ * (`<label>` je Option, #1566) — historisch aus #1556 (die Zeilen-Auswahl existiert nicht mehr,
+ * #1565), der Filter hält den Query robust gegen künftige Auswahlelemente in der Zeile.
  */
 const badgeInRow = (row: HTMLElement, label: string): HTMLElement => {
 	const matches = within(row)
 		.getAllByText(label)
-		.filter((element) => element.tagName !== 'OPTION');
-	expect(matches, `Paket-Badge „${label}" muss genau einmal in der Zeile stehen`).toHaveLength(1);
+		.filter((element) => element.tagName !== 'OPTION' && element.closest('label') === null);
+	expect(matches, `Badge „${label}" muss genau einmal in der Zeile stehen`).toHaveLength(1);
 	return matches[0];
 };
 
@@ -112,7 +137,7 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
-describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member)', () => {
+describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member/tester)', () => {
 	it('zeigt den Spinner während des Ladens und danach die Nutzerliste mit Rollen-Badge', async () => {
 		mockGetAdminUsers.mockResolvedValue([
 			user({ id: 1, displayName: 'Anna Admin', email: 'anna@example.com', role: 'admin' }),
@@ -124,12 +149,12 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member)', (
 
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
 		expect(screen.getByText('anna@example.com')).toBeInTheDocument();
-		expect(screen.getByText('Admin')).toBeInTheDocument();
+		expect(badgeInRow(rowOf('Anna Admin'), 'Admin')).toBeInTheDocument();
 		expect(screen.getByText('Max Member')).toBeInTheDocument();
-		expect(screen.getByText('Mitglied')).toBeInTheDocument();
+		expect(badgeInRow(rowOf('Max Member'), 'Mitglied')).toBeInTheDocument();
 	});
 
-	it('Klick auf den Rollen-Button ruft updateUserRole mit der Gegenrolle und lädt neu', async () => {
+	it('Auswahl von „Admin" in der Rollen-Radiogruppe ruft updateUserRole auf und lädt neu', async () => {
 		mockGetAdminUsers
 			.mockResolvedValueOnce([user({ id: 2, displayName: 'Max Member', role: 'member' })])
 			.mockResolvedValueOnce([user({ id: 2, displayName: 'Max Member', role: 'admin' })]);
@@ -138,9 +163,24 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member)', (
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Max Member')).toBeInTheDocument());
 
-		fireEvent.click(screen.getByRole('button', { name: 'Max Member zum Administrator machen' }));
+		fireEvent.click(within(rowOf('Max Member')).getByRole('radio', { name: 'Admin' }));
 
 		await waitFor(() => expect(mockUpdateUserRole).toHaveBeenCalledWith({ id: 2, role: 'admin' }));
+		expect(mockGetAdminUsers).toHaveBeenCalledTimes(2);
+	});
+
+	it('Auswahl von „Tester" in der Rollen-Radiogruppe ruft updateUserRole mit role tester auf', async () => {
+		mockGetAdminUsers
+			.mockResolvedValueOnce([user({ id: 2, displayName: 'Max Member', role: 'member' })])
+			.mockResolvedValueOnce([user({ id: 2, displayName: 'Max Member', role: 'tester' })]);
+		mockUpdateUserRole.mockResolvedValue(user({ id: 2, displayName: 'Max Member', role: 'tester' }));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Max Member')).toBeInTheDocument());
+
+		fireEvent.click(within(rowOf('Max Member')).getByRole('radio', { name: 'Tester' }));
+
+		await waitFor(() => expect(mockUpdateUserRole).toHaveBeenCalledWith({ id: 2, role: 'tester' }));
 		expect(mockGetAdminUsers).toHaveBeenCalledTimes(2);
 	});
 
@@ -151,12 +191,29 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member)', (
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
 
-		fireEvent.click(screen.getByRole('button', { name: 'Anna Admin zur Mitgliedschaft zurückstufen' }));
+		fireEvent.click(within(rowOf('Anna Admin')).getByRole('radio', { name: 'Mitglied' }));
 
 		await waitFor(() =>
 			expect(screen.getByRole('alert')).toHaveTextContent('Es muss mindestens einen Administrator geben.'),
 		);
 		expect(screen.getByText('Anna Admin')).toBeInTheDocument();
+	});
+
+	// PR #1616 Finding #1: `kol-input-radio` hält den angeklickten Wert als eigenen Zustand — anders
+	// als beim alten `KolButton` (kein eigener Zustand) bleibt die Radiogruppe nach einer abgelehnten
+	// Rollenänderung sonst auf der (falschen) angeklickten Rolle stehen, während Badge/Server die alte
+	// zeigen. `handleRoleChange` muss darum auch im Fehlerfall neu laden.
+	it('lädt die Nutzerliste auch nach einer abgelehnten Rollenänderung neu (Radiogruppe bleibt synchron)', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin', role: 'admin' })]);
+		mockUpdateUserRole.mockRejectedValue(new Error('Es muss mindestens einen Administrator geben.'));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+
+		fireEvent.click(within(rowOf('Anna Admin')).getByRole('radio', { name: 'Mitglied' }));
+
+		await waitFor(() => expect(mockGetAdminUsers).toHaveBeenCalledTimes(2));
+		expect(screen.getByRole('alert')).toHaveTextContent('Es muss mindestens einen Administrator geben.');
 	});
 
 	it('zeigt eine Fehlermeldung, wenn das initiale Laden fehlschlägt (z. B. 403 nach Rückstufung)', async () => {
@@ -220,10 +277,15 @@ describe('AdminUsersSection — Rollen-Badge „Tester" (#1566 AK1)', () => {
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Tina Tester')).toBeInTheDocument());
 
-		expect(within(rowOf('Tina Tester')).getByText('Tester')).toBeInTheDocument();
-		// Schwestertexte bleiben unberührt — kein globales „Mitglied" als Fallback für tester.
-		expect(within(rowOf('Tina Tester')).queryByText('Mitglied')).not.toBeInTheDocument();
-		expect(within(rowOf('Anna Admin')).getByText('Admin')).toBeInTheDocument();
+		expect(badgeInRow(rowOf('Tina Tester'), 'Tester')).toBeInTheDocument();
+		// Schwestertexte bleiben unberührt — kein globales „Mitglied"-Badge als Fallback für tester
+		// (die Radiogruppe zeigt „Mitglied" als Option trotzdem an — das ist kein Badge).
+		expect(
+			within(rowOf('Tina Tester'))
+				.getAllByText('Mitglied')
+				.filter((element) => element.tagName !== 'OPTION' && element.closest('label') === null),
+		).toHaveLength(0);
+		expect(badgeInRow(rowOf('Anna Admin'), 'Admin')).toBeInTheDocument();
 	});
 });
 
