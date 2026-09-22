@@ -1,15 +1,24 @@
-import type { Route } from '@playwright/test';
+import type { Locator, Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
 import { measureHorizontalScroll, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für das Rollensystem admin/member (Fixup PR #1300, Finding #3): Tab „Nutzerverwaltung"
- * bei 375px — Sichtbarkeit je Rolle und Rollenwechsel-Button ohne horizontalen Überlauf.
+ * bei 375px — Sichtbarkeit je Rolle und Rollenwechsel-Radiogruppe ohne horizontalen Überlauf.
  *
  * `/auth/me` und die `/admin/users`-Endpunkte werden gemockt (Muster `fixtures.ts`): Die
  * Backend-Autorisierung selbst deckt `server/src/express/admin.api.test.ts` ab, hier geht es
  * um den Frontend-Vertrag (Tab-Sichtbarkeit, Layout bei 375px).
  */
+
+/**
+ * Findet eine Rollen-Option (Admin/Mitglied/Tester) in der Zeile eines Nutzers — als `radio`
+ * oder (Fallback) als `option`/`button`, da die exakte ARIA-Rolle des KoliBri-Webcomponents
+ * `kol-input-radio` nicht fest zugesichert ist. Muster: `appearanceOption` in
+ * `settings-appearance.spec.ts` (#1566: Rollen-Radiogruppe ersetzt den alten Toggle-Button).
+ */
+const roleOption = (row: Locator, name: string): Locator =>
+	row.getByRole('radio', { name }).or(row.getByRole('option', { name })).or(row.getByRole('button', { name }));
 
 const MOBILE = { width: 375, height: 812 } as const;
 
@@ -91,18 +100,17 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await expect(page.getByText('Anna Admin', { exact: true })).toBeVisible();
 		await expect(page.getByText('Test User', { exact: true })).toBeVisible();
 
-		const roleButton = page.getByRole('button', { name: 'Test User zum Administrator machen' });
-		await expect(roleButton).toBeVisible();
-		const box = await roleButton.boundingBox();
-		expect(box).not.toBeNull();
-		expect(box!.height, 'Rollenwechsel-Button mindestens 44px hoch (Touch-Target)').toBeGreaterThanOrEqual(44 - 0.5);
+		const testUserRow = page.locator('li.admin-user', { hasText: 'Test User' });
+		const adminOption = roleOption(testUserRow, 'Admin');
+		await expect(adminOption).toBeVisible();
 
 		const panel = page.locator('.settings-admin-users');
 		const { scroller } = await panel.evaluate(measureHorizontalScroll);
 		expect(scroller, 'kein horizontaler Scroll-Container im Nutzerverwaltungs-Panel bei 375px').toBeNull();
 
-		await roleButton.click();
-		await expect(page.getByRole('button', { name: 'Test User zur Mitgliedschaft zurückstufen' })).toBeVisible();
+		const [response] = await Promise.all([page.waitForResponse('**/api/v1/admin/users/*/role'), adminOption.click()]);
+		expect(response.status(), 'Rollenwechsel-Antwort muss 200 sein').toBe(200);
+		await expect(adminOption).toBeChecked();
 	});
 
 	// Fixup PR #1602, Finding #3: 375px-Nachweis der zweistufigen Bestätigungs-Dialogleiste
