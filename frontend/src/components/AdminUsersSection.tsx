@@ -1,4 +1,4 @@
-import { KolAlert, KolBadge, KolButton, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolInputRadio, KolSpin } from '@public-ui/react-v19';
 import type { AdminUser, ReassignPillarsResult } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
@@ -10,11 +10,19 @@ import { Modal } from './Modal';
 const roleLabel = (role: AdminUser['role']): string =>
 	role === 'admin' ? 'Admin' : role === 'tester' ? 'Tester' : 'Mitglied';
 
+/** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
+const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
+	{ label: 'Admin', value: 'admin' },
+	{ label: 'Mitglied', value: 'member' },
+	{ label: 'Tester', value: 'tester' },
+];
+
 /**
- * Nutzerverwaltung für Admins (Rollensystem admin/member): listet alle Nutzer der App und
- * erlaubt das Umschalten der Rolle. Nur clientseitig ausgeblendet für Member (Tab-Sichtbarkeit
- * in `SettingsPage`) — die eigentliche Absicherung ist `requireRole('admin')` im Backend; ein
- * 403 (z. B. abgelaufene Admin-Rechte) landet als Fehlermeldung hier.
+ * Nutzerverwaltung für Admins (Rollensystem admin/member/tester): listet alle Nutzer der App und
+ * erlaubt das Setzen der Rolle über eine Radiogruppe je Zeile (admin/member/tester, #1566). Nur
+ * clientseitig ausgeblendet für Member (Tab-Sichtbarkeit in `SettingsPage`) — die eigentliche
+ * Absicherung ist `requireRole('admin')` im Backend; ein 403 (z. B. abgelaufene Admin-Rechte)
+ * landet als Fehlermeldung hier.
  *
  * #1556: Jede Zeile zeigt ihr Paket als Badge. Die Auswahl zum kostenfreien Selbst-Wechsel ist
  * seit #1565 in die eigene Karte im Tab Pakete gezogen (`OwnPlanCard`) — die Server-Route bleibt
@@ -101,14 +109,18 @@ export const AdminUsersSection = () => {
 								<KolBadge _label={roleLabel(user.role)} />
 								{/* #1556 AK1: Paket immer als Text-Badge (nie nur Farbe), in jeder Zeile. */}
 								<KolBadge _label={planLabel(user.plan)} />
-								<KolButton
-									_label={
-										user.role === 'admin'
-											? `${user.displayName} zur Mitgliedschaft zurückstufen`
-											: `${user.displayName} zum Administrator machen`
-									}
-									_variant="secondary"
-									_on={{ onClick: () => void handleRoleChange(user.id, user.role === 'admin' ? 'member' : 'admin') }}
+								<KolInputRadio
+									_label={`Rolle von ${user.displayName}`}
+									_orientation="horizontal"
+									_options={ROLE_OPTIONS}
+									_value={user.role}
+									_on={{
+										onChange: (_event, value) => {
+											if (typeof value === 'string') {
+												void handleRoleChange(user.id, value as AdminUser['role']);
+											}
+										},
+									}}
 								/>
 							</li>
 						))}
