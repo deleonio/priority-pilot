@@ -37,6 +37,7 @@ import { LlmSettings } from './LlmSettings';
 import { OwnPlanCard } from './OwnPlanCard';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
+import { RecalcPillarModal } from './RecalcPillarModal';
 import { PlansSection } from './PlansSection';
 import { SubscriptionSection } from './SubscriptionSection';
 
@@ -129,6 +130,9 @@ export const SettingsPage = ({
 	// Verwendung in Unit-Tests) gilt der Säulen-Tab als Default; `localTab` hält den letzten Select.
 	const [localTab, setLocalTab] = useState(1);
 	const activeTab = tab ?? localTab;
+
+	// #1614: Modal für Säulen-Neuberechnung
+	const [recalcPillarModalOpen, setRecalcPillarModalOpen] = useState(false);
 
 	// #843: Ref für Settings-General Container
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
@@ -592,6 +596,13 @@ export const SettingsPage = ({
 					{/* Säulen-Ansicht (#439 → #1573): reine Leseansicht, Gewichtung siehe unten. */}
 					<KolCard className="settings-card" _label="Säulen verwalten" _level={2}>
 						<PillarList />
+						<div className="form-actions" style={{ marginTop: '1rem' }}>
+							<KolButton
+								_label="Säulen aller Aufgaben neu berechnen"
+								_variant="secondary"
+								_on={{ onClick: () => setRecalcPillarModalOpen(true) }}
+							/>
+						</div>
 					</KolCard>
 					{/* Alle Gewichts-Regler liegen in EINER gemeinsamen Karte (KoliBri-Karte als
 					    Gruppierungsfläche, Muster wie die Dashboard-Karten); die Slider-Zeilen selbst
@@ -848,6 +859,18 @@ export const SettingsPage = ({
 					<ApiTokensSection />
 				</div>
 			</KolTabs>
+
+			{/* #1614: Modal für Säulen-Neuberechnung */}
+			{recalcPillarModalOpen && (
+				<RecalcPillarModal
+					onClose={() => setRecalcPillarModalOpen(false)}
+					// Schließt bewusst NICHT: `onCompleted` heißt „Daten neu laden", nicht „fertig, weg
+					// damit". Schlösse es das Modal, unmountete die Komponente im selben Commit, in dem
+					// sie ihr Ergebnis rendert — Erfolgsmeldung, Fehler und die Warnung über das
+					// aufgebrauchte KI-Kontingent wären nie sichtbar. Geschlossen wird über den Button.
+					onCompleted={onSaved}
+				/>
+			)}
 		</div>
 	);
 };

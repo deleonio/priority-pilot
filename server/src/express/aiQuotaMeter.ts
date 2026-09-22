@@ -7,7 +7,7 @@
  */
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Op, UniqueConstraintError, literal } from 'sequelize';
-import { AI_ASSIST_MONTHLY_QUOTA, isMonetizationEnforced } from '../logics/plans.js';
+import { AI_ASSIST_MONTHLY_QUOTA, isMonetizationEnforced, type Plan } from '../logics/plans.js';
 import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { AiUsage, User } from '../models/index.js';
@@ -74,6 +74,66 @@ const book = async (userId: number, yearMonth: string, limit: number | null): Pr
 /** Macht eine Buchung rückgängig (nie unter 0) — für Anfragen, die keinen Provider-Call gekostet haben. */
 const refund = async (userId: number, yearMonth: string): Promise<void> => {
 	await AiUsage.update({ count: literal('count - 1') }, { where: { userId, yearMonth, count: { [Op.gt]: 0 } } });
+};
+
+/** Bucht und storniert einzelne Punkte innerhalb EINES Requests — siehe {@link createAiQuotaCounter}. */
+export interface AiQuotaCounter {
+	/** Bucht einen Punkt; `false` heißt „Kontingent erschöpft". */
+	book: () => Promise<boolean>;
+	/** Nimmt eine Buchung zurück, deren Provider-Aufruf nichts geliefert hat. */
+	refund: () => Promise<void>;
+	/** Paket des Kontos — die 429-Antwort nennt es. */
+	plan: Plan;
+	/** Monatsgrenze des Pakets (unabhängig vom Rollout-Schalter), für die Fehlermeldung. */
+	monthlyLimit: number;
+	/** Verbleibende Anfragen des Monats, frisch gelesen — erst NACH dem Lauf aussagekräftig. */
+	remaining: () => Promise<number>;
+}
+
+/**
+ * Hängt die Marker-Eigenschaft an einen Handler, den der Abdeckungstest
+ * (`ai-quota-coverage.test.ts`, AK5) im Router-Stack sucht. {@link meterAiQuota} nutzt sie für
+ * die Middleware; eine Route, die ihr Kontingent selbst je Provider-Aufruf bucht (Säulen-Batch,
+ * #1614), markiert damit ihren eigenen Handler — gezählt wird sie, nur nicht von der Middleware.
+ */
+export const markAiQuotaMetered = (handler: RequestHandler): AiQuotaHandler =>
+	Object.assign(handler, { aiQuotaMetered: true as const });
+
+/**
+ * Kontingent-Haken für Läufe, die in EINEM Request mehrere Provider-Aufrufe auslösen — der
+ * Säulen-Batch über die eigenen Aufgaben (#1614) klassifiziert je Aufgabe einmal.
+ * {@link meterAiQuota} bucht pro Request; ein Batch über N Aufgaben käme damit für N Aufrufe mit
+ * einem einzigen Punkt davon und hebelte das Monatskontingent aus.
+ *
+ * Liefert `undefined`, wenn für diesen Aufruf gar nichts zu zählen ist — dieselben Ausnahmen wie
+ * in der Middleware: Pass-Through-Modus ohne Auth, kein Nutzer, eigener Provider des Nutzers ohne
+ * `?provider=`-Pin (#1548), oder ein Konto ohne auflösbares Paket.
+ */
+export const createAiQuotaCounter = async (
+	userId: number | undefined,
+	providerPinned: boolean,
+): Promise<AiQuotaCounter | undefined> => {
+	if (!isAuthActive() || typeof userId !== 'number') {
+		return undefined;
+	}
+	if (!providerPinned && (await hasOwnProviderSelection(userId))) {
+		return undefined;
+	}
+	const plan = (await User.findByPk(userId))?.plan;
+	if (plan === undefined) {
+		return undefined;
+	}
+	const yearMonth = currentYearMonth();
+	const monthlyLimit = AI_ASSIST_MONTHLY_QUOTA[plan];
+	// `null` bucht ohne Obergrenze — bei ausgeschaltetem Rollout deckelt nichts (AK8).
+	const limit = isMonetizationEnforced() ? monthlyLimit : null;
+	return {
+		book: () => book(userId, yearMonth, limit),
+		refund: () => refund(userId, yearMonth),
+		plan,
+		monthlyLimit,
+		remaining: async () => Math.max(0, monthlyLimit - (await getAiUsageCount(userId))),
+	};
 };
 
 /**
@@ -153,5 +213,5 @@ export const meterAiQuota = (): AiQuotaHandler => {
 		};
 		next();
 	};
-	return Object.assign(handler as RequestHandler, { aiQuotaMetered: true as const });
+	return markAiQuotaMetered(handler as RequestHandler);
 };

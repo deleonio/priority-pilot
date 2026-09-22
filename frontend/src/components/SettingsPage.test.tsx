@@ -36,6 +36,18 @@ vi.mock('../lib/useGeolocation', () => ({
 	useGeolocation: () => geoState,
 }));
 
+/**
+ * #1614: Das Modal der Säulen-Neuberechnung wird durch einen Platzhalter ersetzt, der seine Props
+ * festhält — geprüft wird hier die Verdrahtung in `SettingsPage`, nicht das Modal selbst.
+ */
+let recalcModalProps: { onClose: () => void; onCompleted?: () => void } | undefined;
+vi.mock('./RecalcPillarModal', () => ({
+	RecalcPillarModal: (props: { onClose: () => void; onCompleted?: () => void }) => {
+		recalcModalProps = props;
+		return <div data-testid="recalc-modal" />;
+	},
+}));
+
 // api-Double: Proxy beantwortet jede Methode mit einem leeren Promise — verhindert
 // Netzwerk-Calls aus SettingsPage und eingebetteten Formularen (PillarList, LlmSettings).
 // Methoden mit strukturierten Rückgaben bekommen typ-passende Leerwerte, damit die
@@ -80,6 +92,14 @@ vi.mock('../lib/micPermission', () => ({ requestMicrophonePermission: vi.fn() })
 const defaultProps = {
 	pillars: [],
 	onSaved: vi.fn(),
+};
+
+/** Klickt einen KoliBri-Button über seine `_on`-Property (Muster der übrigen Tests dieser Datei). */
+const clickKolButton = (element: Element | null): void => {
+	expect(element).not.toBeNull();
+	act(() => {
+		(element as unknown as { _on: { onClick: (event: unknown) => void } })._on.onClick({});
+	});
 };
 
 beforeEach(() => {
@@ -1379,5 +1399,45 @@ describe('SettingsPage – #1573: Säulen-Tab ohne CRUD-Kontrollen, mit Hinweis'
 		expect(panel!.querySelector('kol-button[_label="Neue Säule anlegen"]')).toBeNull();
 		expect(panel!.querySelector('kol-button[_label="Bearbeiten"]')).toBeNull();
 		expect(panel!.querySelector('kol-button[_label="Löschen"]')).toBeNull();
+	});
+});
+
+/**
+ * #1614: `onCompleted` heißt „Daten neu laden", nicht „Modal schließen". Schloss der Callback das
+ * Modal, unmountete es im selben Commit, in dem es sein Ergebnis rendert — Erfolgsmeldung,
+ * Fehlermeldung und die Warnung über das aufgebrauchte KI-Kontingent waren damit unerreichbar.
+ * Der Modal-Test allein deckt das nicht auf: dort wird isoliert gerendert, das Schließen passiert
+ * hier in der Verdrahtung.
+ */
+describe('SettingsPage — Säulen-Neuberechnung (#1614)', () => {
+	const openRecalcModal = (container: HTMLElement): void => {
+		clickKolButton(container.querySelector('kol-button[_label="Säulen aller Aufgaben neu berechnen"]'));
+	};
+
+	it('onCompleted lädt die Daten neu, lässt das Modal aber offen', () => {
+		const onSaved = vi.fn();
+		const { container } = render(<SettingsPage {...defaultProps} onSaved={onSaved} />);
+
+		openRecalcModal(container);
+		expect(container.querySelector('[data-testid="recalc-modal"]')).not.toBeNull();
+
+		act(() => recalcModalProps?.onCompleted?.());
+
+		expect(onSaved).toHaveBeenCalledTimes(1);
+		expect(
+			container.querySelector('[data-testid="recalc-modal"]'),
+			'das Modal muss nach dem Lauf offen bleiben, sonst sieht niemand sein Ergebnis',
+		).not.toBeNull();
+	});
+
+	it('onClose schließt das Modal', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		openRecalcModal(container);
+		expect(container.querySelector('[data-testid="recalc-modal"]')).not.toBeNull();
+
+		act(() => recalcModalProps?.onClose());
+
+		expect(container.querySelector('[data-testid="recalc-modal"]')).toBeNull();
 	});
 });

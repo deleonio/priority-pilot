@@ -64,6 +64,43 @@ const toContributions = (
 	return raw;
 };
 
+/**
+ * Statusauswahl eines Laufs (#1614). „offen" schließt Aufgaben in Bearbeitung ein — dieselbe
+ * Abgrenzung wie im Frontend (`lib/dayDone.ts`), sonst fielen laufende Aufgaben stillschweigend
+ * aus der Auswahl.
+ */
+export type ReassignStatusFilter = 'all' | 'open' | 'done';
+
+/** Prüft den `status`-Query-Parameter. Fehlt er, gilt `'all'`; `null` heißt „ungültiger Wert". */
+export const parseStatusFilter = (raw: unknown): ReassignStatusFilter | null => {
+	if (raw === undefined) {
+		return 'all';
+	}
+	return raw === 'all' || raw === 'open' || raw === 'done' ? raw : null;
+};
+
+const statusWhere = (status: ReassignStatusFilter): { status?: string[] } => {
+	if (status === 'open') {
+		return { status: ['Open', 'In process'] };
+	}
+	if (status === 'done') {
+		return { status: ['Done'] };
+	}
+	return {};
+};
+
+/**
+ * Versuche je Aufgabe, bevor ihre Klassifikation als fehlgeschlagen gilt (#1614). Der Batch
+ * schlägt gegen einen bezahlten LLM-Upstream; dessen Rate-Limits und kurze Ausfälle waren der
+ * Grund, warum ein Lauf regelmäßig einen Teil der Aufgaben als `failed` zurückmeldete. Nur der
+ * Klassifikator-Aufruf wird wiederholt — ein Fehler beim Speichern ist keine Wackelkontakt-Sache
+ * und soll unverändert sofort als Fehler zählen.
+ */
+const CLASSIFY_ATTEMPTS = 3;
+const RETRY_BASE_MS = 250;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 /** Ergebnis eines Batch-Laufs. */
 export interface ReassignPillarsResult {
 	/** Anzahl der Aufgaben mit erfolgreich ersetzter Verteilung. */
@@ -91,34 +128,48 @@ export interface ReassignPillarsResult {
  * (Finding #5). `total` im Ergebnis ist die Gesamtzahl der Aufgaben des Kontos VOR Offset/Budget
  * — der Aufrufer braucht sie, um den Offset für das nächste Konto zu verrechnen.
  */
-const reassignTaskPillarsForUser = async (
+export interface ReassignRunOptions {
+	classifier: PillarClassifier;
+	provider?: Parameters<PillarClassifier>[1];
+	/** Obergrenze der in diesem Aufruf verarbeiteten Aufgaben. */
+	budget?: number;
+	/** Bereits verarbeitete Aufgaben vorheriger Läufe derselben Serie. */
+	offset?: number;
+	/** Statusauswahl; `'all'` verarbeitet auch erledigte Aufgaben. */
+	status?: ReassignStatusFilter;
+	/**
+	 * Kontingent-Buchung je Aufgabe (#1614). Der Lauf löst pro Aufgabe einen Provider-Aufruf aus;
+	 * ohne Buchung an dieser Stelle zählte ein ganzer Batch als eine einzige Anfrage. Fehlt der
+	 * Haken, wird nicht gezählt (Admin-Batch, Pass-Through-Modus, eigener Provider des Nutzers).
+	 */
+	quota?: { book: () => Promise<boolean>; refund: () => Promise<void> };
+}
+
+export const reassignTaskPillarsForUser = async (
 	userId: number | undefined,
-	classifier: PillarClassifier,
-	provider?: Parameters<PillarClassifier>[1],
-	budget?: number,
-	offset = 0,
-): Promise<ReassignPillarsResult & { total: number }> => {
+	{ classifier, provider, budget, offset = 0, status = 'all', quota }: ReassignRunOptions,
+): Promise<ReassignPillarsResult & { total: number; quotaExhausted: boolean }> => {
 	if (budget !== undefined && budget <= 0) {
-		return { updated: 0, failed: 0, skipped: 0, total: 0 };
+		return { updated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
 	}
 	const pillars = await Pillar.findAll({
 		where: userId !== undefined ? { userId } : { userId: null },
 		order: [['id', 'ASC']],
 	});
 	if (pillars.length === 0) {
-		return { updated: 0, failed: 0, skipped: 0, total: 0 };
+		return { updated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
 	}
 	const validIds = new Set(pillars.map((pillar) => pillar.id));
 
 	const allTasks = await Task.findAll({
-		where: userId !== undefined ? { userId } : { userId: null },
+		where: { ...(userId !== undefined ? { userId } : { userId: null }), ...statusWhere(status) },
 		attributes: ['id', 'title', 'description'],
 		order: [['id', 'ASC']],
 	});
 	const total = allTasks.length;
 	let tasks = offset > 0 ? allTasks.slice(offset) : allTasks;
 	if (tasks.length === 0) {
-		return { updated: 0, failed: 0, skipped: 0, total };
+		return { updated: 0, failed: 0, skipped: 0, total, quotaExhausted: false };
 	}
 	if (budget !== undefined) {
 		tasks = tasks.slice(0, budget);
@@ -140,13 +191,34 @@ const reassignTaskPillarsForUser = async (
 	}));
 
 	const result: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
+	let quotaExhausted = false;
 	for (const task of tasks) {
+		// Buchung VOR dem Provider-Aufruf, wie in der Middleware — sonst käme ein paralleler
+		// Schwung Läufe am Deckel vorbei. Ist das Kontingent alle, endet der Lauf hier; die
+		// restlichen Aufgaben bleiben unangetastet und zählen weder als `failed` noch `skipped`.
+		if (quota !== undefined && !(await quota.book())) {
+			quotaExhausted = true;
+			break;
+		}
+		let classified = false;
 		try {
-			const suggestions = await classifier(
-				{ title: task.title, description: task.description ?? undefined, pillars: pillarDtos, examples },
-				provider,
-				userId,
-			);
+			let suggestions: Awaited<ReturnType<PillarClassifier>> | undefined;
+			for (let attempt = 1; ; attempt++) {
+				try {
+					suggestions = await classifier(
+						{ title: task.title, description: task.description ?? undefined, pillars: pillarDtos, examples },
+						provider,
+						userId,
+					);
+					break;
+				} catch (error) {
+					if (attempt >= CLASSIFY_ATTEMPTS) {
+						throw error;
+					}
+					await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
+				}
+			}
+			classified = true;
 			const contributions = toContributions(suggestions ?? [], validIds);
 			if (contributions.length === 0) {
 				result.skipped++;
@@ -168,9 +240,17 @@ const reassignTaskPillarsForUser = async (
 		} catch (error) {
 			console.warn(`Säulen-Neuzuordnung für Aufgabe ${task.id} fehlgeschlagen — setze den Batch fort.`, error);
 			result.failed++;
+			// Nur ein gescheiterter Provider-Aufruf wird storniert — dieselbe Linie wie die
+			// Middleware, die bei Status >= 400 zurückbucht. Kam die Klassifikation durch und erst
+			// das Speichern scheiterte, ist der Aufruf beim Anbieter angefallen und bleibt gebucht.
+			if (quota !== undefined && !classified) {
+				await quota.refund().catch((reason: unknown) => {
+					console.warn('KI-Kontingent-Rückbuchung fehlgeschlagen', reason);
+				});
+			}
 		}
 	}
-	return { ...result, total };
+	return { ...result, total, quotaExhausted };
 };
 
 /** Fällt auf 200 Aufgaben je Lauf zurück, wenn kein `limit` übergeben wird (Finding #4). */
@@ -192,13 +272,18 @@ export const DEFAULT_REASSIGN_LIMIT = 200;
  * Aufrufer reicht als `offset` die Summe aus `attempted` aller vorherigen Läufe derselben Serie
  * ein; der Batch überspringt dann genau so viele Aufgaben, bevor er wieder `limit` verarbeitet.
  */
-export const reassignTaskPillarsForAllUsers = async (
-	classifier: PillarClassifier,
-	provider?: Parameters<PillarClassifier>[1],
-	limit: number = DEFAULT_REASSIGN_LIMIT,
+export const reassignTaskPillarsForAllUsers = async ({
+	classifier,
+	provider,
+	limit = DEFAULT_REASSIGN_LIMIT,
 	offset = 0,
-): Promise<ReassignPillarsResult & { users: number; remaining: number }> => {
-	const totalTasks = await Task.count();
+	status = 'all',
+}: Omit<ReassignRunOptions, 'budget'> & { limit?: number }): Promise<
+	ReassignPillarsResult & { users: number; remaining: number }
+> => {
+	// Muss dieselbe Statusauswahl zählen wie der Lauf selbst — sonst meldete `remaining` bei
+	// gefilterten Läufen die Aufgaben mit, die der Filter gerade ausschließt.
+	const totalTasks = await Task.count({ where: statusWhere(status) });
 	const users = await User.findAll({ attributes: ['id'], order: [['id', 'ASC']] });
 	let aggregated: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
 	let processed = 0;
@@ -207,7 +292,7 @@ export const reassignTaskPillarsForAllUsers = async (
 	let skip = offset;
 	for (const user of users) {
 		if (budget <= 0) break;
-		const result = await reassignTaskPillarsForUser(user.id, classifier, provider, budget, skip);
+		const result = await reassignTaskPillarsForUser(user.id, { classifier, provider, budget, offset: skip, status });
 		skip = Math.max(0, skip - result.total);
 		const consumed = result.updated + result.failed + result.skipped;
 		if (consumed > 0) {
@@ -223,7 +308,7 @@ export const reassignTaskPillarsForAllUsers = async (
 	}
 	// Pass-Through-Bestand (Aufgaben ohne Eigentümerkonto) — NULL-owned Stammsäulen.
 	if (budget > 0) {
-		const legacy = await reassignTaskPillarsForUser(undefined, classifier, provider, budget, skip);
+		const legacy = await reassignTaskPillarsForUser(undefined, { classifier, provider, budget, offset: skip, status });
 		const consumed = legacy.updated + legacy.failed + legacy.skipped;
 		attempted += consumed;
 		aggregated = {

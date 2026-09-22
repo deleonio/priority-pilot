@@ -200,6 +200,37 @@ describe('POST /admin/tasks/reassign-pillars — Batch-Neuzuordnung der Säulenv
 		assert.equal(secondBody.remaining, 0, 'nach beiden Läufen bleibt nichts mehr offen');
 	});
 
+	it('beschränkt den Lauf mit status=open auf offene und laufende Aufgaben (#1614)', async () => {
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Offen', status: 'Open', userId: memberId });
+		await Task.create({ title: 'Läuft', status: 'In process', userId: memberId });
+		const done = await Task.create({ title: 'Erledigt', status: 'Done', userId: memberId });
+
+		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?status=open`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { updated: number; remaining: number };
+		assert.equal(body.updated, 2, 'offene UND laufende Aufgabe');
+		// `remaining` zählt dieselbe Auswahl wie der Lauf — sonst meldete es die erledigte mit.
+		assert.equal(body.remaining, 0);
+		assert.equal((await contributionsOf(done.id)).length, 0, 'erledigte Aufgabe unberührt');
+	});
+
+	it('weist einen ungültigen status mit 400 ab', async () => {
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?status=halboffen`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		assert.equal(res.status, 400);
+	});
+
 	it('weist ein ungültiges limit mit 400 ab', async () => {
 		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
 		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=0`, {

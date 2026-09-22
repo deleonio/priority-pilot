@@ -11,6 +11,7 @@ import { createParseTasksRouter } from './routes/parseTasks.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { lektoratRouter } from './routes/lektorat.js';
+import { createReassignPillarsRouter } from './routes/reassignPillars.js';
 
 /** Minimale Sicht auf den Express-Router-Stack (Express 5) — nur was der Test liest. */
 interface RouteLayer {
@@ -48,6 +49,9 @@ const EXPECTED: Record<string, boolean> = {
 	'POST /tasks/suggest-pillars/feedback': false,
 	'POST /pillars/advisor': true,
 	'POST /lektorat': true,
+	// #1614: bucht je klassifizierter Aufgabe selbst statt einmal je Request (ein Lauf löst N
+	// Provider-Aufrufe aus) und markiert dafür den eigenen Handler — gezählt wird sie trotzdem.
+	'POST /tasks/reassign-pillars': true,
 };
 
 describe('KI-Kontingent-Metering: Abdeckung aller fünf LLM-Routen (#1459, AK5)', () => {
@@ -56,6 +60,7 @@ describe('KI-Kontingent-Metering: Abdeckung aller fünf LLM-Routen (#1459, AK5)'
 		...meteringOf(createSuggestPillarsRouter()),
 		...meteringOf(createPillarAdvisorRouter()),
 		...meteringOf(lektoratRouter()),
+		...meteringOf(createReassignPillarsRouter()),
 	};
 
 	it('jede Route der vier LLM-Routendateien trägt (oder trägt bewusst nicht) die Zähler-Middleware', () => {

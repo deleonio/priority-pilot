@@ -1,10 +1,17 @@
-import { KolAlert, KolBadge, KolButton, KolInputRadio, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, ReassignPillarsResult } from 'client';
+import { KolAlert, KolBadge, KolButton, KolInputRadio, KolProgress, KolSpin } from '@public-ui/react-v19';
+import type { AdminUser, ReassignPillarsResult, ReassignStatusFilter } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
 import { Modal } from './Modal';
+
+/** Statusauswahl des Neuberechnungs-Laufs (#1614) — „offen" schließt Aufgaben in Bearbeitung ein. */
+const FILTER_OPTIONS: { label: string; value: ReassignStatusFilter }[] = [
+	{ label: 'Alle Aufgaben', value: 'all' },
+	{ label: 'Nur offene Aufgaben', value: 'open' },
+	{ label: 'Nur erledigte Aufgaben', value: 'done' },
+];
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (analog GroupDetail). */
 const roleLabel = (role: AdminUser['role']): string =>
@@ -53,29 +60,52 @@ export const AdminUsersSection = () => {
 	const [confirmStep, setConfirmStep] = useState<'closed' | 'intent' | 'costs'>('closed');
 	const [running, setRunning] = useState(false);
 	const [summary, setSummary] = useState<ReassignPillarsResult | null>(null);
-	// Offset der Portionierungs-Serie (Finding #5): ohne ihn träfe „Fortsetzen" wieder dieselbe
-	// erste Portion. Summe aus updated+failed+skipped aller Läufe dieser Serie; ein neuer Start
-	// (Button „Säulenverteilung … neu berechnen") beginnt wieder bei 0.
-	const [offset, setOffset] = useState(0);
-	const startReassign = useCallback(
-		async (resume: boolean): Promise<void> => {
-			setRunning(true);
-			try {
-				const result = await api.reassignTaskPillars(resume ? offset : 0);
-				setSummary(result);
-				setOffset((resume ? offset : 0) + result.updated + result.failed + result.skipped);
-				setConfirmStep('closed');
+	// Statusauswahl des Laufs (#1614) — „offen" umfasst auch Aufgaben in Bearbeitung.
+	const [filter, setFilter] = useState<ReassignStatusFilter>('all');
+	// Fortschritt der Portionierungs-Serie: verarbeitete Aufgaben und Gesamtzahl der Auswahl.
+	const [progress, setProgress] = useState({ processed: 0, total: 0 });
+
+	/**
+	 * Der Server verarbeitet je Aufruf höchstens eine Portion und meldet über `remaining`, wie
+	 * viele Aufgaben noch offen sind. Statt den Admin „Fortsetzen" klicken zu lassen (Finding #5:
+	 * ohne mitgezählten Offset traf jeder Folgeaufruf wieder dieselbe erste Portion), ruft dieser
+	 * Lauf selbst nach, bis nichts mehr offen ist — daraus speist sich der Fortschrittsbalken.
+	 */
+	const startReassign = useCallback(async (): Promise<void> => {
+		setRunning(true);
+		setConfirmStep('closed');
+		setSummary(null);
+		setProgress({ processed: 0, total: 0 });
+
+		let offset = 0;
+		const totals = { updated: 0, failed: 0, skipped: 0, users: 0 };
+		try {
+			for (;;) {
+				const result = await api.reassignTaskPillars({ offset, status: filter });
+				const consumed = result.updated + result.failed + result.skipped;
+				totals.updated += result.updated;
+				totals.failed += result.failed;
+				totals.skipped += result.skipped;
+				totals.users = Math.max(totals.users, result.users);
+				offset += consumed;
+
+				setProgress({ processed: offset, total: offset + result.remaining });
+				setSummary({ ...totals, remaining: result.remaining });
 				setError(null);
-			} catch (reason) {
-				const apiError = await toApiError(reason);
-				setError(apiError.message);
-				setConfirmStep('closed');
-			} finally {
-				setRunning(false);
+
+				// `consumed === 0` bricht ab, auch wenn der Server noch Aufgaben meldet — sonst liefe
+				// die Schleife endlos, falls eine Portion nichts mehr verarbeiten kann.
+				if (result.remaining === 0 || consumed === 0) {
+					return;
+				}
 			}
-		},
-		[offset],
-	);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		} finally {
+			setRunning(false);
+		}
+	}, [filter]);
 	const handleRoleChange = async (id: number, role: AdminUser['role']): Promise<void> => {
 		try {
 			await api.updateUserRole({ id, role });
@@ -137,34 +167,52 @@ export const AdminUsersSection = () => {
 					_label="Säulenverteilung aller Aufgaben neu berechnen"
 					_variant="secondary"
 					_disabled={running}
-					_on={{
-						onClick: () => {
-							setOffset(0);
-							setConfirmStep('intent');
-						},
-					}}
+					_on={{ onClick: () => setConfirmStep('intent') }}
 				/>
-				{summary !== null && (
+				{running && (
+					<>
+						<p>
+							Verarbeite Aufgaben…{' '}
+							<strong>
+								{progress.processed} / {progress.total}
+							</strong>
+						</p>
+						<KolProgress
+							_variant="bar"
+							_max={progress.total}
+							_value={progress.processed}
+							_label="Fortschritt der Neuberechnung"
+						/>
+					</>
+				)}
+				{!running && summary !== null && (
 					<KolAlert _type="info" _label="Neuberechnung abgeschlossen">
 						{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
-						fehlgeschlagen ({summary.users} Konten). {summary.remaining} Aufgaben noch offen.
+						fehlgeschlagen ({summary.users} Konten).
 					</KolAlert>
-				)}
-				{summary !== null && summary.remaining > 0 && (
-					<KolButton
-						_label="Weitere Aufgaben neu berechnen (Fortsetzen)"
-						_variant="secondary"
-						_disabled={running}
-						_on={{ onClick: () => void startReassign(true) }}
-					/>
 				)}
 			</div>
 			{confirmStep === 'intent' && (
 				<Modal title="Säulenverteilung neu berechnen" onClose={() => setConfirmStep('closed')}>
 					<p>
-						Sollen die Säulen-Beiträge ALLER Aufgaben — auch der erledigten — anhand von Titel und Beschreibung neu
-						berechnet werden? Status, Punkte und Streak bleiben unverändert.
+						Sollen die Säulen-Beiträge der Aufgaben ALLER Konten anhand von Titel und Beschreibung neu berechnet werden?
+						Status, Punkte und Streak bleiben unverändert.
 					</p>
+					<div className="form-grid">
+						<KolInputRadio
+							_label="Filter"
+							_options={FILTER_OPTIONS}
+							_value={filter}
+							_on={{
+								onChange: (_event, value) => {
+									const next = FILTER_OPTIONS.find((option) => option.value === value);
+									if (next !== undefined) {
+										setFilter(next.value);
+									}
+								},
+							}}
+						/>
+					</div>
 					<div className="modal-actions">
 						<KolButton
 							_label="Abbrechen"
@@ -198,7 +246,7 @@ export const AdminUsersSection = () => {
 							_label={running ? 'Berechne …' : 'Jetzt neu berechnen'}
 							_variant="primary"
 							_disabled={running}
-							_on={{ onClick: () => void startReassign(false) }}
+							_on={{ onClick: () => void startReassign() }}
 						/>
 					</div>
 				</Modal>
