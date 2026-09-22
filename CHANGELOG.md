@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.3 - 2026-09-22
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.2 - 2026-09-22
 
-_Enthält v0.2.0 – v0.2.133._
+_Enthält v0.2.0 – v0.2.134._
 
 ### 🔧 Engineering
 
@@ -142,6 +146,7 @@ _Enthält v0.2.0 – v0.2.133._
 - feat(frontend): confirm before discarding unsaved task form changes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1600
 - feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(place-favorites): save by address only, dedupe, and show errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1610
+- feat(frontend): randbündige Kopfzeile + design-optimize folgt dem Audit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1611
 
 ## v0.1 - 2026-09-12
 
@@ -814,8 +819,9 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): task form sections as uniform accordions (#1285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1288
 - design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - feat(frontend): pillar weight ranges in a single card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1291
-- feat(frontend): pillar weight ranges in a single card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1291
 - design(frontend): dashboard-hero-lebensbalance-2-3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1292
+- feat(frontend): even accordion padding and section rhythm in task form by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1294
+- feat(ci): arc42-sync LLM-basiert nach Guide-/Spec-Sync-Muster by @deleonio in https://github.com/deleonio/priority-pilot/pull/1293
 - feat(frontend): even accordion padding and section rhythm in task form by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1294
 - feat(ci): arc42-sync LLM-basiert nach Guide-/Spec-Sync-Muster by @deleonio in https://github.com/deleonio/priority-pilot/pull/1293
 - refactor(frontend): remove balance prioritization (#1220) from task list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1295
