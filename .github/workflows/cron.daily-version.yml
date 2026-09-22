@@ -25,8 +25,10 @@ name: Daily Version
 #
 # App-Token noetig: Standard-GITHUB_TOKEN loest keine Folge-Workflows aus; Branch-
 # Protection auf main blockiert direkte Pushes ohne App-Berechtigung (gleiches Muster
-# wie deploy.yml). Der Bump-Commit traegt [skip ci] — es aendert sich nur die
-# Versionsnummer, kein Code, ein Deploy waere unnoetig.
+# wie deploy.yml). Der Bump-Commit traegt [skip ci], loest deploy.yml also nicht per
+# push aus. Die neue Version steckt aber erst nach einem Build im Frontend-Bundle
+# (Footer, __APP_VERSION__) — daher stoesst der letzte Schritt deploy.yml per
+# workflow_dispatch an (Redeploy ohne erneuten Patch-Bump).
 
 on:
   schedule:
@@ -40,6 +42,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write # workflow_dispatch fuer den Redeploy (deploy.yml)
 
 jobs:
   daily-version:
@@ -179,3 +182,13 @@ jobs:
               || { echo "::warning title=Release-Creation fehlgeschlagen::${TAG} — manuell nachholen."; exit 0; }
             echo "🚀 Release ${TAG} mit generierten Notes erstellt."
           fi
+
+      - name: Redeploy anstoßen (best-effort)
+        if: steps.mergecheck.outputs.has_merges == 'true'
+        # GITHUB_TOKEN genuegt: workflow_dispatch ist von der Regel „GITHUB_TOKEN loest keine
+        # Folge-Workflows aus" ausgenommen.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy.yml --repo "${{ github.repository }}" --ref main \
+            || echo "::warning title=Redeploy nicht angestoßen::deploy.yml manuell per workflow_dispatch starten, sonst zeigt die App die neue Version erst nach dem nächsten Merge."

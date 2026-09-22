@@ -2,6 +2,9 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # Redeploy des aktuellen main OHNE Patch-Bump — stößt cron.daily-version.yml nach
+  # seinem Minor-Bump an (dessen [skip ci]-Commit löst keinen push-Lauf aus).
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -23,6 +26,32 @@ jobs:
         with:
           node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie ci/implement/fixup)
           cache: pnpm
+
+      - name: Git-Identität auf Repo-Owner stellen
+        # Release-Commits (Patch-Bump auf main) laufen unter der Identität des Repo-Owners
+        # statt der App-Bot-Identität — gültige noreply-Adresse, Commits verlinken auf den
+        # Owner-Account. Der PUSH bleibt App-Token (App-only-Pipeline).
+        run: |
+          git config user.name "deleonio"
+          git config user.email "6279703+deleonio@users.noreply.github.com"
+
+      # ━━━━ Patch-Bump VOR dem Build (#286) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # vite.config.ts backt package.json.version beim Build als __APP_VERSION__ in das
+      # Frontend-Bundle (Footer). Lief der Bump erst nach dem Deploy, trug das deployte
+      # Bundle immer die Vorgängerversion, während Changelog/Release schon die neue zeigten.
+      # Deshalb: Bump hier nur LOKAL committen, Build + Deploy damit ausführen und den
+      # Commit erst nach erfolgreichem Deploy pushen — ein roter Build hinterlässt so keine
+      # Version auf main, die nie ausgeliefert wurde.
+      - name: Patch-Bump + Commit (lokal)
+        if: github.event_name == 'push'
+        run: |
+          # Relativer Bump: respektiert eine im PR manuell angehobene Version automatisch
+          npm version patch --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          git add package.json
+          # --no-verify: der Release-Commit darf die lefthook pre-commit-Hooks
+          # (format/lint/knip) NICHT auslösen — reiner Versions-Commit.
+          git commit --no-verify -m "chore(release): v${NEW_VERSION} [skip ci]"
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -71,7 +100,6 @@ jobs:
           ssh -i ~/.ssh/deploy_key "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" \
             "pm2 reload priority-pilot --update-env || pm2 start ${{ vars.DEPLOY_APP_DIR }}/dist/index.js --name priority-pilot"
 
-      # ━━━━ Patch-Bump nach Deploy (#286) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       # App-Token noetig: Standard-GITHUB_TOKEN loest keine Folge-Workflows aus;
       # Branch-Protection auf main blockiert direkte Pushes ohne App-Berechtigung.
       # Der Bump-Commit traegt [skip ci] — verhindert eine Endlosschleife (deploy.yml
@@ -83,33 +111,19 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Git-Identität auf Repo-Owner stellen
-        # Release-Commits (Patch-Bump auf main) laufen unter der Identität des Repo-Owners
-        # statt der App-Bot-Identität — gültige noreply-Adresse, Commits verlinken auf den
-        # Owner-Account. Der PUSH bleibt App-Token (App-only-Pipeline).
-        run: |
-          git config user.name "deleonio"
-          git config user.email "6279703+deleonio@users.noreply.github.com"
-
-      - name: Patch-Bump + Commit + Push auf main
+      - name: Release-Commit auf main pushen
+        # Der Bump-Commit entstand vor dem Build (s. „Patch-Bump + Commit (lokal)") und wird
+        # erst jetzt, nach erfolgreichem Deploy, veröffentlicht. Rebase holt zwischenzeitliche
+        # [skip ci]-Commits (z. B. CHANGELOG.md des Vorlaufs) nach.
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          # Vor dem Bump sicherstellen, dass wir auf dem aktuellen Stand sind
           git pull --rebase origin main
-          # Relativer Bump: respektiert eine im PR manuell angehobene Version automatisch
-          npm version patch --no-git-tag-version
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          git add package.json
-          # --no-verify: der Release-Commit darf die lefthook pre-commit-Hooks
-          # (format/lint/knip) NICHT ausloesen. In der Deploy-CI synchronisiert
-          # pnpm's deps-status-check node_modules sonst auf den prod-only-Stand des
-          # vorherigen `--prod deploy`-Schritts und entfernt die devDependencies
-          # inkl. lefthook selbst → `lefthook install` (prepare) schlaegt fehl.
-          git commit --no-verify -m "chore(release): v${NEW_VERSION} [skip ci]"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
 
       - name: Tag + GitHub Release (best-effort)
+        if: github.event_name == 'push'
         # Versieht den Release-Commit mit v<Version> und erzeugt ein GitHub-Release mit
         # generierten Notes (Kategorisierung über .github/release.yml aus den release:*
         # Labels der gemergten PRs — ohne diesen Schritt liefen die Documenter-Labels ins
