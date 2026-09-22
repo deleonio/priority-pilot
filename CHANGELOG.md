@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.2 - 2026-09-21
+## v0.2 - 2026-09-22
 
-_Enthält v0.2.0 – v0.2.130._
+_Enthält v0.2.0 – v0.2.131._
 
 ### 🔧 Engineering
 
@@ -45,6 +45,7 @@ _Enthält v0.2.0 – v0.2.130._
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
 - feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
 - feat(server): track and surface auto-deleted missed tasks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1440
+- chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
 - chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
 - feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
@@ -811,7 +812,6 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(frontend): align heart glass distribution bands with legend by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1287
 - fix(ci): remove zai peak-time claude fallback, warn only by @deleonio in https://github.com/deleonio/priority-pilot/pull/1289
 - feat(frontend): task form sections as uniform accordions (#1285) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1288
-- design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - design(frontend): dashboard-card-layout-gaps-responsive by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1290
 - feat(frontend): pillar weight ranges in a single card by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1291
 - design(frontend): dashboard-hero-lebensbalance-2-3 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1292
