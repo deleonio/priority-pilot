@@ -1,10 +1,20 @@
 name: Design Optimize
 
 # Design-Ziel optimieren: ein freitextlich beschriebenes UI-Ziel (DESIGN_TARGET) wird mit der
-# Impeccable-Skill-Kette zu Ende optimiert — AUDIT → ADAPT → HARDEN → POLISH — und der Lauf
-# schließt damit ab, dass offene TODOs sauber beendet werden (Ergebnis-Marker DESIGN-RUN:
-# clean|remaining). Das Ergebnis landet als Non-Draft-PR mit nachvollziehbarer Beschreibung
-# (Audit-Befunde → Änderungen pro Phase → offene Punkte → Gate) auf dem Dispatch-Ref.
+# Impeccable-Skill zu Ende optimiert und der Lauf schließt damit ab, dass offene TODOs sauber
+# beendet werden (Ergebnis-Marker DESIGN-RUN: clean|remaining). Das Ergebnis landet als
+# Non-Draft-PR mit nachvollziehbarer Beschreibung (Audit-Befunde → Maßnahmenplan → Änderungen je
+# ausgeführtem Befehl → offene Punkte → Gate) auf dem Dispatch-Ref.
+#
+# MASSNAHMEN: Die Phasenfolge ist bewusst NICHT im Workflow verdrahtet. Fest ist nur der erste
+# Schritt — `/impeccable audit` — und, sobald überhaupt eingegriffen wird, `/impeccable polish`
+# als letzter (bei befundfreiem Audit wird gar nichts geändert). Was dazwischen läuft,
+# bestimmt der Audit-Bericht selbst: Er endet mit einer priorisierten Befehlsliste (P0 → P2), und
+# genau die arbeitet der Agent in ihrer Reihenfolge ab. Eine fest kodierte Kette (früher
+# ADAPT → HARDEN → POLISH) passte nur zufällig: Je nach Ziel empfiehlt das Audit etwa `layout`,
+# `clarify` oder `optimize`, und die verdrahtete Kette erzwang dann Phasen ohne Befund und ließ
+# die eigentlich nötige aus. Welche Befehle tatsächlich liefen, meldet der Marker DESIGN-PLAN und
+# steht im PR-Abschnitt „Maßnahmenplan aus dem Audit" der Empfehlung gegenübergestellt.
 # Manual-Dispatch, kein Teil der 7-Phasen-Pipeline (kein Ticket) — der Workflow setzt aber
 # selbst `ai:needs-review` als kontrollierten letzten Schritt (Muster 04-implement: der
 # Autolabeler label-pr-review.yml labelt Bot-PRs bewusst nicht, deshalb übernimmt es der
@@ -64,7 +74,7 @@ permissions:
 
 jobs:
   optimize:
-    name: Impeccable audit → adapt → harden → polish → PR
+    name: Impeccable audit → Maßnahmen laut Audit → PR
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -82,7 +92,9 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          # Soft-Deadline 60 min: 4 Phasen + Gate + Branch/PR; Job-Timeout 75 min als hartes Netz.
+          # Soft-Deadline 60 min: Audit + die vom Audit geplanten Phasen + Gate + Branch/PR. Der
+          # Agent deckelt den Plan selbst an dieser Frist (niedrigste Priorität fällt zuerst);
+          # Job-Timeout 75 min als hartes Netz.
           echo "soft_deadline_epoch=$((now + 3600))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Coding-Agent (Claude Code oder pi, Provider zentral)
@@ -184,6 +196,13 @@ jobs:
           fi
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
+          # DESIGN-PLAN ist die Liste der tatsächlich gelaufenen Impeccable-Befehle. Bewusst NICHT
+          # fail-loud wie die beiden Marker oben: Sie ist rein informativ für die Summary, der
+          # verbindliche Plan-gegen-Ausführung-Abgleich steht im PR. Einen 60-Minuten-Lauf an einer
+          # fehlenden Infozeile scheitern zu lassen, wäre teurer als der Informationsverlust.
+          plan="$(grep 'DESIGN-PLAN:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*DESIGN-PLAN:[[:space:]]*//' | head -1 || true)"
+          echo "plan=${plan:-(nicht gemeldet)}" >> "$GITHUB_OUTPUT"
+
           # REMAINING-Block (falls vorhanden) für die Summary durchreichen.
           remaining="$(awk 'index($0, "REMAINING") { f = 1; next } index($0, "DESIGN-RUN:") { f = 0 } f' /tmp/claude-output.log | head -20)"
           {
@@ -229,6 +248,7 @@ jobs:
           CONFIGURED: ${{ steps.setup.outputs.configured }}
           AGENT_OUTCOME: ${{ steps.agent.outcome }}
           AGENT_STATUS: ${{ steps.parse.outputs.status }}
+          AGENT_PLAN: ${{ steps.parse.outputs.plan }}
           REMAINING: ${{ steps.parse.outputs.remaining }}
           PR_URL_OUT: ${{ steps.parse.outputs.pr-url }}
           LABEL_OUTCOME: ${{ steps.review-label.outcome }}
@@ -241,11 +261,14 @@ jobs:
             if [ "$CONFIGURED" != "true" ]; then
               echo "- ⚠️ App-Secrets fehlen — Lauf übersprungen (kein Fehler)."
             elif [ "$AGENT_OUTCOME" = "success" ] && [ "$AGENT_STATUS" = "clean" ]; then
-              echo "- ✅ Lauf sauber abgeschlossen: audit → adapt → harden → polish, keine offenen TODOs."
+              echo "- ✅ Lauf sauber abgeschlossen, keine offenen TODOs."
+              echo "- 🧭 Maßnahmen laut Audit: \`${AGENT_PLAN:-(nicht gemeldet)}\`"
             elif [ "$AGENT_OUTCOME" = "success" ] && [ "$AGENT_STATUS" = "remaining" ]; then
               echo "- ⚠️ Lauf beendet, aber mit bewusst offenen Punkten (REMAINING):"
               echo ""
               printf '%s\n' "$REMAINING"
+              echo ""
+              echo "- 🧭 Maßnahmen laut Audit: \`${AGENT_PLAN:-(nicht gemeldet)}\`"
             elif [ "$AGENT_OUTCOME" = "success" ]; then
               echo "- ❌ Ergebnis-Parsing fehlgeschlagen (Formatbruch) — Log prüfen, Lauf wiederholen."
             else

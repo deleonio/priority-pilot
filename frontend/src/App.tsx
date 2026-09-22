@@ -41,6 +41,7 @@ import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectOpenParents, collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
+import { useMeasuredHeaderHeight } from './lib/headerHeight';
 import { useHeaderPosition } from './lib/headerPosition';
 import { clearPlanMirror, PlanProvider, usePlanState } from './lib/usePlan';
 import { notifyTasksChanged } from './lib/tasksChanged';
@@ -139,6 +140,13 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// #1428: Kopfzeilen-Position — die Verschiebung passiert rein per Layout (`.app.header-bottom`),
 	// die DOM-Reihenfolge (banner bleibt first) bleibt unverändert.
 	const { position: headerPosition } = useHeaderPosition();
+
+	// Die randbündige Kopfzeile steht `fixed` und damit außerhalb des Flusses; die Shell reserviert
+	// ihren Platz als Padding. Bei starker Textvergrößerung bricht die Leiste um und wird höher als
+	// die rein rechnerische Reservierung — dann meldet dieser Hook die tatsächliche Höhe nach
+	// (Begründung und Messwerte in `lib/headerHeight.ts`).
+	const headerRef = useRef<HTMLElement>(null);
+	useMeasuredHeaderHeight(headerRef);
 
 	// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
 	// `KolTabs`). Das `useMemo` hält die Objektidentität stabil, weil `KolTabs` bei einer neuen
@@ -471,7 +479,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Fallback-Fokusziel für Dialoge, nach denen das auslösende Element nicht mehr im DOM ist
 	// (z. B. nach erfolgreichem Löschen: der Löschen-Button fällt mit der Zeile aus dem DOM).
 	// tabIndex={-1} erlaubt programmatischen Fokus ohne visuelle Tab-Stop-Wirkung.
-	const deleteFallbackRef = useRef<HTMLElement>(null);
+	const deleteFallbackRef = useRef<HTMLDivElement>(null);
 
 	// Filterfeld im Aufgaben-Tab (#1067): Ziel des programmatischen Fokus nach der Suche im Suchdialog.
 	const taskFilterInputRef = useRef<HTMLKolInputTextElement>(null);
@@ -817,16 +825,24 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const pageTitle = showSettings ? t('menu.settings') : showHelp ? t('menu.help') : t('tabs.dashboard');
 
 	return (
-		<main
+		/*
+		 * Die Shell ist bewusst ein neutrales `div`, kein `<main>`: `banner` (Kopfzeile) und
+		 * `contentinfo` (Fußzeile) sind Landmarks der obersten Ebene und dürfen laut ARIA nicht in
+		 * `main` verschachtelt sein — dort verlieren sie ihre Bedeutung für die Landmark-Navigation.
+		 * Das eine `<main>` der Ansicht umschließt deshalb genau den Seiteninhalt zwischen beiden
+		 * (#1320 AK7 bleibt erfüllt: weiterhin genau ein `<main>` und eine `<h1>` je Ansicht).
+		 */
+		<div
 			className={headerPosition === 'bottom' ? 'app header-bottom' : 'app'}
 			ref={deleteFallbackRef}
 			tabIndex={-1}
 			data-focus-fallback
 		>
-			<header role="banner" className="app-header">
-				{/* Die sichtbare Leiste trägt `.app-header__bar` — der Header selbst ist der Sticky-Rahmen
-				    mit Abstandsschild (siehe `.app-header` in app.css): Beim Scrollen hält er in beiden
-				    Positionen (--pp-space-2) Abstand zwischen Leiste und Inhalt. */}
+			<header ref={headerRef} role="banner" className="app-header">
+				{/* Die sichtbare Leiste trägt `.app-header__bar` — der Header selbst ist der am Viewport
+				    fixierte Rahmen mit Abstandsschild (siehe `.app-header` in app.css): Die Leiste schließt
+				    randbündig mit der gewählten Viewport-Kante ab, der Schild hält in beiden Positionen
+				    (--pp-header-gap) Abstand zwischen Leiste und Inhalt. */}
 				<div className="app-header__bar">
 					{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
 					<div className="app-header__brand">
@@ -856,182 +872,204 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 					</div>
 				</div>
 			</header>
-			{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier
+			<main>
+				{/* #1320: Die eine `<h1>` je Ansicht benennt die geöffnete Seite (AK7) — vorher stand hier
 			    fest „Dashboard", während `SettingsPage`/`HelpPage` ihre eigene Überschrift mitbrachten. */}
-			<h1 className="visually-hidden">{pageTitle}</h1>
+				<h1 className="visually-hidden">{pageTitle}</h1>
 
-			{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
+				{/* Der Logout läuft über die Kopf-Aktionen und ist damit auf allen drei Ansichten
 			    auslösbar — seine Fehlermeldung steht deshalb außerhalb der Inhalts-Verzweigung. */}
-			{logoutError !== null && (
-				<div role="alert">
-					<KolAlert _type="error" _label="Logout fehlgeschlagen">
-						{logoutError}
-					</KolAlert>
-				</div>
-			)}
-
-			{showSettings ? (
-				<SettingsPage
-					pillars={pillars}
-					tab={settingsTab}
-					onTabChange={changeSettingsTab}
-					onSaved={afterSettingsSaved}
-					onCategoryChanged={handleMasterDataChanged}
-					isAdmin={isAdmin}
-					isTester={isTester}
-					currentUserId={user.id}
-				/>
-			) : showHelp ? (
-				<HelpPage />
-			) : (
-				<>
-					{loadError !== null && (
-						<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
-							{loadError}
+				{logoutError !== null && (
+					<div role="alert">
+						<KolAlert _type="error" _label="Logout fehlgeschlagen">
+							{logoutError}
 						</KolAlert>
-					)}
-					{updateError !== null && (
-						<div role="alert">
-							<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
-								{updateError}
-							</KolAlert>
-						</div>
-					)}
-					{tasks === null && loading && (
-						<div className="loading">
-							<KolSpin _show _variant="cycle" _label="Lädt" />
-							<span>Lade Tasks…</span>
-						</div>
-					)}
+					</div>
+				)}
 
-					{/* #1259: Der Dashboard-Leerzustand gehört nur auf das Dashboard (aktiver Tab 0) — bisher
+				{showSettings ? (
+					<SettingsPage
+						pillars={pillars}
+						tab={settingsTab}
+						onTabChange={changeSettingsTab}
+						onSaved={afterSettingsSaved}
+						onCategoryChanged={handleMasterDataChanged}
+						isAdmin={isAdmin}
+						isTester={isTester}
+						currentUserId={user.id}
+					/>
+				) : showHelp ? (
+					<HelpPage />
+				) : (
+					<>
+						{loadError !== null && (
+							<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
+								{loadError}
+							</KolAlert>
+						)}
+						{updateError !== null && (
+							<div role="alert">
+								<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
+									{updateError}
+								</KolAlert>
+							</div>
+						)}
+						{tasks === null && loading && (
+							<div className="loading">
+								<KolSpin _show _variant="cycle" _label="Lädt" />
+								<span>Lade Tasks…</span>
+							</div>
+						)}
+
+						{/* #1259: Der Dashboard-Leerzustand gehört nur auf das Dashboard (aktiver Tab 0) — bisher
 			    renderte die Karte tab-unabhängig ÜBER der Tab-Leiste und drückte auf Serien/Wald den
 			    Listenstart um ~230px nach unten (bei 375px+812 blieben statt ≥4 Serien nur 3 ohne
 			    Scrollen sichtbar). Aufgaben- und Wald-Tab haben eigene Leerzustände (TaskTree, #510). */}
-					{tasks !== null && tasks.length === 0 && activeTab === 0 && (
-						<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
-					)}
+						{tasks !== null && tasks.length === 0 && activeTab === 0 && (
+							<EmptyState onCreate={() => setDialog({ kind: 'create' })} />
+						)}
 
-					{tasks !== null && (
-						<KolTabs
-							ref={appTabsRef}
-							className="app-tabs"
-							_label={t('tabs.ariaLabel')}
-							_tabs={viewTabs}
-							_selected={activeTab}
-							_on={tabsCallbacks}
-						>
-							<div slot="tab-0">
-								<Dashboard
-									tasks={tasks}
-									forest={forest}
-									nextTask={nextTask}
-									suggestions={suggestions}
-									pillars={pillars}
-									displayName={user.displayName}
-									onCompleteTask={openComplete}
-									onEditTask={openEdit}
-									showDayDoneHint={activeTab === 0}
-								/>
-							</div>
-							<div slot="tab-1">
-								<section className="task-section">
-									{/* Filterleiste: Die beiden Umschalter sind Ansichtsschalter, keine Filter — sie stehen
+						{tasks !== null && (
+							<KolTabs
+								ref={appTabsRef}
+								className="app-tabs"
+								_label={t('tabs.ariaLabel')}
+								_tabs={viewTabs}
+								_selected={activeTab}
+								_on={tabsCallbacks}
+							>
+								<div slot="tab-0">
+									<Dashboard
+										tasks={tasks}
+										forest={forest}
+										nextTask={nextTask}
+										suggestions={suggestions}
+										pillars={pillars}
+										displayName={user.displayName}
+										onCompleteTask={openComplete}
+										onEditTask={openEdit}
+										showDayDoneHint={activeTab === 0}
+									/>
+								</div>
+								<div slot="tab-1">
+									<section className="task-section">
+										{/* Filterleiste: Die beiden Umschalter sind Ansichtsschalter, keine Filter — sie stehen
 									    als eigene Gruppe über der Filterzeile. Darunter, in Lesereihenfolge und zugleich
 									    Tab-Reihenfolge: Suchfeld, Kategorie, „Filtern". Die Breitenverhältnisse
 									    (50/30/Rest ab Tablet, mobil gestapelt) macht `.task-filter-bar` in app.css. */}
-									<div className="task-filter-bar">
-										<div className="task-filter-switches">
-											<KolInputCheckbox
-												className="task-view-switch"
-												_label="Erledigte Aufgaben anzeigen"
-												_variant="switch"
-												_checked={taskViewMode === 'done'}
+										<div className="task-filter-bar">
+											<div className="task-filter-switches">
+												<KolInputCheckbox
+													className="task-view-switch"
+													_label="Erledigte Aufgaben anzeigen"
+													_variant="switch"
+													_checked={taskViewMode === 'done'}
+													_on={{
+														onChange: (_event, checked) => {
+															changeTaskViewMode(checked === true);
+														},
+													}}
+												/>
+												<KolInputCheckbox
+													className="task-view-switch"
+													_label="Balance-Priorisierung"
+													_variant="switch"
+													_checked={balanceMode}
+													_on={{
+														onChange: (_event, checked) => {
+															setBalanceMode(checked === true);
+														},
+													}}
+												/>
+												<KolInputCheckbox
+													className="task-view-switch"
+													_label="Oberaufgaben anzeigen"
+													_variant="switch"
+													_checked={showParents}
+													_on={{
+														onChange: (_event, checked) => {
+															setShowParents(checked === true);
+														},
+													}}
+												/>
+											</div>
+											<KolInputText
+												ref={taskFilterInputRef}
+												className="task-filter-search__field"
+												_label="Nach Titel filtern"
+												_hideLabel
+												_type="search"
+												_placeholder="Nach Titel filtern…"
+												_value={searchDraft}
 												_on={{
-													onChange: (_event, checked) => {
-														changeTaskViewMode(checked === true);
+													onInput: (event: Event) => {
+														setSearchDraft((event.target as HTMLInputElement).value);
+													},
+													// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
+													onKeyDown: (event: KeyboardEvent) => {
+														if (event.key === 'Enter') {
+															applyTaskFilter((event.target as HTMLInputElement).value);
+														}
 													},
 												}}
 											/>
-											<KolInputCheckbox
-												className="task-view-switch"
-												_label="Balance-Priorisierung"
-												_variant="switch"
-												_checked={balanceMode}
-												_on={{
-													onChange: (_event, checked) => {
-														setBalanceMode(checked === true);
-													},
-												}}
-											/>
-											<KolInputCheckbox
-												className="task-view-switch"
-												_label="Oberaufgaben anzeigen"
-												_variant="switch"
-												_checked={showParents}
-												_on={{
-													onChange: (_event, checked) => {
-														setShowParents(checked === true);
-													},
-												}}
-											/>
-										</div>
-										<KolInputText
-											ref={taskFilterInputRef}
-											className="task-filter-search__field"
-											_label="Nach Titel filtern"
-											_hideLabel
-											_type="search"
-											_placeholder="Nach Titel filtern…"
-											_value={searchDraft}
-											_on={{
-												onInput: (event: Event) => {
-													setSearchDraft((event.target as HTMLInputElement).value);
-												},
-												// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
-												onKeyDown: (event: KeyboardEvent) => {
-													if (event.key === 'Enter') {
-														applyTaskFilter((event.target as HTMLInputElement).value);
-													}
-												},
-											}}
-										/>
-										{/* Kategorie-Filter neben dem Titel-Filter; er wirkt sofort (anders als der Suchtext,
+											{/* Kategorie-Filter neben dem Titel-Filter; er wirkt sofort (anders als der Suchtext,
 										    der erst auf „Filtern"/Enter greift) — eine Auswahl ist eine abgeschlossene Eingabe.
 										    Ohne angelegte Kategorien bleibt das Feld aus; Suchfeld und „Filtern" teilen sich
 										    dann die Zeile (siehe Flex-Verhältnisse in app.css). */}
-										{categories.length > 0 && (
-											<KolSingleSelect
-												className="task-filter-category"
-												_label="Nach Kategorie filtern"
-												_hideLabel
-												_options={taskCategoryFilterOptions}
-												_value={categoryFilter ?? NO_CATEGORY_FILTER}
-												_on={{
-													onChange: (_event, value) => {
-														const next = Number(value);
-														applyCategoryFilter(Number.isInteger(next) && next !== NO_CATEGORY_FILTER ? next : null);
-													},
-												}}
+											{categories.length > 0 && (
+												<KolSingleSelect
+													className="task-filter-category"
+													_label="Nach Kategorie filtern"
+													_hideLabel
+													_options={taskCategoryFilterOptions}
+													_value={categoryFilter ?? NO_CATEGORY_FILTER}
+													_on={{
+														onChange: (_event, value) => {
+															const next = Number(value);
+															applyCategoryFilter(Number.isInteger(next) && next !== NO_CATEGORY_FILTER ? next : null);
+														},
+													}}
+												/>
+											)}
+											<KolButton
+												className="task-filter-search__submit"
+												_label="Filtern"
+												_variant="secondary"
+												_icons="fa-solid fa-magnifying-glass"
+												_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 											/>
-										)}
-										<KolButton
-											className="task-filter-search__submit"
-											_label="Filtern"
-											_variant="secondary"
-											_icons="fa-solid fa-magnifying-glass"
-											_on={{ onClick: () => applyTaskFilter(searchDraft) }}
-										/>
-									</div>
-									{/* #1361: An der ungefilterten `tasks`-Liste hängen, nicht an `filteredForest` — ein
+										</div>
+										{/* #1361: An der ungefilterten `tasks`-Liste hängen, nicht an `filteredForest` — ein
 									    aktiver Titel-/Kategoriefilter darf die Sichtbarkeit des Hinweises nicht ändern.
 									    Nur bei aktivem Tab mounten (Muster TaskGraphPanel, Zeile ~970): KolTabs hält
 									    inaktive Panels per `hidden` im DOM statt sie zu entfernen — sonst doppelt sich
 									    `data-testid="day-done"` mit der Dashboard-Instanz. */}
-									{taskViewMode === 'open' && activeTab === 1 && <DayDoneHint tasks={tasks} />}
-									{taskViewMode === 'open' ? (
-										filteredForest.length === 0 ? (
-											taskSearch.trim() === '' ? (
+										{taskViewMode === 'open' && activeTab === 1 && <DayDoneHint tasks={tasks} />}
+										{taskViewMode === 'open' ? (
+											filteredForest.length === 0 ? (
+												taskSearch.trim() === '' ? (
+													<TaskTree
+														forest={filteredForest}
+														fullForest={forest}
+														parentNodes={visibleParentNodes}
+														tasks={tasks}
+														progressMap={progressMap}
+														userId={user.id}
+														categories={categories}
+														pillars={pillars}
+														balancePriorities={balancePriorities}
+														onEdit={openEdit}
+														onDelete={openDelete}
+														onEditDependencies={openDependencies}
+														onAddSubtask={openAddSubtask}
+														onDoneToggle={handleDoneToggle}
+														onPinToggle={handlePinToggle}
+													/>
+												) : (
+													<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+												)
+											) : (
 												<TaskTree
 													forest={filteredForest}
 													fullForest={forest}
@@ -1049,30 +1087,20 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													onDoneToggle={handleDoneToggle}
 													onPinToggle={handlePinToggle}
 												/>
+											)
+										) : filteredCompletedTasks.length === 0 ? (
+											taskSearch.trim() === '' ? (
+												<CompletedTasksTable
+													tasks={filteredCompletedTasks}
+													pillars={pillars}
+													categories={categories}
+													forestTaskIds={forestTaskIds}
+													onReloaded={reload}
+												/>
 											) : (
 												<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
 											)
 										) : (
-											<TaskTree
-												forest={filteredForest}
-												fullForest={forest}
-												parentNodes={visibleParentNodes}
-												tasks={tasks}
-												progressMap={progressMap}
-												userId={user.id}
-												categories={categories}
-												pillars={pillars}
-												balancePriorities={balancePriorities}
-												onEdit={openEdit}
-												onDelete={openDelete}
-												onEditDependencies={openDependencies}
-												onAddSubtask={openAddSubtask}
-												onDoneToggle={handleDoneToggle}
-												onPinToggle={handlePinToggle}
-											/>
-										)
-									) : filteredCompletedTasks.length === 0 ? (
-										taskSearch.trim() === '' ? (
 											<CompletedTasksTable
 												tasks={filteredCompletedTasks}
 												pillars={pillars}
@@ -1080,135 +1108,127 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 												forestTaskIds={forestTaskIds}
 												onReloaded={reload}
 											/>
-										) : (
-											<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
-										)
-									) : (
-										<CompletedTasksTable
-											tasks={filteredCompletedTasks}
-											pillars={pillars}
-											categories={categories}
-											forestTaskIds={forestTaskIds}
-											onReloaded={reload}
-										/>
-									)}
-								</section>
-							</div>
-							<div slot="tab-2">
-								<SeriesTab pillars={pillars} categories={categories} onTasksChanged={handleMasterDataChanged} />
-							</div>
-							<div slot="tab-3">
-								{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
+										)}
+									</section>
+								</div>
+								<div slot="tab-2">
+									<SeriesTab pillars={pillars} categories={categories} onTasksChanged={handleMasterDataChanged} />
+								</div>
+								<div slot="tab-3">
+									{/* Nur bei aktivem Tab mounten: KolTabs hält inaktive Panels per `hidden`-Attribut im DOM
 						    (nicht entfernt), und die Knoten-/Listentitel sind wortgleich zum Aufgaben-Tab —
 						    dauerhaft gemountet würden sie dort exakte Text-Locators (z. B. in E2E-Tests) doppeln. */}
-								{activeTab === 3 && (
-									<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
-										<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
-									</Suspense>
-								)}
-							</div>
-						</KolTabs>
-					)}
-				</>
-			)}
+									{activeTab === 3 && (
+										<Suspense fallback={<KolSpin _show _variant="cycle" aria-label="Graph wird geladen" />}>
+											<TaskGraphPanel tasks={tasks} onEditDependencies={openDependencies} />
+										</Suspense>
+									)}
+								</div>
+							</KolTabs>
+						)}
+					</>
+				)}
 
-			{dialog?.kind === 'create' &&
-				// #1335: „Neuen Task anlegen" ist der einzige Einstieg — bei aktiver KI der verschmolzene
-				// Freitext-Dialog (Verarbeiten/Beraten/Überspringen), ohne KI direkt das Task-Formular.
-				(aiEnabled ? (
-					<QuickCaptureModal
-						parentTask={dialog.parentTask ?? null}
-						pillars={pillars}
+				{dialog?.kind === 'create' &&
+					// #1335: „Neuen Task anlegen" ist der einzige Einstieg — bei aktiver KI der verschmolzene
+					// Freitext-Dialog (Verarbeiten/Beraten/Überspringen), ohne KI direkt das Task-Formular.
+					(aiEnabled ? (
+						<QuickCaptureModal
+							parentTask={dialog.parentTask ?? null}
+							pillars={pillars}
+							categories={categories}
+							distribution={advisorDistribution}
+							onClose={closeDialog}
+							onSaved={afterMutation}
+						/>
+					) : (
+						<TaskFormModal
+							task={null}
+							parentTask={dialog.parentTask ?? null}
+							pillars={pillars}
+							categories={categories}
+							onClose={closeDialog}
+							onSaved={afterMutation}
+						/>
+					))}
+				{dialog?.kind === 'search' && (
+					<SearchModal
 						categories={categories}
-						distribution={advisorDistribution}
 						onClose={closeDialog}
-						onSaved={afterMutation}
+						onSearch={(query, categoryId) => {
+							// Eine einzige Navigation mit explizitem Ziel: `navigate('/aufgaben')` +
+							// `applyTaskFilter()` (`setSearchParams`) konkurrieren sonst — `setSearchParams`
+							// löst `?q=` gegen die Location der Render-Closure auf (noch `/` oder `/wald`),
+							// nicht gegen das eben gesetzte Ziel, und der Suchbegriff geht verloren.
+							// Der View-Mode (`?view=`) bleibt beim Nutzer-Modus — beide Listen filtern über `taskSearch`.
+							const next = new URLSearchParams(searchParams);
+							if (query.trim() === '') {
+								next.delete('q');
+							} else {
+								next.set('q', query);
+							}
+							// Kategorie-Filter aus der Suche in denselben Navigations-Schritt legen — ein
+							// separates `applyCategoryFilter()` liefe gegen die alte Location (siehe oben).
+							if (categoryId === null) {
+								next.delete('cat');
+							} else {
+								next.set('cat', String(categoryId));
+							}
+							navigate({ pathname: '/aufgaben', search: next.toString() });
+							// `searchDraft` mitschreiben, damit das Filterfeld im Aufgaben-Tab den aktiven
+							// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `?q=` setzt
+							// `taskSearch` bereits selbst.
+							setSearchDraft(query);
+							focusTaskFilter();
+						}}
 					/>
-				) : (
+				)}
+				{dialog?.kind === 'edit' && (
 					<TaskFormModal
-						task={null}
-						parentTask={dialog.parentTask ?? null}
+						key={dialog.task.id}
+						task={dialog.task}
 						pillars={pillars}
 						categories={categories}
 						onClose={closeDialog}
 						onSaved={afterMutation}
 					/>
-				))}
-			{dialog?.kind === 'search' && (
-				<SearchModal
-					categories={categories}
-					onClose={closeDialog}
-					onSearch={(query, categoryId) => {
-						// Eine einzige Navigation mit explizitem Ziel: `navigate('/aufgaben')` +
-						// `applyTaskFilter()` (`setSearchParams`) konkurrieren sonst — `setSearchParams`
-						// löst `?q=` gegen die Location der Render-Closure auf (noch `/` oder `/wald`),
-						// nicht gegen das eben gesetzte Ziel, und der Suchbegriff geht verloren.
-						// Der View-Mode (`?view=`) bleibt beim Nutzer-Modus — beide Listen filtern über `taskSearch`.
-						const next = new URLSearchParams(searchParams);
-						if (query.trim() === '') {
-							next.delete('q');
-						} else {
-							next.set('q', query);
-						}
-						// Kategorie-Filter aus der Suche in denselben Navigations-Schritt legen — ein
-						// separates `applyCategoryFilter()` liefe gegen die alte Location (siehe oben).
-						if (categoryId === null) {
-							next.delete('cat');
-						} else {
-							next.set('cat', String(categoryId));
-						}
-						navigate({ pathname: '/aufgaben', search: next.toString() });
-						// `searchDraft` mitschreiben, damit das Filterfeld im Aufgaben-Tab den aktiven
-						// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `?q=` setzt
-						// `taskSearch` bereits selbst.
-						setSearchDraft(query);
-						focusTaskFilter();
-					}}
-				/>
-			)}
-			{dialog?.kind === 'edit' && (
-				<TaskFormModal
-					key={dialog.task.id}
-					task={dialog.task}
-					pillars={pillars}
-					categories={categories}
-					onClose={closeDialog}
-					onSaved={afterMutation}
-				/>
-			)}
-			{dialog?.kind === 'delete' && (
-				<DeleteTaskDialog
-					task={dialog.task}
-					onClose={closeDialog}
-					onDeleted={afterDelete}
-					fallbackFocusRef={deleteFallbackRef}
-				/>
-			)}
-			{dialog?.kind === 'complete' && (
-				<CompleteTaskDialog
-					task={dialog.task}
-					onConfirm={(checklist, allChecked) => completeTask(dialog.task, checklist, allChecked)}
-					onClose={closeDialog}
-					onCompleted={afterMutation}
-					fallbackFocusRef={deleteFallbackRef}
-				/>
-			)}
-			{dialog?.kind === 'dependencies' && dependencyTask !== null && tasks !== null && (
-				<DependencyModal
-					key={dependencyTask.id}
-					task={dependencyTask}
-					allTasks={tasks}
-					dependencies={dependencyMap.get(dependencyTask.id) ?? []}
-					onClose={closeDialog}
-					onChanged={refreshKeepingDialog}
-				/>
-			)}
+				)}
+				{dialog?.kind === 'delete' && (
+					<DeleteTaskDialog
+						task={dialog.task}
+						onClose={closeDialog}
+						onDeleted={afterDelete}
+						fallbackFocusRef={deleteFallbackRef}
+					/>
+				)}
+				{dialog?.kind === 'complete' && (
+					<CompleteTaskDialog
+						task={dialog.task}
+						onConfirm={(checklist, allChecked) => completeTask(dialog.task, checklist, allChecked)}
+						onClose={closeDialog}
+						onCompleted={afterMutation}
+						fallbackFocusRef={deleteFallbackRef}
+					/>
+				)}
+				{dialog?.kind === 'dependencies' && dependencyTask !== null && tasks !== null && (
+					<DependencyModal
+						key={dependencyTask.id}
+						task={dependencyTask}
+						allTasks={tasks}
+						dependencies={dependencyMap.get(dependencyTask.id) ?? []}
+						onClose={closeDialog}
+						onChanged={refreshKeepingDialog}
+					/>
+				)}
+			</main>
+			{/* App-weite Einblendungen und die Fußzeile stehen außerhalb von `<main>`: Sie gehören
+			    nicht zum Seiteninhalt, und `contentinfo` ist ein Landmark der obersten Ebene. */}
 			<InstallPrompt />
 			<UpdatePrompt />
 			<PushToast />
 			<SessionExpiredDialog />
 			<Footer version={APP_VERSION} />
-		</main>
+		</div>
 	);
 };
 

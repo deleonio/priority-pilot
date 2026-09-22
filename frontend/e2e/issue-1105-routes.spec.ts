@@ -177,7 +177,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 			const tabs = page.getByRole('tablist', { name: /Ansichten/ });
 			await expect(tabs).toBeVisible();
 
-			const [mainBox, tabsBox] = await Promise.all([page.locator('main.app').boundingBox(), tabs.boundingBox()]);
+			const [mainBox, tabsBox] = await Promise.all([page.locator('.app').boundingBox(), tabs.boundingBox()]);
 			expect(mainBox, `${route}: App-Shell muss eine Boundingbox haben`).not.toBeNull();
 			expect(tabsBox, `${route}: Tab-Leiste muss eine Boundingbox haben`).not.toBeNull();
 			expect(mainBox!.x + mainBox!.width, `${route}: App-Shell ragt über 375px hinaus`).toBeLessThanOrEqual(375);
