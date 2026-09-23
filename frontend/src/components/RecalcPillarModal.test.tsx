@@ -199,7 +199,7 @@ describe('RecalcPillarModal — Hintergrundlauf (#1642)', () => {
 		const { onClose } = setup();
 
 		await start();
-		fireEvent.click(screen.getByRole('button', { name: 'Schließen' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
 
 		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(reassignOwnTaskPillars).toHaveBeenCalledTimes(1);

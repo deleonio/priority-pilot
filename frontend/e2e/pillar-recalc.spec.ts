@@ -20,44 +20,68 @@ const TOTAL = 12;
 const FLAKY = new Set([3, 8]);
 
 interface FakeServer {
-	/** Zahl der POST-Aufrufe — belegt, dass in Portionen gearbeitet wird. */
+	/** Zahl der POST-Aufrufe — belegt, dass der Client den Lauf nur startet. */
 	calls: () => number;
 }
 
 /**
  * Zustandsbehafteter Server: merkt sich erfolgreich verarbeitete Aufgaben seit dem Laufstart wie der
- * echte (`pillarsRecalculatedAt` ≥ Start). `offset` überspringt nur die Fehlschläge der Serie.
+ * echte (`pillarsRecalculatedAt` ≥ Start). Test-Pflege #1642: EIN POST startet den Hintergrundlauf,
+ * der Server verarbeitet alle offenen Aufgaben selbst; `.../status` meldet währenddessen `running`
+ * mit `processed` und danach das Ergebnis.
  */
 const installFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp): Promise<FakeServer> => {
+	// Lang genug, dass das Polling (1,5 s) einen Zwischenstand abfängt.
+	const RUN_MS = 4000;
 	const done = new Set<number>();
 	const failedOnce = new Set<number>();
 	let startedAt: string | null = null;
 	let calls = 0;
+	let run: {
+		startedMs: number;
+		pendingAtStart: number;
+		result: {
+			updated: number;
+			failed: number;
+			skipped: number;
+			quotaExhausted: boolean;
+			failureReasons?: Record<string, number>;
+		};
+	} | null = null;
 
-	await page.route(statusPath, (route: Route) =>
-		route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({ startedAt, total: TOTAL, pending: TOTAL - done.size }),
-		}),
-	);
+	await page.route(statusPath, (route: Route) => {
+		const processed = run === null ? 0 : run.result.updated + run.result.failed;
+		const elapsed = run === null ? RUN_MS : Date.now() - run.startedMs;
+		const body =
+			run !== null && elapsed < RUN_MS
+				? (() => {
+						const shown = Math.max(1, Math.floor((elapsed / RUN_MS) * processed));
+						return { startedAt, total: TOTAL, pending: run.pendingAtStart - shown, running: true, processed: shown };
+					})()
+				: {
+						startedAt,
+						total: TOTAL,
+						pending: TOTAL - done.size,
+						running: false,
+						processed,
+						...(run === null ? {} : { result: run.result }),
+					};
+		return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+	});
 	await page.route(runPath, async (route: Route) => {
 		if (route.request().method() !== 'POST') {
 			return route.fallback();
 		}
 		calls += 1;
 		const query = new URL(route.request().url()).searchParams;
-		const limit = Number(query.get('limit') ?? 200);
-		const offset = Number(query.get('offset') ?? 0);
 		if (query.get('restart') === 'true' || startedAt === null) {
 			done.clear();
 			startedAt = new Date().toISOString();
 		}
 		const pending = Array.from({ length: TOTAL }, (_, index) => index + 1).filter((id) => !done.has(id));
-		const portion = pending.slice(offset, offset + limit);
 		let updated = 0;
 		let failed = 0;
-		for (const id of portion) {
+		for (const id of pending) {
 			if (FLAKY.has(id) && !failedOnce.has(id)) {
 				failedOnce.add(id);
 				failed += 1;
@@ -66,20 +90,21 @@ const installFakeServer = async (page: Page, runPath: RegExp, statusPath: RegExp
 				updated += 1;
 			}
 		}
-		// Eine Portion dauert — sonst wäre der Fortschritt zwischen zwei Aufrufen nie zu sehen.
-		await new Promise((resolve) => setTimeout(resolve, 400));
-		return route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({
+		run = {
+			startedMs: Date.now(),
+			pendingAtStart: pending.length,
+			result: {
 				updated,
 				failed,
 				skipped: 0,
-				users: 1,
 				quotaExhausted: false,
-				remaining: Math.max(0, pending.length - offset - portion.length),
 				...(failed > 0 ? { failureReasons: { 'HTTP 429': failed } } : {}),
-			}),
+			},
+		};
+		return route.fulfill({
+			status: 202,
+			contentType: 'application/json',
+			body: JSON.stringify({ running: true, processed: 0 }),
 		});
 	});
 	return { calls: () => calls };
@@ -204,7 +229,7 @@ test.describe('Säulen-Neuberechnung (#1614)', () => {
 
 		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
 		await expect(page.getByText('HTTP 429 (Rate-Limit des KI-Anbieters): 2')).toBeVisible();
-		expect(server.calls(), 'in Portionen, nicht in einem Request').toBeGreaterThan(1);
+		expect(server.calls(), 'ein Start, die Portionen holt der Server selbst').toBe(1);
 
 		await page.getByRole('button', { name: 'Fortsetzen (2 offen)' }).click();
 		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
@@ -257,7 +282,7 @@ test.describe('Säulen-Neuberechnung (#1614)', () => {
 
 		await expect(page.getByText('10 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
 		await expect(page.getByText('HTTP 429 (Rate-Limit des KI-Anbieters): 2')).toBeVisible();
-		expect(server.calls(), 'in Portionen, nicht in einem Request').toBeGreaterThan(1);
+		expect(server.calls(), 'ein Start, die Portionen holt der Server selbst').toBe(1);
 
 		await page.getByRole('button', { name: 'Fortsetzen (2 offen)' }).click();
 		await page.getByRole('button', { name: 'Jetzt fortsetzen' }).click();

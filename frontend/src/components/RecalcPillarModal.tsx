@@ -113,7 +113,7 @@ export const RecalcPillarModal = ({ onClose, onCompleted }: RecalcPillarModalPro
 					<ReassignProgressView run={run} />
 					<p>Der Lauf geht auf dem Server weiter, auch wenn du dieses Fenster schließt.</p>
 					<div className="modal-actions">
-						<KolButton _label="Schließen" _variant="secondary" _on={{ onClick: handleClose }} />
+						<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: handleClose }} />
 					</div>
 				</>
 			)}
