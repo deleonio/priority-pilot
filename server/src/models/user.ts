@@ -35,6 +35,11 @@ class User extends Model {
 	 * eine Auswahl auf einen EIGENEN Provider (#1547).
 	 */
 	public selectedLlmProviderId!: number | null;
+	/**
+	 * Start des letzten Laufs der Säulen-Neuberechnung (#1614) — Bezugspunkt für „Fortsetzen": offen
+	 * sind die Aufgaben, deren `pillarsRecalculatedAt` fehlt oder älter ist. `null` = noch nie gelaufen.
+	 */
+	public pillarRecalcStartedAt!: Date | null;
 	/** Gebuchtes Paket (#1456) — Quelle der Entitlement-Auswertung in `logics/plans.ts`. */
 	public plan!: Plan;
 
@@ -94,6 +99,11 @@ User.init(
 		},
 		selectedLlmProviderId: {
 			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
+		},
+		pillarRecalcStartedAt: {
+			type: DataTypes.DATE,
 			allowNull: true,
 			defaultValue: null,
 		},

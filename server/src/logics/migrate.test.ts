@@ -16,6 +16,7 @@ import {
 	migrateUsersRoleColumn,
 	migrateCategoryIdColumns,
 	migrateTaskPinnedColumns,
+	migratePillarRecalcColumns,
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
 	migratePlaceFavoriteAddressUnique,
@@ -131,6 +132,7 @@ describe('migrateSeriesColumns', () => {
 		// der Insert nicht an einer fehlenden Spalte bricht (nicht Teil der Serien-Spalten).
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskPinnedColumns(sequelize);
+		await migratePillarRecalcColumns(sequelize);
 		await sequelize.sync();
 
 		const occurrence = new Date('2026-01-01T00:00:00.000Z');
@@ -345,6 +347,7 @@ describe('migrateUserIdColumns', () => {
 		await migrateTaskCreatedById(sequelize); // #1213: Ersteller-Spalte, ebenfalls von Task.findAll mitselektiert
 		await migrateCategoryIdColumns(sequelize); // Kategorie-Spalte, ebenfalls von Task.findAll mitselektiert
 		await migrateTaskPinnedColumns(sequelize); // #1582: Pin-Spalten, ebenfalls von Task.findAll mitselektiert
+		await migratePillarRecalcColumns(sequelize);
 		await migrateTaskGroupId(sequelize); // #1521: Gruppen-Spalte, ebenfalls von Task.findAll mitselektiert
 		await sequelize.sync();
 
@@ -586,6 +589,7 @@ describe('migrateUserGeoConfigColumns', () => {
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
+				'`pillarRecalcStartedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -653,6 +657,7 @@ describe('migrateTaskAddress', () => {
 		await migrateSeriesColumns(sequelize);
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskPinnedColumns(sequelize);
+		await migratePillarRecalcColumns(sequelize);
 
 		assert.ok(!(await taskColumns()).includes('address'), 'Alt-Schema hat address noch nicht');
 
@@ -691,6 +696,7 @@ describe('migrateCategoryIdColumns', () => {
 		await migrateTaskChecklist(sequelize);
 		await migrateTaskAddress(sequelize);
 		await migrateTaskPinnedColumns(sequelize);
+		await migratePillarRecalcColumns(sequelize);
 
 		assert.ok(!(await taskColumns()).includes('categoryId'), 'Alt-Schema hat categoryId noch nicht');
 
@@ -734,6 +740,7 @@ describe('migrateTaskPinnedColumns', () => {
 		assert.ok(!before.includes('pinnedAt'), 'Alt-Schema hat pinnedAt noch nicht');
 
 		await migrateTaskPinnedColumns(sequelize);
+		await migratePillarRecalcColumns(sequelize);
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
 
 		const after = await taskColumns();
@@ -857,6 +864,7 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
+				'`pillarRecalcStartedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -929,6 +937,7 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
+				'`pillarRecalcStartedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1085,6 +1094,7 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				'`selectedLlmProviderId` INTEGER, ' +
+				'`pillarRecalcStartedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1264,5 +1274,24 @@ describe('migratePlaceFavoriteDropName / migratePlaceFavoriteAddressUnique (#159
 			(await favoriteIndexes()).includes('place_favorites_user_id_address'),
 			'frische DB bekommt den Index aus dem Modell',
 		);
+	});
+});
+
+// ── #1614: migratePillarRecalcColumns — fortsetzbare Säulen-Neuberechnung ──
+describe('migratePillarRecalcColumns', () => {
+	it('zieht pillarsRecalculatedAt an tasks nach und ist idempotent', async () => {
+		await createLegacyTasksTable();
+		assert.ok(!(await taskColumns()).includes('pillarsRecalculatedAt'), 'Alt-Schema hat die Spalte noch nicht');
+
+		await migratePillarRecalcColumns(sequelize);
+		await assert.doesNotReject(() => migratePillarRecalcColumns(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const columns = await taskColumns();
+		assert.equal(columns.filter((name) => name === 'pillarsRecalculatedAt').length, 1);
+	});
+
+	it('ist auf einer leeren DB ein No-op', async () => {
+		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
+		await assert.doesNotReject(() => migratePillarRecalcColumns(sequelize));
 	});
 });

@@ -1,3 +1,4 @@
+import { Op, type WhereOptions } from 'sequelize';
 import { Pillar, Task, TaskPillar, User } from '../models/index.js';
 import sequelize from '../database.js';
 import type { FeedbackExample, PillarClassifier } from '../llm/llm.js';
@@ -90,6 +91,30 @@ const statusWhere = (status: ReassignStatusFilter): { status?: string[] } => {
 };
 
 /**
+ * Auswahl der Aufgaben eines Kontos. Mit `since` nur die noch offenen eines Laufs: Verteilung nie
+ * oder vor dem Laufstart neu bestimmt. Fehlgeschlagene Aufgaben bekommen keinen Zeitstempel und
+ * bleiben damit in dieser Auswahl — genau sie nimmt ein fortgesetzter Lauf wieder auf.
+ */
+const taskWhere = (
+	userId: number | undefined,
+	status: ReassignStatusFilter,
+	since: Date | undefined,
+): WhereOptions => ({
+	...(userId !== undefined ? { userId } : { userId: null }),
+	...statusWhere(status),
+	...(since === undefined
+		? {}
+		: { [Op.or]: [{ pillarsRecalculatedAt: null }, { pillarsRecalculatedAt: { [Op.lt]: since } }] }),
+});
+
+/** Zahl der Aufgaben, die ein Lauf mit Start `since` noch nicht erfolgreich verarbeitet hat. */
+export const countPendingTasks = (
+	userId: number | undefined,
+	status: ReassignStatusFilter,
+	since: Date | undefined,
+): Promise<number> => Task.count({ where: taskWhere(userId, status, since) });
+
+/**
  * Versuche je Aufgabe, bevor ihre Klassifikation als fehlgeschlagen gilt (#1614). Der Batch
  * schlägt gegen einen bezahlten LLM-Upstream; dessen Rate-Limits und kurze Ausfälle waren der
  * Grund, warum ein Lauf regelmäßig einen Teil der Aufgaben als `failed` zurückmeldete. Nur der
@@ -99,7 +124,59 @@ const statusWhere = (status: ReassignStatusFilter): { status?: string[] } => {
 const CLASSIFY_ATTEMPTS = 3;
 const RETRY_BASE_MS = 250;
 
+/**
+ * Rate-Limit (429) und Upstream-Überlastung (5xx) brauchen mehr Geduld als ein Wackelkontakt: Ein
+ * Rate-Limit-Fenster dauert Sekunden, nicht 250 ms. Mit den kurzen Retries oben schlug in Produktion
+ * gut ein Drittel eines 145-Aufgaben-Laufs fehl. Wartezeit: `Retry-After` des Providers, sonst
+ * exponentiell ab `TRANSIENT_RETRY_BASE_MS`, gedeckelt auf `TRANSIENT_RETRY_MAX_MS`.
+ */
+const TRANSIENT_ATTEMPTS = 5;
+const TRANSIENT_RETRY_BASE_MS = 1000;
+const TRANSIENT_RETRY_MAX_MS = 20_000;
+
+/** Pause zwischen zwei Aufgaben — der Lauf soll den Provider nicht im Burst treffen. */
+const TASK_PAUSE_MS = 200;
+
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** HTTP-Status eines Provider-Fehlers (`MistralRequestError.status`), sofern vorhanden. */
+const statusOf = (error: unknown): number | undefined => {
+	const status = (error as { status?: unknown } | null)?.status;
+	return typeof status === 'number' ? status : undefined;
+};
+
+const isTransient = (error: unknown): boolean => {
+	const status = statusOf(error);
+	return status !== undefined && (status === 429 || status >= 500);
+};
+
+/** Wartezeit vor dem nächsten Versuch nach `attempt` Fehlversuchen. */
+const retryDelay = (error: unknown, attempt: number): number => {
+	if (!isTransient(error)) {
+		return RETRY_BASE_MS * 2 ** (attempt - 1);
+	}
+	const retryAfter = (error as { retryAfterMs?: unknown }).retryAfterMs;
+	const delay = typeof retryAfter === 'number' ? retryAfter : TRANSIENT_RETRY_BASE_MS * 2 ** (attempt - 1);
+	return Math.min(delay, TRANSIENT_RETRY_MAX_MS);
+};
+
+/**
+ * Kurzform des Fehlergrunds für die Rückmeldung an den Nutzer: `HTTP <status>` bei Provider-Fehlern,
+ * sonst eine feste Kategorie — keine rohen Fehlermeldungen (die können SQL oder Upstream-Bodies
+ * enthalten) und keine unbegrenzte Zahl verschiedener Schlüssel.
+ */
+const failureReasonOf = (error: unknown, classified: boolean): string => {
+	if (classified) {
+		return 'Speichern fehlgeschlagen';
+	}
+	const status = statusOf(error);
+	if (status !== undefined) {
+		return `HTTP ${status}`;
+	}
+	return error instanceof Error && error.name === 'MissingApiKeyError'
+		? 'Kein KI-Provider konfiguriert'
+		: 'KI-Anfrage fehlgeschlagen';
+};
 
 /** Ergebnis eines Batch-Laufs. */
 export interface ReassignPillarsResult {
@@ -109,6 +186,8 @@ export interface ReassignPillarsResult {
 	failed: number;
 	/** Anzahl der übersprungenen Aufgaben (keine gültigen Vorschläge, Kontext unverändert). */
 	skipped: number;
+	/** Fehlergründe der fehlgeschlagenen Aufgaben, Grund → Anzahl (nur gesetzt, wenn `failed > 0`). */
+	failureReasons?: Record<string, number>;
 }
 
 /**
@@ -138,6 +217,12 @@ export interface ReassignRunOptions {
 	/** Statusauswahl; `'all'` verarbeitet auch erledigte Aufgaben. */
 	status?: ReassignStatusFilter;
 	/**
+	 * Laufstart eines fortsetzbaren Laufs (#1614): nur Aufgaben, die seitdem nicht erfolgreich
+	 * verarbeitet wurden. Verarbeitete fallen damit aus der Auswahl — `offset` zählt dann nur noch die
+	 * in dieser Serie fehlgeschlagenen, die vorn in der Auswahl stehen bleiben.
+	 */
+	since?: Date;
+	/**
 	 * Kontingent-Buchung je Aufgabe (#1614). Der Lauf löst pro Aufgabe einen Provider-Aufruf aus;
 	 * ohne Buchung an dieser Stelle zählte ein ganzer Batch als eine einzige Anfrage. Fehlt der
 	 * Haken, wird nicht gezählt (Admin-Batch, Pass-Through-Modus, eigener Provider des Nutzers).
@@ -147,7 +232,7 @@ export interface ReassignRunOptions {
 
 export const reassignTaskPillarsForUser = async (
 	userId: number | undefined,
-	{ classifier, provider, budget, offset = 0, status = 'all', quota }: ReassignRunOptions,
+	{ classifier, provider, budget, offset = 0, status = 'all', since, quota }: ReassignRunOptions,
 ): Promise<ReassignPillarsResult & { total: number; quotaExhausted: boolean }> => {
 	if (budget !== undefined && budget <= 0) {
 		return { updated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
@@ -162,7 +247,7 @@ export const reassignTaskPillarsForUser = async (
 	const validIds = new Set(pillars.map((pillar) => pillar.id));
 
 	const allTasks = await Task.findAll({
-		where: { ...(userId !== undefined ? { userId } : { userId: null }), ...statusWhere(status) },
+		where: taskWhere(userId, status, since),
 		attributes: ['id', 'title', 'description'],
 		order: [['id', 'ASC']],
 	});
@@ -191,8 +276,12 @@ export const reassignTaskPillarsForUser = async (
 	}));
 
 	const result: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
+	const failureReasons: Record<string, number> = {};
 	let quotaExhausted = false;
-	for (const task of tasks) {
+	for (const [index, task] of tasks.entries()) {
+		if (index > 0) {
+			await sleep(TASK_PAUSE_MS);
+		}
 		// Buchung VOR dem Provider-Aufruf, wie in der Middleware — sonst käme ein paralleler
 		// Schwung Läufe am Deckel vorbei. Ist das Kontingent alle, endet der Lauf hier; die
 		// restlichen Aufgaben bleiben unangetastet und zählen weder als `failed` noch `skipped`.
@@ -212,15 +301,18 @@ export const reassignTaskPillarsForUser = async (
 					);
 					break;
 				} catch (error) {
-					if (attempt >= CLASSIFY_ATTEMPTS) {
+					if (attempt >= (isTransient(error) ? TRANSIENT_ATTEMPTS : CLASSIFY_ATTEMPTS)) {
 						throw error;
 					}
-					await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
+					await sleep(retryDelay(error, attempt));
 				}
 			}
 			classified = true;
 			const contributions = toContributions(suggestions ?? [], validIds);
 			if (contributions.length === 0) {
+				// Bewusst belassen zählt als verarbeitet — ein fortgesetzter Lauf fragt nicht erneut.
+				// `silent`: die Neuberechnung ist keine inhaltliche Änderung, `updatedAt` bleibt.
+				await Task.update({ pillarsRecalculatedAt: new Date() }, { where: { id: task.id }, silent: true });
 				result.skipped++;
 				continue;
 			}
@@ -235,11 +327,14 @@ export const reassignTaskPillarsForUser = async (
 					})),
 					{ transaction, validate: true },
 				);
+				await Task.update({ pillarsRecalculatedAt: new Date() }, { where: { id: task.id }, transaction, silent: true });
 			});
 			result.updated++;
 		} catch (error) {
 			console.warn(`Säulen-Neuzuordnung für Aufgabe ${task.id} fehlgeschlagen — setze den Batch fort.`, error);
 			result.failed++;
+			const reason = failureReasonOf(error, classified);
+			failureReasons[reason] = (failureReasons[reason] ?? 0) + 1;
 			// Nur ein gescheiterter Provider-Aufruf wird storniert — dieselbe Linie wie die
 			// Middleware, die bei Status >= 400 zurückbucht. Kam die Klassifikation durch und erst
 			// das Speichern scheiterte, ist der Aufruf beim Anbieter angefallen und bleibt gebucht.
@@ -250,7 +345,7 @@ export const reassignTaskPillarsForUser = async (
 			}
 		}
 	}
-	return { ...result, total, quotaExhausted };
+	return { ...result, ...(result.failed > 0 ? { failureReasons } : {}), total, quotaExhausted };
 };
 
 /** Fällt auf 200 Aufgaben je Lauf zurück, wenn kein `limit` übergeben wird (Finding #4). */

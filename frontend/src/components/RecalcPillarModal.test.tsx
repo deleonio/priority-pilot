@@ -73,8 +73,14 @@ vi.mock('./Modal', () => ({
 }));
 
 const reassignOwnTaskPillars = vi.fn();
+const getOwnReassignPillarsStatus = vi.fn();
 vi.mock('../api', () => ({
-	api: { reassignOwnTaskPillars: (args: unknown) => reassignOwnTaskPillars(args) },
+	api: {
+		reassignOwnTaskPillars: (args: unknown) => reassignOwnTaskPillars(args),
+		// Ohne eigene Implementierung: noch nie gelaufen — dann gibt es nur „Start“.
+		getOwnReassignPillarsStatus: (args: unknown) =>
+			Promise.resolve(getOwnReassignPillarsStatus(args) ?? { startedAt: null, total: 0, pending: 0 }),
+	},
 }));
 
 vi.mock('../lib/apiError', () => ({
@@ -115,7 +121,13 @@ const start = async () => {
 	});
 };
 
-const callArgs = (index: number) => reassignOwnTaskPillars.mock.calls[index][0] as { status?: string; offset?: number };
+const callArgs = (index: number) =>
+	reassignOwnTaskPillars.mock.calls[index][0] as {
+		status?: string;
+		limit?: number;
+		offset?: number;
+		restart?: boolean;
+	};
 
 describe('RecalcPillarModal — Filterauswahl', () => {
 	it.each([
@@ -154,9 +166,12 @@ describe('RecalcPillarModal — portionierter Lauf', () => {
 		await start();
 
 		expect(reassignOwnTaskPillars).toHaveBeenCalledTimes(2);
-		// Ohne mitgezählten offset träfe der zweite Aufruf wieder dieselbe erste Portion.
+		// Erfolgreich verarbeitete fallen serverseitig aus der Auswahl — ohne Fehlschlag bleibt der
+		// offset bei 0. Nur der erste Aufruf beginnt den Lauf neu.
 		expect(callArgs(0).offset).toBe(0);
-		expect(callArgs(1).offset).toBe(2);
+		expect(callArgs(1).offset).toBe(0);
+		expect(callArgs(0).restart).toBe(true);
+		expect(callArgs(1).restart).toBe(false);
 		expect(screen.getAllByRole('alert')[0]).toHaveTextContent('4 Aufgaben neu zugeordnet, 1 unverändert gelassen');
 	});
 
@@ -169,8 +184,10 @@ describe('RecalcPillarModal — portionierter Lauf', () => {
 
 		await start();
 
-		// Vor der ersten Antwort ist die Gesamtzahl noch unbekannt.
-		expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+		// Vor der ersten Antwort ist die Gesamtzahl noch unbekannt — kein „0 / 0“-Balken, der wie
+		// ein hängender Lauf aussieht.
+		expect(screen.queryByRole('progressbar')).toBeNull();
+		expect(screen.getByText(/Ermittle Aufgaben/)).toBeInTheDocument();
 
 		await act(async () => {
 			resolvers[0](portion({ updated: 2, remaining: 3 }));
@@ -179,6 +196,16 @@ describe('RecalcPillarModal — portionierter Lauf', () => {
 		const bar = screen.getByRole('progressbar');
 		expect(bar).toHaveAttribute('aria-valuemax', '5');
 		expect(bar).toHaveAttribute('aria-valuenow', '2');
+	});
+
+	it('fordert kleine Portionen an, damit der Fortschritt während des Laufs weiterläuft', async () => {
+		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 1 }));
+		setup();
+
+		await start();
+
+		// Ohne limit nähme der Server 200 Aufgaben in EINEM Request — der Balken stünde bis zum Ende.
+		expect(callArgs(0).limit).toBe(5);
 	});
 
 	it('bricht ab, wenn eine Portion nichts mehr verarbeitet, statt endlos zu laufen', async () => {
@@ -203,6 +230,22 @@ describe('RecalcPillarModal — Abbruch, Fehler und Kontingent', () => {
 		const alerts = screen.getAllByRole('alert');
 		expect(alerts.some((alert) => alert.textContent?.includes('KI-Kontingent aufgebraucht'))).toBe(true);
 		expect(alerts.some((alert) => alert.textContent?.includes('8 Aufgaben sind noch offen'))).toBe(true);
+	});
+
+	it('summiert die Fehlergründe aller Portionen und nennt sie im Abschluss', async () => {
+		reassignOwnTaskPillars
+			.mockResolvedValueOnce(portion({ updated: 3, failed: 2, remaining: 5, failureReasons: { 'HTTP 429': 2 } }))
+			.mockResolvedValueOnce(
+				portion({ updated: 3, failed: 2, remaining: 0, failureReasons: { 'HTTP 429': 1, 'HTTP 500': 1 } }),
+			);
+		setup();
+
+		await start();
+
+		const alert = screen.getAllByRole('alert')[0];
+		expect(alert).toHaveTextContent('4 fehlgeschlagen');
+		expect(alert).toHaveTextContent('HTTP 429 (Rate-Limit des KI-Anbieters): 3');
+		expect(alert).toHaveTextContent('HTTP 500: 1');
 	});
 
 	it('zeigt einen Serverfehler an und meldet keinen Abschluss', async () => {
@@ -236,5 +279,58 @@ describe('RecalcPillarModal — Abbruch, Fehler und Kontingent', () => {
 
 		expect(reassignOwnTaskPillars).toHaveBeenCalledTimes(1);
 		expect(onCompleted).not.toHaveBeenCalled();
+	});
+});
+
+describe('RecalcPillarModal — fortsetzbarer Lauf', () => {
+	const resumableStatus = { startedAt: '2026-09-23T08:00:00.000Z', total: 145, pending: 54 };
+
+	it('zeigt den Stand des letzten Laufs und bietet „Fortsetzen“ an', async () => {
+		getOwnReassignPillarsStatus.mockResolvedValue(resumableStatus);
+		setup();
+
+		const status = await screen.findByTestId('recalc-run-status');
+		expect(status).toHaveTextContent('91 von 145');
+		expect(status).toHaveTextContent('54 noch offen');
+		expect(screen.getByRole('button', { name: 'Fortsetzen (54 offen)' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Alle 145 neu starten' })).toBeInTheDocument();
+	});
+
+	it('„Fortsetzen“ beginnt keinen neuen Lauf', async () => {
+		getOwnReassignPillarsStatus.mockResolvedValue(resumableStatus);
+		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 5, remaining: 0 }));
+		setup();
+
+		const resume = await screen.findByRole('button', { name: 'Fortsetzen (54 offen)' });
+		await act(async () => {
+			fireEvent.click(resume);
+		});
+
+		expect(callArgs(0).restart).toBe(false);
+	});
+
+	it('schiebt den offset nur um die fehlgeschlagenen Aufgaben weiter', async () => {
+		reassignOwnTaskPillars
+			.mockResolvedValueOnce(portion({ updated: 3, failed: 2, remaining: 4 }))
+			.mockResolvedValueOnce(portion({ updated: 4, remaining: 0 }));
+		setup();
+
+		await start();
+
+		// Die zwei fehlgeschlagenen stehen vorn in der Auswahl — der nächste Aufruf überspringt genau sie.
+		expect(callArgs(1).offset).toBe(2);
+	});
+
+	it('nennt nach dem Lauf die noch offenen Aufgaben und bietet „Fortsetzen“ an', async () => {
+		getOwnReassignPillarsStatus
+			.mockResolvedValueOnce({ startedAt: null, total: 10, pending: 10 })
+			.mockResolvedValue({ startedAt: '2026-09-23T08:00:00.000Z', total: 10, pending: 3 });
+		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 7, failed: 3, remaining: 0 }));
+		setup();
+
+		await start();
+
+		expect(await screen.findByTestId('recalc-pending-hint')).toHaveTextContent('3 Aufgaben sind noch offen');
+		expect(screen.getByRole('button', { name: 'Fortsetzen (3 offen)' })).toBeInTheDocument();
 	});
 });

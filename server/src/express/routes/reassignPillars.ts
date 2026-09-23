@@ -9,12 +9,37 @@ import { hasProviderPin, validateProviderQuery } from '../llmProviderQuery.js';
 import { acquireUserRun, releaseUserRun, type ReassignRunKey } from '../../logics/reassignLock.js';
 import {
 	DEFAULT_REASSIGN_LIMIT,
+	countPendingTasks,
 	parseStatusFilter,
 	reassignTaskPillarsForUser,
 } from '../../logics/reassignTaskPillars.js';
+import { User } from '../../models/index.js';
 import type { components } from '../../api';
 
 type OwnReassignPillarsResultDto = components['schemas']['OwnReassignPillarsResult'];
+type OwnReassignPillarsStatusDto = components['schemas']['OwnReassignPillarsStatus'];
+
+/**
+ * Laufstart im Pass-Through-Modus (ohne Konto, lokale Entwicklung) — dort gibt es keine
+ * `users`-Zeile, in der er stehen könnte. Geht bei einem Neustart verloren; das ist lokal hinnehmbar.
+ */
+let passthroughRunStartedAt: Date | null = null;
+
+const readRunStart = async (userId: number | undefined): Promise<Date | null> => {
+	if (userId === undefined) {
+		return passthroughRunStartedAt;
+	}
+	const user = await User.findByPk(userId, { attributes: ['id', 'pillarRecalcStartedAt'] });
+	return user?.pillarRecalcStartedAt ?? null;
+};
+
+const writeRunStart = async (userId: number | undefined, startedAt: Date): Promise<void> => {
+	if (userId === undefined) {
+		passthroughRunStartedAt = startedAt;
+		return;
+	}
+	await User.update({ pillarRecalcStartedAt: startedAt }, { where: { id: userId } });
+};
 
 /**
  * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614).
@@ -31,6 +56,31 @@ export const createReassignPillarsRouter = (
 	pillarClassifier: PillarClassifier = classifyPillarsWithMistral,
 ): Router => {
 	const router = Router();
+
+	// Stand des letzten Laufs (#1614): Das Modal zeigt damit, ob und wie viele Aufgaben noch offen
+	// sind, und bietet „Fortsetzen" an. Liest nur — kein Provider-Aufruf, kein Kontingent.
+	// Eigener Unterpfad: `GET /tasks/reassign-pillars` finge `GET /tasks/:id` aus routes/tasks.ts ab.
+	router.get(
+		'/tasks/reassign-pillars/status',
+		async (req: Request, res: Response<OwnReassignPillarsStatusDto | ErrorDto>) => {
+			const status = parseStatusFilter((req.query as Record<string, unknown>).status);
+			if (status === null) {
+				sendError(res, 400, 'status muss all, open oder done sein.');
+				return;
+			}
+			try {
+				const userId = getUserId(req);
+				const startedAt = await readRunStart(userId);
+				const [total, pending] = await Promise.all([
+					countPendingTasks(userId, status, undefined),
+					countPendingTasks(userId, status, startedAt ?? undefined),
+				]);
+				res.json({ startedAt: startedAt?.toISOString() ?? null, total, pending });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
 
 	router.post(
 		'/tasks/reassign-pillars',
@@ -77,6 +127,12 @@ export const createReassignPillarsRouter = (
 				return;
 			}
 
+			const rawRestart = query.restart;
+			if (rawRestart !== undefined && rawRestart !== 'true' && rawRestart !== 'false') {
+				sendError(res, 400, 'restart muss true oder false sein.');
+				return;
+			}
+
 			const userId = getUserId(req);
 			const runKey: ReassignRunKey = userId ?? 'passthrough';
 			if (!acquireUserRun(runKey)) {
@@ -84,6 +140,13 @@ export const createReassignPillarsRouter = (
 				return;
 			}
 			try {
+				// `restart=true` beginnt einen neuen Lauf: Ab jetzt gilt jede Aufgabe wieder als offen.
+				// Sonst setzt der Aufruf den letzten Lauf fort; gab es noch keinen, beginnt er einen.
+				let since = rawRestart === 'true' ? null : await readRunStart(userId);
+				if (since === null) {
+					since = new Date();
+					await writeRunStart(userId, since);
+				}
 				const quota = await createAiQuotaCounter(userId, hasProviderPin(query));
 				const result = await reassignTaskPillarsForUser(userId, {
 					classifier: pillarClassifier,
@@ -91,6 +154,7 @@ export const createReassignPillarsRouter = (
 					budget: limit,
 					offset,
 					status,
+					since,
 					quota,
 				});
 				const consumed = result.updated + result.failed + result.skipped;

@@ -160,6 +160,7 @@ export const main = async (): Promise<void> => {
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
 			migrateTaskPinnedColumns,
+			migratePillarRecalcColumns,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
@@ -253,6 +254,8 @@ export const main = async (): Promise<void> => {
 		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit
 		// Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateTaskPinnedColumns(sequelize);
+		// Spalten für die fortsetzbare Säulen-Neuberechnung (#1614) — vor sync(), aus demselben Grund.
+		await migratePillarRecalcColumns(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

@@ -59,6 +59,10 @@ class Task extends Model {
 	// angepinnten Tasks (zuletzt angepinnt zuerst); beim Abpinnen wird sie auf `null` zurückgesetzt.
 	public pinned!: boolean;
 	public pinnedAt?: Date | null;
+	// Säulen-Neuberechnung (#1614): Zeitpunkt, zu dem die Säulenverteilung zuletzt per KI neu bestimmt
+	// (oder mangels Vorschlag bewusst belassen) wurde. Ein fortgesetzter Lauf verarbeitet nur Aufgaben,
+	// deren Wert fehlt oder älter als der Laufstart ist — fehlgeschlagene bleiben so offen.
+	public pillarsRecalculatedAt?: Date | null;
 	// Provenienz (#553): dauerhafte, FK-freie Spalte, die beim Generieren einmalig auf `series.id`
 	// gesetzt wird und NIE wieder geändert wird — auch nicht beim Löschen der Serie. Während `seriesId`
 	// die Live-Verbindung zur (ggf. zwischenzeitlich gelöschten) Serie hält und beim Abkoppeln auf null
@@ -214,6 +218,11 @@ Task.init(
 			defaultValue: false,
 		},
 		pinnedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Säulen-Neuberechnung (#1614), siehe Feld-Kommentar oben.
+		pillarsRecalculatedAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},

@@ -119,11 +119,31 @@ export class MissingApiKeyError extends Error {
 
 /** Upstream-Fehler (HTTP-Fehlerstatus, Timeout, unlesbare/ungültige Antwort) → der Handler mappt auf 502. */
 export class MistralRequestError extends Error {
-	constructor(message: string) {
+	/** HTTP-Status der Upstream-Antwort, sofern der Fehler von einer Antwort stammt. */
+	readonly status?: number;
+	/** Aus `Retry-After` gelesene Wartezeit in Millisekunden (nur bei 429/503 gesetzt). */
+	readonly retryAfterMs?: number;
+
+	constructor(message: string, details: { status?: number; retryAfterMs?: number } = {}) {
 		super(message);
 		this.name = 'MistralRequestError';
+		this.status = details.status;
+		this.retryAfterMs = details.retryAfterMs;
 	}
 }
+
+/** Liest `Retry-After` (Sekunden oder HTTP-Datum) als Millisekunden; `undefined`, wenn nicht lesbar. */
+const parseRetryAfter = (raw: string | null): number | undefined => {
+	if (raw === null || raw.trim() === '') {
+		return undefined;
+	}
+	const seconds = Number(raw);
+	if (Number.isFinite(seconds) && seconds >= 0) {
+		return seconds * 1000;
+	}
+	const date = Date.parse(raw);
+	return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+};
 
 /** Konfiguration eines LLM-Providers — Endpoint, Auth, Modell und Label für Fehlermeldungen. */
 interface ProviderConfig {
@@ -393,6 +413,7 @@ const callProvider = async (
 		const detail = await upstreamErrorDetail(response);
 		throw new MistralRequestError(
 			`${config.label} (${config.model}) antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
+			{ status: response.status, retryAfterMs: parseRetryAfter(response.headers.get('retry-after')) },
 		);
 	}
 
