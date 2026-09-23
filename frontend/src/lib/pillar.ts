@@ -205,13 +205,14 @@ export const isDistributionUnbalanced = (shares: readonly number[]): boolean => 
 
 /**
  * Wandelt KI-Vorschläge (`pillarId` + Konfidenz) in eine vollständige Verteilung über **alle**
- * Säulen um (#1596) — auch die nicht vorgeschlagenen sind dabei, sie bekommen den Mindestanteil.
+ * Säulen um (#1596) — auch die nicht vorgeschlagenen sind dabei, mindestens mit dem Mindestanteil.
  *
  * - Nur Vorschläge zu **bekannten** Säulen mit **positiver** Konfidenz wirken auf die Verteilung —
  *   der Server kann theoretisch unbekannte IDs oder 0 %-Säulen liefern.
- * - Die Anteile verteilen sich **proportional zur Konfidenz** (`distributeWithMinimum`): nicht
- *   vorgeschlagene Säulen landen beim Mindestanteil, ohne verwertbaren Vorschlag ergibt sich die
- *   Gleichverteilung. Die Anteile sind ganzzahlig und summieren sich exakt auf `SHARE_TOTAL`.
+ * - Ist die Summe der Konfidenzen ≤ 100, bekommt jede vorgeschlagene Säule ihre Konfidenz als Anteil,
+ *   der Rest (100 − Summe) verteilt sich gleichmäßig auf **alle** Säulen (#1601). Bei Summe > 100
+ *   verteilen sich die Anteile **proportional zur Konfidenz** (`distributeWithMinimum`). Ohne
+ *   verwertbaren Vorschlag ergibt sich die Gleichverteilung. Die Anteile sind ganzzahlig und summieren sich exakt auf `SHARE_TOTAL`.
  * - Die Konfidenz wird auf `[0, 100]` geklemmt und gerundet; Säulen ohne Vorschlag bekommen 100
  *   (Default des Servers, siehe `server/src/logics/pillarContributions.ts`).
  *
@@ -227,7 +228,11 @@ export const suggestionsToContributions = (
 	const byId = new Map(
 		suggestions.filter((entry) => entry.confidence > 0).map((entry) => [entry.pillarId, entry.confidence]),
 	);
-	const shares = distributeWithMinimum(pillars.map((pillar) => byId.get(pillar.id) ?? 0));
+	// #1601: Summe ≤ 100 → Konfidenz als Anteil, Rest gleichmäßig auf ALLE Säulen; Summe > 100 →
+	// proportionale Normierung (übernimmt `distributeWithMinimum`). Gleiche Regel wie der Server.
+	const sum = pillars.reduce((acc, pillar) => acc + (byId.get(pillar.id) ?? 0), 0);
+	const rest = sum > 0 && sum <= SHARE_TOTAL ? (SHARE_TOTAL - sum) / pillars.length : 0;
+	const shares = distributeWithMinimum(pillars.map((pillar) => (byId.get(pillar.id) ?? 0) + rest));
 	return pillars.map((pillar, index) => ({
 		pillarId: pillar.id,
 		share: shares[index],
