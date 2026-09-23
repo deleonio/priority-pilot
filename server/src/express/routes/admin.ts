@@ -272,14 +272,16 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				return;
 			}
 			try {
+				// Lauf-Stand VOR dem Zählen festhalten: endete der Lauf währenddessen, meldete die
+				// Antwort sonst `running: false` mit einem Zählstand aus der Laufzeit (#1642).
+				const run = { ...readBackgroundRun('global') };
 				const result = await reassignStatusForAllUsers(status);
-				const run = readBackgroundRun('global');
 				res.json({
 					...result,
 					startedAt: result.startedAt?.toISOString() ?? null,
-					running: run?.running ?? false,
-					processed: run?.processed ?? 0,
-					...(run?.result === undefined ? {} : { result: run.result }),
+					running: run.running ?? false,
+					processed: run.processed ?? 0,
+					...(run.result === undefined ? {} : { result: run.result }),
 				});
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');

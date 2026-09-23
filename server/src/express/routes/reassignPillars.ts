@@ -50,19 +50,20 @@ export const createReassignPillarsRouter = (
 			}
 			try {
 				const userId = getUserId(req);
+				// Lauf-Stand VOR dem Zählen festhalten — sonst `running: false` mit veraltetem `pending`.
+				const run = { ...readBackgroundRun(`user:${userId ?? 'passthrough'}`) };
 				const startedAt = await readRunStart(userId);
 				const [total, pending] = await Promise.all([
 					countPendingTasks(userId, status, undefined),
 					countPendingTasks(userId, status, startedAt ?? undefined),
 				]);
-				const run = readBackgroundRun(`user:${userId ?? 'passthrough'}`);
 				res.json({
 					startedAt: startedAt?.toISOString() ?? null,
 					total,
 					pending,
-					running: run?.running ?? false,
-					processed: run?.processed ?? 0,
-					...(run?.result === undefined ? {} : { result: run.result }),
+					running: run.running ?? false,
+					processed: run.processed ?? 0,
+					...(run.result === undefined ? {} : { result: run.result }),
 				});
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
