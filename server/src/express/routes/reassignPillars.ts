@@ -3,12 +3,13 @@ import type { Request, Response } from 'express';
 import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import { getUserId } from '../requireAuth.js';
+import { isMonetizationEnforced } from '../../logics/plans.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { createAiQuotaCounter, markAiQuotaMetered } from '../aiQuotaMeter.js';
 import { hasProviderPin, validateProviderQuery } from '../llmProviderQuery.js';
 import { acquireUserRun, releaseUserRun, type ReassignRunKey } from '../../logics/reassignLock.js';
+import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
 import {
-	DEFAULT_REASSIGN_LIMIT,
 	countPendingTasks,
 	ensureRunStart,
 	parseStatusFilter,
@@ -17,7 +18,7 @@ import {
 } from '../../logics/reassignTaskPillars.js';
 import type { components } from '../../api';
 
-type OwnReassignPillarsResultDto = components['schemas']['OwnReassignPillarsResult'];
+type ReassignRunStartedDto = components['schemas']['ReassignRunStarted'];
 type OwnReassignPillarsStatusDto = components['schemas']['OwnReassignPillarsStatus'];
 
 /**
@@ -28,8 +29,8 @@ type OwnReassignPillarsStatusDto = components['schemas']['OwnReassignPillarsStat
  * clientseitiger Rechenweg — die Verteilung entsteht weiterhin serverseitig über den
  * KI-Klassifikator, damit es für dieselbe fachliche Operation nur eine Semantik gibt.
  *
- * Portionierung wie beim Admin-Batch: ein Aufruf verarbeitet höchstens `limit` Aufgaben, der
- * Aufrufer setzt mit `offset` fort und liest den Fortschritt aus `remaining`.
+ * Hintergrundlauf (#1642): POST startet den Lauf und antwortet sofort, der Server holt die
+ * Portionen zu je `limit` Aufgaben selbst ab. Fortschritt und Ergebnis liefert der Status-Endpunkt.
  */
 export const createReassignPillarsRouter = (
 	pillarClassifier: PillarClassifier = classifyPillarsWithMistral,
@@ -54,7 +55,15 @@ export const createReassignPillarsRouter = (
 					countPendingTasks(userId, status, undefined),
 					countPendingTasks(userId, status, startedAt ?? undefined),
 				]);
-				res.json({ startedAt: startedAt?.toISOString() ?? null, total, pending });
+				const run = readBackgroundRun(`user:${userId ?? 'passthrough'}`);
+				res.json({
+					startedAt: startedAt?.toISOString() ?? null,
+					total,
+					pending,
+					running: run?.running ?? false,
+					processed: run?.processed ?? 0,
+					...(run?.result === undefined ? {} : { result: run.result }),
+				});
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}
@@ -65,12 +74,11 @@ export const createReassignPillarsRouter = (
 		'/tasks/reassign-pillars',
 		requirePlanFeature('ai_assist'),
 		// Bewusst OHNE `meterAiQuota()`: die Middleware bucht einen Punkt je Request und storniert
-		// ihn nur bei Status >= 400. Zusammen mit der Buchung je Aufgabe kostete eine Portion über
-		// N Aufgaben N+1 Punkte, und das von ihr ergänzte `quotaRemaining` stammte von VOR dem Lauf
-		// und läge um bis zu N zu hoch. Diese Route bucht deshalb ausschließlich selbst, weist bei
-		// erschöpftem Kontingent mit demselben 429 ab und liest `quotaRemaining` am Ende frisch.
+		// ihn nur bei Status >= 400. Zusammen mit der Buchung je Aufgabe kostete ein Lauf über
+		// N Aufgaben N+1 Punkte. Diese Route bucht deshalb ausschließlich selbst (je Aufgabe im
+		// Hintergrundlauf) und weist bei schon erschöpftem Kontingent mit demselben 429 ab.
 		// `markAiQuotaMetered` hält sie für den Abdeckungstest (AK5) trotzdem als gezählt sichtbar.
-		markAiQuotaMetered(async (req: Request, res: Response<OwnReassignPillarsResultDto | ErrorDto>) => {
+		markAiQuotaMetered(async (req: Request, res: Response<ReassignRunStartedDto | ErrorDto>) => {
 			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 			if (!providerValidation.ok) {
 				sendError(res, 400, providerValidation.message);
@@ -79,7 +87,7 @@ export const createReassignPillarsRouter = (
 			const query = req.query as Record<string, unknown>;
 
 			const rawLimit = query.limit;
-			let limit = DEFAULT_REASSIGN_LIMIT;
+			let limit = BACKGROUND_PORTION_SIZE;
 			if (rawLimit !== undefined) {
 				const parsed = Number(rawLimit);
 				if (!Number.isInteger(parsed) || parsed < 1) {
@@ -123,20 +131,11 @@ export const createReassignPillarsRouter = (
 				// Sonst setzt der Aufruf den letzten Lauf fort; gab es noch keinen, beginnt er einen.
 				const since = await ensureRunStart(userId, rawRestart === 'true');
 				const quota = await createAiQuotaCounter(userId, hasProviderPin(query));
-				const result = await reassignTaskPillarsForUser(userId, {
-					classifier: pillarClassifier,
-					provider: providerValidation.provider,
-					budget: limit,
-					offset,
-					status,
-					since,
-					quota,
-				});
-				const consumed = result.updated + result.failed + result.skipped;
 
-				// Schon vor dem ersten Provider-Aufruf erschöpft: derselbe 429 wie in der Middleware,
-				// statt einer 200 mit einem Lauf, der nichts getan hat.
-				if (result.quotaExhausted && consumed === 0 && quota !== undefined) {
+				// Schon vor dem Start erschöpft: derselbe 429 wie in der Middleware, statt eines
+				// Laufs, der nichts tun kann.
+				if (quota !== undefined && isMonetizationEnforced() && (await quota.remaining()) === 0) {
+					releaseUserRun(runKey);
 					sendPlanError(res, 429, `Das monatliche KI-Kontingent von ${quota.monthlyLimit} Anfragen ist aufgebraucht.`, {
 						code: 'quota_exhausted',
 						feature: 'ai_assist',
@@ -145,17 +144,27 @@ export const createReassignPillarsRouter = (
 					return;
 				}
 
-				const { total, ...rest } = result;
-				res.json({
-					...rest,
-					remaining: Math.max(0, total - offset - consumed),
-					// Erst hier frisch gelesen — die N Buchungen des Laufs sind darin enthalten.
-					...(quota === undefined ? {} : { quotaRemaining: await quota.remaining() }),
-				});
+				startBackgroundRun(
+					`user:${runKey}`,
+					async (failedOffset) => {
+						const { total, ...rest } = await reassignTaskPillarsForUser(userId, {
+							classifier: pillarClassifier,
+							provider: providerValidation.provider,
+							budget: limit,
+							offset: offset + failedOffset,
+							status,
+							since,
+							quota,
+						});
+						const consumed = rest.updated + rest.failed + rest.skipped;
+						return { ...rest, remaining: Math.max(0, total - offset - failedOffset - consumed) };
+					},
+					() => releaseUserRun(runKey),
+				);
+				res.status(202).json({ running: true, processed: 0 });
 			} catch {
-				sendError(res, 500, 'Interner Serverfehler.');
-			} finally {
 				releaseUserRun(runKey);
+				sendError(res, 500, 'Interner Serverfehler.');
 			}
 		}),
 	);

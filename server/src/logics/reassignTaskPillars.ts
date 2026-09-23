@@ -366,7 +366,7 @@ export const reassignTaskPillarsForUser = async (
 };
 
 /** Fällt auf 200 Aufgaben je Lauf zurück, wenn kein `limit` übergeben wird (Finding #4). */
-export const DEFAULT_REASSIGN_LIMIT = 200;
+const DEFAULT_REASSIGN_LIMIT = 200;
 
 /**
  * Laufstart je Konto (#1614) — Bezugspunkt für „Fortsetzen": offen sind die Aufgaben, deren

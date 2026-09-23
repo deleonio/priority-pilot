@@ -364,18 +364,29 @@ describe('POST/GET /admin/tasks/reassign-pillars — Hintergrundlauf (#1642)', (
 
 	const gatedClassifier = (): { classifier: PillarClassifier; release: (index: number) => void } => {
 		const gates: (() => void)[] = [];
+		// Test-Pflege #1642: ein vor dem Aufruf freigegebenes Gate lässt ihn sofort durch — der
+		// Lauf klassifiziert sequenziell, Aufruf 2 existiert beim Freigeben noch nicht.
+		const released = new Set<number>();
 		let calls = 0;
 		const gatedFn: PillarClassifier = (async (input: ClassifyPillarsInput) => {
 			const index = calls;
 			calls += 1;
-			await new Promise<void>((resolve) => {
-				gates[index] = resolve;
-			});
+			if (!released.has(index)) {
+				await new Promise<void>((resolve) => {
+					gates[index] = resolve;
+				});
+			}
 			const suggestions: PillarSuggestion[] =
 				input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
 			return suggestions;
 		}) as PillarClassifier;
-		return { classifier: gatedFn, release: (index: number) => gates[index]?.() };
+		return {
+			classifier: gatedFn,
+			release: (index: number) => {
+				released.add(index);
+				gates[index]?.();
+			},
+		};
 	};
 
 	afterEach(async () => {
@@ -389,6 +400,7 @@ describe('POST/GET /admin/tasks/reassign-pillars — Hintergrundlauf (#1642)', (
 		const { classifier, release } = gatedClassifier();
 		scoped = await startTestServer({ pillarClassifier: classifier });
 		const adminCookie = await scoped.login(ADMIN_EMAIL, { role: 'admin' });
+		await scoped.login(MEMBER_EMAIL, { role: 'member' }); // Test-Pflege #1642: Konto existiert erst nach Login
 		const memberId = await userIdOf(MEMBER_EMAIL);
 		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 		await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
@@ -416,6 +428,7 @@ describe('POST/GET /admin/tasks/reassign-pillars — Hintergrundlauf (#1642)', (
 		const { classifier, release } = gatedClassifier();
 		scoped = await startTestServer({ pillarClassifier: classifier });
 		const adminCookie = await scoped.login(ADMIN_EMAIL, { role: 'admin' });
+		await scoped.login(MEMBER_EMAIL, { role: 'member' }); // Test-Pflege #1642: Konto existiert erst nach Login
 		const memberId = await userIdOf(MEMBER_EMAIL);
 		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 		await Task.create({ title: 'Erste', status: 'Open', userId: memberId });

@@ -6,40 +6,22 @@ import { toApiError } from './apiError';
  * Gemeinsame Lauf-Logik der Säulen-Neuberechnung (#1614) für das Nutzer-Modal
  * (`RecalcPillarModal`) und den Admin-Batch (`AdminUsersSection`).
  *
- * Beide Einstiege treiben einen portionierten Server-Lauf bis zum Ende und zeigen daraus den
- * Fortschritt. Die Schleife stand vorher zweimal im Code; der Admin-Batch blieb deshalb bei #1628
- * auf dem alten Stand (200 Aufgaben in einem Request, Anzeige „0 / 0“). Sie lebt jetzt nur hier.
+ * Seit #1642 läuft die Neuberechnung als Hintergrundlauf auf dem Server: `start` stößt ihn nur an,
+ * danach fragt der Hook den Status ab, bis `running: false` gemeldet wird. Schließen oder Navigieren
+ * bricht deshalb nichts mehr ab, und ein beim Mount schon laufender Lauf wird ohne Klick weiterverfolgt.
  */
 
-/**
- * Aufgaben je Server-Aufruf. Klein gehalten, weil jede Aufgabe einen LLM-Aufruf kostet: Der Balken
- * springt so alle paar Sekunden weiter, statt bis zum Ende eines einzigen langen Requests auf 0 zu
- * stehen, und kein Request läuft in einen Proxy-Timeout.
- */
-const REASSIGN_BATCH_SIZE = 5;
-
-/** Antwort einer Portion — gemeinsamer Nenner von Nutzer- und Admin-Endpunkt. */
-interface ReassignPortion {
-	updated: number;
-	failed: number;
-	skipped: number;
-	remaining: number;
-	quotaExhausted?: boolean;
-	failureReasons?: Record<string, number>;
-}
+/** Abstand der Status-Abfragen, solange der Server-Lauf unterwegs ist. */
+const POLL_INTERVAL_MS = 1500;
 
 export interface ReassignPortionArgs {
-	/** Nur die Fehlschläge dieser Serie: Erfolgreich verarbeitete fallen serverseitig aus der Auswahl. */
-	offset: number;
-	limit: number;
-	/** Nur beim ersten Aufruf eines Neustarts `true`. */
+	/** `true` beginnt den Lauf neu, sonst setzt er den letzten fort. */
 	restart: boolean;
-	signal: AbortSignal;
 }
 
 export interface ReassignRunState {
 	phase: 'idle' | 'processing' | 'completed';
-	/** Aufgaben der Auswahl insgesamt — erst nach dem ersten Aufruf bekannt (bis dahin 0). */
+	/** Aufgaben des Laufs insgesamt — erst nach der ersten Status-Abfrage bekannt (bis dahin 0). */
 	total: number;
 	processed: number;
 	updated: number;
@@ -47,7 +29,7 @@ export interface ReassignRunState {
 	skipped: number;
 	/** Lauf endete vorzeitig, weil das KI-Kontingent aufgebraucht ist. */
 	quotaExhausted: boolean;
-	/** Fehlergründe über alle Portionen, Grund → Anzahl. */
+	/** Fehlergründe des Laufs, Grund → Anzahl. */
 	failureReasons: Record<string, number>;
 	error: string | null;
 }
@@ -65,7 +47,8 @@ const IDLE: ReassignRunState = {
 };
 
 interface UseReassignRunOptions {
-	runPortion: (args: ReassignPortionArgs) => Promise<ReassignPortion>;
+	/** Startet den Server-Lauf. */
+	runPortion: (args: ReassignPortionArgs) => Promise<unknown>;
 	/** Stand des letzten Laufs; neue Identität (z. B. anderer Filter) lädt ihn neu. */
 	loadStatus: () => Promise<OwnReassignPillarsStatus>;
 	/** Nach einem Lauf, der mindestens eine Aufgabe neu zugeordnet hat. */
@@ -75,7 +58,9 @@ interface UseReassignRunOptions {
 export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassignRunOptions) => {
 	const [run, setRun] = useState<ReassignRunState>(IDLE);
 	const [status, setStatus] = useState<OwnReassignPillarsStatus | null>(null);
-	const abortRef = useRef<AbortController | null>(null);
+	// `true`, sobald dieser Hook einen Lauf begleitet — nur dann wird `running: false` zum Abschluss.
+	const trackingRef = useRef(false);
+	const pollRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	// Aktuelle Callbacks, ohne dass ein laufender Lauf mit veralteten Closures weiterarbeitet.
 	const runPortionRef = useRef(runPortion);
 	const onChangedRef = useRef(onChanged);
@@ -85,11 +70,48 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 	}, [runPortion, onChanged]);
 
 	// Ein Fehler hier blockiert nichts: Ohne Stand gibt es eben nur den Neustart.
+	// Solange der Server-Lauf unterwegs ist, lädt sie sich selbst periodisch nach.
 	const refreshStatus = useCallback(async (): Promise<void> => {
+		clearTimeout(pollRef.current);
+		let next: OwnReassignPillarsStatus;
 		try {
-			setStatus(await loadStatus());
+			next = await loadStatus();
 		} catch {
 			setStatus(null);
+			return;
+		}
+		setStatus(next);
+		const processed = next.processed ?? 0;
+		if (next.running === true) {
+			trackingRef.current = true;
+			setRun((prev) => ({
+				...prev,
+				phase: 'processing',
+				error: null,
+				processed,
+				total: Math.max(prev.total, processed + next.pending),
+			}));
+			pollRef.current = setTimeout(() => void refreshStatusRef.current(), POLL_INTERVAL_MS);
+			return;
+		}
+		if (!trackingRef.current) {
+			return;
+		}
+		trackingRef.current = false;
+		const result = next.result;
+		setRun((prev) => ({
+			...prev,
+			phase: 'completed',
+			processed,
+			total: Math.max(prev.total, processed + (result?.quotaExhausted === true ? next.pending : 0)),
+			updated: result?.updated ?? 0,
+			failed: result?.failed ?? 0,
+			skipped: result?.skipped ?? 0,
+			quotaExhausted: result?.quotaExhausted ?? false,
+			failureReasons: result?.failureReasons ?? {},
+		}));
+		if ((result?.updated ?? 0) > 0) {
+			onChangedRef.current?.();
 		}
 	}, [loadStatus]);
 
@@ -97,87 +119,34 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 		void refreshStatus();
 	}, [refreshStatus]);
 
-	// Beim Unmount den laufenden Aufruf abbrechen, damit die Schleife nicht weiterläuft und keinen
-	// Zustand einer ausgehängten Komponente mehr setzt.
-	useEffect(() => () => abortRef.current?.abort(), []);
+	const refreshStatusRef = useRef(refreshStatus);
+	useEffect(() => {
+		refreshStatusRef.current = refreshStatus;
+	}, [refreshStatus]);
+
+	// Beim Unmount endet nur das Abfragen — der Lauf selbst geht auf dem Server weiter.
+	useEffect(() => () => clearTimeout(pollRef.current), []);
 
 	const start = useCallback(
 		async (restart: boolean): Promise<void> => {
-			const controller = new AbortController();
-			abortRef.current = controller;
+			trackingRef.current = true;
 			setRun({ ...IDLE, phase: 'processing' });
-
-			let offset = 0;
-			let first = true;
-			let changed = false;
-			const totals = { processed: 0, updated: 0, failed: 0, skipped: 0 };
-			const failureReasons: Record<string, number> = {};
-
-			const finish = (error: string | null): void => {
-				setRun((prev) => ({ ...prev, phase: 'completed', error }));
+			try {
+				await runPortionRef.current({ restart });
+			} catch (reason) {
+				trackingRef.current = false;
+				const { message } = await toApiError(reason);
+				setRun((prev) => ({ ...prev, phase: 'completed', error: message }));
 				void refreshStatus();
-				if (changed) {
-					onChangedRef.current?.();
-				}
-			};
-
-			for (;;) {
-				let result: ReassignPortion;
-				try {
-					result = await runPortionRef.current({
-						offset,
-						limit: REASSIGN_BATCH_SIZE,
-						restart: first && restart,
-						signal: controller.signal,
-					});
-				} catch (reason) {
-					if (controller.signal.aborted) {
-						return;
-					}
-					finish((await toApiError(reason)).message);
-					return;
-				}
-				if (controller.signal.aborted) {
-					return;
-				}
-				first = false;
-
-				const consumed = result.updated + result.failed + result.skipped;
-				totals.processed += consumed;
-				totals.updated += result.updated;
-				totals.failed += result.failed;
-				totals.skipped += result.skipped;
-				for (const [reason, count] of Object.entries(result.failureReasons ?? {})) {
-					failureReasons[reason] = (failureReasons[reason] ?? 0) + count;
-				}
-				offset += result.failed;
-				changed = changed || result.updated > 0;
-
-				setRun((prev) => ({
-					...prev,
-					...totals,
-					total: totals.processed + result.remaining,
-					failureReasons: { ...failureReasons },
-					quotaExhausted: result.quotaExhausted ?? false,
-				}));
-
-				// `consumed === 0` bricht ab, auch wenn der Server noch Aufgaben meldet: sonst liefe die
-				// Schleife endlos, falls eine Portion nichts mehr verarbeiten kann.
-				if (result.remaining === 0 || result.quotaExhausted === true || consumed === 0) {
-					finish(null);
-					return;
-				}
+				return;
 			}
+			await refreshStatus();
 		},
 		[refreshStatus],
 	);
 
-	const abort = useCallback((): void => {
-		abortRef.current?.abort();
-	}, []);
-
 	// Fortsetzen lohnt nur, wenn ein Lauf begann und nicht alle Aufgaben durch sind.
 	const canResume = status !== null && status.startedAt !== null && status.pending > 0 && status.pending < status.total;
 
-	return { run, status, canResume, start, abort };
+	return { run, status, canResume, start };
 };

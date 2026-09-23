@@ -11,12 +11,12 @@ import { validateProviderQuery } from '../llmProviderQuery.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import type { components } from '../../api';
 import {
-	DEFAULT_REASSIGN_LIMIT,
 	parseStatusFilter,
 	reassignStatusForAllUsers,
 	reassignTaskPillarsForAllUsers,
 } from '../../logics/reassignTaskPillars.js';
 import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js';
+import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -25,7 +25,7 @@ import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js
  * (Tester, #1566), nur der Paket-PATCH ist für Tester auf die eigene Id geöffnet.
  */
 
-type ReassignPillarsResultDto = components['schemas']['ReassignPillarsResult'];
+type ReassignRunStartedDto = components['schemas']['ReassignRunStarted'];
 type ReassignPillarsStatusDto = components['schemas']['OwnReassignPillarsStatus'];
 
 type AdminUserDto = {
@@ -191,7 +191,7 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 	adminRouter.post(
 		'/admin/tasks/reassign-pillars',
 		requireRole('admin'),
-		async (req: Request, res: Response<ReassignPillarsResultDto | ErrorDto>) => {
+		async (req: Request, res: Response<ReassignRunStartedDto | ErrorDto>) => {
 			// Provider-Query-Parameter validieren (#749) — gleiche Pinning-Regel wie suggest-pillars.
 			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 			if (!providerValidation.ok) {
@@ -199,7 +199,7 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				return;
 			}
 			const rawLimit = (req.query as Record<string, unknown>).limit;
-			let limit = DEFAULT_REASSIGN_LIMIT;
+			let limit = BACKGROUND_PORTION_SIZE;
 			if (rawLimit !== undefined) {
 				const parsed = Number(rawLimit);
 				if (!Number.isInteger(parsed) || parsed < 1) {
@@ -237,21 +237,26 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				sendError(res, 409, 'Es läuft bereits ein Batch-Lauf — erst dessen Ende abwarten.');
 				return;
 			}
-			try {
-				const result = await reassignTaskPillarsForAllUsers({
-					classifier: pillarClassifier,
-					provider: providerValidation.provider,
-					limit,
-					offset,
-					status,
-					restart: rawRestart === 'true',
-				});
-				res.json(result);
-			} catch {
-				sendError(res, 500, 'Interner Serverfehler.');
-			} finally {
-				releaseGlobalRun();
-			}
+			// Hintergrundlauf (#1642): sofort antworten, der Server holt die Portionen selbst ab.
+			// `restart` gilt nur für die erste Portion — danach setzt der Lauf fort.
+			let first = true;
+			startBackgroundRun(
+				'global',
+				async (failedOffset) => {
+					const restart = first && rawRestart === 'true';
+					first = false;
+					return reassignTaskPillarsForAllUsers({
+						classifier: pillarClassifier,
+						provider: providerValidation.provider,
+						limit,
+						offset: offset + failedOffset,
+						status,
+						restart,
+					});
+				},
+				releaseGlobalRun,
+			);
+			res.status(202).json({ running: true, processed: 0 });
 		},
 	);
 
@@ -268,7 +273,14 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 			}
 			try {
 				const result = await reassignStatusForAllUsers(status);
-				res.json({ ...result, startedAt: result.startedAt?.toISOString() ?? null });
+				const run = readBackgroundRun('global');
+				res.json({
+					...result,
+					startedAt: result.startedAt?.toISOString() ?? null,
+					running: run?.running ?? false,
+					processed: run?.processed ?? 0,
+					...(run?.result === undefined ? {} : { result: run.result }),
+				});
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

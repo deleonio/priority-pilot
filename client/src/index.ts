@@ -71,6 +71,7 @@ export type AdminUser = Schemas['AdminUser'];
 export type AdminUserRoleUpdate = Schemas['AdminUserRoleUpdate'];
 export type ReassignPillarsResult = Schemas['ReassignPillarsResult'];
 export type OwnReassignPillarsResult = Schemas['OwnReassignPillarsResult'];
+export type ReassignRunStarted = Schemas['ReassignRunStarted'];
 export type OwnReassignPillarsStatus = Schemas['OwnReassignPillarsStatus'];
 export type ReassignStatusFilter = Schemas['ReassignStatusFilter'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];

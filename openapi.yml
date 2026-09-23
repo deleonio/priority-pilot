@@ -2057,12 +2057,12 @@ paths:
           schema:
             type: boolean
       responses:
-        '200':
-          description: Ergebnis des Batch-Laufs
+        '202':
+          description: Hintergrundlauf gestartet — Fortschritt und Ergebnis über den Status-Endpunkt (#1642)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReassignPillarsResult'
+                $ref: '#/components/schemas/ReassignRunStarted'
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -2168,12 +2168,12 @@ paths:
           schema:
             type: boolean
       responses:
-        '200':
-          description: Ergebnis des Laufs über die eigenen Aufgaben
+        '202':
+          description: Hintergrundlauf gestartet — Fortschritt und Ergebnis über den Status-Endpunkt (#1642)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OwnReassignPillarsResult'
+                $ref: '#/components/schemas/ReassignRunStarted'
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -3407,6 +3407,42 @@ components:
           description: >-
             Aufgaben der Statusauswahl, die seit `startedAt` nicht erfolgreich neu
             berechnet wurden. Ohne Lauf gleich `total`.
+        running:
+          type: boolean
+          description: Ein Hintergrundlauf ist gerade unterwegs (#1642).
+        processed:
+          type: integer
+          description: Im laufenden bzw. letzten Hintergrundlauf abgeschlossene Aufgaben.
+        result:
+          $ref: '#/components/schemas/ReassignRunResult'
+    ReassignRunStarted:
+      type: object
+      description: Antwort auf den Start eines Hintergrundlaufs (#1642).
+      required: [running, processed]
+      properties:
+        running:
+          type: boolean
+        processed:
+          type: integer
+    ReassignRunResult:
+      type: object
+      description: >-
+        Ergebnis des letzten Hintergrundlaufs seit dem Serverstart (#1642) — fehlt,
+        solange der Lauf noch läuft oder seit dem Serverstart keiner lief.
+      required: [updated, failed, skipped, quotaExhausted]
+      properties:
+        updated:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+        quotaExhausted:
+          type: boolean
+        failureReasons:
+          type: object
+          additionalProperties:
+            type: integer
     ReassignPillarsResult:
       type: object
       description: >-

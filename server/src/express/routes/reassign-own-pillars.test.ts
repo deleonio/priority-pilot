@@ -440,18 +440,30 @@ describe('POST/GET /tasks/reassign-pillars — Hintergrundlauf (#1642)', () => {
 		calls: () => number;
 	} => {
 		const gates: (() => void)[] = [];
+		// Test-Pflege #1642: ein vor dem Aufruf freigegebenes Gate lässt ihn sofort durch — der
+		// Lauf klassifiziert sequenziell, Aufruf 2 existiert beim Freigeben noch nicht.
+		const released = new Set<number>();
 		let calls = 0;
 		const classifier: PillarClassifier = (async (input: ClassifyPillarsInput) => {
 			const index = calls;
 			calls += 1;
-			await new Promise<void>((resolve) => {
-				gates[index] = resolve;
-			});
+			if (!released.has(index)) {
+				await new Promise<void>((resolve) => {
+					gates[index] = resolve;
+				});
+			}
 			const suggestions: PillarSuggestion[] =
 				input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
 			return suggestions;
 		}) as PillarClassifier;
-		return { classifier, release: (index: number) => gates[index]?.(), calls: () => calls };
+		return {
+			classifier,
+			release: (index: number) => {
+				released.add(index);
+				gates[index]?.();
+			},
+			calls: () => calls,
+		};
 	};
 
 	afterEach(async () => {
