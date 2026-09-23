@@ -36,14 +36,14 @@ Funktion ersetzt oder von der neuen genutzt wird, entscheidet die Impl-Phase):
 
 ## Akzeptanzkriterien → Tests
 
-| AK | Erwartung | Test |
-| --- | --- | --- |
-| AK1 | 28 Tage, Sinn 1×/Woche im Soll bedient (4× in 28 Tagen), übrige Säulen ebenfalls im Soll-Rhythmus → `erfuellung` von Sinn ≥ 0,8 | TF1 |
-| AK2 | Gleiches Szenario → `fill` ≥ 0,8 | TF1 |
-| AK3 | Eine Säule ohne erledigte Aufgabe in den letzten 28 Tagen → ihre `erfuellung` = 0, `fill` < 1, auch wenn sie vor > 28 Tagen die meisten `punkte` hält | TF1 |
-| AK4 | `punkte` bleibt die zeitfensterunabhängige Summe über die ganze Historie (alte Erledigung außerhalb des Fensters zählt weiter in `punkte`) | TF1 (AK3-Fall) |
-| AK6 | Keine erledigten Aufgaben → `fill = 0`, `hasPoints = false` | TF1 |
-| AK8 | Rhythmen kommen aus `pillarData.ts`, nicht editierbar | TF2 |
+| AK  | Erwartung                                                                                                                                             | Test           |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| AK1 | 28 Tage, Sinn 1×/Woche im Soll bedient (4× in 28 Tagen), übrige Säulen ebenfalls im Soll-Rhythmus → `erfuellung` von Sinn ≥ 0,8                       | TF1            |
+| AK2 | Gleiches Szenario → `fill` ≥ 0,8                                                                                                                      | TF1            |
+| AK3 | Eine Säule ohne erledigte Aufgabe in den letzten 28 Tagen → ihre `erfuellung` = 0, `fill` < 1, auch wenn sie vor > 28 Tagen die meisten `punkte` hält | TF1            |
+| AK4 | `punkte` bleibt die zeitfensterunabhängige Summe über die ganze Historie (alte Erledigung außerhalb des Fensters zählt weiter in `punkte`)            | TF1 (AK3-Fall) |
+| AK6 | Keine erledigten Aufgaben → `fill = 0`, `hasPoints = false`                                                                                           | TF1            |
+| AK8 | Rhythmen kommen aus `pillarData.ts`, nicht editierbar                                                                                                 | TF2            |
 
 AK5 (Server/MCP/Dashboard-Parität) und AK7 (Gamification-Punkte unverändert) sind aus Zeitbudget-Gründen
 in dieser Runde **nicht** spezifiziert — siehe PR „Offene Fragen".

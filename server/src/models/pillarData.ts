@@ -50,3 +50,15 @@ export const SEED_PILLARS: readonly {
 		weight: 20,
 	},
 ] as const;
+
+/**
+ * Soll-Rhythmus je Säule in Erledigungen pro Woche (#1638, Kadenz-Modell), Seed-Reihenfolge wie
+ * `SEED_PILLARS`. Feste Stammdaten, bewusst nicht über API/UI änderbar.
+ */
+export const PILLAR_RHYTHMS: readonly { name: string; rhythmusProWoche: number }[] = [
+	{ name: 'Körper', rhythmusProWoche: 5 },
+	{ name: 'Mentale Gesundheit', rhythmusProWoche: 3 },
+	{ name: 'Beziehungen', rhythmusProWoche: 3 },
+	{ name: 'Wirksamkeit', rhythmusProWoche: 5 },
+	{ name: 'Sinn', rhythmusProWoche: 1 },
+] as const;
