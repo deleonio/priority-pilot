@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.4 - 2026-09-23
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.3 - 2026-09-23
 
-_Enthält v0.3.0 – v0.3.7._
+_Enthält v0.3.0 – v0.3.8._
 
 ### Other Changes
 
@@ -15,6 +19,7 @@ _Enthält v0.3.0 – v0.3.7._
 - fix(server): reliable pillar recalculation with status filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1615
 - fix(ci): bump version before build so deployed footer matches changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1619
 - feat(frontend): add week view to the daily plan (#1617) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1620
+- feat(frontend): serve the app under /app/ and add a public website by @deleonio in https://github.com/deleonio/priority-pilot/pull/1621
 
 ## v0.2 - 2026-09-22
 
@@ -836,7 +841,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(ci): concurrency group per phase instead of global llm queue by @deleonio in https://github.com/deleonio/priority-pilot/pull/1301
 - fix(server): handle oauth callback errors and lowercase email search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1299
 - feat(frontend): raise title limit to 65, cap description at 3000 chars by @deleonio in https://github.com/deleonio/priority-pilot/pull/1298
-- feat(frontend): unify series tab badges and restore list gap rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1297
 - feat(frontend): unify series tab badges and restore list gap rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1297
 - docs(arc42): sync architecture overview to code state (2026-09-08) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1296
 - feat(frontend): size heart segments by filled area, not width by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1305
