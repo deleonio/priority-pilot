@@ -29,6 +29,7 @@ type TaskOverrides = Partial<{
 	status: 'Open' | 'In process' | 'Done';
 	priority: number;
 	userId: number | null;
+	deadline: Date | null;
 }>;
 
 const createTask = (overrides: TaskOverrides = {}) =>
@@ -38,6 +39,7 @@ const createTask = (overrides: TaskOverrides = {}) =>
 		priority: overrides.priority ?? 3,
 		estimatedEffort: 0.5,
 		userId: overrides.userId ?? null,
+		deadline: overrides.deadline ?? null,
 	});
 
 const seedSubscription = (userId: number | null, endpoint: string) =>
@@ -208,6 +210,102 @@ describe('logics/dailyTopTasks — „3 wichtigste Aufgaben um 6 Uhr" (Issue #51
 		assert.deepEqual(
 			groups[0].tasks.map((task) => task.title),
 			['Sport', 'Steuer', 'Garten'],
+		);
+	});
+});
+
+// Rote Spec-Tests für Issue #1641 (Spec docs/spec/issue-1641.md, Journey 1): Aufgaben mit einem
+// Datum mehr als 3 Kalendertage in der Zukunft werden vor der Top-3-Auswahl zurückgehalten.
+// KEIN Produktivcode.
+describe('logics/dailyTopTasks — Vorlauf 3 Tage (Issue #1641)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	const tag = (offset: number): Date => new Date(NOW.getTime() + offset * 24 * 60 * 60 * 1000);
+
+	it('AK1: Aufgabe mit Datum in 5 Tagen fehlt in der Gruppe', async () => {
+		await createTask({ title: 'Zu weit weg', priority: 1, userId: 1, deadline: tag(5) });
+
+		const groups = await collectDailyTopTasks(NOW);
+
+		assert.equal(groups.length, 0, 'ohne berechtigte Aufgabe entsteht keine Gruppe');
+	});
+
+	it('AK2: Aufgabe mit Datum in genau 3 Tagen ist enthalten (Grenze inklusiv)', async () => {
+		await createTask({ title: 'Grenzfall', priority: 1, userId: 1, deadline: tag(3) });
+
+		const groups = await collectDailyTopTasks(NOW);
+
+		assert.equal(groups.length, 1);
+		assert.deepEqual(
+			groups[0].tasks.map((task) => task.title),
+			['Grenzfall'],
+		);
+	});
+
+	it('AK3: Aufgabe ohne Datum und überfällige Aufgabe erscheinen wie bisher', async () => {
+		await createTask({ title: 'Ohne Datum', priority: 1, userId: 1, deadline: null });
+		await createTask({ title: 'Überfällig', priority: 2, userId: 1, deadline: tag(-2) });
+		await createTask({ title: 'Zu weit weg', priority: 3, userId: 1, deadline: tag(5) });
+
+		const groups = await collectDailyTopTasks(NOW);
+
+		assert.equal(groups.length, 1);
+		assert.deepEqual(
+			groups[0].tasks.map((task) => task.title),
+			['Ohne Datum', 'Überfällig'],
+		);
+	});
+
+	it('AK4: zurückgehaltene Aufgabe wird durch die nächstberechtigte ersetzt (Nachrücken)', async () => {
+		await createTask({ title: 'P1', priority: 1, userId: 1, deadline: null });
+		await createTask({ title: 'P2-zurückgehalten', priority: 2, userId: 1, deadline: tag(5) });
+		await createTask({ title: 'P3', priority: 3, userId: 1, deadline: null });
+		await createTask({ title: 'P4', priority: 4, userId: 1, deadline: null });
+
+		const groups = await collectDailyTopTasks(NOW);
+
+		assert.equal(groups.length, 1);
+		assert.deepEqual(
+			groups[0].tasks.map((task) => task.title),
+			['P1', 'P3', 'P4'],
+			'P2 fällt weg, P4 rückt als drittes nach',
+		);
+	});
+
+	it('AK5: Serie mit aktueller Instanz in 5 Tagen erscheint gar nicht', async () => {
+		const series = await Series.create({
+			title: 'Weit weg',
+			rhythm: 'daily',
+			priority: 1,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: tag(5),
+		});
+		await Task.create({
+			title: 'Weit weg',
+			status: 'Open',
+			priority: 1,
+			estimatedEffort: 0.5,
+			deadline: tag(5),
+			seriesId: series.id,
+			seriesOccurrence: tag(5),
+			originSeriesId: series.id,
+			userId: 1,
+		});
+		await createTask({ title: 'Sonst nichts los', priority: 5, userId: 1, deadline: null });
+
+		const groups = await collectDailyTopTasks(NOW);
+
+		assert.equal(groups.length, 1);
+		assert.deepEqual(
+			groups[0].tasks.map((task) => task.title),
+			['Sonst nichts los'],
+			'die Serie ist nicht enthalten, nur die unabhängige Aufgabe',
 		);
 	});
 });
