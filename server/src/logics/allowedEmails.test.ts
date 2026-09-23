@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 // gemäß diesem Vertrag (AK 1–7, AK-9) bereitstellt.
 import { isEmailAllowed, getConfiguredEmails } from './allowedEmails.js';
 
-const ENV_KEYS = ['GOOGLE_ALLOWED_EMAIL', 'GOOGLE_ALLOWED_EMAILS'] as const;
+const ENV_KEYS = ['GOOGLE_ALLOWED_EMAIL', 'GOOGLE_ALLOWED_EMAILS', 'OPEN_SIGNUP'] as const;
 
 const originalEnv: Record<string, string | undefined> = {};
 for (const key of ENV_KEYS) {
@@ -114,5 +114,32 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 		const line = logged.find((entry) => entry.includes('[auth] Allowed emails:'));
 
 		assert.equal(line, '[auth] Allowed emails: ***, ***');
+	});
+
+	describe('OPEN_SIGNUP — offene Registrierung für die öffentliche Website', () => {
+		it('lässt bei OPEN_SIGNUP=true jede Adresse zu, auch ohne Allowlist', () => {
+			clearEnv();
+			process.env.OPEN_SIGNUP = 'true';
+			assert.equal(isEmailAllowed('neu@example.com'), true);
+		});
+
+		it('weist auch bei OPEN_SIGNUP=true eine leere Adresse ab', () => {
+			clearEnv();
+			process.env.OPEN_SIGNUP = 'true';
+			assert.equal(isEmailAllowed('  '), false);
+		});
+
+		it('getConfiguredEmails() wirft bei OPEN_SIGNUP=true ohne Allowlist nicht', () => {
+			clearEnv();
+			process.env.OPEN_SIGNUP = 'true';
+			assert.deepEqual(getConfiguredEmails(), []);
+		});
+
+		it('OPEN_SIGNUP=false lässt die Allowlist greifen', () => {
+			clearEnv();
+			process.env.OPEN_SIGNUP = 'false';
+			process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com';
+			assert.equal(isEmailAllowed('neu@example.com'), false);
+		});
 	});
 });

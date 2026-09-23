@@ -4,6 +4,9 @@
 //   1. GOOGLE_ALLOWED_EMAILS (Plural) — CSV ("a@b.com,c@d.com") oder JSON-Array ('["a@b.com"]').
 //   2. GOOGLE_ALLOWED_EMAIL  (Singular) — Backward-Compat für eine einzelne Adresse.
 //
+// OPEN_SIGNUP=true öffnet die Registrierung: dann darf jede Google-Adresse rein, die Allowlist
+// wird nicht mehr geprüft (öffentliche Website, docs/adr/0015-oeffentliche-website-und-app-unter-app.md).
+//
 // Alle Adressen werden normalisiert (trim + lowercase). Der Vergleich in isEmailAllowed()
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
 
@@ -53,9 +56,16 @@ const maskEmail = (email: string): string => {
 	return `${email.slice(0, 1)}***${email.slice(at)}`;
 };
 
+/** Offene Registrierung (`OPEN_SIGNUP=true|1`), pro Aufruf gelesen, damit Tests umschalten können. */
+const isOpenSignup = (): boolean => {
+	const raw = process.env.OPEN_SIGNUP?.trim().toLowerCase();
+	return raw === 'true' || raw === '1';
+};
+
 /**
  * Liefert die konfigurierten, normalisierten E-Mail-Adressen.
- * Wirft, wenn keine Allowlist konfiguriert ist (weder Plural noch Singular).
+ * Wirft, wenn keine Allowlist konfiguriert ist (weder Plural noch Singular) und die Registrierung
+ * nicht per `OPEN_SIGNUP` offen ist.
  * Loggt die erlaubten Adressen maskiert mit dem Präfix `[auth] Allowed emails:` — die
  * Startmeldung zeigt, dass und wie viele Adressen konfiguriert sind, ohne die Zugangs-
  * konfiguration im Klartext in die Logs zu schreiben.
@@ -65,6 +75,10 @@ export const getConfiguredEmails = (): string[] => {
 	const emails = parseEmails(raw);
 
 	if (emails.length === 0) {
+		if (isOpenSignup()) {
+			console.log('[auth] Open signup: every Google account may sign in.');
+			return [];
+		}
 		throw new Error(
 			'Keine erlaubten E-Mail-Adressen konfiguriert: GOOGLE_ALLOWED_EMAILS (CSV/JSON) oder GOOGLE_ALLOWED_EMAIL muss gesetzt sein.',
 		);
@@ -75,11 +89,14 @@ export const getConfiguredEmails = (): string[] => {
 };
 
 /**
- * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist.
- * Case-insensitiv und whitespace-tolerant. Liefert false, wenn keine Allowlist
+ * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist. Bei offener Registrierung
+ * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant. Liefert false, wenn keine Allowlist
  * konfiguriert ist (statt zu werfen) — so bleibt der Aufruf in der Middleware robust.
  */
 export const isEmailAllowed = (email: string): boolean => {
+	if (isOpenSignup()) {
+		return normalize(email) !== '';
+	}
 	const raw = process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim() || '';
 	const emails = parseEmails(raw);
 	if (emails.length === 0) {
