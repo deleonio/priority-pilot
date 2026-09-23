@@ -273,14 +273,25 @@ export const mcpTools: McpTool[] = [
 	},
 	{
 		name: 'task_create',
-		description: 'Creates a new task for the token owner.',
+		description:
+			'Creates a new task for the token owner. Pass userId (a group member from group_members_list) ' +
+			'to create the task for that member instead.',
 		write: true,
 		inputSchema: {
 			type: 'object',
-			properties: { ...taskFieldProperties },
+			properties: {
+				...taskFieldProperties,
+				userId: {
+					type: 'integer',
+					description:
+						'ID of a member of one of your groups (from group_members_list) to create the task for, ' +
+						'instead of the token owner.',
+				},
+			},
 			required: ['title'],
 		},
-		run: (ctx, args) => callApi(ctx, '/tasks', { method: 'POST', body: pickTaskFields(args) }),
+		run: (ctx, args) =>
+			callApi(ctx, '/tasks', { method: 'POST', body: { ...pickTaskFields(args), userId: args.userId } }),
 	},
 	{
 		name: 'task_update',
