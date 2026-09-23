@@ -151,6 +151,10 @@ Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load
 Das Deployment läuft im Workflow **[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)**
 (Trigger: `push` auf `main`; `ci.yml` dient auf `main`/PRs als Qualitäts-Gate davor). Der Ablauf:
 
+0. **Patch-Bump lokal (#286):** `npm version patch` + `chore(release): v<version> [skip ci]`-Commit,
+   noch **ohne** Push. Der Bump läuft vor dem Build, weil `vite.config.ts` die Version aus
+   `package.json` als `__APP_VERSION__` ins Frontend-Bundle backt (Footer) — sonst zeigte die
+   App immer die Vorgängerversion des neuesten Changelog-Eintrags.
 1. **Install + Build:** `pnpm install --frozen-lockfile`, `pnpm -r build` (client → frontend →
    server; `build:api` regeneriert die Vertragstypen aus `openapi.yml` und type-checkt dagegen —
    API-Drift kann so nicht in ein Release gelangen). Node-Version zentral aus `.nvmrc`.
@@ -164,9 +168,14 @@ Das Deployment läuft im Workflow **[`.github/workflows/deploy.yml`](../.github/
    `node_modules/` aus dem Prod-Bundle; `data/`, `*.sqlite` und `.env` per `--exclude` geschützt.
 6. **PM2-Reload:** `pm2 reload priority-pilot --update-env || pm2 start <APP_DIR>/dist/index.js
 --name priority-pilot` — das Backend startet genau einmal mit den neuen Sourcen neu.
-7. **Patch-Bump (#286):** Nach dem Deploy committet ein App-Token einen `chore(release):
-v<version> [skip ci]`-Bump-Commit auf `main` (App-Token nötig, da `GITHUB_TOKEN` keine
-   Folge-Workflows auslöst; `[skip ci]` verhindert die Deploy-Endlosschleife).
+7. **Release-Commit pushen:** Erst nach erfolgreichem Deploy pusht ein App-Token den Bump-Commit
+   aus Schritt 0 auf `main` (App-Token nötig, da `GITHUB_TOKEN` keine Folge-Workflows auslöst;
+   `[skip ci]` verhindert die Deploy-Endlosschleife). Danach Tag `v<version>`, GitHub-Release und
+   `CHANGELOG.md`. Ein roter Build hinterlässt so keine nie ausgelieferte Version auf `main`.
+
+**Redeploy ohne Bump:** `deploy.yml` lässt sich per `workflow_dispatch` starten — dann entfallen
+Bump, Push und Release. `cron.daily-version.yml` nutzt das nach seinem täglichen Minor-Bump, damit
+die neue Version auch im ausgelieferten Bundle ankommt.
 
 **Benötigte Repo-Konfiguration:** Secret `DEPLOY_SSH_KEY` sowie die Variablen `DEPLOY_HOST`,
 `DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
