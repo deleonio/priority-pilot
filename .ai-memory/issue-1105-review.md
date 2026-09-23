@@ -6,8 +6,8 @@
 - Titel-Gate: `gh pr edit 1107 --title "feat(frontend): app routes for all menus via react router (#1105)"` (Conventional Commits, 63 Zeichen).
 - Kompletten Diff gelesen (9 Dateien, +523/−59): nur `.ai-memory/*` (3 Phasen-Notizen, ADR-0007-konform im PR), `docs/spec/issue-1105.md`, `frontend/e2e/issue-1105-routes.spec.ts` (8 Tests), `frontend/src/App.tsx`, `frontend/src/components/SettingsPage.tsx`, `frontend/package.json` + lock.
 - AK-Abgleich: AK1–AK4 (AppShell/App-Split, `ROUTE_PATHS`/`SETTINGS_PATH_SEGMENTS` App.tsx:57-61, `activeTab = Math.max(0, indexOf)`), AK5 (`?q=`/`?view=` via useSearchParams), AK6/AK8 (Kontrakt-Guards), AK7 (31 Regression-e2e im PR-Body belegt). Hand-strick-pushState/popstate (App.tsx:132-139, 296-312 alt; SettingsPage.tsx:55-62 alt) nachweislich entfernt → AK4 erfüllt.
-- F1 gepostet: https://github.com/deleonio/balamentum/pull/1107#discussion_r3885578512 (App.tsx:735).
-- Sammelkommentar gepostet: https://github.com/deleonio/balamentum/pull/1107#issuecomment-5460326274 (Marker `<!-- ai-review -->`, needs-fixup, Review-Typ: Kreuzverhör).
+- F1 gepostet: https://github.com/deleonio/priority-pilot/pull/1107#discussion_r3885578512 (App.tsx:735).
+- Sammelkommentar gepostet: https://github.com/deleonio/priority-pilot/pull/1107#issuecomment-5460326274 (Marker `<!-- ai-review -->`, needs-fixup, Review-Typ: Kreuzverhör).
 
 ## Relevante Stellen
 - `frontend/src/App.tsx:734-743` — SearchModal-`onSearch`: `navigate('/aufgaben')` + `applyTaskFilter(query)` in einem Handler → **F1** (Konkurrenz zweier Navigationen; `setSearchParams` löst gegen die Closure-Location auf).

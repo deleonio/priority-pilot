@@ -27,7 +27,7 @@ startet einen neuen Versuch. Zurück-Button, `/hilfe`-Route und die bestehenden
   ohne Custom-Element-Upgrade; Unit-Tests greifen deshalb auf `_tabs`/`_on.onSelect`
   direkt zu (Muster `SettingsPage.test.tsx:301-309` für die Slot-Container).
 - Datenquelle (fix im Code, kein UI-Regler):
-  `https://api.github.com/repos/deleonio/balamentum/releases?per_page=30`
+  `https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=30`
   (öffentlich, kein Token). Felder `tag_name`, `published_at`, `body`. Das Frontend
   rendert die Releases **in API-Reihenfolge** (die API liefert neueste zuerst) und
   filtert nichts selbst — Renovate-/Dependabot-Ausschluss passiert upstream

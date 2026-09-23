@@ -35,7 +35,7 @@
 - Spec-Phase (Label `ai:needs-spec` gesetzt): rote Tests AK1–AK6 — Unit `SettingsPage.test.tsx` (matchMedia-Stub, Vorher-Nachher-Banner), neu `frontend/src/lib/reducedMotion.test.ts`, neu E2E `frontend/e2e/issue-1187-reduced-motion.spec.ts` (emulateMedia; AK5 ohne `page.reload()`).
 
 ## Fallstricke
-- Harness-Kommentar-Update: GraphQL `updateIssueComment` (Mutation per `--input`-Datei + `-F b=@datei`) schlug 3× mit HTTP 502 fehl (Lese-Queries parallel OK); **REST PATCH** `gh api -X PATCH repos/deleonio/balamentum/issues/comments/<databaseId> -F body=@datei` ging sofort. REST will die numerische databaseId, nicht die Node-ID (GET mit Node-ID = 404).
+- Harness-Kommentar-Update: GraphQL `updateIssueComment` (Mutation per `--input`-Datei + `-F b=@datei`) schlug 3× mit HTTP 502 fehl (Lese-Queries parallel OK); **REST PATCH** `gh api -X PATCH repos/deleonio/priority-pilot/issues/comments/<databaseId> -F body=@datei` ging sofort. REST will die numerische databaseId, nicht die Node-ID (GET mit Node-ID = 404).
 - Sandbox lehnt Inline-GraphQL mit `input:{...}`-Muster als „Brace expansion" ab → Query in Datei (`--input`) oder gleich REST nehmen.
 - #1183-Verhalten: Konfetti-Default AUS — E2E für AK3/AK5 muss `pp-animations-enabled`=an im Setup setzen, sonst gar kein Konfetti-Ausgangszustand.
 - jsdom/vitest: kein echtes matchMedia — Stub vor Render setzen (`confetti.test.ts:17-21`-Vorbild); Live-Test (AK2) über manuelles change-Event am Mock.

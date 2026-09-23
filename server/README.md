@@ -5,7 +5,7 @@ Enthält die gesamte Fachlogik (Wertberechnung inkl. Lebensbalance-Säulen, Aufg
 Aufgabe, Zyklusprüfung) und stellt die REST-API bereit. Gemeinsamer API-Vertrag:
 [`../openapi.yml`](../openapi.yml).
 
-> Der npm-Name des Pakets ist **`server`** (seit `6677acd`, vorher `balamentum`) — daher
+> Der npm-Name des Pakets ist **`server`** (seit `6677acd`, vorher `priority-pilot`) — daher
 > `--filter server`.
 
 ## Server starten

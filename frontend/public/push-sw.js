@@ -38,7 +38,7 @@ self.addEventListener('push', (event) => {
 		badge: 'icons/icon-192x192.png',
 		// Stabiler Tag (#504): aufeinanderfolgende Pushes ersetzen die vorige Notification,
 		// statt sie zu stapeln (Coalescing im Notification-Shade / Sperrbildschirm).
-		tag: 'balamentum',
+		tag: 'priority-pilot',
 		// Ziel-URL für den notificationclick-Handler mitgeben (Default: App-Wurzel).
 		data: { url: toAppUrl(payload.url) },
 	};

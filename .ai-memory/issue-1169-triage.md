@@ -1,6 +1,6 @@
 # Issue 1169 — Triage (Phase 1), Stand 2026-09-02T19:33:06Z
 
-**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein Harness-Kommentar; einziger Kommentar = github-actions ai-quality-Check 2026-09-02T06:52:26Z, keine Entscheidung). Harness-Kommentar erstellt (https://github.com/deleonio/balamentum/issues/1169#issuecomment-5515221872) mit KI-ANALYSE-Block + Routing-Tabelle, Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-ux-ui` gesetzt (Endstand verifiziert). Kein Ping, Titel/Body unangetastet, kein Auto-Close (kein Konfetti-Code im Repo — vom recherche-Agent per grep bestätigt).
+**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein Harness-Kommentar; einziger Kommentar = github-actions ai-quality-Check 2026-09-02T06:52:26Z, keine Entscheidung). Harness-Kommentar erstellt (https://github.com/deleonio/priority-pilot/issues/1169#issuecomment-5515221872) mit KI-ANALYSE-Block + Routing-Tabelle, Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-ux-ui` gesetzt (Endstand verifiziert). Kein Ping, Titel/Body unangetastet, kein Auto-Close (kein Konfetti-Code im Repo — vom recherche-Agent per grep bestätigt).
 
 ## Erledigt
 - Issue geladen (`.ai-memory/issue-1169-input.json`), Trigger = Initial-Triage bestimmt, Body komplett analysiert (6 messbare Kriterien direkt als AK1–AK6 übernommen).

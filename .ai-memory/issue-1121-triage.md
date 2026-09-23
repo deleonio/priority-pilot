@@ -1,6 +1,6 @@
 # Issue 1121 — Triage (Phase 1), Stand 2026-08-29T12:05:59Z
 
-**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein Harness-Marker, kein ai-triage-decision-Kommentar; einziger Kommentar = github-actions-Qualitätscheck 10:44:24Z, keine Entscheidung). Analyse-Block + Routing-Tabelle als Harness-Kommentar erstellt (https://github.com/deleonio/balamentum/issues/1121#issuecomment-5462336838), Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (Endstand verifiziert). Kein Ping, kein Titel-/Body-Edit, kein Split, kein Auto-Close (GeoBadge steht noch in der Badge-Gruppe, TaskTree.tsx:108-110).
+**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein Harness-Marker, kein ai-triage-decision-Kommentar; einziger Kommentar = github-actions-Qualitätscheck 10:44:24Z, keine Entscheidung). Analyse-Block + Routing-Tabelle als Harness-Kommentar erstellt (https://github.com/deleonio/priority-pilot/issues/1121#issuecomment-5462336838), Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (Endstand verifiziert). Kein Ping, kein Titel-/Body-Edit, kein Split, kein Auto-Close (GeoBadge steht noch in der Badge-Gruppe, TaskTree.tsx:108-110).
 
 ## Erledigt
 - Issue geladen, Trigger als Initial-Triage bestimmt, Body komplett analysiert (Issue liefert Problem, Ziel-Zustand und 6 Messgrößen — hohe Qualität).

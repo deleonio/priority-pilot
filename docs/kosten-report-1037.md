@@ -469,8 +469,8 @@ Bei Umsetzung aller Optimierungen können die Kosten für ähnliche UI-Tickets v
 
 ## 🔗 Links
 
-- [Ticket #1037](https://github.com/deleonio/balamentum/issues/1037)
-- [PR #1038](https://github.com/deleonio/balamentum/pull/1038)
+- [Ticket #1037](https://github.com/deleonio/priority-pilot/issues/1037)
+- [PR #1038](https://github.com/deleonio/priority-pilot/pull/1038)
 - [ADR-0004: Analyse-getriebenes Routing](../adr/0004-analyse-getriebenes-routing.md)
 - [Kostendaten: `.costs/1037.json`](../../.costs/1037.json)
 

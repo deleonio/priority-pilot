@@ -9,7 +9,7 @@ import { selectSeriesRepresentatives } from './series.js';
  * Fachlicher Push-Trigger „Aufgaben in der Nähe" (Issue #1101). Der Client meldet im
  * Geo-Intervall (#1098, Default 5 Minuten) seine Position; der Job ermittelt dazu die offenen
  * Aufgaben im Alarmabstand (`User.alarmDistanceKm`, Default 1 km) und verschickt je Nutzer
- * **eine** gebundelte Push-Nachricht (der Service Worker ersetzt über `tag: 'balamentum'`
+ * **eine** gebundelte Push-Nachricht (der Service Worker ersetzt über `tag: 'priority-pilot'`
  * ohnehin aufeinanderfolgende Pushes — Einzel-Pushes je Aufgabe sind ausgeschlossen).
  * Wiederholungen werden über {@link NotificationLog} je Aufgabe und Zeitfenster unterdrückt
  * (Muster: `dueTaskReminders.ts`).

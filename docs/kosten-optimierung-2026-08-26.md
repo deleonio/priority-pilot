@@ -128,17 +128,17 @@ Kontext-Hygiene; der Kostenhebel ist klein (Cache-Reads sind rabattiert).
 Ticket #1034 („UX/UI – Update Message mobile Styling"), Triage-Start 02:14, Documenter-Ende
 02:54 — **40 Minuten Pipeline-Gesamtlaufzeit**, eine Fixup-Runde.
 
-| Phase                | Run                                                                            | Dauer     | Modell    | Cache-Read | Output      | Kosten    | Kostenanteil |
-| -------------------- | ------------------------------------------------------------------------------ | --------- | --------- | ---------- | ----------- | --------- | ------------ |
-| analyse              | [32921962980](https://github.com/deleonio/balamentum/actions/runs/32921962980) | 5:10      | opus-5    | 1,58 M     | 19,3 k      | $1.62     | 23 %         |
-| ux                   | [32922280936](https://github.com/deleonio/balamentum/actions/runs/32922280936) | 4:23      | haiku-4.5 | 0,64 M     | 17,2 k      | $0.21     | 3 %          |
-| spec                 | [32922549212](https://github.com/deleonio/balamentum/actions/runs/32922549212) | 6:12      | sonnet-5  | 2,02 M     | 19,4 k      | $1.20     | 17 %         |
-| implement            | [32922919038](https://github.com/deleonio/balamentum/actions/runs/32922919038) | 9:32      | sonnet-5  | 3,46 M     | 18,0 k      | $1.62     | 23 %         |
-| review (Kreuzverhör) | [32923519820](https://github.com/deleonio/balamentum/actions/runs/32923519820) | 4:53      | sonnet-5  | 2,06 M     | 20,8 k      | $1.22     | 17 %         |
-| fixup                | [32923814562](https://github.com/deleonio/balamentum/actions/runs/32923814562) | 6:37      | sonnet-5  | 1,36 M     | 6,9 k       | $0.69     | 10 %         |
-| review (Nachweis)    | [32924204337](https://github.com/deleonio/balamentum/actions/runs/32924204337) | 2:05      | sonnet-5  | 0,64 M     | 6,2 k       | $0.46     | 6 %          |
-| documenter           | [32924336203](https://github.com/deleonio/balamentum/actions/runs/32924336203) | 1:45      | haiku-4.5 | 0,33 M     | 4,9 k       | $0.10     | 1 %          |
-| **Summe**            |                                                                                | **40:37** |           | **12,1 M** | **112,7 k** | **$7.12** | 100 %        |
+| Phase                | Run                                                                                | Dauer     | Modell    | Cache-Read | Output      | Kosten    | Kostenanteil |
+| -------------------- | ---------------------------------------------------------------------------------- | --------- | --------- | ---------- | ----------- | --------- | ------------ |
+| analyse              | [32921962980](https://github.com/deleonio/priority-pilot/actions/runs/32921962980) | 5:10      | opus-5    | 1,58 M     | 19,3 k      | $1.62     | 23 %         |
+| ux                   | [32922280936](https://github.com/deleonio/priority-pilot/actions/runs/32922280936) | 4:23      | haiku-4.5 | 0,64 M     | 17,2 k      | $0.21     | 3 %          |
+| spec                 | [32922549212](https://github.com/deleonio/priority-pilot/actions/runs/32922549212) | 6:12      | sonnet-5  | 2,02 M     | 19,4 k      | $1.20     | 17 %         |
+| implement            | [32922919038](https://github.com/deleonio/priority-pilot/actions/runs/32922919038) | 9:32      | sonnet-5  | 3,46 M     | 18,0 k      | $1.62     | 23 %         |
+| review (Kreuzverhör) | [32923519820](https://github.com/deleonio/priority-pilot/actions/runs/32923519820) | 4:53      | sonnet-5  | 2,06 M     | 20,8 k      | $1.22     | 17 %         |
+| fixup                | [32923814562](https://github.com/deleonio/priority-pilot/actions/runs/32923814562) | 6:37      | sonnet-5  | 1,36 M     | 6,9 k       | $0.69     | 10 %         |
+| review (Nachweis)    | [32924204337](https://github.com/deleonio/priority-pilot/actions/runs/32924204337) | 2:05      | sonnet-5  | 0,64 M     | 6,2 k       | $0.46     | 6 %          |
+| documenter           | [32924336203](https://github.com/deleonio/priority-pilot/actions/runs/32924336203) | 1:45      | haiku-4.5 | 0,33 M     | 4,9 k       | $0.10     | 1 %          |
+| **Summe**            |                                                                                    | **40:37** |           | **12,1 M** | **112,7 k** | **$7.12** | 100 %        |
 
 Block-Verteilung über alle Phasen: Cache-Read ≈ 50–64 % je Phase, Cache-Write ≈ 20 %,
 Output ≈ 15–30 %, echter Input < 0,1 % (88 Tokens im Maximalfall — der Agent arbeitet

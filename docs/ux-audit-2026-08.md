@@ -58,9 +58,9 @@ sie damit genau den Mischzustand gemessen, den der Sprung beseitigt (`setTheme` 
 `frontend/e2e/helpers.ts`).
 Betroffen: `frontend/package.json`, `frontend/src/app.css`, `frontend/e2e/helpers.ts`.
 
-### P1-3 `--filter balamentum` zeigte ins Leere — **behoben**
+### P1-3 `--filter priority-pilot` zeigte ins Leere — **behoben**
 
-Die Umbenennung des Server-Pakets (`balamentum` → `server`, Commit `6677acd`) ließ **20**
+Die Umbenennung des Server-Pakets (`priority-pilot` → `server`, Commit `6677acd`) ließ **20**
 Aufrufe in Doku, Skripten und CI ohne Treffer laufen. `pnpm` meldet dabei nur „No projects matched"
 und endet mit **Exit-Code 0** — die Fehler waren also unsichtbar. Betroffen waren unter anderem
 `pnpm ui:inspect` (der ganze Browser-MCP-Weg), das E2E-Backend in `frontend/playwright.config.ts`

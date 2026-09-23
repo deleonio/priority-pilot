@@ -136,7 +136,7 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
   gefunden werden. Eine kaputte Extraktion ergibt sonst einen dauerhaft grünen Test über eine leere
   Menge. Deshalb gehört zu jedem All-Quantor eine Assertion, dass die Menge nicht leer ist.
 
-**Was bewusst NICHT getestet wird — Workflows/CI-Plumbing, Config und Markdown-Inhalt (ADR, [#567](https://github.com/deleonio/balamentum/issues/567)):**
+**Was bewusst NICHT getestet wird — Workflows/CI-Plumbing, Config und Markdown-Inhalt (ADR, [#567](https://github.com/deleonio/priority-pilot/issues/567)):**
 Getestet wird **nur Anwendungscode** (`server/src/**`, `frontend/src/**`), Frontend-E2E
 (`frontend/e2e/**`) sowie die Entscheidungslogik in `.github/scripts/*.ts` (Carve-out aus
 [ADR 0004](../docs/adr/0004-analyse-getriebenes-routing.md): Skripte sind lokal ausführbar und
@@ -148,9 +148,9 @@ die `ci.yml`/`deploy.yml`-Plumbing, Config-Dateien (`.yml`/`.json`/`.toml`) und 
 Tautologie-/Change-Detector-Tests ohne Fehlerfangwert (sie re-encodieren die Datei und werden rot bei
 _Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen Meta-Test-Churn — sie
 haben Agenten und Phasen bisher auch stets als Vorbild eingeladen, neue zu schreiben. Die alte Suite
-wurde am 2026-08-12 vollständig **gelöscht** (User-Direktive; [#564](https://github.com/deleonio/balamentum/issues/564)
+wurde am 2026-08-12 vollständig **gelöscht** (User-Direktive; [#564](https://github.com/deleonio/priority-pilot/issues/564)
 hatte eine `__quarantine__/`-Verschiebung geplant, übersprungen); neuer Testbedarf entsteht spec-first nur
-noch für Domänenlogik ([#566](https://github.com/deleonio/balamentum/issues/566)). Entscheidung
+noch für Domänenlogik ([#566](https://github.com/deleonio/priority-pilot/issues/566)). Entscheidung
 und abgegrenzter Scope: [ADR 0001 — GitHub-Workflows bleiben ungetestet](../docs/adr/0001-github-workflows-bleiben-ungetestet.md).
 
 ## Wie konkret das aussieht (an bestehendem Code)

@@ -33,4 +33,4 @@
 
 ## Fallstricke
 - Fixup-Nachweis-Runde (falls Mensch doch einen Fixup ordert): Sammelkommentar 5542280261 per PATCH aktualisieren, nicht neu anlegen; Finding-Nummern gibt es noch keine — Nits bei Übernahme unter „✅ Behobene Anmerkungen" historisieren.
-- `gh api repos/deleonio/balamentum/...` — Owner korrekt `deleonio` (Tippfehler `deleonionlaw` → 404).
+- `gh api repos/deleonio/priority-pilot/...` — Owner korrekt `deleonio` (Tippfehler `deleonionlaw` → 404).

@@ -1,6 +1,6 @@
 # Issue 1136 — Triage (Re-Triage nach needs-human), Stand 2026-08-31T02:45Z
 
-**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Menschliche Entscheidung eingetroffen (deleonio 2026-08-31T02:41:11Z: „Mach bitte 1, O1") → Scope = **O1 Bugfix** bindend. Analyse-Block + Routing-Tabelle als neuer Harness-Kommentar erstellt (https://github.com/deleonio/balamentum/issues/1136#issuecomment-5473060220, HID war leer → create via `gh issue comment --body-file`). Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (Endstand verifiziert; `ai:needs-human` war bereits vom Menschen entfernt). Kein Ping-Kommentar, kein Titel-/Body-Edit, kein Auto-Close.
+**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Menschliche Entscheidung eingetroffen (deleonio 2026-08-31T02:41:11Z: „Mach bitte 1, O1") → Scope = **O1 Bugfix** bindend. Analyse-Block + Routing-Tabelle als neuer Harness-Kommentar erstellt (https://github.com/deleonio/priority-pilot/issues/1136#issuecomment-5473060220, HID war leer → create via `gh issue comment --body-file`). Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (Endstand verifiziert; `ai:needs-human` war bereits vom Menschen entfernt). Kein Ping-Kommentar, kein Titel-/Body-Edit, kein Auto-Close.
 
 ## Erledigt
 - Trigger: kein `<!-- ai-harness -->`-Kommentar, aber `<!-- ai-triage-decision -->` (2026-08-31T02:37:51Z) + Antworten danach → Re-Triage-nach-needs-human-Pfad; Entscheidungs-Kommentar + alle danach gelesen (genau 1 Antwort).

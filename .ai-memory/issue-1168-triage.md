@@ -3,7 +3,7 @@
 **ERGEBNIS: VERDICT spec-ready (Ampel 🟢).** Initial-Triage: kein `<!-- ai-harness -->`-Kommentar, einziger
 Kommentar war der `<!-- ai-quality -->`-Bot (2026-09-02T06:41:35Z, keine Entscheidung). Harness-Kommentar
 (KI-ANALYSE + Routing-Tabelle) neu angelegt:
-https://github.com/deleonio/balamentum/issues/1168#issuecomment-5505673878 — Labels: `ai:needs-analyse`
+https://github.com/deleonio/priority-pilot/issues/1168#issuecomment-5505673878 — Labels: `ai:needs-analyse`
 entfernt, `ai:analysed` + `ai:needs-ux-ui` gesetzt (verifiziert: `["ai:needs-ux-ui","ai:analysed"]`).
 Kein Ping-Kommentar, kein Body-Edit (ADR 0009), kein Titel-Edit, kein Split, kein Auto-Close.
 

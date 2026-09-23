@@ -54,7 +54,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 		await closeDb();
 	});
 
-	it('initialize-Handshake meldet balamentum-mcp-v1', async () => {
+	it('initialize-Handshake meldet priority-pilot-mcp-v1', async () => {
 		const cookie = await server.register('mcp-h@example.com', 'password123');
 		const token = await createToken(cookie);
 
@@ -63,7 +63,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 			// `connect()` selbst prueft die Protokollversion implizit — eine vom Client nicht
 			// unterstuetzte Version wirft bereits beim Handshake. Der Name hier spiegelt serverInfo.
 			const serverInfo = client.getServerVersion();
-			assert.equal(serverInfo?.name, 'balamentum-mcp-v1');
+			assert.equal(serverInfo?.name, 'priority-pilot-mcp-v1');
 		} finally {
 			await client.close().catch(() => {});
 		}
@@ -143,7 +143,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 
 		const client = await connectClient(token, '/mcp/v1/');
 		try {
-			assert.equal(client.getServerVersion()?.name, 'balamentum-mcp-v1');
+			assert.equal(client.getServerVersion()?.name, 'priority-pilot-mcp-v1');
 			const { tools } = await client.listTools();
 			assert.ok(
 				tools.some((tool) => tool.name === 'task_list'),

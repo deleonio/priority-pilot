@@ -245,7 +245,7 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 			});
 			assert.equal(res.status, 200, `${path} muss den Handshake bedienen, war ${res.status}`);
 			const body = (await res.json()) as { result?: { serverInfo?: { name?: string } } };
-			assert.equal(body.result?.serverInfo?.name, 'balamentum-mcp-v1', `${path} liefert kein serverInfo`);
+			assert.equal(body.result?.serverInfo?.name, 'priority-pilot-mcp-v1', `${path} liefert kein serverInfo`);
 		}
 	});
 

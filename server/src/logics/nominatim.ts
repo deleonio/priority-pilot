@@ -7,4 +7,4 @@
  * der Express-Schicht über die geteilte express-rate-limit-Instanz (`express/routes/geocodeRateLimit.ts`).
  */
 
-export const NOMINATIM_USER_AGENT = 'Balamentum (https://github.com/deleonio/balamentum)';
+export const NOMINATIM_USER_AGENT = 'Balamentum (https://github.com/deleonio/priority-pilot)';

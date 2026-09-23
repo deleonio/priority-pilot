@@ -63,13 +63,13 @@ const stripLeadingHtmlComments = (body: string): string => {
  * keine Links in die GitHub-Historie der App zeigen (Nutzer-Anforderung). Reale Release-Bullets
  * hängen die GitHub-Attribution an (`… by @<user> in <URL>`, Format CHANGELOG.md) — sie wandert
  * mit der URL, damit kein Satzfragment stehen bleibt; abschließendes Trim fängt den reinen
- * URL-Bullet. Ältere Releases verlinken noch den früheren Repo-Namen `priority-pilot`.
+ * URL-Bullet.
  */
 const stripRepoLinks = (text: string): string =>
 	text
-		.replace(/\[([^\]]+)\]\(https:\/\/github\.com\/deleonio\/(?:balamentum|priority-pilot)[^)]*\)/g, '$1')
-		.replace(/\s*<(https:\/\/github\.com\/deleonio\/(?:balamentum|priority-pilot)[^>]*)>/g, '')
-		.replace(/\s*(?:by @\S+\s+in\s+)?https:\/\/github\.com\/deleonio\/(?:balamentum|priority-pilot)\S*/g, '')
+		.replace(/\[([^\]]+)\]\(https:\/\/github\.com\/deleonio\/priority-pilot[^)]*\)/g, '$1')
+		.replace(/\s*<(https:\/\/github\.com\/deleonio\/priority-pilot[^>]*)>/g, '')
+		.replace(/\s*(?:by @\S+\s+in\s+)?https:\/\/github\.com\/deleonio\/priority-pilot\S*/g, '')
 		.trim();
 
 /**

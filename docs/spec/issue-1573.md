@@ -1,6 +1,6 @@
 # Issue 1573 — Säulen sind fest: CRUD sperren, Bestand auf die 5 Standard-Säulen zurückführen
 
-**Spec-Phase (rote Tests), Issue:** [#1573](https://github.com/deleonio/balamentum/issues/1573)
+**Spec-Phase (rote Tests), Issue:** [#1573](https://github.com/deleonio/priority-pilot/issues/1573)
 
 ## Ziel
 

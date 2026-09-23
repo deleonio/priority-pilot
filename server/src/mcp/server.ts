@@ -66,7 +66,7 @@ mcpRouter.post(MCP_PATH, async (req: Request, res: Response) => {
 		sendResult(res, id, {
 			protocolVersion: PROTOCOL_VERSION,
 			capabilities: { tools: {} },
-			serverInfo: { name: 'balamentum-mcp-v1', version: '1' },
+			serverInfo: { name: 'priority-pilot-mcp-v1', version: '1' },
 		});
 		return;
 	}

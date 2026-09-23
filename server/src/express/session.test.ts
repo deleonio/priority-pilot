@@ -89,7 +89,7 @@ describe('AK-2 — createSessionStore: NODE_ENV=production, SESSION_STORE=redis,
 // ── AK-1 — SESSION_STORE=sqlite → Sessions überleben Prozess-Neustart ───────
 
 describe('AK-1 — SQLite-Store: Sessions überleben Server-Neustart', () => {
-	const dbPath = join(tmpdir(), `balamentum-test-sessions-${process.pid}.db`);
+	const dbPath = join(tmpdir(), `priority-pilot-test-sessions-${process.pid}.db`);
 	let server: TestServer;
 	let sessionCookie: string;
 

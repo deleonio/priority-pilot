@@ -10,7 +10,7 @@
 # `grep -P`/`\K`, das ist GNU-only und auf macOS-BSD grep falsch).
 #
 # Wie check-phase-label.sh / pr-for-issue.sh: lokal gegen echte Tickets ausführbar:
-#   bash .github/scripts/pr-doc-facts.sh --repo deleonio/balamentum --pr 693
+#   bash .github/scripts/pr-doc-facts.sh --repo deleonio/priority-pilot --pr 693
 #   bash .github/scripts/pr-doc-facts.sh --repo o/r --pr 42 --mode title-only
 #
 # Ausgabe (stdout, key=value — der Workflow reicht nach $GITHUB_OUTPUT durch):

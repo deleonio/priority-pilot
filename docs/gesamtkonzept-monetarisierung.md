@@ -1,12 +1,12 @@
 # Gesamtkonzept: Pakete und Monetarisierung
 
-Stand: 14.09.2026. Grundlagen sind die Arbeitspapiere „philosophischer-anker-balamentum" und „priority-planner-pakete" (Fassung mit der Ergänzung zu kontextuellen Upgrade-Angeboten) sowie eine Code-Prüfung des Repos vom 12./13.09.2026. Das Konzept beschreibt Zielbild und Architektur der Monetarisierungsschicht und zerlegt sie in neun Teilaufgaben, angelegt als Epic #1455 mit Sub-Issues im Muster von Epic #1340.
+Stand: 14.09.2026. Grundlagen sind die Arbeitspapiere „philosophischer-anker-priority-pilot" und „priority-planner-pakete" (Fassung mit der Ergänzung zu kontextuellen Upgrade-Angeboten) sowie eine Code-Prüfung des Repos vom 12./13.09.2026. Das Konzept beschreibt Zielbild und Architektur der Monetarisierungsschicht und zerlegt sie in neun Teilaufgaben, angelegt als Epic #1455 mit Sub-Issues im Muster von Epic #1340.
 
 Die Teilaufgaben wurden am 14.09.2026 gegen den Code nachgeschärft: korrigierte Dateipfade, der Fehlervertrag und der Rollout-Schalter nach vorn in T1 gezogen, T2/T4/T5 aus der seriellen Kette gelöst, T3 in Muster (T3a) und Ausrollen (T3b) geteilt.
 
 ## Leitbild: Fürsorge statt Protokoll
 
-balamentum soll sich nicht wie ein Buchhaltungstool für Aufgaben anfühlen. Apps dieser Gattung verlieren nach wenigen Wochen Nutzer, weil sie nur spiegeln: Man trägt ein, bekommt eine Visualisierung, sonst nichts. Der Bindungsfaktor ist die Fürsorgefunktion. Die App erkennt, welche Säule zu kurz kommt, und schlägt von sich aus die nächste sinnvolle Aufgabe vor. Das Nutzungsgefühl soll „die App kümmert sich um mich" sein, nicht „ich pflege eine Tabelle".
+priority-pilot soll sich nicht wie ein Buchhaltungstool für Aufgaben anfühlen. Apps dieser Gattung verlieren nach wenigen Wochen Nutzer, weil sie nur spiegeln: Man trägt ein, bekommt eine Visualisierung, sonst nichts. Der Bindungsfaktor ist die Fürsorgefunktion. Die App erkennt, welche Säule zu kurz kommt, und schlägt von sich aus die nächste sinnvolle Aufgabe vor. Das Nutzungsgefühl soll „die App kümmert sich um mich" sein, nicht „ich pflege eine Tabelle".
 
 Leitfrage für jede Feature-Entscheidung:
 
@@ -542,7 +542,7 @@ Einfach
 
 ## Ausblick: KI-Guard gegen Einkaufslisten-Einträge (optional)
 
-Der Guard ist die Leitbild-Regel angewendet auf die Datenaufnahme: balamentum ist keine Todo-Listen-App. Ein optionaler LLM-Guard beim Anlegen und Bearbeiten von Aufgaben prüft, ob ein Eintrag in eine reine Verwaltung gehört („Käse kaufen“) statt in das Balance-Modell. Er schützt damit nicht nur das Selbstverständnis der App, sondern die Datenqualität, auf der Säulen-Bilanz, proaktive Vorschläge und Graph beruhen.
+Der Guard ist die Leitbild-Regel angewendet auf die Datenaufnahme: priority-pilot ist keine Todo-Listen-App. Ein optionaler LLM-Guard beim Anlegen und Bearbeiten von Aufgaben prüft, ob ein Eintrag in eine reine Verwaltung gehört („Käse kaufen“) statt in das Balance-Modell. Er schützt damit nicht nur das Selbstverständnis der App, sondern die Datenqualität, auf der Säulen-Bilanz, proaktive Vorschläge und Graph beruhen.
 
 Verhalten: nicht blockierend. Der Guard meldet sich im Fürsorge-Ton und nennt eine konkrete Alternative — etwa das Eintrag als Serie abbilden, einer Kategorie zuordnen, auf eine Säule beziehen oder umformulieren. Der Nutzer entscheidet; der Eintrag wird ohne Zustimmung nie verändert oder abgelehnt. Der Schalter liegt beim Nutzer (Muster der bestehenden KI-Voreinstellungen, `frontend/src/lib/aiPreferences.ts`); Empfehlung ist Opt-in mit Standard aus, damit die Prüfung nie ungefragt ins Schreiben eingreift.
 

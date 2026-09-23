@@ -779,7 +779,7 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	);
 	for (const t of tickets) {
 		lines.push(
-			`| [#${t.issue}](https://github.com/deleonio/balamentum/issues/${t.issue}) | ${originOf(classById.get(t.issue) ?? 'vollstaendig')} | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
+			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${originOf(classById.get(t.issue) ?? 'vollstaendig')} | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
 		);
 	}
 	const top5 = tickets.slice(0, 5).reduce((a, t) => a + t.valueCost, 0);

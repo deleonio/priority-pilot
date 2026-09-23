@@ -1,7 +1,7 @@
 # Spec #1157 — Serien-Datenisolation (ownerScope im Serien-CRUD)
 
 Status: rote Spec-Tests (Spec-Phase), Implementierung folgt.
-Quelle: [Issue #1157](https://github.com/deleonio/balamentum/issues/1157) (KI-ANALYSE-Block, Ampel 🟢).
+Quelle: [Issue #1157](https://github.com/deleonio/priority-pilot/issues/1157) (KI-ANALYSE-Block, Ampel 🟢).
 
 ## Ziel
 

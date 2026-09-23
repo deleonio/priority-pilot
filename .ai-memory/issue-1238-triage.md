@@ -1,6 +1,6 @@
 # Issue 1238 — Triage (Phase 1), Stand 2026-09-05
 
-**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein Harness-Kommentar, kein `<!-- ai-triage-decision -->`; einziger Kommentar = ai-quality-Bot 15:18:55Z, keine Entscheidungen). Analyse-Block + Routing-Tabelle als Harness-Kommentar angelegt (https://github.com/deleonio/balamentum/issues/1238#issuecomment-5554223957), Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (ux=nein → direkt Spec). Titel 1× substantiell korrigiert: „Eindeutig Name auch bei Gruppenmitgliedern" → „Gruppenmitgliederliste zeigt veralteten Profilnamen". Kein Ping, kein Body-Edit, kein Split, kein Auto-Close (Sync-Lücke live im Code).
+**ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein Harness-Kommentar, kein `<!-- ai-triage-decision -->`; einziger Kommentar = ai-quality-Bot 15:18:55Z, keine Entscheidungen). Analyse-Block + Routing-Tabelle als Harness-Kommentar angelegt (https://github.com/deleonio/priority-pilot/issues/1238#issuecomment-5554223957), Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (ux=nein → direkt Spec). Titel 1× substantiell korrigiert: „Eindeutig Name auch bei Gruppenmitgliedern" → „Gruppenmitgliederliste zeigt veralteten Profilnamen". Kein Ping, kein Body-Edit, kein Split, kein Auto-Close (Sync-Lücke live im Code).
 
 ## Erledigt
 - Issue + alle Kommentare geladen, Trigger = Initial-Triage bestimmt.

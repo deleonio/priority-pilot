@@ -584,8 +584,8 @@ Bei Umsetzung aller Optimierungen können die Kosten für ähnliche UI/PWA-Ticke
 
 ## 🔗 Links
 
-- [Ticket #1034](https://github.com/deleonio/balamentum/issues/1034)
-- [PR #1035](https://github.com/deleonio/balamentum/pull/1035)
+- [Ticket #1034](https://github.com/deleonio/priority-pilot/issues/1034)
+- [PR #1035](https://github.com/deleonio/priority-pilot/pull/1035)
 - [ADR-0004: Analyse-getriebenes Routing](../adr/0004-analyse-getriebenes-routing.md)
 - [ADR-0005: Fixup und Umsetzung sind eine Phase](../adr/0005-fixup-und-umsetzung-sind-eine-phase.md)
 - [Kostendaten: `.costs/1034.json`](../../.costs/1034.json)

@@ -1,7 +1,7 @@
 # Kosten-Baseline — Referenzlauf Ticket #912
 
-- **Gemessen:** 2026-08-20 · Quelle: Workflow [`Kosten-Baseline`](../.github/workflows/cost-baseline.yml), [Lauf 32348989596](https://github.com/deleonio/balamentum/actions/runs/32348989596)
-- **Ticket:** [#912](https://github.com/deleonio/balamentum/issues/912) — „Header-Toolbar: Avatar wieder ganz rechts positionieren", umgesetzt in [PR #926](https://github.com/deleonio/balamentum/pull/926)
+- **Gemessen:** 2026-08-20 · Quelle: Workflow [`Kosten-Baseline`](../.github/workflows/cost-baseline.yml), [Lauf 32348989596](https://github.com/deleonio/priority-pilot/actions/runs/32348989596)
+- **Ticket:** [#912](https://github.com/deleonio/priority-pilot/issues/912) — „Header-Toolbar: Avatar wieder ganz rechts positionieren", umgesetzt in [PR #926](https://github.com/deleonio/priority-pilot/pull/926)
 - **Zweck:** die in [ADR 0004](adr/0004-analyse-getriebenes-routing.md) geforderte Messgrundlage („erst messen, dann umbauen")
 
 Dies ist die erste vollständige Messung eines Tickets über alle Phasen. Sie deckt den

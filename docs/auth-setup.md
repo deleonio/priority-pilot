@@ -41,16 +41,16 @@ ohne `SESSION_SECRET` und nicht ohne mindestens eine Adresse in `GOOGLE_ALLOWED_
 Alle Variablen liegen in der Env-Datei des Servers (`server/.env` lokal, `<APP_DIR>/.env` auf dem
 Host). Vorlage mit Kommentaren: [`server/.env.example`](../server/.env.example).
 
-| Variable                | Pflicht in Produktion       | Bedeutung                                                                                                                                         |
-| ----------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`      | ja                          | OAuth-Client-ID aus der Google Cloud Console.                                                                                                     |
-| `GOOGLE_CLIENT_SECRET`  | ja                          | Zugehöriges Client-Secret. Ohne ID und Secret wird der Google-Login gar nicht registriert; der Login-Button antwortet dann mit HTTP 503.          |
-| `GOOGLE_CALLBACK_URL`   | ja                          | Rücksprung-URL nach der Google-Anmeldung, z. B. `https://balamentum.example.de/auth/google/callback`. Muss exakt so in der Cloud Console stehen.  |
-| `GOOGLE_ALLOWED_EMAILS` | ja, außer bei `OPEN_SIGNUP` | Freigeschaltete Adressen, Komma-getrennt oder als JSON-Array. Vergleich ohne Groß-/Kleinschreibung. Nur diese Adressen können ein Konto bekommen. |
-| `OPEN_SIGNUP`           | nein                        | `true` öffnet die Registrierung für jedes Google-Konto; die Allowlist wird dann nicht geprüft.                                                    |
-| `ADMIN_EMAILS`          | empfohlen                   | Adressen, die beim Login automatisch die Rolle `admin` bekommen. Gleiches Format. Muss eine Teilmenge der Allowlist sein, sonst wirkungslos.      |
-| `SESSION_SECRET`        | ja                          | Zufällige, lange Zeichenkette zum Signieren des Session-Cookies.                                                                                  |
-| `SESSION_TTL`           | nein                        | Lebensdauer der Session in Sekunden. Default 604800 (7 Tage).                                                                                     |
+| Variable                | Pflicht in Produktion       | Bedeutung                                                                                                                                            |
+| ----------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`      | ja                          | OAuth-Client-ID aus der Google Cloud Console.                                                                                                        |
+| `GOOGLE_CLIENT_SECRET`  | ja                          | Zugehöriges Client-Secret. Ohne ID und Secret wird der Google-Login gar nicht registriert; der Login-Button antwortet dann mit HTTP 503.             |
+| `GOOGLE_CALLBACK_URL`   | ja                          | Rücksprung-URL nach der Google-Anmeldung, z. B. `https://priority-pilot.example.de/auth/google/callback`. Muss exakt so in der Cloud Console stehen. |
+| `GOOGLE_ALLOWED_EMAILS` | ja, außer bei `OPEN_SIGNUP` | Freigeschaltete Adressen, Komma-getrennt oder als JSON-Array. Vergleich ohne Groß-/Kleinschreibung. Nur diese Adressen können ein Konto bekommen.    |
+| `OPEN_SIGNUP`           | nein                        | `true` öffnet die Registrierung für jedes Google-Konto; die Allowlist wird dann nicht geprüft.                                                       |
+| `ADMIN_EMAILS`          | empfohlen                   | Adressen, die beim Login automatisch die Rolle `admin` bekommen. Gleiches Format. Muss eine Teilmenge der Allowlist sein, sonst wirkungslos.         |
+| `SESSION_SECRET`        | ja                          | Zufällige, lange Zeichenkette zum Signieren des Session-Cookies.                                                                                     |
+| `SESSION_TTL`           | nein                        | Lebensdauer der Session in Sekunden. Default 604800 (7 Tage).                                                                                        |
 
 `GOOGLE_ALLOWED_EMAIL` (Singular) wird aus Kompatibilitätsgründen noch gelesen, wenn die
 Plural-Variable leer ist. Neue Installationen nutzen nur die Plural-Form.
@@ -111,7 +111,7 @@ laufender Session. Das Konto in der Datenbank bleibt bestehen.
 2. Backend neu laden, damit die Env-Datei erneut gelesen wird:
 
    ```bash
-   pm2 reload balamentum --update-env
+   pm2 reload priority-pilot --update-env
    ```
 
 3. Die Person meldet sich über „Login with Google“ an. Das Konto wird dabei angelegt und
@@ -144,6 +144,6 @@ nicht auf den Vite-Dev-Server.
 | Person fehlt in der Nutzerverwaltung                                 | Login wurde abgewiesen, das Konto entsteht erst beim ersten erfolgreichen Login           | Wie oben; nach erfolgreichem Login erscheint das Konto                               |
 | Google zeigt `redirect_uri_mismatch`                                 | `GOOGLE_CALLBACK_URL` weicht von der in der Cloud Console eingetragenen URI ab            | Beide Werte zeichengenau abgleichen (Schema, Host, Pfad)                             |
 | Login-Button antwortet mit 503 „Google-OAuth ist nicht konfiguriert“ | `GOOGLE_CLIENT_ID` oder `GOOGLE_CLIENT_SECRET` fehlt                                      | Beide Variablen setzen, Backend neu laden                                            |
-| Backend startet in Produktion nicht                                  | `SESSION_SECRET` fehlt oder `GOOGLE_ALLOWED_EMAILS` ist leer                              | `pm2 logs balamentum` zeigt die Fehlermeldung; Variable setzen                       |
+| Backend startet in Produktion nicht                                  | `SESSION_SECRET` fehlt oder `GOOGLE_ALLOWED_EMAILS` ist leer                              | `pm2 logs priority-pilot` zeigt die Fehlermeldung; Variable setzen                   |
 | Person ist eingeloggt, bekommt aber überall 401                      | Adresse wurde nachträglich aus der Allowlist entfernt                                     | Gewollt: Zugang ist gesperrt. Sonst Adresse wieder eintragen                         |
 | Person soll Administrator sein, ist aber Mitglied                    | Adresse steht nicht in `ADMIN_EMAILS`, oder Login fand vor dem Eintrag statt              | Eintragen und neu anmelden, oder in der Nutzerverwaltung direkt befördern            |

@@ -15,7 +15,7 @@ const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Feedback' }, { _label: 'Im
 // deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
 // Folgeseiten über den `Link`-Header nach. Renovate-/Dependabot-Einträge werden bereits upstream
 // beim Release-Erzeugen ausgeschlossen (.github/release.yml), das Frontend filtert nichts.
-const RELEASES_URL = 'https://api.github.com/repos/deleonio/balamentum/releases?per_page=100';
+const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=100';
 
 // Auswahl-Regler des Changelog-Tabs: Anzeige-Menge der Releases. Werte als String (KoliBri-
 // Select-Option), Default „30" = bisheriges Verhalten. Der Wechsel schneidet client-seitig, außer

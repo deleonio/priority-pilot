@@ -2,7 +2,7 @@
 	"version": "0.0.1",
 	"configurations": [
 		{
-			"name": "balamentum",
+			"name": "priority-pilot",
 			"runtimeExecutable": "pnpm",
 			"runtimeArgs": ["-r", "--parallel", "dev"],
 			"port": 5173
