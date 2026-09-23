@@ -199,6 +199,35 @@ sudo tee -a /etc/caddy/Caddyfile >/dev/null <<'EOF'
 
 priority-pilot.example.de {
     root * /var/www/gh-deploy/priority-pilot/frontend/
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    # Caching zentral über header-Matcher (greifen auf den Original-Pfad, vor try_files).
+    # Gehashte Dateinamen: ein Jahr, unveränderlich.
+    @immutable path /assets/* /app/assets/* /app/workbox-*.js
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+    # Ungehashte statische Dateien: 1 Tag, danach im Hintergrund revalidieren.
+    @static path /fonts/* /app/icons/* /app/logo/* *.png *.jpg *.svg *.ico *.woff *.woff2 *.ttf *.eot /styles.css
+    header @static Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
+
+    # HTML, SPA-Fallback, Service Worker (inkl. Kill-Switch /sw.js), Manifest: immer revalidieren,
+    # sonst zeigt eine gecachte index.html nach einem Deploy auf gelöschte Asset-Hashes.
+    @revalidate {
+        not path /api/* /auth/* /health /assets/* /app/assets/* /app/workbox-*.js
+        not path /fonts/* /app/icons/* /app/logo/* *.png *.jpg *.svg *.ico *.woff *.woff2 *.ttf *.eot /styles.css
+    }
+    header @revalidate Cache-Control "no-cache"
+
+    # API/Auth nicht cachen, sofern das Backend nichts anderes setzt.
+    @api path /api/* /auth/*
+    header @api ?Cache-Control "no-store"
 
     # Health-Endpoint: Liveness-Check für externes Monitoring (ohne Auth).
     handle /health {
@@ -206,10 +235,12 @@ priority-pilot.example.de {
     }
 
     # API: Präfix abstreifen und zum Express-Backend weiterleiten.
-    # MUSS vor den Datei-Blöcken stehen und in einem eigenen handle-Block:
     # handle-Blöcke sind gegenseitig exklusiv (erster Treffer gewinnt).
     handle /api/v1/* {
         uri strip_prefix /api/v1
+        reverse_proxy localhost:3000
+    }
+    handle /api/transit/* {
         reverse_proxy localhost:3000
     }
 
@@ -223,26 +254,24 @@ priority-pilot.example.de {
     # es sonst – wegen Caddys fester Direktiven-Reihenfolge (try_files vor handle/
     # reverse_proxy) – ZUERST laufen und /api/v1/* intern auf /index.html
     # umschreiben, bevor der API-Block greift. Der reverse_proxy feuert dann nie.
+    # precompressed: der Frontend-Build legt .br/.zst neben jede Text-Datei (vite.config.ts).
     handle /app/* {
         try_files {path} /app/index.html
-        file_server
+        file_server {
+            precompressed zstd br
+        }
     }
+    # `*` ist Pflicht: ohne Matcher liest Caddy das erste Argument von redir als Pfad-Matcher
+    # und antwortet mit einer leeren 200.
     handle /app {
-        redir /app/ 308
+        redir * /app/ 308
     }
 
     # Alte App-Pfade von vor dem Umzug nach /app/ (Lesezeichen, Einladungslinks,
     # PAYPAL_RETURN_URL) dauerhaft auf die App umleiten.
     @legacyApp path /settings /settings/* /aufgaben /serien /wald /hilfe /login /bahn /gruppen/* /tasks/*
     handle @legacyApp {
-        redir /app{uri} 308
-    }
-
-    # Service-Worker-Kill-Switch der Website nie cachen, sonst bleibt der alte
-    # App-Service-Worker auf / länger aktiv.
-    handle /sw.js {
-        header Cache-Control "no-cache"
-        file_server
+        redir * /app{uri} 308
     }
 
     # Öffentliche Website: statische Seiten (/, /en/, /impressum/ …), kein SPA-Fallback.

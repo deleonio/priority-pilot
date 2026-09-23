@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
+import { brotliCompress, constants as zlib, zstdCompress } from 'node:zlib';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -23,6 +26,28 @@ const APP_BASE = '/app/';
 // Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
 // unter /); /api/transit/* und /auth/* werden unverändert durchgereicht – Letzteres
 // spiegelt den Caddy-handle-Block für den OAuth-Login-Flow (siehe docs/server-setup.md § 7).
+// Vorkomprimierte Varianten (.br/.zst) neben jede Text-Datei legen; Caddy liefert sie per
+// `file_server { precompressed zstd br }` direkt aus, statt bei jedem Request neu zu komprimieren.
+// Unter der Caddy-Mindestgröße für On-the-fly-Kompression (512 B) lohnt sich keine Variante.
+const PRECOMPRESS_EXT = /\.(js|mjs|css|html|svg|json|webmanifest|md|txt|xml)$/;
+const brotli = promisify(brotliCompress);
+const zstd = promisify(zstdCompress);
+
+async function precompress(dir: string): Promise<void> {
+	const files = (await readdir(dir, { recursive: true })).filter((f) => PRECOMPRESS_EXT.test(f));
+	// Bewusst Datei für Datei: parallel über alle Dateien sprengt der Speicherbedarf von
+	// Brotli 11 / zstd 19 kleine Build-Hosts (OOM).
+	for (const file of files) {
+		const path = resolve(dir, file);
+		const content = await readFile(path);
+		if (content.length < 512) continue;
+		await Promise.all([
+			brotli(content, { params: { [zlib.BROTLI_PARAM_QUALITY]: 11 } }).then((out) => writeFile(`${path}.br`, out)),
+			zstd(content, { params: { [zlib.ZSTD_c_compressionLevel]: 19 } }).then((out) => writeFile(`${path}.zst`, out)),
+		]);
+	}
+}
+
 const apiProxy = {
 	'/api/v1': {
 		target: apiTarget,
@@ -72,6 +97,16 @@ export default defineConfig({
 					mkdirSync(destDir, { recursive: true });
 				}
 				copyFileSync(source, resolve(destDir, 'user-guide.md'));
+			},
+		},
+		{
+			name: 'precompress-dist',
+			apply: 'build',
+			// Nach allen anderen closeBundle-Hooks, damit auch der von VitePWA erzeugte sw.js erfasst wird.
+			closeBundle: {
+				order: 'post',
+				sequential: true,
+				handler: () => precompress(resolve(__dirname, 'dist')),
 			},
 		},
 		VitePWA({
