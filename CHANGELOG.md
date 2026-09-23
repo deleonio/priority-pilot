@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.15._
+_Enthält v0.4.0 – v0.4.16._
 
 ### Other Changes
 
@@ -21,6 +21,7 @@ _Enthält v0.4.0 – v0.4.15._
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
 - feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 - fix(e2e): await initAiEnabled to fix AK5 KI-aus race (#1408) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1640
+- feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
 
 ## v0.3 - 2026-09-23
 
@@ -875,7 +876,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
 - feat(frontend): unify settings tabs with cards and accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1324
 - fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
-- fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
+- feat(frontend): render settings and help as pages in the app shell by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1323
 - feat(frontend): render settings and help as pages in the app shell by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1323
 - feat(frontend): add categories as a thematic grouping layer by @deleonio in https://github.com/deleonio/priority-pilot/pull/1325
 - feat(frontend): show task/series id in edit title and confirm dialogs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1350
