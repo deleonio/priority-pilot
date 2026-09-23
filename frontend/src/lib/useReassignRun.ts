@@ -61,6 +61,8 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 	// `true`, sobald dieser Hook einen Lauf begleitet — nur dann wird `running: false` zum Abschluss.
 	const trackingRef = useRef(false);
 	const pollRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	// Nur die jüngste Abfrage zählt: eine vor dem Start begonnene darf den Lauf nicht als beendet melden.
+	const seqRef = useRef(0);
 	// Aktuelle Callbacks, ohne dass ein laufender Lauf mit veralteten Closures weiterarbeitet.
 	const runPortionRef = useRef(runPortion);
 	const onChangedRef = useRef(onChanged);
@@ -73,11 +75,16 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 	// Solange der Server-Lauf unterwegs ist, lädt sie sich selbst periodisch nach.
 	const refreshStatus = useCallback(async (): Promise<void> => {
 		clearTimeout(pollRef.current);
+		seqRef.current += 1;
+		const seq = seqRef.current;
 		let next: OwnReassignPillarsStatus;
 		try {
 			next = await loadStatus();
 		} catch {
 			setStatus(null);
+			return;
+		}
+		if (seq !== seqRef.current) {
 			return;
 		}
 		setStatus(next);
@@ -130,6 +137,8 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 	const start = useCallback(
 		async (restart: boolean): Promise<void> => {
 			trackingRef.current = true;
+			seqRef.current += 1;
+			clearTimeout(pollRef.current);
 			setRun({ ...IDLE, phase: 'processing' });
 			try {
 				await runPortionRef.current({ restart });

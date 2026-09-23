@@ -1,15 +1,15 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { OwnReassignPillarsResult } from 'client';
+import type { OwnReassignPillarsStatus } from 'client';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Tests für #1614 — „Säulen-Verteilung neu berechnen“.
  *
- * Die Komponente rechnet bewusst nichts selbst: sie treibt den serverseitigen Endpunkt
- * (`POST /tasks/reassign-pillars`) portionsweise, bis nichts mehr offen ist. Geprüft wird
- * genau das — die Filterauswahl landet am Server, die Portionen setzen mit `offset` disjunkt
- * fort, und der Fortschritt kommt aus `remaining`.
+ * Die Komponente rechnet bewusst nichts selbst: sie startet den serverseitigen Hintergrundlauf
+ * (`POST /tasks/reassign-pillars`, #1642) und liest Fortschritt und Ergebnis aus dem Status.
+ * Test-Pflege #1642: die Tests der Client-Portionsschleife (offset, limit, Abbruch) entfallen —
+ * die Portionierung liegt jetzt auf dem Server (`reassign-own-pillars.test.ts`).
  *
  * Die KoliBri-Hosts sind wie in `ConfirmDeleteDialog.test.tsx` auf schlanke DOM-Äquivalente
  * reduziert (`KolDialog` ist in jsdom nicht lauffähig).
@@ -95,14 +95,29 @@ afterEach(() => {
 	vi.resetAllMocks();
 });
 
-const portion = (over: Partial<OwnReassignPillarsResult> = {}): OwnReassignPillarsResult => ({
-	updated: 0,
-	failed: 0,
-	skipped: 0,
-	remaining: 0,
-	quotaExhausted: false,
-	...over,
+const IDLE_STATUS: OwnReassignPillarsStatus = { startedAt: null, total: 0, pending: 0 };
+
+beforeEach(() => {
+	getOwnReassignPillarsStatus.mockResolvedValue(IDLE_STATUS);
+	reassignOwnTaskPillars.mockResolvedValue({ running: true, processed: 0 });
 });
+
+/** Hintergrundlauf, der bei der ersten Abfrage nach dem Start schon fertig ist. */
+const finishedWith = (
+	result: Partial<NonNullable<OwnReassignPillarsStatus['result']>>,
+	over: Partial<OwnReassignPillarsStatus> = {},
+): void => {
+	const full = { updated: 0, failed: 0, skipped: 0, quotaExhausted: false, ...result };
+	getOwnReassignPillarsStatus.mockResolvedValueOnce(IDLE_STATUS).mockResolvedValue({
+		startedAt: '2026-09-23T08:00:00.000Z',
+		total: full.updated + full.failed + full.skipped,
+		pending: full.failed,
+		running: false,
+		processed: full.updated + full.failed + full.skipped,
+		result: full,
+		...over,
+	});
+};
 
 const setup = () => {
 	const onClose = vi.fn();
@@ -124,8 +139,6 @@ const start = async () => {
 const callArgs = (index: number) =>
 	reassignOwnTaskPillars.mock.calls[index][0] as {
 		status?: string;
-		limit?: number;
-		offset?: number;
 		restart?: boolean;
 	};
 
@@ -135,7 +148,6 @@ describe('RecalcPillarModal — Filterauswahl', () => {
 		['Nur offene Aufgaben', 'open'],
 		['Nur erledigte Aufgaben', 'done'],
 	])('reicht „%s" als status=%s an den Server durch', async (label, expected) => {
-		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 1 }));
 		setup();
 
 		chooseFilter(label);
@@ -145,7 +157,7 @@ describe('RecalcPillarModal — Filterauswahl', () => {
 	});
 
 	it('rechnet nichts selbst — der einzige API-Aufruf ist der Server-Endpunkt', async () => {
-		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 3 }));
+		finishedWith({ updated: 3 });
 		const { onCompleted } = setup();
 
 		await start();
@@ -156,72 +168,47 @@ describe('RecalcPillarModal — Filterauswahl', () => {
 	});
 });
 
-describe('RecalcPillarModal — portionierter Lauf', () => {
-	it('setzt mit offset disjunkt fort, bis nichts mehr offen ist', async () => {
-		reassignOwnTaskPillars
-			.mockResolvedValueOnce(portion({ updated: 2, remaining: 3 }))
-			.mockResolvedValueOnce(portion({ updated: 2, skipped: 1, remaining: 0 }));
-		setup();
-
-		await start();
-
-		expect(reassignOwnTaskPillars).toHaveBeenCalledTimes(2);
-		// Erfolgreich verarbeitete fallen serverseitig aus der Auswahl — ohne Fehlschlag bleibt der
-		// offset bei 0. Nur der erste Aufruf beginnt den Lauf neu.
-		expect(callArgs(0).offset).toBe(0);
-		expect(callArgs(1).offset).toBe(0);
-		expect(callArgs(0).restart).toBe(true);
-		expect(callArgs(1).restart).toBe(false);
-		expect(screen.getAllByRole('alert')[0]).toHaveTextContent('4 Aufgaben neu zugeordnet, 1 unverändert gelassen');
-	});
-
-	it('speist den Fortschrittsbalken aus remaining', async () => {
-		const resolvers: ((value: OwnReassignPillarsResult) => void)[] = [];
-		reassignOwnTaskPillars.mockImplementation(
-			() => new Promise<OwnReassignPillarsResult>((resolve) => resolvers.push(resolve)),
-		);
-		setup();
-
-		await start();
-
-		// Vor der ersten Antwort ist die Gesamtzahl noch unbekannt — kein „0 / 0“-Balken, der wie
-		// ein hängender Lauf aussieht.
-		expect(screen.queryByRole('progressbar')).toBeNull();
-		expect(screen.getByText(/Ermittle Aufgaben/)).toBeInTheDocument();
-
-		await act(async () => {
-			resolvers[0](portion({ updated: 2, remaining: 3 }));
+describe('RecalcPillarModal — Hintergrundlauf (#1642)', () => {
+	it('speist den Fortschrittsbalken aus dem Status des laufenden Server-Laufs', async () => {
+		getOwnReassignPillarsStatus.mockResolvedValueOnce(IDLE_STATUS).mockResolvedValue({
+			startedAt: '2026-09-23T08:00:00.000Z',
+			total: 5,
+			pending: 3,
+			running: true,
+			processed: 2,
 		});
+		setup();
+
+		await start();
 
 		const bar = screen.getByRole('progressbar');
 		expect(bar).toHaveAttribute('aria-valuemax', '5');
 		expect(bar).toHaveAttribute('aria-valuenow', '2');
+		// Kein zweiter Start während des Laufs.
+		expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
 	});
 
-	it('fordert kleine Portionen an, damit der Fortschritt während des Laufs weiterläuft', async () => {
-		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 1 }));
-		setup();
+	it('Schließen bricht den Server-Lauf nicht ab und startet keinen weiteren', async () => {
+		getOwnReassignPillarsStatus.mockResolvedValueOnce(IDLE_STATUS).mockResolvedValue({
+			startedAt: '2026-09-23T08:00:00.000Z',
+			total: 5,
+			pending: 5,
+			running: true,
+			processed: 0,
+		});
+		const { onClose } = setup();
 
 		await start();
+		fireEvent.click(screen.getByRole('button', { name: 'Schließen' }));
 
-		// Ohne limit nähme der Server 200 Aufgaben in EINEM Request — der Balken stünde bis zum Ende.
-		expect(callArgs(0).limit).toBe(5);
-	});
-
-	it('bricht ab, wenn eine Portion nichts mehr verarbeitet, statt endlos zu laufen', async () => {
-		// Server meldet offene Aufgaben, verarbeitet aber keine — ohne Abbruch liefe die Schleife ewig.
-		reassignOwnTaskPillars.mockResolvedValue(portion({ remaining: 7 }));
-		setup();
-
-		await start();
-
+		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(reassignOwnTaskPillars).toHaveBeenCalledTimes(1);
 	});
 });
 
-describe('RecalcPillarModal — Abbruch, Fehler und Kontingent', () => {
+describe('RecalcPillarModal — Fehler und Kontingent', () => {
 	it('hält bei aufgebrauchtem Kontingent an und benennt die offenen Aufgaben', async () => {
-		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 2, remaining: 8, quotaExhausted: true }));
+		finishedWith({ updated: 2, quotaExhausted: true }, { total: 10, pending: 8 });
 		setup();
 
 		await start();
@@ -232,12 +219,8 @@ describe('RecalcPillarModal — Abbruch, Fehler und Kontingent', () => {
 		expect(alerts.some((alert) => alert.textContent?.includes('8 Aufgaben sind noch offen'))).toBe(true);
 	});
 
-	it('summiert die Fehlergründe aller Portionen und nennt sie im Abschluss', async () => {
-		reassignOwnTaskPillars
-			.mockResolvedValueOnce(portion({ updated: 3, failed: 2, remaining: 5, failureReasons: { 'HTTP 429': 2 } }))
-			.mockResolvedValueOnce(
-				portion({ updated: 3, failed: 2, remaining: 0, failureReasons: { 'HTTP 429': 1, 'HTTP 500': 1 } }),
-			);
+	it('nennt die Fehlergründe des Laufs im Abschluss', async () => {
+		finishedWith({ updated: 6, failed: 4, failureReasons: { 'HTTP 429': 3, 'HTTP 500': 1 } });
 		setup();
 
 		await start();
@@ -255,29 +238,6 @@ describe('RecalcPillarModal — Abbruch, Fehler und Kontingent', () => {
 		await start();
 
 		expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Serverfehler');
-		expect(onCompleted).not.toHaveBeenCalled();
-	});
-
-	it('bricht den laufenden Lauf ab und fordert keine weitere Portion an', async () => {
-		const resolvers: ((value: OwnReassignPillarsResult) => void)[] = [];
-		reassignOwnTaskPillars.mockImplementation(
-			() => new Promise<OwnReassignPillarsResult>((resolve) => resolvers.push(resolve)),
-		);
-		const { onClose, onCompleted } = setup();
-
-		await start();
-		const { signal } = reassignOwnTaskPillars.mock.calls[0][0] as { signal: AbortSignal };
-
-		fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
-
-		expect(onClose).toHaveBeenCalledTimes(1);
-		expect(signal.aborted).toBe(true);
-
-		await act(async () => {
-			resolvers[0](portion({ updated: 1, remaining: 5 }));
-		});
-
-		expect(reassignOwnTaskPillars).toHaveBeenCalledTimes(1);
 		expect(onCompleted).not.toHaveBeenCalled();
 	});
 });
@@ -298,7 +258,6 @@ describe('RecalcPillarModal — fortsetzbarer Lauf', () => {
 
 	it('„Fortsetzen“ beginnt keinen neuen Lauf', async () => {
 		getOwnReassignPillarsStatus.mockResolvedValue(resumableStatus);
-		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 5, remaining: 0 }));
 		setup();
 
 		const resume = await screen.findByRole('button', { name: 'Fortsetzen (54 offen)' });
@@ -309,23 +268,8 @@ describe('RecalcPillarModal — fortsetzbarer Lauf', () => {
 		expect(callArgs(0).restart).toBe(false);
 	});
 
-	it('schiebt den offset nur um die fehlgeschlagenen Aufgaben weiter', async () => {
-		reassignOwnTaskPillars
-			.mockResolvedValueOnce(portion({ updated: 3, failed: 2, remaining: 4 }))
-			.mockResolvedValueOnce(portion({ updated: 4, remaining: 0 }));
-		setup();
-
-		await start();
-
-		// Die zwei fehlgeschlagenen stehen vorn in der Auswahl — der nächste Aufruf überspringt genau sie.
-		expect(callArgs(1).offset).toBe(2);
-	});
-
 	it('nennt nach dem Lauf die noch offenen Aufgaben und bietet „Fortsetzen“ an', async () => {
-		getOwnReassignPillarsStatus
-			.mockResolvedValueOnce({ startedAt: null, total: 10, pending: 10 })
-			.mockResolvedValue({ startedAt: '2026-09-23T08:00:00.000Z', total: 10, pending: 3 });
-		reassignOwnTaskPillars.mockResolvedValue(portion({ updated: 7, failed: 3, remaining: 0 }));
+		finishedWith({ updated: 7, failed: 3 }, { total: 10, pending: 3 });
 		setup();
 
 		await start();

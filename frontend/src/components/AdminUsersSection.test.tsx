@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { planLabel } from '../lib/planOffers';
@@ -79,7 +79,6 @@ vi.mock('./Modal', () => ({
 	Modal: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-import type { ReassignPillarsResult } from 'client';
 import { api } from '../api';
 import { AdminUsersSection } from './AdminUsersSection';
 
@@ -89,6 +88,35 @@ const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.
 const mockGetReassignPillarsStatus = api.getReassignPillarsStatus as ReturnType<typeof vi.fn>;
 /** Noch nie gelaufen — dann gibt es kein „Fortsetzen“. */
 const NO_RUN = { startedAt: null, total: 0, pending: 0 };
+
+/**
+ * Test-Pflege #1642: POST startet nur noch den Hintergrund-Batch, das Ergebnis kommt aus dem Status.
+ * Liefert den Stand ab der zweiten Abfrage (die erste ist der Mount) als abgeschlossenen Lauf.
+ */
+const finishBatchWith = (result: {
+	updated: number;
+	failed: number;
+	skipped: number;
+	failureReasons?: Record<string, number>;
+}) => {
+	let calls = 0;
+	mockGetReassignPillarsStatus.mockImplementation(() => {
+		calls += 1;
+		return Promise.resolve(
+			calls === 1
+				? NO_RUN
+				: {
+						startedAt: '2026-09-23T08:00:00.000Z',
+						total: result.updated + result.failed + result.skipped,
+						pending: result.failed,
+						running: false,
+						processed: result.updated + result.failed + result.skipped,
+						result: { quotaExhausted: false, ...result },
+					},
+		);
+	});
+	mockReassignTaskPillars.mockResolvedValue({ running: true, processed: 0 });
+};
 mockGetReassignPillarsStatus.mockImplementation(() => Promise.resolve(NO_RUN));
 
 type TestUser = {
@@ -354,7 +382,7 @@ describe('AdminUsersSection — Säulenverteilung neu berechnen (Fixup #1602, Fi
 
 	it('erst nach beiden Bestätigungsstufen startet der Batch und das Ergebnis erscheint als Alert', async () => {
 		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
-		mockReassignTaskPillars.mockResolvedValue({ updated: 3, failed: 1, skipped: 2, users: 1, remaining: 0 });
+		finishBatchWith({ updated: 3, failed: 1, skipped: 2 });
 
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
@@ -394,15 +422,6 @@ describe('AdminUsersSection — Säulenverteilung neu berechnen (Fixup #1602, Fi
  * Folgeaufruf wieder dieselbe erste Portion, und der Rest blieb liegen.
  */
 describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
-	const portion = (over: Partial<ReassignPillarsResult> = {}): ReassignPillarsResult => ({
-		updated: 0,
-		failed: 0,
-		skipped: 0,
-		users: 1,
-		remaining: 0,
-		...over,
-	});
-
 	const startRun = async (): Promise<void> => {
 		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
 		await waitFor(() => expect(screen.getByText(/Sollen die Säulen-Beiträge/)).toBeInTheDocument());
@@ -416,7 +435,7 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 		['Nur erledigte Aufgaben', 'done'],
 	])('reicht „%s" als status=%s an den Server durch', async (label, expected) => {
 		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
-		mockReassignTaskPillars.mockResolvedValue(portion({ updated: 1 }));
+		finishBatchWith({ updated: 1, failed: 0, skipped: 0 });
 
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
@@ -431,82 +450,42 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ status: expected });
 	});
 
-	it('fordert die nächste Portion mit fortgezähltem offset an, bis nichts mehr offen ist', async () => {
+	// Test-Pflege #1642: Portions-/offset-Tests entfallen — die Portionierung liegt auf dem Server.
+	it('zeigt Ergebnis und Fehlergründe des Hintergrund-Batches aus dem Status', async () => {
 		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
-		mockReassignTaskPillars
-			.mockResolvedValueOnce(portion({ updated: 2, remaining: 3 }))
-			.mockResolvedValueOnce(portion({ updated: 2, skipped: 1, remaining: 0 }));
+		finishBatchWith({ updated: 7, failed: 2, skipped: 1, failureReasons: { 'HTTP 429': 2 } });
 
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
 		await startRun();
 
-		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(2));
-		// Erfolgreich verarbeitete fallen serverseitig aus der Auswahl — ohne Fehlschlag bleibt der
-		// offset bei 0. Portionen zu 5, damit der Balken läuft; nur der erste Aufruf startet neu.
-		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ offset: 0, limit: 5, restart: true });
-		expect(mockReassignTaskPillars.mock.calls[1][0]).toMatchObject({ offset: 0, limit: 5, restart: false });
-
-		// Das Ergebnis summiert beide Portionen, statt nur die letzte zu zeigen.
 		await waitFor(() =>
-			expect(screen.getByRole('alert')).toHaveTextContent('4 Aufgaben neu zugeordnet, 1 unverändert gelassen'),
+			expect(screen.getByRole('alert')).toHaveTextContent('7 Aufgaben neu zugeordnet, 1 unverändert gelassen'),
 		);
-		// Innerhalb eines Laufs ruft die Schleife selbst nach — ohne offenen Rest kein „Fortsetzen“.
-		expect(screen.queryByRole('button', { name: /Fortsetzen/ })).not.toBeInTheDocument();
+		expect(screen.getByRole('alert')).toHaveTextContent('HTTP 429 (Rate-Limit des KI-Anbieters): 2');
+		expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1);
 	});
 
 	it('zeigt während des Laufs einen zugänglichen Fortschrittsbalken', async () => {
 		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
-		const resolvers: ((value: unknown) => void)[] = [];
-		mockReassignTaskPillars.mockImplementation(() => new Promise((resolve) => resolvers.push(resolve)));
+		let calls = 0;
+		mockGetReassignPillarsStatus.mockImplementation(() => {
+			calls += 1;
+			return Promise.resolve(
+				calls === 1
+					? NO_RUN
+					: { startedAt: '2026-09-23T08:00:00.000Z', total: 5, pending: 3, running: true, processed: 2 },
+			);
+		});
+		mockReassignTaskPillars.mockResolvedValue({ running: true, processed: 0 });
 
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
 		await startRun();
 
-		// Vor der ersten Antwort ist die Gesamtzahl unbekannt — Hinweis statt „0 / 0“-Balken.
-		await waitFor(() => expect(screen.getByText(/Ermittle Aufgaben/)).toBeInTheDocument());
-		expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-
-		await act(async () => {
-			resolvers[0](portion({ updated: 2, remaining: 3 }));
-		});
-
-		const bar = screen.getByRole('progressbar');
+		const bar = await screen.findByRole('progressbar');
 		expect(bar).toHaveAttribute('aria-valuemax', '5');
 		expect(bar).toHaveAttribute('aria-valuenow', '2');
-	});
-
-	it('bricht ab, wenn eine Portion nichts mehr verarbeitet, statt endlos zu laufen', async () => {
-		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
-		mockReassignTaskPillars.mockResolvedValue(portion({ remaining: 9 }));
-
-		render(<AdminUsersSection />);
-		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
-		await startRun();
-
-		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1));
-		await waitFor(() =>
-			expect(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' })).toBeEnabled(),
-		);
-		expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1);
-	});
-
-	it('schiebt den offset nur um die Fehlschläge weiter und nennt deren Gründe', async () => {
-		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
-		mockReassignTaskPillars
-			.mockResolvedValueOnce(portion({ updated: 3, failed: 2, remaining: 4, failureReasons: { 'HTTP 429': 2 } }))
-			.mockResolvedValueOnce(portion({ updated: 4, remaining: 0 }));
-
-		render(<AdminUsersSection />);
-		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
-		await startRun();
-
-		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(2));
-		expect(mockReassignTaskPillars.mock.calls[1][0]).toMatchObject({ offset: 2 });
-		await waitFor(() =>
-			expect(screen.getByRole('alert')).toHaveTextContent('HTTP 429 (Rate-Limit des KI-Anbieters): 2'),
-		);
 	});
 
 	it('zeigt den Stand und setzt über „Fortsetzen“ ohne Neustart fort', async () => {
@@ -514,7 +493,7 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 		mockGetReassignPillarsStatus.mockImplementation(() =>
 			Promise.resolve({ startedAt: '2026-09-23T08:00:00.000Z', total: 145, pending: 54 }),
 		);
-		mockReassignTaskPillars.mockResolvedValue(portion({ updated: 5, remaining: 0 }));
+		mockReassignTaskPillars.mockResolvedValue({ running: true, processed: 0 });
 
 		render(<AdminUsersSection />);
 		await waitFor(() => expect(screen.getByTestId('reassign-batch-status')).toHaveTextContent('91 von 145'));
