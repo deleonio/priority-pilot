@@ -1,5 +1,5 @@
 import { KolAlert, KolBadge, KolButton, KolInputRadio, KolProgress, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, ReassignPillarsResult, ReassignStatusFilter } from 'client';
+import type { AdminUser, OwnReassignPillarsStatus, ReassignPillarsResult, ReassignStatusFilter } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -12,6 +12,19 @@ const FILTER_OPTIONS: { label: string; value: ReassignStatusFilter }[] = [
 	{ label: 'Nur offene Aufgaben', value: 'open' },
 	{ label: 'Nur erledigte Aufgaben', value: 'done' },
 ];
+
+/**
+ * Aufgaben je Server-Aufruf des Batches (#1614). Klein, damit der Fortschrittsbalken während des
+ * Laufs weiterläuft — mit dem Server-Default von 200 stand er bis zum Ende eines einzigen langen
+ * Requests auf „0 / 0“.
+ */
+const REASSIGN_BATCH_SIZE = 5;
+
+const describeReason = (reason: string): string =>
+	reason === 'HTTP 429' ? 'HTTP 429 (Rate-Limit des KI-Anbieters)' : reason;
+
+const formatStartedAt = (iso: string): string =>
+	new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
 
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (analog GroupDetail). */
 const roleLabel = (role: AdminUser['role']): string =>
@@ -64,6 +77,28 @@ export const AdminUsersSection = () => {
 	const [filter, setFilter] = useState<ReassignStatusFilter>('all');
 	// Fortschritt der Portionierungs-Serie: verarbeitete Aufgaben und Gesamtzahl der Auswahl.
 	const [progress, setProgress] = useState({ processed: 0, total: 0 });
+	// Neustart über alle Konten oder Fortsetzen der seit dem letzten Start noch offenen Aufgaben.
+	const [mode, setMode] = useState<'restart' | 'resume'>('restart');
+	// Stand des Batches (#1614) — Grundlage für „Fortsetzen“.
+	const [batchStatus, setBatchStatus] = useState<OwnReassignPillarsStatus | null>(null);
+
+	const loadBatchStatus = useCallback(async (): Promise<void> => {
+		try {
+			setBatchStatus(await api.getReassignPillarsStatus({ status: filter }));
+		} catch {
+			setBatchStatus(null);
+		}
+	}, [filter]);
+
+	useEffect(() => {
+		void loadBatchStatus();
+	}, [loadBatchStatus]);
+
+	const canResume =
+		batchStatus !== null &&
+		batchStatus.startedAt !== null &&
+		batchStatus.pending > 0 &&
+		batchStatus.pending < batchStatus.total;
 
 	/**
 	 * Der Server verarbeitet je Aufruf höchstens eine Portion und meldet über `remaining`, wie
@@ -77,20 +112,35 @@ export const AdminUsersSection = () => {
 		setSummary(null);
 		setProgress({ processed: 0, total: 0 });
 
+		// `offset` zählt nur die Fehlschläge dieser Serie: Erfolgreich verarbeitete fallen serverseitig
+		// aus der Auswahl, die fehlgeschlagenen bleiben vorn in ihr stehen.
 		let offset = 0;
+		let processed = 0;
+		let first = true;
 		const totals = { updated: 0, failed: 0, skipped: 0, users: 0 };
+		const failureReasons: Record<string, number> = {};
 		try {
 			for (;;) {
-				const result = await api.reassignTaskPillars({ offset, status: filter });
+				const result = await api.reassignTaskPillars({
+					offset,
+					status: filter,
+					limit: REASSIGN_BATCH_SIZE,
+					restart: first && mode === 'restart',
+				});
+				first = false;
 				const consumed = result.updated + result.failed + result.skipped;
 				totals.updated += result.updated;
 				totals.failed += result.failed;
 				totals.skipped += result.skipped;
 				totals.users = Math.max(totals.users, result.users);
-				offset += consumed;
+				for (const [reason, count] of Object.entries(result.failureReasons ?? {})) {
+					failureReasons[reason] = (failureReasons[reason] ?? 0) + count;
+				}
+				offset += result.failed;
+				processed += consumed;
 
-				setProgress({ processed: offset, total: offset + result.remaining });
-				setSummary({ ...totals, remaining: result.remaining });
+				setProgress({ processed, total: processed + result.remaining });
+				setSummary({ ...totals, failureReasons: { ...failureReasons }, remaining: result.remaining });
 				setError(null);
 
 				// `consumed === 0` bricht ab, auch wenn der Server noch Aufgaben meldet — sonst liefe
@@ -104,8 +154,9 @@ export const AdminUsersSection = () => {
 			setError(apiError.message);
 		} finally {
 			setRunning(false);
+			void loadBatchStatus();
 		}
-	}, [filter]);
+	}, [filter, mode, loadBatchStatus]);
 	const handleRoleChange = async (id: number, role: AdminUser['role']): Promise<void> => {
 		try {
 			await api.updateUserRole({ id, role });
@@ -163,32 +214,78 @@ export const AdminUsersSection = () => {
 				</>
 			)}
 			<div className="admin-reassign">
-				<KolButton
-					_label="Säulenverteilung aller Aufgaben neu berechnen"
-					_variant="secondary"
-					_disabled={running}
-					_on={{ onClick: () => setConfirmStep('intent') }}
-				/>
-				{running && (
-					<>
-						<p>
-							Verarbeite Aufgaben…{' '}
-							<strong>
-								{progress.processed} / {progress.total}
-							</strong>
-						</p>
-						<KolProgress
-							_variant="bar"
-							_max={progress.total}
-							_value={progress.processed}
-							_label="Fortschritt der Neuberechnung"
-						/>
-					</>
+				{!running && batchStatus?.startedAt != null && batchStatus.total > 0 && (
+					<p data-testid="reassign-batch-status">
+						Stand seit {formatStartedAt(batchStatus.startedAt)}:{' '}
+						<strong>
+							{batchStatus.total - batchStatus.pending} von {batchStatus.total}
+						</strong>{' '}
+						Aufgaben neu berechnet
+						{batchStatus.pending > 0 ? `, ${batchStatus.pending} noch offen.` : '.'}
+					</p>
 				)}
+				<div className="modal-actions">
+					<KolButton
+						_label="Säulenverteilung aller Aufgaben neu berechnen"
+						_variant="secondary"
+						_disabled={running}
+						_on={{
+							onClick: () => {
+								setMode('restart');
+								setConfirmStep('intent');
+							},
+						}}
+					/>
+					{canResume && (
+						<KolButton
+							_label={`Fortsetzen (${batchStatus.pending} offen)`}
+							_variant="primary"
+							_disabled={running}
+							_on={{
+								onClick: () => {
+									// Direkt zur Kostenbestätigung: Die Absicht ist mit dem Fortsetzen klar.
+									setMode('resume');
+									setConfirmStep('costs');
+								},
+							}}
+						/>
+					)}
+				</div>
+				{running &&
+					(progress.total === 0 ? (
+						// Vor der ersten Antwort ist die Gesamtzahl unbekannt — kein „0 / 0“.
+						<p>Ermittle Aufgaben und verarbeite die erste Portion…</p>
+					) : (
+						<>
+							<p>
+								Verarbeite Aufgaben…{' '}
+								<strong>
+									{progress.processed} / {progress.total}
+								</strong>
+							</p>
+							<KolProgress
+								_variant="bar"
+								_max={progress.total}
+								_value={progress.processed}
+								_label="Fortschritt der Neuberechnung"
+							/>
+						</>
+					))}
 				{!running && summary !== null && (
-					<KolAlert _type="info" _label="Neuberechnung abgeschlossen">
-						{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
-						fehlgeschlagen ({summary.users} Konten).
+					<KolAlert _type={summary.failed === 0 ? 'info' : 'warning'} _label="Neuberechnung abgeschlossen">
+						<p>
+							{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
+							fehlgeschlagen ({summary.users} Konten).
+						</p>
+						{summary.failed > 0 && (
+							<ul>
+								{Object.entries(summary.failureReasons ?? {}).map(([reason, count]) => (
+									<li key={reason}>
+										{describeReason(reason)}: {count}
+									</li>
+								))}
+							</ul>
+						)}
 					</KolAlert>
 				)}
 			</div>
@@ -243,7 +340,7 @@ export const AdminUsersSection = () => {
 							_on={{ onClick: () => setConfirmStep('closed') }}
 						/>
 						<KolButton
-							_label={running ? 'Berechne …' : 'Jetzt neu berechnen'}
+							_label={running ? 'Berechne …' : mode === 'resume' ? 'Jetzt fortsetzen' : 'Jetzt neu berechnen'}
 							_variant="primary"
 							_disabled={running}
 							_on={{ onClick: () => void startReassign() }}

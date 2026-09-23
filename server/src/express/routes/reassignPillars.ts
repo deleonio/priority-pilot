@@ -10,36 +10,15 @@ import { acquireUserRun, releaseUserRun, type ReassignRunKey } from '../../logic
 import {
 	DEFAULT_REASSIGN_LIMIT,
 	countPendingTasks,
+	ensureRunStart,
 	parseStatusFilter,
+	readRunStart,
 	reassignTaskPillarsForUser,
 } from '../../logics/reassignTaskPillars.js';
-import { User } from '../../models/index.js';
 import type { components } from '../../api';
 
 type OwnReassignPillarsResultDto = components['schemas']['OwnReassignPillarsResult'];
 type OwnReassignPillarsStatusDto = components['schemas']['OwnReassignPillarsStatus'];
-
-/**
- * Laufstart im Pass-Through-Modus (ohne Konto, lokale Entwicklung) — dort gibt es keine
- * `users`-Zeile, in der er stehen könnte. Geht bei einem Neustart verloren; das ist lokal hinnehmbar.
- */
-let passthroughRunStartedAt: Date | null = null;
-
-const readRunStart = async (userId: number | undefined): Promise<Date | null> => {
-	if (userId === undefined) {
-		return passthroughRunStartedAt;
-	}
-	const user = await User.findByPk(userId, { attributes: ['id', 'pillarRecalcStartedAt'] });
-	return user?.pillarRecalcStartedAt ?? null;
-};
-
-const writeRunStart = async (userId: number | undefined, startedAt: Date): Promise<void> => {
-	if (userId === undefined) {
-		passthroughRunStartedAt = startedAt;
-		return;
-	}
-	await User.update({ pillarRecalcStartedAt: startedAt }, { where: { id: userId } });
-};
 
 /**
  * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614).
@@ -142,11 +121,7 @@ export const createReassignPillarsRouter = (
 			try {
 				// `restart=true` beginnt einen neuen Lauf: Ab jetzt gilt jede Aufgabe wieder als offen.
 				// Sonst setzt der Aufruf den letzten Lauf fort; gab es noch keinen, beginnt er einen.
-				let since = rawRestart === 'true' ? null : await readRunStart(userId);
-				if (since === null) {
-					since = new Date();
-					await writeRunStart(userId, since);
-				}
+				const since = await ensureRunStart(userId, rawRestart === 'true');
 				const quota = await createAiQuotaCounter(userId, hasProviderPin(query));
 				const result = await reassignTaskPillarsForUser(userId, {
 					classifier: pillarClassifier,
