@@ -1,0 +1,131 @@
+{
+	"meta": {
+		"title": "Priority Pilot – What should you work on next?",
+		"description": "Priority Pilot uses your task dependencies and life areas to work out which task matters most right now. Sign in with Google and get going.",
+		"skip": "Skip to content",
+		"switchLanguage": "Deutsch",
+		"switchLanguageLabel": "Auf Deutsch wechseln"
+	},
+	"nav": {
+		"label": "Main navigation",
+		"features": "Features",
+		"pricing": "Plans",
+		"faq": "FAQ",
+		"openApp": "Open app"
+	},
+	"hero": {
+		"eyebrow": "Task planning with life balance",
+		"title": "What should you work on next?",
+		"lead": "Priority Pilot answers exactly that. It weighs dependencies and your life areas to find the task that pays off most right now. You get things done instead of sorting lists.",
+		"cta": "Start with Google",
+		"ctaNote": "Free. No credit card. Sign in with your Google account.",
+		"secondary": "Already in? Open the app",
+		"screenshotAlt": "Priority Pilot dashboard showing the next task and the life balance"
+	},
+	"steps": {
+		"title": "Ready in three steps",
+		"items": [
+			{ "title": "Sign in with Google", "text": "One click. No form, no password." },
+			{ "title": "Add your tasks", "text": "Type or speak them. Link dependencies and life areas whenever you like." },
+			{ "title": "Do the next task", "text": "The dashboard shows what matters now and how balanced your week is." }
+		]
+	},
+	"features": {
+		"title": "What makes Priority Pilot different",
+		"items": [
+			{
+				"title": "One next task, not an endless list",
+				"text": "The app shows the most valuable task whose prerequisites are already done. That is your answer to “what now?”."
+			},
+			{
+				"title": "Life balance drives priority",
+				"text": "Body, relationships, meaning, mental health, impact: you weight your pillars, and the weights feed straight into every priority."
+			},
+			{
+				"title": "Dependencies that count",
+				"text": "Tasks build on each other. Priority Pilot adds up value and effort along the whole chain and detects cycles."
+			},
+			{
+				"title": "Plan together",
+				"text": "Invite family or team to a group by link and hand tasks to each other."
+			},
+			{
+				"title": "AI and voice input",
+				"text": "Capture tasks by voice. The AI suggests matching pillars and polishes titles and descriptions, with your own provider if you prefer."
+			},
+			{
+				"title": "Open and always at hand",
+				"text": "Installable on phone and desktop, with push reminders, location reminders and an MCP interface for your AI assistants."
+			}
+		]
+	},
+	"pricing": {
+		"title": "Plans",
+		"lead": "Start for free. Need more? Switch plans in the app at any time.",
+		"perMonth": "/ month",
+		"free": "€0",
+		"yearly": "or {price} per year",
+		"discounts": "Pay quarterly and save 10 %, pay yearly and save 20 %. All prices are final; no VAT is charged under § 19 UStG (German small business rule).",
+		"basics": "Tasks, series, checklists, deadlines, points and balance analysis",
+		"includesPrevious": "Everything in {plan}, plus:",
+		"aiQuota": "{count} AI requests per month",
+		"cta": "Start for free",
+		"plans": { "free": "Free", "pro": "Pro", "max": "Max", "ultimate": "Ultimate" },
+		"features": {
+			"groups": "Groups and invite links",
+			"voice_input": "Voice input",
+			"ai_assist": "AI help: pillar advisor and copy editing",
+			"graph_write": "Edit weighted dependencies",
+			"location_reminders": "Location reminders",
+			"mcp_read": "MCP interface (read)",
+			"mcp_readwrite": "MCP interface (read and write)"
+		}
+	},
+	"faq": {
+		"title": "Frequently asked questions",
+		"items": [
+			{
+				"q": "How much does Priority Pilot cost?",
+				"a": "The Free plan costs nothing and has no limit on the number of tasks. Pro, Max and Ultimate unlock groups, AI help and interfaces."
+			},
+			{
+				"q": "What data does the app get from Google?",
+				"a": "Only your name, email address and profile picture. You don't need a separate password."
+			},
+			{
+				"q": "How do I cancel a plan?",
+				"a": "In the app under Settings. Billing runs through PayPal, and you can switch or cancel at any time."
+			},
+			{
+				"q": "Does it work on my phone?",
+				"a": "Yes. Priority Pilot is built for one-handed use and can be installed as an app on your home screen."
+			},
+			{
+				"q": "Is the app accessible?",
+				"a": "The interface follows WCAG 2.2 and BITV 2.0 and is built on the tested KoliBri components."
+			}
+		]
+	},
+	"final": {
+		"title": "Your next task is waiting",
+		"text": "Sign in, add your first task, get going."
+	},
+	"footer": {
+		"imprint": "Imprint",
+		"imprintPath": "imprint/"
+	},
+	"imprint": {
+		"title": "Imprint",
+		"provider": "Information according to § 5 DDG",
+		"contact": "Contact",
+		"email": "Email",
+		"representative": "Authorised representative",
+		"vatId": "VAT identification number according to § 27 a UStG",
+		"responsible": "Responsible for content according to § 18 (2) MStV",
+		"odrTitle": "EU dispute resolution",
+		"odrText": "The European Commission provides a platform for online dispute resolution (ODR):",
+		"consumerTitle": "Consumer dispute resolution",
+		"consumerText": "We are neither willing nor obliged to take part in dispute resolution proceedings before a consumer arbitration board.",
+		"back": "Back to home"
+	}
+}

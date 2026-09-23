@@ -1,0 +1,137 @@
+{
+	"meta": {
+		"title": "Priority Pilot – Woran solltest du als Nächstes arbeiten?",
+		"description": "Priority Pilot rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Mit Google anmelden und sofort loslegen.",
+		"skip": "Zum Inhalt springen",
+		"switchLanguage": "English",
+		"switchLanguageLabel": "Switch to English"
+	},
+	"nav": {
+		"label": "Hauptnavigation",
+		"features": "Funktionen",
+		"pricing": "Pakete",
+		"faq": "Fragen",
+		"openApp": "App öffnen"
+	},
+	"hero": {
+		"eyebrow": "Aufgaben planen mit Lebensbalance",
+		"title": "Woran solltest du als Nächstes arbeiten?",
+		"lead": "Priority Pilot beantwortet genau diese Frage. Die App rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Du arbeitest sie ab, statt Listen zu sortieren.",
+		"cta": "Mit Google starten",
+		"ctaNote": "Kostenlos. Keine Kreditkarte. Anmeldung mit deinem Google-Konto.",
+		"secondary": "Schon dabei? App öffnen",
+		"screenshotAlt": "Dashboard von Priority Pilot mit der nächsten Aufgabe und der Lebensbalance"
+	},
+	"steps": {
+		"title": "In drei Schritten startklar",
+		"items": [
+			{ "title": "Mit Google anmelden", "text": "Ein Klick, kein Formular, kein Passwort." },
+			{
+				"title": "Aufgaben erfassen",
+				"text": "Tippen oder einsprechen. Abhängigkeiten und Lebensbereiche ordnest du zu, wann du willst."
+			},
+			{
+				"title": "Nächste Aufgabe erledigen",
+				"text": "Das Dashboard zeigt dir, was jetzt dran ist und wie ausgeglichen deine Woche läuft."
+			}
+		]
+	},
+	"features": {
+		"title": "Was Priority Pilot anders macht",
+		"items": [
+			{
+				"title": "Eine nächste Aufgabe statt endloser Liste",
+				"text": "Die App zeigt dir die wertvollste Aufgabe, deren Voraussetzungen schon erledigt sind. Das ist die Antwort auf „Was jetzt?“."
+			},
+			{
+				"title": "Lebensbalance steuert die Priorität",
+				"text": "Körper, Beziehungen, Sinn, mentale Gesundheit, Wirksamkeit: Du gewichtest deine Säulen selbst, und die Gewichtung fließt direkt in jede Priorität ein."
+			},
+			{
+				"title": "Abhängigkeiten, die mitrechnen",
+				"text": "Aufgaben bauen aufeinander auf. Priority Pilot rechnet Wert und Aufwand über die ganze Kette und erkennt Zyklen."
+			},
+			{
+				"title": "Gemeinsam planen",
+				"text": "Lade Familie oder Team per Link in eine Gruppe ein und verteilt Aufgaben untereinander."
+			},
+			{
+				"title": "KI und Spracheingabe",
+				"text": "Erfasse Aufgaben per Stimme. Die KI schlägt passende Säulen vor und glättet Titel und Beschreibungen, auf Wunsch mit deinem eigenen Anbieter."
+			},
+			{
+				"title": "Offen und überall dabei",
+				"text": "Als App auf Handy und Desktop installierbar, mit Push-Erinnerungen, Erinnerungen am Ort und einer MCP-Schnittstelle für deine KI-Assistenten."
+			}
+		]
+	},
+	"pricing": {
+		"title": "Pakete",
+		"lead": "Starte kostenlos. Wenn du mehr brauchst, wechselst du jederzeit in der App.",
+		"perMonth": "/ Monat",
+		"free": "0 €",
+		"yearly": "oder {price} im Jahr",
+		"discounts": "Bei quartalsweiser Zahlung sparst du 10 %, bei jährlicher 20 %. Alle Preise sind Endpreise; nach § 19 UStG wird keine Umsatzsteuer berechnet.",
+		"basics": "Aufgaben, Serien, Checklisten, Fristen, Punkte und Balance-Analyse",
+		"includesPrevious": "Alles aus {plan}, dazu:",
+		"aiQuota": "{count} KI-Anfragen im Monat",
+		"cta": "Kostenlos starten",
+		"plans": { "free": "Free", "pro": "Pro", "max": "Max", "ultimate": "Ultimate" },
+		"features": {
+			"groups": "Gruppen und Einladungslinks",
+			"voice_input": "Spracheingabe",
+			"ai_assist": "KI-Hilfe: Säulen-Berater und Lektorat",
+			"graph_write": "Gewichtete Abhängigkeiten bearbeiten",
+			"location_reminders": "Erinnerungen am Ort",
+			"mcp_read": "MCP-Schnittstelle (lesen)",
+			"mcp_readwrite": "MCP-Schnittstelle (lesen und schreiben)"
+		}
+	},
+	"faq": {
+		"title": "Häufige Fragen",
+		"items": [
+			{
+				"q": "Was kostet Priority Pilot?",
+				"a": "Das Free-Paket kostet nichts und hat keine Begrenzung bei der Zahl der Aufgaben. Pro, Max und Ultimate schalten Gruppen, KI-Hilfe und Schnittstellen frei."
+			},
+			{
+				"q": "Welche Daten bekommt die App von Google?",
+				"a": "Nur deinen Namen, deine E-Mail-Adresse und dein Profilbild. Ein eigenes Passwort brauchst du nicht."
+			},
+			{
+				"q": "Wie kündige ich ein Paket?",
+				"a": "In der App unter Einstellungen. Die Abrechnung läuft über PayPal, du kannst jederzeit wechseln oder kündigen."
+			},
+			{
+				"q": "Funktioniert das auf dem Handy?",
+				"a": "Ja. Priority Pilot ist für die Bedienung mit einer Hand gebaut und lässt sich als App auf dem Startbildschirm installieren."
+			},
+			{
+				"q": "Ist die App barrierefrei?",
+				"a": "Die Oberfläche folgt WCAG 2.2 und BITV 2.0 und nutzt die geprüften Komponenten von KoliBri."
+			}
+		]
+	},
+	"final": {
+		"title": "Deine nächste Aufgabe wartet schon",
+		"text": "Anmelden, erste Aufgabe eintragen, loslegen."
+	},
+	"footer": {
+		"imprint": "Impressum",
+		"imprintPath": "impressum/"
+	},
+	"imprint": {
+		"title": "Impressum",
+		"provider": "Angaben gemäß § 5 DDG",
+		"contact": "Kontakt",
+		"email": "E-Mail",
+		"representative": "Vertretungsberechtigt",
+		"vatId": "Umsatzsteuer-Identifikationsnummer gemäß § 27 a UStG",
+		"responsible": "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV",
+		"odrTitle": "EU-Streitschlichtung",
+		"odrText": "Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:",
+		"consumerTitle": "Verbraucherstreitbeilegung",
+		"consumerText": "Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.",
+		"back": "Zur Startseite"
+	}
+}

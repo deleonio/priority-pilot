@@ -1,0 +1,21 @@
+{
+	"name": "website",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tsx scripts/build.ts",
+		"lint": "tsc --noEmit",
+		"serve": "tsx scripts/serve.ts",
+		"test": "vitest run",
+		"test:e2e": "playwright test"
+	},
+	"devDependencies": {
+		"@fontsource/archivo": "5.3.0",
+		"@playwright/test": "1.63.0",
+		"@types/node": "25.9.8",
+		"tsx": "4.23.13",
+		"typescript": "5.9.3",
+		"vitest": "4.1.11"
+	}
+}
