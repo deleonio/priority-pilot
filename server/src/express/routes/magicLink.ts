@@ -3,10 +3,11 @@ import type { Request, Response } from 'express';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { hasGoogleOAuth } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
-import { isEmailAllowed } from '../../logics/allowedEmails.js';
+import { isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
 import { sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { buildMagicLinkUrl, consumeLoginToken, createLoginToken, isMagicLinkEnabled } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
+import { User } from '../../models/index.js';
 import type { components } from '../../api';
 
 type AuthProvidersDto = components['schemas']['AuthProviders'];
@@ -56,10 +57,20 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 			return;
 		}
 
-		if (isEmailAllowed(normalizedEmail)) {
+		// Bei offener Registrierung wählt ein unauthentifizierter Absender den Empfänger — anders als
+		// bei Google, wo der Nutzer selbst seine (von Google verifizierte) Adresse eintippt. Ohne
+		// diese Einschränkung würde der Server Mails an beliebige Fremdadressen verschicken.
+		const mayReceiveLink = isOpenSignup()
+			? (await User.count({ where: { email: normalizedEmail } })) > 0
+			: isEmailAllowed(normalizedEmail);
+
+		if (mayReceiveLink) {
 			const token = await createLoginToken(normalizedEmail);
 			if (token) {
-				await sendMailToUser(
+				// Nicht abwarten: die Antwortzeit darf zugelassene Adressen nicht von nicht
+				// zugelassenen/gedrosselten unterscheidbar machen (Zeitkanal). `sendMailToUser`
+				// fängt Fehler bereits selbst ab.
+				void sendMailToUser(
 					{ email: normalizedEmail },
 					{ subject: 'Dein Anmeldelink für Balamentum', text: mailText(buildMagicLinkUrl(token)) },
 					mailSender,

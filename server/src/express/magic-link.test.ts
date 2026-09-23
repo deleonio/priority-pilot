@@ -150,6 +150,25 @@ describe('Magic-Link-Login per E-Mail', () => {
 		assert.equal(await User.count({ where: { email: 'google@example.com' } }), 1, 'kein zweites Konto');
 	});
 
+	it('OPEN_SIGNUP: Mail nur an Adressen mit Bestandskonto, keine neuen Konten per Link', async () => {
+		const saved = process.env.OPEN_SIGNUP;
+		process.env.OPEN_SIGNUP = 'true';
+		try {
+			await User.create({ email: 'bestand@example.com', passwordHash: '__oauth__', displayName: 'Bestand' });
+
+			const bekannt = await requestLink('bestand@example.com');
+			assert.equal(bekannt.status, 202);
+			assert.equal(sent.length, 1, 'Bestandskonto bekommt eine Mail');
+
+			const fremd = await requestLink('unbekannt@example.com');
+			assert.equal(fremd.status, 202);
+			assert.equal(sent.length, 1, 'unbekannte Adresse bekommt trotz OPEN_SIGNUP keine Mail');
+			assert.equal(await LoginToken.count({ where: { email: 'unbekannt@example.com' } }), 0);
+		} finally {
+			process.env.OPEN_SIGNUP = saved;
+		}
+	});
+
 	it('ohne SMTP/PUBLIC_BASE_URL: 503 und providers meldet magicLink=false', async () => {
 		const saved = process.env.PUBLIC_BASE_URL;
 		delete process.env.PUBLIC_BASE_URL;

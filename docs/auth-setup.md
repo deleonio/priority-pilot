@@ -118,8 +118,11 @@ drei Variablen gesetzt sein:
 
 Regeln:
 
-- Es gilt dieselbe Allowlist wie bei Google. Die Antwort auf das Anfordern ist immer gleich, damit
-  sich freigeschaltete Adressen nicht ausspähen lassen.
+- Es gilt dieselbe Allowlist wie bei Google — mit einer Ausnahme: Bei `OPEN_SIGNUP=true` wählt hier
+  ein unauthentifizierter Absender den Empfänger (anders als bei Google, wo der Nutzer seine eigene,
+  von Google verifizierte Adresse eintippt). Deshalb geht der Link bei offener Registrierung nur an
+  Adressen, die bereits ein Konto haben — neue Konten entstehen per Magic Link nicht. Die Antwort auf
+  das Anfordern ist immer gleich, damit sich freigeschaltete Adressen nicht ausspähen lassen.
 - Ein Link ist 15 Minuten gültig und funktioniert genau einmal. Pro Adresse gehen höchstens drei
   Links je 15 Minuten raus. Gespeichert wird nur ein SHA-256 des Tokens (`login_tokens`).
 - Konten werden über die E-Mail verknüpft: Wer sich einmal per Google und einmal per Link anmeldet,

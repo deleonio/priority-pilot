@@ -34,7 +34,10 @@ export const buildMagicLinkUrl = (token: string): string =>
  * und eingelöste Tokens werden dabei mit weggeräumt (kein eigener Aufräum-Job nötig).
  */
 export const createLoginToken = async (email: string, now: Date = new Date()): Promise<string | null> => {
-	await LoginToken.destroy({ where: { [Op.or]: [{ expiresAt: { [Op.lt]: now } }, { usedAt: { [Op.ne]: null } }] } });
+	// Nur nach Alter aufräumen (nicht nach `usedAt`): sonst kann das Löschen einer fremden,
+	// gerade erst eingelösten Zeile dazwischenfunken (siehe consumeLoginToken) und verbrauchte
+	// Tokens würden nicht mehr gegen MAX_TOKENS_PER_WINDOW zählen.
+	await LoginToken.destroy({ where: { expiresAt: { [Op.lt]: new Date(now.getTime() - TOKEN_TTL_MS) } } });
 
 	const recent = await LoginToken.count({
 		where: { email, createdAt: { [Op.gt]: new Date(now.getTime() - TOKEN_TTL_MS) } },
@@ -55,13 +58,16 @@ export const createLoginToken = async (email: string, now: Date = new Date()): P
  */
 export const consumeLoginToken = async (token: string, now: Date = new Date()): Promise<string | null> => {
 	const tokenHash = hashToken(token);
+	// E-Mail vor dem Verbrauch lesen: das Aufräumen in createLoginToken kann zwischen UPDATE und
+	// einem nachträglichen findOne dazwischenfunken (fremder Aufruf löscht die soeben eingelöste
+	// Zeile, bevor sie hier wieder gelesen wird).
+	const row = await LoginToken.findOne({ where: { tokenHash, usedAt: null, expiresAt: { [Op.gt]: now } } });
+	if (!row) {
+		return null;
+	}
 	const [affected] = await LoginToken.update(
 		{ usedAt: now },
 		{ where: { tokenHash, usedAt: null, expiresAt: { [Op.gt]: now } } },
 	);
-	if (affected !== 1) {
-		return null;
-	}
-	const row = await LoginToken.findOne({ where: { tokenHash } });
-	return row?.email ?? null;
+	return affected === 1 ? row.email : null;
 };
