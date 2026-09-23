@@ -58,11 +58,16 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 	}
 };
 
-/** Legt `count` offene Tasks mit künftiger Deadline an (füllt Deadlines- und Top-Tasks-Liste). */
-const seedTasks = async (page: Page, count: number, prefix: string): Promise<void> => {
-	const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+/**
+ * Legt `count` offene Tasks mit künftiger Deadline an (füllt Deadlines- und Top-Tasks-Liste).
+ * Default-Deadline 30 Tage — für AK8 (Signalfläche „Nächste Aufgabe") liegt das außerhalb des
+ * #1641-Vorlaufs (3 Tage) und die Task würde aus Top-3-Push/Vorschlägen zurückgehalten; dort
+ * `deadlineOverride` auf einen Termin innerhalb des Vorlaufs setzen.
+ */
+const seedTasks = async (page: Page, count: number, prefix: string, deadlineOverride?: string): Promise<void> => {
+	const deadline = deadlineOverride ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 	for (let i = 0; i < count; i++) {
-		await page.request.post('/api/v1/tasks', { data: { title: `${prefix} ${i + 1}`, priority: 3, deadline: future } });
+		await page.request.post('/api/v1/tasks', { data: { title: `${prefix} ${i + 1}`, priority: 3, deadline } });
 	}
 };
 
@@ -286,7 +291,7 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 	});
 
 	test('AK8: Signalfäche der „Nächste Aufgabe" bleibt sichtbar, Button per Tastatur auslösbar', async ({ page }) => {
-		await seedTasks(page, 1, 'E2E #1118 Signal');
+		await seedTasks(page, 1, 'E2E #1118 Signal', new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
 		await openDashboard(page, 1280, 900);
 
 		// `elementFromPoint` arbeitet in Viewport-Koordinaten und liefert außerhalb des sichtbaren
