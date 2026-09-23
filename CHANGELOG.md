@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.12._
+_Enthält v0.4.0 – v0.4.13._
 
 ### Other Changes
 
@@ -18,6 +18,7 @@ _Enthält v0.4.0 – v0.4.12._
 - fix(admin): resumable pillar batch with live progress and error reasons by @deleonio in https://github.com/deleonio/priority-pilot/pull/1630
 - perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
 - fix(server): keep 5% minimum share per pillar in recalculation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1636
+- refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
 
 ## v0.3 - 2026-09-23
 
@@ -101,6 +102,7 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(server): mount rate limiters on their own paths only (#1479) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1481
 - feat(server): add plan model and entitlement center (#1456) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1486
 - feat(server): enforce plan feature gating across api and mcp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1487
+- feat(frontend): add plan context, badge, and upgrade offer dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1488
 - feat(frontend): add plan context, badge, and upgrade offer dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1488
 - feat(frontend): roll out plan badges to remaining touchpoints (#1484) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1489
 - feat(server): meter ai assist quota on llm routes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1490
