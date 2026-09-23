@@ -1,4 +1,4 @@
-import { describe, it, before, beforeEach, after } from 'node:test';
+import { describe, it, before, beforeEach, afterEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../../test/helpers.js';
 import { Pillar, Task, TaskPillar, User } from '../../models/index.js';
@@ -326,5 +326,127 @@ describe('POST /admin/tasks/reassign-pillars — Batch-Neuzuordnung der Säulenv
 		} finally {
 			await slowServer.close();
 		}
+	});
+});
+
+/**
+ * #1642: Admin-Pendant zu den Hintergrundlauf-Tests in `reassign-own-pillars.test.ts` — POST
+ * startet nur noch den Batch, `GET /admin/tasks/reassign-pillars/status` liefert währenddessen
+ * `running` mit Fortschritt und danach das Ergebnis. Siehe docs/spec/issue-1642.md.
+ */
+describe('POST/GET /admin/tasks/reassign-pillars — Hintergrundlauf (#1642)', () => {
+	let scoped: TestServer;
+
+	const statusOf = async (
+		cookie: string,
+	): Promise<{
+		running: boolean;
+		processed?: number;
+		total: number;
+		pending: number;
+		result?: { updated: number; failed: number; skipped: number };
+	}> => {
+		const res = await fetch(`${scoped.baseUrl}/admin/tasks/reassign-pillars/status`, { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200);
+		return res.json();
+	};
+
+	const pollUntilDone = async (cookie: string, maxTries = 100): Promise<Awaited<ReturnType<typeof statusOf>>> => {
+		for (let remaining = maxTries; remaining > 0; remaining--) {
+			const status = await statusOf(cookie);
+			if (!status.running) {
+				return status;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		}
+		throw new Error('Hintergrundlauf endete nicht rechtzeitig');
+	};
+
+	const gatedClassifier = (): { classifier: PillarClassifier; release: (index: number) => void } => {
+		const gates: (() => void)[] = [];
+		let calls = 0;
+		const gatedFn: PillarClassifier = (async (input: ClassifyPillarsInput) => {
+			const index = calls;
+			calls += 1;
+			await new Promise<void>((resolve) => {
+				gates[index] = resolve;
+			});
+			const suggestions: PillarSuggestion[] =
+				input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
+			return suggestions;
+		}) as PillarClassifier;
+		return { classifier: gatedFn, release: (index: number) => gates[index]?.() };
+	};
+
+	afterEach(async () => {
+		if (scoped) {
+			await scoped.close();
+		}
+	});
+
+	it('AK5/AK1/AK2: POST antwortet, bevor der Batch fertig ist; der Status meldet running mit Fortschritt', async () => {
+		await resetDb();
+		const { classifier, release } = gatedClassifier();
+		scoped = await startTestServer({ pillarClassifier: classifier });
+		const adminCookie = await scoped.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
+
+		const postPromise = fetch(`${scoped.baseUrl}/admin/tasks/reassign-pillars`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			const midRun = await statusOf(adminCookie);
+			assert.equal(midRun.running, true, 'Hintergrundlauf muss noch laufen, während der Klassifikator blockiert');
+		} finally {
+			release(0);
+		}
+		const res = await postPromise;
+		assert.ok(res.status >= 200 && res.status < 300, `POST muss den Start bestätigen, Status war ${res.status}`);
+		const done = await pollUntilDone(adminCookie);
+		assert.equal(done.running, false);
+		assert.equal(done.result?.updated, 1);
+	});
+
+	it('AK5/AK3: ein zweiter Batch-Start bleibt gesperrt, bis der Hintergrundlauf endet', async () => {
+		await resetDb();
+		const { classifier, release } = gatedClassifier();
+		scoped = await startTestServer({ pillarClassifier: classifier });
+		const adminCookie = await scoped.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
+
+		const firstPost = fetch(`${scoped.baseUrl}/admin/tasks/reassign-pillars`, {
+			method: 'POST',
+			headers: { Cookie: adminCookie },
+		});
+		try {
+			const raceResult = await Promise.race([
+				firstPost.then(() => 'responded' as const),
+				new Promise<'still-pending'>((resolve) => setTimeout(() => resolve('still-pending'), 200)),
+			]);
+			assert.equal(
+				raceResult,
+				'responded',
+				'POST muss innerhalb von 200ms antworten, auch während der Batch noch läuft',
+			);
+
+			const duringRun = await fetch(`${scoped.baseUrl}/admin/tasks/reassign-pillars`, {
+				method: 'POST',
+				headers: { Cookie: adminCookie },
+			});
+			assert.equal(
+				duringRun.status,
+				409,
+				'ein zweiter Batch-Start bleibt gesperrt, obwohl die erste Antwort schon da ist',
+			);
+		} finally {
+			release(0);
+		}
+		await pollUntilDone(adminCookie);
 	});
 });

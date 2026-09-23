@@ -1,4 +1,4 @@
-import { describe, it, before, beforeEach, after } from 'node:test';
+import { describe, it, before, beforeEach, afterEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../../test/helpers.js';
 import { AiUsage, Pillar, Task, TaskPillar, User } from '../../models/index.js';
@@ -396,6 +396,185 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			assert.equal((await first).status, 200);
 		} finally {
 			await slowServer.close();
+		}
+	});
+});
+
+/**
+ * #1642: Die Neuberechnung läuft serverseitig im Hintergrund weiter, statt den Request bis zum Ende
+ * offenzuhalten — POST startet nur noch den Lauf, `GET .../status` liefert währenddessen `running`
+ * mit Fortschritt und danach das Ergebnis. Siehe docs/spec/issue-1642.md.
+ */
+describe('POST/GET /tasks/reassign-pillars — Hintergrundlauf (#1642)', () => {
+	let server: TestServer;
+
+	const statusOf = async (
+		cookie: string,
+	): Promise<{
+		running: boolean;
+		processed?: number;
+		total: number;
+		pending: number;
+		result?: { updated: number; failed: number; skipped: number; quotaExhausted: boolean };
+	}> => {
+		const res = await fetch(`${server.baseUrl}/tasks/reassign-pillars/status`, { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200);
+		return res.json();
+	};
+
+	const pollUntilDone = async (cookie: string, maxTries = 100): Promise<Awaited<ReturnType<typeof statusOf>>> => {
+		for (let remaining = maxTries; remaining > 0; remaining--) {
+			const status = await statusOf(cookie);
+			if (!status.running) {
+				return status;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		}
+		throw new Error('Hintergrundlauf endete nicht rechtzeitig');
+	};
+
+	/** Ein steuerbares Gate je Aufgabe — der Test entscheidet, wann welcher Klassifikator-Aufruf durchläuft. */
+	const gatedClassifier = (): {
+		classifier: PillarClassifier;
+		release: (index: number) => void;
+		calls: () => number;
+	} => {
+		const gates: (() => void)[] = [];
+		let calls = 0;
+		const classifier: PillarClassifier = (async (input: ClassifyPillarsInput) => {
+			const index = calls;
+			calls += 1;
+			await new Promise<void>((resolve) => {
+				gates[index] = resolve;
+			});
+			const suggestions: PillarSuggestion[] =
+				input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
+			return suggestions;
+		}) as PillarClassifier;
+		return { classifier, release: (index: number) => gates[index]?.(), calls: () => calls };
+	};
+
+	afterEach(async () => {
+		if (server) {
+			await server.close();
+		}
+	});
+
+	it('AK1/AK2: POST antwortet, bevor der Lauf fertig ist; der Status meldet running mit Fortschritt', async () => {
+		await resetDb();
+		const { classifier, release } = gatedClassifier();
+		server = await startTestServer({ pillarClassifier: classifier });
+		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
+		await Task.create({ title: 'Zweite', status: 'Open', userId: memberId });
+
+		// Nicht sofort awaiten: mit dem BISHERIGEN synchronen Verhalten würde der Request bis zum
+		// Freigeben beider Gates blockieren — genau das darf laut AK1 nicht mehr passieren, und ein
+		// `await` an dieser Stelle würde den Test dann hängen statt rot fehlschlagen lassen.
+		const postPromise = fetch(`${server.baseUrl}/tasks/reassign-pillars`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			// Der erste Klassifikator-Aufruf hängt noch am Gate — der Lauf kann also noch nicht fertig sein.
+			const midRun = await statusOf(cookie);
+			assert.equal(midRun.running, true, 'Hintergrundlauf muss noch laufen, während der Klassifikator blockiert');
+			assert.equal(midRun.processed, 0, 'noch keine Aufgabe abgeschlossen');
+		} finally {
+			// IMMER freigeben, auch wenn eine Assertion oben scheitert — sonst hängt die POST-Verbindung
+			// dauerhaft am Gate und `server.close()` in afterEach blockiert den restlichen Testlauf.
+			release(0);
+			release(1);
+		}
+		const res = await postPromise;
+		assert.ok(res.status >= 200 && res.status < 300, `POST muss den Start bestätigen, Status war ${res.status}`);
+		const done = await pollUntilDone(cookie);
+		assert.equal(done.running, false);
+		assert.ok(done.result, 'nach Lauf-Ende muss ein Ergebnis vorliegen');
+		assert.equal(done.result?.updated, 2, 'beide Aufgaben verarbeitet, ohne dass der Client erneut posten musste');
+	});
+
+	it('AK3: die Sperre bleibt bis Lauf-Ende belegt, auch wenn die POST-Antwort bereits da ist', async () => {
+		await resetDb();
+		const { classifier, release } = gatedClassifier();
+		server = await startTestServer({ pillarClassifier: classifier });
+		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
+
+		const firstPost = fetch(`${server.baseUrl}/tasks/reassign-pillars`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		try {
+			// Race statt await: belegt, dass die erste Antwort da sein KANN, ohne den Test bei noch
+			// synchronem Verhalten hängen zu lassen (das Gate ist bewusst noch nicht freigegeben).
+			const raceResult = await Promise.race([
+				firstPost.then(() => 'responded' as const),
+				new Promise<'still-pending'>((resolve) => setTimeout(() => resolve('still-pending'), 200)),
+			]);
+			assert.equal(
+				raceResult,
+				'responded',
+				'AK1: POST muss innerhalb von 200ms antworten, auch während der Klassifikator noch blockiert',
+			);
+
+			const duringRun = await fetch(`${server.baseUrl}/tasks/reassign-pillars`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+			});
+			assert.equal(
+				duringRun.status,
+				409,
+				'ein zweiter Start bleibt gesperrt, obwohl die erste Antwort schon eingetroffen ist',
+			);
+		} finally {
+			release(0);
+		}
+		await pollUntilDone(cookie);
+
+		const afterRun = await fetch(`${server.baseUrl}/tasks/reassign-pillars?restart=true`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		assert.ok(
+			afterRun.status >= 200 && afterRun.status < 300,
+			`nach Lauf-Ende muss ein Neustart möglich sein, Status war ${afterRun.status}`,
+		);
+	});
+
+	it('AK4: Kontingent-Erschöpfung beendet den Hintergrundlauf mit Teilfortschritt', async () => {
+		await resetDb();
+		const { classifier, release } = gatedClassifier();
+		server = await startTestServer({ pillarClassifier: classifier });
+		process.env.MONETIZATION_ENFORCED = 'true';
+		try {
+			const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+			const memberId = await userIdOf(MEMBER_EMAIL);
+			await User.update({ plan: 'pro' }, { where: { id: memberId } });
+			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+			await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
+			await Task.create({ title: 'Zweite', status: 'Open', userId: memberId });
+			await AiUsage.create({ userId: memberId, yearMonth: new Date().toISOString().slice(0, 7), count: 59 });
+
+			const postPromise = fetch(`${server.baseUrl}/tasks/reassign-pillars`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+			});
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			release(0);
+			await postPromise;
+			const done = await pollUntilDone(cookie);
+			assert.equal(done.running, false);
+			assert.equal(done.result?.updated, 1, 'nur die erste Aufgabe passte noch ins Kontingent');
+			assert.equal(done.result?.quotaExhausted, true);
+		} finally {
+			delete process.env.MONETIZATION_ENFORCED;
 		}
 	});
 });
