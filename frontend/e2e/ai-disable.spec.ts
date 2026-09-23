@@ -88,6 +88,10 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 			page.getByRole('toolbar', { name: /Kopf-Aktionen/ }).getByRole('button', { name: 'Säulen-Berater' }),
 		).toHaveCount(0);
 
+		// #1408-AK2: der KI-aus-Zustand muss vor dem Klick tatsächlich gesetzt sein — sonst prüft
+		// dieser Test unbemerkt den KI-an-Pfad (initAiEnabled-Race, siehe docs/spec/issue-1408.md).
+		expect(await page.evaluate(() => localStorage.getItem('pp-ai-enabled'))).toBe('false');
+
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 
 		// Direkt das Task-Formular (Feld „Titel") — kein Freitext-Capture-Schritt.
