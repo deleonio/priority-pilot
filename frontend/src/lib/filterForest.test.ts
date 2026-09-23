@@ -129,3 +129,33 @@ describe('filterForest — Kategorie-Filter', () => {
 		expect(filterForest(forest, { search: '', categoryId: null })).toEqual(forest);
 	});
 });
+
+/**
+ * #1617 Kreuzverhör-Entscheidung #5 (Option 5.2): „Tag öffnen" in der Wochenansicht springt in den
+ * Aufgaben-Tab, gefiltert auf die Deadline des gewählten Tages — umgesetzt über eine explizite
+ * Task-ID-Menge, weil `TaskTreeNode` selbst keine Deadline führt.
+ */
+describe('filterForest — Task-ID-Filter (#1617 Option 5.2)', () => {
+	it('behält nur Aufgaben mit einer ID aus der übergebenen Menge', () => {
+		const forest = [node(1, 'Fliesen'), node(2, 'Steuer'), node(3, 'Ohne')];
+		const result = filterForest(forest, { taskIds: new Set([2]) });
+		expect(result.map((entry) => entry.title)).toEqual(['Steuer']);
+	});
+
+	it('behält die Oberaufgabe als Kontext, wenn eine Unteraufgabe die ID trägt', () => {
+		const forest = [node(1, 'Hausbau', [node(2, 'Fliesen'), node(3, 'Anderes')])];
+		const result = filterForest(forest, { taskIds: new Set([2]) });
+		expect(result).toHaveLength(1);
+		expect(result[0].dependents.map((entry) => entry.title)).toEqual(['Fliesen']);
+	});
+
+	it('liefert einen leeren Wald, wenn keine ID trifft', () => {
+		const forest = [node(1, 'Fliesen'), node(2, 'Steuer')];
+		expect(filterForest(forest, { taskIds: new Set([99]) })).toHaveLength(0);
+	});
+
+	it('liefert den ursprünglichen Wald, wenn taskIds null ist', () => {
+		const forest = [node(1, 'Fliesen')];
+		expect(filterForest(forest, { taskIds: null })).toEqual(forest);
+	});
+});

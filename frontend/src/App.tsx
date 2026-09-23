@@ -50,6 +50,7 @@ import { APP_VERSION } from './lib/version';
 import { useAiFeaturesGate } from './lib/aiPreferences';
 import { launchConfetti, shouldCelebrateDone } from './lib/confetti';
 import { setupTabsFocusRing } from './lib/tabsFocusRing';
+import { formatDeadline } from './lib/task';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -214,6 +215,55 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			? categoryFilterParam
 			: null;
 
+	// Deadline-Filter (`?deadline=YYYY-MM-DD`) des Aufgaben-Tabs — Ziel des „Tag öffnen"-Sprungs aus der
+	// Wochenansicht (#1617 Kreuzverhör-Entscheidung #5, Option 5.2). Filterzustand wie `?q=`/`?cat=`,
+	// damit Deep-Link und Zurück-Taste ihn wiederherstellen. Ein unlesbares Datum gilt als „kein Filter".
+	const deadlineFilterParam = searchParams.get('deadline');
+	const deadlineFilterDate = useMemo(() => {
+		if (deadlineFilterParam === null || !/^\d{4}-\d{2}-\d{2}$/.test(deadlineFilterParam)) {
+			return null;
+		}
+		const parsed = new Date(`${deadlineFilterParam}T00:00:00.000Z`);
+		return Number.isNaN(parsed.getTime()) ? null : parsed;
+	}, [deadlineFilterParam]);
+	// Task-IDs, deren Deadline auf den gefilterten Tag fällt — `TaskTreeNode` führt selbst keine
+	// Deadline, deshalb bildet `tasks` (das eine führt) die ID-Menge, die `filterForest` nur noch als
+	// Mitgliedschaftstest anwendet (analog zum Kategorie-Filter).
+	const deadlineFilterTaskIds = useMemo(() => {
+		if (deadlineFilterDate === null || tasks === null) {
+			return null;
+		}
+		const targetDay = Date.UTC(
+			deadlineFilterDate.getUTCFullYear(),
+			deadlineFilterDate.getUTCMonth(),
+			deadlineFilterDate.getUTCDate(),
+		);
+		const ids = new Set<number>();
+		for (const candidate of tasks) {
+			if (candidate.status === TaskStatus.Done || candidate.deadline == null) {
+				continue;
+			}
+			const deadlineDay = Date.UTC(
+				candidate.deadline.getUTCFullYear(),
+				candidate.deadline.getUTCMonth(),
+				candidate.deadline.getUTCDate(),
+			);
+			if (deadlineDay === targetDay) {
+				ids.add(candidate.id);
+			}
+		}
+		return ids;
+	}, [deadlineFilterDate, tasks]);
+
+	/** Entfernt den Deadline-Filter (`?deadline=`), lässt die übrigen Query-Parameter unangetastet. */
+	const clearDeadlineFilter = useCallback((): void => {
+		setSearchParams((prev) => {
+			const next = new URLSearchParams(prev);
+			next.delete('deadline');
+			return next;
+		});
+	}, [setSearchParams]);
+
 	/** Optionen des Kategorie-Filters: „alle" plus die Kategorien des Nutzers. */
 	const taskCategoryFilterOptions = useMemo(
 		() => [
@@ -302,6 +352,20 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			});
 		},
 		[setSearchParams],
+	);
+
+	/**
+	 * „Tag öffnen" in der Wochenansicht (#1617 Kreuzverhör-Entscheidung #5, Option 5.2): springt in den
+	 * Aufgaben-Tab und filtert ihn auf die Deadline des gewählten Tages (`?deadline=YYYY-MM-DD`) — nutzt
+	 * die bestehende Filter-Query-Mechanik (`?q=`/`?cat=`), statt in die Tagesansicht des Dashboards
+	 * einzugreifen (die konstruktionsbedingt nur „jetzt" kennt).
+	 */
+	const selectWeekDay = useCallback(
+		(day: Date): void => {
+			const iso = day.toISOString().slice(0, 10);
+			navigate({ pathname: ROUTE_PATHS[1], search: `?deadline=${iso}` });
+		},
+		[navigate],
 	);
 
 	// Balance-Stand zur aktuellen Datenlage; außerhalb des Modus wird nicht gerechnet.
@@ -442,8 +506,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	// Gefilterter Aufgabenwald für den offenen Baum (Titel-Suche + Kategorie).
 	const filteredForest = useMemo(
-		() => filterForest(forest, { search: taskSearch, categoryId: categoryFilter }),
-		[forest, taskSearch, categoryFilter],
+		() => filterForest(forest, { search: taskSearch, categoryId: categoryFilter, taskIds: deadlineFilterTaskIds }),
+		[forest, taskSearch, categoryFilter, deadlineFilterTaskIds],
 	);
 
 	// #1345: bei eingeschaltetem Schalter „Oberaufgaben anzeigen" zusätzlich einzublendende
@@ -454,9 +518,11 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const visibleParentNodes = useMemo(
 		() =>
 			showParents
-				? openParentNodes.filter((node) => nodeMatchesFilter(node, { search: taskSearch, categoryId: categoryFilter }))
+				? openParentNodes.filter((node) =>
+						nodeMatchesFilter(node, { search: taskSearch, categoryId: categoryFilter, taskIds: deadlineFilterTaskIds }),
+					)
 				: [],
-		[openParentNodes, showParents, taskSearch, categoryFilter],
+		[openParentNodes, showParents, taskSearch, categoryFilter, deadlineFilterTaskIds],
 	);
 
 	// Gefilterte erledigte Aufgaben für die Tabelle (Titel-Suche + Kategorie).
@@ -975,12 +1041,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 										/>
 									</div>
 									{dashboardView === 'week' ? (
-										<WeekView
-											tasks={tasks}
-											nextTask={nextTask}
-											suggestions={suggestions}
-											onSelectDay={() => changeDashboardView('day')}
-										/>
+										<WeekView tasks={tasks} nextTask={nextTask} suggestions={suggestions} onSelectDay={selectWeekDay} />
 									) : (
 										<Dashboard
 											tasks={tasks}
@@ -997,6 +1058,19 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 								</div>
 								<div slot="tab-1">
 									<section className="task-section">
+										{/* Deadline-Filter aus der Wochenansicht (#1617 Kreuzverhör-Entscheidung #5, Option
+									    5.2) — nur sichtbar, solange `?deadline=` gesetzt ist; „Filter entfernen" räumt
+									    ausschließlich diesen Parameter, `?q=`/`?cat=` bleiben unangetastet. */}
+										{deadlineFilterDate !== null && (
+											<KolAlert className="task-deadline-filter" _type="info" _label="Aufgaben-Filter aktiv">
+												Gefiltert: fällig am {formatDeadline(deadlineFilterDate)}
+												<KolButton
+													_label="Filter entfernen"
+													_variant="tertiary"
+													_on={{ onClick: () => clearDeadlineFilter() }}
+												/>
+											</KolAlert>
+										)}
 										{/* Filterleiste: Die beiden Umschalter sind Ansichtsschalter, keine Filter — sie stehen
 									    als eigene Gruppe über der Filterzeile. Darunter, in Lesereihenfolge und zugleich
 									    Tab-Reihenfolge: Suchfeld, Kategorie, „Filtern". Die Breitenverhältnisse

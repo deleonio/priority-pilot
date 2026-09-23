@@ -163,6 +163,29 @@ describe('WeekView — Zuordnung systemisch empfohlener Aufgaben (#1617 AK3)', (
 		expect(within(sonntagCard).getByText('Naechste-Mit-Sonntags-Deadline')).toBeInTheDocument();
 		expect(within(mittwochCard).queryByText(/Naechste-Mit-Sonntags-Deadline/)).toBeNull();
 	});
+
+	/**
+	 * Kreuzverhör-Fund (PR #1620, Runde 2, Finding #3): der Runde-1-Fix (`deadline == null`) blendete
+	 * Empfehlungen mit einer Deadline AUSSERHALB der angezeigten Woche (überfällig oder weit in der
+	 * Zukunft) komplett aus — weder unter ihrem (nicht angezeigten) Deadline-Tag noch unter „heute".
+	 * Eine Empfehlung mit Deadline 2026-10-15 (außerhalb der Referenzwoche 21.–27.09.2026) muss unter
+	 * dem heutigen Tag (Mittwoch) erscheinen.
+	 */
+	it('zeigt eine Empfehlung mit Deadline außerhalb der angezeigten Woche unter dem heutigen Tag', () => {
+		const ausserhalbDerWoche = task(6, 'Empfehlung-Ausserhalb-Woche', new Date(Date.UTC(2026, 9, 15)));
+		render(
+			<WeekView
+				tasks={[ausserhalbDerWoche]}
+				nextTask={null}
+				suggestions={[ausserhalbDerWoche]}
+				referenceDate={REFERENCE}
+				onSelectDay={() => {}}
+			/>,
+		);
+
+		const mittwochCard = screen.getByRole('heading', { name: /Mittwoch,/i }).closest('.week-view-day') as HTMLElement;
+		expect(within(mittwochCard).getByText(/Empfehlung-Ausserhalb-Woche/)).toBeInTheDocument();
+	});
 });
 
 /**
@@ -179,5 +202,6 @@ describe('WeekView — Tag anwählen führt zur Tagesansicht (#1617 AK2)', () =>
 		fireEvent.click(screen.getAllByRole('button', { name: 'Tag öffnen' })[0]);
 
 		expect(onSelectDay).toHaveBeenCalledTimes(1);
+		expect(onSelectDay).toHaveBeenCalledWith(MONDAY);
 	});
 });

@@ -40,11 +40,11 @@ interface WeekViewProps {
 	 */
 	referenceDate?: Date;
 	/**
-	 * Wird beim Öffnen einer Tageskarte aufgerufen (#1617 AK2) — die bestehende Tagesansicht
-	 * (`Dashboard`) kennt kein eigenes Datum, der Sprung führt daher zur einzigen vorhandenen
-	 * Tagesansicht, nicht zu einer datumsspezifischen Ansicht.
+	 * Wird beim Öffnen einer Tageskarte aufgerufen (#1617 AK2) — bekommt das Datum der Karte, damit
+	 * der Aufrufer gezielt auf diesen Tag springen kann (Kreuzverhör-Entscheidung #5, Option 5.2:
+	 * Sprung in den Aufgaben-Tab, gefiltert auf die Deadline dieses Tages).
 	 */
-	onSelectDay: () => void;
+	onSelectDay: (day: Date) => void;
 }
 
 /**
@@ -72,6 +72,17 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 		[tasks],
 	);
 
+	/**
+	 * Ein Empfehlungs-Datum gehört unter „heute", wenn es entweder gar keine Deadline hat ODER seine
+	 * Deadline außerhalb der angezeigten Kalenderwoche liegt — liegt sie INNERHALB der Woche, erscheint
+	 * dieselbe Aufgabe bereits (korrekt) unter ihrem eigenen Deadline-Tag über `openTasksWithDeadline`;
+	 * eine zweite Anzeige unter „heute" wäre ein Duplikat (Fund Kreuzverhör-Runde 1, PR #1620). Der
+	 * vorherige Guard `deadline == null` blendete Empfehlungen mit einer Deadline VOR/NACH der Woche
+	 * (überfällig, oder weit in der Zukunft) fälschlich komplett aus (Kreuzverhör-Runde 2, Finding #3).
+	 */
+	const deadlineOutsideWeek = (deadline: Date | null | undefined): boolean =>
+		deadline == null || !weekDates.some((day) => sameUtcDay(day, deadline));
+
 	return (
 		<section className="week-view">
 			<div className="week-view-heading">
@@ -81,11 +92,10 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 				{weekDates.map((day, index) => {
 					const isToday = sameUtcDay(day, today);
 					const dayTasks = openTasksWithDeadline.filter((task) => sameUtcDay(task.deadline, day));
-					// Nur Aufgaben OHNE eigene Deadline landen hier zusätzlich unter „heute" — mit gesetzter
-					// Deadline stehen sie bereits (korrekt) unter ihrem Deadline-Tag; sonst erschiene dieselbe
-					// Aufgabe an zwei Wochentagen (Fund Kreuzverhör-Runde 1, PR #1620).
 					const dayRecommendations = isToday
-						? suggestions.filter((task) => task.deadline == null && (nextTask === null || task.id !== nextTask.id))
+						? suggestions.filter(
+								(task) => deadlineOutsideWeek(task.deadline) && (nextTask === null || task.id !== nextTask.id),
+							)
 						: [];
 
 					return (
@@ -102,11 +112,11 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 								{dayRecommendations.map((task) => (
 									<li key={`empfohlen-${task.id}`}>{task.title} (empfohlen)</li>
 								))}
-								{isToday && nextTask !== null && nextTask.deadline == null && (
+								{isToday && nextTask !== null && deadlineOutsideWeek(nextTask.deadline) && (
 									<li key={`next-${nextTask.id}`}>{nextTask.title} (nächste Aufgabe)</li>
 								)}
 							</ul>
-							<KolButton _label="Tag öffnen" _variant="secondary" _on={{ onClick: () => onSelectDay() }} />
+							<KolButton _label="Tag öffnen" _variant="secondary" _on={{ onClick: () => onSelectDay(day) }} />
 						</KolCard>
 					);
 				})}

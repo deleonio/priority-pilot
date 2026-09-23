@@ -4,9 +4,18 @@ import { waitForStableView } from './helpers';
 /**
  * E2E-Spec für #1617: Wochenansicht des Tagesplans.
  * AK1: Wochenansicht zeigt alle 7 Tage mit ihren Aufgaben.
- * AK2: Aus der Wochenansicht kann man einen Tag anwählen und landet in der bestehenden Tagesansicht.
+ * AK2: Aus der Wochenansicht kann man einen Tag anwählen — Kreuzverhör-Entscheidung #5 (Option 5.2,
+ *   PR #1620 Runde 2): der Sprung landet im Aufgaben-Tab, gefiltert auf die Deadline des Tages.
  * AK3: Manuell geplante (per Deadline datierte) Aufgaben werden dem richtigen Tag zugeordnet.
  */
+
+/** Montag (UTC-Mitternacht, ISO-Datum) der Kalenderwoche, in der `reference` liegt. */
+const mondayIsoOf = (reference: Date): string => {
+	const utcDay = Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), reference.getUTCDate());
+	const isoWeekday = new Date(utcDay).getUTCDay();
+	const offsetToMonday = isoWeekday === 0 ? 6 : isoWeekday - 1;
+	return new Date(utcDay - offsetToMonday * 86_400_000).toISOString().slice(0, 10);
+};
 test.describe('Dashboard — Wochenansicht (#1617)', () => {
 	const deleteAllTasks = async (page: Page): Promise<void> => {
 		const response = await page.request.get('/api/v1/tasks');
@@ -59,7 +68,17 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		expect(overflowsHorizontally).toBe(false);
 	});
 
-	test('AK2: ein Klick auf „Tag öffnen" führt zur bestehenden Tagesansicht zurück', async ({ page }) => {
+	test('AK2: ein Klick auf „Tag öffnen" springt in den Aufgaben-Tab, gefiltert auf die Deadline des Tages', async ({
+		page,
+	}) => {
+		const mondayIso = mondayIsoOf(new Date());
+		await page.request.post('/api/v1/tasks', {
+			data: { title: 'E2E #1617 Montagsaufgabe', deadline: mondayIso },
+		});
+		await page.request.post('/api/v1/tasks', {
+			data: { title: 'E2E #1617 Aufgabe ohne Deadline' },
+		});
+
 		await page.goto('/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
@@ -68,9 +87,19 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await page.getByRole('button', { name: 'Wochenansicht' }).click();
 		await expect(page.locator('.week-view-grid')).toBeVisible();
 
+		// Die erste Tageskarte ist Montag (Wochenstart, WEEKDAY_LABELS in WeekView.tsx).
 		await page.getByRole('button', { name: 'Tag öffnen' }).first().click();
 
+		await expect(page).toHaveURL(new RegExp(`/aufgaben\\?deadline=${mondayIso}`));
 		await expect(page.locator('.week-view-grid')).toHaveCount(0);
-		await expect(page.getByRole('heading', { name: 'Dashboard', level: 2 })).toBeVisible();
+		// KolAlert exponiert die Rolle nicht zuverlässig (Memory 2026-08-19-ff., issue-620-Muster) —
+		// auf den Wrapper-Host scopen statt getByRole('heading').
+		await expect(page.locator('.task-deadline-filter')).toContainText('Aufgaben-Filter aktiv');
+		// KolTabs hält inaktive Panels (Dashboard) per `hidden` weiter im DOM — der Titel steht dort
+		// ggf. zusätzlich (Deadline-Liste/„nächste Aufgabe"); auf den Aufgaben-Tab-Container scopen,
+		// sonst schlägt der strict-mode Locator mit mehreren Treffern fehl.
+		const taskSection = page.locator('.task-section');
+		await expect(taskSection.getByText('E2E #1617 Montagsaufgabe')).toBeVisible();
+		await expect(taskSection.getByText('E2E #1617 Aufgabe ohne Deadline')).toHaveCount(0);
 	});
 });

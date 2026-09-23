@@ -1,11 +1,18 @@
 import type { TaskTreeNode } from 'client';
 
-/** Filterkriterien der Aufgabenliste: Titel-Suchbegriff und (optional) Kategorie. */
+/** Filterkriterien der Aufgabenliste: Titel-Suchbegriff, (optional) Kategorie und (optional) eine explizite ID-Menge. */
 export interface ForestFilter {
 	/** Substring, case-insensitive; leer bedeutet „kein Titelfilter". */
 	search?: string;
 	/** ID der Kategorie; `null`/`undefined` bedeutet „keine Einschränkung". */
 	categoryId?: number | null;
+	/**
+	 * Erlaubte Task-IDs (z. B. „fällig an Tag X", #1617 Kreuzverhör-Entscheidung #5/Option 5.2);
+	 * `null`/`undefined` bedeutet „keine Einschränkung". Bewusst generisch (nicht deadline-spezifisch),
+	 * weil `TaskTreeNode` selbst keine Deadline führt — der Aufrufer bildet die ID-Menge aus der
+	 * `tasks`-Liste (die eine Deadline führt) und reicht sie hier nur noch als Mitgliedschaftstest durch.
+	 */
+	taskIds?: Set<number> | null;
 }
 
 /**
@@ -27,17 +34,20 @@ export interface ForestFilter {
 export const nodeMatchesFilter = (node: TaskTreeNode, filter: ForestFilter): boolean => {
 	const query = (filter.search ?? '').trim().toLowerCase();
 	const categoryId = filter.categoryId ?? null;
+	const taskIds = filter.taskIds ?? null;
 	return (
 		(query === '' || node.title.toLowerCase().includes(query)) &&
-		(categoryId === null || node.categoryId === categoryId)
+		(categoryId === null || node.categoryId === categoryId) &&
+		(taskIds === null || taskIds.has(node.id))
 	);
 };
 
 export const filterForest = (forest: TaskTreeNode[], filter: ForestFilter): TaskTreeNode[] => {
 	const query = (filter.search ?? '').trim().toLowerCase();
 	const categoryId = filter.categoryId ?? null;
+	const taskIds = filter.taskIds ?? null;
 
-	if (query === '' && categoryId === null) {
+	if (query === '' && categoryId === null && taskIds === null) {
 		return forest;
 	}
 
