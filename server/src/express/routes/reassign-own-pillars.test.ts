@@ -88,6 +88,30 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 		assert.equal(theirsNow[0].confidence, 42);
 	});
 
+	it('speichert den Mindestanteil auch für nicht vorgeschlagene Säulen (#1635)', async () => {
+		const memberCookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		const first = await Pillar.create({ userId: memberId, name: 'Wirksamkeit', weight: 1 });
+		const second = await Pillar.create({ userId: memberId, name: 'Sinn', weight: 1 });
+		const third = await Pillar.create({ userId: memberId, name: 'Körper', weight: 1 });
+		const task = await Task.create({ title: 'Nur eine Säule vorgeschlagen', status: 'Done', userId: memberId });
+
+		// `firstPillarClassifier` schlägt ausschließlich die erste Säule vor.
+		const res = await post(memberCookie);
+		assert.equal(res.status, 200);
+
+		const rows = await contributionsOf(task.id);
+		assert.deepEqual(
+			rows.map((row) => [row.pillarId, row.share]),
+			[
+				[first.id, 90],
+				[second.id, 5],
+				[third.id, 5],
+			],
+			'vorher: 100 / 0 / 0 — jetzt jede Säule mindestens 5 %',
+		);
+	});
+
 	it('beschränkt den Lauf mit status=open auf offene und laufende Aufgaben', async () => {
 		const memberCookie = await server.login(MEMBER_EMAIL, { role: 'member' });
 		const memberId = await userIdOf(MEMBER_EMAIL);

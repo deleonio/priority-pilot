@@ -3,6 +3,7 @@ import { Pillar, Task, TaskPillar, User } from '../models/index.js';
 import sequelize from '../database.js';
 import type { FeedbackExample, PillarClassifier } from '../llm/llm.js';
 import { loadFeedbackExamples } from './pillarFeedbackExamples.js';
+import { distributeWithMinimum } from './pillarShares.js';
 
 /**
  * Batch-Neuzuordnung der Säulen-Beiträge („Säulenverteilung"): Berechnet für die Aufgaben
@@ -29,40 +30,48 @@ import { loadFeedbackExamples } from './pillarFeedbackExamples.js';
  */
 
 /**
- * Normalisiert die Konfidenz-Vorschläge des Klassifikators auf eine `share`-Verteilung
- * mit Summe 100: Die Konfidenzen werden proportional aufgeteilt (gleicher Mechanismus
- * wie im Frontend beim Übernehmen der Vorschläge). Ungültige IDs (Säule des Fremdkontos,
- * Dubletten, Konfidenz <= 0) fallen vorher raus. Liefert `[]`, wenn nichts Gültiges
- * bleibt — dann wird die bestehende Zuordnung des Tasks unverändert gelassen.
+ * Wandelt die Konfidenz-Vorschläge des Klassifikators in eine Verteilung über ALLE Säulen des Kontos
+ * um — nach derselben Regel wie das Frontend beim Übernehmen der Vorschläge
+ * (`suggestionsToContributions` in `frontend/src/lib/pillar.ts`, #1596): proportional zur Konfidenz,
+ * jede Säule mindestens `SHARE_MIN`, ganzzahlig, Summe exakt 100 (#1635). Vorher bekamen nicht
+ * vorgeschlagene Säulen 0 %.
+ *
+ * Ungültige Vorschläge (Säule des Fremdkontos, Dubletten, Konfidenz <= 0) fallen vorher raus.
+ * Liefert `[]`, wenn nichts Gültiges bleibt — dann bleibt die bestehende Zuordnung des Tasks
+ * unverändert (bewusst anders als das Frontend, das dann gleichverteilt: Ein Batch soll ohne
+ * Aussage des Modells keine Zuordnung überschreiben).
+ *
+ * `pillarIds` in der Reihenfolge, in der das Frontend die Säulen führt (nach `id`) — sie entscheidet
+ * bei Rundungsgleichstand, damit beide Seiten dieselben Anteile liefern.
  */
-const toContributions = (
+export const toContributions = (
 	suggestions: { pillarId: number; confidence: number }[],
-	validIds: ReadonlySet<number>,
+	pillarIds: readonly number[],
 ): { pillarId: number; share: number; confidence: number }[] => {
-	const seen = new Set<number>();
-	const usable = suggestions.filter((entry) => {
-		if (!validIds.has(entry.pillarId) || seen.has(entry.pillarId)) {
-			return false;
+	const valid = new Set(pillarIds);
+	const byId = new Map<number, number>();
+	for (const entry of suggestions) {
+		if (!valid.has(entry.pillarId) || byId.has(entry.pillarId)) {
+			continue;
 		}
 		if (typeof entry.confidence !== 'number' || !Number.isFinite(entry.confidence) || entry.confidence <= 0) {
-			return false;
+			continue;
 		}
-		seen.add(entry.pillarId);
-		return true;
-	});
-	if (usable.length === 0) {
+		byId.set(entry.pillarId, entry.confidence);
+	}
+	if (byId.size === 0) {
 		return [];
 	}
-	const total = usable.reduce((sum, entry) => sum + entry.confidence, 0);
-	const raw = usable.map((entry) => ({
-		pillarId: entry.pillarId,
-		confidence: entry.confidence,
-		share: (entry.confidence / total) * 100,
-	}));
-	// Rundungsrest auf den letzten Beitrag legen, damit die Summe exakt 100 bleibt.
-	const drift = 100 - raw.reduce((sum, entry) => sum + entry.share, 0);
-	raw[raw.length - 1].share += drift;
-	return raw;
+	const shares = distributeWithMinimum(pillarIds.map((id) => byId.get(id) ?? 0));
+	return pillarIds.map((id, index) => {
+		const confidence = byId.get(id);
+		return {
+			pillarId: id,
+			share: shares[index],
+			// Wie im Frontend: Säulen ohne Vorschlag tragen den Server-Default 100.
+			confidence: confidence === undefined ? 100 : Math.round(Math.min(Math.max(confidence, 0), 100)),
+		};
+	});
 };
 
 /**
@@ -244,7 +253,7 @@ export const reassignTaskPillarsForUser = async (
 	if (pillars.length === 0) {
 		return { updated: 0, failed: 0, skipped: 0, total: 0, quotaExhausted: false };
 	}
-	const validIds = new Set(pillars.map((pillar) => pillar.id));
+	const pillarIds = pillars.map((pillar) => pillar.id);
 
 	// Zählung getrennt von der Auswahl (statt alles zu laden und in JS zu slicen) — sonst wird das
 	// Laden über eine Portionierungs-Serie mit kleinem `limit` quadratisch (Befund #2).
@@ -311,7 +320,7 @@ export const reassignTaskPillarsForUser = async (
 				}
 			}
 			classified = true;
-			const contributions = toContributions(suggestions ?? [], validIds);
+			const contributions = toContributions(suggestions ?? [], pillarIds);
 			if (contributions.length === 0) {
 				// Bewusst belassen zählt als verarbeitet — ein fortgesetzter Lauf fragt nicht erneut.
 				// `silent`: die Neuberechnung ist keine inhaltliche Änderung, `updatedAt` bleibt.
