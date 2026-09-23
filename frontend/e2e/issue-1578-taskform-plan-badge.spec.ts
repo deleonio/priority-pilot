@@ -83,7 +83,7 @@ const boundingBoxWhenLaidOut = async (locator: ReturnType<Page['locator']>) => {
 };
 
 const openCreateForm = async (page: Page): Promise<void> => {
-	await page.goto('/aufgaben');
+	await page.goto('/app/aufgaben');
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 	// Custom-Provider macht aiEnabled true → „Neuen Task anlegen" öffnet den Freitext-Dialog

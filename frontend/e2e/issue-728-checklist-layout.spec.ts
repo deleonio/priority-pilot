@@ -19,7 +19,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
 
 /** Öffnet das TaskForm (QuickCapture-Schritt übersprungen) und legt Checklisten-Einträge an. */
 const openFormWithChecklistItems = async (page: Page, titles: string[]): Promise<Locator> => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();

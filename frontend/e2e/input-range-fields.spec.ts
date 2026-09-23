@@ -71,7 +71,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 	test('AK1: Priorität ist ein Range-Input [min=1 max=5 step=1], Wert persistiert über Speichern + Reload', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTask(page, uniqueTitle('Priorität'));
@@ -103,7 +103,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 	test('AK2: Aufwand ist ein Range-Input [min=0.1 max=1 step=0.1], Wert persistiert über Speichern + Reload', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTask(page, uniqueTitle('Aufwand'));
@@ -134,7 +134,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 	test('AK3: Gewicht im Abhängigkeits-Dialog ist ein Range-Input [min=0.1 max=1 step=0.1], Wert persistiert nach Hinzufügen + Reload', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Zwei Tasks anlegen: Der Dialog zeigt den Gewichts-Slider nur, wenn mindestens ein
@@ -204,7 +204,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 	test('AK4: ArrowRight verschiebt den Prioritäts-Slider dauerhaft (kein Reset auf den Ausgangswert)', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTask(page, uniqueTitle('State'));
@@ -227,7 +227,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 
 	test('AK5: Kein horizontaler Overflow im Task-Formular auf 375-px-Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTask(page, uniqueTitle('Mobile-Form'));
@@ -248,7 +248,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 
 	test('AK5b: Kein horizontaler Overflow im Abhängigkeits-Dialog auf 375-px-Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Zwei Tasks anlegen: Der Dialog zeigt den Gewichts-Slider nur, wenn mindestens ein

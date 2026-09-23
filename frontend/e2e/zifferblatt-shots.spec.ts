@@ -56,7 +56,7 @@ test.describe('Zifferblätter — Bilder fürs Auge', () => {
 		});
 		expect(login.ok(), 'test-login muss eine Session liefern').toBeTruthy();
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Säulen anlegen und gewichten, dann je Säule erledigte Tasks — daraus entsteht die Verteilung.

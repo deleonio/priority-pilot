@@ -34,7 +34,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 
 /** Legt eine offene Aufgabe an und öffnet das Dashboard mit sichtbarem „Erledigen"-Button. */
 async function openDashboardWithStartButton(page: Page): Promise<void> {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.request.post('/api/v1/tasks', { data: { title: 'E2E #1042 Signal-Panel-Task', priority: 5 } });
 

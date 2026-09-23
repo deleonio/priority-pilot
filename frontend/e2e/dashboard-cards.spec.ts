@@ -23,7 +23,7 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
 		// Mindestens ein Task anlegen, damit die Tab-Ansicht (inkl. Dashboard-Tab) erscheint.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E #390 Kachel-Test' } });
 
@@ -54,7 +54,7 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 
 		// Zwei offene Tasks (einer wird zur „Nächste Aufgabe", der andere bleibt als Vorschlag)
 		// und ein erledigter Task (füllt Gesamtguthaben).
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E Mobile offener Task 1', priority: 2 } });
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E Mobile offener Task 2', priority: 3 } });

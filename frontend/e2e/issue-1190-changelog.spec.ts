@@ -38,7 +38,7 @@ test.describe('#1190 Changelog-Tab auf der Hilfe-Seite', () => {
 		);
 
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/hilfe');
+		await page.goto('/app/hilfe');
 
 		const handbuchTab = page.getByRole('tab', { name: 'Handbuch' });
 		const changelogTab = page.getByRole('tab', { name: 'Changelog' });

@@ -80,7 +80,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
 
@@ -110,7 +110,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
@@ -141,7 +141,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
@@ -198,7 +198,7 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 */
 	test('AK-1: Logout-Button liegt innerhalb der benannten Toolbar „Kopf-Aktionen"', async ({ page }) => {
 		await stubBackend(page);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -223,7 +223,7 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 				body: JSON.stringify({ message: 'Unauthorized' }),
 			}),
 		);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Ohne Authentifizierung zeigt die App die LoginPage — also keine Toolbar und kein Logout-Button.
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
@@ -236,7 +236,7 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 */
 	test('AK-3: Logout-Button ist das letzte Element in der Toolbar', async ({ page }) => {
 		await stubBackend(page);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -261,7 +261,7 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -311,13 +311,13 @@ test.describe('#191 Logout-Button in Navigation', () => {
 				body: JSON.stringify({ message: 'Unauthorized' }),
 			});
 		await page.route('**/auth/me', unauthenticated);
-		await page.goto('/');
+		await page.goto('/app/');
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 
 		// Eingeloggt: /auth/me = 200 → App mit Toolbar → Logout-Button ist sichtbar.
 		await page.unroute('**/auth/me', unauthenticated);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
 	});
@@ -335,7 +335,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 			await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const logoutRequest = page.waitForRequest((request) => /\/auth\/logout$/.test(request.url()));
@@ -360,7 +360,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
@@ -382,7 +382,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
@@ -398,7 +398,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page).catch(() => undefined);
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 	});
@@ -422,7 +422,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();

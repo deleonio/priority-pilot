@@ -67,7 +67,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 
 	// AK 3 — Leerstand-Text bei 0 erledigten Tasks
 	test('AK 3: zeigt Leerstand-Text im Gesamtguthaben-Widget, wenn keine Tasks erledigt sind', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Task anlegen, aber NICHT auf „Erledigt" setzen → 0 Punkte
@@ -87,7 +87,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 
 	// AK 1 — Gesamtguthaben > 0 nach Task-Abschluss
 	test('AK 1: zeigt Gesamtguthaben > 0, nachdem mindestens ein Task erledigt wurde', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTaskViaUi(page, uniqueTitle('Guthaben'));
@@ -107,7 +107,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 
 	// AK 2 — Säulen-Aufschlüsselung korrekt
 	test('AK 2: zeigt Säulen-Aufschlüsselung mit Punkten und Anteil nach Task-Abschluss', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTaskViaUi(page, uniqueTitle('Säulen'));
@@ -132,7 +132,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 	test('AK 4: Gesamtpunkte-Widget wechselt von Leerstand auf sichtbare Punkte nach Task-Abschluss', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTaskViaUi(page, uniqueTitle('Aktualisierung'));

@@ -107,7 +107,7 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 	}) => {
 		await mockAuthMe(page, ADMIN_USER);
 		const { patchedId, patchedPlan } = await mockPlansApi(page);
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Die Karte existiert, benennt die Abgrenzung zur Bezahl-Matrix und trägt die Auswahl.
@@ -140,7 +140,7 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 	test('AK4: Mitglied sieht im Tab Pakete keine Auswahl-Karte (Matrix bleibt)', async ({ page }) => {
 		await mockAuthMe(page, MEMBER_USER);
 		await mockPlansApi(page);
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(ownPlanCard(page)).toHaveCount(0);
@@ -156,7 +156,7 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 		await mockAuthMe(page, ADMIN_USER);
 		await mockPlansApi(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const card = ownPlanCard(page);

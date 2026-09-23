@@ -21,7 +21,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 	 * Hilfsfunktion — Navigiert zur Säulen-Gewichtungsseite und wartet auf stabilen View.
 	 */
 	const navigateToPillarWeights = async (page: Page) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Navigiere zu den Einstellungen

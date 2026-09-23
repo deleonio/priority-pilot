@@ -123,7 +123,7 @@ test.describe('Priority Pilot — Fokus-Outline auf Tab-Buttons (#1336)', () => 
 
 			for (const name of appTabNames) {
 				test(`AK1/AK2/AK3/AK4: Tab „${name}" hat sichtbare, ungeclippte Outline`, async ({ page }) => {
-					await page.goto('/');
+					await page.goto('/app/');
 					await waitForStableView(page);
 
 					const button = page.getByRole('tab', { name, exact: true });
@@ -134,7 +134,7 @@ test.describe('Priority Pilot — Fokus-Outline auf Tab-Buttons (#1336)', () => 
 	}
 
 	test('AK5: Nach Mausklick auf einen Tab-Button ist keine Outline sichtbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const button = page.getByRole('tab', { name: 'Serien', exact: true });
@@ -150,7 +150,7 @@ test.describe('Priority Pilot — Fokus-Outline auf Tab-Buttons (#1336)', () => 
 	});
 
 	test('AK7: Settings-Tab „Allgemein" hat dieselbe sichtbare, ungeclippte Outline', async ({ page }) => {
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const button = page.getByRole('tab', { name: 'Allgemein', exact: true });

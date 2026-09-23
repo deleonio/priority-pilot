@@ -21,7 +21,7 @@ test.describe('#125 Header – Toolbar', () => {
 	 * (sprechendes Label „Kopf-Aktionen") gruppiert; die drei Buttons sind dessen Nachkommen.
 	 */
 	test('AK1: Header-Aktionen liegen in einer benannten Toolbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -37,7 +37,7 @@ test.describe('#125 Header – Toolbar', () => {
 	 * „Aktualisieren" lädt die Liste neu (Button ist klickbar und nicht dauerhaft deaktiviert).
 	 */
 	test('AK2: Aktionen in der Toolbar funktionieren weiterhin', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -59,7 +59,7 @@ test.describe('#125 Header – Toolbar', () => {
 	 * Das bisherige Popover und der Popover-Button außerhalb der Toolbar sind entfernt (#270).
 	 */
 	test('AK4: „Einstellungen"-Button liegt in der Toolbar und navigiert zu /settings/general', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -108,7 +108,7 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 	 */
 	for (const label of ICON_ONLY_LABELS) {
 		test(`AK1: „${label}" ist Icon-only (kein sichtbares Label) mit erhaltenem Accessible Name`, async ({ page }) => {
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -135,7 +135,7 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 	 * Regression steht im #125-Block oben; dieser Test sichert die drei umgestellten Buttons ab.)
 	 */
 	test('AK2 (Regression): umgestellte Icon-Buttons bleiben per Accessible Name bedienbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -156,7 +156,7 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 	 */
 	test('AK3: Header verursacht keinen horizontalen Overflow bei 375×812', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Toolbar bleibt sichtbar und bedienbar.
@@ -173,7 +173,7 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 	 * Toolbar nicht mehr.
 	 */
 	test('AK4: Header-Toolbar enthält keinen Darstellungs-/Theme-Button mehr', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -195,7 +195,7 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 	 * mit Accessible Name „Aktualisieren" mehr.
 	 */
 	test('AK1: „Aktualisieren"-Button ist nicht mehr in der Toolbar vorhanden', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -211,7 +211,7 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 	 * „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
 	 */
 	test('AK2: Übrige Toolbar-Aktionen bleiben vollständig bedienbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -245,7 +245,7 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 	 * Aktuell ist die Reihenfolge Hilfe → Einstellungen → ROT bis zum Fix.
 	 */
 	test('AK1: „Einstellungen" liegt im DOM vor „Hilfe"', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -269,7 +269,7 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 	 * „Einstellungen" → /settings/general (#382), „Hilfe" → /hilfe.
 	 */
 	test('AK3: „Einstellungen" navigiert zu /settings/general und „Hilfe" zu /hilfe', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -280,7 +280,7 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		// Zurück und „Hilfe" testen.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await toolbar.getByRole('button', { name: 'Hilfe' }).click();
@@ -294,7 +294,7 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 	 */
 	test('AK4: Kein horizontaler Overflow bei 375×812; beide Buttons sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -318,7 +318,7 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
  */
 test.describe('Home-Schalter als erster Toolbar-Button', () => {
 	test('„Zum Dashboard" steht in DOM-Reihenfolge vor allen anderen Kopf-Aktionen', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -350,7 +350,7 @@ test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () =
 	 * die Serien-Verwaltung liegt nun im eigenen Serien-Tab.
 	 */
 	test('AK6: „Serien verwalten"-Button ist nicht mehr in der Header-Toolbar (Count 0)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -365,7 +365,7 @@ test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () =
 	 * AK6 (Ersatz) — Die Serien-Verwaltung ist stattdessen über einen eigenen Tab „Serien" erreichbar.
 	 */
 	test('AK6: Serien-Verwaltung ist über den eigenen Tab „Serien" erreichbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByRole('tab', { name: 'Serien', exact: true })).toBeVisible();
@@ -380,7 +380,7 @@ test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () =
  */
 test.describe('#1320 Direktwechsel Einstellungen ↔ Hilfe über die Toolbar (AK4)', () => {
 	test('AK4: „Hilfe" navigiert von /settings/general direkt zu /hilfe', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page
@@ -391,7 +391,7 @@ test.describe('#1320 Direktwechsel Einstellungen ↔ Hilfe über die Toolbar (AK
 	});
 
 	test('AK4: „Einstellungen" navigiert von /hilfe direkt zu /settings/general', async ({ page }) => {
-		await page.goto('/hilfe');
+		await page.goto('/app/hilfe');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page

@@ -101,7 +101,7 @@ async function fakeActionButtonsScene(page: import('@playwright/test').Page): Pr
 /** Öffnet den Tab „Allgemein" mit sichtbarem Push-Button und verifiziert die Szene. */
 async function openGeneral(page: import('@playwright/test').Page): Promise<void> {
 	await fakeActionButtonsScene(page);
-	await page.goto('/settings/general');
+	await page.goto('/app/settings/general');
 	await waitForStableView(page, 'Priority Pilot');
 	await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
@@ -113,7 +113,7 @@ async function openGeneral(page: import('@playwright/test').Page): Promise<void>
 /** Öffnet den Tab „Standort" (#1151) mit sichtbarem Geo-Button und verifiziert die Szene. */
 async function openStandort(page: import('@playwright/test').Page): Promise<void> {
 	await fakeActionButtonsScene(page);
-	await page.goto('/settings/standort');
+	await page.goto('/app/settings/standort');
 	await waitForStableView(page, 'Priority Pilot');
 	await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
 	await expect(page.getByRole('button', { name: 'Standort ermitteln' })).toBeVisible();

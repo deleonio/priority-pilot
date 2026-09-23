@@ -35,7 +35,7 @@ test.describe('Issue 697 — Auth Field-Mismatch (Spec: issue-697.md)', () => {
 			displayName: 'Max Mustermann',
 			email: 'max@example.com',
 		});
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Spec-Beitrag: Header zeigt den korrekten User-Namen an
 		await expect(page.getByText('Max Mustermann')).toBeVisible();
@@ -48,7 +48,7 @@ test.describe('Issue 697 — Auth Field-Mismatch (Spec: issue-697.md)', () => {
 			displayName: 'Test User',
 			email: 'test@example.com',
 		});
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Spec-Beitrag: Field-Name konsistent zwischen Interface und Rendering
 		await expect(page.getByText('Test User')).toBeVisible();

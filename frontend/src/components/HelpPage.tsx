@@ -140,7 +140,7 @@ export const HelpPage = () => {
 	const [limit, setLimit] = useState<ChangelogLimit>('30');
 
 	useEffect(() => {
-		fetch('/user-guide.md')
+		fetch(`${import.meta.env.BASE_URL}user-guide.md`)
 			.then((r) => {
 				if (!r.ok) throw new Error(r.statusText);
 				return r.text();

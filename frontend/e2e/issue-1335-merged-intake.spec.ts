@@ -20,7 +20,7 @@ import { headerAction, waitForStableView } from './helpers';
 test.describe('#1335 Verschmolzener Anlege-Dialog (Schnellerfassung + Berater)', () => {
 	/** Öffnet den Anlege-Dialog und bleibt im Capture-Schritt. */
 	const openIntakeDialog = async (page: Page): Promise<void> => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await (await headerAction(page, 'Neuen Task anlegen')).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('#1335 Verschmolzener Anlege-Dialog (Schnellerfassung + Berater)',
 	};
 
 	test('AK1: der Toolbar-Button „Säulen-Berater" ist im Accessibility-Baum nicht auffindbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByRole('button', { name: 'Säulen-Berater' })).toHaveCount(0);

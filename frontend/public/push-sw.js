@@ -1,7 +1,7 @@
 /*
  * Push-Service-Worker-Ergänzung (Issue #355).
  *
- * Diese Datei wird über `workbox.importScripts: ['/push-sw.js']` (siehe frontend/vite.config.ts) in
+ * Diese Datei wird über `workbox.importScripts: ['push-sw.js']` (siehe frontend/vite.config.ts) in
  * den von vite-plugin-pwa/Workbox generierten Service Worker eingebunden und läuft damit in dessen
  * Scope (`self` = ServiceWorkerGlobalScope). Sie ergänzt zwei Handler:
  *
@@ -12,6 +12,15 @@
  */
 
 /* global self, clients */
+
+/**
+ * Die Server-Payload adressiert App-Routen ab der App-Wurzel (`/`, `/tasks/42`). Die App liegt unter
+ * `/app/` (ADR 0015), deshalb werden solche Pfade gegen den Scope des Service Workers aufgelöst.
+ */
+const toAppUrl = (url) => {
+	const scope = (self.registration && self.registration.scope) || `${self.location.origin}/`;
+	return new URL(String(url || '/').replace(/^\//, ''), scope).href;
+};
 
 self.addEventListener('push', (event) => {
 	let payload = {};
@@ -25,13 +34,13 @@ self.addEventListener('push', (event) => {
 	const title = payload.title || 'Priority Pilot';
 	const options = {
 		body: payload.body || '',
-		icon: '/icons/icon-192x192.png',
-		badge: '/icons/icon-192x192.png',
+		icon: 'icons/icon-192x192.png',
+		badge: 'icons/icon-192x192.png',
 		// Stabiler Tag (#504): aufeinanderfolgende Pushes ersetzen die vorige Notification,
 		// statt sie zu stapeln (Coalescing im Notification-Shade / Sperrbildschirm).
 		tag: 'priority-pilot',
 		// Ziel-URL für den notificationclick-Handler mitgeben (Default: App-Wurzel).
-		data: { url: payload.url || '/' },
+		data: { url: toAppUrl(payload.url) },
 	};
 
 	// #1391: Zusätzlich zur System-Notification die Payload an alle offenen Fenster-Clients schicken —
@@ -39,7 +48,7 @@ self.addEventListener('push', (event) => {
 	// der System-Notification.
 	const notifyClients = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
 		for (const client of clientList) {
-			client.postMessage({ type: 'push', payload: { title, body: options.body, url: options.data.url } });
+			client.postMessage({ type: 'push', payload: { title, body: options.body, url: payload.url || '/' } });
 		}
 	});
 
@@ -48,14 +57,14 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
 	event.notification.close();
-	const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+	const targetUrl = toAppUrl(event.notification.data && event.notification.data.url);
 
 	event.waitUntil(
 		self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
 			for (const client of clientList) {
 				// Bereits offenes Fenster fokussieren (und bei Bedarf zur Ziel-URL navigieren).
 				if ('focus' in client) {
-					if ('navigate' in client && client.url !== new URL(targetUrl, self.location.origin).href) {
+					if ('navigate' in client && client.url !== targetUrl) {
 						return client.focus().then(() => client.navigate(targetUrl));
 					}
 					return client.focus();

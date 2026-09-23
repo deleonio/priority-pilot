@@ -17,7 +17,7 @@ const animationsToggle = (page: Page) =>
 	page.getByRole('checkbox', { name: /^Animationen$/i }).or(page.getByRole('switch', { name: /^Animationen$/i }));
 
 const openGeneralSettings = async (page: Page): Promise<void> => {
-	await page.goto('/settings/general');
+	await page.goto('/app/settings/general');
 	await waitForStableView(page, 'Priority Pilot');
 };
 
@@ -42,7 +42,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 /** Öffnet die Aufgaben-Liste mit einer frisch seedeten offenen Aufgabe. */
 const seedOpenTask = async (page: Page, label: string): Promise<number> => {
 	const id = await createTask(page, `Anim ${label}`.slice(0, 28));
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	await expect(page.getByTestId(`task-list-item-${id}`)).toBeVisible();

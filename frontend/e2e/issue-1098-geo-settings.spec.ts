@@ -60,7 +60,7 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 
 	test('AK4 — Standort aus: keine NearbyCard, Fußzeile ohne Adresse/Koordinaten', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(false));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Rot heute: die Card wird bedingungslos gerendert (mit nearby-preference-off-Hinweis).
@@ -78,7 +78,7 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 		// ~3 km (innerhalb des 5-km-Defaults) und ~26 km (außerhalb).
 		await createNearbyTask(page, 'E2E 1098 nah', 52.5489, 13.4132);
 		await createNearbyTask(page, 'E2E 1098 fern', 52.3906, 13.0645);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const items = page.getByTestId('nearby-item');
@@ -93,7 +93,7 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(GEO_INIT(false));
 		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Allgemein');
 
 		const labels = ['Anzeige-Entfernung (km)', 'Alarm-Entfernung (km)', 'Aktualisierungsintervall (Minuten)'];
@@ -131,7 +131,7 @@ test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
 	test('AK7 — geänderter Anzeige-Wert überlebt den Reload (serverseitig gespeichert)', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
 		// #1151: Die Geo-Einstellungen leben jetzt im Tab „Standort" (/settings/standort).
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Allgemein');
 
 		const input = rangeInput(page, 'Anzeige-Entfernung (km)');

@@ -59,7 +59,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK1: Avatar ist auf Mobile (< 48rem) sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const avatar = page.locator('header kol-avatar').first();
@@ -71,7 +71,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK2: Avatar ist auf Tablet (48rem–64rem) sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const avatar = page.locator('header kol-avatar').first();
@@ -83,7 +83,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK3: Avatar ist auf Desktop (> 64rem) sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const avatar = page.locator('header kol-avatar').first();
@@ -96,7 +96,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK4: Header bleibt mobil einzeilig (kein Umbruch) bei 375px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { header, logo, avatar } = await readHeaderBoxes(page);
@@ -112,7 +112,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK5: Header bleibt einzeilig bei 768px', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { header, logo, avatar } = await readHeaderBoxes(page);
@@ -129,7 +129,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK6: Avatar-Höhe beträgt das 1,25-Fache der Toolbar-Button-Höhe (bei 1280px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { button, avatar } = await readHeaderBoxes(page);
@@ -147,7 +147,7 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	 */
 	test('AK7: Logo, Toolbar-Button und Avatar teilen sich eine Mittellinie (≥768px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { logo, button, avatar } = await readHeaderBoxes(page);

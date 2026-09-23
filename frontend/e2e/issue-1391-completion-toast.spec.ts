@@ -33,7 +33,7 @@ test.describe('Priority Pilot — Erledigt-Hinweis Mobile-First (#1391)', () => 
 	}) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 
 		await dispatchPush(page, { title: 'Aufgabe erledigt', body: 'Bob Empfänger hat „Rasen mähen" erledigt.' });

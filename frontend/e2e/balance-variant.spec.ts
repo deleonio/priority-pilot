@@ -34,7 +34,7 @@ const variantOption = (page: Page, label: string): Locator =>
 test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
 	test('375px: Alle sieben Bilder wählbar, „Blüte" erscheint auf dem Dashboard', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Die Gruppe mit allen sieben Optionen ist sichtbar, jede Option interaktiv.
@@ -58,7 +58,7 @@ test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
 
 		// Das Dashboard zeigt das gewählte Bild: Figur sichtbar (Glas oder SVG-Rückfall) und die
 		// Bühne trägt die Variante. Ohne Säulen entfällt die Karte — die Fixture liefert welche.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await expect(page.getByTestId(/heart-balance-(canvas|svg)/)).toBeVisible();
 		await expect(page.locator('.heart-balance-stage')).toHaveAttribute('data-variante', 'bluete');

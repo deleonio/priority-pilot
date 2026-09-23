@@ -23,7 +23,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 * „Säulen". KolTabs rendert Tabs mit role="tab" in einer role="tablist".
 	 */
 	test('AK1: Settings-Seite zeigt zwei Tabs „Allgemein" und „Säulen"', async ({ page }) => {
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 * Eingabefelder für die Säulen-Gewichtungen (wie bisher via #270 bekannt).
 	 */
 	test('AK2: Säulen-Tab zeigt den Säulen-Gewichtungs-Editor', async ({ page }) => {
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Der Säulen-Tab ist aktiv — der Editor ist sichtbar.
@@ -53,7 +53,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 * verschwindet.
 	 */
 	test('AK3: Klick auf „Allgemein"-Tab blendet Säulen-Editor aus und zeigt Allgemein-Inhalt', async ({ page }) => {
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Ausgangszustand: Säulen-Tab aktiv, Editor sichtbar.
@@ -80,7 +80,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 * `/settings/general` aktiviert den Allgemein-Tab; `/settings/pillars` aktiviert den Säulen-Tab.
 	 */
 	test('AK4a: Route /settings/general aktiviert den Allgemein-Tab', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -88,7 +88,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	});
 
 	test('AK4b: Route /settings/pillars aktiviert den Säulen-Tab', async ({ page }) => {
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -102,7 +102,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 */
 	test('AK5: Settings-Tabs verursachen kein horizontales Scrollen bei 375px (Mobile-First)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Beide Tabs müssen auf dem schmalen Viewport sichtbar und bedienbar sein.
@@ -154,7 +154,7 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 	test('AK1: Toggle mit erteilter Berechtigung springt nicht auf Säulen-Tab zurück', async ({ page }) => {
 		// AK1 — Kernfall: Berechtigung erteilt, „Allgemein" bleibt aktiv, Säulen-Editor bleibt verborgen.
 		await page.addInitScript(buildMediaMock('granted'));
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const allgemeinTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
@@ -177,7 +177,7 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 	test('AK2: Toggle mit verweigerter Berechtigung springt nicht auf Säulen-Tab zurück', async ({ page }) => {
 		// AK2 — Berechtigung verweigert: „Allgemein" bleibt aktiv (Hinweis erscheint, kein Tab-Wechsel).
 		await page.addInitScript(buildMediaMock('denied'));
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const allgemeinTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
@@ -196,7 +196,7 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 
 	test('AK3: Interaktion im Säulen-Tab springt nicht auf Allgemein-Tab zurück', async ({ page }) => {
 		// AK3 — Gegenrichtung (keine Regression): Säulen-Gewicht ändern, „Säulen" bleibt aktiv.
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const pillarsTab = page.getByRole('tab', { name: 'Säulen', exact: true });
@@ -231,7 +231,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	 * aktiviert den Tab „Standort"; alle vier Tabs sind in der Tablist vorhanden.
 	 */
 	test('AK1: /settings/standort zeigt vier Tabs und aktiviert „Standort"', async ({ page }) => {
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
 
 		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
@@ -247,10 +247,10 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	 * Geo-Element mehr sichtbar.
 	 */
 	test('AK2: Geo-Switch und Slider im Standort-Tab sichtbar, im Allgemein-Tab nicht mehr', async ({ page }) => {
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(geoSwitch(page)).toBeVisible();
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(geoSwitch(page)).toBeHidden();
 		for (const label of GEO_SLIDER_LABELS) {
@@ -275,7 +275,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 			});
 			localStorage.setItem('pp-geolocation-enabled', 'true');
 		});
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(geoSwitch(page)).toBeVisible();
@@ -290,7 +290,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	 * Standort-Tab wieder her.
 	 */
 	test('AK4: Tab-Klick aktualisiert die URL, Zurückkehren stellt den Standort-Tab wieder her', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page.getByRole('tab', { name: 'Standort', exact: true }).click();
@@ -313,7 +313,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 	 * Säulen-Tab (Index 1) zurück.
 	 */
 	test('AK4: unbekanntes Segment /settings/xyz fällt auf den Säulen-Tab zurück', async ({ page }) => {
-		await page.goto('/settings/xyz');
+		await page.goto('/app/settings/xyz');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -339,7 +339,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 			});
 			localStorage.setItem('pp-geolocation-enabled', 'true');
 		});
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
 
 		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
@@ -366,7 +366,7 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 	test('AK6: goBack() nach Tab-Wechsel stellt /settings/general mit aktivem Allgemein-Tab wieder her', async ({
 		page,
 	}) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
@@ -383,10 +383,10 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 	 * Ansicht inkl. aktivem Tab wieder her.
 	 */
 	test('AK6: goBack() von /hilfe stellt /settings/general mit aktivem Allgemein-Tab wieder her', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		await page.goto('/hilfe');
+		await page.goto('/app/hilfe');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page.goBack();
@@ -395,7 +395,7 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 	});
 
 	test('AK6: Deep-Link /settings/standort zeigt den Standort-Tab mit sichtbarem Banner', async ({ page }) => {
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('banner')).toBeVisible();

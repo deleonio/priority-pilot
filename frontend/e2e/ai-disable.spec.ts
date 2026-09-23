@@ -36,7 +36,7 @@ const initAiEnabled = (page: Page, aiEnabled: boolean): void => {
 
 /** Öffnet den KI-Provider-Tab der Einstellungen. */
 const openLlmTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/llm');
+	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Priority Pilot');
 };
 
@@ -80,7 +80,7 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 	}) => {
 		initAiEnabled(page, false);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Toolbar: kein „Säulen-Berater"-Button (Vertrag aus AK1, hier als Randbedingung mitgeprüft).
@@ -142,7 +142,7 @@ test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
 		initAiEnabled(page, true);
 		await loginAsFree(page);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
@@ -203,7 +203,7 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 		const requestedUrls: string[] = [];
 		page.on('request', (req) => requestedUrls.push(req.url()));
 
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
@@ -224,7 +224,7 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 	test('AK6 (375px): .pillar-editor-head enthält nur die Überschrift und bleibt im Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();

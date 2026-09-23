@@ -59,7 +59,7 @@ test.describe('Priority Pilot — #1526: Access-Token-Reiter und Gating', () => 
 	});
 
 	test('AK1: der Reiter unter /settings/zugriff heißt „Access-Token"', async ({ page }) => {
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		await expect(page.getByRole('tab', { name: 'Access-Token' })).toBeVisible();
@@ -71,7 +71,7 @@ test.describe('Priority Pilot — #1526: Access-Token-Reiter und Gating', () => 
 	}) => {
 		await seedApiToken(page);
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		const createButton = page.getByRole('button', { name: 'Token erzeugen' });

@@ -24,7 +24,7 @@ interface ProviderDto {
 
 /** Öffnet den KI-Provider-Tab der Einstellungen. */
 const openLlmTab = async (page: import('@playwright/test').Page): Promise<void> => {
-	await page.goto('/settings/llm');
+	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Priority Pilot');
 	await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toBeVisible();
 };

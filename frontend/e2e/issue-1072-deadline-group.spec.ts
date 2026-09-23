@@ -17,7 +17,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
 
 /** Öffnet das Task-Anlegeformular (QuickCapture-Schritt übersprungen). */
 const openForm = async (page: Page): Promise<void> => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 	await page.getByRole('button', { name: /überspringen/i }).click();

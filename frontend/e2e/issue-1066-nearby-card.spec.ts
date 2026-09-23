@@ -75,7 +75,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 	// mehr gerendert (statt eines Hinweises in der Card).
 	test('AK8 — Präferenz aus (Default): Card wird gar nicht gerendert, keine Positionsabholung', async ({ page }) => {
 		await page.addInitScript(GEO_INIT('granted', false));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('nearby-card')).toHaveCount(0);
@@ -86,7 +86,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 
 	test('AK4 — Browser verweigert Freigabe: Hinweis, Rest-Dashboard voll nutzbar', async ({ page }) => {
 		await page.addInitScript(GEO_INIT('denied', true));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const denied = page.getByTestId('nearby-denied');
@@ -101,7 +101,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 
 	test('AK9 — keine Tasks mit Koordinaten: klare Leer-Aussage statt Fehler', async ({ page }) => {
 		await page.addInitScript(GEO_INIT('granted', true));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('nearby-empty')).toBeVisible({ timeout: 5000 });
@@ -117,7 +117,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		// jetzt zwei Punkte bei ~1 km und ~3 km nördlich der Referenzposition.
 		await createTaskViaApi(page, 'E2E 1066 weit', { latitude: 52.5489, longitude: 13.4132 });
 		await createTaskViaApi(page, 'E2E 1066 nah', { latitude: 52.5309, longitude: 13.4132 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('nearby-card');
@@ -139,7 +139,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(GEO_INIT('granted', true));
 		await createTaskViaApi(page, 'E2E 1066 mobil', { latitude: 52.52, longitude: 13.405 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('nearby-card');
@@ -153,7 +153,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		await page.route('**/api/v1/reverse-geocode*', (route) => route.fulfill({ status: 500, body: '{}' }));
 		const id = await createTaskViaApi(page, 'E2E 1066 badge', { latitude: 52.5200066, longitude: 13.4049541 });
 		await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		// Erledigt-Ansicht liegt seit #399 im „Aufgaben"-Tab hinter dem Offen/Erledigt-Switch
 		// (Muster completed-tasks.spec.ts), nicht in einem eigenen Tab.

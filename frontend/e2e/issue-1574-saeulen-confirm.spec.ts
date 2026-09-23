@@ -50,7 +50,7 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 		// Route-Abfangung (und damit am putCount) vorbei.
 		await setEqualPillarWeights(page);
 
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
 

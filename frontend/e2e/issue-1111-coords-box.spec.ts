@@ -32,7 +32,7 @@ test.describe('#1111 Koordinaten-Box „Gespeicherter Ortsbezug"', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await page.getByRole('button', { name: /überspringen/i }).click();

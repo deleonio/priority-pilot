@@ -14,6 +14,10 @@ const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), '
 // damit es neben `pnpm dev` und `test:e2e` kollisionsfrei laufen kann (siehe docs/browser-mcp.md).
 const apiTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
 
+// Die App liegt unter /app/, die Wurzel gehört der öffentlichen Website (website/, ADR 0015).
+// API- und Auth-Pfade bleiben an der Wurzel (/api/v1, /auth) und sind vom Präfix nicht betroffen.
+const APP_BASE = '/app/';
+
 // Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
 // Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
 // Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
@@ -36,12 +40,13 @@ const apiProxy = {
 };
 
 export default defineConfig({
+	base: APP_BASE,
 	plugins: [
 		react(),
 		{
 			name: 'serve-docs-user-guide',
 			configureServer(server) {
-				server.middlewares.use('/user-guide.md', async (req, res) => {
+				server.middlewares.use(`${APP_BASE}user-guide.md`, async (req, res) => {
 					const fs = await import('node:fs/promises');
 					const path = await import('node:path');
 					const filePath = path.resolve(__dirname, '../docs/user-guide.md');
@@ -80,8 +85,9 @@ export default defineConfig({
 				clientsClaim: true,
 				skipWaiting: false,
 				// Push-Handler (push/notificationclick) aus public/push-sw.js in den generierten
-				// Workbox-SW einbinden (Issue #355). Die Datei liegt in public/ und wird nach / kopiert.
-				importScripts: ['/push-sw.js'],
+				// Workbox-SW einbinden (Issue #355). Die Datei liegt in public/ und landet neben dem SW
+				// unter /app/ — relativ angegeben, damit sie vom SW-Standort aus aufgelöst wird.
+				importScripts: ['push-sw.js'],
 				// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
 				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
 				maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
@@ -99,7 +105,11 @@ export default defineConfig({
 				theme_color: '#1a1a1a',
 				background_color: '#ffffff',
 				display: 'standalone',
-				start_url: '/',
+				// `id` bleibt '/' (die frühere start_url), damit bestehende Installationen dieselbe App
+				// bleiben; neue Starts öffnen direkt die App unter /app/ statt der Website (ADR 0015).
+				id: '/',
+				start_url: APP_BASE,
+				scope: APP_BASE,
 				icons: [
 					{
 						src: 'icons/icon-192x192.png',
@@ -129,7 +139,7 @@ export default defineConfig({
 				shortcuts: [
 					{
 						name: 'Dashboard',
-						url: '/',
+						url: APP_BASE,
 						icons: [
 							{
 								src: 'icons/icon-192x192.png',

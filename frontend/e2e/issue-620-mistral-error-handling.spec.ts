@@ -24,7 +24,7 @@ import { waitForStableView } from './helpers';
 test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 	/** Öffnet den Quick-Capture-Dialog über die Toolbar. */
 	const openQuickCapture = async (page: Page): Promise<void> => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();

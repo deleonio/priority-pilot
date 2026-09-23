@@ -84,7 +84,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		const childId = await createTask(page, childTitle);
 		await addSubtask(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -103,7 +103,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		const soloTitle = uniqueTitle('Solo');
 		const soloId = await createTask(page, soloTitle);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -120,7 +120,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		const childId = await createTask(page, uniqueTitle('Blatt'));
 		await addSubtask(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -143,7 +143,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		const bId = await createTask(page, uniqueTitle('B'), 3, 0.5);
 		const cId = await createTask(page, uniqueTitle('C'), 1, 0.1);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -184,7 +184,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		const keepId = await createTask(page, keepTitle);
 		const hideId = await createTask(page, hideTitle);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -211,7 +211,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		await createTask(page, aTitle);
 		await createTask(page, bTitle);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -235,7 +235,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		await addSubtask(page, parentAId, childId);
 		await addSubtask(page, parentBId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -254,7 +254,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		await addSubtask(page, parentAId, childId);
 		await addSubtask(page, parentBId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 

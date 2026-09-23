@@ -52,7 +52,7 @@ test.describe('Fußzeile: Adresse statt Koordinaten (#1073)', () => {
 		await mockAuthenticated(page);
 		await enableGeolocationPreference(page);
 		await mockReverseGeocode(page, ADDRESS);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const footer = page.getByRole('contentinfo');
 		await expect(footer).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('Fußzeile: Adresse statt Koordinaten (#1073)', () => {
 		await mockAuthenticated(page);
 		await enableGeolocationPreference(page);
 		await mockReverseGeocode(page, null);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const footer = page.getByRole('contentinfo');
 		await expect(footer).toBeVisible();
@@ -81,7 +81,7 @@ test.describe('Fußzeile: Adresse statt Koordinaten (#1073)', () => {
 		await mockAuthenticated(page);
 		await enableGeolocationPreference(page);
 		await mockReverseGeocode(page, ADDRESS);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const footer = page.getByRole('contentinfo');
 		await expect(footer).toBeVisible();

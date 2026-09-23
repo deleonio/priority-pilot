@@ -59,7 +59,7 @@ test.describe('Priority Pilot — #1258: Aufgaben-Tab mobil (375px)', () => {
 	test('AK1: offene Aufgaben — kein horizontaler Überlauf bei 375px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await createTaskViaApi(page, uniqueTitle('OhneScroll'));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -76,7 +76,7 @@ test.describe('Priority Pilot — #1258: Aufgaben-Tab mobil (375px)', () => {
 		for (let i = 0; i < 4; i += 1) {
 			ids.push(await createTaskViaApi(page, uniqueTitle(`Sichtbar${i}`)));
 		}
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -100,7 +100,7 @@ test.describe('Priority Pilot — #1258: Aufgaben-Tab mobil (375px)', () => {
 		// Einzelwörter wären kein gültiger Produktzustand (API lehnt sie mit 400 ab).
 		const longWord = 'Donaudampfschifffahrtsgesellschaftskapitaen'.padEnd(64, 'x'); // 64 Zeichen, kein Leerzeichen
 		const id = await createTaskViaApi(page, longWord);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -117,7 +117,7 @@ test.describe('Priority Pilot — #1258: Aufgaben-Tab mobil (375px)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await createTaskViaApi(page, uniqueTitle('OffenTarget'));
 		await createTaskViaApi(page, uniqueTitle('DoneTarget'), 'Done');
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 

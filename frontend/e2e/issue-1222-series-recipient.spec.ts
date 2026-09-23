@@ -23,7 +23,7 @@ const SERIES_TITLE = 'E2E Übergabe-Serie';
 
 /** Öffnet die Einstellungen direkt auf dem Gruppen-Tab (Muster groups.spec.ts). */
 const openGroupsTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await expect(page.getByRole('tab', { name: 'Gruppen', exact: true })).toBeVisible();
 };
@@ -140,7 +140,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 		const { recipientContext, recipientPage } = await setupSharedGroup(page, request, baseURL!);
 
 		try {
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await createSeriesForRecipientViaUi(page, SERIES_TITLE);
 
@@ -155,7 +155,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 			await expect(page.getByTestId('series-tree').getByRole('button', { name: 'Löschen' })).toHaveCount(0);
 
 			// Empfänger-Sicht: eigene Serie ohne Kennzeichen, mit Aktionen.
-			await recipientPage.goto('/');
+			await recipientPage.goto('/app/');
 			await waitForStableView(recipientPage);
 			await openSeriesTab(recipientPage);
 			await expect(recipientPage.getByText(SERIES_TITLE, { exact: true })).toBeVisible();
@@ -182,7 +182,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 		const { recipientContext, recipientPage } = await setupSharedGroup(page, request, baseURL!);
 
 		try {
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			// Formular bei 375 px: Empfängerauswahl bleibt im Serie-Modus im Viewport.
@@ -252,7 +252,7 @@ test.describe('Serie für ein Gruppenmitglied (#1222)', () => {
 		const { recipientContext, recipientPage } = await setupSharedGroup(page, request, baseURL!);
 
 		try {
-			await recipientPage.goto('/');
+			await recipientPage.goto('/app/');
 			await waitForStableView(recipientPage);
 
 			// AK2 — Task-Modus: Anlegen ohne Eingriff in die Empfängerauswahl → POST /tasks mit 2xx.

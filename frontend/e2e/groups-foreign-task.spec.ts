@@ -20,7 +20,7 @@ const INVITEE_NAME = 'Ines Empfängerin';
 
 /** Öffnet die Einstellungen direkt auf dem Gruppen-Tab (Muster groups.spec.ts). */
 const openGroupsTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await expect(page.getByRole('tab', { name: 'Gruppen', exact: true })).toBeVisible();
 };
@@ -126,7 +126,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 			expect(accept.status()).toBe(200);
 
 			// Ersteller legt die Aufgabe über die UI für das Empfänger-Konto an.
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await createForeignTaskViaUi(page, 'E2E Übergabe-Aufgabe #1');
 
@@ -137,7 +137,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 			await expect(page.getByText(`Für: ${INVITEE_NAME}`)).toBeVisible();
 
 			// Empfänger-Sicht: Aufgabe in eigener Liste, gekennzeichnet mit „Erstellt von: <Ersteller>".
-			await inviteePage.goto('/');
+			await inviteePage.goto('/app/');
 			await waitForStableView(inviteePage);
 			await inviteePage.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 			await expect(taskTitleText(inviteePage, 'E2E Übergabe-Aufgabe #1')).toBeVisible();
@@ -177,7 +177,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 			expect((await inviteePage.request.post(`/api/v1/invitations/${invitation!.id}/accept`)).status()).toBe(200);
 
 			await page.setViewportSize({ width: 375, height: 812 });
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			// Empfängerauswahl im Formular bleibt im Viewport.
@@ -198,7 +198,7 @@ test.describe('Aufgabe für ein Gruppenmitglied (#1213)', () => {
 
 			// Empfänger-Seite: „Erstellt von: …" ebenfalls ohne Überlauf.
 			await inviteePage.setViewportSize({ width: 375, height: 812 });
-			await inviteePage.goto('/');
+			await inviteePage.goto('/app/');
 			await waitForStableView(inviteePage);
 			await inviteePage.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 			await expectWithinViewport(inviteePage, 'Erstellt-von-Hinweis', inviteePage.getByText(/Erstellt von: /));

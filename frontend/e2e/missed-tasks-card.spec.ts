@@ -18,7 +18,7 @@ const mockMissed = (
 test.describe('Priority Pilot — Dashboard-Card „Verpasste Aufgaben"', () => {
 	test('Nullzustand: neutraler Hinweistext statt einer Zahl', async ({ page }) => {
 		await mockMissed(page, { anzahl: 0, eintraege: [] });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('missed-tasks-zero')).toBeVisible();
@@ -38,7 +38,7 @@ test.describe('Priority Pilot — Dashboard-Card „Verpasste Aufgaben"', () => 
 				},
 			],
 		});
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('missed-tasks-card');

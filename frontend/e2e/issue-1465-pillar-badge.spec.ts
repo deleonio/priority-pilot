@@ -71,7 +71,7 @@ test.describe('Priority Pilot — #1465: Säulen-Badge mobil (375px)', () => {
 		const seriesWithout = await createSeriesViaApi(page, uniqueTitle('Serie ohne Säule'), null);
 		const seriesWith = await createSeriesViaApi(page, uniqueTitle('Serie mit Säule'), pillarId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 

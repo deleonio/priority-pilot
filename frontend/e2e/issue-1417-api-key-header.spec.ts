@@ -25,7 +25,7 @@ test.describe('Priority Pilot — #1417: api-key-Header im Hinweisblock', () => 
 	test('AK9: 375px — jede Zeile des Hinweisblocks bleibt ohne horizontalen Überlauf', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		const hint = page.locator('.api-tokens__mcp-url');
@@ -43,7 +43,7 @@ test.describe('Priority Pilot — #1417: api-key-Header im Hinweisblock', () => 
 
 	test('AK8: der Hinweisblock nennt beide Header-Varianten', async ({ page }) => {
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		const hint = page.locator('.api-tokens__mcp-url');

@@ -104,7 +104,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 		const title = uniqueTitle('MitOrt');
 		const id = await createTaskViaApi(page, title, 'Musterstraße 1, 12345 Musterstadt');
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -123,7 +123,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 		const title = uniqueTitle('Gruppe');
 		const id = await createTaskViaApi(page, title, 'Weg 4, 10115 Berlin');
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -141,7 +141,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 		const id = await createTaskViaApi(page, title, 'Lange Musterstraße 123, 12345 Musterstadt');
 
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -165,7 +165,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 		const title = uniqueTitle('OhneOrt');
 		const id = await createTaskViaApi(page, title);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 
@@ -218,7 +218,7 @@ test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () =>
 			.sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''))[0];
 		expect(instance, 'Serie generiert mindestens eine sichtbare Instanz').toBeTruthy();
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksView(page);
 

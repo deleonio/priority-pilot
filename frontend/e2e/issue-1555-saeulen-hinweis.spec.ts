@@ -35,7 +35,7 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 		// #1574: Ausgangszustand Gleichverteilung deterministisch herstellen (parallele Specs im
 		// Shard teilen die DB) — der Test assertiert „kein Alert bei Start".
 		await setEqualPillarWeights(page);
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
 
@@ -77,7 +77,7 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 		// #1574: Regler-Flow geht von 5 × 20 % aus — Gleichverteilung aktiv
 		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.
 		await setEqualPillarWeights(page);
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
 

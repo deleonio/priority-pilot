@@ -55,7 +55,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 };
 
 const openTasksTab = async (page: Page): Promise<void> => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.reload();
 	await waitForStableView(page);

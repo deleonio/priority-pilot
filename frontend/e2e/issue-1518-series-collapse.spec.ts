@@ -61,7 +61,7 @@ test.describe('Priority Pilot — #1518: eine Instanz je Serie in der Aufgabenli
 		expect(instances.length).toBe(5);
 		const earliest = [...instances].sort((a, b) => a.deadline.localeCompare(b.deadline))[0];
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 

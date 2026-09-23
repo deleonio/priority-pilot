@@ -35,7 +35,7 @@ test.describe('Priority Pilot — #1360: Streak-Anzeige', () => {
 
 	test('AK5 — Dashboard zeigt die Streak-Card mit aktuellem Wert und Bestmarke', async ({ page }) => {
 		await completeTaskToday(page, 'E2E 1360 heute erledigt');
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const streakCard = page.getByTestId('streak-card');
@@ -48,7 +48,7 @@ test.describe('Priority Pilot — #1360: Streak-Anzeige', () => {
 	}) => {
 		await completeTaskToday(page, 'E2E 1360 mobile');
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const streakCard = page.getByTestId('streak-card');

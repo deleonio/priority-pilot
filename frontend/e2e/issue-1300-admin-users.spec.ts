@@ -70,7 +70,7 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	test('Member sieht den Tab „Nutzerverwaltung" nicht', async ({ page }) => {
 		await mockAuthMe(page, MEMBER_USER);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);
@@ -79,7 +79,7 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	test('Member per Deep-Link /settings/nutzer landet auf „Säulen" statt auf einem leeren Panel', async ({ page }) => {
 		await mockAuthMe(page, MEMBER_USER);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
+		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);
@@ -90,7 +90,7 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
+		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const tab = page.getByRole('tab', { name: 'Nutzerverwaltung' });
@@ -141,7 +141,7 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 			}),
 		);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
+		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await page.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }).click();

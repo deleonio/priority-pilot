@@ -48,7 +48,7 @@ test.describe('#996 Säulen-Verteilung im TaskForm (Mobile-Layout)', () => {
 		expect(response.ok(), 'Task-Anlage mit Säulen-Beitrag muss gelingen').toBe(true);
 		const task = (await response.json()) as { id: number };
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();

@@ -63,7 +63,7 @@ test.describe('#1556/#1565 Nutzerverwaltung — Paket-Badges ohne Auswahl', () =
 	test('AK1/AK2: jede Zeile zeigt das Paket-Badge, keine Zeile hat eine Paket-Auswahl', async ({ page }) => {
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
-		await page.goto('/settings/nutzer');
+		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// AK1: Badge-Text in jeder Zeile (auch fremde), Rolle bleibt unangetastet.
@@ -79,7 +79,7 @@ test.describe('#1556/#1565 Nutzerverwaltung — Paket-Badges ohne Auswahl', () =
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
+		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-admin-users .admin-user');

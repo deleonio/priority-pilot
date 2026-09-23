@@ -42,7 +42,7 @@ const PLAN_RESULT = {
 test.describe('AK 1 — Öffentlicher Zugang (#225)', () => {
 	test('AK1a: /bahn ohne Login zeigt Routenplaner-UI (kein Login-Redirect)', async ({ page }) => {
 		// auth/me wird NICHT gemockt — die Route muss ohne Auth-Check funktionieren.
-		await page.goto('/bahn');
+		await page.goto('/app/bahn');
 
 		// Routenplaner-Überschrift muss sichtbar sein …
 		await expect(page.getByRole('heading', { name: /Routenplaner/i })).toBeVisible();
@@ -58,7 +58,7 @@ test.describe('AK 1 — Öffentlicher Zugang (#225)', () => {
 		await page.route('**/auth/me', (route: Route) =>
 			route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'Unauthorized' }) }),
 		);
-		await page.goto('/bahn');
+		await page.goto('/app/bahn');
 
 		await expect(page.getByRole('heading', { name: /Routenplaner/i })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
@@ -75,7 +75,7 @@ test.describe('AK 2 — Autocomplete (#225)', () => {
 			}),
 		);
 
-		await page.goto('/bahn');
+		await page.goto('/app/bahn');
 		await expect(page.getByRole('heading', { name: /Routenplaner/i })).toBeVisible();
 
 		const startInput = page.getByLabel(/Startbahnhof|Start/i);
@@ -105,7 +105,7 @@ test.describe('AK 3 — Verbindungssuche (#225)', () => {
 			}),
 		);
 
-		await page.goto('/bahn');
+		await page.goto('/app/bahn');
 		await expect(page.getByRole('heading', { name: /Routenplaner/i })).toBeVisible();
 
 		// Start auswählen
@@ -155,7 +155,7 @@ test.describe('AK 4 — Fehlerzustand (#225)', () => {
 		const uncaughtErrors: string[] = [];
 		page.on('pageerror', (err) => uncaughtErrors.push(err.message));
 
-		await page.goto('/bahn');
+		await page.goto('/app/bahn');
 		await expect(page.getByRole('heading', { name: /Routenplaner/i })).toBeVisible();
 
 		const startInput = page.getByLabel(/Startbahnhof|Start/i);

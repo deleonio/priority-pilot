@@ -94,7 +94,7 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 	test('AK2: Tester sieht den Tab „Nutzerverwaltung" nicht; Deep-Link fällt auf „Säulen" zurück', async ({ page }) => {
 		await mockAuthMe(page, TESTER_USER);
 		await mockPlansApi(page);
-		await page.goto('/settings/nutzer');
+		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);
@@ -106,7 +106,7 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 	}) => {
 		await mockAuthMe(page, TESTER_USER);
 		const { patchedId, patchedPlan } = await mockPlansApi(page);
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Dieselbe Karte wie ein Admin (#1565 AK1): sichtbar und mit Auswahl.
@@ -134,7 +134,7 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 		await mockAuthMe(page, TESTER_USER);
 		const { patchedPlan } = await mockPlansApi(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// AK2 mobil: kein Nutzerverwaltungs-Tab in der gestapelten Leiste.

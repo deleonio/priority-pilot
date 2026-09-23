@@ -59,7 +59,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK1: Mobile 375px — jede Switch-Zeile nimmt die volle Breite ein', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
@@ -109,7 +109,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK2: Desktop 1024px — Switch-Zeilen sind horizontal ausgerichtet und zentriert', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const rows = page.locator('.settings-general .settings-switch-row');
@@ -133,7 +133,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK3: Mobile 375px — Touch-Targets der Switches bleiben ≥44px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Seit #1227 liegen „Herz animieren"/„Erledigt animieren" im Kollapsbereich unter dem
@@ -177,7 +177,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK4: Mobile 375px — kein horizontaler Scroll', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const overflow = await page.evaluate<{ scroll: number; client: number } | null>(() => {
@@ -197,7 +197,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 */
 	test('AK5: ARIA der 3 Switches bleibt erhalten (Zustand togglebar)', async ({ page }) => {
 		await page.addInitScript(MIC_GRANTED_INIT_SCRIPT);
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const labels = [/Sprachaufnahme automatisch starten/i, /Push-Nachrichten aktivieren/i];
@@ -223,7 +223,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	test('AK6: micDenied-Alert mobil unter, desktop rechts neben dem Switch', async ({ page }) => {
 		await page.addInitScript(MIC_DENIED_INIT_SCRIPT);
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Berechtigung verweigern → micDenied-Alert erscheint.
@@ -265,7 +265,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 * Dieser Test stellt sicher, dass er dort vorhanden ist und korrekt funktioniert.
 	 */
 	test('AK7: Standort-Switch ist im Standort-Tab vorhanden und funktionsfähig', async ({ page }) => {
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Der Standort-Switch sollte im Standort-Tab sichtbar sein.
@@ -289,7 +289,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	 * „Animations-Details" — eine Klapp-Primitive für die ganze Seite.
 	 */
 	test('AK8: „Einzelne Animationen" blendet beide Feinschalter im Accordion ein', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Vor dem Öffnen sind die Feinschalter zwar im DOM (das Accordion kollabiert nur die Höhe),
@@ -322,7 +322,7 @@ test.describe('#971 Switch-Layout im Tab Allgemein', () => {
 	test('AK9: „Einzelne Animationen" folgt dem Master-Schalter „Animationen" (öffnen und schließen)', async ({
 		page,
 	}) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const animationsSwitch = switchControl(page, /^Animationen$/);

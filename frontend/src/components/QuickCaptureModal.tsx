@@ -275,8 +275,9 @@ export const QuickCaptureModal = ({
 								// #440: Ohne Säulen kann der Berater nichts zuordnen — gestalteter Hinweis statt Liste.
 								<KolCard _label="Keine Säulen definiert" _level={0}>
 									<p>
-										Keine Säulen definiert — lege zuerst Säulen in den <a href="/settings">Einstellungen</a> an, damit
-										der Berater Vorschläge machen kann.
+										Keine Säulen definiert — lege zuerst Säulen in den{' '}
+										<a href={`${import.meta.env.BASE_URL}settings`}>Einstellungen</a> an, damit der Berater Vorschläge
+										machen kann.
 									</p>
 								</KolCard>
 							) : (

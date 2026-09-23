@@ -18,7 +18,7 @@ test.describe('Priority Pilot — #1219: Anzeigename', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Kein horizontales Scrollen auf Seitenebene (Messung nach vollständigem Aufbau):

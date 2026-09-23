@@ -12,7 +12,7 @@ import { expect, test } from './fixtures';
  * Anfangszustand. Er bildet das Fundament für die funktionalen CRUD-Specs (`crud.spec.ts`, #92).
  */
 test('App lädt gegen das echte Backend und zeigt den leeren Anfangszustand', async ({ page }) => {
-	await page.goto('/');
+	await page.goto('/app/');
 
 	// Grundgerüst steht (Backend hat geantwortet, React ist gerendert).
 	await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();

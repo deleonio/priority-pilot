@@ -66,7 +66,7 @@ test.describe('#386 „Push testen"-Button', () => {
 			}),
 		);
 
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
@@ -86,7 +86,7 @@ test.describe('#386 „Push testen"-Button', () => {
 			}),
 		);
 
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
@@ -101,7 +101,7 @@ test.describe('#386 „Push testen"-Button', () => {
 		await page.addInitScript(ACTIVE_PUSH_INIT_SCRIPT);
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 

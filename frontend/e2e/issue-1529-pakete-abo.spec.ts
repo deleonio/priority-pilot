@@ -73,10 +73,10 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 	}) => {
 		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
 
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await expect(page.getByTestId('plans-section')).toBeVisible();
 
-		await page.goto('/settings/abo');
+		await page.goto('/app/settings/abo');
 		await expect(page.getByTestId('billing-invoices')).toBeVisible();
 		await waitForStableView(page, 'Allgemein');
 
@@ -95,13 +95,13 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 	}) => {
 		await mockPlans(page, USER_NO_SUBSCRIPTION);
 
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await expect(page.getByTestId('plans-section')).toHaveCount(0);
 
-		await page.goto('/settings/kategorien');
+		await page.goto('/app/settings/kategorien');
 		await expect(page.getByRole('tab', { name: 'Kategorien', exact: true })).toHaveAttribute('aria-selected', 'true');
 
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
@@ -109,7 +109,7 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
 
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		const host = page.locator('[data-testid="plans-section"] kol-table-stateful');
 		await expect(host).toBeVisible();
 
@@ -132,7 +132,7 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
 
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		const host = page.locator('[data-testid="plans-section"] kol-table-stateful');
 		await expect(host).toBeVisible();
 
@@ -156,7 +156,7 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
 			await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
 
-			await page.goto('/settings/pakete');
+			await page.goto('/app/settings/pakete');
 			const host = page.locator('[data-testid="plans-section"] kol-table-stateful');
 			await expect(host).toBeVisible();
 
@@ -178,7 +178,7 @@ test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter',
 	}) => {
 		await mockPlans(page, USER_NO_SUBSCRIPTION);
 
-		await page.goto('/settings/abo');
+		await page.goto('/app/settings/abo');
 		await waitForStableView(page, 'Allgemein');
 		await expect(page.getByTestId('subscription-status')).toHaveCount(0);
 		await expect(page.getByTestId('cancel-subscription')).toHaveCount(0);

@@ -34,7 +34,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 	 * den Optionen „Oben" und „Unten", interaktiv; ohne gespeicherte Wahl ist „Oben" gewählt.
 	 */
 	test('AK1: Allgemein-Tab zeigt Radiogruppe „Kopfzeile" mit Oben/Unten, Default Oben', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(headerPositionControl(page)).toBeVisible();
@@ -54,7 +54,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 	 * `page.reload()` hält den Modus.
 	 */
 	test('AK2/AK3: Wahl „Unten" stellt die Kopfzeile unter den Inhalt und übersteht den Reload', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const header = page.locator('.app-header');
@@ -79,7 +79,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 		expect((await header.boundingBox())!.y).toBeGreaterThan((await content.boundingBox())!.y);
 
 		// Rückwahl „Oben" stellt den heutigen Zustand her (AK2, zweite Hälfte).
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 		await headerPositionOption(page, /Oben/i).first().click();
 		expect((await header.boundingBox())!.y).toBeLessThan((await content.boundingBox())!.y);
@@ -93,7 +93,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 	 */
 	test('AK5: Bottom-Modus bei 375×812 ohne Overflow und ohne Home-Indicator-Verdeckung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		await headerPositionOption(page, /Unten/i).first().click();

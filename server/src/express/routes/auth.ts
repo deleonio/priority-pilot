@@ -169,6 +169,10 @@ authRouter.post('/auth/login', async (req, res) => {
 	});
 });
 
+// Die App liegt unter /app/, die Wurzel gehört der öffentlichen Website (ADR 0015). Alle
+// Login-Redirects zielen deshalb auf die App-Wurzel, nicht auf „/".
+const APP_ROOT = '/app/';
+
 // GET /auth/error — Ziel des OAuth-failureRedirect, liefert eindeutiges Fehler-Feedback statt SPA-Fallback/404.
 authRouter.get('/auth/error', (_req, res) => {
 	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
@@ -196,7 +200,7 @@ authRouter.get('/auth/google', requireGoogleStrategy, passport.authenticate('goo
 // einen Interaktionsfehler (login_required u. ä.) ebenfalls als „silent unavailable" zu behandeln.
 authRouter.get('/auth/google/silent', (req, res, next) => {
 	if (!hasGoogleOAuth()) {
-		res.redirect('/?silent=unavailable');
+		res.redirect(`${APP_ROOT}?silent=unavailable`);
 		return;
 	}
 	req.session.silentPending = true;
@@ -225,7 +229,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 	// 1:1 an die Frontend-Fehler-Weiche durchgereicht, sonst `login_failed` als Sammelcode.
 	if (!req.query.code) {
 		const code = typeof req.query.error === 'string' && req.query.error !== '' ? req.query.error : 'login_failed';
-		res.redirect(silentPending ? '/?silent=unavailable' : `/?error=${encodeURIComponent(code)}`);
+		res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=${encodeURIComponent(code)}`);
 		return;
 	}
 	// Eigene Callback-Signatur statt `failureRedirect`-Option: `failureRedirect` greift nur bei
@@ -252,7 +256,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 				if (req.session?.silentReturnTo) {
 					delete req.session.silentReturnTo;
 				}
-				res.redirect(silentPending ? '/?silent=unavailable' : '/?error=login_failed');
+				res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
 				return;
 			}
 			// Return-Path (#1231) vor regenerate() sichern — die neue Session enthält die
@@ -267,7 +271,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 			req.session.regenerate((regenerateErr) => {
 				if (regenerateErr) {
-					res.redirect(silentPending ? '/?silent=unavailable' : '/?error=login_failed');
+					res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
 					return;
 				}
 				req.session.user = {
@@ -280,7 +284,7 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 					// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
 					plan: user.plan,
 				};
-				req.session.save(() => res.redirect(silentReturnTo ?? '/'));
+				req.session.save(() => res.redirect(silentReturnTo ?? APP_ROOT));
 			});
 		},
 	)(req, res, next);

@@ -21,7 +21,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 	 * da die Variante nur im Shadow-DOM sichtbar wird.
 	 */
 	test('AK1: Alle Toolbar-Buttons haben dieselbe berechnete Hintergrundfarbe', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: TOOLBAR_LABEL });
@@ -48,7 +48,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 	 * und die rechte Mic-Kante überschreitet die rechte Input-Kante nicht.
 	 */
 	test('AK2: Mikrofon-Button ist vertikal in der Inputbox zentriert', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Such-Modal öffnen.
@@ -91,7 +91,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 	 */
 	test('AK3: Bei 375px Viewport: Toolbar einheitlich + Mic-Button ausgerichtet', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// AK1: Toolbar-Varianten einheitlich.
@@ -134,7 +134,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 	 * eine Zeile UNTER der Inputbox und darf den Bottom-Anker nicht verschieben.
 	 */
 	test('F1: Mic-Button im TaskForm-Titelfeld bleibt mit Zähler in der Inputbox zentriert', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();

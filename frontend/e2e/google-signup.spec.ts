@@ -33,7 +33,7 @@ test.describe('#1136 — Neu-Nutzer-Sign-up-Pfad (echte Session)', () => {
 
 		// Der „erste Login" landet direkt in der App.
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// Kein Dauerspinner: der Auth-Ladehinweis ist weg und der Login-Button nie erschienen.

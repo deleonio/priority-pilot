@@ -39,7 +39,7 @@ const gotoApp = async (page: Page, viewport: { width: number; height: number }, 
 	if (position === 'bottom') {
 		await page.addInitScript((key) => localStorage.setItem(key, 'bottom'), HEADER_POSITION_KEY);
 	}
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 };
 

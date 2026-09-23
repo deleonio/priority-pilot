@@ -48,7 +48,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 	};
 
 	test('AC1: Schnellerfassungs-Textarea erscheint als erster Schritt', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -66,7 +66,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 	});
 
 	test('AC2: „Überspringen" öffnet das reguläre Formular mit leeren Feldern', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -107,7 +107,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 	});
 
 	test('AC2b: „Überspringen" mit Text setzt eingegebenen Text als Beschreibungs-Vorbelegung', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -137,7 +137,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 	// <Modal> wie die Löschdialoge (AK4 sichert dessen Tab-Freiheit) — dieser Test schließt die Lücke
 	// für den separaten Capture-Schritt mit seiner autofokussierten Textarea.
 	test('AC2c: Tab bewegt den Fokus aus der Textarea weiter (kein Fokus-Gefängnis)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -177,7 +177,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 			});
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -222,7 +222,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 			});
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -251,7 +251,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -274,7 +274,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 
 	test('AK-Mobile: Quick-Capture-Schritt ist auf 375-px-Viewport bedienbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -296,7 +296,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 	// --- Rote Spec-Tests für #250: Autofokus der Textarea beim Öffnen des Modals ---
 
 	test('AK1-Autofokus-Desktop: Textarea ist direkt nach dem Öffnen des Modals fokussiert (#250)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -312,7 +312,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -333,7 +333,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		const pageErrors: string[] = [];
 		page.on('pageerror', (err) => pageErrors.push(err.message));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -368,7 +368,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -403,7 +403,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -437,7 +437,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		);
 
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();

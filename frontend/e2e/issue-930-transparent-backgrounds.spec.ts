@@ -65,7 +65,7 @@ const isElementUsedInProject = (tag: string): boolean => {
 
 test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 	});
 
@@ -319,7 +319,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	 */
 	test('AK2: Interaktionszustände (Hover, Focus) funktionsfähig bei kol-button', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ein kol-button Host-Element direkt finden (einfacher als über Button-Rolle)

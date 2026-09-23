@@ -77,7 +77,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 	test('AK1 — Card-Titel nennt die gespeicherte Anzeige-Entfernung: „In der Nähe (5 km)"', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(cardTitle(page)).toHaveAttribute('_label', 'In der Nähe (5 km)');
@@ -86,7 +86,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 	test('AK2 — nach Umstellen auf 12 km zeigt die Card beim nächsten Laden „(12 km)"', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await expect(cardTitle(page)).toHaveAttribute('_label', 'In der Nähe (5 km)');
 
@@ -101,7 +101,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E 1110 exakt', latitude: LAT, longitude: LON } });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const items = page.getByTestId('nearby-item');
@@ -120,7 +120,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 
 		await page.addInitScript(GEO_INIT(true));
 		await setDisplayDistance(page, 5);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Task über die Adresssuche anlegen (QuickCapture-Schritt überspringen, Muster #1061).

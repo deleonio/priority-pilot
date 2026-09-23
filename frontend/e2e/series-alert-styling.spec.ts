@@ -28,7 +28,7 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 		});
 
 		// Serien-Tab öffnen
-		await page.goto('/');
+		await page.goto('/app/');
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
 	});
 

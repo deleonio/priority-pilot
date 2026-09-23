@@ -16,7 +16,7 @@ import { accordionTrigger, openAccordionSection, waitForStableView } from './hel
  */
 
 const openGroupsTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await expect(page.getByRole('tab', { name: 'Gruppen', exact: true })).toBeVisible();
 };

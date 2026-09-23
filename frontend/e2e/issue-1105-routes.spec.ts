@@ -33,7 +33,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 		['/wald', 'Wald'],
 	] as const) {
 		test(`AK1: Deep-Link ${route} öffnet die Ansicht „${tabName}“`, async ({ page }) => {
-			await page.goto(route);
+			await page.goto(`/app${route}`);
 			await waitForStableView(page);
 
 			await expect(mainTab(page, tabName)).toHaveAttribute('aria-selected', 'true');
@@ -52,7 +52,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	 * AK2 — Menü-Navigation via Tabs ändert die URL; Back/Forward stellt Ansicht + URL wieder her.
 	 */
 	test('AK2: Tab-Klick ändert die URL, Back/Forward stellt die Ansicht wieder her', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await mainTab(page, 'Aufgaben').click();
@@ -79,11 +79,11 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	 * (AK2) darf kein divergierender `activeTab`-State übrig bleiben.
 	 */
 	test('AK4: URL-Wechsel ohne Klick leitet den aktiven Tab ab (kein divergierender State)', async ({ page }) => {
-		await page.goto('/wald');
+		await page.goto('/app/wald');
 		await waitForStableView(page);
 
 		// SPA-seitige Navigation (History-API, wie React Router sie macht) — kein Reload.
-		await page.evaluate(() => window.history.pushState({}, '', '/aufgaben'));
+		await page.evaluate(() => window.history.pushState({}, '', '/app/aufgaben'));
 		await page.evaluate(() => window.dispatchEvent(new PopStateEvent('popstate')));
 
 		await expect(mainTab(page, 'Aufgaben')).toHaveAttribute('aria-selected', 'true');
@@ -95,7 +95,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	 * Back stellt den vorherigen Filterzustand wieder her.
 	 */
 	test('AK5: ?view=done und ?q= steuern Ansicht und Filter, Back stellt sie wieder her', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Arrangement: eine erledigte und eine offene Aufgabe erzeugen (Muster aus tasks-tab-filter.spec).
@@ -122,7 +122,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 		await waitForStableView(page);
 
 		// ?view=done öffnet direkt die erledigte Tabelle — ohne den Umschalter anzufassen.
-		await page.goto('/aufgaben?view=done');
+		await page.goto('/app/aufgaben?view=done');
 		await waitForStableView(page);
 		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByRole('checkbox', { name: /Erledigte Aufgaben/i })).toBeChecked();
@@ -149,7 +149,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	test('AK6: Dialoge ändern die URL nicht', async ({ page }) => {
 		for (const label of ['Neuen Task anlegen', 'Suche']) {
 			// Je Dialog frisch laden, damit Schließen-Mechanik (Escape/Abbrechen) keine Folge-Klicks blockiert.
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			const urlBefore = page.url();
 
@@ -170,7 +170,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 		await page.setViewportSize({ width: 375, height: 667 });
 
 		for (const route of ['/', '/aufgaben', '/serien', '/wald']) {
-			await page.goto(route);
+			await page.goto(`/app${route}`);
 			await waitForStableView(page);
 
 			// Navigation bleibt bedienbar (Tabs sichtbar), App-Shell + Tab-Leiste passen in den Viewport.

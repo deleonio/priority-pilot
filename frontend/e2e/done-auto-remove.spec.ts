@@ -94,7 +94,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		const id = await createTask(page, uniqueTitle('Karenzzeit'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -123,7 +123,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		// Kind ist Vorgänger (Unteraufgabe) des Elternteils — Elternteil ist blockiert.
 		await addSubtask(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -156,7 +156,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		const id = await createTask(page, uniqueTitle('Undo'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -187,7 +187,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		const id = await createTask(page, uniqueTitle('Mobil'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 

@@ -29,7 +29,7 @@ test.describe('Priority Pilot — PWA Update-Prompt Mobile-First (#353)', () => 
 	test('AK6: App lädt bei 375px ohne horizontalen Overflow', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Sicherstellen, dass die Haupt-App gerendert ist, bevor wir die Layout-Breite prüfen.
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
@@ -59,7 +59,7 @@ test.describe('Priority Pilot — UpdatePrompt KoliBri-Card Fixierung (#373)', (
 	// AK1 — Am unteren Rand fixiert: .update-prompt trägt position: fixed.
 	test('AK1: .update-prompt-Klasse hat position:fixed', async ({ page }) => {
 		await mockAuthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const position = await page.evaluate(() => {
 			const el = document.createElement('div');
@@ -77,7 +77,7 @@ test.describe('Priority Pilot — UpdatePrompt KoliBri-Card Fixierung (#373)', (
 	test('AK4: .update-prompt ist am unteren Rand fixiert (bottom:0) bei 375×812', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const bottom = await page.evaluate(() => {
 			const el = document.createElement('div');
@@ -130,7 +130,7 @@ test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', ()
 		test(`AK1: ${card}-Card-Button ist bei 375px ≥44x44px und füllt ≥90% der Card-Innenbreite`, async ({ page }) => {
 			await mockAuthenticated(page);
 			await page.setViewportSize({ width: 375, height: 812 });
-			await page.goto('/');
+			await page.goto('/app/');
 
 			await page.evaluate(injectCardProxy(testId));
 
@@ -154,7 +154,7 @@ test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', ()
 	test('AK2: kein Kind-Element von .update-prompt überragt den Viewport bei 320px', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 320, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		await page.evaluate(injectCardProxy('pwa-update-reload'));
 
@@ -180,7 +180,7 @@ test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', ()
 	}) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const style = await page.evaluate(() => {
 			const el = document.createElement('div');
@@ -244,7 +244,7 @@ test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () 
 	test('AK1: .update-prompt ist bei 1280px rechtsbündig und nicht vollbreit', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const m = await page.evaluate<ProxyMetrics>(measureProxy);
 
@@ -258,7 +258,7 @@ test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () 
 	test('AK2: .update-prompt hat bei 1280px ein max-width ≤ 480px', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const m = await page.evaluate<ProxyMetrics>(measureProxy);
 
@@ -271,7 +271,7 @@ test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () 
 	test('AK3: .update-prompt bleibt bei 375px vollbreit (left:0, right:0)', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const m = await page.evaluate<ProxyMetrics>(measureProxy);
 
@@ -298,7 +298,7 @@ test.describe('Priority Pilot — PWA Update-Reload-Fallback (#1095)', () => {
 	test('AK4: 375px — Bestätigung + Controller-Wechsel reloadet genau einmal, Prompt danach weg', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		await page.evaluate(() => sessionStorage.setItem('pwa-reloads', '0'));

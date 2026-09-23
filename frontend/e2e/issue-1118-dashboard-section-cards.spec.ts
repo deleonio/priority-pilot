@@ -69,7 +69,7 @@ const seedTasks = async (page: Page, count: number, prefix: string): Promise<voi
 /** Öffnet das Dashboard mit gefüllten Listen (1280 px = Desktop-Layout). */
 const openDashboard = async (page: Page, width: number, height: number): Promise<void> => {
 	await page.setViewportSize({ width, height });
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.reload();
 	await waitForStableView(page);

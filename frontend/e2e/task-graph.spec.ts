@@ -68,7 +68,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Ziel'));
 		await addDependency(page, parentId, childId, 0.5);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -86,7 +86,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Oben'));
 		await addDependency(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -104,7 +104,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		await addDependency(page, firstParentId, sharedId);
 		await addDependency(page, secondParentId, sharedId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -120,7 +120,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Solo Ziel'));
 		await addDependency(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -137,7 +137,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Ziel'));
 		await addDependency(page, parentId, childId, 0.5);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -154,7 +154,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Detail Ziel'));
 		await addDependency(page, parentId, taskId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -173,7 +173,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Mobil Zwei'));
 		await addDependency(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -199,7 +199,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		const parentId = await createTask(page, uniqueTitle('Sichtfeld Zwei'));
 		await addDependency(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -230,7 +230,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 	test('Eine Aufgabe ohne Abhängigkeit erscheint weder auf der Fläche noch in der Liste', async ({ page }) => {
 		const { soloId } = await createTwoTreesAndSolo(page);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -242,7 +242,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 	test('Mit der Tastatur blättert „Vor" zum nächsten Baum und wird am Ende deaktiviert', async ({ page }) => {
 		await createTwoTreesAndSolo(page);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -261,7 +261,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		await createTask(page, uniqueTitle('Einzeln A'));
 		await createTask(page, uniqueTitle('Einzeln B'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 
@@ -273,7 +273,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await createTwoTreesAndSolo(page);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openGraphTab(page);
 

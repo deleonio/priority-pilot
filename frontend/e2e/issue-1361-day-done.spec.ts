@@ -39,7 +39,7 @@ test.describe('Priority Pilot — #1361: Tag geschafft', () => {
 	test('AK1 — Dashboard zeigt den Abschluss-Hinweis, wenn alle Aufgaben heute erledigt sind', async ({ page }) => {
 		const task = await createTask(page, 'E2E 1361 heute erledigt');
 		await completeTask(page, task.id);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('day-done')).toBeVisible();
@@ -49,7 +49,7 @@ test.describe('Priority Pilot — #1361: Tag geschafft', () => {
 		const task = await createTask(page, 'E2E 1361 heute erledigt (2)');
 		await completeTask(page, task.id);
 		await createTask(page, 'E2E 1361 noch offen');
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('day-done')).toHaveCount(0);
@@ -58,7 +58,7 @@ test.describe('Priority Pilot — #1361: Tag geschafft', () => {
 	test('AK1/AK4 — Aufgaben-Tab zeigt denselben Hinweis', async ({ page }) => {
 		const task = await createTask(page, 'E2E 1361 aufgaben-tab');
 		await completeTask(page, task.id);
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 
 		await expect(page.getByTestId('day-done')).toBeVisible();
@@ -70,7 +70,7 @@ test.describe('Priority Pilot — #1361: Tag geschafft', () => {
 
 		for (const width of [375, 320]) {
 			await page.setViewportSize({ width, height: 812 });
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const hint = page.getByTestId('day-done');

@@ -24,7 +24,7 @@ test.describe('#1573 Feste Säulen im Settings-Tab (375 px)', () => {
 
 	/** Öffnet den Säulen-Tab und wartet auf den stabilen Zustand. */
 	const openPillarTab = async (page: import('@playwright/test').Page): Promise<void> => {
-		await page.goto('/settings/pillars');
+		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page, 'Priority Pilot');
 	};

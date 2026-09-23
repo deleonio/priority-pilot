@@ -79,7 +79,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK1: Mikrofon-Button ist an der Beschreibungs-Textarea sichtbar', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -91,7 +91,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK2: Klick auf den Mic-Button startet die Aufnahme (aria-pressed=true)', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -106,7 +106,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK3: nach __fireSpeechResult steht der Text im Beschreibungsfeld', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -123,7 +123,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK4: zweiter Klick stoppt die Aufnahme (aria-pressed nicht mehr true)', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -144,7 +144,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		page.on('pageerror', (err) => pageErrors.push(err.message));
 
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -165,7 +165,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 	test('AK6: Mic-Button ist auf 375px-Viewport vollständig sichtbar (nach Scroll)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -183,7 +183,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK7 (#264): Transkript landet im Titel-Feld und wird mit Leerzeichen angehängt', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -203,7 +203,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK8 (#264): Schnellerfassung — Transkript sichtbar und „Verarbeiten und weiter" aktiv', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Nur den Capture-Schritt öffnen (NICHT überspringen).
@@ -227,7 +227,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK9 (#264): Mic-Button liegt INNERHALB der Beschreibungs-Textarea, unten rechts', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -251,7 +251,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK10 (#264): Mic-Button liegt INNERHALB des Titel-Inputs, rechts vertikal mittig', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -282,7 +282,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		page,
 	}) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -304,7 +304,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -326,7 +326,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK13 (#264): Serien-Formular — Transkript landet im Titel-Feld', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Serien-Formular über QuickCapture-Flow öffnen und auf Serie-Modus umschalten.
@@ -345,7 +345,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK14 (#283): endet die Erkennung ohne Ergebnis, erscheint der Hinweis „Nichts erkannt"', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -365,7 +365,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK15 (#283): ein Zwischenergebnis geht beim Engine-Ende ohne Finale nicht verloren', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -384,7 +384,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK16 (#283): dreimal nacheinander Start → Ergebnis → jeder Text landet im Titel-Feld', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -405,7 +405,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 	test('AK17 (#283): onerror "no-speech" zeigt den Hinweis statt der generischen Fehlermeldung', async ({ page }) => {
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -424,7 +424,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);

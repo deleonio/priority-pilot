@@ -20,7 +20,7 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 test.describe('App-Version-Fußzeile (#290)', () => {
 	test('AK2: Fußzeile mit App-Version ist in der Haupt-App sichtbar', async ({ page }) => {
 		await mockAuthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const footer = page.getByRole('contentinfo');
 		await expect(footer).toBeVisible();
@@ -30,7 +30,7 @@ test.describe('App-Version-Fußzeile (#290)', () => {
 	test('AK4: Kein horizontaler Overflow bei Viewport 375×812 (Mobile-First)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockAuthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const footer = page.getByRole('contentinfo');
 		await expect(footer).toBeVisible();

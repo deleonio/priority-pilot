@@ -20,7 +20,7 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 	 */
 	test('AK1 (Desktop): Bürgermenü ist bei 1280×800 nicht vorhanden (Count 0)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -37,7 +37,7 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 	 */
 	test('AK2 (Tablet): Bürgermenü ist bei 768×1024 nicht vorhanden (Count 0)', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -54,7 +54,7 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 	 */
 	test('AK3 (Mobile): Bürgermenü ist bei 375×812 nicht vorhanden (Count 0)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -85,7 +85,7 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 
 		for (const viewport of viewports) {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -150,7 +150,7 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 
 		for (const viewport of viewports) {
 			await page.setViewportSize(viewport);
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });

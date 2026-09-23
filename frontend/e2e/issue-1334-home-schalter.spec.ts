@@ -25,7 +25,7 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	 */
 	for (const path of ['/aufgaben', '/serien', '/wald', '/settings/allgemein']) {
 		test(`AK1: Home-Schalter navigiert von ${path} zum Dashboard`, async ({ page }) => {
-			await page.goto(path);
+			await page.goto(`/app${path}`);
 			await waitForStableView(page, path.startsWith('/settings') ? 'Einstellungen' : undefined);
 
 			await homeSwitch(page).click();
@@ -41,7 +41,7 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	 * erreichbar und trägt ein Home-Icon (kein reines Markenlogo mehr).
 	 */
 	test('AK2: Home-Schalter ist sichtbar, benannt und trägt ein Home-Icon', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const el = homeSwitch(page);
@@ -55,7 +55,7 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	 * Dashboard (siehe `header-logo.spec.ts`), zusätzlich zu diesem Home-Schalter.
 	 */
 	test('AK2: Home-Schalter navigiert per Enter-Taste zum Dashboard', async ({ page }) => {
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 
 		await homeSwitch(page).focus();
@@ -72,7 +72,7 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	 */
 	test('AK3: Home-Schalter erfüllt Touch-Target-Maß, Kopfzeile bleibt einzeilig (375px)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const el = homeSwitch(page);

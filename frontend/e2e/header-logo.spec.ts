@@ -18,7 +18,7 @@ test.describe('#395 Header – Logo', () => {
 	 * über den Home-Schalter in der Toolbar.
 	 */
 	test('AK1: Logo ist im Header sichtbar und als Button interaktiv', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -35,7 +35,7 @@ test.describe('#395 Header – Logo', () => {
 	 * analog zum Home-Schalter (`issue-1334-home-schalter.spec.ts` AK1).
 	 */
 	test('AK1: Klick auf das Logo navigiert zum Dashboard', async ({ page }) => {
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 
 		await page.getByRole('banner').locator('.logo-btn').click();
@@ -51,7 +51,7 @@ test.describe('#395 Header – Logo', () => {
 	 * stattdessen existiert genau eine visually-hidden H1 „Dashboard".
 	 */
 	test('AK4: H1 „Priority Pilot" entfernt — Seiten-H1 „Dashboard" vorhanden', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toHaveCount(0);
@@ -64,7 +64,7 @@ test.describe('#395 Header – Logo', () => {
 	 */
 	test('AK5: Logo sichtbar und kein horizontaler Overflow bei 375px-Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -98,7 +98,7 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 	 * RED, solange die KolHeading _level={1} „Priority Pilot" im Header gerendert wird (count=1).
 	 */
 	test('AK1: Keine H1 „Priority Pilot" mehr im Dokument', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toHaveCount(0);
@@ -109,7 +109,7 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 	 * aber die Text-H1 „Priority Pilot" ist nicht mehr sichtbar.
 	 */
 	test('AK2: Header zeigt Logo, Toolbar und Avatar — kein sichtbarer Text-H1', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -140,7 +140,7 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 	 * RED, solange keine „Dashboard"-H1 existiert (count=0).
 	 */
 	test('AK4: Genau eine H1 „Dashboard" in der Hauptansicht', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toHaveCount(1);
@@ -166,7 +166,7 @@ test.describe('#485 Header – Icon-Only-Logo', () => {
 	 * `/logo/logo.png` und kein `logo-with-name`-Asset.
 	 */
 	test('AK1: Logo img src zeigt auf das Icon-Asset /logo/logo.png', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');
@@ -185,7 +185,7 @@ test.describe('#485 Header – Icon-Only-Logo', () => {
 	 * (2116×412 ≈ 5,1) nicht. Schützt davor, dass der Schriftzug über ein anderes Asset zurückkehrt.
 	 */
 	test('AK1: Geladenes Logo-Bild ist ein Icon (Seitenverhältnis < 1,5) und lädt fehlerfrei', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const logoImg = page.getByRole('banner').locator('.logo-btn img');

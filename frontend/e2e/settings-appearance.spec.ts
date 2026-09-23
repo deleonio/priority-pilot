@@ -45,7 +45,7 @@ test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', 
 	 * mit den drei Optionen System / Hell / Dunkel, interaktiv (nicht disabled).
 	 */
 	test('AK5: Allgemein-Tab zeigt ein Darstellungs-Bedienelement mit System/Hell/Dunkel', async ({ page }) => {
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Das benannte Bedienelement „Darstellung" ist sichtbar.
@@ -68,7 +68,7 @@ test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', 
 	test('AK6: Auswahl „Dunkel" setzt data-theme="dark" und speichert die Wahl', async ({ page }) => {
 		// Feste helle OS-Präferenz, damit ein späterer „System"-Wechsel deterministisch auflöst.
 		await page.emulateMedia({ colorScheme: 'light' });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const html = page.locator('html');
@@ -92,7 +92,7 @@ test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', 
 	 */
 	test('AK6: „Dunkel" bleibt nach Reload erhalten (Persistenz)', async ({ page }) => {
 		await page.emulateMedia({ colorScheme: 'light' });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const html = page.locator('html');
@@ -118,7 +118,7 @@ test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', 
 	 */
 	test('AK6: „System" folgt der OS-Präferenz (hell → data-theme="light")', async ({ page }) => {
 		await page.emulateMedia({ colorScheme: 'light' });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		const html = page.locator('html');
@@ -147,7 +147,7 @@ test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', 
 	 */
 	test('AK7: Darstellungs-Bedienelement sichtbar und kein Overflow bei 375×812', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
+		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Das Bedienelement ist auch auf dem schmalen Viewport sichtbar.

@@ -95,7 +95,7 @@ const openSessionDialog = async (page: Page): Promise<void> => {
 		}),
 	);
 
-	await page.goto('/aufgaben');
+	await page.goto('/app/aufgaben');
 	await waitForStableView(page, 'Aufgaben');
 
 	await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();

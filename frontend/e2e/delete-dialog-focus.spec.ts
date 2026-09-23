@@ -130,7 +130,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		page,
 	}) => {
 		await installDeleteFocusWatcher(page);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
@@ -164,7 +164,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		// #553: Kein `installDeleteFocusWatcher` — der Serien-Dialog hat keinen „Endgültig löschen"-
 		// Button mehr, der Watcher (der genau auf diesen Text horcht) wäre hier bedeutungslos.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
@@ -209,7 +209,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	 * Test mit AK1/AK4 über assertTabFreedomInOpenDeleteDialog — Begründung im Helper-Kommentar.
 	 */
 	test('AK4 — Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskDeleteDialog(page, uniqueTitle('Tab'));
@@ -219,7 +219,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	test('AK5 — Abbrechen gibt den Fokus an das auslösende Element zurück', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const moreButton = await openTaskDeleteDialog(page, uniqueTitle('Abbrechen'));
@@ -240,7 +240,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Zwei Tasks: nach dem Löschen bleibt die Liste bestehen — der Auslöser ist trotzdem weg,
@@ -262,7 +262,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskDeleteDialog(page, uniqueTitle('Mobile'));
@@ -333,7 +333,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		});
 		expect(created.ok()).toBeTruthy();
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();

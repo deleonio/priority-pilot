@@ -17,7 +17,7 @@ import { waitForStableView } from './helpers';
  */
 
 const createGroupViaUi = async (page: Page, name: string): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await page.getByRole('button', { name: 'Gruppe anlegen' }).click();
 	await page.getByRole('searchbox', { name: 'Name' }).fill(name);
@@ -28,7 +28,7 @@ const createGroupViaUi = async (page: Page, name: string): Promise<void> => {
 
 /** Legt per API (Admin-Kontext) einen Einladungslink an und liefert den rohen Token. */
 const createInviteLink = async (page: Page, groupName: string): Promise<{ groupId: number; token: string }> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	const groupsRes = await page.request.get('/api/v1/groups');
 	const groups = (await groupsRes.json()) as { id: number; name: string }[];
@@ -77,7 +77,7 @@ test.describe('Gruppe über Einladungslink beitreten (#1226)', () => {
 		const joinerPage = await joinerContext.newPage();
 
 		try {
-			await joinerPage.goto(`/gruppen/beitreten?token=${token}`);
+			await joinerPage.goto(`/app/gruppen/beitreten?token=${token}`);
 
 			// Kontext: Gruppenname und Einladender sichtbar, genau eine Primäraktion.
 			await expect(joinerPage.getByText('E2E Einladungslink')).toBeVisible();
@@ -111,7 +111,7 @@ test.describe('Gruppe über Einladungslink beitreten (#1226)', () => {
 		const { token } = await createInviteLink(page, 'E2E Schmal Beitritt');
 
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto(`/gruppen/beitreten?token=${token}`);
+		await page.goto(`/app/gruppen/beitreten?token=${token}`);
 
 		const joinButton = page.getByRole('button', { name: 'Gruppe beitreten' });
 		await expect(joinButton).toBeVisible();

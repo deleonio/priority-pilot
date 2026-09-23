@@ -86,7 +86,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 			route.fulfill({ status: 302, headers: { Location: '/?silent=unavailable' } });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Heute (ROT): es gibt keinen stillen Einstieg → silentCount bleibt 0 → Poll läuft in Timeout.
 		await expect.poll(() => silentCount, { timeout: 5000 }).toBe(1);
@@ -111,7 +111,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 			route.fulfill({ status: 302, headers: { Location: '/?silent=unavailable' } });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Erster stiller Versuch wird ausgelöst (ROT heute: bleibt aus).
 		await expect.poll(() => silentCount, { timeout: 5000 }).toBeGreaterThanOrEqual(1);
@@ -140,7 +140,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 			route.fulfill({ status: 302, headers: { Location: '/' } });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Haupt-App erscheint (Nutzer angemeldet) — ohne Klick auf den manuellen Login-Button.
 		// Heute (ROT): stiller Versuch bleibt aus → /auth/me bleibt 401 → LoginPage → „Dashboard" nie sichtbar.
@@ -168,7 +168,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 			route.fulfill({ status: 302, headers: { Location: '/?silent=unavailable' } });
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
@@ -192,7 +192,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 	test('AK7 (Mobile-First 375px): Login-Seite ohne horizontales Scrollen bedienbar', async ({ page }) => {
 		await mockUnauthenticated(page);
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const loginButton = page.getByRole('button', { name: /Login with Google/i });
 		await expect(loginButton).toBeVisible();

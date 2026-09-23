@@ -23,7 +23,7 @@ test.describe('Priority Pilot — #1362: Meilenstein-Badges', () => {
 	});
 
 	test('AK7 — Dashboard zeigt die Meilenstein-Card mit sichtbaren Badges', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('milestone-badges-card');
@@ -34,7 +34,7 @@ test.describe('Priority Pilot — #1362: Meilenstein-Badges', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('milestone-badges-card');
