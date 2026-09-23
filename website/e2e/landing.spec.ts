@@ -55,18 +55,16 @@ test.describe('Öffentliche Website', () => {
 });
 
 test.describe('Installierte PWA', () => {
-	test('startet in der App statt auf der Website', async ({ page }) => {
+	test('zeigt die Website und öffnet die App erst per Klick', async ({ page }) => {
 		// display-mode: standalone emulieren, wie es eine installierte PWA mit alter start_url `/` meldet.
 		await page.addInitScript(() => {
 			const original = window.matchMedia.bind(window);
 			window.matchMedia = (query: string) =>
 				query === '(display-mode: standalone)' ? ({ matches: true } as MediaQueryList) : original(query);
 		});
-		await page.route('**/app/', (route) =>
-			route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>App</h1>' }),
-		);
 		await page.goto('/');
-		await expect(page).toHaveURL(/\/app\/$/);
-		await expect(page.getByRole('heading', { name: 'App' })).toBeVisible();
+		await expect(page).toHaveURL(/\/$/);
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woran solltest du als Nächstes arbeiten?');
+		await expect(page.getByRole('link', { name: 'Schon dabei? App öffnen' })).toHaveAttribute('href', '/app/');
 	});
 });
