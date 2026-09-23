@@ -137,6 +137,14 @@ GOOGLE_CLIENT_SECRET=DEIN_CLIENT_SECRET
 GOOGLE_CALLBACK_URL=https://priority-pilot.example.de/auth/google/callback
 GOOGLE_ALLOWED_EMAILS=du@example.de,partner@example.de
 ADMIN_EMAILS=du@example.de
+# Optional — Anmeldelink per E-Mail (Magic Link) neben Google. Aktiv, sobald SMTP_HOST, MAIL_FROM
+# und PUBLIC_BASE_URL gesetzt sind; es gilt dieselbe Allowlist (GOOGLE_ALLOWED_EMAILS).
+# PUBLIC_BASE_URL=https://priority-pilot.example.de
+# SMTP_HOST=smtp.example.de
+# SMTP_PORT=587
+# SMTP_USER=…
+# SMTP_PASSWORD=…
+# MAIL_FROM=noreply@example.de
 EOF
 sudo -u gh-deploy chmod 600 /var/www/gh-deploy/$APP/app/.env
 ```
