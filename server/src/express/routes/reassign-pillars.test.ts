@@ -180,7 +180,9 @@ describe('POST /admin/tasks/reassign-pillars — Batch-Neuzuordnung der Säulenv
 		assert.equal(firstTitles.length, 1, 'erster Lauf klassifiziert genau eine Aufgabe');
 
 		recorded = [];
-		const secondOffset = firstBody.updated + firstBody.failed + firstBody.skipped;
+		// Seit #1614 fallen erfolgreich verarbeitete Aufgaben aus der Auswahl — `offset` zählt nur
+		// die Fehlschläge der Serie (hier keine).
+		const secondOffset = firstBody.failed;
 		const second = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars?limit=1&offset=${secondOffset}`, {
 			method: 'POST',
 			headers: { Cookie: adminCookie },
@@ -198,6 +200,55 @@ describe('POST /admin/tasks/reassign-pillars — Batch-Neuzuordnung der Säulenv
 		);
 		assert.equal(secondBody.updated, 1);
 		assert.equal(secondBody.remaining, 0, 'nach beiden Läufen bleibt nichts mehr offen');
+	});
+
+	it('setzt fort: nach einem Neustart laufen später nur die noch offenen Aufgaben (#1614)', async () => {
+		await server.login(MEMBER_EMAIL, { role: 'member' });
+		const adminCookie = await server.login(ADMIN_EMAIL, { role: 'admin' });
+		const memberId = await userIdOf(MEMBER_EMAIL);
+		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+		for (const title of ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3']) {
+			await Task.create({ title, status: 'Open', userId: memberId });
+		}
+		const call = (method: 'GET' | 'POST', path: string): Promise<Response> =>
+			fetch(`${server.baseUrl}/admin/tasks/reassign-pillars${path}`, { method, headers: { Cookie: adminCookie } });
+
+		// Neustart, aber nur eine Portion — dann „abgebrochen“.
+		recorded = [];
+		const first = (await (await call('POST', '?restart=true&limit=1')).json()) as { remaining: number };
+		assert.equal(recorded.length, 1);
+		assert.equal(first.remaining, 2);
+
+		const status = (await (await call('GET', '/status')).json()) as {
+			startedAt: string | null;
+			total: number;
+			pending: number;
+		};
+		assert.ok(status.startedAt, 'Laufstart gemerkt');
+		assert.equal(status.total, 3);
+		assert.equal(status.pending, 2);
+
+		// Später fortsetzen: die bereits verarbeitete Aufgabe kommt nicht noch einmal dran.
+		const done = recorded[0].title;
+		recorded = [];
+		const resumed = (await (await call('POST', '')).json()) as { updated: number; remaining: number };
+		assert.equal(resumed.updated, 2);
+		assert.equal(resumed.remaining, 0);
+		assert.ok(!recorded.some((entry) => entry.title === done), 'keine Aufgabe doppelt');
+		assert.equal(((await (await call('GET', '/status')).json()) as { pending: number }).pending, 0);
+
+		// Ein Neustart nimmt wieder alle.
+		recorded = [];
+		await call('POST', '?restart=true');
+		assert.equal(recorded.length, 3);
+	});
+
+	it('weist den Status-Endpunkt für Nicht-Admins ab (#1614)', async () => {
+		const memberCookie = await server.login(MEMBER_EMAIL, { role: 'member' });
+		const res = await fetch(`${server.baseUrl}/admin/tasks/reassign-pillars/status`, {
+			headers: { Cookie: memberCookie },
+		});
+		assert.equal(res.status, 403);
 	});
 
 	it('beschränkt den Lauf mit status=open auf offene und laufende Aufgaben (#1614)', async () => {

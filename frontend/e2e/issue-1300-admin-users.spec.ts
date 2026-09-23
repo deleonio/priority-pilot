@@ -133,11 +133,20 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await mockAdminUsers(page);
 		// Regex statt Glob: der Aufruf trägt seit #1614 die Statusauswahl als Query (`?status=all`),
 		// und ein Glob ohne Platzhalter am Ende matcht eine URL mit Query-String nicht mehr.
-		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars/, (route: Route) =>
+		// Verankert auf das Ende, damit der GET auf `…/reassign-pillars/status` (eigener Mock
+		// unten) nicht mitgefangen und mit der POST-Antwort beantwortet wird (Review-Fund #4).
+		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars(\?[^/]*)?$/, (route: Route) =>
 			route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({ updated: 2, failed: 0, skipped: 1, users: 1, remaining: 0 }),
+			}),
+		);
+		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars\/status/, (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ total: 0, pending: 0, startedAt: null }),
 			}),
 		);
 		await page.setViewportSize(MOBILE);

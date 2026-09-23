@@ -531,17 +531,40 @@ export const api = {
 
 	/**
 	 * Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger.
-	 * `offset` (Finding #5) setzt einen portionierten Lauf fort: Summe aus `updated`+`failed`+
-	 * `skipped` aller vorherigen Läufe derselben Serie übergeben, sonst trifft jeder Aufruf
-	 * wieder dieselbe erste Portion.
+	 * Fortsetzbar (#1614): `restart: true` beginnt den Lauf für alle Konten neu, sonst werden nur
+	 * die seit dem Laufstart noch offenen Aufgaben verarbeitet. Erfolgreich verarbeitete fallen aus
+	 * der Auswahl, `offset` zählt daher nur die Fehlschläge der laufenden Serie.
 	 */
 	async reassignTaskPillars({
 		offset,
 		status,
+		limit,
+		restart,
 		signal,
-	}: { offset?: number; status?: ReassignStatusFilter } & Init = {}): Promise<ReassignPillarsResult> {
+	}: {
+		offset?: number;
+		status?: ReassignStatusFilter;
+		limit?: number;
+		restart?: boolean;
+	} & Init = {}): Promise<ReassignPillarsResult> {
 		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars', {
-			params: { query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status } },
+			params: {
+				query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status, limit, restart },
+			},
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+	/** Stand des app-weiten Batches (#1614): Aufgaben insgesamt und noch offen. */
+	async getReassignPillarsStatus({
+		status,
+		signal,
+	}: { status?: ReassignStatusFilter } & Init = {}): Promise<OwnReassignPillarsStatus> {
+		const { data, error, response } = await client.GET('/admin/tasks/reassign-pillars/status', {
+			params: { query: { status } },
 			signal,
 		});
 		if (!response.ok || data === undefined) {

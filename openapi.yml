@@ -1958,6 +1958,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/tasks/reassign-pillars/status:
+    get:
+      summary: Stand der app-weiten Säulen-Neuberechnung
+      description: >-
+        Aufgaben der Statusauswahl insgesamt und wie viele davon seit dem
+        Laufstart ihres Kontos nicht erfolgreich neu berechnet wurden. Ruft
+        keinen KI-Provider auf.
+      operationId: getReassignPillarsStatus
+      tags: [admin]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReassignStatusFilter'
+      responses:
+        '200':
+          description: Stand des Batches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnReassignPillarsStatus'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Nur für Administratoren
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /admin/tasks/reassign-pillars:
     post:
       summary: Säulenverteilung aller Aufgaben neu berechnen (Batch)
@@ -2000,7 +2032,9 @@ paths:
             Anzahl bereits verarbeiteter Aufgaben vorheriger Läufe derselben
             Portionierungs-Serie (Default 0) — ohne ihn träfe jeder Aufruf
             wieder dieselbe erste `limit`-Portion. Zum Fortsetzen die Summe aus
-            `updated`+`failed`+`skipped` aller vorherigen Läufe übergeben.
+            `failed` aller vorherigen Läufe übergeben — nur fehlgeschlagene
+            Aufgaben bleiben Präfix der Auswahl, erfolgreich verarbeitete
+            fallen serverseitig heraus.
           schema:
             type: integer
             minimum: 0
@@ -2012,6 +2046,16 @@ paths:
             in Bearbeitung befindliche Aufgaben, `done` nur erledigte.
           schema:
             $ref: '#/components/schemas/ReassignStatusFilter'
+        - name: restart
+          in: query
+          required: false
+          description: >-
+            `true` beginnt den Lauf für ALLE Konten neu. Ohne den Parameter wird
+            fortgesetzt: Verarbeitet werden nur Aufgaben, die seit dem Laufstart des
+            jeweiligen Kontos nicht erfolgreich neu berechnet wurden. `offset` zählt
+            dann nur die in dieser Serie fehlgeschlagenen Aufgaben.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Ergebnis des Batch-Laufs
@@ -3382,6 +3426,13 @@ components:
         users:
           type: integer
           description: Konten mit verarbeiteten Aufgaben im Lauf.
+        failureReasons:
+          type: object
+          additionalProperties:
+            type: integer
+          description: >-
+            Fehlergründe der fehlgeschlagenen Aufgaben dieses Aufrufs, zusammengefasst
+            als Grund → Anzahl. Fehlt, wenn nichts fehlschlug.
         remaining:
           type: integer
           description: >-

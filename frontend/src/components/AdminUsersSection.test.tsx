@@ -68,6 +68,7 @@ vi.mock('../api', () => ({
 		getAdminUsers: vi.fn(),
 		updateUserRole: vi.fn(),
 		reassignTaskPillars: vi.fn(),
+		getReassignPillarsStatus: vi.fn(),
 	},
 }));
 
@@ -78,12 +79,17 @@ vi.mock('./Modal', () => ({
 	Modal: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
+import type { ReassignPillarsResult } from 'client';
 import { api } from '../api';
 import { AdminUsersSection } from './AdminUsersSection';
 
 const mockGetAdminUsers = api.getAdminUsers as ReturnType<typeof vi.fn>;
 const mockUpdateUserRole = api.updateUserRole as ReturnType<typeof vi.fn>;
 const mockReassignTaskPillars = api.reassignTaskPillars as ReturnType<typeof vi.fn>;
+const mockGetReassignPillarsStatus = api.getReassignPillarsStatus as ReturnType<typeof vi.fn>;
+/** Noch nie gelaufen — dann gibt es kein „Fortsetzen“. */
+const NO_RUN = { startedAt: null, total: 0, pending: 0 };
+mockGetReassignPillarsStatus.mockImplementation(() => Promise.resolve(NO_RUN));
 
 type TestUser = {
 	id: number;
@@ -138,6 +144,7 @@ const badgeInRow = (row: HTMLElement, label: string): HTMLElement => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	mockGetReassignPillarsStatus.mockImplementation(() => Promise.resolve(NO_RUN));
 });
 
 describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member/tester)', () => {
@@ -387,7 +394,7 @@ describe('AdminUsersSection — Säulenverteilung neu berechnen (Fixup #1602, Fi
  * Folgeaufruf wieder dieselbe erste Portion, und der Rest blieb liegen.
  */
 describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
-	const portion = (over: Partial<Record<string, number>> = {}) => ({
+	const portion = (over: Partial<ReassignPillarsResult> = {}): ReassignPillarsResult => ({
 		updated: 0,
 		failed: 0,
 		skipped: 0,
@@ -435,14 +442,16 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 		await startRun();
 
 		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(2));
-		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ offset: 0 });
-		expect(mockReassignTaskPillars.mock.calls[1][0]).toMatchObject({ offset: 2 });
+		// Erfolgreich verarbeitete fallen serverseitig aus der Auswahl — ohne Fehlschlag bleibt der
+		// offset bei 0. Portionen zu 5, damit der Balken läuft; nur der erste Aufruf startet neu.
+		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ offset: 0, limit: 5, restart: true });
+		expect(mockReassignTaskPillars.mock.calls[1][0]).toMatchObject({ offset: 0, limit: 5, restart: false });
 
 		// Das Ergebnis summiert beide Portionen, statt nur die letzte zu zeigen.
 		await waitFor(() =>
 			expect(screen.getByRole('alert')).toHaveTextContent('4 Aufgaben neu zugeordnet, 1 unverändert gelassen'),
 		);
-		// Der manuelle „Fortsetzen"-Weg entfällt — der Lauf erledigt das selbst.
+		// Innerhalb eines Laufs ruft die Schleife selbst nach — ohne offenen Rest kein „Fortsetzen“.
 		expect(screen.queryByRole('button', { name: /Fortsetzen/ })).not.toBeInTheDocument();
 	});
 
@@ -455,7 +464,9 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
 		await startRun();
 
-		await waitFor(() => expect(screen.getByRole('progressbar')).toBeInTheDocument());
+		// Vor der ersten Antwort ist die Gesamtzahl unbekannt — Hinweis statt „0 / 0“-Balken.
+		await waitFor(() => expect(screen.getByText(/Ermittle Aufgaben/)).toBeInTheDocument());
+		expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
 
 		await act(async () => {
 			resolvers[0](portion({ updated: 2, remaining: 3 }));
@@ -479,5 +490,39 @@ describe('AdminUsersSection — Statusauswahl und Fortschritt (#1614)', () => {
 			expect(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' })).toBeEnabled(),
 		);
 		expect(mockReassignTaskPillars).toHaveBeenCalledTimes(1);
+	});
+
+	it('schiebt den offset nur um die Fehlschläge weiter und nennt deren Gründe', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockReassignTaskPillars
+			.mockResolvedValueOnce(portion({ updated: 3, failed: 2, remaining: 4, failureReasons: { 'HTTP 429': 2 } }))
+			.mockResolvedValueOnce(portion({ updated: 4, remaining: 0 }));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+		await startRun();
+
+		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalledTimes(2));
+		expect(mockReassignTaskPillars.mock.calls[1][0]).toMatchObject({ offset: 2 });
+		await waitFor(() =>
+			expect(screen.getByRole('alert')).toHaveTextContent('HTTP 429 (Rate-Limit des KI-Anbieters): 2'),
+		);
+	});
+
+	it('zeigt den Stand und setzt über „Fortsetzen“ ohne Neustart fort', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+		mockGetReassignPillarsStatus.mockImplementation(() =>
+			Promise.resolve({ startedAt: '2026-09-23T08:00:00.000Z', total: 145, pending: 54 }),
+		);
+		mockReassignTaskPillars.mockResolvedValue(portion({ updated: 5, remaining: 0 }));
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByTestId('reassign-batch-status')).toHaveTextContent('91 von 145'));
+
+		fireEvent.click(screen.getByRole('button', { name: 'Fortsetzen (54 offen)' }));
+		fireEvent.click(await screen.findByRole('button', { name: 'Jetzt fortsetzen' }));
+
+		await waitFor(() => expect(mockReassignTaskPillars).toHaveBeenCalled());
+		expect(mockReassignTaskPillars.mock.calls[0][0]).toMatchObject({ restart: false });
 	});
 });

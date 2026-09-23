@@ -246,18 +246,21 @@ export const reassignTaskPillarsForUser = async (
 	}
 	const validIds = new Set(pillars.map((pillar) => pillar.id));
 
-	const allTasks = await Task.findAll({
+	// Zählung getrennt von der Auswahl (statt alles zu laden und in JS zu slicen) — sonst wird das
+	// Laden über eine Portionierungs-Serie mit kleinem `limit` quadratisch (Befund #2).
+	const total = await countPendingTasks(userId, status, since);
+	if (offset >= total) {
+		return { updated: 0, failed: 0, skipped: 0, total, quotaExhausted: false };
+	}
+	const tasks = await Task.findAll({
 		where: taskWhere(userId, status, since),
 		attributes: ['id', 'title', 'description'],
 		order: [['id', 'ASC']],
+		offset,
+		...(budget !== undefined ? { limit: budget } : {}),
 	});
-	const total = allTasks.length;
-	let tasks = offset > 0 ? allTasks.slice(offset) : allTasks;
 	if (tasks.length === 0) {
 		return { updated: 0, failed: 0, skipped: 0, total, quotaExhausted: false };
-	}
-	if (budget !== undefined) {
-		tasks = tasks.slice(0, budget);
 	}
 
 	let examples: FeedbackExample[] = [];
@@ -352,6 +355,75 @@ export const reassignTaskPillarsForUser = async (
 export const DEFAULT_REASSIGN_LIMIT = 200;
 
 /**
+ * Laufstart je Konto (#1614) — Bezugspunkt für „Fortsetzen": offen sind die Aufgaben, deren
+ * `pillarsRecalculatedAt` fehlt oder älter ist. Der Pass-Through-Bestand (Aufgaben ohne Konto) hat
+ * keine `users`-Zeile; sein Start lebt nur im Prozess und geht bei einem Neustart verloren.
+ */
+let passthroughRunStartedAt: Date | null = null;
+
+export const readRunStart = async (userId: number | undefined): Promise<Date | null> => {
+	if (userId === undefined) {
+		return passthroughRunStartedAt;
+	}
+	const user = await User.findByPk(userId, { attributes: ['id', 'pillarRecalcStartedAt'] });
+	return user?.pillarRecalcStartedAt ?? null;
+};
+
+const writeRunStart = async (userId: number | undefined, startedAt: Date): Promise<void> => {
+	if (userId === undefined) {
+		passthroughRunStartedAt = startedAt;
+		return;
+	}
+	await User.update({ pillarRecalcStartedAt: startedAt }, { where: { id: userId } });
+};
+
+/** Laufstart lesen und, falls noch keiner existiert (oder `restart`), jetzt setzen. */
+export const ensureRunStart = async (userId: number | undefined, restart: boolean): Promise<Date> => {
+	const existing = restart ? null : await readRunStart(userId);
+	if (existing !== null) {
+		return existing;
+	}
+	const now = new Date();
+	await writeRunStart(userId, now);
+	return now;
+};
+
+/** Neustart für ALLE Konten (Admin-Batch): ab jetzt gilt jede Aufgabe wieder als offen. */
+const restartAllRuns = async (startedAt: Date): Promise<void> => {
+	await User.update({ pillarRecalcStartedAt: startedAt }, { where: {} });
+	passthroughRunStartedAt = startedAt;
+};
+
+const mergeFailureReasons = (
+	into: Record<string, number>,
+	from: Record<string, number> | undefined,
+): Record<string, number> => {
+	for (const [reason, count] of Object.entries(from ?? {})) {
+		into[reason] = (into[reason] ?? 0) + count;
+	}
+	return into;
+};
+
+/** Stand des Admin-Batches: Aufgaben insgesamt und seit dem jeweiligen Kontostart noch offen. */
+export const reassignStatusForAllUsers = async (
+	status: ReassignStatusFilter,
+): Promise<{ startedAt: Date | null; total: number; pending: number }> => {
+	const users = await User.findAll({ attributes: ['id', 'pillarRecalcStartedAt'], order: [['id', 'ASC']] });
+	let pending = 0;
+	let startedAt: Date | null = null;
+	for (const user of users) {
+		const since = user.pillarRecalcStartedAt ?? undefined;
+		pending += await countPendingTasks(user.id, status, since);
+		if (since !== undefined && (startedAt === null || since > startedAt)) {
+			startedAt = since;
+		}
+	}
+	pending += await countPendingTasks(undefined, status, passthroughRunStartedAt ?? undefined);
+	const total = await Task.count({ where: statusWhere(status) });
+	return { startedAt, total, pending };
+};
+
+/**
  * App-weiter Backfill: berechnet die Säulen-Verteilung ALLER Aufgaben (aller Konten,
  * inklusive erledigter) neu. Admin-Trigger („Änderung des Systems" — z. B. nach Umbenennung
  * oder Neu-Anlage von Säulen), siehe routes/admin.ts.
@@ -361,11 +433,10 @@ export const DEFAULT_REASSIGN_LIMIT = 200;
  * HTTP-Request und übersteht keinen Proxy-Timeout. `remaining` im Ergebnis zeigt, wie viele
  * Aufgaben noch offen sind.
  *
- * `offset` (Finding #5): ohne ihn würde jeder Folgeaufruf wieder bei Konto 1/Aufgabe 1 anfangen
- * und dieselbe erste Portion neu (und nur die) verarbeiten — `remaining` bliebe über beliebig
- * viele Läufe konstant. Konten werden nach `id` sortiert durchlaufen (feste Reihenfolge), der
- * Aufrufer reicht als `offset` die Summe aus `attempted` aller vorherigen Läufe derselben Serie
- * ein; der Batch überspringt dann genau so viele Aufgaben, bevor er wieder `limit` verarbeitet.
+ * Fortsetzbar wie der Nutzer-Lauf (#1614): Jedes Konto verarbeitet nur Aufgaben, die seit seinem
+ * Laufstart nicht erfolgreich neu berechnet wurden. `restart` setzt diesen Start für ALLE Konten
+ * neu. Erfolgreich verarbeitete fallen damit aus der Auswahl, die fehlgeschlagenen bleiben vorn in
+ * der Auswahl ihres Kontos stehen — `offset` zählt deshalb nur die Fehlschläge der laufenden Serie.
  */
 export const reassignTaskPillarsForAllUsers = async ({
 	classifier,
@@ -373,21 +444,44 @@ export const reassignTaskPillarsForAllUsers = async ({
 	limit = DEFAULT_REASSIGN_LIMIT,
 	offset = 0,
 	status = 'all',
-}: Omit<ReassignRunOptions, 'budget'> & { limit?: number }): Promise<
+	restart = false,
+}: Omit<ReassignRunOptions, 'budget' | 'since'> & { limit?: number; restart?: boolean }): Promise<
 	ReassignPillarsResult & { users: number; remaining: number }
 > => {
-	// Muss dieselbe Statusauswahl zählen wie der Lauf selbst — sonst meldete `remaining` bei
-	// gefilterten Läufen die Aufgaben mit, die der Filter gerade ausschließt.
-	const totalTasks = await Task.count({ where: statusWhere(status) });
-	const users = await User.findAll({ attributes: ['id'], order: [['id', 'ASC']] });
-	let aggregated: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
+	if (restart) {
+		await restartAllRuns(new Date());
+	}
+	const users = await User.findAll({ attributes: ['id', 'pillarRecalcStartedAt'], order: [['id', 'ASC']] });
+	// Konten ohne Laufstart bekommen jetzt einen — ohne ihn fielen verarbeitete Aufgaben nicht aus
+	// der Auswahl, und der offset (nur Fehlschläge) stimmte nicht mehr.
+	const accounts: { userId: number | undefined; since: Date }[] = [];
+	for (const user of users) {
+		accounts.push({ userId: user.id, since: user.pillarRecalcStartedAt ?? (await ensureRunStart(user.id, false)) });
+	}
+	accounts.push({ userId: undefined, since: await ensureRunStart(undefined, false) });
+
+	// Muss dieselbe Auswahl zählen wie der Lauf selbst — sonst stimmte `remaining` nicht.
+	let totalPending = 0;
+	for (const account of accounts) {
+		totalPending += await countPendingTasks(account.userId, status, account.since);
+	}
+
+	const aggregated: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };
+	const failureReasons: Record<string, number> = {};
 	let processed = 0;
 	let attempted = 0;
 	let budget = limit;
 	let skip = offset;
-	for (const user of users) {
+	for (const account of accounts) {
 		if (budget <= 0) break;
-		const result = await reassignTaskPillarsForUser(user.id, { classifier, provider, budget, offset: skip, status });
+		const result = await reassignTaskPillarsForUser(account.userId, {
+			classifier,
+			provider,
+			budget,
+			offset: skip,
+			status,
+			since: account.since,
+		});
 		skip = Math.max(0, skip - result.total);
 		const consumed = result.updated + result.failed + result.skipped;
 		if (consumed > 0) {
@@ -395,25 +489,15 @@ export const reassignTaskPillarsForAllUsers = async ({
 		}
 		attempted += consumed;
 		budget -= consumed;
-		aggregated = {
-			updated: aggregated.updated + result.updated,
-			failed: aggregated.failed + result.failed,
-			skipped: aggregated.skipped + result.skipped,
-		};
+		aggregated.updated += result.updated;
+		aggregated.failed += result.failed;
+		aggregated.skipped += result.skipped;
+		mergeFailureReasons(failureReasons, result.failureReasons);
 	}
-	// Pass-Through-Bestand (Aufgaben ohne Eigentümerkonto) — NULL-owned Stammsäulen.
-	if (budget > 0) {
-		const legacy = await reassignTaskPillarsForUser(undefined, { classifier, provider, budget, offset: skip, status });
-		const consumed = legacy.updated + legacy.failed + legacy.skipped;
-		attempted += consumed;
-		aggregated = {
-			updated: aggregated.updated + legacy.updated,
-			failed: aggregated.failed + legacy.failed,
-			skipped: aggregated.skipped + legacy.skipped,
-		};
-		if (consumed > 0) {
-			processed++;
-		}
-	}
-	return { ...aggregated, users: processed, remaining: Math.max(0, totalTasks - offset - attempted) };
+	return {
+		...aggregated,
+		...(aggregated.failed > 0 ? { failureReasons } : {}),
+		users: processed,
+		remaining: Math.max(0, totalPending - offset - attempted),
+	};
 };
