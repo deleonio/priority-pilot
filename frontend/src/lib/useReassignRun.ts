@@ -78,8 +78,10 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 		seqRef.current += 1;
 		const seq = seqRef.current;
 		let next: OwnReassignPillarsStatus;
+		let processed: number;
 		try {
 			next = await loadStatus();
+			processed = next.processed ?? 0;
 		} catch {
 			setStatus(null);
 			return;
@@ -88,7 +90,6 @@ export const useReassignRun = ({ runPortion, loadStatus, onChanged }: UseReassig
 			return;
 		}
 		setStatus(next);
-		const processed = next.processed ?? 0;
 		if (next.running === true) {
 			trackingRef.current = true;
 			setRun((prev) => ({
