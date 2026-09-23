@@ -79,7 +79,7 @@ const mockAuthCycle = (page: Page): { authed: { value: boolean }; silentReturnTo
 		state.returnTo = url.searchParams.get('returnTo');
 		// Stiller Login erfolgreich: Session etabliert, Rückkehr auf die App-Route.
 		state.value = true;
-		route.fulfill({ status: 302, headers: { Location: '/aufgaben' } });
+		route.fulfill({ status: 302, headers: { Location: '/app/aufgaben' } });
 	});
 	return { authed: state, silentReturnTo: () => state.returnTo };
 };
@@ -131,7 +131,7 @@ test.describe('#1231 — Session-Expired-Dialog mit stillen Re-Login', () => {
 		await expect(page).toHaveURL(/\/aufgaben$/, { timeout: 10_000 });
 		await waitForStableView(page, 'Aufgaben');
 		// AK4 (Frontend-Hälfte): der Silent-Einstieg trägt den Return-Path der aktuellen Route.
-		await expect.poll(() => silentReturnTo()).toBe('/aufgaben');
+		await expect.poll(() => silentReturnTo()).toBe('/app/aufgaben');
 	});
 
 	test('AK5 (375px): Dialog vollständig bedienbar, „Neu laden" per Tastatur (Fokus + Enter) auslösbar', async ({
