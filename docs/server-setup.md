@@ -250,7 +250,8 @@ da der Vite-Proxy nur ausgehende Requests bedient.
 ## 8. Erster Deploy + Verifikation
 
 Ein **Merge auf `main`** stößt `.github/workflows/deploy.yml` an: Patch-Bump (lokal) → Build →
-`rsync` → `pm2 reload` (oder erster `pm2 start`), danach Push des Bump-Commits auf `main`. Die benötigten Secrets/Vars
+`rsync` → `pm2 reload` (oder erster `pm2 start`), danach Push des Bump-Commits auf `main`.
+Die benötigten Secrets/Vars
 (`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`) müssen im Repo
 konfiguriert sein.
 

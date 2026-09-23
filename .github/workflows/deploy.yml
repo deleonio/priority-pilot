@@ -10,8 +10,12 @@ permissions:
   contents: write
 
 concurrency:
+  # false: der Job fasst Produktion per rsync + pm2 an; ein abgebrochener Lauf kann
+  # rsync/pm2 mitten im Schritt hinterlassen (halb synced, pm2 nicht reloaded).
+  # Kollidiert der tägliche workflow_dispatch-Redeploy (cron.daily-version.yml) mit
+  # einem push-Deploy, wird er eingereiht statt den laufenden Deploy abzubrechen.
   group: deploy-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -49,8 +53,9 @@ jobs:
           npm version patch --no-git-tag-version
           NEW_VERSION=$(node -p "require('./package.json').version")
           git add package.json
-          # --no-verify: der Release-Commit darf die lefthook pre-commit-Hooks
-          # (format/lint/knip) NICHT auslösen — reiner Versions-Commit.
+          # --no-verify: an dieser Stelle (vor Install) existiert noch kein node_modules;
+          # die lefthook pre-commit-Hooks (format/lint/knip) würden über den
+          # prepare-Lifecycle scheitern, weil lefthook selbst fehlt — reiner Versions-Commit.
           git commit --no-verify -m "chore(release): v${NEW_VERSION} [skip ci]"
 
       - name: Install
