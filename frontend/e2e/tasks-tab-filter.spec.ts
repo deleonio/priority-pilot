@@ -14,7 +14,7 @@ import { taskTitleText, waitForStableView } from './helpers';
  * Wie `crud.spec.ts` laufen diese Specs gegen das **echte** Backend (In-Memory-DB, kein `page.route`).
  * Die Tests legen ihre Daten über die UI/echte API selbst an und räumen in `afterEach` wieder auf.
  */
-test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gegen das echte Backend', () => {
+test.describe('Balamentum — Aufgaben-Tab mit Filter und Switch (#399) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	// #582: Titel ≤65 Zeichen — Guard sichert das harter STRING(65)-Validator, Label bleibt voll
 	// erhalten (nur bei >65 abgeschnitten), sodass Substring-Filter wie "Matching" weiterhin greifen.
@@ -107,7 +107,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 	};
 
 	test('AK1: Ein Aufgaben-Tab — kein separater „Erledigte Aufgaben"-Tab', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const openTitle = uniqueTitle('Offen');
@@ -133,7 +133,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 	});
 
 	test('AK2: Umschalter wechselt zwischen offenem Baum und erledigter Tabelle', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// markTaskDoneViaUi erledigt den ZUERST angelegten Task (ältester/oberster im Baum → `.first()`).
@@ -176,7 +176,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 	});
 
 	test('AK3: Titel-Filter im offenen Baum (per Enter angewandt)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Titel bewusst disjunkt zum Filterbegriff: „Abweichung" enthält NICHT den Substring „Matching",
@@ -207,7 +207,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 	});
 
 	test('AK4: Titel-Filter in der erledigten Tabelle (per „Filtern"-Button angewandt)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// „Abweichung" enthält NICHT den Filter-Substring „Matching" (sonst behielte der Filter beide).
@@ -248,7 +248,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 	});
 
 	test('AK5: Keine Treffer → klare Leerhinweis-Meldung', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Beide Tasks anlegen und einen erledigen, BEVOR gefiltert wird: Ein aktiver Filter ohne Treffer
@@ -282,7 +282,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 	});
 
 	test('AK6: Suchtext wird beim Umschalten erhalten', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const openTitle = uniqueTitle('Open Test');
@@ -315,7 +315,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 
 	test('AK7: Mobile-First (375px) — kein horizontales Scrollen', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const mobileTitle = uniqueTitle('Mobil');
@@ -378,7 +378,7 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 		/** Öffnet den Aufgaben-Tab im gewünschten Viewport und liefert die drei Kästen der Filterzeile. */
 		const filterRowBoxes = async (page: Page, width: number, height: number) => {
 			await page.setViewportSize({ width, height });
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 			await waitForStableView(page);

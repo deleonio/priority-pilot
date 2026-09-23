@@ -100,7 +100,7 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await addSubtask(page, idA, idB);
 		await addSubtask(page, idA, idC);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// A + 2 Sub-Tasks = 3 Tasks, keiner erledigt → Fortschritt „0/3" serverseitig (node.progress).
@@ -114,7 +114,7 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		const titelSolo = uniqueTitle('Solo');
 		const idSolo = await createTask(page, titelSolo);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -133,7 +133,7 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		// B ist Unteraufgabe von A → A + 1 Sub-Task = 2 Tasks, keiner erledigt → „0/2".
 		await addSubtask(page, idA, idB);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Initial: 0/2.
@@ -155,7 +155,7 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		const titelSolo = uniqueTitle('Solo');
 		const idSolo = await createTask(page, titelSolo);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 

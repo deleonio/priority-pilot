@@ -21,7 +21,7 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 	 */
 	test('AK1 (Mobile): Range-Inputs sind bei 375×667 übereinander (vertikal gestapelt)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Schnellerfassungs-Dialog öffnen (Button mit Plus-Icon)
@@ -60,7 +60,7 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 	 */
 	test('AK2 (Tablet): Range-Inputs sind bei 768×1024 übereinander (vertikal gestapelt)', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
@@ -94,7 +94,7 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 	 */
 	test('AK3 (Desktop): Range-Inputs sind bei 1024×768 nebeneinander (horizontal)', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
@@ -125,7 +125,7 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 	 * Bezug: docs/spec/issue-727.md, Schritt 3 (Breakpoint-Übergänge).
 	 */
 	test('AK4 (Übergänge): Keine Layout-Breaks bei Resize 375→768→1024px', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();

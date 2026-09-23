@@ -63,17 +63,17 @@ const mockEmptyInvoices = async (page: Page): Promise<void> => {
 
 /** Test-Pflege (#1529): Matrix/Buchen/Wechseln liegen seit #1529 auf dem eigenen Pakete-Reiter. */
 const gotoPakete = async (page: Page): Promise<void> => {
-	await page.goto('/settings/pakete');
+	await page.goto('/app/settings/pakete');
 	await expect(page.getByTestId('plans-section')).toBeVisible();
 };
 
 /** Test-Pflege (#1529): Abo-Status/Kündigen/Rechnungen liegen seit #1529 auf dem eigenen Abo-Reiter. */
 const gotoAbo = async (page: Page): Promise<void> => {
-	await page.goto('/settings/abo');
+	await page.goto('/app/settings/abo');
 	await expect(page.getByTestId('billing-invoices')).toBeVisible();
 };
 
-test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
+test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 	test('AK1: Buchen ruft POST /billing/subscriptions und navigiert zur approvalUrl', async ({ page }) => {
 		await mockCatalog(page);
 		await mockAuthMe(page, USER_NO_SUBSCRIPTION);

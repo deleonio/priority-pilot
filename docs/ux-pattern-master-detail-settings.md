@@ -1,7 +1,7 @@
 # UX-Pattern: Haupt-/Unter-Einstellung
 
 Dieses Dokument beschreibt das UX-Pattern **Haupt-/Unter-Einstellung** für Settings-Paare in
-Priority Pilot, bei denen eine Haupt-Einstellung eine Gruppe fachlich zusammengehöriger
+Balamentum, bei denen eine Haupt-Einstellung eine Gruppe fachlich zusammengehöriger
 Unter-Einstellungen freischaltet. Es dient als verbindliche Referenz für künftige
 Implementierungs-Issues, die ein solches Master-/Sub-Verhältnis in den Einstellungen umsetzen.
 
@@ -72,7 +72,7 @@ selbst wenn das umschließende `KolAccordion` zusätzlich geschlossen ist.
   manuell offen lässt, während der Master (oder eine zusätzliche Bedingung) die Bedienung sperrt.
 - `kol-details`/`kol-accordion` sind Teil der App-weiten Transparenz-Regel für KoliBri-Host-Hintergründe (#930,
   `frontend/src/app.css`) — kein eigener Hintergrund, wie bei allen anderen KoliBri-Komponenten in
-  Priority Pilot.
+  Balamentum.
 - Die Zugehörigkeit zum Master zeigt sich allein durch die Gruppierung im `KolAccordion` und den
   Innenabstand dessen Kollapsbereichs — eigene Einrückungs-/Sub-Marker-Klassen
   (`.settings-switch-row--sub`) sind seit dem Flush-Layout ersatzlos entfallen.

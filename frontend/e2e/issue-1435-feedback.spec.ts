@@ -22,7 +22,7 @@ test.describe('Feedback direkt in Obsidian (#1435)', () => {
 	const statusAlert = (page: import('@playwright/test').Page) => page.locator('.feedback-form kol-alert');
 
 	const openFeedbackTab = async (page: import('@playwright/test').Page): Promise<void> => {
-		await page.goto('/hilfe');
+		await page.goto('/app/hilfe');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Feedback', exact: true }).click();
 	};

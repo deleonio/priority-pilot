@@ -1,5 +1,5 @@
 #!/bin/bash
-# maintenance.sh - Nightly SQLite-Backup-Skript für Priority-Pilot
+# maintenance.sh - Nightly SQLite-Backup-Skript für Balamentum
 # Usage: ./maintenance.sh oder via Cron: 0 2 * * * /path/to/maintenance.sh
 
 set -euo pipefail

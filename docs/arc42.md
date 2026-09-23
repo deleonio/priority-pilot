@@ -1,4 +1,4 @@
-# Priority Pilot — Architekturübersicht (arc42)
+# Balamentum — Architekturübersicht (arc42)
 
 Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operating Details
 (Rollout-Abfolge, Server-Setup) bleiben [deployment.md](deployment.md) und
@@ -6,7 +6,7 @@ Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operat
 
 ## 1. Einführung und Ziele
 
-Priority Pilot ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
+Balamentum ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
 mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewichtung und
 Punkte-Konto (Gamification), wiederkehrende Aufgaben (Serien), Gruppen mit geteilten Tasks und
 Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite), KI-Unterstützung
@@ -70,8 +70,8 @@ graph LR
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
     MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
     subgraph Host[Dedizierter Server]
-        Caddy[Caddy, TLS] --> SPA[Priority Pilot SPA]
-        Caddy -->|"/api/v1/* → strip"| API[Priority Pilot API]
+        Caddy[Caddy, TLS] --> SPA[Balamentum SPA]
+        Caddy -->|"/api/v1/* → strip"| API[Balamentum API]
         API --> DB[(SQLite)]
     end
     API -->|IF-02 OAuth| Google[Google]
@@ -322,22 +322,23 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 
 Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis.
 
-| ADR                                                     | Titel                                                     | Status                                         |
-| ------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------- |
-| [0001](adr/0001-github-workflows-bleiben-ungetestet.md) | GitHub-Workflows bleiben ungetestet                       | Akzeptiert                                     |
-| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)       | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)          | Akzeptiert; Phasenzahl überholt durch ADR 0005 |
-| [0003](adr/0003-label-schema-ai-needs-und-past.md)      | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`     | Akzeptiert                                     |
-| [0004](adr/0004-analyse-getriebenes-routing.md)         | Analyse-getriebenes Routing statt starrer Phasenkette     | Akzeptiert                                     |
-| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) | Fixup und Umsetzung sind eine Phase                       | Akzeptiert                                     |
-| [0006](adr/0006-issue-storage-state-branch.md)          | Issue-Storage: State-Branch pro Issue                     | Ersetzt durch ADR 0007                         |
-| [0007](adr/0007-issue-storage-harness-branch.md)        | Issue-Storage im Harness-Branch                           | Akzeptiert; Transport ersetzt durch ADR 0010   |
-| [0008](adr/0008-delegation-und-mentor-eskalation.md)    | Delegation nach unten, Mentor nach oben                   | Akzeptiert                                     |
-| [0009](adr/0009-issue-storage-harness-kommentar.md)     | Phasen-Ausgaben im Harness-Kommentar                      | Akzeptiert                                     |
-| [0010](adr/0010-issue-storage-workflow-artefakt.md)     | Phasen-Notizen als Workflow-Artefakt                      | Akzeptiert                                     |
-| [0011](adr/0011-umsetzung-worktree-isolation.md)        | Worktree-Isolation für parallele Ticket-Läufe             | Vorgeschlagen                                  |
-| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)               | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK | Akzeptiert                                     |
-| [0013](adr/0013-zahlungsweg-paypal-abos.md)             | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild      | Akzeptiert                                     |
-| [0014](adr/0014-paket-angebote-ohne-dialog.md)          | Paketgrenzen: Angebote in den Einstellungen               | Akzeptiert; ersetzt #1458 AK5/AK7/AK13         |
+| ADR                                                        | Titel                                                     | Status                                         |
+| ---------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------- |
+| [0001](adr/0001-github-workflows-bleiben-ungetestet.md)    | GitHub-Workflows bleiben ungetestet                       | Akzeptiert                                     |
+| [0002](adr/0002-pipeline-7-phasen-ux-vor-spec.md)          | Pipeline auf 7 sequenzielle Phasen (UX vor Spec)          | Akzeptiert; Phasenzahl überholt durch ADR 0005 |
+| [0003](adr/0003-label-schema-ai-needs-und-past.md)         | Label-Schema `ai:needs-*` / `ai:<Vergangenheitsform>`     | Akzeptiert                                     |
+| [0004](adr/0004-analyse-getriebenes-routing.md)            | Analyse-getriebenes Routing statt starrer Phasenkette     | Akzeptiert                                     |
+| [0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md)    | Fixup und Umsetzung sind eine Phase                       | Akzeptiert                                     |
+| [0006](adr/0006-issue-storage-state-branch.md)             | Issue-Storage: State-Branch pro Issue                     | Ersetzt durch ADR 0007                         |
+| [0007](adr/0007-issue-storage-harness-branch.md)           | Issue-Storage im Harness-Branch                           | Akzeptiert; Transport ersetzt durch ADR 0010   |
+| [0008](adr/0008-delegation-und-mentor-eskalation.md)       | Delegation nach unten, Mentor nach oben                   | Akzeptiert                                     |
+| [0009](adr/0009-issue-storage-harness-kommentar.md)        | Phasen-Ausgaben im Harness-Kommentar                      | Akzeptiert                                     |
+| [0010](adr/0010-issue-storage-workflow-artefakt.md)        | Phasen-Notizen als Workflow-Artefakt                      | Akzeptiert                                     |
+| [0011](adr/0011-umsetzung-worktree-isolation.md)           | Worktree-Isolation für parallele Ticket-Läufe             | Vorgeschlagen                                  |
+| [0012](adr/0012-mcp-endpunkt-ohne-sdk.md)                  | MCP-Endpunkt: Streamable-HTTP-Subset ohne offizielles SDK | Akzeptiert                                     |
+| [0013](adr/0013-zahlungsweg-paypal-abos.md)                | Zahlungsweg: PayPal-Abos direkt, Stripe als Zielbild      | Akzeptiert                                     |
+| [0014](adr/0014-paket-angebote-ohne-dialog.md)             | Paketgrenzen: Angebote in den Einstellungen               | Akzeptiert; ersetzt #1458 AK5/AK7/AK13         |
+| [0015](adr/0015-oeffentliche-website-und-app-unter-app.md) | Öffentliche Website an der Wurzel, App unter /app/        | Akzeptiert                                     |
 
 ## 10. Qualitätsanforderungen
 

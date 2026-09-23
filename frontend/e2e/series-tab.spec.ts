@@ -20,7 +20,7 @@ import { waitForStableView } from './helpers';
  * **Isolation:** `afterEach` räumt erst alle Tasks (inkl. generierter Instanzen), dann alle Serien
  * über die echte API wieder ab, damit jeder Test vom definierten, leeren Zustand startet.
  */
-test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () => {
+test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
@@ -103,7 +103,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		const title = uniqueTitle('TabErreichbar');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Der Tab „Serien" existiert und ist klickbar.
@@ -123,7 +123,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		const title = uniqueTitle('Zeile');
 		const seriesId = await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
@@ -151,7 +151,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		const titleNew = uniqueTitle('BearbeitenNeu');
 		const seriesId = await createSeriesViaApi(page, { title: titleOld, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
@@ -190,7 +190,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		const title = uniqueTitle('Loeschen');
 		const seriesId = await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
@@ -220,7 +220,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		// Serie mit Startdatum in der Vergangenheit → mehrere fällige Termine liegen bereit.
 		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-01-01T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
@@ -240,7 +240,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 	// AK7 — Serien-Tab auch bei 0 Aufgaben erreichbar: alle Tasks gelöscht, 1 Serie via API,
 	// App öffnen, Serien-Tab klickbar, Serie sichtbar.
 	test('AK7 — Serien-Tab ist auch bei 0 Aufgaben erreichbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Alle Tasks löschen → definierter Nullzustand (keine Aufgaben).
@@ -253,7 +253,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		const seriesId = await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
 		// App neu öffnen: trotz 0 Aufgaben muss der Serien-Tab erreichbar sein.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const seriesTab = page.getByRole('tab', { name: 'Serien', exact: true });
@@ -272,7 +272,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-09-07T00:00:00.000Z' });
 
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 

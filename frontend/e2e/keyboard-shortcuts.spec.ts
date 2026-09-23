@@ -64,7 +64,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	};
 
 	test('AK1: Strg+Enter im offenen Dialog löst die primäre Aktion aus (Task wird gespeichert)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -82,7 +82,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	});
 
 	test('AK2: ⌘+Enter (macOS) löst dieselbe primäre Aktion aus wie Strg+Enter', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -99,7 +99,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	});
 
 	test('AK3: bei deaktiviertem CTA (Pflichtfeld leer) passiert bei Strg+Enter nichts', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -128,7 +128,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	test('AK4: Strg+Enter aus einem Textfeld heraus löst die Aktion aus, ohne Zeilenumbruch einzufügen', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -163,7 +163,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -207,7 +207,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	// UI-Flow eindeutig aus `crud.spec.ts` ableitbar: Task anlegen → in der Liste „Löschen" klicken →
 	// Bestätigungsdialog („Task löschen") → primärer CTA „Endgültig löschen" (Variante `danger`).
 	test('AK6: Strg+Enter im Löschen-Dialog löst „Endgültig löschen" aus (Task verschwindet)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Löschen');
@@ -236,7 +236,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	// primärer CTA „Speichern". Die vorhandenen Säulen-Rohwerte sind gültig (Default > 0), daher ist
 	// der CTA aktiv und der Shortcut löst das Speichern aus.
 	test('AK7: Strg+Enter im Säulen-Gewichtungs-Dialog löst „Speichern" aus (Dialog schließt)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Neuer Flow: direkt zur Settings-Route navigieren
@@ -245,10 +245,10 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// bei unausgewogener Verteilung das Bestätigungs-Modal, statt direkt zu speichern. Die
 		// gespeicherte Gleichverteilung ist gültig — der Shortcut allein muss sie speichern.
 		await setEqualPillarWeights(page);
-		await page.goto('/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pillars');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');
@@ -263,7 +263,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	// Nach dem Speichern wird das Modal geschlossen. `afterEach` (deleteAllTasks) räumt nur Tasks ab,
 	// daher die Serie hier explizit über die echte API wieder löschen, damit der Test isoliert bleibt.
 	test('AK8: Strg+Enter im Serien-Formular löst „Anlegen" aus (Serie wird angelegt)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Serie');
@@ -316,7 +316,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 			}),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -341,7 +341,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	// Shortcut muss die Abhängigkeit anlegen (Dialog bleibt offen, der neue Vorgänger erscheint in der
 	// Liste „Aktuelle Vorgänger").
 	test('AK10: Strg+Enter im Abhängigkeits-Dialog löst „Hinzufügen" aus (Vorgänger erscheint)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const predecessorTitle = uniqueTitle('Vorgänger');

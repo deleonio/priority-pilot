@@ -23,13 +23,13 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 
 	/** Navigiert auf den Säulen-Tab der Einstellungen (Quelle: issue-763.spec.ts). */
 	const navigateToPillarWeights = async (page: Page) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const settingsButton = page.getByRole('button', { name: /Einstellungen/i });
 		await expect(settingsButton).toBeVisible();
 		await settingsButton.click();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const pillarsTab = page.getByRole('button', { name: /^Säulen$/ }).or(page.getByText('Säulen', { exact: true }));
 		await expect(pillarsTab).toBeVisible();
@@ -73,7 +73,7 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 	 */
 	test('AK1: TaskForm-Range-Felder (Priorität/Aufwand) mindestens 300 px breit (1280 px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Task anlegen, damit die Aufgaben-Tabelle einen Bearbeiten-Dialog bietet.

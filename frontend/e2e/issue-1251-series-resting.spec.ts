@@ -13,7 +13,7 @@ import { waitForStableView } from './helpers';
  * Läuft gegen das echte Backend (In-Memory-DB, Vite-Proxy); `GET /auth/me` ist über die
  * Fixture gemockt. Rot, bis SeriesTab.tsx das Badge rendert.
  */
-test.describe('Priority Pilot — Ruh-Hinweis für stillgelegte Serien (#1251)', () => {
+test.describe('Balamentum — Ruh-Hinweis für stillgelegte Serien (#1251)', () => {
 	test.use({ viewport: { width: 375, height: 812 } });
 
 	let runId = 0;
@@ -71,7 +71,7 @@ test.describe('Priority Pilot — Ruh-Hinweis für stillgelegte Serien (#1251)',
 		});
 		const restingId = await createRestingSeriesViaApi(page, restingTitle);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();
@@ -94,7 +94,7 @@ test.describe('Priority Pilot — Ruh-Hinweis für stillgelegte Serien (#1251)',
 		const restingTitle = uniqueTitle('Ruhend Toolbar');
 		const restingId = await createRestingSeriesViaApi(page, restingTitle);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
 		await expect(page.getByTestId('series-tree')).toBeVisible();

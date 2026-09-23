@@ -69,7 +69,7 @@ test.describe('Dashboard — Meter Ist-Anteil (Issue #219)', () => {
 	test('AK3: Zielwert ist als Meter-Statustext ("Optimal"/"Suboptimal") erkennbar, kein separater Zahlenwert', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await createTaskViaUi(page, uniqueTitle('Zielwert'));

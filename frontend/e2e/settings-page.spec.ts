@@ -30,7 +30,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 * „Einstellungen"-Button außerhalb der Toolbar — der bisherige `KolPopoverButton` ist ersetzt.
 	 */
 	test('AK1: Toolbar „Kopf-Aktionen" enthält den Einstellungs-Button, kein Popover mehr', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -51,7 +51,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	test('AK2: Klick auf das Zahnrad navigiert zu /settings/general und aktiviert den Allgemein-Tab', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -66,13 +66,13 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	});
 
 	/**
-	 * AK3 — Direktaufruf/Reload der Route: Ein direkter `page.goto('/settings/pillars')` rendert die
+	 * AK3 — Direktaufruf/Reload der Route: Ein direkter `page.goto('/app/settings/pillars')` rendert die
 	 * Settings-Seite (Säulen) — nicht das Dashboard. Die Route ist also beim Laden auflösbar (analog
 	 * zur Hilfe-Route: pushState/popstate).
 	 */
 	test('AK3: Direktaufruf von /settings/pillars rendert die Settings-Seite', async ({ page }) => {
-		await page.goto('/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pillars');
+		await waitForStableView(page, 'Balamentum');
 
 		// Die Settings-Seite mit dem Säulen-Editor ist sichtbar (Dashboard-Inhalt wäre falsch).
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
@@ -88,8 +88,8 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 		// Bestätigungs-Modal und der PUT bliebe aus) — Gleichverteilungs-Reset gegen parallele
 		// Specs im selben Shard (geteilte In-Memory-DB).
 		await setEqualPillarWeights(page);
-		await page.goto('/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pillars');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
 
@@ -109,7 +109,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	test('AK6: /settings/general auf 375 px – kein horizontales Scrollen, Allgemein-Tab aktiv', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Das Zahnrad ist auch auf schmalem Viewport erreichbar und bedienbar — dort über das
@@ -139,8 +139,8 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () => {
 	/** AK1 — Header (Banner, Toolbar, Avatar) bleibt auf /settings/general sichtbar. */
 	test('AK1: Header mit Banner, Toolbar und Avatar ist auf /settings/general sichtbar', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
@@ -149,8 +149,8 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 
 	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
 	test('AK3: Kein „Zurück"-Button auf /settings/general', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toHaveCount(0);
 	});
@@ -160,7 +160,7 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	 * Hauptansicht (hier: /aufgaben); ohne vorherige Hauptansicht (Kaltstart) ist das Ziel `/`.
 	 */
 	test('AK5: erneuter Klick auf „Einstellungen" führt zur vorherigen Hauptansicht zurück', async ({ page }) => {
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -180,7 +180,7 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	 */
 	test('Offener Task-Dialog bleibt nach Browser-Zurück nicht über der Einstellungen-Seite stehen', async ({ page }) => {
 		// History aufbauen: / → /settings/general → / (Rückweg über den aktiven Toolbar-Button).
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
@@ -201,8 +201,8 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	});
 
 	test('AK5: Kaltstart auf /settings/general ohne vorherige Hauptansicht führt zu „/"', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
@@ -212,8 +212,8 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	/** AK8 — Mobile-First (375px): Header und Seiteninhalt liegen vollständig im Viewport. */
 	test('AK8: 375px — Header und Seiteninhalt ohne horizontale Überlagerung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const header = page.getByRole('banner');
 		await expect(header).toBeVisible();

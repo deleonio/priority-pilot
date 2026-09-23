@@ -548,7 +548,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
-			window.location.href = '/login';
+			window.location.href = `${import.meta.env.BASE_URL}login`;
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
 			setLogoutLoading(false);
@@ -936,9 +936,9 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						{/* Zusätzlich zum Home-Schalter in der Kopf-Aktionen-Toolbar navigiert auch das Logo
 						    selbst zum Dashboard (reaktiviert nach #395) — gleicher Handler, gleicher a11y-Name. */}
 						<button type="button" className="logo-btn" onClick={handleHomeNavigate} aria-label={t('menu.home')}>
-							<img src="/logo/logo.png" alt="" />
+							<img src={`${import.meta.env.BASE_URL}logo/logo.png`} alt="" />
 						</button>
-						<span className="app-name">Priority Pilot</span>
+						<span className="app-name">Balamentum</span>
 					</div>
 					<div className="app-header__primary">
 						{/*
@@ -1383,7 +1383,7 @@ export const App = ({ user }: { user: AuthUser }) => (
 	// `future`-Flags opt-in: ohne sie loggt der Router bei jedem Start zwei Future-Flag-Warnings
 	// in die Konsole (e2e-Vertrag #865 AK6: keine console.warnings). Splat-Routen gibt es hier
 	// nicht, daher ist `v7_relativeSplatPath` verhaltensneutral.
-	<BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+	<BrowserRouter basename={import.meta.env.BASE_URL} future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
 		<AppWithPlan user={user} />
 	</BrowserRouter>
 );

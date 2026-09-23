@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * Backend (In-Memory-DB, Vite-Proxy). Daten werden direkt über die API angelegt, `afterEach`
  * räumt auf. Rot, bis `address` an Serien (AK1) existiert und alle drei Listen das Badge rendern.
  */
-test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabenliste', () => {
+test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabenliste', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -92,7 +92,7 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 		const idWith = await createSeriesViaApi(page, withAddress, 'Musterstraße 1, 12345 Musterstadt');
 		const idWithout = await createSeriesViaApi(page, withoutAddress);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
@@ -118,7 +118,7 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 		const openId = await createTaskViaApi(page, openWithAddress, false, 'Weg 4, 10115 Berlin');
 		const openIdNoAddr = await createTaskViaApi(page, openWithoutAddress, false);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCompletedView(page);
 
@@ -169,7 +169,7 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 
 		// Serienliste: Zeile bleibt vollständig in der Viewport-Breite (Bounding-Box, nicht
 		// scrollWidth — die App-Shell clippt mit overflow-x: hidden, siehe issue-1020-Spec).
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
 		// Badge-Assertion an der Serienzeile selbst (AK4-Muster): ein seitenweiter

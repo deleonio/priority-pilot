@@ -23,8 +23,8 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 	 * (computed `padding-left` === `padding-right`).
 	 */
 	test('AK1: .settings-general hat identisches padding-left und padding-right', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const panel = page.locator('.settings-general').first();
 		await expect(panel).toBeVisible();
@@ -49,8 +49,8 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 	test('AK2: Content des Tabs „Allgemein“ schließt links und rechts gleichmäßig mit dem Viewport ab', async ({
 		page,
 	}) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const box = await page.locator('.settings-general').first().boundingBox();
 		expect(box).toBeTruthy();
@@ -87,8 +87,8 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 	test('AK4: Insets der Tabs „Säulen“ und „LLM“ entsprechen unverändert den .settings-page-Insets', async ({
 		page,
 	}) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const pageInsets = await page
 			.locator('.settings-page')

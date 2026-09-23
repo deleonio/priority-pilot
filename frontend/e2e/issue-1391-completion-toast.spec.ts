@@ -27,13 +27,13 @@ const dispatchPush = (page: Page, payload: { title: string; body: string }) =>
 		navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'push', payload: p } }));
 	}, payload);
 
-test.describe('Priority Pilot — Erledigt-Hinweis Mobile-First (#1391)', () => {
+test.describe('Balamentum — Erledigt-Hinweis Mobile-First (#1391)', () => {
 	test('AK6: bei 375px liegt der Hinweis vollständig im Viewport, Schließen-Button ≥44px, Klick schließt ihn', async ({
 		page,
 	}) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 
 		await dispatchPush(page, { title: 'Aufgabe erledigt', body: 'Bob Empfänger hat „Rasen mähen" erledigt.' });

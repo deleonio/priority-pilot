@@ -58,7 +58,7 @@ describe('InstallPrompt', () => {
 		render(<InstallPrompt />);
 
 		// Vor dem Event darf kein Prompt sichtbar sein.
-		expect(screen.queryByText(/Möchtest du Priority Pilot/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Möchtest du Balamentum/i)).not.toBeInTheDocument();
 
 		// beforeinstallprompt-Event mit den benötigten Mock-Methoden dispatchen.
 		const event = new Event('beforeinstallprompt', { cancelable: true }) as BeforeInstallPromptEvent;
@@ -72,7 +72,7 @@ describe('InstallPrompt', () => {
 		});
 
 		// Nach dem Event zeigt die Komponente den Standard-Prompt.
-		expect(screen.getByText(/Möchtest du Priority Pilot/i)).toBeInTheDocument();
+		expect(screen.getByText(/Möchtest du Balamentum/i)).toBeInTheDocument();
 	});
 
 	it('should show iOS install instructions for iOS Safari', () => {

@@ -79,7 +79,7 @@ test.describe.skip('Abhängigkeits-Editor: Entfernen-Icon-Button (#368) — gesk
 	};
 
 	test('AK1: Entfernen ist ein reiner Icon-Button (Icon vorhanden, kein sichtbarer Text)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ziel-Task mit genau einem Vorgänger vorbereiten.
@@ -104,7 +104,7 @@ test.describe.skip('Abhängigkeits-Editor: Entfernen-Icon-Button (#368) — gesk
 	});
 
 	test('AK2: Icon-Button entfernt den Vorgänger (Funktion unverändert)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ziel-Task mit einem Vorgänger vorbereiten.
@@ -133,7 +133,7 @@ test.describe.skip('Abhängigkeits-Editor: Entfernen-Icon-Button (#368) — gesk
 	});
 
 	test('AK3: Zwei Vorgänger → unterscheidbare, zeilenspezifische zugängliche Namen', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ziel-Task mit ZWEI Vorgängern vorbereiten.
@@ -161,7 +161,7 @@ test.describe.skip('Abhängigkeits-Editor: Entfernen-Icon-Button (#368) — gesk
 
 	test('AK4: Kein horizontaler Overflow auf 375-px-Viewport, Icon-Button erreichbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ziel-Task mit einem Vorgänger vorbereiten.

@@ -23,7 +23,7 @@ import { HelpPage } from './HelpPage';
 const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=100';
 
 const USER_GUIDE_MD = [
-	'# Priority Pilot Handbuch',
+	'# Balamentum Handbuch',
 	'',
 	'## Erster Abschnitt',
 	'',

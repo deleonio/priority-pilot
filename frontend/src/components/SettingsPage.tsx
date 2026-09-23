@@ -521,7 +521,7 @@ export const SettingsPage = ({
 										_variant="switch"
 										_checked={pushEnabled}
 										_disabled={pushPending}
-										_hint="Erlaube Priority Pilot, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist."
+										_hint="Erlaube Balamentum, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist."
 										_on={{
 											onChange: (_event, value) => {
 												void togglePush(value === true);

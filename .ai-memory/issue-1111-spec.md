@@ -65,5 +65,5 @@ bleiben grün (`npx vitest run src/components/TaskForm.test.tsx src/components/A
   400 ms) → Selektion nur via `selectAddressHit`-Helper mit `waitFor(listbox, timeout 3000)`.
 - `getByText(/Adresse/i)` im Box-Kontext strict-mode-gefährdet, sobald eine Adresse „Adresse"
   enthält (TF2 nutzt deshalb `getByText(/Alte Adresse 5/)`).
-- E2E: ReadyText auf `/` bei ≤375px ist `Dashboard`, nicht `Priority Pilot` (MEMORY 2026-08-23);
+- E2E: ReadyText auf `/` bei ≤375px ist `Dashboard`, nicht `Balamentum` (MEMORY 2026-08-23);
   Bounding-Box statt scrollWidth (MEMORY 2026-08-24).

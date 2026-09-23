@@ -13,7 +13,7 @@ import { headerAction, waitForStableView } from './helpers';
  *
  * Diese Tests sind bewusst **rot**, bis der Produktivcode existiert: Der Hilfe-Button in der Toolbar,
  * die Route `/hilfe`, der Markdown-Renderer und der Zurück-Button fehlen aktuell. Die Tests navigieren
- * deshalb über `page.goto('/')` und den Button-Klick — NICHT direkt via `page.goto('/hilfe')`, weil die
+ * deshalb über `page.goto('/app/')` und den Button-Klick — NICHT direkt via `page.goto('/app/hilfe')`, weil die
  * Route noch nicht existiert.
  *
  * Sie prüfen reines UI-Verhalten gegen das echte Backend (kein API-Mock, wie in `crud.spec.ts`);
@@ -27,7 +27,7 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 	 * ohne sichtbaren Text.
 	 */
 	test('AK1: Header-Toolbar zeigt einen Icon-Only-Hilfe-Button (Tooltip vorhanden)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await expect(page.getByRole('button', { name: /hilfe/i })).toBeVisible();
@@ -38,7 +38,7 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 	 * `/hilfe`; der aus Markdown gerenderte Inhalt ist sichtbar (mindestens eine Überschrift `h1`/`h2`).
 	 */
 	test('AK2: Klick auf Hilfe-Button navigiert zu /hilfe und rendert Markdown-Inhalt', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /hilfe/i }).click();
@@ -59,7 +59,7 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 	test('AK4: Hilfe-Seite auf 375 px erzeugt kein horizontales Scrollen', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Auf 375px liegt „Hilfe" im „⋮"-Menü der Kopf-Aktionen (der Header bleibt dadurch einzeilig);
@@ -87,8 +87,8 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 	/** AK2 — Header (Banner, Toolbar) bleibt auf /hilfe sichtbar. */
 	test('AK2: Header mit Banner und Toolbar ist auf /hilfe sichtbar', async ({ page }) => {
-		await page.goto('/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/hilfe');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
@@ -97,8 +97,8 @@ test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 
 	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
 	test('AK3: Kein „Zurück"-Button auf /hilfe', async ({ page }) => {
-		await page.goto('/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/hilfe');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toHaveCount(0);
 	});
@@ -108,8 +108,8 @@ test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 	/** AK8 — Mobile-First (375px): Header und Seiteninhalt liegen vollständig im Viewport. */
 	test('AK8: 375px — Header und Seiteninhalt ohne horizontale Überlagerung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/hilfe');
+		await waitForStableView(page, 'Balamentum');
 
 		const header = page.getByRole('banner');
 		await expect(header).toBeVisible();

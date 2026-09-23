@@ -34,7 +34,7 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 test.describe('AK 7 — Frontend-Guard (#208)', () => {
 	test('AK7a: Unauthentifizierter Aufruf zeigt LoginPage — Haupt-App ausgeblendet', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// LoginPage muss sichtbar sein …
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
@@ -44,7 +44,7 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 
 	test('AK7b: Authentifizierter Benutzer sieht Haupt-App, nicht die LoginPage', async ({ page }) => {
 		await mockAuthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Haupt-App muss sichtbar sein (sr-only H1 „Dashboard" im DOM) …
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
@@ -55,7 +55,7 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 	test('AK7c: Wechsel von unauthentifiziert auf authentifiziert zeigt Haupt-App', async ({ page }) => {
 		// Erst 401 zurückgeben, dann auf 200 umschalten (simuliert Redirect nach OAuth).
 		await mockUnauthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 
 		// Auth-State auf eingeloggt setzen und Seite neu laden.
@@ -68,7 +68,7 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 	test('AK8a: ?error=access_denied zeigt exakte deutsche Fehlermeldung', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/?error=access_denied');
+		await page.goto('/app/?error=access_denied');
 
 		const alert = page.getByRole('alert');
 		await expect(alert).toBeVisible();
@@ -77,7 +77,7 @@ test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 
 	test('AK8b: ?error=invalid_email zeigt E-Mail-spezifische Fehlermeldung', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/?error=invalid_email');
+		await page.goto('/app/?error=invalid_email');
 
 		const alert = page.getByRole('alert');
 		await expect(alert).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 
 	test('AK8c: Unbekannter Fehlerparameter zeigt generische Fehlermeldung', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/?error=unknown_error');
+		await page.goto('/app/?error=unknown_error');
 
 		const alert = page.getByRole('alert');
 		await expect(alert).toBeVisible();
@@ -95,7 +95,7 @@ test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 
 	test('AK8d: Kein Fehlerparameter → kein Alert sichtbar', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Ohne ?error-Parameter darf kein Alert erscheinen.
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();

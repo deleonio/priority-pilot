@@ -17,7 +17,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * **Isolation:** Die In-Memory-DB überlebt den ganzen Backend-Prozess; `afterEach` räumt darum erst
  * alle Tasks (auch generierte Instanzen), dann alle Serien über die echte API wieder ab.
  */
-test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)', () => {
+test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
@@ -118,7 +118,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 	// Nach #330: kein separater „Neue Serie anlegen"-Button mehr im SeriesManagementModal —
 	// Anlegen läuft über QuickCapture („Neuen Task anlegen" → Überspringen → Serie-Modus).
 	test('AK1 — Serie über die UI anlegen: wird persistiert und in der Serien-Liste angezeigt', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Anlegen');
@@ -184,7 +184,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		});
 		expect(exceptionResponse.ok()).toBeTruthy();
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -215,7 +215,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		const moved = sorted[0];
 		const sibling = sorted[1];
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -266,7 +266,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// Serie mit Startdatum in der Vergangenheit → mehrere fällige Termine liegen bereit.
 		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-01-01T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -292,7 +292,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-01-01T00:00:00.000Z' });
 
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -314,7 +314,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
  * Serie-Modus. Erkennbar am typspezifischen Dialogtitel „Serie bearbeiten: <title>" (#334) —
  * im Bearbeiten-Modus ist der Switch (`data-testid="mode-switch"`) nicht im DOM.
  */
-test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
+test.describe('Balamentum — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -360,7 +360,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		const title = uniqueTitle('Bearbeiten');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -391,7 +391,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		const titleNew = uniqueTitle('Neu');
 		await createSeriesViaApi(page, { title: titleOld, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -420,7 +420,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		const title = uniqueTitle('Loeschen');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -450,7 +450,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
  * AK5a ist der Kern-Rot-Test: `toHaveCount(0)` schlägt aktuell fehl, weil der Button noch existiert.
  * Nach Umsetzung (Button entfernt) wird der Block grün.
  */
-test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
+test.describe('Balamentum — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -493,7 +493,7 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 	// AK5a — Der separate „Neue Serie anlegen"-Button ist im SeriesManagementModal entfernt.
 	// ROT: schlägt aktuell fehl, weil der Button noch existiert (toHaveCount(0) → tatsächlich 1).
 	test('AK5 (#330) — SeriesManagementModal enthält keinen separaten „Neue Serie anlegen"-Button', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -511,7 +511,7 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 		const title = uniqueTitle('Verwaltung');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -532,7 +532,7 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
@@ -557,7 +557,7 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
  *
  * Diese Specs sind rot, solange TaskForm `series.pillars` beim Serien-Edit ignoriert.
  */
-test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', () => {
+test.describe('Balamentum — Serien behalten die Säulenzuordnung (#343)', () => {
 	interface ApiSeries {
 		id: number;
 		title: string;
@@ -617,7 +617,7 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 		expect(created.pillars.length).toBeGreaterThan(0);
 
 		// 3. App laden.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// 4. Serien-Tab öffnen.

@@ -45,15 +45,15 @@ const expectWithinViewport = async (locator: ReturnType<Page['locator']>): Promi
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 };
 
-test.describe('Priority Pilot — #1525: KI-Schalter Paket-Sperre (375px)', () => {
+test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
 	});
 
 	test('AK1: Free-Konto — Schalter deaktiviert, Paket-Alert mit Sprung-CTA zum Pakete-Reiter', async ({ page }) => {
-		await page.goto('/settings/llm');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/llm');
+		await waitForStableView(page, 'Balamentum');
 
 		const aiSwitch = page
 			.getByRole('switch', { name: /^KI-Features aktiv$/ })
@@ -70,8 +70,8 @@ test.describe('Priority Pilot — #1525: KI-Schalter Paket-Sperre (375px)', () =
 	});
 
 	test('AK6: bei 375px liegt der Alert über dem Schalter, die Karte bleibt im Viewport', async ({ page }) => {
-		await page.goto('/settings/llm');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/llm');
+		await waitForStableView(page, 'Balamentum');
 
 		const card = page.locator('kol-card[_label="KI-Funktionen"]');
 		await expectWithinViewport(card);

@@ -72,8 +72,8 @@ test.describe('#1028 KolAlert-Host: leichtes Padding + Radius', () => {
 	}) => {
 		await page.addInitScript(MIC_DENIED_INIT_SCRIPT);
 		await page.setViewportSize(VIEWPORT_DESKTOP);
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// Deterministischen Alert erzegen: Sprachaufnahme-Switch togglen → getUserMedia(NotAllowedError)
 		// → micDenied-Warn-Alert in der .settings-switch-row (SettingsPage.tsx:168).
@@ -118,8 +118,8 @@ test.describe('#1028 KolAlert-Host: leichtes Padding + Radius', () => {
 	test('AK3: Alert-Box sprengt bei 320px weder Container noch Viewport (kein Horizontal-Scroll)', async ({ page }) => {
 		await page.addInitScript(MIC_DENIED_INIT_SCRIPT);
 		await page.setViewportSize({ width: 320, height: 800 });
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		await switchControl(page, /Sprachaufnahme automatisch starten/i).click();
 		const micAlert = page.locator('kol-alert', { hasText: /Mikrofon-Zugriff verweigert/ }).first();

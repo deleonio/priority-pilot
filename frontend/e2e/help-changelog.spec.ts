@@ -50,7 +50,7 @@ test.describe('#1206 Changelog-Aggregation auf der Hilfe-Seite', () => {
 		);
 
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/hilfe');
+		await page.goto('/app/hilfe');
 
 		await waitForStableView(page, 'Handbuch');
 		await page.getByRole('tab', { name: 'Changelog' }).click();

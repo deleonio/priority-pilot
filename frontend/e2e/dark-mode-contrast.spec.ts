@@ -29,7 +29,7 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 	test('Panels mit Token-Hintergrund halten 4.5:1 im Dunkelmodus (375px)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Modus direkt am `<html>` erzwingen statt über localStorage/useTheme zu gehen — der Test
@@ -74,7 +74,7 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 	test('KoliBri-Komponenten folgen dem Farbschema (kol-card-Textfarbe hell vs. dunkel)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.locator('kol-card').first();

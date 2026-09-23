@@ -19,7 +19,7 @@ import { expect, test } from './fixtures';
 test.describe('/api/v1-Proxy-Routing — Spec für Issue #171', () => {
 	test.beforeEach(async ({ page }) => {
 		// App laden, damit der Vite-Dev-Server aktiv ist und `page.request` gegen seine baseURL läuft.
-		await page.goto('/');
+		await page.goto('/app/');
 	});
 
 	test('GET /api/v1/tasks gibt JSON zurück, kein HTML (AC-1)', async ({ page }) => {

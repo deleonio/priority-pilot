@@ -20,7 +20,7 @@ Der Header zeigt seine Elemente in der festen Reihenfolge Logo → Name → Tool
 
 1. **Header-Elemente identifizieren**
    - Logo (App-Icon, icon-only)
-   - App-Name „Priority Pilot"
+   - App-Name „Balamentum"
    - Toolbar mit den Kopf-Aktionen „Suche", „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden" —
      sechs Aktionen bei aktivierter KI (Default); ist die KI-Nutzung in den Einstellungen deaktiviert, entfällt
      „Säulen-Berater" ersatzlos (nicht nur ausgeblendet, sondern nicht gerendert) und es bleiben fünf

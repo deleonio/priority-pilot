@@ -21,7 +21,7 @@ const TASK_TITLE = 'E2E Übergabe-Aufgabe';
 
 /** Öffnet die Einstellungen direkt auf dem Gruppen-Tab (Muster groups.spec.ts). */
 const openGroupsTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await expect(page.getByRole('tab', { name: 'Gruppen', exact: true })).toBeVisible();
 };
@@ -141,7 +141,7 @@ test.describe('Aufgaben-Übergabe im Bearbeiten-Formular (#1252)', () => {
 		const { recipientContext, recipientPage } = await setupSharedGroup(page, request, baseURL!);
 
 		try {
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await createOwnTaskViaUi(page, TASK_TITLE);
 
@@ -161,7 +161,7 @@ test.describe('Aufgaben-Übergabe im Bearbeiten-Formular (#1252)', () => {
 			await expect(page.getByText(`Für: ${RECIPIENT_NAME}`).first()).toBeVisible();
 
 			// Empfänger-Sicht: Aufgabe ist in seiner Liste angekommen.
-			await recipientPage.goto('/');
+			await recipientPage.goto('/app/');
 			await waitForStableView(recipientPage);
 			await expect(recipientPage.getByText(TASK_TITLE).first()).toBeVisible();
 		} finally {
@@ -170,7 +170,7 @@ test.describe('Aufgaben-Übergabe im Bearbeiten-Formular (#1252)', () => {
 	});
 
 	test('Bearbeiten-Formular ohne Gruppe: keine Empfängerauswahl (AK9, unveränderter Flow)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await createOwnTaskViaUi(page, TASK_TITLE);
 
@@ -186,7 +186,7 @@ test.describe('Aufgaben-Übergabe im Bearbeiten-Formular (#1252)', () => {
 		const { recipientContext } = await setupSharedGroup(page, request, baseURL!);
 
 		try {
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await createOwnTaskViaUi(page, TASK_TITLE);
 

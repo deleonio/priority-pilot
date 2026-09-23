@@ -1,4 +1,4 @@
-# Projekt: Priority Pilot
+# Projekt: Balamentum
 
 Werkzeug zur **Aufgaben-Priorisierung** über einen gewichteten Abhängigkeitsgraphen, kombiniert
 mit **Lebensbalance-Säulen**. Ein Task zahlt auf 0..n Säulen ein (n:m über `task_pillars`, je mit

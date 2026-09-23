@@ -62,6 +62,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm -r build
+        env:
+          # Basis-URL der öffentlichen Website für canonical, hreflang und Sitemap (ADR 0015).
+          SITE_URL: ${{ vars.SITE_URL }}
 
       - name: Server-Prod-Deps bündeln
         run: pnpm --filter ./server --prod deploy --legacy server/deploy
@@ -85,10 +88,16 @@ jobs:
           install -m600 <(printf '%s\n' "$SSH_KEY") ~/.ssh/deploy_key
           ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
+      # Website an die Wurzel, App nach /app/ (ADR 0015). Das Website-rsync schließt app/ aus, damit
+      # `--delete` die App nicht entfernt; die App wird danach in ihr eigenes Unterverzeichnis gespielt.
+      - name: rsync Website
+        run: |
+          rsync -az --delete --exclude 'app/' -e "ssh -i ~/.ssh/deploy_key" \
+            website/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/"
       - name: rsync Frontend
         run: |
           rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
-            frontend/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/"
+            frontend/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/app/"
 
       - name: rsync Backend
         run: |

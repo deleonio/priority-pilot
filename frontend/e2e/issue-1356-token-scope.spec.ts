@@ -30,7 +30,7 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1356: Rechte-Umschalter je Token', () => {
+test.describe('Balamentum — #1356: Rechte-Umschalter je Token', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTokens(page);
 	});
@@ -39,7 +39,7 @@ test.describe('Priority Pilot — #1356: Rechte-Umschalter je Token', () => {
 		page,
 	}) => {
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		// Test-Pflege (#1357, s. PR-Body): seit #1357 (AK1/AK6) ist die Laufzeit ein Pflichtfeld,
@@ -62,7 +62,7 @@ test.describe('Priority Pilot — #1356: Rechte-Umschalter je Token', () => {
 	test('AK9: 375px — Token-Zeile inkl. Umschalter und „Zurückziehen" ohne horizontalen Überlauf', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });

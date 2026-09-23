@@ -415,7 +415,7 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
  * /settings/general bzw. /hilfe weder ein doppeltes <main> (App-Layout + Seite) noch eine
  * zweite <h1> (die versteckte „Dashboard"-Überschrift aus dem Haupt-Layout) hinterlassen; die
  * verbleibende <h1> muss die geöffnete Seite benennen — positiv „Einstellungen" bzw. „Hilfe",
- * nicht „Dashboard" und auch nicht der heutige Seitentitel „Priority Pilot" (SettingsPage.tsx).
+ * nicht „Dashboard" und auch nicht der heutige Seitentitel „Balamentum" (SettingsPage.tsx).
  */
 describe('App — #1320 AK7: genau ein <main> und eine <h1> je Ansicht', () => {
 	afterEach(() => {

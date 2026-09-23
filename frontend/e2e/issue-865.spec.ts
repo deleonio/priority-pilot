@@ -48,7 +48,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 2
 	 */
 	test('AK1: Avatar ist sichtbar (Desktop)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const { avatar, header } = await readHeaderState(page);
 
@@ -61,7 +61,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 3
 	 */
 	test('AK2: User Full Name ist nicht mehr im DOM vorhanden (Desktop)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const { displayName } = await readHeaderState(page);
 
@@ -75,7 +75,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK3: Keine Leerräume im Layout mit Avatar (Desktop 1440px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const { header, toolbar, logo, avatar } = await readHeaderState(page);
 
@@ -104,7 +104,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK4: Avatar ist auf Mobile sichtbar (375px)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const { avatar, header } = await readHeaderState(page);
 
@@ -118,7 +118,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 */
 	test('AK5: Full Name ist nicht mehr auf Tablet vorhanden (768px)', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const { displayName } = await readHeaderState(page);
 
@@ -145,7 +145,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 			}
 		});
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await page.waitForLoadState('networkidle');
 
 		expect(errors).toHaveLength(0);
@@ -156,7 +156,7 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	 * Spec-Referenz: docs/spec/issue-865.md → UX-Referenz
 	 */
 	test('AK7: Toolbar-Aktionen bleiben über Tab-Fokus erreichbar (Screenreader)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const toolbar = page.locator('[role="toolbar"]').first();
 		await expect(toolbar).toBeVisible();

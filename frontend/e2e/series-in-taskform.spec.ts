@@ -19,7 +19,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  *    (optional)" ist ausgeblendet.
  *  - „Speichern" im Serie-Modus schickt einen `POST /series`; im Task-Modus einen `POST /tasks`.
  */
-test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316)', () => {
+test.describe('Balamentum — Task/Serie-Umschalter im Anlege-Formular (#316)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -62,7 +62,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 
 	// AK1 (e2e, #334): Der Switch ist im Anlege-Dialog sichtbar und bedienbar (kein Button-Paar mehr).
 	test('AK1 (#334) — Switch „Aufgabe/Serie" ist im Anlege-Dialog sichtbar und bedienbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
@@ -74,7 +74,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 
 	// AK4 (e2e): Nach Umschalten auf „Serie" erscheinen `startDate` + `rhythm`, `deadline` verschwindet.
 	test('AK4 — Serie-Modus zeigt Startdatum + Rhythmus, blendet Deadline aus', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
@@ -92,7 +92,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 
 	// AK5 (e2e): Serie anlegen → das Speichern schickt einen `POST /series` (nicht `/tasks`).
 	test('AK5 — Serie anlegen verzweigt zu POST /series', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
@@ -121,7 +121,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 
 	// AK5 (e2e, Kontroll-Test): Task anlegen (Task-Modus) → das Speichern schickt einen `POST /tasks`.
 	test('AK5 — Task anlegen (Task-Modus) verzweigt zu POST /tasks', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
@@ -142,7 +142,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 
 	// AK2 (e2e, #334): Der Anlege-Titel wechselt live beim Umschalten des Switch.
 	test('AK2 (#334) — Anlege-Titel wechselt live beim Umschalten des Switch', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
@@ -161,7 +161,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 	// AK7 (e2e): Bei 375×812 lässt sich der Serie-Abschnitt ohne horizontales Scrollen bedienen.
 	test('AK7 — Serie-Dialog ohne horizontales Scrollen auf 375px Viewport (Mobile-First)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
@@ -181,7 +181,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 	test('AK3 (#330) — Titel/Beschreibung bleiben beim Mode-Toggle erhalten (Aufgabe → Serie → Aufgabe)', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 

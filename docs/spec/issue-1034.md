@@ -1,4 +1,4 @@
-# PWA-Update-/Offline-Hinweis — Priority Pilot
+# PWA-Update-/Offline-Hinweis — Balamentum
 
 **Stand:** 2026-08-28  
 **Ziel:** Von außen sichtbares Verhalten der Update-/Offline-Cards am unteren Viewport-Rand
@@ -18,13 +18,13 @@ Bei neuer App-Version bzw. abgeschlossener Offline-Vorbereitung zeigt die App ei
 
 1. **Update-Card betrachten**
    - Card-Label: „Neue Version verfügbar"
-   - Fließtext: „Priority Pilot wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen."
+   - Fließtext: „Balamentum wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen."
    - Button: „Jetzt neu laden"
    - Klick auf den Button lädt die App neu (Service-Worker-Update)
 
 2. **Offline-Card betrachten**
    - Card-Label: „Offline einsatzbereit"
-   - Fließtext: „Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung."
+   - Fließtext: „Balamentum funktioniert ab jetzt auch ohne Internetverbindung."
    - Button: „Verstanden"
    - Klick auf den Button schließt die Card
 

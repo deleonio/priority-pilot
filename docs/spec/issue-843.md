@@ -1,4 +1,4 @@
-# Settings Screen Layout – Priority Pilot
+# Settings Screen Layout – Balamentum
 
 **Stand:** 2026-09-01
 **Ziel:** Konsistentes Layout im Settings Screen mit einheitlichen Spacing-Werten, korrektem Alignment und lesbarer Typografie

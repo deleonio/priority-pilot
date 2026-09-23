@@ -18,7 +18,7 @@ import { waitForStableView } from './helpers';
  * `issue-1169-confetti.spec.ts` AK6 erschlagend getestet (emulateMedia reduce +
  * beforeEach-Key `pp-animations-enabled` → kein Overlay) und wird hier nicht dupliziert.
  */
-test.describe('Priority Pilot — „Bewegung reduzieren" transparent machen (#1187)', () => {
+test.describe('Balamentum — „Bewegung reduzieren" transparent machen (#1187)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -64,7 +64,7 @@ test.describe('Priority Pilot — „Bewegung reduzieren" transparent machen (#1
 
 	/** Öffnet die Einstellungen über den Zahnrad-Toolbar-Button; „Allgemein" ist aktiv. */
 	const openSettings = async (page: Page): Promise<void> => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: /Einstellungen/i }).click();
@@ -121,7 +121,7 @@ test.describe('Priority Pilot — „Bewegung reduzieren" transparent machen (#1
 
 	test('AK5: reduce NACH App-Load aktiviert → nächste Erledigt-Fete bleibt aus (ohne Reload)', async ({ page }) => {
 		const id = await createTask(page, uniqueTitle('Live'));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 		await expect(item(page, id)).toBeVisible();

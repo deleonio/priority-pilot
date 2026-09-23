@@ -31,8 +31,8 @@ test.describe('#843 Settings Screen Layout', () => {
 	test('AK1: Settings-UI verwendet konsistente Spacing-Werte (24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand)', async ({
 		page,
 	}) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// Wir prüfen die Gruppen-Hosts für konsistentes Spacing
 		const controls = page.locator('.settings-general > kol-card, .settings-general > kol-accordion');
@@ -69,8 +69,8 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * (`settings-switch-layout.spec.ts`).
 	 */
 	test('AK2: Alle Controls sind auf 24dp linker Margin aligned', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// Wir prüfen die Gruppen-Hosts, nicht die role-Elemente im Shadow-DOM
 		const controls = page.locator('.settings-general > kol-card, .settings-general > kol-accordion');
@@ -97,8 +97,8 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * AK3 aus Spec: Deskriptiver Text hat ≥16sp Schriftgröße und Farbe #616161
 	 */
 	test('AK3: Deskriptiver Text hat ≥16sp Schriftgröße und Farbe #616161', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// KoliBri rendert _hint-Text im Shadow-DOM. Wir prüfen die CSS-Variablen,
 		// die für deskriptiven Text gesetzt sind (siehe app.css).
@@ -128,8 +128,8 @@ test.describe('#843 Settings Screen Layout', () => {
 	 * AK4 aus Spec: Checkmark-Icon hat 20×20dp Größe mit 8dp Padding
 	 */
 	test('AK4: Checkmark-Icons haben 20×20dp Größe mit 8dp Padding', async ({ page }) => {
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// Checkmark-Icons finden (typischerweise SVG mit checkmark-Klasse oder path)
 		const checkmarkIcons = page.locator('svg').filter({ has: page.locator('path').or(page.locator('circle')) });

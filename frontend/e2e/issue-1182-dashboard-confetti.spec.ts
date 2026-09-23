@@ -35,7 +35,7 @@ const createTask = async (page: Page, title: string, priority: number): Promise<
 };
 
 const openDashboard = async (page: Page): Promise<void> => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.reload();
 	await waitForStableView(page);

@@ -317,8 +317,8 @@ export const Dashboard = ({
 			<KolCard className="dashboard-pillars" _label="Meine Themen" _level={3}>
 				{pillars.length === 0 ? (
 					<p className="dashboard-empty">
-						Lege in den <a href="/settings">Einstellungen</a> deine ersten Säulen an, um hier den Überblick über deine
-						Themen zu behalten.
+						Lege in den <a href={`${import.meta.env.BASE_URL}settings`}>Einstellungen</a> deine ersten Säulen an, um
+						hier den Überblick über deine Themen zu behalten.
 					</p>
 				) : (
 					<ul className="dashboard-pillars-list">

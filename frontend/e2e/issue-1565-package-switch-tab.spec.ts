@@ -107,8 +107,8 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 	}) => {
 		await mockAuthMe(page, ADMIN_USER);
 		const { patchedId, patchedPlan } = await mockPlansApi(page);
-		await page.goto('/settings/pakete');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pakete');
+		await waitForStableView(page, 'Balamentum');
 
 		// Die Karte existiert, benennt die Abgrenzung zur Bezahl-Matrix und trägt die Auswahl.
 		const card = ownPlanCard(page);
@@ -133,15 +133,15 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 
 		// AK1: nach dem Neuladen weiterhin „Pro" (/auth/me-Mock liefert den gemutierten Plan).
 		await page.reload();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.locator('.settings-plans')).toContainText('Pro (dein Paket)');
 	});
 
 	test('AK4: Mitglied sieht im Tab Pakete keine Auswahl-Karte (Matrix bleibt)', async ({ page }) => {
 		await mockAuthMe(page, MEMBER_USER);
 		await mockPlansApi(page);
-		await page.goto('/settings/pakete');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pakete');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(ownPlanCard(page)).toHaveCount(0);
 		await expect(page.locator('.settings-plans').getByRole('combobox')).toHaveCount(0);
@@ -156,8 +156,8 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 		await mockAuthMe(page, ADMIN_USER);
 		await mockPlansApi(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/pakete');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pakete');
+		await waitForStableView(page, 'Balamentum');
 
 		const card = ownPlanCard(page);
 		await expect(card).toBeVisible();

@@ -169,8 +169,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	 */
 	test('AK2: Schalter ist ohne localStorage-Eintrag standardmäßig aus (Default false)', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// Der Schalter im Allgemein-Tab muss sichtbar und aus sein.
 		const toggle = page
@@ -182,7 +182,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 
 	test('AK2b: Ohne Einstellung startet TaskForm keine automatische Aufnahme', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -202,8 +202,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	 */
 	test('AK3a: Einschalten + Berechtigung erteilt → Schalter an und Einstellung gespeichert', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
@@ -225,8 +225,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 
 	test('AK3b: Einschalten + Berechtigung verweigert → Schalter bleibt aus und Hinweis sichtbar', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'denied' }));
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
@@ -252,8 +252,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		// Vor dem Laden true in localStorage setzen (simuliert vorherige Aktivierung).
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
@@ -270,7 +270,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK4: TaskForm — Titel-Mic startet automatisch, wenn Einstellung an (Anlegen)', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -290,7 +290,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Zum Tab „Aufgaben" wechseln – Bearbeiten-Buttons sind dort, nicht im Dashboard.
@@ -319,7 +319,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK5: Serien-Formular — Titel-Mic startet automatisch beim Anlegen (Einstellung an)', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -342,7 +342,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: false, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -367,7 +367,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		// Explizit false setzen (entspricht Default).
 		await setVoiceAutostartInStorage(page, false);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -380,7 +380,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK7b: Einstellung aus → kein Auto-Start im Serien-Formular', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, false);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -399,8 +399,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK8: Schalter verursacht kein horizontales Scrollen bei 375px-Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		// Der Schalter muss sichtbar und bedienbar sein.
 		const toggle = page
@@ -448,7 +448,7 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 	test('AK1: Einstellung an → Aufnahme startet automatisch im Capture-Feld', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openQuickCapture(page);
@@ -464,7 +464,7 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 	test('AK2: Einstellung aus (Default) → kein Auto-Start im Capture-Feld', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, false);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openQuickCapture(page);
@@ -488,7 +488,7 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 		await page.setViewportSize({ width: 375, height: 812 });
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openQuickCapture(page);
@@ -518,7 +518,7 @@ test.describe('#283 Autostart: früh gesprochenes Ergebnis geht nicht verloren',
 	test('AK1: Ergebnis unmittelbar nach dem Mount landet im Titel-Feld', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openTaskForm(page);
@@ -555,7 +555,7 @@ test.describe('Suche-Dialog: Voice-Autostart im Suchfeld', () => {
 	test('AK1: Einstellung an → Aufnahme startet automatisch im Suchfeld', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openSearchModal(page);
@@ -570,7 +570,7 @@ test.describe('Suche-Dialog: Voice-Autostart im Suchfeld', () => {
 	 */
 	test('AK2: Einstellung aus (Default) → kein Auto-Start, manueller Start bleibt möglich', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openSearchModal(page);
@@ -593,7 +593,7 @@ test.describe('Suche-Dialog: Voice-Autostart im Suchfeld', () => {
 
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: false, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openSearchModal(page);
@@ -613,7 +613,7 @@ test.describe('Suche-Dialog: Voice-Autostart im Suchfeld', () => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		await openSearchModal(page);

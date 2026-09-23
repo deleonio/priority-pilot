@@ -1,6 +1,6 @@
 # `frontend`
 
-Web-Oberfläche des [Priority-Pilot-Monorepos](../README.md): **Vite + React 19 + KoliBri**
+Web-Oberfläche des [Balamentum-Monorepos](../README.md): **Vite + React 19 + KoliBri**
 (`@public-ui`), als installierbare **PWA** (`vite-plugin-pwa`). Spricht die Server-API über den
 generierten [`client`](../client) an. Bietet ein Dashboard (Kennzahlen, wichtigste Tasks,
 Deadlines, Säulen-Widget „Meine Themen"), eine Aufgabentabelle sowie Dialoge zum Pflegen von

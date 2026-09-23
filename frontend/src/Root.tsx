@@ -144,10 +144,12 @@ const AuthenticatedApp = () => {
  * laufen durch den authentifizierten Einstieg (`AuthenticatedApp`).
  */
 export const Root = () => {
-	if (window.location.pathname === '/bahn') {
+	// Die App liegt unter `/app/` (ADR 0015) — die öffentlichen Routen relativ zur Basis prüfen.
+	const path = window.location.pathname.slice(import.meta.env.BASE_URL.length - 1);
+	if (path === '/bahn') {
 		return <BahnPage />;
 	}
-	if (window.location.pathname === '/gruppen/beitreten') {
+	if (path === '/gruppen/beitreten') {
 		return <GroupJoinPage />;
 	}
 	return <AuthenticatedApp />;

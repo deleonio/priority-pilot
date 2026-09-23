@@ -106,7 +106,7 @@ const openTaskForm = async (page: Page): Promise<void> => {
 
 test.describe('Lektorat Diff-Modal', () => {
 	test.beforeEach(async ({ page }: { page: Page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 	});
 
 	test.describe('Journey 1: Titel lektorieren mit Diff-Modal', () => {

@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: Priority Pilot API
+  title: Balamentum API
   description: >-
     Vertrag für die Aufgaben-Priorisierung über einen gewichteten
     Abhängigkeitsgraphen. Aus dieser Datei werden via `openapi-typescript`

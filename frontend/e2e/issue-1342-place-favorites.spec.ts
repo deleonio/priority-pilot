@@ -56,7 +56,7 @@ const expectWithinViewport = async (page: Page, locator: ReturnType<Page['locato
 	expect(box!.x + box!.width).toBeLessThanOrEqual(376);
 };
 
-test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
+test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 	});
@@ -72,7 +72,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await stubGeocode(page);
 
 		// 1) Favorit am Formular speichern (AK2): Adresse tippen, Treffer auswählen, „Als Favorit speichern".
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await page.getByRole('button', { name: /überspringen/i }).click();
@@ -102,7 +102,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 
 		// 2) In Einstellungen → Standort ansehen (AK3): die Zeile trägt NUR die Adresse — es gibt weder
 		// ein Namensfeld noch einen Umbenennen-Knopf mehr.
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Standort');
 
 		const favoriteRow = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
@@ -112,7 +112,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 
 		// 3) Im Adressfeld auswählen (AK1): der gespeicherte Ort steht VOR den Suchtreffern, ein Klick
 		// übernimmt Adresse + Koordinaten.
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await page.getByRole('button', { name: /überspringen/i }).click();
@@ -139,7 +139,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 
 		// 4) Löschen (AK6) — über den Bestätigungsdialog, nicht mehr inline. Danach bietet der Stern in
 		// der Trefferzeile das Speichern wieder an (AK4: „bereits gespeichert" ist aufgehoben).
-		await page.goto('/settings/standort');
+		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Standort');
 
 		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
@@ -159,7 +159,7 @@ test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
 		await confirmButton.click();
 		await expect(page.getByTestId('place-favorite-row')).toHaveCount(0);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await page.getByRole('button', { name: /überspringen/i }).click();

@@ -65,7 +65,7 @@ const isElementUsedInProject = (tag: string): boolean => {
 
 test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 	});
 
@@ -288,7 +288,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		// Tab-Panel liegt es hinter `hidden` und hätte keine Darstellung).
 		await page.getByRole('tab', { name: 'Säulen', exact: true }).click();
 
-		// `waitForStableView(page, 'Priority Pilot')` wäre hier ein No-Op: der Text steht als
+		// `waitForStableView(page, 'Balamentum')` wäre hier ein No-Op: der Text steht als
 		// `.app-name`-Span schon im App-Header auf JEDER Seite, auch vor diesem Klick. Stattdessen
 		// direkt auf das per Navigation neu gemountete kol-heading warten (Auto-Wait statt Race
 		// gegen `measureContrast()`s ungeduldiges `.count()`).
@@ -319,7 +319,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	 */
 	test('AK2: Interaktionszustände (Hover, Focus) funktionsfähig bei kol-button', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ein kol-button Host-Element direkt finden (einfacher als über Button-Rolle)

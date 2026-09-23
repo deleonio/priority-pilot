@@ -34,7 +34,7 @@ const MUNICH_SUGGESTIONS = [
 
 /** Öffnet das TaskForm (QuickCapture-Schritt übersprungen) und liefert das Adressfeld. */
 const openFormWithAddressField = async (page: Page) => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();

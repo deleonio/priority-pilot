@@ -1,0 +1,124 @@
+import { describe, expect, it } from 'vitest';
+import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
+import { OPERATOR } from '../../frontend/src/lib/operator.ts';
+import de from './i18n/de.json';
+import en from './i18n/en.json';
+import { LOGIN_PATH, addedFeatures, renderImprint, renderLanding, renderRobots, renderSitemap } from './render.ts';
+
+const catalog = getPlansCatalog();
+const allMessages = { de, en };
+
+const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
+	renderLanding({
+		locale,
+		messages: allMessages[locale],
+		siteUrl,
+		catalog,
+		plans: PLAN_VALUES,
+		aiQuota: AI_ASSIST_MONTHLY_QUOTA,
+	});
+
+/** Alle Blatt-Schlüssel eines Textobjekts als Pfade, damit de und en vergleichbar werden. */
+const keyPaths = (value: unknown, prefix = ''): string[] =>
+	value !== null && typeof value === 'object'
+		? Object.entries(value).flatMap(([key, child]) => keyPaths(child, prefix ? `${prefix}.${key}` : key))
+		: [prefix];
+
+describe('Website-Texte', () => {
+	it('de und en haben dieselben Schlüssel', () => {
+		expect(keyPaths(en)).toEqual(keyPaths(de));
+	});
+
+	it('jede Feature-ID aus plans.ts hat in beiden Sprachen ein Label', () => {
+		for (const messages of [de, en]) {
+			for (const feature of FEATURE_IDS) {
+				expect(messages.pricing.features[feature], feature).toBeTruthy();
+			}
+		}
+	});
+
+	it('jedes Paket aus plans.ts hat in beiden Sprachen einen Namen', () => {
+		for (const messages of [de, en]) {
+			for (const plan of PLAN_VALUES) {
+				expect(messages.pricing.plans[plan], plan).toBeTruthy();
+			}
+		}
+	});
+});
+
+describe('renderLanding', () => {
+	it('setzt Sprache, canonical und hreflang für beide Sprachen', () => {
+		const html = landing('en');
+		expect(html).toContain('<html lang="en">');
+		expect(html).toContain('<link rel="canonical" href="https://example.org/en/">');
+		expect(html).toContain('hreflang="de" href="https://example.org/"');
+		expect(html).toContain('hreflang="x-default" href="https://example.org/"');
+	});
+
+	it('führt jeden Start-CTA direkt in den Google-Login', () => {
+		const html = landing('de');
+		expect(html).toContain(`href="${LOGIN_PATH}"`);
+		expect(html).toContain(de.hero.cta);
+	});
+
+	it('leitet die installierte PWA vor dem Rendern auf /app/ weiter', () => {
+		const html = landing('de');
+		const head = html.slice(0, html.indexOf('</head>'));
+		expect(head).toContain("matchMedia('(display-mode: standalone)')");
+		expect(head).toContain("location.replace('/app/')");
+		expect(head.indexOf('location.replace')).toBeLessThan(head.indexOf('stylesheet'));
+	});
+
+	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {
+		const html = landing('de');
+		expect(html).toContain('7,99 €');
+		expect(html).toContain('14,99 €');
+		expect(html).toContain('24,99 €');
+		expect(html).toContain('239,90 €');
+		for (const plan of PLAN_VALUES.filter((entry) => AI_ASSIST_MONTHLY_QUOTA[entry] > 0)) {
+			expect(html).toContain(`${AI_ASSIST_MONTHLY_QUOTA[plan]} KI-Anfragen im Monat`);
+		}
+		for (const plan of PLAN_VALUES) {
+			expect(html).toContain(`data-plan="${plan}"`);
+		}
+	});
+
+	it('listet jedes Feature genau einmal, im kleinsten Paket, das es enthält', () => {
+		const listed = PLAN_VALUES.flatMap((plan) => addedFeatures(catalog, PLAN_VALUES, plan));
+		expect([...listed].sort()).toEqual([...FEATURE_IDS].sort());
+		expect(addedFeatures(catalog, PLAN_VALUES, 'free')).toEqual(['voice_input']);
+	});
+
+	it('escaped Texte', () => {
+		const html = renderLanding({
+			locale: 'de',
+			messages: { ...de, hero: { ...de.hero, title: '<script>x</script>' } },
+			siteUrl: '',
+			catalog,
+			plans: PLAN_VALUES,
+			aiQuota: AI_ASSIST_MONTHLY_QUOTA,
+		});
+		expect(html).toContain('&lt;script&gt;x&lt;/script&gt;');
+	});
+});
+
+describe('renderImprint', () => {
+	it('enthält die Anbieterdaten aus operator.ts und verweist auf die andere Sprache', () => {
+		const html = renderImprint({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages });
+		expect(html).toContain(OPERATOR.name);
+		expect(html).toContain(`mailto:${OPERATOR.email}`);
+		expect(html).toContain('hreflang="en" href="/en/imprint/"');
+	});
+});
+
+describe('robots und sitemap', () => {
+	it('sperrt App, API und Auth und verlinkt die Sitemap nur mit Basis-URL', () => {
+		expect(renderRobots('')).toContain('Disallow: /app/');
+		expect(renderRobots('')).not.toContain('Sitemap:');
+		expect(renderRobots('https://example.org')).toContain('Sitemap: https://example.org/sitemap.xml');
+	});
+
+	it('schreibt absolute URLs in die Sitemap', () => {
+		expect(renderSitemap('https://example.org', ['/', '/en/'])).toContain('<loc>https://example.org/en/</loc>');
+	});
+});

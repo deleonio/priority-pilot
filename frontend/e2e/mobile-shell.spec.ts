@@ -22,7 +22,7 @@ const HEADER_ACTIONS = ['Zum Dashboard', 'Neuen Task anlegen', 'Einstellungen', 
 
 const gotoApp = async (page: Page, viewport: { width: number; height: number }): Promise<void> => {
 	await page.setViewportSize(viewport);
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 };
 
@@ -217,7 +217,7 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 		test('Modus Oben: Leiste schließt bei y=0 bündig ab, Schild hält 8px Abstand zum Inhalt', async ({ page }) => {
 			await page.setViewportSize(MOBILE);
 			await createTasksViaApi(page, 14);
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 			await waitForStableView(page);
@@ -245,7 +245,7 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 			await page.setViewportSize(MOBILE);
 			await page.addInitScript((key) => localStorage.setItem(key, 'bottom'), HEADER_POSITION_KEY);
 			await createTasksViaApi(page, 14);
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 			await waitForStableView(page);

@@ -31,7 +31,7 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1357: Pflicht-Ablaufdatum für API-Tokens', () => {
+test.describe('Balamentum — #1357: Pflicht-Ablaufdatum für API-Tokens', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTokens(page);
 	});
@@ -41,7 +41,7 @@ test.describe('Priority Pilot — #1357: Pflicht-Ablaufdatum für API-Tokens', (
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		const panel = page.getByTestId('api-tokens-panel');

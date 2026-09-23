@@ -16,7 +16,7 @@ import { waitForStableView } from './helpers';
  * Partikelzahl, Canvas auf Viewportgröße — s. Spec); eine objektive Frame-Metrik ist in der
  * CI-Umgebung nicht zuverlässig messbar, deshalb prüft TF4 Durchlaufen + Bedienbarkeit.
  */
-test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => {
+test.describe('Balamentum — Konfetti beim Erledigt-Toggle (#1169)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -84,7 +84,7 @@ test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => 
 	/** Öffnet die Aufgaben-Liste und legt eine frisch seedete offene Aufgabe bereit. */
 	const seedOpenTask = async (page: Page, label: string): Promise<number> => {
 		const id = await createTask(page, uniqueTitle(label));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 		await expect(item(page, id)).toBeVisible();
@@ -154,7 +154,7 @@ test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => 
 		// (kein Polling), nachträglich per API geseedete Zeilen erscheinen nie.
 		const idA = await createTask(page, uniqueTitle('A'));
 		const idB = await createTask(page, uniqueTitle('B'));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 		await expect(item(page, idA)).toBeVisible();

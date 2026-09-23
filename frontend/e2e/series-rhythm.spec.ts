@@ -21,7 +21,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  *
  * `afterEach` räumt selbst angelegte Tasks und Serien über die echte API ab.
  */
-test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', () => {
+test.describe('Balamentum — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -64,7 +64,7 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 
 	// AK1 (e2e): Beim Anlegen einer Serie bietet der Rhythmus-Select die neuen Optionen an.
 	test('AK1 — Rhythmus-Select bietet Werktags/Wochenende/Mo–So an', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesCreateForm(page);
 
@@ -81,7 +81,7 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 
 	// AK2 (e2e): Eine über die UI mit neuem Rhythmus angelegte Serie wird im Backend gespeichert.
 	test('AK2 — Serie mit rhythm „weekdays" wird über die UI angelegt und im Backend gespeichert', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesCreateForm(page);
 
@@ -119,7 +119,7 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 	// horizontales Scrollen bedienbar.
 	test('AK4 — Serien-Formular ohne horizontales Scrollen auf 375px Viewport', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesCreateForm(page);
 

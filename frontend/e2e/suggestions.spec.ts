@@ -41,7 +41,7 @@ test.describe('„Was ist jetzt dran?"-Liste (#122)', () => {
 		await page.request.post('/api/v1/tasks', { data: { title: titelMittel, priority: 2, estimatedEffort: 1 } });
 		await page.request.post('/api/v1/tasks', { data: { title: titelHoch, priority: 5, estimatedEffort: 1 } });
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Die höchste Priorität (5) ist die „Nächste Aufgabe" — sie darf NICHT in der Vorschlagsliste

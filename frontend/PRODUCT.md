@@ -8,13 +8,13 @@ web
 
 ## Users
 
-Primärnutzer ist der Eigentümer selbst: Priority Pilot ist sein Daily Driver — die reale tägliche Arbeitsplanung passiert in der App. Zugang ausschließlich über Google-Login mit E-Mail-Allowlist; neben dem Eigentümer sind nur freigeschaltete Adressen zugelassen. Bestätigte Ambition (2026-08-18): »Aspiring Product« — die Allowlist ist der heutige Zustand, mittelfristig soll Priority Pilot für eine breitere Nutzerschaft geöffnet werden.
+Primärnutzer ist der Eigentümer selbst: Balamentum ist sein Daily Driver — die reale tägliche Arbeitsplanung passiert in der App. Zugang ausschließlich über Google-Login mit E-Mail-Allowlist; neben dem Eigentümer sind nur freigeschaltete Adressen zugelassen. Bestätigte Ambition (2026-08-18): »Aspiring Product« — die Allowlist ist der heutige Zustand, mittelfristig soll Balamentum für eine breitere Nutzerschaft geöffnet werden.
 
 **Gruppen** (#1211, bestätigt 2026-02) erweitern die Ein-Personen-Annahme: Konten können gemeinsame Aufgabengruppen teilen (Rollen Admin/Mitglied, Beitritt per Einladungs-Link). Die Beitritts-Vorschau ist öffentlich; das Einlösen braucht eine Session — Mitglieder brauchen weiterhin Google-Login.
 
 ## Product Purpose
 
-Priority Pilot beantwortet die Frage »Woran sollte ich als Nächstes arbeiten?« für Situationen, in denen Aufgaben voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen. Zwei Rechen-Kernkonzepte:
+Balamentum beantwortet die Frage »Woran sollte ich als Nächstes arbeiten?« für Situationen, in denen Aufgaben voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen. Zwei Rechen-Kernkonzepte:
 
 - **Gewichteter Abhängigkeitsgraph:** Abhängigkeiten tragen Gewichte. Pro Aufgabe werden Wertbeitrag (eigene Priorität plus gewichtete Werte der abhängigen Aufgaben) und Gesamtaufwand inklusive transitiver Abhängigkeiten berechnet; Zyklen werden erkannt und abgelehnt.
 - **Lebensbalance-Säulen:** nutzerdefiniert (neue Konten starten mit fünf Defaults: Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit — frei bearbeitbar). Jede Aufgabe zahlt auf 0..n Säulen ein (Investitionsanteil `share` mit Konfidenz `confidence`); die Säulen-Gewichtung (Summe 100 %) skaliert den Wertbeitrag multiplikativ. Gleichverteilung bleibt neutral.
@@ -23,7 +23,7 @@ Erfolg bedeutet heute: Der Eigentümer plant seine echte Arbeit täglich darin. 
 
 ## Positioning
 
-Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag aus einem gewichteten Abhängigkeitsgraphen**, multiplikativ gesteuert durch **persönliche Lebensbalance-Säulen**. Lineare To-do-Listen und Kanban-Boards rechnen nicht über einen DAG; Projektmanagement-Tools modellieren Lebensbalance nicht als Steuereingabe. Priority Pilot liefert beides in einer Zahl pro Aufgabe — wertvollste Aufgaben zuerst, sinnvolle nächste Aufgabe (höchste Priorität bei erledigten Abhängigkeiten) sichtbar.
+Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag aus einem gewichteten Abhängigkeitsgraphen**, multiplikativ gesteuert durch **persönliche Lebensbalance-Säulen**. Lineare To-do-Listen und Kanban-Boards rechnen nicht über einen DAG; Projektmanagement-Tools modellieren Lebensbalance nicht als Steuereingabe. Balamentum liefert beides in einer Zahl pro Aufgabe — wertvollste Aufgaben zuerst, sinnvolle nächste Aufgabe (höchste Priorität bei erledigten Abhängigkeiten) sichtbar.
 
 ## Operating Context
 
@@ -49,7 +49,7 @@ Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag au
 
 ## Brand Commitments
 
-Name **Priority Pilot** und vorhandenes Logo (Frontend-Assets, Transparenz durch Tests gesichert) sind bestehende Assets. Weitere bindende Marken-Vorgaben (Stimme, Stil, Wortmarke) wurden nicht festgelegt.
+Name **Balamentum** und vorhandenes Logo (Frontend-Assets, Transparenz durch Tests gesichert) sind bestehende Assets. Weitere bindende Marken-Vorgaben (Stimme, Stil, Wortmarke) wurden nicht festgelegt.
 
 ## Evidence on Hand
 

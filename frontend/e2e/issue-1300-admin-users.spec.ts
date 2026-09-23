@@ -70,8 +70,8 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	test('Member sieht den Tab „Nutzerverwaltung" nicht', async ({ page }) => {
 		await mockAuthMe(page, MEMBER_USER);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);
 	});
@@ -79,8 +79,8 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	test('Member per Deep-Link /settings/nutzer landet auf „Säulen" statt auf einem leeren Panel', async ({ page }) => {
 		await mockAuthMe(page, MEMBER_USER);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/nutzer');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);
 		await expect(page.getByRole('tab', { name: 'Säulen' })).toHaveAttribute('aria-selected', 'true');
@@ -90,8 +90,8 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/nutzer');
+		await waitForStableView(page, 'Balamentum');
 
 		const tab = page.getByRole('tab', { name: 'Nutzerverwaltung' });
 		await expect(tab).toBeVisible();
@@ -141,8 +141,8 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 			}),
 		);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/nutzer');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/nutzer');
+		await waitForStableView(page, 'Balamentum');
 
 		await page.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }).click();
 		await expect(page.getByRole('heading', { name: 'Säulenverteilung neu berechnen' })).toBeVisible();

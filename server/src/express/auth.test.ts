@@ -478,7 +478,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const location = res.headers.get('location');
 			assert.ok(location, 'Location-Header sollte gesetzt sein');
 			const target = new URL(location, server.baseUrl);
-			assert.equal(target.pathname, '/', 'Redirect-Ziel sollte die App-Wurzel sein');
+			assert.equal(target.pathname, '/app/', 'Redirect-Ziel sollte die App-Wurzel sein');
 			assert.match(target.search, /[?&]error=/, `Redirect sollte ?error= tragen, war: ${location}`);
 			assert.ok(!target.search.includes('silent='), 'Manueller Pfad darf nicht silent=unavailable melden');
 			assert.notEqual(location, '/auth/error', 'Rohe JSON-Fehler-Route ist als Ziel abgelöst');
@@ -537,7 +537,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			await withStubStrategy('error', async () => {
 				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
 				assert.equal(res.status, 302);
-				assert.equal(res.headers.get('location'), '/?error=login_failed');
+				assert.equal(res.headers.get('location'), '/app/?error=login_failed');
 			});
 		});
 
@@ -545,7 +545,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			await withStubStrategy('fail', async () => {
 				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
 				assert.equal(res.status, 302);
-				assert.equal(res.headers.get('location'), '/?error=login_failed');
+				assert.equal(res.headers.get('location'), '/app/?error=login_failed');
 			});
 		});
 
@@ -553,7 +553,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			await withStubStrategy('success', async () => {
 				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
 				assert.equal(res.status, 302);
-				assert.equal(res.headers.get('location'), '/');
+				assert.equal(res.headers.get('location'), '/app/');
 				const setCookie = res.headers.get('set-cookie');
 				assert.ok(setCookie, 'Erfolgreicher Callback sollte eine Session setzen');
 
@@ -581,7 +581,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 					headers: { Cookie: silentCookie },
 				});
 				assert.equal(res.status, 302);
-				assert.equal(res.headers.get('location'), '/?silent=unavailable');
+				assert.equal(res.headers.get('location'), '/app/?silent=unavailable');
 			});
 		});
 	});

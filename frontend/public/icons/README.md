@@ -1,6 +1,6 @@
-# App Icons für Priority Pilot
+# App Icons für Balamentum
 
-Dieses Verzeichnis enthält die App-Icons für Priority Pilot in verschiedenen Größen und Formaten.
+Dieses Verzeichnis enthält die App-Icons für Balamentum in verschiedenen Größen und Formaten.
 
 ## Quelle
 

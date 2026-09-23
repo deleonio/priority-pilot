@@ -17,13 +17,13 @@ const deleteAllTasks = async (page: import('@playwright/test').Page): Promise<vo
 	}
 };
 
-test.describe('Priority Pilot — #1362: Meilenstein-Badges', () => {
+test.describe('Balamentum — #1362: Meilenstein-Badges', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});
 
 	test('AK7 — Dashboard zeigt die Meilenstein-Card mit sichtbaren Badges', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('milestone-badges-card');
@@ -34,7 +34,7 @@ test.describe('Priority Pilot — #1362: Meilenstein-Badges', () => {
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const card = page.getByTestId('milestone-badges-card');

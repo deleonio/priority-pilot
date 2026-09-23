@@ -1,6 +1,6 @@
-# Mitwirken an Priority Pilot
+# Mitwirken an Balamentum
 
-Danke, dass du zu Priority Pilot beitragen möchtest! Dieses Dokument beschreibt, wie du
+Danke, dass du zu Balamentum beitragen möchtest! Dieses Dokument beschreibt, wie du
 Fehler meldest, Verbesserungen vorschlägst und Code beisteuerst.
 
 ## Verhaltenskodex
@@ -19,7 +19,7 @@ pnpm install   # Abhängigkeiten im gesamten Monorepo installieren
 
 ## Projektaufbau
 
-Priority Pilot ist ein pnpm-Monorepo (siehe [README.md](README.md)):
+Balamentum ist ein pnpm-Monorepo (siehe [README.md](README.md)):
 
 - `server/` — Node.js + Express + Sequelize (SQLite), gesamte Fachlogik
 - `client/` — aus `openapi.yml` generierte API-Typen
@@ -102,5 +102,5 @@ Weitere Details zu Konventionen stehen im Abschnitt [„Konventionen“ der Proj
 
 ## Lizenz der Beiträge
 
-Priority Pilot steht unter der [EUPL-1.2](LICENSE). Mit dem Einreichen eines Beitrags
+Balamentum steht unter der [EUPL-1.2](LICENSE). Mit dem Einreichen eines Beitrags
 erklärst du dich einverstanden, dass dieser unter derselben Lizenz veröffentlicht wird.

@@ -36,14 +36,14 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")', () => {
+test.describe('Balamentum — #1352: API-Tokens (Settings-Tab „Zugriff")', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTokens(page);
 	});
 
 	test('AK8: Klartext erscheint genau einmal, nach Reload nur noch Metadaten', async ({ page }) => {
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		const panel = page.getByTestId('api-tokens-panel');
@@ -71,7 +71,7 @@ test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")',
 	test('AK9: 375px — Panel ohne horizontalen Overflow, Klartext bricht um', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		await page.getByTestId('api-token-duration-select').selectOption({ label: '365 Tage (12 Monate)' });

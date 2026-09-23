@@ -101,7 +101,7 @@ const getHostFontFamilies = (selectors: string[]) =>
 
 test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	test('AK1: body rendert mit Archivo als führendem Font, System-Stack bleibt Fallback', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const fontFamily = await page.evaluate(getBodyFontFamily);
@@ -113,7 +113,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	});
 
 	test('AK2: KoliBri-Komponenten übernehmen Archivo als Host-Font-Family', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await waitForHostFontsResolved(page, HOST_SELECTORS);
 
@@ -130,7 +130,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	});
 
 	test('AK5: Basis-Schriftgröße bleibt 16px', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const fontSize = await page.evaluate(() => getComputedStyle(document.body).fontSize);
@@ -138,7 +138,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 	});
 
 	test('AK6: Archivo und Basisgröße gelten unverändert im Dark Mode', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await setTheme(page, 'dark');
 		await waitForHostFontsResolved(page, HOST_SELECTORS);
@@ -161,7 +161,7 @@ test.describe('Issue #1513 — Archivo als primäre Schriftart', () => {
 
 	test('AK7: bei 375px rendert das Dashboard in Archivo ohne Viewport-Overflow', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const fontFamily = await page.evaluate(getBodyFontFamily);

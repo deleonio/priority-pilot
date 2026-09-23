@@ -1,6 +1,6 @@
 # Anmeldung und Zugang einrichten
 
-Dieses Dokument beschreibt, wie der Zugang zu Priority Pilot funktioniert und welche Einstellungen
+Dieses Dokument beschreibt, wie der Zugang zu Balamentum funktioniert und welche Einstellungen
 der Betreiber dafür setzen muss: Google-Login, Freischaltung von E-Mail-Adressen, Administratoren
 und Session. Es ergänzt das Runbook [`server-setup.md`](server-setup.md) (Schritt 5, Env-Datei)
 und die Variablen-Referenz in [`deployment.md` §2](deployment.md#2-konfiguration-env-datei).
@@ -16,6 +16,12 @@ taucht deshalb auch nicht in der Nutzerverwaltung auf.
 Wer eine neue Person zulassen will, trägt ihre Adresse in die Env-Datei ein und lädt das
 Backend neu. Beim nächsten Login legt die App das Konto automatisch an.
 
+**Offene Registrierung:** Mit `OPEN_SIGNUP=true` entfällt die Allowlist. Jedes Google-Konto bekommt
+beim ersten Login ein Konto, so wie es die öffentliche Website mit „Mit Google starten“ verspricht
+([ADR 0015](adr/0015-oeffentliche-website-und-app-unter-app.md)). Dafür muss der OAuth-Zustimmungsbildschirm
+in der Cloud Console auf „In Produktion“ stehen, sonst kommen weiterhin nur eingetragene Testnutzer
+durch. Nach dem Login landet man in der App unter `/app/`.
+
 ## Zwei Betriebsmodi
 
 Der Server unterscheidet danach, ob überhaupt ein Auth-Kontext konfiguriert ist
@@ -27,22 +33,24 @@ Der Server unterscheidet danach, ob überhaupt ein Auth-Kontext konfiguriert ist
 | Geschützt            | Mindestens eine der Variablen ist gesetzt                                               | Jede API-Route verlangt eine gültige Session. Login ausschließlich über Google.                                      |
 
 In Produktion (`NODE_ENV=production`) ist der geschützte Modus Pflicht: Der Server startet nicht
-ohne `SESSION_SECRET` und nicht ohne mindestens eine Adresse in `GOOGLE_ALLOWED_EMAILS`.
+ohne `SESSION_SECRET` und nicht ohne mindestens eine Adresse in `GOOGLE_ALLOWED_EMAILS` oder
+`OPEN_SIGNUP=true`.
 
 ## Variablen
 
 Alle Variablen liegen in der Env-Datei des Servers (`server/.env` lokal, `<APP_DIR>/.env` auf dem
 Host). Vorlage mit Kommentaren: [`server/.env.example`](../server/.env.example).
 
-| Variable                | Pflicht in Produktion | Bedeutung                                                                                                                                            |
-| ----------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`      | ja                    | OAuth-Client-ID aus der Google Cloud Console.                                                                                                        |
-| `GOOGLE_CLIENT_SECRET`  | ja                    | Zugehöriges Client-Secret. Ohne ID und Secret wird der Google-Login gar nicht registriert; der Login-Button antwortet dann mit HTTP 503.             |
-| `GOOGLE_CALLBACK_URL`   | ja                    | Rücksprung-URL nach der Google-Anmeldung, z. B. `https://priority-pilot.example.de/auth/google/callback`. Muss exakt so in der Cloud Console stehen. |
-| `GOOGLE_ALLOWED_EMAILS` | ja                    | Freigeschaltete Adressen, Komma-getrennt oder als JSON-Array. Vergleich ohne Groß-/Kleinschreibung. Nur diese Adressen können ein Konto bekommen.    |
-| `ADMIN_EMAILS`          | empfohlen             | Adressen, die beim Login automatisch die Rolle `admin` bekommen. Gleiches Format. Muss eine Teilmenge der Allowlist sein, sonst wirkungslos.         |
-| `SESSION_SECRET`        | ja                    | Zufällige, lange Zeichenkette zum Signieren des Session-Cookies.                                                                                     |
-| `SESSION_TTL`           | nein                  | Lebensdauer der Session in Sekunden. Default 604800 (7 Tage).                                                                                        |
+| Variable                | Pflicht in Produktion       | Bedeutung                                                                                                                                            |
+| ----------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`      | ja                          | OAuth-Client-ID aus der Google Cloud Console.                                                                                                        |
+| `GOOGLE_CLIENT_SECRET`  | ja                          | Zugehöriges Client-Secret. Ohne ID und Secret wird der Google-Login gar nicht registriert; der Login-Button antwortet dann mit HTTP 503.             |
+| `GOOGLE_CALLBACK_URL`   | ja                          | Rücksprung-URL nach der Google-Anmeldung, z. B. `https://priority-pilot.example.de/auth/google/callback`. Muss exakt so in der Cloud Console stehen. |
+| `GOOGLE_ALLOWED_EMAILS` | ja, außer bei `OPEN_SIGNUP` | Freigeschaltete Adressen, Komma-getrennt oder als JSON-Array. Vergleich ohne Groß-/Kleinschreibung. Nur diese Adressen können ein Konto bekommen.    |
+| `OPEN_SIGNUP`           | nein                        | `true` öffnet die Registrierung für jedes Google-Konto; die Allowlist wird dann nicht geprüft.                                                       |
+| `ADMIN_EMAILS`          | empfohlen                   | Adressen, die beim Login automatisch die Rolle `admin` bekommen. Gleiches Format. Muss eine Teilmenge der Allowlist sein, sonst wirkungslos.         |
+| `SESSION_SECRET`        | ja                          | Zufällige, lange Zeichenkette zum Signieren des Session-Cookies.                                                                                     |
+| `SESSION_TTL`           | nein                        | Lebensdauer der Session in Sekunden. Default 604800 (7 Tage).                                                                                        |
 
 `GOOGLE_ALLOWED_EMAIL` (Singular) wird aus Kompatibilitätsgründen noch gelesen, wenn die
 Plural-Variable leer ist. Neue Installationen nutzen nur die Plural-Form.

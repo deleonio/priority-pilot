@@ -34,10 +34,10 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 	);
 };
 
-test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
+test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 	test('AK1a: Unauthentifizierter Benutzer sieht Login-Seite statt Haupt-App', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Der auffällige Google-Login-Button ist sichtbar …
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
@@ -47,7 +47,7 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 
 	test('AK1b: Login-Seite ist fullscreen — App-Toolbar und Tabs nicht sichtbar', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Sicherstellen, dass die Login-Seite gerendert ist, bevor wir auf Abwesenheiten prüfen.
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
@@ -62,7 +62,7 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 		await mockUnauthenticated(page);
 		// Den OAuth-Start abfangen, OHNE wirklich zur Google-Consent-Seite zu navigieren.
 		await page.route('**/auth/google', (route: Route) => route.abort());
-		await page.goto('/');
+		await page.goto('/app/');
 
 		const loginButton = page.getByRole('button', { name: /Login with Google/i });
 		await expect(loginButton).toBeVisible();
@@ -76,7 +76,7 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 
 	test('AK3a: ?error=access_denied zeigt benutzerfreundliche Fehlermeldung', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/?error=access_denied');
+		await page.goto('/app/?error=access_denied');
 
 		// Die Fehlermeldung ist als alert-Role ausgewiesen und sichtbar.
 		await expect(page.getByRole('alert')).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 
 	test('AK3b: ?error=invalid_email zeigt E-Mail-Fehler-Hinweis', async ({ page }) => {
 		await mockUnauthenticated(page);
-		await page.goto('/?error=invalid_email');
+		await page.goto('/app/?error=invalid_email');
 
 		// Die spezifische Meldung nimmt Bezug auf die E-Mail-Adresse.
 		const alert = page.getByRole('alert');
@@ -96,7 +96,7 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 
 	test('AK4: Authentifizierter Benutzer sieht Haupt-App — kein Login-Screen', async ({ page }) => {
 		await mockAuthenticated(page);
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Die Haupt-App (sr-only H1 „Dashboard") ist im DOM …
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 	test('AK5: Login-Seite ist auf mobilen Viewports bedienbar', async ({ page }) => {
 		await mockUnauthenticated(page);
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 
 		// Auch auf einem schmalen Mobil-Viewport ist der Login-Button sichtbar und bedienbar.
 		const loginButton = page.getByRole('button', { name: /Login with Google/i });

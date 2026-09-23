@@ -1,6 +1,6 @@
 # Mobile-UI-Regeln
 
-Verbindliches Regelset für Mobile-UI in Priority Pilot — Maßstab für die **UX-Beratung** (Phase 2)
+Verbindliches Regelset für Mobile-UI in Balamentum — Maßstab für die **UX-Beratung** (Phase 2)
 und die **Umsetzung** (Phase 3). Die Review-Phase wertet es bewusst nicht aus (User-Entscheidung,
 #822). Verankerung nach dem Muster von
 [ux-pattern-sequential-confirmation.md](ux-pattern-sequential-confirmation.md).

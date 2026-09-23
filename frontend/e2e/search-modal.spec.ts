@@ -10,7 +10,7 @@ import { taskTitleText, waitForStableView } from './helpers';
  * Wie `tasks-tab-filter.spec.ts` laufen diese Specs gegen das **echte** Backend
  * (In-Memory-DB, kein `page.route`); angelegte Tasks werden in `afterEach` aufgeräumt.
  */
-test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () => {
+test.describe('Balamentum — globale Suche über den Toolbar-Button', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -49,7 +49,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 	};
 
 	test('Suche öffnen → Begriff eingeben → Aufgaben-Tab zeigt gefilterte Liste', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const matchTitle = uniqueTitle('Match');
@@ -81,7 +81,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 	});
 
 	test('Suche per Enter-Taste im Suchfeld auslösen', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const matchTitle = uniqueTitle('Enter');
@@ -97,7 +97,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 
 	test('375px: Such-Modal und Toolbar-Button bleiben nutzbar, kein Layoutbruch', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const matchTitle = uniqueTitle('Mobil');
@@ -121,7 +121,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 	// #1067 — Nach dem Schließen des Suchdialogs liegt der Fokus im Filterfeld des Aufgaben-Tabs
 	// (docs/spec/issue-1067.md, AK1–AK4), damit direkt weitergetippt werden kann.
 	test('AK1: Suche per „Suche starten" → Fokus liegt im Filterfeld des Aufgaben-Tabs', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const matchTitle = uniqueTitle('Fokus');
@@ -145,7 +145,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 	});
 
 	test('AK1/AK2: Suche per Enter → Fokus im Filterfeld, Weitertippen verengt den Filter', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const alphaTitle = uniqueTitle('Alpha');
@@ -175,7 +175,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 
 	test('AK3: 375px — nach der Suche liegt der Fokus im Filterfeld', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const matchTitle = uniqueTitle('MobilFokus');
@@ -191,7 +191,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 	});
 
 	test('AK4: Schließen OHNE Suche (Escape, „Abbrechen") — Fokus bleibt beim Auslöser', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Escape: Fokus kehrt zum Toolbar-Button zurück, nicht ins Filterfeld.

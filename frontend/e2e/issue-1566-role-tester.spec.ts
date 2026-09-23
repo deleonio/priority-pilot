@@ -94,8 +94,8 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 	test('AK2: Tester sieht den Tab „Nutzerverwaltung" nicht; Deep-Link fällt auf „Säulen" zurück', async ({ page }) => {
 		await mockAuthMe(page, TESTER_USER);
 		await mockPlansApi(page);
-		await page.goto('/settings/nutzer');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/nutzer');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);
 		await expect(page.getByRole('tab', { name: 'Säulen' })).toHaveAttribute('aria-selected', 'true');
@@ -106,8 +106,8 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 	}) => {
 		await mockAuthMe(page, TESTER_USER);
 		const { patchedId, patchedPlan } = await mockPlansApi(page);
-		await page.goto('/settings/pakete');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pakete');
+		await waitForStableView(page, 'Balamentum');
 
 		// Dieselbe Karte wie ein Admin (#1565 AK1): sichtbar und mit Auswahl.
 		const card = ownPlanCard(page);
@@ -123,7 +123,7 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 
 		// AK3: Der Wechsel überlebt ein Neuladen (/auth/me-Mock liefert den gemutierten Plan).
 		await page.reload();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.locator('.settings-plans')).toContainText('Free (dein Paket)');
 		await expect(ownPlanCard(page)).toBeVisible();
 	});
@@ -134,8 +134,8 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 		await mockAuthMe(page, TESTER_USER);
 		const { patchedPlan } = await mockPlansApi(page);
 		await page.setViewportSize(MOBILE);
-		await page.goto('/settings/pakete');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/pakete');
+		await waitForStableView(page, 'Balamentum');
 
 		// AK2 mobil: kein Nutzerverwaltungs-Tab in der gestapelten Leiste.
 		await expect(page.getByRole('tab', { name: 'Nutzerverwaltung' })).toHaveCount(0);

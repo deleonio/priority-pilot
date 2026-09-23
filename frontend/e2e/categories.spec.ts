@@ -66,14 +66,14 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 	test('AK1: Kategorie in den Einstellungen anlegen — erscheint sofort in der Liste', async ({ page }) => {
 		const name = uniqueName('Hausbau');
 
-		await page.goto('/settings/kategorien');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/kategorien');
+		await waitForStableView(page, 'Balamentum');
 
 		await page.getByRole('button', { name: 'Neue Kategorie anlegen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Neue Kategorie anlegen' })).toBeVisible();
 		// Hydration des Dialogs abwarten: Ein `fill()` vor dem KoliBri-Upgrade landet im nativen
 		// Input, nicht im Komponenten-State — der Dialog speicherte dann einen leeren Namen.
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const dialog = page.locator('kol-dialog');
 		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
@@ -94,7 +94,7 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		const title = `E2E-Kat-Erklaerung-${runId}`;
 		const categoryId = await createCategoryViaApi(page, name);
 
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -163,14 +163,14 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		await createTaskViaApi(page, matching, categoryId);
 		await createTaskViaApi(page, other);
 
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 
 		const matchingRow = page.locator('.task-list-item').filter({ hasText: matching });
 		await expect(matchingRow.getByText(name, { exact: true })).toBeVisible();
 		await expect(page.locator('.task-list-item').filter({ hasText: other }).getByText(name)).toHaveCount(0);
 
-		await page.goto(`/aufgaben?cat=${categoryId}`);
+		await page.goto(`/app/aufgaben?cat=${categoryId}`);
 		await waitForStableView(page);
 
 		await expect(page.locator('.task-list-item').filter({ hasText: matching })).toBeVisible();
@@ -187,13 +187,13 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		const title = `E2E-Kat-Fliesen-${runId}`;
 		await createTaskViaApi(page, title, categoryId);
 
-		await page.goto('/settings/kategorien');
-		await waitForStableView(page, 'Priority Pilot');
+		await page.goto('/app/settings/kategorien');
+		await waitForStableView(page, 'Balamentum');
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await page.locator('kol-dialog').getByRole('button', { name: 'Endgültig löschen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeHidden();
 
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		const row = page.locator('.task-list-item').filter({ hasText: title });
 		await expect(row).toBeVisible();

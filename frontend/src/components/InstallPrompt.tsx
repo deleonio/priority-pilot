@@ -113,8 +113,8 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 		return (
 			<KolAlert _type="info" _label="App installieren">
 				<p>
-					Tippe auf <strong>Teilen</strong> und dann auf <strong>Zum Home-Bildschirm</strong>, um Priority Pilot als App
-					zu installieren.
+					Tippe auf <strong>Teilen</strong> und dann auf <strong>Zum Home-Bildschirm</strong>, um Balamentum als App zu
+					installieren.
 				</p>
 				<KolButton _label="Schließen" _variant="secondary" _on={{ onClick: handleDismiss }} />
 			</KolAlert>
@@ -124,7 +124,7 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 	// Standard Fallback für andere Browser
 	return (
 		<KolAlert _type="info" _label="App installieren">
-			<p>Möchtest du Priority Pilot als App auf deinem Gerät installieren?</p>
+			<p>Möchtest du Balamentum als App auf deinem Gerät installieren?</p>
 			<div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
 				<KolButton _label="Installieren" _variant="primary" _on={{ onClick: handleInstall }} />
 				<KolButton _label="Nicht jetzt" _variant="secondary" _on={{ onClick: handleDismiss }} />

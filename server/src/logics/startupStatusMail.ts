@@ -38,7 +38,7 @@ export const sendStartupStatusMail = async (send?: MailSender): Promise<number> 
 		const delivered = await sendMailToUser(
 			{ email: admin.email },
 			{
-				subject: `Priority Pilot neu gestartet (${sha})`,
+				subject: `Balamentum neu gestartet (${sha})`,
 				cc,
 				text: [
 					'Der Server wurde soeben neu gestartet.',

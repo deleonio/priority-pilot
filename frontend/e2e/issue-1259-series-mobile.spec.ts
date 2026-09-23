@@ -17,7 +17,7 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  * Wie `issue-1258-tasks-mobile.spec.ts` läuft diese Spec gegen das echte Backend (In-Memory-DB,
  * Vite-Proxy); Daten werden über die API angelegt, `afterEach` räumt auf.
  */
-test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
+test.describe('Balamentum — #1259: Serien-Tab mobil (375px)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -66,7 +66,7 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 		await createSeriesViaApi(page, uniqueTitle('OhneScroll'));
 		// Härtester legitimer Titel: 64-Zeichen-Einzelwort (Schema-Limit 65, analog #1258 AK3).
 		await createSeriesViaApi(page, 'Donaudampfschifffahrtsgesellschaftskapitaen'.padEnd(64, 'x'));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesView(page);
 
@@ -86,7 +86,7 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		const longWord = 'Donaudampfschifffahrtsgesell';
 		await createSeriesViaApi(page, longWord);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesView(page);
 
@@ -121,7 +121,7 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 	test('AK3: „Bearbeiten" und „Löschen" mindestens 44×44px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await createSeriesViaApi(page, uniqueTitle('Target44'));
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesView(page);
 
@@ -141,7 +141,7 @@ test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
 		for (let i = 0; i < 5; i += 1) {
 			ids.push(await createSeriesViaApi(page, uniqueTitle(`Sichtbar${i}`)));
 		}
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openSeriesView(page);
 

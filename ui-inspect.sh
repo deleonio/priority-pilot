@@ -1,5 +1,5 @@
 #!/bin/bash
-# ui-inspect.sh - startet Priority Pilot als wegwerfbare Inspect-Instanz für den Browser-MCP.
+# ui-inspect.sh - startet Balamentum als wegwerfbare Inspect-Instanz für den Browser-MCP.
 # Usage: pnpm ui:inspect (oder ./ui-inspect.sh), beenden mit Ctrl+C.
 #
 # Warum ein eigener Start statt `pnpm dev`: `server/.env` enthält echte Google-OAuth-Credentials,

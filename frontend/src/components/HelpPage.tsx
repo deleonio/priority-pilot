@@ -45,7 +45,7 @@ interface HelpTocItem {
 // Markdown-Links und (seit #1206, via remark-gfm) Autolinks nackter URLs gleich (KI-UX).
 //
 // #1320: Die Markdown-Überschriften rücken zugleich eine Ebene tiefer. Das Handbuch ist ein für
-// sich stehendes Dokument und beginnt mit `# Priority Pilot – Nutzerhandbuch`; seit die Hilfe im
+// sich stehendes Dokument und beginnt mit `# Balamentum – Nutzerhandbuch`; seit die Hilfe im
 // App-Layout steckt, trägt die Seite bereits die eine `<h1>` „Hilfe" (AK7). Ohne Verschiebung
 // stünden zwei `<h1>` im Dokument und die Gliederung hätte zwei konkurrierende Wurzeln. `h6`
 // bleibt `h6` — tiefer geht die HTML-Gliederung nicht (das Handbuch nutzt maximal `###`).
@@ -140,7 +140,7 @@ export const HelpPage = () => {
 	const [limit, setLimit] = useState<ChangelogLimit>('30');
 
 	useEffect(() => {
-		fetch('/user-guide.md')
+		fetch(`${import.meta.env.BASE_URL}user-guide.md`)
 			.then((r) => {
 				if (!r.ok) throw new Error(r.statusText);
 				return r.text();

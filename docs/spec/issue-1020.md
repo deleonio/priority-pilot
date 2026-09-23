@@ -1,4 +1,4 @@
-# Erledigte Aufgaben als Tabelle — Priority Pilot
+# Erledigte Aufgaben als Tabelle — Balamentum
 
 **Stand:** 2026-08-27  
 **Ziel:** Von außen sichtbares Verhalten der Erledigt-Ansicht (Tabelle der erledigten Aufgaben)

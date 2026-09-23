@@ -1,6 +1,6 @@
 # `server` (Backend)
 
-Node.js-Backend des [Priority-Pilot-Monorepos](../README.md): **Express 5 + Sequelize 6 (SQLite)**.
+Node.js-Backend des [Balamentum-Monorepos](../README.md): **Express 5 + Sequelize 6 (SQLite)**.
 Enthält die gesamte Fachlogik (Wertberechnung inkl. Lebensbalance-Säulen, Aufgabenwald, nächste
 Aufgabe, Zyklusprüfung) und stellt die REST-API bereit. Gemeinsamer API-Vertrag:
 [`../openapi.yml`](../openapi.yml).

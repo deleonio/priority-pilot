@@ -43,7 +43,7 @@ Quellen: KERN UX MCP (`kern-mcp_*`), KoliBri MCP (`kolibri-mcp_*`).
 
 MCP-Nutzung: Vor neuer Komponenten-Nutzung `kolibri-mcp_search` / `kolibri-mcp_fetch` für Specs/Samples; `kern-mcp_get_component_docs` für Doku.
 
-## Tokens (Priority Pilot — `--pp-*`)
+## Tokens (Balamentum — `--pp-*`)
 
 Definiert in `frontend/src/app.css :root` / `[data-theme='dark']`.
 

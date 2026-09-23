@@ -34,7 +34,7 @@ const RESPONSIVE_VIEWPORTS = [
 
 /** Öffnet das TaskForm über die Kopf-Aktion; der vorgeschaltete Schnellerfassungs-Schritt wird übersprungen. */
 const openTaskForm = async (page: Page): Promise<void> => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();

@@ -13,7 +13,7 @@ import { accordionTrigger, waitForStableView } from './helpers';
 
 /** Öffnet die Einstellungen direkt auf dem Gruppen-Tab. */
 const openGroupsTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	// 'Gruppen' statt des Default-'Dashboard': Auf /settings/* rendert die App-Shell keine
 	// Dashboard-Text (Issue-1098/llm-settings-Specs übergeben ebenfalls einen Seiten-Text).
 	await waitForStableView(page, 'Gruppen');

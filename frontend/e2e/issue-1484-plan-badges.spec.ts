@@ -121,7 +121,7 @@ const expectWithinViewport = async (locator: ReturnType<Page['locator']>): Promi
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 };
 
-test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstellen (375px)', () => {
+test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (375px)', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);
@@ -144,7 +144,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	// ohne die `ai_assist`-Berechtigung selbst zu ändern, sodass der Angebots-Badge weiter erscheint.
 	test('AK3/AK8: Aufgabenformular zeigt das ai_assist-Badge ohne horizontalen Overflow', async ({ page }) => {
 		await createCustomProvider(page);
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		// Mit Custom-Provider ist `aiEnabled` (App.tsx) jetzt true — „Neuen Task anlegen" öffnet daher
@@ -165,7 +165,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	// Free. Ersetzt den voice_input-Teil des Tests oben (Test-Pflege: der alte Test erwartete ein
 	// sichtbares `plan-badge-voice_input`, das AK2 explizit entfernt).
 	test('#1524 AK2: kein voice_input-Badge mehr im Aufgabenformular, auch nicht für Free', async ({ page }) => {
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
@@ -178,7 +178,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	// außerhalb von Modalen ist das Badge selbst der Link auf den Pakete-Reiter (Entscheidung B des
 	// Autors). Grenzstelle hier: `GroupsSection` auf /settings/gruppen (kein Modal, kein KI-Gate).
 	test('#1528 AK1/AK3: Badge-Klick außerhalb eines Modals öffnet den Pakete-Reiter, kein Dialog', async ({ page }) => {
-		await page.goto('/settings/gruppen');
+		await page.goto('/app/settings/gruppen');
 		await waitForStableView(page, 'Allgemein');
 
 		const badge = page.getByTestId('plan-badge-groups');
@@ -195,7 +195,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		page,
 	}) => {
 		await createCustomProvider(page);
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		const capture = page.getByRole('textbox', { name: /Beschreibe/ });
@@ -231,7 +231,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 		});
 		expect(created.status(), 'API-Token muss serverseitig anlegbar sein (Guard bleibt unverändert)').toBe(201);
 
-		await page.goto('/settings/zugriff');
+		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
 		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
@@ -242,7 +242,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	});
 
 	test('AK9: außerhalb des Angebots-Dialogs erscheint kein Preis-/Werbetext', async ({ page }) => {
-		await page.goto('/aufgaben');
+		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
@@ -276,7 +276,7 @@ test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstell
 	test('#1524 AK9: die erweiterte Paket-Tabelle (7 Feature-Zeilen) bleibt ohne horizontalen Overflow', async ({
 		page,
 	}) => {
-		await page.goto('/settings/pakete');
+		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Allgemein');
 
 		const host = page.getByTestId('plans-section').locator('kol-table-stateful');

@@ -27,7 +27,7 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 
 	/** Bringt das Dashboard mit mindestens einem Task in den Blick (sonst fehlt der Tab). */
 	const openDashboard = async (page: Page): Promise<void> => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E Herz Balance' } });
 

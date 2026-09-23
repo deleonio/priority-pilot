@@ -24,7 +24,7 @@ test.describe('Empty-States bei 0 Säulen (Issue #440, AK5)', () => {
 			route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
 		);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Zum Dashboard-Tab navigieren.

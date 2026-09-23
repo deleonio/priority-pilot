@@ -23,7 +23,7 @@ const GROUP_NAME = 'Spec-Gruppe #1521';
 const TASK_TITLE = 'Gemeinsame Gruppen-Aufgabe #1521';
 
 const openGroupsTab = async (page: Page): Promise<void> => {
-	await page.goto('/settings/gruppen');
+	await page.goto('/app/settings/gruppen');
 	await waitForStableView(page, 'Gruppen');
 	await expect(page.getByRole('tab', { name: 'Gruppen', exact: true })).toBeVisible();
 };
@@ -39,7 +39,7 @@ const createGroupViaUi = async (page: Page, name: string): Promise<void> => {
 
 /** Legt eine Aufgabe an, deren Empfänger die angegebene Gruppe ist (AK1-Option „Gruppe: <Name>"). */
 const createGroupTaskViaUi = async (page: Page, title: string, groupName: string): Promise<void> => {
-	await page.goto('/');
+	await page.goto('/app/');
 	await waitForStableView(page);
 	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 	await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
@@ -101,7 +101,7 @@ test.describe('#1521 Gruppen-Aufgabe', () => {
 		await openGroupsTab(page);
 		await createGroupViaUi(page, GROUP_NAME);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await waitForStableView(page);

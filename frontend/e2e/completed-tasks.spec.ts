@@ -12,7 +12,7 @@ import { measureHorizontalScroll, taskTitleText, waitForStableView } from './hel
  * Die Tests legen ihre Daten über die UI/echte API selbst an und räumen in `afterEach` wieder auf, damit
  * jeder Lauf von einem definierten, leeren Zustand startet (ein Worker, kein Neustart zwischen Tests).
  */
-test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte Backend', () => {
+test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
@@ -94,7 +94,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	};
 
 	test('AK-1: Tab „Erledigte Aufgaben" zeigt nur Done-Tasks — offene Tasks erscheinen dort nicht', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const doneTitle = uniqueTitle('Erledigt');
@@ -116,7 +116,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	test('AK-2: Je Zeile Titel + Punkte je Säule, Säulenwerte summieren sich zu den Gesamtpunkten (kein NaN)', async ({
 		page,
 	}) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Punkte');
@@ -135,7 +135,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	});
 
 	test('AK-3: Ohne Done-Task zeigt der Tab einen klaren Leerhinweis (kein kaputtes Layout)', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Ein offener Task, damit die Tab-Leiste erscheint, aber nichts erledigt ist.
@@ -149,7 +149,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	});
 
 	test('AK-4: „Wieder öffnen" entfernt den Task aus Erledigten und macht ihn wieder zu „Offen"', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Reopen');
@@ -183,7 +183,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Mobil');
@@ -270,7 +270,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 			page,
 		}) => {
 			await page.setViewportSize({ width: 1280, height: 800 });
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const title = uniqueTitle('1020-Geometrie');
@@ -310,7 +310,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	 */
 	test.describe('#307 — „Wieder öffnen" als Icon-Button in einer Toolbar', () => {
 		test('AK-307-3: „Wieder öffnen" liegt in einer Toolbar der Zeile', async ({ page }) => {
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const title = uniqueTitle('Toolbar-Reopen');
@@ -330,7 +330,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 
 		test('AK-307-5: Icon-Button „Wieder öffnen" liegt auch bei 375px in einer Toolbar', async ({ page }) => {
 			await page.setViewportSize({ width: 375, height: 667 });
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 
 			const title = uniqueTitle('Mobil-Reopen');

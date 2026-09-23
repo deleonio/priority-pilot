@@ -19,7 +19,7 @@ test.describe('#222 App-Header — Homogenität', () => {
 	 * AK1: Die E-Mail-Adresse ist im App-Header nicht mehr sichtbar.
 	 */
 	test('AK1: E-Mail-Adresse ist im App-Header nicht sichtbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		// Die gemockte E-Mail darf nicht mehr im DOM vorhanden sein (Element entfernt, nicht nur versteckt).
@@ -31,7 +31,7 @@ test.describe('#222 App-Header — Homogenität', () => {
 	 * Bereits implementiert via `_label={user.name}` — bleibt als Regressions-Smoke grün.
 	 */
 	test('AK3 (Smoke): kol-avatar im Header hat _label mit Benutzernamen', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const avatar = page.locator('header kol-avatar').first();
@@ -100,7 +100,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	test('AK3: Avatar-Höhe beträgt das 1,25-Fache der Toolbar-Button-Höhe', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { button, avatar } = await readHeaderBoxes(page);
@@ -118,7 +118,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	test('AK3: Avatar bleibt quadratisch (Breite = Höhe)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { avatar } = await readHeaderBoxes(page);
@@ -135,7 +135,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	test('AK4: Logo, Toolbar-Button und Avatar teilen sich eine Mittellinie (≥768px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { logo, button, avatar } = await readHeaderBoxes(page);
@@ -156,7 +156,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	test('AK4: Header bleibt einzeilig (kein Umbruch) bei 1024px', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { header, logo, avatar } = await readHeaderBoxes(page);
@@ -173,7 +173,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	test('AK5: Logo-Höhe ist nicht größer als die Avatar-Höhe', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const { logo, avatar } = await readHeaderBoxes(page);
@@ -206,7 +206,7 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 */
 	test('AK6: Header-Elemente bleiben bei 375px sichtbar und bedienbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const header = page.getByRole('banner');

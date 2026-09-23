@@ -1,7 +1,7 @@
 # UX-Pattern: Sequenzielle Bestätigung
 
 Dieses Dokument beschreibt das UX-Pattern **Sequenzielle Bestätigung** für
-destruktive oder weitreichende Aktionen in Priority Pilot. Es dient als
+destruktive oder weitreichende Aktionen in Balamentum. Es dient als
 verbindliche Referenz für künftige Implementierungs-Issues, die Bestätigungs-
 bzw. Löschdialoge umsetzen.
 

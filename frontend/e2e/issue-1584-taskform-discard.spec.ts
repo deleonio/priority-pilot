@@ -32,7 +32,7 @@ test.describe('Aufgabenformular — Rückfrage beim Verlassen ohne Speichern', (
 
 	/** Öffnet den Anlege-Dialog bis zum eigentlichen Formular (Modus-Auswahl überspringen). */
 	const openNewTaskForm = async (page: Page): Promise<void> => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();

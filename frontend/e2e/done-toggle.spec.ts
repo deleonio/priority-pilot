@@ -22,7 +22,7 @@ import { waitForStableView } from './helpers';
  * - `task-list-item-{id}` — Listen-Eintrag pro Blatt-Aufgabe (#537).
  * - `done-toggle-{id}` — der binäre Toggle-Button pro Aufgabe (im Popover).
  */
-test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#315 / #387)', () => {
+test.describe('Balamentum — Erledigt-Toggle in der flachen Blatt-Liste (#315 / #387)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -83,7 +83,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#3
 	test('AK1: Toggle schaltet Open→Done, PATCH persistiert und übersteht Reload', async ({ page }) => {
 		const id = await createTask(page, uniqueTitle('Erledigt'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -110,7 +110,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#3
 	test('AK1: Toggle schaltet Done→Open zurück, PATCH persistiert und übersteht Reload', async ({ page }) => {
 		const id = await createTask(page, uniqueTitle('Wieder öffnen'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -134,7 +134,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#3
 		await page.setViewportSize({ width: 375, height: 812 });
 		const id = await createTask(page, uniqueTitle('Mobil'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -164,7 +164,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#3
 	}) => {
 		const id = await createTask(page, uniqueTitle('Sichtbarkeit'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -187,7 +187,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#3
 		await page.setViewportSize({ width: 360, height: 780 });
 		const id = await createTask(page, uniqueTitle('Mobil'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 

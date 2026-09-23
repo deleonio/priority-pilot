@@ -23,7 +23,7 @@
 set -uo pipefail
 
 # Anwendungsrelevant. Einträge mit abschließendem `/` sind Präfixe, alle anderen exakte Pfade.
-#   frontend/server/client — der Anwendungscode selbst, inkl. e2e-Specs und Playwright-Config
+#   frontend/server/client/website — der Anwendungscode selbst, inkl. e2e-Specs und Playwright-Config
 #   openapi.yml            — der Vertrag, aus dem die Typen beider Seiten generiert werden
 #   Wurzel-Manifeste       — Abhängigkeits-/Toolchain-Wechsel (Renovate) können alles kippen
 #   verify.yml             — ändert sich die CI-Definition selbst, läuft die volle Suite
@@ -31,6 +31,7 @@ APP_PATHS=(
   'frontend/'
   'server/'
   'client/'
+  'website/'
   'openapi.yml'
   'package.json'
   'pnpm-lock.yaml'

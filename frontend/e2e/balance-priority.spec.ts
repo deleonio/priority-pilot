@@ -108,7 +108,7 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 	test('sortiert nach Defizit, zeigt ~P-Badges, schreibt nichts und lässt sich zurückschalten', async ({ page }) => {
 		const { taskX, taskY } = await seedScene(page);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -146,7 +146,7 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 		test('375px: Der Schalter bleibt bedienbar und liegt vollständig im Viewport', async ({ page }) => {
 			await seedScene(page);
 
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await openTasksTab(page);
 

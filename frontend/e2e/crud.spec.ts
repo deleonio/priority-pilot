@@ -14,7 +14,7 @@ import { registerOwnSession, setEqualPillarWeights, taskTitleText, waitForStable
  * wieder ab. So startet jeder Test von einem definierten, leeren Task-Zustand — unabhängig von der
  * Ausführungsreihenfolge — und auch der `smoke.spec.ts`-Test findet danach wieder den leeren Anfang.
  */
-test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend', () => {
+test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen
 	// (kein Verlass auf Demo-Seed) und parallele/aufeinanderfolgende Läufe sich nicht stören.
 	let runId = 0;
@@ -60,7 +60,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 	};
 
 	test('Task anlegen: erscheint in der Liste', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		// Frischer Start ohne Demo-Seed: die Onboarding-Ansicht ist sichtbar.
 		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
@@ -75,7 +75,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 	});
 
 	test('Task bearbeiten: geänderte Priorität bleibt sichtbar', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Bearbeiten');
@@ -104,7 +104,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 	});
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		const title = uniqueTitle('Löschen');
@@ -136,14 +136,14 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// #1574: Regler-Flow geht von 5 × 20 % aus — Gleichverteilung aktiv
 		// herstellen, parallele Specs im Shard können eine andere Verteilung hinterlassen haben.
 		await setEqualPillarWeights(page);
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 
 		/** Öffnet die Säulen-Gewichtungs-Seite über die Settings-Route. */
 		const openPillarWeights = async (): Promise<void> => {
-			await page.goto('/settings/pillars');
+			await page.goto('/app/settings/pillars');
 			await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-			await waitForStableView(page, 'Priority Pilot');
+			await waitForStableView(page, 'Balamentum');
 		};
 
 		await openPillarWeights();

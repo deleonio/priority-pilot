@@ -34,5 +34,5 @@
 - Box NICHT in den `role="combobox"`-Container von AddressAutocomplete rendern — nur Feld+Listbox gehören dort hinein.
 - State-Mirror nötig: `applyAddressCoords` schreibt nur `form.current`-Ref → ohne State kein Re-Render, Box bleibt stale (AK1/AK3 sonst grün im Test, rot live).
 - Kein `aria-live` (Announcement-Spam beim Tippen).
-- E2E AK7: Bounding-Box-Assertions statt scrollWidth (App-Shell clippt overflow-x:hidden, MEMORY 2026-08-24); `waitForStableView` auf ≤375px nutzt ReadyText `Dashboard`, nicht `Priority Pilot` (MEMORY 2026-08-23).
+- E2E AK7: Bounding-Box-Assertions statt scrollWidth (App-Shell clippt overflow-x:hidden, MEMORY 2026-08-24); `waitForStableView` auf ≤375px nutzt ReadyText `Dashboard`, nicht `Balamentum` (MEMORY 2026-08-23).
 - E2E-Filter: direkt `npx playwright test e2e/<datei>.spec.ts` im frontend-Verzeichnis (MEMORY 2026-08-26).

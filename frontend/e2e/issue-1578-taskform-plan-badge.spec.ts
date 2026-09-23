@@ -83,7 +83,7 @@ const boundingBoxWhenLaidOut = async (locator: ReturnType<Page['locator']>) => {
 };
 
 const openCreateForm = async (page: Page): Promise<void> => {
-	await page.goto('/aufgaben');
+	await page.goto('/app/aufgaben');
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 	// Custom-Provider macht aiEnabled true → „Neuen Task anlegen" öffnet den Freitext-Dialog
@@ -108,7 +108,7 @@ const openEditForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 };
 
-test.describe('Priority Pilot — #1578: Paket-Hinweise verengen/schneiden Formularfelder nicht mehr ab', () => {
+test.describe('Balamentum — #1578: Paket-Hinweise verengen/schneiden Formularfelder nicht mehr ab', () => {
 	test.beforeEach(async ({ page }) => {
 		await login(page);
 		await createCustomProvider(page);

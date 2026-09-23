@@ -19,7 +19,7 @@ import { waitForStableView } from './helpers';
  *
  * Diese Specs sind rot, bis `App.tsx` den 5-s-Timer in `handleDoneToggle` einbaut.
  */
-test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', () => {
+test.describe('Balamentum — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -94,7 +94,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		const id = await createTask(page, uniqueTitle('Karenzzeit'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -123,7 +123,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		// Kind ist Vorgänger (Unteraufgabe) des Elternteils — Elternteil ist blockiert.
 		await addSubtask(page, parentId, childId);
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -156,7 +156,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		const id = await createTask(page, uniqueTitle('Undo'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
@@ -187,7 +187,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		const id = await createTask(page, uniqueTitle('Mobil'));
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 

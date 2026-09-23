@@ -48,7 +48,7 @@ const createApiToken = async (page: Page): Promise<string> => {
 	return created.token;
 };
 
-test.describe('Priority Pilot — #1353: MCP-Werkzeuge v1 (AK9)', () => {
+test.describe('Balamentum — #1353: MCP-Werkzeuge v1 (AK9)', () => {
 	test.afterEach(async ({ page }) => {
 		const tasks = await page.request.get('/api/v1/tasks');
 		if (tasks.ok()) {
@@ -93,7 +93,7 @@ test.describe('Priority Pilot — #1353: MCP-Werkzeuge v1 (AK9)', () => {
 		expect(created.title).toBe(title);
 
 		// Sichtbarkeit in der App: die Aufgabenliste liegt hinter dem Tab „Aufgaben" (crud.spec.ts).
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await expect(taskTitleText(page, title)).toBeVisible();

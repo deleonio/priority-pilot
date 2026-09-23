@@ -64,7 +64,7 @@ const openTaskForm = async (page: Page): Promise<void> => {
 
 test.describe('Lektorat Smart Button', () => {
 	test.beforeEach(async ({ page }: { page: Page }) => {
-		await page.goto('/');
+		await page.goto('/app/');
 	});
 
 	test.describe('Journey 3: Titel lektorieren und kürzen', () => {

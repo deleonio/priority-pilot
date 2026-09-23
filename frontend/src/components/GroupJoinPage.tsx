@@ -132,7 +132,7 @@ export const GroupJoinPage = () => {
 								<KolButton
 									_label="Zu meinen Gruppen"
 									_variant="secondary"
-									_on={{ onClick: () => window.location.assign('/settings/gruppen') }}
+									_on={{ onClick: () => window.location.assign(`${import.meta.env.BASE_URL}settings/gruppen`) }}
 								/>
 							</>
 						)}

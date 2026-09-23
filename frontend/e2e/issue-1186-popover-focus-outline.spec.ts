@@ -26,7 +26,7 @@ import { waitForStableView } from './helpers';
  * migration-check.test.ts verbietet shadowRoot-Zugriffe in frontend/src-Tests —
  * die Prüfung liegt bewusst auf E2E-Ebene.
  */
-test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenliste (#1186)', () => {
+test.describe('Balamentum — Fokus-Outline im „…"-Menü der Aufgabenliste (#1186)', () => {
 	const createTask = async (page: Page, title: string): Promise<number> => {
 		const response = await page.request.post('/api/v1/tasks', {
 			data: { title, priority: 3, estimatedEffort: 1 },
@@ -116,7 +116,7 @@ test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenlis
 	test('AK1: Panel `.kol-popover-button__popover` hat nach dem Öffnen computed overflow: visible', async ({ page }) => {
 		const id = await createTask(page, 'Popover Overflow #1186');
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 		await expect(item(page, id)).toBeVisible();
@@ -136,7 +136,7 @@ test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenlis
 	}) => {
 		const id = await createTask(page, 'Popover Focus #1186');
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 		await expect(item(page, id)).toBeVisible();
@@ -167,7 +167,7 @@ test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenlis
 		test('AK3: AK1 + AK2 gelten unverändert bei 375px-Viewport', async ({ page }) => {
 			const id = await createTask(page, 'Popover Mobile #1186');
 
-			await page.goto('/');
+			await page.goto('/app/');
 			await waitForStableView(page);
 			await openTasksTab(page);
 			await expect(item(page, id)).toBeVisible();

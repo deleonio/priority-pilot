@@ -12,7 +12,7 @@ import { test, expect } from './fixtures';
  * Spec: docs/spec/issue-692.md
  */
 
-test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () => {
+test.describe('Balamentum — #692: Serien-Alert Layout-Verbesserung', () => {
 	test.beforeEach(async ({ page }) => {
 		// Eine Serie via API anlegen, damit .series-tree-title existiert — VOR dem Seitenaufruf:
 		// SeriesTab lädt ihre Liste einmal beim App-Start, ein späteres Anlegen würde sie nicht sehen.
@@ -28,7 +28,7 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 		});
 
 		// Serien-Tab öffnen
-		await page.goto('/');
+		await page.goto('/app/');
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
 	});
 

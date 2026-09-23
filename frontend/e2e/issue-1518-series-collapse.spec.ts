@@ -9,7 +9,7 @@ import { waitForStableView } from './helpers';
  * (Tab „Wald", `GET /graph`) und der Serien-Tab zeigen weiterhin alle Instanzen bzw. die Serie (AK13).
  * Läuft gegen das echte Backend (In-Memory-DB, Vite-Proxy).
  */
-test.describe('Priority Pilot — #1518: eine Instanz je Serie in der Aufgabenliste (375px)', () => {
+test.describe('Balamentum — #1518: eine Instanz je Serie in der Aufgabenliste (375px)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -61,7 +61,7 @@ test.describe('Priority Pilot — #1518: eine Instanz je Serie in der Aufgabenli
 		expect(instances.length).toBe(5);
 		const earliest = [...instances].sort((a, b) => a.deadline.localeCompare(b.deadline))[0];
 
-		await page.goto('/');
+		await page.goto('/app/');
 		await waitForStableView(page);
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 

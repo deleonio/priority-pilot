@@ -1,4 +1,4 @@
-# Layout Assessment — Priority Pilot Frontend
+# Layout Assessment — Balamentum Frontend
 
 **Generated via** `/impeccable layout` — dual assessment (source + mechanical scan)
 
