@@ -4910,9 +4910,10 @@ components:
           type: number
           description: >-
             Füllstand des Dashboard-Herzens in Prozent (`0`–`100`, auf eine Dezimalstelle
-            gerundet): `100` bei Ist = Soll, `0`, wenn aller erledigter Aufwand an einer einzigen
-            Säule hängt. Gemessen als normierte quadratische Abweichung vom Soll, große Defizite
-            einzelner Säulen wiegen dabei schwerer als dünn verteilte.
+            gerundet), Kadenz-Modell (#1638): je Säule die Erfüllung des festen Soll-Rhythmus im
+            28-Tage-Fenster (erledigte Aufgaben ÷ Rhythmus × 4 Wochen, höchstens 1). `100`, wenn
+            alle Säulen im Rhythmus bedient sind; eine Säule ohne Erledigung im Fenster drückt den
+            Wert, auch wenn sie früher viele Punkte gesammelt hat.
         hatPunkte:
           type: boolean
           description: >-

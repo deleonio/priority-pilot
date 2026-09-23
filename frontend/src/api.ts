@@ -4,6 +4,7 @@ import type {
 	ActivityAdvisorResult,
 	AdminUser,
 	ApiToken,
+	BalanceStatus,
 	Category,
 	CategoryCreate,
 	CategoryUpdate,
@@ -1127,6 +1128,16 @@ export const api = {
 			params: { query: { tz } },
 			signal,
 		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Lebensbalance: Füllstand im Kadenz-Modell (#1638) — dieselbe Rechnung wie MCP `balance_status` ---
+
+	async getBalanceStatus({ tz, signal }: { tz?: string } & Init = {}): Promise<BalanceStatus> {
+		const { data, error, response } = await client.GET('/scores/balance', { params: { query: { tz } }, signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

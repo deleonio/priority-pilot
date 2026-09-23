@@ -5,7 +5,7 @@ import { Pillar, ScoreEntry, Task, MissedTask } from '../../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
-import { berechneLebensbalance } from '../../logics/heartBalance.js';
+import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
@@ -162,7 +162,10 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
 		]);
 
-		const balance = berechneLebensbalance(
+		// Kadenz-Modell (#1638): der Füllstand misst die Erledigungen der letzten 28 Tage gegen den
+		// Soll-Rhythmus je Säule; Erledigt-Zeitpunkt ist `ScoreEntry.zeitpunkt` (ohne Eintrag: nur `punkte`).
+		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+		const balance = berechneLebensbalanceNachKadenz(
 			saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
 			tasks.map((task) => ({
 				status: task.status,
@@ -171,7 +174,9 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 					pillarId: pillar.id,
 					share: pillar.TaskPillar.share,
 				})),
+				erledigtAm: zeitpunktProTask.get(task.id) ?? null,
 			})),
+			new Date(),
 		);
 
 		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;

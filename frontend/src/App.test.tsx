@@ -74,6 +74,8 @@ vi.mock('./api', () => ({
 		getStreak: vi.fn().mockResolvedValue({ aktuell: 0, best: 0, letzterTag: null }),
 		// Test-Pflege #1362: die neue Dashboard-Card „Meilensteine“ lädt ihre Werte beim Mount selbst.
 		getMilestones: vi.fn().mockResolvedValue([]),
+		// #1638: ohne Server-Antwort zeigt das Dashboard-Herz den lokal gerechneten Füllstand.
+		getBalanceStatus: vi.fn().mockRejectedValue(new Error('nicht gemockt')),
 		// Die neue Dashboard-Card „Verpasste Aufgaben“ lädt ihre Werte beim Mount selbst.
 		getMissedTasks: vi.fn().mockResolvedValue({ anzahl: 0, eintraege: [] }),
 		listGroups: vi.fn().mockResolvedValue([]),

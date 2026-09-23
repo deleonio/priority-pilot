@@ -18,6 +18,7 @@
  * mit `weight: 0` an) und würden die Normierung sonst abschalten. Begründung und Herleitung stehen
  * ausführlich in `frontend/src/lib/heartBalance.ts`.
  */
+import { PILLAR_RHYTHMS } from '../models/pillarData.js';
 
 /** Eine Säule, so wie die Rechnung sie braucht: Identität, Anzeigename und ihr Soll-Gewicht. */
 export interface BalanceSaeule {
@@ -152,6 +153,110 @@ export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTa
 			id: saeule.id,
 			name: saeule.name,
 			punkte: punkte.get(saeule.id) ?? 0,
+			gewichtung: saeule.weight,
+		})),
+	};
+};
+
+/** Säule im Kadenz-Modell (#1638): Soll-Erledigungen pro Woche aus `PILLAR_RHYTHMS` statt Gewicht. */
+export interface KadenzSaeule {
+	id: number;
+	name: string;
+	rhythmusProWoche: number;
+}
+
+/** Task im Kadenz-Modell: zusätzlich der Erledigt-Zeitpunkt (`ScoreEntry.zeitpunkt`, sonst `null`). */
+export interface KadenzTask extends BalanceTask {
+	erledigtAm: Date | null;
+}
+
+/** Lebensbalance im Kadenz-Modell: je Säule zusätzlich die Erfüllung des Soll-Rhythmus (0–1). */
+interface KadenzBalance extends Lebensbalance {
+	saeulen: (BalanceSaeulenStand & { erfuellung: number })[];
+}
+
+const KADENZ_FENSTER_TAGE = 28;
+const TAG_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Kadenz-Füllstand (#1638): Statt des Ist-Anteils am Gesamtaufwand zählt, wie gut jede Säule ihren
+ * eigenen Soll-Rhythmus im 28-Tage-Fenster erfüllt — `erfuellungᵢ = min(1, Aufgaben_28d / (rhythmus × 4))`,
+ * Mehrfach-Zuweisungen anteilig (`share / 100`), Tasks ohne Zuweisung gleichverteilt. `punkte` bleibt die
+ * kumulative Aufwandssumme über die ganze Historie (`punkteProSaeule`).
+ *
+ * Aggregation: `fill = 1 − √(Σ defizitᵢ² / n)`. Die Säulen tragen kein Gewicht mehr, gewichtete und
+ * ungewichtete Komponente aus `berechneLebensbalance` fallen damit zusammen; anders als dort kann hier
+ * jede Säule unabhängig ein volles Defizit haben, das Maximum der Summe ist also n (Normierung 1).
+ */
+export const berechneKadenzFuellstand = (saeulen: KadenzSaeule[], tasks: KadenzTask[], jetzt: Date): KadenzBalance => {
+	const gleichGewichtet = saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: 1 }));
+	const punkte = punkteProSaeule(gleichGewichtet, tasks);
+	const hasPoints = saeulen.some((saeule) => (punkte.get(saeule.id) ?? 0) > 0);
+
+	const fensterStart = jetzt.getTime() - KADENZ_FENSTER_TAGE * TAG_MS;
+	const imFenster = tasks
+		.filter(
+			(task) =>
+				task.erledigtAm !== null &&
+				task.erledigtAm.getTime() > fensterStart &&
+				task.erledigtAm.getTime() <= jetzt.getTime(),
+		)
+		// Gezählt werden Aufgaben, nicht Aufwand: jede Erledigung zählt 1 (anteilig nach `share`).
+		.map((task) => ({ ...task, estimatedEffort: 1 }));
+	const anzahl = punkteProSaeule(gleichGewichtet, imFenster);
+
+	const erfuellung = new Map(
+		saeulen.map((saeule) => {
+			const soll = saeule.rhythmusProWoche * (KADENZ_FENSTER_TAGE / 7);
+			return [saeule.id, soll > 0 ? Math.min(1, (anzahl.get(saeule.id) ?? 0) / soll) : 1];
+		}),
+	);
+	const defizitQuadratSumme = saeulen.reduce((summe, saeule) => summe + (1 - (erfuellung.get(saeule.id) ?? 0)) ** 2, 0);
+	const fill = !hasPoints || saeulen.length === 0 ? 0 : 1 - Math.sqrt(defizitQuadratSumme / saeulen.length);
+
+	return {
+		fill,
+		hasPoints,
+		saeulen: saeulen.map((saeule) => ({
+			id: saeule.id,
+			name: saeule.name,
+			punkte: punkte.get(saeule.id) ?? 0,
+			gewichtung: saeule.rhythmusProWoche,
+			erfuellung: erfuellung.get(saeule.id) ?? 0,
+		})),
+	};
+};
+
+/** Rhythmus für Säulen, die nicht unter einem mitgelieferten Namen stehen (umbenannt/Altbestand): 1×/Woche. */
+const STANDARD_RHYTHMUS_PRO_WOCHE = 1;
+
+/**
+ * Füllstand der Antworten (GET /scores/balance, Verlauf, MCP `balance_status`) im Kadenz-Modell (#1638):
+ * Rhythmus je Säule aus `PILLAR_RHYTHMS` (Name), `gewichtung` bleibt `Pillar.weight` — die DTO-Form ist
+ * unverändert, `erfuellung` bleibt intern.
+ */
+export const berechneLebensbalanceNachKadenz = (
+	saeulen: BalanceSaeule[],
+	tasks: KadenzTask[],
+	jetzt: Date,
+): Lebensbalance => {
+	const rhythmusProName = new Map(PILLAR_RHYTHMS.map((eintrag) => [eintrag.name, eintrag.rhythmusProWoche]));
+	const kadenz = berechneKadenzFuellstand(
+		saeulen.map((saeule) => ({
+			id: saeule.id,
+			name: saeule.name,
+			rhythmusProWoche: rhythmusProName.get(saeule.name) ?? STANDARD_RHYTHMUS_PRO_WOCHE,
+		})),
+		tasks,
+		jetzt,
+	);
+	return {
+		fill: kadenz.fill,
+		hasPoints: kadenz.hasPoints,
+		saeulen: saeulen.map((saeule, index) => ({
+			id: saeule.id,
+			name: saeule.name,
+			punkte: kadenz.saeulen[index].punkte,
 			gewichtung: saeule.weight,
 		})),
 	};
