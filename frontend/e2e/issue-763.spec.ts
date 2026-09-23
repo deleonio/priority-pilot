@@ -28,7 +28,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		const settingsButton = page.getByRole('button', { name: /Einstellungen/i });
 		await expect(settingsButton).toBeVisible();
 		await settingsButton.click();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Tab "Säulen" auswählen (die Säulen-Gewichtung ist direkt in diesem Tab eingebettet)
 		const pillarsTab = page.getByRole('button', { name: /^Säulen$/ }).or(page.getByText('Säulen', { exact: true }));

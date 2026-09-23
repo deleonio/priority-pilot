@@ -67,13 +67,13 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		const name = uniqueName('Hausbau');
 
 		await page.goto('/app/settings/kategorien');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await page.getByRole('button', { name: 'Neue Kategorie anlegen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Neue Kategorie anlegen' })).toBeVisible();
 		// Hydration des Dialogs abwarten: Ein `fill()` vor dem KoliBri-Upgrade landet im nativen
 		// Input, nicht im Komponenten-State — der Dialog speicherte dann einen leeren Namen.
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const dialog = page.locator('kol-dialog');
 		await dialog.getByRole('searchbox', { name: 'Name' }).fill(name);
@@ -188,7 +188,7 @@ test.describe('Kategorien — anlegen, zuordnen, filtern (375px)', () => {
 		await createTaskViaApi(page, title, categoryId);
 
 		await page.goto('/app/settings/kategorien');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await page.locator('kol-dialog').getByRole('button', { name: 'Endgültig löschen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeHidden();

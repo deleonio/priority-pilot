@@ -53,7 +53,7 @@ const geoSwitch = (page: Page) =>
 		.getByRole('checkbox', { name: /standort erfassen/i })
 		.or(page.getByRole('switch', { name: /standort erfassen/i }));
 
-test.describe('Priority Pilot — #1098: Geo-Einstellungen', () => {
+test.describe('Balamentum — #1098: Geo-Einstellungen', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});

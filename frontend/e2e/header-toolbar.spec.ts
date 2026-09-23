@@ -381,7 +381,7 @@ test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () =
 test.describe('#1320 Direktwechsel Einstellungen ↔ Hilfe über die Toolbar (AK4)', () => {
 	test('AK4: „Hilfe" navigiert von /settings/general direkt zu /hilfe', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await page
 			.getByRole('toolbar', { name: /Kopf-Aktionen/ })
@@ -392,7 +392,7 @@ test.describe('#1320 Direktwechsel Einstellungen ↔ Hilfe über die Toolbar (AK
 
 	test('AK4: „Einstellungen" navigiert von /hilfe direkt zu /settings/general', async ({ page }) => {
 		await page.goto('/app/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await page
 			.getByRole('toolbar', { name: /Kopf-Aktionen/ })

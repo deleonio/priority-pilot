@@ -1,7 +1,7 @@
 # `client`
 
 Aus dem API-Vertrag [`../openapi.yml`](../openapi.yml) generierte **API-Typen** für das
-[Priority-Pilot-Monorepo](../README.md). Erzeugt mit
+[Balamentum-Monorepo](../README.md). Erzeugt mit
 [`openapi-typescript`](https://www.npmjs.com/package/openapi-typescript) (reines JavaScript, **kein
 Java**) nach `src/schema.d.ts`. **Kein handgeschriebener Code** in `schema.d.ts`.
 

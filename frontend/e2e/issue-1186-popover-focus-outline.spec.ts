@@ -26,7 +26,7 @@ import { waitForStableView } from './helpers';
  * migration-check.test.ts verbietet shadowRoot-Zugriffe in frontend/src-Tests —
  * die Prüfung liegt bewusst auf E2E-Ebene.
  */
-test.describe('Priority Pilot — Fokus-Outline im „…"-Menü der Aufgabenliste (#1186)', () => {
+test.describe('Balamentum — Fokus-Outline im „…"-Menü der Aufgabenliste (#1186)', () => {
 	const createTask = async (page: Page, title: string): Promise<number> => {
 		const response = await page.request.post('/api/v1/tasks', {
 			data: { title, priority: 3, estimatedEffort: 1 },

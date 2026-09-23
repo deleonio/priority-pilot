@@ -61,7 +61,7 @@ export const UpdatePrompt = () => {
 		<div className="update-prompt">
 			{needRefresh && (
 				<KolCard _label="Neue Version verfügbar">
-					<p>Priority Pilot wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.</p>
+					<p>Balamentum wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.</p>
 					<span data-testid="pwa-update-reload" onClick={confirmUpdate}>
 						<KolButton _label="Jetzt neu laden" _variant="primary" />
 					</span>
@@ -69,7 +69,7 @@ export const UpdatePrompt = () => {
 			)}
 			{offlineReady && (
 				<KolCard _label="Offline einsatzbereit">
-					<p>Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung.</p>
+					<p>Balamentum funktioniert ab jetzt auch ohne Internetverbindung.</p>
 					<span data-testid="pwa-offline-close" onClick={() => setOfflineReady(false)}>
 						<KolButton _label="Verstanden" _variant="secondary" />
 					</span>

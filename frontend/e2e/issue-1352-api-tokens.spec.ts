@@ -36,7 +36,7 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1352: API-Tokens (Settings-Tab „Zugriff")', () => {
+test.describe('Balamentum — #1352: API-Tokens (Settings-Tab „Zugriff")', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTokens(page);
 	});

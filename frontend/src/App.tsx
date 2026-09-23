@@ -851,7 +851,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 						<button type="button" className="logo-btn" onClick={handleHomeNavigate} aria-label={t('menu.home')}>
 							<img src={`${import.meta.env.BASE_URL}logo/logo.png`} alt="" />
 						</button>
-						<span className="app-name">Priority Pilot</span>
+						<span className="app-name">Balamentum</span>
 					</div>
 					<div className="app-header__primary">
 						{/*

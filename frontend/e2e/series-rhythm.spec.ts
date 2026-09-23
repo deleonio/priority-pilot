@@ -21,7 +21,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  *
  * `afterEach` räumt selbst angelegte Tasks und Serien über die echte API ab.
  */
-test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', () => {
+test.describe('Balamentum — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

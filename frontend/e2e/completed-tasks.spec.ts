@@ -12,7 +12,7 @@ import { measureHorizontalScroll, taskTitleText, waitForStableView } from './hel
  * Die Tests legen ihre Daten über die UI/echte API selbst an und räumen in `afterEach` wieder auf, damit
  * jeder Lauf von einem definierten, leeren Zustand startet (ein Worker, kein Neustart zwischen Tests).
  */
-test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte Backend', () => {
+test.describe('Balamentum — Erledigt-Ansicht (#228/#307) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {

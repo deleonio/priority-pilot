@@ -73,7 +73,7 @@ const gotoAbo = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('billing-invoices')).toBeVisible();
 };
 
-test.describe('Priority Pilot — #1496: Buchungs- und Verwaltungsflow', () => {
+test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 	test('AK1: Buchen ruft POST /billing/subscriptions und navigiert zur approvalUrl', async ({ page }) => {
 		await mockCatalog(page);
 		await mockAuthMe(page, USER_NO_SUBSCRIPTION);

@@ -33,7 +33,7 @@ export const createMailRouter = (mailSender?: MailSender) => {
 			}
 			const sent = await sendMailToUser(
 				{ email },
-				{ subject: 'Testmail', text: 'Dies ist eine Testmail von Priority Pilot.' },
+				{ subject: 'Testmail', text: 'Dies ist eine Testmail von Balamentum.' },
 				mailSender,
 			);
 			if (!sent) {

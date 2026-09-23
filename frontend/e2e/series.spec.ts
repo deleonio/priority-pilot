@@ -17,7 +17,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  * **Isolation:** Die In-Memory-DB überlebt den ganzen Backend-Prozess; `afterEach` räumt darum erst
  * alle Tasks (auch generierte Instanzen), dann alle Serien über die echte API wieder ab.
  */
-test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)', () => {
+test.describe('Balamentum — Serien-Frontend gegen das echte Backend (#142)', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
@@ -314,7 +314,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
  * Serie-Modus. Erkennbar am typspezifischen Dialogtitel „Serie bearbeiten: <title>" (#334) —
  * im Bearbeiten-Modus ist der Switch (`data-testid="mode-switch"`) nicht im DOM.
  */
-test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
+test.describe('Balamentum — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -450,7 +450,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
  * AK5a ist der Kern-Rot-Test: `toHaveCount(0)` schlägt aktuell fehl, weil der Button noch existiert.
  * Nach Umsetzung (Button entfernt) wird der Block grün.
  */
-test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
+test.describe('Balamentum — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -557,7 +557,7 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
  *
  * Diese Specs sind rot, solange TaskForm `series.pillars` beim Serien-Edit ignoriert.
  */
-test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', () => {
+test.describe('Balamentum — Serien behalten die Säulenzuordnung (#343)', () => {
 	interface ApiSeries {
 		id: number;
 		title: string;

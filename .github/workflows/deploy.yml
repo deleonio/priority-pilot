@@ -75,10 +75,12 @@ jobs:
           rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
             server/deploy/node_modules/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/node_modules/"
 
+      # Umbenennung Priority Pilot → Balamentum: ein noch laufender Prozess unter dem alten Namen
+      # belegt Port 3000 und wird vorher entfernt; `pm2 save` merkt sich den neuen Namen für den Autostart.
       - name: Backend per PM2 neu starten
         run: |
           ssh -i ~/.ssh/deploy_key "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" \
-            "pm2 reload priority-pilot --update-env || pm2 start ${{ vars.DEPLOY_APP_DIR }}/dist/index.js --name priority-pilot"
+            "pm2 delete priority-pilot 2>/dev/null; (pm2 reload balamentum --update-env || pm2 start ${{ vars.DEPLOY_APP_DIR }}/dist/index.js --name balamentum) && pm2 save"
 
       # ━━━━ Patch-Bump nach Deploy (#286) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       # App-Token noetig: Standard-GITHUB_TOKEN loest keine Folge-Workflows aus;

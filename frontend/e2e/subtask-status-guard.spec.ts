@@ -6,6 +6,6 @@ import { test } from './fixtures';
  * Bearbeiten-Dialog) sind damit obsolet — die Guard-Funktionalität ist durch done-toggle.spec.ts
  * AK2 abgedeckt.
  */
-test.describe.skip('Priority Pilot — Unteraufgaben-Done-Guard (#246) [obsolet seit #315]', () => {
+test.describe.skip('Balamentum — Unteraufgaben-Done-Guard (#246) [obsolet seit #315]', () => {
 	// Alle Tests wurden durch done-toggle.spec.ts AK2 ersetzt.
 });

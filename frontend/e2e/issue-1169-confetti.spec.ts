@@ -16,7 +16,7 @@ import { waitForStableView } from './helpers';
  * Partikelzahl, Canvas auf Viewportgröße — s. Spec); eine objektive Frame-Metrik ist in der
  * CI-Umgebung nicht zuverlässig messbar, deshalb prüft TF4 Durchlaufen + Bedienbarkeit.
  */
-test.describe('Priority Pilot — Konfetti beim Erledigt-Toggle (#1169)', () => {
+test.describe('Balamentum — Konfetti beim Erledigt-Toggle (#1169)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

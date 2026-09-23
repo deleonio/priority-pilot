@@ -25,7 +25,7 @@
 - TF3 als neue API-Tests (`/push/subscribe`, `/push/unsubscribe`) — bereits vollständig durch `express/push.test.ts` abgedeckt; Duplikate verboten (Dedup-Regel).
 - TF2 als eigenes `push-sender.test.ts` — `sendPushToUser` ist durch `logics/push.test.ts` abgedeckt; nur die Job-seitige Nutzung wird neu getestet.
 - TF5 (E2E) — echter Web-Push-Zyklus (VAPID + Push-Dienst + SW) in Playwright nicht deterministisch; gleiche Begründung wie `frontend/e2e/pwa-update-prompt.spec.ts`-Header. In der Spec dokumentiert + offene Frage im PR.
-- Einzel-Pushes je Aufgabe (wörtliches AK3 „für jede Aufgabe eine Push-Nachricht") — kollidiert mit `tag: 'priority-pilot'`-Coalescing (`push-sw.js:29-32`); KI-UX-Empfehlung „aggregieren" übernommen, 1 aggregierte Payload je Nutzer pro Lauf.
+- Einzel-Pushes je Aufgabe (wörtliches AK3 „für jede Aufgabe eine Push-Nachricht") — kollidiert mit `tag: 'balamentum'`-Coalescing (`push-sw.js:29-32`); KI-UX-Empfehlung „aggregieren" übernommen, 1 aggregierte Payload je Nutzer pro Lauf.
 - Tests gegen `/reverse-geocode` (AK1-Wortlaut) — der Job soll die Adressauflösung nicht per Selbst-HTTP-Aufruf über den eigenen Server lösen; Adressauflösung ist für AK2/AK6 funktional unerheblich, deshalb nicht als Testvertrag verankert.
 
 ## Offen
@@ -43,6 +43,6 @@
 - `Task.create` ohne `userId`/Koordinaten: Tests seeden explizit `latitude: null` — der Job muss Tasks ohne Koordinaten zuverlässig aussortieren.
 
 ## Ergebnis des Laufs
-- Commit `1d069356` „test: red spec tests for #1101" auf `ai/harness/1101` gepusht; Draft-PR **#1102** (https://github.com/deleonio/priority-pilot/pull/1102), `closes=[1101]`, draft=true verifiziert.
+- Commit `1d069356` „test: red spec tests for #1101" auf `ai/harness/1101` gepusht; Draft-PR **#1102** (https://github.com/deleonio/balamentum/pull/1102), `closes=[1101]`, draft=true verifiziert.
 - Pre-Commit-Hook (`knip`) schlug fehl, weil `./geo-background-job.js` noch nicht existiert (erwarteter Rotzustand) → Commit mit `--no-verify` erstellt und im PR-Body begründet. CI im Draft-PR wird knip/lint daher voraussichtlich rot zeigen, bis die Impl-Phase das Modul anlegt — kein Fix-Versuch in der Spec-Phase (Config-Änderung wäre Scope-Verletzung).
 - Prettier (lefthook `format`) hat spec + Testdatei beim ersten Commit-Versuch umformatiert; der Commit enthält die formatierte Fassung.

@@ -16,7 +16,7 @@
 - `frontend/src/components/SettingsPage.test.tsx:349-372` — AK3-Unit-Test.
 
 ## Annahmen
-- `waitForStableView(page, 'Priority Pilot')` funktioniert auch auf `/settings/standort` (Tablist immer gerendert — vom Review als kosmetisch ok vermerkt, Muster steht so in issue-1098-geo-settings.spec.ts).
+- `waitForStableView(page, 'Balamentum')` funktioniert auch auf `/settings/standort` (Tablist immer gerendert — vom Review als kosmetisch ok vermerkt, Muster steht so in issue-1098-geo-settings.spec.ts).
 - Gate = `pnpm gate` im Root (falls Script fehlt: lint + vitest); Playwright-e2e bewusst NICHT lokal ausgeführt (Zeitlimit) — der PR-Gate läuft sie.
 - Übrige `.settings-general`-Locatoren (issue-843.spec.ts, issue-969, issue-1028) treffen jetzt nur noch tab-0 → durch F3 behoben, keine Änderung nötig.
 

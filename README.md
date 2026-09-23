@@ -1,13 +1,13 @@
-# Priority Pilot
+# Balamentum
 
-Priority Pilot ist ein Werkzeug zur **Aufgaben-Priorisierung**. Es beantwortet die Frage
+Balamentum ist ein Werkzeug zur **Aufgaben-Priorisierung**. Es beantwortet die Frage
 _„Woran sollte ich als Nächstes arbeiten?"_, wenn Aufgaben voneinander abhängen und zugleich
 auf unterschiedliche **Lebensbereiche** einzahlen.
 
 Zwei Konzepte bestimmen die Priorität einer Aufgabe (Task):
 
 - **Gewichteter Abhängigkeitsgraph:** Jede Abhängigkeit trägt ein Gewicht, das angibt, wie stark
-  eine Aufgabe zu einer anderen beiträgt. Daraus berechnet Priority Pilot pro Aufgabe einen
+  eine Aufgabe zu einer anderen beiträgt. Daraus berechnet Balamentum pro Aufgabe einen
   **Wertbeitrag** (eigene Priorität plus gewichtete Werte der abhängigen Aufgaben) und einen
   **Gesamtaufwand** inklusive aller (transitiven) Abhängigkeiten.
 - **Lebensbalance-Säulen:** Jede Aufgabe zahlt auf **0..n** ihrer Lebensbalance-Säulen ein. Die
@@ -35,7 +35,7 @@ Damit lassen sich:
 - Aufgaben und Abhängigkeiten pflegen — inklusive **Zyklus-Erkennung** (zyklische Abhängigkeiten
   werden abgelehnt).
 
-Priority Pilot ist eine Full-Stack-Anwendung im pnpm-Monorepo: Ein Node.js-Backend
+Balamentum ist eine Full-Stack-Anwendung im pnpm-Monorepo: Ein Node.js-Backend
 (Express + Sequelize/SQLite) stellt die REST-API bereit, ein React-Frontend (KoliBri, als PWA)
 bedient sie. Der Funktionsumfang ist bewusst klein und befindet sich im Prototyp-Stadium.
 
@@ -62,7 +62,7 @@ mit `openapi-typescript` – erzeugt:
 
 ## Maintenance & Backups
 
-Priority-Pilot wird mit einem **nightly SQLite-Backup-Skript** ausgeliefert ([`maintenance.sh`](maintenance.sh)),
+Balamentum wird mit einem **nightly SQLite-Backup-Skript** ausgeliefert ([`maintenance.sh`](maintenance.sh)),
 das die Datenbank (`database.sqlite`) automatisch sichert und alte Backups aufräumt.
 
 **Funktionsumfang:**
@@ -207,4 +207,4 @@ Beiträge sind willkommen! Bitte lies vorab die [Beitragsrichtlinien](CONTRIBUTI
 
 ## Lizenz
 
-Priority Pilot steht unter der **[European Union Public Licence v. 1.2 (EUPL-1.2)](LICENSE)**.
+Balamentum steht unter der **[European Union Public Licence v. 1.2 (EUPL-1.2)](LICENSE)**.

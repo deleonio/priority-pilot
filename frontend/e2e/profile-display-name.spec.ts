@@ -13,13 +13,13 @@ import { waitForStableView } from './helpers';
  * `/profile` den gemeinsamen Entwicklungs-Nutzer, daher KEIN Login im Test.
  */
 
-test.describe('Priority Pilot — #1219: Anzeigename', () => {
+test.describe('Balamentum — #1219: Anzeigename', () => {
 	test('AK7: 375px — Feld ohne horizontales Scrollen; nach dem Speichern trägt die Kopfzeile den neuen Namen', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Kein horizontales Scrollen auf Seitenebene (Messung nach vollständigem Aufbau):
 		const geometry = await page.evaluate(() => ({

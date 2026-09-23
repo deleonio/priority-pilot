@@ -1,9 +1,9 @@
-# User Journeys – Priority Pilot
+# User Journeys – Balamentum
 
 **Stand:** 2026-08-30  
 **Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
-Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Priority Pilot App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
+Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Balamentum App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
 
 ---
 

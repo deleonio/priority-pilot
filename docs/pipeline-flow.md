@@ -319,7 +319,7 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   - **Phasen-Label-Pre-Check** (alle 7 Phasen): Die sechs Ticket-Phasen (01–06) serialisieren
     über EINE gemeinsame statische `concurrency`-Gruppe `llm` — genau **EIN** Lauf **über alle
     Ticket-Phasen hinweg**, alles Weitere reiht sich FIFO ein (Teil-Rücktausch von
-    [PR #1301](https://github.com/deleonio/priority-pilot/pull/1301), das vorher sechs eigene
+    [PR #1301](https://github.com/deleonio/balamentum/pull/1301), das vorher sechs eigene
     Phasen-Gruppen einführte). Beide Eingänge von Phase 4 (Umsetzung und Fixup,
     [ADR 0005](./adr/0005-fixup-und-umsetzung-sind-eine-phase.md)) lagen ohnehin schon in
     derselben Gruppe und überholen einander damit weiterhin nie. Die übrigen LLM-Workflows

@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * GeoBadge-Aufruf aus `task-tree-badges` in den Header hinter den Titel umzieht
  * (TaskTree.tsx:87-110).
  */
-test.describe('Priority Pilot — #1121: Geo-Badge hinter dem Task-Titel', () => {
+test.describe('Balamentum — #1121: Geo-Badge hinter dem Task-Titel', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

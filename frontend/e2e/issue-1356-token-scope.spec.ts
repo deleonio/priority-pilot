@@ -30,7 +30,7 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1356: Rechte-Umschalter je Token', () => {
+test.describe('Balamentum — #1356: Rechte-Umschalter je Token', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTokens(page);
 	});

@@ -32,7 +32,7 @@ test.describe('#843 Settings Screen Layout', () => {
 		page,
 	}) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Wir prüfen die Gruppen-Hosts für konsistentes Spacing
 		const controls = page.locator('.settings-general > kol-card, .settings-general > kol-accordion');
@@ -70,7 +70,7 @@ test.describe('#843 Settings Screen Layout', () => {
 	 */
 	test('AK2: Alle Controls sind auf 24dp linker Margin aligned', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Wir prüfen die Gruppen-Hosts, nicht die role-Elemente im Shadow-DOM
 		const controls = page.locator('.settings-general > kol-card, .settings-general > kol-accordion');
@@ -98,7 +98,7 @@ test.describe('#843 Settings Screen Layout', () => {
 	 */
 	test('AK3: Deskriptiver Text hat ≥16sp Schriftgröße und Farbe #616161', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// KoliBri rendert _hint-Text im Shadow-DOM. Wir prüfen die CSS-Variablen,
 		// die für deskriptiven Text gesetzt sind (siehe app.css).
@@ -129,7 +129,7 @@ test.describe('#843 Settings Screen Layout', () => {
 	 */
 	test('AK4: Checkmark-Icons haben 20×20dp Größe mit 8dp Padding', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Checkmark-Icons finden (typischerweise SVG mit checkmark-Klasse oder path)
 		const checkmarkIcons = page.locator('svg').filter({ has: page.locator('path').or(page.locator('circle')) });

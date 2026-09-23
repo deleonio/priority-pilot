@@ -28,7 +28,7 @@ const deleteAllTasks = async (page: import('@playwright/test').Page): Promise<vo
 	}
 };
 
-test.describe('Priority Pilot — #1360: Streak-Anzeige', () => {
+test.describe('Balamentum — #1360: Streak-Anzeige', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});

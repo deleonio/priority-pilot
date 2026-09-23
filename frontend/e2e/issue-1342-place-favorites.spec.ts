@@ -56,7 +56,7 @@ const expectWithinViewport = async (page: Page, locator: ReturnType<Page['locato
 	expect(box!.x + box!.width).toBeLessThanOrEqual(376);
 };
 
-test.describe('Priority Pilot — #1342: Standort-Favoriten', () => {
+test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 	});

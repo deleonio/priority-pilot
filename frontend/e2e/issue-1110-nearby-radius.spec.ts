@@ -67,7 +67,7 @@ const setDisplayDistance = async (page: Page, km: number): Promise<void> => {
 /** Der Card-Titel (`_label` wird von KoliBri am Host reflektiert, Muster header-appearance.spec.ts). */
 const cardTitle = (page: Page) => page.locator('kol-card[data-testid="nearby-card"]');
 
-test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () => {
+test.describe('Balamentum — #1110: Nearby-Card Radius + Distanzkette', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 		// Keine Spur hinterlassen: auch der Config-Wert wird zurückgesetzt (Muster deleteAllTasks).

@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * Backend (In-Memory-DB, Vite-Proxy). Daten werden direkt über die API angelegt, `afterEach`
  * räumt auf. Rot, bis `address` an Serien (AK1) existiert und alle drei Listen das Badge rendern.
  */
-test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabenliste', () => {
+test.describe('Balamentum — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabenliste', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

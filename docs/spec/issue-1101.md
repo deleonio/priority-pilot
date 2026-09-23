@@ -10,7 +10,7 @@ Meldet ein Client die aktuelle Geräteposition, prüft der Server die offenen Au
 
 1. **Positionsmitteilung:** Der Client meldet jede ermittelte Position an `POST /geo/position` (`lat`/`lon`, auth-pflichtig — ohne Session 401 „Anmeldung erforderlich."; Koordinaten außerhalb der gültigen Bereiche → 400). Der Versand läuft Fire-and-forget: die Antwort (204) wartet nicht auf den Push, ein Push-Fehler blockiert die Positionsbehandlung nicht.
 2. **Auswahl:** offene Tasks (Status ≠ „Done") **mit** Koordinaten im Umkreis des Alarmabstands (Default 1 km, `DEFAULT_ALARM_DISTANCE_KM`) zur gemeldeten Position (Haversine). Tasks ohne Koordinaten, erledigte und fremde Tasks erscheinen nie.
-3. **Versand:** je Nutzer **eine** aggregierte Payload (nicht eine je Task — der Service Worker ersetzt über `tag: 'priority-pilot'` aufeinanderfolgende Pushes), zugestellt an **alle** Subscriptions des Nutzers (Datenisolation über `ownerScope`).
+3. **Versand:** je Nutzer **eine** aggregierte Payload (nicht eine je Task — der Service Worker ersetzt über `tag: 'balamentum'` aufeinanderfolgende Pushes), zugestellt an **alle** Subscriptions des Nutzers (Datenisolation über `ownerScope`).
 4. **Inhalt:** Die Payload bleibt im Service-Worker-Vertrag `{ title, body?, url? }`.
    - 1 Task: `title` = Aufgabentitel, `body` = Entfernung im de-DE-Format mit einer Nachkommastelle („0,4 km"), `url` = Deep-Link auf die Aufgabe (`/tasks/{id}`).
    - n Tasks: `title` = „{n} Aufgaben in der Nähe", `body` = Liste „Titel (Entfernung)", `url` = Deep-Link auf die nächstgelegene Aufgabe.

@@ -17,7 +17,7 @@ const deleteAllTasks = async (page: import('@playwright/test').Page): Promise<vo
 	}
 };
 
-test.describe('Priority Pilot — #1362: Meilenstein-Badges', () => {
+test.describe('Balamentum — #1362: Meilenstein-Badges', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});

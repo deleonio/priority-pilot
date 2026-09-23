@@ -48,7 +48,7 @@ const createApiToken = async (page: Page): Promise<string> => {
 	return created.token;
 };
 
-test.describe('Priority Pilot — #1353: MCP-Werkzeuge v1 (AK9)', () => {
+test.describe('Balamentum — #1353: MCP-Werkzeuge v1 (AK9)', () => {
 	test.afterEach(async ({ page }) => {
 		const tasks = await page.request.get('/api/v1/tasks');
 		if (tasks.ok()) {

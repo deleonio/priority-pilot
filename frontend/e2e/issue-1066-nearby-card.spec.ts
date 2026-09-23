@@ -65,7 +65,7 @@ const deleteAllTasks = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () => {
+test.describe('Balamentum — #1066: Dashboard-Card „In der Nähe“', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});

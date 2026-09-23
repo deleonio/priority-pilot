@@ -246,9 +246,9 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// gespeicherte Gleichverteilung ist gültig — der Shortcut allein muss sie speichern.
 		await setEqualPillarWeights(page);
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');

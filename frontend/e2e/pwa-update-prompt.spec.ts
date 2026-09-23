@@ -24,7 +24,7 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 	);
 };
 
-test.describe('Priority Pilot — PWA Update-Prompt Mobile-First (#353)', () => {
+test.describe('Balamentum — PWA Update-Prompt Mobile-First (#353)', () => {
 	// AK6 — Mobile-First (375px): kein horizontaler Overflow.
 	test('AK6: App lädt bei 375px ohne horizontalen Overflow', async ({ page }) => {
 		await mockAuthenticated(page);
@@ -55,7 +55,7 @@ test.describe('Priority Pilot — PWA Update-Prompt Mobile-First (#353)', () => 
  * einfügen und die berechneten Styles auslesen. So wird verifiziert, dass die App das globale CSS
  * für `.update-prompt` (position: fixed, am unteren Rand) ausliefert.
  */
-test.describe('Priority Pilot — UpdatePrompt KoliBri-Card Fixierung (#373)', () => {
+test.describe('Balamentum — UpdatePrompt KoliBri-Card Fixierung (#373)', () => {
 	// AK1 — Am unteren Rand fixiert: .update-prompt trägt position: fixed.
 	test('AK1: .update-prompt-Klasse hat position:fixed', async ({ page }) => {
 		await mockAuthenticated(page);
@@ -101,7 +101,7 @@ test.describe('Priority Pilot — UpdatePrompt KoliBri-Card Fixierung (#373)', (
  * (`.update-prompt` > `kol-card` > Klick-Wrapper-`span[data-testid]` > `kol-button`) als
  * Stellvertreter injiziert und der CSS-Kontrakt gemessen.
  */
-test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', () => {
+test.describe('Balamentum — UpdatePrompt Mobile-Bedienbarkeit (#1034)', () => {
 	/** WCAG 2.5.8: Mindest-Tap-Target. */
 	const MIN_TARGET_PX = 44;
 	/** Sub-Pixel-Rundungstoleranz. */
@@ -214,7 +214,7 @@ interface ProxyMetrics {
 	viewportWidth: number;
 }
 
-test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () => {
+test.describe('Balamentum — UpdatePrompt Desktop-Ausrichtung (#1077)', () => {
 	/** Sub-Pixel-Rundungstoleranz. */
 	const TOLERANCE_PX = 1;
 
@@ -294,7 +294,7 @@ test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () 
  * Update-Prompt weg sein. Die Komponentenlogik selbst (Listener-Registrierung, Idempotenz-Guard,
  * Kein-Reload-ohne-Bestätigung) tragen die Vitest-Unit-Tests (AK1–AK3).
  */
-test.describe('Priority Pilot — PWA Update-Reload-Fallback (#1095)', () => {
+test.describe('Balamentum — PWA Update-Reload-Fallback (#1095)', () => {
 	test('AK4: 375px — Bestätigung + Controller-Wechsel reloadet genau einmal, Prompt danach weg', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 375, height: 667 });
@@ -310,7 +310,7 @@ test.describe('Priority Pilot — PWA Update-Reload-Fallback (#1095)', () => {
 			container.className = 'update-prompt';
 			container.innerHTML = `
 				<kol-card _label="Neue Version verfügbar">
-					<p>Priority Pilot wurde aktualisiert.</p>
+					<p>Balamentum wurde aktualisiert.</p>
 					<span data-testid="pwa-update-reload"><kol-button>Jetzt neu laden</kol-button></span>
 				</kol-card>
 			`;

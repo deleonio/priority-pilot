@@ -1,4 +1,4 @@
-## Impeccable Critique Report — Priority Pilot Frontend
+## Impeccable Critique Report — Balamentum Frontend
 
 **Method:** dual-agent (A: critique-agent · B: detector-agent)
 

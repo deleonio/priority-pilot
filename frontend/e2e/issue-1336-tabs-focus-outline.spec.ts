@@ -28,7 +28,7 @@ import { waitForStableView } from './helpers';
  * shadowRoot-Zugriffe in frontend/src-Tests — Effekt liegt im Shadow-DOM einer
  * Custom-Element-Komponente und ist in jsdom nicht messbar.
  */
-test.describe('Priority Pilot — Fokus-Outline auf Tab-Buttons (#1336)', () => {
+test.describe('Balamentum — Fokus-Outline auf Tab-Buttons (#1336)', () => {
 	/**
 	 * Vorfahrenkette (inkl. verschachteltem Shadow-DOM) bis zum `kol-tabs`-Host:
 	 * liefert den Klassennamen des ersten clippenden Knotens oder `null`.
@@ -151,7 +151,7 @@ test.describe('Priority Pilot — Fokus-Outline auf Tab-Buttons (#1336)', () => 
 
 	test('AK7: Settings-Tab „Allgemein" hat dieselbe sichtbare, ungeclippte Outline', async ({ page }) => {
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const button = page.getByRole('tab', { name: 'Allgemein', exact: true });
 		await assertOutline(page, button);

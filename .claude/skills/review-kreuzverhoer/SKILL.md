@@ -11,7 +11,7 @@ for local/manual reviews — the CI review phase (5/7) implements it via its ope
 
 Note: this file's prose is English; the review body and collected comment written to GitHub stay German — that content is for the project's German-speaking contributors.
 
-PRs = pull requests of `deleonio/priority-pilot`. Prerequisite: `gh` is authenticated.
+PRs = pull requests of `deleonio/balamentum`. Prerequisite: `gh` is authenticated.
 
 **Selection criterion:** a specifically given PR is reviewed; without one, the most recently
 opened/updated open PR.

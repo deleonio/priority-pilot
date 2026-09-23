@@ -32,7 +32,7 @@ const mockMeServerError = async (page: Page): Promise<void> => {
 	);
 };
 
-test.describe('Priority Pilot — User Info Display (#192)', () => {
+test.describe('Balamentum — User Info Display (#192)', () => {
 	// AK3a ("E-Mail aus /auth/me ist im Header/Navigation sichtbar") ist durch #222 überholt: der
 	// homogenere App-Header entfernt die E-Mail bewusst aus dem DOM (siehe
 	// e2e/header-appearance.spec.ts, AK1: `not.toBeAttached()`). Beide Kriterien sind nicht

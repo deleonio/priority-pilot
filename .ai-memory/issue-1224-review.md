@@ -1,6 +1,6 @@
 # Issue 1224 — Review (Phase 5), Stand 2026-09-05 (nach Soft-Deadline)
 
-**ERGEBNIS: VERDICT reviewed (🟢), Review-Typ Kreuzverhör (Erstrunde).** PR #1240, collected comment https://github.com/deleonio/priority-pilot/pull/1240#issuecomment-5553378637. Kein Blocker, keine Entscheidungs-Findings, 3 Nits (nicht blockierend, als Inline-Kommentare 3941342112/3941342152/3941342204 gepostet). Titel-Gate: PR-Titel auf `feat(server): notify recipient when a task is created for them (#1224)` umbenannt (70 Zeichen).
+**ERGEBNIS: VERDICT reviewed (🟢), Review-Typ Kreuzverhör (Erstrunde).** PR #1240, collected comment https://github.com/deleonio/balamentum/pull/1240#issuecomment-5553378637. Kein Blocker, keine Entscheidungs-Findings, 3 Nits (nicht blockierend, als Inline-Kommentare 3941342112/3941342152/3941342204 gepostet). Titel-Gate: PR-Titel auf `feat(server): notify recipient when a task is created for them (#1224)` umbenannt (70 Zeichen).
 
 ## Erledigt
 - MODE-Bestimmung: 0 Kommentare auf PR #1240 → kein `<!-- ai-review -->` → Kreuzverhör-Erstrunde.

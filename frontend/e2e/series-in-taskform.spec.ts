@@ -19,7 +19,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
  *    (optional)" ist ausgeblendet.
  *  - „Speichern" im Serie-Modus schickt einen `POST /series`; im Task-Modus einen `POST /tasks`.
  */
-test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316)', () => {
+test.describe('Balamentum — Task/Serie-Umschalter im Anlege-Formular (#316)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

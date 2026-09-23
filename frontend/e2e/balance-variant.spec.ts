@@ -35,7 +35,7 @@ test.describe('Bild der Lebensbalance – Umschalter im Allgemein-Tab', () => {
 	test('375px: Alle sieben Bilder wählbar, „Blüte" erscheint auf dem Dashboard', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Die Gruppe mit allen sieben Optionen ist sichtbar, jede Option interaktiv.
 		await expect(variantGroup(page)).toBeVisible();

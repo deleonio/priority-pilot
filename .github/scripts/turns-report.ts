@@ -758,7 +758,7 @@ export function renderTurnReport(dir: string, opts: TurnReportOptions = {}): str
 		'| --- | --- | ---: | ---: | ---: | :--- | --- |',
 	);
 	for (const t of tickets) {
-		const link = `[#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue})`;
+		const link = `[#${t.issue}](https://github.com/deleonio/balamentum/issues/${t.issue})`;
 		if (t.measured === 0) {
 			lines.push(`| ${link} | ${CLASS_LABEL[t.class]} | ${t.runs} | — | — | — | — |`);
 			continue;

@@ -76,7 +76,7 @@ describe('logics/startupStatusMail — Status-Mail beim Serverstart', () => {
 				'Member und Admin ohne E-Mail bleiben ausgeschlossen',
 			);
 			for (const call of calls) {
-				assert.match(call.subject, /^Priority Pilot neu gestartet \(/);
+				assert.match(call.subject, /^Balamentum neu gestartet \(/);
 				assert.ok(call.text.includes('Node:'), 'der Text nennt die Node-Version');
 			}
 		} finally {

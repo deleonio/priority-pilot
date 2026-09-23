@@ -1,13 +1,13 @@
-# Priority Pilot – Nutzerhandbuch
+# Balamentum – Nutzerhandbuch
 
-Willkommen bei **Priority Pilot**. Die App beantwortet eine einzige Frage:
+Willkommen bei **Balamentum**. Die App beantwortet eine einzige Frage:
 _„Woran sollte ich als Nächstes arbeiten?"_ – und zwar dann, wenn Aufgaben
 voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen.
 
 Zwei Ideen stecken dahinter:
 
 - **Wertbeitrag statt Bauchgefühl.** Aus Priorität, Aufwand und den (gewichteten)
-  Abhängigkeiten berechnet Priority Pilot pro Aufgabe einen Wert. Die wertvollsten
+  Abhängigkeiten berechnet Balamentum pro Aufgabe einen Wert. Die wertvollsten
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
 - **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf **alle fünf** Lebensbereiche ein, nur
   unterschiedlich stark: Du verteilst je Aufgabe 100 % auf die Säulen. Die fünf Säulen stehen
@@ -20,7 +20,7 @@ Dieses Handbuch erklärt alle Funktionen der Anwendung.
 
 ## Anmeldung
 
-Priority Pilot ist ein persönliches Werkzeug – deine Daten sind an dein Konto
+Balamentum ist ein persönliches Werkzeug – deine Daten sind an dein Konto
 gebunden. Die Anmeldung erfolgt ausschließlich über **Google**:
 
 - Auf der Startseite auf **„Login with Google"** klicken.
@@ -332,7 +332,7 @@ Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten"**.
   **„Hinzufügen"**. Das Gewicht steuert, wie stark der Vorgänger zum Wert der
   abhängigen Aufgabe beiträgt (1 = voller Einfluss).
 
-Priority Pilot verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
+Balamentum verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
 widerspruchsfrei – und die „Nächste Aufgabe" ist stets die wichtigste, deren
 Vorgänger alle erledigt sind.
@@ -431,7 +431,7 @@ Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schri
 ## Serien (wiederkehrende Aufgaben)
 
 Mit **Serien** legst du wiederkehrende Aufgaben als Vorlage an. Aus einer Serie
-erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
+erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
 
 - **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie"**
   einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
@@ -702,7 +702,7 @@ verwaltet, ist deshalb noch kein Administrator der App.
 
 ## Benachrichtigungen (Push)
 
-Priority Pilot kann dich per **Push-Nachricht** an fällige Aufgaben erinnern – auch
+Balamentum kann dich per **Push-Nachricht** an fällige Aufgaben erinnern – auch
 wenn die App gerade nicht geöffnet ist.
 
 - Aktivieren über _Einstellungen → Allgemein → „Push-Nachrichten aktivieren"_. Beim
@@ -720,11 +720,11 @@ wenn die App gerade nicht geöffnet ist.
   „X Aufgaben in der Nähe". Auch hier wird dieselbe Aufgabe nicht sofort erneut
   gemeldet.
 
-> **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Priority Pilot nur als
+> **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Balamentum nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
 > App-Benachrichtigung eine **zweite Benachrichtigung** von Chrome erscheinen (z. B.
 > „URL kopieren", „Teilen", „In Chrome öffnen"). Diese Mehrfachbenachrichtigung ist ein
-> Plattformverhalten von Chrome, nicht von Priority Pilot. **Workaround:** Installiere die
+> Plattformverhalten von Chrome, nicht von Balamentum. **Workaround:** Installiere die
 > App als eigenständige App (siehe unten „App installieren und aktualisieren") – dann wird
 > nur noch die gewünschte App-Benachrichtigung angezeigt. Aufeinanderfolgende Pushes
 > ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird – die App vergibt ihren
@@ -734,7 +734,7 @@ wenn die App gerade nicht geöffnet ist.
 
 ## App installieren und aktualisieren
 
-Priority Pilot ist eine **installierbare Web-App (PWA)** und funktioniert auch offline.
+Balamentum ist eine **installierbare Web-App (PWA)** und funktioniert auch offline.
 
 - **Installieren:** Erscheint das Banner **„App installieren"**, kannst du die App mit
   **„Installieren"** auf dein Gerät legen. Unter iOS/Safari nutzt du dazu **Teilen →

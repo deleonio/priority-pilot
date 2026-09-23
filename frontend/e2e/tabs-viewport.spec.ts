@@ -21,7 +21,7 @@ test.describe('#968/#703 Tab-Leisten über Viewports', () => {
 	test('AK1: Settings-Tabs sind bei Mobile-Viewport (375px) nebeneinander in einer Zeile', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Tabs sind sichtbar und bedienbar.
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
@@ -94,7 +94,7 @@ test.describe('#968/#703 Tab-Leisten über Viewports', () => {
 	}) => {
 		await page.setViewportSize({ width: 768, height: 1024 });
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Tabs sind sichtbar.
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
@@ -127,14 +127,14 @@ test.describe('#968/#703 Tab-Leisten über Viewports', () => {
 		// Start: Mobile-Viewport.
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Tabs sind bedienbar (Mobile).
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
 
 		// Übergang zu Desktop-Viewport.
 		await page.setViewportSize({ width: 768, height: 1024 });
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Tabs sind weiterhin bedienbar (Desktop).
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
@@ -155,7 +155,7 @@ test.describe('#968/#703 Tab-Leisten über Viewports', () => {
 	test('AK4: Tabs sind bei extrem schmalem Viewport (< 320px) noch bedienbar', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 568 });
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Tabs sind sichtbar und bedienbar.
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
@@ -177,15 +177,15 @@ test.describe('#968/#703 Tab-Leisten über Viewports', () => {
 		// Start: Desktop-Viewport.
 		await page.setViewportSize({ width: 768, height: 1024 });
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Klick auf Allgemein-Tab.
 		await page.getByRole('tab', { name: 'Allgemein', exact: true }).click();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Während Tab-Interaktion: Viewport schrumpfen.
 		await page.setViewportSize({ width: 375, height: 812 });
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Allgemein-Tab ist noch aktiv und sichtbar.
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');

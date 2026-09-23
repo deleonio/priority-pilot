@@ -24,7 +24,7 @@
 - -
 
 ## Nächster Schritt
-- ERLEDIGT, Runde abgeschlossen: Fix-Commit `13f147ad` auf `ai/harness/1110` gepusht (inkl. dieser Note). CI am neuen Head KOMPLETT GRÜN (Run 33243961790: e2e 1–4 pass — auch das zuvor rote `e2e (2)` —, verify pass). Beide Review-Threads beantwortet + resolved; ai-fixup-decisions-Kommentar: https://github.com/deleonio/priority-pilot/pull/1114#issuecomment-5461383315. Kein VERDICT nötig (keine Entscheidungs-Findings). Kein Re-Review angestoßen — nächster Lauf (Re-Review, CI-Phase 7) prüft den neuen Diff.
+- ERLEDIGT, Runde abgeschlossen: Fix-Commit `13f147ad` auf `ai/harness/1110` gepusht (inkl. dieser Note). CI am neuen Head KOMPLETT GRÜN (Run 33243961790: e2e 1–4 pass — auch das zuvor rote `e2e (2)` —, verify pass). Beide Review-Threads beantwortet + resolved; ai-fixup-decisions-Kommentar: https://github.com/deleonio/balamentum/pull/1114#issuecomment-5461383315. Kein VERDICT nötig (keine Entscheidungs-Findings). Kein Re-Review angestoßen — nächster Lauf (Re-Review, CI-Phase 7) prüft den neuen Diff.
 
 ## Fallstricke
 - e2e-Filter-Falle: `pnpm --filter frontend test:e2e -- <pattern>` filtert nicht → `npx playwright test e2e/issue-1110-nearby-radius.spec.ts` im frontend-Verzeichnis.

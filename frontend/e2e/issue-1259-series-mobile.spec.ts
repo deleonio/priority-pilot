@@ -17,7 +17,7 @@ import { measureHorizontalScroll, waitForStableView } from './helpers';
  * Wie `issue-1258-tasks-mobile.spec.ts` läuft diese Spec gegen das echte Backend (In-Memory-DB,
  * Vite-Proxy); Daten werden über die API angelegt, `afterEach` räumt auf.
  */
-test.describe('Priority Pilot — #1259: Serien-Tab mobil (375px)', () => {
+test.describe('Balamentum — #1259: Serien-Tab mobil (375px)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

@@ -102,7 +102,7 @@ async function fakeActionButtonsScene(page: import('@playwright/test').Page): Pr
 async function openGeneral(page: import('@playwright/test').Page): Promise<void> {
 	await fakeActionButtonsScene(page);
 	await page.goto('/app/settings/general');
-	await waitForStableView(page, 'Priority Pilot');
+	await waitForStableView(page, 'Balamentum');
 	await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 	// Szene-Verifikation: Ohne sichtbaren Button messen die Geometrie-Assertions über eine leere
@@ -114,7 +114,7 @@ async function openGeneral(page: import('@playwright/test').Page): Promise<void>
 async function openStandort(page: import('@playwright/test').Page): Promise<void> {
 	await fakeActionButtonsScene(page);
 	await page.goto('/app/settings/standort');
-	await waitForStableView(page, 'Priority Pilot');
+	await waitForStableView(page, 'Balamentum');
 	await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
 	await expect(page.getByRole('button', { name: 'Standort ermitteln' })).toBeVisible();
 }

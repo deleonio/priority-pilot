@@ -76,7 +76,7 @@ const dispatchPush = async (payload: unknown): Promise<void> => {
 describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 	it('AK1/T1: zeigt pro Push-Event genau EINE Notification mit dem Tageszitat', async () => {
 		await dispatchPush({
-			title: 'Priority Pilot',
+			title: 'Balamentum',
 			body: 'Man sieht nur mit dem Herzen gut. — Antoine de Saint-Exupéry',
 			url: '/',
 		});
@@ -84,7 +84,7 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 		// Genau ein showNotification-Aufruf pro Push-Event (keine Verdopplung aus dem SW).
 		expect(showNotification).toHaveBeenCalledTimes(1);
 		expect(showNotification).toHaveBeenCalledWith(
-			'Priority Pilot',
+			'Balamentum',
 			expect.objectContaining({ body: 'Man sieht nur mit dem Herzen gut. — Antoine de Saint-Exupéry' }),
 		);
 		// Observable Outcome: die Notification trägt einen stabilen Tag (Coalescing gegen Duplikate).
@@ -93,8 +93,8 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 	});
 
 	it('AK1/T3: aufeinanderfolgende Pushes stapeln nicht – Notification trägt einen stabilen Tag', async () => {
-		await dispatchPush({ title: 'Priority Pilot', body: 'Zitat 1', url: '/' });
-		await dispatchPush({ title: 'Priority Pilot', body: 'Zitat 2', url: '/' });
+		await dispatchPush({ title: 'Balamentum', body: 'Zitat 1', url: '/' });
+		await dispatchPush({ title: 'Balamentum', body: 'Zitat 2', url: '/' });
 
 		// Beide Aufrufe müssen denselben `tag` tragen, damit der zweite Push die erste Notification
 		// ersetzt statt eine zweite zu stapeln (Coalescing über den Tag — die web-push-Mechanik gegen
@@ -117,7 +117,7 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 	});
 
 	it('AK2/T2: der push-Pfad erzeugt keine zweite Notification über einen Nebenkanel', async () => {
-		await dispatchPush({ title: 'Priority Pilot', body: 'Zitat', url: '/' });
+		await dispatchPush({ title: 'Balamentum', body: 'Zitat', url: '/' });
 
 		// Genau eine Notification aus dem SW; der push-Pfad darf kein zweites Fenster öffnen.
 		// (Die unerwünschte zweite „URL kopieren"-Notification stammt von Chrome selbst, nicht vom SW

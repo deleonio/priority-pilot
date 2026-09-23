@@ -11,7 +11,7 @@ Note: this file's prose is English; text written into GitHub issues/comments (th
 
 **Storage (ADR 0009):** ALL phase output lives in the **harness marker comment** — the ONE comment whose body starts with the marker line `<!-- ai-harness -->` (first line, byte-exact). The issue **body** stays exactly as the issue validator checked it: every body edit re-triggers `0/6 Issue-Validator` and stalls the pipeline. Phases update the harness comment in place (upsert, one comment per issue — same pattern as the `<!-- ai-quality -->` marker comment).
 
-Issues = GitHub issues of `deleonio/priority-pilot`. Prerequisite: `gh` is authenticated.
+Issues = GitHub issues of `deleonio/balamentum`. Prerequisite: `gh` is authenticated.
 
 **Selection criterion:** All **open** issues that do **not yet** carry the label
 `ai:analysed` are analyzed. A **specifically given number** is always processed, even if it already carries `ai:analysed` (re-triage).

@@ -29,7 +29,7 @@ test.describe('#934 InputRange-Mindestbreite', () => {
 		const settingsButton = page.getByRole('button', { name: /Einstellungen/i });
 		await expect(settingsButton).toBeVisible();
 		await settingsButton.click();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const pillarsTab = page.getByRole('button', { name: /^Säulen$/ }).or(page.getByText('Säulen', { exact: true }));
 		await expect(pillarsTab).toBeVisible();

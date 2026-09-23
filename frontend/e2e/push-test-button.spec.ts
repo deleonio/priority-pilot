@@ -67,7 +67,7 @@ test.describe('#386 „Push testen"-Button', () => {
 		);
 
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		await expect(page.getByRole('button', { name: /Push testen/i })).toBeVisible();
@@ -87,7 +87,7 @@ test.describe('#386 „Push testen"-Button', () => {
 		);
 
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		await expect(page.getByRole('button', { name: /Push testen/i })).toHaveCount(0);
@@ -102,7 +102,7 @@ test.describe('#386 „Push testen"-Button', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		const hasNoHorizontalOverflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);

@@ -15,7 +15,7 @@ const HELP_TABS = [{ _label: 'Handbuch' }, { _label: 'Feedback' }, { _label: 'Im
 // deckt „Letzte 30"/„Letzte 100" so gut wie immer ab (Finding #1, PR #1432); nur „Alle" folgt den
 // Folgeseiten über den `Link`-Header nach. Renovate-/Dependabot-Einträge werden bereits upstream
 // beim Release-Erzeugen ausgeschlossen (.github/release.yml), das Frontend filtert nichts.
-const RELEASES_URL = 'https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=100';
+const RELEASES_URL = 'https://api.github.com/repos/deleonio/balamentum/releases?per_page=100';
 
 // Auswahl-Regler des Changelog-Tabs: Anzeige-Menge der Releases. Werte als String (KoliBri-
 // Select-Option), Default „30" = bisheriges Verhalten. Der Wechsel schneidet client-seitig, außer
@@ -45,7 +45,7 @@ interface HelpTocItem {
 // Markdown-Links und (seit #1206, via remark-gfm) Autolinks nackter URLs gleich (KI-UX).
 //
 // #1320: Die Markdown-Überschriften rücken zugleich eine Ebene tiefer. Das Handbuch ist ein für
-// sich stehendes Dokument und beginnt mit `# Priority Pilot – Nutzerhandbuch`; seit die Hilfe im
+// sich stehendes Dokument und beginnt mit `# Balamentum – Nutzerhandbuch`; seit die Hilfe im
 // App-Layout steckt, trägt die Seite bereits die eine `<h1>` „Hilfe" (AK7). Ohne Verschiebung
 // stünden zwei `<h1>` im Dokument und die Gliederung hätte zwei konkurrierende Wurzeln. `h6`
 // bleibt `h6` — tiefer geht die HTML-Gliederung nicht (das Handbuch nutzt maximal `###`).

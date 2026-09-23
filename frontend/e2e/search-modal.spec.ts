@@ -10,7 +10,7 @@ import { taskTitleText, waitForStableView } from './helpers';
  * Wie `tasks-tab-filter.spec.ts` laufen diese Specs gegen das **echte** Backend
  * (In-Memory-DB, kein `page.route`); angelegte Tasks werden in `afterEach` aufgeräumt.
  */
-test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () => {
+test.describe('Balamentum — globale Suche über den Toolbar-Button', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

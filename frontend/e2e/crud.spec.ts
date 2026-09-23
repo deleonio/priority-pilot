@@ -14,7 +14,7 @@ import { registerOwnSession, setEqualPillarWeights, taskTitleText, waitForStable
  * wieder ab. So startet jeder Test von einem definierten, leeren Task-Zustand — unabhängig von der
  * Ausführungsreihenfolge — und auch der `smoke.spec.ts`-Test findet danach wieder den leeren Anfang.
  */
-test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend', () => {
+test.describe('Balamentum — funktionale CRUD-Specs gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen
 	// (kein Verlass auf Demo-Seed) und parallele/aufeinanderfolgende Läufe sich nicht stören.
 	let runId = 0;
@@ -143,7 +143,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		const openPillarWeights = async (): Promise<void> => {
 			await page.goto('/app/settings/pillars');
 			await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-			await waitForStableView(page, 'Priority Pilot');
+			await waitForStableView(page, 'Balamentum');
 		};
 
 		await openPillarWeights();

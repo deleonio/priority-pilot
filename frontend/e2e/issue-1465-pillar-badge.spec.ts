@@ -8,7 +8,7 @@ import { waitForStableView } from './helpers';
  * mobiler Umbruch-Vertrag (375px, Bounding-Box statt `scrollWidth`, die App-Shell clippt
  * `overflow-x`) bleibt erhalten. Läuft gegen das echte Backend (In-Memory-DB, Vite-Proxy).
  */
-test.describe('Priority Pilot — #1465: Säulen-Badge mobil (375px)', () => {
+test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

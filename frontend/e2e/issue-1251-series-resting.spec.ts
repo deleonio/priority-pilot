@@ -13,7 +13,7 @@ import { waitForStableView } from './helpers';
  * Läuft gegen das echte Backend (In-Memory-DB, Vite-Proxy); `GET /auth/me` ist über die
  * Fixture gemockt. Rot, bis SeriesTab.tsx das Badge rendert.
  */
-test.describe('Priority Pilot — Ruh-Hinweis für stillgelegte Serien (#1251)', () => {
+test.describe('Balamentum — Ruh-Hinweis für stillgelegte Serien (#1251)', () => {
 	test.use({ viewport: { width: 375, height: 812 } });
 
 	let runId = 0;

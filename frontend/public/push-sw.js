@@ -31,14 +31,14 @@ self.addEventListener('push', (event) => {
 		payload = { body: event.data ? event.data.text() : '' };
 	}
 
-	const title = payload.title || 'Priority Pilot';
+	const title = payload.title || 'Balamentum';
 	const options = {
 		body: payload.body || '',
 		icon: 'icons/icon-192x192.png',
 		badge: 'icons/icon-192x192.png',
 		// Stabiler Tag (#504): aufeinanderfolgende Pushes ersetzen die vorige Notification,
 		// statt sie zu stapeln (Coalescing im Notification-Shade / Sperrbildschirm).
-		tag: 'priority-pilot',
+		tag: 'balamentum',
 		// Ziel-URL für den notificationclick-Handler mitgeben (Default: App-Wurzel).
 		data: { url: toAppUrl(payload.url) },
 	};

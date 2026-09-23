@@ -305,7 +305,7 @@ describe('UpdatePrompt — beschreibende Texte (#1034)', () => {
 		const card = container.querySelector('[data-comp="kol-card"]');
 		expect(card).toHaveAttribute('data-label', 'Neue Version verfügbar');
 		expect(
-			screen.getByText('Priority Pilot wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.'),
+			screen.getByText('Balamentum wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.'),
 		).toBeInTheDocument();
 		expect(screen.getByText('Jetzt neu laden')).toBeInTheDocument();
 	});
@@ -318,7 +318,7 @@ describe('UpdatePrompt — beschreibende Texte (#1034)', () => {
 
 		const card = container.querySelector('[data-comp="kol-card"]');
 		expect(card).toHaveAttribute('data-label', 'Offline einsatzbereit');
-		expect(screen.getByText('Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung.')).toBeInTheDocument();
+		expect(screen.getByText('Balamentum funktioniert ab jetzt auch ohne Internetverbindung.')).toBeInTheDocument();
 		expect(screen.getByText('Verstanden')).toBeInTheDocument();
 	});
 
@@ -328,7 +328,7 @@ describe('UpdatePrompt — beschreibende Texte (#1034)', () => {
 		render(<UpdatePrompt />);
 
 		expect(
-			screen.queryByText('Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung.'),
+			screen.queryByText('Balamentum funktioniert ab jetzt auch ohne Internetverbindung.'),
 		).not.toBeInTheDocument();
 	});
 });

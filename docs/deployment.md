@@ -1,6 +1,6 @@
 # Deployment auf einen dedizierten Server
 
-Dieses Dokument beschreibt **Konzept und Ablauf** des Deployments von Priority Pilot auf einen
+Dieses Dokument beschreibt **Konzept und Ablauf** des Deployments von Balamentum auf einen
 eigenen (dedizierten) Linux-Server. Es ist die operative Single Source of Truth für Releases.
 
 > **Status (seit #152): vereinfachtes Deployment.** Der Ablauf ist **Merge auf `main` → Build
@@ -12,7 +12,7 @@ eigenen (dedizierten) Linux-Server. Es ist die operative Single Source of Truth 
 
 ## 1. Überblick & Zielbild
 
-Priority Pilot ist eine **Full-Stack-App im pnpm-Monorepo** (siehe [README](../README.md)):
+Balamentum ist eine **Full-Stack-App im pnpm-Monorepo** (siehe [README](../README.md)):
 
 - **Frontend** (`frontend/`): React 19 + KoliBri, gebaut mit Vite → statische SPA (PWA) in `frontend/dist`,
   ausgeliefert unter `/app/`.
@@ -42,7 +42,7 @@ flowchart LR
     gha -- "rsync website/dist → Web-Verzeichnis" --> host
     gha -- "rsync frontend/dist → Web-Verzeichnis/app" --> host
     gha -- "rsync server/dist (+ pkg/node_modules) → App-Verzeichnis" --> host
-    gha -- "ssh: pm2 reload priority-pilot" --> host
+    gha -- "ssh: pm2 reload balamentum" --> host
 
     subgraph host["Dedizierter Server"]
         direction TB
@@ -73,7 +73,7 @@ Sandboxing). Issue #152 dreht diese Entscheidung **bewusst zugunsten von PM2** �
 
 - **Kein Privileg-/sudoers-Tanz:** Der Deploy-User braucht nur Schreibrecht auf die zwei
   Zielverzeichnisse und darf `pm2 reload` aufrufen — kein `systemctl`/Forced-Command.
-- **Ein-Schritt-Neustart:** Nach dem `rsync` genügt ein `pm2 reload priority-pilot`
+- **Ein-Schritt-Neustart:** Nach dem `rsync` genügt ein `pm2 reload balamentum`
   (idempotent: `pm2 start …`, falls der Prozess noch nicht existiert) — das Backend startet **genau
   einmal** mit den neuen Sourcen neu.
 - **Bewusst akzeptiertes Risiko:** Kein atomarer Switch / 1-Zeilen-Rollback mehr. Der kurze Moment
@@ -96,7 +96,7 @@ NODE_ENV=production
 PORT=3000                                                  # Default des Backends (server/src/express/index.ts)
 
 # DB-Pfad ABSOLUT und außerhalb der gespiegelten Verzeichnisse.
-DATABASE_STORAGE=/var/www/gh-deploy/priority-pilot/data/database.sqlite
+DATABASE_STORAGE=/var/www/gh-deploy/balamentum/data/database.sqlite
 
 # DB-Lebenszyklus — in Produktion bewusst gesetzt:
 DB_SEED=false           # KEINE Demo-Daten bei jedem Start (Default würde seeden)
@@ -116,7 +116,7 @@ MISTRAL_API_KEY=
 SESSION_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_CALLBACK_URL=https://priority-pilot.example.de/auth/google/callback
+GOOGLE_CALLBACK_URL=https://balamentum.example.de/auth/google/callback
 GOOGLE_ALLOWED_EMAILS=          # freigeschaltete Adressen, Komma-getrennt
 ADMIN_EMAILS=                   # davon: Administratoren
 
@@ -131,7 +131,7 @@ FEEDBACK_GITHUB_TOKEN=
 
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
 legt die App beim ersten erfolgreichen Google-Login an. Neue Personen werden über die Env-Datei
-plus `pm2 reload priority-pilot --update-env` freigeschaltet, nicht in der App. Mit
+plus `pm2 reload balamentum --update-env` freigeschaltet, nicht in der App. Mit
 `OPEN_SIGNUP=true` ist die Registrierung offen: Dann darf sich jedes Google-Konto anmelden, die
 Allowlist ist nicht mehr nötig (Voraussetzung für die öffentliche Website). Einrichtung des
 OAuth-Clients, Login-Ablauf und Fehlerbilder: [docs/auth-setup.md](auth-setup.md).
@@ -169,15 +169,15 @@ Das Deployment läuft im Workflow **[`.github/workflows/deploy.yml`](../.github/
    ausgenommen), danach `frontend/dist/` → `vars.DEPLOY_WEB_DIR/app/` (`--delete`).
 5. **rsync Backend:** `server/dist/` → `vars.DEPLOY_APP_DIR/dist/`; `package.json` +
    `node_modules/` aus dem Prod-Bundle; `data/`, `*.sqlite` und `.env` per `--exclude` geschützt.
-6. **PM2-Reload:** `pm2 reload priority-pilot --update-env || pm2 start <APP_DIR>/dist/index.js
---name priority-pilot` — das Backend startet genau einmal mit den neuen Sourcen neu.
+6. **PM2-Reload:** `pm2 reload balamentum --update-env || pm2 start <APP_DIR>/dist/index.js
+--name balamentum` — das Backend startet genau einmal mit den neuen Sourcen neu.
 7. **Patch-Bump (#286):** Nach dem Deploy committet ein App-Token einen `chore(release):
 v<version> [skip ci]`-Bump-Commit auf `main` (App-Token nötig, da `GITHUB_TOKEN` keine
    Folge-Workflows auslöst; `[skip ci]` verhindert die Deploy-Endlosschleife).
 
 **Benötigte Repo-Konfiguration:** Secret `DEPLOY_SSH_KEY` sowie die Variablen `DEPLOY_HOST`,
 `DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Optional `SITE_URL` (z. B.
-`https://priority-pilot.example.de`): Damit schreibt der Website-Build absolute canonical- und
+`https://balamentum.example.de`): Damit schreibt der Website-Build absolute canonical- und
 hreflang-Links und eine `sitemap.xml`. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
 beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup vor; Einrichtung des
 Hosts siehe [server-setup.md](server-setup.md).
@@ -213,7 +213,7 @@ neueren Version — vor Schema-ändernden Releases ein `data/database.sqlite`-Ba
 
 ## 6. Local-Betrieb und Cloud↔Local-Wechsel
 
-Neben dem Cloud-Betrieb läuft Priority Pilot lokal: Entwicklung per `pnpm dev` (Befehle:
+Neben dem Cloud-Betrieb läuft Balamentum lokal: Entwicklung per `pnpm dev` (Befehle:
 [project.md](../.ai-knowledge/project.md)), dauerhaftes Selbsthosting per `pnpm build` +
 `node server/dist/index.js` (Autostart analog PM2, Schritt 6 in
 [server-setup.md](server-setup.md)). Die App ist eine **Single-User-Anwendung** — Kapazitätsgrenzen
@@ -227,8 +227,8 @@ sqlite3 <APP_DIR>/data/database.sqlite ".backup '/tmp/backup.sqlite'"   # konsis
 scp gh-deploy@<cloud-host>:/tmp/backup.sqlite ./database.sqlite           # lokal übernehmen
 ```
 
-**Local → Cloud (Rollback):** DB zurückkopieren — auf dem Server `pm2 stop priority-pilot`, die
-`database.sqlite` tauschen, `pm2 start priority-pilot`. Die Cloud-App selbst deployt weiterhin jeder
+**Local → Cloud (Rollback):** DB zurückkopieren — auf dem Server `pm2 stop balamentum`, die
+`database.sqlite` tauschen, `pm2 start balamentum`. Die Cloud-App selbst deployt weiterhin jeder
 Merge auf `main` neu.
 
 **Env-Unterschiede:** Cloud nutzt absolute Pfade (`DATABASE_STORAGE`, `DB_SEED=false`), lokal gelten

@@ -6,7 +6,7 @@
 
 ## Kontext
 
-Priority Pilot hatte keinen öffentlichen Auftritt. Unter `/` lag direkt die SPA; wer nicht angemeldet war, sah die Login-Seite, und anmelden konnten sich nur Adressen aus `GOOGLE_ALLOWED_EMAILS`. Gewünscht ist eine kompakte Marketingseite in Deutsch und Englisch, deren einziges Ziel der Start ist: „Mit Google starten“, anmelden, loslegen. Dazu gehören die wichtigsten Argumente und die Pakete.
+Balamentum hatte keinen öffentlichen Auftritt. Unter `/` lag direkt die SPA; wer nicht angemeldet war, sah die Login-Seite, und anmelden konnten sich nur Adressen aus `GOOGLE_ALLOWED_EMAILS`. Gewünscht ist eine kompakte Marketingseite in Deutsch und Englisch, deren einziges Ziel der Start ist: „Mit Google starten“, anmelden, loslegen. Dazu gehören die wichtigsten Argumente und die Pakete.
 
 Eine Route in der SPA hätte gereicht, um die Seite anzuzeigen. Sie wäre aber ohne JavaScript leer, bringt das KoliBri-Bundle mit und ist für Suchmaschinen schwach. Die SPA wird außerdem vom Service Worker mit `navigateFallback` ausgeliefert; jede Seite im selben Scope landet ohnehin in der App.
 

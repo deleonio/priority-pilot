@@ -1,9 +1,9 @@
 ---
 name: dev-team
-description: "Dev-Team - lokaler Multi-Agent-Lauf fuer priority-pilot (Architect orchestriert Developer, Tester, Reviewer, Documenter, Paedagoge). Ticket-Modus fuehrt ein Issue eigenstaendig bis zum gruenen Kreuzverhoer (rote Tests, Umsetzung, review-ready PR, Fix-Schleife); freier Modus bearbeitet Aufgaben ohne Ticket (Review, Refactoring, Migration, Doku). Liest vor dem Briefing die Kennzahlen aus .costs/ fuer Modell- und Effort-Wahl und schreibt am Laufende einen Kostensatz je Lauf zurueck. Use for 'dev-team', 'Team-Lauf', 'uebernimm Ticket #N' (German: hand a ticket to the team)."
+description: "Dev-Team - lokaler Multi-Agent-Lauf fuer balamentum (Architect orchestriert Developer, Tester, Reviewer, Documenter, Paedagoge). Ticket-Modus fuehrt ein Issue eigenstaendig bis zum gruenen Kreuzverhoer (rote Tests, Umsetzung, review-ready PR, Fix-Schleife); freier Modus bearbeitet Aufgaben ohne Ticket (Review, Refactoring, Migration, Doku). Liest vor dem Briefing die Kennzahlen aus .costs/ fuer Modell- und Effort-Wahl und schreibt am Laufende einen Kostensatz je Lauf zurueck. Use for 'dev-team', 'Team-Lauf', 'uebernimm Ticket #N' (German: hand a ticket to the team)."
 ---
 
-# Dev-Team (Multi-Agent-Lauf, priority-pilot)
+# Dev-Team (Multi-Agent-Lauf, balamentum)
 
 Aufgabe: $ARGUMENTS
 

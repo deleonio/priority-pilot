@@ -14,7 +14,7 @@ import { taskTitleText, waitForStableView } from './helpers';
  * Wie `crud.spec.ts` laufen diese Specs gegen das **echte** Backend (In-Memory-DB, kein `page.route`).
  * Die Tests legen ihre Daten über die UI/echte API selbst an und räumen in `afterEach` wieder auf.
  */
-test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gegen das echte Backend', () => {
+test.describe('Balamentum — Aufgaben-Tab mit Filter und Switch (#399) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	// #582: Titel ≤65 Zeichen — Guard sichert das harter STRING(65)-Validator, Label bleibt voll
 	// erhalten (nur bei >65 abgeschnitten), sodass Substring-Filter wie "Matching" weiterhin greifen.

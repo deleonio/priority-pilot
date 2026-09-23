@@ -72,7 +72,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 */
 	test('AK3: Direktaufruf von /settings/pillars rendert die Settings-Seite', async ({ page }) => {
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Die Settings-Seite mit dem Säulen-Editor ist sichtbar (Dashboard-Inhalt wäre falsch).
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
@@ -89,7 +89,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 		// Specs im selben Shard (geteilte In-Memory-DB).
 		await setEqualPillarWeights(page);
 		await page.goto('/app/settings/pillars');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
 
@@ -140,7 +140,7 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	/** AK1 — Header (Banner, Toolbar, Avatar) bleibt auf /settings/general sichtbar. */
 	test('AK1: Header mit Banner, Toolbar und Avatar ist auf /settings/general sichtbar', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
@@ -150,7 +150,7 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
 	test('AK3: Kein „Zurück"-Button auf /settings/general', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toHaveCount(0);
 	});
@@ -202,7 +202,7 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 
 	test('AK5: Kaltstart auf /settings/general ohne vorherige Hauptansicht führt zu „/"', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
@@ -213,7 +213,7 @@ test.describe('#1320 Einstellungen als normale Seite mit sichtbarem Header', () 
 	test('AK8: 375px — Header und Seiteninhalt ohne horizontale Überlagerung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const header = page.getByRole('banner');
 		await expect(header).toBeVisible();

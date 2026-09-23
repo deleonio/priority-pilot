@@ -5,13 +5,13 @@
 ## Erledigt
 - Issue + Kommentare geladen, Trigger = Initial-Triage bestimmt.
 - Code-Recherche: `frontend/src/components/HelpPage.tsx` komplett gelesen (fetch `/user-guide.md` → ReactMarkdown, Catch-Fallback Z. 17-20), `frontend/src/App.tsx:571` (Mount via `showHelp`), `frontend/src/components/SettingsPage.tsx:243` (KolTabs-Muster: `_tabs`-Modulkonstante, beide Panels gemountet, inaktive hidden), `.github/release.yml` (Kategorien + Renovate/Dependabot-Doppelausschluss), `.github/workflows/deploy.yml:121` (`gh release create --generate-notes`), `frontend/e2e/help.spec.ts` (#256-Präzedenz).
-- Live-Check API: `curl api.github.com/repos/deleonio/priority-pilot` → `"private": false`; Releases öffentlich ohne Token abrufbar, Body = Markdown mit `### <Kategorie>`-Headings (Beispiel v0.1.693 geprüft).
+- Live-Check API: `curl api.github.com/repos/deleonio/balamentum` → `"private": false`; Releases öffentlich ohne Token abrufbar, Body = Markdown mit `### <Kategorie>`-Headings (Beispiel v0.1.693 geprüft).
 - Phase-Notiz + Harness-Kommentar + Labels geschrieben.
 
 ## Relevante Stellen
 - `frontend/src/components/HelpPage.tsx` — einzige zu ändernde Komponente: KolTabs (Handbuch default, Changelog) + Release-Fetch + Fallback.
 - `frontend/src/components/SettingsPage.tsx:243-246,356` — KolTabs-Vorbild (`_tabs`-Konstante außerhalb des Renders, Panels bleiben gemountet).
-- `https://api.github.com/repos/deleonio/priority-pilot/releases?per_page=30` — Datenquelle; Felder `tag_name`, `published_at`, `body`.
+- `https://api.github.com/repos/deleonio/balamentum/releases?per_page=30` — Datenquelle; Felder `tag_name`, `published_at`, `body`.
 - `.github/release.yml` — Kategorien (Breaking/Features/Fixes/Improvements/Engineering) + Renovate/Dependabot-Ausschluss passieren UPSTREAM bei Release-Erstellung; Frontend rendert Body nur.
 - `frontend/vite.config.ts:42-47` — user-guide.md wird per Middleware aus `docs/user-guide.md` serviert (Kontext für Handbuch-Tab, unverändert).
 - Tests: neu `frontend/src/components/HelpPage.test.tsx` (existiert noch nicht), e2e `frontend/e2e/help.spec.ts` erweitern oder neue `frontend/e2e/changelog.spec.ts`.

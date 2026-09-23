@@ -1,7 +1,7 @@
 # Issue #1085 / PR #1087 — Review (Kreuzverhör Runde 1)
 
 Status: **needs-fixup** gesprochen (2026-08-28). Sammelkommentar:
-https://github.com/deleonio/priority-pilot/pull/1087#issuecomment-5448857670 (Marker `<!-- ai-review -->`).
+https://github.com/deleonio/balamentum/pull/1087#issuecomment-5448857670 (Marker `<!-- ai-review -->`).
 Inline-Review (event COMMENT, id 5048190413) mit 2 Anker-Kommentaren an SettingsPage.tsx:338/:330.
 
 ## Erledigt

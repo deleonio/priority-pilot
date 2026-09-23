@@ -64,7 +64,7 @@ test.describe('#1556/#1565 Nutzerverwaltung — Paket-Badges ohne Auswahl', () =
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
 		await page.goto('/app/settings/nutzer');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// AK1: Badge-Text in jeder Zeile (auch fremde), Rolle bleibt unangetastet.
 		await expect(userRow(page, 'Anna Admin')).toContainText('Free', { ignoreCase: false });
@@ -80,7 +80,7 @@ test.describe('#1556/#1565 Nutzerverwaltung — Paket-Badges ohne Auswahl', () =
 		await mockAdminUsers(page);
 		await page.setViewportSize(MOBILE);
 		await page.goto('/app/settings/nutzer');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const rows = page.locator('.settings-admin-users .admin-user');
 		await expect(rows).toHaveCount(2);

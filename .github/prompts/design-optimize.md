@@ -1,4 +1,4 @@
-FOCUS: Optimize ONE design target in the Priority Pilot frontend to shipping quality, end to end
+FOCUS: Optimize ONE design target in the Balamentum frontend to shipping quality, end to end
 with the Impeccable design skill: audit first, then execute the remediation plan THE AUDIT ITSELF
 recommends — then cleanly close remaining TODOs and deliver the result as a regular PR with a fully
 traceable description. You CHANGE code in this run (full tool tier).

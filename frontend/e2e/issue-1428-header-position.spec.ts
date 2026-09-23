@@ -35,7 +35,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 	 */
 	test('AK1: Allgemein-Tab zeigt Radiogruppe „Kopfzeile" mit Oben/Unten, Default Oben', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(headerPositionControl(page)).toBeVisible();
 
@@ -55,7 +55,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 	 */
 	test('AK2/AK3: Wahl „Unten" stellt die Kopfzeile unter den Inhalt und übersteht den Reload', async ({ page }) => {
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const header = page.locator('.app-header');
 		// Inhalts-Container der Einstellungen-Seite (`.settings-page`, SettingsPage.tsx) — das
@@ -75,12 +75,12 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 
 		// AK3: Reload hält den Modus.
 		await page.reload();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		expect((await header.boundingBox())!.y).toBeGreaterThan((await content.boundingBox())!.y);
 
 		// Rückwahl „Oben" stellt den heutigen Zustand her (AK2, zweite Hälfte).
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await headerPositionOption(page, /Oben/i).first().click();
 		expect((await header.boundingBox())!.y).toBeLessThan((await content.boundingBox())!.y);
 	});
@@ -94,7 +94,7 @@ test.describe('#1428 Einstellungen – Kopfzeilen-Position (Allgemein-Tab)', () 
 	test('AK5: Bottom-Modus bei 375×812 ohne Overflow und ohne Home-Indicator-Verdeckung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await headerPositionOption(page, /Unten/i).first().click();
 

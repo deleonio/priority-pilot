@@ -1,7 +1,7 @@
 {
 	"meta": {
-		"title": "Priority Pilot – Woran solltest du als Nächstes arbeiten?",
-		"description": "Priority Pilot rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Mit Google anmelden und sofort loslegen.",
+		"title": "Balamentum – Woran solltest du als Nächstes arbeiten?",
+		"description": "Balamentum rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Mit Google anmelden und sofort loslegen.",
 		"skip": "Zum Inhalt springen",
 		"switchLanguage": "English",
 		"switchLanguageLabel": "Switch to English"
@@ -16,11 +16,11 @@
 	"hero": {
 		"eyebrow": "Aufgaben planen mit Lebensbalance",
 		"title": "Woran solltest du als Nächstes arbeiten?",
-		"lead": "Priority Pilot beantwortet genau diese Frage. Die App rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Du arbeitest sie ab, statt Listen zu sortieren.",
+		"lead": "Balamentum beantwortet genau diese Frage. Die App rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Du arbeitest sie ab, statt Listen zu sortieren.",
 		"cta": "Mit Google starten",
 		"ctaNote": "Kostenlos. Keine Kreditkarte. Anmeldung mit deinem Google-Konto.",
 		"secondary": "Schon dabei? App öffnen",
-		"screenshotAlt": "Dashboard von Priority Pilot mit der nächsten Aufgabe und der Lebensbalance"
+		"screenshotAlt": "Dashboard von Balamentum mit der nächsten Aufgabe und der Lebensbalance"
 	},
 	"steps": {
 		"title": "In drei Schritten startklar",
@@ -37,7 +37,7 @@
 		]
 	},
 	"features": {
-		"title": "Was Priority Pilot anders macht",
+		"title": "Was Balamentum anders macht",
 		"items": [
 			{
 				"title": "Eine nächste Aufgabe statt endloser Liste",
@@ -49,7 +49,7 @@
 			},
 			{
 				"title": "Abhängigkeiten, die mitrechnen",
-				"text": "Aufgaben bauen aufeinander auf. Priority Pilot rechnet Wert und Aufwand über die ganze Kette und erkennt Zyklen."
+				"text": "Aufgaben bauen aufeinander auf. Balamentum rechnet Wert und Aufwand über die ganze Kette und erkennt Zyklen."
 			},
 			{
 				"title": "Gemeinsam planen",
@@ -91,7 +91,7 @@
 		"title": "Häufige Fragen",
 		"items": [
 			{
-				"q": "Was kostet Priority Pilot?",
+				"q": "Was kostet Balamentum?",
 				"a": "Das Free-Paket kostet nichts und hat keine Begrenzung bei der Zahl der Aufgaben. Pro, Max und Ultimate schalten Gruppen, KI-Hilfe und Schnittstellen frei."
 			},
 			{
@@ -104,7 +104,7 @@
 			},
 			{
 				"q": "Funktioniert das auf dem Handy?",
-				"a": "Ja. Priority Pilot ist für die Bedienung mit einer Hand gebaut und lässt sich als App auf dem Startbildschirm installieren."
+				"a": "Ja. Balamentum ist für die Bedienung mit einer Hand gebaut und lässt sich als App auf dem Startbildschirm installieren."
 			},
 			{
 				"q": "Ist die App barrierefrei?",

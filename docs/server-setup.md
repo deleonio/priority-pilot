@@ -1,12 +1,12 @@
 # Server-Einrichtung: Schritt für Schritt
 
-Runbook für die **einmalige** Einrichtung eines frischen Linux-Servers, damit Priority Pilot per
+Runbook für die **einmalige** Einrichtung eines frischen Linux-Servers, damit Balamentum per
 Merge auf `main` automatisch dorthin deployt wird (rsync + PM2, siehe
 [`deployment.md`](deployment.md)). Host-Layout: Web-Verzeichnis (statische SPA) + App-Verzeichnis
 (Backend unter PM2) + persistentes `data/`-Verzeichnis für die SQLite-DB.
 
 > **Annahmen:** Debian 12 / Ubuntu 22.04+, **x64**, root- bzw. `sudo`-Zugriff, eine Domain, deren
-> A-Record (Schritt 7) auf den Server zeigt. Platzhalter `priority-pilot.example.de` und
+> A-Record (Schritt 7) auf den Server zeigt. Platzhalter `balamentum.example.de` und
 > `gh-deploy@host` durch echte Werte ersetzen. Node-Major-Version **26** (muss zur CI passen — native
 > `sqlite3`, siehe `.nvmrc`).
 
@@ -28,7 +28,7 @@ Laufzeit-Bild nach der Einrichtung:
 flowchart LR
     user(["Browser"]) -->|HTTPS| caddy["Caddy :443"]
     caddy -->|"/ (SPA)"| spa["Web-Verzeichnis"]
-    caddy -->|"/api/v1/* → strip /api/v1 → /tasks /pillars …"| node["Node :3000<br/>PM2 priority-pilot"]
+    caddy -->|"/api/v1/* → strip /api/v1 → /tasks /pillars …"| node["Node :3000<br/>PM2 balamentum"]
     caddy -->|"/auth/* (OAuth)"| node
     node --> db[("data/database.sqlite")]
     node -->|"/tasks/suggest-pillars"| mistral["Mistral API"]
@@ -100,7 +100,7 @@ Zielverzeichnisse, in die der Workflow per `rsync` spiegelt (Pfade = `vars.DEPLO
 `vars.DEPLOY_APP_DIR`):
 
 ```bash
-APP=priority-pilot
+APP=balamentum
 sudo mkdir -p /var/www/gh-deploy/$APP/frontend /var/www/gh-deploy/$APP/app /var/www/gh-deploy/$APP/data
 sudo chown -R gh-deploy:gh-deploy /var/www/gh-deploy/$APP
 ```
@@ -119,7 +119,7 @@ Die Env-Datei liegt als **`.env` im App-Verzeichnis** und wird vom `rsync` ausge
 überlebt jedes Deploy (Variablen-Referenz: [`deployment.md` §2](deployment.md)):
 
 ```bash
-APP=priority-pilot
+APP=balamentum
 sudo -u gh-deploy tee /var/www/gh-deploy/$APP/app/.env >/dev/null <<EOF
 NODE_ENV=production
 DATABASE_STORAGE=/var/www/gh-deploy/$APP/data/database.sqlite
@@ -134,7 +134,7 @@ MISTRAL_API_KEY=DEIN_KEY_HIER
 SESSION_SECRET=$(openssl rand -hex 32)
 GOOGLE_CLIENT_ID=DEINE_CLIENT_ID.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=DEIN_CLIENT_SECRET
-GOOGLE_CALLBACK_URL=https://priority-pilot.example.de/auth/google/callback
+GOOGLE_CALLBACK_URL=https://balamentum.example.de/auth/google/callback
 GOOGLE_ALLOWED_EMAILS=du@example.de,partner@example.de
 ADMIN_EMAILS=du@example.de
 EOF
@@ -148,7 +148,7 @@ lauscht auf `localhost:3000` (Default).
 **Anmeldung:** Ohne `SESSION_SECRET` und ohne mindestens eine Adresse in `GOOGLE_ALLOWED_EMAILS`
 startet das Backend in Produktion nicht. Nur die dort gelisteten Adressen können sich anmelden;
 ihr Konto entsteht beim ersten erfolgreichen Google-Login. Wer später jemanden hinzufügen will,
-ergänzt die Adresse und lädt das Backend neu (`pm2 reload priority-pilot --update-env`).
+ergänzt die Adresse und lädt das Backend neu (`pm2 reload balamentum --update-env`).
 Client-ID, Secret und Callback-URL kommen aus der Google Cloud Console; Anleitung und
 Fehlerbilder in [auth-setup.md](auth-setup.md).
 
@@ -179,7 +179,7 @@ dem ersten Deploy ausgeführt werden — es friert die Prozessliste für den Boo
 
 ## 7. Caddy-Block + DNS
 
-**DNS zuerst:** A-Record `priority-pilot.example.de` → Server-IP setzen (sonst scheitert die
+**DNS zuerst:** A-Record `balamentum.example.de` → Server-IP setzen (sonst scheitert die
 TLS-Ausstellung). Caddy liefert zwei statische Builds aus dem Web-Verzeichnis aus: die öffentliche
 Website (`website/dist`) an der Wurzel und die App (`frontend/dist`) unter `/app/`
 ([ADR 0015](adr/0015-oeffentliche-website-und-app-unter-app.md)). Das Backend (Express, Port 3000)
@@ -189,8 +189,8 @@ ist **nicht** direkt erreichbar — Caddy reicht `/api/v1/*` (API-Daten, Präfix
 ```bash
 sudo tee -a /etc/caddy/Caddyfile >/dev/null <<'EOF'
 
-priority-pilot.example.de {
-    root * /var/www/gh-deploy/priority-pilot/frontend/
+balamentum.example.de {
+    root * /var/www/gh-deploy/balamentum/frontend/
 
     # Health-Endpoint: Liveness-Check für externes Monitoring (ohne Auth).
     handle /health {
@@ -288,13 +288,13 @@ konfiguriert sein.
 **Verifizieren (auf dem Server):**
 
 ```bash
-pm2 status                                                  # Prozess "priority-pilot" online
-pm2 logs priority-pilot --lines 50                          # "Server läuft auf http://localhost:3000"
-ls -l /var/www/gh-deploy/priority-pilot/frontend            # SPA-Dateien (index.html, assets/)
-curl -fsS https://priority-pilot.example.de/next            # API über Caddy erreichbar?
+pm2 status                                                  # Prozess "balamentum" online
+pm2 logs balamentum --lines 50                          # "Server läuft auf http://localhost:3000"
+ls -l /var/www/gh-deploy/balamentum/frontend            # SPA-Dateien (index.html, assets/)
+curl -fsS https://balamentum.example.de/next            # API über Caddy erreichbar?
 ```
 
-Im Browser `https://priority-pilot.example.de` öffnen — die SPA lädt und spricht die API
+Im Browser `https://balamentum.example.de` öffnen — die SPA lädt und spricht die API
 gleichorigin an.
 
 ---
@@ -309,17 +309,17 @@ auf den Server kopieren:
 
 ```bash
 # lokal vom Repo-Root:
-scp maintenance.sh gh-deploy@<host>:/var/www/gh-deploy/priority-pilot/
+scp maintenance.sh gh-deploy@<host>:/var/www/gh-deploy/balamentum/
 ```
 
 Dann als `gh-deploy`-User einen Cron-Job einrichten (`crontab -u gh-deploy -e`), der das Skript
 nightly mit dem Prod-DB-Pfad aufruft:
 
 ```cron
-0 2 * * * DATABASE_STORAGE=/var/www/gh-deploy/priority-pilot/data/database.sqlite /var/www/gh-deploy/priority-pilot/maintenance.sh
+0 2 * * * DATABASE_STORAGE=/var/www/gh-deploy/balamentum/data/database.sqlite /var/www/gh-deploy/balamentum/maintenance.sh
 ```
 
-Backups landen in `/var/www/gh-deploy/priority-pilot/backups/` — außerhalb von `dist/` und `data/`,
+Backups landen in `/var/www/gh-deploy/balamentum/backups/` — außerhalb von `dist/` und `data/`,
 Deploys löschen sie nicht. `sqlite3` ggf. via `sudo apt install -y sqlite3`. Backups regelmäßig
 vom Server wegsichern.
 
@@ -329,12 +329,12 @@ vom Server wegsichern.
 
 | Symptom                               | Wahrscheinliche Ursache                                                                      | Prüfen / Fix                                                                                      |
 | ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `pm2 status` zeigt `errored`/restarts | `node_modules`/`sqlite3`-ABI passt nicht zum Host                                            | `pm2 logs priority-pilot`; ggf. Host-Install (`pnpm install --prod` im App-Verzeichnis)           |
+| `pm2 status` zeigt `errored`/restarts | `node_modules`/`sqlite3`-ABI passt nicht zum Host                                            | `pm2 logs balamentum`; ggf. Host-Install (`pnpm install --prod` im App-Verzeichnis)               |
 | API-Calls liefern HTML/404            | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift)                                          | `handle /api/v1/*`-Block + `strip_prefix` prüfen ([§ 7](#7-caddy-block--dns))                     |
 | Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in gespiegeltes Verzeichnis                                         | absoluten `data/`-Pfad setzen (Schritt 5)                                                         |
-| Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                                                                  | Env-Datei korrigieren, `pm2 reload priority-pilot --update-env`                                   |
+| Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                                                                  | Env-Datei korrigieren, `pm2 reload balamentum --update-env`                                       |
 | LLM-Endpunkte → 503                   | **kein** LLM-Key gesetzt (weder DB noch Env)                                                 | `MISTRAL_API_KEY` **oder** `OPENROUTER_API_KEY` setzen ([llm-providers.md](llm-providers.md))     |
-| Google-Login schlägt fehl, kein Konto | Adresse nicht in `GOOGLE_ALLOWED_EMAILS` (Konto entsteht erst beim ersten erlaubten Login)   | Adresse ergänzen, `pm2 reload priority-pilot --update-env` ([auth-setup.md](auth-setup.md))       |
+| Google-Login schlägt fehl, kein Konto | Adresse nicht in `GOOGLE_ALLOWED_EMAILS` (Konto entsteht erst beim ersten erlaubten Login)   | Adresse ergänzen, `pm2 reload balamentum --update-env` ([auth-setup.md](auth-setup.md))           |
 | LLM-Endpunkte → 502                   | alle **konfigurierten** Provider-Calls fehlgeschlagen (Key ungültig/Quota/Netz/Timeout 30 s) | Key + Quota beim Provider prüfen; 502-Response-Body auslesen (Server loggt zu diesem Fall nichts) |
 | TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                                                                    | A-Record auf Server-IP, dann `sudo systemctl reload caddy`                                        |
 | Backend nach Reboot weg               | `pm2 startup`/`pm2 save` nie eingerichtet                                                    | Schritt 6 nachholen                                                                               |

@@ -6,7 +6,7 @@
 - Test-Pflege-Fund (`groups-invitations.spec.ts:101,113`, `exact:true`) inhaltlich nachvollzogen — reine Locator-Präzisierung wegen Namenskollision mit neuem Button-Label, keine Aussageänderung.
 - Kurzer Deep-Dive zu einer vermeintlichen Diff-Duplikation (Commit `d5ca5037` tauchte im gitStatus-Log auf) — Fehlalarm: `d5ca5037` ist Teil der PR-Branch-eigenen Historie (`ai/harness/1221`), NICHT bereits auf `origin/main` (verifiziert via `git merge-base d5ca5037 origin/main` = gemeinsamer Vorfahre, nicht d5ca5037 selbst). Kein Duplikat-PR-Problem.
 - TITLE GATE: Titel war „Rolle eines Gruppenmitglieds ändern (#1221)" (kein Conventional-Commits-Format) → umbenannt via `gh pr edit 1236 --title "feat(server,frontend): change group member role (#1221)"`.
-- Sammelkommentar `<!-- ai-review -->` neu erstellt (`gh pr comment 1236`, https://github.com/deleonio/priority-pilot/pull/1236#issuecomment-5551705240): 🟢 solid, ein Nit (#1: ungetesteter „Zielnutzer kein Mitglied → 404"-Fall aus der Spec-Tabelle, keine eigene AK-Nummer, kein Blocker).
+- Sammelkommentar `<!-- ai-review -->` neu erstellt (`gh pr comment 1236`, https://github.com/deleonio/balamentum/pull/1236#issuecomment-5551705240): 🟢 solid, ein Nit (#1: ungetesteter „Zielnutzer kein Mitglied → 404"-Fall aus der Spec-Tabelle, keine eigene AK-Nummer, kein Blocker).
 
 ## Relevante Stellen
 - `server/src/express/routes/groups.ts:684-737` — neue PATCH-Route + `isLastRemainingAdmin`/`LAST_ADMIN_MESSAGE`.

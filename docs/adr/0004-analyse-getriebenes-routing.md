@@ -3,9 +3,9 @@
 - **Status:** Accepted
 - **Datum:** 2026-08-19
 - **Entscheidungsquelle:** Konzept „Harness-Optimierung" (User-Direktive); umgesetzt in
-  [#911](https://github.com/deleonio/priority-pilot/pull/911) (Kosten-Baseline + Modellwahl),
-  [#913](https://github.com/deleonio/priority-pilot/pull/913) (Analyse-Kontext),
-  [#914](https://github.com/deleonio/priority-pilot/pull/914) (überspringbare Spec)
+  [#911](https://github.com/deleonio/balamentum/pull/911) (Kosten-Baseline + Modellwahl),
+  [#913](https://github.com/deleonio/balamentum/pull/913) (Analyse-Kontext),
+  [#914](https://github.com/deleonio/balamentum/pull/914) (überspringbare Spec)
 - **Schreibt fort:** [ADR 0002](0002-pipeline-7-phasen-ux-vor-spec.md) (Phasenkette),
   [ADR 0003](0003-label-schema-ai-needs-und-past.md) (Label-Schema)
 
@@ -71,7 +71,7 @@ Folgephasen lesen es rein statisch aus (`resolve-model-label.sh`) und starten mi
 
 Ist das Label **mehrdeutig**, bricht der Start ab und das Ticket wird mit `ai:needs-human` beim
 Menschen geparkt. Fehlt es ganz, entscheidet die **Herkunft** (fortgeschrieben mit
-[PR #916](https://github.com/deleonio/priority-pilot/pull/916)):
+[PR #916](https://github.com/deleonio/balamentum/pull/916)):
 
 | Lage                                                                       | Verhalten                                                             |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |

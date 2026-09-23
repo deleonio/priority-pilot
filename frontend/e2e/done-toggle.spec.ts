@@ -22,7 +22,7 @@ import { waitForStableView } from './helpers';
  * - `task-list-item-{id}` — Listen-Eintrag pro Blatt-Aufgabe (#537).
  * - `done-toggle-{id}` — der binäre Toggle-Button pro Aufgabe (im Popover).
  */
-test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#315 / #387)', () => {
+test.describe('Balamentum — Erledigt-Toggle in der flachen Blatt-Liste (#315 / #387)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

@@ -1,7 +1,7 @@
 {
 	"meta": {
-		"title": "Priority Pilot – What should you work on next?",
-		"description": "Priority Pilot uses your task dependencies and life areas to work out which task matters most right now. Sign in with Google and get going.",
+		"title": "Balamentum – What should you work on next?",
+		"description": "Balamentum uses your task dependencies and life areas to work out which task matters most right now. Sign in with Google and get going.",
 		"skip": "Skip to content",
 		"switchLanguage": "Deutsch",
 		"switchLanguageLabel": "Auf Deutsch wechseln"
@@ -16,11 +16,11 @@
 	"hero": {
 		"eyebrow": "Task planning with life balance",
 		"title": "What should you work on next?",
-		"lead": "Priority Pilot answers exactly that. It weighs dependencies and your life areas to find the task that pays off most right now. You get things done instead of sorting lists.",
+		"lead": "Balamentum answers exactly that. It weighs dependencies and your life areas to find the task that pays off most right now. You get things done instead of sorting lists.",
 		"cta": "Start with Google",
 		"ctaNote": "Free. No credit card. Sign in with your Google account.",
 		"secondary": "Already in? Open the app",
-		"screenshotAlt": "Priority Pilot dashboard showing the next task and the life balance"
+		"screenshotAlt": "Balamentum dashboard showing the next task and the life balance"
 	},
 	"steps": {
 		"title": "Ready in three steps",
@@ -31,7 +31,7 @@
 		]
 	},
 	"features": {
-		"title": "What makes Priority Pilot different",
+		"title": "What makes Balamentum different",
 		"items": [
 			{
 				"title": "One next task, not an endless list",
@@ -43,7 +43,7 @@
 			},
 			{
 				"title": "Dependencies that count",
-				"text": "Tasks build on each other. Priority Pilot adds up value and effort along the whole chain and detects cycles."
+				"text": "Tasks build on each other. Balamentum adds up value and effort along the whole chain and detects cycles."
 			},
 			{
 				"title": "Plan together",
@@ -85,7 +85,7 @@
 		"title": "Frequently asked questions",
 		"items": [
 			{
-				"q": "How much does Priority Pilot cost?",
+				"q": "How much does Balamentum cost?",
 				"a": "The Free plan costs nothing and has no limit on the number of tasks. Pro, Max and Ultimate unlock groups, AI help and interfaces."
 			},
 			{
@@ -98,7 +98,7 @@
 			},
 			{
 				"q": "Does it work on my phone?",
-				"a": "Yes. Priority Pilot is built for one-handed use and can be installed as an app on your home screen."
+				"a": "Yes. Balamentum is built for one-handed use and can be installed as an app on your home screen."
 			},
 			{
 				"q": "Is the app accessible?",

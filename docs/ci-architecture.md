@@ -161,7 +161,7 @@ Die Eingrenzung eines pi-Laufs kommt daher aus dem ephemeren Runner und dem Scop
 App-Tokens, nicht aus der Laufzeit. `setup-pi` protokolliert das bei `restricted`/`review` als
 `::warning`, statt eine Gleichwertigkeit zu behaupten.
 
-**Der Weg raus** steht in [#1193](https://github.com/deleonio/priority-pilot/issues/1193): eine
+**Der Weg raus** steht in [#1193](https://github.com/deleonio/balamentum/issues/1193): eine
 pi-Extension mit zwei engen Custom-Tools (`gh` mit Kommando-Allowlist, `memory_write` mit
 Pfad-Zwang) und Invoke mit `--no-builtin-tools` — dann gibt es im restricted-Tier gar kein `bash`,
 was strenger ist als das Claude-Tier. Fällig **vor** dem Rollout auf 02–06: Dort wiegt die Lücke

@@ -99,8 +99,8 @@ export default defineConfig({
 				navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
 			},
 			manifest: {
-				name: 'Priority Pilot',
-				short_name: 'Priority Pilot',
+				name: 'Balamentum',
+				short_name: 'Balamentum',
 				description: 'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen und Lebensbalance-Säulen.',
 				theme_color: '#1a1a1a',
 				background_color: '#ffffff',

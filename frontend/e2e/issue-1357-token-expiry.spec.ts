@@ -31,7 +31,7 @@ const deleteAllTokens = async (page: Page): Promise<void> => {
 	}
 };
 
-test.describe('Priority Pilot — #1357: Pflicht-Ablaufdatum für API-Tokens', () => {
+test.describe('Balamentum — #1357: Pflicht-Ablaufdatum für API-Tokens', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTokens(page);
 	});

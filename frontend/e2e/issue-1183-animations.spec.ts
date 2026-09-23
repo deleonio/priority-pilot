@@ -18,7 +18,7 @@ const animationsToggle = (page: Page) =>
 
 const openGeneralSettings = async (page: Page): Promise<void> => {
 	await page.goto('/app/settings/general');
-	await waitForStableView(page, 'Priority Pilot');
+	await waitForStableView(page, 'Balamentum');
 };
 
 /** Legt einen Task über die echte API an und liefert seine ID zurück. */
@@ -69,7 +69,7 @@ const fetchStatus = async (page: Page, id: number): Promise<string> => {
 	return task.status;
 };
 
-test.describe('Priority Pilot — Master-Schalter „Animationen" (#1183)', () => {
+test.describe('Balamentum — Master-Schalter „Animationen" (#1183)', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});
@@ -89,7 +89,7 @@ test.describe('Priority Pilot — Master-Schalter „Animationen" (#1183)', () =
 
 		// Reload — der Schalter zeigt weiterhin den zuletzt gespeicherten Zustand.
 		await page.reload();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 		await expect(animationsToggle(page)).toBeVisible();
 		await expect(animationsToggle(page)).toBeChecked();
 	});

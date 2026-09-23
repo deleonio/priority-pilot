@@ -13,7 +13,7 @@ import { waitForStableView } from './helpers';
  * Der Fixture-Body enthält eine LANGE NACKTE FREMD-URL — der wahrscheinlichste mobile
  * Stolperstein (KI-UX): Ohne Wortbruch (`overflow-wrap`) auf Links reißt das Autolink-`<a>`
  * das Layout, obwohl die Kategorie-Struktur selbst korrekt ist. Die Bounding-Box-Prüfung
- * bekommt dadurch Zähne. Repo-Links (`github.com/deleonio/priority-pilot`) erscheinen
+ * bekommt dadurch Zähne. Repo-Links (`github.com/deleonio/balamentum`) erscheinen
  * dagegen bewusst NICHT mehr (Direktauftrag 2026-09-13, fortgeschrieben aus PR #1432):
  * `stripRepoLinks` entfernt Markdown-Repo-Links (Linktext bleibt), Autolinks und nackte
  * Repo-URLs inklusive GitHub-Attribution (`by @<user> in <URL>`, reales Release-Format
@@ -24,7 +24,7 @@ import { waitForStableView } from './helpers';
  */
 
 const LONG_URL = `https://example.com/dokumentation/${'pfad'.repeat(14)}/files#diff-sehr-langer-anchor`;
-const REPO_PR_LINK = 'https://github.com/deleonio/priority-pilot/pull/1204';
+const REPO_PR_LINK = 'https://github.com/deleonio/balamentum/pull/1204';
 
 const RELEASES_FIXTURE = [
 	{
@@ -34,7 +34,7 @@ const RELEASES_FIXTURE = [
 			'### 💥 Breaking Changes\n\n- Export entfernt',
 			`### 🐞 Bug Fixes\n\n- Absturz beim Speichern behoben, siehe ${LONG_URL}`,
 			`### 🚀 Improvements\n\n- Speichern beschleunigt ([#1204](${REPO_PR_LINK}))`,
-			'### Other Changes\n\n- docs(guide): sync user guide by @deleonio in https://github.com/deleonio/priority-pilot/pull/1403',
+			'### Other Changes\n\n- docs(guide): sync user guide by @deleonio in https://github.com/deleonio/balamentum/pull/1403',
 		].join('\n\n'),
 	},
 ];
@@ -63,7 +63,7 @@ test.describe('#1206 Changelog-Aggregation auf der Hilfe-Seite', () => {
 		// „#1204" bleibt als Text) noch der Autolink der langen nackten Repo-URL erzeugen
 		// ein `<a>` mehr (kein `<a>` mit Repo-Href im ganzen Dokument). Fremdlinks bleiben.
 		await expect(page.locator(`a[href="${REPO_PR_LINK}"]`)).toHaveCount(0);
-		await expect(page.locator('a[href*="github.com/deleonio/priority-pilot"]')).toHaveCount(0);
+		await expect(page.locator('a[href*="github.com/deleonio/balamentum"]')).toHaveCount(0);
 		await expect(page.getByText('Speichern beschleunigt (#1204)')).toBeVisible();
 		// Reales Release-Format: die Attribution verschwindet mit der URL, der Subject-Text bleibt.
 		await expect(page.getByText('docs(guide): sync user guide')).toBeVisible();

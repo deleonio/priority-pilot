@@ -19,7 +19,7 @@ Ergänzende Pflichtlektüre (nicht hier dupliziert):
 
 ## 1. Haltung
 
-Priority Pilot beantwortet **eine** Frage: _„Woran arbeite ich als Nächstes?"_
+Balamentum beantwortet **eine** Frage: _„Woran arbeite ich als Nächstes?"_
 
 Daraus folgt die gestalterische Lesart von „ein Screen, eine Aufgabe"
 ([Regel 5](../docs/mobile-ui-rules.md)): **Die eine Primäraktion hat auch eine Hauptaussage** — sie
@@ -187,7 +187,7 @@ Diese Checks laufen **gebatcht in einer Inspektionsrunde** (Desktop + Mobile zus
 
 Jede Surface hat **einen Modus**, der bestimmt, was Erfolg bedeutet:
 
-| Modus          | Ziel                   | Priority Pilot Beispiel            |
+| Modus          | Ziel                   | Balamentum Beispiel                |
 | -------------- | ---------------------- | ---------------------------------- |
 | **Persuade**   | Visitor decides & acts | Landing, Pricing, Kampagnen        |
 | **Operate**    | Visitor completes task | Dashboard, Editor, Settings, Tools |

@@ -1,4 +1,4 @@
-# Priority Pilot — Architekturübersicht (arc42)
+# Balamentum — Architekturübersicht (arc42)
 
 Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operating Details
 (Rollout-Abfolge, Server-Setup) bleiben [deployment.md](deployment.md) und
@@ -6,7 +6,7 @@ Diese Datei beschreibt den Ist-Zustand des Monorepos aus Entwicklersicht. Operat
 
 ## 1. Einführung und Ziele
 
-Priority Pilot ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
+Balamentum ist eine Web-Anwendung zur persönlichen Aufgabenorganisation: Aufgaben (Tasks)
 mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewichtung und
 Punkte-Konto (Gamification), wiederkehrende Aufgaben (Serien), Gruppen mit geteilten Tasks und
 Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite), KI-Unterstützung
@@ -70,8 +70,8 @@ graph LR
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
     MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
     subgraph Host[Dedizierter Server]
-        Caddy[Caddy, TLS] --> SPA[Priority Pilot SPA]
-        Caddy -->|"/api/v1/* → strip"| API[Priority Pilot API]
+        Caddy[Caddy, TLS] --> SPA[Balamentum SPA]
+        Caddy -->|"/api/v1/* → strip"| API[Balamentum API]
         API --> DB[(SQLite)]
     end
     API -->|IF-02 OAuth| Google[Google]
@@ -274,7 +274,7 @@ graph TD
 ```
 
 Jeder Merge auf `main` baut in GitHub Actions und spiegelt die `dist`-Verzeichnisse per `rsync`
-auf den Server; danach startet `pm2 reload priority-pilot` das Backend genau einmal neu
+auf den Server; danach startet `pm2 reload balamentum` das Backend genau einmal neu
 ([deployment.md](deployment.md)). Der Session-Store ist in Produktion SQLite oder Redis
 (`SESSION_STORE`, `server/src/express/session.ts`), der Frontend-Workspace `client` ist nur
 Build-Zeit-Bestandteil und wird nicht ausgeliefert. Die Pipeline-Workflows (`.github/workflows/`)
@@ -413,7 +413,7 @@ dokumentiert.
 - **Qualitätseigenschaft:** `#operable` — Deployment
 - **Szenario:** Ein Merge auf `main` wird ausgeliefert.
 - **Erfolgsmessung:** Der Ablauf ist ohne manuelle Schritte: Build in GitHub Actions, `rsync` der
-  `dist`-Verzeichnisse, `pm2 reload priority-pilot` ([deployment.md](deployment.md)).
+  `dist`-Verzeichnisse, `pm2 reload balamentum` ([deployment.md](deployment.md)).
 
 ### QS-09 — Muster-Treue bei der Änderung
 

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Datum:** 2026-08-12
-- **Entscheidungsquelle:** [#567](https://github.com/deleonio/priority-pilot/issues/567) (Teil des Epics [#563 — Teststrategie-Relaunch](https://github.com/deleonio/priority-pilot/issues/563))
+- **Entscheidungsquelle:** [#567](https://github.com/deleonio/balamentum/issues/567) (Teil des Epics [#563 — Teststrategie-Relaunch](https://github.com/deleonio/balamentum/issues/563))
 
 ## Kontext
 
@@ -18,7 +18,7 @@ korrekt geparsed werden, ob `name:`-Kopplungen stimmen usw.
 (`frontend/e2e/**`). **Workflows/CI-Plumbing, Config-Dateien und Markdown-Inhalt werden nicht
 getestet.** Die gesamte nicht-anwendungsspezifische Meta-Test-Suite (Workflow-, Config- und
 Markdown-Inhalt-Tests, u. a. in `.github/workflows/*.test.ts`, `server/src/{ci,docs}/*.test.ts` und
-dem `tests/`-Workspace) wurde vollständig **gelöscht** — zunächst per [#564](https://github.com/deleonio/priority-pilot/issues/564)
+dem `tests/`-Workspace) wurde vollständig **gelöscht** — zunächst per [#564](https://github.com/deleonio/balamentum/issues/564)
 in Quarantäne (`__quarantine__/`) verschoben, am 2026-08-13 endgültig entfernt; die CI führt nichts
 davon mehr aus.
 
@@ -79,6 +79,6 @@ davon mehr aus.
   neuen Workflow-/Config-/Markdown-Tests mehr. Das Spec-Gate in `02-claude-spec.yml` setzt das
   operativ um: ein Test zählt nur, wenn er unter `server/src/`, `frontend/src/` oder `frontend/e2e/`
   liegt.
-- **Follow-ups:** [#564](https://github.com/deleonio/priority-pilot/issues/564) (Quarantäne-Verschiebung
-  / CI-Test-Steps entfernen), [#566](https://github.com/deleonio/priority-pilot/issues/566)
+- **Follow-ups:** [#564](https://github.com/deleonio/balamentum/issues/564) (Quarantäne-Verschiebung
+  / CI-Test-Steps entfernen), [#566](https://github.com/deleonio/balamentum/issues/566)
   (spec-first-Neuaufbau, nur für Domänenlogik).

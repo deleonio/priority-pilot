@@ -31,7 +31,7 @@ const deleteAllTasks = async (page: import('@playwright/test').Page): Promise<vo
 	}
 };
 
-test.describe('Priority Pilot — #1361: Tag geschafft', () => {
+test.describe('Balamentum — #1361: Tag geschafft', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
 	});

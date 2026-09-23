@@ -52,7 +52,7 @@ test.describe('#1574 Säulen-Gewichtung: Bestätigung vor dem Speichern unausgew
 
 		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await makeUnbalanced(page);
 		await expect(page.locator('.settings-pillars kol-alert[_type="warning"]')).toBeVisible();

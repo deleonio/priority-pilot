@@ -34,7 +34,7 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 	);
 };
 
-test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
+test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 	test('AK1a: Unauthentifizierter Benutzer sieht Login-Seite statt Haupt-App', async ({ page }) => {
 		await mockUnauthenticated(page);
 		await page.goto('/app/');

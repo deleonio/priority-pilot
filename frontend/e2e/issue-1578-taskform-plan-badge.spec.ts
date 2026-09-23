@@ -108,7 +108,7 @@ const openEditForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 };
 
-test.describe('Priority Pilot — #1578: Paket-Hinweise verengen/schneiden Formularfelder nicht mehr ab', () => {
+test.describe('Balamentum — #1578: Paket-Hinweise verengen/schneiden Formularfelder nicht mehr ab', () => {
 	test.beforeEach(async ({ page }) => {
 		await login(page);
 		await createCustomProvider(page);

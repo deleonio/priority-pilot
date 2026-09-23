@@ -88,7 +88,7 @@ test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 	/** AK2 — Header (Banner, Toolbar) bleibt auf /hilfe sichtbar. */
 	test('AK2: Header mit Banner und Toolbar ist auf /hilfe sichtbar', async ({ page }) => {
 		await page.goto('/app/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
@@ -98,7 +98,7 @@ test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 	/** AK3 — Kein Button mit dem zugänglichen Namen „Zurück" existiert mehr. */
 	test('AK3: Kein „Zurück"-Button auf /hilfe', async ({ page }) => {
 		await page.goto('/app/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toHaveCount(0);
 	});
@@ -109,7 +109,7 @@ test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 	test('AK8: 375px — Header und Seiteninhalt ohne horizontale Überlagerung', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/hilfe');
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const header = page.getByRole('banner');
 		await expect(header).toBeVisible();

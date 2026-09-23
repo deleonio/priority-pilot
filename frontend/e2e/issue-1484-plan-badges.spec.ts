@@ -121,7 +121,7 @@ const expectWithinViewport = async (locator: ReturnType<Page['locator']>): Promi
 	expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 };
 
-test.describe('Priority Pilot — #1484: Paket-Badges an den übrigen Grenzstellen (375px)', () => {
+test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (375px)', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await login(page);

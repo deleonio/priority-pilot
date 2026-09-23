@@ -49,7 +49,7 @@ const boundingBoxWhenLaidOut = async (locator: ReturnType<Page['locator']>) => {
 	return null;
 };
 
-test.describe('Priority Pilot — #1526: Access-Token-Reiter und Gating', () => {
+test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 	test.beforeEach(async ({ page }) => {
 		await login(page);
 	});

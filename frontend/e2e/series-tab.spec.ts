@@ -20,7 +20,7 @@ import { waitForStableView } from './helpers';
  * **Isolation:** `afterEach` räumt erst alle Tasks (inkl. generierter Instanzen), dann alle Serien
  * über die echte API wieder ab, damit jeder Test vom definierten, leeren Zustand startet.
  */
-test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () => {
+test.describe('Balamentum — #335: Serien-Verwaltung als eigener Tab', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {

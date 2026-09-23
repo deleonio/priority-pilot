@@ -37,7 +37,7 @@ const initAiEnabled = (page: Page, aiEnabled: boolean): void => {
 /** Öffnet den KI-Provider-Tab der Einstellungen. */
 const openLlmTab = async (page: Page): Promise<void> => {
 	await page.goto('/app/settings/llm');
-	await waitForStableView(page, 'Priority Pilot');
+	await waitForStableView(page, 'Balamentum');
 };
 
 test.describe('#1335 KI-Features: ein einziger Schalter', () => {
@@ -108,7 +108,7 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 		await expect(aiSwitch).not.toBeChecked();
 
 		await page.reload();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		await expect(switchControl(page, /^KI-Features aktiv$/)).not.toBeChecked();
 	});

@@ -67,7 +67,7 @@ const mockPlans = async (page: Page, user: Record<string, unknown>): Promise<voi
 	);
 };
 
-test.describe('Priority Pilot — #1529: Pakete/Abo als eigene Settings-Reiter', () => {
+test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () => {
 	test('AK1: /settings/pakete zeigt die Matrix, /settings/abo die Rechnungsliste, Reiterwechsel schreibt die URL', async ({
 		page,
 	}) => {

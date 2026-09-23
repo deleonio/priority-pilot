@@ -2,7 +2,7 @@
 
 ## Unterstützte Versionen
 
-Priority Pilot befindet sich im Prototyp-Stadium. Sicherheitsupdates werden ausschließlich
+Balamentum befindet sich im Prototyp-Stadium. Sicherheitsupdates werden ausschließlich
 für den aktuellen Stand des `main`-Branches bereitgestellt.
 
 ## Schwachstelle melden
@@ -32,4 +32,4 @@ Kontaktprofil ([@deleonio](https://github.com/deleonio)) erreichen.
 - Wir bitten dich, die Schwachstelle bis zur Bereitstellung eines Fixes vertraulich zu
   behandeln (Responsible Disclosure).
 
-Vielen Dank, dass du hilfst, Priority Pilot sicher zu halten.
+Vielen Dank, dass du hilfst, Balamentum sicher zu halten.

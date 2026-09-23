@@ -26,7 +26,7 @@ import { taskTitleText, waitForStableView } from './helpers';
  *
  * `afterEach` räumt alle Tasks über die echte API ab, damit jeder Test vom leeren Zustand startet.
  */
-test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', () => {
+test.describe('Balamentum — Aufgabenliste als flache Blatt-Liste (#537)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;

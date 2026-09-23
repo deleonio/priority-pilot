@@ -37,7 +37,7 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 		await setEqualPillarWeights(page);
 		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		const alert = page.locator('.settings-pillars kol-alert[_type="warning"]');
 		await expect(alert).toHaveCount(0);
@@ -79,7 +79,7 @@ test.describe('#1555 Säulen-Gewichtung: Hinweis bei Unaustariertheit', () => {
 		await setEqualPillarWeights(page);
 		await page.goto('/app/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page, 'Balamentum');
 
 		// Ungleich ohne Extremanteil: erste Säule auf 80 % (> 2 × 20 %), übrige je 5 %.
 		const sliders = page.locator('.pillar-weights-grid input[type="range"]');

@@ -119,7 +119,7 @@ const shell = (context: PageContext, { title, description, path, pathFor, body }
 		<a class="skip-link" href="#main">${t(messages.meta.skip)}</a>
 		<header class="site-header">
 			<div class="container site-header__inner">
-				<a class="brand" href="${homePath(locale)}"><img src="/icon-192.png" alt="" width="36" height="36"><span>Priority Pilot</span></a>
+				<a class="brand" href="${homePath(locale)}"><img src="/icon-192.png" alt="" width="36" height="36"><span>Balamentum</span></a>
 				<nav aria-label="${t(messages.nav.label)}" class="site-nav">
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#features">${t(messages.nav.features)}</a>
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#pricing">${t(messages.nav.pricing)}</a>
@@ -134,7 +134,7 @@ ${body}
 		</main>
 		<footer class="site-footer">
 			<div class="container site-footer__inner">
-				<span>© ${new Date().getFullYear()} Priority Pilot</span>
+				<span>© ${new Date().getFullYear()} Balamentum</span>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
 				<a class="kern-link" href="${pathFor(other)}" hreflang="${other}" lang="${other}">${t(messages.meta.switchLanguage)}</a>
 			</div>
@@ -282,7 +282,7 @@ ${operator.ustId ? `					<h2 class="kern-title">${t(m.imprint.vatId)}</h2>\n				
 				</div>
 			</section>`;
 	return shell(context, {
-		title: `${m.imprint.title} – Priority Pilot`,
+		title: `${m.imprint.title} – Balamentum`,
 		description: m.meta.description,
 		path: pathFor(locale),
 		pathFor,
