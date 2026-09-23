@@ -2812,6 +2812,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /auth/providers:
+    get:
+      summary: Verfügbare Anmeldewege lesen
+      description: >-
+        Zeigt der Login-Seite, welche Anmeldewege auf dieser Instanz konfiguriert
+        sind: Google-OAuth (Client-Credentials gesetzt) und Magic Link per E-Mail
+        (SMTP und `PUBLIC_BASE_URL` gesetzt). Öffentlich, ohne Session.
+      operationId: getAuthProviders
+      tags: [auth]
+      responses:
+        '200':
+          description: Konfigurierte Anmeldewege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthProviders'
+  /auth/magic-link:
+    post:
+      summary: Anmeldelink per E-Mail anfordern
+      description: >-
+        Verschickt einen 15 Minuten gültigen Einmal-Link an die Adresse, sofern sie
+        zugelassen ist (E-Mail-Allowlist). Die Antwort ist unabhängig davon immer 202,
+        damit sich zugelassene Adressen nicht ausspähen lassen. Pro Adresse gehen
+        höchstens drei Links je 15 Minuten raus; weitere Anfragen werden still verworfen.
+      operationId: requestMagicLink
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkRequest'
+      responses:
+        '202':
+          description: Anfrage angenommen (Mail nur bei zugelassener Adresse)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/magic-link/verify:
+    post:
+      summary: Anmeldelink einlösen
+      description: >-
+        Löst den Token aus dem Anmeldelink ein und meldet den Nutzer an. Existiert
+        zur E-Mail noch kein Konto, wird es angelegt (Verknüpfung über die E-Mail wie
+        beim Google-Login). Ein Token gilt genau einmal. Bewusst POST statt GET:
+        Mail-Scanner rufen Links vorab auf und würden den Token sonst verbrauchen.
+      operationId: verifyMagicLink
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkVerifyRequest'
+      responses:
+        '204':
+          description: Angemeldet, Session-Cookie gesetzt
+        '400':
+          description: Token unbekannt, abgelaufen oder schon benutzt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -5284,6 +5354,34 @@ components:
           description: Anzahl der erfolgreich zugestellten Push-Nachrichten.
         quote:
           $ref: '#/components/schemas/Quote'
+    AuthProviders:
+      type: object
+      required:
+        - google
+        - magicLink
+      properties:
+        google:
+          type: boolean
+          description: Google-OAuth ist konfiguriert.
+        magicLink:
+          type: boolean
+          description: Magic Link per E-Mail ist konfiguriert.
+    MagicLinkRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          description: Adresse, an die der Anmeldelink geht.
+    MagicLinkVerifyRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Token aus dem Anmeldelink (Parameter `magic`).
     TestMailResult:
       type: object
       required:

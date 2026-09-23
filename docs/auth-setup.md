@@ -104,6 +104,29 @@ Zusätzlich prüft `requireAuth` bei jedem API-Request erneut, ob die Adresse de
 der Allowlist steht. Eine aus der Liste entfernte Adresse verliert den Zugang also sofort, auch mit
 laufender Session. Das Konto in der Datenbank bleibt bestehen.
 
+## Anmeldelink per E-Mail (Magic Link)
+
+Neben Google kann sich jede freigeschaltete Adresse über einen Einmal-Link anmelden. Die Login-Seite
+zeigt das Formular nur, wenn der Anmeldeweg konfiguriert ist (`GET /auth/providers`). Dafür müssen
+drei Variablen gesetzt sein:
+
+| Variable          | Bedeutung                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `SMTP_HOST`       | Mailserver für den Versand (weitere `SMTP_*`-Werte siehe `server/.env.example`).                                                 |
+| `MAIL_FROM`       | Absenderadresse der Mail.                                                                                                        |
+| `PUBLIC_BASE_URL` | Öffentliche Adresse der Instanz, z. B. `https://priority-pilot.example.de`. Der Link in der Mail zeigt auf `<URL>/app/?magic=…`. |
+
+Regeln:
+
+- Es gilt dieselbe Allowlist wie bei Google. Die Antwort auf das Anfordern ist immer gleich, damit
+  sich freigeschaltete Adressen nicht ausspähen lassen.
+- Ein Link ist 15 Minuten gültig und funktioniert genau einmal. Pro Adresse gehen höchstens drei
+  Links je 15 Minuten raus. Gespeichert wird nur ein SHA-256 des Tokens (`login_tokens`).
+- Konten werden über die E-Mail verknüpft: Wer sich einmal per Google und einmal per Link anmeldet,
+  landet im selben Konto. Name und Avatar aus Google bleiben beim Login per Link erhalten.
+- Der Link öffnet nur die App; eingelöst wird er per `POST /auth/magic-link/verify`. Mail-Scanner,
+  die Links vorab aufrufen, verbrauchen ihn deshalb nicht.
+
 ## Neue Person zulassen
 
 1. Adresse an `GOOGLE_ALLOWED_EMAILS` anhängen (Komma, keine Leerzeichen). Soll die Person

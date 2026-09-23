@@ -220,6 +220,29 @@ export const api = {
 
 	// --- Buchungs-/Verwaltungsflow (#1496, T6c) — Backend bereits fertig (#1505/#1506) ---
 
+	/** Welche Anmeldewege die Instanz anbietet (Google, Magic Link per E-Mail) — öffentlich. */
+	async getAuthProviders(): Promise<components['schemas']['AuthProviders']> {
+		const { data, error, response } = await client.GET('/auth/providers');
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Fordert einen Anmeldelink per E-Mail an. Der Server antwortet bewusst immer gleich (202). */
+	async requestMagicLink(email: string): Promise<void> {
+		const { error, response } = await client.POST('/auth/magic-link', { body: { email } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	/** Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. */
+	async verifyMagicLink(token: string): Promise<boolean> {
+		const { response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		return response.ok;
+	},
+
 	/** Legt ein Abo an (AK1); die Antwort trägt die PayPal-Zustimmungs-URL zum Weiterleiten. */
 	async createBillingSubscription(
 		input: components['schemas']['BillingSubscriptionInput'],
