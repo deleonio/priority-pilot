@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.10._
+_Enthält v0.4.0 – v0.4.11._
 
 ### Other Changes
 
@@ -16,6 +16,7 @@ _Enthält v0.4.0 – v0.4.10._
 - fix(ci): fail open on mentor model when pr head lacks model-ids.json by @deleonio in https://github.com/deleonio/priority-pilot/pull/1631
 - revert(ci): mentor fallback for missing model-ids.json (#1631) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1632
 - fix(admin): resumable pillar batch with live progress and error reasons by @deleonio in https://github.com/deleonio/priority-pilot/pull/1630
+- perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
 
 ## v0.3 - 2026-09-23
 
@@ -865,7 +866,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(ci): repair documenter artifact upload, /tmp write access, note gate by @deleonio in https://github.com/deleonio/priority-pilot/pull/1313
 - fix(templates): remove duplicate field ids in ticket.yml by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1317
 - feat(frontend): paginate forest tab by connected task tree (#1314) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1316
-- feat(frontend): paginate forest tab by connected task tree (#1314) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1316
+- feat(frontend): even out avatar spacing in the header bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1318
 - feat(frontend): even out avatar spacing in the header bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1318
 - chore(frontend): update kolibri to v4.4.0 and raise pwa cache limit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1319
 - chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
