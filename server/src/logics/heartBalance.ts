@@ -18,6 +18,7 @@
  * mit `weight: 0` an) und würden die Normierung sonst abschalten. Begründung und Herleitung stehen
  * ausführlich in `frontend/src/lib/heartBalance.ts`.
  */
+import { PILLAR_RHYTHMS } from '../models/pillarData.js';
 
 /** Eine Säule, so wie die Rechnung sie braucht: Identität, Anzeigename und ihr Soll-Gewicht. */
 export interface BalanceSaeule {
@@ -222,6 +223,41 @@ export const berechneKadenzFuellstand = (saeulen: KadenzSaeule[], tasks: KadenzT
 			punkte: punkte.get(saeule.id) ?? 0,
 			gewichtung: saeule.rhythmusProWoche,
 			erfuellung: erfuellung.get(saeule.id) ?? 0,
+		})),
+	};
+};
+
+/** Rhythmus für Säulen, die nicht unter einem mitgelieferten Namen stehen (umbenannt/Altbestand): 1×/Woche. */
+const STANDARD_RHYTHMUS_PRO_WOCHE = 1;
+
+/**
+ * Füllstand der Antworten (GET /scores/balance, Verlauf, MCP `balance_status`) im Kadenz-Modell (#1638):
+ * Rhythmus je Säule aus `PILLAR_RHYTHMS` (Name), `gewichtung` bleibt `Pillar.weight` — die DTO-Form ist
+ * unverändert, `erfuellung` bleibt intern.
+ */
+export const berechneLebensbalanceNachKadenz = (
+	saeulen: BalanceSaeule[],
+	tasks: KadenzTask[],
+	jetzt: Date,
+): Lebensbalance => {
+	const rhythmusProName = new Map(PILLAR_RHYTHMS.map((eintrag) => [eintrag.name, eintrag.rhythmusProWoche]));
+	const kadenz = berechneKadenzFuellstand(
+		saeulen.map((saeule) => ({
+			id: saeule.id,
+			name: saeule.name,
+			rhythmusProWoche: rhythmusProName.get(saeule.name) ?? STANDARD_RHYTHMUS_PRO_WOCHE,
+		})),
+		tasks,
+		jetzt,
+	);
+	return {
+		fill: kadenz.fill,
+		hasPoints: kadenz.hasPoints,
+		saeulen: saeulen.map((saeule, index) => ({
+			id: saeule.id,
+			name: saeule.name,
+			punkte: kadenz.saeulen[index].punkte,
+			gewichtung: saeule.weight,
 		})),
 	};
 };
