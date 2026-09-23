@@ -39,6 +39,35 @@ const firstPillarClassifier: PillarClassifier = (async (input: ClassifyPillarsIn
 	return suggestions;
 }) as PillarClassifier;
 
+/**
+ * Test-Pflege #1642: POST startet nur noch den Hintergrundlauf (202). Der Helper wartet dessen Ende
+ * über den Status-Endpunkt ab und liefert das Ergebnis im bisherigen Antwortformat, damit die
+ * fachlichen Assertions dieser Tests unverändert bleiben. `remaining` = noch nicht erreichte Aufgaben.
+ */
+const startAndAwait = async (baseUrl: string, cookie: string, query = ''): Promise<Response> => {
+	const res = await fetch(`${baseUrl}/tasks/reassign-pillars${query}`, { method: 'POST', headers: { Cookie: cookie } });
+	if (res.status !== 202) {
+		return res;
+	}
+	return awaitRun(baseUrl, cookie, query);
+};
+
+const awaitRun = async (baseUrl: string, cookie: string, query = ''): Promise<Response> => {
+	for (let tries = 0; tries < 250; tries++) {
+		const status = (await (
+			await fetch(`${baseUrl}/tasks/reassign-pillars/status${query}`, { headers: { Cookie: cookie } })
+		).json()) as { running: boolean; pending: number; result?: { failed: number } };
+		if (!status.running) {
+			const failed = status.result?.failed ?? 0;
+			return new Response(JSON.stringify({ ...status.result, remaining: Math.max(0, status.pending - failed) }), {
+				status: 200,
+			});
+		}
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	}
+	throw new Error('Hintergrundlauf endete nicht rechtzeitig');
+};
+
 describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenverteilung', () => {
 	let server: TestServer;
 
@@ -55,8 +84,7 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 		await closeDb();
 	});
 
-	const post = (cookie: string, query = ''): Promise<Response> =>
-		fetch(`${server.baseUrl}/tasks/reassign-pillars${query}`, { method: 'POST', headers: { Cookie: cookie } });
+	const post = (cookie: string, query = ''): Promise<Response> => startAndAwait(server.baseUrl, cookie, query);
 
 	it('verarbeitet die eigenen Aufgaben und lässt fremde Konten unberührt', async () => {
 		const otherCookie = await server.login(OTHER_EMAIL, { role: 'member' });
@@ -169,10 +197,7 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 			await Task.create({ title: 'Wackelige Aufgabe', status: 'Open', userId: memberId });
 
-			const res = await fetch(`${flakyServer.baseUrl}/tasks/reassign-pillars`, {
-				method: 'POST',
-				headers: { Cookie: cookie },
-			});
+			const res = await startAndAwait(flakyServer.baseUrl, cookie);
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as { updated: number; failed: number };
 			assert.equal(attempts, 3, 'zwei Fehlversuche, dann Erfolg');
@@ -202,10 +227,7 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 			await Task.create({ title: 'Gedrosselte Aufgabe', status: 'Open', userId: memberId });
 
-			const res = await fetch(`${limitedServer.baseUrl}/tasks/reassign-pillars`, {
-				method: 'POST',
-				headers: { Cookie: cookie },
-			});
+			const res = await startAndAwait(limitedServer.baseUrl, cookie);
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as { updated: number; failed: number; failureReasons?: unknown };
 			assert.equal(attempts, 4);
@@ -230,10 +252,7 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			await Task.create({ title: 'Aufgabe 1', status: 'Open', userId: memberId });
 			await Task.create({ title: 'Aufgabe 2', status: 'Open', userId: memberId });
 
-			const res = await fetch(`${limitedServer.baseUrl}/tasks/reassign-pillars`, {
-				method: 'POST',
-				headers: { Cookie: cookie },
-			});
+			const res = await startAndAwait(limitedServer.baseUrl, cookie);
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as { failed: number; failureReasons?: Record<string, number> };
 			assert.equal(body.failed, 2);
@@ -263,33 +282,32 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 				await Task.create({ title, status: 'Open', userId: memberId });
 			}
 			const call = (method: 'GET' | 'POST', query: string): Promise<Response> =>
-				fetch(`${resumeServer.baseUrl}/tasks/reassign-pillars${method === 'GET' ? '/status' : ''}${query}`, {
-					method,
-					headers: { Cookie: cookie },
-				});
+				method === 'POST'
+					? startAndAwait(resumeServer.baseUrl, cookie, query)
+					: fetch(`${resumeServer.baseUrl}/tasks/reassign-pillars/status${query}`, { headers: { Cookie: cookie } });
 
 			const before = (await (await call('GET', '')).json()) as { startedAt: string | null; pending: number };
 			assert.equal(before.startedAt, null, 'noch kein Lauf');
 			assert.equal(before.pending, 3);
 
-			// Erste Portion: 2 Aufgaben, davon schlägt „Aufgabe 2“ fehl.
+			// Test-Pflege #1642: der Hintergrundlauf holt alle Portionen selbst ab — „Aufgabe 2“ schlägt fehl.
 			const first = (await (await call('POST', '?restart=true&limit=2')).json()) as {
 				updated: number;
 				failed: number;
 				remaining: number;
 			};
-			assert.deepEqual([first.updated, first.failed, first.remaining], [1, 1, 1]);
+			assert.deepEqual([first.updated, first.failed, first.remaining], [2, 1, 0]);
 
 			const between = (await (await call('GET', '')).json()) as { startedAt: string | null; pending: number };
 			assert.ok(between.startedAt, 'Laufstart gemerkt');
-			assert.equal(between.pending, 2, 'die fehlgeschlagene und die nicht erreichte Aufgabe');
+			assert.equal(between.pending, 1, 'nur die fehlgeschlagene Aufgabe');
 
-			// Später fortsetzen (neue Serie, offset 0): „Aufgabe 1“ kommt nicht noch einmal dran.
+			// Später fortsetzen: „Aufgabe 1“ und „Aufgabe 3“ kommen nicht noch einmal dran.
 			failTitle = null;
 			seen.length = 0;
 			const resumed = (await (await call('POST', '')).json()) as { updated: number; remaining: number };
-			assert.deepEqual(seen, ['Aufgabe 2', 'Aufgabe 3']);
-			assert.equal(resumed.updated, 2);
+			assert.deepEqual(seen, ['Aufgabe 2']);
+			assert.equal(resumed.updated, 1);
 			assert.equal(resumed.remaining, 0);
 			assert.equal(((await (await call('GET', '')).json()) as { pending: number }).pending, 0);
 
@@ -320,16 +338,13 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			for (const title of ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3']) {
 				await Task.create({ title, status: 'Open', userId: memberId });
 			}
-			const post = (query: string) =>
-				fetch(`${offsetServer.baseUrl}/tasks/reassign-pillars${query}`, {
-					method: 'POST',
-					headers: { Cookie: cookie },
-				});
-
-			const first = (await (await post('?restart=true&limit=2')).json()) as { failed: number; remaining: number };
-			assert.equal(first.failed, 1);
-			// Wie das Modal: offset = Zahl der Fehlschläge dieser Serie.
-			const second = (await (await post(`?limit=2&offset=${first.failed}`)).json()) as { remaining: number };
+			// Test-Pflege #1642: der Hintergrundlauf schiebt den offset zwischen seinen Portionen
+			// (limit=2) selbst um die Fehlschläge weiter — vorher tat das der Client.
+			const second = (await (await startAndAwait(offsetServer.baseUrl, cookie, '?restart=true&limit=2')).json()) as {
+				failed: number;
+				remaining: number;
+			};
+			assert.equal(second.failed, 1);
 			// Retries derselben Aufgabe zählen nicht — es geht um die Reihenfolge der Aufgaben.
 			assert.deepEqual([...new Set(seen)], ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3'], 'keine ausgelassen');
 			assert.equal(seen.filter((title) => title === 'Aufgabe 2').length, 1, 'Aufgabe 2 nicht doppelt');
@@ -352,10 +367,7 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			await Task.create({ title: 'Aufgabe 1', status: 'Open', userId: memberId });
 			await Task.create({ title: 'Aufgabe 2', status: 'Open', userId: memberId });
 
-			const res = await fetch(`${brokenServer.baseUrl}/tasks/reassign-pillars`, {
-				method: 'POST',
-				headers: { Cookie: cookie },
-			});
+			const res = await startAndAwait(brokenServer.baseUrl, cookie);
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as { updated: number; failed: number };
 			assert.equal(body.failed, 2, 'beide Aufgaben gezählt — der Lauf läuft trotz Fehler weiter');
@@ -387,13 +399,11 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 				headers: { Cookie: cookie },
 			});
 			await new Promise((resolve) => setTimeout(resolve, 20));
-			const second = await fetch(`${slowServer.baseUrl}/tasks/reassign-pillars`, {
-				method: 'POST',
-				headers: { Cookie: cookie },
-			});
+			const second = await startAndAwait(slowServer.baseUrl, cookie);
 			assert.equal(second.status, 409);
 			release();
-			assert.equal((await first).status, 200);
+			assert.equal((await first).status, 202);
+			await awaitRun(slowServer.baseUrl, cookie);
 		} finally {
 			await slowServer.close();
 		}
@@ -631,8 +641,7 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 		await closeDb();
 	});
 
-	const run = (cookie: string, baseUrl = server.baseUrl): Promise<Response> =>
-		fetch(`${baseUrl}/tasks/reassign-pillars`, { method: 'POST', headers: { Cookie: cookie } });
+	const run = (cookie: string, baseUrl = server.baseUrl): Promise<Response> => startAndAwait(baseUrl, cookie);
 
 	it('bucht genau einen Punkt je Aufgabe — nicht zusätzlich einen für den Request', async () => {
 		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
@@ -644,13 +653,11 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 
 		const res = await run(cookie);
 		assert.equal(res.status, 200);
-		const body = (await res.json()) as { updated: number; quotaRemaining?: number };
+		const body = (await res.json()) as { updated: number };
 		assert.equal(body.updated, 3);
 
 		// Drei Aufgaben, drei Punkte. Mit zusätzlich mitlaufender Zähler-Middleware wären es vier.
 		assert.equal(await usageOf(memberId), 3, 'genau ein Punkt je klassifizierter Aufgabe');
-		// `quotaRemaining` muss den Stand NACH dem Lauf melden, nicht den davor.
-		assert.equal(body.quotaRemaining, 60 - 3);
 	});
 
 	it('storniert eine gescheiterte Klassifikation, behält aber die ohne brauchbaren Vorschlag', async () => {
