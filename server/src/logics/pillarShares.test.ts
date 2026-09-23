@@ -8,19 +8,26 @@ import { toContributions } from './reassignTaskPillars.js';
  * (`suggestionsToContributions`, #1596). Die Erwartungswerte unten sind mit der Frontend-Funktion
  * für dieselben Eingaben berechnet (Säulen-IDs 6–10 in `id`-Reihenfolge) — ändert sich die Regel,
  * müssen beide Seiten und diese Tabelle gemeinsam angepasst werden.
+ *
+ * #1601 (AK7, Test-Pflege): Ist die Summe der Konfidenzen ≤ 100, bekommt jede vorgeschlagene Säule
+ * ihre Konfidenz als Anteil PLUS ihren Teil des Rests (100 − Summe), gleichmäßig auf ALLE Säulen
+ * verteilt — nicht mehr strukturell den Mindestanteil. Bei Summe > 100 bleibt die bisherige
+ * proportionale Normierung (docs/spec/issue-1601.md). Der erste Fall unten (Summe 30 ≤ 100) ändert
+ * sich dadurch von `[5,5,5,5,80]` auf `[14,14,14,14,44]` (Owner-Beispiel: 30 + 70/5 = 44, 0 + 70/5 =
+ * 14); die übrigen Fälle (Summe ≥ 100) bleiben unverändert, weil dort kein Rest übrig ist.
  */
 const IDS = [6, 7, 8, 9, 10];
 
 const PARITY: { name: string; suggestions: { pillarId: number; confidence: number }[]; expected: number[][] }[] = [
 	{
-		name: 'ein Vorschlag mit niedriger Konfidenz: 80 % dort, 5 % auf jeder anderen Säule',
+		name: 'ein Vorschlag mit Summe ≤ 100: eigene Konfidenz plus anteiliger Rest auf allen Säulen (AK7)',
 		suggestions: [{ pillarId: 10, confidence: 30 }],
 		expected: [
-			[5, 100],
-			[5, 100],
-			[5, 100],
-			[5, 100],
-			[80, 30],
+			[14, 100],
+			[14, 100],
+			[14, 100],
+			[14, 100],
+			[44, 30],
 		],
 	},
 	{
@@ -104,7 +111,7 @@ describe('toContributions — gleiche Verteilung wie das Frontend (#1635)', () =
 		);
 		assert.deepEqual(
 			result.map((entry) => entry.share),
-			[5, 5, 5, 5, 80],
+			[14, 14, 14, 14, 44],
 		);
 	});
 });

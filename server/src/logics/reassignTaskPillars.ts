@@ -32,7 +32,8 @@ import { distributeWithMinimum } from './pillarShares.js';
 /**
  * Wandelt die Konfidenz-Vorschläge des Klassifikators in eine Verteilung über ALLE Säulen des Kontos
  * um — nach derselben Regel wie das Frontend beim Übernehmen der Vorschläge
- * (`suggestionsToContributions` in `frontend/src/lib/pillar.ts`, #1596): proportional zur Konfidenz,
+ * (`suggestionsToContributions` in `frontend/src/lib/pillar.ts`, #1596): bei Konfidenz-Summe ≤ 100 die
+ * Konfidenz als Anteil plus gleichmäßiger Rest auf alle Säulen (#1601), sonst proportional zur Konfidenz;
  * jede Säule mindestens `SHARE_MIN`, ganzzahlig, Summe exakt 100 (#1635). Vorher bekamen nicht
  * vorgeschlagene Säulen 0 %.
  *
@@ -62,7 +63,11 @@ export const toContributions = (
 	if (byId.size === 0) {
 		return [];
 	}
-	const shares = distributeWithMinimum(pillarIds.map((id) => byId.get(id) ?? 0));
+	// #1601: Summe ≤ 100 → Konfidenz als Anteil, Rest gleichmäßig auf ALLE Säulen; Summe > 100 →
+	// proportionale Normierung (übernimmt `distributeWithMinimum`).
+	const sum = [...byId.values()].reduce((acc, value) => acc + value, 0);
+	const rest = sum <= 100 ? (100 - sum) / pillarIds.length : 0;
+	const shares = distributeWithMinimum(pillarIds.map((id) => (byId.get(id) ?? 0) + rest));
 	return pillarIds.map((id, index) => {
 		const confidence = byId.get(id);
 		return {
