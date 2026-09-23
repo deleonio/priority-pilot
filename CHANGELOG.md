@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.13._
+_Enthält v0.4.0 – v0.4.14._
 
 ### Other Changes
 
@@ -19,6 +19,7 @@ _Enthält v0.4.0 – v0.4.13._
 - perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
 - fix(server): keep 5% minimum share per pillar in recalculation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1636
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
+- feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 
 ## v0.3 - 2026-09-23
 
@@ -103,7 +104,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): add plan model and entitlement center (#1456) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1486
 - feat(server): enforce plan feature gating across api and mcp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1487
 - feat(frontend): add plan context, badge, and upgrade offer dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1488
-- feat(frontend): add plan context, badge, and upgrade offer dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1488
+- feat(frontend): roll out plan badges to remaining touchpoints (#1484) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1489
 - feat(frontend): roll out plan badges to remaining touchpoints (#1484) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1489
 - feat(server): meter ai assist quota on llm routes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1490
 - feat(server): cap MCP readwrite scope by plan (#1460) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1491
