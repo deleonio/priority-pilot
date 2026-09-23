@@ -83,6 +83,7 @@ export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number
 	// [Modell-Präfix, Input, Output]
 	['claude-fable-5', 10.0, 50.0],
 	['claude-mythos-5', 10.0, 50.0],
+	['claude-opus-5-5', 4.0, 20.0],
 	['claude-opus-5', 5.0, 25.0],
 	['claude-opus-4', 5.0, 25.0],
 	['claude-sonnet-5', 3.0, 15.0],

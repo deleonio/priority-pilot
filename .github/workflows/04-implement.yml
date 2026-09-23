@@ -389,10 +389,8 @@ jobs:
           case "$PROVIDER" in
             claude)
               case "$MENTOR_MODEL" in
-                fable)  MODEL_FLAG="--model claude-fable-5" ;;
-                opus)   MODEL_FLAG="--model claude-opus-5" ;;
-                sonnet) MODEL_FLAG="--model claude-sonnet-5" ;;
-                haiku)  MODEL_FLAG="--model claude-haiku-4-5-20251001" ;;
+                fable|opus|sonnet|haiku)
+                  MODEL_FLAG="--model $(jq -r --arg a "$MENTOR_MODEL" '.[$a]' .github/model-ids.json)" ;;
                 *)
                   echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
                   exit 1
@@ -959,10 +957,8 @@ jobs:
           case "$PROVIDER" in
             claude)
               case "$MENTOR_MODEL" in
-                fable)  MODEL_FLAG="--model claude-fable-5" ;;
-                opus)   MODEL_FLAG="--model claude-opus-5" ;;
-                sonnet) MODEL_FLAG="--model claude-sonnet-5" ;;
-                haiku)  MODEL_FLAG="--model claude-haiku-4-5-20251001" ;;
+                fable|opus|sonnet|haiku)
+                  MODEL_FLAG="--model $(jq -r --arg a "$MENTOR_MODEL" '.[$a]' .github/model-ids.json)" ;;
                 *)
                   echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
                   exit 1
