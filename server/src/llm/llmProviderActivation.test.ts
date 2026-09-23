@@ -1,3 +1,4 @@
+// This will be the updated llmProviderActivation.test.ts file
 import { describe, it, before, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
@@ -57,6 +58,7 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 			return {
 				ok: true,
 				status: 200,
+				headers: { get: () => null } as unknown as globalThis.Response['headers'],
 				json: async () => ({ choices: [{ message: { content: JSON.stringify({ title: 'Test' }) } }] }),
 			};
 		}) as typeof fetch);
@@ -144,6 +146,7 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 		mock.method(globalThis, 'fetch', (async () => ({
 			ok: false,
 			status: 402,
+			headers: { get: () => null } as unknown as globalThis.Response['headers'],
 			json: async () => ({ detail: 'Check your subscription on https://admin.mistral.ai/subscription' }),
 		})) as typeof fetch);
 

@@ -4,6 +4,7 @@ import type {
 	ActivityAdvisorResult,
 	AdminUser,
 	ApiToken,
+	BalanceStatus,
 	Category,
 	CategoryCreate,
 	CategoryUpdate,
@@ -39,6 +40,7 @@ import type {
 	ParsedTask,
 	ReassignPillarsResult,
 	OwnReassignPillarsResult,
+	OwnReassignPillarsStatus,
 	ReassignStatusFilter,
 	paths,
 	Pillar,
@@ -219,6 +221,29 @@ export const api = {
 	},
 
 	// --- Buchungs-/Verwaltungsflow (#1496, T6c) — Backend bereits fertig (#1505/#1506) ---
+
+	/** Welche Anmeldewege die Instanz anbietet (Google, Magic Link per E-Mail) — öffentlich. */
+	async getAuthProviders(): Promise<components['schemas']['AuthProviders']> {
+		const { data, error, response } = await client.GET('/auth/providers');
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** Fordert einen Anmeldelink per E-Mail an. Der Server antwortet bewusst immer gleich (202). */
+	async requestMagicLink(email: string): Promise<void> {
+		const { error, response } = await client.POST('/auth/magic-link', { body: { email } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	/** Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. */
+	async verifyMagicLink(token: string): Promise<boolean> {
+		const { response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		return response.ok;
+	},
 
 	/** Legt ein Abo an (AK1); die Antwort trägt die PayPal-Zustimmungs-URL zum Weiterleiten. */
 	async createBillingSubscription(
@@ -507,17 +532,40 @@ export const api = {
 
 	/**
 	 * Batch: Säulenverteilung aller Aufgaben (inkl. erledigter) neu berechnen — Admin-Trigger.
-	 * `offset` (Finding #5) setzt einen portionierten Lauf fort: Summe aus `updated`+`failed`+
-	 * `skipped` aller vorherigen Läufe derselben Serie übergeben, sonst trifft jeder Aufruf
-	 * wieder dieselbe erste Portion.
+	 * Fortsetzbar (#1614): `restart: true` beginnt den Lauf für alle Konten neu, sonst werden nur
+	 * die seit dem Laufstart noch offenen Aufgaben verarbeitet. Erfolgreich verarbeitete fallen aus
+	 * der Auswahl, `offset` zählt daher nur die Fehlschläge der laufenden Serie.
 	 */
 	async reassignTaskPillars({
 		offset,
 		status,
+		limit,
+		restart,
 		signal,
-	}: { offset?: number; status?: ReassignStatusFilter } & Init = {}): Promise<ReassignPillarsResult> {
+	}: {
+		offset?: number;
+		status?: ReassignStatusFilter;
+		limit?: number;
+		restart?: boolean;
+	} & Init = {}): Promise<ReassignPillarsResult> {
 		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars', {
-			params: { query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status } },
+			params: {
+				query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status, limit, restart },
+			},
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+	/** Stand des app-weiten Batches (#1614): Aufgaben insgesamt und noch offen. */
+	async getReassignPillarsStatus({
+		status,
+		signal,
+	}: { status?: ReassignStatusFilter } & Init = {}): Promise<OwnReassignPillarsStatus> {
+		const { data, error, response } = await client.GET('/admin/tasks/reassign-pillars/status', {
+			params: { query: { status } },
 			signal,
 		});
 		if (!response.ok || data === undefined) {
@@ -526,23 +574,39 @@ export const api = {
 		return data;
 	},
 	/**
-	 * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614). Portioniert wie der
-	 * Admin-Batch: ein Aufruf verarbeitet höchstens `limit` Aufgaben, der Aufrufer setzt mit
-	 * `offset` fort (Summe aus `updated`+`failed`+`skipped` aller bisherigen Läufe) und liest den
-	 * Fortschritt aus `remaining`.
+	 * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614). Ein Aufruf verarbeitet
+	 * höchstens `limit` noch offene Aufgaben des Laufs. `restart: true` beginnt einen neuen Lauf,
+	 * sonst wird der letzte fortgesetzt. Erfolgreich verarbeitete fallen aus der Auswahl, `offset`
+	 * zählt daher nur die in dieser Serie fehlgeschlagenen. Fortschritt aus `remaining`.
 	 */
 	async reassignOwnTaskPillars({
 		status,
 		limit,
 		offset,
+		restart,
 		signal,
 	}: {
 		status?: ReassignStatusFilter;
 		limit?: number;
 		offset?: number;
+		restart?: boolean;
 	} & Init = {}): Promise<OwnReassignPillarsResult> {
 		const { data, error, response } = await client.POST('/tasks/reassign-pillars', {
-			params: { query: { status, limit, offset } },
+			params: { query: { status, limit, offset, restart } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+	/** Stand des letzten Laufs der Säulen-Neuberechnung (#1614): Start und noch offene Aufgaben. */
+	async getOwnReassignPillarsStatus({
+		status,
+		signal,
+	}: { status?: ReassignStatusFilter } & Init = {}): Promise<OwnReassignPillarsStatus> {
+		const { data, error, response } = await client.GET('/tasks/reassign-pillars/status', {
+			params: { query: { status } },
 			signal,
 		});
 		if (!response.ok || data === undefined) {
@@ -1064,6 +1128,16 @@ export const api = {
 			params: { query: { tz } },
 			signal,
 		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Lebensbalance: Füllstand im Kadenz-Modell (#1638) — dieselbe Rechnung wie MCP `balance_status` ---
+
+	async getBalanceStatus({ tz, signal }: { tz?: string } & Init = {}): Promise<BalanceStatus> {
+		const { data, error, response } = await client.GET('/scores/balance', { params: { query: { tz } }, signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

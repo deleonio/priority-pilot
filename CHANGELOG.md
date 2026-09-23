@@ -4,12 +4,23 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.2._
+_Enthält v0.4.0 – v0.4.15._
 
 ### Other Changes
 
 - fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
 - fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
+- docs(mobile-ui-rules): align checklist touch-target to 44px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1626
+- fix(pillars): resumable recalc with live progress and rate-limit retry by @deleonio in https://github.com/deleonio/priority-pilot/pull/1628
+- feat(auth): add email magic link login alongside google by @deleonio in https://github.com/deleonio/priority-pilot/pull/1629
+- fix(ci): fail open on mentor model when pr head lacks model-ids.json by @deleonio in https://github.com/deleonio/priority-pilot/pull/1631
+- revert(ci): mentor fallback for missing model-ids.json (#1631) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1632
+- fix(admin): resumable pillar batch with live progress and error reasons by @deleonio in https://github.com/deleonio/priority-pilot/pull/1630
+- perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
+- fix(server): keep 5% minimum share per pillar in recalculation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1636
+- refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
+- feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
+- fix(e2e): await initAiEnabled to fix AK5 KI-aus race (#1408) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1640
 
 ## v0.3 - 2026-09-23
 
@@ -851,7 +862,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): size heart segments by filled area, not width by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1305
 - feat(server): add admin/member role system with user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1300
 - feat(frontend): split pillars settings tab into management and weighting by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1306
-- feat(frontend): split pillars settings tab into management and weighting by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1306
 - refactor(admin): apply review nits from PR #1300 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1307
 - docs: document google login allowlist and first-login account creation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1308
 - feat(frontend): compact header bar and pillar metrics as value pairs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1303
@@ -864,6 +874,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(frontend): update kolibri to v4.4.0 and raise pwa cache limit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1319
 - chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
 - feat(frontend): unify settings tabs with cards and accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1324
+- fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
 - fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
 - feat(frontend): render settings and help as pages in the app shell by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1323
 - feat(frontend): add categories as a thematic grouping layer by @deleonio in https://github.com/deleonio/priority-pilot/pull/1325

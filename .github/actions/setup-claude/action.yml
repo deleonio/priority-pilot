@@ -135,7 +135,7 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v5
+        key: claude-code-cli-${{ runner.os }}-v6
 
     # VERIFIZIEREN STATT VERTRAUEN: Die Bedingung lautete lange „installiere nur, wenn der
     # Cache NICHT griff". Ein Cache-Treffer beweist aber nur, dass Dateien da sind — nicht,
@@ -287,11 +287,10 @@ runs:
         # Phasen-Modell (#511): Alias fable|opus|sonnet|haiku providerspezifisch aufloesen.
         # claude (nativ) erhaelt die konkrete Modell-ID via --model (resolve-invoke); zai/
         # openrouter loesen den Alias im settings.local.json-Kontext auf (Modell-Feld setzen).
+        # Alias → Modell-ID steht EINMAL in .github/model-ids.json (Modellwechsel = eine Zeile).
+        model_id() { jq -er --arg a "$1" '.[$a]' .github/model-ids.json; }
         case "$CLAUDE_MODEL" in
-          fable)  RESOLVED_MODEL_ID="claude-fable-5" ;;
-          opus)   RESOLVED_MODEL_ID="claude-opus-5" ;;
-          sonnet) RESOLVED_MODEL_ID="claude-sonnet-5" ;;
-          haiku)  RESOLVED_MODEL_ID="claude-haiku-4-5-20251001" ;;
+          fable|opus|sonnet|haiku) RESOLVED_MODEL_ID="$(model_id "$CLAUDE_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$CLAUDE_MODEL' fehlt in .github/model-ids.json."; exit 1; } ;;
           "")
             RESOLVED_MODEL_ID=""
             ;;
@@ -342,12 +341,7 @@ runs:
           fable|opus|sonnet|haiku)
             case "$PROVIDER" in
               claude)
-                case "$SUBAGENT_MODEL" in
-                  fable)  SUB_ID="claude-fable-5" ;;
-                  opus)   SUB_ID="claude-opus-5" ;;
-                  sonnet) SUB_ID="claude-sonnet-5" ;;
-                  haiku)  SUB_ID="claude-haiku-4-5-20251001" ;;
-                esac
+                SUB_ID="$(model_id "$SUBAGENT_MODEL")" || { echo "::error title=Modell-ID fehlt::Alias '$SUBAGENT_MODEL' fehlt in .github/model-ids.json."; exit 1; }
                 echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
                 echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
                 ;;
@@ -429,6 +423,13 @@ runs:
         # Abbruch (kein stiller Fallback).
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         EFFORT_FLAG=""
+        # Opus 5.5 läuft ohne Angabe auf `medium` (Opus 5: `high`). Opus-Läufe ohne
+        # effort-Input behalten deshalb ausdrücklich `high` — sonst würden die Cron-
+        # Phasen still flacher denken und die Kostenmessung verglichen Äpfel mit Birnen.
+        if [ -z "$EFFORT_LEVEL" ] && [ "$CLAUDE_MODEL" = "opus" ]; then
+          EFFORT_LEVEL="high"
+          echo "::notice::Effort-Level: kein Input bei opus — 'high' gesetzt (Opus-5.5-Default wäre medium)."
+        fi
         if [ -n "$EFFORT_LEVEL" ]; then
           case "$EFFORT_LEVEL" in
             low|medium|high|xhigh|max)

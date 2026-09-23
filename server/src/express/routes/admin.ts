@@ -13,6 +13,7 @@ import type { components } from '../../api';
 import {
 	DEFAULT_REASSIGN_LIMIT,
 	parseStatusFilter,
+	reassignStatusForAllUsers,
 	reassignTaskPillarsForAllUsers,
 } from '../../logics/reassignTaskPillars.js';
 import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js';
@@ -25,6 +26,7 @@ import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js
  */
 
 type ReassignPillarsResultDto = components['schemas']['ReassignPillarsResult'];
+type ReassignPillarsStatusDto = components['schemas']['OwnReassignPillarsStatus'];
 
 type AdminUserDto = {
 	id: number;
@@ -225,6 +227,12 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				sendError(res, 400, 'status muss all, open oder done sein.');
 				return;
 			}
+			// restart (#1614): `true` beginnt den Lauf für alle Konten neu; sonst setzt er fort.
+			const rawRestart = (req.query as Record<string, unknown>).restart;
+			if (rawRestart !== undefined && rawRestart !== 'true' && rawRestart !== 'false') {
+				sendError(res, 400, 'restart muss true oder false sein.');
+				return;
+			}
 			if (!acquireGlobalRun()) {
 				sendError(res, 409, 'Es läuft bereits ein Batch-Lauf — erst dessen Ende abwarten.');
 				return;
@@ -236,12 +244,33 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 					limit,
 					offset,
 					status,
+					restart: rawRestart === 'true',
 				});
 				res.json(result);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			} finally {
 				releaseGlobalRun();
+			}
+		},
+	);
+
+	// GET /admin/tasks/reassign-pillars/status — Stand des Batches (#1614): wie viele Aufgaben
+	// seit dem jeweiligen Kontostart noch nicht erfolgreich neu berechnet wurden. Kein KI-Aufruf.
+	adminRouter.get(
+		'/admin/tasks/reassign-pillars/status',
+		requireRole('admin'),
+		async (req: Request, res: Response<ReassignPillarsStatusDto | ErrorDto>) => {
+			const status = parseStatusFilter((req.query as Record<string, unknown>).status);
+			if (status === null) {
+				sendError(res, 400, 'status muss all, open oder done sein.');
+				return;
+			}
+			try {
+				const result = await reassignStatusForAllUsers(status);
+				res.json({ ...result, startedAt: result.startedAt?.toISOString() ?? null });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
 			}
 		},
 	);

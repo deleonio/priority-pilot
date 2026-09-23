@@ -142,7 +142,7 @@ vergleichbar, nur gepinnt würden die Pakete veralten. `setup-pi` warnt, falls e
 Version nachgetragen wird. Details in [`.github/pi/README.md`](../.github/pi/README.md).
 
 Modelle: `.github/pi/model-aliases.json` bildet `fable|opus|sonnet|haiku` je Provider auf
-pi-Modellreferenzen ab (`anthropic/claude-opus-5`, `zai/glm-5.3`, …); `vars.PI_MODEL_ALIASES` legt
+pi-Modellreferenzen ab (`anthropic/claude-opus-5-5`, `zai/glm-5.3`, …); `vars.PI_MODEL_ALIASES` legt
 sich darüber (der Weg für OpenRouter, dessen Modell-IDs bewusst nicht im Repo stehen). Fehlt ein
 Alias in beiden Quellen, bricht `setup-pi` ab.
 
@@ -415,6 +415,13 @@ Modell-Spalte der Routing-Tabelle.
 | 4   | `.github/scripts/resolve-model-label.test.ts` | neuer Fall „bekannter Alias → durch“ + alter Abbruch-Fall bleibt grün                                                |
 | 5   | `.github/workflows/04-claude-implement.yml`   | Mentor-Modell-Auflösung (2 Steps, implement- + fixup-Job): case `MENTOR_MODEL` mit Restore-trap auf den Phasen-Alias |
 | 6   | `.claude/agents/*.md`                         | Rollen-Frontmatter `model:` (dieselben Aliase; schlägt seit CLI 2.1.251 den Subagent-Default, gilt lokal wie in CI)  |
+
+**Modellwechsel innerhalb eines Alias** (z. B. `opus` → Claude Opus 5.5): Die native Modell-ID
+steht genau einmal in `.github/model-ids.json`; `setup-claude` (Phasen- und Subagent-Modell) und
+der Mentor-Schritt in `04-implement.yml` lesen sie dort. Mitzuziehen sind nur die `claude`-Zeile in
+`.github/pi/model-aliases.json` und bei neuem Preis eine Zeile in `PRICES_USD_PER_MTOK`
+(`cost-from-transcript.ts`) — `model-ids.test.ts` bricht ab, wenn eins davon fehlt. Opus-Läufe ohne
+`effort`-Input bekommen in `setup-claude` ausdrücklich `high`, weil Opus 5.5 sonst auf `medium` läuft.
 
 **Freigabe-Prozess:** Alias in allen vier Stellen eintragen, das Resolve-Ziel je Provider ergänzen
 (`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-Einträge der

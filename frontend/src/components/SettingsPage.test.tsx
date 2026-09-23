@@ -1415,15 +1415,21 @@ describe('SettingsPage — Säulen-Neuberechnung (#1614)', () => {
 	};
 
 	it('onCompleted lädt die Daten neu, lässt das Modal aber offen', () => {
+		// `onSaved` navigiert in App zurück zur Hauptansicht und hängt SettingsPage samt Modal aus —
+		// deshalb muss `onCompleted` an den reinen Reload (`onCategoryChanged`) gehen.
 		const onSaved = vi.fn();
-		const { container } = render(<SettingsPage {...defaultProps} onSaved={onSaved} />);
+		const onCategoryChanged = vi.fn();
+		const { container } = render(
+			<SettingsPage {...defaultProps} onSaved={onSaved} onCategoryChanged={onCategoryChanged} />,
+		);
 
 		openRecalcModal(container);
 		expect(container.querySelector('[data-testid="recalc-modal"]')).not.toBeNull();
 
 		act(() => recalcModalProps?.onCompleted?.());
 
-		expect(onSaved).toHaveBeenCalledTimes(1);
+		expect(onCategoryChanged).toHaveBeenCalledTimes(1);
+		expect(onSaved, 'onSaved navigiert weg — darf nach dem Lauf nicht feuern').not.toHaveBeenCalled();
 		expect(
 			container.querySelector('[data-testid="recalc-modal"]'),
 			'das Modal muss nach dem Lauf offen bleiben, sonst sieht niemand sein Ergebnis',

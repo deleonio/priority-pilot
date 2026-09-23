@@ -37,6 +37,8 @@ export type Pillar = Schemas['Pillar'];
 export type Streak = Schemas['Streak'];
 /** #1362: eine Meilenstein-Stufe (Streak oder Punkte) mit fester Schwelle und Erreicht-Status. */
 export type Milestone = Schemas['Milestone'];
+/** #1638: Lebensbalance mit Kadenz-Füllstand — dieselbe Zahl für Dashboard-Herz, Verlauf und MCP. */
+export type BalanceStatus = Schemas['BalanceStatus'];
 /** Schnappschuss einer vom Auto-Delete-Cron gelöschten Aufgabe (Bewertungssystem-Sichtbarkeit, rein informativ). */
 export type MissedTask = Schemas['MissedTask'];
 export type MissedTasksSummary = Schemas['MissedTasksSummary'];
@@ -69,6 +71,7 @@ export type AdminUser = Schemas['AdminUser'];
 export type AdminUserRoleUpdate = Schemas['AdminUserRoleUpdate'];
 export type ReassignPillarsResult = Schemas['ReassignPillarsResult'];
 export type OwnReassignPillarsResult = Schemas['OwnReassignPillarsResult'];
+export type OwnReassignPillarsStatus = Schemas['OwnReassignPillarsStatus'];
 export type ReassignStatusFilter = Schemas['ReassignStatusFilter'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];
 export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];

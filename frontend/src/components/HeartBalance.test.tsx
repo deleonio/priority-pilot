@@ -124,6 +124,13 @@ describe('HeartBalance', () => {
 			expect(screen.getByTestId('heart-balance-svg')).toHaveAttribute('aria-label', 'Balance 100 Prozent — In Balance');
 		});
 
+		it('zeigt einen übergebenen Server-Füllstand statt des lokal gerechneten (#1638)', () => {
+			render(<HeartBalance pillars={pillars} punkteProSaeule={gleichverteilt} fill={0.42} />);
+
+			expect(screen.getByTestId('heart-balance-value').textContent).toBe('42 %');
+			expect(screen.getByTestId('heart-balance-svg').getAttribute('aria-label')).toMatch(/^Balance 42 Prozent — /);
+		});
+
 		it('weist je Säule die Abweichung vom Ziel in Prozentpunkten aus', () => {
 			render(<HeartBalance pillars={pillars} punkteProSaeule={schieflage} />);
 

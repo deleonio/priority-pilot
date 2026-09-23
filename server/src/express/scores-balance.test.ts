@@ -178,4 +178,31 @@ describe('GET /scores/balance (#1423)', () => {
 		const viaTool = JSON.parse(mcpBody.result?.content?.[0]?.text ?? 'null');
 		assert.deepEqual(viaTool, expected, 'balance_status muss GET /scores/balance 1:1 spiegeln');
 	});
+
+	it('#1638 AK3/AK4/AK7: Erledigung vor > 28 Tagen zählt in punkte, nicht im Füllstand; ScoreEntry.punkte bleibt', async () => {
+		const cookie = await server.register('balance-kadenz@example.com', 'password123');
+		const saeule = await createPillar(cookie, `Kadenz-${idCounter++}`);
+		const alteTaskId = await completeTaskWithShares(cookie, 'Alte Erledigung', 0.5, [
+			{ pillarId: saeule.id, share: 100 },
+		]);
+		const [eintragVorher] = await ScoreEntry.findAll({ where: { taskId: alteTaskId } });
+		await ScoreEntry.update(
+			{ zeitpunkt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000) },
+			{ where: { taskId: alteTaskId } },
+		);
+
+		type Antwort = { fuellstandProzent: number; hatPunkte: boolean; saeulen: { id: number; punkte: number }[] };
+		const alt = (await (await getBalance(cookie)).json()) as Antwort;
+		assert.equal(alt.hatPunkte, true);
+		assert.equal(alt.fuellstandProzent, 0, 'außerhalb des 28-Tage-Fensters darf nichts in den Füllstand zählen');
+		assert.equal(alt.saeulen.find((s) => s.id === saeule.id)?.punkte, 0.5, 'punkte bleiben kumulativ');
+
+		await completeTaskWithShares(cookie, 'Frische Erledigung', 0.25, [{ pillarId: saeule.id, share: 100 }]);
+		const frisch = (await (await getBalance(cookie)).json()) as Antwort;
+		assert.ok(frisch.fuellstandProzent > 0, 'eine Erledigung im Fenster muss den Füllstand heben');
+		assert.equal(frisch.saeulen.find((s) => s.id === saeule.id)?.punkte, 0.75);
+
+		const [eintragNachher] = await ScoreEntry.findAll({ where: { taskId: alteTaskId } });
+		assert.equal(eintragNachher.punkte, eintragVorher.punkte, 'Gamification-Punkte bleiben unverändert');
+	});
 });

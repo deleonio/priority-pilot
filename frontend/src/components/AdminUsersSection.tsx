@@ -1,10 +1,12 @@
-import { KolAlert, KolBadge, KolButton, KolInputRadio, KolProgress, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, ReassignPillarsResult, ReassignStatusFilter } from 'client';
+import { KolAlert, KolBadge, KolButton, KolInputRadio, KolSpin } from '@public-ui/react-v19';
+import type { AdminUser, ReassignStatusFilter } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
+import { useReassignRun, type ReassignPortionArgs } from '../lib/useReassignRun';
 import { Modal } from './Modal';
+import { ReassignFailureList, ReassignProgressView, ReassignStatusText } from './ReassignRunViews';
 
 /** Statusauswahl des Neuberechnungs-Laufs (#1614) — „offen" schließt Aufgaben in Bearbeitung ein. */
 const FILTER_OPTIONS: { label: string; value: ReassignStatusFilter }[] = [
@@ -58,54 +60,26 @@ export const AdminUsersSection = () => {
 	// Bestätigung nach dem UX-Pattern „Sequenzielle Bestätigung“: erst die Absicht, dann
 	// der Hinweis auf die KI-Kosten — pro Schritt nur eine Ja/Nein-Entscheidung.
 	const [confirmStep, setConfirmStep] = useState<'closed' | 'intent' | 'costs'>('closed');
-	const [running, setRunning] = useState(false);
-	const [summary, setSummary] = useState<ReassignPillarsResult | null>(null);
 	// Statusauswahl des Laufs (#1614) — „offen" umfasst auch Aufgaben in Bearbeitung.
 	const [filter, setFilter] = useState<ReassignStatusFilter>('all');
-	// Fortschritt der Portionierungs-Serie: verarbeitete Aufgaben und Gesamtzahl der Auswahl.
-	const [progress, setProgress] = useState({ processed: 0, total: 0 });
+	// Neustart über alle Konten oder Fortsetzen der seit dem letzten Start noch offenen Aufgaben.
+	const [mode, setMode] = useState<'restart' | 'resume'>('restart');
 
-	/**
-	 * Der Server verarbeitet je Aufruf höchstens eine Portion und meldet über `remaining`, wie
-	 * viele Aufgaben noch offen sind. Statt den Admin „Fortsetzen" klicken zu lassen (Finding #5:
-	 * ohne mitgezählten Offset traf jeder Folgeaufruf wieder dieselbe erste Portion), ruft dieser
-	 * Lauf selbst nach, bis nichts mehr offen ist — daraus speist sich der Fortschrittsbalken.
-	 */
-	const startReassign = useCallback(async (): Promise<void> => {
-		setRunning(true);
+	// Portionierter Lauf, Fortschritt und Fortsetzen: gemeinsam mit dem Nutzer-Modal in
+	// `useReassignRun`, damit beide Einstiege nicht wieder auseinanderlaufen.
+	const runPortion = useCallback(
+		(args: ReassignPortionArgs) => api.reassignTaskPillars({ status: filter, ...args }),
+		[filter],
+	);
+	const loadStatus = useCallback(() => api.getReassignPillarsStatus({ status: filter }), [filter]);
+	const { run, status, canResume, start } = useReassignRun({ runPortion, loadStatus });
+	const running = run.phase === 'processing';
+
+	const startReassign = (): void => {
 		setConfirmStep('closed');
-		setSummary(null);
-		setProgress({ processed: 0, total: 0 });
+		void start(mode === 'restart');
+	};
 
-		let offset = 0;
-		const totals = { updated: 0, failed: 0, skipped: 0, users: 0 };
-		try {
-			for (;;) {
-				const result = await api.reassignTaskPillars({ offset, status: filter });
-				const consumed = result.updated + result.failed + result.skipped;
-				totals.updated += result.updated;
-				totals.failed += result.failed;
-				totals.skipped += result.skipped;
-				totals.users = Math.max(totals.users, result.users);
-				offset += consumed;
-
-				setProgress({ processed: offset, total: offset + result.remaining });
-				setSummary({ ...totals, remaining: result.remaining });
-				setError(null);
-
-				// `consumed === 0` bricht ab, auch wenn der Server noch Aufgaben meldet — sonst liefe
-				// die Schleife endlos, falls eine Portion nichts mehr verarbeiten kann.
-				if (result.remaining === 0 || consumed === 0) {
-					return;
-				}
-			}
-		} catch (reason) {
-			const apiError = await toApiError(reason);
-			setError(apiError.message);
-		} finally {
-			setRunning(false);
-		}
-	}, [filter]);
 	const handleRoleChange = async (id: number, role: AdminUser['role']): Promise<void> => {
 		try {
 			await api.updateUserRole({ id, role });
@@ -163,32 +137,48 @@ export const AdminUsersSection = () => {
 				</>
 			)}
 			<div className="admin-reassign">
-				<KolButton
-					_label="Säulenverteilung aller Aufgaben neu berechnen"
-					_variant="secondary"
-					_disabled={running}
-					_on={{ onClick: () => setConfirmStep('intent') }}
-				/>
-				{running && (
-					<>
-						<p>
-							Verarbeite Aufgaben…{' '}
-							<strong>
-								{progress.processed} / {progress.total}
-							</strong>
-						</p>
-						<KolProgress
-							_variant="bar"
-							_max={progress.total}
-							_value={progress.processed}
-							_label="Fortschritt der Neuberechnung"
-						/>
-					</>
+				{!running && status !== null && status.total > 0 && (
+					<ReassignStatusText status={status} testId="reassign-batch-status" />
 				)}
-				{!running && summary !== null && (
-					<KolAlert _type="info" _label="Neuberechnung abgeschlossen">
-						{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
-						fehlgeschlagen ({summary.users} Konten).
+				<div className="modal-actions">
+					<KolButton
+						_label="Säulenverteilung aller Aufgaben neu berechnen"
+						_variant="secondary"
+						_disabled={running}
+						_on={{
+							onClick: () => {
+								setMode('restart');
+								setConfirmStep('intent');
+							},
+						}}
+					/>
+					{canResume && status !== null && (
+						<KolButton
+							_label={`Fortsetzen (${status.pending} offen)`}
+							_variant="primary"
+							_disabled={running}
+							_on={{
+								onClick: () => {
+									// Direkt zur Kostenbestätigung: Die Absicht ist mit dem Fortsetzen klar.
+									setMode('resume');
+									setConfirmStep('costs');
+								},
+							}}
+						/>
+					)}
+				</div>
+				{running && <ReassignProgressView run={run} />}
+				{run.phase === 'completed' && run.error !== null && (
+					<KolAlert _type="error" _label="Neuberechnung fehlgeschlagen">
+						{run.error}
+					</KolAlert>
+				)}
+				{run.phase === 'completed' && run.error === null && (
+					<KolAlert _type={run.failed === 0 ? 'info' : 'warning'} _label="Neuberechnung abgeschlossen">
+						<p>
+							{run.updated} Aufgaben neu zugeordnet, {run.skipped} unverändert gelassen, {run.failed} fehlgeschlagen.
+						</p>
+						{run.failed > 0 && <ReassignFailureList reasons={run.failureReasons} />}
 					</KolAlert>
 				)}
 			</div>
@@ -243,10 +233,10 @@ export const AdminUsersSection = () => {
 							_on={{ onClick: () => setConfirmStep('closed') }}
 						/>
 						<KolButton
-							_label={running ? 'Berechne …' : 'Jetzt neu berechnen'}
+							_label={running ? 'Berechne …' : mode === 'resume' ? 'Jetzt fortsetzen' : 'Jetzt neu berechnen'}
 							_variant="primary"
 							_disabled={running}
-							_on={{ onClick: () => void startReassign() }}
+							_on={{ onClick: startReassign }}
 						/>
 					</div>
 				</Modal>

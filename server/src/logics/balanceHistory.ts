@@ -1,13 +1,14 @@
 /**
  * Verlauf der Lebensbalance (#1424) — `berechneBalanceVerlauf` rekonstruiert den Tagesverlauf des
- * Dashboard-Herzens aus den Erledigungszeitpunkten (`ScoreEntry.zeitpunkt`), indem `berechneLebensbalance`
- * (heartBalance.ts) je Kalendertag über die bis dahin kumulierte Teilmenge der erledigten Tasks läuft.
+ * Dashboard-Herzens aus den Erledigungszeitpunkten (`ScoreEntry.zeitpunkt`), indem `berechneLebensbalanceNachKadenz`
+ * (heartBalance.ts, Kadenz-Modell #1638) je Kalendertag über die bis dahin kumulierte Teilmenge der erledigten
+ * Tasks läuft — mit dem Tagesende als „jetzt" (für heute: der echte Zeitpunkt, Parität mit `/scores/balance`).
  *
  * Reine Funktion ohne DB-Zugriff — die Route (`routes/scores.ts`) lädt Säulen/Tasks/ScoreEntries und
  * reicht sie herein. Die Tagesgrenze folgt exakt `tagIn` aus `streak.ts` (Fallstrick #1424: eine
  * abweichende Zeitzonen-Logik würde den Paritäts-AK4-Vergleich mit `/scores/balance` sprengen).
  */
-import { berechneLebensbalance, type BalanceSaeule } from './heartBalance.js';
+import { berechneLebensbalanceNachKadenz, type BalanceSaeule } from './heartBalance.js';
 import { tagIn } from './streak.js';
 
 /** Ein Task für die Verlaufsrechnung: `zeitpunkt: null` = Done-Task ohne ScoreEntry, zählt ab Zeitraumbeginn. */
@@ -61,8 +62,9 @@ export const zeitraumInTagen = (von: string, bis: string): number =>
  * Verlauf der Lebensbalance über `[von, bis]` (je ein Eintrag pro Kalendertag, aufsteigend).
  *
  * Je Tag `t` wird die Teilmenge der `Done`-Tasks gebildet, deren Erledigung bis Ende `t` liegt
- * (`zeitpunkt === null`, oder ihr Kalendertag in `zeitZone` ≤ `t`), und `berechneLebensbalance`
- * darüber gerechnet — kumulierend, damit ein Tag ohne Erledigung den Vortag spiegelt.
+ * (`zeitpunkt === null`, oder ihr Kalendertag in `zeitZone` ≤ `t`), und `berechneLebensbalanceNachKadenz`
+ * darüber gerechnet — `punkte` kumulierend, der Füllstand über das 28-Tage-Fenster bis Tagesende `t`
+ * (UTC; der heutige Tag in `zeitZone` endet bei `jetzt`).
  */
 export const berechneBalanceVerlauf = (
 	saeulen: BalanceSaeule[],
@@ -70,7 +72,9 @@ export const berechneBalanceVerlauf = (
 	von: string,
 	bis: string,
 	zeitZone: string,
+	jetzt: Date = new Date(),
 ): BalanceHistoryEintrag[] => {
+	const heute = tagIn(jetzt, zeitZone);
 	const erledigt = tasks.filter((task) => task.status === 'Done');
 	const tage: string[] = [];
 	for (let zeitstempel = alsZeitstempel(von); zeitstempel <= alsZeitstempel(bis); zeitstempel += TAG_MS) {
@@ -79,7 +83,12 @@ export const berechneBalanceVerlauf = (
 
 	return tage.map((tag) => {
 		const teilmenge = erledigt.filter((task) => task.zeitpunkt === null || tagIn(task.zeitpunkt, zeitZone) <= tag);
-		const balance = berechneLebensbalance(saeulen, teilmenge);
+		const tagesende = tag === heute ? jetzt : new Date(alsZeitstempel(tag) + TAG_MS - 1);
+		const balance = berechneLebensbalanceNachKadenz(
+			saeulen,
+			teilmenge.map((task) => ({ ...task, erledigtAm: task.zeitpunkt })),
+			tagesende,
+		);
 		return {
 			tag,
 			// Eine Dezimalstelle wie `/scores/balance` — sonst weicht der AK4-Paritätsvergleich an

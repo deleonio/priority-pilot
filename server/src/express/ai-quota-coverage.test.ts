@@ -52,6 +52,8 @@ const EXPECTED: Record<string, boolean> = {
 	// #1614: bucht je klassifizierter Aufgabe selbst statt einmal je Request (ein Lauf löst N
 	// Provider-Aufrufe aus) und markiert dafür den eigenen Handler — gezählt wird sie trotzdem.
 	'POST /tasks/reassign-pillars': true,
+	// Liest nur den Stand des letzten Laufs — kein Provider-Aufruf, daher ungezählt.
+	'GET /tasks/reassign-pillars/status': false,
 };
 
 describe('KI-Kontingent-Metering: Abdeckung aller fünf LLM-Routen (#1459, AK5)', () => {

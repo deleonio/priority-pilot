@@ -57,7 +57,7 @@ const maskEmail = (email: string): string => {
 };
 
 /** Offene Registrierung (`OPEN_SIGNUP=true|1`), pro Aufruf gelesen, damit Tests umschalten können. */
-const isOpenSignup = (): boolean => {
+export const isOpenSignup = (): boolean => {
 	const raw = process.env.OPEN_SIGNUP?.trim().toLowerCase();
 	return raw === 'true' || raw === '1';
 };

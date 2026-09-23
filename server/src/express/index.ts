@@ -20,6 +20,7 @@ import { plansPublicRouter } from './routes/plans.js';
 import { usersRouter } from './routes/users.js';
 import { createAdminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
+import { createMagicLinkRouter } from './routes/magicLink.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
@@ -68,7 +69,7 @@ export interface AppDeps {
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 	pushSender?: PushSender;
-	/** Testmail-Versand für `POST /mail/test` (#1426) — Tests injizieren hieran einen Mock. */
+	/** Mail-Versand für `POST /mail/test` (#1426) und den Magic-Link-Login — Tests injizieren hieran einen Mock. */
 	mailSender?: MailSender;
 	/** Upstream für `GET /llm-providers/{id}/models` — Tests injizieren hieran einen Mock. */
 	fetchProviderModels?: FetchProviderModels;
@@ -235,6 +236,8 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Auth-Routen (öffentlich).
 	app.use(authRouter);
+	// Magic-Link-Login per E-Mail (öffentlich, zweiter Anmeldeweg neben Google).
+	app.use(createMagicLinkRouter(deps.mailSender));
 
 	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.
 	app.get('/health', (_req, res: express.Response<HealthDto>) => {

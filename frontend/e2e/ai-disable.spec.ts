@@ -24,8 +24,8 @@ const switchControl = (page: Page, name: RegExp) =>
 	page.getByRole('switch', { name }).or(page.getByRole('checkbox', { name }));
 
 /** Setzt die KI-Präferenz vor dem Seitenaufbau (Wert wie in localStorage: 'true'/'false'). */
-const initAiEnabled = (page: Page, aiEnabled: boolean): void => {
-	page.addInitScript((value: boolean) => {
+const initAiEnabled = async (page: Page, aiEnabled: boolean): Promise<void> => {
+	await page.addInitScript((value: boolean) => {
 		try {
 			localStorage.setItem('pp-ai-enabled', String(value));
 		} catch {
@@ -78,7 +78,7 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 	test('AK5: KI aus — „Neuen Task anlegen" öffnet direkt das Task-Formular, ohne Freitext-Einstieg', async ({
 		page,
 	}) => {
-		initAiEnabled(page, false);
+		await initAiEnabled(page, false);
 
 		await page.goto('/app/');
 		await waitForStableView(page);
@@ -87,6 +87,10 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 		await expect(
 			page.getByRole('toolbar', { name: /Kopf-Aktionen/ }).getByRole('button', { name: 'Säulen-Berater' }),
 		).toHaveCount(0);
+
+		// #1408-AK2: der KI-aus-Zustand muss vor dem Klick tatsächlich gesetzt sein — sonst prüft
+		// dieser Test unbemerkt den KI-an-Pfad (initAiEnabled-Race, siehe docs/spec/issue-1408.md).
+		expect(await page.evaluate(() => localStorage.getItem('pp-ai-enabled'))).toBe('false');
 
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 
@@ -139,7 +143,7 @@ test.describe('#1525 KI-Gate: Free-Konto ohne Berechtigung', () => {
 	};
 
 	test('AK3: pp-ai-enabled=true, Free-Konto → kein KI-Anlege-Dialog, keine Lektorat-Buttons', async ({ page }) => {
-		initAiEnabled(page, true);
+		await initAiEnabled(page, true);
 		await loginAsFree(page);
 
 		await page.goto('/app/');
@@ -194,7 +198,7 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 	};
 
 	test.beforeEach(async ({ page }) => {
-		initAiEnabled(page, true);
+		await initAiEnabled(page, true);
 		await loginAsFree(page);
 		await ensurePillar(page);
 	});

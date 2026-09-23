@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { berechneLebensbalance } from './heartBalance.js';
+import { berechneLebensbalance, berechneKadenzFuellstand } from './heartBalance.js';
+import type { KadenzSaeule, KadenzTask } from './heartBalance.js';
 
 /**
  * Rote Spec-Tests für #1423 (Spec docs/spec/issue-1423.md), AK4 — Paritätstest.
@@ -188,5 +189,69 @@ describe('berechneLebensbalance (#1474 AK4 Parität)', () => {
 			Math.abs(result.fill - 0.5633937701) < 1e-4,
 			`fill=${result.fill} muss dem gepinnten Frontend-Wert 0,5633938 entsprechen (AK3/#1474)`,
 		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1638 (Spec docs/spec/issue-1638.md) — Kadenz-Modell.
+ *
+ * `berechneKadenzFuellstand` löst den Ist-Anteil-am-Gesamtaufwand-Füllstand durch die Erfüllung des
+ * eigenen Soll-Rhythmus je Säule im 28-Tage-Fenster ab. Neue Funktion/Typen neben der bestehenden
+ * `berechneLebensbalance` (die oben unverändert weitergetestet wird) — Produktionscode existiert für
+ * diese Runde noch nicht, der Import schlägt legitim fehl (neue Funktionalität).
+ */
+describe('berechneKadenzFuellstand (#1638, docs/spec/issue-1638.md)', () => {
+	const JETZT = new Date('2026-09-23T12:00:00Z');
+	const TAG_MS = 24 * 60 * 60 * 1000;
+	const vorTagen = (tage: number): Date => new Date(JETZT.getTime() - tage * TAG_MS);
+
+	const SAEULEN: KadenzSaeule[] = [
+		{ id: 1, name: 'Körper', rhythmusProWoche: 5 },
+		{ id: 2, name: 'Beziehungen', rhythmusProWoche: 3 },
+		{ id: 3, name: 'Mentale Gesundheit', rhythmusProWoche: 3 },
+		{ id: 4, name: 'Wirksamkeit', rhythmusProWoche: 5 },
+		{ id: 5, name: 'Sinn', rhythmusProWoche: 1 },
+	];
+
+	/** Erzeugt `anzahl` erledigte Tasks für eine Säule, verteilt über die letzten `tageZurueck` Tage. */
+	const erledigteTasksFuer = (pillarId: number, anzahl: number, tageZurueck = 27): KadenzTask[] =>
+		Array.from({ length: anzahl }, (_, i) => ({
+			status: 'Done',
+			estimatedEffort: 1,
+			erledigtAm: vorTagen(anzahl > 1 ? (i / (anzahl - 1)) * tageZurueck : 0),
+			pillars: [{ pillarId, share: 100 }],
+		}));
+
+	it('AK1/AK2: alle Säulen im Soll-Rhythmus bedient → erfuellung(Sinn) ≥ 0,8 und fill ≥ 0,8', () => {
+		const tasks = SAEULEN.flatMap((saeule) => erledigteTasksFuer(saeule.id, saeule.rhythmusProWoche * 4));
+		const result = berechneKadenzFuellstand(SAEULEN, tasks, JETZT);
+		const sinn = result.saeulen.find((saeule) => saeule.id === 5);
+		assert.ok(sinn, 'Säule Sinn muss im Ergebnis enthalten sein');
+		assert.ok(sinn!.erfuellung >= 0.8, `erfuellung(Sinn)=${sinn!.erfuellung} muss ≥ 0,8 sein (AK1)`);
+		assert.ok(result.fill >= 0.8, `fill=${result.fill} muss ≥ 0,8 sein (AK2)`);
+	});
+
+	it('AK3/AK4: Säule ohne Aktivität in 28 Tagen hat erfuellung 0 und fill < 1, punkte bleibt aber > 0', () => {
+		const koerperAlt: KadenzTask = {
+			status: 'Done',
+			estimatedEffort: 5,
+			erledigtAm: vorTagen(60),
+			pillars: [{ pillarId: 1, share: 100 }],
+		};
+		const restTasks = SAEULEN.filter((saeule) => saeule.id !== 1).flatMap((saeule) =>
+			erledigteTasksFuer(saeule.id, saeule.rhythmusProWoche * 4),
+		);
+		const result = berechneKadenzFuellstand(SAEULEN, [koerperAlt, ...restTasks], JETZT);
+		const koerper = result.saeulen.find((saeule) => saeule.id === 1);
+		assert.ok(koerper, 'Säule Körper muss im Ergebnis enthalten sein');
+		assert.equal(koerper!.erfuellung, 0, 'erfuellung(Körper) muss 0 sein ohne Aktivität im 28-Tage-Fenster (AK3)');
+		assert.ok(koerper!.punkte > 0, 'punkte(Körper) muss > 0 bleiben — alte Erledigung zählt weiter (AK4)');
+		assert.ok(result.fill < 1, `fill=${result.fill} muss < 1 sein, wenn eine Säule ihr Soll nicht erfüllt (AK3)`);
+	});
+
+	it('AK6: keine erledigten Aufgaben → fill = 0 und hasPoints = false', () => {
+		const result = berechneKadenzFuellstand(SAEULEN, [], JETZT);
+		assert.equal(result.fill, 0, 'fill muss 0 sein ohne erledigte Aufgaben (AK6)');
+		assert.equal(result.hasPoints, false, 'hasPoints muss false sein ohne erledigte Aufgaben (AK6)');
 	});
 });

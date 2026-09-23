@@ -14,6 +14,10 @@ import { resolveRole } from './auth.js';
  * (Live-Lese aus `users`) denselben Namen. OAuth-Nutzer haben kein Passwort — der Sentinel
  * verhindert bcrypt-Login über die /auth/login-Route.
  *
+ * Profilfelder sind optional: Ein Anbieter ohne Profildaten (Magic Link per E-Mail) lässt
+ * `displayName`/`avatarUrl` weg — dann bleiben die Werte eines Bestandsnutzers unangetastet, statt
+ * z. B. den Google-Avatar mit `null` zu überschreiben. `null` heißt dagegen weiter „kein Avatar“.
+ *
  * E-Mail-Allowlist (`isEmailAllowed`) bleibt im Aufrufort (GoogleStrategy-Verify in
  * `express/index.ts`) — sie ist Teil der Route-Registrierung, nicht des Upserts.
  */
@@ -23,11 +27,14 @@ export async function upsertOAuthUser({
 	avatarUrl,
 }: {
 	email: string;
-	displayName: string | null;
-	avatarUrl: string | null;
+	displayName?: string | null;
+	avatarUrl?: string | null;
 }): Promise<{ id: number; email: string; displayName: string; avatarUrl: string | null; role: UserRole; plan: Plan }> {
 	// Fallback wie bisher: ohne Profilname gilt die E-Mail (identisch in Zeile und Rückgabe).
 	const resolvedDisplayName = displayName ?? email;
+	// Ohne Profildaten (Feld fehlt) gilt der Bestand als aktuell — nur neue Nutzer bekommen den Fallback.
+	const hasProfileName = displayName !== undefined;
+	const hasProfileAvatar = avatarUrl !== undefined;
 
 	const [user, created] = await User.findOrCreate({
 		where: { email },
@@ -35,7 +42,7 @@ export async function upsertOAuthUser({
 			email,
 			passwordHash: '__oauth__',
 			displayName: resolvedDisplayName,
-			avatarUrl,
+			avatarUrl: avatarUrl ?? null,
 			role: resolveRole(email),
 		},
 	});
@@ -47,11 +54,13 @@ export async function upsertOAuthUser({
 	const effectiveRole = resolveRole(email, user.role);
 	if (
 		!created &&
-		(user.displayName !== resolvedDisplayName || user.avatarUrl !== avatarUrl || user.role !== effectiveRole)
+		((hasProfileName && user.displayName !== resolvedDisplayName) ||
+			(hasProfileAvatar && user.avatarUrl !== avatarUrl) ||
+			user.role !== effectiveRole)
 	) {
 		await user.update({
-			displayName: user.displayNameCustom ? user.displayName : resolvedDisplayName,
-			avatarUrl,
+			displayName: user.displayNameCustom || !hasProfileName ? user.displayName : resolvedDisplayName,
+			avatarUrl: hasProfileAvatar ? avatarUrl : user.avatarUrl,
 			role: effectiveRole,
 		});
 	}

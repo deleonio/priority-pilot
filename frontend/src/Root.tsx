@@ -7,6 +7,7 @@ import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
 import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
 import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
+import { api } from './api';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
@@ -37,6 +38,25 @@ const shouldAttemptSilentLogin = (allowRepeat = false): boolean => {
 };
 
 /**
+ * Magic-Link-Einstieg: Der Link aus der Mail öffnet die App mit `?magic=<token>`. Der Parameter wird
+ * sofort aus der URL entfernt (kein Token in Verlauf oder Referrer) und dann per POST eingelöst — nie
+ * per GET, weil Mail-Scanner Links vorab aufrufen. Scheitert das Einlösen, setzt `?error=` die Meldung
+ * der Login-Seite und sperrt zugleich den stillen Google-Login (siehe `shouldAttemptSilentLogin`).
+ */
+const consumeMagicLink = async (): Promise<void> => {
+	const url = new URL(window.location.href);
+	const token = url.searchParams.get('magic');
+	if (token === null) return;
+	url.searchParams.delete('magic');
+	window.history.replaceState(window.history.state, '', url);
+	const ok = await api.verifyMagicLink(token).catch(() => false);
+	if (!ok) {
+		url.searchParams.set('error', 'magic_link_invalid');
+		window.history.replaceState(window.history.state, '', url);
+	}
+};
+
+/**
  * Authentifizierter Einstieg: prüft die Session und rendert je nach Zustand Login, App oder einen
  * Lade-/Fehlerhinweis. Bewusst als eigene Komponente ausgelagert, damit die öffentliche `/bahn`-Route
  * (siehe `Root`) den kompletten Auth-Flow inklusive seiner Hooks umgeht — ohne bedingte Hook-Aufrufe.
@@ -54,6 +74,9 @@ const AuthenticatedApp = () => {
 	// Schützt vor der StrictMode-Doppelinvokation des checkAuth-Effekts: ein zweiter Aufruf darf den
 	// einmal getroffenen Silent-Beschluss nicht umstoßen (keine Login-Seite vorab rendern).
 	const silentInitiated = useRef(false);
+	// Einlösen des Magic Links genau einmal (StrictMode ruft den Effekt doppelt auf); der Auth-Check
+	// wartet darauf, sonst sähe er noch keine Session und startete den stillen Google-Login.
+	const magicLogin = useRef<Promise<void> | null>(null);
 
 	// #1219 AK6: Anzeigename in der Kopfzeile sofort aktualisieren — SettingsPage meldet den
 	// gespeicherten Namen per Fenster-Event (notifyProfileChanged), hier wird der User-State
@@ -70,7 +93,9 @@ const AuthenticatedApp = () => {
 	}, []);
 
 	useEffect(() => {
-		checkAuth()
+		magicLogin.current ??= consumeMagicLink();
+		magicLogin.current
+			.then(() => checkAuth())
 			.then((authUser: AuthUser | null) => {
 				if (authUser !== null) {
 					setUser(authUser);

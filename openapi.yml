@@ -1958,6 +1958,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/tasks/reassign-pillars/status:
+    get:
+      summary: Stand der app-weiten Säulen-Neuberechnung
+      description: >-
+        Aufgaben der Statusauswahl insgesamt und wie viele davon seit dem
+        Laufstart ihres Kontos nicht erfolgreich neu berechnet wurden. Ruft
+        keinen KI-Provider auf.
+      operationId: getReassignPillarsStatus
+      tags: [admin]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReassignStatusFilter'
+      responses:
+        '200':
+          description: Stand des Batches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnReassignPillarsStatus'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Nur für Administratoren
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /admin/tasks/reassign-pillars:
     post:
       summary: Säulenverteilung aller Aufgaben neu berechnen (Batch)
@@ -2000,7 +2032,9 @@ paths:
             Anzahl bereits verarbeiteter Aufgaben vorheriger Läufe derselben
             Portionierungs-Serie (Default 0) — ohne ihn träfe jeder Aufruf
             wieder dieselbe erste `limit`-Portion. Zum Fortsetzen die Summe aus
-            `updated`+`failed`+`skipped` aller vorherigen Läufe übergeben.
+            `failed` aller vorherigen Läufe übergeben — nur fehlgeschlagene
+            Aufgaben bleiben Präfix der Auswahl, erfolgreich verarbeitete
+            fallen serverseitig heraus.
           schema:
             type: integer
             minimum: 0
@@ -2012,6 +2046,16 @@ paths:
             in Bearbeitung befindliche Aufgaben, `done` nur erledigte.
           schema:
             $ref: '#/components/schemas/ReassignStatusFilter'
+        - name: restart
+          in: query
+          required: false
+          description: >-
+            `true` beginnt den Lauf für ALLE Konten neu. Ohne den Parameter wird
+            fortgesetzt: Verarbeitet werden nur Aufgaben, die seit dem Laufstart des
+            jeweiligen Kontos nicht erfolgreich neu berechnet wurden. `offset` zählt
+            dann nur die in dieser Serie fehlgeschlagenen Aufgaben.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Ergebnis des Batch-Laufs
@@ -2035,6 +2079,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /tasks/reassign-pillars/status:
+    get:
+      summary: Stand der Säulen-Neuberechnung der eigenen Aufgaben
+      description: >-
+        Liefert den Start des letzten Laufs und wie viele Aufgaben der
+        Statusauswahl seitdem noch nicht erfolgreich neu berechnet wurden
+        (fehlgeschlagene und nicht erreichte). Grundlage für „Fortsetzen“.
+        Ruft keinen KI-Provider auf.
+      operationId: getOwnReassignPillarsStatus
+      tags: [tasks]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Statusauswahl (Default `all`).
+          schema:
+            $ref: '#/components/schemas/ReassignStatusFilter'
+      responses:
+        '200':
+          description: Stand des letzten Laufs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnReassignPillarsStatus'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /tasks/reassign-pillars:
@@ -2084,6 +2156,17 @@ paths:
             in Bearbeitung befindliche Aufgaben, `done` nur erledigte.
           schema:
             $ref: '#/components/schemas/ReassignStatusFilter'
+        - name: restart
+          in: query
+          required: false
+          description: >-
+            `true` beginnt einen neuen Lauf, danach gilt jede Aufgabe wieder als
+            offen. Ohne den Parameter wird der letzte Lauf fortgesetzt: Verarbeitet
+            werden nur Aufgaben, die seit dessen Start nicht erfolgreich neu
+            berechnet wurden. `offset` zählt dann nur die in dieser Serie
+            fehlgeschlagenen Aufgaben.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Ergebnis des Laufs über die eigenen Aufgaben
@@ -2812,6 +2895,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /auth/providers:
+    get:
+      summary: Verfügbare Anmeldewege lesen
+      description: >-
+        Zeigt der Login-Seite, welche Anmeldewege auf dieser Instanz konfiguriert
+        sind: Google-OAuth (Client-Credentials gesetzt) und Magic Link per E-Mail
+        (SMTP und `PUBLIC_BASE_URL` gesetzt). Öffentlich, ohne Session.
+      operationId: getAuthProviders
+      tags: [auth]
+      responses:
+        '200':
+          description: Konfigurierte Anmeldewege
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthProviders'
+  /auth/magic-link:
+    post:
+      summary: Anmeldelink per E-Mail anfordern
+      description: >-
+        Verschickt einen 15 Minuten gültigen Einmal-Link an die Adresse, sofern sie
+        zugelassen ist (E-Mail-Allowlist). Die Antwort ist unabhängig davon immer 202,
+        damit sich zugelassene Adressen nicht ausspähen lassen. Pro Adresse gehen
+        höchstens drei Links je 15 Minuten raus; weitere Anfragen werden still verworfen.
+      operationId: requestMagicLink
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkRequest'
+      responses:
+        '202':
+          description: Anfrage angenommen (Mail nur bei zugelassener Adresse)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /auth/magic-link/verify:
+    post:
+      summary: Anmeldelink einlösen
+      description: >-
+        Löst den Token aus dem Anmeldelink ein und meldet den Nutzer an. Existiert
+        zur E-Mail noch kein Konto, wird es angelegt (Verknüpfung über die E-Mail wie
+        beim Google-Login). Ein Token gilt genau einmal. Bewusst POST statt GET:
+        Mail-Scanner rufen Links vorab auf und würden den Token sonst verbrauchen.
+      operationId: verifyMagicLink
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkVerifyRequest'
+      responses:
+        '204':
+          description: Angemeldet, Session-Cookie gesetzt
+        '400':
+          description: Token unbekannt, abgelaufen oder schon benutzt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -3226,9 +3379,34 @@ components:
           description: >-
             Der Lauf endete vorzeitig, weil das monatliche KI-Kontingent
             aufgebraucht ist. `remaining` bleibt dann bewusst > 0.
+        failureReasons:
+          type: object
+          additionalProperties:
+            type: integer
+          description: >-
+            Fehlergründe der fehlgeschlagenen Aufgaben dieses Laufs, zusammengefasst
+            als Grund → Anzahl (z. B. `{"HTTP 429": 12}`). Fehlt, wenn nichts fehlschlug.
         quotaRemaining:
           type: integer
           description: Verbleibende KI-Anfragen des Monats (von der Zähler-Middleware ergänzt).
+    OwnReassignPillarsStatus:
+      type: object
+      description: Stand der Säulen-Neuberechnung (GET /tasks/reassign-pillars).
+      required: [startedAt, total, pending]
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Start des letzten Laufs; `null`, wenn noch keiner lief.
+        total:
+          type: integer
+          description: Aufgaben der Statusauswahl insgesamt.
+        pending:
+          type: integer
+          description: >-
+            Aufgaben der Statusauswahl, die seit `startedAt` nicht erfolgreich neu
+            berechnet wurden. Ohne Lauf gleich `total`.
     ReassignPillarsResult:
       type: object
       description: >-
@@ -3248,6 +3426,13 @@ components:
         users:
           type: integer
           description: Konten mit verarbeiteten Aufgaben im Lauf.
+        failureReasons:
+          type: object
+          additionalProperties:
+            type: integer
+          description: >-
+            Fehlergründe der fehlgeschlagenen Aufgaben dieses Aufrufs, zusammengefasst
+            als Grund → Anzahl. Fehlt, wenn nichts fehlschlug.
         remaining:
           type: integer
           description: >-
@@ -4725,9 +4910,10 @@ components:
           type: number
           description: >-
             Füllstand des Dashboard-Herzens in Prozent (`0`–`100`, auf eine Dezimalstelle
-            gerundet): `100` bei Ist = Soll, `0`, wenn aller erledigter Aufwand an einer einzigen
-            Säule hängt. Gemessen als normierte quadratische Abweichung vom Soll, große Defizite
-            einzelner Säulen wiegen dabei schwerer als dünn verteilte.
+            gerundet), Kadenz-Modell (#1638): je Säule die Erfüllung des festen Soll-Rhythmus im
+            28-Tage-Fenster (erledigte Aufgaben ÷ Rhythmus × 4 Wochen, höchstens 1). `100`, wenn
+            alle Säulen im Rhythmus bedient sind; eine Säule ohne Erledigung im Fenster drückt den
+            Wert, auch wenn sie früher viele Punkte gesammelt hat.
         hatPunkte:
           type: boolean
           description: >-
@@ -5284,6 +5470,34 @@ components:
           description: Anzahl der erfolgreich zugestellten Push-Nachrichten.
         quote:
           $ref: '#/components/schemas/Quote'
+    AuthProviders:
+      type: object
+      required:
+        - google
+        - magicLink
+      properties:
+        google:
+          type: boolean
+          description: Google-OAuth ist konfiguriert.
+        magicLink:
+          type: boolean
+          description: Magic Link per E-Mail ist konfiguriert.
+    MagicLinkRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          description: Adresse, an die der Anmeldelink geht.
+    MagicLinkVerifyRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Token aus dem Anmeldelink (Parameter `magic`).
     TestMailResult:
       type: object
       required:

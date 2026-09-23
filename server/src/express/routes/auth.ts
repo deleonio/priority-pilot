@@ -12,6 +12,7 @@ import { getEntitlements, type Plan } from '../../logics/plans.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/paypal.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
+import { establishSession } from '../establishSession.js';
 import { getAiUsageCount } from '../aiQuotaMeter.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
 
@@ -268,23 +269,12 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			if (req.session?.silentReturnTo) {
 				delete req.session.silentReturnTo;
 			}
-			// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
-			req.session.regenerate((regenerateErr) => {
-				if (regenerateErr) {
+			establishSession(req, user, (sessionErr) => {
+				if (sessionErr) {
 					res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
 					return;
 				}
-				req.session.user = {
-					id: user.id,
-					email: user.email,
-					displayName: user.displayName,
-					avatarUrl: user.avatarUrl ?? null,
-					role: user.role,
-					// #1456: Paket wie die Rolle eager in den Snapshot — sonst sieht ein Guard, der
-					// `req.session.user.plan` direkt liest, bis zum ersten `/auth/me` `undefined`.
-					plan: user.plan,
-				};
-				req.session.save(() => res.redirect(silentReturnTo ?? APP_ROOT));
+				res.redirect(silentReturnTo ?? APP_ROOT);
 			});
 		},
 	)(req, res, next);
