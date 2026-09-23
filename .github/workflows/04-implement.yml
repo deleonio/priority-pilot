@@ -390,7 +390,12 @@ jobs:
             claude)
               case "$MENTOR_MODEL" in
                 fable|opus|sonnet|haiku)
-                  MODEL_FLAG="--model $(jq -r --arg a "$MENTOR_MODEL" '.[$a]' .github/model-ids.json)" ;;
+                  # Fixup checkt den PR-Head aus — ältere Branches kennen model-ids.json noch nicht.
+                  MENTOR_ID="$(jq -er --arg a "$MENTOR_MODEL" '.[$a]' .github/model-ids.json 2>/dev/null)" || {
+                    echo "::warning title=Mentor-Modell::.github/model-ids.json fehlt oder kennt '$MENTOR_MODEL' nicht (Branch vor dem Rebase?) — Mentor übersprungen (fail-open)."
+                    exit 1
+                  }
+                  MODEL_FLAG="--model $MENTOR_ID" ;;
                 *)
                   echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
                   exit 1
@@ -958,7 +963,12 @@ jobs:
             claude)
               case "$MENTOR_MODEL" in
                 fable|opus|sonnet|haiku)
-                  MODEL_FLAG="--model $(jq -r --arg a "$MENTOR_MODEL" '.[$a]' .github/model-ids.json)" ;;
+                  # Fixup checkt den PR-Head aus — ältere Branches kennen model-ids.json noch nicht.
+                  MENTOR_ID="$(jq -er --arg a "$MENTOR_MODEL" '.[$a]' .github/model-ids.json 2>/dev/null)" || {
+                    echo "::warning title=Mentor-Modell::.github/model-ids.json fehlt oder kennt '$MENTOR_MODEL' nicht (Branch vor dem Rebase?) — Mentor übersprungen (fail-open)."
+                    exit 1
+                  }
+                  MODEL_FLAG="--model $MENTOR_ID" ;;
                 *)
                   echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
                   exit 1
