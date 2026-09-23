@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.3._
+_Enthält v0.4.0 – v0.4.4._
 
 ### Other Changes
 
@@ -86,6 +86,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): optional cc for status mail, new imprint contact by @deleonio in https://github.com/deleonio/priority-pilot/pull/1473
 - refactor(server): ownerScope in logics statt express verlagern by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1470
 - feat(frontend): hide task ids, add pillar badge, show feedback reason by @deleonio in https://github.com/deleonio/priority-pilot/pull/1472
+- chore(deps): update renovatebot/github-action action to v46.3.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1477
 - chore(deps): update renovatebot/github-action action to v46.3.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1477
 - fix(server): log API-Token-Prüfung Fehler statt sie zu verschlucken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1480
 - docs: deduplicate a11y guidance and refresh spec naming convention by @deleonio in https://github.com/deleonio/priority-pilot/pull/1483
@@ -852,7 +853,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): size heart segments by filled area, not width by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1305
 - feat(server): add admin/member role system with user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1300
 - feat(frontend): split pillars settings tab into management and weighting by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1306
-- refactor(admin): apply review nits from PR #1300 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1307
 - refactor(admin): apply review nits from PR #1300 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1307
 - docs: document google login allowlist and first-login account creation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1308
 - feat(frontend): compact header bar and pillar metrics as value pairs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1303
