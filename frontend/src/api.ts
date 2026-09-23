@@ -38,8 +38,7 @@ import type {
 	Profile,
 	ParsedSearch,
 	ParsedTask,
-	ReassignPillarsResult,
-	OwnReassignPillarsResult,
+	ReassignRunStarted,
 	OwnReassignPillarsStatus,
 	ReassignStatusFilter,
 	paths,
@@ -547,7 +546,7 @@ export const api = {
 		status?: ReassignStatusFilter;
 		limit?: number;
 		restart?: boolean;
-	} & Init = {}): Promise<ReassignPillarsResult> {
+	} & Init = {}): Promise<ReassignRunStarted> {
 		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars', {
 			params: {
 				query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status, limit, restart },
@@ -590,7 +589,7 @@ export const api = {
 		limit?: number;
 		offset?: number;
 		restart?: boolean;
-	} & Init = {}): Promise<OwnReassignPillarsResult> {
+	} & Init = {}): Promise<ReassignRunStarted> {
 		const { data, error, response } = await client.POST('/tasks/reassign-pillars', {
 			params: { query: { status, limit, offset, restart } },
 			signal,

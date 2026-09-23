@@ -41,10 +41,10 @@ export const RecalcPillarModal = ({ onClose, onCompleted }: RecalcPillarModalPro
 		[filter],
 	);
 	const loadStatus = useCallback(() => api.getOwnReassignPillarsStatus({ status: filter }), [filter]);
-	const { run, status, canResume, start, abort } = useReassignRun({ runPortion, loadStatus, onChanged: onCompleted });
+	const { run, status, canResume, start } = useReassignRun({ runPortion, loadStatus, onChanged: onCompleted });
 
+	// Schließen bricht nichts ab: der Lauf geht auf dem Server weiter (#1642).
 	const handleClose = (): void => {
-		abort();
 		onClose();
 	};
 
@@ -111,6 +111,7 @@ export const RecalcPillarModal = ({ onClose, onCompleted }: RecalcPillarModalPro
 			{run.phase === 'processing' && (
 				<>
 					<ReassignProgressView run={run} />
+					<p>Der Lauf geht auf dem Server weiter, auch wenn du dieses Fenster schließt.</p>
 					<div className="modal-actions">
 						<KolButton _label="Abbrechen" _variant="secondary" _on={{ onClick: handleClose }} />
 					</div>
