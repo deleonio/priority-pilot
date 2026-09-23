@@ -61,12 +61,11 @@ describe('renderLanding', () => {
 		expect(html).toContain(de.hero.cta);
 	});
 
-	it('leitet die installierte PWA vor dem Rendern auf /app/ weiter', () => {
+	it('springt nicht automatisch in die App, auch nicht als installierte PWA', () => {
 		const html = landing('de');
 		const head = html.slice(0, html.indexOf('</head>'));
-		expect(head).toContain("matchMedia('(display-mode: standalone)')");
-		expect(head).toContain("location.replace('/app/')");
-		expect(head.indexOf('location.replace')).toBeLessThan(head.indexOf('stylesheet'));
+		expect(head).not.toContain('display-mode');
+		expect(html).not.toContain('location.replace');
 	});
 
 	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {

@@ -1,6 +1,6 @@
 /**
  * Renderer der öffentlichen Website (ADR 0015): reine Funktionen, die aus Texten, Paketkatalog und
- * Anbieterdaten statisches HTML erzeugen. Kein Framework, kein Client-JS außer der PWA-Weiche.
+ * Anbieterdaten statisches HTML erzeugen. Kein Framework, kein Client-JS.
  */
 import type { FeatureId, Plan, PlansCatalog } from '../../server/src/logics/plans.ts';
 import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
@@ -65,12 +65,6 @@ export const addedFeatures = (catalog: PlansCatalog, plans: readonly Plan[], pla
 		.map((entry) => entry.feature);
 };
 
-/**
- * PWA-Weiche: Wer die installierte App startet, landet auf der App und nie auf der Website. Ältere
- * Installationen haben noch `/` als start_url, deshalb läuft die Prüfung vor jedem Rendern.
- */
-const PWA_REDIRECT = `<script>if(matchMedia('(display-mode: standalone)').matches||navigator.standalone===true){location.replace('${APP_PATH}')}</script>`;
-
 const alternateLinks = ({ siteUrl }: PageContext, pathFor: (locale: Locale) => string): string =>
 	[
 		...LOCALES.map((locale) => `<link rel="alternate" hreflang="${locale}" href="${siteUrl}${pathFor(locale)}">`),
@@ -97,7 +91,6 @@ const shell = (context: PageContext, { title, description, path, pathFor, body }
 <html lang="${locale}">
 	<head>
 		<meta charset="UTF-8">
-		${PWA_REDIRECT}
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>${t(title)}</title>
 		<meta name="description" content="${t(description)}">
