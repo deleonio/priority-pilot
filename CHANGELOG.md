@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.3 - 2026-09-22
+## v0.3 - 2026-09-23
 
-_Enthält v0.3.0 – v0.3.5._
+_Enthält v0.3.0 – v0.3.6._
 
 ### Other Changes
 
@@ -13,6 +13,7 @@ _Enthält v0.3.0 – v0.3.5._
 - chore(deps): update KoliBri to latest RC (4.5.0-rc.0) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1613
 - feat(frontend): add tester role option to user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1616
 - fix(server): reliable pillar recalculation with status filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1615
+- fix(ci): bump version before build so deployed footer matches changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1619
 
 ## v0.2 - 2026-09-22
 
@@ -66,6 +67,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
 - feat(server): allow autoDeleteAfterDeadline via MCP task tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1445
 - fix(frontend): hide task id prefix in dashboard widget titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1451
+- fix(frontend): dedup extractLeaves by node.id (#1449) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1464
 - fix(frontend): dedup extractLeaves by node.id (#1449) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1464
 - feat(ci): tägliches Code-Review-Team ersetzt nightly-arch-opt by @deleonio in https://github.com/deleonio/priority-pilot/pull/1468
 - feat(server): send startup status mail with commit sha to admins by @deleonio in https://github.com/deleonio/priority-pilot/pull/1466
@@ -832,7 +834,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(ci): arc42-sync LLM-basiert nach Guide-/Spec-Sync-Muster by @deleonio in https://github.com/deleonio/priority-pilot/pull/1293
 - refactor(frontend): remove balance prioritization (#1220) from task list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1295
 - chore(ci): concurrency group per phase instead of global llm queue by @deleonio in https://github.com/deleonio/priority-pilot/pull/1301
-- fix(server): handle oauth callback errors and lowercase email search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1299
 - fix(server): handle oauth callback errors and lowercase email search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1299
 - feat(frontend): raise title limit to 65, cap description at 3000 chars by @deleonio in https://github.com/deleonio/priority-pilot/pull/1298
 - feat(frontend): unify series tab badges and restore list gap rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1297
