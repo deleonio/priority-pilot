@@ -1,11 +1,15 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentProps } from 'react';
-import type { Pillar, Task, TaskPillarContribution, TaskTreeNode } from 'client';
+import type { BalanceStatus, Pillar, Task, TaskPillarContribution, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Dashboard } from './Dashboard';
+import { api } from '../api';
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.restoreAllMocks();
+});
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 
@@ -654,5 +658,29 @@ describe('Dashboard — „Erledigen" und „Bearbeiten" in einer Aktionszeile (
 
 		const labels = [...(actions?.children ?? [])].map((child) => child.getAttribute('_label'));
 		expect(labels).toEqual(['Erledigen', 'Bearbeiten']);
+	});
+});
+
+/**
+ * #1638 AK5: Das Dashboard-Herz zeigt den Füllstand, den der Server im Kadenz-Modell rechnet
+ * (GET /scores/balance, dieselbe Quelle wie MCP `balance_status`) — nicht den lokal aus den
+ * Anteilen gerechneten Wert. Lokal läge eine einzige Säule mit allen Punkten bei 100 %.
+ */
+describe('Dashboard — Herz-Füllstand aus dem Server (#1638)', () => {
+	it('übernimmt fuellstandProzent aus GET /scores/balance', async () => {
+		const status = {
+			fuellstandProzent: 37,
+			hatPunkte: true,
+			saeulen: [],
+			meilensteine: [],
+		} as unknown as BalanceStatus;
+		const spy = vi.spyOn(api, 'getBalanceStatus').mockResolvedValue(status);
+		const koerper = pillar(1, 'Körper', 100);
+		const tasks = [task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 1, TaskStatus.Done)];
+
+		render(<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />);
+
+		await waitFor(() => expect(screen.getByTestId('heart-balance-value').textContent).toBe('37 %'));
+		expect(spy).toHaveBeenCalledTimes(1);
 	});
 });

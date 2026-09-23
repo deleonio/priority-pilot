@@ -7,7 +7,8 @@ import { MissedTasksCard } from './MissedTasksCard';
 import { HeartBalance } from './HeartBalance';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { api } from '../api';
 import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
@@ -150,6 +151,27 @@ export const Dashboard = ({
 		return punkte;
 	}, [pillars, pillarSummaries, tasks]);
 
+	// #1638 AK5: Den Füllstand des Herzens rechnet der Server im Kadenz-Modell (Soll-Rhythmus je Säule
+	// im 28-Tage-Fenster) — dieselbe Zahl wie Verlauf und MCP `balance_status`. Neu geladen, sobald
+	// sich die Aufgaben ändern; bis zur Antwort oder bei Fehler bleibt der lokal gerechnete Wert.
+	const [serverFill, setServerFill] = useState<number | undefined>(undefined);
+	useEffect(() => {
+		let cancelled = false;
+		api
+			.getBalanceStatus({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone })
+			.then((status) => {
+				if (!cancelled) {
+					setServerFill(status.fuellstandProzent / 100);
+				}
+			})
+			.catch(() => {
+				// Nicht erreichbar: das Herz zeigt weiter den lokalen Wert statt eines Fehlerzustands.
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [tasks]);
+
 	const pillarBalances = useMemo(() => buildPillarBalances(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
 
 	const gesamtPunkte = useMemo(() => pillarBalances.reduce((acc, { punkte }) => acc + punkte, 0), [pillarBalances]);
@@ -192,7 +214,7 @@ export const Dashboard = ({
 			<div className={pillars.length > 0 ? 'dashboard-hero' : 'dashboard-hero dashboard-hero--solo'}>
 				{pillars.length > 0 && (
 					<KolCard className="dashboard-heart" _label="Meine Lebensbalance" _level={3}>
-						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} />
+						<HeartBalance pillars={pillars} punkteProSaeule={punkteProSaeule} fill={serverFill} />
 					</KolCard>
 				)}
 				<div className="dashboard-hero-side">

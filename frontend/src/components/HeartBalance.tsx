@@ -34,6 +34,11 @@ interface HeartBalanceProps {
 	pillars: Pillar[];
 	/** Punktestand je Säule (`pillarId → Punkte`), dieselbe Quelle wie „Gesamtguthaben". */
 	punkteProSaeule: ReadonlyMap<number, number>;
+	/**
+	 * Füllstand (0–1) aus dem Server im Kadenz-Modell (#1638, GET /scores/balance). Gesetzt ersetzt er
+	 * den lokal aus den Anteilen gerechneten Wert, damit Herz, Verlauf und MCP dieselbe Zahl zeigen.
+	 */
+	fill?: number;
 }
 
 /** Ganze Prozent für die Anzeige (die Rechnung selbst bleibt ungerundet). */
@@ -42,8 +47,11 @@ const asPercent = (share: number): number => Math.round(share * 100);
 /** Ab dieser Abweichung ist eine Säule keine Delle mehr, sondern eine Schieflage (Prozentpunkte). */
 const DELTA_STARK = 5;
 
-export const HeartBalance = ({ pillars, punkteProSaeule }: HeartBalanceProps) => {
-	const balance = useMemo(() => buildHeartBalance(pillars, punkteProSaeule), [pillars, punkteProSaeule]);
+export const HeartBalance = ({ pillars, punkteProSaeule, fill }: HeartBalanceProps) => {
+	const balance = useMemo(() => {
+		const lokal = buildHeartBalance(pillars, punkteProSaeule);
+		return fill === undefined ? lokal : { ...lokal, fill };
+	}, [pillars, punkteProSaeule, fill]);
 	const health = heartHealth(balance);
 	const { variant } = useBalanceVariant();
 
