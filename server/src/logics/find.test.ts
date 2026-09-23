@@ -269,3 +269,100 @@ describe('find — eine Instanz je Serie (#1518)', () => {
 		);
 	});
 });
+
+// Rote Spec-Tests für Issue #1641 (Spec docs/spec/issue-1641.md, Journey 2): eine Aufgabe mit Datum
+// mehr als 3 Kalendertage in der Zukunft erscheint weder bei findNextImportantTask noch bei
+// findSuggestedTasks, auch wenn sie die höchste Priorität hätte. KEIN Produktivcode.
+describe('find — Vorlauf 3 Tage (Issue #1641)', () => {
+	const dayFromToday = (offset: number): Date => {
+		const day = new Date();
+		day.setUTCHours(0, 0, 0, 0);
+		day.setUTCDate(day.getUTCDate() + offset);
+		return day;
+	};
+
+	it('AK1: findNextImportantTask ignoriert die höchste Priorität, wenn ihr Datum 5 Tage entfernt ist', async () => {
+		await Task.create({ title: 'Zu weit weg', priority: 5, estimatedEffort: 1, deadline: dayFromToday(5) });
+		const niedrig = await Task.create({ title: 'Ohne Datum', priority: 2, estimatedEffort: 1 });
+
+		const result = await findNextImportantTask();
+
+		assert.ok(result !== null);
+		assert.equal(result.id, niedrig.id, 'die zurückgehaltene Aufgabe darf nicht gewählt werden');
+	});
+
+	it('AK2: findNextImportantTask wählt eine Aufgabe mit Datum in genau 3 Tagen (Grenze inklusiv)', async () => {
+		const grenzfall = await Task.create({
+			title: 'Grenzfall',
+			priority: 5,
+			estimatedEffort: 1,
+			deadline: dayFromToday(3),
+		});
+		await Task.create({ title: 'Ohne Datum', priority: 2, estimatedEffort: 1 });
+
+		const result = await findNextImportantTask();
+
+		assert.ok(result !== null);
+		assert.equal(result.id, grenzfall.id, 'genau 3 Tage entfernt zählt noch als berechtigt');
+	});
+
+	it('AK1: findSuggestedTasks lässt eine Aufgabe mit Datum in 5 Tagen aus der Liste', async () => {
+		const zuWeitWeg = await Task.create({
+			title: 'Zu weit weg',
+			priority: 5,
+			estimatedEffort: 1,
+			deadline: dayFromToday(5),
+		});
+		const ohneDatum = await Task.create({ title: 'Ohne Datum', priority: 2, estimatedEffort: 1 });
+
+		const ids = (await findSuggestedTasks()).map((t) => t.id);
+
+		assert.ok(!ids.includes(zuWeitWeg.id), 'zurückgehaltene Aufgabe fehlt in der Vorschlagsliste');
+		assert.ok(ids.includes(ohneDatum.id));
+	});
+
+	it('AK3: Aufgabe ohne Datum und überfällige Aufgabe erscheinen in beiden Ergebnissen wie bisher', async () => {
+		const ohneDatum = await Task.create({ title: 'Ohne Datum', priority: 3, estimatedEffort: 1 });
+		const ueberfaellig = await Task.create({
+			title: 'Überfällig',
+			priority: 2,
+			estimatedEffort: 1,
+			deadline: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+		});
+
+		const naechste = await findNextImportantTask();
+		const vorschlaege = (await findSuggestedTasks()).map((t) => t.id);
+
+		assert.ok(naechste !== null && [ohneDatum.id, ueberfaellig.id].includes(naechste.id));
+		assert.ok(vorschlaege.includes(ohneDatum.id));
+		assert.ok(vorschlaege.includes(ueberfaellig.id));
+	});
+
+	it('AK5: eine Serie, deren aktuelle Instanz 5 Tage entfernt ist, erscheint in keinem der beiden Ergebnisse', async () => {
+		const series = await Series.create({
+			title: 'Weit weg',
+			rhythm: 'daily',
+			priority: 5,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: dayFromToday(5),
+		});
+		const seriesTask = await Task.create({
+			title: 'Weit weg',
+			priority: 5,
+			estimatedEffort: 0.5,
+			deadline: dayFromToday(5),
+			seriesId: series.id,
+			seriesOccurrence: dayFromToday(5),
+			originSeriesId: series.id,
+		});
+		const sonst = await Task.create({ title: 'Sonst nichts los', priority: 1, estimatedEffort: 1 });
+
+		const naechste = await findNextImportantTask();
+		const vorschlaege = (await findSuggestedTasks()).map((t) => t.id);
+
+		assert.ok(naechste !== null);
+		assert.equal(naechste.id, sonst.id, 'die Serie darf nicht gewählt werden');
+		assert.ok(!vorschlaege.includes(seriesTask.id));
+	});
+});

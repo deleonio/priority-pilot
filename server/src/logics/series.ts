@@ -64,6 +64,29 @@ export const selectSeriesRepresentatives = <T extends SeriesCandidate>(tasks: T[
 	return tasks.filter((task) => task.seriesId == null || chosen.get(task.seriesId) === task);
 };
 
+/** Vorlauf (Issue #1641): Aufgaben mit `deadline` mehr als so viele Kalendertage in der Zukunft werden zurückgehalten. */
+const VORLAUF_TAGE = 3;
+
+/**
+ * Filtert Aufgaben mit `deadline` mehr als {@link VORLAUF_TAGE} Kalendertage in der Zukunft heraus
+ * (Issue #1641). Ohne `deadline`, innerhalb des Vorlaufs (Grenze inklusiv) oder überfällig bleiben
+ * unverändert erhalten. Setzt nach {@link selectSeriesRepresentatives} an, damit bei Serien das
+ * Datum der aktuellen Instanz entscheidet.
+ */
+export const filterVorlauf = <T extends { deadline?: Date | string | null }>(tasks: T[], now: Date): T[] => {
+	const today = new Date(now.getTime());
+	today.setUTCHours(0, 0, 0, 0);
+	const maxTime = today.getTime() + VORLAUF_TAGE * 24 * 60 * 60 * 1000;
+	return tasks.filter((task) => {
+		if (task.deadline == null) {
+			return true;
+		}
+		const deadlineDay = new Date(task.deadline);
+		deadlineDay.setUTCHours(0, 0, 0, 0);
+		return deadlineDay.getTime() <= maxTime;
+	});
+};
+
 /** Ob der UTC-Wochentag `day` (0=So … 6=Sa) zum Rhythmus `weekdays` (Mo–Fr) bzw. `weekend` (Sa+So) gehört. */
 const matchesGroup = (day: number, rhythm: 'weekdays' | 'weekend'): boolean =>
 	rhythm === 'weekdays' ? day >= 1 && day <= 5 : day === 0 || day === 6;

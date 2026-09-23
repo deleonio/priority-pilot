@@ -1,6 +1,6 @@
 import { Pillar, ScoreEntry, Task } from '../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from './score.js';
-import { selectSeriesRepresentatives } from './series.js';
+import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 import type { PillarWithContribution } from '../models/task.js';
 
 /**
@@ -8,9 +8,9 @@ import type { PillarWithContribution } from '../models/task.js';
  * heraus — gemeinsame Vorstufe von `findNextImportantTask` (Top-1) und `findSuggestedTasks` (Liste).
  * Der Abhängigkeitsfilter (AC3) bleibt damit für beide Wege identisch.
  */
-const ladeFreieTasks = async (userId?: number): Promise<Task[]> => {
+const ladeFreieTasks = async (userId?: number, now: Date = new Date()): Promise<Task[]> => {
 	// #1518: je Serie nur die aktuelle Instanz (deckt /next, /suggestions und MCP next_task).
-	const tasks = selectSeriesRepresentatives(
+	const representatives = selectSeriesRepresentatives(
 		await Task.findAll({
 			where: {
 				status: ['Open', 'In process'],
@@ -20,6 +20,8 @@ const ladeFreieTasks = async (userId?: number): Promise<Task[]> => {
 			include: [Pillar],
 		}),
 	);
+	// #1641: Aufgaben mit Datum mehr als VORLAUF_TAGE Kalendertage in der Zukunft zurückhalten.
+	const tasks = filterVorlauf(representatives, now);
 
 	const independentTasks: Task[] = [];
 	for (const task of tasks) {
