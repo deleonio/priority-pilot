@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.5._
+_Enthält v0.4.0 – v0.4.6._
 
 ### Other Changes
 
@@ -89,7 +89,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): hide task ids, add pillar badge, show feedback reason by @deleonio in https://github.com/deleonio/priority-pilot/pull/1472
 - chore(deps): update renovatebot/github-action action to v46.3.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1477
 - fix(server): log API-Token-Prüfung Fehler statt sie zu verschlucken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1480
-- fix(server): log API-Token-Prüfung Fehler statt sie zu verschlucken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1480
+- docs: deduplicate a11y guidance and refresh spec naming convention by @deleonio in https://github.com/deleonio/priority-pilot/pull/1483
 - docs: deduplicate a11y guidance and refresh spec naming convention by @deleonio in https://github.com/deleonio/priority-pilot/pull/1483
 - feat(server): enforce dependency weight range 0.1-1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1482
 - docs: sharpen the monetization concept against the code by @deleonio in https://github.com/deleonio/priority-pilot/pull/1485
