@@ -2032,7 +2032,9 @@ paths:
             Anzahl bereits verarbeiteter Aufgaben vorheriger Läufe derselben
             Portionierungs-Serie (Default 0) — ohne ihn träfe jeder Aufruf
             wieder dieselbe erste `limit`-Portion. Zum Fortsetzen die Summe aus
-            `updated`+`failed`+`skipped` aller vorherigen Läufe übergeben.
+            `failed` aller vorherigen Läufe übergeben — nur fehlgeschlagene
+            Aufgaben bleiben Präfix der Auswahl, erfolgreich verarbeitete
+            fallen serverseitig heraus.
           schema:
             type: integer
             minimum: 0

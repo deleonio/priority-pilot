@@ -246,18 +246,21 @@ export const reassignTaskPillarsForUser = async (
 	}
 	const validIds = new Set(pillars.map((pillar) => pillar.id));
 
-	const allTasks = await Task.findAll({
+	// Zählung getrennt von der Auswahl (statt alles zu laden und in JS zu slicen) — sonst wird das
+	// Laden über eine Portionierungs-Serie mit kleinem `limit` quadratisch (Befund #2).
+	const total = await countPendingTasks(userId, status, since);
+	if (offset >= total) {
+		return { updated: 0, failed: 0, skipped: 0, total, quotaExhausted: false };
+	}
+	const tasks = await Task.findAll({
 		where: taskWhere(userId, status, since),
 		attributes: ['id', 'title', 'description'],
 		order: [['id', 'ASC']],
+		offset,
+		...(budget !== undefined ? { limit: budget } : {}),
 	});
-	const total = allTasks.length;
-	let tasks = offset > 0 ? allTasks.slice(offset) : allTasks;
 	if (tasks.length === 0) {
 		return { updated: 0, failed: 0, skipped: 0, total, quotaExhausted: false };
-	}
-	if (budget !== undefined) {
-		tasks = tasks.slice(0, budget);
 	}
 
 	let examples: FeedbackExample[] = [];

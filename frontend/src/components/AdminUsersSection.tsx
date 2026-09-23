@@ -275,7 +275,7 @@ export const AdminUsersSection = () => {
 					<KolAlert _type={summary.failed === 0 ? 'info' : 'warning'} _label="Neuberechnung abgeschlossen">
 						<p>
 							{summary.updated} Aufgaben neu zugeordnet, {summary.skipped} unverändert gelassen, {summary.failed}{' '}
-							fehlgeschlagen ({summary.users} Konten).
+							fehlgeschlagen.
 						</p>
 						{summary.failed > 0 && (
 							<ul>
