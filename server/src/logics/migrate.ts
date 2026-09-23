@@ -877,3 +877,23 @@ export const migrateTaskPinnedColumns = async (db: Sequelize): Promise<void> => 
 		console.log('Spalte pinnedAt an tasks nachgezogen.');
 	}
 };
+
+/**
+ * Säulen-Neuberechnung fortsetzbar machen (#1614): `tasks.pillarsRecalculatedAt` (wann die
+ * Verteilung einer Aufgabe zuletzt neu bestimmt wurde) und `users.pillarRecalcStartedAt` (Start des
+ * letzten Laufs). Beide nullable. Idempotent; bei frischer DB No-op — `sync()` legt die Spalten an.
+ */
+export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> => {
+	const [taskColumns] = await db.query("PRAGMA table_info('tasks')");
+	const taskExisting = (taskColumns as { name: string }[]).map((column) => column.name);
+	if (taskExisting.length > 0 && !taskExisting.includes('pillarsRecalculatedAt')) {
+		await db.query('ALTER TABLE `tasks` ADD COLUMN `pillarsRecalculatedAt` DATETIME');
+		console.log('Spalte pillarsRecalculatedAt an tasks nachgezogen.');
+	}
+	const [userColumns] = await db.query("PRAGMA table_info('users')");
+	const userExisting = (userColumns as { name: string }[]).map((column) => column.name);
+	if (userExisting.length > 0 && !userExisting.includes('pillarRecalcStartedAt')) {
+		await db.query('ALTER TABLE `users` ADD COLUMN `pillarRecalcStartedAt` DATETIME');
+		console.log('Spalte pillarRecalcStartedAt an users nachgezogen.');
+	}
+};

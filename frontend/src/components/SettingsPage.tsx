@@ -868,7 +868,8 @@ export const SettingsPage = ({
 					// damit". Schlösse es das Modal, unmountete die Komponente im selben Commit, in dem
 					// sie ihr Ergebnis rendert — Erfolgsmeldung, Fehler und die Warnung über das
 					// aufgebrauchte KI-Kontingent wären nie sichtbar. Geschlossen wird über den Button.
-					onCompleted={onSaved}
+					// `onCategoryChanged` lädt nur neu; `onSaved` navigierte zurück zur Hauptansicht.
+					onCompleted={onCategoryChanged}
 				/>
 			)}
 		</div>

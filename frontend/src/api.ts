@@ -39,6 +39,7 @@ import type {
 	ParsedTask,
 	ReassignPillarsResult,
 	OwnReassignPillarsResult,
+	OwnReassignPillarsStatus,
 	ReassignStatusFilter,
 	paths,
 	Pillar,
@@ -526,23 +527,39 @@ export const api = {
 		return data;
 	},
 	/**
-	 * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614). Portioniert wie der
-	 * Admin-Batch: ein Aufruf verarbeitet höchstens `limit` Aufgaben, der Aufrufer setzt mit
-	 * `offset` fort (Summe aus `updated`+`failed`+`skipped` aller bisherigen Läufe) und liest den
-	 * Fortschritt aus `remaining`.
+	 * Neuberechnung der Säulenverteilung über die EIGENEN Aufgaben (#1614). Ein Aufruf verarbeitet
+	 * höchstens `limit` noch offene Aufgaben des Laufs. `restart: true` beginnt einen neuen Lauf,
+	 * sonst wird der letzte fortgesetzt. Erfolgreich verarbeitete fallen aus der Auswahl, `offset`
+	 * zählt daher nur die in dieser Serie fehlgeschlagenen. Fortschritt aus `remaining`.
 	 */
 	async reassignOwnTaskPillars({
 		status,
 		limit,
 		offset,
+		restart,
 		signal,
 	}: {
 		status?: ReassignStatusFilter;
 		limit?: number;
 		offset?: number;
+		restart?: boolean;
 	} & Init = {}): Promise<OwnReassignPillarsResult> {
 		const { data, error, response } = await client.POST('/tasks/reassign-pillars', {
-			params: { query: { status, limit, offset } },
+			params: { query: { status, limit, offset, restart } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+	/** Stand des letzten Laufs der Säulen-Neuberechnung (#1614): Start und noch offene Aufgaben. */
+	async getOwnReassignPillarsStatus({
+		status,
+		signal,
+	}: { status?: ReassignStatusFilter } & Init = {}): Promise<OwnReassignPillarsStatus> {
+		const { data, error, response } = await client.GET('/tasks/reassign-pillars/status', {
+			params: { query: { status } },
 			signal,
 		});
 		if (!response.ok || data === undefined) {

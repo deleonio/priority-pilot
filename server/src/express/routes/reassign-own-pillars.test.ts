@@ -2,7 +2,12 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../../test/helpers.js';
 import { AiUsage, Pillar, Task, TaskPillar, User } from '../../models/index.js';
-import type { ClassifyPillarsInput, PillarClassifier, PillarSuggestion } from '../../llm/llm.js';
+import {
+	MistralRequestError,
+	type ClassifyPillarsInput,
+	type PillarClassifier,
+	type PillarSuggestion,
+} from '../../llm/llm.js';
 
 /**
  * Tests für die Neuberechnung der EIGENEN Säulenverteilung (POST /tasks/reassign-pillars, #1614).
@@ -151,6 +156,162 @@ describe('POST /tasks/reassign-pillars — Neuberechnung der eigenen Säulenvert
 			assert.equal(body.failed, 0);
 		} finally {
 			await flakyServer.close();
+		}
+	});
+
+	it('wartet bei einem Rate-Limit (429) länger und öfter als bei sonstigen Fehlern', async () => {
+		let attempts = 0;
+		const rateLimited: PillarClassifier = (async (input: ClassifyPillarsInput) => {
+			attempts += 1;
+			if (attempts < 4) {
+				// retryAfterMs: 0 hält den Test schnell; der Zähler zeigt, dass es mehr als die drei
+				// Versuche für sonstige Fehler sind.
+				throw new MistralRequestError('Mistral antwortete mit HTTP 429', { status: 429, retryAfterMs: 0 });
+			}
+			return input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
+		}) as PillarClassifier;
+
+		const limitedServer = await startTestServer({ pillarClassifier: rateLimited });
+		try {
+			const cookie = await limitedServer.login(MEMBER_EMAIL, { role: 'member' });
+			const memberId = await userIdOf(MEMBER_EMAIL);
+			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+			await Task.create({ title: 'Gedrosselte Aufgabe', status: 'Open', userId: memberId });
+
+			const res = await fetch(`${limitedServer.baseUrl}/tasks/reassign-pillars`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+			});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { updated: number; failed: number; failureReasons?: unknown };
+			assert.equal(attempts, 4);
+			assert.equal(body.updated, 1);
+			assert.equal(body.failed, 0);
+			assert.equal(body.failureReasons, undefined, 'ohne Fehlschlag kein failureReasons');
+		} finally {
+			await limitedServer.close();
+		}
+	});
+
+	it('meldet den Grund fehlgeschlagener Aufgaben zusammengefasst zurück', async () => {
+		const alwaysLimited: PillarClassifier = (async () => {
+			throw new MistralRequestError('Mistral antwortete mit HTTP 429', { status: 429, retryAfterMs: 0 });
+		}) as PillarClassifier;
+
+		const limitedServer = await startTestServer({ pillarClassifier: alwaysLimited });
+		try {
+			const cookie = await limitedServer.login(MEMBER_EMAIL, { role: 'member' });
+			const memberId = await userIdOf(MEMBER_EMAIL);
+			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+			await Task.create({ title: 'Aufgabe 1', status: 'Open', userId: memberId });
+			await Task.create({ title: 'Aufgabe 2', status: 'Open', userId: memberId });
+
+			const res = await fetch(`${limitedServer.baseUrl}/tasks/reassign-pillars`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+			});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { failed: number; failureReasons?: Record<string, number> };
+			assert.equal(body.failed, 2);
+			assert.deepEqual(body.failureReasons, { 'HTTP 429': 2 });
+		} finally {
+			await limitedServer.close();
+		}
+	});
+
+	it('setzt einen Lauf fort: nur fehlgeschlagene und nicht erreichte Aufgaben, nicht alle erneut', async () => {
+		const seen: string[] = [];
+		let failTitle: string | null = 'Aufgabe 2';
+		const classifier: PillarClassifier = (async (input: ClassifyPillarsInput) => {
+			seen.push(input.title);
+			if (input.title === failTitle) {
+				throw new MistralRequestError('HTTP 400', { status: 400 });
+			}
+			return input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
+		}) as PillarClassifier;
+
+		const resumeServer = await startTestServer({ pillarClassifier: classifier });
+		try {
+			const cookie = await resumeServer.login(MEMBER_EMAIL, { role: 'member' });
+			const memberId = await userIdOf(MEMBER_EMAIL);
+			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+			for (const title of ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3']) {
+				await Task.create({ title, status: 'Open', userId: memberId });
+			}
+			const call = (method: 'GET' | 'POST', query: string): Promise<Response> =>
+				fetch(`${resumeServer.baseUrl}/tasks/reassign-pillars${method === 'GET' ? '/status' : ''}${query}`, {
+					method,
+					headers: { Cookie: cookie },
+				});
+
+			const before = (await (await call('GET', '')).json()) as { startedAt: string | null; pending: number };
+			assert.equal(before.startedAt, null, 'noch kein Lauf');
+			assert.equal(before.pending, 3);
+
+			// Erste Portion: 2 Aufgaben, davon schlägt „Aufgabe 2“ fehl.
+			const first = (await (await call('POST', '?restart=true&limit=2')).json()) as {
+				updated: number;
+				failed: number;
+				remaining: number;
+			};
+			assert.deepEqual([first.updated, first.failed, first.remaining], [1, 1, 1]);
+
+			const between = (await (await call('GET', '')).json()) as { startedAt: string | null; pending: number };
+			assert.ok(between.startedAt, 'Laufstart gemerkt');
+			assert.equal(between.pending, 2, 'die fehlgeschlagene und die nicht erreichte Aufgabe');
+
+			// Später fortsetzen (neue Serie, offset 0): „Aufgabe 1“ kommt nicht noch einmal dran.
+			failTitle = null;
+			seen.length = 0;
+			const resumed = (await (await call('POST', '')).json()) as { updated: number; remaining: number };
+			assert.deepEqual(seen, ['Aufgabe 2', 'Aufgabe 3']);
+			assert.equal(resumed.updated, 2);
+			assert.equal(resumed.remaining, 0);
+			assert.equal(((await (await call('GET', '')).json()) as { pending: number }).pending, 0);
+
+			// Ein Neustart nimmt wieder alle.
+			seen.length = 0;
+			await call('POST', '?restart=true');
+			assert.deepEqual(seen, ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3']);
+		} finally {
+			await resumeServer.close();
+		}
+	});
+
+	it('überspringt im Fortsetzen-Modus mit offset nur die fehlgeschlagenen der Serie', async () => {
+		const seen: string[] = [];
+		const classifier: PillarClassifier = (async (input: ClassifyPillarsInput) => {
+			seen.push(input.title);
+			if (input.title === 'Aufgabe 1') {
+				throw new MistralRequestError('HTTP 400', { status: 400 });
+			}
+			return input.pillars.length > 0 ? [{ pillarId: input.pillars[0].id, confidence: 100 }] : [];
+		}) as PillarClassifier;
+
+		const offsetServer = await startTestServer({ pillarClassifier: classifier });
+		try {
+			const cookie = await offsetServer.login(MEMBER_EMAIL, { role: 'member' });
+			const memberId = await userIdOf(MEMBER_EMAIL);
+			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
+			for (const title of ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3']) {
+				await Task.create({ title, status: 'Open', userId: memberId });
+			}
+			const post = (query: string) =>
+				fetch(`${offsetServer.baseUrl}/tasks/reassign-pillars${query}`, {
+					method: 'POST',
+					headers: { Cookie: cookie },
+				});
+
+			const first = (await (await post('?restart=true&limit=2')).json()) as { failed: number; remaining: number };
+			assert.equal(first.failed, 1);
+			// Wie das Modal: offset = Zahl der Fehlschläge dieser Serie.
+			const second = (await (await post(`?limit=2&offset=${first.failed}`)).json()) as { remaining: number };
+			// Retries derselben Aufgabe zählen nicht — es geht um die Reihenfolge der Aufgaben.
+			assert.deepEqual([...new Set(seen)], ['Aufgabe 1', 'Aufgabe 2', 'Aufgabe 3'], 'keine ausgelassen');
+			assert.equal(seen.filter((title) => title === 'Aufgabe 2').length, 1, 'Aufgabe 2 nicht doppelt');
+			assert.equal(second.remaining, 0);
+		} finally {
+			await offsetServer.close();
 		}
 	});
 

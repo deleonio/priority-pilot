@@ -2037,6 +2037,34 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/reassign-pillars/status:
+    get:
+      summary: Stand der Säulen-Neuberechnung der eigenen Aufgaben
+      description: >-
+        Liefert den Start des letzten Laufs und wie viele Aufgaben der
+        Statusauswahl seitdem noch nicht erfolgreich neu berechnet wurden
+        (fehlgeschlagene und nicht erreichte). Grundlage für „Fortsetzen“.
+        Ruft keinen KI-Provider auf.
+      operationId: getOwnReassignPillarsStatus
+      tags: [tasks]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Statusauswahl (Default `all`).
+          schema:
+            $ref: '#/components/schemas/ReassignStatusFilter'
+      responses:
+        '200':
+          description: Stand des letzten Laufs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnReassignPillarsStatus'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /tasks/reassign-pillars:
     post:
       summary: Säulenverteilung der eigenen Aufgaben neu berechnen
@@ -2084,6 +2112,17 @@ paths:
             in Bearbeitung befindliche Aufgaben, `done` nur erledigte.
           schema:
             $ref: '#/components/schemas/ReassignStatusFilter'
+        - name: restart
+          in: query
+          required: false
+          description: >-
+            `true` beginnt einen neuen Lauf, danach gilt jede Aufgabe wieder als
+            offen. Ohne den Parameter wird der letzte Lauf fortgesetzt: Verarbeitet
+            werden nur Aufgaben, die seit dessen Start nicht erfolgreich neu
+            berechnet wurden. `offset` zählt dann nur die in dieser Serie
+            fehlgeschlagenen Aufgaben.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Ergebnis des Laufs über die eigenen Aufgaben
@@ -3226,9 +3265,34 @@ components:
           description: >-
             Der Lauf endete vorzeitig, weil das monatliche KI-Kontingent
             aufgebraucht ist. `remaining` bleibt dann bewusst > 0.
+        failureReasons:
+          type: object
+          additionalProperties:
+            type: integer
+          description: >-
+            Fehlergründe der fehlgeschlagenen Aufgaben dieses Laufs, zusammengefasst
+            als Grund → Anzahl (z. B. `{"HTTP 429": 12}`). Fehlt, wenn nichts fehlschlug.
         quotaRemaining:
           type: integer
           description: Verbleibende KI-Anfragen des Monats (von der Zähler-Middleware ergänzt).
+    OwnReassignPillarsStatus:
+      type: object
+      description: Stand der Säulen-Neuberechnung (GET /tasks/reassign-pillars).
+      required: [startedAt, total, pending]
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Start des letzten Laufs; `null`, wenn noch keiner lief.
+        total:
+          type: integer
+          description: Aufgaben der Statusauswahl insgesamt.
+        pending:
+          type: integer
+          description: >-
+            Aufgaben der Statusauswahl, die seit `startedAt` nicht erfolgreich neu
+            berechnet wurden. Ohne Lauf gleich `total`.
     ReassignPillarsResult:
       type: object
       description: >-
