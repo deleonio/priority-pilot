@@ -81,8 +81,11 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 				{weekDates.map((day, index) => {
 					const isToday = sameUtcDay(day, today);
 					const dayTasks = openTasksWithDeadline.filter((task) => sameUtcDay(task.deadline, day));
+					// Nur Aufgaben OHNE eigene Deadline landen hier zusätzlich unter „heute" — mit gesetzter
+					// Deadline stehen sie bereits (korrekt) unter ihrem Deadline-Tag; sonst erschiene dieselbe
+					// Aufgabe an zwei Wochentagen (Fund Kreuzverhör-Runde 1, PR #1620).
 					const dayRecommendations = isToday
-						? suggestions.filter((task) => nextTask === null || task.id !== nextTask.id)
+						? suggestions.filter((task) => task.deadline == null && (nextTask === null || task.id !== nextTask.id))
 						: [];
 
 					return (
@@ -99,7 +102,7 @@ export const WeekView = ({ tasks, nextTask, suggestions = [], referenceDate, onS
 								{dayRecommendations.map((task) => (
 									<li key={`empfohlen-${task.id}`}>{task.title} (empfohlen)</li>
 								))}
-								{isToday && nextTask !== null && !dayTasks.some((task) => task.id === nextTask.id) && (
+								{isToday && nextTask !== null && nextTask.deadline == null && (
 									<li key={`next-${nextTask.id}`}>{nextTask.title} (nächste Aufgabe)</li>
 								)}
 							</ul>

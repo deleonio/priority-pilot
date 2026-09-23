@@ -139,6 +139,30 @@ describe('WeekView — Zuordnung systemisch empfohlener Aufgaben (#1617 AK3)', (
 		expect(within(mittwochCard).getByText(/Empfohlene-Aufgabe/)).toBeInTheDocument();
 		expect(within(donnerstagCard).queryByText(/Empfohlene-Aufgabe/)).toBeNull();
 	});
+
+	/**
+	 * Kreuzverhör-Fund (PR #1620, Runde 1): `nextTask`/`suggestions` mit einer eigenen Deadline an
+	 * einem ANDEREN Tag als heute erschienen zusätzlich unter "heute" — dieselbe Aufgabe stand damit
+	 * auf zwei Kartentagen. Diese Aufgabe hat eine Deadline am Sonntag; sie darf NUR dort auftauchen,
+	 * nicht zusätzlich als "(nächste Aufgabe)" am heutigen Mittwoch.
+	 */
+	it('zeigt eine nächste Aufgabe mit Deadline an einem anderen Tag NUR unter ihrem Deadline-Tag, nicht zusätzlich heute', () => {
+		const naechsteMitFremderDeadline = task(5, 'Naechste-Mit-Sonntags-Deadline', SUNDAY);
+		render(
+			<WeekView
+				tasks={[naechsteMitFremderDeadline]}
+				nextTask={naechsteMitFremderDeadline}
+				suggestions={[]}
+				referenceDate={REFERENCE}
+				onSelectDay={() => {}}
+			/>,
+		);
+
+		const mittwochCard = screen.getByRole('heading', { name: /Mittwoch,/i }).closest('.week-view-day') as HTMLElement;
+		const sonntagCard = screen.getByRole('heading', { name: /Sonntag,/i }).closest('.week-view-day') as HTMLElement;
+		expect(within(sonntagCard).getByText('Naechste-Mit-Sonntags-Deadline')).toBeInTheDocument();
+		expect(within(mittwochCard).queryByText(/Naechste-Mit-Sonntags-Deadline/)).toBeNull();
+	});
 });
 
 /**

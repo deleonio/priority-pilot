@@ -42,6 +42,23 @@ test.describe('Dashboard — Wochenansicht (#1617)', () => {
 		await expect(page.locator('.week-view-day', { hasText: 'E2E #1617 Wochenaufgabe' })).toHaveCount(1);
 	});
 
+	test('bei 375×812 brechen die 7 Tageskarten ohne horizontalen Overflow um', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Wochenansicht' }).click();
+		await expect(page.locator('.week-view-day')).toHaveCount(7);
+
+		const overflowsHorizontally = await page.evaluate(
+			() => document.documentElement.scrollWidth > window.innerWidth + 1,
+		);
+		expect(overflowsHorizontally).toBe(false);
+	});
+
 	test('AK2: ein Klick auf „Tag öffnen" führt zur bestehenden Tagesansicht zurück', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
