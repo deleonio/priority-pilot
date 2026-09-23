@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.3 - 2026-09-23
 
-_Enthält v0.3.0 – v0.3.6._
+_Enthält v0.3.0 – v0.3.7._
 
 ### Other Changes
 
@@ -14,6 +14,7 @@ _Enthält v0.3.0 – v0.3.6._
 - feat(frontend): add tester role option to user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1616
 - fix(server): reliable pillar recalculation with status filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1615
 - fix(ci): bump version before build so deployed footer matches changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1619
+- feat(frontend): add week view to the daily plan (#1617) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1620
 
 ## v0.2 - 2026-09-22
 
@@ -67,7 +68,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
 - feat(server): allow autoDeleteAfterDeadline via MCP task tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1445
 - fix(frontend): hide task id prefix in dashboard widget titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1451
-- fix(frontend): dedup extractLeaves by node.id (#1449) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1464
 - fix(frontend): dedup extractLeaves by node.id (#1449) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1464
 - feat(ci): tägliches Code-Review-Team ersetzt nightly-arch-opt by @deleonio in https://github.com/deleonio/priority-pilot/pull/1468
 - feat(server): send startup status mail with commit sha to admins by @deleonio in https://github.com/deleonio/priority-pilot/pull/1466
@@ -836,6 +836,7 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(ci): concurrency group per phase instead of global llm queue by @deleonio in https://github.com/deleonio/priority-pilot/pull/1301
 - fix(server): handle oauth callback errors and lowercase email search by @deleonio in https://github.com/deleonio/priority-pilot/pull/1299
 - feat(frontend): raise title limit to 65, cap description at 3000 chars by @deleonio in https://github.com/deleonio/priority-pilot/pull/1298
+- feat(frontend): unify series tab badges and restore list gap rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1297
 - feat(frontend): unify series tab badges and restore list gap rhythm by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1297
 - docs(arc42): sync architecture overview to code state (2026-09-08) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1296
 - feat(frontend): size heart segments by filled area, not width by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1305
