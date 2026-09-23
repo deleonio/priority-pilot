@@ -297,10 +297,12 @@
 	--pp-logo-size: var(--pp-toolbar-height);
 
 	/*
-	 * Innerer Block-Abstand der Leiste: mobil aus (die 375px-Zeile verträgt keine zusätzliche Höhe),
-	 * ab 48rem --pp-space-2 rundum um den dann höheren Avatar.
+	 * Innerer Block-Abstand der Leiste: mobil --pp-space-1 (4px) — reicht für die Fokus-Outline der
+	 * äußeren Buttons (#1622: outline-width + outline-offset lag ohne dieses Polster hinter der
+	 * Viewport-Kante), die 375px-Zeile hat dafür noch 11px Budget (61px < 64px Deckel), ab 48rem
+	 * --pp-space-2 rundum um den dann höheren Avatar.
 	 */
-	--pp-bar-pad-block: 0px;
+	--pp-bar-pad-block: var(--pp-space-1);
 
 	/*
 	 * Sichtbare Leistenhöhe OHNE Safe-Area: mobil bestimmt sie das höchste Zeilenelement (Logo und
