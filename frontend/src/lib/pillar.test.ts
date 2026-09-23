@@ -150,6 +150,18 @@ describe('suggestionsToContributions', () => {
 	const fivePillars = [1, 2, 3, 4, 5].map((id) => pillar(id, `S${id}`, 20));
 	const suggestion = (pillarId: number, confidence: number): PillarSuggestion => ({ pillarId, confidence });
 
+	/**
+	 * #1601 (AK7): Ist die Summe der Konfidenzen ≤ 100, bekommt die vorgeschlagene Säule ihre eigene
+	 * Konfidenz PLUS ihren Anteil am Rest (100 − Summe), gleichmäßig auf ALLE Säulen verteilt — nicht
+	 * mehr strukturell den Mindestanteil (docs/spec/issue-1601.md, Owner-Beispiel: 30 + 70/5 = 44,
+	 * 0 + 70/5 = 14 für jede andere).
+	 */
+	it('verteilt bei Summe ≤ 100 den Rest gleichmäßig auf alle Säulen (AK7)', () => {
+		const result = suggestionsToContributions([suggestion(5, 30)], fivePillars);
+		expect(result.map((entry) => entry.share)).toEqual([14, 14, 14, 14, 44]);
+		expect(result.reduce((acc, entry) => acc + entry.share, 0)).toBe(SHARE_TOTAL);
+	});
+
 	it('gibt der vorgeschlagenen Säule den Löwenanteil, die übrigen bleiben am Mindestanteil', () => {
 		expect(suggestionsToContributions([suggestion(2, 80)], fivePillars)).toEqual([
 			{ pillarId: 1, share: 5, confidence: 100 },
@@ -172,9 +184,11 @@ describe('suggestionsToContributions', () => {
 		expect(result.every((entry) => entry.share >= SHARE_MIN && Number.isInteger(entry.share))).toBe(true);
 	});
 
-	it('ignoriert unbekannte Säulen und solche mit Konfidenz 0', () => {
+	it('ignoriert unbekannte Säulen und solche mit Konfidenz 0 (AK7: Rest gleichmäßig statt Mindestanteil)', () => {
 		const result = suggestionsToContributions([suggestion(1, 60), suggestion(99, 90), suggestion(2, 0)], fivePillars);
-		expect(result.map((entry) => entry.share)).toEqual([80, 5, 5, 5, 5]);
+		// Summe der gültigen Konfidenzen ist 60 (≤ 100): Rest 40 verteilt sich zu je 8 auf alle fünf
+		// Säulen, Säule 1 bekommt zusätzlich ihre eigene Konfidenz 60 → 68 statt vormals 80.
+		expect(result.map((entry) => entry.share)).toEqual([68, 8, 8, 8, 8]);
 		expect(result[1].confidence).toBe(100);
 	});
 
