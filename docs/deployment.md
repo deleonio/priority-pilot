@@ -14,7 +14,10 @@ eigenen (dedizierten) Linux-Server. Es ist die operative Single Source of Truth 
 
 Priority Pilot ist eine **Full-Stack-App im pnpm-Monorepo** (siehe [README](../README.md)):
 
-- **Frontend** (`frontend/`): React 19 + KoliBri, gebaut mit Vite → statische SPA (PWA) in `frontend/dist`.
+- **Frontend** (`frontend/`): React 19 + KoliBri, gebaut mit Vite → statische SPA (PWA) in `frontend/dist`,
+  ausgeliefert unter `/app/`.
+- **Website** (`website/`): öffentliche, statisch vorgerenderte Landingpage (de an `/`, en unter `/en/`)
+  in `website/dist`, ausgeliefert an der Wurzel ([ADR 0015](adr/0015-oeffentliche-website-und-app-unter-app.md)).
 - **Backend** (`server/`): Node.js + Express 5 + Sequelize über **SQLite** → kompiliert nach `server/dist`,
   Entry-Point `server/dist/index.js` (ESM).
 - **Client** (`client/`): aus `openapi.yml` generierte API-Typen, nur Build-Zeit-Abhängigkeit des Frontends.
@@ -36,7 +39,8 @@ flowchart LR
         b2 --> b3["Server-Prod-node_modules<br/>inkl. native sqlite3"]
     end
 
-    gha -- "rsync frontend/dist → Web-Verzeichnis" --> host
+    gha -- "rsync website/dist → Web-Verzeichnis" --> host
+    gha -- "rsync frontend/dist → Web-Verzeichnis/app" --> host
     gha -- "rsync server/dist (+ pkg/node_modules) → App-Verzeichnis" --> host
     gha -- "ssh: pm2 reload priority-pilot" --> host
 
@@ -53,8 +57,8 @@ flowchart LR
 Statt eines versionierten Release-Baums mit Symlink-Switch gibt es nur noch **zwei feste
 Zielverzeichnisse**, in die `rsync` spiegelt:
 
-- **Web-Verzeichnis** (`vars.DEPLOY_WEB_DIR`): die statische SPA aus `frontend/dist`, von Caddy als
-  `file_server` ausgeliefert.
+- **Web-Verzeichnis** (`vars.DEPLOY_WEB_DIR`): die Website aus `website/dist` an der Wurzel und die
+  statische SPA aus `frontend/dist` im Unterverzeichnis `app/`, von Caddy als `file_server` ausgeliefert.
 - **App-Verzeichnis** (`vars.DEPLOY_APP_DIR`): `server/dist` + Prod-`package.json` +
   Prod-`node_modules` + `.env`, gestartet als `node dist/index.js` unter PM2.
 
@@ -127,7 +131,9 @@ FEEDBACK_GITHUB_TOKEN=
 
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
 legt die App beim ersten erfolgreichen Google-Login an. Neue Personen werden über die Env-Datei
-plus `pm2 reload priority-pilot --update-env` freigeschaltet, nicht in der App. Einrichtung des
+plus `pm2 reload priority-pilot --update-env` freigeschaltet, nicht in der App. Mit
+`OPEN_SIGNUP=true` ist die Registrierung offen: Dann darf sich jedes Google-Konto anmelden, die
+Allowlist ist nicht mehr nötig (Voraussetzung für die öffentliche Website). Einrichtung des
 OAuth-Clients, Login-Ablauf und Fehlerbilder: [docs/auth-setup.md](auth-setup.md).
 
 **Provider-Strategie:** Genau EIN effektiv aktiver Provider pro Instanz — explizit per Radio in
@@ -140,7 +146,7 @@ Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [d
 
 Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load),
 `server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`,
-`SESSION_SECRET`, `GOOGLE_*`), `server/src/logics/allowedEmails.ts` (`GOOGLE_ALLOWED_EMAILS`),
+`SESSION_SECRET`, `GOOGLE_*`), `server/src/logics/allowedEmails.ts` (`GOOGLE_ALLOWED_EMAILS`, `OPEN_SIGNUP`),
 `server/src/logics/adminEmails.ts` (`ADMIN_EMAILS`), `server/src/express/routes/feedback.ts` und
 `server/src/logics/obsidianFeedback.ts` (`FEEDBACK_GITHUB_*`).
 
@@ -159,7 +165,8 @@ Das Deployment läuft im Workflow **[`.github/workflows/deploy.yml`](../.github/
    Workspace-Dependencies zur Laufzeit (`client` ist nur Abhängigkeit des Frontends), daher ist das
    Bundle sauber.
 3. **SSH-Key bereitstellen:** `secrets.DEPLOY_SSH_KEY` (privater Deploy-Key des `gh-deploy`-Users).
-4. **rsync Frontend:** `frontend/dist/` → `vars.DEPLOY_WEB_DIR` (`--delete`).
+4. **rsync Website und Frontend:** `website/dist/` → `vars.DEPLOY_WEB_DIR` (`--delete`, `app/`
+   ausgenommen), danach `frontend/dist/` → `vars.DEPLOY_WEB_DIR/app/` (`--delete`).
 5. **rsync Backend:** `server/dist/` → `vars.DEPLOY_APP_DIR/dist/`; `package.json` +
    `node_modules/` aus dem Prod-Bundle; `data/`, `*.sqlite` und `.env` per `--exclude` geschützt.
 6. **PM2-Reload:** `pm2 reload priority-pilot --update-env || pm2 start <APP_DIR>/dist/index.js
@@ -169,7 +176,9 @@ v<version> [skip ci]`-Bump-Commit auf `main` (App-Token nötig, da `GITHUB_TOKEN
    Folge-Workflows auslöst; `[skip ci]` verhindert die Deploy-Endlosschleife).
 
 **Benötigte Repo-Konfiguration:** Secret `DEPLOY_SSH_KEY` sowie die Variablen `DEPLOY_HOST`,
-`DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
+`DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Optional `SITE_URL` (z. B.
+`https://priority-pilot.example.de`): Damit schreibt der Website-Build absolute canonical- und
+hreflang-Links und eine `sitemap.xml`. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
 beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup vor; Einrichtung des
 Hosts siehe [server-setup.md](server-setup.md).
 

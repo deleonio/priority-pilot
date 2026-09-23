@@ -149,6 +149,8 @@ jobs:
       # Coverage-Gate unten, sonst würde sie pro CI-Lauf doppelt ausgeführt (Review #115).
       - name: Test (frontend)
         run: pnpm --filter frontend test
+      - name: Test (website)
+        run: pnpm --filter website test
       # Coverage-Gate (gezielt, nicht repo-weit): node:test misst die Abdeckung der reinen
       # Logik-Schicht (server/src/logics) und bricht unter den Schwellen ab. Deckt zugleich die
       # komplette Server-Suite ab. Frontend-lib-Coverage ist vorbereitet (vitest.config.ts), aber
@@ -220,6 +222,10 @@ jobs:
       # sichert reproduzierbare Verteilung ueber Wiederholungslaeufe.
       - name: E2E (shard ${{ matrix.shard }}/8)
         run: pnpm --filter frontend exec playwright test --shard=${{ matrix.shard }}/8
+      # Website-E2E (statische Seiten, eigener Server auf Port 4180, Sekunden-Laufzeit) nur in Shard 1.
+      - name: E2E (website)
+        if: matrix.shard == 1
+        run: pnpm --filter website exec playwright test
       # Bei Fehlschlag den Playwright-Report als Artefakt sichern, damit Regressionen nachvollziehbar
       # bleiben. Name je Shard eindeutig — actions/upload-artifact@v4 bricht bei doppelten Namen ab.
       - name: Playwright-Report sichern
@@ -230,5 +236,6 @@ jobs:
           path: |
             frontend/playwright-report
             frontend/test-results
+            website/test-results
           retention-days: 7
           if-no-files-found: ignore

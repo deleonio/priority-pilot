@@ -180,9 +180,11 @@ dem ersten Deploy ausgeführt werden — es friert die Prozessliste für den Boo
 ## 7. Caddy-Block + DNS
 
 **DNS zuerst:** A-Record `priority-pilot.example.de` → Server-IP setzen (sonst scheitert die
-TLS-Ausstellung). Das Frontend wird als statischer Build von Caddy ausgeliefert; das Backend
-(Express, Port 3000) ist **nicht** direkt erreichbar — Caddy reicht `/api/v1/*` (API-Daten,
-Präfix-Strip) und `/auth/*` (OAuth-Login-Flow, ohne Strip) weiter. Einrichten:
+TLS-Ausstellung). Caddy liefert zwei statische Builds aus dem Web-Verzeichnis aus: die öffentliche
+Website (`website/dist`) an der Wurzel und die App (`frontend/dist`) unter `/app/`
+([ADR 0015](adr/0015-oeffentliche-website-und-app-unter-app.md)). Das Backend (Express, Port 3000)
+ist **nicht** direkt erreichbar — Caddy reicht `/api/v1/*` (API-Daten, Präfix-Strip) und `/auth/*`
+(OAuth-Login-Flow, ohne Strip) weiter. Einrichten:
 
 ```bash
 sudo tee -a /etc/caddy/Caddyfile >/dev/null <<'EOF'
@@ -196,7 +198,7 @@ priority-pilot.example.de {
     }
 
     # API: Präfix abstreifen und zum Express-Backend weiterleiten.
-    # MUSS vor dem SPA-Fallback stehen und in einem eigenen handle-Block:
+    # MUSS vor den Datei-Blöcken stehen und in einem eigenen handle-Block:
     # handle-Blöcke sind gegenseitig exklusiv (erster Treffer gewinnt).
     handle /api/v1/* {
         uri strip_prefix /api/v1
@@ -208,13 +210,35 @@ priority-pilot.example.de {
         reverse_proxy localhost:3000
     }
 
-    # SPA-Fallback: alle übrigen Pfade liefern statische Dateien bzw. index.html.
+    # App unter /app/: SPA-Fallback auf die index.html der App.
     # try_files MUSS in einem eigenen handle-Block stehen. Auf Top-Level würde
     # es sonst – wegen Caddys fester Direktiven-Reihenfolge (try_files vor handle/
     # reverse_proxy) – ZUERST laufen und /api/v1/* intern auf /index.html
     # umschreiben, bevor der API-Block greift. Der reverse_proxy feuert dann nie.
+    handle /app/* {
+        try_files {path} /app/index.html
+        file_server
+    }
+    handle /app {
+        redir /app/ 308
+    }
+
+    # Alte App-Pfade von vor dem Umzug nach /app/ (Lesezeichen, Einladungslinks,
+    # PAYPAL_RETURN_URL) dauerhaft auf die App umleiten.
+    @legacyApp path /settings /settings/* /aufgaben /serien /wald /hilfe /login /bahn /gruppen/* /tasks/*
+    handle @legacyApp {
+        redir /app{uri} 308
+    }
+
+    # Service-Worker-Kill-Switch der Website nie cachen, sonst bleibt der alte
+    # App-Service-Worker auf / länger aktiv.
+    handle /sw.js {
+        header Cache-Control "no-cache"
+        file_server
+    }
+
+    # Öffentliche Website: statische Seiten (/, /en/, /impressum/ …), kein SPA-Fallback.
     handle {
-        try_files {path} /index.html
         file_server
     }
 }
@@ -230,7 +254,7 @@ die API unter `/api/v1/*` auf; Caddy streift das Präfix ab und reicht z. B. `/a
 
 **Pfad-Tabelle:**
 
-| Eingehende URL                 | Backend-Pfad                                                         |
+| Eingehende URL                 | Ziel                                                                 |
 | ------------------------------ | -------------------------------------------------------------------- |
 | `GET :80/health`               | `GET localhost:3000/health` (Liveness-Check, JSON `{"status":"ok"}`) |
 | `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                           |
@@ -238,7 +262,14 @@ die API unter `/api/v1/*` auf; Caddy streift das Präfix ab und reicht z. B. `/a
 | `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                         |
 | `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)                       |
 | `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)           |
-| `GET :80/`                     | statische `index.html` aus dem Web-Verzeichnis (`root` oben)         |
+| `GET :80/app/…`                | App: Datei oder `app/index.html` (SPA-Fallback)                      |
+| `GET :80/settings/…` u. a.     | `308` auf `/app/settings/…` (alte App-Pfade)                         |
+| `GET :80/`, `/en/`             | Website: `index.html` des jeweiligen Verzeichnisses                  |
+
+**Umstellung einer bestehenden Installation:** Den alten Block durch den neuen ersetzen. In der
+`.env` `PAYPAL_RETURN_URL`/`PAYPAL_CANCEL_URL` auf `/app/settings…` ändern (die Weiterleitung fängt
+alte Werte zwar ab, spart aber einen Umweg). Für die Website die Repo-Variable `SITE_URL` setzen
+(siehe `docs/deployment.md`).
 
 **Abgleich mit dem Vite-Dev-Proxy:** Lokal übernimmt `vite.config.ts` denselben Rewrite
 (`/api/v1` → Präfix-Strip auf `localhost:3000`) — API-Verhalten in Entwicklung und Produktion ist
