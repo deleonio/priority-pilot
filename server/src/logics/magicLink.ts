@@ -19,6 +19,14 @@ const MAX_TOKENS_PER_WINDOW = 3;
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 /**
+ * Räumt abgelaufene Tokens beider Zwecke weg (kein eigener Aufräum-Job nötig). Nur nach Alter, nicht
+ * nach `usedAt`: sonst kann das Löschen einer fremden, gerade erst eingelösten Zeile dazwischenfunken
+ * (siehe consumeLoginToken), und verbrauchte Tokens würden nicht mehr gegen MAX_TOKENS_PER_WINDOW zählen.
+ */
+const purgeExpiredTokens = (now: Date): Promise<number> =>
+	LoginToken.destroy({ where: { expiresAt: { [Op.lt]: new Date(now.getTime() - TOKEN_TTL_MS) } } });
+
+/**
  * Öffentliche Basis-URL für den Link in der Mail. Bewusst eine eigene Umgebungsvariable statt des
  * `Host`-Headers: Ein gefälschter Host würde sonst Links mit echtem Token auf fremde Domains erzeugen.
  */
@@ -37,10 +45,7 @@ export const buildMagicLinkUrl = (token: string): string =>
  * und eingelöste Tokens werden dabei mit weggeräumt (kein eigener Aufräum-Job nötig).
  */
 export const createLoginToken = async (email: string, now: Date = new Date()): Promise<string | null> => {
-	// Nur nach Alter aufräumen (nicht nach `usedAt`): sonst kann das Löschen einer fremden,
-	// gerade erst eingelösten Zeile dazwischenfunken (siehe consumeLoginToken) und verbrauchte
-	// Tokens würden nicht mehr gegen MAX_TOKENS_PER_WINDOW zählen.
-	await LoginToken.destroy({ where: { expiresAt: { [Op.lt]: new Date(now.getTime() - TOKEN_TTL_MS) } } });
+	await purgeExpiredTokens(now);
 
 	const recent = await LoginToken.count({
 		where: { email, purpose: 'magic', createdAt: { [Op.gt]: new Date(now.getTime() - TOKEN_TTL_MS) } },
@@ -63,6 +68,7 @@ export const nativeLoginToken = (code: string, state: string): string => `${code
  * einlösen kann. Ohne Mengenlimit: Er entsteht nur nach einem erfolgreichen Google-Login.
  */
 export const createNativeLoginCode = async (email: string, state: string, now: Date = new Date()): Promise<string> => {
+	await purgeExpiredTokens(now);
 	const code = randomBytes(32).toString('base64url');
 	await LoginToken.create({
 		email,
