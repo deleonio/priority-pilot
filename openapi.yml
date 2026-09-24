@@ -2965,6 +2965,31 @@ paths:
                 $ref: '#/components/schemas/Error'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /auth/native/exchange:
+    post:
+      summary: Einmal-Code aus dem App-Login einlösen
+      description: >-
+        Löst den Einmal-Code ein, mit dem `/auth/google?client=app&state=…` nach dem
+        Google-Login auf den App Link `/app/auth/native?code=…` weiterleitet, und meldet
+        den WebView der nativen App an (ADR 0016, #1669). Ein Code gilt 60 Sekunden,
+        genau einmal und nur zusammen mit dem `state`, mit dem die App den Login gestartet hat.
+      operationId: exchangeNativeLoginCode
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NativeLoginExchangeRequest'
+      responses:
+        '204':
+          description: Angemeldet, Session-Cookie gesetzt
+        '400':
+          description: Code unbekannt, abgelaufen oder schon benutzt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -5544,6 +5569,18 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+    NativeLoginExchangeRequest:
+      type: object
+      required:
+        - code
+        - state
+      properties:
+        code:
+          type: string
+          description: Einmal-Code aus dem App Link (Parameter `code`).
+        state:
+          type: string
+          description: Zufallswert, mit dem die App `/auth/google?client=app&state=…` gestartet hat.
     TestMailResult:
       type: object
       required:
