@@ -213,6 +213,15 @@ importers:
 
   frontend:
     dependencies:
+      '@capacitor/app':
+        specifier: 8.1.1
+        version: 8.1.1(@capacitor/core@8.5.2)
+      '@capacitor/browser':
+        specifier: 8.0.4
+        version: 8.0.4(@capacitor/core@8.5.2)
+      '@capacitor/core':
+        specifier: 8.5.2
+        version: 8.5.2
       '@fontsource/archivo':
         specifier: 5.3.0
         version: 5.3.0

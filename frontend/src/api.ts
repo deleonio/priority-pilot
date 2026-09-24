@@ -247,6 +247,12 @@ export const api = {
 		return response.ok;
 	},
 
+	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678); danach steht die Session. */
+	async exchangeNativeLoginCode(code: string, state: string): Promise<boolean> {
+		const { response } = await client.POST('/auth/native/exchange', { body: { code, state } });
+		return response.ok;
+	},
+
 	/** Legt ein Abo an (AK1); die Antwort trägt die PayPal-Zustimmungs-URL zum Weiterleiten. */
 	async createBillingSubscription(
 		input: components['schemas']['BillingSubscriptionInput'],
