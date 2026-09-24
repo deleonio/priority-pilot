@@ -2,7 +2,10 @@ import { render, screen, cleanup, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { InstallPrompt } from './InstallPrompt';
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 // Mock für window.matchMedia
 const mockMatchMedia = (matches: boolean) => {
@@ -65,7 +68,6 @@ describe('InstallPrompt', () => {
 			window.dispatchEvent(event);
 		});
 		expect(screen.queryByText(/App installieren/i)).not.toBeInTheDocument();
-		vi.unstubAllGlobals();
 	});
 
 	it('should render install prompt when beforeinstallprompt event is triggered', () => {

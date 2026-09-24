@@ -63,7 +63,10 @@ vi.mock('@public-ui/react-v19', () => ({
 // Import NACH vi.mock, damit die Komponente den gemockten Hook erhält.
 import { UpdatePrompt } from './UpdatePrompt';
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 beforeEach(() => {
 	needRefreshValue = false;
@@ -79,7 +82,6 @@ describe('UpdatePrompt (#353)', () => {
 		vi.stubGlobal('__PP_CHANNEL__', 'play');
 		const { container } = render(<UpdatePrompt />);
 		expect(container).toBeEmptyDOMElement();
-		vi.unstubAllGlobals();
 	});
 
 	// AK3 — Reload löst Update aus.
