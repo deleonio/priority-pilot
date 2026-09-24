@@ -4,6 +4,7 @@
 	"capacitor": false,
 	// Native Plugins bindet `cap sync` in das Android-Projekt ein, nicht per Import.
 	"ignoreDependencies": [
+		"@capacitor-community/speech-recognition",
 		"@capacitor/android",
 		"@capacitor/app",
 		"@capacitor/browser",

@@ -23,7 +23,11 @@ export const startNativeGoogleLogin = async (): Promise<void> => {
 	const state = createState();
 	localStorage.setItem(STATE_KEY, state);
 	const { Browser } = await import('@capacitor/browser');
-	await Browser.open({ url: `${window.location.origin}/auth/google?client=app&state=${state}` });
+	try {
+		await Browser.open({ url: `${window.location.origin}/auth/google?client=app&state=${state}` });
+	} catch {
+		window.location.replace(`${import.meta.env.BASE_URL}login?error=native_login_failed`);
+	}
 };
 
 /**
