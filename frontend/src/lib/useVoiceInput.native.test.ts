@@ -62,6 +62,26 @@ describe('useVoiceInput in der Android-App (#1680)', () => {
 		expect(result.current.isRecording).toBe(false);
 	});
 
+	it('play: ein zweites Feld beendet die laufende Aufnahme, ihr spätes Ergebnis löst nichts aus (#264)', async () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		plugin.checkPermissions.mockResolvedValue({ speechRecognition: 'granted' });
+		let finishFirst: (value: { matches: string[] }) => void = () => undefined;
+		plugin.start.mockImplementationOnce(() => new Promise((resolve) => (finishFirst = resolve)));
+		const onTranscript = vi.fn();
+		const first = renderHook(() => useVoiceInput({ onTranscript }));
+		const second = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+		act(() => first.result.current.startRecording());
+		await waitFor(() => expect(plugin.start).toHaveBeenCalledTimes(1));
+		act(() => second.result.current.startRecording());
+
+		expect(first.result.current.isRecording).toBe(false);
+		await waitFor(() => expect(plugin.stop).toHaveBeenCalled());
+		await act(async () => finishFirst({ matches: ['Zu spät'] }));
+		expect(onTranscript).not.toHaveBeenCalled();
+		expect(first.result.current.voiceError).toBeNull();
+	});
+
 	it('web: nutzt weiter die Web Speech API, nicht das Plugin', () => {
 		const start = vi.fn();
 		vi.stubGlobal(
