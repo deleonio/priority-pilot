@@ -54,15 +54,19 @@ export const createLoginToken = async (email: string, now: Date = new Date()): P
 	return token;
 };
 
+/** Einlösbarer Token eines App-Logins: Code nur zusammen mit dem `state` der startenden App. */
+export const nativeLoginToken = (code: string, state: string): string => `${code}:${state}`;
+
 /**
  * Legt den Einmal-Code an, den die native App nach dem Google-Login über den App Link einlöst
- * (ADR 0016). Ohne Mengenlimit: Er entsteht nur nach einem erfolgreichen Google-Login.
+ * (ADR 0016). Gespeichert wird der Hash von Code und `state`, damit nur die startende App ihn
+ * einlösen kann. Ohne Mengenlimit: Er entsteht nur nach einem erfolgreichen Google-Login.
  */
-export const createNativeLoginCode = async (email: string, now: Date = new Date()): Promise<string> => {
+export const createNativeLoginCode = async (email: string, state: string, now: Date = new Date()): Promise<string> => {
 	const code = randomBytes(32).toString('base64url');
 	await LoginToken.create({
 		email,
-		tokenHash: hashToken(code),
+		tokenHash: hashToken(nativeLoginToken(code, state)),
 		purpose: 'native',
 		expiresAt: new Date(now.getTime() + NATIVE_CODE_TTL_MS),
 	});

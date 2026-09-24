@@ -19,8 +19,8 @@ declare module 'express-session' {
 		/** Issue #1231: interner Pfad aus dem stillen Einstieg (?returnTo=) — der Erfolgs-Callback
 		 *  leitet darauf zurück statt fix auf „/" (sanitisiert, siehe logics/silentReturnPath.ts). */
 		silentReturnTo?: string;
-		/** #1669: Google-Login aus der nativen App (`/auth/google?client=app`) — der Erfolgs-Callback
-		 *  leitet mit einem Einmal-Code auf den App Link statt auf die App-Wurzel (ADR 0016). */
-		nativeLogin?: boolean;
+		/** #1669: `state` eines Google-Logins aus der nativen App (`/auth/google?client=app&state=…`) —
+		 *  der Erfolgs-Callback leitet mit einem daran gebundenen Einmal-Code auf den App Link (ADR 0016). */
+		nativeState?: string;
 	}
 }

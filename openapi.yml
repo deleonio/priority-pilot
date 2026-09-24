@@ -2969,9 +2969,10 @@ paths:
     post:
       summary: Einmal-Code aus dem App-Login einlösen
       description: >-
-        Löst den Einmal-Code ein, mit dem `/auth/google?client=app` nach dem Google-Login
-        auf den App Link `/app/auth/native?code=…` weiterleitet, und meldet den WebView
-        der nativen App an (ADR 0016, #1669). Ein Code gilt 60 Sekunden und genau einmal.
+        Löst den Einmal-Code ein, mit dem `/auth/google?client=app&state=…` nach dem
+        Google-Login auf den App Link `/app/auth/native?code=…` weiterleitet, und meldet
+        den WebView der nativen App an (ADR 0016, #1669). Ein Code gilt 60 Sekunden,
+        genau einmal und nur zusammen mit dem `state`, mit dem die App den Login gestartet hat.
       operationId: exchangeNativeLoginCode
       tags: [auth]
       requestBody:
@@ -5572,10 +5573,14 @@ components:
       type: object
       required:
         - code
+        - state
       properties:
         code:
           type: string
           description: Einmal-Code aus dem App Link (Parameter `code`).
+        state:
+          type: string
+          description: Zufallswert, mit dem die App `/auth/google?client=app&state=…` gestartet hat.
     TestMailResult:
       type: object
       required:

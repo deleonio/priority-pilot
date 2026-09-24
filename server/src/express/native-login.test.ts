@@ -5,18 +5,20 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
 import { createNativeLoginCode } from '../logics/magicLink.js';
 
 /**
- * Login der nativen App (#1669, ADR 0016): `/auth/google?client=app` endet mit einem Einmal-Code
- * auf dem App Link, `POST /auth/native/exchange` löst ihn im WebView gegen die Session ein.
+ * Login der nativen App (#1669, ADR 0016): `/auth/google?client=app&state=…` endet mit einem an
+ * `state` gebundenen Einmal-Code auf dem App Link, `POST /auth/native/exchange` löst ihn im WebView
+ * gegen die Session ein.
  */
 process.env.GOOGLE_ALLOWED_EMAILS = 'app@example.com';
 applyTestAuthEnv('native-login');
 
 const EMAIL = 'app@example.com';
+const STATE = 'app-state-0123456789';
 
 let server: TestServer;
 
-const exchange = (code: unknown) =>
-	server.json('/auth/native/exchange', { method: 'POST', body: JSON.stringify({ code }) });
+const exchange = (code: unknown, state: unknown = STATE) =>
+	server.json('/auth/native/exchange', { method: 'POST', body: JSON.stringify({ code, state }) });
 
 const cookieOf = (res: Response): string => {
 	const setCookie = res.headers.get('set-cookie');
@@ -32,6 +34,24 @@ class StubGoogleStrategy implements passport.Strategy {
 	}
 }
 
+/** Callback mit Stub-Strategie im Kontext der Session `cookie`; liefert das Redirect-Ziel. */
+const callbackLocation = async (cookie?: string): Promise<string | null> => {
+	const original = (passport as unknown as { _strategy(name: string): passport.Strategy })._strategy('google');
+	passport.use(new StubGoogleStrategy());
+	try {
+		const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, {
+			redirect: 'manual',
+			headers: cookie ? { Cookie: cookie } : {},
+		});
+		assert.equal(res.status, 302);
+		return res.headers.get('location');
+	} finally {
+		passport.use(original);
+	}
+};
+
+const start = (path: string) => fetch(`${server.baseUrl}${path}`, { redirect: 'manual' });
+
 describe('Login der nativen App mit Einmal-Code (#1669)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -44,39 +64,40 @@ describe('Login der nativen App mit Einmal-Code (#1669)', () => {
 		await closeDb();
 	});
 
-	it('Google-Login mit client=app leitet mit Einmal-Code auf den App Link, ohne client=app wie bisher', async () => {
-		const start = await fetch(`${server.baseUrl}/auth/google?client=app`, { redirect: 'manual' });
-		const cookie = cookieOf(start);
-		const original = (passport as unknown as { _strategy(name: string): passport.Strategy })._strategy('google');
-		passport.use(new StubGoogleStrategy());
-		try {
-			const app = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, {
-				redirect: 'manual',
-				headers: { Cookie: cookie },
-			});
-			assert.equal(app.status, 302);
-			assert.match(app.headers.get('location') ?? '', /^\/app\/auth\/native\?code=[\w-]+$/);
-
-			const web = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
-			assert.equal(web.headers.get('location'), '/app/');
-		} finally {
-			passport.use(original);
-		}
+	it('client=app leitet mit Einmal-Code auf den App Link, ohne client=app wie bisher auf /app/', async () => {
+		const cookie = cookieOf(await start(`/auth/google?client=app&state=${STATE}`));
+		assert.match((await callbackLocation(cookie)) ?? '', /^\/app\/auth\/native\?code=[\w-]+$/);
+		assert.equal(await callbackLocation(), '/app/');
 	});
 
-	it('ein gültiger Code setzt die Session, danach liefert /auth/me den Nutzer', async () => {
-		const res = await exchange(await createNativeLoginCode(EMAIL));
+	it('client=app ohne gültigen state wird abgelehnt', async () => {
+		assert.equal((await start('/auth/google?client=app')).status, 400);
+		assert.equal((await start('/auth/google?client=app&state=kurz')).status, 400);
+	});
+
+	it('ein abgebrochener App-Login lenkt einen späteren stillen Web-Login nicht auf den App Link um', async () => {
+		const cookie = cookieOf(await start(`/auth/google?client=app&state=${STATE}`));
+		await fetch(`${server.baseUrl}/auth/google/silent`, { redirect: 'manual', headers: { Cookie: cookie } });
+		assert.equal(await callbackLocation(cookie), '/app/');
+	});
+
+	it('der Code aus dem Callback lässt sich mit dem state einlösen, danach liefert /auth/me den Nutzer', async () => {
+		const cookie = cookieOf(await start(`/auth/google?client=app&state=${STATE}`));
+		const code = new URL((await callbackLocation(cookie)) ?? '', server.baseUrl).searchParams.get('code');
+		const res = await exchange(code);
 		assert.equal(res.status, 204);
 		const me = await server.json('/auth/me', { headers: { cookie: cookieOf(res) } });
 		assert.equal(me.status, 200);
 		assert.equal(((await me.json()) as { email: string }).email, EMAIL);
 	});
 
-	it('lehnt abgelaufene, doppelt eingelöste und unbekannte Codes ab', async () => {
-		const expired = await createNativeLoginCode(EMAIL, new Date(Date.now() - 61_000));
+	it('lehnt abgelaufene, doppelt eingelöste, unbekannte und fremd gebundene Codes ab', async () => {
+		const expired = await createNativeLoginCode(EMAIL, STATE, new Date(Date.now() - 61_000));
 		assert.equal((await exchange(expired)).status, 400);
 
-		const code = await createNativeLoginCode(EMAIL);
+		const code = await createNativeLoginCode(EMAIL, STATE);
+		assert.equal((await exchange(code, 'anderer-state-0123456789')).status, 400, 'Code aus fremdem Login');
+		assert.equal((await exchange(code, null)).status, 400, 'ohne state');
 		assert.equal((await exchange(code)).status, 204);
 		assert.equal((await exchange(code)).status, 400);
 
