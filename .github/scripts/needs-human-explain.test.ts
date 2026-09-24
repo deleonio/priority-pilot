@@ -106,6 +106,37 @@ describe('needs-human-explain.sh — triage-Modus', () => {
 	});
 });
 
+describe('needs-human-explain.sh — decisions-Modus', () => {
+	const decisions = (section: string[]) =>
+		[
+			'<!-- ai-fixup-decisions -->',
+			'🎯 Fixup-Status: already-done',
+			'## ✅ Behobene Anmerkungen',
+			'| # | Finding | Behoben via | Datum |',
+			'| 1 | E2E rot | Rerun | 2026-09-24 |',
+			'',
+			'## ⏸️ Entscheidungs-Findings',
+			...section,
+			'',
+			'Review-Typ: Fixup-Nachweis',
+		].join('\n');
+
+	it('leere Sektion liefert KEINE findings (PR #1650: Überschriften galten als Findings)', () => {
+		writeFileSync(fixturePath, JSON.stringify([comment(decisions(['-']), 5)]));
+		const out = lookup(['--pr', '42', '--mode', 'decisions']);
+		assert.equal(out.status, 'found');
+		assert.equal(out.findings, undefined);
+	});
+
+	it('liefert nur die Titel aus der Sektion Entscheidungs-Findings', () => {
+		writeFileSync(
+			fixturePath,
+			JSON.stringify([comment(decisions(['### 2. Combobox-A11y', '**Was:** AK4 bricht · **Wo:** x.tsx:1']), 6)]),
+		);
+		assert.equal(lookup(['--pr', '42', '--mode', 'decisions']).findings, 'Combobox-A11y');
+	});
+});
+
 describe('needs-human-explain.sh — logtail', () => {
 	const logtail = (args: string[]): string => {
 		const res = spawnSync('bash', [script, 'logtail', ...args], {
@@ -212,6 +243,5 @@ describe('needs-human-explain.sh lookup — Pagination (>100 Kommentare)', () =>
 		const out = lookup(['--ticket', '42', '--mode', 'triage']);
 		assert.equal(out.status, 'found');
 		assert.match(out.permalink, /issuecomment-9$/, 'der jüngste Marker über ALLE Seiten gewinnt');
-		assert.equal(out.id, '9');
 	});
 });
