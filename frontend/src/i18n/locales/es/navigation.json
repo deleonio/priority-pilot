@@ -3,7 +3,7 @@
 		"dashboard": "Panel",
 		"tasks": "Tareas",
 		"series": "Series",
-		"forest": "Bosque",
+		"forest": "Grafo",
 		"ariaLabel": "Vistas"
 	},
 	"menu": {

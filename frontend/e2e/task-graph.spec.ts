@@ -59,7 +59,7 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 	});
 
 	const openGraphTab = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Wald', exact: true }).click();
+		await page.getByRole('tab', { name: 'Graph', exact: true }).click();
 		await waitForStableView(page);
 	};
 

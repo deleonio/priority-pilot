@@ -30,7 +30,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	for (const [route, tabName] of [
 		['/aufgaben', 'Aufgaben'],
 		['/serien', 'Serien'],
-		['/wald', 'Wald'],
+		['/graph', 'Graph'],
 	] as const) {
 		test(`AK1: Deep-Link ${route} öffnet die Ansicht „${tabName}“`, async ({ page }) => {
 			await page.goto(`/app${route}`);
@@ -38,7 +38,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 
 			await expect(mainTab(page, tabName)).toHaveAttribute('aria-selected', 'true');
 			// Die anderen Haupt-Tabs sind nicht aktiv (kein stiller Fallback auf das Dashboard).
-			for (const other of ['Dashboard', 'Aufgaben', 'Serien', 'Wald'].filter((n) => n !== tabName)) {
+			for (const other of ['Dashboard', 'Aufgaben', 'Serien', 'Graph'].filter((n) => n !== tabName)) {
 				await expect(mainTab(page, other)).toHaveAttribute('aria-selected', 'false');
 			}
 		});
@@ -75,11 +75,24 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	});
 
 	/**
+	 * #1618 AK3 — Tab-Wechsel auf „Graph" setzt die URL auf `/graph` (Vertrag:
+	 * `docs/spec/issue-1618.md`).
+	 */
+	test('#1618 AK3: Tab-Klick auf „Graph" setzt die URL auf /graph', async ({ page }) => {
+		await page.goto('/app/');
+		await waitForStableView(page);
+
+		await mainTab(page, 'Graph').click();
+		await expect(page).toHaveURL(/\/graph$/);
+		await expect(mainTab(page, 'Graph')).toHaveAttribute('aria-selected', 'true');
+	});
+
+	/**
 	 * AK4 — Der aktive Tab ist reine Funktion der URL: bei Load (AK1) und bei URL-Wechsel
 	 * (AK2) darf kein divergierender `activeTab`-State übrig bleiben.
 	 */
 	test('AK4: URL-Wechsel ohne Klick leitet den aktiven Tab ab (kein divergierender State)', async ({ page }) => {
-		await page.goto('/app/wald');
+		await page.goto('/app/graph');
 		await waitForStableView(page);
 
 		// SPA-seitige Navigation (History-API, wie React Router sie macht) — kein Reload.
@@ -87,7 +100,19 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 		await page.evaluate(() => window.dispatchEvent(new PopStateEvent('popstate')));
 
 		await expect(mainTab(page, 'Aufgaben')).toHaveAttribute('aria-selected', 'true');
-		await expect(mainTab(page, 'Wald')).toHaveAttribute('aria-selected', 'false');
+		await expect(mainTab(page, 'Graph')).toHaveAttribute('aria-selected', 'false');
+	});
+
+	/**
+	 * #1618 AK4 — `/wald` wird nicht mehr als Tab-Route erkannt: Verhalten wie jede unbekannte
+	 * Route (Fallback auf den ersten Tab, kein Graph-Tab aktiv; Vertrag: `docs/spec/issue-1618.md`).
+	 */
+	test('#1618 AK4: /wald wird nicht mehr als Tab-Route erkannt', async ({ page }) => {
+		await page.goto('/app/wald');
+		await waitForStableView(page);
+
+		await expect(mainTab(page, 'Dashboard')).toHaveAttribute('aria-selected', 'true');
+		await expect(mainTab(page, 'Graph')).toHaveAttribute('aria-selected', 'false');
 	});
 
 	/**
@@ -169,7 +194,7 @@ test.describe('#1105 App-Routes für alle Menüs', () => {
 	test('AK8: Haupt-Routen ohne horizontalen Overflow bei 375px', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 
-		for (const route of ['/', '/aufgaben', '/serien', '/wald']) {
+		for (const route of ['/', '/aufgaben', '/serien', '/graph']) {
 			await page.goto(`/app${route}`);
 			await waitForStableView(page);
 
