@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-24
 
-_Enthält v0.5.0 – v0.5.8._
+_Enthält v0.5.0 – v0.5.9._
 
 ### Other Changes
 
@@ -14,6 +14,7 @@ _Enthält v0.5.0 – v0.5.8._
 - fix(ci): hand already-done back to review once per HEAD by @deleonio in https://github.com/deleonio/priority-pilot/pull/1661
 - fix(deps): update dependency react-i18next to v17.0.15 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1627
 - chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
+- feat(skills): add ticket-tree skill for solution plans and issue trees by @deleonio in https://github.com/deleonio/priority-pilot/pull/1698
 
 ## v0.4 - 2026-09-24
 
@@ -144,6 +145,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): add archivo as primary font by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1516
 - fix(frontend): enforce archivo font on all kolibri host elements by @deleonio in https://github.com/deleonio/priority-pilot/pull/1517
 - feat(server): add pillar create/update/delete/weights MCP tools by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1515
+- refactor(frontend): drop type assertion in address autocomplete keydown by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1519
 - refactor(frontend): drop type assertion in address autocomplete keydown by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1519
 - feat(server): add balance history endpoint and MCP tool by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1520
 - feat(server): collapse series instances across lists and pushes by @deleonio in https://github.com/deleonio/priority-pilot/pull/1522
@@ -908,7 +910,6 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(ci): review waits for all checks, e2e in 8 shards with path filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1364
 - fix(mcp): restore connection for read-only api tokens by @deleonio in https://github.com/deleonio/priority-pilot/pull/1369
 - feat(frontend): show streak of consecutive done-days on dashboard by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1365
-- feat(frontend): merge quick capture and pillar advisor into one dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1366
 - feat(frontend): merge quick capture and pillar advisor into one dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1366
 - feat(frontend): add home icon to logo button for dashboard switch by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1371
 - feat(frontend): add location favorites to address field and settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1367
