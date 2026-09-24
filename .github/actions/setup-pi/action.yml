@@ -23,7 +23,7 @@ inputs:
     required: false
     default: 'false'
   tools-tier:
-    description: 'Permission-Tier des Aufrufers (restricted | review | full). ACHTUNG: pi hat kein Permission-System — s. Kommentar am Invoke-Step. Wird validiert und protokolliert, kann aber restricted/review nicht wie Claude Code durchsetzen.'
+    description: 'Permission-Tier des Aufrufers (restricted | review | full). ACHTUNG: pi hat kein Permission-System — s. Kommentar am Invoke-Step. restricted wird über eigene Tools ohne bash durchgesetzt (#1193), review nur validiert und protokolliert.'
     required: false
     default: 'full'
   model:
@@ -379,6 +379,9 @@ runs:
     # Runner und dem Scope des App-Tokens, nicht aus der Laufzeit. Deshalb wird der
     # Unterschied hier als ::warning protokolliert, statt eine Gleichwertigkeit zu
     # behaupten, die nicht existiert.
+    # Ausnahme restricted (#1193): kein bash, stattdessen die engen Custom-Tools gh und
+    # memory_write aus .pi/extensions/restricted-tools.ts — strenger als das Claude-Tier.
+    # review bleibt bei der ::warning (Folge-Ticket).
     #
     # BEWUSST KEINE ALLOWLIST DER ERWEITERUNGS-TOOLS: Die Tool-Namen von pi-lsp sind
     # konfigurierbar, die Direkt-Tools des MCP-Adapters werden serverabhängig präfixiert.
@@ -419,8 +422,15 @@ runs:
           esac
         fi
 
+        # restricted: kein bash. Die Extension .pi/extensions/restricted-tools.ts liefert
+        # gh (Kommando-Allowlist) und memory_write (nur .ai-memory/), #1193.
+        TOOLS_FLAG=""
         case "${TOOLS_TIER:-full}" in
-          restricted|review)
+          restricted)
+            TOOLS_FLAG="--no-builtin-tools --tools read,grep,find,ls,gh,memory_write"
+            echo "::notice::tools-tier=restricted — ohne bash, nur read/grep/find/ls + gh (Allowlist) + memory_write (.ai-memory/)."
+            ;;
+          review)
             echo "::warning title=⚠️ Tool-Tier unter pi nicht durchsetzbar::tools-tier='${TOOLS_TIER}' — pi kennt kein Permission-System (keine Entsprechung zu Bash(gh *) / Edit(.ai-memory/*)). Der Lauf hat Schreib- und Shell-Zugriff wie im full-Tier; die Eingrenzung kommt aus dem ephemeren Runner und dem App-Token-Scope."
             ;;
           full)
@@ -450,4 +460,4 @@ runs:
         # gibt im -p-Modus nichts aus (nachgemessen mit pi 0.84.4 — die Ausgabe blieb leer).
         # Der Nachweis, dass die Pakete geladen sind, ist deshalb der `pi list`-Block des
         # Installations-Steps oben, nicht ein Flag, das hier nur so aussähe, als täte es etwas.
-        echo "invoke-args=--session-dir $SESSION_DIR $MODEL_FLAG $THINKING_FLAG $EXCLUDE_FLAG --approve" >> "$GITHUB_OUTPUT"
+        echo "invoke-args=--session-dir $SESSION_DIR $MODEL_FLAG $THINKING_FLAG $TOOLS_FLAG $EXCLUDE_FLAG --approve" >> "$GITHUB_OUTPUT"

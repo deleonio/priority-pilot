@@ -154,19 +154,29 @@ eingebaut, und eine handgeschriebene z.ai-Zeile würde das eingebaute 1M-Kontext
 
 pi hat **kein Permission-System** (steht so in seiner README). `--tools` ist eine Allowlist von
 Tool-**Namen**; ein Gegenstück zu Claudes `Bash(gh *)` oder `Edit(.ai-memory/*)` existiert nicht.
-Damit lässt sich das `restricted`-Tier der Triage unter pi **nicht nachbauen**: Wer `bash`
-bekommt — und ohne `bash` kein `gh`, also keine Triage —, kann faktisch auch schreiben.
+Wer `bash` bekommt, kann faktisch auch schreiben.
 
-Die Eingrenzung eines pi-Laufs kommt daher aus dem ephemeren Runner und dem Scope des
-App-Tokens, nicht aus der Laufzeit. `setup-pi` protokolliert das bei `restricted`/`review` als
-`::warning`, statt eine Gleichwertigkeit zu behaupten.
+**`restricted` ist durchgesetzt** ([#1193](https://github.com/deleonio/priority-pilot/issues/1193)):
+`setup-pi` startet das Tier mit `--no-builtin-tools --tools read,grep,find,ls,gh,memory_write` —
+ohne `bash`, also strenger als das Claude-Tier. Die Extension
+[`.pi/extensions/restricted-tools.ts`](../.pi/extensions/restricted-tools.ts) liefert zwei enge
+Werkzeuge, deren Grenzen im Code stehen:
 
-**Der Weg raus** steht in [#1193](https://github.com/deleonio/priority-pilot/issues/1193): eine
-pi-Extension mit zwei engen Custom-Tools (`gh` mit Kommando-Allowlist, `memory_write` mit
-Pfad-Zwang) und Invoke mit `--no-builtin-tools` — dann gibt es im restricted-Tier gar kein `bash`,
-was strenger ist als das Claude-Tier. Fällig **vor** dem Rollout auf 02–06: Dort wiegt die Lücke
-schwerer als im Triage-Pilot, weil Review (05) untrusted Diffs liest und heute bewusst
-schreibgeschützt läuft. Verlässlich abschaltbar sind nur die
+- `gh` ruft die CLI ohne Shell auf und prüft das Argument-Array gegen
+  [`pi-gh-allowlist.ts`](../.github/scripts/pi-gh-allowlist.ts): `issue view|list|comment`,
+  `issue edit` nur mit Titel-/Label-Flags, `api graphql` nur mit reiner Query oder den Mutationen
+  `updateIssueComment`, `addSubIssue`, `addBlockedBy`. REST über `gh api` ist gesperrt.
+- `memory_write` schreibt über [`pi-memory-write.ts`](../.github/scripts/pi-memory-write.ts) nur
+  unter `.ai-memory/`; `..`, Fremdpfade und Symlinks nach außen werden abgelehnt.
+
+Eine Ablehnung kommt als Tool-Fehler im Lauf an und steht im Log. Die Tests beider Module laufen
+in `pnpm test` (`test:scripts`).
+
+**`review` ist offen** (Folge-Ticket): Review, Documenter und Audit brauchen mehr als `gh`
+(mindestens lesendes `git`). Bis dahin läuft das Tier wie `full`; die Eingrenzung kommt aus dem
+ephemeren Runner und dem Scope des App-Tokens, `setup-pi` protokolliert das als `::warning`. Das
+wiegt vor dem Rollout auf 02–06 schwerer als im Triage-Pilot, weil Review (05) untrusted Diffs liest.
+Verlässlich abschaltbar sind nur die
 Proxy-Tools des MCP-Adapters (`mcp`, `mcpScript`) — genau das tut `needs-mcp: false` per
 `--exclude-tools`. Eine Allowlist mit geratenen Tool-Namen (pi-lsp ist konfigurierbar, die
 Direkt-Tools des Adapters werden serverabhängig präfixiert) würde Erweiterungen **still**
