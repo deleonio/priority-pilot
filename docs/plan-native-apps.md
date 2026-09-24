@@ -166,18 +166,9 @@ Dazu kommt Zeit, die nicht in die Entwicklung fällt:
   - Monotone `versionCode` trotz täglichem Minor-Bump.
   - Das erste AAB muss manuell hochgeladen werden.
 
-## Schnitt in Tickets (Vorschlag)
+## Issue-Baum
 
-1. ADR 0016, Grundgerüst `native/` mit `versionCode` und Offline-Seite
-2. Asset Links (Website-Build, Caddy-Doku, Deploy-Vars)
-3. `platform.ts`, Kanal-Regeln im Frontend, Header `X-Client-Channel`
-4. Nativer Login mit Einmal-Code (Server und App)
-5. FCM-Push (Server-Sender, Client-Zweig)
-6. Sprach-Plugin und Permissions
-7. `android.yml` (Build, Signatur, Upload) und `docs/native-apps.md`
-8. ADR 0017, gegebenenfalls Refactoring zur `BillingProvider`-Schnittstelle
-9. Play Billing Server (Purchase-Route, RTDN, Lifecycle, Kanal-Sperre)
-10. Play Billing Frontend (`billingChannel.ts`, Kauf, Wiederherstellen)
+Umgesetzt wird über das Epic [#1664](https://github.com/deleonio/priority-pilot/issues/1664): 33 Issues mit höchstens mittlerer Komplexität, verknüpft über Blocked-by-Relationen, Reihenfolge in Wellen. Gegenüber dem ersten Schnitt kamen zwei Play-Pflichten hinzu: Konto löschen (in der App und als Webseite) und eine Datenschutzerklärung.
 
 ## Verifikation
 
