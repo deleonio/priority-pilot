@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 
 /**
@@ -39,6 +39,8 @@ export const urlBase64ToUint8Array = (base64String: string): Uint8Array<ArrayBuf
 const hasOtherServerKey = (subscription: PushSubscription, key: Uint8Array): boolean => {
 	const current = subscription.options?.applicationServerKey;
 	if (!current) {
+		// Konservativ „gleicher Schlüssel": manche Browser exponieren den Key nicht — dann keinen
+		// Resubscribe-Churn riskieren, die bestehende Subscription bleibt unverändert in Gebrauch.
 		return false;
 	}
 	const bytes = new Uint8Array(current);
@@ -58,9 +60,10 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
 /**
  * Fragt die Berechtigung an, erstellt eine Subscription (mit dem VAPID-Public-Key vom Server) und
  * meldet sie am Backend an. Gibt `true` bei Erfolg zurück; `false`, wenn Web-Push nicht unterstützt
- * wird oder der Nutzer die Berechtigung nicht erteilt.
+ * wird, der Nutzer die Berechtigung nicht erteilt oder `shouldAbort` zwischendurch `true` liefert
+ * (Race-Schutz des Mount-Resyncs gegen `toggle(false)`).
  */
-export const enablePush = async (): Promise<boolean> => {
+export const enablePush = async (options?: { shouldAbort?: () => boolean }): Promise<boolean> => {
 	if (!isPushSupported()) {
 		return false;
 	}
@@ -79,8 +82,16 @@ export const enablePush = async (): Promise<boolean> => {
 		await subscription.unsubscribe();
 		subscription = null;
 	}
+	// Race-Schutz (#1704): Abbruch zwischen den awaits prüfen — ein Mount-Resync, der vom
+	// Nutzer-`toggle(false)` überholt wurde, darf keine neue Subscription mehr erstellen.
+	if (options?.shouldAbort?.()) {
+		return false;
+	}
 	subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
 
+	if (options?.shouldAbort?.()) {
+		return false;
+	}
 	const json = subscription.toJSON();
 	const keys = json.keys ?? {};
 	await api.subscribePush({
@@ -158,11 +169,15 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 	const [enabled, setEnabled] = useState<boolean>(readPushPreference);
 	const [pending, setPending] = useState(false);
 	const [failed, setFailed] = useState(false);
+	// Race-Schutz (#1704): `toggle(false)` setzt das Flag, bevor `disablePush` läuft — ein noch
+	// laufender Mount-Resync bricht damit vor subscribe/subscribePush ab, statt Push „wieder anzustellen".
+	const resyncAborted = useRef(false);
 
 	useEffect(() => {
 		if (!supported) {
 			return;
 		}
+		resyncAborted.current = false;
 		let active = true;
 		void hasActiveSubscription().then((has) => {
 			if (!active) {
@@ -173,7 +188,7 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 			// Server-Stand nachziehen (idempotent): kennt der Server die Subscription nicht (mehr),
 			// meldet der Test-Push „gesendet", erreicht aber kein Gerät.
 			if (has && Notification.permission === 'granted') {
-				void enablePush().catch(() => undefined);
+				void enablePush({ shouldAbort: () => resyncAborted.current }).catch(() => undefined);
 			}
 		});
 		return () => {
@@ -195,6 +210,7 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 					storePushPreference(ok);
 					setFailed(!ok);
 				} else {
+					resyncAborted.current = true;
 					await disablePush();
 					setEnabled(false);
 					storePushPreference(false);
