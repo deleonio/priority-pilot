@@ -1,20 +1,16 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
-import { KolAlert, KolButton, KolSpin, KolTableStateful } from '@public-ui/react-v19';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { KolAlert, KolSpin, KolTableStateful } from '@public-ui/react-v19';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
-import { toApiError } from '../lib/apiError';
 import { formatEuro } from '../lib/format';
-import { featureOffer, planLabel, type Plan } from '../lib/planOffers';
+import { featureOffer, PERIOD_LABELS, PERIODS, planLabel, type Period, type Plan } from '../lib/planOffers';
+import { getChannel } from '../lib/platform';
 import { renderIntoCell } from '../lib/reactCellRoot';
-import { useBillingReturnPoll, usePlan } from '../lib/usePlan';
-import { Modal } from './Modal';
+import { usePlan } from '../lib/usePlan';
+import { purchaseHookFor } from './billingChannel';
 
 type PlansCatalog = components['schemas']['PlansCatalog'];
-
-const PERIODS = ['monthly', 'quarterly', 'yearly'] as const;
-type Period = (typeof PERIODS)[number];
-const PERIOD_LABELS: Record<Period, string> = { monthly: 'monatlich', quarterly: 'quartalsweise', yearly: 'jährlich' };
 
 /** Spaltenschlüssel der Zeilenbezeichnung („Funktion") — erste, beim Scrollen stehende Spalte. */
 const LABEL_KEY = 'label';
@@ -39,101 +35,16 @@ interface PlanRow extends KoliBriTableDataType {
 }
 
 /**
- * Wartezustand nach Rückkehr aus einem Buchungs-/Wechselvorgang ohne `approvalUrl` (#1496 AK4) —
- * eigene Komponente, damit `useBillingReturnPoll` nur gemountet läuft, solange eine Wartezeit
- * aktiv ist (kein Poll-Overhead im Normalfall).
- */
-const BillingReturnWait = ({
-	refresh,
-	expectedPlan,
-	currentPlan,
-}: {
-	refresh: () => Promise<void>;
-	expectedPlan: Plan;
-	currentPlan: Plan | null;
-}) => {
-	const { status } = useBillingReturnPoll(refresh, expectedPlan, currentPlan);
-	if (status === 'confirmed') {
-		return null;
-	}
-	if (status === 'timeout') {
-		return (
-			<KolAlert _type="warning" _alert _label="Zahlung wird bestätigt">
-				Die Bestätigung dauert länger als erwartet. Bitte die Einstellungen in Kürze erneut öffnen.
-			</KolAlert>
-		);
-	}
-	return (
-		<KolAlert _type="info" _alert _label="Zahlung wird bestätigt">
-			Zahlung wird bestätigt …
-		</KolAlert>
-	);
-};
-
-interface ChangeDialogProps {
-	targetPlan: Exclude<Plan, 'free'>;
-	targetPeriod: Period;
-	onClose: () => void;
-	onChanged: (approvalUrl: string | undefined) => void;
-}
-
-/** Bestätigungsdialog vor einem Paketwechsel (#1496 AK3) — nennt die Restbetrag-Anrechnung. */
-const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: ChangeDialogProps) => {
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const cancelRef = useRef<HTMLKolButtonElement>(null);
-
-	const confirm = async (): Promise<void> => {
-		setError(null);
-		setBusy(true);
-		try {
-			const { approvalUrl } = await api.changeBillingSubscription({ plan: targetPlan, period: targetPeriod });
-			onChanged(approvalUrl);
-		} catch (reason) {
-			setError((await toApiError(reason)).message);
-			setBusy(false);
-		}
-	};
-
-	return (
-		<Modal title="Paket wechseln" onClose={onClose} initialFocusRef={cancelRef as RefObject<HTMLElement | null>}>
-			{error !== null && (
-				<KolAlert _type="error" _label="Wechsel fehlgeschlagen">
-					{error}
-				</KolAlert>
-			)}
-			<p>
-				Wechsel zu <strong>{planLabel(targetPlan)}</strong> ({PERIOD_LABELS[targetPeriod]}). Der Restbetrag des
-				laufenden Abos wird als Rabatt angerechnet — gegen das Zahlungssystem läuft nur die Differenz.
-			</p>
-			<div className="modal-actions">
-				<KolButton
-					ref={cancelRef}
-					_label="Abbrechen"
-					_variant="secondary"
-					_disabled={busy}
-					_on={{ onClick: () => onClose() }}
-				/>
-				<KolButton
-					_label={busy ? 'Wird gewechselt…' : 'Wechseln bestätigen'}
-					_variant="primary"
-					_disabled={busy}
-					_on={{ onClick: () => void confirm() }}
-				/>
-			</div>
-		</Modal>
-	);
-};
-
-/**
  * Reiter „Pakete" in den Einstellungen (#1458 AK11, erweitert um #1496 T6c; eigener Reiter seit
- * #1529 AK1). Feature-Matrix und Preise kommen vollständig aus `GET /plans`; Buchen/Wechseln laufen
- * über die Abo-Routen (#1505/#1506) — der angezeigte Plan ändert sich erst, wenn `/auth/me` ihn
- * liefert (AK3/AK4). Abo-Status, Kündigung und Rechnungen liegen im Reiter „Abo"
- * (`SubscriptionSection`).
+ * #1529 AK1). Feature-Matrix und Preise kommen vollständig aus `GET /plans`; Buchen und Wechseln
+ * liefert der Kaufweg des Kanals (`billingChannel.tsx`), die Ansicht kennt keinen Anbieter.
+ * Abo-Status, Kündigung und Rechnungen liegen im Reiter „Abo" (`SubscriptionSection`).
  */
 export const PlansSection = () => {
-	const { plan, subscription, refresh } = usePlan();
+	const { plan } = usePlan();
+	// Der Kanal wechselt zur Laufzeit nicht, der gewählte Hook bleibt über alle Renders derselbe.
+	const usePurchase = purchaseHookFor(getChannel());
+	const purchase = usePurchase();
 	const matrixRef = useRef<HTMLDivElement>(null);
 	/**
 	 * #1529 AK5: `KolTableStateful` entscheidet EINMAL beim Laden (`componentDidLoad`), ob die
@@ -146,10 +57,6 @@ export const PlansSection = () => {
 	const [matrixReady, setMatrixReady] = useState(typeof ResizeObserver === 'undefined');
 	const [catalog, setCatalog] = useState<PlansCatalog | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [bookingKey, setBookingKey] = useState<string | null>(null);
-	const [actionError, setActionError] = useState<string | null>(null);
-	const [changeTarget, setChangeTarget] = useState<{ plan: Exclude<Plan, 'free'>; period: Period } | null>(null);
-	const [pendingWait, setPendingWait] = useState<{ expectedPlan: Plan } | null>(null);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -195,23 +102,6 @@ export const PlansSection = () => {
 		// ist (davor stehen Ladefehler bzw. Spinner an seiner Stelle).
 	}, [catalog]);
 
-	const handleBook = async (targetPlan: Exclude<Plan, 'free'>, period: Period): Promise<void> => {
-		const key = `${targetPlan}-${period}`;
-		setActionError(null);
-		setBookingKey(key);
-		try {
-			const { approvalUrl } = await api.createBillingSubscription({ plan: targetPlan, period });
-			if (approvalUrl !== undefined) {
-				window.location.href = approvalUrl;
-				return;
-			}
-		} catch (reason) {
-			setActionError((await toApiError(reason)).message);
-		} finally {
-			setBookingKey(null);
-		}
-	};
-
 	if (error !== null) {
 		return (
 			<KolAlert _type="error" _label="Pakete">
@@ -226,50 +116,7 @@ export const PlansSection = () => {
 
 	const plans = Object.keys(catalog.prices);
 
-	const renderActionCell = (targetPlan: Exclude<Plan, 'free'>, period: Period) => {
-		// `undefined` heißt „Abo-Status noch nicht geladen" (usePlanState hat /auth/me noch nicht
-		// beantwortet) — bis dahin lieber keine Aktion zeigen als fälschlich „Buchen" (kein Abo) oder
-		// „Wechseln" (Abo vorhanden) zu behaupten.
-		if (subscription === undefined) {
-			return null;
-		}
-		if (subscription !== null && subscription.plan === targetPlan && subscription.period === period) {
-			return <span>Aktuelles Paket</span>;
-		}
-		if (subscription === null) {
-			return (
-				<KolButton
-					data-testid={`book-${targetPlan}-${period}`}
-					_label="Buchen"
-					_variant="primary"
-					_disabled={bookingKey === `${targetPlan}-${period}`}
-					_on={{ onClick: () => void handleBook(targetPlan, period) }}
-				/>
-			);
-		}
-		return (
-			<KolButton
-				data-testid={`change-plan-${targetPlan}-${period}`}
-				_label="Wechseln"
-				_variant="secondary"
-				_on={{ onClick: () => setChangeTarget({ plan: targetPlan, period }) }}
-			/>
-		);
-	};
-
-	/** Reiner Textwert einer Buchen-Zelle — Sortier-/Filterwert der Zelle und Fallback ohne `render`. */
-	const actionCellText = (planKey: string, period: Period): string => {
-		if (planKey === 'free') {
-			return '—';
-		}
-		if (subscription === undefined) {
-			return '';
-		}
-		if (subscription !== null && subscription.plan === planKey && subscription.period === period) {
-			return 'Aktuelles Paket';
-		}
-		return subscription === null ? 'Buchen' : 'Wechseln';
-	};
+	const { actionCell } = purchase;
 
 	// #1529 AK3: Preis-, Buchen- UND Feature-Zeilen liegen gemeinsam im Tabellenkörper (`_data`) —
 	// vor #1529 hingen Preis- und Buchen-Zeilen im `<thead>`, was sie für die Tabellen-Komponente
@@ -282,13 +129,15 @@ export const PlansSection = () => {
 			}
 			return row;
 		}),
-		...PERIODS.map((period) => {
-			const row: PlanRow = { label: `Buchen ${PERIOD_LABELS[period]}`, _kind: 'action', _period: period };
-			for (const key of plans) {
-				row[key] = actionCellText(key, period);
-			}
-			return row;
-		}),
+		...(actionCell === undefined
+			? []
+			: PERIODS.map((period) => {
+					const row: PlanRow = { label: `Buchen ${PERIOD_LABELS[period]}`, _kind: 'action', _period: period };
+					for (const key of plans) {
+						row[key] = key === 'free' ? '—' : actionCell(key as Exclude<Plan, 'free'>, period).text;
+					}
+					return row;
+				})),
 		...catalog.features.map((entry) => {
 			const row: PlanRow = { label: featureOffer(entry.feature).title, _kind: 'feature' };
 			for (const key of plans) {
@@ -318,7 +167,7 @@ export const PlansSection = () => {
 						}
 						renderIntoCell(
 							domNode,
-							key === 'free' ? <span>—</span> : renderActionCell(key as Exclude<Plan, 'free'>, row._period as Period),
+							key === 'free' ? <span>—</span> : actionCell?.(key as Exclude<Plan, 'free'>, row._period as Period).node,
 						);
 					},
 				})),
@@ -328,15 +177,7 @@ export const PlansSection = () => {
 
 	return (
 		<div className="plans-section" data-testid="plans-section">
-			{actionError !== null && (
-				<KolAlert _type="error" _label="Buchung fehlgeschlagen">
-					{actionError}
-				</KolAlert>
-			)}
-
-			{pendingWait !== null && refresh !== undefined && (
-				<BillingReturnWait refresh={refresh} expectedPlan={pendingWait.expectedPlan} currentPlan={plan} />
-			)}
+			{purchase.notice}
 
 			{/*
 			 * #1529 AK3-AK6 (ADR 0014, Entscheidung 6): Die Preis-Matrix bleibt bewusst eine Tabelle und
@@ -357,22 +198,7 @@ export const PlansSection = () => {
 				)}
 			</div>
 
-			{changeTarget !== null && (
-				<ChangeDialog
-					targetPlan={changeTarget.plan}
-					targetPeriod={changeTarget.period}
-					onClose={() => setChangeTarget(null)}
-					onChanged={(approvalUrl) => {
-						const target = changeTarget;
-						setChangeTarget(null);
-						if (approvalUrl !== undefined) {
-							window.location.href = approvalUrl;
-							return;
-						}
-						setPendingWait({ expectedPlan: target.plan });
-					}}
-				/>
-			)}
+			{purchase.dialog}
 		</div>
 	);
 };
