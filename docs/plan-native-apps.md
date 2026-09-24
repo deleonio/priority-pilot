@@ -55,7 +55,7 @@ server/src/logics/billing/…         Provider hinter einer Schnittstelle (paypa
 
 ## Stufe 1: Android-App ohne In-App-Kauf
 
-1. **ADR 0016 „Nativer Wrapper: Capacitor im Remote-Modus“** in `docs/adr/`, Vorlage ADR 0015. Inhalt:
+1. **[ADR 0016 „Nativer Wrapper: Capacitor im Remote-Modus“](adr/0016-nativer-wrapper-capacitor-remote-modus.md)** (umgesetzt). Inhalt:
    - Begründung: iOS-fähig, ein Plugin-Ökosystem für Billing, Login, Push und Sprache. Geprüfte Alternative war TWA, siehe unten.
    - Kanal-Regel mit einem Zahlungsweg pro Kanal.
    - Zusätzlich: ADR 0013 bekommt einen Verweis auf ADR 0017.
