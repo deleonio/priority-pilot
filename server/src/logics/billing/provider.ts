@@ -39,6 +39,8 @@ export interface WebCheckout {
 export interface BillingProvider {
 	/** Kennung in `subscriptions.provider` und `webhook_events.provider`. */
 	readonly id: string;
+	/** HTTP-Status für ein Ereignis, das die Echtheitsprüfung nicht besteht; ohne Angabe 400. */
+	readonly invalidEventStatus?: number;
 	verifyEvent(rawBody: Buffer, headers: Record<string, string>): Promise<EventVerification>;
 	/** `null`, wenn der Rohbody kein lesbares Ereignis ist. */
 	parseEvent(rawBody: Buffer): ProviderEvent | null;

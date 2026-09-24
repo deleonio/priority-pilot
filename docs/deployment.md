@@ -133,6 +133,7 @@ FEEDBACK_GITHUB_TOKEN=
 # ohne Play-Zugang lassen sich Käufe aus der App nicht prüfen (siehe server/.env.example).
 # FCM_SERVICE_ACCOUNT_FILE=/var/www/gh-deploy/priority-pilot/secrets/fcm-service-account.json
 # GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=/var/www/gh-deploy/priority-pilot/secrets/play-service-account.json
+# GOOGLE_RTDN_AUDIENCE=https://priority-pilot.example.de/api/v1/billing/google/rtdn   # Push-Endpunkt = Zielgruppe der Pub/Sub-Subscription
 ```
 
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
