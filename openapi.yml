@@ -1172,6 +1172,44 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /push/fcm/register:
+    post:
+      summary: FCM-Token der Android-App registrieren
+      description: >-
+        Speichert das Firebase-Cloud-Messaging-Token der Android-App für den
+        eingeloggten Nutzer (#1670, ADR 0016). Idempotent; gehörte das Token bisher
+        einem anderen Nutzer, wechselt es zum aktuellen. Unabhängig von der
+        VAPID-Konfiguration.
+      operationId: registerFcmToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FcmTokenInput'
+      responses:
+        '204':
+          description: Token gespeichert
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /push/fcm/unregister:
+    post:
+      summary: FCM-Token der Android-App entfernen
+      description: >-
+        Entfernt das FCM-Token des eingeloggten Nutzers. Idempotent; fremde Tokens
+        bleiben unberührt.
+      operationId: unregisterFcmToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FcmTokenInput'
+      responses:
+        '204':
+          description: Token entfernt (oder war nicht vorhanden)
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /push/test:
     post:
       summary: Test-Push mit zufälligem Zitat senden
@@ -5514,6 +5552,15 @@ components:
           description: Ablaufzeitpunkt in Epoch-Millisekunden (meist null).
         keys:
           $ref: '#/components/schemas/PushSubscriptionKeys'
+    FcmTokenInput:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          maxLength: 4096
+          description: FCM-Registrierungstoken des Geräts.
     PushUnsubscribeInput:
       type: object
       required:
