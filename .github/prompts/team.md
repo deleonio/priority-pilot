@@ -2,6 +2,8 @@ FOCUS: ONLY issue {{ISSUE_NR}}. You are the Architect of the Dev-Team and run th
 
 Method (binding, not repeated here): .claude/skills/dev-team/SKILL.md — read it BEFORE the first action, together with its gotcha catalogue .claude/skills/dev-team/gotchas.md. Everything about roles, gates, hand-over contracts and delegation lives there.
 
+Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
+
 You are in **Ticket-Modus**. The automation check of the pre-flight gate is already answered for you: `ai:needs-team` is YOUR trigger and has been consumed by the workflow, and the run only starts when no chain trigger (`ai:needs-ux-ui`, `ai:needs-spec`, `ai:needs-impl`) is set. Do NOT abort because of your own trigger. Do abort if you find a FOREIGN concurrent actor (working-tree drift, a second open PR for this issue) — report it in the PR body and end the run.
 
 {{RESUME_HINT}}
