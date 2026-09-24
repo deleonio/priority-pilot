@@ -36,12 +36,20 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		}
 		const rect = panel.getBoundingClientRect();
 		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
-		const overflow = Math.ceil(rect.right) - window.innerWidth;
-		if (overflow > 0) {
-			const newLeft = `${Math.round((parseFloat(panel.style.left) || 0) - overflow)}px`;
-			if (panel.style.left !== newLeft) {
-				panel.style.left = newLeft;
-			}
+		const currentLeft = parseFloat(panel.style.left) || 0;
+		let adjustedLeft = currentLeft;
+		const rightOverflow = Math.ceil(rect.right) - window.innerWidth;
+		if (rightOverflow > 0) {
+			adjustedLeft -= rightOverflow;
+		}
+		// #1623: der 8px-Toolbar-Gap verbreitert das Panel und kann es bei schmalen Viewports
+		// (360px) über den linken Rand hinausschieben — die reine Rechtskorrektur oben reicht dann nicht.
+		const projectedLeftEdge = rect.left - (currentLeft - adjustedLeft);
+		if (projectedLeftEdge < 0) {
+			adjustedLeft -= projectedLeftEdge;
+		}
+		if (adjustedLeft !== currentLeft) {
+			panel.style.left = `${Math.round(adjustedLeft)}px`;
 		}
 	};
 
