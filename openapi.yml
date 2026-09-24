@@ -2933,6 +2933,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      summary: Eigenes Konto löschen
+      description: >-
+        Löscht das Konto des angemeldeten Nutzers samt persönlicher Daten (Aufgaben,
+        Serien, Säulen, Kategorien, Tokens, Push-Registrierungen) und beendet die
+        Session (#1671). Gruppen, in denen der Nutzer allein ist, entfallen mit.
+        Rechnungen und Abo-Datensätze bleiben wegen der Aufbewahrungspflicht erhalten.
+        409 bei laufendem oder ausstehendem Abo und als letzter Admin einer Gruppe
+        mit weiteren Mitgliedern.
+      operationId: deleteMe
+      tags: [auth]
+      responses:
+        '204':
+          description: Konto gelöscht, Session beendet
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Laufendes Abo oder letzter Admin einer Gruppe mit weiteren Mitgliedern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /auth/providers:
     get:
       summary: Verfügbare Anmeldewege lesen

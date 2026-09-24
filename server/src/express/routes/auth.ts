@@ -13,6 +13,7 @@ import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
+import { deleteAccount } from '../../logics/deleteAccount.js';
 import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
@@ -381,6 +382,14 @@ authRouter.get('/auth/me', async (req, res) => {
 	let plan: Plan;
 	try {
 		const dbUser = typeof user.id === 'number' ? await User.findByPk(user.id) : undefined;
+		// Konto inzwischen gelöscht (#1671, z. B. auf einem anderen Gerät): Session beenden.
+		if (dbUser === null) {
+			req.session.destroy(() => {
+				res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
+				res.status(401).json({ message: 'Nicht eingeloggt.' });
+			});
+			return;
+		}
 		role = dbUser?.role ?? user.role ?? 'member';
 		plan = dbUser?.plan ?? user.plan ?? 'free';
 	} catch {
@@ -456,6 +465,34 @@ authRouter.get('/auth/me', async (req, res) => {
 });
 
 // POST /auth/logout — Session beenden
+// DELETE /auth/me — eigenes Konto samt persönlichen Daten löschen (#1671, Play-Pflicht). 409 mit
+// Begründung bei laufendem Abo oder als letzter Admin einer Gruppe mit weiteren Mitgliedern; danach
+// endet die Session wie beim Logout.
+authRouter.delete('/auth/me', async (req, res) => {
+	const userId = req.session?.user?.id;
+	if (typeof userId !== 'number') {
+		sendError(res, 401, 'Anmeldung erforderlich.');
+		return;
+	}
+	const result = await deleteAccount(userId);
+	if (result === 'subscription_active') {
+		sendError(res, 409, 'Bitte kündige zuerst dein Abo. Danach kannst du dein Konto löschen.');
+		return;
+	}
+	if (result === 'last_group_admin') {
+		sendError(
+			res,
+			409,
+			'Du bist der letzte Admin einer Gruppe mit weiteren Mitgliedern. Ernenne zuerst eine andere Person zum Admin oder löse die Gruppe auf.',
+		);
+		return;
+	}
+	req.session.destroy(() => {
+		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
+		res.status(204).end();
+	});
+});
+
 authRouter.post('/auth/logout', (req, res) => {
 	req.session.destroy(() => {
 		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
