@@ -9,6 +9,14 @@ import { AI_ASSIST_MONTHLY_QUOTA, PLAN_VALUES, getPlansCatalog } from '../../ser
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from '../src/i18n/de.json' with { type: 'json' };
 import en from '../src/i18n/en.json' with { type: 'json' };
+import es from '../src/i18n/es.json' with { type: 'json' };
+import fr from '../src/i18n/fr.json' with { type: 'json' };
+import it from '../src/i18n/it.json' with { type: 'json' };
+import nl from '../src/i18n/nl.json' with { type: 'json' };
+import pl from '../src/i18n/pl.json' with { type: 'json' };
+import pt from '../src/i18n/pt.json' with { type: 'json' };
+import ru from '../src/i18n/ru.json' with { type: 'json' };
+import sv from '../src/i18n/sv.json' with { type: 'json' };
 import {
 	LOCALES,
 	homePath,
@@ -26,7 +34,7 @@ const frontendPublic = resolve(root, '../frontend/public');
 const fonts = resolve(root, 'node_modules/@fontsource/archivo/files');
 const siteUrl = (process.env.SITE_URL ?? '').trim().replace(/\/$/, '');
 
-const allMessages: Record<Locale, Messages> = { de, en };
+const allMessages: Record<Locale, Messages> = { de, en, es, fr, it, nl, pl, pt, ru, sv };
 
 const write = (path: string, content: string): void => {
 	const target = join(dist, path);

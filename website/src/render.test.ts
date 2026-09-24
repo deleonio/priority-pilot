@@ -3,8 +3,17 @@ import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } fr
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
+import es from './i18n/es.json';
+import fr from './i18n/fr.json';
+import itMessages from './i18n/it.json';
+import nl from './i18n/nl.json';
+import pl from './i18n/pl.json';
+import pt from './i18n/pt.json';
+import ru from './i18n/ru.json';
+import sv from './i18n/sv.json';
 import {
 	EMAIL_LOGIN_PATH,
+	LOCALES,
 	LOGIN_PATH,
 	SIGNED_IN_REDIRECT,
 	addedFeatures,
@@ -12,12 +21,13 @@ import {
 	renderLanding,
 	renderRobots,
 	renderSitemap,
+	type Locale,
 } from './render.ts';
 
 const catalog = getPlansCatalog();
-const allMessages = { de, en };
+const allMessages = { de, en, es, fr, it: itMessages, nl, pl, pt, ru, sv };
 
-const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org', shots?: ReadonlySet<string>) =>
+const landing = (locale: Locale, siteUrl = 'https://example.org', shots?: ReadonlySet<string>) =>
 	renderLanding({
 		locale,
 		messages: allMessages[locale],
@@ -35,8 +45,10 @@ const keyPaths = (value: unknown, prefix = ''): string[] =>
 		: [prefix];
 
 describe('Website-Texte', () => {
-	it('de und en haben dieselben Schlüssel', () => {
-		expect(keyPaths(en)).toEqual(keyPaths(de));
+	it('alle Sprachen haben dieselben Schlüssel wie de', () => {
+		for (const messages of Object.values(allMessages)) {
+			expect(keyPaths(messages)).toEqual(keyPaths(de));
+		}
 	});
 
 	it('jede Feature-ID aus plans.ts hat in beiden Sprachen ein Label', () => {
@@ -57,6 +69,16 @@ describe('Website-Texte', () => {
 });
 
 describe('renderLanding', () => {
+	it('verlinkt jede Sprache per hreflang und rendert Preise im Format der Sprache', () => {
+		for (const locale of LOCALES) {
+			const html = landing(locale);
+			expect(html).toContain(`<html lang="${locale}">`);
+			for (const target of LOCALES) expect(html).toContain(`hreflang="${target}" href="https://example.org/`);
+		}
+		expect(landing('pl')).toMatch(/7,99\s€/u);
+		expect(landing('en')).toContain('€7.99');
+	});
+
 	it('setzt Sprache, canonical und hreflang für beide Sprachen', () => {
 		const html = landing('en');
 		expect(html).toContain('<html lang="en">');

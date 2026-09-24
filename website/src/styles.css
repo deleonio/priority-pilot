@@ -109,6 +109,7 @@ img {
 
 .site-header__inner {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--pp-space-2);
@@ -126,8 +127,10 @@ img {
 
 .site-nav {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--pp-space-2);
+	justify-content: flex-end;
+	gap: var(--pp-space-1) var(--pp-space-2);
 }
 
 .site-nav__anchor {
@@ -145,6 +148,60 @@ img {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--pp-space-2);
+}
+
+.site-footer__languages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-1) var(--pp-space-2);
+	margin: var(--pp-space-2) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Sprachwahl ohne JavaScript: details/summary, Liste klappt unter dem Kopf auf */
+.lang-menu {
+	position: relative;
+}
+
+.lang-menu summary {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	cursor: pointer;
+	list-style: none;
+}
+
+.lang-menu summary::-webkit-details-marker {
+	display: none;
+}
+
+.lang-menu summary::after {
+	content: '▾';
+	margin-left: 0.25rem;
+}
+
+.lang-menu__list {
+	position: absolute;
+	right: 0;
+	z-index: 10;
+	min-width: 10rem;
+	margin: 0;
+	padding: var(--pp-space-1) 0;
+	list-style: none;
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: var(--pp-radius);
+	box-shadow: 0 0.5rem 1.5rem rgb(20 44 82 / 0.15);
+}
+
+.lang-menu__list a {
+	display: block;
+	padding: 0.6rem var(--pp-space-2);
+}
+
+.lang-menu__list a[aria-current] {
+	font-weight: 600;
 }
 
 /* KERN-Typografie */
@@ -210,8 +267,8 @@ img {
 	border: 2px solid var(--pp-brand);
 	border-radius: 999px;
 	font-weight: 600;
+	text-align: center;
 	text-decoration: none;
-	white-space: nowrap;
 }
 
 .kern-btn--primary {

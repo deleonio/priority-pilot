@@ -1,0 +1,242 @@
+{
+	"meta": {
+		"title": "Balamentum – Vad ska du jobba med härnäst?",
+		"description": "Balamentum räknar utifrån beroenden och dina livsområden ut vilken uppgift som ger mest just nu. Logga in med Google och kom igång direkt.",
+		"skip": "Hoppa till innehållet",
+		"language": "Språk"
+	},
+	"nav": {
+		"label": "Huvudnavigering",
+		"features": "Funktioner",
+		"pricing": "Paket",
+		"faq": "Frågor",
+		"openApp": "Öppna appen"
+	},
+	"hero": {
+		"eyebrow": "Planera uppgifter med livsbalans",
+		"title": "Vad ska du jobba med härnäst?",
+		"lead": "Balamentum svarar på just den frågan. Appen räknar utifrån beroenden och dina livsområden ut vilken uppgift som ger mest just nu. Du betar av dem i stället för att sortera listor.",
+		"cta": "Starta med Google",
+		"emailCta": "Logga in med e-post",
+		"ctaNote": "Gratis, utan kreditkort. Inloggning via e-postlänk fungerar för befintliga konton.",
+		"secondary": "Redan med? Öppna appen",
+		"screenshotAlt": "Balamentums instrumentbräda med nästa uppgift och livsbalansen"
+	},
+	"usp": {
+		"title": "Det här får du med Balamentum",
+		"items": [
+			"Mindre grubblande: appen säger vad som står på tur nu.",
+			"Mer balans: inget livsområde blir eftersatt i längden.",
+			"Snabbt inlagt: skriv eller tala in dina uppgifter.",
+			"Börja gratis, utan kreditkort."
+		]
+	},
+	"steps": {
+		"title": "Redo på tre steg",
+		"items": [
+			{
+				"title": "Logga in med Google",
+				"text": "Ett klick, inget formulär, inget lösenord."
+			},
+			{
+				"title": "Lägg in uppgifter",
+				"text": "Skriv eller tala in. Beroenden och livsområden kopplar du när du vill."
+			},
+			{
+				"title": "Gör nästa uppgift",
+				"text": "Instrumentbrädan visar vad som står på tur nu och hur balanserad din vecka är."
+			}
+		]
+	},
+	"features": {
+		"title": "Det här gör Balamentum annorlunda",
+		"shotAlt": "Skärmbild från appen: {title}",
+		"moreTitle": "Dessutom ingår",
+		"items": [
+			{
+				"id": "next",
+				"title": "En nästa uppgift i stället för en oändlig lista",
+				"text": "Appen visar den mest värdefulla uppgiften vars förutsättningar redan är klara. Det är svaret på ”Vad nu?”.",
+				"points": [
+					"Värde, prioritet och insats för varje uppgift räknas in.",
+					"Det som fortfarande väntar på andra uppgifter hålls utanför.",
+					"Ett tryck på ”Klar” och nästa flyttar upp."
+				]
+			},
+			{
+				"id": "balance",
+				"title": "Objektivt, inte uppskattat",
+				"text": "Kropp, relationer, mening, psykisk hälsa, handlingskraft: varje uppgift har sin egen vikt. Din balans räknas objektivt fram ur arbete du faktiskt har gjort, viktat efter insats, inte ur självskattning.",
+				"points": [
+					"Fem pelare: kropp, psykisk hälsa, relationer, handlingskraft och mening.",
+					"Diagrammet på översikten visar hur balanserade dina senaste fyra veckor var.",
+					"Om du vill flyttar listan fram uppgifter från eftersatta pelare."
+				]
+			},
+			{
+				"id": "dependencies",
+				"title": "En riktig uppgiftsgraf",
+				"text": "Uppgifter bygger på varandra. Balamentum räknar grafbaserat ut värde och insats längs hela kedjan och upptäcker cykler.",
+				"points": [
+					"Grafen visar vilken uppgift som väntar på vad.",
+					"Värde och insats räknas över hela kedjan.",
+					"Appen upptäcker cykler och säger till."
+				]
+			},
+			{
+				"id": "groups",
+				"title": "Planera tillsammans",
+				"text": "Bjud in familj eller team till en grupp via länk och fördela uppgifter mellan er.",
+				"points": ["Bjud in via länk, även utan adressbok.", "Skapa uppgifter åt varandra och lämna över dem."]
+			},
+			{
+				"id": "ai",
+				"title": "AI och röstinmatning",
+				"text": "Lägg in uppgifter med rösten. AI:n föreslår passande pelare och putsar titlar och beskrivningar, om du vill med din egen leverantör.",
+				"points": [
+					"Tala in en hel mening, så gör AI:n separata uppgifter av den.",
+					"Passande pelare föreslår den samtidigt.",
+					"Röstinmatning finns redan i Free-paketet."
+				]
+			},
+			{
+				"id": "mcp",
+				"title": "Planera med din AI-assistent",
+				"text": "Via MCP-gränssnittet når din AI-assistent dina uppgifter. Du frågar i chatten vad som står på tur, lägger till uppgifter eller ber om en förklaring av din balans.",
+				"points": [
+					"Skapa en åtkomsttoken i inställningarna och ange MCP-adressen i assistenten.",
+					"Fungerar med Claude och andra assistenter som talar MCP över HTTP.",
+					"Läsning ingår från Max, skapa och ändra med Ultimate."
+				]
+			},
+			{
+				"id": "open",
+				"title": "Öppen och alltid till hands",
+				"text": "Kan installeras som app på mobil och dator, med push-påminnelser och platsbaserade påminnelser.",
+				"points": [
+					"Push-påminnelser och platsbaserade påminnelser.",
+					"Installera direkt från webbläsaren, utan appbutik."
+				]
+			}
+		],
+		"chat": {
+			"label": "Exempel: chatt med en AI-assistent via MCP",
+			"caption": "Exempelchatt",
+			"you": "Du",
+			"assistant": "Assistent",
+			"tool": "Verktyg",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "Vad ska jag göra härnäst?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "Härnäst står ”Boka yogakurs” på tur, prioritet 4. Den ska vara klar i övermorgon."
+				},
+				{
+					"sender": "user",
+					"text": "Lägg in ”Hälsa på mormor” på lördag åt mig."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "Klart. ”Hälsa på mormor” finns i din lista med lördag som sista dag."
+				},
+				{
+					"sender": "user",
+					"text": "Hur balanserad var min månad?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, du är i balans. Alla fem pelare ligger på målnivån."
+				}
+			]
+		}
+	},
+	"pricing": {
+		"title": "Paket",
+		"lead": "Börja gratis. Behöver du mer byter du när som helst i appen.",
+		"perMonth": "/ månad",
+		"free": "0 €",
+		"yearly": "eller {price} per år",
+		"discounts": "Betalar du kvartalsvis sparar du 10 %, betalar du årsvis 20 %. Alla priser är slutpriser; enligt § 19 UStG (tysk regel för småföretagare) tas ingen moms ut.",
+		"basics": "Uppgifter, serier, checklistor, deadlines, poäng och balansanalys",
+		"includesPrevious": "Allt i {plan}, plus:",
+		"aiQuota": "{count} AI-förfrågningar per månad",
+		"cta": "Börja gratis",
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
+		"features": {
+			"groups": "Grupper och inbjudningslänkar",
+			"voice_input": "Röstinmatning",
+			"ai_assist": "AI-hjälp: pelarrådgivare och språkgranskning",
+			"graph_write": "Redigera viktade beroenden",
+			"location_reminders": "Platsbaserade påminnelser",
+			"mcp_read": "MCP-gränssnitt (läsa)",
+			"mcp_readwrite": "MCP-gränssnitt (läsa och skriva)"
+		}
+	},
+	"faq": {
+		"title": "Vanliga frågor",
+		"items": [
+			{
+				"q": "Vad kostar Balamentum?",
+				"a": "Free-paketet kostar ingenting och har ingen gräns för antalet uppgifter. Pro, Max och Ultimate låser upp grupper, AI-hjälp och gränssnitt."
+			},
+			{
+				"q": "Vilka uppgifter får appen från Google?",
+				"a": "Bara ditt namn, din e-postadress och din profilbild. Du behöver inget eget lösenord."
+			},
+			{
+				"q": "Hur säger jag upp ett paket?",
+				"a": "I appen under Inställningar. Betalningen sköts via PayPal, och du kan byta eller säga upp när som helst."
+			},
+			{
+				"q": "Fungerar det på mobilen?",
+				"a": "Ja. Balamentum är byggt för att användas med en hand och kan installeras som app på hemskärmen."
+			},
+			{
+				"q": "Är appen tillgänglig?",
+				"a": "Gränssnittet följer WCAG 2.2 och BITV 2.0 och använder de granskade komponenterna från KoliBri."
+			}
+		]
+	},
+	"final": {
+		"title": "Din nästa uppgift väntar redan",
+		"text": "Logga in, lägg in din första uppgift, sätt igång."
+	},
+	"footer": {
+		"imprint": "Impressum",
+		"imprintPath": "impressum/"
+	},
+	"imprint": {
+		"title": "Impressum",
+		"provider": "Uppgifter enligt § 5 DDG",
+		"contact": "Kontakt",
+		"email": "E-post",
+		"representative": "Behörig företrädare",
+		"vatId": "Momsregistreringsnummer enligt § 27 a UStG",
+		"responsible": "Ansvarig för innehållet enligt § 18 Abs. 2 MStV",
+		"odrTitle": "Tvistlösning inom EU",
+		"odrText": "Europeiska kommissionen tillhandahåller en plattform för tvistlösning online (ODR):",
+		"consumerTitle": "Tvistlösning för konsumenter",
+		"consumerText": "Vi är varken villiga eller skyldiga att delta i tvistlösningsförfaranden inför en nämnd för konsumenttvister.",
+		"back": "Till startsidan"
+	}
+}

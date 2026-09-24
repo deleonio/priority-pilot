@@ -1,0 +1,245 @@
+{
+	"meta": {
+		"title": "Balamentum – Em que deves trabalhar a seguir?",
+		"description": "O Balamentum calcula, a partir das dependências e das tuas áreas de vida, qual a tarefa que mais compensa agora. Inicia sessão com o Google e começa já.",
+		"skip": "Saltar para o conteúdo",
+		"language": "Idioma"
+	},
+	"nav": {
+		"label": "Navegação principal",
+		"features": "Funcionalidades",
+		"pricing": "Planos",
+		"faq": "Perguntas",
+		"openApp": "Abrir a app"
+	},
+	"hero": {
+		"eyebrow": "Planear tarefas com equilíbrio de vida",
+		"title": "Em que deves trabalhar a seguir?",
+		"lead": "O Balamentum responde exatamente a esta pergunta. A app calcula, a partir das dependências e das tuas áreas de vida, qual a tarefa que mais compensa agora. Tu vais fazendo as tarefas, em vez de ordenar listas.",
+		"cta": "Começar com o Google",
+		"emailCta": "Iniciar sessão com e-mail",
+		"ctaNote": "Gratuito, sem cartão de crédito. O início de sessão por ligação enviada por e-mail funciona para contas existentes.",
+		"secondary": "Já tens conta? Abrir a app",
+		"screenshotAlt": "Painel do Balamentum com a próxima tarefa e o equilíbrio de vida"
+	},
+	"usp": {
+		"title": "O que o Balamentum te dá",
+		"items": [
+			"Menos hesitação: a app diz-te o que fazer agora.",
+			"Mais equilíbrio: nenhuma área da tua vida fica esquecida por muito tempo.",
+			"Registo rápido: escreve ou dita as tuas tarefas.",
+			"Começa grátis, sem cartão de crédito."
+		]
+	},
+	"steps": {
+		"title": "Pronto em três passos",
+		"items": [
+			{
+				"title": "Iniciar sessão com o Google",
+				"text": "Um clique, sem formulário, sem palavra-passe."
+			},
+			{
+				"title": "Registar tarefas",
+				"text": "Escreve-as ou dita-as. As dependências e as áreas de vida atribuis quando quiseres."
+			},
+			{
+				"title": "Concluir a próxima tarefa",
+				"text": "O painel mostra-te o que fazer agora e quão equilibrada está a correr a tua semana."
+			}
+		]
+	},
+	"features": {
+		"title": "O que torna o Balamentum diferente",
+		"shotAlt": "Captura de ecrã da app: {title}",
+		"moreTitle": "Também incluído",
+		"items": [
+			{
+				"id": "next",
+				"title": "Uma próxima tarefa em vez de uma lista interminável",
+				"text": "A app mostra-te a tarefa mais valiosa cujos pré-requisitos já estão concluídos. É a resposta a «E agora?».",
+				"points": [
+					"Contam o valor, a prioridade e o esforço de cada tarefa.",
+					"O que ainda depende de outras tarefas fica de fora.",
+					"Um toque em «Concluir» e a seguinte avança."
+				]
+			},
+			{
+				"id": "balance",
+				"title": "Objetivo, não estimado",
+				"text": "Corpo, relações, sentido, saúde mental, eficácia: cada tarefa tem o seu próprio peso. O teu equilíbrio resulta de forma objetiva do esforço realmente concluído e ponderado, não de uma autoavaliação.",
+				"points": [
+					"Cinco pilares: corpo, saúde mental, relações, eficácia e sentido.",
+					"O gráfico no painel mostra quão equilibradas foram as tuas últimas quatro semanas.",
+					"Se quiseres, a lista põe à frente as tarefas dos pilares descurados."
+				]
+			},
+			{
+				"id": "dependencies",
+				"title": "Um verdadeiro grafo de tarefas",
+				"text": "As tarefas dependem umas das outras. O Balamentum calcula, com base num grafo, o valor e o esforço ao longo de toda a cadeia e deteta ciclos.",
+				"points": [
+					"O grafo mostra que tarefa espera por qual.",
+					"O valor e o esforço contam ao longo de toda a cadeia.",
+					"A app deteta ciclos e avisa-te."
+				]
+			},
+			{
+				"id": "groups",
+				"title": "Planear em conjunto",
+				"text": "Convida a família ou a equipa para um grupo através de uma ligação e distribuam as tarefas entre vocês.",
+				"points": [
+					"Convidar por ligação, mesmo sem lista de contactos.",
+					"Criar tarefas uns para os outros e passá-las."
+				]
+			},
+			{
+				"id": "ai",
+				"title": "IA e entrada por voz",
+				"text": "Regista tarefas por voz. A IA sugere os pilares adequados e aperfeiçoa títulos e descrições, se quiseres com o teu próprio fornecedor.",
+				"points": [
+					"Dita uma frase inteira e a IA transforma-a em tarefas individuais.",
+					"Sugere logo também os pilares adequados.",
+					"A entrada por voz já está incluída no plano Free."
+				]
+			},
+			{
+				"id": "mcp",
+				"title": "Planear com o teu assistente de IA",
+				"text": "Através da interface MCP, o teu assistente de IA acede às tuas tarefas. Perguntas no chat o que fazer a seguir, crias tarefas ou pedes que te explique o teu equilíbrio.",
+				"points": [
+					"Gera um token de acesso nas definições e introduz o endereço MCP no assistente.",
+					"Funciona com o Claude e outros assistentes que falam MCP sobre HTTP.",
+					"A leitura está incluída a partir do Max; criar e alterar, com o Ultimate."
+				]
+			},
+			{
+				"id": "open",
+				"title": "Aberto e sempre à mão",
+				"text": "Instalável como app no telemóvel e no computador, com lembretes push e lembretes por localização.",
+				"points": [
+					"Lembretes push e lembretes por localização.",
+					"Instalável diretamente a partir do navegador, sem loja de aplicações."
+				]
+			}
+		],
+		"chat": {
+			"label": "Exemplo: conversa com um assistente de IA através de MCP",
+			"caption": "Conversa de exemplo",
+			"you": "Tu",
+			"assistant": "Assistente",
+			"tool": "Ferramenta",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "O que devo fazer a seguir?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "A seguir vem «Marcar aula de ioga», prioridade 4. O prazo termina depois de amanhã."
+				},
+				{
+					"sender": "user",
+					"text": "Cria-me «Visitar a avó» para sábado."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "Feito. «Visitar a avó» está na tua lista com prazo no sábado."
+				},
+				{
+					"sender": "user",
+					"text": "Quão equilibrado foi o meu mês?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, estás em equilíbrio. Os cinco pilares estão no objetivo."
+				}
+			]
+		}
+	},
+	"pricing": {
+		"title": "Planos",
+		"lead": "Começa grátis. Se precisares de mais, mudas de plano na app a qualquer momento.",
+		"perMonth": "/ mês",
+		"free": "0 €",
+		"yearly": "ou {price} por ano",
+		"discounts": "Com pagamento trimestral poupas 10 %, com pagamento anual 20 %. Todos os preços são finais; ao abrigo do § 19 UStG (regime alemão de pequenas empresas) não é cobrado IVA.",
+		"basics": "Tarefas, séries, listas de verificação, prazos, pontos e análise do equilíbrio",
+		"includesPrevious": "Tudo do {plan}, e ainda:",
+		"aiQuota": "{count} pedidos de IA por mês",
+		"cta": "Começar grátis",
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
+		"features": {
+			"groups": "Grupos e ligações de convite",
+			"voice_input": "Entrada por voz",
+			"ai_assist": "Ajuda de IA: conselheiro de pilares e revisão de texto",
+			"graph_write": "Editar dependências ponderadas",
+			"location_reminders": "Lembretes por localização",
+			"mcp_read": "Interface MCP (leitura)",
+			"mcp_readwrite": "Interface MCP (leitura e escrita)"
+		}
+	},
+	"faq": {
+		"title": "Perguntas frequentes",
+		"items": [
+			{
+				"q": "Quanto custa o Balamentum?",
+				"a": "O plano Free não custa nada e não tem limite de número de tarefas. O Pro, o Max e o Ultimate desbloqueiam grupos, ajuda de IA e interfaces."
+			},
+			{
+				"q": "Que dados recebe a app do Google?",
+				"a": "Apenas o teu nome, o teu endereço de e-mail e a tua fotografia de perfil. Não precisas de uma palavra-passe própria."
+			},
+			{
+				"q": "Como cancelo um plano?",
+				"a": "Na app, em Definições. A faturação é feita através do PayPal e podes mudar ou cancelar a qualquer momento."
+			},
+			{
+				"q": "Funciona no telemóvel?",
+				"a": "Sim. O Balamentum foi pensado para ser usado com uma só mão e pode ser instalado como app no ecrã principal."
+			},
+			{
+				"q": "A app é acessível?",
+				"a": "A interface segue as WCAG 2.2 e a BITV 2.0 e usa os componentes testados do KoliBri."
+			}
+		]
+	},
+	"final": {
+		"title": "A tua próxima tarefa já está à espera",
+		"text": "Inicia sessão, regista a primeira tarefa e começa."
+	},
+	"footer": {
+		"imprint": "Aviso legal",
+		"imprintPath": "aviso-legal/"
+	},
+	"imprint": {
+		"title": "Aviso legal",
+		"provider": "Informações nos termos do § 5 DDG (lei alemã dos serviços digitais)",
+		"contact": "Contacto",
+		"email": "E-mail",
+		"representative": "Representante legal",
+		"vatId": "Número de identificação para efeitos de IVA nos termos do § 27 a UStG",
+		"responsible": "Responsável pelo conteúdo nos termos do § 18 (2) MStV",
+		"odrTitle": "Resolução de litígios da UE",
+		"odrText": "A Comissão Europeia disponibiliza uma plataforma de resolução de litígios em linha (RLL):",
+		"consumerTitle": "Resolução de litígios de consumo",
+		"consumerText": "Não estamos dispostos nem obrigados a participar em procedimentos de resolução de litígios perante uma entidade de resolução alternativa de litígios de consumo.",
+		"back": "Voltar à página inicial"
+	}
+}

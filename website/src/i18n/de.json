@@ -3,8 +3,7 @@
 		"title": "Balamentum – Woran solltest du als Nächstes arbeiten?",
 		"description": "Balamentum rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Mit Google anmelden und sofort loslegen.",
 		"skip": "Zum Inhalt springen",
-		"switchLanguage": "English",
-		"switchLanguageLabel": "Switch to English"
+		"language": "Sprache"
 	},
 	"nav": {
 		"label": "Hauptnavigation",
@@ -70,7 +69,7 @@
 				"text": "Körper, Beziehungen, Sinn, mentale Gesundheit, Wirksamkeit: Jede einzelne Aufgabe trägt ihr eigenes Gewicht. Deine Balance ergibt sich objektiv aus tatsächlich erledigtem, aufwandsgewichtetem Aufwand statt aus Selbsteinschätzung.",
 				"points": [
 					"Fünf Säulen: Körper, mentale Gesundheit, Beziehungen, Wirksamkeit und Sinn.",
-					"Das Herz zeigt, wie ausgeglichen deine letzten vier Wochen waren.",
+					"Die Grafik auf dem Dashboard zeigt, wie ausgeglichen deine letzten vier Wochen waren.",
 					"Auf Wunsch sortiert die Liste Aufgaben vernachlässigter Säulen nach vorn."
 				]
 			},

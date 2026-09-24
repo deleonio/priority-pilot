@@ -8,10 +8,25 @@ import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import type de from './i18n/de.json';
 
 export type Messages = typeof de;
-export type Locale = 'de' | 'en';
+export type Locale = 'de' | 'en' | 'es' | 'fr' | 'it' | 'nl' | 'pl' | 'pt' | 'ru' | 'sv';
 export type Operator = typeof OPERATOR;
 
-export const LOCALES: readonly Locale[] = ['de', 'en'];
+/** Dieselben zehn Sprachen wie die App (`frontend/src/i18n/locales`). */
+export const LOCALES: readonly Locale[] = ['de', 'en', 'es', 'fr', 'it', 'nl', 'pl', 'pt', 'ru', 'sv'];
+
+/** Sprachname in der eigenen Sprache (Sprachwahl), Intl-Locale für Preise und `og:locale`. */
+const LOCALE_INFO: Record<Locale, { name: string; intl: string; og: string }> = {
+	de: { name: 'Deutsch', intl: 'de-DE', og: 'de_DE' },
+	en: { name: 'English', intl: 'en-IE', og: 'en_US' },
+	es: { name: 'Español', intl: 'es-ES', og: 'es_ES' },
+	fr: { name: 'Français', intl: 'fr-FR', og: 'fr_FR' },
+	it: { name: 'Italiano', intl: 'it-IT', og: 'it_IT' },
+	nl: { name: 'Nederlands', intl: 'nl-NL', og: 'nl_NL' },
+	pl: { name: 'Polski', intl: 'pl-PL', og: 'pl_PL' },
+	pt: { name: 'Português', intl: 'pt-PT', og: 'pt_PT' },
+	ru: { name: 'Русский', intl: 'ru-RU', og: 'ru_RU' },
+	sv: { name: 'Svenska', intl: 'sv-SE', og: 'sv_SE' },
+};
 
 /** Pfad der Startseite je Sprache; Deutsch liegt an der Wurzel. */
 export const homePath = (locale: Locale): string => (locale === 'de' ? '/' : `/${locale}/`);
@@ -67,9 +82,7 @@ const fill = (template: string, values: Record<string, string>): string =>
 	template.replace(/\{(\w+)\}/g, (_match, key: string) => values[key] ?? `{${key}}`);
 
 const formatPrice = (cents: number, locale: Locale): string =>
-	new Intl.NumberFormat(locale === 'de' ? 'de-DE' : 'en-IE', { style: 'currency', currency: 'EUR' }).format(
-		cents / 100,
-	);
+	new Intl.NumberFormat(LOCALE_INFO[locale].intl, { style: 'currency', currency: 'EUR' }).format(cents / 100);
 
 /**
  * Features, die ein Paket gegenüber dem vorigen Paket der Rangfolge neu freischaltet. So zeigt jede
@@ -89,7 +102,12 @@ const alternateLinks = ({ siteUrl }: PageContext, pathFor: (locale: Locale) => s
 		`<link rel="alternate" hreflang="x-default" href="${siteUrl}${pathFor('de')}">`,
 	].join('\n\t\t');
 
-const otherLocale = (locale: Locale): Locale => (locale === 'de' ? 'en' : 'de');
+/** Links auf dieselbe Seite in allen Sprachen, die aktuelle als `aria-current`. */
+const languageLinks = (locale: Locale, pathFor: (locale: Locale) => string, indent: string): string =>
+	LOCALES.map(
+		(target) =>
+			`${indent}<li><a class="kern-link" href="${pathFor(target)}" hreflang="${target}" lang="${target}"${target === locale ? ' aria-current="page"' : ''}>${LOCALE_INFO[target].name}</a></li>`,
+	).join('\n');
 
 interface ShellOptions {
 	title: string;
@@ -106,7 +124,6 @@ const tidy = (html: string): string => html.replace(/\n[\t ]*(?=\n)/g, '');
 
 const shell = (context: PageContext, { title, description, path, pathFor, body, head = '' }: ShellOptions): string => {
 	const { locale, messages, siteUrl } = context;
-	const other = otherLocale(locale);
 	return tidy(`<!doctype html>
 <html lang="${locale}">
 	<head>
@@ -122,7 +139,7 @@ const shell = (context: PageContext, { title, description, path, pathFor, body, 
 		<meta property="og:description" content="${t(description)}">
 		<meta property="og:url" content="${siteUrl}${path}">
 		<meta property="og:image" content="${siteUrl}/icon-512.png">
-		<meta property="og:locale" content="${locale === 'de' ? 'de_DE' : 'en_US'}">
+		<meta property="og:locale" content="${LOCALE_INFO[locale].og}">
 		<meta name="theme-color" content="#1b3a6b">
 		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -138,7 +155,12 @@ const shell = (context: PageContext, { title, description, path, pathFor, body, 
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#features">${t(messages.nav.features)}</a>
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#pricing">${t(messages.nav.pricing)}</a>
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#faq">${t(messages.nav.faq)}</a>
-					<a class="kern-link" href="${pathFor(other)}" hreflang="${other}" lang="${other}" aria-label="${t(messages.meta.switchLanguageLabel)}">${t(messages.meta.switchLanguage)}</a>
+					<details class="lang-menu">
+						<summary class="kern-link"><span class="visually-hidden">${t(messages.meta.language)}: ${LOCALE_INFO[locale].name}</span><span aria-hidden="true">${locale.toUpperCase()}</span></summary>
+						<ul class="lang-menu__list">
+${languageLinks(locale, pathFor, '\t\t\t\t\t\t\t')}
+						</ul>
+					</details>
 					<a class="kern-btn kern-btn--secondary" href="${APP_PATH}"><span class="kern-label">${t(messages.nav.openApp)}</span></a>
 				</nav>
 			</div>
@@ -150,8 +172,12 @@ ${body}
 			<div class="container site-footer__inner">
 				<span>© ${new Date().getFullYear()} Balamentum</span>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
-				<a class="kern-link" href="${pathFor(other)}" hreflang="${other}" lang="${other}">${t(messages.meta.switchLanguage)}</a>
 			</div>
+			<nav class="container" aria-label="${t(messages.meta.language)}">
+				<ul class="site-footer__languages">
+${languageLinks(locale, pathFor, '\t\t\t\t\t')}
+				</ul>
+			</nav>
 		</footer>
 	</body>
 </html>

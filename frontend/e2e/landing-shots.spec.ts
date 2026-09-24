@@ -112,7 +112,7 @@ test.describe('Landingpage — Bilder der Funktionen', () => {
 		await scrollTo('Meine Lebensbalance', 60);
 		await shoot('balance');
 
-		await page.goto('/app/wald');
+		await page.goto('/app/graph');
 		await waitForStableView(page, 'Abhängigkeitsgraph');
 		await shoot('dependencies');
 

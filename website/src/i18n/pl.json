@@ -1,0 +1,245 @@
+{
+	"meta": {
+		"title": "Balamentum – Czym zająć się w następnej kolejności?",
+		"description": "Balamentum na podstawie zależności i twoich obszarów życia wylicza, które zadanie przyniesie teraz najwięcej. Zaloguj się przez Google i zacznij od razu.",
+		"skip": "Przejdź do treści",
+		"language": "Język"
+	},
+	"nav": {
+		"label": "Nawigacja główna",
+		"features": "Funkcje",
+		"pricing": "Pakiety",
+		"faq": "Pytania",
+		"openApp": "Otwórz aplikację"
+	},
+	"hero": {
+		"eyebrow": "Planowanie zadań z równowagą życiową",
+		"title": "Czym zająć się w następnej kolejności?",
+		"lead": "Balamentum odpowiada właśnie na to pytanie. Aplikacja na podstawie zależności i twoich obszarów życia wylicza, które zadanie przyniesie teraz najwięcej. Ty je wykonujesz, zamiast sortować listy.",
+		"cta": "Zacznij z Google",
+		"emailCta": "Zaloguj się przez e-mail",
+		"ctaNote": "Za darmo, bez karty kredytowej. Logowanie linkiem z e-maila działa dla istniejących kont.",
+		"secondary": "Masz już konto? Otwórz aplikację",
+		"screenshotAlt": "Pulpit Balamentum z następnym zadaniem i równowagą życiową"
+	},
+	"usp": {
+		"title": "Co daje ci Balamentum",
+		"items": [
+			"Mniej rozmyślania: aplikacja mówi ci, co jest teraz do zrobienia.",
+			"Więcej równowagi: żaden obszar życia nie jest trwale zaniedbany.",
+			"Szybkie dodawanie: wpisz zadania albo je podyktuj.",
+			"Zacznij za darmo, bez karty kredytowej."
+		]
+	},
+	"steps": {
+		"title": "Gotowe w trzech krokach",
+		"items": [
+			{
+				"title": "Zaloguj się przez Google",
+				"text": "Jedno kliknięcie, bez formularza, bez hasła."
+			},
+			{
+				"title": "Dodaj zadania",
+				"text": "Wpisz albo podyktuj. Zależności i obszary życia przypiszesz, kiedy zechcesz."
+			},
+			{
+				"title": "Wykonaj następne zadanie",
+				"text": "Pulpit pokazuje, co jest teraz do zrobienia i jak zrównoważony jest twój tydzień."
+			}
+		]
+	},
+	"features": {
+		"title": "Czym wyróżnia się Balamentum",
+		"shotAlt": "Zrzut ekranu z aplikacji: {title}",
+		"moreTitle": "Poza tym w zestawie",
+		"items": [
+			{
+				"id": "next",
+				"title": "Jedno następne zadanie zamiast niekończącej się listy",
+				"text": "Aplikacja pokazuje ci najcenniejsze zadanie, którego warunki wstępne są już spełnione. To odpowiedź na pytanie „Co teraz?”.",
+				"points": [
+					"Liczą się wartość, priorytet i nakład pracy każdego zadania.",
+					"To, co wciąż czeka na inne zadania, zostaje pominięte.",
+					"Jedno dotknięcie „Wykonane” i na jego miejsce wchodzi następne."
+				]
+			},
+			{
+				"id": "balance",
+				"title": "Obiektywnie, nie na oko",
+				"text": "Ciało, relacje, sens, zdrowie psychiczne, sprawczość: każde zadanie ma własną wagę. Twoja równowaga wynika obiektywnie z faktycznie wykonanej pracy ważonej nakładem, a nie z samooceny.",
+				"points": [
+					"Pięć filarów: ciało, zdrowie psychiczne, relacje, sprawczość i sens.",
+					"Wykres na pulpicie pokazuje, jak zrównoważone były twoje ostatnie cztery tygodnie.",
+					"Jeśli chcesz, lista przesuwa na początek zadania z zaniedbanych filarów."
+				]
+			},
+			{
+				"id": "dependencies",
+				"title": "Prawdziwy graf zadań",
+				"text": "Zadania opierają się na sobie. Balamentum na podstawie grafu liczy wartość i nakład w całym łańcuchu i wykrywa cykle.",
+				"points": [
+					"Graf pokazuje, które zadanie na co czeka.",
+					"Wartość i nakład pracy liczą się w całym łańcuchu.",
+					"Aplikacja wykrywa cykle i o nich informuje."
+				]
+			},
+			{
+				"id": "groups",
+				"title": "Planujcie razem",
+				"text": "Zaproś rodzinę lub zespół do grupy przez link i dzielcie się zadaniami.",
+				"points": [
+					"Zaproszenie przez link, także bez książki adresowej.",
+					"Twórzcie zadania dla siebie nawzajem i przekazujcie je."
+				]
+			},
+			{
+				"id": "ai",
+				"title": "AI i wprowadzanie głosowe",
+				"text": "Dodawaj zadania głosem. AI proponuje pasujące filary i wygładza tytuły oraz opisy, jeśli chcesz, z użyciem twojego własnego dostawcy.",
+				"points": [
+					"Podyktuj całe zdanie, a AI zrobi z niego osobne zadania.",
+					"Od razu proponuje też pasujące filary.",
+					"Wprowadzanie głosowe jest dostępne już w pakiecie Free."
+				]
+			},
+			{
+				"id": "mcp",
+				"title": "Planuj ze swoim asystentem AI",
+				"text": "Przez interfejs MCP twój asystent AI ma dostęp do twoich zadań. Pytasz na czacie, co jest teraz do zrobienia, dodajesz zadania albo prosisz o wyjaśnienie swojej równowagi.",
+				"points": [
+					"W ustawieniach wygeneruj token dostępu i wpisz adres MCP w asystencie.",
+					"Działa z Claude i innymi asystentami, które obsługują MCP przez HTTP.",
+					"Odczyt jest dostępny od pakietu Max, tworzenie i zmiany w Ultimate."
+				]
+			},
+			{
+				"id": "open",
+				"title": "Otwarte i zawsze pod ręką",
+				"text": "Do zainstalowania jako aplikacja na telefonie i komputerze, z przypomnieniami push i przypomnieniami w danym miejscu.",
+				"points": [
+					"Przypomnienia push i przypomnienia w danym miejscu.",
+					"Instalacja prosto z przeglądarki, bez sklepu z aplikacjami."
+				]
+			}
+		],
+		"chat": {
+			"label": "Przykład: czat z asystentem AI przez MCP",
+			"caption": "Przykładowy czat",
+			"you": "Ty",
+			"assistant": "Asystent",
+			"tool": "Narzędzie",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "Co mam zrobić w następnej kolejności?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "Następne w kolejce jest „Zapisać się na kurs jogi”, priorytet 4. Termin mija pojutrze."
+				},
+				{
+					"sender": "user",
+					"text": "Dodaj mi na sobotę „Odwiedzić babcię”."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "Gotowe. „Odwiedzić babcię” jest na twojej liście z terminem na sobotę."
+				},
+				{
+					"sender": "user",
+					"text": "Jak zrównoważony był mój miesiąc?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, jesteś w równowadze. Wszystkie pięć filarów jest na docelowym poziomie."
+				}
+			]
+		}
+	},
+	"pricing": {
+		"title": "Pakiety",
+		"lead": "Zacznij za darmo. Jeśli potrzebujesz więcej, w każdej chwili zmienisz pakiet w aplikacji.",
+		"perMonth": "/ miesiąc",
+		"free": "0 €",
+		"yearly": "lub {price} rocznie",
+		"discounts": "Przy płatności kwartalnej oszczędzasz 10 %, przy rocznej 20 %. Wszystkie ceny są cenami końcowymi; na podstawie § 19 UStG (niemieckie zwolnienie dla małych przedsiębiorców) nie jest naliczany podatek VAT.",
+		"basics": "Zadania, serie, listy kontrolne, terminy, punkty i analiza równowagi",
+		"includesPrevious": "Wszystko z {plan}, a do tego:",
+		"aiQuota": "{count} zapytań do AI miesięcznie",
+		"cta": "Zacznij za darmo",
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
+		"features": {
+			"groups": "Grupy i linki z zaproszeniem",
+			"voice_input": "Wprowadzanie głosowe",
+			"ai_assist": "Pomoc AI: doradca filarów i korekta tekstów",
+			"graph_write": "Edycja ważonych zależności",
+			"location_reminders": "Przypomnienia w danym miejscu",
+			"mcp_read": "Interfejs MCP (odczyt)",
+			"mcp_readwrite": "Interfejs MCP (odczyt i zapis)"
+		}
+	},
+	"faq": {
+		"title": "Częste pytania",
+		"items": [
+			{
+				"q": "Ile kosztuje Balamentum?",
+				"a": "Pakiet Free nic nie kosztuje i nie ma limitu liczby zadań. Pro, Max i Ultimate odblokowują grupy, pomoc AI i interfejsy."
+			},
+			{
+				"q": "Jakie dane aplikacja dostaje od Google?",
+				"a": "Tylko twoje imię i nazwisko, adres e-mail i zdjęcie profilowe. Osobne hasło nie jest ci potrzebne."
+			},
+			{
+				"q": "Jak zrezygnować z pakietu?",
+				"a": "W aplikacji, w sekcji Ustawienia. Rozliczenia odbywają się przez PayPal, możesz w każdej chwili zmienić pakiet lub zrezygnować."
+			},
+			{
+				"q": "Czy to działa na telefonie?",
+				"a": "Tak. Balamentum jest zaprojektowane do obsługi jedną ręką i można je zainstalować jako aplikację na ekranie głównym."
+			},
+			{
+				"q": "Czy aplikacja jest dostępna cyfrowo?",
+				"a": "Interfejs jest zgodny z WCAG 2.2 i BITV 2.0 i korzysta ze sprawdzonych komponentów KoliBri."
+			}
+		]
+	},
+	"final": {
+		"title": "Twoje następne zadanie już czeka",
+		"text": "Zaloguj się, wpisz pierwsze zadanie i zaczynaj."
+	},
+	"footer": {
+		"imprint": "Nota prawna",
+		"imprintPath": "nota-prawna/"
+	},
+	"imprint": {
+		"title": "Nota prawna",
+		"provider": "Informacje zgodnie z § 5 DDG",
+		"contact": "Kontakt",
+		"email": "E-mail",
+		"representative": "Osoba upoważniona do reprezentacji",
+		"vatId": "Numer identyfikacyjny VAT zgodnie z § 27 a UStG",
+		"responsible": "Odpowiedzialny za treść zgodnie z § 18 Abs. 2 MStV",
+		"odrTitle": "Rozstrzyganie sporów w UE",
+		"odrText": "Komisja Europejska udostępnia platformę internetowego rozstrzygania sporów (ODR):",
+		"consumerTitle": "Rozstrzyganie sporów konsumenckich",
+		"consumerText": "Nie jesteśmy gotowi ani zobowiązani do udziału w postępowaniach w sprawie rozstrzygania sporów przed konsumenckim organem arbitrażowym.",
+		"back": "Do strony głównej"
+	}
+}

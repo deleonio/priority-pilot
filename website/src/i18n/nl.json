@@ -1,0 +1,242 @@
+{
+	"meta": {
+		"title": "Balamentum – Waar moet je nu aan werken?",
+		"description": "Balamentum berekent op basis van afhankelijkheden en je levensgebieden welke taak nu het meeste oplevert. Log in met Google en ga meteen aan de slag.",
+		"skip": "Naar de inhoud",
+		"language": "Taal"
+	},
+	"nav": {
+		"label": "Hoofdnavigatie",
+		"features": "Functies",
+		"pricing": "Pakketten",
+		"faq": "Vragen",
+		"openApp": "App openen"
+	},
+	"hero": {
+		"eyebrow": "Taken plannen met levensbalans",
+		"title": "Waar moet je nu aan werken?",
+		"lead": "Balamentum beantwoordt precies die vraag. De app berekent op basis van afhankelijkheden en je levensgebieden welke taak nu het meeste oplevert. Jij werkt ze af, in plaats van lijsten te sorteren.",
+		"cta": "Starten met Google",
+		"emailCta": "Inloggen met e-mail",
+		"ctaNote": "Gratis, zonder creditcard. Inloggen via een e-maillink werkt voor bestaande accounts.",
+		"secondary": "Al aan de slag? App openen",
+		"screenshotAlt": "Dashboard van Balamentum met de volgende taak en de levensbalans"
+	},
+	"usp": {
+		"title": "Dit heb je aan Balamentum",
+		"items": [
+			"Minder piekeren: de app zegt je wat nu aan de beurt is.",
+			"Meer evenwicht: geen levensgebied komt blijvend tekort.",
+			"Snel vastgelegd: taken typen of inspreken.",
+			"Gratis beginnen, zonder creditcard."
+		]
+	},
+	"steps": {
+		"title": "In drie stappen klaar om te beginnen",
+		"items": [
+			{
+				"title": "Inloggen met Google",
+				"text": "Eén klik, geen formulier, geen wachtwoord."
+			},
+			{
+				"title": "Taken vastleggen",
+				"text": "Typen of inspreken. Afhankelijkheden en levensgebieden wijs je toe wanneer je wilt."
+			},
+			{
+				"title": "Volgende taak afronden",
+				"text": "Het dashboard laat zien wat nu aan de beurt is en hoe evenwichtig je week verloopt."
+			}
+		]
+	},
+	"features": {
+		"title": "Wat Balamentum anders doet",
+		"shotAlt": "Screenshot uit de app: {title}",
+		"moreTitle": "Verder inbegrepen",
+		"items": [
+			{
+				"id": "next",
+				"title": "Eén volgende taak in plaats van een eindeloze lijst",
+				"text": "De app toont je de waardevolste taak waarvan de voorwaarden al vervuld zijn. Dat is het antwoord op „Wat nu?”.",
+				"points": [
+					"Waarde, prioriteit en inspanning van elke taak tellen mee.",
+					"Wat nog op andere taken wacht, blijft buiten beschouwing.",
+					"Eén tik op „Afronden” en de volgende schuift door."
+				]
+			},
+			{
+				"id": "balance",
+				"title": "Objectief in plaats van geschat",
+				"text": "Lichaam, relaties, zingeving, mentale gezondheid, doeltreffendheid: elke taak heeft haar eigen gewicht. Je balans volgt objectief uit werk dat je echt hebt gedaan, gewogen naar inspanning, niet uit zelfinschatting.",
+				"points": [
+					"Vijf pijlers: lichaam, mentale gezondheid, relaties, doeltreffendheid en zingeving.",
+					"De grafiek op het dashboard laat zien hoe evenwichtig je laatste vier weken waren.",
+					"Als je wilt, zet de lijst taken van verwaarloosde pijlers vooraan."
+				]
+			},
+			{
+				"id": "dependencies",
+				"title": "Een echte takengraaf",
+				"text": "Taken bouwen op elkaar voort. Balamentum rekent op basis van een graaf waarde en inspanning over de hele keten door en herkent cycli.",
+				"points": [
+					"De graaf laat zien welke taak waarop wacht.",
+					"Waarde en inspanning tellen over de hele keten.",
+					"Kringen herkent de app en meldt ze."
+				]
+			},
+			{
+				"id": "groups",
+				"title": "Samen plannen",
+				"text": "Nodig familie of team via een link uit in een groep en verdeel taken onder elkaar.",
+				"points": ["Uitnodigen via een link, ook zonder adresboek.", "Taken voor elkaar aanmaken en overdragen."]
+			},
+			{
+				"id": "ai",
+				"title": "AI en spraakinvoer",
+				"text": "Leg taken vast met je stem. De AI stelt passende pijlers voor en schaaft titels en beschrijvingen bij, desgewenst met je eigen aanbieder.",
+				"points": [
+					"Spreek een hele zin in, de AI maakt er losse taken van.",
+					"Passende pijlers stelt ze meteen mee voor.",
+					"Spraakinvoer zit al in het Free-pakket."
+				]
+			},
+			{
+				"id": "mcp",
+				"title": "Plannen met je AI-assistent",
+				"text": "Via de MCP-interface heeft je AI-assistent toegang tot je taken. Je vraagt in de chat wat nu aan de beurt is, maakt taken aan of laat je je balans uitleggen.",
+				"points": [
+					"Maak in de instellingen een access-token aan en vul het MCP-adres in bij je assistent.",
+					"Werkt met Claude en andere assistenten die MCP via HTTP spreken.",
+					"Lezen zit vanaf Max erin, aanmaken en wijzigen met Ultimate."
+				]
+			},
+			{
+				"id": "open",
+				"title": "Open en overal bij de hand",
+				"text": "Als app te installeren op telefoon en desktop, met pushherinneringen en herinneringen op locatie.",
+				"points": [
+					"Pushherinneringen en herinneringen op locatie.",
+					"Direct te installeren vanuit de browser, zonder app store."
+				]
+			}
+		],
+		"chat": {
+			"label": "Voorbeeld: chat met een AI-assistent via MCP",
+			"caption": "Voorbeeldchat",
+			"you": "Jij",
+			"assistant": "Assistent",
+			"tool": "Tool",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "Wat moet ik nu doen?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "Als volgende staat „Yogacursus boeken” op de planning, prioriteit 4. De deadline is overmorgen."
+				},
+				{
+					"sender": "user",
+					"text": "Zet „Oma bezoeken” voor zaterdag op mijn lijst."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "Gedaan. „Oma bezoeken” staat met deadline zaterdag op je lijst."
+				},
+				{
+					"sender": "user",
+					"text": "Hoe evenwichtig was mijn maand?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, je bent in balans. Alle vijf pijlers zitten op het streefniveau."
+				}
+			]
+		}
+	},
+	"pricing": {
+		"title": "Pakketten",
+		"lead": "Begin gratis. Heb je meer nodig, dan stap je op elk moment over in de app.",
+		"perMonth": "/ maand",
+		"free": "€ 0",
+		"yearly": "of {price} per jaar",
+		"discounts": "Bij betaling per kwartaal bespaar je 10 %, bij jaarlijkse betaling 20 %. Alle prijzen zijn eindprijzen; op grond van § 19 UStG (Duitse kleineondernemersregeling) wordt geen btw berekend.",
+		"basics": "Taken, series, checklists, deadlines, punten en balansanalyse",
+		"includesPrevious": "Alles uit {plan}, plus:",
+		"aiQuota": "{count} AI-verzoeken per maand",
+		"cta": "Gratis beginnen",
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
+		"features": {
+			"groups": "Groepen en uitnodigingslinks",
+			"voice_input": "Spraakinvoer",
+			"ai_assist": "AI-hulp: pijleradvies en tekstredactie",
+			"graph_write": "Gewogen afhankelijkheden bewerken",
+			"location_reminders": "Herinneringen op locatie",
+			"mcp_read": "MCP-interface (lezen)",
+			"mcp_readwrite": "MCP-interface (lezen en schrijven)"
+		}
+	},
+	"faq": {
+		"title": "Veelgestelde vragen",
+		"items": [
+			{
+				"q": "Wat kost Balamentum?",
+				"a": "Het Free-pakket kost niets en kent geen limiet op het aantal taken. Pro, Max en Ultimate ontgrendelen groepen, AI-hulp en interfaces."
+			},
+			{
+				"q": "Welke gegevens krijgt de app van Google?",
+				"a": "Alleen je naam, je e-mailadres en je profielfoto. Een eigen wachtwoord heb je niet nodig."
+			},
+			{
+				"q": "Hoe zeg ik een pakket op?",
+				"a": "In de app onder Instellingen. De betaling loopt via PayPal, je kunt op elk moment overstappen of opzeggen."
+			},
+			{
+				"q": "Werkt het op mijn telefoon?",
+				"a": "Ja. Balamentum is gemaakt voor bediening met één hand en kan als app op je startscherm worden geïnstalleerd."
+			},
+			{
+				"q": "Is de app toegankelijk?",
+				"a": "De interface volgt WCAG 2.2 en BITV 2.0 en gebruikt de geteste componenten van KoliBri."
+			}
+		]
+	},
+	"final": {
+		"title": "Je volgende taak wacht al",
+		"text": "Inloggen, eerste taak invoeren, beginnen."
+	},
+	"footer": {
+		"imprint": "Colofon",
+		"imprintPath": "colofon/"
+	},
+	"imprint": {
+		"title": "Colofon",
+		"provider": "Gegevens volgens § 5 DDG",
+		"contact": "Contact",
+		"email": "E-mail",
+		"representative": "Vertegenwoordigingsbevoegd",
+		"vatId": "Btw-identificatienummer volgens § 27 a UStG",
+		"responsible": "Verantwoordelijk voor de inhoud volgens § 18 Abs. 2 MStV",
+		"odrTitle": "Geschillenbeslechting in de EU",
+		"odrText": "De Europese Commissie biedt een platform voor onlinegeschillenbeslechting (ODR):",
+		"consumerTitle": "Geschillenbeslechting voor consumenten",
+		"consumerText": "Wij zijn niet bereid of verplicht deel te nemen aan geschillenbeslechtingsprocedures bij een geschillencommissie voor consumenten.",
+		"back": "Naar de startpagina"
+	}
+}
