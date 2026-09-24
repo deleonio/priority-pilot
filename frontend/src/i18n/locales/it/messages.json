@@ -22,5 +22,19 @@
 		"noTasks": "Nessuna attività",
 		"noSeries": "Nessuna serie",
 		"noCategories": "Nessuna categoria"
+	},
+	"accountDelete": {
+		"title": "Elimina account",
+		"intent": "Vuoi davvero eliminare il tuo account?",
+		"scope": "Il tuo account verrà eliminato definitivamente, con tutte le attività, serie, pilastri, categorie e impostazioni. L’operazione non si può annullare.",
+		"cancel": "Annulla",
+		"next": "Elimina",
+		"confirm": "Elimina definitivamente",
+		"busy": "Eliminazione …",
+		"refusedLabel": "Impossibile eliminare",
+		"refused": {
+			"subscription_active": "Il tuo account ha ancora un abbonamento attivo. Disdicilo prima nelle impostazioni e poi elimina il tuo account.",
+			"last_group_admin": "Sei l’ultimo amministratore di un gruppo con altri membri. Nomina prima un’altra persona amministratore nelle impostazioni del gruppo oppure sciogli il gruppo."
+		}
 	}
 }

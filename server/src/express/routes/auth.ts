@@ -474,16 +474,19 @@ authRouter.delete('/auth/me', async (req, res) => {
 		return;
 	}
 	const result = await deleteAccount(userId);
+	// `code` lässt die App den Grund in der Sprache des Nutzers erklären; `message` bleibt für API-Clients.
 	if (result === 'subscription_active') {
-		sendError(res, 409, 'Bitte kündige zuerst dein Abo. Danach kannst du dein Konto löschen.');
+		res
+			.status(409)
+			.json({ message: 'Bitte kündige zuerst dein Abo. Danach kannst du dein Konto löschen.', code: result });
 		return;
 	}
 	if (result === 'last_group_admin') {
-		sendError(
-			res,
-			409,
-			'Du bist der letzte Admin einer Gruppe mit weiteren Mitgliedern. Ernenne zuerst eine andere Person zum Admin oder löse die Gruppe auf.',
-		);
+		res.status(409).json({
+			message:
+				'Du bist der letzte Admin einer Gruppe mit weiteren Mitgliedern. Ernenne zuerst eine andere Person zum Admin oder löse die Gruppe auf.',
+			code: result,
+		});
 		return;
 	}
 	req.session.destroy(() => {

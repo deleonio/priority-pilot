@@ -890,6 +890,14 @@ export const api = {
 		}
 	},
 
+	// Löscht das eigene Konto samt Session (#1671). Die Frontend-Aufräumarbeit erledigt der Aufrufer.
+	async deleteAccount(): Promise<void> {
+		const { error, response } = await client.DELETE('/auth/me');
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// Zerstört die serverseitige Session. Die Frontend-Aufräumarbeit (localStorage, Redirect) erledigt
 	// der Aufrufer. Eigener fetch statt openapi-fetch, da /auth/* nicht in der OpenAPI-Spec steht —
 	// aber wie alle anderen Endpunkte unter dem proxied `/api/v1`-Präfix (s. checkAuth() in lib/auth.ts).

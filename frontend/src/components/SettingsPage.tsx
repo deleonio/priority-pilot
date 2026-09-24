@@ -32,6 +32,7 @@ import { AdminUsersSection } from './AdminUsersSection';
 import { ApiTokensSection } from './ApiTokensSection';
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
 import { CategoryList } from './CategoryList';
+import { DeleteAccountButton } from './DeleteAccount';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
 import { OwnPlanCard } from './OwnPlanCard';
@@ -397,6 +398,7 @@ export const SettingsPage = ({
 								_variant="secondary"
 								_on={{ onClick: saveDisplayName }}
 							/>
+							<DeleteAccountButton userId={currentUserId} />
 						</div>
 					</KolCard>
 

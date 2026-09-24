@@ -22,5 +22,19 @@
 		"noTasks": "Aucune tâche",
 		"noSeries": "Aucune série",
 		"noCategories": "Aucune catégorie"
+	},
+	"accountDelete": {
+		"title": "Supprimer le compte",
+		"intent": "Voulez-vous vraiment supprimer votre compte ?",
+		"scope": "Votre compte sera supprimé définitivement, avec toutes les tâches, séries, piliers, catégories et paramètres. Cette action est irréversible.",
+		"cancel": "Annuler",
+		"next": "Supprimer",
+		"confirm": "Supprimer définitivement",
+		"busy": "Suppression …",
+		"refusedLabel": "Suppression impossible",
+		"refused": {
+			"subscription_active": "Un abonnement est encore en cours pour votre compte. Résiliez-le d’abord dans les paramètres, puis supprimez votre compte.",
+			"last_group_admin": "Vous êtes le dernier administrateur d’un groupe qui compte d’autres membres. Nommez d’abord une autre personne administrateur dans les paramètres du groupe ou dissolvez le groupe."
+		}
 	}
 }

@@ -5523,12 +5523,15 @@ components:
           description: Fehlerbeschreibung
         code:
           type: string
-          enum: [plan_required, quota_exhausted]
+          enum: [plan_required, quota_exhausted, subscription_active, last_group_admin]
           description: >-
-            Nur bei paketbedingten Ablehnungen (#1456): maschinenlesbarer Grund.
+            Maschinenlesbarer Grund bei paketbedingten Ablehnungen (#1456) und bei
+            der abgelehnten Konto-Löschung (`DELETE /auth/me`, 409).
             `plan_required` (403) heißt „Feature nicht im Paket",
-            `quota_exhausted` (429) „Monatskontingent aufgebraucht". Alle übrigen
-            Fehler tragen weiterhin ausschließlich `message`.
+            `quota_exhausted` (429) „Monatskontingent aufgebraucht",
+            `subscription_active` „Abo läuft noch", `last_group_admin` „letzter
+            Admin einer Gruppe mit weiteren Mitgliedern". Alle übrigen Fehler
+            tragen ausschließlich `message`.
         feature:
           type: string
           description: Stabiler Feature-Identifier der Ablehnung (z. B. `groups`, `ai_assist`).

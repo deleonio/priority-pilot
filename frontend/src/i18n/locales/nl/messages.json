@@ -22,5 +22,19 @@
 		"noTasks": "Geen taken",
 		"noSeries": "Geen series",
 		"noCategories": "Geen categorieën"
+	},
+	"accountDelete": {
+		"title": "Account verwijderen",
+		"intent": "Wil je je account echt verwijderen?",
+		"scope": "Je account wordt definitief verwijderd, met alle taken, reeksen, pijlers, categorieën en instellingen. Dit kan niet ongedaan worden gemaakt.",
+		"cancel": "Annuleren",
+		"next": "Verwijderen",
+		"confirm": "Definitief verwijderen",
+		"busy": "Bezig met verwijderen …",
+		"refusedLabel": "Verwijderen niet mogelijk",
+		"refused": {
+			"subscription_active": "Voor je account loopt nog een abonnement. Zeg het eerst op in de instellingen en verwijder daarna je account.",
+			"last_group_admin": "Je bent de laatste beheerder van een groep met andere leden. Maak eerst in de groepsinstellingen iemand anders beheerder of hef de groep op."
+		}
 	}
 }

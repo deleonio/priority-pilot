@@ -137,6 +137,7 @@ describe('Konto löschen (#1671)', () => {
 			await subscribe(await idOf(cookie), status);
 			const res = await deleteMe(cookie);
 			assert.equal(res.status, 409, status);
+			assert.equal(((await res.json()) as { code: string }).code, 'subscription_active');
 			assert.equal((await me(cookie)).status, 200);
 		}
 	});
@@ -149,7 +150,9 @@ describe('Konto löschen (#1671)', () => {
 			[userId, 'admin'],
 			[member, 'member'],
 		]);
-		assert.equal((await deleteMe(cookie)).status, 409);
+		const refused = await deleteMe(cookie);
+		assert.equal(refused.status, 409);
+		assert.equal(((await refused.json()) as { code: string }).code, 'last_group_admin');
 
 		await GroupMember.update({ role: 'admin' }, { where: { groupId: group.id, userId: member } });
 		assert.equal((await deleteMe(cookie)).status, 204);
