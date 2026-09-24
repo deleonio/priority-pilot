@@ -139,6 +139,30 @@ describe('lib/push', () => {
 			expect(pushManager.subscribe).not.toHaveBeenCalled();
 			expect(mockedApi.subscribePush).toHaveBeenCalledOnce();
 		});
+
+		it('ersetzt eine Subscription mit veraltetem VAPID-Schlüssel', async () => {
+			installNotification('granted');
+			const stale = {
+				...makeSubscription('https://push.example.com/stale'),
+				options: { applicationServerKey: new Uint8Array([9, 9, 9]).buffer },
+			};
+			const fresh = makeSubscription('https://push.example.com/fresh');
+			const pushManager: PushManagerMock = {
+				getSubscription: vi.fn().mockResolvedValue(stale),
+				subscribe: vi.fn().mockResolvedValue(fresh),
+			};
+			installServiceWorker(pushManager);
+			mockedApi.getVapidPublicKey.mockResolvedValue('AQID');
+
+			expect(await enablePush()).toBe(true);
+			expect(stale.unsubscribe).toHaveBeenCalledOnce();
+			expect(mockedApi.unsubscribePush).toHaveBeenCalledWith({ endpoint: 'https://push.example.com/stale' });
+			expect(mockedApi.subscribePush).toHaveBeenCalledWith(
+				expect.objectContaining({
+					subscription: expect.objectContaining({ endpoint: 'https://push.example.com/fresh' }),
+				}),
+			);
+		});
 	});
 
 	describe('disablePush', () => {

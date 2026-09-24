@@ -231,7 +231,7 @@ export const SettingsPage = ({
 		toggle: togglePush,
 	} = usePushSubscription();
 
-	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
+	const [pushTestResult, setPushTestResult] = useState<'success' | 'none' | 'error' | null>(null);
 
 	// #1219 AK6: Anzeigename (Tab „Allgemein") — Server ist die Quelle (Spalte `users.displayName`),
 	// initial per GET /profile nachgeladen. Nutzer-Eingabe schlägt den nachlaufenden GET
@@ -552,8 +552,8 @@ export const SettingsPage = ({
 										onClick: () => {
 											api
 												.sendTestPush()
-												.then(() => {
-													setPushTestResult('success');
+												.then(({ sent }) => {
+													setPushTestResult(sent > 0 ? 'success' : 'none');
 												})
 												.catch(() => {
 													setPushTestResult('error');
@@ -565,6 +565,11 @@ export const SettingsPage = ({
 							{pushTestResult === 'success' && (
 								<KolAlert _type="success" _label="Test-Push gesendet">
 									Zitat unterwegs.
+								</KolAlert>
+							)}
+							{pushTestResult === 'none' && (
+								<KolAlert _type="warning" _label="Kein Gerät erreicht">
+									Für dieses Konto ist kein Gerät erreichbar. Schalte Push-Nachrichten aus und wieder ein.
 								</KolAlert>
 							)}
 							{pushTestResult === 'error' && (
