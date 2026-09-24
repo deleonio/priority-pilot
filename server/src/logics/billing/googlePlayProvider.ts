@@ -1,5 +1,8 @@
+import type Subscription from '../../models/subscription.js';
 import { verifyPubSubToken, type GoogleKeysSource } from '../googleOidc.js';
 import { createGooglePlayClient, type GooglePlayClient } from '../googlePlay.js';
+import type { Plan } from '../plans.js';
+import { syncUserPlan } from './lifecycle.js';
 import type { BillingProvider } from './provider.js';
 
 /** Injizierbare Teile; ohne Angabe gelten die echten Google-Aufrufe. */
@@ -17,6 +20,66 @@ interface DeveloperNotification {
 	subscriptionNotification?: { notificationType?: number; purchaseToken?: string };
 	testNotification?: unknown;
 }
+
+/** `notificationType` einer RTDN, bei der Google das Abo zurückgebucht hat (Erstattung). */
+const SUBSCRIPTION_REVOKED = 12;
+
+/**
+ * Wie der Stand eines Play-Abos aufs Abo wirkt (ADR 0017), über den vorhandenen Lebenszyklus:
+ *
+ * - `ACTIVE` (verlängert oder wieder aufgenommen): neues Periodenende, Kulanz und eine Kündigung
+ *   zum Periodenende entfallen.
+ * - `IN_GRACE_PERIOD`/`ON_HOLD`: Zahlung fehlgeschlagen, die Kulanz startet (`firstFailureAt`); nach
+ *   ihrem Ablauf greift `applyDueGracePeriod`.
+ * - `CANCELED`: gekündigt, aber bis zum Ablauf bezahlt; der Downgrade ist zum Periodenende vorgemerkt.
+ * - `EXPIRED` oder zurückgebucht (`revoked`): sofort zurück auf `free`.
+ *
+ * Andere Stände (`PENDING`, `PAUSED`) ändern nichts.
+ */
+export const applyPlayState = async (
+	subscription: Subscription,
+	purchase: { state: string; expiresAt: Date },
+	revoked: boolean,
+	now: Date,
+): Promise<void> => {
+	if (revoked || purchase.state === 'EXPIRED') {
+		await subscription.update({
+			plan: 'free',
+			status: 'cancelled',
+			currentPeriodEnd: revoked ? now : purchase.expiresAt,
+			pendingPlan: null,
+			pendingPlanEffectiveAt: null,
+			firstFailureAt: null,
+		});
+		await syncUserPlan(subscription, 'free');
+		return;
+	}
+	switch (purchase.state) {
+		case 'ACTIVE':
+			await subscription.update({
+				status: 'active',
+				currentPeriodEnd: purchase.expiresAt,
+				firstFailureAt: null,
+				...(subscription.get('pendingPlan') === 'free' ? { pendingPlan: null, pendingPlanEffectiveAt: null } : {}),
+			});
+			await syncUserPlan(subscription, subscription.get('plan') as Plan);
+			return;
+		case 'IN_GRACE_PERIOD':
+		case 'ON_HOLD':
+			await subscription.update({
+				status: purchase.state === 'ON_HOLD' ? 'suspended' : 'past_due',
+				firstFailureAt: (subscription.get('firstFailureAt') as Date | null) ?? now,
+			});
+			return;
+		case 'CANCELED':
+			await subscription.update({
+				status: 'cancelled',
+				currentPeriodEnd: purchase.expiresAt,
+				pendingPlan: 'free',
+				pendingPlanEffectiveAt: purchase.expiresAt,
+			});
+	}
+};
 
 /**
  * Google Play als Abo-Anbieter (ADR 0017): Ereignisse kommen als Real-time Developer Notification
@@ -52,10 +115,10 @@ export const createGooglePlayProvider = (deps: GooglePlayProviderDeps = {}): Bil
 				payload: notification,
 			};
 		},
-		// Die Auswirkung auf Paket, Kulanz und Downgrade folgt im Lebenszyklus; hier nur der aktuelle Stand.
-		applyEvent: async (subscription, event) => {
+		applyEvent: async (subscription, event, now) => {
 			const purchase = await client.getSubscription(event.externalSubscriptionId);
-			await subscription.update({ currentPeriodEnd: purchase.expiresAt });
+			const type = (event.payload as DeveloperNotification).subscriptionNotification?.notificationType;
+			await applyPlayState(subscription, purchase, type === SUBSCRIPTION_REVOKED, now);
 		},
 	};
 };
