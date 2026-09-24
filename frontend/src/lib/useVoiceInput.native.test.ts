@@ -51,6 +51,17 @@ describe('useVoiceInput in der Android-App (#1680)', () => {
 		expect(plugin.start).not.toHaveBeenCalled();
 	});
 
+	it('play: scheiternder Permission-Aufruf meldet Fehler und lässt den Zustand nicht hängen', async () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		plugin.checkPermissions.mockRejectedValue(new Error('bridge broken'));
+		const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+		act(() => result.current.startRecording());
+
+		await waitFor(() => expect(result.current.voiceError).toBe('Spracherkennung fehlgeschlagen.'));
+		expect(result.current.isRecording).toBe(false);
+	});
+
 	it('web: nutzt weiter die Web Speech API, nicht das Plugin', () => {
 		const start = vi.fn();
 		vi.stubGlobal(

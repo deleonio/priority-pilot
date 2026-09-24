@@ -63,15 +63,17 @@ type NativeResult = { text: string } | { error: 'denied' | 'nothing' | 'failed' 
  * Web-Bundle steckt es nicht. „No match"/„No speech input" meldet Android, wenn nichts erkannt wurde.
  */
 const recognizeNative = async (lang: string): Promise<NativeResult> => {
-	const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
-	let { speechRecognition } = await SpeechRecognition.checkPermissions();
-	if (speechRecognition !== 'granted') {
-		({ speechRecognition } = await SpeechRecognition.requestPermissions());
-	}
-	if (speechRecognition !== 'granted') {
-		return { error: 'denied' };
-	}
+	// Import und Permission-Aufrufe mit im try/catch: lehnt die Bridge sie ab, würde die Rejection
+	// sonst niemand behandeln — der Fehlerhinweis bliebe aus und isRecording hing auf true.
 	try {
+		const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+		let { speechRecognition } = await SpeechRecognition.checkPermissions();
+		if (speechRecognition !== 'granted') {
+			({ speechRecognition } = await SpeechRecognition.requestPermissions());
+		}
+		if (speechRecognition !== 'granted') {
+			return { error: 'denied' };
+		}
 		const { matches } = await SpeechRecognition.start({
 			language: lang,
 			maxResults: 1,
