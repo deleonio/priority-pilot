@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { UniqueConstraintError } from 'sequelize';
-import { PushSubscription } from '../../models/index.js';
+import { FcmToken, PushSubscription } from '../../models/index.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { getVapidPublicKey, isPushConfigured, sendPushToUser } from '../../logics/push.js';
 import type { PushSender } from '../../logics/push.js';
@@ -54,6 +54,12 @@ const validateSubscription = (body: unknown): ValidationResult => {
 		ok: true,
 		value: { endpoint, p256dh, auth, expirationTime: typeof expirationTime === 'number' ? expirationTime : null },
 	};
+};
+
+/** `token` aus dem Body von `/push/fcm/*` — `null`, wenn es fehlt, leer oder unplausibel lang ist. */
+const fcmTokenOf = (body: unknown): string | null => {
+	const { token } = (body ?? {}) as Record<string, unknown>;
+	return typeof token === 'string' && token.trim() !== '' && token.length <= 4096 ? token : null;
 };
 
 /**
@@ -132,6 +138,35 @@ export const createPushRouter = (pushSender?: PushSender) => {
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
+	});
+
+	// POST /push/fcm/register — FCM-Token der Android-App für den eingeloggten Nutzer speichern (#1670,
+	// ADR 0016). Idempotent; ein Token, das bisher einem anderen Nutzer gehörte, wechselt zum aktuellen
+	// (ein Gerät gehört dem zuletzt angemeldeten Konto). Unabhängig von der VAPID-Konfiguration.
+	router.post('/push/fcm/register', async (req: Request, res: Response<ErrorDto>) => {
+		const token = fcmTokenOf(req.body);
+		if (token === null) {
+			sendError(res, 400, 'token muss ein nicht-leerer String sein.');
+			return;
+		}
+		const userId = getUserId(req) ?? null;
+		const [row, created] = await FcmToken.findOrCreate({ where: { token }, defaults: { token, userId } });
+		if (!created && row.userId !== userId) {
+			await row.update({ userId });
+		}
+		res.status(204).end();
+	});
+
+	// POST /push/fcm/unregister — FCM-Token des eingeloggten Nutzers entfernen. Idempotent; fremde Tokens
+	// bleiben unberührt (Datenisolation).
+	router.post('/push/fcm/unregister', async (req: Request, res: Response<ErrorDto>) => {
+		const token = fcmTokenOf(req.body);
+		if (token === null) {
+			sendError(res, 400, 'token muss ein nicht-leerer String sein.');
+			return;
+		}
+		await FcmToken.destroy({ where: { token, ...ownerScope(getUserId(req)) } });
+		res.status(204).end();
 	});
 
 	// POST /push/test — sendet einen Test-Push mit einem zufälligen Zitat an alle Subscriptions des

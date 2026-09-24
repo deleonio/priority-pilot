@@ -9,6 +9,7 @@ import Series from './series.js';
 import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 import PushSubscription from './pushSubscription.js';
+import FcmToken from './fcmToken.js';
 import NotificationLog from './notificationLog.js';
 import MissedTask from './missedTask.js';
 import LlmProvider from './llmProvider.js';
@@ -106,6 +107,7 @@ export {
 	SeriesPillar,
 	User,
 	PushSubscription,
+	FcmToken,
 	NotificationLog,
 	MissedTask,
 	LlmProvider,
