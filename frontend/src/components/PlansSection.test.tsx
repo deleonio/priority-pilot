@@ -263,3 +263,31 @@ describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spalten
 		}
 	});
 });
+
+describe('PlansSection je Kanal (#1674)', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('web: Buchen-Zeilen des PayPal-Kaufwegs, kein Store-Hinweis', async () => {
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
+
+		expect(screen.getByTestId('plans-kol-table').querySelectorAll('tbody tr[data-row-kind="action"]')).toHaveLength(3);
+		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
+	});
+
+	it('play: Pakete und Preise ohne Buchen-Zeilen und ohne Link, dafür der Hinweis', async () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
+
+		const table = screen.getByTestId('plans-kol-table');
+		expect(table.querySelectorAll('tbody tr[data-row-kind="price"]')).toHaveLength(3);
+		expect(table.querySelectorAll('tbody tr[data-row-kind="action"]')).toHaveLength(0);
+		expect(screen.getByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeTruthy();
+		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
+	});
+});
