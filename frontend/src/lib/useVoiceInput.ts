@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isNativeChannel } from './platform';
 
 interface UseVoiceInputOptions {
 	onTranscript: (text: string) => void;
@@ -54,6 +55,49 @@ const getSpeechConstructor = (): SpeechRecognitionConstructor | null => {
 	return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 };
 
+type NativeResult = { text: string } | { error: 'denied' | 'nothing' | 'failed' };
+
+/**
+ * Spracheingabe in der Android-App (#1680): Die Web Speech API fehlt im WebView, das Plugin erkennt
+ * genau einen Satz und liefert ihn nach dem Ende der Aufnahme. Es wird erst hier nachgeladen, im
+ * Web-Bundle steckt es nicht. „No match"/„No speech input" meldet Android, wenn nichts erkannt wurde.
+ */
+const recognizeNative = async (lang: string): Promise<NativeResult> => {
+	const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+	let { speechRecognition } = await SpeechRecognition.checkPermissions();
+	if (speechRecognition !== 'granted') {
+		({ speechRecognition } = await SpeechRecognition.requestPermissions());
+	}
+	if (speechRecognition !== 'granted') {
+		return { error: 'denied' };
+	}
+	try {
+		const { matches } = await SpeechRecognition.start({
+			language: lang,
+			maxResults: 1,
+			partialResults: false,
+			popup: false,
+		});
+		const text = matches?.[0]?.trim() ?? '';
+		return text === '' ? { error: 'nothing' } : { text };
+	} catch (reason) {
+		return { error: /no (match|speech)/i.test(String(reason)) ? 'nothing' : 'failed' };
+	}
+};
+
+const stopNative = async (): Promise<void> => {
+	const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+	await SpeechRecognition.stop().catch(() => undefined);
+};
+
+let nativeRunCounter = 0;
+
+const NATIVE_ERRORS: Record<'denied' | 'nothing' | 'failed', string> = {
+	denied: 'Mikrofon-Zugriff wurde verweigert.',
+	nothing: 'Nichts erkannt – bitte erneut sprechen.',
+	failed: 'Spracherkennung fehlgeschlagen.',
+};
+
 // Modulweiter Guard über alle Hook-Instanzen (#264): Der Browser erlaubt nur EINE aktive
 // SpeechRecognition — startet Feld B, während Feld A aufnimmt, bräche der Browser A mit
 // `error: 'aborted'` ab und A zeigte fälschlich einen Fehler. Stattdessen „last click wins":
@@ -66,15 +110,43 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 	const [isRecording, setIsRecording] = useState(false);
 	const [voiceError, setVoiceError] = useState<string | null>(null);
 	const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+	// Laufende Aufnahme über das Plugin; die laufende Nummer unterscheidet Aufnahmen, damit ein spätes
+	// Ergebnis einer abgebrochenen Aufnahme nichts mehr auslöst.
+	const nativeRunRef = useRef<number | null>(null);
 	const onTranscriptRef = useRef(onTranscript);
 	onTranscriptRef.current = onTranscript;
 
-	const isSupported = getSpeechConstructor() !== null;
+	const isSupported = isNativeChannel() || getSpeechConstructor() !== null;
 
 	const startRecording = useCallback(
 		(options?: { auto?: boolean }) => {
 			const isAuto = options?.auto === true;
 			setVoiceError(null);
+			if (isNativeChannel()) {
+				if (nativeRunRef.current !== null) return;
+				stopActiveRecording?.();
+				const run = ++nativeRunCounter;
+				nativeRunRef.current = run;
+				setIsRecording(true);
+				stopActiveRecording = () => {
+					if (nativeRunRef.current === run) {
+						nativeRunRef.current = null;
+						setIsRecording(false);
+						void stopNative();
+					}
+				};
+				void recognizeNative(lang).then((result) => {
+					if (nativeRunRef.current !== run) return;
+					nativeRunRef.current = null;
+					setIsRecording(false);
+					if ('text' in result) {
+						onTranscriptRef.current(result.text);
+					} else if (!isAuto) {
+						setVoiceError(NATIVE_ERRORS[result.error]);
+					}
+				});
+				return;
+			}
 			if (recognitionRef.current !== null) return;
 			const Constructor = getSpeechConstructor();
 			if (Constructor === null) return;
@@ -190,6 +262,11 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 	);
 
 	const stopRecording = useCallback(() => {
+		if (nativeRunRef.current !== null) {
+			// Das Plugin liefert den bis hierher erkannten Satz noch über `start` aus.
+			void stopNative();
+			return;
+		}
 		recognitionRef.current?.stop();
 		recognitionRef.current = null;
 		setIsRecording(false);
@@ -203,6 +280,10 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 			const recognition = recognitionRef.current;
 			recognitionRef.current = null;
 			recognition?.abort();
+			if (nativeRunRef.current !== null) {
+				nativeRunRef.current = null;
+				void stopNative();
+			}
 		};
 	}, []);
 
