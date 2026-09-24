@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-24
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.5.0 – v0.5.1._
+
+### Other Changes
+
+- fix(frontend): access-token card never shows error and empty state together by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1652
 
 ## v0.4 - 2026-09-24
 
