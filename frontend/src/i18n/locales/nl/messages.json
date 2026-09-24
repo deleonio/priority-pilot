@@ -36,5 +36,16 @@
 			"subscription_active": "Voor je account loopt nog een abonnement. Zeg het eerst op in de instellingen en verwijder daarna je account.",
 			"last_group_admin": "Je bent de laatste beheerder van een groep met andere leden. Maak eerst in de groepsinstellingen iemand anders beheerder of hef de groep op."
 		}
+	},
+	"billing": {
+		"managedBy": "Abonnement actief, beheerd via {{provider}}",
+		"manageInPlay": "Beheren in Google Play",
+		"restore": {
+			"action": "Aankopen herstellen",
+			"busy": "Bezig met herstellen …",
+			"done": "Je aankopen uit Google Play zijn hersteld.",
+			"none": "Er zijn geen aankopen om te herstellen voor je Google-account.",
+			"failed": "Je aankopen konden niet worden hersteld. Probeer het later opnieuw."
+		}
 	}
 }

@@ -36,5 +36,16 @@
 			"subscription_active": "A tua conta ainda tem uma subscrição ativa. Cancela-a primeiro nas definições e depois elimina a tua conta.",
 			"last_group_admin": "És o último administrador de um grupo com outros membros. Primeiro nomeia outra pessoa como administrador nas definições do grupo ou dissolve o grupo."
 		}
+	},
+	"billing": {
+		"managedBy": "Subscrição ativa, gerida através de {{provider}}",
+		"manageInPlay": "Gerir no Google Play",
+		"restore": {
+			"action": "Restaurar compras",
+			"busy": "A restaurar …",
+			"done": "As tuas compras do Google Play foram restauradas.",
+			"none": "Não há compras para restaurar na tua conta Google.",
+			"failed": "Não foi possível restaurar as compras. Tenta novamente mais tarde."
+		}
 	}
 }

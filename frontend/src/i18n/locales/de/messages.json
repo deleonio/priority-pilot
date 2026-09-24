@@ -36,5 +36,16 @@
 			"subscription_active": "Für dein Konto läuft noch ein Abo. Kündige es zuerst in den Einstellungen und lösche danach dein Konto.",
 			"last_group_admin": "Du bist der letzte Admin einer Gruppe mit weiteren Mitgliedern. Ernenne zuerst in den Gruppen-Einstellungen eine andere Person zum Admin oder löse die Gruppe auf."
 		}
+	},
+	"billing": {
+		"managedBy": "Abo aktiv, verwaltet über {{provider}}",
+		"manageInPlay": "In Google Play verwalten",
+		"restore": {
+			"action": "Käufe wiederherstellen",
+			"busy": "Wird wiederhergestellt …",
+			"done": "Deine Käufe aus Google Play sind wiederhergestellt.",
+			"none": "Für dein Google-Konto gibt es keine Käufe, die sich wiederherstellen lassen.",
+			"failed": "Die Käufe konnten nicht wiederhergestellt werden. Bitte versuche es später erneut."
+		}
 	}
 }

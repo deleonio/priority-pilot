@@ -36,5 +36,16 @@
 			"subscription_active": "Your account still has a running subscription. Cancel it in the settings first, then delete your account.",
 			"last_group_admin": "You are the last admin of a group with other members. First make someone else an admin in the group settings or dissolve the group."
 		}
+	},
+	"billing": {
+		"managedBy": "Subscription active, managed via {{provider}}",
+		"manageInPlay": "Manage in Google Play",
+		"restore": {
+			"action": "Restore purchases",
+			"busy": "Restoring …",
+			"done": "Your Google Play purchases have been restored.",
+			"none": "There are no purchases to restore for your Google account.",
+			"failed": "Your purchases could not be restored. Please try again later."
+		}
 	}
 }

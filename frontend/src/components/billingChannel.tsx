@@ -1,7 +1,10 @@
 import { KolAlert } from '@public-ui/react-v19';
 import type { ReactNode } from 'react';
+import type { Subscription } from '../lib/auth';
 import type { Period, Plan } from '../lib/planOffers';
 import type { Channel } from '../lib/platform';
+import { usePlan } from '../lib/usePlan';
+import { ManagedBy } from './ManagedBy';
 import { usePaypalPurchase } from './PaypalPurchase';
 import { usePlayPurchase } from './PlayPurchase';
 
@@ -26,14 +29,33 @@ const useNoInAppPurchase = (): PurchaseUi => ({
 	),
 });
 
-/** Genau ein Kaufweg je Kanal (ADR 0016); PayPal gibt es nur im Kanal `web`. */
+type Provider = Subscription['provider'];
+
+/** Anbieter, über den ein Kanal kauft; im App Store gibt es noch keinen (ADR 0016). */
+export const CHANNEL_PROVIDER: Record<Channel, Provider | undefined> = {
+	web: 'paypal',
+	play: 'google_play',
+	appstore: undefined,
+};
+
+const CHANNEL_HOOKS: Record<Channel, () => PurchaseUi> = {
+	web: usePaypalPurchase,
+	play: usePlayPurchase,
+	appstore: useNoInAppPurchase,
+};
+
+/**
+ * Genau ein Kaufweg je Kanal (ADR 0016); PayPal gibt es nur im Kanal `web`. Läuft das Abo über
+ * einen anderen Anbieter, bietet der Kanal nichts zum Kauf an, sondern zeigt, wo es verwaltet wird.
+ */
 export const purchaseHookFor = (channel: Channel): (() => PurchaseUi) => {
-	switch (channel) {
-		case 'web':
-			return usePaypalPurchase;
-		case 'play':
-			return usePlayPurchase;
-		case 'appstore':
-			return useNoInAppPurchase;
-	}
+	const useChannelPurchase = CHANNEL_HOOKS[channel];
+	return () => {
+		const purchase = useChannelPurchase();
+		const { subscription } = usePlan();
+		if (!subscription || subscription.provider === CHANNEL_PROVIDER[channel]) {
+			return purchase;
+		}
+		return { price: purchase.price, notice: <ManagedBy provider={subscription.provider} /> };
+	};
 };
