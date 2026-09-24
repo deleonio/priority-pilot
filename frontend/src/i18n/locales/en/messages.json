@@ -22,5 +22,19 @@
 		"noTasks": "No tasks",
 		"noSeries": "No series",
 		"noCategories": "No categories"
+	},
+	"accountDelete": {
+		"title": "Delete account",
+		"intent": "Do you really want to delete your account?",
+		"scope": "Your account will be deleted permanently, with all tasks, series, pillars, categories and settings. This cannot be undone.",
+		"cancel": "Cancel",
+		"next": "Delete",
+		"confirm": "Delete permanently",
+		"busy": "Deleting …",
+		"refusedLabel": "Cannot delete",
+		"refused": {
+			"subscription_active": "Your account still has a running subscription. Cancel it in the settings first, then delete your account.",
+			"last_group_admin": "You are the last admin of a group with other members. First make someone else an admin in the group settings or dissolve the group."
+		}
 	}
 }

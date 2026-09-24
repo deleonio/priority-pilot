@@ -22,5 +22,19 @@
 		"noTasks": "Nenhuma tarefa",
 		"noSeries": "Nenhuma série",
 		"noCategories": "Nenhuma categoria"
+	},
+	"accountDelete": {
+		"title": "Eliminar conta",
+		"intent": "Queres mesmo eliminar a tua conta?",
+		"scope": "A tua conta será eliminada definitivamente, com todas as tarefas, séries, pilares, categorias e definições. Isto não pode ser desfeito.",
+		"cancel": "Cancelar",
+		"next": "Eliminar",
+		"confirm": "Eliminar definitivamente",
+		"busy": "A eliminar …",
+		"refusedLabel": "Não é possível eliminar",
+		"refused": {
+			"subscription_active": "A tua conta ainda tem uma subscrição ativa. Cancela-a primeiro nas definições e depois elimina a tua conta.",
+			"last_group_admin": "És o último administrador de um grupo com outros membros. Primeiro nomeia outra pessoa como administrador nas definições do grupo ou dissolve o grupo."
+		}
 	}
 }
