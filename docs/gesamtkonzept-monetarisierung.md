@@ -540,6 +540,28 @@ Einfach
 
 `blocked_by`: T7. Abschluss der Kette; das Epic wird geschlossen.
 
+#### Entscheidungen zum Launch (2026-09-24, #1463)
+
+1. **Übergangs-Tier:** `ultimate` für alle vor dem Stichtag angelegten `free`-Konten — nur so
+   verliert kein Bestandsnutzer eine Funktion (`max` nähme MCP-Schreibzugriff, `pro` zusätzlich
+   Graph-Schreiben und Standort-Erinnerungen).
+2. **Ende des Grandfatherings:** per Ereignis (erstes produktives PayPal-Abo), nicht per Datum. Der
+   Rückfall auf `free` ist ein eigenes Folge-Ticket; kein automatischer Massen-Downgrade.
+3. **Schalter:** Das Ticket liefert Setzung, Prüfabfrage und Runbook (`docs/deployment.md`,
+   Abschnitt 7); der Betreiber legt `MONETIZATION_ENFORCED` auf dem Host selbst um.
+4. **Kontingente** bleiben bei 60/110/200 Aufrufen im Monat. Begründung: `ai_usage` zählt seit T4,
+   bei ausgeschaltetem Schalter und ohne zahlende Nutzer gibt es aber noch keine belastbaren
+   Betriebswerte. Die Werte folgen weiter der Basis von rund 18 % des Abopreises; justiert wird in
+   einem Folge-Ticket nach einigen Wochen Echtbetrieb.
+5. **Preise** bleiben bei 7,99 / 14,99 / 24,99 € monatlich (T6, ADR 0013). Abgleich: Habitica ~5 €,
+   Habitify ~2,50 €, Productive ~11 € monatlich. Pro liegt über den reinen Habit-Trackern, weil es
+   KI-Assistenz und Gruppen enthält; Max und Ultimate decken Graph, Standort und MCP ab, die keines
+   der Vergleichsprodukte bietet.
+6. **Form der Setzung:** einmaliger, stichtagsgesteuerter CLI-Lauf
+   (`server/src/cli/grandfatherPlans.ts`, Env `GRANDFATHER_CUTOFF`) plus Prüfabfrage der
+   Paketverteilung — kein Dauerlauf in `migrate.ts`, damit bewusst zurückgesetzte Konten nicht bei
+   jedem Serverstart wieder hochgestuft werden.
+
 ## Ausblick: KI-Guard gegen Einkaufslisten-Einträge (optional)
 
 Der Guard ist die Leitbild-Regel angewendet auf die Datenaufnahme: priority-pilot ist keine Todo-Listen-App. Ein optionaler LLM-Guard beim Anlegen und Bearbeiten von Aufgaben prüft, ob ein Eintrag in eine reine Verwaltung gehört („Käse kaufen“) statt in das Balance-Modell. Er schützt damit nicht nur das Selbstverständnis der App, sondern die Datenqualität, auf der Säulen-Bilanz, proaktive Vorschläge und Graph beruhen.
