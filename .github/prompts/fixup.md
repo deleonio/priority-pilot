@@ -23,7 +23,7 @@ PROCEDURE:
    - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve, NO verdict — the next run reads the answer). This blocks only THIS finding, not the round: the unambiguous findings of the same round still go through a–d (GATE, commit+push, resolve, ✅ row). Only if the round has NO unambiguous finding at all does it end with no commit. If not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
 4. **Decision findings** → the review's option ID is only a PROPOSAL; wait for the human's choice (their reply comment carries the option ID), then implement EXACTLY that option
 5. **CI red**:
-   - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, do NOT wait for it
+   - FLAKY (timeout/timing, thematically unrelated): rerun ONLY if this round has NOT pushed yet — `gh run rerun <run-id> --failed`, do NOT wait for it. After your own push the rerun lands in concurrency group `ci-<PR>` (cancel-in-progress) and CANCELS the fresh head run; a cancelled run counts as green for wait-for-checks.sh and the merge gate, so the new head would reach ready-to-merge unverified (MEMORY.md 2026-08-23). If you already pushed: skip the rerun — the review re-reports the red finding and the next round handles it
    - Real failure: read the log, fix it, commit+push
    - Unrelated: document in your own ai-fixup-decisions collected comment (no new comment, do NOT touch the review's ai-review comment)
 6. **UI findings**: SKILL.md step 3c (deterministic tools first; Playwright MCP only for the short 375/1280 layout-break check). Fix layout breaks, KoliBri-first
