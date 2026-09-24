@@ -11,5 +11,6 @@
 		"@capacitor/core",
 		"@capacitor/push-notifications",
 		"@capacitor/splash-screen",
+		"cordova-plugin-purchase",
 	],
 }

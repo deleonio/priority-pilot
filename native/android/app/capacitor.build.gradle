@@ -14,7 +14,8 @@ dependencies {
     implementation project(':capacitor-browser')
     implementation project(':capacitor-push-notifications')
     implementation project(':capacitor-splash-screen')
-
+    implementation "com.android.billingclient:billing:9.0.0"
+    implementation "androidx.core:core:1.9.0"
 }
 
 

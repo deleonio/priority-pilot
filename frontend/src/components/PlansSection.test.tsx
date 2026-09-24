@@ -78,6 +78,7 @@ const getPlansCatalog = vi.fn();
 vi.mock('../api', () => ({ api: { getPlansCatalog: () => getPlansCatalog() } }));
 
 vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ plan: 'pro', entitlements: {} }) }));
+vi.mock('../lib/auth', () => ({ checkAuth: () => Promise.resolve({ playAccountId: 'acc-1' }) }));
 
 import { PlansSection } from './PlansSection';
 
@@ -277,17 +278,24 @@ describe('PlansSection je Kanal (#1674)', () => {
 		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
 	});
 
-	it('play: Pakete und Preise ohne Buchen-Zeilen und ohne Link, dafür der Hinweis', async () => {
+	it('play: Preise aus Google Play statt aus dem Katalog, kein Link auf den Web-Kauf (#1692)', async () => {
 		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		vi.stubGlobal('CdvPurchase', {
+			store: {
+				register: vi.fn(),
+				when: () => ({ approved: vi.fn() }),
+				initialize: vi.fn(() => Promise.resolve()),
+				get: (id: string) => ({
+					offers: [{ id: `${id}@monthly`, pricingPhases: [{ price: `${id} 9,49 €` }], order: vi.fn() }],
+				}),
+			},
+		});
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
-		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText('pro 9,49 €')).toBeTruthy());
 
-		const table = screen.getByTestId('plans-kol-table');
-		expect(table.querySelectorAll('tbody tr[data-row-kind="price"]')).toHaveLength(3);
-		expect(table.querySelectorAll('tbody tr[data-row-kind="action"]')).toHaveLength(0);
-		expect(screen.getByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeTruthy();
+		expect(screen.queryByText('7,99 €')).toBeNull();
 		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
 	});
 });
