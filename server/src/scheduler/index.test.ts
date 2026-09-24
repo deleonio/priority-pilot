@@ -73,9 +73,10 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 		process.env = { ...originalEnv };
 	});
 
-	it('startet keinen Timer ohne VAPID-Konfiguration', () => {
+	it('startet keinen Timer ohne VAPID- und FCM-Konfiguration', () => {
 		delete process.env.VAPID_PUBLIC_KEY;
 		delete process.env.VAPID_PRIVATE_KEY;
+		delete process.env.FCM_SERVICE_ACCOUNT_FILE;
 		process.env.PUSH_REMINDERS_ENABLED = 'true';
 		let calledSetInterval = false;
 

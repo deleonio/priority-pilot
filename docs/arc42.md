@@ -82,6 +82,7 @@ graph LR
     API -->|IF-08 Subscriptions + Webhooks| PayPal[PayPal]
     API -->|IF-09 SMTP| Mail[Mailserver]
     API -->|IF-10 Contents-API| GitHub[GitHub / Obsidian-Repo]
+    API -->|IF-11 FCM HTTP v1| FCM[Firebase Cloud Messaging]
 ```
 
 | ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                           |
@@ -96,6 +97,7 @@ graph LR
 | IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`) |
 | IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate)                                                                                |
 | IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                |
+| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                             |
 
 ## 4. Lösungsstrategie
 
@@ -156,7 +158,7 @@ graph TB
 | `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01          |
 | `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
 | `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06   |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01 … IF-10  |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01 … IF-11  |
 | `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —              |
 
 ### 5.2 Server (Whitebox `server`)
@@ -306,8 +308,9 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   `logics/plans.ts` plus `planGuard.ts`/`aiQuotaMeter.ts`; die Tests
   `plan-gating-coverage.test.ts` und `ai-quota-coverage.test.ts` misslingen, wenn eine neue
   Route Gating oder Zähler überspringt.
-- **Benachrichtigungen:** Web-Push (`logics/push.ts`, VAPID aus ENV) und E-Mail (`logics/mail.ts`,
-  SMTP aus ENV) sind zwei gleichartig injizierbare Kanäle; wiederholte Scheduler-Läufe
+- **Benachrichtigungen:** Web-Push (`logics/push.ts`, VAPID aus ENV, für die Android-App zusätzlich
+  FCM über `logics/fcm.ts`) und E-Mail (`logics/mail.ts`, SMTP aus ENV) sind zwei gleichartig
+  injizierbare Kanäle; wiederholte Scheduler-Läufe
   deduplizieren ihre Trigger über Einträge im `notification_log`.
 - **Fehlervertrag:** Handler antworten über `sendError` mit `{ message }` (`http-error.ts`);
   der globale Handler übersetzt Serverfehler (`server-error-handler.ts`), unbehandelte Fehler
