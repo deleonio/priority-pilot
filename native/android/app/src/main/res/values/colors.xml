@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Markenfarben aus dem Web-Manifest (frontend/vite.config.ts, theme_color). -->
+    <color name="colorPrimary">#1A1A1A</color>
+    <color name="colorPrimaryDark">#1A1A1A</color>
+    <color name="colorAccent">#1A1A1A</color>
+</resources>

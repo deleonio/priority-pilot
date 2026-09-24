@@ -8,5 +8,5 @@
 		"skipLibCheck": true,
 		"types": ["node"]
 	},
-	"include": ["capacitor.config.ts"]
+	"include": ["capacitor.config.ts", "src"]
 }
