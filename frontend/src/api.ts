@@ -975,6 +975,21 @@ export const api = {
 		}
 	},
 
+	// FCM-Token der Android-App an- bzw. abmelden (#1679); der Server schickt Benachrichtigungen dann auch per FCM.
+	async registerFcmToken(token: string): Promise<void> {
+		const { error, response } = await client.POST('/push/fcm/register', { body: { token } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	async unregisterFcmToken(token: string): Promise<void> {
+		const { error, response } = await client.POST('/push/fcm/unregister', { body: { token } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// Test-Push mit einem zufälligen Zitat an alle eigenen Subscriptions auslösen (#386). Liefert die
 	// Zahl der Zustellungen und das gewählte Zitat zurück.
 	async sendTestPush(init: Init = {}): Promise<{ sent: number; quote: { text: string; author: string } }> {
