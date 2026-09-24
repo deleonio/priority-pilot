@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.4 - 2026-09-23
+## v0.4 - 2026-09-24
 
-_Enthält v0.4.0 – v0.4.19._
+_Enthält v0.4.0 – v0.4.20._
 
 ### Other Changes
 
@@ -25,6 +25,8 @@ _Enthält v0.4.0 – v0.4.19._
 - feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
 - feat(server): withhold tasks with far-future deadlines from suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1644
 - feat(frontend): run pillar reassignment as server-side background job by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1645
+- feat(server): add grandfathering CLI for legacy free accounts (#1463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1649
+- feat(frontend): rename Wald tab to Graph, sharpen USP messaging by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1647
 
 ## v0.3 - 2026-09-23
 
@@ -882,7 +884,6 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): render settings and help as pages in the app shell by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1323
 - feat(frontend): add categories as a thematic grouping layer by @deleonio in https://github.com/deleonio/priority-pilot/pull/1325
 - feat(frontend): show task/series id in edit title and confirm dialogs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1350
-- feat(frontend): category badge below select, removable, sorted list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1347
 - feat(frontend): category badge below select, removable, sorted list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1347
 - feat(frontend): add i18next with language selection for ten locales by @deleonio in https://github.com/deleonio/priority-pilot/pull/1348
 - feat(frontend): add focus ring for kol-tabs shadow-dom buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1351
