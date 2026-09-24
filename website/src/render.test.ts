@@ -18,6 +18,7 @@ import {
 	SIGNED_IN_REDIRECT,
 	addedFeatures,
 	renderAssetLinks,
+	renderAccountDeletion,
 	renderImprint,
 	renderLanding,
 	renderRobots,
@@ -183,6 +184,31 @@ describe('renderImprint', () => {
 		expect(html).toContain(OPERATOR.name);
 		expect(html).toContain(`mailto:${OPERATOR.email}`);
 		expect(html).toContain('hreflang="en" href="/en/imprint/"');
+	});
+});
+
+describe('renderAccountDeletion (#1681)', () => {
+	it('nennt den Weg in der App, gelöschte und aufbewahrte Daten und eine Kontaktadresse', () => {
+		const html = renderAccountDeletion({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages });
+		expect(html).toContain('<h1 class="kern-heading-large">Konto löschen</h1>');
+		expect(html).toContain('„Konto löschen“');
+		expect(html).toContain('Was gelöscht wird');
+		expect(html).toContain('Rechnungen und Abo-Datensätze');
+		expect(html).toContain(`mailto:${OPERATOR.email}`);
+		expect(html).toContain('hreflang="en" href="/en/delete-account/"');
+	});
+
+	it('ist in jeder Sprache aus dem Footer verlinkt', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const html = renderImprint({
+				locale: locale as keyof typeof allMessages,
+				messages,
+				siteUrl: '',
+				operator: OPERATOR,
+				allMessages,
+			});
+			expect(html, locale).toContain(`${messages.footer.accountDeletionPath}">${messages.footer.accountDeletion}</a>`);
+		}
 	});
 });
 

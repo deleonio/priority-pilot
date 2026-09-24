@@ -223,7 +223,9 @@
 	},
 	"footer": {
 		"imprint": "Colofon",
-		"imprintPath": "colofon/"
+		"imprintPath": "colofon/",
+		"accountDeletion": "Account verwijderen",
+		"accountDeletionPath": "account-verwijderen/"
 	},
 	"imprint": {
 		"title": "Colofon",
@@ -238,5 +240,23 @@
 		"consumerTitle": "Geschillenbeslechting voor consumenten",
 		"consumerText": "Wij zijn niet bereid of verplicht deel te nemen aan geschillenbeslechtingsprocedures bij een geschillencommissie voor consumenten.",
 		"back": "Naar de startpagina"
+	},
+	"accountDeletion": {
+		"title": "Je account verwijderen",
+		"intro": "Zo verwijder je je Balamentum-account en de bijbehorende gegevens.",
+		"inAppTitle": "In de app",
+		"steps": [
+			"Open Balamentum en meld je aan.",
+			"Open de instellingen, tabblad “Allgemein” (Algemeen).",
+			"Tik in de kaart “Konto” (Account) op “Account verwijderen” en bevestig beide stappen."
+		],
+		"blocked": "Loopt er nog een abonnement, zeg het dan eerst op in het tabblad “Abo” (Abonnement). Ben je de laatste beheerder van een groep met andere leden, maak dan eerst iemand anders beheerder of hef de groep op.",
+		"deletedTitle": "Wat wordt verwijderd",
+		"deleted": "Je account met alle taken, reeksen, pijlers, categorieën, instellingen, toegangstokens en pushregistraties. Groepen waarin je het enige lid bent, worden ook verwijderd. Taken die je in groepen voor anderen hebt aangemaakt, blijven bij de ontvangers, zonder jou als maker.",
+		"keptTitle": "Wat bewaard blijft",
+		"kept": "Facturen en abonnementsgegevens bewaren we zolang de wettelijke bewaartermijn loopt en verwijderen we daarna.",
+		"noAccessTitle": "Zonder toegang tot de app",
+		"noAccess": "Schrijf ons vanaf het e-mailadres van je account. We verwijderen het account binnen een maand en bevestigen dat aan je.",
+		"back": "Terug naar de startpagina"
 	}
 }
