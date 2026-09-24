@@ -396,6 +396,20 @@ ${operator.ustId ? `					<h2 class="kern-title">${t(m.imprint.vatId)}</h2>\n				
 export const renderRobots = (siteUrl: string): string =>
 	`User-agent: *\nDisallow: /app/\nDisallow: /api/\nDisallow: /auth/\n${siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''}`;
 
+/**
+ * Digital Asset Links für die Android-App (ADR 0016); ohne Package-ID oder Fingerprint `null`.
+ * `fingerprints`: SHA-256-Fingerprints, getrennt durch Komma oder Leerraum.
+ */
+export const renderAssetLinks = (packageId: string, fingerprints: string): string | null => {
+	const certs = fingerprints.split(/[\s,]+/).filter(Boolean);
+	if (!packageId.trim() || certs.length === 0) return null;
+	const statement = {
+		relation: ['delegate_permission/common.handle_all_urls'],
+		target: { namespace: 'android_app', package_name: packageId.trim(), sha256_cert_fingerprints: certs },
+	};
+	return `${JSON.stringify([statement], null, 2)}\n`;
+};
+
 export const renderSitemap = (siteUrl: string, paths: readonly string[]): string =>
 	`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${paths
 		.map((path) => `\t<url><loc>${siteUrl}${path}</loc></url>`)

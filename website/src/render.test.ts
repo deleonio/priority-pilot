@@ -17,6 +17,7 @@ import {
 	LOGIN_PATH,
 	SIGNED_IN_REDIRECT,
 	addedFeatures,
+	renderAssetLinks,
 	renderImprint,
 	renderLanding,
 	renderRobots,
@@ -194,5 +195,26 @@ describe('robots und sitemap', () => {
 
 	it('schreibt absolute URLs in die Sitemap', () => {
 		expect(renderSitemap('https://example.org', ['/', '/en/'])).toContain('<loc>https://example.org/en/</loc>');
+	});
+});
+
+describe('asset links', () => {
+	it('enthält Package-ID und alle Fingerprints', () => {
+		const json = renderAssetLinks('de.balamentum.app', 'AA:01, BB:02\nCC:03');
+		expect(JSON.parse(json ?? '')).toEqual([
+			{
+				relation: ['delegate_permission/common.handle_all_urls'],
+				target: {
+					namespace: 'android_app',
+					package_name: 'de.balamentum.app',
+					sha256_cert_fingerprints: ['AA:01', 'BB:02', 'CC:03'],
+				},
+			},
+		]);
+	});
+
+	it('entfällt ohne Package-ID oder Fingerprint', () => {
+		expect(renderAssetLinks('', 'AA:01')).toBeNull();
+		expect(renderAssetLinks('de.balamentum.app', ' ')).toBeNull();
 	});
 });
