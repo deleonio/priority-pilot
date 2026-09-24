@@ -1,0 +1,13 @@
+{
+	"entry": ["capacitor.config.ts"],
+	// Das Capacitor-Plugin von knip lädt die Konfiguration, die ohne SITE_URL absichtlich abbricht.
+	"capacitor": false,
+	// Native Plugins bindet `cap sync` in das Android-Projekt ein, nicht per Import.
+	"ignoreDependencies": [
+		"@capacitor/android",
+		"@capacitor/app",
+		"@capacitor/browser",
+		"@capacitor/core",
+		"@capacitor/splash-screen",
+	],
+}

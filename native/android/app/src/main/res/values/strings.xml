@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Balamentum</string>
+    <string name="title_activity_main">Balamentum</string>
+    <string name="package_name">de.balamentum.app</string>
+    <string name="custom_url_scheme">de.balamentum.app</string>
+</resources>
