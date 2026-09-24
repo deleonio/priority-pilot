@@ -4,7 +4,7 @@ Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDo
 
 PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
-2. Read findings SCOPED (mirrors the review's own diff scoping, review-kreuzverhoer SKILL.md step 5): open findings from the collected ai-review comment — the 📋 Offene-Findings table (`Ort` = diff anchor, `#`+`Titel` = claim reference, format per review-kreuzverhoer SKILL.md) + review threads + CI — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
+2. Read findings SCOPED (mirrors the review's own diff scoping, review-kreuzverhoer SKILL.md step 5): open findings from the collected ai-review comment — the 📋 Offene-Findings table (`Ort` = diff anchor, `#`+`Titel` = claim reference, format per review-kreuzverhoer SKILL.md) + review threads + the CI state at run start — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
    - ai-review comment: `gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments --jq '.[] | select(.body | startswith("<!-- ai-review -->"))'`
    - threads: `gh api repos/{owner}/{repo}/pulls/{{PR_NR}}/comments`
 3. Fix (batch the whole round — don't repeat GATE/commit/push/resolve per finding, AGENTS.md "Turns bündeln"):
@@ -23,12 +23,14 @@ PROCEDURE:
    - Ambiguous findings → ONE clarification reply in its review thread (do NOT resolve, NO verdict — the next run reads the answer). This blocks only THIS finding, not the round: the unambiguous findings of the same round still go through a–d (GATE, commit+push, resolve, ✅ row). Only if the round has NO unambiguous finding at all does it end with no commit. If not resolvable in thread → treat as decision finding (options + recommendation in ai-fixup-decisions, VERDICT: needs-human)
 4. **Decision findings** → the review's option ID is only a PROPOSAL; wait for the human's choice (their reply comment carries the option ID), then implement EXACTLY that option
 5. **CI red**:
-   - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, wait 60s
+   - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, do NOT wait for it
    - Real failure: read the log, fix it, commit+push
    - Unrelated: document in your own ai-fixup-decisions collected comment (no new comment, do NOT touch the review's ai-review comment)
 6. **UI findings**: SKILL.md step 3c (deterministic tools first; Playwright MCP only for the short 375/1280 layout-break check). Fix layout breaks, KoliBri-first
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
+
+CI: never wait for or poll Verify (`gh pr checks`, `--watch`, `gh run watch`, `sleep`). After the push the run is DONE — the review workflow waits for the checks and hands the result to the reviewer. Only the CI state at the START of the run counts as input. <!-- keep in sync: implement.md / fixup.md / team.md -->
 
 WRAP-UP:
 - `VERDICT: needs-human` for decision findings (TERMINAL)
