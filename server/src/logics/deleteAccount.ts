@@ -22,6 +22,7 @@ import {
 	Task,
 	User,
 } from '../models/index.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../models/subscription.js';
 
 export type DeleteAccountResult = 'deleted' | 'not_found' | 'subscription_active' | 'last_group_admin';
 
@@ -38,7 +39,7 @@ export type DeleteAccountResult = 'deleted' | 'not_found' | 'subscription_active
 export const deleteAccount = async (userId: number): Promise<DeleteAccountResult> => {
 	const user = await User.findByPk(userId);
 	if (!user) return 'not_found';
-	if (await Subscription.count({ where: { userId, status: ['active', 'approval_pending'] } })) {
+	if (await Subscription.count({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } })) {
 		return 'subscription_active';
 	}
 

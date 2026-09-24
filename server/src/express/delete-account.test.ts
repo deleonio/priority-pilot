@@ -1,7 +1,20 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
-import { FcmToken, Group, GroupMember, Pillar, Subscription, Task, User } from '../models/index.js';
+import {
+	Dependency,
+	FcmToken,
+	Group,
+	GroupMember,
+	Pillar,
+	ScoreEntry,
+	Series,
+	SeriesPillar,
+	Subscription,
+	Task,
+	TaskPillar,
+	User,
+} from '../models/index.js';
 import Invoice from '../models/invoice.js';
 
 /** Konto löschen (#1671): Daten weg, Session beendet, Sperren bei Abo und letztem Gruppen-Admin. */
@@ -82,6 +95,33 @@ describe('Konto löschen (#1671)', () => {
 		const kept = await Task.findByPk(forOther.id);
 		assert.ok(kept, 'Aufgabe für eine andere Person bleibt');
 		assert.equal(kept.createdById, null);
+	});
+
+	it('räumt Säulen-Beiträge, Punkte und Abhängigkeiten der eigenen Aufgaben und Serien mit ab', async () => {
+		const cookie = await server.login('kaskade@example.com');
+		const userId = await idOf(cookie);
+		const pillar = await Pillar.create({ name: 'Arbeit', description: '', weight: 100, userId });
+		const first = await Task.create({ title: 'Erste', priority: 1, estimatedEffort: 1, userId });
+		const second = await Task.create({ title: 'Zweite', priority: 1, estimatedEffort: 1, userId });
+		await TaskPillar.create({ taskId: first.id, pillarId: pillar.id, share: 100, confidence: 100 });
+		await ScoreEntry.create({ taskId: first.id, punkte: 10, pünktlich: true, zeitpunkt: new Date() });
+		await Dependency.create({ dependentTaskId: second.id, dependingTaskId: first.id });
+		const series = await Series.create({
+			title: 'Woechentlich',
+			rhythm: 'weekly',
+			priority: 1,
+			estimatedEffort: 1,
+			startDate: new Date('2026-01-05T00:00:00.000Z'),
+			userId,
+		});
+		await SeriesPillar.create({ seriesId: series.id, pillarId: pillar.id, share: 100, confidence: 100 });
+
+		assert.equal((await deleteMe(cookie)).status, 204);
+		assert.equal(await TaskPillar.count(), 0);
+		assert.equal(await ScoreEntry.count(), 0);
+		assert.equal(await Dependency.count(), 0);
+		assert.equal(await SeriesPillar.count(), 0);
+		assert.equal(await Series.count(), 0);
 	});
 
 	it('beendet auch die Sessions auf anderen Geräten', async () => {

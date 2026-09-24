@@ -464,7 +464,6 @@ authRouter.get('/auth/me', async (req, res) => {
 	});
 });
 
-// POST /auth/logout — Session beenden
 // DELETE /auth/me — eigenes Konto samt persönlichen Daten löschen (#1671, Play-Pflicht). 409 mit
 // Begründung bei laufendem Abo oder als letzter Admin einer Gruppe mit weiteren Mitgliedern; danach
 // endet die Session wie beim Logout.
@@ -493,6 +492,7 @@ authRouter.delete('/auth/me', async (req, res) => {
 	});
 });
 
+// POST /auth/logout — Session beenden
 authRouter.post('/auth/logout', (req, res) => {
 	req.session.destroy(() => {
 		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
