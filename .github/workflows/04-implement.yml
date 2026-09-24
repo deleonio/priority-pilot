@@ -1324,9 +1324,15 @@ jobs:
             # already-done-Verdict fällt die Tabelle unverändert auf no-progress — der
             # klassische Loop-Schutz-Pfad bleibt exakt erhalten (AK4).
             HANDOFF_MARKER="<!-- ai-already-done head=${sha_after} -->"
-            # Lesefehler -> leer -> fixup-verdict.sh parkt (Safe-Default).
-            HANDED_OVER="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments?per_page=100" 2>/dev/null \
-              | jq -s -r --arg m "$HANDOFF_MARKER" '[add // [] | .[] | select(.body | startswith($m))] | length > 0' 2>/dev/null || true)"
+            # Lesefehler -> leer -> fixup-verdict.sh parkt (Safe-Default). jq -s
+            # gibt bei leerer Eingabe klaglos "[]" -> "false" zurueck, das
+            # gh-Fehler ueberdeckt (pipefail sieht nur jqs Exit-Status) - daher
+            # gh separat pruefen statt direkt in die Pipe zu haengen.
+            HANDED_OVER=""
+            if COMMENTS_JSON="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments?per_page=100" 2>/dev/null)"; then
+              HANDED_OVER="$(printf '%s' "$COMMENTS_JSON" \
+                | jq -s -r --arg m "$HANDOFF_MARKER" '[add // [] | .[] | select(.body | startswith($m))] | length > 0' 2>/dev/null || true)"
+            fi
             EVAL="$(bash .github/scripts/fixup-verdict.sh evaluate \
               --verdict "$verdict" --head-progress "$ARTIFACTS_OK" --handed-over "$HANDED_OVER")"
             EVAL_TARGET="$(printf '%s\n' "$EVAL" | sed -n 's/^target=//p')"
