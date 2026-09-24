@@ -639,6 +639,13 @@ Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
 
 Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
 
+Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen. Die KI-Assistenz hat ein
+monatliches Kontingent: Pro 60, Max 110, Ultimate 200 Aufrufe.
+
+**Übergangsregel für Bestandskonten:** Wer sein Konto vor dem Start der Pakete angelegt und noch
+kein Paket gebucht hat, bekommt automatisch **Ultimate** und behält damit alle Funktionen. Wie
+lange das gilt und wie es danach weitergeht, kündigen wir rechtzeitig an.
+
 ---
 
 ## Abo
