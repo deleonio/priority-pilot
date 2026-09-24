@@ -2,7 +2,7 @@ import type { TaskGraph, TaskGraphEdge, TaskGraphNode } from 'client';
 
 /** Feste Knotengröße — dieselben Werte gelten im CSS (`.task-graph-node`). */
 export const NODE_WIDTH = 180;
-export const NODE_HEIGHT = 92;
+export const NODE_HEIGHT = 124;
 /** Abstände aus der Spacing-Skala (16er-Raster). */
 const GAP_X = 32;
 const GAP_Y = 64;

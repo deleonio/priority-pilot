@@ -72,12 +72,20 @@ const seed = async (page: Page): Promise<void> => {
 			await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
 		}
 	}
-	// Eine Kette für den Abhängigkeitsgraphen: Der Umzug wartet auf die Küche, die auf die Kartons.
-	const kartons = await task('Kartons besorgen', 3, { deadline: inDays(1) });
-	const kueche = await task('Küche packen', 3, { deadline: inDays(3) });
+	// Ein verzweigter Graph: Der Umzug wartet auf drei Vorarbeiten. Zwei Ebenen bleiben auf dem Handy
+	// lesbar, eine dritte legte das Layout so, dass Kanten durch fremde Knoten laufen.
 	const umzug = await task('Umzug', 2, { priority: 5, deadline: inDays(5) });
-	await page.request.post(`/api/v1/tasks/${kueche}/dependencies`, { data: { dependingTaskId: kartons } });
-	await page.request.post(`/api/v1/tasks/${umzug}/dependencies`, { data: { dependingTaskId: kueche } });
+	for (const [title, days] of [
+		['Kartons besorgen', 1],
+		['Transporter mieten', 3],
+		['Adresse ummelden', 6],
+	] as const) {
+		const predecessor = await task(title, 3, { deadline: inDays(days) });
+		const response = await page.request.post(`/api/v1/tasks/${umzug}/dependencies`, {
+			data: { dependingTaskId: predecessor },
+		});
+		expect(response.ok(), await response.text()).toBeTruthy();
+	}
 	await task('Yoga-Kurs buchen', 0, { priority: 4, deadline: inDays(2) });
 	await task('Geburtstagsgeschenk für Lea', 2, { priority: 4, deadline: inDays(4) });
 };
