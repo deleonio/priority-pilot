@@ -174,6 +174,13 @@ authRouter.post('/auth/login', async (req, res) => {
 // Login-Redirects zielen deshalb auf die App-Wurzel, nicht auf „/".
 const APP_ROOT = '/app/';
 
+// ADR 0015 Punkt 4: Lesbares Merk-Cookie „angemeldet", mit dem die statische Startseite angemeldete
+// Nutzer vor dem ersten Rendern in die App schickt (`SIGNED_IN_REDIRECT` in website/src/render.ts).
+// Es trägt nur „1", die Session selbst bleibt httpOnly. `/auth/me` läuft bei jedem App-Start und hält
+// es damit im Takt der rollenden Session; 401 und Logout löschen es.
+const SIGNED_IN_COOKIE = 'bm_signed_in';
+const signedInCookieOptions = { path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' } as const;
+
 // GET /auth/error — Ziel des OAuth-failureRedirect, liefert eindeutiges Fehler-Feedback statt SPA-Fallback/404.
 authRouter.get('/auth/error', (_req, res) => {
 	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
@@ -307,6 +314,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		return;
 	}
 	if (!req.session || !req.session.user) {
+		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
@@ -375,6 +383,10 @@ authRouter.get('/auth/me', async (req, res) => {
 	} catch (error) {
 		console.warn('Abo-Status konnte nicht gelesen werden — subscription zeigt null.', error);
 	}
+	res.cookie(SIGNED_IN_COOKIE, '1', {
+		...signedInCookieOptions,
+		maxAge: req.session.cookie.originalMaxAge ?? undefined,
+	});
 	res.json({
 		id: user.id,
 		email: user.email,
@@ -390,6 +402,7 @@ authRouter.get('/auth/me', async (req, res) => {
 // POST /auth/logout — Session beenden
 authRouter.post('/auth/logout', (req, res) => {
 	req.session.destroy(() => {
+		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
 		res.json({ message: 'Ausgeloggt.' });
 	});
 });

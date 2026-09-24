@@ -3,8 +3,7 @@
 		"title": "Balamentum – Woran solltest du als Nächstes arbeiten?",
 		"description": "Balamentum rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Mit Google anmelden und sofort loslegen.",
 		"skip": "Zum Inhalt springen",
-		"switchLanguage": "English",
-		"switchLanguageLabel": "Switch to English"
+		"language": "Sprache"
 	},
 	"nav": {
 		"label": "Hauptnavigation",
@@ -18,14 +17,27 @@
 		"title": "Woran solltest du als Nächstes arbeiten?",
 		"lead": "Balamentum beantwortet genau diese Frage. Die App rechnet aus Abhängigkeiten und deinen Lebensbereichen aus, welche Aufgabe jetzt am meisten bringt. Du arbeitest sie ab, statt Listen zu sortieren.",
 		"cta": "Mit Google starten",
-		"ctaNote": "Kostenlos. Keine Kreditkarte. Anmeldung mit deinem Google-Konto.",
+		"emailCta": "Mit E-Mail anmelden",
+		"ctaNote": "Kostenlos, ohne Kreditkarte. Die Anmeldung per E-Mail-Link geht für bestehende Konten.",
 		"secondary": "Schon dabei? App öffnen",
 		"screenshotAlt": "Dashboard von Balamentum mit der nächsten Aufgabe und der Lebensbalance"
+	},
+	"usp": {
+		"title": "Das bringt dir Balamentum",
+		"items": [
+			"Weniger grübeln: Die App sagt dir, was jetzt dran ist.",
+			"Mehr Ausgleich: Kein Lebensbereich kommt dauerhaft zu kurz.",
+			"Schnell erfasst: Aufgaben tippen oder einsprechen.",
+			"Kostenlos starten, ohne Kreditkarte."
+		]
 	},
 	"steps": {
 		"title": "In drei Schritten startklar",
 		"items": [
-			{ "title": "Mit Google anmelden", "text": "Ein Klick, kein Formular, kein Passwort." },
+			{
+				"title": "Mit Google anmelden",
+				"text": "Ein Klick, kein Formular, kein Passwort."
+			},
 			{
 				"title": "Aufgaben erfassen",
 				"text": "Tippen oder einsprechen. Abhängigkeiten und Lebensbereiche ordnest du zu, wann du willst."
@@ -38,32 +50,120 @@
 	},
 	"features": {
 		"title": "Was Balamentum anders macht",
+		"shotAlt": "Screenshot aus der App: {title}",
+		"moreTitle": "Außerdem dabei",
 		"items": [
 			{
+				"id": "next",
 				"title": "Eine nächste Aufgabe statt endloser Liste",
-				"text": "Die App zeigt dir die wertvollste Aufgabe, deren Voraussetzungen schon erledigt sind. Das ist die Antwort auf „Was jetzt?“."
+				"text": "Die App zeigt dir die wertvollste Aufgabe, deren Voraussetzungen schon erledigt sind. Das ist die Antwort auf „Was jetzt?“.",
+				"points": [
+					"Wert, Priorität und Aufwand jeder Aufgabe fließen ein.",
+					"Was noch auf andere Aufgaben wartet, bleibt außen vor.",
+					"Ein Tipp auf „Erledigen“, und die nächste rückt nach."
+				]
 			},
 			{
+				"id": "balance",
 				"title": "Objektiv statt geschätzt",
-				"text": "Körper, Beziehungen, Sinn, mentale Gesundheit, Wirksamkeit: Jede einzelne Aufgabe trägt ihr eigenes Gewicht. Deine Balance ergibt sich objektiv aus tatsächlich erledigtem, aufwandsgewichtetem Aufwand statt aus Selbsteinschätzung."
+				"text": "Körper, Beziehungen, Sinn, mentale Gesundheit, Wirksamkeit: Jede einzelne Aufgabe trägt ihr eigenes Gewicht. Deine Balance ergibt sich objektiv aus tatsächlich erledigtem, aufwandsgewichtetem Aufwand statt aus Selbsteinschätzung.",
+				"points": [
+					"Fünf Säulen: Körper, mentale Gesundheit, Beziehungen, Wirksamkeit und Sinn.",
+					"Die Grafik auf dem Dashboard zeigt, wie ausgeglichen deine letzten vier Wochen waren.",
+					"Auf Wunsch sortiert die Liste Aufgaben vernachlässigter Säulen nach vorn."
+				]
 			},
 			{
+				"id": "dependencies",
 				"title": "Ein echter Aufgaben-Graph",
-				"text": "Aufgaben bauen aufeinander auf. Balamentum rechnet graph-basiert Wert und Aufwand über die ganze Kette und erkennt Zyklen."
+				"text": "Aufgaben bauen aufeinander auf. Balamentum rechnet graph-basiert Wert und Aufwand über die ganze Kette und erkennt Zyklen.",
+				"points": [
+					"Der Graph zeigt, welche Aufgabe worauf wartet.",
+					"Wert und Aufwand zählen über die ganze Kette.",
+					"Zyklen erkennt die App und meldet sie."
+				]
 			},
 			{
+				"id": "groups",
 				"title": "Gemeinsam planen",
-				"text": "Lade Familie oder Team per Link in eine Gruppe ein und verteilt Aufgaben untereinander."
+				"text": "Lade Familie oder Team per Link in eine Gruppe ein und verteilt Aufgaben untereinander.",
+				"points": ["Einladen per Link, auch ohne Adressbuch.", "Aufgaben füreinander anlegen und übergeben."]
 			},
 			{
+				"id": "ai",
 				"title": "KI und Spracheingabe",
-				"text": "Erfasse Aufgaben per Stimme. Die KI schlägt passende Säulen vor und glättet Titel und Beschreibungen, auf Wunsch mit deinem eigenen Anbieter."
+				"text": "Erfasse Aufgaben per Stimme. Die KI schlägt passende Säulen vor und glättet Titel und Beschreibungen, auf Wunsch mit deinem eigenen Anbieter.",
+				"points": [
+					"Einen ganzen Satz einsprechen, die KI macht daraus einzelne Aufgaben.",
+					"Passende Säulen schlägt sie gleich mit vor.",
+					"Die Spracheingabe gibt es schon im Free-Paket."
+				]
 			},
 			{
+				"id": "mcp",
+				"title": "Mit deinem KI-Assistenten planen",
+				"text": "Über die MCP-Schnittstelle greift dein KI-Assistent auf deine Aufgaben zu. Du fragst im Chat, was als Nächstes dran ist, legst Aufgaben an oder lässt dir deine Balance erklären.",
+				"points": [
+					"In den Einstellungen einen Access-Token erzeugen und die MCP-Adresse im Assistenten eintragen.",
+					"Funktioniert mit Claude und anderen Assistenten, die MCP über HTTP sprechen.",
+					"Lesen ist ab Max dabei, Anlegen und Ändern mit Ultimate."
+				]
+			},
+			{
+				"id": "open",
 				"title": "Offen und überall dabei",
-				"text": "Als App auf Handy und Desktop installierbar, mit Push-Erinnerungen, Erinnerungen am Ort und einer MCP-Schnittstelle für deine KI-Assistenten."
+				"text": "Als App auf Handy und Desktop installierbar, mit Push-Erinnerungen und Erinnerungen am Ort.",
+				"points": [
+					"Push-Erinnerungen und Erinnerungen am Ort.",
+					"Installierbar direkt aus dem Browser, ohne App-Store."
+				]
 			}
-		]
+		],
+		"chat": {
+			"label": "Beispiel: Chat mit einem KI-Assistenten über MCP",
+			"caption": "Beispiel-Chat",
+			"you": "Du",
+			"assistant": "Assistent",
+			"tool": "Werkzeug",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "Was soll ich als Nächstes machen?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "Als Nächstes steht „Yoga-Kurs buchen“ an, Priorität 4. Die Frist ist übermorgen."
+				},
+				{
+					"sender": "user",
+					"text": "Leg mir für Samstag „Oma besuchen“ an."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "Erledigt. „Oma besuchen“ steht mit Frist Samstag in deiner Liste."
+				},
+				{
+					"sender": "user",
+					"text": "Wie ausgeglichen war mein Monat?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, du bist in Balance. Alle fünf Säulen liegen am Soll."
+				}
+			]
+		}
 	},
 	"pricing": {
 		"title": "Pakete",
@@ -76,7 +176,12 @@
 		"includesPrevious": "Alles aus {plan}, dazu:",
 		"aiQuota": "{count} KI-Anfragen im Monat",
 		"cta": "Kostenlos starten",
-		"plans": { "free": "Free", "pro": "Pro", "max": "Max", "ultimate": "Ultimate" },
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
 		"features": {
 			"groups": "Gruppen und Einladungslinks",
 			"voice_input": "Spracheingabe",

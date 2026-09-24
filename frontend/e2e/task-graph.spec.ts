@@ -166,6 +166,26 @@ test.describe('Aufgabengraph (Tab „Wald")', () => {
 		await expect(page.getByText('Aktuelle Vorgänger')).toBeVisible();
 	});
 
+	test('Ein Knoten mit Fortschritt zeigt seinen zweizeiligen Titel ungekürzt', async ({ page }) => {
+		// Titel, Wert-Zeile und Fortschritts-Zeile passten nicht in die alte Knotenhöhe: der Titel
+		// wurde gestaucht und mitten in der Zeile abgeschnitten.
+		const parentId = await createTask(page, uniqueTitle('Umzug in die neue Wohnung'));
+		for (const label of ['Kartons', 'Transporter']) {
+			await addDependency(page, parentId, await createTask(page, uniqueTitle(label)));
+		}
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await openGraphTab(page);
+
+		const node = page.getByTestId(`graph-node-${parentId}`);
+		await expect(node.getByText(/\d+\/\d+ erledigt/)).toBeVisible();
+		const clipped = await node.evaluate((element) =>
+			[element, element.querySelector('.task-graph-node__title')!].map((part) => part.scrollHeight - part.clientHeight),
+		);
+		expect(clipped).toEqual([0, 0]);
+	});
+
 	test('Bei 375 px bleibt der Graph in der Viewportbreite', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 

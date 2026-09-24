@@ -141,6 +141,8 @@ export const LoginPage = () => {
 						</label>
 						<input
 							id="magic-link-email"
+							// Einstieg über „Mit E-Mail anmelden" auf der Website (`?login=email`).
+							autoFocus={new URLSearchParams(window.location.search).get('login') === 'email'}
 							type="email"
 							autoComplete="email"
 							required

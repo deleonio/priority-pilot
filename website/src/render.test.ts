@@ -3,12 +3,31 @@ import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } fr
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
-import { LOGIN_PATH, addedFeatures, renderImprint, renderLanding, renderRobots, renderSitemap } from './render.ts';
+import es from './i18n/es.json';
+import fr from './i18n/fr.json';
+import itMessages from './i18n/it.json';
+import nl from './i18n/nl.json';
+import pl from './i18n/pl.json';
+import pt from './i18n/pt.json';
+import ru from './i18n/ru.json';
+import sv from './i18n/sv.json';
+import {
+	EMAIL_LOGIN_PATH,
+	LOCALES,
+	LOGIN_PATH,
+	SIGNED_IN_REDIRECT,
+	addedFeatures,
+	renderImprint,
+	renderLanding,
+	renderRobots,
+	renderSitemap,
+	type Locale,
+} from './render.ts';
 
 const catalog = getPlansCatalog();
-const allMessages = { de, en };
+const allMessages = { de, en, es, fr, it: itMessages, nl, pl, pt, ru, sv };
 
-const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
+const landing = (locale: Locale, siteUrl = 'https://example.org', shots?: ReadonlySet<string>) =>
 	renderLanding({
 		locale,
 		messages: allMessages[locale],
@@ -16,6 +35,7 @@ const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
 		catalog,
 		plans: PLAN_VALUES,
 		aiQuota: AI_ASSIST_MONTHLY_QUOTA,
+		shots,
 	});
 
 /** Alle Blatt-Schlüssel eines Textobjekts als Pfade, damit de und en vergleichbar werden. */
@@ -25,8 +45,10 @@ const keyPaths = (value: unknown, prefix = ''): string[] =>
 		: [prefix];
 
 describe('Website-Texte', () => {
-	it('de und en haben dieselben Schlüssel', () => {
-		expect(keyPaths(en)).toEqual(keyPaths(de));
+	it('alle Sprachen haben dieselben Schlüssel wie de', () => {
+		for (const messages of Object.values(allMessages)) {
+			expect(keyPaths(messages)).toEqual(keyPaths(de));
+		}
 	});
 
 	it('jede Feature-ID aus plans.ts hat in beiden Sprachen ein Label', () => {
@@ -47,6 +69,16 @@ describe('Website-Texte', () => {
 });
 
 describe('renderLanding', () => {
+	it('verlinkt jede Sprache per hreflang und rendert Preise im Format der Sprache', () => {
+		for (const locale of LOCALES) {
+			const html = landing(locale);
+			expect(html).toContain(`<html lang="${locale}">`);
+			for (const target of LOCALES) expect(html).toContain(`hreflang="${target}" href="https://example.org/`);
+		}
+		expect(landing('pl')).toMatch(/7,99\s€/u);
+		expect(landing('en')).toContain('€7.99');
+	});
+
 	it('setzt Sprache, canonical und hreflang für beide Sprachen', () => {
 		const html = landing('en');
 		expect(html).toContain('<html lang="en">');
@@ -59,13 +91,30 @@ describe('renderLanding', () => {
 		const html = landing('de');
 		expect(html).toContain(`href="${LOGIN_PATH}"`);
 		expect(html).toContain(de.hero.cta);
+		expect(html).toContain(`href="${EMAIL_LOGIN_PATH}"`);
 	});
 
-	it('springt nicht automatisch in die App, auch nicht als installierte PWA', () => {
-		const html = landing('de');
-		const head = html.slice(0, html.indexOf('</head>'));
-		expect(head).not.toContain('display-mode');
-		expect(html).not.toContain('location.replace');
+	it('schickt nur auf der Startseite angemeldete Nutzer vor dem Stylesheet in die App', () => {
+		const head = (html: string) => html.slice(0, html.indexOf('</head>'));
+		const home = head(landing('en'));
+		expect(home).toContain(SIGNED_IN_REDIRECT);
+		expect(home.indexOf(SIGNED_IN_REDIRECT)).toBeLessThan(home.indexOf('styles.css'));
+		expect(home).not.toContain('display-mode');
+		expect(renderImprint({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages })).not.toContain(
+			'location.replace',
+		);
+	});
+
+	it('zeigt Funktionen mit Bild als Zeile, ohne Bild als Karte', () => {
+		const [withShot, withoutShot] = de.features.items;
+		const html = landing('de', '', new Set(['dashboard', withShot.id]));
+		expect(html).toContain(`src="/shots/${withShot.id}.jpg" alt="Screenshot aus der App: ${withShot.title}"`);
+		expect(html).toContain('src="/shots/dashboard.jpg"');
+		expect(html).not.toContain(`/shots/${withoutShot.id}.jpg`);
+		expect(html).toContain(`<h4 class="kern-title">${withoutShot.title}</h4>`);
+		// MCP zeigt ohne Screenshot einen Beispiel-Chat mit den aufgerufenen Werkzeugen.
+		expect(html).toContain('<figure class="chat"');
+		expect(html).toContain('<code>next_task</code>');
 	});
 
 	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {

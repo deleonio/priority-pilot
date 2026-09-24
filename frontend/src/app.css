@@ -1616,7 +1616,8 @@ kol-toolbar {
 .task-graph-node {
 	box-sizing: border-box;
 	width: 180px;
-	height: 92px;
+	/* = NODE_HEIGHT (graphLayout.ts): Platz für zweizeiligen Titel, Wert- und Fortschritts-Zeile. */
+	height: 124px;
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -1687,6 +1688,8 @@ kol-toolbar {
 }
 
 .task-graph-node__title {
+	/* Nie stauchen: sonst schneidet der Knoten den Titel mitten in der Zeile ab statt per Ellipse. */
+	flex-shrink: 0;
 	margin: 0;
 	font-weight: var(--pp-weight-bold);
 	/* Zwei Zeilen, danach Ellipse — der volle Titel steht in der Listenansicht. */

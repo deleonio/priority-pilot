@@ -1,0 +1,245 @@
+{
+	"meta": {
+		"title": "Balamentum – Sur quoi devrais-tu travailler ensuite ?",
+		"description": "Balamentum calcule, à partir des dépendances et de tes domaines de vie, quelle tâche apporte le plus en ce moment. Connecte-toi avec Google et lance-toi tout de suite.",
+		"skip": "Aller au contenu",
+		"language": "Langue"
+	},
+	"nav": {
+		"label": "Navigation principale",
+		"features": "Fonctionnalités",
+		"pricing": "Formules",
+		"faq": "Questions",
+		"openApp": "Ouvrir l’app"
+	},
+	"hero": {
+		"eyebrow": "Planifier ses tâches avec l’équilibre de vie",
+		"title": "Sur quoi devrais-tu travailler ensuite ?",
+		"lead": "Balamentum répond précisément à cette question. L’app calcule, à partir des dépendances et de tes domaines de vie, quelle tâche apporte le plus en ce moment. Tu avances dans tes tâches au lieu de trier des listes.",
+		"cta": "Commencer avec Google",
+		"emailCta": "Se connecter par e-mail",
+		"ctaNote": "Gratuit, sans carte bancaire. La connexion par lien envoyé par e-mail fonctionne pour les comptes existants.",
+		"secondary": "Déjà inscrit ? Ouvrir l’app",
+		"screenshotAlt": "Tableau de bord de Balamentum avec la prochaine tâche et l’équilibre de vie"
+	},
+	"usp": {
+		"title": "Ce que Balamentum t’apporte",
+		"items": [
+			"Moins de ruminations : l’app te dit ce qui compte maintenant.",
+			"Plus d’équilibre : aucun domaine de ta vie n’est durablement laissé de côté.",
+			"Saisie rapide : tape ou dicte tes tâches.",
+			"Démarre gratuitement, sans carte bancaire."
+		]
+	},
+	"steps": {
+		"title": "Prêt en trois étapes",
+		"items": [
+			{
+				"title": "Se connecter avec Google",
+				"text": "Un clic, pas de formulaire, pas de mot de passe."
+			},
+			{
+				"title": "Saisir ses tâches",
+				"text": "Tape-les ou dicte-les. Tu associes les dépendances et les domaines de vie quand tu veux."
+			},
+			{
+				"title": "Faire la prochaine tâche",
+				"text": "Le tableau de bord te montre ce qui compte maintenant et à quel point ta semaine est équilibrée."
+			}
+		]
+	},
+	"features": {
+		"title": "Ce qui distingue Balamentum",
+		"shotAlt": "Capture d’écran de l’app : {title}",
+		"moreTitle": "Également inclus",
+		"items": [
+			{
+				"id": "next",
+				"title": "Une prochaine tâche plutôt qu’une liste sans fin",
+				"text": "L’app te montre la tâche la plus utile dont les prérequis sont déjà remplis. C’est la réponse à « Et maintenant ? ».",
+				"points": [
+					"La valeur, la priorité et l’effort de chaque tâche entrent en compte.",
+					"Ce qui attend encore d’autres tâches reste de côté.",
+					"Un appui sur « Terminé », et la suivante prend sa place."
+				]
+			},
+			{
+				"id": "balance",
+				"title": "Objectif, pas estimé",
+				"text": "Corps, relations, sens, santé mentale, efficacité : chaque tâche a son propre poids. Ton équilibre se calcule objectivement à partir de l’effort réellement accompli et pondéré, pas d’une auto-évaluation.",
+				"points": [
+					"Cinq piliers : corps, santé mentale, relations, efficacité et sens.",
+					"Le graphique du tableau de bord montre à quel point tes quatre dernières semaines ont été équilibrées.",
+					"Si tu le souhaites, la liste fait remonter les tâches des piliers négligés."
+				]
+			},
+			{
+				"id": "dependencies",
+				"title": "Un vrai graphe de tâches",
+				"text": "Les tâches s’appuient les unes sur les autres. Balamentum calcule, à partir d’un graphe, la valeur et l’effort sur toute la chaîne et détecte les cycles.",
+				"points": [
+					"Le graphe montre quelle tâche attend quelle autre.",
+					"La valeur et l’effort comptent sur toute la chaîne.",
+					"L’app détecte les cycles et te les signale."
+				]
+			},
+			{
+				"id": "groups",
+				"title": "Planifier ensemble",
+				"text": "Invite ta famille ou ton équipe dans un groupe par lien et répartissez-vous les tâches.",
+				"points": [
+					"Inviter par lien, même sans carnet d’adresses.",
+					"Créer des tâches les uns pour les autres et se les transmettre."
+				]
+			},
+			{
+				"id": "ai",
+				"title": "IA et saisie vocale",
+				"text": "Saisis tes tâches à la voix. L’IA propose les piliers adaptés et peaufine titres et descriptions, si tu veux avec ton propre fournisseur.",
+				"points": [
+					"Dicte une phrase entière, l’IA en fait des tâches distinctes.",
+					"Elle propose au passage les piliers adaptés.",
+					"La saisie vocale est déjà incluse dans la formule Free."
+				]
+			},
+			{
+				"id": "mcp",
+				"title": "Planifier avec ton assistant IA",
+				"text": "Grâce à l’interface MCP, ton assistant IA accède à tes tâches. Tu demandes dans le chat ce qui vient ensuite, tu crées des tâches ou tu te fais expliquer ton équilibre.",
+				"points": [
+					"Génère un jeton d’accès dans les paramètres et saisis l’adresse MCP dans ton assistant.",
+					"Fonctionne avec Claude et d’autres assistants qui parlent MCP via HTTP.",
+					"La lecture est incluse à partir de Max, la création et la modification avec Ultimate."
+				]
+			},
+			{
+				"id": "open",
+				"title": "Ouvert et toujours à portée de main",
+				"text": "Installable comme app sur mobile et ordinateur, avec rappels push et rappels géolocalisés.",
+				"points": [
+					"Rappels push et rappels géolocalisés.",
+					"Installable directement depuis le navigateur, sans magasin d’applications."
+				]
+			}
+		],
+		"chat": {
+			"label": "Exemple : chat avec un assistant IA via MCP",
+			"caption": "Exemple de chat",
+			"you": "Toi",
+			"assistant": "Assistant",
+			"tool": "Outil",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "Qu’est-ce que je devrais faire ensuite ?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "La prochaine tâche est « Réserver un cours de yoga », priorité 4. L’échéance est après-demain."
+				},
+				{
+					"sender": "user",
+					"text": "Crée-moi « Rendre visite à mamie » pour samedi."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "C’est fait. « Rendre visite à mamie » figure dans ta liste, avec une échéance samedi."
+				},
+				{
+					"sender": "user",
+					"text": "À quel point mon mois a-t-il été équilibré ?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, tu es en équilibre. Les cinq piliers sont à leur objectif."
+				}
+			]
+		}
+	},
+	"pricing": {
+		"title": "Formules",
+		"lead": "Commence gratuitement. Si tu as besoin de plus, tu changes de formule dans l’app à tout moment.",
+		"perMonth": "/ mois",
+		"free": "0 €",
+		"yearly": "ou {price} par an",
+		"discounts": "Avec un paiement trimestriel, tu économises 10 %, avec un paiement annuel 20 %. Tous les prix sont des prix finaux ; conformément au § 19 UStG (régime allemand des petites entreprises), aucune TVA n’est facturée.",
+		"basics": "Tâches, séries, listes de contrôle, échéances, points et analyse de l’équilibre",
+		"includesPrevious": "Tout ce qu’inclut {plan}, plus :",
+		"aiQuota": "{count} requêtes IA par mois",
+		"cta": "Commencer gratuitement",
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
+		"features": {
+			"groups": "Groupes et liens d’invitation",
+			"voice_input": "Saisie vocale",
+			"ai_assist": "Aide IA : conseiller de piliers et relecture",
+			"graph_write": "Modifier les dépendances pondérées",
+			"location_reminders": "Rappels géolocalisés",
+			"mcp_read": "Interface MCP (lecture)",
+			"mcp_readwrite": "Interface MCP (lecture et écriture)"
+		}
+	},
+	"faq": {
+		"title": "Questions fréquentes",
+		"items": [
+			{
+				"q": "Combien coûte Balamentum ?",
+				"a": "La formule Free ne coûte rien et ne limite pas le nombre de tâches. Pro, Max et Ultimate débloquent les groupes, l’aide IA et les interfaces."
+			},
+			{
+				"q": "Quelles données l’app reçoit-elle de Google ?",
+				"a": "Uniquement ton nom, ton adresse e-mail et ta photo de profil. Tu n’as pas besoin d’un mot de passe à part."
+			},
+			{
+				"q": "Comment résilier une formule ?",
+				"a": "Dans l’app, sous Paramètres. La facturation passe par PayPal, tu peux changer ou résilier à tout moment."
+			},
+			{
+				"q": "Est-ce que ça marche sur mobile ?",
+				"a": "Oui. Balamentum est conçu pour être utilisé d’une seule main et peut s’installer comme app sur l’écran d’accueil."
+			},
+			{
+				"q": "L’app est-elle accessible ?",
+				"a": "L’interface suit les WCAG 2.2 et la BITV 2.0 et utilise les composants testés de KoliBri."
+			}
+		]
+	},
+	"final": {
+		"title": "Ta prochaine tâche t’attend déjà",
+		"text": "Connecte-toi, ajoute ta première tâche, et c’est parti."
+	},
+	"footer": {
+		"imprint": "Mentions légales",
+		"imprintPath": "mentions-legales/"
+	},
+	"imprint": {
+		"title": "Mentions légales",
+		"provider": "Informations conformément au § 5 DDG (loi allemande sur les services numériques)",
+		"contact": "Contact",
+		"email": "E-mail",
+		"representative": "Représentant légal",
+		"vatId": "Numéro d’identification TVA conformément au § 27 a UStG",
+		"responsible": "Responsable du contenu conformément au § 18 (2) MStV",
+		"odrTitle": "Règlement des litiges de l’UE",
+		"odrText": "La Commission européenne met à disposition une plateforme de règlement en ligne des litiges (RLL) :",
+		"consumerTitle": "Règlement des litiges de consommation",
+		"consumerText": "Nous ne sommes ni disposés ni tenus de participer à une procédure de règlement des litiges devant un organisme de médiation de la consommation.",
+		"back": "Retour à l’accueil"
+	}
+}

@@ -151,8 +151,8 @@ von `pnpm test` — nur separat über `test:e2e`.
 
 ## Website
 
-`website/` ist die öffentliche, statisch vorgerenderte Landingpage (de an `/`, en unter `/en/`), die App
+`website/` ist die öffentliche, statisch vorgerenderte Landingpage (de an `/`, die übrigen neun App-Sprachen unter `/<sprache>/`), die App
 liegt unter `/app/` ([ADR 0015](docs/adr/0015-oeffentliche-website-und-app-unter-app.md)). Texte in
-`website/src/i18n/{de,en}.json`, Preise kommen aus `server/src/logics/plans.ts`, keine Kopie.
+`website/src/i18n/<sprache>.json`, Preise kommen aus `server/src/logics/plans.ts`, keine Kopie.
 `pnpm --filter website build` baut nach `website/dist`, `pnpm --filter website test` (Vitest) und
 `pnpm --filter website test:e2e` (Playwright, 375 px und Desktop) prüfen sie.

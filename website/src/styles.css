@@ -109,6 +109,7 @@ img {
 
 .site-header__inner {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--pp-space-2);
@@ -126,8 +127,10 @@ img {
 
 .site-nav {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--pp-space-2);
+	justify-content: flex-end;
+	gap: var(--pp-space-1) var(--pp-space-2);
 }
 
 .site-nav__anchor {
@@ -145,6 +148,60 @@ img {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--pp-space-2);
+}
+
+.site-footer__languages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-1) var(--pp-space-2);
+	margin: var(--pp-space-2) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Sprachwahl ohne JavaScript: details/summary, Liste klappt unter dem Kopf auf */
+.lang-menu {
+	position: relative;
+}
+
+.lang-menu summary {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	cursor: pointer;
+	list-style: none;
+}
+
+.lang-menu summary::-webkit-details-marker {
+	display: none;
+}
+
+.lang-menu summary::after {
+	content: '▾';
+	margin-left: 0.25rem;
+}
+
+.lang-menu__list {
+	position: absolute;
+	right: 0;
+	z-index: 10;
+	min-width: 10rem;
+	margin: 0;
+	padding: var(--pp-space-1) 0;
+	list-style: none;
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: var(--pp-radius);
+	box-shadow: 0 0.5rem 1.5rem rgb(20 44 82 / 0.15);
+}
+
+.lang-menu__list a {
+	display: block;
+	padding: 0.6rem var(--pp-space-2);
+}
+
+.lang-menu__list a[aria-current] {
+	font-weight: 600;
 }
 
 /* KERN-Typografie */
@@ -167,6 +224,12 @@ img {
 	margin: 0 0 var(--pp-space-3);
 	font-size: clamp(1.5rem, 4.5vw, 2.1rem);
 	line-height: 1.2;
+}
+
+.kern-heading-medium {
+	margin: var(--pp-space-3) 0 var(--pp-space-2);
+	font-size: clamp(1.25rem, 3.5vw, 1.5rem);
+	line-height: 1.25;
 }
 
 .kern-title {
@@ -204,8 +267,8 @@ img {
 	border: 2px solid var(--pp-brand);
 	border-radius: 999px;
 	font-weight: 600;
+	text-align: center;
 	text-decoration: none;
-	white-space: nowrap;
 }
 
 .kern-btn--primary {
@@ -248,12 +311,149 @@ img {
 	margin: var(--pp-space-3) 0 var(--pp-space-1);
 }
 
-.hero__shot {
+.shot {
 	justify-self: center;
+	max-width: 100%;
 	max-height: 36rem;
 	width: auto;
+	height: auto;
 	border-radius: 24px;
 	box-shadow: 0 1rem 3rem rgb(20 44 82 / 0.18);
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Häkchen-Liste für Selling Points (USP-Leiste und Funktionen) */
+.checklist {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.checklist li {
+	position: relative;
+	padding-left: 1.75rem;
+}
+
+.checklist li + li {
+	margin-top: var(--pp-space-1);
+}
+
+.checklist li::before {
+	content: '✓';
+	position: absolute;
+	left: 0;
+	color: var(--pp-brand);
+	font-weight: 600;
+}
+
+.usp {
+	padding: var(--pp-space-3) 0;
+	background: var(--pp-brand);
+	color: var(--pp-on-brand);
+}
+
+.usp .checklist li::before {
+	color: var(--pp-signal);
+}
+
+.usp__list {
+	display: grid;
+	gap: var(--pp-space-1);
+	font-weight: 600;
+}
+
+.usp__list li + li {
+	margin-top: 0;
+}
+
+.features {
+	display: grid;
+	gap: var(--pp-space-5);
+}
+
+.feature-row {
+	display: grid;
+	gap: var(--pp-space-3);
+	align-items: center;
+}
+
+.feature-row .kern-heading-medium {
+	margin-top: 0;
+}
+
+.feature-row .shot {
+	max-height: 30rem;
+}
+
+/* Beispiel-Chat der MCP-Funktion: nachgebaute Sprechblasen statt Screenshot eines fremden Produkts */
+.chat {
+	justify-self: center;
+	width: 100%;
+	max-width: 24rem;
+	margin: 0;
+	padding: var(--pp-space-2);
+	background: var(--pp-surface-1);
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: 24px;
+	box-shadow: 0 1rem 3rem rgb(20 44 82 / 0.18);
+}
+
+.chat__caption {
+	margin-bottom: var(--pp-space-2);
+	color: var(--pp-ink-muted);
+	font-size: 0.85rem;
+	font-weight: 600;
+	text-align: center;
+}
+
+.chat__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-space-1);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.chat__msg {
+	max-width: 85%;
+	padding: 0.6rem 0.9rem;
+	border-radius: 18px;
+	line-height: 1.4;
+}
+
+.chat__msg--user {
+	align-self: flex-end;
+	background: var(--pp-brand);
+	color: var(--pp-on-brand);
+	border-bottom-right-radius: 4px;
+}
+
+.chat__msg--assistant {
+	align-self: flex-start;
+	background: var(--pp-surface-2);
+	color: var(--pp-ink);
+	border-bottom-left-radius: 4px;
+}
+
+.chat__tool {
+	align-self: flex-start;
+	color: var(--pp-ink-muted);
+	font-size: 0.8rem;
+}
+
+.chat__tool code {
+	padding: 0.1rem 0.4rem;
+	border: 1px solid var(--pp-border-subtle);
+	border-radius: 6px;
 }
 
 .section {
@@ -367,7 +567,13 @@ img {
 	cursor: pointer;
 }
 
-.kern-accordion__header .kern-title {
+.kern-accordion__header .kern-heading-medium {
+	margin: var(--pp-space-3) 0 var(--pp-space-2);
+	font-size: clamp(1.25rem, 3.5vw, 1.5rem);
+	line-height: 1.25;
+}
+
+.kern-title {
 	margin: 0;
 	font-size: 1.05rem;
 }
@@ -380,7 +586,13 @@ img {
 	text-align: center;
 }
 
-.imprint .kern-title {
+.imprint .kern-heading-medium {
+	margin: var(--pp-space-3) 0 var(--pp-space-2);
+	font-size: clamp(1.25rem, 3.5vw, 1.5rem);
+	line-height: 1.25;
+}
+
+.kern-title {
 	margin-top: var(--pp-space-3);
 }
 
@@ -395,6 +607,24 @@ img {
 
 	.hero__inner {
 		grid-template-columns: 3fr 2fr;
+	}
+
+	.usp__list {
+		grid-template-columns: repeat(2, 1fr);
+		column-gap: var(--pp-space-4);
+	}
+
+	.feature-row {
+		grid-template-columns: 3fr 2fr;
+	}
+
+	/* Bild und Text wechseln die Seite, damit das Auge im Zickzack durch die Funktionen läuft. */
+	.feature-row:nth-child(even) {
+		grid-template-columns: 2fr 3fr;
+	}
+
+	.feature-row:nth-child(even) .feature-row__text {
+		order: 2;
 	}
 
 	.steps {

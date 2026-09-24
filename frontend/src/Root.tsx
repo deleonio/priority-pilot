@@ -20,6 +20,7 @@ const JUST_LOGGED_OUT_KEY = 'pp_just_logged_out';
  * verhindern Endlosschleifen und respektieren aktive Logouts:
  *  - ?silent=unavailable: der stille Versuch ist gescheitert (Interaktion/Consent nötig) → manuelle Login-Seite.
  *  - ?error=…: vorheriger Login-Fehler → Fehlermeldung zeigen statt stillen Versuch.
+ *  - ?login=email: „Mit E-Mail anmelden" auf der Website — kein Umweg über Google, direkt zum E-Mail-Feld.
  *  - „pp_just_logged_out": nach Abmelden KEIN stiller Re-Login (sonst ist Ausloggen praktisch unmöglich);
  *    gesetzt von handleLogout() in App.tsx.
  *  - „pp_silent_attempted": in dieser Browser-Session wurde bereits ein Versuch gestartet.
@@ -32,6 +33,7 @@ const shouldAttemptSilentLogin = (allowRepeat = false): boolean => {
 	const params = new URLSearchParams(window.location.search);
 	if (params.get('silent') === 'unavailable') return false;
 	if (params.has('error')) return false;
+	if (params.get('login') === 'email') return false;
 	if (sessionStorage.getItem(JUST_LOGGED_OUT_KEY) === '1') return false;
 	if (!allowRepeat && sessionStorage.getItem(SILENT_ATTEMPTED_KEY) === '1') return false;
 	return true;

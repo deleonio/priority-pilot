@@ -3,8 +3,7 @@
 		"title": "Balamentum – What should you work on next?",
 		"description": "Balamentum uses your task dependencies and life areas to work out which task matters most right now. Sign in with Google and get going.",
 		"skip": "Skip to content",
-		"switchLanguage": "Deutsch",
-		"switchLanguageLabel": "Auf Deutsch wechseln"
+		"language": "Language"
 	},
 	"nav": {
 		"label": "Main navigation",
@@ -18,46 +17,150 @@
 		"title": "What should you work on next?",
 		"lead": "Balamentum answers exactly that. It weighs dependencies and your life areas to find the task that pays off most right now. You get things done instead of sorting lists.",
 		"cta": "Start with Google",
-		"ctaNote": "Free. No credit card. Sign in with your Google account.",
+		"emailCta": "Sign in with email",
+		"ctaNote": "Free, no credit card. Email sign-in links work for existing accounts.",
 		"secondary": "Already in? Open the app",
 		"screenshotAlt": "Balamentum dashboard showing the next task and the life balance"
+	},
+	"usp": {
+		"title": "What you get",
+		"items": [
+			"Less second-guessing: the app tells you what matters now.",
+			"More balance: no area of your life gets left behind for long.",
+			"Quick capture: type or speak your tasks.",
+			"Start for free, no credit card."
+		]
 	},
 	"steps": {
 		"title": "Ready in three steps",
 		"items": [
-			{ "title": "Sign in with Google", "text": "One click. No form, no password." },
-			{ "title": "Add your tasks", "text": "Type or speak them. Link dependencies and life areas whenever you like." },
-			{ "title": "Do the next task", "text": "The dashboard shows what matters now and how balanced your week is." }
+			{
+				"title": "Sign in with Google",
+				"text": "One click. No form, no password."
+			},
+			{
+				"title": "Add your tasks",
+				"text": "Type or speak them. Link dependencies and life areas whenever you like."
+			},
+			{
+				"title": "Do the next task",
+				"text": "The dashboard shows what matters now and how balanced your week is."
+			}
 		]
 	},
 	"features": {
 		"title": "What makes Balamentum different",
+		"shotAlt": "Screenshot from the app: {title}",
+		"moreTitle": "Also included",
 		"items": [
 			{
+				"id": "next",
 				"title": "One next task, not an endless list",
-				"text": "The app shows the most valuable task whose prerequisites are already done. That is your answer to “what now?”."
+				"text": "The app shows the most valuable task whose prerequisites are already done. That is your answer to “what now?”.",
+				"points": [
+					"Value, priority and effort of every task count.",
+					"Tasks still waiting on others stay out of the way.",
+					"Tap “Done” and the next one moves up."
+				]
 			},
 			{
+				"id": "balance",
 				"title": "Objective, not guessed",
-				"text": "Body, relationships, meaning, mental health, impact: every single task carries its own weight. Your balance is objective, based on effort-weighted work actually done, not on self-assessment."
+				"text": "Body, relationships, meaning, mental health, impact: every single task carries its own weight. Your balance is objective, based on effort-weighted work actually done, not on self-assessment.",
+				"points": [
+					"Five pillars: body, mental health, relationships, impact and meaning.",
+					"The chart on the dashboard shows how balanced your last four weeks were.",
+					"If you like, the list moves tasks from neglected pillars to the top."
+				]
 			},
 			{
+				"id": "dependencies",
 				"title": "A real task graph",
-				"text": "Tasks build on each other. Balamentum's graph-based engine adds up value and effort along the whole chain and detects cycles."
+				"text": "Tasks build on each other. Balamentum's graph-based engine adds up value and effort along the whole chain and detects cycles.",
+				"points": [
+					"The graph shows which task waits for which.",
+					"Value and effort add up along the whole chain.",
+					"The app detects cycles and tells you."
+				]
 			},
 			{
+				"id": "groups",
 				"title": "Plan together",
-				"text": "Invite family or team to a group by link and hand tasks to each other."
+				"text": "Invite family or team to a group by link and hand tasks to each other.",
+				"points": ["Invite by link, no address book needed.", "Create tasks for each other and hand them over."]
 			},
 			{
+				"id": "ai",
 				"title": "AI and voice input",
-				"text": "Capture tasks by voice. The AI suggests matching pillars and polishes titles and descriptions, with your own provider if you prefer."
+				"text": "Capture tasks by voice. The AI suggests matching pillars and polishes titles and descriptions, with your own provider if you prefer.",
+				"points": [
+					"Speak a whole sentence and the AI turns it into separate tasks.",
+					"It suggests matching pillars along the way.",
+					"Voice input is already part of the free plan."
+				]
 			},
 			{
+				"id": "mcp",
+				"title": "Plan with your AI assistant",
+				"text": "Through the MCP interface your AI assistant can reach your tasks. Ask in the chat what is next, add tasks, or have your balance explained.",
+				"points": [
+					"Create an access token in the settings and add the MCP address to your assistant.",
+					"Works with Claude and other assistants that speak MCP over HTTP.",
+					"Reading comes with Max, creating and editing with Ultimate."
+				]
+			},
+			{
+				"id": "open",
 				"title": "Open and always at hand",
-				"text": "Installable on phone and desktop, with push reminders, location reminders and an MCP interface for your AI assistants."
+				"text": "Installable on phone and desktop, with push reminders and location reminders.",
+				"points": ["Push reminders and location reminders.", "Install straight from the browser, no app store."]
 			}
-		]
+		],
+		"chat": {
+			"label": "Example: chatting with an AI assistant over MCP",
+			"caption": "Example chat",
+			"you": "You",
+			"assistant": "Assistant",
+			"tool": "Tool",
+			"messages": [
+				{
+					"sender": "user",
+					"text": "What should I do next?"
+				},
+				{
+					"sender": "tool",
+					"text": "next_task"
+				},
+				{
+					"sender": "assistant",
+					"text": "Next up is “Book a yoga class”, priority 4. It is due the day after tomorrow."
+				},
+				{
+					"sender": "user",
+					"text": "Add “Visit grandma” for Saturday."
+				},
+				{
+					"sender": "tool",
+					"text": "task_create"
+				},
+				{
+					"sender": "assistant",
+					"text": "Done. “Visit grandma” is on your list, due Saturday."
+				},
+				{
+					"sender": "user",
+					"text": "How balanced was my month?"
+				},
+				{
+					"sender": "tool",
+					"text": "balance_status"
+				},
+				{
+					"sender": "assistant",
+					"text": "92 %, you are in balance. All five pillars are on target."
+				}
+			]
+		}
 	},
 	"pricing": {
 		"title": "Plans",
@@ -70,7 +173,12 @@
 		"includesPrevious": "Everything in {plan}, plus:",
 		"aiQuota": "{count} AI requests per month",
 		"cta": "Start for free",
-		"plans": { "free": "Free", "pro": "Pro", "max": "Max", "ultimate": "Ultimate" },
+		"plans": {
+			"free": "Free",
+			"pro": "Pro",
+			"max": "Max",
+			"ultimate": "Ultimate"
+		},
 		"features": {
 			"groups": "Groups and invite links",
 			"voice_input": "Voice input",
