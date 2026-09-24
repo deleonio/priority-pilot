@@ -99,6 +99,50 @@ export const PAYPAL_PLAN_IDS: Record<
 	},
 };
 
+/**
+ * Google-Play-Abo-Produkt je kostenpflichtiger Kombination Paket×Zeitraum (ADR 0017): ein Produkt je
+ * Paket, ein Base Plan je Zeitraum. Die IDs müssen exakt so in der Play Console angelegt sein; `free`
+ * hat kein Produkt.
+ */
+export const PLAY_PRODUCTS: Record<
+	Exclude<Plan, 'free'>,
+	Record<BillingPeriod, { productId: string; basePlanId: string }>
+> = {
+	pro: {
+		monthly: { productId: 'pro', basePlanId: 'monthly' },
+		quarterly: { productId: 'pro', basePlanId: 'quarterly' },
+		yearly: { productId: 'pro', basePlanId: 'yearly' },
+	},
+	max: {
+		monthly: { productId: 'max', basePlanId: 'monthly' },
+		quarterly: { productId: 'max', basePlanId: 'quarterly' },
+		yearly: { productId: 'max', basePlanId: 'yearly' },
+	},
+	ultimate: {
+		monthly: { productId: 'ultimate', basePlanId: 'monthly' },
+		quarterly: { productId: 'ultimate', basePlanId: 'quarterly' },
+		yearly: { productId: 'ultimate', basePlanId: 'yearly' },
+	},
+};
+
+/** Paket und Zeitraum zu einem Play-Produkt mit Base Plan (Kaufbeleg, RTDN); `null` bei unbekannten IDs. */
+export function planForPlayProduct(
+	productId: string,
+	basePlanId: string,
+): { plan: Exclude<Plan, 'free'>; period: BillingPeriod } | null {
+	for (const [plan, periods] of Object.entries(PLAY_PRODUCTS) as [Exclude<Plan, 'free'>, typeof PLAY_PRODUCTS.pro][]) {
+		for (const [period, product] of Object.entries(periods) as [
+			BillingPeriod,
+			{ productId: string; basePlanId: string },
+		][]) {
+			if (product.productId === productId && product.basePlanId === basePlanId) {
+				return { plan, period };
+			}
+		}
+	}
+	return null;
+}
+
 /** Katalog + Preise — einzige Quelle, von `GET /plans` unverändert durchgereicht. */
 export function getPlansCatalog(): PlansCatalog {
 	return { features: FEATURE_CATALOG, prices: PLAN_PRICES };
