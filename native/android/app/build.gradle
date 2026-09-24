@@ -18,7 +18,11 @@ android {
         if (!capacitorConfig.exists()) {
             throw new GradleException('capacitor.config.json fehlt: zuerst SITE_URL=https://… pnpm --filter native sync')
         }
-        manifestPlaceholders = [appLinkHost: new URL(new groovy.json.JsonSlurper().parse(capacitorConfig).server.url).host]
+        def serverUrl = new groovy.json.JsonSlurper().parse(capacitorConfig)?.server?.url
+        if (!serverUrl) {
+            throw new GradleException('capacitor.config.json ohne server.url: SITE_URL=https://… pnpm --filter native sync erneut ausführen')
+        }
+        manifestPlaceholders = [appLinkHost: new URL(serverUrl).host]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
