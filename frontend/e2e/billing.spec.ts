@@ -176,6 +176,17 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		await expect(page.getByTestId('invoices-empty')).toBeVisible();
 	});
 
+	test('#1646 AK4: Ladefehler zeigt die Fehlermeldung, kein Leer-Zustand (Absicherung)', async ({ page }) => {
+		await mockCatalog(page);
+		await mockAuthMe(page, USER_NO_SUBSCRIPTION);
+		await page.route('**/api/v1/billing/invoices', (route: Route) => route.fulfill({ status: 500 }));
+
+		await gotoAbo(page);
+		const invoices = page.getByTestId('billing-invoices');
+		await expect(invoices.getByText('Die Rechnungen konnten nicht geladen werden.')).toBeVisible();
+		await expect(page.getByTestId('invoices-empty')).toHaveCount(0);
+	});
+
 	test('AK5: gefüllte Rechnungsliste zeigt jede Rechnung', async ({ page }) => {
 		await mockCatalog(page);
 		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });

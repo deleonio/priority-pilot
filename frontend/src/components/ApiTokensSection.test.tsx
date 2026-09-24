@@ -407,3 +407,58 @@ describe('ApiTokensSection — #1526 AK7: kein Sperren vor der ersten Entitlemen
 		expect(container.querySelector('kol-alert[_type="info"]')).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1646 AK1–AK3 (Spec docs/spec/issue-1646.md) — Fehler und Leer-Zustand
+ * dürfen in der Karte „Vergebene Tokens" nie gleichzeitig erscheinen.
+ */
+describe('ApiTokensSection — #1646: Fehler und Leer-Zustand nie gleichzeitig', () => {
+	it('AK1: Ladefehler zeigt die Fehlermeldung, nicht „Noch kein Token vergeben."', async () => {
+		apiMocks.listApiTokens = vi.fn().mockRejectedValue(new Error('boom'));
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(container.textContent).toContain('Die Token-Liste konnte nicht geladen werden.');
+		expect(container.textContent).not.toContain('Noch kein Token vergeben.');
+	});
+
+	it('AK2: leere Liste zeigt Leer-Zustand ohne Fehlermeldung', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(container.textContent).toContain('Noch kein Token vergeben.');
+		expect(container.textContent).not.toContain('Die Token-Liste konnte nicht geladen werden.');
+	});
+
+	it('AK2: gefüllte Liste zeigt die Token-Zeile, weder Leer-Zeile noch Fehlermeldung', async () => {
+		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(container.querySelector('[data-testid="api-token-row"]')).not.toBeNull();
+		expect(container.textContent).not.toContain('Noch kein Token vergeben.');
+		expect(container.textContent).not.toContain('Die Token-Liste konnte nicht geladen werden.');
+	});
+
+	it('AK3: während des Ladens erscheint weder Leer-Zustand noch Fehlermeldung', async () => {
+		apiMocks.listApiTokens = vi.fn(() => new Promise(() => {}));
+		const { container } = render(<ApiTokensSection />);
+
+		await act(async () => {
+			await Promise.resolve();
+		});
+
+		expect(container.textContent).not.toContain('Noch kein Token vergeben.');
+		expect(container.textContent).not.toContain('Die Token-Liste konnte nicht geladen werden.');
+	});
+});
