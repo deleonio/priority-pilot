@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-24
 
-_Enthält v0.5.0 – v0.5.14._
+_Enthält v0.5.0 – v0.5.15._
 
 ### Other Changes
 
@@ -20,6 +20,7 @@ _Enthält v0.5.0 – v0.5.14._
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
 - feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
 - feat(server): reject paypal checkout for store app channels by @deleonio in https://github.com/deleonio/priority-pilot/pull/1702
+- feat(server): Google-Login der App mit Einmal-Code abschließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1703
 
 ## v0.4 - 2026-09-24
 
@@ -921,7 +922,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): add day-done completion hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1375
 - feat(server,frontend): require expiry date for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1376
 - feat(ci): generate CHANGELOG.md from GitHub releases (#1372) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1380
-- feat(ci): generate CHANGELOG.md from GitHub releases (#1372) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1380
+- fix(mcp): link tasks by id only and surface route error messages by @deleonio in https://github.com/deleonio/priority-pilot/pull/1378
 - fix(mcp): link tasks by id only and surface route error messages by @deleonio in https://github.com/deleonio/priority-pilot/pull/1378
 - feat(frontend): move home switch into the header toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1383
 - feat(mcp): accept pillars array in task_create/task_update by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1385
