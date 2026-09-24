@@ -1447,3 +1447,43 @@ describe('SettingsPage — Säulen-Neuberechnung (#1614)', () => {
 		expect(container.querySelector('[data-testid="recalc-modal"]')).toBeNull();
 	});
 });
+
+describe('SettingsPage – #1704: Test-Push-Ergebnis auswerten', () => {
+	// Der „Push testen"-Button wertet `sent` aus: 0 erreichte Geräte sind kein Erfolg (#1704).
+	// Genau dieser Zweig war der ursprüngliche Bug — Erfolgsmeldung trotz 0 Geräten.
+	const clickTestPush = (container: HTMLElement): void => {
+		clickKolButton(container.querySelector('kol-button[_label="Push testen"]'));
+	};
+
+	it('zeigt bei sent=0 den Warn-Alert „Kein Gerät erreicht"', async () => {
+		pushState.enabled = true;
+		(apiMocks.sendTestPush ??= vi.fn()).mockResolvedValueOnce({ sent: 0, quote: { text: '', author: '' } });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		clickTestPush(container);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Kein Gerät erreicht"]')).not.toBeNull());
+		expect(container.querySelector('kol-alert[_label="Test-Push gesendet"]')).toBeNull();
+	});
+
+	it('zeigt bei sent >= 1 den Erfolg-Alert', async () => {
+		pushState.enabled = true;
+		(apiMocks.sendTestPush ??= vi.fn()).mockResolvedValueOnce({ sent: 1, quote: { text: '', author: '' } });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		clickTestPush(container);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Test-Push gesendet"]')).not.toBeNull());
+		expect(container.querySelector('kol-alert[_label="Kein Gerät erreicht"]')).toBeNull();
+	});
+
+	it('zeigt bei API-Fehler den Fehler-Alert', async () => {
+		pushState.enabled = true;
+		(apiMocks.sendTestPush ??= vi.fn()).mockRejectedValueOnce(new Error('offline'));
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		clickTestPush(container);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Fehler"]')).not.toBeNull());
+	});
+});

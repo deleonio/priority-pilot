@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 
 /**
@@ -35,6 +35,18 @@ export const urlBase64ToUint8Array = (base64String: string): Uint8Array<ArrayBuf
 	return output;
 };
 
+/** Ob die Subscription mit einem anderen als dem aktuellen VAPID-Schlüssel erstellt wurde. */
+const hasOtherServerKey = (subscription: PushSubscription, key: Uint8Array): boolean => {
+	const current = subscription.options?.applicationServerKey;
+	if (!current) {
+		// Konservativ „gleicher Schlüssel": manche Browser exponieren den Key nicht — dann keinen
+		// Resubscribe-Churn riskieren, die bestehende Subscription bleibt unverändert in Gebrauch.
+		return false;
+	}
+	const bytes = new Uint8Array(current);
+	return bytes.length !== key.length || bytes.some((byte, i) => byte !== key[i]);
+};
+
 /** Ob aktuell eine aktive Push-Subscription im Browser besteht. */
 export const hasActiveSubscription = async (): Promise<boolean> => {
 	if (!isPushSupported()) {
@@ -48,9 +60,10 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
 /**
  * Fragt die Berechtigung an, erstellt eine Subscription (mit dem VAPID-Public-Key vom Server) und
  * meldet sie am Backend an. Gibt `true` bei Erfolg zurück; `false`, wenn Web-Push nicht unterstützt
- * wird oder der Nutzer die Berechtigung nicht erteilt.
+ * wird, der Nutzer die Berechtigung nicht erteilt oder `shouldAbort` zwischendurch `true` liefert
+ * (Race-Schutz des Mount-Resyncs gegen `toggle(false)`).
  */
-export const enablePush = async (): Promise<boolean> => {
+export const enablePush = async (options?: { shouldAbort?: () => boolean }): Promise<boolean> => {
 	if (!isPushSupported()) {
 		return false;
 	}
@@ -59,19 +72,26 @@ export const enablePush = async (): Promise<boolean> => {
 		return false;
 	}
 
-	const publicKey = await api.getVapidPublicKey();
+	const applicationServerKey = urlBase64ToUint8Array(await api.getVapidPublicKey());
 	const registration = await navigator.serviceWorker.ready;
-	// Bereits vorhandene Subscription wiederverwenden (idempotent), sonst neu erstellen.
-	// Bekannte Einschränkung: der applicationServerKey der bestehenden Subscription wird nicht
-	// gegen den aktuellen publicKey geprüft. Bei VAPID-Key-Rotation müsste man vergleichen und
-	// ggf. neu subscriben — für das MVP ohne Key-Rotation vertretbar.
-	const subscription =
-		(await registration.pushManager.getSubscription()) ??
-		(await registration.pushManager.subscribe({
-			userVisibleOnly: true,
-			applicationServerKey: urlBase64ToUint8Array(publicKey),
-		}));
+	// Bestehende Subscription wiederverwenden (idempotent) — außer sie stammt von einem anderen
+	// VAPID-Schlüssel: die lehnt der Push-Dienst ab, der Test-Push käme nie an. Dann neu erstellen.
+	let subscription = await registration.pushManager.getSubscription();
+	if (subscription && hasOtherServerKey(subscription, applicationServerKey)) {
+		await api.unsubscribePush({ endpoint: subscription.endpoint });
+		await subscription.unsubscribe();
+		subscription = null;
+	}
+	// Race-Schutz (#1704): Abbruch zwischen den awaits prüfen — ein Mount-Resync, der vom
+	// Nutzer-`toggle(false)` überholt wurde, darf keine neue Subscription mehr erstellen.
+	if (options?.shouldAbort?.()) {
+		return false;
+	}
+	subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
 
+	if (options?.shouldAbort?.()) {
+		return false;
+	}
 	const json = subscription.toJSON();
 	const keys = json.keys ?? {};
 	await api.subscribePush({
@@ -140,8 +160,8 @@ interface UsePushSubscriptionResult {
 /**
  * React-Hook für den Push-Toggle in der Einstellungen-Seite. Anfangszustand synchron aus dem
  * `localStorage`-Spiegel (`readPushPreference`, kein Flackern beim Seitenwechsel); ein `useEffect`
- * gleicht async mit der tatsächlichen Subscription ab und korrigiert Zustand wie Spiegel, falls die
- * Subscription extern entfernt wurde. `toggle` fragt beim Aktivieren die Berechtigung an und meldet
+ * gleicht async mit der tatsächlichen Subscription ab, korrigiert Zustand wie Spiegel, falls die
+ * Subscription extern entfernt wurde, und meldet eine bestehende Subscription erneut am Server an. `toggle` fragt beim Aktivieren die Berechtigung an und meldet
  * an/ab.
  */
 export const usePushSubscription = (): UsePushSubscriptionResult => {
@@ -149,16 +169,26 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 	const [enabled, setEnabled] = useState<boolean>(readPushPreference);
 	const [pending, setPending] = useState(false);
 	const [failed, setFailed] = useState(false);
+	// Race-Schutz (#1704): `toggle(false)` setzt das Flag, bevor `disablePush` läuft — ein noch
+	// laufender Mount-Resync bricht damit vor subscribe/subscribePush ab, statt Push „wieder anzustellen".
+	const resyncAborted = useRef(false);
 
 	useEffect(() => {
 		if (!supported) {
 			return;
 		}
+		resyncAborted.current = false;
 		let active = true;
 		void hasActiveSubscription().then((has) => {
-			if (active) {
-				setEnabled(has);
-				storePushPreference(has);
+			if (!active) {
+				return;
+			}
+			setEnabled(has);
+			storePushPreference(has);
+			// Server-Stand nachziehen (idempotent): kennt der Server die Subscription nicht (mehr),
+			// meldet der Test-Push „gesendet", erreicht aber kein Gerät.
+			if (has && Notification.permission === 'granted') {
+				void enablePush({ shouldAbort: () => resyncAborted.current }).catch(() => undefined);
 			}
 		});
 		return () => {
@@ -180,6 +210,7 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 					storePushPreference(ok);
 					setFailed(!ok);
 				} else {
+					resyncAborted.current = true;
 					await disablePush();
 					setEnabled(false);
 					storePushPreference(false);
