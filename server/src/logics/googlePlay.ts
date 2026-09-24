@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createAccessTokenSource, readServiceAccount } from './googleAuth.js';
 
 /**
@@ -10,6 +11,14 @@ import { createAccessTokenSource, readServiceAccount } from './googleAuth.js';
 const PACKAGE_NAME = 'de.balamentum.app';
 const SCOPE = 'https://www.googleapis.com/auth/androidpublisher';
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}/purchases`;
+
+/**
+ * Kontokennung für `obfuscatedAccountId`: Die App setzt sie beim Kauf, der Server erkennt daran, zu
+ * welchem Nutzer ein Kauf gehört. Ein Hash statt der Nutzer-ID, weil Google keine Klardaten will;
+ * geheim muss er nicht sein (64 Hex-Zeichen, das Maximum bei Google).
+ */
+export const playAccountIdFor = (userId: number): string =>
+	createHash('sha256').update(`balamentum-play:${userId}`).digest('hex');
 
 /** Der Beleg taugt nicht (`invalid`), Google ist gerade nicht erreichbar (`unavailable`) oder der Server ist nicht eingerichtet (`not_configured`). */
 type PlayErrorKind = 'invalid' | 'unavailable' | 'not_configured';
