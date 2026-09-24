@@ -1,6 +1,7 @@
 /**
  * Baut die öffentliche Website nach `website/dist/` (ADR 0015). Aufruf: `pnpm --filter website build`.
  * `SITE_URL` (z. B. `https://example.org`) macht canonical/hreflang absolut und erzeugt die Sitemap.
+ * `ANDROID_PACKAGE_ID` und `ANDROID_CERT_SHA256` erzeugen `/.well-known/assetlinks.json` (ADR 0016).
  */
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -21,6 +22,7 @@ import {
 	LOCALES,
 	homePath,
 	renderImprint,
+	renderAssetLinks,
 	renderLanding,
 	renderRobots,
 	renderSitemap,
@@ -93,5 +95,9 @@ for (const locale of LOCALES) {
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {
 	write('sitemap.xml', renderSitemap(siteUrl, paths));
+}
+const assetLinks = renderAssetLinks(process.env.ANDROID_PACKAGE_ID ?? '', process.env.ANDROID_CERT_SHA256 ?? '');
+if (assetLinks) {
+	write('.well-known/assetlinks.json', assetLinks);
 }
 console.log(`[website] ${paths.length} Seiten nach ${dist} geschrieben${siteUrl ? ` (SITE_URL ${siteUrl})` : ''}.`);

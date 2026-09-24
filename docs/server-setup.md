@@ -274,6 +274,13 @@ priority-pilot.example.de {
         redir * /app{uri} 308
     }
 
+    # Digital Asset Links der Android-App (ADR 0016): als JSON und ohne Umleitung ausliefern,
+    # sonst verifiziert Android die App Links nicht.
+    handle /.well-known/assetlinks.json {
+        header Content-Type application/json
+        file_server
+    }
+
     # Öffentliche Website: statische Seiten (/, /en/, /impressum/ …), kein SPA-Fallback.
     handle {
         file_server
@@ -291,17 +298,18 @@ die API unter `/api/v1/*` auf; Caddy streift das Präfix ab und reicht z. B. `/a
 
 **Pfad-Tabelle:**
 
-| Eingehende URL                 | Ziel                                                                 |
-| ------------------------------ | -------------------------------------------------------------------- |
-| `GET :80/health`               | `GET localhost:3000/health` (Liveness-Check, JSON `{"status":"ok"}`) |
-| `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                           |
-| `POST :80/api/v1/tasks`        | `POST localhost:3000/tasks`                                          |
-| `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                         |
-| `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)                       |
-| `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)           |
-| `GET :80/app/…`                | App: Datei oder `app/index.html` (SPA-Fallback)                      |
-| `GET :80/settings/…` u. a.     | `308` auf `/app/settings/…` (alte App-Pfade)                         |
-| `GET :80/`, `/en/`             | Website: `index.html` des jeweiligen Verzeichnisses                  |
+| Eingehende URL                        | Ziel                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `GET :80/health`                      | `GET localhost:3000/health` (Liveness-Check, JSON `{"status":"ok"}`) |
+| `GET :80/api/v1/tasks`                | `GET localhost:3000/tasks`                                           |
+| `POST :80/api/v1/tasks`               | `POST localhost:3000/tasks`                                          |
+| `GET :80/api/v1/pillars`              | `GET localhost:3000/pillars`                                         |
+| `GET :80/auth/google`                 | `GET localhost:3000/auth/google` (OAuth-Start)                       |
+| `GET :80/auth/google/callback`        | `GET localhost:3000/auth/google/callback` (OAuth-Callback)           |
+| `GET :80/app/…`                       | App: Datei oder `app/index.html` (SPA-Fallback)                      |
+| `GET :80/settings/…` u. a.            | `308` auf `/app/settings/…` (alte App-Pfade)                         |
+| `GET :80/`, `/en/`                    | Website: `index.html` des jeweiligen Verzeichnisses                  |
+| `GET :80/.well-known/assetlinks.json` | Asset Links der Android-App (JSON, ohne Umleitung)                   |
 
 **Umstellung einer bestehenden Installation:** Den alten Block durch den neuen ersetzen. In der
 `.env` `PAYPAL_RETURN_URL`/`PAYPAL_CANCEL_URL` auf `/app/settings…` ändern (die Weiterleitung fängt
