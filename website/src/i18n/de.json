@@ -44,12 +44,12 @@
 				"text": "Die App zeigt dir die wertvollste Aufgabe, deren Voraussetzungen schon erledigt sind. Das ist die Antwort auf „Was jetzt?“."
 			},
 			{
-				"title": "Lebensbalance steuert die Priorität",
-				"text": "Körper, Beziehungen, Sinn, mentale Gesundheit, Wirksamkeit: Du gewichtest deine Säulen selbst, und die Gewichtung fließt direkt in jede Priorität ein."
+				"title": "Objektiv statt geschätzt",
+				"text": "Körper, Beziehungen, Sinn, mentale Gesundheit, Wirksamkeit: Jede einzelne Aufgabe trägt ihr eigenes Gewicht. Deine Balance ergibt sich objektiv aus tatsächlich erledigtem, aufwandsgewichtetem Aufwand statt aus Selbsteinschätzung."
 			},
 			{
-				"title": "Abhängigkeiten, die mitrechnen",
-				"text": "Aufgaben bauen aufeinander auf. Balamentum rechnet Wert und Aufwand über die ganze Kette und erkennt Zyklen."
+				"title": "Ein echter Aufgaben-Graph",
+				"text": "Aufgaben bauen aufeinander auf. Balamentum rechnet graph-basiert Wert und Aufwand über die ganze Kette und erkennt Zyklen."
 			},
 			{
 				"title": "Gemeinsam planen",
