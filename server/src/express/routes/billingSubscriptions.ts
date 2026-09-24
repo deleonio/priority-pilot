@@ -36,6 +36,16 @@ const isPaidPlan = (value: unknown): value is Exclude<Plan, 'free'> =>
 	PAID_PLANS.includes(value as Exclude<Plan, 'free'>);
 const isPeriod = (value: unknown): value is Period => PERIODS.includes(value as Period);
 
+/**
+ * Store-Apps kaufen nie über PayPal (ADR 0016). Zweites Netz gegen falsch verdrahtete Oberflächen,
+ * kein Sicherheitsmechanismus: der Header `X-Client-Channel` kommt vom Client.
+ */
+const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
+	if (!['play', 'appstore'].includes(req.get('X-Client-Channel') ?? '')) return false;
+	sendError(res, 409, 'In der App ist kein Kauf über PayPal möglich.');
+	return true;
+};
+
 type ApprovalDto = { approvalUrl: string };
 type ReviseDto = { approvalUrl?: string };
 type InvoiceDto = {
@@ -68,6 +78,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
+		if (rejectStoreChannel(req, res)) return;
 		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
 			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
@@ -130,6 +141,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
+		if (rejectStoreChannel(req, res)) return;
 		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
 			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
