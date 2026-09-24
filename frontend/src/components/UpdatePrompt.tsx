@@ -1,6 +1,13 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useRef } from 'react';
+import { isNativeChannel } from '../lib/platform';
+
+/**
+ * In der nativen App (ADR 0016) entfällt der Hinweis samt Service-Worker-Registrierung: Im
+ * Remote-Modus lädt der WebView die App bei jedem Start frisch vom Server.
+ */
+export const UpdatePrompt = () => (isNativeChannel() ? null : <PwaUpdatePrompt />);
 
 /**
  * PWA-Update-/Offline-Hinweis (#373). Am unteren Viewport-Rand fixiert (`.update-prompt` in
@@ -16,7 +23,7 @@ import { useRef } from 'react';
  * Testklick auf den Wrapper lösen ihn per Event-Bubbling aus (der Klick des Shadow-DOM-Buttons
  * blubbert an den Wrapper). So bleibt genau ein Handler-Pfad – keine Doppelauslösung.
  */
-export const UpdatePrompt = () => {
+const PwaUpdatePrompt = () => {
 	const {
 		needRefresh: [needRefresh],
 		offlineReady: [offlineReady, setOfflineReady],

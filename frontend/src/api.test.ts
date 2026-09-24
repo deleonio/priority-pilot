@@ -44,6 +44,16 @@ describe('CSRF-Middleware (client.use)', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('onRequest setzt X-Client-Channel mit dem erkannten Kanal', async () => {
+		const request = { method: 'GET', headers: new Headers() };
+		await middleware().onRequest({ request });
+		expect(request.headers.get('X-Client-Channel')).toBe('web');
+
+		vi.stubGlobal('Capacitor', { getPlatform: () => 'android' });
+		await middleware().onRequest({ request });
+		expect(request.headers.get('X-Client-Channel')).toBe('play');
+	});
+
 	it('onRequest setzt x-csrf-token bei schreibenden Requests und cachet den Token', async () => {
 		const fetchMock = csrfFetch('csrf-1');
 		vi.stubGlobal('fetch', fetchMock);
