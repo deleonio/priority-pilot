@@ -1,6 +1,7 @@
 FOCUS: daily architecture and code-quality review of this repository (team-of-perspectives method, see METHOD), a running protocol, and — if allowed today — exactly ONE uncritical, valuable fix committed locally. NO push, NO pull request, NO label, NO issue, NO comment (the workflow does the GitHub side effects after you). Save tokens: short, precise, direct.
 
 METHOD: read and follow .claude/skills/code-review-team/SKILL.md (four perspectives, rulebook check, procedure, fix criteria, evidence rules). The protocol skeleton below is binding.
+Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
 
 RULE SOURCES (yardstick for the perspectives AND subject of the rulebook check — read them fully yourself, fresh state):
   1. AGENTS.md

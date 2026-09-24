@@ -56,6 +56,17 @@ Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichte
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist
   in `vitest.config.ts` vorbereitet und mit `pnpm add -D @vitest/coverage-v8` + `test:coverage` aktivierbar.
 
+### Code-Dokumentation (JSDoc)
+
+Gilt für alle Code-Kommentare und JSDoc, von Mensch und KI gleichermaßen:
+
+- **Erwünscht, aber minimal:** so viel wie nötig, so wenig wie möglich. Kommentiert wird das Warum und
+  der Vertrag (Parameter, Rückgabe, Seiteneffekte, Grenzen), nicht das, was der Code ohnehin zeigt.
+- **Nur Ist-Zustand und Zukunft:** beschreiben, was der Code tut und bewusst (noch) nicht tut, keine
+  Historie wie „früher“, „ersetzt X“, „seit #123“ oder Änderungsnotizen. Die gehört in Commit und PR.
+- **Klar und widerspruchsfrei:** leicht nachvollziehbar für Menschen und KI, stimmig mit Code und Doku.
+  Wer Code ändert, passt betroffene Kommentare an oder löscht sie.
+
 ### Mobile-First (Frontend)
 
 Neue/geänderte UI muss zuerst auf schmalen Viewports funktionieren (Referenzbreite **375px**), bevor
