@@ -118,6 +118,7 @@ _Enthält v0.2.0 – v0.2.134._
 - Claude/peaceful goldberg zfdcng by @deleonio in https://github.com/deleonio/priority-pilot/pull/1493
 - feat(server): add subscription model, cent pricing and quarterly tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1497
 - fix(server): add .js extension to progress-metric test import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1499
+- fix(server): add .js extension to progress-metric test import by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1499
 - feat(server): handle paypal webhooks and generate invoices by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1498
 - fix(dashboard): score life balance imbalances honestly again by @deleonio in https://github.com/deleonio/priority-pilot/pull/1500
 - chore: resolve the four open findings from review protocol #1471 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1503
