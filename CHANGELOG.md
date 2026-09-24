@@ -4,12 +4,13 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-24
 
-_Enthält v0.5.0 – v0.5.3._
+_Enthält v0.5.0 – v0.5.4._
 
 ### Other Changes
 
 - fix(frontend): access-token card never shows error and empty state together by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1652
 - feat(ci): enforce pi tool tier restricted without bash (#1193) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1653
+- feat(frontend): add landing shots, mcp chat, email login, app redirect by @deleonio in https://github.com/deleonio/priority-pilot/pull/1650
 
 ## v0.4 - 2026-09-24
 
@@ -900,6 +901,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): add focus ring for kol-tabs shadow-dom buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1351
 - feat(server): add personal api tokens with bearer auth by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1354
 - feat(server): add mcp tools v1 for member role by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1355
+- feat(server): add read/write scope toggle for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1358
 - feat(server): add read/write scope toggle for api tokens by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1358
 - fix(ci): review waits for all checks, e2e in 8 shards with path filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1364
 - fix(mcp): restore connection for read-only api tokens by @deleonio in https://github.com/deleonio/priority-pilot/pull/1369
