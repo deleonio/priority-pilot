@@ -2973,7 +2973,9 @@ paths:
         `Subscription`-Datensatz mit Status `approval_pending` und liefert die
         Zustimmungs-URL (Issue #1505, T6d, AK1). Wirksam wird das Abo erst über das
         verifizierte Webhook-Ereignis (ADR 0013). Besteht für den Nutzer bereits ein
-        laufendes oder ausstehendes Abo, antwortet die Route mit 409 (AK2).
+        laufendes oder ausstehendes Abo, antwortet die Route mit 409 (AK2). Anfragen
+        aus den Store-Apps (`X-Client-Channel: play` oder `appstore`) lehnt sie
+        ebenfalls mit 409 ab, dort wird nie über PayPal gekauft (ADR 0016, #1668).
       operationId: createBillingSubscription
       tags: [billing]
       requestBody:
@@ -2998,7 +3000,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Es besteht bereits ein laufendes oder ausstehendes Abo
+          description: Es besteht bereits ein laufendes oder ausstehendes Abo, oder die Anfrage kommt aus einer Store-App
           content:
             application/json:
               schema:
@@ -3031,6 +3033,8 @@ paths:
         #1505, T6d, AK4) und liefert, falls PayPal eine erneute Zustimmung verlangt,
         die Zustimmungs-URL. `plan` am Datensatz bleibt unverändert — wirksam wird
         der Wechsel erst über das Webhook-Ereignis (`applyPlanChange`, ADR 0013).
+        Anfragen aus den Store-Apps (`X-Client-Channel: play` oder `appstore`)
+        lehnt die Route mit 409 ab (ADR 0016, #1668).
       operationId: changeBillingSubscription
       tags: [billing]
       requestBody:
@@ -3056,6 +3060,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Anfrage aus einer Store-App, dort wird nicht über PayPal gekauft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/invoices:
     get:
       summary: Eigene Rechnungen auflisten
