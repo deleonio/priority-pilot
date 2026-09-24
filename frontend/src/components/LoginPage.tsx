@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
+import { startNativeGoogleLogin } from '../lib/nativeAuth';
+import { isNativeChannel } from '../lib/platform';
 
 type ErrorParam = string | null;
 
@@ -7,6 +9,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 	access_denied: 'Der Zugriff wurde verweigert. Bitte versuche es erneut.',
 	invalid_email: 'Deine E-Mail-Adresse ist nicht zugelassen. Bitte wende dich an den Administrator.',
 	magic_link_invalid: 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordere einfach einen neuen an.',
+	native_login_failed: 'Die Anmeldung in der App ist fehlgeschlagen. Bitte versuche es erneut.',
 };
 
 function getErrorFromSearch(): ErrorParam {
@@ -53,6 +56,11 @@ export const LoginPage = () => {
 	};
 
 	const handleLogin = () => {
+		// In der App blockiert Google den Login im WebView, er läuft dort im System-Browser.
+		if (isNativeChannel()) {
+			void startNativeGoogleLogin();
+			return;
+		}
 		// Bewusst /auth/google statt /api/v1/auth/google: Der OAuth-Flow liegt laut
 		// docs/oauth-migration.md unter /auth/* (Caddy reicht ihn ohne Präfix-Strip durch).
 		window.location.href = '/auth/google';

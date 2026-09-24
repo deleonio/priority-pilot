@@ -6,12 +6,12 @@ ohne Server. Umsetzung und Reihenfolge: [Plan native Apps](plan-native-apps.md),
 
 ## Aufbau
 
-| Pfad                               | Inhalt                                                                                        |
-| ---------------------------------- | --------------------------------------------------------------------------------------------- |
-| `native/capacitor.config.ts`       | App-ID `de.balamentum.app`, `server.url` aus `SITE_URL`, nur eigene Domain                    |
-| `native/www/error.html`            | Fehlerseite ohne Verbindung, „Neu laden" springt zurück auf `server.url`                      |
-| `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten |
-| `native/android/app/src/main/res/` | Icons und Splash aus `frontend/public/logo/logo.png` (siehe unten)                            |
+| Pfad                               | Inhalt                                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `native/capacitor.config.ts`       | App-ID `de.balamentum.app`, `server.url` aus `SITE_URL`, nur eigene Domain                                  |
+| `native/www/error.html`            | Fehlerseite ohne Verbindung, „Neu laden" springt zurück auf `server.url`                                    |
+| `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten und App Links |
+| `native/android/app/src/main/res/` | Icons und Splash aus `frontend/public/logo/logo.png` (siehe unten)                                          |
 
 `capacitor.config.json` und die kopierten Web-Dateien unter `android/app/src/main/assets/` entstehen
 bei jedem `sync` und sind nicht eingecheckt.
@@ -28,6 +28,17 @@ cd native/android && ./gradlew assembleDebug             # → app/build/outputs
 
 Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap run android` im Ordner
 `native/` oder das APK per `adb install` einspielen.
+
+## Anmeldung in der App
+
+Google blockiert OAuth im WebView. „Mit Google anmelden“ öffnet deshalb `/auth/google?client=app&state=…`
+im System-Browser (`frontend/src/lib/nativeAuth.ts`). Nach dem Login leitet der Server auf
+`/app/auth/native?code=…` um. Android gibt diesen App Link an die App, der WebView löst den Code mit dem
+gemerkten `state` über `POST /auth/native/exchange` ein. Magic-Links auf `/app/` öffnen auf demselben
+Weg die App. Der Intent-Filter im Manifest nimmt die Domain aus `server.url` (Gradle liest sie aus der
+von `sync` erzeugten `capacitor.config.json`), verifiziert wird sie über `/.well-known/assetlinks.json`
+der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links de.balamentum.app` muss die Domain als
+`verified` zeigen.
 
 ## Icons und Splash neu erzeugen
 

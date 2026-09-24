@@ -13,6 +13,12 @@ android {
         def (major, minor, patch) = rootVersion.tokenize('.').collect { it.toInteger() }
         versionCode major * 10000 + minor * 100 + patch
         versionName rootVersion
+        // App-Link-Domain aus server.url, das `cap sync` aus SITE_URL in die Assets schreibt (AndroidManifest.xml)
+        def capacitorConfig = file('src/main/assets/capacitor.config.json')
+        if (!capacitorConfig.exists()) {
+            throw new GradleException('capacitor.config.json fehlt: zuerst SITE_URL=https://… pnpm --filter native sync')
+        }
+        manifestPlaceholders = [appLinkHost: new URL(new groovy.json.JsonSlurper().parse(capacitorConfig).server.url).host]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

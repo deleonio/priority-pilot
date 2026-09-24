@@ -8,6 +8,7 @@ import type { AuthUser } from './lib/auth';
 import { PROFILE_CHANGED_EVENT } from './lib/profileChanged';
 import { checkAuth, SESSION_RELOAD_KEY } from './lib/auth';
 import { api } from './api';
+import { isNativeChannel } from './lib/platform';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
@@ -34,6 +35,8 @@ const shouldAttemptSilentLogin = (allowRepeat = false): boolean => {
 	if (params.get('silent') === 'unavailable') return false;
 	if (params.has('error')) return false;
 	if (params.get('login') === 'email') return false;
+	// In der App blockiert Google den Login im WebView; angemeldet wird dort über den System-Browser.
+	if (isNativeChannel()) return false;
 	if (sessionStorage.getItem(JUST_LOGGED_OUT_KEY) === '1') return false;
 	if (!allowRepeat && sessionStorage.getItem(SILENT_ATTEMPTED_KEY) === '1') return false;
 	return true;

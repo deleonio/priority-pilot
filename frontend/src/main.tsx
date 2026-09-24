@@ -8,6 +8,8 @@ import { I18nextProvider } from 'react-i18next';
 import i18next from './i18n/config';
 import { Root } from './Root';
 import { applyInitialTheme } from './lib/theme';
+import { listenForAppLinks } from './lib/nativeAuth';
+import { isNativeChannel } from './lib/platform';
 // KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
 // Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
 // Asset-Subpfad nicht freigibt (siehe doc/HOWTO_ICON_FONTS); Vite bündelt den Font darüber selbst.
@@ -29,6 +31,11 @@ import './app.css';
 // im Inline-Bootstrap in index.html (vor dem CSS-Paint); dieser Aufruf ist idempotent und greift
 // als Fallback, falls der Inline-Bootstrap fehlt, und hält die Wahl mit dem useTheme-Hook konsistent.
 applyInitialTheme();
+
+// App Links (Login-Code, Magic-Link) kommen nur in der nativen App an.
+if (isNativeChannel()) {
+	void listenForAppLinks();
+}
 
 const container = document.getElementById('root');
 if (container === null) {
