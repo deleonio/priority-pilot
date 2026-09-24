@@ -66,8 +66,8 @@
 			},
 			{
 				"id": "balance",
-				"title": "Life balance drives priority",
-				"text": "Body, relationships, meaning, mental health, impact: you weight your pillars, and the weights feed straight into every priority.",
+				"title": "Objective, not guessed",
+				"text": "Body, relationships, meaning, mental health, impact: every single task carries its own weight. Your balance is objective, based on effort-weighted work actually done, not on self-assessment.",
 				"points": [
 					"Five pillars: body, mental health, relationships, impact and meaning.",
 					"The heart shows how balanced your last four weeks were.",
@@ -76,8 +76,8 @@
 			},
 			{
 				"id": "dependencies",
-				"title": "Dependencies that count",
-				"text": "Tasks build on each other. Balamentum adds up value and effort along the whole chain and detects cycles.",
+				"title": "A real task graph",
+				"text": "Tasks build on each other. Balamentum's graph-based engine adds up value and effort along the whole chain and detects cycles.",
 				"points": [
 					"The graph shows which task waits for which.",
 					"Value and effort add up along the whole chain.",

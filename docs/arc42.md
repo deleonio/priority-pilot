@@ -125,6 +125,11 @@ graph LR
   Feature-Bedarf über `planGuard.ts`, LLM-Routen zählen verbrauchende Nutzungen über
   `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
   Abos laufen über PayPal (ADR 0013), die Paket-Angebote leben in den Einstellungen (ADR 0014).
+  KI-Kontingente je Monat: Pro 60, Max 110, Ultimate 200 Aufrufe, Free keine KI-Assistenz.
+  Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
+  Deploy). Übergangsregel (#1463): Vor dem Einschalten hebt das CLI-Skript
+  `server/src/cli/grandfatherPlans.ts` alle vor einem Stichtag angelegten `free`-Konten einmalig
+  auf `ultimate` — bewusst außerhalb von `migrate.ts`, Runbook in `docs/deployment.md`.
 
 ## 5. Bausteinsicht
 

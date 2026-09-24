@@ -23,7 +23,7 @@ test.describe('#1334 Home-Schalter zum Dashboard', () => {
 	 * AK1 — Von Aufgaben/Serien/Wald/Einstellungen führt genau ein Klick auf den Home-Schalter
 	 * nach `/`; danach ist der Dashboard-Tab aktiv.
 	 */
-	for (const path of ['/aufgaben', '/serien', '/wald', '/settings/allgemein']) {
+	for (const path of ['/aufgaben', '/serien', '/graph', '/settings/allgemein']) {
 		test(`AK1: Home-Schalter navigiert von ${path} zum Dashboard`, async ({ page }) => {
 			await page.goto(`/app${path}`);
 			await waitForStableView(page, path.startsWith('/settings') ? 'Einstellungen' : undefined);

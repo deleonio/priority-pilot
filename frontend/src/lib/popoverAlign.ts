@@ -36,12 +36,20 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		}
 		const rect = panel.getBoundingClientRect();
 		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
-		const overflow = Math.ceil(rect.right) - window.innerWidth;
-		if (overflow > 0) {
-			const newLeft = `${Math.round((parseFloat(panel.style.left) || 0) - overflow)}px`;
-			if (panel.style.left !== newLeft) {
-				panel.style.left = newLeft;
-			}
+		const currentLeft = parseFloat(panel.style.left) || 0;
+		let adjustedLeft = currentLeft;
+		const rightOverflow = Math.ceil(rect.right) - window.innerWidth;
+		if (rightOverflow > 0) {
+			adjustedLeft -= rightOverflow;
+		}
+		// #1623: der 8px-Toolbar-Gap verbreitert das Panel und kann es bei schmalen Viewports
+		// (360px) über den linken Rand hinausschieben — die reine Rechtskorrektur oben reicht dann nicht.
+		const projectedLeftEdge = rect.left - (currentLeft - adjustedLeft);
+		if (projectedLeftEdge < 0) {
+			adjustedLeft -= projectedLeftEdge;
+		}
+		if (adjustedLeft !== currentLeft) {
+			panel.style.left = `${Math.round(adjustedLeft)}px`;
 		}
 	};
 
@@ -94,4 +102,56 @@ export const setupPopoverAlignment = (host: HTMLKolPopoverButtonElement | null):
 		});
 	}
 	return () => cleanup();
+};
+
+/**
+ * #1623: `.kol-toolbar` (Shadow-DOM von `kol-toolbar`, @public-ui/react-v19 v4.5.0-rc.0) setzt
+ * `display: flex` ohne `gap` — die sechs Aktions-Buttons im „…"-Popover berühren sich (0px
+ * Abstand). Anders als das mitregistrierte KERN-Theme (`gap: var(--kern-metric-space-default)`)
+ * kennt das aktiv genutzte Default-Theme keine themebare Variable dafür: kein CSS-Hebel von
+ * außen, kein `::part`. Direkter Style-Write auf das interne Element, gleiches Muster wie
+ * `alignPopoverPanelLeft` oben (unpublizierte KoliBri-API — bei Upgrades prüfen). Der Shadow-Root
+ * existiert zwar sofort nach dem Custom-Element-Upgrade, sein Inhalt (`.kol-toolbar`) rendert
+ * Stencil aber asynchron nach — ein `MutationObserver` fängt das Nachrendern ab, statt sich auf
+ * einen synchronen Treffer direkt nach dem Mount zu verlassen.
+ */
+const setToolbarActionGap = (host: HTMLKolToolbarElement): void => {
+	const root = host.shadowRoot;
+	if (!root) return;
+
+	const apply = (toolbar: HTMLElement): void => {
+		if (toolbar.style.gap !== '8px') {
+			toolbar.style.gap = '8px';
+		}
+	};
+
+	const existing = root.querySelector<HTMLElement>('.kol-toolbar');
+	if (existing) {
+		apply(existing);
+		return;
+	}
+
+	const observer = new MutationObserver(() => {
+		const toolbar = root.querySelector<HTMLElement>('.kol-toolbar');
+		if (toolbar) {
+			apply(toolbar);
+			observer.disconnect();
+		}
+	});
+	observer.observe(root, { childList: true, subtree: true });
+};
+
+/**
+ * Verdrahtet `setToolbarActionGap` mit einem `KolToolbar`-Ref (gleiches Async-Upgrade-Problem wie
+ * {@link setupPopoverAlignment}).
+ */
+export const setupToolbarActionGap = (host: HTMLKolToolbarElement | null): void => {
+	if (!host) return;
+	if (host.shadowRoot) {
+		setToolbarActionGap(host);
+	} else {
+		void customElements.whenDefined('kol-toolbar').then(() => {
+			if (host.isConnected) setToolbarActionGap(host);
+		});
+	}
 };

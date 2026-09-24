@@ -70,7 +70,7 @@ const TaskGraphPanel = lazy(() =>
 
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
-const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
+const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
 // #1529: „Pakete" (Index 6) und „Abo" (Index 7) hängen HINTER „Kategorien" und VOR den
 // rollenabhängigen Segmenten — so bleiben die Indizes 0–5 der bestehenden Segmente stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [

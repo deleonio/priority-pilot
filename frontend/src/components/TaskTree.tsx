@@ -10,7 +10,7 @@ import { PinnedBadge } from './PinnedBadge';
 import { SeriesBadge } from './SeriesBadge';
 import { isDoneBlockedBySubtasks, priorityBadge, sortPinnedFirst } from '../lib/task';
 import { sortTasksByBalance, virtualPriorityLabel, type BalancePriority } from '../lib/balancePriority';
-import { setupPopoverAlignment } from '../lib/popoverAlign';
+import { setupPopoverAlignment, setupToolbarActionGap } from '../lib/popoverAlign';
 
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`), ggf. bereits gefiltert (`filterForest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
@@ -114,8 +114,11 @@ const LeafItem = ({
 	// Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe über die native Popover-API selbst;
 	// der Ref dient nur dazu, das Panel nach einer Aktion programmatisch zu schließen.
 	const popoverRef = useRef<HTMLKolPopoverButtonElement | null>(null);
+	// #1623: die 6 Aktions-Buttons im Popover berühren sich sonst (0px Abstand) — s. popoverAlign.ts.
+	const toolbarRef = useRef<HTMLKolToolbarElement | null>(null);
 
 	useEffect(() => setupPopoverAlignment(popoverRef.current), []);
+	useEffect(() => setupToolbarActionGap(toolbarRef.current), []);
 
 	const task = taskById.get(node.id) ?? null;
 	const progress = progressMap.get(node.id);
@@ -227,6 +230,7 @@ const LeafItem = ({
 								_popoverAlign="left"
 							>
 								<KolToolbar
+									ref={toolbarRef}
 									_label={`Aktionen für ${task.title}`}
 									_orientation="horizontal"
 									_items={[

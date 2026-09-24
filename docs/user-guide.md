@@ -57,7 +57,7 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
 3. **Serien** – wiederkehrende Aufgaben
-4. **Wald** – die Aufgaben als Graph mit gewichteten Abhängigkeiten
+4. **Graph** – die Aufgaben als Graph mit gewichteten Abhängigkeiten
 
 ---
 
@@ -126,7 +126,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 Im Tab **Aufgaben** stehen deine Aufgaben als **flache Liste der ausführbaren Blatt-Aufgaben**.
 Das sind genau die Aufgaben, die **keine Unteraufgaben** haben – die Aufgaben,
 die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt werden muss.
-Den Überblick über alle Abhängigkeiten findest du im Tab **Wald**.
+Den Überblick über alle Abhängigkeiten findest du im Tab **Graph**.
 
 Oben im Tab findest du drei Schalter und darunter die Filterzeile:
 
@@ -475,7 +475,7 @@ Rhythmus und Startdatum werden **nie** kaskadiert.
 
 ## Aufgabengraph
 
-Der Tab **Wald** zeigt, wie deine Aufgaben zusammenhängen.
+Der Tab **Graph** zeigt, wie deine Aufgaben zusammenhängen.
 
 - Ein **Pfeil** zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.
 - Je **dicker die Linie**, desto stärker das Gewicht der Abhängigkeit. Die Zahl steht an
@@ -638,6 +638,13 @@ Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
 ## Pakete
 
 Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
+
+Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen. Die KI-Assistenz hat ein
+monatliches Kontingent: Pro 60, Max 110, Ultimate 200 Aufrufe.
+
+**Übergangsregel für Bestandskonten:** Wer sein Konto vor dem Start der Pakete angelegt und noch
+kein Paket gebucht hat, bekommt automatisch **Ultimate** und behält damit alle Funktionen. Wie
+lange das gilt und wie es danach weitergeht, kündigen wir rechtzeitig an.
 
 ---
 

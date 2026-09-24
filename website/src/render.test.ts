@@ -126,6 +126,32 @@ describe('renderLanding', () => {
 		});
 		expect(html).toContain('&lt;script&gt;x&lt;/script&gt;');
 	});
+
+	/**
+	 * #1618 AK5/AK6/AK7 (Vertrag: `docs/spec/issue-1618.md`) — die Landing Page stellt den
+	 * geschärften USP heraus (objektiv/aufwandsgewichtet/graph-basiert, Gewichte je Aufgabe,
+	 * Balance aus erledigtem Aufwand) und nennt weder Konkurrenten noch unausgelieferte Komponenten.
+	 */
+	it.each(['de', 'en'] as const)('%s: nennt objektiv/aufwandsgewichtet/graph-basiert (AK5)', (locale) => {
+		const terms: Record<'de' | 'en', string[]> = {
+			de: ['objektiv', 'aufwandsgewichtet', 'graph-basiert'],
+			en: ['objective', 'effort-weighted', 'graph-based'],
+		};
+		const html = landing(locale).toLowerCase();
+		for (const term of terms[locale]) {
+			expect(html, `${locale}: „${term}" fehlt in hero/features`).toContain(term.toLowerCase());
+		}
+	});
+
+	it.each(['de', 'en'] as const)(
+		'%s: nennt weder Kadenz-/Befüllbarkeits-Komponente noch Strengste-Prinzip (AK7)',
+		(locale) => {
+			const html = landing(locale).toLowerCase();
+			for (const forbidden of ['kadenz', 'befüllbarkeit', 'strengste', 'cadence', 'strictest']) {
+				expect(html, `${locale}: enthält verbotenen Begriff „${forbidden}"`).not.toContain(forbidden);
+			}
+		},
+	);
 });
 
 describe('renderImprint', () => {
