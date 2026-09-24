@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-24
 
-_Enthält v0.5.0 – v0.5.12._
+_Enthält v0.5.0 – v0.5.13._
 
 ### Other Changes
 
@@ -18,6 +18,7 @@ _Enthält v0.5.0 – v0.5.12._
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
+- feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
 
 ## v0.4 - 2026-09-24
 
@@ -152,7 +153,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): add balance history endpoint and MCP tool by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1520
 - feat(server): collapse series instances across lists and pushes by @deleonio in https://github.com/deleonio/priority-pilot/pull/1522
 - chore(deps): update dependency brace-expansion@2 to v5.0.12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1501
-- chore(deps): update dependency brace-expansion@2 to v5.0.12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1501
+- docs(adr): record package boundaries without offer dialog (adr 0014) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1523
 - docs(adr): record package boundaries without offer dialog (adr 0014) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1523
 - feat(server): free voice input for all plans, gate mcp_read to max+ by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1533
 - feat(frontend): split plans/subscription into settings tabs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1534
