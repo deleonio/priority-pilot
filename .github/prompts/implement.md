@@ -5,6 +5,8 @@ FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the accep
 
 Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting. Includes the Delegation section (gate runs and search questions go to haiku subagent roles).
 
+Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
+
 EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — analysis + SKILL.md + context reads in ONE tool block; run the GATE once at the end over ALL changes (SKILL.md step 3c).
 
 PROCEDURE (STRICT):

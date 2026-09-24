@@ -41,6 +41,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   — und so wenig wie irgend möglich; jede Zeile ist Wartungslast. Ein Test entsteht nur, wenn er etwas **auswertet**, einen **Spiegel** absichert
   oder vor **stillen/teuren** Ausfällen schützt
   ([TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)).
+  Gilt auch für Code-Kommentare/JSDoc ([Code-Dokumentation](.ai-knowledge/project.md#code-dokumentation-jsdoc)).
 - **Turns bündeln:** Erst kurz planen, dann gebündelt ausführen — jeder Turn reißt den Kontext
   erneut an den LLM (Cache-Read) und zählt im Abo als eigener Prompt. Mechanisch heißt das:
   unabhängige Lese-/Such-Schritte in **einem** Tool-Call statt fünf einzelnen, Shell-Befehle
