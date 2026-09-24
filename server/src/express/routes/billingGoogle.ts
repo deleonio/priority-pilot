@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 import { Subscription } from '../../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
+import { playPlanFields } from '../../logics/billing/googlePlayProvider.js';
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
 import {
 	acknowledgeIfPending,
@@ -11,7 +12,6 @@ import {
 	playAccountIdFor,
 	type GooglePlayClient,
 } from '../../logics/googlePlay.js';
-import { planForPlayProduct } from '../../logics/plans.js';
 import { getUserId } from '../requireAuth.js';
 import { sendError, type ErrorDto } from '../http-error.js';
 
@@ -19,7 +19,8 @@ import { sendError, type ErrorDto } from '../http-error.js';
  * Kauf in der Android-App (#1687, ADR 0017): Die App schickt den Kauf-Token, der Server liest den Kauf
  * bei Google, ordnet ihn über `obfuscatedAccountId` dem angemeldeten Nutzer zu, bestätigt ihn und
  * schaltet das Paket frei. Hinter Session und CSRF. Einen fremden Kauf bestätigt er nicht, Google
- * erstattet ihn dann nach drei Tagen.
+ * erstattet ihn dann nach drei Tagen. Ein Paketwechsel (#1696) ist ein neuer Kauf, der über
+ * `linkedPurchaseToken` auf den alten verweist: Er übernimmt dessen Abo, statt ein zweites anzulegen.
  */
 
 export interface BillingGoogleDeps {
@@ -88,8 +89,8 @@ export const createBillingGoogleRouter = (deps: BillingGoogleDeps = {}): Router 
 				sendError(res, 403, 'Der Kauf gehört zu einem anderen Konto.');
 				return;
 			}
-			const target = planForPlayProduct(purchase.productId, purchase.basePlanId);
-			if (!target) {
+			const fields = playPlanFields(purchase);
+			if (!fields) {
 				sendError(res, 400, 'Unbekanntes Abo-Produkt.');
 				return;
 			}
@@ -97,17 +98,21 @@ export const createBillingGoogleRouter = (deps: BillingGoogleDeps = {}): Router 
 				sendError(res, 409, 'Der Kauf ist nicht aktiv.');
 				return;
 			}
+			const replaced = purchase.linkedPurchaseToken
+				? await Subscription.findOne({
+						where: { userId, provider: PROVIDER, externalSubscriptionId: purchase.linkedPurchaseToken },
+					})
+				: null;
+			if (running && !replaced) {
+				sendError(res, 409, 'Es läuft bereits ein Abo über Google Play.');
+				return;
+			}
 			await acknowledgeIfPending(client, purchase, purchaseToken);
-			const subscription = await Subscription.create({
-				userId,
-				provider: PROVIDER,
-				externalSubscriptionId: purchaseToken,
-				plan: target.plan,
-				period: target.period,
-				status: 'active',
-				currentPeriodEnd: purchase.expiresAt,
-			});
-			await syncUserPlan(subscription, target.plan);
+			const values = { ...fields, externalSubscriptionId: purchaseToken, status: 'active', firstFailureAt: null };
+			const subscription = replaced
+				? await replaced.update(values)
+				: await Subscription.create({ ...values, userId, provider: PROVIDER });
+			await syncUserPlan(subscription, fields.plan);
 			res.status(204).end();
 		} catch (error) {
 			if (error instanceof GooglePlayError) {

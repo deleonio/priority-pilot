@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { checkAuth } from '../lib/auth';
-import type { Period, Plan } from '../lib/planOffers';
+import { planLabel, type Period, type Plan } from '../lib/planOffers';
 import {
 	initPlayStore,
 	PAYMENT_CANCELLED,
+	playChangeFor,
 	playOfferFor,
 	restorePlayPurchases,
 	type PlayTransaction,
@@ -16,11 +17,14 @@ import type { PurchaseUi } from './billingChannel';
 
 type Store = NonNullable<Awaited<ReturnType<typeof initPlayStore>>>;
 
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
+
 /**
  * Kaufweg im Kanal `play` (#1692, ADR 0017): Preise und Kauf kommen aus Google Play. Nach dem Kauf
  * geht der Token an `POST /billing/google/purchase`; der Server prüft und bestätigt ihn, danach
  * werden die Entitlements neu geladen. Schließt der Nutzer den Store-Dialog, bleibt alles, wie es war.
  * „Käufe wiederherstellen" (#1695) meldet die vorhandenen Käufe des Google-Kontos erneut an den Server.
+ * Mit laufendem Abo ersetzt ein Kauf das bisherige (#1696).
  */
 export const usePlayPurchase = (): PurchaseUi => {
 	const { subscription, refresh } = usePlan();
@@ -28,6 +32,7 @@ export const usePlayPurchase = (): PurchaseUi => {
 	const [unavailable, setUnavailable] = useState(false);
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [scheduledChange, setScheduledChange] = useState<string | null>(null);
 	const [restoring, setRestoring] = useState(false);
 	const [restored, setRestored] = useState<'done' | 'none' | 'failed' | null>(null);
 	const { t } = useTranslation('messages');
@@ -64,13 +69,18 @@ export const usePlayPurchase = (): PurchaseUi => {
 
 	const buy = async (plan: Exclude<Plan, 'free'>, period: Period): Promise<void> => {
 		const offer = store ? playOfferFor(store, plan, period) : undefined;
-		if (!offer) return;
+		if (!store || !offer) return;
 		setError(null);
+		setScheduledChange(null);
 		setBusyKey(`${plan}-${period}`);
+		const running = subscription && subscription.plan !== 'free' ? subscription : null;
+		const change = running ? playChangeFor(store, running.plan, plan) : undefined;
 		try {
-			const result = await offer.order();
+			const result = await offer.order(change && { googlePlay: change });
 			if (result && result.code !== PAYMENT_CANCELLED) {
 				setError('Der Kauf über Google Play ist fehlgeschlagen.');
+			} else if (!result && running && change?.replacementMode === 'DEFERRED') {
+				setScheduledChange(`Wechsel zu ${planLabel(plan)} ab ${formatDate(running.currentPeriodEnd)}.`);
 			}
 		} catch {
 			setError('Der Kauf über Google Play ist fehlgeschlagen.');
@@ -106,17 +116,19 @@ export const usePlayPurchase = (): PurchaseUi => {
 		if (subscription !== null && subscription.plan === plan && subscription.period === period) {
 			return { text: 'Aktuelles Paket', node: <span>Aktuelles Paket</span> };
 		}
-		const offer = store && subscription === null ? playOfferFor(store, plan, period) : undefined;
+		const offer = store ? playOfferFor(store, plan, period) : undefined;
 		if (!offer) {
 			return { text: '', node: null };
 		}
+		const changing = subscription !== null && subscription.plan !== 'free';
+		const label = changing ? 'Wechseln' : 'Buchen';
 		return {
-			text: 'Buchen',
+			text: label,
 			node: (
 				<KolButton
-					data-testid={`book-${plan}-${period}`}
-					_label="Buchen"
-					_variant="primary"
+					data-testid={`${changing ? 'change-plan' : 'book'}-${plan}-${period}`}
+					_label={label}
+					_variant={changing ? 'secondary' : 'primary'}
 					_disabled={busyKey === `${plan}-${period}`}
 					_on={{ onClick: () => void buy(plan, period) }}
 				/>
@@ -137,6 +149,11 @@ export const usePlayPurchase = (): PurchaseUi => {
 				{error !== null && (
 					<KolAlert _type="error" _label="Kauf fehlgeschlagen">
 						{error}
+					</KolAlert>
+				)}
+				{scheduledChange !== null && (
+					<KolAlert _type="success" _label="Paketwechsel vorgemerkt">
+						{scheduledChange}
 					</KolAlert>
 				)}
 				{restored !== null && (

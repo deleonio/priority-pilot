@@ -79,6 +79,39 @@ describe('googlePlay (#1685)', () => {
 		);
 	});
 
+	it('liest einen Wechsel zum Periodenende: laufendes Paket, vorgemerktes Paket und ersetzten Kauf (#1696)', async () => {
+		mockGoogle(200, {
+			...PURCHASE,
+			linkedPurchaseToken: 'token-alt',
+			lineItems: [
+				{ productId: 'max', expiryTime: '2026-10-24T10:00:00Z', offerDetails: { basePlanId: 'monthly' } },
+				{ productId: 'pro', offerDetails: { basePlanId: 'monthly' } },
+			],
+		});
+
+		const subscription = await createGooglePlayClient().getSubscription('token-neu');
+
+		assert.equal(subscription.productId, 'max');
+		assert.equal(subscription.linkedPurchaseToken, 'token-alt');
+		assert.deepEqual(subscription.deferred, { productId: 'pro', basePlanId: 'monthly' });
+	});
+
+	it('nach der Verlängerung gilt die Position mit dem spätesten Ablauf (#1696)', async () => {
+		mockGoogle(200, {
+			...PURCHASE,
+			lineItems: [
+				{ productId: 'max', expiryTime: '2026-10-24T10:00:00Z', offerDetails: { basePlanId: 'monthly' } },
+				{ productId: 'pro', expiryTime: '2026-11-24T10:00:00Z', offerDetails: { basePlanId: 'monthly' } },
+			],
+		});
+
+		const subscription = await createGooglePlayClient().getSubscription('token-neu');
+
+		assert.equal(subscription.productId, 'pro');
+		assert.deepEqual(subscription.expiresAt, new Date('2026-11-24T10:00:00Z'));
+		assert.equal(subscription.deferred, undefined);
+	});
+
 	it('bestätigt einen offenen Kauf genau einmal, einen bestätigten gar nicht', async () => {
 		const calls = mockGoogle(200, {});
 		const client = createGooglePlayClient();

@@ -9,7 +9,9 @@ export interface PlayOffer {
 	id: string;
 	/** Lokalisierter Preis aus dem Store je Phase; die erste Phase ist der reguläre Preis. */
 	pricingPhases: { price: string }[];
-	order(): Promise<{ code: number; message: string } | undefined>;
+	order(data?: {
+		googlePlay: { oldPurchaseToken: string; replacementMode: ReplacementMode };
+	}): Promise<{ code: number; message: string } | undefined>;
 }
 
 export interface PlayTransaction {
@@ -34,8 +36,11 @@ const SUBSCRIPTION = 'paid subscription';
 /** Fehlercode des Plugins, wenn der Nutzer den Store-Dialog schließt: kein Fehler für die Anzeige. */
 export const PAYMENT_CANCELLED = 6777006;
 
-/** Die Abo-Produkte in der Play Console, je Paket eines (ADR 0017, `PLAY_PRODUCTS` im Server). */
-const PRODUCT_IDS = ['pro', 'max', 'ultimate'] as const;
+/** Die Abo-Produkte in der Play Console, je Paket eines, aufsteigend (ADR 0017, `PLAY_PRODUCTS` im Server). */
+const PRODUCT_IDS: readonly string[] = ['pro', 'max', 'ultimate'];
+
+/** Replacement-Modes beim Paketwechsel, benannt wie im Plugin (`CdvPurchase.GooglePlay.ReplacementMode`). */
+type ReplacementMode = 'IMMEDIATE_WITH_TIME_PRORATION' | 'DEFERRED';
 
 const storeOf = (): PlayStore | undefined => (globalThis as { CdvPurchase?: { store?: PlayStore } }).CdvPurchase?.store;
 
@@ -72,4 +77,24 @@ export const restorePlayPurchases = async (store: PlayStore): Promise<string[]> 
 	return store.localReceipts.flatMap((receipt) =>
 		receipt.platform === PLATFORM && receipt.purchaseToken ? [receipt.purchaseToken] : [],
 	);
+};
+
+/**
+ * Wechsel des laufenden Play-Abos (#1696, ADR 0017): Ein größeres Paket gilt sofort und wird anteilig
+ * verrechnet, alles andere ab der nächsten Verlängerung. `undefined`, wenn Google Play auf diesem
+ * Gerät kein Abo kennt, das sich ersetzen ließe.
+ */
+export const playChangeFor = (
+	store: PlayStore,
+	currentPlan: string,
+	targetPlan: string,
+): { oldPurchaseToken: string; replacementMode: ReplacementMode } | undefined => {
+	const oldPurchaseToken = store.localReceipts.find(
+		(receipt) => receipt.platform === PLATFORM && receipt.purchaseToken,
+	)?.purchaseToken;
+	if (!oldPurchaseToken) {
+		return undefined;
+	}
+	const upgrade = PRODUCT_IDS.indexOf(targetPlan) > PRODUCT_IDS.indexOf(currentPlan);
+	return { oldPurchaseToken, replacementMode: upgrade ? 'IMMEDIATE_WITH_TIME_PRORATION' : 'DEFERRED' };
 };
