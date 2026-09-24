@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Subscription } from '../../models/index.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import Invoice from '../../models/invoice.js';
 import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
@@ -84,7 +85,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const existing = await Subscription.findOne({ where: { userId, status: ['active', 'approval_pending'] } });
+		const existing = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
 		if (existing) {
 			sendError(res, 409, 'Es besteht bereits ein laufendes oder ausstehendes Abo.');
 			return;
@@ -118,7 +119,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				return;
 			}
 			const subscription = await Subscription.findOne({
-				where: { userId, status: ['active', 'approval_pending'] },
+				where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
 			});
 			if (!subscription) {
 				sendError(res, 404, 'Kein Abo gefunden.');
@@ -148,7 +149,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			return;
 		}
 		const subscription = await Subscription.findOne({
-			where: { userId, status: ['active', 'approval_pending'] },
+			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
 		});
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');

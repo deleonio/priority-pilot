@@ -576,6 +576,8 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		});
 
 		it('this.success(user) im Callback → Erfolgs-Redirect auf / + Session-Cookie', async () => {
+			// Seit #1671 beendet /auth/me Sessions gelöschter Konten — der Stub-Nutzer braucht seine DB-Zeile.
+			await User.create({ id: 1, email: ALLOWED_EMAIL, displayName: ALLOWED_NAME, passwordHash: '__test__' });
 			await withStubStrategy('success', async () => {
 				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
 				assert.equal(res.status, 302);
