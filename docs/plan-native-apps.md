@@ -104,7 +104,7 @@ server/src/logics/billing/…         Provider hinter einer Schnittstelle (paypa
 
 ## Stufe 2: Google Play Billing
 
-1. **ADR 0017 „Store-Billing“**
+1. **[ADR 0017 „Store-Billing“](adr/0017-store-billing-google-play.md)**
    - **Plugin:** `cordova-plugin-purchase` (CdvPurchase, läuft unter Capacitor, deckt später auch StoreKit ab) mit eigener Server-Verifikation. Begründung: kein weiterer US-Auftragsverarbeiter (Linie aus ADR 0013), keine Umsatzbeteiligung.
    - **Alternative RevenueCat:** spart 2–3 Tage Server-Arbeit, kostet aber etwa 1 % ab einer Umsatzschwelle und braucht einen AVV.
    - **Store-Gebühr:** 15 %. Ob die Store-Preise gleich hoch oder höher als die Web-Preise sind, entscheidet der PO.
