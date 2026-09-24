@@ -20,6 +20,7 @@ import {
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
 	migratePlaceFavoriteAddressUnique,
+	migrateLoginTokenPurpose,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1293,5 +1294,28 @@ describe('migratePillarRecalcColumns', () => {
 	it('ist auf einer leeren DB ein No-op', async () => {
 		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
 		await assert.doesNotReject(() => migratePillarRecalcColumns(sequelize));
+	});
+});
+
+// ── #1669: migrateLoginTokenPurpose — purpose-Spalte an login_tokens nachziehen ────────────────
+// Ohne die Spalte bräche auf Bestands-DBs jeder Magic-Link- und App-Login mit `no such column`.
+describe('migrateLoginTokenPurpose (#1669)', () => {
+	it('zieht purpose nach, Bestandszeilen werden magic, zweiter Lauf bleibt stabil', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `login_tokens` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL, ' +
+				'`tokenHash` VARCHAR(255) NOT NULL, `expiresAt` DATETIME NOT NULL, `usedAt` DATETIME, ' +
+				'`createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			"INSERT INTO `login_tokens` (`email`, `tokenHash`, `expiresAt`, `createdAt`, `updatedAt`) VALUES ('a@example.com', 'h', '2026-01-01', '2026-01-01', '2026-01-01')",
+		);
+
+		await migrateLoginTokenPurpose(sequelize);
+		await assert.doesNotReject(() => migrateLoginTokenPurpose(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [rows] = await sequelize.query('SELECT purpose FROM `login_tokens`');
+		assert.deepEqual(rows, [{ purpose: 'magic' }]);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht');
 	});
 });

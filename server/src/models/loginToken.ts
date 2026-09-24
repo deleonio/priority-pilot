@@ -2,8 +2,9 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Einmal-Token für den Magic-Link-Login per E-Mail. Der Klartext steht nur im Link der Mail;
- * gespeichert wird ausschließlich sein SHA-256-Hex (`tokenHash`, Muster {@link ./apiToken.ts}).
+ * Einmal-Token für den Magic-Link-Login per E-Mail und den Login in der nativen App (ADR 0016).
+ * Der Klartext steht nur im Link der Mail bzw. im App Link; gespeichert wird ausschließlich sein
+ * SHA-256-Hex (`tokenHash`, Muster {@link ./apiToken.ts}).
  *
  * Bewusst an die **E-Mail** gebunden, nicht an eine `userId`: Der Link darf auch für eine Adresse
  * verschickt werden, die noch kein Konto hat — angelegt wird der Nutzer erst beim Einlösen
@@ -17,6 +18,8 @@ class LoginToken extends Model {
 	public expiresAt!: Date;
 	// Gesetzt = eingelöst. Ein Token gilt genau einmal (atomarer Verbrauch in `logics/magicLink.ts`).
 	public usedAt?: Date | null;
+	// `magic` = Link aus der Mail, `native` = Einmal-Code nach dem Google-Login der App.
+	public purpose!: 'magic' | 'native';
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -44,6 +47,11 @@ LoginToken.init(
 		usedAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
+		},
+		purpose: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: 'magic',
 		},
 	},
 	{

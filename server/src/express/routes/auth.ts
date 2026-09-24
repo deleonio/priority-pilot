@@ -11,6 +11,9 @@ import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js'
 import { getEntitlements, type Plan } from '../../logics/plans.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/paypal.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
+import { consumeLoginToken, createNativeLoginCode } from '../../logics/magicLink.js';
+import { upsertOAuthUser } from '../../logics/oauthUser.js';
+import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
 import { getAiUsageCount } from '../aiQuotaMeter.js';
@@ -198,8 +201,16 @@ const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
 	next();
 };
 
-// GET /auth/google — startet den OAuth-Flow
-authRouter.get('/auth/google', requireGoogleStrategy, passport.authenticate('google', { scope: ['email', 'profile'] }));
+// GET /auth/google — startet den OAuth-Flow. `?client=app` markiert den Login aus der nativen App
+// (ADR 0016): Er läuft im System-Browser, dessen Session der WebView der App nicht teilt.
+authRouter.get('/auth/google', requireGoogleStrategy, (req, res, next) => {
+	if (req.query.client === 'app') {
+		req.session.nativeLogin = true;
+	} else if (req.session.nativeLogin) {
+		delete req.session.nativeLogin;
+	}
+	passport.authenticate('google', { scope: ['email', 'profile'] })(req, res, next);
+});
 
 // GET /auth/google/silent — stiller Google-Login via prompt=none (Issue #396 PR B).
 // Ein Nutzer mit gültiger Google-Session wird so ohne eigenen Klick angemeldet. Ist kein OAuth
@@ -276,6 +287,16 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			if (req.session?.silentReturnTo) {
 				delete req.session.silentReturnTo;
 			}
+			// Login aus der nativen App (#1669): keine Session im System-Browser, sondern ein Einmal-Code,
+			// den der WebView der App über den App Link einlöst (POST /auth/native/exchange).
+			if (req.session?.nativeLogin) {
+				delete req.session.nativeLogin;
+				createNativeLoginCode(user.email).then(
+					(code) => res.redirect(`${APP_ROOT}auth/native?code=${encodeURIComponent(code)}`),
+					() => res.redirect(`${APP_ROOT}?error=login_failed`),
+				);
+				return;
+			}
 			establishSession(req, user, (sessionErr) => {
 				if (sessionErr) {
 					res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
@@ -285,6 +306,25 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			});
 		},
 	)(req, res, next);
+});
+
+// POST /auth/native/exchange — löst den Einmal-Code aus dem App-Login ein und meldet den WebView der
+// App an (#1669, ADR 0016). Die Allowlist wird erneut geprüft, wie beim Magic Link.
+authRouter.post('/auth/native/exchange', async (req, res) => {
+	const { code } = (req.body ?? {}) as { code?: unknown };
+	const email = typeof code === 'string' && code !== '' ? await consumeLoginToken(code, 'native') : null;
+	if (!email || !isEmailAllowed(email)) {
+		sendError(res, 400, 'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.');
+		return;
+	}
+	const user = await upsertOAuthUser({ email });
+	establishSession(req, user, (sessionErr) => {
+		if (sessionErr) {
+			sendError(res, 500, 'Session-Fehler.');
+			return;
+		}
+		res.status(204).end();
+	});
 });
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB

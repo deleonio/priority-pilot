@@ -10,6 +10,9 @@ import { isMailConfigured } from './mail.js';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 
+/** Einmal-Code nach dem Google-Login der nativen App (ADR 0016): nur für den direkten Rücksprung. */
+const NATIVE_CODE_TTL_MS = 60 * 1000;
+
 /** Höchstens so viele Links pro Adresse innerhalb von {@link TOKEN_TTL_MS} (Schutz vor Mail-Flut). */
 const MAX_TOKENS_PER_WINDOW = 3;
 
@@ -40,7 +43,7 @@ export const createLoginToken = async (email: string, now: Date = new Date()): P
 	await LoginToken.destroy({ where: { expiresAt: { [Op.lt]: new Date(now.getTime() - TOKEN_TTL_MS) } } });
 
 	const recent = await LoginToken.count({
-		where: { email, createdAt: { [Op.gt]: new Date(now.getTime() - TOKEN_TTL_MS) } },
+		where: { email, purpose: 'magic', createdAt: { [Op.gt]: new Date(now.getTime() - TOKEN_TTL_MS) } },
 	});
 	if (recent >= MAX_TOKENS_PER_WINDOW) {
 		return null;
@@ -52,22 +55,41 @@ export const createLoginToken = async (email: string, now: Date = new Date()): P
 };
 
 /**
- * Löst einen Token ein und liefert die zugehörige E-Mail — `null` bei unbekanntem, abgelaufenem oder
- * schon benutztem Token. Der Verbrauch ist ein einzelnes bedingtes UPDATE: Zwei parallele Einlöse-
- * versuche mit demselben Token können so nie beide gewinnen.
+ * Legt den Einmal-Code an, den die native App nach dem Google-Login über den App Link einlöst
+ * (ADR 0016). Ohne Mengenlimit: Er entsteht nur nach einem erfolgreichen Google-Login.
  */
-export const consumeLoginToken = async (token: string, now: Date = new Date()): Promise<string | null> => {
+export const createNativeLoginCode = async (email: string, now: Date = new Date()): Promise<string> => {
+	const code = randomBytes(32).toString('base64url');
+	await LoginToken.create({
+		email,
+		tokenHash: hashToken(code),
+		purpose: 'native',
+		expiresAt: new Date(now.getTime() + NATIVE_CODE_TTL_MS),
+	});
+	return code;
+};
+
+/**
+ * Löst einen Token ein und liefert die zugehörige E-Mail — `null` bei unbekanntem, abgelaufenem,
+ * schon benutztem oder für einen anderen Zweck ausgestelltem Token. Der Verbrauch ist ein einzelnes
+ * bedingtes UPDATE: Zwei parallele Einlöseversuche mit demselben Token können so nie beide gewinnen.
+ */
+export const consumeLoginToken = async (
+	token: string,
+	purpose: 'magic' | 'native' = 'magic',
+	now: Date = new Date(),
+): Promise<string | null> => {
 	const tokenHash = hashToken(token);
 	// E-Mail vor dem Verbrauch lesen: das Aufräumen in createLoginToken kann zwischen UPDATE und
 	// einem nachträglichen findOne dazwischenfunken (fremder Aufruf löscht die soeben eingelöste
 	// Zeile, bevor sie hier wieder gelesen wird).
-	const row = await LoginToken.findOne({ where: { tokenHash, usedAt: null, expiresAt: { [Op.gt]: now } } });
+	const row = await LoginToken.findOne({ where: { tokenHash, purpose, usedAt: null, expiresAt: { [Op.gt]: now } } });
 	if (!row) {
 		return null;
 	}
 	const [affected] = await LoginToken.update(
 		{ usedAt: now },
-		{ where: { tokenHash, usedAt: null, expiresAt: { [Op.gt]: now } } },
+		{ where: { tokenHash, purpose, usedAt: null, expiresAt: { [Op.gt]: now } } },
 	);
 	return affected === 1 ? row.email : null;
 };

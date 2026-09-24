@@ -817,6 +817,23 @@ export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht die `purpose`-Spalte (#1669) auf einer **bestehenden** `login_tokens`-Tabelle nach, bevor
+ * `sequelize.sync()` läuft. Bestehende Zeilen sind Magic-Link-Tokens (`magic`). Idempotent
+ * (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt die Spalte an.
+ */
+export const migrateLoginTokenPurpose = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('login_tokens')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('purpose')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `login_tokens` ADD COLUMN `purpose` VARCHAR(255) NOT NULL DEFAULT 'magic'");
+	console.log('Spalte purpose an login_tokens nachgezogen.');
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:
