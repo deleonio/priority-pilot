@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.4 - 2026-09-23
 
-_Enthält v0.4.0 – v0.4.18._
+_Enthält v0.4.0 – v0.4.19._
 
 ### Other Changes
 
@@ -24,6 +24,7 @@ _Enthält v0.4.0 – v0.4.18._
 - feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
 - feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
 - feat(server): withhold tasks with far-future deadlines from suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1644
+- feat(frontend): run pillar reassignment as server-side background job by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1645
 
 ## v0.3 - 2026-09-23
 
@@ -881,7 +882,7 @@ _Enthält v0.1.336 – v0.1.836._
 - feat(frontend): render settings and help as pages in the app shell by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1323
 - feat(frontend): add categories as a thematic grouping layer by @deleonio in https://github.com/deleonio/priority-pilot/pull/1325
 - feat(frontend): show task/series id in edit title and confirm dialogs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1350
-- feat(frontend): show task/series id in edit title and confirm dialogs by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1350
+- feat(frontend): category badge below select, removable, sorted list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1347
 - feat(frontend): category badge below select, removable, sorted list by @deleonio in https://github.com/deleonio/priority-pilot/pull/1347
 - feat(frontend): add i18next with language selection for ten locales by @deleonio in https://github.com/deleonio/priority-pilot/pull/1348
 - feat(frontend): add focus ring for kol-tabs shadow-dom buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1351
