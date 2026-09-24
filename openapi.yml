@@ -5523,8 +5523,14 @@ components:
     MeSubscription:
       type: object
       description: Abo-Status im Vertrag von `GET /auth/me` (#1494/#1495/#1505).
-      required: [plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
+      required: [provider, plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
       properties:
+        provider:
+          type: string
+          enum: [paypal, google_play]
+          description: >-
+            Anbieter, über den das Abo läuft und verwaltet wird (#1690). Ein Nutzer hat
+            höchstens ein laufendes Abo über alle Anbieter.
         plan:
           $ref: '#/components/schemas/Plan'
         period:
@@ -5532,7 +5538,7 @@ components:
           enum: [monthly, quarterly, yearly]
         status:
           type: string
-          description: Abo-Status bei PayPal (z. B. `approval_pending`, `active`, `cancelled`).
+          description: Abo-Status beim Anbieter (z. B. `approval_pending`, `active`, `cancelled`).
         currentPeriodEnd:
           type: string
           format: date-time

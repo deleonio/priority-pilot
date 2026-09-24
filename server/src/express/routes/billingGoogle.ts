@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Subscription } from '../../models/index.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
 import {
 	acknowledgeIfPending,
@@ -53,6 +54,13 @@ export const createBillingGoogleRouter = (deps: BillingGoogleDeps = {}): Router 
 		const purchaseToken = (req.body as { purchaseToken?: unknown } | undefined)?.purchaseToken;
 		if (typeof purchaseToken !== 'string' || purchaseToken === '') {
 			sendError(res, 400, 'purchaseToken fehlt.');
+			return;
+		}
+
+		// Höchstens ein laufendes Abo über alle Anbieter (#1690, ADR 0016): der Kauf wird dann nicht bestätigt.
+		const running = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
+		if (running && running.get('provider') !== PROVIDER) {
+			sendError(res, 409, 'Es läuft bereits ein Abo über einen anderen Anbieter.');
 			return;
 		}
 
