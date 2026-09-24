@@ -62,6 +62,7 @@ import type {
 import createClient from 'openapi-fetch';
 import { planRequiredDetail } from './lib/apiError';
 import { sortCategoriesByName } from './lib/categories';
+import { getChannel } from './lib/platform';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
 // http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
@@ -87,6 +88,8 @@ const ensureCsrfToken = async (): Promise<string> => {
 
 client.use({
 	onRequest: async ({ request }) => {
+		// Kanal für die serverseitige Kanal-Regel (ADR 0016), z. B. keine PayPal-Kasse in der Android-App.
+		request.headers.set('X-Client-Channel', getChannel());
 		if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
 			request.headers.set('x-csrf-token', await ensureCsrfToken());
 		}

@@ -74,6 +74,14 @@ beforeEach(() => {
 });
 
 describe('UpdatePrompt (#353)', () => {
+	it('rendert in der Android-App nichts (ADR 0016)', () => {
+		needRefreshValue = true;
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		const { container } = render(<UpdatePrompt />);
+		expect(container).toBeEmptyDOMElement();
+		vi.unstubAllGlobals();
+	});
+
 	// AK3 — Reload löst Update aus.
 	// Testbare Naht: KolButton ist ein Web Component, dessen `_on.onClick`-Callback in JSDOM nicht
 	// über einen echten DOM-Klick auslösbar ist (siehe InstallPrompt-Präzedenzfall). Das Reload-

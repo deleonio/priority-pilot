@@ -53,6 +53,21 @@ describe('InstallPrompt', () => {
 		expect(screen.queryByText(/App installieren/i)).not.toBeInTheDocument();
 	});
 
+	it('rendert in der Android-App nichts (ADR 0016)', () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		render(<InstallPrompt />);
+		const event = new Event('beforeinstallprompt', { cancelable: true }) as BeforeInstallPromptEvent;
+		Object.assign(event, {
+			prompt: vi.fn(),
+			userChoice: Promise.resolve({ outcome: 'dismissed' as const, platform: '' }),
+		});
+		act(() => {
+			window.dispatchEvent(event);
+		});
+		expect(screen.queryByText(/App installieren/i)).not.toBeInTheDocument();
+		vi.unstubAllGlobals();
+	});
+
 	it('should render install prompt when beforeinstallprompt event is triggered', () => {
 		// Komponente zuerst rendern, damit der Event-Listener registriert ist.
 		render(<InstallPrompt />);
