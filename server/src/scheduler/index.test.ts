@@ -111,6 +111,25 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 		assert.doesNotThrow(() => handle.stop());
 	});
 
+	it('registriert einen Interval-Callback auch mit FCM allein, ohne VAPID', () => {
+		delete process.env.VAPID_PUBLIC_KEY;
+		delete process.env.VAPID_PRIVATE_KEY;
+		process.env.FCM_SERVICE_ACCOUNT_FILE = '/tmp/fcm.json';
+		process.env.PUSH_REMINDERS_ENABLED = 'true';
+		let registered = false;
+
+		const handle = startScheduler([], {
+			setIntervalFn: ((fn: () => void) => {
+				registered = typeof fn === 'function';
+				return 1 as unknown as NodeJS.Timeout;
+			}) as typeof setInterval,
+			clearIntervalFn: (() => {}) as typeof clearInterval,
+		});
+
+		assert.equal(registered, true);
+		handle.stop();
+	});
+
 	it('registriert einen Interval-Callback, wenn konfiguriert und aktiviert', () => {
 		const keys = webpush.generateVAPIDKeys();
 		process.env.VAPID_PUBLIC_KEY = keys.publicKey;

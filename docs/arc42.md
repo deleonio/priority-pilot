@@ -83,6 +83,7 @@ graph LR
     API -->|IF-09 SMTP| Mail[Mailserver]
     API -->|IF-10 Contents-API| GitHub[GitHub / Obsidian-Repo]
     API -->|IF-11 FCM HTTP v1| FCM[Firebase Cloud Messaging]
+    API -->|IF-12 Play Developer API| Play[Google Play]
 ```
 
 | ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                           |
@@ -98,6 +99,7 @@ graph LR
 | IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate)                                                                                |
 | IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                |
 | IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                             |
+| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App lesen und bestätigen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                     |
 
 ## 4. Lösungsstrategie
 
@@ -158,7 +160,7 @@ graph TB
 | `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01          |
 | `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
 | `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06   |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01 … IF-11  |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01 … IF-12  |
 | `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —              |
 
 ### 5.2 Server (Whitebox `server`)
