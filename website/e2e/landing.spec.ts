@@ -8,6 +8,7 @@ test.describe('Öffentliche Website', () => {
 		await expect(cta).toBeVisible();
 		await expect(cta).toHaveAttribute('href', '/auth/google');
 		await expect(page.getByRole('link', { name: 'Schon dabei? App öffnen' })).toHaveAttribute('href', '/app/');
+		await expect(page.getByRole('link', { name: 'Mit E-Mail anmelden' })).toHaveAttribute('href', '/app/?login=email');
 	});
 
 	test('zeigt alle vier Pakete mit Preisen', async ({ page }) => {
@@ -54,17 +55,22 @@ test.describe('Öffentliche Website', () => {
 	});
 });
 
-test.describe('Installierte PWA', () => {
-	test('zeigt die Website und öffnet die App erst per Klick', async ({ page }) => {
-		// display-mode: standalone emulieren, wie es eine installierte PWA mit alter start_url `/` meldet.
-		await page.addInitScript(() => {
-			const original = window.matchMedia.bind(window);
-			window.matchMedia = (query: string) =>
-				query === '(display-mode: standalone)' ? ({ matches: true } as MediaQueryList) : original(query);
-		});
+test.describe('Angemeldete Nutzer', () => {
+	test('ohne Merk-Cookie bleibt die Startseite stehen', async ({ page }) => {
 		await page.goto('/');
 		await expect(page).toHaveURL(/\/$/);
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woran solltest du als Nächstes arbeiten?');
-		await expect(page.getByRole('link', { name: 'Schon dabei? App öffnen' })).toHaveAttribute('href', '/app/');
+	});
+
+	test('mit Merk-Cookie geht es von der Startseite direkt in die App, mit ?web nicht', async ({
+		page,
+		context,
+		baseURL,
+	}) => {
+		await context.addCookies([{ name: 'bm_signed_in', value: '1', url: baseURL! }]);
+		await page.goto('/en/');
+		await expect(page).toHaveURL(/\/app\/$/);
+		await page.goto('/?web');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Woran solltest du als Nächstes arbeiten?');
 	});
 });

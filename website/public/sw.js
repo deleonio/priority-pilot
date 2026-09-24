@@ -2,8 +2,8 @@
  * Kill-Switch für den alten App-Service-Worker (ADR 0015). Bis zum Umzug lag die PWA unter `/` und
  * ihr Service Worker unter `/sw.js` mit Scope `/`. Er würde sonst die öffentliche Website abfangen.
  * Beim nächsten Update-Check holt der Browser diese Datei, sie meldet sich sofort ab, löscht den
- * alten Precache und lädt offene Fenster neu. Die Website leitet eine installierte App dann nach
- * /app/ weiter, wo sich der neue Service Worker registriert.
+ * alten Precache und lädt offene Fenster neu. Die Website leitet angemeldete Nutzer dann nach
+ * /app/ weiter (Merk-Cookie `bm_signed_in`), wo sich der neue Service Worker registriert.
  */
 self.addEventListener('install', () => self.skipWaiting());
 

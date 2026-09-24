@@ -2,7 +2,7 @@
  * Baut die öffentliche Website nach `website/dist/` (ADR 0015). Aufruf: `pnpm --filter website build`.
  * `SITE_URL` (z. B. `https://example.org`) macht canonical/hreflang absolut und erzeugt die Sitemap.
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AI_ASSIST_MONTHLY_QUOTA, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
@@ -43,9 +43,7 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
 // Statische Dateien: eigenes public/ plus Icons und Schrift aus dem Frontend (keine Kopie im Repo).
-for (const file of readdirSync(join(root, 'public'))) {
-	copy(join(root, 'public', file), file);
-}
+cpSync(join(root, 'public'), dist, { recursive: true });
 copy(join(root, 'src/styles.css'), 'styles.css');
 copy(join(frontendPublic, 'favicon-32x32.png'), 'favicon-32x32.png');
 copy(join(frontendPublic, 'favicon-16x16.png'), 'favicon-16x16.png');
@@ -56,7 +54,15 @@ for (const weight of ['400', '600']) {
 	copy(join(fonts, `archivo-latin-${weight}-normal.woff2`), `fonts/archivo-latin-${weight}-normal.woff2`);
 }
 
-const screenshot = existsSync(join(root, 'public/screenshot.jpg')) ? 'screenshot.jpg' : undefined;
+// Screenshots aus `frontend/e2e/landing-shots.spec.ts`; eine Funktion ohne Bild erscheint als Karte.
+const shotsDir = join(root, 'public/shots');
+const shots = new Set(
+	existsSync(shotsDir)
+		? readdirSync(shotsDir)
+				.filter((file) => file.endsWith('.jpg'))
+				.map((file) => file.slice(0, -4))
+		: [],
+);
 const paths: string[] = [];
 for (const locale of LOCALES) {
 	const messages = allMessages[locale];
@@ -68,7 +74,7 @@ for (const locale of LOCALES) {
 			catalog: getPlansCatalog(),
 			plans: PLAN_VALUES,
 			aiQuota: AI_ASSIST_MONTHLY_QUOTA,
-			screenshot,
+			shots,
 		}),
 	);
 	const imprintPath = `${homePath(locale)}${messages.footer.imprintPath}`;

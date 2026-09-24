@@ -205,4 +205,23 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		}));
 		expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
 	});
+
+	/**
+	 * Einstieg über „Mit E-Mail anmelden" auf der Website (`/app/?login=email`, ADR 0015): kein
+	 * stiller Google-Versuch, stattdessen sofort die Login-Seite mit fokussiertem E-Mail-Feld.
+	 */
+	test('?login=email: kein stiller Versuch, E-Mail-Feld hat den Fokus', async ({ page }) => {
+		await mockUnauthenticated(page);
+		await page.route('**/auth/providers', (route) => route.fulfill(fulfillJson({ google: true, magicLink: true })));
+		let silentCount = 0;
+		await page.route('**/auth/google/silent*', (route) => {
+			silentCount += 1;
+			route.fulfill({ status: 302, headers: { Location: '/app/?silent=unavailable' } });
+		});
+
+		await page.goto('/app/?login=email');
+
+		await expect(page.getByLabel('Anmeldelink per E-Mail')).toBeFocused();
+		expect(silentCount).toBe(0);
+	});
 });

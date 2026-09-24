@@ -1,6 +1,7 @@
 /**
  * Renderer der öffentlichen Website (ADR 0015): reine Funktionen, die aus Texten, Paketkatalog und
- * Anbieterdaten statisches HTML erzeugen. Kein Framework, kein Client-JS.
+ * Anbieterdaten statisches HTML erzeugen. Kein Framework; einziges Client-JS ist der Sprung
+ * angemeldeter Nutzer in die App ({@link SIGNED_IN_REDIRECT}).
  */
 import type { FeatureId, Plan, PlansCatalog } from '../../server/src/logics/plans.ts';
 import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
@@ -18,6 +19,16 @@ export const homePath = (locale: Locale): string => (locale === 'de' ? '/' : `/$
 /** Einstieg in die App und direkter Google-Login (Redirect danach auf /app/, siehe routes/auth.ts). */
 export const APP_PATH = '/app/';
 export const LOGIN_PATH = '/auth/google';
+/** App-Login mit Fokus auf den Anmeldelink per E-Mail (`LoginPage.tsx`, ohne stillen Google-Versuch). */
+export const EMAIL_LOGIN_PATH = `${APP_PATH}?login=email`;
+
+/**
+ * Angemeldete Nutzer springen von der Startseite direkt in die App (ADR 0015, Punkt 4). Das Cookie
+ * `bm_signed_in` setzt der Server bei jedem erfolgreichen `GET /auth/me` und löscht es bei 401 und
+ * Logout (`server/src/express/routes/auth.ts`). Das Skript steht vor dem Stylesheet im `<head>`,
+ * damit die Website gar nicht erst sichtbar wird. `?web` zeigt die Website trotzdem.
+ */
+export const SIGNED_IN_REDIRECT = `<script>if(/(?:^|; )bm_signed_in=1/.test(document.cookie)&&!new URLSearchParams(location.search).has('web'))location.replace('${APP_PATH}')</script>`;
 
 export interface PageContext {
 	locale: Locale;
@@ -30,9 +41,16 @@ export interface LandingContext extends PageContext {
 	catalog: PlansCatalog;
 	plans: readonly Plan[];
 	aiQuota: Record<Plan, number>;
-	/** Dateiname des App-Screenshots unter `/`, wenn vorhanden. */
-	screenshot?: string;
+	/** Vorhandene App-Screenshots unter `/shots/<id>.jpg` (Feature-Ids plus `dashboard` für den Hero). */
+	shots?: ReadonlySet<string>;
 }
+
+/** Maße der Screenshots aus `frontend/e2e/landing-shots.spec.ts` (375 × 812 CSS-Pixel, doppelte Dichte). */
+const SHOT_WIDTH = 750;
+const SHOT_HEIGHT = 1624;
+
+const shotImage = (id: string, alt: string, className: string, lazy = true): string =>
+	`<img class="${className}" src="/shots/${id}.jpg" alt="${t(alt)}" width="${SHOT_WIDTH}" height="${SHOT_HEIGHT}"${lazy ? ' loading="lazy"' : ''}>`;
 
 const escapeHtml = (value: string): string =>
 	value
@@ -79,18 +97,21 @@ interface ShellOptions {
 	path: string;
 	pathFor: (locale: Locale) => string;
 	body: string;
+	/** Zusätzliches Markup ganz am Anfang des `<head>`. */
+	head?: string;
 }
 
 /** Leerzeilen aus bedingten Template-Teilen entfernen, damit das ausgelieferte HTML sauber bleibt. */
 const tidy = (html: string): string => html.replace(/\n[\t ]*(?=\n)/g, '');
 
-const shell = (context: PageContext, { title, description, path, pathFor, body }: ShellOptions): string => {
+const shell = (context: PageContext, { title, description, path, pathFor, body, head = '' }: ShellOptions): string => {
 	const { locale, messages, siteUrl } = context;
 	const other = otherLocale(locale);
 	return tidy(`<!doctype html>
 <html lang="${locale}">
 	<head>
 		<meta charset="UTF-8">
+		${head}
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>${t(title)}</title>
 		<meta name="description" content="${t(description)}">
@@ -140,6 +161,55 @@ ${body}
 const ctaButton = (label: string): string =>
 	`<a class="kern-btn kern-btn--primary cta" href="${LOGIN_PATH}"><span class="kern-label">${t(label)}</span></a>`;
 
+/** Die MCP-Funktion zeigt statt eines Screenshots einen Beispiel-Chat — der Chat läuft im Assistenten, nicht in der App. */
+const CHAT_FEATURE = 'mcp';
+
+const chatMock = ({ label, caption, you, assistant, tool, messages }: Messages['features']['chat']): string => {
+	const sender: Record<string, string> = { user: you, assistant, tool };
+	return `<figure class="chat" aria-label="${t(label)}">
+								<figcaption class="chat__caption">${t(caption)}</figcaption>
+								<ol class="chat__list">
+${messages
+	.map((message) =>
+		message.sender === 'tool'
+			? `									<li class="chat__tool">${t(tool)}: <code>${t(message.text)}</code></li>`
+			: `									<li class="chat__msg chat__msg--${message.sender}"><span class="visually-hidden">${t(sender[message.sender])}: </span>${t(message.text)}</li>`,
+	)
+	.join('\n')}
+								</ol>
+							</figure>`;
+};
+
+const featureRow = (
+	context: LandingContext,
+	feature: Messages['features']['items'][number],
+): string => `						<article class="feature-row">
+							<div class="feature-row__text">
+								<h3 class="kern-heading-medium">${t(feature.title)}</h3>
+								<p class="kern-body">${t(feature.text)}</p>
+								<ul class="checklist">
+${feature.points.map((point) => `									<li>${t(point)}</li>`).join('\n')}
+								</ul>
+							</div>
+							${
+								feature.id === CHAT_FEATURE
+									? chatMock(context.messages.features.chat)
+									: shotImage(feature.id, fill(context.messages.features.shotAlt, { title: feature.title }), 'shot')
+							}
+						</article>`;
+
+const featureCard = (feature: Messages['features']['items'][number]): string => `						<article class="kern-card">
+							<div class="kern-card__container">
+								<header class="kern-card__header"><hgroup><h4 class="kern-title">${t(feature.title)}</h4></hgroup></header>
+								<section class="kern-card__body">
+									<p class="kern-body">${t(feature.text)}</p>
+									<ul class="checklist">
+${feature.points.map((point) => `										<li>${t(point)}</li>`).join('\n')}
+									</ul>
+								</section>
+							</div>
+						</article>`;
+
 const planCard = (context: LandingContext, plan: Plan): string => {
 	const { messages, locale, catalog, plans, aiQuota } = context;
 	const price = catalog.prices[plan];
@@ -179,7 +249,11 @@ ${items.map((item) => `								<li>${t(item)}</li>`).join('\n')}
 
 /** Startseite einer Sprache: Hero, drei Schritte, Selling Points, Pakete, FAQ, Schluss-CTA. */
 export const renderLanding = (context: LandingContext): string => {
-	const { messages: m, locale, plans, screenshot } = context;
+	const { messages: m, locale, plans, shots = new Set<string>() } = context;
+	const hasVisual = (feature: Messages['features']['items'][number]): boolean =>
+		feature.id === CHAT_FEATURE || shots.has(feature.id);
+	const shown = m.features.items.filter(hasVisual);
+	const more = m.features.items.filter((feature) => !hasVisual(feature));
 	const body = `			<section class="hero">
 				<div class="container hero__inner">
 					<div class="hero__text">
@@ -188,11 +262,20 @@ export const renderLanding = (context: LandingContext): string => {
 						<p class="kern-body kern-body--large">${t(m.hero.lead)}</p>
 						<div class="hero__actions">
 							${ctaButton(m.hero.cta)}
-							<a class="kern-link" href="${APP_PATH}">${t(m.hero.secondary)}</a>
+							<a class="kern-btn kern-btn--secondary" href="${EMAIL_LOGIN_PATH}"><span class="kern-label">${t(m.hero.emailCta)}</span></a>
 						</div>
 						<p class="kern-body kern-body--small hero__note">${t(m.hero.ctaNote)}</p>
+						<p class="kern-body"><a class="kern-link" href="${APP_PATH}">${t(m.hero.secondary)}</a></p>
 					</div>
-${screenshot ? `					<img class="hero__shot" src="/${screenshot}" alt="${t(m.hero.screenshotAlt)}" width="750" height="1624">\n` : ''}				</div>
+${shots.has('dashboard') ? `					${shotImage('dashboard', m.hero.screenshotAlt, 'shot hero__shot', false)}\n` : ''}				</div>
+			</section>
+			<section class="usp" aria-labelledby="usp-title">
+				<div class="container">
+					<h2 id="usp-title" class="visually-hidden">${t(m.usp.title)}</h2>
+					<ul class="usp__list checklist">
+${m.usp.items.map((item) => `						<li>${t(item)}</li>`).join('\n')}
+					</ul>
+				</div>
 			</section>
 			<section class="section" aria-labelledby="steps-title">
 				<div class="container">
@@ -205,18 +288,17 @@ ${m.steps.items.map((step) => `						<li><h3 class="kern-title">${t(step.title)}
 			<section class="section section--alt" id="features" aria-labelledby="features-title">
 				<div class="container">
 					<h2 id="features-title" class="kern-heading-large">${t(m.features.title)}</h2>
-					<div class="grid">
-${m.features.items
-	.map(
-		(feature) => `						<article class="kern-card">
-							<div class="kern-card__container">
-								<header class="kern-card__header"><hgroup><h3 class="kern-title">${t(feature.title)}</h3></hgroup></header>
-								<section class="kern-card__body"><p class="kern-body">${t(feature.text)}</p></section>
-							</div>
-						</article>`,
-	)
-	.join('\n')}
+					<div class="features">
+${shown.map((feature) => featureRow(context, feature)).join('\n')}
 					</div>
+${
+	more.length > 0
+		? `					<h3 class="kern-heading-medium">${t(m.features.moreTitle)}</h3>
+					<div class="grid">
+${more.map(featureCard).join('\n')}
+					</div>`
+		: ''
+}
 				</div>
 			</section>
 			<section class="section" id="pricing" aria-labelledby="pricing-title">
@@ -248,6 +330,7 @@ ${m.faq.items.map((item) => `					<details class="kern-accordion"><summary class
 		description: m.meta.description,
 		path: homePath(locale),
 		pathFor: homePath,
+		head: SIGNED_IN_REDIRECT,
 		body,
 	});
 };

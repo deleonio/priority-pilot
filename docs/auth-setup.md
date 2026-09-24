@@ -30,7 +30,7 @@ Der Server unterscheidet danach, ob überhaupt ein Auth-Kontext konfiguriert ist
 | Modus                | Bedingung                                                                               | Verhalten                                                                                                            |
 | -------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Offen (Pass-Through) | Weder `GOOGLE_ALLOWED_EMAILS`, noch `GOOGLE_CLIENT_ID`/`_SECRET`, noch `SESSION_SECRET` | Keine Anmeldung. Jeder Request kommt durch, alle Daten gehören einem namenlosen lokalen Nutzer. Nur für Entwicklung. |
-| Geschützt            | Mindestens eine der Variablen ist gesetzt                                               | Jede API-Route verlangt eine gültige Session. Login ausschließlich über Google.                                      |
+| Geschützt            | Mindestens eine der Variablen ist gesetzt                                               | Jede API-Route verlangt eine gültige Session. Login über Google oder per E-Mail-Anmeldelink (siehe unten).           |
 
 In Produktion (`NODE_ENV=production`) ist der geschützte Modus Pflicht: Der Server startet nicht
 ohne `SESSION_SECRET` und nicht ohne mindestens eine Adresse in `GOOGLE_ALLOWED_EMAILS` oder
@@ -88,7 +88,7 @@ sequenceDiagram
     G->>S: GET /auth/google/callback?code=…
     S->>S: E-Mail gegen GOOGLE_ALLOWED_EMAILS prüfen
     alt Adresse nicht freigeschaltet
-        S->>B: Redirect /?error=login_failed (kein Konto angelegt)
+        S->>B: Redirect /app/?error=login_failed (kein Konto angelegt)
     else Adresse freigeschaltet
         S->>S: Konto anlegen oder Profilfelder nachziehen, Rolle aus ADMIN_EMAILS
         S->>B: Session-Cookie setzen, Redirect ins Dashboard
@@ -129,6 +129,9 @@ Regeln:
   landet im selben Konto. Name und Avatar aus Google bleiben beim Login per Link erhalten.
 - Der Link öffnet nur die App; eingelöst wird er per `POST /auth/magic-link/verify`. Mail-Scanner,
   die Links vorab aufrufen, verbrauchen ihn deshalb nicht.
+- „Mit E-Mail anmelden“ auf der Website führt auf `/app/?login=email`: kein stiller Google-Versuch,
+  das E-Mail-Feld hat sofort den Fokus. Ohne die drei Variablen fehlt das Feld, und der Knopf endet
+  auf der reinen Google-Anmeldung.
 
 ## Neue Person zulassen
 

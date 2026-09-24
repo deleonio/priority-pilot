@@ -3,12 +3,21 @@ import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } fr
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
-import { LOGIN_PATH, addedFeatures, renderImprint, renderLanding, renderRobots, renderSitemap } from './render.ts';
+import {
+	EMAIL_LOGIN_PATH,
+	LOGIN_PATH,
+	SIGNED_IN_REDIRECT,
+	addedFeatures,
+	renderImprint,
+	renderLanding,
+	renderRobots,
+	renderSitemap,
+} from './render.ts';
 
 const catalog = getPlansCatalog();
 const allMessages = { de, en };
 
-const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
+const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org', shots?: ReadonlySet<string>) =>
 	renderLanding({
 		locale,
 		messages: allMessages[locale],
@@ -16,6 +25,7 @@ const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
 		catalog,
 		plans: PLAN_VALUES,
 		aiQuota: AI_ASSIST_MONTHLY_QUOTA,
+		shots,
 	});
 
 /** Alle Blatt-Schlüssel eines Textobjekts als Pfade, damit de und en vergleichbar werden. */
@@ -59,13 +69,30 @@ describe('renderLanding', () => {
 		const html = landing('de');
 		expect(html).toContain(`href="${LOGIN_PATH}"`);
 		expect(html).toContain(de.hero.cta);
+		expect(html).toContain(`href="${EMAIL_LOGIN_PATH}"`);
 	});
 
-	it('springt nicht automatisch in die App, auch nicht als installierte PWA', () => {
-		const html = landing('de');
-		const head = html.slice(0, html.indexOf('</head>'));
-		expect(head).not.toContain('display-mode');
-		expect(html).not.toContain('location.replace');
+	it('schickt nur auf der Startseite angemeldete Nutzer vor dem Stylesheet in die App', () => {
+		const head = (html: string) => html.slice(0, html.indexOf('</head>'));
+		const home = head(landing('en'));
+		expect(home).toContain(SIGNED_IN_REDIRECT);
+		expect(home.indexOf(SIGNED_IN_REDIRECT)).toBeLessThan(home.indexOf('styles.css'));
+		expect(home).not.toContain('display-mode');
+		expect(renderImprint({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages })).not.toContain(
+			'location.replace',
+		);
+	});
+
+	it('zeigt Funktionen mit Bild als Zeile, ohne Bild als Karte', () => {
+		const [withShot, withoutShot] = de.features.items;
+		const html = landing('de', '', new Set(['dashboard', withShot.id]));
+		expect(html).toContain(`src="/shots/${withShot.id}.jpg" alt="Screenshot aus der App: ${withShot.title}"`);
+		expect(html).toContain('src="/shots/dashboard.jpg"');
+		expect(html).not.toContain(`/shots/${withoutShot.id}.jpg`);
+		expect(html).toContain(`<h4 class="kern-title">${withoutShot.title}</h4>`);
+		// MCP zeigt ohne Screenshot einen Beispiel-Chat mit den aufgerufenen Werkzeugen.
+		expect(html).toContain('<figure class="chat"');
+		expect(html).toContain('<code>next_task</code>');
 	});
 
 	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {
