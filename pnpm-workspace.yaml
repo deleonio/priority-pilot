@@ -1,6 +1,7 @@
 packages:
   - 'client'
   - 'frontend'
+  - 'native'
   - 'server'
   - 'website'
 # Build-Allowlist nativer Module: `allowBuilds` ist die kanonische pnpm-11-Form,

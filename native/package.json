@@ -1,0 +1,26 @@
+{
+	"name": "native",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"sync": "cap sync android",
+		"test": "vitest run",
+		"lint": "tsc --noEmit",
+		"knip": "knip --config knip.jsonc"
+	},
+	"dependencies": {
+		"@capacitor/android": "8.5.2",
+		"@capacitor/app": "8.1.1",
+		"@capacitor/browser": "8.0.4",
+		"@capacitor/core": "8.5.2",
+		"@capacitor/splash-screen": "8.0.2"
+	},
+	"devDependencies": {
+		"@capacitor/cli": "8.5.2",
+		"@types/node": "25.9.8",
+		"knip": "6.37.0",
+		"typescript": "5.9.3",
+		"vitest": "4.1.11"
+	}
+}
