@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.6 - 2026-09-25
 
-_Enthält v0.6.0 – v0.6.8._
+_Enthält v0.6.0 – v0.6.9._
 
 ### Other Changes
 
@@ -16,6 +16,7 @@ _Enthält v0.6.0 – v0.6.8._
 - chore: publish german privacy policy page at /datenschutz/ (#1672) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1727
 - feat(server): apply pillar weights to cadence balance fill by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1728
 - chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
+- feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
 
 ## v0.5 - 2026-09-25
 
@@ -120,7 +121,6 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
 - fix(pipeline): never set phase labels on renovate prs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1407
 - feat(frontend): enable dark mode with KoliBri 4.4.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1405
-- feat(frontend): enable dark mode with KoliBri 4.4.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1405
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1173
 - chore(deps): update pnpm to v12 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1331
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1328
@@ -216,6 +216,7 @@ _Enthält v0.2.0 – v0.2.134._
 - chore(prompts): apply prompt-audit #1467 options 1-3 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1559
 - feat(frontend): distinguish own and instance-wide llm providers (#1549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1567
 - feat(server): add tester role with admin access except user management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1572
+- feat(frontend): make header sticky with uniform padding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1575
 - feat(frontend): make header sticky with uniform padding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1575
 - fix(server): ungescopten Aufgabenwald beim Start nicht mehr in die Logs schreiben by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1579
 - docs(arc42): sync architecture doc to current state 2026-09-19 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1580
