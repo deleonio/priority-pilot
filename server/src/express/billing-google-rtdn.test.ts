@@ -18,9 +18,11 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 20
 const googleKeys = async () => [{ ...publicKey.export({ format: 'jwk' }), kid: 'k1' }];
 
 const base64url = (value: string | Buffer) => Buffer.from(value).toString('base64url');
-const token = (claims: Record<string, unknown>): string => {
+/** Ein zweites Schlüsselpaar: signiert unter derselben `kid`, gehört aber nicht zu Google. */
+const otherKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey;
+const token = (claims: Record<string, unknown>, signingKey = privateKey): string => {
 	const head = `${base64url(JSON.stringify({ alg: 'RS256', kid: 'k1', typ: 'JWT' }))}.${base64url(JSON.stringify(claims))}`;
-	return `${head}.${base64url(createSign('RSA-SHA256').update(head).sign(privateKey))}`;
+	return `${head}.${base64url(createSign('RSA-SHA256').update(head).sign(signingKey))}`;
 };
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 const validClaims = () => ({
@@ -43,10 +45,16 @@ const push = (messageId: string, purchaseToken: string) =>
 
 let server: TestServer;
 let lookups: string[];
+/** Lässt den nächsten Play-Abruf scheitern, etwa weil Google nicht erreichbar ist. */
+let failNext = false;
 
 const fakePlay: GooglePlayClient = {
 	getSubscription: async (purchaseToken) => {
 		lookups.push(purchaseToken);
+		if (failNext) {
+			failNext = false;
+			throw new Error('Google nicht erreichbar');
+		}
 		return {
 			productId: 'pro',
 			basePlanId: 'monthly',
@@ -69,6 +77,7 @@ describe('RTDN von Google Play (#1689)', () => {
 	beforeEach(async () => {
 		await resetDb();
 		lookups = [];
+		failNext = false;
 		server ??= await startTestServer({ googlePlayClient: fakePlay, googleKeys });
 		await Subscription.create({
 			userId: 1,
@@ -102,6 +111,8 @@ describe('RTDN von Google Play (#1689)', () => {
 			['fehlt', undefined],
 			['falsche Audience', `Bearer ${token({ ...validClaims(), aud: 'https://evil.example/rtdn' })}`],
 			['abgelaufen', `Bearer ${token({ ...validClaims(), exp: nowSeconds() - 60 })}`],
+			['falscher Aussteller', `Bearer ${token({ ...validClaims(), iss: 'https://evil.example' })}`],
+			['fremder Schlüssel', `Bearer ${token(validClaims(), otherKey)}`],
 		];
 		for (const [label, authorization] of cases) {
 			assert.equal((await send(push(`m-${label}`, 'token-1'), authorization)).status, 401, label);
@@ -118,5 +129,30 @@ describe('RTDN von Google Play (#1689)', () => {
 
 		assert.equal(await WebhookEvent.count(), 1);
 		assert.deepEqual(lookups, ['token-1']);
+	});
+
+	it('prüft das Dienstkonto der Subscription, wenn eines eingetragen ist', async () => {
+		process.env.GOOGLE_RTDN_SERVICE_ACCOUNT = 'rtdn@demo.iam.gserviceaccount.com';
+		try {
+			const other = { ...validClaims(), email: 'fremd@demo.iam.gserviceaccount.com', email_verified: true };
+			const own = { ...validClaims(), email: 'rtdn@demo.iam.gserviceaccount.com', email_verified: true };
+
+			assert.equal((await send(push('m3', 'token-1'), `Bearer ${token(other)}`)).status, 401);
+			assert.equal((await send(push('m4', 'token-1'), `Bearer ${token(own)}`)).status, 200);
+		} finally {
+			delete process.env.GOOGLE_RTDN_SERVICE_ACCOUNT;
+		}
+	});
+
+	it('scheitert der Abruf bei Google, bleibt nichts liegen und die nächste Zustellung verarbeitet das Ereignis', async () => {
+		const authorization = `Bearer ${token(validClaims())}`;
+		failNext = true;
+
+		assert.equal((await send(push('m5', 'token-1'), authorization)).status, 503);
+		assert.equal(await WebhookEvent.count(), 0);
+
+		assert.equal((await send(push('m5', 'token-1'), authorization)).status, 200);
+		const stored = await WebhookEvent.findOne({ where: { provider: 'google_play', externalEventId: 'm5' } });
+		assert.ok(stored?.get('processedAt'));
 	});
 });
