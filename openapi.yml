@@ -3114,6 +3114,57 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
+  /billing/google/purchase:
+    post:
+      summary: Kauf aus der Android-App freischalten
+      description: >-
+        Nimmt den Kauf-Token eines Abos aus Google Play Billing entgegen (#1687,
+        ADR 0017). Der Server liest den Kauf über die Play Developer API, prüft per
+        `obfuscatedAccountId`, dass er zum angemeldeten Nutzer gehört (`playAccountId`
+        aus `GET /auth/me`), bestätigt ihn und legt das Abo mit Provider `google_play`
+        an. Derselbe Token ein zweites Mal legt kein zweites Abo an. Nur aus der
+        Android-App (`X-Client-Channel: play`).
+      operationId: submitGooglePurchase
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GooglePurchaseInput'
+      responses:
+        '204':
+          description: Paket freigeschaltet (oder derselbe Kauf war schon freigeschaltet)
+        '400':
+          description: Token fehlt, ist ungültig oder gehört zu keinem bekannten Abo-Produkt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Der Kauf gehört zu einem anderen Konto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Anfrage nicht aus der Android-App oder Kauf nicht aktiv
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Google nicht erreichbar oder Play-Zugang nicht eingerichtet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/subscriptions/change:
     post:
       summary: Paket wechseln
@@ -5472,6 +5523,20 @@ components:
             - $ref: '#/components/schemas/MeSubscription'
           nullable: true
           description: Abo-Status; `null` ohne Abo.
+        playAccountId:
+          type: string
+          description: >-
+            Kontokennung, die die Android-App beim Kauf über Google Play als
+            `obfuscatedAccountId` setzt (#1687, ADR 0017). Fehlt im lokalen
+            Pass-Through-Modus.
+    GooglePurchaseInput:
+      type: object
+      description: Kauf-Token aus Google Play Billing (#1687).
+      required: [purchaseToken]
+      properties:
+        purchaseToken:
+          type: string
+          minLength: 1
     BillingSubscriptionInput:
       type: object
       description: Eingabe zum Anlegen/Wechseln eines Abos (#1505 AK1/AK4).

@@ -19,6 +19,7 @@ import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
 import { getAiUsageCount } from '../aiQuotaMeter.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
+import { playAccountIdFor } from '../../logics/googlePlay.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -461,6 +462,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		plan,
 		entitlements: getEntitlements(plan, aiAssistConsumed),
 		subscription,
+		...(user.id !== undefined ? { playAccountId: playAccountIdFor(user.id) } : {}),
 	});
 });
 
