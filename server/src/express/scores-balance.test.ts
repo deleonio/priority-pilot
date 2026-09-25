@@ -1,6 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { ScoreEntry } from '../models/index.js';
+import { PILLAR_RHYTHMS } from '../models/pillarData.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -204,5 +205,55 @@ describe('GET /scores/balance (#1423)', () => {
 
 		const [eintragNachher] = await ScoreEntry.findAll({ where: { taskId: alteTaskId } });
 		assert.equal(eintragNachher.punkte, eintragVorher.punkte, 'Gamification-Punkte bleiben unverändert');
+	});
+
+	it('#1663 AK5: ungleiche Gewichte ändern den Füllstand von GET /scores/balance (Körper hoch/gleich/0)', async () => {
+		const cookie = await server.register('balance-gewichte@example.com', 'password123');
+		const pillarRes = await server.json('/pillars', { headers: { Cookie: cookie } });
+		assert.equal(pillarRes.status, 200, 'Setup: Säulen müssen über die API lesbar sein');
+		const pillars = (await pillarRes.json()) as { id: number; name: string; weight: number }[];
+		assert.equal(pillars.length, 5, 'Setup: Registrierung sollte fünf Standard-Säulen säen');
+
+		// Körper bleibt ohne Erledigung im Fenster, die übrigen vier Säulen erfüllen ihren
+		// Soll-Rhythmus aus PILLAR_RHYTHMS vollständig (rhythmusProWoche × 4 Wochen).
+		const rhythmusProName = new Map(PILLAR_RHYTHMS.map((eintrag) => [eintrag.name, eintrag.rhythmusProWoche]));
+		const koerper = pillars.find((p) => p.name === 'Körper');
+		assert.ok(koerper, 'Setup: Standard-Säule Körper muss existieren');
+		for (const pillar of pillars) {
+			if (pillar.id === koerper!.id) continue;
+			const rhythmus = rhythmusProName.get(pillar.name) ?? 1;
+			for (let i = 0; i < rhythmus * 4; i++) {
+				await completeTaskWithShares(cookie, `Gewichte-${pillar.id}-${i}`, 0.1, [{ pillarId: pillar.id, share: 100 }]);
+			}
+		}
+
+		const setzeGewichte = async (gewichtKoerper: number, rest: number): Promise<number> => {
+			const res = await server.json('/pillars/weights', {
+				method: 'PUT',
+				headers: { Cookie: cookie },
+				body: JSON.stringify({
+					weights: pillars.map((p) => ({ id: p.id, weight: p.id === koerper!.id ? gewichtKoerper : rest })),
+				}),
+			});
+			assert.equal(res.status, 200, 'Setup: PUT /pillars/weights muss 200 liefern');
+			const body = (await (await getBalance(cookie)).json()) as { fuellstandProzent: number };
+			return body.fuellstandProzent;
+		};
+
+		// Einziges Defizit ist Körper (Erfüllung 0): gleiche Gewichte → 1 − √0,2 ≈ 55,3 %;
+		// Körper hoch gewichtet → gewichtete Komponente 1 − √0,6 ≈ 22,5 %; Körper 0 → 100 %.
+		const gleich = await setzeGewichte(20, 20);
+		const hoch = await setzeGewichte(60, 10);
+		const ohne = await setzeGewichte(0, 25);
+		assert.ok(
+			Math.abs(gleich - 55.3) < 0.2,
+			`fuellstandProzent=${gleich} muss ≈ 55,3 sein bei gleichen Gewichten (AK5)`,
+		);
+		assert.ok(
+			Math.abs(hoch - 22.5) < 0.2,
+			`fuellstandProzent=${hoch} muss ≈ 22,5 sein, wenn Körper hoch gewichtet ist (AK5)`,
+		);
+		assert.equal(ohne, 100, 'fuellstandProzent muss 100 sein, wenn die unbediente Säule Gewicht 0 hat (AK5)');
+		assert.ok(hoch < gleich && gleich < ohne, 'höheres Gewicht der unbedienten Säule muss den Füllstand senken (AK5)');
 	});
 });
