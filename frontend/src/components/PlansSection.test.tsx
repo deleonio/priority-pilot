@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 vi.mock('@public-ui/react-v19', () => ({
 	KolAlert: ({ children }: { children?: ReactNode }) => createElement('div', { role: 'alert' }, children),
+	KolButton: ({ _label }: { _label?: string }) => createElement('button', null, _label),
 	KolSpin: () => createElement('div', { 'data-testid': 'spin' }),
 	KolTableStateful: ({
 		_label,

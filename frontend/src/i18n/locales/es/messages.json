@@ -36,5 +36,16 @@
 			"subscription_active": "Tu cuenta todavía tiene una suscripción activa. Cancélala primero en los ajustes y después elimina tu cuenta.",
 			"last_group_admin": "Eres el último administrador de un grupo con más miembros. Primero nombra administrador a otra persona en los ajustes del grupo o disuelve el grupo."
 		}
+	},
+	"billing": {
+		"managedBy": "Suscripción activa, gestionada a través de {{provider}}",
+		"manageInPlay": "Gestionar en Google Play",
+		"restore": {
+			"action": "Restaurar compras",
+			"busy": "Restaurando …",
+			"done": "Tus compras de Google Play se han restaurado.",
+			"none": "No hay compras que restaurar para tu cuenta de Google.",
+			"failed": "No se han podido restaurar las compras. Inténtalo de nuevo más tarde."
+		}
 	}
 }

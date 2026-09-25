@@ -33,6 +33,7 @@ const USER_NO_SUBSCRIPTION = {
 };
 
 const activeSubscription = (overrides: Record<string, unknown> = {}) => ({
+	provider: 'paypal',
 	plan: 'pro',
 	period: 'monthly',
 	status: 'active',

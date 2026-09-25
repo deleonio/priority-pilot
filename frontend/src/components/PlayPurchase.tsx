@@ -1,9 +1,16 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { checkAuth } from '../lib/auth';
 import type { Period, Plan } from '../lib/planOffers';
-import { initPlayStore, PAYMENT_CANCELLED, playOfferFor, type PlayTransaction } from '../lib/playStore';
+import {
+	initPlayStore,
+	PAYMENT_CANCELLED,
+	playOfferFor,
+	restorePlayPurchases,
+	type PlayTransaction,
+} from '../lib/playStore';
 import { usePlan } from '../lib/usePlan';
 import type { PurchaseUi } from './billingChannel';
 
@@ -13,6 +20,7 @@ type Store = NonNullable<Awaited<ReturnType<typeof initPlayStore>>>;
  * Kaufweg im Kanal `play` (#1692, ADR 0017): Preise und Kauf kommen aus Google Play. Nach dem Kauf
  * geht der Token an `POST /billing/google/purchase`; der Server prüft und bestätigt ihn, danach
  * werden die Entitlements neu geladen. Schließt der Nutzer den Store-Dialog, bleibt alles, wie es war.
+ * „Käufe wiederherstellen" (#1695) meldet die vorhandenen Käufe des Google-Kontos erneut an den Server.
  */
 export const usePlayPurchase = (): PurchaseUi => {
 	const { subscription, refresh } = usePlan();
@@ -20,6 +28,9 @@ export const usePlayPurchase = (): PurchaseUi => {
 	const [unavailable, setUnavailable] = useState(false);
 	const [busyKey, setBusyKey] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [restoring, setRestoring] = useState(false);
+	const [restored, setRestored] = useState<'done' | 'none' | 'failed' | null>(null);
+	const { t } = useTranslation('messages');
 	const refreshRef = useRef(refresh);
 	refreshRef.current = refresh;
 
@@ -68,6 +79,26 @@ export const usePlayPurchase = (): PurchaseUi => {
 		}
 	};
 
+	const restore = async (): Promise<void> => {
+		if (!store) return;
+		setRestored(null);
+		setRestoring(true);
+		try {
+			const tokens = await restorePlayPurchases(store);
+			for (const token of tokens) {
+				await api.submitGooglePurchase(token);
+			}
+			if (tokens.length > 0) {
+				await refresh?.();
+			}
+			setRestored(tokens.length > 0 ? 'done' : 'none');
+		} catch {
+			setRestored('failed');
+		} finally {
+			setRestoring(false);
+		}
+	};
+
 	const actionCell = (plan: Exclude<Plan, 'free'>, period: Period) => {
 		if (subscription === undefined) {
 			return { text: '', node: null };
@@ -107,6 +138,23 @@ export const usePlayPurchase = (): PurchaseUi => {
 					<KolAlert _type="error" _label="Kauf fehlgeschlagen">
 						{error}
 					</KolAlert>
+				)}
+				{restored !== null && (
+					<KolAlert
+						_type={restored === 'done' ? 'success' : restored === 'none' ? 'info' : 'error'}
+						_label={t('billing.restore.action')}
+					>
+						{t(`billing.restore.${restored}`)}
+					</KolAlert>
+				)}
+				{store !== null && (
+					<KolButton
+						data-testid="restore-purchases"
+						_label={restoring ? t('billing.restore.busy') : t('billing.restore.action')}
+						_variant="secondary"
+						_disabled={restoring}
+						_on={{ onClick: () => void restore() }}
+					/>
 				)}
 			</>
 		),

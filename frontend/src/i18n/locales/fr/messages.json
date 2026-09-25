@@ -36,5 +36,16 @@
 			"subscription_active": "Un abonnement est encore en cours pour votre compte. Résiliez-le d’abord dans les paramètres, puis supprimez votre compte.",
 			"last_group_admin": "Vous êtes le dernier administrateur d’un groupe qui compte d’autres membres. Nommez d’abord une autre personne administrateur dans les paramètres du groupe ou dissolvez le groupe."
 		}
+	},
+	"billing": {
+		"managedBy": "Abonnement actif, géré via {{provider}}",
+		"manageInPlay": "Gérer dans Google Play",
+		"restore": {
+			"action": "Restaurer les achats",
+			"busy": "Restauration …",
+			"done": "Vos achats Google Play ont été restaurés.",
+			"none": "Aucun achat à restaurer pour votre compte Google.",
+			"failed": "Vos achats n’ont pas pu être restaurés. Veuillez réessayer plus tard."
+		}
 	}
 }

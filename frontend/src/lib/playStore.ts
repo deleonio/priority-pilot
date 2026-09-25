@@ -24,6 +24,8 @@ interface PlayStore {
 	when(): { approved(callback: (transaction: PlayTransaction) => void): unknown };
 	initialize(platforms: string[]): Promise<unknown>;
 	get(productId: string, platform: string): { offers: PlayOffer[] } | undefined;
+	restorePurchases(): Promise<{ code: number; message: string } | undefined>;
+	localReceipts: { platform: string; purchaseToken?: string }[];
 }
 
 const PLATFORM = 'android-playstore';
@@ -60,3 +62,14 @@ export const initPlayStore = async (
 /** Das Store-Angebot zu Paket und Zeitraum, sofern der Store es kennt. */
 export const playOfferFor = (store: PlayStore, plan: string, period: string): PlayOffer | undefined =>
 	store.get(plan, PLATFORM)?.offers.find((offer) => offer.id === `${plan}@${period}`);
+
+/** Liest die Käufe des Google-Kontos neu aus Google Play und liefert ihre Kauf-Tokens. */
+export const restorePlayPurchases = async (store: PlayStore): Promise<string[]> => {
+	const error = await store.restorePurchases();
+	if (error) {
+		throw new Error(error.message);
+	}
+	return store.localReceipts.flatMap((receipt) =>
+		receipt.platform === PLATFORM && receipt.purchaseToken ? [receipt.purchaseToken] : [],
+	);
+};

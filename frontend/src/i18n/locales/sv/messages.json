@@ -36,5 +36,16 @@
 			"subscription_active": "Ditt konto har fortfarande en aktiv prenumeration. Säg först upp den i inställningarna och radera sedan ditt konto.",
 			"last_group_admin": "Du är den sista administratören i en grupp med andra medlemmar. Gör först någon annan till administratör i gruppinställningarna eller lös upp gruppen."
 		}
+	},
+	"billing": {
+		"managedBy": "Prenumeration aktiv, hanteras via {{provider}}",
+		"manageInPlay": "Hantera i Google Play",
+		"restore": {
+			"action": "Återställ köp",
+			"busy": "Återställer …",
+			"done": "Dina köp från Google Play har återställts.",
+			"none": "Det finns inga köp att återställa för ditt Google-konto.",
+			"failed": "Köpen kunde inte återställas. Försök igen senare."
+		}
 	}
 }
