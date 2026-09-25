@@ -95,13 +95,15 @@ export const usePlayPurchase = (): PurchaseUi => {
 		setRestoring(true);
 		try {
 			const tokens = await restorePlayPurchases(store);
+			// Ein abgelehnter Token hält die übrigen nicht auf; neu geladen wird trotzdem.
+			let failed = false;
 			for (const token of tokens) {
-				await api.submitGooglePurchase(token);
+				await api.submitGooglePurchase(token).catch(() => (failed = true));
 			}
 			if (tokens.length > 0) {
 				await refresh?.();
 			}
-			setRestored(tokens.length > 0 ? 'done' : 'none');
+			setRestored(failed ? 'failed' : tokens.length > 0 ? 'done' : 'none');
 		} catch {
 			setRestored('failed');
 		} finally {

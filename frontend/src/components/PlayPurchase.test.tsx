@@ -103,6 +103,20 @@ describe('Käufe wiederherstellen (#1695)', () => {
 		expect(screen.getByRole('alert')).toHaveTextContent('Deine Käufe aus Google Play sind wiederhergestellt.');
 	});
 
+	it('ein abgelehnter Kauf hält die übrigen nicht auf, die Entitlements werden trotzdem neu geladen', async () => {
+		store.localReceipts = [
+			{ platform: 'android-playstore', purchaseToken: 'tok-alt' },
+			{ platform: 'android-playstore', purchaseToken: 'tok-9' },
+		];
+		vi.mocked(api.submitGooglePurchase).mockRejectedValueOnce(new Error('403'));
+
+		await restore();
+
+		expect(api.submitGooglePurchase).toHaveBeenCalledWith('tok-9');
+		expect(refresh).toHaveBeenCalled();
+		expect(screen.getByRole('alert')).toHaveTextContent('Die Käufe konnten nicht wiederhergestellt werden.');
+	});
+
 	it('ohne vorhandene Käufe erscheint ein Hinweis, der Server wird nicht angefragt', async () => {
 		store.localReceipts = [];
 
