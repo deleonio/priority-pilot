@@ -896,6 +896,14 @@ export const api = {
 		}
 	},
 
+	// Meldet einen Kauf aus Google Play an den Server, der ihn prüft, bestätigt und freischaltet (#1692).
+	async submitGooglePurchase(purchaseToken: string): Promise<void> {
+		const { error, response } = await client.POST('/billing/google/purchase', { body: { purchaseToken } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// Löscht das eigene Konto samt Session (#1671). Die Frontend-Aufräumarbeit erledigt der Aufrufer.
 	async deleteAccount(): Promise<void> {
 		const { error, response } = await client.DELETE('/auth/me');

@@ -125,7 +125,8 @@ export const PlansSection = () => {
 		...PERIODS.map((period) => {
 			const row: PlanRow = { label: `Preis ${PERIOD_LABELS[period]}`, _kind: 'price' };
 			for (const key of plans) {
-				row[key] = formatEuro(catalog.prices[key][period]);
+				const storePrice = key === 'free' ? undefined : purchase.price?.(key as Exclude<Plan, 'free'>, period);
+				row[key] = storePrice ?? formatEuro(catalog.prices[key][period]);
 			}
 			return row;
 		}),

@@ -63,7 +63,7 @@ export const listenForAppLinks = async (): Promise<void> => {
 	const { App } = await import('@capacitor/app');
 	await App.addListener('appUrlOpen', ({ url }) => void handleAppLink(url));
 	const launchUrl = (await App.getLaunchUrl())?.url;
-	if (launchUrl !== undefined && sessionStorage.getItem(HANDLED_LAUNCH_KEY) !== launchUrl) {
+	if (launchUrl && sessionStorage.getItem(HANDLED_LAUNCH_KEY) !== launchUrl) {
 		sessionStorage.setItem(HANDLED_LAUNCH_KEY, launchUrl);
 		await handleAppLink(launchUrl);
 	}
