@@ -226,7 +226,9 @@
 	},
 	"footer": {
 		"imprint": "Nota prawna",
-		"imprintPath": "nota-prawna/"
+		"imprintPath": "nota-prawna/",
+		"accountDeletion": "Usuń konto",
+		"accountDeletionPath": "usun-konto/"
 	},
 	"imprint": {
 		"title": "Nota prawna",
@@ -241,5 +243,23 @@
 		"consumerTitle": "Rozstrzyganie sporów konsumenckich",
 		"consumerText": "Nie jesteśmy gotowi ani zobowiązani do udziału w postępowaniach w sprawie rozstrzygania sporów przed konsumenckim organem arbitrażowym.",
 		"back": "Do strony głównej"
+	},
+	"accountDeletion": {
+		"title": "Usuwanie konta",
+		"intro": "Jak usunąć konto Balamentum i powiązane z nim dane.",
+		"inAppTitle": "W aplikacji",
+		"steps": [
+			"Otwórz Balamentum i zaloguj się.",
+			"Otwórz ustawienia, karta „Allgemein” (Ogólne).",
+			"W sekcji „Konto” (Konto) dotknij „Usuń konto” i potwierdź oba kroki."
+		],
+		"blocked": "Jeśli subskrypcja jest jeszcze aktywna, najpierw anuluj ją w karcie „Abo” (Subskrypcja). Jeśli jesteś ostatnim administratorem grupy, w której są inni członkowie, najpierw nadaj komuś innemu rolę administratora albo rozwiąż grupę.",
+		"deletedTitle": "Co zostaje usunięte",
+		"deleted": "Twoje konto ze wszystkimi zadaniami, seriami, filarami, kategoriami, ustawieniami, tokenami dostępu i rejestracjami push. Usuwane są też grupy, w których jesteś jedynym członkiem. Zadania utworzone przez ciebie w grupach dla innych zostają u odbiorców, bez ciebie jako autora.",
+		"keptTitle": "Co zostaje zachowane",
+		"kept": "Faktury i dane subskrypcji przechowujemy przez ustawowy okres przechowywania, a potem je usuwamy.",
+		"noAccessTitle": "Bez dostępu do aplikacji",
+		"noAccess": "Napisz do nas z adresu e-mail swojego konta. Usuniemy konto w ciągu miesiąca i potwierdzimy to.",
+		"back": "Powrót do strony głównej"
 	}
 }

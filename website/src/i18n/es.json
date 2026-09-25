@@ -226,7 +226,9 @@
 	},
 	"footer": {
 		"imprint": "Aviso legal",
-		"imprintPath": "aviso-legal/"
+		"imprintPath": "aviso-legal/",
+		"accountDeletion": "Eliminar cuenta",
+		"accountDeletionPath": "eliminar-cuenta/"
 	},
 	"imprint": {
 		"title": "Aviso legal",
@@ -241,5 +243,23 @@
 		"consumerTitle": "Resolución de litigios de consumo",
 		"consumerText": "No estamos dispuestos ni obligados a participar en procedimientos de resolución de litigios ante una entidad de resolución de litigios de consumo.",
 		"back": "Volver a la página de inicio"
+	},
+	"accountDeletion": {
+		"title": "Eliminar tu cuenta",
+		"intro": "Cómo eliminar tu cuenta de Balamentum y sus datos.",
+		"inAppTitle": "En la app",
+		"steps": [
+			"Abre Balamentum e inicia sesión.",
+			"Abre los ajustes, pestaña «Allgemein» (General).",
+			"En la tarjeta «Konto» (Cuenta), toca «Eliminar cuenta» y confirma los dos pasos."
+		],
+		"blocked": "Si todavía tienes una suscripción activa, cancélala antes en la pestaña «Abo» (Suscripción). Si eres el último administrador de un grupo con más miembros, nombra antes a otra persona administradora o disuelve el grupo.",
+		"deletedTitle": "Qué se elimina",
+		"deleted": "Tu cuenta con todas las tareas, series, pilares, categorías, ajustes, tokens de acceso y registros push. También se eliminan los grupos en los que eres el único miembro. Las tareas que creaste para otros en grupos se quedan con sus destinatarios, sin ti como creador.",
+		"keptTitle": "Qué se conserva",
+		"kept": "Conservamos las facturas y los registros de suscripción durante el plazo legal de conservación y después los eliminamos.",
+		"noAccessTitle": "Sin acceso a la app",
+		"noAccess": "Escríbenos desde la dirección de correo de tu cuenta. Eliminamos la cuenta en el plazo de un mes y te lo confirmamos.",
+		"back": "Volver al inicio"
 	}
 }

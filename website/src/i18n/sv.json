@@ -223,7 +223,9 @@
 	},
 	"footer": {
 		"imprint": "Impressum",
-		"imprintPath": "impressum/"
+		"imprintPath": "impressum/",
+		"accountDeletion": "Radera konto",
+		"accountDeletionPath": "radera-konto/"
 	},
 	"imprint": {
 		"title": "Impressum",
@@ -238,5 +240,23 @@
 		"consumerTitle": "Tvistlösning för konsumenter",
 		"consumerText": "Vi är varken villiga eller skyldiga att delta i tvistlösningsförfaranden inför en nämnd för konsumenttvister.",
 		"back": "Till startsidan"
+	},
+	"accountDeletion": {
+		"title": "Radera ditt konto",
+		"intro": "Så raderar du ditt Balamentum-konto och tillhörande data.",
+		"inAppTitle": "I appen",
+		"steps": [
+			"Öppna Balamentum och logga in.",
+			"Öppna inställningarna, fliken ”Allgemein” (Allmänt).",
+			"Tryck på ”Radera konto” i kortet ”Konto” och bekräfta båda stegen."
+		],
+		"blocked": "Om en prenumeration fortfarande löper, säg först upp den i fliken ”Abo” (Prenumeration). Om du är den sista administratören i en grupp med andra medlemmar, gör först någon annan till administratör eller lös upp gruppen.",
+		"deletedTitle": "Vad som raderas",
+		"deleted": "Ditt konto med alla uppgifter, serier, pelare, kategorier, inställningar, åtkomsttoken och push-registreringar. Grupper där du är den enda medlemmen raderas också. Uppgifter som du har skapat åt andra i grupper finns kvar hos mottagarna, utan dig som skapare.",
+		"keptTitle": "Vad som sparas",
+		"kept": "Fakturor och prenumerationsuppgifter sparar vi under den lagstadgade lagringstiden och raderar dem sedan.",
+		"noAccessTitle": "Utan tillgång till appen",
+		"noAccess": "Skriv till oss från e-postadressen för ditt konto. Vi raderar kontot inom en månad och bekräftar det för dig.",
+		"back": "Tillbaka till startsidan"
 	}
 }

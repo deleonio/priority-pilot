@@ -220,7 +220,9 @@
 	},
 	"footer": {
 		"imprint": "Imprint",
-		"imprintPath": "imprint/"
+		"imprintPath": "imprint/",
+		"accountDeletion": "Delete account",
+		"accountDeletionPath": "delete-account/"
 	},
 	"imprint": {
 		"title": "Imprint",
@@ -234,6 +236,24 @@
 		"odrText": "The European Commission provides a platform for online dispute resolution (ODR):",
 		"consumerTitle": "Consumer dispute resolution",
 		"consumerText": "We are neither willing nor obliged to take part in dispute resolution proceedings before a consumer arbitration board.",
+		"back": "Back to home"
+	},
+	"accountDeletion": {
+		"title": "Delete your account",
+		"intro": "How to delete your Balamentum account and its data.",
+		"inAppTitle": "In the app",
+		"steps": [
+			"Open Balamentum and sign in.",
+			"Open the settings, tab “Allgemein” (General).",
+			"In the “Konto” (Account) card, tap “Delete account” and confirm both steps."
+		],
+		"blocked": "If a subscription is still running, cancel it first in the “Abo” (Subscription) tab. If you are the last admin of a group with other members, first make someone else an admin or dissolve the group.",
+		"deletedTitle": "What is deleted",
+		"deleted": "Your account with all tasks, series, pillars, categories, settings, access tokens and push registrations. Groups in which you are the only member are deleted as well. Tasks you created for others in groups stay with the recipients, without you as the creator.",
+		"keptTitle": "What is kept",
+		"kept": "We keep invoices and subscription records for the statutory retention period and delete them afterwards.",
+		"noAccessTitle": "Without access to the app",
+		"noAccess": "Write to us from the email address of your account. We delete the account within one month and confirm it to you.",
 		"back": "Back to home"
 	}
 }

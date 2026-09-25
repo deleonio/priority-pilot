@@ -21,6 +21,7 @@ import sv from '../src/i18n/sv.json' with { type: 'json' };
 import {
 	LOCALES,
 	homePath,
+	renderAccountDeletion,
 	renderImprint,
 	renderAssetLinks,
 	renderLanding,
@@ -89,7 +90,9 @@ for (const locale of LOCALES) {
 	);
 	const imprintPath = `${homePath(locale)}${messages.footer.imprintPath}`;
 	write(join(imprintPath, 'index.html'), renderImprint({ ...context, operator: OPERATOR, allMessages }));
-	paths.push(homePath(locale), imprintPath);
+	const deletionPath = `${homePath(locale)}${messages.footer.accountDeletionPath}`;
+	write(join(deletionPath, 'index.html'), renderAccountDeletion({ ...context, operator: OPERATOR, allMessages }));
+	paths.push(homePath(locale), imprintPath, deletionPath);
 }
 
 write('robots.txt', renderRobots(siteUrl));

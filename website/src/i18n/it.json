@@ -223,7 +223,9 @@
 	},
 	"footer": {
 		"imprint": "Note legali",
-		"imprintPath": "note-legali/"
+		"imprintPath": "note-legali/",
+		"accountDeletion": "Elimina account",
+		"accountDeletionPath": "elimina-account/"
 	},
 	"imprint": {
 		"title": "Note legali",
@@ -238,5 +240,23 @@
 		"consumerTitle": "Risoluzione delle controversie dei consumatori",
 		"consumerText": "Non siamo disposti né obbligati a partecipare a procedure di risoluzione delle controversie davanti a un organismo di conciliazione per i consumatori.",
 		"back": "Torna alla home page"
+	},
+	"accountDeletion": {
+		"title": "Eliminare il tuo account",
+		"intro": "Come eliminare il tuo account Balamentum e i relativi dati.",
+		"inAppTitle": "Nell’app",
+		"steps": [
+			"Apri Balamentum e accedi.",
+			"Apri le impostazioni, scheda «Allgemein» (Generale).",
+			"Nella scheda «Konto» (Account), tocca «Elimina account» e conferma entrambi i passaggi."
+		],
+		"blocked": "Se è ancora attivo un abbonamento, disdicilo prima nella scheda «Abo» (Abbonamento). Se sei l’ultimo amministratore di un gruppo con altri membri, nomina prima un’altra persona amministratore oppure sciogli il gruppo.",
+		"deletedTitle": "Cosa viene eliminato",
+		"deleted": "Il tuo account con tutte le attività, serie, pilastri, categorie, impostazioni, token di accesso e registrazioni push. Vengono eliminati anche i gruppi in cui sei l’unico membro. Le attività che hai creato per altri nei gruppi restano ai destinatari, senza di te come autore.",
+		"keptTitle": "Cosa viene conservato",
+		"kept": "Conserviamo fatture e dati degli abbonamenti per il periodo di conservazione previsto dalla legge e poi li eliminiamo.",
+		"noAccessTitle": "Senza accesso all’app",
+		"noAccess": "Scrivici dall’indirizzo e-mail del tuo account. Eliminiamo l’account entro un mese e te lo confermiamo.",
+		"back": "Torna alla home"
 	}
 }

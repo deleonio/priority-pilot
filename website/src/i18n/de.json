@@ -223,7 +223,9 @@
 	},
 	"footer": {
 		"imprint": "Impressum",
-		"imprintPath": "impressum/"
+		"imprintPath": "impressum/",
+		"accountDeletion": "Konto löschen",
+		"accountDeletionPath": "konto-loeschen/"
 	},
 	"imprint": {
 		"title": "Impressum",
@@ -238,5 +240,23 @@
 		"consumerTitle": "Verbraucherstreitbeilegung",
 		"consumerText": "Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.",
 		"back": "Zur Startseite"
+	},
+	"accountDeletion": {
+		"title": "Konto löschen",
+		"intro": "So löschst du dein Balamentum-Konto und die Daten dazu.",
+		"inAppTitle": "In der App",
+		"steps": [
+			"Öffne Balamentum und melde dich an.",
+			"Öffne die Einstellungen, Reiter „Allgemein“.",
+			"Tippe in der Karte „Konto“ auf „Konto löschen“ und bestätige beide Schritte."
+		],
+		"blocked": "Läuft noch ein Abo, kündige es vorher im Reiter „Abo“. Bist du letzter Admin einer Gruppe mit weiteren Mitgliedern, ernenne vorher jemand anderen zum Admin oder löse die Gruppe auf.",
+		"deletedTitle": "Was gelöscht wird",
+		"deleted": "Dein Konto mit allen Aufgaben, Serien, Säulen, Kategorien, Einstellungen, Zugriffs-Token und Push-Registrierungen. Gruppen, in denen du allein bist, werden mit gelöscht. Aufgaben, die du in Gruppen für andere angelegt hast, bleiben bei den Empfängern, ohne dich als Ersteller.",
+		"keptTitle": "Was aufbewahrt wird",
+		"kept": "Rechnungen und Abo-Datensätze bewahren wir für die Dauer der gesetzlichen Aufbewahrungsfrist auf und löschen sie danach.",
+		"noAccessTitle": "Ohne Zugang zur App",
+		"noAccess": "Schreib uns von der E-Mail-Adresse deines Kontos. Wir löschen das Konto innerhalb eines Monats und bestätigen dir das.",
+		"back": "Zurück zur Startseite"
 	}
 }

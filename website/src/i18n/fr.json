@@ -226,7 +226,9 @@
 	},
 	"footer": {
 		"imprint": "Mentions légales",
-		"imprintPath": "mentions-legales/"
+		"imprintPath": "mentions-legales/",
+		"accountDeletion": "Supprimer le compte",
+		"accountDeletionPath": "supprimer-compte/"
 	},
 	"imprint": {
 		"title": "Mentions légales",
@@ -240,6 +242,24 @@
 		"odrText": "La Commission européenne met à disposition une plateforme de règlement en ligne des litiges (RLL) :",
 		"consumerTitle": "Règlement des litiges de consommation",
 		"consumerText": "Nous ne sommes ni disposés ni tenus de participer à une procédure de règlement des litiges devant un organisme de médiation de la consommation.",
+		"back": "Retour à l’accueil"
+	},
+	"accountDeletion": {
+		"title": "Supprimer votre compte",
+		"intro": "Comment supprimer votre compte Balamentum et ses données.",
+		"inAppTitle": "Dans l’app",
+		"steps": [
+			"Ouvrez Balamentum et connectez-vous.",
+			"Ouvrez les paramètres, onglet « Allgemein » (Général).",
+			"Dans la carte « Konto » (Compte), touchez « Supprimer le compte » et confirmez les deux étapes."
+		],
+		"blocked": "Si un abonnement est encore en cours, résiliez-le d’abord dans l’onglet « Abo » (Abonnement). Si vous êtes le dernier administrateur d’un groupe qui compte d’autres membres, nommez d’abord une autre personne administrateur ou dissolvez le groupe.",
+		"deletedTitle": "Ce qui est supprimé",
+		"deleted": "Votre compte avec toutes les tâches, séries, piliers, catégories, paramètres, jetons d’accès et inscriptions push. Les groupes dont vous êtes le seul membre sont également supprimés. Les tâches que vous avez créées pour d’autres dans des groupes restent chez leurs destinataires, sans vous comme créateur.",
+		"keptTitle": "Ce qui est conservé",
+		"kept": "Nous conservons les factures et les données d’abonnement pendant la durée de conservation légale, puis nous les supprimons.",
+		"noAccessTitle": "Sans accès à l’app",
+		"noAccess": "Écrivez-nous depuis l’adresse e-mail de votre compte. Nous supprimons le compte dans un délai d’un mois et vous le confirmons.",
 		"back": "Retour à l’accueil"
 	}
 }

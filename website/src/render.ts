@@ -172,6 +172,7 @@ ${body}
 			<div class="container site-footer__inner">
 				<span>© ${new Date().getFullYear()} Balamentum</span>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
+				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">
@@ -386,6 +387,43 @@ ${operator.ustId ? `					<h2 class="kern-title">${t(m.imprint.vatId)}</h2>\n				
 	return shell(context, {
 		title: `${m.imprint.title} – Balamentum`,
 		description: m.meta.description,
+		path: pathFor(locale),
+		pathFor,
+		body,
+	});
+};
+
+/**
+ * Konto löschen (Pflichtseite für den Play-Store-Eintrag, ADR 0016): Weg in der App, gelöschte und
+ * aufbewahrte Daten, Kontakt für eine Löschung ohne Zugang zur App.
+ */
+export const renderAccountDeletion = (
+	context: PageContext & { operator: Operator; allMessages: Record<Locale, Messages> },
+): string => {
+	const { messages: m, locale, operator, allMessages } = context;
+	const pathFor = (target: Locale): string => `${homePath(target)}${allMessages[target].footer.accountDeletionPath}`;
+	const d = m.accountDeletion;
+	const body = `			<section class="section">
+				<div class="container container--narrow imprint">
+					<h1 class="kern-heading-large">${t(d.title)}</h1>
+					<p class="kern-body kern-body--large">${t(d.intro)}</p>
+					<h2 class="kern-title">${t(d.inAppTitle)}</h2>
+					<ol class="kern-body">
+${d.steps.map((step) => `						<li>${t(step)}</li>`).join('\n')}
+					</ol>
+					<p class="kern-body">${t(d.blocked)}</p>
+					<h2 class="kern-title">${t(d.deletedTitle)}</h2>
+					<p class="kern-body">${t(d.deleted)}</p>
+					<h2 class="kern-title">${t(d.keptTitle)}</h2>
+					<p class="kern-body">${t(d.kept)}</p>
+					<h2 class="kern-title">${t(d.noAccessTitle)}</h2>
+					<p class="kern-body">${t(d.noAccess)} <a class="kern-link" href="mailto:${t(operator.email)}">${t(operator.email)}</a></p>
+					<p><a class="kern-link" href="${homePath(locale)}">${t(d.back)}</a></p>
+				</div>
+			</section>`;
+	return shell(context, {
+		title: `${d.title} – Balamentum`,
+		description: d.intro,
 		path: pathFor(locale),
 		pathFor,
 		body,

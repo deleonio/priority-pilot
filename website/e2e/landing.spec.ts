@@ -53,8 +53,29 @@ test.describe('Öffentliche Website', () => {
 		await expect(page.getByRole('heading', { level: 1, name: 'Impressum' })).toBeVisible();
 	});
 
+	test('Konto löschen ist aus dem Footer erreichbar (#1681)', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('contentinfo').getByRole('link', { name: 'Konto löschen' }).click();
+		await expect(page).toHaveURL(/\/konto-loeschen\/$/);
+		await expect(page.getByRole('heading', { level: 1, name: 'Konto löschen' })).toBeVisible();
+	});
+
 	test('kein horizontales Scrollen', async ({ page }) => {
-		for (const path of ['/', '/en/', '/es/', '/fr/', '/it/', '/nl/', '/pl/', '/pt/', '/ru/', '/sv/', '/impressum/']) {
+		for (const path of [
+			'/',
+			'/en/',
+			'/es/',
+			'/fr/',
+			'/it/',
+			'/nl/',
+			'/pl/',
+			'/pt/',
+			'/ru/',
+			'/sv/',
+			'/impressum/',
+			'/konto-loeschen/',
+			'/ru/delete-account/',
+		]) {
 			await page.goto(path);
 			const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 			expect(overflow, path).toBeLessThanOrEqual(0);
