@@ -29,6 +29,33 @@ cd native/android && ./gradlew assembleDebug             # → app/build/outputs
 Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap run android` im Ordner
 `native/` oder das APK per `adb install` einspielen.
 
+## Signiertes App-Bundle (CI)
+
+Der Workflow `Android App-Bundle` (`.github/workflows/android.yml`, nur manuell) baut
+`app-release.aab`, signiert mit dem Upload-Schlüssel, und legt es als Artefakt `balamentum-aab` ab.
+Den `versionCode` leitet Gradle aus der Root-Version ab (`major*10000 + minor*100 + patch`,
+`native/src/version-code.ts`).
+
+Upload-Schlüssel einmalig erzeugen und sicher aufbewahren (für PKCS12 gilt ein Passwort für
+Keystore und Schlüssel):
+
+```bash
+keytool -genkeypair -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 upload.jks   # Inhalt → Secret ANDROID_UPLOAD_KEYSTORE_B64
+```
+
+| Name                               | Art      | Inhalt                                                             |
+| ---------------------------------- | -------- | ------------------------------------------------------------------ |
+| `ANDROID_UPLOAD_KEYSTORE_B64`      | Secret   | Keystore als Base64                                                |
+| `ANDROID_UPLOAD_KEYSTORE_PASSWORD` | Secret   | Passwort von Keystore und Schlüssel                                |
+| `ANDROID_UPLOAD_KEY_ALIAS`         | Secret   | Alias des Schlüssels, z. B. `upload`                               |
+| `ANDROID_GOOGLE_SERVICES_JSON`     | Secret   | Inhalt der `google-services.json` aus Firebase; fehlt er: ohne FCM |
+| `SITE_URL`                         | Variable | Domain der gehosteten App, wie beim Deploy                         |
+
+Mit Play App Signing signiert Google die ausgelieferte App mit dem eigenen App-Signaturschlüssel.
+Dessen SHA-256 aus der Play Console gehört in `ANDROID_CERT_SHA256` (Asset Links), nicht der
+Fingerabdruck des Upload-Schlüssels.
+
 ## Anmeldung in der App
 
 Google blockiert OAuth im WebView. „Mit Google anmelden“ öffnet deshalb `/auth/google?client=app&state=…`

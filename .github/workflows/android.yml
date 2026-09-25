@@ -1,0 +1,65 @@
+name: Android App-Bundle
+
+# Baut das signierte Android-App-Bundle (AAB) der Capacitor-App im Remote-Modus (ADR 0016) und legt
+# es als Artefakt ab. Nur manuell; den Upload in den Play-Store übernimmt ein eigener Schritt.
+# Secrets und Keystore-Erzeugung: docs/native-apps.md. Workflows bleiben ungetestet (ADR 0001).
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Android SDK 36
+        # Das Runner-Image bringt SDK und cmdline-tools mit; installiert wird nur, was fehlt.
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Capacitor sync
+        run: pnpm --filter native sync
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+
+      - name: Upload-Keystore und google-services.json aus Secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_UPLOAD_KEYSTORE_B64 fehlt (docs/native-apps.md)"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          # Ohne google-services.json entsteht das Bundle ohne FCM; build.gradle wendet das Plugin nur mit Datei an.
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > native/android/app/google-services.json
+          fi
+
+      - name: App-Bundle bauen
+        working-directory: native/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: |
+          # JDK 21 liegt im Runner-Image bereit, nur nicht als Standard.
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
+          ./gradlew bundleRelease
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: balamentum-aab
+          path: native/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
