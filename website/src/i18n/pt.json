@@ -228,7 +228,8 @@
 		"imprint": "Aviso legal",
 		"imprintPath": "aviso-legal/",
 		"accountDeletion": "Eliminar conta",
-		"accountDeletionPath": "eliminar-conta/"
+		"accountDeletionPath": "eliminar-conta/",
+		"privacy": "Privacidade"
 	},
 	"imprint": {
 		"title": "Aviso legal",

@@ -228,7 +228,8 @@
 		"imprint": "Nota prawna",
 		"imprintPath": "nota-prawna/",
 		"accountDeletion": "Usuń konto",
-		"accountDeletionPath": "usun-konto/"
+		"accountDeletionPath": "usun-konto/",
+		"privacy": "Prywatność"
 	},
 	"imprint": {
 		"title": "Nota prawna",
