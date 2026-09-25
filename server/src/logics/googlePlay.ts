@@ -34,7 +34,8 @@ export class GooglePlayError extends Error {
 }
 
 /** Das Abo hinter einem Kauf-Token, soweit Zuordnung und Freischaltung es brauchen. */
-interface PlaySubscription {
+export interface PlaySubscription {
+	/** Produkt und Base Plan, die gerade gelten, und ihr Ablauf. */
 	productId: string;
 	basePlanId: string;
 	expiresAt: Date;
@@ -43,13 +44,24 @@ interface PlaySubscription {
 	acknowledged: boolean;
 	/** Beim Kauf gesetzte Kontokennung, darüber wird der Kauf dem Nutzer zugeordnet. */
 	obfuscatedAccountId?: string;
+	/** Kauf-Token des Abos, das dieser Kauf beim Paketwechsel ersetzt (#1696). */
+	linkedPurchaseToken?: string;
+	/** Paket, das nach einem Wechsel zum Periodenende (`DEFERRED`) mit der Verlängerung gilt. */
+	deferred?: { productId: string; basePlanId: string };
+}
+
+interface LineItem {
+	productId?: string;
+	expiryTime?: string;
+	offerDetails?: { basePlanId?: string };
 }
 
 interface SubscriptionPurchaseV2 {
 	subscriptionState?: string;
 	acknowledgementState?: string;
 	externalAccountIdentifiers?: { obfuscatedExternalAccountId?: string };
-	lineItems?: { productId?: string; expiryTime?: string; offerDetails?: { basePlanId?: string } }[];
+	linkedPurchaseToken?: string;
+	lineItems?: LineItem[];
 }
 
 export interface GooglePlayClient {
@@ -64,18 +76,30 @@ const kindForStatus = (status: number): PlayErrorKind => {
 	return 'invalid';
 };
 
+/**
+ * Nach einem Wechsel zum Periodenende trägt der Kauf zwei Positionen: die laufende mit Ablauf und die
+ * vorgemerkte ohne. Nach der Verlängerung ist die neue die mit dem spätesten Ablauf.
+ */
 const toSubscription = (purchase: SubscriptionPurchaseV2): PlaySubscription => {
-	const item = purchase.lineItems?.[0];
-	if (!item?.productId || !item.offerDetails?.basePlanId || !item.expiryTime) {
+	const items = (purchase.lineItems ?? []).filter((item) => item.productId && item.offerDetails?.basePlanId);
+	const current = items
+		.filter((item): item is LineItem & { expiryTime: string } => item.expiryTime !== undefined)
+		.sort((a, b) => Date.parse(b.expiryTime) - Date.parse(a.expiryTime))[0];
+	if (!current?.productId || !current.offerDetails?.basePlanId || !current.expiryTime) {
 		throw new GooglePlayError('invalid', 'Der Kauf enthält kein Abo-Produkt.');
 	}
+	const deferred = items.find((item) => !item.expiryTime);
 	return {
-		productId: item.productId,
-		basePlanId: item.offerDetails.basePlanId,
-		expiresAt: new Date(item.expiryTime),
+		productId: current.productId,
+		basePlanId: current.offerDetails.basePlanId,
+		expiresAt: new Date(current.expiryTime),
 		state: (purchase.subscriptionState ?? '').replace('SUBSCRIPTION_STATE_', ''),
 		acknowledged: purchase.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED',
 		obfuscatedAccountId: purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId,
+		...(purchase.linkedPurchaseToken ? { linkedPurchaseToken: purchase.linkedPurchaseToken } : {}),
+		...(deferred?.productId && deferred.offerDetails?.basePlanId
+			? { deferred: { productId: deferred.productId, basePlanId: deferred.offerDetails.basePlanId } }
+			: {}),
 	};
 };
 

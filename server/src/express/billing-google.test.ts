@@ -2,10 +2,11 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 import { Subscription } from '../models/index.js';
-import type { GooglePlayClient } from '../logics/googlePlay.js';
+import type { GooglePlayClient, PlaySubscription } from '../logics/googlePlay.js';
 
 /**
- * #1687: `POST /billing/google/purchase` schaltet einen Kauf aus der Android-App frei. Die Play
+ * #1687/#1696: `POST /billing/google/purchase` schaltet einen Kauf aus der Android-App frei und
+ * ersetzt beim Paketwechsel das bisherige Play-Abo. Die Play
  * Developer API ist über einen injizierten Fake ersetzt (Muster `paypalClient` in
  * `billing-subscriptions.test.ts`).
  */
@@ -14,15 +15,19 @@ applyTestAuthEnv('test-secret-issue-1687');
 
 let server: TestServer;
 let acknowledged: string[];
+/** Abweichungen vom Pro-Monatsabo je Kauf-Token. */
+let purchases: Record<string, Partial<PlaySubscription>>;
+const PERIOD_END = new Date('2026-10-24T10:00:00Z');
 
 const fakePlay = (accountId: () => string): GooglePlayClient => ({
-	getSubscription: async () => ({
+	getSubscription: async (token) => ({
 		productId: 'pro',
 		basePlanId: 'monthly',
-		expiresAt: new Date('2026-10-24T10:00:00Z'),
+		expiresAt: PERIOD_END,
 		state: 'ACTIVE',
 		acknowledged: false,
 		obfuscatedAccountId: accountId(),
+		...purchases[token],
 	}),
 	acknowledge: async (_productId, token) => {
 		acknowledged.push(token);
@@ -35,6 +40,7 @@ describe('Play-Kauf freischalten (#1687)', () => {
 	beforeEach(async () => {
 		await resetDb();
 		acknowledged = [];
+		purchases = {};
 		server ??= await startTestServer({ googlePlayClient: fakePlay(() => accountIdOfBuyer) });
 	});
 
@@ -110,5 +116,53 @@ describe('Play-Kauf freischalten (#1687)', () => {
 
 		assert.equal(res.status, 409);
 		assert.equal(await Subscription.count(), 0);
+	});
+
+	it('Upgrade: der Kauf mit Verweis auf das alte Token ersetzt das Play-Abo, kein zweites (#1696)', async () => {
+		const cookie = await server.login('upgrade@example.com');
+		accountIdOfBuyer = (await me(cookie)).playAccountId;
+		await purchase(cookie, 'token-alt');
+		purchases['token-neu'] = { productId: 'max', basePlanId: 'yearly', linkedPurchaseToken: 'token-alt' };
+
+		assert.equal((await purchase(cookie, 'token-neu')).status, 204);
+
+		const subs = await Subscription.findAll();
+		assert.equal(subs.length, 1);
+		assert.equal(subs[0].get('externalSubscriptionId'), 'token-neu');
+		assert.equal(subs[0].get('period'), 'yearly');
+		assert.equal((await me(cookie)).plan, 'max');
+		assert.deepEqual(acknowledged, ['token-alt', 'token-neu']);
+	});
+
+	it('Downgrade: der neue Kauf merkt das kleinere Paket zum Periodenende vor (#1696)', async () => {
+		const cookie = await server.login('downgrade@example.com');
+		accountIdOfBuyer = (await me(cookie)).playAccountId;
+		purchases['token-alt'] = { productId: 'max' };
+		await purchase(cookie, 'token-alt');
+		purchases['token-neu'] = {
+			productId: 'max',
+			linkedPurchaseToken: 'token-alt',
+			deferred: { productId: 'pro', basePlanId: 'monthly' },
+		};
+
+		assert.equal((await purchase(cookie, 'token-neu')).status, 204);
+
+		const [sub] = await Subscription.findAll();
+		assert.equal(sub.get('plan'), 'max');
+		assert.equal(sub.get('pendingPlan'), 'pro');
+		assert.deepEqual(sub.get('pendingPlanEffectiveAt'), PERIOD_END);
+		assert.equal((await me(cookie)).plan, 'max');
+	});
+
+	it('ein zweiter Play-Kauf ohne Verweis auf das laufende Abo wird abgelehnt und nicht bestätigt', async () => {
+		const cookie = await server.login('zweites@example.com');
+		accountIdOfBuyer = (await me(cookie)).playAccountId;
+		await purchase(cookie, 'token-eins');
+
+		const res = await purchase(cookie, 'token-zwei');
+
+		assert.equal(res.status, 409);
+		assert.equal(await Subscription.count(), 1);
+		assert.deepEqual(acknowledged, ['token-eins']);
 	});
 });

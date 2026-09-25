@@ -3181,8 +3181,10 @@ paths:
         ADR 0017). Der Server liest den Kauf über die Play Developer API, prüft per
         `obfuscatedAccountId`, dass er zum angemeldeten Nutzer gehört (`playAccountId`
         aus `GET /auth/me`), bestätigt ihn und legt das Abo mit Provider `google_play`
-        an. Derselbe Token ein zweites Mal legt kein zweites Abo an. Nur aus der
-        Android-App (`X-Client-Channel: play`).
+        an. Derselbe Token ein zweites Mal legt kein zweites Abo an. Ein Paketwechsel
+        (#1696) verweist über `linkedPurchaseToken` auf den bisherigen Kauf und ersetzt
+        dessen Abo; ein Wechsel zum Periodenende steht bis dahin in `pendingPlan`. Nur
+        aus der Android-App (`X-Client-Channel: play`).
       operationId: submitGooglePurchase
       tags: [billing]
       requestBody:
@@ -3213,7 +3215,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Anfrage nicht aus der Android-App oder Kauf nicht aktiv
+          description: Anfrage nicht aus der Android-App, Kauf nicht aktiv oder es läuft schon ein Abo, das der Kauf nicht ersetzt
           content:
             application/json:
               schema:

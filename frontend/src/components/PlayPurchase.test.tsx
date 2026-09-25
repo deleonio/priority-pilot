@@ -1,9 +1,10 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ResponseError } from 'client';
 
 /**
- * #1692/#1695: Kauf und Wiederherstellen über Google Play in der Android-App. `cordova-plugin-purchase` ist als globales
+ * #1692/#1695/#1696: Kauf, Wiederherstellen und Paketwechsel über Google Play in der Android-App. `cordova-plugin-purchase` ist als globales
  * `CdvPurchase` gemockt, API und Auth ebenso; KoliBri wie in `DeleteAccount.test.tsx`.
  */
 
@@ -18,7 +19,8 @@ vi.mock('../api', () => ({
 }));
 vi.mock('../lib/auth', () => ({ checkAuth: () => Promise.resolve({ playAccountId: 'acc-1' }) }));
 const refresh = vi.fn(() => Promise.resolve());
-vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ subscription: null, refresh }) }));
+let subscription: object | null = null;
+vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ subscription, refresh }) }));
 
 import { api } from '../api';
 import { usePlayPurchase } from './PlayPurchase';
@@ -40,6 +42,8 @@ beforeEach(() => {
 	vi.stubGlobal('CdvPurchase', { store });
 });
 afterEach(() => {
+	subscription = null;
+	store.localReceipts = [];
 	vi.clearAllMocks();
 	vi.unstubAllGlobals();
 });
@@ -100,6 +104,34 @@ describe('Käufe wiederherstellen (#1695)', () => {
 		expect(screen.getByRole('alert')).toHaveTextContent('Deine Käufe aus Google Play sind wiederhergestellt.');
 	});
 
+	it('ein abgelehnter Kauf hält die übrigen nicht auf, die Entitlements werden trotzdem neu geladen', async () => {
+		store.localReceipts = [
+			{ platform: 'android-playstore', purchaseToken: 'tok-alt' },
+			{ platform: 'android-playstore', purchaseToken: 'tok-9' },
+		];
+		vi.mocked(api.submitGooglePurchase).mockRejectedValueOnce(new Error('403'));
+
+		await restore();
+
+		expect(api.submitGooglePurchase).toHaveBeenCalledWith('tok-9');
+		expect(refresh).toHaveBeenCalled();
+		expect(screen.getByRole('alert')).toHaveTextContent('Die Käufe konnten nicht wiederhergestellt werden.');
+	});
+
+	it('ein vom Server abgelehnter alter Kauf (409) nach einem Wechsel zählt nicht als Fehlschlag (#1696)', async () => {
+		store.localReceipts = [
+			{ platform: 'android-playstore', purchaseToken: 'tok-alt' },
+			{ platform: 'android-playstore', purchaseToken: 'tok-9' },
+		];
+		vi.mocked(api.submitGooglePurchase).mockRejectedValueOnce(new ResponseError({ status: 409 } as Response));
+
+		await restore();
+
+		expect(api.submitGooglePurchase).toHaveBeenCalledWith('tok-9');
+		expect(refresh).toHaveBeenCalled();
+		expect(screen.getByRole('alert')).toHaveTextContent('Deine Käufe aus Google Play sind wiederhergestellt.');
+	});
+
 	it('ohne vorhandene Käufe erscheint ein Hinweis, der Server wird nicht angefragt', async () => {
 		store.localReceipts = [];
 
@@ -110,5 +142,33 @@ describe('Käufe wiederherstellen (#1695)', () => {
 		expect(screen.getByRole('alert')).toHaveTextContent(
 			'Für dein Google-Konto gibt es keine Käufe, die sich wiederherstellen lassen.',
 		);
+	});
+});
+
+describe('Paketwechsel über Google Play (#1696)', () => {
+	const change = async (from: string, to: 'pro' | 'max') => {
+		subscription = { provider: 'google_play', plan: from, period: 'monthly', currentPeriodEnd: '2026-10-24T10:00:00Z' };
+		store.localReceipts = [{ platform: 'android-playstore', purchaseToken: 'tok-alt' }];
+		order.mockResolvedValue(undefined);
+		const { result } = await renderReady();
+		const { rerender } = render(<>{result.current.actionCell?.(to, 'monthly').node}</>);
+		await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Wechseln' })));
+		rerender(<>{result.current.notice}</>);
+	};
+
+	it('Upgrade startet den Kauf mit dem alten Token und sofortigem Replacement-Mode', async () => {
+		await change('pro', 'max');
+
+		expect(order).toHaveBeenCalledWith({
+			googlePlay: { oldPurchaseToken: 'tok-alt', replacementMode: 'IMMEDIATE_WITH_TIME_PRORATION' },
+		});
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
+	it('Downgrade wirkt zum Periodenende und zeigt das Wechseldatum an', async () => {
+		await change('max', 'pro');
+
+		expect(order).toHaveBeenCalledWith({ googlePlay: { oldPurchaseToken: 'tok-alt', replacementMode: 'DEFERRED' } });
+		expect(screen.getByRole('alert')).toHaveTextContent('Wechsel zu Pro ab 24.10.2026.');
 	});
 });
