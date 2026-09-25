@@ -60,6 +60,13 @@ test.describe('Öffentliche Website', () => {
 		await expect(page.getByRole('heading', { level: 1, name: 'Konto löschen' })).toBeVisible();
 	});
 
+	test('Datenschutz ist aus dem Footer erreichbar (#1672)', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('contentinfo').getByRole('link', { name: 'Datenschutz' }).click();
+		await expect(page).toHaveURL(/\/datenschutz\/$/);
+		await expect(page.getByRole('heading', { level: 1, name: 'Datenschutz' })).toBeVisible();
+	});
+
 	test('kein horizontales Scrollen', async ({ page }) => {
 		for (const path of [
 			'/',
@@ -74,6 +81,7 @@ test.describe('Öffentliche Website', () => {
 			'/sv/',
 			'/impressum/',
 			'/konto-loeschen/',
+			'/datenschutz/',
 			'/ru/delete-account/',
 		]) {
 			await page.goto(path);

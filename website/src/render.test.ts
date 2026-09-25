@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
@@ -24,7 +28,17 @@ import {
 	renderRobots,
 	renderSitemap,
 	type Locale,
+	type Messages,
+	type PageContext,
 } from './render.ts';
+import * as renderModule from './render.ts';
+
+// #1672: `renderPrivacy` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderPrivacy = (
+	renderModule as unknown as {
+		renderPrivacy?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderPrivacy;
 
 const catalog = getPlansCatalog();
 const allMessages = { de, en, es, fr, it: itMessages, nl, pl, pt, ru, sv };
@@ -209,6 +223,51 @@ describe('renderAccountDeletion (#1681)', () => {
 			});
 			expect(html, locale).toContain(`${messages.footer.accountDeletionPath}">${messages.footer.accountDeletion}</a>`);
 		}
+	});
+});
+
+/**
+ * #1672 AK1/AK2/AK3 (Vertrag: `docs/spec/issue-1672.md`) — die Datenschutzerklärung liegt als
+ * deutsche Seite unter der festen URL `/datenschutz/`, nennt die vier Empfänger und vier
+ * Grundsätze und ist aus dem Footer aller zehn Sprachen sowie der Sitemap erreichbar.
+ */
+describe('renderPrivacy (#1672)', () => {
+	it('rendert H1 „Datenschutz“ mit Empfängern und Grundsätzen (AK1)', () => {
+		expect(renderPrivacy, 'renderPrivacy existiert noch nicht (Export in render.ts)').toBeTypeOf('function');
+		const html = renderPrivacy!({ locale: 'de', messages: de, siteUrl: '', allMessages });
+		expect(html).toMatch(/<h1[^>]*>Datenschutz<\/h1>/);
+		for (const recipient of ['PayPal', 'Google-Login', 'Firebase Cloud Messaging', 'Google Play']) {
+			expect(html, `Empfänger „${recipient}“ fehlt`).toContain(recipient);
+		}
+		const lower = html.toLowerCase();
+		for (const principle of ['sparsam', 'auswertung', 'weitergabe']) {
+			expect(lower, `Grundsatz „${principle}“ fehlt`).toContain(principle);
+		}
+		expect(lower, 'Ende-zu-Ende-Verschlüsselung fehlt').toMatch(/ende-zu-ende|e2e/);
+	});
+
+	it('verlinkt /datenschutz/ aus dem Footer aller zehn Sprachen (AK2)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { privacy?: string }).privacy;
+			expect(label, `${locale}: i18n-Key footer.privacy fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/">${label}</a>`);
+		}
+	});
+
+	it('baut /datenschutz/ vor und nimmt die URL in die Sitemap auf (AK3)', { timeout: 120_000 }, () => {
+		const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+		execFileSync('pnpm', ['build'], {
+			cwd: websiteRoot,
+			env: { ...process.env, SITE_URL: 'https://example.org' },
+			stdio: 'pipe',
+		});
+		expect(
+			existsSync(join(websiteRoot, 'dist', 'datenschutz', 'index.html')),
+			'dist/datenschutz/index.html fehlt',
+		).toBe(true);
+		expect(readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8')).toContain(
+			'<loc>https://example.org/datenschutz/</loc>',
+		);
 	});
 });
 
