@@ -129,6 +129,13 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	// (Säulenverteilung neu berechnen) — zwei Modals mit je zwei Buttons und ein Button mit sehr
 	// langem Label sind genau der Fall, der auf Telefonbreite umbricht.
 	test('Dialogleiste „Säulenverteilung neu berechnen" bricht bei 375px nicht um', async ({ page }) => {
+		// #1729 AK2/AK4: Negativ-Kontrolle nach Muster `quick-capture.spec.ts` — beim Schrittwechsel
+		// intent → costs (und beim Start des Laufs) darf kein `pageerror` auftreten, insbesondere kein
+		// `InvalidStateError … not in a Document` zu `showModal`: Der Dialog wird als EINE persistente
+		// Instanz weitergeführt, statt die erste unzumontieren und die zweite neu zu mounten.
+		const pageErrors: string[] = [];
+		page.on('pageerror', (error) => pageErrors.push(error.message));
+
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
 		// Regex statt Glob: der Aufruf trägt seit #1614 die Statusauswahl als Query (`?status=all`),
@@ -196,5 +203,8 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		]);
 		expect(response.status(), 'Start des Hintergrundlaufs muss 202 sein').toBe(202);
 		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+
+		// #1729 AK2: kein `pageerror` im gesamten Dialog-Lebenszyklus (Öffnen, Weiter, Lauf-Start).
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 	});
 });

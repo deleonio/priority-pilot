@@ -416,6 +416,36 @@ describe('AdminUsersSection — Säulenverteilung neu berechnen (Fixup #1602, Fi
 });
 
 /**
+ * Rote Spec-Tests für #1729 (Spec `docs/spec/issue-1729.md`, AK1/AK2): Die zweistufige Bestätigung
+ * hängt heute an zwei parallelen bedingten Modals (`AdminUsersSection.tsx:185`/`:222`) — der
+ * Schrittwechsel intent → costs unmountet die erste und mountet die zweite Dialog-Instanz, deren
+ * Öffnen-Effekt (`showModal()` nach Promise-Auflösung) vor dem Document-Einhängen laufen kann
+ * (InvalidStateError). Ziel: EIN persistentes Modal (Muster `GroupDeleteDialog`), das beim
+ * Schrittwechsel nur die Kinder tauscht. Rot: Der Modal-Wrapper ist nach „Weiter“ ein NEUER
+ * DOM-Knoten statt derselbe.
+ */
+describe('AdminUsersSection — persistenter Bestätigungs-Dialog (#1729 AK1/AK2)', () => {
+	it('AK1: „Weiter“ tauscht nur den Inhalt des Modals — gleiche Dialog-Instanz, kein Remount', async () => {
+		mockGetAdminUsers.mockResolvedValue([user({ id: 1, displayName: 'Anna Admin' })]);
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Anna Admin')).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole('button', { name: 'Säulenverteilung aller Aufgaben neu berechnen' }));
+		// Der Mock-Wrapper des Modals (`vi.mock('./Modal')` rendert `<div>{children}</div>`) ist der
+		// DOM-Knoten, dessen Identität über den Schrittwechsel hinweg stabil bleiben muss.
+		const intentModalNode = screen.getByText(/Sollen die Säulen-Beiträge/).parentElement;
+		expect(intentModalNode).not.toBeNull();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+
+		await waitFor(() => expect(screen.getByText(/wird einzeln per KI klassifiziert/)).toBeInTheDocument());
+		expect(screen.queryByText(/Sollen die Säulen-Beiträge/)).not.toBeInTheDocument();
+		expect(screen.getByText(/wird einzeln per KI klassifiziert/).parentElement).toBe(intentModalNode);
+	});
+});
+
+/**
  * #1614: Der bestehende Trigger bekommt die Statusauswahl und die Fortschrittsanzeige aus dem
  * Ticket. Der Lauf setzt sich außerdem selbst fort, statt den Admin „Fortsetzen" klicken zu
  * lassen — genau daran scheiterte die Neuberechnung bisher: ohne mitgezählten Offset traf jeder

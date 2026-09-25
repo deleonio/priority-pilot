@@ -182,63 +182,73 @@ export const AdminUsersSection = () => {
 					</KolAlert>
 				)}
 			</div>
-			{confirmStep === 'intent' && (
-				<Modal title="Säulenverteilung neu berechnen" onClose={() => setConfirmStep('closed')}>
-					<p>
-						Sollen die Säulen-Beiträge der Aufgaben ALLER Konten anhand von Titel und Beschreibung neu berechnet werden?
-						Status, Punkte und Streak bleiben unverändert.
-					</p>
-					<div className="form-grid">
-						<KolInputRadio
-							_label="Filter"
-							_options={FILTER_OPTIONS}
-							_value={filter}
-							_on={{
-								onChange: (_event, value) => {
-									const next = FILTER_OPTIONS.find((option) => option.value === value);
-									if (next !== undefined) {
-										setFilter(next.value);
-									}
-								},
-							}}
-						/>
-					</div>
-					<div className="modal-actions">
-						<KolButton
-							_label="Abbrechen"
-							_variant="secondary"
-							_disabled={running}
-							_on={{ onClick: () => setConfirmStep('closed') }}
-						/>
-						<KolButton
-							_label="Weiter"
-							_variant="primary"
-							_disabled={running}
-							_on={{ onClick: () => setConfirmStep('costs') }}
-						/>
-					</div>
-				</Modal>
-			)}
-			{confirmStep === 'costs' && (
-				<Modal title="KI-Kosten bestätigen" onClose={() => setConfirmStep('closed')}>
-					<p>
-						Jede Aufgabe wird einzeln per KI klassifiziert — das verbraucht Kontingent und kann bei vielen Aufgaben
-						dauern. Aufgaben ohne brauchbaren Vorschlag behalten ihre bisherige Zuordnung.
-					</p>
-					<div className="modal-actions">
-						<KolButton
-							_label="Abbrechen"
-							_variant="secondary"
-							_disabled={running}
-							_on={{ onClick: () => setConfirmStep('closed') }}
-						/>
-						<KolButton
-							_label={running ? 'Berechne …' : mode === 'resume' ? 'Jetzt fortsetzen' : 'Jetzt neu berechnen'}
-							_variant="primary"
-							_disabled={running}
-							_on={{ onClick: startReassign }}
-						/>
-					</div>
+			{/* #1729: EINE persistente Modal-Instanz über beide Schritte (Muster GroupDeleteDialog) —
+			    der Schrittwechsel tauscht nur Titel und Kinder statt die Dialog-Instanz neu zu
+			    mounten, deren Öffnen-Effekt (showModal nach Promise-Auflösung) vor dem
+			    Document-Einhängen laufen kann (InvalidStateError). */}
+			{confirmStep !== 'closed' && (
+				<Modal
+					title={confirmStep === 'intent' ? 'Säulenverteilung neu berechnen' : 'KI-Kosten bestätigen'}
+					onClose={() => setConfirmStep('closed')}
+				>
+					{confirmStep === 'intent' ? (
+						<>
+							<p>
+								Sollen die Säulen-Beiträge der Aufgaben ALLER Konten anhand von Titel und Beschreibung neu berechnet
+								werden? Status, Punkte und Streak bleiben unverändert.
+							</p>
+							<div className="form-grid">
+								<KolInputRadio
+									_label="Filter"
+									_options={FILTER_OPTIONS}
+									_value={filter}
+									_on={{
+										onChange: (_event, value) => {
+											const next = FILTER_OPTIONS.find((option) => option.value === value);
+											if (next !== undefined) {
+												setFilter(next.value);
+											}
+										},
+									}}
+								/>
+							</div>
+							<div className="modal-actions">
+								<KolButton
+									_label="Abbrechen"
+									_variant="secondary"
+									_disabled={running}
+									_on={{ onClick: () => setConfirmStep('closed') }}
+								/>
+								<KolButton
+									_label="Weiter"
+									_variant="primary"
+									_disabled={running}
+									_on={{ onClick: () => setConfirmStep('costs') }}
+								/>
+							</div>
+						</>
+					) : (
+						<>
+							<p>
+								Jede Aufgabe wird einzeln per KI klassifiziert — das verbraucht Kontingent und kann bei vielen Aufgaben
+								dauern. Aufgaben ohne brauchbaren Vorschlag behalten ihre bisherige Zuordnung.
+							</p>
+							<div className="modal-actions">
+								<KolButton
+									_label="Abbrechen"
+									_variant="secondary"
+									_disabled={running}
+									_on={{ onClick: () => setConfirmStep('closed') }}
+								/>
+								<KolButton
+									_label={running ? 'Berechne …' : mode === 'resume' ? 'Jetzt fortsetzen' : 'Jetzt neu berechnen'}
+									_variant="primary"
+									_disabled={running}
+									_on={{ onClick: startReassign }}
+								/>
+							</div>
+						</>
+					)}
 				</Modal>
 			)}
 		</div>
