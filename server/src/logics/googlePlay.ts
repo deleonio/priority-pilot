@@ -83,8 +83,8 @@ const kindForStatus = (status: number): PlayErrorKind => {
 const toSubscription = (purchase: SubscriptionPurchaseV2): PlaySubscription => {
 	const items = (purchase.lineItems ?? []).filter((item) => item.productId && item.offerDetails?.basePlanId);
 	const current = items
-		.filter((item) => item.expiryTime)
-		.sort((a, b) => Date.parse(b.expiryTime ?? '') - Date.parse(a.expiryTime ?? ''))[0];
+		.filter((item): item is LineItem & { expiryTime: string } => item.expiryTime !== undefined)
+		.sort((a, b) => Date.parse(b.expiryTime) - Date.parse(a.expiryTime))[0];
 	if (!current?.productId || !current.offerDetails?.basePlanId || !current.expiryTime) {
 		throw new GooglePlayError('invalid', 'Der Kauf enthält kein Abo-Produkt.');
 	}
