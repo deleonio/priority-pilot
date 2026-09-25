@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.6 - 2026-09-25
 
-_Enthält v0.6.0 – v0.6.6._
+_Enthält v0.6.0 – v0.6.7._
 
 ### Other Changes
 
@@ -14,6 +14,7 @@ _Enthält v0.6.0 – v0.6.6._
 - chore(renovate): enable automerge for pi and kolibri updates by @deleonio in https://github.com/deleonio/priority-pilot/pull/1724
 - feat(server): at most one active subscription per user across providers by @deleonio in https://github.com/deleonio/priority-pilot/pull/1725
 - chore: publish german privacy policy page at /datenschutz/ (#1672) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1727
+- feat(server): apply pillar weights to cadence balance fill by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1728
 
 ## v0.5 - 2026-09-25
 
@@ -116,7 +117,6 @@ _Enthält v0.2.0 – v0.2.134._
 - chore(deps): update node.js to v26.8.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1327
 - chore(deps): update pnpm to v11.26.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1329
 - fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
-- fix(renovate): group playwright npm package and docker image together by @deleonio in https://github.com/deleonio/priority-pilot/pull/1397
 - fix(pipeline): never set phase labels on renovate prs by @deleonio in https://github.com/deleonio/priority-pilot/pull/1407
 - feat(frontend): enable dark mode with KoliBri 4.4.1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1405
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1173
@@ -212,6 +212,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): move own-package switch into packages tab (#1565) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1570
 - feat(frontend): add header position setting (top/bottom) (#1428) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1571
 - chore(prompts): apply prompt-audit #1467 options 1-3 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1559
+- feat(frontend): distinguish own and instance-wide llm providers (#1549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1567
 - feat(frontend): distinguish own and instance-wide llm providers (#1549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1567
 - feat(server): add tester role with admin access except user management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1572
 - feat(frontend): make header sticky with uniform padding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1575
