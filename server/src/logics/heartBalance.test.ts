@@ -255,3 +255,93 @@ describe('berechneKadenzFuellstand (#1638, docs/spec/issue-1638.md)', () => {
 		assert.equal(result.hasPoints, false, 'hasPoints muss false sein ohne erledigte Aufgaben (AK6)');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1663 (Spec docs/spec/issue-1663.md) — die Säulen-Gewichte wirken wieder im
+ * Kadenz-Füllstand: Kombination aus soll-gewichteter und ungewichteter Komponente wie in
+ * `berechneLebensbalance` (#1474, Strengste-Prinzip `min`), Defizit aus der Kadenz-Erfüllung (#1638).
+ *
+ * `KadenzSaeule` hat noch kein `weight` — der Spec-Test deklariert es per Intersection-Typ optional
+ * (Produktiv-Typ unangetastet); die Produktionsrechnung muss es auswerten, damit diese Tests grün werden.
+ */
+describe('berechneKadenzFuellstand (#1663, docs/spec/issue-1663.md)', () => {
+	const JETZT = new Date('2026-09-23T12:00:00Z');
+	const TAG_MS = 24 * 60 * 60 * 1000;
+	const vorTagen = (tage: number): Date => new Date(JETZT.getTime() - tage * TAG_MS);
+
+	/** `KadenzSaeule` um das noch nicht existierende `weight` erweitert (optional, s. Blockkommentar). */
+	type GewichteteKadenzSaeule = KadenzSaeule & { weight?: number };
+
+	/** Vier Säulen mit gleichem Rhythmus: A bleibt unbedient, B–D erfüllen ihr Soll im Fenster. */
+	const SAEULEN: GewichteteKadenzSaeule[] = [
+		{ id: 1, name: 'A', rhythmusProWoche: 3 },
+		{ id: 2, name: 'B', rhythmusProWoche: 3 },
+		{ id: 3, name: 'C', rhythmusProWoche: 3 },
+		{ id: 4, name: 'D', rhythmusProWoche: 3 },
+	];
+	/** B–D voll erfüllt (je 12 Erledigungen = 3/Woche × 4 Wochen), A ohne Erledigung im Fenster. */
+	const tasks: KadenzTask[] = [2, 3, 4].flatMap((pillarId) =>
+		Array.from({ length: 12 }, (_, i) => ({
+			status: 'Done',
+			estimatedEffort: 1,
+			erledigtAm: vorTagen(i * 2),
+			pillars: [{ pillarId, share: 100 }],
+		})),
+	);
+
+	it('AK1: gleiche Gewichte (25/25/25/25) → unverändert die ungewichtete Formel 1 − √(Σ defizitᵢ² / n)', () => {
+		const result = berechneKadenzFuellstand(
+			SAEULEN.map((saeule) => ({ ...saeule, weight: 25 })),
+			tasks,
+			JETZT,
+		);
+		// Einziges Defizit ist A (Erfüllung 0): erwarteter Wert 1 − √(1/4) = 0,5 — Regressionwächter
+		// für den Prod-Stand bei gleichen Gewichten (auch alle > 0 gleich).
+		const erwartet = 1 - Math.sqrt(1 / 4);
+		assert.ok(Math.abs(result.fill - erwartet) < 1e-9, `fill=${result.fill} muss ${erwartet} sein (AK1)`);
+	});
+
+	it('AK2: hoch gewichtete unbediente Säule senkt den Füllstand stärker als niedrig gewichtete', () => {
+		const hoch = berechneKadenzFuellstand(
+			[40, 20, 20, 20].map((weight, index) => ({ ...SAEULEN[index]!, weight })),
+			tasks,
+			JETZT,
+		);
+		const niedrig = berechneKadenzFuellstand(
+			[10, 30, 30, 30].map((weight, index) => ({ ...SAEULEN[index]!, weight })),
+			tasks,
+			JETZT,
+		);
+		// A=40: gewichtete Komponente 1 − √0,4 ≈ 0,368 schlägt die ungewichtete (0,5).
+		// A=10: gewichtete 1 − √0,1 ≈ 0,684, die ungewichtete (0,5) bestimmt den Wert (Strengste-Prinzip).
+		assert.ok(Math.abs(hoch.fill - (1 - Math.sqrt(0.4))) < 1e-3, `fill=${hoch.fill} muss ≈ 0,368 sein (AK2)`);
+		assert.ok(Math.abs(niedrig.fill - 0.5) < 1e-3, `fill=${niedrig.fill} muss ≈ 0,5 sein (AK2)`);
+		assert.ok(hoch.fill < niedrig.fill, 'höheres Gewicht der unbedienten Säule muss den Füllstand senken (AK2)');
+	});
+
+	it('AK3: unbediente Säule mit Gewicht 0 senkt den Füllstand nicht → fill = 1', () => {
+		const result = berechneKadenzFuellstand(
+			[0, 34, 33, 33].map((weight, index) => ({ ...SAEULEN[index]!, weight })),
+			tasks,
+			JETZT,
+		);
+		assert.ok(Math.abs(result.fill - 1) < 1e-9, `fill=${result.fill} muss 1 sein, Säule ohne Ziel zählt nicht (AK3)`);
+	});
+
+	it('AK4: alle Gewichte 0 → derselbe Füllstand wie bei gleichen Gewichten', () => {
+		const alleNull = berechneKadenzFuellstand(
+			SAEULEN.map((saeule) => ({ ...saeule, weight: 0 })),
+			tasks,
+			JETZT,
+		);
+		const alleGleich = berechneKadenzFuellstand(
+			SAEULEN.map((saeule) => ({ ...saeule, weight: 25 })),
+			tasks,
+			JETZT,
+		);
+		assert.ok(
+			Math.abs(alleNull.fill - alleGleich.fill) < 1e-9,
+			`fill(alle 0)=${alleNull.fill} muss fill(gleich)=${alleGleich.fill} entsprechen — Gleichverteilung als Soll (AK4)`,
+		);
+	});
+});
