@@ -1,4 +1,4 @@
-import { createSign } from 'node:crypto';
+import { createPrivateKey, createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 /**
@@ -15,9 +15,16 @@ export interface ServiceAccount {
 	private_key: string;
 }
 
-/** Liest die JSON-Schlüsseldatei; wirft, wenn sie fehlt oder kein JSON ist. */
-export const readServiceAccount = (file: string): ServiceAccount =>
-	JSON.parse(readFileSync(file, 'utf8')) as ServiceAccount;
+/**
+ * Liest die JSON-Schlüsseldatei; wirft, wenn sie fehlt, kein JSON ist oder der Schlüssel unbrauchbar
+ * ist. Ein kaputter Schlüssel ist eine Fehlkonfiguration und soll nicht erst beim Signieren als
+ * vorübergehender Fehler auffallen.
+ */
+export const readServiceAccount = (file: string): ServiceAccount => {
+	const account = JSON.parse(readFileSync(file, 'utf8')) as ServiceAccount;
+	createPrivateKey(account.private_key);
+	return account;
+};
 
 /** Fehler mit HTTP-Status der Google-Antwort. */
 export const httpError = (message: string, statusCode: number) => Object.assign(new Error(message), { statusCode });

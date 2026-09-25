@@ -91,6 +91,7 @@ describe('googlePlay (#1685)', () => {
 		};
 
 		await acknowledgeIfPending(client, pending, 'token-1');
+		await acknowledgeIfPending(client, pending, 'token-1');
 		await acknowledgeIfPending(client, { ...pending, acknowledged: true }, 'token-1');
 
 		assert.deepEqual(calls, [
@@ -112,6 +113,14 @@ describe('googlePlay (#1685)', () => {
 
 		delete process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_FILE;
 		const calls = mockGoogle();
+		assert.equal(await kindOf(createGooglePlayClient().getSubscription('token-1')), 'not_configured');
+
+		const broken = join(mkdtempSync(join(tmpdir(), 'play-')), 'kaputt.json');
+		writeFileSync(
+			broken,
+			JSON.stringify({ client_email: 'play@demo.iam.gserviceaccount.com', private_key: 'kein Schlüssel' }),
+		);
+		process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_FILE = broken;
 		assert.equal(await kindOf(createGooglePlayClient().getSubscription('token-1')), 'not_configured');
 		assert.equal(calls.length, 0);
 	});

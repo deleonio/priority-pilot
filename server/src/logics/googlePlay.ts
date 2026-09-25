@@ -144,5 +144,6 @@ export const acknowledgeIfPending = async (
 ): Promise<void> => {
 	if (!subscription.acknowledged) {
 		await client.acknowledge(subscription.productId, purchaseToken);
+		subscription.acknowledged = true;
 	}
 };
