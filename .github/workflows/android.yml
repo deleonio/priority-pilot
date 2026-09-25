@@ -34,14 +34,18 @@ jobs:
 
       - name: Upload-Keystore und google-services.json aus Secrets
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$KEYSTORE_B64" ]; then
-            echo "::error::Secret ANDROID_UPLOAD_KEYSTORE_B64 fehlt (docs/native-apps.md)"
-            exit 1
-          fi
-          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          for secret in ANDROID_UPLOAD_KEYSTORE_B64 ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS; do
+            if [ -z "${!secret}" ]; then
+              echo "::error::Secret $secret fehlt (docs/native-apps.md)"
+              exit 1
+            fi
+          done
+          echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
           # Ohne google-services.json entsteht das Bundle ohne FCM; build.gradle wendet das Plugin nur mit Datei an.
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > native/android/app/google-services.json
