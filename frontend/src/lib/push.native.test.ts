@@ -26,7 +26,7 @@ vi.mock('../api', () => ({
 }));
 
 import { api } from '../api';
-import { disablePush, enablePush, usePushSubscription } from './push';
+import { disablePush, enablePush, listenForNativePushTaps, usePushSubscription } from './push';
 
 beforeEach(() => {
 	vi.stubGlobal('__PP_CHANNEL__', 'play');
@@ -89,5 +89,22 @@ describe('Push in der Android-App (#1679)', () => {
 		expect(result.current.enabled).toBe(true);
 		await waitFor(() => expect(api.registerFcmToken).toHaveBeenCalled());
 		expect(result.current.enabled).toBe(true);
+	});
+
+	// Tapp-Navigation (#1679): App-Pfade gelten ab der App-Wurzel, wie `notificationclick` in
+	// `push-sw.js`. `window.location` per stubGlobal (jsdom-Präzedenz `nativeAuth.test.ts`).
+	it('play: Tapp öffnet App-Pfad, Wurzel-Pfad und fehlende URL ab der App-Wurzel', async () => {
+		const assign = vi.fn();
+		vi.stubGlobal('location', { origin: window.location.origin, assign });
+		await listenForNativePushTaps();
+		const tap = plugin.listeners.get('pushNotificationActionPerformed') as (data: unknown) => void;
+
+		tap({ notification: { data: { url: '/tasks/42' } } });
+		tap({ notification: { data: { url: '/' } } });
+		tap({ notification: {} });
+
+		expect(assign).toHaveBeenNthCalledWith(1, `${window.location.origin}/tasks/42`);
+		expect(assign).toHaveBeenNthCalledWith(2, `${window.location.origin}/`);
+		expect(assign).toHaveBeenNthCalledWith(3, `${window.location.origin}/`);
 	});
 });

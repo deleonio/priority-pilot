@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PushToast } from './PushToast';
@@ -90,5 +90,65 @@ describe('PushToast — In-App-Hinweis bei Service-Worker-message (#1391)', () =
 		serviceWorkerStub.dispatchEvent(new MessageEvent('message', { data: { type: 'other', payload: {} } }));
 
 		expect(screen.queryByTestId('push-toast')).not.toBeInTheDocument();
+	});
+});
+
+/**
+ * Nativer Kanal `play` (#1679): Der WebView hat keinen Service Worker — die Payload kommt bei
+ * offener App nur an `pushNotificationReceived` (FCM zeigt keine System-Notification). Plugin
+ * gemockt wie `push.native.test.ts`, Kanal per `__PP_CHANNEL__`.
+ */
+const nativePlugin = vi.hoisted(() => {
+	const listeners = new Map<string, (data: unknown) => void>();
+	return {
+		listeners,
+		addListener: vi.fn(async (event: string, callback: (data: unknown) => void) => {
+			listeners.set(event, callback);
+			return { remove: async () => listeners.delete(event) };
+		}),
+	};
+});
+vi.mock('@capacitor/push-notifications', () => ({ PushNotifications: nativePlugin }));
+
+describe('PushToast — native Vordergrund-Push im Kanal play (#1679)', () => {
+	beforeEach(() => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+		vi.unstubAllGlobals();
+		cleanup();
+	});
+
+	it('pushNotificationReceived zeigt Titel und Body des Hinweises', async () => {
+		render(<PushToast />);
+
+		await waitFor(() => expect(nativePlugin.listeners.get('pushNotificationReceived')).toBeDefined());
+		const onReceived = nativePlugin.listeners.get('pushNotificationReceived') as (data: unknown) => void;
+		onReceived({ title: 'Aufgabe fällig', body: 'Rasen mähen ist jetzt dran.' });
+
+		const toast = screen.getByTestId('push-toast');
+		expect(toast).toBeVisible();
+		expect(toast).toHaveTextContent('Aufgabe fällig');
+		expect(toast).toHaveTextContent('Rasen mähen ist jetzt dran.');
+	});
+
+	it('Nachricht ohne Titel zeigt keinen Hinweis', async () => {
+		render(<PushToast />);
+
+		await waitFor(() => expect(nativePlugin.listeners.get('pushNotificationReceived')).toBeDefined());
+		const onReceived = nativePlugin.listeners.get('pushNotificationReceived') as (data: unknown) => void;
+		onReceived({ body: 'Nur Daten-Payload ohne Titel.' });
+
+		expect(screen.queryByTestId('push-toast')).not.toBeInTheDocument();
+	});
+
+	it('Unmount entfernt den Plugin-Listener wieder', async () => {
+		const { unmount } = render(<PushToast />);
+		await waitFor(() => expect(nativePlugin.listeners.get('pushNotificationReceived')).toBeDefined());
+
+		unmount();
+
+		await waitFor(() => expect(nativePlugin.listeners.has('pushNotificationReceived')).toBe(false));
 	});
 });
