@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.6 - 2026-09-25
 
-_Enthält v0.6.0 – v0.6.1._
+_Enthält v0.6.0 – v0.6.2._
 
 ### Other Changes
 
 - feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
+- feat(server): securely accept google play subscription events (rtdn) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1722
 
 ## v0.5 - 2026-09-25
 
@@ -201,7 +202,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): per-user llm provider selection, gate and quota bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1557
 - feat(server): manage invitations and invite links via mcp tools (#1544) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1558
 - feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
-- feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
+- feat(server): balance score measures unweighted skew (#1474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1568
 - feat(server): balance score measures unweighted skew (#1474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1568
 - feat(frontend): consolidate feedback categories to three by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1569
 - feat(frontend): move own-package switch into packages tab (#1565) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1570
