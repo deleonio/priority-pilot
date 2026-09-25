@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-24
 
-_Enthält v0.5.0 – v0.5.24._
+_Enthält v0.5.0 – v0.5.25._
 
 ### Other Changes
 
@@ -30,6 +30,7 @@ _Enthält v0.5.0 – v0.5.24._
 - feat(server): Benachrichtigungen zusätzlich über FCM versenden by @deleonio in https://github.com/deleonio/priority-pilot/pull/1710
 - feat(frontend): hide paypal purchase in android app plans view by @deleonio in https://github.com/deleonio/priority-pilot/pull/1711
 - feat(frontend): Konto löschen in den Einstellungen mit sequenzieller Bestätigung by @deleonio in https://github.com/deleonio/priority-pilot/pull/1712
+- feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
 
 ## v0.4 - 2026-09-24
 
@@ -176,7 +177,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): increase mobile element sizes by one pixel step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1546
 - feat(server): add group create, update and delete MCP tools (#1542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1545
 - fix(server): resolve review findings f-10, f-11, v-3 (#1471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1550
-- fix(server): resolve review findings f-10, f-11, v-3 (#1471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1550
+- feat(server): scope llm providers to users via userId column (#1547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1551
 - feat(server): scope llm providers to users via userId column (#1547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1551
 - feat(frontend): add bloom and crystal life balance dial variants by @deleonio in https://github.com/deleonio/priority-pilot/pull/1552
 - feat(server): manage group members via mcp tools (#1543) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1553
