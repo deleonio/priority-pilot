@@ -86,6 +86,8 @@ Subscription.init(
 		modelName: 'Subscription',
 		tableName: 'subscriptions',
 		timestamps: true,
+		// Ein Kauf beim Anbieter gehört zu genau einem Abo; schützt gleichzeitig eingereichte Play-Käufe.
+		indexes: [{ unique: true, fields: ['provider', 'externalSubscriptionId'] }],
 	},
 );
 

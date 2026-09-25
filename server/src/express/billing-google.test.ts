@@ -92,6 +92,16 @@ describe('Play-Kauf freischalten (#1687)', () => {
 		assert.equal(await Subscription.count(), 1);
 	});
 
+	it('derselbe Token gleichzeitig eingereicht erzeugt kein zweites Abo (#1690)', async () => {
+		const cookie = await server.login('gleichzeitig@example.com');
+		accountIdOfBuyer = (await me(cookie)).playAccountId;
+
+		const [first, second] = await Promise.all([purchase(cookie, 'token-5'), purchase(cookie, 'token-5')]);
+
+		assert.deepEqual([first.status, second.status], [204, 204]);
+		assert.equal(await Subscription.count(), 1);
+	});
+
 	it('lehnt Anfragen aus dem Web-Kanal mit 409 ab', async () => {
 		const cookie = await server.login('web@example.com');
 		accountIdOfBuyer = (await me(cookie)).playAccountId;

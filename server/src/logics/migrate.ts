@@ -237,6 +237,37 @@ export const migratePlaceFavoriteAddressUnique = async (db: Sequelize): Promise<
 };
 
 /**
+ * Legt den Unique-Index `(provider, externalSubscriptionId)` auf einer **bestehenden**
+ * `subscriptions`-Tabelle an (#1690): Ohne ihn legen zwei gleichzeitig eingereichte Play-Käufe
+ * desselben Tokens zwei Abos an. Anders als bei den Orten löscht der Lauf keine Duplikate, denn an
+ * Abos hängen Rechnungen; gibt es welche, bleibt der Index aus und der Server meldet es.
+ *
+ * Idempotent (Index vorhanden → übersprungen); No-op bei frischer DB — dort legt `sync()` den im
+ * Modell deklarierten Index selbst an.
+ */
+export const migrateSubscriptionExternalIdUnique = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
+	if ((columns as { name: string }[]).length === 0) {
+		return;
+	}
+	const [indexRows] = await db.query("PRAGMA index_list('subscriptions')");
+	if ((indexRows as { name: string }[]).some((row) => row.name === 'subscriptions_provider_external_subscription_id')) {
+		return;
+	}
+	const [duplicates] = await db.query(
+		'SELECT `provider`, `externalSubscriptionId` FROM `subscriptions` GROUP BY `provider`, `externalSubscriptionId` HAVING COUNT(*) > 1',
+	);
+	if ((duplicates as unknown[]).length > 0) {
+		console.warn('subscriptions enthält doppelte Käufe je Anbieter, Unique-Index (#1690) nicht angelegt.');
+		return;
+	}
+	await db.query(
+		'CREATE UNIQUE INDEX IF NOT EXISTS `subscriptions_provider_external_subscription_id` ON `subscriptions`(`provider`, `externalSubscriptionId`)',
+	);
+	console.log('Unique-Index subscriptions_provider_external_subscription_id angelegt (#1690).');
+};
+
+/**
  * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalte an `tasks` (nullable,
  * Abwärtskompatibilität). **Achtung:** `pillars.userId` gehört bewusst NICHT mehr dazu — Säulen sind
  * globale Stammdaten; die Spalte wird von {@link migratePillarDropUserId} auf Bestands-DBs
