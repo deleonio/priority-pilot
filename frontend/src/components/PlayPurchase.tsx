@@ -1,4 +1,5 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
+import { ResponseError } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
@@ -95,10 +96,14 @@ export const usePlayPurchase = (): PurchaseUi => {
 		setRestoring(true);
 		try {
 			const tokens = await restorePlayPurchases(store);
-			// Ein abgelehnter Token hält die übrigen nicht auf; neu geladen wird trotzdem.
+			// Ein abgelehnter Token hält die übrigen nicht auf; neu geladen wird trotzdem. 409 ist kein
+			// Fehlschlag: Der Server lehnt genau diesen Kauf bewusst ab, etwa den alten Token, der nach
+			// einem Wechsel zum Periodenende bis dahin noch bei Google aktiv ist (#1696).
 			let failed = false;
 			for (const token of tokens) {
-				await api.submitGooglePurchase(token).catch(() => (failed = true));
+				await api.submitGooglePurchase(token).catch((reason: unknown) => {
+					if (!(reason instanceof ResponseError && reason.response.status === 409)) failed = true;
+				});
 			}
 			if (tokens.length > 0) {
 				await refresh?.();

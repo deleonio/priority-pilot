@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ResponseError } from 'client';
 
 /**
  * #1692/#1695/#1696: Kauf, Wiederherstellen und Paketwechsel über Google Play in der Android-App. `cordova-plugin-purchase` ist als globales
@@ -115,6 +116,20 @@ describe('Käufe wiederherstellen (#1695)', () => {
 		expect(api.submitGooglePurchase).toHaveBeenCalledWith('tok-9');
 		expect(refresh).toHaveBeenCalled();
 		expect(screen.getByRole('alert')).toHaveTextContent('Die Käufe konnten nicht wiederhergestellt werden.');
+	});
+
+	it('ein vom Server abgelehnter alter Kauf (409) nach einem Wechsel zählt nicht als Fehlschlag (#1696)', async () => {
+		store.localReceipts = [
+			{ platform: 'android-playstore', purchaseToken: 'tok-alt' },
+			{ platform: 'android-playstore', purchaseToken: 'tok-9' },
+		];
+		vi.mocked(api.submitGooglePurchase).mockRejectedValueOnce(new ResponseError({ status: 409 } as Response));
+
+		await restore();
+
+		expect(api.submitGooglePurchase).toHaveBeenCalledWith('tok-9');
+		expect(refresh).toHaveBeenCalled();
+		expect(screen.getByRole('alert')).toHaveTextContent('Deine Käufe aus Google Play sind wiederhergestellt.');
 	});
 
 	it('ohne vorhandene Käufe erscheint ein Hinweis, der Server wird nicht angefragt', async () => {
