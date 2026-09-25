@@ -77,6 +77,7 @@ export const applyPlayState = async (
 				currentPeriodEnd: purchase.expiresAt,
 				pendingPlan: 'free',
 				pendingPlanEffectiveAt: purchase.expiresAt,
+				firstFailureAt: null,
 			});
 	}
 };
