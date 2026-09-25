@@ -9,6 +9,7 @@
 		"@capacitor/app",
 		"@capacitor/browser",
 		"@capacitor/core",
+		"@capacitor/push-notifications",
 		"@capacitor/splash-screen",
 	],
 }

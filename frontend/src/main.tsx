@@ -9,6 +9,7 @@ import i18next from './i18n/config';
 import { Root } from './Root';
 import { applyInitialTheme } from './lib/theme';
 import { listenForAppLinks } from './lib/nativeAuth';
+import { listenForNativePushTaps } from './lib/push';
 import { isNativeChannel } from './lib/platform';
 // KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
 // Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
@@ -35,6 +36,7 @@ applyInitialTheme();
 // App Links (Login-Code, Magic-Link) kommen nur in der nativen App an.
 if (isNativeChannel()) {
 	void listenForAppLinks();
+	void listenForNativePushTaps();
 }
 
 const container = document.getElementById('root');

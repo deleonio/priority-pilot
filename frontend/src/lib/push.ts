@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { isNativeChannel } from './platform';
 
 /**
  * Web-Push-Opt-in der PWA (Issue #355).
@@ -10,13 +11,82 @@ import { api } from '../api';
  * laufen über die typsichere `api`-Fassade (`../api`); der Versand selbst passiert server-intern.
  */
 
+/**
+ * Push in der Android-App (#1679): Web Push fehlt im WebView, stattdessen liefert das Plugin ein
+ * FCM-Token, das der Server kennt. Es liegt im localStorage, damit das Abmelden es wiederfindet.
+ * Das Plugin wird erst hier nachgeladen, im Web-Bundle steckt es nicht.
+ */
+const FCM_TOKEN_KEY = 'pp-fcm-token';
+
+// Nur das Modul liefern, nie den Plugin-Proxy selbst: Der Proxy beantwortet auch `then`, ein `await` auf
+// ihn riefe eine Plugin-Methode „then“ auf.
+const loadPushPlugin = () => import('@capacitor/push-notifications');
+
+/** Fragt die Android-Berechtigung (ab Android 13) ab, holt das FCM-Token und meldet es beim Server an. */
+const enableNativePush = async (shouldAbort?: () => boolean): Promise<boolean> => {
+	const { PushNotifications: plugin } = await loadPushPlugin();
+	let { receive } = await plugin.checkPermissions();
+	if (receive !== 'granted' && receive !== 'denied') {
+		({ receive } = await plugin.requestPermissions());
+	}
+	if (receive !== 'granted' || shouldAbort?.()) {
+		return false;
+	}
+	let settle: { resolve: (token: string) => void; reject: (error: Error) => void } | undefined;
+	const tokenReceived = new Promise<string>((resolve, reject) => {
+		settle = { resolve, reject };
+	});
+	const handles = await Promise.all([
+		plugin.addListener('registration', ({ value }) => settle?.resolve(value)),
+		plugin.addListener('registrationError', ({ error }) => settle?.reject(new Error(error))),
+	]);
+	let token: string;
+	try {
+		await plugin.register();
+		token = await tokenReceived;
+	} finally {
+		await Promise.all(handles.map((handle) => handle.remove()));
+	}
+	if (shouldAbort?.()) {
+		return false;
+	}
+	await api.registerFcmToken(token);
+	localStorage.setItem(FCM_TOKEN_KEY, token);
+	return true;
+};
+
+const disableNativePush = async (): Promise<void> => {
+	const token = localStorage.getItem(FCM_TOKEN_KEY);
+	if (token !== null) {
+		await api.unregisterFcmToken(token);
+		localStorage.removeItem(FCM_TOKEN_KEY);
+	}
+	const { PushNotifications } = await loadPushPlugin();
+	await PushNotifications.unregister();
+};
+
+/**
+ * Ein Tipp auf eine Benachrichtigung öffnet ihr Ziel in der App, wie `notificationclick` in
+ * `push-sw.js`: App-Pfade (`/`, `/tasks/42`) gelten ab der App-Wurzel.
+ */
+export const listenForNativePushTaps = async (): Promise<void> => {
+	const { PushNotifications } = await loadPushPlugin();
+	await PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+		const url = String((notification.data as { url?: unknown } | undefined)?.url ?? '/');
+		window.location.assign(
+			new URL(url.replace(/^\//, ''), `${window.location.origin}${import.meta.env.BASE_URL}`).href,
+		);
+	});
+};
+
 /** Ob der Browser Web-Push unterstützt (Service Worker + PushManager + Notification-API vorhanden). */
 export const isPushSupported = (): boolean =>
-	typeof navigator !== 'undefined' &&
-	'serviceWorker' in navigator &&
-	typeof window !== 'undefined' &&
-	'PushManager' in window &&
-	'Notification' in window;
+	isNativeChannel() ||
+	(typeof navigator !== 'undefined' &&
+		'serviceWorker' in navigator &&
+		typeof window !== 'undefined' &&
+		'PushManager' in window &&
+		'Notification' in window);
 
 /**
  * Wandelt einen URL-safe-Base64-VAPID-Schlüssel in ein `Uint8Array` um, wie es
@@ -49,6 +119,11 @@ const hasOtherServerKey = (subscription: PushSubscription, key: Uint8Array): boo
 
 /** Ob aktuell eine aktive Push-Subscription im Browser besteht. */
 export const hasActiveSubscription = async (): Promise<boolean> => {
+	if (isNativeChannel()) {
+		const { PushNotifications } = await loadPushPlugin();
+		const { receive } = await PushNotifications.checkPermissions();
+		return receive === 'granted' && localStorage.getItem(FCM_TOKEN_KEY) !== null;
+	}
 	if (!isPushSupported()) {
 		return false;
 	}
@@ -64,6 +139,9 @@ export const hasActiveSubscription = async (): Promise<boolean> => {
  * (Race-Schutz des Mount-Resyncs gegen `toggle(false)`).
  */
 export const enablePush = async (options?: { shouldAbort?: () => boolean }): Promise<boolean> => {
+	if (isNativeChannel()) {
+		return enableNativePush(options?.shouldAbort);
+	}
 	if (!isPushSupported()) {
 		return false;
 	}
@@ -106,6 +184,10 @@ export const enablePush = async (options?: { shouldAbort?: () => boolean }): Pro
 
 /** Meldet die Subscription am Backend ab und kündigt sie im Browser. No-op ohne aktive Subscription. */
 export const disablePush = async (): Promise<void> => {
+	if (isNativeChannel()) {
+		await disableNativePush();
+		return;
+	}
 	if (!isPushSupported()) {
 		return;
 	}
@@ -187,7 +269,8 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 			storePushPreference(has);
 			// Server-Stand nachziehen (idempotent): kennt der Server die Subscription nicht (mehr),
 			// meldet der Test-Push „gesendet", erreicht aber kein Gerät.
-			if (has && Notification.permission === 'granted') {
+			// `hasActiveSubscription` prüft in der App die Berechtigung schon mit; dort gibt es kein `Notification`.
+			if (has && (isNativeChannel() || Notification.permission === 'granted')) {
 				void enablePush({ shouldAbort: () => resyncAborted.current }).catch(() => undefined);
 			}
 		});
