@@ -39,15 +39,15 @@ interface Call {
 	init: RequestInit;
 }
 
-/** Google-Attrappe: Token-Endpunkt liefert ein Zugriffstoken, der Versand antwortet mit `sendStatus`. */
-const mockGoogle = (sendStatus = 200): Call[] => {
+/** Google-Attrappe: Token-Endpunkt liefert ein Zugriffstoken, der Versand antwortet mit `sendStatus`/`sendBody`. */
+const mockGoogle = (sendStatus = 200, sendBody: unknown = {}): Call[] => {
 	const calls: Call[] = [];
 	mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
 		calls.push({ url, init });
 		if (url === 'https://oauth2.googleapis.com/token') {
 			return Response.json({ access_token: 'access-1', expires_in: 3600 });
 		}
-		return new Response('{}', { status: sendStatus });
+		return Response.json(sendBody, { status: sendStatus });
 	});
 	return calls;
 };
@@ -116,12 +116,23 @@ describe('logics/push — Versand zusätzlich über FCM (#1675)', () => {
 	it('entfernt ein Token, das FCM als unbekannt meldet (404 UNREGISTERED)', async () => {
 		configureFcm();
 		await FcmToken.create({ token: 'stale', userId: 1 });
-		mockGoogle(404);
+		mockGoogle(404, { error: { code: 404, status: 'NOT_FOUND', details: [{ errorCode: 'UNREGISTERED' }] } });
 
 		const result = await sendPushToUser(1, { title: 'x' }, webSender([]));
 
 		assert.deepEqual(result, { sent: 0, removed: 1 });
 		assert.equal(await FcmToken.count(), 0);
+	});
+
+	it('behält Tokens bei einem 404 ohne UNREGISTERED, etwa bei falscher project_id', async () => {
+		configureFcm();
+		await FcmToken.create({ token: 'device-1', userId: 1 });
+		mockGoogle(404, { error: { code: 404, status: 'NOT_FOUND', message: 'Requested entity was not found.' } });
+
+		const result = await sendPushToUser(1, { title: 'x' }, webSender([]));
+
+		assert.deepEqual(result, { sent: 0, removed: 0 });
+		assert.equal(await FcmToken.count(), 1);
 	});
 
 	it('zählt eine Erinnerung trotz zweier Kanäle nur einmal in notification_logs', async () => {

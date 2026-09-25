@@ -127,6 +127,12 @@ FEEDBACK_GITHUB_TOKEN=
 # FEEDBACK_GITHUB_REPO=deleonio/Obsidian    # Default, siehe server/src/express/routes/feedback.ts
 # FEEDBACK_GITHUB_BRANCH=app-feedback       # Default; wird bei Bedarf von main abgezweigt
 # FEEDBACK_GITHUB_DIR=Feedback              # Default-Ablageordner im Repo
+
+# Android-App (ADR 0016/0017): Schlüsseldateien von Google-Service-Accounts, außerhalb des
+# App-Verzeichnisses und chmod 600. Ohne FCM gehen Benachrichtigungen nur per Web-Push raus,
+# ohne Play-Zugang lassen sich Käufe aus der App nicht prüfen (siehe server/.env.example).
+# FCM_SERVICE_ACCOUNT_FILE=/var/www/gh-deploy/priority-pilot/secrets/fcm-service-account.json
+# GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=/var/www/gh-deploy/priority-pilot/secrets/play-service-account.json
 ```
 
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto

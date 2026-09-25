@@ -46,14 +46,16 @@ const defaultSender: PushSender = (subscription, payload) => {
 	return webpush.sendNotification(subscription, payload);
 };
 
+type SendError = { statusCode?: number; errorCode?: string };
+
 /**
- * Stellt an jedes Ziel zu. Meldet der Dienst einen der `goneStatus`, ist das Ziel erloschen und wird
- * gelöscht (Selbstheilung). Andere Fehler (Netzwerk, 5xx) werden protokolliert, das Ziel bleibt.
+ * Stellt an jedes Ziel zu. Erkennt `isGone` am Fehler ein erloschenes Ziel, wird es gelöscht
+ * (Selbstheilung). Andere Fehler (Netzwerk, 5xx) werden protokolliert, das Ziel bleibt.
  */
 const deliver = async <Row extends { id: number; destroy: () => Promise<void> }>(
 	rows: Row[],
 	sendOne: (row: Row) => Promise<unknown>,
-	goneStatus: number[],
+	isGone: (error: SendError) => boolean,
 	channel: string,
 ): Promise<{ sent: number; removed: number }> => {
 	let sent = 0;
@@ -63,12 +65,12 @@ const deliver = async <Row extends { id: number; destroy: () => Promise<void> }>
 			await sendOne(row);
 			sent++;
 		} catch (error) {
-			const statusCode = (error as { statusCode?: number })?.statusCode;
-			if (statusCode !== undefined && goneStatus.includes(statusCode)) {
+			const failure = (error ?? {}) as SendError;
+			if (isGone(failure)) {
 				await row.destroy();
 				removed++;
 			} else {
-				console.warn(`${channel}-Versand an ${row.id} fehlgeschlagen:`, statusCode ?? error);
+				console.warn(`${channel}-Versand an ${row.id} fehlgeschlagen:`, failure.statusCode ?? error);
 			}
 		}
 	}
@@ -78,8 +80,8 @@ const deliver = async <Row extends { id: number; destroy: () => Promise<void> }>
 /**
  * Verschickt eine Push-Nachricht an **alle Web-Push-Subscriptions und FCM-Token eines Nutzers**
  * (Datenisolation #207 über {@link ownerScope}). FCM läuft nur, wenn ein Service-Account konfiguriert
- * ist. Erloschene Ziele werden entfernt: Web-Push meldet sie mit `404`/`410 Gone`, FCM mit `404`
- * (`UNREGISTERED`). Gibt die Zahl der Zustellungen und entfernten Ziele über beide Kanäle zurück.
+ * ist. Erloschene Ziele werden entfernt: Web-Push meldet sie mit `404`/`410 Gone`, FCM mit dem
+ * Fehlercode `UNREGISTERED`. Ein anderer 404 von FCM, etwa bei falscher `project_id`, löscht nichts. Gibt die Zahl der Zustellungen und entfernten Ziele über beide Kanäle zurück.
  *
  * @param send  injizierbarer Web-Push-Versand (Default: web-push); Tests reichen einen Mock herein.
  */
@@ -92,7 +94,7 @@ export const sendPushToUser = async (
 	const web = await deliver(
 		await PushSubscription.findAll({ where: ownerScope(userId) }),
 		(row) => send({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, body),
-		[404, 410],
+		({ statusCode }) => statusCode === 404 || statusCode === 410,
 		'Web-Push',
 	);
 	const fcm = getFcmSender();
@@ -102,7 +104,7 @@ export const sendPushToUser = async (
 	const app = await deliver(
 		await FcmToken.findAll({ where: ownerScope(userId) }),
 		(row) => fcm(row.token, payload),
-		[404],
+		({ errorCode }) => errorCode === 'UNREGISTERED',
 		'FCM',
 	);
 	return { sent: web.sent + app.sent, removed: web.removed + app.removed };

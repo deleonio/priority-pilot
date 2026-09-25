@@ -13,6 +13,7 @@ const paidPlans = PLAN_VALUES.filter((plan): plan is Exclude<Plan, 'free'> => pl
 
 describe('plans.ts — PLAY_PRODUCTS (#1684)', () => {
 	it('jedes kaufbare Paket × Zeitraum hat genau ein Play-Produkt, das eindeutig zurückführt', () => {
+		assert.ok(paidPlans.length > 0, 'keine kaufbaren Pakete');
 		const seen = new Set<string>();
 		for (const plan of paidPlans) {
 			for (const period of PERIODS) {
