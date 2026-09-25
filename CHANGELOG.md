@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.6 - 2026-09-25
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.5 - 2026-09-25
 
-_Enthält v0.5.0 – v0.5.31._
+_Enthält v0.5.0 – v0.5.32._
 
 ### Other Changes
 
@@ -37,6 +41,7 @@ _Enthält v0.5.0 – v0.5.31._
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
 - refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - feat(server): map plans to google play subscription products by @deleonio in https://github.com/deleonio/priority-pilot/pull/1719
+- feat(server): verify and acknowledge google play purchases by @deleonio in https://github.com/deleonio/priority-pilot/pull/1720
 
 ## v0.4 - 2026-09-24
 
@@ -189,7 +194,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): allow admins to switch their own plan for free (#1556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1563
 - feat(frontend): hint on strongly unbalanced pillar weight distribution by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1562
 - docs: align tdd-strategy test scope with adr 0004 and test:scripts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1560
-- feat(server): per-user llm provider selection, gate and quota bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1557
 - feat(server): per-user llm provider selection, gate and quota bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1557
 - feat(server): manage invitations and invite links via mcp tools (#1544) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1558
 - feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
