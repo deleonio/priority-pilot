@@ -225,7 +225,8 @@
 		"imprint": "Note legali",
 		"imprintPath": "note-legali/",
 		"accountDeletion": "Elimina account",
-		"accountDeletionPath": "elimina-account/"
+		"accountDeletionPath": "elimina-account/",
+		"privacy": "Privacy"
 	},
 	"imprint": {
 		"title": "Note legali",

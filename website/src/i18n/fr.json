@@ -228,7 +228,8 @@
 		"imprint": "Mentions légales",
 		"imprintPath": "mentions-legales/",
 		"accountDeletion": "Supprimer le compte",
-		"accountDeletionPath": "supprimer-compte/"
+		"accountDeletionPath": "supprimer-compte/",
+		"privacy": "Confidentialité"
 	},
 	"imprint": {
 		"title": "Mentions légales",

@@ -225,7 +225,8 @@
 		"imprint": "Выходные данные",
 		"imprintPath": "impressum/",
 		"accountDeletion": "Удалить аккаунт",
-		"accountDeletionPath": "delete-account/"
+		"accountDeletionPath": "delete-account/",
+		"privacy": "Конфиденциальность"
 	},
 	"imprint": {
 		"title": "Выходные данные",

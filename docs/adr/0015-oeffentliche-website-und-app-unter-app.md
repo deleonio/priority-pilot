@@ -30,5 +30,5 @@ Eine Route in der SPA hätte gereicht, um die Seite anzuzeigen. Sie wäre aber o
 - Push-Abos hängen an der Service-Worker-Registrierung. Mit dem Umzug nach `/app/` verlieren bestehende Geräte ihr Abo und müssen Push in den Einstellungen einmal neu aktivieren.
 - Die Server-Payload für Push-Nachrichten adressiert weiter App-Routen ab `/`; `push-sw.js` löst sie gegen den eigenen Scope auf. Der Server muss vom Präfix nichts wissen.
 - Der Deploy spielt zwei Builds ins Web-Verzeichnis: `website/dist` an die Wurzel (ohne `app/` zu löschen) und `frontend/dist` nach `app/`. Der Caddy-Block auf dem Server muss einmal von Hand ersetzt werden (`docs/server-setup.md` § 7).
-- Für die offene Registrierung muss der Google-OAuth-Zustimmungsbildschirm auf „In Produktion“ stehen. Eine Datenschutzerklärung fehlt noch; sie ist vor dem öffentlichen Start nötig und wird im Footer ergänzt, sobald der Text vorliegt.
+- Für die offene Registrierung muss der Google-OAuth-Zustimmungsbildschirm auf „In Produktion“ stehen. Die Datenschutzerklärung liegt unter `/datenschutz/` und ist im Footer aller Sprachversionen verlinkt (#1672).
 - Neue Sprachen brauchen nur eine weitere JSON-Datei und einen Eintrag in `LOCALES`. Die Website führt dieselben zehn Sprachen wie die App; die Sprachwahl im Kopf ist ein `details`-Menü ohne JavaScript.

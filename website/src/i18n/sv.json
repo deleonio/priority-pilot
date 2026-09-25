@@ -225,7 +225,8 @@
 		"imprint": "Impressum",
 		"imprintPath": "impressum/",
 		"accountDeletion": "Radera konto",
-		"accountDeletionPath": "radera-konto/"
+		"accountDeletionPath": "radera-konto/",
+		"privacy": "Integritetspolicy"
 	},
 	"imprint": {
 		"title": "Impressum",

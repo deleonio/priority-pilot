@@ -5,6 +5,7 @@
  */
 import type { FeatureId, Plan, PlansCatalog } from '../../server/src/logics/plans.ts';
 import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
+import { PRIVACY } from './privacy.ts';
 import type de from './i18n/de.json';
 
 export type Messages = typeof de;
@@ -173,6 +174,7 @@ ${body}
 				<span>© ${new Date().getFullYear()} Balamentum</span>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
+				<a class="kern-link" href="/datenschutz/">${t(messages.footer.privacy)}</a>
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">
@@ -425,6 +427,40 @@ ${d.steps.map((step) => `						<li>${t(step)}</li>`).join('\n')}
 		title: `${d.title} – Balamentum`,
 		description: d.intro,
 		path: pathFor(locale),
+		pathFor,
+		body,
+	});
+};
+
+/**
+ * Datenschutzerklärung (#1672): nur Deutsch unter der festen URL `/datenschutz/` (Play-Store-Eintrag,
+ * PO-Entscheidung), deshalb zeigt `pathFor` für jede Sprache dasselbe Ziel.
+ */
+export const renderPrivacy = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const { locale } = context;
+	const pathFor = (): string => '/datenschutz/';
+	const body = `			<section class="section">
+					<div class="container container--narrow imprint">
+						<h1 class="kern-heading-large">Datenschutz</h1>
+						<p class="kern-body kern-body--large">${t(PRIVACY.intro)}</p>
+${PRIVACY.sections
+	.flatMap((section) => [
+		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
+		...section.paragraphs.map((paragraph) => `					<p class="kern-body">${t(paragraph)}</p>`),
+		...(section.list
+			? [
+					`					<ul class="kern-body">
+${section.list.map((item) => `						<li>${t(item)}</li>`).join('\n')}
+					</ul>`,
+				]
+			: []),
+	])
+	.join('\n')}				</div>
+			</section>`;
+	return shell(context, {
+		title: 'Datenschutz – Balamentum',
+		description: PRIVACY.description,
+		path: pathFor(),
 		pathFor,
 		body,
 	});

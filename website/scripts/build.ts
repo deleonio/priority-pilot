@@ -25,6 +25,7 @@ import {
 	renderImprint,
 	renderAssetLinks,
 	renderLanding,
+	renderPrivacy,
 	renderRobots,
 	renderSitemap,
 	type Locale,
@@ -94,6 +95,10 @@ for (const locale of LOCALES) {
 	write(join(deletionPath, 'index.html'), renderAccountDeletion({ ...context, operator: OPERATOR, allMessages }));
 	paths.push(homePath(locale), imprintPath, deletionPath);
 }
+
+// Datenschutzerklärung: eine feste deutsche Seite an der Wurzel, Footer-Link in allen Sprachen (#1672).
+write(join('datenschutz', 'index.html'), renderPrivacy({ locale: 'de', messages: de, siteUrl, allMessages }));
+paths.push('/datenschutz/');
 
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {
