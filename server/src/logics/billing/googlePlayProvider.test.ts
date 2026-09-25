@@ -73,11 +73,14 @@ describe('applyPlayState (#1694)', () => {
 
 	it('CANCELED behält das Paket bis zum Periodenende, danach Downgrade', async () => {
 		const { user, subscription } = await setup();
+		// Kündigung während der Kulanz: die Kulanz endet, sonst würde sie das Abo später auf grace_expired setzen.
+		await subscription.update({ status: 'past_due', firstFailureAt: NOW });
 
 		await applyPlayState(subscription, { state: 'CANCELED', expiresAt: PERIOD_END }, false, NOW);
 		await applyDuePendingPlan(subscription, NOW);
 		assert.equal(await planOf(user.id), 'pro', 'vor dem Periodenende');
 		assert.deepEqual(subscription.get('currentPeriodEnd'), PERIOD_END);
+		assert.equal(subscription.get('firstFailureAt'), null);
 
 		await applyDuePendingPlan(subscription, new Date(PERIOD_END.getTime() + 1000));
 		assert.equal(subscription.get('plan'), 'free');

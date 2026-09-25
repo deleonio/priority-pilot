@@ -21,6 +21,7 @@ import {
 	migratePlaceFavoriteDropName,
 	migratePlaceFavoriteAddressUnique,
 	migrateLoginTokenPurpose,
+	migrateSubscriptionExternalIdUnique,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1317,5 +1318,52 @@ describe('migrateLoginTokenPurpose (#1669)', () => {
 		const [rows] = await sequelize.query('SELECT purpose FROM `login_tokens`');
 		assert.deepEqual(rows, [{ purpose: 'magic' }]);
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht');
+	});
+});
+
+// #1690: Ein Kauf beim Anbieter gehört zu genau einem Abo. Auf Bestands-DBs legt die Migration den
+// Unique-Index nach; Duplikate löscht sie nicht, weil an Abos Rechnungen hängen.
+describe('migrateSubscriptionExternalIdUnique (#1690)', () => {
+	const INDEX = 'subscriptions_provider_external_subscription_id';
+
+	const createLegacySubscriptions = async (tokens: string[]): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `subscriptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `provider` VARCHAR(255) NOT NULL, `externalSubscriptionId` VARCHAR(255) NOT NULL)',
+		);
+		for (const token of tokens) {
+			await sequelize.query(
+				`INSERT INTO \`subscriptions\` (\`provider\`, \`externalSubscriptionId\`) VALUES ('google_play', '${token}')`,
+			);
+		}
+	};
+
+	const indexes = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA index_list('subscriptions')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	after(async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.sync();
+	});
+
+	it('legt den Index auf einer Bestands-Tabelle ohne Duplikate an, ein zweiter Lauf ändert nichts', async () => {
+		await createLegacySubscriptions(['a', 'b']);
+
+		await migrateSubscriptionExternalIdUnique(sequelize);
+		await migrateSubscriptionExternalIdUnique(sequelize);
+
+		assert.ok((await indexes()).includes(INDEX));
+	});
+
+	it('lässt doppelte Käufe stehen und legt dann keinen Index an', async () => {
+		await createLegacySubscriptions(['a', 'a']);
+
+		await migrateSubscriptionExternalIdUnique(sequelize);
+
+		assert.ok(!(await indexes()).includes(INDEX));
+		const [rows] = await sequelize.query('SELECT id FROM `subscriptions`');
+		assert.equal(rows.length, 2);
 	});
 });

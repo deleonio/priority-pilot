@@ -6,6 +6,7 @@ import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
@@ -415,6 +416,7 @@ authRouter.get('/auth/me', async (req, res) => {
 	// #1494 (AK7): Abo-Status zusätzlich zu plan/entitlements — kein Abo → definierter Leerwert
 	// `null`. Best-Effort wie der KI-Verbrauch: ein Lesefehler darf `/auth/me` nicht mit 500 reißen.
 	let subscription: {
+		provider: string;
 		plan: string;
 		period: string;
 		status: string;
@@ -424,8 +426,14 @@ authRouter.get('/auth/me', async (req, res) => {
 		graceUntil: Date | null;
 	} | null = null;
 	try {
+		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen).
 		const dbSubscription =
-			typeof user.id === 'number' ? await Subscription.findOne({ where: { userId: user.id } }) : null;
+			typeof user.id === 'number'
+				? ((await Subscription.findOne({
+						where: { userId: user.id, status: OPEN_SUBSCRIPTION_STATUSES },
+						order: [['createdAt', 'DESC']],
+					})) ?? (await Subscription.findOne({ where: { userId: user.id }, order: [['createdAt', 'DESC']] })))
+				: null;
 		if (dbSubscription) {
 			const now = new Date();
 			// #1495 (AK4): ein vorgemerkter Downgrade wirkt zum `currentPeriodEnd` — hier, beim Lesen,
@@ -435,6 +443,7 @@ authRouter.get('/auth/me', async (req, res) => {
 			await applyDueGracePeriod(dbSubscription, now);
 			const firstFailureAt = dbSubscription.get('firstFailureAt') as Date | null;
 			subscription = {
+				provider: dbSubscription.provider,
 				plan: dbSubscription.plan,
 				period: dbSubscription.period,
 				status: dbSubscription.status,

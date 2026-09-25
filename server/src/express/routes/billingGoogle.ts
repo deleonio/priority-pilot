@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { UniqueConstraintError } from 'sequelize';
 import { Subscription } from '../../models/index.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import { syncUserPlan } from '../../logics/billing/lifecycle.js';
 import {
 	acknowledgeIfPending,
@@ -56,14 +58,27 @@ export const createBillingGoogleRouter = (deps: BillingGoogleDeps = {}): Router 
 			return;
 		}
 
+		// Höchstens ein laufendes Abo über alle Anbieter (#1690, ADR 0016): der Kauf wird dann nicht bestätigt.
+		const running = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
+		if (running && running.get('provider') !== PROVIDER) {
+			sendError(res, 409, 'Es läuft bereits ein Abo über einen anderen Anbieter.');
+			return;
+		}
+
 		// Derselbe Kauf ein zweites Mal (Wiederholung, „Käufe wiederherstellen“): kein zweites Abo.
-		const known = await Subscription.findOne({ where: { provider: PROVIDER, externalSubscriptionId: purchaseToken } });
-		if (known) {
+		const answerKnown = async (): Promise<boolean> => {
+			const known = await Subscription.findOne({
+				where: { provider: PROVIDER, externalSubscriptionId: purchaseToken },
+			});
+			if (!known) return false;
 			if (known.get('userId') !== userId) {
 				sendError(res, 403, 'Der Kauf gehört zu einem anderen Konto.');
-				return;
+			} else {
+				res.status(204).end();
 			}
-			res.status(204).end();
+			return true;
+		};
+		if (await answerKnown()) {
 			return;
 		}
 
@@ -97,6 +112,10 @@ export const createBillingGoogleRouter = (deps: BillingGoogleDeps = {}): Router 
 		} catch (error) {
 			if (error instanceof GooglePlayError) {
 				sendError(res, STATUS_FOR_ERROR[error.kind], error.message);
+				return;
+			}
+			// Derselbe Token gleichzeitig eingereicht: der zweite Aufruf trifft den Unique-Index.
+			if (error instanceof UniqueConstraintError && (await answerKnown())) {
 				return;
 			}
 			throw error;

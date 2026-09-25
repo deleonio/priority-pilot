@@ -140,6 +140,7 @@ export const main = async (): Promise<void> => {
 			migrateGroupImageUrl,
 			migratePlaceFavoriteDropName,
 			migratePlaceFavoriteAddressUnique,
+			migrateSubscriptionExternalIdUnique,
 			migrateUserIdColumns,
 			migratePillarDescription,
 			migratePillarPerUser,
@@ -192,6 +193,8 @@ export const main = async (): Promise<void> => {
 		// AK4) — vor sync(), das den Index auf einer Bestands-DB mit Duplikaten sonst nicht anlegen
 		// kann.
 		await migratePlaceFavoriteAddressUnique(sequelize);
+		// Unique-Index (provider, externalSubscriptionId) auf subscriptions (#1690) — vor sync().
+		await migrateSubscriptionExternalIdUnique(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
 		await migrateUserIdColumns(sequelize);
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen
