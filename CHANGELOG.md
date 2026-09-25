@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.5 - 2026-09-25
 
-_Enthält v0.5.0 – v0.5.29._
+_Enthält v0.5.0 – v0.5.31._
 
 ### Other Changes
 
@@ -35,6 +35,8 @@ _Enthält v0.5.0 – v0.5.29._
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
+- refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
+- feat(server): map plans to google play subscription products by @deleonio in https://github.com/deleonio/priority-pilot/pull/1719
 
 ## v0.4 - 2026-09-24
 
@@ -947,7 +949,6 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(frontend): unify card and tab gaps on dashboard, settings and help by @deleonio in https://github.com/deleonio/priority-pilot/pull/1390
 - chore(deps): update dependency undici@6 to v8.10.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1326
 - fix(changelog): consolidate CHANGELOG.md blocks by minor version by @deleonio in https://github.com/deleonio/priority-pilot/pull/1393
-- feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
