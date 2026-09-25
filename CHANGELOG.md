@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.6 - 2026-09-25
 
-_Enthält v0.6.0 – v0.6.11._
+_Enthält v0.6.0 – v0.6.12._
 
 ### Other Changes
 
@@ -19,6 +19,7 @@ _Enthält v0.6.0 – v0.6.11._
 - feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
 - feat(android): Käufe wiederherstellen und fremdverwaltetes Abo anzeigen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1730
 - feat(android): Paket über Google Play wechseln by @deleonio in https://github.com/deleonio/priority-pilot/pull/1731
+- chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1656
 
 ## v0.5 - 2026-09-25
 
@@ -220,7 +221,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): add tester role with admin access except user management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1572
 - feat(frontend): make header sticky with uniform padding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1575
 - fix(server): ungescopten Aufgabenwald beim Start nicht mehr in die Logs schreiben by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1579
-- docs(arc42): sync architecture doc to current state 2026-09-19 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1580
 - docs(arc42): sync architecture doc to current state 2026-09-19 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1580
 - docs: canonical gate as verify mirror + prompt-audit coverage (#1576) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1581
 - feat(frontend): confirm modal before saving unbalanced pillar weights by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1588
