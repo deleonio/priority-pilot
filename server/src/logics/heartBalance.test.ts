@@ -206,11 +206,11 @@ describe('berechneKadenzFuellstand (#1638, docs/spec/issue-1638.md)', () => {
 	const vorTagen = (tage: number): Date => new Date(JETZT.getTime() - tage * TAG_MS);
 
 	const SAEULEN: KadenzSaeule[] = [
-		{ id: 1, name: 'Körper', rhythmusProWoche: 5 },
-		{ id: 2, name: 'Beziehungen', rhythmusProWoche: 3 },
-		{ id: 3, name: 'Mentale Gesundheit', rhythmusProWoche: 3 },
-		{ id: 4, name: 'Wirksamkeit', rhythmusProWoche: 5 },
-		{ id: 5, name: 'Sinn', rhythmusProWoche: 1 },
+		{ id: 1, name: 'Körper', rhythmusProWoche: 5, weight: 1 },
+		{ id: 2, name: 'Beziehungen', rhythmusProWoche: 3, weight: 1 },
+		{ id: 3, name: 'Mentale Gesundheit', rhythmusProWoche: 3, weight: 1 },
+		{ id: 4, name: 'Wirksamkeit', rhythmusProWoche: 5, weight: 1 },
+		{ id: 5, name: 'Sinn', rhythmusProWoche: 1, weight: 1 },
 	];
 
 	/** Erzeugt `anzahl` erledigte Tasks für eine Säule, verteilt über die letzten `tageZurueck` Tage. */

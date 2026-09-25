@@ -158,11 +158,15 @@ export const berechneLebensbalance = (saeulen: BalanceSaeule[], tasks: BalanceTa
 	};
 };
 
-/** Säule im Kadenz-Modell (#1638): Soll-Erledigungen pro Woche aus `PILLAR_RHYTHMS` statt Gewicht. */
+/**
+ * Säule im Kadenz-Modell (#1638): Soll-Erledigungen pro Woche aus `PILLAR_RHYTHMS`; `weight` ist das
+ * `Pillar.weight`, das seit #1663 die Soll-Anteile im Kadenz-Füllstand bestimmt.
+ */
 export interface KadenzSaeule {
 	id: number;
 	name: string;
 	rhythmusProWoche: number;
+	weight: number;
 }
 
 /** Task im Kadenz-Modell: zusätzlich der Erledigt-Zeitpunkt (`ScoreEntry.zeitpunkt`, sonst `null`). */
@@ -184,9 +188,11 @@ const TAG_MS = 24 * 60 * 60 * 1000;
  * Mehrfach-Zuweisungen anteilig (`share / 100`), Tasks ohne Zuweisung gleichverteilt. `punkte` bleibt die
  * kumulative Aufwandssumme über die ganze Historie (`punkteProSaeule`).
  *
- * Aggregation: `fill = 1 − √(Σ defizitᵢ² / n)`. Die Säulen tragen kein Gewicht mehr, gewichtete und
- * ungewichtete Komponente aus `berechneLebensbalance` fallen damit zusammen; anders als dort kann hier
- * jede Säule unabhängig ein volles Defizit haben, das Maximum der Summe ist also n (Normierung 1).
+ * Aggregation (#1663): `fill = min(fillGewichtet, fillUngewichtet)` aus Soll-Anteilen
+ * `sollᵢ = weightᵢ / Σweight` wie in `berechneLebensbalance` (#1474, Strengste-Prinzip). Anders als dort
+ * kann hier jede Säule unabhängig ein volles Defizit haben, das Maximum der gewichteten Summe ist also 1:
+ * `fillGewichtet = 1 − √(Σ sollᵢ · defizitᵢ²)`, `fillUngewichtet = 1 − √(Σ_{sollᵢ>0} defizitᵢ² / |{sollᵢ>0}|)`.
+ * Säulen mit `sollᵢ = 0` fallen aus beiden Komponenten heraus; alle Gewichte 0 → Gleichverteilung.
  */
 export const berechneKadenzFuellstand = (saeulen: KadenzSaeule[], tasks: KadenzTask[], jetzt: Date): KadenzBalance => {
 	const gleichGewichtet = saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: 1 }));
@@ -211,8 +217,24 @@ export const berechneKadenzFuellstand = (saeulen: KadenzSaeule[], tasks: KadenzT
 			return [saeule.id, soll > 0 ? Math.min(1, (anzahl.get(saeule.id) ?? 0) / soll) : 1];
 		}),
 	);
-	const defizitQuadratSumme = saeulen.reduce((summe, saeule) => summe + (1 - (erfuellung.get(saeule.id) ?? 0)) ** 2, 0);
-	const fill = !hasPoints || saeulen.length === 0 ? 0 : 1 - Math.sqrt(defizitQuadratSumme / saeulen.length);
+	const gesamtGewicht = saeulen.reduce((summe, saeule) => summe + saeule.weight, 0);
+	const sollAnteile = saeulen.map((saeule) => (gesamtGewicht > 0 ? saeule.weight / gesamtGewicht : 1 / saeulen.length));
+	const defizite = saeulen.map((saeule) => 1 - (erfuellung.get(saeule.id) ?? 0));
+	// Gewichtung mit Normierung 1: im Kadenz-Modell kann jede Säule unabhängig voll: im Kadenz-Modell kann jede Säule unabhängig voll
+	// unbedient sein, das Maximum der Soll-gewichteten Defizit-Quadrat-Summe ist also Σ sollᵢ = 1.
+	const gewichteteAbweichung = sollAnteile.reduce(
+		(summe, sollAnteil, index) => summe + sollAnteil * defizite[index]! ** 2,
+		0,
+	);
+	const fillGewichtet = 1 - Math.sqrt(gewichteteAbweichung);
+	// Ungewichtete Komponente (Strengste-Prinzip wie #1474): nur Säulen mit Ziel zählen einzeln.
+	const mitZiel = sollAnteile.filter((sollAnteil) => sollAnteil > 0);
+	const defizitQuadratSumme = defizite.reduce(
+		(summe, defizit, index) => (sollAnteile[index]! > 0 ? summe + defizit ** 2 : summe),
+		0,
+	);
+	const fillUngewichtet = mitZiel.length > 0 ? 1 - Math.sqrt(defizitQuadratSumme / mitZiel.length) : 1;
+	const fill = !hasPoints || saeulen.length === 0 ? 0 : Math.min(fillGewichtet, fillUngewichtet);
 
 	return {
 		fill,
@@ -232,8 +254,9 @@ const STANDARD_RHYTHMUS_PRO_WOCHE = 1;
 
 /**
  * Füllstand der Antworten (GET /scores/balance, Verlauf, MCP `balance_status`) im Kadenz-Modell (#1638):
- * Rhythmus je Säule aus `PILLAR_RHYTHMS` (Name), `gewichtung` bleibt `Pillar.weight` — die DTO-Form ist
- * unverändert, `erfuellung` bleibt intern.
+ * Rhythmus je Säule aus `PILLAR_RHYTHMS` (Name), `weight` ist `Pillar.weight` und bestimmt seit #1663 die
+ * Soll-Anteile des Füllstands; `gewichtung` bleibt im DTO `Pillar.weight` — die Form ist unverändert,
+ * `erfuellung` bleibt intern.
  */
 export const berechneLebensbalanceNachKadenz = (
 	saeulen: BalanceSaeule[],
@@ -246,6 +269,7 @@ export const berechneLebensbalanceNachKadenz = (
 			id: saeule.id,
 			name: saeule.name,
 			rhythmusProWoche: rhythmusProName.get(saeule.name) ?? STANDARD_RHYTHMUS_PRO_WOCHE,
+			weight: saeule.weight,
 		})),
 		tasks,
 		jetzt,
