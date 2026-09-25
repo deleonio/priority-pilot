@@ -113,10 +113,13 @@ vi.mock('@capacitor/push-notifications', () => ({ PushNotifications: nativePlugi
 describe('PushToast — native Vordergrund-Push im Kanal play (#1679)', () => {
 	beforeEach(() => {
 		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		// Der Android-WebView kennt `navigator.serviceWorker` auch; der native Pfad muss trotzdem greifen.
+		Object.defineProperty(navigator, 'serviceWorker', { value: new EventTarget(), configurable: true });
 	});
 	afterEach(() => {
 		vi.clearAllMocks();
 		vi.unstubAllGlobals();
+		Reflect.deleteProperty(navigator, 'serviceWorker');
 		cleanup();
 	});
 

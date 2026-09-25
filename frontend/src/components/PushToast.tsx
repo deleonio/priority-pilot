@@ -32,50 +32,51 @@ export const PushToast = () => {
 	const [toast, setToast] = useState<PushPayload | null>(null);
 
 	useEffect(() => {
+		if (isNativeChannel()) {
+			// Native App (#1679): FCM zeigt eine Nachricht mit `notification`-Payload bei offener App
+			// nicht als System-Notification an, sie kommt nur an `pushNotificationReceived`. Zuerst
+			// prüfen: Der WebView kennt `navigator.serviceWorker` auch, dort kommt aber keine Push-Nachricht
+			// an. Das Plugin wird wie in `lib/push.ts` erst on demand geladen, im Web-Bundle steckt es nicht.
+			const onReceived = ({ title, body }: { title?: string; body?: string }) => {
+				if (!title) {
+					return;
+				}
+				flushSync(() => setToast({ title, body }));
+			};
+			let handle: { remove: () => Promise<unknown> } | undefined;
+			let disposed = false;
+			void import('@capacitor/push-notifications')
+				.then(({ PushNotifications }) => PushNotifications.addListener('pushNotificationReceived', onReceived))
+				.then((registered) => {
+					if (disposed) {
+						void registered.remove();
+					} else {
+						handle = registered;
+					}
+				})
+				.catch(() => undefined);
+			return () => {
+				disposed = true;
+				void handle?.remove();
+			};
+		}
 		// Optional chaining: ohne Service-Worker-Unterstützung (z. B. unsicherer Kontext) gibt es
 		// keine Nachrichten — der Mount darf dann trotzdem nicht werfen.
 		const container = navigator.serviceWorker;
-		if (container) {
-			const onMessage = (event: Event) => {
-				const data = (event as MessageEvent).data as { type?: string; payload?: PushPayload } | undefined;
-				if (data?.type !== 'push' || !data.payload?.title) {
-					return;
-				}
-				// `message` ist kein React-Event: ohne `flushSync` verschiebt React 19 das Rendern hinter
-				// den Dispatch (Auto-Batching) — der Hinweis erschiene dann erst einen Tick später.
-				flushSync(() => setToast(data.payload ?? null));
-			};
-			container.addEventListener('message', onMessage);
-			return () => container.removeEventListener('message', onMessage);
-		}
-		if (!isNativeChannel()) {
+		if (!container) {
 			return;
 		}
-		// Native App (#1679): der WebView hat keinen Service Worker, und FCM zeigt eine Nachricht
-		// mit `notification`-Payload bei offener App nicht als System-Notification an — sie kommt nur
-		// an `pushNotificationReceived`. Das Plugin wird wie in `lib/push.ts` erst on demand geladen,
-		// im Web-Bundle steckt es nicht.
-		const onReceived = ({ title, body }: { title?: string; body?: string }) => {
-			if (!title) {
+		const onMessage = (event: Event) => {
+			const data = (event as MessageEvent).data as { type?: string; payload?: PushPayload } | undefined;
+			if (data?.type !== 'push' || !data.payload?.title) {
 				return;
 			}
-			flushSync(() => setToast({ title, body }));
+			// `message` ist kein React-Event: ohne `flushSync` verschiebt React 19 das Rendern hinter
+			// den Dispatch (Auto-Batching) — der Hinweis erschiene dann erst einen Tick später.
+			flushSync(() => setToast(data.payload ?? null));
 		};
-		let handle: { remove: () => Promise<unknown> } | undefined;
-		let disposed = false;
-		void import('@capacitor/push-notifications')
-			.then(({ PushNotifications }) => PushNotifications.addListener('pushNotificationReceived', onReceived))
-			.then((registered) => {
-				if (disposed) {
-					void registered.remove();
-				} else {
-					handle = registered;
-				}
-			});
-		return () => {
-			disposed = true;
-			void handle?.remove();
-		};
+		container.addEventListener('message', onMessage);
+		return () => container.removeEventListener('message', onMessage);
 	}, []);
 
 	if (!toast) {
