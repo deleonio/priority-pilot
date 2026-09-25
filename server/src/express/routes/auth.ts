@@ -9,7 +9,7 @@ import type { UserRole } from '../../models/user.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
-import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/paypal.js';
+import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
