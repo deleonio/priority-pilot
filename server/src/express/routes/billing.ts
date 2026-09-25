@@ -3,7 +3,10 @@ import type { Request, Response } from 'express';
 import { UniqueConstraintError } from 'sequelize';
 import Subscription from '../../models/subscription.js';
 import WebhookEvent from '../../models/webhookEvent.js';
+import { createGooglePlayProvider } from '../../logics/billing/googlePlayProvider.js';
 import { createPaypalProvider } from '../../logics/billing/paypalProvider.js';
+import type { GoogleKeysSource } from '../../logics/googleOidc.js';
+import type { GooglePlayClient } from '../../logics/googlePlay.js';
 import type { BillingProvider } from '../../logics/billing/provider.js';
 import { sendError } from '../http-error.js';
 import type { MailSender } from '../../logics/mail.js';
@@ -26,6 +29,10 @@ export interface BillingDeps {
 	paypalVerifier?: BillingProvider['verifyEvent'];
 	/** Rechnungsversand (#1506) — Muster `paypalVerifier`; Tests injizieren einen Fake. */
 	mailSender?: MailSender;
+	/** Play Developer API für den Abo-Stand nach einer RTDN (#1689) — Tests injizieren einen Fake. */
+	googlePlayClient?: GooglePlayClient;
+	/** Googles Signaturschlüssel für das Pub/Sub-Token (#1689) — Tests reichen eigene herein. */
+	googleKeys?: GoogleKeysSource;
 }
 
 /** Header-Kopie mit kleingeschriebenen Namen (Express liefert sie bereits so, der Typ nicht). */
@@ -44,7 +51,7 @@ const receiveProviderEvent = (provider: BillingProvider) => async (req: Request,
 
 	if (verification === 'invalid') {
 		// Ungültige Signatur: nichts persistieren, nichts wirksam werden lassen (AK1/AK2).
-		sendError(res, 400, 'Signatur des Webhook-Ereignisses ist ungültig.');
+		sendError(res, provider.invalidEventStatus ?? 400, 'Signatur des Webhook-Ereignisses ist ungültig.');
 		return;
 	}
 
@@ -103,7 +110,15 @@ const receiveProviderEvent = (provider: BillingProvider) => async (req: Request,
 		where: { provider: provider.id, externalSubscriptionId: event.externalSubscriptionId },
 	});
 	if (subscription) {
-		await provider.applyEvent(subscription, event, new Date());
+		try {
+			await provider.applyEvent(subscription, event, new Date());
+		} catch (error) {
+			// Nicht als verarbeitet ablegen: die nächste Zustellung des Anbieters versucht es erneut.
+			await stored.destroy();
+			console.warn(`Ereignis ${event.id} von ${provider.id} nicht verarbeitet:`, error);
+			sendError(res, 503, 'Ereignis konnte nicht verarbeitet werden.');
+			return;
+		}
 	}
 	await stored.update({ processedAt: new Date() });
 
@@ -115,6 +130,10 @@ export const createBillingRouter = (deps: BillingDeps = {}): Router => {
 	const paypal = createPaypalProvider({ verifier: deps.paypalVerifier, mailSender: deps.mailSender });
 
 	router.post('/webhooks/paypal', express.raw({ type: 'application/json' }), receiveProviderEvent(paypal));
+
+	// Real-time Developer Notifications von Google Play über Pub/Sub-Push (#1689, ADR 0017).
+	const googlePlay = createGooglePlayProvider({ client: deps.googlePlayClient, keys: deps.googleKeys });
+	router.post('/billing/google/rtdn', express.raw({ type: 'application/json' }), receiveProviderEvent(googlePlay));
 
 	// GET /billing/return — Rückkehr aus dem PayPal-Bezahlvorgang. Bewusst OHNE Zustandsänderung
 	// (AK5): wirksam wird ein Abo allein über das verifizierte Webhook-Ereignis; die Rückkehr-URL ist

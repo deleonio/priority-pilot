@@ -42,6 +42,7 @@ import { createBillingSubscriptionsRouter } from './routes/billingSubscriptions.
 import { createBillingGoogleRouter } from './routes/billingGoogle.js';
 import type { PaypalVerifier, PaypalClient } from '../logics/paypal.js';
 import type { GooglePlayClient } from '../logics/googlePlay.js';
+import type { GoogleKeysSource } from '../logics/googleOidc.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -85,6 +86,8 @@ export interface AppDeps {
 	paypalClient?: PaypalClient;
 	/** Play Developer API für Käufe aus der Android-App (#1687) — Tests injizieren hieran einen Fake. */
 	googlePlayClient?: GooglePlayClient;
+	/** Googles Signaturschlüssel für RTDN (#1689) — Tests reichen eigene herein. */
+	googleKeys?: GoogleKeysSource;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -95,7 +98,14 @@ export const createApp = (deps: AppDeps = {}) => {
 	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die
 	// Signaturprüfung, und PayPal ruft ohne Session und ohne CSRF-Token auf (Muster
 	// `inviteLinksPublicRouter`, `plansPublicRouter`). Der Router bringt sein `express.raw()` selbst mit.
-	app.use(createBillingRouter({ paypalVerifier: deps.paypalVerifier, mailSender: deps.mailSender }));
+	app.use(
+		createBillingRouter({
+			paypalVerifier: deps.paypalVerifier,
+			mailSender: deps.mailSender,
+			googlePlayClient: deps.googlePlayClient,
+			googleKeys: deps.googleKeys,
+		}),
+	);
 
 	// JSON-Body parsen.
 	app.use(express.json());

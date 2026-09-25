@@ -3114,6 +3114,65 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
+  /billing/google/rtdn:
+    post:
+      summary: Abo-Ereignis von Google Play annehmen (RTDN)
+      description: >-
+        Pub/Sub-Push der Real-time Developer Notifications von Google Play (#1689,
+        ADR 0017). Ohne Session und CSRF, vor `requireAuth` gemountet; geprüft wird
+        das OIDC-Token im `Authorization`-Header (Aussteller Google, Zielgruppe
+        `GOOGLE_RTDN_AUDIENCE`, Ablauf, optional das Dienstkonto). Das Ereignis wird
+        dedupliziert über `message.messageId` abgelegt; danach holt der Server den
+        aktuellen Abo-Stand über die Play Developer API und legt ihn am Abo ab.
+      operationId: receiveGooglePlayNotification
+      tags: [billing]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Pub/Sub-Push; die RTDN liegt Base64-kodiert in `message.data`.
+              properties:
+                message:
+                  type: object
+                  properties:
+                    messageId:
+                      type: string
+                    data:
+                      type: string
+                subscription:
+                  type: string
+      responses:
+        '200':
+          description: Ereignis angenommen (auch bei einer wiederholten Zustellung)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [processed, duplicate]
+        '400':
+          description: Rumpf ist kein lesbares Ereignis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: OIDC-Token fehlt oder ist ungültig; nichts wird gespeichert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Google nicht erreichbar; Pub/Sub stellt erneut zu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/google/purchase:
     post:
       summary: Kauf aus der Android-App freischalten
