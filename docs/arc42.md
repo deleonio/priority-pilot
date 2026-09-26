@@ -442,8 +442,8 @@ dokumentiert.
 - **Qualitätseigenschaft:** `#secure` — Zugangsbeschränkung
 - **Szenario:** Ein OAuth- oder Magic-Link-Login mit E-Mail außerhalb der Allowlist.
 - **Erfolgsmessung:** Die Prüfung verwirft das Profil (`isEmailAllowed`); ohne konfigurierte
-  Allowlist startet der Server nicht, außer `OPEN_SIGNUP` öffnet die Registrierung
-  (`logics/allowedEmails.ts`).
+  Allowlist startet der Server in Produktion nicht, außer `OPEN_SIGNUP` öffnet die Registrierung
+  (`logics/allowedEmails.ts`, Startgate `server/src/express/index.ts`).
 
 ### QS-05 — kontrollierter Abbruch
 
