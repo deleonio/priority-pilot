@@ -220,6 +220,12 @@ Achtung bei **Schema-Migrationen**: Ein Rollback der App passt nicht automatisch
 neueren Version — vor Schema-ändernden Releases ein `data/database.sqlite`-Backup ziehen (siehe
 [Sicherheit & Betrieb](#5-sicherheit--betrieb)).
 
+**Schema-Änderungen im Release:** Neue Modell-Spalten brauchen für Bestands-DBs einen Migrator in
+`server/src/logics/migrate.ts`, der im Serverstart **vor** `sequelize.sync()` läuft — `sync()` ohne
+`alter` ergänzt bestehende Tabellen nicht, nur frische DBs bekommen die Spalten von `sync()`. Ohne
+Migrator brechen Lesezugriffe auf Bestands-DBs mit `SQLITE_ERROR: no such column` (Incident #1742:
+`subscriptions.pendingPlan` aus #1505).
+
 ---
 
 ## 5. Sicherheit & Betrieb
