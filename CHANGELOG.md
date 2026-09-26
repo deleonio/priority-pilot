@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.7 - 2026-09-26
 
-_Enthält v0.7.0 – v0.7.1._
+_Enthält v0.7.0 – v0.7.2._
 
 ### 🎉 New Features
 
@@ -15,6 +15,7 @@ _Enthält v0.7.0 – v0.7.1._
 - docs(auth): document magic-link rate limit and gmail alias pitfall by @deleonio in https://github.com/deleonio/priority-pilot/pull/1737
 - chore(deploy): make SITE_URL mandatory by @deleonio in https://github.com/deleonio/priority-pilot/pull/1738
 - fix(deploy): Capacitor-Sync direkt aus node_modules statt gefiltertem pnpm-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1743
+- feat(frontend): redesign login page with brand and website styling by @deleonio in https://github.com/deleonio/priority-pilot/pull/1740
 
 ## v0.6 - 2026-09-26
 
@@ -151,7 +152,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): accept api-key header as bearer token alternative by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1418
 - docs(arc42): record header-only authentication as a risk in section 11 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1419
 - feat(frontend): add icon-only copy buttons with visual feedback by @deleonio in https://github.com/deleonio/priority-pilot/pull/1422
-- feat(frontend): add icon-only copy buttons with visual feedback by @deleonio in https://github.com/deleonio/priority-pilot/pull/1422
 - docs(spec): sync specs with implementation 2026-09-13 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1425
 - docs(guide): sync user guide with current implementation state by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1427
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
@@ -246,6 +246,7 @@ _Enthält v0.2.0 – v0.2.134._
 - docs(AGENTS.md): Align frontend test path with testing.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1592
 - chore(deps): update pnpm to v12.5.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1541
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1476
+- feat(frontend): Header bar full-width with continuous edge (#1587) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1589
 - feat(frontend): Header bar full-width with continuous edge (#1587) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1589
 - feat(server)!: lock pillar crud and restore five default pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1586
 - feat(frontend): tick off checklist items when marking task as done by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1593
