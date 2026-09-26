@@ -74,6 +74,35 @@ describe('LoginPage — Magic Link per E-Mail', () => {
 	});
 });
 
+describe('LoginPage — Wortmarke statt Icon+Text (#1741, AK3)', () => {
+	beforeEach(() => {
+		providers.mockResolvedValue({ google: true, magicLink: false });
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('rendert die Wortmarke und weder Icon noch brand-name-Span', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const brand = document.querySelector('.login-page__brand');
+		expect(brand, 'Brand-Block (.login-page__brand) muss vorhanden sein').toBeTruthy();
+
+		const wordmark = brand?.querySelector('img') ?? null;
+		expect(wordmark, 'Brand-Block muss ein img (Wortmarke) enthalten').toBeTruthy();
+		expect(wordmark?.getAttribute('src'), 'img src muss ein logo-with-name-Asset referenzieren').toMatch(
+			/logo\/logo-with-name/,
+		);
+
+		expect(brand?.querySelector('.login-page__brand-name'), 'brand-name-Span faellt weg (AK3)').toBeNull();
+		expect(
+			document.querySelector('img[src*="icon-192"]'),
+			'keine icon-192-Referenz mehr auf der Login-Seite',
+		).toBeNull();
+	});
+});
+
 describe('LoginPage — Google-Login je Kanal (#1678)', () => {
 	beforeEach(() => {
 		providers.mockResolvedValue({ google: true, magicLink: false });
