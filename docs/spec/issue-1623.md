@@ -1,5 +1,13 @@
 # Issue 1623 — Abstand zwischen den Aktions-Buttons im „Weitere Aktionen"-Popover (K2)
 
+> **ZURÜCKGENOMMEN (27.09., PR #1750):** Die Umsetzung (JS-Gap-Write in den
+> Shadow-DOM, `setToolbarActionGap`) wurde auf Anwenderentscheidung entfernt —
+> das „Weitere Aktionen"-Popover rendert wieder vollständig out of the box
+> (`KolPopoverButton` + `KolToolbar` ohne JS-Stil-Injektion). Der 0px-Abstand
+> des aktiven Default-Themes ist akzeptierter Zustand; AK1 entfällt, AK2
+> (44px-Touch-Targets) liefert KoliBri selbst. Nur KERN_V2 hätte einen
+> Theme-Gap — es ist aber nicht das aktive Theme.
+
 ## Ziel
 
 Bei 375px Viewport haben die sechs Aktions-Buttons im geöffneten „Weitere
