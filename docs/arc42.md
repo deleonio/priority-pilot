@@ -14,11 +14,13 @@ Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite), KI-
 Paketmodell mit PayPal-Abos (Free-/Pro-/Max-/Ultimate-Stufen). Erinnerungen gehen als
 Web-Push oder E-Mail raus.
 
-Das Repository ist ein pnpm-Monorepo mit drei Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
+Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
 
 - `client/` — aus `openapi.yml` generierte API-Typen, Build-Zeit-Abhängigkeit von Frontend und Server
-- `frontend/` — React-SPA als installierbare PWA
+- `frontend/` — React-SPA als installierbare PWA, in Produktion unter `/app/` (ADR 0015)
+- `native/` — Android-App als Capacitor-Wrapper im Remote-Modus, lädt die SPA von der Server-URL (ADR 0016)
 - `server/` — Node.js-API-Server (Express) mit SQLite-Persistenz
+- `website/` — öffentliche, statisch vorgerenderte Landingpage: Deutsch an `/`, neun weitere Sprachen unter `/<sprache>/` (ADR 0015)
 
 ### 1.1 Aufgabenverteilung (Entwicklung)
 
@@ -31,7 +33,7 @@ Menschliche Autorinnen und Autoren nutzen denselben PR-Weg; `main` ist der einzi
 | Priorität | Qualitätsziel | Szenario-Motiv                                                                                                                     |
 | --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | hoch      | #flexible     | Entkopplung, Wartbarkeit, Änderbarkeit: Bausteine mit klarer Abhängigkeitsrichtung, ein Muster je Problem, jede Zeile Wartungslast |
-| hoch      | #secure       | Nur eingeloggte, auf der E-Mail-Allowlist stehende Nutzer erreichen die fachlichen Endpunkte                                       |
+| hoch      | #secure       | Nur eingeloggte, zugelassene Nutzer erreichen die fachlichen Endpunkte (E-Mail-Allowlist, öffnbar über `OPEN_SIGNUP`)              |
 | hoch      | #usable       | Bedienung mobil-first über zugängliche KoliBri-Komponenten                                                                         |
 | hoch      | #suitable     | Kernfachlichkeit: Tasks, Säulen, Serien, Gruppen bilden die vollständige Domäne ab (Server-Routen + `openapi.yml`)                 |
 | mittel    | #efficient    | Skalierbarkeit: Antwortzeiten und Ressourcen wachsen mit Nutzern und Daten kontrolliert, nicht sprunghaft                          |
@@ -56,7 +58,8 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
 - **Externe Verträge:** Google-OAuth-Credentials (ENV), Nominatim-Nutzungsbedingungen
   (Rate-Limit 1 req/s, geteilter Limiter in `server/src/express/routes/geocodeRateLimit.ts`),
   Transitous/MOTIS-API (CORS erzwingt den Server-Proxy, `server/src/express/routes/transit.ts`),
-  Web-Push mit eigenen VAPID-Keys, SMTP-Versand (`SMTP_*`/`MAIL_FROM`), PayPal-API für Abos
+  Web-Push mit eigenen VAPID-Keys, SMTP-Versand (`SMTP_*`/`MAIL_FROM`, versendet auch
+  Magic-Link-Anmeldelinks), PayPal-API für Abos
   und Webhooks (`PAYPAL_*`), GitHub-Contents-API für Feedback-Ablage
   (`FEEDBACK_GITHUB_TOKEN`, `server/src/logics/obsidianFeedback.ts`).
 - **Organisatorisch:** Die KI-Pipeline in `.github/workflows/` orchestriert Ticket-Arbeit; ihre
@@ -67,10 +70,12 @@ Messbare Schwellen aus dem Code (Testabdeckung, Rate-Limits) sind in Abschnitt 1
 ```mermaid
 graph LR
     Nutzer[Nutzer<br/>Browser / PWA] -->|HTTPS| Caddy
+    AndroidApp[Android-App<br/>Capacitor-Wrapper] -->|HTTPS /app/| Caddy
     Betreiber[Betreiber<br/>ssh + PM2] -->|betreibt| Caddy
     MCPClient[Externer MCP-Client<br/>Claude Code / ZCode-Connector] -->|IF-07 MCP| Caddy
     subgraph Host[Dedizierter Server]
-        Caddy[Caddy, TLS] --> SPA[Balamentum SPA]
+        Caddy[Caddy, TLS] --> Web["Website (statisch)"]
+        Caddy --> SPA[Balamentum SPA /app/]
         Caddy -->|"/api/v1/* → strip"| API[Balamentum API]
         API --> DB[(SQLite)]
     end
@@ -83,23 +88,24 @@ graph LR
     API -->|IF-09 SMTP| Mail[Mailserver]
     API -->|IF-10 Contents-API| GitHub[GitHub / Obsidian-Repo]
     API -->|IF-11 FCM HTTP v1| FCM[Firebase Cloud Messaging]
-    API -->|IF-12 Play Developer API| Play[Google Play]
+    FCM -->|Push| AndroidApp
+    API -->|IF-12 Play Developer API + RTDN| Play[Google Play]
 ```
 
-| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                           |
-| ----- | ------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                       |
-| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                          |
-| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`             |
-| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                    |
-| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                                                                 |
-| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                    |
-| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token                                                                |
-| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`) |
-| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate)                                                                                |
-| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                |
-| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                             |
-| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App lesen und bestätigen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`)                                     |
+| ID    | Schnittstelle            | Teilnehmer                    | Bemerkung                                                                                                                                                                                                      |
+| ----- | ------------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IF-01 | REST-API (`openapi.yml`) | Frontend ↔ Server             | Vertrag mit generierten Typen (`client/`, `server/src/api.d.ts`); Caddy bzw. Vite-Proxy streifen `/api/v1` ab                                                                                                  |
+| IF-02 | Google OAuth 2.0         | Server ↔ Google               | `passport-google-oauth20`, Login und stiller Login (`/auth/google`, `/auth/google/silent`)                                                                                                                     |
+| IF-03 | LLM-Chat-Completions     | Server ↔ Mistral / OpenRouter | `server/src/llm/llm.ts`; Provider in der DB (`llm_providers`, instanzweit oder je Nutzer, Auswahl je User), Fix-Provider Mistral über `MISTRAL_API_KEY`                                                        |
+| IF-04 | Geocoding                | Server ↔ Nominatim            | Forward- und Reverse-Geocoding, `server/src/logics/nominatim.ts`                                                                                                                                               |
+| IF-05 | Fahrplandaten            | Server ↔ Transitous           | reiner CORS-Proxy unter `/api/transit/*`, ohne Auth                                                                                                                                                            |
+| IF-06 | Web-Push                 | Server ↔ Browser-Push-Dienst  | `web-push` mit VAPID-Keys, Subscriptions in `push_subscriptions`                                                                                                                                               |
+| IF-07 | MCP (Streamable HTTP)    | Externer Client ↔ Server      | `POST /mcp/v1`, handgerollte Teilmenge ohne SDK (`server/src/mcp/`), Auth per persönlichem API-Token                                                                                                           |
+| IF-08 | PayPal-Subscriptions     | Server ↔ PayPal               | Abo-Anlage/-Wechsel/-Storno und Rechnungen (`routes/billingSubscriptions.ts`); signierter Webhook `POST /webhooks/paypal` (`routes/billing.ts`, `logics/paypal.ts`)                                            |
+| IF-09 | SMTP                     | Server ↔ Mailserver           | `nodemailer` (`logics/mail.ts`); ohne `SMTP_HOST`/`MAIL_FROM` deaktiviert (503-Gate); versendet auch Magic-Link-Anmeldelinks (`routes/magicLink.ts`)                                                           |
+| IF-10 | GitHub-Contents-API      | Server ↔ GitHub               | App-Feedback wird als Markdown im Obsidian-Repo abgelegt (`logics/obsidianFeedback.ts`, PAT aus ENV)                                                                                                           |
+| IF-11 | Firebase Cloud Messaging | Server ↔ FCM                  | HTTP v1 mit Service-Account (`FCM_SERVICE_ACCOUNT_FILE`), Gerätetoken der Android-App in `fcm_tokens` (`logics/fcm.ts`)                                                                                        |
+| IF-12 | Play Developer API       | Server ↔ Google Play          | Abo-Käufe der Android-App bestätigen (`POST /billing/google/purchase`) und per RTDN-Webhook `/billing/google/rtdn` nachziehen (`logics/googlePlay.ts`, Service-Account aus `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`) |
 
 ## 4. Lösungsstrategie
 
@@ -118,7 +124,15 @@ graph LR
 - **UI über KoliBri:** `frontend/src/main.tsx` registriert `@public-ui/components` mit den Themes
   Default und KERN-V2. Die öffentliche Bahn-Seite nutzt bewusst native
   HTML-Elemente (`frontend/src/components/BahnPage.tsx`).
-- **Sicherheit:** Google-OAuth-Login mit E-Mail-Allowlist, Session-Cookies (`httpOnly`,
+- **Öffentliche Website statisch vorgerendert:** `website/` rendert zur Build-Zeit HTML aus
+  i18n-JSON (`website/scripts/build.ts`, `src/render.ts`); die Preise importiert das Skript
+  direkt aus `server/src/logics/plans.ts` — eine Quelle, keine Kopie. Der Android-Wrapper
+  (`native/`) lädt im Remote-Modus dieselbe SPA von `${SITE_URL}/app/` und bündelt nur eine
+  Fehlerseite.
+- **Sicherheit:** Zwei Anmeldewege — Google-OAuth oder Magic-Link per E-Mail
+  (`routes/magicLink.ts`, 15 Minuten gültiger Einmal-Link, benötigt SMTP und `PUBLIC_BASE_URL`;
+  `GET /auth/providers` meldet der Login-Seite die verfügbaren Wege) —, Zugang über
+  E-Mail-Allowlist oder offene Registrierung (`OPEN_SIGNUP`), Session-Cookies (`httpOnly`,
   `SameSite=lax`, `Secure` in Produktion), CSRF-Schutz für schreibende Endpunkte in Produktion
   (`server/src/express/csrf.ts`), Rate-Limits für Auth- und Geocode-Routen.
 - **Gamification als eigene Fachlogik:** Punktevergabe (`server/src/logics/score.ts`, getrennt vom
@@ -128,7 +142,8 @@ graph LR
   (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklarieren ihren
   Feature-Bedarf über `planGuard.ts`, LLM-Routen zählen verbrauchende Nutzungen über
   `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
-  Abos laufen über PayPal (ADR 0013), die Paket-Angebote leben in den Einstellungen (ADR 0014).
+  Abos laufen über PayPal (ADR 0013) oder — in der Android-App — über Google Play Billing mit
+  Server-Verifikation (ADR 0017); die Paket-Angebote leben in den Einstellungen (ADR 0014).
   KI-Kontingente je Monat: Pro 60, Max 110, Ultimate 200 Aufrufe, Free keine KI-Assistenz.
   Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
   Deploy). Übergangsregel (#1463): Vor dem Einschalten hebt das CLI-Skript
@@ -145,6 +160,8 @@ graph TB
         client[client<br/>generierte API-Typen]
         frontend[frontend<br/>React-SPA, PWA]
         server[server<br/>Express-API]
+        website[website<br/>statische Landingpage]
+        native[native<br/>Capacitor-Android-Wrapper]
     end
     openapi[openapi.yml<br/>API-Vertrag]
     ci[.github<br/>CI/CD-Pipeline]
@@ -152,51 +169,67 @@ graph TB
     openapi --> server
     client --> frontend
     client --> server
+    server -.->|Preise aus plans.ts zur Build-Zeit| website
+    frontend -->|lädt die SPA im Remote-Modus| native
     ci --> Repo
 ```
 
-| Baustein      | Verantwortung                                 | Wichtige Dateien                                | Schnittstellen |
-| ------------- | --------------------------------------------- | ----------------------------------------------- | -------------- |
-| `openapi.yml` | API-Vertrag: Pfade, Schemata                  | `openapi.yml`                                   | IF-01          |
-| `client`      | generierte Typen (`paths`, `components`)      | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
-| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA   | `frontend/src/`                                 | IF-01, IF-06   |
-| `server`      | Express-API, Fachlogik, Persistenz, Scheduler | `server/src/`                                   | IF-01 … IF-12  |
-| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy        | `.github/workflows/`                            | —              |
+| Baustein      | Verantwortung                                                                        | Wichtige Dateien                                | Schnittstellen |
+| ------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------- | -------------- |
+| `openapi.yml` | API-Vertrag: Pfade, Schemata                                                         | `openapi.yml`                                   | IF-01          |
+| `client`      | generierte Typen (`paths`, `components`)                                             | `client/src/index.ts`, `client/src/schema.d.ts` | IF-01          |
+| `frontend`    | SPA: Auth-Gate, App-Shell, Komponenten, PWA                                          | `frontend/src/`                                 | IF-01, IF-06   |
+| `server`      | Express-API, Fachlogik, Persistenz, Scheduler                                        | `server/src/`                                   | IF-01 … IF-12  |
+| `website`     | öffentliche Landingpage, statisch vorgerendert, zehn Sprachen, Preise aus `plans.ts` | `website/src/`, `website/scripts/build.ts`      | —              |
+| `native`      | Android-Wrapper (Capacitor, Remote-Modus) für die SPA                                | `native/capacitor.config.ts`, `native/android/` | IF-01, IF-11   |
+| `.github`     | CI/CD: Pipeline-Phasen, Verify, Deploy                                               | `.github/workflows/`                            | —              |
 
 ### 5.2 Server (Whitebox `server`)
 
-| Baustein     | Verantwortung                                                                                             | Wichtige Dateien                                                                                                                                              |
-| ------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `express/`   | Routen, Middleware, Fehlervertrag                                                                         | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `planGuard.ts`, `aiQuotaMeter.ts`, `csrf.ts`, `http-error.ts`, `session.ts` |
-| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)                                | `server.ts`, `tools.ts`                                                                                                                                       |
-| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push/Mail-Trigger, Geo, Pakete, Zahlungen, Migrationen               | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `mail.ts`, `nominatim.ts`, `plans.ts`, `paypal.ts`, `invoices.ts`, `migrate.ts`                    |
-| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, Subscription, Invoice, WebhookEvent u. a. | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`, `subscription.ts`, `invoice.ts`, `webhookEvent.ts`                          |
-| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                                         | `llm.ts`, `llmProviders.ts`                                                                                                                                   |
-| `scheduler/` | Intervall-Ticker für Push-Trigger                                                                         | `index.ts`                                                                                                                                                    |
-| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                                    | `index.ts`, `env.ts`, `database.ts`                                                                                                                           |
+| Baustein     | Verantwortung                                                                                                                   | Wichtige Dateien                                                                                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `express/`   | Routen, Middleware, Fehlervertrag                                                                                               | `index.ts` (App-Zusammenbau), `routes/*.ts`, `requireAuth.ts`, `apiTokenAuth.ts`, `planGuard.ts`, `aiQuotaMeter.ts`, `csrf.ts`, `http-error.ts`, `session.ts`                         |
+| `mcp/`       | MCP-Endpunkt (Streamable HTTP, Werkzeuge auf Basis der bestehenden Routen)                                                      | `server.ts`, `tools.ts`                                                                                                                                                               |
+| `logics/`    | Fachlogik: Baum/Wert, Serien, Score, Push/Mail-Trigger, Anmeldelinks, Geo, Pakete, Zahlungen (PayPal, Google Play), Migrationen | `tree.ts`, `value.ts`, `score.ts`, `series.ts`, `push.ts`, `fcm.ts`, `mail.ts`, `magicLink.ts`, `nominatim.ts`, `plans.ts`, `paypal.ts`, `googlePlay.ts`, `invoices.ts`, `migrate.ts` |
+| `models/`    | Sequelize-Modelle: User, Task, Pillar, Series, Group, ApiToken, Subscription, Invoice, WebhookEvent u. a.                       | `task.ts`, `pillar.ts`, `series.ts`, `group.ts`, `apiToken.ts`, `llmProvider.ts`, `subscription.ts`, `invoice.ts`, `webhookEvent.ts`                                                  |
+| `llm/`       | Provider-unabhängige LLM-Aufrufe und Prompt-Logik                                                                               | `llm.ts`, `llmProviders.ts`                                                                                                                                                           |
+| `scheduler/` | Intervall-Ticker für Push-Trigger                                                                                               | `index.ts`                                                                                                                                                                            |
+| Start        | Bootstrap: Env, DB, Seed, Exit-Handler                                                                                          | `index.ts`, `env.ts`, `database.ts`                                                                                                                                                   |
 
-Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*`, `/health`,
-`/api/transit/*`, `/invite-links/{token}`, `/plans`, der PayPal-Webhook `/webhooks/paypal` und
-`/billing/return`) liegen vor `requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
+Die Route-Mounts stehen in `server/src/express/index.ts`: öffentliche Routen (`/auth/*` inklusive
+Magic-Link-Login, `/health`, `/api/transit/*`, `/invite-links/*` samt `/redeem`, `/plans`,
+`/billing/return` und die Webhooks `/webhooks/paypal` und `/billing/google/rtdn`) liegen vor
+`requireAuth`, alle fachlichen Endpunkte danach hinter der Session-
 oder Bearer-Token-Pflicht. Der globale `apiTokenScopeGuard` hängt hinter `requireAuth`, sperrt die
 Token-Verwaltung (`/api-tokens`) für Bearer-Zugriffe komplett und nimmt den MCP-Endpunkt
 (`/mcp/v1`) ausdrücklich aus — die Scope-Sperre für MCP-Werkzeuge greift stattdessen eine Ebene
 tiefer, am Loopback-Request von `mcp/tools.ts` gegen die Fachroute selbst. Nutzer tragen eine Rolle
 `admin`/`member`/`tester`: Nutzerliste und Rollenvergabe unter `/admin/users*` verlangen
 `requireRole('admin')`; die Paket-Vergabe (`PATCH /admin/users/:id/plan`) erlaubt zusätzlich
-`tester`, serverseitig auf die eigene Id begrenzt (`routes/admin.ts`). Weitere Admin-Routen gibt
-es nicht.
+`tester`, serverseitig auf die eigene Id begrenzt; die Säulen-Neuzuordnung
+(`POST /admin/tasks/reassign-pillars` samt `GET …/status`) verlangt `admin` (`routes/admin.ts`,
+`routes/reassignPillars.ts`). Weitere Admin-Routen gibt es nicht.
 
 ### 5.3 Frontend (Whitebox `frontend`)
 
-| Baustein      | Verantwortung                                                                                                                                                                             | Wichtige Dateien                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                          | `main.tsx`, `Root.tsx`                                                             |
-| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                  | `App.tsx`                                                                          |
-| `components/` | Seiten- und Dialogkomponenten (Dashboard, TaskTable, TaskTree, TaskGraph, Groups, Series, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, BahnPage, …) | `frontend/src/components/`                                                         |
-| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input)                                                      | `frontend/src/lib/`                                                                |
-| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                | `frontend/src/api.ts`                                                              |
-| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                   | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
+| Baustein      | Verantwortung                                                                                                                                                                                                                                      | Wichtige Dateien                                                                   |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Einstieg      | KoliBri-Registrierung, Theme, Auth-Gate mit stillem Google-Login                                                                                                                                                                                   | `main.tsx`, `Root.tsx`                                                             |
+| `App.tsx`     | App-Shell, Tab- und Routensteuerung (`react-router-dom`)                                                                                                                                                                                           | `App.tsx`                                                                          |
+| `components/` | Seiten- und Dialogkomponenten (Dashboard, WeekView, TaskTable, TaskTree, TaskGraph-Panel, GroupsSection, SeriesTab, Settings inkl. Paket-/Abo- und LLM-Einstellungen, Admin-/Token-Verwaltung, Nearby, Lektorat, LoginPage, HelpPage, BahnPage, …) | `frontend/src/components/`                                                         |
+| `lib/`        | Fachliche Utilities und Hooks (Score, Forest, Balance/Heart, Graph-Layout, Plan/Entitlements, Push, Geolocation, Theme, Voice-Input, Native-Plattform inkl. Play-Store, AI-Präferenzen)                                                            | `frontend/src/lib/`                                                                |
+| `api.ts`      | Typsicherer API-Client auf `openapi-fetch`                                                                                                                                                                                                         | `frontend/src/api.ts`                                                              |
+| PWA           | Service Worker, Install-/Update-Prompts                                                                                                                                                                                                            | `public/push-sw.js`, `components/InstallPrompt.tsx`, `components/UpdatePrompt.tsx` |
+
+Die SPA liegt unter der Basis `/app/` (`base` in `frontend/vite.config.ts`, `BrowserRouter`
+mit `basename` in `App.tsx`).
+
+### 5.4 Website und nativer Wrapper (Whitebox `website`, `native`)
+
+| Baustein   | Verantwortung                                                                                                                                                                                          | Wichtige Dateien                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| `website/` | Statisch vorgerenderte Landingpage in zehn Sprachen (Deutsch an `/`, neun weitere unter `/<sprache>/`); Preise kommen zur Build-Zeit aus `server/src/logics/plans.ts`                                  | `scripts/build.ts`, `src/render.ts`, `src/i18n/` |
+| `native/`  | Android-App als Capacitor-Wrapper im Remote-Modus: `server.url` lädt die SPA von `${SITE_URL}/app/`, gebündelt ist nur eine Fehlerseite; Push-Registrierung über `@capacitor/push-notifications` (FCM) | `capacitor.config.ts`, `android/`                |
 
 ## 6. Laufzeitsicht
 
@@ -218,8 +251,13 @@ sequenceDiagram
 ```
 
 Die Loop-Guards (`pp_silent_attempted`, `pp_just_logged_out`, `?silent=unavailable`) liegen in
-`frontend/src/Root.tsx`. Ohne Google-Credentials zeigt der Server `/auth/test-login` (nicht in
-Produktion, `server/src/express/routes/auth.ts`).
+`frontend/src/Root.tsx`. `/auth/test-login` ist nur mit `NODE_ENV=test` registriert
+(`server/src/express/routes/auth.ts`).
+
+Neben Google existiert der Magic-Link-Weg: `POST /auth/magic-link` beantwortet der Server für
+jede syntaktisch gültige Adresse mit 15 Minuten gültigem Einmal-Link per E-Mail (202 immer, um
+zugelassene Adressen nicht verraten); das Einlösen baut über `establishSession` dieselbe Session
+auf (`server/src/express/routes/magicLink.ts`).
 
 ### 6.2 Task mit KI-Säulen-Klassifikation anlegen
 
@@ -258,22 +296,25 @@ push-unabhängig im zweiten Ticker und ist standardmäßig aktiv; sie lässt sic
 
 ### 7.1 Entwicklung
 
-`pnpm dev` startet Frontend und Server parallel: der Vite-Dev-Server leitet
-(`/api/v1`, `/api/transit`, `/auth` → `http://localhost:3000`, `frontend/vite.config.ts`) an
-den Express auf Port 3000 mit SQLite unter `server/database.sqlite` (`DATABASE_STORAGE`).
-Die Typen aus `openapi.yml` erzeugt der `prepare`-Schritt bei der Installation und jeder Build.
-Tests: `pnpm --filter server test` (node:test, In-Memory-SQLite), `pnpm --filter frontend test`
-(Vitest + jsdom), `pnpm --filter frontend test:e2e` (Playwright, nur Chromium, gegen echtes Backend).
+`pnpm dev` startet Frontend und Server parallel: der Vite-Dev-Server bedient die SPA unter
+`/app/` (`base: '/app/'`) und leitet (`/api/v1`, `/api/transit`, `/auth` →
+`http://localhost:3000`, `frontend/vite.config.ts`) an den Express auf Port 3000 mit SQLite
+unter `server/database.sqlite` (`DATABASE_STORAGE`). Die Typen aus `openapi.yml` erzeugt der
+`prepare`-Schritt bei der Installation und jeder Build. Tests: `pnpm --filter server test`
+(node:test, In-Memory-SQLite), `pnpm --filter frontend test` (Vitest + jsdom),
+`pnpm --filter frontend test:e2e` (Playwright, nur Chromium, gegen echtes Backend),
+`pnpm --filter website test`/`test:e2e` (Vitest; Playwright mit 375-px- und Desktop-Viewport).
 
 ### 7.2 Produktion
 
 ```mermaid
 graph TD
     subgraph GHA["GitHub Actions"]
-        Build["pnpm -r build<br/>client → frontend → server"]
+        Build["pnpm -r build<br/>alle Workspaces inkl. Website und APK"]
     end
     subgraph Host["Dedizierter Server"]
-        Caddy[Caddy, TLS] --> SPA["frontend/dist (statische SPA)"]
+        Caddy[Caddy, TLS] --> Web["website/dist an der Wurzel"]
+        Caddy --> SPA["frontend/dist unter /app/"]
         Caddy -->|"/api/v1/* → strip"| Node["node server/dist/index.js :3000"]
         Node --> SQLite[("data/database.sqlite<br/>vom rsync ausgenommen")]
         PM2[PM2] --- Node
@@ -282,10 +323,13 @@ graph TD
     Build -->|ssh pm2 reload| PM2
 ```
 
-Jeder Merge auf `main` baut in GitHub Actions und spiegelt die `dist`-Verzeichnisse per `rsync`
-auf den Server; danach startet `pm2 reload priority-pilot` das Backend genau einmal neu
+Jeder Merge auf `main` baut in GitHub Actions (`pnpm -r build`, anstoßend aus `openapi.yml` über
+die generierten Typen) und spiegelt die `dist`-Verzeichnisse per `rsync` auf den Server: die
+Website an die Wurzel (ohne `app/`), die SPA nach `app/`, das Backend in sein Laufzeitverzeichnis;
+aus `native/` entsteht zusätzlich die Android-APK. Danach startet
+`pm2 reload priority-pilot` das Backend genau einmal neu
 ([deployment.md](deployment.md)). Der Session-Store ist in Produktion SQLite oder Redis
-(`SESSION_STORE`, `server/src/express/session.ts`), der Frontend-Workspace `client` ist nur
+(`SESSION_STORE`, `server/src/express/session.ts`), der Workspace `client` ist nur
 Build-Zeit-Bestandteil und wird nicht ausgeliefert. Die Pipeline-Workflows (`.github/workflows/`)
 laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
 
@@ -296,6 +340,7 @@ laufen ausschließlich in GitHub Actions und berühren den Betriebshost nicht.
   (`pnpm build:api` in `server` lint und build).
 - **Authentifizierung und Autorisierung:** Session-basiert (`express-session` + Passport nur als
   OAuth-Brücke); der User lebt in `req.session.user`, `requireAuth` schützt alle fachlichen Routen.
+  Google-Login und Magic-Link bauen dieselbe Session auf (`establishSession`).
   Externe Clients (MCP, Skripte) authentifizieren sich alternativ über persönliche API-Tokens
   (`Authorization: Bearer pp_…` oder `api-key`/`x-api-key`, gehasht in `api_tokens`, mit
   Pflicht-Ablaufdatum für Neuanlagen — Altbestand ohne `expiresAt` bleibt unbefristet —, geprüft
@@ -395,9 +440,10 @@ dokumentiert.
 ### QS-04 — Registrierung nur für Bekannte
 
 - **Qualitätseigenschaft:** `#secure` — Zugangsbeschränkung
-- **Szenario:** Ein OAuth-Login mit E-Mail außerhalb der Allowlist.
-- **Erfolgsmessung:** Die Strategie verwirft das Profil (`isEmailAllowed`); in Produktion ohne
-  konfigurierte Allowlist startet der Server nicht (`getConfiguredEmails`).
+- **Szenario:** Ein OAuth- oder Magic-Link-Login mit E-Mail außerhalb der Allowlist.
+- **Erfolgsmessung:** Die Prüfung verwirft das Profil (`isEmailAllowed`); ohne konfigurierte
+  Allowlist startet der Server nicht, außer `OPEN_SIGNUP` öffnet die Registrierung
+  (`logics/allowedEmails.ts`).
 
 ### QS-05 — kontrollierter Abbruch
 
@@ -468,3 +514,5 @@ dokumentiert.
 | Entitlement                   | Feature-Freigabe je Paket (`shouldBlockFeature`), deklariert pro Route über `planGuard.ts`                                             |
 | API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                        |
 | MCP                           | Model Context Protocol; `POST /mcp/v1` bietet externen Clients (Claude Code, ZCode-Connector) `initialize`, `tools/list`, `tools/call` |
+| Magic-Link-Login              | Zweiter Anmeldeweg: 15 Minuten gültiger Einmal-Link per E-Mail (`POST /auth/magic-link`)                                               |
+| RTDN                          | Real-Time Developer Notifications: Google-Play-Webhook `/billing/google/rtdn` meldet Abo-Änderungen der Android-App                    |
