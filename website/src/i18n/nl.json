@@ -214,6 +214,10 @@
 			{
 				"q": "Is de app toegankelijk?",
 				"a": "De interface volgt WCAG 2.2 en BITV 2.0 en gebruikt de geteste componenten van KoliBri."
+			},
+			{
+				"q": "Waarom komt de aanmeldmail niet aan?",
+				"a": "Per adres worden maximaal drie aanmeldlinks per 15 minuten verstuurd; verdere verzoeken binnen die periode blijven zonder mail. Controleer ook je spammap. @gmail.com- en @googlemail.com-adressen komen in dezelfde mailbox, maar zijn twee aparte accounts in de app — gebruik consequent één schrijfwijze."
 			}
 		]
 	},

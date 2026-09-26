@@ -217,6 +217,10 @@
 			{
 				"q": "Czy aplikacja jest dostępna cyfrowo?",
 				"a": "Interfejs jest zgodny z WCAG 2.2 i BITV 2.0 i korzysta ze sprawdzonych komponentów KoliBri."
+			},
+			{
+				"q": "Dlaczego e-mail z linkiem do logowania nie dochodzi?",
+				"a": "Na jeden adres wysyłamy maksymalnie trzy linki do logowania na 15 minut; kolejne prośby w tym oknie pozostają bez wiadomości. Sprawdź też folder spam. Adresy @gmail.com i @googlemail.com trafiają do tej samej skrzynki, ale w aplikacji to dwa osobne konta — używaj konsekwentnie jednej formy."
 			}
 		]
 	},

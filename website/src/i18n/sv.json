@@ -214,6 +214,10 @@
 			{
 				"q": "Är appen tillgänglig?",
 				"a": "Gränssnittet följer WCAG 2.2 och BITV 2.0 och använder de granskade komponenterna från KoliBri."
+			},
+			{
+				"q": "Varför kommer inloggningsmejlet inte fram?",
+				"a": "Högst tre inloggningslänkar skickas per adress var 15:e minut; ytterligare förfrågningar inom det fönstret lämnas utan mejl. Kontrollera även skräppostmappen. Adresser på @gmail.com och @googlemail.com landar i samma inkorg men är två separata konton i appen — använd konsekvent en och samma stavning."
 			}
 		]
 	},

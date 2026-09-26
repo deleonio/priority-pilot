@@ -214,6 +214,10 @@
 			{
 				"q": "Ist die App barrierefrei?",
 				"a": "Die Oberfläche folgt WCAG 2.2 und BITV 2.0 und nutzt die geprüften Komponenten von KoliBri."
+			},
+			{
+				"q": "Warum kommt die Anmelde-Mail nicht an?",
+				"a": "Pro Adresse gehen höchstens drei Anmeldelinks je 15 Minuten raus — weitere Anfragen bleiben in diesem Zeitfenster still ohne Mail. Prüfe zusätzlich den Spam-Ordner. @gmail.com- und @googlemail.com-Adressen landen im selben Postfach, sind in der App aber zwei getrennte Konten; nutze durchgehend eine Schreibweise."
 			}
 		]
 	},

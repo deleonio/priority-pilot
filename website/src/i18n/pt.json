@@ -217,6 +217,10 @@
 			{
 				"q": "A app é acessível?",
 				"a": "A interface segue as WCAG 2.2 e a BITV 2.0 e usa os componentes testados do KoliBri."
+			},
+			{
+				"q": "Por que o e-mail de login não chega?",
+				"a": "São enviados no máximo três links de login por endereço a cada 15 minutos; pedidos adicionais desse período ficam sem e-mail. Verifique também a pasta de spam. Endereços @gmail.com e @googlemail.com chegam à mesma caixa de entrada, mas são duas contas separadas no app — use sempre a mesma grafia."
 			}
 		]
 	},
