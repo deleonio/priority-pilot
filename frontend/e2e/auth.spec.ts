@@ -31,6 +31,33 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 	);
 };
 
+test.describe('AK1 — Pillen-Rundung der Anmeldeseite (#1745)', () => {
+	test('E-Mail-Eingabefeld rundet wie die Pillen-Knöpfe (computed border-radius gleich)', async ({ page }) => {
+		await mockUnauthenticated(page);
+		// Magic-Link-Formular freischalten — nur dort rendert `.login-page__input` (Muster silent-login.spec.ts).
+		await page.route('**/auth/providers', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ google: true, magicLink: true }),
+			}),
+		);
+		await page.goto('/app/');
+
+		const input = page.locator('.login-page__input');
+		const button = page.locator('.login-page__btn').first();
+		await expect(input).toBeVisible();
+		await expect(button).toBeVisible();
+
+		const inputRadius = await input.evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+		const buttonRadius = await button.evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+		expect(
+			Math.abs(inputRadius - buttonRadius),
+			`border-radius des E-Mail-Felds (${inputRadius}px) muss der Pillen-Rundung der Knöpfe (${buttonRadius}px) entsprechen`,
+		).toBeLessThanOrEqual(1);
+	});
+});
+
 test.describe('AK 7 — Frontend-Guard (#208)', () => {
 	test('AK7a: Unauthentifizierter Aufruf zeigt LoginPage — Haupt-App ausgeblendet', async ({ page }) => {
 		await mockUnauthenticated(page);
