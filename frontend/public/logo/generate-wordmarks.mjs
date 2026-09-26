@@ -1,226 +1,158 @@
 #!/usr/bin/env node
 /**
- * Erzeugt die Wortmarken-Assets aus logo.png + Schriftzug "Balamentum" (#1741):
- * - logo-with-name.vertical.png / .horizontal.png (Raster, transparent, AK1)
- * - logo-with-name.vertical.svg (Vektor-Text mit currentColor für Dark-Mode-taugliche
- *   Einbindung über <img>, AK2; Marke als eingebettetes, verkleinertes Raster-PNG)
+ * Erzeugt die Wortmarken-Assets "balamentum" (#1741, Variante "Waage"): Marke, Schriftzug in
+ * Archivo 600 und darunter ein Balken im Farbverlauf der Marke.
+ * - logo-with-name.horizontal.svg / .horizontal.dark.svg: Schrift als eingebettete Archivo,
+ *   Tinte je Theme fest (--pp-ink hell/dunkel). Ein SVG in <img> erbt weder currentColor noch
+ *   Web-Fonts der Seite, daher zwei Varianten und eingebettete Schrift.
+ * - logo-with-name.vertical.png / .horizontal.png (Raster, transparent, helle Tinte)
  * - proofs/wordmark-light.png + -dark.png (Kontrast-Nachweis AK2 auf beiden surface-0)
  *
- * Die Marke wird wie in icons/generate-icons-linux.mjs per Chroma-Key von ihrer
- * Creme-Fläche befreit (PNG-Helfer von dort kopiert, das Skript läuft dort beim
- * Import los); Text rendert Chromium (Playwright-Cache), da sharp/rsvg hier fehlen.
+ * Marke: icons/icon-512x512.png (bereits freigestellt). Rendern übernimmt Chromium (Playwright);
+ * weicht dessen Version vom Cache ab: CHROMIUM_PATH=/pfad/zu/chrome setzen.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { inflateSync, deflateSync } from 'node:zlib';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from '@playwright/test';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const WORD = 'Balamentum';
-const INK = '#12161d'; // --pp-ink (Light); SVG nutzt currentColor und erbt beide Themes
+const dir = fileURLToPath(new URL('.', import.meta.url));
+const require = createRequire(import.meta.url);
+const WORD = 'balamentum';
+const INK = { light: '#12161d', dark: '#e6eaf0' }; // --pp-ink je Theme (app.css)
+const SURFACE = { light: '#f7f8fa', dark: '#12161c' }; // --pp-surface-0 je Theme
+// Farben der Marke von links nach rechts: blau, grün, gelb, orange, rot
+const BEAM = ['#4a9bd6', '#5fb87a', '#f6c33b', '#ef7a4b', '#e8553a'];
 
-// ── PNG-Helfer (Kopie aus ../icons/generate-icons-linux.mjs) ─────────────────
+const font = readFileSync(require.resolve('@fontsource/archivo/files/archivo-latin-600-normal.woff2'));
+const FONT_URI = `data:font/woff2;base64,${font.toString('base64')}`;
+const MARK_PATH = resolve(dir, '../icons/icon-512x512.png');
+const MARK_URI = `data:image/png;base64,${readFileSync(MARK_PATH).toString('base64')}`;
 
-function paethPredictor(a, b, c) {
-	const p = a + b - c;
-	const pa = Math.abs(p - a),
-		pb = Math.abs(p - b),
-		pc = Math.abs(p - c);
-	return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
-}
-
-function readPng(filePath) {
-	const buf = readFileSync(filePath);
-	let offset = 8,
-		width = 0,
-		height = 0,
-		colorType = 0;
-	const idatChunks = [];
-	while (offset < buf.length - 4) {
-		const len = buf.readUInt32BE(offset);
-		const type = buf.toString('ascii', offset + 4, offset + 8);
-		const data = buf.subarray(offset + 8, offset + 8 + len);
-		offset += 12 + len;
-		if (type === 'IHDR') {
-			width = data.readUInt32BE(0);
-			height = data.readUInt32BE(4);
-			colorType = data[9];
-		} else if (type === 'IDAT') idatChunks.push(Buffer.from(data));
-		else if (type === 'IEND') break;
-	}
-	const channels = colorType === 6 ? 4 : 3;
-	const raw = inflateSync(Buffer.concat(idatChunks));
-	const stride = 1 + width * channels;
-	const pixels = Buffer.alloc(width * height * channels, 0);
-	for (let y = 0; y < height; y++) {
-		const ft = raw[y * stride];
-		for (let x = 0; x < width; x++) {
-			for (let c = 0; c < channels; c++) {
-				const rb = raw[y * stride + 1 + x * channels + c];
-				const di = (y * width + x) * channels + c;
-				const l = x > 0 ? pixels[di - channels] : 0;
-				const u = y > 0 ? pixels[di - width * channels] : 0;
-				const ul = x > 0 && y > 0 ? pixels[di - width * channels - channels] : 0;
-				let v;
-				switch (ft) {
-					case 0:
-						v = rb;
-						break;
-					case 1:
-						v = (rb + l) & 0xff;
-						break;
-					case 2:
-						v = (rb + u) & 0xff;
-						break;
-					case 3:
-						v = (rb + Math.floor((l + u) / 2)) & 0xff;
-						break;
-					case 4:
-						v = (rb + paethPredictor(l, u, ul)) & 0xff;
-						break;
-					default:
-						throw new Error(`Unknown PNG filter type ${ft}`);
-				}
-				pixels[di] = v;
-			}
-		}
-	}
-	return { width, height, channels, pixels };
-}
-
-function crc32(buf) {
-	let c = ~0;
-	for (let i = 0; i < buf.length; i++) {
-		c ^= buf[i];
-		for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-	}
-	return ~c >>> 0;
-}
-
-function makeChunk(type, data) {
-	const len = Buffer.alloc(4);
-	len.writeUInt32BE(data.length, 0);
-	const typeB = Buffer.from(type, 'ascii');
-	const crc = Buffer.alloc(4);
-	crc.writeUInt32BE(crc32(Buffer.concat([typeB, data])), 0);
-	return Buffer.concat([len, typeB, data, crc]);
-}
-
-function writePng(pixels, width, height, hasAlpha) {
-	const channels = hasAlpha ? 4 : 3;
-	const ihdr = Buffer.alloc(13);
-	ihdr.writeUInt32BE(width, 0);
-	ihdr.writeUInt32BE(height, 4);
-	ihdr[8] = 8;
-	ihdr[9] = hasAlpha ? 6 : 2;
-	const rawData = Buffer.alloc(height * (1 + width * channels));
-	for (let y = 0; y < height; y++) {
-		rawData[y * (1 + width * channels)] = 0;
-		for (let x = 0; x < width; x++) {
-			const si = (y * width + x) * channels;
-			const di = y * (1 + width * channels) + 1 + x * channels;
-			for (let c = 0; c < channels; c++) rawData[di + c] = pixels[si + c];
-		}
-	}
-	return Buffer.concat([
-		Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-		makeChunk('IHDR', ihdr),
-		makeChunk('IDAT', deflateSync(rawData, { level: 6 })),
-		makeChunk('IEND', Buffer.alloc(0)),
-	]);
-}
-
-/** Cream threshold wie icons/generate-icons-linux.mjs: sehr helle, nahezu neutrale Pixel → transparent. */
-function toRgbaWithChromaKey(src, srcChannels) {
-	const n = src.length / srcChannels;
-	const out = Buffer.alloc(n * 4);
-	for (let i = 0; i < n; i++) {
-		const r = src[i * srcChannels];
-		const g = src[i * srcChannels + 1];
-		const b = src[i * srcChannels + 2];
-		const a = srcChannels === 4 ? src[i * srcChannels + 3] : 255;
-		const isCream = r >= 230 && g >= 226 && b >= 222;
-		out[i * 4] = r;
-		out[i * 4 + 1] = g;
-		out[i * 4 + 2] = b;
-		out[i * 4 + 3] = isCream ? 0 : a;
-	}
-	return out;
-}
-
-// ── Marke chroma-keyen (Creme → transparent), Ratio für <img>-höhen merken ────
-
-const logo = readPng(resolve(__dirname, 'logo.png'));
-const markPng = writePng(toRgbaWithChromaKey(logo.pixels, logo.channels), logo.width, logo.height, true);
-const MARK_DATA_URI = `data:image/png;base64,${markPng.toString('base64')}`;
-const MARK_RATIO = logo.width / logo.height; // 1698/1659 ≈ 1,024 (breiter als hoch)
-
-/** SVG-Wortmarke: verkleinerte Marke (als eingebettetes Raster) über Schriftzug in currentColor. */
-function wordmarkSvg(markDataUri) {
-	// ViewBox 720×250: Marke 190px breit, Schrift 76px bold.
-	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 250" role="img">
-	<image href="${markDataUri}" x="265" y="8" width="190" height="${Math.round(190 / MARK_RATIO)}"/>
-	<text x="360" y="235" text-anchor="middle" fill="currentColor" font-family="Archivo, system-ui, sans-serif" font-weight="700" font-size="76" letter-spacing="1">${WORD}</text>
+/** Horizontale Wortmarke als SVG; Maße aus der im Browser geladenen Schrift gemessen. */
+function buildSvg({ ink, markUri, markRatio, fontUri, word, beam }) {
+	const MARK = 104; // Markenhöhe; Breite folgt dem Seitenverhältnis
+	const MARK_W = Math.round(MARK * markRatio);
+	const PAD = 4; // Luft für Glyphen-Überhang rechts
+	const GAP = 28;
+	const FS = 84;
+	const TRACK = -1.25; // -0.015em
+	const BEAM_GAP = 14;
+	const BEAM_H = 8;
+	const ctx = document.createElement('canvas').getContext('2d');
+	ctx.font = `600 ${FS}px Wm`;
+	const ascent = Math.ceil(ctx.measureText(word).actualBoundingBoxAscent);
+	const ns = 'http://www.w3.org/2000/svg';
+	const probe = document.createElementNS(ns, 'svg');
+	probe.innerHTML = `<text font-family="Wm" font-weight="600" font-size="${FS}" letter-spacing="${TRACK}">${word}</text>`;
+	document.body.append(probe);
+	const textW = Math.ceil(probe.querySelector('text').getComputedTextLength());
+	probe.remove();
+	// Schriftblock (Oberlänge bis Balkenunterkante) vertikal zur Marke zentrieren
+	const block = ascent + BEAM_GAP + BEAM_H;
+	const baseline = Math.round((MARK - block) / 2 + ascent);
+	const x = MARK_W + GAP;
+	const stops = beam.map((c, i) => `<stop offset="${i / (beam.length - 1)}" stop-color="${c}"/>`).join('');
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${x + textW + PAD} ${MARK}" role="img" aria-label="Balamentum">
+	<defs><style>@font-face{font-family:Wm;font-weight:600;src:url(${fontUri}) format("woff2")}</style><linearGradient id="beam">${stops}</linearGradient></defs>
+	<image href="${markUri}" width="${MARK_W}" height="${MARK}"/>
+	<text x="${x}" y="${baseline}" fill="${ink}" font-family="Wm, Archivo, system-ui, sans-serif" font-weight="600" font-size="${FS}" letter-spacing="${TRACK}" textLength="${textW}" lengthAdjust="spacing">${word}</text>
+	<rect x="${x}" y="${baseline + BEAM_GAP}" width="${textW}" height="${BEAM_H}" rx="${BEAM_H / 2}" fill="url(#beam)"/>
 </svg>`;
 }
 
-/** HTML-Gerüst für die Raster-Wordmarks (transparent, Chromium rendert Anti-Alias-Alpha). */
-function wordmarkHtml({ vertical }) {
-	const layout = vertical
-		? 'flex-direction: column; gap: 28px;'
-		: 'flex-direction: row; align-items: center; gap: 40px;';
-	const markSize = vertical ? 520 : 380;
-	const fontSize = vertical ? 190 : 150;
-	return `<!doctype html><html><body style="margin:0;background:transparent">
-		<div id="wordmark" style="display:inline-flex;${layout}padding:24px;font-family:Archivo,system-ui,sans-serif">
-			<img src="${MARK_DATA_URI}" width="${markSize}" height="${Math.round(markSize / MARK_RATIO)}"/>
-			<span style="font-weight:700;font-size:${fontSize}px;letter-spacing:2px;color:${INK};line-height:1">${WORD}</span>
+/** HTML-Gerüst für die Raster-Wortmarken (transparent). */
+function lockupHtml(vertical, markUri) {
+	const s = vertical ? 2.4 : 2; // Pixel je SVG-Einheit der Maße oben / 2
+	const layout = vertical ? 'flex-direction:column;align-items:center;gap:40px' : 'align-items:center;gap:56px';
+	return `<!doctype html><style>@font-face{font-family:Wm;font-weight:600;src:url(${FONT_URI})}</style>
+	<body style="margin:0;background:transparent">
+		<div id="wm" style="display:inline-flex;${layout};padding:24px">
+			<img src="${markUri}" style="height:${(vertical ? 128 : 104) * s}px">
+			<span style="display:inline-flex;flex-direction:column;gap:${14 * s}px">
+				<span style="font:600 ${84 * s}px/1 Wm;letter-spacing:-0.015em;color:${INK.light}">${WORD}</span>
+				<span style="height:${8 * s}px;border-radius:${4 * s}px;background:linear-gradient(90deg,${BEAM.join(',')})"></span>
+			</span>
 		</div>
-	</body></html>`;
+	</body>`;
 }
 
-// ── Generierung ──────────────────────────────────────────────────────────────
-
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 try {
+	const page = await browser.newPage({ viewport: { width: 2400, height: 1400 } });
+	const tmp = resolve(dir, '.wordmark.tmp.html');
+
+	// file://-Seite, damit data:-Fonts und -Bilder sicher vor dem Rendern laden
+	writeFileSync(tmp, `<!doctype html><style>@font-face{font-family:Wm;font-weight:600;src:url(${FONT_URI})}</style>`);
+	await page.goto(pathToFileURL(tmp).href);
+	await page.evaluate(() => document.fonts.load('600 84px Wm'));
+
+	// Marke auf ihre deckenden Pixel zuschneiden (das Icon hat Innenrand) und fürs SVG
+	// auf 2× der Markenhöhe als WebP verkleinern, sonst > 130 KB je Datei
+	const mark = await page.evaluate(async (src) => {
+		const img = new Image();
+		img.src = src;
+		await img.decode();
+		const full = Object.assign(document.createElement('canvas'), { width: img.width, height: img.height });
+		const fctx = full.getContext('2d');
+		fctx.drawImage(img, 0, 0);
+		const { data } = fctx.getImageData(0, 0, img.width, img.height);
+		let [x0, y0, x1, y1] = [img.width, img.height, 0, 0];
+		for (let y = 0; y < img.height; y++)
+			for (let x = 0; x < img.width; x++)
+				if (data[(y * img.width + x) * 4 + 3] > 8) {
+					[x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)];
+				}
+		const [w, h] = [x1 - x0 + 1, y1 - y0 + 1];
+		const crop = (height, type) => {
+			const c = Object.assign(document.createElement('canvas'), { width: Math.round((height * w) / h), height });
+			c.getContext('2d').drawImage(full, x0, y0, w, h, 0, 0, c.width, c.height);
+			return c.toDataURL(type);
+		};
+		return { full: crop(h, 'image/png'), small: crop(208, 'image/webp'), ratio: w / h };
+	}, MARK_URI);
+
+	// Raster-Wortmarken
 	for (const vertical of [true, false]) {
-		const page = await browser.newPage({ deviceScaleFactor: 1, viewport: { width: 2400, height: 1200 } });
-		await page.setContent(wordmarkHtml({ vertical }));
-		await page.locator('#wordmark').screenshot({
+		writeFileSync(tmp, lockupHtml(vertical, mark.full));
+		await page.goto(pathToFileURL(tmp).href);
+		await page.evaluate(() => document.fonts.ready);
+		await page.locator('#wm').screenshot({
 			omitBackground: true,
-			path: resolve(__dirname, `logo-with-name.${vertical ? 'vertical' : 'horizontal'}.png`),
+			path: resolve(dir, `logo-with-name.${vertical ? 'vertical' : 'horizontal'}.png`),
 		});
-		await page.close();
 	}
+	writeFileSync(tmp, `<!doctype html><style>@font-face{font-family:Wm;font-weight:600;src:url(${FONT_URI})}</style>`);
+	await page.goto(pathToFileURL(tmp).href);
+	await page.evaluate(() => document.fonts.load('600 84px Wm'));
 
-	// Eingebettete Marke fürs SVG auf 420px Breite verkleinern (Buffer-Screenshot), sonst ~2,7 MB
-	const markPage = await browser.newPage({ deviceScaleFactor: 1, viewport: { width: 600, height: 600 } });
-	await markPage.setContent(`<!doctype html><html><body style="margin:0;background:transparent">
-		<img src="${MARK_DATA_URI}" width="420"/>
-	</body></html>`);
-	const markBuffer = await markPage.locator('img').screenshot({ omitBackground: true });
-	await markPage.close();
+	mkdirSync(resolve(dir, 'proofs'), { recursive: true });
+	for (const theme of ['light', 'dark']) {
+		const name = `logo-with-name.horizontal${theme === 'dark' ? '.dark' : ''}.svg`;
+		const svg = await page.evaluate(buildSvg, {
+			ink: INK[theme],
+			markUri: mark.small,
+			markRatio: mark.ratio,
+			fontUri: FONT_URI,
+			word: WORD,
+			beam: BEAM,
+		});
+		writeFileSync(resolve(dir, name), svg);
 
-	writeFileSync(
-		resolve(__dirname, 'logo-with-name.vertical.svg'),
-		wordmarkSvg(`data:image/png;base64,${markBuffer.toString('base64')}`),
-	);
-
-	// AK2-Nachweis: SVG (als <img>, wie LoginPage) auf surface-0 beider Themes
-	mkdirSync(resolve(__dirname, 'proofs'), { recursive: true });
-	for (const [name, bg, fg] of [
-		['light', '#f7f8fa', '#12161d'],
-		['dark', '#12161c', '#e6eaf0'],
-	]) {
-		const page = await browser.newPage({ viewport: { width: 480, height: 360 } });
-		await page.setContent(`<!doctype html><html><body style="margin:0;background:${bg};display:flex;justify-content:center;padding:24px">
-			<img src="logo-with-name.vertical.svg" style="width:216px;color:${fg}"/>
-		</body></html>`);
-		await page.screenshot({ path: resolve(__dirname, 'proofs', `wordmark-${name}.png`) });
-		await page.close();
+		// AK2-Nachweis: SVG als <img> (wie LoginPage) auf surface-0 des Themes
+		writeFileSync(
+			tmp,
+			`<!doctype html><body style="margin:0;background:${SURFACE[theme]};display:flex;align-items:center;justify-content:center;height:100vh"><img src="${name}" style="width:216px"></body>`,
+		);
+		await page.setViewportSize({ width: 360, height: 140 });
+		await page.goto(pathToFileURL(tmp).href);
+		await page.locator('img').evaluate((img) => img.decode());
+		await page.screenshot({ path: resolve(dir, 'proofs', `wordmark-${theme}.png`) });
+		await page.setViewportSize({ width: 2400, height: 1400 });
 	}
+	rmSync(tmp);
 } finally {
 	await browser.close();
 }
-console.log('Wortmarken erzeugt: 2× PNG, 1× SVG, 2× AK2-Proof');
+console.log('Wortmarken erzeugt: 2× PNG, 2× SVG, 2× AK2-Proof');

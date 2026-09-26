@@ -4816,12 +4816,20 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
-/* Wortmarke: SVG-Text nutzt currentColor und erbt --pp-ink in beiden Themes (#1741) */
+/* Wortmarke: je Theme ein SVG, das jeweils andere bleibt ausgeblendet (#1741) */
 .login-page__brand-wordmark {
-	width: 13.5rem;
+	width: 15rem;
 	height: auto;
 	max-width: 100%;
-	color: var(--pp-ink);
+}
+
+.login-page__brand-wordmark--dark,
+:root[data-theme='dark'] .login-page__brand-wordmark--light {
+	display: none;
+}
+
+:root[data-theme='dark'] .login-page__brand-wordmark--dark {
+	display: block;
 }
 
 .login-page__title {
