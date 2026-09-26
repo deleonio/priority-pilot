@@ -42,8 +42,8 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		if (rightOverflow > 0) {
 			adjustedLeft -= rightOverflow;
 		}
-		// #1623: der 8px-Toolbar-Gap verbreitert das Panel und kann es bei schmalen Viewports
-		// (360px) über den linken Rand hinausschieben — die reine Rechtskorrektur oben reicht dann nicht.
+		// Das Panel kann bei schmalen Viewports (360px) über den linken Rand hinausschieben —
+		// die reine Rechtskorrektur oben reicht dann nicht.
 		const projectedLeftEdge = rect.left - (currentLeft - adjustedLeft);
 		if (projectedLeftEdge < 0) {
 			adjustedLeft -= projectedLeftEdge;
