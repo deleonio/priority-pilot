@@ -2,9 +2,19 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.6 - 2026-09-25
+## v0.7 - 2026-09-26
 
-_Enthält v0.6.0 – v0.6.14._
+### 🎉 New Features
+
+- feat(deploy): Debug-APK als demo.apk ins Web-Root deployen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1736
+
+### Other Changes
+
+- docs(auth): document magic-link rate limit and gmail alias pitfall by @deleonio in https://github.com/deleonio/priority-pilot/pull/1737
+
+## v0.6 - 2026-09-26
+
+_Enthält v0.6.0 – v0.6.15._
 
 ### Other Changes
 
@@ -22,6 +32,7 @@ _Enthält v0.6.0 – v0.6.14._
 - chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1656
 - fix(frontend): keep admin confirm dialog mounted across step change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1732
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1660
+- fix(android): prevent crash when enabling push without firebase config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1735
 
 ## v0.5 - 2026-09-25
 
@@ -227,7 +238,7 @@ _Enthält v0.2.0 – v0.2.134._
 - docs: canonical gate as verify mirror + prompt-audit coverage (#1576) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1581
 - feat(frontend): confirm modal before saving unbalanced pillar weights by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1588
 - feat(frontend): dry-run connection test in llm provider dialog (#1577) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1585
-- feat(frontend): dry-run connection test in llm provider dialog (#1577) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1585
+- docs(AGENTS.md): Align frontend test path with testing.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1592
 - docs(AGENTS.md): Align frontend test path with testing.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1592
 - chore(deps): update pnpm to v12.5.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1541
 - chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1476
