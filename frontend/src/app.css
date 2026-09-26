@@ -4816,15 +4816,12 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
-.login-page__brand-mark {
-	width: 3.5rem;
-	height: 3.5rem;
-}
-
-.login-page__brand-name {
+/* Wortmarke: SVG-Text nutzt currentColor und erbt --pp-ink in beiden Themes (#1741) */
+.login-page__brand-wordmark {
+	width: 13.5rem;
+	height: auto;
+	max-width: 100%;
 	color: var(--pp-ink);
-	font-size: var(--pp-font-size-lg);
-	font-weight: var(--pp-weight-bold);
 }
 
 .login-page__title {
