@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.7 - 2026-09-26
 
-_Enthält v0.7.0 – v0.7.6._
+_Enthält v0.7.0 – v0.7.8._
 
 ### 🎉 New Features
 
@@ -20,6 +20,8 @@ _Enthält v0.7.0 – v0.7.6._
 - docs: sync arc42 architecture doc to current state 2026-09-26 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1744
 - fix(server): backfill subscriptions pendingPlan columns via startup migrator (#1742) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1746
 - feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
+- feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
+- feat(frontend): revert #1745 toolbar popover polish to stock kolibri by @deleonio in https://github.com/deleonio/priority-pilot/pull/1749
 
 ## v0.6 - 2026-09-26
 
@@ -254,7 +256,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server)!: lock pillar crud and restore five default pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1586
 - feat(frontend): tick off checklist items when marking task as done by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1593
 - fix(frontend): task form fields no longer narrowed by plan hints by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1599
-- feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
 - feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
 - feat(frontend): assign tasks to a whole group by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1603
 - feat(frontend): add pin/unpin support for tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1594
