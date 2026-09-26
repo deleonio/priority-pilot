@@ -217,6 +217,10 @@
 			{
 				"q": "¿Es accesible la app?",
 				"a": "La interfaz sigue las WCAG 2.2 y la BITV 2.0 y utiliza los componentes verificados de KoliBri."
+			},
+			{
+				"q": "¿Por qué no llega el correo de inicio de sesión?",
+				"a": "Por dirección se envían como máximo tres enlaces de acceso cada 15 minutos; las demás solicitudes de ese periodo quedan sin correo. Revisa también la carpeta de spam. Las direcciones @gmail.com y @googlemail.com llegan al mismo buzón, pero son dos cuentas distintas en la app; usa siempre la misma forma."
 			}
 		]
 	},

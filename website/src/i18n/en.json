@@ -211,6 +211,10 @@
 			{
 				"q": "Is the app accessible?",
 				"a": "The interface follows WCAG 2.2 and BITV 2.0 and is built on the tested KoliBri components."
+			},
+			{
+				"q": "Why isn't the login email arriving?",
+				"a": "At most three login links are sent per address every 15 minutes; further requests within that window stay silent. Also check your spam folder. @gmail.com and @googlemail.com addresses reach the same inbox but are two separate accounts in the app — stick to one spelling."
 			}
 		]
 	},

@@ -217,6 +217,10 @@
 			{
 				"q": "L’app est-elle accessible ?",
 				"a": "L’interface suit les WCAG 2.2 et la BITV 2.0 et utilise les composants testés de KoliBri."
+			},
+			{
+				"q": "Pourquoi l'e-mail de connexion n'arrive-t-il pas ?",
+				"a": "Trois liens de connexion au maximum sont envoyés par adresse toutes les 15 minutes ; les demandes supplémentaires de cette période restent sans e-mail. Vérifiez aussi votre dossier spam. Les adresses @gmail.com et @googlemail.com arrivent dans la même boîte de réception, mais correspondent à deux comptes distincts dans l'application — utilisez toujours la même graphie."
 			}
 		]
 	},

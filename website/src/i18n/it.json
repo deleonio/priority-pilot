@@ -214,6 +214,10 @@
 			{
 				"q": "L’app è accessibile?",
 				"a": "L’interfaccia segue le WCAG 2.2 e la BITV 2.0 e usa i componenti testati di KoliBri."
+			},
+			{
+				"q": "Perché l'e-mail di accesso non arriva?",
+				"a": "Per indirizzo vengono inviati al massimo tre link di accesso ogni 15 minuti; le richieste ulteriori di tale finestra restano senza e-mail. Controlla anche la cartella spam. Gli indirizzi @gmail.com e @googlemail.com arrivano nella stessa casella, ma sono due account distinti nell'app — usa sempre la stessa forma."
 			}
 		]
 	},
