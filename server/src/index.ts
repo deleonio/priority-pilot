@@ -141,6 +141,7 @@ export const main = async (): Promise<void> => {
 			migratePlaceFavoriteDropName,
 			migratePlaceFavoriteAddressUnique,
 			migrateSubscriptionExternalIdUnique,
+			migrateSubscriptionPendingPlanColumns,
 			migrateUserIdColumns,
 			migratePillarDescription,
 			migratePillarPerUser,
@@ -195,6 +196,9 @@ export const main = async (): Promise<void> => {
 		await migratePlaceFavoriteAddressUnique(sequelize);
 		// Unique-Index (provider, externalSubscriptionId) auf subscriptions (#1690) — vor sync().
 		await migrateSubscriptionExternalIdUnique(sequelize);
+		// Fehlende pendingPlan-/firstFailureAt-Spalten an subscriptions nachziehen (#1742) — vor
+		// sync(), damit Abo-Lesezugriffe auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateSubscriptionPendingPlanColumns(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
 		await migrateUserIdColumns(sequelize);
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen

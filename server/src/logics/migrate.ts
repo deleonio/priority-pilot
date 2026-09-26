@@ -945,3 +945,31 @@ export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> =
 		console.log('Spalte pillarRecalcStartedAt an users nachgezogen.');
 	}
 };
+
+/**
+ * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
+ * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
+ * `migrateTaskPinnedColumns`. Alle drei sind nullable (kein DEFAULT nötig), Bestandsabos bleiben
+ * ohne Vormerkung. Idempotent: bereits vorhandene Spalten werden übersprungen; bei frischer DB
+ * No-op — `sync()` legt Tabelle inkl. Spalten an.
+ */
+export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('pendingPlan')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlan` VARCHAR(255)');
+		console.log('Spalte pendingPlan an subscriptions nachgezogen.');
+	}
+	if (!existing.includes('pendingPlanEffectiveAt')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlanEffectiveAt` DATETIME');
+		console.log('Spalte pendingPlanEffectiveAt an subscriptions nachgezogen.');
+	}
+	if (!existing.includes('firstFailureAt')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `firstFailureAt` DATETIME');
+		console.log('Spalte firstFailureAt an subscriptions nachgezogen.');
+	}
+};
