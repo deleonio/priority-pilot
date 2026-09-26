@@ -66,7 +66,7 @@ const SHOT_WIDTH = 750;
 const SHOT_HEIGHT = 1624;
 
 const shotImage = (id: string, alt: string, className: string, lazy = true): string =>
-	`<img class="${className}" src="/shots/${id}.jpg" alt="${t(alt)}" width="${SHOT_WIDTH}" height="${SHOT_HEIGHT}"${lazy ? ' loading="lazy"' : ''}>`;
+	`<img class="${className}" src="/shots/${id}.jpg" alt="${t(alt)}" width="${SHOT_WIDTH}" height="${SHOT_HEIGHT}"${lazy ? ' loading="lazy"' : ''} decoding="async">`;
 
 const escapeHtml = (value: string): string =>
 	value
@@ -139,12 +139,16 @@ const shell = (context: PageContext, { title, description, path, pathFor, body, 
 		<meta property="og:title" content="${t(title)}">
 		<meta property="og:description" content="${t(description)}">
 		<meta property="og:url" content="${siteUrl}${path}">
-		<meta property="og:image" content="${siteUrl}/icon-512.png">
+		<meta property="og:image" content="${siteUrl}/og-image.jpg">
+		<meta property="og:image:width" content="1200">
+		<meta property="og:image:height" content="630">
 		<meta property="og:locale" content="${LOCALE_INFO[locale].og}">
-		<meta name="theme-color" content="#1b3a6b">
+		<meta name="theme-color" content="#1b3a6b" media="(prefers-color-scheme: light)">
+		<meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
 		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 		<link rel="preload" href="/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+		<link rel="preload" href="/fonts/archivo-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 		<link rel="stylesheet" href="/styles.css">
 	</head>
 	<body>
@@ -229,7 +233,7 @@ ${feature.points.map((point) => `									<li>${t(point)}</li>`).join('\n')}
 
 const featureCard = (feature: Messages['features']['items'][number]): string => `						<article class="kern-card">
 							<div class="kern-card__container">
-								<header class="kern-card__header"><hgroup><h4 class="kern-title">${t(feature.title)}</h4></hgroup></header>
+								<header class="kern-card__header"><h4 class="kern-title">${t(feature.title)}</h4></header>
 								<section class="kern-card__body">
 									<p class="kern-body">${t(feature.text)}</p>
 									<ul class="checklist">
@@ -260,9 +264,7 @@ const planCard = (context: LandingContext, plan: Plan): string => {
 	return `				<article class="kern-card plan" data-plan="${plan}">
 					<div class="kern-card__container">
 						<header class="kern-card__header">
-							<hgroup>
-								<h3 class="kern-title">${t(messages.pricing.plans[plan])}</h3>
-							</hgroup>
+							<h3 class="kern-title">${t(messages.pricing.plans[plan])}</h3>
 						</header>
 						<section class="kern-card__body">
 							<p class="plan__price"><strong>${t(amount)}</strong>${price.monthly === 0 ? '' : ` <span>${t(messages.pricing.perMonth)}</span>`}</p>

@@ -27,6 +27,9 @@
 	--pp-ink: #12161d;
 	--pp-ink-muted: #525b6a;
 	--pp-on-brand: #ffffff;
+	--pp-on-signal: #3b2200;
+	/* Marken-Navy als RGB-Tripel für Schatten (in beiden Themes gleich). */
+	--pp-shadow-color: 20 44 82;
 	--pp-radius: 12px;
 	--pp-space-1: 0.5rem;
 	--pp-space-2: 1rem;
@@ -150,6 +153,13 @@ img {
 	gap: var(--pp-space-2);
 }
 
+/* Trefffläche der Textlinks auf 44 px Höhe bringen (WCAG 2.5.8 / Mobile-Regel). */
+.site-footer a {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+}
+
 .site-footer__languages {
 	display: flex;
 	flex-wrap: wrap;
@@ -192,7 +202,7 @@ img {
 	background: var(--pp-surface-1);
 	border: 1px solid var(--pp-border-subtle);
 	border-radius: var(--pp-radius);
-	box-shadow: 0 0.5rem 1.5rem rgb(20 44 82 / 0.15);
+	box-shadow: 0 0.5rem 1.5rem rgb(var(--pp-shadow-color) / 0.15);
 }
 
 .lang-menu__list a {
@@ -233,8 +243,8 @@ img {
 }
 
 .kern-title {
-	margin: 0 0 var(--pp-space-1);
-	font-size: 1.15rem;
+	margin: var(--pp-space-3) 0 0;
+	font-size: 1.05rem;
 	line-height: 1.3;
 }
 
@@ -318,7 +328,7 @@ img {
 	width: auto;
 	height: auto;
 	border-radius: 24px;
-	box-shadow: 0 1rem 3rem rgb(20 44 82 / 0.18);
+	box-shadow: 0 1rem 3rem rgb(var(--pp-shadow-color) / 0.18);
 }
 
 .visually-hidden {
@@ -364,6 +374,13 @@ img {
 	color: var(--pp-signal);
 }
 
+/* Signalgelb versagt auf dem hellen Markenblau des Dunkelmodus (Kontrast ~1.6:1). */
+@media (prefers-color-scheme: dark) {
+	.usp .checklist li::before {
+		color: var(--pp-on-brand);
+	}
+}
+
 .usp__list {
 	display: grid;
 	gap: var(--pp-space-1);
@@ -403,7 +420,7 @@ img {
 	background: var(--pp-surface-1);
 	border: 1px solid var(--pp-border-subtle);
 	border-radius: 24px;
-	box-shadow: 0 1rem 3rem rgb(20 44 82 / 0.18);
+	box-shadow: 0 1rem 3rem rgb(var(--pp-shadow-color) / 0.18);
 }
 
 .chat__caption {
@@ -490,7 +507,7 @@ img {
 	height: 2.25rem;
 	border-radius: 50%;
 	background: var(--pp-signal);
-	color: #3b2200;
+	color: var(--pp-on-signal);
 	font-weight: 600;
 }
 
@@ -509,10 +526,6 @@ img {
 
 .kern-card__container {
 	padding: var(--pp-space-3);
-}
-
-.kern-card__header hgroup {
-	margin: 0;
 }
 
 .kern-card__body > :last-child {
@@ -567,15 +580,16 @@ img {
 	cursor: pointer;
 }
 
-.kern-accordion__header .kern-heading-medium {
-	margin: var(--pp-space-3) 0 var(--pp-space-2);
-	font-size: clamp(1.25rem, 3.5vw, 1.5rem);
-	line-height: 1.25;
+/* Aufklapp-Affordance: display:flex entfernt den nativen Marker des summary. */
+.kern-accordion__header::after {
+	content: '▾';
+	margin-left: auto;
+	color: var(--pp-ink-muted);
+	transition: transform 0.15s ease-out;
 }
 
-.kern-title {
-	margin: 0;
-	font-size: 1.05rem;
+.kern-accordion[open] > .kern-accordion__header::after {
+	transform: rotate(180deg);
 }
 
 .kern-accordion__body {
@@ -584,16 +598,6 @@ img {
 
 .final {
 	text-align: center;
-}
-
-.imprint .kern-heading-medium {
-	margin: var(--pp-space-3) 0 var(--pp-space-2);
-	font-size: clamp(1.25rem, 3.5vw, 1.5rem);
-	line-height: 1.25;
-}
-
-.kern-title {
-	margin-top: var(--pp-space-3);
 }
 
 @media (min-width: 48rem) {
