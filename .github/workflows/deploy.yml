@@ -99,6 +99,43 @@ jobs:
           install -m600 <(printf '%s\n' "$SSH_KEY") ~/.ssh/deploy_key
           ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
+      # ━━━━ Debug-APK als demo.apk (ADR 0016) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # Das Deployment legt die Debug-APK als demo.apk ins Web-Root — direkt installierbar unter
+      # https://<Domain>/demo.apk. Sie braucht den stabilen Debug-Keystore als Secret: Der
+      # Runner-Keystore ist je Lauf neu, damit würde die App-Link-Verifizierung jeden Deploy brechen.
+      - name: Android SDK 36
+        # Das Runner-Image bringt SDK und cmdline-tools mit; installiert wird nur, was fehlt.
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Capacitor sync
+        run: pnpm --filter native sync
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+
+      - name: Debug-Keystore und google-services.json aus Secrets
+        env:
+          ANDROID_DEBUG_KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$ANDROID_DEBUG_KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_DEBUG_KEYSTORE_B64 fehlt (docs/native-apps.md)"
+            exit 1
+          fi
+          install -d ~/.android
+          echo "$ANDROID_DEBUG_KEYSTORE_B64" | base64 --decode > ~/.android/debug.keystore
+          # Mit echter FCM-Konfiguration hat demo.apk funktionierenden Push; ohne sie greift der
+          # Platzhalter-Fallback aus app/build.gradle (sauberer Fehler statt Crash, #1735).
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > native/android/app/google-services.json
+          fi
+
+      - name: Debug-APK bauen
+        working-directory: native/android
+        run: |
+          # JDK 21 liegt im Runner-Image bereit, nur nicht als Standard.
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          ./gradlew assembleDebug
+
       # Website an die Wurzel, App nach /app/ (ADR 0015). Das Website-rsync schließt app/ aus, damit
       # `--delete` die App nicht entfernt; die App wird danach in ihr eigenes Unterverzeichnis gespielt.
       - name: rsync Website
@@ -109,6 +146,14 @@ jobs:
         run: |
           rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
             frontend/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/app/"
+
+      # demo.apk NACH dem Website-rsync hochladen: dessen --delete würde eine frühere Datei am
+      # Web-Root wieder entfernen; so liegt nach jedem Deploy die frisch gebaute APK bereit.
+      - name: demo.apk hochladen
+        run: |
+          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
+            native/android/app/build/outputs/apk/debug/app-debug.apk \
+            "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/demo.apk"
 
       - name: rsync Backend
         run: |
