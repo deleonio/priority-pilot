@@ -108,7 +108,12 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
 
       - name: Capacitor sync
-        run: pnpm --filter native sync
+        # Direkt aus native/node_modules statt `pnpm --filter native sync`: der gefilterte
+        # Skriptlauf triggert pnpm 12s verify-deps-Auto-Install, der node_modules auf den
+        # Filter beschneidet und dabei prepare-Lifecycles (lefthook, openapi-typescript)
+        # ohne deren Binaries laufen laesst — alle Deploys seit #1736 scheiterten daran.
+        working-directory: native
+        run: ./node_modules/.bin/cap sync android
         env:
           SITE_URL: ${{ vars.SITE_URL }}
 

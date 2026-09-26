@@ -28,7 +28,10 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
 
       - name: Capacitor sync
-        run: pnpm --filter native sync
+        # Direkt aus native/node_modules — der gefilterte pnpm-Skriptlauf triggert einen
+        # Auto-Install, der prepare-Lifecycles ohne Binaries bricht (s. deploy.yml, Capacitor sync).
+        working-directory: native
+        run: ./node_modules/.bin/cap sync android
         env:
           SITE_URL: ${{ vars.SITE_URL }}
 
