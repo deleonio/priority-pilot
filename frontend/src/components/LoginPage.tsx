@@ -70,14 +70,21 @@ export const LoginPage = () => {
 		<div className="login-page">
 			<div className="login-page__inner">
 				<div className="login-page__brand">
+					{/* Wortmarke je Theme als eigenes SVG: ein <img> erbt weder currentColor noch Web-Fonts (#1741, AK2) */}
 					<img
-						className="login-page__brand-mark"
-						src={`${import.meta.env.BASE_URL}icons/icon-192x192.png`}
-						alt=""
-						width={44}
-						height={44}
+						className="login-page__brand-wordmark login-page__brand-wordmark--light"
+						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal.svg`}
+						alt="Balamentum"
+						width={240}
+						height={35}
 					/>
-					<span className="login-page__brand-name">Balamentum</span>
+					<img
+						className="login-page__brand-wordmark login-page__brand-wordmark--dark"
+						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal.dark.svg`}
+						alt="Balamentum"
+						width={240}
+						height={35}
+					/>
 				</div>
 				<h1 className="login-page__title">Anmelden</h1>
 				<p className="login-page__sub">Melde dich an, um fortzufahren.</p>

@@ -4816,15 +4816,20 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
-.login-page__brand-mark {
-	width: 3.5rem;
-	height: 3.5rem;
+/* Wortmarke: je Theme ein SVG, das jeweils andere bleibt ausgeblendet (#1741) */
+.login-page__brand-wordmark {
+	width: 15rem;
+	height: auto;
+	max-width: 100%;
 }
 
-.login-page__brand-name {
-	color: var(--pp-ink);
-	font-size: var(--pp-font-size-lg);
-	font-weight: var(--pp-weight-bold);
+.login-page__brand-wordmark--dark,
+:root[data-theme='dark'] .login-page__brand-wordmark--light {
+	display: none;
+}
+
+:root[data-theme='dark'] .login-page__brand-wordmark--dark {
+	display: block;
 }
 
 .login-page__title {
