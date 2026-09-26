@@ -58,6 +58,14 @@ jobs:
           # prepare-Lifecycle scheitern, weil lefthook selbst fehlt — reiner Versions-Commit.
           git commit --no-verify -m "chore(release): v${NEW_VERSION} [skip ci]"
 
+      # SITE_URL ist Pflicht: Ohne sie baut die Website still ohne sitemap.xml und mit relativen
+      # canonical/hreflang-Links (ADR 0015) — der Deploy müsste auffallen, nicht still durchlaufen.
+      - name: SITE_URL pruefen
+        if: vars.SITE_URL == ''
+        run: |
+          echo "::error::Repo-Variable SITE_URL fehlt — Website wuerde ohne sitemap.xml deployt."
+          exit 1
+
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build

@@ -192,9 +192,10 @@ Bump, Push und Release. `cron.daily-version.yml` nutzt das nach seinem tägliche
 die neue Version auch im ausgelieferten Bundle ankommt.
 
 **Benötigte Repo-Konfiguration:** Secret `DEPLOY_SSH_KEY` sowie die Variablen `DEPLOY_HOST`,
-`DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Optional `SITE_URL` (z. B.
+`DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR` und `SITE_URL` (z. B.
 `https://priority-pilot.example.de`): Damit schreibt der Website-Build absolute canonical- und
-hreflang-Links und eine `sitemap.xml`. Optional `ANDROID_PACKAGE_ID` (`de.balamentum.app`) und
+hreflang-Links und eine `sitemap.xml` — fehlt sie, bricht der Deploy mit Fehler ab. Optional
+`ANDROID_PACKAGE_ID` (`de.balamentum.app`) und
 `ANDROID_CERT_SHA256` (SHA-256-Fingerprints von App-Signing- und Upload-Key, durch Komma getrennt):
 Damit erzeugt der Website-Build `/.well-known/assetlinks.json` für die App Links der Android-App
 ([ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)). Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
