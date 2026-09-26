@@ -70,11 +70,31 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+// Ohne Firebase-Ressourcen wirft FirebaseMessaging.getInstance() im register()-Aufruf des
+// Push-Plugins synchron eine IllegalStateException — der App-Prozess stirbt, statt dass der
+// Push-Schalter einen Fehler meldet (docs/native-apps.md). Die Platzhalter-Konfiguration
+// initialisiert Firebase mit ungültigen Werten: getToken() scheitert dann asynchron im
+// registrationError-Pfad des Plugins und die App zeigt den Fehler sauber an.
+def servicesJSON = file('google-services.json')
+if (!servicesJSON.exists() || !servicesJSON.text) {
+    servicesJSON.text = '''{
+  "project_info": {
+    "project_number": "0",
+    "project_id": "balamentum-placeholder",
+    "storage_bucket": "balamentum-placeholder.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:0:android:0000000000000000000000000000000000000000",
+        "android_client_info": { "package_name": "de.balamentum.app" }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyA-PLACEHOLDER-00000000000000000000000" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+  ],
+  "configuration_version": "1"
+}'''
 }
+apply plugin: 'com.google.gms.google-services'

@@ -27,7 +27,9 @@ cd native/android && ./gradlew assembleDebug             # → app/build/outputs
 ```
 
 Push über FCM braucht die `google-services.json` aus der Firebase-Konsole in `native/android/app/`
-(gitignored, nicht einchecken); ohne sie baut die App, der Push-Schalter meldet dann einen Fehler.
+(gitignored, nicht einchecken). Ohne sie erzeugt der Gradle-Build eine Platzhalter-Konfiguration:
+Firebase initialisiert, das Token-Holen scheitert asynchron — der Push-Schalter meldet dann einen
+Fehler, statt dass die App abstürzt.
 Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap run android` im Ordner
 `native/` oder das APK per `adb install` einspielen.
 
