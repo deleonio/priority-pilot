@@ -20,59 +20,6 @@
  *
  * @returns Aufräumfunktion, die alle Observer und Listener wieder abmeldet.
  */
-/** #1745: Zielabstand (px) zwischen letztem Aktions-Button und „…"-Trigger — wie der Icon-Abstand der Toolbar (#1623). */
-const MORE_BUTTON_GAP_PX = 8;
-
-/**
- * #1745: Native `<button>`s in (verschachtelten) Shadow-Roots suchen — `kol-toolbar` und der
- * `kol-button`-Trigger rendern ihre Buttons erst in der eigenen Shadow-Wurzel, ein flaches
- * `querySelector` reicht nicht. Gepierct wird nur der übergebene Subtree; in die Shadow-Wurzel
- * des Popover-Buttons geslottete Light-DOM-Kinder (die Toolbar) tauchen hier bewusst NICHT auf,
- * der erste Treffer ist daher der Trigger-Knopf.
- */
-const pierceButtons = (root: ParentNode | null | undefined): HTMLButtonElement[] => {
-	if (!root) return [];
-	const buttons = Array.from(root.querySelectorAll('button'));
-	for (const el of Array.from(root.querySelectorAll('*'))) {
-		if (el.shadowRoot) buttons.push(...pierceButtons(el.shadowRoot));
-	}
-	return buttons;
-};
-
-/**
- * #1745 AK3: Rundung und Randstärke des „…"-Triggers an einen Aktions-Button der Toolbar angleichen
- * (gleiche JS-Direkt-Stil-Injektion wie im Rest des Moduls, unpublizierte KoliBri-API — bei
- * Upgrades prüfen). `getComputedStyle` liefert auch für das geschlossene (display:none) Panel Werte.
- */
-const matchTriggerStyle = (popoverRoot: ShadowRoot, actionButton: HTMLButtonElement): void => {
-	const trigger = pierceButtons(popoverRoot)[0];
-	if (!trigger) return;
-	const action = getComputedStyle(actionButton);
-	if (trigger.style.borderRadius !== action.borderRadius) {
-		trigger.style.borderRadius = action.borderRadius;
-	}
-	if (trigger.style.borderWidth !== action.borderWidth) {
-		trigger.style.borderWidth = action.borderWidth;
-	}
-};
-
-/**
- * #1745 AK2: Überstand des gemessenen Abstands (letzter Aktions-Button → Trigger) über den
- * 8px-Zielabstand — 0, wenn der Trigger (noch) nicht gerendert ist, das Panel rechts vom
- * Trigger liegt (negative Gaps nie verschieben) oder noch nicht an ihm verankert ist: Beim
- * Öffnen ist das Panel kurz sichtbar, bevor floating-ui die Position schreibt (left: 0) —
- * eine Korrektur dieses Zwischenstands würde das Panel samt Viewport-Clamp anschaufeln
- * und weit vom Trigger wegsperren.
- */
-const MAX_ANCHORED_GAP_PX = 40;
-const gapExcessBeforeMoreButton = (popoverRoot: ShadowRoot, actionButtons: HTMLButtonElement[]): number => {
-	const trigger = pierceButtons(popoverRoot)[0];
-	if (!trigger) return 0;
-	const rightEdge = Math.max(...actionButtons.map((button) => button.getBoundingClientRect().right));
-	const gap = trigger.getBoundingClientRect().left - rightEdge;
-	return gap > 0 && gap <= MAX_ANCHORED_GAP_PX ? gap - MORE_BUTTON_GAP_PX : 0;
-};
-
 const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
 	const root = host.shadowRoot;
 	if (!root) return () => {};
@@ -87,13 +34,6 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 			// #1186: Das Panel clippt mit UA-`overflow: auto` die Fokus-Outline der Toolbar-Buttons.
 			panel.style.overflow = 'visible';
 		}
-		// #1745: Angleich nur für Popovers mit eingebetteter Toolbar (Task-Aktionen) — das
-		// Avatar-Menü im Kopfbereich hat keine und bleibt unberührt. AK3 auch im geschlossenen
-		// Zustand, daher vor dem Sichtbarkeits-Bailout.
-		const actionButtons = pierceButtons(host.querySelector('kol-toolbar')?.shadowRoot);
-		if (actionButtons.length > 0) {
-			matchTriggerStyle(root, actionButtons[0]);
-		}
 		const rect = panel.getBoundingClientRect();
 		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
 		const currentLeft = parseFloat(panel.style.left) || 0;
@@ -101,15 +41,6 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		const rightOverflow = Math.ceil(rect.right) - window.innerWidth;
 		if (rightOverflow > 0) {
 			adjustedLeft -= rightOverflow;
-		}
-		// #1745 AK2: Abstand letzter Aktions-Button → „…"-Trigger auf 8px bringen (Panel-Padding
-		// + floating-ui-Offset liefern sonst ~10px); vor dem Left-Clamp, damit der Viewport-Schutz greift.
-		if (actionButtons.length > 0) {
-			const gapExcess = gapExcessBeforeMoreButton(root, actionButtons);
-			if (Math.abs(gapExcess) > 0.5) {
-				// Panel nach rechts schieben verkleinert den Abstand — Überschuss abbauen, nicht verdoppeln.
-				adjustedLeft += Math.round(gapExcess);
-			}
 		}
 		// #1623: der 8px-Toolbar-Gap verbreitert das Panel und kann es bei schmalen Viewports
 		// (360px) über den linken Rand hinausschieben — die reine Rechtskorrektur oben reicht dann nicht.
