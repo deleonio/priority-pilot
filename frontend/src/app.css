@@ -4935,14 +4935,20 @@ a.plan-badge:focus-visible {
 	font-weight: var(--pp-weight-bold);
 }
 
+/*
+ * #1745: Das Eingabefeld rundet wie die Pillen-Knöpfe daneben — kein Mischbild auf der
+ * Login-Oberfläche. Bewusste kontextuelle Ausnahme im Website-Stil der Anmeldung; die
+ * übrigen App-Inputs bleiben auf --pp-radius-md. Inline-Padding wie bei den Knöpfen
+ * (1.25rem ≥ --pp-space-4), damit Text nicht in der Rundung klebt.
+ */
 .login-page__input {
 	width: 100%;
 	min-height: 44px;
 	box-sizing: border-box;
-	padding: 0.6rem 0.875rem;
+	padding: 0.6rem 1.25rem;
 	background: var(--pp-surface-1);
 	border: 1px solid var(--pp-border-strong);
-	border-radius: var(--pp-radius-md);
+	border-radius: var(--pp-radius-pill);
 	color: var(--pp-ink);
 	font-family: inherit;
 	font-size: var(--pp-font-size-base);
