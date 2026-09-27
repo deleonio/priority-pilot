@@ -34,7 +34,7 @@ describe('LoginPage — Magic Link per E-Mail', () => {
 		providers.mockResolvedValue({ google: true, magicLink: false });
 		render(<LoginPage />);
 		await waitFor(() => expect(providers).toHaveBeenCalled());
-		expect(screen.getByRole('button', { name: /Login with Google/i })).toBeTruthy();
+		expect(screen.getByRole('button', { name: /Mit Google anmelden/i })).toBeTruthy();
 		expect(screen.queryByLabelText('Anmeldelink per E-Mail')).toBeNull();
 	});
 
@@ -127,5 +127,59 @@ describe('LoginPage — Google-Login je Kanal (#1678)', () => {
 		fireEvent.click(screen.getByRole('button', { name: /Google/ }));
 
 		expect(startNativeGoogleLogin).not.toHaveBeenCalled();
+	});
+});
+
+describe('LoginPage — Card-Kopf, Website-Link, deutscher Button (#1751)', () => {
+	beforeEach(() => {
+		providers.mockResolvedValue({ google: true, magicLink: false });
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+		vi.unstubAllGlobals();
+	});
+
+	it('AK1: Titel und Subline liegen innerhalb der Card, keine negative Margin auf der Subline', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const card = document.querySelector('.login-page__card');
+		expect(card, '.login-page__card muss existieren').toBeTruthy();
+		expect(screen.getByRole('heading', { name: 'Anmelden' }).closest('.login-page__card')).toBe(card);
+		expect(document.querySelector('.login-page__sub')?.closest('.login-page__card')).toBe(card);
+	});
+
+	it('AK2: Web-Kanal zeigt einen Link "Zurück zur Website" mit href="/"', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const link = screen.getByRole('link', { name: /Website/i });
+		expect(link.getAttribute('href')).toBe('/');
+	});
+
+	it('AK3: Native-Kanal (Android) rendert keinen Website-Link', async () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		expect(screen.queryByRole('link', { name: /Website/i })).toBeNull();
+	});
+
+	it('AK4: „Login with Google" kommt auf der Seite nicht mehr vor', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		expect(screen.queryByText(/Login with Google/i)).toBeNull();
+	});
+
+	it('AK5: Magic-Link-Formular nutzt eine CSS-Klasse statt Inline-style', async () => {
+		providers.mockResolvedValue({ google: true, magicLink: true });
+		render(<LoginPage />);
+
+		const input = await screen.findByLabelText('Anmeldelink per E-Mail');
+		const form = input.closest('form');
+		expect(form, 'form-Element muss existieren').toBeTruthy();
+		expect(form?.getAttribute('style')).toBeNull();
+		expect(form?.className).not.toBe('');
 	});
 });

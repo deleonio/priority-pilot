@@ -50,7 +50,7 @@ test.describe('AK 1 — Öffentlicher Zugang (#225)', () => {
 		await expect(page.getByLabel(/Startbahnhof|Start/i)).toBeVisible();
 		await expect(page.getByLabel(/Zielbahnhof|Ziel/i)).toBeVisible();
 		// … Login-Button darf NICHT erscheinen.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
+		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeHidden();
 	});
 
 	test('AK1b: /bahn ist unabhängig vom Auth-Zustand erreichbar (explizit 401)', async ({ page }) => {
@@ -61,7 +61,7 @@ test.describe('AK 1 — Öffentlicher Zugang (#225)', () => {
 		await page.goto('/app/bahn');
 
 		await expect(page.getByRole('heading', { name: /Routenplaner/i })).toBeVisible();
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
+		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeHidden();
 	});
 });
 
