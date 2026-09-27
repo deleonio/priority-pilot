@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.8 - 2026-09-27
 
-_Enthält v0.8.0 – v0.8.4._
+_Enthält v0.8.0 – v0.8.5._
 
 ### Other Changes
 
@@ -12,6 +12,7 @@ _Enthält v0.8.0 – v0.8.4._
 - feat(ci): Ampel-Trend je Phase (KW-Spalten) + Branch-Auswahl im Report-Dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1761
 - docs(guide): Ist-Stand-Sync 2026-09-27 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1760
 - Revert "feat(frontend): login card head, website link and german google button" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1757
+- docs: align arc42 error contract with code - no global express handler by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1762
 
 ## v0.7 - 2026-09-27
 
@@ -187,6 +188,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
 - fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
+- feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 - feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 - feat(server): block content edits on done tasks until reopened by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1444
 - feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
