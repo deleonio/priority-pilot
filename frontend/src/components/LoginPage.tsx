@@ -86,10 +86,10 @@ export const LoginPage = () => {
 						height={35}
 					/>
 				</div>
-				<div className="login-page__card">
-					<h1 className="login-page__title">Anmelden</h1>
-					<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
+				<h1 className="login-page__title">Anmelden</h1>
+				<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
 
+				<div className="login-page__card">
 					{error !== null && (
 						<div role="alert" className="login-page__alert">
 							{getErrorMessage(error)}
@@ -97,9 +97,9 @@ export const LoginPage = () => {
 					)}
 
 					<button type="button" onClick={handleLogin} className="login-page__btn login-page__btn--primary">
-						<span className="login-page__btn-icon">
+						<span className="login-page__btn-icon" aria-hidden="true">
 							{/* Offizielles Vierfarben-G (Google-Brand), 18×18 */}
-							<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+							<svg width="18" height="18" viewBox="0 0 18 18">
 								<path
 									fill="#4285F4"
 									d="M17.64 9.2045c0-.6381-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2086 1.125-.8427 2.0782-1.7959 2.7164v2.2581h2.9087c1.7018-1.5668 2.6836-3.874 2.6836-6.615z"
@@ -118,11 +118,14 @@ export const LoginPage = () => {
 								/>
 							</svg>
 						</span>
-						Mit Google anmelden
+						Login with Google
 					</button>
 
 					{magicLinkEnabled && (
-						<form onSubmit={handleMagicLink} className="login-page__form">
+						<form
+							onSubmit={handleMagicLink}
+							style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pp-gap-tight)' }}
+						>
 							<p className="login-page__divider">oder</p>
 							<label className="login-page__label" htmlFor="magic-link-email">
 								Anmeldelink per E-Mail
@@ -159,12 +162,6 @@ export const LoginPage = () => {
 						</form>
 					)}
 				</div>
-				{/* Website-Rücklink nur im Web-Kanal — in der nativen App gibt es keine Website-Ebene (#1753/AK2). */}
-				{!isNativeChannel() && (
-					<a className="login-page__back" href="/">
-						Zurück zur Website
-					</a>
-				)}
 			</div>
 		</div>
 	);
