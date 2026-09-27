@@ -143,7 +143,7 @@ Regeln:
    pm2 reload priority-pilot --update-env
    ```
 
-3. Die Person meldet sich über „Login with Google“ an. Das Konto wird dabei angelegt und
+3. Die Person meldet sich über „Mit Google anmelden“ an. Das Konto wird dabei angelegt und
    erscheint danach in den Einstellungen unter „Nutzerverwaltung“.
 
 Ohne Neuladen bleibt die alte Liste aktiv, weil der Prozess die Umgebung nur beim Start liest.
