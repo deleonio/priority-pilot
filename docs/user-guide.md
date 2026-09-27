@@ -6,7 +6,7 @@ voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen
 
 Zwei Ideen stecken dahinter:
 
-- **Wertbeitrag statt Bauchgefühl.** Aus Priorität, Aufwand und den (gewichteten)
+- **Wertbeitrag statt Bauchgefühl.** Aus der Priorität und den gewichteten
   Abhängigkeiten berechnet Balamentum pro Aufgabe einen Wert. Die wertvollsten
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
 - **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf **alle fünf** Lebensbereiche ein, nur
@@ -21,10 +21,14 @@ Dieses Handbuch erklärt alle Funktionen der Anwendung.
 ## Anmeldung
 
 Balamentum ist ein persönliches Werkzeug – deine Daten sind an dein Konto
-gebunden. Die Anmeldung erfolgt ausschließlich über **Google**:
+gebunden:
 
-- Auf der Startseite auf **„Login with Google"** klicken.
-- Nach der Google-Anmeldung landest du direkt im Dashboard.
+- Auf der Startseite auf **„Mit Google anmelden"** klicken – nach der
+  Anmeldung landest du direkt im Dashboard.
+- Ist die Anmeldung per E-Mail freigeschaltet, steht darunter zusätzlich ein Feld
+  **„Anmeldelink per E-Mail"**: Adresse eingeben, **„Anmeldelink senden"** klicken
+  und den Link aus der E-Mail öffnen. Er ist 15 Minuten gültig und funktioniert
+  genau einmal.
 
 Der Zugang ist auf freigeschaltete E-Mail-Adressen beschränkt. Eine eigene Registrierung gibt
 es nicht: Dein Konto wird bei der ersten erfolgreichen Anmeldung automatisch angelegt. Ist deine
@@ -43,7 +47,7 @@ Ganz oben findest du die **Kopf-Aktionen**:
 - **Zum Dashboard** (Haus) – zurück zum Dashboard.
 - **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel und filtert nach Kategorie.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen, Kategorien, Zugriff.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen, Kategorien, Access-Token.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
@@ -67,9 +71,9 @@ Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist
 begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast, zeigt
 die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
 
-- **Meine Lebensbalance:** ein Bild zeigt, wie ausgeglichen sich dein erledigter
-  Aufwand auf deine Säulen verteilt (erscheint erst, sobald du mindestens eine
-  Säule angelegt hast). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
+- **Meine Lebensbalance:** ein Bild zeigt, wie ausgeglichen sich deine erledigten
+  Aufgaben der letzten vier Wochen auf deine Säulen verteilen – jede Säule hat
+  dafür ein Wochen-Ziel. 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
   alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
   Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
   **Scheiben**, **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** oder **Zeiger**. Alle zeigen dieselben Zahlen: Je Säule steht
@@ -102,7 +106,8 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   eingestellte Anzeige-Entfernung. Die Karte erscheint nur, solange die
   Standort-Erfassung in den Einstellungen aktiviert ist – ist sie aus, fehlt die
   Karte ganz. Verweigert der Browser die Standort-Freigabe, bleibt die Karte stehen
-  und zeigt stattdessen einen Hinweis.
+  und zeigt stattdessen einen Hinweis. Karte und Erinnerungen gehören zu den Paketen
+  Max und Ultimate (siehe „Pakete").
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -111,6 +116,9 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Bestmarke.
 - **Meilensteine:** die erreichten und noch offenen Stufen für Streak und Punkte
   (siehe „Erledigte Aufgaben und Punkte").
+- **Verpasste Aufgaben:** zählt, wie viele Aufgaben nach verpasster Deadline automatisch
+  gelöscht wurden, und nennt bis zu drei der zuletzt bereinigten Titel (siehe
+  „Automatisches Löschen nach verpasster Deadline").
 - **Tag geschafft:** ein kurzer Hinweis, der erscheint, wenn keine Aufgabe mehr offen ist
   und deine letzte Erledigung von heute stammt.
 - **Gesamtguthaben:** dein Punktestand aus erledigten Aufgaben, aufgeschlüsselt je
@@ -118,6 +126,12 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 - **Anstehende Deadlines:** offene Aufgaben mit Fälligkeit, nach Datum sortiert.
   Ein farbiges Kennzeichen warnt vor **überfälligen** (rot) und **bald fälligen**
   (orange, heute bis in 3 Tagen) Aufgaben.
+
+Über den Karten schaltest du zwischen **Tagesansicht** und **Wochenansicht** um. Die
+Wochenansicht zeigt die aktuelle Kalenderwoche als sieben Tageskarten (Montag zuerst) mit
+den offenen Aufgaben, die an dem Tag fällig sind; unter Heute stehen zusätzlich die
+empfohlenen Aufgaben und die nächste Aufgabe. Mit **„Tag öffnen"** springst du in den
+Aufgaben-Tab und siehst dort die Aufgaben dieses Tages.
 
 ---
 
@@ -162,7 +176,7 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 - **Für: {Name}** bzw. **Erstellt von: {Name}** – bei Aufgaben, die du für ein
   Gruppenmitglied angelegt hast oder die jemand für dich angelegt hat (siehe „Gruppen").
 - **Kategorie** – das farbige Kennzeichen mit dem Namen der Kategorie (siehe „Kategorien").
-- **Serie** – die Aufgabe stammt aus einer Serie.
+- **Serie** (Wiederholen-Symbol) – die Aufgabe stammt aus einer Serie.
 - **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
 - **Fortschritt** als `erledigt/gesamt` – nur bei Aufgaben mit Unteraufgaben; zählt
   alle darunterliegenden Unteraufgaben mit.
@@ -177,14 +191,18 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 Alle Aktionen liegen hinter einem **„Weitere Aktionen"-Menü** (Drei-Punkte-Button) am Zeilenende.
 Im Menü findest du:
 
-- **Erledigt / Wieder öffnen** – als erster Eintrag, schaltet den Status um.
-  In dieser Liste stehen nur Aufgaben ohne Unteraufgaben, der Umschalter ist daher nie
-  blockiert. Wieder öffnen ist jederzeit möglich – auch als schnelles Rückgängig direkt
-  nach dem Erledigen.
+- **Erledigt / Wieder öffnen** – als erster Eintrag, schaltet den Status um. Bei Aufgaben
+  mit offenen Unteraufgaben heißt der Eintrag „Erledigt (Unteraufgaben offen)" und bleibt
+  gesperrt, bis diese erledigt sind – solche Aufgaben siehst du nur mit dem Schalter
+  „Oberaufgaben anzeigen". Wieder öffnen ist jederzeit möglich – auch als schnelles
+  Rückgängig direkt nach dem Erledigen.
 - **Bearbeiten** (Stift) – öffnet das Aufgabenformular.
 - **Abhängigkeiten** (Kette) – öffnet den Vorgänger-Editor.
 - **Unteraufgabe anlegen** (Plus) – legt eine neue Aufgabe an, die automatisch als Vorgänger
   mit der aktuellen verknüpft wird.
+- **Anpinnen / Abpinnen** (Pin) – stellt eine Aufgabe dauerhaft an den Anfang der Liste,
+  unabhängig von der Sortierung; ein Pin-Symbol kennzeichnet sie in der Zeile. Abpinnen
+  nimmt sie zurück in die normale Sortierung.
 - **Löschen** (Kreuz) – entfernt die Aufgabe nach Rückfrage.
 
 Frisch erledigte Aufgaben bleiben für **5 Sekunden** „sticky" im offenen Baum (für ein
@@ -313,7 +331,7 @@ sofern dein Browser Spracherkennung unterstützt.
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
 - Die Sprache ist auf Deutsch (`de-DE`) festgelegt.
-- Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
+- Optional startet die Aufnahme **automatisch** beim Öffnen des Aufgabenformulars – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 - Beim Anlegen und beim Suchen erkennt die KI aus dem gesprochenen Text auch die
   **Kategorie**, sofern du welche angelegt hast (siehe „Kategorien").
@@ -423,8 +441,6 @@ Schnellerfassung: Öffne **„Neuen Task anlegen"** und klicke im Freitext-Schri
 - Die Vorschläge erscheinen unter dem Textfeld, der Dialog bleibt offen. Mit **„Als Aufgabe
   übernehmen"** schreibst du einen Vorschlag in dasselbe Textfeld zurück und gehst von dort
   mit **„Verarbeiten und weiter"** ins Formular.
-- Hast du noch keine Säulen angelegt, weist dich der Berater darauf hin, statt Vorschläge
-  zu machen.
 
 ---
 
@@ -447,8 +463,9 @@ erzeugt Balamentum regelmäßig neue Aufgaben-Instanzen.
   eigenständig)"**: Mit **Ja** werden die offenen Instanzen mitgelöscht, mit **Nein**
   bleiben alle Aufgaben als eigenständige Aufgaben bestehen. Bereits erledigte
   Instanzen bleiben in beiden Fällen als eigenständige Aufgaben erhalten.
-- **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die aktuell
-  fälligen Aufgaben aus allen Serien.
+- **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die anstehenden
+  Aufgaben aus allen Serien – alle Termine von heute bis 30 Tage im Voraus, je Serie
+  bleiben höchstens fünf offene Instanzen übrig.
 
 Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
 weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
@@ -464,8 +481,9 @@ Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
 (Titel, Priorität, Aufwand, Beschreibung, Adresse, **Koordinaten**, Automatisches Löschen, Säulen, Kategorie), erscheint
 vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?"**
 
-- **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
-  übertragen (auch auf solche, die du individuell angepasst hast).
+- **Ja** – die geänderten Werte werden auf alle offenen Instanzen
+  übertragen (auch auf solche, die du individuell angepasst hast); bereits erledigte
+  bleiben unberührt.
 - **Nein (nur Serie)** – nur das Template wird aktualisiert; künftige Instanzen
   erhalten die neuen Werte, bestehende bleiben unberührt.
 
@@ -480,7 +498,7 @@ Der Tab **Graph** zeigt, wie deine Aufgaben zusammenhängen.
 - Ein **Pfeil** zeigt von der Unteraufgabe nach unten auf die Aufgabe, die sie ermöglicht.
 - Je **dicker die Linie**, desto stärker das Gewicht der Abhängigkeit. Die Zahl steht an
   der Linie, du musst die Stärke also nicht schätzen.
-- Jeder **Knoten** zeigt `#ID`, Titel, **Priorität**, **Wert** und – falls es Unteraufgaben
+- Jeder **Knoten** zeigt Titel, **Priorität**, **Wert** und – falls es Unteraufgaben
   gibt – den **Fortschritt**.
 - Eine Aufgabe, die mehreren übergeordneten Aufgaben zuarbeitet, steht **einmal** da und hat
   mehrere Kanten.
@@ -507,9 +525,9 @@ für Tastatur und Screenreader.
 ## Erledigte Aufgaben und Punkte
 
 In der **Erledigt**-Ansicht des Aufgaben-Tabs (Umschalter oben) stehen alle
-abgeschlossenen Aufgaben. Je Säule wird angezeigt, wie viele **Punkte** die Aufgabe
-dort eingebracht hat – die Spaltenwerte sind der auf die Säulen verteilte Aufwand.
-Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
+abgeschlossenen Aufgaben. Je Säule zeigt eine Spalte, wie viele **Punkte** die Aufgabe
+dort eingebracht hat. Auf dem Handy zeigt die Tabelle aus Platzgründen nur Titel und
+Aktion. Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
 
 ### Punkte (Gamification)
 
@@ -547,7 +565,7 @@ dadurch unter die Schwelle fällt.
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
 Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien, **Pakete**, **Abo** und
-Zugriff. Administratoren der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+Access-Token. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
 ### Allgemein
@@ -574,16 +592,19 @@ Zugriff. Administratoren der App sehen zusätzlich den Bereich **Nutzerverwaltun
   **„Erledigt animieren"** steuern die Bewegungen des Balance-Bildes auf dem
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.
-- **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, wird beim Öffnen
-  der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
-  Beim Einschalten wird der Mikrofon-Zugriff angefragt.
+- **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
+  des Titel-Felds, sobald du ein Aufgabenformular öffnest. Beim Einschalten wird der
+  Mikrofon-Zugriff angefragt.
+- **Konto löschen** – in der Karte **„Konto"** löschst du dein Konto nach einer
+  zweistufigen Rückfrage endgültig, mitsamt aller Aufgaben, Serien, Säulen, Kategorien
+  und Einstellungen. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
+  verweigert die App das Löschen.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
 
 ### Säulen
 
-Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") sowie die
-Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen – jeweils über eigene
-Modal-Dialoge).
+Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") und die
+Übersicht deiner fünf festen Säulen mit Name, Beschreibung und Gewicht.
 
 ### Kategorien
 
@@ -600,8 +621,10 @@ Darunter wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-
 Lektorat). Du wählst den aktiven Provider und daraus per Dropdown das Modell – die
 Modellliste wird live vom Provider geladen. Mitgelieferte Provider (Mistral, OpenRouter)
 beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Provider"** an
-(Name, Adresse, API-Key, Modell) und kannst sie **testen**, bearbeiten und löschen. Diese
-Einstellung gilt serverseitig für alle Nutzer. Ist kein Provider eingerichtet, zeigt der
+(Name, Adresse, API-Key, Modell) und kannst sie **testen**, bearbeiten und löschen. Eigene
+Provider gehören deinem Konto („eigen"), die mitgelieferten sind instanzweit geteilt
+(„instanzweit"). Ohne eigene Wahl laufen deine KI-Aufrufe über den instanzweit aktiven
+Provider. Ist kein Provider eingerichtet, zeigt der
 Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
 
 ### Standort
@@ -621,17 +644,15 @@ Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
 Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
 direkt aus.
 
-- **Anlegen:** unter **„Gespeicherte Orte"** einen **Namen** („Zuhause", „Büro") und
-  eine **Adresse** eingeben, dann **„Anlegen"**. Die Adresse tippst du hier als freien
-  Text ein – eine Vorschlagsliste gibt es in den Einstellungen nicht.
-- **Meine Orte:** die Karte darunter listet alle gespeicherten Orte. Je Eintrag kannst
-  du **umbenennen** (neuen Namen eingeben, **„Übernehmen"**) oder **löschen**
-  (**„Endgültig löschen"** nach Rückfrage).
+- **Anlegen:** unter **„Gespeicherte Orte"** eine Adresse eintippen und aus der
+  Vorschlagsliste auswählen – Adresse und Koordinaten werden gemeinsam übernommen –,
+  dann **„Anlegen"**.
+- **Meine Orte:** die Liste darunter führt alle gespeicherten Orte. Einen Eintrag
+  entfernst du nach Rückfrage mit **„Endgültig löschen"**.
 
 Im Adressfeld von Aufgaben und Serien stehen deine gespeicherten Orte vor den
-Suchtreffern. Orte, die du hier in den Einstellungen anlegst, haben keine Koordinaten –
-sie füllen das Adressfeld, zählen aber nicht für „In der Nähe". Koordinaten bekommt ein
-Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
+Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
+„In der Nähe".
 
 ---
 
@@ -639,12 +660,12 @@ Ort nur, wenn du ihn direkt aus einem Suchtreffer im Adressfeld speicherst.
 
 Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
 
-Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen. Die KI-Assistenz hat ein
-monatliches Kontingent: Pro 60, Max 110, Ultimate 200 Aufrufe.
+Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen – etwa Gruppen,
+KI-Unterstützung, Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe gehört zu Free.
+Die KI-Assistenz hat ein monatliches Kontingent: Pro 60, Max 110, Ultimate 200 Aufrufe.
 
-**Übergangsregel für Bestandskonten:** Wer sein Konto vor dem Start der Pakete angelegt und noch
-kein Paket gebucht hat, bekommt automatisch **Ultimate** und behält damit alle Funktionen. Wie
-lange das gilt und wie es danach weitergeht, kündigen wir rechtzeitig an.
+**Übergangsregel für Bestandskonten:** Ein Konto, das vor dem Start der Pakete angelegt
+wurde und kein Paket gebucht hat, hat **Ultimate** und damit alle Funktionen.
 
 ---
 
@@ -654,7 +675,7 @@ Im Bereich **Abo** siehst du deinen aktuellen Abonnement-Status, kannst Kündigu
 
 ---
 
-### Zugriff
+### Access-Token
 
 Hier legst du persönliche **Tokens** an, mit denen externe Programme auf deine Daten
 zugreifen – mit deinen Rechten. **„Token erzeugen"** legt einen an und zeigt seinen
@@ -688,19 +709,19 @@ In _Einstellungen → Gruppen_ organisierst du zusammen mit anderen Nutzern Aufg
 
 ## Nutzerverwaltung (nur für Administratoren)
 
-Jedes Konto hat eine App-weite Rolle: **Administrator** oder **Mitglied**. Diese Rolle ist etwas
-anderes als die Admin-Rolle innerhalb einer Gruppe (siehe [Gruppen](#gruppen)) – wer eine Gruppe
-verwaltet, ist deshalb noch kein Administrator der App.
+Jedes Konto hat eine App-weite Rolle: **Admin**, **Mitglied** oder **Tester**. Diese Rolle
+ist etwas anderes als die Admin-Rolle innerhalb einer Gruppe (siehe [Gruppen](#gruppen)) – wer
+eine Gruppe verwaltet, ist deshalb noch kein Admin der App.
 
-- **Wer Administrator ist:** Konten, deren E-Mail-Adresse der Betreiber in `ADMIN_EMAILS`
-  eingetragen hat, werden beim Anmelden automatisch Administrator. Alle anderen Konten sind
-  Mitglied. Aus der Liste entfernte Adressen bleiben Administrator, bis jemand die Rolle in der
+- **Wer Admin ist:** Konten, deren E-Mail-Adresse der Betreiber in `ADMIN_EMAILS`
+  eingetragen hat, werden beim Anmelden automatisch Admin. Alle anderen Konten sind
+  Mitglied. Aus der Liste entfernte Adressen bleiben Admin, bis jemand die Rolle in der
   App zurückstuft.
-- **Bereich Nutzerverwaltung:** Administratoren sehen in den Einstellungen den zusätzlichen
-  Bereich _Nutzerverwaltung_ mit allen Konten (Name, E-Mail, Rolle). Über **„… zum
-  Administrator machen"** bzw. **„… zur Mitgliedschaft zurückstufen"** änderst du die Rolle;
+- **Bereich Nutzerverwaltung:** Admins sehen in den Einstellungen den zusätzlichen
+  Bereich _Nutzerverwaltung_ mit allen Konten (Name, E-Mail, Rolle). Über die
+  Rollen-Umschalter je Konto (Admin, Mitglied, Tester) änderst du die Rolle;
   die Änderung gilt sofort, auch für bereits angemeldete Personen.
-- **Mindestens ein Administrator:** Den letzten verbleibenden Administrator kann niemand
+- **Mindestens ein Admin:** Den letzten verbleibenden Admin kann niemand
   zurückstufen – ernenne zuerst eine andere Person.
 - **Mitglieder** sehen den Bereich nicht; ein direkter Aufruf von `/settings/nutzer` öffnet bei
   ihnen den Bereich _Säulen_.
@@ -719,8 +740,9 @@ wenn die App gerade nicht geöffnet ist.
   es, die App zu installieren (siehe unten).
 - Erinnerungen verschickt die App einmal täglich als **je eine gebündelte Nachricht**:
   alle offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder
-  schon überschritten ist — sowie **separat** deine drei wichtigsten offenen Aufgaben
-  (nach Priorität). Eine bereits gemeldete Fälligkeit wird nicht erneut gemeldet.
+  schon überschritten ist („Fällige Aufgaben"). Dazu kommt **separat** eine Nachricht
+  „Deine wichtigsten Aufgaben" mit bis zu drei Aufgaben. Eine bereits gemeldete Fälligkeit
+  wird nicht erneut gemeldet.
 - Ist die Standort-Erfassung aktiv, bekommst du zusätzlich einen Hinweis, wenn eine
   offene Aufgabe mit Ortsbezug näher als deine Alarm-Entfernung liegt (Standard 1 km):
   als einzelne Nachricht mit Titel und Entfernung bzw. als gebündelte Nachricht
