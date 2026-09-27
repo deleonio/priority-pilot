@@ -710,6 +710,49 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		}
 		lines.push('');
 
+		// ─── Ampel-Trend: Wochen als SPALTEN, Ampel je Zelle gegen die Vorwoche ────
+		// Der Blick läuft über die Zeile: jede Zelle zeigt Ø Wert je Run der Woche und die
+		// Ampel gegen die Spalte links (🟢 ≥ 10 % billiger, 🟡 ±10 %, 🔴 ≥ 10 % teurer) —
+		// so ist eine Verschlechterung einer Phase ohne Kopf-rechnen sichtbar.
+		const AMPEL_WEEKS = 10;
+		const ampelWeeks = runWeeks.slice(-AMPEL_WEEKS);
+		const weekVal = (ph: string, wk: string): number | undefined => {
+			if (ph === '(gesamt)') {
+				const w = byWeek.get(wk);
+				return w && w.runs > 0 ? w.vc / w.runs : undefined;
+			}
+			const pw = byWeekPhase.get(wk)?.get(ph);
+			return pw && pw.runs > 0 ? pw.vc / pw.runs : undefined;
+		};
+		const ampelCell = (ph: string, wk: string, prevWk?: string): string => {
+			const cur = weekVal(ph, wk);
+			if (cur === undefined) return '—';
+			const prev = prevWk ? weekVal(ph, prevWk) : undefined;
+			if (prev === undefined || prev <= 0) return `· ${usd(cur)}`;
+			const delta = (cur - prev) / prev;
+			return `${delta < -0.1 ? '🟢' : delta <= 0.1 ? '🟡' : '🔴'} ${usd(cur)}`;
+		};
+		const firstYear = ampelWeeks[0]?.[0].slice(0, 4);
+		const headCell = (wk: string): string => {
+			const [y, w] = wk.split('-');
+			return y === firstYear ? w : wk; // Jahreswechsel in der Spalten-Überschrift sichtbar
+		};
+		lines.push('### Ampel-Trend — Ø Wert je Run, gegen Vorwoche', '');
+		lines.push(`| Phase | ${ampelWeeks.map(([wk]) => headCell(mark(wk))).join(' | ')} |`);
+		lines.push(`| --- |${' ---: |'.repeat(ampelWeeks.length)}`);
+		for (const ph of [...phaseNames, '(gesamt)']) {
+			const label = ph === '(gesamt)' ? '**Alle Phasen**' : ph;
+			lines.push(
+				`| ${label} | ${ampelWeeks.map(([wk], i) => ampelCell(ph, wk, i > 0 ? ampelWeeks[i - 1][0] : undefined)).join(' | ')} |`,
+			);
+		}
+		lines.push(
+			'',
+			'> 🟢 ≥ 10 % billiger als die Vorwoche · 🟡 ±10 % (Geld bleibt) · 🔴 ≥ 10 % teurer · „·" = erste Spalte ohne Vorwoche. Ø Wert je Run,',
+			'> nur messende Läufe (0-Werte zählen als 0). Letzte 10 Wochen; „*" = laufende Woche, ihre Kohorte ist noch offen.',
+			'',
+		);
+
 		// ─── Richtung: letzte 7 Kalendertage gegen die 8–14 davor ─────────────────
 		// Anker ist der jüngste messende Datensatz, deterministisch aus den Daten statt von
 		// der Wanduhr; gezählt in Berlin-Tagen, konsistent zum Trend oben.
