@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -34,7 +35,7 @@ describe('LoginPage — Magic Link per E-Mail', () => {
 		providers.mockResolvedValue({ google: true, magicLink: false });
 		render(<LoginPage />);
 		await waitFor(() => expect(providers).toHaveBeenCalled());
-		expect(screen.getByRole('button', { name: /Login with Google/i })).toBeTruthy();
+		expect(screen.getByRole('button', { name: /Mit Google anmelden/i })).toBeTruthy();
 		expect(screen.queryByLabelText('Anmeldelink per E-Mail')).toBeNull();
 	});
 
@@ -100,6 +101,80 @@ describe('LoginPage — Wortmarke statt Icon+Text (#1741, AK3)', () => {
 			document.querySelector('img[src*="icon-192"]'),
 			'keine icon-192-Referenz mehr auf der Login-Seite',
 		).toBeNull();
+	});
+});
+
+describe('LoginPage — Card-Kopf, Rücklink, deutsche Texte (#1767)', () => {
+	beforeEach(() => {
+		providers.mockResolvedValue({ google: true, magicLink: false });
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+		vi.unstubAllGlobals();
+	});
+
+	it('AK1: Titel und Subline liegen innerhalb der Card', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const card = document.querySelector('.login-page__card');
+		expect(card, 'Card (.login-page__card) muss vorhanden sein').toBeTruthy();
+		expect(
+			card?.querySelector('.login-page__title'),
+			'.login-page__title muss innerhalb der Card liegen (AK1)',
+		).toBeTruthy();
+		expect(
+			card?.querySelector('.login-page__sub'),
+			'.login-page__sub muss innerhalb der Card liegen (AK1)',
+		).toBeTruthy();
+	});
+
+	it('AK2: Web-Kanal rendert den Rücklink zur Website, Native-Kanal nicht', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const back = screen.queryByRole('link', { name: /Website/i });
+		expect(back, 'Web: Link mit Label „Website" erforderlich (AK2)').toBeTruthy();
+		expect(back?.getAttribute('href'), 'Rücklink zeigt auf / (AK2)').toBe('/');
+
+		cleanup();
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+		expect(
+			screen.queryByRole('link', { name: /Website/i }),
+			'Native: Rücklink darf nicht gerendert werden (AK2)',
+		).toBeNull();
+	});
+
+	it('AK3: Google-Button heißt „Mit Google anmelden"', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		expect(screen.getByRole('button', { name: /Mit Google anmelden/i })).toBeTruthy();
+	});
+
+	it('AK4: Magic-Link-Formular nutzt eine CSS-Klasse statt Inline-Style', async () => {
+		providers.mockResolvedValue({ google: true, magicLink: true });
+		render(<LoginPage />);
+		await screen.findByLabelText('Anmeldelink per E-Mail');
+
+		const form = document.querySelector('form');
+		expect(form?.classList.contains('login-page__magic'), 'Form braucht .login-page__magic (AK4)').toBe(true);
+		expect(form?.getAttribute('style'), 'kein Inline-Style am Formular (AK4)').toBeNull();
+	});
+});
+
+describe('LoginPage — CSS-Vertrag Card-Kopf (#1767, Datei-Lese-Guard)', () => {
+	it('AK1: .login-page__title nutzt --pp-font-size-lg; .login-page__sub ohne negative Margin', () => {
+		const css = readFileSync(new URL('../app.css', import.meta.url), 'utf8');
+
+		const titleBlock = css.match(/\.login-page__title\s*\{[^}]*\}/)?.[0] ?? '';
+		expect(titleBlock, 'Regel .login-page__title muss existieren').toContain('--pp-font-size-lg');
+		expect(titleBlock, 'Titel darf nicht mehr 2xl nutzen (AK1)').not.toContain('--pp-font-size-2xl');
+
+		const subBlock = css.match(/\.login-page__sub\s*\{[^}]*\}/)?.[0] ?? '';
+		expect(subBlock, 'Regel .login-page__sub muss existieren').not.toContain('calc(-1');
 	});
 });
 
