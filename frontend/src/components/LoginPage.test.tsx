@@ -34,7 +34,7 @@ describe('LoginPage — Magic Link per E-Mail', () => {
 		providers.mockResolvedValue({ google: true, magicLink: false });
 		render(<LoginPage />);
 		await waitFor(() => expect(providers).toHaveBeenCalled());
-		expect(screen.getByRole('button', { name: /Login with Google/i })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Mit Google anmelden' })).toBeTruthy();
 		expect(screen.queryByLabelText('Anmeldelink per E-Mail')).toBeNull();
 	});
 
@@ -100,6 +100,63 @@ describe('LoginPage — Wortmarke statt Icon+Text (#1741, AK3)', () => {
 			document.querySelector('img[src*="icon-192"]'),
 			'keine icon-192-Referenz mehr auf der Login-Seite',
 		).toBeNull();
+	});
+});
+
+describe('LoginPage — Card-Hierarchie, Website-Link, Button-Name, Formular-Klasse (#1766)', () => {
+	beforeEach(() => {
+		providers.mockResolvedValue({ google: true, magicLink: false });
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+		vi.unstubAllGlobals();
+	});
+
+	it('AK1: Titel und Subline liegen innerhalb der Card', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const card = document.querySelector('.login-page__card');
+		expect(card, '.login-page__card muss vorhanden sein').toBeTruthy();
+
+		const title = screen.getByRole('heading', { name: 'Anmelden' });
+		expect(title.closest('.login-page__card'), 'Titel muss innerhalb der Card liegen').toBe(card);
+
+		const sub = document.querySelector('.login-page__sub');
+		expect(sub?.closest('.login-page__card'), '.login-page__sub muss innerhalb der Card liegen').toBe(card);
+	});
+
+	it('AK2 (web): zeigt einen Link "Website" mit href="/" unterhalb der Card', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		const link = screen.getByRole('link', { name: /Website/i });
+		expect(link.getAttribute('href')).toBe('/');
+	});
+
+	it('AK2 (native/play): zeigt keinen Website-Link', async () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		expect(screen.queryByRole('link', { name: /Website/i })).toBeNull();
+	});
+
+	it('AK3: Button trägt den Namen "Mit Google anmelden", "Login with Google" kommt nicht mehr vor', async () => {
+		render(<LoginPage />);
+		await waitFor(() => expect(providers).toHaveBeenCalled());
+
+		expect(screen.getByRole('button', { name: 'Mit Google anmelden' })).toBeTruthy();
+		expect(screen.queryByText(/Login with Google/i)).toBeNull();
+	});
+
+	it('AK4: Magic-Link-Formular nutzt eine CSS-Klasse statt Inline-style', async () => {
+		providers.mockResolvedValue({ google: true, magicLink: true });
+		render(<LoginPage />);
+
+		const form = (await screen.findByLabelText('Anmeldelink per E-Mail')).closest('form');
+		expect(form?.getAttribute('style'), 'Formular darf kein Inline-style mehr tragen').toBeNull();
+		expect(form?.className, 'Formular braucht eine CSS-Klasse (z. B. login-page__form)').not.toBe('');
 	});
 });
 
