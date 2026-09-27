@@ -88,7 +88,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 
 		// Echte Navigation → Root.tsx remountet → /auth/me → 401 → LoginPage erscheint.
 		// Mit pushState bleibt Root.tsx eingehängt, LoginPage wird nie gerendert → Timeout → ROT.
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 	});
 
 	/**
@@ -116,7 +116,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
 
 		// LoginPage muss sichtbar sein (stellt sicher, dass die Prüfung nach echter Navigation gilt).
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		// Kein Logout-Button auf der Login-Seite.
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 	});
@@ -147,7 +147,7 @@ test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
 
 		// Echte Navigation ist Pflicht: LoginPage muss rendern (ROT mit pushState).
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		// Und die URL muss /login lauten (kein Redirect auf / oder /home).
 		await expect(page).toHaveURL(/\/login(\b|\/|$)/);
 	});
@@ -226,7 +226,7 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 		await page.goto('/app/');
 
 		// Ohne Authentifizierung zeigt die App die LoginPage — also keine Toolbar und kein Logout-Button.
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 	});
 
@@ -312,7 +312,7 @@ test.describe('#191 Logout-Button in Navigation', () => {
 			});
 		await page.route('**/auth/me', unauthenticated);
 		await page.goto('/app/');
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 
 		// Eingeloggt: /auth/me = 200 → App mit Toolbar → Logout-Button ist sichtbar.

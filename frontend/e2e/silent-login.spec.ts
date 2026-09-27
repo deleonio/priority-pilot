@@ -117,7 +117,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		await expect.poll(() => silentCount, { timeout: 5000 }).toBeGreaterThanOrEqual(1);
 
 		// … terminiert an der manuellen Login-Seite …
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		await expect(page).toHaveURL(/silent=unavailable/);
 
 		// … und wird NICHT erneut angestoßen (Loop-Guard): insgesamt genau ein Versuch.
@@ -145,7 +145,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		// Haupt-App erscheint (Nutzer angemeldet) — ohne Klick auf den manuellen Login-Button.
 		// Heute (ROT): stiller Versuch bleibt aus → /auth/me bleibt 401 → LoginPage → „Dashboard" nie sichtbar.
 		await waitForStableView(page);
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toHaveCount(0);
 	});
 
 	/**
@@ -174,7 +174,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
 
 		// Nach dem Logout landet der Nutzer auf der Login-Seite …
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 
 		// … und es wird KEIN stiller Re-Login ausgelöst (Logout-Sperre).
 		await page.waitForTimeout(800);
@@ -194,7 +194,7 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/app/');
 
-		const loginButton = page.getByRole('button', { name: /Mit Google anmelden/i });
+		const loginButton = page.getByRole('button', { name: /Login with Google/i });
 		await expect(loginButton).toBeVisible();
 		await expect(loginButton).toBeEnabled();
 

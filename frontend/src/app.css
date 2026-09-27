@@ -4832,20 +4832,16 @@ a.plan-badge:focus-visible {
 	display: block;
 }
 
-/*
- * Card-Kopf (#1752): Titel in lg innerhalb der Card — die Wortmarke darüber bleibt das
- * hierarchisch dominante Element; 2xl würde sie konkurrieren.
- */
 .login-page__title {
 	margin: 0;
-	font-size: var(--pp-font-size-lg);
+	font-size: var(--pp-font-size-2xl);
 	font-weight: var(--pp-weight-bold);
 	line-height: var(--pp-line-tight);
 	color: var(--pp-ink);
 }
 
 .login-page__sub {
-	margin: 0;
+	margin: calc(-1 * var(--pp-gap-tight)) 0 0;
 	color: var(--pp-ink-muted);
 	font-size: var(--pp-font-size-base);
 }
@@ -4861,17 +4857,6 @@ a.plan-badge:focus-visible {
 	border: 1px solid var(--pp-border-subtle);
 	border-radius: var(--pp-radius-md);
 	text-align: left;
-}
-
-/* Flucht-Link unter der Card (#1752): unterstrichen (WCAG 1.4.1) und als Tapp-Ziel ≥ 44 px. */
-.login-page__website {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 44px;
-	color: var(--pp-ink-muted);
-	font-size: var(--pp-font-size-base);
-	text-decoration: underline;
 }
 
 .login-page__btn {
@@ -4917,8 +4902,7 @@ a.plan-badge:focus-visible {
 }
 
 .login-page__btn:focus-visible,
-.login-page__input:focus-visible,
-.login-page__website:focus-visible {
+.login-page__input:focus-visible {
 	outline: 2px solid var(--pp-focus-ring);
 	outline-offset: 2px;
 }
@@ -4932,13 +4916,6 @@ a.plan-badge:focus-visible {
 	box-sizing: border-box;
 	border-radius: var(--pp-radius-pill);
 	background: var(--pp-surface-1);
-}
-
-/* Magic-Link-Formular (#1752, AK5): Layout als Klasse statt Inline-Style, engerer Stack als die Card. */
-.login-page__form {
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-gap-tight);
 }
 
 .login-page__divider {
