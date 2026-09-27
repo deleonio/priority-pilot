@@ -264,6 +264,29 @@ describe('tokens-report', () => {
 		}
 	});
 
+	it('Ampel-Trend: Wochen als Spalten, 🟢/🟡/🔴 je Zelle gegen die Vorwoche', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-ampel-'));
+		try {
+			writeTicket(dir, '930', [
+				// W35: analyse $1, review $2 — W36: analyse $2 (🔴 teurer), review $1 (🟢 billiger)
+				entry({ issueId: '930', phase: 'analyse', valueCost: 1, timestamp: '2026-08-24T10:00:00Z' }),
+				entry({ issueId: '930', phase: 'review', valueCost: 2, timestamp: '2026-08-24T11:00:00Z' }),
+				entry({ issueId: '930', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
+				entry({ issueId: '930', phase: 'analyse', valueCost: 2, timestamp: '2026-08-31T10:00:00Z' }),
+				entry({ issueId: '930', phase: 'review', valueCost: 1, timestamp: '2026-08-31T11:00:00Z' }),
+				entry({ issueId: '930', phase: 'documenter', timestamp: '2026-08-31T12:00:00Z' }),
+			]);
+			const report = renderReport(dir);
+			assert.match(report, /### Ampel-Trend — Ø Wert je Run, gegen Vorwoche/);
+			assert.match(report, /\| analyse \| · \$1\.00 \| 🔴 \$2\.00 \|/, 'Anstieg ≥ 10 % = rot');
+			assert.match(report, /\| review \| · \$2\.00 \| 🟢 \$1\.00 \|/, 'Rückgang ≥ 10 % = grün');
+			assert.match(report, /\| \*\*Alle Phasen\*\* \| · \$1\.50 \| 🟡 \$1\.50 \|/, '±10 % = gelb (Geld bleibt)');
+			assert.match(report, /W35 \| W36/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it('klassifiziert chronologisch: extern umgesetzte Erstdurchläufe sind vollständig, Nacharbeit nach dem Siegel ein Bein', () => {
 		const at = (phase: string, hour: number, over: Partial<CostEntry> = {}): CostEntry =>
 			entry({ phase, timestamp: `2026-08-24T${String(hour).padStart(2, '0')}:00:00Z`, ...over });
