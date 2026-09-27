@@ -4834,14 +4834,14 @@ a.plan-badge:focus-visible {
 
 .login-page__title {
 	margin: 0;
-	font-size: var(--pp-font-size-2xl);
+	font-size: var(--pp-font-size-lg);
 	font-weight: var(--pp-weight-bold);
 	line-height: var(--pp-line-tight);
 	color: var(--pp-ink);
 }
 
 .login-page__sub {
-	margin: calc(-1 * var(--pp-gap-tight)) 0 0;
+	margin: 0;
 	color: var(--pp-ink-muted);
 	font-size: var(--pp-font-size-base);
 }
@@ -4857,6 +4857,21 @@ a.plan-badge:focus-visible {
 	border: 1px solid var(--pp-border-subtle);
 	border-radius: var(--pp-radius-md);
 	text-align: left;
+}
+
+.login-page__form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
+.login-page__back-link {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-base);
 }
 
 .login-page__btn {
