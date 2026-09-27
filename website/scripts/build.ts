@@ -60,7 +60,8 @@ copy(join(root, 'src/styles.css'), 'styles.css');
 copy(join(frontendPublic, 'favicon-32x32.png'), 'favicon-32x32.png');
 copy(join(frontendPublic, 'favicon-16x16.png'), 'favicon-16x16.png');
 copy(join(frontendPublic, 'apple-touch-icon.png'), 'apple-touch-icon.png');
-copy(join(frontendPublic, 'icons/icon-192x192.png'), 'icon-192.png');
+copy(join(frontendPublic, 'logo/logo-with-name.horizontal.svg'), 'logo-with-name.svg');
+copy(join(frontendPublic, 'logo/logo-with-name.horizontal.dark.svg'), 'logo-with-name.dark.svg');
 copy(join(frontendPublic, 'icons/icon-512x512.png'), 'icon-512.png');
 for (const weight of ['400', '600']) {
 	copy(join(fonts, `archivo-latin-${weight}-normal.woff2`), `fonts/archivo-latin-${weight}-normal.woff2`);

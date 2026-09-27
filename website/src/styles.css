@@ -119,13 +119,16 @@ img {
 	min-height: 4rem;
 }
 
+/* Wortmarke aus frontend/public/logo (#1741), je Farbschema ein SVG über <picture> */
 .brand {
 	display: inline-flex;
-	align-items: center;
-	gap: var(--pp-space-1);
-	color: var(--pp-ink);
-	font-weight: 600;
-	text-decoration: none;
+}
+
+/* 375 px: Wortmarke, Sprachwahl und „App öffnen" passen in eine Zeile */
+.brand img {
+	display: block;
+	height: 1.375rem;
+	width: auto;
 }
 
 .site-nav {
@@ -601,6 +604,10 @@ img {
 }
 
 @media (min-width: 48rem) {
+	.brand img {
+		height: 2rem;
+	}
+
 	.site-nav__anchor {
 		display: inline;
 	}

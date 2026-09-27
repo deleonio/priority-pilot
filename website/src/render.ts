@@ -155,7 +155,7 @@ const shell = (context: PageContext, { title, description, path, pathFor, body, 
 		<a class="skip-link" href="#main">${t(messages.meta.skip)}</a>
 		<header class="site-header">
 			<div class="container site-header__inner">
-				<a class="brand" href="${homePath(locale)}"><img src="/icon-192.png" alt="" width="36" height="36"><span>Balamentum</span></a>
+				<a class="brand" href="${homePath(locale)}"><picture><source srcset="/logo-with-name.dark.svg" media="(prefers-color-scheme: dark)"><img src="/logo-with-name.svg" alt="Balamentum" width="151" height="22"></picture></a>
 				<nav aria-label="${t(messages.nav.label)}" class="site-nav">
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#features">${t(messages.nav.features)}</a>
 					<a class="kern-link site-nav__anchor" href="${homePath(locale)}#pricing">${t(messages.nav.pricing)}</a>
