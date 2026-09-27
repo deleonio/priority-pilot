@@ -40,7 +40,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		await page.goto('/app/');
 
 		// Der auffällige Google-Login-Button ist sichtbar …
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 		// … und die Haupt-App (sr-only H1 „Dashboard") ist es NICHT.
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeHidden();
 	});
@@ -50,7 +50,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		await page.goto('/app/');
 
 		// Sicherstellen, dass die Login-Seite gerendert ist, bevor wir auf Abwesenheiten prüfen.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 
 		// Kein Einbetten in die normale UI: weder der „Neuen Task anlegen"-Button …
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeHidden();
@@ -64,7 +64,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		await page.route('**/auth/google', (route: Route) => route.abort());
 		await page.goto('/app/');
 
-		const loginButton = page.getByRole('button', { name: /Login with Google/i });
+		const loginButton = page.getByRole('button', { name: 'Mit Google anmelden' });
 		await expect(loginButton).toBeVisible();
 
 		// Der Klick muss einen Request an `/auth/google` auslösen (Start des OAuth-Flows).
@@ -81,7 +81,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		// Die Fehlermeldung ist als alert-Role ausgewiesen und sichtbar.
 		await expect(page.getByRole('alert')).toBeVisible();
 		// Die Login-Seite bleibt erreichbar — der Login-Button ist weiterhin da.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 	});
 
 	test('AK3b: ?error=invalid_email zeigt E-Mail-Fehler-Hinweis', async ({ page }) => {
@@ -101,7 +101,7 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		// Die Haupt-App (sr-only H1 „Dashboard") ist im DOM …
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// … und der Login-Button ist es NICHT.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeHidden();
 	});
 
 	test('AK5: Login-Seite ist auf mobilen Viewports bedienbar', async ({ page }) => {
@@ -110,8 +110,57 @@ test.describe('Balamentum — Login-Page für Google OAuth (#190)', () => {
 		await page.goto('/app/');
 
 		// Auch auf einem schmalen Mobil-Viewport ist der Login-Button sichtbar und bedienbar.
-		const loginButton = page.getByRole('button', { name: /Login with Google/i });
+		const loginButton = page.getByRole('button', { name: 'Mit Google anmelden' });
 		await expect(loginButton).toBeVisible();
 		await expect(loginButton).toBeEnabled();
+	});
+});
+
+test.describe('Balamentum — Login-Page: Hierarchie, Card-Struktur, Website-Link (#1766)', () => {
+	test('AK1: Titel "Anmelden" liegt innerhalb der Card', async ({ page }) => {
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		const card = page.locator('.login-page__card');
+		await expect(card.getByRole('heading', { name: 'Anmelden' })).toBeVisible();
+	});
+
+	test('AK2: Link "Website" mit href="/" ist unterhalb der Card sichtbar', async ({ page }) => {
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		const link = page.getByRole('link', { name: /Website/i });
+		await expect(link).toBeVisible();
+		await expect(link).toHaveAttribute('href', '/');
+	});
+
+	test('AK3: Button trägt den Namen "Mit Google anmelden", kein Text "Login with Google" mehr', async ({ page }) => {
+		await mockUnauthenticated(page);
+		await page.goto('/app/');
+
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
+		await expect(page.getByText('Login with Google')).toHaveCount(0);
+	});
+
+	test('AK6: Bei 375px kein horizontales Scrollen, Touch-Targets >= 44px', async ({ page }) => {
+		await mockUnauthenticated(page);
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page.goto('/app/');
+
+		const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+		expect(scrollWidth).toBeLessThanOrEqual(375);
+
+		const cardBox = await page.locator('.login-page__card').boundingBox();
+		expect(cardBox).not.toBeNull();
+		expect(cardBox!.x).toBeGreaterThanOrEqual(0);
+		expect(cardBox!.x + cardBox!.width).toBeLessThanOrEqual(375);
+
+		const buttonBox = await page.getByRole('button', { name: 'Mit Google anmelden' }).boundingBox();
+		expect(buttonBox).not.toBeNull();
+		expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+
+		const linkBox = await page.getByRole('link', { name: /Website/i }).boundingBox();
+		expect(linkBox).not.toBeNull();
+		expect(linkBox!.height).toBeGreaterThanOrEqual(44);
 	});
 });
