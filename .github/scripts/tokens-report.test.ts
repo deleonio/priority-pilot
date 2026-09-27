@@ -184,7 +184,7 @@ describe('tokens-report', () => {
 		}
 	});
 
-	it('schliesst unvollstaendige Tickets aus allen Kennzahlen aus und nennt ihre Summe', () => {
+	it('schliesst unvollstaendige Tickets aus allen Kennzahlen aus und listet sie einzeln', () => {
 		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-filter-'));
 		try {
 			// vollstaendig: zahlt
@@ -201,9 +201,16 @@ describe('tokens-report', () => {
 			writeTicket(dir, '912', [entry({ issueId: '912', phase: 'implement', valueCost: 7, turns: 9 })]);
 			const report = renderReport(dir);
 			assert.match(report, /1 vollständige Tickets \(1 Pipeline · 0 extern\) · 2 Läufe/);
-			assert.match(report, /Ausgeschlossen \(unvollständig[^)]*\): 2 Tickets — 1 Fixup-Beine, 1 abgebrochen/);
+			assert.match(report, /### Ausgeschlossene Tickets — nicht in Kennzahlen enthalten \(2\)/);
+			assert.match(report, /\[#911\]\([^)]*\) \| Fixup-Bein \| 2 \| 53 \| \$101\.00 \|/);
+			assert.match(report, /\[#912\]\([^)]*\) \| abgebrochen \| 1 \| 9 \| \$7\.00 \|/);
 			assert.match(report, /3 Läufe · 62 Turns · \$108\.00 Wert/);
-			assert.doesNotMatch(report, /\[#91[12]\]/, 'ausgeschlossene Tickets stehen nicht in der Ticket-Tabelle');
+			const hauptTabelle = report.slice(0, report.indexOf('### Ausgeschlossene Tickets'));
+			assert.doesNotMatch(
+				hauptTabelle,
+				/\[#91[12]\]/,
+				'ausgeschlossene Tickets stehen nur in der Exklusions-Sektion, nicht in der Ticket-Tabelle',
+			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

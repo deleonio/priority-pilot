@@ -37,6 +37,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Immer der Default-Branch: Der Report ist repo-weit und read-only — ein Dispatch
+          # von einem Feature-Branch renderte sonst den veralteten .costs/-Stand des Branches
+          # (frisch versiegelte Tickets fehlten still).
+          ref: ${{ github.event.repository.default_branch }}
 
       - name: Turn-Uebersicht (vollstaendige Tickets)
         run: |
