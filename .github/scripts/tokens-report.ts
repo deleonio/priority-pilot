@@ -796,12 +796,27 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		'',
 	);
 	if (excluded.length > 0) {
-		const byClass = (cls: TicketClass): number => excluded.filter((t) => t.class === cls).length;
+		const CLASS_ORDER: TicketClass[] = ['fixup-bein', 'abgebrochen', 'sonstiges'];
+		const excludedTotals = excluded
+			.map((t) => ({ total: ticketTotal(t), class: t.class }))
+			.sort(
+				(a, b) =>
+					CLASS_ORDER.indexOf(a.class) - CLASS_ORDER.indexOf(b.class) || Number(a.total.issue) - Number(b.total.issue),
+			);
 		lines.push(
-			`> ℹ️ Ausgeschlossen (unvollständig, in KEINER Kennzahl enthalten): ${excluded.length} Tickets — ` +
-				`${byClass('fixup-bein')} Fixup-Beine, ${byClass('abgebrochen')} abgebrochen, ${byClass('sonstiges')} sonstige; ` +
-				`${exStats.runs} Läufe · ${num(exStats.turns)} Turns · ${usd(exStats.valueCost)} Wert. ` +
-				'Budget-Realität bleibt über diese Summe sichtbar, die Auswertung bleibt sauber.',
+			`### Ausgeschlossene Tickets — nicht in Kennzahlen enthalten (${excluded.length})`,
+			'',
+			'| Ticket | Klasse | Läufe | Turns | Wert (USD) |',
+			'| --- | --- | ---: | ---: | ---: |',
+		);
+		for (const { total, class: cls } of excludedTotals) {
+			lines.push(
+				`| [#${total.issue}](https://github.com/deleonio/priority-pilot/issues/${total.issue}) | ${CLASS_LABEL[cls]} | ${total.runs} | ${total.turns > 0 ? num(total.turns) : '—'} | ${usd(total.valueCost)} |`,
+			);
+		}
+		lines.push(
+			'',
+			`> ${exStats.runs} Läufe · ${num(exStats.turns)} Turns · ${usd(exStats.valueCost)} Wert — Budget-Realität bleibt sichtbar, die Auswertung bleibt sauber.`,
 			'',
 		);
 	}
