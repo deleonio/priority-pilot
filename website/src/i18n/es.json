@@ -221,6 +221,12 @@
 			{
 				"q": "¿Por qué no llega el correo de inicio de sesión?",
 				"a": "Por dirección se envían como máximo tres enlaces de acceso cada 15 minutos; las demás solicitudes de ese periodo quedan sin correo. Revisa también la carpeta de spam. Las direcciones @gmail.com y @googlemail.com llegan al mismo buzón, pero son dos cuentas distintas en la app; usa siempre la misma forma."
+			},
+			{
+				"q": "¿Hay una app de Android para descargar?",
+				"a": "Sí. La app de Android está disponible como archivo APK para descargar e instalar directamente. Se conecta al mismo servidor que la app web.",
+				"href": "/demo.apk",
+				"linkText": "Descargar demo.apk"
 			}
 		]
 	},

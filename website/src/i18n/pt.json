@@ -221,6 +221,12 @@
 			{
 				"q": "Por que o e-mail de login não chega?",
 				"a": "São enviados no máximo três links de login por endereço a cada 15 minutos; pedidos adicionais desse período ficam sem e-mail. Verifique também a pasta de spam. Endereços @gmail.com e @googlemail.com chegam à mesma caixa de entrada, mas são duas contas separadas no app — use sempre a mesma grafia."
+			},
+			{
+				"q": "Há uma app para Android para descarregar?",
+				"a": "Sim. A app para Android está disponível como ficheiro APK para descarregar e instalar diretamente. Liga-se ao mesmo servidor que a app web.",
+				"href": "/demo.apk",
+				"linkText": "Descarregar demo.apk"
 			}
 		]
 	},
