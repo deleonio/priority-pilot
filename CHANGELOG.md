@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.8 - 2026-09-27
 
-_Enthält v0.8.0 – v0.8.10._
+_Enthält v0.8.0 – v0.8.11._
 
 ### 🎉 New Features
 
@@ -24,6 +24,7 @@ _Enthält v0.8.0 – v0.8.10._
 - feat(frontend): restructure login card, german label, site link (#1753) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1763
 - Revert "feat(frontend): restructure login card, german label, site link (#1753)" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1764
 - Revert "feat(frontend): restructure login card hierarchy and add website link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1771
+- feat(native): show wordmark splash with mark above and name below by @deleonio in https://github.com/deleonio/priority-pilot/pull/1773
 
 ## v0.7 - 2026-09-27
 
@@ -149,7 +150,7 @@ _Enthält v0.3.0 – v0.3.8._
 - feat(frontend): add tester role option to user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1616
 - fix(server): reliable pillar recalculation with status filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1615
 - fix(ci): bump version before build so deployed footer matches changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1619
-- fix(ci): bump version before build so deployed footer matches changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1619
+- feat(frontend): add week view to the daily plan (#1617) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1620
 - feat(frontend): add week view to the daily plan (#1617) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1620
 - feat(frontend): serve the app under /app/ and add a public website by @deleonio in https://github.com/deleonio/priority-pilot/pull/1621
 
