@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.8 - 2026-09-27
 
-_Enthält v0.8.0 – v0.8.13._
+_Enthält v0.8.0 – v0.8.14._
 
 ### 🎉 New Features
 
@@ -30,6 +30,7 @@ _Enthält v0.8.0 – v0.8.13._
 - Revert "feat(frontend): restructure login card hierarchy and add website link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1771
 - feat(native): show wordmark splash with mark above and name below by @deleonio in https://github.com/deleonio/priority-pilot/pull/1773
 - feat(frontend): restructure login card and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1772
+- feat(frontend): login card hierarchy, german texts, website back link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1775
 
 ## v0.7 - 2026-09-27
 
@@ -122,6 +123,7 @@ _Enthält v0.4.0 – v0.4.22._
 ### Other Changes
 
 - fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
+- fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
 - fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
 - docs(mobile-ui-rules): align checklist touch-target to 44px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1626
 - fix(pillars): resumable recalc with live progress and rate-limit retry by @deleonio in https://github.com/deleonio/priority-pilot/pull/1628
@@ -212,7 +214,6 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(frontend): hide task id prefix in dashboard widget titles by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1451
 - fix(frontend): dedup extractLeaves by node.id (#1449) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1464
 - feat(ci): tägliches Code-Review-Team ersetzt nightly-arch-opt by @deleonio in https://github.com/deleonio/priority-pilot/pull/1468
-- feat(server): send startup status mail with commit sha to admins by @deleonio in https://github.com/deleonio/priority-pilot/pull/1466
 - feat(server): send startup status mail with commit sha to admins by @deleonio in https://github.com/deleonio/priority-pilot/pull/1466
 - fix(ci): scope guard opens .github/scripts, quality goals as yardstick by @deleonio in https://github.com/deleonio/priority-pilot/pull/1469
 - feat(server): optional cc for status mail, new imprint contact by @deleonio in https://github.com/deleonio/priority-pilot/pull/1473
