@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.7 - 2026-09-26
 
-_Enthält v0.7.0 – v0.7.8._
+_Enthält v0.7.0 – v0.7.9._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.7.0 – v0.7.8._
 - feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
 - feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
 - feat(frontend): revert #1745 toolbar popover polish to stock kolibri by @deleonio in https://github.com/deleonio/priority-pilot/pull/1749
+- fix(frontend): remove #1623 gap write for stock kol-toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1750
 
 ## v0.6 - 2026-09-26
 
@@ -163,7 +164,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): convert name input fields to search type by @deleonio in https://github.com/deleonio/priority-pilot/pull/1421
 - chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1431
 - feat(frontend): add changelog range selector and help page sidebar toc by @deleonio in https://github.com/deleonio/priority-pilot/pull/1432
-- feat(frontend): add changelog range selector and help page sidebar toc by @deleonio in https://github.com/deleonio/priority-pilot/pull/1432
 - feat(frontend): add impressum tab and strip repo links from changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1434
 - feat(mcp): switch MCP server responses to English (#1370) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1437
 - fix(frontend): refresh task list after generating series instances by @deleonio in https://github.com/deleonio/priority-pilot/pull/1439
@@ -260,6 +260,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
 - feat(frontend): assign tasks to a whole group by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1603
 - feat(frontend): add pin/unpin support for tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1594
+- ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
 - ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
 - docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
