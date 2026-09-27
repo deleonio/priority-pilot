@@ -38,6 +38,6 @@ test.describe('#1136 — Neu-Nutzer-Sign-up-Pfad (echte Session)', () => {
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// Kein Dauerspinner: der Auth-Ladehinweis ist weg und der Login-Button nie erschienen.
 		await expect(page.getByText('Authentifizierung wird geprüft')).toBeHidden();
-		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeHidden();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
 	});
 });
