@@ -331,7 +331,8 @@ sofern dein Browser Spracherkennung unterstützt.
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
 - Die Sprache ist auf Deutsch (`de-DE`) festgelegt.
-- Optional startet die Aufnahme **automatisch** beim Öffnen des Aufgabenformulars – aktivierbar
+- Optional startet die Aufnahme **automatisch** in den Sprachfeldern – Titel-Feld im
+  Aufgabenformular, Schnellerfassung und Suche – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 - Beim Anlegen und beim Suchen erkennt die KI aus dem gesprochenen Text auch die
   **Kategorie**, sofern du welche angelegt hast (siehe „Kategorien").
@@ -593,11 +594,12 @@ Access-Token. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
   Dashboard und den Ablauf beim Erledigen einer Aufgabe. Ohne Bewegung bleibt das
   Bild vollständig, es steht nur still.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, startet das Mikrofon
-  des Titel-Felds, sobald du ein Aufgabenformular öffnest. Beim Einschalten wird der
-  Mikrofon-Zugriff angefragt.
+  der Sprachfelder (Aufgabenformular, Schnellerfassung, Suche), sobald du sie öffnest.
+  Beim Einschalten wird der Mikrofon-Zugriff angefragt.
 - **Konto löschen** – in der Karte **„Konto"** löschst du dein Konto nach einer
   zweistufigen Rückfrage endgültig, mitsamt aller Aufgaben, Serien, Säulen, Kategorien
-  und Einstellungen. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
+  und Einstellungen; Aufgaben und Serien, die du für Gruppenmitglieder angelegt hast,
+  bleiben für sie bestehen. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
   verweigert die App das Löschen.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
 
