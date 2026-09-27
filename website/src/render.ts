@@ -346,7 +346,7 @@ ${plans.map((plan) => planCard(context, plan)).join('\n')}
 			<section class="section section--alt" id="faq" aria-labelledby="faq-title">
 				<div class="container container--narrow">
 					<h2 id="faq-title" class="kern-heading-large">${t(m.faq.title)}</h2>
-${m.faq.items.map((item) => `					<details class="kern-accordion"><summary class="kern-accordion__header"><span class="kern-title">${t(item.q)}</span></summary><div class="kern-accordion__body"><p class="kern-body">${t(item.a)}${'linkText' in item && item.href && item.linkText ? ` <a class="kern-link" href="${t(item.href)}">${t(item.linkText)}</a>` : ''}</p></div></details>`).join('\n')}
+${m.faq.items.map((item) => `					<details class="kern-accordion"><summary class="kern-accordion__header"><span class="kern-title">${t(item.q)}</span></summary><div class="kern-accordion__body"><p class="kern-body">${t(item.a)}${item.href && item.linkText ? ` <a class="kern-link" href="${t(item.href)}">${t(item.linkText)}</a>` : ''}</p></div></details>`).join('\n')}
 				</div>
 			</section>
 			<section class="section final">

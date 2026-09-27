@@ -190,6 +190,19 @@ describe('renderLanding', () => {
 			}
 		},
 	);
+
+	/** #1754 — nur FAQ-Einträge mit href/linkText bekommen einen kern-link-Anker in der Antwort. */
+	it('verlinkt genau den FAQ-Eintrag mit Download-Link als kern-link (#1754)', () => {
+		const html = landing('de');
+		const bodies = [
+			...html.matchAll(/<div class="kern-accordion__body"><p class="kern-body">([\s\S]*?)<\/p><\/div>/g),
+		].map((match) => match[1]);
+		expect(bodies).toHaveLength(de.faq.items.length);
+		const linked = bodies.filter((body) => body.includes('<a '));
+		expect(linked).toHaveLength(1);
+		const item = de.faq.items.find((item) => item.href && item.linkText);
+		expect(linked[0]).toContain(`<a class="kern-link" href="${item?.href}">${item?.linkText}</a>`);
+	});
 });
 
 describe('renderImprint', () => {
