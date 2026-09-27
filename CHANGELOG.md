@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.8 - 2026-09-27
 
-_Enthält v0.8.0 – v0.8.1._
+_Enthält v0.8.0 – v0.8.2._
 
 ### Other Changes
 
 - feat(ci): Fokus-Modus (--issues) und Top-10-Tabelle gegen Summary-Truncation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1759
+- feat(ci): Ampel-Trend je Phase (KW-Spalten) + Branch-Auswahl im Report-Dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1761
 
 ## v0.7 - 2026-09-27
 
@@ -181,6 +182,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): add hint badge to task and series lists by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1442
 - feat(server): track and surface auto-deleted missed tasks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1440
 - chore(ci): share one concurrency group across the ticket pipeline 01-06 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1453
+- feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
 - fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
