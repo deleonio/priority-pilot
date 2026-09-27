@@ -34,7 +34,7 @@ describe('LoginPage — Magic Link per E-Mail', () => {
 		providers.mockResolvedValue({ google: true, magicLink: false });
 		render(<LoginPage />);
 		await waitFor(() => expect(providers).toHaveBeenCalled());
-		expect(screen.getByRole('button', { name: /Login with Google/i })).toBeTruthy();
+		expect(screen.getByRole('button', { name: /Mit Google anmelden/i })).toBeTruthy();
 		expect(screen.queryByLabelText('Anmeldelink per E-Mail')).toBeNull();
 	});
 
