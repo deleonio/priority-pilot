@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.8 - 2026-09-27
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.8.0 – v0.8.1._
+
+### Other Changes
+
+- feat(ci): Fokus-Modus (--issues) und Top-10-Tabelle gegen Summary-Truncation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1759
 
 ## v0.7 - 2026-09-27
 
