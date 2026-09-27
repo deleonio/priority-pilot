@@ -64,7 +64,7 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 		await page.goto('/app/');
 
 		// LoginPage muss sichtbar sein …
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		// … die Haupt-App (sr-only H1 „Dashboard") darf NICHT im Dokument sein.
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeHidden();
 	});
@@ -76,14 +76,14 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 		// Haupt-App muss sichtbar sein (sr-only H1 „Dashboard" im DOM) …
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// … LoginPage darf NICHT erscheinen.
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeHidden();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
 	});
 
 	test('AK7c: Wechsel von unauthentifiziert auf authentifiziert zeigt Haupt-App', async ({ page }) => {
 		// Erst 401 zurückgeben, dann auf 200 umschalten (simuliert Redirect nach OAuth).
 		await mockUnauthenticated(page);
 		await page.goto('/app/');
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 
 		// Auth-State auf eingeloggt setzen und Seite neu laden.
 		await mockAuthenticated(page);
@@ -125,7 +125,7 @@ test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 		await page.goto('/app/');
 
 		// Ohne ?error-Parameter darf kein Alert erscheinen.
-		await expect(page.getByRole('button', { name: /Mit Google anmelden/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		await expect(page.getByRole('alert')).toBeHidden();
 	});
 });
