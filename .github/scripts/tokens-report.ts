@@ -7,6 +7,12 @@
 // „Kosten-Uebersicht" (woechentlich, read-only) in die Job-Summary:
 //   node .github/scripts/tokens-report.ts --dir .costs [--baseline 2026-W35]
 //
+// FOKUS-MODUS (--issues 1752,1754 — im Workflow der Dispatch-Input „issues"): rendert
+// statt des Wochen-Reports nur die Läufe der gewählten Tickets und stellt sie je Phase
+// den anderen Läufen derselben Phase gegenüber (Setup-Vergleich, z. B. :free-Modell).
+// Die Ticket-Tabelle des Voll-Reports zeigt bewusst nur die Top 10 — die Voll-Liste
+// sprengte die GitHub-Summary und diente der kontinuierlichen Optimierung nicht.
+//
 // BEZUGSEINHEIT: Ticket-Kohorte je Abschlusswoche (Woche des Siegels). Wochen-Werte
 // „je Ticket" summieren das GANZE Ticket in seiner Abschlusswoche — nicht die Läufe, die
 // zufällig in der Woche liefen, geteilt durch die Tickets, die die Woche „berührt" haben
@@ -25,8 +31,10 @@ import { totalsByPhase, type PhaseTotal } from './cost-aggregate.ts';
 import { classifyModel, usageBlocksUsd, valueRates, type BlockUsd } from './cost-from-transcript.ts';
 import type { CostEntry } from './cost-record.ts';
 import {
+	avg,
 	bar,
 	berlinDay,
+	berlinStamp,
 	fmtIndex,
 	frac,
 	getOrInit,
@@ -38,6 +46,7 @@ import {
 	num,
 	pct,
 	quantileOf,
+	ratio,
 	rollingMedian,
 	sealWeek,
 	share,
@@ -771,19 +780,27 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		);
 	}
 
-	// ─── Ticket-Tabelle ────────────────────────────────────────────────────────
+	// ─── Ticket-Tabelle (Top 10 — Optimierungskandidaten) ──────────────────────
+	// KEINE Voll-Liste mehr: Mit 440+ Datensätzen sprengt sie die GitHub-Summary (wird
+	// still abgeschnitten) und dient der kontinuierlichen Optimierung nichts — die
+	// Ausreisser stehen ohnehin oben. Einzelvergleiche über den Fokus-Modus (--issues).
+	const TOP_N = 10;
 	const classById = new Map(classified.map((t) => [t.issue, t.class]));
+	lines.push(`### Ticket-Tabelle — Top ${TOP_N} (Optimierungskandidaten)`, '');
 	lines.push(
 		'| Ticket | Herkunft | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Anteil | Phasen |',
 		'| --- | --- | ---: | ---: | ---: | ---: | ---: | :--- | --- |',
 	);
-	for (const t of tickets) {
+	for (const t of tickets.slice(0, TOP_N)) {
 		lines.push(
 			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${originOf(classById.get(t.issue) ?? 'vollstaendig')} | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
 		);
 	}
-	const top5 = tickets.slice(0, 5).reduce((a, t) => a + t.valueCost, 0);
-	lines.push('', `> **Top 5 Tickets** stehen für ${pct(share(top5, sum.valueCost))} des Gesamtwerts.`);
+	const topN = tickets.slice(0, TOP_N).reduce((a, t) => a + t.valueCost, 0);
+	lines.push(
+		'',
+		`> Nur die Top ${TOP_N} von ${tickets.length} vollständigen Tickets — oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen); sie stehen für ${pct(share(topN, sum.valueCost))} des Gesamtwerts.`,
+	);
 
 	if (!anyTurns) {
 		lines.push(
@@ -826,13 +843,113 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	return `${lines.join('\n')}\n`;
 }
 
+/**
+ * Kompakter Fokus-Report für ausgewählte Tickets (Dispatch-Input „issues" bzw. --issues):
+ * Statt der repo-weiten Kohorten-Tabellen nur die Läufe DER gewählten Tickets — je Lauf
+ * Phase, Modell, Provider, Turns, Token, Cache — und ihr Ø je Phase gegenüber ALLEN anderen
+ * Läufen derselben Phase. Basis ist hier bewusst die ganze Datei (auch unvollständige
+ * Tickets): Verglichen wird der EINZELNE LAUF mit seinem Setup, nicht die Ticket-Kohorte.
+ * Läufe ohne Wert-Bewertung (valueCost 0, z. B. openrouter-:free-Modelle) zählen mit —
+ * genau deren Vergleich ist der Hauptanwendungsfall.
+ */
+export function renderFocusReport(dir: string, issues: readonly string[]): string {
+	const { tickets, skipped } = readTickets(dir);
+	const lines: string[] = [];
+	const label = issues.map((i) => `#${i}`).join(', ');
+	lines.push(`## 🔎 Fokus-Report — ${label}`, '');
+	lines.push(
+		'> Kompakt-Modus: nur die gewählten Tickets — ihre Läufe gegenüber allen anderen Läufen derselben Phase. Voller Report ohne `--issues`.',
+		'',
+	);
+	if (skipped.length > 0)
+		lines.push(`> ⚠️ ${skipped.length} Datei(en) nicht lesbar und übersprungen: ${skipped.join(', ')}`, '');
+
+	const wanted = new Set(issues);
+	const selected = tickets.filter((t) => wanted.has(t.issue));
+	if (selected.length === 0) {
+		lines.push(`Keine Datensätze für ${label} unter \`${dir}\`.`, '');
+		return `${lines.join('\n')}\n`;
+	}
+	const missing = issues.filter((i) => !selected.some((t) => t.issue === i));
+	if (missing.length > 0) lines.push(`> ℹ️ Keine Daten für: ${missing.map((i) => `#${i}`).join(', ')}.`, '');
+
+	// ─── Läufe der Fokus-Tickets ───────────────────────────────────────────────
+	lines.push('### Läufe der Fokus-Tickets', '');
+	lines.push(
+		'| Ticket | Phase | Zeitpunkt (Berlin) | Modell | Provider | Turns | Token in | Cache-R | Wert (USD) |',
+		'| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |',
+	);
+	const runs = selected
+		.flatMap((t) => t.entries.map((e) => ({ issue: t.issue, e })))
+		.sort((a, b) => a.e.timestamp.localeCompare(b.e.timestamp));
+	for (const { issue, e } of runs) {
+		const cacheR =
+			typeof e.cacheReadTokens === 'number' && ZERO(e.tokensIn) > 0
+				? pct(ZERO(e.cacheReadTokens) / ZERO(e.tokensIn))
+				: '—';
+		lines.push(
+			`| [#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue}) | ${e.phase ?? '(ohne)'} | ${berlinStamp(e.timestamp)} | ${e.model ?? '—'} | ${e.provider ?? '—'} | ${typeof e.turns === 'number' ? num(e.turns) : '—'} | ${mio(e.tokensIn)} | ${cacheR} | ${ZERO(e.valueCost) > 0 ? usd(ZERO(e.valueCost)) : '—'} |`,
+		);
+	}
+	lines.push(
+		'',
+		'> „—" beim Wert = Lauf ohne Bewertung (valueCost 0, z. B. :free-Modell). Cache-R = Anteil der gelesenen Cache-Token am Input.',
+		'',
+	);
+
+	// ─── Fokus gegen den Rest, je Phase ────────────────────────────────────────
+	// Ø je Run (Wert inkl. 0-Werten, Turns, $/Turn): zeigt, ob das Setup des Fokus-Laufs
+	// gegenüber der eingespielten Phase spart — ohne dass der Kohorten-Filter eingreift.
+	const agg = (es: readonly CostEntry[]): { n: number; vc: number; turns: number } => {
+		const a = { n: es.length, vc: 0, turns: 0 };
+		for (const e of es) {
+			a.vc += ZERO(e.valueCost);
+			a.turns += ZERO(e.turns);
+		}
+		return a;
+	};
+	const focusRuns = selected.flatMap((t) => t.entries);
+	const restRuns = tickets.filter((t) => !wanted.has(t.issue)).flatMap((t) => t.entries);
+	const phaseOf = (e: CostEntry): string => e.phase ?? '(ohne)';
+	const phases = [...new Set(focusRuns.map(phaseOf))];
+	lines.push('### Fokus gegen den Rest — je Phase', '');
+	lines.push(
+		'| Phase | Fokus Läufe | Ø Wert | Ø Turns | $/Turn | Rest Läufe | Ø Wert | Ø Turns | $/Turn |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+	);
+	for (const ph of phases) {
+		const f = agg(focusRuns.filter((e) => phaseOf(e) === ph));
+		const r = agg(restRuns.filter((e) => phaseOf(e) === ph));
+		lines.push(
+			`| ${ph} | ${f.n} | ${usd(f.n > 0 ? f.vc / f.n : 0)} | ${avg(f.turns, f.n)} | ${ratio(f.vc, f.turns)} | ${r.n} | ${usd(r.n > 0 ? r.vc / r.n : 0)} | ${avg(r.turns, r.n)} | ${ratio(r.vc, r.turns)} |`,
+		);
+	}
+	lines.push(
+		'',
+		'> „Rest" = alle Läufe anderer Tickets derselben Phase (auch unvollständige Tickets — hier zählt der Lauf, nicht die Ticket-Kohorte). Wert-Ø schließt 0-Werte ein: ein :free-Modell senkt den Ø, das ist die Aussage, nicht ein Fehler.',
+		'',
+	);
+	return `${lines.join('\n')}\n`;
+}
+
 const flag = (argv: readonly string[], name: string): string | undefined => {
 	const idx = argv.indexOf(`--${name}`);
 	return idx >= 0 && idx + 1 < argv.length ? argv[idx + 1] : undefined;
 };
 
+/** `--issues 1752, 1754` → ['1752','1754'] — Trenner sind Komma und/oder Leerzeichen. */
+export const parseIssueList = (raw: string | undefined): string[] =>
+	(raw ?? '')
+		.split(/[\s,]+/)
+		.map((s) => s.trim())
+		.filter((s) => /^\d+$/.test(s));
+
 const main = (argv: readonly string[]): number => {
-	process.stdout.write(renderReport(flag(argv, 'dir') ?? '.costs', { baseline: flag(argv, 'baseline') }));
+	const dir = flag(argv, 'dir') ?? '.costs';
+	const issues = parseIssueList(flag(argv, 'issues'));
+	process.stdout.write(
+		issues.length > 0 ? renderFocusReport(dir, issues) : renderReport(dir, { baseline: flag(argv, 'baseline') }),
+	);
 	return 0;
 };
 
