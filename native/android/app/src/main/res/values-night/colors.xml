@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Splash-Fläche wie --splashBackgroundColorDark im Icon-Rezept (docs/native-apps.md). -->
+    <!-- Splash-Fläche wie splashBackgroundColorDark im Icon-Rezept (docs/native-apps.md). -->
     <color name="splashBackground">#1A1A1A</color>
 </resources>
