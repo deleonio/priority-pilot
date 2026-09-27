@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { classifyTicket, renderReport, ticketTotals } from './tokens-report.ts';
+import { classifyTicket, renderFocusReport, renderReport, ticketTotals } from './tokens-report.ts';
 import type { CostEntry } from './cost-record.ts';
 
 /**
@@ -104,7 +104,7 @@ describe('tokens-report', () => {
 				'Kohorte = Abschlusswoche des Siegels; n = 1 ist zu klein für einen Median',
 			);
 			assert.match(report, /█{10} 100 %/, 'voller Anteil = 10 gefüllte Balken-Zeichen');
-			assert.match(report, /Top 5 Tickets\*\* stehen für 100 % des Gesamtwerts/);
+			assert.match(report, /stehen für 100 % des Gesamtwerts/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
@@ -211,6 +211,54 @@ describe('tokens-report', () => {
 				/\[#91[12]\]/,
 				'ausgeschlossene Tickets stehen nur in der Exklusions-Sektion, nicht in der Ticket-Tabelle',
 			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Fokus-Modus: listet die Läufe der gewählten Tickets und vergleicht sie je Phase mit dem Rest', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-fokus-'));
+		try {
+			// Fokus-Ticket: ein documenter-Lauf auf „freiem" Modell (valueCost 0) neben einem
+			// implement-Lauf mit Bewertung — genau der Setup-Vergleich ist der Anwendungsfall.
+			writeTicket(dir, '920', [
+				entry({
+					issueId: '920',
+					phase: 'documenter',
+					model: 'openrouter/nemotron-3-nano',
+					provider: 'openrouter',
+					turns: 8,
+					valueCost: 0,
+				}),
+				entry({
+					issueId: '920',
+					phase: 'implement',
+					model: 'claude-opus',
+					provider: 'claude',
+					turns: 30,
+					valueCost: 9,
+					timestamp: '2026-08-24T11:00:00Z',
+				}),
+			]);
+			// Rest: zwei documenter-Läufe anderer Tickets (inkl. unvollständiger Tickets —
+			// im Fokus-Modus zählt der Lauf, nicht die Ticket-Kohorte).
+			writeTicket(dir, '921', [
+				entry({ issueId: '921', phase: 'documenter', turns: 20, valueCost: 4 }),
+				entry({ issueId: '921', phase: 'documenter', turns: 30, valueCost: 6, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			const report = renderFocusReport(dir, ['920', '999']);
+			assert.match(report, /## 🔎 Fokus-Report — #920, #999/);
+			assert.match(report, /Keine Daten für: #999/);
+			assert.match(
+				report,
+				/\| \[#920\]\([^)]*\) \| documenter \| .* \| openrouter\/nemotron-3-nano \| openrouter \| 8 \|/,
+			);
+			assert.match(
+				report,
+				/\| documenter \| 1 \| \$0\.00 \| 8,0 \| 0,00 \| 2 \| \$5\.00 \| 25,0 \| 0,20 \|/,
+				'Ø Wert schließt 0-Werte ein (:free-Modell), Rest zählt Läufe unabhängig von der Ticket-Vollständigkeit',
+			);
+			assert.doesNotMatch(report, /Token- & Kosten-Übersicht/, 'Fokus-Modus ersetzt den Wochen-Report');
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
