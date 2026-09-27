@@ -53,6 +53,6 @@ test.describe('Balamentum — User Info Display (#192)', () => {
 		// (alert-Role) erscheinen …
 		await expect(page.getByRole('alert')).toBeVisible();
 		// … und NICHT die Login-Seite.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeHidden();
 	});
 });
