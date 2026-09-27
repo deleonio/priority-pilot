@@ -11,7 +11,7 @@ ohne Server. Umsetzung und Reihenfolge: [Plan native Apps](plan-native-apps.md),
 | `native/capacitor.config.ts`       | App-ID `de.balamentum.app`, `server.url` aus `SITE_URL`, nur eigene Domain                                  |
 | `native/www/error.html`            | Fehlerseite ohne Verbindung, „Neu laden" springt zurück auf `server.url`                                    |
 | `native/android/`                  | von `cap add android` erzeugtes Projekt, eingecheckt; Manifest mit Standort-/Mikrofon-Rechten und App Links |
-| `native/android/app/src/main/res/` | Icons und Splash aus `frontend/public/logo/logo.png` (siehe unten)                                          |
+| `native/android/app/src/main/res/` | Icons aus `frontend/public/logo/logo.png`, Splash aus der Wortmarke (siehe unten)                           |
 
 `capacitor.config.json` und die kopierten Web-Dateien unter `android/app/src/main/assets/` entstehen
 bei jedem `sync` und sind nicht eingecheckt.
@@ -73,10 +73,15 @@ der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links de.balamentum.a
 
 ## Icons und Splash neu erzeugen
 
-Quelle ist das Web-Logo; die Kopie liegt nur während des Laufs in `native/assets/`:
+Icons entstehen aus dem Web-Logo, der Splash aus der Wortmarke (Marke oben, „balamentum" darunter).
+Der Wortmarken-Generator legt die Splash-Quellen in `native/assets/` ab und schreibt das
+Branding-Bild `drawable(-night)-xxxhdpi/splash_branding.png`, das Android 12+ unter dem App-Icon
+zeigt (dort gibt es keinen vollflächigen Splash mehr, `values-v31/styles.xml`). `native/assets/`
+existiert nur während des Laufs:
 
 ```bash
-cd native && mkdir -p assets && cp ../frontend/public/logo/logo.png assets/logo.png
+node frontend/public/logo/generate-wordmarks.mjs   # Chromium-Version weicht ab: CHROMIUM_PATH=… davor
+cd native && cp ../frontend/public/logo/logo.png assets/logo.png
 npx @capacitor/assets@3.0.5 generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#1a1a1a' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#1a1a1a'
 rm -rf assets
 ```

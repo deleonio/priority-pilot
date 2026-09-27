@@ -4,4 +4,6 @@
     <color name="colorPrimary">#1A1A1A</color>
     <color name="colorPrimaryDark">#1A1A1A</color>
     <color name="colorAccent">#1A1A1A</color>
+    <!-- Splash-Fläche wie --splashBackgroundColor im Icon-Rezept (docs/native-apps.md). -->
+    <color name="splashBackground">#FFFFFF</color>
 </resources>

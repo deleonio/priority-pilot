@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Ab Android 12 zeigt das System beim Start nur das App-Icon; den Schriftzug "balamentum"
+        setzt das Branding-Bild darunter (drawable(-night)-xxxhdpi/splash_branding.png aus
+        frontend/public/logo/generate-wordmarks.mjs). Bis Android 11 gilt die volle splash.png.
+    -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/splashBackground</item>
+        <item name="android:windowSplashScreenBrandingImage">@drawable/splash_branding</item>
+    </style>
+</resources>

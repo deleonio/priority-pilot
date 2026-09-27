@@ -7,13 +7,15 @@
  *   Web-Fonts der Seite, daher zwei Varianten und eingebettete Schrift.
  * - logo-with-name.vertical.png / .horizontal.png (Raster, transparent, helle Tinte)
  * - proofs/wordmark-light.png + -dark.png (Kontrast-Nachweis AK2 auf beiden surface-0)
+ * - native/assets/splash(-dark).png: Quellen für @capacitor/assets (Rezept docs/native-apps.md)
+ * - native/…/drawable(-night)-xxxhdpi/splash_branding.png: Schriftzug unter dem Icon (Android 12+)
  *
  * Marke: icons/icon-512x512.png (bereits freigestellt). Rendern übernimmt Chromium (Playwright);
  * weicht dessen Version vom Cache ab: CHROMIUM_PATH=/pfad/zu/chrome setzen.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from '@playwright/test';
 
@@ -21,6 +23,8 @@ const dir = fileURLToPath(new URL('.', import.meta.url));
 const require = createRequire(import.meta.url);
 const WORD = 'balamentum';
 const INK = { light: '#12161d', dark: '#e6eaf0' }; // --pp-ink je Theme (app.css)
+const NATIVE = resolve(dir, '../../../native');
+const SPLASH_BG = { light: '#ffffff', dark: '#1a1a1a' }; // wie --splashBackgroundColor(Dark) im Rezept
 const SURFACE = { light: '#f7f8fa', dark: '#12161c' }; // --pp-surface-0 je Theme
 // Farben der Marke von links nach rechts: blau, grün, gelb, orange, rot
 const BEAM = ['#4a9bd6', '#5fb87a', '#f6c33b', '#ef7a4b', '#e8553a'];
@@ -62,16 +66,22 @@ function buildSvg({ ink, markUri, markRatio, fontUri, word, beam }) {
 </svg>`;
 }
 
-/** HTML-Gerüst für die Raster-Wortmarken (transparent). */
-function lockupHtml(vertical, markUri) {
+/**
+ * HTML-Gerüst für die Raster-Wortmarken. Ohne markUri nur Schriftzug + Balken (Android-12-
+ * Branding); page = [Breite, Höhe, Hintergrund] setzt das Lockup mittig auf eine feste Fläche.
+ */
+function lockupHtml({ vertical = false, markUri, ink = INK.light, page, zoom = 1 }) {
 	const s = vertical ? 2.4 : 2; // Pixel je SVG-Einheit der Maße oben / 2
 	const layout = vertical ? 'flex-direction:column;align-items:center;gap:40px' : 'align-items:center;gap:56px';
+	const body = page
+		? `width:${page[0]}px;height:${page[1]}px;background:${page[2]};display:flex;align-items:center;justify-content:center`
+		: 'background:transparent';
 	return `<!doctype html><style>@font-face{font-family:Wm;font-weight:600;src:url(${FONT_URI})}</style>
-	<body style="margin:0;background:transparent">
-		<div id="wm" style="display:inline-flex;${layout};padding:24px">
-			<img src="${markUri}" style="height:${(vertical ? 128 : 104) * s}px">
+	<body style="margin:0;${body}">
+		<div id="wm" style="display:inline-flex;${layout};padding:24px;zoom:${zoom}">
+			${markUri ? `<img src="${markUri}" style="height:${(vertical ? 128 : 104) * s}px">` : ''}
 			<span style="display:inline-flex;flex-direction:column;gap:${14 * s}px">
-				<span style="font:600 ${84 * s}px/1 Wm;letter-spacing:-0.015em;color:${INK.light}">${WORD}</span>
+				<span style="font:600 ${84 * s}px/1 Wm;letter-spacing:-0.015em;color:${ink}">${WORD}</span>
 				<span style="height:${8 * s}px;border-radius:${4 * s}px;background:linear-gradient(90deg,${BEAM.join(',')})"></span>
 			</span>
 		</div>
@@ -115,7 +125,7 @@ try {
 
 	// Raster-Wortmarken
 	for (const vertical of [true, false]) {
-		writeFileSync(tmp, lockupHtml(vertical, mark.full));
+		writeFileSync(tmp, lockupHtml({ vertical, markUri: mark.full }));
 		await page.goto(pathToFileURL(tmp).href);
 		await page.evaluate(() => document.fonts.ready);
 		await page.locator('#wm').screenshot({
@@ -123,6 +133,34 @@ try {
 			path: resolve(dir, `logo-with-name.${vertical ? 'vertical' : 'horizontal'}.png`),
 		});
 	}
+	// Android: Splash-Quellen für @capacitor/assets (≤ Android 11, Rezept docs/native-apps.md) und
+	// das Branding-Bild, das Android 12+ unter dem App-Icon zeigt (max. 200×80 dp → xxxhdpi 800×320)
+	for (const theme of ['light', 'dark']) {
+		const ink = INK[theme];
+		const jobs = [
+			[
+				{ vertical: true, markUri: mark.full, ink, page: [2732, 2732, SPLASH_BG[theme]], zoom: 0.75 },
+				resolve(NATIVE, `assets/splash${theme === 'dark' ? '-dark' : ''}.png`),
+			],
+			[
+				{ ink, page: [800, 320, 'transparent'], zoom: 0.72 },
+				resolve(
+					NATIVE,
+					`android/app/src/main/res/drawable-${theme === 'dark' ? 'night-' : ''}xxxhdpi/splash_branding.png`,
+				),
+			],
+		];
+		for (const [opts, path] of jobs) {
+			mkdirSync(dirname(path), { recursive: true });
+			writeFileSync(tmp, lockupHtml(opts));
+			await page.setViewportSize({ width: opts.page[0], height: opts.page[1] });
+			await page.goto(pathToFileURL(tmp).href);
+			await page.evaluate(() => document.fonts.ready);
+			await page.screenshot({ path, omitBackground: true });
+		}
+	}
+	await page.setViewportSize({ width: 2400, height: 1400 });
+
 	writeFileSync(tmp, `<!doctype html><style>@font-face{font-family:Wm;font-weight:600;src:url(${FONT_URI})}</style>`);
 	await page.goto(pathToFileURL(tmp).href);
 	await page.evaluate(() => document.fonts.load('600 84px Wm'));
@@ -155,4 +193,4 @@ try {
 } finally {
 	await browser.close();
 }
-console.log('Wortmarken erzeugt: 2× PNG, 2× SVG, 2× AK2-Proof');
+console.log('Wortmarken erzeugt: 2× PNG, 2× SVG, 2× AK2-Proof, 2× Splash-Quelle (native/assets), 2× Android-Branding');
