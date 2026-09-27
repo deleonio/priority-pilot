@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Kostenanalyse Issues #1766, #1767, #1769</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page); color: var(--text-primary); }
+  .viz-root { max-width: 1040px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .lede { color: var(--text-secondary); font-size: 14px; margin-top: 0; max-width: 760px; line-height:1.5; }
+  .meta { color: var(--text-muted); font-size: 12px; margin-bottom: 28px; }
+  .kpi-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin-bottom: 32px; }
+  .kpi-card { background: var(--surface-1); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+  .kpi-card h5 { margin:0 0 8px; font-size:12px; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.02em;}
+  .kpi-row { display:flex; justify-content:space-between; align-items:baseline; padding:3px 0; font-size:13px; }
+  .kpi-row .iid { display:flex; align-items:center; gap:6px; color:var(--text-secondary);}
+  .kpi-row .iid i { width:8px; height:8px; border-radius:2px; display:inline-block; }
+  .kpi-row .val { font-variant-numeric: tabular-nums; font-weight:600; }
+  .kpi-row.median .iid i { background:none; border: 2px dashed var(--text-muted); width:8px; height:0; }
+  .kpi-row.median { color: var(--text-muted); border-top: 1px dashed var(--grid); margin-top:4px; padding-top:6px;}
+  .chart-card { background: var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:20px 22px; margin-bottom:22px; }
+  .chart-card h3 { margin:0 0 2px; font-size:16px; }
+  .subtitle { color:var(--text-secondary); font-size:13px; margin:0 0 14px; }
+  .note { color:var(--text-muted); font-size:11.5px; margin:8px 0 0; line-height:1.4; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--text-secondary); margin-bottom:16px; }
+  .legend-item { display:flex; align-items:center; gap:6px; }
+  .legend-item i { width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .legend-item i.median-swatch { background:none; border-top:2px dashed var(--text-muted); width:12px; height:0; }
+  .phase-group { margin-bottom:16px; }
+  .phase-group:last-child { margin-bottom:0; }
+  .phase-name { font-size:12.5px; font-weight:600; color:var(--text-primary); margin-bottom:6px; }
+  .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .bar-issue-label { width:42px; flex-shrink:0; font-size:11px; color:var(--text-secondary); text-align:right; }
+  .bar-track { position:relative; flex:1; height:20px; background: var(--page); border-radius:4px; overflow:visible; }
+  .bar-fill { position:absolute; left:0; top:0; height:100%; border-radius:0 4px 4px 0; min-width:2px; }
+  .bar-value { position:absolute; top:50%; transform:translateY(-50%); font-size:11px; color:var(--text-secondary); white-space:nowrap; font-variant-numeric: tabular-nums;}
+  .median-tick { position:absolute; top:-3px; bottom:-3px; width:0; border-left:2px dashed var(--text-muted); }
+  .totals-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:20px 28px; }
+  .totals-card h4 { font-size:13px; margin:0 0 10px; }
+  .totals-card .bar-row { gap:8px; margin-bottom:8px; }
+  .totals-card .bar-track { height:18px; }
+  .delta { font-size:11px; font-weight:600; white-space:nowrap; margin-left:8px; }
+  @media (max-width: 720px) {
+    .kpi-grid, .totals-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Kostenanalyse: Issues #1766, #1767, #1769</h1>
+  <p class="lede">Vergleich der drei KI-Pipeline-Läufe (Analyse&nbsp;&rarr;&nbsp;UX&nbsp;&rarr;&nbsp;Spec&nbsp;&rarr;&nbsp;Umsetzung&nbsp;&rarr;&nbsp;Review&nbsp;&rarr;&nbsp;Documenter) nach Kosten, Turns, Tokens und Laufzeit &mdash; jeweils gegen den Median aller 178 vollständigen Läufe aus <code>.costs/</code>.</p>
+  <p class="meta">#1766 lief auf Claude (Opus/Sonnet/Haiku je Phase) &middot; #1767 auf GLM-5.3 (Zai) &middot; #1769 auf GLM-5-turbo/4.7 (Zai). Datenstand: 178 Läufe mit vollständiger Analyse&rarr;Umsetzung-Kette.</p>
+
+  <div class="kpi-grid">
+<div class="kpi-card"><h5>Gesamtkosten</h5><div class="kpi-row"><span class="iid"><i style="background:#2a78d6"></i>#1766</span><span class="val">$6.49</span></div><div class="kpi-row"><span class="iid"><i style="background:#eb6834"></i>#1767</span><span class="val">$8.86</span></div><div class="kpi-row"><span class="iid"><i style="background:#1baf7a"></i>#1769</span><span class="val">$2.00</span></div><div class="kpi-row median"><span class="iid"><i></i>Median</span><span class="val">$7.27</span></div></div>
+<div class="kpi-card"><h5>Gesamt-Turns</h5><div class="kpi-row"><span class="iid"><i style="background:#2a78d6"></i>#1766</span><span class="val">131</span></div><div class="kpi-row"><span class="iid"><i style="background:#eb6834"></i>#1767</span><span class="val">131</span></div><div class="kpi-row"><span class="iid"><i style="background:#1baf7a"></i>#1769</span><span class="val">84</span></div><div class="kpi-row median"><span class="iid"><i></i>Median</span><span class="val">184</span></div></div>
+<div class="kpi-card"><h5>Gesamt-Tokens</h5><div class="kpi-row"><span class="iid"><i style="background:#2a78d6"></i>#1766</span><span class="val">11.8M</span></div><div class="kpi-row"><span class="iid"><i style="background:#eb6834"></i>#1767</span><span class="val">13.4M</span></div><div class="kpi-row"><span class="iid"><i style="background:#1baf7a"></i>#1769</span><span class="val">4.7M</span></div><div class="kpi-row median"><span class="iid"><i></i>Median</span><span class="val">15.9M</span></div></div>
+<div class="kpi-card"><h5>Laufzeit gesamt</h5><div class="kpi-row"><span class="iid"><i style="background:#2a78d6"></i>#1766</span><span class="val">38 min</span></div><div class="kpi-row"><span class="iid"><i style="background:#eb6834"></i>#1767</span><span class="val">1h 00min</span></div><div class="kpi-row"><span class="iid"><i style="background:#1baf7a"></i>#1769</span><span class="val">1h 20min</span></div><div class="kpi-row median"><span class="iid"><i></i>Median</span><span class="val">2h 41min</span></div></div>
+
+  </div>
+
+    <section class="chart-card">
+      <h3>Kosten je Phase</h3>
+      <p class="subtitle">Umsetzung (implement) ist bei allen drei Issues die teuerste Phase.</p>
+      <div class="legend">
+        <span class="legend-item"><i style="background:#2a78d6"></i>#1766</span><span class="legend-item"><i style="background:#eb6834"></i>#1767</span><span class="legend-item"><i style="background:#1baf7a"></i>#1769</span>
+        <span class="legend-item"><i class="median-swatch"></i>Median (178 vollst. Läufe)</span>
+      </div>
+      <div class="phase-chart">
+        <div class="phase-group">
+          <div class="phase-name">Analyse</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:18.42%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:20.04%"></div>
+                <span class="bar-value" style="left:calc(18.42% + 8px)">$0.88</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:18.74%; background:#eb6834"></div>
+                <div class="median-tick" style="left:20.04%"></div>
+                <span class="bar-value" style="left:calc(18.74% + 8px)">$0.90</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:12.69%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:20.04%"></div>
+                <span class="bar-value" style="left:calc(12.69% + 8px)">$0.61</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">UX-Beratung</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:21.99%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:8.41%"></div>
+                <span class="bar-value" style="left:calc(21.99% + 8px)">$1.06</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:33.70%; background:#eb6834"></div>
+                <div class="median-tick" style="left:8.41%"></div>
+                <span class="bar-value" style="left:calc(33.70% + 8px)">$1.62</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:4.42%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:8.41%"></div>
+                <span class="bar-value" style="left:calc(4.42% + 8px)">$0.21</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Spec</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:26.31%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:29.47%"></div>
+                <span class="bar-value" style="left:calc(26.31% + 8px)">$1.26</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:23.97%; background:#eb6834"></div>
+                <div class="median-tick" style="left:29.47%"></div>
+                <span class="bar-value" style="left:calc(23.97% + 8px)">$1.15</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:8.55%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:29.47%"></div>
+                <span class="bar-value" style="left:calc(8.55% + 8px)">$0.41</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Umsetzung</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:52.97%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:36.66%"></div>
+                <span class="bar-value" style="left:calc(52.97% + 8px)">$2.54</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:84.83%; background:#eb6834"></div>
+                <div class="median-tick" style="left:36.66%"></div>
+                <span class="bar-value" style="left:calc(84.83% + 8px)">$4.07</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:5.16%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:36.66%"></div>
+                <span class="bar-value" style="left:calc(5.16% + 8px)">$0.25</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Review</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:12.74%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:15.69%"></div>
+                <span class="bar-value" style="left:calc(12.74% + 8px)">$0.61</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:21.65%; background:#eb6834"></div>
+                <div class="median-tick" style="left:15.69%"></div>
+                <span class="bar-value" style="left:calc(21.65% + 8px)">$1.04</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:9.65%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:15.69%"></div>
+                <span class="bar-value" style="left:calc(9.65% + 8px)">$0.46</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Documenter</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:2.83%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:2.28%"></div>
+                <span class="bar-value" style="left:calc(2.83% + 8px)">$0.14</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:1.80%; background:#eb6834"></div>
+                <div class="median-tick" style="left:2.28%"></div>
+                <span class="bar-value" style="left:calc(1.80% + 8px)">$0.09</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:1.18%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:2.28%"></div>
+                <span class="bar-value" style="left:calc(1.18% + 8px)">$0.06</span>
+              </div>
+            </div></div>
+        </div></div>
+    </section>
+    <section class="chart-card">
+      <h3>Turns je Phase</h3>
+      <p class="subtitle">#1766 (Claude) braucht in der Umsetzung deutlich mehr Turns als #1767/#1769.</p>
+      <div class="legend">
+        <span class="legend-item"><i style="background:#2a78d6"></i>#1766</span><span class="legend-item"><i style="background:#eb6834"></i>#1767</span><span class="legend-item"><i style="background:#1baf7a"></i>#1769</span>
+        <span class="legend-item"><i class="median-swatch"></i>Median (178 vollst. Läufe)</span>
+      </div>
+      <div class="phase-chart">
+        <div class="phase-group">
+          <div class="phase-name">Analyse</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:12.50%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:20.00%"></div>
+                <span class="bar-value" style="left:calc(12.50% + 8px)">10</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:32.50%; background:#eb6834"></div>
+                <div class="median-tick" style="left:20.00%"></div>
+                <span class="bar-value" style="left:calc(32.50% + 8px)">26</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:8.75%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:20.00%"></div>
+                <span class="bar-value" style="left:calc(8.75% + 8px)">7</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">UX-Beratung</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:17.50%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:25.00%"></div>
+                <span class="bar-value" style="left:calc(17.50% + 8px)">14</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:23.75%; background:#eb6834"></div>
+                <div class="median-tick" style="left:25.00%"></div>
+                <span class="bar-value" style="left:calc(23.75% + 8px)">19</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:8.75%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:25.00%"></div>
+                <span class="bar-value" style="left:calc(8.75% + 8px)">7</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Spec</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:27.50%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:41.25%"></div>
+                <span class="bar-value" style="left:calc(27.50% + 8px)">22</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:17.50%; background:#eb6834"></div>
+                <div class="median-tick" style="left:41.25%"></div>
+                <span class="bar-value" style="left:calc(17.50% + 8px)">14</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:27.50%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:41.25%"></div>
+                <span class="bar-value" style="left:calc(27.50% + 8px)">22</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Umsetzung</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:81.25%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:53.75%"></div>
+                <span class="bar-value" style="left:calc(81.25% + 8px)">65</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:66.25%; background:#eb6834"></div>
+                <div class="median-tick" style="left:53.75%"></div>
+                <span class="bar-value" style="left:calc(66.25% + 8px)">53</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:17.50%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:53.75%"></div>
+                <span class="bar-value" style="left:calc(17.50% + 8px)">14</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Review</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:13.75%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:18.75%"></div>
+                <span class="bar-value" style="left:calc(13.75% + 8px)">11</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:15.00%; background:#eb6834"></div>
+                <div class="median-tick" style="left:18.75%"></div>
+                <span class="bar-value" style="left:calc(15.00% + 8px)">12</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:35.00%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:18.75%"></div>
+                <span class="bar-value" style="left:calc(35.00% + 8px)">28</span>
+              </div>
+            </div></div>
+        </div>
+        <div class="phase-group">
+          <div class="phase-name">Documenter</div>
+          <div class="phase-bars">
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:11.25%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:8.75%"></div>
+                <span class="bar-value" style="left:calc(11.25% + 8px)">9</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:8.75%; background:#eb6834"></div>
+                <div class="median-tick" style="left:8.75%"></div>
+                <span class="bar-value" style="left:calc(8.75% + 8px)">7</span>
+              </div>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:7.50%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:8.75%"></div>
+                <span class="bar-value" style="left:calc(7.50% + 8px)">6</span>
+              </div>
+            </div></div>
+        </div></div>
+    </section>
+    <section class="chart-card">
+      <h3>Gesamtwerte über alle sechs Phasen</h3>
+      <p class="subtitle">Median über 178 vollständige Pipeline-Läufe als Referenz (gestrichelte Markierung).</p>
+      <div class="totals-grid">
+        <div class="totals-card">
+          <h4>Gesamtkosten</h4>
+          
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:61.83%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:69.27%"></div>
+                <span class="bar-value" style="left:calc(61.83% + 8px)">$6.49</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -11% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:84.43%; background:#eb6834"></div>
+                <div class="median-tick" style="left:69.27%"></div>
+                <span class="bar-value" style="left:calc(84.43% + 8px)">$8.86</span>
+              </div>
+              <span class="delta" style="color:#d03b3b">↑ +22% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:19.04%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:69.27%"></div>
+                <span class="bar-value" style="left:calc(19.04% + 8px)">$2.00</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -73% vs. Median</span>
+            </div>
+          
+        </div>
+        <div class="totals-card">
+          <h4>Gesamt-Turns</h4>
+          
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:59.55%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:83.64%"></div>
+                <span class="bar-value" style="left:calc(59.55% + 8px)">131</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -29% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:59.55%; background:#eb6834"></div>
+                <div class="median-tick" style="left:83.64%"></div>
+                <span class="bar-value" style="left:calc(59.55% + 8px)">131</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -29% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:38.18%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:83.64%"></div>
+                <span class="bar-value" style="left:calc(38.18% + 8px)">84</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -54% vs. Median</span>
+            </div>
+          
+        </div>
+        <div class="totals-card">
+          <h4>Gesamt-Tokens (in+out)</h4>
+          
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:61.97%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:83.89%"></div>
+                <span class="bar-value" style="left:calc(61.97% + 8px)">11.8M</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -26% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:70.50%; background:#eb6834"></div>
+                <div class="median-tick" style="left:83.89%"></div>
+                <span class="bar-value" style="left:calc(70.50% + 8px)">13.4M</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -16% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:24.80%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:83.89%"></div>
+                <span class="bar-value" style="left:calc(24.80% + 8px)">4.7M</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -70% vs. Median</span>
+            </div>
+          
+        </div>
+        <div class="totals-card">
+          <h4>Laufzeit (Analyse→Documenter)</h4>
+          
+            <div class="bar-row">
+              <span class="bar-issue-label">#1766</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:19.44%; background:#2a78d6"></div>
+                <div class="median-tick" style="left:82.96%"></div>
+                <span class="bar-value" style="left:calc(19.44% + 8px)">38 min</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -77% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1767</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:31.23%; background:#eb6834"></div>
+                <div class="median-tick" style="left:82.96%"></div>
+                <span class="bar-value" style="left:calc(31.23% + 8px)">1h 00min</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -62% vs. Median</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-issue-label">#1769</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:41.13%; background:#1baf7a"></div>
+                <div class="median-tick" style="left:82.96%"></div>
+                <span class="bar-value" style="left:calc(41.13% + 8px)">1h 20min</span>
+              </div>
+              <span class="delta" style="color:#0ca30c">↓ -50% vs. Median</span>
+            </div>
+          <p class="note">Median stark rechtslastig verzerrt durch Wartezeiten zwischen Phasen (Mittelwert 5h 00min); Median (2h 41min) ist der robustere Vergleichswert. Alle drei Läufe hier liefen durchgehend.</p>
+        </div></div>
+    </section>
+  <section class="chart-card">
+    <h3>Einordnung</h3>
+    <ul style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0; padding-left:18px;">
+      <li><strong>#1769</strong> ist mit Abstand der günstigste und schnellste Lauf ($2.00, 1h 20min) &mdash; deutlich unter dem Median in jeder Dimension.</li>
+      <li><strong>#1767</strong> ist der teuerste Lauf ($8.86), primär getrieben durch die Umsetzung ($4.07, 53 Turns) &mdash; bei gleicher Turn-Gesamtzahl wie #1766 (131) aber höheren Kosten pro Turn.</li>
+      <li><strong>#1766</strong> hat die meisten Turns in der Umsetzung (65) trotz kürzester Gesamtlaufzeit (37,9&nbsp;min) &mdash; die Phasen liefen dicht aufeinander ohne Wartezeit.</li>
+      <li>Alle drei Läufe liegen bei Kosten, Turns und Tokens unter dem Median &mdash; die Laufzeit-Vorteile relativieren sich aber: der Median ist durch Leerlaufzeiten zwischen Phasen (z.&nbsp;B. Warten auf Review) nach oben verzerrt, während alle drei Ziel-Issues ohne Unterbrechung durchliefen.</li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>
