@@ -86,10 +86,10 @@ export const LoginPage = () => {
 						height={35}
 					/>
 				</div>
-				<h1 className="login-page__title">Anmelden</h1>
-				<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
-
 				<div className="login-page__card">
+					<h1 className="login-page__title">Anmelden</h1>
+					<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
+
 					{error !== null && (
 						<div role="alert" className="login-page__alert">
 							{getErrorMessage(error)}
@@ -118,14 +118,11 @@ export const LoginPage = () => {
 								/>
 							</svg>
 						</span>
-						Login with Google
+						Mit Google anmelden
 					</button>
 
 					{magicLinkEnabled && (
-						<form
-							onSubmit={handleMagicLink}
-							style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pp-gap-tight)' }}
-						>
+						<form onSubmit={handleMagicLink} className="login-page__form">
 							<p className="login-page__divider">oder</p>
 							<label className="login-page__label" htmlFor="magic-link-email">
 								Anmeldelink per E-Mail
@@ -162,6 +159,12 @@ export const LoginPage = () => {
 						</form>
 					)}
 				</div>
+				{/* Rücklink nur im Web-Kanal — in der nativen App gibt es keine Website-Ebene (#1751/AK2-3). */}
+				{!isNativeChannel() && (
+					<a className="login-page__back" href="/">
+						Zurück zur Website
+					</a>
+				)}
 			</div>
 		</div>
 	);
