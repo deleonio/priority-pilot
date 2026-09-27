@@ -116,7 +116,7 @@ describe('Issue #1136 — Root-Auth-Gate', () => {
 		// LoginPage mit der passenden Meldung aus ERROR_MESSAGES …
 		const alert = await screen.findByRole('alert');
 		expect(alert).toHaveTextContent(/Zugriff wurde verweigert/i);
-		expect(screen.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
+		expect(screen.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 
 		// … ohne jeden stillen Login-Versuch (Loop-Guard `params.has('error')` bleibt intakt):
 		// der Redirect auf /auth/google/silent würde eine Navigation auslösen — geschehen ist hier nichts.
