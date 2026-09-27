@@ -28,9 +28,9 @@ function getErrorMessage(error: string): string {
 // riskieren die etablierten Verträge (Unit-Tests lesen textContent der Alerts, E2E klickt die
 // Buttons und liest getByLabelText; vgl. Locator-Erfahrung #1421). Styling zentral über
 // .login-page-* in app.css. Die Heading-Namen tragen bewusst NICHT „Balamentum": Dieser Name
-// identifiziert ausschließlich die Haupt-App (`span.app-name` in `App.tsx`); die E2E-Auth-Gate-
-// Specs (`login.spec.ts`, AK1a) prüfen, dass dieser Name unauthentifiziert NICHT sichtbar ist,
-// und `getByRole('heading', { name })` matcht per Default
+// (als level-1-Heading) identifiziert ausschließlich die Haupt-App (KolHeading `_level={1}` in
+// `App.tsx`); die E2E-Auth-Gate-Specs (`login.spec.ts`, AK1a) prüfen, dass dieses Heading
+// unauthentifiziert NICHT sichtbar ist, und `getByRole('heading', { name })` matcht per Default
 // als Teilstring — das Logo-Bild ist kein Heading und kollidiert damit nicht.
 export const LoginPage = () => {
 	const [error] = useState<ErrorParam>(getErrorFromSearch);
@@ -86,13 +86,10 @@ export const LoginPage = () => {
 						height={35}
 					/>
 				</div>
-				<div className="login-page__card">
-					{/* Card-Kopf (#1767): Titel + Subline eng geführt, Abstand zum ersten Bedienelement über die Card-Gap */}
-					<div className="login-page__head">
-						<h1 className="login-page__title">Anmelden</h1>
-						<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
-					</div>
+				<h1 className="login-page__title">Anmelden</h1>
+				<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
 
+				<div className="login-page__card">
 					{error !== null && (
 						<div role="alert" className="login-page__alert">
 							{getErrorMessage(error)}
@@ -121,11 +118,14 @@ export const LoginPage = () => {
 								/>
 							</svg>
 						</span>
-						Mit Google anmelden
+						Login with Google
 					</button>
 
 					{magicLinkEnabled && (
-						<form className="login-page__magic" onSubmit={handleMagicLink}>
+						<form
+							onSubmit={handleMagicLink}
+							style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pp-gap-tight)' }}
+						>
 							<p className="login-page__divider">oder</p>
 							<label className="login-page__label" htmlFor="magic-link-email">
 								Anmeldelink per E-Mail
@@ -162,13 +162,6 @@ export const LoginPage = () => {
 						</form>
 					)}
 				</div>
-
-				{/* Native-App hat kein Ziel unter `/` (ADR 0015/0016) — Rücklink nur im Web-Kanal */}
-				{!isNativeChannel() && (
-					<a className="login-page__back" href="/">
-						Zurück zur Website
-					</a>
-				)}
 			</div>
 		</div>
 	);

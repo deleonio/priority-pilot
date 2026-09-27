@@ -4832,22 +4832,16 @@ a.plan-badge:focus-visible {
 	display: block;
 }
 
-.login-page__head {
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-gap-tight);
-}
-
 .login-page__title {
 	margin: 0;
-	font-size: var(--pp-font-size-lg);
+	font-size: var(--pp-font-size-2xl);
 	font-weight: var(--pp-weight-bold);
 	line-height: var(--pp-line-tight);
 	color: var(--pp-ink);
 }
 
 .login-page__sub {
-	margin: 0;
+	margin: calc(-1 * var(--pp-gap-tight)) 0 0;
 	color: var(--pp-ink-muted);
 	font-size: var(--pp-font-size-base);
 }
@@ -4908,8 +4902,7 @@ a.plan-badge:focus-visible {
 }
 
 .login-page__btn:focus-visible,
-.login-page__input:focus-visible,
-.login-page__back:focus-visible {
+.login-page__input:focus-visible {
 	outline: 2px solid var(--pp-focus-ring);
 	outline-offset: 2px;
 }
@@ -4923,12 +4916,6 @@ a.plan-badge:focus-visible {
 	box-sizing: border-box;
 	border-radius: var(--pp-radius-pill);
 	background: var(--pp-surface-1);
-}
-
-.login-page__magic {
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-gap-tight);
 }
 
 .login-page__divider {
@@ -4974,28 +4961,6 @@ a.plan-badge:focus-visible {
 
 .login-page__input::placeholder {
 	color: var(--pp-ink-muted);
-}
-
-/*
- * Rücklink zur Website (#1767): volle Zeilenbreite als Trefffläche, damit die 44 px nicht
- * von der Textlänge abhängen (mobile-ui-rules Regel 2); Farbe aus der Brand-Textrolle
- * wie beim Secondary-Button (>= 4.5:1 in beiden Themes).
- */
-.login-page__back {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-sizing: border-box;
-	width: 100%;
-	min-height: 44px;
-	padding: var(--pp-gap-tight) var(--pp-gap-base);
-	color: var(--pp-brand);
-	font-weight: var(--pp-weight-bold);
-	text-decoration: none;
-}
-
-.login-page__back:hover {
-	text-decoration: underline;
 }
 
 .login-page__alert {
