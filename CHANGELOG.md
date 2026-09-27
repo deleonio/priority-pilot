@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.8 - 2026-09-27
 
-_Enthält v0.8.0 – v0.8.5._
+_Enthält v0.8.0 – v0.8.6._
 
 ### Other Changes
 
@@ -13,6 +13,7 @@ _Enthält v0.8.0 – v0.8.5._
 - docs(guide): Ist-Stand-Sync 2026-09-27 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1760
 - Revert "feat(frontend): login card head, website link and german google button" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1757
 - docs: align arc42 error contract with code - no global express handler by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1762
+- feat(frontend): restructure login card, german label, site link (#1753) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1763
 
 ## v0.7 - 2026-09-27
 
@@ -134,6 +135,7 @@ _Enthält v0.3.0 – v0.3.8._
 
 - refactor(server): extract shared recipient-authorization helper by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1612
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1608
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1608
 - chore(deps): update KoliBri to latest RC (4.5.0-rc.0) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1613
 - feat(frontend): add tester role option to user management by @deleonio in https://github.com/deleonio/priority-pilot/pull/1616
 - fix(server): reliable pillar recalculation with status filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1615
@@ -188,7 +190,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): balance_status mcp tool and GET /scores/balance (#1423) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1446
 - feat(frontend): add edit button to dashboard next-task panel by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1450
 - fix(prompts): harden the fixup loop contract and context hygiene by @deleonio in https://github.com/deleonio/priority-pilot/pull/1452
-- feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 - feat(server): add SMTP mail channel alongside web push by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1441
 - feat(server): block content edits on done tasks until reopened by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1444
 - feat(server): commit app feedback to obsidian vault by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1443
