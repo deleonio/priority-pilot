@@ -218,6 +218,12 @@
 			{
 				"q": "Varför kommer inloggningsmejlet inte fram?",
 				"a": "Högst tre inloggningslänkar skickas per adress var 15:e minut; ytterligare förfrågningar inom det fönstret lämnas utan mejl. Kontrollera även skräppostmappen. Adresser på @gmail.com och @googlemail.com landar i samma inkorg men är två separata konton i appen — använd konsekvent en och samma stavning."
+			},
+			{
+				"q": "Finns det en Android-app att ladda ner?",
+				"a": "Ja. Android-appen finns som APK-fil att ladda ner och installera direkt. Den ansluter till samma server som webbappen.",
+				"href": "/demo.apk",
+				"linkText": "Ladda ner demo.apk"
 			}
 		]
 	},

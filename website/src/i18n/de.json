@@ -218,6 +218,12 @@
 			{
 				"q": "Warum kommt die Anmelde-Mail nicht an?",
 				"a": "Pro Adresse gehen höchstens drei Anmeldelinks je 15 Minuten raus — weitere Anfragen bleiben in diesem Zeitfenster still ohne Mail. Prüfe zusätzlich den Spam-Ordner. @gmail.com- und @googlemail.com-Adressen landen im selben Postfach, sind in der App aber zwei getrennte Konten; nutze durchgehend eine Schreibweise."
+			},
+			{
+				"q": "Gibt es eine Android-App zum Herunterladen?",
+				"a": "Ja. Die Android-App gibt es als APK-Datei zum direkten Laden und Installieren. Sie verbindet sich mit demselben Server wie die Web-App.",
+				"href": "/demo.apk",
+				"linkText": "demo.apk laden"
 			}
 		]
 	},

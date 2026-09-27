@@ -218,6 +218,12 @@
 			{
 				"q": "Waarom komt de aanmeldmail niet aan?",
 				"a": "Per adres worden maximaal drie aanmeldlinks per 15 minuten verstuurd; verdere verzoeken binnen die periode blijven zonder mail. Controleer ook je spammap. @gmail.com- en @googlemail.com-adressen komen in dezelfde mailbox, maar zijn twee aparte accounts in de app — gebruik consequent één schrijfwijze."
+			},
+			{
+				"q": "Is er een Android-app om te downloaden?",
+				"a": "Ja. De Android-app is beschikbaar als APK-bestand om direct te downloaden en te installeren. Hij maakt verbinding met dezelfde server als de web-app.",
+				"href": "/demo.apk",
+				"linkText": "demo.apk downloaden"
 			}
 		]
 	},

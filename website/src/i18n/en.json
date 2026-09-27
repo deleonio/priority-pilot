@@ -215,6 +215,12 @@
 			{
 				"q": "Why isn't the login email arriving?",
 				"a": "At most three login links are sent per address every 15 minutes; further requests within that window stay silent. Also check your spam folder. @gmail.com and @googlemail.com addresses reach the same inbox but are two separate accounts in the app — stick to one spelling."
+			},
+			{
+				"q": "Is there an Android app to download?",
+				"a": "Yes. The Android app is available as an APK file for direct download and installation. It connects to the same server as the web app.",
+				"href": "/demo.apk",
+				"linkText": "Download demo.apk"
 			}
 		]
 	},

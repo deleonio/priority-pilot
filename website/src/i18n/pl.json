@@ -221,6 +221,12 @@
 			{
 				"q": "Dlaczego e-mail z linkiem do logowania nie dochodzi?",
 				"a": "Na jeden adres wysyłamy maksymalnie trzy linki do logowania na 15 minut; kolejne prośby w tym oknie pozostają bez wiadomości. Sprawdź też folder spam. Adresy @gmail.com i @googlemail.com trafiają do tej samej skrzynki, ale w aplikacji to dwa osobne konta — używaj konsekwentnie jednej formy."
+			},
+			{
+				"q": "Czy jest aplikacja na Androida do pobrania?",
+				"a": "Tak. Aplikacja na Androida jest dostępna jako plik APK do bezpośredniego pobrania i zainstalowania. Łączy się z tym samym serwerem co aplikacja przeglądarkowa.",
+				"href": "/demo.apk",
+				"linkText": "Pobierz demo.apk"
 			}
 		]
 	},

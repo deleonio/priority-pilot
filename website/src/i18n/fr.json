@@ -221,6 +221,12 @@
 			{
 				"q": "Pourquoi l'e-mail de connexion n'arrive-t-il pas ?",
 				"a": "Trois liens de connexion au maximum sont envoyés par adresse toutes les 15 minutes ; les demandes supplémentaires de cette période restent sans e-mail. Vérifiez aussi votre dossier spam. Les adresses @gmail.com et @googlemail.com arrivent dans la même boîte de réception, mais correspondent à deux comptes distincts dans l'application — utilisez toujours la même graphie."
+			},
+			{
+				"q": "Existe-t-il une application Android à télécharger ?",
+				"a": "Oui. L’application Android est disponible sous forme de fichier APK à télécharger et à installer directement. Elle se connecte au même serveur que l’application web.",
+				"href": "/demo.apk",
+				"linkText": "Télécharger demo.apk"
 			}
 		]
 	},
