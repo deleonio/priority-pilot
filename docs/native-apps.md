@@ -37,6 +37,10 @@ Ohne `SITE_URL` bricht `sync` mit einer Meldung ab. Für den Emulator: `npx cap 
 
 Der Workflow `Android App-Bundle` (`.github/workflows/android.yml`, nur manuell) baut
 `app-release.aab`, signiert mit dem Upload-Schlüssel, und legt es als Artefakt `balamentum-aab` ab.
+Zusätzlich legt er die mit demselben Upload-Schlüssel signierte APK als Artefakt `balamentum-apk` ab
+(`adb install app-release.apk`). Da der Fingerabdruck des Upload-Schlüssels in `ANDROID_CERT_SHA256`
+steht, bleibt die App-Link-Verifikation erhalten — Übergang bis zum internen Test-Track nach dem
+Store-Start (#1688).
 Den `versionCode` leitet Gradle aus der Root-Version ab (`major*10000 + minor*100 + patch`,
 `native/src/version-code.ts`).
 
