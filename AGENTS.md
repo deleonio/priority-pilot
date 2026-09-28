@@ -30,6 +30,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Zifferblatt-Konzept](docs/zifferblatt-konzept.md) — die fünf Bilder der Lebensbalance: gemeinsame Kennzahl, Rahmen, Regeln für ein neues Bild
+- [Fürsorge-Tonalität](docs/fuersorge-tonalitaet.md) — Ton, Prüffrage und Beispieltexte (10 Sprachen) für Fürsorge-Hinweise, Pushes und Vorschläge
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
 - [Design-Optimierungsplan](docs/design-optimierungsplan.md) — offene Findings aus Impeccable-Audit + Dashboard-Critique, Arbeitsliste mit Kommandos
 
