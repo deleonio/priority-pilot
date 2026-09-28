@@ -212,9 +212,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const [balanceMode, setBalanceMode] = useState(() => readBalancePreferences().balancePriority);
 	// Einmal-Hinweis auf die Umstellung (#1792 AK4): erscheint, solange weder Dismiss-Flag noch
 	// eigene Präferenz existiert — nach dem Wegklicken oder expliziten Abschalten nie wieder.
-	const [showBalanceHint, setShowBalanceHint] = useState(
-		() => !isBalanceHintDismissed() && !hasStoredBalancePreference(),
-	);
+	// Gate statt State (Muster aiPreferences.ts): pro Render frisch gelesen — sonst übersteht der
+	// Hinweis das Abschalten in den Einstellungen, denn die Navigation hin und zurück ist eine
+	// SPA-Navigation ohne Remount.
+	const showBalanceHint = !isBalanceHintDismissed() && !hasStoredBalancePreference();
 
 	// #1345: „Oberaufgaben anzeigen“ — session-lokal (kein localStorage/URL, AK10).
 	const [showParents, setShowParents] = useState(false);
@@ -396,7 +397,6 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 		if (!checked) {
 			dismissBalanceHint();
 		}
-		setShowBalanceHint(false);
 	}, []);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {

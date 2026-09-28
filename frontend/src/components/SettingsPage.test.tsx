@@ -1493,8 +1493,8 @@ describe('SettingsPage – #1704: Test-Push-Ergebnis auswerten', () => {
 /**
  * Rote Spec-Tests für #1792 — Einstellungs-Schalter „Balance-Priorisierung" (Allgemein-Tab).
  *
- * Der Schalter existiert in `SettingsPage.tsx` noch nicht (roter Zustand: die Schalter-Query
- * läuft leer und die Assertion schlägt fehl — kein Import-/Syntaxfehler). Vertrag: er spiegelt
+ * Provenienz: rote Spec-Tests (Spec-Commit `e22e212e` — seinerzeit lief die Schalter-Query leer
+ * und die Assertion schlug fehl, kein Import-/Syntaxfehler). Vertrag: er spiegelt
  * denselben localStorage-Key wie der Ansichts-Schalter (`pp-balance-priority`, Default **an**)
  * und schreibt ihn beim Umlegen — Muster der KI-Schalter-Tests (#1525-Block oben).
  */

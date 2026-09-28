@@ -426,18 +426,22 @@ export const SettingsPage = ({
 									zu den Animationen: Sie gilt auch, wenn gar nichts animiert wird. */}
 							<BalanceVariantSetting />
 							{/* #1792: Sortierverhalten der Aufgabenliste — schreibt denselben localStorage-Key
-									wie der Ansichts-Schalter „Balance-Priorisierung“ in der Aufgabenansicht. */}
-							<KolInputCheckbox
-								_label="Balance-Priorisierung"
-								_variant="switch"
-								_hint="Bei deaktivierter Balance-Priorisierung sortiert die Aufgabenliste wieder nach der Original-Priorität. Die Wahl gilt in diesem Browser."
-								_checked={balancePriority}
-								_on={{
-									onChange: (_event, value) => {
-										changeBalancePriority(value === true);
-									},
-								}}
-							/>
+									wie der Ansichts-Schalter „Balance-Priorisierung“ in der Aufgabenansicht.
+									#971-Muster: Switch je in einer `.settings-switch-row` — mobil volle Breite im
+									Stack-Layout, desktop eine Zeile. */}
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label="Balance-Priorisierung"
+									_variant="switch"
+									_hint="Bei deaktivierter Balance-Priorisierung sortiert die Aufgabenliste wieder nach der Original-Priorität. Die Wahl gilt in diesem Browser."
+									_checked={balancePriority}
+									_on={{
+										onChange: (_event, value) => {
+											changeBalancePriority(value === true);
+										},
+									}}
+								/>
+							</div>
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">

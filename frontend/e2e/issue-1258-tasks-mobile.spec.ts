@@ -80,6 +80,12 @@ test.describe('Balamentum — #1258: Aufgaben-Tab mobil (375px)', () => {
 		await waitForStableView(page);
 		await openTasksView(page);
 
+		// Einmal-Hinweis zur Balance-Umstellung (#1792) steht über der Liste und verdrängt Zeilen
+		// aus dem Viewport — für dieses Layout-Testziel wegklicken (Zielverhalten unverändert).
+		const hint = page.locator('kol-alert').filter({ hasText: /Balance-Priorisierung/i });
+		await hint.getByRole('button', { name: 'Balance-Priorisierung ausschalten' }).click();
+		await expect(hint).toBeHidden();
+
 		// Vollständig sichtbar = Zeilen-Unterkante innerhalb des Viewports (812px) — gleichzeitig,
 		// ohne zu scrollen.
 		let fullyVisible = 0;

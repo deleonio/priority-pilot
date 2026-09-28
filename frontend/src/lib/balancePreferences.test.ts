@@ -20,8 +20,8 @@ import {
  * `aiPreferences.ts`: ein fehlender, ungültiger oder gesperrter Storage liefert den Default statt
  * zu crashen.
  *
- * `balancePreferences.ts` existiert noch nicht — der rote Import-Fehler ist der legitime erste
- * Rot-Zustand neuer Funktionalität, kein kaputter Test.
+ * Provenienz: als rote Spec-Tests entstanden (Spec-Commit `e22e212e`) — der damalige rote
+ * Import-Fehler war der legitime erste Rot-Zustand, kein kaputter Test.
  */
 describe('balancePreferences — Präferenz (#1792 AK1)', () => {
 	beforeEach(() => {
