@@ -916,6 +916,72 @@ export function renderFocusReport(dir: string, issues: readonly string[]): strin
 	const missing = issues.filter((i) => !selected.some((t) => t.issue === i));
 	if (missing.length > 0) lines.push(`> ℹ️ Keine Daten für: ${missing.map((i) => `#${i}`).join(', ')}.`, '');
 
+	// ─── Direktvergleich (ab 2 Tickets): Kennzahlen und Phasen nebeneinander ───
+	// Zellformat „Wert · Turns · Token in"; die Δ-Spalte vergleicht die zweite mit der
+	// ersten Spalte und erscheint nur bei genau zwei Tickets (bei mehr wird Δ mehrdeutig).
+	if (selected.length >= 2) {
+		const tt = selected.map((t) => ({ issue: t.issue, ...ticketTotal(t) }));
+		const link = (issue: string): string => `[#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue})`;
+		const delta = (a: number, b: number): string => (a > 0 ? (b >= a ? '+' : '-') + pct(Math.abs((b - a) / a)) : '—');
+		const first = tt[0];
+		const second = tt[1];
+		const head = (
+			label: string,
+			get: (x: (typeof tt)[number]) => string,
+			num?: (x: (typeof tt)[number]) => number,
+		): string =>
+			`| ${label} | ${tt.map(get).join(' | ')} |${num && tt.length === 2 ? ` ${delta(num(first), num(second))} |` : ''}`;
+		lines.push('### Direktvergleich', '');
+		lines.push(
+			`| | ${tt.map((x) => link(x.issue)).join(' | ')} |${tt.length === 2 ? ' Δ |' : ''}`,
+			`| --- |${' ---: |'.repeat(tt.length)}${tt.length === 2 ? ' ---: |' : ''}`,
+			head(
+				'Wert (USD)',
+				(x) => usd(x.valueCost),
+				(x) => x.valueCost,
+			),
+			head(
+				'Läufe',
+				(x) => num(x.runs),
+				(x) => x.runs,
+			),
+			head(
+				'Turns',
+				(x) => (x.turns > 0 ? num(x.turns) : '—'),
+				(x) => x.turns,
+			),
+			head(
+				'Token in',
+				(x) => mio(x.tokensIn),
+				(x) => x.tokensIn,
+			),
+			head(
+				'Wert je Turn',
+				(x) => (x.turns > 0 ? `$${(x.valueCost / x.turns).toFixed(3)}` : '—'),
+				(x) => (x.turns > 0 ? x.valueCost / x.turns : Number.NaN),
+			),
+			'',
+		);
+		const phases = [...new Set(selected.flatMap((t) => t.entries.map((e) => e.phase ?? '(ohne)')))];
+		const phaseCell = (t: (typeof selected)[number], ph: string): string => {
+			const es = t.entries.filter((e) => (e.phase ?? '(ohne)') === ph);
+			if (es.length === 0) return '—'; // Phase lief in diesem Ticket gar nicht
+			const vc = es.reduce((a, e) => a + ZERO(e.valueCost), 0);
+			const turns = es.reduce((a, e) => a + ZERO(e.turns), 0);
+			const tin = es.reduce((a, e) => a + ZERO(e.tokensIn), 0);
+			return `${usd(vc)} · ${turns > 0 ? `${num(turns)} T` : '—'} · ${mio(tin)}`;
+		};
+		lines.push(
+			`| Phase | ${tt.map((x) => link(x.issue)).join(' | ')} |`,
+			`| --- |${' ---: |'.repeat(tt.length)}`,
+			...phases.map((ph) => `| ${ph} | ${selected.map((t) => phaseCell(t, ph)).join(' | ')} |`),
+			`| **Summe** | ${tt.map((x) => `${usd(x.valueCost)} · ${x.turns > 0 ? `${num(x.turns)} T` : '—'} · ${mio(x.tokensIn)}`).join(' | ')} |`,
+			'',
+			'> Zelle: Wert · Turns · Token in. Die Δ-Spalte vergleicht die zweite mit der ersten Spalte (nur bei zwei Tickets).',
+			'',
+		);
+	}
+
 	// ─── Läufe der Fokus-Tickets ───────────────────────────────────────────────
 	lines.push('### Läufe der Fokus-Tickets', '');
 	lines.push(

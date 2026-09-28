@@ -287,6 +287,29 @@ describe('tokens-report', () => {
 		}
 	});
 
+	it('Direktvergleich ab zwei Tickets: Kennzahlen mit Δ und Phasen nebeneinander', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-vergleich-'));
+		try {
+			writeTicket(dir, '920', [
+				entry({ issueId: '920', phase: 'documenter', turns: 8, valueCost: 0 }),
+				entry({ issueId: '920', phase: 'implement', turns: 30, valueCost: 9, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			writeTicket(dir, '921', [
+				entry({ issueId: '921', phase: 'documenter', turns: 20, valueCost: 4 }),
+				entry({ issueId: '921', phase: 'documenter', turns: 30, valueCost: 6, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			const report = renderFocusReport(dir, ['920', '921']);
+			assert.match(report, /### Direktvergleich/);
+			assert.match(report, /\| Wert \(USD\) \| \$9\.00 \| \$10\.00 \| \+11,1 % \|/);
+			assert.match(report, /\| Turns \| 38 \| 50 \| \+31,6 % \|/);
+			assert.match(report, /\| implement \| \$9\.00 · 30 T · 0 Mio \| — \|/, 'Phase, die nur das erste Ticket hat');
+			assert.match(report, /\| documenter \| \$0\.00 · 8 T · 0 Mio \| \$10\.00 · 50 T · 0 Mio \|/);
+			assert.match(report, /\| \*\*Summe\*\* \| \$9\.00 · 38 T · 0 Mio \| \$10\.00 · 50 T · 0 Mio \|/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it('klassifiziert chronologisch: extern umgesetzte Erstdurchläufe sind vollständig, Nacharbeit nach dem Siegel ein Bein', () => {
 		const at = (phase: string, hour: number, over: Partial<CostEntry> = {}): CostEntry =>
 			entry({ phase, timestamp: `2026-08-24T${String(hour).padStart(2, '0')}:00:00Z`, ...over });
