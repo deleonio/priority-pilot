@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.9 - 2026-09-28
 
-_Enthält v0.9.0 – v0.9.4._
+_Enthält v0.9.0 – v0.9.5._
 
 ### Other Changes
 
@@ -12,6 +12,7 @@ _Enthält v0.9.0 – v0.9.4._
 - docs: add care-tone guide with rules and sample texts in 10 languages by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1806
 - docs(project): add website workspace to monorepo list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1807
 - ci: add signed test apk artifact until internal test track (#1801) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1808
+- chore(ci): route documenter through openrouter free model by default by @deleonio in https://github.com/deleonio/priority-pilot/pull/1755
 
 ## v0.8 - 2026-09-27
 
@@ -143,6 +144,7 @@ _Enthält v0.4.0 – v0.4.22._
 - fix(ci): fail open on mentor model when pr head lacks model-ids.json by @deleonio in https://github.com/deleonio/priority-pilot/pull/1631
 - revert(ci): mentor fallback for missing model-ids.json (#1631) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1632
 - fix(admin): resumable pillar batch with live progress and error reasons by @deleonio in https://github.com/deleonio/priority-pilot/pull/1630
+- fix(admin): resumable pillar batch with live progress and error reasons by @deleonio in https://github.com/deleonio/priority-pilot/pull/1630
 - perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
 - fix(server): keep 5% minimum share per pillar in recalculation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1636
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
@@ -235,7 +237,6 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(server): log API-Token-Prüfung Fehler statt sie zu verschlucken by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1480
 - docs: deduplicate a11y guidance and refresh spec naming convention by @deleonio in https://github.com/deleonio/priority-pilot/pull/1483
 - feat(server): enforce dependency weight range 0.1-1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1482
-- docs: sharpen the monetization concept against the code by @deleonio in https://github.com/deleonio/priority-pilot/pull/1485
 - docs: sharpen the monetization concept against the code by @deleonio in https://github.com/deleonio/priority-pilot/pull/1485
 - fix(server): mount rate limiters on their own paths only (#1479) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1481
 - feat(server): add plan model and entitlement center (#1456) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1486
