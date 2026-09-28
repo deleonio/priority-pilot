@@ -10,12 +10,7 @@ import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../.
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import {
-	waehleCareVorschlaege,
-	type CareAufgabe,
-	type CareVorschlag,
-	type CareVorlage,
-} from '../../logics/careSuggestions.js';
+import { waehleCareVorschlaege, type CareAufgabe, type CareVorlage } from '../../logics/careSuggestions.js';
 import { CARE_SPRACHEN, CARE_VORLAGEN, type CareSprache } from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit } from '../../logics/careDeficit.js';
 import type { components } from '../../api';
@@ -28,15 +23,13 @@ type MilestoneDto = components['schemas']['Milestone'];
 type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
 type BalanceStatusDto = components['schemas']['BalanceStatus'];
 type BalanceHistoryEntryDto = components['schemas']['BalanceHistoryEntry'];
+type CareVorschlagDto = components['schemas']['CareVorschlag'];
 
 /** Ein Zeitraum darf höchstens so viele Tage umfassen — deckelt die Antwortgröße von `/scores/balance/history`. */
 const MAX_BALANCE_HISTORY_TAGE = 366;
 
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
-
-/** Ein Vorschlags-Dto: die reine Logik-Antwort, angereichert um Säulen-Bezug (`saeuleId`/`saeuleName`). */
-type CareVorschlagDto = CareVorschlag & { saeuleId: number; saeuleName: string };
 
 /** Löst den `sprache`-Query-Parameter auf: bekannte App-Sprache oder Default `de`. */
 const loeseSprache = (query: unknown): CareSprache =>
