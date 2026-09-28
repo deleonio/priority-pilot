@@ -163,6 +163,10 @@ export type Usage = {
 	sidechainTokens: number;
 	/** Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten. */
 	turns: number;
+	/** Ganze Sekunden zwischen erster und letzter deduplizierter Antwort; fehlt bei <2 Zeitstempeln. */
+	durationSeconds?: number;
+	/** MCP-Tool-Aufrufe (`mcp__*`-tool_use-Blöcke) über alle Zeilen des Laufes. */
+	mcpCalls?: number;
 	/** Modell mit dem größten Output-Anteil — das die Kosten dominierende. */
 	model: string;
 };
@@ -178,10 +182,24 @@ type RawLine = {
 		id?: string;
 		model?: string;
 		usage?: Record<string, unknown>;
+		content?: unknown;
 	};
 };
 
 const num = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+
+/** MCP-Tool-Aufrufe in einer Zeile: `tool_use`-Blöcke mit `mcp__`-Präfix (0 bei anderen Blöcken). */
+const mcpCallsIn = (content: unknown): number => {
+	if (!Array.isArray(content)) return 0;
+	return content.filter(
+		(b): b is { type: string; name: string } =>
+			b !== null &&
+			typeof b === 'object' &&
+			(b as { type?: unknown }).type === 'tool_use' &&
+			typeof (b as { name?: unknown }).name === 'string' &&
+			(b as { name: string }).name.startsWith('mcp__'),
+	).length;
+};
 
 /** Preiszeile mit dem längsten passenden Präfix, oder undefined bei unbekanntem Modell. */
 export function lookupPrice(model: string): readonly [string, number, number] | undefined {
@@ -283,6 +301,9 @@ export function valueRates(model: string): readonly [number, number] {
 export function sumUsage(lines: readonly string[], since?: string): Usage {
 	const seen = new Set<string>();
 	const outputByModel = new Map<string, number>();
+	let minTs = Number.POSITIVE_INFINITY;
+	let maxTs = Number.NEGATIVE_INFINITY;
+	let mcp = 0;
 	const usage: Usage = {
 		inputTokens: 0,
 		outputTokens: 0,
@@ -306,12 +327,23 @@ export function sumUsage(lines: readonly string[], since?: string): Usage {
 		if (!raw) continue;
 		if (since && typeof parsed.timestamp === 'string' && parsed.timestamp < since) continue;
 
+		// MCP-Zählung VOR dem Dedup-Continue: jede Zeile ist ein Content-Block, Blöcke derselben
+		// Antwort mit anderer message.id-Reihenfolge würden sonst still verloren gehen.
+		mcp += mcpCallsIn(parsed.message?.content);
+
 		const key = parsed.message?.id ?? parsed.requestId ?? parsed.uuid;
 		if (!key || seen.has(key)) continue;
 		seen.add(key);
 		// Jede deduplizierte Antwortzeile ist genau ein API-Call — dasselbe Dedupe, das
 		// die Token vor Mehrfachzählung schützt (s. Kopf-Kommentar), liefert die Turnzahl.
 		usage.turns += 1;
+		if (typeof parsed.timestamp === 'string') {
+			const ts = Date.parse(parsed.timestamp);
+			if (Number.isFinite(ts)) {
+				if (ts < minTs) minTs = ts;
+				if (ts > maxTs) maxTs = ts;
+			}
+		}
 
 		const input = num(raw.input_tokens);
 		const output = num(raw.output_tokens);
@@ -331,6 +363,9 @@ export function sumUsage(lines: readonly string[], since?: string): Usage {
 	}
 
 	usage.model = [...outputByModel.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+	if (Number.isFinite(minTs) && Number.isFinite(maxTs) && maxTs > minTs)
+		usage.durationSeconds = Math.round((maxTs - minTs) / 1000);
+	if (mcp > 0) usage.mcpCalls = mcp;
 	return usage;
 }
 
@@ -462,6 +497,8 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	if (usage.model) input.model = usage.model;
 	if (usage.sidechainTokens > 0) input.sidechainTokens = usage.sidechainTokens;
 	if (usage.turns > 0) input.turns = usage.turns;
+	if (usage.durationSeconds !== undefined && usage.durationSeconds > 0) input.durationSeconds = usage.durationSeconds;
+	if (usage.mcpCalls !== undefined && usage.mcpCalls > 0) input.mcpCalls = usage.mcpCalls;
 
 	appendCostRecord(issue, input, { rootDir: flag(argv, 'root-dir') });
 	// Kostenaufschluesselung nach Block: Input-/Cache-Write-/Cache-Read-/Output-Anteil in USD.
@@ -477,7 +514,7 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	const costCacheReadUsd = blockUsd(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR);
 	const costOutputUsd = blockUsd(usage.outputTokens, outRate);
 	process.stdout.write(
-		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\ninputTokens=${usage.inputTokens}\ncacheCreationTokens=${usage.cacheCreationTokens}\ncacheReadTokens=${usage.cacheReadTokens}\ncostInputUsd=${costInputUsd.toFixed(4)}\ncostCacheWriteUsd=${costCacheWriteUsd.toFixed(4)}\ncostCacheReadUsd=${costCacheReadUsd.toFixed(4)}\ncostOutputUsd=${costOutputUsd.toFixed(4)}\n`,
+		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ndurationSeconds=${usage.durationSeconds ?? 0}\nmcpCalls=${usage.mcpCalls ?? 0}\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\ninputTokens=${usage.inputTokens}\ncacheCreationTokens=${usage.cacheCreationTokens}\ncacheReadTokens=${usage.cacheReadTokens}\ncostInputUsd=${costInputUsd.toFixed(4)}\ncostCacheWriteUsd=${costCacheWriteUsd.toFixed(4)}\ncostCacheReadUsd=${costCacheReadUsd.toFixed(4)}\ncostOutputUsd=${costOutputUsd.toFixed(4)}\n`,
 	);
 	return 0;
 }

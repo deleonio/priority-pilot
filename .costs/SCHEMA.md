@@ -56,6 +56,8 @@ als optional behandeln.
 | `cacheReadTokens`     | int    | Anteil an `tokensIn`, der aus dem Cache gelesen wurde (~0,1x Preis)                                                                                                       |
 | `sidechainTokens`     | int    | Anteil des Verbrauchs, der auf Subagenten entfiel (nur wenn > 0)                                                                                                          |
 | `turns`               | int    | Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten                                                                                              |
+| `durationSeconds`     | int    | Laufzeit des Laufs in ganzen Sekunden (erste bis letzte Antwort im Transkript); pi-Pendant: Spektrum der verbrauchtragenden Einträge. Nur neue Läufe tragen das Feld      |
+| `mcpCalls`            | int    | MCP-Tool-Aufrufe (`mcp__*`-tool_use-Blöcke) im Transkript; pi-Läufe tragen das Feld nicht (Proxy-Tool, nicht vergleichbar). Nur neue Läufe tragen das Feld                |
 | `valueCost`           | float  | Verbrauchsbewertung zu Modellklassen-Preisen (USD), siehe unten                                                                                                           |
 | `effort`              | string | Aufgelöster Effort-Level des Laufes (`low` \| `medium` \| `high` \| `xhigh` \| `max`)                                                                                     |
 | `verdict`             | string | Review-Verdict (`reviewed` \| `needs-fixup` \| `needs-human`) — nur `phase: review`                                                                                       |

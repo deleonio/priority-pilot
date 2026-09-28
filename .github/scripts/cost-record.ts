@@ -34,6 +34,8 @@ export const COSTS_DIR = '.costs';
  *     nicht unterscheidbar (schwächerer Code vs. strengerer Review ohne Spec-Kontext) —
  *     Inline-Kommentare sind je ein Finding (SKILL Step 4), Nits stehen gesammelt im
  *     ai-review-Kommentar; beide sind ohne LLM deterministisch zählbar.
+ *   - ohne `durationSeconds`/`mcpCalls` fehlen dem N-Wege-Phasenvergleich Laufzeit und
+ *     MCP-Nutzung; erst neue Läufe tragen die Werte (Alt-Einträge ohne Backfill).
  * Alt-Einträge ohne diese Felder bleiben gültig — Leser müssen sie als optional behandeln.
  */
 export type CostEntry = {
@@ -49,6 +51,10 @@ export type CostEntry = {
 	cacheReadTokens?: number;
 	sidechainTokens?: number;
 	turns?: number;
+	/** Laufzeit des Laufs in ganzen Sekunden (erste bis letzte Antwort im Transkript). */
+	durationSeconds?: number;
+	/** Anzahl der MCP-Tool-Aufrufe (`mcp__*`) im Transkript. */
+	mcpCalls?: number;
 	valueCost?: number;
 	effort?: string;
 	verdict?: string;
@@ -100,6 +106,8 @@ const toEntry = (issueId: string, input: CostInput): CostEntry => {
 	if (input.cacheReadTokens !== undefined) entry.cacheReadTokens = input.cacheReadTokens;
 	if (input.sidechainTokens !== undefined) entry.sidechainTokens = input.sidechainTokens;
 	if (input.turns !== undefined) entry.turns = input.turns;
+	if (input.durationSeconds !== undefined) entry.durationSeconds = input.durationSeconds;
+	if (input.mcpCalls !== undefined) entry.mcpCalls = input.mcpCalls;
 	if (input.valueCost !== undefined) entry.valueCost = input.valueCost;
 	if (input.effort !== undefined) entry.effort = input.effort;
 	if (input.verdict !== undefined) entry.verdict = input.verdict;

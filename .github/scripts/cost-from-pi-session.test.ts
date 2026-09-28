@@ -121,6 +121,20 @@ describe('sumUsage — mehrere Antworten', () => {
 	});
 });
 
+describe('sumUsage — Dauer (N-Wege-Phasenvergleich)', () => {
+	it('rechnet die Dauer aus dem Zeitstempel-Spektrum der verbrauchtragenden Einträge', () => {
+		const usage = parse([
+			assistant({ timestamp: '2026-09-02T12:00:00.000Z' }),
+			assistant({ timestamp: '2026-09-02T12:02:00.000Z' }),
+		]);
+		assert.equal(usage.durationSeconds, 120, 'User-/Tool-Ergebnis-Zeiten davor und danach zählen nicht mit');
+	});
+
+	it('setzt keine Dauer bei einer einzelnen Antwort', () => {
+		assert.equal(parse([assistant()]).durationSeconds, undefined);
+	});
+});
+
 describe('collectUsage — Sitzungsverzeichnis', () => {
 	const withDir = (fn: (dir: string) => void): void => {
 		const dir = mkdtempSync(join(tmpdir(), 'pi-session-'));
