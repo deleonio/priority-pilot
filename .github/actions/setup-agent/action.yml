@@ -474,12 +474,14 @@ runs:
     # Zeitfenster-Override) bekannt ist. Kill-Switch: tailscale-exit-node leer → deaktiviert.
     # Fail-closed: Exit-Node gesetzt + Provider=zai, aber Key fehlt/
     # Connect scheitert → setup rot → der Agenten-Step wird übersprungen.
-    # runner.arch != 'ARM64': der self-hosted Docker-Runner (pi5) hat kein tailscaled/TUN —
-    # dort entfällt der Exit-Node; der Egress läuft über die feste Heim-IP (keine Azure-IP,
-    # für z.ai also genauso akzeptabel wie die Exit-Node-IP).
+    # runner.name != 'pi5': der self-hosted Docker-Runner (RUNNER_NAME der Registrierung)
+    # hat kein tailscaled/TUN — dort entfällt der Exit-Node; der Egress läuft über die
+    # feste Heim-IP (keine Azure-IP, für z.ai genauso akzeptabel wie die Exit-Node-IP).
+    # Am Runner-Namen statt an der Architektur gebunden: ein anderer (Zukunfts-)Runner
+    # mit tailscaled bleibt so funktionsfähig.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.arch != 'ARM64'
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
       shell: bash
       env:
         TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
@@ -490,14 +492,14 @@ runs:
         fi
 
     - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.arch != 'ARM64'
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
       uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
       with:
         authkey: ${{ inputs.tailscale-authkey }}
         args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
 
     - name: ✅ Tailscale-Verbindung bestätigen (für zai)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.arch != 'ARM64'
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
       shell: bash
       run: |
         sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
@@ -510,7 +512,7 @@ runs:
         fi
 
     - name: DNS fixen + Egress-IP protokollieren (für zai)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.arch != 'ARM64'
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai' && runner.name != 'pi5'
       shell: bash
       run: |
         sudo systemctl stop systemd-resolved 2>/dev/null || true
