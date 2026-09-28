@@ -4,12 +4,14 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.9 - 2026-09-28
 
-_Enthält v0.9.0 – v0.9.2._
+_Enthält v0.9.0 – v0.9.4._
 
 ### Other Changes
 
 - feat(server): care deficit, trend and overload per pillar (#1790) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1805
 - docs: add care-tone guide with rules and sample texts in 10 languages by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1806
+- docs(project): add website workspace to monorepo list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1807
+- ci: add signed test apk artifact until internal test track (#1801) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1808
 
 ## v0.8 - 2026-09-27
 
@@ -137,7 +139,6 @@ _Enthält v0.4.0 – v0.4.22._
 - fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
 - docs(mobile-ui-rules): align checklist touch-target to 44px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1626
 - fix(pillars): resumable recalc with live progress and rate-limit retry by @deleonio in https://github.com/deleonio/priority-pilot/pull/1628
-- feat(auth): add email magic link login alongside google by @deleonio in https://github.com/deleonio/priority-pilot/pull/1629
 - feat(auth): add email magic link login alongside google by @deleonio in https://github.com/deleonio/priority-pilot/pull/1629
 - fix(ci): fail open on mentor model when pr head lacks model-ids.json by @deleonio in https://github.com/deleonio/priority-pilot/pull/1631
 - revert(ci): mentor fallback for missing model-ids.json (#1631) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1632
