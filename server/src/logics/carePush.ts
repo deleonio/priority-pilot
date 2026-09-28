@@ -352,9 +352,9 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 			continue;
 		}
 		const betroffeneSaeule = (ueberlastete.length > 0 ? ueberlastete : defizitaere)[0];
-		// AK2: Ruhezeit nur mit explizit gültiger Nutzer-Zeitzone; ohne Zone kein Block (UTC-Fallback).
-		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : null;
-		if (zeitzone && istRuhezeit(now, zeitzone)) {
+		// AK2/AK8: Ruhezeit in der Nutzer-Zeitzone; ungültige/fehlende Zone fällt auf 'UTC' zurück.
+		const zeitzone = istGueltigeZeitzone(user.zeitzone ?? undefined) ? (user.zeitzone as string) : 'UTC';
+		if (istRuhezeit(now, zeitzone)) {
 			continue;
 		}
 		const dedupeKey = `${user.id}:${lokalesDatum(now, zeitzone)}`;

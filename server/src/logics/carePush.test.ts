@@ -41,7 +41,9 @@ import type { PushSender } from './push.js';
 
 // Nutzer-Zeitzone Europa/Berlin, Juli = CEST (UTC+2):
 // 05:59Z → 07:59 lokal, 06:00Z → 08:00 lokal, 19:30Z → 21:30 lokal, 20:30Z → 22:30 lokal.
-const NOW = new Date('2026-07-07T06:00:00Z');
+// 19:30 UTC liegt außerhalb der UTC-Ruhezeit (AK8: Zone-lose Nutzer fallen auf UTC zurück) —
+// die Lauf-Semantik-Tests (Defizit/Dedup/Schalter/Kanäle) treffen so keinen Ruhezeit-Block.
+const NOW = new Date('2026-07-07T19:30:00Z');
 
 type CareUserAttrs = { carePushEnabled?: boolean; zeitzone?: string | null };
 
@@ -298,5 +300,16 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 
 		assert.equal(result.usersNotified, 2, 'beide Nutzer werden mit dem UTC-Fallback bedient');
 		assert.equal(calls.length, 2);
+
+		// 22:30 UTC liegt IN der UTC-Ruhezeit (21:00–08:00) — der UTC-Fallback blockiert.
+		// Frische Nutzer, damit der Dedup (gleicher UTC-Kalendertag) die Unterscheidung
+		// nicht schon vorher erledigt: überspringen der Prüfung würde hier nächtlich zustellen.
+		await seedDeficitUser('care-tz-bad-night@example.com', { zeitzone: 'Mars/Olympus' });
+		await seedDeficitUser('care-tz-null-night@example.com', { zeitzone: null });
+		const nightCalls: { endpoint: string; body: string }[] = [];
+		const night = await runCarePush(new Date('2026-07-07T22:30:00Z'), okSender(nightCalls));
+
+		assert.equal(night.usersNotified, 0, '22:30 UTC fällt in die UTC-Ruhezeit — kein Versand');
+		assert.equal(nightCalls.length, 0);
 	});
 });
