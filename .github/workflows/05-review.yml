@@ -160,7 +160,7 @@ jobs:
       ${{ always()
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     # 60 statt 30 min: der Lauf wartet seit dem CI-Warte-Gate (s. u.) zuerst auf den Abschluss
     # der Verify-Checks (Budget 20 min) und reviewt danach mit dem 15-min-Soft-Deadline.
     timeout-minutes: 60

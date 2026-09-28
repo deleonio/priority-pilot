@@ -62,7 +62,7 @@ jobs:
     if: >-
       ${{ always()
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     # 120 min: Der Lauf macht in EINEM Job, wofür die Kette drei Phasen braucht (Spec,
     # Umsetzung, Review-Runden) — inklusive Setup, Gate und mehrfachen e2e-Läufen.
     timeout-minutes: 120

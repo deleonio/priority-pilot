@@ -125,7 +125,7 @@ jobs:
     # ein ausgefallener Lauf per workflow_dispatch nachholbar ist. Bricht der precheck ab,
     # bleibt die Doku bewusst aus.
     if: needs.precheck.outputs.proceed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
