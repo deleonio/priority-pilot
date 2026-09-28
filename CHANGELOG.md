@@ -132,6 +132,7 @@ _Enthält v0.4.0 – v0.4.22._
 - fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
 - docs(mobile-ui-rules): align checklist touch-target to 44px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1626
 - fix(pillars): resumable recalc with live progress and rate-limit retry by @deleonio in https://github.com/deleonio/priority-pilot/pull/1628
+- fix(pillars): resumable recalc with live progress and rate-limit retry by @deleonio in https://github.com/deleonio/priority-pilot/pull/1628
 - feat(auth): add email magic link login alongside google by @deleonio in https://github.com/deleonio/priority-pilot/pull/1629
 - fix(ci): fail open on mentor model when pr head lacks model-ids.json by @deleonio in https://github.com/deleonio/priority-pilot/pull/1631
 - revert(ci): mentor fallback for missing model-ids.json (#1631) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1632
