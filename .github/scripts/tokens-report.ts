@@ -922,10 +922,12 @@ export function renderFocusReport(dir: string, issues: readonly string[]): strin
 	// ─── Direktvergleich (ab 2 Tickets): Kennzahlen und Phasen nebeneinander ───
 	// Zellformat „Wert · Turns · Token · Cache · MCP · Dauer"; die Δ-Spalte vergleicht die
 	// zweite mit der ersten Spalte und erscheint nur bei genau zwei Tickets (bei mehr wird
-	// Δ mehrdeutig). Je Kennzahl folgt ein xychart-Block: x-Achse = Phasen, eine Serie je
-	// Ticket — Werte kumuliert je Phase, eine nicht gelaufene Phase zeichnet 0. Eine Serie
+	// Δ mehrdeutig). Je Kennzahl folgt ein xychart-Block: je Phase eine Balkengruppe mit
+	// einem Balken je Ticket NEBENEINANDER plus „Ø“ über alle gewählten Tickets (Mermaid
+	// kennt kein Grouping und dedupliziert gleiche Labels — Slot-Trick unten). Werte
+	// kumuliert je Phase, eine nicht gelaufene Phase zeichnet 0. Eine Serie
 	// ohne EINZIGEN Wert zur Kennzahl (Alt-Daten ohne Feld) entfällt; der Chart entfällt
-	// ganz, wenn weniger als zwei Serien übrig bleiben.
+	// ganz, wenn weniger als zwei unterscheidbare Serien übrig bleiben.
 	if (selected.length >= 2) {
 		const tt = selected.map((t) => ({ issue: t.issue, ...ticketTotal(t) }));
 		const link = (issue: string): string => `[#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue})`;
@@ -1077,33 +1079,80 @@ export function renderFocusReport(dir: string, issues: readonly string[]): strin
 				present: (s) => s.hasDur,
 			},
 		];
-		const charted = tt.slice(0, 6); // mehr Balkenserien trägt xychart nicht mehr lesbar
+		const charted = tt.slice(0, 6); // mehr Balken je Gruppe trägt xychart nicht mehr lesbar
+		// Mermaid xychart zeichnet mehrere bar-Serien ÜBEREINANDER (kein Grouping) und dedupliziert
+		// gleiche x-Labels. Daher: je Phase eine Gruppe aus charted.length+1 Slots (ein Slot je
+		// Ticket + einer für Ø) — der Phasenname steht am Gruppenanfang, die übrigen Labels sind
+		// unsichtbare Platzhalter aus Nullbreiten-Leerzeichen in global eindeutiger Anzahl, damit
+		// Mermaid sie nicht zu einer Kategorie zusammenzieht.
+		const zwsp = '\u200b';
+		const slotCount = charted.length + 1;
+		const labels: string[] = [];
+		for (const ph of phases)
+			for (let si = 0; si < slotCount; si++) labels.push(si === 0 ? ph : zwsp.repeat(labels.length + 1));
+		const atSlot = (slot: number, value: number): number[] =>
+			Array.from({ length: slotCount }, (_, i) => (i === slot ? value : 0));
 		let chartCount = 0;
 		for (const m of metrics) {
-			const series = charted
-				.filter((t) => [...(statsByTicket.get(t.issue)?.values() ?? [])].some((s) => s !== undefined && m.present(s)))
-				.map((t) => ({
+			const statOf = (issue: string, ph: string): PhaseStat | undefined => {
+				const s = statsByTicket.get(issue)?.get(ph);
+				return s !== undefined && m.present(s) ? s : undefined;
+			};
+			// Phasen-Vektor (Position = Phase); beim Zeichnen wird er auf die Slots gespreizt
+			const vecOf = (issue: string): number[] =>
+				phases.map((ph) => {
+					const s = statOf(issue, ph);
+					return s ? m.value(s) : 0; // Phase lief nicht / Kennzahl fehlt (Alt-Daten) → 0
+				});
+			const avgVec = phases.map((ph) => {
+				const vals = tt
+					.map((t) => statOf(t.issue, ph))
+					.filter((s) => s !== undefined)
+					.map((s) => m.value(s));
+				// Ø über ALLE gewählten Tickets, je Phase nur über die mit Daten (nicht gelaufene
+				// Phase zählt nicht als 0); ohne Daten zeichnet 0
+				return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+			});
+			const carry = charted.filter((t) => phases.some((ph) => statOf(t.issue, ph) !== undefined));
+			const series = [
+				...carry.map((t, ti) => ({
 					kind: 'bar' as const,
 					name: `#${t.issue}`,
-					values: phases.map((ph) => {
-						const s = statsByTicket.get(t.issue)?.get(ph);
-						return s ? m.value(s) : 0; // Phase lief nicht → 0 (bleibt zeichenbar)
-					}),
+					values: vecOf(t.issue).flatMap((v, pi) => atSlot(ti, v)),
 					digits: m.digits,
-				}));
+				})),
+				// Ø entfällt bei einem einzelnen Ticket (Dublette)
+				...(tt.length >= 2
+					? [
+							{
+								kind: 'bar' as const,
+								name: `Ø (${tt.length})`,
+								values: avgVec.flatMap((v, pi) => atSlot(charted.length, v)),
+								digits: m.digits,
+							},
+						]
+					: []),
+			];
 			if (series.length < 2) continue;
-			const chart = xychart({ title: m.title, labels: phases, series, yLabel: m.yLabel });
+			// Einziges Ticket-Serie, deren Werte mit Ø übereinstimmen → Chart wäre eine Dublette
+			if (carry.length === 1 && vecOf(carry[0].issue).every((v, i) => v === avgVec[i])) continue;
+			const chart = xychart({ title: m.title, labels, series, yLabel: m.yLabel });
 			if (chart.length > 0) {
 				if (chartCount === 0) lines.push('### Phasen im Vergleich', '');
 				lines.push(`#### ${m.title}`, '', ...chart, '');
 				chartCount += 1;
 			}
 		}
-		if (chartCount > 0 && tt.length > charted.length)
+		if (chartCount > 0) {
+			const capped =
+				tt.length > charted.length
+					? ` Die ersten ${charted.length} Tickets zeichnen Balken; ${tt.length - charted.length} weitere fließen nur in Ø und die Tabellen ein.`
+					: '';
 			lines.push(
-				`> Charts zeigen die ersten ${charted.length} Tickets; ${tt.length - charted.length} weitere nur in den Tabellen.`,
+				`> Balken je Phase nebeneinander: einer je Ticket, zuletzt „Ø (${tt.length})“ = Mittelwert über alle gewählten Tickets, je Phase nur über die mit Daten („0“ = Phase lief ohne Wert oder gar nicht).${capped}`,
 				'',
 			);
+		}
 	}
 
 	// ─── Läufe der Fokus-Tickets ───────────────────────────────────────────────
