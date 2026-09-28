@@ -957,6 +957,64 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores/care-suggestions:
+    get:
+      summary: Konkrete Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791)
+      description: >-
+        Liefert je defizitärer Säule (Defizit-Bewertung aus #1790) bis zu drei Vorschläge:
+        zuerst eigene offene Aufgaben mit Säulen-Beitrag zu genau dieser Säule, sonst
+        kuratierte Vorlagen. Abgelehnte Vorlagen (POST /scores/care-suggestions/dismissals)
+        bleiben 14 Tage unterdrückt. Der Parameter `sprache` wählt die Sprache der
+        Vorlagen-Texte. Gerechnet wird über Säulen und Tasks des Nutzers (`ownerScope`) —
+        gescopet wie `GET /scores/balance`.
+      operationId: getCareSuggestions
+      parameters:
+        - name: sprache
+          in: query
+          required: false
+          description: >-
+            Sprache der Vorlagen-Texte (App-Sprache). Fehlt der Wert oder ist unbekannt,
+            liefert der Server die Texte auf Deutsch — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vorschläge je defizitärer Säule; ohne Defizit eine leere Liste
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vorschlaege]
+                properties:
+                  vorschlaege:
+                    type: array
+                    description: Bis zu drei Vorschläge je defizitärer Säule.
+                    items:
+                      $ref: '#/components/schemas/CareVorschlag'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /scores/care-suggestions/dismissals:
+    post:
+      summary: Einen Fürsorge-Vorschlag ablehnen (#1791)
+      description: >-
+        Lehnt eine kuratierte Vorlage über ihren sprachunabhängigen `templateKey` ab; die
+        Ablehnung unterdrückt die Vorlage in `GET /scores/care-suggestions` für 14 Tage ab
+        jetzt. Wiederholtes Ablehnen aktualisiert den bestehenden Eintrag, statt Zeilen zu
+        häufen.
+      operationId: createCareSuggestionDismissal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareSuggestionDismissalCreate'
+      responses:
+        '204':
+          description: Ablehnung gespeichert
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series:
     get:
       summary: Alle Serien-Templates auflisten
@@ -5202,6 +5260,80 @@ components:
           description: Punktestand und Gewichtung je Säule zum Ende dieses Tages.
           items:
             $ref: '#/components/schemas/PillarBalance'
+    CareVorschlag:
+      type: object
+      description: >-
+        Konkreter Fürsorge-Vorschlag gegen ein Balance-Defizit (#1791): ein eigener offener
+        Task (`typ: task`, dann ist `taskId` gesetzt) oder eine kuratierte Vorlage
+        (`typ: vorlage`, dann ist `templateKey` gesetzt). Gehört zu genau einer Säule.
+      required:
+        - typ
+        - titel
+        - beschreibung
+        - saeulenBeitraege
+        - saeuleId
+        - saeuleName
+      properties:
+        typ:
+          type: string
+          enum:
+            - task
+            - vorlage
+          description: Eigener Task (`task`) oder kuratierte Vorlage (`vorlage`).
+        titel:
+          type: string
+          description: Anzeigetitel des Vorschlags (in der angefragten Sprache).
+        beschreibung:
+          type: [string, 'null']
+          description: Optionale Erläuterung (in der angefragten Sprache).
+        saeulenBeitraege:
+          type: array
+          description: >-
+            Säulen-Beiträge des Vorschlags — kuratierte Vorlagen zielen voll (share 100)
+            auf ihre Säule, eigene Tasks bringen ihre Task-Beiträge mit.
+          items:
+            $ref: '#/components/schemas/CareSaeulenBeitrag'
+        taskId:
+          type: integer
+          description: 'ID des eigenen Tasks — nur bei `typ: task`.'
+        templateKey:
+          type: string
+          description: 'Stammdaten-Schlüssel der Vorlage — nur bei `typ: vorlage`.'
+        saeuleId:
+          type: integer
+          description: ID der Säule, gegen deren Defizit der Vorschlag hilft.
+        saeuleName:
+          type: string
+          description: Name dieser Säule.
+    CareSaeulenBeitrag:
+      type: object
+      description: >-
+        Säulen-Beitrag eines Fürsorge-Vorschlags (gegenüber `TaskPillarContribution` ohne
+        `confidence` — die Konfidenz kennt nur der Task).
+      required:
+        - pillarId
+        - share
+      properties:
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID der Säule, auf die der Vorschlag einzahlt.
+        share:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Investitions-Anteil in %.
+    CareSuggestionDismissalCreate:
+      type: object
+      description: Ablehnung einer kuratierten Fürsorge-Vorlage über ihren Stammdaten-Schlüssel.
+      required:
+        - templateKey
+      properties:
+        templateKey:
+          type: string
+          minLength: 1
+          description: Stammdaten-Schlüssel der abzulehnenden Vorlage.
     SeriesRhythm:
       type: string
       enum:
