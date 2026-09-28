@@ -129,9 +129,11 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		const koerper = (await Pillar.findOne({ where: { userId: user.id } }))!;
 		const soziales = await seedPillar('Soziales', user.id);
 		const gestern = new Date(NOW.getTime() - 24 * 60 * 60 * 1000);
-		// 75 % des Aufwands auf „Körper" → Überlast (> 50 %), „Soziales" hat Aufwand → kein Defizit.
-		await seedDoneEffort(user.id, koerper.id, 3, gestern, 'Überlast-Körper');
-		await seedDoneEffort(user.id, soziales.id, 1, gestern, 'Überlast-Soziales');
+		// 75 % des Aufwands auf „Körper“ → Überlast (> 50 %), „Soziales“ hat Aufwand → kein Defizit.
+		// (Werte 0.75/0.25 statt 3/1: das Task-Modell validiert estimatedEffort in [0.1, 1] —
+		// server/src/models/task.ts:143-145; dasselbe 75 %-Verhältnis, Test-Pflege #1794.)
+		await seedDoneEffort(user.id, koerper.id, 0.75, gestern, 'Überlast-Körper');
+		await seedDoneEffort(user.id, soziales.id, 0.25, gestern, 'Überlast-Soziales');
 		const calls: { endpoint: string; body: string }[] = [];
 
 		const result = await runCarePush(NOW, okSender(calls));

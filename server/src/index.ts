@@ -164,10 +164,12 @@ export const main = async (): Promise<void> => {
 			migrateLoginTokenPurpose,
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
+			migrateUserCareColumns,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
+		const { runCarePush } = await import('./logics/carePush.js');
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
@@ -226,6 +228,8 @@ export const main = async (): Promise<void> => {
 		// Fehlende Geo-Config-Spalten an users nachziehen (#1098) — vor sync(), damit Login,
 		// /geo-config und /tasks/nearby auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateUserGeoConfigColumns(sequelize);
+		// Fürsorge-Push-Spalten am User (#1794) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
+		await migrateUserCareColumns(sequelize);
 		// Fehlende displayNameCustom-Flag-Spalte an users nachziehen (#1256 — Eigen-Speicherung
 		// schützt den Anzeigenamen vor dem OAuth-Sync) — vor sync(), damit User-Zugriffe auf
 		// Bestands-DBs nicht mit `no such column` brechen.
@@ -291,7 +295,7 @@ export const main = async (): Promise<void> => {
 
 		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
 		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDailyTopTasksPush]);
+		startScheduler([runDueTaskReminders, runDailyTopTasksPush, runCarePush]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,

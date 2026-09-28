@@ -732,6 +732,35 @@ export const migrateUserGeoConfigColumns = async (db: Sequelize): Promise<void> 
 };
 
 /**
+ * Fürsorge-Push-Spalten am User (#1794: Schalter `carePushEnabled`, IANA-Zeitzone `zeitzone`)
+ * mit denselben Defaults wie das Modell (`server/src/models/user.ts`) bzw. `CARE_CONFIG_DEFAULTS`
+ * der Route — gleiches ALTER-Tabellen-Muster wie {@link migrateUserGeoConfigColumns}.
+ */
+const USER_CARE_COLUMNS = [
+	{ column: 'carePushEnabled', definition: 'BOOLEAN NOT NULL DEFAULT 1' },
+	{ column: 'zeitzone', definition: 'STRING' },
+] as const;
+
+/**
+ * Zieht die Fürsorge-Push-Spalten auf einer bestehenden `users`-Tabelle nach (#1794) — idempotent,
+ * No-op bei frischer DB (siehe {@link migrateUserGeoConfigColumns} für die Begründung).
+ */
+export const migrateUserCareColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	for (const { column, definition } of USER_CARE_COLUMNS) {
+		if (!existing.includes(column)) {
+			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` ${definition}`);
+			console.log(`Spalte ${column} an users nachgezogen.`);
+		}
+	}
+};
+
+/**
  * Zieht die `displayNameCustom`-Flag-Spalte auf einer **bestehenden** `users`-Tabelle nach
  * (#1256) — analog `migrateUsersAvatarUrl`, aber NOT NULL mit Default 0: die Flag markiert,
  * dass der Nutzer seinen Anzeigenamen selbst gesetzt hat, und schützt ihn so vor dem

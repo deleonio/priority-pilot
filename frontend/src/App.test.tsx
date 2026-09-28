@@ -63,6 +63,8 @@ vi.mock('./api', () => ({
 		// #1098 AK5: `useGeolocation` lädt beim Mount die Geo-Konfiguration. Der Mock liefert
 		// keine Werte (resolves undefined), damit der 5-Minuten-Fallback des Hooks greift.
 		getGeoConfig: vi.fn().mockResolvedValue(undefined),
+		// Test-Pflege #1794: die Karte „Benachrichtigungen“ lädt beim Mount den Fürsorge-Schalter.
+		getCareConfig: vi.fn().mockResolvedValue(undefined),
 		// Rollensystem admin/member (Deep-Link-Test unten): die Settings-Seite lädt beim Mount ihre
 		// Sektionen — leere Antworten reichen, geprüft wird nur der aktive Tab.
 		listLlmProviders: vi.fn().mockResolvedValue([]),

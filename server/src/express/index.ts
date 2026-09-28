@@ -26,6 +26,7 @@ import { createPushRouter } from './routes/push.js';
 import { createMailRouter } from './routes/mail.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import { geoConfigRouter } from './routes/geoConfig.js';
+import { careConfigRouter } from './routes/careConfig.js';
 import { apiTokensRouter } from './routes/apiTokens.js';
 import { placeFavoritesRouter } from './routes/placeFavorites.js';
 import { profileRouter } from './routes/profile.js';
@@ -292,6 +293,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Pro-User Geo-Konfiguration: Anzeige-/Alarm-Entfernung, Intervall (#1098).
 	app.use(geoConfigRouter);
+	app.use(careConfigRouter);
 
 	// Persönliche API-Tokens für externe Clients (#1352): anlegen, listen, zurückziehen.
 	app.use(apiTokensRouter);
