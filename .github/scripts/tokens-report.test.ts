@@ -364,10 +364,15 @@ describe('tokens-report', () => {
 				report,
 				/\| analyse \| \$2\.00 · 10 T · [0-9,]+ Mio · 1,2 Mio C · 3 MCP · 5\.0 min \| \$4\.00 · 20 T · [0-9,]+ Mio · 1 Mio C · 7 MCP · 1\.5 min \| \$0\.50 · 4 T · [0-9,]+ Mio · — · — · — \|/,
 			);
-			// Sechs Kennzahlen als xychart, eine je Kennzahl; #902 ohne Felder bleibt als Serie
-			// nur in den klassischen Charts — MCP/Dauer fahren ohne ihn (Serie ohne jeden Wert entfällt)
+			// Sechs Kennzahlen als xychart, eine je Kennzahl; Balken je Phase nebeneinander
+			// (Slot je Ticket + Ø-Slot), #902 ohne Felder bleibt als Serie nur in den
+			// klassischen Charts — MCP/Dauer fahren ohne ihn (Serie ohne jeden Wert entfällt)
 			assert.equal(report.match(/```mermaid/g)?.length, 6, 'sechs xychart-Blöcke, eine je Kennzahl');
-			assert.match(report, /#### MCP-Calls je Phase[\s\S]*?bar "#900" \[3, 1\][\s\S]*?bar "#901" \[7, 0\]/);
+			assert.match(
+				report,
+				/#### MCP-Calls je Phase[\s\S]*?bar "#900" \[3, 0, 0, 0, 1, 0, 0, 0\][\s\S]*?bar "#901" \[0, 7, 0, 0, 0, 0, 0, 0\][\s\S]*?bar "Ø \(3\)" \[0, 0, 0, 5, 0, 0, 0, 1\]/,
+				'Ø je Phase nur über Tickets mit Daten',
+			);
 			assert.doesNotMatch(
 				report,
 				/#### MCP-Calls je Phase[\s\S]*?bar "#902"/,
@@ -375,11 +380,11 @@ describe('tokens-report', () => {
 			);
 			assert.match(
 				report,
-				/#### Dauer je Phase \(Minuten\)[\s\S]*?bar "#900" \[5\.0, 2\.0\][\s\S]*?bar "#901" \[1\.5, 0\.0\]/,
+				/#### Dauer je Phase \(Minuten\)[\s\S]*?bar "#900" \[5\.0, 0\.0, 0\.0, 0\.0, 2\.0, 0\.0, 0\.0, 0\.0\][\s\S]*?bar "#901" \[0\.0, 1\.5, 0\.0, 0\.0, 0\.0, 0\.0, 0\.0, 0\.0\]/,
 			);
 			assert.match(
 				report,
-				/#### Turns je Phase[\s\S]*?bar "#900" \[10, 5\][\s\S]*?bar "#901" \[20, 0\][\s\S]*?bar "#902" \[4, 0\]/,
+				/#### Turns je Phase[\s\S]*?bar "#900" \[10, 0, 0, 0, 5, 0, 0, 0\][\s\S]*?bar "#901" \[0, 20, 0, 0, 0, 0, 0, 0\][\s\S]*?bar "#902" \[0, 0, 4, 0, 0, 0, 0, 0\][\s\S]*?bar "Ø \(3\)" \[0, 0, 0, 11, 0, 0, 0, 5\]/,
 			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
