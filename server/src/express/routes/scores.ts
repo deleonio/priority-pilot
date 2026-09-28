@@ -38,9 +38,13 @@ const loeseSprache = (query: unknown): CareSprache =>
 export const scoresRouter = Router();
 
 // GET /scores — vergebene Gamification-Punkte je erledigtem Task.
-scoresRouter.get('/scores', async (_req: Request, res: Response<ScoreEntryDto[] | ErrorDto>) => {
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar).
+scoresRouter.get('/scores', async (req: Request, res: Response<ScoreEntryDto[] | ErrorDto>) => {
 	try {
-		const entries = await ScoreEntry.findAll({ order: [['id', 'ASC']] });
+		const entries = await ScoreEntry.findAll({
+			include: [{ model: Task, where: ownerScope(getUserId(req)) }],
+			order: [['id', 'ASC']],
+		});
 		res.json(
 			entries.map((entry) => ({
 				taskId: entry.taskId,
@@ -76,8 +80,7 @@ scoresRouter.get('/scores/by-pillar', async (req: Request, res: Response<PillarS
 });
 
 // GET /scores/streak — Kalendertage in Folge mit mindestens einer Erledigung plus Bestmarke (#1360).
-// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar); `GET /scores` ist
-// ungescopet und deshalb bewusst NICHT die Quelle.
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar).
 scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto | ErrorDto>) => {
 	try {
 		const entries = await ScoreEntry.findAll({
@@ -102,8 +105,7 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 });
 
 // GET /scores/milestones — feste Streak-/Punkte-Stufen, rückwirkend aus Bestandsdaten (#1362).
-// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/streak); `GET /scores` ist
-// ungescopet und deshalb bewusst NICHT die Quelle.
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/streak).
 scoresRouter.get('/scores/milestones', async (req: Request, res: Response<MilestoneDto[] | ErrorDto>) => {
 	try {
 		const entries = await ScoreEntry.findAll({
