@@ -27,6 +27,9 @@ import LoginToken from './loginToken.js';
 // importiert; hier zählt allein, dass `sequelize.sync()` die Tabellen kennt.
 import './invoice.js';
 import './invoiceSequence.js';
+// Nur Registrierung: `CareSuggestionDismissal` hat keine Assoziationen; hier zählt allein, dass
+// `sequelize.sync()` die Tabelle kennt (#1791).
+import './careSuggestionDismissal.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
