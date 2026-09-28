@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.9 - 2026-09-28
 
-_Enthält v0.9.0 – v0.9.8._
+_Enthält v0.9.0 – v0.9.9._
 
 ### 🔧 Engineering
 
 - feat(frontend): demote delete account in settings (#1802) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1809
+- feat(server): suggest concrete tasks for a balance deficit (#1791) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1810
 
 ### Other Changes
 
@@ -152,6 +153,7 @@ _Enthält v0.4.0 – v0.4.22._
 - perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
 - fix(server): keep 5% minimum share per pillar in recalculation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1636
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
+- feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 - feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 - fix(e2e): await initAiEnabled to fix AK5 KI-aus race (#1408) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1640
 - feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
