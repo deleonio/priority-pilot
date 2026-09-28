@@ -14,13 +14,15 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolButton: ({
 		_label,
 		_disabled,
+		_variant,
 		_on,
 	}: {
 		_label?: string;
 		_disabled?: boolean;
+		_variant?: string;
 		_on?: { onClick?: (_e: MouseEvent) => void };
 	}) => (
-		<button disabled={_disabled} onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
+		<button data-variant={_variant} disabled={_disabled} onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
 			{_label}
 		</button>
 	),
@@ -60,5 +62,17 @@ describe('Konto löschen — Ablehnung durch den Server (#1676)', () => {
 		expect(await screen.findByRole('alert')).toHaveTextContent(text);
 		expect(screen.getByTestId('modal')).toBeInTheDocument();
 		expect(sessionStorage.getItem('pp_just_logged_out')).toBeNull();
+	});
+});
+
+describe('Konto löschen — Trigger-Platzierung (#1802)', () => {
+	it('TF3: der Auslöser nutzt nicht die Danger-Variante; Dialog-Buttons bleiben danger', () => {
+		render(<DeleteAccountButton userId={1} />);
+		const trigger = screen.getByRole('button', { name: 'Konto löschen' });
+		expect(trigger).toHaveAttribute('data-variant', 'secondary');
+
+		fireEvent.click(trigger);
+		expect(screen.getByRole('button', { name: 'Löschen' })).toHaveAttribute('data-variant', 'danger');
+		expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toHaveAttribute('data-variant', 'danger');
 	});
 });
