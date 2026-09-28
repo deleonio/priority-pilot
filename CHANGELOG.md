@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.9 - 2026-09-28
 
-_Enthält v0.9.0 – v0.9.11._
+_Enthält v0.9.0 – v0.9.12._
 
 ### 🔧 Engineering
 
@@ -21,6 +21,7 @@ _Enthält v0.9.0 – v0.9.11._
 - chore: add n-way phase comparison charts to the focus report by @deleonio in https://github.com/deleonio/priority-pilot/pull/1811
 - feat(frontend): enable balance sorting by default (#1792) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1812
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
+- chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
 
 ## v0.8 - 2026-09-27
 
@@ -158,7 +159,7 @@ _Enthält v0.4.0 – v0.4.22._
 - feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 - fix(e2e): await initAiEnabled to fix AK5 KI-aus race (#1408) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1640
 - feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
-- feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
+- feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
 - feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
 - feat(server): withhold tasks with far-future deadlines from suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1644
 - feat(frontend): run pillar reassignment as server-side background job by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1645
