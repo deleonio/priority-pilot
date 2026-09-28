@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.9 - 2026-09-28
 
-_Enthält v0.9.0 – v0.9.6._
+_Enthält v0.9.0 – v0.9.7._
+
+### 🔧 Engineering
+
+- feat(frontend): demote delete account in settings (#1802) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1809
 
 ### Other Changes
 
@@ -145,7 +149,6 @@ _Enthält v0.4.0 – v0.4.22._
 - revert(ci): mentor fallback for missing model-ids.json (#1631) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1632
 - fix(admin): resumable pillar batch with live progress and error reasons by @deleonio in https://github.com/deleonio/priority-pilot/pull/1630
 - perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
-- perf(frontend): precompress build output with brotli and zstd by @deleonio in https://github.com/deleonio/priority-pilot/pull/1634
 - fix(server): keep 5% minimum share per pillar in recalculation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1636
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
 - feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
@@ -240,6 +243,7 @@ _Enthält v0.2.0 – v0.2.134._
 - docs: sharpen the monetization concept against the code by @deleonio in https://github.com/deleonio/priority-pilot/pull/1485
 - fix(server): mount rate limiters on their own paths only (#1479) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1481
 - feat(server): add plan model and entitlement center (#1456) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1486
+- feat(server): enforce plan feature gating across api and mcp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1487
 - feat(server): enforce plan feature gating across api and mcp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1487
 - feat(frontend): add plan context, badge, and upgrade offer dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1488
 - feat(frontend): roll out plan badges to remaining touchpoints (#1484) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1489
