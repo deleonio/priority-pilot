@@ -1487,3 +1487,63 @@ describe('SettingsPage – #1704: Test-Push-Ergebnis auswerten', () => {
 		await waitFor(() => expect(container.querySelector('kol-alert[_label="Fehler"]')).not.toBeNull());
 	});
 });
+
+// ── #1792 (AK3, Spec docs/spec/issue-1792.md) ──────────────────────────────────────────────────
+
+/**
+ * Rote Spec-Tests für #1792 — Einstellungs-Schalter „Balance-Priorisierung" (Allgemein-Tab).
+ *
+ * Provenienz: rote Spec-Tests (Spec-Commit `e22e212e` — seinerzeit lief die Schalter-Query leer
+ * und die Assertion schlug fehl, kein Import-/Syntaxfehler). Vertrag: er spiegelt
+ * denselben localStorage-Key wie der Ansichts-Schalter (`pp-balance-priority`, Default **an**)
+ * und schreibt ihn beim Umlegen — Muster der KI-Schalter-Tests (#1525-Block oben).
+ */
+describe('SettingsPage – #1792: Balance-Priorisierung Schalter (AK3)', () => {
+	/** KoliBri-Adapter setzt numerische/boolesche Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const queryBalanceSwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Balance-Priorisierung"]');
+
+	afterEach(() => {
+		localStorage.removeItem('pp-balance-priority');
+	});
+
+	it('spiegelt den gespeicherten Wert: ohne Eintrag an, bei pp-balance-priority=false aus', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			const toggle = queryBalanceSwitch(container);
+			expect(toggle, 'Balance-Schalter fehlt in den Einstellungen').not.toBeNull();
+			expect(bound(toggle!, '_checked')).toBe('true');
+		});
+		cleanup();
+
+		localStorage.setItem('pp-balance-priority', 'false');
+		const second = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			const toggle = queryBalanceSwitch(second.container);
+			expect(toggle, 'Balance-Schalter fehlt in den Einstellungen').not.toBeNull();
+			expect(bound(toggle!, '_checked')).toBe('false');
+		});
+	});
+
+	it('schreibt beim Umlegen den dokumentierten Key', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			const toggle = queryBalanceSwitch(container);
+			expect(toggle, 'Balance-Schalter fehlt in den Einstellungen').not.toBeNull();
+		});
+
+		await act(async () => {
+			const toggle = queryBalanceSwitch(container)!;
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(localStorage.getItem('pp-balance-priority')).toBe('false');
+	});
+});
