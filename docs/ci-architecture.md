@@ -14,10 +14,29 @@ Coding-Agent in CI — seit #1184 mit **pi** als zweiter, über eine Variable w�
 Das **Backend** ist über die Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar; aufgelöst wird
 sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/action.yml).
 
-| `vars.LLM_PROVIDER` | Endpoint                                            | Secret           | Auth-Variable                                   | Modell (`"model": "opus"`) |
-| ------------------- | --------------------------------------------------- | ---------------- | ----------------------------------------------- | -------------------------- |
-| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)       | `CLAUDE_API_KEY` | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)        |
-| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`              |
+| `vars.LLM_PROVIDER` | Endpoint                                                                                          | Secret               | Auth-Variable                                   | Modell (`"model": "opus"`)                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)                                                     | `CLAUDE_API_KEY`     | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)                                                  |
+| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic`                                               | `ZAI_API_KEY`        | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`                                                        |
+| `openrouter`        | `ANTHROPIC_BASE_URL=https://openrouter.ai/api` (aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`) | `OPENROUTER_API_KEY` | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | Auflösung über `ANTHROPIC_DEFAULT_*_MODEL` in derselben Settings-Var |
+
+Ausnahme: Der **Documenter (06)** umgeht `vars.LLM_PROVIDER` und läuft per Default immer über
+`openrouter` mit einem `:free`-Model (Default `haiku`-Alias → `nvidia/nemotron-3-nano-30b-a3b:free`,
+aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
+`LLM_PROVIDER_DOCUMENTER`, die den Wert überschreibt.
+
+**Notbetrieb (OpenRouter gestört):** Schlägt der Documenter-Run auf `main` fehl (Setup- oder
+Claude-Step, z. B. 4xx/402/Timeout), ist nur die Post-Merge-Doku betroffen — es gibt bewusst
+keinen stillen Fallback. Umleitung per Repo-Var, Rückweg durch Löschen der Var:
+
+```bash
+gh variable set LLM_PROVIDER_DOCUMENTER --body zai   # → GLM-Abo (haiku-Alias → glm-5.3-flash[1m])
+gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openrouter-Default
+```
+
+Ist nur ein einzelnes `:free`-Modell weg (OpenRouter selbst erreichbar), genügt es,
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` in `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER` auf ein anderes
+`:free`-Modell zu setzen.
 
 **Peak-Fenster: Warning-only, kein Fallback mehr:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18
 Asia/Singapore) schaltet im Peak-Fenster nicht mehr auf `claude` um: Der Lauf bleibt auf zai
@@ -274,21 +293,24 @@ Seit [ADR 0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) ist die Nacharb
 
 Was diese Wahl an einem realen Ticket gekostet hat, steht in der [Kosten-Baseline zu #912](kosten-baseline-912.md).
 
-| Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
-| --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
-| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `opus`                          | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden |
-| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für Design-Dokumente                 |
-| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für UX-Review                        |
-| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.3[1m]`                | Maximale Qualität für Code-Generierung          |
-| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.3[1m]`                | Tiefes Verständnis für Code-Review              |
-| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-5.3[1m]`                | Großer Context (CI-Logs), kosteneffizient       |
-| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.7`                    | Schnelle Documentation-Generierung              |
+| Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                                                                                                                                                       |
+| --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `opus`                          | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden                                                                                                                                  |
+| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für Design-Dokumente                                                                                                                                                  |
+| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für UX-Review                                                                                                                                                         |
+| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.3[1m]`                | Maximale Qualität für Code-Generierung                                                                                                                                           |
+| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.3[1m]`                | Tiefes Verständnis für Code-Review                                                                                                                                               |
+| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-5.3[1m]`                | Großer Context (CI-Logs), kosteneffizient                                                                                                                                        |
+| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-5.3-flash[1m]`          | Schnelle Documentation-Generierung — läuft **immer** über `openrouter` mit Free-Model (`haiku`-Alias → `:free`, siehe Provider-Tabelle); `LLM_PROVIDER_DOCUMENTER` als Notbremse |
 
 **Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
 
 Das Abo (GLM Coding Plan) umfasst nur **`glm-4.7`, `glm-5-turbo` und `glm-5.3`** — die Modelle aus dem
 ursprünglichen #893-Vergleich (`glm-5.1`, `glm-5.2`, `glm-4.7-flash`, `glm-4.5-air`) sind nicht gebucht.
 Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI`.
+Stand 28.09.2026 mappt diese Variable den `haiku`-Alias (und `CLAUDE_CODE_SUBAGENT_MODEL`)
+auf `glm-5.3-flash[1m]`, nicht auf `glm-4.7` — die `glm-4.7`-Nennungen im Abo-Realität-Abschnitt
+unten sind damit nicht mehr live.
 
 | Faktor               | `glm-5.3[1m]` — Hauptmodell (sonnet/opus/fable) | `glm-4.7` — haiku-Aliase | `glm-5-turbo` — nur `CLAUDE_CODE_SUBAGENT_MODEL`                                              |
 | -------------------- | ----------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
