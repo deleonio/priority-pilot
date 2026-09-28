@@ -68,8 +68,8 @@ jobs:
     # Idempotenz-Invariante gegen queued Doppel-Events und workflow_dispatch-Catch-up-Doppel.
     # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
     # Phasen-Name übergeben (Fail-open bei API-Fehler ist dort implementiert).
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read # lokale Action + Skript auschecken
       pull-requests: read
@@ -523,7 +523,7 @@ jobs:
     # hing. Dieser Job läuft NUR den Daten-Siegel (kein LLM, kein Rendering):
     # per workflow_dispatch nachträglich für bereits dokumentierte PRs.
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     permissions:
       contents: read # Checkout + Skripte; der Seal-Commit läuft über das App-Token

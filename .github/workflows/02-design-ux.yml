@@ -30,8 +30,8 @@ jobs:
   precheck:
     # Bei workflow_dispatch immer laufen, sonst nur bei Label ai:needs-ux-ui
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'ai:needs-ux-ui' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: read

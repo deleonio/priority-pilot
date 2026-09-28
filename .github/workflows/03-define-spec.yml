@@ -34,8 +34,8 @@ jobs:
     # Label-IST-Zustand zur Laufzeit: ai:needs-spec muss JETZT (nach dem Warten in
     # der globalen Phasen-Queue) noch am Issue kleben. Soll-Werte stehen zentral
     # in .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read # lokale Action + Skript auschecken
       issues: read
