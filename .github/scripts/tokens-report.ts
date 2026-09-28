@@ -72,6 +72,9 @@ export type TicketTotal = {
 
 const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
+/** Feld im Datensatz vorhanden (im Gegensatz zu ZERO: „—" vs. 0 unterscheidbar). */
+const defined = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
+
 /** Roh-Einträge EINER Ticket-Datei — Zwischenschritt zwischen Datei und Summenzeile. */
 export type TicketEntries = { issue: string; entries: CostEntry[] };
 
@@ -917,8 +920,12 @@ export function renderFocusReport(dir: string, issues: readonly string[]): strin
 	if (missing.length > 0) lines.push(`> ℹ️ Keine Daten für: ${missing.map((i) => `#${i}`).join(', ')}.`, '');
 
 	// ─── Direktvergleich (ab 2 Tickets): Kennzahlen und Phasen nebeneinander ───
-	// Zellformat „Wert · Turns · Token in"; die Δ-Spalte vergleicht die zweite mit der
-	// ersten Spalte und erscheint nur bei genau zwei Tickets (bei mehr wird Δ mehrdeutig).
+	// Zellformat „Wert · Turns · Token · Cache · MCP · Dauer"; die Δ-Spalte vergleicht die
+	// zweite mit der ersten Spalte und erscheint nur bei genau zwei Tickets (bei mehr wird
+	// Δ mehrdeutig). Je Kennzahl folgt ein xychart-Block: x-Achse = Phasen, eine Serie je
+	// Ticket — Werte kumuliert je Phase, eine nicht gelaufene Phase zeichnet 0. Eine Serie
+	// ohne EINZIGEN Wert zur Kennzahl (Alt-Daten ohne Feld) entfällt; der Chart entfällt
+	// ganz, wenn weniger als zwei Serien übrig bleiben.
 	if (selected.length >= 2) {
 		const tt = selected.map((t) => ({ issue: t.issue, ...ticketTotal(t) }));
 		const link = (issue: string): string => `[#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue})`;
@@ -963,23 +970,140 @@ export function renderFocusReport(dir: string, issues: readonly string[]): strin
 			'',
 		);
 		const phases = [...new Set(selected.flatMap((t) => t.entries.map((e) => e.phase ?? '(ohne)')))];
-		const phaseCell = (t: (typeof selected)[number], ph: string): string => {
+		type PhaseStat = {
+			vc: number;
+			turns: number;
+			tin: number;
+			cache: number;
+			mcp: number;
+			dur: number;
+			hasTurns: boolean;
+			hasCache: boolean;
+			hasMcp: boolean;
+			hasDur: boolean;
+		};
+		const phaseStat = (t: (typeof selected)[number], ph: string): PhaseStat | undefined => {
 			const es = t.entries.filter((e) => (e.phase ?? '(ohne)') === ph);
-			if (es.length === 0) return '—'; // Phase lief in diesem Ticket gar nicht
-			const vc = es.reduce((a, e) => a + ZERO(e.valueCost), 0);
-			const turns = es.reduce((a, e) => a + ZERO(e.turns), 0);
-			const tin = es.reduce((a, e) => a + ZERO(e.tokensIn), 0);
-			return `${usd(vc)} · ${turns > 0 ? `${num(turns)} T` : '—'} · ${mio(tin)}`;
+			if (es.length === 0) return undefined; // Phase lief in diesem Ticket gar nicht
+			return {
+				vc: es.reduce((a, e) => a + ZERO(e.valueCost), 0),
+				turns: es.reduce((a, e) => a + (defined(e.turns) ? e.turns : 0), 0),
+				tin: es.reduce((a, e) => a + ZERO(e.tokensIn), 0),
+				cache: es.reduce(
+					(a, e) =>
+						a +
+						(defined(e.cacheReadTokens) ? e.cacheReadTokens : 0) +
+						(defined(e.cacheCreationTokens) ? e.cacheCreationTokens : 0),
+					0,
+				),
+				mcp: es.reduce((a, e) => a + (defined(e.mcpCalls) ? e.mcpCalls : 0), 0),
+				dur: es.reduce((a, e) => a + (defined(e.durationSeconds) ? e.durationSeconds : 0), 0),
+				hasTurns: es.some((e) => defined(e.turns)),
+				hasCache: es.some((e) => defined(e.cacheReadTokens) || defined(e.cacheCreationTokens)),
+				hasMcp: es.some((e) => defined(e.mcpCalls)),
+				hasDur: es.some((e) => defined(e.durationSeconds)),
+			};
+		};
+		const statsByTicket = new Map(selected.map((t) => [t.issue, new Map(phases.map((ph) => [ph, phaseStat(t, ph)]))]));
+		const statCell = (s: PhaseStat | undefined): string => {
+			if (!s) return '—';
+			const part = (show: boolean, text: string): string => (show ? text : '—');
+			return [
+				usd(s.vc),
+				part(s.turns > 0, `${num(s.turns)} T`),
+				mio(s.tin),
+				part(s.hasCache, `${mio(s.cache)} C`),
+				part(s.hasMcp, `${num(s.mcp)} MCP`),
+				part(s.hasDur, `${(s.dur / 60).toFixed(1)} min`),
+			].join(' · ');
+		};
+		const totalStat = (t: (typeof selected)[number]): PhaseStat => {
+			const parts = [...(statsByTicket.get(t.issue)?.values() ?? [])].filter((s): s is PhaseStat => s !== undefined);
+			return {
+				vc: parts.reduce((a, s) => a + s.vc, 0),
+				turns: parts.reduce((a, s) => a + s.turns, 0),
+				tin: parts.reduce((a, s) => a + s.tin, 0),
+				cache: parts.reduce((a, s) => a + s.cache, 0),
+				mcp: parts.reduce((a, s) => a + s.mcp, 0),
+				dur: parts.reduce((a, s) => a + s.dur, 0),
+				hasTurns: t.entries.some((e) => defined(e.turns)),
+				hasCache: t.entries.some((e) => defined(e.cacheReadTokens) || defined(e.cacheCreationTokens)),
+				hasMcp: t.entries.some((e) => defined(e.mcpCalls)),
+				hasDur: t.entries.some((e) => defined(e.durationSeconds)),
+			};
 		};
 		lines.push(
 			`| Phase | ${tt.map((x) => link(x.issue)).join(' | ')} |`,
 			`| --- |${' ---: |'.repeat(tt.length)}`,
-			...phases.map((ph) => `| ${ph} | ${selected.map((t) => phaseCell(t, ph)).join(' | ')} |`),
-			`| **Summe** | ${tt.map((x) => `${usd(x.valueCost)} · ${x.turns > 0 ? `${num(x.turns)} T` : '—'} · ${mio(x.tokensIn)}`).join(' | ')} |`,
+			...phases.map((ph) => `| ${ph} | ${tt.map((x) => statCell(statsByTicket.get(x.issue)?.get(ph))).join(' | ')} |`),
+			`| **Summe** | ${selected.map((t) => statCell(totalStat(t))).join(' | ')} |`,
 			'',
-			'> Zelle: Wert · Turns · Token in. Die Δ-Spalte vergleicht die zweite mit der ersten Spalte (nur bei zwei Tickets).',
+			'> Zelle: Wert · Turns (T) · Token in · Cache-Token (C, read+write) · MCP-Calls · Dauer (min). „—" = Phase lief nicht oder Lauf ohne Angabe (Alt-Daten). Die Δ-Spalte vergleicht die zweite mit der ersten Spalte (nur bei zwei Tickets).',
 			'',
 		);
+
+		// ─── Phasen im Vergleich: je Kennzahl ein xychart, eine Serie je Ticket ───
+		type Metric = {
+			title: string;
+			yLabel: string;
+			digits: number;
+			value: (s: PhaseStat) => number;
+			/** Hat das Ticket die Kennzahl überhaupt (Alt-Daten ohne Feld → Serie entfällt)? */
+			present: (s: PhaseStat) => boolean;
+		};
+		const metrics: Metric[] = [
+			{ title: 'Wert je Phase (USD)', yLabel: 'USD', digits: 2, value: (s) => s.vc, present: () => true },
+			{
+				title: 'Token in je Phase (Mio.)',
+				yLabel: 'Mio. Token',
+				digits: 2,
+				value: (s) => s.tin / 1e6,
+				present: () => true,
+			},
+			{ title: 'Turns je Phase', yLabel: 'API-Calls', digits: 0, value: (s) => s.turns, present: (s) => s.hasTurns },
+			{
+				title: 'Cache-Token je Phase (Mio.)',
+				yLabel: 'Mio. Token',
+				digits: 2,
+				value: (s) => s.cache / 1e6,
+				present: (s) => s.hasCache,
+			},
+			{ title: 'MCP-Calls je Phase', yLabel: 'Aufrufe', digits: 0, value: (s) => s.mcp, present: (s) => s.hasMcp },
+			{
+				title: 'Dauer je Phase (Minuten)',
+				yLabel: 'Minuten',
+				digits: 1,
+				value: (s) => s.dur / 60,
+				present: (s) => s.hasDur,
+			},
+		];
+		const charted = tt.slice(0, 6); // mehr Balkenserien trägt xychart nicht mehr lesbar
+		let chartCount = 0;
+		for (const m of metrics) {
+			const series = charted
+				.filter((t) => [...(statsByTicket.get(t.issue)?.values() ?? [])].some((s) => s !== undefined && m.present(s)))
+				.map((t) => ({
+					kind: 'bar' as const,
+					name: `#${t.issue}`,
+					values: phases.map((ph) => {
+						const s = statsByTicket.get(t.issue)?.get(ph);
+						return s ? m.value(s) : 0; // Phase lief nicht → 0 (bleibt zeichenbar)
+					}),
+					digits: m.digits,
+				}));
+			if (series.length < 2) continue;
+			const chart = xychart({ title: m.title, labels: phases, series, yLabel: m.yLabel });
+			if (chart.length > 0) {
+				if (chartCount === 0) lines.push('### Phasen im Vergleich', '');
+				lines.push(`#### ${m.title}`, '', ...chart, '');
+				chartCount += 1;
+			}
+		}
+		if (chartCount > 0 && tt.length > charted.length)
+			lines.push(
+				`> Charts zeigen die ersten ${charted.length} Tickets; ${tt.length - charted.length} weitere nur in den Tabellen.`,
+				'',
+			);
 	}
 
 	// ─── Läufe der Fokus-Tickets ───────────────────────────────────────────────

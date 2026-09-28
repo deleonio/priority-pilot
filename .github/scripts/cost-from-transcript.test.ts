@@ -192,6 +192,52 @@ describe('sumUsage — Turns (Issue #984)', () => {
 	});
 });
 
+describe('sumUsage — Dauer und MCP-Calls (N-Wege-Phasenvergleich)', () => {
+	it('rechnet die Dauer aus dem Zeitstempel-Spektrum der deduplizierten Antworten', () => {
+		const zweite = JSON.stringify({
+			timestamp: '2026-08-19T12:01:30.000Z',
+			message: { id: 'msg_2', model: 'claude-opus-5', usage: { output_tokens: 7 } },
+		});
+		assert.equal(sumUsage([line(), zweite]).durationSeconds, 90);
+	});
+
+	it('setzt keine Dauer bei einer einzelnen Antwort', () => {
+		assert.equal(sumUsage([line()]).durationSeconds, undefined);
+	});
+
+	it('zählt mcp__-tool_use-Blöcke je Zeile, Dedup der Antwort zählt sie nicht weg', () => {
+		// Jede Transkriptzeile ist ein Content-Block — der MCP-Block steht auf einer eigenen
+		// Zeile derselben Antwort; Zählung vor dem Dedup-Continue, sonst ginge er verloren.
+		const mitMcp = JSON.stringify({
+			timestamp: '2026-08-19T12:00:00.000Z',
+			message: {
+				id: 'msg_1',
+				model: 'claude-opus-5',
+				usage: { output_tokens: 10 },
+				content: [{ type: 'tool_use', name: 'mcp__kolibri-mcp__search' }],
+			},
+		});
+		const zweiterCall = JSON.stringify({
+			timestamp: '2026-08-19T12:01:00.000Z',
+			message: {
+				id: 'msg_2',
+				model: 'claude-opus-5',
+				usage: { output_tokens: 5 },
+				content: [
+					{ type: 'tool_use', name: 'Bash' },
+					{ type: 'tool_use', name: 'mcp__web_reader__webReader' },
+				],
+			},
+		});
+		const usage = sumUsage([mitMcp, mitMcp, zweiterCall]);
+		assert.equal(usage.mcpCalls, 3, 'Doppelzeile derselben Antwort zählt ihren Block einmal, Bash zählt nicht');
+	});
+
+	it('setzt mcpCalls nicht, wenn kein MCP-Werkzeug lief', () => {
+		assert.equal(sumUsage([line()]).mcpCalls, undefined);
+	});
+});
+
 describe('classifyModel / computeValueCost (Issue #984)', () => {
 	it('ordnet alle beobachteten Modelle der Kosten-Artefakte ein', () => {
 		assert.equal(classifyModel('claude-opus-5'), 'flagship');
@@ -321,6 +367,8 @@ describe('Bestandsschutz cost-record.ts', () => {
 					verdict: 'reviewed',
 					findings: 2,
 					nits: 1,
+					durationSeconds: 95,
+					mcpCalls: 4,
 				},
 				{ rootDir: dir },
 			);
@@ -333,6 +381,8 @@ describe('Bestandsschutz cost-record.ts', () => {
 			assert.equal(entries[1].verdict, 'reviewed');
 			assert.equal(entries[1].findings, 2);
 			assert.equal(entries[1].nits, 1);
+			assert.equal(entries[1].durationSeconds, 95, 'Dauer darf im Whitelist-Spiegel nicht verloren gehen');
+			assert.equal(entries[1].mcpCalls, 4, 'MCP-Calls dürfen im Whitelist-Spiegel nicht verloren gehen');
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

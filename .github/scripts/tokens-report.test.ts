@@ -302,9 +302,101 @@ describe('tokens-report', () => {
 			assert.match(report, /### Direktvergleich/);
 			assert.match(report, /\| Wert \(USD\) \| \$9\.00 \| \$10\.00 \| \+11,1 % \|/);
 			assert.match(report, /\| Turns \| 38 \| 50 \| \+31,6 % \|/);
-			assert.match(report, /\| implement \| \$9\.00 · 30 T · 0 Mio \| — \|/, 'Phase, die nur das erste Ticket hat');
-			assert.match(report, /\| documenter \| \$0\.00 · 8 T · 0 Mio \| \$10\.00 · 50 T · 0 Mio \|/);
-			assert.match(report, /\| \*\*Summe\*\* \| \$9\.00 · 38 T · 0 Mio \| \$10\.00 · 50 T · 0 Mio \|/);
+			assert.match(
+				report,
+				/\| implement \| \$9\.00 · 30 T · 0 Mio · — · — · — \| — \|/,
+				'Phase, die nur das erste Ticket hat',
+			);
+			assert.match(
+				report,
+				/\| documenter \| \$0\.00 · 8 T · 0 Mio · — · — · — \| \$10\.00 · 50 T · 0 Mio · — · — · — \|/,
+			);
+			assert.match(
+				report,
+				/\| \*\*Summe\*\* \| \$9\.00 · 38 T · 0 Mio · — · — · — \| \$10\.00 · 50 T · 0 Mio · — · — · — \|/,
+			);
+			// Ohne Cache/MCP/Dauer-Felder bleiben nur die drei klassischen Charts übrig.
+			assert.equal(report.match(/```mermaid/g)?.length, 3, 'drei xychart-Blöcke (Wert, Token, Turns)');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('N-Wege-Phasenvergleich: drei Tickets grafisch über Kosten, Token, Turns, Cache, MCP und Dauer', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-n-wege-'));
+		try {
+			writeTicket(dir, '900', [
+				entry({
+					issueId: '900',
+					phase: 'analyse',
+					turns: 10,
+					valueCost: 2,
+					cacheReadTokens: 800_000,
+					cacheCreationTokens: 400_000,
+					mcpCalls: 3,
+					durationSeconds: 300,
+				}),
+				entry({
+					issueId: '900',
+					phase: 'review',
+					turns: 5,
+					valueCost: 1,
+					cacheReadTokens: 600_000,
+					mcpCalls: 1,
+					durationSeconds: 120,
+				}),
+			]);
+			writeTicket(dir, '901', [
+				entry({
+					issueId: '901',
+					phase: 'analyse',
+					turns: 20,
+					valueCost: 4,
+					cacheReadTokens: 1_000_000,
+					mcpCalls: 7,
+					durationSeconds: 90,
+				}),
+			]);
+			writeTicket(dir, '902', [entry({ issueId: '902', phase: 'analyse', turns: 4, valueCost: 0.5 })]);
+			const report = renderFocusReport(dir, ['900', '901', '902']);
+			// Matrix: Cache, MCP und Dauer als eigene Zellanteile; #902 ohne Felder zeigt „—"
+			assert.match(
+				report,
+				/\| analyse \| \$2\.00 · 10 T · [0-9,]+ Mio · 1,2 Mio C · 3 MCP · 5\.0 min \| \$4\.00 · 20 T · [0-9,]+ Mio · 1 Mio C · 7 MCP · 1\.5 min \| \$0\.50 · 4 T · [0-9,]+ Mio · — · — · — \|/,
+			);
+			// Sechs Kennzahlen als xychart, eine je Kennzahl; #902 ohne Felder bleibt als Serie
+			// nur in den klassischen Charts — MCP/Dauer fahren ohne ihn (Serie ohne jeden Wert entfällt)
+			assert.equal(report.match(/```mermaid/g)?.length, 6, 'sechs xychart-Blöcke, eine je Kennzahl');
+			assert.match(report, /#### MCP-Calls je Phase[\s\S]*?bar "#900" \[3, 1\][\s\S]*?bar "#901" \[7, 0\]/);
+			assert.doesNotMatch(
+				report,
+				/#### MCP-Calls je Phase[\s\S]*?bar "#902"/,
+				'Alt-Ticket ohne mcpCalls entfällt als Serie',
+			);
+			assert.match(
+				report,
+				/#### Dauer je Phase \(Minuten\)[\s\S]*?bar "#900" \[5\.0, 2\.0\][\s\S]*?bar "#901" \[1\.5, 0\.0\]/,
+			);
+			assert.match(
+				report,
+				/#### Turns je Phase[\s\S]*?bar "#900" \[10, 5\][\s\S]*?bar "#901" \[20, 0\][\s\S]*?bar "#902" \[4, 0\]/,
+			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Kennzahl mit nur einem tragenden Ticket bekommt keinen Chart', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-einserie-'));
+		try {
+			writeTicket(dir, '910', [entry({ issueId: '910', phase: 'spec', turns: 3, valueCost: 1, mcpCalls: 2 })]);
+			writeTicket(dir, '911', [entry({ issueId: '911', phase: 'spec', turns: 4, valueCost: 2 })]);
+			const report = renderFocusReport(dir, ['910', '911']);
+			assert.doesNotMatch(report, /#### MCP-Calls je Phase/, 'eine Serie allein ist kein Vergleich');
+			assert.match(
+				report,
+				/\| spec \| \$1\.00 · 3 T · [0-9,]+ Mio · — · 2 MCP · — \| \$2\.00 · 4 T · [0-9,]+ Mio · — · — · — \|/,
+			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
