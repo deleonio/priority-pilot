@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.9 - 2026-09-28
 
-_Enthält v0.9.0 – v0.9.7._
+_Enthält v0.9.0 – v0.9.8._
 
 ### 🔧 Engineering
 
@@ -17,6 +17,7 @@ _Enthält v0.9.0 – v0.9.7._
 - docs(project): add website workspace to monorepo list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1807
 - ci: add signed test apk artifact until internal test track (#1801) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1808
 - chore(ci): route documenter through openrouter free model by default by @deleonio in https://github.com/deleonio/priority-pilot/pull/1755
+- chore: add n-way phase comparison charts to the focus report by @deleonio in https://github.com/deleonio/priority-pilot/pull/1811
 
 ## v0.8 - 2026-09-27
 
@@ -243,7 +244,6 @@ _Enthält v0.2.0 – v0.2.134._
 - docs: sharpen the monetization concept against the code by @deleonio in https://github.com/deleonio/priority-pilot/pull/1485
 - fix(server): mount rate limiters on their own paths only (#1479) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1481
 - feat(server): add plan model and entitlement center (#1456) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1486
-- feat(server): enforce plan feature gating across api and mcp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1487
 - feat(server): enforce plan feature gating across api and mcp by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1487
 - feat(frontend): add plan context, badge, and upgrade offer dialog by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1488
 - feat(frontend): roll out plan badges to remaining touchpoints (#1484) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1489
