@@ -1547,3 +1547,81 @@ describe('SettingsPage – #1792: Balance-Priorisierung Schalter (AK3)', () => {
 		expect(localStorage.getItem('pp-balance-priority')).toBe('false');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1794 — Fürsorge-Schalter (Spec: docs/spec/issue-1794.md, KI-UX-Block).
+ *
+ * - AK7: Switch „Fürsorge-Hinweise" (KolInputCheckbox `_variant="switch"`) in einer
+ *   `.settings-switch-row` der Karte „Benachrichtigungen", Zustand aus GET /care-config,
+ *   `_hint` nennt die Abgrenzung (betrifft nur Fürsorge, Frist-Erinnerungen bleiben an).
+ * - AK7: Toggle ruft `api.updateCareConfig` mit dem neuen Zustand auf (kein Speichern-Button).
+ * - KI-UX: scheiternder PUT zeigt als `KolAlert` in derselben Switch-Zeile (#971/`pushFailed`).
+ */
+describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
+	/** KoliBri-Adapter setzt Props je nach Adapter als Property oder Attribut (Muster #1792). */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const queryCareSwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Fürsorge-Hinweise"]');
+
+	const flipSwitch = async (container: HTMLElement, value: boolean) => {
+		await act(async () => {
+			const toggle = queryCareSwitch(container)!;
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				value,
+			);
+		});
+	};
+
+	it('AK7: Switch rendert in einer .settings-switch-row, _checked folgt GET /care-config, _hint grenzt ab', async () => {
+		apiMocks.getCareConfig = vi.fn().mockResolvedValue({ carePushEnabled: false, zeitzone: 'UTC' });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			const toggle = queryCareSwitch(container);
+			expect(toggle, 'Fürsorge-Schalter fehlt in der Karte „Benachrichtigungen"').not.toBeNull();
+		});
+		const toggle = queryCareSwitch(container)!;
+		expect(toggle.closest('.settings-switch-row'), '#971-Muster: Switch je in einer Switch-Zeile').not.toBeNull();
+		expect(bound(toggle, '_checked'), 'Zustand kommt aus GET /care-config').toBe('false');
+		expect(bound(toggle, '_hint'), '_hint nennt die Abgrenzung (Frist-Erinnerungen bleiben an)').not.toBe('');
+	});
+
+	it('AK7: Toggle ruft updateCareConfig mit dem neuen Zustand auf', async () => {
+		apiMocks.getCareConfig = vi.fn().mockResolvedValue({ carePushEnabled: true, zeitzone: 'UTC' });
+		apiMocks.updateCareConfig = vi.fn().mockResolvedValue({ carePushEnabled: false, zeitzone: 'UTC' });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			expect(queryCareSwitch(container), 'Fürsorge-Schalter fehlt').not.toBeNull();
+		});
+
+		await flipSwitch(container, false);
+
+		expect(apiMocks.updateCareConfig).toHaveBeenCalledWith(expect.objectContaining({ carePushEnabled: false }));
+	});
+
+	it('KI-UX: scheiternder PUT zeigt als KolAlert Fehler in derselben Switch-Zeile', async () => {
+		apiMocks.getCareConfig = vi.fn().mockResolvedValue({ carePushEnabled: true, zeitzone: 'UTC' });
+		apiMocks.updateCareConfig = vi.fn().mockRejectedValue(new Error('Netzwerk weg'));
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		await waitFor(() => {
+			expect(queryCareSwitch(container), 'Fürsorge-Schalter fehlt').not.toBeNull();
+		});
+
+		await flipSwitch(container, false);
+
+		await waitFor(() => {
+			const fresh = queryCareSwitch(container)!;
+			expect(
+				fresh.closest('.settings-switch-row')?.querySelector('kol-alert'),
+				'PUT-Fehler muss in derselben Zeile sichtbar sein',
+			).not.toBeNull();
+		});
+	});
+});
