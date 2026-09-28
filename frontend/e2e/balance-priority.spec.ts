@@ -1,19 +1,24 @@
+import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * E2E-Vertrag für die „Balance-Priorisierung" in der Aufgabenliste (Tab „Aufgaben").
+ * E2E-Vertrag für die „Balance-Priorisierung" in der Aufgabenliste (Tab „Aufgaben", #1792).
  *
- * Ein Schalter in der Filterleiste sortiert die offene Liste nach virtueller Balance-Priorität
- * (Defizit-gewichtet, Rechenkern `frontend/src/lib/balancePriority.ts`), das P-Badge zeigt dann
- * die virtuelle Prio als `~P{n}`. Gerechnet wird live an der Datenlage; es gehen keinerlei
- * Schreibzugriffe auf `/api/v1/tasks` raus — die Server-`priority` bleibt unberührt.
+ * Seit #1792 ist die Balance-Sortierung der **Standard** (`balancePreferences`, localStorage
+ * `pp-balance-priority`, Default an): ohne Schalterklick steht der Defizit-Task oben. Abschaltbar
+ * am Ansichts-Schalter und am Einstellungs-Schalter (Allgemein-Tab) — beide spiegeln denselben
+ * Key, der Zustand übersteht ein Neuladen. Ein einmaliger Hinweis (Dismiss-Key
+ * `pp-balance-hint-dismissed`) erklärt die Umstellung und lässt sich direkt wegklicken.
  *
- * Wie die übrigen funktionalen Specs läuft dies gegen das echte Backend (In-Memory-DB,
- * Vite-Proxy); `/auth/me` authentifiziert die Fixture. Szenario: Der gesamte erledigte Aufwand
- * liegt in Säule B (eine erledigte Aufgabe zahlt voll dort ein) → Säule A ist unterversorgt
- * (Defizit 1). Task X (Original-Prio 1) zahlt in A, Task Y (Original-Prio 5) in B. Ohne
- * Balance-Modus steht Y (P5) über X (P1); im Balance-Modus kehrt sich das um.
+ * Gerechnet wird live an der Datenlage (Rechenkern `frontend/src/lib/balancePriority.ts`); es
+ * gehen keinerlei Schreibzugriffe auf `/api/v1/tasks` raus — die Server-`priority` bleibt
+ * unberührt. Szenario wie bisher: der gesamte erledigte Aufwand liegt in Säule B → Säule A ist
+ * unterversorgt (Defizit 1). Task X (Original-Prio 1) zahlt in A, Task Y (Original-Prio 5) in B.
+ * Im Balance-Modus steht X über Y (virtuelle Badges ~P5/~P1), sonst Y über X.
+ *
+ * Spec: docs/spec/issue-1792.md. **Test-Pflege:** Der bisherige Test nahm Default **aus** an
+ * („Ohne Balance-Modus …") und widerspricht AK2 — umgebaut (siehe PR-Beschreibung).
  *
  * `data-testid`-Konvention: `task-list-item-{id}` pro Blatt-Aufgabe (#537).
  */
@@ -87,6 +92,9 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 
 	const balanceSwitch = (page: Page) => page.getByRole('checkbox', { name: /Balance-Priorisierung/i });
 
+	/** Der Einmal-Hinweis auf die Balance-Umstellung (AK4) — über den Alert-Text lokalisiert. */
+	const hint = (page: Page) => page.locator('kol-alert').filter({ hasText: /Balance-Priorisierung/i });
+
 	/** Vertikalposition eines Listen-Eintrags (px von oben) — kleinere y = weiter oben in der Liste. */
 	const yOf = async (page: Page, id: number): Promise<number> => {
 		const box = await item(page, id).boundingBox();
@@ -105,30 +113,26 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 		return writes;
 	};
 
-	test('sortiert nach Defizit, zeigt ~P-Badges, schreibt nichts und lässt sich zurückschalten', async ({ page }) => {
+	test('AK2: Balance-Sortierung ist Standard ohne Schalterklick — AK3: Abschalten hält Neuladen stand, beide Schalter synchron', async ({
+		page,
+	}) => {
 		const { taskX, taskY } = await seedScene(page);
 
 		await page.goto('/app/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Ohne Balance-Modus: Original-Prio bestimmt die Reihenfolge — Y (P5) über X (P1).
+		// AK2: Ohne irgendeinen Klick — Schalter an, Defizit-Task X über Y (P5), virtuelle Badges.
+		await expect(balanceSwitch(page)).toBeChecked();
 		await expect(item(page, taskX.id)).toBeVisible();
 		await expect(item(page, taskY.id)).toBeVisible();
-		expect(await yOf(page, taskY.id)).toBeLessThan(await yOf(page, taskX.id));
-
-		const writes = recordTaskWrites(page);
-
-		// Balance-Modus aktivieren — der Defizit-Task X rückt trotz Prio 1 nach oben.
-		await balanceSwitch(page).click();
-		await expect(balanceSwitch(page)).toBeChecked();
 		await expect.poll(async () => (await yOf(page, taskX.id)) < (await yOf(page, taskY.id))).toBe(true);
-
-		// Badge zeigt die virtuelle Prio, unterscheidbar per Tilde-Präfix (~P{n}).
 		await expect(item(page, taskX.id).getByText('~P5')).toBeVisible();
 		await expect(item(page, taskY.id).getByText('~P1')).toBeVisible();
 
-		// Zurückschalten zeigt Original-Reihenfolge und Original-Badges wieder.
+		const writes = recordTaskWrites(page);
+
+		// AK3: Abschalten am Ansichts-Schalter — Original-Reihenfolge und Original-Badges kehren zurück.
 		await balanceSwitch(page).click();
 		await expect(balanceSwitch(page)).not.toBeChecked();
 		await expect.poll(async () => (await yOf(page, taskY.id)) < (await yOf(page, taskX.id))).toBe(true);
@@ -137,28 +141,87 @@ test.describe('Balance-Priorisierung in der Aufgabenliste', () => {
 
 		// Während des gesamten Umschaltens ging kein Schreibrequest auf die Tasks raus.
 		expect(writes).toEqual([]);
+
+		// AK3: Zustand überlebt Neuladen (pp-balance-priority = false), Ansichts-Schalter bleibt aus.
+		await page.reload();
+		await waitForStableView(page);
+		await openTasksTab(page);
+		await expect(balanceSwitch(page)).not.toBeChecked();
+		await expect.poll(async () => (await yOf(page, taskY.id)) < (await yOf(page, taskX.id))).toBe(true);
+		// Das erste explizite Abschalten setzt das Dismiss-Flag — der Hinweis kehrt nicht zurück.
+		await expect(hint(page)).toHaveCount(0);
+
+		// AK3: Beide Schalter zeigen denselben Zustand — der Einstellungs-Schalter ist ebenfalls aus.
+		const settingsSwitch = page.getByRole('checkbox', { name: /Balance-Priorisierung/i });
+		await page.goto('/app/settings/general');
+		await expect(settingsSwitch).not.toBeChecked();
+
+		// … und Einschalten in den Einstellungen spiegelt an den Ansichts-Schalter zurück.
+		await settingsSwitch.click();
+		await expect(settingsSwitch).toBeChecked();
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+		await expect(balanceSwitch(page)).toBeChecked();
+	});
+
+	test('AK4: Einmal-Hinweis erscheint, nennt den Weg zum Abschalten und kehrt nach Dismiss nicht zurück', async ({
+		page,
+	}) => {
+		await seedScene(page);
+
+		await page.goto('/app/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		// Ohne Dismiss-Flag: Hinweis über der Aufgabenliste, Weg zum Abschalten genannt.
+		const hintBox = hint(page).first();
+		await expect(hintBox).toBeVisible();
+		await expect(hintBox).toContainText(/Einstellungen/i);
+
+		// Direktes Wegkippen im Hinweis (KolButton im Alert) — danach ist die Fläche komplett weg.
+		await hintBox.locator('kol-button').first().click();
+		await expect(hintBox).toBeHidden();
+
+		// Persistenz: nach Neuladen ist der Hinweis weg und der Dismiss-Key gesetzt.
+		await page.reload();
+		await waitForStableView(page);
+		await openTasksTab(page);
+		await expect(hint(page)).toHaveCount(0);
+		expect(await page.evaluate(() => localStorage.getItem('pp-balance-hint-dismissed'))).toBe('true');
 	});
 
 	// Der mobile Viewport gilt für den ganzen Test — test.use wirkt nur auf Describe-Ebene.
 	test.describe('mobile 375px', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 
-		test('375px: Der Schalter bleibt bedienbar und liegt vollständig im Viewport', async ({ page }) => {
+		/**
+		 * AK5: Element liegt mit seiner Bounding-Box vollständig im 375px-Viewport — die App-Shell
+		 * clippt overflow-x, daher Bounding-Box statt scrollWidth. `boundingBox()` misst einmalig
+		 * und kann im Render-Moment null liefern → in expect.poll nachmessen (Muster helpers.ts).
+		 */
+		const withinViewport = async (locator: Locator): Promise<void> => {
+			await expect
+				.poll(async () => {
+					const box = await locator.boundingBox();
+					return box !== null && box.x >= 0 && box.x + box.width <= 375;
+				})
+				.toBe(true);
+		};
+
+		test('AK5: Hinweis und beide Schalter liegen vollständig im 375px-Viewport', async ({ page }) => {
 			await seedScene(page);
 
 			await page.goto('/app/');
 			await waitForStableView(page);
 			await openTasksTab(page);
 
-			await balanceSwitch(page).click();
-			await expect(balanceSwitch(page)).toBeChecked();
+			await withinViewport(hint(page).first());
+			await withinViewport(balanceSwitch(page));
 
-			const switchBox = await balanceSwitch(page).boundingBox();
-			expect(switchBox).not.toBeNull();
-			// Die App-Shell clippt overflow-x (scrollWidth wäre strukturell ≤ Viewport) — daher
-			// Bounding-Box-Prüfung: der Schalter liegt vollständig im 375px-Viewport.
-			expect(switchBox!.x).toBeGreaterThanOrEqual(0);
-			expect(switchBox!.x + switchBox!.width).toBeLessThanOrEqual(375);
+			// Der Einstellungs-Schalter (Allgemein-Tab) ebenfalls ohne horizontalen Overflow.
+			await page.goto('/app/settings/general');
+			await withinViewport(page.getByRole('checkbox', { name: /Balance-Priorisierung/i }));
 		});
 	});
 });
