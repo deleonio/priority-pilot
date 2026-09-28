@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { openAccordionSection } from './helpers';
 
 /**
  * #1676: Konto löschen in den Einstellungen mit sequenzieller Bestätigung. Echte Session über
@@ -25,6 +26,8 @@ const openAccountSettings = async (page: Page, email: string): Promise<number> =
 	).toBe(true);
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.goto('/app/settings/general');
+	// #1802: Der Auslöser sitzt hinter dem zugeklappten Accordion und wird erst durch Aufklappen sichtbar.
+	await openAccordionSection(page, 'Konto und Daten');
 	await expect(page.getByRole('button', { name: 'Konto löschen' })).toBeVisible();
 	return id;
 };
@@ -84,5 +87,38 @@ test.describe('Balamentum — #1676: Konto löschen', () => {
 
 		expect(((await (await page.request.get('/api/v1/auth/me')).json()) as { id: number }).id).toBe(id);
 		expect(await taskCount(page)).toBe(1);
+	});
+
+	test('#1802 AK1: vor dem Aufklappen ist der Auslöser in keinem Tab sichtbar', async ({ page }) => {
+		await login(page, 'konto-versteckt@example.com');
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/settings/general');
+		await expect(page.getByRole('button', { name: 'Konto löschen' })).not.toBeVisible();
+		await page.goto('/app/settings/gruppen');
+		await expect(page.getByRole('button', { name: 'Konto löschen' })).not.toBeVisible();
+	});
+
+	test('#1802 AK2: nach dem Aufklappen ist der Auslöser sichtbar und öffnet den Dialog', async ({ page }) => {
+		await login(page, 'konto-accordion@example.com');
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/settings/general');
+		await openAccordionSection(page, 'Konto und Daten');
+		const trigger = page.getByRole('button', { name: 'Konto löschen' });
+		await expect(trigger).toBeVisible();
+		await trigger.click();
+		await expect(page.getByRole('button', { name: 'Löschen', exact: true })).toBeVisible();
+	});
+
+	test('#1802 AK5: aufgeklappter Bereich bleibt bei 375px innerhalb des Viewports', async ({ page }) => {
+		await login(page, 'konto-breite@example.com');
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/settings/general');
+		await openAccordionSection(page, 'Konto und Daten');
+		// Bounding-Box des Accordion-Hosts (Light DOM). Test-Pflege: `xpath=ancestor::details[1]` vom
+		// Button aus greift nie — KolAccordion rendert <details> im Shadow-Root, der Button ist
+		// geslotetes Light-DOM-Kind (nachgetragen in der PR-Beschreibung). hasText pierct Shadow-DOM.
+		const box = await page.locator('kol-accordion', { hasText: 'Konto und Daten' }).boundingBox();
+		expect(box?.x ?? 0).toBeGreaterThanOrEqual(0);
+		expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375);
 	});
 });

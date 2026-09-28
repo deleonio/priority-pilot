@@ -105,7 +105,8 @@ const DeleteAccountDialog = ({ onClose, onDeleted }: DeleteAccountDialogProps) =
 };
 
 /**
- * „Konto löschen" in der Konto-Karte der Einstellungen. Nach dem Löschen räumt es auf wie der
+ * „Konto löschen“ am Ende des Allgemein-Tabs der Einstellungen (zugeklapptes Accordion
+ * „Konto und Daten“, #1802). Nach dem Löschen räumt es auf wie der
  * Logout in `App.tsx`: Paket-Spiegel weg, stiller Re-Login gesperrt, weiter zur Login-Seite.
  */
 export const DeleteAccountButton = ({ userId }: { userId?: number }) => {
@@ -126,7 +127,7 @@ export const DeleteAccountButton = ({ userId }: { userId?: number }) => {
 				className="settings-action-btn"
 				data-testid="delete-account"
 				_label={t('accountDelete.title')}
-				_variant="danger"
+				_variant="secondary"
 				_on={{ onClick: () => setOpen(true) }}
 			/>
 			{open && <DeleteAccountDialog onClose={() => setOpen(false)} onDeleted={leave} />}
