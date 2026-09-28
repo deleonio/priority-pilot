@@ -114,10 +114,10 @@ test.describe('Balamentum — #1676: Konto löschen', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/app/settings/general');
 		await openAccordionSection(page, 'Konto und Daten');
-		const box = await page
-			.getByRole('button', { name: 'Konto löschen' })
-			.locator('xpath=ancestor::details[1]')
-			.boundingBox();
+		// Bounding-Box des Accordion-Hosts (Light DOM). Test-Pflege: `xpath=ancestor::details[1]` vom
+		// Button aus greift nie — KolAccordion rendert <details> im Shadow-Root, der Button ist
+		// geslotetes Light-DOM-Kind (nachgetragen in der PR-Beschreibung). hasText pierct Shadow-DOM.
+		const box = await page.locator('kol-accordion', { hasText: 'Konto und Daten' }).boundingBox();
 		expect(box?.x ?? 0).toBeGreaterThanOrEqual(0);
 		expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375);
 	});

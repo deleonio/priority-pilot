@@ -73,6 +73,9 @@ describe('Konto löschen — Trigger-Platzierung (#1802)', () => {
 
 		fireEvent.click(trigger);
 		expect(screen.getByRole('button', { name: 'Löschen' })).toHaveAttribute('data-variant', 'danger');
+		// Sequenzieller Dialog (#1676): „Endgültig löschen“ erscheint erst im scope-Schritt —
+		// Test-Pflege, fehlender Zwischen-Klick (nachgetragen in der PR-Beschreibung).
+		fireEvent.click(screen.getByRole('button', { name: 'Löschen' }));
 		expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toHaveAttribute('data-variant', 'danger');
 	});
 });

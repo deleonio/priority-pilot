@@ -398,7 +398,6 @@ export const SettingsPage = ({
 								_variant="secondary"
 								_on={{ onClick: saveDisplayName }}
 							/>
-							<DeleteAccountButton userId={currentUserId} />
 						</div>
 					</KolCard>
 
@@ -581,6 +580,15 @@ export const SettingsPage = ({
 							)}
 						</div>
 					</KolCard>
+
+					{/* #1802: „Konto löschen“ gehört zu den folgereichen, selten genutzten Aktionen — der
+					    Auslöser sitzt deshalb zugeklappt am Ende des Allgemein-Tabs, damit das Durchsehen
+					    der Einstellungen nichts versehentlich auslöst. Neutrale Überschrift: der Klapp-
+					    Toggle ist selbst ein Button und darf nicht „Konto löschen“ heißen; Rot erscheint
+					    erst im Bestätigungsdialog (docs/ux-pattern-sequential-confirmation.md). */}
+					<KolAccordion className="settings-accordion" _label="Konto und Daten" _level={2}>
+						<DeleteAccountButton userId={currentUserId} />
+					</KolAccordion>
 				</div>
 				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
 					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
