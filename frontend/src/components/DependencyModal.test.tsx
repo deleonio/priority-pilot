@@ -195,13 +195,15 @@ describe('DependencyModal — Badge im Modal ohne Klickziel (#1528 AK3)', () => 
 
 		const { container } = await act(async () => {
 			return render(
-				<PlanProvider value={{ plan: 'free', entitlements: { graph_write: { allowed: false, requiredPlan: 'pro' } } }}>
+				<PlanProvider
+					value={{ plan: 'free', entitlements: { graph_weight: { allowed: false, requiredPlan: 'plus' } } }}
+				>
 					<DependencyModal task={task} allTasks={[task]} dependencies={[]} onClose={onClose} onChanged={vi.fn()} />
 				</PlanProvider>,
 			);
 		});
 
-		const badge = screen.getByTestId('plan-badge-graph_write');
+		const badge = screen.getByTestId('plan-badge-graph_weight');
 		expect(badge.closest('a')).toBeNull();
 
 		fireEvent.click(badge);

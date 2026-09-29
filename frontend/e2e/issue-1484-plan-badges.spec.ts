@@ -186,7 +186,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 		await badge.click();
 
 		await expect(page.getByTestId('plans-section')).toBeVisible();
-		await expect(page.getByRole('dialog').filter({ hasText: /Pro|Max|Ultimate/ })).toHaveCount(0);
+		await expect(page.getByRole('dialog').filter({ hasText: /Plus|Pro/ })).toHaveCount(0);
 	});
 
 	// #1528 AK3/TF5: innerhalb der Schnellerfassung hat das Badge kein Klickziel (`inModal`) — ein
@@ -219,7 +219,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	// Rechte-Zeile entfällt — die Paket-Erklärung steht jetzt ausschließlich im Gating-Alert unter
 	// dem Regler (#1526 AK4). Ersetzt den vorigen Test „zeigt das mcp_readwrite-Badge …", der genau
 	// das Gegenteil erwartete.
-	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Ultimate-Alert ohne Overflow', async ({
+	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Pro-Alert ohne Overflow', async ({
 		page,
 	}) => {
 		// #1526 AK2 sperrt „Token erzeugen" auf Paket `free` (kein `mcp_read`) — ein Klick durch die
@@ -236,7 +236,10 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
 
-		const alert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Ultimate' }).first();
+		const alert = page
+			.locator('kol-alert[_type="info"]')
+			.filter({ hasText: /\bPro\b/ })
+			.first();
 		await expect(alert).toBeVisible();
 		await expectWithinViewport(alert);
 	});

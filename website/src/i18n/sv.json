@@ -178,15 +178,15 @@
 		"cta": "Börja gratis",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Grupper och inbjudningslänkar",
 			"voice_input": "Röstinmatning",
 			"ai_assist": "AI-hjälp: pelarrådgivare och språkgranskning",
-			"graph_write": "Redigera viktade beroenden",
+			"graph_write": "Beroenden mellan uppgifter",
+			"graph_weight": "Redigera viktade beroenden",
 			"location_reminders": "Platsbaserade påminnelser",
 			"mcp_read": "MCP-gränssnitt (läsa)",
 			"mcp_readwrite": "MCP-gränssnitt (läsa och skriva)"

@@ -62,7 +62,7 @@ describe('Pass-Through-Modus (kein Auth-Kontext konfiguriert)', () => {
 		// Paket-Matrix laut docs/spec/issue-1456.md: Free hat weder groups noch ai_assist
 		// (kein Import aus plans.ts — das Modul existiert noch nicht, s. AK2/plans.test.ts).
 		assert.equal(body.entitlements?.groups?.allowed, false, 'Free hat kein groups');
-		assert.equal(body.entitlements?.groups?.requiredPlan, 'pro', 'groups erfordert Pro');
+		assert.equal(body.entitlements?.groups?.requiredPlan, 'plus', 'groups erfordert Plus');
 		// Test-Pflege #1524 AK1 (macht #1484 A1 rückgängig, 2026-09-16): `voice_input` ist wieder für
 		// jedes Paket erlaubt, auch Free — kein Badge, keine Sperre mehr an der Spracheingabe.
 		assert.equal(body.entitlements?.voice_input?.allowed, true, 'Free hat voice_input');

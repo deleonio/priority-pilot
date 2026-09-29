@@ -146,7 +146,7 @@ describe('Käufe wiederherstellen (#1695)', () => {
 });
 
 describe('Paketwechsel über Google Play (#1696)', () => {
-	const change = async (from: string, to: 'pro' | 'max') => {
+	const change = async (from: string, to: 'plus' | 'pro') => {
 		subscription = { provider: 'google_play', plan: from, period: 'monthly', currentPeriodEnd: '2026-10-24T10:00:00Z' };
 		store.localReceipts = [{ platform: 'android-playstore', purchaseToken: 'tok-alt' }];
 		order.mockResolvedValue(undefined);
@@ -157,7 +157,7 @@ describe('Paketwechsel über Google Play (#1696)', () => {
 	};
 
 	it('Upgrade startet den Kauf mit dem alten Token und sofortigem Replacement-Mode', async () => {
-		await change('pro', 'max');
+		await change('plus', 'pro');
 
 		expect(order).toHaveBeenCalledWith({
 			googlePlay: { oldPurchaseToken: 'tok-alt', replacementMode: 'IMMEDIATE_WITH_TIME_PRORATION' },
@@ -166,9 +166,9 @@ describe('Paketwechsel über Google Play (#1696)', () => {
 	});
 
 	it('Downgrade wirkt zum Periodenende und zeigt das Wechseldatum an', async () => {
-		await change('max', 'pro');
+		await change('pro', 'plus');
 
 		expect(order).toHaveBeenCalledWith({ googlePlay: { oldPurchaseToken: 'tok-alt', replacementMode: 'DEFERRED' } });
-		expect(screen.getByRole('alert')).toHaveTextContent('Wechsel zu Pro ab 24.10.2026.');
+		expect(screen.getByRole('alert')).toHaveTextContent('Wechsel zu Plus ab 24.10.2026.');
 	});
 });

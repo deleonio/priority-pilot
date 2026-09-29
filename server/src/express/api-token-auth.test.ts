@@ -126,14 +126,14 @@ describe('Bearer-Token-Auth — verhält sich wie Session (#1352 AK3/AK5/AK6/AK7
 		const dbUser = await User.findOne({ where: { email: 'bearer-a@example.com' } });
 		assert.ok(dbUser, 'Setup: Nutzer muss existieren');
 		await (dbUser as unknown as { update: (values: Record<string, unknown>) => Promise<unknown> }).update({
-			plan: 'max',
+			plan: 'plus',
 		});
 		const { token } = await createToken(cookie);
 
 		const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { plan?: string };
-		assert.equal(body.plan, 'max', 'req.session.user.plan muss dem Plan des Token-Besitzers entsprechen');
+		assert.equal(body.plan, 'plus', 'req.session.user.plan muss dem Plan des Token-Besitzers entsprechen');
 	});
 
 	it('AK5: das Token von Nutzer A liefert keine Aufgabe von Nutzer B', async () => {
@@ -418,18 +418,18 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		await closeDb();
 	});
 
-	it('AK5/AK6: ein in der DB readwrite stehender Token eines max-Nutzers schreibt nicht mehr, der Spaltenwert bleibt readwrite', async () => {
+	it('AK5/AK6: ein in der DB readwrite stehender Token eines plus-Nutzers schreibt nicht mehr, der Spaltenwert bleibt readwrite', async () => {
 		const email = 'bearer-a@example.com';
 		const cookie = await server.register(email, 'password123');
 		const { id, token } = await createToken(cookie);
 		const record = await ApiToken.findByPk(id);
 		assert.ok(record, 'Setup: Token-Zeile muss existieren');
 		await record!.update({ scope: 'readwrite' });
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		const write = await postTaskViaBearer(token, 'Über gekappten Token versucht');
-		assert.equal(write.status, 403, 'ein readwrite-Token ohne ultimate darf nicht schreiben');
+		assert.equal(write.status, 403, 'ein readwrite-Token ohne pro darf nicht schreiben');
 		const body = (await write.json()) as {
 			message?: string;
 			code?: string;
@@ -438,7 +438,7 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		};
 		assert.equal(body.code, 'plan_required');
 		assert.equal(body.feature, 'mcp_readwrite');
-		assert.equal(body.requiredPlan, 'ultimate');
+		assert.equal(body.requiredPlan, 'pro');
 
 		const read = await withBearer(token);
 		assert.equal(read.status, 200, 'Lesen bleibt trotz Herabstufung erlaubt');
@@ -451,7 +451,7 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		const email = 'bearer-b@example.com';
 		const cookie = await server.register(email, 'password123');
 		const { token } = await createToken(cookie);
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		const write = await postTaskViaBearer(token, 'Über echten Nur-lese-Token versucht');
@@ -472,7 +472,7 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		const record = await ApiToken.findByPk(id);
 		assert.ok(record, 'Setup: Token-Zeile muss existieren');
 		await record!.update({ scope: 'readwrite' });
-		await setPlan(email, 'ultimate');
+		await setPlan(email, 'pro');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		await setPlan(email, 'free');
@@ -485,19 +485,19 @@ describe('Bearer-Token-Auth — Plan-Deckel für MCP-Schreibzugriff (#1460 AK5/A
 		assert.equal(afterDowngrade!.get('scope'), 'readwrite', 'der gespeicherte Scope bleibt readwrite');
 		assert.equal(afterDowngrade!.get('revokedAt') ?? null, null, 'der Token wird nicht widerrufen');
 
-		await setPlan(email, 'ultimate');
+		await setPlan(email, 'pro');
 		const restored = await postTaskViaBearer(token, 'Nach Upgrade erneut');
 		assert.equal(restored.status, 201, 'nach dem Upgrade schreibt derselbe Token wieder');
 	});
 
-	it('AK8: bei ausgeschaltetem Rollout schreibt ein readwrite-Token eines max-Nutzers unverändert', async () => {
+	it('AK8: bei ausgeschaltetem Rollout schreibt ein readwrite-Token eines plus-Nutzers unverändert', async () => {
 		const email = 'bearer-a@example.com';
 		const cookie = await server.register(email, 'password123');
 		const { id, token } = await createToken(cookie);
 		const record = await ApiToken.findByPk(id);
 		assert.ok(record, 'Setup: Token-Zeile muss existieren');
 		await record!.update({ scope: 'readwrite' });
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 
 		const write = await postTaskViaBearer(token, 'Rollout aus');
 
@@ -530,11 +530,9 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 	// Passwort-Sessions auf die vier dort gelisteten Adressen — andere Adressen registrieren sich
 	// zwar (201), bleiben aber „Nicht eingeloggt." (401) auf jeder nachfolgenden Route. Deshalb
 	// ausschließlich `bearer-a`/`bearer-b` wiederverwenden (resetDb() pro Test macht das sicher).
-	for (const [plan, email] of [
-		['free', 'bearer-a@example.com'],
-		['pro', 'bearer-b@example.com'],
-	] as const) {
-		it(`AK4: ein ${plan}-Nutzer erhält auf GET /tasks über Bearer 403 mit plan_required/mcp_read/max, Token-Zeile bleibt unverändert`, async () => {
+	// #1782: seit ADR 0018 hat nur noch Free keinen Lesezugriff (Pro-Eintrag entfallen).
+	for (const [plan, email] of [['free', 'bearer-a@example.com']] as const) {
+		it(`AK4: ein ${plan}-Nutzer erhält auf GET /tasks über Bearer 403 mit plan_required/mcp_read/plus, Token-Zeile bleibt unverändert`, async () => {
 			const cookie = await server.register(email, 'password123');
 			const { id, token } = await createToken(cookie);
 			await setPlan(email, plan);
@@ -551,7 +549,7 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 			};
 			assert.equal(body.code, 'plan_required');
 			assert.equal(body.feature, 'mcp_read');
-			assert.equal(body.requiredPlan, 'max');
+			assert.equal(body.requiredPlan, 'plus');
 			assert.equal(body.currentPlan, plan);
 
 			const record = await ApiToken.findByPk(id);
@@ -565,8 +563,8 @@ describe('Bearer-Token-Auth — Plan-Deckel für lesenden MCP-Zugriff (#1524 AK4
 	}
 
 	for (const [plan, email] of [
-		['max', 'bearer-a@example.com'],
-		['ultimate', 'bearer-b@example.com'],
+		['plus', 'bearer-a@example.com'],
+		['pro', 'bearer-b@example.com'],
 	] as const) {
 		it(`AK5: ein ${plan}-Nutzer liest über Bearer weiterhin GET /tasks (keine Regression)`, async () => {
 			const cookie = await server.register(email, 'password123');

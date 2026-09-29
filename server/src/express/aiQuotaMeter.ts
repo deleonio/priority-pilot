@@ -7,7 +7,7 @@
  */
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Op, UniqueConstraintError, literal } from 'sequelize';
-import { AI_ASSIST_MONTHLY_QUOTA, isMonetizationEnforced, type Plan } from '../logics/plans.js';
+import { AI_ASSIST_MONTHLY_QUOTA, effectivePlan, isMonetizationEnforced, type Plan } from '../logics/plans.js';
 import { sendPlanError } from './http-error.js';
 import { getUserId, isAuthActive } from './requireAuth.js';
 import { AiUsage, User } from '../models/index.js';
@@ -124,7 +124,7 @@ export const createAiQuotaCounter = async (
 		return undefined;
 	}
 	const yearMonth = currentYearMonth();
-	const monthlyLimit = AI_ASSIST_MONTHLY_QUOTA[plan];
+	const monthlyLimit = AI_ASSIST_MONTHLY_QUOTA[effectivePlan(plan)];
 	// `null` bucht ohne Obergrenze — bei ausgeschaltetem Rollout deckelt nichts (AK8).
 	const limit = isMonetizationEnforced() ? monthlyLimit : null;
 	return {
@@ -179,7 +179,7 @@ export const meterAiQuota = (): AiQuotaHandler => {
 		}
 
 		const yearMonth = currentYearMonth();
-		const limit = AI_ASSIST_MONTHLY_QUOTA[plan];
+		const limit = AI_ASSIST_MONTHLY_QUOTA[effectivePlan(plan)];
 		const booked = await book(userId, yearMonth, isMonetizationEnforced() ? limit : null);
 		if (!booked) {
 			sendPlanError(res, 429, `Das monatliche KI-Kontingent von ${limit} Anfragen ist aufgebraucht.`, {

@@ -51,7 +51,7 @@ const stubLektoratFetch = (ok: boolean): void => {
 	}) as typeof fetch;
 };
 
-const setPlan = async (email: string, plan: 'free' | 'pro' | 'max' | 'ultimate'): Promise<void> => {
+const setPlan = async (email: string, plan: 'free' | 'plus' | 'pro'): Promise<void> => {
 	await User.update({ plan }, { where: { email } });
 };
 

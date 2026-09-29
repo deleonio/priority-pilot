@@ -181,15 +181,15 @@
 		"cta": "Zacznij za darmo",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Grupy i linki z zaproszeniem",
 			"voice_input": "Wprowadzanie głosowe",
 			"ai_assist": "Pomoc AI: doradca filarów i korekta tekstów",
-			"graph_write": "Edycja ważonych zależności",
+			"graph_write": "Zależności między zadaniami",
+			"graph_weight": "Edycja ważonych zależności",
 			"location_reminders": "Przypomnienia w danym miejscu",
 			"mcp_read": "Interfejs MCP (odczyt)",
 			"mcp_readwrite": "Interfejs MCP (odczyt i zapis)"

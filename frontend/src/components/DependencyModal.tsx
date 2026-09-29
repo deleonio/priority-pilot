@@ -121,8 +121,8 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 
 	return (
 		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>
-			{/* #1458 AK12: Referenzstelle `graph_write`. */}
-			<PlanBadge feature="graph_write" inModal />
+			{/* #1458 AK12, #1782: Referenzstelle `graph_weight`. */}
+			<PlanBadge feature="graph_weight" inModal />
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}

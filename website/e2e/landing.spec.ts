@@ -11,13 +11,13 @@ test.describe('Öffentliche Website', () => {
 		await expect(page.getByRole('link', { name: 'Mit E-Mail anmelden' })).toHaveAttribute('href', '/app/?login=email');
 	});
 
-	test('zeigt alle vier Pakete mit Preisen', async ({ page }) => {
+	test('zeigt alle drei Pakete mit Preisen', async ({ page }) => {
 		await page.goto('/');
 		const pricing = page.locator('#pricing');
-		for (const name of ['Free', 'Pro', 'Max', 'Ultimate']) {
+		for (const name of ['Free', 'Plus', 'Pro']) {
 			await expect(pricing.getByRole('heading', { level: 3, name, exact: true })).toBeVisible();
 		}
-		await expect(pricing.getByText('7,99 €')).toBeVisible();
+		await expect(pricing.getByText('4,99 €')).toBeVisible();
 	});
 
 	test('Sprachwahl im Kopf führt in alle zehn Sprachen', async ({ page }) => {

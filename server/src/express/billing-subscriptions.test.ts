@@ -65,7 +65,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		server = await startTestServer(withClient({}));
 		const cookie = await login('ak1@example.com');
 
-		const res = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
+		const res = await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' });
 
 		assert.equal(res.status, 201);
 		const body = (await res.json()) as { approvalUrl?: string };
@@ -81,10 +81,10 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		server = await startTestServer(withClient({}));
 		const cookie = await login('ak2@example.com');
 
-		const first = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
+		const first = await post('/billing/subscriptions', cookie, { plan: 'plus', period: 'monthly' });
 		assert.equal(first.status, 201, 'Vorbedingung: erstes Abo muss angelegt werden können');
 
-		const second = await post('/billing/subscriptions', cookie, { plan: 'max', period: 'monthly' });
+		const second = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
 		assert.equal(second.status, 409, 'Ein zweites Abo bei laufendem/ausstehendem Abo muss abgelehnt werden');
 	});
 
@@ -96,13 +96,13 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-EXISTING',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions', cookie, { plan: 'max', period: 'monthly' });
+		const res = await post('/billing/subscriptions', cookie, { plan: 'pro', period: 'monthly' });
 		assert.equal(res.status, 409);
 	});
 
@@ -121,7 +121,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-CANCEL-ME',
-			plan: 'max',
+			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -132,7 +132,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(res.status, 200);
 		assert.equal(calledWith, 'I-CANCEL-ME', 'Der Client muss mit der externen Abo-ID aufgerufen werden');
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-CANCEL-ME' } });
-		assert.equal(sub?.get('plan'), 'max', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
+		assert.equal(sub?.get('plan'), 'pro', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
 	});
 
 	it('AK4: POST /billing/subscriptions/change ruft den Revise-Aufruf mit der Ziel-Plan-ID auf und liefert die Zustimmungs-URL', async () => {
@@ -151,13 +151,13 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-CHANGE-ME',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions/change', cookie, { plan: 'max', period: 'monthly' });
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
 
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { approvalUrl?: string };
@@ -169,7 +169,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(calledWith?.[0], 'I-CHANGE-ME', 'Der Client muss mit der externen Abo-ID aufgerufen werden');
 		assert.ok(calledWith?.[1], 'Der Client muss mit der Ziel-Plan-ID aufgerufen werden');
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-CHANGE-ME' } });
-		assert.equal(sub?.get('plan'), 'pro', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
+		assert.equal(sub?.get('plan'), 'plus', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
 	});
 
 	it('AK4: liefert der Client keine Zustimmungs-URL, enthält die Antwort auch keine', async () => {
@@ -180,13 +180,13 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-CHANGE-NOURL',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions/change', cookie, { plan: 'max', period: 'monthly' });
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
 
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { approvalUrl?: string };
@@ -203,7 +203,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: meA.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-INV-A',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -212,7 +212,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: meB.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-INV-B',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -253,7 +253,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: meB.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-INV-ID-B',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -281,7 +281,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-INV-OWN',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -325,7 +325,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 				const res = await fetch(`${server.baseUrl}${path}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Client-Channel': channel },
-					body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+					body: JSON.stringify({ plan: 'plus', period: 'monthly' }),
 				});
 				assert.equal(res.status, 409, `${path} im Kanal ${channel}`);
 			}
@@ -336,7 +336,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		const web = await fetch(`${server.baseUrl}/billing/subscriptions`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Client-Channel': 'web' },
-			body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+			body: JSON.stringify({ plan: 'plus', period: 'monthly' }),
 		});
 		assert.equal(web.status, 201);
 	});
@@ -351,7 +351,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			const res = await fetch(`${server.baseUrl}/billing/subscriptions`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+				body: JSON.stringify({ plan: 'plus', period: 'monthly' }),
 			});
 			assert.equal(res.status, 401);
 		});
@@ -365,7 +365,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			const res = await fetch(`${server.baseUrl}/billing/subscriptions/change`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ plan: 'max', period: 'monthly' }),
+				body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
 			});
 			assert.equal(res.status, 401);
 		});

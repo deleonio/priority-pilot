@@ -259,10 +259,10 @@ describe('ApiTokensSection — #1526 AK4/AK5/AK6: Rechte-Regler ohne mcp_readwri
 	const renderWithReadwrite = async (allowed: boolean) => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([readToken]);
 		const entitlements: EntitlementMap = {
-			mcp_readwrite: { allowed, requiredPlan: 'ultimate' } as EntitlementMap['mcp_readwrite'],
+			mcp_readwrite: { allowed, requiredPlan: 'pro' } as EntitlementMap['mcp_readwrite'],
 		};
 		const result = render(
-			<PlanProvider value={{ plan: allowed ? 'ultimate' : 'max', entitlements }}>
+			<PlanProvider value={{ plan: allowed ? 'pro' : 'plus', entitlements }}>
 				<ApiTokensSection />
 			</PlanProvider>,
 		);
@@ -281,7 +281,7 @@ describe('ApiTokensSection — #1526 AK4/AK5/AK6: Rechte-Regler ohne mcp_readwri
 		expect(unlockedContainer.querySelector('[data-testid="plan-badge-mcp_readwrite"]')).toBeNull();
 	});
 
-	it('AK4: ohne mcp_readwrite ist der Rechte-Regler deaktiviert, ein Alert nennt „Ultimate", PATCH bleibt aus', async () => {
+	it('AK4: ohne mcp_readwrite ist der Rechte-Regler deaktiviert, ein Alert nennt „Pro", PATCH bleibt aus', async () => {
 		const { container } = await renderWithReadwrite(false);
 
 		const toggle = container.querySelector('[data-testid="api-token-row"] [data-testid="api-token-scope-toggle"]');
@@ -291,7 +291,7 @@ describe('ApiTokensSection — #1526 AK4/AK5/AK6: Rechte-Regler ohne mcp_readwri
 		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
 			.map((el) => el.textContent ?? '')
 			.join(' ');
-		expect(alertText, 'Alert muss „Ultimate" nennen').toContain('Ultimate');
+		expect(alertText, 'Alert muss „Pro" nennen').toContain('Pro');
 
 		await act(async () => {
 			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
@@ -303,7 +303,7 @@ describe('ApiTokensSection — #1526 AK4/AK5/AK6: Rechte-Regler ohne mcp_readwri
 		expect(apiMocks.updateApiToken).toBeUndefined();
 	});
 
-	it('AK5: mit mcp_readwrite ist der Rechte-Regler bedienbar, kein Ultimate-Alert, PATCH wird gerufen', async () => {
+	it('AK5: mit mcp_readwrite ist der Rechte-Regler bedienbar, kein Pro-Alert, PATCH wird gerufen', async () => {
 		apiMocks.updateApiToken = vi.fn().mockResolvedValue({ ...readToken, scope: 'readwrite' });
 		const { container } = await renderWithReadwrite(true);
 
@@ -314,7 +314,7 @@ describe('ApiTokensSection — #1526 AK4/AK5/AK6: Rechte-Regler ohne mcp_readwri
 		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
 			.map((el) => el.textContent ?? '')
 			.join(' ');
-		expect(alertText, 'kein Ultimate-Alert bei Freigabe').not.toContain('Ultimate');
+		expect(alertText, 'kein Pro-Alert bei Freigabe').not.toContain('Pro');
 
 		await act(async () => {
 			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
@@ -335,10 +335,10 @@ describe('ApiTokensSection — #1526 AK2/AK3: Erzeugen-Formular ohne mcp_read ge
 	const renderWithRead = async (allowed: boolean) => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
 		const entitlements: EntitlementMap = {
-			mcp_read: { allowed, requiredPlan: 'max' } as EntitlementMap['mcp_read'],
+			mcp_read: { allowed, requiredPlan: 'plus' } as EntitlementMap['mcp_read'],
 		};
 		const result = render(
-			<PlanProvider value={{ plan: allowed ? 'max' : 'free', entitlements }}>
+			<PlanProvider value={{ plan: allowed ? 'plus' : 'free', entitlements }}>
 				<ApiTokensSection />
 			</PlanProvider>,
 		);
@@ -348,7 +348,7 @@ describe('ApiTokensSection — #1526 AK2/AK3: Erzeugen-Formular ohne mcp_read ge
 		return result;
 	};
 
-	it('AK2: ohne mcp_read sind Name, Laufzeit und „Token erzeugen" deaktiviert, ein Alert nennt „Max"', async () => {
+	it('AK2: ohne mcp_read sind Name, Laufzeit und „Token erzeugen" deaktiviert, ein Alert nennt „Plus"', async () => {
 		const { container } = await renderWithRead(false);
 
 		const nameInput = container.querySelector('kol-input-text');
@@ -361,10 +361,10 @@ describe('ApiTokensSection — #1526 AK2/AK3: Erzeugen-Formular ohne mcp_read ge
 		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
 			.map((el) => el.textContent ?? '')
 			.join(' ');
-		expect(alertText, 'Alert muss „Max" nennen').toContain('Max');
+		expect(alertText, 'Alert muss „Plus" nennen').toContain('Plus');
 	});
 
-	it('AK3: mit mcp_read sind Name, Laufzeit und „Token erzeugen" bedienbar, kein Max-Alert', async () => {
+	it('AK3: mit mcp_read sind Name, Laufzeit und „Token erzeugen" bedienbar, kein Plus-Alert', async () => {
 		const { container } = await renderWithRead(true);
 
 		const nameInput = container.querySelector('kol-input-text');
@@ -377,7 +377,7 @@ describe('ApiTokensSection — #1526 AK2/AK3: Erzeugen-Formular ohne mcp_read ge
 		const alertText = Array.from(container.querySelectorAll('kol-alert[_type="info"]'))
 			.map((el) => el.textContent ?? '')
 			.join(' ');
-		expect(alertText, 'kein Max-Alert bei Freigabe').not.toContain('Max');
+		expect(alertText, 'kein Plus-Alert bei Freigabe').not.toContain('Plus');
 	});
 });
 

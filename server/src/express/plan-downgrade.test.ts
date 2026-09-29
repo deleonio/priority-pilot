@@ -21,7 +21,7 @@ applyTestAuthEnv('plan-downgrade-test');
 
 let server: TestServer;
 
-const setPlan = async (email: string, plan: 'free' | 'pro' | 'max' | 'ultimate'): Promise<void> => {
+const setPlan = async (email: string, plan: 'free' | 'plus' | 'pro'): Promise<void> => {
 	await User.update({ plan }, { where: { email } });
 };
 
@@ -79,7 +79,7 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 	it('AK1/AK2: Downgrade auf free sperrt Entitlements, löscht aber keinen Datensatz und Lese-Routen bleiben 200', async () => {
 		const email = 'ak1-ak2@example.com';
 		const cookie = await server.register(email);
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		const { userId } = await seedFullPortfolio(email);
 		const before = await countPortfolio(userId);
 
@@ -91,7 +91,7 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 		const meBody = (await me.json()) as {
 			entitlements: Record<string, { allowed: boolean; requiredPlan: string }>;
 		};
-		for (const feature of ['groups', 'ai_assist', 'graph_write', 'location_reminders', 'mcp_readwrite']) {
+		for (const feature of ['groups', 'ai_assist', 'graph_weight', 'location_reminders', 'mcp_readwrite']) {
 			assert.equal(meBody.entitlements[feature]?.allowed, false, `${feature} muss nach Downgrade gesperrt sein`);
 			assert.ok(meBody.entitlements[feature]?.requiredPlan, `${feature} braucht requiredPlan`);
 		}
@@ -110,14 +110,14 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 	it('AK3: nach einer wirksamen Kündigung ist User.plan free und eine Schreibroute liefert 403 plan_required', async () => {
 		const email = 'ak3@example.com';
 		const cookie = await server.register(email);
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		const user = await User.findOne({ where: { email } });
 		const userId = user!.get('id') as number;
 		const subscription = await Subscription.create({
 			userId,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-AK3-CANCEL',
-			plan: 'max',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -147,13 +147,13 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 	it('AK4: ein erneutes Upgrade auf das vorherige Paket stellt Schreibzugriffe wieder her, Bestand bleibt unverändert', async () => {
 		const email = 'ak4@example.com';
 		const cookie = await server.register(email);
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		const { userId } = await seedFullPortfolio(email);
 		const before = await countPortfolio(userId);
 
 		process.env.MONETIZATION_ENFORCED = 'true';
 		await setPlan(email, 'free');
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 
 		const after = await countPortfolio(userId);
 		assert.deepEqual(after, before, 'Der ursprüngliche Bestand aus AK2 muss unverändert vorhanden sein');
@@ -173,50 +173,50 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 	it('AK5: die ai_usage-Zeile des Monats bleibt beim Downgrade erhalten, quotaRemaining ist unter free 0', async () => {
 		const email = 'ak5@example.com';
 		const cookie = await server.register(email);
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		const user = await User.findOne({ where: { email } });
 		const userId = user!.get('id') as number;
 		const yearMonth = new Date().toISOString().slice(0, 7);
-		await AiUsage.create({ userId, yearMonth, count: AI_ASSIST_MONTHLY_QUOTA.max });
+		await AiUsage.create({ userId, yearMonth, count: AI_ASSIST_MONTHLY_QUOTA.plus });
 
 		await setPlan(email, 'free');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		const row = await AiUsage.findOne({ where: { userId, yearMonth } });
 		assert.ok(row, 'Die ai_usage-Zeile des laufenden Monats darf beim Downgrade nicht gelöscht werden');
-		assert.equal(row?.get('count'), AI_ASSIST_MONTHLY_QUOTA.max, 'Der gebuchte Verbrauch bleibt unverändert stehen');
+		assert.equal(row?.get('count'), AI_ASSIST_MONTHLY_QUOTA.plus, 'Der gebuchte Verbrauch bleibt unverändert stehen');
 
 		const me = await server.json('/auth/me', { headers: { Cookie: cookie } });
 		const meBody = (await me.json()) as { entitlements: Record<string, { quotaRemaining?: number }> };
 		assert.equal(
 			meBody.entitlements.ai_assist?.quotaRemaining,
 			0,
-			'quotaRemaining muss unter free (Kontingent 0) 0 sein, auch wenn der Verbrauch aus dem max-Paket stammt',
+			'quotaRemaining muss unter free (Kontingent 0) 0 sein, auch wenn der Verbrauch aus dem plus-Paket stammt',
 		);
 	});
 
 	it('AK5: im Folgemonat trägt die neue yearMonth-Zeile das volle Kontingent des dann gebuchten Pakets', async () => {
 		const email = 'ak5-folgemonat@example.com';
 		const cookie = await server.register(email);
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		const user = await User.findOne({ where: { email } });
 		const userId = user!.get('id') as number;
 
 		// Der Monatswechsel wird über das Abrechnungsfenster modelliert, nicht über die Uhr:
 		// `getAiUsageCount` (aiQuotaMeter.ts:28) liest ausschließlich die Zeile des laufenden Monats.
-		// Der ausgeschöpfte max-Verbrauch liegt deshalb im Vormonat — der laufende Monat IST der
+		// Der ausgeschöpfte plus-Verbrauch liegt deshalb im Vormonat — der laufende Monat IST der
 		// Folgemonat nach dem Downgrade.
 		const now = new Date();
 		const previousYearMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
 			.toISOString()
 			.slice(0, 7);
 		const currentYearMonth = now.toISOString().slice(0, 7);
-		await AiUsage.create({ userId, yearMonth: previousYearMonth, count: AI_ASSIST_MONTHLY_QUOTA.max });
+		await AiUsage.create({ userId, yearMonth: previousYearMonth, count: AI_ASSIST_MONTHLY_QUOTA.plus });
 
 		await setPlan(email, 'free');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
-		// Im Folgemonat gebuchtes Paket: pro (weder das alte max noch das free des Downgrade-Monats).
+		// Im Folgemonat gebuchtes Paket: pro (weder das alte plus noch das free des Downgrade-Monats).
 		await setPlan(email, 'pro');
 
 		const me = await server.json('/auth/me', { headers: { Cookie: cookie } });
@@ -233,7 +233,7 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 		const previousRow = await AiUsage.findOne({ where: { userId, yearMonth: previousYearMonth } });
 		assert.equal(
 			previousRow?.get('count'),
-			AI_ASSIST_MONTHLY_QUOTA.max,
+			AI_ASSIST_MONTHLY_QUOTA.plus,
 			'Die Vormonatszeile bleibt als Historie unverändert erhalten (kein Datenverlust, AK5)',
 		);
 	});

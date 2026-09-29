@@ -76,7 +76,7 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 
 		const createButton = page.getByRole('button', { name: 'Token erzeugen' });
 		await expect(createButton).toBeDisabled();
-		const formAlert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Max' }).first();
+		const formAlert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Plus' }).first();
 		await expect(formAlert).toBeVisible();
 		const formAlertBox = await boundingBoxWhenLaidOut(formAlert);
 		const createButtonBox = await boundingBoxWhenLaidOut(createButton);
@@ -87,7 +87,10 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 
 		const scopeToggle = page.getByTestId('api-token-scope-toggle').first();
 		await expect(scopeToggle).toBeVisible();
-		const scopeAlert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Ultimate' }).first();
+		const scopeAlert = page
+			.locator('kol-alert[_type="info"]')
+			.filter({ hasText: /\bPro\b/ })
+			.first();
 		await expect(scopeAlert).toBeVisible();
 		const scopeToggleBox = await boundingBoxWhenLaidOut(scopeToggle);
 		const scopeAlertBox = await boundingBoxWhenLaidOut(scopeAlert);

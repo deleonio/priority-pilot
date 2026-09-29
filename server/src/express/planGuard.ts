@@ -21,6 +21,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
 	voice_input: 'Spracheingabe',
 	ai_assist: 'KI-Unterstützung',
 	graph_write: 'Abhängigkeiten im Aufgabengraph',
+	graph_weight: 'Gewichtete Abhängigkeiten',
 	location_reminders: 'Standort-Erinnerungen',
 	mcp_readwrite: 'Schreibzugriff über MCP',
 	mcp_read: 'Lesezugriff über MCP',
@@ -45,11 +46,14 @@ export interface PlanFeatureHandler extends RequestHandler {
  * die bestehende 401/403-Semantik nicht verschiebt. Der Plan kommt wie bei `requireRole` frisch aus
  * der DB statt aus dem Session-Snapshot: ein Paketwechsel muss sofort wirken, nicht erst nach
  * Re-Login. Im Pass-Through-Modus (keine Auth konfiguriert) bleibt der Guard wie `requireAuth`
- * deaktiviert.
+ * deaktiviert. `appliesTo` beschränkt die Prüfung auf passende Anfragen (z. B. nur mit `weight`, #1782).
  */
-export const requirePlanFeature = (feature: FeatureId): PlanFeatureHandler => {
+export const requirePlanFeature = (
+	feature: FeatureId,
+	appliesTo: (req: Request) => boolean = () => true,
+): PlanFeatureHandler => {
 	const handler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		if (!isAuthActive()) {
+		if (!isAuthActive() || !appliesTo(req)) {
 			next();
 			return;
 		}

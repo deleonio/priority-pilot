@@ -152,10 +152,10 @@ describe('NearbyCard — Paket-Badge im Kartenkopf (#1484 AK3/AK4)', () => {
 
 	const renderWithEntitlement = (allowed: boolean) => {
 		const entitlements: EntitlementMap = {
-			location_reminders: { allowed, requiredPlan: 'max' } as EntitlementMap['location_reminders'],
+			location_reminders: { allowed, requiredPlan: 'plus' } as EntitlementMap['location_reminders'],
 		};
 		return render(
-			<PlanProvider value={{ plan: allowed ? 'max' : 'free', entitlements }}>
+			<PlanProvider value={{ plan: allowed ? 'plus' : 'free', entitlements }}>
 				<NearbyCard />
 			</PlanProvider>,
 		);

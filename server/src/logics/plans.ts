@@ -7,24 +7,45 @@
  */
 
 /** Buchbares Paket eines Nutzers. Reihenfolge = Rangfolge (aufsteigend) und API-Vertrag. */
-export type Plan = 'free' | 'pro' | 'max' | 'ultimate';
-export const PLAN_VALUES: readonly Plan[] = ['free', 'pro', 'max', 'ultimate'];
+export type Plan = 'free' | 'plus' | 'pro';
+export const PLAN_VALUES: readonly Plan[] = ['free', 'plus', 'pro'];
+
+/**
+ * Altwerte aus dem Vier-Paket-Modell, die bis zur Konten-Umstellung (#1785) noch in `users.plan`
+ * stehen können: `max` wird wie `plus`, `ultimate` wie `pro` ausgewertet (#1782).
+ */
+const LEGACY_PLANS: Record<string, Plan> = { max: 'plus', ultimate: 'pro' };
+
+/** Gespeicherter Paketwert → ausgewertetes Paket; Altwerte laut {@link LEGACY_PLANS}, Unbekanntes wie `free`. */
+export const effectivePlan = (value: string): Plan =>
+	PLAN_VALUES.includes(value as Plan) ? (value as Plan) : (LEGACY_PLANS[value] ?? 'free');
 
 /** Stabile Feature-Identifier — von Guards, Fehlervertrag und UI-Badges referenziert. */
 export type FeatureId =
-	'groups' | 'voice_input' | 'ai_assist' | 'graph_write' | 'location_reminders' | 'mcp_readwrite' | 'mcp_read';
+	| 'groups'
+	| 'voice_input'
+	| 'ai_assist'
+	| 'graph_write'
+	| 'graph_weight'
+	| 'location_reminders'
+	| 'mcp_readwrite'
+	| 'mcp_read';
 export const FEATURE_IDS: readonly FeatureId[] = [
 	'groups',
 	'voice_input',
 	'ai_assist',
 	'graph_write',
+	'graph_weight',
 	'location_reminders',
 	'mcp_readwrite',
 	'mcp_read',
 ];
 
-/** Monatliches KI-Kontingent je Paket — nur für `ai_assist` relevant. */
-export const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = { free: 0, pro: 60, max: 110, ultimate: 200 };
+/**
+ * Monatliches KI-Kontingent je Paket — nur für `ai_assist` relevant. Übergangswerte der früheren
+ * Pakete Max/Ultimate, bis Fair Use (ADR 0018 Entscheidung 4) das Kontingent ablöst (#1782).
+ */
+export const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = { free: 0, plus: 110, pro: 200 };
 
 interface PlanPrice {
 	monthly: number;
@@ -45,31 +66,30 @@ export interface PlansCatalog {
 }
 
 /**
- * Paket-Matrix laut Gesamtkonzept. `voice_input` ist für jedes Paket enthalten, auch `free` — die
- * Spracheingabe läuft rein lokal im Browser, es gibt weder Server-Endpunkt noch Guard, der sie
- * einschränken könnte (#1524 AK1, macht die vormalige Pro-Sperre aus #1484 rückgängig). `mcp_read`
- * ist der lesende MCP-/API-Token-Zugriff, eine Stufe früher als `mcp_readwrite` (#1524 AK3).
+ * Paket-Matrix laut ADR 0018. `voice_input` ist für jedes Paket enthalten — die Spracheingabe läuft
+ * rein lokal im Browser (#1524 AK1). `graph_write` sind einfache Abhängigkeiten, `graph_weight` das
+ * Setzen eines Gewichts (#1782). `mcp_read` ist der lesende MCP-/API-Token-Zugriff, eine Stufe
+ * früher als `mcp_readwrite` (#1524 AK3).
  */
 const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
-	{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] },
-	{ feature: 'voice_input', allowedPlans: ['free', 'pro', 'max', 'ultimate'] },
-	{ feature: 'ai_assist', allowedPlans: ['pro', 'max', 'ultimate'] },
-	{ feature: 'graph_write', allowedPlans: ['max', 'ultimate'] },
-	{ feature: 'location_reminders', allowedPlans: ['max', 'ultimate'] },
-	{ feature: 'mcp_readwrite', allowedPlans: ['ultimate'] },
-	{ feature: 'mcp_read', allowedPlans: ['max', 'ultimate'] },
+	{ feature: 'groups', allowedPlans: ['plus', 'pro'] },
+	{ feature: 'voice_input', allowedPlans: ['free', 'plus', 'pro'] },
+	{ feature: 'ai_assist', allowedPlans: ['plus', 'pro'] },
+	{ feature: 'graph_write', allowedPlans: ['free', 'plus', 'pro'] },
+	{ feature: 'graph_weight', allowedPlans: ['plus', 'pro'] },
+	{ feature: 'location_reminders', allowedPlans: ['plus', 'pro'] },
+	{ feature: 'mcp_readwrite', allowedPlans: ['pro'] },
+	{ feature: 'mcp_read', allowedPlans: ['plus', 'pro'] },
 ];
 
 /**
- * Preise je Paket in Cent (Monats-/Quartals-/Jahresabrechnung), laut Konzepttabelle
- * (`docs/gesamtkonzept-monetarisierung.md:75-81`). `quarterly`/`yearly` sind der kaufmännisch
- * gerundete Monatspreis mal 3×0,9 bzw. 12×0,8 (#1494 AK3).
+ * Preise je Paket in Cent (Monats-/Quartals-/Jahresabrechnung), laut ADR 0018 Entscheidung 2.
+ * `quarterly`/`yearly` sind der kaufmännisch gerundete Monatspreis mal 3×0,9 bzw. 12×0,8 (#1494 AK3).
  */
 const PLAN_PRICES: Record<Plan, PlanPrice> = {
 	free: { monthly: 0, quarterly: 0, yearly: 0 },
-	pro: { monthly: 799, quarterly: 2157, yearly: 7670 },
-	max: { monthly: 1499, quarterly: 4047, yearly: 14390 },
-	ultimate: { monthly: 2499, quarterly: 6747, yearly: 23990 },
+	plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
+	pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
 };
 
 /**
@@ -82,20 +102,15 @@ export const PAYPAL_PLAN_IDS: Record<
 	Exclude<Plan, 'free'>,
 	Record<BillingPeriod, { envVar: string; amountCents: number }>
 > = {
+	plus: {
+		monthly: { envVar: 'PAYPAL_PLAN_ID_PLUS_MONTHLY', amountCents: PLAN_PRICES.plus.monthly },
+		quarterly: { envVar: 'PAYPAL_PLAN_ID_PLUS_QUARTERLY', amountCents: PLAN_PRICES.plus.quarterly },
+		yearly: { envVar: 'PAYPAL_PLAN_ID_PLUS_YEARLY', amountCents: PLAN_PRICES.plus.yearly },
+	},
 	pro: {
 		monthly: { envVar: 'PAYPAL_PLAN_ID_PRO_MONTHLY', amountCents: PLAN_PRICES.pro.monthly },
 		quarterly: { envVar: 'PAYPAL_PLAN_ID_PRO_QUARTERLY', amountCents: PLAN_PRICES.pro.quarterly },
 		yearly: { envVar: 'PAYPAL_PLAN_ID_PRO_YEARLY', amountCents: PLAN_PRICES.pro.yearly },
-	},
-	max: {
-		monthly: { envVar: 'PAYPAL_PLAN_ID_MAX_MONTHLY', amountCents: PLAN_PRICES.max.monthly },
-		quarterly: { envVar: 'PAYPAL_PLAN_ID_MAX_QUARTERLY', amountCents: PLAN_PRICES.max.quarterly },
-		yearly: { envVar: 'PAYPAL_PLAN_ID_MAX_YEARLY', amountCents: PLAN_PRICES.max.yearly },
-	},
-	ultimate: {
-		monthly: { envVar: 'PAYPAL_PLAN_ID_ULTIMATE_MONTHLY', amountCents: PLAN_PRICES.ultimate.monthly },
-		quarterly: { envVar: 'PAYPAL_PLAN_ID_ULTIMATE_QUARTERLY', amountCents: PLAN_PRICES.ultimate.quarterly },
-		yearly: { envVar: 'PAYPAL_PLAN_ID_ULTIMATE_YEARLY', amountCents: PLAN_PRICES.ultimate.yearly },
 	},
 };
 
@@ -108,20 +123,15 @@ export const PLAY_PRODUCTS: Record<
 	Exclude<Plan, 'free'>,
 	Record<BillingPeriod, { productId: string; basePlanId: string }>
 > = {
+	plus: {
+		monthly: { productId: 'plus', basePlanId: 'monthly' },
+		quarterly: { productId: 'plus', basePlanId: 'quarterly' },
+		yearly: { productId: 'plus', basePlanId: 'yearly' },
+	},
 	pro: {
 		monthly: { productId: 'pro', basePlanId: 'monthly' },
 		quarterly: { productId: 'pro', basePlanId: 'quarterly' },
 		yearly: { productId: 'pro', basePlanId: 'yearly' },
-	},
-	max: {
-		monthly: { productId: 'max', basePlanId: 'monthly' },
-		quarterly: { productId: 'max', basePlanId: 'quarterly' },
-		yearly: { productId: 'max', basePlanId: 'yearly' },
-	},
-	ultimate: {
-		monthly: { productId: 'ultimate', basePlanId: 'monthly' },
-		quarterly: { productId: 'ultimate', basePlanId: 'quarterly' },
-		yearly: { productId: 'ultimate', basePlanId: 'yearly' },
 	},
 };
 
@@ -160,7 +170,7 @@ export type EntitlementMap = Record<FeatureId, FeatureEntitlement>;
 
 /** Kleinstes Paket der Rangfolge, das `feature` enthält. */
 const requiredPlanFor = (entry: FeatureCatalogEntry): Plan =>
-	PLAN_VALUES.find((plan) => entry.allowedPlans.includes(plan)) ?? 'ultimate';
+	PLAN_VALUES.find((plan) => entry.allowedPlans.includes(plan)) ?? 'pro';
 
 /**
  * Entitlement-Map je Feature für `plan`. Bewusst unabhängig vom Rollout-Schalter: die Map ist die
@@ -171,8 +181,10 @@ const requiredPlanFor = (entry: FeatureCatalogEntry): Plan =>
  * `aiAssistConsumed` ist der bereits verbrauchte Teil des Monatskontingents (#1459, T4). Der
  * Parameter bleibt optional: `getEntitlements` läuft auch dort, wo es keinen Nutzer und damit
  * keinen Verbrauch gibt (Pass-Through-Modus in `routes/auth.ts`, `shouldBlockFeature`).
+ * `plan` stammt oft ungeprüft aus `users.plan` und wird über {@link effectivePlan} ausgewertet.
  */
-export function getEntitlements(plan: Plan, aiAssistConsumed = 0): EntitlementMap {
+export function getEntitlements(stored: Plan, aiAssistConsumed = 0): EntitlementMap {
+	const plan = effectivePlan(stored);
 	const map = {} as EntitlementMap;
 	for (const entry of FEATURE_CATALOG) {
 		const allowed = entry.allowedPlans.includes(plan);
