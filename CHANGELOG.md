@@ -170,6 +170,7 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(native): scaffold android app in remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1708
 - docs(adr): ADR 0017 Store-Billing über Google Play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1709
 - feat(server): Benachrichtigungen zusätzlich über FCM versenden by @deleonio in https://github.com/deleonio/priority-pilot/pull/1710
+- feat(server): Benachrichtigungen zusätzlich über FCM versenden by @deleonio in https://github.com/deleonio/priority-pilot/pull/1710
 - feat(frontend): hide paypal purchase in android app plans view by @deleonio in https://github.com/deleonio/priority-pilot/pull/1711
 - feat(frontend): Konto löschen in den Einstellungen mit sequenzieller Bestätigung by @deleonio in https://github.com/deleonio/priority-pilot/pull/1712
 - feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
