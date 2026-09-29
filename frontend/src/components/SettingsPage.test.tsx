@@ -1447,3 +1447,103 @@ describe('SettingsPage — Säulen-Neuberechnung (#1614)', () => {
 		expect(container.querySelector('[data-testid="recalc-modal"]')).toBeNull();
 	});
 });
+
+describe('SettingsPage – #1704: Test-Push-Ergebnis auswerten', () => {
+	// Der „Push testen"-Button wertet `sent` aus: 0 erreichte Geräte sind kein Erfolg (#1704).
+	// Genau dieser Zweig war der ursprüngliche Bug — Erfolgsmeldung trotz 0 Geräten.
+	const clickTestPush = (container: HTMLElement): void => {
+		clickKolButton(container.querySelector('kol-button[_label="Push testen"]'));
+	};
+
+	it('zeigt bei sent=0 den Warn-Alert „Kein Gerät erreicht"', async () => {
+		pushState.enabled = true;
+		(apiMocks.sendTestPush ??= vi.fn()).mockResolvedValueOnce({ sent: 0, quote: { text: '', author: '' } });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		clickTestPush(container);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Kein Gerät erreicht"]')).not.toBeNull());
+		expect(container.querySelector('kol-alert[_label="Test-Push gesendet"]')).toBeNull();
+	});
+
+	it('zeigt bei sent >= 1 den Erfolg-Alert', async () => {
+		pushState.enabled = true;
+		(apiMocks.sendTestPush ??= vi.fn()).mockResolvedValueOnce({ sent: 1, quote: { text: '', author: '' } });
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		clickTestPush(container);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Test-Push gesendet"]')).not.toBeNull());
+		expect(container.querySelector('kol-alert[_label="Kein Gerät erreicht"]')).toBeNull();
+	});
+
+	it('zeigt bei API-Fehler den Fehler-Alert', async () => {
+		pushState.enabled = true;
+		(apiMocks.sendTestPush ??= vi.fn()).mockRejectedValueOnce(new Error('offline'));
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		clickTestPush(container);
+
+		await waitFor(() => expect(container.querySelector('kol-alert[_label="Fehler"]')).not.toBeNull());
+	});
+});
+
+// ── #1792 (AK3, Spec docs/spec/issue-1792.md) ──────────────────────────────────────────────────
+
+/**
+ * Rote Spec-Tests für #1792 — Einstellungs-Schalter „Balance-Priorisierung" (Allgemein-Tab).
+ *
+ * Provenienz: rote Spec-Tests (Spec-Commit `e22e212e` — seinerzeit lief die Schalter-Query leer
+ * und die Assertion schlug fehl, kein Import-/Syntaxfehler). Vertrag: er spiegelt
+ * denselben localStorage-Key wie der Ansichts-Schalter (`pp-balance-priority`, Default **an**)
+ * und schreibt ihn beim Umlegen — Muster der KI-Schalter-Tests (#1525-Block oben).
+ */
+describe('SettingsPage – #1792: Balance-Priorisierung Schalter (AK3)', () => {
+	/** KoliBri-Adapter setzt numerische/boolesche Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	const queryBalanceSwitch = (container: HTMLElement) =>
+		container.querySelector('kol-input-checkbox[_label="Balance-Priorisierung"]');
+
+	afterEach(() => {
+		localStorage.removeItem('pp-balance-priority');
+	});
+
+	it('spiegelt den gespeicherten Wert: ohne Eintrag an, bei pp-balance-priority=false aus', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			const toggle = queryBalanceSwitch(container);
+			expect(toggle, 'Balance-Schalter fehlt in den Einstellungen').not.toBeNull();
+			expect(bound(toggle!, '_checked')).toBe('true');
+		});
+		cleanup();
+
+		localStorage.setItem('pp-balance-priority', 'false');
+		const second = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			const toggle = queryBalanceSwitch(second.container);
+			expect(toggle, 'Balance-Schalter fehlt in den Einstellungen').not.toBeNull();
+			expect(bound(toggle!, '_checked')).toBe('false');
+		});
+	});
+
+	it('schreibt beim Umlegen den dokumentierten Key', async () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		await waitFor(() => {
+			const toggle = queryBalanceSwitch(container);
+			expect(toggle, 'Balance-Schalter fehlt in den Einstellungen').not.toBeNull();
+		});
+
+		await act(async () => {
+			const toggle = queryBalanceSwitch(container)!;
+			(toggle as unknown as { _on: { onChange: (e: unknown, v: boolean) => void } })._on.onChange(
+				{ target: toggle },
+				false,
+			);
+		});
+		expect(localStorage.getItem('pp-balance-priority')).toBe('false');
+	});
+});

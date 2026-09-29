@@ -39,7 +39,10 @@ import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { geocodeRateLimiter } from './routes/geocodeRateLimit.js';
 import { createBillingRouter } from './routes/billing.js';
 import { createBillingSubscriptionsRouter } from './routes/billingSubscriptions.js';
+import { createBillingGoogleRouter } from './routes/billingGoogle.js';
 import type { PaypalVerifier, PaypalClient } from '../logics/paypal.js';
+import type { GooglePlayClient } from '../logics/googlePlay.js';
+import type { GoogleKeysSource } from '../logics/googleOidc.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ParseSearchParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -81,6 +84,10 @@ export interface AppDeps {
 	paypalVerifier?: PaypalVerifier;
 	/** Abo-Client für Anlegen/Kündigen/Wechseln (#1505) — Tests injizieren hieran einen Fake. */
 	paypalClient?: PaypalClient;
+	/** Play Developer API für Käufe aus der Android-App (#1687) — Tests injizieren hieran einen Fake. */
+	googlePlayClient?: GooglePlayClient;
+	/** Googles Signaturschlüssel für RTDN (#1689) — Tests reichen eigene herein. */
+	googleKeys?: GoogleKeysSource;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -91,7 +98,14 @@ export const createApp = (deps: AppDeps = {}) => {
 	// `requireAuth` gemountet — die Webhook-Route braucht den unveränderten Rohbody für die
 	// Signaturprüfung, und PayPal ruft ohne Session und ohne CSRF-Token auf (Muster
 	// `inviteLinksPublicRouter`, `plansPublicRouter`). Der Router bringt sein `express.raw()` selbst mit.
-	app.use(createBillingRouter({ paypalVerifier: deps.paypalVerifier, mailSender: deps.mailSender }));
+	app.use(
+		createBillingRouter({
+			paypalVerifier: deps.paypalVerifier,
+			mailSender: deps.mailSender,
+			googlePlayClient: deps.googlePlayClient,
+			googleKeys: deps.googleKeys,
+		}),
+	);
 
 	// JSON-Body parsen.
 	app.use(express.json());
@@ -285,6 +299,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Abo-Verwaltung: Anlegen, Kündigen, Wechseln und Rechnungsabruf (#1505, T6d). Bewusst HINTER
 	// `requireAuth` — anders als der öffentliche `createBillingRouter` (Webhook + Rückkehr-URL, #1495).
 	app.use(createBillingSubscriptionsRouter({ paypalClient: deps.paypalClient }));
+	// Kauf in der Android-App (#1687, ADR 0017), ebenfalls hinter Session und CSRF.
+	app.use(createBillingGoogleRouter({ googlePlayClient: deps.googlePlayClient }));
 
 	// Gespeicherte Orte (#1342): pro Nutzer benannte Adressen für das Adressfeld von Aufgabe/Serie.
 	app.use(placeFavoritesRouter);

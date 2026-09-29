@@ -50,6 +50,21 @@ export const berlinDay = (timestamp: string): string => {
 	return Number.isNaN(d.getTime()) ? timestamp.slice(0, 10) : berlinFmt.format(d);
 };
 
+// Kurzstempel für Lauf-Tabellen (Fokus-Report): Tag + Uhrzeit in einem Feld.
+const stampFmt = new Intl.DateTimeFormat('de-DE', {
+	timeZone: 'Europe/Berlin',
+	day: '2-digit',
+	month: '2-digit',
+	hour: '2-digit',
+	minute: '2-digit',
+});
+
+/** Tag + Uhrzeit in Berlin-Lokalzeit („03.09., 14:05“) für die Zeile je Lauf; unlesbare Stempel roh. */
+export const berlinStamp = (timestamp: string): string => {
+	const d = new Date(timestamp);
+	return Number.isNaN(d.getTime()) ? timestamp : stampFmt.format(d);
+};
+
 /** ISO-Woche eines Berlin-Kalendertags („2026-W35“) — Anker ist der Donnerstag der Woche. */
 export const isoWeek = (day: string): string => {
 	const d = new Date(`${day}T12:00:00Z`);

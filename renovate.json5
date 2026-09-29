@@ -78,12 +78,13 @@
 
 	packageRules: [
 		{
-			// pi gesammelt (CLI + Erweiterungen) als eigene Gruppe, ohne Automerge: Beide aendern das
-			// VERHALTEN des Agenten (Runtime, Subagents, MCP, LSP), nicht nur Bibliothekscode — ein
-			// stiller Merge verschöbe die Messbasis zwischen zwei Pipeline-Laeufen.
+			// pi gesammelt (CLI + Erweiterungen) als eigene Gruppe: Beide aendern das VERHALTEN des
+			// Agenten (Runtime, Subagents, MCP, LSP), nicht nur Bibliothekscode — als ein PR statt
+			// getrennter Streams, damit CLI und Erweiterungen zueinander passend bleiben. Automerge
+			// wie alle Nicht-Major-Updates; ein automatischer Bump kann die Kosten-Messbasis
+			// zwischen zwei Pipeline-Laeufen verschieben (bewusst in Kauf genommen, s. .costs/).
 			matchFileNames: ['.pi/settings.json', '.github/actions/setup-pi/action.yml'],
 			groupName: 'pi (CLI + Erweiterungen)',
-			automerge: false,
 			labels: ['dependencies', 'pi'],
 		},
 		{
@@ -136,15 +137,17 @@
 			labels: ['dependencies', 'major'],
 		},
 		{
-			// KoliBri (@public-ui/*) gemeinsam und nie automatisch. Die vier Pakete muessen
-			// zueinander passen — ein einzeln gebumptes Theme gegen alte Komponenten bricht das
-			// Styling stumm. Kein Automerge, weil das Frontend derzeit bewusst auf einem
-			// dev-Snapshot mit Dunkelmodus steht (PR #1405): ein Renovate-Bump auf den
-			// `latest`-Tag waere ein Downgrade und drehte den Dunkelmodus zurueck. Der Re-Pin
-			// auf 4.4.1 stable passiert von Hand, sobald das Release da ist.
+			// KoliBri (@public-ui/*) gemeinsam. Die vier Pakete muessen zueinander passen — ein
+			// einzeln gebumptes Theme gegen alte Komponenten bricht das Styling stumm. Automerge
+			// wie alle Nicht-Major-Updates. ACHTUNG: Das Frontend steht bewusst auf einem
+			// dev-Snapshot mit Dunkelmodus (4.5.0-rc.0, PR #1405) — ein Bump auf den stabilen
+			// `latest`-Tag ist semver-technisch KEIN Major (major.minor.patch bleiben gleich) und
+			// mergt unter dieser Regel automatisch durch, waere aber ein Downgrade und drehte den
+			// Dunkelmodus zurueck. Bewusst in Kauf genommen (s. PR, das diese Zeile geaendert hat);
+			// wer das nicht will, muss @public-ui/** vor dem naechsten stable Release wieder aus
+			// dem Automerge nehmen.
 			matchPackageNames: ['@public-ui/**'],
 			groupName: 'KoliBri (@public-ui)',
-			automerge: false,
 			labels: ['dependencies', 'kolibri'],
 		},
 	],

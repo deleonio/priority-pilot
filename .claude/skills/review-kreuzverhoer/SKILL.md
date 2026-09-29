@@ -95,7 +95,9 @@ Check the diff against these questions:
   a finding ("tautological test"), not a plus. Also a finding: a universal claim ("for all
   X…") without ensuring the checked set isn't empty.
 - **Project conventions** ([project.md → conventions](../../../.ai-knowledge/project.md#konventionen)): tabs, `strict`, ESM with `.js` imports,
-  no type assertions to suppress errors, exactly one central Prettier config.
+  no type assertions to suppress errors, exactly one central Prettier config, inline docs per
+  [code documentation](../../../.ai-knowledge/project.md#code-dokumentation-jsdoc) (history in a comment or a comment
+  contradicting the code is a finding).
 - **Mobile-first for UI changes** ([project.md → mobile-first](../../../.ai-knowledge/project.md#mobile-first-frontend)): new `@media` rules as
   `min-width` (upward cascade), no `max-width` downgrade from desktop. Check wide tables/grids without
   a narrow alternative at phone width (avoid horizontal scrolling of the core content). If a

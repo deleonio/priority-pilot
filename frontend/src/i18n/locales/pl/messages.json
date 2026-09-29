@@ -22,5 +22,30 @@
 		"noTasks": "Brak zadań",
 		"noSeries": "Brak serii",
 		"noCategories": "Brak kategorii"
+	},
+	"accountDelete": {
+		"title": "Usuń konto",
+		"intent": "Czy na pewno chcesz usunąć swoje konto?",
+		"scope": "Twoje konto zostanie trwale usunięte wraz ze wszystkimi zadaniami, seriami, filarami, kategoriami i ustawieniami. Tej operacji nie można cofnąć.",
+		"cancel": "Anuluj",
+		"next": "Usuń",
+		"confirm": "Usuń trwale",
+		"busy": "Usuwanie …",
+		"refusedLabel": "Nie można usunąć",
+		"refused": {
+			"subscription_active": "Twoje konto ma jeszcze aktywną subskrypcję. Najpierw anuluj ją w ustawieniach, a potem usuń konto.",
+			"last_group_admin": "Jesteś ostatnim administratorem grupy, w której są inni członkowie. Najpierw nadaj komuś innemu rolę administratora w ustawieniach grupy albo rozwiąż grupę."
+		}
+	},
+	"billing": {
+		"managedBy": "Subskrypcja aktywna, zarządzana przez {{provider}}",
+		"manageInPlay": "Zarządzaj w Google Play",
+		"restore": {
+			"action": "Przywróć zakupy",
+			"busy": "Przywracanie …",
+			"done": "Twoje zakupy z Google Play zostały przywrócone.",
+			"none": "Na Twoim koncie Google nie ma zakupów do przywrócenia.",
+			"failed": "Nie udało się przywrócić zakupów. Spróbuj ponownie później."
+		}
 	}
 }

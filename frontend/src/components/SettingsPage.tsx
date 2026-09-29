@@ -22,6 +22,7 @@ import { notifyProfileChanged } from '../lib/profileChanged';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiFeaturesEnabled } from '../lib/aiPreferences';
+import { dismissBalanceHint, readBalancePreferences, storeBalancePreferences } from '../lib/balancePreferences';
 import { planLabel } from '../lib/planOffers';
 import { setupTabsFocusRing } from '../lib/tabsFocusRing';
 import { AppearanceSetting } from './AppearanceSetting';
@@ -32,6 +33,7 @@ import { AdminUsersSection } from './AdminUsersSection';
 import { ApiTokensSection } from './ApiTokensSection';
 import { PlaceFavoritesSection } from './PlaceFavoritesSection';
 import { CategoryList } from './CategoryList';
+import { DeleteAccountButton } from './DeleteAccount';
 import { GroupsSection } from './GroupsSection';
 import { LlmSettings } from './LlmSettings';
 import { OwnPlanCard } from './OwnPlanCard';
@@ -171,6 +173,17 @@ export const SettingsPage = ({
 	// Mikrofon-Berechtigung angefordert; nur bei erteilter Berechtigung wird die Einstellung aktiviert
 	// und persistiert. Wird sie verweigert, bleibt der Schalter aus und ein Hinweis erscheint.
 	const { enabled: voiceAutostart, setEnabled: setVoiceAutostart } = useVoiceAutostart();
+	// #1792: Balance-Priorisierung — spiegelt denselben localStorage-Key wie der Ansichts-Schalter
+	// in der Aufgabenliste (Default **an**).
+	const [balancePriority, setBalancePriority] = useState(() => readBalancePreferences().balancePriority);
+	const changeBalancePriority = useCallback((checked: boolean): void => {
+		setBalancePriority(checked);
+		storeBalancePreferences({ balancePriority: checked });
+		// Explizites Abschalten ist die getroffene Wahl — der Einmal-Hinweis kehrt nicht zurück (AK4).
+		if (!checked) {
+			dismissBalanceHint();
+		}
+	}, []);
 	// #1183: Master-Schalter „Animationen" (Default aus, pro Gerät über localStorage). Konfetti
 	// (#1169) ist der erste Konsument — das Gate sitzt in `launchConfetti`, nicht hier.
 	const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } = useAnimationsEnabled();
@@ -231,7 +244,7 @@ export const SettingsPage = ({
 		toggle: togglePush,
 	} = usePushSubscription();
 
-	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
+	const [pushTestResult, setPushTestResult] = useState<'success' | 'none' | 'error' | null>(null);
 
 	// #1219 AK6: Anzeigename (Tab „Allgemein") — Server ist die Quelle (Spalte `users.displayName`),
 	// initial per GET /profile nachgeladen. Nutzer-Eingabe schlägt den nachlaufenden GET
@@ -412,6 +425,23 @@ export const SettingsPage = ({
 							{/* Bildwahl für die Lebensbalance auf der Startseite — gehört zur Darstellung, nicht
 									zu den Animationen: Sie gilt auch, wenn gar nichts animiert wird. */}
 							<BalanceVariantSetting />
+							{/* #1792: Sortierverhalten der Aufgabenliste — schreibt denselben localStorage-Key
+									wie der Ansichts-Schalter „Balance-Priorisierung“ in der Aufgabenansicht.
+									#971-Muster: Switch je in einer `.settings-switch-row` — mobil volle Breite im
+									Stack-Layout, desktop eine Zeile. */}
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label="Balance-Priorisierung"
+									_variant="switch"
+									_hint="Bei deaktivierter Balance-Priorisierung sortiert die Aufgabenliste wieder nach der Original-Priorität. Die Wahl gilt in diesem Browser."
+									_checked={balancePriority}
+									_on={{
+										onChange: (_event, value) => {
+											changeBalancePriority(value === true);
+										},
+									}}
+								/>
+							</div>
 							{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
 									Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
 							<div className="settings-switch-row">
@@ -552,8 +582,8 @@ export const SettingsPage = ({
 										onClick: () => {
 											api
 												.sendTestPush()
-												.then(() => {
-													setPushTestResult('success');
+												.then(({ sent }) => {
+													setPushTestResult(sent > 0 ? 'success' : 'none');
 												})
 												.catch(() => {
 													setPushTestResult('error');
@@ -567,6 +597,11 @@ export const SettingsPage = ({
 									Zitat unterwegs.
 								</KolAlert>
 							)}
+							{pushTestResult === 'none' && (
+								<KolAlert _type="warning" _label="Kein Gerät erreicht">
+									Für dieses Konto ist kein Gerät erreichbar. Schalte Push-Nachrichten aus und wieder ein.
+								</KolAlert>
+							)}
 							{pushTestResult === 'error' && (
 								<KolAlert _type="error" _label="Fehler">
 									Push fehlgeschlagen.
@@ -574,6 +609,15 @@ export const SettingsPage = ({
 							)}
 						</div>
 					</KolCard>
+
+					{/* #1802: „Konto löschen“ gehört zu den folgereichen, selten genutzten Aktionen — der
+					    Auslöser sitzt deshalb zugeklappt am Ende des Allgemein-Tabs, damit das Durchsehen
+					    der Einstellungen nichts versehentlich auslöst. Neutrale Überschrift: der Klapp-
+					    Toggle ist selbst ein Button und darf nicht „Konto löschen“ heißen; Rot erscheint
+					    erst im Bestätigungsdialog (docs/ux-pattern-sequential-confirmation.md). */}
+					<KolAccordion className="settings-accordion" _label="Konto und Daten" _level={2}>
+						<DeleteAccountButton userId={currentUserId} />
+					</KolAccordion>
 				</div>
 				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
 					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte

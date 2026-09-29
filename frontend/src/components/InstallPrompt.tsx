@@ -1,5 +1,6 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
+import { isNativeChannel } from '../lib/platform';
 
 type InstallPromptProps = {
 	onDismiss?: () => void;
@@ -103,8 +104,8 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 		}
 	};
 
-	// Nicht anzeigen, wenn bereits installiert oder kein Prompt verfügbar
-	if (isInstalled || !showPrompt) {
+	// Nicht anzeigen, wenn bereits installiert, kein Prompt verfügbar oder in der nativen App (ADR 0016)
+	if (isInstalled || !showPrompt || isNativeChannel()) {
 		return null;
 	}
 

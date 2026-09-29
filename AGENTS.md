@@ -8,6 +8,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 - [Projekt & Konventionen](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Konventionen, Mobile-First, Datenbank
 - [Ticket-Erstellung](.claude/skills/ticket-create/SKILL.md) — neue Tickets template-konform erfassen, gezielte Nachfragen an den Autor
+- [Ticket-Baum](.claude/skills/ticket-tree/SKILL.md) — größeres Vorhaben als Lösungsplan und Issue-Baum unter einem Epic: Issues höchstens „Mittel“, native `blocked-by`, Reihenfolge in Wellen
 - [Ticket-Triage](.claude/skills/ticket-triage/SKILL.md) — Analyse offener GitHub-Issues
 - [Ticket-UX](.claude/skills/ticket-ux/SKILL.md) — UX-Beratung für UI-Tickets
 - [Ticket-Spec](.claude/skills/ticket-spec/SKILL.md) — rote Tests (Vertrag) für `ai:needs-spec`-Issues
@@ -20,14 +21,16 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Dauergedächtnis](.ai-memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))
 - [Browser-MCP](docs/browser-mcp.md) — laufende App visuell prüfen (`pnpm ui:inspect` + Playwright-MCP)
 - [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
+- [Native Apps](docs/native-apps.md) — Android-App mit Capacitor im Remote-Modus: Aufbau von `native/`, lokal bauen, Icons erzeugen
 - [Anmeldung & Zugang](docs/auth-setup.md) — Google-OAuth-Client, Allowlist, Konto entsteht beim ersten Login, Admin-Rollen, Fehlerbilder
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Diagramm + Tabellen zum label-getriebenen Ticket-Flows
 - [Kosten-Baseline #912](docs/kosten-baseline-912.md) — Token/Kosten eines Tickets über alle Phasen
-- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch (superseded)](docs/adr/0006-issue-storage-state-branch.md), [0007 Issue-Storage = Harness-Branch (Transport superseded)](docs/adr/0007-issue-storage-harness-branch.md), [0008 Delegation + Mentor-Eskalation](docs/adr/0008-delegation-und-mentor-eskalation.md), [0009 Phasen-Ausgaben = Harness-Kommentar](docs/adr/0009-issue-storage-harness-kommentar.md), [0010 Phasen-Notizen = Workflow-Artefakt](docs/adr/0010-issue-storage-workflow-artefakt.md), [0011 Worktree-Isolation (Vorschlag)](docs/adr/0011-umsetzung-worktree-isolation.md), [0012 MCP-Endpunkt ohne offizielles SDK](docs/adr/0012-mcp-endpunkt-ohne-sdk.md), [0013 Zahlungsweg PayPal-Abos](docs/adr/0013-zahlungsweg-paypal-abos.md), [0014 Paketgrenzen ohne Angebots-Dialog](docs/adr/0014-paket-angebote-ohne-dialog.md), [0015 Öffentliche Website, App unter /app/](docs/adr/0015-oeffentliche-website-und-app-unter-app.md)
+- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch (superseded)](docs/adr/0006-issue-storage-state-branch.md), [0007 Issue-Storage = Harness-Branch (Transport superseded)](docs/adr/0007-issue-storage-harness-branch.md), [0008 Delegation + Mentor-Eskalation](docs/adr/0008-delegation-und-mentor-eskalation.md), [0009 Phasen-Ausgaben = Harness-Kommentar](docs/adr/0009-issue-storage-harness-kommentar.md), [0010 Phasen-Notizen = Workflow-Artefakt](docs/adr/0010-issue-storage-workflow-artefakt.md), [0011 Worktree-Isolation (Vorschlag)](docs/adr/0011-umsetzung-worktree-isolation.md), [0012 MCP-Endpunkt ohne offizielles SDK](docs/adr/0012-mcp-endpunkt-ohne-sdk.md), [0013 Zahlungsweg PayPal-Abos](docs/adr/0013-zahlungsweg-paypal-abos.md), [0014 Paketgrenzen ohne Angebots-Dialog](docs/adr/0014-paket-angebote-ohne-dialog.md), [0015 Öffentliche Website, App unter /app/](docs/adr/0015-oeffentliche-website-und-app-unter-app.md), [0016 Nativer Wrapper Capacitor (Remote-Modus)](docs/adr/0016-nativer-wrapper-capacitor-remote-modus.md), [0017 Store-Billing Google Play](docs/adr/0017-store-billing-google-play.md)
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Zifferblatt-Konzept](docs/zifferblatt-konzept.md) — die fünf Bilder der Lebensbalance: gemeinsame Kennzahl, Rahmen, Regeln für ein neues Bild
+- [Fürsorge-Tonalität](docs/fuersorge-tonalitaet.md) — Ton, Prüffrage und Beispieltexte (10 Sprachen) für Fürsorge-Hinweise, Pushes und Vorschläge
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
 - [Design-Optimierungsplan](docs/design-optimierungsplan.md) — offene Findings aus Impeccable-Audit + Dashboard-Critique, Arbeitsliste mit Kommandos
 
@@ -41,6 +44,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   — und so wenig wie irgend möglich; jede Zeile ist Wartungslast. Ein Test entsteht nur, wenn er etwas **auswertet**, einen **Spiegel** absichert
   oder vor **stillen/teuren** Ausfällen schützt
   ([TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)).
+  Gilt auch für Code-Kommentare/JSDoc ([Code-Dokumentation](.ai-knowledge/project.md#code-dokumentation-jsdoc)).
 - **Turns bündeln:** Erst kurz planen, dann gebündelt ausführen — jeder Turn reißt den Kontext
   erneut an den LLM (Cache-Read) und zählt im Abo als eigener Prompt. Mechanisch heißt das:
   unabhängige Lese-/Such-Schritte in **einem** Tool-Call statt fünf einzelnen, Shell-Befehle
@@ -150,8 +154,8 @@ von `pnpm test` — nur separat über `test:e2e`.
 
 ## Website
 
-`website/` ist die öffentliche, statisch vorgerenderte Landingpage (de an `/`, en unter `/en/`), die App
+`website/` ist die öffentliche, statisch vorgerenderte Landingpage (de an `/`, die übrigen neun App-Sprachen unter `/<sprache>/`), die App
 liegt unter `/app/` ([ADR 0015](docs/adr/0015-oeffentliche-website-und-app-unter-app.md)). Texte in
-`website/src/i18n/{de,en}.json`, Preise kommen aus `server/src/logics/plans.ts`, keine Kopie.
+`website/src/i18n/<sprache>.json`, Preise kommen aus `server/src/logics/plans.ts`, keine Kopie.
 `pnpm --filter website build` baut nach `website/dist`, `pnpm --filter website test` (Vitest) und
 `pnpm --filter website test:e2e` (Playwright, 375 px und Desktop) prüfen sie.

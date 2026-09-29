@@ -16,6 +16,7 @@ const runtime = (overrides: Partial<ProviderRuntime> = {}): ProviderRuntime => (
 	model: 'some-model',
 	label: 'Example',
 	keySource: 'EXAMPLE_API_KEY',
+	guardEndpoint: false,
 	...overrides,
 });
 
@@ -82,6 +83,18 @@ describe('runProviderTest', () => {
 
 		assert.equal(result.ok, false);
 		assert.match(result.message ?? '', /z\.ai.*fetch failed/);
+	});
+
+	it('SSRF (F-2): nutzerdefinierter Endpoint auf interne Adresse wird nicht abgerufen', async () => {
+		const fetchMock = mockFetch(200, { choices: [{ message: { content: '{"ok": true}' } }] });
+
+		const result = await runProviderTest(
+			runtime({ chatEndpoint: 'http://127.0.0.1:3000/v1/chat/completions', guardEndpoint: true }),
+		);
+
+		assert.equal(result.ok, false);
+		assert.match(result.message ?? '', /interne Adresse/);
+		assert.equal(fetchMock.sent.url, '', 'fetch darf nicht aufgerufen werden');
 	});
 
 	it('Antwort ohne choices-Inhalt: klarer Format-Fehler statt ok', async () => {

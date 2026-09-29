@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Subscription } from '../../models/index.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import Invoice from '../../models/invoice.js';
 import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
-import { createPaypalClient, paypalPlanIdFor, type PaypalClient } from '../../logics/paypal.js';
+import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 
 /**
@@ -19,10 +20,9 @@ import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 
 export interface BillingSubscriptionsDeps {
 	/** Injizierbarer Abo-Client — Tests injizieren einen Fake (Muster `paypalVerifier`). */
-	paypalClient?: PaypalClient;
+	paypalClient?: PaypalProviderDeps['client'];
 }
 
-const PROVIDER = 'paypal';
 const PAID_PLANS = PLAN_VALUES.filter((plan): plan is Exclude<Plan, 'free'> => plan !== 'free');
 const PERIODS = ['monthly', 'quarterly', 'yearly'] as const;
 type Period = (typeof PERIODS)[number];
@@ -35,6 +35,16 @@ const PERIOD_MS: Record<Period, number> = {
 const isPaidPlan = (value: unknown): value is Exclude<Plan, 'free'> =>
 	PAID_PLANS.includes(value as Exclude<Plan, 'free'>);
 const isPeriod = (value: unknown): value is Period => PERIODS.includes(value as Period);
+
+/**
+ * Store-Apps kaufen nie über PayPal (ADR 0016). Zweites Netz gegen falsch verdrahtete Oberflächen,
+ * kein Sicherheitsmechanismus: der Header `X-Client-Channel` kommt vom Client.
+ */
+const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
+	if (!['play', 'appstore'].includes(req.get('X-Client-Channel') ?? '')) return false;
+	sendError(res, 409, 'In der App ist kein Kauf über PayPal möglich.');
+	return true;
+};
 
 type ApprovalDto = { approvalUrl: string };
 type ReviseDto = { approvalUrl?: string };
@@ -58,7 +68,9 @@ const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
 	const router = Router();
-	const client: PaypalClient = deps.paypalClient ?? createPaypalClient();
+	// Kauf im Web gibt es nur bei PayPal (ADR 0013); Store-Kanäle blockt `rejectStoreChannel`.
+	const provider = createPaypalProvider({ client: deps.paypalClient });
+	const { checkout } = provider;
 
 	// POST /billing/subscriptions — legt ein Abo an und liefert die Zustimmungs-URL (AK1). Ein
 	// laufendes oder ausstehendes Abo desselben Nutzers blockt einen zweiten Anlauf (AK2).
@@ -68,22 +80,22 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
+		if (rejectStoreChannel(req, res)) return;
 		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
 			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
 			return;
 		}
-		const existing = await Subscription.findOne({ where: { userId, status: ['active', 'approval_pending'] } });
+		const existing = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
 		if (existing) {
 			sendError(res, 409, 'Es besteht bereits ein laufendes oder ausstehendes Abo.');
 			return;
 		}
 		try {
-			const planId = paypalPlanIdFor(body.plan, body.period);
-			const { approvalUrl, externalSubscriptionId } = await client.createSubscription(planId);
+			const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period);
 			await Subscription.create({
 				userId,
-				provider: PROVIDER,
+				provider: provider.id,
 				externalSubscriptionId,
 				plan: body.plan,
 				period: body.period,
@@ -107,14 +119,14 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				return;
 			}
 			const subscription = await Subscription.findOne({
-				where: { userId, status: ['active', 'approval_pending'] },
+				where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
 			});
 			if (!subscription) {
 				sendError(res, 404, 'Kein Abo gefunden.');
 				return;
 			}
 			try {
-				await client.cancel(subscription.get('externalSubscriptionId') as string);
+				await checkout.cancel(subscription.get('externalSubscriptionId') as string);
 				res.status(200).json({});
 			} catch {
 				sendError(res, 502, 'PayPal war nicht erreichbar.');
@@ -130,21 +142,25 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
 		}
+		if (rejectStoreChannel(req, res)) return;
 		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
 			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
 			return;
 		}
 		const subscription = await Subscription.findOne({
-			where: { userId, status: ['active', 'approval_pending'] },
+			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
 		});
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
 		try {
-			const targetPlanId = paypalPlanIdFor(body.plan, body.period);
-			const { approvalUrl } = await client.revise(subscription.get('externalSubscriptionId') as string, targetPlanId);
+			const { approvalUrl } = await checkout.change(
+				subscription.get('externalSubscriptionId') as string,
+				body.plan,
+				body.period,
+			);
 			res.status(200).json(approvalUrl ? { approvalUrl } : {});
 		} catch {
 			sendError(res, 502, 'PayPal war nicht erreichbar.');

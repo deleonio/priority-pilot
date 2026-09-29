@@ -2,9 +2,155 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.4 - 2026-09-23
+## v0.10 - 2026-09-29
 
-_Enthält v0.4.0 – v0.4.15._
+_Keine für Nutzer sichtbaren Änderungen._
+
+## v0.9 - 2026-09-29
+
+_Enthält v0.9.0 – v0.9.18._
+
+### 🔧 Engineering
+
+- feat(frontend): demote delete account in settings (#1802) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1809
+- feat(server): suggest concrete tasks for a balance deficit (#1791) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1810
+
+### Other Changes
+
+- feat(server): care deficit, trend and overload per pillar (#1790) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1805
+- docs: add care-tone guide with rules and sample texts in 10 languages by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1806
+- docs(project): add website workspace to monorepo list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1807
+- ci: add signed test apk artifact until internal test track (#1801) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1808
+- chore(ci): route documenter through openrouter free model by default by @deleonio in https://github.com/deleonio/priority-pilot/pull/1755
+- chore: add n-way phase comparison charts to the focus report by @deleonio in https://github.com/deleonio/priority-pilot/pull/1811
+- feat(frontend): enable balance sorting by default (#1792) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1812
+- fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
+- chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
+- fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
+- chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
+- fix(ci): pass PI_MODEL_ALIASES to all pi-capable workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/1828
+- fix(ci): stop review retrigger loop for already-reviewed head (#1824) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1830
+- fix(server): scope scores to owner and block ssrf on llm endpoints by @deleonio in https://github.com/deleonio/priority-pilot/pull/1827
+
+## v0.8 - 2026-09-27
+
+_Enthält v0.8.0 – v0.8.17._
+
+### 🎉 New Features
+
+- feat(website): show balamentum wordmark in site header by @deleonio in https://github.com/deleonio/priority-pilot/pull/1770
+
+### 🐞 Bug Fixes
+
+- Revert "feat(frontend): restructure login card and add website link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1774
+
+### 🔧 Engineering
+
+- feat(frontend): restructure login card hierarchy and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1765
+
+### Other Changes
+
+- feat(ci): Fokus-Modus (--issues) und Top-10-Tabelle gegen Summary-Truncation by @deleonio in https://github.com/deleonio/priority-pilot/pull/1759
+- feat(ci): Ampel-Trend je Phase (KW-Spalten) + Branch-Auswahl im Report-Dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1761
+- docs(guide): Ist-Stand-Sync 2026-09-27 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1760
+- Revert "feat(frontend): login card head, website link and german google button" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1757
+- docs: align arc42 error contract with code - no global express handler by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1762
+- feat(frontend): restructure login card, german label, site link (#1753) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1763
+- Revert "feat(frontend): restructure login card, german label, site link (#1753)" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1764
+- Revert "feat(frontend): restructure login card hierarchy and add website link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1771
+- feat(native): show wordmark splash with mark above and name below by @deleonio in https://github.com/deleonio/priority-pilot/pull/1773
+- feat(frontend): restructure login card and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1772
+- feat(frontend): login card hierarchy, german texts, website back link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1775
+- Revert "feat(frontend): login card hierarchy, german texts, website back link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1776
+- feat(frontend): restructure login card hierarchy and labels (#1769) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1777
+
+## v0.7 - 2026-09-27
+
+_Enthält v0.7.0 – v0.7.13._
+
+### 🎉 New Features
+
+- feat(deploy): Debug-APK als demo.apk ins Web-Root deployen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1736
+
+### Other Changes
+
+- docs(auth): document magic-link rate limit and gmail alias pitfall by @deleonio in https://github.com/deleonio/priority-pilot/pull/1737
+- chore(deploy): make SITE_URL mandatory by @deleonio in https://github.com/deleonio/priority-pilot/pull/1738
+- fix(deploy): Capacitor-Sync direkt aus node_modules statt gefiltertem pnpm-Lauf by @deleonio in https://github.com/deleonio/priority-pilot/pull/1743
+- feat(frontend): redesign login page with brand and website styling by @deleonio in https://github.com/deleonio/priority-pilot/pull/1740
+- fix(website): apply landing audit fixes (polish, distill, harden) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1739
+- docs: sync arc42 architecture doc to current state 2026-09-26 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1744
+- fix(server): backfill subscriptions pendingPlan columns via startup migrator (#1742) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1746
+- feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
+- feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
+- feat(frontend): revert #1745 toolbar popover polish to stock kolibri by @deleonio in https://github.com/deleonio/priority-pilot/pull/1749
+- fix(frontend): remove #1623 gap write for stock kol-toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1750
+- feat(website): FAQ-Eintrag zur Demo-APK by @deleonio in https://github.com/deleonio/priority-pilot/pull/1754
+- feat(frontend): login card head, website link and german google button by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1756
+- ci: cost report reads main and lists excluded tickets individually by @deleonio in https://github.com/deleonio/priority-pilot/pull/1758
+
+## v0.6 - 2026-09-26
+
+_Enthält v0.6.0 – v0.6.15._
+
+### Other Changes
+
+- feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
+- feat(server): securely accept google play subscription events (rtdn) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1722
+- feat(server): google play subscription states drive plan, grace and downgrade by @deleonio in https://github.com/deleonio/priority-pilot/pull/1723
+- chore(renovate): enable automerge for pi and kolibri updates by @deleonio in https://github.com/deleonio/priority-pilot/pull/1724
+- feat(server): at most one active subscription per user across providers by @deleonio in https://github.com/deleonio/priority-pilot/pull/1725
+- chore: publish german privacy policy page at /datenschutz/ (#1672) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1727
+- feat(server): apply pillar weights to cadence balance fill by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1728
+- chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
+- feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
+- feat(android): Käufe wiederherstellen und fremdverwaltetes Abo anzeigen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1730
+- feat(android): Paket über Google Play wechseln by @deleonio in https://github.com/deleonio/priority-pilot/pull/1731
+- chore(deps): update pi (cli + erweiterungen) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1656
+- fix(frontend): keep admin confirm dialog mounted across step change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1732
+- chore(deps): lock file maintenance by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1660
+- fix(android): prevent crash when enabling push without firebase config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1735
+
+## v0.5 - 2026-09-25
+
+_Enthält v0.5.0 – v0.5.32._
+
+### Other Changes
+
+- fix(frontend): access-token card never shows error and empty state together by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1652
+- feat(ci): enforce pi tool tier restricted without bash (#1193) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1653
+- feat(frontend): add landing shots, mcp chat, email login, app redirect by @deleonio in https://github.com/deleonio/priority-pilot/pull/1650
+- fix(ci): hand already-done back to review once per HEAD by @deleonio in https://github.com/deleonio/priority-pilot/pull/1661
+- fix(deps): update dependency react-i18next to v17.0.15 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1627
+- chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
+- feat(skills): add ticket-tree skill for solution plans and issue trees by @deleonio in https://github.com/deleonio/priority-pilot/pull/1698
+- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
+- docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
+- chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
+- feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
+- feat(server): reject paypal checkout for store app channels by @deleonio in https://github.com/deleonio/priority-pilot/pull/1702
+- feat(server): Google-Login der App mit Einmal-Code abschließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1703
+- fix(push): warn on zero-device test push and resync subscription by @deleonio in https://github.com/deleonio/priority-pilot/pull/1704
+- feat(server): store android app fcm device token by @deleonio in https://github.com/deleonio/priority-pilot/pull/1706
+- fix(ci): LLM phases no longer wait for verify by @deleonio in https://github.com/deleonio/priority-pilot/pull/1705
+- feat(server): allow users to delete their account with all personal data by @deleonio in https://github.com/deleonio/priority-pilot/pull/1707
+- feat(native): scaffold android app in remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1708
+- docs(adr): ADR 0017 Store-Billing über Google Play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1709
+- feat(server): Benachrichtigungen zusätzlich über FCM versenden by @deleonio in https://github.com/deleonio/priority-pilot/pull/1710
+- feat(frontend): hide paypal purchase in android app plans view by @deleonio in https://github.com/deleonio/priority-pilot/pull/1711
+- feat(frontend): Konto löschen in den Einstellungen mit sequenzieller Bestätigung by @deleonio in https://github.com/deleonio/priority-pilot/pull/1712
+- feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
+- feat(android): voice input for quick capture via speech plugin by @deleonio in https://github.com/deleonio/priority-pilot/pull/1714
+- ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
+- feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
+- feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
+- refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
+- feat(server): map plans to google play subscription products by @deleonio in https://github.com/deleonio/priority-pilot/pull/1719
+- feat(server): verify and acknowledge google play purchases by @deleonio in https://github.com/deleonio/priority-pilot/pull/1720
+
+## v0.4 - 2026-09-24
+
+_Enthält v0.4.0 – v0.4.22._
 
 ### Other Changes
 
@@ -21,6 +167,14 @@ _Enthält v0.4.0 – v0.4.15._
 - refactor(frontend): share pillar recalculation run via useReassignRun hook by @deleonio in https://github.com/deleonio/priority-pilot/pull/1633
 - feat(server): distribute confidence remainder evenly across pillars by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1637
 - fix(e2e): await initAiEnabled to fix AK5 KI-aus race (#1408) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1640
+- feat(server): measure balance pillars by cadence, not workload share by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1639
+- feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
+- feat(server): withhold tasks with far-future deadlines from suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1644
+- feat(frontend): run pillar reassignment as server-side background job by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1645
+- feat(server): add grandfathering CLI for legacy free accounts (#1463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1649
+- feat(frontend): rename Wald tab to Graph, sharpen USP messaging by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1647
+- feat(frontend): add 8px gap between popover action buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1648
+- docs: add inline code documentation rule (jsdoc) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1651
 
 ## v0.3 - 2026-09-23
 
@@ -874,7 +1028,6 @@ _Enthält v0.1.336 – v0.1.836._
 - chore(frontend): update kolibri to v4.4.0 and raise pwa cache limit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1319
 - chore: cost reports with cohorts, median, index and interventions by @deleonio in https://github.com/deleonio/priority-pilot/pull/1322
 - feat(frontend): unify settings tabs with cards and accordions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1324
-- fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
 - fix(deps): pin dependency remark-gfm to 4.0.1 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1209
 - feat(frontend): render settings and help as pages in the app shell by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1323
 - feat(frontend): add categories as a thematic grouping layer by @deleonio in https://github.com/deleonio/priority-pilot/pull/1325

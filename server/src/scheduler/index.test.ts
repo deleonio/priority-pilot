@@ -73,9 +73,10 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 		process.env = { ...originalEnv };
 	});
 
-	it('startet keinen Timer ohne VAPID-Konfiguration', () => {
+	it('startet keinen Timer ohne VAPID- und FCM-Konfiguration', () => {
 		delete process.env.VAPID_PUBLIC_KEY;
 		delete process.env.VAPID_PRIVATE_KEY;
+		delete process.env.FCM_SERVICE_ACCOUNT_FILE;
 		process.env.PUSH_REMINDERS_ENABLED = 'true';
 		let calledSetInterval = false;
 
@@ -108,6 +109,25 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 
 		assert.equal(calledSetInterval, false);
 		assert.doesNotThrow(() => handle.stop());
+	});
+
+	it('registriert einen Interval-Callback auch mit FCM allein, ohne VAPID', () => {
+		delete process.env.VAPID_PUBLIC_KEY;
+		delete process.env.VAPID_PRIVATE_KEY;
+		process.env.FCM_SERVICE_ACCOUNT_FILE = '/tmp/fcm.json';
+		process.env.PUSH_REMINDERS_ENABLED = 'true';
+		let registered = false;
+
+		const handle = startScheduler([], {
+			setIntervalFn: ((fn: () => void) => {
+				registered = typeof fn === 'function';
+				return 1 as unknown as NodeJS.Timeout;
+			}) as typeof setInterval,
+			clearIntervalFn: (() => {}) as typeof clearInterval,
+		});
+
+		assert.equal(registered, true);
+		handle.stop();
 	});
 
 	it('registriert einen Interval-Callback, wenn konfiguriert und aktiviert', () => {

@@ -1,0 +1,100 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "de.balamentum.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "de.balamentum.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // Monotoner versionCode aus der Root-package.json (docs/plan-native-apps.md, Stufe 1),
+        // Formel-Spiegel: native/src/version-code.ts
+        def rootVersion = new groovy.json.JsonSlurper().parseText(file('../../../package.json').text).version
+        def (major, minor, patch) = rootVersion.tokenize('.').collect { it.toInteger() }
+        versionCode major * 10000 + minor * 100 + patch
+        versionName rootVersion
+        // App-Link-Domain aus server.url, das `cap sync` aus SITE_URL in die Assets schreibt (AndroidManifest.xml)
+        def capacitorConfig = file('src/main/assets/capacitor.config.json')
+        if (!capacitorConfig.exists()) {
+            throw new GradleException('capacitor.config.json fehlt: zuerst SITE_URL=https://… pnpm --filter native sync')
+        }
+        def serverUrl = new groovy.json.JsonSlurper().parse(capacitorConfig)?.server?.url
+        if (!serverUrl) {
+            throw new GradleException('capacitor.config.json ohne server.url: SITE_URL=https://… pnpm --filter native sync erneut ausführen')
+        }
+        manifestPlaceholders = [appLinkHost: new URL(serverUrl).host]
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        // Upload-Schlüssel nur in der CI (.github/workflows/android.yml, Secrets); lokal bleibt der Release-Build unsigniert
+        release {
+            storeFile System.getenv('ANDROID_KEYSTORE_PATH') ? file(System.getenv('ANDROID_KEYSTORE_PATH')) : null
+            storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            keyAlias System.getenv('ANDROID_KEY_ALIAS')
+            keyPassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+        }
+    }
+    buildTypes {
+        release {
+            if (System.getenv('ANDROID_KEYSTORE_PATH')) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+// Ohne Firebase-Ressourcen wirft FirebaseMessaging.getInstance() im register()-Aufruf des
+// Push-Plugins synchron eine IllegalStateException — der App-Prozess stirbt, statt dass der
+// Push-Schalter einen Fehler meldet (docs/native-apps.md). Die Platzhalter-Konfiguration
+// initialisiert Firebase mit ungültigen Werten: getToken() scheitert dann asynchron im
+// registrationError-Pfad des Plugins und die App zeigt den Fehler sauber an.
+def servicesJSON = file('google-services.json')
+if (!servicesJSON.exists() || !servicesJSON.text) {
+    servicesJSON.text = '''{
+  "project_info": {
+    "project_number": "0",
+    "project_id": "balamentum-placeholder",
+    "storage_bucket": "balamentum-placeholder.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:0:android:0000000000000000000000000000000000000000",
+        "android_client_info": { "package_name": "de.balamentum.app" }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyA-PLACEHOLDER-00000000000000000000000" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}'''
+}
+apply plugin: 'com.google.gms.google-services'

@@ -129,26 +129,50 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 	// (Säulenverteilung neu berechnen) — zwei Modals mit je zwei Buttons und ein Button mit sehr
 	// langem Label sind genau der Fall, der auf Telefonbreite umbricht.
 	test('Dialogleiste „Säulenverteilung neu berechnen" bricht bei 375px nicht um', async ({ page }) => {
+		// #1729 AK2/AK4: Negativ-Kontrolle nach Muster `quick-capture.spec.ts` — beim Schrittwechsel
+		// intent → costs (und beim Start des Laufs) darf kein `pageerror` auftreten, insbesondere kein
+		// `InvalidStateError … not in a Document` zu `showModal`: Der Dialog wird als EINE persistente
+		// Instanz weitergeführt, statt die erste unzumontieren und die zweite neu zu mounten.
+		const pageErrors: string[] = [];
+		page.on('pageerror', (error) => pageErrors.push(error.message));
+
 		await mockAuthMe(page, ADMIN_USER);
 		await mockAdminUsers(page);
 		// Regex statt Glob: der Aufruf trägt seit #1614 die Statusauswahl als Query (`?status=all`),
 		// und ein Glob ohne Platzhalter am Ende matcht eine URL mit Query-String nicht mehr.
 		// Verankert auf das Ende, damit der GET auf `…/reassign-pillars/status` (eigener Mock
 		// unten) nicht mitgefangen und mit der POST-Antwort beantwortet wird (Review-Fund #4).
-		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars(\?[^/]*)?$/, (route: Route) =>
-			route.fulfill({
-				status: 200,
+		// Test-Pflege #1642: der POST startet nur den Hintergrundlauf (202), `.../status` meldet danach
+		// einmal `running` mit Fortschritt und anschließend das Ergebnis.
+		let startedAt: string | null = null;
+		let statusPolls = 0;
+		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars(\?[^/]*)?$/, (route: Route) => {
+			startedAt = new Date().toISOString();
+			return route.fulfill({
+				status: 202,
 				contentType: 'application/json',
-				body: JSON.stringify({ updated: 2, failed: 0, skipped: 1, users: 1, remaining: 0 }),
-			}),
-		);
-		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars\/status/, (route: Route) =>
-			route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({ total: 0, pending: 0, startedAt: null }),
-			}),
-		);
+				body: JSON.stringify({ running: true, processed: 0 }),
+			});
+		});
+		await page.route(/\/api\/v1\/admin\/tasks\/reassign-pillars\/status/, (route: Route) => {
+			if (startedAt !== null) {
+				statusPolls += 1;
+			}
+			const body =
+				startedAt === null
+					? { total: 0, pending: 0, startedAt: null, running: false }
+					: statusPolls === 1
+						? { total: 3, pending: 2, startedAt, running: true, processed: 1 }
+						: {
+								total: 3,
+								pending: 0,
+								startedAt,
+								running: false,
+								processed: 3,
+								result: { updated: 2, failed: 0, skipped: 1, quotaExhausted: false },
+							};
+			return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+		});
 		await page.setViewportSize(MOBILE);
 		await page.goto('/app/settings/nutzer');
 		await waitForStableView(page, 'Balamentum');
@@ -174,10 +198,13 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		);
 
 		const [response] = await Promise.all([
-			page.waitForResponse(/\/api\/v1\/admin\/tasks\/reassign-pillars/),
+			page.waitForResponse(/\/api\/v1\/admin\/tasks\/reassign-pillars(\?[^/]*)?$/),
 			runButton.click(),
 		]);
-		expect(response.status(), 'Batch-Antwort muss 200 sein').toBe(200);
+		expect(response.status(), 'Start des Hintergrundlaufs muss 202 sein').toBe(202);
 		await expect(page.getByText('2 Aufgaben neu zugeordnet', { exact: false })).toBeVisible();
+
+		// #1729 AK2: kein `pageerror` im gesamten Dialog-Lebenszyklus (Öffnen, Weiter, Lauf-Start).
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 	});
 });

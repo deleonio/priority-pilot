@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 vi.mock('@public-ui/react-v19', () => ({
 	KolAlert: ({ children }: { children?: ReactNode }) => createElement('div', { role: 'alert' }, children),
+	KolButton: ({ _label }: { _label?: string }) => createElement('button', null, _label),
 	KolSpin: () => createElement('div', { 'data-testid': 'spin' }),
 	KolTableStateful: ({
 		_label,
@@ -78,6 +79,7 @@ const getPlansCatalog = vi.fn();
 vi.mock('../api', () => ({ api: { getPlansCatalog: () => getPlansCatalog() } }));
 
 vi.mock('../lib/usePlan', () => ({ usePlan: () => ({ plan: 'pro', entitlements: {} }) }));
+vi.mock('../lib/auth', () => ({ checkAuth: () => Promise.resolve({ playAccountId: 'acc-1' }) }));
 
 import { PlansSection } from './PlansSection';
 
@@ -261,5 +263,40 @@ describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spalten
 			expect(width, `Kopfspalte "${cell.textContent}" muss eine gesetzte width tragen`).not.toBe('');
 			expect(Number.isNaN(Number(width)), `width von "${cell.textContent}" muss eine Zahl sein`).toBe(false);
 		}
+	});
+});
+
+describe('PlansSection je Kanal (#1674)', () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('web: Buchen-Zeilen des PayPal-Kaufwegs, kein Store-Hinweis', async () => {
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-kol-table')).toBeTruthy());
+
+		expect(screen.getByTestId('plans-kol-table').querySelectorAll('tbody tr[data-row-kind="action"]')).toHaveLength(3);
+		expect(screen.queryByText('Die Pakete lassen sich bald direkt in der App buchen.')).toBeNull();
+	});
+
+	it('play: Preise aus Google Play statt aus dem Katalog, kein Link auf den Web-Kauf (#1692)', async () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		vi.stubGlobal('CdvPurchase', {
+			store: {
+				register: vi.fn(),
+				when: () => ({ approved: vi.fn() }),
+				initialize: vi.fn(() => Promise.resolve()),
+				get: (id: string) => ({
+					offers: [{ id: `${id}@monthly`, pricingPhases: [{ price: `${id} 9,49 €` }], order: vi.fn() }],
+				}),
+			},
+		});
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByText('pro 9,49 €')).toBeTruthy());
+
+		expect(screen.queryByText('7,99 €')).toBeNull();
+		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
 	});
 });

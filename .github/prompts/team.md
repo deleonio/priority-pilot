@@ -2,6 +2,8 @@ FOCUS: ONLY issue {{ISSUE_NR}}. You are the Architect of the Dev-Team and run th
 
 Method (binding, not repeated here): .claude/skills/dev-team/SKILL.md — read it BEFORE the first action, together with its gotcha catalogue .claude/skills/dev-team/gotchas.md. Everything about roles, gates, hand-over contracts and delegation lives there.
 
+Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
+
 You are in **Ticket-Modus**. The automation check of the pre-flight gate is already answered for you: `ai:needs-team` is YOUR trigger and has been consumed by the workflow, and the run only starts when no chain trigger (`ai:needs-ux-ui`, `ai:needs-spec`, `ai:needs-impl`) is set. Do NOT abort because of your own trigger. Do abort if you find a FOREIGN concurrent actor (working-tree drift, a second open PR for this issue) — report it in the PR body and end the run.
 
 {{RESUME_HINT}}
@@ -22,6 +24,7 @@ PROCEDURE (STRICT):
   5. EVERY gate and test run → `gate-runner` role; never keep raw green output in your own context.
   6. PR per SKILL.md (review-ready, NOT draft, `Closes #{{ISSUE_NR}}` in the body), then the local
      cross-examination loop until the verdict is 🟢 with no open findings (loop guard: 3 rounds).
+     Its CI check per round reads the current state only — running checks are no reason to wait.
   7. Do NOT record the cost yourself and do NOT touch `.costs/` — in this run the workflow measures
      after your turn and uploads the record as an artifact. The `pnpm cost:record` step from the SKILL
      applies to local runs only; here it would count the same tokens twice.
@@ -40,8 +43,10 @@ VERDICT (one line, the last line of your output):
   - VERDICT: not-ready      (no finished PR: soft deadline hit, blocker, or foreign concurrent actor)
 
 HONESTY RULE: output VERDICT: needs-review ONLY if the PR really exists, is not a draft, carries commits
-and its checks were looked at (`gh pr view` / `gh pr checks` — verify, don't assume). An unfinished run is
+and your local gate was green (`gh pr view` — verify, don't assume). An unfinished run is
 `not-ready`; claiming green costs a whole follow-up run.
+
+CI: never wait for or poll Verify (`gh pr checks`, `--watch`, `gh run watch`, `sleep`). After the push the run is DONE — the review workflow waits for the checks and hands the result to the reviewer. Only the CI state at the START of the run counts as input. <!-- keep in sync: implement.md / fixup.md / team.md -->
 
 TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Check before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ].
 If OVER: finish the current step, commit+push the state, write the phase note (what is done, what is open,

@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Entscheidungs-Tabelle für den Fixup-Abschluss (Issue #961): Welches Ziel-Label
-# verdient der PR, wenn Claude Verdict, HEAD-Fortschritt und Review-Delta liefert?
+# verdient der PR, wenn Claude Verdict, HEAD-Fortschritt und Übergabe-Historie liefert?
 #
 # WARUM: Der No-Progress-Zweig (B3) in 04-claude-implement.yml parkte JEDEN Lauf
 # ohne Commit terminal beim Menschen — auch den legitimen "alles bereits gefixt"
-# (PR #944: beide Findings in der Vor-Runde gelöst, Threads resolved, nichts zu
-# tun, kein Commit). Gleichzeitig darf ein solches already-done nicht zum
-# Review<->Fixup-Ping-Pong werden: Der Verzicht auf einen Commit ist nur
-# glaubwürdig, wenn der Review seit Laufbeginn NEUE Findings geliefert hat
-# (Sammelkommentar fortgeschrieben = id/updated_at geändert).
+# (PR #944: beide Findings in der Vor-Runde gelöst; PR #1650: flaky E2E-Shard per
+# Rerun grün, kein Commit nötig). Gleichzeitig darf ein solches already-done nicht
+# zum Review<->Fixup-Ping-Pong werden: Pro HEAD darf already-done genau EINMAL an
+# den Review zurück. Meldet der Review danach auf demselben HEAD erneut Findings
+# und der Fixup wieder already-done, parkt der PR beim Menschen.
+#
+# Früher entschied ein Review-Delta (Sammelkommentar seit Laufbeginn geändert).
+# Das trug nie: Der Review schreibt seinen Kommentar VOR dem Fixup-Start, die
+# Baseline war im Normalablauf also immer schon der Endstand (PR #1650).
 #
 # WARUM EIGENES SCRIPT: Der Workflow liest nur target=/reason= als key=value —
 # die Logik selbst ist damit via node:test abgedeckt (fixup-verdict.test.ts,
@@ -16,20 +20,20 @@
 #
 # Usage:
 #   fixup-verdict.sh evaluate --verdict <v> --head-progress <true|false> \
-#       [--review-id-before <id>] [--review-updated-before <iso>] \
-#       [--review-id-after <id>] [--review-updated-after <iso>]
+#       [--handed-over <true|false>]
+#   --handed-over: Für den aktuellen HEAD wurde already-done schon einmal an den
+#                  Review übergeben (Marker <!-- ai-already-done head=<sha> -->).
 #
 # Ausgabe (stdout, key=value):
 #   target=ai:needs-review | ai:needs-human
-#   reason=needs-human-verdict | head-progress | already-done | no-review-delta | no-progress
+#   reason=needs-human-verdict | head-progress | already-done | already-done-repeat | no-progress
 #
 # Reihenfolge (bewusst, jede Zeile greift vor den folgenden):
 #   1. needs-human  — einzig verbindliches Verdict, terminal, unabhängig von allem (B2).
-#   2. head-progress — HEAD-Bewegung bleibt Ground Truth für echten Fortschritt
-#                      (Nicht-Ziel des Issues: am Fortschritts-Kriterium nichts ändern).
-#   3. already-done + Review-Delta — glaubwürdiges "nichts zu tun" → erneuter Review
-#                      bestätigt oder widerspricht.
-#   4. already-done ohne Delta     — Ping-Pong-Schutz → Mensch (AK3).
+#   2. head-progress — HEAD-Bewegung bleibt Ground Truth für echten Fortschritt.
+#   3. already-done, erste Übergabe für diesen HEAD → erneuter Review bestätigt
+#                      oder widerspricht.
+#   4. already-done, schon übergeben — Ping-Pong-Schutz → Mensch (AK3).
 #   5. sonst (kein Verdict)        — Loop-Schutz unangetastet → Mensch (AK4).
 
 set -uo pipefail
@@ -39,19 +43,13 @@ CMD="${1:-}"
 
 VERDICT=""
 HEAD_PROGRESS="false"
-RB_ID=""
-RB_UP=""
-RA_ID=""
-RA_UP=""
+HANDED_OVER=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --verdict) VERDICT="$2"; shift 2 ;;
     --head-progress) HEAD_PROGRESS="$2"; shift 2 ;;
-    --review-id-before) RB_ID="$2"; shift 2 ;;
-    --review-updated-before) RB_UP="$2"; shift 2 ;;
-    --review-id-after) RA_ID="$2"; shift 2 ;;
-    --review-updated-after) RA_UP="$2"; shift 2 ;;
+    --handed-over) HANDED_OVER="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -68,26 +66,15 @@ case "$CMD" in
       echo "reason=head-progress"
       exit 0
     fi
-    # Review-Delta: Der ai-review-Sammelkommentar wird über Runden FORTGESCHRIEBEN
-    # (review.md: EINE Kommentar-ID, wechselndes updated_at) — Delta = id ODER
-    # updated_at geändert seit Start-Konsum. Ein neu auftauchender Kommentar
-    # (Baseline leer, jetzt vorhanden) zählt ebenso: neue Findings sind eingetroffen.
-    # Nachher LEER bei gesetzter Baseline = Lesefehler/gelöscht -> KEIN Delta
-    # (Safe-Default = parken; Fail-open würde genau das Ping-Pong erlauben, das
-    # der Schutz verhindern soll).
-    BEFORE="${RB_ID}:${RB_UP}"
-    AFTER="${RA_ID}:${RA_UP}"
-    DELTA="false"
-    if [ -n "$RA_ID" ] && [ "$BEFORE" != "$AFTER" ]; then
-      DELTA="true"
-    fi
     if [ "$VERDICT" = "already-done" ]; then
-      if [ "$DELTA" = "true" ]; then
+      # Nur ein explizites "false" gibt frei: Leer/unlesbar = Safe-Default parken,
+      # Fail-open würde genau das Ping-Pong erlauben, das der Schutz verhindern soll.
+      if [ "$HANDED_OVER" = "false" ]; then
         echo "target=ai:needs-review"
         echo "reason=already-done"
       else
         echo "target=ai:needs-human"
-        echo "reason=no-review-delta"
+        echo "reason=already-done-repeat"
       fi
       exit 0
     fi
@@ -95,7 +82,7 @@ case "$CMD" in
     echo "reason=no-progress"
     ;;
   *)
-    echo "Usage: fixup-verdict.sh evaluate --verdict <v> --head-progress <true|false> [--review-id-before <id>] [--review-updated-before <iso>] [--review-id-after <id>] [--review-updated-after <iso>]" >&2
+    echo "Usage: fixup-verdict.sh evaluate --verdict <v> --head-progress <true|false> [--handed-over <true|false>]" >&2
     [ -n "$CMD" ] && echo "unbekannter Befehl: $CMD" >&2
     exit 2
     ;;

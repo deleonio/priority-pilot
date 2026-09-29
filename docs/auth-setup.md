@@ -30,7 +30,7 @@ Der Server unterscheidet danach, ob überhaupt ein Auth-Kontext konfiguriert ist
 | Modus                | Bedingung                                                                               | Verhalten                                                                                                            |
 | -------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Offen (Pass-Through) | Weder `GOOGLE_ALLOWED_EMAILS`, noch `GOOGLE_CLIENT_ID`/`_SECRET`, noch `SESSION_SECRET` | Keine Anmeldung. Jeder Request kommt durch, alle Daten gehören einem namenlosen lokalen Nutzer. Nur für Entwicklung. |
-| Geschützt            | Mindestens eine der Variablen ist gesetzt                                               | Jede API-Route verlangt eine gültige Session. Login ausschließlich über Google.                                      |
+| Geschützt            | Mindestens eine der Variablen ist gesetzt                                               | Jede API-Route verlangt eine gültige Session. Login über Google oder per E-Mail-Anmeldelink (siehe unten).           |
 
 In Produktion (`NODE_ENV=production`) ist der geschützte Modus Pflicht: Der Server startet nicht
 ohne `SESSION_SECRET` und nicht ohne mindestens eine Adresse in `GOOGLE_ALLOWED_EMAILS` oder
@@ -88,7 +88,7 @@ sequenceDiagram
     G->>S: GET /auth/google/callback?code=…
     S->>S: E-Mail gegen GOOGLE_ALLOWED_EMAILS prüfen
     alt Adresse nicht freigeschaltet
-        S->>B: Redirect /?error=login_failed (kein Konto angelegt)
+        S->>B: Redirect /app/?error=login_failed (kein Konto angelegt)
     else Adresse freigeschaltet
         S->>S: Konto anlegen oder Profilfelder nachziehen, Rolle aus ADMIN_EMAILS
         S->>B: Session-Cookie setzen, Redirect ins Dashboard
@@ -129,6 +129,9 @@ Regeln:
   landet im selben Konto. Name und Avatar aus Google bleiben beim Login per Link erhalten.
 - Der Link öffnet nur die App; eingelöst wird er per `POST /auth/magic-link/verify`. Mail-Scanner,
   die Links vorab aufrufen, verbrauchen ihn deshalb nicht.
+- „Mit E-Mail anmelden“ auf der Website führt auf `/app/?login=email`: kein stiller Google-Versuch,
+  das E-Mail-Feld hat sofort den Fokus. Ohne die drei Variablen fehlt das Feld, und der Knopf endet
+  auf der reinen Google-Anmeldung.
 
 ## Neue Person zulassen
 
@@ -164,12 +167,14 @@ nicht auf den Vite-Dev-Server.
 
 ## Fehlerbilder
 
-| Symptom                                                              | Ursache                                                                                   | Prüfen / Fix                                                                         |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Login-Seite meldet „Ein unbekannter Anmeldefehler ist aufgetreten“   | Adresse nicht in `GOOGLE_ALLOWED_EMAILS`, oder Konto in der Cloud Console kein Testnutzer | Adresse ergänzen, `pm2 reload … --update-env`; Google-Konto als Testnutzer eintragen |
-| Person fehlt in der Nutzerverwaltung                                 | Login wurde abgewiesen, das Konto entsteht erst beim ersten erfolgreichen Login           | Wie oben; nach erfolgreichem Login erscheint das Konto                               |
-| Google zeigt `redirect_uri_mismatch`                                 | `GOOGLE_CALLBACK_URL` weicht von der in der Cloud Console eingetragenen URI ab            | Beide Werte zeichengenau abgleichen (Schema, Host, Pfad)                             |
-| Login-Button antwortet mit 503 „Google-OAuth ist nicht konfiguriert“ | `GOOGLE_CLIENT_ID` oder `GOOGLE_CLIENT_SECRET` fehlt                                      | Beide Variablen setzen, Backend neu laden                                            |
-| Backend startet in Produktion nicht                                  | `SESSION_SECRET` fehlt oder `GOOGLE_ALLOWED_EMAILS` ist leer                              | `pm2 logs priority-pilot` zeigt die Fehlermeldung; Variable setzen                   |
-| Person ist eingeloggt, bekommt aber überall 401                      | Adresse wurde nachträglich aus der Allowlist entfernt                                     | Gewollt: Zugang ist gesperrt. Sonst Adresse wieder eintragen                         |
-| Person soll Administrator sein, ist aber Mitglied                    | Adresse steht nicht in `ADMIN_EMAILS`, oder Login fand vor dem Eintrag statt              | Eintragen und neu anmelden, oder in der Nutzerverwaltung direkt befördern            |
+| Symptom                                                                          | Ursache                                                                                                                                   | Prüfen / Fix                                                                                               |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Login-Seite meldet „Ein unbekannter Anmeldefehler ist aufgetreten“               | Adresse nicht in `GOOGLE_ALLOWED_EMAILS`, oder Konto in der Cloud Console kein Testnutzer                                                 | Adresse ergänzen, `pm2 reload … --update-env`; Google-Konto als Testnutzer eintragen                       |
+| Person fehlt in der Nutzerverwaltung                                             | Login wurde abgewiesen, das Konto entsteht erst beim ersten erfolgreichen Login                                                           | Wie oben; nach erfolgreichem Login erscheint das Konto                                                     |
+| Google zeigt `redirect_uri_mismatch`                                             | `GOOGLE_CALLBACK_URL` weicht von der in der Cloud Console eingetragenen URI ab                                                            | Beide Werte zeichengenau abgleichen (Schema, Host, Pfad)                                                   |
+| Login-Button antwortet mit 503 „Google-OAuth ist nicht konfiguriert“             | `GOOGLE_CLIENT_ID` oder `GOOGLE_CLIENT_SECRET` fehlt                                                                                      | Beide Variablen setzen, Backend neu laden                                                                  |
+| Backend startet in Produktion nicht                                              | `SESSION_SECRET` fehlt oder `GOOGLE_ALLOWED_EMAILS` ist leer                                                                              | `pm2 logs priority-pilot` zeigt die Fehlermeldung; Variable setzen                                         |
+| Person ist eingeloggt, bekommt aber überall 401                                  | Adresse wurde nachträglich aus der Allowlist entfernt                                                                                     | Gewollt: Zugang ist gesperrt. Sonst Adresse wieder eintragen                                               |
+| Person soll Administrator sein, ist aber Mitglied                                | Adresse steht nicht in `ADMIN_EMAILS`, oder Login fand vor dem Eintrag statt                                                              | Eintragen und neu anmelden, oder in der Nutzerverwaltung direkt befördern                                  |
+| Magic-Link-Mail kommt nicht an (Anforderung antwortet 202, Postfach bleibt leer) | Rate-Limit: Pro Adresse gehen höchstens drei Links je 15 Minuten raus; weitere Anforderungen werden still mit derselben Antwort quittiert | 15 Minuten warten und erneut anfordern; zusätzlich Spam-Ordner prüfen                                      |
+| Zwei Konten für dieselbe Person (`@gmail.com` und `@googlemail.com`)             | Google behandelt beide Schreibweisen als Aliasse desselben Postfachs; die App vergleicht Adressen zeichengenau und legt zwei Konten an    | Eine Schreibweise fest vereinbaren und sie überall (Allowlist, `ADMIN_EMAILS`, Login) konsistent verwenden |

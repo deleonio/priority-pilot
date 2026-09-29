@@ -92,6 +92,8 @@ const emptyUsage = (): Usage => ({
  */
 export function sumUsage(lines: readonly { line: string; sidechain: boolean }[]): Usage {
 	const outputByModel = new Map<string, number>();
+	let minTs = Number.POSITIVE_INFINITY;
+	let maxTs = Number.NEGATIVE_INFINITY;
 	const usage = emptyUsage();
 
 	for (const { line, sidechain } of lines) {
@@ -120,6 +122,13 @@ export function sumUsage(lines: readonly { line: string; sidechain: boolean }[])
 		usage.cacheReadTokens += cacheRead;
 		usage.cacheCreationTokens += cacheWrite;
 		usage.turns += 1;
+		if (typeof parsed.timestamp === 'string') {
+			const ts = Date.parse(parsed.timestamp);
+			if (Number.isFinite(ts)) {
+				if (ts < minTs) minTs = ts;
+				if (ts > maxTs) maxTs = ts;
+			}
+		}
 		if (sidechain) usage.sidechainTokens += input + output + cacheRead + cacheWrite;
 
 		const model = parsed.message?.model;
@@ -127,6 +136,11 @@ export function sumUsage(lines: readonly { line: string; sidechain: boolean }[])
 	}
 
 	usage.model = [...outputByModel.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+	// Dauer wie im Claude-Pendant aus dem Zeitstempel-Spektrum der verbrauchtragenden Einträge.
+	// MCP-Calls bleiben hier bewusst unbeziffert: pi legt MCP nur über sein Proxy-Tool offen,
+	// die Namen sind nicht mit den `mcp__*`-Blöcken im Claude-Code-Transkript vergleichbar.
+	if (Number.isFinite(minTs) && Number.isFinite(maxTs) && maxTs > minTs)
+		usage.durationSeconds = Math.round((maxTs - minTs) / 1000);
 	return usage;
 }
 
@@ -260,6 +274,7 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	if (usage.model) input.model = usage.model;
 	if (usage.sidechainTokens > 0) input.sidechainTokens = usage.sidechainTokens;
 	if (usage.turns > 0) input.turns = usage.turns;
+	if (usage.durationSeconds !== undefined && usage.durationSeconds > 0) input.durationSeconds = usage.durationSeconds;
 
 	appendCostRecord(issue, input, { rootDir: flag(argv, 'root-dir') });
 
@@ -274,7 +289,7 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	const costCacheReadUsd = blockUsd(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR);
 	const costOutputUsd = blockUsd(usage.outputTokens, outRate);
 	process.stdout.write(
-		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\ninputTokens=${usage.inputTokens}\ncacheCreationTokens=${usage.cacheCreationTokens}\ncacheReadTokens=${usage.cacheReadTokens}\ncostInputUsd=${costInputUsd.toFixed(4)}\ncostCacheWriteUsd=${costCacheWriteUsd.toFixed(4)}\ncostCacheReadUsd=${costCacheReadUsd.toFixed(4)}\ncostOutputUsd=${costOutputUsd.toFixed(4)}\n`,
+		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ndurationSeconds=${usage.durationSeconds ?? 0}\nmcpCalls=0\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\ninputTokens=${usage.inputTokens}\ncacheCreationTokens=${usage.cacheCreationTokens}\ncacheReadTokens=${usage.cacheReadTokens}\ncostInputUsd=${costInputUsd.toFixed(4)}\ncostCacheWriteUsd=${costCacheWriteUsd.toFixed(4)}\ncostCacheReadUsd=${costCacheReadUsd.toFixed(4)}\ncostOutputUsd=${costOutputUsd.toFixed(4)}\n`,
 	);
 	return 0;
 }

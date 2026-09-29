@@ -68,8 +68,8 @@ jobs:
     # Idempotenz-Invariante gegen queued Doppel-Events und workflow_dispatch-Catch-up-Doppel.
     # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
     # Phasen-Name übergeben (Fail-open bei API-Fehler ist dort implementiert).
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read # lokale Action + Skript auschecken
       pull-requests: read
@@ -125,7 +125,7 @@ jobs:
     # ein ausgefallener Lauf per workflow_dispatch nachholbar ist. Bricht der precheck ab,
     # bleibt die Doku bewusst aus.
     if: needs.precheck.outputs.proceed == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -155,7 +155,10 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
           runtime: ${{ vars.AGENT_RUNTIME }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
+          # Documenter läuft per Default über OpenRouter (Free-Model über den haiku-Alias via
+          # vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
+          llm-provider: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
           model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION || 'haiku' }}
           effort: 'low'
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
@@ -521,7 +524,7 @@ jobs:
     # hing. Dieser Job läuft NUR den Daten-Siegel (kein LLM, kein Rendering):
     # per workflow_dispatch nachträglich für bereits dokumentierte PRs.
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 10
     permissions:
       contents: read # Checkout + Skripte; der Seal-Commit läuft über das App-Token

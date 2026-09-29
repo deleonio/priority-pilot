@@ -96,7 +96,7 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
  * Klick löst die irreversible Aktion aus.
  */
 export const ApiTokensSection = () => {
-	const [tokens, setTokens] = useState<ApiToken[]>([]);
+	const [tokens, setTokens] = useState<ApiToken[] | null>(null);
 	const [name, setName] = useState(DEFAULT_TOKEN_NAME);
 	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
 	const [expiresInDays, setExpiresInDays] = useState('');
@@ -153,6 +153,9 @@ export const ApiTokensSection = () => {
 	const [plaintext, setPlaintext] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	// Eigener Ladefehler für die Liste (#1646) — getrennt von `error` (Formular), damit Fehler und
+	// Leer-Zustand in der Karte „Vergebene Tokens" nie gleichzeitig erscheinen (Muster: SubscriptionSection).
+	const [loadError, setLoadError] = useState<string | null>(null);
 	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
 	const [revokeId, setRevokeId] = useState<number | null>(null);
 	// Id des Tokens, dessen Rechtestufe gerade per PATCH umgeschaltet wird (eigene Sperre, unabhängig
@@ -167,7 +170,7 @@ export const ApiTokensSection = () => {
 				if (active) setTokens(list ?? []);
 			})
 			.catch(() => {
-				if (active) setError('Die Token-Liste konnte nicht geladen werden.');
+				if (active) setLoadError('Die Token-Liste konnte nicht geladen werden.');
 			});
 		return () => {
 			active = false;
@@ -183,7 +186,7 @@ export const ApiTokensSection = () => {
 		try {
 			const { token, ...meta } = await api.createApiToken({ name: name.trim(), expiresInDays: days });
 			setPlaintext(token);
-			setTokens((previous) => [...previous, meta]);
+			setTokens((previous) => [...(previous ?? []), meta]);
 			setName(DEFAULT_TOKEN_NAME);
 			setExpiresInDays('');
 		} catch (reason) {
@@ -201,7 +204,7 @@ export const ApiTokensSection = () => {
 		setScopeBusyId(token.id);
 		try {
 			const updated = await api.updateApiToken({ id: token.id, scope: nextScope });
-			setTokens((previous) => previous.map((entry) => (entry.id === token.id ? updated : entry)));
+			setTokens((previous) => previous?.map((entry) => (entry.id === token.id ? updated : entry)) ?? previous);
 		} catch (reason) {
 			setError((await toApiError(reason)).message);
 		} finally {
@@ -214,7 +217,7 @@ export const ApiTokensSection = () => {
 		setBusy(true);
 		try {
 			await api.deleteApiToken({ id });
-			setTokens((previous) => previous.filter((entry) => entry.id !== id));
+			setTokens((previous) => previous?.filter((entry) => entry.id !== id) ?? previous);
 			setRevokeId(null);
 		} catch (reason) {
 			setError((await toApiError(reason)).message);
@@ -300,7 +303,11 @@ export const ApiTokensSection = () => {
 					Ein Token liest standardmäßig nur. Schreibende MCP-Werkzeuge wie <code>task_create</code> melden einen Fehler,
 					solange der Schalter auf „Nur lesend" steht — auch bei Tokens, die vor dieser Einstellung vergeben wurden.
 				</p>
-				{tokens.length === 0 ? (
+				{loadError !== null ? (
+					<KolAlert _type="error" _label="Fehler">
+						{loadError}
+					</KolAlert>
+				) : tokens === null ? null : tokens.length === 0 ? (
 					<p>Noch kein Token vergeben.</p>
 				) : (
 					<ul className="api-tokens__list">

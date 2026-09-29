@@ -47,7 +47,7 @@ const createCustomProvider = async (page: import('@playwright/test').Page): Prom
 	const response = await page.request.post('/api/v1/llm-providers', {
 		data: {
 			name: 'Issue-1037 Provider',
-			endpoint: 'http://localhost:9/v1',
+			endpoint: 'http://llm.invalid/v1',
 			apiKey: 'test-key',
 			model: 'test-model',
 		},

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { classifyTicket, renderReport, ticketTotals } from './tokens-report.ts';
+import { classifyTicket, renderFocusReport, renderReport, ticketTotals } from './tokens-report.ts';
 import type { CostEntry } from './cost-record.ts';
 
 /**
@@ -104,7 +104,7 @@ describe('tokens-report', () => {
 				'Kohorte = Abschlusswoche des Siegels; n = 1 ist zu klein für einen Median',
 			);
 			assert.match(report, /█{10} 100 %/, 'voller Anteil = 10 gefüllte Balken-Zeichen');
-			assert.match(report, /Top 5 Tickets\*\* stehen für 100 % des Gesamtwerts/);
+			assert.match(report, /stehen für 100 % des Gesamtwerts/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
@@ -184,7 +184,7 @@ describe('tokens-report', () => {
 		}
 	});
 
-	it('schliesst unvollstaendige Tickets aus allen Kennzahlen aus und nennt ihre Summe', () => {
+	it('schliesst unvollstaendige Tickets aus allen Kennzahlen aus und listet sie einzeln', () => {
 		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-filter-'));
 		try {
 			// vollstaendig: zahlt
@@ -201,9 +201,230 @@ describe('tokens-report', () => {
 			writeTicket(dir, '912', [entry({ issueId: '912', phase: 'implement', valueCost: 7, turns: 9 })]);
 			const report = renderReport(dir);
 			assert.match(report, /1 vollständige Tickets \(1 Pipeline · 0 extern\) · 2 Läufe/);
-			assert.match(report, /Ausgeschlossen \(unvollständig[^)]*\): 2 Tickets — 1 Fixup-Beine, 1 abgebrochen/);
+			assert.match(report, /### Ausgeschlossene Tickets — nicht in Kennzahlen enthalten \(2\)/);
+			assert.match(report, /\[#911\]\([^)]*\) \| Fixup-Bein \| 2 \| 53 \| \$101\.00 \|/);
+			assert.match(report, /\[#912\]\([^)]*\) \| abgebrochen \| 1 \| 9 \| \$7\.00 \|/);
 			assert.match(report, /3 Läufe · 62 Turns · \$108\.00 Wert/);
-			assert.doesNotMatch(report, /\[#91[12]\]/, 'ausgeschlossene Tickets stehen nicht in der Ticket-Tabelle');
+			const hauptTabelle = report.slice(0, report.indexOf('### Ausgeschlossene Tickets'));
+			assert.doesNotMatch(
+				hauptTabelle,
+				/\[#91[12]\]/,
+				'ausgeschlossene Tickets stehen nur in der Exklusions-Sektion, nicht in der Ticket-Tabelle',
+			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Fokus-Modus: listet die Läufe der gewählten Tickets und vergleicht sie je Phase mit dem Rest', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-fokus-'));
+		try {
+			// Fokus-Ticket: ein documenter-Lauf auf „freiem" Modell (valueCost 0) neben einem
+			// implement-Lauf mit Bewertung — genau der Setup-Vergleich ist der Anwendungsfall.
+			writeTicket(dir, '920', [
+				entry({
+					issueId: '920',
+					phase: 'documenter',
+					model: 'openrouter/nemotron-3-nano',
+					provider: 'openrouter',
+					turns: 8,
+					valueCost: 0,
+				}),
+				entry({
+					issueId: '920',
+					phase: 'implement',
+					model: 'claude-opus',
+					provider: 'claude',
+					turns: 30,
+					valueCost: 9,
+					timestamp: '2026-08-24T11:00:00Z',
+				}),
+			]);
+			// Rest: zwei documenter-Läufe anderer Tickets (inkl. unvollständiger Tickets —
+			// im Fokus-Modus zählt der Lauf, nicht die Ticket-Kohorte).
+			writeTicket(dir, '921', [
+				entry({ issueId: '921', phase: 'documenter', turns: 20, valueCost: 4 }),
+				entry({ issueId: '921', phase: 'documenter', turns: 30, valueCost: 6, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			const report = renderFocusReport(dir, ['920', '999']);
+			assert.match(report, /## 🔎 Fokus-Report — #920, #999/);
+			assert.match(report, /Keine Daten für: #999/);
+			assert.match(
+				report,
+				/\| \[#920\]\([^)]*\) \| documenter \| .* \| openrouter\/nemotron-3-nano \| openrouter \| 8 \|/,
+			);
+			assert.match(
+				report,
+				/\| documenter \| 1 \| \$0\.00 \| 8,0 \| 0,00 \| 2 \| \$5\.00 \| 25,0 \| 0,20 \|/,
+				'Ø Wert schließt 0-Werte ein (:free-Modell), Rest zählt Läufe unabhängig von der Ticket-Vollständigkeit',
+			);
+			assert.doesNotMatch(report, /Token- & Kosten-Übersicht/, 'Fokus-Modus ersetzt den Wochen-Report');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Ampel-Trend: Wochen als Spalten, 🟢/🟡/🔴 je Zelle gegen die Vorwoche', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-ampel-'));
+		try {
+			writeTicket(dir, '930', [
+				// W35: analyse $1, review $2 — W36: analyse $2 (🔴 teurer), review $1 (🟢 billiger)
+				entry({ issueId: '930', phase: 'analyse', valueCost: 1, timestamp: '2026-08-24T10:00:00Z' }),
+				entry({ issueId: '930', phase: 'review', valueCost: 2, timestamp: '2026-08-24T11:00:00Z' }),
+				entry({ issueId: '930', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
+				entry({ issueId: '930', phase: 'analyse', valueCost: 2, timestamp: '2026-08-31T10:00:00Z' }),
+				entry({ issueId: '930', phase: 'review', valueCost: 1, timestamp: '2026-08-31T11:00:00Z' }),
+				entry({ issueId: '930', phase: 'documenter', timestamp: '2026-08-31T12:00:00Z' }),
+			]);
+			const report = renderReport(dir);
+			assert.match(report, /### Ampel-Trend — Ø Wert je Run, gegen Vorwoche/);
+			assert.match(report, /\| analyse \| · \$1\.00 \| 🔴 \$2\.00 \|/, 'Anstieg ≥ 10 % = rot');
+			assert.match(report, /\| review \| · \$2\.00 \| 🟢 \$1\.00 \|/, 'Rückgang ≥ 10 % = grün');
+			assert.match(report, /\| \*\*Alle Phasen\*\* \| · \$1\.50 \| 🟡 \$1\.50 \|/, '±10 % = gelb (Geld bleibt)');
+			assert.match(report, /W35 \| W36/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Status-Dashboard und Wochen-Änderungsbericht: Ziele und Siegelwoche auf einen Blick', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-status-'));
+		try {
+			writeTicket(dir, '940', [
+				entry({ issueId: '940', phase: 'implement', valueCost: 2, timestamp: '2026-08-24T09:00:00Z' }),
+				entry({ issueId: '940', phase: 'documenter', timestamp: '2026-08-24T10:00:00Z' }),
+			]);
+			const report = renderReport(dir);
+			// Status-Dashboard: nur die Ziel-KPIs — Pipeline-Kosten unter Ziel = 🟢, die übrigen
+			// Ziele ohne Daten (kein Review/Cache/Modell in den Fixtures) bleiben „—" (6 Ziel-Zeilen:
+			// Review-Runden zählen je Herkunft)
+			assert.match(report, /### Status — Ziele auf einen Blick/);
+			assert.match(report, /\*\*1 von 6 Zielen erfüllt\*\*/);
+			assert.match(report, /\| Kosten je Ticket Pipeline — Median \(messende\) \| \$2\.00 \| < \$3\.00 \|.*🟢 \|/);
+			// Änderungsbericht: Siegelwoche (laufende Woche mit „*") und das versiegelte Ticket
+			assert.match(report, /### Was hat sich verändert — letzte Woche/);
+			assert.match(report, /\*\*2026-W35\*: 1 Tickets versiegelt · \$2\.00 gesamt · \$2\.00 je Ticket\*\*/);
+			assert.match(report, /\[#940\]\([^)]*\) \| Pipeline \| \$2\.00 \| über Median \(\$2\.00\) \|/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Direktvergleich ab zwei Tickets: Kennzahlen mit Δ und Phasen nebeneinander', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-vergleich-'));
+		try {
+			writeTicket(dir, '920', [
+				entry({ issueId: '920', phase: 'documenter', turns: 8, valueCost: 0 }),
+				entry({ issueId: '920', phase: 'implement', turns: 30, valueCost: 9, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			writeTicket(dir, '921', [
+				entry({ issueId: '921', phase: 'documenter', turns: 20, valueCost: 4 }),
+				entry({ issueId: '921', phase: 'documenter', turns: 30, valueCost: 6, timestamp: '2026-08-24T11:00:00Z' }),
+			]);
+			const report = renderFocusReport(dir, ['920', '921']);
+			assert.match(report, /### Direktvergleich/);
+			assert.match(report, /\| Wert \(USD\) \| \$9\.00 \| \$10\.00 \| \+11,1 % \|/);
+			assert.match(report, /\| Turns \| 38 \| 50 \| \+31,6 % \|/);
+			assert.match(
+				report,
+				/\| implement \| \$9\.00 · 30 T · 0 Mio · — · — · — \| — \|/,
+				'Phase, die nur das erste Ticket hat',
+			);
+			assert.match(
+				report,
+				/\| documenter \| \$0\.00 · 8 T · 0 Mio · — · — · — \| \$10\.00 · 50 T · 0 Mio · — · — · — \|/,
+			);
+			assert.match(
+				report,
+				/\| \*\*Summe\*\* \| \$9\.00 · 38 T · 0 Mio · — · — · — \| \$10\.00 · 50 T · 0 Mio · — · — · — \|/,
+			);
+			// Ohne Cache/MCP/Dauer-Felder bleiben nur die drei klassischen Charts übrig.
+			assert.equal(report.match(/```mermaid/g)?.length, 3, 'drei xychart-Blöcke (Wert, Token, Turns)');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('N-Wege-Phasenvergleich: drei Tickets grafisch über Kosten, Token, Turns, Cache, MCP und Dauer', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-n-wege-'));
+		try {
+			writeTicket(dir, '900', [
+				entry({
+					issueId: '900',
+					phase: 'analyse',
+					turns: 10,
+					valueCost: 2,
+					cacheReadTokens: 800_000,
+					cacheCreationTokens: 400_000,
+					mcpCalls: 3,
+					durationSeconds: 300,
+				}),
+				entry({
+					issueId: '900',
+					phase: 'review',
+					turns: 5,
+					valueCost: 1,
+					cacheReadTokens: 600_000,
+					mcpCalls: 1,
+					durationSeconds: 120,
+				}),
+			]);
+			writeTicket(dir, '901', [
+				entry({
+					issueId: '901',
+					phase: 'analyse',
+					turns: 20,
+					valueCost: 4,
+					cacheReadTokens: 1_000_000,
+					mcpCalls: 7,
+					durationSeconds: 90,
+				}),
+			]);
+			writeTicket(dir, '902', [entry({ issueId: '902', phase: 'analyse', turns: 4, valueCost: 0.5 })]);
+			const report = renderFocusReport(dir, ['900', '901', '902']);
+			// Matrix: Cache, MCP und Dauer als eigene Zellanteile; #902 ohne Felder zeigt „—"
+			assert.match(
+				report,
+				/\| analyse \| \$2\.00 · 10 T · [0-9,]+ Mio · 1,2 Mio C · 3 MCP · 5\.0 min \| \$4\.00 · 20 T · [0-9,]+ Mio · 1 Mio C · 7 MCP · 1\.5 min \| \$0\.50 · 4 T · [0-9,]+ Mio · — · — · — \|/,
+			);
+			// Sechs Kennzahlen als xychart, eine je Kennzahl; Balken je Phase nebeneinander
+			// (Slot je Ticket + Ø-Slot), #902 ohne Felder bleibt als Serie nur in den
+			// klassischen Charts — MCP/Dauer fahren ohne ihn (Serie ohne jeden Wert entfällt)
+			assert.equal(report.match(/```mermaid/g)?.length, 6, 'sechs xychart-Blöcke, eine je Kennzahl');
+			assert.match(
+				report,
+				/#### MCP-Calls je Phase[\s\S]*?bar "#900" \[3, 0, 0, 0, 1, 0, 0, 0\][\s\S]*?bar "#901" \[0, 7, 0, 0, 0, 0, 0, 0\][\s\S]*?bar "Ø \(3\)" \[0, 0, 0, 5, 0, 0, 0, 1\]/,
+				'Ø je Phase nur über Tickets mit Daten',
+			);
+			assert.doesNotMatch(
+				report,
+				/#### MCP-Calls je Phase[\s\S]*?bar "#902"/,
+				'Alt-Ticket ohne mcpCalls entfällt als Serie',
+			);
+			assert.match(
+				report,
+				/#### Dauer je Phase \(Minuten\)[\s\S]*?bar "#900" \[5\.0, 0\.0, 0\.0, 0\.0, 2\.0, 0\.0, 0\.0, 0\.0\][\s\S]*?bar "#901" \[0\.0, 1\.5, 0\.0, 0\.0, 0\.0, 0\.0, 0\.0, 0\.0\]/,
+			);
+			assert.match(
+				report,
+				/#### Turns je Phase[\s\S]*?bar "#900" \[10, 0, 0, 0, 5, 0, 0, 0\][\s\S]*?bar "#901" \[0, 20, 0, 0, 0, 0, 0, 0\][\s\S]*?bar "#902" \[0, 0, 4, 0, 0, 0, 0, 0\][\s\S]*?bar "Ø \(3\)" \[0, 0, 0, 11, 0, 0, 0, 5\]/,
+			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('Kennzahl mit nur einem tragenden Ticket bekommt keinen Chart', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-einserie-'));
+		try {
+			writeTicket(dir, '910', [entry({ issueId: '910', phase: 'spec', turns: 3, valueCost: 1, mcpCalls: 2 })]);
+			writeTicket(dir, '911', [entry({ issueId: '911', phase: 'spec', turns: 4, valueCost: 2 })]);
+			const report = renderFocusReport(dir, ['910', '911']);
+			assert.doesNotMatch(report, /#### MCP-Calls je Phase/, 'eine Serie allein ist kein Vergleich');
+			assert.match(
+				report,
+				/\| spec \| \$1\.00 · 3 T · [0-9,]+ Mio · — · 2 MCP · — \| \$2\.00 · 4 T · [0-9,]+ Mio · — · — · — \|/,
+			);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}

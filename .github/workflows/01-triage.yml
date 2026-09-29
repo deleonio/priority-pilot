@@ -63,8 +63,8 @@ jobs:
     # (ai:needs-analyse) bereits von einem anderen Lauf konsumiert (entfernt) worden sein.
     # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
     # Phasen-Name übergeben. Fail-open bei API-Fehler (dort implementiert).
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read # lokale Action + Skript auschecken
       issues: write # Guete-Gate: Feedback-Kommentar + Label (ai:needs-human, ai:needs-analyse konsumieren)
@@ -141,7 +141,7 @@ jobs:
       ${{ always()
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure')
           && needs.precheck.outputs.quality_ok != 'false' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

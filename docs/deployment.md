@@ -127,6 +127,13 @@ FEEDBACK_GITHUB_TOKEN=
 # FEEDBACK_GITHUB_REPO=deleonio/Obsidian    # Default, siehe server/src/express/routes/feedback.ts
 # FEEDBACK_GITHUB_BRANCH=app-feedback       # Default; wird bei Bedarf von main abgezweigt
 # FEEDBACK_GITHUB_DIR=Feedback              # Default-Ablageordner im Repo
+
+# Android-App (ADR 0016/0017): Schlüsseldateien von Google-Service-Accounts, außerhalb des
+# App-Verzeichnisses und chmod 600. Ohne FCM gehen Benachrichtigungen nur per Web-Push raus,
+# ohne Play-Zugang lassen sich Käufe aus der App nicht prüfen (siehe server/.env.example).
+# FCM_SERVICE_ACCOUNT_FILE=/var/www/gh-deploy/priority-pilot/secrets/fcm-service-account.json
+# GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=/var/www/gh-deploy/priority-pilot/secrets/play-service-account.json
+# GOOGLE_RTDN_AUDIENCE=https://priority-pilot.example.de/api/v1/billing/google/rtdn   # Push-Endpunkt = Zielgruppe der Pub/Sub-Subscription
 ```
 
 **Anmeldung und Zugang:** Nur Adressen aus `GOOGLE_ALLOWED_EMAILS` können sich anmelden; ihr Konto
@@ -185,9 +192,17 @@ Bump, Push und Release. `cron.daily-version.yml` nutzt das nach seinem tägliche
 die neue Version auch im ausgelieferten Bundle ankommt.
 
 **Benötigte Repo-Konfiguration:** Secret `DEPLOY_SSH_KEY` sowie die Variablen `DEPLOY_HOST`,
-`DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Optional `SITE_URL` (z. B.
-`https://priority-pilot.example.de`): Damit schreibt der Website-Build absolute canonical- und
-hreflang-Links und eine `sitemap.xml`. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
+`DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. `SITE_URL` (z. B.
+`https://priority-pilot.example.de`) ist Pflicht — fehlt sie, bricht der Deploy mit Fehler ab:
+Der Capacitor-Sync des APK-Builds und der Website-Build brauchen sie (absolute canonical- und
+hreflang-Links, `sitemap.xml`). Optional `ANDROID_PACKAGE_ID` (`de.balamentum.app`) und
+`ANDROID_CERT_SHA256` (SHA-256-Fingerprints von App-Signing- und Upload-Key, durch Komma getrennt):
+Damit erzeugt der Website-Build `/.well-known/assetlinks.json` für die App Links der Android-App
+([ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)). Secret
+`ANDROID_DEBUG_KEYSTORE_B64` (Debug-Keystore als Base64): Das Deploy baut die Debug-APK und legt
+sie als `demo.apk` ins Web-Root — der Runner-Keystore wäre je Lauf neu und würde die App-Link-Verifizierung
+brechen. Optional Secret `ANDROID_GOOGLE_SERVICES_JSON` (bei Build und `demo.apk` gleich): Fehlt
+es, baut die APK ohne FCM-Push. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
 beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup vor; Einrichtung des
 Hosts siehe [server-setup.md](server-setup.md).
 
@@ -204,6 +219,12 @@ deployt den alten Stand automatisch neu. Die DB in `data/` ist davon nicht betro
 Achtung bei **Schema-Migrationen**: Ein Rollback der App passt nicht automatisch zum DB-Schema einer
 neueren Version — vor Schema-ändernden Releases ein `data/database.sqlite`-Backup ziehen (siehe
 [Sicherheit & Betrieb](#5-sicherheit--betrieb)).
+
+**Schema-Änderungen im Release:** Neue Modell-Spalten brauchen für Bestands-DBs einen Migrator in
+`server/src/logics/migrate.ts`, der im Serverstart **vor** `sequelize.sync()` läuft — `sync()` ohne
+`alter` ergänzt bestehende Tabellen nicht, nur frische DBs bekommen die Spalten von `sync()`. Ohne
+Migrator brechen Lesezugriffe auf Bestands-DBs mit `SQLITE_ERROR: no such column` (Incident #1742:
+`subscriptions.pendingPlan` aus #1505).
 
 ---
 
@@ -244,6 +265,28 @@ Merge auf `main` neu.
 die Defaults (`./database.sqlite`, Seeding nur in leere DB). Das Frontend ruft die API in beiden
 Betriebsarten unter `/api/v1/*` auf — in Produktion streift Caddy das Präfix, lokal der Vite-Dev-Proxy
 (derselbe Rewrite, siehe [server-setup.md § 7](server-setup.md#7-caddy-block--dns)).
+
+---
+
+## 7. Übergangs-Setzung vor dem Launch (#1463)
+
+Bestandskonten mit `plan = 'free'`, die vor einem Stichtag angelegt wurden, bekommen einmalig das
+Übergangs-Tier `ultimate` und behalten so alle Funktionen. Die Setzung läuft **nicht** beim
+Serverstart (`migrate.ts`), sondern nur als manueller Lauf — ein später bewusst auf `free`
+zurückgesetztes Konto bleibt dadurch unberührt. Reihenfolge verbindlich:
+
+1. **Backup** ziehen (`maintenance.sh`, siehe [Sicherheit & Betrieb](#5-sicherheit--betrieb)).
+2. **Setzung** im Server-Verzeichnis (`.env` mit `DATABASE_STORAGE` wird automatisch geladen):
+   `GRANDFATHER_CUTOFF=2026-10-01T00:00:00Z node dist/cli/grandfatherPlans.js`. Fehlt der Stichtag
+   oder ist er ungültig, bricht das Skript ohne DB-Zugriff mit Exit-Code 1 ab. Ein zweiter Lauf mit
+   gleichem Stichtag ändert 0 Konten.
+3. **Prüfen:** Das Skript gibt die Anzahl geänderter Konten und die Paketverteilung aus
+   (`{"free":…,"pro":…,"max":…,"ultimate":…}`). `free` darf nur noch Konten ab dem Stichtag enthalten.
+4. **Schalter an:** `MONETIZATION_ENFORCED=true` in die Env-Datei, `pm2 reload` — der Wert wird pro
+   Aufruf gelesen, kein Deploy nötig.
+
+**Rückweg:** `MONETIZATION_ENFORCED` entfernen (oder `false`) und `pm2 reload` — Gating und
+Kontingente sind sofort wieder aus, ebenfalls ohne Deploy. Die gesetzten Pläne bleiben bestehen.
 
 ---
 

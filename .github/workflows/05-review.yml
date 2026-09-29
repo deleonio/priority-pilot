@@ -56,8 +56,8 @@ jobs:
     # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein.
     # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
     # Phasen-Name übergeben.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read # lokale Action + Skript auschecken
       pull-requests: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung
@@ -160,7 +160,7 @@ jobs:
       ${{ always()
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     # 60 statt 30 min: der Lauf wartet seit dem CI-Warte-Gate (s. u.) zuerst auf den Abschluss
     # der Verify-Checks (Budget 20 min) und reviewt danach mit dem 15-min-Soft-Deadline.
     timeout-minutes: 60
@@ -201,6 +201,7 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
           runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # Modellwahl kommt aus dem ai:model:*-Label (precheck), NICHT mehr statisch:
           # der PR erbt sie vom verknüpften Issue, ein Label am PR selbst gewinnt.
@@ -589,7 +590,10 @@ jobs:
             allow='[]'
             delays=(2 3 5 8)
             for attempt in 1 2 3 4 5; do
-              checks="$(gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,bucket,workflow 2>/dev/null || echo '[]')"
+              # Exit-Code schlucken statt `|| echo '[]'`: `gh pr checks` endet bei roten Checks mit 1,
+              # gibt das JSON aber aus — das angehaengte `[]` machte daraus zwei jq-Dokumente,
+              # has_ci/any_fail kippten und ein rotes CI ging als reviewed durch (#1824).
+              checks="$(gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,bucket,workflow 2>/dev/null)" || true
               if [ -z "$checks" ]; then checks='[]'; fi
               # `.name != "precheck"` — analog zum Gate (claude-pr-gate-merge.yml): der
               # Label-Pre-Check laeuft unter demselben Workflow-Namen und darf das eigene

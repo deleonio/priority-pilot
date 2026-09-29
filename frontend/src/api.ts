@@ -38,8 +38,7 @@ import type {
 	Profile,
 	ParsedSearch,
 	ParsedTask,
-	ReassignPillarsResult,
-	OwnReassignPillarsResult,
+	ReassignRunStarted,
 	OwnReassignPillarsStatus,
 	ReassignStatusFilter,
 	paths,
@@ -63,6 +62,7 @@ import type {
 import createClient from 'openapi-fetch';
 import { planRequiredDetail } from './lib/apiError';
 import { sortCategoriesByName } from './lib/categories';
+import { getChannel } from './lib/platform';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
 // http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
@@ -88,6 +88,8 @@ const ensureCsrfToken = async (): Promise<string> => {
 
 client.use({
 	onRequest: async ({ request }) => {
+		// Kanal für die serverseitige Kanal-Regel (ADR 0016), z. B. keine PayPal-Kasse in der Android-App.
+		request.headers.set('X-Client-Channel', getChannel());
 		if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
 			request.headers.set('x-csrf-token', await ensureCsrfToken());
 		}
@@ -242,6 +244,12 @@ export const api = {
 	/** Löst den Token aus dem Anmeldelink ein; `false` bei abgelaufenem oder benutztem Link. */
 	async verifyMagicLink(token: string): Promise<boolean> {
 		const { response } = await client.POST('/auth/magic-link/verify', { body: { token } });
+		return response.ok;
+	},
+
+	/** Löst den Einmal-Code aus dem App-Login mit dem `state` der App ein (#1678); danach steht die Session. */
+	async exchangeNativeLoginCode(code: string, state: string): Promise<boolean> {
+		const { response } = await client.POST('/auth/native/exchange', { body: { code, state } });
 		return response.ok;
 	},
 
@@ -547,7 +555,7 @@ export const api = {
 		status?: ReassignStatusFilter;
 		limit?: number;
 		restart?: boolean;
-	} & Init = {}): Promise<ReassignPillarsResult> {
+	} & Init = {}): Promise<ReassignRunStarted> {
 		const { data, error, response } = await client.POST('/admin/tasks/reassign-pillars', {
 			params: {
 				query: { offset: offset !== undefined && offset > 0 ? offset : undefined, status, limit, restart },
@@ -590,7 +598,7 @@ export const api = {
 		limit?: number;
 		offset?: number;
 		restart?: boolean;
-	} & Init = {}): Promise<OwnReassignPillarsResult> {
+	} & Init = {}): Promise<ReassignRunStarted> {
 		const { data, error, response } = await client.POST('/tasks/reassign-pillars', {
 			params: { query: { status, limit, offset, restart } },
 			signal,
@@ -888,6 +896,22 @@ export const api = {
 		}
 	},
 
+	// Meldet einen Kauf aus Google Play an den Server, der ihn prüft, bestätigt und freischaltet (#1692).
+	async submitGooglePurchase(purchaseToken: string): Promise<void> {
+		const { error, response } = await client.POST('/billing/google/purchase', { body: { purchaseToken } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// Löscht das eigene Konto samt Session (#1671). Die Frontend-Aufräumarbeit erledigt der Aufrufer.
+	async deleteAccount(): Promise<void> {
+		const { error, response } = await client.DELETE('/auth/me');
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// Zerstört die serverseitige Session. Die Frontend-Aufräumarbeit (localStorage, Redirect) erledigt
 	// der Aufrufer. Eigener fetch statt openapi-fetch, da /auth/* nicht in der OpenAPI-Spec steht —
 	// aber wie alle anderen Endpunkte unter dem proxied `/api/v1`-Präfix (s. checkAuth() in lib/auth.ts).
@@ -954,6 +978,21 @@ export const api = {
 	// Browser-Subscription am Backend abmelden.
 	async unsubscribePush({ endpoint }: { endpoint: string }): Promise<void> {
 		const { error, response } = await client.POST('/push/unsubscribe', { body: { endpoint } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// FCM-Token der Android-App an- bzw. abmelden (#1679); der Server schickt Benachrichtigungen dann auch per FCM.
+	async registerFcmToken(token: string): Promise<void> {
+		const { error, response } = await client.POST('/push/fcm/register', { body: { token } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	async unregisterFcmToken(token: string): Promise<void> {
+		const { error, response } = await client.POST('/push/fcm/unregister', { body: { token } });
 		if (!response.ok) {
 			throw new ResponseError(response, error);
 		}

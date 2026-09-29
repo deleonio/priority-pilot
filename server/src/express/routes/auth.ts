@@ -6,15 +6,21 @@ import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
+import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
-import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/paypal.js';
+import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
+import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
+import { upsertOAuthUser } from '../../logics/oauthUser.js';
+import { deleteAccount } from '../../logics/deleteAccount.js';
+import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
 import { getAiUsageCount } from '../aiQuotaMeter.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
+import { playAccountIdFor } from '../../logics/googlePlay.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -174,6 +180,13 @@ authRouter.post('/auth/login', async (req, res) => {
 // Login-Redirects zielen deshalb auf die App-Wurzel, nicht auf „/".
 const APP_ROOT = '/app/';
 
+// ADR 0015 Punkt 4: Lesbares Merk-Cookie „angemeldet", mit dem die statische Startseite angemeldete
+// Nutzer vor dem ersten Rendern in die App schickt (`SIGNED_IN_REDIRECT` in website/src/render.ts).
+// Es trägt nur „1", die Session selbst bleibt httpOnly. `/auth/me` läuft bei jedem App-Start und hält
+// es damit im Takt der rollenden Session; 401 und Logout löschen es.
+const SIGNED_IN_COOKIE = 'bm_signed_in';
+const signedInCookieOptions = { path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' } as const;
+
 // GET /auth/error — Ziel des OAuth-failureRedirect, liefert eindeutiges Fehler-Feedback statt SPA-Fallback/404.
 authRouter.get('/auth/error', (_req, res) => {
 	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
@@ -191,8 +204,24 @@ const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
 	next();
 };
 
-// GET /auth/google — startet den OAuth-Flow
-authRouter.get('/auth/google', requireGoogleStrategy, passport.authenticate('google', { scope: ['email', 'profile'] }));
+// Zufallswert der App für den nativen Login (ADR 0016), Alphabet wie base64url.
+const NATIVE_STATE = /^[\w-]{16,128}$/;
+
+// GET /auth/google — startet den OAuth-Flow. `?client=app&state=…` markiert den Login aus der nativen
+// App (ADR 0016): Er läuft im System-Browser, dessen Session der WebView der App nicht teilt. Der
+// Einmal-Code wird an `state` gebunden, den nur die startende App kennt — ein fremder, per Link
+// untergeschobener Code lässt sich so nicht in der App einlösen (Login-CSRF).
+authRouter.get('/auth/google', requireGoogleStrategy, (req, res, next) => {
+	delete req.session.nativeState;
+	if (req.query.client === 'app') {
+		if (typeof req.query.state !== 'string' || !NATIVE_STATE.test(req.query.state)) {
+			sendError(res, 400, 'state fehlt oder ist ungültig.');
+			return;
+		}
+		req.session.nativeState = req.query.state;
+	}
+	passport.authenticate('google', { scope: ['email', 'profile'] })(req, res, next);
+});
 
 // GET /auth/google/silent — stiller Google-Login via prompt=none (Issue #396 PR B).
 // Ein Nutzer mit gültiger Google-Session wird so ohne eigenen Klick angemeldet. Ist kein OAuth
@@ -205,6 +234,9 @@ authRouter.get('/auth/google/silent', (req, res, next) => {
 		return;
 	}
 	req.session.silentPending = true;
+	// Der stille Login ist immer Web-Kontext: ein Vermerk aus einem abgebrochenen App-Login (#1669)
+	// darf ihn nicht auf den App Link umleiten.
+	delete req.session.nativeState;
 	// #1231: Route, von der der stille Login angestoßen wurde, aufnehmen — der Erfolgs-Callback
 	// leitet darauf zurück statt fix auf „/". Sanitisiert (Open-Redirect-Schutz); ungültig/fehlend
 	// → kein Return-Path.
@@ -269,6 +301,17 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			if (req.session?.silentReturnTo) {
 				delete req.session.silentReturnTo;
 			}
+			// Login aus der nativen App (#1669): keine Session im System-Browser, sondern ein Einmal-Code,
+			// den der WebView der App über den App Link einlöst (POST /auth/native/exchange).
+			const nativeState = req.session?.nativeState;
+			if (nativeState) {
+				delete req.session.nativeState;
+				createNativeLoginCode(user.email, nativeState).then(
+					(code) => res.redirect(`${APP_ROOT}auth/native?code=${encodeURIComponent(code)}`),
+					() => res.redirect(`${APP_ROOT}?error=login_failed`),
+				);
+				return;
+			}
 			establishSession(req, user, (sessionErr) => {
 				if (sessionErr) {
 					res.redirect(silentPending ? `${APP_ROOT}?silent=unavailable` : `${APP_ROOT}?error=login_failed`);
@@ -278,6 +321,29 @@ authRouter.get('/auth/google/callback', requireGoogleStrategy, (req, res, next) 
 			});
 		},
 	)(req, res, next);
+});
+
+// POST /auth/native/exchange — löst den Einmal-Code aus dem App-Login zusammen mit dem `state` der App
+// ein und meldet den WebView der App an (#1669, ADR 0016). Die Allowlist wird erneut geprüft, wie beim
+// Magic Link.
+authRouter.post('/auth/native/exchange', async (req, res) => {
+	const { code, state } = (req.body ?? {}) as { code?: unknown; state?: unknown };
+	const email =
+		typeof code === 'string' && code !== '' && typeof state === 'string' && state !== ''
+			? await consumeLoginToken(nativeLoginToken(code, state), 'native')
+			: null;
+	if (!email || !isEmailAllowed(email)) {
+		sendError(res, 400, 'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.');
+		return;
+	}
+	const user = await upsertOAuthUser({ email });
+	establishSession(req, user, (sessionErr) => {
+		if (sessionErr) {
+			sendError(res, 500, 'Session-Fehler.');
+			return;
+		}
+		res.status(204).end();
+	});
 });
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB
@@ -307,6 +373,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		return;
 	}
 	if (!req.session || !req.session.user) {
+		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
@@ -317,6 +384,14 @@ authRouter.get('/auth/me', async (req, res) => {
 	let plan: Plan;
 	try {
 		const dbUser = typeof user.id === 'number' ? await User.findByPk(user.id) : undefined;
+		// Konto inzwischen gelöscht (#1671, z. B. auf einem anderen Gerät): Session beenden.
+		if (dbUser === null) {
+			req.session.destroy(() => {
+				res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
+				res.status(401).json({ message: 'Nicht eingeloggt.' });
+			});
+			return;
+		}
 		role = dbUser?.role ?? user.role ?? 'member';
 		plan = dbUser?.plan ?? user.plan ?? 'free';
 	} catch {
@@ -341,6 +416,7 @@ authRouter.get('/auth/me', async (req, res) => {
 	// #1494 (AK7): Abo-Status zusätzlich zu plan/entitlements — kein Abo → definierter Leerwert
 	// `null`. Best-Effort wie der KI-Verbrauch: ein Lesefehler darf `/auth/me` nicht mit 500 reißen.
 	let subscription: {
+		provider: string;
 		plan: string;
 		period: string;
 		status: string;
@@ -350,8 +426,14 @@ authRouter.get('/auth/me', async (req, res) => {
 		graceUntil: Date | null;
 	} | null = null;
 	try {
+		// #1690: das laufende Abo zuerst; sonst das zuletzt angelegte (gekündigt oder abgelaufen).
 		const dbSubscription =
-			typeof user.id === 'number' ? await Subscription.findOne({ where: { userId: user.id } }) : null;
+			typeof user.id === 'number'
+				? ((await Subscription.findOne({
+						where: { userId: user.id, status: OPEN_SUBSCRIPTION_STATUSES },
+						order: [['createdAt', 'DESC']],
+					})) ?? (await Subscription.findOne({ where: { userId: user.id }, order: [['createdAt', 'DESC']] })))
+				: null;
 		if (dbSubscription) {
 			const now = new Date();
 			// #1495 (AK4): ein vorgemerkter Downgrade wirkt zum `currentPeriodEnd` — hier, beim Lesen,
@@ -361,6 +443,7 @@ authRouter.get('/auth/me', async (req, res) => {
 			await applyDueGracePeriod(dbSubscription, now);
 			const firstFailureAt = dbSubscription.get('firstFailureAt') as Date | null;
 			subscription = {
+				provider: dbSubscription.provider,
 				plan: dbSubscription.plan,
 				period: dbSubscription.period,
 				status: dbSubscription.status,
@@ -375,6 +458,10 @@ authRouter.get('/auth/me', async (req, res) => {
 	} catch (error) {
 		console.warn('Abo-Status konnte nicht gelesen werden — subscription zeigt null.', error);
 	}
+	res.cookie(SIGNED_IN_COOKIE, '1', {
+		...signedInCookieOptions,
+		maxAge: req.session.cookie.originalMaxAge ?? undefined,
+	});
 	res.json({
 		id: user.id,
 		email: user.email,
@@ -384,12 +471,45 @@ authRouter.get('/auth/me', async (req, res) => {
 		plan,
 		entitlements: getEntitlements(plan, aiAssistConsumed),
 		subscription,
+		...(user.id !== undefined ? { playAccountId: playAccountIdFor(user.id) } : {}),
+	});
+});
+
+// DELETE /auth/me — eigenes Konto samt persönlichen Daten löschen (#1671, Play-Pflicht). 409 mit
+// Begründung bei laufendem Abo oder als letzter Admin einer Gruppe mit weiteren Mitgliedern; danach
+// endet die Session wie beim Logout.
+authRouter.delete('/auth/me', async (req, res) => {
+	const userId = req.session?.user?.id;
+	if (typeof userId !== 'number') {
+		sendError(res, 401, 'Anmeldung erforderlich.');
+		return;
+	}
+	const result = await deleteAccount(userId);
+	// `code` lässt die App den Grund in der Sprache des Nutzers erklären; `message` bleibt für API-Clients.
+	if (result === 'subscription_active') {
+		res
+			.status(409)
+			.json({ message: 'Bitte kündige zuerst dein Abo. Danach kannst du dein Konto löschen.', code: result });
+		return;
+	}
+	if (result === 'last_group_admin') {
+		res.status(409).json({
+			message:
+				'Du bist der letzte Admin einer Gruppe mit weiteren Mitgliedern. Ernenne zuerst eine andere Person zum Admin oder löse die Gruppe auf.',
+			code: result,
+		});
+		return;
+	}
+	req.session.destroy(() => {
+		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
+		res.status(204).end();
 	});
 });
 
 // POST /auth/logout — Session beenden
 authRouter.post('/auth/logout', (req, res) => {
 	req.session.destroy(() => {
+		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
 		res.json({ message: 'Ausgeloggt.' });
 	});
 });

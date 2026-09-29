@@ -10,10 +10,21 @@ import { isMailConfigured } from './mail.js';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 
+/** Einmal-Code nach dem Google-Login der nativen App (ADR 0016): nur für den direkten Rücksprung. */
+const NATIVE_CODE_TTL_MS = 60 * 1000;
+
 /** Höchstens so viele Links pro Adresse innerhalb von {@link TOKEN_TTL_MS} (Schutz vor Mail-Flut). */
 const MAX_TOKENS_PER_WINDOW = 3;
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
+
+/**
+ * Räumt abgelaufene Tokens beider Zwecke weg (kein eigener Aufräum-Job nötig). Nur nach Alter, nicht
+ * nach `usedAt`: sonst kann das Löschen einer fremden, gerade erst eingelösten Zeile dazwischenfunken
+ * (siehe consumeLoginToken), und verbrauchte Tokens würden nicht mehr gegen MAX_TOKENS_PER_WINDOW zählen.
+ */
+const purgeExpiredTokens = (now: Date): Promise<number> =>
+	LoginToken.destroy({ where: { expiresAt: { [Op.lt]: new Date(now.getTime() - TOKEN_TTL_MS) } } });
 
 /**
  * Öffentliche Basis-URL für den Link in der Mail. Bewusst eine eigene Umgebungsvariable statt des
@@ -34,13 +45,10 @@ export const buildMagicLinkUrl = (token: string): string =>
  * und eingelöste Tokens werden dabei mit weggeräumt (kein eigener Aufräum-Job nötig).
  */
 export const createLoginToken = async (email: string, now: Date = new Date()): Promise<string | null> => {
-	// Nur nach Alter aufräumen (nicht nach `usedAt`): sonst kann das Löschen einer fremden,
-	// gerade erst eingelösten Zeile dazwischenfunken (siehe consumeLoginToken) und verbrauchte
-	// Tokens würden nicht mehr gegen MAX_TOKENS_PER_WINDOW zählen.
-	await LoginToken.destroy({ where: { expiresAt: { [Op.lt]: new Date(now.getTime() - TOKEN_TTL_MS) } } });
+	await purgeExpiredTokens(now);
 
 	const recent = await LoginToken.count({
-		where: { email, createdAt: { [Op.gt]: new Date(now.getTime() - TOKEN_TTL_MS) } },
+		where: { email, purpose: 'magic', createdAt: { [Op.gt]: new Date(now.getTime() - TOKEN_TTL_MS) } },
 	});
 	if (recent >= MAX_TOKENS_PER_WINDOW) {
 		return null;
@@ -51,23 +59,47 @@ export const createLoginToken = async (email: string, now: Date = new Date()): P
 	return token;
 };
 
+/** Einlösbarer Token eines App-Logins: Code nur zusammen mit dem `state` der startenden App. */
+export const nativeLoginToken = (code: string, state: string): string => `${code}:${state}`;
+
 /**
- * Löst einen Token ein und liefert die zugehörige E-Mail — `null` bei unbekanntem, abgelaufenem oder
- * schon benutztem Token. Der Verbrauch ist ein einzelnes bedingtes UPDATE: Zwei parallele Einlöse-
- * versuche mit demselben Token können so nie beide gewinnen.
+ * Legt den Einmal-Code an, den die native App nach dem Google-Login über den App Link einlöst
+ * (ADR 0016). Gespeichert wird der Hash von Code und `state`, damit nur die startende App ihn
+ * einlösen kann. Ohne Mengenlimit: Er entsteht nur nach einem erfolgreichen Google-Login.
  */
-export const consumeLoginToken = async (token: string, now: Date = new Date()): Promise<string | null> => {
+export const createNativeLoginCode = async (email: string, state: string, now: Date = new Date()): Promise<string> => {
+	await purgeExpiredTokens(now);
+	const code = randomBytes(32).toString('base64url');
+	await LoginToken.create({
+		email,
+		tokenHash: hashToken(nativeLoginToken(code, state)),
+		purpose: 'native',
+		expiresAt: new Date(now.getTime() + NATIVE_CODE_TTL_MS),
+	});
+	return code;
+};
+
+/**
+ * Löst einen Token ein und liefert die zugehörige E-Mail — `null` bei unbekanntem, abgelaufenem,
+ * schon benutztem oder für einen anderen Zweck ausgestelltem Token. Der Verbrauch ist ein einzelnes
+ * bedingtes UPDATE: Zwei parallele Einlöseversuche mit demselben Token können so nie beide gewinnen.
+ */
+export const consumeLoginToken = async (
+	token: string,
+	purpose: 'magic' | 'native' = 'magic',
+	now: Date = new Date(),
+): Promise<string | null> => {
 	const tokenHash = hashToken(token);
 	// E-Mail vor dem Verbrauch lesen: das Aufräumen in createLoginToken kann zwischen UPDATE und
 	// einem nachträglichen findOne dazwischenfunken (fremder Aufruf löscht die soeben eingelöste
 	// Zeile, bevor sie hier wieder gelesen wird).
-	const row = await LoginToken.findOne({ where: { tokenHash, usedAt: null, expiresAt: { [Op.gt]: now } } });
+	const row = await LoginToken.findOne({ where: { tokenHash, purpose, usedAt: null, expiresAt: { [Op.gt]: now } } });
 	if (!row) {
 		return null;
 	}
 	const [affected] = await LoginToken.update(
 		{ usedAt: now },
-		{ where: { tokenHash, usedAt: null, expiresAt: { [Op.gt]: now } } },
+		{ where: { tokenHash, purpose, usedAt: null, expiresAt: { [Op.gt]: now } } },
 	);
 	return affected === 1 ? row.email : null;
 };

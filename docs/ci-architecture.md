@@ -14,10 +14,29 @@ Coding-Agent in CI — seit #1184 mit **pi** als zweiter, über eine Variable w�
 Das **Backend** ist über die Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar; aufgelöst wird
 sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/action.yml).
 
-| `vars.LLM_PROVIDER` | Endpoint                                            | Secret           | Auth-Variable                                   | Modell (`"model": "opus"`) |
-| ------------------- | --------------------------------------------------- | ---------------- | ----------------------------------------------- | -------------------------- |
-| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)       | `CLAUDE_API_KEY` | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)        |
-| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`              |
+| `vars.LLM_PROVIDER` | Endpoint                                                                                          | Secret               | Auth-Variable                                   | Modell (`"model": "opus"`)                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)                                                     | `CLAUDE_API_KEY`     | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)                                                  |
+| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic`                                               | `ZAI_API_KEY`        | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`                                                        |
+| `openrouter`        | `ANTHROPIC_BASE_URL=https://openrouter.ai/api` (aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`) | `OPENROUTER_API_KEY` | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | Auflösung über `ANTHROPIC_DEFAULT_*_MODEL` in derselben Settings-Var |
+
+Ausnahme: Der **Documenter (06)** umgeht `vars.LLM_PROVIDER` und läuft per Default immer über
+`openrouter` mit einem `:free`-Model (Default `haiku`-Alias → `nvidia/nemotron-3-nano-30b-a3b:free`,
+aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
+`LLM_PROVIDER_DOCUMENTER`, die den Wert überschreibt.
+
+**Notbetrieb (OpenRouter gestört):** Schlägt der Documenter-Run auf `main` fehl (Setup- oder
+Claude-Step, z. B. 4xx/402/Timeout), ist nur die Post-Merge-Doku betroffen — es gibt bewusst
+keinen stillen Fallback. Umleitung per Repo-Var, Rückweg durch Löschen der Var:
+
+```bash
+gh variable set LLM_PROVIDER_DOCUMENTER --body zai   # → GLM-Abo (haiku-Alias → glm-5.3-flash[1m])
+gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openrouter-Default
+```
+
+Ist nur ein einzelnes `:free`-Modell weg (OpenRouter selbst erreichbar), genügt es,
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` in `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER` auf ein anderes
+`:free`-Modell zu setzen.
 
 **Peak-Fenster: Warning-only, kein Fallback mehr:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18
 Asia/Singapore) schaltet im Peak-Fenster nicht mehr auf `claude` um: Der Lauf bleibt auf zai
@@ -154,19 +173,29 @@ eingebaut, und eine handgeschriebene z.ai-Zeile würde das eingebaute 1M-Kontext
 
 pi hat **kein Permission-System** (steht so in seiner README). `--tools` ist eine Allowlist von
 Tool-**Namen**; ein Gegenstück zu Claudes `Bash(gh *)` oder `Edit(.ai-memory/*)` existiert nicht.
-Damit lässt sich das `restricted`-Tier der Triage unter pi **nicht nachbauen**: Wer `bash`
-bekommt — und ohne `bash` kein `gh`, also keine Triage —, kann faktisch auch schreiben.
+Wer `bash` bekommt, kann faktisch auch schreiben.
 
-Die Eingrenzung eines pi-Laufs kommt daher aus dem ephemeren Runner und dem Scope des
-App-Tokens, nicht aus der Laufzeit. `setup-pi` protokolliert das bei `restricted`/`review` als
-`::warning`, statt eine Gleichwertigkeit zu behaupten.
+**`restricted` ist durchgesetzt** ([#1193](https://github.com/deleonio/priority-pilot/issues/1193)):
+`setup-pi` startet das Tier mit `--no-builtin-tools --tools read,grep,find,ls,gh,memory_write` —
+ohne `bash`, also strenger als das Claude-Tier. Die Extension
+[`.pi/extensions/restricted-tools.ts`](../.pi/extensions/restricted-tools.ts) liefert zwei enge
+Werkzeuge, deren Grenzen im Code stehen:
 
-**Der Weg raus** steht in [#1193](https://github.com/deleonio/priority-pilot/issues/1193): eine
-pi-Extension mit zwei engen Custom-Tools (`gh` mit Kommando-Allowlist, `memory_write` mit
-Pfad-Zwang) und Invoke mit `--no-builtin-tools` — dann gibt es im restricted-Tier gar kein `bash`,
-was strenger ist als das Claude-Tier. Fällig **vor** dem Rollout auf 02–06: Dort wiegt die Lücke
-schwerer als im Triage-Pilot, weil Review (05) untrusted Diffs liest und heute bewusst
-schreibgeschützt läuft. Verlässlich abschaltbar sind nur die
+- `gh` ruft die CLI ohne Shell auf und prüft das Argument-Array gegen
+  [`pi-gh-allowlist.ts`](../.github/scripts/pi-gh-allowlist.ts): `issue view|list|comment`,
+  `issue edit` nur mit Titel-/Label-Flags, `api graphql` nur mit reiner Query oder den Mutationen
+  `updateIssueComment`, `addSubIssue`, `addBlockedBy`. REST über `gh api` ist gesperrt.
+- `memory_write` schreibt über [`pi-memory-write.ts`](../.github/scripts/pi-memory-write.ts) nur
+  unter `.ai-memory/`; `..`, Fremdpfade und Symlinks nach außen werden abgelehnt.
+
+Eine Ablehnung kommt als Tool-Fehler im Lauf an und steht im Log. Die Tests beider Module laufen
+in `pnpm test` (`test:scripts`).
+
+**`review` ist offen** (Folge-Ticket): Review, Documenter und Audit brauchen mehr als `gh`
+(mindestens lesendes `git`). Bis dahin läuft das Tier wie `full`; die Eingrenzung kommt aus dem
+ephemeren Runner und dem Scope des App-Tokens, `setup-pi` protokolliert das als `::warning`. Das
+wiegt vor dem Rollout auf 02–06 schwerer als im Triage-Pilot, weil Review (05) untrusted Diffs liest.
+Verlässlich abschaltbar sind nur die
 Proxy-Tools des MCP-Adapters (`mcp`, `mcpScript`) — genau das tut `needs-mcp: false` per
 `--exclude-tools`. Eine Allowlist mit geratenen Tool-Namen (pi-lsp ist konfigurierbar, die
 Direkt-Tools des Adapters werden serverabhängig präfixiert) würde Erweiterungen **still**
@@ -264,21 +293,24 @@ Seit [ADR 0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) ist die Nacharb
 
 Was diese Wahl an einem realen Ticket gekostet hat, steht in der [Kosten-Baseline zu #912](kosten-baseline-912.md).
 
-| Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
-| --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
-| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `opus`                          | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden |
-| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für Design-Dokumente                 |
-| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für UX-Review                        |
-| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.3[1m]`                | Maximale Qualität für Code-Generierung          |
-| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.3[1m]`                | Tiefes Verständnis für Code-Review              |
-| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-5.3[1m]`                | Großer Context (CI-Logs), kosteneffizient       |
-| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.7`                    | Schnelle Documentation-Generierung              |
+| Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                                                                                                                                                       |
+| --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `opus`                          | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden                                                                                                                                  |
+| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für Design-Dokumente                                                                                                                                                  |
+| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für UX-Review                                                                                                                                                         |
+| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.3[1m]`                | Maximale Qualität für Code-Generierung                                                                                                                                           |
+| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.3[1m]`                | Tiefes Verständnis für Code-Review                                                                                                                                               |
+| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-5.3[1m]`                | Großer Context (CI-Logs), kosteneffizient                                                                                                                                        |
+| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-5.3-flash[1m]`          | Schnelle Documentation-Generierung — läuft **immer** über `openrouter` mit Free-Model (`haiku`-Alias → `:free`, siehe Provider-Tabelle); `LLM_PROVIDER_DOCUMENTER` als Notbremse |
 
 **Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
 
 Das Abo (GLM Coding Plan) umfasst nur **`glm-4.7`, `glm-5-turbo` und `glm-5.3`** — die Modelle aus dem
 ursprünglichen #893-Vergleich (`glm-5.1`, `glm-5.2`, `glm-4.7-flash`, `glm-4.5-air`) sind nicht gebucht.
 Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI`.
+Stand 28.09.2026 mappt diese Variable den `haiku`-Alias (und `CLAUDE_CODE_SUBAGENT_MODEL`)
+auf `glm-5.3-flash[1m]`, nicht auf `glm-4.7` — die `glm-4.7`-Nennungen im Abo-Realität-Abschnitt
+unten sind damit nicht mehr live.
 
 | Faktor               | `glm-5.3[1m]` — Hauptmodell (sonnet/opus/fable) | `glm-4.7` — haiku-Aliase | `glm-5-turbo` — nur `CLAUDE_CODE_SUBAGENT_MODEL`                                              |
 | -------------------- | ----------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |

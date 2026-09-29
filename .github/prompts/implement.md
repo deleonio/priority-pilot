@@ -5,6 +5,8 @@ FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the accep
 
 Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting. Includes the Delegation section (gate runs and search questions go to haiku subagent roles).
 
+Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
+
 EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — analysis + SKILL.md + context reads in ONE tool block; run the GATE once at the end over ALL changes (SKILL.md step 3c).
 
 PROCEDURE (STRICT):
@@ -30,6 +32,9 @@ PROCEDURE (STRICT):
      (gh pr ready <nr>) + extend the description; direct mode → the PR from step 3b (not as a draft).
      In BOTH cases, an open, non-draft PR with commits must exist at the end — the workflow checks
      exactly that before setting ai:needs-review.
+     SKILL.md step 5 (cross-examination loop) is NOT part of this phase — the review phase does it.
+
+CI: never wait for or poll Verify (`gh pr checks`, `--watch`, `gh run watch`, `sleep`). After the push the run is DONE — the review workflow waits for the checks and hands the result to the reviewer. Only the CI state at the START of the run counts as input. <!-- keep in sync: implement.md / fixup.md / team.md -->
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 

@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Fehlerseite der Android-App (ADR 0016): erscheint, wenn der Server nicht erreichbar ist. -->
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Balamentum</title>
+		<style>
+			body {
+				margin: 0;
+				min-height: 100vh;
+				display: grid;
+				place-items: center;
+				padding: 1.5rem;
+				box-sizing: border-box;
+				font-family: system-ui, sans-serif;
+				color: #1a1a1a;
+				background: #ffffff;
+				text-align: center;
+			}
+			button {
+				min-height: 44px;
+				padding: 0 1.5rem;
+				border: 0;
+				border-radius: 0.5rem;
+				font: inherit;
+				color: #ffffff;
+				background: #1a1a1a;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h1 id="title">Keine Verbindung</h1>
+			<p id="text">Balamentum ist gerade nicht erreichbar. Prüfe deine Internetverbindung.</p>
+			<button id="reload" type="button">Neu laden</button>
+		</main>
+		<script>
+			if (!navigator.language.startsWith('de')) {
+				document.documentElement.lang = 'en';
+				document.getElementById('title').textContent = 'No connection';
+				document.getElementById('text').textContent =
+					'Balamentum cannot be reached right now. Check your internet connection.';
+				document.getElementById('reload').textContent = 'Reload';
+			}
+			document.getElementById('reload').addEventListener('click', () => {
+				window.location.href = window.Capacitor?.getServerUrl?.() || '/';
+			});
+		</script>
+	</body>
+</html>

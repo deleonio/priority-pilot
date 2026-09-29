@@ -26,6 +26,15 @@ const PLAN_LABELS: Record<Plan, string> = {
 /** Beschriftung eines Pakets; unbekannte Werte werden unverändert durchgereicht. */
 export const planLabel = (plan: string): string => PLAN_LABELS[plan as Plan] ?? plan;
 
+/** Abrechnungszeiträume der Pakete in Anzeigereihenfolge. */
+export const PERIODS = ['monthly', 'quarterly', 'yearly'] as const;
+export type Period = (typeof PERIODS)[number];
+export const PERIOD_LABELS: Record<Period, string> = {
+	monthly: 'monatlich',
+	quarterly: 'quartalsweise',
+	yearly: 'jährlich',
+};
+
 /**
  * Nutzentexte je Feature — die EINE zentrale Stelle (AK5). Angebotsdialog und Badge adressieren sie
  * über den Feature-Identifier aus dem Serververtrag; T3b (#1484), T6 und T7 rollen weitere Stellen

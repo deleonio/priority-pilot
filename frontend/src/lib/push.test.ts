@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { disablePush, enablePush, hasActiveSubscription, isPushSupported, urlBase64ToUint8Array } from './push';
+import { act, cleanup, renderHook } from '@testing-library/react';
+import {
+	disablePush,
+	enablePush,
+	hasActiveSubscription,
+	isPushSupported,
+	urlBase64ToUint8Array,
+	usePushSubscription,
+} from './push';
 import { api } from '../api';
 
 /**
@@ -139,6 +147,30 @@ describe('lib/push', () => {
 			expect(pushManager.subscribe).not.toHaveBeenCalled();
 			expect(mockedApi.subscribePush).toHaveBeenCalledOnce();
 		});
+
+		it('ersetzt eine Subscription mit veraltetem VAPID-Schlüssel', async () => {
+			installNotification('granted');
+			const stale = {
+				...makeSubscription('https://push.example.com/stale'),
+				options: { applicationServerKey: new Uint8Array([9, 9, 9]).buffer },
+			};
+			const fresh = makeSubscription('https://push.example.com/fresh');
+			const pushManager: PushManagerMock = {
+				getSubscription: vi.fn().mockResolvedValue(stale),
+				subscribe: vi.fn().mockResolvedValue(fresh),
+			};
+			installServiceWorker(pushManager);
+			mockedApi.getVapidPublicKey.mockResolvedValue('AQID');
+
+			expect(await enablePush()).toBe(true);
+			expect(stale.unsubscribe).toHaveBeenCalledOnce();
+			expect(mockedApi.unsubscribePush).toHaveBeenCalledWith({ endpoint: 'https://push.example.com/stale' });
+			expect(mockedApi.subscribePush).toHaveBeenCalledWith(
+				expect.objectContaining({
+					subscription: expect.objectContaining({ endpoint: 'https://push.example.com/fresh' }),
+				}),
+			);
+		});
 	});
 
 	describe('disablePush', () => {
@@ -227,6 +259,82 @@ describe('lib/push', () => {
 
 		it('false, wenn Push nicht unterstützt wird', async () => {
 			expect(await hasActiveSubscription()).toBe(false);
+		});
+	});
+
+	describe('usePushSubscription', () => {
+		const STORAGE_KEY = 'pp-push-enabled';
+
+		afterEach(() => {
+			cleanup();
+			localStorage.removeItem(STORAGE_KEY);
+		});
+
+		it('meldet eine bestehende Subscription bei erteilter Berechtigung erneut am Server', async () => {
+			installNotification('granted');
+			const subscription = makeSubscription();
+			installServiceWorker({
+				getSubscription: vi.fn().mockResolvedValue(subscription),
+				subscribe: vi.fn(),
+			});
+			mockedApi.getVapidPublicKey.mockResolvedValue('AQID');
+
+			const { result } = renderHook(() => usePushSubscription());
+
+			await vi.waitFor(() => expect(mockedApi.subscribePush).toHaveBeenCalledOnce());
+			expect(result.current.enabled).toBe(true);
+			expect(localStorage.getItem(STORAGE_KEY)).toBe('true');
+		});
+
+		it('ohne erteilte Berechtigung bleibt der Server-Resync aus', async () => {
+			installNotification('default');
+			installServiceWorker({
+				getSubscription: vi.fn().mockResolvedValue(makeSubscription()),
+				subscribe: vi.fn(),
+			});
+
+			const { result } = renderHook(() => usePushSubscription());
+
+			await vi.waitFor(() => expect(result.current.enabled).toBe(true));
+			expect(mockedApi.getVapidPublicKey).not.toHaveBeenCalled();
+			expect(mockedApi.subscribePush).not.toHaveBeenCalled();
+		});
+
+		it('bricht einen laufenden Mount-Resync ab, wenn toggle(false) dazwischen ausschaltet', async () => {
+			installNotification('granted');
+			const subscription = makeSubscription();
+			installServiceWorker({
+				getSubscription: vi.fn().mockImplementation(async () =>
+					// Browser-Realität: nach erfolgtem unsubscribe() ist die Subscription weg.
+					subscription.unsubscribe.mock.calls.length > 0 ? null : subscription,
+				),
+				subscribe: vi.fn(),
+			});
+			// Der VAPID-Key-Fetch bleibt offen, bis der Test ihn auflöst — der Resync hängt
+			// genau in dem Fenster, in dem der Nutzer Push ausschaltet.
+			let resolveKey: (key: string) => void = () => undefined;
+			mockedApi.getVapidPublicKey.mockReturnValue(
+				new Promise<string>((resolve) => {
+					resolveKey = resolve;
+				}),
+			);
+
+			const { result } = renderHook(() => usePushSubscription());
+
+			await vi.waitFor(() => expect(mockedApi.getVapidPublicKey).toHaveBeenCalledOnce());
+			await act(async () => {
+				await result.current.toggle(false);
+			});
+			resolveKey('AQID');
+			await act(async () => {
+				await Promise.resolve();
+			});
+
+			// Kern des Race-Fix (#1704): kein neues subscribe, keine Server-Anmeldung nach dem
+			// Ausschalten — Push bleibt aus, obwohl der Resync-Roundtrip später fertig wird.
+			expect(result.current.enabled).toBe(false);
+			expect(localStorage.getItem(STORAGE_KEY)).toBe('false');
+			expect(mockedApi.subscribePush).not.toHaveBeenCalled();
 		});
 	});
 });

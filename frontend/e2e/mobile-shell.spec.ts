@@ -91,7 +91,7 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 		// Playwright pierct offene Shadow-DOMs, daher erreicht getByRole('tab') den Button in
 		// kol-button-wc. Sichtbarkeit abwarten, damit das Layout (und ein Umbruch) schon steht.
 		const tabTops: number[] = [];
-		for (const label of ['Dashboard', 'Aufgaben', 'Serien', 'Wald'] as const) {
+		for (const label of ['Dashboard', 'Aufgaben', 'Serien', 'Graph'] as const) {
 			const tab = page.getByRole('tab', { name: label });
 			await expect(tab).toBeVisible();
 			const box = await tab.boundingBox();

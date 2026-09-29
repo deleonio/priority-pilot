@@ -7,6 +7,12 @@
 // „Kosten-Uebersicht" (woechentlich, read-only) in die Job-Summary:
 //   node .github/scripts/tokens-report.ts --dir .costs [--baseline 2026-W35]
 //
+// FOKUS-MODUS (--issues 1752,1754 — im Workflow der Dispatch-Input „issues"): rendert
+// statt des Wochen-Reports nur die Läufe der gewählten Tickets und stellt sie je Phase
+// den anderen Läufen derselben Phase gegenüber (Setup-Vergleich, z. B. :free-Modell).
+// Die Ticket-Tabelle des Voll-Reports zeigt bewusst nur die Top 10 — die Voll-Liste
+// sprengte die GitHub-Summary und diente der kontinuierlichen Optimierung nicht.
+//
 // BEZUGSEINHEIT: Ticket-Kohorte je Abschlusswoche (Woche des Siegels). Wochen-Werte
 // „je Ticket" summieren das GANZE Ticket in seiner Abschlusswoche — nicht die Läufe, die
 // zufällig in der Woche liefen, geteilt durch die Tickets, die die Woche „berührt" haben
@@ -25,8 +31,10 @@ import { totalsByPhase, type PhaseTotal } from './cost-aggregate.ts';
 import { classifyModel, usageBlocksUsd, valueRates, type BlockUsd } from './cost-from-transcript.ts';
 import type { CostEntry } from './cost-record.ts';
 import {
+	avg,
 	bar,
 	berlinDay,
+	berlinStamp,
 	fmtIndex,
 	frac,
 	getOrInit,
@@ -38,6 +46,7 @@ import {
 	num,
 	pct,
 	quantileOf,
+	ratio,
 	rollingMedian,
 	sealWeek,
 	share,
@@ -62,6 +71,9 @@ export type TicketTotal = {
 };
 
 const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
+
+/** Feld im Datensatz vorhanden (im Gegensatz zu ZERO: „—" vs. 0 unterscheidbar). */
+const defined = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
 /** Roh-Einträge EINER Ticket-Datei — Zwischenschritt zwischen Datei und Summenzeile. */
 export type TicketEntries = { issue: string; entries: CostEntry[] };
@@ -337,6 +349,29 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	const chrono = completeBySeal(classified);
 	const win = windows(chrono, WINDOW);
 	const currentWeek = currentWeekOf(rawAll.flatMap((t) => t.entries));
+	// Messende Läufe (valueCost > 0) — Datenbasis für Trend, Richtung und den
+	// Wochen-Änderungsbericht. 0-Wert-Läufe (:free) wären Rauschen, nicht Kosten.
+	const messende = allEntries.filter((e) => ZERO(e.valueCost) > 0);
+	// Richtungsfenster: letzte 7 Kalendertage gegen die 8–14 davor; Anker ist der jüngste
+	// messende Datensatz (deterministisch aus den Daten statt von der Wanduhr). EINE
+	// Rechnung, zwei Sichten — die Richtung-Sektion unten rendert die Tabelle, der
+	// Änderungsbericht oben zieht die größten Bewegungen heraus.
+	const anchorDay = Math.max(...messende.map((e) => Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)));
+	const dirNew = new Map<string, { runs: number; vc: number }>();
+	const dirOld = new Map<string, { runs: number; vc: number }>();
+	const addDir = (m: Map<string, { runs: number; vc: number }>, ph: string, vc: number): void => {
+		const x = getOrInit(m, ph, () => ({ runs: 0, vc: 0 }));
+		x.runs += 1;
+		x.vc += vc;
+	};
+	for (const e of messende) {
+		const age = (anchorDay - Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)) / 86_400_000;
+		if (age < 0 || age > 13) continue;
+		const fenster = age <= 6 ? dirNew : dirOld;
+		const ph = e.phase ?? '(ohne)';
+		addDir(fenster, ph, ZERO(e.valueCost));
+		addDir(fenster, '(gesamt)', ZERO(e.valueCost));
+	}
 
 	type Metric = (set: readonly ClassifiedTicket[]) => number;
 	// Pipeline und extern sind zwei Populationen (extern = Review-only-Durchläufe, Median
@@ -389,67 +424,174 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		};
 
 	const fmtVal = (v: number, f: (n: number) => string): string => (Number.isFinite(v) ? f(v) : '—');
+	type Kpi = {
+		label: string;
+		metric: Metric;
+		f: (n: number) => string;
+		goal: string;
+		ok?: (v: number) => boolean;
+		origin?: Origin;
+	};
+	// EINE Liste, zwei Sichten: die Zeilen mit Ziel speisen das Status-Dashboard oben, die
+	// volle Liste die Detail-Tabelle unten — so laufen die Kennzahlen nicht auseinander.
+	const kpis: Kpi[] = [
+		{
+			label: 'Kosten je Ticket Pipeline — Median (messende)',
+			metric: medianCostOf('pipeline'),
+			f: usd,
+			goal: '< $3.00',
+			ok: (v) => v < 3,
+			origin: 'pipeline',
+		},
+		{ label: 'Kosten je Ticket Pipeline — p75', metric: p75CostOf('pipeline'), f: usd, goal: '—', origin: 'pipeline' },
+		{
+			label: 'Kosten je Ticket extern — Median (messende)',
+			metric: medianCostOf('extern'),
+			f: usd,
+			goal: '—',
+			origin: 'extern',
+		},
+		{ label: 'Kosten je Ticket extern — p75', metric: p75CostOf('extern'), f: usd, goal: '—', origin: 'extern' },
+		{
+			label: 'Review-Runden je Ticket Pipeline (mit Review)',
+			metric: reviewRoundsOf('pipeline'),
+			f: (v) => frac(v, 1),
+			goal: '≤ 1,2',
+			ok: (v) => v <= 1.2,
+			origin: 'pipeline',
+		},
+		{
+			label: 'Review-Runden je Ticket extern (mit Review)',
+			metric: reviewRoundsOf('extern'),
+			f: (v) => frac(v, 1),
+			goal: '≤ 1,2',
+			ok: (v) => v <= 1.2,
+			origin: 'extern',
+		},
+		{ label: 'Review-Abdeckung (Tickets mit Review)', metric: reviewCoverage, f: pct, goal: '—' },
+		{
+			label: 'Cache-Effizienz claude (Read / Input)',
+			metric: cacheRatio('claude'),
+			f: pct,
+			goal: '> 95 %',
+			ok: (v) => v > 0.95,
+		},
+		{ label: 'Cache-Effizienz zai', metric: cacheRatio('zai'), f: pct, goal: '—' },
+		{ label: 'Cache-Effizienz openrouter', metric: cacheRatio('openrouter'), f: pct, goal: '—' },
+		{
+			label: 'Flagship-Anteil der Claude-Läufe',
+			metric: claudeClassShare('flagship'),
+			f: pct,
+			goal: '< 10 %',
+			ok: (v) => v < 0.1,
+		},
+		{
+			label: 'Small-Anteil der Claude-Läufe (haiku)',
+			metric: claudeClassShare('small'),
+			f: pct,
+			goal: '> 50 %',
+			ok: (v) => v > 0.5,
+		},
+		{ label: 'Provider-Mix claude', metric: providerShare('claude'), f: pct, goal: '—' },
+		{ label: 'Provider-Mix zai', metric: providerShare('zai'), f: pct, goal: '—' },
+		{ label: 'Provider-Mix openrouter', metric: providerShare('openrouter'), f: pct, goal: '—' },
+	];
 	// Ticket-Fenster je Herkunft: „letzte 20 Pipeline-Tickets" statt „Pipeline-Anteil der
 	// letzten 20 Tickets" — sonst vergleicht das Fenster bei wechselndem Mix 3 mit 17 Tickets.
-	const kpiRow = (
-		label: string,
-		metric: Metric,
-		f: (n: number) => string,
-		goal: string,
-		ok?: (v: number) => boolean,
-		origin?: Origin,
-	): string => {
-		const pool = origin ? ofOrigin(chrono, origin) : chrono;
-		const w = origin ? windows(pool, WINDOW) : win;
-		const ist = metric(raw);
-		const base = metric(baseline);
-		const last20 = metric(w.last);
-		const prev20 = w.prev ? metric(w.prev) : Number.NaN;
-		const status = ok && Number.isFinite(ist) ? (ok(ist) ? '🟢' : '🔴') : '—';
-		return `| ${label} | ${fmtVal(ist, f)} | ${fmtVal(base, f)} | ${fmtIndex(indexTo(base, ist))} | ${trendArrow(prev20, last20)} | ${goal} | ${status} |`;
+	const kpiCompute = (k: Kpi): { ist: number; base: number; last20: number; prev20: number } => {
+		const pool = k.origin ? ofOrigin(chrono, k.origin) : chrono;
+		const w = k.origin ? windows(pool, WINDOW) : win;
+		return {
+			ist: k.metric(raw),
+			base: k.metric(baseline),
+			last20: k.metric(w.last),
+			prev20: w.prev ? k.metric(w.prev) : Number.NaN,
+		};
+	};
+	const kpiStatus = (k: Kpi, ist: number): string => (k.ok && Number.isFinite(ist) ? (k.ok(ist) ? '🟢' : '🔴') : '—');
+	const kpiRow = (k: Kpi): string => {
+		const c = kpiCompute(k);
+		return `| ${k.label} | ${fmtVal(c.ist, k.f)} | ${fmtVal(c.base, k.f)} | ${fmtIndex(indexTo(c.base, c.ist))} | ${trendArrow(c.prev20, c.last20)} | ${k.goal} | ${kpiStatus(k, c.ist)} |`;
 	};
 	const nOf = (set: readonly ClassifiedTicket[]): string =>
 		`n=${ofOrigin(set, 'pipeline').length}/${ofOrigin(set, 'extern').length}`;
 	const baselineNote = baselineWeek ? `${baselineWeek} (${nOf(baseline)})` : '—';
+
+	// ─── Status: die Ziel-KPIs auf einen Blick ─────────────────────────────────
+	// Erste Sektion des Reports: erfüllt/verfehlt, ohne durch die Detail-Tabelle zu lesen.
+	const targets = kpis.filter((k) => k.ok);
+	const fulfilled = targets.filter((k) => kpiStatus(k, kpiCompute(k).ist) === '🟢').length;
+	lines.push('### Status — Ziele auf einen Blick', '');
+	lines.push(`**${fulfilled} von ${targets.length} Zielen erfüllt**`, '');
+	lines.push('| Ziel-KPI | Ist | Ziel | Index | Trend | Status |', '| --- | ---: | ---: | ---: | :---: | :---: |');
+	for (const k of targets) {
+		const c = kpiCompute(k);
+		lines.push(
+			`| ${k.label} | ${fmtVal(c.ist, k.f)} | ${k.goal} | ${fmtIndex(indexTo(c.base, c.ist))} | ${trendArrow(c.prev20, c.last20)} | ${kpiStatus(k, c.ist)} |`,
+		);
+	}
+	lines.push('', '> Index und Trend wie in der Kennzahlen-Tabelle unten erklärt; „—" = nicht messbar.', '');
+
+	// ─── Was hat sich verändert — letzte Siegelwoche ───────────────────────────
+	// Die Änderungen stehen sonst verstreut (Kohorten-Tabelle, Ampel-Trend, Richtung) —
+	// hier die Kurzfassung: was frisch versiegelt wurde und wo sich am meisten bewegt hat.
+	const sealWeeks = [...cohorts.keys()].sort();
+	const lastSealWeek = sealWeeks.at(-1);
+	if (lastSealWeek) {
+		const cohort = (cohorts.get(lastSealWeek) ?? []).sort((a, b) => ticketValue(b) - ticketValue(a));
+		const weekValue = cohort.reduce((a, t) => a + ticketValue(t), 0);
+		const pipeMedian = medianCostOf('pipeline')(raw);
+		const ticketLink = (issue: string): string =>
+			`[#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue})`;
+		const weekMark = (wk: string): string => (wk === currentWeek ? `${wk}*` : wk);
+		lines.push('### Was hat sich verändert — letzte Woche', '');
+		lines.push(
+			`**${weekMark(lastSealWeek)}: ${cohort.length} Tickets versiegelt · ${usd(weekValue)} gesamt · ${usd(weekValue / cohort.length)} je Ticket**`,
+			'',
+		);
+		lines.push('| Ticket | Herkunft | Wert (USD) | gegen Median Pipeline |', '| --- | --- | ---: | :--- |');
+		for (const t of cohort) {
+			const gegen = Number.isFinite(pipeMedian)
+				? ticketValue(t) >= pipeMedian
+					? `über Median (${usd(pipeMedian)})`
+					: `unter Median (${usd(pipeMedian)})`
+				: '—';
+			lines.push(
+				`| ${ticketLink(t.issue)} | ${originOf(t.class) === 'pipeline' ? 'Pipeline' : 'Extern'} | ${usd(ticketValue(t))} | ${gegen} |`,
+			);
+		}
+		// Größte Bewegung aus den Richtungsfenstern (oben einmal gerechnet, „Richtung" unten)
+		const movers = phases
+			.map((p) => p.phase)
+			.flatMap((ph) => {
+				const alt = dirOld.get(ph);
+				const neu = dirNew.get(ph);
+				return alt && alt.runs >= 2 && neu && neu.runs >= 2
+					? [{ ph, alt: alt.vc / alt.runs, neu: neu.vc / neu.runs }]
+					: [];
+			})
+			.sort((a, b) => Math.abs(b.neu / b.alt - 1) - Math.abs(a.neu / a.alt - 1))
+			.slice(0, 2);
+		if (movers.length > 0)
+			lines.push(
+				'',
+				`Größte Bewegung je Phase (letzte 7 vs. 8–14 Tage): ${movers
+					.map((m) => `${m.ph} ${trendArrow(m.alt, m.neu)} (${usd(m.alt)} → ${usd(m.neu)})`)
+					.join(' · ')}.`,
+			);
+		lines.push(
+			'',
+			'> Anker ist die Siegelwoche (Woche des letzten documenter-Laufs); „*" = laufende Woche, ihre Kohorte ist noch offen.',
+			'> Median = messende Pipeline-Tickets über alle Wochen. Bewegung = Ø Wert je Run, 7 gegen 8–14 Tage (wie „Richtung" unten).',
+			'',
+		);
+	}
+
+	lines.push('### Kennzahlen — Ist, Baseline, Fenster', '');
 	lines.push(
 		`| Kennzahl | Ist (${nOf(raw)}) | Baseline ${baselineNote} | Index | Δ letzte ${WINDOW} vs. vorige ${WINDOW} Tickets | Ziel | Status |`,
 		'| --- | ---: | ---: | ---: | :---: | ---: | :---: |',
-		kpiRow(
-			'Kosten je Ticket Pipeline — Median (messende)',
-			medianCostOf('pipeline'),
-			usd,
-			'< $3.00',
-			(v) => v < 3,
-			'pipeline',
-		),
-		kpiRow('Kosten je Ticket Pipeline — p75', p75CostOf('pipeline'), usd, '—', undefined, 'pipeline'),
-		kpiRow('Kosten je Ticket extern — Median (messende)', medianCostOf('extern'), usd, '—', undefined, 'extern'),
-		kpiRow('Kosten je Ticket extern — p75', p75CostOf('extern'), usd, '—', undefined, 'extern'),
-		kpiRow(
-			'Review-Runden je Ticket Pipeline (mit Review)',
-			reviewRoundsOf('pipeline'),
-			(v) => frac(v, 1),
-			'≤ 1,2',
-			(v) => v <= 1.2,
-			'pipeline',
-		),
-		kpiRow(
-			'Review-Runden je Ticket extern (mit Review)',
-			reviewRoundsOf('extern'),
-			(v) => frac(v, 1),
-			'≤ 1,2',
-			(v) => v <= 1.2,
-			'extern',
-		),
-		kpiRow('Review-Abdeckung (Tickets mit Review)', reviewCoverage, pct, '—'),
-		kpiRow('Cache-Effizienz claude (Read / Input)', cacheRatio('claude'), pct, '> 95 %', (v) => v > 0.95),
-		kpiRow('Cache-Effizienz zai', cacheRatio('zai'), pct, '—'),
-		kpiRow('Cache-Effizienz openrouter', cacheRatio('openrouter'), pct, '—'),
-		kpiRow('Flagship-Anteil der Claude-Läufe', claudeClassShare('flagship'), pct, '< 10 %', (v) => v < 0.1),
-		kpiRow('Small-Anteil der Claude-Läufe (haiku)', claudeClassShare('small'), pct, '> 50 %', (v) => v > 0.5),
-		kpiRow('Provider-Mix claude', providerShare('claude'), pct, '—'),
-		kpiRow('Provider-Mix zai', providerShare('zai'), pct, '—'),
-		kpiRow('Provider-Mix openrouter', providerShare('openrouter'), pct, '—'),
+		...kpis.map(kpiRow),
 		'',
 		'> Ziele aus `docs/kosten-optimierungsplan.md`. n = Pipeline/extern. Index = Ist / Baseline × 100 (Baseline = erste',
 		`> Abschlusswoche mit n ≥ ${BASELINE_MIN_N}, per \`--baseline\` änderbar). Δ vergleicht die letzten ${WINDOW}`,
@@ -493,8 +635,8 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	// Blöcke zerlegt (dieselbe Wahl wie valueCost, s. `valueRates`). Die frühere Näherung
 	// bewertete alle Token zu mid-Preisen (3/15) und skalierte auf die Summe — bei 75 %
 	// GLM-Läufen war Output um ~20 % über-, Cache-Read um 8 Punkte unterzeichnet. Einträge
-	// ohne Cache-Aufschlüsselung zählen komplett als echter Input.
-	const messende = allEntries.filter((e) => ZERO(e.valueCost) > 0);
+	// ohne Cache-Aufschlüsselung zählen komplett als echter Input. Messende Läufe: oben
+	// definiert (eine Rechnung für Trend, Richtung und Änderungsbericht).
 	const blocks: BlockUsd & { tokens: { input: number; write: number; read: number; output: number } } = {
 		input: 0,
 		write: 0,
@@ -701,25 +843,52 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		}
 		lines.push('');
 
-		// ─── Richtung: letzte 7 Kalendertage gegen die 8–14 davor ─────────────────
-		// Anker ist der jüngste messende Datensatz, deterministisch aus den Daten statt von
-		// der Wanduhr; gezählt in Berlin-Tagen, konsistent zum Trend oben.
-		const anchorDay = Math.max(...messende.map((e) => Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)));
-		const dirNew = new Map<string, { runs: number; vc: number }>();
-		const dirOld = new Map<string, { runs: number; vc: number }>();
-		const addDir = (m: Map<string, { runs: number; vc: number }>, ph: string, vc: number): void => {
-			const x = getOrInit(m, ph, () => ({ runs: 0, vc: 0 }));
-			x.runs += 1;
-			x.vc += vc;
+		// ─── Ampel-Trend: Wochen als SPALTEN, Ampel je Zelle gegen die Vorwoche ────
+		// Der Blick läuft über die Zeile: jede Zelle zeigt Ø Wert je Run der Woche und die
+		// Ampel gegen die Spalte links (🟢 ≥ 10 % billiger, 🟡 ±10 %, 🔴 ≥ 10 % teurer) —
+		// so ist eine Verschlechterung einer Phase ohne Kopf-rechnen sichtbar.
+		const AMPEL_WEEKS = 10;
+		const ampelWeeks = runWeeks.slice(-AMPEL_WEEKS);
+		const weekVal = (ph: string, wk: string): number | undefined => {
+			if (ph === '(gesamt)') {
+				const w = byWeek.get(wk);
+				return w && w.runs > 0 ? w.vc / w.runs : undefined;
+			}
+			const pw = byWeekPhase.get(wk)?.get(ph);
+			return pw && pw.runs > 0 ? pw.vc / pw.runs : undefined;
 		};
-		for (const e of messende) {
-			const age = (anchorDay - Date.parse(`${berlinDay(e.timestamp)}T00:00:00Z`)) / 86_400_000;
-			if (age < 0 || age > 13) continue;
-			const fenster = age <= 6 ? dirNew : dirOld;
-			const ph = e.phase ?? '(ohne)';
-			addDir(fenster, ph, ZERO(e.valueCost));
-			addDir(fenster, '(gesamt)', ZERO(e.valueCost));
+		const ampelCell = (ph: string, wk: string, prevWk?: string): string => {
+			const cur = weekVal(ph, wk);
+			if (cur === undefined) return '—';
+			const prev = prevWk ? weekVal(ph, prevWk) : undefined;
+			if (prev === undefined || prev <= 0) return `· ${usd(cur)}`;
+			const delta = (cur - prev) / prev;
+			return `${delta < -0.1 ? '🟢' : delta <= 0.1 ? '🟡' : '🔴'} ${usd(cur)}`;
+		};
+		const firstYear = ampelWeeks[0]?.[0].slice(0, 4);
+		const headCell = (wk: string): string => {
+			const [y, w] = wk.split('-');
+			return y === firstYear ? w : wk; // Jahreswechsel in der Spalten-Überschrift sichtbar
+		};
+		lines.push('### Ampel-Trend — Ø Wert je Run, gegen Vorwoche', '');
+		lines.push(`| Phase | ${ampelWeeks.map(([wk]) => headCell(mark(wk))).join(' | ')} |`);
+		lines.push(`| --- |${' ---: |'.repeat(ampelWeeks.length)}`);
+		for (const ph of [...phaseNames, '(gesamt)']) {
+			const label = ph === '(gesamt)' ? '**Alle Phasen**' : ph;
+			lines.push(
+				`| ${label} | ${ampelWeeks.map(([wk], i) => ampelCell(ph, wk, i > 0 ? ampelWeeks[i - 1][0] : undefined)).join(' | ')} |`,
+			);
 		}
+		lines.push(
+			'',
+			'> 🟢 ≥ 10 % billiger als die Vorwoche · 🟡 ±10 % (Geld bleibt) · 🔴 ≥ 10 % teurer · „·" = erste Spalte ohne Vorwoche. Ø Wert je Run,',
+			'> nur messende Läufe (0-Werte zählen als 0). Letzte 10 Wochen; „*" = laufende Woche, ihre Kohorte ist noch offen.',
+			'',
+		);
+
+		// ─── Richtung: letzte 7 Kalendertage gegen die 8–14 davor ─────────────────
+		// Die Fenster (dirOld/dirNew) rechnet der Report-Kopf einmal vor — hier steht nur
+		// die Darstellung; Anker und Schwellen sind dort dokumentiert.
 		const avgFenster = (x?: { runs: number; vc: number }): string => (x && x.runs > 0 ? usd(x.vc / x.runs) : '—');
 		const richtung = (alt?: { runs: number; vc: number }, neu?: { runs: number; vc: number }): string =>
 			!alt || alt.runs < 2 || !neu || neu.runs < 2 ? '—' : trendArrow(alt.vc / alt.runs, neu.vc / neu.runs);
@@ -771,19 +940,27 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		);
 	}
 
-	// ─── Ticket-Tabelle ────────────────────────────────────────────────────────
+	// ─── Ticket-Tabelle (Top 10 — Optimierungskandidaten) ──────────────────────
+	// KEINE Voll-Liste mehr: Mit 440+ Datensätzen sprengt sie die GitHub-Summary (wird
+	// still abgeschnitten) und dient der kontinuierlichen Optimierung nichts — die
+	// Ausreisser stehen ohnehin oben. Einzelvergleiche über den Fokus-Modus (--issues).
+	const TOP_N = 10;
 	const classById = new Map(classified.map((t) => [t.issue, t.class]));
+	lines.push(`### Ticket-Tabelle — Top ${TOP_N} (Optimierungskandidaten)`, '');
 	lines.push(
 		'| Ticket | Herkunft | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Anteil | Phasen |',
 		'| --- | --- | ---: | ---: | ---: | ---: | ---: | :--- | --- |',
 	);
-	for (const t of tickets) {
+	for (const t of tickets.slice(0, TOP_N)) {
 		lines.push(
 			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${originOf(classById.get(t.issue) ?? 'vollstaendig')} | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
 		);
 	}
-	const top5 = tickets.slice(0, 5).reduce((a, t) => a + t.valueCost, 0);
-	lines.push('', `> **Top 5 Tickets** stehen für ${pct(share(top5, sum.valueCost))} des Gesamtwerts.`);
+	const topN = tickets.slice(0, TOP_N).reduce((a, t) => a + t.valueCost, 0);
+	lines.push(
+		'',
+		`> Nur die Top ${TOP_N} von ${tickets.length} vollständigen Tickets — oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen); sie stehen für ${pct(share(topN, sum.valueCost))} des Gesamtwerts.`,
+	);
 
 	if (!anyTurns) {
 		lines.push(
@@ -796,12 +973,27 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		'',
 	);
 	if (excluded.length > 0) {
-		const byClass = (cls: TicketClass): number => excluded.filter((t) => t.class === cls).length;
+		const CLASS_ORDER: TicketClass[] = ['fixup-bein', 'abgebrochen', 'sonstiges'];
+		const excludedTotals = excluded
+			.map((t) => ({ total: ticketTotal(t), class: t.class }))
+			.sort(
+				(a, b) =>
+					CLASS_ORDER.indexOf(a.class) - CLASS_ORDER.indexOf(b.class) || Number(a.total.issue) - Number(b.total.issue),
+			);
 		lines.push(
-			`> ℹ️ Ausgeschlossen (unvollständig, in KEINER Kennzahl enthalten): ${excluded.length} Tickets — ` +
-				`${byClass('fixup-bein')} Fixup-Beine, ${byClass('abgebrochen')} abgebrochen, ${byClass('sonstiges')} sonstige; ` +
-				`${exStats.runs} Läufe · ${num(exStats.turns)} Turns · ${usd(exStats.valueCost)} Wert. ` +
-				'Budget-Realität bleibt über diese Summe sichtbar, die Auswertung bleibt sauber.',
+			`### Ausgeschlossene Tickets — nicht in Kennzahlen enthalten (${excluded.length})`,
+			'',
+			'| Ticket | Klasse | Läufe | Turns | Wert (USD) |',
+			'| --- | --- | ---: | ---: | ---: |',
+		);
+		for (const { total, class: cls } of excludedTotals) {
+			lines.push(
+				`| [#${total.issue}](https://github.com/deleonio/priority-pilot/issues/${total.issue}) | ${CLASS_LABEL[cls]} | ${total.runs} | ${total.turns > 0 ? num(total.turns) : '—'} | ${usd(total.valueCost)} |`,
+			);
+		}
+		lines.push(
+			'',
+			`> ${exStats.runs} Läufe · ${num(exStats.turns)} Turns · ${usd(exStats.valueCost)} Wert — Budget-Realität bleibt sichtbar, die Auswertung bleibt sauber.`,
 			'',
 		);
 	}
@@ -811,13 +1003,349 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	return `${lines.join('\n')}\n`;
 }
 
+/**
+ * Kompakter Fokus-Report für ausgewählte Tickets (Dispatch-Input „issues" bzw. --issues):
+ * Statt der repo-weiten Kohorten-Tabellen nur die Läufe DER gewählten Tickets — je Lauf
+ * Phase, Modell, Provider, Turns, Token, Cache — und ihr Ø je Phase gegenüber ALLEN anderen
+ * Läufen derselben Phase. Basis ist hier bewusst die ganze Datei (auch unvollständige
+ * Tickets): Verglichen wird der EINZELNE LAUF mit seinem Setup, nicht die Ticket-Kohorte.
+ * Läufe ohne Wert-Bewertung (valueCost 0, z. B. openrouter-:free-Modelle) zählen mit —
+ * genau deren Vergleich ist der Hauptanwendungsfall.
+ */
+export function renderFocusReport(dir: string, issues: readonly string[]): string {
+	const { tickets, skipped } = readTickets(dir);
+	const lines: string[] = [];
+	const label = issues.map((i) => `#${i}`).join(', ');
+	lines.push(`## 🔎 Fokus-Report — ${label}`, '');
+	lines.push(
+		'> Kompakt-Modus: nur die gewählten Tickets — ihre Läufe gegenüber allen anderen Läufen derselben Phase. Voller Report ohne `--issues`.',
+		'',
+	);
+	if (skipped.length > 0)
+		lines.push(`> ⚠️ ${skipped.length} Datei(en) nicht lesbar und übersprungen: ${skipped.join(', ')}`, '');
+
+	const wanted = new Set(issues);
+	const selected = tickets.filter((t) => wanted.has(t.issue));
+	if (selected.length === 0) {
+		lines.push(`Keine Datensätze für ${label} unter \`${dir}\`.`, '');
+		return `${lines.join('\n')}\n`;
+	}
+	const missing = issues.filter((i) => !selected.some((t) => t.issue === i));
+	if (missing.length > 0) lines.push(`> ℹ️ Keine Daten für: ${missing.map((i) => `#${i}`).join(', ')}.`, '');
+
+	// ─── Direktvergleich (ab 2 Tickets): Kennzahlen und Phasen nebeneinander ───
+	// Zellformat „Wert · Turns · Token · Cache · MCP · Dauer"; die Δ-Spalte vergleicht die
+	// zweite mit der ersten Spalte und erscheint nur bei genau zwei Tickets (bei mehr wird
+	// Δ mehrdeutig). Je Kennzahl folgt ein xychart-Block: je Phase eine Balkengruppe mit
+	// einem Balken je Ticket NEBENEINANDER plus „Ø“ über alle gewählten Tickets (Mermaid
+	// kennt kein Grouping und dedupliziert gleiche Labels — Slot-Trick unten). Werte
+	// kumuliert je Phase, eine nicht gelaufene Phase zeichnet 0. Eine Serie
+	// ohne EINZIGEN Wert zur Kennzahl (Alt-Daten ohne Feld) entfällt; der Chart entfällt
+	// ganz, wenn weniger als zwei unterscheidbare Serien übrig bleiben.
+	if (selected.length >= 2) {
+		const tt = selected.map((t) => ({ issue: t.issue, ...ticketTotal(t) }));
+		const link = (issue: string): string => `[#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue})`;
+		const delta = (a: number, b: number): string => (a > 0 ? (b >= a ? '+' : '-') + pct(Math.abs((b - a) / a)) : '—');
+		const first = tt[0];
+		const second = tt[1];
+		const head = (
+			label: string,
+			get: (x: (typeof tt)[number]) => string,
+			num?: (x: (typeof tt)[number]) => number,
+		): string =>
+			`| ${label} | ${tt.map(get).join(' | ')} |${num && tt.length === 2 ? ` ${delta(num(first), num(second))} |` : ''}`;
+		lines.push('### Direktvergleich', '');
+		lines.push(
+			`| | ${tt.map((x) => link(x.issue)).join(' | ')} |${tt.length === 2 ? ' Δ |' : ''}`,
+			`| --- |${' ---: |'.repeat(tt.length)}${tt.length === 2 ? ' ---: |' : ''}`,
+			head(
+				'Wert (USD)',
+				(x) => usd(x.valueCost),
+				(x) => x.valueCost,
+			),
+			head(
+				'Läufe',
+				(x) => num(x.runs),
+				(x) => x.runs,
+			),
+			head(
+				'Turns',
+				(x) => (x.turns > 0 ? num(x.turns) : '—'),
+				(x) => x.turns,
+			),
+			head(
+				'Token in',
+				(x) => mio(x.tokensIn),
+				(x) => x.tokensIn,
+			),
+			head(
+				'Wert je Turn',
+				(x) => (x.turns > 0 ? `$${(x.valueCost / x.turns).toFixed(3)}` : '—'),
+				(x) => (x.turns > 0 ? x.valueCost / x.turns : Number.NaN),
+			),
+			'',
+		);
+		const phases = [...new Set(selected.flatMap((t) => t.entries.map((e) => e.phase ?? '(ohne)')))];
+		type PhaseStat = {
+			vc: number;
+			turns: number;
+			tin: number;
+			cache: number;
+			mcp: number;
+			dur: number;
+			hasTurns: boolean;
+			hasCache: boolean;
+			hasMcp: boolean;
+			hasDur: boolean;
+		};
+		const phaseStat = (t: (typeof selected)[number], ph: string): PhaseStat | undefined => {
+			const es = t.entries.filter((e) => (e.phase ?? '(ohne)') === ph);
+			if (es.length === 0) return undefined; // Phase lief in diesem Ticket gar nicht
+			return {
+				vc: es.reduce((a, e) => a + ZERO(e.valueCost), 0),
+				turns: es.reduce((a, e) => a + (defined(e.turns) ? e.turns : 0), 0),
+				tin: es.reduce((a, e) => a + ZERO(e.tokensIn), 0),
+				cache: es.reduce(
+					(a, e) =>
+						a +
+						(defined(e.cacheReadTokens) ? e.cacheReadTokens : 0) +
+						(defined(e.cacheCreationTokens) ? e.cacheCreationTokens : 0),
+					0,
+				),
+				mcp: es.reduce((a, e) => a + (defined(e.mcpCalls) ? e.mcpCalls : 0), 0),
+				dur: es.reduce((a, e) => a + (defined(e.durationSeconds) ? e.durationSeconds : 0), 0),
+				hasTurns: es.some((e) => defined(e.turns)),
+				hasCache: es.some((e) => defined(e.cacheReadTokens) || defined(e.cacheCreationTokens)),
+				hasMcp: es.some((e) => defined(e.mcpCalls)),
+				hasDur: es.some((e) => defined(e.durationSeconds)),
+			};
+		};
+		const statsByTicket = new Map(selected.map((t) => [t.issue, new Map(phases.map((ph) => [ph, phaseStat(t, ph)]))]));
+		const statCell = (s: PhaseStat | undefined): string => {
+			if (!s) return '—';
+			const part = (show: boolean, text: string): string => (show ? text : '—');
+			return [
+				usd(s.vc),
+				part(s.turns > 0, `${num(s.turns)} T`),
+				mio(s.tin),
+				part(s.hasCache, `${mio(s.cache)} C`),
+				part(s.hasMcp, `${num(s.mcp)} MCP`),
+				part(s.hasDur, `${(s.dur / 60).toFixed(1)} min`),
+			].join(' · ');
+		};
+		const totalStat = (t: (typeof selected)[number]): PhaseStat => {
+			const parts = [...(statsByTicket.get(t.issue)?.values() ?? [])].filter((s): s is PhaseStat => s !== undefined);
+			return {
+				vc: parts.reduce((a, s) => a + s.vc, 0),
+				turns: parts.reduce((a, s) => a + s.turns, 0),
+				tin: parts.reduce((a, s) => a + s.tin, 0),
+				cache: parts.reduce((a, s) => a + s.cache, 0),
+				mcp: parts.reduce((a, s) => a + s.mcp, 0),
+				dur: parts.reduce((a, s) => a + s.dur, 0),
+				hasTurns: t.entries.some((e) => defined(e.turns)),
+				hasCache: t.entries.some((e) => defined(e.cacheReadTokens) || defined(e.cacheCreationTokens)),
+				hasMcp: t.entries.some((e) => defined(e.mcpCalls)),
+				hasDur: t.entries.some((e) => defined(e.durationSeconds)),
+			};
+		};
+		lines.push(
+			`| Phase | ${tt.map((x) => link(x.issue)).join(' | ')} |`,
+			`| --- |${' ---: |'.repeat(tt.length)}`,
+			...phases.map((ph) => `| ${ph} | ${tt.map((x) => statCell(statsByTicket.get(x.issue)?.get(ph))).join(' | ')} |`),
+			`| **Summe** | ${selected.map((t) => statCell(totalStat(t))).join(' | ')} |`,
+			'',
+			'> Zelle: Wert · Turns (T) · Token in · Cache-Token (C, read+write) · MCP-Calls · Dauer (min). „—" = Phase lief nicht oder Lauf ohne Angabe (Alt-Daten). Die Δ-Spalte vergleicht die zweite mit der ersten Spalte (nur bei zwei Tickets).',
+			'',
+		);
+
+		// ─── Phasen im Vergleich: je Kennzahl ein xychart, eine Serie je Ticket ───
+		type Metric = {
+			title: string;
+			yLabel: string;
+			digits: number;
+			value: (s: PhaseStat) => number;
+			/** Hat das Ticket die Kennzahl überhaupt (Alt-Daten ohne Feld → Serie entfällt)? */
+			present: (s: PhaseStat) => boolean;
+		};
+		const metrics: Metric[] = [
+			{ title: 'Wert je Phase (USD)', yLabel: 'USD', digits: 2, value: (s) => s.vc, present: () => true },
+			{
+				title: 'Token in je Phase (Mio.)',
+				yLabel: 'Mio. Token',
+				digits: 2,
+				value: (s) => s.tin / 1e6,
+				present: () => true,
+			},
+			{ title: 'Turns je Phase', yLabel: 'API-Calls', digits: 0, value: (s) => s.turns, present: (s) => s.hasTurns },
+			{
+				title: 'Cache-Token je Phase (Mio.)',
+				yLabel: 'Mio. Token',
+				digits: 2,
+				value: (s) => s.cache / 1e6,
+				present: (s) => s.hasCache,
+			},
+			{ title: 'MCP-Calls je Phase', yLabel: 'Aufrufe', digits: 0, value: (s) => s.mcp, present: (s) => s.hasMcp },
+			{
+				title: 'Dauer je Phase (Minuten)',
+				yLabel: 'Minuten',
+				digits: 1,
+				value: (s) => s.dur / 60,
+				present: (s) => s.hasDur,
+			},
+		];
+		const charted = tt.slice(0, 6); // mehr Balken je Gruppe trägt xychart nicht mehr lesbar
+		// Mermaid xychart zeichnet mehrere bar-Serien ÜBEREINANDER (kein Grouping) und dedupliziert
+		// gleiche x-Labels. Daher: je Phase eine Gruppe aus charted.length+1 Slots (ein Slot je
+		// Ticket + einer für Ø) — der Phasenname steht am Gruppenanfang, die übrigen Labels sind
+		// unsichtbare Platzhalter aus Nullbreiten-Leerzeichen in global eindeutiger Anzahl, damit
+		// Mermaid sie nicht zu einer Kategorie zusammenzieht.
+		const zwsp = '\u200b';
+		const slotCount = charted.length + 1;
+		const labels: string[] = [];
+		for (const ph of phases)
+			for (let si = 0; si < slotCount; si++) labels.push(si === 0 ? ph : zwsp.repeat(labels.length + 1));
+		const atSlot = (slot: number, value: number): number[] =>
+			Array.from({ length: slotCount }, (_, i) => (i === slot ? value : 0));
+		let chartCount = 0;
+		for (const m of metrics) {
+			const statOf = (issue: string, ph: string): PhaseStat | undefined => {
+				const s = statsByTicket.get(issue)?.get(ph);
+				return s !== undefined && m.present(s) ? s : undefined;
+			};
+			// Phasen-Vektor (Position = Phase); beim Zeichnen wird er auf die Slots gespreizt
+			const vecOf = (issue: string): number[] =>
+				phases.map((ph) => {
+					const s = statOf(issue, ph);
+					return s ? m.value(s) : 0; // Phase lief nicht / Kennzahl fehlt (Alt-Daten) → 0
+				});
+			const avgVec = phases.map((ph) => {
+				const vals = tt
+					.map((t) => statOf(t.issue, ph))
+					.filter((s) => s !== undefined)
+					.map((s) => m.value(s));
+				// Ø über ALLE gewählten Tickets, je Phase nur über die mit Daten (nicht gelaufene
+				// Phase zählt nicht als 0); ohne Daten zeichnet 0
+				return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+			});
+			const carry = charted.filter((t) => phases.some((ph) => statOf(t.issue, ph) !== undefined));
+			const series = [
+				...carry.map((t, ti) => ({
+					kind: 'bar' as const,
+					name: `#${t.issue}`,
+					values: vecOf(t.issue).flatMap((v, pi) => atSlot(ti, v)),
+					digits: m.digits,
+				})),
+				// Ø entfällt bei einem einzelnen Ticket (Dublette)
+				...(tt.length >= 2
+					? [
+							{
+								kind: 'bar' as const,
+								name: `Ø (${tt.length})`,
+								values: avgVec.flatMap((v, pi) => atSlot(charted.length, v)),
+								digits: m.digits,
+							},
+						]
+					: []),
+			];
+			if (series.length < 2) continue;
+			// Einziges Ticket-Serie, deren Werte mit Ø übereinstimmen → Chart wäre eine Dublette
+			if (carry.length === 1 && vecOf(carry[0].issue).every((v, i) => v === avgVec[i])) continue;
+			const chart = xychart({ title: m.title, labels, series, yLabel: m.yLabel });
+			if (chart.length > 0) {
+				if (chartCount === 0) lines.push('### Phasen im Vergleich', '');
+				lines.push(`#### ${m.title}`, '', ...chart, '');
+				chartCount += 1;
+			}
+		}
+		if (chartCount > 0) {
+			const capped =
+				tt.length > charted.length
+					? ` Die ersten ${charted.length} Tickets zeichnen Balken; ${tt.length - charted.length} weitere fließen nur in Ø und die Tabellen ein.`
+					: '';
+			lines.push(
+				`> Balken je Phase nebeneinander: einer je Ticket, zuletzt „Ø (${tt.length})“ = Mittelwert über alle gewählten Tickets, je Phase nur über die mit Daten („0“ = Phase lief ohne Wert oder gar nicht).${capped}`,
+				'',
+			);
+		}
+	}
+
+	// ─── Läufe der Fokus-Tickets ───────────────────────────────────────────────
+	lines.push('### Läufe der Fokus-Tickets', '');
+	lines.push(
+		'| Ticket | Phase | Zeitpunkt (Berlin) | Modell | Provider | Turns | Token in | Cache-R | Wert (USD) |',
+		'| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |',
+	);
+	const runs = selected
+		.flatMap((t) => t.entries.map((e) => ({ issue: t.issue, e })))
+		.sort((a, b) => a.e.timestamp.localeCompare(b.e.timestamp));
+	for (const { issue, e } of runs) {
+		const cacheR =
+			typeof e.cacheReadTokens === 'number' && ZERO(e.tokensIn) > 0
+				? pct(ZERO(e.cacheReadTokens) / ZERO(e.tokensIn))
+				: '—';
+		lines.push(
+			`| [#${issue}](https://github.com/deleonio/priority-pilot/issues/${issue}) | ${e.phase ?? '(ohne)'} | ${berlinStamp(e.timestamp)} | ${e.model ?? '—'} | ${e.provider ?? '—'} | ${typeof e.turns === 'number' ? num(e.turns) : '—'} | ${mio(e.tokensIn)} | ${cacheR} | ${ZERO(e.valueCost) > 0 ? usd(ZERO(e.valueCost)) : '—'} |`,
+		);
+	}
+	lines.push(
+		'',
+		'> „—" beim Wert = Lauf ohne Bewertung (valueCost 0, z. B. :free-Modell). Cache-R = Anteil der gelesenen Cache-Token am Input.',
+		'',
+	);
+
+	// ─── Fokus gegen den Rest, je Phase ────────────────────────────────────────
+	// Ø je Run (Wert inkl. 0-Werten, Turns, $/Turn): zeigt, ob das Setup des Fokus-Laufs
+	// gegenüber der eingespielten Phase spart — ohne dass der Kohorten-Filter eingreift.
+	const agg = (es: readonly CostEntry[]): { n: number; vc: number; turns: number } => {
+		const a = { n: es.length, vc: 0, turns: 0 };
+		for (const e of es) {
+			a.vc += ZERO(e.valueCost);
+			a.turns += ZERO(e.turns);
+		}
+		return a;
+	};
+	const focusRuns = selected.flatMap((t) => t.entries);
+	const restRuns = tickets.filter((t) => !wanted.has(t.issue)).flatMap((t) => t.entries);
+	const phaseOf = (e: CostEntry): string => e.phase ?? '(ohne)';
+	const phases = [...new Set(focusRuns.map(phaseOf))];
+	lines.push('### Fokus gegen den Rest — je Phase', '');
+	lines.push(
+		'| Phase | Fokus Läufe | Ø Wert | Ø Turns | $/Turn | Rest Läufe | Ø Wert | Ø Turns | $/Turn |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+	);
+	for (const ph of phases) {
+		const f = agg(focusRuns.filter((e) => phaseOf(e) === ph));
+		const r = agg(restRuns.filter((e) => phaseOf(e) === ph));
+		lines.push(
+			`| ${ph} | ${f.n} | ${usd(f.n > 0 ? f.vc / f.n : 0)} | ${avg(f.turns, f.n)} | ${ratio(f.vc, f.turns)} | ${r.n} | ${usd(r.n > 0 ? r.vc / r.n : 0)} | ${avg(r.turns, r.n)} | ${ratio(r.vc, r.turns)} |`,
+		);
+	}
+	lines.push(
+		'',
+		'> „Rest" = alle Läufe anderer Tickets derselben Phase (auch unvollständige Tickets — hier zählt der Lauf, nicht die Ticket-Kohorte). Wert-Ø schließt 0-Werte ein: ein :free-Modell senkt den Ø, das ist die Aussage, nicht ein Fehler.',
+		'',
+	);
+	return `${lines.join('\n')}\n`;
+}
+
 const flag = (argv: readonly string[], name: string): string | undefined => {
 	const idx = argv.indexOf(`--${name}`);
 	return idx >= 0 && idx + 1 < argv.length ? argv[idx + 1] : undefined;
 };
 
+/** `--issues 1752, 1754` → ['1752','1754'] — Trenner sind Komma und/oder Leerzeichen. */
+export const parseIssueList = (raw: string | undefined): string[] =>
+	(raw ?? '')
+		.split(/[\s,]+/)
+		.map((s) => s.trim())
+		.filter((s) => /^\d+$/.test(s));
+
 const main = (argv: readonly string[]): number => {
-	process.stdout.write(renderReport(flag(argv, 'dir') ?? '.costs', { baseline: flag(argv, 'baseline') }));
+	const dir = flag(argv, 'dir') ?? '.costs';
+	const issues = parseIssueList(flag(argv, 'issues'));
+	process.stdout.write(
+		issues.length > 0 ? renderFocusReport(dir, issues) : renderReport(dir, { baseline: flag(argv, 'baseline') }),
+	);
 	return 0;
 };
 

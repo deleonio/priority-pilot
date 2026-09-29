@@ -1,14 +1,49 @@
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
-import { LOGIN_PATH, addedFeatures, renderImprint, renderLanding, renderRobots, renderSitemap } from './render.ts';
+import es from './i18n/es.json';
+import fr from './i18n/fr.json';
+import itMessages from './i18n/it.json';
+import nl from './i18n/nl.json';
+import pl from './i18n/pl.json';
+import pt from './i18n/pt.json';
+import ru from './i18n/ru.json';
+import sv from './i18n/sv.json';
+import {
+	EMAIL_LOGIN_PATH,
+	LOCALES,
+	LOGIN_PATH,
+	SIGNED_IN_REDIRECT,
+	addedFeatures,
+	renderAssetLinks,
+	renderAccountDeletion,
+	renderImprint,
+	renderLanding,
+	renderRobots,
+	renderSitemap,
+	type Locale,
+	type Messages,
+	type PageContext,
+} from './render.ts';
+import * as renderModule from './render.ts';
+
+// #1672: `renderPrivacy` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderPrivacy = (
+	renderModule as unknown as {
+		renderPrivacy?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderPrivacy;
 
 const catalog = getPlansCatalog();
-const allMessages = { de, en };
+const allMessages = { de, en, es, fr, it: itMessages, nl, pl, pt, ru, sv };
 
-const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
+const landing = (locale: Locale, siteUrl = 'https://example.org', shots?: ReadonlySet<string>) =>
 	renderLanding({
 		locale,
 		messages: allMessages[locale],
@@ -16,6 +51,7 @@ const landing = (locale: 'de' | 'en', siteUrl = 'https://example.org') =>
 		catalog,
 		plans: PLAN_VALUES,
 		aiQuota: AI_ASSIST_MONTHLY_QUOTA,
+		shots,
 	});
 
 /** Alle Blatt-Schlüssel eines Textobjekts als Pfade, damit de und en vergleichbar werden. */
@@ -25,8 +61,10 @@ const keyPaths = (value: unknown, prefix = ''): string[] =>
 		: [prefix];
 
 describe('Website-Texte', () => {
-	it('de und en haben dieselben Schlüssel', () => {
-		expect(keyPaths(en)).toEqual(keyPaths(de));
+	it('alle Sprachen haben dieselben Schlüssel wie de', () => {
+		for (const messages of Object.values(allMessages)) {
+			expect(keyPaths(messages)).toEqual(keyPaths(de));
+		}
 	});
 
 	it('jede Feature-ID aus plans.ts hat in beiden Sprachen ein Label', () => {
@@ -47,6 +85,16 @@ describe('Website-Texte', () => {
 });
 
 describe('renderLanding', () => {
+	it('verlinkt jede Sprache per hreflang und rendert Preise im Format der Sprache', () => {
+		for (const locale of LOCALES) {
+			const html = landing(locale);
+			expect(html).toContain(`<html lang="${locale}">`);
+			for (const target of LOCALES) expect(html).toContain(`hreflang="${target}" href="https://example.org/`);
+		}
+		expect(landing('pl')).toMatch(/7,99\s€/u);
+		expect(landing('en')).toContain('€7.99');
+	});
+
 	it('setzt Sprache, canonical und hreflang für beide Sprachen', () => {
 		const html = landing('en');
 		expect(html).toContain('<html lang="en">');
@@ -59,13 +107,30 @@ describe('renderLanding', () => {
 		const html = landing('de');
 		expect(html).toContain(`href="${LOGIN_PATH}"`);
 		expect(html).toContain(de.hero.cta);
+		expect(html).toContain(`href="${EMAIL_LOGIN_PATH}"`);
 	});
 
-	it('springt nicht automatisch in die App, auch nicht als installierte PWA', () => {
-		const html = landing('de');
-		const head = html.slice(0, html.indexOf('</head>'));
-		expect(head).not.toContain('display-mode');
-		expect(html).not.toContain('location.replace');
+	it('schickt nur auf der Startseite angemeldete Nutzer vor dem Stylesheet in die App', () => {
+		const head = (html: string) => html.slice(0, html.indexOf('</head>'));
+		const home = head(landing('en'));
+		expect(home).toContain(SIGNED_IN_REDIRECT);
+		expect(home.indexOf(SIGNED_IN_REDIRECT)).toBeLessThan(home.indexOf('styles.css'));
+		expect(home).not.toContain('display-mode');
+		expect(renderImprint({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages })).not.toContain(
+			'location.replace',
+		);
+	});
+
+	it('zeigt Funktionen mit Bild als Zeile, ohne Bild als Karte', () => {
+		const [withShot, withoutShot] = de.features.items;
+		const html = landing('de', '', new Set(['dashboard', withShot.id]));
+		expect(html).toContain(`src="/shots/${withShot.id}.jpg" alt="Screenshot aus der App: ${withShot.title}"`);
+		expect(html).toContain('src="/shots/dashboard.jpg"');
+		expect(html).not.toContain(`/shots/${withoutShot.id}.jpg`);
+		expect(html).toContain(`<h4 class="kern-title">${withoutShot.title}</h4>`);
+		// MCP zeigt ohne Screenshot einen Beispiel-Chat mit den aufgerufenen Werkzeugen.
+		expect(html).toContain('<figure class="chat"');
+		expect(html).toContain('<code>next_task</code>');
 	});
 
 	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {
@@ -99,6 +164,45 @@ describe('renderLanding', () => {
 		});
 		expect(html).toContain('&lt;script&gt;x&lt;/script&gt;');
 	});
+
+	/**
+	 * #1618 AK5/AK6/AK7 (Vertrag: `docs/spec/issue-1618.md`) — die Landing Page stellt den
+	 * geschärften USP heraus (objektiv/aufwandsgewichtet/graph-basiert, Gewichte je Aufgabe,
+	 * Balance aus erledigtem Aufwand) und nennt weder Konkurrenten noch unausgelieferte Komponenten.
+	 */
+	it.each(['de', 'en'] as const)('%s: nennt objektiv/aufwandsgewichtet/graph-basiert (AK5)', (locale) => {
+		const terms: Record<'de' | 'en', string[]> = {
+			de: ['objektiv', 'aufwandsgewichtet', 'graph-basiert'],
+			en: ['objective', 'effort-weighted', 'graph-based'],
+		};
+		const html = landing(locale).toLowerCase();
+		for (const term of terms[locale]) {
+			expect(html, `${locale}: „${term}" fehlt in hero/features`).toContain(term.toLowerCase());
+		}
+	});
+
+	it.each(['de', 'en'] as const)(
+		'%s: nennt weder Kadenz-/Befüllbarkeits-Komponente noch Strengste-Prinzip (AK7)',
+		(locale) => {
+			const html = landing(locale).toLowerCase();
+			for (const forbidden of ['kadenz', 'befüllbarkeit', 'strengste', 'cadence', 'strictest']) {
+				expect(html, `${locale}: enthält verbotenen Begriff „${forbidden}"`).not.toContain(forbidden);
+			}
+		},
+	);
+
+	/** #1754 — nur FAQ-Einträge mit href/linkText bekommen einen kern-link-Anker in der Antwort. */
+	it('verlinkt genau den FAQ-Eintrag mit Download-Link als kern-link (#1754)', () => {
+		const html = landing('de');
+		const bodies = [
+			...html.matchAll(/<div class="kern-accordion__body"><p class="kern-body">([\s\S]*?)<\/p><\/div>/g),
+		].map((match) => match[1]);
+		expect(bodies).toHaveLength(de.faq.items.length);
+		const linked = bodies.filter((body) => body.includes('<a '));
+		expect(linked).toHaveLength(1);
+		const item = de.faq.items.find((item) => item.href && item.linkText);
+		expect(linked[0]).toContain(`<a class="kern-link" href="${item?.href}">${item?.linkText}</a>`);
+	});
 });
 
 describe('renderImprint', () => {
@@ -107,6 +211,76 @@ describe('renderImprint', () => {
 		expect(html).toContain(OPERATOR.name);
 		expect(html).toContain(`mailto:${OPERATOR.email}`);
 		expect(html).toContain('hreflang="en" href="/en/imprint/"');
+	});
+});
+
+describe('renderAccountDeletion (#1681)', () => {
+	it('nennt den Weg in der App, gelöschte und aufbewahrte Daten und eine Kontaktadresse', () => {
+		const html = renderAccountDeletion({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages });
+		expect(html).toContain('<h1 class="kern-heading-large">Konto löschen</h1>');
+		expect(html).toContain('„Konto löschen“');
+		expect(html).toContain('Was gelöscht wird');
+		expect(html).toContain('Rechnungen und Abo-Datensätze');
+		expect(html).toContain(`mailto:${OPERATOR.email}`);
+		expect(html).toContain('hreflang="en" href="/en/delete-account/"');
+	});
+
+	it('ist in jeder Sprache aus dem Footer verlinkt', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const html = renderImprint({
+				locale: locale as keyof typeof allMessages,
+				messages,
+				siteUrl: '',
+				operator: OPERATOR,
+				allMessages,
+			});
+			expect(html, locale).toContain(`${messages.footer.accountDeletionPath}">${messages.footer.accountDeletion}</a>`);
+		}
+	});
+});
+
+/**
+ * #1672 AK1/AK2/AK3 (Vertrag: `docs/spec/issue-1672.md`) — die Datenschutzerklärung liegt als
+ * deutsche Seite unter der festen URL `/datenschutz/`, nennt die vier Empfänger und vier
+ * Grundsätze und ist aus dem Footer aller zehn Sprachen sowie der Sitemap erreichbar.
+ */
+describe('renderPrivacy (#1672)', () => {
+	it('rendert H1 „Datenschutz“ mit Empfängern und Grundsätzen (AK1)', () => {
+		expect(renderPrivacy, 'renderPrivacy existiert noch nicht (Export in render.ts)').toBeTypeOf('function');
+		const html = renderPrivacy!({ locale: 'de', messages: de, siteUrl: '', allMessages });
+		expect(html).toMatch(/<h1[^>]*>Datenschutz<\/h1>/);
+		for (const recipient of ['PayPal', 'Google-Login', 'Firebase Cloud Messaging', 'Google Play']) {
+			expect(html, `Empfänger „${recipient}“ fehlt`).toContain(recipient);
+		}
+		const lower = html.toLowerCase();
+		for (const principle of ['sparsam', 'auswertung', 'weitergabe']) {
+			expect(lower, `Grundsatz „${principle}“ fehlt`).toContain(principle);
+		}
+		expect(lower, 'Ende-zu-Ende-Verschlüsselung fehlt').toMatch(/ende-zu-ende|e2e/);
+	});
+
+	it('verlinkt /datenschutz/ aus dem Footer aller zehn Sprachen (AK2)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { privacy?: string }).privacy;
+			expect(label, `${locale}: i18n-Key footer.privacy fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toContain(`href="/datenschutz/">${label}</a>`);
+		}
+	});
+
+	it('baut /datenschutz/ vor und nimmt die URL in die Sitemap auf (AK3)', { timeout: 120_000 }, () => {
+		const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+		execFileSync('pnpm', ['build'], {
+			cwd: websiteRoot,
+			env: { ...process.env, SITE_URL: 'https://example.org' },
+			stdio: 'pipe',
+		});
+		expect(
+			existsSync(join(websiteRoot, 'dist', 'datenschutz', 'index.html')),
+			'dist/datenschutz/index.html fehlt',
+		).toBe(true);
+		expect(readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8')).toContain(
+			'<loc>https://example.org/datenschutz/</loc>',
+		);
 	});
 });
 
@@ -119,5 +293,26 @@ describe('robots und sitemap', () => {
 
 	it('schreibt absolute URLs in die Sitemap', () => {
 		expect(renderSitemap('https://example.org', ['/', '/en/'])).toContain('<loc>https://example.org/en/</loc>');
+	});
+});
+
+describe('asset links', () => {
+	it('enthält Package-ID und alle Fingerprints', () => {
+		const json = renderAssetLinks('de.balamentum.app', 'AA:01, BB:02\nCC:03');
+		expect(JSON.parse(json ?? '')).toEqual([
+			{
+				relation: ['delegate_permission/common.handle_all_urls'],
+				target: {
+					namespace: 'android_app',
+					package_name: 'de.balamentum.app',
+					sha256_cert_fingerprints: ['AA:01', 'BB:02', 'CC:03'],
+				},
+			},
+		]);
+	});
+
+	it('entfällt ohne Package-ID oder Fingerprint', () => {
+		expect(renderAssetLinks('', 'AA:01')).toBeNull();
+		expect(renderAssetLinks('de.balamentum.app', ' ')).toBeNull();
 	});
 });

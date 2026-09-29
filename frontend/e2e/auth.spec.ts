@@ -31,13 +31,40 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 	);
 };
 
+test.describe('AK1 — Pillen-Rundung der Anmeldeseite (#1745)', () => {
+	test('E-Mail-Eingabefeld rundet wie die Pillen-Knöpfe (computed border-radius gleich)', async ({ page }) => {
+		await mockUnauthenticated(page);
+		// Magic-Link-Formular freischalten — nur dort rendert `.login-page__input` (Muster silent-login.spec.ts).
+		await page.route('**/auth/providers', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ google: true, magicLink: true }),
+			}),
+		);
+		await page.goto('/app/');
+
+		const input = page.locator('.login-page__input');
+		const button = page.locator('.login-page__btn').first();
+		await expect(input).toBeVisible();
+		await expect(button).toBeVisible();
+
+		const inputRadius = await input.evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+		const buttonRadius = await button.evaluate((el) => parseFloat(getComputedStyle(el).borderRadius));
+		expect(
+			Math.abs(inputRadius - buttonRadius),
+			`border-radius des E-Mail-Felds (${inputRadius}px) muss der Pillen-Rundung der Knöpfe (${buttonRadius}px) entsprechen`,
+		).toBeLessThanOrEqual(1);
+	});
+});
+
 test.describe('AK 7 — Frontend-Guard (#208)', () => {
 	test('AK7a: Unauthentifizierter Aufruf zeigt LoginPage — Haupt-App ausgeblendet', async ({ page }) => {
 		await mockUnauthenticated(page);
 		await page.goto('/app/');
 
 		// LoginPage muss sichtbar sein …
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 		// … die Haupt-App (sr-only H1 „Dashboard") darf NICHT im Dokument sein.
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeHidden();
 	});
@@ -49,14 +76,14 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 		// Haupt-App muss sichtbar sein (sr-only H1 „Dashboard" im DOM) …
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// … LoginPage darf NICHT erscheinen.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeHidden();
 	});
 
 	test('AK7c: Wechsel von unauthentifiziert auf authentifiziert zeigt Haupt-App', async ({ page }) => {
 		// Erst 401 zurückgeben, dann auf 200 umschalten (simuliert Redirect nach OAuth).
 		await mockUnauthenticated(page);
 		await page.goto('/app/');
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 
 		// Auth-State auf eingeloggt setzen und Seite neu laden.
 		await mockAuthenticated(page);
@@ -98,7 +125,7 @@ test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 		await page.goto('/app/');
 
 		// Ohne ?error-Parameter darf kein Alert erscheinen.
-		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Mit Google anmelden' })).toBeVisible();
 		await expect(page.getByRole('alert')).toBeHidden();
 	});
 });

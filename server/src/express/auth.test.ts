@@ -379,6 +379,32 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		});
 	});
 
+	// ── ADR 0015 — Merk-Cookie für den Sprung von der Website in die App ────────
+
+	describe('ADR 0015 — Merk-Cookie bm_signed_in', () => {
+		const signedInCookie = (res: Response): string | undefined =>
+			res.headers.getSetCookie().find((value) => value.startsWith('bm_signed_in='));
+
+		it('GET /auth/me mit Session setzt das Cookie lesbar für die Website', async () => {
+			const cookie = await testLogin();
+			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			const marker = signedInCookie(res);
+			assert.ok(marker?.startsWith('bm_signed_in=1;'), `Merk-Cookie erwartet, war: ${marker}`);
+			assert.match(marker, /Path=\//);
+			assert.match(marker, /Max-Age=\d+/);
+			assert.doesNotMatch(marker, /HttpOnly/i, 'die Website liest das Cookie per document.cookie');
+		});
+
+		it('401 und Logout löschen das Cookie', async () => {
+			const anonymous = signedInCookie(await fetch(`${server.baseUrl}/auth/me`));
+			assert.match(anonymous ?? '', /^bm_signed_in=;.*Expires=Thu, 01 Jan 1970/);
+
+			const cookie = await testLogin();
+			const logout = await fetch(`${server.baseUrl}/auth/logout`, { method: 'POST', headers: { Cookie: cookie } });
+			assert.match(signedInCookie(logout) ?? '', /^bm_signed_in=;.*Expires=Thu, 01 Jan 1970/);
+		});
+	});
+
 	// ── AK-8 (Issue #193) — Nicht-erlaubte E-Mail → 401 via Multi-Email-Gate ──
 	describe('AK-8 — Multi-User-Gate: nicht erlaubte E-Mail → 401', () => {
 		it('POST /auth/test-login mit nicht-erlaubter E-Mail liefert 401', async () => {
@@ -550,6 +576,8 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		});
 
 		it('this.success(user) im Callback → Erfolgs-Redirect auf / + Session-Cookie', async () => {
+			// Seit #1671 beendet /auth/me Sessions gelöschter Konten — der Stub-Nutzer braucht seine DB-Zeile.
+			await User.create({ id: 1, email: ALLOWED_EMAIL, displayName: ALLOWED_NAME, passwordHash: '__test__' });
 			await withStubStrategy('success', async () => {
 				const res = await fetch(`${server.baseUrl}/auth/google/callback?code=x`, { redirect: 'manual' });
 				assert.equal(res.status, 302);

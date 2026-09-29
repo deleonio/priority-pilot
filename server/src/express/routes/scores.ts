@@ -7,8 +7,12 @@ import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
+import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { waehleCareVorschlaege, type CareAufgabe, type CareVorlage } from '../../logics/careSuggestions.js';
+import { CARE_SPRACHEN, CARE_VORLAGEN, type CareSprache } from '../../logics/careSuggestionData.js';
+import { bewerteCareDefizit } from '../../logics/careDeficit.js';
 import type { components } from '../../api';
 
 type ErrorDto = components['schemas']['Error'];
@@ -19,6 +23,7 @@ type MilestoneDto = components['schemas']['Milestone'];
 type MissedTasksSummaryDto = components['schemas']['MissedTasksSummary'];
 type BalanceStatusDto = components['schemas']['BalanceStatus'];
 type BalanceHistoryEntryDto = components['schemas']['BalanceHistoryEntry'];
+type CareVorschlagDto = components['schemas']['CareVorschlag'];
 
 /** Ein Zeitraum darf höchstens so viele Tage umfassen — deckelt die Antwortgröße von `/scores/balance/history`. */
 const MAX_BALANCE_HISTORY_TAGE = 366;
@@ -26,12 +31,20 @@ const MAX_BALANCE_HISTORY_TAGE = 366;
 /** Maximale Anzahl der in der Zusammenfassung mitgelieferten Einzel-Einträge. */
 const MISSED_TASKS_LIST_LIMIT = 20;
 
+/** Löst den `sprache`-Query-Parameter auf: bekannte App-Sprache oder Default `de`. */
+const loeseSprache = (query: unknown): CareSprache =>
+	typeof query === 'string' && (CARE_SPRACHEN as readonly string[]).includes(query) ? (query as CareSprache) : 'de';
+
 export const scoresRouter = Router();
 
 // GET /scores — vergebene Gamification-Punkte je erledigtem Task.
-scoresRouter.get('/scores', async (_req: Request, res: Response<ScoreEntryDto[] | ErrorDto>) => {
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar).
+scoresRouter.get('/scores', async (req: Request, res: Response<ScoreEntryDto[] | ErrorDto>) => {
 	try {
-		const entries = await ScoreEntry.findAll({ order: [['id', 'ASC']] });
+		const entries = await ScoreEntry.findAll({
+			include: [{ model: Task, where: ownerScope(getUserId(req)) }],
+			order: [['id', 'ASC']],
+		});
 		res.json(
 			entries.map((entry) => ({
 				taskId: entry.taskId,
@@ -67,8 +80,7 @@ scoresRouter.get('/scores/by-pillar', async (req: Request, res: Response<PillarS
 });
 
 // GET /scores/streak — Kalendertage in Folge mit mindestens einer Erledigung plus Bestmarke (#1360).
-// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar); `GET /scores` ist
-// ungescopet und deshalb bewusst NICHT die Quelle.
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/by-pillar).
 scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto | ErrorDto>) => {
 	try {
 		const entries = await ScoreEntry.findAll({
@@ -93,8 +105,7 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 });
 
 // GET /scores/milestones — feste Streak-/Punkte-Stufen, rückwirkend aus Bestandsdaten (#1362).
-// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/streak); `GET /scores` ist
-// ungescopet und deshalb bewusst NICHT die Quelle.
+// Nur Tasks des eingeloggten Nutzers (`ownerScope`, Muster /scores/streak).
 scoresRouter.get('/scores/milestones', async (req: Request, res: Response<MilestoneDto[] | ErrorDto>) => {
 	try {
 		const entries = await ScoreEntry.findAll({
@@ -264,6 +275,113 @@ scoresRouter.get(
 			);
 
 			res.json(verlauf);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
+
+// GET /scores/care-suggestions — konkrete Vorschläge gegen ein Balance-Defizit (#1791): je
+// defizitärer Säule (Defizit-Quelle ist `bewerteCareDefizit` aus #1790, nicht kopiert) bis zu
+// drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
+// `careSuggestionData.ts`. `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `de`).
+// Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; #1804 (KI-Vorschläge
+// Plus/Pro) ergänzt später dieselbe Antwortform. Gescopet wie `/scores/balance` strikt mit
+// `ownerScope` auf Säulen und Tasks.
+scoresRouter.get(
+	'/scores/care-suggestions',
+	async (req: Request, res: Response<{ vorschlaege: CareVorschlagDto[] } | ErrorDto>) => {
+		try {
+			const userId = getUserId(req);
+			const sprache = loeseSprache(req.query.sprache);
+			const jetzt = new Date();
+			const [saeulen, tasks, entries, ablehnungen] = await Promise.all([
+				Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
+				Task.findAll({ where: ownerScope(userId), include: [Pillar] }),
+				ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
+				CareSuggestionDismissal.findAll({ where: ownerScope(userId) }),
+			]);
+			const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+
+			const aufgaben: CareAufgabe[] = tasks.map((task) => ({
+				id: task.id,
+				titel: task.title,
+				beschreibung: task.description ?? null,
+				status: task.status,
+				pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+					pillarId: pillar.id,
+					share: pillar.TaskPillar.share,
+				})),
+			}));
+			// Texte bereits in Zielsprache auflösen — die Auswahl-Logik bleibt text- und DB-frei.
+			const vorlagen: CareVorlage[] = CARE_VORLAGEN.map((vorlage) => ({
+				key: vorlage.key,
+				saeuleId: vorlage.saeuleId,
+				texte: vorlage.texte[sprache],
+			}));
+
+			const defizite = bewerteCareDefizit(
+				saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+				tasks.map((task) => ({
+					status: task.status,
+					estimatedEffort: task.estimatedEffort,
+					pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+						pillarId: pillar.id,
+						share: pillar.TaskPillar.share,
+					})),
+					erledigtAm: zeitpunktProTask.get(task.id) ?? null,
+				})),
+				jetzt,
+			);
+
+			const vorschlaege: CareVorschlagDto[] = defizite
+				.filter((defizit) => defizit.defizitaer)
+				.flatMap((defizit) => {
+					const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
+					const vorlagenDerSaeule = vorlagen.filter((vorlage) => vorlage.saeuleId === saeule.id);
+					return waehleCareVorschlaege(
+						saeule,
+						aufgaben,
+						vorlagenDerSaeule,
+						ablehnungen.map((ablehnung) => ({
+							templateKey: ablehnung.templateKey,
+							abgelehntAm: ablehnung.abgelehntAm,
+						})),
+						jetzt,
+					).map((vorschlag) => ({ ...vorschlag, saeuleId: defizit.id, saeuleName: defizit.name }));
+				});
+
+			res.json({ vorschlaege });
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	},
+);
+
+// POST /scores/care-suggestions/dismissals — eine Vorlage ablehnen (#1791, AK4): der
+// `templateKey` ist der sprachunabhängige Stammdaten-Schlüssel; die Ablehnung unterdrückt die
+// Vorlage für `CARE_ABLEHNUNG_TAGE` ab jetzt. Wiederholtes Ablehnen aktualisiert den bestehenden
+// Eintrag, statt Zeilen zu häufen.
+scoresRouter.post(
+	'/scores/care-suggestions/dismissals',
+	async (req: Request, res: Response<Record<string, never> | ErrorDto>) => {
+		try {
+			const templateKey = typeof req.body?.templateKey === 'string' ? req.body.templateKey.trim() : '';
+			if (!templateKey) {
+				sendError(res, 400, '"templateKey" ist erforderlich.');
+				return;
+			}
+			const userId = getUserId(req);
+			const bestehend = await CareSuggestionDismissal.findOne({
+				where: { ...ownerScope(userId), templateKey },
+			});
+			const abgelehntAm = new Date();
+			if (bestehend) {
+				await bestehend.update({ abgelehntAm });
+			} else {
+				await CareSuggestionDismissal.create({ userId, templateKey, abgelehntAm });
+			}
+			res.status(204).send();
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 		}

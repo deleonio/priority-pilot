@@ -303,6 +303,44 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(body.number, 'INV-2026-100004');
 	});
 
+	// #1668: Store-Apps kaufen nie über PayPal (ADR 0016) — Anlage und Wechsel lehnen die Kanäle
+	// play und appstore mit 409 ab, ohne PayPal aufzurufen.
+	it('#1668: Anlage und Wechsel mit X-Client-Channel play/appstore → 409, kein PayPal-Aufruf', async () => {
+		let paypalCalls = 0;
+		server = await startTestServer(
+			withClient({
+				createSubscription: async () => {
+					paypalCalls++;
+					return { approvalUrl: 'https://paypal.example/approve', externalSubscriptionId: 'I-1' };
+				},
+				revise: async () => {
+					paypalCalls++;
+					return {};
+				},
+			}),
+		);
+		const cookie = await login('channel@example.com');
+		for (const channel of ['play', 'appstore']) {
+			for (const path of ['/billing/subscriptions', '/billing/subscriptions/change']) {
+				const res = await fetch(`${server.baseUrl}${path}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Client-Channel': channel },
+					body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+				});
+				assert.equal(res.status, 409, `${path} im Kanal ${channel}`);
+			}
+		}
+		assert.equal(paypalCalls, 0);
+		assert.equal(await Subscription.count(), 0);
+
+		const web = await fetch(`${server.baseUrl}/billing/subscriptions`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie, 'X-Client-Channel': 'web' },
+			body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+		});
+		assert.equal(web.status, 201);
+	});
+
 	// AK7: alle vier Routen ohne Session → 401 (requireAuth greift bereits vor Router-Existenz, #207).
 	describe('AK7: ohne Session → 401', () => {
 		beforeEach(async () => {

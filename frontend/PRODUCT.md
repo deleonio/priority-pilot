@@ -38,7 +38,7 @@ Die Kombination ist der Unterschied: Priorität als **berechneter Wertbeitrag au
 
 ## Capabilities and Constraints
 
-- Vier Hauptansichten per Tab-Leiste: **Dashboard**, **Aufgaben** (Umschalter offen/erledigt), **Serien** (wiederkehrende Aufgaben), **Wald** (Aufgabenbaum). Kopfzeile mit fünf Icon-Aktionen: Task anlegen, Säulen-Berater, Einstellungen, Hilfe, Abmelden.
+- Vier Hauptansichten per Tab-Leiste: **Dashboard**, **Aufgaben** (Umschalter offen/erledigt), **Serien** (wiederkehrende Aufgaben), **Graph** (Aufgabenbaum). Kopfzeile mit fünf Icon-Aktionen: Task anlegen, Säulen-Berater, Einstellungen, Hilfe, Abmelden.
 - Settings-Seite (#271) mit Tab-Leiste: **Allgemein**, **Säulen**, **KI-Provider**, **Standort**, **Gruppen**; aktiver Tab liegt auf der Route `/settings/:tab` (#1105).
 - **Gruppen**: gemeinsame Aufgabengruppen mit Rollen (Admin/Mitglied), Einladungs-Links (`/gruppen/beitreten?token=…`, #1226), Nutzersuche per Namensfragment/E-Mail; öffentliche Beitritts-Vorschau vor dem Auth-Gate, vier gestaltete Beitritts-Zustände.
 - **»In der Nähe«** (#1066): Dashboard-Card mit bis zu 10 Geo-Tasks, aufsteigend nach Haversine-Distanz; vier gestaltete Zustände (Erfolg, leer, Browser verweigert, Präferenz aus) — Positionserhebung erst nach Freigabe.

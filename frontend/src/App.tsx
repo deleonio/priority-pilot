@@ -37,6 +37,13 @@ import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForest, nodeMatchesFilter } from './lib/filterForest';
 import { buildBalancePriorities } from './lib/balancePriority';
+import {
+	dismissBalanceHint,
+	hasStoredBalancePreference,
+	isBalanceHintDismissed,
+	readBalancePreferences,
+	storeBalancePreferences,
+} from './lib/balancePreferences';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
@@ -70,7 +77,7 @@ const TaskGraphPanel = lazy(() =>
 
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
-const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
+const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
 // #1529: „Pakete" (Index 6) und „Abo" (Index 7) hängen HINTER „Kategorien" und VOR den
 // rollenabhängigen Segmenten — so bleiben die Indizes 0–5 der bestehenden Segmente stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
@@ -199,11 +206,18 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
 	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
 
-	// Balance-Priorisierung der Aufgabenliste — session-lokal (keine Persistenz). Der Schalter
-	// wechselt nur die Sicht; gerechnet wird live an der Datenlage, ohne eingefrorenen Stand.
-	const [balanceMode, setBalanceMode] = useState(false);
+	// Balance-Priorisierung der Aufgabenliste — Präferenz im localStorage (#1792, Default **an**),
+	// synchron am Ansichts- und am Einstellungs-Schalter. Der Schalter wechselt nur die Sicht;
+	// gerechnet wird live an der Datenlage, ohne eingefrorenen Stand.
+	const [balanceMode, setBalanceMode] = useState(() => readBalancePreferences().balancePriority);
+	// Einmal-Hinweis auf die Umstellung (#1792 AK4): erscheint, solange weder Dismiss-Flag noch
+	// eigene Präferenz existiert — nach dem Wegklicken oder expliziten Abschalten nie wieder.
+	// Gate statt State (Muster aiPreferences.ts): pro Render frisch gelesen — sonst übersteht der
+	// Hinweis das Abschalten in den Einstellungen, denn die Navigation hin und zurück ist eine
+	// SPA-Navigation ohne Remount.
+	const showBalanceHint = !isBalanceHintDismissed() && !hasStoredBalancePreference();
 
-	// #1345: „Oberaufgaben anzeigen" — session-lokal wie `balanceMode` (kein localStorage/URL, AK10).
+	// #1345: „Oberaufgaben anzeigen“ — session-lokal (kein localStorage/URL, AK10).
 	const [showParents, setShowParents] = useState(false);
 
 	// Kategorie-Filter (`?cat=`) — Filterzustand wie `?q=`, damit Deep-Link und Zurück-Taste ihn
@@ -374,6 +388,16 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 			balanceMode ? buildBalancePriorities(pillars, buildDoneEffortByPillar(pillars, tasks ?? []), tasks ?? []) : null,
 		[balanceMode, pillars, tasks],
 	);
+
+	// Schalterwechsel (Ansichts-Leiste, Einstellungen ODER Hinweis-Button) persistieren; das erste
+	// explizite Abschalten setzt zugleich das Dismiss-Flag, damit der Hinweis nicht zurückkehrt (AK4).
+	const changeBalanceMode = useCallback((checked: boolean): void => {
+		setBalanceMode(checked);
+		storeBalancePreferences({ balancePriority: checked });
+		if (!checked) {
+			dismissBalanceHint();
+		}
+	}, []);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -1095,7 +1119,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 													_checked={balanceMode}
 													_on={{
 														onChange: (_event, checked) => {
-															setBalanceMode(checked === true);
+															changeBalanceMode(checked === true);
 														},
 													}}
 												/>
@@ -1163,6 +1187,20 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 									    Nur bei aktivem Tab mounten (Muster TaskGraphPanel, Zeile ~970): KolTabs hält
 									    inaktive Panels per `hidden` im DOM statt sie zu entfernen — sonst doppelt sich
 									    `data-testid="day-done"` mit der Dashboard-Instanz. */}
+										{/* #1792: Einmal-Hinweis über der Aufgabenliste (KI-UX) — erklärt die neue
+										    Standardsortierung, nennt den Weg zum Abschalten und bietet das direkte
+										    Ausstellen an (Ghost-Button im Alert, Präzedenz SettingsPage). */}
+										{taskViewMode === 'open' && activeTab === 1 && showBalanceHint && (
+											<KolAlert _type="info" _label="Balance-Priorisierung ist jetzt standardmäßig aktiv">
+												Aufgaben aus Säulen mit Defizit rücken in der Liste nach vorn. Abschalten lässt sich die
+												Sortierung in den Einstellungen (Ansicht „Allgemein“).
+												<KolButton
+													_label="Balance-Priorisierung ausschalten"
+													_variant="ghost"
+													_on={{ onClick: () => changeBalanceMode(false) }}
+												/>
+											</KolAlert>
+										)}
 										{taskViewMode === 'open' && activeTab === 1 && <DayDoneHint tasks={tasks} />}
 										{taskViewMode === 'open' ? (
 											filteredForest.length === 0 ? (

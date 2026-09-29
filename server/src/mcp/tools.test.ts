@@ -22,7 +22,8 @@ process.env.GOOGLE_ALLOWED_EMAILS =
 	'mcp-tools-a@example.com,mcp-tools-b@example.com,mcp-tools-c@example.com,mcp-tools-balance-a@example.com,' +
 	'mcp-tools-balance-b@example.com,mcp-tools-balance-c@example.com,mcp-tools-balance-d-a@example.com,' +
 	'mcp-tools-balance-d-b@example.com,mcp-tools-pillar-a@example.com,mcp-tools-pillar-b@example.com,' +
-	'mcp-tools-history-a@example.com,mcp-tools-history-b@example.com,mcp-tools-history-c@example.com';
+	'mcp-tools-history-a@example.com,mcp-tools-history-b@example.com,mcp-tools-history-c@example.com,' +
+	'mcp-tools-recipient-a@example.com,mcp-tools-recipient-b@example.com,mcp-tools-recipient-c@example.com';
 applyTestAuthEnv('mcp-tools-test');
 
 let server: TestServer;
@@ -2602,5 +2603,162 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 			!members.result?.some((m) => m.userId === bId),
 			'B darf durch die abgelehnten Aufrufe nicht Mitglied geworden sein',
 		);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1382 (Spec docs/spec/issue-1382.md) — `task_create` erhält ein optionales
+ * `userId`-Argument, um eine Aufgabe direkt für ein Mitglied einer gemeinsamen Gruppe anzulegen.
+ *
+ * AK1: gemeinsame Gruppe → Aufgabe gehört dem Empfänger.
+ * AK2: keine gemeinsame Gruppe → Werkzeugfehler (403), keine Aufgabe entsteht.
+ * AK3: ohne userId unverändert für den Token-Owner.
+ * AK4: tools/list nennt userId als optionale Property von task_create.
+ * AK5: task_update bleibt unverändert (kein userId im Schema, kein Reassign).
+ *
+ * Rot, weil `task_create` das Argument `userId` heute nicht entgegennimmt (`tools.ts:275-284`).
+ * KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug task_create: Aufgaben für Gruppenmitglieder (#1382)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const ownUserId = async (cookie: string, ownDisplayName: string): Promise<number> => {
+		const res = await server.json(`/users/search?query=${encodeURIComponent(ownDisplayName)}`, {
+			headers: { Cookie: cookie },
+		});
+		const hits = (await res.json()) as { id: number; displayName: string }[];
+		const hit = hits.find((h) => h.displayName === ownDisplayName);
+		assert.ok(hit, `Setup: eigener Nutzer "${ownDisplayName}" muss über die Suche auffindbar sein`);
+		return hit.id;
+	};
+
+	/** Legt eine Gruppe an (A als Admin) und nimmt B als Mitglied auf (Einladung + Annahme). */
+	const shareGroup = async (cookieA: string, cookieB: string, bId: number): Promise<void> => {
+		const created = await server.json('/groups', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+			body: JSON.stringify({ name: `Geteilt-${idCounter++}` }),
+		});
+		assert.equal(created.status, 201, 'Setup: Gruppe muss anlegbar sein');
+		const groupId = ((await created.json()) as { id: number }).id;
+
+		const invited = await server.json(`/groups/${groupId}/invitations`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+			body: JSON.stringify({ userId: bId }),
+		});
+		assert.equal(invited.status, 201, 'Setup: Einladung muss anlegbar sein');
+		const invitationId = ((await invited.json()) as { id: number }).id;
+
+		const accepted = await server.json(`/invitations/${invitationId}/accept`, {
+			method: 'POST',
+			headers: { Cookie: cookieB },
+		});
+		assert.equal(accepted.status, 200, 'Setup: Einladung muss annehmbar sein');
+	};
+
+	it('AK1: task_create mit userId eines Gruppenmitglieds legt die Aufgabe für dieses Mitglied an', async () => {
+		const cookieA = await server.register('mcp-tools-recipient-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-recipient-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const bId = await ownUserId(cookieB, 'mcp-tools-recipient-b@example.com');
+		await shareGroup(cookieA, cookieB, bId);
+
+		const created = await mcpCall<{ id: number; title: string; userId: number | null }>(tokenA, 'task_create', {
+			title: 'Für B angelegt',
+			userId: bId,
+		});
+		assert.equal(created.error, undefined, `task_create mit userId sollte gelingen: ${created.error?.message}`);
+		assert.equal(created.result?.userId, bId, 'die Aufgabe muss B als Empfänger tragen, nicht den Token-Owner A');
+
+		const listB = await mcpCall<{ id: number; title: string }[]>(await createToken(cookieB), 'task_list');
+		assert.ok(
+			listB.result?.some((t) => t.title === 'Für B angelegt'),
+			'B muss die für ihn angelegte Aufgabe in seiner eigenen task_list sehen',
+		);
+	});
+
+	it('AK2: task_create mit userId ohne gemeinsame Gruppe liefert einen Werkzeugfehler, es entsteht keine Aufgabe', async () => {
+		const cookieA = await server.register('mcp-tools-recipient-c@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const bId = await ownUserId(cookieB, 'mcp-tools-b@example.com');
+
+		const before = await mcpCall<{ id: number }[]>(tokenA, 'task_list');
+		const countBefore = before.result?.length ?? 0;
+
+		const failed = await mcpCall(tokenA, 'task_create', { title: 'Sollte scheitern', userId: bId });
+		assert.ok(failed.error, 'task_create mit userId ohne gemeinsame Gruppe muss fehlschlagen');
+		assert.match(failed.error!.message, /Der Empfänger teilt keine Gruppe mit dir\./);
+		assert.match(failed.error!.message, /HTTP 403/);
+
+		const after = await mcpCall<{ id: number }[]>(tokenA, 'task_list');
+		assert.equal(after.result?.length, countBefore, 'durch den gescheiterten Aufruf darf keine Aufgabe entstehen');
+	});
+
+	it('AK3: task_create ohne userId legt die Aufgabe weiterhin für den Token-Owner an', async () => {
+		const cookie = await server.register('mcp-tools-recipient-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const ownId = await ownUserId(cookie, 'mcp-tools-recipient-a@example.com');
+
+		const created = await mcpCall<{ id: number; title: string; userId: number | null }>(token, 'task_create', {
+			title: 'Für mich selbst',
+		});
+		assert.equal(created.error, undefined, `task_create ohne userId sollte gelingen: ${created.error?.message}`);
+		assert.equal(created.result?.userId, ownId, 'ohne userId bleibt der Token-Owner der Empfänger');
+	});
+
+	it('AK4: tools/list nennt userId als optionale integer-Property von task_create', async () => {
+		const cookie = await server.register('mcp-tools-recipient-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = await mcpListTools(token);
+		const taskCreate = tools.find((t) => t.name === 'task_create');
+		assert.ok(taskCreate, 'task_create muss im Katalog stehen');
+		const schema = taskCreate!.inputSchema as {
+			properties?: Record<string, { type?: string; description?: string }>;
+			required?: string[];
+		};
+		assert.equal(
+			schema.properties?.userId?.type,
+			'integer',
+			'task_create.inputSchema.properties.userId.type muss "integer" sein',
+		);
+		assert.deepEqual(
+			schema.required,
+			['title'],
+			'task_create.inputSchema.required darf weiterhin nur "title" enthalten',
+		);
+	});
+
+	it('AK5: task_update kennt kein userId und reicht ein mitgegebenes userId nicht an die Route durch', async () => {
+		const cookieA = await server.register('mcp-tools-recipient-a@example.com', 'password123');
+		const cookieB = await server.register('mcp-tools-recipient-b@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		const bId = await ownUserId(cookieB, 'mcp-tools-recipient-b@example.com');
+		await shareGroup(cookieA, cookieB, bId);
+		const ownId = await ownUserId(cookieA, 'mcp-tools-recipient-a@example.com');
+
+		const tools = await mcpListTools(tokenA);
+		const taskUpdate = tools.find((t) => t.name === 'task_update');
+		assert.ok(taskUpdate, 'task_update muss im Katalog stehen');
+		const schema = taskUpdate!.inputSchema as { properties?: Record<string, unknown> };
+		assert.equal(schema.properties?.userId, undefined, 'task_update.inputSchema.properties darf kein userId enthalten');
+
+		const taskId = await createTaskViaApi(cookieA, 'Eigene Aufgabe von A');
+		const updated = await mcpCall<{ id: number; title: string; userId: number | null }>(tokenA, 'task_update', {
+			id: taskId,
+			title: 'Umbenannt, kein Reassign',
+			userId: bId,
+		});
+		assert.equal(updated.error, undefined, `task_update sollte trotz userId gelingen: ${updated.error?.message}`);
+		assert.equal(updated.result?.userId, ownId, 'task_update darf den Empfänger nicht auf B umziehen');
 	});
 });

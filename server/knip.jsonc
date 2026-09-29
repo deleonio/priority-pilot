@@ -1,5 +1,5 @@
 {
-	"entry": ["src/index.ts"],
+	"entry": ["src/index.ts", "src/cli/grandfatherPlans.ts"],
 	"ignore": [
 		// Auto-generiert aus openapi.yml — Type-Definition, kein Quellcode
 		"src/api.d.ts",

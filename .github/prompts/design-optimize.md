@@ -7,6 +7,8 @@ The DESIGN_TARGET below is a short natural-language text (workflow dispatch inpu
 yourself to the concrete surface (route, components, CSS) under frontend/ and state that
 resolution in one sentence before starting.
 
+Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
+
 Method + details: the Impeccable skill installed at user level (SKILL.md in the skill base
 directory the runtime reports; not tracked in this repo). Load it FIRST — its Commands table routes
 every command to its own reference file; load the reference of each command the audit actually

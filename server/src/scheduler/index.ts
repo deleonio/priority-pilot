@@ -1,3 +1,4 @@
+import { isFcmConfigured } from '../logics/fcm.js';
 import { isPushConfigured } from '../logics/push.js';
 
 /**
@@ -96,12 +97,12 @@ const wireTicker = (
 };
 
 /**
- * Startet den Web-Push-Scheduler (Interval-Wiring um {@link createTicker}). No-Op-Handle ohne
- * VAPID-Keys oder ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft kein Timer (kein stiller
- * Hintergrundlauf ohne bewusstes Web-Push-Opt-in).
+ * Startet den Push-Scheduler (Interval-Wiring um {@link createTicker}). No-Op-Handle ohne Push-Kanal
+ * (weder VAPID-Keys noch FCM-Service-Account) oder ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft
+ * kein Timer (kein stiller Hintergrundlauf ohne bewusstes Push-Opt-in).
  */
 export const startScheduler = (triggers: SchedulerTrigger[], options: StartSchedulerOptions = {}): SchedulerHandle => {
-	if (!isPushConfigured() || !isRemindersEnabled()) {
+	if (!(isPushConfigured() || isFcmConfigured()) || !isRemindersEnabled()) {
 		return { stop: () => {} };
 	}
 	return wireTicker(triggers, options, configuredHour(), 'Scheduler-Tick');

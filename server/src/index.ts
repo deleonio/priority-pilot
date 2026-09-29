@@ -140,6 +140,8 @@ export const main = async (): Promise<void> => {
 			migrateGroupImageUrl,
 			migratePlaceFavoriteDropName,
 			migratePlaceFavoriteAddressUnique,
+			migrateSubscriptionExternalIdUnique,
+			migrateSubscriptionPendingPlanColumns,
 			migrateUserIdColumns,
 			migratePillarDescription,
 			migratePillarPerUser,
@@ -159,6 +161,7 @@ export const main = async (): Promise<void> => {
 			migrateCategoryIdColumns,
 			migrateApiTokenScope,
 			migrateApiTokenExpiresAt,
+			migrateLoginTokenPurpose,
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
 		} = await import('./logics/migrate.js');
@@ -191,6 +194,11 @@ export const main = async (): Promise<void> => {
 		// AK4) — vor sync(), das den Index auf einer Bestands-DB mit Duplikaten sonst nicht anlegen
 		// kann.
 		await migratePlaceFavoriteAddressUnique(sequelize);
+		// Unique-Index (provider, externalSubscriptionId) auf subscriptions (#1690) — vor sync().
+		await migrateSubscriptionExternalIdUnique(sequelize);
+		// Fehlende pendingPlan-/firstFailureAt-Spalten an subscriptions nachziehen (#1742) — vor
+		// sync(), damit Abo-Lesezugriffe auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateSubscriptionPendingPlanColumns(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
 		await migrateUserIdColumns(sequelize);
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen
@@ -251,6 +259,8 @@ export const main = async (): Promise<void> => {
 		// (#1357) — vor sync(), damit Token-Zugriffe auf Bestands-DBs nicht mit `no such column`
 		// brechen.
 		await migrateApiTokenExpiresAt(sequelize);
+		// Fehlende purpose-Spalte an login_tokens nachziehen (#1669) — vor sync(), aus demselben Grund.
+		await migrateLoginTokenPurpose(sequelize);
 		// Fehlende pinned/pinnedAt-Spalten an tasks nachziehen (#1582) — vor sync(), damit
 		// Lese-/Schreibzugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateTaskPinnedColumns(sequelize);

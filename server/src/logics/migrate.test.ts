@@ -20,6 +20,8 @@ import {
 	migrateTaskGroupId,
 	migratePlaceFavoriteDropName,
 	migratePlaceFavoriteAddressUnique,
+	migrateLoginTokenPurpose,
+	migrateSubscriptionExternalIdUnique,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1293,5 +1295,198 @@ describe('migratePillarRecalcColumns', () => {
 	it('ist auf einer leeren DB ein No-op', async () => {
 		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
 		await assert.doesNotReject(() => migratePillarRecalcColumns(sequelize));
+	});
+});
+
+// ── #1669: migrateLoginTokenPurpose — purpose-Spalte an login_tokens nachziehen ────────────────
+// Ohne die Spalte bräche auf Bestands-DBs jeder Magic-Link- und App-Login mit `no such column`.
+describe('migrateLoginTokenPurpose (#1669)', () => {
+	it('zieht purpose nach, Bestandszeilen werden magic, zweiter Lauf bleibt stabil', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `login_tokens` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `email` VARCHAR(255) NOT NULL, ' +
+				'`tokenHash` VARCHAR(255) NOT NULL, `expiresAt` DATETIME NOT NULL, `usedAt` DATETIME, ' +
+				'`createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			"INSERT INTO `login_tokens` (`email`, `tokenHash`, `expiresAt`, `createdAt`, `updatedAt`) VALUES ('a@example.com', 'h', '2026-01-01', '2026-01-01', '2026-01-01')",
+		);
+
+		await migrateLoginTokenPurpose(sequelize);
+		await assert.doesNotReject(() => migrateLoginTokenPurpose(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const [rows] = await sequelize.query('SELECT purpose FROM `login_tokens`');
+		assert.deepEqual(rows, [{ purpose: 'magic' }]);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht');
+	});
+});
+
+// #1690: Ein Kauf beim Anbieter gehört zu genau einem Abo. Auf Bestands-DBs legt die Migration den
+// Unique-Index nach; Duplikate löscht sie nicht, weil an Abos Rechnungen hängen.
+describe('migrateSubscriptionExternalIdUnique (#1690)', () => {
+	const INDEX = 'subscriptions_provider_external_subscription_id';
+
+	const createLegacySubscriptions = async (tokens: string[]): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `subscriptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `provider` VARCHAR(255) NOT NULL, `externalSubscriptionId` VARCHAR(255) NOT NULL)',
+		);
+		for (const token of tokens) {
+			await sequelize.query(
+				`INSERT INTO \`subscriptions\` (\`provider\`, \`externalSubscriptionId\`) VALUES ('google_play', '${token}')`,
+			);
+		}
+	};
+
+	const indexes = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA index_list('subscriptions')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	after(async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.sync();
+	});
+
+	it('legt den Index auf einer Bestands-Tabelle ohne Duplikate an, ein zweiter Lauf ändert nichts', async () => {
+		await createLegacySubscriptions(['a', 'b']);
+
+		await migrateSubscriptionExternalIdUnique(sequelize);
+		await migrateSubscriptionExternalIdUnique(sequelize);
+
+		assert.ok((await indexes()).includes(INDEX));
+	});
+
+	it('lässt doppelte Käufe stehen und legt dann keinen Index an', async () => {
+		await createLegacySubscriptions(['a', 'a']);
+
+		await migrateSubscriptionExternalIdUnique(sequelize);
+
+		assert.ok(!(await indexes()).includes(INDEX));
+		const [rows] = await sequelize.query('SELECT id FROM `subscriptions`');
+		assert.equal(rows.length, 2);
+	});
+});
+
+// ── #1742: migrateSubscriptionPendingPlanColumns — pendingPlan-Spalten an subscriptions ────────
+// Vertrag laut docs/spec/issue-1742.md, Muster migrateTaskPinnedColumns: Auf einer Bestands-
+// subscriptions-Tabelle (vor #1505) fehlen `pendingPlan`/`pendingPlanEffectiveAt` — und ebenso
+// `firstFailureAt` (#1506, dasselbe Versäumnis), das `Subscription.findOne` ebenfalls selektiert.
+// `sequelize.sync()` ohne `alter` ergänzt die Spalten nicht, `/auth/me` setzt den Abo-Status sonst
+// mit `SQLITE_ERROR: no such column: pendingPlan` auf null. Idempotent; No-op bei frischer DB.
+describe('migrateSubscriptionPendingPlanColumns (#1742)', () => {
+	// #1742: `migrateSubscriptionPendingPlanColumns` existiert noch nicht (rote Spec-Tests) — Zugriff
+	// über den Namespace + Cast, damit tsc grün bleibt, bis die Impl-Phase sie anlegt.
+	const migrateSubscriptionPendingPlanColumns = (
+		migrateModule as unknown as { migrateSubscriptionPendingPlanColumns?: (db: typeof sequelize) => Promise<void> }
+	).migrateSubscriptionPendingPlanColumns;
+
+	/** Spaltennamen der subscriptions-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const subscriptionColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('subscriptions')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Gesamte Bestandszeilen, sortiert nach id (für den Unverändert-Vergleich der Idempotenz). */
+	const subscriptionRows = async (): Promise<unknown[]> => {
+		const [rows] = await sequelize.query('SELECT * FROM `subscriptions` ORDER BY `id` ASC');
+		return rows as unknown[];
+	};
+
+	/** Erzeugt eine subscriptions-Tabelle im Alt-Schema vor #1505: ohne die drei pendingPlan-/
+	 * firstFailureAt-Spalten, ansonsten mit allen NOT-NULL-Modellspalten plus Bestandszeile. */
+	const createLegacySubscriptionsTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `subscriptions` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`userId` INTEGER NOT NULL, ' +
+				'`provider` VARCHAR(255) NOT NULL, ' +
+				'`externalSubscriptionId` VARCHAR(255) NOT NULL, ' +
+				'`plan` VARCHAR(255) NOT NULL, ' +
+				'`period` VARCHAR(255) NOT NULL, ' +
+				'`status` VARCHAR(255) NOT NULL, ' +
+				'`currentPeriodEnd` DATETIME NOT NULL, ' +
+				'`invoiceReference` VARCHAR(255), ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+		await sequelize.query(
+			'INSERT INTO `subscriptions` (`userId`, `provider`, `externalSubscriptionId`, `plan`, `period`, `status`, `currentPeriodEnd`, `createdAt`, `updatedAt`) ' +
+				"VALUES (1, 'google_play', 'token-alt', 'pro', 'monthly', 'active', '2026-12-01 00:00:00', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+	};
+
+	it('zieht die pendingPlan-Spalten nach, danach liest Subscription.findOne den Wert ohne SQLITE_ERROR', async () => {
+		assert.ok(
+			migrateSubscriptionPendingPlanColumns,
+			'migrateSubscriptionPendingPlanColumns muss in migrate.ts exportiert werden',
+		);
+		await createLegacySubscriptionsTable();
+		const before = await subscriptionColumns();
+		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt']) {
+			assert.ok(!before.includes(column), `Alt-Schema hat ${column} noch nicht`);
+		}
+
+		await migrateSubscriptionPendingPlanColumns(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		const after = await subscriptionColumns();
+		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt']) {
+			assert.ok(after.includes(column), `${column} wurde nachgezogen`);
+		}
+
+		// Der eigentliche Vertrag (AK2): /auth/me liest den Abo-Status via Subscription.findOne über
+		// die komplette Modellzeile — inklusive Vormerkung, sobald eine gesetzt ist.
+		await sequelize.query("UPDATE `subscriptions` SET `pendingPlan` = 'free' WHERE `id` = 1");
+		const { default: Subscription } = await import('../models/subscription.js');
+		const subscription = await Subscription.findOne({ where: { userId: 1 } });
+		assert.equal(
+			subscription?.get('pendingPlan'),
+			'free',
+			'Vormerkung ist über das Modell lesbar (statt no such column)',
+		);
+		assert.equal(
+			subscription?.get('pendingPlanEffectiveAt') ?? null,
+			null,
+			'Bestandsabo bleibt ohne Effective-Datum (NULL)',
+		);
+	});
+
+	it('ist idempotent: zweiter Lauf wirft nicht und lässt Zeilen unverändert', async () => {
+		assert.ok(
+			migrateSubscriptionPendingPlanColumns,
+			'migrateSubscriptionPendingPlanColumns muss in migrate.ts exportiert werden',
+		);
+		await createLegacySubscriptionsTable();
+		await migrateSubscriptionPendingPlanColumns(sequelize);
+		const rowsBefore = await subscriptionRows();
+
+		await assert.doesNotReject(() => migrateSubscriptionPendingPlanColumns!(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.deepEqual(await subscriptionRows(), rowsBefore, 'keine Datenveränderung');
+		const columns = await subscriptionColumns();
+		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt']) {
+			assert.equal(columns.filter((name) => name === column).length, 1, `${column} genau einmal`);
+		}
+	});
+
+	it('ist auf einer DB ohne subscriptions-Tabelle ein No-op und sync() legt sie inkl. Spalten an', async () => {
+		assert.ok(
+			migrateSubscriptionPendingPlanColumns,
+			'migrateSubscriptionPendingPlanColumns muss in migrate.ts exportiert werden',
+		);
+		await sequelize.getQueryInterface().dropAllTables();
+		assert.deepEqual(await subscriptionColumns(), [], 'Vorbedingung: keine subscriptions-Tabelle');
+
+		await assert.doesNotReject(
+			() => migrateSubscriptionPendingPlanColumns!(sequelize),
+			'Migration ohne Tabelle ist No-op',
+		);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+		const columns = await subscriptionColumns();
+		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt']) {
+			assert.ok(columns.includes(column), `frische Tabelle enthält ${column}`);
+		}
 	});
 });

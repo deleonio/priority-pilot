@@ -237,6 +237,37 @@ export const migratePlaceFavoriteAddressUnique = async (db: Sequelize): Promise<
 };
 
 /**
+ * Legt den Unique-Index `(provider, externalSubscriptionId)` auf einer **bestehenden**
+ * `subscriptions`-Tabelle an (#1690): Ohne ihn legen zwei gleichzeitig eingereichte Play-Käufe
+ * desselben Tokens zwei Abos an. Anders als bei den Orten löscht der Lauf keine Duplikate, denn an
+ * Abos hängen Rechnungen; gibt es welche, bleibt der Index aus und der Server meldet es.
+ *
+ * Idempotent (Index vorhanden → übersprungen); No-op bei frischer DB — dort legt `sync()` den im
+ * Modell deklarierten Index selbst an.
+ */
+export const migrateSubscriptionExternalIdUnique = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
+	if ((columns as { name: string }[]).length === 0) {
+		return;
+	}
+	const [indexRows] = await db.query("PRAGMA index_list('subscriptions')");
+	if ((indexRows as { name: string }[]).some((row) => row.name === 'subscriptions_provider_external_subscription_id')) {
+		return;
+	}
+	const [duplicates] = await db.query(
+		'SELECT `provider`, `externalSubscriptionId` FROM `subscriptions` GROUP BY `provider`, `externalSubscriptionId` HAVING COUNT(*) > 1',
+	);
+	if ((duplicates as unknown[]).length > 0) {
+		console.warn('subscriptions enthält doppelte Käufe je Anbieter, Unique-Index (#1690) nicht angelegt.');
+		return;
+	}
+	await db.query(
+		'CREATE UNIQUE INDEX IF NOT EXISTS `subscriptions_provider_external_subscription_id` ON `subscriptions`(`provider`, `externalSubscriptionId`)',
+	);
+	console.log('Unique-Index subscriptions_provider_external_subscription_id angelegt (#1690).');
+};
+
+/**
  * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalte an `tasks` (nullable,
  * Abwärtskompatibilität). **Achtung:** `pillars.userId` gehört bewusst NICHT mehr dazu — Säulen sind
  * globale Stammdaten; die Spalte wird von {@link migratePillarDropUserId} auf Bestands-DBs
@@ -817,6 +848,23 @@ export const migrateApiTokenExpiresAt = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht die `purpose`-Spalte (#1669) auf einer **bestehenden** `login_tokens`-Tabelle nach, bevor
+ * `sequelize.sync()` läuft. Bestehende Zeilen sind Magic-Link-Tokens (`magic`). Idempotent
+ * (Spalte vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt die Spalte an.
+ */
+export const migrateLoginTokenPurpose = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('login_tokens')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('purpose')) {
+		return;
+	}
+
+	await db.query("ALTER TABLE `login_tokens` ADD COLUMN `purpose` VARCHAR(255) NOT NULL DEFAULT 'magic'");
+	console.log('Spalte purpose an login_tokens nachgezogen.');
+};
+
+/**
  * Zieht die nullbare `createdById`-Spalte (Ersteller-Konto, #1213) auf einer **bestehenden**
  * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskAddress`. Nullable,
  * daher kein Default nötig; bestehende Tasks bleiben ohne Ersteller-Eintrag (`NULL`, AK6:
@@ -895,5 +943,33 @@ export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> =
 	if (userExisting.length > 0 && !userExisting.includes('pillarRecalcStartedAt')) {
 		await db.query('ALTER TABLE `users` ADD COLUMN `pillarRecalcStartedAt` DATETIME');
 		console.log('Spalte pillarRecalcStartedAt an users nachgezogen.');
+	}
+};
+
+/**
+ * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
+ * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
+ * `migrateTaskPinnedColumns`. Alle drei sind nullable (kein DEFAULT nötig), Bestandsabos bleiben
+ * ohne Vormerkung. Idempotent: bereits vorhandene Spalten werden übersprungen; bei frischer DB
+ * No-op — `sync()` legt Tabelle inkl. Spalten an.
+ */
+export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('pendingPlan')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlan` VARCHAR(255)');
+		console.log('Spalte pendingPlan an subscriptions nachgezogen.');
+	}
+	if (!existing.includes('pendingPlanEffectiveAt')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlanEffectiveAt` DATETIME');
+		console.log('Spalte pendingPlanEffectiveAt an subscriptions nachgezogen.');
+	}
+	if (!existing.includes('firstFailureAt')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `firstFailureAt` DATETIME');
+		console.log('Spalte firstFailureAt an subscriptions nachgezogen.');
 	}
 };

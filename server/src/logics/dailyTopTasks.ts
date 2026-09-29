@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { Task, NotificationLog } from '../models/index.js';
 import { sendPushToUser, type PushSender } from './push.js';
-import { selectSeriesRepresentatives } from './series.js';
+import { selectSeriesRepresentatives, filterVorlauf } from './series.js';
 
 /**
  * Fachlicher Push-Trigger „3 wichtigste Aufgaben um 6 Uhr" (Issue #518). Sendet **tagesunabhängig
@@ -40,7 +40,7 @@ const dedupeKeyFor = (userId: number, date: Date): string => `${userId}:${dayKey
  */
 export const collectDailyTopTasks = async (now: Date): Promise<TopTaskGroup[]> => {
 	// #1518: je Serie nur die aktuelle Instanz — sonst belegte eine Serie alle drei Plätze.
-	const tasks = selectSeriesRepresentatives(
+	const representatives = selectSeriesRepresentatives(
 		await Task.findAll({
 			where: {
 				status: { [Op.ne]: 'Done' },
@@ -53,6 +53,8 @@ export const collectDailyTopTasks = async (now: Date): Promise<TopTaskGroup[]> =
 		}),
 		now,
 	);
+	// #1641: Aufgaben mit Datum mehr als VORLAUF_TAGE Kalendertage in der Zukunft zurückhalten.
+	const tasks = filterVorlauf(representatives, now);
 	if (tasks.length === 0) {
 		return [];
 	}

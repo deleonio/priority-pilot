@@ -772,9 +772,9 @@ paths:
     get:
       summary: Vergebene Gamification-Punkte je erledigtem Task
       description: >-
-        Liefert je erledigtem Task einen Score-Eintrag (Konzept §4.4): beim
-        Statuswechsel auf `Done` werden Punkte aus `estimatedEffort × priority`
-        vergeben, pünktlich (volle) bzw. verspätet (reduzierte Punkte).
+        Liefert je erledigtem Task des eingeloggten Nutzers einen Score-Eintrag
+        (Konzept §4.4): beim Statuswechsel auf `Done` werden Punkte aus
+        `estimatedEffort × priority` vergeben, pünktlich (volle) bzw. verspätet (reduzierte Punkte).
       operationId: getScores
       responses:
         '200':
@@ -953,6 +953,64 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/BalanceHistoryEntry'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /scores/care-suggestions:
+    get:
+      summary: Konkrete Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791)
+      description: >-
+        Liefert je defizitärer Säule (Defizit-Bewertung aus #1790) bis zu drei Vorschläge:
+        zuerst eigene offene Aufgaben mit Säulen-Beitrag zu genau dieser Säule, sonst
+        kuratierte Vorlagen. Abgelehnte Vorlagen (POST /scores/care-suggestions/dismissals)
+        bleiben 14 Tage unterdrückt. Der Parameter `sprache` wählt die Sprache der
+        Vorlagen-Texte. Gerechnet wird über Säulen und Tasks des Nutzers (`ownerScope`) —
+        gescopet wie `GET /scores/balance`.
+      operationId: getCareSuggestions
+      parameters:
+        - name: sprache
+          in: query
+          required: false
+          description: >-
+            Sprache der Vorlagen-Texte (App-Sprache). Fehlt der Wert oder ist unbekannt,
+            liefert der Server die Texte auf Deutsch — kein Fehler.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vorschläge je defizitärer Säule; ohne Defizit eine leere Liste
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vorschlaege]
+                properties:
+                  vorschlaege:
+                    type: array
+                    description: Bis zu drei Vorschläge je defizitärer Säule.
+                    items:
+                      $ref: '#/components/schemas/CareVorschlag'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /scores/care-suggestions/dismissals:
+    post:
+      summary: Einen Fürsorge-Vorschlag ablehnen (#1791)
+      description: >-
+        Lehnt eine kuratierte Vorlage über ihren sprachunabhängigen `templateKey` ab; die
+        Ablehnung unterdrückt die Vorlage in `GET /scores/care-suggestions` für 14 Tage ab
+        jetzt. Wiederholtes Ablehnen aktualisiert den bestehenden Eintrag, statt Zeilen zu
+        häufen.
+      operationId: createCareSuggestionDismissal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareSuggestionDismissalCreate'
+      responses:
+        '204':
+          description: Ablehnung gespeichert
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -1172,6 +1230,44 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /push/fcm/register:
+    post:
+      summary: FCM-Token der Android-App registrieren
+      description: >-
+        Speichert das Firebase-Cloud-Messaging-Token der Android-App für den
+        eingeloggten Nutzer (#1670, ADR 0016). Idempotent; gehörte das Token bisher
+        einem anderen Nutzer, wechselt es zum aktuellen. Unabhängig von der
+        VAPID-Konfiguration.
+      operationId: registerFcmToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FcmTokenInput'
+      responses:
+        '204':
+          description: Token gespeichert
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /push/fcm/unregister:
+    post:
+      summary: FCM-Token der Android-App entfernen
+      description: >-
+        Entfernt das FCM-Token des eingeloggten Nutzers. Idempotent; fremde Tokens
+        bleiben unberührt.
+      operationId: unregisterFcmToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FcmTokenInput'
+      responses:
+        '204':
+          description: Token entfernt (oder war nicht vorhanden)
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /push/test:
     post:
       summary: Test-Push mit zufälligem Zitat senden
@@ -2057,12 +2153,12 @@ paths:
           schema:
             type: boolean
       responses:
-        '200':
-          description: Ergebnis des Batch-Laufs
+        '202':
+          description: Hintergrundlauf gestartet — Fortschritt und Ergebnis über den Status-Endpunkt (#1642)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReassignPillarsResult'
+                $ref: '#/components/schemas/ReassignRunStarted'
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -2168,12 +2264,12 @@ paths:
           schema:
             type: boolean
       responses:
-        '200':
-          description: Ergebnis des Laufs über die eigenen Aufgaben
+        '202':
+          description: Hintergrundlauf gestartet — Fortschritt und Ergebnis über den Status-Endpunkt (#1642)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OwnReassignPillarsResult'
+                $ref: '#/components/schemas/ReassignRunStarted'
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
@@ -2895,6 +2991,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      summary: Eigenes Konto löschen
+      description: >-
+        Löscht das Konto des angemeldeten Nutzers samt persönlicher Daten (Aufgaben,
+        Serien, Säulen, Kategorien, Tokens, Push-Registrierungen) und beendet die
+        Session (#1671). Gruppen, in denen der Nutzer allein ist, entfallen mit.
+        Rechnungen und Abo-Datensätze bleiben wegen der Aufbewahrungspflicht erhalten.
+        409 bei laufendem oder ausstehendem Abo und als letzter Admin einer Gruppe
+        mit weiteren Mitgliedern.
+      operationId: deleteMe
+      tags: [auth]
+      responses:
+        '204':
+          description: Konto gelöscht, Session beendet
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Laufendes Abo oder letzter Admin einer Gruppe mit weiteren Mitgliedern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /auth/providers:
     get:
       summary: Verfügbare Anmeldewege lesen
@@ -2965,6 +3087,31 @@ paths:
                 $ref: '#/components/schemas/Error'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /auth/native/exchange:
+    post:
+      summary: Einmal-Code aus dem App-Login einlösen
+      description: >-
+        Löst den Einmal-Code ein, mit dem `/auth/google?client=app&state=…` nach dem
+        Google-Login auf den App Link `/app/auth/native?code=…` weiterleitet, und meldet
+        den WebView der nativen App an (ADR 0016, #1669). Ein Code gilt 60 Sekunden,
+        genau einmal und nur zusammen mit dem `state`, mit dem die App den Login gestartet hat.
+      operationId: exchangeNativeLoginCode
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NativeLoginExchangeRequest'
+      responses:
+        '204':
+          description: Angemeldet, Session-Cookie gesetzt
+        '400':
+          description: Code unbekannt, abgelaufen oder schon benutzt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/subscriptions:
     post:
       summary: Abo anlegen
@@ -2973,7 +3120,9 @@ paths:
         `Subscription`-Datensatz mit Status `approval_pending` und liefert die
         Zustimmungs-URL (Issue #1505, T6d, AK1). Wirksam wird das Abo erst über das
         verifizierte Webhook-Ereignis (ADR 0013). Besteht für den Nutzer bereits ein
-        laufendes oder ausstehendes Abo, antwortet die Route mit 409 (AK2).
+        laufendes oder ausstehendes Abo, antwortet die Route mit 409 (AK2). Anfragen
+        aus den Store-Apps (`X-Client-Channel: play` oder `appstore`) lehnt sie
+        ebenfalls mit 409 ab, dort wird nie über PayPal gekauft (ADR 0016, #1668).
       operationId: createBillingSubscription
       tags: [billing]
       requestBody:
@@ -2998,7 +3147,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Es besteht bereits ein laufendes oder ausstehendes Abo
+          description: Es besteht bereits ein laufendes oder ausstehendes Abo, oder die Anfrage kommt aus einer Store-App
           content:
             application/json:
               schema:
@@ -3023,6 +3172,118 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
+  /billing/google/rtdn:
+    post:
+      summary: Abo-Ereignis von Google Play annehmen (RTDN)
+      description: >-
+        Pub/Sub-Push der Real-time Developer Notifications von Google Play (#1689,
+        ADR 0017). Ohne Session und CSRF, vor `requireAuth` gemountet; geprüft wird
+        das OIDC-Token im `Authorization`-Header (Aussteller Google, Zielgruppe
+        `GOOGLE_RTDN_AUDIENCE`, Ablauf, optional das Dienstkonto). Das Ereignis wird
+        dedupliziert über `message.messageId` abgelegt; danach holt der Server den
+        aktuellen Abo-Stand über die Play Developer API und legt ihn am Abo ab.
+      operationId: receiveGooglePlayNotification
+      tags: [billing]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Pub/Sub-Push; die RTDN liegt Base64-kodiert in `message.data`.
+              properties:
+                message:
+                  type: object
+                  properties:
+                    messageId:
+                      type: string
+                    data:
+                      type: string
+                subscription:
+                  type: string
+      responses:
+        '200':
+          description: Ereignis angenommen (auch bei einer wiederholten Zustellung)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [processed, duplicate]
+        '400':
+          description: Rumpf ist kein lesbares Ereignis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: OIDC-Token fehlt oder ist ungültig; nichts wird gespeichert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Google nicht erreichbar; Pub/Sub stellt erneut zu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /billing/google/purchase:
+    post:
+      summary: Kauf aus der Android-App freischalten
+      description: >-
+        Nimmt den Kauf-Token eines Abos aus Google Play Billing entgegen (#1687,
+        ADR 0017). Der Server liest den Kauf über die Play Developer API, prüft per
+        `obfuscatedAccountId`, dass er zum angemeldeten Nutzer gehört (`playAccountId`
+        aus `GET /auth/me`), bestätigt ihn und legt das Abo mit Provider `google_play`
+        an. Derselbe Token ein zweites Mal legt kein zweites Abo an. Ein Paketwechsel
+        (#1696) verweist über `linkedPurchaseToken` auf den bisherigen Kauf und ersetzt
+        dessen Abo; ein Wechsel zum Periodenende steht bis dahin in `pendingPlan`. Nur
+        aus der Android-App (`X-Client-Channel: play`).
+      operationId: submitGooglePurchase
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GooglePurchaseInput'
+      responses:
+        '204':
+          description: Paket freigeschaltet (oder derselbe Kauf war schon freigeschaltet)
+        '400':
+          description: Token fehlt, ist ungültig oder gehört zu keinem bekannten Abo-Produkt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Der Kauf gehört zu einem anderen Konto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Anfrage nicht aus der Android-App, Kauf nicht aktiv oder es läuft schon ein Abo, das der Kauf nicht ersetzt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Google nicht erreichbar oder Play-Zugang nicht eingerichtet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/subscriptions/change:
     post:
       summary: Paket wechseln
@@ -3031,6 +3292,8 @@ paths:
         #1505, T6d, AK4) und liefert, falls PayPal eine erneute Zustimmung verlangt,
         die Zustimmungs-URL. `plan` am Datensatz bleibt unverändert — wirksam wird
         der Wechsel erst über das Webhook-Ereignis (`applyPlanChange`, ADR 0013).
+        Anfragen aus den Store-Apps (`X-Client-Channel: play` oder `appstore`)
+        lehnt die Route mit 409 ab (ADR 0016, #1668).
       operationId: changeBillingSubscription
       tags: [billing]
       requestBody:
@@ -3056,6 +3319,12 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Anfrage aus einer Store-App, dort wird nicht über PayPal gekauft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /billing/invoices:
     get:
       summary: Eigene Rechnungen auflisten
@@ -3407,6 +3676,42 @@ components:
           description: >-
             Aufgaben der Statusauswahl, die seit `startedAt` nicht erfolgreich neu
             berechnet wurden. Ohne Lauf gleich `total`.
+        running:
+          type: boolean
+          description: Ein Hintergrundlauf ist gerade unterwegs (#1642).
+        processed:
+          type: integer
+          description: Im laufenden bzw. letzten Hintergrundlauf abgeschlossene Aufgaben.
+        result:
+          $ref: '#/components/schemas/ReassignRunResult'
+    ReassignRunStarted:
+      type: object
+      description: Antwort auf den Start eines Hintergrundlaufs (#1642).
+      required: [running, processed]
+      properties:
+        running:
+          type: boolean
+        processed:
+          type: integer
+    ReassignRunResult:
+      type: object
+      description: >-
+        Ergebnis des letzten Hintergrundlaufs seit dem Serverstart (#1642) — fehlt,
+        solange der Lauf noch läuft oder seit dem Serverstart keiner lief.
+      required: [updated, failed, skipped, quotaExhausted]
+      properties:
+        updated:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+        quotaExhausted:
+          type: boolean
+        failureReasons:
+          type: object
+          additionalProperties:
+            type: integer
     ReassignPillarsResult:
       type: object
       description: >-
@@ -4955,6 +5260,80 @@ components:
           description: Punktestand und Gewichtung je Säule zum Ende dieses Tages.
           items:
             $ref: '#/components/schemas/PillarBalance'
+    CareVorschlag:
+      type: object
+      description: >-
+        Konkreter Fürsorge-Vorschlag gegen ein Balance-Defizit (#1791): ein eigener offener
+        Task (`typ: task`, dann ist `taskId` gesetzt) oder eine kuratierte Vorlage
+        (`typ: vorlage`, dann ist `templateKey` gesetzt). Gehört zu genau einer Säule.
+      required:
+        - typ
+        - titel
+        - beschreibung
+        - saeulenBeitraege
+        - saeuleId
+        - saeuleName
+      properties:
+        typ:
+          type: string
+          enum:
+            - task
+            - vorlage
+          description: Eigener Task (`task`) oder kuratierte Vorlage (`vorlage`).
+        titel:
+          type: string
+          description: Anzeigetitel des Vorschlags (in der angefragten Sprache).
+        beschreibung:
+          type: [string, 'null']
+          description: Optionale Erläuterung (in der angefragten Sprache).
+        saeulenBeitraege:
+          type: array
+          description: >-
+            Säulen-Beiträge des Vorschlags — kuratierte Vorlagen zielen voll (share 100)
+            auf ihre Säule, eigene Tasks bringen ihre Task-Beiträge mit.
+          items:
+            $ref: '#/components/schemas/CareSaeulenBeitrag'
+        taskId:
+          type: integer
+          description: 'ID des eigenen Tasks — nur bei `typ: task`.'
+        templateKey:
+          type: string
+          description: 'Stammdaten-Schlüssel der Vorlage — nur bei `typ: vorlage`.'
+        saeuleId:
+          type: integer
+          description: ID der Säule, gegen deren Defizit der Vorschlag hilft.
+        saeuleName:
+          type: string
+          description: Name dieser Säule.
+    CareSaeulenBeitrag:
+      type: object
+      description: >-
+        Säulen-Beitrag eines Fürsorge-Vorschlags (gegenüber `TaskPillarContribution` ohne
+        `confidence` — die Konfidenz kennt nur der Task).
+      required:
+        - pillarId
+        - share
+      properties:
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID der Säule, auf die der Vorschlag einzahlt.
+        share:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Investitions-Anteil in %.
+    CareSuggestionDismissalCreate:
+      type: object
+      description: Ablehnung einer kuratierten Fürsorge-Vorlage über ihren Stammdaten-Schlüssel.
+      required:
+        - templateKey
+      properties:
+        templateKey:
+          type: string
+          minLength: 1
+          description: Stammdaten-Schlüssel der abzulehnenden Vorlage.
     SeriesRhythm:
       type: string
       enum:
@@ -5278,8 +5657,14 @@ components:
     MeSubscription:
       type: object
       description: Abo-Status im Vertrag von `GET /auth/me` (#1494/#1495/#1505).
-      required: [plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
+      required: [provider, plan, period, status, currentPeriodEnd, pendingPlan, pendingPlanEffectiveAt, graceUntil]
       properties:
+        provider:
+          type: string
+          enum: [paypal, google_play]
+          description: >-
+            Anbieter, über den das Abo läuft und verwaltet wird (#1690). Ein Nutzer hat
+            höchstens ein laufendes Abo über alle Anbieter.
         plan:
           $ref: '#/components/schemas/Plan'
         period:
@@ -5287,7 +5672,7 @@ components:
           enum: [monthly, quarterly, yearly]
         status:
           type: string
-          description: Abo-Status bei PayPal (z. B. `approval_pending`, `active`, `cancelled`).
+          description: Abo-Status beim Anbieter (z. B. `approval_pending`, `active`, `cancelled`).
         currentPeriodEnd:
           type: string
           format: date-time
@@ -5337,6 +5722,20 @@ components:
             - $ref: '#/components/schemas/MeSubscription'
           nullable: true
           description: Abo-Status; `null` ohne Abo.
+        playAccountId:
+          type: string
+          description: >-
+            Kontokennung, die die Android-App beim Kauf über Google Play als
+            `obfuscatedAccountId` setzt (#1687, ADR 0017). Fehlt im lokalen
+            Pass-Through-Modus.
+    GooglePurchaseInput:
+      type: object
+      description: Kauf-Token aus Google Play Billing (#1687).
+      required: [purchaseToken]
+      properties:
+        purchaseToken:
+          type: string
+          minLength: 1
     BillingSubscriptionInput:
       type: object
       description: Eingabe zum Anlegen/Wechseln eines Abos (#1505 AK1/AK4).
@@ -5388,12 +5787,15 @@ components:
           description: Fehlerbeschreibung
         code:
           type: string
-          enum: [plan_required, quota_exhausted]
+          enum: [plan_required, quota_exhausted, subscription_active, last_group_admin]
           description: >-
-            Nur bei paketbedingten Ablehnungen (#1456): maschinenlesbarer Grund.
+            Maschinenlesbarer Grund bei paketbedingten Ablehnungen (#1456) und bei
+            der abgelehnten Konto-Löschung (`DELETE /auth/me`, 409).
             `plan_required` (403) heißt „Feature nicht im Paket",
-            `quota_exhausted` (429) „Monatskontingent aufgebraucht". Alle übrigen
-            Fehler tragen weiterhin ausschließlich `message`.
+            `quota_exhausted` (429) „Monatskontingent aufgebraucht",
+            `subscription_active` „Abo läuft noch", `last_group_admin` „letzter
+            Admin einer Gruppe mit weiteren Mitgliedern". Alle übrigen Fehler
+            tragen ausschließlich `message`.
         feature:
           type: string
           description: Stabiler Feature-Identifier der Ablehnung (z. B. `groups`, `ai_assist`).
@@ -5443,6 +5845,15 @@ components:
           description: Ablaufzeitpunkt in Epoch-Millisekunden (meist null).
         keys:
           $ref: '#/components/schemas/PushSubscriptionKeys'
+    FcmTokenInput:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          maxLength: 4096
+          description: FCM-Registrierungstoken des Geräts.
     PushUnsubscribeInput:
       type: object
       required:
@@ -5498,6 +5909,18 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+    NativeLoginExchangeRequest:
+      type: object
+      required:
+        - code
+        - state
+      properties:
+        code:
+          type: string
+          description: Einmal-Code aus dem App Link (Parameter `code`).
+        state:
+          type: string
+          description: Zufallswert, mit dem die App `/auth/google?client=app&state=…` gestartet hat.
     TestMailResult:
       type: object
       required:
@@ -5611,7 +6034,8 @@ components:
           type: string
           description: >-
             OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1 —
-            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten.
+            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten. Interne
+            Adressen (Loopback, private Netze, Link-Local) werden mit 400 abgelehnt.
         apiKey:
           type: string
           description: API-Key des Providers (Write-Only).

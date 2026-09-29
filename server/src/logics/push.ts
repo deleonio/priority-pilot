@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import type { PushSubscription as WebPushSubscription, SendResult } from 'web-push';
-import { PushSubscription } from '../models/index.js';
+import { FcmToken, PushSubscription } from '../models/index.js';
+import { getFcmSender } from './fcm.js';
 import { ownerScope } from './ownerScope.js';
 
 /**
@@ -45,41 +46,66 @@ const defaultSender: PushSender = (subscription, payload) => {
 	return webpush.sendNotification(subscription, payload);
 };
 
+type SendError = { statusCode?: number; errorCode?: string };
+
 /**
- * Verschickt eine Push-Nachricht an **alle Subscriptions eines Nutzers** (Datenisolation #207 über
- * {@link ownerScope}). Abgelaufene Subscriptions (Push-Dienst antwortet mit `404`/`410 Gone`) werden
- * dabei aus der Datenbank entfernt (Selbstheilung). Andere Fehler (Netzwerk, 5xx) werden protokolliert,
- * lassen die Subscription aber bestehen. Gibt die Zahl der zugestellten und entfernten Subscriptions zurück.
+ * Stellt an jedes Ziel zu. Erkennt `isGone` am Fehler ein erloschenes Ziel, wird es gelöscht
+ * (Selbstheilung). Andere Fehler (Netzwerk, 5xx) werden protokolliert, das Ziel bleibt.
+ */
+const deliver = async <Row extends { id: number; destroy: () => Promise<void> }>(
+	rows: Row[],
+	sendOne: (row: Row) => Promise<unknown>,
+	isGone: (error: SendError) => boolean,
+	channel: string,
+): Promise<{ sent: number; removed: number }> => {
+	let sent = 0;
+	let removed = 0;
+	for (const row of rows) {
+		try {
+			await sendOne(row);
+			sent++;
+		} catch (error) {
+			const failure = (error ?? {}) as SendError;
+			if (isGone(failure)) {
+				await row.destroy();
+				removed++;
+			} else {
+				console.warn(`${channel}-Versand an ${row.id} fehlgeschlagen:`, failure.statusCode ?? error);
+			}
+		}
+	}
+	return { sent, removed };
+};
+
+/**
+ * Verschickt eine Push-Nachricht an **alle Web-Push-Subscriptions und FCM-Token eines Nutzers**
+ * (Datenisolation #207 über {@link ownerScope}). FCM läuft nur, wenn ein Service-Account konfiguriert
+ * ist. Erloschene Ziele werden entfernt: Web-Push meldet sie mit `404`/`410 Gone`, FCM mit dem
+ * Fehlercode `UNREGISTERED`. Ein anderer 404 von FCM, etwa bei falscher `project_id`, löscht nichts. Gibt die Zahl der Zustellungen und entfernten Ziele über beide Kanäle zurück.
  *
- * @param send  injizierbarer Versand (Default: web-push); Tests reichen einen Mock herein.
+ * @param send  injizierbarer Web-Push-Versand (Default: web-push); Tests reichen einen Mock herein.
  */
 export const sendPushToUser = async (
 	userId: number | undefined,
 	payload: PushPayload,
 	send: PushSender = defaultSender,
 ): Promise<{ sent: number; removed: number }> => {
-	const rows = await PushSubscription.findAll({ where: ownerScope(userId) });
 	const body = JSON.stringify(payload);
-	let sent = 0;
-	let removed = 0;
-	for (const row of rows) {
-		const subscription: WebPushSubscription = {
-			endpoint: row.endpoint,
-			keys: { p256dh: row.p256dh, auth: row.auth },
-		};
-		try {
-			await send(subscription, body);
-			sent++;
-		} catch (error) {
-			const statusCode = (error as { statusCode?: number })?.statusCode;
-			if (statusCode === 404 || statusCode === 410) {
-				// Subscription ist beim Push-Dienst abgelaufen/abbestellt → aufräumen.
-				await row.destroy();
-				removed++;
-			} else {
-				console.warn(`Push-Versand an Subscription ${row.id} fehlgeschlagen:`, statusCode ?? error);
-			}
-		}
+	const web = await deliver(
+		await PushSubscription.findAll({ where: ownerScope(userId) }),
+		(row) => send({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, body),
+		({ statusCode }) => statusCode === 404 || statusCode === 410,
+		'Web-Push',
+	);
+	const fcm = getFcmSender();
+	if (!fcm) {
+		return web;
 	}
-	return { sent, removed };
+	const app = await deliver(
+		await FcmToken.findAll({ where: ownerScope(userId) }),
+		(row) => fcm(row.token, payload),
+		({ errorCode }) => errorCode === 'UNREGISTERED',
+		'FCM',
+	);
+	return { sent: web.sent + app.sent, removed: web.removed + app.removed };
 };

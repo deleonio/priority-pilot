@@ -2,7 +2,10 @@ import { render, screen, cleanup, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { InstallPrompt } from './InstallPrompt';
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 // Mock für window.matchMedia
 const mockMatchMedia = (matches: boolean) => {
@@ -50,6 +53,20 @@ describe('InstallPrompt', () => {
 		});
 
 		render(<InstallPrompt />);
+		expect(screen.queryByText(/App installieren/i)).not.toBeInTheDocument();
+	});
+
+	it('rendert in der Android-App nichts (ADR 0016)', () => {
+		vi.stubGlobal('__PP_CHANNEL__', 'play');
+		render(<InstallPrompt />);
+		const event = new Event('beforeinstallprompt', { cancelable: true }) as BeforeInstallPromptEvent;
+		Object.assign(event, {
+			prompt: vi.fn(),
+			userChoice: Promise.resolve({ outcome: 'dismissed' as const, platform: '' }),
+		});
+		act(() => {
+			window.dispatchEvent(event);
+		});
 		expect(screen.queryByText(/App installieren/i)).not.toBeInTheDocument();
 	});
 

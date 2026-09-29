@@ -5,7 +5,10 @@ import type { components } from 'client';
 import { toApiError } from '../lib/apiError';
 import { formatEuro } from '../lib/format';
 import { planLabel } from '../lib/planOffers';
+import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
+import { CHANNEL_PROVIDER } from './billingChannel';
+import { ManagedBy } from './ManagedBy';
 import { Modal } from './Modal';
 
 type Invoice = components['schemas']['Invoice'];
@@ -115,12 +118,17 @@ export const SubscriptionSection = ({ onShowPlans }: SubscriptionSectionProps) =
 					{subscription.graceUntil !== null && (
 						<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(subscription.graceUntil)}</p>
 					)}
-					<KolButton
-						data-testid="cancel-subscription"
-						_label="Abo kündigen"
-						_variant="danger"
-						_on={{ onClick: () => setCancelOpen(true) }}
-					/>
+					{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
+					{subscription.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal' ? (
+						<KolButton
+							data-testid="cancel-subscription"
+							_label="Abo kündigen"
+							_variant="danger"
+							_on={{ onClick: () => setCancelOpen(true) }}
+						/>
+					) : (
+						<ManagedBy provider={subscription.provider} />
+					)}
 				</section>
 			) : (
 				// `undefined` heißt „Abo-Status noch nicht geladen" — dann steht hier nichts, statt

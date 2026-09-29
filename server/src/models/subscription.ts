@@ -86,7 +86,12 @@ Subscription.init(
 		modelName: 'Subscription',
 		tableName: 'subscriptions',
 		timestamps: true,
+		// Ein Kauf beim Anbieter gehört zu genau einem Abo; schützt gleichzeitig eingereichte Play-Käufe.
+		indexes: [{ unique: true, fields: ['provider', 'externalSubscriptionId'] }],
 	},
 );
+
+/** Status eines laufenden oder ausstehenden Abos: blockt einen zweiten Abschluss und das Löschen des Kontos. */
+export const OPEN_SUBSCRIPTION_STATUSES = ['active', 'approval_pending'];
 
 export default Subscription;

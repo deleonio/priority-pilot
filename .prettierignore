@@ -39,3 +39,7 @@ CHANGELOG.md
 # Prettier würde die Einträge bei jedem Commit umbrechen (lefthook `stage_fixed`) — das erzeugt
 # Diff-Rauschen und bricht den union-Merge aus .gitattributes, der auf unveränderten Zeilen beruht.
 .ai-memory/
+
+# Von Capacitor erzeugtes Android-Projekt (`cap add android`, ADR 0016): Gradle-/Android-Dateien
+# samt Build-Ausgaben, die nur `native/android/.gitignore` ausschließt — kein handgeschriebener Code.
+native/android/

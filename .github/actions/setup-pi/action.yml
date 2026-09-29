@@ -23,7 +23,7 @@ inputs:
     required: false
     default: 'false'
   tools-tier:
-    description: 'Permission-Tier des Aufrufers (restricted | review | full). ACHTUNG: pi hat kein Permission-System — s. Kommentar am Invoke-Step. Wird validiert und protokolliert, kann aber restricted/review nicht wie Claude Code durchsetzen.'
+    description: 'Permission-Tier des Aufrufers (restricted | review | full). ACHTUNG: pi hat kein Permission-System — s. Kommentar am Invoke-Step. restricted wird über eigene Tools ohne bash durchgesetzt (#1193), review nur validiert und protokolliert.'
     required: false
     default: 'full'
   model:
@@ -54,7 +54,7 @@ inputs:
   pi-version:
     description: 'Gepinnte pi-Version. BEWUSST GEPINNT statt latest: Zwei Läufe auf verschiedenen CLI-Versionen sind für den A/B-Vergleich mit Claude Code wertlos.'
     required: false
-    default: '0.85.1' # pi pin — Renovate customManager (renovate.json5) updated diese Version; Marker hält die Regex exakt auf diese Zeile
+    default: '0.87.1' # pi pin — Renovate customManager (renovate.json5) updated diese Version; Marker hält die Regex exakt auf diese Zeile
 
 outputs:
   invoke-cmd:
@@ -89,7 +89,10 @@ runs:
           !/usr/local/lib/node_modules/npm
           !/usr/local/lib/node_modules/corepack
           /usr/local/bin/pi
-        key: pi-cli-${{ runner.os }}-${{ inputs.pi-version }}-v2
+        # pi5-Split im Key (wie setup-claude): pi5 (ARM64) trennen von den x64-Hosted-Runnern,
+        # damit kein fremd-plattformiger npm-Global-Stand restored — über den Runner-Namen,
+        # hosted ohne stabilen Namen im Sammel-Slot 'hosted'.
+        key: pi-cli-${{ runner.os }}-${{ runner.name == 'pi5' && 'pi5' || 'hosted' }}-${{ inputs.pi-version }}-v2
 
     # VERIFIZIEREN STATT VERTRAUEN (übernommen aus setup-claude): Ein Cache-Treffer beweist
     # nur, dass Dateien da sind — nicht, dass die CLI startet. Und der Abbruch gehört HIER
@@ -379,6 +382,9 @@ runs:
     # Runner und dem Scope des App-Tokens, nicht aus der Laufzeit. Deshalb wird der
     # Unterschied hier als ::warning protokolliert, statt eine Gleichwertigkeit zu
     # behaupten, die nicht existiert.
+    # Ausnahme restricted (#1193): kein bash, stattdessen die engen Custom-Tools gh und
+    # memory_write aus .pi/extensions/restricted-tools.ts — strenger als das Claude-Tier.
+    # review bleibt bei der ::warning (Folge-Ticket).
     #
     # BEWUSST KEINE ALLOWLIST DER ERWEITERUNGS-TOOLS: Die Tool-Namen von pi-lsp sind
     # konfigurierbar, die Direkt-Tools des MCP-Adapters werden serverabhängig präfixiert.
@@ -419,8 +425,15 @@ runs:
           esac
         fi
 
+        # restricted: kein bash. Die Extension .pi/extensions/restricted-tools.ts liefert
+        # gh (Kommando-Allowlist) und memory_write (nur .ai-memory/), #1193.
+        TOOLS_FLAG=""
         case "${TOOLS_TIER:-full}" in
-          restricted|review)
+          restricted)
+            TOOLS_FLAG="--no-builtin-tools --tools read,grep,find,ls,gh,memory_write"
+            echo "::notice::tools-tier=restricted — ohne bash, nur read/grep/find/ls + gh (Allowlist) + memory_write (.ai-memory/)."
+            ;;
+          review)
             echo "::warning title=⚠️ Tool-Tier unter pi nicht durchsetzbar::tools-tier='${TOOLS_TIER}' — pi kennt kein Permission-System (keine Entsprechung zu Bash(gh *) / Edit(.ai-memory/*)). Der Lauf hat Schreib- und Shell-Zugriff wie im full-Tier; die Eingrenzung kommt aus dem ephemeren Runner und dem App-Token-Scope."
             ;;
           full)
@@ -450,4 +463,4 @@ runs:
         # gibt im -p-Modus nichts aus (nachgemessen mit pi 0.84.4 — die Ausgabe blieb leer).
         # Der Nachweis, dass die Pakete geladen sind, ist deshalb der `pi list`-Block des
         # Installations-Steps oben, nicht ein Flag, das hier nur so aussähe, als täte es etwas.
-        echo "invoke-args=--session-dir $SESSION_DIR $MODEL_FLAG $THINKING_FLAG $EXCLUDE_FLAG --approve" >> "$GITHUB_OUTPUT"
+        echo "invoke-args=--session-dir $SESSION_DIR $MODEL_FLAG $THINKING_FLAG $TOOLS_FLAG $EXCLUDE_FLAG --approve" >> "$GITHUB_OUTPUT"

@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
+import { startNativeGoogleLogin } from '../lib/nativeAuth';
+import { isNativeChannel } from '../lib/platform';
 
 type ErrorParam = string | null;
 
@@ -7,6 +9,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 	access_denied: 'Der Zugriff wurde verweigert. Bitte versuche es erneut.',
 	invalid_email: 'Deine E-Mail-Adresse ist nicht zugelassen. Bitte wende dich an den Administrator.',
 	magic_link_invalid: 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt. Fordere einfach einen neuen an.',
+	native_login_failed: 'Die Anmeldung in der App ist fehlgeschlagen. Bitte versuche es erneut.',
 };
 
 function getErrorFromSearch(): ErrorParam {
@@ -16,19 +19,19 @@ function getErrorFromSearch(): ErrorParam {
 
 type MagicLinkState = 'idle' | 'sending' | 'sent' | 'failed';
 
-const inputStyle = {
-	width: '100%',
-	padding: '0.75rem 1rem',
-	border: '1px solid var(--pp-border, #d0d5dd)',
-	borderRadius: '0.5rem',
-	fontSize: '1rem',
-	boxSizing: 'border-box',
-} as const;
-
 function getErrorMessage(error: string): string {
 	return ERROR_MESSAGES[error] ?? 'Ein unbekannter Anmeldefehler ist aufgetreten. Bitte versuche es erneut.';
 }
 
+// Bewusst rohe Elemente (h1, button, input, div-Alerts) statt KoliBri: Die Shadow-DOM-Typografie
+// von kol-heading ließe sich hier nicht über --pp-Tokens steuern, KoliBri-Klicks und -Eingaben
+// riskieren die etablierten Verträge (Unit-Tests lesen textContent der Alerts, E2E klickt die
+// Buttons und liest getByLabelText; vgl. Locator-Erfahrung #1421). Styling zentral über
+// .login-page-* in app.css. Die Heading-Namen tragen bewusst NICHT „Balamentum": Dieser Name
+// (als level-1-Heading) identifiziert ausschließlich die Haupt-App (KolHeading `_level={1}` in
+// `App.tsx`); die E2E-Auth-Gate-Specs (`login.spec.ts`, AK1a) prüfen, dass dieses Heading
+// unauthentifiziert NICHT sichtbar ist, und `getByRole('heading', { name })` matcht per Default
+// als Teilstring — das Logo-Bild ist kein Heading und kollidiert damit nicht.
 export const LoginPage = () => {
 	const [error] = useState<ErrorParam>(getErrorFromSearch);
 	// Magic Link nur anbieten, wenn die Instanz SMTP konfiguriert hat (GET /auth/providers).
@@ -53,129 +56,115 @@ export const LoginPage = () => {
 	};
 
 	const handleLogin = () => {
+		// In der App blockiert Google den Login im WebView, er läuft dort im System-Browser.
+		if (isNativeChannel()) {
+			void startNativeGoogleLogin();
+			return;
+		}
 		// Bewusst /auth/google statt /api/v1/auth/google: Der OAuth-Flow liegt laut
 		// docs/oauth-migration.md unter /auth/* (Caddy reicht ihn ohne Präfix-Strip durch).
 		window.location.href = '/auth/google';
 	};
 
 	return (
-		<div
-			style={{
-				display: 'flex',
-				flexDirection: 'column',
-				alignItems: 'center',
-				justifyContent: 'center',
-				minHeight: '100dvh',
-				padding: '2rem',
-				boxSizing: 'border-box',
-				background: 'var(--pp-bg, #ffffff)',
-				color: 'var(--pp-text, #1a1a1a)',
-			}}
-		>
-			<div
-				style={{
-					maxWidth: '24rem',
-					width: '100%',
-					display: 'flex',
-					flexDirection: 'column',
-					gap: '1.5rem',
-					alignItems: 'center',
-					textAlign: 'center',
-				}}
-			>
-				{/* Bewusst KEIN „Balamentum"-Heading: Dieser Name (als level-1-Heading) identifiziert
-				    ausschließlich die Haupt-App (KolHeading `_level={1}` in `App.tsx`). Die E2E-Auth-Gate-Specs
-				    (`login.spec.ts`, AK1a) prüfen, dass dieses Heading unauthentifiziert NICHT sichtbar ist;
-				    da `getByRole('heading', { name })` per Default als Teilstring matcht, darf der Anmelde-Titel
-				    den Text „Balamentum" auch nicht enthalten. */}
-				<h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>Anmelden</h1>
-				<p style={{ margin: 0, color: 'var(--pp-text-muted, #555)' }}>Melde dich an, um fortzufahren.</p>
+		<div className="login-page">
+			<div className="login-page__inner">
+				<div className="login-page__brand">
+					{/* Wortmarke je Theme als eigenes SVG: ein <img> erbt weder currentColor noch Web-Fonts (#1741, AK2) */}
+					<img
+						className="login-page__brand-wordmark login-page__brand-wordmark--light"
+						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal.svg`}
+						alt="Balamentum"
+						width={240}
+						height={35}
+					/>
+					<img
+						className="login-page__brand-wordmark login-page__brand-wordmark--dark"
+						src={`${import.meta.env.BASE_URL}logo/logo-with-name.horizontal.dark.svg`}
+						alt="Balamentum"
+						width={240}
+						height={35}
+					/>
+				</div>
+				<div className="login-page__card">
+					<h1 className="login-page__title">Anmelden</h1>
+					<p className="login-page__sub">Melde dich an, um fortzufahren.</p>
 
-				{error !== null && (
-					<div
-						role="alert"
-						style={{
-							width: '100%',
-							padding: '0.75rem 1rem',
-							background: '#fef3f2',
-							border: '1px solid #fda29b',
-							borderRadius: '0.5rem',
-							color: '#b42318',
-							fontSize: '0.9rem',
-							boxSizing: 'border-box',
-						}}
-					>
-						{getErrorMessage(error)}
-					</div>
-				)}
+					{error !== null && (
+						<div role="alert" className="login-page__alert">
+							{getErrorMessage(error)}
+						</div>
+					)}
 
-				<button
-					onClick={handleLogin}
-					style={{
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						gap: '0.75rem',
-						width: '100%',
-						padding: '0.75rem 1.5rem',
-						background: '#1570ef',
-						color: '#ffffff',
-						border: 'none',
-						borderRadius: '0.5rem',
-						fontSize: '1rem',
-						fontWeight: 600,
-						cursor: 'pointer',
-					}}
-				>
-					Login with Google
-				</button>
+					<button type="button" onClick={handleLogin} className="login-page__btn login-page__btn--primary">
+						<span className="login-page__btn-icon" aria-hidden="true">
+							{/* Offizielles Vierfarben-G (Google-Brand), 18×18 */}
+							<svg width="18" height="18" viewBox="0 0 18 18">
+								<path
+									fill="#4285F4"
+									d="M17.64 9.2045c0-.6381-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2086 1.125-.8427 2.0782-1.7959 2.7164v2.2581h2.9087c1.7018-1.5668 2.6836-3.874 2.6836-6.615z"
+								/>
+								<path
+									fill="#34A853"
+									d="M9 18c2.43 0 4.4673-.8059 5.9564-2.1805l-2.9087-2.2581c-.8059.54-1.8368.859-3.0477.859-2.344 0-4.3282-1.5831-5.036-3.7104H.9574v2.3318C2.4382 15.9832 5.4818 18 9 18z"
+								/>
+								<path
+									fill="#FBBC05"
+									d="M3.964 10.71c-.18-.54-.2822-1.1168-.2822-1.71s.1023-1.17.2823-1.71V4.9582H.9573C.3477 6.1732 0 7.5477 0 9s.3477 2.8268.9573 4.0418L3.964 10.71z"
+								/>
+								<path
+									fill="#EA4335"
+									d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.426 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.656 3.5795 9 3.5795z"
+								/>
+							</svg>
+						</span>
+						Mit Google anmelden
+					</button>
 
-				{magicLinkEnabled && (
-					<form
-						onSubmit={handleMagicLink}
-						style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left' }}
-					>
-						<p style={{ margin: 0, textAlign: 'center', color: 'var(--pp-text-muted, #555)' }}>oder</p>
-						<label htmlFor="magic-link-email" style={{ fontWeight: 600 }}>
-							Anmeldelink per E-Mail
-						</label>
-						<input
-							id="magic-link-email"
-							type="email"
-							autoComplete="email"
-							required
-							value={email}
-							onChange={(event) => setEmail(event.target.value)}
-							style={inputStyle}
-						/>
-						<button
-							type="submit"
-							disabled={magicLinkState === 'sending'}
-							style={{
-								width: '100%',
-								padding: '0.75rem 1.5rem',
-								background: 'transparent',
-								color: '#1570ef',
-								border: '1px solid #1570ef',
-								borderRadius: '0.5rem',
-								fontSize: '1rem',
-								fontWeight: 600,
-								cursor: 'pointer',
-							}}
-						>
-							Anmeldelink senden
-						</button>
-						{magicLinkState === 'sent' && (
-							<p role="status" style={{ margin: 0 }}>
-								Falls die Adresse zugelassen ist, ist ein Anmeldelink unterwegs. Schau in dein Postfach.
-							</p>
-						)}
-						{magicLinkState === 'failed' && (
-							<p role="alert" style={{ margin: 0, color: '#b42318' }}>
-								Der Link konnte gerade nicht angefordert werden. Bitte versuche es gleich noch einmal.
-							</p>
-						)}
-					</form>
+					{magicLinkEnabled && (
+						<form onSubmit={handleMagicLink} className="login-page__form">
+							<p className="login-page__divider">oder</p>
+							<label className="login-page__label" htmlFor="magic-link-email">
+								Anmeldelink per E-Mail
+							</label>
+							<input
+								id="magic-link-email"
+								// Einstieg über „Mit E-Mail anmelden" auf der Website (`?login=email`).
+								autoFocus={new URLSearchParams(window.location.search).get('login') === 'email'}
+								type="email"
+								autoComplete="email"
+								required
+								placeholder="name@beispiel.de"
+								value={email}
+								onChange={(event) => setEmail(event.target.value)}
+								className="login-page__input"
+							/>
+							<button
+								type="submit"
+								disabled={magicLinkState === 'sending'}
+								className="login-page__btn login-page__btn--secondary"
+							>
+								Anmeldelink senden
+							</button>
+							{magicLinkState === 'sent' && (
+								<p role="status" className="login-page__status">
+									Falls die Adresse zugelassen ist, ist ein Anmeldelink unterwegs. Schau in dein Postfach.
+								</p>
+							)}
+							{magicLinkState === 'failed' && (
+								<p role="alert" className="login-page__alert">
+									Der Link konnte gerade nicht angefordert werden. Bitte versuche es gleich noch einmal.
+								</p>
+							)}
+						</form>
+					)}
+				</div>
+
+				{/* Zurück zur öffentlichen Website — nur im Web, in der App gibt es dort nichts (#1769) */}
+				{!isNativeChannel() && (
+					<a className="login-page__back" href="/" aria-label="Zurück zur Balamentum-Website">
+						Zurück zur Website
+					</a>
 				)}
 			</div>
 		</div>

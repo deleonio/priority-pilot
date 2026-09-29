@@ -9,6 +9,7 @@ import Series from './series.js';
 import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 import PushSubscription from './pushSubscription.js';
+import FcmToken from './fcmToken.js';
 import NotificationLog from './notificationLog.js';
 import MissedTask from './missedTask.js';
 import LlmProvider from './llmProvider.js';
@@ -26,6 +27,9 @@ import LoginToken from './loginToken.js';
 // importiert; hier zählt allein, dass `sequelize.sync()` die Tabellen kennt.
 import './invoice.js';
 import './invoiceSequence.js';
+// Nur Registrierung: `CareSuggestionDismissal` hat keine Assoziationen; hier zählt allein, dass
+// `sequelize.sync()` die Tabelle kennt (#1791).
+import './careSuggestionDismissal.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -106,6 +110,7 @@ export {
 	SeriesPillar,
 	User,
 	PushSubscription,
+	FcmToken,
 	NotificationLog,
 	MissedTask,
 	LlmProvider,

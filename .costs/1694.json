@@ -1,0 +1,36 @@
+[
+	{
+		"timestamp": "2026-09-25T04:35:12.286Z",
+		"tokensIn": 1376452,
+		"tokensOut": 10989,
+		"cost": 1.1202429600000001,
+		"issueId": "1694",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1185920,
+		"sidechainTokens": 28350,
+		"turns": 22,
+		"valueCost": 1.1202429600000001,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 1
+	},
+	{
+		"timestamp": "2026-09-25T04:41:44.613Z",
+		"tokensIn": 308204,
+		"tokensOut": 1777,
+		"cost": 0.06851180016000001,
+		"issueId": "1694",
+		"phase": "documenter",
+		"model": "glm-5.3-flash",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 129216,
+		"turns": 5,
+		"valueCost": 0.06851180016000001,
+		"effort": "low"
+	}
+]

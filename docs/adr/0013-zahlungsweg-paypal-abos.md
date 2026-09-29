@@ -28,7 +28,7 @@ Zu beachten ist eine Verwechslungsgefahr: Stripes Support-Tabelle der Bank-Redir
 
 **Phase 3: Stripe** als Zielbild, wenn Karte, Wallets und SEPA-Lastschrift dazukommen sollen oder der Verwaltungsaufwand aus Phase 1 den Gebührenvorteil aufwiegt. Stripe bündelt diese Zahlungsarten samt PayPal hinter einer Schnittstelle und bringt Abo-Verwaltung, anteilige Verrechnung, Customer Portal und Rechnungserzeugung mit.
 
-**Store-Billing bleibt außerhalb dieser Entscheidung**, weil die App eine PWA ist und kein In-App-Kauf stattfindet. Es wird erst mit einem nativen Wrapper relevant und dann neu entschieden.
+**Store-Billing bleibt außerhalb dieser Entscheidung**, weil die App eine PWA ist und kein In-App-Kauf stattfindet. Es wird erst mit einem nativen Wrapper relevant und dann neu entschieden. Die Entscheidung dazu hält [ADR 0017](0017-store-billing-google-play.md) fest.
 
 **Umsatzsteuer nach der Kleinunternehmerregelung (§19 UStG).** Rechnungen weisen keine Umsatzsteuer aus und tragen den entsprechenden Hinweis. Die Preise des Konzepts sind damit Endpreise.
 

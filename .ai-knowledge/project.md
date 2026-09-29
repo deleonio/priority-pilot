@@ -20,6 +20,8 @@ pnpm-Workspace (siehe `pnpm-workspace.yaml`):
 - `server/` (npm-Name **`server`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
 - `client/`: aus `openapi.yml` via `openapi-typescript` generierte API-Typen (`src/schema.d.ts`, nicht versioniert) plus dünner Re-Export (`src/index.ts`).
 - `frontend/`: React 19 + KoliBri (Vite/PWA); spricht die API typsicher per `openapi-fetch` an.
+- `native/`: Capacitor-Wrapper der Android-App im Remote-Modus, lädt die gehostete `/app/` ([Native Apps](../docs/native-apps.md)).
+- `website/`: öffentliche, statisch vorgerenderte Landingpage (de an `/`, die übrigen neun App-Sprachen unter `/<sprache>/`); die App liegt unter `/app/` ([ADR 0015](../docs/adr/0015-oeffentliche-website-und-app-unter-app.md)).
 
 Gemeinsamer API-Vertrag: `openapi.yml`
 
@@ -55,6 +57,17 @@ Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichte
 - **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist
   in `vitest.config.ts` vorbereitet und mit `pnpm add -D @vitest/coverage-v8` + `test:coverage` aktivierbar.
+
+### Code-Dokumentation (JSDoc)
+
+Gilt für alle Code-Kommentare und JSDoc, von Mensch und KI gleichermaßen:
+
+- **Erwünscht, aber minimal:** so viel wie nötig, so wenig wie möglich. Kommentiert wird das Warum und
+  der Vertrag (Parameter, Rückgabe, Seiteneffekte, Grenzen), nicht das, was der Code ohnehin zeigt.
+- **Nur Ist-Zustand und Zukunft:** beschreiben, was der Code tut und bewusst (noch) nicht tut, keine
+  Historie wie „früher“, „ersetzt X“, „seit #123“ oder Änderungsnotizen. Die gehört in Commit und PR.
+- **Klar und widerspruchsfrei:** leicht nachvollziehbar für Menschen und KI, stimmig mit Code und Doku.
+  Wer Code ändert, passt betroffene Kommentare an oder löscht sie.
 
 ### Mobile-First (Frontend)
 

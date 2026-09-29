@@ -20,18 +20,31 @@ name: Kosten-Uebersicht
 #   node .github/scripts/tokens-report.ts --dir .costs
 #
 # NUR LESEND: kein Label, kein Kommentar, kein Commit.
+#
+# FOKUS-MODUS (Dispatch-Input „issues", z. B. „1752, 1754"): statt der Wochen-Reporte
+# rendert tokens-report.ts nur die Läufe der gewählten Tickets und stellt sie je Phase
+# den anderen Läufen derselben Phase gegenüber — der Vergleich einzelner Setups
+# (z. B. Documenter auf :free-Modell) ohne die GitHub-Summary-Größenlücke.
 
 on:
   schedule:
     - cron: '43 6 * * 1' # montags 06:43 UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      issues:
+        description: 'Fokus-Modus: kommaseparierte Issue-Nummern (z. B. 1752,1754) — leer = voller Wochen-Report'
+        required: false
+        default: ''
 
 permissions:
   contents: read # .costs/ + Skripte auschecken
 
+env:
+  ISSUES: ${{ github.event.inputs.issues || '' }}
+
 jobs:
   report:
-    runs-on: ubuntu-latest
+    runs-on: pi5
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,6 +54,10 @@ jobs:
       - name: Turn-Uebersicht (vollstaendige Tickets)
         run: |
           set -euo pipefail
+          if [ -n "$ISSUES" ]; then
+            echo "Fokus-Modus (${ISSUES}) — Turn-Übersicht übersprungen."
+            exit 0
+          fi
           # Bewusst `node` statt tsx: kein pnpm-Setup nötig, die Skripte nutzen
           # ausschliesslich löschbare TypeScript-Syntax (gleiche Begründung wie record-cost).
           node .github/scripts/turns-report.ts --dir .costs \
@@ -49,5 +66,7 @@ jobs:
       - name: Token- und Kosten-Uebersicht (vollstaendige Tickets)
         run: |
           set -euo pipefail
-          node .github/scripts/tokens-report.ts --dir .costs \
+          ARGS=()
+          if [ -n "$ISSUES" ]; then ARGS+=(--issues "$ISSUES"); fi
+          node .github/scripts/tokens-report.ts --dir .costs "${ARGS[@]}" \
             | tee -a "$GITHUB_STEP_SUMMARY"
