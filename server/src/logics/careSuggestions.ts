@@ -11,6 +11,12 @@ import { type BalanceSaeule } from './heartBalance.js';
 /** Wie lange eine abgelehnte Vorlage unterdrückt bleibt (AK4): davor weg, ab exakt so vielen Tagen wieder lieferbar. */
 const CARE_ABLEHNUNG_TAGE = 14;
 
+/** Vorlage „Pause" (#1795): nur Überlast-Vorschlag, nie Defizit-Vorschlag ihrer Säule. */
+export const PAUSE_VORLAGE_KEY = 'pause-1';
+
+/** Säulen-IDs (Körper, Mentale Gesundheit), aus denen Erholungsvorschläge bei Überlast kommen (#1795). */
+const ERHOLUNGS_SAEULEN_IDS = [1, 2];
+
 const TAG_MS = 24 * 60 * 60 * 1000;
 const MAX_VORSCHLAEGE = 3;
 
@@ -86,4 +92,31 @@ export const waehleCareVorschlaege = (
 		}));
 
 	return [...taskVorschlaege, ...vorlagenVorschlaege].slice(0, MAX_VORSCHLAEGE);
+};
+
+/**
+ * Erholungsvorschläge bei Überlast (#1795): zuerst die Pause-Vorlage, dann je bis zu zwei nicht
+ * abgelehnte Vorlagen aus Körper und Mentale Gesundheit — die überlastete Säule selbst bleibt
+ * ausgenommen. Nutzt `waehleCareVorschlaege` für die Ablehnungs-Logik; `saeuleId` kennzeichnet
+ * die Säule des Vorschlags (die Route ergänzt den Namen).
+ */
+export const waehleErholungsVorschlaege = (
+	ueberlasteSaeulenIds: number[],
+	vorlagen: CareVorlage[],
+	ablehnungen: { templateKey: string; abgelehntAm: Date }[],
+	jetzt: Date,
+): (CareVorschlag & { saeuleId: number })[] => {
+	const pauseVorlagen = vorlagen.filter((vorlage) => vorlage.key === PAUSE_VORLAGE_KEY);
+	const uebrige = vorlagen.filter((vorlage) => vorlage.key !== PAUSE_VORLAGE_KEY);
+	const pause = pauseVorlagen.flatMap((vorlage) =>
+		waehleCareVorschlaege({ id: vorlage.saeuleId, name: '', weight: 0 }, [], [vorlage], ablehnungen, jetzt).map(
+			(vorschlag) => ({ ...vorschlag, saeuleId: vorlage.saeuleId }),
+		),
+	);
+	const ausSaeulen = ERHOLUNGS_SAEULEN_IDS.filter((id) => !ueberlasteSaeulenIds.includes(id)).flatMap((id) =>
+		waehleCareVorschlaege({ id, name: '', weight: 0 }, [], uebrige, ablehnungen, jetzt)
+			.slice(0, 2)
+			.map((vorschlag) => ({ ...vorschlag, saeuleId: id })),
+	);
+	return [...pause, ...ausSaeulen];
 };

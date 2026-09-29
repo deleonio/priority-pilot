@@ -30,7 +30,8 @@ const endeDesTages = (jetzt: Date): number =>
 /**
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt höchstens
  * EINEN Vorschlag aus `GET /scores/care-suggestions` (der erste; kein Nachrücken nach einer Aktion)
- * mit Übernehmen / Nicht jetzt / Ablehnen. Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und
+ * mit Übernehmen / Nicht jetzt / Ablehnen. Bei `anlass: 'ueberlast'` (#1795) rahmt der Hinweis den
+ * Vorschlag als Ausgleich statt als Defizit. Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und
  * bei Ladefehler wird nichts gerendert, damit „Nächste Aufgabe" nicht springt.
  *
  * Aktionen wirken optimistisch — der Hinweis verschwindet sofort, schlägt Übernehmen/Ablehnen einer
@@ -110,9 +111,15 @@ export const CareHint = () => {
 	return (
 		<div className="care-hint" data-testid="care-hint" role="status" aria-label="Fürsorge-Hinweis">
 			<KolAlert _type="info" _variant="card" _label="Fürsorge-Hinweis">
-				<p>
-					{vorschlag.saeuleName} kam diese Woche zu kurz. {vorschlag.beschreibung ?? vorschlag.titel}?
-				</p>
+				{vorschlag.anlass === 'ueberlast' ? (
+					<p>
+						Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {vorschlag.beschreibung ?? vorschlag.titel}
+					</p>
+				) : (
+					<p>
+						{vorschlag.saeuleName} kam diese Woche zu kurz. {vorschlag.beschreibung ?? vorschlag.titel}?
+					</p>
+				)}
 				{fehler && <p role="alert">Konnte nicht angelegt werden. Versuch es gleich noch einmal.</p>}
 				<div className="care-hint-actions">
 					<KolButton

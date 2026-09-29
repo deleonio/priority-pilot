@@ -1184,4 +1184,53 @@ export const CARE_VORLAGEN: readonly { key: string; saeuleId: number; texte: Rec
 			},
 		},
 	},
+	// ── Erholungs-Vorlage bei Überlast (#1795): zielt auf Mentale Gesundheit; erscheint nur als
+	// Überlast-Vorschlag (`PAUSE_VORLAGE_KEY`), nie als Defizit-Vorschlag der Säule. ──
+	{
+		key: 'pause-1',
+		saeuleId: 2,
+		texte: {
+			de: {
+				titel: 'Eine Pause einlegen',
+				beschreibung: 'Gönn dir heute fünf Minuten ohne Aufgabe – danach fällt das Weitermachen oft leichter.',
+			},
+			en: {
+				titel: 'Take a break',
+				beschreibung: 'Give yourself five minutes without a task today – carrying on often feels easier afterwards.',
+			},
+			es: {
+				titel: 'Hacer una pausa',
+				beschreibung: 'Date hoy cinco minutos sin tareas – después seguir suele resultar más fácil.',
+			},
+			fr: {
+				titel: 'Faire une pause',
+				beschreibung:
+					'Offrez-vous aujourd\u2019hui cinq minutes sans tâche – reprendre est souvent plus facile ensuite.',
+			},
+			it: {
+				titel: 'Fare una pausa',
+				beschreibung: 'Concediti oggi cinque minuti senza compiti – dopo è spesso più facile andare avanti.',
+			},
+			nl: {
+				titel: 'Even pauzeren',
+				beschreibung: 'Gun uzelf vandaag vijf minuten zonder taak – daarna gaat verdergaan vaak makkelijker.',
+			},
+			pl: {
+				titel: 'Zrób sobie przerwę',
+				beschreibung: 'Daj sobie dziś pięć minut bez zadań – potem łatwiej jest iść dalej.',
+			},
+			pt: {
+				titel: 'Fazer uma pausa',
+				beschreibung: 'Dê a si mesmo hoje cinco minutos sem tarefas – depois costuma ser mais fácil continuar.',
+			},
+			ru: {
+				titel: 'Сделать паузу',
+				beschreibung: 'Подарите себе сегодня пять минут без дел — потом продолжать часто становится легче.',
+			},
+			sv: {
+				titel: 'Ta en paus',
+				beschreibung: 'Unna dig fem minuter utan uppgifter i dag – efteråt är det ofta lättare att fortsätta.',
+			},
+		},
+	},
 ];
