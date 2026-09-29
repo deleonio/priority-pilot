@@ -1,7 +1,7 @@
 name: Nit Report
 
 # Woechentlicher LLM-Job (wie UX Team ueber setup-agent, KEINE Pipeline-Phase): sammelt die
-# Review-Nits der in den letzten 30 Tagen gemergten PRs und haelt die 10 wichtigsten in EINEM
+# Review-Nits der in den letzten 8 Tagen gemergten PRs (Woche + 1 Tag Ueberlappung) und haelt die 10 wichtigsten in EINEM
 # Dauer-Issue fest (Prompt: .github/prompts/nit-report.md).
 #
 # DELIVERY: Genau EIN offenes Issue mit Label ci:nit-report (bewusst KEIN ai:*-Label - das wuerde
@@ -82,6 +82,7 @@ jobs:
 
           cp .github/prompts/nit-report.md /tmp/claude-prompt.txt
           sed -i "s/{{REPORT_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SINCE_DATE}}/$(date -u -d '8 days ago' +%F)/g" /tmp/claude-prompt.txt
           sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
           sed -i "s/{{NIT_ISSUE_NR}}/${prev_issue}/g" /tmp/claude-prompt.txt
           bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
