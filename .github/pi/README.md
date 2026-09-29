@@ -34,7 +34,7 @@ Modell-Allowlist antritt.
 Beispiel:
 
 ```bash
-gh variable set PI_MODEL_ALIASES --body '{"openrouter":{"opus":"openrouter/moonshotai/kimi-k2.6","sonnet":"openrouter/deepseek/deepseek-v3.2","haiku":"openrouter/openrouter/free","fable":"openrouter/moonshotai/kimi-k2.6"}}'
+gh variable set PI_MODEL_ALIASES --body '{"openrouter":{"opus":"openrouter/moonshotai/kimi-k2.6","sonnet":"openrouter/deepseek/deepseek-v3.2","haiku":"openrouter/poolside/laguna-s-2.1:free","fable":"openrouter/moonshotai/kimi-k2.6"}}'
 ```
 
 Beim Freigeben eines neuen Alias ist diese Datei die pi-Seite der Synchronisierungsliste in
