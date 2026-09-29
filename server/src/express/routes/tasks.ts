@@ -17,7 +17,7 @@ import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
 import { notifyReachedMilestones } from '../../logics/milestoneNotification.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
-import { berechneStreak } from '../../logics/streak.js';
+import { berechneStreak, streakZeitpunkte } from '../../logics/streak.js';
 import type { PushSender } from '../../logics/push.js';
 import type { ChecklistItem } from '../../models/task.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
@@ -505,10 +505,14 @@ const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(
  */
 const meilensteinStandVon = async (userId: number): Promise<ReturnType<typeof berechneMeilensteine>> => {
 	const entries = await ScoreEntry.findAll({ include: [{ model: Task, where: { userId } }] });
+	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 	const { best } = berechneStreak(
-		entries.map((entry) => entry.zeitpunkt),
+		streakZeitpunkte(
+			entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+			zone,
+		),
 		new Date(),
-		Intl.DateTimeFormat().resolvedOptions().timeZone,
+		zone,
 	);
 	const punkteSumme = entries.reduce((summe, entry) => summe + entry.punkte, 0);
 	return berechneMeilensteine({ bestStreak: best, punkteSumme });

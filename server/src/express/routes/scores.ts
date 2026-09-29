@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { Pillar, ScoreEntry, Task, MissedTask } from '../../models/index.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
-import { berechneStreak, istGueltigeZeitzone } from '../../logics/streak.js';
+import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
@@ -95,7 +95,10 @@ scoresRouter.get('/scores/streak', async (req: Request, res: Response<StreakDto 
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 		const { aktuell, best, aktiveTage } = berechneStreak(
-			entries.map((entry) => entry.zeitpunkt),
+			streakZeitpunkte(
+				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+				zeitZone,
+			),
 			new Date(),
 			zeitZone,
 		);
@@ -119,7 +122,10 @@ scoresRouter.get('/scores/milestones', async (req: Request, res: Response<Milest
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 		const { best } = berechneStreak(
-			entries.map((entry) => entry.zeitpunkt),
+			streakZeitpunkte(
+				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+				zeitZone,
+			),
 			new Date(),
 			zeitZone,
 		);
@@ -197,7 +203,10 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			: Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 		const { aktuell, best, aktiveTage } = berechneStreak(
-			entries.map((entry) => entry.zeitpunkt),
+			streakZeitpunkte(
+				entries.map((entry) => ({ zeitpunkt: entry.zeitpunkt, deadline: entry.Task?.deadline })),
+				zeitZone,
+			),
 			new Date(),
 			zeitZone,
 		);
