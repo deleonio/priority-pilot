@@ -5415,7 +5415,8 @@ components:
       description: >-
         Konkreter Fürsorge-Vorschlag gegen ein Balance-Defizit (#1791): ein eigener offener
         Task (`typ: task`, dann ist `taskId` gesetzt) oder eine kuratierte Vorlage
-        (`typ: vorlage`, dann ist `templateKey` gesetzt). Gehört zu genau einer Säule.
+        (`typ: vorlage`, dann ist `templateKey` gesetzt); für Plus und Pro zusätzlich höchstens ein
+        KI-Vorschlag aus den eigenen bisherigen Aufgaben (`typ: ki`, #1804). Gehört zu genau einer Säule.
       required:
         - typ
         - titel
@@ -5430,7 +5431,8 @@ components:
           enum:
             - task
             - vorlage
-          description: Eigener Task (`task`) oder kuratierte Vorlage (`vorlage`).
+            - ki
+          description: Eigener Task (`task`), kuratierte Vorlage (`vorlage`) oder KI-Vorschlag (`ki`, nur Plus/Pro).
         anlass:
           type: string
           enum:

@@ -3,8 +3,8 @@
  * Defizit-Säule bis zu drei Vorschläge: zuerst eigene offene Aufgaben mit Säulen-Beitrag zu
  * genau dieser Säule, sonst kuratierte Vorlagen (`logics/careSuggestionData.ts`). Eine Ablehnung
  * unterdrückt ihre Vorlage für `CARE_ABLEHNUNG_TAGE` (AK4). Die Sprache ist von der Route bereits
- * aufgelöst (Vorlagen kommen mit Texten in der Zielsprache); #1804 (KI-Vorschläge Plus/Pro)
- * erweitert später dieselbe Antwortform — DTO bewusst offen über `typ`.
+ * aufgelöst (Vorlagen kommen mit Texten in der Zielsprache). Den KI-Vorschlag für Plus/Pro
+ * (`typ: 'ki'`, #1804) ergänzt die Route in derselben Antwortform.
  */
 import { type BalanceSaeule } from './heartBalance.js';
 
