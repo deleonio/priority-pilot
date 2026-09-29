@@ -2,9 +2,13 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.10 - 2026-09-29
+
+_Keine für Nutzer sichtbaren Änderungen._
+
 ## v0.9 - 2026-09-29
 
-_Enthält v0.9.0 – v0.9.17._
+_Enthält v0.9.0 – v0.9.18._
 
 ### 🔧 Engineering
 
@@ -26,6 +30,7 @@ _Enthält v0.9.0 – v0.9.17._
 - chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
 - fix(ci): pass PI_MODEL_ALIASES to all pi-capable workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/1828
 - fix(ci): stop review retrigger loop for already-reviewed head (#1824) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1830
+- fix(server): scope scores to owner and block ssrf on llm endpoints by @deleonio in https://github.com/deleonio/priority-pilot/pull/1827
 
 ## v0.8 - 2026-09-27
 
@@ -169,7 +174,6 @@ _Enthält v0.4.0 – v0.4.22._
 - feat(server): add grandfathering CLI for legacy free accounts (#1463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1649
 - feat(frontend): rename Wald tab to Graph, sharpen USP messaging by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1647
 - feat(frontend): add 8px gap between popover action buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1648
-- docs: add inline code documentation rule (jsdoc) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1651
 - docs: add inline code documentation rule (jsdoc) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1651
 
 ## v0.3 - 2026-09-23
