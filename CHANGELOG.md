@@ -4,11 +4,12 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.1._
+_Enthält v0.10.0 – v0.10.2._
 
 ### Other Changes
 
 - test(frontend): add observable outcomes and tab-freedom checks by @deleonio in https://github.com/deleonio/priority-pilot/pull/1831
+- chore(deps): update devdependencies (non-major) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1607
 
 ## v0.9 - 2026-09-29
 
@@ -122,7 +123,6 @@ _Enthält v0.5.0 – v0.5.32._
 ### Other Changes
 
 - fix(frontend): access-token card never shows error and empty state together by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1652
-- feat(ci): enforce pi tool tier restricted without bash (#1193) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1653
 - feat(ci): enforce pi tool tier restricted without bash (#1193) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1653
 - feat(frontend): add landing shots, mcp chat, email login, app redirect by @deleonio in https://github.com/deleonio/priority-pilot/pull/1650
 - fix(ci): hand already-done back to review once per HEAD by @deleonio in https://github.com/deleonio/priority-pilot/pull/1661
@@ -275,6 +275,7 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(dashboard): score life balance imbalances honestly again by @deleonio in https://github.com/deleonio/priority-pilot/pull/1500
 - chore: resolve the four open findings from review protocol #1471 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1503
 - feat(server): process PayPal payment events and enforce grace period by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1508
+- feat(frontend): add billing subscription management flow to settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1509
 - feat(frontend): add billing subscription management flow to settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1509
 - feat(server): sync user plan on downgrade and cancellation (#1462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1510
 - chore(deps): bump @public-ui packages to 4.4.1 prerelease 7b9d0237 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1511
