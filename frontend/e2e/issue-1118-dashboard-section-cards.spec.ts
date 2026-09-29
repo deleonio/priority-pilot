@@ -246,19 +246,30 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		}
 	});
 
-	test('AK7: Begrüßung/Vorschläge volle Breite, Hero 2/3 Herz + 1/3 Kacheln mit Nächster Aufgabe', async ({ page }) => {
+	test('AK7: Titelzeile/Vorschläge volle Breite, Hero 2/3 Herz + 1/3 Kacheln mit Nächster Aufgabe', async ({
+		page,
+	}) => {
 		await seedTasks(page, 2, 'E2E #1118 Breite');
 		await openDashboard(page, 1280, 900);
 
 		const gridWidth = await page.locator('.dashboard').evaluate((el) => el.clientWidth);
 		expect(gridWidth).toBeGreaterThan(600);
 
-		// Volle Breite: Card/Bereich spannt über die Grid-Innenbreite.
-		for (const selector of ['.dashboard-suggestions', '.dashboard-greeting']) {
+		// Volle Breite: Bereich spannt über die Grid-Innenbreite.
+		for (const selector of ['.dashboard-suggestions', '.dashboard-heading']) {
 			const box = await page.locator(selector).first().boundingBox();
 			expect(box, `${selector} vorhanden`).not.toBeNull();
 			expect(box!.width, `volle Breite von ${selector}`).toBeGreaterThanOrEqual(gridWidth * 0.95);
 		}
+
+		// Die Begrüßung teilt sich die Titelzeile mit dem H2 (rechtsbündig), statt eine eigene
+		// Vollbreiten-Zeile zu belegen.
+		const headingBox = await page.locator('.dashboard-heading').boundingBox();
+		const greetingBox = await page.locator('.dashboard-greeting').boundingBox();
+		expect(headingBox, 'Titelzeile vorhanden').not.toBeNull();
+		expect(greetingBox, 'Begrüßung vorhanden').not.toBeNull();
+		expect(greetingBox!.y).toBeGreaterThanOrEqual(headingBox!.y);
+		expect(greetingBox!.y + greetingBox!.height).toBeLessThanOrEqual(headingBox!.y + headingBox!.height + 1);
 
 		/* Design-Follow-up (Hero, 2026): „Meine Lebensbalance" links zwei Drittel, rechts ein
 		 * Drittel die Kennzahlen-Kacheln gestapelt und darunter — bündig mit der Herz-Unterkante —

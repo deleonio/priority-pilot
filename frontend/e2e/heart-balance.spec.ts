@@ -85,4 +85,22 @@ test.describe('Dashboard — Herz der Lebensbalance', () => {
 			}
 		});
 	}
+
+	test('Höhen-Deckel: Bühne bleibt auf kurzem Viewport lesbar (844×390)', async ({ page }) => {
+		await page.setViewportSize({ width: 844, height: 390 });
+		await openDashboard(page);
+
+		const box = await page.locator('.heart-balance-stage').boundingBox();
+		expect(box, 'Bühne vorhanden').not.toBeNull();
+		expect(box!.width, 'Bühne mindestens 12rem breit').toBeGreaterThanOrEqual(192 - 1);
+	});
+
+	test('Höhen-Deckel: Ablesewert liegt im Viewport (375×667)', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 667 });
+		await openDashboard(page);
+
+		const box = await page.locator('.heart-balance-readout').boundingBox();
+		expect(box, 'Ablesewert vorhanden').not.toBeNull();
+		expect(box!.y + box!.height, 'Ablesewert unterhalb des Viewports').toBeLessThanOrEqual(667);
+	});
 });
