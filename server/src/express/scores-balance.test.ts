@@ -257,3 +257,43 @@ describe('GET /scores/balance (#1423)', () => {
 		assert.ok(hoch < gleich && gleich < ohne, 'höheres Gewicht der unbedienten Säule muss den Füllstand senken (AK5)');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1796 (Spec docs/spec/issue-1796.md) — AK3: `GET /scores/balance` trägt je
+ * Säule `trend` und `defizitaer` (Quelle `bewerteCareDefizit`), Bestandsfelder bleiben.
+ */
+describe('GET /scores/balance — Trend und Defizit (#1796)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		seedPillarCursor = 0;
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('AK3: je Säule trend/defizitaer nach Fenstervergleich, Bestandsfelder unverändert', async () => {
+		const cookie = await server.register('balance-trend@example.com', 'password123');
+		const tag = 24 * 60 * 60 * 1000;
+		const juengerP = await createPillar(cookie, 'Jung');
+		const aelterP = await createPillar(cookie, 'Alt');
+		const leerP = await createPillar(cookie, 'Leer');
+		const taskJung = await completeTaskWithShares(cookie, 'Jung', 1, [{ pillarId: juengerP.id, share: 100 }]);
+		const taskAlt = await completeTaskWithShares(cookie, 'Alt', 1, [{ pillarId: aelterP.id, share: 100 }]);
+		await ScoreEntry.update({ zeitpunkt: new Date(Date.now() - tag) }, { where: { taskId: taskJung } });
+		await ScoreEntry.update({ zeitpunkt: new Date(Date.now() - 10 * tag) }, { where: { taskId: taskAlt } });
+
+		const body = (await (await getBalance(cookie)).json()) as {
+			saeulen: { id: number; name: string; punkte: number; gewichtung: number; trend?: string; defizitaer?: boolean }[];
+		};
+		const je = (id: number) => body.saeulen.find((s) => s.id === id);
+		assert.deepEqual([je(juengerP.id)?.trend, je(juengerP.id)?.defizitaer], ['erholt', false]);
+		assert.deepEqual([je(aelterP.id)?.trend, je(aelterP.id)?.defizitaer], ['verschlechtert', true]);
+		assert.deepEqual([je(leerP.id)?.trend, je(leerP.id)?.defizitaer], ['stabil', true]);
+		assert.equal(je(juengerP.id)?.gewichtung, juengerP.weight, 'Bestandsfeld gewichtung bleibt');
+		assert.ok(typeof je(juengerP.id)?.punkte === 'number', 'Bestandsfeld punkte bleibt');
+	});
+});
