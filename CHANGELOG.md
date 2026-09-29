@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.11._
+_Enthält v0.10.0 – v0.10.12._
 
 ### 🔧 Engineering
 
@@ -16,6 +16,7 @@ _Enthält v0.10.0 – v0.10.11._
 - feat(frontend): show care hint with suggestion on the dashboard (#1793) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1843
 - feat(server): measure care suggestion impact anonymously (#1798) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1847
 - chore(deps): update gradle to v8.14.5 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1841
+- fix(ci): 01-triage.yml wieder gültig (Expression-Limit) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1851
 
 ### Other Changes
 
@@ -150,7 +151,7 @@ _Enthält v0.5.0 – v0.5.32._
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
-- chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
+- feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
 - feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
 - feat(server): reject paypal checkout for store app channels by @deleonio in https://github.com/deleonio/priority-pilot/pull/1702
 - feat(server): Google-Login der App mit Einmal-Code abschließen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1703
