@@ -913,6 +913,8 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.deepEqual(names, [
 			'balance_history',
 			'balance_status',
+			// #1796: care_suggestions kommt alphabetisch vor category_create.
+			'care_suggestions',
 			'category_create',
 			'category_delete',
 			'category_list',
