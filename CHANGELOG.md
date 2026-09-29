@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.9._
+_Enthält v0.10.0 – v0.10.10._
 
 ### 🔧 Engineering
 
@@ -14,6 +14,7 @@ _Enthält v0.10.0 – v0.10.9._
 - ci: add weekly nit digest cron workflow by @deleonio in https://github.com/deleonio/priority-pilot/pull/1845
 - ci(triage): park issues with open analysis questions as needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/1846
 - feat(frontend): show care hint with suggestion on the dashboard (#1793) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1843
+- feat(server): measure care suggestion impact anonymously (#1798) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1847
 
 ### Other Changes
 
@@ -146,7 +147,7 @@ _Enthält v0.5.0 – v0.5.32._
 - chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
 - feat(skills): add ticket-tree skill for solution plans and issue trees by @deleonio in https://github.com/deleonio/priority-pilot/pull/1698
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
-- chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
+- docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
 - chore: serve digital asset links for the android app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1700
 - feat(frontend): detect app channel and hide web prompts in native app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1701
