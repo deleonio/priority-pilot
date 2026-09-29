@@ -477,6 +477,44 @@ jobs:
             final="analyzed"
           fi
 
+          # RÜCKFRAGEN-GUARD: Offene Fragen im Analyse-Block (unabgehakte Punkte unter
+          # „Offene Fragen") brauchen eine Antwort vom Menschen — ohne ai:needs-human
+          # parkte das Ticket stumm mit ai:analysed, obwohl die Analyse auf ihn wartet.
+          # Der Prompt verlangt den needs-human-Weg; die Leine greift, wenn das Modell
+          # die Fragen trotzdem nur in den Block schreibt. Die Fragen werden als
+          # Begründungs-Kommentar gepostet (erfüllt die Begründungspflicht unten).
+          if [ "$final" != "needs-human" ]; then
+            QUESTIONS="$(printf '%s' "$ANALYSIS" | awk '
+              /Offene Fragen/ { f = 1; next }
+              f && (/KI-ANALYSE:END/ || /^[[:space:]]*#/) { exit }
+              f && /^[[:space:]]*-[[:space:]]*\[[xX]\]/ { next }
+              f && /^[[:space:]]*-/ {
+                l = $0
+                sub(/^[[:space:]]*-[[:space:]]*(\[[[:space:]]\][[:space:]]*)?/, "", l)
+                if (l ~ /^~~/) next
+                t = tolower(l); gsub(/^[^[:alnum:]]+/, "", t)
+                if (t == "" || t ~ /^(keine|n\/a|none)/) next
+                print "- " l
+              }')"
+            if [ -n "$QUESTIONS" ]; then
+              echo "::notice title=❓ Rückfragen::Analyse enthält offene Fragen (Verdict '${verdict:-keins}') — ai:needs-human statt ${final}."
+              final="needs-human"
+              {
+                echo "<!-- ai-triage-decision -->"
+                echo "## ❓ Rückfragen aus der Analyse"
+                echo ""
+                echo "Die Analyse kann ohne diese Antworten nicht sicher weiter:"
+                echo ""
+                printf '%s\n' "$QUESTIONS"
+                echo ""
+                echo "**Weiter:** Fragen hier beantworten, dann \`ai:needs-human\` entfernen **und** \`ai:needs-analyse\` setzen."
+                echo ""
+                echo "> Das Entfernen von \`ai:needs-human\` hebt nur die Sperre auf und startet nichts."
+              } > /tmp/triage-questions.md
+              gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/triage-questions.md || true
+            fi
+          fi
+
           # BEGRÜNDUNGSPFLICHT: ai:needs-human darf technisch nicht ohne begleitenden
           # Kommentar gesetzt werden. Fehlt er, wird NICHT stillschweigend das Label
           # gesetzt (das verlagerte die Analysearbeit zurück und machte das Label
