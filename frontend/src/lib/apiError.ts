@@ -1,5 +1,5 @@
 import { ResponseError } from 'client';
-import { featureOffer, planLabel } from './planOffers';
+import { AI_FAIR_USE_INTERVAL_SECONDS, fairUseMessage, featureOffer, planLabel } from './planOffers';
 
 /** Normalisierte Fehlerinformation aus einem fehlgeschlagenen API-Aufruf. */
 interface ApiError {
@@ -7,6 +7,8 @@ interface ApiError {
 	status: number | null;
 	/** Menschenlesbare Fehlermeldung — wenn möglich die `message` aus dem Server-Fehlerobjekt. */
 	message: string;
+	/** #1783: 429 `ai_throttled` — Fair-Use-Drossel, als Hinweis statt als Fehler zeigen. */
+	throttled?: boolean;
 }
 
 /**
@@ -41,7 +43,7 @@ const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
  * Wartezeit kommt aus dem `Retry-After`-Header, den `express-rate-limit` mitschickt; ohne
  * lesbaren Header bleibt es beim allgemeinen Hinweis.
  */
-const throttledMessage = (response: Response): string => {
+const readRetryAfter = (response: Response): number | null => {
 	// Der Header-Zugriff ist abgesichert, weil `toApiError` auch `ResponseError` aus fremden Quellen
 	// verarbeitet (Test-Doubles, manuell konstruierte Responses) — dort kann `headers` fehlen. Ohne
 	// lesbaren Header bleibt es beim allgemeinen Hinweis, statt die Fehlerbehandlung abstürzen zu lassen.
@@ -52,8 +54,12 @@ const throttledMessage = (response: Response): string => {
 		retryAfterHeader = null;
 	}
 	const retryAfter = Number(retryAfterHeader);
-	if (Number.isFinite(retryAfter) && retryAfter > 0) {
-		const sekunden = Math.ceil(retryAfter);
+	return Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : null;
+};
+
+const throttledMessage = (response: Response): string => {
+	const sekunden = readRetryAfter(response);
+	if (sekunden !== null) {
 		return `Zu viele Anfragen in kurzer Zeit. Bitte ${sekunden} Sekunden warten und es dann noch einmal versuchen.`;
 	}
 	return 'Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten und es dann noch einmal versuchen.';
@@ -158,6 +164,11 @@ export const toApiError = async (reason: unknown, { llmMapping = true }: ToApiEr
 		// Drosselung (#1479) vor den übrigen Zweigen: Der Grund ist unabhängig vom Endpunkt und
 		// vom Body immer derselbe, die KI- und Session-Übersetzungen passen hier nicht.
 		if (status === 429) {
+			// #1783: Fair-Use-Drossel über dem KI-Budget — freundlicher Hinweis mit Wartezeit.
+			if (typeof body === 'object' && body !== null && (body as { code?: unknown }).code === 'ai_throttled') {
+				const seconds = readRetryAfter(reason.response) ?? AI_FAIR_USE_INTERVAL_SECONDS;
+				return { status, message: fairUseMessage(seconds), throttled: true };
+			}
 			return { status, message: throttledMessage(reason.response) };
 		}
 		if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {

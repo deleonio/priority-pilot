@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
+import { FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
@@ -50,7 +50,6 @@ const landing = (locale: Locale, siteUrl = 'https://example.org', shots?: Readon
 		siteUrl,
 		catalog,
 		plans: PLAN_VALUES,
-		aiQuota: AI_ASSIST_MONTHLY_QUOTA,
 		shots,
 	});
 
@@ -133,15 +132,14 @@ describe('renderLanding', () => {
 		expect(html).toContain('<code>next_task</code>');
 	});
 
-	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {
+	it('zeigt Preise aus plans.ts und die KI-Hilfe ohne Anzahl (#1783)', () => {
 		const html = landing('de');
 		expect(html).toContain('4,99 €');
 		expect(html).toContain('9,99 €');
 		expect(html).toContain('47,90 €');
 		expect(html).toContain('95,90 €');
-		for (const plan of PLAN_VALUES.filter((entry) => AI_ASSIST_MONTHLY_QUOTA[entry] > 0)) {
-			expect(html).toContain(`${AI_ASSIST_MONTHLY_QUOTA[plan]} KI-Anfragen im Monat`);
-		}
+		expect(html).toContain('KI-Hilfe nach Fair Use');
+		expect(html).not.toMatch(/\d+ KI-Anfragen/);
 		for (const plan of PLAN_VALUES) {
 			expect(html).toContain(`data-plan="${plan}"`);
 		}
@@ -160,7 +158,6 @@ describe('renderLanding', () => {
 			siteUrl: '',
 			catalog,
 			plans: PLAN_VALUES,
-			aiQuota: AI_ASSIST_MONTHLY_QUOTA,
 		});
 		expect(html).toContain('&lt;script&gt;x&lt;/script&gt;');
 	});

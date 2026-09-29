@@ -34,7 +34,7 @@ describe('KI-Kontingent-Metering — Nebenläufigkeit (#1459, AK3)', () => {
 		await closeDb();
 	});
 
-	it('zehn gleichzeitige Requests mit Restkontingent 1 ergeben genau 1x 2xx und 9x 429', async () => {
+	it('zehn gleichzeitige Requests mit Restbudget 1 ergeben genau 2x 2xx (1 regulär, 1 gedrosselt) und 8x 429 (#1783)', async () => {
 		const email = 'ak3-concurrency@example.com';
 		const cookie = await server.register(email);
 		await User.update({ plan: 'pro' }, { where: { email } });
@@ -59,16 +59,16 @@ describe('KI-Kontingent-Metering — Nebenläufigkeit (#1459, AK3)', () => {
 		const successCount = statuses.filter((status) => status < 300).length;
 		const rejectedCount = statuses.filter((status) => status === 429).length;
 
-		assert.equal(successCount, 1, `genau ein Request darf erfolgreich sein, Status: ${statuses.join(',')}`);
-		assert.equal(rejectedCount, 9, `neun Requests müssen 429 liefern, Status: ${statuses.join(',')}`);
+		assert.equal(successCount, 2, `genau zwei Requests dürfen erfolgreich sein, Status: ${statuses.join(',')}`);
+		assert.equal(rejectedCount, 8, `acht Requests müssen 429 liefern, Status: ${statuses.join(',')}`);
 
 		const [rows] = await sequelize.query('SELECT count FROM ai_usage WHERE userId = ? AND yearMonth = ?', {
 			replacements: [user!.id, currentYearMonth()],
 		});
 		assert.equal(
 			(rows as { count: number }[])[0]?.count,
-			AI_ASSIST_MONTHLY_QUOTA.pro,
-			'Zähler muss exakt auf dem Kontingent stehen',
+			AI_ASSIST_MONTHLY_QUOTA.pro + 1,
+			'Zähler steht exakt eine gedrosselte Anfrage über dem Budget',
 		);
 	});
 });

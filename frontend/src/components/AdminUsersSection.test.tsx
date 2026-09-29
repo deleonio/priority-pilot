@@ -128,6 +128,7 @@ type TestUser = {
 	role: 'admin' | 'member' | 'tester';
 	plan: 'free' | 'pro' | 'max' | 'ultimate';
 	createdAt: string;
+	aiRequestsThisMonth?: number;
 };
 
 const user = (overrides: Partial<TestUser>): TestUser => ({
@@ -260,6 +261,21 @@ describe('AdminUsersSection — Nutzerverwaltung (Rollensystem admin/member/test
 		render(<AdminUsersSection />);
 
 		await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Keine Berechtigung.'));
+	});
+});
+
+describe('AdminUsersSection — KI-Anfragen je Nutzer (#1783 AK7)', () => {
+	it('zeigt je Zeile die KI-Anfragen des laufenden Monats, 0 ohne Wert', async () => {
+		mockGetAdminUsers.mockResolvedValue([
+			user({ id: 1, displayName: 'Anna Admin', aiRequestsThisMonth: 7 }),
+			user({ id: 2, displayName: 'Max Member', role: 'member' }),
+		]);
+
+		render(<AdminUsersSection />);
+		await waitFor(() => expect(screen.getByText('Max Member')).toBeInTheDocument());
+
+		expect(within(rowOf('Anna Admin')).getByText('KI-Anfragen diesen Monat: 7')).toBeInTheDocument();
+		expect(within(rowOf('Max Member')).getByText('KI-Anfragen diesen Monat: 0')).toBeInTheDocument();
 	});
 });
 

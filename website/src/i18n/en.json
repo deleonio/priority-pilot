@@ -171,7 +171,7 @@
 		"discounts": "Pay quarterly and save 10 %, pay yearly and save 20 %. All prices are final; no VAT is charged under § 19 UStG (German small business rule).",
 		"basics": "Tasks, series, checklists, deadlines, points and balance analysis",
 		"includesPrevious": "Everything in {plan}, plus:",
-		"aiQuota": "{count} AI requests per month",
+		"aiQuota": "AI help under fair use",
 		"cta": "Start for free",
 		"plans": {
 			"free": "Free",

@@ -177,7 +177,7 @@
 		"discounts": "Avec un paiement trimestriel, tu économises 10 %, avec un paiement annuel 20 %. Tous les prix sont des prix finaux ; conformément au § 19 UStG (régime allemand des petites entreprises), aucune TVA n’est facturée.",
 		"basics": "Tâches, séries, listes de contrôle, échéances, points et analyse de l’équilibre",
 		"includesPrevious": "Tout ce qu’inclut {plan}, plus :",
-		"aiQuota": "{count} requêtes IA par mois",
+		"aiQuota": "Aide IA en usage raisonnable",
 		"cta": "Commencer gratuitement",
 		"plans": {
 			"free": "Free",
