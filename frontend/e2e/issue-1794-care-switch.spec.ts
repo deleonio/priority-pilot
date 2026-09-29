@@ -18,17 +18,20 @@ const careSwitch = (page: Page) =>
 test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 	test('AK7 — 375px: Schalter sichtbar und bedienbar, Toggle überlebt den Reload', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		// Der Schalter lebt in der Karte „Benachrichtigungen" im Tab „Allgemein" (Default-Route).
-		await page.goto('/app/settings');
-		await waitForStableView(page);
+		// Der Schalter lebt in der Karte „Benachrichtigungen" im Tab „Allgemein" — Default-Route
+		// ohne Segment ist „Säulen" (`App.tsx` settingsTab-Fallback), also explizit `/general`.
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
 
 		const care = careSwitch(page);
 		await expect(care, 'Fürsorge-Schalter fehlt in den Einstellungen').toHaveCount(1);
 		await expect(care).toBeVisible();
 
 		// Touch-Ziel (Mobile-UI-Regeln): mindestens 44px hoch, im Viewport (Bounding-Box statt
-		// scrollWidth — die App-Shell clippt mit overflow-x:hidden).
-		const box = await care.boundingBox();
+		// scrollWidth — die App-Shell clippt mit overflow-x:hidden). Gemessen am Host-Element
+		// (Muster settings-switch-layout.spec.ts AK3): die Rollen-Locator lösen auf das native,
+		// visuell verkleinerte `<input>` auf, nicht auf den sichtbaren KoliBri-Switch.
+		const box = await page.locator('kol-input-checkbox[_variant="switch"][_label="Fürsorge-Hinweise"]').boundingBox();
 		expect(box, 'Schalter rendert messbar').not.toBeNull();
 		expect(box!.height).toBeGreaterThanOrEqual(44);
 		expect(box!.x).toBeGreaterThanOrEqual(-1);
@@ -50,7 +53,7 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 			.toBe(false);
 
 		await page.reload();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Balamentum');
 		await expect(careSwitch(page), 'der gespeicherte Zustand überlebt den Reload').not.toBeChecked();
 	});
 });
