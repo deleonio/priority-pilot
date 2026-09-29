@@ -124,6 +124,7 @@ describe('lookupPrice / computeCost', () => {
 
 	it('bevorzugt den längeren Präfix (opus-5 vor opus-4)', () => {
 		assert.equal(lookupPrice('claude-opus-5')?.[0], 'claude-opus-5');
+		assert.equal(lookupPrice('claude-sonnet-5-5')?.[1], 2.0);
 	});
 
 	it('rechnet Cache-Write mit 1,25x und Cache-Read mit 0,1x des Input-Preises', () => {

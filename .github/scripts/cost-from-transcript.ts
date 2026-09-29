@@ -53,7 +53,7 @@ export const PRICES_EUR_PER_MTOK_ZAI: ReadonlyArray<readonly [string, number, nu
  *
  * BEWUSST FEST, nicht tagesaktuell: Baseline und Nachher-Messung müssen mit demselben Kurs
  * gerechnet werden, sonst vergleicht der A/B-Test Wechselkurse statt Pipeline-Änderungen —
- * dieselbe Begründung wie beim ausgelassenen Sonnet-Einführungspreis unten. Wer den Kurs
+ * dieselbe Begründung wie bei den festen Listenpreisen unten. Wer den Kurs
  * ändert, rechnet die Altdaten mit `cost-backfill-zai.ts` neu, sonst mischt der Trend zwei
  * Kurse. Wer absolute Rechnungsbeträge braucht, nimmt die Abrechnung — hier zählt die Relation.
  */
@@ -64,17 +64,17 @@ const eurRowToUsd = ([prefix, inEur, outEur]: readonly [string, number, number])
 	[prefix, inEur * EUR_TO_USD, outEur * EUR_TO_USD] as const;
 
 /**
- * Listenpreise in USD je 1 Mio. Token (Stand 2026-08) — Anthropic nativ, z.ai umgerechnet.
+ * Listenpreise in USD je 1 Mio. Token (Stand 2026-09) — Anthropic nativ, z.ai umgerechnet.
  *
- * Schlüssel sind PRÄFIXE: die Pipeline löst `haiku` auf `claude-haiku-4-5-20251001` auf
+ * Schlüssel sind PRÄFIXE: die Pipeline löst `haiku` auf `claude-haiku-4-5` auf
  * (setup-claude/action.yml), das Transkript meldet je nach Modell mit oder ohne
  * Datums-Suffix; z.ai meldet `glm-5.3[1m]` für den Präfix `glm-5.3`. Längster passender
  * Präfix gewinnt.
  *
- * Bewusst OHNE das Sonnet-5-Einführungspreisfenster ($2/$10 bis 2026-08-31): Baseline und
- * Nachher-Messung müssen mit derselben Tabelle gerechnet werden, sonst vergleicht der
- * A/B-Test Preisänderungen statt Pipeline-Änderungen. Wer absolute Rechnungsbeträge
- * braucht, nimmt die Abrechnung — hier zählt die Relation.
+ * Sonnet 5 rechnet mit $2/$10: das Einführungspreisfenster (bis 2026-08-31) ist der Dauerpreis
+ * geworden, die Erhöhung auf $3/$15 entfällt (Anthropic-Preisseite, Stand 2026-09). Läufe vor
+ * dem 2026-09-29 sind in `.costs/` noch mit $3/$15 gerechnet — ein Trendvergleich über diese
+ * Grenze mischt beide Sätze.
  *
  * Nicht gelistet bleiben openrouter-Modelle: dort gilt weiter der Fremdtarif-Weg (cost=0),
  * bewertet wird ihr Verbrauch über `MODEL_CLASSES`/`valueCost`.
@@ -86,8 +86,10 @@ export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number
 	['claude-opus-5-5', 4.0, 20.0],
 	['claude-opus-5', 5.0, 25.0],
 	['claude-opus-4', 5.0, 25.0],
-	['claude-sonnet-5', 3.0, 15.0],
+	['claude-sonnet-5-5', 2.0, 10.0],
+	['claude-sonnet-5', 2.0, 10.0],
 	['claude-sonnet-4', 3.0, 15.0],
+	['claude-haiku-4-5', 1.0, 5.0],
 	['claude-haiku-4', 1.0, 5.0],
 	...PRICES_EUR_PER_MTOK_ZAI.map(eurRowToUsd),
 ];

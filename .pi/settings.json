@@ -52,5 +52,5 @@
 		}
 	},
 	"defaultProvider": "anthropic",
-	"defaultModel": "claude-sonnet-5"
+	"defaultModel": "claude-sonnet-5-5"
 }
