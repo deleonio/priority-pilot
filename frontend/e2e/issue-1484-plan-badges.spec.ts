@@ -80,7 +80,7 @@ const createCustomProvider = async (page: Page): Promise<void> => {
 	const response = await page.request.post('/api/v1/llm-providers', {
 		data: {
 			name: 'Badge-Test-Provider',
-			endpoint: 'http://localhost:9/v1',
+			endpoint: 'http://llm.invalid/v1',
 			apiKey: 'test-key',
 			model: 'test-model',
 		},
