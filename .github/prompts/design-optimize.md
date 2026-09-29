@@ -47,10 +47,8 @@ EFFICIENCY: read all sources in ONE tool block (AGENTS.md "Turns bündeln").
    opened but did not cleanly close — skipped or red gates, debug leftovers, promised-but-open
    fixes, uncommitted changes. Finish what can be finished now. Anything that genuinely must
    stay open gets one line with reason in the PR's "Offene Punkte" section.
-7. GATE before the commit (the canonical gate in AGENTS.md — mirror of CI Verify): pnpm format
-   && pnpm exec prettier --check . && pnpm lint && pnpm -r build && pnpm test (repo root) —
-   every command green; fix red results before continuing. E2E scoped: run the frontend e2e
-   specs covering the touched surface (CI runs the full sharded suite over this PR).
+7. GATE before the commit: the canonical gate in AGENTS.md (mirror of CI Verify, incl. its E2E
+   scope), repo root — every command green; fix red results before continuing.
 8. BRANCH + COMMIT + PUSH: create the delivery branch with the EXACT name given under "RUN
    CONTEXT" below (git checkout -b), commit ALL changes
    (git add -A && git commit -m "design(frontend): <short slug from the DESIGN_TARGET>
