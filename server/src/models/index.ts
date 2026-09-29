@@ -30,6 +30,9 @@ import './invoiceSequence.js';
 // Nur Registrierung: `CareSuggestionDismissal` hat keine Assoziationen; hier zählt allein, dass
 // `sequelize.sync()` die Tabelle kennt (#1791).
 import './careSuggestionDismissal.js';
+// Ebenso ohne Assoziationen: Wirkungsmessung der Fürsorge (#1798).
+import './careSuggestionEvent.js';
+import './carePushToggle.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',

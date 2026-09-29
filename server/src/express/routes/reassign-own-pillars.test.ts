@@ -568,6 +568,10 @@ describe('POST/GET /tasks/reassign-pillars — Hintergrundlauf (#1642)', () => {
 			afterRun.status >= 200 && afterRun.status < 300,
 			`nach Lauf-Ende muss ein Neustart möglich sein, Status war ${afterRun.status}`,
 		);
+		// Test-Pflege #1798: den Neustart zu Ende laufen lassen — sonst hält sein am Gate hängender
+		// Lauf die Sperre desselben Kontos (Id 1 nach resetDb) bis in den nächsten Test.
+		release(1);
+		await pollUntilDone(cookie);
 	});
 
 	it('AK4: Kontingent-Erschöpfung beendet den Hintergrundlauf mit Teilfortschritt', async () => {

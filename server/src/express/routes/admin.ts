@@ -17,6 +17,7 @@ import {
 } from '../../logics/reassignTaskPillars.js';
 import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js';
 import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
+import { ladeCareWirkung, type CareWirkung } from '../../logics/careWirkung.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -283,6 +284,20 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 					processed: run.processed ?? 0,
 					...(run.result === undefined ? {} : { result: run.result }),
 				});
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/care-wirkung — Wirkung der Fürsorge-Vorschläge und -Pushes (#1798): Wochenquoten
+	// und 4-/12-Wochen-Bindung je Push-Gruppe, nur Summen (`logics/careWirkung.ts`).
+	adminRouter.get(
+		'/admin/care-wirkung',
+		requireRole('admin'),
+		async (_req: Request, res: Response<CareWirkung | ErrorDto>) => {
+			try {
+				res.json(await ladeCareWirkung());
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

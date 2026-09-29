@@ -4,6 +4,7 @@ import { sendError, type ErrorDto } from '../http-error.js';
 import { User } from '../../models/index.js';
 import { istGueltigeZeitzone } from '../../logics/streak.js';
 import { resolveGeoUser } from './geoConfig.js';
+import { protokolliereCarePushWechsel } from '../../logics/careWirkung.js';
 
 /**
  * Pro-User Care-Konfiguration (#1794 AK7/AK8): der Schalter „Fürsorge-Hinweise“ (Default: ein —
@@ -63,6 +64,12 @@ careConfigRouter.put('/care-config', async (req: Request, res: Response<CareConf
 			return;
 		}
 		await User.update(config, { where: { id: user.id } });
+		// #1798 AK5: Schalterverlauf für die Wirkungs-Auswertung.
+		await protokolliereCarePushWechsel(
+			user.id,
+			user.carePushEnabled ?? CARE_CONFIG_DEFAULTS.carePushEnabled,
+			config.carePushEnabled,
+		);
 		res.json(config);
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

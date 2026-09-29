@@ -105,10 +105,13 @@ describe('Care-Wirkung (#1798)', () => {
 
 	it('AK4/AK6: Admin erhält Wochen + Bindung je Push-Gruppe; kleine Zelle unterdrückt, keine Identitäten', async () => {
 		const admin = await server.login('admin-wirkung@example.com', { role: 'admin' });
-		const v = await ersterVorschlag(admin);
+		// Test-Login legt keine Säulen an (nur /auth/register sät sie) → ohne Defizit keine Vorlage;
+		// die Ereignisse erzeugt daher ein registrierter Nutzer.
+		const nutzer = await server.register('nutzer-wirkung@example.com', 'password123');
+		const v = await ersterVorschlag(nutzer);
 		await server.json('/scores/care-suggestions/dismissals', {
 			method: 'POST',
-			...auth(admin),
+			...auth(nutzer),
 			body: JSON.stringify({ templateKey: v.templateKey }),
 		});
 		const res = await server.json('/admin/care-wirkung', auth(admin));
@@ -128,7 +131,11 @@ describe('Care-Wirkung (#1798)', () => {
 				assert.equal(json.bindung[gruppe][ziel], 'unterdrueckt', `${gruppe}.${ziel}: <5 Nutzer → unterdrückt`);
 			}
 		}
-		assert.doesNotMatch(raw, /userId|admin-wirkung@example\.com/, 'keine Identitäten in der Antwort');
+		assert.doesNotMatch(
+			raw,
+			/userId|admin-wirkung@example\.com|nutzer-wirkung@example\.com/,
+			'keine Identitäten in der Antwort',
+		);
 	});
 
 	it('AK8: care_suggestion_events hat keine userId-Spalte', () => {

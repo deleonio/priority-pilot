@@ -23,6 +23,7 @@ import {
 	User,
 } from '../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES } from '../models/subscription.js';
+import CarePushToggle from '../models/carePushToggle.js';
 
 export type DeleteAccountResult = 'deleted' | 'not_found' | 'subscription_active' | 'last_group_admin';
 
@@ -82,6 +83,7 @@ export const deleteAccount = async (userId: number): Promise<DeleteAccountResult
 		await NotificationLog.destroy(own);
 		await PushSubscription.destroy(own);
 		await FcmToken.destroy(own);
+		await CarePushToggle.destroy(own);
 		await GroupMember.destroy(own);
 		await GroupInvitation.destroy({
 			where: { [Op.or]: [{ invitedUserId: userId }, { invitedByUserId: userId }] },

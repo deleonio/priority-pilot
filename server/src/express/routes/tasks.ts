@@ -20,6 +20,7 @@ import { berechneMeilensteine } from '../../logics/milestones.js';
 import { berechneStreak } from '../../logics/streak.js';
 import type { PushSender } from '../../logics/push.js';
 import type { ChecklistItem } from '../../models/task.js';
+import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
@@ -702,6 +703,11 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				} catch (error) {
 					console.warn('Benachrichtigung zur neu angelegten Aufgabe fehlgeschlagen:', error);
 				}
+			}
+			// #1798 AK2: Aufgabe aus einer Fürsorge-Vorlage → anonymes Übernahme-Ereignis.
+			const careTemplateKey = (req.body as { careTemplateKey?: unknown }).careTemplateKey;
+			if (typeof careTemplateKey === 'string' && careTemplateKey.trim()) {
+				await protokolliereCareReaktion(userId, 'uebernommen', [careTemplateKey.trim()]);
 			}
 			const withPillars = await findTaskWithPillars(created.id);
 			if (!withPillars) {
