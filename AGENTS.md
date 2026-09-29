@@ -155,7 +155,7 @@ In-Memory-SQLite, Tests unter `server/src/**/*.test.ts`.
 das **echte** Backend (temporäre In-Memory-DB). `page.route` nur gezielt für Aufrufe, die im Test nicht
 echt laufen können oder sollen: LLM-Provider, Zahlungsanbieter, externe Dienste, nicht herstellbare
 Sitzungen und gezielt provozierte Fehlerantworten. Eigene App-Endpunkte, die das echte Backend bedienen
-kann, werden nicht wegge-mockt. Läuft **nicht** als Teil von `pnpm test` — nur separat über `test:e2e`.
+kann, werden nicht weggemockt. Läuft **nicht** als Teil von `pnpm test` — nur separat über `test:e2e`.
 
 ## Website
 
