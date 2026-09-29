@@ -74,7 +74,8 @@ Series.init(
 			type: DataTypes.STRING(65),
 			allowNull: false,
 			validate: {
-				len: [1, 65],
+				notEmpty: { msg: 'Bitte einen Titel angeben.' },
+				len: { args: [0, 65], msg: 'Der Titel ist zu lang: maximal 65 Zeichen erlaubt.' },
 			},
 		},
 		rhythm: {

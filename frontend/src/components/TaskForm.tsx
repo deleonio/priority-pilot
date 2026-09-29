@@ -815,6 +815,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 			setError('Bitte einen Titel angeben.');
 			return;
 		}
+		if ([...title].length > TITLE_MAX_LENGTH) {
+			setError(`Der Titel ist zu lang: maximal ${TITLE_MAX_LENGTH} Zeichen erlaubt.`);
+			return;
+		}
 		const priority = form.current.priority;
 		if (priority === null || !Number.isInteger(priority) || priority < 1 || priority > 5) {
 			setError('Priorität muss eine Ganzzahl zwischen 1 und 5 sein.');

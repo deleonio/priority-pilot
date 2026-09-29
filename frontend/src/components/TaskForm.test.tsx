@@ -2817,8 +2817,12 @@ describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
 		await fillTitle('t'.repeat(66));
 		await clickSave();
 
-		expect(screen.getByRole('alert').textContent).toMatch(/65/);
-		expect(screen.getByRole('alert').textContent).toMatch(/zu lang/i);
+		const alerts = screen
+			.getAllByRole('alert')
+			.map((el) => el.textContent ?? '')
+			.join(' ');
+		expect(alerts).toMatch(/65/);
+		expect(alerts).toMatch(/zu lang/i);
 		expect(mockCreateTask).not.toHaveBeenCalled();
 	});
 
