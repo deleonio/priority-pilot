@@ -141,6 +141,44 @@ describe('Pillars API', () => {
 			assert.equal(res.status, 200);
 		});
 
+		it('#1822 AK1: 400 mit Mindestanteil-Meldung, wenn eine Säule unter 5 % liegt (100/0/0/0/0 und 4,99), Gewichte unverändert', async () => {
+			const aliceCookie = await server.login('alice@example.com');
+			const pillars = await seedPillarsForUser(1);
+			const before = (await Pillar.findAll({ order: [['id', 'ASC']] })).map((p) => p.weight);
+			for (const verteilung of [
+				[100, 0, 0, 0, 0],
+				[35.01, 4.99, 20, 20, 20],
+			]) {
+				const res = await put(
+					'/pillars/weights',
+					{ weights: pillars.map((p, i) => ({ id: p.id, weight: verteilung[i] })) },
+					aliceCookie,
+				);
+				assert.equal(res.status, 400, `Verteilung ${verteilung.join('/')} muss abgelehnt werden`);
+				const body = (await res.json()) as { message: string };
+				assert.match(body.message, /5 %/);
+			}
+			const after = (await Pillar.findAll({ order: [['id', 'ASC']] })).map((p) => p.weight);
+			assert.deepEqual(after, before);
+		});
+
+		it('#1822 AK3: 200 und persistiert bei exakt 5 % für eine Säule (80/5/5/5/5)', async () => {
+			const aliceCookie = await server.login('alice@example.com');
+			const pillars = await seedPillarsForUser(1);
+			const verteilung = [80, 5, 5, 5, 5];
+			const res = await put(
+				'/pillars/weights',
+				{ weights: pillars.map((p, i) => ({ id: p.id, weight: verteilung[i] })) },
+				aliceCookie,
+			);
+			assert.equal(res.status, 200);
+			const reloaded = await Pillar.findAll({ order: [['id', 'ASC']] });
+			assert.deepEqual(
+				reloaded.map((p) => p.weight),
+				verteilung,
+			);
+		});
+
 		it('400 wenn die Summe nicht 100 ergibt', async () => {
 			const aliceCookie = await server.login('alice@example.com');
 			const userId = 1;
