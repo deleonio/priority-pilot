@@ -187,6 +187,8 @@ test.describe('Balamentum — #1121: Geo-Badge hinter dem Task-Titel', () => {
 	// AK4 — Regression: Die Status-Badges bleiben in der Badge-Gruppe vor dem Menüschalter.
 	test('AK4 — Serie- und Prioritäts-Badge bleiben in der Badge-Gruppe, in dieser Reihenfolge', async ({ page }) => {
 		const seriesTitle = uniqueTitle('Serie');
+		// Relativ zu heute: feste Daten liefen ab (ab 29.09.2026 keine offene Instanz mehr im Fenster).
+		const day = 24 * 60 * 60 * 1000;
 		const seriesResponse = await page.request.post('/api/v1/series', {
 			data: {
 				title: seriesTitle,
@@ -194,14 +196,14 @@ test.describe('Balamentum — #1121: Geo-Badge hinter dem Task-Titel', () => {
 				priority: 3,
 				estimatedEffort: 0.5,
 				active: true,
-				startDate: '2026-09-07T00:00:00.000Z',
+				startDate: new Date(Date.now() - 7 * day).toISOString(),
 				address: 'Musterweg 7, 20095 Hamburg',
 			},
 		});
 		expect(seriesResponse.ok()).toBeTruthy();
 		const seriesId = ((await seriesResponse.json()) as { id: number }).id;
 		const generate = await page.request.post(`/api/v1/series/${seriesId}/generate`, {
-			data: { until: '2026-09-30T23:59:59.000Z' },
+			data: { until: new Date(Date.now() + 21 * day).toISOString() },
 		});
 		expect(generate.ok()).toBeTruthy();
 		// Test-Pflege #1518: die Liste zeigt je Serie nur die früheste offene Instanz ab heute — also

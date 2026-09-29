@@ -6,6 +6,7 @@
  */
 
 import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
+import { fetchProviderEndpoint } from './endpointGuard.js';
 import { upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 
@@ -151,6 +152,7 @@ interface ProviderConfig {
 	apiKey: string | undefined;
 	model: string;
 	label: string;
+	guardEndpoint: boolean;
 }
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -387,20 +389,24 @@ const callProvider = async (
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 	let response: Response;
 	try {
-		response = await fetch(config.endpoint, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${config.apiKey}`,
+		response = await fetchProviderEndpoint(
+			config.endpoint,
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${config.apiKey}`,
+				},
+				body: JSON.stringify({
+					model: config.model,
+					temperature: 0,
+					response_format: { type: 'json_object' },
+					messages,
+				}),
+				signal: controller.signal,
 			},
-			body: JSON.stringify({
-				model: config.model,
-				temperature: 0,
-				response_format: { type: 'json_object' },
-				messages,
-			}),
-			signal: controller.signal,
-		});
+			config.guardEndpoint,
+		);
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
 		throw new MistralRequestError(`${config.label}-Anfrage fehlgeschlagen: ${reason}`);
@@ -435,6 +441,7 @@ const toDynamicProviderConfig = (provider: LlmProviderRow): ProviderConfig => {
 		apiKey: runtime.apiKey || undefined,
 		model: runtime.model,
 		label: runtime.label,
+		guardEndpoint: runtime.guardEndpoint,
 	};
 };
 
