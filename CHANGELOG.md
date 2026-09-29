@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.27._
+_Enthält v0.10.0 – v0.10.28._
 
 ### 💥 Breaking Changes
 
@@ -47,6 +47,7 @@ _Enthält v0.10.0 – v0.10.27._
 - ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
 - feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
+- test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 
 ## v0.9 - 2026-09-29
 
@@ -184,7 +185,6 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
 - feat(android): voice input for quick capture via speech plugin by @deleonio in https://github.com/deleonio/priority-pilot/pull/1714
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
-- feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
 - refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
@@ -339,6 +339,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): scope llm providers to users via userId column (#1547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1551
 - feat(frontend): add bloom and crystal life balance dial variants by @deleonio in https://github.com/deleonio/priority-pilot/pull/1552
 - feat(server): manage group members via mcp tools (#1543) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1553
+- feat(frontend): allow admins to switch their own plan for free (#1556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1563
 - feat(frontend): allow admins to switch their own plan for free (#1556) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1563
 - feat(frontend): hint on strongly unbalanced pillar weight distribution by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1562
 - docs: align tdd-strategy test scope with adr 0004 and test:scripts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1560
