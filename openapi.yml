@@ -5432,6 +5432,7 @@ components:
         - saeulenBeitraege
         - saeuleId
         - saeuleName
+        - anlass
       properties:
         typ:
           type: string
@@ -5439,6 +5440,15 @@ components:
             - task
             - vorlage
           description: Eigener Task (`task`) oder kuratierte Vorlage (`vorlage`).
+        anlass:
+          type: string
+          enum:
+            - defizit
+            - ueberlast
+          description: >-
+            Grund des Vorschlags (#1795): `defizit` gegen ein Balance-Defizit, `ueberlast` als
+            Erholung (Pause, Körper, Mentale Gesundheit), wenn eine Säule überlastet ist.
+            Erholungsvorschläge stehen vor den Defizit-Vorschlägen.
         titel:
           type: string
           description: Anzeigetitel des Vorschlags (in der angefragten Sprache).

@@ -695,6 +695,7 @@ describe('Dashboard — Fürsorge-Hinweis vor „Nächste Aufgabe" (#1793)', () 
 			vorschlaege: [
 				{
 					typ: 'vorlage',
+					anlass: 'defizit',
 					titel: 'Zehn Minuten spazieren gehen',
 					beschreibung: 'Ein kurzer Spaziergang',
 					saeuleId: 1,

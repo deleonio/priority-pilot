@@ -10,7 +10,13 @@ import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../.
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import { waehleCareVorschlaege, type CareAufgabe, type CareVorlage } from '../../logics/careSuggestions.js';
+import {
+	PAUSE_VORLAGE_KEY,
+	waehleCareVorschlaege,
+	waehleErholungsVorschlaege,
+	type CareAufgabe,
+	type CareVorlage,
+} from '../../logics/careSuggestions.js';
 import { CARE_SPRACHEN, CARE_VORLAGEN, type CareSprache } from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit } from '../../logics/careDeficit.js';
 import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
@@ -298,7 +304,8 @@ scoresRouter.get(
 // GET /scores/care-suggestions — konkrete Vorschläge gegen ein Balance-Defizit (#1791): je
 // defizitärer Säule (Defizit-Quelle ist `bewerteCareDefizit` aus #1790, nicht kopiert) bis zu
 // drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
-// `careSuggestionData.ts`. `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `de`).
+// `careSuggestionData.ts`. Meldet `bewerteCareDefizit` Überlast, stehen davor Erholungsvorschläge
+// (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `de`).
 // Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; #1804 (KI-Vorschläge
 // Plus/Pro) ergänzt später dieselbe Antwortform. Gescopet wie `/scores/balance` strikt mit
 // `ownerScope` auf Säulen und Tasks.
@@ -348,22 +355,36 @@ scoresRouter.get(
 				jetzt,
 			);
 
-			const vorschlaege: CareVorschlagDto[] = defizite
+			const ablehnungenDto = ablehnungen.map((ablehnung) => ({
+				templateKey: ablehnung.templateKey,
+				abgelehntAm: ablehnung.abgelehntAm,
+			}));
+			// #1795: bei Überlast Erholung (Pause, Körper, Mentale Gesundheit) VOR den Defizit-Vorschlägen.
+			const ueberlasteIds = defizite.filter((defizit) => defizit.ueberlast).map((defizit) => defizit.id);
+			const erholung: CareVorschlagDto[] =
+				ueberlasteIds.length > 0
+					? waehleErholungsVorschlaege(ueberlasteIds, vorlagen, ablehnungenDto, jetzt).map((vorschlag) => ({
+							...vorschlag,
+							saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
+							anlass: 'ueberlast' as const,
+						}))
+					: [];
+
+			const defizitVorschlaege: CareVorschlagDto[] = defizite
 				.filter((defizit) => defizit.defizitaer)
 				.flatMap((defizit) => {
 					const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
-					const vorlagenDerSaeule = vorlagen.filter((vorlage) => vorlage.saeuleId === saeule.id);
-					return waehleCareVorschlaege(
-						saeule,
-						aufgaben,
-						vorlagenDerSaeule,
-						ablehnungen.map((ablehnung) => ({
-							templateKey: ablehnung.templateKey,
-							abgelehntAm: ablehnung.abgelehntAm,
-						})),
-						jetzt,
-					).map((vorschlag) => ({ ...vorschlag, saeuleId: defizit.id, saeuleName: defizit.name }));
+					const vorlagenDerSaeule = vorlagen.filter(
+						(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
+					);
+					return waehleCareVorschlaege(saeule, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map((vorschlag) => ({
+						...vorschlag,
+						saeuleId: defizit.id,
+						saeuleName: defizit.name,
+						anlass: 'defizit' as const,
+					}));
 				});
+			const vorschlaege = [...erholung, ...defizitVorschlaege];
 
 			// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
 			const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));
