@@ -135,6 +135,7 @@ _Enthält v0.5.0 – v0.5.32._
 - fix(ci): hand already-done back to review once per HEAD by @deleonio in https://github.com/deleonio/priority-pilot/pull/1661
 - fix(deps): update dependency react-i18next to v17.0.15 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1627
 - chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
+- chore(deps): update dependency undici@6 to v8.11.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1654
 - feat(skills): add ticket-tree skill for solution plans and issue trees by @deleonio in https://github.com/deleonio/priority-pilot/pull/1698
 - chore(deps): update github actions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1657
 - docs(adr): add adr 0016 for native wrapper via capacitor remote mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1699
