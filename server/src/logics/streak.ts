@@ -63,6 +63,16 @@ export interface StreakErgebnis {
 }
 
 /**
+ * Zeitpunkte, die für die Streak zählen (#1820): der Abhake-Zeitpunkt und — bei verspäteter
+ * Erledigung (Fälligkeitstag vor Abhake-Tag) — zusätzlich die Fälligkeit, damit der verpasste
+ * Fälligkeitstag als erfüllt gilt. Pünktliche Einträge und solche ohne `deadline` bleiben unverändert.
+ */
+export const streakZeitpunkte = (eintraege: { zeitpunkt: Date; deadline?: Date | null }[], zeitZone: string): Date[] =>
+	eintraege.flatMap(({ zeitpunkt, deadline }) =>
+		deadline && tagIn(deadline, zeitZone) < tagIn(zeitpunkt, zeitZone) ? [zeitpunkt, deadline] : [zeitpunkt],
+	);
+
+/**
  * Streak-Kennzahlen aus den Erledigungszeitpunkten.
  *
  * Mehrere Erledigungen am selben Kalendertag zählen als ein aktiver Tag. `aktuell` bleibt auch dann

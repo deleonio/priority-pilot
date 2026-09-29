@@ -1,6 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { ScoreEntry } from '../models/index.js';
+import { ScoreEntry, Task } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 
 /**
@@ -126,5 +126,25 @@ describe('GET /scores/streak (#1360)', () => {
 
 		assert.equal(utc.letzterTag, '2026-09-11');
 		assert.equal(berlin.letzterTag, '2026-09-12', 'Europe/Berlin verschiebt den Kalendertag über Mitternacht hinaus');
+	});
+
+	it('AK5 (#1820): gestern fälliger, heute erledigter Task schließt die Lücke ⇒ aktuell=3', async () => {
+		const cookie = await server.register('streak-late@example.com', 'password123');
+		const tag = (offset: number, stunde: number): Date => {
+			const d = new Date();
+			d.setUTCDate(d.getUTCDate() - offset);
+			d.setUTCHours(stunde, 0, 0, 0);
+			return d;
+		};
+		await completeTaskAt(cookie, 'Vorgestern', tag(2, 12));
+		await completeTaskAt(cookie, 'Verspätet', tag(0, 0));
+		const [entry] = await ScoreEntry.findAll({ order: [['id', 'DESC']], limit: 1 });
+		await Task.update({ deadline: tag(1, 12) }, { where: { id: entry.taskId } });
+
+		const res = await getStreak(cookie, '?tz=UTC');
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { aktuell: number; best: number };
+		assert.equal(body.aktuell, 3);
+		assert.equal(body.best, 3);
 	});
 });
