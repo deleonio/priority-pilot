@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.24._
+_Enthält v0.10.0 – v0.10.25._
 
 ### 🔧 Engineering
 
@@ -28,6 +28,7 @@ _Enthält v0.10.0 – v0.10.24._
 - feat(server): suggest recovery on overload in care hint (#1795) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1861
 - docs(adr): ADR 0018 Preismodell Free/Plus/Pro (#1803) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1863
 - feat(ci): swap openrouter haiku model via set-agent-config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1865
+- fix(deps): update dependency com.android.tools.build:gradle to v8.13.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1855
 
 ### Other Changes
 
@@ -176,6 +177,7 @@ _Enthält v0.5.0 – v0.5.32._
 - feat(frontend): hide paypal purchase in android app plans view by @deleonio in https://github.com/deleonio/priority-pilot/pull/1711
 - feat(frontend): Konto löschen in den Einstellungen mit sequenzieller Bestätigung by @deleonio in https://github.com/deleonio/priority-pilot/pull/1712
 - feat(android): google and magic-link login returns to the app by @deleonio in https://github.com/deleonio/priority-pilot/pull/1713
+- feat(android): voice input for quick capture via speech plugin by @deleonio in https://github.com/deleonio/priority-pilot/pull/1714
 - feat(android): voice input for quick capture via speech plugin by @deleonio in https://github.com/deleonio/priority-pilot/pull/1714
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
@@ -328,7 +330,6 @@ _Enthält v0.2.0 – v0.2.134._
 - fix(server): use english error message in mcp readWeight validator by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1540
 - feat(frontend): increase mobile element sizes by one pixel step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1546
 - feat(server): add group create, update and delete MCP tools (#1542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1545
-- fix(server): resolve review findings f-10, f-11, v-3 (#1471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1550
 - fix(server): resolve review findings f-10, f-11, v-3 (#1471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1550
 - feat(server): scope llm providers to users via userId column (#1547) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1551
 - feat(frontend): add bloom and crystal life balance dial variants by @deleonio in https://github.com/deleonio/priority-pilot/pull/1552
