@@ -161,14 +161,14 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 
 **Info-Labels** — kein Trigger, keine automatische Aktion:
 
-| Label                                                                        | Gesetzt von                              | Bedeutung                                                                        |
-| ---------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
-| `ai:needs-human`                                                             | ux, review, fixup (+ PR/Issue-Kommentar) | KI kommt nicht weiter: **Warum** + **was der Mensch beitragen/entscheiden soll** |
-| `ai:needs-po-review`                                                         | triage (🟢)                              | PO-Review nach Triage-Analyse — PO prüft und setzt Phasen-Label                  |
-| `ai:to-big-issue`                                                            | triage, implement (2. Soft-Abort)        | Aufgabe zu groß für die Pipeline — Signal an den Menschen, löst nichts aus       |
-| `ai:continued`                                                               | implement, team (1. Soft-Abort)          | Fortsetzungs-Marker für den Folgelauf                                            |
-| `ai:spec-ready`/`ux:ready`/`ai:ready`/`ai:needs-changes`/`ai:ready-to-merge` | —                                        | **Entfallen** (Issue #851): ersetzt durch `ai:needs-*`/`ai:<past>`-Schema        |
-| `ai:ux-reviewed`/`ai:specified`/`ai:implemented`/`ai:fixed`                  | —                                        | **Entfallen** (Issue #873): tote Marker ohne Leser, jedes Add = No-Op-Runs       |
+| Label                                                                        | Gesetzt von                                       | Bedeutung                                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ai:needs-human`                                                             | analyse, ux, review, fixup (+ PR/Issue-Kommentar) | KI kommt nicht weiter: **Warum** + **was der Mensch beitragen/entscheiden soll** |
+| `ai:needs-po-review`                                                         | triage (🟢)                                       | PO-Review nach Triage-Analyse — PO prüft und setzt Phasen-Label                  |
+| `ai:to-big-issue`                                                            | triage, implement (2. Soft-Abort)                 | Aufgabe zu groß für die Pipeline — Signal an den Menschen, löst nichts aus       |
+| `ai:continued`                                                               | implement, team (1. Soft-Abort)                   | Fortsetzungs-Marker für den Folgelauf                                            |
+| `ai:spec-ready`/`ux:ready`/`ai:ready`/`ai:needs-changes`/`ai:ready-to-merge` | —                                                 | **Entfallen** (Issue #851): ersetzt durch `ai:needs-*`/`ai:<past>`-Schema        |
+| `ai:ux-reviewed`/`ai:specified`/`ai:implemented`/`ai:fixed`                  | —                                                 | **Entfallen** (Issue #873): tote Marker ohne Leser, jedes Add = No-Op-Runs       |
 
 ## Label-Setz-Regeln
 
