@@ -152,8 +152,10 @@ In-Memory-SQLite, Tests unter `server/src/**/*.test.ts`.
 `frontend/src/**/*.test.{ts,tsx}`.
 
 `pnpm --filter frontend test:e2e` — Playwright (nur Chromium), Specs unter `frontend/e2e/`, gegen
-das **echte** Backend (temporäre In-Memory-DB, kein `page.route`-Mocking). Läuft **nicht** als Teil
-von `pnpm test` — nur separat über `test:e2e`.
+das **echte** Backend (temporäre In-Memory-DB). `page.route` nur gezielt für Aufrufe, die im Test nicht
+echt laufen können oder sollen: LLM-Provider, Zahlungsanbieter, externe Dienste, nicht herstellbare
+Sitzungen und gezielt provozierte Fehlerantworten. Eigene App-Endpunkte, die das echte Backend bedienen
+kann, werden nicht weggemockt. Läuft **nicht** als Teil von `pnpm test` — nur separat über `test:e2e`.
 
 ## Website
 
