@@ -117,7 +117,7 @@ test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 		// Anchor ist der kol-alert-Host (Slot-Text ist Light-DOM), nicht getByRole('alert') —
 		// KolAlert exponiert die Rolle nicht zuverlässig (gleiches Muster wie geolocation.spec).
 		// Die positive Assertion auf DEMSELBEN Anchor verhindert ein vakuum-grünes Negativ.
-		const meldung = page.locator('kol-alert');
+		const meldung = page.locator('kol-alert').filter({ hasText: /KI-Dienst/ });
 		await expect(meldung).toContainText(/KI-Dienst.*nicht erreichbar/);
 		await expect(meldung.getByText(/502|503|Bad Gateway|timeout|Service Unavailable/i)).not.toBeVisible();
 	});

@@ -83,13 +83,13 @@ export const CareHint = () => {
 		if (vorschlag.typ === 'task' && vorschlag.taskId !== undefined) {
 			return api.updateTask({ id: vorschlag.taskId, taskUpdate: { status: 'In process' } });
 		}
-		const taskCreate = {
+		const taskCreate: TaskCreate = {
 			title: vorschlag.titel,
 			description: vorschlag.beschreibung,
 			priority: 3,
 			estimatedEffort: 0.5,
-			pillars: vorschlag.saeulenBeitraege.map(({ pillarId, share }) => ({ pillarId, share })),
-		} as TaskCreate;
+			pillars: vorschlag.saeulenBeitraege.map(({ pillarId, share }) => ({ pillarId, share, confidence: 100 })),
+		};
 		return api.createTask({ taskCreate });
 	};
 

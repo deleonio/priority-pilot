@@ -80,7 +80,7 @@ test.describe('Balamentum — #1465: Säulen-Badge mobil (375px)', () => {
 		await expect(page.getByTestId(`task-list-item-${taskWith}`).getByTestId('pillar-missing-badge')).toHaveCount(0);
 		// Das beschreibungs-getriebene Badge aus #1430 gibt es nicht mehr — beide Aufgaben haben eine
 		// Beschreibung, keine trägt „Hinweis".
-		await expect(page.getByText('Hinweis', { exact: true })).toHaveCount(0);
+		await expect(page.getByTestId('task-list').getByText('Hinweis', { exact: true })).toHaveCount(0);
 
 		const taskBox = await rowWithout.boundingBox();
 		expect(taskBox).not.toBeNull();

@@ -180,7 +180,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			await expect(modal).toBeVisible();
 
 			// Übernehmen-Button klicken
-			const confirmButton = page.getByRole('button', { name: 'Übernehmen' });
+			const confirmButton = page.getByRole('button', { name: 'Übernehmen', exact: true });
 			await confirmButton.click();
 
 			// Modal sollte geschlossen sein
@@ -210,7 +210,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			// Fokus liegt auf dem „Übernehmen"-Button (Spec + UX-Pattern; der Vergleich mit
 			// document.activeElement reicht bei KoliBri nicht — das ist der Shadow-DOM-Host —
 			// deshalb Shadow-DOM-tief über Playwrights toBeFocused).
-			const confirmButton = page.getByRole('button', { name: 'Übernehmen' });
+			const confirmButton = page.getByRole('button', { name: 'Übernehmen', exact: true });
 			await expect(confirmButton).toBeFocused();
 
 			// Issue 720: kein Fokus-Gefängnis — die Tab-Taste muss den Fokus weitertragen. Im Modal ist
@@ -328,7 +328,7 @@ test.describe('Lektorat Diff-Modal', () => {
 			await expect(modal).toBeVisible();
 
 			// Übernehmen-Button klicken
-			const confirmButton = page.getByRole('button', { name: 'Übernehmen' });
+			const confirmButton = page.getByRole('button', { name: 'Übernehmen', exact: true });
 			await confirmButton.click();
 
 			// Modal sollte geschlossen sein
