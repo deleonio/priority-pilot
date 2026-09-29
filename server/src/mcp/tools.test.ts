@@ -23,7 +23,8 @@ process.env.GOOGLE_ALLOWED_EMAILS =
 	'mcp-tools-balance-b@example.com,mcp-tools-balance-c@example.com,mcp-tools-balance-d-a@example.com,' +
 	'mcp-tools-balance-d-b@example.com,mcp-tools-pillar-a@example.com,mcp-tools-pillar-b@example.com,' +
 	'mcp-tools-history-a@example.com,mcp-tools-history-b@example.com,mcp-tools-history-c@example.com,' +
-	'mcp-tools-recipient-a@example.com,mcp-tools-recipient-b@example.com,mcp-tools-recipient-c@example.com';
+	'mcp-tools-recipient-a@example.com,mcp-tools-recipient-b@example.com,mcp-tools-recipient-c@example.com,' +
+	'mcp-care-a@example.com,mcp-care-b@example.com,mcp-care-c@example.com,mcp-care-d@example.com,mcp-care-e@example.com';
 applyTestAuthEnv('mcp-tools-test');
 
 let server: TestServer;
@@ -912,6 +913,8 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.deepEqual(names, [
 			'balance_history',
 			'balance_status',
+			// #1796: care_suggestions kommt alphabetisch vor category_create.
+			'care_suggestions',
 			'category_create',
 			'category_delete',
 			'category_list',
@@ -984,7 +987,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// #1413: zwei Säulen-Werkzeuge — die CRUD-Werkzeuge sind mit #1573 entfallen —,
 		// #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist „task_delete ist drin", nicht
 		// „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 32, `Katalog sollte zweiunddreißig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1197,7 +1200,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 32, `Katalog sollte zweiunddreißig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1573,8 +1576,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			31,
-			`Katalog sollte einunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
+			32,
+			`Katalog sollte zweiunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2373,13 +2376,13 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 		return ((await res.json()) as { id: number }).id;
 	};
 
-	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (31 gesamt)', async () => {
+	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (32 gesamt)', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 31, `Katalog sollte einunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 32, `Katalog sollte zweiunddreißig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
@@ -2760,5 +2763,105 @@ describe('MCP-Werkzeug task_create: Aufgaben für Gruppenmitglieder (#1382)', ()
 		});
 		assert.equal(updated.error, undefined, `task_update sollte trotz userId gelingen: ${updated.error?.message}`);
 		assert.equal(updated.result?.userId, ownId, 'task_update darf den Empfänger nicht auf B umziehen');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1796 (Spec docs/spec/issue-1796.md) — MCP-Werkzeug `care_suggestions`
+ * und Trend/Defizit in `balance_status`. Rot, bis das Werkzeug existiert und `balance_status`
+ * die Felder `trend`/`defizitaer` je Säule trägt. KEIN Produktivcode.
+ */
+describe('MCP-Werkzeug care_suggestions (#1796)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	type Vorschlag = { typ: string; saeuleId: number; titel: string; taskId?: number };
+
+	const restVorschlaege = async (cookie: string, query = ''): Promise<Vorschlag[]> => {
+		const res = await server.json(`/scores/care-suggestions${query}`, { headers: { Cookie: cookie } });
+		assert.equal(res.status, 200, 'Setup: REST-Vorschläge müssen 200 liefern');
+		return ((await res.json()) as { vorschlaege: Vorschlag[] }).vorschlaege;
+	};
+
+	const ersteSaeule = async (cookie: string): Promise<number> => {
+		const res = await server.json('/pillars', { headers: { Cookie: cookie } });
+		return ((await res.json()) as { id: number }[])[0]!.id;
+	};
+
+	const offeneTask = async (cookie: string, title: string, pillarId: number): Promise<void> => {
+		const res = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title, priority: 3, estimatedEffort: 0.5, pillars: [{ pillarId, share: 100 }] }),
+		});
+		assert.equal(res.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+	};
+
+	it('AK1/AK4: Katalog führt care_suggestions; Beschreibungen nennen Vorschläge und fordern aktives Anbieten', async () => {
+		const cookie = await server.register('mcp-care-a@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const tools = (await mcpListTools(token)) as { name: string; description?: string }[];
+		const care = tools.find((t) => t.name === 'care_suggestions');
+		assert.ok(care, 'care_suggestions muss im Katalog stehen');
+		assert.match(care.description ?? '', /suggest/i);
+		assert.match(care.description ?? '', /offer|proactive/i);
+
+		const balance = tools.find((t) => t.name === 'balance_status');
+		assert.match(balance?.description ?? '', /trend/i, 'balance_status-Beschreibung nennt den Trend');
+		assert.match(balance?.description ?? '', /care_suggestions/, 'balance_status verweist auf care_suggestions');
+	});
+
+	it('AK2: care_suggestions liefert exakt die vorschlaege der REST-Route (de und en)', async () => {
+		const cookie = await server.register('mcp-care-b@example.com', 'password123');
+		const token = await createToken(cookie);
+		const saeuleId = await ersteSaeule(cookie);
+		await offeneTask(cookie, 'Spaziergang im Park', saeuleId);
+
+		const de = await mcpCall<{ vorschlaege: Vorschlag[] }>(token, 'care_suggestions');
+		assert.equal(de.error, undefined, `care_suggestions muss gelingen: ${de.error?.message}`);
+		const restDe = await restVorschlaege(cookie);
+		assert.ok(restDe.length > 0, 'Setup: defizitäre Säule muss Vorschläge liefern');
+		assert.deepEqual(de.result?.vorschlaege, restDe);
+
+		const en = await mcpCall<{ vorschlaege: Vorschlag[] }>(token, 'care_suggestions', { language: 'en' });
+		assert.deepEqual(en.result?.vorschlaege, await restVorschlaege(cookie, '?sprache=en'));
+		const deVorlage = restDe.find((v) => v.typ === 'vorlage');
+		const enVorlage = en.result?.vorschlaege.find((v) => v.typ === 'vorlage');
+		assert.ok(deVorlage && enVorlage && deVorlage.titel !== enVorlage.titel, 'language=en liefert englische Vorlagen');
+	});
+
+	it('AK5: Aufgaben eines Fremdnutzers erscheinen nicht in care_suggestions', async () => {
+		const cookieA = await server.register('mcp-care-c@example.com', 'password123');
+		const cookieB = await server.register('mcp-care-d@example.com', 'password123');
+		const tokenA = await createToken(cookieA);
+		await offeneTask(cookieB, 'Geheime Aufgabe von B', await ersteSaeule(cookieB));
+
+		const result = await mcpCall<{ vorschlaege: Vorschlag[] }>(tokenA, 'care_suggestions');
+		assert.equal(result.error, undefined);
+		assert.ok(
+			!result.result?.vorschlaege.some((v) => v.titel === 'Geheime Aufgabe von B'),
+			'fremde Aufgabe darf nicht auftauchen',
+		);
+	});
+
+	it('AK3: balance_status spiegelt trend und defizitaer je Säule', async () => {
+		const cookie = await server.register('mcp-care-e@example.com', 'password123');
+		const token = await createToken(cookie);
+
+		const result = await mcpCall<{ saeulen: { trend?: string; defizitaer?: boolean }[] }>(token, 'balance_status');
+		assert.ok(result.result && result.result.saeulen.length > 0);
+		for (const saeule of result.result.saeulen) {
+			assert.ok(['erholt', 'stabil', 'verschlechtert'].includes(saeule.trend ?? ''), 'trend je Säule');
+			assert.equal(typeof saeule.defizitaer, 'boolean');
+		}
 	});
 });

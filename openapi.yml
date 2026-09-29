@@ -5257,6 +5257,23 @@ components:
         gewichtung:
           type: number
           description: Soll-Gewichtung der Säule (`Pillar.weight`, prozentualer Anteil).
+    BalanceStatusPillar:
+      allOf:
+        - $ref: '#/components/schemas/PillarBalance'
+        - type: object
+          required:
+            - trend
+            - defizitaer
+          properties:
+            trend:
+              type: string
+              enum: [erholt, stabil, verschlechtert]
+              description: >-
+                Aufwandstrend der Säule: erledigter Aufwand der letzten 14 Tage gegenüber den 14 Tagen
+                davor (`bewerteCareDefizit`, #1790).
+            defizitaer:
+              type: boolean
+              description: Ob die Säule in den letzten 14 Tagen keinen erledigten Aufwand hat (Fürsorge-Defizit).
     BalanceStatus:
       type: object
       required:
@@ -5283,7 +5300,7 @@ components:
           type: array
           description: Punktestand und Gewichtung je Säule des Nutzers, aufsteigend nach Säulen-ID.
           items:
-            $ref: '#/components/schemas/PillarBalance'
+            $ref: '#/components/schemas/BalanceStatusPillar'
         streak:
           $ref: '#/components/schemas/Streak'
         meilensteine:

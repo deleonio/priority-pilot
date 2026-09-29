@@ -176,19 +176,19 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		// Kadenz-Modell (#1638): der Füllstand misst die Erledigungen der letzten 28 Tage gegen den
 		// Soll-Rhythmus je Säule; Erledigt-Zeitpunkt ist `ScoreEntry.zeitpunkt` (ohne Eintrag: nur `punkte`).
 		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
-		const balance = berechneLebensbalanceNachKadenz(
-			saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
-			tasks.map((task) => ({
-				status: task.status,
-				estimatedEffort: task.estimatedEffort,
-				pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
-					pillarId: pillar.id,
-					share: pillar.TaskPillar.share,
-				})),
-				erledigtAm: zeitpunktProTask.get(task.id) ?? null,
+		const balanceSaeulen = saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight }));
+		const kadenzTasks = tasks.map((task) => ({
+			status: task.status,
+			estimatedEffort: task.estimatedEffort,
+			pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+				pillarId: pillar.id,
+				share: pillar.TaskPillar.share,
 			})),
-			new Date(),
-		);
+			erledigtAm: zeitpunktProTask.get(task.id) ?? null,
+		}));
+		const jetzt = new Date();
+		const balance = berechneLebensbalanceNachKadenz(balanceSaeulen, kadenzTasks, jetzt);
+		const defizite = bewerteCareDefizit(balanceSaeulen, kadenzTasks, jetzt);
 
 		const angefragteZone = typeof req.query.tz === 'string' ? req.query.tz : undefined;
 		const zeitZone = istGueltigeZeitzone(angefragteZone)
@@ -207,7 +207,11 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 			// Rauschen. Die Säulen-Punkte bleiben roh, damit ein Client selbst weiterrechnen kann.
 			fuellstandProzent: Math.round(balance.fill * 1000) / 10,
 			hatPunkte: balance.hasPoints,
-			saeulen: balance.saeulen,
+			// Trend/Defizit je Säule aus `bewerteCareDefizit` (#1796) — dieselbe Quelle wie /scores/care-suggestions.
+			saeulen: balance.saeulen.map((saeule) => {
+				const bewertung = defizite.find((defizit) => defizit.id === saeule.id);
+				return { ...saeule, trend: bewertung?.trend ?? 'stabil', defizitaer: bewertung?.defizitaer ?? false };
+			}),
 			streak: { aktuell, best, letzterTag: aktiveTage[aktiveTage.length - 1] ?? null },
 			// Nur die erreichten Stufen: die vollständige Stufenliste liefert /scores/milestones.
 			meilensteine: berechneMeilensteine({ bestStreak: best, punkteSumme }).filter(

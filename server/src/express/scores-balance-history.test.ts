@@ -184,7 +184,11 @@ describe('GET /scores/balance/history (#1424)', () => {
 
 		assert.equal(letzterEintrag.fuellstandProzent, balance.fuellstandProzent);
 		assert.equal(letzterEintrag.hatPunkte, balance.hatPunkte);
-		assert.deepEqual(letzterEintrag.saeulen, balance.saeulen);
+		// #1796: /scores/balance trägt zusätzlich trend/defizitaer je Säule — verglichen werden die gemeinsamen Felder.
+		assert.deepEqual(
+			letzterEintrag.saeulen,
+			balance.saeulen.map(({ id, name, punkte, gewichtung }) => ({ id, name, punkte, gewichtung })),
+		);
 	});
 
 	it('AK5: unbekannte tz fällt ohne Fehler auf die Serverzeitzone zurück', async () => {

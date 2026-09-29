@@ -419,8 +419,10 @@ export const mcpTools: McpTool[] = [
 		name: 'balance_status',
 		description:
 			"Returns the token owner's current life-balance status in one call: the overall fill level of " +
-			'the dashboard heart in percent, each pillar with its score and weighting, the completion streak ' +
-			'(current and best) and the milestones reached so far.',
+			'the dashboard heart in percent, each pillar with its score, weighting, ' +
+			'trend (erholt/stabil/verschlechtert) and deficit flag, the completion streak (current and best) and ' +
+			'the milestones reached so far. Pillars flagged as deficit call for care: follow up with ' +
+			'care_suggestions.',
 		inputSchema: {
 			type: 'object',
 			properties: {
@@ -438,6 +440,29 @@ export const mcpTools: McpTool[] = [
 			// (Fallback Serverzeit) — ein eigener Vorab-Check wäre ein zweiter Validierungspfad.
 			const query = typeof timezone === 'string' && timezone !== '' ? `?tz=${encodeURIComponent(timezone)}` : '';
 			return callApi(ctx, `/scores/balance${query}`);
+		},
+	},
+	{
+		name: 'care_suggestions',
+		description:
+			"Returns concrete care suggestions for the token owner's pillars in deficit (no completed effort " +
+			'in the last 14 days), each with its pillar and type (own open task or curated template). Trend and ' +
+			'deficit per pillar are also part of balance_status. Proactively offer these suggestions to the user ' +
+			'in a caring, non-pressuring tone whenever a pillar is neglected.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				language: {
+					type: 'string',
+					description: 'Language of the template texts (app languages, e.g. "de", "en"). Default "de".',
+				},
+			},
+		},
+		run: (ctx, args) => {
+			const language = args.language;
+			// Unbekannte Sprachen fallen in der Route auf `de` zurück — kein zweiter Validierungspfad hier.
+			const query = typeof language === 'string' && language !== '' ? `?sprache=${encodeURIComponent(language)}` : '';
+			return callApi(ctx, `/scores/care-suggestions${query}`);
 		},
 	},
 	{
