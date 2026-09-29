@@ -745,7 +745,7 @@ export const mcpTools: McpTool[] = [
 		name: 'pillar_weights_set',
 		description:
 			"Sets the token owner's full weight distribution across all pillars at once. The list must cover " +
-			'every existing pillar exactly once and its weights must add up to 100.',
+			'every existing pillar exactly once, each weight must be at least 5 % and the weights must add up to 100.',
 		write: true,
 		inputSchema: {
 			type: 'object',
