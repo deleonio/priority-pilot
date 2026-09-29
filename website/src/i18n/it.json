@@ -106,7 +106,7 @@
 				"points": [
 					"Genera un token di accesso nelle impostazioni e inserisci l’indirizzo MCP nell’assistente.",
 					"Funziona con Claude e altri assistenti che parlano MCP via HTTP.",
-					"La lettura è inclusa da Max, la creazione e la modifica con Ultimate."
+					"La lettura è inclusa da Plus, la creazione e la modifica con Pro."
 				]
 			},
 			{
@@ -170,6 +170,7 @@
 		"lead": "Inizia gratis. Se ti serve di più, cambi piano nell’app quando vuoi.",
 		"perMonth": "/ mese",
 		"free": "0 €",
+		"quarterly": "{price} a trimestre",
 		"yearly": "oppure {price} all’anno",
 		"discounts": "Con il pagamento trimestrale risparmi il 10%, con quello annuale il 20%. Tutti i prezzi sono finali; ai sensi del § 19 UStG (regime tedesco per le piccole imprese) non viene addebitata l’IVA.",
 		"basics": "Attività, serie, checklist, scadenze, punti e analisi dell’equilibrio",
@@ -197,7 +198,7 @@
 		"items": [
 			{
 				"q": "Quanto costa Balamentum?",
-				"a": "Il piano Free non costa nulla e non ha limiti sul numero di attività. Pro, Max e Ultimate sbloccano gruppi, aiuto IA e interfacce."
+				"a": "Il piano Free non costa nulla e non ha limiti sul numero di attività. Plus e Pro sbloccano gruppi, aiuto IA e interfacce."
 			},
 			{
 				"q": "Quali dati riceve l’app da Google?",

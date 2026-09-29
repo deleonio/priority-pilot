@@ -20,6 +20,23 @@ test.describe('Öffentliche Website', () => {
 		await expect(pricing.getByText('4,99 €')).toBeVisible();
 	});
 
+	test('Preiskarten zeigen Monat, Quartal und Jahr ohne Überlauf (#1786)', async ({ page }) => {
+		await page.goto('/');
+		const pricing = page.locator('#pricing');
+		await pricing.scrollIntoViewIfNeeded();
+		await expect(pricing.locator('[data-plan]')).toHaveCount(3);
+		for (const price of ['4,99 €', '13,47 €', '47,90 €', '9,99 €', '26,97 €', '95,90 €']) {
+			await expect(pricing.getByText(price).first()).toBeVisible();
+		}
+		const viewport = page.viewportSize()?.width ?? 0;
+		for (const card of await pricing.locator('[data-plan]').all()) {
+			const box = await card.boundingBox();
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(viewport);
+		}
+	});
+
 	test('Sprachwahl im Kopf führt in alle zehn Sprachen', async ({ page }) => {
 		const header = page.getByRole('banner');
 		await page.goto('/');
