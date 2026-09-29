@@ -17,6 +17,7 @@ frontend/DESIGN.md (the skill's context helper reads them; if the helper is unav
 files directly instead and continue).
 
 PROCEDURE (in this order, one bounded pass per phase — no open-ended polish loops):
+EFFICIENCY: read all sources in ONE tool block (AGENTS.md "Turns bündeln").
 1. Impeccable setup for the resolved target (skill setup step), then:
 2. AUDIT: /impeccable audit <resolved target> — technical quality report (a11y, performance,
    responsive, theming, implementation integrity). Document findings with file locations and

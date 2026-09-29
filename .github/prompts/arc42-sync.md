@@ -34,6 +34,7 @@ QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Breite Reads (Doku-Aussagen gegen den Code verifizieren) → `recherche`-Subagent-Rolle (ADR 0008); je Datei nur die Funde zurück in den Kontext.
 
 ABLAUF (STRIKT):
+  EFFIZIENZ: Quellen in EINEM Tool-Block lesen (AGENTS.md "Turns bündeln").
   1. SOFORT starten. docs/arc42.md lesen, FEHLT die Datei: Struktur-Vertrag als Gerüst anlegen und aus dem Code füllen.
   2. JEDE architekturrelevante Aussage (Bausteine, Schnittstellen, Abläufe, Technologien, Qualitätsziele, Risiken) gegen den Code verifizieren; fehlende Abschnitte aus dem Ist-Stand ergänzen.
   3. NUR bei belegtem Befund anpassen:

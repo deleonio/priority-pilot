@@ -23,7 +23,7 @@ FORBIDDEN in a fix (the workflow rejects the commit): everything under .github/*
 
 ORDER:
   1. BESTAND FIRST: if {{PROTOCOL_ISSUE_NR}} is not 0, read the body of issue {{PROTOCOL_ISSUE_NR}} (`gh issue view {{PROTOCOL_ISSUE_NR}} --json body --jq .body`) — this is the previous protocol; take over its open F- and V-findings with their numbers. Then `gh issue list --state open --limit 200 --json number,title` and `gh pr list --state open --limit 100 --json number,title,headRefName` as the open-work dedup list.
-  2. read ALL rule sources.
+  2. read ALL rule sources. Batch them in ONE tool block (AGENTS.md "Turns bündeln").
   3. code review per METHOD (four perspectives) and rulebook check per METHOD (contradictions, duplicates, vague or outdated rules — with both locations).
   4. consolidation: rank, dedup against open work, resolve carry-over statuses (umgesetzt ONLY after verifying in the code on main).
   5. fix selection and implementation per METHOD, if FIX ALLOWED TODAY is true.

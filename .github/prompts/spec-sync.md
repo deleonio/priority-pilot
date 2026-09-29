@@ -8,6 +8,7 @@ QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Breite Reads (Spec-Aussagen gegen den Code verifizieren) → `recherche`-Subagent-Rolle (ADR 0008); je Datei nur die Funde zurück in den Kontext.
 
 ABLAUF (STRIKT):
+  EFFIZIENZ: Quellen in EINEM Tool-Block lesen (AGENTS.md "Turns bündeln").
   1. DATEI-TRIAGE zuerst (billig zuerst, via `recherche`-Rolle — ADR 0008): der Subagent liefert die Liste aller
      docs/spec/-Dateien mit je 1-Satz-Zweck + Lösch-Empfehlung; du entscheidest je Datei. GANZE DATEI ENTFERNEN, wenn
      a) sie per Art kein Spec-Wert ist (manuelle Test-Protokolle, Validierungs-Platzhalter, Soll-/Arbeits-Stände zu abgeschlossenen Tickets), oder

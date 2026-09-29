@@ -10,6 +10,7 @@ QUELLEN (liest selbst, nicht im Prompt wiederholen):
     Knowledge-Graph-Skills gehört nicht zu diesem Lauf)
 
 ABLAUF (STRIKT):
+  EFFIZIENZ: Quellen in EINEM Tool-Block lesen (AGENTS.md "Turns bündeln").
   1. SOFORT starten. Alle ADR-Dateien aufsteigend lesen und die Supersession-Kette notieren:
      Wer ersetzt wen (Status: Superseded … durch ADR NNNN)?
   2. JEDES als Superseded markierte ADR prüfen: Ist es bereits ein Stub (Nachfolger-Verweis

@@ -10,6 +10,7 @@ QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Breite Reads (Handbuch-Aussagen gegen den Code verifizieren) → `recherche`-Subagent-Rolle (ADR 0008); je Datei nur die Funde zurück in den Kontext.
 
 ABLAUF (STRIKT):
+  EFFIZIENZ: Quellen in EINEM Tool-Block lesen (AGENTS.md "Turns bündeln").
   1. SOFORT starten. docs/user-guide.md vollständig lesen.
   2. JEDE nutzersichtbare Aussage (Ablaufbeschreibungen, Button-/Menü-Bezeichnungen, Meldungstexte, Tastaturkürzel, Randfälle) gegen den Code verifizieren.
   3. NUR bei belegter Abweichung das Handbuch anpassen:

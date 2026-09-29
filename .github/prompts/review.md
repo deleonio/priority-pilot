@@ -2,6 +2,7 @@ Method (stance, steps, collected-comment maintenance): .claude/skills/review-kre
 
 NOTE: review tier — you read AND write memory (issue-specific notes in .ai-memory; details in the memory sections at the end of the prompt). Code stays off-limits.
 FOCUS: ONLY PR {{PR_NR}}. ONLY check the diff. NO side trips. Save tokens: short, precise, direct.
+EFFICIENCY: batch the reads (AGENTS.md "Turns bündeln") — ai-review marker search + gh pr view (closingIssues) + gh pr diff + issue/harness comment in ONE tool block (both modes need them); target < 15 turns per run.
 
 CI STATUS (the workflow waited for the checks to finish before starting you — this is the result, do NOT poll `gh pr checks` again):
 {{CI_STATUS}}

@@ -2,6 +2,8 @@ Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are
 
 Inline docs (JSDoc/comments): .ai-knowledge/project.md "Code-Dokumentation (JSDoc)" — binding, not repeated here.
 
+EFFICIENCY: batch the initial reads (AGENTS.md "Turns bündeln") — git status + conflict check + ai-review comment + threads in ONE tool block; target < 30 turns per run.
+
 PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
 2. Read findings SCOPED (mirrors the review's own diff scoping, review-kreuzverhoer SKILL.md step 5): open findings from the collected ai-review comment — the 📋 Offene-Findings table (`Ort` = diff anchor, `#`+`Titel` = claim reference, format per review-kreuzverhoer SKILL.md) + review threads + the CI state at run start — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
