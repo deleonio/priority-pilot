@@ -1,0 +1,24 @@
+name: pi5-netdiag
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: pi5
+    timeout-minutes: 5
+    steps:
+      - name: Host-Netzwerk und Firewall inspizieren
+        run: |
+          docker run --rm --network host --privileged alpine:3 sh -c '
+            echo "=== GLOBAL-IPv6 ==="
+            ip -6 addr show scope global
+            echo "=== IPv4 ==="
+            ip -4 addr show
+            echo "=== LISTEN ==="
+            ss -tln | head -40
+            echo "=== NFTABLES ==="
+            nft list ruleset 2>/dev/null | head -120
+            echo "=== IPTABLES ==="
+            iptables -S 2>/dev/null | head -60
+          '
