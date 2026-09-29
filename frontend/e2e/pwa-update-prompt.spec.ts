@@ -136,6 +136,8 @@ test.describe('Balamentum — UpdatePrompt Mobile-Bedienbarkeit (#1034)', () => 
 
 			const card_ = page.locator('.update-prompt kol-card');
 			const button = page.locator(`[data-testid="${testId}"]`);
+			// boundingBox() wartet nicht: erst messen, wenn kol-button hydriert ist (Shadow-Button sichtbar).
+			await expect(button.locator('button')).toBeVisible();
 
 			const cardBox = await card_.boundingBox();
 			const buttonBox = await button.boundingBox();

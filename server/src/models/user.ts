@@ -27,6 +27,10 @@ class User extends Model {
 	public displayDistanceKm!: number;
 	public alarmDistanceKm!: number;
 	public intervalMinutes!: number;
+	/** Fürsorge-Push (#1794) — eigener Schalter (Default ein), unabhängig vom Push-Hauptschalter. */
+	public carePushEnabled!: boolean;
+	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
+	public zeitzone!: string | null;
 	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
 	/**
@@ -91,6 +95,16 @@ User.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 5,
+		},
+		carePushEnabled: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: true,
+		},
+		zeitzone: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
 		},
 		role: {
 			type: DataTypes.STRING,

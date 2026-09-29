@@ -1675,6 +1675,47 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           $ref: '#/components/responses/PlanRequired'
+  /care-config:
+    get:
+      summary: Care-Konfiguration des Users lesen
+      description: >-
+        Liefert die serverseitig pro User gespeicherte Care-Konfiguration (#1794):
+        Fürsorge-Push-Schalter (Default: ein) und Nutzer-Zeitzone (Default: UTC).
+      operationId: getCareConfig
+      tags: [care]
+      responses:
+        '200':
+          description: Aktuelle Care-Konfiguration (inkl. Defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareConfig'
+    put:
+      summary: Care-Konfiguration des Users speichern
+      description: >-
+        Speichert Schalter und Zeitzone (#1794). `zeitzone` muss ein gültiger
+        IANA-Zeitzonenname sein; Verstöße → HTTP 400 ohne Persistenz.
+      operationId: updateCareConfig
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareConfig'
+      responses:
+        '200':
+          description: Gespeicherte Care-Konfiguration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareConfig'
+        '400':
+          description: Ungültige Werte (Schalter kein Boolean, Zeitzone kein IANA-Name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /geo/position:
     post:
       summary: Positionsmeldung des Clients
@@ -3515,6 +3556,20 @@ components:
           minimum: 1
           maximum: 60
           description: Aktualisierungsintervall in Minuten (Default 5)
+    CareConfig:
+      type: object
+      description: >-
+        Care-Konfiguration pro User (#1794): eigener Schalter für den Fürsorge-Push
+        (getrennt von den Frist-Erinnerungen) und die Nutzer-Zeitzone (IANA) für
+        Ruhezeit (21–8 Uhr) und Kalendertag-Dedup des Triggers.
+      required: [carePushEnabled, zeitzone]
+      properties:
+        carePushEnabled:
+          type: boolean
+          description: Fürsorge-Push aktiv (Default true)
+        zeitzone:
+          type: string
+          description: IANA-Zeitzonenname (Default 'UTC')
     Group:
       type: object
       description: >-

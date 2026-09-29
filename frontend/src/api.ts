@@ -35,6 +35,7 @@ import type {
 	LlmProviderUpdate,
 	NearbyTask,
 	GeoConfig,
+	CareConfig,
 	Profile,
 	ParsedSearch,
 	ParsedTask,
@@ -1207,6 +1208,26 @@ export const api = {
 	// Speichert die Geo-Konfiguration; Schranken-Verstöße werden serverseitig mit 400 abgelehnt.
 	async updateGeoConfig(config: GeoConfig, init: Init = {}): Promise<GeoConfig> {
 		const { data, error, response } = await client.PUT('/geo-config', { body: config, signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Care-Konfiguration pro User (#1794) ---
+
+	// Fürsorge-Push-Schalter + Nutzer-Zeitzone (serverseitig gespeichert, mit Defaults).
+	async getCareConfig(init: Init = {}): Promise<CareConfig> {
+		const { data, error, response } = await client.GET('/care-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Speichert die Care-Konfiguration; ungültige Zeitzonen werden serverseitig mit 400 abgelehnt.
+	async updateCareConfig(config: CareConfig, init: Init = {}): Promise<CareConfig> {
+		const { data, error, response } = await client.PUT('/care-config', { body: config, signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

@@ -246,6 +246,36 @@ export const SettingsPage = ({
 
 	const [pushTestResult, setPushTestResult] = useState<'success' | 'none' | 'error' | null>(null);
 
+	// #1794 AK7: Fürsorge-Schalter — serverseitig pro User gespeichert und unabhängig vom
+	// Push-Hauptschalter bedienbar (er stoppt nur den Fürsorge-Push, nicht die Frist-Erinnerungen).
+	const [carePushEnabled, setCarePushEnabled] = useState(true);
+	const [careFailed, setCareFailed] = useState(false);
+
+	useEffect(() => {
+		api
+			.getCareConfig()
+			.then((config) => {
+				if (config && typeof config.carePushEnabled === 'boolean') {
+					setCarePushEnabled(config.carePushEnabled);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Default (ein) steht bleiben, Schalter bleibt bedienbar.
+			});
+	}, []);
+
+	/** #1794 AK7: Optimistic-Toggle mit sofortigem PUT; scheiterndes Speichern zeigt den Zeilen-Alert. */
+	const toggleCarePush = (value: boolean): void => {
+		setCarePushEnabled(value);
+		api
+			.updateCareConfig({ carePushEnabled: value, zeitzone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+			.then(() => setCareFailed(false))
+			.catch(() => {
+				setCareFailed(true);
+				setCarePushEnabled(!value);
+			});
+	};
+
 	// #1219 AK6: Anzeigename (Tab „Allgemein") — Server ist die Quelle (Spalte `users.displayName`),
 	// initial per GET /profile nachgeladen. Nutzer-Eingabe schlägt den nachlaufenden GET
 	// (dieselbe Absicherung wie bei der Geo-Konfiguration unten).
@@ -573,6 +603,25 @@ export const SettingsPage = ({
 									Browser, um Erinnerungen zu erhalten.
 								</KolAlert>
 							)}
+							<div className="settings-switch-row">
+								<KolInputCheckbox
+									_label="Fürsorge-Hinweise"
+									_variant="switch"
+									_checked={carePushEnabled}
+									_hint="Sanfte Hinweise bei deutlichem Defizit oder Überlast einer Säule – höchstens einer pro Tag, nie nachts. Betrifft nur den Fürsorge-Push: Frist-Erinnerungen bleiben an."
+									_on={{
+										onChange: (_event, value) => {
+											toggleCarePush(value === true);
+										},
+									}}
+								/>
+								{/* #1794: `careFailed` gehört zur Switch-Zeile (#971-Muster wie `pushFailed`). */}
+								{careFailed && (
+									<KolAlert _type="warning" _label="Einstellung nicht gespeichert">
+										Die Einstellung konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.
+									</KolAlert>
+								)}
+							</div>
 							{pushEnabled && (
 								<KolButton
 									_label="Push testen"
