@@ -753,6 +753,11 @@ Poll alle 20 s, Job-Timeout entsprechend 60 min). Der ermittelte Zustand geht al
 `{{CI_STATUS}}` in den Prompt: **rot** heißt blockierend — der Reviewer nennt jeden roten Job
 als Finding und verdictet `needs-fixup`.
 
+**Flake-Filter:** Sind alle roten Jobs e2e-Shards, startet das Review sie vorher genau einmal neu
+(`gh run rerun --failed`) und wartet bis zu 10 min erneut. Grün nach dem Rerun geht als
+Flake-Hinweis in den Prompt (kein Finding, Vermerk im Sammelkommentar); anderes Rot bleibt
+unverändert. Anlass: 2026-09 kosteten 25 Flakes je eine Fixup-Runde samt Re-Review.
+
 Warum: Review und CI starteten beide am selben Push. War das Review zuerst fertig und setzte
 `ai:needs-fixup`, lief die Nacharbeit los, ohne das CI-Ergebnis zu kennen; ein danach rot
 gewordener Check wurde dort nicht behoben, das Gate setzte erneut `ai:needs-fixup` — also
