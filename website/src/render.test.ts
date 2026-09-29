@@ -313,3 +313,53 @@ describe('asset links', () => {
 		expect(renderAssetLinks('de.balamentum.app', ' ')).toBeNull();
 	});
 });
+
+/**
+ * #1786 (Vertrag: `docs/spec/issue-1786.md`) — Preisseite in allen zehn Sprachen: genau Free/Plus/Pro,
+ * Monats-/Quartals-/Jahrespreis aus `catalog.prices`, kein Max/Ultimate, keine KI-Anfragenzahl.
+ */
+describe('Preisseite Free/Plus/Pro (#1786)', () => {
+	const eur = (locale: Locale, cents: number) =>
+		new Intl.NumberFormat(renderModule.LOCALES.includes(locale) ? locale : 'de', { style: 'currency', currency: 'EUR' })
+			.format(cents / 100)
+			.replace(/[  ]/g, ' ');
+	const normalized = (html: string) => html.replace(/&nbsp;|[  ]/g, ' ');
+
+	it.each([...LOCALES])('%s: drei Karten, alle Periodenpreise, kein Max/Ultimate/Anfragenzahl (AK1-AK3)', (locale) => {
+		const html = landing(locale);
+		expect(html.match(/data-plan="/g)).toHaveLength(3);
+		const text = normalized(html);
+		for (const plan of ['plus', 'pro'] as const) {
+			for (const period of ['monthly', 'quarterly', 'yearly'] as const) {
+				expect(text).toContain(eur(locale, catalog.prices[plan][period]));
+			}
+		}
+		expect(html).not.toMatch(/\b(Max|Ultimate)\b/);
+		expect(allMessages[locale].pricing.aiQuota).not.toMatch(/\d/);
+	});
+
+	it('de: MCP-Zeile nennt Lesen ab Plus und Schreiben in Pro (AK3)', () => {
+		const mcp = de.features.items.find((item) => item.id === 'mcp')?.points.at(-1) ?? '';
+		expect(mcp).toMatch(/Plus/);
+		expect(mcp).toMatch(/Pro/);
+		expect(mcp).not.toMatch(/Max|Ultimate/);
+	});
+
+	it('leitet alle Periodenpreise aus dem übergebenen Katalog ab (AK4)', () => {
+		const custom = {
+			...catalog,
+			prices: {
+				...catalog.prices,
+				plus: { monthly: 111, quarterly: 222, yearly: 333 },
+				pro: { monthly: 444, quarterly: 555, yearly: 666 },
+			},
+		};
+		const html = normalized(
+			renderLanding({ locale: 'de', messages: de, siteUrl: '', catalog: custom, plans: PLAN_VALUES }),
+		);
+		for (const price of ['1,11 €', '2,22 €', '3,33 €', '4,44 €', '5,55 €', '6,66 €']) {
+			expect(html).toContain(price);
+		}
+		expect(html).not.toContain('13,47 €');
+	});
+});
