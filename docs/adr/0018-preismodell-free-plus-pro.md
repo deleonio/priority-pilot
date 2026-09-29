@@ -6,7 +6,7 @@
 
 ## Kontext
 
-Die Preisstrategie im Epic #1780 ersetzt die vier Stufen (Free, Pro, Max, Ultimate) durch drei. Sie will Fair Use statt festem KI-Kontingent, MCP komplett in einer Stufe und einen Hinweis dort, wo eine Funktion gerade helfen würde. ADR 0014 entscheidet an drei Stellen anders. Ohne diese ADR widersprechen sich Umsetzung und Regelwerk.
+Die Preisstrategie im Epic #1780 ersetzt die vier Stufen (Free, Pro, Max, Ultimate) durch drei. Sie will Fair Use statt festem KI-Kontingent, einfachere MCP-Grenzen und einen Hinweis dort, wo eine Funktion gerade helfen würde. ADR 0014 entscheidet an drei Stellen anders. Ohne diese ADR widersprechen sich Umsetzung und Regelwerk.
 
 ## Entscheidung
 
@@ -19,7 +19,8 @@ Die Preisstrategie im Epic #1780 ersetzt die vier Stufen (Free, Pro, Max, Ultima
 | Einfache Abhängigkeiten                               |  ✅  |    ✅    |        ✅         |
 | Gruppen, gewichtete Abhängigkeiten, Orts-Erinnerungen |  –   |    ✅    |        ✅         |
 | KI-Hilfe                                              |  –   | Fair Use | erhöhter Fair Use |
-| MCP (lesen und schreiben)                             |  –   |    –     |        ✅         |
+| MCP lesen                                             |  –   |    ✅    |        ✅         |
+| MCP schreiben                                         |  –   |    –     |        ✅         |
 
 **2. Preise** (Endpreise, nach § 19 UStG ohne Umsatzsteuer):
 
@@ -34,13 +35,13 @@ Maßgeblich zur Laufzeit bleibt `server/src/logics/plans.ts`; die Preise hier si
 
 **4. Fair Use statt festem KI-Kontingent.** Plus und Pro nutzen die KI ohne festes Kontingent; Pro hat die höhere Fair-Use-Grenze. Die Grenze schützt vor Missbrauch und ist kein Verkaufsargument.
 
-**5. MCP nur in Pro**, lesend und schreibend zusammen.
+**5. MCP lesen ab Plus, schreiben ab Pro.** Plus-Konten können ihre Daten über MCP abfragen, Änderungen über MCP bleiben Pro vorbehalten.
 
 **6. Upgrade-Hinweise im Arbeitsfluss kommen zurück, ohne Angebots-Dialog.** Wo eine nicht enthaltene Funktion dem Nutzer gerade helfen würde, steht ein zurückhaltender Inline-Hinweis mit Link auf den Pakete-Reiter (Umsetzung #1787). Er ist nicht modal, verdeckt keine Eingabe, unterbricht keinen Arbeitsschritt und ist wegklickbar. Es bleibt bei genau einem Hinweis an der Stelle des Bedarfs; kein Dialog, kein Event, keine Sperre der laufenden Aktion.
 
 ## Ersetzte Punkte aus ADR 0014
 
-- **Punkt 2 (MCP-Grenzen Lesen ab Max, Schreiben ab Ultimate)** → ersetzt durch Entscheidung 5: MCP komplett in Pro.
+- **Punkt 2 (MCP-Grenzen Lesen ab Max, Schreiben ab Ultimate)** → ersetzt durch Entscheidung 5: Lesen ab Plus, Schreiben ab Pro.
 - **Punkt 7 (KI ohne Kontingent in Free, eigener Provider als Ausweg) und das feste KI-Kontingent** → ersetzt durch Entscheidung 4: Fair Use in Plus und Pro.
 - **Punkt 5, Satz „Im Arbeitsfluss wird eine nicht enthaltene Funktion gar nicht erst angeboten", und Konsequenz „Entdeckbarkeit verschiebt sich von der Störung zur Beschriftung"** → ersetzt durch Entscheidung 6: Inline-Hinweis am Bedarf.
 
