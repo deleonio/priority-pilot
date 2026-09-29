@@ -317,7 +317,7 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
-  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Die sechs Ticket-Phasen (01–06) serialisieren
+  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Die Ticket-Phasen 01–05 serialisieren
     über EINE gemeinsame statische `concurrency`-Gruppe `llm` — genau **EIN** Lauf **über alle
     Ticket-Phasen hinweg**, alles Weitere reiht sich FIFO ein (Teil-Rücktausch von
     [PR #1301](https://github.com/deleonio/priority-pilot/pull/1301), das vorher sechs eigene
@@ -325,8 +325,11 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
     [ADR 0005](./adr/0005-fixup-und-umsetzung-sind-eine-phase.md)) lagen ohnehin schon in
     derselben Gruppe und überholen einander damit weiterhin nie. Die übrigen LLM-Workflows
     (Doku-/Spec-Syncs, Prompt-Audit, Architektur- und Design-Optimierung) teilen sich weiterhin
-    EINE eigene, davon getrennte Gruppe `llm-sync`. Die strukturelle Obergrenze liegt damit bei
-    **2** gleichzeitigen Agent-Läufen (1 Ticket-Pipeline-Slot + 1 Sync-Slot): ein erschöpftes
+    EINE eigene, davon getrennte Gruppe `llm-sync`. Der Documenter (06) läuft per Default über
+    OpenRouter in der eigenen Gruppe `llm-openrouter`; mit der Notbremse
+    `LLM_PROVIDER_DOCUMENTER` (zai/claude) reiht er sich wieder in `llm` ein. Die strukturelle
+    Obergrenze liegt damit bei **3** gleichzeitigen Agent-Läufen (Ticket-Pipeline-, Sync- und
+    OpenRouter-Documenter-Slot): ein erschöpftes
     Kontingent (z.ai) trifft unter den Ticket-Läufen höchstens einen Lauf statt bis zu 6
     gleichzeitig verlorene/kollidierende — bekannte Kehrseite: eine lange Fixup-Schleife kann
     kurzzeitig eine Triage/ein Review blockieren, auch wenn sie verschiedene Tickets bedienen.
