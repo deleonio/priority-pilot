@@ -21,9 +21,8 @@ sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/ac
 | `openrouter`        | `ANTHROPIC_BASE_URL=https://openrouter.ai/api` (aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`) | `OPENROUTER_API_KEY` | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | Auflösung über `ANTHROPIC_DEFAULT_*_MODEL` in derselben Settings-Var |
 
 Ausnahme: Der **Documenter (06)** umgeht `vars.LLM_PROVIDER` und läuft per Default immer über
-`openrouter` mit einem `:free`-Model (Default `haiku`-Alias → Router `openrouter/free`, der ein
-gerade verfügbares Free-Modell wählt — einzelne `:free`-IDs zieht OpenRouter ohne Vorwarnung
-zurück; aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
+`openrouter` mit einem `:free`-Model (Default `haiku`-Alias → `poolside/laguna-s-2.1:free`,
+aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
 `LLM_PROVIDER_DOCUMENTER`, die den Wert überschreibt.
 
 **Notbetrieb (OpenRouter gestört):** Schlägt der Documenter-Run auf `main` fehl (Setup- oder
@@ -35,9 +34,19 @@ gh variable set LLM_PROVIDER_DOCUMENTER --body zai   # → GLM-Abo (haiku-Alias 
 gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openrouter-Default
 ```
 
-Ist ein fest eingetragenes `:free`-Modell weg (`400 This model is unavailable for free`), genügt
-es, `ANTHROPIC_DEFAULT_HAIKU_MODEL` in `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER` (und unter pi
-`openrouter.haiku` in `vars.PI_MODEL_ALIASES`) auf `openrouter/free` zu setzen.
+Die Free-Liste von OpenRouter ändert sich wöchentlich. Ist das eingetragene `:free`-Modell weg
+(`400 This model is unavailable for free`), die ID in beiden Variablen tauschen — die Modell-IDs
+stehen nur dort, nicht im Repo:
+
+```bash
+for v in CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER PI_MODEL_ALIASES; do
+  gh variable get "$v" | sed 's#<alte-id>#<neue-id>#g' | gh variable set "$v"
+done
+```
+
+Auswahl: ein Free-Modell mit Tool-Calling (Liste unter `openrouter.ai/models?max_price=0`). Der
+Router `openrouter/free` übersteht jede Rotation, wählt aber je Lauf ein anderes Modell — nur als
+Notlösung.
 
 **Peak-Fenster: Warning-only, kein Fallback mehr:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18
 Asia/Singapore) schaltet im Peak-Fenster nicht mehr auf `claude` um: Der Lauf bleibt auf zai
