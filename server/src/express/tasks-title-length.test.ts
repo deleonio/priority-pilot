@@ -29,6 +29,14 @@ describe('Task — Titel-Länge', () => {
 		await closeDb();
 	});
 
+	/** #1818 AK1/AK2: deutsche Meldung mit dem Limit, ohne sequelize-Standardtext. */
+	const assertTooLongMessage = (message: unknown): void => {
+		assert.equal(typeof message, 'string');
+		assert.match(message as string, /65/, 'Meldung nennt das Limit 65');
+		assert.match(message as string, /zu lang/i, 'Meldung ist deutsch und nennt „zu lang"');
+		assert.doesNotMatch(message as string, /Validation len/, 'kein sequelize-Standardtext');
+	};
+
 	const post = (path: string, body: unknown, cookie: string) =>
 		fetch(`${server.baseUrl}${path}`, {
 			method: 'POST',
@@ -83,8 +91,8 @@ describe('Task — Titel-Länge', () => {
 
 			assert.equal(res.status, 400, '66-Zeichen-Titel sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			// sendError liefert { message } (tasks.ts) — sequelize: "Validation len on title failed".
-			assert.ok((body.message as string)?.includes('title'), 'Fehler sollte auf title verweisen');
+			// #1818 AK1: deutsche Klartext-Meldung mit Limit statt sequelize-Standard "Validation len on title failed".
+			assertTooLongMessage(body.message);
 		});
 
 		it('Task mit exakt 65 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
@@ -103,6 +111,12 @@ describe('Task — Titel-Länge', () => {
 			assert.equal(res.status, 201, '65-Zeichen-Emoji-Titel sollte akzeptiert werden');
 		});
 
+		it('#1818 AK3: 10 Emojis + 55 Zeichen = 65 Codepoints (130 → 75 UTF-16-Einheiten) werden angenommen', async () => {
+			const title = '😀'.repeat(10) + 'x'.repeat(55);
+			const res = await post('/tasks', { title, status: 'Open', priority: 3, estimatedEffort: 0.5 }, cookie);
+			assert.equal(res.status, 201);
+		});
+
 		it('Task mit leerem Titel wird abgelehnt (minimum 1 Zeichen)', async () => {
 			const res = await post(
 				'/tasks',
@@ -116,6 +130,9 @@ describe('Task — Titel-Länge', () => {
 			);
 
 			assert.equal(res.status, 400, 'Leerer Titel sollte abgelehnt werden');
+			// #1818 AK3: leer ist nicht „zu lang".
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.doesNotMatch(String(body.message), /zu lang/i);
 		});
 	});
 
@@ -149,7 +166,43 @@ describe('Task — Titel-Länge', () => {
 
 			assert.equal(res.status, 400, 'Update auf 66 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok((body.message as string)?.includes('title'), 'Fehler sollte auf title verweisen');
+			assertTooLongMessage(body.message);
+		});
+	});
+	describe('Serien — Titel-Länge (#1818 AK2)', () => {
+		const futureStart = (): string => {
+			const d = new Date();
+			d.setUTCDate(d.getUTCDate() + 1);
+			d.setUTCHours(0, 0, 0, 0);
+			return d.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+		};
+		const validSeries = (title: string) => ({
+			title,
+			rhythm: 'weekly',
+			priority: 4,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureStart(),
+		});
+
+		it('POST /series mit 66 Zeichen → 400 mit deutscher Meldung und Limit 65', async () => {
+			const res = await post('/series', validSeries('s'.repeat(66)), cookie);
+			assert.equal(res.status, 400);
+			assertTooLongMessage(((await res.json()) as Record<string, unknown>).message);
+		});
+
+		it('PATCH /series/:id auf 66 Zeichen → 400 mit deutscher Meldung und Limit 65', async () => {
+			const created = await post('/series', validSeries('Original'), cookie);
+			assert.equal(created.status, 201);
+			const { id } = (await created.json()) as { id: number };
+			const res = await patch(`/series/${id}`, { title: 's'.repeat(66) }, cookie);
+			assert.equal(res.status, 400);
+			assertTooLongMessage(((await res.json()) as Record<string, unknown>).message);
+		});
+
+		it('POST /series mit 65 Codepoints inkl. Emoji wird angenommen', async () => {
+			const res = await post('/series', validSeries('😀'.repeat(10) + 'x'.repeat(55)), cookie);
+			assert.equal(res.status, 201);
 		});
 	});
 });

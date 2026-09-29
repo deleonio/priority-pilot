@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import type { Category, Group, GroupMember, Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Rote Spec-Tests für #305 — Auto-Trigger „Säulen vorschlagen" beim Anlegen eines neuen Tasks
@@ -2795,5 +2795,40 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * #1818 AK4 — Titel-Vorabprüfung beim Speichern: programmatisch gesetzte Titel (Schnellerfassung,
+ * Sprach-Anhängen) umgehen das native `maxlength`. Über 65 Codepoints → deutsche Meldung mit Limit,
+ * kein Request; 65 Codepoints inkl. Emoji (mehr UTF-16-Einheiten) werden nicht blockiert.
+ */
+describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
+	beforeEach(() => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockReset();
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+	});
+
+	it('66 Zeichen → Meldung mit Limit 65, api.createTask nicht aufgerufen', async () => {
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('t'.repeat(66));
+		await clickSave();
+
+		expect(screen.getByRole('alert').textContent).toMatch(/65/);
+		expect(screen.getByRole('alert').textContent).toMatch(/zu lang/i);
+		expect(mockCreateTask).not.toHaveBeenCalled();
+	});
+
+	it('65 Codepoints inkl. Emoji (75 UTF-16-Einheiten) → nicht blockiert', async () => {
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('😀'.repeat(10) + 'x'.repeat(55));
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 	});
 });
