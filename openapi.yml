@@ -6034,7 +6034,8 @@ components:
           type: string
           description: >-
             OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1 —
-            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten.
+            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten. Interne
+            Adressen (Loopback, private Netze, Link-Local) werden mit 400 abgelehnt.
         apiKey:
           type: string
           description: API-Key des Providers (Write-Only).

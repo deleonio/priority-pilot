@@ -180,6 +180,8 @@ export interface ProviderRuntime {
 	label: string;
 	/** Kennung der Key-Quelle für 503-Meldungen (ENV-Name oder „API-Key von X"). */
 	keySource: string;
+	/** Nutzerdefinierter Endpoint → SSRF-Prüfung vor jedem Abruf (F-2); Built-ins (ENV) nicht. */
+	guardEndpoint: boolean;
 }
 
 /** Löst die effektive Laufzeit-Konfiguration einer Provider-Zeile auf (ENV für Built-ins). */
@@ -194,6 +196,7 @@ export const toRuntimeConfig = (provider: LlmProvider): ProviderRuntime => {
 			model: provider.model || process.env[definition.envModel] || definition.defaultModel,
 			label: provider.name,
 			keySource: definition.envKey,
+			guardEndpoint: false,
 		};
 	}
 	const baseUrl = toBaseUrl(provider.endpoint);
@@ -204,6 +207,7 @@ export const toRuntimeConfig = (provider: LlmProvider): ProviderRuntime => {
 		model: provider.model,
 		label: provider.name,
 		keySource: `API-Key von ${provider.name}`,
+		guardEndpoint: true,
 	};
 };
 
