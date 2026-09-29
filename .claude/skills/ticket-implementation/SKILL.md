@@ -49,15 +49,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   - **Spec mode:** the **red tests already exist** (from the spec stage). They are the **contract** and are **not changed**.
   - **Fallback/direct mode** (the analysis deliberately skipped the spec, field "Spec nötig: nein" [spec needed: no]): create the branch yourself, implement, commit, push, and create the PR **yourself** (`gh pr create`, **not** `--draft` — the PR goes straight into review; without this step there is nothing to review). **Test obligation in direct mode:** if, against expectations, application code is touched after all (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`), write the tests yourself too — the test carve-out ([ticket-spec](../ticket-spec/SKILL.md) step 3, ADR 0001) applies ONLY to workflows, scripts, config, and markdown. If the scope turns out to be significantly larger than expected as a result, that's a sign the analysis misjudged it: end the run as not ready, with a justification in the PR body.
 - **(b) Green — code until green:** implement production code until **all** tests are green (`pnpm test`). Follow conventions (tabs, `strict`, ESM). For **frontend changes**, **KoliBri-first** applies: find and use the matching component via KoliBri MCP. Additionally check visible UI changes via Playwright MCP at **375px and 1280px viewport** against the running inspect instance.
-- **(c) Refactor & gate (CI mirror, before every commit):** clean up only once tests are green, then run the local CI gate:
-  ```
-  pnpm format
-  pnpm exec prettier --check .
-  pnpm lint
-  pnpm -r build
-  pnpm knip
-  pnpm test
-  ```
+- **(c) Refactor & gate (CI mirror, before every commit):** clean up only once tests are green, then run the canonical gate from AGENTS.md (mirror of CI Verify) plus `pnpm knip` — the deliberate extra sharpness of this skill.
   For **changed UI files**, apply the same order — **SPARINGLY:** for design/layout checks, use the deterministic, cheap tools first (design detectors + rules from `docs/mobile-ui-rules.md`); use Playwright MCP only for the short 375/1280 layout-break check on actually visible changes (screenshot + A11y snapshot), NOT for exploratory design analysis.
   **e2e:** `pnpm --filter frontend test:e2e` ONLY if the change affects UI behavior and an e2e spec exists for it — otherwise skip and note it in the PR body.
   **For confirm/delete/destructive dialogs:** apply `docs/ux-pattern-sequential-confirmation.md`. **For visible UI:** apply `docs/mobile-ui-rules.md` (touch targets ≥44px, async states, anti-patterns).

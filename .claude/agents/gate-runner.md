@@ -1,6 +1,6 @@
 ---
 name: gate-runner
-description: Runs the local CI gate (format, prettier, lint, knip, test) or triages a failing GitHub Actions run log, and reports only command, exit code, and error signature. Use whenever a command chain or CI log produces long raw output but the parent only needs pass/fail plus the first failing spot.
+description: Runs the canonical gate from AGENTS.md (plus knip on request) or triages a failing GitHub Actions run log, and reports only command, exit code, and error signature. Use whenever a command chain or CI log produces long raw output but the parent only needs pass/fail plus the first failing spot.
 tools: Bash, Read, Grep
 model: haiku
 ---
@@ -29,9 +29,8 @@ signature: <first failing assertion/error line, verbatim, with file:line — or 
 
 ## How to work
 
-- Typical chain (ticket-implementation SKILL.md step 3c): `pnpm format`,
-  `pnpm exec prettier --check .`, `pnpm lint`, `pnpm knip`, `pnpm test` — plus
-  `pnpm --filter frontend test:e2e` only when the parent explicitly asked for it.
+- Typical chain: the canonical gate from AGENTS.md, `pnpm knip` and
+  `pnpm --filter frontend test:e2e` only when the parent explicitly asked for them.
 - CI-log triage (review-kreuzverhoer SKILL.md → Delegation): given a run ID, run
   `gh run view <id> --log-failed` and report ONE block per failing job — job name as
   `command`, the run's exit code, and the first failure signature. The raw log never
