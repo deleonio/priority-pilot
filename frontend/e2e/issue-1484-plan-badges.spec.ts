@@ -263,7 +263,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	/**
 	 * #1524 AK9 (Spec docs/spec/issue-1524.md) — die um `mcp_read` erweiterte Paket-Tabelle
 	 * (`PlansSection.tsx`, Einstellungen → Pakete) bleibt bei 375px vollständig lesbar. Prüft
-	 * bewusst die ZEILENANZAHL (sieben Feature-Zeilen statt sechs) statt eines fest verdrahteten
+	 * bewusst die ZEILENANZAHL (acht Feature-Zeilen seit #1782) statt eines fest verdrahteten
 	 * Zeilentitels — der genaue Wortlaut von `FEATURE_OFFERS.mcp_read` ist Implementierungsdetail.
 	 * Rot, bis der Katalog um `mcp_read` wächst (heute: sechs Zeilen in `tbody`).
 	 *
