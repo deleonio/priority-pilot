@@ -21,8 +21,9 @@ sie zentral in [`.github/actions/setup-agent`](../.github/actions/setup-agent/ac
 | `openrouter`        | `ANTHROPIC_BASE_URL=https://openrouter.ai/api` (aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`) | `OPENROUTER_API_KEY` | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | Auflösung über `ANTHROPIC_DEFAULT_*_MODEL` in derselben Settings-Var |
 
 Ausnahme: Der **Documenter (06)** umgeht `vars.LLM_PROVIDER` und läuft per Default immer über
-`openrouter` mit einem `:free`-Model (Default `haiku`-Alias → `nvidia/nemotron-3-nano-30b-a3b:free`,
-aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
+`openrouter` mit einem `:free`-Model (Default `haiku`-Alias → Router `openrouter/free`, der ein
+gerade verfügbares Free-Modell wählt — einzelne `:free`-IDs zieht OpenRouter ohne Vorwarnung
+zurück; aufgelöst über `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`); Notbremse ist die Repo-Var
 `LLM_PROVIDER_DOCUMENTER`, die den Wert überschreibt.
 
 **Notbetrieb (OpenRouter gestört):** Schlägt der Documenter-Run auf `main` fehl (Setup- oder
@@ -34,9 +35,9 @@ gh variable set LLM_PROVIDER_DOCUMENTER --body zai   # → GLM-Abo (haiku-Alias 
 gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openrouter-Default
 ```
 
-Ist nur ein einzelnes `:free`-Modell weg (OpenRouter selbst erreichbar), genügt es,
-`ANTHROPIC_DEFAULT_HAIKU_MODEL` in `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER` auf ein anderes
-`:free`-Modell zu setzen.
+Ist ein fest eingetragenes `:free`-Modell weg (`400 This model is unavailable for free`), genügt
+es, `ANTHROPIC_DEFAULT_HAIKU_MODEL` in `vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER` (und unter pi
+`openrouter.haiku` in `vars.PI_MODEL_ALIASES`) auf `openrouter/free` zu setzen.
 
 **Peak-Fenster: Warning-only, kein Fallback mehr:** Der ZAI-Zeitfenster-Check (Mo–Fr 14–18
 Asia/Singapore) schaltet im Peak-Fenster nicht mehr auf `claude` um: Der Lauf bleibt auf zai
@@ -323,11 +324,14 @@ unten sind damit nicht mehr live.
 - **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call**; es war als Subagent-Modell
   im Spiel und ist seit der Umstellung auf `glm-4.7` (2026-09) nicht mehr konfiguriert. Die
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
-  Die `concurrency`-Gruppen deckeln die Parallelität strukturell: die sechs Ticket-Phasen
-  (`01-triage` … `06-document`) teilen sich EINE gemeinsame statische Gruppe `llm` (Teil-
+  Die `concurrency`-Gruppen deckeln die Parallelität strukturell: die Ticket-Phasen
+  (`01-triage` … `05-review`) teilen sich EINE gemeinsame statische Gruppe `llm` (Teil-
   Rücktausch von PR #1301, dort noch 6 eigene Phasen-Gruppen); die Cron-/Ad-hoc-Läufe bleiben
   in ihrer eigenen gemeinsamen Gruppe `llm-sync` (s. [pipeline-flow.md](./pipeline-flow.md)).
-  Obergrenze: **bis zu 2 gleichzeitige Agent-Läufe** (1 Ticket-Pipeline-Slot + 1 Sync-Slot) —
+  `06-document` wählt die Gruppe nach Provider: per Default `llm-openrouter` (kein
+  z.ai-Kontingent), mit der Notbremse `LLM_PROVIDER_DOCUMENTER` wieder `llm`.
+  Obergrenze: **bis zu 3 gleichzeitige Agent-Läufe** (Ticket-Pipeline-, Sync- und
+  OpenRouter-Documenter-Slot) —
   ein erschöpftes Kontingent trifft damit unter den Ticket-Läufen höchstens einen Lauf statt
   bis zu 6 gleichzeitig verlorene/kollidierende. Innerhalb einer Gruppe reihen sich weitere
   Läufe FIFO ein, statt parallel Kontingent zu ziehen. Bekannte Kehrseite: eine lange
