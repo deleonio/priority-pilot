@@ -197,3 +197,56 @@ describe('MCP-Loopback — Plan-Deckel für schreibende Werkzeuge (#1460 AK7, Sp
 		assert.doesNotMatch(error.message, /read access only/, 'kein generischer Nur-lese-Text mehr');
 	});
 });
+
+/**
+ * #1784 AK2/AK3 (Spec docs/spec/issue-1784.md) — `task_create` je Paket bei eingeschaltetem Rollout.
+ * AK1/AK4/AK5 sind oben (#1524) bzw. in ApiTokensSection.test.tsx (#1460) abgedeckt.
+ */
+describe('MCP-Loopback — task_create je Paket (#1784 AK2/AK3)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		delete process.env.MONETIZATION_ENFORCED;
+	});
+	after(async () => {
+		delete process.env.MONETIZATION_ENFORCED;
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const listTaskCount = async (cookie: string): Promise<number> => {
+		const res = await fetch(`${server.baseUrl}/tasks`, { headers: { Cookie: cookie } });
+		return ((await res.json()) as unknown[]).length;
+	};
+
+	it('AK2: ein readwrite-Token eines plus-Nutzers erhält bei task_create den Paket-Fehler (mcp_readwrite, pro), es entsteht keine Aufgabe', async () => {
+		const email = 'mcp-1784-plus@example.com';
+		const cookie = await server.register(email);
+		const token = await createToken(cookie);
+		await setPlan(email, 'plus');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const { error } = await mcpCall(token, 'task_create', { title: 'Sollte nicht entstehen' });
+
+		assert.ok(error, 'task_create muss einen JSON-RPC-Fehler liefern');
+		assert.match(error.message, /mcp_readwrite/);
+		assert.match(error.message, /"pro"/);
+		assert.equal(await listTaskCount(cookie), 0, 'keine Aufgabe darf angelegt werden');
+	});
+
+	it('AK3: ein readwrite-Token eines pro-Nutzers legt per task_create eine Aufgabe an', async () => {
+		const email = 'mcp-1784-pro@example.com';
+		const cookie = await server.register(email);
+		const token = await createToken(cookie);
+		await setPlan(email, 'pro');
+		process.env.MONETIZATION_ENFORCED = 'true';
+
+		const { error, text } = await mcpCall(token, 'task_create', { title: 'Von Pro angelegt' });
+
+		assert.equal(error, undefined, 'pro darf nicht am Paket scheitern');
+		assert.ok(text);
+		assert.equal(await listTaskCount(cookie), 1);
+	});
+});
