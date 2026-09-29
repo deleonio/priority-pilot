@@ -141,14 +141,14 @@ const createPillarViaApi = async (cookie: string, _name: string): Promise<number
 /**
  * Baut die vollständige Gewichtsliste für pillar_weights_set: jede Registrierung sät 5
  * Standard-Säulen (SEED_PILLARS), die Route verlangt exakte ID-Abdeckung aller Säulen des
- * Nutzers. Seed-Säulen ohne expliziten Wert bekommen Gewicht 0.
+ * Nutzers. Seed-Säulen ohne expliziten Wert bekommen den Mindestanteil 5 (#1822).
  */
 const weightsForAllPillars = async (
 	token: string,
 	overrides: Record<number, number>,
 ): Promise<{ id: number; weight: number }[]> => {
 	const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
-	return (list.result ?? []).map((p) => ({ id: p.id, weight: overrides[p.id] ?? 0 }));
+	return (list.result ?? []).map((p) => ({ id: p.id, weight: overrides[p.id] ?? 5 }));
 };
 
 const createReadOnlyToken = async (cookie: string): Promise<{ id: number; token: string }> => {
@@ -1447,14 +1447,14 @@ describe('MCP-Werkzeuge Säulen-Gewichte (#1413/#1573)', () => {
 		const pillarB = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 
 		const result = await mcpCall<PillarResult[]>(token, 'pillar_weights_set', {
-			weights: await weightsForAllPillars(token, { [pillarA]: 70, [pillarB]: 30 }),
+			weights: await weightsForAllPillars(token, { [pillarA]: 60, [pillarB]: 25 }),
 		});
 		assert.equal(result.error, undefined, `pillar_weights_set sollte gelingen: ${result.error?.message}`);
 
 		const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
 		const byId = new Map(list.result?.map((p) => [p.id, p.weight]));
-		assert.equal(byId.get(pillarA), 70);
-		assert.equal(byId.get(pillarB), 30);
+		assert.equal(byId.get(pillarA), 60);
+		assert.equal(byId.get(pillarB), 25);
 	});
 
 	it('AK6: unvollständige Gewichtsliste bzw. Summe != 100 schlägt fehl, vorherige Gewichte bleiben erhalten', async () => {
@@ -1464,7 +1464,7 @@ describe('MCP-Werkzeuge Säulen-Gewichte (#1413/#1573)', () => {
 		const pillarB = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
 
 		const initial = await mcpCall<PillarResult[]>(token, 'pillar_weights_set', {
-			weights: await weightsForAllPillars(token, { [pillarA]: 60, [pillarB]: 40 }),
+			weights: await weightsForAllPillars(token, { [pillarA]: 55, [pillarB]: 30 }),
 		});
 		assert.equal(initial.error, undefined, `Setup: pillar_weights_set sollte gelingen: ${initial.error?.message}`);
 
@@ -1482,8 +1482,48 @@ describe('MCP-Werkzeuge Säulen-Gewichte (#1413/#1573)', () => {
 
 		const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
 		const byId = new Map(list.result?.map((p) => [p.id, p.weight]));
-		assert.equal(byId.get(pillarA), 60, 'Gewicht von pillarA darf nach abgelehnten Aufrufen unverändert bleiben');
-		assert.equal(byId.get(pillarB), 40, 'Gewicht von pillarB darf nach abgelehnten Aufrufen unverändert bleiben');
+		assert.equal(byId.get(pillarA), 55, 'Gewicht von pillarA darf nach abgelehnten Aufrufen unverändert bleiben');
+		assert.equal(byId.get(pillarB), 30, 'Gewicht von pillarB darf nach abgelehnten Aufrufen unverändert bleiben');
+	});
+
+	it('#1822 AK2: pillar_weights_set mit einer Säule unter 5 % scheitert mit Mindestanteil-Meldung, nichts wird gespeichert', async () => {
+		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const pillarA = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+		const before = await mcpCall<PillarResult[]>(token, 'pillar_list');
+
+		const zeroed = (await weightsForAllPillars(token, {})).map((w) => ({ ...w, weight: w.id === pillarA ? 100 : 0 }));
+		const res = await mcpCall(token, 'pillar_weights_set', { weights: zeroed });
+		assert.ok(res.error, 'eine Säule mit 0 % muss abgelehnt werden');
+		assert.match(res.error!.message, /5 %/);
+		assert.match(res.error!.message, /HTTP 400/);
+
+		const after = await mcpCall<PillarResult[]>(token, 'pillar_list');
+		assert.deepEqual(after.result, before.result, 'Gewichte bleiben nach der Ablehnung unverändert');
+	});
+
+	it('#1822 AK3: pillar_weights_set akzeptiert exakt 5 % für eine Säule (80/5/5/5/5)', async () => {
+		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const pillarA = await createPillarViaApi(cookie, `Testsäule-${idCounter++}`);
+
+		const res = await mcpCall<PillarResult[]>(token, 'pillar_weights_set', {
+			weights: await weightsForAllPillars(token, { [pillarA]: 80 }),
+		});
+		assert.equal(res.error, undefined, `exakt 5 % muss gelingen: ${res.error?.message}`);
+		const list = await mcpCall<PillarResult[]>(token, 'pillar_list');
+		assert.deepEqual(
+			list.result?.map((p) => p.weight).sort((a, b) => a - b),
+			[5, 5, 5, 5, 80],
+		);
+	});
+
+	it('#1822 AK4: die Beschreibung von pillar_weights_set nennt den Mindestanteil von 5 %', async () => {
+		const cookie = await server.register('mcp-tools-pillar-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const tools = (await mcpListTools(token)) as { name: string; description?: string }[];
+		const tool = tools.find((t) => t.name === 'pillar_weights_set');
+		assert.match(tool?.description ?? '', /5\s?%/, 'Beschreibung muss den Mindestanteil 5 % nennen');
 	});
 
 	it('AK7: fremde/unbekannte ID im Gewichts-Set liefert den Abdeckungs-Fehlertext', async () => {

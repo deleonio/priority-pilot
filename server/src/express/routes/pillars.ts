@@ -4,6 +4,7 @@ import { createCrudRateLimiter } from './rateLimit.js';
 import { sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Pillar } from '../../models/index.js';
+import { SHARE_MIN } from '../../logics/pillarShares.js';
 import type { components } from '../../api';
 import { getUserId, ownerScope, requireAuth } from '../requireAuth.js';
 
@@ -136,6 +137,10 @@ pillarsRouter.put('/pillars/weights', requireAuth, async (req: Request, res: Res
 		const sum = entries.reduce((acc, entry) => acc + entry.weight, 0);
 		if (Math.abs(sum - TOTAL_WEIGHT) > SUM_EPSILON) {
 			sendError(res, 400, `Die Summe der Gewichte muss ${TOTAL_WEIGHT} ergeben (aktuell ${sum}).`);
+			return;
+		}
+		if (entries.some((entry) => entry.weight < SHARE_MIN - SUM_EPSILON)) {
+			sendError(res, 400, `Jede Säule braucht mindestens ${SHARE_MIN} % Gewicht.`);
 			return;
 		}
 

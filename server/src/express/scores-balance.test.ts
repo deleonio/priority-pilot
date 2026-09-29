@@ -207,7 +207,7 @@ describe('GET /scores/balance (#1423)', () => {
 		assert.equal(eintragNachher.punkte, eintragVorher.punkte, 'Gamification-Punkte bleiben unverändert');
 	});
 
-	it('#1663 AK5: ungleiche Gewichte ändern den Füllstand von GET /scores/balance (Körper hoch/gleich/0)', async () => {
+	it('#1663 AK5: ungleiche Gewichte ändern den Füllstand von GET /scores/balance (Körper hoch/gleich)', async () => {
 		const cookie = await server.register('balance-gewichte@example.com', 'password123');
 		const pillarRes = await server.json('/pillars', { headers: { Cookie: cookie } });
 		assert.equal(pillarRes.status, 200, 'Setup: Säulen müssen über die API lesbar sein');
@@ -241,10 +241,9 @@ describe('GET /scores/balance (#1423)', () => {
 		};
 
 		// Einziges Defizit ist Körper (Erfüllung 0): gleiche Gewichte → 1 − √0,2 ≈ 55,3 %;
-		// Körper hoch gewichtet → gewichtete Komponente 1 − √0,6 ≈ 22,5 %; Körper 0 → 100 %.
+		// Körper hoch gewichtet → gewichtete Komponente 1 − √0,6 ≈ 22,5 %.
 		const gleich = await setzeGewichte(20, 20);
 		const hoch = await setzeGewichte(60, 10);
-		const ohne = await setzeGewichte(0, 25);
 		assert.ok(
 			Math.abs(gleich - 55.3) < 0.2,
 			`fuellstandProzent=${gleich} muss ≈ 55,3 sein bei gleichen Gewichten (AK5)`,
@@ -253,8 +252,7 @@ describe('GET /scores/balance (#1423)', () => {
 			Math.abs(hoch - 22.5) < 0.2,
 			`fuellstandProzent=${hoch} muss ≈ 22,5 sein, wenn Körper hoch gewichtet ist (AK5)`,
 		);
-		assert.equal(ohne, 100, 'fuellstandProzent muss 100 sein, wenn die unbediente Säule Gewicht 0 hat (AK5)');
-		assert.ok(hoch < gleich && gleich < ohne, 'höheres Gewicht der unbedienten Säule muss den Füllstand senken (AK5)');
+		assert.ok(hoch < gleich, 'höheres Gewicht der unbedienten Säule muss den Füllstand senken (AK5)');
 	});
 });
 
