@@ -154,8 +154,25 @@ test.describe('#1231 — Session-Expired-Dialog mit stillen Re-Login', () => {
 		const reload = page.getByTestId('session-reload');
 		await expect(reload).toBeVisible();
 		await expect(reload).toBeEnabled();
+
+		// Tab-Freiheit (Scanner-Finding #1662): Der Initialfokus darf kein Fokus-Gefängnis sein —
+		// Tab muss den Fokus auf ein anderes Dialog-Control weiterbewegen, Shift+Tab zurückholen.
+		// KoliBri-Pull-back (siehe delete-dialog-focus.spec.ts): erst abwarten, DANN prüfen. Der
+		// Rückweg landet auf dem inneren KolButton (tabindex 0), nicht auf dem tabIndex={-1}-Span.
+		const cancel = page.getByRole('button', { name: 'Abbrechen' });
+		const reloadButton = page.getByRole('button', { name: 'Neu laden' });
+		await page.waitForTimeout(150);
+		await expect(async () => {
+			await page.keyboard.press('Tab');
+			await page.waitForTimeout(250);
+			await expect(cancel).toBeFocused({ timeout: 250 });
+		}).toPass({ timeout: 4000 });
+		await expect(reload).not.toBeFocused();
+		await page.keyboard.press('Shift+Tab');
+		await expect(reloadButton).toBeFocused();
+
 		authed.value = false;
-		await expect(reload).toBeFocused();
+		// Enter auf dem fokussierten KolButton löst den Reload aus (Klick bubbelt an den Span-Wrapper).
 		await page.keyboard.press('Enter');
 
 		await expect(page).toHaveURL(/\/aufgaben$/, { timeout: 10_000 });

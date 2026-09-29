@@ -92,6 +92,9 @@ describe('useMeasuredHeaderHeight', () => {
 		const setProperty = vi.spyOn(document.documentElement.style, 'setProperty');
 		observer.trigger();
 
+		// Observable Outcome: Auch beim zweiten Trigger bleibt der korrekte Wert an <html> — der
+		// Idempotenz-Guard darf ihn weder löschen noch verändern.
+		expect(measured()).toBe('53px');
 		expect(setProperty).not.toHaveBeenCalled();
 	});
 
