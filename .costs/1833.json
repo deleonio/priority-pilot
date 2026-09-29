@@ -1,0 +1,21 @@
+[
+	{
+		"timestamp": "2026-09-29T03:43:12.307Z",
+		"tokensIn": 592281,
+		"tokensOut": 5344,
+		"cost": 0.6632234,
+		"issueId": "1833",
+		"phase": "review",
+		"model": "claude-opus-5-5",
+		"provider": "claude",
+		"cacheCreationTokens": 69429,
+		"cacheReadTokens": 522836,
+		"turns": 8,
+		"durationSeconds": 57,
+		"valueCost": 0.6632234,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 4,
+		"nits": 2
+	}
+]
