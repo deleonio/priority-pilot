@@ -4,7 +4,8 @@ import { BlockList, isIP } from 'node:net';
 /**
  * SSRF-Sperre für nutzerdefinierte LLM-Endpoints (F-2, #1561): Der Server ruft die URL selbst ab,
  * sie darf also nicht ins interne Netz zeigen (Loopback, private Netze, Link-Local inkl.
- * Cloud-Metadaten, ULA). IPv4-gemappte IPv6-Adressen prüft `BlockList` gegen die IPv4-Netze.
+ * Cloud-Metadaten, ULA). IPv4-gemappte IPv6-Adressen prüft `BlockList` gegen die IPv4-Netze;
+ * NAT64 und 6to4 betten beliebige IPv4-Ziele ein und sind deshalb ganz gesperrt.
  */
 const internal = new BlockList();
 for (const [network, prefix] of [
@@ -23,6 +24,8 @@ for (const [network, prefix] of [
 for (const [network, prefix] of [
 	['::', 128],
 	['::1', 128],
+	['64:ff9b::', 96],
+	['2002::', 16],
 	['fc00::', 7],
 	['fe80::', 10],
 	['ff00::', 8],

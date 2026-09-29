@@ -16,6 +16,8 @@ describe('isPublicEndpoint', () => {
 		'http://[fd00::1]/v1',
 		'http://[fe80::1]/v1',
 		'http://[::ffff:127.0.0.1]/v1',
+		'http://[64:ff9b::a9fe:a9fe]/v1',
+		'http://[2002:a9fe:a9fe::1]/v1',
 		'http://0x7f000001/v1',
 		'http://2130706433/v1',
 	]) {
