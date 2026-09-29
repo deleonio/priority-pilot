@@ -317,6 +317,7 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): add five selectable life balance dials to the dashboard by @deleonio in https://github.com/deleonio/priority-pilot/pull/1535
 - feat(frontend): couple ai toggle to plan entitlement (#1525) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1536
 - feat(server): send admin email notification on new feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1538
+- feat(server): send admin email notification on new feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1538
 - feat(frontend): gate access-token controls, rename tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1537
 - feat(frontend): gate pillar advisor ui behind ai entitlement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1539
 - fix(server): use english error message in mcp readWeight validator by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1540
