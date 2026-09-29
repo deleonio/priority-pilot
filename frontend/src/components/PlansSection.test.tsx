@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * Rote Spec-Tests für #1494 AK9 (Spec docs/spec/issue-1494.md) — `PlansSection` formatiert die
- * seit #1494 in Cent gelieferten Preise wieder zu Euro-Beträgen ("7,99 €"), statt die rohe
- * Cent-Zahl zu rendern ("799 €").
+ * seit #1494 in Cent gelieferten Preise wieder zu Euro-Beträgen ("9,99 €"), statt die rohe
+ * Cent-Zahl zu rendern ("999 €").
  *
  * `@public-ui/react-v19` ist gemockt (KoliBri ist in JSDOM nicht hydrierbar, Muster
  * `PlanBadge.test.tsx`); die API-Fassade ist gemockt, damit der Katalog synchron mit Cent-Werten
@@ -89,23 +89,22 @@ afterEach(() => {
 });
 
 const CATALOG_CENTS = {
-	features: [{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] }],
+	features: [{ feature: 'groups', allowedPlans: ['plus', 'pro'] }],
 	prices: {
 		free: { monthly: 0, quarterly: 0, yearly: 0 },
-		pro: { monthly: 799, quarterly: 2157, yearly: 7670 },
-		max: { monthly: 1499, quarterly: 4047, yearly: 14390 },
-		ultimate: { monthly: 2499, quarterly: 6747, yearly: 23990 },
+		plus: { monthly: 499, quarterly: 1347, yearly: 4790 },
+		pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
 	},
 };
 
 describe('PlansSection (#1494 AK9)', () => {
-	it('zeigt den Pro-Monatspreis als "7,99 €" statt der rohen Cent-Zahl', async () => {
+	it('zeigt den Pro-Monatspreis als "9,99 €" statt der rohen Cent-Zahl', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('7,99 €')).toBeTruthy();
-		expect(screen.queryByText('799 €')).toBeNull();
+		expect(screen.getByText('9,99 €')).toBeTruthy();
+		expect(screen.queryByText('999 €')).toBeNull();
 	});
 
 	it('zeigt free als "0,00 €"', async () => {
@@ -119,12 +118,12 @@ describe('PlansSection (#1494 AK9)', () => {
 		expect(screen.getAllByText('0,00 €')).toHaveLength(3);
 	});
 
-	it('zeigt Ultimate-Monatspreis als "24,99 €"', async () => {
+	it('zeigt Plus-Monatspreis als "4,99 €"', async () => {
 		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('24,99 €')).toBeTruthy();
+		expect(screen.getByText('4,99 €')).toBeTruthy();
 	});
 });
 
@@ -139,8 +138,8 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('21,57 €')).toBeTruthy();
-		expect(screen.getByText('76,70 €')).toBeTruthy();
+		expect(screen.getByText('26,97 €')).toBeTruthy();
+		expect(screen.getByText('95,90 €')).toBeTruthy();
 	});
 
 	it('rendert nur Beträge aus dem Katalog — kein fest verdrahteter Fallback-Preis', async () => {
@@ -148,9 +147,8 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 			features: [],
 			prices: {
 				free: { monthly: 0, quarterly: 0, yearly: 0 },
-				pro: { monthly: 111, quarterly: 222, yearly: 333 },
-				max: { monthly: 1499, quarterly: 4047, yearly: 14390 },
-				ultimate: { monthly: 2499, quarterly: 6747, yearly: 23990 },
+				plus: { monthly: 111, quarterly: 222, yearly: 333 },
+				pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
 			},
 		};
 		getPlansCatalog.mockResolvedValue(sparseCatalog);
@@ -160,8 +158,8 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 		expect(screen.getByText('1,11 €')).toBeTruthy();
 		expect(screen.getByText('2,22 €')).toBeTruthy();
 		expect(screen.getByText('3,33 €')).toBeTruthy();
-		expect(screen.queryByText('7,99 €')).toBeNull();
-		expect(screen.queryByText('21,57 €')).toBeNull();
+		expect(screen.queryByText('4,99 €')).toBeNull();
+		expect(screen.queryByText('13,47 €')).toBeNull();
 	});
 });
 
@@ -183,8 +181,8 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibenden MCP-Zugriff)', () => {
 	const CATALOG_MCP = {
 		features: [
-			{ feature: 'mcp_read', allowedPlans: ['max', 'ultimate'] },
-			{ feature: 'mcp_readwrite', allowedPlans: ['ultimate'] },
+			{ feature: 'mcp_read', allowedPlans: ['plus', 'pro'] },
+			{ feature: 'mcp_readwrite', allowedPlans: ['pro'] },
 		],
 		prices: CATALOG_CENTS.prices,
 	};
@@ -210,13 +208,13 @@ describe('PlansSection (#1524 AK7: getrennte Zeilen für lesenden und schreibend
 		// unterscheidbar. Erst dieser Check erzwingt einen ECHTEN `FEATURE_OFFERS.mcp_read`-Eintrag.
 		expect(readTitle).not.toBe('Mehr Funktionen');
 
-		// mcp_read: max enthalten, ultimate enthalten, free/pro nicht.
+		// mcp_read: plus und pro enthalten, free nicht.
 		const readCells = Array.from(featureRows[0]!.querySelectorAll('td')).map((cell) => cell.textContent);
-		expect(readCells).toEqual(['—', '—', 'enthalten', 'enthalten']);
+		expect(readCells).toEqual(['—', 'enthalten', 'enthalten']);
 
-		// mcp_readwrite: nur ultimate enthalten (unverändert).
+		// mcp_readwrite: nur pro enthalten (unverändert).
 		const readwriteCells = Array.from(featureRows[1]!.querySelectorAll('td')).map((cell) => cell.textContent);
-		expect(readwriteCells).toEqual(['—', '—', '—', 'enthalten']);
+		expect(readwriteCells).toEqual(['—', '—', 'enthalten']);
 	});
 });
 
@@ -256,8 +254,8 @@ describe('PlansSection (#1529 AK3: KolTableStateful-Matrix mit gesetzten Spalten
 
 		const table = screen.getByTestId('plans-kol-table');
 		const headerCells = Array.from(table.querySelectorAll('thead th'));
-		// Funktion-Spalte + 4 Paket-Spalten (free/pro/max/ultimate aus CATALOG_CENTS.prices).
-		expect(headerCells).toHaveLength(5);
+		// Funktion-Spalte + 3 Paket-Spalten (free/plus/pro aus CATALOG_CENTS.prices).
+		expect(headerCells).toHaveLength(4);
 		for (const cell of headerCells) {
 			const width = cell.getAttribute('data-width');
 			expect(width, `Kopfspalte "${cell.textContent}" muss eine gesetzte width tragen`).not.toBe('');
@@ -296,7 +294,7 @@ describe('PlansSection je Kanal (#1674)', () => {
 
 		await waitFor(() => expect(screen.getByText('pro 9,49 €')).toBeTruthy());
 
-		expect(screen.queryByText('7,99 €')).toBeNull();
+		expect(screen.queryByText('9,99 €')).toBeNull();
 		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
 	});
 });

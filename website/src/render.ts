@@ -263,6 +263,7 @@ const planCard = (context: LandingContext, plan: Plan): string => {
 						</header>
 						<section class="kern-card__body">
 							<p class="plan__price"><strong>${t(amount)}</strong>${price.monthly === 0 ? '' : ` <span>${t(messages.pricing.perMonth)}</span>`}</p>
+							${price.quarterly === 0 ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.quarterly, { price: formatPrice(price.quarterly, locale) }))}</p>`}
 							${price.yearly === 0 ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.yearly, { price: formatPrice(price.yearly, locale) }))}</p>`}
 							${index === 0 ? '' : `<p class="plan__includes">${t(fill(messages.pricing.includesPrevious, { plan: messages.pricing.plans[plans[index - 1]] }))}</p>`}
 							<ul class="plan__features">

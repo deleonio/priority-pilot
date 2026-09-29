@@ -40,7 +40,7 @@ const withPlan = (plan: Plan | null, entitlements: EntitlementMap, children: Rea
 
 beforeEach(() => {
 	getPlansCatalog.mockResolvedValue({
-		features: [{ feature: 'groups', allowedPlans: ['pro', 'max', 'ultimate'] }],
+		features: [{ feature: 'groups', allowedPlans: ['plus', 'pro'] }],
 		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 799, yearly: 7670 } },
 	});
 });
