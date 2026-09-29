@@ -89,7 +89,7 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 	});
 
 	// Test-Pflege (#1460): `createToken()` liefert seit T5 einen Token, der bei jedem Paket ohne
-	// `mcp_readwrite` (alle außer `ultimate`) am Werkzeug selbst (mcp/server.ts) abgewiesen wird,
+	// `mcp_readwrite` (alle außer `pro`, #1782) am Werkzeug selbst (mcp/server.ts) abgewiesen wird,
 	// bevor der Loopback-Request die tool-eigene `graph_write`-Prüfung überhaupt erreicht — der
 	// generische Scope-Deckel aus #1460 tritt vor die spezifischere Feature-Prüfung aus #1457.
 	// Für `free` war das schon vorher blockiert (fehlt beides), nur der Fehlertext nennt jetzt
@@ -107,7 +107,7 @@ describe('MCP-Loopback übersetzt plan_required (#1457 AK6)', () => {
 			const { error } = await mcpCall(token, tool, { taskId: from, dependsOnId: to });
 
 			assert.ok(error, `${tool} muss einen JSON-RPC-Fehler liefern`);
-			assert.match(error.message, /ultimate/, 'Fehlertext muss das erforderliche Paket nennen');
+			assert.match(error.message, /"pro"/, 'Fehlertext muss das erforderliche Paket nennen');
 			assert.doesNotMatch(error.message, /HTTP 403/, 'kein nacktes „HTTP 403" mehr');
 		});
 	}
@@ -136,7 +136,7 @@ describe('MCP-Loopback — Plan-Deckel für lesende Werkzeuge (#1524 AK4/AK5)', 
 	});
 
 	for (const tool of ['task_links', 'group_list'] as const) {
-		it(`${tool}: ein free-Nutzer erhält einen JSON-RPC-Fehler, der max und mcp_read nennt (AK4)`, async () => {
+		it(`${tool}: ein free-Nutzer erhält einen JSON-RPC-Fehler, der plus und mcp_read nennt (AK4)`, async () => {
 			const email = `mcp-plan-read-${tool}@example.com`;
 			const cookie = await server.register(email);
 			const token = await createToken(cookie);
@@ -147,21 +147,21 @@ describe('MCP-Loopback — Plan-Deckel für lesende Werkzeuge (#1524 AK4/AK5)', 
 			const { error, text } = await mcpCall(token, tool, tool === 'task_links' ? { taskId } : {});
 
 			assert.ok(error, `${tool} muss einen JSON-RPC-Fehler liefern`);
-			assert.match(error.message, /max/, 'Fehlertext muss das erforderliche Paket nennen');
+			assert.match(error.message, /plus/, 'Fehlertext muss das erforderliche Paket nennen');
 			assert.equal(text, undefined, `${tool} darf bei Ablehnung kein Ergebnis liefern`);
 		});
 
-		it(`${tool}: ein max-Nutzer erhält weiterhin ein Ergebnis (AK5, keine Regression)`, async () => {
+		it(`${tool}: ein plus-Nutzer erhält weiterhin ein Ergebnis (AK5, keine Regression)`, async () => {
 			const email = `mcp-plan-read-ok-${tool}@example.com`;
 			const cookie = await server.register(email);
 			const token = await createToken(cookie);
 			const taskId = await createTask(cookie, 'A');
-			await setPlan(email, 'max');
+			await setPlan(email, 'plus');
 			process.env.MONETIZATION_ENFORCED = 'true';
 
 			const { error, text } = await mcpCall(token, tool, tool === 'task_links' ? { taskId } : {});
 
-			assert.equal(error, undefined, `${tool} darf für max nicht am Paket scheitern`);
+			assert.equal(error, undefined, `${tool} darf für plus nicht am Paket scheitern`);
 			assert.ok(text, `${tool} muss ein Ergebnis liefern`);
 		});
 	}
@@ -181,19 +181,19 @@ describe('MCP-Loopback — Plan-Deckel für schreibende Werkzeuge (#1460 AK7, Sp
 		await closeDb();
 	});
 
-	it('task_link: ein readwrite-Token eines max-Nutzers erhält bei eingeschaltetem Rollout einen JSON-RPC-Fehler, der ultimate nennt', async () => {
+	it('task_link: ein readwrite-Token eines plus-Nutzers erhält bei eingeschaltetem Rollout einen JSON-RPC-Fehler, der pro nennt', async () => {
 		const email = 'mcp-plan-cap-max@example.com';
 		const cookie = await server.register(email);
 		const token = await createToken(cookie);
 		const from = await createTask(cookie, 'A');
 		const to = await createTask(cookie, 'B');
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		const { error } = await mcpCall(token, 'task_link', { taskId: from, dependsOnId: to });
 
 		assert.ok(error, 'task_link muss einen JSON-RPC-Fehler liefern');
-		assert.match(error.message, /ultimate/, 'Fehlertext muss das erforderliche Paket nennen');
+		assert.match(error.message, /"pro"/, 'Fehlertext muss das erforderliche Paket nennen');
 		assert.doesNotMatch(error.message, /read access only/, 'kein generischer Nur-lese-Text mehr');
 	});
 });

@@ -39,9 +39,9 @@ describe('Paket-Spiegel (#1458 AK1–AK3)', () => {
 	});
 
 	it('AK1: der gespiegelte Zustand steht synchron zur Verfügung', () => {
-		storePlanMirror(7, { plan: 'max', entitlements: { graph_write: { allowed: true, requiredPlan: 'max' } } });
+		storePlanMirror(7, { plan: 'plus', entitlements: { graph_write: { allowed: true, requiredPlan: 'plus' } } });
 
-		expect(readPlanMirror(7).entitlements.graph_write).toEqual({ allowed: true, requiredPlan: 'max' });
+		expect(readPlanMirror(7).entitlements.graph_write).toEqual({ allowed: true, requiredPlan: 'plus' });
 	});
 
 	it('AK3: gesperrter localStorage führt nicht zum Fehler, sondern zum Leerzustand', () => {

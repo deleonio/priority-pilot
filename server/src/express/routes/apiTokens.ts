@@ -147,7 +147,7 @@ apiTokensRouter.patch('/api-tokens/:id', async (req: Request, res: Response<ApiT
 			sendError(res, 404, 'Token nicht gefunden.');
 			return;
 		}
-		// Plan-Deckel (#1460): Hochstufen auf readwrite bleibt Paket `ultimate` vorbehalten;
+		// Plan-Deckel (#1460): Hochstufen auf readwrite bleibt Paket `pro` vorbehalten;
 		// Herabstufen auf read ist nie paketbeschränkt.
 		if (rawScope === 'readwrite') {
 			const user = await User.findByPk(userId);

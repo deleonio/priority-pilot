@@ -241,7 +241,7 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 	// #1457 AK9: Standort-Push gehört zu `location_reminders` — bei eingeschaltetem Rollout
 	// bekommen Nutzer ohne passendes Paket keine Nachricht mehr, bei ausgeschaltetem alle wie bisher.
 	describe('AK9 (#1457): Paket-Gating des Standort-Push', () => {
-		const seedNearbyTaskFor = async (userId: number, email: string, plan: 'free' | 'max') => {
+		const seedNearbyTaskFor = async (userId: number, email: string, plan: 'free' | 'plus') => {
 			await User.create({ id: userId, email, passwordHash: 'x', displayName: 'Test', plan });
 			await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId });
 			await seedSubscription(userId, `https://push.example/${userId}`);
@@ -253,7 +253,7 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 
 		it('MONETIZATION_ENFORCED=true: free-Nutzer bekommt keinen Push, max-Nutzer schon', async () => {
 			await seedNearbyTaskFor(1, 'geo-free@example.com', 'free');
-			await seedNearbyTaskFor(2, 'geo-max@example.com', 'max');
+			await seedNearbyTaskFor(2, 'geo-plus@example.com', 'plus');
 			process.env.MONETIZATION_ENFORCED = 'true';
 			const calls: { endpoint: string; body: string }[] = [];
 
@@ -268,7 +268,7 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 
 		it('Rollout aus: beide Nutzer bekommen ihren Push wie bisher', async () => {
 			await seedNearbyTaskFor(1, 'geo-free-off@example.com', 'free');
-			await seedNearbyTaskFor(2, 'geo-max-off@example.com', 'max');
+			await seedNearbyTaskFor(2, 'geo-plus-off@example.com', 'plus');
 			delete process.env.MONETIZATION_ENFORCED;
 			const calls: { endpoint: string; body: string }[] = [];
 

@@ -178,15 +178,15 @@
 		"cta": "Kostenlos starten",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Gruppen und Einladungslinks",
 			"voice_input": "Spracheingabe",
 			"ai_assist": "KI-Hilfe: Säulen-Berater und Lektorat",
-			"graph_write": "Gewichtete Abhängigkeiten bearbeiten",
+			"graph_write": "Abhängigkeiten zwischen Aufgaben",
+			"graph_weight": "Gewichtete Abhängigkeiten bearbeiten",
 			"location_reminders": "Erinnerungen am Ort",
 			"mcp_read": "MCP-Schnittstelle (lesen)",
 			"mcp_readwrite": "MCP-Schnittstelle (lesen und schreiben)"

@@ -582,11 +582,11 @@ describe('POST/GET /tasks/reassign-pillars — Hintergrundlauf (#1642)', () => {
 		try {
 			const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
 			const memberId = await userIdOf(MEMBER_EMAIL);
-			await User.update({ plan: 'pro' }, { where: { id: memberId } });
+			await User.update({ plan: 'plus' }, { where: { id: memberId } });
 			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 			await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
 			await Task.create({ title: 'Zweite', status: 'Open', userId: memberId });
-			await AiUsage.create({ userId: memberId, yearMonth: new Date().toISOString().slice(0, 7), count: 59 });
+			await AiUsage.create({ userId: memberId, yearMonth: new Date().toISOString().slice(0, 7), count: 109 });
 
 			const postPromise = fetch(`${server.baseUrl}/tasks/reassign-pillars`, {
 				method: 'POST',
@@ -626,7 +626,7 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 	/** Konto mit zählbarem Paket: `free` hat Kontingent 0, damit liefe jeder Lauf sofort in die 429. */
 	const preparePayingMember = async (): Promise<number> => {
 		const memberId = await userIdOf(MEMBER_EMAIL);
-		await User.update({ plan: 'pro' }, { where: { id: memberId } });
+		await User.update({ plan: 'plus' }, { where: { id: memberId } });
 		return memberId;
 	};
 
@@ -698,8 +698,8 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 		await Task.create({ title: 'A', status: 'Open', userId: memberId });
 		const zweite = await Task.create({ title: 'B', status: 'Open', userId: memberId });
 		const dritte = await Task.create({ title: 'C', status: 'Open', userId: memberId });
-		// Genau ein Punkt bleibt übrig (Paket „pro": 60).
-		await seedUsage(memberId, 59);
+		// Genau ein Punkt bleibt übrig (Paket „plus": 110).
+		await seedUsage(memberId, 109);
 
 		const res = await run(cookie);
 		assert.equal(res.status, 200);
@@ -725,12 +725,12 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 		const memberId = await preparePayingMember();
 		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 		await Task.create({ title: 'A', status: 'Open', userId: memberId });
-		await seedUsage(memberId, 60);
+		await seedUsage(memberId, 110);
 
 		const res = await run(cookie);
 		assert.equal(res.status, 429);
 		const body = (await res.json()) as { code?: string; currentPlan?: string };
 		assert.equal(body.code, 'quota_exhausted');
-		assert.equal(body.currentPlan, 'pro');
+		assert.equal(body.currentPlan, 'plus');
 	});
 });

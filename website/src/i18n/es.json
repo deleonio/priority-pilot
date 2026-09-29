@@ -181,15 +181,15 @@
 		"cta": "Empezar gratis",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Grupos y enlaces de invitación",
 			"voice_input": "Entrada por voz",
 			"ai_assist": "Ayuda de IA: asesor de pilares y corrección de textos",
-			"graph_write": "Editar dependencias ponderadas",
+			"graph_write": "Dependencias entre tareas",
+			"graph_weight": "Editar dependencias ponderadas",
 			"location_reminders": "Recordatorios por ubicación",
 			"mcp_read": "Interfaz MCP (lectura)",
 			"mcp_readwrite": "Interfaz MCP (lectura y escritura)"

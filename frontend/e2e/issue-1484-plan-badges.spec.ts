@@ -186,7 +186,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 		await badge.click();
 
 		await expect(page.getByTestId('plans-section')).toBeVisible();
-		await expect(page.getByRole('dialog').filter({ hasText: /Pro|Max|Ultimate/ })).toHaveCount(0);
+		await expect(page.getByRole('dialog').filter({ hasText: /Plus|Pro/ })).toHaveCount(0);
 	});
 
 	// #1528 AK3/TF5: innerhalb der Schnellerfassung hat das Badge kein Klickziel (`inModal`) — ein
@@ -219,7 +219,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	// Rechte-Zeile entfällt — die Paket-Erklärung steht jetzt ausschließlich im Gating-Alert unter
 	// dem Regler (#1526 AK4). Ersetzt den vorigen Test „zeigt das mcp_readwrite-Badge …", der genau
 	// das Gegenteil erwartete.
-	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Ultimate-Alert ohne Overflow', async ({
+	test('#1526 AK4/AK6: Zugriff-Einstellungen zeigen keinen Badge, aber einen Pro-Alert ohne Overflow', async ({
 		page,
 	}) => {
 		// #1526 AK2 sperrt „Token erzeugen" auf Paket `free` (kein `mcp_read`) — ein Klick durch die
@@ -236,7 +236,10 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		await expect(page.getByTestId('plan-badge-mcp_readwrite')).toHaveCount(0);
 
-		const alert = page.locator('kol-alert[_type="info"]').filter({ hasText: 'Ultimate' }).first();
+		const alert = page
+			.locator('kol-alert[_type="info"]')
+			.filter({ hasText: 'Lesen und Schreiben ist ab dem Paket Pro' })
+			.first();
 		await expect(alert).toBeVisible();
 		await expectWithinViewport(alert);
 	});
@@ -260,7 +263,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	/**
 	 * #1524 AK9 (Spec docs/spec/issue-1524.md) — die um `mcp_read` erweiterte Paket-Tabelle
 	 * (`PlansSection.tsx`, Einstellungen → Pakete) bleibt bei 375px vollständig lesbar. Prüft
-	 * bewusst die ZEILENANZAHL (sieben Feature-Zeilen statt sechs) statt eines fest verdrahteten
+	 * bewusst die ZEILENANZAHL (acht Feature-Zeilen seit #1782) statt eines fest verdrahteten
 	 * Zeilentitels — der genaue Wortlaut von `FEATURE_OFFERS.mcp_read` ist Implementierungsdetail.
 	 * Rot, bis der Katalog um `mcp_read` wächst (heute: sechs Zeilen in `tbody`).
 	 *
@@ -273,7 +276,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	 * „Zeile ohne `columnheader`-Zelle" von der Kopfzeile abgegrenzt, die erwartete Feature-
 	 * Zeilenanzahl ergibt sich als Gesamtzahl der Datenzeilen minus dieser 6 konstanten Zeilen.
 	 */
-	test('#1524 AK9: die erweiterte Paket-Tabelle (7 Feature-Zeilen) bleibt ohne horizontalen Overflow', async ({
+	test('#1524 AK9: die erweiterte Paket-Tabelle (8 Feature-Zeilen, #1782: graph_weight) bleibt ohne horizontalen Overflow', async ({
 		page,
 	}) => {
 		await page.goto('/app/settings/pakete');
@@ -284,7 +287,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		const PRICE_AND_ACTION_ROWS = 3 + 3;
 		const bodyRows = host.getByRole('row').filter({ hasNot: page.getByRole('columnheader') });
-		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 7);
+		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 8);
 
 		// Geprüft wird „kein Seitenüberlauf", nicht „jede Zeile passt in den Viewport": seit #1529
 		// (AK4, ADR 0014 Entscheidung 6) scrollt die Matrix bewusst seitlich IM Tabellen-Host. Die

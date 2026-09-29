@@ -83,7 +83,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		if (rejectStoreChannel(req, res)) return;
 		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
-			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
+			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
 		const existing = await Subscription.findOne({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } });
@@ -145,7 +145,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		if (rejectStoreChannel(req, res)) return;
 		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
 		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
-			sendError(res, 400, 'plan muss pro, max oder ultimate sein, period monthly, quarterly oder yearly.');
+			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
 			return;
 		}
 		const subscription = await Subscription.findOne({

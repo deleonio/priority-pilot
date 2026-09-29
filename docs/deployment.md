@@ -271,7 +271,7 @@ Betriebsarten unter `/api/v1/*` auf — in Produktion streift Caddy das Präfix,
 ## 7. Übergangs-Setzung vor dem Launch (#1463)
 
 Bestandskonten mit `plan = 'free'`, die vor einem Stichtag angelegt wurden, bekommen einmalig das
-Übergangs-Tier `ultimate` und behalten so alle Funktionen. Die Setzung läuft **nicht** beim
+Übergangs-Tier `pro` und behalten so alle Funktionen. Die Setzung läuft **nicht** beim
 Serverstart (`migrate.ts`), sondern nur als manueller Lauf — ein später bewusst auf `free`
 zurückgesetztes Konto bleibt dadurch unberührt. Reihenfolge verbindlich:
 
@@ -281,7 +281,7 @@ zurückgesetztes Konto bleibt dadurch unberührt. Reihenfolge verbindlich:
    oder ist er ungültig, bricht das Skript ohne DB-Zugriff mit Exit-Code 1 ab. Ein zweiter Lauf mit
    gleichem Stichtag ändert 0 Konten.
 3. **Prüfen:** Das Skript gibt die Anzahl geänderter Konten und die Paketverteilung aus
-   (`{"free":…,"pro":…,"max":…,"ultimate":…}`). `free` darf nur noch Konten ab dem Stichtag enthalten.
+   (`{"free":…,"plus":…,"pro":…}`). `free` darf nur noch Konten ab dem Stichtag enthalten.
 4. **Schalter an:** `MONETIZATION_ENFORCED=true` in die Env-Datei, `pm2 reload` — der Wert wird pro
    Aufruf gelesen, kein Deploy nötig.
 

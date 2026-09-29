@@ -96,7 +96,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 		const body = JSON.stringify({
 			id: 'WH-DEDUP-1',
 			event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
-			resource: { id: 'I-DEDUP', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
+			resource: { id: 'I-DEDUP', plan_id: 'PAYPAL_PLAN_ID_PLUS_MONTHLY' },
 		});
 
 		await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
@@ -112,7 +112,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 			userId: 2,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-UPGRADE',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -122,13 +122,13 @@ describe('Billing/Webhook-API (#1495)', () => {
 			JSON.stringify({
 				id: 'WH-UPGRADE-1',
 				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
-				resource: { id: 'I-UPGRADE', plan_id: 'PAYPAL_PLAN_ID_MAX_MONTHLY' },
+				resource: { id: 'I-UPGRADE', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
 			}),
 			{ 'paypal-transmission-sig': 'ok' },
 		);
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UPGRADE' } });
-		assert.equal(sub?.get('plan'), 'max', 'Ein Upgrade muss sofort wirken');
+		assert.equal(sub?.get('plan'), 'pro', 'Ein Upgrade muss sofort wirken');
 	});
 
 	it('AK4: ein Downgrade wirkt erst zum currentPeriodEnd, nicht sofort', async () => {
@@ -138,7 +138,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 			userId: 3,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-DOWNGRADE',
-			plan: 'max',
+			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: periodEnd,
@@ -148,14 +148,14 @@ describe('Billing/Webhook-API (#1495)', () => {
 			JSON.stringify({
 				id: 'WH-DOWNGRADE-1',
 				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
-				resource: { id: 'I-DOWNGRADE', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
+				resource: { id: 'I-DOWNGRADE', plan_id: 'PAYPAL_PLAN_ID_PLUS_MONTHLY' },
 			}),
 			{ 'paypal-transmission-sig': 'ok' },
 		);
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-DOWNGRADE' } });
-		assert.equal(sub?.get('plan'), 'max', 'Ein Downgrade darf NICHT sofort wirken');
-		assert.equal(sub?.get('pendingPlan'), 'pro', 'Der geplante Downgrade muss vermerkt sein');
+		assert.equal(sub?.get('plan'), 'pro', 'Ein Downgrade darf NICHT sofort wirken');
+		assert.equal(sub?.get('pendingPlan'), 'plus', 'Der geplante Downgrade muss vermerkt sein');
 	});
 
 	it('AK5: die Rückkehr-URL ohne zugehöriges Webhook-Ereignis ändert den Plan nicht', async () => {
@@ -182,7 +182,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 			userId: 5,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-CANCEL',
-			plan: 'max',
+			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
@@ -217,7 +217,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 		const body = JSON.stringify({
 			id: 'WH-RETRY-1',
 			event_type: 'BILLING.SUBSCRIPTION.UPDATED',
-			resource: { id: 'I-RETRY', plan_id: 'PAYPAL_PLAN_ID_MAX_MONTHLY' },
+			resource: { id: 'I-RETRY', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
 		});
 
 		const first = await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
@@ -232,7 +232,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 		);
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-RETRY' } });
-		assert.equal(sub?.get('plan'), 'max', 'Das nachträglich verifizierte Ereignis muss wirksam werden');
+		assert.equal(sub?.get('plan'), 'pro', 'Das nachträglich verifizierte Ereignis muss wirksam werden');
 		const stored = await WebhookEvent.findOne({ where: { externalEventId: 'WH-RETRY-1' } });
 		assert.equal(stored?.get('verified'), true, 'Die Zeile darf nicht dauerhaft unverifiziert bleiben');
 		assert.notEqual(stored?.get('processedAt'), null, 'Die Verarbeitung muss vermerkt sein');
@@ -252,7 +252,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 		const body = JSON.stringify({
 			id: 'WH-DUP-1',
 			event_type: 'BILLING.SUBSCRIPTION.UPDATED',
-			resource: { id: 'I-DUP', plan_id: 'PAYPAL_PLAN_ID_MAX_MONTHLY' },
+			resource: { id: 'I-DUP', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
 		});
 
 		await rawPost('/webhooks/paypal', body, { 'paypal-transmission-sig': 'ok' });
@@ -274,11 +274,11 @@ describe('Billing/Webhook-API (#1495)', () => {
 			userId: 8,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-PENDING',
-			plan: 'max',
+			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: pendingPlanEffectiveAt,
-			pendingPlan: 'pro',
+			pendingPlan: 'plus',
 			pendingPlanEffectiveAt,
 		});
 
@@ -288,7 +288,7 @@ describe('Billing/Webhook-API (#1495)', () => {
 		const applied = await applyDuePendingPlan(sub, new Date('2026-12-01T00:00:01Z'));
 
 		assert.equal(applied, true);
-		assert.equal(sub.get('plan'), 'pro', 'Zum currentPeriodEnd muss der Downgrade wirken');
+		assert.equal(sub.get('plan'), 'plus', 'Zum currentPeriodEnd muss der Downgrade wirken');
 		assert.equal(sub.get('pendingPlan'), null, 'Die Vormerkung ist danach verbraucht');
 		assert.equal(sub.get('pendingPlanEffectiveAt'), null);
 	});
@@ -299,8 +299,8 @@ describe('Billing/Webhook-API (#1495)', () => {
 		const applied = await applyDuePendingPlan(sub, new Date('2026-11-30'));
 
 		assert.equal(applied, false);
-		assert.equal(sub.get('plan'), 'max', 'Vor dem Periodenende bleibt das bezahlte Paket aktiv');
-		assert.equal(sub.get('pendingPlan'), 'pro');
+		assert.equal(sub.get('plan'), 'pro', 'Vor dem Periodenende bleibt das bezahlte Paket aktiv');
+		assert.equal(sub.get('pendingPlan'), 'plus');
 	});
 });
 
@@ -327,7 +327,7 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 			userId: 101,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-PAY-1',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'past_due',
 			firstFailureAt: new Date('2026-01-05'),
@@ -362,7 +362,7 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 			userId: 104,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-PAY-BOTH',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'past_due',
 			firstFailureAt: new Date('2026-01-05'),
@@ -395,7 +395,7 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 			userId: 102,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-PAY-2',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
@@ -429,7 +429,7 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 			userId: 103,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-FAIL-1',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-02-01'),
@@ -456,7 +456,7 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 			userId: 104,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-FAIL-2',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'past_due',
 			firstFailureAt: new Date('2026-01-05T00:00:00.000Z'),
@@ -488,7 +488,7 @@ describe('Billing/Webhook-API (#1506 — Zahlungsereignisse)', () => {
 			userId: 105,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-SUSPEND-1',
-			plan: 'pro',
+			plan: 'plus',
 			period: 'monthly',
 			status: 'past_due',
 			firstFailureAt,

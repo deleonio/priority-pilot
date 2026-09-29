@@ -37,7 +37,7 @@ const SUBSCRIPTION = 'paid subscription';
 export const PAYMENT_CANCELLED = 6777006;
 
 /** Die Abo-Produkte in der Play Console, je Paket eines, aufsteigend (ADR 0017, `PLAY_PRODUCTS` im Server). */
-const PRODUCT_IDS: readonly string[] = ['pro', 'max', 'ultimate'];
+const PRODUCT_IDS: readonly string[] = ['plus', 'pro'];
 
 /** Replacement-Modes beim Paketwechsel, benannt wie im Plugin (`CdvPurchase.GooglePlay.ReplacementMode`). */
 type ReplacementMode = 'IMMEDIATE_WITH_TIME_PRORATION' | 'DEFERRED';

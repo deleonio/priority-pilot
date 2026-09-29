@@ -19,13 +19,13 @@ const setup = async () => {
 		email: 'play@example.com',
 		displayName: 'Play',
 		passwordHash: '__test__',
-		plan: 'pro',
+		plan: 'plus',
 	});
 	const subscription = await Subscription.create({
 		userId: user.id,
 		provider: 'google_play',
 		externalSubscriptionId: 'token-1',
-		plan: 'pro',
+		plan: 'plus',
 		period: 'monthly',
 		status: 'active',
 		currentPeriodEnd: PERIOD_END,
@@ -33,8 +33,8 @@ const setup = async () => {
 	return { user, subscription };
 };
 
-/** Stand eines Pro-Monatsabos bei Google. */
-const play = (state: string, expiresAt: Date) => ({ state, expiresAt, productId: 'pro', basePlanId: 'monthly' });
+/** Stand eines Plus-Monatsabos bei Google. */
+const play = (state: string, expiresAt: Date) => ({ state, expiresAt, productId: 'plus', basePlanId: 'monthly' });
 
 const planOf = async (userId: number) => (await User.findByPk(userId))?.get('plan');
 
@@ -55,7 +55,7 @@ describe('applyPlayState (#1694)', () => {
 		assert.equal(subscription.get('status'), 'active');
 		assert.deepEqual(subscription.get('currentPeriodEnd'), NEXT_END);
 		assert.equal(subscription.get('firstFailureAt'), null);
-		assert.equal(await planOf(user.id), 'pro');
+		assert.equal(await planOf(user.id), 'plus');
 	});
 
 	it('ACTIVE mit Wechsel zum Periodenende merkt das neue Paket vor, nach der Verlängerung gilt es (#1696)', async () => {
@@ -63,24 +63,24 @@ describe('applyPlayState (#1694)', () => {
 
 		await applyPlayState(
 			subscription,
-			{ ...play('ACTIVE', PERIOD_END), deferred: { productId: 'max', basePlanId: 'yearly' } },
+			{ ...play('ACTIVE', PERIOD_END), deferred: { productId: 'pro', basePlanId: 'yearly' } },
 			false,
 			NOW,
 		);
-		assert.equal(subscription.get('plan'), 'pro');
-		assert.equal(subscription.get('pendingPlan'), 'max');
+		assert.equal(subscription.get('plan'), 'plus');
+		assert.equal(subscription.get('pendingPlan'), 'pro');
 		assert.deepEqual(subscription.get('pendingPlanEffectiveAt'), PERIOD_END);
 
 		await applyPlayState(
 			subscription,
-			{ state: 'ACTIVE', expiresAt: NEXT_END, productId: 'max', basePlanId: 'yearly' },
+			{ state: 'ACTIVE', expiresAt: NEXT_END, productId: 'pro', basePlanId: 'yearly' },
 			false,
 			NOW,
 		);
-		assert.equal(subscription.get('plan'), 'max');
+		assert.equal(subscription.get('plan'), 'pro');
 		assert.equal(subscription.get('period'), 'yearly');
 		assert.equal(subscription.get('pendingPlan'), null);
-		assert.equal(await planOf(user.id), 'max');
+		assert.equal(await planOf(user.id), 'pro');
 	});
 
 	it('IN_GRACE_PERIOD und ON_HOLD starten die Kulanz, das Paket bleibt', async () => {
@@ -95,7 +95,7 @@ describe('applyPlayState (#1694)', () => {
 
 			assert.equal(subscription.get('status'), status, state);
 			assert.deepEqual(subscription.get('firstFailureAt'), NOW, state);
-			assert.equal(await planOf(user.id), 'pro', state);
+			assert.equal(await planOf(user.id), 'plus', state);
 		}
 	});
 
@@ -106,7 +106,7 @@ describe('applyPlayState (#1694)', () => {
 
 		await applyPlayState(subscription, play('CANCELED', PERIOD_END), false, NOW);
 		await applyDuePendingPlan(subscription, NOW);
-		assert.equal(await planOf(user.id), 'pro', 'vor dem Periodenende');
+		assert.equal(await planOf(user.id), 'plus', 'vor dem Periodenende');
 		assert.deepEqual(subscription.get('currentPeriodEnd'), PERIOD_END);
 		assert.equal(subscription.get('firstFailureAt'), null);
 

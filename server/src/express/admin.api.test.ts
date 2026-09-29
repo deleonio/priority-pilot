@@ -210,7 +210,7 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		const res = await fetch(`${server.baseUrl}/admin/users/${member.id}/plan`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json', cookie: memberCookie },
-			body: JSON.stringify({ plan: 'max' }),
+			body: JSON.stringify({ plan: 'plus' }),
 		});
 		assert.equal(res.status, 403, 'Member darf den Plan nicht ändern');
 	});
@@ -226,14 +226,14 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		const res = await fetch(`${server.baseUrl}/admin/users/${member.id}/plan`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
-			body: JSON.stringify({ plan: 'max' }),
+			body: JSON.stringify({ plan: 'plus' }),
 		});
 		assert.equal(res.status, 200);
 		const updated = (await res.json()) as AdminUserDto & { plan?: string };
-		assert.equal(updated.plan, 'max', 'Response-DTO trägt den neuen Plan');
+		assert.equal(updated.plan, 'plus', 'Response-DTO trägt den neuen Plan');
 
 		const persisted = await User.findOne({ where: { email: MEMBER_EMAIL } });
-		assert.equal((persisted as unknown as { plan?: string })?.plan, 'max', 'Plan ist in der DB persistiert');
+		assert.equal((persisted as unknown as { plan?: string })?.plan, 'plus', 'Plan ist in der DB persistiert');
 	});
 
 	it('#1456 — PATCH /admin/users/:id/plan liefert 400 bei ungültigem Plan-Wert', async () => {
@@ -257,7 +257,7 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		const res = await fetch(`${server.baseUrl}/admin/users/99999/plan`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
-			body: JSON.stringify({ plan: 'max' }),
+			body: JSON.stringify({ plan: 'plus' }),
 		});
 		assert.equal(res.status, 404);
 	});
@@ -268,7 +268,7 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		const res = await fetch(`${server.baseUrl}/admin/users/abc/plan`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json', cookie: adminCookie },
-			body: JSON.stringify({ plan: 'max' }),
+			body: JSON.stringify({ plan: 'plus' }),
 		});
 		assert.equal(res.status, 400);
 	});
@@ -370,7 +370,7 @@ describe('Admin-API — Nutzerverwaltung (Rollensystem admin/member)', () => {
 		const foreignRes = await fetch(`${server.baseUrl}/admin/users/${member.id}/plan`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json', cookie: testerCookie },
-			body: JSON.stringify({ plan: 'max' }),
+			body: JSON.stringify({ plan: 'plus' }),
 		});
 		assert.equal(
 			foreignRes.status,

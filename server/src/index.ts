@@ -246,7 +246,7 @@ export const main = async (): Promise<void> => {
 		// Fehlende role-Spalte (Rollensystem admin/member) an users nachziehen — vor sync(), damit
 		// Login, /auth/me und die Admin-API auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateUsersRoleColumn(sequelize);
-		// Fehlende plan-Spalte (Paket free/pro/max/ultimate, #1456) an users nachziehen — vor
+		// Fehlende plan-Spalte (Paket free/plus/pro, #1456/#1782) an users nachziehen — vor
 		// sync(), damit Login, /auth/me und die Admin-API auf Bestands-DBs nicht mit
 		// `no such column` brechen.
 		await migrateUsersPlanColumn(sequelize);
