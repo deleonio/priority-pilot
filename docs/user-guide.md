@@ -92,6 +92,11 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   unter der Zahl sagt, welche Säule zurückliegt und welche davonzieht.
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
+- **Fürsorge-Hinweis:** Kommt eine Säule zu kurz, steht über der nächsten Aufgabe ein
+  Vorschlag dazu. **„Vorschlag übernehmen"** legt ihn als Aufgabe an (eine eigene Aufgabe
+  wird auf „In process" gesetzt), **„Nicht jetzt"** blendet den Hinweis bis Tagesende aus,
+  **„Vorschlag ablehnen"** für 14 Tage. Gibt es keinen Vorschlag, steht dort eine kurze
+  Rückmeldung.
 - **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
   erledigt sind.
   Über **„Erledigen"** schließt du sie in einem Dialog direkt ab; daneben steht ein

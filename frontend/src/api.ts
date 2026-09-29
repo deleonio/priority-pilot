@@ -36,6 +36,7 @@ import type {
 	NearbyTask,
 	GeoConfig,
 	CareConfig,
+	CareVorschlag,
 	Profile,
 	ParsedSearch,
 	ParsedTask,
@@ -1182,6 +1183,28 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data;
+	},
+
+	// --- Fürsorge-Vorschläge gegen ein Balance-Defizit (#1791, Dashboard-Hinweis #1793) ---
+
+	async getCareSuggestions({ sprache, signal }: { sprache?: string } & Init = {}): Promise<{
+		vorschlaege: CareVorschlag[];
+	}> {
+		const { data, error, response } = await client.GET('/scores/care-suggestions', {
+			params: { query: { sprache } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	async dismissCareSuggestion({ templateKey }: { templateKey: string }): Promise<void> {
+		const { error, response } = await client.POST('/scores/care-suggestions/dismissals', { body: { templateKey } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
 	},
 
 	// --- Verpasste Aufgaben: vom Auto-Delete-Cron gelöschte Aufgaben (Bewertungssystem-Sichtbarkeit) ---

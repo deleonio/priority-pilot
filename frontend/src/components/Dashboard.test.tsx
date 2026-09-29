@@ -684,3 +684,37 @@ describe('Dashboard — Herz-Füllstand aus dem Server (#1638)', () => {
 		expect(spy).toHaveBeenCalledTimes(1);
 	});
 });
+
+/**
+ * AK1 (#1793, Spec docs/spec/issue-1793.md): Der Fürsorge-Hinweis steht im DOM VOR der Card
+ * „Nächste Aufgabe" (`.dashboard-next-task`). ROT, bis `Dashboard` `CareHint` einbindet.
+ */
+describe('Dashboard — Fürsorge-Hinweis vor „Nächste Aufgabe" (#1793)', () => {
+	it('rendert den Hinweis oberhalb der Card „Nächste Aufgabe"', async () => {
+		vi.spyOn(api, 'getCareSuggestions').mockResolvedValue({
+			vorschlaege: [
+				{
+					typ: 'vorlage',
+					titel: 'Zehn Minuten spazieren gehen',
+					beschreibung: 'Ein kurzer Spaziergang',
+					saeuleId: 1,
+					saeuleName: 'Körper',
+					saeulenBeitraege: [{ pillarId: 1, share: 100 }],
+					templateKey: 'koerper-spaziergang',
+				},
+			],
+		});
+
+		const { container } = render(
+			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[pillar(1, 'Körper', 100)]} />,
+		);
+
+		const careHint = await waitFor(() => {
+			const el = container.querySelector('[data-testid="care-hint"]');
+			expect(el).not.toBeNull();
+			return el as Element;
+		});
+		const nextTask = container.querySelector('.dashboard-next-task') as Element;
+		expect(careHint.compareDocumentPosition(nextTask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+});

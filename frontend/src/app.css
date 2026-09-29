@@ -1536,6 +1536,23 @@ kol-toolbar {
 	margin-top: var(--pp-gap-generous);
 }
 
+/* #1793: `.care-hint` (CareHint.tsx) — Abstand wie `.day-done-hint`; Übernehmen volle Breite,
+   „Nicht jetzt" und „Ablehnen" darunter in einer Zeile (bricht bei schmaler Breite/großer Schrift um). */
+.care-hint {
+	margin-top: var(--pp-gap-generous);
+}
+
+.care-hint-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-space-2);
+	margin-top: var(--pp-space-3);
+}
+
+.care-hint-accept {
+	flex: 1 0 100%;
+}
+
 .dashboard-balance {
 	margin-top: var(--pp-gap-generous);
 }
