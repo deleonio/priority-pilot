@@ -37,23 +37,25 @@ test.describe('Balamentum — #1794: Fürsorge-Schalter', () => {
 		expect(box!.x).toBeGreaterThanOrEqual(-1);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 
+		// Ausgangszustand vom Server lesen (die In-Memory-DB überlebt Retries/Wiederholungen) und
+		// erst klicken, wenn der Schalter den geladenen Wert zeigt — sonst trifft der Klick den Default.
+		const readCare = async () => {
+			const response = await page.request.get('/api/v1/care-config');
+			if (!response.ok()) return undefined;
+			return ((await response.json()) as { carePushEnabled?: boolean }).carePushEnabled;
+		};
+		const initial = (await readCare()) ?? true;
+		if (initial) await expect(care).toBeChecked();
+		else await expect(care).not.toBeChecked();
+
 		await care.click();
 
 		// Der PUT je Änderung ist async — erst abwarten, bis der Server den neuen Wert meldet,
 		// dann ist der Reload ein echter Persistenz-Beweis (Muster #1098 AK7).
-		await expect
-			.poll(
-				async () => {
-					const response = await page.request.get('/api/v1/care-config');
-					if (!response.ok()) return undefined;
-					return ((await response.json()) as { carePushEnabled?: boolean }).carePushEnabled;
-				},
-				{ timeout: 10_000 },
-			)
-			.toBe(false);
+		await expect.poll(readCare, { timeout: 10_000 }).toBe(!initial);
 
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
-		await expect(careSwitch(page), 'der gespeicherte Zustand überlebt den Reload').not.toBeChecked();
+		await expect(careSwitch(page), 'der gespeicherte Zustand überlebt den Reload').toBeChecked({ checked: !initial });
 	});
 });
