@@ -249,6 +249,17 @@ describe('LLM-Providers API', () => {
 		);
 	});
 
+	it('SSRF (F-2): POST und PUT mit internem Endpoint → 400', async () => {
+		const cookie = await register('ssrf@example.com');
+		const internal = { ...customPayload, endpoint: 'http://169.254.169.254/v1' };
+		assert.equal((await createProvider(cookie, internal)).status, 400);
+
+		const id = await createProviderAndGetId(cookie, customPayload);
+		assert.equal((await updateProvider(cookie, id, { endpoint: 'http://127.0.0.1:3000/v1' })).status, 400);
+		assert.equal((await updateProvider(cookie, id, { endpoint: 'ftp://nope' })).status, 400);
+		assert.equal((await listProviders(cookie)).find((p) => p.id === id).endpoint, customPayload.endpoint);
+	});
+
 	// ── Modellliste ────────────────────────────────────────────────────
 	it('GET /llm-providers/{id}/models liefert die Modelle des Providers (Upstream-Mock)', async () => {
 		process.env.MISTRAL_API_KEY = 'env-mistral-key';

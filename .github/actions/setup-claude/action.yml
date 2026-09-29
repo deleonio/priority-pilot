@@ -135,7 +135,11 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v6
+        # pi5-Split im Key: der self-hosted pi5-Runner (ARM64) teilt sich den Repo-Cache
+        # mit den x64-Hosted-Runnern — ohne Trennung würde der falsch-plattformige
+        # npm-Global-Stand restored. Statt runner.arch (User-Wunsch) läuft der Split über
+        # den Runner-Namen; hosted hat keinen stabilen Namen, daher der Sammel-Slot 'hosted'.
+        key: claude-code-cli-${{ runner.os }}-${{ runner.name == 'pi5' && 'pi5' || 'hosted' }}-v6
 
     # VERIFIZIEREN STATT VERTRAUEN: Die Bedingung lautete lange „installiere nur, wenn der
     # Cache NICHT griff". Ein Cache-Treffer beweist aber nur, dass Dateien da sind — nicht,

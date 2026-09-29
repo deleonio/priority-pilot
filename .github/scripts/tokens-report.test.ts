@@ -287,6 +287,29 @@ describe('tokens-report', () => {
 		}
 	});
 
+	it('Status-Dashboard und Wochen-Änderungsbericht: Ziele und Siegelwoche auf einen Blick', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-status-'));
+		try {
+			writeTicket(dir, '940', [
+				entry({ issueId: '940', phase: 'implement', valueCost: 2, timestamp: '2026-08-24T09:00:00Z' }),
+				entry({ issueId: '940', phase: 'documenter', timestamp: '2026-08-24T10:00:00Z' }),
+			]);
+			const report = renderReport(dir);
+			// Status-Dashboard: nur die Ziel-KPIs — Pipeline-Kosten unter Ziel = 🟢, die übrigen
+			// Ziele ohne Daten (kein Review/Cache/Modell in den Fixtures) bleiben „—" (6 Ziel-Zeilen:
+			// Review-Runden zählen je Herkunft)
+			assert.match(report, /### Status — Ziele auf einen Blick/);
+			assert.match(report, /\*\*1 von 6 Zielen erfüllt\*\*/);
+			assert.match(report, /\| Kosten je Ticket Pipeline — Median \(messende\) \| \$2\.00 \| < \$3\.00 \|.*🟢 \|/);
+			// Änderungsbericht: Siegelwoche (laufende Woche mit „*") und das versiegelte Ticket
+			assert.match(report, /### Was hat sich verändert — letzte Woche/);
+			assert.match(report, /\*\*2026-W35\*: 1 Tickets versiegelt · \$2\.00 gesamt · \$2\.00 je Ticket\*\*/);
+			assert.match(report, /\[#940\]\([^)]*\) \| Pipeline \| \$2\.00 \| über Median \(\$2\.00\) \|/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it('Direktvergleich ab zwei Tickets: Kennzahlen mit Δ und Phasen nebeneinander', () => {
 		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-vergleich-'));
 		try {

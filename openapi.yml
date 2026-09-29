@@ -772,9 +772,9 @@ paths:
     get:
       summary: Vergebene Gamification-Punkte je erledigtem Task
       description: >-
-        Liefert je erledigtem Task einen Score-Eintrag (Konzept §4.4): beim
-        Statuswechsel auf `Done` werden Punkte aus `estimatedEffort × priority`
-        vergeben, pünktlich (volle) bzw. verspätet (reduzierte Punkte).
+        Liefert je erledigtem Task des eingeloggten Nutzers einen Score-Eintrag
+        (Konzept §4.4): beim Statuswechsel auf `Done` werden Punkte aus
+        `estimatedEffort × priority` vergeben, pünktlich (volle) bzw. verspätet (reduzierte Punkte).
       operationId: getScores
       responses:
         '200':
@@ -6089,7 +6089,8 @@ components:
           type: string
           description: >-
             OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1 —
-            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten.
+            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten. Interne
+            Adressen (Loopback, private Netze, Link-Local) werden mit 400 abgelehnt.
         apiKey:
           type: string
           description: API-Key des Providers (Write-Only).

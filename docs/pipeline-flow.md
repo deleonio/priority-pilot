@@ -270,7 +270,8 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-review` (das Review bewertet die
   roten Jobs und stößt den Fixup an — **der Fixup startet nur aus dem Review**, siehe
   „Review wartet auf die Checks" unten); klebt `ai:needs-review` bereits, ist das ein No-op
-  (das anstehende Review liest das Ergebnis selbst); ist der PR
+  (das anstehende Review liest das Ergebnis selbst), ebenso bei `ai:reviewed` (das Review hat die
+  roten Checks dieses Heads schon bewertet, #1824); ist der PR
   wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → `ai:needs-fixup` (Ausnahme:
   auf einem konfliktbehafteten PR führt GitHub `pull_request`-Workflows gar nicht aus, ein
   Review-Trigger verpufft dort);
