@@ -9,6 +9,7 @@ name: Claude PR Gate & Auto-Merge
 # Allowlist-Check-Auswertung — sie sind die zwei Haelften EINER Entscheidung:
 #   - mind. ein Allowlist-Check (CI / Reviewer) ROT -> ai:needs-review setzen (das Review
 #     bewertet die roten Jobs und loest den Fixup aus; der Fixup startet NUR aus dem Review).
+#     Traegt der PR schon ai:reviewed, hat das Review die roten Jobs dieses Heads bewertet -> No-op.
 #   - alle GRUEN + ai:reviewed gesetzt + mergebar -> mergen.
 #   - sonst No-op.
 #
@@ -378,6 +379,15 @@ jobs:
             # ihm nur den Trigger unter den Fuessen wegziehen.
             if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
               echo "PR #$pr traegt ai:needs-review — das Review wartet selbst auf die Checks und bewertet sie mit (No-op)."
+              exit 0
+            fi
+            # Retrigger-Schleife #1824 (PR #1814: 12+ Review-Laeufe fuer denselben head_sha): Traegt
+            # der PR ai:reviewed, hat das Review diesen Head samt der roten Checks bereits bewertet
+            # (es wartet vor dem Verdict auf sie) — ein erneuter Trigger liefert nur dasselbe
+            # Verdict. Der Autolabeler baut ai:reviewed bei jedem Push ab; ein neuer Commit oder ein
+            # manuell gesetztes ai:needs-review startet weiterhin ein Review.
+            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" = "true" ]; then
+              echo "PR #$pr traegt ai:reviewed — das Review hat diesen Head samt roter Checks bereits bewertet, kein Re-Trigger (No-op)."
               exit 0
             fi
             red="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail") | (.workflow + " / " + .name)] | join(", ")')"
