@@ -78,6 +78,8 @@ vi.mock('./api', () => ({
 		getMilestones: vi.fn().mockResolvedValue([]),
 		// #1638: ohne Server-Antwort zeigt das Dashboard-Herz den lokal gerechneten Füllstand.
 		getBalanceStatus: vi.fn().mockRejectedValue(new Error('nicht gemockt')),
+		// Test-Pflege #1793: `CareHint` lädt beim Dashboard-Mount selbst; Ladefehler = kein Hinweis.
+		getCareSuggestions: vi.fn().mockRejectedValue(new Error('nicht gemockt')),
 		// Die neue Dashboard-Card „Verpasste Aufgaben“ lädt ihre Werte beim Mount selbst.
 		getMissedTasks: vi.fn().mockResolvedValue({ anzahl: 0, eintraege: [] }),
 		listGroups: vi.fn().mockResolvedValue([]),

@@ -27,6 +27,7 @@ export type NearbyTask = Schemas['NearbyTask'];
 export type GeoConfig = Schemas['GeoConfig'];
 /** #1794: Fürsorge-Push-Schalter + Nutzer-Zeitzone (Ruhezeit/Kalendertag). */
 export type CareConfig = Schemas['CareConfig'];
+export type CareVorschlag = Schemas['CareVorschlag'];
 // Persönliche API-Tokens für externe Clients (#1352) — Liste ohne Klartext, Anlege-Antwort mit.
 export type ApiToken = Schemas['ApiToken'];
 export type CreatedApiToken = Schemas['CreatedApiToken'];
