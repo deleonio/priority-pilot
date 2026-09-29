@@ -155,6 +155,7 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
           runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           # Documenter läuft per Default über OpenRouter (Free-Model über den haiku-Alias via
           # vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER); Notbremse: Repo-Var LLM_PROVIDER_DOCUMENTER.
           llm-provider: ${{ vars.LLM_PROVIDER_DOCUMENTER || 'openrouter' }}
