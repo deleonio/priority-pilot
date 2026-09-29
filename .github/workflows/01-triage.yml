@@ -491,7 +491,9 @@ jobs:
               f && /^[[:space:]]*-/ {
                 l = $0
                 sub(/^[[:space:]]*-[[:space:]]*(\[[[:space:]]\][[:space:]]*)?/, "", l)
-                if (l ~ /^[-—[:space:]]*$/ || tolower(l) ~ /^(keine|n\/a)/) next
+                if (l ~ /^~~/) next
+                t = tolower(l); gsub(/^[^[:alnum:]]+/, "", t)
+                if (t == "" || t ~ /^(keine|n\/a|none)/) next
                 print "- " l
               }')"
             if [ -n "$QUESTIONS" ]; then
