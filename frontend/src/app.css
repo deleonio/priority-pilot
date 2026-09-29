@@ -817,18 +817,18 @@ kol-toolbar {
 .task-section,
 .task-graph-panel,
 .series-section {
-	margin-top: var(--pp-gap-generous);
+	margin-top: var(--pp-gap-base);
 }
 
 /* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. Einheitliches Gap-Token
-   (`--pp-gap-generous`) für die ganze Kette Kopf → Tabs → Panel-Inhalt (unten) — dieselbe Distanz,
-   mit der auch alle Cards untereinander getrennt sind (Design-Lauf 2026-09, statt des größeren
-   `--pp-gap-major`, der die Kette unnötig ausdehnte). Der Abstand Tab-Leiste → Panel-Inhalt
-   (`.app-tabs .dashboard` etc.) braucht keine eigene Regel: Die Basisregel oben setzt für dieselben
-   Selektoren bereits denselben Wert, ein zusätzlicher `.app-tabs`-Block wäre nur ein No-Op mit
-   höherer Spezifität. */
+   (`--pp-gap-base`) für die ganze Kette Kopf → Tabs → Panel-Inhalt (unten). Der kompakte Wert
+   (2026-09, vorher `--pp-gap-generous`) hält den Raum über dem Dashboard-Ziffernblatt so klein,
+   dass die Balance-Karte inkl. Ablesewert in den Viewport passt. Der Abstand Tab-Leiste →
+   Panel-Inhalt (`.app-tabs .dashboard` etc.) braucht keine eigene Regel: Die Basisregel oben setzt
+   für dieselben Selektoren bereits denselben Wert, ein zusätzlicher `.app-tabs`-Block wäre nur ein
+   No-Op mit höherer Spezifität. */
 .app-tabs {
-	margin-top: var(--pp-gap-generous);
+	margin-top: var(--pp-gap-base);
 	/*
 	 * KolTabs legt sein Grid (`.kol-tabs`) intern ohne `grid-template-columns` an — die einzige
 	 * Spalte bleibt `auto` und wächst auf den Max-Content jedes Tabpanel-Inhalts (#1020: die
@@ -848,7 +848,7 @@ kol-toolbar {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--pp-gap-tight);
-	margin-bottom: var(--pp-space-2);
+	margin-bottom: var(--pp-space-1);
 }
 
 /* #1617: Wochenansicht — 7 Tageskarten, responsiv umbrechend statt horizontal zu scrollen. */
@@ -863,16 +863,18 @@ kol-toolbar {
 	padding-inline-start: 1.2em;
 }
 
-/* Personalisierte Begrüßung zwischen H2 und Kennzahlen-Kacheln. */
+/* Personalisierte Begrüßung rechts neben dem H2 in der Titelzeile (bricht bei langen Namen
+   darunter um, statt eine eigene Zeile zu belegen). */
 .dashboard-heading {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	flex-wrap: wrap;
 	gap: var(--pp-gap-tight);
 }
 
 .dashboard-greeting {
-	margin: var(--pp-space-1) 0 0;
+	margin: 0;
 	font-size: var(--pp-font-size-lg);
 	font-weight: var(--pp-weight-bold);
 }
@@ -1194,7 +1196,8 @@ kol-toolbar {
 	.dashboard {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--pp-gap-generous);
+		column-gap: var(--pp-gap-generous);
+		row-gap: var(--pp-gap-base);
 		align-items: stretch;
 	}
 
@@ -1207,8 +1210,7 @@ kol-toolbar {
 		margin-top: 0;
 	}
 
-	.dashboard h2,
-	.dashboard-greeting,
+	.dashboard-heading,
 	.dashboard-suggestions {
 		grid-column: 1 / -1;
 	}
@@ -3639,7 +3641,7 @@ kol-alert {
  */
 .dashboard-heart {
 	display: block;
-	margin-top: var(--pp-gap-generous);
+	margin-top: var(--pp-gap-base);
 }
 
 .heart-balance {
@@ -3656,7 +3658,12 @@ kol-alert {
  */
 .heart-balance-stage {
 	width: 100%;
-	max-width: 24rem;
+	/* Höhen-Deckel zusätzlich zum Breiten-Deckel: Auf kurzen Viewports (Kleinfenster, Phones)
+	   schrumpft die Bühne so weit, dass Karte und Ablesewert ohne Scrollen in den Viewport
+	   passen — das Budget (~28rem) deckt Kopfzeile bis Readout; die Legende darf unter dem
+	   Fold beginnen. `svh` statt `dvh`, damit das Ein-/Ausblenden der mobilen URL-Leiste die
+	   Bühne nicht springen lässt; hohe Fenster treffen weiter den 24rem-Breiten-Deckel. */
+	max-width: min(24rem, calc(100svh - 28rem));
 }
 
 .balance-figure-svg,

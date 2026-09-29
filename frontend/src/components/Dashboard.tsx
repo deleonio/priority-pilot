@@ -196,8 +196,8 @@ export const Dashboard = ({
 		<section className="dashboard">
 			<div className="dashboard-heading">
 				<h2>Dashboard</h2>
+				{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
 			</div>
-			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
 
 			{/*
 			 * Desktop-Hero (ab 48rem): „Meine Lebensbalance" links zwei Drittel, rechts ein Drittel
