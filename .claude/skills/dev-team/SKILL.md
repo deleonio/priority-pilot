@@ -358,8 +358,8 @@ Working-Tree achten → **kein `git add -A`**.
 5. **Grün:** Produktionscode, bis alle Tests grün sind. Frontend: KoliBri-First über den MCP,
    sichtbare Änderungen bei 375px und 1280px prüfen.
 6. **Gate:** das kanonische Gate aus AGENTS.md **einmal** über alle Änderungen, delegiert an
-   `gate-runner` (grüne Ausgabe gehört nicht in den Architect-Kontext). E2E scoped auf die berührte
-   UI-Fläche; Determinismus-Gate, wo Timing im Spiel ist.
+   `gate-runner` (grüne Ausgabe gehört nicht in den Architect-Kontext). E2E scoped wie im kanonischen
+   Gate (berührte Fläche plus grep-Treffer alter Texte/Routen in `frontend/e2e/`); Determinismus-Gate, wo Timing im Spiel ist.
 7. **PR:** committen (Issue referenzieren), pushen, PR review-ready machen — Draft-PR per
    `gh pr ready <pr>`, sonst `gh pr create --assignee @me --title "<Titel> (#<nr>)" --body "… Closes #<nr> …"`.
    Die Beschreibung trägt: Umsetzungs-Zusammenfassung, betroffene Dateien, Gate-Ergebnisse,

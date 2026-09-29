@@ -84,8 +84,11 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - **Kanonisches Gate** (Spiegel der CI-Verify-Kette,
   [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2): Jeder PR führt vor dem Push
   `pnpm format` && `pnpm exec prettier --check .` && `pnpm lint` && `pnpm -r build` &&
-  `pnpm test` aus — grün ist Pflicht; E2E scoped: nur die Playwright-Specs der berührten
-  UI-Fläche, sofern eine existiert (CI fährt die volle Suite sharded über jeden App-Code-PR).
+  `pnpm test` aus — grün ist Pflicht; E2E scoped: die Playwright-Specs der berührten
+  UI-Fläche plus jede Spec, die einen geänderten oder entfernten sichtbaren Text, ein Label, eine
+  Route oder eine Test-ID noch referenziert (alten Wert per grep über `frontend/e2e/` suchen) —
+  CI fährt die volle Suite sharded über jeden App-Code-PR, ein fremder Spec-Bruch kostet sonst
+  eine Fixup-Schleife.
   Ergebnisse in die PR-Beschreibung. `pnpm knip` bleibt bewusste Zusatzschärfe des
   Implement-Skills, nicht Teil des kanonischen Gates.
 
