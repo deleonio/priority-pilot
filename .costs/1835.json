@@ -1,0 +1,37 @@
+[
+	{
+		"timestamp": "2026-09-29T04:29:20.927Z",
+		"tokensIn": 628898,
+		"tokensOut": 3737,
+		"cost": 0.5321836499999999,
+		"issueId": "1835",
+		"phase": "fixup",
+		"model": "claude-sonnet-5",
+		"provider": "claude",
+		"cacheCreationTokens": 83309,
+		"cacheReadTokens": 545573,
+		"turns": 8,
+		"durationSeconds": 58,
+		"valueCost": 0.5321836499999999,
+		"effort": "medium"
+	},
+	{
+		"timestamp": "2026-09-29T04:46:05.643Z",
+		"tokensIn": 433886,
+		"tokensOut": 2733,
+		"cost": 0.5352938,
+		"issueId": "1835",
+		"phase": "review",
+		"model": "claude-opus-5-5",
+		"provider": "claude",
+		"cacheCreationTokens": 66747,
+		"cacheReadTokens": 367127,
+		"turns": 6,
+		"durationSeconds": 28,
+		"valueCost": 0.5352938,
+		"effort": "high",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 2
+	}
+]
