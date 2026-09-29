@@ -262,6 +262,33 @@ jobs:
             --timeout-seconds "${{ vars.REVIEW_CI_WAIT_SECONDS || '1200' }}" \
             >> "$GITHUB_OUTPUT"
 
+      - name: 🔁 Rote e2e-Shards einmal neu starten (Flake-Filter)
+        # KOSTEN-GATE (Fixup-Analyse zu #1590): 2026-09 lösten 25 Flakes je eine Fixup-Runde
+        # samt Re-Review aus (~40 Turns je Fall), obwohl ein Rerun ohne Codeänderung grün war.
+        # Sind ALLE roten Jobs e2e-Shards, startet der Lauf sie hier genau einmal neu und
+        # wartet erneut. Build-/Lint-/Unit-Rot bleibt unberührt — dort hilft kein Rerun.
+        # Preis: bis ~10 min Runner-Zeit bei echtem e2e-Rot, keine Token. Ein grüner Rerun
+        # wird dem Reviewer als Flake-Hinweis übergeben, damit Flakes sichtbar bleiben.
+        # Fail-open: jeder Fehler hier fällt auf das ursprüngliche Warte-Ergebnis zurück.
+        id: ci-rerun
+        if: steps.setup.outputs.configured == 'true' && steps.ci-wait.outputs.status == 'red'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RED: ${{ steps.ci-wait.outputs.red }}
+        run: |
+          others="$(printf '%s' "$RED" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -v '^$' | grep -v '^e2e' || true)"
+          if [ -n "$others" ]; then echo "::notice title=Flake-Filter::kein Rerun, nicht-e2e rot: $others"; exit 0; fi
+          sha="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid -q .headRefOid 2>/dev/null)" || exit 0
+          run="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Verify --commit "$sha" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null)" || exit 0
+          [ -n "$run" ] && [ "$run" != "null" ] || exit 0
+          gh run rerun "$run" --repo "$GITHUB_REPOSITORY" --failed || exit 0
+          sleep 60 # GitHub setzt die Checks erst verzögert auf queued
+          bash .github/scripts/wait-for-checks.sh \
+            --repo "$GITHUB_REPOSITORY" --pr "$PR" --timeout-seconds 600 > /tmp/ci-rerun.out
+          cat /tmp/ci-rerun.out >> "$GITHUB_OUTPUT"
+          if grep -qx 'status=green' /tmp/ci-rerun.out; then echo "healed=$RED" >> "$GITHUB_OUTPUT"; fi
+
       - name: CI-Status für den Prompt aufbereiten
         # Ein Satz Klartext statt roher Job-Liste: Der Reviewer soll rote Jobs als Findings
         # behandeln (Details holt er sich selbst per gh run view --log-failed), nicht erst
@@ -269,13 +296,15 @@ jobs:
         id: ci-status
         if: steps.setup.outputs.configured == 'true'
         env:
-          STATUS: ${{ steps.ci-wait.outputs.status }}
-          RED: ${{ steps.ci-wait.outputs.red }}
-          PENDING: ${{ steps.ci-wait.outputs.pending }}
+          STATUS: ${{ steps.ci-rerun.outputs.status || steps.ci-wait.outputs.status }}
+          RED: ${{ steps.ci-rerun.outputs.status && steps.ci-rerun.outputs.red || steps.ci-wait.outputs.red }}
+          PENDING: ${{ steps.ci-rerun.outputs.status && steps.ci-rerun.outputs.pending || steps.ci-wait.outputs.pending }}
           WAITED: ${{ steps.ci-wait.outputs.waited }}
+          HEALED: ${{ steps.ci-rerun.outputs.healed }}
         run: |
           case "$STATUS" in
-            green) text="🟢 CI ist fertig und gruen (Workflow Verify) — keine CI-Findings." ;;
+            green) text="🟢 CI ist fertig und gruen (Workflow Verify) — keine CI-Findings."
+                   if [ -n "$HEALED" ]; then text="🟢 CI gruen erst nach automatischem Rerun von: ${HEALED} (Flake-Verdacht) — kein Finding; vermerke die Job-Namen als Flake-Hinweis im Sammelkommentar."; fi ;;
             red)   text="🔴 CI ist fertig und ROT (Workflow Verify). Fehlgeschlagene Jobs: ${RED}. Das sind blockierende Findings — nenne sie im Sammelkommentar und verdicte needs-fixup." ;;
             timeout) text="⏳ CI war nach ${WAITED}s noch nicht fertig (offen: ${PENDING:-unbekannt}) — CI-Ergebnis UNBEKANNT. Reviewe den Diff; das Gate faengt ein spaeter rotes CI ab." ;;
             *)     text="⚠️ Keine CI-Checks (Workflow Verify) am PR sichtbar — CI-Ergebnis UNBEKANNT. Reviewe den Diff." ;;
