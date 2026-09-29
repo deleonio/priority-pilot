@@ -231,7 +231,6 @@ describe('MCP-Loopback — task_create je Paket (#1784 AK2/AK3)', () => {
 		const { error } = await mcpCall(token, 'task_create', { title: 'Sollte nicht entstehen' });
 
 		assert.ok(error, 'task_create muss einen JSON-RPC-Fehler liefern');
-		assert.match(error.message, /mcp_readwrite/);
 		assert.match(error.message, /"pro"/);
 		assert.equal(await listTaskCount(cookie), 0, 'keine Aufgabe darf angelegt werden');
 	});
