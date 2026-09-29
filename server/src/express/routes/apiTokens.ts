@@ -66,7 +66,7 @@ apiTokensRouter.get('/api-tokens', async (req: Request, res: Response<ApiTokenDt
 });
 
 // POST /api-tokens — legt einen Token an und liefert den Klartext genau in dieser einen Antwort.
-// #1524 AK6: `mcp_read` (ab Max) sperrt schon das Anlegen, nicht erst die Nutzung.
+// #1524 AK6: `mcp_read` (ab Plus) sperrt schon das Anlegen, nicht erst die Nutzung.
 apiTokensRouter.post(
 	'/api-tokens',
 	requirePlanFeature('mcp_read'),
