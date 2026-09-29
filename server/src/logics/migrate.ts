@@ -1002,3 +1002,25 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 		console.log('Spalte firstFailureAt an subscriptions nachgezogen.');
 	}
 };
+
+/**
+ * Stellt die Altpakete des Vier-Paket-Modells um (#1785): `max` wird `plus`, `ultimate` wird `pro` in
+ * `users.plan`, `subscriptions.plan` und `subscriptions.pendingPlan`. Idempotent; fehlende Tabellen
+ * oder Spalten sind ein No-op.
+ */
+export const migrateLegacyPlans = async (db: Sequelize): Promise<void> => {
+	const targets = [
+		['users', 'plan'],
+		['subscriptions', 'plan'],
+		['subscriptions', 'pendingPlan'],
+	] as const;
+	for (const [table, column] of targets) {
+		const [columns] = await db.query(`PRAGMA table_info('${table}')`);
+		if (!(columns as { name: string }[]).some((existing) => existing.name === column)) {
+			continue;
+		}
+		await db.query(
+			`UPDATE \`${table}\` SET \`${column}\` = CASE \`${column}\` WHEN 'max' THEN 'plus' ELSE 'pro' END WHERE \`${column}\` IN ('max', 'ultimate')`,
+		);
+	}
+};

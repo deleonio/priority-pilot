@@ -10,15 +10,8 @@
 export type Plan = 'free' | 'plus' | 'pro';
 export const PLAN_VALUES: readonly Plan[] = ['free', 'plus', 'pro'];
 
-/**
- * Altwerte aus dem Vier-Paket-Modell, die bis zur Konten-Umstellung (#1785) noch in `users.plan`
- * stehen können: `max` wird wie `plus`, `ultimate` wie `pro` ausgewertet (#1782).
- */
-const LEGACY_PLANS: Record<string, Plan> = { max: 'plus', ultimate: 'pro' };
-
-/** Gespeicherter Paketwert → ausgewertetes Paket; Altwerte laut {@link LEGACY_PLANS}, Unbekanntes wie `free`. */
-export const effectivePlan = (value: string): Plan =>
-	PLAN_VALUES.includes(value as Plan) ? (value as Plan) : (LEGACY_PLANS[value] ?? 'free');
+/** Gespeicherter Paketwert → ausgewertetes Paket; Unbekanntes wie `free`. */
+export const effectivePlan = (value: string): Plan => (PLAN_VALUES.includes(value as Plan) ? (value as Plan) : 'free');
 
 /** Stabile Feature-Identifier — von Guards, Fehlervertrag und UI-Badges referenziert. */
 export type FeatureId =
