@@ -1,6 +1,6 @@
 ---
 name: review-kreuzverhoer
-description: "PR cross-examination — adversarially review pull requests, post findings as inline comments, traffic-light verdict in the ai-review collected comment. Use for 'review PR <number>', 'cross-examine this PR' (German: „review PR <Nr>“, „prüf/kreuzverhöre diesen PR“), re-review after fixup. CI phase 5/7 uses the same method."
+description: "PR cross-examination — adversarially review pull requests, post findings as inline comments, traffic-light verdict in the ai-review collected comment. Use for 'review PR <number>', 'cross-examine this PR' (German: „review PR <Nr>“, „prüf/kreuzverhöre diesen PR“), re-review after fixup. CI phase 5 uses the same method."
 allowed-tools: Read, Grep, Glob, Bash(gh *)
 ---
 

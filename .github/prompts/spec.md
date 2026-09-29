@@ -16,7 +16,7 @@ PROCEDURE (STRICT):
      harness marker comment — jq: `gh issue view {{ISSUE_NR}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].body // ""'`).
      The issue description stays UNTOUCHED (ADR 0009).
      Resume hint set (draft reuse) → check out the EXISTING branch
-     (git fetch origin && git switch $DRAFT_BRANCH) and continue on its state — do NOT rewrite everything.
+     (git fetch origin && git switch <branch from the resume hint>) and continue on its state — do NOT rewrite everything.
   3. SPEC-FIRST per SKILL.md step 2 (spec update in the SAME commit as the tests).
   4. Write RED tests — derived from the spec (rules incl. dedup, mutation check,
      spec-PR scope: SKILL.md step 3 — read that section before writing the first test).

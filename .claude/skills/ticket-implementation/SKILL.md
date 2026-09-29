@@ -54,6 +54,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   pnpm format
   pnpm exec prettier --check .
   pnpm lint
+  pnpm -r build
   pnpm knip
   pnpm test
   ```
@@ -80,7 +81,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   - **Spec mode:** take the existing **draft PR** from the spec stage out of draft (`gh pr ready <pr>`) and extend its description with the implementation summary.
   - **Fallback mode:** create a normal PR: `gh pr create --assignee @me --title "<title> (#<nr>)" --body "… Closes #<nr> …"`.
 - **Development link:** the `Closes #<nr>` keyword in the PR body creates the association in the **"Development" section**.
-- The PR description contains: a short implementation summary, affected files, `pnpm format`/lint/**test** results.
+- The PR description contains: a short implementation summary, affected files, `pnpm format`/lint/build/**test** results.
 - **Follow up on the PR** — after creating it, react to incoming review comments and CI results in further rounds (step 5).
 
 ## Step 5 — Cross-examination loop (implement ⇄ review, until clean)
