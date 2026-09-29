@@ -89,6 +89,7 @@ export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number
 	['claude-sonnet-5-5', 2.0, 10.0],
 	['claude-sonnet-5', 3.0, 15.0],
 	['claude-sonnet-4', 3.0, 15.0],
+	['claude-haiku-4-5', 1.0, 5.0],
 	['claude-haiku-4', 1.0, 5.0],
 	...PRICES_EUR_PER_MTOK_ZAI.map(eurRowToUsd),
 ];
