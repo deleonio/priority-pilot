@@ -155,7 +155,12 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 		assert.equal(await verbrauch(userId), 1);
 	});
 
-	it('AK5: greift die Fair-Use-Drossel, fehlt der KI-Vorschlag ohne Fehler (200)', async () => {
+	it('AK5: greift die Fair-Use-Drossel, fehlt der KI-Vorschlag ohne Fehler (200)', async (t) => {
+		// Die Fair-Use-Drossel greift nur bei aktivem Rollout (Muster `ai-fair-use.test.ts`).
+		process.env.MONETIZATION_ENFORCED = 'true';
+		t.after(() => {
+			delete process.env.MONETIZATION_ENFORCED;
+		});
 		const { cookie, userId } = await setup('care-ki-drossel@example.com', 'plus');
 		await AiUsage.create({ userId, yearMonth: currentYearMonth(), count: 150 });
 		// Erster Über-Budget-Aufruf belegt den Intervall-Slot (#1783) — der zweite wird gedrosselt.
