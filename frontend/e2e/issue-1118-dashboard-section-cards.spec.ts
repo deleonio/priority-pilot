@@ -266,6 +266,7 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 		// Vollbreiten-Zeile zu belegen.
 		const headingBox = await page.locator('.dashboard-heading').boundingBox();
 		const greetingBox = await page.locator('.dashboard-greeting').boundingBox();
+		expect(headingBox, 'Titelzeile vorhanden').not.toBeNull();
 		expect(greetingBox, 'Begrüßung vorhanden').not.toBeNull();
 		expect(greetingBox!.y).toBeGreaterThanOrEqual(headingBox!.y);
 		expect(greetingBox!.y + greetingBox!.height).toBeLessThanOrEqual(headingBox!.y + headingBox!.height + 1);

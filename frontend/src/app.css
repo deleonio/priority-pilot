@@ -822,8 +822,8 @@ kol-toolbar {
 
 /* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. Einheitliches Gap-Token
    (`--pp-gap-base`) für die ganze Kette Kopf → Tabs → Panel-Inhalt (unten). Der kompakte Wert
-   (2026-09, vorher `--pp-gap-generous`) hält den Raum über dem Dashboard-Ziffernblatt so klein,
-   dass die Balance-Karte inkl. Ablesewert in den Viewport passt. Der Abstand Tab-Leiste →
+   hält den Raum über dem Dashboard-Ziffernblatt so klein, dass die Balance-Karte inkl. Ablesewert
+   in den Viewport passt. Der Abstand Tab-Leiste →
    Panel-Inhalt (`.app-tabs .dashboard` etc.) braucht keine eigene Regel: Die Basisregel oben setzt
    für dieselben Selektoren bereits denselben Wert, ein zusätzlicher `.app-tabs`-Block wäre nur ein
    No-Op mit höherer Spezifität. */
@@ -3662,8 +3662,11 @@ kol-alert {
 	   schrumpft die Bühne so weit, dass Karte und Ablesewert ohne Scrollen in den Viewport
 	   passen — das Budget (~28rem) deckt Kopfzeile bis Readout; die Legende darf unter dem
 	   Fold beginnen. `svh` statt `dvh`, damit das Ein-/Ausblenden der mobilen URL-Leiste die
-	   Bühne nicht springen lässt; hohe Fenster treffen weiter den 24rem-Breiten-Deckel. */
-	max-width: min(24rem, calc(100svh - 28rem));
+	   Bühne nicht springen lässt; hohe Fenster treffen weiter den 24rem-Breiten-Deckel. Untergrenze
+	   12rem: Auf sehr kurzen Viewports (Phone quer) bleibt das Bild lesbar und wird gescrollt statt
+	   auf 0 zu klemmen; die erste Deklaration ist der Fallback für Engines ohne `svh`. */
+	max-width: 24rem;
+	max-width: clamp(12rem, calc(100svh - 28rem), 24rem);
 }
 
 .balance-figure-svg,
