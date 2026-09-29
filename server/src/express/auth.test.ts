@@ -132,7 +132,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
 			assert.ok(dbUser, 'Setup: Session-User muss existieren');
 			await (dbUser as unknown as { update: (values: Record<string, unknown>) => Promise<unknown> }).update({
-				plan: 'pro',
+				plan: 'plus',
 			});
 
 			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
@@ -141,12 +141,11 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 				plan?: string;
 				entitlements?: Record<string, { allowed: boolean; requiredPlan: string }>;
 			};
-			assert.equal(body.plan, 'pro', 'body.plan muss dem gesetzten Paket entsprechen');
-			// Paket-Matrix laut docs/spec/issue-1456.md: Pro hat groups, aber nicht graph_write
-			// (kein Import aus plans.ts — das Modul existiert noch nicht, s. AK2/plans.test.ts).
-			assert.equal(body.entitlements?.groups?.allowed, true, 'Pro hat groups');
-			assert.equal(body.entitlements?.graph_write?.allowed, false, 'Pro hat kein graph_write');
-			assert.equal(body.entitlements?.graph_write?.requiredPlan, 'max', 'graph_write erfordert Max');
+			assert.equal(body.plan, 'plus', 'body.plan muss dem gesetzten Paket entsprechen');
+			// Paket-Matrix laut ADR 0018 (#1782): Plus hat groups, aber nicht mcp_readwrite.
+			assert.equal(body.entitlements?.groups?.allowed, true, 'Plus hat groups');
+			assert.equal(body.entitlements?.mcp_readwrite?.allowed, false, 'Plus hat kein mcp_readwrite');
+			assert.equal(body.entitlements?.mcp_readwrite?.requiredPlan, 'pro', 'mcp_readwrite erfordert Pro');
 		});
 
 		// #1459 (AK7, Spec docs/spec/issue-1459.md): /auth/me zieht den KI-Verbrauch vom Kontingent ab.
@@ -155,7 +154,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const dbUser = await User.findOne({ where: { email: ALLOWED_EMAIL } });
 			assert.ok(dbUser, 'Setup: Session-User muss existieren');
 			await (dbUser as unknown as { update: (values: Record<string, unknown>) => Promise<unknown> }).update({
-				plan: 'pro',
+				plan: 'plus',
 			});
 			// Rohes SQL statt Modell-Import: `server/src/models/aiUsage.ts` existiert noch nicht — ein
 			// `import { AiUsage } ...` würde den knip-Gate (unresolved imports) schon beim Commit
@@ -170,7 +169,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const res = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as { entitlements?: { ai_assist?: { quotaRemaining?: number } } };
-			assert.equal(body.entitlements?.ai_assist?.quotaRemaining, 58, 'Pro (60) minus 2 Verbrauch = 58');
+			assert.equal(body.entitlements?.ai_assist?.quotaRemaining, 108, 'Plus (110) minus 2 Verbrauch = 108');
 		});
 
 		// #1494 (AK7, Spec docs/spec/issue-1494.md): /auth/me trägt den Abo-Status zusätzlich zu plan/entitlements.
@@ -223,11 +222,11 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 				userId,
 				provider: 'paypal',
 				externalSubscriptionId: 'I-AK6-PENDING',
-				plan: 'max',
+				plan: 'pro',
 				period: 'monthly',
 				status: 'active',
 				currentPeriodEnd: pendingEffectiveAt,
-				pendingPlan: 'pro',
+				pendingPlan: 'plus',
 				pendingPlanEffectiveAt: pendingEffectiveAt,
 			});
 
@@ -236,7 +235,7 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			const body = (await res.json()) as {
 				subscription?: { pendingPlan?: string | null; pendingPlanEffectiveAt?: string | null } | null;
 			};
-			assert.equal(body.subscription?.pendingPlan, 'pro', 'Der vorgemerkte Paketwechsel muss sichtbar sein');
+			assert.equal(body.subscription?.pendingPlan, 'plus', 'Der vorgemerkte Paketwechsel muss sichtbar sein');
 			assert.ok(body.subscription?.pendingPlanEffectiveAt, 'pendingPlanEffectiveAt muss gesetzt sein');
 		});
 

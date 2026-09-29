@@ -178,15 +178,15 @@
 		"cta": "Inizia gratis",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Gruppi e link di invito",
 			"voice_input": "Input vocale",
 			"ai_assist": "Aiuto IA: consulente dei pilastri e revisione dei testi",
-			"graph_write": "Modificare le dipendenze ponderate",
+			"graph_write": "Dipendenze tra attività",
+			"graph_weight": "Modificare le dipendenze ponderate",
 			"location_reminders": "Promemoria basati sulla posizione",
 			"mcp_read": "Interfaccia MCP (lettura)",
 			"mcp_readwrite": "Interfaccia MCP (lettura e scrittura)"

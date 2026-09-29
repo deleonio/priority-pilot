@@ -10,9 +10,10 @@ import { usePlan } from '../lib/usePlan';
  * Labels über `planLabel` — dieselbe Quelle wie das Zeilen-Badge in der Nutzerverwaltung und die
  * Matrix-Köpfe, damit Auswahl und Anzeige niemals auseinanderlaufen (#1556 AK2-Muster).
  */
-const PLAN_OPTIONS: Array<{ label: string; value: Plan }> = (['free', 'pro', 'max', 'ultimate'] as Plan[]).map(
-	(plan) => ({ label: planLabel(plan), value: plan }),
-);
+const PLAN_OPTIONS: Array<{ label: string; value: Plan }> = (['free', 'plus', 'pro'] as Plan[]).map((plan) => ({
+	label: planLabel(plan),
+	value: plan,
+}));
 
 /**
  * Eigene Paket-Karte im Tab „Pakete" (#1565 AK1): Der kostenfreie Selbst-Wechsel ist hierher aus

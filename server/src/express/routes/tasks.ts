@@ -994,6 +994,12 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 	tasksRouter.post(
 		'/tasks/:id/dependencies',
 		requirePlanFeature('graph_write'),
+		// #1782: einfache Abhängigkeiten gelten für jedes Paket, ein Gewicht abseits des Defaults 1 erst ab Plus
+		// (die App schickt das Default-Gewicht immer mit).
+		requirePlanFeature('graph_weight', (req) => {
+			const weight = (req.body as { weight?: unknown } | undefined)?.weight;
+			return weight !== undefined && weight !== 1;
+		}),
 		async (req: Request, res: Response<TaskDto | ErrorDto>) => {
 			const id = parseId(req.params.id);
 			if (id === null) {

@@ -91,8 +91,8 @@ describe('renderLanding', () => {
 			expect(html).toContain(`<html lang="${locale}">`);
 			for (const target of LOCALES) expect(html).toContain(`hreflang="${target}" href="https://example.org/`);
 		}
-		expect(landing('pl')).toMatch(/7,99\s€/u);
-		expect(landing('en')).toContain('€7.99');
+		expect(landing('pl')).toMatch(/4,99\s€/u);
+		expect(landing('en')).toContain('€4.99');
 	});
 
 	it('setzt Sprache, canonical und hreflang für beide Sprachen', () => {
@@ -135,10 +135,10 @@ describe('renderLanding', () => {
 
 	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {
 		const html = landing('de');
-		expect(html).toContain('7,99 €');
-		expect(html).toContain('14,99 €');
-		expect(html).toContain('24,99 €');
-		expect(html).toContain('239,90 €');
+		expect(html).toContain('4,99 €');
+		expect(html).toContain('9,99 €');
+		expect(html).toContain('47,90 €');
+		expect(html).toContain('95,90 €');
 		for (const plan of PLAN_VALUES.filter((entry) => AI_ASSIST_MONTHLY_QUOTA[entry] > 0)) {
 			expect(html).toContain(`${AI_ASSIST_MONTHLY_QUOTA[plan]} KI-Anfragen im Monat`);
 		}
@@ -150,7 +150,7 @@ describe('renderLanding', () => {
 	it('listet jedes Feature genau einmal, im kleinsten Paket, das es enthält', () => {
 		const listed = PLAN_VALUES.flatMap((plan) => addedFeatures(catalog, PLAN_VALUES, plan));
 		expect([...listed].sort()).toEqual([...FEATURE_IDS].sort());
-		expect(addedFeatures(catalog, PLAN_VALUES, 'free')).toEqual(['voice_input']);
+		expect(addedFeatures(catalog, PLAN_VALUES, 'free')).toEqual(['voice_input', 'graph_write']);
 	});
 
 	it('escaped Texte', () => {

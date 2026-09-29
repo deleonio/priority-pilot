@@ -113,7 +113,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Standort-Erfassung in den Einstellungen aktiviert ist – ist sie aus, fehlt die
   Karte ganz. Verweigert der Browser die Standort-Freigabe, bleibt die Karte stehen
   und zeigt stattdessen einen Hinweis. Karte und Erinnerungen gehören zu den Paketen
-  Max und Ultimate (siehe „Pakete").
+  Plus und Pro (siehe „Pakete").
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -669,11 +669,11 @@ Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
 Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
 
 Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen – etwa Gruppen,
-KI-Unterstützung, Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe gehört zu Free.
-Die KI-Assistenz hat ein monatliches Kontingent: Pro 60, Max 110, Ultimate 200 Aufrufe.
+KI-Unterstützung, gewichtete Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe und einfache
+Abhängigkeiten gehören zu Free. Die KI-Assistenz hat ein monatliches Kontingent: Plus 110, Pro 200 Aufrufe.
 
 **Übergangsregel für Bestandskonten:** Ein Konto, das vor dem Start der Pakete angelegt
-wurde und kein Paket gebucht hat, hat **Ultimate** und damit alle Funktionen.
+wurde und kein Paket gebucht hat, hat **Pro** und damit alle Funktionen.
 
 ---
 

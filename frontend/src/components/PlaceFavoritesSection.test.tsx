@@ -242,7 +242,7 @@ describe('PlaceFavoritesSection — Paket-Badge auf der Karte (#1484 AK3)', () =
 	it('zeigt das location_reminders-Badge auf der Karte', async () => {
 		apiMocks.listPlaceFavorites = vi.fn().mockResolvedValue([]);
 		const entitlements: EntitlementMap = {
-			location_reminders: { allowed: false, requiredPlan: 'max' } as EntitlementMap['location_reminders'],
+			location_reminders: { allowed: false, requiredPlan: 'plus' } as EntitlementMap['location_reminders'],
 		};
 		render(
 			<PlanProvider value={{ plan: 'free', entitlements }}>

@@ -33,7 +33,7 @@ describe('GET /plans — Cent-Preise mit Quartalsstaffel (#1494 AK5)', () => {
 		const res = await fetch(`${server.baseUrl}/plans`);
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { prices: Record<string, Record<string, number>> };
-		for (const plan of ['free', 'pro', 'max', 'ultimate']) {
+		for (const plan of ['free', 'plus', 'pro']) {
 			const price = body.prices[plan];
 			assert.ok(price, `Preis für ${plan} fehlt`);
 			assert.equal(typeof price.quarterly, 'number', `${plan}.quarterly fehlt`);
@@ -43,9 +43,9 @@ describe('GET /plans — Cent-Preise mit Quartalsstaffel (#1494 AK5)', () => {
 		}
 	});
 
-	it('Pro liefert 799 / 2157 / 7670 Cent laut Konzepttabelle', async () => {
+	it('Pro liefert 999 / 2697 / 9590 Cent laut ADR 0018 (#1782)', async () => {
 		const res = await fetch(`${server.baseUrl}/plans`);
 		const body = (await res.json()) as { prices: Record<string, Record<string, number>> };
-		assert.deepEqual(body.prices.pro, { monthly: 799, quarterly: 2157, yearly: 7670 });
+		assert.deepEqual(body.prices.pro, { monthly: 999, quarterly: 2697, yearly: 9590 });
 	});
 });

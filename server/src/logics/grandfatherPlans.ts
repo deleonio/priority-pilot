@@ -4,13 +4,13 @@ import { PLAN_VALUES, type Plan } from './plans.js';
 /**
  * Übergangs-Setzung vor dem Scharfschalten von `MONETIZATION_ENFORCED` (#1463, T8): Konten, die
  * vor dem Stichtag angelegt wurden und noch nie ein Paket gebucht haben (`plan = 'free'`), bekommen
- * das Übergangs-Tier `ultimate`. Bewusst NICHT Teil von `migrate.ts` — ein Lauf bei jedem
+ * das Übergangs-Tier `pro`. Bewusst NICHT Teil von `migrate.ts` — ein Lauf bei jedem
  * Serverstart hübe manuell auf `free` zurückgesetzte Konten wieder an. Aufruf nur über das
  * CLI-Skript `src/cli/grandfatherPlans.ts`. Rückgabe: Anzahl geänderter Konten.
  */
 export async function grandfatherPlans(seq: Sequelize, cutoff: Date): Promise<number> {
 	const [changed] = await seq.models.User.update(
-		{ plan: 'ultimate' },
+		{ plan: 'pro' },
 		{ where: { plan: 'free', createdAt: { [Op.lt]: cutoff } } },
 	);
 	return changed;

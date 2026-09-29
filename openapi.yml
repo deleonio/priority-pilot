@@ -138,7 +138,8 @@ paths:
         Fügt dem Task `{id}` eine Abhängigkeit hinzu — den im Body angegebenen
         Task, von dem `{id}` abhängt (Vorgänger/Prerequisite). Entspricht
         `task.addDependency()`. Eine Abhängigkeit, die einen Zyklus erzeugen
-        würde, wird mit `409` abgelehnt.
+        würde, wird mit `409` abgelehnt. Ein `weight` im Body erfordert das
+        Feature `graph_weight` (ab Paket Plus, #1782), sonst `403`.
       operationId: addDependency
       requestBody:
         required: true
@@ -3884,7 +3885,7 @@ components:
     Plan:
       type: string
       description: Buchbares Paket. Reihenfolge der Werte ist die Rangfolge (aufsteigend).
-      enum: [free, pro, max, ultimate]
+      enum: [free, plus, pro]
     FeatureEntitlement:
       type: object
       description: >-
@@ -3900,7 +3901,7 @@ components:
         quotaRemaining:
           type: integer
           description: >-
-            Nur bei `ai_assist`: Rest des monatlichen KI-Kontingents (0/60/110/200
+            Nur bei `ai_assist`: Rest des monatlichen KI-Kontingents (0/110/200
             je Paket). Bis T4 der Startwert des Pakets, danach der tatsächliche Rest —
             dasselbe Feld beziffert das Restkontingent in LLM-Antworten.
     FeatureCatalogEntry:
@@ -3910,7 +3911,7 @@ components:
       properties:
         feature:
           type: string
-          enum: [groups, voice_input, ai_assist, graph_write, location_reminders, mcp_readwrite, mcp_read]
+          enum: [groups, voice_input, ai_assist, graph_write, graph_weight, location_reminders, mcp_readwrite, mcp_read]
         allowedPlans:
           type: array
           items:

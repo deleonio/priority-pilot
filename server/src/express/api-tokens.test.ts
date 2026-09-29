@@ -299,10 +299,10 @@ describe('Persönliche API-Tokens — Plan-Deckel für readwrite (#1460 AK1/AK2/
 		await closeDb();
 	});
 
-	it('AK1: PATCH auf readwrite liefert für max bei eingeschaltetem Rollout 403 mit plan_required-Feldern, Scope bleibt read', async () => {
+	it('AK1: PATCH auf readwrite liefert für plus bei eingeschaltetem Rollout 403 mit plan_required-Feldern, Scope bleibt read', async () => {
 		const email = 'plan-cap-max@example.com';
 		const cookie = await server.register(email, 'password123');
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		const created = (await (await createToken(cookie, 'CLI')).json()) as CreatedToken;
 		process.env.MONETIZATION_ENFORCED = 'true';
 
@@ -317,8 +317,8 @@ describe('Persönliche API-Tokens — Plan-Deckel für readwrite (#1460 AK1/AK2/
 		};
 		assert.equal(body.code, 'plan_required');
 		assert.equal(body.feature, 'mcp_readwrite');
-		assert.equal(body.requiredPlan, 'ultimate');
-		assert.equal(body.currentPlan, 'max');
+		assert.equal(body.requiredPlan, 'pro');
+		assert.equal(body.currentPlan, 'plus');
 
 		const list = (await (await listTokens(cookie)).json()) as (ListedToken & { scope: string })[];
 		assert.equal(list.find((entry) => entry.id === created.id)?.scope, 'read', 'Scope darf nach 403 nicht wechseln');
@@ -327,10 +327,10 @@ describe('Persönliche API-Tokens — Plan-Deckel für readwrite (#1460 AK1/AK2/
 	it('AK2: PATCH auf read gelingt bei eingeschaltetem Rollout unabhängig vom Paket (Herabstufen ist nie paketbeschränkt)', async () => {
 		const email = 'plan-cap-downgrade@example.com';
 		const cookie = await server.register(email, 'password123');
-		await setPlan(email, 'ultimate');
+		await setPlan(email, 'pro');
 		const created = (await (await createToken(cookie, 'CLI')).json()) as CreatedToken;
 		const upgrade = await patchTokenScope(cookie, created.id, 'readwrite');
-		assert.equal(upgrade.status, 200, 'Setup: ultimate darf hochstufen');
+		assert.equal(upgrade.status, 200, 'Setup: pro darf hochstufen');
 		await setPlan(email, 'free');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
@@ -341,10 +341,10 @@ describe('Persönliche API-Tokens — Plan-Deckel für readwrite (#1460 AK1/AK2/
 		assert.equal(list.find((entry) => entry.id === created.id)?.scope, 'read');
 	});
 
-	it('AK3: PATCH auf readwrite liefert für ultimate bei eingeschaltetem Rollout weiterhin 200 mit scope readwrite', async () => {
+	it('AK3: PATCH auf readwrite liefert für pro bei eingeschaltetem Rollout weiterhin 200 mit scope readwrite', async () => {
 		const email = 'plan-cap-ultimate@example.com';
 		const cookie = await server.register(email, 'password123');
-		await setPlan(email, 'ultimate');
+		await setPlan(email, 'pro');
 		const created = (await (await createToken(cookie, 'CLI')).json()) as CreatedToken;
 		process.env.MONETIZATION_ENFORCED = 'true';
 
@@ -376,10 +376,10 @@ describe('Persönliche API-Tokens — Plan-Deckel fürs Anlegen (#1524 AK6)', ()
 		await closeDb();
 	});
 
-	it('AK6: POST /api-tokens liefert für pro bei eingeschaltetem Rollout 403 mit plan_required/mcp_read/max, kein Token wird angelegt', async () => {
+	it('AK6: POST /api-tokens liefert für free bei eingeschaltetem Rollout 403 mit plan_required/mcp_read/plus, kein Token wird angelegt', async () => {
 		const email = 'plan-cap-create-pro@example.com';
 		const cookie = await server.register(email, 'password123');
-		await setPlan(email, 'pro');
+		await setPlan(email, 'free');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		const res = await createToken(cookie, 'CLI');
@@ -393,17 +393,17 @@ describe('Persönliche API-Tokens — Plan-Deckel fürs Anlegen (#1524 AK6)', ()
 		};
 		assert.equal(body.code, 'plan_required');
 		assert.equal(body.feature, 'mcp_read');
-		assert.equal(body.requiredPlan, 'max');
-		assert.equal(body.currentPlan, 'pro');
+		assert.equal(body.requiredPlan, 'plus');
+		assert.equal(body.currentPlan, 'free');
 
 		const list = (await (await listTokens(cookie)).json()) as ListedToken[];
 		assert.equal(list.length, 0, 'ein abgewiesenes Anlegen darf keinen Token hinterlassen');
 	});
 
-	it('AK6: POST /api-tokens liefert für max bei eingeschaltetem Rollout weiterhin 201', async () => {
+	it('AK6: POST /api-tokens liefert für plus bei eingeschaltetem Rollout weiterhin 201', async () => {
 		const email = 'plan-cap-create-max@example.com';
 		const cookie = await server.register(email, 'password123');
-		await setPlan(email, 'max');
+		await setPlan(email, 'plus');
 		process.env.MONETIZATION_ENFORCED = 'true';
 
 		const res = await createToken(cookie, 'CLI');
@@ -411,10 +411,10 @@ describe('Persönliche API-Tokens — Plan-Deckel fürs Anlegen (#1524 AK6)', ()
 		assert.equal(res.status, 201);
 	});
 
-	it('AK6-Analogie: bei ausgeschaltetem Rollout legt ein pro-Nutzer unverändert einen Token an', async () => {
+	it('AK6-Analogie: bei ausgeschaltetem Rollout legt ein free-Nutzer unverändert einen Token an', async () => {
 		const email = 'plan-cap-create-rollout-off@example.com';
 		const cookie = await server.register(email, 'password123');
-		await setPlan(email, 'pro');
+		await setPlan(email, 'free');
 
 		const res = await createToken(cookie, 'CLI');
 

@@ -802,7 +802,7 @@ export const migrateUsersRoleColumn = async (db: Sequelize): Promise<void> => {
 };
 
 /**
- * Zieht die `plan`-Spalte (Paket `'free' | 'pro' | 'max' | 'ultimate'`, #1456) auf einer
+ * Zieht die `plan`-Spalte (Paket `'free' | 'plus' | 'pro'`, #1456/#1782) auf einer
  * **bestehenden** `users`-Tabelle nach — analog `migrateUsersRoleColumn`. Bestandskonten starten
  * als `'free'` (kein stilles Hochstufen); Pakete vergibt bis T7 ausschließlich ein Admin über
  * `PATCH /admin/users/:id/plan`. Idempotent; No-op bei frischer DB (dann legt `sync()` die Spalte

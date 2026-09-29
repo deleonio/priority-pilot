@@ -385,7 +385,7 @@ describe('AddressAutocomplete (#1342) — Favoriten im Adressfeld', () => {
 describe('AddressAutocomplete — Paket-Badge in der Feld-Zeile (#1484 AK3)', () => {
 	it('zeigt das location_reminders-Badge, ohne die Combobox-DOM-Struktur zu verändern', () => {
 		const entitlements: EntitlementMap = {
-			location_reminders: { allowed: false, requiredPlan: 'max' } as EntitlementMap['location_reminders'],
+			location_reminders: { allowed: false, requiredPlan: 'plus' } as EntitlementMap['location_reminders'],
 		};
 		render(
 			<PlanProvider value={{ plan: 'free', entitlements }}>

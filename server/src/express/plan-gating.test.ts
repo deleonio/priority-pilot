@@ -34,7 +34,7 @@ const GATED_CASES: GatedCase[] = [
 	{
 		label: 'POST /groups',
 		feature: 'groups',
-		requiredPlan: 'pro',
+		requiredPlan: 'plus',
 		request: (baseUrl, cookie) =>
 			fetch(`${baseUrl}/groups`, {
 				method: 'POST',
@@ -45,7 +45,7 @@ const GATED_CASES: GatedCase[] = [
 	{
 		label: 'PUT /geo-config',
 		feature: 'location_reminders',
-		requiredPlan: 'max',
+		requiredPlan: 'plus',
 		request: (baseUrl, cookie) =>
 			fetch(`${baseUrl}/geo-config`, {
 				method: 'PUT',
@@ -91,11 +91,11 @@ describe('Serverseitiges Feature-Gating (#1457)', () => {
 			});
 		}
 
-		it('POST /groups: max-Nutzer (ausreichendes Paket) bleibt unverändert erfolgreich', async () => {
+		it('POST /groups: plus-Nutzer (ausreichendes Paket) bleibt unverändert erfolgreich', async () => {
 			process.env.MONETIZATION_ENFORCED = 'true';
 			const email = 'max-groups@example.com';
 			const cookie = await server.register(email);
-			await setPlan(email, 'max');
+			await setPlan(email, 'plus');
 
 			const res = await fetch(`${server.baseUrl}/groups`, {
 				method: 'POST',

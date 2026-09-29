@@ -178,15 +178,15 @@
 		"cta": "Gratis beginnen",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Groepen en uitnodigingslinks",
 			"voice_input": "Spraakinvoer",
 			"ai_assist": "AI-hulp: pijleradvies en tekstredactie",
-			"graph_write": "Gewogen afhankelijkheden bewerken",
+			"graph_write": "Afhankelijkheden tussen taken",
+			"graph_weight": "Gewogen afhankelijkheden bewerken",
 			"location_reminders": "Herinneringen op locatie",
 			"mcp_read": "MCP-interface (lezen)",
 			"mcp_readwrite": "MCP-interface (lezen en schrijven)"

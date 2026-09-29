@@ -79,7 +79,7 @@ import { OwnPlanCard } from './OwnPlanCard';
 const mockUpdateUserPlan = api.updateUserPlan as ReturnType<typeof vi.fn>;
 
 /** Plan-Kontext der Karte: aktueller Plan + beobachtbarer refresh-Spy (AK1: Refresh nach Wechsel). */
-const renderCard = (plan: 'free' | 'pro' | 'max' | 'ultimate', userId = 7) => {
+const renderCard = (plan: 'free' | 'plus' | 'pro', userId = 7) => {
 	const refresh = vi.fn().mockResolvedValue(undefined);
 	render(
 		<PlanProvider value={{ plan, entitlements: {}, refresh }}>
@@ -95,16 +95,15 @@ afterEach(() => {
 });
 
 describe('OwnPlanCard — eigene Paket-Karte im Tab Pakete (#1565, Spec AK1)', () => {
-	it('AK1: rendert eine Auswahl mit genau den vier Paketen, aktuelles vorausgewählt', () => {
+	it('AK1: rendert eine Auswahl mit genau den drei Paketen, aktuelles vorausgewählt', () => {
 		renderCard('free');
 
 		const select = screen.getByRole('combobox', { name: 'Eigenes Paket wechseln' });
 		const options = within(select).getAllByRole('option');
 		expect(options.map((option) => option.textContent)).toEqual([
 			planLabel('free'),
+			planLabel('plus'),
 			planLabel('pro'),
-			planLabel('max'),
-			planLabel('ultimate'),
 		]);
 		expect(select, 'aktuelles Paket ist vorausgewählt').toHaveValue('free');
 	});
@@ -125,14 +124,14 @@ describe('OwnPlanCard — eigene Paket-Karte im Tab Pakete (#1565, Spec AK1)', (
 
 	it('AK1 (Fehlerpfad): Server-Fehler des Wechsels landet als KolAlert in der Karte', async () => {
 		renderCard('free');
-		mockUpdateUserPlan.mockRejectedValue(new Error('Das Paket muss eines von free, pro, max, ultimate sein.'));
+		mockUpdateUserPlan.mockRejectedValue(new Error('Das Paket muss eines von free, plus, pro sein.'));
 
 		fireEvent.change(screen.getByRole('combobox', { name: 'Eigenes Paket wechseln' }), {
-			target: { value: 'max' },
+			target: { value: 'plus' },
 		});
 
 		await waitFor(() =>
-			expect(screen.getByRole('alert')).toHaveTextContent('Das Paket muss eines von free, pro, max, ultimate sein.'),
+			expect(screen.getByRole('alert')).toHaveTextContent('Das Paket muss eines von free, plus, pro sein.'),
 		);
 	});
 });

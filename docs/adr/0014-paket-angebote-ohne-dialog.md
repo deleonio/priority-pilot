@@ -1,6 +1,6 @@
 # ADR 0014 — Paketgrenzen: Angebote in den Einstellungen statt Dialoge im Fluss
 
-- **Status:** Accepted (2026-09-16)
+- **Status:** Accepted (2026-09-16), teilweise ersetzt durch [ADR 0018](0018-preismodell-free-plus-pro.md): MCP-Grenzen (Punkt 2), KI-Kontingent (Punkt 7) und Verzicht auf Hinweise im Arbeitsfluss (Punkt 5)
 - **Datum:** 2026-09-16
 - **Kontext:** [Gesamtkonzept Monetarisierung](../gesamtkonzept-monetarisierung.md), Issue #1458 (T3a), Issue #1484 (T3b), Issue #1504 (UX-Wochenblick), PR #1488
 

@@ -24,12 +24,7 @@ import { grandfatherPlans, planDistribution } from './grandfatherPlans.js';
 const testDir = dirname(fileURLToPath(import.meta.url));
 const serverRoot = resolve(testDir, '../..');
 
-const createUser = (overrides: {
-	id: number;
-	email: string;
-	plan: 'free' | 'pro' | 'max' | 'ultimate';
-	createdAt: Date;
-}) =>
+const createUser = (overrides: { id: number; email: string; plan: 'free' | 'plus' | 'pro'; createdAt: Date }) =>
 	User.create({
 		id: overrides.id,
 		email: overrides.email,
@@ -42,8 +37,8 @@ const createUser = (overrides: {
 beforeEach(resetDb);
 after(closeDb);
 
-describe('grandfatherPlans — AK1: setzt nur Alt-Free-Konten vor dem Stichtag auf ultimate', () => {
-	it('Konto vor dem Stichtag mit plan=free wird auf ultimate gesetzt, Konto danach bleibt free', async () => {
+describe('grandfatherPlans — AK1: setzt nur Alt-Free-Konten vor dem Stichtag auf pro', () => {
+	it('Konto vor dem Stichtag mit plan=free wird auf pro gesetzt, Konto danach bleibt free', async () => {
 		const cutoff = new Date('2026-09-01T00:00:00Z');
 		await createUser({ id: 1, email: 'alt@example.com', plan: 'free', createdAt: new Date('2026-08-01T00:00:00Z') });
 		await createUser({ id: 2, email: 'neu@example.com', plan: 'free', createdAt: new Date('2026-09-15T00:00:00Z') });
@@ -53,20 +48,20 @@ describe('grandfatherPlans — AK1: setzt nur Alt-Free-Konten vor dem Stichtag a
 		assert.equal(changed, 1, 'genau ein Konto (vor dem Stichtag) wurde geändert');
 		const alt = await User.findByPk(1);
 		const neu = await User.findByPk(2);
-		assert.equal(alt?.get('plan'), 'ultimate', 'Alt-Konto vor dem Stichtag steht auf ultimate');
+		assert.equal(alt?.get('plan'), 'pro', 'Alt-Konto vor dem Stichtag steht auf pro');
 		assert.equal(neu?.get('plan'), 'free', 'Konto nach dem Stichtag bleibt free');
 	});
 
 	it('Konto vor dem Stichtag mit bereits gebuchtem Paket bleibt unverändert', async () => {
 		const cutoff = new Date('2026-09-01T00:00:00Z');
-		await createUser({ id: 1, email: 'pro@example.com', plan: 'pro', createdAt: new Date('2026-01-01T00:00:00Z') });
-		await createUser({ id: 2, email: 'max@example.com', plan: 'max', createdAt: new Date('2026-01-01T00:00:00Z') });
+		await createUser({ id: 1, email: 'plus@example.com', plan: 'plus', createdAt: new Date('2026-01-01T00:00:00Z') });
+		await createUser({ id: 2, email: 'pro@example.com', plan: 'pro', createdAt: new Date('2026-01-01T00:00:00Z') });
 
 		const changed = await grandfatherPlans(sequelize, cutoff);
 
 		assert.equal(changed, 0, 'kein Konto mit bereits gebuchtem Paket wird geändert');
-		assert.equal((await User.findByPk(1))?.get('plan'), 'pro');
-		assert.equal((await User.findByPk(2))?.get('plan'), 'max');
+		assert.equal((await User.findByPk(1))?.get('plan'), 'plus');
+		assert.equal((await User.findByPk(2))?.get('plan'), 'pro');
 	});
 });
 
@@ -103,17 +98,17 @@ describe('planDistribution — AK3: Anzahl Konten je Paket', () => {
 	it('zählt Konten je Paket, 0 für Pakete ohne Konten', async () => {
 		await createUser({ id: 1, email: 'a@example.com', plan: 'free', createdAt: new Date() });
 		await createUser({ id: 2, email: 'b@example.com', plan: 'free', createdAt: new Date() });
-		await createUser({ id: 3, email: 'c@example.com', plan: 'ultimate', createdAt: new Date() });
+		await createUser({ id: 3, email: 'c@example.com', plan: 'pro', createdAt: new Date() });
 
 		const distribution = await planDistribution(sequelize);
 
-		assert.deepEqual(distribution, { free: 2, pro: 0, max: 0, ultimate: 1 });
+		assert.deepEqual(distribution, { free: 2, plus: 0, pro: 1 });
 	});
 
-	it('liefert alle vier Pakete mit 0 bei leerer users-Tabelle', async () => {
+	it('liefert alle drei Pakete mit 0 bei leerer users-Tabelle', async () => {
 		const distribution = await planDistribution(sequelize);
 
-		assert.deepEqual(distribution, { free: 0, pro: 0, max: 0, ultimate: 0 });
+		assert.deepEqual(distribution, { free: 0, plus: 0, pro: 0 });
 	});
 });
 

@@ -114,8 +114,8 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 		await expect(card).toBeVisible();
 		await expect(card).toContainText('kostenfrei');
 
-		// Alle vier Pakete nacheinander — inkl. Rückwechsel zu Free.
-		for (const label of ['Pro', 'Max', 'Ultimate', 'Free']) {
+		// Alle drei Pakete nacheinander — inkl. Rückwechsel zu Free.
+		for (const label of ['Plus', 'Pro', 'Free']) {
 			await choosePlan(page, label);
 			await expect.poll(() => patchedId(), `PATCH-Ziel nach Wahl von ${label}`).toBe(TESTER_USER.id);
 			await expect.poll(() => patchedPlan(), `PATCH-Paket nach Wahl von ${label}`).toBe(label.toLowerCase());

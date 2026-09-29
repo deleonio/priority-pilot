@@ -19,6 +19,6 @@ if (!cutoff || Number.isNaN(cutoff.getTime())) {
 // Legt nur fehlende Tabellen an — auf der migrierten Produktions-DB ein No-op.
 await sequelize.sync();
 const changed = await grandfatherPlans(sequelize, cutoff);
-console.log(`Auf ultimate gesetzt: ${changed} Konto/Konten (angelegt vor ${cutoff.toISOString()}, plan=free).`);
+console.log(`Auf pro gesetzt: ${changed} Konto/Konten (angelegt vor ${cutoff.toISOString()}, plan=free).`);
 console.log('Paketverteilung:', JSON.stringify(await planDistribution(sequelize)));
 await sequelize.close();

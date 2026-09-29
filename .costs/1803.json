@@ -1,0 +1,53 @@
+[
+	{
+		"timestamp": "2026-09-29T15:57:25.318Z",
+		"tokensIn": 668828,
+		"tokensOut": 5349,
+		"cost": 0.7585538,
+		"issueId": "1803",
+		"phase": "analyse",
+		"model": "claude-opus-5-5",
+		"provider": "claude",
+		"cacheCreationTokens": 83475,
+		"cacheReadTokens": 585337,
+		"turns": 8,
+		"durationSeconds": 55,
+		"valueCost": 0.7585538,
+		"effort": "high"
+	},
+	{
+		"timestamp": "2026-09-29T16:04:07.856Z",
+		"tokensIn": 446807,
+		"tokensOut": 5249,
+		"cost": 0.31433849999999997,
+		"issueId": "1803",
+		"phase": "implement",
+		"model": "claude-sonnet-5-5",
+		"provider": "claude",
+		"cacheCreationTokens": 74985,
+		"cacheReadTokens": 371810,
+		"turns": 6,
+		"durationSeconds": 96,
+		"valueCost": 0.31433849999999997,
+		"effort": "medium"
+	},
+	{
+		"timestamp": "2026-09-29T16:17:14.150Z",
+		"tokensIn": 376729,
+		"tokensOut": 2672,
+		"cost": 0.2598247,
+		"issueId": "1803",
+		"phase": "review",
+		"model": "claude-sonnet-5-5",
+		"provider": "claude",
+		"cacheCreationTokens": 68583,
+		"cacheReadTokens": 308136,
+		"turns": 5,
+		"durationSeconds": 21,
+		"valueCost": 0.2598247,
+		"effort": "medium",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 0
+	}
+]

@@ -18,9 +18,8 @@ export type EntitlementMap = Partial<Record<FeatureId, FeatureEntitlement>>;
  */
 const PLAN_LABELS: Record<Plan, string> = {
 	free: 'Free',
+	plus: 'Plus',
 	pro: 'Pro',
-	max: 'Max',
-	ultimate: 'Ultimate',
 };
 
 /** Beschriftung eines Pakets; unbekannte Werte werden unverändert durchgereicht. */
@@ -57,6 +56,10 @@ const FEATURE_OFFERS: Record<FeatureId, { title: string; benefit: string }> = {
 		title: 'Abhängigkeiten',
 		benefit: 'Aufgaben verknüpfen und die Reihenfolge im Graphen selbst bestimmen.',
 	},
+	graph_weight: {
+		title: 'Gewichtete Abhängigkeiten',
+		benefit: 'Festlegen, wie stark eine Aufgabe von ihrem Vorgänger abhängt.',
+	},
 	location_reminders: {
 		title: 'Orts-Erinnerungen',
 		benefit: 'Erinnerungen, die ausgelöst werden, wenn du in der Nähe bist.',
@@ -81,9 +84,8 @@ export const featureOffer = (feature: string): { title: string; benefit: string 
 /** Monatliches KI-Kontingent je Paket — Spiegel von `AI_ASSIST_MONTHLY_QUOTA` (server/src/logics/plans.ts). */
 const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = {
 	free: 0,
-	pro: 60,
-	max: 110,
-	ultimate: 200,
+	plus: 110,
+	pro: 200,
 };
 
 /** Hat das Paket überhaupt ein KI-Monatskontingent? `free` hat keines — dort gibt es nichts anzuzeigen. */

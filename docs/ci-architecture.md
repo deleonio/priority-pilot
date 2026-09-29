@@ -35,13 +35,12 @@ gh variable delete LLM_PROVIDER_DOCUMENTER           # → zurück auf den openr
 ```
 
 Die Free-Liste von OpenRouter ändert sich wöchentlich. Ist das eingetragene `:free`-Modell weg
-(`400 This model is unavailable for free`), die ID in beiden Variablen tauschen — die Modell-IDs
-stehen nur dort, nicht im Repo:
+(`400 This model is unavailable for free`), die ID per Actions → „Set Agent Config“ →
+`openrouter-haiku-model` tauschen. Der Lauf ersetzt sie in `CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER`
+und `PI_MODEL_ALIASES` — die Modell-IDs stehen nur dort, nicht im Repo:
 
 ```bash
-for v in CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER PI_MODEL_ALIASES; do
-  gh variable get "$v" | sed 's#<alte-id>#<neue-id>#g' | gh variable set "$v"
-done
+gh workflow run set-agent-config.yml -f openrouter-haiku-model=<anbieter>/<modell>:free
 ```
 
 Auswahl: ein Free-Modell mit Tool-Calling (Liste unter `openrouter.ai/models?max_price=0`). Der

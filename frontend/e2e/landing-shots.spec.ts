@@ -46,7 +46,7 @@ const seed = async (page: Page): Promise<void> => {
 	const login = await page.request.post('/auth/test-login', { data: { email, displayName: 'Alex', role: 'admin' } });
 	expect(login.ok(), 'test-login muss eine Session liefern').toBeTruthy();
 	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { id: number };
-	await page.request.patch(`/api/v1/admin/users/${me.id}/plan`, { data: { plan: 'ultimate' } });
+	await page.request.patch(`/api/v1/admin/users/${me.id}/plan`, { data: { plan: 'pro' } });
 	const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
 	expect(pillars, 'die Registrierung legt fünf Säulen an').toHaveLength(5);
 

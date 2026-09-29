@@ -175,15 +175,15 @@
 		"cta": "Start for free",
 		"plans": {
 			"free": "Free",
-			"pro": "Pro",
-			"max": "Max",
-			"ultimate": "Ultimate"
+			"plus": "Plus",
+			"pro": "Pro"
 		},
 		"features": {
 			"groups": "Groups and invite links",
 			"voice_input": "Voice input",
 			"ai_assist": "AI help: pillar advisor and copy editing",
-			"graph_write": "Edit weighted dependencies",
+			"graph_write": "Task dependencies",
+			"graph_weight": "Edit weighted dependencies",
 			"location_reminders": "Location reminders",
 			"mcp_read": "MCP interface (read)",
 			"mcp_readwrite": "MCP interface (read and write)"
