@@ -86,8 +86,17 @@ describe('useBillingReturnPoll (#1496 AK4)', () => {
 
 	it('löst bei Mount genau einen sofortigen refresh()-Aufruf aus', () => {
 		const refresh = vi.fn().mockResolvedValue(undefined);
-		renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
+		const { result } = renderHook(({ currentPlan }) => useBillingReturnPoll(refresh, 'pro', currentPlan), {
 			initialProps: { currentPlan: 'free' as Plan },
+		});
+
+		expect(refresh).toHaveBeenCalledTimes(1);
+		expect(result.current.status).toBe('waiting');
+
+		// „Sofortig" verhaltenswirksam prüfen: Auch kurz vor dem ersten Poll-Intervall bleibt es beim
+		// Mount-Refresh — der zweite Aufruf darf erst nach den vollen 3000ms erfolgen.
+		act(() => {
+			vi.advanceTimersByTime(2999);
 		});
 
 		expect(refresh).toHaveBeenCalledTimes(1);

@@ -44,7 +44,25 @@ describe('useReassignRun – Hintergrundlauf statt Client-Portionsschleife (#164
 			// weiterzuportionieren.
 			.mockResolvedValueOnce({ updated: 1, failed: 0, skipped: 0, remaining: 5, quotaExhausted: false })
 			.mockResolvedValueOnce({ updated: 1, failed: 0, skipped: 0, remaining: 0, quotaExhausted: false });
-		const loadStatus = vi.fn<() => Promise<BackgroundStatus>>().mockResolvedValue(idleStatus());
+		// Mount → stiller Stand; nach start() → Lauf unterwegs; Poll → Abschluss NUR über loadStatus.
+		const loadStatus = vi
+			.fn<() => Promise<BackgroundStatus>>()
+			.mockResolvedValueOnce(idleStatus())
+			.mockResolvedValueOnce({
+				startedAt: '2026-09-23T10:00:00Z',
+				total: 4,
+				pending: 2,
+				running: true,
+				processed: 2,
+			})
+			.mockResolvedValue({
+				startedAt: '2026-09-23T10:00:00Z',
+				total: 4,
+				pending: 0,
+				running: false,
+				processed: 4,
+				result: { updated: 4, failed: 0, skipped: 0, quotaExhausted: false },
+			});
 
 		const { result } = renderHook(() => useReassignRun({ runPortion, loadStatus }));
 
@@ -57,6 +75,11 @@ describe('useReassignRun – Hintergrundlauf statt Client-Portionsschleife (#164
 		});
 
 		expect(runPortion).toHaveBeenCalledTimes(1);
+		// Observable Outcome: Der Lauf endet ergebnisbasiert über den Status-Poll — die
+		// Abschlusszahlen kommen aus loadStatus, nicht aus einer zweiten Portion-Rückgabe.
+		expect(result.current.run.phase).toBe('completed');
+		expect(result.current.run.updated).toBe(4);
+		expect(result.current.run.processed).toBe(4);
 	});
 
 	it('AK7: erkennt beim Mount einen bereits laufenden Hintergrundlauf und pollt automatisch bis zum Ende', async () => {

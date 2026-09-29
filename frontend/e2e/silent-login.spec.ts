@@ -221,7 +221,15 @@ test.describe('#396 PR B — Silent Google Login (prompt=none)', () => {
 
 		await page.goto('/app/?login=email');
 
-		await expect(page.getByLabel('Anmeldelink per E-Mail')).toBeFocused();
+		const email = page.getByLabel('Anmeldelink per E-Mail');
+		await expect(email).toBeFocused();
+
+		// Tab-Freiheit (Scanner-Finding #1662): Tab bewegt den Fokus weiter zum Senden-Button —
+		// das Autofokus-Feld ist kein Fokus-Gefängnis.
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Anmeldelink senden' })).toBeFocused();
+		await expect(email).not.toBeFocused();
+
 		expect(silentCount).toBe(0);
 	});
 });
