@@ -26,6 +26,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 			heading: 'Keine Auswertung',
 			paragraphs: [
 				'Wir werten deine Daten nicht aus. Es gibt kein Nutzungsprofil, kein Tracking und keine Werbung; die Inhalte deiner Aufgaben dienen allein deiner eigenen Planung.',
+				'Einzige Ausnahme ist eine anonyme Zählung, ob Fürsorge-Vorschläge helfen: wie oft Vorschläge angezeigt, übernommen oder abgelehnt werden (ohne Bezug zu deinem Konto) und wie viele Konten 4 und 12 Wochen nach der Registrierung noch Aufgaben erledigen, getrennt nach eingeschalteten und ausgeschalteten Fürsorge-Hinweisen. Dafür speichern wir, wann du die Fürsorge-Hinweise ein- oder ausschaltest; dieser Verlauf wird mit deinem Konto gelöscht. Ausgewertet werden nur Summen, Gruppen mit weniger als fünf Personen werden nicht ausgewiesen.',
 			],
 		},
 		{

@@ -13,6 +13,7 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { waehleCareVorschlaege, type CareAufgabe, type CareVorlage } from '../../logics/careSuggestions.js';
 import { CARE_SPRACHEN, CARE_VORLAGEN, type CareSprache } from '../../logics/careSuggestionData.js';
 import { bewerteCareDefizit } from '../../logics/careDeficit.js';
+import { protokolliereCareReaktion } from '../../logics/careWirkung.js';
 import type { components } from '../../api';
 
 type ErrorDto = components['schemas']['Error'];
@@ -355,6 +356,9 @@ scoresRouter.get(
 					).map((vorschlag) => ({ ...vorschlag, saeuleId: defizit.id, saeuleName: defizit.name }));
 				});
 
+			// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
+			const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));
+			await protokolliereCareReaktion(userId, 'angezeigt', angezeigt, jetzt);
 			res.json({ vorschlaege });
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
@@ -385,6 +389,7 @@ scoresRouter.post(
 			} else {
 				await CareSuggestionDismissal.create({ userId, templateKey, abgelehntAm });
 			}
+			await protokolliereCareReaktion(userId, 'abgelehnt', [templateKey], abgelehntAm);
 			res.status(204).send();
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');

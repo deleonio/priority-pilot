@@ -2095,6 +2095,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/care-wirkung:
+    get:
+      summary: Wirkung der Fürsorge-Vorschläge und -Pushes auswerten (#1798)
+      description: >-
+        Nur für Admins (403 sonst). Liefert je Woche die Anzahl angezeigter, übernommener,
+        abgelehnter und ignorierter Vorlagen (ignoriert erst für Wochen, deren Ende mindestens
+        7 Tage zurückliegt) sowie die 4- und 12-Wochen-Bindung getrennt nach Fürsorge-Push an
+        und aus. Nur Summen, keine Nutzer-IDs; Zellen mit weniger als 5 Nutzern werden als
+        `unterdrueckt` ausgegeben.
+      operationId: getCareWirkung
+      tags: [admin]
+      responses:
+        '200':
+          description: Auswertung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareWirkung'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /admin/tasks/reassign-pillars/status:
     get:
       summary: Stand der app-weiten Säulen-Neuberechnung
@@ -3637,6 +3663,62 @@ components:
           type: integer
         displayName:
           type: string
+    CareWirkung:
+      type: object
+      description: Anonyme Wirkungs-Auswertung der Fürsorge (#1798), nur Summen.
+      required: [wochen, bindung]
+      properties:
+        wochen:
+          type: array
+          items:
+            type: object
+            required: [woche, angezeigt, uebernommen, abgelehnt, ignoriert]
+            properties:
+              woche:
+                type: string
+                format: date
+                description: Montag der Woche (UTC).
+              angezeigt:
+                type: integer
+              uebernommen:
+                type: integer
+              abgelehnt:
+                type: integer
+              ignoriert:
+                type: integer
+        bindung:
+          type: object
+          required: [push_an, push_aus]
+          properties:
+            push_an:
+              $ref: '#/components/schemas/CareBindung'
+            push_aus:
+              $ref: '#/components/schemas/CareBindung'
+    CareBindung:
+      type: object
+      description: 4- und 12-Wochen-Bindung einer Push-Gruppe (Kohorte ab Registrierungswoche).
+      required: [w4, w12]
+      properties:
+        w4:
+          $ref: '#/components/schemas/CareBindungsZelle'
+        w12:
+          $ref: '#/components/schemas/CareBindungsZelle'
+    CareBindungsZelle:
+      description: >-
+        Nutzer, deren Zielwoche vorbei ist, davon aktiv (mindestens eine erledigte Aufgabe in
+        der Zielwoche); bei weniger als 5 Nutzern der String `unterdrueckt`.
+      oneOf:
+        - type: object
+          required: [nutzer, aktiv, quote]
+          properties:
+            nutzer:
+              type: integer
+            aktiv:
+              type: integer
+            quote:
+              type: number
+        - type: string
+          enum: [unterdrueckt]
     AdminUser:
       type: object
       description: Nutzer-Eintrag der Admin-Nutzerverwaltung (Rollensystem admin/member/tester).
@@ -4388,6 +4470,11 @@ components:
           description: >-
             Optionale Kategorie der Aufgabe. Muss eine Kategorie des Eigentümer-Kontos
             sein, sonst 400; `null` oder weggelassen heißt „ohne Kategorie".
+        careTemplateKey:
+          type: string
+          description: >-
+            Optionaler Stammdaten-Schlüssel der Fürsorge-Vorlage, aus der die Aufgabe entsteht
+            (#1798): zählt anonym als Übernahme; die Aufgabe selbst bleibt unverändert.
     TaskUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder werden aktualisiert.
