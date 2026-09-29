@@ -1584,10 +1584,10 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 		await waitFor(() => {
 			const toggle = queryCareSwitch(container);
 			expect(toggle, 'Fürsorge-Schalter fehlt in der Karte „Benachrichtigungen"').not.toBeNull();
+			expect(bound(toggle!, '_checked'), 'Zustand kommt aus GET /care-config').toBe('false');
 		});
 		const toggle = queryCareSwitch(container)!;
 		expect(toggle.closest('.settings-switch-row'), '#971-Muster: Switch je in einer Switch-Zeile').not.toBeNull();
-		expect(bound(toggle, '_checked'), 'Zustand kommt aus GET /care-config').toBe('false');
 		expect(bound(toggle, '_hint'), '_hint nennt die Abgrenzung (Frist-Erinnerungen bleiben an)').not.toBe('');
 	});
 
