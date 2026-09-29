@@ -71,6 +71,13 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   - **Generated contract files** (`server/src/api.d.ts`, `client/src/schema.d.ts`) are never
     hand-edited: their source is `openapi.yml` — hand edits get silently overwritten by the
     next `pnpm lint`/pre-commit hook.
+  - **Doc drift:** for every changed behavior, name, numbering, route, or API contract, grep the
+    OLD term over `docs/` (above all `docs/user-guide.md` — it is the in-app help), the
+    descriptions in `openapi.yml`, and JSDoc/comments of the touched files; update the hits in
+    the same PR.
+  - **PR description = current diff:** write or refresh it as the LAST step of the round, after
+    the final commit, from the actual diff (`git diff --stat origin/main...HEAD`) — a description
+    stuck at an earlier state (spec draft, before a fixup round) becomes a finding.
   Only commit/push once everything is green.
 
 ## Step 4 — Create & link the PR (ready to review)
