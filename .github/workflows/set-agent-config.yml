@@ -13,6 +13,10 @@ name: Set Agent Config
 # Wechsel zwei Dispatches, und KEINE Stelle prüfte die Kombination. Hier laufen beide Werte durch
 # denselben Vorab-Check, bevor irgendetwas gesetzt wird.
 #
+# Dritte Stellgröße `openrouter-haiku-model`: tauscht die OpenRouter-ID hinter dem haiku-Alias
+# (Documenter-Default) in CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER und PI_MODEL_ALIASES. Die
+# Free-Liste rotiert wöchentlich; so bleibt der Wechsel ein Dispatch statt JSON-Handarbeit.
+#
 # `unverändert` als Default beider Inputs: Ein Lauf, der nur die Laufzeit umstellen soll, darf den
 # Provider nicht versehentlich auf einen Default zurückziehen.
 
@@ -38,6 +42,11 @@ on:
           - claude
           - openrouter
           - zai
+      openrouter-haiku-model:
+        description: 'OpenRouter-Modell-ID hinter dem haiku-Alias, z. B. poolside/laguna-s-2.1:free (leer = unverändert)'
+        type: string
+        required: false
+        default: ''
 
 jobs:
   set-agent-config:
@@ -173,6 +182,39 @@ jobs:
             echo "LLM_PROVIDER bleibt unverändert."
           fi
 
+      - name: OpenRouter-haiku-Modell tauschen
+        if: inputs.openrouter-haiku-model != ''
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          NEW: ${{ inputs.openrouter-haiku-model }}
+          CC_JSON: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          PI_JSON: ${{ vars.PI_MODEL_ALIASES }}
+        run: |
+          set -euo pipefail
+          case "$NEW" in
+            */*) ;;
+            *) echo "::error::openrouter-haiku-model '$NEW' — erwartet <anbieter>/<modell>, z. B. poolside/laguna-s-2.1:free"; exit 1 ;;
+          esac
+          OLD="$(printf '%s' "$CC_JSON" | jq -r '.env.ANTHROPIC_DEFAULT_HAIKU_MODEL // empty')"
+          if [ -z "$OLD" ]; then
+            echo "::error::CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER hat kein env.ANTHROPIC_DEFAULT_HAIKU_MODEL."
+            exit 1
+          fi
+          # Jedes Vorkommen der alten ID ersetzen, nicht nur den HAIKU-Key: dieselbe ID kann
+          # auch unter ANTHROPIC_SMALL_FAST_MODEL oder `model` stehen.
+          printf '%s' "$CC_JSON" | jq -c --arg o "$OLD" --arg n "$NEW" 'walk(if . == $o then $n else . end)' \
+            | gh variable set CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -R "${GITHUB_REPOSITORY}"
+          v="$(gh variable get CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -R "${GITHUB_REPOSITORY}" | jq -r '.env.ANTHROPIC_DEFAULT_HAIKU_MODEL')"
+          [ "$v" = "$NEW" ] || { echo "::error::CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER nicht übernommen (gelesen: $v)"; exit 1; }
+          echo "::notice title=✅ OpenRouter haiku (Claude Code)::$OLD → $NEW"
+          if [ -n "$PI_JSON" ]; then
+            printf '%s' "$PI_JSON" | jq -c --arg n "openrouter/$NEW" '.openrouter.haiku = $n' \
+              | gh variable set PI_MODEL_ALIASES -R "${GITHUB_REPOSITORY}"
+            echo "::notice title=✅ OpenRouter haiku (pi)::openrouter/$NEW"
+          else
+            echo "PI_MODEL_ALIASES nicht gesetzt — pi-Seite übersprungen."
+          fi
+
       - name: Verifizieren
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -199,6 +241,7 @@ jobs:
         env:
           IN_RUNTIME: ${{ inputs.runtime }}
           IN_PROVIDER: ${{ inputs.provider }}
+          IN_HAIKU: ${{ inputs.openrouter-haiku-model }}
           PREV_RUNTIME: ${{ steps.resolve.outputs.current-runtime }}
           PREV_PROVIDER: ${{ steps.resolve.outputs.current-provider }}
           EFF_RUNTIME: ${{ steps.resolve.outputs.runtime }}
@@ -211,6 +254,7 @@ jobs:
             echo "| --- | --- | --- | --- |"
             echo "| \`AGENT_RUNTIME\` | ${PREV_RUNTIME:-?} | ${IN_RUNTIME} | ${EFF_RUNTIME:-?} |"
             echo "| \`LLM_PROVIDER\` | ${PREV_PROVIDER:-?} | ${IN_PROVIDER} | ${EFF_PROVIDER:-?} |"
+            echo "| OpenRouter haiku | – | ${IN_HAIKU:-unverändert} | ${IN_HAIKU:-unverändert} |"
             echo ""
             echo "- **Status:** ${{ job.status }}"
             echo "- \`AGENT_RUNTIME\` wirkt aktuell nur auf Phase 01 (Pilot, #1184)."
