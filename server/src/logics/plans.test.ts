@@ -139,25 +139,15 @@ describe('plans.ts — Entitlement-Auswertung je Paket (#1456 AK2)', () => {
 });
 
 describe('plans.ts — KI-Kontingent (#1456 AK2)', () => {
-	it('AI_ASSIST_MONTHLY_QUOTA ist 0/110/200 für free/plus/pro (#1782)', () => {
+	it('AI_ASSIST_MONTHLY_QUOTA ist 0/150/400 für free/plus/pro (#1783)', () => {
 		assert.equal(AI_ASSIST_MONTHLY_QUOTA.free, 0);
-		assert.equal(AI_ASSIST_MONTHLY_QUOTA.plus, 110);
-		assert.equal(AI_ASSIST_MONTHLY_QUOTA.pro, 200);
+		assert.equal(AI_ASSIST_MONTHLY_QUOTA.plus, 150);
+		assert.equal(AI_ASSIST_MONTHLY_QUOTA.pro, 400);
 	});
 
-	it('getEntitlements() trägt das Kontingent im ai_assist-Eintrag', () => {
-		assert.equal(getEntitlements('plus').ai_assist.quotaRemaining, 110, 'Plus startet mit vollem Kontingent 110');
+	it('getEntitlements() trägt kein quotaRemaining mehr (#1783)', () => {
+		assert.equal('quotaRemaining' in getEntitlements('plus').ai_assist, false);
 		assert.equal(getEntitlements('free').ai_assist.allowed, false, 'Free ohne ai_assist (Kontingent 0)');
-	});
-});
-
-describe('plans.ts — Verbrauchsabhängiges Kontingent (#1459 AK7)', () => {
-	it('getEntitlements(plan, consumed) zieht den Verbrauch vom Kontingent ab', () => {
-		assert.equal(getEntitlements('plus', 5).ai_assist.quotaRemaining, 105, 'Plus mit 5 Verbrauch: 110 - 5 = 105');
-	});
-
-	it('getEntitlements(plan, consumed) geht bei Überverbrauch nicht unter 0', () => {
-		assert.equal(getEntitlements('pro', 999).ai_assist.quotaRemaining, 0, 'Restkontingent darf nicht negativ werden');
 	});
 });
 

@@ -170,9 +170,9 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 		);
 	});
 
-	it('AK5: die ai_usage-Zeile des Monats bleibt beim Downgrade erhalten, quotaRemaining ist unter free 0', async () => {
+	it('AK5: die ai_usage-Zeile des Monats bleibt beim Downgrade erhalten', async () => {
 		const email = 'ak5@example.com';
-		const cookie = await server.register(email);
+		await server.register(email);
 		await setPlan(email, 'plus');
 		const user = await User.findOne({ where: { email } });
 		const userId = user!.get('id') as number;
@@ -185,14 +185,6 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 		const row = await AiUsage.findOne({ where: { userId, yearMonth } });
 		assert.ok(row, 'Die ai_usage-Zeile des laufenden Monats darf beim Downgrade nicht gelöscht werden');
 		assert.equal(row?.get('count'), AI_ASSIST_MONTHLY_QUOTA.plus, 'Der gebuchte Verbrauch bleibt unverändert stehen');
-
-		const me = await server.json('/auth/me', { headers: { Cookie: cookie } });
-		const meBody = (await me.json()) as { entitlements: Record<string, { quotaRemaining?: number }> };
-		assert.equal(
-			meBody.entitlements.ai_assist?.quotaRemaining,
-			0,
-			'quotaRemaining muss unter free (Kontingent 0) 0 sein, auch wenn der Verbrauch aus dem plus-Paket stammt',
-		);
 	});
 
 	it('AK5: im Folgemonat trägt die neue yearMonth-Zeile das volle Kontingent des dann gebuchten Pakets', async () => {
@@ -221,12 +213,6 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 
 		const me = await server.json('/auth/me', { headers: { Cookie: cookie } });
 		assert.equal(me.status, 200);
-		const meBody = (await me.json()) as { entitlements: Record<string, { quotaRemaining?: number }> };
-		assert.equal(
-			meBody.entitlements.ai_assist?.quotaRemaining,
-			AI_ASSIST_MONTHLY_QUOTA.pro,
-			'Der Vormonatsverbrauch darf das Kontingent des Folgemonats nicht schmälern — es gilt das volle Kontingent des dann gebuchten Pakets',
-		);
 
 		const currentRow = await AiUsage.findOne({ where: { userId, yearMonth: currentYearMonth } });
 		assert.equal(currentRow, null, 'Für den Folgemonat existiert noch keine Zeile — der Zähler startet bei 0');

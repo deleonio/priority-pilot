@@ -3,6 +3,7 @@ import type { ActivityAdvice, Category, Pillar, Task } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { AI_FAIR_USE_INTERVAL_SECONDS, fairUseMessage } from '../lib/planOffers';
 import { readString } from '../lib/inputValue';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { deepActiveElement } from '../lib/focus';
@@ -61,6 +62,8 @@ export const QuickCaptureModal = ({
 	const [prefill, setPrefill] = useState<TaskFormInitialValues>({});
 	const [parsing, setParsing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	// #1783: Fair-Use-Drossel — eigener Hinweis-State statt `error`, damit kein Fehler-Ton entsteht.
+	const [fairUseHint, setFairUseHint] = useState<string | null>(null);
 	const [advising, setAdvising] = useState(false);
 	const [adviceError, setAdviceError] = useState<string | null>(null);
 	// `null` = noch keine Beratung angefragt (kein „Keine Vorschläge"-Hinweis vor der ersten Anfrage).
@@ -111,9 +114,13 @@ export const QuickCaptureModal = ({
 
 	const process = async (): Promise<void> => {
 		setError(null);
+		setFairUseHint(null);
 		setParsing(true);
 		try {
 			const parsed = await api.parseText({ text: text.current });
+			if (parsed.fairUse === 'throttled') {
+				setFairUseHint(fairUseMessage(AI_FAIR_USE_INTERVAL_SECONDS));
+			}
 			setPrefill({
 				title: parsed.title,
 				description: parsed.description,
@@ -133,7 +140,11 @@ export const QuickCaptureModal = ({
 			setStep('form');
 		} catch (reason) {
 			const apiError = await toApiError(reason);
-			setError(apiError.message);
+			if (apiError.throttled === true) {
+				setFairUseHint(apiError.message);
+			} else {
+				setError(apiError.message);
+			}
 		} finally {
 			setParsing(false);
 		}
@@ -147,6 +158,7 @@ export const QuickCaptureModal = ({
 	 */
 	const consult = async (): Promise<void> => {
 		setAdviceError(null);
+		setFairUseHint(null);
 		// #440: Ohne Säulen kann der Berater nichts zuordnen — Hinweis statt leerer Anfrage ans LLM.
 		if (pillars.length === 0) {
 			setAdvice([]);
@@ -162,9 +174,16 @@ export const QuickCaptureModal = ({
 				},
 			});
 			setAdvice(result.advice);
+			if (result.fairUse === 'throttled') {
+				setFairUseHint(fairUseMessage(AI_FAIR_USE_INTERVAL_SECONDS));
+			}
 		} catch (reason) {
 			const apiError = await toApiError(reason);
-			setAdviceError(apiError.message);
+			if (apiError.throttled === true) {
+				setFairUseHint(apiError.message);
+			} else {
+				setAdviceError(apiError.message);
+			}
 		} finally {
 			setAdvising(false);
 		}
@@ -198,6 +217,7 @@ export const QuickCaptureModal = ({
 			}}
 			fallbackFocusRef={triggerRef}
 		>
+			<AiQuotaHint message={fairUseHint} />
 			{step === 'form' ? (
 				<TaskForm
 					ref={taskFormRef}
@@ -214,9 +234,8 @@ export const QuickCaptureModal = ({
 				/>
 			) : (
 				<>
-					{/* #1458 AK12/AK10: Referenzstelle `ai_assist` — Badge plus Rest des Monatskontingents. */}
+					{/* #1458 AK12: Referenzstelle `ai_assist` — Paket-Badge. */}
 					<PlanBadge feature="ai_assist" inModal />
-					<AiQuotaHint />
 					{error !== null && (
 						<KolAlert _type="error" _label="Verarbeitung fehlgeschlagen">
 							{error}

@@ -115,6 +115,8 @@ export const AdminUsersSection = () => {
 							<li key={user.id} className="admin-user">
 								<span className="admin-user-name">{user.displayName}</span>
 								<span className="admin-user-email">{user.email}</span>
+								{/* #1783 AK7: Verbrauch des laufenden Monats — Zusatzzeile, keine eigene Spalte (375px). */}
+								<span className="admin-user-ai">{`KI-Anfragen diesen Monat: ${user.aiRequestsThisMonth ?? 0}`}</span>
 								<KolBadge _label={roleLabel(user.role)} />
 								{/* #1556 AK1: Paket immer als Text-Badge (nie nur Farbe), in jeder Zeile. */}
 								<KolBadge _label={planLabel(user.plan)} />

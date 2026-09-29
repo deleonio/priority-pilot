@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { Pillar } from 'client';
+import { ResponseError, type Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { EntitlementMap, Plan } from '../lib/planOffers';
+import type { EntitlementMap } from '../lib/planOffers';
 import { PlanProvider } from '../lib/usePlan';
 import { QuickCaptureModal } from './QuickCaptureModal';
 
@@ -374,53 +374,63 @@ describe('QuickCaptureModal — Berater ohne Säulen (#440 AK3, seit #1335 im An
 	});
 });
 
-// ── #1458 (AK10): Rest des KI-Monatskontingents in der Schnellerfassung ──────────────────────
+// ── #1783 (AK5): Fair-Use-Hinweis statt Kontingent-Zähler ────────────────────────────────────
 
 /**
- * AK10: Der Capture-Schritt zeigt neben dem Paket-Badge den Rest des KI-Monatskontingents
- * (`AiQuotaHint`). Der Wert kommt ausschliesslich aus `entitlements.ai_assist.quotaRemaining`
- * (`GET /auth/me`) — im Test ueber den `PlanProvider` gesetzt, ohne Netzwerk. Geprueft werden die
- * drei Faelle aus dem Harness-Marker: 60 (voll, keine Warnung), 5 (unter 10 Prozent von 60 →
- * Warnung) und 0 auf `free` (kein Kontingent im Paket → gar keine Anzeige).
+ * Test-Pflege (#1783): der frühere Zähler „Noch N KI-Anfragen" (#1458 AK10) entfällt. Stattdessen
+ * erscheint ein freundlicher Info-Hinweis mit Wartezeit — nach einer gedrosselten Antwort
+ * (`fairUse: 'throttled'`) oder bei 429 `ai_throttled`, nie im Fehler-Ton und ohne Anzahl.
  */
-describe('QuickCaptureModal — KI-Kontingent (#1458 AK10)', () => {
+describe('QuickCaptureModal — Fair-Use-Hinweis (#1783 AK5)', () => {
 	afterEach(() => {
 		vi.clearAllMocks();
 		cleanup();
 	});
 
 	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
+	const hint = (): Element | null => document.body.querySelector('kol-alert[_label="KI-Hilfe etwas langsamer"]');
+	const submit = async (): Promise<void> => {
+		await typeCapture('Steuererklärung bis morgen');
+		await act(async () => {
+			(processButton() as unknown as { _on?: { onClick?: (event: MouseEvent) => void } })._on?.onClick?.(
+				new MouseEvent('click'),
+			);
+		});
+	};
 
-	const renderWithPlan = (plan: Plan, quotaRemaining: number) => {
-		const entitlements: EntitlementMap = {
-			ai_assist: { allowed: true, requiredPlan: 'pro', quotaRemaining } as EntitlementMap['ai_assist'],
-		};
-		return render(
-			<PlanProvider value={{ plan, entitlements }}>
+	it('zeigt ohne Drossel keinen Hinweis und nirgends eine Anzahl KI-Anfragen', () => {
+		render(
+			<PlanProvider value={{ plan: 'plus', entitlements: {} as EntitlementMap }}>
 				<QuickCaptureModal {...props} />
 			</PlanProvider>,
 		);
-	};
 
-	it('zeigt bei 60 verbleibenden Anfragen den Rest ohne Warnung', () => {
-		renderWithPlan('pro', 60);
-
-		expect(document.body.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 60 KI-Anfragen');
-		expect(document.body.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeNull();
-	});
-
-	it('warnt bei 5 verbleibenden Anfragen zusaetzlich zum Rest (unter 10 Prozent von 60)', () => {
-		renderWithPlan('pro', 5);
-
-		expect(document.body.querySelector('.ai-quota-hint')?.textContent).toContain('Noch 5 KI-Anfragen');
-		expect(document.body.querySelector('kol-alert[_label="Kontingent fast aufgebraucht"]')).toBeTruthy();
-	});
-
-	it('zeigt auf free (Paket ohne Kontingent) gar keinen Kontingent-Hinweis statt "Noch 0"', () => {
-		renderWithPlan('free', 0);
-
-		expect(document.body.querySelector('.ai-quota-hint')).toBeNull();
+		expect(hint()).toBeNull();
 		expect(document.body.textContent).not.toContain('KI-Anfragen');
+	});
+
+	it('zeigt bei 429 ai_throttled einen Info-Hinweis mit Wartezeit statt eines Fehlers', async () => {
+		const body = { message: 'gedrosselt', code: 'ai_throttled' };
+		mockParseText.mockRejectedValueOnce(
+			new ResponseError(new Response(JSON.stringify(body), { status: 429, headers: { 'Retry-After': '20' } }), body),
+		);
+		render(<QuickCaptureModal {...props} />);
+		await submit();
+
+		await waitFor(() => expect(hint()).toBeTruthy());
+		expect(hint()?.getAttribute('_type')).toBe('info');
+		expect(hint()?.textContent).toContain('20 Sekunden');
+		expect(document.body.querySelector('kol-alert[_type="error"]')).toBeNull();
+	});
+
+	it('zeigt den Hinweis auch nach einer gedrosselten Antwort (fairUse: throttled)', async () => {
+		mockParseText.mockResolvedValueOnce({ title: 'Steuererklärung', fairUse: 'throttled' });
+		render(<QuickCaptureModal {...props} />);
+		await submit();
+
+		await waitFor(() => expect(hint()).toBeTruthy());
+		expect(hint()?.textContent).toMatch(/\d+ Sekunden/);
+		expect(hint()?.textContent).not.toContain('KI-Anfragen');
 	});
 });
 

@@ -18,7 +18,6 @@ import { deleteAccount } from '../../logics/deleteAccount.js';
 import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
-import { getAiUsageCount } from '../aiQuotaMeter.js';
 import { THROTTLED_MESSAGE } from './rateLimit.js';
 import { playAccountIdFor } from '../../logics/googlePlay.js';
 
@@ -405,16 +404,8 @@ authRouter.get('/auth/me', async (req, res) => {
 	if (user.plan !== plan) {
 		user.plan = plan;
 	}
-	// #1459: Das Restkontingent der KI-Unterstützung ist verbrauchsabhängig — der Monatszähler
-	// kommt aus `ai_usage` (Best-Effort: ein Lesefehler darf `/auth/me` nicht mit 500 reißen).
-	let aiAssistConsumed = 0;
-	try {
-		aiAssistConsumed = typeof user.id === 'number' ? await getAiUsageCount(user.id) : 0;
-	} catch (error) {
-		console.warn('KI-Verbrauch konnte nicht gelesen werden — quotaRemaining zeigt das volle Kontingent.', error);
-	}
 	// #1494 (AK7): Abo-Status zusätzlich zu plan/entitlements — kein Abo → definierter Leerwert
-	// `null`. Best-Effort wie der KI-Verbrauch: ein Lesefehler darf `/auth/me` nicht mit 500 reißen.
+	// `null`. Best-Effort: ein Lesefehler darf `/auth/me` nicht mit 500 reißen.
 	let subscription: {
 		provider: string;
 		plan: string;
@@ -469,7 +460,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		avatarUrl: user.avatarUrl ?? null,
 		role,
 		plan,
-		entitlements: getEntitlements(plan, aiAssistConsumed),
+		entitlements: getEntitlements(plan),
 		subscription,
 		...(user.id !== undefined ? { playAccountId: playAccountIdFor(user.id) } : {}),
 	});
