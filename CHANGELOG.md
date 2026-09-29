@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.4._
+_Enthält v0.10.0 – v0.10.6._
 
 ### Other Changes
 
@@ -13,6 +13,10 @@ _Enthält v0.10.0 – v0.10.4._
 - feat(server): one care push max per day on deficit or overload (#1794) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1814
 - chore(prompts): apply prompt-audit #1590 option 1 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1834
 - chore: switch pipeline model to sonnet 5.5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1833
+- chore(gate): scope e2e to specs referencing changed texts and routes by @deleonio in https://github.com/deleonio/priority-pilot/pull/1837
+- chore(skills): pre-push checks for doc drift and stale pr description by @deleonio in https://github.com/deleonio/priority-pilot/pull/1838
+- chore(gate): single source for the local gate chain in AGENTS.md by @deleonio in https://github.com/deleonio/priority-pilot/pull/1839
+- ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
 
 ## v0.9 - 2026-09-29
 
@@ -280,7 +284,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(server): process PayPal payment events and enforce grace period by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1508
 - feat(frontend): add billing subscription management flow to settings by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1509
 - feat(server): sync user plan on downgrade and cancellation (#1462) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1510
-- chore(deps): bump @public-ui packages to 4.4.1 prerelease 7b9d0237 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1511
 - chore(deps): bump @public-ui packages to 4.4.1 prerelease 7b9d0237 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1511
 - feat(server): add MCP tools to create, update and delete categories by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1514
 - feat(frontend): add archivo as primary font by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1516
