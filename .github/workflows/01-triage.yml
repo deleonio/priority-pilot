@@ -279,6 +279,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
+          # Als env statt inline: ein run-Block mit ${{ }} unterliegt GitHubs
+          # Expression-Limit (21000 Zeichen) — dieser Block liegt knapp darunter.
+          START_EPOCH: ${{ steps.starttime.outputs.epoch }}
         run: |
           verdict=""
           LOG=/tmp/claude-output.log
@@ -521,7 +524,7 @@ jobs:
           # wertlos) — stattdessen postet der Workflow seine eigene Diagnose, damit am
           # Ticket IMMER steht, warum es steht. Gleiche Mechanik wie in 05/06.
           if [ "$final" = "needs-human" ]; then
-            SINCE_ISO="$(date -u -d "@${{ steps.starttime.outputs.epoch }}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
+            SINCE_ISO="$(date -u -d "@${START_EPOCH}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
             LOOKUP="$(bash .github/scripts/needs-human-explain.sh lookup \
               --repo "$GITHUB_REPOSITORY" --ticket "$ISSUE" --mode triage \
               ${SINCE_ISO:+--since "$SINCE_ISO"} 2>/dev/null || true)"
