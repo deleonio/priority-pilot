@@ -38,8 +38,10 @@ const KOLOBRI_HOST_ELEMENTS = [
 ] as const;
 
 const isElementUsedInProject = (tag: string): boolean => {
+	// kol-alert fehlt bewusst: app.css nimmt ihn von #930 aus („behält seinen eigenen Hintergrund“).
+	// Er erscheint auf der Startseite nur zustandsabhängig (Fürsorge-Hinweis, #1793) — die harte
+	// Prüfung schlug deshalb je nach Vorbelegung der Test-DB fehl.
 	const usedInProject = [
-		'kol-alert',
 		'kol-avatar',
 		'kol-badge',
 		'kol-button',

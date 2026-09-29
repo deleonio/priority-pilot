@@ -29,7 +29,8 @@ test('AK6: Parser-Titel > 65 Zeichen → Meldung sichtbar im Formular, kein Übe
 
 	await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
-	// KolAlert (_type error) legt keine role="alert" in den Accessibility-Tree — Meldung über den Text finden.
+	// Der Speicher-Fehler in TaskForm setzt kein _alert — ohne das legt KolAlert keine role="alert" an;
+	// Meldung über den Text finden.
 	const alert = page.getByText(/zu lang.*65/i);
 	await expect(alert).toBeVisible();
 	const box = await alert.boundingBox();
