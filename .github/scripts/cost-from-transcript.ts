@@ -66,7 +66,7 @@ const eurRowToUsd = ([prefix, inEur, outEur]: readonly [string, number, number])
 /**
  * Listenpreise in USD je 1 Mio. Token (Stand 2026-08) — Anthropic nativ, z.ai umgerechnet.
  *
- * Schlüssel sind PRÄFIXE: die Pipeline löst `haiku` auf `claude-haiku-4-5-20251001` auf
+ * Schlüssel sind PRÄFIXE: die Pipeline löst `haiku` auf `claude-haiku-4-5` auf
  * (setup-claude/action.yml), das Transkript meldet je nach Modell mit oder ohne
  * Datums-Suffix; z.ai meldet `glm-5.3[1m]` für den Präfix `glm-5.3`. Längster passender
  * Präfix gewinnt.
