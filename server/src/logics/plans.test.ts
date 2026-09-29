@@ -4,6 +4,7 @@ import type { FeatureId } from './plans.js';
 import {
 	FEATURE_IDS,
 	AI_ASSIST_MONTHLY_QUOTA,
+	effectivePlan,
 	getPlansCatalog,
 	getEntitlements,
 	isMonetizationEnforced,
@@ -249,6 +250,17 @@ describe('plans.ts — Cent-Preise und Quartalsstaffel (#1494 AK1-AK3)', () => {
 			const expectedYearly = Math.round(price.monthly * 12 * 0.8);
 			assert.equal(price.quarterly, expectedQuarterly, `${plan}: Quartalsstaffel stimmt nicht`);
 			assert.equal(price.yearly, expectedYearly, `${plan}: Jahresstaffel stimmt nicht`);
+		}
+	});
+});
+
+describe('effectivePlan (#1785)', () => {
+	it('AK3: Altwerte max/ultimate und Unbekanntes werden wie free ausgewertet, free/plus/pro bleiben', () => {
+		for (const legacy of ['max', 'ultimate', 'unbekannt']) {
+			assert.equal(effectivePlan(legacy), 'free', legacy);
+		}
+		for (const plan of ['free', 'plus', 'pro'] as const) {
+			assert.equal(effectivePlan(plan), plan);
 		}
 	});
 });
