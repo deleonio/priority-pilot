@@ -1,0 +1,155 @@
+name: Nit Report
+
+# Woechentlicher LLM-Job (wie UX Team ueber setup-agent, KEINE Pipeline-Phase): sammelt die
+# Review-Nits der in den letzten 30 Tagen gemergten PRs und haelt die 10 wichtigsten in EINEM
+# Dauer-Issue fest (Prompt: .github/prompts/nit-report.md).
+#
+# DELIVERY: Genau EIN offenes Issue mit Label ci:nit-report (bewusst KEIN ai:*-Label - das wuerde
+# die Ticket-Pipeline starten!). Vorhanden -> Body ersetzen, fehlt -> anlegen. Issue-Handling
+# macht der WORKFLOW deterministisch, der Agent liefert nur den Report.
+#
+# STATELESS: kein pro-Issue-Memory. Kein Browser/Workbench noetig (nur gh-Lesezugriff).
+
+on:
+  schedule:
+    - cron: '41 3 * * 1' # woechentlich montags 03:41 UTC, freier Slot im LLM-Nachtblock
+  workflow_dispatch:
+
+concurrency:
+  # Gemeinsame Gruppe aller Nicht-Phasen-LLM-Laeufe (Crons + Ad-hoc): max. 1 gleichzeitig, FIFO.
+  group: llm-sync
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read # Prompt lesen
+  issues: write # Nit-Issue anlegen/aktualisieren + gh label create
+  id-token: write # App-Token (setup-agent)
+  actions: read
+
+jobs:
+  nit-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Startzeit merken (fuer weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        uses: ./.github/actions/setup-agent
+        with:
+          needs-mcp: false
+          # review-Tier: Lesen (Read/Glob/Grep/Bash inkl. gh), Repo-Code schreibgeschuetzt,
+          # der Report geht nach /tmp.
+          tools-tier: review
+          event-type: ${{ github.event_name }}
+          # Pflicht-Input ohne Ticket: '0' fliesst nur in den ungenutzten Storage-Namen.
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_NIT_REPORT || 'sonnet' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: Nit Report via Claude
+        id: claude
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          prev_issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:nit-report --state open \
+            --json number --jq '.[0].number // 0' 2>/dev/null || echo 0)"
+
+          cp .github/prompts/nit-report.md /tmp/claude-prompt.txt
+          sed -i "s/{{REPORT_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{NIT_ISSUE_NR}}/${prev_issue}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Report als Artefakt sichern
+        if: ${{ always() && steps.setup.outputs.configured == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nit-report
+          path: /tmp/nit-report.md
+          if-no-files-found: ignore
+
+      - name: Post-Assertion (Verdict <-> Report) + Issue-Anlage/Update
+        # Genau EIN offenes Nit-Issue: vorhanden -> Body ersetzen, sonst neu anlegen.
+        # Label ci:nit-report NICHT ai:* - sonst startet die Ticket-Pipeline!
+        if: >-
+          ${{ always()
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'report|clean' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ Nit Report fehlgeschlagen::Claude-Lauf nicht erfolgreich - kein stiller «clean»."
+            exit 1
+          fi
+          if [ "$verdict" != "report" ] && [ "$verdict" != "clean" ]; then
+            echo "::error title=❌ Nit Report ohne Verdict::Weder «report» noch «clean» - Lauf wiederholen."
+            exit 1
+          fi
+          if [ "$verdict" = "clean" ]; then
+            echo "::notice title=✅ Nit Report: keine Nits::Issue bleibt unangetastet."
+            exit 0
+          fi
+
+          if [ ! -s /tmp/nit-report.md ] || ! grep -q '## Top-Nits' /tmp/nit-report.md; then
+            echo "::error title=❌ Verdict ohne Report::VERDICT report, aber /tmp/nit-report.md fehlt oder traegt keine Sektion «## Top-Nits»."
+            exit 1
+          fi
+
+          gh label create "ci:nit-report" --repo "$GITHUB_REPOSITORY" --color C5DEF5 \
+            --description "Woechentlicher Nit-Digest der gemergten PRs" 2>/dev/null || true
+
+          title="ci: Nit-Digest ($(date -u +%F))"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci:nit-report --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/nit-report.md
+            echo "::notice title=✅ Nit-Issue aktualisiert::#$number"
+          else
+            url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --label ci:nit-report --body-file /tmp/nit-report.md)"
+            echo "::notice title=✅ Nit-Issue erstellt::${url:-Nummer nicht aufloesbar}"
+          fi
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
