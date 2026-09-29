@@ -320,7 +320,7 @@ describe('asset links', () => {
  */
 describe('Preisseite Free/Plus/Pro (#1786)', () => {
 	const eur = (locale: Locale, cents: number) =>
-		new Intl.NumberFormat(renderModule.LOCALES.includes(locale) ? locale : 'de', { style: 'currency', currency: 'EUR' })
+		new Intl.NumberFormat(locale === 'pt' ? 'pt-PT' : locale, { style: 'currency', currency: 'EUR' })
 			.format(cents / 100)
 			.replace(/[  ]/g, ' ');
 	const normalized = (html: string) => html.replace(/&nbsp;|[  ]/g, ' ');
