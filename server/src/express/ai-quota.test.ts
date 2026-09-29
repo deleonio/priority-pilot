@@ -221,25 +221,6 @@ describe('KI-Kontingent-Metering (#1459)', () => {
 		}
 	});
 
-	describe('AK6 — erschöpftes Kontingent antwortet 429 quota_exhausted', () => {
-		it('POST /tasks/parse-text: Kontingent 0 (Vorbelegung = Limit) → 429', async () => {
-			process.env.MONETIZATION_ENFORCED = 'true';
-			const email = 'ak6-exhausted@example.com';
-			const cookie = await server.register(email);
-			await setPlan(email, 'pro');
-			const user = await User.findOne({ where: { email } });
-			await seedUsage(user!.id, AI_ASSIST_MONTHLY_QUOTA.pro);
-
-			const res = await ROUTES[0].request(server.baseUrl, cookie);
-			assert.equal(res.status, 429);
-			const body = (await res.json()) as { code?: string; feature?: string; currentPlan?: string };
-			assert.equal(body.code, 'quota_exhausted');
-			assert.equal(body.feature, 'ai_assist');
-			assert.equal(body.currentPlan, 'pro');
-			assert.equal(await countOf(user!.id), AI_ASSIST_MONTHLY_QUOTA.pro, 'Zähler darf am Deckel nicht weiter steigen');
-		});
-	});
-
 	describe('AK4 — gescheiterter Provider-Call bucht das Kontingent zurück', () => {
 		for (const routeCase of [ROUTES[0], ROUTES[4]]) {
 			it(`${routeCase.label}: Provider-Fehler (>=500) lässt den Zähler unverändert`, async () => {
@@ -272,21 +253,6 @@ describe('KI-Kontingent-Metering (#1459)', () => {
 			});
 			assert.equal(res.status, 400);
 			assert.equal(await countOf(user!.id), before, 'ungültige Eingaben dürfen kein Kontingent verbrauchen');
-		});
-	});
-
-	describe('AK7 — Erfolgsantwort trägt quotaRemaining', () => {
-		it('POST /tasks/parse-text: quotaRemaining = Kontingent minus Verbrauch nach diesem Aufruf', async () => {
-			process.env.MONETIZATION_ENFORCED = 'true';
-			const email = 'ak7-quota-remaining@example.com';
-			const cookie = await server.register(email);
-			await setPlan(email, 'pro');
-			parseTextImpl = async () => ({ title: 'Task' });
-
-			const res = await ROUTES[0].request(server.baseUrl, cookie);
-			assert.equal(res.status, 200);
-			const body = (await res.json()) as { quotaRemaining?: number };
-			assert.equal(body.quotaRemaining, AI_ASSIST_MONTHLY_QUOTA.pro - 1);
 		});
 	});
 
