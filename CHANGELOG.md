@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.9 - 2026-09-28
+## v0.9 - 2026-09-29
 
-_Enthält v0.9.0 – v0.9.14._
+_Enthält v0.9.0 – v0.9.15._
 
 ### 🔧 Engineering
 
@@ -23,6 +23,7 @@ _Enthält v0.9.0 – v0.9.14._
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
 - chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
+- chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
 
 ## v0.8 - 2026-09-27
 
@@ -163,7 +164,8 @@ _Enthält v0.4.0 – v0.4.22._
 - feat(server): let task_create assign tasks to group members by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1643
 - feat(server): withhold tasks with far-future deadlines from suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1644
 - feat(frontend): run pillar reassignment as server-side background job by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1645
-- feat(frontend): run pillar reassignment as server-side background job by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1645
+- feat(server): add grandfathering CLI for legacy free accounts (#1463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1649
+- feat(frontend): rename Wald tab to Graph, sharpen USP messaging by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1647
 - feat(server): add grandfathering CLI for legacy free accounts (#1463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1649
 - feat(frontend): rename Wald tab to Graph, sharpen USP messaging by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1647
 - feat(frontend): add 8px gap between popover action buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1648
