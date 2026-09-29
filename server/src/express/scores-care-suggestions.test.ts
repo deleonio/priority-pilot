@@ -33,6 +33,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
+	anlass?: 'defizit' | 'ueberlast';
 }
 
 const leseVorschlaege = async (cookie: string, query = ''): Promise<Vorschlag[]> => {
@@ -148,5 +149,71 @@ describe('GET /scores/care-suggestions (#1791)', () => {
 			(v) => v.saeuleId === saeuleId && v.templateKey === vorlage.templateKey,
 		);
 		assert.equal(danach.length, 0, 'abgelehnte Vorlage darf nicht erneut erscheinen');
+	});
+
+	/** Setup: erledigte Aufgabe mit Aufwand in einer Säule (ScoreEntry-Zeitpunkt = jetzt). */
+	const erledigeAufgabe = async (cookie: string, pillarId: number): Promise<void> => {
+		const createRes = await server.json('/tasks', {
+			method: 'POST',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ title: 'Überlast', priority: 3, estimatedEffort: 1, pillars: [{ pillarId, share: 100 }] }),
+		});
+		assert.equal(createRes.status, 201, 'Setup: Task-Anlage muss 201 liefern');
+		const { id } = (await createRes.json()) as { id: number };
+		const doneRes = await server.json(`/tasks/${id}`, {
+			method: 'PATCH',
+			headers: { Cookie: cookie },
+			body: JSON.stringify({ status: 'Done' }),
+		});
+		assert.equal(doneRes.status, 200, 'Setup: Statuswechsel auf Done muss 200 liefern');
+	};
+
+	const WIRKSAMKEIT = 4;
+	const ERHOLUNGS_SAEULEN = [1, 2];
+
+	it('#1795 AK1: bei Überlast ist der erste Vorschlag ein Erholungsvorschlag, keine Aufgabe der überwiegenden Säule', async () => {
+		const cookie = await server.register('care-overload@example.com', 'password123');
+		await createOpenTask(cookie, 'Steuererklärung', WIRKSAMKEIT);
+		await erledigeAufgabe(cookie, WIRKSAMKEIT);
+
+		const vorschlaege = await leseVorschlaege(cookie);
+		const erster = vorschlaege[0]!;
+		assert.equal(erster.anlass, 'ueberlast', 'erster Eintrag muss der Überlast-Anlass sein');
+		assert.ok(
+			ERHOLUNGS_SAEULEN.includes(erster.saeuleId) || erster.templateKey === 'pause-1',
+			'Erholung kommt aus Körper, Mentale Gesundheit oder der Pause-Vorlage',
+		);
+		assert.ok(
+			!(erster.typ === 'task' && erster.saeuleId === WIRKSAMKEIT),
+			'keine Aufgabe der überwiegenden Säule an Position 0',
+		);
+		assert.equal(erster.typ, 'vorlage', 'Erholungsvorschläge sind kuratierte Vorlagen');
+	});
+
+	it('#1795 AK2: Pause-Vorlage wird mit ?sprache=en in Zielsprache geliefert', async () => {
+		const cookie = await server.register('care-overload-en@example.com', 'password123');
+		await erledigeAufgabe(cookie, WIRKSAMKEIT);
+
+		const katalog = CARE_VORLAGEN.find((vorlage) => vorlage.key === 'pause-1');
+		assert.ok(katalog, 'Pause-Vorlage pause-1 muss in CARE_VORLAGEN existieren');
+		const erholung = (await leseVorschlaege(cookie, '?sprache=en')).filter((v) => v.anlass === 'ueberlast');
+		assert.ok(erholung.length > 0, 'Überlast liefert Erholungsvorschläge');
+		for (const vorschlag of erholung) {
+			const vorlage = CARE_VORLAGEN.find((v) => v.key === vorschlag.templateKey);
+			assert.equal(vorschlag.titel, vorlage?.texte.en.titel, 'Titel in Zielsprache en');
+		}
+	});
+
+	it('#1795 AK3: ohne Überlast tragen alle Vorschläge anlass defizit', async () => {
+		const cookie = await server.register('care-no-overload@example.com', 'password123');
+		const saeuleId = await ersteSaeule(cookie);
+		await createOpenTask(cookie, 'Spaziergang', saeuleId);
+
+		const vorschlaege = await leseVorschlaege(cookie);
+		assert.ok(vorschlaege.length > 0);
+		assert.ok(
+			vorschlaege.every((v) => v.anlass === 'defizit'),
+			'ohne Überlast ist jeder Anlass defizit',
+		);
 	});
 });

@@ -20,6 +20,7 @@ interface Vorschlag {
 	saeulenBeitraege: { pillarId: number; share: number }[];
 	taskId?: number;
 	templateKey?: string;
+	anlass?: 'defizit' | 'ueberlast';
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -216,5 +217,25 @@ describe('CareHint (#1793)', () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(hint()).toBeNull();
 		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
+	it('#1795 AK4: anlass ueberlast → Erholungs-Rahmensatz statt „kam diese Woche zu kurz"', async () => {
+		getCareSuggestions.mockResolvedValue({
+			vorschlaege: [{ ...vorlage, anlass: 'ueberlast', titel: 'Kurze Pause', beschreibung: 'Atme fünf Minuten durch' }],
+		});
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).not.toContain('zu kurz');
+		expect(el.textContent).toContain('Atme fünf Minuten durch');
+		expect(screen.getByRole('button', { name: 'Vorschlag übernehmen' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Nicht jetzt' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Vorschlag ablehnen' })).toBeTruthy();
+	});
+
+	it('#1795 AK4: anlass defizit → bisheriger Satz „kam diese Woche zu kurz"', async () => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege: [{ ...vorlage, anlass: 'defizit' }] });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('Körper kam diese Woche zu kurz.');
 	});
 });

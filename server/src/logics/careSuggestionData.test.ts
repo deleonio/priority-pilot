@@ -38,4 +38,11 @@ describe('CARE_VORLAGEN Stammdaten (#1791 AK5)', () => {
 			}
 		}
 	});
+
+	it('#1795 AK2: Pause-Vorlage pause-1 existiert (Erholungsvorschlag bei Überlast)', () => {
+		assert.ok(
+			CARE_VORLAGEN.some((vorlage) => vorlage.key === 'pause-1'),
+			'pause-1 fehlt in CARE_VORLAGEN — Vollständigkeit aller zehn Sprachen prüft der Test darüber',
+		);
+	});
 });
