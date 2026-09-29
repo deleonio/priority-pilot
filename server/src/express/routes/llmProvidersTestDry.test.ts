@@ -102,6 +102,13 @@ describe('POST /llm-providers/test-dry (#1577)', () => {
 		assert.match(body.message ?? '', /Ungültiger API-Key/, 'Konkrete Ursache wird gemeldet');
 	});
 
+	it('SSRF (F-2): interner Endpoint → 400, Runner wird nicht aufgerufen', async () => {
+		const cookie = await registerOn(server, 'dry-ssrf@example.com');
+		const res = await postDry(cookie, { ...draftPayload, endpoint: 'http://[::1]:8080/v1' });
+		assert.equal(res.status, 400);
+		assert.equal(seenRuntimes.length, 0);
+	});
+
 	it('TF1c: ohne Session → 401 (kein Upstream-Call auf fremde Kosten)', async () => {
 		const res = await postDry(undefined, draftPayload);
 		assert.equal(res.status, 401);

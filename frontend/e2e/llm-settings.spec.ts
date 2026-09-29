@@ -63,7 +63,7 @@ test.describe('KI-Provider-Einstellungen', () => {
 		await expect(dialog.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeVisible();
 
 		await dialog.getByRole('searchbox', { name: 'Name' }).fill('E2E Provider');
-		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
+		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://llm.invalid/v1');
 		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
 		await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model');
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();
@@ -132,7 +132,7 @@ test.describe('KI-Provider-Einstellungen', () => {
 		await page.getByRole('button', { name: 'Neuer Provider' }).click();
 		const dialog = page.locator('kol-dialog');
 		await dialog.getByRole('searchbox', { name: 'Name' }).fill('E2E Eigen');
-		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
+		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://llm.invalid/v1');
 		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
 		await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model');
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();
@@ -168,7 +168,7 @@ test.describe('KI-Provider-Einstellungen', () => {
 		await page.getByRole('button', { name: 'Neuer Provider' }).click();
 		const dialog = page.locator('kol-dialog');
 		await dialog.getByRole('searchbox', { name: 'Name' }).fill('E2E Eigen Eng');
-		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
+		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://llm.invalid/v1');
 		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
 		await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model-mit-langer-kennung');
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();

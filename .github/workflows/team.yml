@@ -115,6 +115,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # vars.* = manueller Not-Override; sonst Tabelle; sonst Default. Der Team-Lauf
           # orchestriert und urteilt über einen ganzen Ticket-Durchlauf — Sonnet ist der

@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.9 - 2026-09-28
+## v0.9 - 2026-09-29
 
-_Enthält v0.9.0 – v0.9.14._
+_Enthält v0.9.0 – v0.9.17._
 
 ### 🔧 Engineering
 
@@ -23,6 +23,9 @@ _Enthält v0.9.0 – v0.9.14._
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1813
 - chore(ci): switch phase runners via vars.PHASE_RUNNER (pi5 rollout) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1817
 - fix(report): render phase comparison bars side by side with average bar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1815
+- chore(ci): route all phase jobs via PHASE_RUNNER, split cache by pi5 by @deleonio in https://github.com/deleonio/priority-pilot/pull/1825
+- fix(ci): pass PI_MODEL_ALIASES to all pi-capable workflows by @deleonio in https://github.com/deleonio/priority-pilot/pull/1828
+- fix(ci): stop review retrigger loop for already-reviewed head (#1824) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1830
 
 ## v0.8 - 2026-09-27
 
@@ -166,6 +169,7 @@ _Enthält v0.4.0 – v0.4.22._
 - feat(server): add grandfathering CLI for legacy free accounts (#1463) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1649
 - feat(frontend): rename Wald tab to Graph, sharpen USP messaging by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1647
 - feat(frontend): add 8px gap between popover action buttons by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1648
+- docs: add inline code documentation rule (jsdoc) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1651
 - docs: add inline code documentation rule (jsdoc) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1651
 
 ## v0.3 - 2026-09-23

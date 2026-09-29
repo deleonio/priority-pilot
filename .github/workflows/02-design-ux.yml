@@ -120,6 +120,7 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Laufzeit-Rollout (Folge-Ticket des #1184-Pilots): pi|claude wie 01-triage.
           runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           # vars.* = manueller Not-Override; sonst Tabelle; sonst bewährter Default.
           model: ${{ vars.CLAUDE_MODEL_UX || steps.routing.outputs.model || 'haiku' }}

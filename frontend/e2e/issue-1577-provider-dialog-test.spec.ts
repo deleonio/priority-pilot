@@ -39,7 +39,7 @@ const openCreateDialog = async (page: import('@playwright/test').Page) => {
 /** Füllt die Formularfelder des Dialogs mit Mock-Provider-Daten. */
 const fillDraftForm = async (dialog: import('@playwright/test').Locator): Promise<void> => {
 	await dialog.getByRole('searchbox', { name: 'Name' }).fill('Issue-1577 Draft');
-	await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
+	await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://llm.invalid/v1');
 	await dialog.getByRole('textbox', { name: 'API-Key' }).fill('draft-key');
 	await dialog.getByRole('searchbox', { name: 'Modell' }).fill('e2e-model');
 };

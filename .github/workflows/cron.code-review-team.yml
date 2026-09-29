@@ -157,6 +157,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           runtime: ${{ vars.AGENT_RUNTIME }}
+          pi-model-aliases-json: ${{ vars.PI_MODEL_ALIASES }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           model: ${{ vars.CLAUDE_MODEL_CODE_REVIEW_TEAM || 'sonnet' }}
           effort: 'high'

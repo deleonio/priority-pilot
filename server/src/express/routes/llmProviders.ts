@@ -18,6 +18,7 @@ import {
 } from '../../llm/llmProviders.js';
 import { LlmProvider } from '../../models/index.js';
 import { upstreamErrorDetail } from '../../llm/upstreamError.js';
+import { fetchProviderEndpoint, INTERNAL_ENDPOINT_MESSAGE, isPublicEndpoint } from '../../llm/endpointGuard.js';
 import { resolveGeoUser } from './geoConfig.js';
 
 type LlmProviderDto = components['schemas']['LlmProvider'];
@@ -80,6 +81,9 @@ const validateUpdate = (body: unknown): UpdateValidation => {
 		}
 		input[field] = (raw[field] as string).trim();
 	}
+	if (input.endpoint !== undefined && !isValidHttpUrl(input.endpoint)) {
+		return { ok: false, message: 'endpoint muss eine gültige http(s)-URL sein.' };
+	}
 	if (raw.apiKey !== undefined) {
 		// Leerer String = unverändert (Bearbeiten-Dialog startet mit leerem Key-Feld).
 		if (typeof raw.apiKey !== 'string' || raw.apiKey.trim().length === 0) {
@@ -141,20 +145,24 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 	const startedAt = Date.now();
 	let response: globalThis.Response;
 	try {
-		response = await fetch(runtime.chatEndpoint, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${runtime.apiKey}`,
+		response = await fetchProviderEndpoint(
+			runtime.chatEndpoint,
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${runtime.apiKey}`,
+				},
+				body: JSON.stringify({
+					model: runtime.model,
+					temperature: 0,
+					response_format: { type: 'json_object' },
+					messages: [{ role: 'user', content: 'Antworte ausschließlich mit JSON: {"ok": true}' }],
+				}),
+				signal: AbortSignal.timeout(TEST_TIMEOUT_MS),
 			},
-			body: JSON.stringify({
-				model: runtime.model,
-				temperature: 0,
-				response_format: { type: 'json_object' },
-				messages: [{ role: 'user', content: 'Antworte ausschließlich mit JSON: {"ok": true}' }],
-			}),
-			signal: AbortSignal.timeout(TEST_TIMEOUT_MS),
-		});
+			runtime.guardEndpoint,
+		);
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
 		return { ok: false, message: `Anfrage an ${runtime.label} fehlgeschlagen: ${reason}` };
@@ -231,10 +239,11 @@ const fetchProviderModelsFromUpstream = async (runtime: ProviderRuntime): Promis
 	if (runtime.apiKey !== '') {
 		headers.Authorization = `Bearer ${runtime.apiKey}`;
 	}
-	const response = await fetch(`${runtime.baseUrl}/models`, {
-		headers,
-		signal: AbortSignal.timeout(MODELS_UPSTREAM_TIMEOUT_MS),
-	});
+	const response = await fetchProviderEndpoint(
+		`${runtime.baseUrl}/models`,
+		{ headers, signal: AbortSignal.timeout(MODELS_UPSTREAM_TIMEOUT_MS) },
+		runtime.guardEndpoint,
+	);
 	if (!response.ok) {
 		throw new Error(`${runtime.label} (${runtime.model}) antwortete mit HTTP ${response.status}.`);
 	}
@@ -322,6 +331,10 @@ export const createLlmProvidersRouter = (
 			sendError(res, 400, validation.message);
 			return;
 		}
+		if (!(await isPublicEndpoint(validation.input.endpoint))) {
+			sendError(res, 400, INTERNAL_ENDPOINT_MESSAGE);
+			return;
+		}
 		try {
 			res.status(201).json(await createProvider(validation.input, userId));
 		} catch {
@@ -403,6 +416,10 @@ export const createLlmProvidersRouter = (
 			providerId = raw.providerId;
 		}
 		const endpoint = raw.endpoint.trim();
+		if (!(await isPublicEndpoint(endpoint))) {
+			sendError(res, 400, INTERNAL_ENDPOINT_MESSAGE);
+			return;
+		}
 		const model = raw.model.trim();
 		let apiKey = raw.apiKey.trim();
 		let label = 'Provider-Entwurf';
@@ -447,6 +464,7 @@ export const createLlmProvidersRouter = (
 				model,
 				label,
 				keySource,
+				guardEndpoint: true,
 			}),
 		);
 	});
@@ -462,6 +480,10 @@ export const createLlmProvidersRouter = (
 		const validation = validateUpdate(req.body);
 		if (!validation.ok) {
 			sendError(res, 400, validation.message);
+			return;
+		}
+		if (validation.input.endpoint !== undefined && !(await isPublicEndpoint(validation.input.endpoint))) {
+			sendError(res, 400, INTERNAL_ENDPOINT_MESSAGE);
 			return;
 		}
 		const id = parseId(req.params.id);
