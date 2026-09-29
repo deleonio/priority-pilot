@@ -34,8 +34,8 @@ jobs:
     # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — der
     # Workflow feuert auf JEDES `labeled` im Repo).
     if: ${{ github.event.label.name == 'ai:needs-team' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: read

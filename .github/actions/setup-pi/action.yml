@@ -89,9 +89,10 @@ runs:
           !/usr/local/lib/node_modules/npm
           !/usr/local/lib/node_modules/corepack
           /usr/local/bin/pi
-        # runner.arch im Key: x64 (hosted) und ARM64 (pi5) teilen sich den Repo-Cache —
-        # ohne Arch würde ein fremd-plattformiger npm-Global-Stand restored.
-        key: pi-cli-${{ runner.os }}-${{ runner.arch }}-${{ inputs.pi-version }}-v2
+        # pi5-Split im Key (wie setup-claude): pi5 (ARM64) trennen von den x64-Hosted-Runnern,
+        # damit kein fremd-plattformiger npm-Global-Stand restored — über den Runner-Namen,
+        # hosted ohne stabilen Namen im Sammel-Slot 'hosted'.
+        key: pi-cli-${{ runner.os }}-${{ runner.name == 'pi5' && 'pi5' || 'hosted' }}-${{ inputs.pi-version }}-v2
 
     # VERIFIZIEREN STATT VERTRAUEN (übernommen aus setup-claude): Ein Cache-Treffer beweist
     # nur, dass Dateien da sind — nicht, dass die CLI startet. Und der Abbruch gehört HIER

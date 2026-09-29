@@ -56,8 +56,8 @@ jobs:
     # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein.
     # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
     # Phasen-Name übergeben.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read # lokale Action + Skript auschecken
       pull-requests: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung
