@@ -90,15 +90,16 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'kategorien',
 	'pakete',
 ];
-/** #1902: der frühere Reiter „Abo" ist in „Pakete & Abo" aufgegangen — die alte Adresse öffnet ihn. */
-const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = { abo: 'pakete' };
-// #1352: „Zugriff" hängt als letzter Tab HINTER dem nur für Admins vorhandenen „Nutzerverwaltung" —
-// die Segmentfolge ist deshalb rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab hat Index 8, „Zugriff" liegt bei 8 bzw. 9).
+/**
+ * Frühere Tab-Adressen, die in einem anderen Tab aufgegangen sind: #1902 „Abo" → „Pakete & Abo",
+ * #1903 „Access-Token" (`zugriff`) → „KI" (`llm`).
+ */
+const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = { abo: 'pakete', zugriff: 'llm' };
+// Die Segmentfolge ist rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
+// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 8 an).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
-	'zugriff',
 ];
 // Rollensystem admin/member: Segmente, die nur Admins als Tab sehen (Index-Parität mit den in
 // `SettingsPage` nur bei `isAdmin` angehängten Tabs). Für Member gelten sie als unbekannter Pfad.
@@ -869,7 +870,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
-	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI-Provider“).
+	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI“).
 	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute
 	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {

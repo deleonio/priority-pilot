@@ -234,7 +234,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Balamentum');
 
-		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
+		for (const label of ['Allgemein', 'Säulen', 'KI', 'Standort']) {
 			await expect(page.getByRole('tab', { name: label, exact: true })).toBeVisible();
 		}
 		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -297,7 +297,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await expect(page).toHaveURL(/\/settings\/standort$/);
 		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
 
-		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
+		await page.getByRole('tab', { name: 'KI', exact: true }).click();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
 
 		await page.getByRole('tab', { name: 'Allgemein', exact: true }).click();
@@ -305,7 +305,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 
 		await page.goBack();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
-		await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
 	/**
@@ -342,7 +342,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Balamentum');
 
-		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
+		for (const label of ['Allgemein', 'Säulen', 'KI', 'Standort']) {
 			const box = await page.getByRole('tab', { name: label, exact: true }).boundingBox();
 			expect(box, `Tab „${label}" rendert messbar`).not.toBeNull();
 			expect(box!.x, `Tab „${label}" beginnt im Viewport`).toBeGreaterThanOrEqual(-1);
@@ -369,7 +369,7 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
+		await page.getByRole('tab', { name: 'KI', exact: true }).click();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
 
 		await page.goBack();
@@ -400,5 +400,57 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 
 		await expect(page.getByRole('banner')).toBeVisible();
 		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+});
+
+/**
+ * Rote Spec-e2e für #1903 (docs/spec/issue-1903.md) — Tab „KI" ersetzt „KI-Provider" und
+ * „Access-Token" (AK1, AK8, AK9).
+ */
+test.describe('#1903 Tab „KI"', () => {
+	test('AK1: Tab-Leiste enthält „KI", aber weder „Access-Token" noch „KI-Provider"', async ({ page }) => {
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
+
+		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveCount(0);
+		await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toHaveCount(0);
+	});
+
+	for (const segment of ['llm', 'zugriff']) {
+		test(`AK8: /settings/${segment} öffnet den Tab „KI"`, async ({ page }) => {
+			await page.goto(`/app/settings/${segment}`);
+			await waitForStableView(page, 'Balamentum');
+
+			await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
+		});
+	}
+
+	test('AK8: /settings/standort öffnet weiterhin den Tab „Standort"', async ({ page }) => {
+		await page.goto('/app/settings/standort');
+		await waitForStableView(page, 'Balamentum');
+
+		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+
+	test('AK9: bei 375 px ragen Tab-Leiste, Schalter und Karte „Access-Token" nicht über den Viewport', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/settings/llm');
+		await waitForStableView(page, 'Balamentum');
+
+		const targets = [
+			page.getByRole('tab', { name: 'KI', exact: true }),
+			page.getByRole('switch', { name: 'KI aktivieren' }).or(page.getByRole('checkbox', { name: 'KI aktivieren' })),
+			page.locator('kol-card[_label="Access-Token"]'),
+		];
+		for (const target of targets) {
+			await expect(target.first()).toBeVisible();
+			const box = await target.first().boundingBox();
+			expect(box, 'Bounding-Box messbar').not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(-1);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
+		}
 	});
 });

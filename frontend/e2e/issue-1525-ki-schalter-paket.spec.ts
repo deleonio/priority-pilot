@@ -7,7 +7,7 @@ import { waitForStableView } from './helpers';
  *
  * Läuft gegen das echte Backend (Muster `issue-1484-plan-badges.spec.ts`): eine frische Session
  * über `POST /auth/test-login` liegt standardmäßig auf Paket `free` — Free hat keine
- * `ai_assist`-Berechtigung, der Schalter „KI-Features aktiv" ist also deaktiviert und trägt einen
+ * `ai_assist`-Berechtigung, der Schalter „KI aktivieren" (#1903) ist also deaktiviert und trägt einen
  * Paket-Alert.
  *
  * AK1: der Schalter ist deaktiviert, darüber steht ein Alert mit Paketnamen und Sprung-CTA.
@@ -56,14 +56,16 @@ test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 		await waitForStableView(page, 'Balamentum');
 
 		const aiSwitch = page
-			.getByRole('switch', { name: /^KI-Features aktiv$/ })
-			.or(page.getByRole('checkbox', { name: /^KI-Features aktiv$/ }));
+			.getByRole('switch', { name: /^KI aktivieren$/ })
+			.or(page.getByRole('checkbox', { name: /^KI aktivieren$/ }));
 		await expect(aiSwitch).toBeVisible();
 		await expect(aiSwitch).toBeDisabled();
 
 		const planAlert = page.locator('.settings-llm-switch-row kol-alert');
 		await expect(planAlert).toBeVisible();
-		await expect(planAlert).toContainText('Pro');
+		// Test-Pflege #1903: der Satz zum eigenen LLM-„Pro“vider entfällt (Q2=B) — er trug bisher den
+		// Treffer; `ai_assist` verlangt das Paket „Plus“ (Paketname aus dem Entitlement).
+		await expect(planAlert).toContainText('Plus');
 
 		await planAlert.getByRole('button').click();
 		await expect(page.getByRole('heading', { name: 'Pakete', exact: true })).toBeVisible();
@@ -77,8 +79,8 @@ test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 		await expectWithinViewport(card);
 
 		const aiSwitch = page
-			.getByRole('switch', { name: /^KI-Features aktiv$/ })
-			.or(page.getByRole('checkbox', { name: /^KI-Features aktiv$/ }));
+			.getByRole('switch', { name: /^KI aktivieren$/ })
+			.or(page.getByRole('checkbox', { name: /^KI aktivieren$/ }));
 		const planAlert = page.locator('.settings-llm-switch-row kol-alert');
 
 		const alertBox = await boundingBoxWhenLaidOut(planAlert);

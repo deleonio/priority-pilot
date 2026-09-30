@@ -55,12 +55,13 @@ test.describe('Balamentum — #1902: Reiter „Pakete & Abo“', () => {
 		});
 	}
 
-	test('AK6: /settings/zugriff öffnet weiterhin „Access-Token“', async ({ page }) => {
+	// Test-Pflege #1903: der Reiter „Access-Token" ist im Tab „KI" aufgegangen.
+	test('AK6: /settings/zugriff öffnet weiterhin die Access-Token (Tab „KI“)', async ({ page }) => {
 		await mockBilling(page);
 		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
-		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
 	test('AK4/AK8: bei 375 px listet der Reiter die Pakete ohne Tabelle, ohne Seiten-Scroll, Buchen bedienbar', async ({

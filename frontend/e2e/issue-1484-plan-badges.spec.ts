@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { openAccordionSection, waitForStableView } from './helpers';
+import { waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1484 (T3b, Spec docs/spec/issue-1484.md AK8/AK9) — Paket-Badges an den
@@ -70,6 +70,7 @@ const deleteAllPillars = async (page: Page): Promise<void> => {
 	}
 };
 
+// #1903: Der Custom-Provider hebt das KI-Gate für Free nicht mehr (AK7) — der Helfer belegt genau das.
 // Test-Pflege (#1527): der Säulen-Vorschlag (`TaskForm.tsx:1473`) rendert Badge und Button jetzt
 // nur noch, wenn `useAiFeaturesGate()` true ist — für Free (kein `ai_assist`) ist das nur über
 // einen eigenen LLM-Provider der Fall (`computeAiFeaturesEnabled`: `entitlementAllowed ||
@@ -135,29 +136,18 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 		await deleteAllCustomProviders(page);
 	});
 
-	// Test-Pflege (#1525/#1527): Free ohne `ai_assist` öffnet über das neue KI-Gate direkt das
-	// Task-Formular („Aufgabe anlegen") — kein Freitext-Einstieg mit „Überspringen" mehr. Die
-	// Lektorat-Badges bei Titel/Beschreibung sind mit dem Lektorat-Button selbst ausgeblendet
-	// (`{aiEnabled && …}`, `TaskForm.tsx:1042/1401`); die zweite KI-Grenzstelle beim
-	// Säulen-Vorschlag (`TaskForm.tsx:1473`) liegt seit #1527 ebenfalls hinter `aiEnabled` — ohne
-	// eigenen LLM-Provider bliebe sie für Free ganz unsichtbar. Ein Custom-Provider hebt das Gate,
-	// ohne die `ai_assist`-Berechtigung selbst zu ändern, sodass der Angebots-Badge weiter erscheint.
-	test('AK3/AK8: Aufgabenformular zeigt das ai_assist-Badge ohne horizontalen Overflow', async ({ page }) => {
+	// Test-Pflege #1903 AK7 (Q2=B): ein eigener Provider hebt das KI-Gate für Free nicht mehr auf.
+	// „Neuen Task anlegen" öffnet daher direkt das Formular, das `ai_assist`-Badge (nur bei offenem
+	// Gate UND fehlender Berechtigung sichtbar) ist unerreichbar. Ersetzt die frühere Badge-Messung AK3/AK8.
+	test('#1903 AK7: Free mit eigenem Provider — Formular direkt, kein ai_assist-Badge', async ({ page }) => {
 		await createCustomProvider(page);
 		await page.goto('/app/aufgaben');
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		// Mit Custom-Provider ist `aiEnabled` (App.tsx) jetzt true — „Neuen Task anlegen" öffnet daher
-		// den verschmolzenen Freitext-Dialog (QuickCaptureModal, #1335) statt direkt das Task-Formular.
-		// „Überspringen" führt ohne LLM-Aufruf ins leere Formular, das AK3/AK8 hier prüfen sollen.
-		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await waitForStableView(page);
-		await openAccordionSection(page, 'Optional');
 
-		const aiAssistBadge = page.getByTestId('plan-badge-ai_assist').first();
-		await expect(aiAssistBadge).toBeVisible();
-		await expectWithinViewport(aiAssistBadge);
+		await expect(page.getByTestId('plan-badge-ai_assist')).toHaveCount(0);
 	});
 
 	// #1524 AK2 (Spec docs/spec/issue-1524.md) macht die #1484-Grenzstelle rückgängig: voice_input
@@ -191,7 +181,9 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 	// #1528 AK3/TF5: innerhalb der Schnellerfassung hat das Badge kein Klickziel (`inModal`) — ein
 	// Klick schließt nichts und der eingetippte Text bleibt im Feld, bei 375px und 1280px.
-	test('#1528 AK3: Schnellerfassungs-Text bleibt nach Badge-Klick im Modal erhalten (375px und 1280px)', async ({
+	// Test-Pflege #1903 AK7: Free erreicht die Schnellerfassung nicht mehr über einen eigenen Provider,
+	// mit `ai_assist` fehlt das Badge — der Zustand ist für kein Paket herstellbar.
+	test.skip('#1528 AK3: Schnellerfassungs-Text bleibt nach Badge-Klick im Modal erhalten (375px und 1280px)', async ({
 		page,
 	}) => {
 		await createCustomProvider(page);

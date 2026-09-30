@@ -2,7 +2,7 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * E2E-Spec für die KI-Provider-Einstellungen (Settings-Tab „KI-Provider“): fixe Built-ins
+ * E2E-Spec für die KI-Provider-Einstellungen (Settings-Tab „KI“, #1903): fixe Built-ins
  * (Mistral/OpenRouter, Key aus Server-ENV), Custom-Provider-Verwaltung (Name/URL/Token),
  * Radio-Aktivierung serverseitig und die Modellwahl des aktiven Providers.
  *
@@ -22,11 +22,11 @@ interface ProviderDto {
 	hasApiKey: boolean;
 }
 
-/** Öffnet den KI-Provider-Tab der Einstellungen. */
+/** Öffnet den KI-Tab der Einstellungen (#1903). */
 const openLlmTab = async (page: import('@playwright/test').Page): Promise<void> => {
 	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Balamentum');
-	await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toBeVisible();
+	await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
 };
 
 /** Räumt alle Custom-Provider ab (Builtins bleiben — sie sind nicht löschbar). */

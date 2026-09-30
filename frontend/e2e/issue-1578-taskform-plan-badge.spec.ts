@@ -108,7 +108,9 @@ const openEditForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 };
 
-test.describe('Balamentum — #1578: Paket-Hinweise verengen/schneiden Formularfelder nicht mehr ab', () => {
+// Test-Pflege #1903 AK7 (Q2=B): ein eigener Provider hebt das KI-Gate für Free nicht mehr — Paket-Hinweis
+// `ai_assist` und Lektorat-Button stehen damit für kein Paket mehr gemeinsam im Formular.
+test.describe.skip('Balamentum — #1578: Paket-Hinweise verengen/schneiden Formularfelder nicht mehr ab', () => {
 	test.beforeEach(async ({ page }) => {
 		await login(page);
 		await createCustomProvider(page);

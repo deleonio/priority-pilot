@@ -47,7 +47,7 @@ Ganz oben findest du die **Kopf-Aktionen**:
 - **Zum Dashboard** (Haus) – zurück zum Dashboard.
 - **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel und filtert nach Kategorie.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider, Gruppen, Kategorien, Access-Token.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI (Provider und Access-Token), Gruppen, Kategorien.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
@@ -574,8 +574,7 @@ dadurch unter die Schwelle fällt.
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien, **Pakete & Abo** und
-Access-Token. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+Allgemein, Säulen, KI, Standort, Gruppen, Kategorien und **Pakete & Abo**. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
 ### Allgemein
@@ -622,13 +621,15 @@ Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") und
 Die Verwaltung der Kategorien (Anlegen, Bearbeiten, Löschen – jeweils über eigene
 Modal-Dialoge) samt Farbwahl aus der festen Palette; siehe „Kategorien".
 
-### KI-Provider
+### KI
 
-Oben schaltest du mit **„KI-Features aktiv"** die KI-Bedienelemente insgesamt ein und aus.
+Oben schaltest du mit **„KI aktivieren"** die KI-Bedienelemente insgesamt ein und aus.
 Ist der Schalter aus, öffnet „Neuen Task anlegen" direkt das vollständige Formular, und die
-Lektorat-Buttons verschwinden aus dem Aufgabenformular.
+Lektorat-Buttons verschwinden aus dem Aufgabenformular. Die Bereiche darunter sind dann
+eingeklappt und lassen sich per Klick aufklappen; bestehende Access-Token bleiben gültig. Ohne
+passendes Paket sind alle Bedienelemente des Tabs gesperrt, auch mit eigenem Provider.
 
-Darunter wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
+In der Karte **KI-Provider** wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
 Lektorat). Du wählst den aktiven Provider und daraus per Dropdown das Modell – die
 Modellliste wird live vom Provider geladen. Mitgelieferte Provider (Mistral, OpenRouter)
 beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Provider"** an
@@ -637,6 +638,14 @@ Provider gehören deinem Konto („eigen"), die mitgelieferten sind instanzweit 
 („instanzweit"). Ohne eigene Wahl laufen deine KI-Aufrufe über den instanzweit aktiven
 Provider. Ist kein Provider eingerichtet, zeigt der
 Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
+
+In der Karte **Access-Token** legst du unter **„Access-Token erstellen"** persönliche
+**Tokens** an, mit denen KI-Clients wie Claude und andere externe Programme auf deine Daten
+zugreifen – mit deinen Rechten. **„Token erzeugen"** legt einen an und zeigt seinen
+Schlüssel **genau einmal**; unter **„Vorhandene Access-Token"** siehst du danach nur noch
+Name, Rechtestufe, Ablauf und die letzte Nutzung. Je Token schaltest du zwischen **Nur
+lesend** und **Lesen und Schreiben** um. **„Zurückziehen"** sperrt einen Token ab dem
+nächsten Aufruf.
 
 ### Standort
 
@@ -683,16 +692,6 @@ wurde und kein Paket gebucht hat, hat **Pro** und damit alle Funktionen.
 ## Abo
 
 In der oberen Karte des Bereichs **Pakete & Abo** siehst du deinen aktuellen Abonnement-Status; Rechnungen und Kündigung findest du aufklappbar darunter.
-
----
-
-### Access-Token
-
-Hier legst du persönliche **Tokens** an, mit denen externe Programme auf deine Daten
-zugreifen – mit deinen Rechten. **„Token erzeugen"** legt einen an und zeigt seinen
-Schlüssel **genau einmal**; danach siehst du nur noch Name, Rechtestufe, Ablauf und die
-letzte Nutzung. Je Token schaltest du zwischen **Nur lesend** und **Lesen und Schreiben**
-um. **„Zurückziehen"** sperrt einen Token ab dem nächsten Aufruf.
 
 ---
 

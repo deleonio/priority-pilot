@@ -675,6 +675,9 @@ describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
 		// Test-Pflege #1902: „Pakete" und „Abo" sind ein Reiter; die alte Adresse /settings/abo öffnet ihn.
 		['pakete', 'Pakete & Abo', false],
 		['abo', 'Pakete & Abo', false],
+		// #1903: „Access-Token" ist im Tab „KI" aufgegangen; die alte Adresse /settings/zugriff öffnet ihn.
+		['zugriff', 'KI', false],
+		['zugriff', 'KI', true],
 		['nutzer', 'Nutzerverwaltung', true],
 	])('/settings/%s wählt den Tab „%s"', async (segment, label, isAdmin) => {
 		window.history.replaceState({}, '', `/settings/${segment}`);

@@ -1,9 +1,18 @@
-import { KolAlert, KolButton, KolCard, KolInputCheckbox, KolInputText, KolSelect } from '@public-ui/react-v19';
+import {
+	KolAlert,
+	KolButton,
+	KolCard,
+	KolDetails,
+	KolInputCheckbox,
+	KolInputText,
+	KolSelect,
+} from '@public-ui/react-v19';
 import type { ApiToken } from 'client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
+import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { useEntitlement } from '../lib/usePlan';
 import { CopyButton } from './CopyButton';
 
@@ -85,17 +94,20 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
 );
 
 /**
- * Einstellungen → „Zugriff": persönliche API-Tokens für externe Clients (#1352). Ein Klick auf
+ * Einstellungen → „KI" → Karte „Access-Token" (#1903): persönliche API-Tokens für externe Clients (#1352). Ein Klick auf
  * „Token erzeugen" legt einen Token an und zeigt seinen Klartext **genau einmal** — danach kennt
  * der Server nur noch dessen Hash und die Liste zeigt ausschließlich Metadaten (Name, Erstellung,
  * letzte Nutzung). „Zurückziehen" sperrt den Token ab dem nächsten Aufruf.
  *
- * Aufbau wie `LlmSettings.tsx`: `KolCard` als Gruppierungsfläche, `ul`/`li` mit Zeilen-Aktionen
+ * Aufbau wie `LlmSettings.tsx`: eine `KolCard` mit zwei `KolDetails`, die `open` folgen (Schalter
+ * „KI aktivieren"; Token bleiben auch bei „aus" gültig), `ul`/`li` mit Zeilen-Aktionen
  * statt Tabelle (Mobile-Regel 3). Der Rückzug läuft über eine zweistufige Bestätigung direkt in
  * der Zeile (Progressive Disclosure, `docs/ux-pattern-sequential-confirmation.md`): kein einzelner
  * Klick löst die irreversible Aktion aus.
  */
-export const ApiTokensSection = () => {
+export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
+	const createDetails = useFollowingOpen(open);
+	const existingDetails = useFollowingOpen(open);
 	const [tokens, setTokens] = useState<ApiToken[] | null>(null);
 	const [name, setName] = useState(DEFAULT_TOKEN_NAME);
 	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
@@ -154,7 +166,7 @@ export const ApiTokensSection = () => {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	// Eigener Ladefehler für die Liste (#1646) — getrennt von `error` (Formular), damit Fehler und
-	// Leer-Zustand in der Karte „Vergebene Tokens" nie gleichzeitig erscheinen (Muster: SubscriptionSection).
+	// Leer-Zustand im Detail „Vorhandene Access-Token" nie gleichzeitig erscheinen (Muster: SubscriptionSection).
 	const [loadError, setLoadError] = useState<string | null>(null);
 	// Id des Tokens, für den die Rückfrage „wirklich zurückziehen?" gerade offen steht.
 	const [revokeId, setRevokeId] = useState<number | null>(null);
@@ -228,153 +240,161 @@ export const ApiTokensSection = () => {
 
 	return (
 		<div className="api-tokens" data-testid="api-tokens-panel">
-			<KolCard className="settings-card" _label="Zugriff für externe Clients" _level={2}>
-				<div className="api-tokens__create">
-					<p>
-						Ein Token spricht dieselben Schnittstellen an wie diese Oberfläche — mit deinen Daten und deinen Rechten.
-						Der Klartext ist nur direkt nach dem Erzeugen sichtbar.
-					</p>
-					{/* #1526 AK2: fehlt `mcp_read`, ist das gesamte Erzeugen-Formular gesperrt — der Alert
-					    steht direkt darüber, damit die Sperrung sofort erklärt ist. */}
-					{readEntitlement !== undefined && !readEntitlement.allowed && (
-						<KolAlert _type="info" _label="Paket erforderlich">
-							Token erzeugen ist ab dem Paket {planLabel(readEntitlement.requiredPlan)} enthalten.
-						</KolAlert>
-					)}
-					<KolInputText
-						_label="Name des Tokens"
-						_type="search"
-						_value={name}
-						_disabled={formLocked}
-						_on={{ onInput: (_event, value) => setName(String(value)) }}
-					/>
-					<KolSelect
-						ref={durationSelectRef}
-						_label="Laufzeit"
-						_options={DURATION_OPTIONS}
-						_value={expiresInDays}
-						_disabled={formLocked}
-						_on={{ onChange: (_event, value) => setExpiresInDays(String(value)) }}
-					/>
-					<ButtonAction onClick={() => void handleCreate()}>
-						<KolButton
-							_label="Token erzeugen"
-							class="settings-action-btn"
-							_variant="primary"
-							_disabled={busy || formLocked}
+			<KolCard className="settings-card" _label="Access-Token" _level={2}>
+				<p>Mit einem Access-Token bindest du KI-Clients wie Claude an Balamentum an.</p>
+				<KolDetails _label="Access-Token erstellen" _level={3} {...createDetails}>
+					<div className="api-tokens__create">
+						<p>
+							Ein Token spricht dieselben Schnittstellen an wie diese Oberfläche — mit deinen Daten und deinen Rechten.
+							Der Klartext ist nur direkt nach dem Erzeugen sichtbar.
+						</p>
+						{/* #1526 AK2: fehlt `mcp_read`, ist das gesamte Erzeugen-Formular gesperrt — der Alert
+						    steht direkt darüber, damit die Sperrung sofort erklärt ist. */}
+						{readEntitlement !== undefined && !readEntitlement.allowed && (
+							<KolAlert _type="info" _label="Paket erforderlich">
+								Token erzeugen ist ab dem Paket {planLabel(readEntitlement.requiredPlan)} enthalten.
+							</KolAlert>
+						)}
+						<KolInputText
+							_label="Name des Tokens"
+							_type="search"
+							_value={name}
+							_disabled={formLocked}
+							_on={{ onInput: (_event, value) => setName(String(value)) }}
 						/>
-					</ButtonAction>
-					{error !== null && (
-						<KolAlert _type="error" _label="Fehler">
-							{error}
-						</KolAlert>
-					)}
-					<div className="api-tokens__mcp-url">
-						<span>MCP-Endpunkt für externe Clients:</span>
-						<div className="copy-row">
-							<span className="api-tokens__plaintext" data-testid="mcp-url">
-								{MCP_URL}
-							</span>
-							<CopyButton text={MCP_URL} ariaLabel="URL kopieren" onError={(message) => setError(message)} />
-						</div>
-						<span>Header-Konfiguration für externe Clients (z. B. Claude-Connector):</span>
-						<span className="api-tokens__plaintext">Authorization: Bearer &lt;Token&gt;</span>
-						<span className="api-tokens__plaintext">api-key: &lt;Token&gt;</span>
-					</div>
-					{plaintext !== null && (
-						<KolAlert _type="info" _label="Token einmalig sichtbar">
+						<KolSelect
+							ref={durationSelectRef}
+							_label="Laufzeit"
+							_options={DURATION_OPTIONS}
+							_value={expiresInDays}
+							_disabled={formLocked}
+							_on={{ onChange: (_event, value) => setExpiresInDays(String(value)) }}
+						/>
+						<ButtonAction onClick={() => void handleCreate()}>
+							<KolButton
+								_label="Token erzeugen"
+								class="settings-action-btn"
+								_variant="primary"
+								_disabled={busy || formLocked}
+							/>
+						</ButtonAction>
+						{error !== null && (
+							<KolAlert _type="error" _label="Fehler">
+								{error}
+							</KolAlert>
+						)}
+						<div className="api-tokens__mcp-url">
+							<span>MCP-Endpunkt für externe Clients:</span>
 							<div className="copy-row">
-								<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
-									{plaintext}
+								<span className="api-tokens__plaintext" data-testid="mcp-url">
+									{MCP_URL}
 								</span>
-								<CopyButton text={plaintext} ariaLabel="Token kopieren" onError={(message) => setError(message)} />
+								<CopyButton text={MCP_URL} ariaLabel="URL kopieren" onError={(message) => setError(message)} />
 							</div>
+							<span>Header-Konfiguration für externe Clients (z. B. Claude-Connector):</span>
+							<span className="api-tokens__plaintext">Authorization: Bearer &lt;Token&gt;</span>
+							<span className="api-tokens__plaintext">api-key: &lt;Token&gt;</span>
+						</div>
+						{plaintext !== null && (
+							<KolAlert _type="info" _label="Token einmalig sichtbar">
+								<div className="copy-row">
+									<span className="api-tokens__plaintext" data-testid="api-token-plaintext">
+										{plaintext}
+									</span>
+									<CopyButton text={plaintext} ariaLabel="Token kopieren" onError={(message) => setError(message)} />
+								</div>
+							</KolAlert>
+						)}
+					</div>
+				</KolDetails>
+				<KolDetails _label="Vorhandene Access-Token" _level={3} {...existingDetails}>
+					{/*
+						#1358: Die Herabstufung war vorher nirgends sichtbar — ein Token, das gestern noch
+						schreiben durfte, meldete nach dem Update nur einen Fehler im MCP-Client.
+					*/}
+					<p className="api-tokens__scope-hint">
+						Ein Token liest standardmäßig nur. Schreibende MCP-Werkzeuge wie <code>task_create</code> melden einen
+						Fehler, solange der Schalter auf „Nur lesend" steht — auch bei Tokens, die vor dieser Einstellung vergeben
+						wurden.
+					</p>
+					{loadError !== null ? (
+						<KolAlert _type="error" _label="Fehler">
+							{loadError}
 						</KolAlert>
-					)}
-				</div>
-			</KolCard>
-
-			<KolCard className="settings-card" _label="Vergebene Tokens" _level={2}>
-				{/*
-					#1358: Die Herabstufung war vorher nirgends sichtbar — ein Token, das gestern noch
-					schreiben durfte, meldete nach dem Update nur einen Fehler im MCP-Client.
-				*/}
-				<p className="api-tokens__scope-hint">
-					Ein Token liest standardmäßig nur. Schreibende MCP-Werkzeuge wie <code>task_create</code> melden einen Fehler,
-					solange der Schalter auf „Nur lesend" steht — auch bei Tokens, die vor dieser Einstellung vergeben wurden.
-				</p>
-				{loadError !== null ? (
-					<KolAlert _type="error" _label="Fehler">
-						{loadError}
-					</KolAlert>
-				) : tokens === null ? null : tokens.length === 0 ? (
-					<p>Noch kein Token vergeben.</p>
-				) : (
-					<ul className="api-tokens__list">
-						{tokens.map((token) => (
-							<li key={token.id} className="api-tokens__item" data-testid="api-token-row">
-								<span className="api-tokens__name">
-									{token.name}
-									<span className="api-tokens__meta">
-										{` · erstellt ${formatDate(token.createdAt)} · ${
-											token.lastUsedAt == null
-												? 'noch nicht genutzt'
-												: `zuletzt genutzt ${formatDate(token.lastUsedAt)}`
-										}${
-											token.expiresAt == null
-												? ''
-												: ` · gültig bis ${formatExpiryDate(token.expiresAt)}${isExpired(token.expiresAt) ? ' (abgelaufen)' : ''}`
-										}`}
-									</span>
-								</span>
-								<span className="api-tokens__scope-group">
-									<span className="api-tokens__scope">
-										<span className="api-tokens__scope-label">{SCOPE_LABEL[token.scope]}</span>
-										<ScopeToggle
-											token={token}
-											disabled={scopeBusyId === token.id || scopeLocked}
-											onToggle={() => {
-												// #1526 AK4: `_disabled` verhindert nur den echten Browser-Klick — der Guard hier
-												// hält den Regler auch dann wirkungslos, wenn `onChange` direkt ausgelöst wird.
-												if (!scopeLocked) void handleToggleScope(token);
-											}}
-										/>
-									</span>
-									{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
-									    unterhalb der Scope-Zeile, direkt neben dem gesperrten Regler. */}
-									{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
-										<KolAlert _type="info" _label="Paket erforderlich">
-											Lesen und Schreiben ist ab dem Paket {planLabel(readwriteEntitlement.requiredPlan)} enthalten.
-										</KolAlert>
-									)}
-								</span>
-								{revokeId === token.id ? (
-									<span className="api-tokens__confirm">
-										<span className="api-tokens__confirm-question">
-											Wirklich zurückziehen? Clients verlieren den Zugriff.
+					) : tokens === null ? null : tokens.length === 0 ? (
+						<p>Noch kein Token vergeben.</p>
+					) : (
+						<ul className="api-tokens__list">
+							{tokens.map((token) => (
+								<li key={token.id} className="api-tokens__item" data-testid="api-token-row">
+									<span className="api-tokens__name">
+										{token.name}
+										<span className="api-tokens__meta">
+											{` · erstellt ${formatDate(token.createdAt)} · ${
+												token.lastUsedAt == null
+													? 'noch nicht genutzt'
+													: `zuletzt genutzt ${formatDate(token.lastUsedAt)}`
+											}${
+												token.expiresAt == null
+													? ''
+													: ` · gültig bis ${formatExpiryDate(token.expiresAt)}${isExpired(token.expiresAt) ? ' (abgelaufen)' : ''}`
+											}`}
 										</span>
-										<ButtonAction onClick={() => setRevokeId(null)}>
-											<KolButton _label="Abbrechen" class="settings-action-btn" _variant="secondary" _disabled={busy} />
-										</ButtonAction>
-										<ButtonAction onClick={() => void handleRevoke(token.id)}>
-											<KolButton
-												data-testid="api-token-revoke-confirm"
-												_label="Endgültig zurückziehen"
-												class="settings-action-btn"
-												_variant="danger"
-												_disabled={busy}
-											/>
-										</ButtonAction>
 									</span>
-								) : (
-									<ButtonAction onClick={() => setRevokeId(token.id)}>
-										<KolButton _label="Zurückziehen" class="settings-action-btn" _variant="danger" />
-									</ButtonAction>
-								)}
-							</li>
-						))}
-					</ul>
-				)}
+									<span className="api-tokens__scope-group">
+										<span className="api-tokens__scope">
+											<span className="api-tokens__scope-label">{SCOPE_LABEL[token.scope]}</span>
+											<ScopeToggle
+												token={token}
+												disabled={scopeBusyId === token.id || scopeLocked}
+												onToggle={() => {
+													// #1526 AK4: `_disabled` verhindert nur den echten Browser-Klick — der Guard hier
+													// hält den Regler auch dann wirkungslos, wenn `onChange` direkt ausgelöst wird.
+													if (!scopeLocked) void handleToggleScope(token);
+												}}
+											/>
+										</span>
+										{/* #1526 AK4/AK6: löst das freischwebende `PlanBadge` ab — die Erklärung steht jetzt
+										    unterhalb der Scope-Zeile, direkt neben dem gesperrten Regler. */}
+										{readwriteEntitlement !== undefined && !readwriteEntitlement.allowed && (
+											<KolAlert _type="info" _label="Paket erforderlich">
+												Lesen und Schreiben ist ab dem Paket {planLabel(readwriteEntitlement.requiredPlan)} enthalten.
+											</KolAlert>
+										)}
+									</span>
+									{revokeId === token.id ? (
+										<span className="api-tokens__confirm">
+											<span className="api-tokens__confirm-question">
+												Wirklich zurückziehen? Clients verlieren den Zugriff.
+											</span>
+											<ButtonAction onClick={() => setRevokeId(null)}>
+												<KolButton
+													_label="Abbrechen"
+													class="settings-action-btn"
+													_variant="secondary"
+													_disabled={busy}
+												/>
+											</ButtonAction>
+											<ButtonAction onClick={() => void handleRevoke(token.id)}>
+												<KolButton
+													data-testid="api-token-revoke-confirm"
+													_label="Endgültig zurückziehen"
+													class="settings-action-btn"
+													_variant="danger"
+													_disabled={busy}
+												/>
+											</ButtonAction>
+										</span>
+									) : (
+										<ButtonAction onClick={() => setRevokeId(token.id)}>
+											<KolButton _label="Zurückziehen" class="settings-action-btn" _variant="danger" />
+										</ButtonAction>
+									)}
+								</li>
+							))}
+						</ul>
+					)}
+				</KolDetails>
 			</KolCard>
 		</div>
 	);

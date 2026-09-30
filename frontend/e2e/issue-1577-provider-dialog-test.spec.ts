@@ -25,11 +25,11 @@ const mockDryTest = (page: import('@playwright/test').Page, payload: object): vo
 	});
 };
 
-/** Öffnet den KI-Provider-Tab und den Anlege-Dialog; liefert den Dialog-Locator. */
+/** Öffnet den KI-Tab (#1903) und den Anlege-Dialog; liefert den Dialog-Locator. */
 const openCreateDialog = async (page: import('@playwright/test').Page) => {
 	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Balamentum');
-	await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toBeVisible();
+	await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Neuer Provider' }).click();
 	const dialog = page.locator('kol-dialog');
 	await expect(dialog.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeVisible();

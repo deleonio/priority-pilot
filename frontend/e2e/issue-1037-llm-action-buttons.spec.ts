@@ -27,11 +27,11 @@ interface ProviderDto {
 	hasApiKey: boolean;
 }
 
-/** Öffnet den KI-Provider-Tab der Einstellungen. */
+/** Öffnet den KI-Tab der Einstellungen (#1903). */
 const openLlmTab = async (page: import('@playwright/test').Page): Promise<void> => {
 	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Balamentum');
-	await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toBeVisible();
+	await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
 };
 
 /** Räumt alle Custom-Provider ab (Builtins bleiben — sie sind nicht löschbar). */
@@ -59,8 +59,10 @@ const createCustomProvider = async (page: import('@playwright/test').Page): Prom
 async function containerMetrics(
 	page: import('@playwright/test').Page,
 ): Promise<{ innerLeft: number; innerWidth: number }> {
+	// Test-Pflege #1903: gemessen am Inhaltscontainer im `KolDetails` „Provider verwalten" — das
+	// Detail rückt seinen Inhalt innerhalb der Karte ein, das Tab-Panel ist nicht mehr der Container.
 	return page
-		.locator('.settings-llm')
+		.locator('.settings-llm .llm-provider-admin')
 		.first()
 		.evaluate((el) => {
 			const rect = el.getBoundingClientRect();
@@ -79,7 +81,7 @@ const newProviderButtonHost = (page: import('@playwright/test').Page) =>
 	page.locator('kol-button[_label="Neuer Provider"]');
 
 /**
- * Innenrand der `KolCard` „Provider verwalten", die den Button seit dem Design-Lauf 2026-09
+ * Innenrand des `KolDetails` „Provider verwalten" (#1903, vorher `KolCard`), das den Button seit dem Design-Lauf 2026-09
  * umschließt (vorher lag er direkt im `.settings-llm`-Panel ohne eigenes Padding). Die
  * Linksbündigkeit (AK3/AK4) gilt gegen den sichtbaren Innenrand der Karte, nicht mehr gegen den
  * äußeren Tab-Container — sonst schlägt die Messung um das Card-Padding fehl.

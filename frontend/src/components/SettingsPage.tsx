@@ -61,15 +61,15 @@ interface SettingsPageProps {
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
-// KI-Provider (Index 2), Standort (Index 3, #1151), Orte (Index 4, #1894), Gruppen (Index 5, #1211), Kategorien (Index 6),
-// „Pakete & Abo" (Index 7, #1529/#1902), optional Nutzerverwaltung (Index 8, nur für Admins)
-// und Zugriff (#1352, letzter Tab: Index 8 ohne bzw. 9 mit Admin-Tab). Muss index-paritätisch mit
+// KI (Index 2, #1903: Provider und Access-Token), Standort (Index 3, #1151), Orte (Index 4, #1894), Gruppen (Index 5, #1211),
+// Kategorien (Index 6), „Pakete & Abo" (Index 7, #1529/#1902) und optional Nutzerverwaltung
+// (Index 8, nur für Admins). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
 // statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
-	{ _label: 'KI-Provider' },
+	{ _label: 'KI' },
 	{ _label: 'Standort' },
 	{ _label: 'Orte' },
 	{ _label: 'Gruppen' },
@@ -99,10 +99,10 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
 
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Konto, Darstellung, Bewegung,
- * Benachrichtigungen), „Säulen" (Verwaltung + Gewichtungs-Editor), „KI-Provider" (KI-Funktionen,
- * Provider-Auswahl & -Verwaltung), „Standort" (Geo-Einstellungen, #1151), „Orte" (#1894), „Gruppen" (#1211) und
+ * Benachrichtigungen), „Säulen" (Verwaltung + Gewichtungs-Editor), „KI" (Schalter, Provider,
+ * Access-Token, #1903), „Standort" (Geo-Einstellungen, #1151), „Orte" (#1894), „Gruppen" (#1211) und
  * optional „Nutzerverwaltung". Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
- * `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2), `/settings/standort` →
+ * `/settings/general` → Allgemein (0), `/settings/llm` und `/settings/zugriff` → KI (2), `/settings/standort` →
  * Standort (3), alles andere → Säulen (1).
  *
  * Alle Panels teilen sich ein Layout-Rezept (`.settings-panel`) und dieselben zwei
@@ -122,13 +122,11 @@ export const SettingsPage = ({
 	// #1080-Muster: Ohne Admin-Rolle wird der Tab gar nicht erst in die Liste aufgenommen (nicht nur
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
 	const settingsTabs = useMemo(
-		// „Access-Token" (#1352, Label seit #1526) hängt bewusst HINTER dem Admin-Tab, damit dessen
-		// Index 9 unverändert bleibt. Das Routen-Segment bleibt `zugriff` (App.tsx).
-		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : []), { _label: 'Access-Token' }],
+		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : [])],
 		[isAdmin],
 	);
 	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`
-	// übergeben (AK4) — `/settings/llm` öffnet damit den KI-Provider-Tab (#886). Ohne Prop (direkte
+	// übergeben (AK4) — `/settings/llm` öffnet damit den KI-Tab (#886, #1903). Ohne Prop (direkte
 	// Verwendung in Unit-Tests) gilt der Säulen-Tab als Default; `localTab` hält den letzten Select.
 	const [localTab, setLocalTab] = useState(1);
 	const activeTab = tab ?? localTab;
@@ -199,14 +197,15 @@ export const SettingsPage = ({
 	// #1187: OS-Einstellung „Bewegung reduzieren" live überwachen — deaktiviert den
 	// Schalter aus #1183 und zeigt den Info-Hinweis (die Systemeinstellung hat Vorrang).
 	const prefersReducedMotion = usePrefersReducedMotion();
-	// #1080/#1335: der eine Schalter „KI-Features aktiv". #1525: zusätzlich an die Paket-Freischaltung
-	// gekoppelt — ohne Berechtigung `ai_assist` und ohne eigenen Provider ist der Schalter gesperrt.
-	const { aiEnabled, setAiEnabled, entitlementAllowed, requiredPlan, hasCustomProvider } = useAiFeaturesEnabled();
+	// #1080/#1335: der eine Schalter „KI aktivieren" (#1903). #1525: zusätzlich an die Paket-Freischaltung
+	// gekoppelt — ohne Berechtigung `ai_assist` ist der Schalter gesperrt, seit #1903 auch mit eigenem Provider.
+	const { aiEnabled, setAiEnabled, entitlementAllowed, requiredPlan } = useAiFeaturesEnabled();
 	// Gesperrt, solange die Berechtigung nicht explizit vorliegt (auch während des Ladens, AK5) —
 	// unabhängig vom aktuellen Schalterwert selbst, sonst wäre die Sperre zirkulär.
-	const aiSwitchLocked = entitlementAllowed !== true && !hasCustomProvider;
-	// Der Angebots-Alert erscheint erst, wenn die Ablehnung feststeht (nicht während `undefined`).
-	const showAiPlanAlert = entitlementAllowed === false && !hasCustomProvider;
+	const aiSwitchLocked = entitlementAllowed !== true;
+	// Der Angebots-Alert erscheint erst, wenn die Ablehnung feststeht (nicht während `undefined`);
+	// dann sperrt er auch Provider-Einstellungen (#1903 AK6).
+	const showAiPlanAlert = entitlementAllowed === false;
 	const aiSwitchDisabled = toKolibriDisabled(aiSwitchLocked ? 'true' : undefined);
 	const [micDenied, setMicDenied] = useState(false);
 	const [permissionPending, setPermissionPending] = useState(false);
@@ -710,10 +709,9 @@ export const SettingsPage = ({
 						<PillarWeightsForm key={pillars.map((pillar) => pillar.id).join('-')} pillars={pillars} onSaved={onSaved} />
 					</KolCard>
 				</div>
+				{/* #1903: Tab „KI" — Schalter oben, darunter die Karten „KI-Provider" und „Access-Token".
+				    Deren `KolDetails` folgen dem Schalter (eingeklappt, nicht entfernt; Regel 2). */}
 				<div slot="tab-2" className="settings-llm settings-panel">
-					{/* Keine H2 „KI-Provider" mehr: Der Tab-Reiter trägt den Namen bereits, und die
-							Provider-Radiogruppe darunter heißt ebenfalls „KI-Provider" — derselbe Name stand
-							dreifach im Accessibility-Baum. */}
 					{/* #1080/#1335: der eine Schalter — blendet die KI-Bedienelemente (KI-Anlege-Dialog mit
 							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
 							Accordion „Einzelne KI-Funktionen" ist mit #1335 entfallen: Schnellerfassung und
@@ -731,8 +729,7 @@ export const SettingsPage = ({
 										_label={`KI-Features benötigen das Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“`}
 									>
 										KI-Features (Anlege-Dialog mit Berater, Lektorate) sind Teil des Pakets „
-										{requiredPlan ? planLabel(requiredPlan) : ''}“. Wer einen eigenen LLM-Provider hinterlegt, kann die
-										KI-Features ohne dieses Paket nutzen.
+										{requiredPlan ? planLabel(requiredPlan) : ''}“.
 										<KolButton
 											_label="Zu den Paketen wechseln"
 											_variant="ghost"
@@ -744,9 +741,9 @@ export const SettingsPage = ({
 								)}
 								<KolInputCheckbox
 									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
-									_label="KI-Features aktiv"
+									_label="KI aktivieren"
 									_variant="switch"
-									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet."
+									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet. Bestehende Access-Token bleiben gültig."
 									_checked={aiEnabled}
 									_disabled={aiSwitchDisabled}
 									_on={{
@@ -764,7 +761,8 @@ export const SettingsPage = ({
 							</div>
 						</div>
 					</KolCard>
-					<LlmSettings />
+					<LlmSettings open={aiEnabled} disabled={showAiPlanAlert} />
+					<ApiTokensSection open={aiEnabled} />
 				</div>
 				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
 				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
@@ -948,10 +946,6 @@ export const SettingsPage = ({
 						</KolCard>
 					</div>
 				)}
-				{/* Persönliche API-Tokens (#1352) — letzter Tab, daher Slot-Index abhängig vom Admin-Tab. */}
-				<div slot={isAdmin ? 'tab-9' : 'tab-8'} className="settings-api-tokens settings-panel">
-					<ApiTokensSection />
-				</div>
 			</KolTabs>
 
 			{/* #1614: Modal für Säulen-Neuberechnung */}
