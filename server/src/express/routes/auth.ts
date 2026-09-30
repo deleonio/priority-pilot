@@ -1,7 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import passport from 'passport';
-import { UniqueConstraintError } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
@@ -429,7 +429,23 @@ authRouter.get('/auth/me', async (req, res) => {
 			const now = new Date();
 			// #1495 (AK4): ein vorgemerkter Downgrade wirkt zum `currentPeriodEnd` — hier, beim Lesen,
 			// wird er fällig angewendet, damit er nicht auf ein weiteres PayPal-Ereignis wartet.
-			await applyDuePendingPlan(dbSubscription, now);
+			let planApplied = await applyDuePendingPlan(dbSubscription, now);
+			// #1896: ein neuer, noch nicht bestätigter Checkout (approval_pending) bestimmt `User.plan`
+			// noch nicht — die fällige Vormerkung des zuvor gekündigten Abos wirkt trotzdem.
+			if (dbSubscription.status === 'approval_pending') {
+				const previous = await Subscription.findOne({
+					where: { userId: user.id, status: { [Op.notIn]: OPEN_SUBSCRIPTION_STATUSES } },
+					order: [['createdAt', 'DESC']],
+				});
+				if (previous) {
+					planApplied = (await applyDuePendingPlan(previous, now)) || planApplied;
+				}
+			}
+			// Die Antwort trägt das gerade angewendete Paket, nicht den Stand vor dem Anwenden.
+			if (planApplied) {
+				plan = ((await User.findByPk(user.id as number))?.plan ?? plan) as Plan;
+				user.plan = plan;
+			}
 			// #1506 (AK6): eine abgelaufene Kulanzfrist wird beim Lesen wirksam (Muster oben).
 			await applyDueGracePeriod(dbSubscription, now);
 			const firstFailureAt = dbSubscription.get('firstFailureAt') as Date | null;
