@@ -8,8 +8,6 @@ import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 export interface PrivacySection {
 	heading: string;
 	paragraphs: string[];
-	/** Optionale Aufzählung unter den Absätzen (Empfänger-Dienste). */
-	list?: string[];
 	/** Pflichtangaben einer Verarbeitung (#1892), gerendert als Aufzählung. */
 	facts?: { purpose: string; legalBasis: string; retention: string; recipients: string };
 }
@@ -106,7 +104,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 				purpose: 'Abschluss und Abrechnung eines Abos über PayPal.',
 				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag).',
 				retention:
-					'Abo-Status für die Laufzeit des Abos; Zahlungsbelege nach den gesetzlichen Aufbewahrungsfristen (siehe Rechnungen).',
+					'Abo-Datensätze und Zahlungsbelege für die gesetzliche Aufbewahrungsfrist, auch über das Löschen des Kontos hinaus (siehe Rechnungen).',
 				recipients: 'PayPal (Europe) S.à r.l. et Cie, S.C.A.',
 			},
 		},
@@ -117,7 +115,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 				purpose: 'Kauf und Abrechnung von Abos innerhalb der Android-App; wir prüfen den Kauf bei Google.',
 				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag).',
 				retention:
-					'Abo-Status für die Laufzeit des Abos; Zahlungsbelege nach den gesetzlichen Aufbewahrungsfristen (siehe Rechnungen).',
+					'Abo-Datensätze und Zahlungsbelege für die gesetzliche Aufbewahrungsfrist, auch über das Löschen des Kontos hinaus (siehe Rechnungen).',
 				recipients: 'Google (Google Play).',
 			},
 		},
@@ -128,7 +126,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 				purpose: 'Rechnungen über bezahlte Abos erstellen und per E-Mail zusenden.',
 				legalBasis: 'Art. 6 Abs. 1 lit. c DSGVO (steuerrechtliche Pflichten).',
 				retention:
-					'10 Jahre nach § 147 AO und § 14b UStG, auch über das Löschen des Kontos hinaus; ein laufendes Abo verhindert das Löschen des Kontos.',
+					'Für die gesetzliche Aufbewahrungsfrist (derzeit 8 Jahre, § 147 Abs. 3 AO, § 14b Abs. 1 UStG), auch über das Löschen des Kontos hinaus; ein laufendes Abo verhindert das Löschen des Kontos.',
 				recipients: 'Unser E-Mail-Versanddienstleister; bei Prüfungen gegebenenfalls Steuerberater und Finanzbehörden.',
 			},
 		},
@@ -136,10 +134,45 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 			heading: 'Feedback',
 			paragraphs: [],
 			facts: {
-				purpose: 'Rückmeldungen, die du in der App abschickst, lesen und die App verbessern.',
+				purpose:
+					'Rückmeldungen, die du in der App abschickst, lesen und die App verbessern. Mit der Rückmeldung speichern wir deine E-Mail-Adresse, damit wir nachfragen können.',
 				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Verbesserung der App).',
-				retention: `In der App gespeicherte Rückmeldungen ${ACCOUNT_LIFETIME}`,
-				recipients: 'GitHub, wo wir die Rückmeldungen zur Bearbeitung ablegen.',
+				retention:
+					'Rückmeldungen liegen mit deiner E-Mail-Adresse in unserem GitHub-Repository, bis wir sie bearbeitet haben; das Löschen des Kontos entfernt sie nicht automatisch. Auf Anfrage löschen wir sie.',
+				recipients: 'GitHub, wo wir die Rückmeldungen samt E-Mail-Adresse zur Bearbeitung ablegen.',
+			},
+		},
+		{
+			heading: 'Gruppen und Einladungen',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Aufgaben mit anderen in einer Gruppe teilen. Wir speichern, wer zu welcher Gruppe gehört, wer wen eingeladen hat und die Einladungslinks.',
+				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag), nur wenn du eine Gruppe nutzt.',
+				retention: `Mitgliedschaften und Einladungen, bis du die Gruppe verlässt, die Einladung erledigt ist oder du dein Konto löschst; beim Löschen des Kontos werden sie sofort entfernt.`,
+				recipients: 'Die anderen Mitglieder der Gruppe sehen die geteilten Aufgaben und deinen Namen.',
+			},
+		},
+		{
+			heading: 'E-Mail-Benachrichtigungen',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Erinnerungen an fällige Aufgaben sowie Hinweise zu erledigten Aufgaben und neu angelegten Serienterminen per E-Mail an die Adresse deines Kontos.',
+				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag).',
+				retention: `Ein Versandprotokoll gegen doppelte Nachrichten, ${ACCOUNT_LIFETIME}`,
+				recipients: 'Unser E-Mail-Versanddienstleister.',
+			},
+		},
+		{
+			heading: 'Betrieb, Hosting und Sitzungs-Cookie',
+			paragraphs: [],
+			facts: {
+				purpose:
+					'Die App und die Website bereitstellen. Nach der Anmeldung setzt der Server ein Sitzungs-Cookie, dazu ein Cookie, das nur den angemeldeten Zustand anzeigt; beide sind technisch notwendig (§ 25 Abs. 2 TDDDG).',
+				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. f (berechtigtes Interesse am sicheren Betrieb).',
+				retention: 'Die Cookies bis zum Abmelden oder bis zum Ablauf der Sitzung.',
+				recipients: 'Unser Hosting-Anbieter, der den Server in unserem Auftrag betreibt (Art. 28 DSGVO).',
 			},
 		},
 		{

@@ -445,13 +445,6 @@ ${PRIVACY.sections
 	.flatMap((section) => [
 		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
 		...section.paragraphs.map((paragraph) => `					<p class="kern-body">${t(paragraph)}</p>`),
-		...(section.list
-			? [
-					`					<ul class="kern-body">
-${section.list.map((item) => `						<li>${t(item)}</li>`).join('\n')}
-					</ul>`,
-				]
-			: []),
 		...(section.facts
 			? [
 					`					<ul class="kern-body">
