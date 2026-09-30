@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.2._
+_Enthält v0.11.0 – v0.11.3._
 
 ### 🎉 New Features
 
@@ -14,6 +14,10 @@ _Enthält v0.11.0 – v0.11.2._
 ### 🔧 Engineering
 
 - chore(deps): update renovatebot/github-action action to v46.3.6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1866
+
+### Other Changes
+
+- Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 
 ## v0.10 - 2026-09-30
 
@@ -171,7 +175,7 @@ _Enthält v0.6.0 – v0.6.15._
 - feat(server): at most one active subscription per user across providers by @deleonio in https://github.com/deleonio/priority-pilot/pull/1725
 - chore: publish german privacy policy page at /datenschutz/ (#1672) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1727
 - feat(server): apply pillar weights to cadence balance fill by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1728
-- feat(server): apply pillar weights to cadence balance fill by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1728
+- chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
 - chore(deps): update node.js to v26.10.0 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1655
 - feat(android): buy packages via google play by @deleonio in https://github.com/deleonio/priority-pilot/pull/1726
 - feat(android): Käufe wiederherstellen und fremdverwaltetes Abo anzeigen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1730
