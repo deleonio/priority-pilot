@@ -83,11 +83,11 @@ const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'general',
 	'pillars',
-	'llm',
+	'kategorien',
 	'standort',
 	'orte',
+	'llm',
 	'gruppen',
-	'kategorien',
 	'pakete',
 ];
 /**

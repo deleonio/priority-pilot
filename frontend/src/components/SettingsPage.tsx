@@ -60,20 +60,20 @@ interface SettingsPageProps {
 	currentUserId?: number;
 }
 
-// Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
-// KI (Index 2, #1903: Provider und Access-Token), Standort (Index 3, #1151), Orte (Index 4, #1894), Gruppen (Index 5, #1211),
-// Kategorien (Index 6), „Pakete & Abo" (Index 7, #1529/#1902) und optional Nutzerverwaltung
+// Die Tab-Leiste der Settings-Seite (#271). Reihenfolge nach Paketstufe (#1904): Allgemein (Index 0), Säulen (Index 1),
+// Kategorien (Index 2), Standort (Index 3, #1151), Orte (Index 4, #1894), KI (Index 5, #1903: Provider und Access-Token),
+// Gruppen (Index 6, #1211), „Pakete & Abo" (Index 7, #1529/#1902) und optional Nutzerverwaltung
 // (Index 8, nur für Admins). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
 // statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
 	{ _label: 'Allgemein' },
 	{ _label: 'Säulen' },
-	{ _label: 'KI' },
+	{ _label: 'Kategorien' },
 	{ _label: 'Standort' },
 	{ _label: 'Orte' },
+	{ _label: 'KI' },
 	{ _label: 'Gruppen' },
-	{ _label: 'Kategorien' },
 	{ _label: 'Pakete & Abo' },
 ];
 
@@ -102,7 +102,7 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
  * Benachrichtigungen), „Säulen" (Verwaltung + Gewichtungs-Editor), „KI" (Schalter, Provider,
  * Access-Token, #1903), „Standort" (Geo-Einstellungen, #1151), „Orte" (#1894), „Gruppen" (#1211) und
  * optional „Nutzerverwaltung". Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
- * `/settings/general` → Allgemein (0), `/settings/llm` und `/settings/zugriff` → KI (2), `/settings/standort` →
+ * `/settings/general` → Allgemein (0), `/settings/llm` und `/settings/zugriff` → KI (5), `/settings/standort` →
  * Standort (3), alles andere → Säulen (1).
  *
  * Alle Panels teilen sich ein Layout-Rezept (`.settings-panel`) und dieselben zwei
@@ -711,63 +711,13 @@ export const SettingsPage = ({
 				</div>
 				{/* #1903: Tab „KI" — Schalter oben, darunter die Karten „KI-Provider" und „Access-Token".
 				    Deren `KolDetails` folgen dem Schalter (eingeklappt, nicht entfernt; Regel 2). */}
-				<div slot="tab-2" className="settings-llm settings-panel">
-					{/* #1080/#1335: der eine Schalter — blendet die KI-Bedienelemente (KI-Anlege-Dialog mit
-							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
-							Accordion „Einzelne KI-Funktionen" ist mit #1335 entfallen: Schnellerfassung und
-							Berater sind ein einziger Dialog und damit kein eigenständig schaltbares Feature mehr.
-							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile.
-							#1525: ohne Paket-Freischaltung ist der Schalter gesperrt; der Angebots-Alert steht
-							VOR dem Schalter im DOM (nicht nur per CSS), damit die 375px-Stapelreihenfolge (AK6)
-							und die Fokus-/Lesereihenfolge (WCAG 1.3.2) übereinstimmen. */}
-					<KolCard className="settings-card" _label="KI-Funktionen" _level={2}>
-						<div className="settings-card-stack">
-							<div className="settings-llm-switch-row">
-								{showAiPlanAlert && (
-									<KolAlert
-										_type="info"
-										_label={`KI-Features benötigen das Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“`}
-									>
-										KI-Features (Anlege-Dialog mit Berater, Lektorate) sind Teil des Pakets „
-										{requiredPlan ? planLabel(requiredPlan) : ''}“.
-										<KolButton
-											_label="Zu den Paketen wechseln"
-											_variant="ghost"
-											_on={{
-												onClick: () => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX),
-											}}
-										/>
-									</KolAlert>
-								)}
-								<KolInputCheckbox
-									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
-									_label="KI aktivieren"
-									_variant="switch"
-									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet. Bestehende Access-Token bleiben gültig."
-									_checked={aiEnabled}
-									_disabled={aiSwitchDisabled}
-									_on={{
-										onChange: (_event, value) => {
-											setAiEnabled(value === true);
-										},
-									}}
-								/>
-								{!showAiPlanAlert && !aiEnabled && (
-									<KolAlert _type="info" _label="KI-Features deaktiviert">
-										Der KI-Anlege-Dialog (Verarbeiten und Beraten) und die Lektorat-Buttons sind derzeit ausgeblendet.
-										„Neuen Task anlegen“ öffnet direkt das vollständige Formular.
-									</KolAlert>
-								)}
-							</div>
-						</div>
+				<div slot="tab-2" className="settings-categories settings-panel">
+					<KolCard className="settings-card" _label="Kategorien verwalten" _level={2}>
+						<CategoryList onCategoryChanged={onCategoryChanged} />
 					</KolCard>
-					<LlmSettings open={aiEnabled} disabled={showAiPlanAlert} />
-					<ApiTokensSection open={aiEnabled} />
 				</div>
-				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
-				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
-				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
-				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
+				{/* #1902: „Pakete" und „Abo" (#1529) als EIN Reiter mit zwei Karten untereinander — oben das
+				    laufende Abo, unten die buchbaren Pakete (Regel 1: Karten nur oberste Ebene). */}
 				<div slot="tab-3" className="settings-geo settings-panel" ref={settingsGeoRef}>
 					<KolCard className="settings-card" _label="Standorterfassung" _level={2}>
 						<div className="settings-card-stack">
@@ -913,19 +863,69 @@ export const SettingsPage = ({
 				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten
 				        per Modal, Löschen mit sequenzieller Bestätigung. */}
-				<div slot="tab-5" className="settings-groups settings-panel">
+				<div slot="tab-5" className="settings-llm settings-panel">
+					{/* #1080/#1335: der eine Schalter — blendet die KI-Bedienelemente (KI-Anlege-Dialog mit
+							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
+							Accordion „Einzelne KI-Funktionen" ist mit #1335 entfallen: Schnellerfassung und
+							Berater sind ein einziger Dialog und damit kein eigenständig schaltbares Feature mehr.
+							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile.
+							#1525: ohne Paket-Freischaltung ist der Schalter gesperrt; der Angebots-Alert steht
+							VOR dem Schalter im DOM (nicht nur per CSS), damit die 375px-Stapelreihenfolge (AK6)
+							und die Fokus-/Lesereihenfolge (WCAG 1.3.2) übereinstimmen. */}
+					<KolCard className="settings-card" _label="KI-Funktionen" _level={2}>
+						<div className="settings-card-stack">
+							<div className="settings-llm-switch-row">
+								{showAiPlanAlert && (
+									<KolAlert
+										_type="info"
+										_label={`KI-Features benötigen das Paket „${requiredPlan ? planLabel(requiredPlan) : ''}“`}
+									>
+										KI-Features (Anlege-Dialog mit Berater, Lektorate) sind Teil des Pakets „
+										{requiredPlan ? planLabel(requiredPlan) : ''}“.
+										<KolButton
+											_label="Zu den Paketen wechseln"
+											_variant="ghost"
+											_on={{
+												onClick: () => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX),
+											}}
+										/>
+									</KolAlert>
+								)}
+								<KolInputCheckbox
+									key={aiSwitchLocked ? 'ai-switch-locked' : 'ai-switch-unlocked'}
+									_label="KI aktivieren"
+									_variant="switch"
+									_hint="Bei deaktivierter KI öffnet „Neuen Task anlegen“ direkt das vollständige Formular; die Lektorat-Buttons sind ausgeblendet. Bestehende Access-Token bleiben gültig."
+									_checked={aiEnabled}
+									_disabled={aiSwitchDisabled}
+									_on={{
+										onChange: (_event, value) => {
+											setAiEnabled(value === true);
+										},
+									}}
+								/>
+								{!showAiPlanAlert && !aiEnabled && (
+									<KolAlert _type="info" _label="KI-Features deaktiviert">
+										Der KI-Anlege-Dialog (Verarbeiten und Beraten) und die Lektorat-Buttons sind derzeit ausgeblendet.
+										„Neuen Task anlegen“ öffnet direkt das vollständige Formular.
+									</KolAlert>
+								)}
+							</div>
+						</div>
+					</KolCard>
+					<LlmSettings open={aiEnabled} disabled={showAiPlanAlert} />
+					<ApiTokensSection open={aiEnabled} />
+				</div>
+				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
+				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
+				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
+				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
+				<div slot="tab-6" className="settings-groups settings-panel">
 					<GroupsSection />
 				</div>
 				{/* Kategorien: thematische Ordnungsebene neben den Säulen (Route /settings/kategorien).
 				    Panel-Rezept wie die übrigen Tabs (Design-Lauf 2026-09): `.settings-panel` plus eine
 				    `KolCard` als Gruppierungsfläche. */}
-				<div slot="tab-6" className="settings-categories settings-panel">
-					<KolCard className="settings-card" _label="Kategorien verwalten" _level={2}>
-						<CategoryList onCategoryChanged={onCategoryChanged} />
-					</KolCard>
-				</div>
-				{/* #1902: „Pakete" und „Abo" (#1529) als EIN Reiter mit zwei Karten untereinander — oben das
-				    laufende Abo, unten die buchbaren Pakete (Regel 1: Karten nur oberste Ebene). */}
 				<div slot="tab-7" className="settings-plans settings-panel">
 					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER dem Abo —
 					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit
