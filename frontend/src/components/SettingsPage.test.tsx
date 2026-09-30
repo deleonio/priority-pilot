@@ -705,10 +705,11 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(container.querySelector('.admin-users')).toBeNull();
 	});
 
-	// Test-Pflege #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
-	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8. Der geprüfte Vertrag (#1300:
+	// Test-Pflege #1902: „Pakete"/„Abo" sind seit #1902 EIN Tab „Pakete & Abo“ — „Nutzerverwaltung"
+	// rückt von Index 8 auf 7. (Ursprünglich #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
+	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8.) Der geprüfte Vertrag (#1300:
 	// Admin-Reiter am Ende, AdminUsersSection in seinem Panel) bleibt unverändert.
-	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-8"', () => {
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-7"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -719,16 +720,15 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Standort',
 			'Gruppen',
 			'Kategorien',
-			'Pakete',
-			'Abo',
+			'Pakete & Abo',
 			'Nutzerverwaltung',
 			// Test-Pflege #1526: Tab-Label „Zugriff" → „Access-Token" (AK1); Route/Index unverändert,
 			// Index 8 bleibt Nutzerverwaltung.
 			'Access-Token',
 		]);
-		const adminPanel = container.querySelector('[slot="tab-8"]');
-		expect(adminPanel, 'letzter Slot tab-8 existiert').not.toBeNull();
-		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-8-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-7"]');
+		expect(adminPanel, 'Slot tab-7 (Nutzerverwaltung) existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-7-Panel').toBeTruthy();
 	});
 });
 
@@ -748,7 +748,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		delete apiMocks.deleteApiToken;
 	});
 
-	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-8"] [data-testid="api-tokens-panel"]');
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-7"] [data-testid="api-tokens-panel"]');
 
 	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
@@ -761,7 +761,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		});
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container), 'Panel „Zugriff" (tab-8) fehlt').not.toBeNull();
+		expect(panel(container), 'Panel „Zugriff" (tab-7) fehlt').not.toBeNull();
 
 		const createButton = container.querySelector(
 			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',
@@ -1298,7 +1298,7 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-6-Panel').toBeTruthy();
 
 		// Nicht auch in der Nutzerverwaltung (dort ist das Paket nur noch Badge, AK2).
-		const tab8 = panel(container, 'tab-8');
+		const tab8 = panel(container, 'tab-7');
 		expect(
 			tab8?.querySelector('kol-single-select, kol-select'),
 			'Nutzerverwaltung hat keine Auswahl-Komponente mehr',
@@ -1623,5 +1623,106 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 				'PUT-Fehler muss in derselben Zeile sichtbar sein',
 			).not.toBeNull();
 		});
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1902 (Spec docs/spec/issue-1902.md AK1/AK2/AK3/AK4/AK7) — „Pakete" und „Abo"
+ * sind EIN Tab „Pakete & Abo" (Panel `tab-6`) mit zwei Karten. Die Panels bleiben gemountet (siehe
+ * `beforeEach`); KoliBri hydriert in JSDOM nicht, Struktur wird über die Custom-Element-Hosts geprüft.
+ * AK5 liegt in `billing.spec.ts`, AK6/AK8 in `issue-1902-plans-subscription-tab.spec.ts`.
+ */
+describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
+	const catalog = {
+		features: [{ feature: 'groups', allowedPlans: ['pro'] }],
+		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+	};
+	const subscription = {
+		provider: 'paypal',
+		plan: 'pro',
+		period: 'monthly',
+		status: 'active',
+		currentPeriodEnd: '2026-10-15T00:00:00.000Z',
+		pendingPlan: null,
+		pendingPlanEffectiveAt: null,
+		graceUntil: null,
+	} as unknown as NonNullable<ComponentProps<typeof PlanProvider>['value']['subscription']>;
+
+	beforeEach(() => {
+		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue(catalog);
+		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([]);
+	});
+
+	const renderTab = (sub: typeof subscription | null, props: Partial<ComponentProps<typeof SettingsPage>> = {}) => {
+		const utils = render(
+			<PlanProvider value={{ plan: sub === null ? 'free' : 'pro', entitlements: {}, subscription: sub }}>
+				<SettingsPage {...defaultProps} {...props} />
+			</PlanProvider>,
+		);
+		const panel = utils.container.querySelector('[slot="tab-6"]') as HTMLElement;
+		return { ...utils, panel };
+	};
+
+	it('AK1: die Tab-Leiste enthält „Pakete & Abo“ und weder „Pakete“ noch „Abo“ als eigene Tabs', () => {
+		const { container } = renderTab(null);
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
+		expect(labels).toContain('Pakete & Abo');
+		expect(labels).not.toContain('Pakete');
+		expect(labels).not.toContain('Abo');
+	});
+
+	it('AK1/AK6: Rollen-Tabs bleiben index-paritätisch — Nutzerverwaltung an Index 7, Access-Token an Index 8', () => {
+		const { container } = renderTab(null, { isAdmin: true });
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
+		expect(labels.indexOf('Pakete & Abo')).toBe(6);
+		expect(labels.indexOf('Nutzerverwaltung')).toBe(7);
+		expect(labels.indexOf('Access-Token')).toBe(8);
+	});
+
+	it('AK2: mit Abo liegen Rechnungen und Kündigung in einem KolDetails der oberen Karte', async () => {
+		const { panel } = renderTab(subscription);
+		await waitFor(() => expect(panel.querySelector('[data-testid="billing-invoices"]')).not.toBeNull());
+
+		expect(panel.querySelector('kol-details kol-details'), 'genau ein KolDetails, nicht verschachtelt').toBeNull();
+		expect(
+			panel.querySelector('kol-details [data-testid="billing-invoices"]'),
+			'Rechnungen im KolDetails',
+		).not.toBeNull();
+		expect(
+			panel.querySelector('kol-details [data-testid="cancel-subscription"]'),
+			'Kündigen im KolDetails',
+		).not.toBeNull();
+		expect(panel.querySelector('[data-testid="subscription-status"]')?.textContent).toContain('Pro');
+	});
+
+	it('AK3: ohne Abo zeigt die obere Karte nur einen Hinweis — keine Rechnungs-/Kündigungselemente, kein „Pakete ansehen“', async () => {
+		const { panel } = renderTab(null);
+		await waitFor(() => expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull());
+
+		expect(panel.querySelector('[data-testid="billing-invoices"]')).toBeNull();
+		expect(panel.querySelector('[data-testid="cancel-subscription"]')).toBeNull();
+		expect(panel.querySelector('kol-button[_label="Pakete ansehen"]')).toBeNull();
+	});
+
+	it('AK4: die Pakete stehen als Liste mit Buchen-Aktion je Paket, ohne Tabelle', async () => {
+		const { panel } = renderTab(null);
+		await waitFor(() => expect(panel.querySelector('[data-testid="plans-section"]')).not.toBeNull());
+
+		expect(panel.querySelector('kol-table-stateful, table')).toBeNull();
+		const bookButtons = Array.from(panel.querySelectorAll('kol-button')).filter((b) =>
+			/^Pro.*buchen/i.test(b.getAttribute('_label') ?? ''),
+		);
+		expect(bookButtons.length, 'Buchen-Aktion für „Pro“ (Name + Handlung im Label)').toBeGreaterThan(0);
+	});
+
+	it('AK7: zwei Karten auf oberster Ebene, keine Karte in Karte, kein Accordion in Karte/Accordion', async () => {
+		const { panel } = renderTab(subscription);
+		await waitFor(() => expect(panel.querySelector('[data-testid="plans-section"]')).not.toBeNull());
+
+		expect(panel.querySelectorAll('kol-card'), 'Abo-Karte + Pakete-Karte').toHaveLength(2);
+		expect(panel.querySelector('kol-card kol-card')).toBeNull();
+		expect(panel.querySelector('kol-card kol-accordion, kol-accordion kol-accordion')).toBeNull();
 	});
 });
