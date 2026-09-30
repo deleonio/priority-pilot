@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { Op } from 'sequelize';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
 import { User, Group, GroupMember, Task, PlaceFavorite, AiUsage } from '../models/index.js';
-import { applyPlanChange, type PaypalWebhookEvent } from '../logics/paypal.js';
+import { applyPlanChange, applyDuePendingPlan, type PaypalWebhookEvent } from '../logics/paypal.js';
 import Subscription from '../models/subscription.js';
 import { AI_ASSIST_MONTHLY_QUOTA } from '../logics/plans.js';
 
@@ -107,7 +107,7 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 		assert.deepEqual(after, before, 'Bestand darf sich durch einen Downgrade nicht verändern');
 	});
 
-	it('AK3: nach einer wirksamen Kündigung ist User.plan free und eine Schreibroute liefert 403 plan_required', async () => {
+	it('AK3 (#1896): bis zum Periodenende bleibt User.plan bezahlt, danach ist User.plan free und eine Schreibroute liefert 403 plan_required', async () => {
 		const email = 'ak3@example.com';
 		const cookie = await server.register(email);
 		await setPlan(email, 'plus');
@@ -126,11 +126,17 @@ describe('Downgrade und Kündigung ohne Datenverlust (#1462)', () => {
 		const cancelEvent: PaypalWebhookEvent = { event_type: 'BILLING.SUBSCRIPTION.CANCELLED' };
 		await applyPlanChange(subscription, cancelEvent, new Date());
 
-		const reloadedUser = await User.findByPk(userId);
 		assert.equal(
-			reloadedUser?.plan,
+			(await User.findByPk(userId))?.plan,
+			'plus',
+			'Bis zum Periodenende bleibt User.plan auf dem bezahlten Paket',
+		);
+
+		await applyDuePendingPlan(subscription, new Date(Date.now() + 31 * 24 * 60 * 60 * 1000));
+		assert.equal(
+			(await User.findByPk(userId))?.plan,
 			'free',
-			'Nach einer Kündigung muss User.plan (die für Guards maßgebliche Quelle) auf free stehen',
+			'Nach dem Periodenende muss User.plan (die für Guards maßgebliche Quelle) auf free stehen',
 		);
 
 		process.env.MONETIZATION_ENFORCED = 'true';
