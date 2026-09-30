@@ -23,9 +23,23 @@ import {
 	User,
 } from '../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES } from '../models/subscription.js';
+import { feedbackVaultConfig, githubObsidianClient, type ObsidianGithubClient } from './obsidianFeedback.js';
 import CarePushToggle from '../models/carePushToggle.js';
 
 export type DeleteAccountResult = 'deleted' | 'not_found' | 'subscription_active' | 'last_group_admin';
+
+/**
+ * Entfernt die Feedback-Dateien des Kontos (#1922) aus dem Vault; Treffer nur über die exakte
+ * Frontmatter-Zeile `nutzer: "<email>"` (kein Substring). Ohne `FEEDBACK_GITHUB_TOKEN` kein Aufruf.
+ */
+const purgeUserFeedback = async (email: string, client: ObsidianGithubClient): Promise<void> => {
+	if (!process.env.FEEDBACK_GITHUB_TOKEN?.trim()) return;
+	const { repo, branch, dir } = feedbackVaultConfig();
+	const line = `nutzer: ${JSON.stringify(email)}`;
+	for (const file of await client.listFeedbackFiles(repo, branch, dir)) {
+		if (file.content.split(/\r?\n/).includes(line)) await client.deleteFile(repo, branch, file.path, file.sha);
+	}
+};
 
 /**
  * Löscht ein Konto samt persönlichen Daten (#1671, Play-Pflicht „Account deletion“). Abgelehnt wird,
@@ -36,8 +50,13 @@ export type DeleteAccountResult = 'deleted' | 'not_found' | 'subscription_active
  * angelegt hat, bleiben bei diesen; die Ersteller-Bindung wird gelöst, fremde Serien ruhen wie nach
  * einem Austritt. Rechnungen und Abo-Datensätze bleiben wegen der Aufbewahrungspflicht (ADR 0013).
  * Aufgaben-Säulen, Abhängigkeiten und Punkte fallen per Fremdschlüssel mit den Aufgaben weg.
+ * Feedback im Obsidian-Vault wird danach entfernt; scheitert das, bleibt das Konto gelöscht und der
+ * Fehler landet im Log (ohne E-Mail-Adresse).
  */
-export const deleteAccount = async (userId: number): Promise<DeleteAccountResult> => {
+export const deleteAccount = async (
+	userId: number,
+	{ feedbackClient = githubObsidianClient }: { feedbackClient?: ObsidianGithubClient } = {},
+): Promise<DeleteAccountResult> => {
 	const user = await User.findByPk(userId);
 	if (!user) return 'not_found';
 	if (await Subscription.count({ where: { userId, status: OPEN_SUBSCRIPTION_STATUSES } })) {
@@ -93,5 +112,13 @@ export const deleteAccount = async (userId: number): Promise<DeleteAccountResult
 		await LoginToken.destroy({ where: { email: user.email }, transaction });
 		await user.destroy({ transaction });
 	});
+	try {
+		await purgeUserFeedback(user.email, feedbackClient);
+	} catch (error) {
+		console.error(
+			'Feedback des gelöschten Kontos konnte nicht entfernt werden:',
+			error instanceof Error ? error.message : error,
+		);
+	}
 	return 'deleted';
 };
