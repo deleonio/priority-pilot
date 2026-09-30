@@ -5,7 +5,7 @@ import { openAccordionSection, waitForStableView } from './helpers';
 /**
  * Rote Spec-e2e für #1342/#1595 (Spec docs/spec/issue-1595.md) — Standort-Favoriten.
  *
- * AK6: kompletter Weg bei 375px — Favorit am Formular speichern, in Einstellungen → Standort
+ * AK6: kompletter Weg bei 375px — Favorit am Formular speichern, in Einstellungen → Orte
  * ansehen, im Adressfeld auswählen, löschen; Favoritenzeilen/Verwaltungskarte bleiben im
  * sichtbaren Bereich (Bounding-Box statt `scrollWidth`, MEMORY 2026-08-24/2026-09-10 — die
  * App-Shell clippt mit `overflow-x: hidden`), jedes Bedienelement hat ein Touch-Ziel ≥ 44px Höhe.
@@ -100,10 +100,10 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		expect(favoriteResponse.status(), await favoriteResponse.text()).toBe(201);
 		await expect(saveFavoriteButton).toBeEnabled();
 
-		// 2) In Einstellungen → Standort ansehen (AK3): die Zeile trägt NUR die Adresse — es gibt weder
+		// 2) In Einstellungen → Orte ansehen (AK3; Test-Pflege #1894: eigener Tab statt Standort): die Zeile trägt NUR die Adresse — es gibt weder
 		// ein Namensfeld noch einen Umbenennen-Knopf mehr.
-		await page.goto('/app/settings/standort');
-		await waitForStableView(page, 'Standort');
+		await page.goto('/app/settings/orte');
+		await waitForStableView(page, 'Orte');
 
 		const favoriteRow = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		await expect(favoriteRow).toBeVisible();
@@ -139,8 +139,8 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 
 		// 4) Löschen (AK6) — über den Bestätigungsdialog, nicht mehr inline. Danach bietet der Stern in
 		// der Trefferzeile das Speichern wieder an (AK4: „bereits gespeichert" ist aufgehoben).
-		await page.goto('/app/settings/standort');
-		await waitForStableView(page, 'Standort');
+		await page.goto('/app/settings/orte');
+		await waitForStableView(page, 'Orte');
 
 		const rowToDelete = page.getByTestId('place-favorite-row').filter({ hasText: HIT.address });
 		const deleteButton = rowToDelete.getByRole('button', { name: /favorit löschen/i });
@@ -173,5 +173,30 @@ test.describe('Balamentum — #1342: Standort-Favoriten', () => {
 		// Genau der Stern in der Trefferzeile (der Knopf unter dem Feld heißt fast gleich) — er bietet
 		// das Speichern wieder an, ist also nicht mehr „Bereits gespeichert".
 		await expect(page.getByRole('button', { name: `Als Favorit speichern: ${HIT.address}` })).toBeEnabled();
+	});
+});
+
+test.describe('Balamentum — #1894: Tab „Orte"', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+	});
+
+	test('AK1/AK2/AK6: „Orte" ist per Klick erreichbar, zeigt die Orte, Standort nicht mehr (375px)', async ({
+		page,
+	}) => {
+		await login(page);
+		await page.goto('/app/settings/standort');
+		await waitForStableView(page, 'Standort');
+		await expect(page.getByTestId('place-favorites-panel')).toHaveCount(0);
+
+		const ortTab = page.getByRole('tab', { name: 'Orte', exact: true });
+		await expect(ortTab).toBeVisible();
+		await ortTab.click();
+		await expect(page).toHaveURL(/\/settings\/orte$/);
+		await expect(ortTab).toHaveAttribute('aria-selected', 'true');
+
+		const panel = page.getByTestId('place-favorites-panel');
+		await expect(panel).toBeVisible();
+		await expectWithinViewport(page, panel);
 	});
 });

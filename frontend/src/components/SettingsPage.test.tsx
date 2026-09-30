@@ -691,7 +691,7 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
  * als letzter Tab (Index 8 seit #1529, ans Ende angehängt) mit `AdminUsersSection` im Panel
- * `slot="tab-8"`.
+ * `slot="tab-9"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
 	// Test-Pflege #1352: Seit dem Tab „Zugriff" (letzter Tab) ist der letzte Slot ohne Admin-Rolle vom
@@ -708,7 +708,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 	// Test-Pflege #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
 	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8. Der geprüfte Vertrag (#1300:
 	// Admin-Reiter am Ende, AdminUsersSection in seinem Panel) bleibt unverändert.
-	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-8"', () => {
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-9"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -717,18 +717,19 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Säulen',
 			'KI-Provider',
 			'Standort',
+			'Orte',
 			'Gruppen',
 			'Kategorien',
 			'Pakete',
 			'Abo',
 			'Nutzerverwaltung',
 			// Test-Pflege #1526: Tab-Label „Zugriff" → „Access-Token" (AK1); Route/Index unverändert,
-			// Index 8 bleibt Nutzerverwaltung.
+			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt auf Index 9.
 			'Access-Token',
 		]);
-		const adminPanel = container.querySelector('[slot="tab-8"]');
-		expect(adminPanel, 'letzter Slot tab-8 existiert').not.toBeNull();
-		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-8-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-9"]');
+		expect(adminPanel, 'letzter Slot tab-9 existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-9-Panel').toBeTruthy();
 	});
 });
 
@@ -738,7 +739,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  *
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
- * `slot="tab-8"` (letzter Tab; Test-Pflege #1529: vorher `tab-6`, seit den Reitern „Pakete"/„Abo"
+ * `slot="tab-9"` (letzter Tab; Test-Pflege #1529: vorher `tab-7`, seit den Reitern „Pakete"/„Abo"
  * um zwei Positionen verschoben).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
@@ -748,7 +749,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		delete apiMocks.deleteApiToken;
 	});
 
-	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-8"] [data-testid="api-tokens-panel"]');
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-9"] [data-testid="api-tokens-panel"]');
 
 	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
@@ -761,7 +762,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		});
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container), 'Panel „Zugriff" (tab-8) fehlt').not.toBeNull();
+		expect(panel(container), 'Panel „Zugriff" (tab-9) fehlt').not.toBeNull();
 
 		const createButton = container.querySelector(
 			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',
@@ -852,7 +853,7 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 
 	/*
 	 * Test-Pflege #1529 (Spec docs/spec/issue-1529.md AK1/AK2/AK3): Die Sektion liegt seit #1529 im
-	 * eigenen Reiter „Pakete" (`slot="tab-6"`) statt im Allgemein-Tab, und die Matrix ist keine
+	 * eigenen Reiter „Pakete" (`slot="tab-7"`) statt im Allgemein-Tab, und die Matrix ist keine
 	 * handgebaute `.plans-matrix`-Tabelle mehr, sondern eine `KolTableStateful`. In JSDOM hydriert
 	 * die Web Component nicht — ihre Zeilen stehen deshalb nicht im DOM, sondern im `_data`-Prop
 	 * (Muster `kol-tabs`/`_tabs` weiter oben in dieser Datei). Der geprüfte #1458-AK11-Vertrag
@@ -863,7 +864,7 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 
 		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
-		expect(container.querySelector('[slot="tab-6"] [data-testid="plans-section"]')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-7"] [data-testid="plans-section"]')).not.toBeNull();
 		expect(container.querySelector('kol-card[_label="Pakete im Vergleich"]')).not.toBeNull();
 		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
 
@@ -1279,26 +1280,26 @@ describe('SettingsPage – #1574: Bestätigungs-Modal vor dem Speichern unausgew
  * Strukturvertrag ( dieselbe Technik wie der #1151-Block): KoliBri-Elemente werden als
  * Custom-Elements mit Attributen gerendert und über Attribut-Selektoren geprüft. Die
  * Verhaltens-Tests der Karte (updateUserPlan + refresh) liegen in OwnPlanCard.test.tsx —
- * hier nur: die Karte lebt im Panel tab-6 („Pakete") und nur für Admins.
+ * hier nur: die Karte lebt im Panel tab-7 („Pakete") und nur für Admins.
  */
 describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 	/** Slot-Container eines Tabs (KolTabs-Panel-Host), Muster #1151-Block. */
 	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
 		container.querySelector(`[slot="${slot}"]`);
 
-	it('AK1: mit Admin-Rolle rendert die Auswahl-Karte „Eigenes Paket" im Panel tab-6 (Pakete)', () => {
+	it('AK1: mit Admin-Rolle rendert die Auswahl-Karte „Eigenes Paket" im Panel tab-7 (Pakete)', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin currentUserId={7} />);
 
-		const tab6 = panel(container, 'tab-6');
+		const tab6 = panel(container, 'tab-7');
 		expect(tab6, 'Pakete-Panel existiert').not.toBeNull();
 		// Komponentenagnostisch: KI-UX empfiehlt KolSingleSelect, toleriert das native KolSelect.
 		const ownSelection = tab6?.querySelector(
 			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
 		);
-		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-6-Panel').toBeTruthy();
+		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-7-Panel').toBeTruthy();
 
 		// Nicht auch in der Nutzerverwaltung (dort ist das Paket nur noch Badge, AK2).
-		const tab8 = panel(container, 'tab-8');
+		const tab8 = panel(container, 'tab-9');
 		expect(
 			tab8?.querySelector('kol-single-select, kol-select'),
 			'Nutzerverwaltung hat keine Auswahl-Komponente mehr',
@@ -1308,7 +1309,7 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 	it('AK4: ohne Admin-Rolle rendert das Pakete-Panel keine Auswahl-Karte', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		const tab6 = panel(container, 'tab-6');
+		const tab6 = panel(container, 'tab-7');
 		expect(tab6, 'Pakete-Panel existiert auch für Mitglieder (Matrix bleibt, AK4)').not.toBeNull();
 		expect(
 			tab6?.querySelector(
@@ -1325,7 +1326,7 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
  *
  * Seam: `SettingsPage` bekommt analog zu `isAdmin` ein optionales Prop `isTester` (App:
  * `user.role === 'tester'`); das OwnPlanCard-Gate (SettingsPage.tsx:823) öffnet sich für
- * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-8 bleiben ausschließlich an
+ * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-9 bleiben ausschließlich an
  * `isAdmin` gebunden. Das Prop existiert noch nicht (rote Spec-Phase) — der Cast hält tsc
  * in beiden Zuständen grün (Intersection-Muster MEMORY 2026-08-23 / mail.test.ts).
  */
@@ -1344,7 +1345,7 @@ describe('SettingsPage – #1566: Tester sieht die Paket-Karte, aber nicht die N
 	it('AK3: mit isTester rendert das Pakete-Panel die Auswahl-Karte „Eigenes Paket"', () => {
 		const { container } = render(<SettingsPageWithTester {...defaultProps} isTester currentUserId={7} />);
 
-		const tab6 = panel(container, 'tab-6');
+		const tab6 = panel(container, 'tab-7');
 		expect(tab6, 'Pakete-Panel existiert auch für Tester').not.toBeNull();
 		const ownSelection = tab6?.querySelector(
 			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
@@ -1623,5 +1624,45 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 				'PUT-Fehler muss in derselben Zeile sichtbar sein',
 			).not.toBeNull();
 		});
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1894 — „Gespeicherte Orte als eigener Tab in den Einstellungen".
+ *
+ * Spec-Bezug: docs/spec/issue-1894.md (AK1–AK3). „Orte" (Index 4, Slot `tab-4`, Route
+ * `/settings/orte`) sitzt hinter „Standort"; `PlaceFavoritesSection` wandert aus dem Standort-Panel
+ * (`tab-3`) dorthin und hängt nicht am Geo-Schalter. Die Route-/Index-Parität prüft `App.test.tsx`.
+ */
+describe('SettingsPage – #1894: Tab „Orte"', () => {
+	const panel = (container: HTMLElement, slot: string): HTMLElement | null =>
+		container.querySelector(`[slot="${slot}"]`);
+
+	it('AK1: die Tab-Liste enthält „Orte" direkt hinter „Standort"', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
+		expect(labels.indexOf('Orte')).toBe(labels.indexOf('Standort') + 1);
+	});
+
+	it('AK1: das Orte-Panel (tab-4) rendert PlaceFavoritesSection', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(panel(container, 'tab-4')?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
+	});
+
+	it('AK2: das Standort-Panel (tab-3) enthält keine gespeicherten Orte mehr', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(panel(container, 'tab-3')).not.toBeNull();
+		expect(panel(container, 'tab-3')?.querySelector('[data-testid="place-favorites-panel"]')).toBeNull();
+	});
+
+	it('AK3: das Orte-Panel bleibt bei ausgeschaltetem Standort gerendert', () => {
+		geoState.enabled = false;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		expect(panel(container, 'tab-4')?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
 	});
 });
