@@ -52,6 +52,10 @@ test.describe('Dashboard — Fürsorge-Hinweis (Issue #1793)', () => {
 	test('AK3: Ablehnen blendet den Hinweis aus', async ({ page }) => {
 		await openDashboard(page);
 		await expect(page.getByTestId('care-hint')).toBeVisible();
+		// Das E2E-Backend läuft im Pass-Through-Modus ohne Sitzung (`userId` undefined): das echte
+		// `POST …/dismissals` scheitert dort mit 500 und der Hinweis käme zurück. Nur die Ablehnung wird
+		// bedient — bisher gewann der Test nur das Rennen gegen diese Antwort (CSRF-Token-Fetch im Weg).
+		await page.route('**/scores/care-suggestions/dismissals', (route) => route.fulfill({ status: 204 }));
 
 		await page.getByRole('button', { name: 'Vorschlag ablehnen' }).click();
 
