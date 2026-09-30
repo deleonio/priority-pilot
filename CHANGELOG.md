@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-30
 
-_Enthält v0.10.0 – v0.10.32._
+_Enthält v0.10.0 – v0.10.33._
 
 ### 💥 Breaking Changes
 
@@ -41,6 +41,7 @@ _Enthält v0.10.0 – v0.10.32._
 - docs(adr): ADR 0018 Preismodell Free/Plus/Pro (#1803) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1863
 - feat(ci): swap openrouter haiku model via set-agent-config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1865
 - fix(deps): update dependency com.android.tools.build:gradle to v8.13.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1855
+- fix(ci): set ai:needs-human in triage without analysis block by @deleonio in https://github.com/deleonio/priority-pilot/pull/1876
 
 ### Other Changes
 
@@ -56,6 +57,7 @@ _Enthält v0.10.0 – v0.10.32._
 - feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
+- docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
 
 ## v0.9 - 2026-09-29
 
