@@ -51,6 +51,7 @@ const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
 };
 
 type ApprovalDto = { approvalUrl: string };
+type PreviewDto = { creditCents: number; dueCents: number };
 type ReviseDto = { approvalUrl?: string };
 type InvoiceDto = {
 	id: number;
@@ -72,6 +73,23 @@ const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 
 // Neben dem laufenden Abo kann ein ausstehendes Upgrade liegen; Kündigung und Wechsel gelten dem laufenden.
 const ACTIVE_FIRST: Order = [['status', 'ASC']];
+
+// Guthaben und erster Zyklus eines Upgrades — gemeinsame Eingabe-Ermittlung für Wechsel und Vorschau.
+const upgradeProration = (subscription: Subscription, plan: Plan, period: Period, now: Date) => {
+	const currentPlan = subscription.get('plan') as Plan;
+	const currentPeriod = subscription.get('period') as Period;
+	const periodEnd = subscription.get('currentPeriodEnd') as Date;
+	const periodStart = new Date(periodEnd);
+	periodStart.setUTCMonth(periodStart.getUTCMonth() - PERIOD_MONTHS[currentPeriod]);
+	const { prices } = getPlansCatalog();
+	return prorateUpgrade({
+		oldPriceCents: prices[currentPlan][currentPeriod],
+		newPriceCents: prices[plan][period],
+		periodStart,
+		periodEnd,
+		now,
+	});
+};
 
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
 	const router = Router();
@@ -170,18 +188,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			const currentPlan = subscription.get('plan') as Plan;
 			if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(currentPlan)) {
 				const now = new Date();
-				const currentPeriod = subscription.get('period') as Period;
-				const periodEnd = subscription.get('currentPeriodEnd') as Date;
-				const periodStart = new Date(periodEnd);
-				periodStart.setUTCMonth(periodStart.getUTCMonth() - PERIOD_MONTHS[currentPeriod]);
-				const { prices } = getPlansCatalog();
-				const { creditCents, firstCycleCents } = prorateUpgrade({
-					oldPriceCents: prices[currentPlan][currentPeriod],
-					newPriceCents: prices[body.plan][body.period],
-					periodStart,
-					periodEnd,
-					now,
-				});
+				const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, now);
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
 				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
 				await Subscription.destroy({
@@ -209,6 +216,35 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		} catch {
 			sendError(res, 502, 'PayPal war nicht erreichbar.');
 		}
+	});
+
+	// POST /billing/subscriptions/change/preview — Betragsvorschau vor dem Wechsel (#1913): dieselbe
+	// Rechnung wie der Wechsel, aber ohne PayPal-Aufruf und ohne Schreibzugriff.
+	router.post('/billing/subscriptions/change/preview', async (req: Request, res: Response<PreviewDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		if (userId === undefined) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const body = req.body as { plan?: unknown; period?: unknown } | undefined;
+		if (!isPaidPlan(body?.plan) || !isPeriod(body?.period)) {
+			sendError(res, 400, 'plan muss plus oder pro sein, period monthly, quarterly oder yearly.');
+			return;
+		}
+		const subscription = await Subscription.findOne({
+			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
+			order: ACTIVE_FIRST,
+		});
+		if (!subscription) {
+			sendError(res, 404, 'Kein Abo gefunden.');
+			return;
+		}
+		if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(subscription.get('plan') as Plan)) {
+			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, new Date());
+			res.status(200).json({ creditCents, dueCents: firstCycleCents });
+			return;
+		}
+		res.status(200).json({ creditCents: 0, dueCents: getPlansCatalog().prices[body.plan][body.period] });
 	});
 
 	// GET /billing/invoices — eigene Rechnungen des angemeldeten Nutzers (AK5).
