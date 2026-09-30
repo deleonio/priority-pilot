@@ -121,6 +121,7 @@ describe('MCP-Endpunkt /mcp/v1 — Handshake mit SDK-Client (#1353)', () => {
 				'category_create',
 				'category_update',
 				'category_delete',
+				'feedback_send',
 				'group_create',
 				'group_delete',
 				'group_list',

@@ -922,6 +922,8 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 			'category_delete',
 			'category_list',
 			'category_update',
+			// #1890: feedback_send steht alphabetisch nach category_update.
+			'feedback_send',
 			// #1542: die drei Gruppen-Schreibwerkzeuge kommen alphabetisch vor/hinter group_list.
 			'group_create',
 			'group_delete',

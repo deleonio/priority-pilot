@@ -742,6 +742,27 @@ const catalog: McpTool[] = [
 		run: (ctx, args) => callApi(ctx, `/invite-links/${requireIntegerId(args, 'id')}`, { method: 'DELETE' }),
 	},
 	{
+		name: 'feedback_send',
+		description:
+			'Sends feedback about the app (question, wish or bug report) on behalf of the token owner. ' +
+			'It lands in the same place as feedback from the help form and notifies the admins. ' +
+			'Allowed with a read-only token.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				category: { type: 'string', description: 'Kind of feedback: frage, wunsch or bug.' },
+				title: { type: 'string', description: 'Short title of the feedback.' },
+				description: { type: 'string', description: 'Details of the feedback.' },
+			},
+			required: ['category', 'title', 'description'],
+		},
+		run: (ctx, args) =>
+			callApi(ctx, '/feedback', {
+				method: 'POST',
+				body: { category: args.category, title: args.title, description: args.description },
+			}),
+	},
+	{
 		name: 'pillar_weights_set',
 		description:
 			"Sets the token owner's full weight distribution across all pillars at once. The list must cover " +

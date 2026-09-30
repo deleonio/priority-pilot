@@ -5,6 +5,7 @@ import { readAppVersion } from '../../logics/appInfo.js';
 import { githubObsidianClient, type ObsidianGithubClient } from '../../logics/obsidianFeedback.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { User } from '../../models/index.js';
+import { isApiTokenRequest } from '../apiTokenAuth.js';
 
 type ErrorDto = { message: string };
 
@@ -74,14 +75,14 @@ const buildPath = (dir: string, input: FeedbackInput, now: Date): string => {
 };
 
 /** Markdown mit YAML-Frontmatter nach der Vorlage aus dem Ticket (AK3). */
-const buildContent = (input: FeedbackInput, user: string, now: Date): string =>
+const buildContent = (input: FeedbackInput, user: string, now: Date, source: string): string =>
 	[
 		'---',
 		`datum: ${now.toISOString()}`,
 		`kategorie: ${input.category}`,
 		`nutzer: ${JSON.stringify(user)}`,
 		`appVersion: ${JSON.stringify(readAppVersion())}`,
-		'quelle: app-feedback',
+		`quelle: ${source}`,
 		'---',
 		'',
 		`# ${input.title}`,
@@ -161,7 +162,12 @@ export const createFeedbackRouter = ({
 			if ((await obsidianGithubClient.getBranchSha(repo, branch)) === null) {
 				await obsidianGithubClient.createBranch(repo, branch, SOURCE_BRANCH);
 			}
-			await obsidianGithubClient.commitFile(repo, branch, path, buildContent(validation.value, user, now));
+			await obsidianGithubClient.commitFile(
+				repo,
+				branch,
+				path,
+				buildContent(validation.value, user, now, isApiTokenRequest(req) ? 'mcp' : 'app-feedback'),
+			);
 		} catch (error) {
 			// #1465: Ohne Log war ein Fehlschlag von außen wie von innen unsichtbar — der Grund stand
 			// nirgends. Die Meldungen aus `obsidianFeedback.ts` nennen nur Methode, Pfad und Status
