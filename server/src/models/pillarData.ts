@@ -25,7 +25,7 @@ export const SEED_PILLARS: readonly {
 		key: 'koerper',
 		name: 'Körper',
 		description:
-			'Leiblichkeit: Biopsychologische Basis – Schlaf, Ernährung und Bewegung steuern hormonell und neuronal die Resilienz.',
+			'Leiblichkeit: Biopsychologische Basis – Schlaf, Ernährung und Bewegung steuern hormonell und neuronal die Resilienz. Erledigte Aufgaben stärken den Körper; Ziel sind 5 Erledigungen pro Woche.',
 		weight: 20,
 		rhythmusProWoche: 5,
 	},
@@ -33,7 +33,7 @@ export const SEED_PILLARS: readonly {
 		key: 'mental',
 		name: 'Mentale Gesundheit',
 		description:
-			'Emotionsregulation: Kognitive Flexibilität und Affektregulation – Techniken wie Achtsamkeit führen in die innere Homöostase zurück.',
+			'Emotionsregulation: Kognitive Flexibilität und Affektregulation – Techniken wie Achtsamkeit führen in die innere Homöostase zurück. Erledigte Aufgaben stärken diese Säule; Ziel sind 3 Erledigungen pro Woche.',
 		weight: 20,
 		rhythmusProWoche: 3,
 	},
@@ -41,7 +41,7 @@ export const SEED_PILLARS: readonly {
 		key: 'beziehungen',
 		name: 'Beziehungen',
 		description:
-			'Bindung: Sichere, wertungsfreie Räume – emotionale Resonanz und Zugehörigkeit, vollständig entkoppelt von eigener Leistung.',
+			'Bindung: Sichere, wertungsfreie Räume – emotionale Resonanz und Zugehörigkeit, vollständig entkoppelt von eigener Leistung. Erledigte Aufgaben stärken die Beziehungen; Ziel sind 3 Erledigungen pro Woche.',
 		weight: 20,
 		rhythmusProWoche: 3,
 	},
@@ -49,7 +49,7 @@ export const SEED_PILLARS: readonly {
 		key: 'wirksamkeit',
 		name: 'Wirksamkeit',
 		description:
-			'Selbstwirksamkeit: Aktives Gestalten der Umwelt – das tiefe Bedürfnis, durch Arbeit, Projekte oder Output Kompetenz zu erleben.',
+			'Selbstwirksamkeit: Aktives Gestalten der Umwelt – das tiefe Bedürfnis, durch Arbeit, Projekte oder Output Kompetenz zu erleben. Erledigte Aufgaben stärken die Wirksamkeit; Ziel sind 5 Erledigungen pro Woche.',
 		weight: 20,
 		rhythmusProWoche: 5,
 	},
@@ -57,7 +57,7 @@ export const SEED_PILLARS: readonly {
 		key: 'sinn',
 		name: 'Sinn',
 		description:
-			'Transzendenz & Werte: Das existenzielle „Wofür“ – ordnet Handeln in einen größeren, wertorientierten Kontext ein.',
+			'Transzendenz & Werte: Das existenzielle „Wofür“ – ordnet Handeln in einen größeren, wertorientierten Kontext ein. Erledigte Aufgaben stärken den Sinn; Ziel ist 1 Erledigung pro Woche – Sinn ist damit am schnellsten im grünen Bereich.',
 		weight: 20,
 		rhythmusProWoche: 1,
 	},
