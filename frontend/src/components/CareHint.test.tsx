@@ -12,7 +12,7 @@ import { CareHint } from './CareHint';
  */
 
 interface Vorschlag {
-	typ: 'task' | 'vorlage';
+	typ: 'task' | 'vorlage' | 'ki';
 	titel: string;
 	beschreibung: string | null;
 	saeuleId: number;
@@ -237,5 +237,67 @@ describe('CareHint (#1793)', () => {
 		render(<CareHint />);
 		const el = await zeigeHinweis();
 		expect(el.textContent).toContain('Körper kam diese Woche zu kurz.');
+	});
+
+	describe('#1873 KI-Vorschlag', () => {
+		const ki: Vorschlag = {
+			typ: 'ki',
+			titel: 'Mit Anna wandern gehen',
+			beschreibung: 'Du planst öfter Bewegung mit Freunden.',
+			saeuleId: 3,
+			saeuleName: 'Körper',
+			saeulenBeitraege: [{ pillarId: 3, share: 100 }],
+			anlass: 'defizit',
+		};
+		const kiKennzeichnung = (): HTMLElement | null => document.querySelector('[data-testid="care-hint-ki"]');
+
+		it('AK5: KI-Kennzeichnung nur bei typ ki', async () => {
+			getCareSuggestions.mockResolvedValue({ vorschlaege: [ki] });
+			render(<CareHint />);
+			await zeigeHinweis();
+			expect(kiKennzeichnung()).not.toBeNull();
+			cleanup();
+
+			getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage] });
+			render(<CareHint />);
+			await zeigeHinweis();
+			expect(kiKennzeichnung()).toBeNull();
+		});
+
+		it('AK6: Ablehnen → kein Dismissal-Request, lokal bis Tagesende, nach Remount weg', async () => {
+			vi.useFakeTimers({ toFake: ['Date'] });
+			vi.setSystemTime(new Date(2026, 5, 10, 12, 0, 0));
+			getCareSuggestions.mockResolvedValue({ vorschlaege: [ki] });
+			const { unmount } = render(<CareHint />);
+			await zeigeHinweis();
+			tap('Vorschlag ablehnen');
+			await waitFor(() => expect(hint()).toBeNull());
+			expect(dismissCareSuggestion).not.toHaveBeenCalled();
+			unmount();
+
+			vi.setSystemTime(new Date(2026, 5, 10, 23, 0, 0)); // gleicher Tag, „Reload"
+			render(<CareHint />);
+			await waitFor(() => expect(getCareSuggestions).toHaveBeenCalledTimes(2));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			expect(hint()).toBeNull();
+			cleanup();
+
+			vi.setSystemTime(new Date(2026, 5, 11, 1, 0, 0)); // Folgetag
+			render(<CareHint />);
+			await zeigeHinweis();
+		});
+
+		it('AK7: Übernehmen → createTask mit Titel, Beschreibung und Säulenbeitrag', async () => {
+			getCareSuggestions.mockResolvedValue({ vorschlaege: [ki] });
+			render(<CareHint />);
+			await zeigeHinweis();
+			tap('Vorschlag übernehmen');
+			await waitFor(() => expect(hint()).toBeNull());
+			expect(createTask).toHaveBeenCalledTimes(1);
+			const { taskCreate } = createTask.mock.calls[0]![0];
+			expect(taskCreate.title).toBe(ki.titel);
+			expect(taskCreate.description).toBe(ki.beschreibung);
+			expect(taskCreate.pillars).toEqual([{ pillarId: 3, share: 100, confidence: 100 }]);
+		});
 	});
 });

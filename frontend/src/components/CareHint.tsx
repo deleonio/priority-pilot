@@ -8,6 +8,8 @@ const TAG_MS = 24 * 60 * 60 * 1000;
 const ABLEHNUNG_MS = 14 * TAG_MS;
 const SNOOZE_KEY = 'pp-care-hint-snooze-until';
 const TASK_ABLEHNUNG_KEY = 'pp-care-hint-rejected-tasks';
+/** #1873: KI-Vorschlag hat keinen `templateKey` — Ablehnung lokal bis Tagesende (der Server liefert ihn den Tag über gleich). */
+const KI_ABLEHNUNG_KEY = 'pp-care-hint-ki-rejected-until';
 
 const readNumber = (key: string): number => Number(window.localStorage.getItem(key) ?? 0);
 
@@ -19,9 +21,10 @@ const readRejectedTasks = (): Record<string, number> => {
 	}
 };
 
-/** Lokal unterdrückt: „Nicht jetzt" bis Tagesende bzw. abgelehnte eigene Aufgabe für 14 Tage. */
+/** Lokal unterdrückt: „Nicht jetzt" und abgelehnter KI-Vorschlag bis Tagesende, abgelehnte eigene Aufgabe für 14 Tage. */
 const istUnterdrueckt = (vorschlag: CareVorschlag, jetzt: number): boolean =>
 	readNumber(SNOOZE_KEY) > jetzt ||
+	(vorschlag.typ === 'ki' && readNumber(KI_ABLEHNUNG_KEY) > jetzt) ||
 	(vorschlag.taskId !== undefined && (readRejectedTasks()[vorschlag.taskId] ?? 0) > jetzt);
 
 const endeDesTages = (jetzt: Date): number =>
@@ -31,7 +34,8 @@ const endeDesTages = (jetzt: Date): number =>
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt höchstens
  * EINEN Vorschlag aus `GET /scores/care-suggestions` (der erste; kein Nachrücken nach einer Aktion)
  * mit Übernehmen / Nicht jetzt / Ablehnen. Bei `anlass: 'ueberlast'` (#1795) rahmt der Hinweis den
- * Vorschlag als Ausgleich statt als Defizit. Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und
+ * Vorschlag als Ausgleich statt als Defizit; ein KI-Vorschlag (`typ: 'ki'`, #1873) trägt die Kennzeichnung
+ * „KI-Vorschlag". Lädt selbst (Muster `DayDoneHint`); bis zur Antwort und
  * bei Ladefehler wird nichts gerendert, damit „Nächste Aufgabe" nicht springt.
  *
  * Aktionen wirken optimistisch — der Hinweis verschwindet sofort, schlägt Übernehmen/Ablehnen einer
@@ -100,6 +104,10 @@ export const CareHint = () => {
 			window.localStorage.setItem(TASK_ABLEHNUNG_KEY, JSON.stringify(abgelehnt));
 			return Promise.resolve();
 		}
+		if (vorschlag.typ === 'ki') {
+			window.localStorage.setItem(KI_ABLEHNUNG_KEY, String(endeDesTages(new Date())));
+			return Promise.resolve();
+		}
 		return api.dismissCareSuggestion({ templateKey: vorschlag.templateKey ?? '' });
 	};
 
@@ -111,6 +119,12 @@ export const CareHint = () => {
 	return (
 		<div className="care-hint" data-testid="care-hint" role="status" aria-label="Fürsorge-Hinweis">
 			<KolAlert _type="info" _variant="card" _label="Fürsorge-Hinweis">
+				{/* #1873: `span` statt `KolBadge` wie `SeriesBadge`/`GeoBadge` — der Text läge sonst im Shadow-DOM. */}
+				{vorschlag.typ === 'ki' && (
+					<span className="care-hint-ki" data-testid="care-hint-ki">
+						KI-Vorschlag
+					</span>
+				)}
 				{vorschlag.anlass === 'ueberlast' ? (
 					<p>
 						Du hast zuletzt viel geleistet. Ein Ausgleich darf heute sein: {vorschlag.beschreibung ?? vorschlag.titel}

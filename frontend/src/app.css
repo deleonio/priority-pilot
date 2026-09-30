@@ -1553,6 +1553,18 @@ kol-toolbar {
 	flex: 1 0 100%;
 }
 
+/* #1873: Kennzeichnung „KI-Vorschlag" als eigene Zeile über dem Text — Chip-Stil wie `.series-badge`,
+   neutral (Herkunft, kein Signal). */
+.care-hint-ki {
+	display: inline-block;
+	margin-bottom: var(--pp-space-1);
+	font-size: 0.75rem;
+	padding: 0.125rem 0.375rem;
+	border-radius: 0.25rem;
+	background: var(--pp-bg-muted);
+	color: var(--pp-text-muted);
+}
+
 .dashboard-balance {
 	margin-top: var(--pp-gap-generous);
 }
