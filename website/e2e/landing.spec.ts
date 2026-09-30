@@ -37,6 +37,25 @@ test.describe('Öffentliche Website', () => {
 		}
 	});
 
+	test('Plus/Pro zeigen das Monatsäquivalent der Jahreszahlung ohne Überlauf, Free nicht (#1898)', async ({ page }) => {
+		await page.goto('/');
+		const pricing = page.locator('#pricing');
+		await pricing.scrollIntoViewIfNeeded();
+		await expect(pricing.locator('[data-plan="free"]').getByText(/3,99|7,99/)).toHaveCount(0);
+		const viewport = page.viewportSize()?.width ?? 0;
+		for (const [plan, amount] of [
+			['plus', '3,99 €'],
+			['pro', '7,99 €'],
+		]) {
+			const hint = pricing.locator(`[data-plan="${plan}"]`).getByText(amount);
+			await expect(hint).toBeVisible();
+			const box = await hint.boundingBox();
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(viewport);
+		}
+	});
+
 	test('Sprachwahl im Kopf führt in alle zehn Sprachen', async ({ page }) => {
 		const header = page.getByRole('banner');
 		await page.goto('/');

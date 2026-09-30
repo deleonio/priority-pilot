@@ -60,7 +60,7 @@ test('#1787 AK1: Hinweis an graph_weight (Modal-Link mit App-Basis) und location
 	await expect(modalHint.getByRole('link', { name: 'Pakete ansehen' })).toHaveAttribute('href', '/app/settings/pakete');
 	await page.request.delete(`/api/v1/tasks/${id}`);
 
-	await page.goto('/app/settings/standort');
+	await page.goto('/app/settings/orte');
 	await waitForStableView(page, 'Allgemein');
 	await expect(page.getByTestId('plan-hint-location_reminders')).toBeVisible();
 });
@@ -70,7 +70,7 @@ test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf
 		(window as { __PP_CHANNEL__?: string }).__PP_CHANNEL__ = 'play';
 	});
 	await login(page);
-	await page.goto('/app/settings/standort');
+	await page.goto('/app/settings/orte');
 	await waitForStableView(page, 'Allgemein');
 
 	await page.getByTestId('plan-hint-location_reminders').getByRole('link', { name: 'Pakete ansehen' }).click();

@@ -39,6 +39,7 @@
 	},
 	"billing": {
 		"managedBy": "Subscription active, managed via {{provider}}",
+		"yearlyPerMonth": "or {{price}}/month when paid yearly",
 		"manageInPlay": "Manage in Google Play",
 		"restore": {
 			"action": "Restore purchases",

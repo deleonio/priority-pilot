@@ -172,6 +172,7 @@
 		"free": "€ 0",
 		"quarterly": "{price} per kwartaal",
 		"yearly": "of {price} per jaar",
+		"yearlyPerMonth": "of {price}/maand bij jaarbetaling",
 		"discounts": "Bij betaling per kwartaal bespaar je 10 %, bij jaarlijkse betaling 20 %. Alle prijzen zijn eindprijzen; op grond van § 19 UStG (Duitse kleineondernemersregeling) wordt geen btw berekend.",
 		"basics": "Taken, series, checklists, deadlines, punten en balansanalyse",
 		"includesPrevious": "Alles uit {plan}, plus:",

@@ -129,6 +129,26 @@ test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () 
 		);
 	});
 
+	test('#1898 AK6: bei 375px ist das Monatsäquivalent in der Matrix sichtbar, die Seite läuft nicht über', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
+
+		await page.goto('/app/settings/pakete');
+		const hint = page.getByText(/6,39\s€\/Monat bei Jahreszahlung/);
+		await hint.scrollIntoViewIfNeeded();
+		await expect(hint).toBeVisible();
+
+		const pageOverflow = await page.evaluate(() => {
+			const el = document.scrollingElement;
+			return { scrollWidth: el?.scrollWidth ?? 0, clientWidth: el?.clientWidth ?? 0 };
+		});
+		expect(pageOverflow.scrollWidth, 'die Seite selbst darf nicht horizontal überlaufen').toBeLessThanOrEqual(
+			pageOverflow.clientWidth + 1,
+		);
+	});
+
 	test('AK5: bei 375px bleibt die Funktionsspalte nach seitlichem Scrollen sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });

@@ -39,6 +39,7 @@
 	},
 	"billing": {
 		"managedBy": "Подписка активна, управляется через {{provider}}",
+		"yearlyPerMonth": "или {{price}}/месяц при оплате за год",
 		"manageInPlay": "Управлять в Google Play",
 		"restore": {
 			"action": "Восстановить покупки",

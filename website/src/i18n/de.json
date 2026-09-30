@@ -172,6 +172,7 @@
 		"free": "0 €",
 		"quarterly": "{price} im Quartal",
 		"yearly": "oder {price} im Jahr",
+		"yearlyPerMonth": "oder {price}/Monat bei Jahreszahlung",
 		"discounts": "Bei quartalsweiser Zahlung sparst du 10 %, bei jährlicher 20 %. Alle Preise sind Endpreise; nach § 19 UStG wird keine Umsatzsteuer berechnet.",
 		"basics": "Aufgaben, Serien, Checklisten, Fristen, Punkte und Balance-Analyse",
 		"includesPrevious": "Alles aus {plan}, dazu:",

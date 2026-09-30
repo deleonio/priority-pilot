@@ -20,7 +20,7 @@ const ButtonAction = ({ onClick, children }: { onClick: () => void; children: Re
 );
 
 /**
- * Einstellungen → „Standort": gespeicherte Orte („Standort-Favoriten", #1342 AK3). Seit #1595 hat
+ * Einstellungen → „Orte": gespeicherte Orte („Standort-Favoriten", #1342 AK3). Seit #1595 hat
  * ein Ort NUR eine Adresse: kein Namensfeld, kein Umbenennen. Angelegt wird über dieselbe
  * `AddressAutocomplete` wie im Aufgabenformular (AK5) — die Auswahl übernimmt Adresse UND
  * Koordinaten. Gelöscht wird über `ConfirmDeleteDialog` (AK6,

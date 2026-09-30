@@ -650,9 +650,9 @@ Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
   kommt ein Push-Hinweis; **Aktualisierungsintervall** – wie oft die Position ermittelt
   wird.
 
-#### Gespeicherte Orte
+### Orte
 
-Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
+Gespeicherte Orte haben einen eigenen Tab und sind unabhängig vom Standort-Schalter. Orte, die du oft brauchst, legst du hier einmal ab und wählst sie danach im Adressfeld
 direkt aus.
 
 - **Anlegen:** unter **„Gespeicherte Orte"** eine Adresse eintippen und aus der

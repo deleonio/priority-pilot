@@ -152,6 +152,18 @@ describe('renderLanding', () => {
 		}
 	});
 
+	it('zeigt auf Plus/Pro das Monatsäquivalent der Jahreszahlung, auf Free nichts (#1898)', () => {
+		const template = (de.pricing as { yearlyPerMonth?: string }).yearlyPerMonth;
+		expect(template).toBeTypeOf('string');
+		const html = landing('de');
+		const card = (plan: string) => html.slice(html.indexOf(`data-plan="${plan}"`)).split('</article>')[0];
+		expect(card('plus')).toContain(template!.replace('{price}', '3,99 €'));
+		expect(card('pro')).toContain(template!.replace('{price}', '7,99 €'));
+		expect(card('plus')).toContain('47,90 €');
+		expect(card('pro')).toContain('95,90 €');
+		expect(card('free')).not.toContain(template!.replace('{price}', ''));
+	});
+
 	it('listet jedes Feature genau einmal, im kleinsten Paket, das es enthält', () => {
 		const listed = PLAN_VALUES.flatMap((plan) => addedFeatures(catalog, PLAN_VALUES, plan));
 		expect([...listed].sort()).toEqual([...FEATURE_IDS].sort());
