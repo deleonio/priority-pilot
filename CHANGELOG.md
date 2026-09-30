@@ -2,9 +2,9 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
-## v0.10 - 2026-09-29
+## v0.10 - 2026-09-30
 
-_Enthält v0.10.0 – v0.10.29._
+_Enthält v0.10.0 – v0.10.31._
 
 ### 💥 Breaking Changes
 
@@ -13,6 +13,10 @@ _Enthält v0.10.0 – v0.10.29._
 ### 🎉 New Features
 
 - feat(server): add ai care suggestion for plus and pro (#1804) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1871
+
+### 🚀 Improvements
+
+- feat(website): show quarterly price and plus/pro pricing texts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1872
 
 ### 🔧 Engineering
 
@@ -191,7 +195,6 @@ _Enthält v0.5.0 – v0.5.32._
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
-- refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - feat(server): map plans to google play subscription products by @deleonio in https://github.com/deleonio/priority-pilot/pull/1719
 - feat(server): verify and acknowledge google play purchases by @deleonio in https://github.com/deleonio/priority-pilot/pull/1720
@@ -1109,6 +1112,7 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(changelog): consolidate CHANGELOG.md blocks by minor version by @deleonio in https://github.com/deleonio/priority-pilot/pull/1393
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
+- feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
 - fix(ci): daily-version Tages-Check nur bei (daily)-Tag greifen lassen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1401
 
