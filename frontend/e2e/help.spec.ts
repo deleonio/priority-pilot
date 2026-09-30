@@ -124,3 +124,30 @@ test.describe('#1320 Hilfe als normale Seite mit sichtbarem Header', () => {
 		expect(contentBox!.x + contentBox!.width, 'Seiteninhalt endet im Viewport').toBeLessThanOrEqual(375 + 1);
 	});
 });
+
+/** #1891 AK5/AK6 — Rechtliche Links im Impressum-Tab, auf 375 px sichtbar, im Viewport, antippbar. */
+test.describe('#1891 Links zu Nutzungsbedingungen und Datenschutz', () => {
+	test('375px: beide Links sichtbar, im Viewport, mindestens 24 px hoch, extern', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/hilfe');
+		await waitForStableView(page, 'Balamentum');
+		await page.getByRole('tab', { name: 'Impressum', exact: true }).click();
+
+		for (const [name, path] of [
+			['Nutzungsbedingungen', '/nutzungsbedingungen/'],
+			['Datenschutz', '/datenschutz/'],
+		]) {
+			const link = page.getByRole('link', { name: new RegExp(`^${name}`) });
+			await link.scrollIntoViewIfNeeded();
+			await expect(link).toBeVisible();
+			await expect(link).toHaveAttribute('href', new RegExp(`${path}$`));
+			await expect(link).toHaveAttribute('target', '_blank');
+			await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+			const box = await link.boundingBox();
+			expect(box, name).not.toBeNull();
+			expect(box!.x, name).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width, name).toBeLessThanOrEqual(375);
+			expect(box!.height, name).toBeGreaterThanOrEqual(24);
+		}
+	});
+});

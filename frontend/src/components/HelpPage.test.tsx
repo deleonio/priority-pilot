@@ -216,6 +216,24 @@ describe('HelpPage – Impressum-Tab (§ 5 DDG)', () => {
 	});
 });
 
+// #1891 AK5: Rechtliche Links im Impressum-Tab (Vertrag: docs/spec/issue-1891.md).
+describe('HelpPage – #1891: Links zu Nutzungsbedingungen und Datenschutz', () => {
+	it.each([
+		['Nutzungsbedingungen', '/nutzungsbedingungen/'],
+		['Datenschutz', '/datenschutz/'],
+	])('Impressum-Tab verlinkt „%s“ extern in neuem Tab', (label, path) => {
+		const { container } = render(<HelpPage />);
+
+		selectTab(container, 2);
+
+		const link = panel(container, 'tab-2')?.querySelector(`a[href="${window.location.origin}${path}"]`);
+		expect(link, `Link auf ${path}`).toBeTruthy();
+		expect(link?.textContent).toBe(label);
+		expect(link?.getAttribute('target')).toBe('_blank');
+		expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+	});
+});
+
 describe('HelpPage – #1206: Kategorien-Aggregation und klickbare Links', () => {
 	// Fixture mit Kategorie-Struktur wie sie .github/release.yml erzeugt: v0.1.695 mit
 	// Breaking Changes + Bug Fixes (inkl. nackter Repo-URL, Markdown-Repo-Link und

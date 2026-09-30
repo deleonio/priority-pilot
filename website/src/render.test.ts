@@ -40,6 +40,13 @@ const renderPrivacy = (
 	}
 ).renderPrivacy;
 
+// #1891: `renderTerms` existiert als Export noch nicht (roter Spec-Zustand) — deshalb optional getippt.
+const renderTerms = (
+	renderModule as unknown as {
+		renderTerms?: (context: PageContext & { allMessages: Record<Locale, Messages> }) => string;
+	}
+).renderTerms;
+
 const catalog = getPlansCatalog();
 const allMessages = { de, en, es, fr, it: itMessages, nl, pl, pt, ru, sv };
 
@@ -279,6 +286,74 @@ describe('renderPrivacy (#1672)', () => {
 			'<loc>https://example.org/datenschutz/</loc>',
 		);
 	});
+});
+
+/**
+ * #1891 (Vertrag: `docs/spec/issue-1891.md`) — Nutzungsbedingungen als feste deutsche Seite unter
+ * `/nutzungsbedingungen/`, Preise aus `plans.ts`, Footer-Link in allen zehn Sprachen, Sitemap.
+ */
+describe('renderTerms (#1891)', () => {
+	const terms = () => {
+		expect(renderTerms, 'renderTerms existiert noch nicht (Export in render.ts)').toBeTypeOf('function');
+		return renderTerms!({ locale: 'de', messages: de, siteUrl: '', allMessages });
+	};
+
+	it('rendert lang="de" mit den vier Abschnittsüberschriften (AK1, AK3)', () => {
+		const html = terms();
+		expect(html).toContain('<html lang="de"');
+		for (const heading of ['Konto', 'Pakete und Abo', 'Zahlungswege', 'Haftung']) {
+			expect(html, `h2 „${heading}“ fehlt`).toMatch(new RegExp(`<h2[^>]*>\\s*${heading}\\s*</h2>`));
+		}
+	});
+
+	it('nennt Laufzeit, Upgrade, Downgrade, Kündigung, PayPal und Google Play (AK3)', () => {
+		const html = terms();
+		for (const term of ['Laufzeit', 'Upgrade', 'Downgrade', 'Kündigung', 'PayPal', 'Google Play']) {
+			expect(html, `Begriff „${term}“ fehlt`).toContain(term);
+		}
+	});
+
+	it('bezieht Paketnamen und Preise aus plans.ts (AK4)', () => {
+		const html = terms();
+		const euro = (cents: number) => `${(cents / 100).toFixed(2).replace('.', ',')}`;
+		for (const plan of ['plus', 'pro'] as const) {
+			expect(html, `Monatspreis ${plan}`).toContain(euro(catalog.prices[plan].monthly));
+			expect(html, `Jahrespreis ${plan}`).toContain(euro(catalog.prices[plan].yearly));
+		}
+		for (const name of ['Free', 'Plus', 'Pro']) {
+			expect(html, `Paketname ${name}`).toContain(name);
+		}
+	});
+
+	it('verlinkt /nutzungsbedingungen/ aus dem Footer aller zehn Sprachen (AK2)', () => {
+		for (const [locale, messages] of Object.entries(allMessages)) {
+			const label = (messages.footer as { terms?: string }).terms;
+			expect(label, `${locale}: i18n-Key footer.terms fehlt`).toBeTruthy();
+			expect(landing(locale as Locale), locale).toMatch(new RegExp(`href="/nutzungsbedingungen/"[^>]*>${label}</a>`));
+			expect(landing(locale as Locale), `${locale}: Datenschutz-Link bleibt`).toContain('href="/datenschutz/"');
+		}
+	});
+
+	it(
+		'baut /nutzungsbedingungen/ nur einmal (de) und nimmt die URL in die Sitemap auf (AK1)',
+		{ timeout: 120_000 },
+		() => {
+			const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+			execFileSync('pnpm', ['build'], {
+				cwd: websiteRoot,
+				env: { ...process.env, SITE_URL: 'https://example.org' },
+				stdio: 'pipe',
+			});
+			expect(
+				existsSync(join(websiteRoot, 'dist', 'nutzungsbedingungen', 'index.html')),
+				'dist/nutzungsbedingungen/index.html fehlt',
+			).toBe(true);
+			expect(existsSync(join(websiteRoot, 'dist', 'en', 'nutzungsbedingungen')), 'keine Sprachvariante').toBe(false);
+			expect(readFileSync(join(websiteRoot, 'dist', 'sitemap.xml'), 'utf8')).toContain(
+				'<loc>https://example.org/nutzungsbedingungen/</loc>',
+			);
+		},
+	);
 });
 
 describe('robots und sitemap', () => {
