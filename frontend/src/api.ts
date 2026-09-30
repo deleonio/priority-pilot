@@ -285,6 +285,17 @@ export const api = {
 		return data;
 	},
 
+	/** Vorschau des Paketwechsels (#1913): Guthaben und fälliger Betrag in Cent, ohne Nebenwirkung. */
+	async previewBillingChange(
+		input: components['schemas']['BillingSubscriptionInput'],
+	): Promise<components['schemas']['BillingChangePreview']> {
+		const { data, error, response } = await client.POST('/billing/subscriptions/change/preview', { body: input });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
 	/** Eigene Rechnungen, neueste zuerst (AK5). */
 	async listBillingInvoices(init: Init = {}): Promise<components['schemas']['Invoice'][]> {
 		const { data, error, response } = await client.GET('/billing/invoices', { signal: init.signal });

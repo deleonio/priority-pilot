@@ -669,7 +669,7 @@ Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
 
 ## Pakete
 
-Im Bereich **Pakete & Abo** listet die untere Karte die verfügbaren Pakete mit Preisen und den enthaltenen Funktionen. Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort. Beim Wechsel zu einem höheren Paket über PayPal bestätigst du bei PayPal ein neues Abo; die bezahlte Restlaufzeit des alten Pakets wird taggenau auf den ersten Zeitraum angerechnet und auf der Rechnung als eigene Position ausgewiesen.
+Im Bereich **Pakete & Abo** listet die untere Karte die verfügbaren Pakete mit Preisen und den enthaltenen Funktionen. Du kannst zwischen Paketen wechseln – vor dem Bestätigen zeigt der Dialog den fälligen Betrag und ein angerechnetes Guthaben. Der Wechsel wird serverseitig verarbeitet und gilt sofort. Beim Wechsel zu einem höheren Paket über PayPal bestätigst du bei PayPal ein neues Abo; die bezahlte Restlaufzeit des alten Pakets wird taggenau auf den ersten Zeitraum angerechnet und auf der Rechnung als eigene Position ausgewiesen.
 
 Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen – etwa Gruppen,
 KI-Unterstützung, gewichtete Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe und einfache

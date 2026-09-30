@@ -2180,6 +2180,25 @@ kol-toolbar {
 	}
 }
 
+/* Betragsvorschau im Paketwechsel-Dialog (#1913): Label links, Wert rechts, umbrechend auf 375 px. */
+.change-preview {
+	margin: var(--pp-space-3) 0 0;
+}
+
+.change-preview > div {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--pp-space-2);
+}
+
+.change-preview dt,
+.change-preview dd {
+	margin: 0;
+	min-width: 0;
+	font-variant-numeric: tabular-nums;
+}
+
 /* Aktionsleiste eines Dialogs (`.modal-actions`) bzw. eines eingebetteten Formulars
    (`.form-actions`, z. B. der Gewichtungs-Editor auf /settings/pillars). Gleiches Layout,
    getrennte Klassen: nur so bleibt `.modal-actions` auf einer Seite eindeutig adressierbar (#886). */

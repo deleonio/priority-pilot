@@ -3415,6 +3415,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /billing/subscriptions/change/preview:
+    post:
+      summary: Betrag des Paketwechsels vorab berechnen
+      description: >-
+        Liefert vor dem Bestätigen den Betrag, den der Paketwechsel kostet (#1913):
+        bei einem PayPal-Upgrade das Guthaben der Restlaufzeit und den um dieses
+        reduzierten ersten Zyklus (dieselbe Rechnung wie `POST
+        /billing/subscriptions/change`), sonst `creditCents: 0` und den Katalogpreis
+        von Zielpaket/Zeitraum. Ruft PayPal nicht auf und schreibt nichts.
+      operationId: previewBillingChange
+      tags: [billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingSubscriptionInput'
+      responses:
+        '200':
+          description: Guthaben und fälliger Betrag in Cent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingChangePreview'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /billing/invoices:
     get:
       summary: Eigene Rechnungen auflisten
@@ -5959,6 +5993,19 @@ components:
         approvalUrl:
           type: string
           description: Zustimmungs-URL des PayPal-Clients.
+    BillingChangePreview:
+      type: object
+      description: >-
+        Vorschau des Paketwechsels (#1913): `creditCents` ist das angerechnete Guthaben
+        (0 ohne Upgrade), `dueCents` der fällige Betrag des ersten Zyklus.
+      required: [creditCents, dueCents]
+      properties:
+        creditCents:
+          type: integer
+          minimum: 0
+        dueCents:
+          type: integer
+          minimum: 0
     Invoice:
       type: object
       description: >-

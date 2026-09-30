@@ -7,6 +7,7 @@ import { Subscription } from '../models/index.js';
 // scheitern zu lassen (SKILL.md: Import-/Syntaxfehler ist kein legitimes Rot).
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
+import { getPlansCatalog } from '../logics/plans.js';
 
 /**
  * Rote Spec-Tests für #1505 (Spec docs/spec/issue-1505.md) — AK1-AK5 und AK7. Die Routen
@@ -453,6 +454,99 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			body: JSON.stringify({ plan: 'plus', period: 'monthly' }),
 		});
 		assert.equal(web.status, 201);
+	});
+
+	// #1913 (Spec docs/spec/issue-1913.md): Vorschau des fälligen Betrags vor dem Paketwechsel.
+	describe('#1913: POST /billing/subscriptions/change/preview', () => {
+		const PREVIEW = '/billing/subscriptions/change/preview';
+		const DAY_MS = 24 * 60 * 60 * 1000;
+		const seedActive = async (email: string, plan: 'plus' | 'pro', period: 'monthly' | 'yearly' = 'monthly') => {
+			const cookie = await login(email);
+			const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+			await Subscription.create({
+				userId: me.id,
+				provider: 'paypal',
+				externalSubscriptionId: `I-${email}`,
+				plan,
+				period,
+				status: 'active',
+				currentPeriodEnd: new Date(Date.now() + 15 * DAY_MS),
+			});
+			return { cookie, userId: me.id };
+		};
+
+		it('AK1: Upgrade-Vorschau liefert dieselben Werte wie der anschließende Wechsel, ohne PayPal-Aufruf und DB-Schreibung', async () => {
+			const created: { firstCycleCents?: number }[] = [];
+			let paypalCalls = 0;
+			server = await startTestServer(
+				withClient({
+					createSubscription: (async (_planId: string, override?: { firstCycleCents?: number }) => {
+						paypalCalls += 1;
+						created.push({ firstCycleCents: override?.firstCycleCents });
+						return { approvalUrl: 'https://paypal.example/upgrade', externalSubscriptionId: 'I-NEW' };
+					}) as FakePaypalClient['createSubscription'],
+					revise: async () => {
+						paypalCalls += 1;
+						return {};
+					},
+				}),
+			);
+			const { cookie, userId } = await seedActive('ak1-1913@example.com', 'plus');
+
+			const res = await post(PREVIEW, cookie, { plan: 'pro', period: 'monthly' });
+
+			assert.equal(res.status, 200);
+			const preview = (await res.json()) as { creditCents: number; dueCents: number };
+			assert.equal(paypalCalls, 0, 'Vorschau darf PayPal nicht aufrufen');
+			assert.equal(await Subscription.count({ where: { userId } }), 1, 'Vorschau schreibt keine Subscription');
+			assert.ok(preview.creditCents > 0 && preview.dueCents > 0, `Werte erwartet, war ${JSON.stringify(preview)}`);
+
+			await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+			const pending = await Subscription.findOne({ where: { userId, status: 'approval_pending' } });
+			assert.equal(preview.dueCents, created[0].firstCycleCents, 'dueCents = firstCycleCents des Wechsels');
+			assert.equal(preview.creditCents, pending?.get('creditCents'), 'creditCents = Guthaben des Wechsels');
+		});
+
+		it('AK2: Downgrade und Zeitraumwechsel ohne Rangsprung zeigen creditCents 0 und den Katalogpreis', async () => {
+			server = await startTestServer(withClient({}));
+			const { prices } = getPlansCatalog();
+			const down = await seedActive('ak2-down-1913@example.com', 'pro');
+			const same = await seedActive('ak2-same-1913@example.com', 'plus');
+
+			const downRes = await post(PREVIEW, down.cookie, { plan: 'plus', period: 'monthly' });
+			const sameRes = await post(PREVIEW, same.cookie, { plan: 'plus', period: 'yearly' });
+
+			assert.equal(downRes.status, 200);
+			assert.deepEqual(await downRes.json(), { creditCents: 0, dueCents: prices.plus.monthly });
+			assert.equal(sameRes.status, 200);
+			assert.deepEqual(await sameRes.json(), { creditCents: 0, dueCents: prices.plus.yearly });
+		});
+
+		it('AK3: ungültiges plan/period → 400', async () => {
+			server = await startTestServer(withClient({}));
+			const { cookie } = await seedActive('ak3-400-1913@example.com', 'plus');
+
+			assert.equal((await post(PREVIEW, cookie, { plan: 'free', period: 'monthly' })).status, 400);
+			assert.equal((await post(PREVIEW, cookie, { plan: 'pro', period: 'weekly' })).status, 400);
+		});
+
+		it('AK3: ohne Abo → 404', async () => {
+			server = await startTestServer(withClient({}));
+			const cookie = await login('ak3-404-1913@example.com');
+
+			assert.equal((await post(PREVIEW, cookie, { plan: 'pro', period: 'monthly' })).status, 404);
+		});
+
+		it('AK3: ohne Session → 401', async () => {
+			server = await startTestServer(withClient({}));
+			const res = await fetch(`${server.baseUrl}${PREVIEW}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ plan: 'pro', period: 'monthly' }),
+			});
+
+			assert.equal(res.status, 401);
+		});
 	});
 
 	// AK7: alle vier Routen ohne Session → 401 (requireAuth greift bereits vor Router-Existenz, #207).

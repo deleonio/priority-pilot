@@ -114,13 +114,20 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		await expect(page).toHaveURL(/paypal\.example\/approve\/abc/);
 	});
 
-	test('AK3: Wechsel zeigt Bestätigungsdialog mit Anrechnungs-Hinweis und ruft /billing/subscriptions/change', async ({
+	test('AK3: Wechsel zeigt Bestätigungsdialog mit Betragsvorschau und ruft /billing/subscriptions/change', async ({
 		page,
 	}) => {
 		await mockCatalog(page);
 		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });
 		await mockEmptyInvoices(page);
 
+		await page.route('**/api/v1/billing/subscriptions/change/preview', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ creditCents: 249, dueCents: 750 }),
+			}),
+		);
 		let capturedBody: unknown;
 		await page.route('**/api/v1/billing/subscriptions/change', (route: Route) => {
 			capturedBody = route.request().postDataJSON();
@@ -136,8 +143,8 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		// Card-Chrome (Titel, Schließen-Button), NICHT den projizierten Inhalt (das ist reines
 		// Light-DOM der äußeren `<kol-dialog>`). Scoping auf den Host-Tag statt auf die Dialog-Rolle.
 		const dialogHost = page.locator('kol-dialog');
-		await expect(dialogHost).toContainText(/Restbetrag/);
-		await expect(dialogHost).toContainText(/angerechnet/);
+		await expect(dialogHost).toContainText(/Fällig beim ersten Zyklus/);
+		await expect(dialogHost).toContainText('7,50 €');
 
 		await dialogHost.getByRole('button', { name: /bestätigen|wechseln/i }).click();
 
