@@ -73,7 +73,8 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
 
 - **Meine Lebensbalance:** ein Bild zeigt, wie ausgeglichen sich deine erledigten
   Aufgaben der letzten vier Wochen auf deine Säulen verteilen – jede Säule hat
-  dafür ein Wochen-Ziel. 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
+  dafür ein Wochen-Ziel (Körper 5, Wirksamkeit 5, Mentale Gesundheit 3, Beziehungen 3, Sinn 1
+  Erledigungen pro Woche; so steht es auch in den Säulenbeschreibungen unter Einstellungen → Säulen). 100 % heißt, jede Säule liegt auf ihrem Ziel; 0 % heißt,
   alles hängt an einer einzigen Säule. Welches Bild du siehst, wählst du in den
   Einstellungen unter **„Bild der Lebensbalance"** – **Herz**, **Blasen**,
   **Scheiben**, **Ringe**, **Strahlen**, **Blüte**, **Kristall**, **Segmente** oder **Zeiger**. Alle zeigen dieselben Zahlen: Je Säule steht
