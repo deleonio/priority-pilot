@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.27._
+_Enthält v0.11.0 – v0.11.28._
 
 ### 🎉 New Features
 
@@ -22,6 +22,7 @@ _Enthält v0.11.0 – v0.11.27._
 - docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
 - fix(native): keep login after app restart by flushing cookies (#1900) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1909
 - revert(ci): sign demo.apk with debug keystore again (#1779) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1910
+- test(e2e): fix flaky confetti AK3 overlay count (#1924) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1950
 
 ### 🚀 Improvements
 
