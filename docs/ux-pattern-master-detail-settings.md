@@ -15,17 +15,19 @@ Sobald eine Einstellung mehrere Feinschalter oder Regler „besitzt", die nur ei
 wenn die übergeordnete Einstellung aktiv ist — etwa Animations-Feinschalter unterhalb eines
 Animations-Masters, oder Entfernungs-/Intervall-Regler unterhalb eines Standort-Masters. Statt
 jede Unter-Einstellung als eigene, gleichrangige Switch-Zeile zu zeigen, bündelt das Pattern sie
-sichtbar unter ihrem Master in einem `KolAccordion`.
+sichtbar unter ihrem Master in einem `KolDetails` innerhalb der Karte des Masters (Regel 1 in
+[Design-Sprache](../.ai-knowledge/ux-design.md#aufklappbare-bereiche--zwei-verbindliche-regeln)).
 
 Vorhandene Umsetzungen dieses Patterns:
 
 - **„Einzelne Animationen"** — Feinschalter „Herz animieren"/„Erledigt animieren" unter dem Master
-  „Animationen" (`SettingsPage.tsx`, Tab „Allgemein").
+  „Animationen" (`SettingsPage.tsx`, Tab „Allgemein"). **Noch ein Akkordeon in der Karte „Bewegung"
+  — verstößt gegen Regel 1, Umstellung auf `KolDetails` offen.**
 - **„Einzelne KI-Funktionen"** — Feinschalter „Schnellerfassung aktiv" unter dem Master
   „KI-Features aktiv" (`SettingsPage.tsx`, Tab „KI-Provider").
 - **„Reichweite und Intervall"** — die drei Geo-Regler (Anzeige-/Alarm-Entfernung,
   Aktualisierungsintervall) unter dem Master „Standort erfassen" (`SettingsPage.tsx`, Tab
-  „Standort").
+  „Standort"). **Noch ein eigenständiges `KolAccordion` neben der Standort-Karte (`SettingsPage.tsx:842`) — weicht von der Umsetzungsregel oben ab, Umstellung auf `KolDetails` in der Karte offen.**
 
 ---
 
@@ -44,36 +46,36 @@ Vorhandene Umsetzungen dieses Patterns:
 
 ## 2. Barrierefreiheit
 
-`KolAccordion` verwaltet Fokus und Zustand über seine eigene Disclosure-Semantik (Trigger-Button
+`KolDetails` verwaltet Fokus und Zustand über seine eigene Disclosure-Semantik (Trigger-Button
 mit `aria-expanded`) selbst
 (Aufklapp-Button mit korrektem Zustand, per Tastatur bedienbar). Anders als beim
 [UX-Pattern: Sequenzielle Bestätigung](ux-pattern-sequential-confirmation.md) ist deshalb **keine**
 zusätzliche Fokus-Choreografie beim Öffnen/Schließen erforderlich — das Öffnen/Schließen ist hier
 ein Nebeneffekt des Master-Schalters, kein eigenständiger, fokus-relevanter Navigationsschritt.
 
-Sub-Controls bleiben unabhängig vom `KolAccordion`-Zustand über `_disabled` korrekt als deaktiviert
+Sub-Controls bleiben unabhängig vom `KolDetails`-Zustand über `_disabled` korrekt als deaktiviert
 markiert (siehe Abschnitt 3) — ihr Zustand ist damit auch für assistive Technologien erkennbar,
-selbst wenn das umschließende `KolAccordion` zusätzlich geschlossen ist.
+selbst wenn das umschließende `KolDetails` zusätzlich geschlossen ist.
 
 ---
 
 ## 3. Umsetzungsregel
 
-- Das `KolAccordion`, das die Unter-Einstellungen umschließt (bis 2026-09 `KolDetails` — die
-  Settings-Seite führt seither genau eine Klapp-Primitive), bindet `_open` direkt an den Zustand
-  des Master-Schalters: `_open={masterEnabled}`. Ein zusätzlicher `_on.onToggle`-Handler ist nicht
+- Das `KolDetails`, das die Unter-Einstellungen umschließt, steht **innerhalb der Karte** des
+  Masters (kein Akkordeon in der Karte, Regel 1) und bindet `_open` direkt an den Zustand des
+  Master-Schalters: `_open={masterEnabled}`. Ein zusätzlicher `_on.onToggle`-Handler ist nicht
   nötig — beobachtetes Verhalten: manuelles Auf-/Zuklappen durch die nutzende Person bleibt
   zwischen zwei Master-Umschaltungen möglich, solange sich `_open` dabei nicht ändert (siehe
   `settings-switch-layout.spec.ts` AK9, das den Master-Sync-Fall pinnt).
 - Sub-Controls behalten zusätzlich ihr eigenes `_disabled={!masterEnabled}` (bzw. eine erweiterte
   Bedingung, wenn ein weiterer Zustand den Master zusätzlich sperrt, z. B.
   `prefersReducedMotion` bei den Animations-Feinschaltern). Das ist bewusst redundant zum
-  `_open`-Binding („Gürtel und Hosenträger"): Es deckt den Fall ab, dass jemand das `KolAccordion`
+  `_open`-Binding („Gürtel und Hosenträger"): Es deckt den Fall ab, dass jemand das `KolDetails`
   manuell offen lässt, während der Master (oder eine zusätzliche Bedingung) die Bedienung sperrt.
 - `kol-details`/`kol-accordion` sind Teil der App-weiten Transparenz-Regel für KoliBri-Host-Hintergründe (#930,
   `frontend/src/app.css`) — kein eigener Hintergrund, wie bei allen anderen KoliBri-Komponenten in
   Balamentum.
-- Die Zugehörigkeit zum Master zeigt sich allein durch die Gruppierung im `KolAccordion` und den
+- Die Zugehörigkeit zum Master zeigt sich allein durch die Gruppierung im `KolDetails` und den
   Innenabstand dessen Kollapsbereichs — eigene Einrückungs-/Sub-Marker-Klassen
   (`.settings-switch-row--sub`) sind seit dem Flush-Layout ersatzlos entfallen.
 
@@ -84,7 +86,7 @@ selbst wenn das umschließende `KolAccordion` zusätzlich geschlossen ist.
 Vor diesem Pattern galt bei den Standort-Reglern (#1098 AK3) die Regel „auch bei ausgeschaltetem
 Standort sichtbar, nur deaktiviert — nicht versteckt". Diese Entscheidung wurde bewusst zugunsten
 der Einheitlichkeit revidiert: **künftige Master-/Unter-Kombinationen nutzen das kollabierende
-`KolAccordion`**, nicht mehr das ältere „immer sichtbar + disabled"-Verhalten. Wer eine bestehende
+`KolDetails` in der Master-Karte**, nicht mehr das ältere „immer sichtbar + disabled"-Verhalten. Wer eine bestehende
 Einstellungsgruppe auf dieses Pattern umstellt, prüft bestehende Spec-Texte und e2e-Tests auf
 Formulierungen wie „nicht versteckt" oder „bleibt sichtbar" und passt sie entsprechend an.
 

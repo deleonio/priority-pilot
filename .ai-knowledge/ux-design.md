@@ -15,7 +15,7 @@ Ergänzende Pflichtlektüre (nicht hier dupliziert):
 - [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) — die 10 Regeln inkl. Repo-Abstimmung.
 - [Konventionen → Mobile-First](project.md#mobile-first-frontend) — Aufwärts-Kaskade, e2e-Pflicht bei 375×812.
 - [UX-Pattern: Sequenzielle Bestätigung](../docs/ux-pattern-sequential-confirmation.md) — destruktive Aktionen.
-- [UX-Pattern: Haupt-/Unter-Einstellung](../docs/ux-pattern-master-detail-settings.md) — Master-Schalter mit KolDetails für Unter-Einstellungen.
+- [UX-Pattern: Haupt-/Unter-Einstellung](../docs/ux-pattern-master-detail-settings.md) — Master-Schalter mit `KolDetails` für Unter-Einstellungen (Regel 1).
 
 ## 1. Haltung
 
@@ -136,6 +136,26 @@ z. B. `spec/button`) statt raten.
 - Inhaltsbreite bleibt bei `max-width: 80rem` zentriert (`.app`).
 - Vertikaler Rhythmus: Abschnitte `--pp-space-6`, Elemente innerhalb einer Karte `--pp-space-3/4`.
 - Safe-Area-Insets (installierte PWA) sind gesetzt und bleiben es.
+
+### Aufklappbare Bereiche — zwei verbindliche Regeln
+
+**Regel 1 — Gliederung nur auf oberster Ebene.** `KolCard` und `KolAccordion` gliedern die Seite nur
+auf oberster Ebene. Innerhalb einer Karte oder eines Akkordeons wird immer mit `KolDetails`
+aufgeklappt. Nie Akkordeon in Karte, Akkordeon in Akkordeon oder Karte in Karte.
+Beispiel: Einstellungen → Allgemein → Karte „Bewegung" enthält „Einzelne Animationen" als `KolDetails`
+(Ziel), nicht als `KolAccordion`.
+
+**Regel 2 — Abhängige Einstellungen folgen ihrer Funktion.** Ist eine übergeordnete Funktion aus,
+sind ihre abhängigen Einstellungen eingeklappt oder ausgeblendet und erscheinen erst, wenn sie an
+ist. Gilt für alle Funktionen mit Unter-Einstellungen (Animationen, KI-Funktionen, Standort), nicht
+nur für den Standort. Beispiel: „Reichweite und Intervall" öffnet erst mit „Standort erfassen"
+([Pattern](../docs/ux-pattern-master-detail-settings.md)).
+
+**Heutige Verstöße gegen Regel 1** (Umbau ist nicht Teil dieses Regelwerks, eigene Tickets):
+
+- `frontend/src/components/SettingsPage.tsx:532` — `KolAccordion` „Einzelne Animationen" in der Karte „Bewegung".
+- `frontend/src/components/GroupDetail.tsx:287-443` — sechs `KolAccordion` („Offene Einladungen" bis „Einladungslinks") im aufgeklappten Gruppen-`KolAccordion` (`GroupsSection.tsx:186`).
+- `frontend/src/components/CategoryList.tsx:95` — Leerzustands-`KolCard` „Noch keine Kategorien" in der Karte „Kategorien verwalten" (`SettingsPage.tsx:922`, Karte in Karte).
 
 ## 6. Prüfliste vor „fertig"
 
