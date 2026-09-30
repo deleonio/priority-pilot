@@ -3379,8 +3379,11 @@ paths:
         #1505, T6d, AK4) und liefert, falls PayPal eine erneute Zustimmung verlangt,
         die Zustimmungs-URL. `plan` am Datensatz bleibt unverändert — wirksam wird
         der Wechsel erst über das Webhook-Ereignis (`applyPlanChange`, ADR 0013).
-        Anfragen aus den Store-Apps (`X-Client-Channel: play` oder `appstore`)
-        lehnt die Route mit 409 ab (ADR 0016, #1668).
+        Ein Upgrade legt stattdessen ein neues PayPal-Abo an, dessen erster Zyklus
+        um das Guthaben der Restlaufzeit reduziert ist, und liefert dessen
+        Zustimmungs-URL; das alte Abo wird erst nach Bestätigung des neuen
+        gekündigt (#1912). Anfragen aus den Store-Apps (`X-Client-Channel: play`
+        oder `appstore`) lehnt die Route mit 409 ab (ADR 0016, #1668).
       operationId: changeBillingSubscription
       tags: [billing]
       requestBody:

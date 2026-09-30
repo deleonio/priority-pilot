@@ -22,6 +22,7 @@ import {
 	migratePlaceFavoriteAddressUnique,
 	migrateLoginTokenPurpose,
 	migrateSubscriptionExternalIdUnique,
+	migrateInvoiceLineItemsColumn,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 // #1225: `migrateGroupImageUrl` existiert noch nicht (rote Spec-Tests) — Zugriff über den
@@ -1508,6 +1509,30 @@ describe('migrateSubscriptionPendingPlanColumns (#1742)', () => {
 		for (const column of ['pendingPlan', 'pendingPlanEffectiveAt', 'firstFailureAt']) {
 			assert.ok(columns.includes(column), `frische Tabelle enthält ${column}`);
 		}
+	});
+});
+
+// ── #1912: migrateInvoiceLineItemsColumn — Positionen an invoices ─────────────────────────────
+// `creditCents` an subscriptions deckt der #1742-Test mit ab (Modell-Lesezugriff nach Migration).
+describe('migrateInvoiceLineItemsColumn (#1912)', () => {
+	it('zieht lineItems mit Default nach, Altrechnungen bleiben lesbar; zweiter Lauf ist stabil', async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `invoices` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `userId` INTEGER NOT NULL, ' +
+				'`subscriptionId` INTEGER NOT NULL, `number` VARCHAR(255) NOT NULL UNIQUE, `periodStart` DATETIME NOT NULL, ' +
+				'`periodEnd` DATETIME NOT NULL, `amountCents` INTEGER NOT NULL, `taxNote` VARCHAR(255) NOT NULL, ' +
+				'`deliveredAt` DATETIME, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL)',
+		);
+		await sequelize.query(
+			'INSERT INTO `invoices` (`userId`, `subscriptionId`, `number`, `periodStart`, `periodEnd`, `amountCents`, `taxNote`, `createdAt`, `updatedAt`) ' +
+				"VALUES (1, 1, 'INV-2026-000001', '2026-01-01 00:00:00', '2026-02-01 00:00:00', 499, 'x', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+
+		await migrateInvoiceLineItemsColumn(sequelize);
+		await assert.doesNotReject(() => migrateInvoiceLineItemsColumn(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const { default: Invoice } = await import('../models/invoice.js');
+		assert.deepEqual((await Invoice.findOne({ where: { userId: 1 } }))?.get('lineItems'), []);
 	});
 });
 

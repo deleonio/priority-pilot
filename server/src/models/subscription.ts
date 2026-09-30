@@ -5,7 +5,8 @@ import sequelize from '../database.js';
  * Ein Zahlungsanbieter-Abo eines Nutzers (Issue #1494, T6a). Hält ausschließlich die für Support
  * und Statusanzeige nötigen Metadaten — Anbieter, externe Abo-ID, gebuchtes Paket/Zeitraum, Status,
  * aktuelle Periode und Rechnungsreferenz. Der Preis lebt ausschließlich in `../logics/plans.ts`
- * (`PLAN_PRICES`): dieses Modell speichert bewusst **keine** Beträge und **keine** Zahlungsdaten.
+ * (`PLAN_PRICES`): dieses Modell speichert bewusst **keine** Preise und **keine** Zahlungsdaten —
+ * einzige Ausnahme ist das Upgrade-Guthaben `creditCents` (#1912).
  *
  * Pro Nutzer über `userId` gefiltert, ohne Sequelize-Assoziation (Muster `apiToken.ts`).
  */
@@ -24,6 +25,8 @@ class Subscription extends Model {
 	public pendingPlanEffectiveAt?: Date | null;
 	/** Zeitpunkt des ersten fehlgeschlagenen Einzugs (#1506 AK8) — Basis der Kulanzfrist. */
 	public firstFailureAt?: Date | null;
+	/** Guthaben aus dem abgelösten Abo (#1912), einmalig auf der ersten Rechnung verrechnet. */
+	public creditCents!: number;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -79,6 +82,11 @@ Subscription.init(
 		firstFailureAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
+		},
+		creditCents: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 0,
 		},
 	},
 	{

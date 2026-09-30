@@ -144,6 +144,7 @@ export const main = async (): Promise<void> => {
 			migratePlaceFavoriteAddressUnique,
 			migrateSubscriptionExternalIdUnique,
 			migrateSubscriptionPendingPlanColumns,
+			migrateInvoiceLineItemsColumn,
 			migrateLegacyPlans,
 			migrateUserIdColumns,
 			migratePillarDescription,
@@ -206,6 +207,8 @@ export const main = async (): Promise<void> => {
 		// Fehlende pendingPlan-/firstFailureAt-Spalten an subscriptions nachziehen (#1742) — vor
 		// sync(), damit Abo-Lesezugriffe auf Bestands-DBs nicht mit `no such column` brechen.
 		await migrateSubscriptionPendingPlanColumns(sequelize);
+		// Rechnungspositionen nachziehen (#1912) — vor sync().
+		await migrateInvoiceLineItemsColumn(sequelize);
 		// Altpakete max/ultimate auf plus/pro umstellen (#1785) — nach den Spalten-Migrationen.
 		await migrateLegacyPlans(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.

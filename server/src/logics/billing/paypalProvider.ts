@@ -5,6 +5,8 @@ import {
 	applyPlanChange,
 	createPaypalClient,
 	paypalPlanIdFor,
+	PERIOD_MONTHS,
+	replacePredecessors,
 	verifyWebhookSignature,
 	type PaypalClient,
 	type PaypalVerifier,
@@ -43,12 +45,23 @@ export const createPaypalProvider = (deps: PaypalProviderDeps = {}): BillingProv
 		applyEvent: async (subscription, event, now) => {
 			const paypalEvent = event.payload as PaypalWebhookEvent;
 			await applyPlanChange(subscription, paypalEvent, now);
+			// Bestätigung eines Upgrade-Abos: erst jetzt das alte kündigen, sonst entsteht eine Lücke (#1912).
+			if (paypalEvent.event_type === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+				await replacePredecessors(subscription, client);
+			}
 			await applyPaymentEvent(subscription, paypalEvent, now, {
 				issueInvoice: (s, n) => issueInvoiceForPeriod(s, n, deps.mailSender),
 			});
 		},
 		checkout: {
-			create: (plan, period) => client.createSubscription(paypalPlanIdFor(plan, period)),
+			create: (plan, period, firstCycleCents) => {
+				if (firstCycleCents === undefined) {
+					return client.createSubscription(paypalPlanIdFor(plan, period));
+				}
+				const startTime = new Date();
+				startTime.setUTCMonth(startTime.getUTCMonth() + PERIOD_MONTHS[period]);
+				return client.createSubscription(paypalPlanIdFor(plan, period), { firstCycleCents, startTime });
+			},
 			cancel: (externalSubscriptionId) => client.cancel(externalSubscriptionId),
 			change: (externalSubscriptionId, plan, period) =>
 				client.revise(externalSubscriptionId, paypalPlanIdFor(plan, period)),

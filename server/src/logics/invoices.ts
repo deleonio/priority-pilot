@@ -64,7 +64,17 @@ export const issueInvoiceForPeriod = async (
 	periodStart.setUTCMonth(periodStart.getUTCMonth() - (PERIOD_MONTHS[period] ?? 1));
 
 	const prices = getPlansCatalog().prices[plan];
-	const amountCents = prices ? prices[period as keyof typeof prices] : 0;
+	const priceCents = prices ? prices[period as keyof typeof prices] : 0;
+	// #1912: Guthaben aus einem Upgrade wird einmalig als eigene Position verrechnet.
+	const creditCents = Math.min(Number(subscription.get('creditCents') ?? 0), priceCents);
+	const lineItems =
+		creditCents > 0
+			? [
+					{ label: `Paket ${plan} (${period})`, amountCents: priceCents },
+					{ label: 'Verrechnung Restlaufzeit', amountCents: -creditCents },
+				]
+			: [];
+	const amountCents = priceCents - creditCents;
 
 	const invoice = await Invoice.create({
 		userId: subscription.get('userId') as number,
@@ -74,7 +84,11 @@ export const issueInvoiceForPeriod = async (
 		periodEnd,
 		amountCents,
 		taxNote: TAX_NOTE,
+		lineItems,
 	});
+	if (creditCents > 0) {
+		await subscription.update({ creditCents: 0 });
+	}
 
 	const user = await User.findByPk(subscription.get('userId') as number);
 	if (user) {
@@ -87,6 +101,7 @@ export const issueInvoiceForPeriod = async (
 					`Rechnung ${number}`,
 					`Zeitraum: ${periodStart.toISOString().slice(0, 10)} bis ${periodEnd.toISOString().slice(0, 10)}`,
 					`Paket: ${plan} (${period})`,
+					...lineItems.map((item) => `${item.label}: ${(item.amountCents / 100).toFixed(2)} EUR`),
 					`Betrag: ${(amountCents / 100).toFixed(2)} EUR`,
 					TAX_NOTE,
 				].join('\n'),
