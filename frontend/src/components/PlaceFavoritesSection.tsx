@@ -5,6 +5,7 @@ import { toApiError } from '../lib/apiError';
 import { AddressAutocomplete } from './AddressAutocomplete';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { PlanBadge } from './PlanBadge';
+import { PlanHint } from './PlanHint';
 
 /**
  * Aktions-Hülle um einen `KolButton` (Muster `ApiTokensSection.tsx`): der Klick wird am umgebenden
@@ -88,6 +89,7 @@ export const PlaceFavoritesSection = () => {
 				{/* #1484 (T3b AK3): Grenzstelle `location_reminders` — Badge als erstes Element im
 				    Kartenkörper, weil der Titel über die KoliBri-Prop `_label` läuft (KI-UX-Block). */}
 				<PlanBadge feature="location_reminders" />
+				<PlanHint feature="location_reminders" />
 				<div className="api-tokens__create">
 					<p>
 						Hinterlegte Orte stehen im Adressfeld von Aufgabe und Serie oben in der Vorschlagsliste — ein Klick

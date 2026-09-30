@@ -9,6 +9,7 @@ import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
 import { Modal } from './Modal';
 import { PlanBadge } from './PlanBadge';
+import { PlanHint } from './PlanHint';
 
 interface DependencyModalProps {
 	/** Task, dessen Abhängigkeiten (Vorgänger) bearbeitet werden. */
@@ -123,6 +124,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		<Modal title={`Abhängigkeiten: ${task.title}`} onClose={onClose}>
 			{/* #1458 AK12, #1782: Referenzstelle `graph_weight`. */}
 			<PlanBadge feature="graph_weight" inModal />
+			<PlanHint feature="graph_weight" inModal />
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}
