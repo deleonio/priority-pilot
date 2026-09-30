@@ -598,6 +598,9 @@ describe('migrateUserGeoConfigColumns', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
+				'`termsVersion` VARCHAR(255), ' +
+				'`termsAcceptedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -878,6 +881,9 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
+				'`termsVersion` VARCHAR(255), ' +
+				'`termsAcceptedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -956,6 +962,9 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
+				'`termsVersion` VARCHAR(255), ' +
+				'`termsAcceptedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1118,6 +1127,9 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
 				'`sprache` VARCHAR(255), ' +
+				// Test-Pflege #1901: Zustimmungs-Spalten ergänzt (gleiche Begründung wie oben).
+				'`termsVersion` VARCHAR(255), ' +
+				'`termsAcceptedAt` DATETIME, ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',

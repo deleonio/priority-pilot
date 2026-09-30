@@ -10,6 +10,7 @@ import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword, resolveRole } from '../../logics/auth.js';
 import { getEntitlements, type Plan } from '../../logics/plans.js';
+import { TERMS_VERSION } from '../../logics/legal.js';
 import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../../logics/billing/lifecycle.js';
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
@@ -368,6 +369,8 @@ authRouter.get('/auth/me', async (req, res) => {
 			plan: 'free',
 			entitlements: getEntitlements('free'),
 			subscription: null,
+			// #1901 (AK8): ohne Auth-Kontext gibt es nichts zu bestätigen.
+			termsAccepted: true,
 		});
 		return;
 	}
@@ -381,6 +384,8 @@ authRouter.get('/auth/me', async (req, res) => {
 	// #1456: Paket wie die Rolle frisch aus der DB — eine Änderung über die Admin-API wirkt damit
 	// sofort, ohne Neu-Login. Alt-Sessions ohne `plan` fallen auf 'free'.
 	let plan: Plan;
+	// #1901: zugestimmt nur zur aktuellen Fassung; im Pass-Through-Modus (auch mit Test-Session) immer.
+	let termsAccepted: boolean;
 	try {
 		const dbUser = typeof user.id === 'number' ? await User.findByPk(user.id) : undefined;
 		// Konto inzwischen gelöscht (#1671, z. B. auf einem anderen Gerät): Session beenden.
@@ -393,6 +398,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		}
 		role = dbUser?.role ?? user.role ?? 'member';
 		plan = dbUser?.plan ?? user.plan ?? 'free';
+		termsAccepted = !isAuthActive() || dbUser?.termsVersion === TERMS_VERSION;
 	} catch {
 		res.status(500).json({ message: 'Interner Serverfehler.' });
 		return;
@@ -478,6 +484,7 @@ authRouter.get('/auth/me', async (req, res) => {
 		plan,
 		entitlements: getEntitlements(plan),
 		subscription,
+		termsAccepted,
 		...(user.id !== undefined ? { playAccountId: playAccountIdFor(user.id) } : {}),
 	});
 });
@@ -511,6 +518,23 @@ authRouter.delete('/auth/me', async (req, res) => {
 		res.clearCookie(SIGNED_IN_COOKIE, signedInCookieOptions);
 		res.status(204).end();
 	});
+});
+
+// POST /auth/terms — Zustimmung zu Nutzungsbedingungen und Datenschutzerklärung speichern (#1901):
+// Fassung (`TERMS_VERSION`) und Zeitpunkt am eigenen Konto. Beide Bestätigungen sind Pflicht.
+authRouter.post('/auth/terms', async (req, res) => {
+	const userId = req.session?.user?.id;
+	if (typeof userId !== 'number') {
+		sendError(res, 401, 'Anmeldung erforderlich.');
+		return;
+	}
+	const { acceptTerms, acceptPrivacy } = (req.body ?? {}) as { acceptTerms?: unknown; acceptPrivacy?: unknown };
+	if (acceptTerms !== true || acceptPrivacy !== true) {
+		sendError(res, 400, 'Bitte Nutzungsbedingungen und Datenschutzerklärung bestätigen.');
+		return;
+	}
+	await User.update({ termsVersion: TERMS_VERSION, termsAcceptedAt: new Date() }, { where: { id: userId } });
+	res.status(204).end();
 });
 
 // POST /auth/logout — Session beenden

@@ -47,6 +47,9 @@ class User extends Model {
 	public pillarRecalcStartedAt!: Date | null;
 	/** Gebuchtes Paket (#1456) — Quelle der Entitlement-Auswertung in `logics/plans.ts`. */
 	public plan!: Plan;
+	/** Zustimmung zu den Nutzungsbedingungen (#1901): Fassung (`TERMS_VERSION`) und Zeitpunkt; `null` = noch nie. */
+	public termsVersion!: string | null;
+	public termsAcceptedAt!: Date | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -131,6 +134,16 @@ User.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: 'free',
+		},
+		termsVersion: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		termsAcceptedAt: {
+			type: DataTypes.DATE,
+			allowNull: true,
+			defaultValue: null,
 		},
 	},
 	{

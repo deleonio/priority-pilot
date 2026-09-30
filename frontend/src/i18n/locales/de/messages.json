@@ -23,6 +23,20 @@
 		"noSeries": "Keine Serien",
 		"noCategories": "Keine Kategorien"
 	},
+	"consent": {
+		"title": "Bevor es losgeht",
+		"intro": "Bitte bestätige die Nutzungsbedingungen und die Datenschutzerklärung.",
+		"legend": "Zustimmung",
+		"acceptTerms": "Ich akzeptiere die Nutzungsbedingungen",
+		"acceptPrivacy": "Ich habe die Datenschutzerklärung zur Kenntnis genommen",
+		"termsLink": "Nutzungsbedingungen",
+		"privacyLink": "Datenschutzerklärung",
+		"newTab": "(öffnet in neuem Tab)",
+		"hint": "Bitte beide Punkte bestätigen.",
+		"continue": "Weiter",
+		"error": "Die Zustimmung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+		"logout": "Abmelden"
+	},
 	"accountDelete": {
 		"title": "Konto löschen",
 		"intent": "Willst du dein Konto wirklich löschen?",

@@ -23,6 +23,20 @@
 		"noSeries": "Nessuna serie",
 		"noCategories": "Nessuna categoria"
 	},
+	"consent": {
+		"title": "Prima di iniziare",
+		"intro": "Conferma le condizioni d'uso e l'informativa sulla privacy.",
+		"legend": "Consenso",
+		"acceptTerms": "Accetto le condizioni d'uso",
+		"acceptPrivacy": "Ho preso visione dell'informativa sulla privacy",
+		"termsLink": "Condizioni d'uso",
+		"privacyLink": "Informativa sulla privacy",
+		"newTab": "(si apre in una nuova scheda)",
+		"hint": "Conferma entrambi i punti.",
+		"continue": "Continua",
+		"error": "Non è stato possibile salvare il consenso. Riprova.",
+		"logout": "Esci"
+	},
 	"accountDelete": {
 		"title": "Elimina account",
 		"intent": "Vuoi davvero eliminare il tuo account?",

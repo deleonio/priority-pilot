@@ -3104,6 +3104,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /auth/terms:
+    post:
+      summary: Zustimmung zu Nutzungsbedingungen und Datenschutzerklärung speichern
+      description: >-
+        Speichert Zeitpunkt und aktuelle Fassung der Nutzungsbedingungen am eigenen
+        Konto (#1901). Beide Bestätigungen sind Pflicht; danach meldet `GET /auth/me`
+        `termsAccepted: true`, bis die Fassung wechselt.
+      operationId: acceptTerms
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermsConsentInput'
+      responses:
+        '204':
+          description: Zustimmung gespeichert
+        '400':
+          description: Nicht beide Punkte bestätigt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /auth/providers:
     get:
       summary: Verfügbare Anmeldewege lesen
@@ -5931,8 +5961,8 @@ components:
             T6e (#1506) sie befüllt.
     Me:
       type: object
-      description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494) — Session, Paket, Entitlements, Abo.
-      required: [email, displayName, avatarUrl, plan, entitlements, subscription]
+      description: Antwort von `GET /auth/me` (Issue #206/#1456/#1494/#1901) — Session, Paket, Entitlements, Abo, Zustimmung.
+      required: [email, displayName, avatarUrl, plan, entitlements, subscription, termsAccepted]
       properties:
         id:
           type: integer
@@ -5960,6 +5990,11 @@ components:
             - $ref: '#/components/schemas/MeSubscription'
           nullable: true
           description: Abo-Status; `null` ohne Abo.
+        termsAccepted:
+          type: boolean
+          description: >-
+            `true`, wenn das Konto der aktuellen Fassung der Nutzungsbedingungen zugestimmt
+            hat (#1901); im lokalen Pass-Through-Modus immer `true`.
         playAccountId:
           type: string
           description: >-
@@ -6161,6 +6196,17 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+    TermsConsentInput:
+      type: object
+      description: Zustimmung zu Nutzungsbedingungen und Datenschutzerklärung (#1901).
+      required: [acceptTerms, acceptPrivacy]
+      properties:
+        acceptTerms:
+          type: boolean
+          enum: [true]
+        acceptPrivacy:
+          type: boolean
+          enum: [true]
     NativeLoginExchangeRequest:
       type: object
       required:

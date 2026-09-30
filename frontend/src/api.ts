@@ -918,6 +918,14 @@ export const api = {
 	},
 
 	// Löscht das eigene Konto samt Session (#1671). Die Frontend-Aufräumarbeit erledigt der Aufrufer.
+	/** Speichert die Zustimmung zu Nutzungsbedingungen und Datenschutzerklärung (#1901). */
+	async acceptTerms(): Promise<void> {
+		const { error, response } = await client.POST('/auth/terms', { body: { acceptTerms: true, acceptPrivacy: true } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	async deleteAccount(): Promise<void> {
 		const { error, response } = await client.DELETE('/auth/me');
 		if (!response.ok) {
