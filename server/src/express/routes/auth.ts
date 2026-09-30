@@ -78,7 +78,7 @@ authRouter.post('/auth/register', async (req, res) => {
 			// Säulen pro Nutzer (#421, AK4): dem frisch angelegten Nutzer seine eigenen fünf Standard-Säulen
 			// säen (je 20 %). Atomisch mit User.create — kein halbfertiger Account möglich.
 			await Pillar.bulkCreate(
-				SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight, userId: user.id })),
+				SEED_PILLARS.map(({ key, name, description, weight }) => ({ key, name, description, weight, userId: user.id })),
 				{ transaction: t },
 			);
 			return user;

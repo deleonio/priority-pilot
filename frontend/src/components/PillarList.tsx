@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 
@@ -16,6 +17,7 @@ import { toApiError } from '../lib/apiError';
  * sitzt einmalig in der SettingsPage über der Liste (KI-UX-Block zu #1573).
  */
 export const PillarList = () => {
+	const { t } = useTranslation('common');
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -62,14 +64,20 @@ export const PillarList = () => {
 				<p className="hint">Derzeit sind keine Säulen vorhanden.</p>
 			) : (
 				<ul className="pillar-items">
-					{pillars.map((pillar) => (
-						<li key={pillar.id} className="pillar-item" data-pillar-id={pillar.id}>
-							<div className="pillar-info">
-								<KolHeading _label={pillar.name} _level={3} />
-								{pillar.description && <p className="hint pillar-list-description">{pillar.description}</p>}
-							</div>
-						</li>
-					))}
+					{pillars.map((pillar) => {
+						// #1848: Übersetzung über den stabilen `key`, sonst der (deutsche) Server-Text.
+						const description = pillar.key
+							? t(`pillars.${pillar.key}.description`, { defaultValue: pillar.description })
+							: pillar.description;
+						return (
+							<li key={pillar.id} className="pillar-item" data-pillar-id={pillar.id}>
+								<div className="pillar-info">
+									<KolHeading _label={pillar.name} _level={3} />
+									{description && <p className="hint pillar-list-description">{description}</p>}
+								</div>
+							</li>
+						);
+					})}
 				</ul>
 			)}
 		</div>

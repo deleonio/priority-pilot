@@ -18,11 +18,13 @@
  * mit `weight: 0` an) und würden die Normierung sonst abschalten. Begründung und Herleitung stehen
  * ausführlich in `frontend/src/lib/heartBalance.ts`.
  */
-import { PILLAR_RHYTHMS } from '../models/pillarData.js';
+import { findSeedPillar } from '../models/pillarData.js';
 
 /** Eine Säule, so wie die Rechnung sie braucht: Identität, Anzeigename und ihr Soll-Gewicht. */
 export interface BalanceSaeule {
 	id: number;
+	/** Stabile Kennung der Standard-Säule (#1848); bestimmt das Wochen-Soll, `null` für eigene Säulen. */
+	key?: string | null;
 	name: string;
 	/** `Pillar.weight` — prozentualer Soll-Anteil der Säule. */
 	weight: number;
@@ -249,12 +251,12 @@ export const berechneKadenzFuellstand = (saeulen: KadenzSaeule[], tasks: KadenzT
 	};
 };
 
-/** Rhythmus für Säulen, die nicht unter einem mitgelieferten Namen stehen (umbenannt/Altbestand): 1×/Woche. */
+/** Rhythmus für Säulen, die keinen Katalog-`key` tragen (eigene Säulen): 1×/Woche. */
 const STANDARD_RHYTHMUS_PRO_WOCHE = 1;
 
 /**
  * Füllstand der Antworten (GET /scores/balance, Verlauf, MCP `balance_status`) im Kadenz-Modell (#1638):
- * Rhythmus je Säule aus `PILLAR_RHYTHMS` (Name), `weight` ist `Pillar.weight` und bestimmt seit #1663 die
+ * Rhythmus je Säule aus dem Katalog (`key`, #1848), `weight` ist `Pillar.weight` und bestimmt seit #1663 die
  * Soll-Anteile des Füllstands; `gewichtung` bleibt im DTO `Pillar.weight` — die Form ist unverändert,
  * `erfuellung` bleibt intern.
  */
@@ -263,12 +265,11 @@ export const berechneLebensbalanceNachKadenz = (
 	tasks: KadenzTask[],
 	jetzt: Date,
 ): Lebensbalance => {
-	const rhythmusProName = new Map(PILLAR_RHYTHMS.map((eintrag) => [eintrag.name, eintrag.rhythmusProWoche]));
 	const kadenz = berechneKadenzFuellstand(
 		saeulen.map((saeule) => ({
 			id: saeule.id,
 			name: saeule.name,
-			rhythmusProWoche: rhythmusProName.get(saeule.name) ?? STANDARD_RHYTHMUS_PRO_WOCHE,
+			rhythmusProWoche: findSeedPillar(saeule.key)?.rhythmusProWoche ?? STANDARD_RHYTHMUS_PRO_WOCHE,
 			weight: saeule.weight,
 		})),
 		tasks,

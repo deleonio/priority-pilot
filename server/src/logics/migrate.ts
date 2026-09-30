@@ -326,6 +326,28 @@ export const migratePillarDescription = async (db: Sequelize): Promise<void> => 
 };
 
 /**
+ * Zieht die nullbare `key`-Spalte (stabile Kennung der Standard-Säule, #1848) an einer **bestehenden**
+ * `pillars`-Tabelle nach und backfillt sie nach Namen aus {@link SEED_PILLARS}; Zeilen mit anderem Namen
+ * behalten `key = NULL`. Idempotent (Spalte per PRAGMA, Backfill nur `WHERE key IS NULL`), No-op ohne
+ * Tabelle (frische DB: `sync()` legt die Spalte an).
+ */
+export const migratePillarKey = async (db: Sequelize): Promise<void> => {
+	const [rows] = await db.query("PRAGMA table_info('pillars')");
+	const existing = (rows as { name: string }[]).map((row) => row.name);
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('key')) {
+		await db.query('ALTER TABLE `pillars` ADD COLUMN `key` VARCHAR(255)');
+	}
+	for (const { key, name } of SEED_PILLARS) {
+		await db.query('UPDATE `pillars` SET `key` = :key WHERE `name` = :name AND `key` IS NULL', {
+			replacements: { key, name },
+		});
+	}
+};
+
+/**
  * Stellt die früher globalen Säulen auf **nutzer-eigene** Stammdaten um (#421, Epic #420, Teil 1),
  * BEVOR `sequelize.sync()` läuft. Auf einer Bestands-DB:
  *

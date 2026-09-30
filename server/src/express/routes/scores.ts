@@ -10,6 +10,7 @@ import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte } from '../../log
 import { berechneMeilensteine } from '../../logics/milestones.js';
 import { berechneLebensbalanceNachKadenz } from '../../logics/heartBalance.js';
 import { berechneBalanceVerlauf, istGueltigesDatum, zeitraumInTagen } from '../../logics/balanceHistory.js';
+import { resolvePillarDescription } from '../../models/pillarData.js';
 import CareSuggestionDismissal from '../../models/careSuggestionDismissal.js';
 import type { PillarWithContribution } from '../../models/task.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
@@ -192,7 +193,12 @@ scoresRouter.get('/scores/balance', async (req: Request, res: Response<BalanceSt
 		// Kadenz-Modell (#1638): der Füllstand misst die Erledigungen der letzten 28 Tage gegen den
 		// Soll-Rhythmus je Säule; Erledigt-Zeitpunkt ist `ScoreEntry.zeitpunkt` (ohne Eintrag: nur `punkte`).
 		const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
-		const balanceSaeulen = saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight }));
+		const balanceSaeulen = saeulen.map((saeule) => ({
+			id: saeule.id,
+			key: saeule.key,
+			name: saeule.name,
+			weight: saeule.weight,
+		}));
 		const kadenzTasks = tasks.map((task) => ({
 			status: task.status,
 			estimatedEffort: task.estimatedEffort,
@@ -282,7 +288,7 @@ scoresRouter.get(
 				: Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 			const verlauf = berechneBalanceVerlauf(
-				saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+				saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
 				tasks.map((task) => ({
 					status: task.status,
 					estimatedEffort: task.estimatedEffort,
@@ -349,7 +355,7 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 			const [advice] = await advisor(
 				{
 					question: `Bisherige Aufgaben: ${titel.join('; ')}. Schlage genau eine Aktivität für die Säule „${saeule.name}“ vor, die zu diesen Aufgaben passt.`,
-					pillars: [{ id: saeule.id, name: saeule.name, description: saeule.description }],
+					pillars: [{ id: saeule.id, name: saeule.name, description: resolvePillarDescription(saeule) }],
 				},
 				undefined,
 				userId,
@@ -422,7 +428,7 @@ export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseAct
 				}));
 
 				const defizite = bewerteCareDefizit(
-					saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+					saeulen.map((saeule) => ({ id: saeule.id, key: saeule.key, name: saeule.name, weight: saeule.weight })),
 					tasks.map((task) => ({
 						status: task.status,
 						estimatedEffort: task.estimatedEffort,
