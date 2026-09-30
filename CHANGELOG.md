@@ -149,6 +149,7 @@ _Enthält v0.6.0 – v0.6.15._
 ### Other Changes
 
 - feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
+- feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
 - feat(server): securely accept google play subscription events (rtdn) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1722
 - feat(server): google play subscription states drive plan, grace and downgrade by @deleonio in https://github.com/deleonio/priority-pilot/pull/1723
 - chore(renovate): enable automerge for pi and kolibri updates by @deleonio in https://github.com/deleonio/priority-pilot/pull/1724
