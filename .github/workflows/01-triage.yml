@@ -33,15 +33,21 @@ on:
     types: [labeled, unlabeled]
 
 concurrency:
-  # EINE gemeinsame Gruppe für die Ticket-Pipeline (Phasen 01-06, Analyse bis Documenter):
-  # max. 1 Agent-Lauf dieser Phasen gleichzeitig, FIFO. Teil-Rücktausch von PR #1301 (dort:
-  # 6 eigene Phasen-Gruppen + `llm-sync`, bis zu 7 gleichzeitige Läufe) — bewusst NUR für die
-  # Ticket-Phasen: ein erschöpftes z.ai-Kontingent soll unter den Ticket-Läufen höchstens
-  # EINEN treffen statt bis zu 6 gleichzeitig verlorene/kollidierende. Bekannte Kehrseite
-  # (#1301): eine lange Fixup-Schleife kann kurzzeitig eine Triage/ein Review blockieren.
-  # Die Cron-/Ad-hoc-Sync-Läufe (Prompt-Audit, Architektur-/Design-Optimierung, Doku-Syncs,
-  # UX-Team) bleiben bewusst außen vor — eigene Gruppe `llm-sync`.
-  group: llm
+  # Keys folgen der Abarbeitung, nicht dem LLM — jede Schnitt hat ihre eigene Gruppe:
+  # Triage (Issue-only, Ketten-Einstieg), UX (Issue-only, startet nur durch die
+  # Triage-Entscheidung `ai:needs-ux-ui`), Review (nur Kommentare/Labels — sein CI-Wait von
+  # bis zu 20 min belegt sonst ohne LLM-Arbeit den Slot), Documenter (`llm-documenter`,
+  # post-merge). Die Git-Phasen Spec (03), Implement/Fixup (04) und team.yml serialisieren
+  # weiter über EINE Gruppe `llm` — die engste Kopplung der Kette (Spec erzeugt, was Implement
+  # konsumiert). Cron-/Ad-hoc-Sync-Läufe (Prompt-Audit, Doku-Syncs, UX-Team) bleiben außen vor
+  # — eigene Gruppe `llm-sync`. Erbe von PR #1301 (dort 6 eigene Gruppen): ein erschöpftes
+  # z.ai-Kontingent trifft jetzt wieder mehrere Läufe parallel — bewusst akzeptiert gegen die
+  # Fixup-Blockade. Kopplung an PHASE_RUNNER: steht die Var auf einem Einzel-Runner (z. B.
+  # pi5), queuen die getrennten Gruppen dort trotzdem hintereinander — der Split wirkt nur
+  # hosted. Übergabe-Fenster: Jede Phase setzt das Trigger-Label der nächsten kurz vor ihrem
+  # Ende; der Nachfolger kann deshalb minimal mit den End-Schritten des Vorgängers überlappen
+  # (Issue-Storage ist vorher gesichert, Precheck+Setup dauern Minuten — unkritisch).
+  group: llm-triage
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,

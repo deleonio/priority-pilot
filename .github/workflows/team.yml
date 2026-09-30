@@ -23,6 +23,7 @@ on:
     types: [labeled]
 
 concurrency:
+  # Gemeinsame Gruppe mit Spec/Implement/Fixup (Git-Phasen; Details/Rationale: 01-triage.yml).
   group: llm
   cancel-in-progress: false
   # queue: max — sonst hält GitHub pro Gruppe nur EINEN pending-Run und verwirft wartende
