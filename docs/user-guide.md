@@ -94,7 +94,9 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   Aufgaben auf einen Blick.
 - **Fürsorge-Hinweis:** Kommt eine Säule zu kurz, steht über der nächsten Aufgabe ein
   Vorschlag dazu. Trägt eine Säule den Großteil deines Aufwands (Überlast), schlägt der
-  Hinweis stattdessen Ausgleich oder eine Pause vor. **„Vorschlag übernehmen"** legt ihn als Aufgabe an (eine eigene Aufgabe
+  Hinweis stattdessen Ausgleich oder eine Pause vor. Mit Plus oder Pro kann der Vorschlag
+  aus deinen bisherigen Aufgaben von der KI kommen; er ist dann als **„KI-Vorschlag"**
+  gekennzeichnet, und „Vorschlag ablehnen" blendet ihn bis Tagesende aus. **„Vorschlag übernehmen"** legt ihn als Aufgabe an (eine eigene Aufgabe
   wird auf „In process" gesetzt), **„Nicht jetzt"** blendet den Hinweis bis Tagesende aus,
   **„Vorschlag ablehnen"** für 14 Tage. Gibt es keinen Vorschlag, steht dort eine kurze
   Rückmeldung.
