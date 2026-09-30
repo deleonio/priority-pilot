@@ -183,6 +183,7 @@
 		"features": {
 			"groups": "Groups and invite links",
 			"voice_input": "Voice input",
+			"feedback": "Feedback and app support",
 			"ai_assist": "AI help: pillar advisor and copy editing",
 			"graph_write": "Task dependencies",
 			"graph_weight": "Edit weighted dependencies",

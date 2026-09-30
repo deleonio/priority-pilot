@@ -189,6 +189,7 @@
 		"features": {
 			"groups": "Groupes et liens d’invitation",
 			"voice_input": "Saisie vocale",
+			"feedback": "Retours et assistance de l'application",
 			"ai_assist": "Aide IA : conseiller de piliers et relecture",
 			"graph_write": "Dépendances entre tâches",
 			"graph_weight": "Modifier les dépendances pondérées",

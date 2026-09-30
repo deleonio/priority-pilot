@@ -22,7 +22,8 @@ export type FeatureId =
 	| 'graph_weight'
 	| 'location_reminders'
 	| 'mcp_readwrite'
-	| 'mcp_read';
+	| 'mcp_read'
+	| 'feedback';
 export const FEATURE_IDS: readonly FeatureId[] = [
 	'groups',
 	'voice_input',
@@ -32,6 +33,7 @@ export const FEATURE_IDS: readonly FeatureId[] = [
 	'location_reminders',
 	'mcp_readwrite',
 	'mcp_read',
+	'feedback',
 ];
 
 /**
@@ -66,7 +68,8 @@ export interface PlansCatalog {
  * Paket-Matrix laut ADR 0018. `voice_input` ist für jedes Paket enthalten — die Spracheingabe läuft
  * rein lokal im Browser (#1524 AK1). `graph_write` sind einfache Abhängigkeiten, `graph_weight` das
  * Setzen eines Gewichts (#1782). `mcp_read` ist der lesende MCP-/API-Token-Zugriff, eine Stufe
- * früher als `mcp_readwrite` (#1524 AK3).
+ * früher als `mcp_readwrite` (#1524 AK3). `feedback` (Feedback und App-Support) ist paketungebunden in jedem
+ * Paket nutzbar (#1927).
  */
 const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'groups', allowedPlans: ['plus', 'pro'] },
@@ -77,6 +80,7 @@ const FEATURE_CATALOG: readonly FeatureCatalogEntry[] = [
 	{ feature: 'location_reminders', allowedPlans: ['plus', 'pro'] },
 	{ feature: 'mcp_readwrite', allowedPlans: ['pro'] },
 	{ feature: 'mcp_read', allowedPlans: ['plus', 'pro'] },
+	{ feature: 'feedback', allowedPlans: ['free', 'plus', 'pro'] },
 ];
 
 /**

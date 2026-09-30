@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FeatureId } from './plans.js';
 import {
+	PLAN_VALUES,
 	FEATURE_IDS,
 	AI_ASSIST_MONTHLY_QUOTA,
 	effectivePlan,
@@ -44,11 +45,12 @@ const EXPECTED_FEATURES = [
 	'location_reminders',
 	'mcp_readwrite',
 	'mcp_read',
+	'feedback',
 ];
 
 describe('plans.ts — Feature-Katalog (#1456 AK2/AK10, #1524 AK3)', () => {
-	it('FEATURE_IDS deckt alle acht stabilen Identifier ab, inklusive mcp_read und graph_weight (#1524 AK3, #1782)', () => {
-		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die acht Identifier');
+	it('FEATURE_IDS deckt alle neun stabilen Identifier ab, inklusive mcp_read, graph_weight und feedback (#1524 AK3, #1782, #1927)', () => {
+		assert.deepEqual([...FEATURE_IDS].sort(), [...EXPECTED_FEATURES].sort(), 'genau die neun Identifier');
 	});
 
 	it('getPlansCatalog() liefert für jedes Feature einen Katalog-Eintrag', () => {
@@ -63,6 +65,23 @@ describe('plans.ts — Feature-Katalog (#1456 AK2/AK10, #1524 AK3)', () => {
 			assert.ok(catalog.prices[plan], `Preis für ${plan} fehlt`);
 			assert.equal(typeof catalog.prices[plan]!.monthly, 'number');
 			assert.equal(typeof catalog.prices[plan]!.yearly, 'number');
+		}
+	});
+});
+
+describe('plans.ts — feedback für alle Pakete (#1927 AK1/AK2)', () => {
+	it('Katalog führt feedback für free, plus und pro', () => {
+		const entry = getPlansCatalog().features.find((f) => f.feature === 'feedback');
+		assert.deepEqual(entry?.allowedPlans, ['free', 'plus', 'pro']);
+	});
+
+	it('getEntitlements(plan).feedback ist für jedes Paket erlaubt, requiredPlan free', () => {
+		for (const plan of PLAN_VALUES) {
+			assert.deepEqual(
+				(getEntitlements(plan) as Record<string, unknown>).feedback,
+				{ allowed: true, requiredPlan: 'free' },
+				plan,
+			);
 		}
 	});
 });

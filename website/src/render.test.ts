@@ -167,7 +167,23 @@ describe('renderLanding', () => {
 	it('listet jedes Feature genau einmal, im kleinsten Paket, das es enthält', () => {
 		const listed = PLAN_VALUES.flatMap((plan) => addedFeatures(catalog, PLAN_VALUES, plan));
 		expect([...listed].sort()).toEqual([...FEATURE_IDS].sort());
-		expect(addedFeatures(catalog, PLAN_VALUES, 'free')).toEqual(['voice_input', 'graph_write']);
+		expect(addedFeatures(catalog, PLAN_VALUES, 'free')).toEqual(['voice_input', 'graph_write', 'feedback']);
+	});
+
+	it.each(LOCALES)('%s: Free-Karte nennt den Feedback-Kanal, Plus/Pro erben ihn (#1927 AK3)', (locale) => {
+		const label = (allMessages[locale].pricing.features as Record<string, string>).feedback;
+		expect(label, `${locale}: pricing.features.feedback fehlt`).toBeTruthy();
+		const html = landing(locale);
+		const card = (plan: string) => html.slice(html.indexOf(`data-plan="${plan}"`)).split('</article>')[0];
+		const escaped = label
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+		expect(card('free')).toContain(escaped);
+		expect(card('plus')).not.toContain(escaped);
+		expect(card('pro')).not.toContain(escaped);
 	});
 
 	it('escaped Texte', () => {

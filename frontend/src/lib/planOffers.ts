@@ -72,6 +72,10 @@ const FEATURE_OFFERS: Record<FeatureId, { title: string; benefit: string }> = {
 		title: 'MCP-Lesezugriff',
 		benefit: 'Eigene Werkzeuge und Assistenten dürfen über einen persönlichen API-Token Aufgaben und Daten lesen.',
 	},
+	feedback: {
+		title: 'Feedback und App-Support',
+		benefit: 'Rückmeldungen und Support-Anfragen direkt aus der App senden — in jedem Paket.',
+	},
 };
 
 /** Angebotstext zu einem Feature; unbekannte Identifier bekommen einen neutralen Text. */
