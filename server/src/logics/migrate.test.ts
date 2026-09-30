@@ -873,6 +873,9 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				// Test-Pflege #1926: `lastGeoLatitude`/`lastGeoLongitude` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`lastGeoLatitude` FLOAT, ' +
+				'`lastGeoLongitude` FLOAT, ' +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
 				'`pillarRecalcStartedAt` DATETIME, ' +
@@ -953,6 +956,9 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				// Test-Pflege #1926: `lastGeoLatitude`/`lastGeoLongitude` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`lastGeoLatitude` FLOAT, ' +
+				'`lastGeoLongitude` FLOAT, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
@@ -1119,6 +1125,9 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				'`displayDistanceKm` INTEGER NOT NULL DEFAULT 5, ' +
 				'`alarmDistanceKm` INTEGER NOT NULL DEFAULT 1, ' +
 				'`intervalMinutes` INTEGER NOT NULL DEFAULT 5, ' +
+				// Test-Pflege #1926: `lastGeoLatitude`/`lastGeoLongitude` ergänzt — das User-Modell selectiert sie (Konvention wie oben).
+				'`lastGeoLatitude` FLOAT, ' +
+				'`lastGeoLongitude` FLOAT, ' +
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				'`selectedLlmProviderId` INTEGER, ' +
 				'`pillarRecalcStartedAt` DATETIME, ' +
