@@ -61,4 +61,26 @@ test.describe('Balamentum — #1360: Streak-Anzeige', () => {
 		const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
 		expect(scrollWidth).toBeLessThanOrEqual(375 + 1);
 	});
+
+	test('#1819 AK1/AK4 — bei 375px ist der Hilfetext per Tippen erreichbar und bleibt innerhalb der Card', async ({
+		page,
+	}) => {
+		await completeTaskToday(page, 'E2E 1819 Hilfetext');
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/app/');
+		await waitForStableView(page);
+
+		const streakCard = page.getByTestId('streak-card');
+		await streakCard.getByText('So zählt der Streak').click();
+		const help = streakCard.getByTestId('streak-help');
+		await expect(help).toBeVisible();
+		await expect(help).toContainText('Fälligkeitstag');
+
+		const cardBox = await streakCard.boundingBox();
+		const helpBox = await help.boundingBox();
+		expect(cardBox).not.toBeNull();
+		expect(helpBox).not.toBeNull();
+		expect(helpBox!.x).toBeGreaterThanOrEqual(cardBox!.x);
+		expect(helpBox!.x + helpBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1);
+	});
 });

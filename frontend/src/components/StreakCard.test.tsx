@@ -21,6 +21,12 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</div>
 	),
+	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<details>
+			<summary>{_label}</summary>
+			{children}
+		</details>
+	),
 }));
 
 const getStreak = vi.fn<() => Promise<Streak>>();
@@ -62,5 +68,47 @@ describe('StreakCard (#1360 AK5)', () => {
 
 		await waitFor(() => expect(card().querySelector('[data-testid="streak-zero"]')).not.toBeNull());
 		expect(card().querySelector('[data-testid="streak-best"]')?.textContent).toContain('5');
+	});
+});
+
+/**
+ * Spec-Tests #1819 (docs/spec/issue-1819.md): Hilfetext mit Zähl- und Bruchregel an der Streak-Card,
+ * aus i18next (Schlüssel `streak.help.label` / `streak.help.text` im Namespace `common`).
+ */
+const helpModules = import.meta.glob<{ default: { streak?: { help?: { label?: unknown; text?: unknown } } } }>(
+	'../i18n/locales/*/common.json',
+	{ eager: true },
+);
+
+describe('StreakCard Hilfetext (#1819)', () => {
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+	});
+
+	it.each([
+		['aktuell > 0', { aktuell: 3, best: 7, letzterTag: '2026-09-11' }],
+		['aktuell === 0', { aktuell: 0, best: 5, letzterTag: '2026-09-01' }],
+	])('AK1/AK3 — %s: streak-help nennt Zählregel, Fälligkeitstag, Lücke und Bestmarke', async (_name, streak) => {
+		getStreak.mockResolvedValue(streak);
+		render(<StreakCard />);
+
+		await waitFor(() => expect(card().querySelector('[data-testid="streak-help"]')).not.toBeNull());
+		const text = card().querySelector('[data-testid="streak-help"]')!.textContent ?? '';
+		expect(text).toMatch(/abhak/i);
+		expect(text).toMatch(/Fälligkeitstag/);
+		expect(text).toMatch(/gestern/);
+		expect(text).toMatch(/Bestmarke/);
+		expect(text).not.toMatch(/spielt keine Rolle/i);
+	});
+
+	it('AK2 — Label und Text sind in allen 10 Sprachen nicht leer', () => {
+		const languages = Object.keys(helpModules).map((path) => /locales\/([^/]+)\//.exec(path)![1]);
+		expect(languages.sort()).toHaveLength(10);
+		for (const [path, module] of Object.entries(helpModules)) {
+			const help = module.default.streak?.help;
+			expect(typeof help?.label === 'string' && help.label.trim() !== '', `${path} streak.help.label`).toBe(true);
+			expect(typeof help?.text === 'string' && help.text.trim() !== '', `${path} streak.help.text`).toBe(true);
+		}
 	});
 });
