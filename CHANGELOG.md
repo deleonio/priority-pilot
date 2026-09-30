@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-30
 
-_Enthält v0.10.0 – v0.10.31._
+_Enthält v0.10.0 – v0.10.32._
 
 ### 💥 Breaking Changes
 
@@ -1112,7 +1112,6 @@ _Enthält v0.1.336 – v0.1.836._
 - fix(changelog): consolidate CHANGELOG.md blocks by minor version by @deleonio in https://github.com/deleonio/priority-pilot/pull/1393
 - feat(frontend): notify task creator via push and toast when assigned task is completed by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1395
 - feat(server): add task_delete mcp tool (#1396) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1400
-- feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
 - feat(frontend): reactivate dark mode by @deleonio in https://github.com/deleonio/priority-pilot/pull/1394
 - fix(ci): daily-version Tages-Check nur bei (daily)-Tag greifen lassen by @deleonio in https://github.com/deleonio/priority-pilot/pull/1401
 
