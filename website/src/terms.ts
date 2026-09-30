@@ -31,7 +31,7 @@ export const TERMS: { intro: string; description: string; sections: TermsSection
 				'Laufzeit: Ein Abo läuft über den gewählten Zeitraum (Monat, Quartal oder Jahr) und verlängert sich automatisch um denselben Zeitraum, solange du es nicht kündigst.',
 				'Upgrade: Wechselst du in ein höheres Paket, wird es sofort freigeschaltet.',
 				'Downgrade: Wechselst du in ein niedrigeres Paket, behältst du das bezahlte Paket bis zum Ende des laufenden Zeitraums; danach gilt das niedrigere Paket.',
-				'Kündigung: Du kannst dein Abo jederzeit kündigen, ohne Angabe von Gründen. Ein über PayPal abgeschlossenes Abo kündigst du in der App im Bereich Abo; das Konto fällt auf Free zurück, sobald PayPal die Kündigung bestätigt. Ein über Google Play abgeschlossenes Abo kündigst du in Google Play; es endet nach den Regeln von Google Play. Dein Konto und deine Daten bleiben nach der Kündigung erhalten.',
+				'Kündigung: Du kannst dein Abo jederzeit kündigen, ohne Angabe von Gründen. Ein über PayPal abgeschlossenes Abo kündigst du in der App im Bereich Abo; dein bezahltes Paket bleibt bis zum Ende des laufenden Zeitraums aktiv, danach fällt das Konto auf Free zurück. Für den restlichen Zeitraum gibt es keine Erstattung. Ein über Google Play abgeschlossenes Abo kündigst du in Google Play; es endet nach den Regeln von Google Play. Dein Konto und deine Daten bleiben nach der Kündigung erhalten.',
 			],
 		},
 		{
