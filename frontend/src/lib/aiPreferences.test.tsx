@@ -1,11 +1,20 @@
+import { cleanup, renderHook } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../api';
+import type { EntitlementMap } from './planOffers';
+import { PlanProvider } from './usePlan';
 import {
+	useAiFeaturesEnabled,
+	useAiFeaturesGate,
 	AI_ENABLED_STORAGE_KEY,
 	computeAiFeaturesEnabled,
 	hasOwnCustomProvider,
 	readAiPreferences,
 	storeAiPreferences,
 } from './aiPreferences';
+
+vi.mock('../api', () => ({ api: { listLlmProviders: vi.fn().mockResolvedValue([]) } }));
 
 /**
  * Rote Spec-Tests für #1335 — „Schnellerfassung und Berater verschmelzen" (AK4).
@@ -184,5 +193,26 @@ describe('aiPreferences — hasOwnCustomProvider (#1549 AK8b)', () => {
 				hasCustomProvider: hasOwnCustomProvider(withOwn as never[]),
 			}),
 		).toBe(false);
+	});
+});
+
+// ── #1941 AK4: das Gate lädt keine Provider-Liste mehr ───────────────────────────────────────────
+describe('aiPreferences — Gate ohne Provider-Request (#1941 AK4)', () => {
+	afterEach(cleanup);
+
+	const wrapper = ({ children }: { children: ReactNode }) => {
+		const entitlements: EntitlementMap = {
+			ai_assist: { allowed: true, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+		};
+		return <PlanProvider value={{ plan: 'pro', entitlements }}>{children}</PlanProvider>;
+	};
+
+	// Ein Render beider Hooks: der Modul-Cache des alten Loaders würde sonst den zweiten Test maskieren.
+	it('useAiFeaturesGate und useAiFeaturesEnabled rufen api.listLlmProviders nicht auf', () => {
+		vi.mocked(api.listLlmProviders).mockClear();
+		const { result } = renderHook(() => [useAiFeaturesGate(), useAiFeaturesEnabled()] as const, { wrapper });
+
+		expect(result.current[0]).toBe(true);
+		expect(api.listLlmProviders).toHaveBeenCalledTimes(0);
 	});
 });

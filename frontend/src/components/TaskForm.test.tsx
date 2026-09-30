@@ -2701,15 +2701,12 @@ describe('TaskForm — Paket-Badge bei Lektorat und Säulen-Vorschlag (#1484 AK3
 		);
 	};
 
-	// TEST-PFLEGE #1527: Mit dem KI-Gate um Badge + Säulen-Vorschlag (siehe unten) verschwindet das
-	// Badge bei `allowed: false`, weil das gesamte Gate dann aus ist (kein `ai_assist` und kein
-	// Custom-Provider). #1527 hebt die #1484-Grenzstelle an dieser Stelle bewusst auf (siehe
-	// harness marker comment, Randbedingungen) — die Aussage „mindestens ein Badge" gilt nur noch
-	// für berechtigte Konten.
-	it('zeigt mindestens ein ai_assist-Badge im Formular (Lektorat und/oder Säulen-Vorschlag)', () => {
+	// Test-Pflege #1941 AK1: ersetzt "zeigt mindestens ein ai_assist-Badge" — das Badge war bei
+	// offenem Gate schon unerreichbar (PlanBadge rendert bei allowed nichts) und ist entfernt.
+	it('zeigt bei offenem Gate kein ai_assist-Badge (#1941 AK1)', () => {
 		renderWithEntitlement(true);
 
-		expect(screen.getAllByTestId('plan-badge-ai_assist').length).toBeGreaterThan(0);
+		expect(screen.queryAllByTestId('plan-badge-ai_assist')).toHaveLength(0);
 	});
 });
 
@@ -2768,8 +2765,6 @@ describe('TaskForm — Säulen-Berater hinter KI-Gate (#1527)', () => {
 
 		const button = screen.getByRole('button', { name: /Säulen vorschlagen/ });
 		expect(button).toBeVisible();
-		expect(screen.getAllByTestId('plan-badge-ai_assist').length).toBeGreaterThan(0);
-
 		await act(async () => {
 			fireEvent.click(button);
 		});
