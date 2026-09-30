@@ -608,7 +608,7 @@ Access-Token. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 - **Konto löschen** – in der Karte **„Konto"** löschst du dein Konto nach einer
   zweistufigen Rückfrage endgültig, mitsamt aller Aufgaben, Serien, Säulen, Kategorien
   und Einstellungen; Aufgaben und Serien, die du für Gruppenmitglieder angelegt hast,
-  bleiben für sie bestehen. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
+  bleiben für sie bestehen. Auch dein abgeschicktes Feedback wird dabei entfernt. Solange ein Abo läuft oder du der letzte Admin einer Gruppe bist,
   verweigert die App das Löschen.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
 

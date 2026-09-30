@@ -138,7 +138,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 					'Rückmeldungen, die du in der App abschickst, lesen und die App verbessern. Mit der Rückmeldung speichern wir deine E-Mail-Adresse, damit wir nachfragen können.',
 				legalBasis: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Verbesserung der App).',
 				retention:
-					'Rückmeldungen liegen mit deiner E-Mail-Adresse in unserem GitHub-Repository, bis wir sie bearbeitet haben; das Löschen des Kontos entfernt sie nicht automatisch. Auf Anfrage löschen wir sie.',
+					'Rückmeldungen liegen mit deiner E-Mail-Adresse in unserem GitHub-Repository, bis wir sie bearbeitet haben; beim Löschen deines Kontos entfernen wir sie dort. Auf Anfrage löschen wir sie auch früher.',
 				recipients: 'GitHub, wo wir die Rückmeldungen samt E-Mail-Adresse zur Bearbeitung ablegen.',
 			},
 		},

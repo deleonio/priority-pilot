@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { readAppVersion } from '../../logics/appInfo.js';
-import { githubObsidianClient, type ObsidianGithubClient } from '../../logics/obsidianFeedback.js';
+import { feedbackVaultConfig, githubObsidianClient, type ObsidianGithubClient } from '../../logics/obsidianFeedback.js';
 import { isMailConfigured, sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { User } from '../../models/index.js';
 import { isApiTokenRequest } from '../apiTokenAuth.js';
@@ -13,10 +13,6 @@ type ErrorDto = { message: string };
 const CATEGORIES = ['frage', 'wunsch', 'bug'] as const;
 type Category = (typeof CATEGORIES)[number];
 
-/** Code-Defaults der Konfiguration; überschreibbar über die `FEEDBACK_GITHUB_*`-Variablen. */
-const DEFAULT_REPO = 'deleonio/Obsidian';
-const DEFAULT_BRANCH = 'app-feedback';
-const DEFAULT_DIR = 'Feedback';
 /** Quell-Branch, von dem der Feedback-Branch bei Bedarf abgezweigt wird (AK6). */
 const SOURCE_BRANCH = 'main';
 
@@ -149,9 +145,7 @@ export const createFeedbackRouter = ({
 			return;
 		}
 
-		const repo = process.env.FEEDBACK_GITHUB_REPO?.trim() || DEFAULT_REPO;
-		const branch = process.env.FEEDBACK_GITHUB_BRANCH?.trim() || DEFAULT_BRANCH;
-		const dir = process.env.FEEDBACK_GITHUB_DIR?.trim() || DEFAULT_DIR;
+		const { repo, branch, dir } = feedbackVaultConfig();
 		const now = new Date();
 		const path = buildPath(dir, validation.value, now);
 		const user = req.session?.user?.email ?? 'unbekannt';

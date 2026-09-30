@@ -20,7 +20,25 @@ export interface ObsidianGithubClient {
 	createBranch(repo: string, branch: string, fromBranch: string): Promise<void>;
 	/** Legt `path` auf `branch` mit `content` (Klartext) an. */
 	commitFile(repo: string, branch: string, path: string, content: string): Promise<void>;
+	/** Listet die `.md`-Dateien in `dir` auf `branch` samt Inhalt und SHA; leer bei fehlendem Verzeichnis/Branch. */
+	listFeedbackFiles(
+		repo: string,
+		branch: string,
+		dir: string,
+	): Promise<{ path: string; sha: string; content: string }[]>;
+	/** Löscht `path` auf `branch` (`sha` = Blob-SHA der Datei). */
+	deleteFile(repo: string, branch: string, path: string, sha: string): Promise<void>;
 }
+
+/** Code-Defaults der Ablage; überschreibbar über die `FEEDBACK_GITHUB_*`-Variablen. */
+export const feedbackVaultConfig = (): { repo: string; branch: string; dir: string } => ({
+	repo: process.env.FEEDBACK_GITHUB_REPO?.trim() || 'deleonio/Obsidian',
+	branch: process.env.FEEDBACK_GITHUB_BRANCH?.trim() || 'app-feedback',
+	dir: process.env.FEEDBACK_GITHUB_DIR?.trim() || 'Feedback',
+});
+
+const contentsPath = (repo: string, path: string): string =>
+	`/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}`;
 
 /** Gemeinsame Header aller Aufrufe; der Token kommt pro Aufruf frisch aus der Umgebung. */
 const authHeaders = (): Record<string, string> => ({
@@ -75,10 +93,31 @@ export const githubObsidianClient: ObsidianGithubClient = {
 
 	async commitFile(repo: string, branch: string, path: string, content: string): Promise<void> {
 		// `branch` ist Pflicht: ohne das Feld schreibt die Contents-API auf den Default-Branch.
-		await githubRequest('PUT', `/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}`, {
+		await githubRequest('PUT', contentsPath(repo, path), {
 			message: `feedback: ${path}`,
 			content: Buffer.from(content, 'utf8').toString('base64'),
 			branch,
 		});
+	},
+
+	async listFeedbackFiles(repo: string, branch: string, dir: string) {
+		const ref = `?ref=${encodeURIComponent(branch)}`;
+		const listing = await githubRequest('GET', `${contentsPath(repo, dir)}${ref}`);
+		if (listing.status === 404) return [];
+		const entries = (await listing.json()) as { path?: unknown; type?: unknown }[];
+		const files: { path: string; sha: string; content: string }[] = [];
+		for (const entry of entries) {
+			if (entry.type !== 'file' || typeof entry.path !== 'string' || !entry.path.endsWith('.md')) continue;
+			const response = await githubRequest('GET', `${contentsPath(repo, entry.path)}${ref}`);
+			if (response.status === 404) continue;
+			const file = (await response.json()) as { sha?: unknown; content?: unknown };
+			if (typeof file.sha !== 'string' || typeof file.content !== 'string') continue;
+			files.push({ path: entry.path, sha: file.sha, content: Buffer.from(file.content, 'base64').toString('utf8') });
+		}
+		return files;
+	},
+
+	async deleteFile(repo: string, branch: string, path: string, sha: string): Promise<void> {
+		await githubRequest('DELETE', contentsPath(repo, path), { message: `feedback entfernt: ${path}`, sha, branch });
 	},
 };
