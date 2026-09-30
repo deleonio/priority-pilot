@@ -29,9 +29,10 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 5. Order: follow the waves. Phases queue first in, first out per concurrency group; which
    phases share a group is described in [CI-Architektur](../../../docs/ci-architecture.md) (at
    the time of writing: spec, implementation and fixup share one queue; triage, UX, review and
-   documentation each have their own). So one issue can be analysed or reviewed while another is
-   implemented — keep one issue per shared queue in flight plus the next one in analysis, not
-   more. A run shown as "pending" is queued, not stuck — never re-arm it.
+   documentation each have their own). **Start every issue whose blockers are closed** — issues
+   without dependencies on each other run in parallel; the queues serialise what has to wait.
+   Only dependent issues wait for their blocker's merge. A run shown as "pending" is queued, not
+   stuck — never re-arm it.
 
 ## 2. Drive one issue
 
