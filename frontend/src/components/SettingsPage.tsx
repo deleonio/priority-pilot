@@ -61,9 +61,9 @@ interface SettingsPageProps {
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Reihenfolge: Allgemein (Index 0), Säulen (Index 1),
-// KI-Provider (Index 2), Standort (Index 3, #1151), Gruppen (Index 4, #1211), Kategorien (Index 5),
-// Pakete (Index 6, #1529), Abo (Index 7, #1529), optional Nutzerverwaltung (Index 8, nur für Admins)
-// und Zugriff (#1352, letzter Tab: Index 8 ohne bzw. 9 mit Admin-Tab). Muss index-paritätisch mit
+// KI-Provider (Index 2), Standort (Index 3, #1151), Orte (Index 4, #1894), Gruppen (Index 5, #1211), Kategorien (Index 6),
+// Pakete (Index 7, #1529), Abo (Index 8, #1529), optional Nutzerverwaltung (Index 9, nur für Admins)
+// und Zugriff (#1352, letzter Tab: Index 9 ohne bzw. 10 mit Admin-Tab). Muss index-paritätisch mit
 // `SETTINGS_PATH_SEGMENTS` in `App.tsx` bleiben — der Admin-Tab wird deshalb ans Ende angehängt
 // statt eingeschoben, damit sich die Indizes der übrigen Tabs für Member nie verschieben.
 const BASE_SETTINGS_TABS = [
@@ -71,6 +71,7 @@ const BASE_SETTINGS_TABS = [
 	{ _label: 'Säulen' },
 	{ _label: 'KI-Provider' },
 	{ _label: 'Standort' },
+	{ _label: 'Orte' },
 	{ _label: 'Gruppen' },
 	{ _label: 'Kategorien' },
 	{ _label: 'Pakete' },
@@ -79,7 +80,7 @@ const BASE_SETTINGS_TABS = [
 
 /** #1529 AK7: Index des Pakete-Reiters — unabhängig von der Rolle, weil er vor den rollenabhängigen
  * Reitern liegt. Der Abo-Reiter verweist mit „Pakete ansehen" hierher. */
-const PLANS_TAB_INDEX = 6;
+const PLANS_TAB_INDEX = 7;
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
 const formatGeoTimestamp = (updatedAt: number): string => {
@@ -100,7 +101,7 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Konto, Darstellung, Bewegung,
  * Benachrichtigungen), „Säulen" (Verwaltung + Gewichtungs-Editor), „KI-Provider" (KI-Funktionen,
- * Provider-Auswahl & -Verwaltung), „Standort" (Geo-Einstellungen, #1151), „Gruppen" (#1211) und
+ * Provider-Auswahl & -Verwaltung), „Standort" (Geo-Einstellungen, #1151), „Orte" (#1894), „Gruppen" (#1211) und
  * optional „Nutzerverwaltung". Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
  * `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2), `/settings/standort` →
  * Standort (3), alles andere → Säulen (1).
@@ -123,7 +124,7 @@ export const SettingsPage = ({
 	// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
 	const settingsTabs = useMemo(
 		// „Access-Token" (#1352, Label seit #1526) hängt bewusst HINTER dem Admin-Tab, damit dessen
-		// Index 8 unverändert bleibt. Das Routen-Segment bleibt `zugriff` (App.tsx).
+		// Index 9 unverändert bleibt. Das Routen-Segment bleibt `zugriff` (App.tsx).
 		() => [...BASE_SETTINGS_TABS, ...(isAdmin ? [{ _label: 'Nutzerverwaltung' }] : []), { _label: 'Access-Token' }],
 		[isAdmin],
 	);
@@ -905,27 +906,30 @@ export const SettingsPage = ({
 							</div>
 						</KolAccordion>
 					)}
-					{/* #1342 (AK3): Gespeicherte Orte — anlegen, umbenennen, löschen; sie erscheinen im
-					        Adressfeld von Aufgabe und Serie. */}
+				</div>
+				{/* #1894: Gespeicherte Orte (#1342) — eigener Tab „Orte" (Index 4, Route /settings/orte),
+				    unabhängig vom Geo-Schalter. Anlegen, umbenennen, löschen; sie erscheinen im Adressfeld
+				    von Aufgabe und Serie. */}
+				<div slot="tab-4" className="settings-places settings-panel">
 					<PlaceFavoritesSection />
 				</div>
-				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 4, Route
+				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
 				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten
 				        per Modal, Löschen mit sequenzieller Bestätigung. */}
-				<div slot="tab-4" className="settings-groups settings-panel">
+				<div slot="tab-5" className="settings-groups settings-panel">
 					<GroupsSection />
 				</div>
 				{/* Kategorien: thematische Ordnungsebene neben den Säulen (Route /settings/kategorien).
 				    Panel-Rezept wie die übrigen Tabs (Design-Lauf 2026-09): `.settings-panel` plus eine
 				    `KolCard` als Gruppierungsfläche. */}
-				<div slot="tab-5" className="settings-categories settings-panel">
+				<div slot="tab-6" className="settings-categories settings-panel">
 					<KolCard className="settings-card" _label="Kategorien verwalten" _level={2}>
 						<CategoryList onCategoryChanged={onCategoryChanged} />
 					</KolCard>
 				</div>
 				{/* #1529 AK1: „Pakete" (Matrix, Preise, Buchen/Wechseln) und „Abo" (Status, Kündigung,
 				    Rechnungen) als eigene Reiter — vorher lag beides gemeinsam als Karte im Allgemein-Tab. */}
-				<div slot="tab-6" className="settings-plans settings-panel">
+				<div slot="tab-7" className="settings-plans settings-panel">
 					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER der Matrix —
 					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit
 					        spätere Rollen sie ohne Tab-Umbau aufnehmen können (AK4): Tester (#1566) sieht
@@ -935,20 +939,20 @@ export const SettingsPage = ({
 						<PlansSection />
 					</KolCard>
 				</div>
-				<div slot="tab-7" className="settings-subscription settings-panel">
+				<div slot="tab-8" className="settings-subscription settings-panel">
 					<KolCard className="settings-card" _label="Abo und Rechnungen" _level={2}>
 						<SubscriptionSection onShowPlans={() => tabsCallbacks.onSelect(new Event('select'), PLANS_TAB_INDEX)} />
 					</KolCard>
 				</div>
 				{isAdmin && (
-					<div slot="tab-8" className="settings-admin-users settings-panel">
+					<div slot="tab-9" className="settings-admin-users settings-panel">
 						<KolCard className="settings-card" _label="Nutzer und Rollen" _level={2}>
 							<AdminUsersSection />
 						</KolCard>
 					</div>
 				)}
 				{/* Persönliche API-Tokens (#1352) — letzter Tab, daher Slot-Index abhängig vom Admin-Tab. */}
-				<div slot={isAdmin ? 'tab-9' : 'tab-8'} className="settings-api-tokens settings-panel">
+				<div slot={isAdmin ? 'tab-10' : 'tab-9'} className="settings-api-tokens settings-panel">
 					<ApiTokensSection />
 				</div>
 			</KolTabs>

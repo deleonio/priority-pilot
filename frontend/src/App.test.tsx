@@ -405,16 +405,16 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 	// Test-Pflege #1529: „Pakete" (Index 6) und „Abo" (Index 7) schieben sich vor die rollen-
 	// abhängigen Reiter — „Nutzerverwaltung" liegt damit auf Index 8 statt 6. Der geprüfte Vertrag
 	// (Admin-Route wählt den Admin-Reiter, Panel existiert) bleibt unverändert.
-	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 8) mit Panel tab-8', async () => {
+	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 9) mit Panel tab-9', async () => {
 		render(<App user={{ ...testUser, role: 'admin' as const }} />);
 
 		await waitFor(() => {
 			expect(tabsElement()).not.toBeNull();
 		});
 		const tabs = tabsElement();
-		expect(tabs?._selected).toBe(8);
+		expect(tabs?._selected).toBe(9);
 		expect(tabs?._tabs?.map((t) => t._label)).toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-8"]')).not.toBeNull();
+		expect(document.querySelector('[slot="tab-9"]')).not.toBeNull();
 	});
 });
 
@@ -651,5 +651,38 @@ describe('App — Kopfzeilen-Position (#1428, TF3)', () => {
 	it('bleibt ohne gespeicherte Präferenz beim heutigen Aufbau — keine Bottom-Klasse (AK4)', () => {
 		render(<App user={testUser} />);
 		expect(document.querySelector('.app')?.className).not.toContain('header-bottom');
+	});
+});
+
+/**
+ * #1894 AK1/AK5: Der neue Tab „Orte" (Index 4, Segment `orte`) verschiebt die Folge-Tabs um 1 —
+ * jedes Settings-Segment muss weiter den richtigen Tab wählen (Index-Parität `settingsTabs` ↔
+ * `settingsPathSegments`, Member und Admin).
+ */
+describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
+	type TabsElement = { _tabs?: { _label: string }[]; _selected?: number } | null;
+	const tabsElement = (): TabsElement => document.querySelector('kol-tabs.settings-tabs') as unknown as TabsElement;
+
+	afterEach(() => {
+		window.history.replaceState({}, '', '/');
+	});
+
+	it.each([
+		['standort', 'Standort', false],
+		['orte', 'Orte', false],
+		['gruppen', 'Gruppen', false],
+		['kategorien', 'Kategorien', false],
+		['pakete', 'Pakete', false],
+		['abo', 'Abo', false],
+		['nutzer', 'Nutzerverwaltung', true],
+	])('/settings/%s wählt den Tab „%s"', async (segment, label, isAdmin) => {
+		window.history.replaceState({}, '', `/settings/${segment}`);
+		render(<App user={{ ...testUser, role: isAdmin ? ('admin' as const) : testUser.role }} />);
+
+		await waitFor(() => {
+			expect(tabsElement()).not.toBeNull();
+		});
+		const tabs = tabsElement();
+		expect(tabs?._tabs?.[tabs._selected ?? -1]?._label).toBe(label);
 	});
 });

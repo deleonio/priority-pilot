@@ -78,13 +78,14 @@ const TaskGraphPanel = lazy(() =>
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
-// #1529: „Pakete" (Index 6) und „Abo" (Index 7) hängen HINTER „Kategorien" und VOR den
-// rollenabhängigen Segmenten — so bleiben die Indizes 0–5 der bestehenden Segmente stabil.
+// #1529: „Pakete" (Index 7) und „Abo" (Index 8) hängen HINTER „Kategorien" und VOR den
+// rollenabhängigen Segmenten — so bleiben die Indizes 0–6 der bestehenden Segmente stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'general',
 	'pillars',
 	'llm',
 	'standort',
+	'orte',
 	'gruppen',
 	'kategorien',
 	'pakete',
@@ -92,7 +93,7 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 ];
 // #1352: „Zugriff" hängt als letzter Tab HINTER dem nur für Admins vorhandenen „Nutzerverwaltung" —
 // die Segmentfolge ist deshalb rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab behält Index 8, „Zugriff" liegt bei 8 bzw. 9).
+// `SettingsPage` bleibt (der Admin-Tab behält Index 9, „Zugriff" liegt bei 9 bzw. 10).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
