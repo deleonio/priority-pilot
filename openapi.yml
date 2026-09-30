@@ -1717,6 +1717,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /care-config/sprache:
+    put:
+      summary: App-Sprache für den Fürsorge-Push speichern
+      description: >-
+        Speichert die aktive App-Sprache des Users (#1879), in der der Fürsorge-Push
+        ankommt. Codes außerhalb der zehn App-Sprachen → HTTP 400 ohne Persistenz.
+      operationId: updateCareSprache
+      tags: [care]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CareSprache'
+      responses:
+        '200':
+          description: Gespeicherte Sprache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CareSprache'
+        '400':
+          description: Unbekannter Sprachcode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /geo/position:
     post:
       summary: Positionsmeldung des Clients
@@ -3592,6 +3619,14 @@ components:
         zeitzone:
           type: string
           description: IANA-Zeitzonenname (Default 'UTC')
+    CareSprache:
+      type: object
+      description: App-Sprache des Users für den Fürsorge-Push (#1879).
+      required: [sprache]
+      properties:
+        sprache:
+          type: string
+          description: Sprachcode der App (de, en, es, fr, it, nl, pl, pt, ru, sv)
     Group:
       type: object
       description: >-
