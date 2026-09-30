@@ -26,10 +26,12 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
    marked "Aufgabe für den PO", tickets marked "zurückgestellt".
 4. A manual ticket on the critical path blocks everything behind it. Ask the author at once (one
    question, concrete options) instead of waiting silently.
-5. Order: follow the waves. The pipeline runs **one agent phase at a time** for all tickets
-   (first in, first out; post-merge documentation runs share the queue). Queuing a second free
-   issue early costs nothing and keeps the queue busy; more than two in flight only adds waiting.
-   A run shown as "pending" is queued, not stuck — never re-arm it.
+5. Order: follow the waves. Phases queue first in, first out per concurrency group; which
+   phases share a group is described in [CI-Architektur](../../../docs/ci-architecture.md) (at
+   the time of writing: spec, implementation and fixup share one queue; triage, UX, review and
+   documentation each have their own). So one issue can be analysed or reviewed while another is
+   implemented — keep one issue per shared queue in flight plus the next one in analysis, not
+   more. A run shown as "pending" is queued, not stuck — never re-arm it.
 
 ## 2. Drive one issue
 
