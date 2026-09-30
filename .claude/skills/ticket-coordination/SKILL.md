@@ -45,6 +45,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push is a finding |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
+| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase running on the branch → hand the resolution to a subagent (section 6, one per PR, in parallel); phase running → wait for its end. After the subagent's push: if the PR already had its review verdict, re-arm `ai:needs-review`. A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
 | All sub-issues of an epic closed | check the merged PRs for named follow-up work that no ticket covers; ask the author about a follow-up ticket. Never close the epic yourself |
@@ -145,9 +146,16 @@ separate worktree; re-run failed jobs once for a documented infrastructure signa
 **Must not do:** set or remove pipeline labels, comment, push, create tickets, ask the author.
 It returns a proposal, the coordinator acts on it.
 
+**Exception — merge conflicts:** a conflict subagent works in its own worktree and may push one
+merge commit to the PR branch: merge main into the branch (never rebase, amend or force-push),
+keep both sides' behaviour, regenerate lockfiles and generated files with the repo tooling, run
+the canonical gate for the touched packages, and push only when it is green and no phase runs on
+the branch (pitfall 13). If keeping both sides needs a product decision, it pushes nothing and
+reports the conflict. Labels and comments stay with the coordinator.
+
 **Report** (short, fixed shape): state (phase, PR head, CI), finding with evidence (log line,
 file:line), proposed action (exact label set or comment text), and whether the author is needed.
 
 Fits: diagnosing a red CI or an `ai:needs-human` stop while another issue is being routed;
 checking all PRs of an epic for follow-up work before asking about closing it; a test merge
-against main. Does not fit: anything that only needs one label read — do that directly.
+against main; resolving a merge conflict (exception above). Does not fit: anything that only needs one label read — do that directly.

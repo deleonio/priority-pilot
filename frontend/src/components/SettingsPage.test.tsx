@@ -690,8 +690,8 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * Rote Spec-Tests für Fixup PR #1300 (Finding #2) — Tab-Gating „Nutzerverwaltung" (Rollensystem
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
- * als letzter Tab (Index 9 seit #1894, ans Ende angehängt) mit `AdminUsersSection` im Panel
- * `slot="tab-9"`.
+ * als letzter Tab (Index 8 seit #1902, ans Ende angehängt) mit `AdminUsersSection` im Panel
+ * `slot="tab-8"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
 	// Test-Pflege #1352: Seit dem Tab „Zugriff" (letzter Tab) ist der letzte Slot ohne Admin-Rolle vom
@@ -705,10 +705,11 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(container.querySelector('.admin-users')).toBeNull();
 	});
 
-	// Test-Pflege #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
-	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8. Der geprüfte Vertrag (#1300:
+	// Test-Pflege #1902: „Pakete"/„Abo" sind seit #1902 EIN Tab „Pakete & Abo“ — „Nutzerverwaltung"
+	// rückt von Index 9 auf 8. (Ursprünglich #1529: „Pakete"/„Abo" hängen zwischen „Kategorien" und den rollenabhängigen
+	// Reitern — „Nutzerverwaltung" rückt damit von Index 6 auf 8; #1894 „Orte" schob sie auf 9.) Der geprüfte Vertrag (#1300:
 	// Admin-Reiter am Ende, AdminUsersSection in seinem Panel) bleibt unverändert.
-	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-9"', () => {
+	it('mit isAdmin erscheint „Nutzerverwaltung" als letzter Tab mit AdminUsersSection im Panel slot="tab-8"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin />);
 
 		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
@@ -720,15 +721,15 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Orte',
 			'Gruppen',
 			'Kategorien',
-			'Pakete',
-			'Abo',
-			'Nutzerverwaltung',
+			'Pakete & Abo',
 			// Test-Pflege #1903 AK1: „KI-Provider" → „KI", der Tab „Access-Token" entfällt (Zugriff liegt im KI-Tab).
-			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt auf Index 9.
+			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt
+			// nach dem Zusammenlegen von „Pakete & Abo" (#1902) auf Index 8.
+			'Nutzerverwaltung',
 		]);
-		const adminPanel = container.querySelector('[slot="tab-9"]');
-		expect(adminPanel, 'letzter Slot tab-9 existiert').not.toBeNull();
-		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-9-Panel').toBeTruthy();
+		const adminPanel = container.querySelector('[slot="tab-8"]');
+		expect(adminPanel, 'Slot tab-8 (Nutzerverwaltung) existiert').not.toBeNull();
+		expect(adminPanel?.querySelector('.admin-users'), 'AdminUsersSection ist im tab-8-Panel').toBeTruthy();
 	});
 });
 
@@ -738,8 +739,8 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  *
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
- * `slot="tab-9"` (letzter Tab; Test-Pflege #1529: vorher `tab-6`, seit den Reitern „Pakete"/„Abo"
- * um zwei Positionen verschoben). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`).
+ * `slot="tab-8"` (letzter Tab; Test-Pflege #1529/#1894/#1902: vorher `tab-6`, verschoben durch
+ * „Orte" und „Pakete & Abo"). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 	beforeEach(() => {
@@ -851,36 +852,29 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 	});
 
 	/*
-	 * Test-Pflege #1529 (Spec docs/spec/issue-1529.md AK1/AK2/AK3): Die Sektion liegt seit #1529 im
-	 * eigenen Reiter „Pakete" (`slot="tab-7"`) statt im Allgemein-Tab, und die Matrix ist keine
-	 * handgebaute `.plans-matrix`-Tabelle mehr, sondern eine `KolTableStateful`. In JSDOM hydriert
-	 * die Web Component nicht — ihre Zeilen stehen deshalb nicht im DOM, sondern im `_data`-Prop
-	 * (Muster `kol-tabs`/`_tabs` weiter oben in dieser Datei). Der geprüfte #1458-AK11-Vertrag
-	 * bleibt derselbe: Preise und Feature-Zeilen kommen ausschließlich aus `GET /plans`.
+	 * Test-Pflege #1902 (Spec docs/spec/issue-1902.md AK4): die Sektion liegt im Reiter „Pakete & Abo"
+	 * (`slot="tab-7"`) in der Karte „Pakete" und ist keine `KolTableStateful`-Matrix mehr, sondern eine
+	 * Liste (JSDOM hydriert KoliBri nicht — Preise stehen als Text im DOM). Der geprüfte
+	 * #1458-AK11-Vertrag bleibt derselbe: Preise und Funktionen kommen ausschließlich aus `GET /plans`.
 	 */
-	it('rendert die Karte „Pakete" mit Matrix und Preisen aus GET /plans', async () => {
+	it('rendert die Karte „Pakete" mit Paketliste und Preisen aus GET /plans', async () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
 		expect(container.querySelector('[slot="tab-7"] [data-testid="plans-section"]')).not.toBeNull();
-		expect(container.querySelector('kol-card[_label="Pakete im Vergleich"]')).not.toBeNull();
+		expect(container.querySelector('kol-card[_label="Pakete"]')).not.toBeNull();
 		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
+		expect(container.querySelector('kol-table-stateful')).toBeNull();
 
-		const matrix = container.querySelector('kol-table-stateful') as unknown as {
-			_data?: (Record<string, unknown> & { _kind?: string })[];
-		} | null;
-		expect(matrix).not.toBeNull();
-		const rows = matrix?._data ?? [];
 		// Preise: exakt die Server-Werte, keine im Frontend hinterlegte Liste.
-		const monthlyPrices = rows.find((row) => row._kind === 'price' && row.label === 'Preis monatlich');
-		expect(monthlyPrices?.free).toBe('0,00 €');
-		expect(monthlyPrices?.pro).toMatch(/^0,04 €/);
-		// Matrixzeilen: je Feature eine Zeile mit „enthalten"/„—" je Paket.
-		const featureRows = rows.filter((row) => row._kind === 'feature');
-		expect(featureRows).toHaveLength(2);
-		expect(featureRows[0]?.pro).toBe('enthalten');
-		expect(featureRows[0]?.free).toBe('—');
+		const freeItem = container.querySelector('[data-testid="plan-item-free"]');
+		const proItem = container.querySelector('[data-testid="plan-item-pro"]');
+		expect(freeItem?.textContent).toContain('monatlich: 0,00 €');
+		expect(proItem?.textContent).toContain('monatlich: 0,04 €');
+		// Funktionen: je Feature ein Eintrag im `KolDetails` der enthaltenen Pakete.
+		expect(proItem?.querySelectorAll('kol-details li')).toHaveLength(1);
+		expect(freeItem?.querySelector('kol-details')).toBeNull();
 	});
 
 	it('zeigt den Ladefehler, wenn GET /plans scheitert — statt halber Daten', async () => {
@@ -1298,9 +1292,9 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-7-Panel').toBeTruthy();
 
 		// Nicht auch in der Nutzerverwaltung (dort ist das Paket nur noch Badge, AK2).
-		const tab9 = panel(container, 'tab-9');
+		const tab8 = panel(container, 'tab-8');
 		expect(
-			tab9?.querySelector('kol-single-select, kol-select'),
+			tab8?.querySelector('kol-single-select, kol-select'),
 			'Nutzerverwaltung hat keine Auswahl-Komponente mehr',
 		).toBeNull();
 	});
@@ -1325,7 +1319,7 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
  *
  * Seam: `SettingsPage` bekommt analog zu `isAdmin` ein optionales Prop `isTester` (App:
  * `user.role === 'tester'`); das OwnPlanCard-Gate (SettingsPage.tsx:823) öffnet sich für
- * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-9 bleiben ausschließlich an
+ * `isAdmin || isTester`, Tab „Nutzerverwaltung"/Panel tab-8 bleiben ausschließlich an
  * `isAdmin` gebunden. Das Prop existiert noch nicht (rote Spec-Phase) — der Cast hält tsc
  * in beiden Zuständen grün (Intersection-Muster MEMORY 2026-08-23 / mail.test.ts).
  */
@@ -1623,6 +1617,108 @@ describe('SettingsPage – #1794: Fürsorge-Schalter (AK7)', () => {
 				'PUT-Fehler muss in derselben Zeile sichtbar sein',
 			).not.toBeNull();
 		});
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1902 (Spec docs/spec/issue-1902.md AK1/AK2/AK3/AK4/AK7) — „Pakete" und „Abo"
+ * sind EIN Tab „Pakete & Abo" (Panel `tab-7`, seit #1894 „Orte" um eins verschoben) mit zwei Karten. Die Panels bleiben gemountet (siehe
+ * `beforeEach`); KoliBri hydriert in JSDOM nicht, Struktur wird über die Custom-Element-Hosts geprüft.
+ * AK5 liegt in `billing.spec.ts`, AK6/AK8 in `issue-1902-plans-subscription-tab.spec.ts`.
+ */
+describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
+	const catalog = {
+		features: [{ feature: 'groups', allowedPlans: ['pro'] }],
+		prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+	};
+	const subscription = {
+		provider: 'paypal',
+		plan: 'pro',
+		period: 'monthly',
+		status: 'active',
+		currentPeriodEnd: '2026-10-15T00:00:00.000Z',
+		pendingPlan: null,
+		pendingPlanEffectiveAt: null,
+		graceUntil: null,
+	} as unknown as NonNullable<ComponentProps<typeof PlanProvider>['value']['subscription']>;
+
+	beforeEach(() => {
+		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue(catalog);
+		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([]);
+	});
+
+	const renderTab = (sub: typeof subscription | null, props: Partial<ComponentProps<typeof SettingsPage>> = {}) => {
+		const utils = render(
+			<PlanProvider value={{ plan: sub === null ? 'free' : 'pro', entitlements: {}, subscription: sub }}>
+				<SettingsPage {...defaultProps} {...props} />
+			</PlanProvider>,
+		);
+		const panel = utils.container.querySelector('[slot="tab-7"]') as HTMLElement;
+		return { ...utils, panel };
+	};
+
+	it('AK1: die Tab-Leiste enthält „Pakete & Abo“ und weder „Pakete“ noch „Abo“ als eigene Tabs', () => {
+		const { container } = renderTab(null);
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
+		expect(labels).toContain('Pakete & Abo');
+		expect(labels).not.toContain('Pakete');
+		expect(labels).not.toContain('Abo');
+	});
+
+	// Test-Pflege #1903: der Tab „Access-Token" ist im Tab „KI" aufgegangen — „Nutzerverwaltung" ist letzter Tab.
+	it('AK1/AK6: Rollen-Tabs bleiben index-paritätisch — Nutzerverwaltung an Index 8, kein Tab „Access-Token“', () => {
+		const { container } = renderTab(null, { isAdmin: true });
+		const tabsEl = container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null;
+		const labels = tabsEl?._tabs?.map((t) => t._label) ?? [];
+		expect(labels.indexOf('Pakete & Abo')).toBe(7);
+		expect(labels.indexOf('Nutzerverwaltung')).toBe(8);
+		expect(labels).not.toContain('Access-Token');
+	});
+
+	it('AK2: mit Abo liegen Rechnungen und Kündigung in einem KolDetails der oberen Karte', async () => {
+		const { panel } = renderTab(subscription);
+		await waitFor(() => expect(panel.querySelector('[data-testid="billing-invoices"]')).not.toBeNull());
+
+		expect(panel.querySelector('kol-details kol-details'), 'genau ein KolDetails, nicht verschachtelt').toBeNull();
+		expect(
+			panel.querySelector('kol-details [data-testid="billing-invoices"]'),
+			'Rechnungen im KolDetails',
+		).not.toBeNull();
+		expect(
+			panel.querySelector('kol-details [data-testid="cancel-subscription"]'),
+			'Kündigen im KolDetails',
+		).not.toBeNull();
+		expect(panel.querySelector('[data-testid="subscription-status"]')?.textContent).toContain('Pro');
+	});
+
+	it('AK3: ohne Abo zeigt die obere Karte nur einen Hinweis — keine Rechnungs-/Kündigungselemente, kein „Pakete ansehen“', async () => {
+		const { panel } = renderTab(null);
+		await waitFor(() => expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull());
+
+		expect(panel.querySelector('[data-testid="billing-invoices"]')).toBeNull();
+		expect(panel.querySelector('[data-testid="cancel-subscription"]')).toBeNull();
+		expect(panel.querySelector('kol-button[_label="Pakete ansehen"]')).toBeNull();
+	});
+
+	it('AK4: die Pakete stehen als Liste mit Buchen-Aktion je Paket, ohne Tabelle', async () => {
+		const { panel } = renderTab(null);
+		await waitFor(() => expect(panel.querySelector('[data-testid="plans-section"]')).not.toBeNull());
+
+		expect(panel.querySelector('kol-table-stateful, table')).toBeNull();
+		const bookButtons = Array.from(panel.querySelectorAll('kol-button')).filter((b) =>
+			/^Pro.*buchen/i.test(b.getAttribute('_label') ?? ''),
+		);
+		expect(bookButtons.length, 'Buchen-Aktion für „Pro“ (Name + Handlung im Label)').toBeGreaterThan(0);
+	});
+
+	it('AK7: zwei Karten auf oberster Ebene, keine Karte in Karte, kein Accordion in Karte/Accordion', async () => {
+		const { panel } = renderTab(subscription);
+		await waitFor(() => expect(panel.querySelector('[data-testid="plans-section"]')).not.toBeNull());
+
+		expect(panel.querySelectorAll('kol-card'), 'Abo-Karte + Pakete-Karte').toHaveLength(2);
+		expect(panel.querySelector('kol-card kol-card')).toBeNull();
+		expect(panel.querySelector('kol-card kol-accordion, kol-accordion kol-accordion')).toBeNull();
 	});
 });
 

@@ -78,8 +78,8 @@ const TaskGraphPanel = lazy(() =>
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
-// #1529: „Pakete" (Index 7) und „Abo" (Index 8) hängen HINTER „Kategorien" und VOR den
-// rollenabhängigen Segmenten — so bleiben die Indizes 0–6 der bestehenden Segmente stabil.
+// #1529/#1902: „Pakete & Abo" (Index 7) hängt HINTER „Kategorien" und VOR den rollenabhängigen
+// Segmenten — so bleiben die Indizes 0–6 der bestehenden Segmente stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'general',
 	'pillars',
@@ -89,16 +89,18 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'gruppen',
 	'kategorien',
 	'pakete',
-	'abo',
 ];
+/**
+ * Frühere Tab-Adressen, die in einem anderen Tab aufgegangen sind: #1902 „Abo" → „Pakete & Abo",
+ * #1903 „Access-Token" (`zugriff`) → „KI" (`llm`).
+ */
+const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = { abo: 'pakete', zugriff: 'llm' };
 // Die Segmentfolge ist rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 9 an).
+// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 8 an).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
 ];
-// #1903: Der Tab „Access-Token" ist im Tab „KI" aufgegangen — sein altes Segment öffnet diesen.
-const SETTINGS_SEGMENT_ALIASES: Readonly<Record<string, string>> = { zugriff: 'llm' };
 // Rollensystem admin/member: Segmente, die nur Admins als Tab sehen (Index-Parität mit den in
 // `SettingsPage` nur bei `isAdmin` angehängten Tabs). Für Member gelten sie als unbekannter Pfad.
 const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
@@ -340,11 +342,12 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// #1566: Tester arbeitet wie ein Admin, sieht aber die Nutzerverwaltung nicht — das Tab-Gating
 	// unten bleibt an `isAdmin` gebunden, nur die eigene Paket-Karte öffnet sich zusätzlich.
 	const isTester = user.role === 'tester';
-	const settingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const rawSettingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const settingsSegment = LEGACY_SETTINGS_SEGMENTS[rawSettingsSegment] ?? rawSettingsSegment;
 	const settingsTabIndex =
 		!isAdmin && ADMIN_ONLY_SETTINGS_SEGMENTS.has(settingsSegment)
 			? -1
-			: settingsPathSegments(isAdmin).indexOf(SETTINGS_SEGMENT_ALIASES[settingsSegment] ?? settingsSegment);
+			: settingsPathSegments(isAdmin).indexOf(settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
 
 	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */

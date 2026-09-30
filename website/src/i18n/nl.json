@@ -238,7 +238,8 @@
 		"imprintPath": "colofon/",
 		"accountDeletion": "Account verwijderen",
 		"accountDeletionPath": "account-verwijderen/",
-		"privacy": "Privacyverklaring"
+		"privacy": "Privacyverklaring",
+		"terms": "Gebruiksvoorwaarden"
 	},
 	"imprint": {
 		"title": "Colofon",

@@ -238,7 +238,8 @@
 		"imprintPath": "impressum/",
 		"accountDeletion": "Konto löschen",
 		"accountDeletionPath": "konto-loeschen/",
-		"privacy": "Datenschutz"
+		"privacy": "Datenschutz",
+		"terms": "Nutzungsbedingungen"
 	},
 	"imprint": {
 		"title": "Impressum",

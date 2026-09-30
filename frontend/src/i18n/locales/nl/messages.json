@@ -48,5 +48,11 @@
 			"none": "Er zijn geen aankopen om te herstellen voor je Google-account.",
 			"failed": "Je aankopen konden niet worden hersteld. Probeer het later opnieuw."
 		}
+	},
+	"legal": {
+		"heading": "Juridisch",
+		"terms": "Gebruiksvoorwaarden",
+		"privacy": "Privacyverklaring",
+		"newTab": "Beide links openen de website in een nieuw tabblad."
 	}
 }

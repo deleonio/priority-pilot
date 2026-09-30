@@ -574,7 +574,7 @@ dadurch unter die Schwelle fällt.
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, KI, Standort, Gruppen, Kategorien, **Pakete** und **Abo**. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+Allgemein, Säulen, KI, Standort, Gruppen, Kategorien und **Pakete & Abo**. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
 ### Allgemein
@@ -678,7 +678,7 @@ Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
 
 ## Pakete
 
-Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
+Im Bereich **Pakete & Abo** listet die untere Karte die verfügbaren Pakete mit Preisen und den enthaltenen Funktionen. Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort.
 
 Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen – etwa Gruppen,
 KI-Unterstützung, gewichtete Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe und einfache
@@ -691,7 +691,7 @@ wurde und kein Paket gebucht hat, hat **Pro** und damit alle Funktionen.
 
 ## Abo
 
-Im Bereich **Abo** siehst du deinen aktuellen Abonnement-Status, kannst Kündigungen einleiten und Rechnungen einsehen.
+In der oberen Karte des Bereichs **Pakete & Abo** siehst du deinen aktuellen Abonnement-Status; Rechnungen und Kündigung findest du aufklappbar darunter.
 
 ---
 

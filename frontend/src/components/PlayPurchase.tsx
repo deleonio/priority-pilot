@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { checkAuth } from '../lib/auth';
-import { planLabel, type Period, type Plan } from '../lib/planOffers';
+import { PERIOD_LABELS, planLabel, type Period, type Plan } from '../lib/planOffers';
 import {
 	initPlayStore,
 	PAYMENT_CANCELLED,
@@ -128,9 +128,10 @@ export const usePlayPurchase = (): PurchaseUi => {
 			return { text: '', node: null };
 		}
 		const changing = subscription !== null && subscription.plan !== 'free';
-		const label = changing ? 'Wechseln' : 'Buchen';
+		const text = changing ? 'Wechseln' : 'Buchen';
+		const label = `${planLabel(plan)} ${text.toLowerCase()} (${PERIOD_LABELS[period]})`;
 		return {
-			text: label,
+			text,
 			node: (
 				<KolButton
 					data-testid={`${changing ? 'change-plan' : 'book'}-${plan}-${period}`}

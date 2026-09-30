@@ -238,7 +238,8 @@
 		"imprintPath": "impressum/",
 		"accountDeletion": "Удалить аккаунт",
 		"accountDeletionPath": "delete-account/",
-		"privacy": "Конфиденциальность"
+		"privacy": "Конфиденциальность",
+		"terms": "Условия использования"
 	},
 	"imprint": {
 		"title": "Выходные данные",

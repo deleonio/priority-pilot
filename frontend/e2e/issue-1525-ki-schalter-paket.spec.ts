@@ -68,7 +68,7 @@ test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 		await expect(planAlert).toContainText('Plus');
 
 		await planAlert.getByRole('button').click();
-		await expect(page.getByRole('heading', { name: 'Pakete im Vergleich' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Pakete', exact: true })).toBeVisible();
 	});
 
 	test('AK6: bei 375px liegt der Alert über dem Schalter, die Karte bleibt im Viewport', async ({ page }) => {
