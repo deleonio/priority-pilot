@@ -2,6 +2,12 @@
 
 _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Hand bearbeiten. Ein Abschnitt fasst alle Releases derselben Minor-Version zusammen; neue Einträge entstehen über die `release:*`-Labels des PR-Documenters, s. CONTRIBUTING.md._
 
+## v0.11 - 2026-09-30
+
+### 🔧 Engineering
+
+- chore(deps): update renovatebot/github-action action to v46.3.6 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1866
+
 ## v0.10 - 2026-09-30
 
 _Enthält v0.10.0 – v0.10.36._
