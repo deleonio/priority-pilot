@@ -71,6 +71,8 @@ pipeline and later readers see it.
 - Report only on change (phase switch, merge, blocker, question). A quiet check-in stays quiet.
 - Notifications can arrive late, twice, or after the fact. Verify the current state before
   acting on one.
+- A question the author dismissed is not asked again. It stays under "Offen beim Autor" in the
+  check-in until the author answers on their own; the issue waits, the rest goes on.
 
 ## 4. Pitfalls
 
@@ -111,6 +113,10 @@ pipeline and later readers see it.
 12. **Stale base.** A PR branched before a related merge can pass its own CI and still break
     main. When two PRs of the epic touch the same files, merge main into a local copy of the
     later one and run the affected package tests before its gate merge.
+13. **Pushes into a running phase.** A phase run works on the branch state from its start. A
+    push to that branch meanwhile (also a base merge) can make its push fail or land on top
+    unseen. Do not push while a phase runs on the branch; when it happened, check the head
+    after the run (own commit present, on top of the foreign one) before routing on.
 
 ## 5. Tool notes
 
