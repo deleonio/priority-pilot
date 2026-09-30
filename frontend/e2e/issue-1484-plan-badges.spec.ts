@@ -268,7 +268,7 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 	 * „Zeile ohne `columnheader`-Zelle" von der Kopfzeile abgegrenzt, die erwartete Feature-
 	 * Zeilenanzahl ergibt sich als Gesamtzahl der Datenzeilen minus dieser 6 konstanten Zeilen.
 	 */
-	test('#1524 AK9: die erweiterte Paket-Tabelle (8 Feature-Zeilen, #1782: graph_weight) bleibt ohne horizontalen Overflow', async ({
+	test('#1524 AK9: die erweiterte Paket-Tabelle (9 Feature-Zeilen, #1782: graph_weight, #1927: feedback) bleibt ohne horizontalen Overflow', async ({
 		page,
 	}) => {
 		await page.goto('/app/settings/pakete');
@@ -278,11 +278,11 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 		await expect(host).toBeVisible();
 
 		// Test-Pflege (#1902): die Feature-Zeilen der Matrix stehen je Paket als Listenpunkte im
-		// `KolDetails` — das Paket mit allem Umfang trägt alle 8 Funktionen.
+		// `KolDetails` — das Paket mit allem Umfang trägt alle 9 Funktionen.
 		const featureCounts = await host
 			.locator('[data-testid^="plan-item-"]')
 			.evaluateAll((items) => items.map((item) => item.querySelectorAll('kol-details li').length));
-		expect(Math.max(...featureCounts)).toBe(8);
+		expect(Math.max(...featureCounts)).toBe(9);
 
 		// Geprüft wird „kein Seitenüberlauf": die Paketliste bricht um, statt seitlich zu scrollen (#1902).
 		await expectWithinViewport(host);
