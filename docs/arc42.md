@@ -11,7 +11,7 @@ mit Abhängigkeiten, Deadlines und Prioritäten, Lebensbalance-Säulen mit Gewic
 Punkte-Konto (Gamification), wiederkehrende Aufgaben (Serien), Gruppen mit geteilten Tasks und
 Serien, ortsbezogene Aufgaben („Nearby"), ÖPNV-Verbindungen (Bahn-Seite), KI-Unterstützung
 (Säulen-Klassifikation, Freitext-Parsing, Aktivitäten-Berater, Lektorat) sowie ein
-Paketmodell mit PayPal-Abos (Free-/Pro-/Max-/Ultimate-Stufen). Erinnerungen gehen als
+Paketmodell mit PayPal-Abos (Free-/Plus-/Pro-Stufen, ADR 0018). Erinnerungen gehen als
 Web-Push oder E-Mail raus.
 
 Das Repository ist ein pnpm-Monorepo mit fünf Workspaces ([pnpm-workspace.yaml](../pnpm-workspace.yaml)):
@@ -138,17 +138,18 @@ graph LR
 - **Gamification als eigene Fachlogik:** Punktevergabe (`server/src/logics/score.ts`, getrennt vom
   Wertschöpfungs-Beitrag `value.ts`), Balance-Aggregation je Säule über `/scores/by-pillar`.
 - **Monetarisierung mit einer Rechte-Zentrale:** Paket-Katalog, Preise, Kontingente und
-  Entitlements (`free`/`pro`/`max`/`ultimate`) existieren nur in `server/src/logics/plans.ts`
+  Entitlements (`free`/`plus`/`pro`) existieren nur in `server/src/logics/plans.ts`
   (`getPlansCatalog()`, `getEntitlements()`, `shouldBlockFeature()`); Routen deklarieren ihren
   Feature-Bedarf über `planGuard.ts`, LLM-Routen zählen verbrauchende Nutzungen über
   `aiQuotaMeter.ts` — Coverage-Tests erzwingen, dass keine neue Route das Gating vergisst.
   Abos laufen über PayPal (ADR 0013) oder — in der Android-App — über Google Play Billing mit
   Server-Verifikation (ADR 0017); die Paket-Angebote leben in den Einstellungen (ADR 0014).
-  KI-Kontingente je Monat: Pro 60, Max 110, Ultimate 200 Aufrufe, Free keine KI-Assistenz.
+  KI-Hilfe: Free keine, Plus und Pro Fair Use — ein internes Monatsbudget drosselt bei Überschreitung
+  auf eine Anfrage je 30 Sekunden (`AI_ASSIST_MONTHLY_QUOTA`, `AI_FAIR_USE_INTERVAL_SECONDS`).
   Durchgesetzt wird erst mit dem Env-Schalter `MONETIZATION_ENFORCED` (Default aus, Rückweg ohne
   Deploy). Übergangsregel (#1463): Vor dem Einschalten hebt das CLI-Skript
   `server/src/cli/grandfatherPlans.ts` alle vor einem Stichtag angelegten `free`-Konten einmalig
-  auf `ultimate` — bewusst außerhalb von `migrate.ts`, Runbook in `docs/deployment.md`.
+  auf `pro` — bewusst außerhalb von `migrate.ts`, Runbook in `docs/deployment.md`.
 
 ## 5. Bausteinsicht
 
@@ -399,6 +400,7 @@ Die Begründungen stehen vollständig in [docs/adr/](adr/); hier nur der Verweis
 | [0015](adr/0015-oeffentliche-website-und-app-unter-app.md) | Öffentliche Website an der Wurzel, App unter /app/                 | Akzeptiert                                     |
 | [0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md) | Nativer Wrapper: Capacitor im Remote-Modus                         | Akzeptiert                                     |
 | [0017](adr/0017-store-billing-google-play.md)              | Store-Billing: Google Play Billing mit eigener Server-Verifikation | Akzeptiert; Preisgestaltung offen              |
+| [0018](adr/0018-preismodell-free-plus-pro.md)              | Preismodell: Free, Plus und Pro                                    | Akzeptiert; ersetzt Teile von ADR 0014         |
 
 ## 10. Qualitätsanforderungen
 
@@ -513,7 +515,7 @@ dokumentiert.
 | Silent Login                  | Stiller Google-OAuth-Versuch mit `prompt=none` beim App-Start (`frontend/src/Root.tsx`)                                                |
 | VAPID                         | Schlüsselpaar für Web-Push; öffentlicher Teil über `GET /push/vapid-public-key`                                                        |
 | Nearby                        | Ortsbezogene Tasks im Umfeld der gemeldeten Position (`GET /tasks/nearby`)                                                             |
-| Paket (Plan)                  | Buchbare Stufe `free`/`pro`/`max`/`ultimate` am User; Katalog und Rechte allein in `server/src/logics/plans.ts`                        |
+| Paket (Plan)                  | Buchbare Stufe `free`/`plus`/`pro` am User; Katalog und Rechte allein in `server/src/logics/plans.ts`                                  |
 | Entitlement                   | Feature-Freigabe je Paket (`shouldBlockFeature`), deklariert pro Route über `planGuard.ts`                                             |
 | API-Token                     | Persönlicher Bearer-Token für externe Clients (Präfix `pp_`, gehasht gespeichert), mit Scope `read`/`readwrite`                        |
 | MCP                           | Model Context Protocol; `POST /mcp/v1` bietet externen Clients (Claude Code, ZCode-Connector) `initialize`, `tools/list`, `tools/call` |
