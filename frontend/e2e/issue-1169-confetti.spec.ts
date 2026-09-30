@@ -136,7 +136,9 @@ test.describe('Balamentum — Konfetti beim Erledigt-Toggle (#1169)', () => {
 		await doneToggle(page, id).click();
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 
-		// Ersteffekt nicht mitzählen: Overlay-Anzahl VOR dem Reopen merken …
+		// Ersteffekt nicht mitzählen: erst auf sein Overlay warten (sonst Zählung 0, Overlay kommt
+		// nachträglich → Flake #1924), dann die Anzahl VOR dem Reopen merken …
+		await expect(confetti(page).first()).toBeVisible();
 		const overlaysBeforeReopen = await confetti(page).count();
 
 		// … und sofort über das noch offene Popover wiederveröffnen (Muster done-toggle.spec.ts, #387).
@@ -146,7 +148,7 @@ test.describe('Balamentum — Konfetti beim Erledigt-Toggle (#1169)', () => {
 
 		// Kein NEUES Overlay — kurzes Fenster reicht, da launchConfetti synchron zum Klick passiert.
 		await page.waitForTimeout(1_000);
-		expect(await confetti(page).count()).toBe(overlaysBeforeReopen);
+		expect(await confetti(page).count()).toBeLessThanOrEqual(overlaysBeforeReopen);
 	});
 
 	test('AK5: während der Konfetti-Animation bleibt eine andere Aufgabe bedienbar', async ({ page }) => {
