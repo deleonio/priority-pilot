@@ -166,6 +166,21 @@ describe('Benachrichtigung bei erledigter, fremd angelegter Aufgabe (#1391)', ()
 		assert.equal(logs.length, 1, 'je Aufgabe genau eine Dedupe-Zeile, auch nach mehrfachem Done');
 	});
 
+	// ── #1821 AK4: reines Bearbeiten eines Done-Tasks sendet nichts ─────────────────
+
+	it('#1821 AK4: Titel-Änderung an erledigtem Task → 200, kein weiterer Versand', async () => {
+		await seedSharedGroup();
+		await seedSubscription(await userIdOf(ALICE), 'https://push.example/alice-1');
+		const taskId = await createTaskForBob('Nachträglich bearbeitet');
+		const bobCookie = await server.login(BOB);
+		assert.equal((await patchTask(bobCookie, taskId, { status: 'Done' })).status, 200);
+		assert.equal(calls.length, 1, 'Vorbedingung: der Übergang auf Done sendet genau einmal');
+
+		const edit = await patchTask(bobCookie, taskId, { title: 'Neuer Titel', priority: 5 });
+		assert.equal(edit.status, 200);
+		assert.equal(calls.length, 1, 'Bearbeiten ohne Statuswechsel löst keinen Erledigt-/Meilenstein-Push aus');
+	});
+
 	// ── AK5: wirfender Sender — PATCH bleibt 200, kein Log-Eintrag ──────────────────
 
 	it('PushSender wirft → PATCH bleibt 200 mit aktualisiertem Task, keine NotificationLog-Zeile (AK5)', async () => {

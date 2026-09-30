@@ -1,11 +1,13 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
-import { Group, GroupMember, User } from '../models/index.js';
+import { Group, GroupMember, ScoreEntry, User } from '../models/index.js';
 
 /**
- * Rote Spec-Tests für #1438 (Spec `docs/spec/issue-1438.md`) — erledigte Tasks vor inhaltlicher
- * Bearbeitung schützen.
+ * Spec-Tests für #1438 (Spec `docs/spec/issue-1438.md`), teilweise abgelöst durch #1821
+ * (Spec `docs/spec/issue-1821.md`): erledigte Tasks sind wieder direkt bearbeitbar (AK1/AK4/AK6
+ * umgedreht auf 200), Punkte werden bei Änderung von Aufwand/Priorität/Deadline neu berechnet.
+ * Unten: Sperre-Beschreibung von #1438, soweit noch gültig (Reopen, Idempotenz).
  *
  * Ein erledigter Task (`status: 'Done'`) ist eingefroren: `PATCH /tasks/:id` lehnt inhaltliche
  * Änderungen mit 409 ab, solange der Request den Status nicht im selben Aufruf von `Done`
@@ -75,18 +77,21 @@ describe('PATCH /tasks/:id — Done-Bearbeitungssperre (#1438)', () => {
 		await closeDb();
 	});
 
-	it('AK1: nur inhaltliche Felder ohne status auf einen Done-Task → 409, Titel bleibt unverändert', async () => {
+	it('#1821 AK1: inhaltliche Felder ohne status auf einen Done-Task → 200, Felder übernommen, Status bleibt Done (bisher #1438 AK1 → 409)', async () => {
 		const task = await createTask(cookie, { title: 'Original' });
 		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
 
-		const res = await patchTask(cookie, task.id, { title: 'Neu' });
-		assert.equal(res.status, 409);
-		const body = (await res.json()) as { message?: string };
-		assert.equal(typeof body.message, 'string');
-		assert.ok((body.message as string).length > 0, 'message darf nicht leer sein');
+		const res = await patchTask(cookie, task.id, { title: 'Neu', priority: 5 });
+		assert.equal(res.status, 200);
 
-		const nachlese = await getTask(cookie, task.id);
-		assert.equal(((await nachlese.json()) as { title: string }).title, 'Original');
+		const nachlese = (await (await getTask(cookie, task.id)).json()) as {
+			title: string;
+			priority: number;
+			status: string;
+		};
+		assert.equal(nachlese.title, 'Neu');
+		assert.equal(nachlese.priority, 5);
+		assert.equal(nachlese.status, 'Done');
 	});
 
 	it('AK2: {status: "Open"} auf einen Done-Task → 200, Reopen bleibt möglich', async () => {
@@ -119,15 +124,15 @@ describe('PATCH /tasks/:id — Done-Bearbeitungssperre (#1438)', () => {
 		assert.equal(body.priority, 5);
 	});
 
-	it('AK4: {status: "Done", title: "Neu"} auf bereits erledigten Task → 409, Titel bleibt unverändert', async () => {
+	it('#1821 AK2: {status: "Done", title: "Neu"} auf bereits erledigten Task → 200, Titel übernommen (bisher #1438 AK4 → 409)', async () => {
 		const task = await createTask(cookie, { title: 'Original' });
 		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
 
 		const res = await patchTask(cookie, task.id, { status: 'Done', title: 'Neu' });
-		assert.equal(res.status, 409);
+		assert.equal(res.status, 200);
 
 		const nachlese = await getTask(cookie, task.id);
-		assert.equal(((await nachlese.json()) as { title: string }).title, 'Original');
+		assert.equal(((await nachlese.json()) as { title: string }).title, 'Neu');
 	});
 
 	it('AK5: {status: "Done"} ohne inhaltliche Felder auf bereits erledigten Task → weiterhin 200, kein zweiter ScoreEntry', async () => {
@@ -146,7 +151,7 @@ describe('PATCH /tasks/:id — Done-Bearbeitungssperre (#1438)', () => {
 		assert.equal(nachZweitemDone, 1, 'kein zweiter ScoreEntry durch das wiederholte Done');
 	});
 
-	it('AK6: Übergabe (userId) an ein Gruppenmitglied ohne Statuswechsel auf einen Done-Task → 409, Eigentümer bleibt unverändert', async () => {
+	it('#1821 AK1: Übergabe (userId) an ein Gruppenmitglied auf einen Done-Task → 200, Eigentümer wechselt (bisher #1438 AK6 → 409)', async () => {
 		const memberCookie = await server.register(MEMBER);
 		const ownerId = await userIdOf(OWNER);
 		const memberId = await userIdOf(MEMBER);
@@ -159,11 +164,9 @@ describe('PATCH /tasks/:id — Done-Bearbeitungssperre (#1438)', () => {
 		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
 
 		const res = await patchTask(cookie, task.id, { userId: memberId });
-		assert.equal(res.status, 409);
-
-		const nachlese = await getTask(cookie, task.id);
-		const body = (await nachlese.json()) as { userId: number };
-		assert.equal(body.userId, ownerId, 'Eigentümer darf sich durch die abgelehnte Übergabe nicht ändern');
+		assert.equal(res.status, 200);
+		assert.equal(((await res.json()) as { userId: number }).userId, memberId);
+		assert.notEqual(memberId, ownerId);
 	});
 
 	it('AK6b: {userId: <eigene ID>} ohne Statuswechsel auf einen Done-Task → 200 (No-Op, #1252)', async () => {
@@ -174,5 +177,69 @@ describe('PATCH /tasks/:id — Done-Bearbeitungssperre (#1438)', () => {
 		const res = await patchTask(cookie, task.id, { userId: ownerId });
 		assert.equal(res.status, 200);
 		assert.equal(((await res.json()) as { userId: number }).userId, ownerId);
+	});
+});
+
+describe('PATCH /tasks/:id — Punkte-Neuberechnung bei Done-Bearbeitung (#1821 AK3)', () => {
+	let cookie: string;
+
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+		cookie = await server.register(OWNER);
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const scoreOf = async (taskId: number): Promise<{ punkte: number; pünktlich: boolean; zeitpunkt: string }> => {
+		const entries = await fetchScores(cookie);
+		const own = (entries as Array<{ taskId: number; punkte: number; pünktlich: boolean; zeitpunkt: string }>).filter(
+			(entry) => entry.taskId === taskId,
+		);
+		assert.equal(own.length, 1, 'genau ein ScoreEntry je Task');
+		return own[0];
+	};
+
+	it('Aufwand/Priorität geändert → punkte = neuer Aufwand × neue Priorität, zeitpunkt unverändert, weiterhin ein Eintrag', async () => {
+		const task = await createTask(cookie, {
+			title: 'Punkte',
+			priority: 2,
+			estimatedEffort: 1,
+			deadline: new Date('2099-01-01T00:00:00.000Z').toISOString(),
+		});
+		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
+		const vorher = await scoreOf(task.id);
+		assert.equal(vorher.punkte, 2);
+
+		const res = await patchTask(cookie, task.id, { estimatedEffort: 3, priority: 4 });
+		assert.equal(res.status, 200);
+
+		const nachher = await scoreOf(task.id);
+		assert.equal(nachher.punkte, 12);
+		assert.equal(nachher.pünktlich, true);
+		assert.equal(nachher.zeitpunkt, vorher.zeitpunkt, 'zeitpunkt (Erledigt-Datum) darf sich nicht ändern');
+		assert.equal(await ScoreEntry.count({ where: { taskId: task.id } }), 1);
+	});
+
+	it('Deadline vor den gespeicherten zeitpunkt gesetzt → pünktlich false, Punkte halbiert', async () => {
+		const task = await createTask(cookie, {
+			title: 'Verspätet',
+			priority: 2,
+			estimatedEffort: 2,
+			deadline: new Date('2099-01-01T00:00:00.000Z').toISOString(),
+		});
+		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
+		assert.equal((await scoreOf(task.id)).pünktlich, true);
+
+		const res = await patchTask(cookie, task.id, { deadline: new Date('2020-01-01T00:00:00.000Z').toISOString() });
+		assert.equal(res.status, 200);
+
+		const nachher = await scoreOf(task.id);
+		assert.equal(nachher.pünktlich, false);
+		assert.equal(nachher.punkte, 2, 'Basis 2 × 2 = 4, verspätet × 0,5');
 	});
 });
