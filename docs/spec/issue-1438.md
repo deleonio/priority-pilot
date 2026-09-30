@@ -1,5 +1,8 @@
 # Spec: Erledigte Tasks vor inhaltlicher Bearbeitung schützen (#1438)
 
+> Abgelöst durch #1821 (`docs/spec/issue-1821.md`): erledigte Tasks sind wieder direkt bearbeitbar.
+> Weiter gültig sind nur Reopen (AK2/AK2b/AK3) und Idempotenz (AK5/AK6b).
+
 Status: rot (Spec-Phase) — Tests in `server/src/express/tasks-done-edit-guard.test.ts`,
 `server/src/mcp/tools.test.ts`.
 
