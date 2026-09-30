@@ -949,7 +949,7 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 		await act(async () => {
 			(cta as unknown as { _on: { onClick: (e: unknown) => void } })._on.onClick({});
 		});
-		expect(onTabChange).toHaveBeenCalledWith(6);
+		expect(onTabChange).toHaveBeenCalledWith(7);
 	});
 
 	it('AK2: allowed=true → Schalter bedienbar, kein Paket-Alert, Umlegen persistiert weiterhin', async () => {
