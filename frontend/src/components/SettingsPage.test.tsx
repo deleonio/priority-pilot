@@ -966,26 +966,19 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 	});
 
 	it('#1903 AK6 (Test-Pflege #1525 AK4): eigener Custom-Provider hebt die Sperre NICHT mehr auf → Schalter gesperrt, Paket-Alert bleibt', async () => {
-		// `useHasCustomLlmProvider` cached das Ergebnis von `listLlmProviders` modulweit
-		// (`aiPreferences.ts`) — AK1/AK2 oben haben den Cache bereits mit dem Leer-Default (kein
-		// Custom-Provider) gefüllt. Frischer Modul-Graph + eigener Mock-Rückgabewert stellen sicher,
-		// dass DIESER Test wirklich `hasCustomProvider: true` durchläuft statt den alten Cache-Wert.
-		vi.resetModules();
+		// Test-Pflege #1941: das Gate lädt keine Provider-Liste mehr (kein Modul-Cache, kein
+		// `vi.resetModules` nötig); der eigene Provider steht nur noch in der Provider-Verwaltung.
 		apiMocks.listLlmProviders = vi.fn().mockResolvedValue([{ id: 1, kind: 'custom', own: true }]);
-		const { SettingsPage: FreshSettingsPage } = await import('./SettingsPage');
-		const { PlanProvider: FreshPlanProvider } = await import('../lib/usePlan');
 
 		const entitlements: EntitlementMap = {
 			ai_assist: { allowed: false, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
 		};
 		const { container } = render(
-			<FreshPlanProvider value={{ plan: 'free', entitlements }}>
-				<FreshSettingsPage {...defaultProps} />
-			</FreshPlanProvider>,
+			<PlanProvider value={{ plan: 'free', entitlements }}>
+				<SettingsPage {...defaultProps} />
+			</PlanProvider>,
 		);
 
-		// Re-query bei jedem Poll: der `key`-Wechsel (Finding #1 dieser Runde) remountet den Schalter
-		// beim Kippen von `hasCustomProvider`, eine einmal eingesammelte Referenz bliebe stehen.
 		const queryToggle = () => container.querySelector('kol-input-checkbox[_label="KI aktivieren"]');
 		await waitFor(() => {
 			const toggle = queryToggle();

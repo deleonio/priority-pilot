@@ -39,7 +39,6 @@ import { notifyTasksChanged } from '../lib/tasksChanged';
 import { ConfirmDiscardDialog } from './ConfirmDiscardDialog';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
-import { PlanBadge } from './PlanBadge';
 import {
 	fillContributions,
 	redistributeShares,
@@ -291,7 +290,7 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 
 	// #1080: Ohne aktive KI werden die Lektorat-Buttons (Titel/Beschreibung) nicht gerendert —
 	// die Präferenz ist clientseitig gespeichert und ändert sich nur über die Einstellungen.
-	// #1525: zusätzlich an die Paket-Freischaltung `ai_assist` (oder einen eigenen Provider) gekoppelt.
+	// #1525: zusätzlich an die Paket-Freischaltung `ai_assist` gekoppelt.
 	const aiEnabled = useAiFeaturesGate();
 
 	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
@@ -1154,9 +1153,6 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
 								{aiEnabled && (
 									<>
-										{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — nur zusammen mit dem Lektorat-Button,
-										    damit ohne aktive KI keine leere Zeile entsteht. */}
-										<PlanBadge feature="ai_assist" inModal />
 										<KolButton
 											ref={lektoratTitleTriggerRef}
 											_label="Titel lektorieren"
@@ -1272,11 +1268,10 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 								<div className="pillar-editor">
 									<div className="pillar-editor-head">
 										<span className="pillar-editor-label">Säulen-Verteilung</span>
-										{/* #1527: Ohne KI-Berechtigung bleiben Badge und Vorschlag-Button ausgeblendet
+										{/* #1527: Ohne KI-Berechtigung bleibt der Vorschlag-Button ausgeblendet
 										    — die Regler selbst bleiben unberührt. */}
 										{aiEnabled && (
 											<>
-												<PlanBadge feature="ai_assist" inModal />
 												<KolButton
 													_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
 													_variant="secondary"
@@ -1588,8 +1583,6 @@ export const TaskForm = forwardRef<TaskFormHandle, TaskFormProps>(function TaskF
 							{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
 							{aiEnabled && (
 								<>
-									{/* #1484 (T3b AK3): Grenzstelle `ai_assist` — wie beim Titel-Lektorat. */}
-									<PlanBadge feature="ai_assist" inModal />
 									<KolButton
 										ref={lektoratDescriptionTriggerRef}
 										_label="Beschreibung lektorieren"

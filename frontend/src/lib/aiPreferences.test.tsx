@@ -9,7 +9,6 @@ import {
 	useAiFeaturesGate,
 	AI_ENABLED_STORAGE_KEY,
 	computeAiFeaturesEnabled,
-	hasOwnCustomProvider,
 	readAiPreferences,
 	storeAiPreferences,
 } from './aiPreferences';
@@ -95,104 +94,29 @@ describe('aiPreferences — readAiPreferences / storeAiPreferences (#1335 AK4)',
 	});
 });
 
-// ── #1525 (TF3, Spec docs/spec/issue-1525.md AK1/AK3/AK4/AK5) ──────────────────────────────────
+// ── #1525 (TF3, Spec docs/spec/issue-1525.md AK1/AK3/AK5) ──────────────────────────────────────
 
 /**
- * Rote Spec-Tests für #1525 — effektives KI-Gate: Präferenz UND (Berechtigung `ai_assist` ODER
- * eigener Custom-Provider). `computeAiFeaturesEnabled` existiert noch nicht in `aiPreferences.ts`
- * (roter Import-Fehler bis zur Implementierung — echte neue Funktionalität, kein Bestandscode).
+ * Effektives KI-Gate: Präferenz UND Berechtigung `ai_assist` (#1903 AK7). Test-Pflege #1941 AK2:
+ * der Custom-Provider-Eingang und `hasOwnCustomProvider` (#1549 AK8b) sind entfallen.
  *
  * Vertrag (Wahrheitstabelle):
- * - `preferenceEnabled: false` → immer `false`, unabhängig von Berechtigung/Custom-Provider (AK3).
- * - `preferenceEnabled: true`, `entitlementAllowed: true` → immer `true` (AK2).
- * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: true` → `false` (#1903 AK7).
- * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: false` → `false` (AK1).
- * - `preferenceEnabled: true`, `entitlementAllowed: undefined` (noch nicht geladen) → immer `false`,
- *   auch mit `hasCustomProvider: true` — sicherer Default, kein Aufblitzen (AK5).
+ * - `preferenceEnabled: false` → immer `false` (AK3).
+ * - `preferenceEnabled: true`, `entitlementAllowed: true` → `true`.
+ * - `preferenceEnabled: true`, `entitlementAllowed: false` → `false` (AK1).
+ * - `entitlementAllowed: undefined` (noch nicht geladen) → `false`, kein Aufblitzen (AK5).
  */
-describe('aiPreferences — computeAiFeaturesEnabled (#1525 AK1/AK3/AK4/AK5)', () => {
-	it.each<[boolean, boolean | undefined, boolean, boolean]>([
-		// preferenceEnabled, entitlementAllowed, hasCustomProvider, expected
-		[false, true, true, false],
-		[false, true, false, false],
-		[false, false, true, false],
-		[false, false, false, false],
-		[false, undefined, true, false],
-		[false, undefined, false, false],
-		[true, true, true, true],
-		[true, true, false, true],
-		// Test-Pflege #1903 AK7: eigener Provider öffnet das Gate nicht mehr (Q2=B, #1525-Pfad entfällt).
-		[true, false, true, false],
-		[true, false, false, false],
-		[true, undefined, true, false],
-		[true, undefined, false, false],
-	])(
-		'preferenceEnabled=%s x entitlementAllowed=%s x hasCustomProvider=%s → %s',
-		(preferenceEnabled, entitlementAllowed, hasCustomProvider, expected) => {
-			expect(computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed, hasCustomProvider })).toBe(expected);
-		},
-	);
-});
-
-// ── #1549 (AK8b, Spec docs/spec/issue-1549.md) ─────────────────────────────────────────────────
-
-/**
- * Rote Spec-Tests für #1549 — das KI-Gate zählt nur noch **eigene** Custom-Provider.
- *
- * `hasOwnCustomProvider` existiert noch nicht in `aiPreferences.ts` (roter Import-Fehler bis zur
- * Implementierung — echte neue Funktionalität). Vertrag: eine Provider-Liste (DTO von
- * `GET /llm-providers`, inkl. `own`) zählt genau dann als „hat eigenen Custom-Provider“, wenn
- * mindestens eine Zeile `kind === 'custom'` UND `own === true` ist. Instanzweite Customs
- * (`own: false`) öffnen das Free-Gate NICHT — der Server liefert dort 403 `plan_required`
- * (#1548 AK7), das Frontend darf das Gate nicht weiter fassen.
- */
-describe('aiPreferences — hasOwnCustomProvider (#1549 AK8b)', () => {
-	it.each([
-		['leere Liste', [], false],
-		['nur instanzweiter Custom', [{ kind: 'custom', own: false }], false],
-		['nur Built-ins', [{ kind: 'builtin', own: false }], false],
-		['Built-in mit own:true (erwartet nie real)', [{ kind: 'builtin', own: true }], false],
-		['eigener Custom', [{ kind: 'custom', own: true }], true],
-		[
-			'instanzweiter + eigener Custom',
-			[
-				{ kind: 'custom', own: false },
-				{ kind: 'custom', own: true },
-			],
-			true,
-		],
-		['fehlendes own-Feld zählt nicht als eigen', [{ kind: 'custom' }], false],
-	])(' %s → %s', (_name, providers, expected) => {
-		expect(hasOwnCustomProvider(providers as never[])).toBe(expected);
-	});
-
-	it('AK8b: Free (kein ai_assist) + nur instanzweite Customs → KI-Schalter aus', () => {
-		const instanceWideOnly = [
-			{ kind: 'builtin', own: false },
-			{ kind: 'custom', own: false },
-		];
-		expect(
-			computeAiFeaturesEnabled({
-				preferenceEnabled: true,
-				entitlementAllowed: false,
-				hasCustomProvider: hasOwnCustomProvider(instanceWideOnly as never[]),
-			}),
-		).toBe(false);
-	});
-
-	// Test-Pflege #1903 AK7: auch ein eigener Custom-Provider öffnet das Free-Gate nicht mehr (Q2=B).
-	it('AK8b: Free (kein ai_assist) + eigener Custom → KI-Schalter aus (#1903)', () => {
-		const withOwn = [
-			{ kind: 'custom', own: false },
-			{ kind: 'custom', own: true },
-		];
-		expect(
-			computeAiFeaturesEnabled({
-				preferenceEnabled: true,
-				entitlementAllowed: false,
-				hasCustomProvider: hasOwnCustomProvider(withOwn as never[]),
-			}),
-		).toBe(false);
+describe('aiPreferences — computeAiFeaturesEnabled (#1525 AK1/AK3/AK5)', () => {
+	it.each<[boolean, boolean | undefined, boolean]>([
+		// preferenceEnabled, entitlementAllowed, expected
+		[false, true, false],
+		[false, false, false],
+		[false, undefined, false],
+		[true, true, true],
+		[true, false, false],
+		[true, undefined, false],
+	])('preferenceEnabled=%s x entitlementAllowed=%s → %s', (preferenceEnabled, entitlementAllowed, expected) => {
+		expect(computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed })).toBe(expected);
 	});
 });
 

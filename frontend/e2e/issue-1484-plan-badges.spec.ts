@@ -71,12 +71,7 @@ const deleteAllPillars = async (page: Page): Promise<void> => {
 };
 
 // #1903: Der Custom-Provider hebt das KI-Gate für Free nicht mehr (AK7) — der Helfer belegt genau das.
-// Test-Pflege (#1527): der Säulen-Vorschlag (`TaskForm.tsx:1473`) rendert Badge und Button jetzt
-// nur noch, wenn `useAiFeaturesGate()` true ist — für Free (kein `ai_assist`) ist das nur über
-// einen eigenen LLM-Provider der Fall (`computeAiFeaturesEnabled`: `entitlementAllowed ||
-// hasCustomProvider`). Mit Custom-Provider bleibt die `ai_assist`-Berechtigung selbst weiterhin
-// `false`, `PlanBadge` zeigt also unverändert den Angebots-Zweig (mit (i)-Schalter) — genau der
-// Zustand, den AK3/AK5/AK8 prüfen. Payload-Vorbild: `issue-1037-llm-action-buttons.spec.ts`.
+// Payload-Vorbild: `issue-1037-llm-action-buttons.spec.ts`.
 const createCustomProvider = async (page: Page): Promise<void> => {
 	const response = await page.request.post('/api/v1/llm-providers', {
 		data: {
@@ -177,34 +172,6 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 
 		await expect(page.getByTestId('plans-section')).toBeVisible();
 		await expect(page.getByRole('dialog').filter({ hasText: /Plus|Pro/ })).toHaveCount(0);
-	});
-
-	// #1528 AK3/TF5: innerhalb der Schnellerfassung hat das Badge kein Klickziel (`inModal`) — ein
-	// Klick schließt nichts und der eingetippte Text bleibt im Feld, bei 375px und 1280px.
-	// Test-Pflege #1903 AK7: Free erreicht die Schnellerfassung nicht mehr über einen eigenen Provider,
-	// mit `ai_assist` fehlt das Badge — der Zustand ist für kein Paket herstellbar.
-	test.skip('#1528 AK3: Schnellerfassungs-Text bleibt nach Badge-Klick im Modal erhalten (375px und 1280px)', async ({
-		page,
-	}) => {
-		await createCustomProvider(page);
-		await page.goto('/app/aufgaben');
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		const capture = page.getByRole('textbox', { name: /Beschreibe/ });
-		await expect(capture).toBeVisible();
-		const badge = page.getByTestId('plan-badge-ai_assist');
-		await expect(badge).toBeVisible();
-
-		await capture.fill('Laufen gehen am Sonntag');
-		await badge.click();
-		await expect(capture).toHaveValue('Laufen gehen am Sonntag');
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
-
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await capture.fill('Zweiter Entwurf');
-		await badge.click();
-		await expect(capture).toHaveValue('Zweiter Entwurf');
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 	});
 
 	// Test-Pflege #1526 AK6 (Spec docs/spec/issue-1526.md): das mcp_readwrite-Badge an der

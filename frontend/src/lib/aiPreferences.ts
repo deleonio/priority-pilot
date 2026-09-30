@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { LlmProvider } from 'client';
-import { api } from '../api';
+import { useCallback, useState } from 'react';
 import { useEntitlement } from './usePlan';
 import type { Plan } from './planOffers';
 
@@ -18,9 +16,9 @@ import type { Plan } from './planOffers';
  * Feature mehr, sondern der eine KI-Anlege-Dialog.
  *
  * #1525: Die Präferenz allein reicht nicht mehr — KI-Bedienelemente brauchen zusätzlich die
- * Berechtigung `ai_assist` ODER einen eigenen LLM-Provider (`kind === 'custom'`). Das effektive
- * Gate ist `computeAiFeaturesEnabled` (reine Funktion, Wahrheitstabelle siehe Tests) plus der Hook
- * `useAiFeaturesEnabled`, der Präferenz, Entitlement und Custom-Provider-Status zusammenführt.
+ * Berechtigung `ai_assist` (#1903: ein eigener Provider hebt die Sperre nicht mehr auf). Das
+ * effektive Gate ist `computeAiFeaturesEnabled` (reine Funktion, Wahrheitstabelle siehe Tests)
+ * plus der Hook `useAiFeaturesEnabled`, der Präferenz und Entitlement zusammenführt.
  */
 
 /** `localStorage`-Schlüssel der KI-Präferenz (muss mit den e2e-Tests übereinstimmen). */
@@ -82,8 +80,6 @@ interface AiFeatureGateInput {
 	preferenceEnabled: boolean;
 	/** `useEntitlement('ai_assist')?.allowed`; `undefined` solange noch nicht geladen. */
 	entitlementAllowed: boolean | undefined;
-	/** Mindestens ein hinterlegter Provider mit `kind === 'custom'` — öffnet das Gate seit #1903 nicht mehr. */
-	hasCustomProvider: boolean;
 }
 
 /**
@@ -94,59 +90,6 @@ interface AiFeatureGateInput {
 export const computeAiFeaturesEnabled = ({ preferenceEnabled, entitlementAllowed }: AiFeatureGateInput): boolean =>
 	preferenceEnabled && entitlementAllowed === true;
 
-/**
- * Ob in einer Provider-Liste mindestens ein **eigener** Custom-Provider steckt (#1549 AK8b):
- * `kind === 'custom'` UND `own === true`. Instanzweite Customs (`own: false`) öffnen das
- * Free-Gate nicht — der Server liefert dort 403 `plan_required` (#1548 AK7), das Frontend darf
- * das Gate nicht weiter fassen als der Server. Reine Funktion als eigene Seam (analog
- * `computeAiFeaturesEnabled`), weil `loadHasCustomProvider` nicht exportiert ist und cachet.
- */
-export const hasOwnCustomProvider = (providers: LlmProvider[]): boolean =>
-	providers.some((provider) => provider.kind === 'custom' && provider.own === true);
-
-/** Cache über die Laufzeit der Seite (mehrere Hook-Instanzen teilen sich einen Request). */
-let customProviderCache: boolean | null = null;
-let customProviderRequest: Promise<boolean> | null = null;
-
-const loadHasCustomProvider = async (): Promise<boolean> => {
-	if (customProviderCache !== null) {
-		return customProviderCache;
-	}
-	customProviderRequest ??= (async (): Promise<boolean> => {
-		try {
-			const providers = await api.listLlmProviders();
-			return hasOwnCustomProvider(providers);
-		} catch {
-			// Best-Effort wie der Rest dieser Datei: eine fehlende/fehlschlagende Provider-Liste
-			// darf das Gate nicht crashen, sie zählt nur als "kein eigener Provider".
-			return false;
-		}
-	})().then((result) => {
-		customProviderCache = result;
-		return result;
-	});
-	return customProviderRequest;
-};
-
-/** Ob mindestens ein eigener LLM-Provider (`kind === 'custom'`) hinterlegt ist (#1525 AK4). */
-const useHasCustomLlmProvider = (): boolean => {
-	const [hasCustomProvider, setHasCustomProvider] = useState(customProviderCache ?? false);
-
-	useEffect(() => {
-		let cancelled = false;
-		loadHasCustomProvider().then((result) => {
-			if (!cancelled) {
-				setHasCustomProvider(result);
-			}
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, []);
-
-	return hasCustomProvider;
-};
-
 interface UseAiFeaturesEnabledResult extends UseAiPreferencesResult {
 	/** Effektives Gate — ob KI-Bedienelemente tatsächlich erscheinen dürfen. */
 	aiFeaturesEnabled: boolean;
@@ -154,25 +97,21 @@ interface UseAiFeaturesEnabledResult extends UseAiPreferencesResult {
 	entitlementAllowed: boolean | undefined;
 	/** Paket aus dem Entitlement, für den Angebots-Alert (`SettingsPage.tsx` AK1). */
 	requiredPlan: Plan | undefined;
-	hasCustomProvider: boolean;
 }
 
-/** Führt Präferenz, Entitlement `ai_assist` und Custom-Provider-Status zum effektiven Gate zusammen. */
+/** Führt Präferenz und Entitlement `ai_assist` zum effektiven Gate zusammen. */
 export const useAiFeaturesEnabled = (): UseAiFeaturesEnabledResult => {
 	const preferences = useAiPreferences();
 	const entitlement = useEntitlement('ai_assist');
-	const hasCustomProvider = useHasCustomLlmProvider();
 
 	return {
 		...preferences,
 		aiFeaturesEnabled: computeAiFeaturesEnabled({
 			preferenceEnabled: preferences.aiEnabled,
 			entitlementAllowed: entitlement?.allowed,
-			hasCustomProvider,
 		}),
 		entitlementAllowed: entitlement?.allowed,
 		requiredPlan: entitlement?.requiredPlan,
-		hasCustomProvider,
 	};
 };
 
@@ -187,7 +126,6 @@ export const useAiFeaturesEnabled = (): UseAiFeaturesEnabledResult => {
 export const useAiFeaturesGate = (): boolean => {
 	const { aiEnabled: preferenceEnabled } = readAiPreferences();
 	const entitlementAllowed = useEntitlement('ai_assist')?.allowed;
-	const hasCustomProvider = useHasCustomLlmProvider();
 
-	return computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed, hasCustomProvider });
+	return computeAiFeaturesEnabled({ preferenceEnabled, entitlementAllowed });
 };
