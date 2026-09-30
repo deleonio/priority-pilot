@@ -490,6 +490,13 @@ describe('renderPrivacy vollständig (#1892)', () => {
 		}
 	});
 
+	it('nimmt das Feedback nicht mehr von der Kontolöschung aus (#1922 AK4)', () => {
+		const feedback = sections.find((s) => /feedback/i.test(s.heading));
+		expect(feedback, 'Feedback-Abschnitt fehlt').toBeDefined();
+		expect(feedback!.text).not.toContain('nicht automatisch');
+		expect(feedback!.text).toMatch(/beim Löschen (des|deines) Kontos/);
+	});
+
 	it('nennt Verantwortlichen, Kontakt aus operator.ts, Betroffenenrechte und Aufsichtsbehörde (AK2)', () => {
 		expect(html).toContain(OPERATOR.name);
 		expect(html).toContain(OPERATOR.email);
