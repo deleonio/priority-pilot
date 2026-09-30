@@ -82,25 +82,17 @@ interface AiFeatureGateInput {
 	preferenceEnabled: boolean;
 	/** `useEntitlement('ai_assist')?.allowed`; `undefined` solange noch nicht geladen. */
 	entitlementAllowed: boolean | undefined;
-	/** Mindestens ein hinterlegter Provider mit `kind === 'custom'`. */
+	/** Mindestens ein hinterlegter Provider mit `kind === 'custom'` — öffnet das Gate seit #1903 nicht mehr. */
 	hasCustomProvider: boolean;
 }
 
 /**
- * Effektives KI-Gate (#1525): Präferenz UND (Berechtigung `ai_assist` ODER eigener Provider).
- * Solange die Berechtigung noch nicht geladen ist, gilt der sichere Default `false` — auch mit
- * eigenem Provider, damit KI-Elemente nicht erst auf- und dann wieder zublitzen (AK5).
+ * Effektives KI-Gate (#1525, #1903 AK7): Präferenz UND Berechtigung `ai_assist`. Ein eigener
+ * Provider hebt die Paket-Sperre nicht mehr auf. Solange die Berechtigung noch nicht geladen ist,
+ * gilt der sichere Default `false`, damit KI-Elemente nicht erst auf- und dann wieder zublitzen (AK5).
  */
-export const computeAiFeaturesEnabled = ({
-	preferenceEnabled,
-	entitlementAllowed,
-	hasCustomProvider,
-}: AiFeatureGateInput): boolean => {
-	if (!preferenceEnabled || entitlementAllowed === undefined) {
-		return false;
-	}
-	return entitlementAllowed || hasCustomProvider;
-};
+export const computeAiFeaturesEnabled = ({ preferenceEnabled, entitlementAllowed }: AiFeatureGateInput): boolean =>
+	preferenceEnabled && entitlementAllowed === true;
 
 /**
  * Ob in einer Provider-Liste mindestens ein **eigener** Custom-Provider steckt (#1549 AK8b):

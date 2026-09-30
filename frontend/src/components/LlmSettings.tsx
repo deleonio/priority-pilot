@@ -1,4 +1,12 @@
-import { KolAlert, KolBadge, KolButton, KolCard, KolInputRadio, KolSingleSelect } from '@public-ui/react-v19';
+import {
+	KolAlert,
+	KolBadge,
+	KolButton,
+	KolCard,
+	KolDetails,
+	KolInputRadio,
+	KolSingleSelect,
+} from '@public-ui/react-v19';
 import type { LlmModel, LlmProvider, LlmProviderTestResult } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
@@ -17,10 +25,14 @@ type DialogState =
 interface LlmSettingsProps {
 	/** Nach Provider-/Modell-Änderungen aufgerufen, damit umliegende UI ggf. neu lädt. */
 	onChanged?: () => void;
+	/** #1903: Unterbereiche aufgeklappt — folgt dem Schalter „KI aktivieren". */
+	open?: boolean;
+	/** #1903 AK6: ohne Paket-Freischaltung sind alle Bedienelemente gesperrt. */
+	disabled?: boolean;
 }
 
 /**
- * LLM-Einstellungen (Settings-Tab „LLM“): Radio-Auswahl genau eines Providers, Modellwahl
+ * LLM-Einstellungen (Karte „KI-Provider" im Settings-Tab „KI"): Radio-Auswahl genau eines Providers, Modellwahl
  * aus der Modellliste des aktiven Providers und Verwaltung der Custom-Provider.
  *
  * - Radio-Auswahl = serverseitig aktiver Provider (`POST /llm-providers/{id}/activate`).
@@ -33,7 +45,7 @@ interface LlmSettingsProps {
  * - KI-Features sind nutzbar, sobald der aktive Provider Key UND Modell hat — der
  *   Status-Hinweis zeigt an, was ggf. noch fehlt.
  */
-export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
+export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSettingsProps) => {
 	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [models, setModels] = useState<LlmModel[] | null>(null);
 	/** True, wenn die Liste nicht live vom Provider kam, sondern aus dem eingebauten Katalog. */
@@ -191,7 +203,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 	}, [models, activeProvider, selectedModelInList]);
 
 	return (
-		<>
+		<KolCard className="settings-card" _label="KI-Provider" _level={2}>
 			{toastMessage !== null && (
 				<KolAlert _type="success" _alert _label="Gespeichert">
 					{toastMessage}
@@ -203,11 +215,10 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 				</KolAlert>
 			)}
 
-			{/* Provider-Auswahl und Provider-Verwaltung sind je eine `KolCard` — dieselbe
-			    Gruppierungsfläche wie in allen anderen Settings-Tabs (Design-Lauf 2026-09). Die
-			    Karten-Labels benennen die Gruppe, die Control-Labels darin die Bedienelemente; kein
-			    Label wiederholt den anderen. */}
-			<KolCard className="settings-card" _label="Provider-Auswahl" _level={2}>
+			{/* Provider-Auswahl und Provider-Verwaltung sind je ein `KolDetails` in der Karte (#1903,
+			    Regel 1: in der Karte klappt `KolDetails`). Die Detail-Labels benennen die Gruppe, die
+			    Control-Labels darin die Bedienelemente; kein Label wiederholt den anderen. */}
+			<KolDetails _label="Provider-Auswahl" _level={3} _open={open}>
 				<div className="settings-card-stack">
 					{providers === null ? (
 						<p>Provider werden geladen…</p>
@@ -223,6 +234,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 										? 'Kein Provider aktiv — es ist kein ENV-Key für Mistral/OpenRouter gesetzt und kein Custom-Provider gewählt.'
 										: 'Wähle den Provider für alle KI-Anfragen. Ohne eigene Wahl übernimmt der Fallback (Mistral vor OpenRouter).'
 								}
+								_disabled={disabled}
 								_on={{ onChange: handleProviderChange }}
 							/>
 
@@ -247,6 +259,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 													? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
 													: 'Die Modelle werden live vom gewählten Provider geladen.'
 											}
+											_disabled={disabled}
 											_on={{
 												onChange: (_event, value) => void handleModelChange(readString(value)),
 											}}
@@ -301,18 +314,19 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 						</>
 					)}
 				</div>
-			</KolCard>
+			</KolDetails>
 
 			{/* Verwaltung: Anlegen + je Custom-Provider Bearbeiten/Löschen; Built-ins sind fix.
 			    Das frühere `<p class="llm-provider-admin__heading">` war eine als Überschrift
-			    gesetzte Textzeile ohne Überschriften-Semantik — jetzt trägt das Karten-Label
+			    gesetzte Textzeile ohne Überschriften-Semantik — jetzt trägt das Detail-Label
 			    den Namen (Design-Lauf 2026-09). */}
-			<KolCard className="settings-card" _label="Provider verwalten" _level={2}>
+			<KolDetails _label="Provider verwalten" _level={3} _open={open}>
 				<div className="llm-provider-admin">
 					<KolButton
 						_label="Neuer Provider"
 						class="settings-action-btn"
 						_variant="secondary"
+						_disabled={disabled}
 						_on={{ onClick: () => setDialog({ kind: 'create' }) }}
 					/>
 					{providers !== null && providers.length > 0 && (
@@ -335,7 +349,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 											_label={testingId === provider.id ? 'Testen…' : 'Testen'}
 											class="settings-action-btn"
 											_variant="secondary"
-											_disabled={testingId !== null}
+											_disabled={disabled || testingId !== null}
 											_on={{ onClick: () => void handleTest(provider) }}
 										/>
 										{provider.kind === 'custom' && (
@@ -344,6 +358,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 													_label="Bearbeiten"
 													class="settings-action-btn"
 													_variant="secondary"
+													_disabled={disabled}
 													_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
 												/>
 												<KolButton
@@ -351,6 +366,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 													_label="Löschen"
 													class="settings-action-btn"
 													_variant="danger"
+													_disabled={disabled}
 													_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
 												/>
 											</>
@@ -377,7 +393,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 						</ul>
 					)}
 				</div>
-			</KolCard>
+			</KolDetails>
 
 			{dialog.kind === 'create' && (
 				<LlmProviderFormDialog
@@ -412,6 +428,6 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 					fallbackFocusRef={deleteTriggerRef as React.RefObject<HTMLElement | null>}
 				/>
 			)}
-		</>
+		</KolCard>
 	);
 };

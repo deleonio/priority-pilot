@@ -171,7 +171,8 @@ describe('aiPreferences — hasOwnCustomProvider (#1549 AK8b)', () => {
 		).toBe(false);
 	});
 
-	it('AK8b: Free (kein ai_assist) + eigener Custom → KI-Schalter an', () => {
+	// Test-Pflege #1903 AK7: auch ein eigener Custom-Provider öffnet das Free-Gate nicht mehr (Q2=B).
+	it('AK8b: Free (kein ai_assist) + eigener Custom → KI-Schalter aus (#1903)', () => {
 		const withOwn = [
 			{ kind: 'custom', own: false },
 			{ kind: 'custom', own: true },
@@ -182,6 +183,6 @@ describe('aiPreferences — hasOwnCustomProvider (#1549 AK8b)', () => {
 				entitlementAllowed: false,
 				hasCustomProvider: hasOwnCustomProvider(withOwn as never[]),
 			}),
-		).toBe(true);
+		).toBe(false);
 	});
 });

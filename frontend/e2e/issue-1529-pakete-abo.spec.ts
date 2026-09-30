@@ -102,8 +102,9 @@ test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () 
 		await page.goto('/app/settings/kategorien');
 		await expect(page.getByRole('tab', { name: 'Kategorien', exact: true })).toHaveAttribute('aria-selected', 'true');
 
+		// Test-Pflege #1903 AK8: `/settings/zugriff` öffnet den Tab „KI" (der Tab „Access-Token" entfällt).
 		await page.goto('/app/settings/zugriff');
-		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
 	test('AK4: bei 375px scrollt der Matrix-Container seitlich, die Seite selbst scrollt nicht mit', async ({ page }) => {

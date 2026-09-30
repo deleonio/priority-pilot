@@ -25,7 +25,7 @@ import { test as base } from '@playwright/test';
 
 // #1525: `entitlements` ist optional im Client-Typ (`AuthUser`, `auth.ts:17`), aber ohne sie bleibt
 // `ai_assist` dauerhaft `undefined` → das neue KI-Gate sperrt sicherheitshalber (AK5) alle
-// KI-Bedienelemente, darunter den Schalter „KI-Features aktiv" in `ai-disable.spec.ts` (#1335).
+// KI-Bedienelemente, darunter den Schalter „KI aktivieren" (#1903) in `ai-disable.spec.ts` (#1335).
 // Diese Fixture steht für den generischen, voll berechtigten Testnutzer alle funktionalen Specs —
 // `ai_assist: allowed:true` hält den Status quo (Pro-Pfad) für Specs, die keine eigene
 // Paket-Gegenprobe machen.

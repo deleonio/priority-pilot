@@ -739,7 +739,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
  * `slot="tab-9"` (letzter Tab; Test-Pflege #1529: vorher `tab-6`, seit den Reitern „Pakete"/„Abo"
- * um zwei Positionen verschoben).
+ * um zwei Positionen verschoben). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 	beforeEach(() => {
@@ -748,7 +748,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		delete apiMocks.deleteApiToken;
 	});
 
-	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-9"] [data-testid="api-tokens-panel"]');
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-2"] [data-testid="api-tokens-panel"]');
 
 	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
@@ -761,7 +761,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		});
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container), 'Panel „Zugriff" (tab-9) fehlt').not.toBeNull();
+		expect(panel(container), 'Token-Panel im Tab „KI" (tab-2) fehlt').not.toBeNull();
 
 		const createButton = container.querySelector(
 			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',

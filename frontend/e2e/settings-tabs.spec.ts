@@ -234,7 +234,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Balamentum');
 
-		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
+		for (const label of ['Allgemein', 'Säulen', 'KI', 'Standort']) {
 			await expect(page.getByRole('tab', { name: label, exact: true })).toBeVisible();
 		}
 		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -297,7 +297,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await expect(page).toHaveURL(/\/settings\/standort$/);
 		await expect(page.getByRole('tab', { name: 'Standort', exact: true })).toHaveAttribute('aria-selected', 'true');
 
-		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
+		await page.getByRole('tab', { name: 'KI', exact: true }).click();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
 
 		await page.getByRole('tab', { name: 'Allgemein', exact: true }).click();
@@ -305,7 +305,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 
 		await page.goBack();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
-		await expect(page.getByRole('tab', { name: 'KI-Provider', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
 	/**
@@ -342,7 +342,7 @@ test.describe('#1151 Eigener Settings-Tab „Standort"', () => {
 		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Balamentum');
 
-		for (const label of ['Allgemein', 'Säulen', 'KI-Provider', 'Standort']) {
+		for (const label of ['Allgemein', 'Säulen', 'KI', 'Standort']) {
 			const box = await page.getByRole('tab', { name: label, exact: true }).boundingBox();
 			expect(box, `Tab „${label}" rendert messbar`).not.toBeNull();
 			expect(box!.x, `Tab „${label}" beginnt im Viewport`).toBeGreaterThanOrEqual(-1);
@@ -369,7 +369,7 @@ test.describe('#1320 Settings-Seite: Browser-Zurück und Deep-Links bleiben erha
 		await page.goto('/app/settings/general');
 		await waitForStableView(page, 'Balamentum');
 
-		await page.getByRole('tab', { name: 'KI-Provider', exact: true }).click();
+		await page.getByRole('tab', { name: 'KI', exact: true }).click();
 		await expect(page).toHaveURL(/\/settings\/llm$/);
 
 		await page.goBack();

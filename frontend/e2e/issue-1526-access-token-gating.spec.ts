@@ -3,7 +3,8 @@ import { waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #1526 (Spec docs/spec/issue-1526.md) — AK1 Tab-Beschriftung „Access-Token" und
- * AK8 375px-Sichtbarkeit von Gating-Alerts.
+ * AK8 375px-Sichtbarkeit von Gating-Alerts. Seit #1903 liegen die Access-Token im Tab „KI" (AK1
+ * nachgezogen, AK6 ergänzt).
  *
  * Läuft gegen das echte Backend (Muster `issue-1484-plan-badges.spec.ts`): eine frische Session
  * über `POST /auth/test-login` liegt auf Paket `free` — weder `mcp_read` noch `mcp_readwrite` sind
@@ -58,12 +59,48 @@ test.describe('Balamentum — #1526: Access-Token-Reiter und Gating', () => {
 		await deleteAllTokens(page);
 	});
 
-	test('AK1: der Reiter unter /settings/zugriff heißt „Access-Token"', async ({ page }) => {
+	// Test-Pflege #1903 AK8: der Reiter „Access-Token" ist im Tab „KI" aufgegangen.
+	test('AK1: /settings/zugriff öffnet den Reiter „KI" mit den Access-Token', async ({ page }) => {
 		await page.goto('/app/settings/zugriff');
 		await waitForStableView(page, 'Allgemein');
 
-		await expect(page.getByRole('tab', { name: 'Access-Token' })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'KI', exact: true })).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByTestId('api-tokens-panel')).toBeVisible();
+	});
+
+	// #1903 AK6 (Q2=B): Free sperrt alles im Tab „KI" — auch mit eigenem Provider.
+	test('#1903 AK6: Free — Tab „KI" sichtbar, Schalter, Provider und Token gesperrt, auch mit eigenem Provider', async ({
+		page,
+	}) => {
+		const created = await page.request.post('/api/v1/llm-providers', {
+			data: {
+				name: 'Gating-Provider-1903',
+				endpoint: 'http://llm.invalid/v1',
+				apiKey: 'test-key',
+				model: 'test-model',
+			},
+		});
+		expect(created.ok(), 'Custom-LLM-Provider muss serverseitig anlegbar sein').toBe(true);
+		const { id } = (await created.json()) as { id: number };
+		try {
+			await page.goto('/app/settings/llm');
+			await waitForStableView(page, 'Allgemein');
+
+			await expect(page.getByRole('tab', { name: 'KI', exact: true })).toBeVisible();
+			await expect(
+				page
+					.getByRole('switch', { name: /^KI aktivieren$/ })
+					.or(page.getByRole('checkbox', { name: /^KI aktivieren$/ })),
+			).toBeDisabled();
+			await expect(page.locator('kol-input-radio[_label="KI-Provider"]').getByRole('radio').first()).toBeDisabled();
+			await expect(page.getByRole('button', { name: 'Neuer Provider' })).toBeDisabled();
+			const customRow = page.locator('.llm-provider-admin__item', { hasText: 'Gating-Provider-1903' });
+			await expect(customRow.getByRole('button', { name: 'Bearbeiten' })).toBeDisabled();
+			await expect(customRow.getByRole('button', { name: 'Löschen' })).toBeDisabled();
+			await expect(page.getByRole('button', { name: 'Token erzeugen' })).toBeDisabled();
+		} finally {
+			await page.request.delete(`/api/v1/llm-providers/${id}`);
+		}
 	});
 
 	test('AK8: beide Gating-Alerts liegen bei 375px ohne horizontales Scrollen im Sichtbereich der gesperrten Elemente', async ({

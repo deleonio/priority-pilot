@@ -91,14 +91,14 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'pakete',
 	'abo',
 ];
-// #1352: „Zugriff" hängt als letzter Tab HINTER dem nur für Admins vorhandenen „Nutzerverwaltung" —
-// die Segmentfolge ist deshalb rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab behält Index 9, „Zugriff" liegt bei 9 bzw. 10).
+// Die Segmentfolge ist rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
+// `SettingsPage` bleibt (der Admin-Tab „Nutzerverwaltung" hängt als Index 9 an).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
-	'zugriff',
 ];
+// #1903: Der Tab „Access-Token" ist im Tab „KI" aufgegangen — sein altes Segment öffnet diesen.
+const SETTINGS_SEGMENT_ALIASES: Readonly<Record<string, string>> = { zugriff: 'llm' };
 // Rollensystem admin/member: Segmente, die nur Admins als Tab sehen (Index-Parität mit den in
 // `SettingsPage` nur bei `isAdmin` angehängten Tabs). Für Member gelten sie als unbekannter Pfad.
 const ADMIN_ONLY_SETTINGS_SEGMENTS: ReadonlySet<string> = new Set(['nutzer']);
@@ -344,7 +344,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const settingsTabIndex =
 		!isAdmin && ADMIN_ONLY_SETTINGS_SEGMENTS.has(settingsSegment)
 			? -1
-			: settingsPathSegments(isAdmin).indexOf(settingsSegment);
+			: settingsPathSegments(isAdmin).indexOf(SETTINGS_SEGMENT_ALIASES[settingsSegment] ?? settingsSegment);
 	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
 
 	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */
@@ -867,7 +867,7 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
-	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI-Provider“).
+	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI“).
 	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute
 	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {

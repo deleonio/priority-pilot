@@ -6,8 +6,8 @@ import { headerAction, openAccordionSection, registerOwnSession, waitForStableVi
  *
  * Spezifikation: docs/spec/issue-1335.md
  *
- * Vertrag (ersetzt #1080/#1085): Im Settings-Tab „KI-Provider" gibt es nur noch EINEN Schalter
- * „KI-Features aktiv". Der bisherige Feinschalter „Schnellerfassung aktiv" und das Accordion
+ * Vertrag (ersetzt #1080/#1085): Im Settings-Tab „KI" (#1903) gibt es nur noch EINEN Schalter
+ * „KI aktivieren". Der bisherige Feinschalter „Schnellerfassung aktiv" und das Accordion
  * „Einzelne KI-Funktionen" existieren nicht mehr; der Storage-Key `pp-quick-capture-enabled` wird
  * nicht mehr gelesen oder geschrieben (AK4). Bei `pp-ai-enabled = false` öffnet „Neuen Task
  * anlegen" direkt das normale Task-Formular, ohne Freitext-Einstieg und ohne „Beraten lassen" (AK5).
@@ -34,19 +34,17 @@ const initAiEnabled = async (page: Page, aiEnabled: boolean): Promise<void> => {
 	}, aiEnabled);
 };
 
-/** Öffnet den KI-Provider-Tab der Einstellungen. */
+/** Öffnet den KI-Tab der Einstellungen (#1903). */
 const openLlmTab = async (page: Page): Promise<void> => {
 	await page.goto('/app/settings/llm');
 	await waitForStableView(page, 'Balamentum');
 };
 
 test.describe('#1335 KI-Features: ein einziger Schalter', () => {
-	test('AK4: genau ein Schalter „KI-Features aktiv" — kein „Schnellerfassung aktiv", kein Accordion', async ({
-		page,
-	}) => {
+	test('AK4: genau ein Schalter „KI aktivieren" — kein „Schnellerfassung aktiv", kein Accordion', async ({ page }) => {
 		await openLlmTab(page);
 
-		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
+		const aiSwitch = switchControl(page, /^KI aktivieren$/);
 		await expect(aiSwitch).toBeVisible();
 		await expect(aiSwitch).toBeChecked();
 
@@ -55,8 +53,11 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 		// Das Accordion, das ausschließlich diesen Feinschalter enthielt, ist mit ihm verschwunden.
 		await expect(page.getByRole('button', { name: /Einzelne KI-Funktionen/ })).toHaveCount(0);
 
-		// Genau ein Schalter im gesamten Tab (kein zweiter Checkbox-/Switch-Input mehr im KI-Bereich).
-		const switches = page.locator('.settings-llm kol-input-checkbox[_variant="switch"]');
+		// Genau ein Schalter im KI-Bereich (kein zweiter Checkbox-/Switch-Input). Test-Pflege #1903: auf die
+		// Karte „KI-Funktionen" begrenzt — die Rechte-Regler der Access-Token liegen jetzt im selben Tab.
+		const switches = page.locator(
+			'.settings-llm kol-card[_label="KI-Funktionen"] kol-input-checkbox[_variant="switch"]',
+		);
 		await expect(switches).toHaveCount(1);
 	});
 
@@ -65,7 +66,7 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 	}) => {
 		await openLlmTab(page);
 
-		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
+		const aiSwitch = switchControl(page, /^KI aktivieren$/);
 		await aiSwitch.click();
 		await expect(aiSwitch).not.toBeChecked();
 		await aiSwitch.click();
@@ -107,14 +108,14 @@ test.describe('#1335 KI-Features: ein einziger Schalter', () => {
 	test('AK5: die KI-Präferenz übersteht das Neuladen unverändert', async ({ page }) => {
 		await openLlmTab(page);
 
-		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
+		const aiSwitch = switchControl(page, /^KI aktivieren$/);
 		await aiSwitch.click();
 		await expect(aiSwitch).not.toBeChecked();
 
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
 
-		await expect(switchControl(page, /^KI-Features aktiv$/)).not.toBeChecked();
+		await expect(switchControl(page, /^KI aktivieren$/)).not.toBeChecked();
 	});
 });
 

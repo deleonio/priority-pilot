@@ -66,6 +66,13 @@ vi.mock('@public-ui/react-v19', () => ({
 			{children}
 		</section>
 	),
+	// #1903: Unterbereiche der Karte „KI-Provider" — `_label` ist die Summary.
+	KolDetails: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<details open>
+			<summary>{_label}</summary>
+			{children}
+		</details>
+	),
 	KolInputRadio: ({ _label }: { _label?: string }) => <fieldset aria-label={_label} />,
 	// KolSingleSelect als natives <select> mit stabiler id — die Modellwahl-Tests greifen
 	// darauf über `#llm-active-model` zu (Muster wie TaskForm.test.tsx).
