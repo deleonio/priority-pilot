@@ -38,7 +38,7 @@ runs:
 
         # 1313 = Fair Usage Policy, 1310 = Weekly/Monthly Limit Exhausted. Die Klartext-
         # Varianten fangen zusaetzlich Provider ab, die keinen Zahlencode mitschicken.
-        FAIR_LINE="$(grep -E '\[131[03]\]|Fair Usage Policy|Limit Exhausted' /tmp/claude-output.log | head -1 | cut -c1-400)"
+        FAIR_LINE="$(grep -E '\[131[03]\]|Fair Usage Policy|Limit Exhausted|hit your (session|usage|weekly|monthly) limit' /tmp/claude-output.log | head -1 | cut -c1-400)"
         if [ -n "$FAIR_LINE" ]; then
           # BEWUSST ::warning statt ::error — ein Limit-Treffer ist eine Information ueber
           # den Provider, kein Defekt dieses Laufs. `::error` faerbt die Run-Uebersicht rot und
@@ -47,7 +47,7 @@ runs:
           echo "🚫 **LLM-Kontingent/Fair-Usage-Limit:** \`${FAIR_LINE}\`" >> "$GITHUB_STEP_SUMMARY"
           # Reset-Zeitpunkt ist die einzige handlungsleitende Angabe — extra herausziehen,
           # damit sie nicht in der abgeschnittenen Zeile untergeht.
-          RESET="$(printf '%s' "$FAIR_LINE" | grep -oE 'reset at [0-9-]+ [0-9:]+' | head -1)"
+          RESET="$(printf '%s' "$FAIR_LINE" | grep -oE 'resets? (at )?[0-9-]+ [0-9:]+|resets [0-9:]+ ?[ap]m \(UTC\)' | head -1)"
           [ -n "$RESET" ] && echo "- ⏳ Kontingent-${RESET}" >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::notice title=✅ Kein LLM-Kontingent-Fehler::LLM-Aufruf ohne Limit-Beschraenkung (1310/1313 geprueft)"
