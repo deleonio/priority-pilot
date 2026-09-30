@@ -30,6 +30,17 @@ const USER_NO_SUBSCRIPTION = {
 	subscription: null,
 };
 
+const activeSubscription = {
+	provider: 'paypal',
+	plan: 'pro',
+	period: 'monthly',
+	status: 'active',
+	currentPeriodEnd: '2026-10-15T00:00:00.000Z',
+	pendingPlan: null,
+	pendingPlanEffectiveAt: null,
+	graceUntil: null,
+};
+
 const mockPlans = async (page: Page, user: Record<string, unknown>): Promise<void> => {
 	await page.route('**/api/v1/plans', (route: Route) =>
 		route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CATALOG) }),
@@ -56,5 +67,25 @@ test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () 
 
 		await page.goto('/app/settings/zugriff');
 		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveAttribute('aria-selected', 'true');
+	});
+
+	test('#1898 AK6: bei 375px ist das Monatsäquivalent in der Paketliste sichtbar, die Seite läuft nicht über', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
+
+		await page.goto('/app/settings/pakete');
+		const hint = page.getByText(/6,39\s€\/Monat bei Jahreszahlung/);
+		await hint.scrollIntoViewIfNeeded();
+		await expect(hint).toBeVisible();
+
+		const pageOverflow = await page.evaluate(() => {
+			const el = document.scrollingElement;
+			return { scrollWidth: el?.scrollWidth ?? 0, clientWidth: el?.clientWidth ?? 0 };
+		});
+		expect(pageOverflow.scrollWidth, 'die Seite selbst darf nicht horizontal überlaufen').toBeLessThanOrEqual(
+			pageOverflow.clientWidth + 1,
+		);
 	});
 });

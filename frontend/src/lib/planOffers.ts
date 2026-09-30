@@ -87,3 +87,7 @@ export const AI_FAIR_USE_INTERVAL_SECONDS = 30;
 /** Freundlicher Drossel-Hinweis (#1783 AK5) — nennt die Wartezeit, nie eine Anzahl Anfragen. */
 export const fairUseMessage = (seconds: number): string =>
 	`Gerade ist viel los. Die KI-Hilfe antwortet etwas langsamer — in etwa ${seconds} Sekunden geht es weiter.`;
+
+/** Monatsäquivalent der Jahreszahlung in Cent — Spiegel von `yearlyMonthlyEquivalent` (server/src/logics/plans.ts, #1898). */
+export const yearlyMonthlyEquivalent = (yearlyCents: number): number | null =>
+	yearlyCents === 0 ? null : Math.floor(yearlyCents / 12);

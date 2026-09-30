@@ -4841,6 +4841,11 @@ a.plan-badge:focus-visible {
 	gap: var(--pp-gap-tight);
 }
 
+/* #1898: Monatsäquivalent der Jahreszahlung als zweite Zeile unter dem Monatspreis. */
+.plans-list__per-month {
+	display: block;
+}
+
 /*
  * Login-Seite (unauthentifizierter Einstieg): vertikales Logo mit Wortmarke, Card auf
  * ruhiger Fläche, Buttons im Website-Stil (Pille, Marke). Alle Farben über --pp-Tokens,

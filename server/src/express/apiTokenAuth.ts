@@ -176,7 +176,8 @@ export const apiTokenScopeGuard = (req: Request, res: Response, next: NextFuncti
 		});
 		return;
 	}
-	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read') {
+	// Feedback (#1890) ist die einzige Schreib-Ausnahme: kein Nutzerdatum, auch mit Nur-lese-Token erlaubt.
+	if (WRITE_METHODS.has(req.method) && req.apiTokenScope === 'read' && path !== '/feedback') {
 		if (req.apiTokenPlanCapped) {
 			const currentPlan = req.session.user?.plan;
 			const { requiredPlan } = getEntitlements(currentPlan ?? 'free').mcp_readwrite;

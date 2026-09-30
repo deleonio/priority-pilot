@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { Subscription, WebhookEvent } from '../models/index.js';
+import { Subscription, User, WebhookEvent } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
 import { applyDuePendingPlan, type PaypalVerificationResult } from '../logics/paypal.js';
@@ -176,8 +176,16 @@ describe('Billing/Webhook-API (#1495)', () => {
 		assert.equal(sub?.get('plan'), 'free', 'Ohne verifiziertes Webhook-Ereignis darf sich der Plan nicht ändern');
 	});
 
-	it('AK6: eine Kündigung setzt den Plan über das Webhook-Ereignis auf free zurück', async () => {
+	const cancelWebhook = (subscriptionId: string, eventType: string) =>
+		rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({ id: `WH-${subscriptionId}`, event_type: eventType, resource: { id: subscriptionId } }),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+	it('#1896 AK3/AK7: eine Kündigung behält das Paket bis Periodenende und merkt free vor', async () => {
 		server = await startTestServer(withVerifier('verified'));
+		const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 		await Subscription.create({
 			userId: 5,
 			provider: 'paypal',
@@ -185,20 +193,103 @@ describe('Billing/Webhook-API (#1495)', () => {
 			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
-			currentPeriodEnd: new Date('2026-12-01'),
+			currentPeriodEnd: periodEnd,
 		});
-		await rawPost(
-			'/webhooks/paypal',
-			JSON.stringify({
-				id: 'WH-CANCEL-1',
-				event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
-				resource: { id: 'I-CANCEL' },
-			}),
-			{ 'paypal-transmission-sig': 'ok' },
-		);
+		await cancelWebhook('I-CANCEL', 'BILLING.SUBSCRIPTION.CANCELLED');
 
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-CANCEL' } });
-		assert.equal(sub?.get('plan'), 'free', 'Eine Kündigung muss den Plan zurücksetzen');
+		assert.equal(sub?.get('plan'), 'pro', 'Bezahltes Paket läuft bis zum Periodenende weiter');
+		assert.equal(sub?.get('status'), 'cancelled');
+		assert.equal(sub?.get('pendingPlan'), 'free');
+		assert.equal((sub?.get('pendingPlanEffectiveAt') as Date).getTime(), periodEnd.getTime());
+		assert.equal((sub?.get('currentPeriodEnd') as Date).getTime(), periodEnd.getTime(), 'Periodenende bleibt (AK7)');
+
+		await applyDuePendingPlan(sub!, new Date(periodEnd.getTime() + 1000));
+		assert.equal(sub?.get('plan'), 'free', 'Nach dem Periodenende gilt free');
+	});
+
+	it('#1896 AK4: eine Kündigung nach abgelaufener Periode ist sofort fällig und führt zu free', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		await Subscription.create({
+			userId: 5,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-CANCEL-LATE',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() - 24 * 60 * 60 * 1000),
+		});
+		await cancelWebhook('I-CANCEL-LATE', 'BILLING.SUBSCRIPTION.CANCELLED');
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-CANCEL-LATE' } });
+		assert.equal(sub?.get('pendingPlan'), 'free');
+		await applyDuePendingPlan(sub!, new Date());
+		assert.equal(sub?.get('plan'), 'free');
+	});
+
+	it('#1896 AK3/AK4: /auth/me wendet die fällige Vormerkung free an, auch neben einem abgebrochenen Neu-Checkout', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		const cookie = await server.register('cancel-me@example.com', 'password123');
+		const dbUser = await User.findOne({ where: { email: 'cancel-me@example.com' } });
+		await dbUser!.update({ plan: 'pro' });
+		const userId = dbUser!.id as number;
+		await Subscription.create({
+			userId,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-CANCEL-ME',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'cancelled',
+			currentPeriodEnd: new Date(Date.now() - 24 * 60 * 60 * 1000),
+			pendingPlan: 'free',
+			pendingPlanEffectiveAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+		});
+
+		const read = async () =>
+			(await (await fetch(`${server.baseUrl}/auth/me`, { headers: { cookie } })).json()) as {
+				plan: string;
+				subscription: { plan: string } | null;
+			};
+		const me = await read();
+		assert.equal(me.subscription?.plan, 'free');
+		assert.equal(me.plan, 'free');
+		assert.equal((await User.findByPk(userId))?.plan, 'free');
+
+		// Vormerkung erneut fällig, dann ein abgebrochener Neu-Checkout (approval_pending).
+		await dbUser!.update({ plan: 'pro' });
+		await Subscription.update(
+			{ plan: 'pro', pendingPlan: 'free', pendingPlanEffectiveAt: new Date(Date.now() - 1000) },
+			{ where: { externalSubscriptionId: 'I-CANCEL-ME' } },
+		);
+		await Subscription.create({
+			userId,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-NEW-CHECKOUT',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+		});
+		const again = await read();
+		assert.equal(again.plan, 'free');
+		assert.equal((await User.findByPk(userId))?.plan, 'free');
+	});
+
+	it('#1896 AK4: EXPIRED setzt weiterhin sofort auf free', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		await Subscription.create({
+			userId: 5,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-EXPIRED',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+		});
+		await cancelWebhook('I-EXPIRED', 'BILLING.SUBSCRIPTION.EXPIRED');
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-EXPIRED' } });
+		assert.equal(sub?.get('plan'), 'free');
 		assert.equal(sub?.get('status'), 'cancelled');
 	});
 

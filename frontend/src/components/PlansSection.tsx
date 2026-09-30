@@ -1,9 +1,10 @@
 import { KolAlert, KolBadge, KolDetails, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { components } from 'client';
 import { formatEuro } from '../lib/format';
-import { featureOffer, PERIOD_LABELS, PERIODS, planLabel, type Plan } from '../lib/planOffers';
+import { featureOffer, PERIOD_LABELS, PERIODS, planLabel, yearlyMonthlyEquivalent, type Plan } from '../lib/planOffers';
 import { getChannel } from '../lib/platform';
 import { usePlan } from '../lib/usePlan';
 import { purchaseHookFor } from './billingChannel';
@@ -21,6 +22,7 @@ export const PlansSection = () => {
 	const { plan } = usePlan();
 	// Der Kanal wechselt zur Laufzeit nicht, der gewählte Hook bleibt über alle Renders derselbe.
 	const usePurchase = purchaseHookFor(getChannel());
+	const { t } = useTranslation('messages');
 	const purchase = usePurchase();
 	const [catalog, setCatalog] = useState<PlansCatalog | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -85,10 +87,18 @@ export const PlansSection = () => {
 									const storePrice =
 										key === 'free' ? undefined : purchase.price?.(key as Exclude<Plan, 'free'>, period);
 									const action = key === 'free' ? undefined : actionCell?.(key as Exclude<Plan, 'free'>, period);
+									// #1898: Monatsäquivalent der Jahreszahlung unter dem Monatspreis; im Store-Modus entfällt es.
+									const perMonth = yearlyMonthlyEquivalent(catalog.prices[key].yearly);
+									const showPerMonth = period === 'monthly' && storePrice === undefined && perMonth !== null;
 									return (
 										<li key={period} className="plans-list__period">
 											<span>
 												{PERIOD_LABELS[period]}: <span>{storePrice ?? formatEuro(catalog.prices[key][period])}</span>
+												{showPerMonth && (
+													<span className="plans-list__per-month">
+														{t('billing.yearlyPerMonth', { price: formatEuro(perMonth) })}
+													</span>
+												)}
 											</span>
 											{action?.node}
 										</li>

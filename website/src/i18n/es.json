@@ -175,6 +175,7 @@
 		"free": "0 €",
 		"quarterly": "{price} por trimestre",
 		"yearly": "o {price} al año",
+		"yearlyPerMonth": "o {price}/mes con pago anual",
 		"discounts": "Con pago trimestral ahorras un 10 %, con pago anual un 20 %. Todos los precios son finales; conforme al § 19 UStG (régimen alemán de pequeñas empresas) no se cobra IVA.",
 		"basics": "Tareas, series, listas de control, plazos, puntos y análisis del equilibrio",
 		"includesPrevious": "Todo lo de {plan}, y además:",
