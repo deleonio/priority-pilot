@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.25._
+_Enthält v0.11.0 – v0.11.27._
 
 ### 🎉 New Features
 
@@ -31,6 +31,7 @@ _Enthält v0.11.0 – v0.11.25._
 - feat(frontend): show amount due before confirming plan change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1925
 - feat(frontend): merge access token tab into ai settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1921
 - feat(frontend): order settings tabs by plan tier by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1930
+- feat(frontend): show invoices to former subscribers by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1948
 
 ### 🔧 Engineering
 
@@ -48,6 +49,7 @@ _Enthält v0.11.0 – v0.11.25._
 - feat(frontend): merge plans and subscription into one settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1919
 - feat(frontend): require terms and privacy consent after login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1929
 - feat(server): push nearby tasks only on entry, once per 24 h (#1926) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1945
+- fix(ci): skip soft-abort labels on account limit (#1943) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1949
 
 ## v0.10 - 2026-09-30
 
@@ -432,7 +434,6 @@ _Enthält v0.2.0 – v0.2.134._
 - docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
 - feat(frontend): confirm before discarding unsaved task form changes by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1600
-- feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(frontend)!: require a full pillar distribution with coupled sliders by @deleonio in https://github.com/deleonio/priority-pilot/pull/1604
 - feat(place-favorites): save by address only, dedupe, and show errors by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1610
 - feat(frontend): randbündige Kopfzeile + design-optimize folgt dem Audit by @deleonio in https://github.com/deleonio/priority-pilot/pull/1611
