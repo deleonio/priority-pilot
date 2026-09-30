@@ -5100,3 +5100,63 @@ a.plan-badge:focus-visible {
 	color: var(--pp-success);
 	font-size: var(--pp-font-size-sm);
 }
+
+/* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit Link darunter */
+.consent-step__group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.consent-step__check {
+	display: flex;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+	min-height: 44px;
+	cursor: pointer;
+}
+
+.consent-step__check input {
+	flex: 0 0 auto;
+	width: 1.25rem;
+	height: 1.25rem;
+	margin: 0;
+	accent-color: var(--pp-brand);
+}
+
+.consent-step__link {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	padding-inline-start: calc(1.25rem + var(--pp-gap-tight));
+	color: var(--pp-brand);
+}
+
+.consent-step__check input:focus-visible,
+.consent-step__link:focus-visible,
+.consent-step__logout:focus-visible {
+	outline: 2px solid var(--pp-focus-ring);
+	outline-offset: 2px;
+}
+
+/* Programmatischer Startfokus auf der Überschrift (tabIndex -1) braucht keinen Ring */
+.login-page__title:focus {
+	outline: none;
+}
+
+.consent-step__hint {
+	margin: 0;
+	color: var(--pp-ink-muted);
+	font-size: var(--pp-font-size-sm);
+}
+
+.consent-step__logout {
+	padding: 0;
+	background: none;
+	border: 0;
+	font-family: inherit;
+	cursor: pointer;
+}

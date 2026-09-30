@@ -23,6 +23,20 @@
 		"noSeries": "Geen series",
 		"noCategories": "Geen categorieën"
 	},
+	"consent": {
+		"title": "Voordat je begint",
+		"intro": "Bevestig de gebruiksvoorwaarden en de privacyverklaring.",
+		"legend": "Toestemming",
+		"acceptTerms": "Ik accepteer de gebruiksvoorwaarden",
+		"acceptPrivacy": "Ik heb de privacyverklaring gelezen",
+		"termsLink": "Gebruiksvoorwaarden",
+		"privacyLink": "Privacyverklaring",
+		"newTab": "(opent in een nieuw tabblad)",
+		"hint": "Bevestig beide punten.",
+		"continue": "Verder",
+		"error": "Je toestemming kon niet worden opgeslagen. Probeer het opnieuw.",
+		"logout": "Afmelden"
+	},
 	"accountDelete": {
 		"title": "Account verwijderen",
 		"intent": "Wil je je account echt verwijderen?",

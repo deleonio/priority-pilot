@@ -170,6 +170,7 @@ export const main = async (): Promise<void> => {
 			migrateTaskPinnedColumns,
 			migratePillarRecalcColumns,
 			migrateUserCareColumns,
+			migrateUserTermsColumns,
 		} = await import('./logics/migrate.js');
 		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
@@ -243,6 +244,8 @@ export const main = async (): Promise<void> => {
 		await migrateUserGeoConfigColumns(sequelize);
 		// Fürsorge-Push-Spalten am User (#1794) — wie oben: sync() ergänzt Bestands-Tabellen nicht.
 		await migrateUserCareColumns(sequelize);
+		// Zustimmungs-Spalten am User (#1901) — wie oben.
+		await migrateUserTermsColumns(sequelize);
 		// Fehlende displayNameCustom-Flag-Spalte an users nachziehen (#1256 — Eigen-Speicherung
 		// schützt den Anzeigenamen vor dem OAuth-Sync) — vor sync(), damit User-Zugriffe auf
 		// Bestands-DBs nicht mit `no such column` brechen.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { KolSpin } from '@public-ui/react-v19';
 import { App } from './App';
 import { BahnPage } from './components/BahnPage';
+import { ConsentStep } from './components/ConsentStep';
 import { GroupJoinPage } from './components/GroupJoinPage';
 import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
@@ -162,6 +163,11 @@ const AuthenticatedApp = () => {
 
 	if (authState === 'error') {
 		return <div role="alert">Authentifizierung fehlgeschlagen. Bitte Seite neu laden.</div>;
+	}
+
+	// #1901: ohne Zustimmung zur aktuellen Fassung zuerst der Zustimmungsschritt, danach die App.
+	if (user!.termsAccepted === false) {
+		return <ConsentStep onAccepted={() => setUser({ ...user!, termsAccepted: true })} />;
 	}
 
 	return <App user={user!} />;

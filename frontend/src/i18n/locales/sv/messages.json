@@ -23,6 +23,20 @@
 		"noSeries": "Inga serier",
 		"noCategories": "Inga kategorier"
 	},
+	"consent": {
+		"title": "Innan du börjar",
+		"intro": "Bekräfta användarvillkoren och integritetspolicyn.",
+		"legend": "Samtycke",
+		"acceptTerms": "Jag godkänner användarvillkoren",
+		"acceptPrivacy": "Jag har tagit del av integritetspolicyn",
+		"termsLink": "Användarvillkor",
+		"privacyLink": "Integritetspolicy",
+		"newTab": "(öppnas i en ny flik)",
+		"hint": "Bekräfta båda punkterna.",
+		"continue": "Fortsätt",
+		"error": "Ditt samtycke kunde inte sparas. Försök igen.",
+		"logout": "Logga ut"
+	},
 	"accountDelete": {
 		"title": "Radera konto",
 		"intent": "Vill du verkligen radera ditt konto?",

@@ -23,6 +23,20 @@
 		"noSeries": "No series",
 		"noCategories": "No categories"
 	},
+	"consent": {
+		"title": "Before you start",
+		"intro": "Please confirm the terms of use and the privacy policy.",
+		"legend": "Consent",
+		"acceptTerms": "I accept the terms of use",
+		"acceptPrivacy": "I have read the privacy policy",
+		"termsLink": "Terms of use",
+		"privacyLink": "Privacy policy",
+		"newTab": "(opens in a new tab)",
+		"hint": "Please confirm both items.",
+		"continue": "Continue",
+		"error": "Your consent could not be saved. Please try again.",
+		"logout": "Sign out"
+	},
 	"accountDelete": {
 		"title": "Delete account",
 		"intent": "Do you really want to delete your account?",

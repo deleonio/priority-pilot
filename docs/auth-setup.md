@@ -22,6 +22,11 @@ beim ersten Login ein Konto, so wie es die öffentliche Website mit „Mit Googl
 in der Cloud Console auf „In Produktion“ stehen, sonst kommen weiterhin nur eingetragene Testnutzer
 durch. Nach dem Login landet man in der App unter `/app/`.
 
+**Zustimmung:** Nach dem Login fragt die App einmal nach den Nutzungsbedingungen und der
+Datenschutzerklärung (#1901). Zeitpunkt und Fassung stehen am Konto (`termsAcceptedAt`,
+`termsVersion`). Wer `TERMS_VERSION` in `server/src/logics/legal.ts` hochsetzt, lässt alle Konten
+beim nächsten Öffnen erneut zustimmen. Im Pass-Through-Modus entfällt der Schritt.
+
 ## Zwei Betriebsmodi
 
 Der Server unterscheidet danach, ob überhaupt ein Auth-Kontext konfiguriert ist

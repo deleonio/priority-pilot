@@ -783,6 +783,31 @@ export const migrateUserCareColumns = async (db: Sequelize): Promise<void> => {
 	}
 };
 
+/** Zustimmungs-Spalten am User (#1901) — Fassung und Zeitpunkt, anfangs leer. */
+const USER_TERMS_COLUMNS = [
+	{ column: 'termsVersion', definition: 'STRING' },
+	{ column: 'termsAcceptedAt', definition: 'DATETIME' },
+] as const;
+
+/**
+ * Zieht die Zustimmungs-Spalten auf einer bestehenden `users`-Tabelle nach (#1901) — idempotent,
+ * No-op bei frischer DB (Muster {@link migrateUserCareColumns}).
+ */
+export const migrateUserTermsColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	for (const { column, definition } of USER_TERMS_COLUMNS) {
+		if (!existing.includes(column)) {
+			await db.query(`ALTER TABLE \`users\` ADD COLUMN \`${column}\` ${definition}`);
+			console.log(`Spalte ${column} an users nachgezogen.`);
+		}
+	}
+};
+
 /**
  * Zieht die `displayNameCustom`-Flag-Spalte auf einer **bestehenden** `users`-Tabelle nach
  * (#1256) — analog `migrateUsersAvatarUrl`, aber NOT NULL mit Default 0: die Flag markiert,

@@ -23,6 +23,20 @@
 		"noSeries": "Nenhuma série",
 		"noCategories": "Nenhuma categoria"
 	},
+	"consent": {
+		"title": "Antes de começar",
+		"intro": "Confirma os termos de utilização e a política de privacidade.",
+		"legend": "Consentimento",
+		"acceptTerms": "Aceito os termos de utilização",
+		"acceptPrivacy": "Li a política de privacidade",
+		"termsLink": "Termos de utilização",
+		"privacyLink": "Política de privacidade",
+		"newTab": "(abre num novo separador)",
+		"hint": "Confirma ambos os pontos.",
+		"continue": "Continuar",
+		"error": "Não foi possível guardar o consentimento. Tenta novamente.",
+		"logout": "Terminar sessão"
+	},
 	"accountDelete": {
 		"title": "Eliminar conta",
 		"intent": "Queres mesmo eliminar a tua conta?",

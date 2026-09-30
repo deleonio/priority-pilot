@@ -17,6 +17,8 @@ export type AuthUser = {
 	entitlements?: EntitlementMap;
 	/** Abo-Status (#1496 AK6); `null` ohne Abo, fehlt bei Alt-Antworten ohne Billing-Felder. */
 	subscription?: Subscription | null;
+	/** Zustimmung zur aktuellen Fassung der Nutzungsbedingungen (#1901); fehlt das Feld, gilt sie als erteilt. */
+	termsAccepted?: boolean;
 	/** Kontokennung für Käufe über Google Play (#1687); fehlt im Pass-Through-Modus. */
 	playAccountId?: string;
 };
