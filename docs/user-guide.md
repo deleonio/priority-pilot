@@ -574,7 +574,7 @@ dadurch unter die Schwelle fällt.
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien, **Pakete**, **Abo** und
+Allgemein, Säulen, KI-Provider, Standort, Gruppen, Kategorien, **Pakete & Abo** und
 Access-Token. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
@@ -669,7 +669,7 @@ Suchtreffern. Weil sie mit Koordinaten gespeichert werden, zählen sie für
 
 ## Pakete
 
-Im Bereich **Pakete** siehst du die verfügbaren Pakete im Vergleich (Matrix aus Features, Limits und Preisen). Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort. Beim Wechsel zu einem höheren Paket über PayPal bestätigst du bei PayPal ein neues Abo; die bezahlte Restlaufzeit des alten Pakets wird taggenau auf den ersten Zeitraum angerechnet und auf der Rechnung als eigene Position ausgewiesen.
+Im Bereich **Pakete & Abo** listet die untere Karte die verfügbaren Pakete mit Preisen und den enthaltenen Funktionen. Du kannst zwischen Paketen wechseln – der Wechsel wird serverseitig verarbeitet und gilt sofort. Beim Wechsel zu einem höheren Paket über PayPal bestätigst du bei PayPal ein neues Abo; die bezahlte Restlaufzeit des alten Pakets wird taggenau auf den ersten Zeitraum angerechnet und auf der Rechnung als eigene Position ausgewiesen.
 
 Funktionen oberhalb von Free tragen ein Badge mit dem Paketnamen – etwa Gruppen,
 KI-Unterstützung, gewichtete Abhängigkeiten und Orts-Erinnerungen; die Spracheingabe und einfache
@@ -682,7 +682,7 @@ wurde und kein Paket gebucht hat, hat **Pro** und damit alle Funktionen.
 
 ## Abo
 
-Im Bereich **Abo** siehst du deinen aktuellen Abonnement-Status, kannst Kündigungen einleiten und Rechnungen einsehen.
+In der oberen Karte des Bereichs **Pakete & Abo** siehst du deinen aktuellen Abonnement-Status; Rechnungen und Kündigung findest du aufklappbar darunter.
 
 ---
 

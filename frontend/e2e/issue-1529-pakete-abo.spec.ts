@@ -1,26 +1,11 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import {
-	headerCellMetrics,
-	measureHorizontalScroll,
-	scrollMatrixAndMeasureFirstCell,
-	waitForStableView,
-} from './helpers';
 
 /**
- * Rote Spec-e2e für #1529 (Spec docs/spec/issue-1529.md AK1/AK2/AK4/AK5/AK6/AK7) — eigene
- * Settings-Reiter „Pakete“/„Abo“ statt der Karte „Pakete“ im Allgemein-Tab, Preis-Matrix als
- * `KolTableStateful` mit seitlich scrollendem Container (375px) statt Seiten-Overflow.
- *
- * AK3 (Matrix-Datenvertrag) und AK8 (unverändertes Buchungsverhalten, umgezogene Tests) liegen in
- * `PlansSection.test.tsx` bzw. `billing.spec.ts`/`issue-1484-plan-badges.spec.ts` — hier nur die
- * Routen-/Layout-Akzeptanzkriterien.
- *
- * `KolTableStateful` rendert als `<kol-table-stateful>`-Host mit eigenem Shadow-DOM (Vorbild
- * `CompletedTasksTable`/`completed-tasks.spec.ts`) — rohe CSS-Selektoren wie `table`/`th`/`td`
- * finden dort nichts. AK4/AK5/AK6 lesen deshalb entweder über Playwright-Rollen-Locators (die
- * pierct nativ durch offene Shadow-Roots) oder über eine schließungsfreie, rekursive
- * `evaluate`-Durchquerung (Muster `measureHorizontalScroll`, `helpers.ts`, #824-Guard).
+ * e2e für #1529 AK2 (Spec docs/spec/issue-1529.md) — Pakete/Abo sind kein Teil des Allgemein-Tabs.
+ * Test-Pflege #1902: AK1/AK4-AK7 (getrennte Reiter „Pakete“/„Abo“, Matrix als `KolTableStateful`,
+ * Button „Pakete ansehen“) entfallen — der gemeinsame Reiter „Pakete & Abo“ steht in
+ * `issue-1902-plans-subscription-tab.spec.ts`.
  */
 
 const CATALOG = {
@@ -69,28 +54,6 @@ const mockPlans = async (page: Page, user: Record<string, unknown>): Promise<voi
 };
 
 test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () => {
-	test('AK1: /settings/pakete zeigt die Matrix, /settings/abo die Rechnungsliste, Reiterwechsel schreibt die URL', async ({
-		page,
-	}) => {
-		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
-
-		await page.goto('/app/settings/pakete');
-		await expect(page.getByTestId('plans-section')).toBeVisible();
-
-		await page.goto('/app/settings/abo');
-		await expect(page.getByTestId('billing-invoices')).toBeVisible();
-		await waitForStableView(page, 'Allgemein');
-
-		// Reiterwechsel Abo → Pakete schreibt das Segment zurück in die URL.
-		await page.getByRole('tab', { name: 'Pakete', exact: true }).click();
-		await expect(page).toHaveURL(/\/settings\/pakete$/);
-		await expect(page.getByTestId('plans-section')).toBeVisible();
-
-		await page.getByRole('tab', { name: 'Abo', exact: true }).click();
-		await expect(page).toHaveURL(/\/settings\/abo$/);
-		await expect(page.getByTestId('billing-invoices')).toBeVisible();
-	});
-
 	test('AK2: /settings/general zeigt keine Pakete-Karte mehr, übrige Segmente wählen weiter ihren Reiter', async ({
 		page,
 	}) => {
@@ -106,30 +69,7 @@ test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () 
 		await expect(page.getByRole('tab', { name: 'Access-Token', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 
-	test('AK4: bei 375px scrollt der Matrix-Container seitlich, die Seite selbst scrollt nicht mit', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 812 });
-		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
-
-		await page.goto('/app/settings/pakete');
-		const host = page.locator('[data-testid="plans-section"] kol-table-stateful');
-		await expect(host).toBeVisible();
-
-		const { scroller } = await host.evaluate(measureHorizontalScroll);
-		expect(scroller, 'Matrix-Container muss einen scrollbaren Container mit echtem Überlauf haben').not.toBeNull();
-		expect(scroller!.scrollWidth, 'Tabellen-Container muss seitlich scrollbar sein').toBeGreaterThan(
-			scroller!.clientWidth,
-		);
-
-		const pageOverflow = await page.evaluate(() => {
-			const el = document.scrollingElement;
-			return { scrollWidth: el?.scrollWidth ?? 0, clientWidth: el?.clientWidth ?? 0 };
-		});
-		expect(pageOverflow.scrollWidth, 'die Seite selbst darf nicht horizontal überlaufen').toBeLessThanOrEqual(
-			pageOverflow.clientWidth + 1,
-		);
-	});
-
-	test('#1898 AK6: bei 375px ist das Monatsäquivalent in der Matrix sichtbar, die Seite läuft nicht über', async ({
+	test('#1898 AK6: bei 375px ist das Monatsäquivalent in der Paketliste sichtbar, die Seite läuft nicht über', async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
@@ -147,68 +87,5 @@ test.describe('Balamentum — #1529: Pakete/Abo als eigene Settings-Reiter', () 
 		expect(pageOverflow.scrollWidth, 'die Seite selbst darf nicht horizontal überlaufen').toBeLessThanOrEqual(
 			pageOverflow.clientWidth + 1,
 		);
-	});
-
-	test('AK5: bei 375px bleibt die Funktionsspalte nach seitlichem Scrollen sichtbar', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 812 });
-		await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
-
-		await page.goto('/app/settings/pakete');
-		const host = page.locator('[data-testid="plans-section"] kol-table-stateful');
-		await expect(host).toBeVisible();
-
-		const measured = await host.evaluate(scrollMatrixAndMeasureFirstCell);
-		expect(measured, 'Matrix-Container muss scrollbar sein und eine erste Spaltenzelle haben').not.toBeNull();
-		expect(
-			measured!.firstCell.left,
-			'Funktionsspalte muss nach dem Scrollen innerhalb des Containers stehen',
-		).toBeGreaterThanOrEqual(measured!.container.left);
-		expect(
-			measured!.firstCell.left,
-			'Funktionsspalte darf nicht rechts aus dem Container herausgescrollt sein',
-		).toBeLessThan(measured!.container.right);
-	});
-
-	for (const viewport of [
-		{ width: 375, height: 812, label: '375px' },
-		{ width: 1280, height: 900, label: '1280px' },
-	]) {
-		test(`AK6: bei ${viewport.label} bricht keine Kopfzelle auf mehr als zwei Zeilen um`, async ({ page }) => {
-			await page.setViewportSize({ width: viewport.width, height: viewport.height });
-			await mockPlans(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription });
-
-			await page.goto('/app/settings/pakete');
-			const host = page.locator('[data-testid="plans-section"] kol-table-stateful');
-			await expect(host).toBeVisible();
-
-			const metrics = await host.evaluate(headerCellMetrics);
-			// All-Quantor-Schutz (Muster `completed-tasks.spec.ts:289`): ohne gefundene Kopfzellen wäre
-			// die Schleife unten leer-mengen-grün.
-			expect(metrics.length, 'Matrix muss Kopfzellen haben').toBeGreaterThan(0);
-			metrics.forEach((cell, i) => {
-				const maxHeight = cell.lineHeight * 2 + cell.paddingTop + cell.paddingBottom;
-				expect(cell.height, `Kopfzelle ${i} darf nicht auf mehr als zwei Zeilen umbrechen`).toBeLessThanOrEqual(
-					maxHeight + 1,
-				);
-			});
-		});
-	}
-
-	test('AK7: /settings/abo ohne laufendes Abo zeigt einen Hinweis mit Bedienmöglichkeit zu Pakete, kein Status/Kündigen im DOM', async ({
-		page,
-	}) => {
-		await mockPlans(page, USER_NO_SUBSCRIPTION);
-
-		await page.goto('/app/settings/abo');
-		await waitForStableView(page, 'Allgemein');
-		await expect(page.getByTestId('subscription-status')).toHaveCount(0);
-		await expect(page.getByTestId('cancel-subscription')).toHaveCount(0);
-
-		const gotoPlans = page.getByRole('button', { name: /Pakete ansehen/i });
-		await expect(gotoPlans).toBeVisible();
-		await gotoPlans.click();
-
-		await expect(page).toHaveURL(/\/settings\/pakete$/);
-		await expect(page.getByTestId('plans-section')).toBeVisible();
 	});
 });

@@ -16,6 +16,7 @@ vi.mock('@public-ui/react-v19', () => ({
 		</div>
 	),
 	KolButton: ({ _label }: { _label?: string }) => <button>{_label}</button>,
+	KolDetails: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 	KolSpin: () => null,
 }));
 const channelPurchase = { actionCell: () => ({ text: 'Buchen', node: <button>Buchen</button> }), notice: null };
