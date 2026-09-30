@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.16._
+_Enthält v0.11.0 – v0.11.17._
 
 ### 🎉 New Features
 
@@ -13,6 +13,7 @@ _Enthält v0.11.0 – v0.11.16._
 - feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
 - docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
 - feat(server): add feedback_send mcp tool for app feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1915
+- feat(frontend): publish terms of use and link them in app help (#1891) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1918
 
 ### 🐞 Bug Fixes
 
@@ -175,7 +176,7 @@ _Enthält v0.7.0 – v0.7.13._
 - fix(website): apply landing audit fixes (polish, distill, harden) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1739
 - docs: sync arc42 architecture doc to current state 2026-09-26 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1744
 - fix(server): backfill subscriptions pendingPlan columns via startup migrator (#1742) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1746
-- fix(server): backfill subscriptions pendingPlan columns via startup migrator (#1742) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1746
+- feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
 - feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
 - feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
 - feat(frontend): revert #1745 toolbar popover polish to stock kolibri by @deleonio in https://github.com/deleonio/priority-pilot/pull/1749
