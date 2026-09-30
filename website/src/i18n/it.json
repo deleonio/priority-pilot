@@ -186,6 +186,7 @@
 		"features": {
 			"groups": "Gruppi e link di invito",
 			"voice_input": "Input vocale",
+			"feedback": "Feedback e assistenza dell'app",
 			"ai_assist": "Aiuto IA: consulente dei pilastri e revisione dei testi",
 			"graph_write": "Dipendenze tra attività",
 			"graph_weight": "Modificare le dipendenze ponderate",

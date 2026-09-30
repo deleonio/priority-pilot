@@ -25,6 +25,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
 	location_reminders: 'Standort-Erinnerungen',
 	mcp_readwrite: 'Schreibzugriff über MCP',
 	mcp_read: 'Lesezugriff über MCP',
+	feedback: 'Feedback und App-Support',
 };
 
 /**

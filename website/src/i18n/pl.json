@@ -189,6 +189,7 @@
 		"features": {
 			"groups": "Grupy i linki z zaproszeniem",
 			"voice_input": "Wprowadzanie głosowe",
+			"feedback": "Opinie i wsparcie aplikacji",
 			"ai_assist": "Pomoc AI: doradca filarów i korekta tekstów",
 			"graph_write": "Zależności między zadaniami",
 			"graph_weight": "Edycja ważonych zależności",

@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FeatureId } from './plans.js';
 import {
+	PLAN_VALUES,
 	FEATURE_IDS,
 	AI_ASSIST_MONTHLY_QUOTA,
 	effectivePlan,
