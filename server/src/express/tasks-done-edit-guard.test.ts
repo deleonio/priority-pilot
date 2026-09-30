@@ -215,11 +215,11 @@ describe('PATCH /tasks/:id — Punkte-Neuberechnung bei Done-Bearbeitung (#1821 
 		const vorher = await scoreOf(task.id);
 		assert.equal(vorher.punkte, 2);
 
-		const res = await patchTask(cookie, task.id, { estimatedEffort: 3, priority: 4 });
+		const res = await patchTask(cookie, task.id, { estimatedEffort: 0.5, priority: 5 });
 		assert.equal(res.status, 200);
 
 		const nachher = await scoreOf(task.id);
-		assert.equal(nachher.punkte, 12);
+		assert.equal(nachher.punkte, 2.5);
 		assert.equal(nachher.pünktlich, true);
 		assert.equal(nachher.zeitpunkt, vorher.zeitpunkt, 'zeitpunkt (Erledigt-Datum) darf sich nicht ändern');
 		assert.equal(await ScoreEntry.count({ where: { taskId: task.id } }), 1);
@@ -229,7 +229,7 @@ describe('PATCH /tasks/:id — Punkte-Neuberechnung bei Done-Bearbeitung (#1821 
 		const task = await createTask(cookie, {
 			title: 'Verspätet',
 			priority: 2,
-			estimatedEffort: 2,
+			estimatedEffort: 1,
 			deadline: new Date('2099-01-01T00:00:00.000Z').toISOString(),
 		});
 		assert.equal((await patchTask(cookie, task.id, { status: 'Done' })).status, 200);
@@ -240,6 +240,6 @@ describe('PATCH /tasks/:id — Punkte-Neuberechnung bei Done-Bearbeitung (#1821 
 
 		const nachher = await scoreOf(task.id);
 		assert.equal(nachher.pünktlich, false);
-		assert.equal(nachher.punkte, 2, 'Basis 2 × 2 = 4, verspätet × 0,5');
+		assert.equal(nachher.punkte, 1, 'Basis 1 × 2 = 2, verspätet × 0,5');
 	});
 });
