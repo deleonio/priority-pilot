@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { Op, type Order } from 'sequelize';
 import { Subscription } from '../../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import Invoice from '../../models/invoice.js';
@@ -69,6 +70,9 @@ const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 	taxNote: invoice.taxNote,
 });
 
+// Neben dem laufenden Abo kann ein ausstehendes Upgrade liegen; Kündigung und Wechsel gelten dem laufenden.
+const ACTIVE_FIRST: Order = [['status', 'ASC']];
+
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
 	const router = Router();
 	// Kauf im Web gibt es nur bei PayPal (ADR 0013); Store-Kanäle blockt `rejectStoreChannel`.
@@ -123,6 +127,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			}
 			const subscription = await Subscription.findOne({
 				where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
+				order: ACTIVE_FIRST,
 			});
 			if (!subscription) {
 				sendError(res, 404, 'Kein Abo gefunden.');
@@ -155,6 +160,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		}
 		const subscription = await Subscription.findOne({
 			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
+			order: ACTIVE_FIRST,
 		});
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
@@ -177,6 +183,10 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 					now,
 				});
 				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
+				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
+				await Subscription.destroy({
+					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
+				});
 				await Subscription.create({
 					userId,
 					provider: provider.id,
