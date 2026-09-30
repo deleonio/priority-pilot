@@ -382,6 +382,12 @@ const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
 		// einen Beraterlauf und eine Buchung.
 		const vorschlag = ermittle(userId, saeule, aufgaben);
 		tagesCache.set(key, { tag, vorschlag });
+		// Ein abgelehntes Promise nicht den Tag über cachen — sonst wirft jeder weitere Abruf erneut.
+		vorschlag.catch(() => {
+			if (tagesCache.get(key)?.vorschlag === vorschlag) {
+				tagesCache.delete(key);
+			}
+		});
 		return vorschlag;
 	};
 };

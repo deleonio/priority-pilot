@@ -227,6 +227,20 @@ describe('GET /scores/care-suggestions — KI-Vorschlag Plus/Pro (#1804)', () =>
 		assert.equal(await verbrauch(userId), 1, 'genau eine Buchung');
 	});
 
+	it('#1873: wirft die Buchung einmal, wird der Fehler nicht gecacht — zweiter Abruf liefert 200', async (t) => {
+		const { cookie } = await setup('care-ki-buchungsfehler@example.com', 'plus');
+		t.mock.method(
+			AiUsage,
+			'update',
+			async () => {
+				throw new Error('DB nicht erreichbar');
+			},
+			{ times: 1 },
+		);
+		assert.equal((await getCare(cookie)).status, 500);
+		assert.equal((await getCare(cookie)).status, 200);
+	});
+
 	it('#1873 AK4: Berater erhält die 20 neuesten Aufgaben nach createdAt', async () => {
 		const { cookie, saeuleId } = await setup('care-ki-neueste@example.com', 'plus');
 		for (let i = 1; i <= 21; i++) {
