@@ -1693,9 +1693,11 @@ describe('SettingsPage – #1902: Tab „Pakete & Abo"', () => {
 		expect(panel.querySelector('[data-testid="subscription-status"]')?.textContent).toContain('Pro');
 	});
 
-	it('AK3: ohne Abo zeigt die obere Karte nur einen Hinweis — keine Rechnungs-/Kündigungselemente, kein „Pakete ansehen“', async () => {
+	// Test-Pflege #1940: ohne Abo und ohne Rechnungen bleibt es beim Hinweis; Rechnungen ohne Abo siehe unten.
+	it('AK3: ohne Abo und ohne Rechnungen zeigt die obere Karte nur einen Hinweis — keine Rechnungs-/Kündigungselemente, kein „Pakete ansehen“', async () => {
 		const { panel } = renderTab(null);
 		await waitFor(() => expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull());
+		await waitFor(() => expect(apiMocks.listBillingInvoices).toHaveBeenCalled());
 
 		expect(panel.querySelector('[data-testid="billing-invoices"]')).toBeNull();
 		expect(panel.querySelector('[data-testid="cancel-subscription"]')).toBeNull();
@@ -1846,5 +1848,98 @@ describe('SettingsPage – #1904: Tab-Reihenfolge nach Paketstufe', () => {
 		expect(container.querySelector('[slot="tab-2"].settings-categories')).not.toBeNull();
 		expect(container.querySelector('[slot="tab-5"].settings-llm')).not.toBeNull();
 		expect(container.querySelector('[slot="tab-6"].settings-groups')).not.toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1940 (Spec docs/spec/issue-1940.md AK1–AK4) — Rechnungen bleiben auch ohne
+ * aktives Abo sichtbar; das Gruppen-Label nennt die Kündigung nur, wenn gekündigt werden kann.
+ * AK5 (375 px) liegt in `billing.spec.ts`.
+ */
+describe('SettingsPage – #1940: Rechnungen ohne aktives Abo', () => {
+	const invoice = {
+		id: 1,
+		number: 'INV-2026-000001',
+		periodStart: '2026-08-15T00:00:00.000Z',
+		periodEnd: '2026-09-15T00:00:00.000Z',
+		amountCents: 799,
+		taxNote: '§19 UStG',
+	};
+	const sub = (provider: string) =>
+		({
+			provider,
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: '2026-10-15T00:00:00.000Z',
+			pendingPlan: null,
+			pendingPlanEffectiveAt: null,
+			graceUntil: null,
+		}) as unknown as NonNullable<ComponentProps<typeof PlanProvider>['value']['subscription']>;
+
+	beforeEach(() => {
+		apiMocks.getPlansCatalog = vi.fn().mockResolvedValue({
+			features: [{ feature: 'groups', allowedPlans: ['pro'] }],
+			prices: { free: { monthly: 0, yearly: 0 }, pro: { monthly: 499, yearly: 4790 } },
+		});
+		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([]);
+	});
+
+	const renderTab = (s: ReturnType<typeof sub> | null) => {
+		const utils = render(
+			<PlanProvider value={{ plan: s === null ? 'free' : 'pro', entitlements: {}, subscription: s }}>
+				<SettingsPage {...defaultProps} />
+			</PlanProvider>,
+		);
+		return utils.container.querySelector('[slot="tab-7"]') as HTMLElement;
+	};
+
+	it('AK1: kein Abo + Rechnung → Hinweis UND Rechnungsliste im KolDetails', async () => {
+		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([invoice]);
+		const panel = renderTab(null);
+		await waitFor(() => expect(panel.querySelector('kol-details [data-testid="billing-invoices"]')).not.toBeNull());
+
+		expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull();
+		const text = panel.querySelector('[data-testid="billing-invoices"]')?.textContent ?? '';
+		expect(text).toContain('INV-2026-000001');
+		expect(text).toContain('7,99');
+	});
+
+	it('AK2: kein Abo + keine Rechnung → keine Rechnungsgruppe', async () => {
+		const panel = renderTab(null);
+		await waitFor(() => expect(apiMocks.listBillingInvoices).toHaveBeenCalled());
+		await waitFor(() => expect(panel.querySelector('[data-testid="subscription-empty"]')).not.toBeNull());
+
+		expect(panel.querySelector('[data-testid="billing-invoices"]')).toBeNull();
+		expect(panel.querySelector('[data-testid="subscription-section"] kol-details')).toBeNull();
+	});
+
+	it('AK3: kein Abo + Rechnung → kein Kündigen-Button', async () => {
+		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([invoice]);
+		const panel = renderTab(null);
+		await waitFor(() => expect(panel.querySelector('[data-testid="billing-invoices"]')).not.toBeNull());
+
+		expect(panel.querySelector('[data-testid="cancel-subscription"]')).toBeNull();
+	});
+
+	it('AK4: Label „Rechnungen“ ohne Kündigungsmöglichkeit (kein Abo, Store-Abo)', async () => {
+		apiMocks.listBillingInvoices = vi.fn().mockResolvedValue([invoice]);
+		for (const s of [null, sub('google_play')]) {
+			const panel = renderTab(s);
+			await waitFor(() => expect(panel.querySelector('[data-testid="billing-invoices"]')).not.toBeNull());
+			expect(panel.querySelector('[data-testid="subscription-section"] kol-details')?.getAttribute('_label')).toBe(
+				'Rechnungen',
+			);
+			cleanup();
+		}
+	});
+
+	it('AK4: Label „Rechnungen und Kündigung“ bei PayPal-Abo im Web', async () => {
+		const panel = renderTab(sub('paypal'));
+		await waitFor(() => expect(panel.querySelector('[data-testid="billing-invoices"]')).not.toBeNull());
+
+		expect(panel.querySelector('[data-testid="subscription-section"] kol-details')?.getAttribute('_label')).toBe(
+			'Rechnungen und Kündigung',
+		);
 	});
 });
