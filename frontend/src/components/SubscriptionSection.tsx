@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolDetails, KolSpin } from '@public-ui/react-v19';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import type { components } from 'client';
@@ -69,22 +69,17 @@ const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
 	);
 };
 
-interface SubscriptionSectionProps {
-	/** #1529 AK7: führt zum Pakete-Reiter — ohne laufendes Abo die einzige sinnvolle nächste Handlung. */
-	onShowPlans?: () => void;
-}
-
 /**
- * Reiter „Abo" der Einstellungen (#1529 AK1/AK7) — laufendes Abo, anstehender Wechsel, Kulanzfrist,
- * Kündigung und Rechnungsliste. Die Abschnitte kommen unverändert aus `PlansSection` (#1496 T6c);
- * neu ist nur der Zustand ohne Abo: statt einer leeren Seite ein Hinweis mit der Handlung „Pakete
- * ansehen" (UX-Beratung zu #1529: aktiver Hinweis statt reiner Leerzustands-Notiz).
+ * Obere Karte des Reiters „Pakete & Abo" (#1529, seit #1902 gemeinsam mit den Paketen) — laufendes
+ * Abo, anstehender Wechsel und Kulanzfrist sichtbar; Rechnungen und Kündigung in einem `KolDetails`.
+ * Ohne Abo nur ein Hinweis (UX-Beratung zu #1902: kein „Pakete ansehen", die Pakete liegen darunter).
  */
-export const SubscriptionSection = ({ onShowPlans }: SubscriptionSectionProps) => {
+export const SubscriptionSection = () => {
 	const { subscription } = usePlan();
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 	const [invoicesError, setInvoicesError] = useState<string | null>(null);
 	const [cancelOpen, setCancelOpen] = useState(false);
+	const canCancel = subscription?.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal';
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -102,69 +97,73 @@ export const SubscriptionSection = ({ onShowPlans }: SubscriptionSectionProps) =
 	return (
 		<div className="subscription-section" data-testid="subscription-section">
 			{subscription != null ? (
-				<section className="subscription-status" data-testid="subscription-status">
-					<p>
-						Aktuelles Paket: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
-					</p>
-					<p>Periodenende: {formatDate(subscription.currentPeriodEnd)}</p>
-					{subscription.pendingPlan !== null && (
-						<p data-testid="subscription-pending-plan">
-							Wechsel zu {planLabel(subscription.pendingPlan)}
-							{subscription.pendingPlanEffectiveAt !== null
-								? ` ab ${formatDate(subscription.pendingPlanEffectiveAt)}`
-								: ''}
+				<>
+					<section className="subscription-status" data-testid="subscription-status">
+						<p>
+							Aktuelles Paket: <strong>{planLabel(subscription.plan)}</strong> ({PERIOD_LABELS[subscription.period]})
 						</p>
-					)}
-					{subscription.graceUntil !== null && (
-						<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(subscription.graceUntil)}</p>
-					)}
-					{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
-					{subscription.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal' ? (
-						<KolButton
-							data-testid="cancel-subscription"
-							_label="Abo kündigen"
-							_variant="danger"
-							_on={{ onClick: () => setCancelOpen(true) }}
-						/>
-					) : (
-						<ManagedBy provider={subscription.provider} />
-					)}
-				</section>
+						<p>Periodenende: {formatDate(subscription.currentPeriodEnd)}</p>
+						{subscription.pendingPlan !== null && (
+							<p data-testid="subscription-pending-plan">
+								Wechsel zu {planLabel(subscription.pendingPlan)}
+								{subscription.pendingPlanEffectiveAt !== null
+									? ` ab ${formatDate(subscription.pendingPlanEffectiveAt)}`
+									: ''}
+							</p>
+						)}
+						{subscription.graceUntil !== null && (
+							<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(subscription.graceUntil)}</p>
+						)}
+						{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
+						{!canCancel && <ManagedBy provider={subscription.provider} />}
+					</section>
+
+					<KolDetails _label="Rechnungen und Kündigung" _level={3}>
+						{canCancel && (
+							<KolButton
+								data-testid="cancel-subscription"
+								_label="Abo kündigen"
+								_variant="danger"
+								_on={{ onClick: () => setCancelOpen(true) }}
+							/>
+						)}
+						<section className="billing-invoices" data-testid="billing-invoices">
+							{invoicesError !== null ? (
+								<KolAlert _type="error" _label="Rechnungen">
+									{invoicesError}
+								</KolAlert>
+							) : invoices === null ? (
+								<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
+							) : invoices.length === 0 ? (
+								<p data-testid="invoices-empty">Noch keine Rechnungen vorhanden.</p>
+							) : (
+								<ul className="billing-invoices__list">
+									{invoices.map((invoice) => (
+										<li key={invoice.id} className="billing-invoices__item">
+											<span>{invoice.number}</span>
+											<span>
+												{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+											</span>
+											<span>{formatEuro(invoice.amountCents)}</span>
+										</li>
+									))}
+								</ul>
+							)}
+						</section>
+					</KolDetails>
+				</>
 			) : (
 				// `undefined` heißt „Abo-Status noch nicht geladen" — dann steht hier nichts, statt
-				// fälschlich „kein Abo" zu behaupten (Muster `renderActionCell` in `PlansSection`).
+				// fälschlich „kein Abo" zu behaupten (Muster `actionCell` in `PaypalPurchase`).
 				subscription === null && (
 					<section className="subscription-empty" data-testid="subscription-empty">
-						<p>Für dieses Konto läuft derzeit kein Abo. Die Pakete zeigen, was die kostenpflichtigen Stufen bieten.</p>
-						<KolButton _label="Pakete ansehen" _variant="primary" _on={{ onClick: () => onShowPlans?.() }} />
+						<p>
+							Für dieses Konto läuft derzeit kein Abo. Die Pakete darunter zeigen, was die kostenpflichtigen Stufen
+							bieten.
+						</p>
 					</section>
 				)
 			)}
-
-			<section className="billing-invoices" data-testid="billing-invoices">
-				<h3>Rechnungen</h3>
-				{invoicesError !== null ? (
-					<KolAlert _type="error" _label="Rechnungen">
-						{invoicesError}
-					</KolAlert>
-				) : invoices === null ? (
-					<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
-				) : invoices.length === 0 ? (
-					<p data-testid="invoices-empty">Noch keine Rechnungen vorhanden.</p>
-				) : (
-					<ul className="billing-invoices__list">
-						{invoices.map((invoice) => (
-							<li key={invoice.id} className="billing-invoices__item">
-								<span>{invoice.number}</span>
-								<span>
-									{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
-								</span>
-								<span>{formatEuro(invoice.amountCents)}</span>
-							</li>
-						))}
-					</ul>
-				)}
-			</section>
 
 			{cancelOpen && <CancelDialog onClose={() => setCancelOpen(false)} onCancelled={() => setCancelOpen(false)} />}
 		</div>

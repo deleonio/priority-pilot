@@ -282,16 +282,17 @@ test.describe('Balamentum — #1484: Paket-Badges an den übrigen Grenzstellen (
 		await page.goto('/app/settings/pakete');
 		await waitForStableView(page, 'Allgemein');
 
-		const host = page.getByTestId('plans-section').locator('kol-table-stateful');
+		const host = page.getByTestId('plans-section');
 		await expect(host).toBeVisible();
 
-		const PRICE_AND_ACTION_ROWS = 3 + 3;
-		const bodyRows = host.getByRole('row').filter({ hasNot: page.getByRole('columnheader') });
-		await expect(bodyRows).toHaveCount(PRICE_AND_ACTION_ROWS + 8);
+		// Test-Pflege (#1902): die Feature-Zeilen der Matrix stehen je Paket als Listenpunkte im
+		// `KolDetails` — das Paket mit allem Umfang trägt alle 8 Funktionen.
+		const featureCounts = await host
+			.locator('[data-testid^="plan-item-"]')
+			.evaluateAll((items) => items.map((item) => item.querySelectorAll('kol-details li').length));
+		expect(Math.max(...featureCounts)).toBe(8);
 
-		// Geprüft wird „kein Seitenüberlauf", nicht „jede Zeile passt in den Viewport": seit #1529
-		// (AK4, ADR 0014 Entscheidung 6) scrollt die Matrix bewusst seitlich IM Tabellen-Host. Die
-		// Zeilen sind deshalb breiter als 375px — der Host selbst darf den Viewport nicht überragen.
+		// Geprüft wird „kein Seitenüberlauf": die Paketliste bricht um, statt seitlich zu scrollen (#1902).
 		await expectWithinViewport(host);
 	});
 });

@@ -2,7 +2,7 @@ import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
-import type { Period, Plan } from '../lib/planOffers';
+import { PERIOD_LABELS, planLabel, type Period, type Plan } from '../lib/planOffers';
 import { usePlan } from '../lib/usePlan';
 import type { PurchaseUi } from './billingChannel';
 import { BillingReturnWait, ChangeDialog } from './PaypalDialogs';
@@ -51,7 +51,7 @@ export const usePaypalPurchase = (): PurchaseUi => {
 				node: (
 					<KolButton
 						data-testid={`book-${targetPlan}-${period}`}
-						_label="Buchen"
+						_label={`${planLabel(targetPlan)} buchen (${PERIOD_LABELS[period]})`}
 						_variant="primary"
 						_disabled={bookingKey === `${targetPlan}-${period}`}
 						_on={{ onClick: () => void handleBook(targetPlan, period) }}
@@ -64,7 +64,7 @@ export const usePaypalPurchase = (): PurchaseUi => {
 			node: (
 				<KolButton
 					data-testid={`change-plan-${targetPlan}-${period}`}
-					_label="Wechseln"
+					_label={`${planLabel(targetPlan)} wechseln (${PERIOD_LABELS[period]})`}
 					_variant="secondary"
 					_on={{ onClick: () => setChangeTarget({ plan: targetPlan, period }) }}
 				/>

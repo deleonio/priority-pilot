@@ -68,9 +68,18 @@ const gotoPakete = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('plans-section')).toBeVisible();
 };
 
-/** Test-Pflege (#1529): Abo-Status/Kündigen/Rechnungen liegen seit #1529 auf dem eigenen Abo-Reiter. */
+/**
+ * Test-Pflege (#1902): Abo-Status, Kündigen und Rechnungen liegen im gemeinsamen Reiter „Pakete & Abo"
+ * (obere Karte); Rechnungen und Kündigung stecken in einem zugeklappten `KolDetails` — `openBilling`
+ * klappt es auf. Ohne Abo zeigt die Karte nur einen Hinweis (AK3), Rechnungen brauchen also ein Abo.
+ */
 const gotoAbo = async (page: Page): Promise<void> => {
 	await page.goto('/app/settings/abo');
+	await expect(page.getByTestId('subscription-section')).toBeVisible();
+};
+
+const openBilling = async (page: Page): Promise<void> => {
+	await page.getByText('Rechnungen und Kündigung', { exact: true }).click();
 	await expect(page.getByTestId('billing-invoices')).toBeVisible();
 };
 
@@ -154,6 +163,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		});
 
 		await gotoAbo(page);
+		await openBilling(page);
 		await page.getByTestId('cancel-subscription').click();
 
 		await expect(page.getByRole('dialog')).toBeVisible();
@@ -170,19 +180,21 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 
 	test('AK5: Rechnungsliste zeigt Nummer, Zeitraum, Betrag; leere Liste zeigt Leerzustand', async ({ page }) => {
 		await mockCatalog(page);
-		await mockAuthMe(page, USER_NO_SUBSCRIPTION);
+		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });
 		await mockEmptyInvoices(page);
 
 		await gotoAbo(page);
+		await openBilling(page);
 		await expect(page.getByTestId('invoices-empty')).toBeVisible();
 	});
 
 	test('#1646 AK4: Ladefehler zeigt die Fehlermeldung, kein Leer-Zustand (Absicherung)', async ({ page }) => {
 		await mockCatalog(page);
-		await mockAuthMe(page, USER_NO_SUBSCRIPTION);
+		await mockAuthMe(page, { ...USER_NO_SUBSCRIPTION, plan: 'pro', subscription: activeSubscription() });
 		await page.route('**/api/v1/billing/invoices', (route: Route) => route.fulfill({ status: 500 }));
 
 		await gotoAbo(page);
+		await openBilling(page);
 		const invoices = page.getByTestId('billing-invoices');
 		await expect(invoices.getByText('Die Rechnungen konnten nicht geladen werden.')).toBeVisible();
 		await expect(page.getByTestId('invoices-empty')).toHaveCount(0);
@@ -209,6 +221,7 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		);
 
 		await gotoAbo(page);
+		await openBilling(page);
 		const invoices = page.getByTestId('billing-invoices');
 		await expect(invoices.getByText('INV-2026-000001')).toBeVisible();
 		// Test-Pflege (#1529): die Preis-Matrix (AK2, pro/monatlich "7,99 €") liegt seit #1529 auf

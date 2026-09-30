@@ -98,7 +98,7 @@ const mockPlansApi = async (page: Page): Promise<{ patchedId: () => number; patc
 	return { patchedId: () => lastPatchedId, patchedPlan: () => lastPatchedPlan };
 };
 
-/** Die eigene Auswahl-Karte im Pakete-Panel — über der Matrix-Karte „Pakete im Vergleich". */
+/** Die eigene Auswahl-Karte im Pakete-Panel — über der Karte „Abo". */
 const ownPlanCard = (page: Page) => page.locator('.settings-plans kol-card', { hasText: 'Eigenes Paket' });
 
 test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => {
@@ -127,14 +127,14 @@ test.describe('#1565 Paket-Selbstwechsel — eigene Karte im Tab Pakete', () => 
 		await expect.poll(() => patchedId()).toBe(ADMIN_USER.id);
 		await expect.poll(() => patchedPlan()).toBe('pro');
 
-		// AK1: UI sofort aktuell — der /auth/me-Refresh verschiebt „(dein Paket)" ohne Reload.
-		await expect(page.locator('.settings-plans')).toContainText('Pro (dein Paket)');
-		await expect(page.locator('.settings-plans')).not.toContainText('Free (dein Paket)');
+		// AK1: UI sofort aktuell — der /auth/me-Refresh verschiebt das Badge „Aktuell" (#1902) ohne Reload.
+		await expect(page.getByTestId('plan-item-pro')).toContainText('Aktuell');
+		await expect(page.getByTestId('plan-item-free')).not.toContainText('Aktuell');
 
 		// AK1: nach dem Neuladen weiterhin „Pro" (/auth/me-Mock liefert den gemutierten Plan).
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
-		await expect(page.locator('.settings-plans')).toContainText('Pro (dein Paket)');
+		await expect(page.getByTestId('plan-item-pro')).toContainText('Aktuell');
 	});
 
 	test('AK4: Mitglied sieht im Tab Pakete keine Auswahl-Karte (Matrix bleibt)', async ({ page }) => {

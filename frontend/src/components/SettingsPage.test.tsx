@@ -851,36 +851,29 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 	});
 
 	/*
-	 * Test-Pflege #1529 (Spec docs/spec/issue-1529.md AK1/AK2/AK3): Die Sektion liegt seit #1529 im
-	 * eigenen Reiter „Pakete" (`slot="tab-6"`) statt im Allgemein-Tab, und die Matrix ist keine
-	 * handgebaute `.plans-matrix`-Tabelle mehr, sondern eine `KolTableStateful`. In JSDOM hydriert
-	 * die Web Component nicht — ihre Zeilen stehen deshalb nicht im DOM, sondern im `_data`-Prop
-	 * (Muster `kol-tabs`/`_tabs` weiter oben in dieser Datei). Der geprüfte #1458-AK11-Vertrag
-	 * bleibt derselbe: Preise und Feature-Zeilen kommen ausschließlich aus `GET /plans`.
+	 * Test-Pflege #1902 (Spec docs/spec/issue-1902.md AK4): die Sektion liegt im Reiter „Pakete & Abo"
+	 * (`slot="tab-6"`) in der Karte „Pakete" und ist keine `KolTableStateful`-Matrix mehr, sondern eine
+	 * Liste (JSDOM hydriert KoliBri nicht — Preise stehen als Text im DOM). Der geprüfte
+	 * #1458-AK11-Vertrag bleibt derselbe: Preise und Funktionen kommen ausschließlich aus `GET /plans`.
 	 */
-	it('rendert die Karte „Pakete" mit Matrix und Preisen aus GET /plans', async () => {
+	it('rendert die Karte „Pakete" mit Paketliste und Preisen aus GET /plans', async () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		await waitFor(() => expect(container.querySelector('[data-testid="plans-section"]')).not.toBeNull());
 
 		expect(container.querySelector('[slot="tab-6"] [data-testid="plans-section"]')).not.toBeNull();
-		expect(container.querySelector('kol-card[_label="Pakete im Vergleich"]')).not.toBeNull();
+		expect(container.querySelector('kol-card[_label="Pakete"]')).not.toBeNull();
 		expect(apiMocks.getPlansCatalog).toHaveBeenCalled();
+		expect(container.querySelector('kol-table-stateful')).toBeNull();
 
-		const matrix = container.querySelector('kol-table-stateful') as unknown as {
-			_data?: (Record<string, unknown> & { _kind?: string })[];
-		} | null;
-		expect(matrix).not.toBeNull();
-		const rows = matrix?._data ?? [];
 		// Preise: exakt die Server-Werte, keine im Frontend hinterlegte Liste.
-		const monthlyPrices = rows.find((row) => row._kind === 'price' && row.label === 'Preis monatlich');
-		expect(monthlyPrices?.free).toBe('0,00 €');
-		expect(monthlyPrices?.pro).toBe('0,04 €');
-		// Matrixzeilen: je Feature eine Zeile mit „enthalten"/„—" je Paket.
-		const featureRows = rows.filter((row) => row._kind === 'feature');
-		expect(featureRows).toHaveLength(2);
-		expect(featureRows[0]?.pro).toBe('enthalten');
-		expect(featureRows[0]?.free).toBe('—');
+		const freeItem = container.querySelector('[data-testid="plan-item-free"]');
+		const proItem = container.querySelector('[data-testid="plan-item-pro"]');
+		expect(freeItem?.textContent).toContain('monatlich: 0,00 €');
+		expect(proItem?.textContent).toContain('monatlich: 0,04 €');
+		// Funktionen: je Feature ein Eintrag im `KolDetails` der enthaltenen Pakete.
+		expect(proItem?.querySelectorAll('kol-details li')).toHaveLength(1);
+		expect(freeItem?.querySelector('kol-details')).toBeNull();
 	});
 
 	it('zeigt den Ladefehler, wenn GET /plans scheitert — statt halber Daten', async () => {

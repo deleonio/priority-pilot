@@ -76,7 +76,7 @@ test('#1787 AK4: im Kanal play führt der Hinweis zur Paketansicht mit Play-Kauf
 	await page.getByTestId('plan-hint-location_reminders').getByRole('link', { name: 'Pakete ansehen' }).click();
 
 	await expect(page).toHaveURL(/\/app\/settings\/pakete$/);
-	await expect(page.locator('[data-testid="plans-section"] kol-table-stateful')).toBeVisible();
+	await expect(page.getByTestId('plans-section')).toBeVisible();
 	await expect(page.getByText('Google Play nicht erreichbar')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Buchen' })).toHaveCount(0);
 });

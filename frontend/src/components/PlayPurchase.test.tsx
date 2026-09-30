@@ -64,7 +64,7 @@ describe('Kauf über Google Play (#1692)', () => {
 		expect(store.applicationUsername).toBe('acc-1');
 
 		render(<>{result.current.actionCell?.('pro', 'monthly').node}</>);
-		await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Buchen' })));
+		await act(async () => fireEvent.click(screen.getByRole('button', { name: /buchen/i })));
 
 		await waitFor(() => expect(finish).toHaveBeenCalled());
 		expect(api.submitGooglePurchase).toHaveBeenCalledWith('tok-1');
@@ -77,7 +77,7 @@ describe('Kauf über Google Play (#1692)', () => {
 		const { result } = await renderReady();
 
 		const { rerender } = render(<>{result.current.actionCell?.('pro', 'monthly').node}</>);
-		await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Buchen' })));
+		await act(async () => fireEvent.click(screen.getByRole('button', { name: /buchen/i })));
 		rerender(<>{result.current.notice}</>);
 
 		expect(api.submitGooglePurchase).not.toHaveBeenCalled();
@@ -152,7 +152,7 @@ describe('Paketwechsel über Google Play (#1696)', () => {
 		order.mockResolvedValue(undefined);
 		const { result } = await renderReady();
 		const { rerender } = render(<>{result.current.actionCell?.(to, 'monthly').node}</>);
-		await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Wechseln' })));
+		await act(async () => fireEvent.click(screen.getByRole('button', { name: /wechseln/i })));
 		rerender(<>{result.current.notice}</>);
 	};
 
