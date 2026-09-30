@@ -298,3 +298,30 @@ describe('PlansSection je Kanal (#1674)', () => {
 		expect(screen.getByTestId('plans-section').querySelector('a')).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1898 (Spec docs/spec/issue-1898.md) — Monatsäquivalent der Jahreszahlung
+ * (Plus 3,99 €, Pro 7,99 €) steht in der Monatszelle; Free bleibt „0,00 €"; Jahresbetrag bleibt.
+ */
+describe('PlansSection (#1898: Monatsäquivalent bei Jahreszahlung)', () => {
+	it('zeigt 3,99 € bei Plus und 7,99 € bei Pro, Jahresbeträge bleiben sichtbar', async () => {
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+		expect(screen.getAllByText(/3,99 €/)).toHaveLength(1);
+		expect(screen.getAllByText(/7,99 €/)).toHaveLength(1);
+		expect(screen.getByText('47,90 €')).toBeTruthy();
+		expect(screen.getByText('95,90 €')).toBeTruthy();
+	});
+
+	it('Free-Spalte zeigt in allen Preiszeilen nur „0,00 €"', async () => {
+		getPlansCatalog.mockResolvedValue(CATALOG_CENTS);
+		render(createElement(PlansSection));
+
+		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
+		const priceRows = document.querySelectorAll('tr[data-row-kind="price"]');
+		expect(priceRows).toHaveLength(3);
+		for (const row of priceRows) expect(row.querySelectorAll('td')[0].textContent).toBe('0,00 €');
+	});
+});
