@@ -9,6 +9,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Projekt & Konventionen](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Konventionen, Mobile-First, Datenbank
 - [Ticket-Erstellung](.claude/skills/ticket-create/SKILL.md) — neue Tickets template-konform erfassen, gezielte Nachfragen an den Autor
 - [Ticket-Baum](.claude/skills/ticket-tree/SKILL.md) — größeres Vorhaben als Lösungsplan und Issue-Baum unter einem Epic: Issues höchstens „Mittel“, native `blocked-by`, Reihenfolge in Wellen
+- [Ticket-Import](.claude/skills/ticket-import/SKILL.md) — Dokument (Claude Docs, Review, Notizen) in Tickets unter einem Epic überführen: jede Idee zählen, gegen vorhandene Issues und Code abgleichen, nur Fehlendes anlegen, Sub-Issues und native `blocked-by`
 - [Ticket-Koordination](.claude/skills/ticket-coordination/SKILL.md) — Epics Issue für Issue durch die Label-Pipeline führen: Analyse starten, nach der Triage als PO UX/Spec/Umsetzung setzen, PRs beobachten, Blocker lösen, main grün halten; Fallstricke aus der Praxis, Diagnose je Issue an Subagents delegierbar
 - [Ticket-Triage](.claude/skills/ticket-triage/SKILL.md) — Analyse offener GitHub-Issues
 - [Ticket-UX](.claude/skills/ticket-ux/SKILL.md) — UX-Beratung für UI-Tickets
