@@ -143,9 +143,19 @@ const buildDoneEffortByPillar = (pillars: Pillar[], tasks: Task[]): Map<number, 
 };
 
 const AppShell = ({ user }: { user: AuthUser }) => {
-	const { t } = useTranslation('navigation');
+	const { t, i18n } = useTranslation('navigation');
 	const location = useLocation();
 	const navigate = useNavigate();
+	// #1879: aktive App-Sprache beim Start und bei jedem Wechsel an den Server melden (Sprache des
+	// Fürsorge-Push) — fire-and-forget, ein Fehlschlag ist für die Nutzung folgenlos.
+	useEffect(() => {
+		const report = (): void => {
+			if (i18n.resolvedLanguage) void api.updateCareSprache(i18n.resolvedLanguage).catch(() => undefined);
+		};
+		report();
+		i18n.on('languageChanged', report);
+		return () => i18n.off('languageChanged', report);
+	}, [i18n]);
 	// #1428: Kopfzeilen-Position — die Verschiebung passiert rein per Layout (`.app.header-bottom`),
 	// die DOM-Reihenfolge (banner bleibt first) bleibt unverändert.
 	const { position: headerPosition } = useHeaderPosition();

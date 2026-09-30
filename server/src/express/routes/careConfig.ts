@@ -5,6 +5,7 @@ import { User } from '../../models/index.js';
 import { istGueltigeZeitzone } from '../../logics/streak.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { protokolliereCarePushWechsel } from '../../logics/careWirkung.js';
+import { CARE_SPRACHEN } from '../../logics/careSuggestionData.js';
 
 /**
  * Pro-User Care-Konfiguration (#1794 AK7/AK8): der Schalter „Fürsorge-Hinweise“ (Default: ein —
@@ -71,6 +72,28 @@ careConfigRouter.put('/care-config', async (req: Request, res: Response<CareConf
 			config.carePushEnabled,
 		);
 		res.json(config);
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// PUT /care-config/sprache — App-Sprache für den Fürsorge-Push (#1879); Code außerhalb von
+// `CARE_SPRACHEN` → 400 ohne Persistenz. Eigene Route, weil `PUT /care-config` den vollen Satz verlangt.
+careConfigRouter.put('/care-config/sprache', async (req: Request, res: Response<{ sprache: string } | ErrorDto>) => {
+	try {
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const sprache = (req.body as { sprache?: unknown } | undefined)?.sprache;
+		const code = CARE_SPRACHEN.find((value) => value === sprache);
+		if (!code) {
+			sendError(res, 400, `Ungültige Sprache: erlaubt sind ${CARE_SPRACHEN.join(', ')}.`);
+			return;
+		}
+		await User.update({ sprache: code }, { where: { id: user.id } });
+		res.json({ sprache: code });
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}

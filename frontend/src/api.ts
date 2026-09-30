@@ -1257,6 +1257,14 @@ export const api = {
 		return data;
 	},
 
+	// Meldet die aktive App-Sprache für den Fürsorge-Push (#1879); unbekannte Codes lehnt der Server mit 400 ab.
+	async updateCareSprache(sprache: string, init: Init = {}): Promise<void> {
+		const { error, response } = await client.PUT('/care-config/sprache', { body: { sprache }, signal: init.signal });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
 	// --- Persönliche API-Tokens für externe Clients (#1352) ---
 
 	// Eigene, nicht zurückgezogene Tokens — ausschließlich Metadaten, nie der Klartext.

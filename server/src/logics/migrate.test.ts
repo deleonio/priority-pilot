@@ -592,10 +592,11 @@ describe('migrateUserGeoConfigColumns', () => {
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
 				'`pillarRecalcStartedAt` DATETIME, ' +
-				// Test-Pflege #1794: `carePushEnabled`/`zeitzone` ergänzt — das User-Modell selectiert sie,
+				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
+				'`sprache` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -871,10 +872,11 @@ describe('migrateUsersRoleColumn (Rollensystem admin/member)', () => {
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
 				'`pillarRecalcStartedAt` DATETIME, ' +
-				// Test-Pflege #1794: `carePushEnabled`/`zeitzone` ergänzt — das User-Modell selectiert sie,
+				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
+				'`sprache` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -948,10 +950,11 @@ describe('migrateUsersDisplayNameCustom (#1256 AK5)', () => {
 				"`plan` VARCHAR(255) NOT NULL DEFAULT 'free', " +
 				'`selectedLlmProviderId` INTEGER, ' +
 				'`pillarRecalcStartedAt` DATETIME, ' +
-				// Test-Pflege #1794: `carePushEnabled`/`zeitzone` ergänzt — das User-Modell selectiert sie,
+				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
+				'`sprache` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',
@@ -1109,10 +1112,11 @@ describe('migrateUsersPlanColumn (#1456 AK1)', () => {
 				"`role` VARCHAR(255) NOT NULL DEFAULT 'member', " +
 				'`selectedLlmProviderId` INTEGER, ' +
 				'`pillarRecalcStartedAt` DATETIME, ' +
-				// Test-Pflege #1794: `carePushEnabled`/`zeitzone` ergänzt — das User-Modell selectiert sie,
+				// Test-Pflege #1794/#1879: `carePushEnabled`/`zeitzone`/`sprache` ergänzt — das User-Modell selectiert sie,
 				// ohne sie bräche `User.findAll()` mit `no such column` (Konvention #1256/#role).
 				'`carePushEnabled` TINYINT NOT NULL DEFAULT 1, ' +
 				'`zeitzone` VARCHAR(255), ' +
+				'`sprache` VARCHAR(255), ' +
 				'`createdAt` DATETIME NOT NULL, ' +
 				'`updatedAt` DATETIME NOT NULL' +
 				')',

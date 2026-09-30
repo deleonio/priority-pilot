@@ -45,7 +45,7 @@ import type { PushSender } from './push.js';
 // die Lauf-Semantik-Tests (Defizit/Dedup/Schalter/Kanäle) treffen so keinen Ruhezeit-Block.
 const NOW = new Date('2026-07-07T19:30:00Z');
 
-type CareUserAttrs = { carePushEnabled?: boolean; zeitzone?: string | null };
+type CareUserAttrs = { carePushEnabled?: boolean; zeitzone?: string | null; sprache?: string | null };
 
 const seedUser = async (email: string, extra: CareUserAttrs = {}) =>
 	// `carePushEnabled`/`zeitzone` entstehen erst mit der Impl-Phase (#1794) — Cast statt Typ-Änderung.
@@ -312,4 +312,29 @@ describe('logics/carePush — fachlicher Fürsorge-Push (Issue #1794)', () => {
 		assert.equal(night.usersNotified, 0, '22:30 UTC fällt in die UTC-Ruhezeit — kein Versand');
 		assert.equal(nightCalls.length, 0);
 	});
+
+	// #1879 AK1/AK3/AK4: Push-Sprache aus `User.sprache`; null/ungültig → Deutsch.
+	// Bei einer noch fehlenden Spalte (Rot-Zustand) speichert Sequelize das Feld nicht → Deutsch.
+	const titelFuer = async (email: string, sprache: string | null): Promise<string> => {
+		await seedDeficitUser(email, { sprache });
+		const calls: { endpoint: string; body: string }[] = [];
+		const result = await runCarePush(NOW, okSender(calls));
+		assert.equal(result.usersNotified, 1);
+		return (JSON.parse(calls[0].body) as { title: string }).title;
+	};
+
+	for (const sprache of ['en', 'fr']) {
+		it(`#1879 AK1/AK2: gespeicherte Sprache "${sprache}" → Push-Titel aus pushTextFuer(..., "${sprache}")`, async () => {
+			const titel = await titelFuer(`care-sprache-${sprache}@example.com`, sprache);
+			assert.equal(titel, pushTextFuer('defizit', 1, sprache as never).titel);
+			assert.notEqual(titel, pushTextFuer('defizit', 1, 'de').titel, 'Sprachtexte müssen sich unterscheiden');
+		});
+	}
+
+	for (const sprache of [null, 'xx']) {
+		it(`#1879 AK3/AK4: Sprache ${JSON.stringify(sprache)} → Deutsch-Fallback`, async () => {
+			const titel = await titelFuer(`care-sprache-fb-${sprache}@example.com`, sprache);
+			assert.equal(titel, pushTextFuer('defizit', 1, 'de').titel);
+		});
+	}
 });

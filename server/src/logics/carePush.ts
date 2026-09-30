@@ -21,7 +21,7 @@ import { istGueltigeZeitzone } from './streak.js';
 
 const KIND = 'care-push';
 
-/** Push-Sprache: App-Sprache ist serverseitig nicht bekannt (kein Request im Scheduler) — Default `de`. */
+/** Push-Sprache ohne (gültige) gespeicherte App-Sprache des Nutzers (`User.sprache`, #1879). */
 const PUSH_SPRACHE: CareSprache = 'de';
 
 type CareSituation = 'defizit' | 'ueberlast';
@@ -363,7 +363,8 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 		if (bereitsGesendet) {
 			continue;
 		}
-		const text = pushTextFuer(situation, betroffeneSaeule.id, PUSH_SPRACHE);
+		const sprache = CARE_SPRACHEN.find((code) => code === user.sprache) ?? PUSH_SPRACHE;
+		const text = pushTextFuer(situation, betroffeneSaeule.id, sprache);
 		const { sent } = await sendPushToUser(user.id, { title: text.titel, body: text.text, url: '/' }, send);
 		if (sent > 0) {
 			await NotificationLog.create({ userId: user.id, kind: KIND, dedupeKey, sentAt: now });

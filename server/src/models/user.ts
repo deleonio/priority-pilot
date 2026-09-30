@@ -31,6 +31,7 @@ class User extends Model {
 	public carePushEnabled!: boolean;
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
 	public zeitzone!: string | null;
+	public sprache!: string | null;
 	/** Systemweite Rolle (Rollensystem admin/member/tester) — steuert Admin-Views und -API-Endpunkte. */
 	public role!: UserRole;
 	/**
@@ -102,6 +103,11 @@ User.init(
 			defaultValue: true,
 		},
 		zeitzone: {
+			type: DataTypes.STRING,
+			allowNull: true,
+			defaultValue: null,
+		},
+		sprache: {
 			type: DataTypes.STRING,
 			allowNull: true,
 			defaultValue: null,

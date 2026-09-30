@@ -1,5 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { User } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer, applyTestAuthEnv } from '../test/helpers.js';
 
 /**
@@ -112,4 +113,66 @@ describe('Care-Konfiguration pro User (#1794 AK7/AK8)', () => {
 			'PUT von B darf die Config von A nicht überschreiben',
 		);
 	});
+});
+
+/**
+ * Rote Spec-Tests für #1879 (Spec: docs/spec/issue-1879.md) — `PUT /care-config/sprache`.
+ * AK2: gültiger Code wird gespeichert und überschreibt den alten. AK4: alles außerhalb von
+ * `CARE_SPRACHEN` → 400, gespeicherter Wert unverändert. Rot: Route fehlt (404/SPA-Fallback).
+ */
+describe('Push-Sprache pro User (#1879 AK2/AK4)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const putSprache = (cookie: string, body: unknown): Promise<Response> =>
+		server.json('/care-config/sprache', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+	const storedSprache = async (email: string): Promise<string | null> =>
+		((await User.findOne({ where: { email } })) as unknown as { sprache: string | null }).sprache;
+
+	it('ohne Session → 401', async () => {
+		const res = await fetch(`${server.baseUrl}/care-config/sprache`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ sprache: 'en' }),
+		});
+		assert.equal(res.status, 401);
+	});
+
+	it('AK2: PUT speichert die Sprache und überschreibt eine vorherige', async () => {
+		const email = 'care-sprache@example.com';
+		const cookie = await server.register(email, 'password123');
+		assert.equal((await putSprache(cookie, { sprache: 'en' })).status, 200);
+		assert.equal(await storedSprache(email), 'en');
+		assert.equal((await putSprache(cookie, { sprache: 'fr' })).status, 200);
+		assert.equal(await storedSprache(email), 'fr');
+	});
+
+	const invalid: Array<[string, unknown]> = [
+		['unbekannter Code', { sprache: 'xx' }],
+		['leerer String', { sprache: '' }],
+		['Regionscode', { sprache: 'de-DE' }],
+		['Zahl', { sprache: 1 }],
+		['fehlendes Feld', {}],
+	];
+	for (const [index, [label, body]] of invalid.entries()) {
+		it(`AK4: PUT weist ${label} ab (400) und lässt die gespeicherte Sprache unverändert`, async () => {
+			const email = `care-sprache-invalid-${index}@example.com`;
+			const cookie = await server.register(email, 'password123');
+			assert.equal((await putSprache(cookie, { sprache: 'en' })).status, 200, 'Vorbedingung: Sprache gesetzt');
+			assert.equal((await putSprache(cookie, body)).status, 400);
+			assert.equal(await storedSprache(email), 'en');
+		});
+	}
 });
