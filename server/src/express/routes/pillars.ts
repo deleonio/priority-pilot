@@ -4,6 +4,7 @@ import { createCrudRateLimiter } from './rateLimit.js';
 import { sendError } from '../http-error.js';
 import sequelize from '../../database.js';
 import { Pillar } from '../../models/index.js';
+import { resolvePillarDescription } from '../../models/pillarData.js';
 import { SHARE_MIN } from '../../logics/pillarShares.js';
 import type { components } from '../../api';
 import { getUserId, ownerScope, requireAuth } from '../requireAuth.js';
@@ -36,8 +37,9 @@ type ValidationResult = { ok: true; entries: WeightEntry[] } | { ok: false; mess
 /** Wandelt eine Pillar-Instanz in die im API-Vertrag definierte Form um. */
 const serializePillar = (pillar: Pillar): PillarDto => ({
 	id: pillar.id,
+	key: pillar.key,
 	name: pillar.name,
-	description: pillar.description,
+	description: resolvePillarDescription(pillar),
 	weight: pillar.weight,
 });
 

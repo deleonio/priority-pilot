@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { Pillar, PillarFeedback } from '../../models/index.js';
 import { classifyPillarsWithMistral, type FeedbackExample, type PillarClassifier } from '../../llm/llm.js';
+import { resolvePillarDescription } from '../../models/pillarData.js';
 import { loadFeedbackExamples } from '../../logics/pillarFeedbackExamples.js';
 import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
@@ -144,7 +145,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 						pillars: pillars.map((pillar) => ({
 							id: pillar.id,
 							name: pillar.name,
-							description: pillar.description ?? undefined,
+							description: resolvePillarDescription(pillar) || undefined,
 						})),
 						examples,
 					},

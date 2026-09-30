@@ -1,5 +1,6 @@
 import { Op, type WhereOptions } from 'sequelize';
 import { Pillar, Task, TaskPillar, User } from '../models/index.js';
+import { resolvePillarDescription } from '../models/pillarData.js';
 import sequelize from '../database.js';
 import type { FeedbackExample, PillarClassifier } from '../llm/llm.js';
 import { loadFeedbackExamples } from './pillarFeedbackExamples.js';
@@ -289,7 +290,7 @@ export const reassignTaskPillarsForUser = async (
 	const pillarDtos = pillars.map((pillar) => ({
 		id: pillar.id,
 		name: pillar.name,
-		description: pillar.description ?? undefined,
+		description: resolvePillarDescription(pillar) || undefined,
 	}));
 
 	const result: ReassignPillarsResult = { updated: 0, failed: 0, skipped: 0 };

@@ -338,6 +338,7 @@ export const runCarePush = async (now: Date = new Date(), send?: PushSender): Pr
 		}));
 		const balanceSaeulen: BalanceSaeule[] = saeulen.map((saeule) => ({
 			id: saeule.id,
+			key: saeule.key,
 			name: saeule.name,
 			weight: saeule.weight,
 		}));

@@ -4820,14 +4820,20 @@ components:
       properties:
         id:
           type: integer
+        key:
+          type: string
+          nullable: true
+          description: >-
+            Stabile Kennung der Standard-Säule (z. B. koerper, sinn); null für eigene Säulen.
+            Schlüssel für die Übersetzung `pillars.<key>.description`.
         name:
           type: string
           description: 'Name der Säule (z. B. Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit)'
         description:
           type: string
           description: >-
-            Kurzbeschreibung der Säule (kanonische Stammdaten, nicht nutzereditierbar).
-            Wird im Einstellungs-Menü angezeigt.
+            Kurzbeschreibung der Säule (zentrale Stammdaten, für alle Nutzer identisch, nicht
+            nutzereditierbar). Wird im Einstellungs-Menü angezeigt.
         weight:
           type: number
           format: float

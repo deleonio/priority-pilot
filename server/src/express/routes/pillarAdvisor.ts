@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
 import { Pillar } from '../../models/index.js';
+import { resolvePillarDescription } from '../../models/pillarData.js';
 import { adviseActivitiesWithMistral, type ActivityAdvisor, type PillarDistribution } from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
@@ -126,7 +127,11 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 				const advice = await advisor(
 					{
 						question: validation.question,
-						pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name, description: pillar.description })),
+						pillars: pillars.map((pillar) => ({
+							id: pillar.id,
+							name: pillar.name,
+							description: resolvePillarDescription(pillar),
+						})),
 						distribution: distribution && distribution.length > 0 ? distribution : undefined,
 					},
 					providerValidation.provider,

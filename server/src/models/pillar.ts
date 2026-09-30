@@ -5,7 +5,7 @@ import sequelize from '../database.js';
  * Eine der fünf festen Lebensbalance-Säulen. **Nutzer-eigene Stammdaten** (#421, Epic #420, Teil 1):
  * jeder Nutzer besitzt seine eigene Kopie der Standard-Säulen, gebunden über die nullbare `userId`.
  * `weight` ist der prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %).
- * `description` ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
+ * `description` ist nur noch die Seed-Kopie (#1848: gelesen wird der Katalogtext über `key`); Quelle der Werte ist
  * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **pro Nutzer eindeutig**
  * (Unique-Index auf `name`, `userId`) — derselbe Name ist für verschiedene Nutzer erlaubt.
  * NULL-owned Zeilen (`userId IS NULL`) sind historische globale Stammdaten, die die Migration
@@ -13,6 +13,7 @@ import sequelize from '../database.js';
  */
 class Pillar extends Model {
 	public id!: number;
+	public key!: string | null;
 	public name!: string;
 	public weight!: number;
 	public description!: string;
@@ -28,6 +29,12 @@ Pillar.init(
 			type: DataTypes.INTEGER,
 			autoIncrement: true,
 			primaryKey: true,
+		},
+		// Stabile Kennung der Standard-Säule (#1848, siehe SEED_PILLARS): Text und Rhythmus werden
+		// darüber zentral aufgelöst. NULL für künftige eigene Säulen.
+		key: {
+			type: DataTypes.STRING,
+			allowNull: true,
 		},
 		name: {
 			type: DataTypes.STRING,

@@ -41,7 +41,9 @@ const seedPillars = async (): Promise<void> => {
 	if (existing > 0) {
 		return;
 	}
-	await Pillar.bulkCreate(SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight })));
+	await Pillar.bulkCreate(
+		SEED_PILLARS.map(({ key, name, description, weight }) => ({ key, name, description, weight })),
+	);
 };
 
 /**
@@ -145,6 +147,7 @@ export const main = async (): Promise<void> => {
 			migrateLegacyPlans,
 			migrateUserIdColumns,
 			migratePillarDescription,
+			migratePillarKey,
 			migratePillarPerUser,
 			migratePillarRestore,
 			migratePillarFeedbackUserId,
@@ -217,6 +220,9 @@ export const main = async (): Promise<void> => {
 		// umbenannte zurücksetzen (id + Beiträge bleiben), fehlende ergänzen, zusätzliche mitsamt
 		// Beiträgen entfernen — nach migratePillarPerUser (userId-Spalte), vor sync().
 		await migratePillarRestore(sequelize);
+		// Stabile `key`-Kennung der Standard-Säulen nachziehen + backfillen (#1848) — nach dem Restore,
+		// damit auch dort ergänzte/zurückgesetzte Zeilen erfasst werden; vor sync().
+		await migratePillarKey(sequelize);
 		// Fehlende userId-Spalte an pillar_feedback nachziehen (#430, AK3) — vor sync(), damit
 		// loadFeedbackExamples({ where: { userId } }) nicht mit `no such column` bricht.
 		await migratePillarFeedbackUserId(sequelize);
