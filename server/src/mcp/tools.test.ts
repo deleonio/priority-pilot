@@ -990,7 +990,7 @@ describe('MCP-Werkzeug task_delete (#1396)', () => {
 		// #1413: zwei Säulen-Werkzeuge — die CRUD-Werkzeuge sind mit #1573 entfallen —,
 		// #1542: drei Gruppen-Schreibwerkzeuge). Der Vertrag ist „task_delete ist drin", nicht
 		// „es gibt genau dreizehn Werkzeuge" — die vollständige Namensliste prüft der Snapshot-Test.
-		assert.equal(names.length, 32, `Katalog sollte zweiunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
 		assert.ok(names.includes('task_delete'), 'task_delete muss im Katalog stehen');
 
 		const tool = tools.find((t) => t.name === 'task_delete');
@@ -1203,7 +1203,7 @@ describe('#1420: autoDeleteAfterDeadline über task_create/task_update setzen', 
 		// Zähler wächst mit dem Katalog (#1423: balance_status, #1412: category_create/update/delete,
 		// #1413: vier Säulen-Werkzeuge, #1424: balance_history, #1542: drei Gruppen-Schreibwerkzeuge)
 		// — #1420 selbst fügt kein Werkzeug hinzu.
-		assert.equal(names.length, 32, `Katalog sollte zweiunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
 	});
 });
 
@@ -1619,8 +1619,8 @@ describe('MCP-Werkzeuge category_create/category_update/category_delete (#1412)'
 		const names = tools.map((t) => t.name).sort();
 		assert.equal(
 			names.length,
-			32,
-			`Katalog sollte zweiunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
+			33,
+			`Katalog sollte dreiunddreißig Namen führen (#1412, #1542, #1543, #1544; Säulen-CRUD seit #1573 entfallen), war: ${names.join(', ')}`,
 		);
 		assert.ok(names.includes('category_create'), 'category_create muss im Katalog stehen');
 		assert.ok(names.includes('category_update'), 'category_update muss im Katalog stehen');
@@ -2419,13 +2419,13 @@ describe('MCP-Werkzeuge Einladungen/Einladungslinks (#1544)', () => {
 		return ((await res.json()) as { id: number }).id;
 	};
 
-	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (32 gesamt)', async () => {
+	it('AK1: tools/list enthält alle sieben neuen Werkzeuge mit den vorgesehenen required-Feldern (33 gesamt)', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);
 
 		const tools = await mcpListTools(token);
 		const names = tools.map((t) => t.name);
-		assert.equal(names.length, 32, `Katalog sollte zweiunddreißig Namen führen, war: ${names.join(', ')}`);
+		assert.equal(names.length, 33, `Katalog sollte dreiunddreißig Namen führen, war: ${names.join(', ')}`);
 		for (const name of [
 			'group_invitation_list',
 			'group_invitation_create',
