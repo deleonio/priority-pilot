@@ -212,7 +212,9 @@ const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly
 /**
  * Wendet ein verifiziertes Ereignis auf das Abo an (AK4/AK6):
  *
- * - Kündigung (`BILLING.SUBSCRIPTION.CANCELLED`/`EXPIRED`) → Paket zurück auf `free`, Status `cancelled`.
+ * - Kündigung (`BILLING.SUBSCRIPTION.CANCELLED`) → Status `cancelled`, das bezahlte Paket läuft bis
+ *   `currentPeriodEnd` weiter, der Fall auf `free` steht in `pendingPlan` (Muster Google Play `CANCELED`, #1896).
+ * - Ablauf (`BILLING.SUBSCRIPTION.EXPIRED`) → Paket sofort zurück auf `free`, Status `cancelled`.
  * - Höheres Paket → wirkt **sofort**, damit der Nutzer das Bezahlte umgehend nutzen kann.
  * - Niedrigeres Paket → wirkt erst ab `currentPeriodEnd`; bis dahin bleibt das bezahlte Paket
  *   aktiv und der Wechsel steht in `pendingPlan`/`pendingPlanEffectiveAt`.
@@ -227,7 +229,17 @@ export const applyPlanChange = async (
 ): Promise<void> => {
 	const eventType = event.event_type ?? '';
 
-	if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
+	if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED') {
+		const currentPeriodEnd = subscription.get('currentPeriodEnd') as Date;
+		await subscription.update({
+			status: 'cancelled',
+			pendingPlan: 'free',
+			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
+		});
+		return;
+	}
+
+	if (eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
 		await subscription.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
 		await syncUserPlan(subscription, 'free');
 		return;
