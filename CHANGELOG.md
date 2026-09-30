@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-30
 
-_Enthält v0.10.0 – v0.10.34._
+_Enthält v0.10.0 – v0.10.36._
 
 ### 💥 Breaking Changes
 
@@ -59,6 +59,8 @@ _Enthält v0.10.0 – v0.10.34._
 - feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
 - test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 - docs(skills): add ticket-coordination skill for epic processing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1862
+- feat(frontend): show plan hint at plan limits without dialog (#1787) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1875
+- feat(frontend): show and label ai suggestion in care hint (#1873) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1874
 
 ## v0.9 - 2026-09-29
 
@@ -355,7 +357,6 @@ _Enthält v0.2.0 – v0.2.134._
 - docs: align tdd-strategy test scope with adr 0004 and test:scripts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1560
 - feat(server): per-user llm provider selection, gate and quota bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1557
 - feat(server): manage invitations and invite links via mcp tools (#1544) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1558
-- feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
 - feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
 - feat(server): balance score measures unweighted skew (#1474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1568
 - feat(frontend): consolidate feedback categories to three by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1569
