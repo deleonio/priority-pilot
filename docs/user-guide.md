@@ -574,7 +574,7 @@ dadurch unter die Schwelle fällt.
 ## Einstellungen
 
 Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit den Bereichen
-Allgemein, Säulen, KI, Standort, Gruppen, Kategorien und **Pakete & Abo**. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
+Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen und **Pakete & Abo**. Admins der App sehen zusätzlich den Bereich **Nutzerverwaltung**
 (siehe unten).
 
 ### Allgemein

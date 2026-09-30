@@ -454,3 +454,36 @@ test.describe('#1903 Tab „KI"', () => {
 		}
 	});
 });
+
+/**
+ * #1904 — Tab-Reihenfolge nach Paketstufe und Adress-Zuordnung (Spec docs/spec/issue-1904.md).
+ */
+test.describe('#1904 Settings-Tabs nach Paketstufe sortiert', () => {
+	test('AK1: Tab-Leiste zeigt die Tabs in Paketstufen-Reihenfolge', async ({ page }) => {
+		await page.goto('/app/settings/general');
+		await waitForStableView(page, 'Balamentum');
+
+		const names = await page.getByRole('tab').allInnerTexts();
+		const order = ['Allgemein', 'Säulen', 'Kategorien', 'Standort', 'Orte', 'KI', 'Gruppen', 'Pakete & Abo'];
+		expect(names.map((n) => n.trim()).filter((n) => order.includes(n))).toEqual(order);
+	});
+
+	const SEGMENTS: [string, string, string][] = [
+		['kategorien', 'Kategorien', '.settings-categories'],
+		['orte', 'Orte', '.settings-places'],
+		['llm', 'KI', '.settings-llm'],
+		['gruppen', 'Gruppen', '.settings-groups'],
+		['pakete', 'Pakete & Abo', '.settings-plans'],
+		['abo', 'Pakete & Abo', '.settings-plans'],
+		['zugriff', 'KI', '.settings-llm'],
+	];
+	for (const [segment, label, panel] of SEGMENTS) {
+		test(`AK3: /settings/${segment} aktiviert „${label}" mit passendem Panel`, async ({ page }) => {
+			await page.goto(`/app/settings/${segment}`);
+			await waitForStableView(page, 'Balamentum');
+
+			await expect(page.getByRole('tab', { name: label, exact: true })).toHaveAttribute('aria-selected', 'true');
+			await expect(page.locator(panel).first()).toBeVisible();
+		});
+	}
+});
