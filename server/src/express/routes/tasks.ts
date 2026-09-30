@@ -536,6 +536,22 @@ const awardScoreOnDone = async (task: Task, transaction: Transaction): Promise<v
 };
 
 /**
+ * Rechnet den `ScoreEntry` eines bereits erledigten Tasks nach einer Korrektur von Aufwand,
+ * Priorität oder Deadline neu (#1821) — gleiche Formel wie `awardScoreOnDone`, aber mit dem
+ * gespeicherten `zeitpunkt` als Erledigt-Datum, damit Streak, Verlauf und Fürsorge unverändert bleiben.
+ */
+const recalculateScoreOnDoneEdit = async (task: Task, transaction: Transaction): Promise<void> => {
+	const entry = await ScoreEntry.findOne({ where: { taskId: task.id }, transaction });
+	if (!entry) return;
+	const { punkte, pünktlich } = berechneScore(
+		task.deadline ?? null,
+		entry.zeitpunkt,
+		task.estimatedEffort * task.priority,
+	);
+	await entry.update({ punkte, pünktlich }, { transaction });
+};
+
+/**
  * Baut den Task-Router. `pushSender` ist injizierbar (Vorbild `createPushRouter`), damit der
  * Versand bei fremd angelegten Aufgaben (#1224) ohne echte VAPID-Konfiguration testbar ist.
  */
@@ -755,22 +771,6 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			sendError(res, 400, validation.message);
 			return;
 		}
-		// Done-Bearbeitungssperre (#1438): ein bereits erledigter Task ist gegen inhaltliche
-		// Änderungen eingefroren, solange der Request den Status nicht im selben Aufruf von
-		// „Done" wegändert (Reopen bleibt möglich, auch zusammen mit inhaltlichen Feldern).
-		const staysDone =
-			task.status === 'Done' && (validation.attrs.status === undefined || validation.attrs.status === 'Done');
-		if (staysDone) {
-			const recipientCandidate = (req.body as { userId?: unknown }).userId;
-			const hasContentField =
-				Object.keys(validation.attrs).some((key) => key !== 'status') ||
-				validation.pillars !== undefined ||
-				(recipientCandidate !== undefined && recipientCandidate !== task.userId);
-			if (hasContentField) {
-				sendError(res, 409, 'Ein erledigter Task kann erst nach dem Wiedereröffnen inhaltlich bearbeitet werden.');
-				return;
-			}
-		}
 		const userId = getUserId(req);
 		// #1252: optionaler Empfänger — Übergabe der Aufgabe an ein Gruppenmitglied. Muster
 		// `POST /tasks` (#1213): ohne das Feld (oder mit der eigenen ID) ändert sich am bisherigen
@@ -931,6 +931,15 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
 				if (!warVorherDone && task.status === 'Done') {
 					await awardScoreOnDone(task, transaction);
+				}
+				// #1821: Korrektur an einem erledigten Task — Punkte neu berechnen, wenn Aufwand, Priorität
+				// oder Deadline sich ändern; der Eintrag bleibt erhalten (kein neuer `zeitpunkt`).
+				if (
+					warVorherDone &&
+					task.status === 'Done' &&
+					['estimatedEffort', 'priority', 'deadline'].some((key) => key in validation.attrs)
+				) {
+					await recalculateScoreOnDoneEdit(task, transaction);
 				}
 				// Score-Rücknahme beim Wiedereröffnen (#228, AK-5): War der Task vorher „Done" und ist er
 				// jetzt nicht mehr erledigt, wird der beim Erledigen vergebene ScoreEntry wieder entfernt.

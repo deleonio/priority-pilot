@@ -97,10 +97,10 @@ paths:
     patch:
       summary: Einen Task teilweise aktualisieren
       description: >-
-        Ein bereits erledigter Task (`status: Done`) ist gegen inhaltliche Änderungen
-        eingefroren: solange der Request den Status nicht im selben Aufruf von `Done`
-        wegändert, wird er mit `409` abgelehnt (#1438). Ein reines Wiedereröffnen
-        (`status`, ggf. zusammen mit inhaltlichen Feldern) bleibt möglich.
+        Auch ein bereits erledigter Task (`status: Done`) ist direkt bearbeitbar (#1821,
+        löst die Sperre aus #1438 ab). Ändern sich dabei Aufwand, Priorität oder Deadline,
+        werden die Punkte des bestehenden Score-Eintrags mit dem gespeicherten
+        Erledigt-Zeitpunkt neu berechnet.
       operationId: updateTask
       requestBody:
         required: true
@@ -119,8 +119,6 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
     delete:
       summary: Einen Task löschen
       operationId: deleteTask
