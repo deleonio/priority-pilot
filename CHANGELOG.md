@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-30
 
-_Enthält v0.10.0 – v0.10.33._
+_Enthält v0.10.0 – v0.10.34._
 
 ### 💥 Breaking Changes
 
@@ -17,6 +17,7 @@ _Enthält v0.10.0 – v0.10.33._
 ### 🚀 Improvements
 
 - feat(website): show quarterly price and plus/pro pricing texts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1872
+- feat(server): resolve pillar texts and weekly target via stable key by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1877
 
 ### 🔧 Engineering
 
@@ -148,7 +149,6 @@ _Enthält v0.6.0 – v0.6.15._
 
 ### Other Changes
 
-- feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
 - feat(server): accept google play purchases and unlock the plan by @deleonio in https://github.com/deleonio/priority-pilot/pull/1721
 - feat(server): securely accept google play subscription events (rtdn) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1722
 - feat(server): google play subscription states drive plan, grace and downgrade by @deleonio in https://github.com/deleonio/priority-pilot/pull/1723
@@ -355,6 +355,7 @@ _Enthält v0.2.0 – v0.2.134._
 - docs: align tdd-strategy test scope with adr 0004 and test:scripts by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1560
 - feat(server): per-user llm provider selection, gate and quota bypass by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1557
 - feat(server): manage invitations and invite links via mcp tools (#1544) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1558
+- feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
 - feat(frontend): replace offer dialog with labeled plan badge (#1528) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1564
 - feat(server): balance score measures unweighted skew (#1474) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1568
 - feat(frontend): consolidate feedback categories to three by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1569
