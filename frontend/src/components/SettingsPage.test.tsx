@@ -715,7 +715,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(tabsEl?._tabs?.map((t) => t._label)).toEqual([
 			'Allgemein',
 			'Säulen',
-			'KI-Provider',
+			'KI',
 			'Standort',
 			'Orte',
 			'Gruppen',
@@ -723,9 +723,8 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 			'Pakete',
 			'Abo',
 			'Nutzerverwaltung',
-			// Test-Pflege #1526: Tab-Label „Zugriff" → „Access-Token" (AK1); Route/Index unverändert,
+			// Test-Pflege #1903 AK1: „KI-Provider" → „KI", der Tab „Access-Token" entfällt (Zugriff liegt im KI-Tab).
 			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt auf Index 9.
-			'Access-Token',
 		]);
 		const adminPanel = container.querySelector('[slot="tab-9"]');
 		expect(adminPanel, 'letzter Slot tab-9 existiert').not.toBeNull();
@@ -934,7 +933,7 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 	it('AK1: allowed=false → Schalter deaktiviert, Paket-Alert mit Paketname "Pro" und Sprung-CTA', async () => {
 		const { container, onTabChange } = renderKiTab(false);
 
-		const toggle = container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]');
+		const toggle = container.querySelector('kol-input-checkbox[_label="KI aktivieren"]');
 		expect(toggle, 'KI-Schalter fehlt').not.toBeNull();
 		await waitFor(() => expect(bound(toggle!, '_disabled')).toBe('true'));
 
@@ -955,7 +954,7 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 	it('AK2: allowed=true → Schalter bedienbar, kein Paket-Alert, Umlegen persistiert weiterhin', async () => {
 		const { container } = renderKiTab(true);
 
-		const toggle = container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]');
+		const toggle = container.querySelector('kol-input-checkbox[_label="KI aktivieren"]');
 		expect(toggle, 'KI-Schalter fehlt').not.toBeNull();
 		await waitFor(() => expect(bound(toggle!, '_disabled')).not.toBe('true'));
 
@@ -971,7 +970,7 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 		expect(localStorage.getItem('pp-ai-enabled')).toBe('false');
 	});
 
-	it('AK4: eigener Custom-Provider hebt die Sperre auf, obwohl allowed=false → kein Paket-Alert', async () => {
+	it('#1903 AK6 (Test-Pflege #1525 AK4): eigener Custom-Provider hebt die Sperre NICHT mehr auf → Schalter gesperrt, Paket-Alert bleibt', async () => {
 		// `useHasCustomLlmProvider` cached das Ergebnis von `listLlmProviders` modulweit
 		// (`aiPreferences.ts`) — AK1/AK2 oben haben den Cache bereits mit dem Leer-Default (kein
 		// Custom-Provider) gefüllt. Frischer Modul-Graph + eigener Mock-Rückgabewert stellen sicher,
@@ -992,15 +991,15 @@ describe('SettingsPage – #1525: KI-Schalter Paket-Sperre (AK1/AK2)', () => {
 
 		// Re-query bei jedem Poll: der `key`-Wechsel (Finding #1 dieser Runde) remountet den Schalter
 		// beim Kippen von `hasCustomProvider`, eine einmal eingesammelte Referenz bliebe stehen.
-		const queryToggle = () => container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]');
+		const queryToggle = () => container.querySelector('kol-input-checkbox[_label="KI aktivieren"]');
 		await waitFor(() => {
 			const toggle = queryToggle();
 			expect(toggle, 'KI-Schalter fehlt').not.toBeNull();
-			expect(bound(toggle!, '_disabled')).not.toBe('true');
+			expect(bound(toggle!, '_disabled')).toBe('true');
 		});
 
 		const row = queryToggle()!.closest('.settings-llm-switch-row');
-		expect(row?.querySelector('kol-alert')).toBeNull();
+		expect(row?.querySelector('kol-alert')).not.toBeNull();
 	});
 });
 
@@ -1664,5 +1663,59 @@ describe('SettingsPage – #1894: Tab „Orte"', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		expect(panel(container, 'tab-4')?.querySelector('[data-testid="place-favorites-panel"]')).not.toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1903 (docs/spec/issue-1903.md) — Tab „KI": Schalter „KI aktivieren" steuert
+ * das Einklappen der Unterbereiche (AK2–AK4, Q3=A: eingeklappt, nicht entfernt).
+ */
+describe('SettingsPage – #1903: Tab „KI" (Schalter + Access-Token-Karte)', () => {
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+	const entitlements: EntitlementMap = {
+		ai_assist: { allowed: true, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+	};
+	const renderKi = () =>
+		render(
+			<PlanProvider value={{ plan: 'pro', entitlements }}>
+				<SettingsPage {...defaultProps} />
+			</PlanProvider>,
+		);
+
+	afterEach(() => {
+		localStorage.removeItem('pp-ai-enabled');
+	});
+
+	it('AK2: Schalter heißt „KI aktivieren", „KI-Features aktiv" existiert nicht mehr', async () => {
+		const { container } = renderKi();
+		await waitFor(() => expect(container.querySelector('kol-input-checkbox[_label="KI aktivieren"]')).not.toBeNull());
+		expect(container.querySelector('kol-input-checkbox[_label="KI-Features aktiv"]')).toBeNull();
+	});
+
+	it('AK4: Schalter an → Karte „Access-Token" mit Details „Access-Token erstellen" und „Vorhandene Access-Token", offen', async () => {
+		localStorage.setItem('pp-ai-enabled', 'true');
+		const { container } = renderKi();
+		await waitFor(() => expect(container.querySelector('kol-card[_label="Access-Token"]')).not.toBeNull());
+		const card = container.querySelector('kol-card[_label="Access-Token"]')!;
+		const create = card.querySelector('kol-details[_label="Access-Token erstellen"]');
+		const existing = card.querySelector('kol-details[_label="Vorhandene Access-Token"]');
+		expect(create, 'Detail „Access-Token erstellen" fehlt').not.toBeNull();
+		expect(existing, 'Detail „Vorhandene Access-Token" fehlt').not.toBeNull();
+		expect(bound(create!, '_open')).toBe('true');
+	});
+
+	it('AK3: Schalter aus → Details im DOM, aber eingeklappt', async () => {
+		localStorage.setItem('pp-ai-enabled', 'false');
+		const { container } = renderKi();
+		await waitFor(() => expect(container.querySelector('kol-card[_label="Access-Token"]')).not.toBeNull());
+		const card = container.querySelector('kol-card[_label="Access-Token"]')!;
+		for (const label of ['Access-Token erstellen', 'Vorhandene Access-Token']) {
+			const details = card.querySelector(`kol-details[_label="${label}"]`);
+			expect(details, `${label} muss im DOM bleiben`).not.toBeNull();
+			expect(bound(details!, '_open')).not.toBe('true');
+		}
 	});
 });

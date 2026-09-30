@@ -96,7 +96,7 @@ describe('aiPreferences — readAiPreferences / storeAiPreferences (#1335 AK4)',
  * Vertrag (Wahrheitstabelle):
  * - `preferenceEnabled: false` → immer `false`, unabhängig von Berechtigung/Custom-Provider (AK3).
  * - `preferenceEnabled: true`, `entitlementAllowed: true` → immer `true` (AK2).
- * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: true` → `true` (AK4).
+ * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: true` → `false` (#1903 AK7).
  * - `preferenceEnabled: true`, `entitlementAllowed: false`, `hasCustomProvider: false` → `false` (AK1).
  * - `preferenceEnabled: true`, `entitlementAllowed: undefined` (noch nicht geladen) → immer `false`,
  *   auch mit `hasCustomProvider: true` — sicherer Default, kein Aufblitzen (AK5).
@@ -112,7 +112,8 @@ describe('aiPreferences — computeAiFeaturesEnabled (#1525 AK1/AK3/AK4/AK5)', (
 		[false, undefined, false, false],
 		[true, true, true, true],
 		[true, true, false, true],
-		[true, false, true, true],
+		// Test-Pflege #1903 AK7: eigener Provider öffnet das Gate nicht mehr (Q2=B, #1525-Pfad entfällt).
+		[true, false, true, false],
 		[true, false, false, false],
 		[true, undefined, true, false],
 		[true, undefined, false, false],
