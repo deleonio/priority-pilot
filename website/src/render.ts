@@ -452,6 +452,22 @@ ${section.list.map((item) => `						<li>${t(item)}</li>`).join('\n')}
 					</ul>`,
 				]
 			: []),
+		...(section.facts
+			? [
+					`					<ul class="kern-body">
+${(
+	[
+		['Zweck', section.facts.purpose],
+		['Rechtsgrundlage', section.facts.legalBasis],
+		['Speicherdauer', section.facts.retention],
+		['Empfänger', section.facts.recipients],
+	] as [string, string][]
+)
+	.map(([label, text]) => `						<li><strong>${label}:</strong> ${t(text)}</li>`)
+	.join('\n')}
+					</ul>`,
+				]
+			: []),
 	])
 	.join('\n')}				</div>
 			</section>`;
