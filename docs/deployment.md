@@ -198,12 +198,10 @@ Der Capacitor-Sync des APK-Builds und der Website-Build brauchen sie (absolute c
 hreflang-Links, `sitemap.xml`). Optional `ANDROID_PACKAGE_ID` (`de.balamentum.app`) und
 `ANDROID_CERT_SHA256` (SHA-256-Fingerprints von App-Signing- und Upload-Key, durch Komma getrennt):
 Damit erzeugt der Website-Build `/.well-known/assetlinks.json` für die App Links der Android-App
-([ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)). Secrets
-`ANDROID_UPLOAD_KEYSTORE_B64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`
-(wie [android.yml](../.github/workflows/android.yml), [native-apps.md](native-apps.md)): Das Deploy
-baut die Release-APK und legt sie als `demo.apk` ins Web-Root. Sie ist mit dem Upload-Key signiert,
-dessen Fingerabdruck in `ANDROID_CERT_SHA256` steht — so verifiziert Android den App Link und die App
-läuft ohne Browser-Kopfzeile. Der Debug-Keystore wird nicht mehr gebraucht. Optional Secret `ANDROID_GOOGLE_SERVICES_JSON` (bei Build und `demo.apk` gleich): Fehlt
+([ADR 0016](adr/0016-nativer-wrapper-capacitor-remote-modus.md)). Secret
+`ANDROID_DEBUG_KEYSTORE_B64` (Debug-Keystore als Base64): Das Deploy baut die Debug-APK und legt
+sie als `demo.apk` ins Web-Root — der Runner-Keystore wäre je Lauf neu und würde die App-Link-Verifizierung
+brechen. Optional Secret `ANDROID_GOOGLE_SERVICES_JSON` (bei Build und `demo.apk` gleich): Fehlt
 es, baut die APK ohne FCM-Push. Das Schlüsselpaar (`gh_deploy`/`gh_deploy.pub`,
 beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup vor; Einrichtung des
 Hosts siehe [server-setup.md](server-setup.md).
