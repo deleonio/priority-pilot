@@ -31,13 +31,11 @@ on:
         type: boolean
 
 concurrency:
-  # Eigene, statische Gruppe — unabhängig vom Provider (Rationale: Abarbeitung, nicht LLM):
-  # Der Documenter läuft nach dem Merge und hat null Abhängigkeiten zur Ticket-Bearbeitung,
-  # er kollidiert mit keinem Lauf der Phasen 01-05. Auch die Notbremse
-  # LLM_PROVIDER_DOCUMENTER=zai|claude ändert daran nichts — er zieht dann parallel zum
-  # Ticket-Strom vom z.ai-Kontingent (bewusst akzeptiert). Der precheck-Job verhindert
-  # zusätzlich falsches Nachziehen — kurz hintereinander gemergte PRs reihen sich ein
-  # statt zu parallelisieren.
+  # Eigene, statische Gruppe — Rationale ist die Abarbeitung, nicht der Provider: Der
+  # Documenter läuft nach dem Merge und kollidiert mit keinem Lauf der Phasen 01-05; auch die
+  # Notbremse LLM_PROVIDER_DOCUMENTER=zai|claude ändert das nicht (er zieht dann parallel vom
+  # z.ai-Kontingent, bewusst akzeptiert). Der precheck-Job verhindert zusätzlich falsches
+  # Nachziehen — kurz hintereinander gemergte PRs reihen sich ein statt zu parallelisieren.
   group: llm-documenter
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue

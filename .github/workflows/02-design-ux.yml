@@ -20,8 +20,9 @@ on:
         type: string
 
 concurrency:
-  # Eigene Gruppe — Issue-only, startet nur durch die Triage-Entscheidung `ai:needs-ux-ui`
-  # (Keys folgen der Abarbeitung; Details/Rationale: 01-triage.yml). Cron-/Ad-hoc-Sync bleibt
+  # Eigene Gruppe — Issue-only, im Label-Fluss gestartet durch die Triage-Entscheidung
+  # `ai:needs-ux-ui` (workflow_dispatch bleibt als manueller Nachlauf möglich).
+  # Keys folgen der Abarbeitung; Details/Rationale: 01-triage.yml. Cron-/Ad-hoc-Sync bleibt
   # außen vor.
   group: llm-ux
   cancel-in-progress: false
