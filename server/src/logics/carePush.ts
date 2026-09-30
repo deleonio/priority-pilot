@@ -287,7 +287,7 @@ const lokalesDatum = (datum: Date, zeitzone: string | null): string =>
 	}).format(datum);
 
 /** Stunde (0–23, `h23`) und Minute in der Zeitzone. */
-const uhrzeitIn = (datum: Date, zeitzone: string): { stunde: number; minute: number } => {
+export const uhrzeitIn = (datum: Date, zeitzone: string): { stunde: number; minute: number } => {
 	const teile = new Intl.DateTimeFormat('en-GB', {
 		timeZone: zeitzone,
 		hour: '2-digit',
