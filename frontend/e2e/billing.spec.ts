@@ -279,4 +279,42 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 		expect(box, 'plans-section muss eine Bounding-Box haben').not.toBeNull();
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375 + 1);
 	});
+
+	test('#1940 AK5: Bei 375px ohne Abo — Rechnungsliste ohne horizontalen Überlauf', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await mockCatalog(page);
+		await mockAuthMe(page, USER_NO_SUBSCRIPTION);
+		await page.route('**/api/v1/billing/invoices', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify([
+					{
+						id: 1,
+						number: 'INV-2026-000001',
+						periodStart: '2026-08-15T00:00:00.000Z',
+						periodEnd: '2026-09-15T00:00:00.000Z',
+						amountCents: 799,
+						taxNote: '§19 UStG',
+					},
+				]),
+			}),
+		);
+
+		await gotoAbo(page);
+		await expect(page.getByTestId('subscription-empty')).toBeVisible();
+		await page.getByText('Rechnungen', { exact: true }).click();
+		const items = page.locator('.billing-invoices__item');
+		await expect(items.first()).toBeVisible();
+		await expect(page.getByText('Rechnungen und Kündigung')).toHaveCount(0);
+		await expect(page.getByTestId('cancel-subscription')).toHaveCount(0);
+
+		// App-Shell clippt overflow-x: Bounding-Boxen statt scrollWidth (MEMORY 2026-09-14).
+		await expect
+			.poll(async () => {
+				const boxes = await items.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().right));
+				return Math.max(...boxes);
+			})
+			.toBeLessThanOrEqual(375);
+	});
 });
