@@ -71,8 +71,8 @@ const CancelDialog = ({ onClose, onCancelled }: CancelDialogProps) => {
 
 /**
  * Obere Karte des Reiters „Pakete & Abo" (#1529, seit #1902 gemeinsam mit den Paketen) — laufendes
- * Abo, anstehender Wechsel und Kulanzfrist sichtbar; Rechnungen und Kündigung in einem `KolDetails`.
- * Ohne Abo nur ein Hinweis (UX-Beratung zu #1902: kein „Pakete ansehen", die Pakete liegen darunter).
+ * Abo, anstehender Wechsel und Kulanzfrist sichtbar; Rechnungen (und Kündigung, wenn möglich) in einem `KolDetails`.
+ * Ohne Abo ein Hinweis, die Rechnungen nur, wenn es welche gibt (UX-Beratung zu #1902: kein „Pakete ansehen", die Pakete liegen darunter; AK3 von #1902 seit #1940 geändert).
  */
 export const SubscriptionSection = () => {
 	const { subscription } = usePlan();
@@ -80,6 +80,9 @@ export const SubscriptionSection = () => {
 	const [invoicesError, setInvoicesError] = useState<string | null>(null);
 	const [cancelOpen, setCancelOpen] = useState(false);
 	const canCancel = subscription?.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal';
+
+	// Ehemalige Abonnenten (`subscription === null`) sehen ihre Rechnungen weiter, aber keine leere Gruppe (#1940).
+	const showInvoices = subscription != null || (subscription === null && invoices !== null && invoices.length > 0);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -117,40 +120,6 @@ export const SubscriptionSection = () => {
 						{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
 						{!canCancel && <ManagedBy provider={subscription.provider} />}
 					</section>
-
-					<KolDetails _label="Rechnungen und Kündigung" _level={3}>
-						{canCancel && (
-							<KolButton
-								data-testid="cancel-subscription"
-								_label="Abo kündigen"
-								_variant="danger"
-								_on={{ onClick: () => setCancelOpen(true) }}
-							/>
-						)}
-						<section className="billing-invoices" data-testid="billing-invoices">
-							{invoicesError !== null ? (
-								<KolAlert _type="error" _label="Rechnungen">
-									{invoicesError}
-								</KolAlert>
-							) : invoices === null ? (
-								<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
-							) : invoices.length === 0 ? (
-								<p data-testid="invoices-empty">Noch keine Rechnungen vorhanden.</p>
-							) : (
-								<ul className="billing-invoices__list">
-									{invoices.map((invoice) => (
-										<li key={invoice.id} className="billing-invoices__item">
-											<span>{invoice.number}</span>
-											<span>
-												{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
-											</span>
-											<span>{formatEuro(invoice.amountCents)}</span>
-										</li>
-									))}
-								</ul>
-							)}
-						</section>
-					</KolDetails>
 				</>
 			) : (
 				// `undefined` heißt „Abo-Status noch nicht geladen" — dann steht hier nichts, statt
@@ -163,6 +132,42 @@ export const SubscriptionSection = () => {
 						</p>
 					</section>
 				)
+			)}
+
+			{showInvoices && (
+				<KolDetails _label={canCancel ? 'Rechnungen und Kündigung' : 'Rechnungen'} _level={3}>
+					{canCancel && (
+						<KolButton
+							data-testid="cancel-subscription"
+							_label="Abo kündigen"
+							_variant="danger"
+							_on={{ onClick: () => setCancelOpen(true) }}
+						/>
+					)}
+					<section className="billing-invoices" data-testid="billing-invoices">
+						{invoicesError !== null ? (
+							<KolAlert _type="error" _label="Rechnungen">
+								{invoicesError}
+							</KolAlert>
+						) : invoices === null ? (
+							<KolSpin _show _variant="cycle" _label="Rechnungen werden geladen …" />
+						) : invoices.length === 0 ? (
+							<p data-testid="invoices-empty">Noch keine Rechnungen vorhanden.</p>
+						) : (
+							<ul className="billing-invoices__list">
+								{invoices.map((invoice) => (
+									<li key={invoice.id} className="billing-invoices__item">
+										<span>{invoice.number}</span>
+										<span>
+											{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
+										</span>
+										<span>{formatEuro(invoice.amountCents)}</span>
+									</li>
+								))}
+							</ul>
+						)}
+					</section>
+				</KolDetails>
 			)}
 
 			{cancelOpen && <CancelDialog onClose={() => setCancelOpen(false)} onCancelled={() => setCancelOpen(false)} />}
