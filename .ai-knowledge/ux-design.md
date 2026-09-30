@@ -130,6 +130,13 @@ z. B. `spec/button`) statt raten.
 
 ## 5. Layout
 
+- **Mobile-first** nach [project.md → Mobile-First](project.md#mobile-first-frontend) — Basis ist 375px, Desktop kommt per
+  `@media (min-width: …)` dazu.
+- Ein Bruchpunkt trägt die Hauptlast: **48rem** (Tablet). Weitere nur mit Begründung.
+- Inhaltsbreite bleibt bei `max-width: 80rem` zentriert (`.app`).
+- Vertikaler Rhythmus: Abschnitte `--pp-space-6`, Elemente innerhalb einer Karte `--pp-space-3/4`.
+- Safe-Area-Insets (installierte PWA) sind gesetzt und bleiben es.
+
 ### Aufklappbare Bereiche — zwei verbindliche Regeln
 
 **Regel 1 — Gliederung nur auf oberster Ebene.** `KolCard` und `KolAccordion` gliedern die Seite nur
@@ -148,13 +155,7 @@ nur für den Standort. Beispiel: „Reichweite und Intervall" öffnet erst mit �
 
 - `frontend/src/components/SettingsPage.tsx:532` — `KolAccordion` „Einzelne Animationen" in der Karte „Bewegung".
 - `frontend/src/components/GroupDetail.tsx:287-443` — sechs `KolAccordion` („Offene Einladungen" bis „Einladungslinks") im aufgeklappten Gruppen-`KolAccordion` (`GroupsSection.tsx:186`).
-
-- **Mobile-first** nach [project.md → Mobile-First](project.md#mobile-first-frontend) — Basis ist 375px, Desktop kommt per
-  `@media (min-width: …)` dazu.
-- Ein Bruchpunkt trägt die Hauptlast: **48rem** (Tablet). Weitere nur mit Begründung.
-- Inhaltsbreite bleibt bei `max-width: 80rem` zentriert (`.app`).
-- Vertikaler Rhythmus: Abschnitte `--pp-space-6`, Elemente innerhalb einer Karte `--pp-space-3/4`.
-- Safe-Area-Insets (installierte PWA) sind gesetzt und bleiben es.
+- `frontend/src/components/CategoryList.tsx:95` — Leerzustands-`KolCard` „Noch keine Kategorien" in der Karte „Kategorien verwalten" (`SettingsPage.tsx:922`, Karte in Karte).
 
 ## 6. Prüfliste vor „fertig"
 

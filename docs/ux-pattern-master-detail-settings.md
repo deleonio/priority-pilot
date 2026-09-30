@@ -27,7 +27,7 @@ Vorhandene Umsetzungen dieses Patterns:
   „KI-Features aktiv" (`SettingsPage.tsx`, Tab „KI-Provider").
 - **„Reichweite und Intervall"** — die drei Geo-Regler (Anzeige-/Alarm-Entfernung,
   Aktualisierungsintervall) unter dem Master „Standort erfassen" (`SettingsPage.tsx`, Tab
-  „Standort").
+  „Standort"). **Noch ein eigenständiges `KolAccordion` neben der Standort-Karte (`SettingsPage.tsx:842`) — weicht von der Umsetzungsregel oben ab, Umstellung auf `KolDetails` in der Karte offen.**
 
 ---
 
