@@ -862,8 +862,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// KI-Bedienelemente aus (Lektorat-Buttons im TaskForm) und entscheidet, ob „Neuen Task anlegen"
 	// den KI-Freitext-Einstieg zeigt oder direkt das Task-Formular öffnet.
 	// #1525: zusätzlich an die Paket-Freischaltung `ai_assist` gekoppelt — `useAiFeaturesGate`
-	// liest die Präferenz weiterhin pro Render frisch aus dem `localStorage` (kein gepufferter State, `SettingsPage` besitzt die eigene Hook-Instanz und
-	// `App` remountet beim Verlassen der Einstellungen nicht), kombiniert sie aber mit der
+	// liest die Präferenz weiterhin pro Render frisch aus dem `localStorage` (kein gepufferter State, `SettingsPage` besitzt die eigene Hook-Instanz
+	// und `App` remountet beim Verlassen der Einstellungen nicht), kombiniert sie aber mit der
 	// Berechtigung aus dem `PlanProvider`-Kontext.
 	const aiEnabled = useAiFeaturesGate();
 
