@@ -99,10 +99,10 @@ jobs:
           install -m600 <(printf '%s\n' "$SSH_KEY") ~/.ssh/deploy_key
           ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      # ━━━━ Debug-APK als demo.apk (ADR 0016) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # Das Deployment legt die Debug-APK als demo.apk ins Web-Root — direkt installierbar unter
-      # https://<Domain>/demo.apk. Sie braucht den stabilen Debug-Keystore als Secret: Der
-      # Runner-Keystore ist je Lauf neu, damit würde die App-Link-Verifizierung jeden Deploy brechen.
+      # ━━━━ Release-APK als demo.apk (ADR 0016) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # Das Deployment legt die Release-APK als demo.apk ins Web-Root — direkt installierbar unter
+      # https://<Domain>/demo.apk. Sie ist mit dem Upload-Key signiert (wie android.yml), dessen
+      # Fingerabdruck in ANDROID_CERT_SHA256 steht: nur so verifiziert Android den App Link.
       - name: Android SDK 36
         # Das Runner-Image bringt SDK und cmdline-tools mit; installiert wird nur, was fehlt.
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" > /dev/null
@@ -117,29 +117,36 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL }}
 
-      - name: Debug-Keystore und google-services.json aus Secrets
+      - name: Upload-Keystore und google-services.json aus Secrets
         env:
-          ANDROID_DEBUG_KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$ANDROID_DEBUG_KEYSTORE_B64" ]; then
-            echo "::error::Secret ANDROID_DEBUG_KEYSTORE_B64 fehlt (docs/native-apps.md)"
-            exit 1
-          fi
-          install -d ~/.android
-          echo "$ANDROID_DEBUG_KEYSTORE_B64" | base64 --decode > ~/.android/debug.keystore
+          for secret in ANDROID_UPLOAD_KEYSTORE_B64 ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS; do
+            if [ -z "${!secret}" ]; then
+              echo "::error::Secret $secret fehlt (docs/native-apps.md)"
+              exit 1
+            fi
+          done
+          echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
           # Mit echter FCM-Konfiguration hat demo.apk funktionierenden Push; ohne sie greift der
           # Platzhalter-Fallback aus app/build.gradle (sauberer Fehler statt Crash, #1735).
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > native/android/app/google-services.json
           fi
 
-      - name: Debug-APK bauen
+      - name: Release-APK bauen
         working-directory: native/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
         run: |
           # JDK 21 liegt im Runner-Image bereit, nur nicht als Standard.
           export JAVA_HOME="$JAVA_HOME_21_X64"
-          ./gradlew assembleDebug
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks"
+          ./gradlew assembleRelease
 
       # Website an die Wurzel, App nach /app/ (ADR 0015). Das Website-rsync schließt app/ aus, damit
       # `--delete` die App nicht entfernt; die App wird danach in ihr eigenes Unterverzeichnis gespielt.
@@ -157,7 +164,7 @@ jobs:
       - name: demo.apk hochladen
         run: |
           rsync -az -e "ssh -i ~/.ssh/deploy_key" \
-            native/android/app/build/outputs/apk/debug/app-debug.apk \
+            native/android/app/build/outputs/apk/release/app-release.apk \
             "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/demo.apk"
 
       - name: rsync Backend
