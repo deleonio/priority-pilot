@@ -253,7 +253,6 @@ describe('renderPrivacy (#1672)', () => {
 		for (const principle of ['sparsam', 'auswertung', 'weitergabe']) {
 			expect(lower, `Grundsatz „${principle}“ fehlt`).toContain(principle);
 		}
-		expect(lower, 'Ende-zu-Ende-Verschlüsselung fehlt').toMatch(/ende-zu-ende|e2e/);
 	});
 
 	it('verlinkt /datenschutz/ aus dem Footer aller zehn Sprachen (AK2)', () => {
@@ -361,5 +360,69 @@ describe('Preisseite Free/Plus/Pro (#1786)', () => {
 			expect(html).toContain(price);
 		}
 		expect(html).not.toContain('13,47 €');
+	});
+});
+
+/**
+ * #1892 AK1–AK3 (Vertrag: `docs/spec/issue-1892.md`) — vollständige Datenschutzerklärung: je Verarbeitung
+ * ein eigener Abschnitt mit den vier Pflichtangaben, Verantwortlicher aus `operator.ts`, keine
+ * Ende-zu-Ende-Zusage (löst die Assertion aus #1672 ab).
+ */
+describe('renderPrivacy vollständig (#1892)', () => {
+	const html =
+		renderPrivacy?.({ locale: 'de', messages: de, siteUrl: '', operator: OPERATOR, allMessages } as never) ?? '';
+	/** Text je h2-Abschnitt, Schlüssel = Überschrift. */
+	const sections = html
+		.split(/<h2[^>]*>/)
+		.slice(1)
+		.map((chunk) => {
+			const [heading, ...rest] = chunk.split('</h2>');
+			return { heading: heading ?? '', text: rest.join('').replace(/<[^>]+>/g, ' ') };
+		});
+	const PROCESSINGS: [string, RegExp][] = [
+		['Google-Login', /google-login|anmeldung/i],
+		['Standort und Orte', /standort|orte/i],
+		['Push', /push/i],
+		['KI-Anbieter', /\bki\b|ki-anbieter/i],
+		['PayPal', /paypal/i],
+		['Google Play', /google play/i],
+		['Rechnungen', /rechnung/i],
+		['Feedback', /feedback/i],
+		['MCP-Zugriff', /mcp|access-token/i],
+		['Android-App', /android/i],
+	];
+
+	it('hat je Verarbeitung einen eigenen Abschnitt mit Zweck, Rechtsgrundlage, Speicherdauer, Empfänger (AK1)', () => {
+		expect(renderPrivacy, 'renderPrivacy fehlt').toBeTypeOf('function');
+		for (const [name, heading] of PROCESSINGS) {
+			const section = sections.find((s) => heading.test(s.heading));
+			expect(section, `${name}: kein h2-Abschnitt`).toBeDefined();
+			for (const field of ['Zweck', 'Rechtsgrundlage', 'Speicherdauer', 'Empfänger']) {
+				expect(section!.text, `${name}: „${field}“ fehlt`).toContain(field);
+			}
+		}
+	});
+
+	it('nennt Verantwortlichen, Kontakt aus operator.ts, Betroffenenrechte und Aufsichtsbehörde (AK2)', () => {
+		expect(html).toContain(OPERATOR.name);
+		expect(html).toContain(OPERATOR.email);
+		for (const right of [
+			'Auskunft',
+			'Berichtigung',
+			'Löschung',
+			'Einschränkung',
+			'Datenübertragbarkeit',
+			'Widerspruch',
+			'Beschwerde',
+		]) {
+			expect(html, `Recht „${right}“ fehlt`).toContain(right);
+		}
+		expect(html).toContain('Aufsichtsbehörde');
+	});
+
+	it('enthält keine Ende-zu-Ende-Zusage, aber HTTPS und gehashte Tokens (AK3)', () => {
+		expect(html).not.toMatch(/ende-zu-ende|e2e/i);
+		expect(html).toContain('HTTPS');
+		expect(html).toMatch(/gehasht|Hash/i);
 	});
 });
