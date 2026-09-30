@@ -41,7 +41,7 @@ export const SearchModal = ({ categories = [], onClose, onSearch }: SearchModalP
 	// bereits der reine Suchbegriff, und der Filter steht als eigenes Feld daneben.
 	const [fromVoice, setFromVoice] = useState(false);
 	const inputRef = useRef<HTMLKolInputTextElement>(null);
-	// #1525: an die Paket-Freischaltung `ai_assist` (oder einen eigenen Provider) gekoppelt.
+	// #1525: an die Paket-Freischaltung `ai_assist` gekoppelt.
 	const aiEnabled = useAiFeaturesGate();
 
 	const categoryOptions = useMemo(

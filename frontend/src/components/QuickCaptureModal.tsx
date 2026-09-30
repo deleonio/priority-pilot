@@ -14,7 +14,6 @@ import { Modal, type ModalHandle } from './Modal';
 import { TaskForm, type TaskFormHandle, type TaskFormInitialValues } from './TaskForm';
 import { VoiceField } from './VoiceField';
 import { AiQuotaHint } from './AiQuotaHint';
-import { PlanBadge } from './PlanBadge';
 
 interface QuickCaptureModalProps {
 	/** Beim Anlegen einer Unteraufgabe: die Eltern-Aufgabe (durchgereicht an das reguläre Formular). */
@@ -234,8 +233,6 @@ export const QuickCaptureModal = ({
 				/>
 			) : (
 				<>
-					{/* #1458 AK12: Referenzstelle `ai_assist` — Paket-Badge. */}
-					<PlanBadge feature="ai_assist" inModal />
 					{error !== null && (
 						<KolAlert _type="error" _label="Verarbeitung fehlgeschlagen">
 							{error}

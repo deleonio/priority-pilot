@@ -434,36 +434,23 @@ describe('QuickCaptureModal — Fair-Use-Hinweis (#1783 AK5)', () => {
 	});
 });
 
-// ── #1528 AK3/TF4: Badge im Modal ohne Klickziel, Eingabetext bleibt ────────────────────────────
-
-/**
- * Test-Pflege (#1528): der globale Angebots-Dialog und das `useClosingOnPlanRequired`-Weichen sind
- * entfallen (AK1) — der frühere „weicht dem Angebots-Dialog"-Test (Entscheidung 7.1) ist damit
- * gegenstandslos. Entscheidung B des Autors (2026-09-17) stattdessen: das Badge ist im Modal reine
- * Beschriftung (`inModal`, kein Klickziel) — ein Klick schließt nichts und ein getippter Text
- * bleibt im State erhalten (AK3/TF4; 375px/1280px deckt die e2e-Spec).
- */
-describe('QuickCaptureModal — Badge im Modal schließt nichts (#1528 AK3/TF4)', () => {
+// ── #1941 AK1: kein ai_assist-Badge mehr im Modal (Modal nur bei offenem Gate erreichbar) ─────────
+// Test-Pflege: ersetzt den #1528-AK3/TF4-Badge-Klick-Test, der ein unerreichbares Badge voraussetzte.
+describe('QuickCaptureModal — kein Paket-Badge (#1941 AK1)', () => {
 	afterEach(cleanup);
 
-	it('Badge-Klick navigiert nicht, schließt das Modal nicht, Eingabetext bleibt erhalten', async () => {
-		const onClose = vi.fn();
+	it('rendert bei offenem Gate kein plan-badge-ai_assist', async () => {
 		const entitlements: EntitlementMap = {
-			ai_assist: { allowed: false, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
+			ai_assist: { allowed: true, requiredPlan: 'pro' } as EntitlementMap['ai_assist'],
 		};
 		render(
-			<PlanProvider value={{ plan: 'free', entitlements }}>
-				<QuickCaptureModal pillars={pillars} onClose={onClose} onSaved={vi.fn()} />
+			<PlanProvider value={{ plan: 'pro', entitlements }}>
+				<QuickCaptureModal pillars={pillars} onClose={vi.fn()} onSaved={vi.fn()} />
 			</PlanProvider>,
 		);
 
 		await typeCapture('Laufen gehen');
-		const badge = screen.getByTestId('plan-badge-ai_assist');
-		expect(badge.closest('a')).toBeNull();
 
-		fireEvent.click(badge);
-
-		expect(onClose).not.toHaveBeenCalled();
-		expect(document.body.querySelector('kol-textarea')?.getAttribute('_value')).toBe('Laufen gehen');
+		expect(screen.queryByTestId('plan-badge-ai_assist')).toBeNull();
 	});
 });
