@@ -1,6 +1,6 @@
 ---
 name: ticket-coordination
-description: "Ticket coordination - drive the issues of an epic one after the other through the label pipeline: start analysis, act as PO after triage (set ux/spec/impl), watch PRs, unblock stuck phases, keep main green, start the next issue after merge; can hand issue watching and diagnosis to subagents. Use for 'koordiniere Epic #N', 'arbeite Epic #N ab', 'manage die Abarbeitung' (German: coordinate the processing of issues)."
+description: "Ticket coordination - drive the issues of an epic through the label pipeline (independent ones in parallel, dependent ones after their blocker): start analysis, act as PO after triage (set ux/spec/impl), watch PRs, unblock stuck phases, keep main green, start the next issue after merge; can hand issue watching and diagnosis to subagents. Use for 'koordiniere Epic #N', 'arbeite Epic #N ab', 'manage die Abarbeitung' (German: coordinate the processing of issues)."
 argument-hint: "<Epic-Nummer(n) in Reihenfolge, z. B. #1789 #1780>"
 ---
 
