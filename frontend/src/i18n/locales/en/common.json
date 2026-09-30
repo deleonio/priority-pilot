@@ -39,5 +39,11 @@
 		"hours": "Hours",
 		"minutes": "Minutes",
 		"seconds": "Seconds"
+	},
+	"streak": {
+		"help": {
+			"label": "How the streak counts",
+			"text": "A day counts when you complete at least one task on it. Late completions count for the due date. The streak is the unbroken run of such days up to today or yesterday. If a day is missed up to yesterday, it drops to 0 — your best mark stays."
+		}
 	}
 }

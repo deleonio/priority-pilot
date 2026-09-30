@@ -39,5 +39,11 @@
 		"hours": "Heures",
 		"minutes": "Minutes",
 		"seconds": "Secondes"
+	},
+	"streak": {
+		"help": {
+			"label": "Comment la série est comptée",
+			"text": "Un jour compte si tu termines au moins une tâche ce jour-là. Ce qui est fait en retard compte pour la date d'échéance. La série est la suite ininterrompue de ces jours jusqu'à aujourd'hui ou hier. S'il manque un jour jusqu'à hier, elle retombe à 0 ; ton record est conservé."
+		}
 	}
 }

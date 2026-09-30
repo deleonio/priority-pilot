@@ -39,5 +39,11 @@
 		"hours": "Timmar",
 		"minutes": "Minuter",
 		"seconds": "Sekunder"
+	},
+	"streak": {
+		"help": {
+			"label": "Så räknas serien",
+			"text": "En dag räknas om du bockar av minst en uppgift den dagen. Sent avklarat räknas för förfallodagen. Serien är den obrutna följden av sådana dagar till idag eller igår. Saknas en dag till igår faller den till 0 — ditt rekord finns kvar."
+		}
 	}
 }

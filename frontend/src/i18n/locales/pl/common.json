@@ -39,5 +39,11 @@
 		"hours": "Godziny",
 		"minutes": "Minuty",
 		"seconds": "Sekundy"
+	},
+	"streak": {
+		"help": {
+			"label": "Jak liczy się seria",
+			"text": "Dzień się liczy, jeśli tego dnia odhaczysz co najmniej jedno zadanie. Zadania wykonane z opóźnieniem liczą się do dnia terminu. Seria to nieprzerwany ciąg takich dni do dziś lub do wczoraj. Jeśli brakuje dnia do wczoraj, spada do 0 — rekord zostaje."
+		}
 	}
 }

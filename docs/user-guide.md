@@ -121,7 +121,7 @@ die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von o
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
   Anzahl der einzahlenden Aufgaben (offen/erledigt), anteiliger Wert und Aufwand.
 - **Streak:** an wie vielen Tagen in Folge du zuletzt etwas erledigt hast, dazu deine
-  Bestmarke.
+  Bestmarke. Ein aufklappbarer Hinweis „So zählt der Streak“ erklärt die Zählregel.
 - **Meilensteine:** die erreichten und noch offenen Stufen für Streak und Punkte
   (siehe „Erledigte Aufgaben und Punkte").
 - **Verpasste Aufgaben:** zählt, wie viele Aufgaben nach verpasster Deadline automatisch
