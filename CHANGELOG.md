@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.21._
+_Enthält v0.11.0 – v0.11.23._
 
 ### 🎉 New Features
 
@@ -29,6 +29,7 @@ _Enthält v0.11.0 – v0.11.21._
 - docs(ux): add rules for collapsible sections and nesting (#1893) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1907
 - chore: rewrite website privacy policy per processing (#1892) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1916
 - feat(frontend): show amount due before confirming plan change by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1925
+- feat(frontend): merge access token tab into ai settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1921
 
 ### 🔧 Engineering
 
@@ -44,6 +45,7 @@ _Enthält v0.11.0 – v0.11.21._
 - feat(frontend): show monthly equivalent of yearly price by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1914
 - docs(skills): ticket-coordination resolves merge conflicts via subagent by @deleonio in https://github.com/deleonio/priority-pilot/pull/1920
 - feat(frontend): merge plans and subscription into one settings tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1919
+- feat(frontend): require terms and privacy consent after login by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1929
 
 ## v0.10 - 2026-09-30
 
@@ -424,7 +426,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): add segment and hand dials plus admin pillar batch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1602
 - feat(frontend): assign tasks to a whole group by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1603
 - feat(frontend): add pin/unpin support for tasks by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1594
-- ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
 - ci: fix daily minor bump detection via tag patch component by @deleonio in https://github.com/deleonio/priority-pilot/pull/1605
 - docs(mobile-ui-rules): align design token statement with ux-design.md by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1606
 - feat(frontend): move pin action to toolbar, show pin state as badge by @deleonio in https://github.com/deleonio/priority-pilot/pull/1609
