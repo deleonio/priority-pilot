@@ -81,25 +81,9 @@ export const featureOffer = (feature: string): { title: string; benefit: string 
 		benefit: 'Diese Funktion gehört zu einem größeren Paket.',
 	};
 
-/** Monatliches KI-Kontingent je Paket — Spiegel von `AI_ASSIST_MONTHLY_QUOTA` (server/src/logics/plans.ts). */
-const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = {
-	free: 0,
-	plus: 110,
-	pro: 200,
-};
+/** Fair-Use-Drossel-Intervall in Sekunden — Spiegel von `AI_FAIR_USE_INTERVAL_SECONDS` (server/src/logics/plans.ts). */
+export const AI_FAIR_USE_INTERVAL_SECONDS = 30;
 
-/** Hat das Paket überhaupt ein KI-Monatskontingent? `free` hat keines — dort gibt es nichts anzuzeigen. */
-export const hasAiQuota = (plan: Plan): boolean => AI_ASSIST_MONTHLY_QUOTA[plan] > 0;
-
-/**
- * Warnschwelle für das KI-Kontingent (AK10): unter 10 Prozent des Monatskontingents erscheint
- * zusätzlich zum Rest eine Warnung. Ohne bekanntes Monatskontingent (Paket ohne Kontingent) gibt es
- * nichts zu warnen.
- */
-export const isQuotaLow = (remaining: number | undefined, plan: Plan): boolean => {
-	const monthly = AI_ASSIST_MONTHLY_QUOTA[plan];
-	if (remaining === undefined || monthly <= 0) {
-		return false;
-	}
-	return remaining < monthly * 0.1;
-};
+/** Freundlicher Drossel-Hinweis (#1783 AK5) — nennt die Wartezeit, nie eine Anzahl Anfragen. */
+export const fairUseMessage = (seconds: number): string =>
+	`Gerade ist viel los. Die KI-Hilfe antwortet etwas langsamer — in etwa ${seconds} Sekunden geht es weiter.`;

@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { AI_ASSIST_MONTHLY_QUOTA, FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
+import { FEATURE_IDS, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from './i18n/de.json';
 import en from './i18n/en.json';
@@ -50,7 +50,6 @@ const landing = (locale: Locale, siteUrl = 'https://example.org', shots?: Readon
 		siteUrl,
 		catalog,
 		plans: PLAN_VALUES,
-		aiQuota: AI_ASSIST_MONTHLY_QUOTA,
 		shots,
 	});
 
@@ -133,15 +132,14 @@ describe('renderLanding', () => {
 		expect(html).toContain('<code>next_task</code>');
 	});
 
-	it('zeigt Preise und KI-Kontingente aus plans.ts', () => {
+	it('zeigt Preise aus plans.ts und die KI-Hilfe ohne Anzahl (#1783)', () => {
 		const html = landing('de');
 		expect(html).toContain('4,99 €');
 		expect(html).toContain('9,99 €');
 		expect(html).toContain('47,90 €');
 		expect(html).toContain('95,90 €');
-		for (const plan of PLAN_VALUES.filter((entry) => AI_ASSIST_MONTHLY_QUOTA[entry] > 0)) {
-			expect(html).toContain(`${AI_ASSIST_MONTHLY_QUOTA[plan]} KI-Anfragen im Monat`);
-		}
+		expect(html).toContain('KI-Hilfe nach Fair Use');
+		expect(html).not.toMatch(/\d+ KI-Anfragen/);
 		for (const plan of PLAN_VALUES) {
 			expect(html).toContain(`data-plan="${plan}"`);
 		}
@@ -160,7 +158,6 @@ describe('renderLanding', () => {
 			siteUrl: '',
 			catalog,
 			plans: PLAN_VALUES,
-			aiQuota: AI_ASSIST_MONTHLY_QUOTA,
 		});
 		expect(html).toContain('&lt;script&gt;x&lt;/script&gt;');
 	});
@@ -314,5 +311,55 @@ describe('asset links', () => {
 	it('entfällt ohne Package-ID oder Fingerprint', () => {
 		expect(renderAssetLinks('', 'AA:01')).toBeNull();
 		expect(renderAssetLinks('de.balamentum.app', ' ')).toBeNull();
+	});
+});
+
+/**
+ * #1786 (Vertrag: `docs/spec/issue-1786.md`) — Preisseite in allen zehn Sprachen: genau Free/Plus/Pro,
+ * Monats-/Quartals-/Jahrespreis aus `catalog.prices`, kein Max/Ultimate, keine KI-Anfragenzahl.
+ */
+describe('Preisseite Free/Plus/Pro (#1786)', () => {
+	const eur = (locale: Locale, cents: number) =>
+		new Intl.NumberFormat(locale === 'pt' ? 'pt-PT' : locale, { style: 'currency', currency: 'EUR' })
+			.format(cents / 100)
+			.replace(/[  ]/g, ' ');
+	const normalized = (html: string) => html.replace(/&nbsp;|[  ]/g, ' ');
+
+	it.each([...LOCALES])('%s: drei Karten, alle Periodenpreise, kein Max/Ultimate/Anfragenzahl (AK1-AK3)', (locale) => {
+		const html = landing(locale);
+		expect(html.match(/data-plan="/g)).toHaveLength(3);
+		const text = normalized(html);
+		for (const plan of ['plus', 'pro'] as const) {
+			for (const period of ['monthly', 'quarterly', 'yearly'] as const) {
+				expect(text).toContain(eur(locale, catalog.prices[plan][period]));
+			}
+		}
+		expect(html).not.toMatch(/\b(Max|Ultimate)\b/);
+		expect(allMessages[locale].pricing.aiQuota).not.toMatch(/\d/);
+	});
+
+	it('de: MCP-Zeile nennt Lesen ab Plus und Schreiben in Pro (AK3)', () => {
+		const mcp = de.features.items.find((item) => item.id === 'mcp')?.points.at(-1) ?? '';
+		expect(mcp).toMatch(/Plus/);
+		expect(mcp).toMatch(/Pro/);
+		expect(mcp).not.toMatch(/Max|Ultimate/);
+	});
+
+	it('leitet alle Periodenpreise aus dem übergebenen Katalog ab (AK4)', () => {
+		const custom = {
+			...catalog,
+			prices: {
+				...catalog.prices,
+				plus: { monthly: 111, quarterly: 222, yearly: 333 },
+				pro: { monthly: 444, quarterly: 555, yearly: 666 },
+			},
+		};
+		const html = normalized(
+			renderLanding({ locale: 'de', messages: de, siteUrl: '', catalog: custom, plans: PLAN_VALUES }),
+		);
+		for (const price of ['1,11 €', '2,22 €', '3,33 €', '4,44 €', '5,55 €', '6,66 €']) {
+			expect(html).toContain(price);
+		}
+		expect(html).not.toContain('13,47 €');
 	});
 });

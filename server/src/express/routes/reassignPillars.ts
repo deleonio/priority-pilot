@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sendError, sendPlanError, type ErrorDto } from '../http-error.js';
+import { sendError, type ErrorDto } from '../http-error.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import { getUserId } from '../requireAuth.js';
-import { isMonetizationEnforced } from '../../logics/plans.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { createAiQuotaCounter, markAiQuotaMetered } from '../aiQuotaMeter.js';
 import { hasProviderPin, validateProviderQuery } from '../llmProviderQuery.js';
@@ -132,18 +131,6 @@ export const createReassignPillarsRouter = (
 				// Sonst setzt der Aufruf den letzten Lauf fort; gab es noch keinen, beginnt er einen.
 				const since = await ensureRunStart(userId, rawRestart === 'true');
 				const quota = await createAiQuotaCounter(userId, hasProviderPin(query));
-
-				// Schon vor dem Start erschöpft: derselbe 429 wie in der Middleware, statt eines
-				// Laufs, der nichts tun kann.
-				if (quota !== undefined && isMonetizationEnforced() && (await quota.remaining()) === 0) {
-					releaseUserRun(runKey);
-					sendPlanError(res, 429, `Das monatliche KI-Kontingent von ${quota.monthlyLimit} Anfragen ist aufgebraucht.`, {
-						code: 'quota_exhausted',
-						feature: 'ai_assist',
-						currentPlan: quota.plan,
-					});
-					return;
-				}
 
 				startBackgroundRun(
 					`user:${runKey}`,

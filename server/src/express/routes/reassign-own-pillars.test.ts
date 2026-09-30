@@ -586,7 +586,7 @@ describe('POST/GET /tasks/reassign-pillars — Hintergrundlauf (#1642)', () => {
 			await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 			await Task.create({ title: 'Erste', status: 'Open', userId: memberId });
 			await Task.create({ title: 'Zweite', status: 'Open', userId: memberId });
-			await AiUsage.create({ userId: memberId, yearMonth: new Date().toISOString().slice(0, 7), count: 109 });
+			await AiUsage.create({ userId: memberId, yearMonth: new Date().toISOString().slice(0, 7), count: 150 });
 
 			const postPromise = fetch(`${server.baseUrl}/tasks/reassign-pillars`, {
 				method: 'POST',
@@ -698,8 +698,8 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 		await Task.create({ title: 'A', status: 'Open', userId: memberId });
 		const zweite = await Task.create({ title: 'B', status: 'Open', userId: memberId });
 		const dritte = await Task.create({ title: 'C', status: 'Open', userId: memberId });
-		// Genau ein Punkt bleibt übrig (Paket „plus": 110).
-		await seedUsage(memberId, 109);
+		// Budget erreicht (Paket „plus": 150) — Fair Use lässt genau eine Aufgabe je Intervall durch (#1783).
+		await seedUsage(memberId, 150);
 
 		const res = await run(cookie);
 		assert.equal(res.status, 200);
@@ -720,17 +720,14 @@ describe('POST /tasks/reassign-pillars — Kontingent je Aufgabe', () => {
 		assert.equal((await contributionsOf(dritte.id)).length, 0);
 	});
 
-	it('weist mit 429 ab, wenn das Kontingent schon vor dem ersten Aufruf erschöpft ist', async () => {
+	it('#1783: über dem Budget kein 429 quota_exhausted mehr — der Lauf startet gedrosselt', async () => {
 		const cookie = await server.login(MEMBER_EMAIL, { role: 'member' });
 		const memberId = await preparePayingMember();
 		await Pillar.create({ userId: memberId, name: 'Karriere', weight: 1 });
 		await Task.create({ title: 'A', status: 'Open', userId: memberId });
-		await seedUsage(memberId, 110);
+		await seedUsage(memberId, 150);
 
 		const res = await run(cookie);
-		assert.equal(res.status, 429);
-		const body = (await res.json()) as { code?: string; currentPlan?: string };
-		assert.equal(body.code, 'quota_exhausted');
-		assert.equal(body.currentPlan, 'plus');
+		assert.equal(res.status, 200);
 	});
 });

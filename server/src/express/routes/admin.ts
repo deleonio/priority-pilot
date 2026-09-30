@@ -3,10 +3,11 @@ import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '../../database.js';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { User } from '../../models/index.js';
+import { AiUsage, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
+import { currentYearMonth } from '../aiQuotaMeter.js';
 import { validateProviderQuery } from '../llmProviderQuery.js';
 import { classifyPillarsWithMistral, type PillarClassifier } from '../../llm/llm.js';
 import type { components } from '../../api';
@@ -36,6 +37,8 @@ type AdminUserDto = {
 	role: UserRole;
 	plan: Plan;
 	createdAt: string;
+	/** KI-Anfragen im laufenden Monat (#1783 AK7) — nur in der Nutzerliste. */
+	aiRequestsThisMonth?: number;
 };
 
 const toDto = (user: User): AdminUserDto => ({
@@ -97,7 +100,9 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 		async (_req: Request, res: Response<AdminUserDto[] | ErrorDto>) => {
 			try {
 				const users = await User.findAll({ order: [['displayName', 'ASC']] });
-				res.json(users.map(toDto));
+				const usage = await AiUsage.findAll({ where: { yearMonth: currentYearMonth() } });
+				const countByUser = new Map(usage.map((row) => [row.userId, row.count]));
+				res.json(users.map((user) => ({ ...toDto(user), aiRequestsThisMonth: countByUser.get(user.id) ?? 0 })));
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendError } from '../http-error.js';
-import { Pillar, ScoreEntry, Task, MissedTask } from '../../models/index.js';
+import { Pillar, ScoreEntry, Task, MissedTask, User } from '../../models/index.js';
+import { adviseActivitiesWithMistral, type ActivityAdvisor } from '../../llm/llm.js';
+import { effectivePlan } from '../../logics/plans.js';
+import { createAiQuotaCounter } from '../aiQuotaMeter.js';
 import { aggregierePunkteProSaeule, type PunkteBeitrag } from '../../logics/score.js';
 import { berechneStreak, istGueltigeZeitzone, streakZeitpunkte } from '../../logics/streak.js';
 import { berechneMeilensteine } from '../../logics/milestones.js';
@@ -301,100 +304,184 @@ scoresRouter.get(
 	},
 );
 
+/** Obergrenze der bisherigen Aufgaben, die der Berater als Kontext bekommt — hält den Prompt klein. */
+const KI_KONTEXT_AUFGABEN = 20;
+
+/**
+ * KI-Ergänzung der Fürsorge-Vorschläge für Plus und Pro (#1804): ein Berater-Vorschlag zur ersten
+ * defizitären Säule aus den eigenen bisherigen Aufgaben. Höchstens ein Aufruf je Nutzer und
+ * Kalendertag (UTC) — `GET /scores/care-suggestions` lädt bei jedem Dashboard-Aufruf; der Tagescache
+ * liegt im Speicher (nach Neustart darf neu gebucht werden), Schlüssel wie `fairUseKey` mit
+ * `createdAt`, damit eine wiederverwendete ID nichts erbt. Gebucht über `createAiQuotaCounter`
+ * (#1783); Drossel, Fehler oder leere Antwort liefern `undefined` — die Antwort bleibt dann bei
+ * Bestand und Vorlagen, ohne Fehlerfeld.
+ */
+const createKiVorschlagErmittler = (advisor: ActivityAdvisor) => {
+	const tagesCache = new Map<string, { tag: string; vorschlag: CareVorschlagDto | undefined }>();
+
+	return async (
+		userId: number | undefined,
+		saeule: Pillar | undefined,
+		aufgaben: CareAufgabe[],
+		jetzt: Date,
+	): Promise<CareVorschlagDto | undefined> => {
+		if (typeof userId !== 'number' || saeule === undefined) {
+			return undefined;
+		}
+		const user = await User.findByPk(userId);
+		if (user === null || effectivePlan(user.plan) === 'free') {
+			return undefined;
+		}
+		const key = `${user.id}:${user.createdAt.getTime()}`;
+		const tag = jetzt.toISOString().slice(0, 10);
+		const gespeichert = tagesCache.get(key);
+		if (gespeichert?.tag === tag) {
+			return gespeichert.vorschlag;
+		}
+
+		const zaehler = await createAiQuotaCounter(userId, false);
+		if (zaehler && !(await zaehler.book())) {
+			return undefined;
+		}
+		let vorschlag: CareVorschlagDto | undefined;
+		try {
+			const titel = aufgaben.slice(-KI_KONTEXT_AUFGABEN).map((aufgabe) => aufgabe.titel);
+			const [advice] = await advisor(
+				{
+					question: `Bisherige Aufgaben: ${titel.join('; ')}. Schlage genau eine Aktivität für die Säule „${saeule.name}“ vor, die zu diesen Aufgaben passt.`,
+					pillars: [{ id: saeule.id, name: saeule.name, description: saeule.description }],
+				},
+				undefined,
+				userId,
+			);
+			if (advice) {
+				vorschlag = {
+					typ: 'ki',
+					titel: advice.activity,
+					beschreibung: advice.reason,
+					saeulenBeitraege: [{ pillarId: saeule.id, share: 100 }],
+					saeuleId: saeule.id,
+					saeuleName: saeule.name,
+					anlass: 'defizit',
+				};
+			}
+		} catch {
+			vorschlag = undefined;
+		}
+		if (vorschlag === undefined) {
+			await zaehler?.refund();
+		}
+		tagesCache.set(key, { tag, vorschlag });
+		return vorschlag;
+	};
+};
+
 // GET /scores/care-suggestions — konkrete Vorschläge gegen ein Balance-Defizit (#1791): je
 // defizitärer Säule (Defizit-Quelle ist `bewerteCareDefizit` aus #1790, nicht kopiert) bis zu
 // drei Einträge — zuerst eigene offene Aufgaben dieser Säule, sonst kuratierte Vorlagen aus
 // `careSuggestionData.ts`. Meldet `bewerteCareDefizit` Überlast, stehen davor Erholungsvorschläge
 // (`anlass: 'ueberlast'`, #1795). `?sprache=` wählt die Sprache der Vorlagen-Texte (Default `de`).
-// Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; #1804 (KI-Vorschläge
-// Plus/Pro) ergänzt später dieselbe Antwortform. Gescopet wie `/scores/balance` strikt mit
-// `ownerScope` auf Säulen und Tasks.
-scoresRouter.get(
-	'/scores/care-suggestions',
-	async (req: Request, res: Response<{ vorschlaege: CareVorschlagDto[] } | ErrorDto>) => {
-		try {
-			const userId = getUserId(req);
-			const sprache = loeseSprache(req.query.sprache);
-			const jetzt = new Date();
-			const [saeulen, tasks, entries, ablehnungen] = await Promise.all([
-				Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
-				Task.findAll({ where: ownerScope(userId), include: [Pillar] }),
-				ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
-				CareSuggestionDismissal.findAll({ where: ownerScope(userId) }),
-			]);
-			const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
+// Gilt vollständig im Free-Paket (Epic #1780) — bewusst ohne planGuard; Plus/Pro erhalten bei einem
+// Defizit zusätzlich einen KI-Vorschlag (#1804, `createKiVorschlagErmittler`). Gescopet wie
+// `/scores/balance` strikt mit `ownerScope` auf Säulen und Tasks. Factory, damit Tests den Berater
+// injizieren (Muster `createPillarAdvisorRouter`).
+export const createCareSuggestionsRouter = (advisor: ActivityAdvisor = adviseActivitiesWithMistral): Router => {
+	const router = Router();
+	const ermittleKiVorschlag = createKiVorschlagErmittler(advisor);
 
-			const aufgaben: CareAufgabe[] = tasks.map((task) => ({
-				id: task.id,
-				titel: task.title,
-				beschreibung: task.description ?? null,
-				status: task.status,
-				pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
-					pillarId: pillar.id,
-					share: pillar.TaskPillar.share,
-				})),
-			}));
-			// Texte bereits in Zielsprache auflösen — die Auswahl-Logik bleibt text- und DB-frei.
-			const vorlagen: CareVorlage[] = CARE_VORLAGEN.map((vorlage) => ({
-				key: vorlage.key,
-				saeuleId: vorlage.saeuleId,
-				texte: vorlage.texte[sprache],
-			}));
+	router.get(
+		'/scores/care-suggestions',
+		async (req: Request, res: Response<{ vorschlaege: CareVorschlagDto[] } | ErrorDto>) => {
+			try {
+				const userId = getUserId(req);
+				const sprache = loeseSprache(req.query.sprache);
+				const jetzt = new Date();
+				const [saeulen, tasks, entries, ablehnungen] = await Promise.all([
+					Pillar.findAll({ where: ownerScope(userId), order: [['id', 'ASC']] }),
+					Task.findAll({ where: ownerScope(userId), include: [Pillar] }),
+					ScoreEntry.findAll({ include: [{ model: Task, where: ownerScope(userId) }] }),
+					CareSuggestionDismissal.findAll({ where: ownerScope(userId) }),
+				]);
+				const zeitpunktProTask = new Map(entries.map((entry) => [entry.taskId, entry.zeitpunkt]));
 
-			const defizite = bewerteCareDefizit(
-				saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
-				tasks.map((task) => ({
+				const aufgaben: CareAufgabe[] = tasks.map((task) => ({
+					id: task.id,
+					titel: task.title,
+					beschreibung: task.description ?? null,
 					status: task.status,
-					estimatedEffort: task.estimatedEffort,
 					pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
 						pillarId: pillar.id,
 						share: pillar.TaskPillar.share,
 					})),
-					erledigtAm: zeitpunktProTask.get(task.id) ?? null,
-				})),
-				jetzt,
-			);
+				}));
+				// Texte bereits in Zielsprache auflösen — die Auswahl-Logik bleibt text- und DB-frei.
+				const vorlagen: CareVorlage[] = CARE_VORLAGEN.map((vorlage) => ({
+					key: vorlage.key,
+					saeuleId: vorlage.saeuleId,
+					texte: vorlage.texte[sprache],
+				}));
 
-			const ablehnungenDto = ablehnungen.map((ablehnung) => ({
-				templateKey: ablehnung.templateKey,
-				abgelehntAm: ablehnung.abgelehntAm,
-			}));
-			// #1795: bei Überlast Erholung (Pause, Körper, Mentale Gesundheit) VOR den Defizit-Vorschlägen.
-			const ueberlasteIds = defizite.filter((defizit) => defizit.ueberlast).map((defizit) => defizit.id);
-			const erholung: CareVorschlagDto[] =
-				ueberlasteIds.length > 0
-					? waehleErholungsVorschlaege(ueberlasteIds, vorlagen, ablehnungenDto, jetzt).map((vorschlag) => ({
-							...vorschlag,
-							saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
-							anlass: 'ueberlast' as const,
-						}))
-					: [];
+				const defizite = bewerteCareDefizit(
+					saeulen.map((saeule) => ({ id: saeule.id, name: saeule.name, weight: saeule.weight })),
+					tasks.map((task) => ({
+						status: task.status,
+						estimatedEffort: task.estimatedEffort,
+						pillars: (task.Pillars ?? []).map((pillar: PillarWithContribution) => ({
+							pillarId: pillar.id,
+							share: pillar.TaskPillar.share,
+						})),
+						erledigtAm: zeitpunktProTask.get(task.id) ?? null,
+					})),
+					jetzt,
+				);
 
-			const defizitVorschlaege: CareVorschlagDto[] = defizite
-				.filter((defizit) => defizit.defizitaer)
-				.flatMap((defizit) => {
-					const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
-					const vorlagenDerSaeule = vorlagen.filter(
-						(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
-					);
-					return waehleCareVorschlaege(saeule, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map((vorschlag) => ({
-						...vorschlag,
-						saeuleId: defizit.id,
-						saeuleName: defizit.name,
-						anlass: 'defizit' as const,
-					}));
-				});
-			const vorschlaege = [...erholung, ...defizitVorschlaege];
+				const ablehnungenDto = ablehnungen.map((ablehnung) => ({
+					templateKey: ablehnung.templateKey,
+					abgelehntAm: ablehnung.abgelehntAm,
+				}));
+				// #1795: bei Überlast Erholung (Pause, Körper, Mentale Gesundheit) VOR den Defizit-Vorschlägen.
+				const ueberlasteIds = defizite.filter((defizit) => defizit.ueberlast).map((defizit) => defizit.id);
+				const erholung: CareVorschlagDto[] =
+					ueberlasteIds.length > 0
+						? waehleErholungsVorschlaege(ueberlasteIds, vorlagen, ablehnungenDto, jetzt).map((vorschlag) => ({
+								...vorschlag,
+								saeuleName: saeulen.find((saeule) => saeule.id === vorschlag.saeuleId)?.name ?? '',
+								anlass: 'ueberlast' as const,
+							}))
+						: [];
 
-			// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
-			const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));
-			await protokolliereCareReaktion(userId, 'angezeigt', angezeigt, jetzt);
-			res.json({ vorschlaege });
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-		}
-	},
-);
+				const defizitVorschlaege: CareVorschlagDto[] = defizite
+					.filter((defizit) => defizit.defizitaer)
+					.flatMap((defizit) => {
+						const saeule = { id: defizit.id, name: defizit.name, weight: 0 };
+						const vorlagenDerSaeule = vorlagen.filter(
+							(vorlage) => vorlage.saeuleId === saeule.id && vorlage.key !== PAUSE_VORLAGE_KEY,
+						);
+						return waehleCareVorschlaege(saeule, aufgaben, vorlagenDerSaeule, ablehnungenDto, jetzt).map(
+							(vorschlag) => ({
+								...vorschlag,
+								saeuleId: defizit.id,
+								saeuleName: defizit.name,
+								anlass: 'defizit' as const,
+							}),
+						);
+					});
+				const ersteDefizitSaeule = saeulen.find((saeule) => defizite.some((d) => d.defizitaer && d.id === saeule.id));
+				const ki = await ermittleKiVorschlag(userId, ersteDefizitSaeule, aufgaben, jetzt);
+				const vorschlaege = [...erholung, ...defizitVorschlaege, ...(ki ? [ki] : [])];
+
+				// #1798 AK1: angezeigte Vorlagen anonym zählen (je Nutzer, Vorlage und Woche einmal).
+				const angezeigt = vorschlaege.flatMap((v) => (v.typ === 'vorlage' && v.templateKey ? [v.templateKey] : []));
+				await protokolliereCareReaktion(userId, 'angezeigt', angezeigt, jetzt);
+				res.json({ vorschlaege });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	return router;
+};
 
 // POST /scores/care-suggestions/dismissals — eine Vorlage ablehnen (#1791, AK4): der
 // `templateKey` ist der sprachunabhängige Stammdaten-Schlüssel; die Ablehnung unterdrückt die

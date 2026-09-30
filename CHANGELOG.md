@@ -4,7 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.10 - 2026-09-29
 
-_Enthält v0.10.0 – v0.10.22._
+_Enthält v0.10.0 – v0.10.29._
+
+### 💥 Breaking Changes
+
+- feat(server): replace visible ai quota with fair-use throttling by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1868
+
+### 🎉 New Features
+
+- feat(server): add ai care suggestion for plus and pro (#1804) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1871
 
 ### 🔧 Engineering
 
@@ -27,6 +35,8 @@ _Enthält v0.10.0 – v0.10.22._
 - docs(agents): align e2e page.route rule with practice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1860
 - feat(server): suggest recovery on overload in care hint (#1795) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1861
 - docs(adr): ADR 0018 Preismodell Free/Plus/Pro (#1803) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1863
+- feat(ci): swap openrouter haiku model via set-agent-config by @deleonio in https://github.com/deleonio/priority-pilot/pull/1865
+- fix(deps): update dependency com.android.tools.build:gradle to v8.13.2 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1855
 
 ### Other Changes
 
@@ -39,6 +49,9 @@ _Enthält v0.10.0 – v0.10.22._
 - chore(skills): pre-push checks for doc drift and stale pr description by @deleonio in https://github.com/deleonio/priority-pilot/pull/1838
 - chore(gate): single source for the local gate chain in AGENTS.md by @deleonio in https://github.com/deleonio/priority-pilot/pull/1839
 - ci(review): rerun red e2e shards once before the review starts by @deleonio in https://github.com/deleonio/priority-pilot/pull/1840
+- feat(server): switch plans to free, plus and pro (#1782) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1864
+- feat(server): remove legacy max/ultimate plans, add migrateLegacyPlans by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1867
+- test(server): cover mcp plan tiers plus read and pro write by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1870
 
 ## v0.9 - 2026-09-29
 
@@ -178,6 +191,7 @@ _Enthält v0.5.0 – v0.5.32._
 - ci(android): build a signed app bundle via workflow_dispatch by @deleonio in https://github.com/deleonio/priority-pilot/pull/1715
 - feat(android): receive push notifications via FCM by @deleonio in https://github.com/deleonio/priority-pilot/pull/1716
 - feat(website): account deletion page for the Play Store listing by @deleonio in https://github.com/deleonio/priority-pilot/pull/1717
+- refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - refactor(server): billing providers behind a shared interface by @deleonio in https://github.com/deleonio/priority-pilot/pull/1718
 - feat(server): map plans to google play subscription products by @deleonio in https://github.com/deleonio/priority-pilot/pull/1719
 - feat(server): verify and acknowledge google play purchases by @deleonio in https://github.com/deleonio/priority-pilot/pull/1720
@@ -324,7 +338,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): gate access-token controls, rename tab by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1537
 - feat(frontend): gate pillar advisor ui behind ai entitlement by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1539
 - fix(server): use english error message in mcp readWeight validator by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1540
-- feat(frontend): increase mobile element sizes by one pixel step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1546
 - feat(frontend): increase mobile element sizes by one pixel step by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1546
 - feat(server): add group create, update and delete MCP tools (#1542) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1545
 - fix(server): resolve review findings f-10, f-11, v-3 (#1471) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1550

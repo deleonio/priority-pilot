@@ -16,7 +16,7 @@ type PlansCatalog = components['schemas']['PlansCatalog'];
 const LABEL_KEY = 'label';
 /** Feste Spaltenbreiten (AK3): die Matrix behält ihre Breite und scrollt in sich selbst (ADR 0014,
  * Entscheidung 6). Die Werte sind so bemessen, dass keine Kopfzelle auf mehr als zwei Zeilen
- * umbricht (AK6) — „Ultimate (dein Paket)" ist der längste Kopftext. */
+ * umbricht (AK6) — „Plus (dein Paket)" ist der längste Kopftext. */
 const LABEL_COLUMN_WIDTH = 170;
 const PLAN_COLUMN_WIDTH = 150;
 

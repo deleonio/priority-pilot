@@ -109,7 +109,7 @@
 				"points": [
 					"Gera um token de acesso nas definições e introduz o endereço MCP no assistente.",
 					"Funciona com o Claude e outros assistentes que falam MCP sobre HTTP.",
-					"A leitura está incluída a partir do Max; criar e alterar, com o Ultimate."
+					"A leitura está incluída a partir do Plus; criar e alterar, com o Pro."
 				]
 			},
 			{
@@ -173,11 +173,12 @@
 		"lead": "Começa grátis. Se precisares de mais, mudas de plano na app a qualquer momento.",
 		"perMonth": "/ mês",
 		"free": "0 €",
+		"quarterly": "{price} por trimestre",
 		"yearly": "ou {price} por ano",
 		"discounts": "Com pagamento trimestral poupas 10 %, com pagamento anual 20 %. Todos os preços são finais; ao abrigo do § 19 UStG (regime alemão de pequenas empresas) não é cobrado IVA.",
 		"basics": "Tarefas, séries, listas de verificação, prazos, pontos e análise do equilíbrio",
 		"includesPrevious": "Tudo do {plan}, e ainda:",
-		"aiQuota": "{count} pedidos de IA por mês",
+		"aiQuota": "Ajuda de IA com uso justo",
 		"cta": "Começar grátis",
 		"plans": {
 			"free": "Free",
@@ -200,7 +201,7 @@
 		"items": [
 			{
 				"q": "Quanto custa o Balamentum?",
-				"a": "O plano Free não custa nada e não tem limite de número de tarefas. O Pro, o Max e o Ultimate desbloqueiam grupos, ajuda de IA e interfaces."
+				"a": "O plano Free não custa nada e não tem limite de número de tarefas. O Plus e o Pro desbloqueiam grupos, ajuda de IA e interfaces."
 			},
 			{
 				"q": "Que dados recebe a app do Google?",

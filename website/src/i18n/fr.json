@@ -109,7 +109,7 @@
 				"points": [
 					"Génère un jeton d’accès dans les paramètres et saisis l’adresse MCP dans ton assistant.",
 					"Fonctionne avec Claude et d’autres assistants qui parlent MCP via HTTP.",
-					"La lecture est incluse à partir de Max, la création et la modification avec Ultimate."
+					"La lecture est incluse à partir de Plus, la création et la modification avec Pro."
 				]
 			},
 			{
@@ -173,11 +173,12 @@
 		"lead": "Commence gratuitement. Si tu as besoin de plus, tu changes de formule dans l’app à tout moment.",
 		"perMonth": "/ mois",
 		"free": "0 €",
+		"quarterly": "{price} par trimestre",
 		"yearly": "ou {price} par an",
 		"discounts": "Avec un paiement trimestriel, tu économises 10 %, avec un paiement annuel 20 %. Tous les prix sont des prix finaux ; conformément au § 19 UStG (régime allemand des petites entreprises), aucune TVA n’est facturée.",
 		"basics": "Tâches, séries, listes de contrôle, échéances, points et analyse de l’équilibre",
 		"includesPrevious": "Tout ce qu’inclut {plan}, plus :",
-		"aiQuota": "{count} requêtes IA par mois",
+		"aiQuota": "Aide IA en usage raisonnable",
 		"cta": "Commencer gratuitement",
 		"plans": {
 			"free": "Free",
@@ -200,7 +201,7 @@
 		"items": [
 			{
 				"q": "Combien coûte Balamentum ?",
-				"a": "La formule Free ne coûte rien et ne limite pas le nombre de tâches. Pro, Max et Ultimate débloquent les groupes, l’aide IA et les interfaces."
+				"a": "La formule Free ne coûte rien et ne limite pas le nombre de tâches. Plus et Pro débloquent les groupes, l’aide IA et les interfaces."
 			},
 			{
 				"q": "Quelles données l’app reçoit-elle de Google ?",

@@ -12,7 +12,7 @@ import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createReassignPillarsRouter } from './routes/reassignPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
 import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
-import { scoresRouter } from './routes/scores.js';
+import { createCareSuggestionsRouter, scoresRouter } from './routes/scores.js';
 import { createSeriesRouter } from './routes/series.js';
 import { groupsRouter } from './routes/groups.js';
 import { inviteLinksPublicRouter } from './routes/inviteLinks.js';
@@ -335,6 +335,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gamification-Scoring: Punkte je Task lesen, Balance-Stand je Säule (siehe routes/scores.ts).
 	app.use(scoresRouter);
+	app.use(createCareSuggestionsRouter(deps.activityAdvisor));
 
 	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts) —
 	// PushSender injiziert für die Benachrichtigung bei fremd angelegten Serien-Instanzen

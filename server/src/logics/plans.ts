@@ -10,15 +10,8 @@
 export type Plan = 'free' | 'plus' | 'pro';
 export const PLAN_VALUES: readonly Plan[] = ['free', 'plus', 'pro'];
 
-/**
- * Altwerte aus dem Vier-Paket-Modell, die bis zur Konten-Umstellung (#1785) noch in `users.plan`
- * stehen können: `max` wird wie `plus`, `ultimate` wie `pro` ausgewertet (#1782).
- */
-const LEGACY_PLANS: Record<string, Plan> = { max: 'plus', ultimate: 'pro' };
-
-/** Gespeicherter Paketwert → ausgewertetes Paket; Altwerte laut {@link LEGACY_PLANS}, Unbekanntes wie `free`. */
-export const effectivePlan = (value: string): Plan =>
-	PLAN_VALUES.includes(value as Plan) ? (value as Plan) : (LEGACY_PLANS[value] ?? 'free');
+/** Gespeicherter Paketwert → ausgewertetes Paket; Unbekanntes wie `free`. */
+export const effectivePlan = (value: string): Plan => (PLAN_VALUES.includes(value as Plan) ? (value as Plan) : 'free');
 
 /** Stabile Feature-Identifier — von Guards, Fehlervertrag und UI-Badges referenziert. */
 export type FeatureId =
@@ -42,10 +35,14 @@ export const FEATURE_IDS: readonly FeatureId[] = [
 ];
 
 /**
- * Monatliches KI-Kontingent je Paket — nur für `ai_assist` relevant. Übergangswerte der früheren
- * Pakete Max/Ultimate, bis Fair Use (ADR 0018 Entscheidung 4) das Kontingent ablöst (#1782).
+ * Internes Monatsbudget der KI-Hilfe je Paket (Fair Use, #1783) — nie sichtbar, kein Deckel: wer es
+ * überschreitet, wird auf {@link AI_FAIR_USE_INTERVAL_SECONDS} gedrosselt. Richtwert ca. 18 % des
+ * Abopreises je Nutzer und Monat.
  */
-export const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = { free: 0, plus: 110, pro: 200 };
+export const AI_ASSIST_MONTHLY_QUOTA: Record<Plan, number> = { free: 0, plus: 150, pro: 400 };
+
+/** Über dem Budget höchstens eine KI-Anfrage je so viele Sekunden (#1783). */
+export const AI_FAIR_USE_INTERVAL_SECONDS = 30;
 
 interface PlanPrice {
 	monthly: number;
@@ -163,8 +160,6 @@ interface FeatureEntitlement {
 	allowed: boolean;
 	/** Kleinstes Paket, das das Feature enthält. */
 	requiredPlan: Plan;
-	/** Nur bei `ai_assist` gesetzt: Rest des Monatskontingents (Verbrauch bereits abgezogen, T4). */
-	quotaRemaining?: number;
 }
 export type EntitlementMap = Record<FeatureId, FeatureEntitlement>;
 
@@ -177,22 +172,14 @@ const requiredPlanFor = (entry: FeatureCatalogEntry): Plan =>
  * wahrheitsgemäße Paketauswertung, aus der die UI Badges und Hinweise rendert (Gesamtkonzept
  * „gemessen ab T1, durchgesetzt erst in T8"). Ob tatsächlich geblockt wird, entscheidet allein
  * `shouldBlockFeature()`.
- *
- * `aiAssistConsumed` ist der bereits verbrauchte Teil des Monatskontingents (#1459, T4). Der
- * Parameter bleibt optional: `getEntitlements` läuft auch dort, wo es keinen Nutzer und damit
- * keinen Verbrauch gibt (Pass-Through-Modus in `routes/auth.ts`, `shouldBlockFeature`).
  * `plan` stammt oft ungeprüft aus `users.plan` und wird über {@link effectivePlan} ausgewertet.
  */
-export function getEntitlements(stored: Plan, aiAssistConsumed = 0): EntitlementMap {
+export function getEntitlements(stored: Plan): EntitlementMap {
 	const plan = effectivePlan(stored);
 	const map = {} as EntitlementMap;
 	for (const entry of FEATURE_CATALOG) {
 		const allowed = entry.allowedPlans.includes(plan);
-		const entitlement: FeatureEntitlement = { allowed, requiredPlan: requiredPlanFor(entry) };
-		if (entry.feature === 'ai_assist') {
-			entitlement.quotaRemaining = Math.max(0, AI_ASSIST_MONTHLY_QUOTA[plan] - aiAssistConsumed);
-		}
-		map[entry.feature] = entitlement;
+		map[entry.feature] = { allowed, requiredPlan: requiredPlanFor(entry) };
 	}
 	return map;
 }

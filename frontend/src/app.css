@@ -2463,7 +2463,8 @@ kol-toolbar {
 	font-weight: 600;
 }
 
-.admin-user-email {
+.admin-user-email,
+.admin-user-ai {
 	color: var(--pp-ink-muted);
 	overflow-wrap: anywhere;
 }

@@ -1506,3 +1506,74 @@ describe('migrateSubscriptionPendingPlanColumns (#1742)', () => {
 		}
 	});
 });
+
+// ── #1785: migrateLegacyPlans — Altpakete max/ultimate auf plus/pro umstellen ─────────────────
+// Vertrag laut docs/spec/issue-1785.md. `migrateLegacyPlans` existiert noch nicht (rote Spec-Tests) —
+// Zugriff über den Namespace + Cast, damit tsc grün bleibt, bis die Impl-Phase sie anlegt.
+describe('migrateLegacyPlans (#1785)', () => {
+	const migrateLegacyPlans = (
+		migrateModule as unknown as { migrateLegacyPlans?: (db: typeof sequelize) => Promise<void> }
+	).migrateLegacyPlans;
+
+	const PLANS = ['max', 'ultimate', 'plus', 'pro'] as const;
+
+	const createLegacyTables = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `users` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `plan` VARCHAR(255) NOT NULL)',
+		);
+		await sequelize.query(
+			'CREATE TABLE `subscriptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `plan` VARCHAR(255) NOT NULL, `pendingPlan` VARCHAR(255))',
+		);
+		for (const plan of PLANS) {
+			await sequelize.query('INSERT INTO `users` (`plan`) VALUES (:plan)', { replacements: { plan } });
+			await sequelize.query('INSERT INTO `subscriptions` (`plan`, `pendingPlan`) VALUES (:plan, :pending)', {
+				replacements: { plan, pending: plan },
+			});
+		}
+		await sequelize.query("INSERT INTO `subscriptions` (`plan`, `pendingPlan`) VALUES ('pro', NULL)");
+	};
+
+	const column = async (sql: string): Promise<(string | null)[]> => {
+		const [rows] = await sequelize.query(sql);
+		return (rows as { value: string | null }[]).map((row) => row.value);
+	};
+
+	after(async () => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.sync();
+	});
+
+	it('setzt max auf plus und ultimate auf pro in users.plan, subscriptions.plan und pendingPlan, Rest bleibt', async () => {
+		assert.equal(typeof migrateLegacyPlans, 'function', 'migrateLegacyPlans fehlt in migrate.ts');
+		await createLegacyTables();
+
+		await migrateLegacyPlans!(sequelize);
+
+		const expected = ['plus', 'pro', 'plus', 'pro'];
+		assert.deepEqual(await column('SELECT `plan` AS value FROM `users` ORDER BY `id`'), expected);
+		assert.deepEqual(await column('SELECT `plan` AS value FROM `subscriptions` ORDER BY `id`'), [...expected, 'pro']);
+		assert.deepEqual(await column('SELECT `pendingPlan` AS value FROM `subscriptions` ORDER BY `id`'), [
+			...expected,
+			null,
+		]);
+	});
+
+	it('ist idempotent: ein zweiter Lauf wirft nicht und ändert nichts', async () => {
+		assert.equal(typeof migrateLegacyPlans, 'function', 'migrateLegacyPlans fehlt in migrate.ts');
+		await createLegacyTables();
+		await migrateLegacyPlans!(sequelize);
+		const before = await column('SELECT `plan` AS value FROM `users` ORDER BY `id`');
+
+		await assert.doesNotReject(() => migrateLegacyPlans!(sequelize));
+
+		assert.deepEqual(await column('SELECT `plan` AS value FROM `users` ORDER BY `id`'), before);
+	});
+
+	it('ist ohne Tabellen ein No-op', async () => {
+		assert.equal(typeof migrateLegacyPlans, 'function', 'migrateLegacyPlans fehlt in migrate.ts');
+		await sequelize.getQueryInterface().dropAllTables();
+
+		await assert.doesNotReject(() => migrateLegacyPlans!(sequelize));
+	});
+});

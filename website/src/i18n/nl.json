@@ -106,7 +106,7 @@
 				"points": [
 					"Maak in de instellingen een access-token aan en vul het MCP-adres in bij je assistent.",
 					"Werkt met Claude en andere assistenten die MCP via HTTP spreken.",
-					"Lezen zit vanaf Max erin, aanmaken en wijzigen met Ultimate."
+					"Lezen zit vanaf Plus erin, aanmaken en wijzigen met Pro."
 				]
 			},
 			{
@@ -170,11 +170,12 @@
 		"lead": "Begin gratis. Heb je meer nodig, dan stap je op elk moment over in de app.",
 		"perMonth": "/ maand",
 		"free": "€ 0",
+		"quarterly": "{price} per kwartaal",
 		"yearly": "of {price} per jaar",
 		"discounts": "Bij betaling per kwartaal bespaar je 10 %, bij jaarlijkse betaling 20 %. Alle prijzen zijn eindprijzen; op grond van § 19 UStG (Duitse kleineondernemersregeling) wordt geen btw berekend.",
 		"basics": "Taken, series, checklists, deadlines, punten en balansanalyse",
 		"includesPrevious": "Alles uit {plan}, plus:",
-		"aiQuota": "{count} AI-verzoeken per maand",
+		"aiQuota": "AI-hulp volgens fair use",
 		"cta": "Gratis beginnen",
 		"plans": {
 			"free": "Free",
@@ -197,7 +198,7 @@
 		"items": [
 			{
 				"q": "Wat kost Balamentum?",
-				"a": "Het Free-pakket kost niets en kent geen limiet op het aantal taken. Pro, Max en Ultimate ontgrendelen groepen, AI-hulp en interfaces."
+				"a": "Het Free-pakket kost niets en kent geen limiet op het aantal taken. Plus en Pro ontgrendelen groepen, AI-hulp en interfaces."
 			},
 			{
 				"q": "Welke gegevens krijgt de app van Google?",

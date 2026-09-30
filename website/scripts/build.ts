@@ -6,7 +6,7 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AI_ASSIST_MONTHLY_QUOTA, PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
+import { PLAN_VALUES, getPlansCatalog } from '../../server/src/logics/plans.ts';
 import { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import de from '../src/i18n/de.json' with { type: 'json' };
 import en from '../src/i18n/en.json' with { type: 'json' };
@@ -86,7 +86,6 @@ for (const locale of LOCALES) {
 			...context,
 			catalog: getPlansCatalog(),
 			plans: PLAN_VALUES,
-			aiQuota: AI_ASSIST_MONTHLY_QUOTA,
 			shots,
 		}),
 	);

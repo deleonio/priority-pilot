@@ -2283,8 +2283,8 @@ paths:
         Streak bleiben unberührt. Aufgaben ohne brauchbaren Vorschlag behalten
         ihre bisherige Zuordnung; ein Fehler bei einer Aufgabe reißt den Lauf
         nicht ab. Jede klassifizierte Aufgabe bucht einen Punkt des monatlichen
-        KI-Kontingents — ist es mitten im Lauf aufgebraucht, endet der Lauf und
-        meldet das über `quotaExhausted`.
+        KI-Budgets — über dem Budget greift die Fair-Use-Drossel (#1783): je Intervall
+        eine Aufgabe, danach endet der Lauf und meldet das über `quotaExhausted`.
       operationId: reassignOwnTaskPillars
       tags: [tasks]
       parameters:
@@ -2350,12 +2350,6 @@ paths:
           description: >-
             Für dieses Konto läuft bereits eine Neuberechnung, oder der
             app-weite Admin-Batch ist gerade unterwegs.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '429':
-          description: Monatliches KI-Kontingent aufgebraucht
           content:
             application/json:
               schema:
@@ -3494,8 +3488,9 @@ components:
             $ref: '#/components/schemas/Error'
     QuotaExhausted:
       description: >-
-        Das monatliche KI-Kontingent des Pakets ist aufgebraucht (#1459). Body trägt
-        zusätzlich `code: quota_exhausted`, `feature: ai_assist` und `currentPlan`.
+        Fair-Use-Drossel (#1783): das interne Monatsbudget ist überschritten und die letzte
+        KI-Anfrage liegt weniger als das Drossel-Intervall zurück. Body trägt zusätzlich
+        `code: ai_throttled`, der Header `Retry-After` die Wartezeit in Sekunden.
       content:
         application/json:
           schema:
@@ -3739,6 +3734,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        aiRequestsThisMonth:
+          type: integer
+          minimum: 0
+          description: KI-Anfragen im laufenden Monat (#1783) — nur in der Nutzerliste.
     AdminUserRoleUpdate:
       type: object
       description: Payload zum Ändern der Rolle eines Nutzers (Rollensystem admin/member/tester).
@@ -3784,8 +3783,8 @@ components:
         quotaExhausted:
           type: boolean
           description: >-
-            Der Lauf endete vorzeitig, weil das monatliche KI-Kontingent
-            aufgebraucht ist. `remaining` bleibt dann bewusst > 0.
+            Der Lauf endete vorzeitig, weil das interne KI-Budget überschritten ist und
+            die Fair-Use-Drossel greift (#1783). `remaining` bleibt dann bewusst > 0.
         failureReasons:
           type: object
           additionalProperties:
@@ -3793,9 +3792,6 @@ components:
           description: >-
             Fehlergründe der fehlgeschlagenen Aufgaben dieses Laufs, zusammengefasst
             als Grund → Anzahl (z. B. `{"HTTP 429": 12}`). Fehlt, wenn nichts fehlschlug.
-        quotaRemaining:
-          type: integer
-          description: Verbleibende KI-Anfragen des Monats (von der Zähler-Middleware ergänzt).
     OwnReassignPillarsStatus:
       type: object
       description: Stand der Säulen-Neuberechnung (GET /tasks/reassign-pillars).
@@ -3898,12 +3894,6 @@ components:
           type: boolean
         requiredPlan:
           $ref: '#/components/schemas/Plan'
-        quotaRemaining:
-          type: integer
-          description: >-
-            Nur bei `ai_assist`: Rest des monatlichen KI-Kontingents (0/110/200
-            je Paket). Bis T4 der Startwert des Pakets, danach der tatsächliche Rest —
-            dasselbe Feld beziffert das Restkontingent in LLM-Antworten.
     FeatureCatalogEntry:
       type: object
       description: Ein Feature und die Pakete, die es enthalten (#1456).
@@ -4985,12 +4975,12 @@ components:
           description: Vorgeschlagene Aktivitäten samt Säulen-Zuordnung
           items:
             $ref: '#/components/schemas/ActivityAdvice'
-        quotaRemaining:
-          type: integer
-          minimum: 0
+        fairUse:
+          type: string
+          enum: [throttled]
           description: >-
-            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
-            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
+            Nur gesetzt, wenn die Anfrage über dem internen Monatsbudget lag (#1783, Fair Use):
+            die nächste KI-Anfrage ist erst nach dem Drossel-Intervall möglich.
     PillarDistributionEntry:
       type: object
       description: >-
@@ -5060,12 +5050,12 @@ components:
           description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
           items:
             $ref: '#/components/schemas/PillarSuggestion'
-        quotaRemaining:
-          type: integer
-          minimum: 0
+        fairUse:
+          type: string
+          enum: [throttled]
           description: >-
-            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
-            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
+            Nur gesetzt, wenn die Anfrage über dem internen Monatsbudget lag (#1783, Fair Use):
+            die nächste KI-Anfrage ist erst nach dem Drossel-Intervall möglich.
     LektoratInput:
       type: object
       description: Eingabe des Lektorats (#680) — Text und optionale Maximallänge.
@@ -5088,12 +5078,12 @@ components:
         text:
           type: string
           description: Der lektorierte (und bei gesetztem `maxLength` gekürzte) Text
-        quotaRemaining:
-          type: integer
-          minimum: 0
+        fairUse:
+          type: string
+          enum: [throttled]
           description: >-
-            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
-            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
+            Nur gesetzt, wenn die Anfrage über dem internen Monatsbudget lag (#1783, Fair Use):
+            die nächste KI-Anfrage ist erst nach dem Drossel-Intervall möglich.
     ParseTaskInput:
       type: object
       description: Eingabe für die Task-Schnellerfassung — frei formulierter Text (#235).
@@ -5157,12 +5147,12 @@ components:
           description: >-
             Optionale Kategorie: ID einer Kategorie des Nutzers, wenn der Text thematisch
             eindeutig zu einer passt. Fehlt, wenn keine passt oder keine angelegt sind.
-        quotaRemaining:
-          type: integer
-          minimum: 0
+        fairUse:
+          type: string
+          enum: [throttled]
           description: >-
-            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
-            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
+            Nur gesetzt, wenn die Anfrage über dem internen Monatsbudget lag (#1783, Fair Use):
+            die nächste KI-Anfrage ist erst nach dem Drossel-Intervall möglich.
     ParsedSearch:
       type: object
       description: >-
@@ -5176,12 +5166,12 @@ components:
         categoryId:
           type: integer
           description: ID der gemeinten Kategorie des Nutzers
-        quotaRemaining:
-          type: integer
-          minimum: 0
+        fairUse:
+          type: string
+          enum: [throttled]
           description: >-
-            Rest des monatlichen KI-Kontingents NACH diesem Aufruf (#1459). Fehlt, wenn
-            kein angemeldeter Nutzer im Spiel ist (Pass-Through-Modus).
+            Nur gesetzt, wenn die Anfrage über dem internen Monatsbudget lag (#1783, Fair Use):
+            die nächste KI-Anfrage ist erst nach dem Drossel-Intervall möglich.
     PillarFeedbackInput:
       type: object
       description: >-
@@ -5425,7 +5415,8 @@ components:
       description: >-
         Konkreter Fürsorge-Vorschlag gegen ein Balance-Defizit (#1791): ein eigener offener
         Task (`typ: task`, dann ist `taskId` gesetzt) oder eine kuratierte Vorlage
-        (`typ: vorlage`, dann ist `templateKey` gesetzt). Gehört zu genau einer Säule.
+        (`typ: vorlage`, dann ist `templateKey` gesetzt); für Plus und Pro zusätzlich höchstens ein
+        KI-Vorschlag aus den eigenen bisherigen Aufgaben (`typ: ki`, #1804). Gehört zu genau einer Säule.
       required:
         - typ
         - titel
@@ -5440,7 +5431,8 @@ components:
           enum:
             - task
             - vorlage
-          description: Eigener Task (`task`) oder kuratierte Vorlage (`vorlage`).
+            - ki
+          description: Eigener Task (`task`), kuratierte Vorlage (`vorlage`) oder KI-Vorschlag (`ki`, nur Plus/Pro).
         anlass:
           type: string
           enum:
@@ -5957,12 +5949,13 @@ components:
           description: Fehlerbeschreibung
         code:
           type: string
-          enum: [plan_required, quota_exhausted, subscription_active, last_group_admin]
+          enum: [plan_required, quota_exhausted, ai_throttled, subscription_active, last_group_admin]
           description: >-
             Maschinenlesbarer Grund bei paketbedingten Ablehnungen (#1456) und bei
             der abgelehnten Konto-Löschung (`DELETE /auth/me`, 409).
             `plan_required` (403) heißt „Feature nicht im Paket",
-            `quota_exhausted` (429) „Monatskontingent aufgebraucht",
+            `quota_exhausted` (429) „Monatskontingent aufgebraucht" (seit #1783 ungenutzt),
+            `ai_throttled` (429) „Fair-Use-Drossel, später erneut versuchen",
             `subscription_active` „Abo läuft noch", `last_group_admin` „letzter
             Admin einer Gruppe mit weiteren Mitgliedern". Alle übrigen Fehler
             tragen ausschließlich `message`.

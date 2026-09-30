@@ -56,7 +56,6 @@ export interface PageContext {
 export interface LandingContext extends PageContext {
 	catalog: PlansCatalog;
 	plans: readonly Plan[];
-	aiQuota: Record<Plan, number>;
 	/** Vorhandene App-Screenshots unter `/shots/<id>.jpg` (Feature-Ids plus `dashboard` für den Hero). */
 	shots?: ReadonlySet<string>;
 }
@@ -244,7 +243,7 @@ ${feature.points.map((point) => `										<li>${t(point)}</li>`).join('\n')}
 						</article>`;
 
 const planCard = (context: LandingContext, plan: Plan): string => {
-	const { messages, locale, catalog, plans, aiQuota } = context;
+	const { messages, locale, catalog, plans } = context;
 	const price = catalog.prices[plan];
 	const index = plans.indexOf(plan);
 	const features = addedFeatures(catalog, plans, plan);
@@ -252,13 +251,9 @@ const planCard = (context: LandingContext, plan: Plan): string => {
 		...(index === 0 ? [messages.pricing.basics] : []),
 		...features.map((feature) =>
 			feature === 'ai_assist'
-				? `${messages.pricing.features[feature]} (${fill(messages.pricing.aiQuota, { count: String(aiQuota[plan]) })})`
+				? `${messages.pricing.features[feature]} (${messages.pricing.aiQuota})`
 				: messages.pricing.features[feature],
 		),
-		// Höheres KI-Kontingent ist auch ohne neues Feature ein Zugewinn.
-		...(index > 0 && !features.includes('ai_assist') && aiQuota[plan] > aiQuota[plans[index - 1]]
-			? [fill(messages.pricing.aiQuota, { count: String(aiQuota[plan]) })]
-			: []),
 	];
 	const amount = price.monthly === 0 ? messages.pricing.free : formatPrice(price.monthly, locale);
 	return `				<article class="kern-card plan" data-plan="${plan}">
@@ -268,6 +263,7 @@ const planCard = (context: LandingContext, plan: Plan): string => {
 						</header>
 						<section class="kern-card__body">
 							<p class="plan__price"><strong>${t(amount)}</strong>${price.monthly === 0 ? '' : ` <span>${t(messages.pricing.perMonth)}</span>`}</p>
+							${price.quarterly === 0 ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.quarterly, { price: formatPrice(price.quarterly, locale) }))}</p>`}
 							${price.yearly === 0 ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.yearly, { price: formatPrice(price.yearly, locale) }))}</p>`}
 							${index === 0 ? '' : `<p class="plan__includes">${t(fill(messages.pricing.includesPrevious, { plan: messages.pricing.plans[plans[index - 1]] }))}</p>`}
 							<ul class="plan__features">
