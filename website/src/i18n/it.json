@@ -172,6 +172,7 @@
 		"free": "0 €",
 		"quarterly": "{price} a trimestre",
 		"yearly": "oppure {price} all’anno",
+		"yearlyPerMonth": "oppure {price}/mese con pagamento annuale",
 		"discounts": "Con il pagamento trimestrale risparmi il 10%, con quello annuale il 20%. Tutti i prezzi sono finali; ai sensi del § 19 UStG (regime tedesco per le piccole imprese) non viene addebitata l’IVA.",
 		"basics": "Attività, serie, checklist, scadenze, punti e analisi dell’equilibrio",
 		"includesPrevious": "Tutto di {plan}, in più:",

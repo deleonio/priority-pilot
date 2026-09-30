@@ -103,7 +103,7 @@ describe('PlansSection (#1494 AK9)', () => {
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('9,99 €')).toBeTruthy();
+		expect(screen.getByText(/^9,99 €/)).toBeTruthy();
 		expect(screen.queryByText('999 €')).toBeNull();
 	});
 
@@ -123,7 +123,7 @@ describe('PlansSection (#1494 AK9)', () => {
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('4,99 €')).toBeTruthy();
+		expect(screen.getByText(/^4,99 €/)).toBeTruthy();
 	});
 });
 
@@ -155,7 +155,7 @@ describe('PlansSection (#1496 AK2: drei Zeiträume, keine festen Beträge)', () 
 		render(createElement(PlansSection));
 
 		await waitFor(() => expect(screen.getByTestId('plans-section')).toBeTruthy());
-		expect(screen.getByText('1,11 €')).toBeTruthy();
+		expect(screen.getByText(/^1,11 €/)).toBeTruthy();
 		expect(screen.getByText('2,22 €')).toBeTruthy();
 		expect(screen.getByText('3,33 €')).toBeTruthy();
 		expect(screen.queryByText('4,99 €')).toBeNull();

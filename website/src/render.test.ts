@@ -150,10 +150,10 @@ describe('renderLanding', () => {
 		expect(template).toBeTypeOf('string');
 		const html = landing('de');
 		const card = (plan: string) => html.slice(html.indexOf(`data-plan="${plan}"`)).split('</article>')[0];
-		expect(card('plus')).toContain(template!.replace('{price}', '3,99 €'));
-		expect(card('pro')).toContain(template!.replace('{price}', '7,99 €'));
-		expect(card('plus')).toContain('47,90 €');
-		expect(card('pro')).toContain('95,90 €');
+		expect(card('plus')).toContain(template!.replace('{price}', '3,99 €'));
+		expect(card('pro')).toContain(template!.replace('{price}', '7,99 €'));
+		expect(card('plus')).toContain('47,90 €');
+		expect(card('pro')).toContain('95,90 €');
 		expect(card('free')).not.toContain(template!.replace('{price}', ''));
 	});
 

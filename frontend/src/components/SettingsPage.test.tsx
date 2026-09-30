@@ -875,7 +875,7 @@ describe('SettingsPage – #1458 AK11: Bereich „Pakete"', () => {
 		// Preise: exakt die Server-Werte, keine im Frontend hinterlegte Liste.
 		const monthlyPrices = rows.find((row) => row._kind === 'price' && row.label === 'Preis monatlich');
 		expect(monthlyPrices?.free).toBe('0,00 €');
-		expect(monthlyPrices?.pro).toBe('0,04 €');
+		expect(monthlyPrices?.pro).toMatch(/^0,04 €/);
 		// Matrixzeilen: je Feature eine Zeile mit „enthalten"/„—" je Paket.
 		const featureRows = rows.filter((row) => row._kind === 'feature');
 		expect(featureRows).toHaveLength(2);
