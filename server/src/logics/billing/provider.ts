@@ -16,11 +16,15 @@ interface ProviderEvent {
 	payload: unknown;
 }
 
-/** Kauf im Web: Abo anlegen, kündigen und wechseln laufen über den Anbieter (ADR 0013). */
+/**
+ * Kauf im Web: Abo anlegen, kündigen und wechseln laufen über den Anbieter (ADR 0013).
+ * `firstCycleCents` setzt beim Upgrade den um das Guthaben reduzierten ersten Zyklus (#1912).
+ */
 export interface WebCheckout {
 	create(
 		plan: Exclude<Plan, 'free'>,
 		period: BillingPeriod,
+		firstCycleCents?: number,
 	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	change(

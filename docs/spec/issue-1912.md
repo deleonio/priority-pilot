@@ -1,7 +1,7 @@
 # Spec — Issue #1912: PayPal-Upgrade verrechnet Restlaufzeit
 
 Teil (a) von #1895. Vertrag für die Impl-Phase; Tests: `server/src/logics/proration.test.ts`,
-`server/src/express/billing-subscriptions.test.ts` (#1912-Fälle), `server/src/logics/invoices-issue.test.ts`.
+`server/src/express/billing-subscriptions.test.ts` (#1912-Fälle), `server/src/logics/invoices-upgrade.test.ts`.
 
 ## Rechenfunktion (`server/src/logics/proration.ts`)
 

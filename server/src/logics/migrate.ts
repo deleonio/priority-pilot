@@ -1024,6 +1024,25 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `firstFailureAt` DATETIME');
 		console.log('Spalte firstFailureAt an subscriptions nachgezogen.');
 	}
+	// Upgrade-Guthaben (#1912); Default 0 lässt Bestandsabos ohne Verrechnung.
+	if (!existing.includes('creditCents')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `creditCents` INTEGER NOT NULL DEFAULT 0');
+		console.log('Spalte creditCents an subscriptions nachgezogen.');
+	}
+};
+
+/**
+ * Zieht `invoices.lineItems` (#1912) auf einer **bestehenden** Tabelle nach, BEVOR `sequelize.sync()`
+ * läuft — Muster {@link migrateSubscriptionPendingPlanColumns}. Der Default `[]` lässt Altrechnungen
+ * ohne Positionen. Idempotent; ohne Tabelle ein No-op.
+ */
+export const migrateInvoiceLineItemsColumn = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('invoices')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+	if (existing.length > 0 && !existing.includes('lineItems')) {
+		await db.query("ALTER TABLE `invoices` ADD COLUMN `lineItems` JSON NOT NULL DEFAULT '[]'");
+		console.log('Spalte lineItems an invoices nachgezogen.');
+	}
 };
 
 /**

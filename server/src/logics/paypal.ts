@@ -1,4 +1,5 @@
-import type Subscription from '../models/subscription.js';
+import { Op } from 'sequelize';
+import Subscription from '../models/subscription.js';
 import { rankOf, syncUserPlan } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
 
@@ -27,9 +28,22 @@ type BillingPeriod = 'monthly' | 'quarterly' | 'yearly';
  * (ADR 0013) — dieser Client löst nur den PayPal-Aufruf aus.
  */
 export interface PaypalClient {
-	createSubscription(planId: string): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
+	createSubscription(
+		planId: string,
+		override?: FirstCycleOverride,
+	): Promise<{ approvalUrl: string; externalSubscriptionId: string }>;
 	cancel(externalSubscriptionId: string): Promise<void>;
 	revise(externalSubscriptionId: string, targetPlanId: string): Promise<{ approvalUrl?: string }>;
+}
+
+/**
+ * Reduzierter erster Zyklus eines Upgrade-Abos (#1912). Der Plan-Override von PayPal kann keinen
+ * zusätzlichen Zyklus einfügen — deshalb wird der erste Zyklus als Einrichtungsgebühr sofort
+ * eingezogen und die reguläre Abrechnung beginnt erst eine Periode später (`startTime`).
+ */
+interface FirstCycleOverride {
+	firstCycleCents: number;
+	startTime: Date;
 }
 
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
@@ -151,14 +165,25 @@ const approveLinkOf = (body: { links?: { rel?: string; href?: string }[] }): str
  * Frontend-Route der Einstellungen (T6c, #1496), nicht auf `GET /billing/return`.
  */
 export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClient => ({
-	async createSubscription(planId) {
+	async createSubscription(planId, override) {
 		const token = await getAccessToken(fetchImpl);
 		const returnUrl = process.env.PAYPAL_RETURN_URL?.trim() || 'https://app.example/settings?billing=returned';
 		const cancelUrl = process.env.PAYPAL_CANCEL_URL?.trim() || returnUrl;
 		const res = await fetchImpl(`${apiBase()}/v1/billing/subscriptions`, {
 			method: 'POST',
 			headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ plan_id: planId, application_context: { return_url: returnUrl, cancel_url: cancelUrl } }),
+			body: JSON.stringify({
+				plan_id: planId,
+				application_context: { return_url: returnUrl, cancel_url: cancelUrl },
+				...(override && {
+					start_time: override.startTime.toISOString(),
+					plan: {
+						payment_preferences: {
+							setup_fee: { currency_code: 'EUR', value: (override.firstCycleCents / 100).toFixed(2) },
+						},
+					},
+				}),
+			}),
 		});
 		if (!res.ok) {
 			throw new Error('PayPal-Abo konnte nicht angelegt werden.');
@@ -207,7 +232,7 @@ export interface PaypalWebhookEvent {
 }
 
 /** Monate je Abrechnungszeitraum — Muster `invoices.ts` `PERIOD_MONTHS` (#1506 AK1). */
-const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
+export const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
 
 /**
  * Wendet ein verifiziertes Ereignis auf das Abo an (AK4/AK6):
@@ -228,6 +253,11 @@ export const applyPlanChange = async (
 	const eventType = event.event_type ?? '';
 
 	if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
+		// Bereits gekündigt, etwa als durch ein Upgrade abgelöstes Abo (#1912): das Paket am Nutzer
+		// trägt dann das Nachfolge-Abo und darf nicht auf `free` fallen.
+		if (subscription.get('status') === 'cancelled') {
+			return;
+		}
 		await subscription.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
 		await syncUserPlan(subscription, 'free');
 		return;
@@ -252,6 +282,34 @@ export const applyPlanChange = async (
 			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
 		});
 	}
+};
+
+/**
+ * Löst nach Bestätigung eines Upgrade-Abos das bisherige ab (#1912): jedes andere aktive PayPal-Abo
+ * desselben Nutzers wird bei PayPal gekündigt und lokal beendet, das neue Paket gilt sofort. Ein
+ * zweites laufendes Abo entsteht nur über den Upgrade-Weg (`POST /billing/subscriptions` blockt es
+ * mit 409) — ohne Vorgänger ein No-op.
+ */
+export const replacePredecessors = async (
+	subscription: Subscription,
+	client: Pick<PaypalClient, 'cancel'>,
+): Promise<void> => {
+	const predecessors = await Subscription.findAll({
+		where: {
+			userId: subscription.get('userId') as number,
+			provider: 'paypal',
+			status: 'active',
+			id: { [Op.ne]: subscription.get('id') as number },
+		},
+	});
+	if (predecessors.length === 0) {
+		return;
+	}
+	for (const predecessor of predecessors) {
+		await client.cancel(predecessor.get('externalSubscriptionId') as string);
+		await predecessor.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
+	}
+	await syncUserPlan(subscription, subscription.get('plan') as Plan);
 };
 
 /** Injizierbare Abhängigkeiten von {@link applyPaymentEvent} (Muster `deps` in `billing.ts`). */

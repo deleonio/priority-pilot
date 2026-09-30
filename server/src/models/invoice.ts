@@ -21,6 +21,8 @@ class Invoice extends Model {
 	public amountCents!: number;
 	public taxNote!: string;
 	public deliveredAt?: Date | null;
+	/** Positionen (#1912) — nur bei Verrechnung befüllt; Altrechnungen tragen `[]`. */
+	public lineItems!: { label: string; amountCents: number }[];
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -65,6 +67,11 @@ Invoice.init(
 		deliveredAt: {
 			type: DataTypes.DATE,
 			allowNull: true,
+		},
+		lineItems: {
+			type: DataTypes.JSON,
+			allowNull: false,
+			defaultValue: [],
 		},
 	},
 	{
