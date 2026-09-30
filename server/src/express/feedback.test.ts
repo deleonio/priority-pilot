@@ -114,6 +114,19 @@ describe('POST /feedback (#1435)', () => {
 		assert.match(commit.content, /# Login hängt/, 'Titel erscheint als Überschrift');
 	});
 
+	it('#1927 AK4: Free-Nutzer bei MONETIZATION_ENFORCED=true → 201, kein 403 plan_required', async () => {
+		const prev = process.env.MONETIZATION_ENFORCED;
+		process.env.MONETIZATION_ENFORCED = 'true';
+		try {
+			const cookie = await server.register('feedback-1927-free@example.com');
+			const res = await submit(cookie);
+			assert.equal(res.status, 201, `Erwartet 201, erhalten ${res.status}: ${await res.text()}`);
+		} finally {
+			if (prev === undefined) delete process.env.MONETIZATION_ENFORCED;
+			else process.env.MONETIZATION_ENFORCED = prev;
+		}
+	});
+
 	it('AK2: zwei Einreichungen mit identischem Titel am selben Tag erzeugen zwei verschiedene Pfade', async () => {
 		const cookie = await server.register('feedback-ak2@example.com');
 
