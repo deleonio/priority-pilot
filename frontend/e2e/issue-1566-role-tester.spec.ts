@@ -80,7 +80,7 @@ const mockPlansApi = async (page: Page): Promise<{ patchedId: () => number; patc
 	return { patchedId: () => lastPatchedId, patchedPlan: () => lastPatchedPlan };
 };
 
-/** Die eigene Auswahl-Karte im Pakete-Panel — über der Matrix-Karte „Pakete im Vergleich". */
+/** Die eigene Auswahl-Karte im Pakete-Panel — über der Karte „Abo". */
 const ownPlanCard = (page: Page) => page.locator('.settings-plans kol-card', { hasText: 'Eigenes Paket' });
 
 /** KI-UX aus #1565 (unverändert übernommen): Combobox öffnen, Option per Label wählen. */
@@ -124,7 +124,7 @@ test.describe('#1566 Rolle „Tester" — Admin ohne Nutzerverwaltung', () => {
 		// AK3: Der Wechsel überlebt ein Neuladen (/auth/me-Mock liefert den gemutierten Plan).
 		await page.reload();
 		await waitForStableView(page, 'Balamentum');
-		await expect(page.locator('.settings-plans')).toContainText('Free (dein Paket)');
+		await expect(page.getByTestId('plan-item-free')).toContainText('Aktuell');
 		await expect(ownPlanCard(page)).toBeVisible();
 	});
 

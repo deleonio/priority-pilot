@@ -402,19 +402,19 @@ describe('App — Rollensystem admin/member: Deep-Link /settings/nutzer', () => 
 		expect(document.querySelector('.admin-users')).toBeNull();
 	});
 
-	// Test-Pflege #1529: „Pakete" (Index 6) und „Abo" (Index 7) schieben sich vor die rollen-
-	// abhängigen Reiter — „Nutzerverwaltung" liegt damit auf Index 8 statt 6. Der geprüfte Vertrag
+	// Test-Pflege #1529/#1894/#1902: „Orte" (Index 4) und „Pakete & Abo" (Index 7) liegen vor den
+	// rollenabhängigen Reitern — „Nutzerverwaltung" liegt damit auf Index 8. Der geprüfte Vertrag
 	// (Admin-Route wählt den Admin-Reiter, Panel existiert) bleibt unverändert.
-	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 9) mit Panel tab-9', async () => {
+	it('Admin: öffnet den letzten Tab „Nutzerverwaltung" (Index 8) mit Panel tab-8', async () => {
 		render(<App user={{ ...testUser, role: 'admin' as const }} />);
 
 		await waitFor(() => {
 			expect(tabsElement()).not.toBeNull();
 		});
 		const tabs = tabsElement();
-		expect(tabs?._selected).toBe(9);
+		expect(tabs?._selected).toBe(8);
 		expect(tabs?._tabs?.map((t) => t._label)).toContain('Nutzerverwaltung');
-		expect(document.querySelector('[slot="tab-9"]')).not.toBeNull();
+		expect(document.querySelector('[slot="tab-8"]')).not.toBeNull();
 	});
 });
 
@@ -672,8 +672,9 @@ describe('App — #1894: Settings-Segmente nach dem Tab „Orte"', () => {
 		['orte', 'Orte', false],
 		['gruppen', 'Gruppen', false],
 		['kategorien', 'Kategorien', false],
-		['pakete', 'Pakete', false],
-		['abo', 'Abo', false],
+		// Test-Pflege #1902: „Pakete" und „Abo" sind ein Reiter; die alte Adresse /settings/abo öffnet ihn.
+		['pakete', 'Pakete & Abo', false],
+		['abo', 'Pakete & Abo', false],
 		['nutzer', 'Nutzerverwaltung', true],
 	])('/settings/%s wählt den Tab „%s"', async (segment, label, isAdmin) => {
 		window.history.replaceState({}, '', `/settings/${segment}`);

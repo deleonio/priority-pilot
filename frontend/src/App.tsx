@@ -78,8 +78,8 @@ const TaskGraphPanel = lazy(() =>
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
-// #1529: „Pakete" (Index 7) und „Abo" (Index 8) hängen HINTER „Kategorien" und VOR den
-// rollenabhängigen Segmenten — so bleiben die Indizes 0–6 der bestehenden Segmente stabil.
+// #1529/#1902: „Pakete & Abo" (Index 7) hängt HINTER „Kategorien" und VOR den rollenabhängigen
+// Segmenten — so bleiben die Indizes 0–6 der bestehenden Segmente stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'general',
 	'pillars',
@@ -89,11 +89,12 @@ const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'gruppen',
 	'kategorien',
 	'pakete',
-	'abo',
 ];
+/** #1902: der frühere Reiter „Abo" ist in „Pakete & Abo" aufgegangen — die alte Adresse öffnet ihn. */
+const LEGACY_SETTINGS_SEGMENTS: Record<string, string> = { abo: 'pakete' };
 // #1352: „Zugriff" hängt als letzter Tab HINTER dem nur für Admins vorhandenen „Nutzerverwaltung" —
 // die Segmentfolge ist deshalb rollenabhängig, damit sie index-paritätisch zu `settingsTabs` in
-// `SettingsPage` bleibt (der Admin-Tab behält Index 9, „Zugriff" liegt bei 9 bzw. 10).
+// `SettingsPage` bleibt (der Admin-Tab hat Index 8, „Zugriff" liegt bei 8 bzw. 9).
 const settingsPathSegments = (isAdmin: boolean): string[] => [
 	...BASE_SETTINGS_PATH_SEGMENTS,
 	...(isAdmin ? ['nutzer'] : []),
@@ -340,7 +341,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	// #1566: Tester arbeitet wie ein Admin, sieht aber die Nutzerverwaltung nicht — das Tab-Gating
 	// unten bleibt an `isAdmin` gebunden, nur die eigene Paket-Karte öffnet sich zusätzlich.
 	const isTester = user.role === 'tester';
-	const settingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const rawSettingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const settingsSegment = LEGACY_SETTINGS_SEGMENTS[rawSettingsSegment] ?? rawSettingsSegment;
 	const settingsTabIndex =
 		!isAdmin && ADMIN_ONLY_SETTINGS_SEGMENTS.has(settingsSegment)
 			? -1
