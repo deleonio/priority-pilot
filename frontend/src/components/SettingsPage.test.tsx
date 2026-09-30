@@ -716,12 +716,13 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
 		expect(tabsEl?._tabs?.map((t) => t._label)).toEqual([
 			'Allgemein',
 			'Säulen',
-			'KI',
+			'Kategorien',
 			'Standort',
 			'Orte',
+			'KI',
 			'Gruppen',
-			'Kategorien',
 			'Pakete & Abo',
+			// Test-Pflege #1904: Reihenfolge nach Paketstufe (Kategorien vor Standort, KI vor Gruppen).
 			// Test-Pflege #1903 AK1: „KI-Provider" → „KI", der Tab „Access-Token" entfällt (Zugriff liegt im KI-Tab).
 			// Test-Pflege #1894: „Orte" (Index 4) schiebt alle Folge-Tabs um 1 — Nutzerverwaltung liegt
 			// nach dem Zusammenlegen von „Pakete & Abo" (#1902) auf Index 8.
@@ -740,7 +741,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
  * `slot="tab-8"` (letzter Tab; Test-Pflege #1529/#1894/#1902: vorher `tab-6`, verschoben durch
- * „Orte" und „Pakete & Abo"). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`).
+ * „Orte" und „Pakete & Abo"). Test-Pflege #1903: die Tokens liegen jetzt im Tab „KI" (`slot="tab-2"`, seit #1904 `tab-5`).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 	beforeEach(() => {
@@ -749,7 +750,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		delete apiMocks.deleteApiToken;
 	});
 
-	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-2"] [data-testid="api-tokens-panel"]');
+	const panel = (container: HTMLElement) => container.querySelector('[slot="tab-5"] [data-testid="api-tokens-panel"]');
 
 	it('AK8: „Token erzeugen" zeigt den Klartext genau einmal an', async () => {
 		apiMocks.listApiTokens = vi.fn().mockResolvedValue([]);
@@ -762,7 +763,7 @@ describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
 		});
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		expect(panel(container), 'Token-Panel im Tab „KI" (tab-2) fehlt').not.toBeNull();
+		expect(panel(container), 'Token-Panel im Tab „KI" (tab-5) fehlt').not.toBeNull();
 
 		const createButton = container.querySelector(
 			'[data-testid="api-tokens-panel"] kol-button[_label="Token erzeugen"]',
@@ -1813,5 +1814,37 @@ describe('SettingsPage – #1903: Tab „KI" (Schalter + Access-Token-Karte)', (
 			expect(details, `${label} muss im DOM bleiben`).not.toBeNull();
 			expect(bound(details!, '_open')).not.toBe('true');
 		}
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1904 (Spec docs/spec/issue-1904.md) — AK1: Tab-Reihenfolge nach Paketstufe
+ * (Free vor Plus, „Pakete & Abo" zuletzt) und Panel-Slots parallel dazu.
+ */
+describe('SettingsPage – #1904: Tab-Reihenfolge nach Paketstufe', () => {
+	const labels = (container: HTMLElement) =>
+		(container.querySelector('kol-tabs') as unknown as { _tabs?: { _label: string }[] } | null)?._tabs?.map(
+			(t) => t._label,
+		);
+
+	it('AK1: Member sehen Allgemein, Säulen, Kategorien, Standort, Orte, KI, Gruppen, Pakete & Abo', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		expect(labels(container)).toEqual([
+			'Allgemein',
+			'Säulen',
+			'Kategorien',
+			'Standort',
+			'Orte',
+			'KI',
+			'Gruppen',
+			'Pakete & Abo',
+		]);
+	});
+
+	it('AK1: Panel-Slots folgen der Tab-Reihenfolge (Kategorien tab-2, KI tab-5, Gruppen tab-6)', () => {
+		const { container } = render(<SettingsPage {...defaultProps} />);
+		expect(container.querySelector('[slot="tab-2"].settings-categories')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-5"].settings-llm')).not.toBeNull();
+		expect(container.querySelector('[slot="tab-6"].settings-groups')).not.toBeNull();
 	});
 });
