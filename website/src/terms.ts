@@ -26,7 +26,7 @@ export const TERMS: { intro: string; description: string; sections: TermsSection
 		{
 			heading: 'Pakete und Abo',
 			priceLead:
-				'Balamentum gibt es in drei Paketen: eines ist kostenlos und zeitlich unbegrenzt, die übrigen sind Abos. Die Preise enthalten die Umsatzsteuer:',
+				'Balamentum gibt es in drei Paketen: eines ist kostenlos und zeitlich unbegrenzt, die übrigen sind Abos. Die Preise sind Endpreise; nach § 19 UStG wird keine Umsatzsteuer berechnet:',
 			paragraphs: [
 				'Laufzeit: Ein Abo läuft über den gewählten Zeitraum (Monat, Quartal oder Jahr) und verlängert sich automatisch um denselben Zeitraum, solange du es nicht kündigst.',
 				'Upgrade: Wechselst du in ein höheres Paket, wird es sofort freigeschaltet.',
