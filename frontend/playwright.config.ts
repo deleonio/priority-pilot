@@ -90,8 +90,10 @@ export default defineConfig({
 			timeout: 120_000,
 		},
 		// Vite-Dev-Server; sein Proxy reicht die API-Requests an das Backend oben durch.
+		// `--no-turbo-fast-api-calls` umgeht einen V8-Crash von Node 26 unter Vite (#1869);
+		// direkt am node-Aufruf, weil NODE_OPTIONS das Flag nicht zulaesst.
 		{
-			command: `pnpm dev --port ${PORT} --strictPort`,
+			command: `node --no-turbo-fast-api-calls node_modules/vite/bin/vite.js --port ${PORT} --strictPort`,
 			url: `http://localhost:${PORT}`,
 			reuseExistingServer: !process.env.CI,
 			timeout: 120_000,
