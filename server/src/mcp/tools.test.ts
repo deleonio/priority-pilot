@@ -1,4 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
+import { readFileSync } from 'node:fs';
+import * as toolsModule from './tools.js';
 import { findMcpTool } from './tools.js';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } from '../test/helpers.js';
@@ -2903,5 +2905,57 @@ describe('MCP-Werkzeug care_suggestions (#1796)', () => {
 			assert.ok(['erholt', 'stabil', 'verschlechtert'].includes(saeule.trend ?? ''), 'trend je Säule');
 			assert.equal(typeof saeule.defizitaer, 'boolean');
 		}
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1823 (Spec docs/spec/issue-1823.md) — Staffelungs-Hinweis in den Werkzeugbeschreibungen.
+ *
+ * AK1/AK2: jede Werkzeugbeschreibung in `tools/list` (auch alle schreibenden) enthält `MCP_PACING_HINT`.
+ * AK3: docs/arc42.md (IF-07) nennt dieselbe Regel.
+ * AK4: Namen/Schemas unverändert — durch AK8-Snapshot und mcp-handshake.test.ts abgedeckt (kein neuer Test).
+ *
+ * Rot, bis `MCP_PACING_HINT` exportiert und angehängt ist. KEIN Produktivcode.
+ */
+describe('MCP-Staffelungs-Hinweis (#1823)', () => {
+	before(async () => {
+		server = await startTestServer();
+	});
+	beforeEach(async () => resetDb());
+	after(async () => {
+		await server.close();
+		await closeDb();
+	});
+
+	const pacingHint = (): string => {
+		const hint = (toolsModule as { MCP_PACING_HINT?: unknown }).MCP_PACING_HINT;
+		assert.equal(typeof hint, 'string', 'tools.ts muss MCP_PACING_HINT exportieren');
+		assert.ok((hint as string).trim().length > 0, 'MCP_PACING_HINT darf nicht leer sein');
+		return hint as string;
+	};
+
+	it('AK1/AK2: jede Werkzeugbeschreibung enthält den Staffelungs-Hinweis, auch die schreibenden', async () => {
+		const hint = pacingHint();
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		const tools = (await mcpListTools(token)) as { name: string; description?: string }[];
+		assert.ok(tools.length > 0);
+		for (const tool of tools) {
+			assert.ok(tool.description?.includes(hint), `${tool.name}: Beschreibung enthält den Staffelungs-Hinweis nicht`);
+		}
+		for (const name of ['task_create', 'task_update', 'task_delete', 'task_complete', 'pillar_weights_set']) {
+			assert.ok(
+				tools.some((t) => t.name === name),
+				`${name} muss im Katalog stehen`,
+			);
+		}
+	});
+
+	it('AK3: docs/arc42.md nennt in IF-07 dieselbe Regel wie die Konstante', () => {
+		const hint = pacingHint();
+		const arc42 = readFileSync(new URL('../../../docs/arc42.md', import.meta.url), 'utf8');
+		const row = arc42.split('\n').find((line) => line.startsWith('| IF-07'));
+		assert.ok(row, 'IF-07-Zeile fehlt in docs/arc42.md');
+		assert.ok(row.includes(hint), 'IF-07 muss den Text von MCP_PACING_HINT enthalten');
 	});
 });
