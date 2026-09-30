@@ -58,7 +58,7 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 				purpose:
 					'Anmeldung und Führen deines Kontos. Du meldest dich mit deinem Google-Konto oder mit einem Anmelde-Link per E-Mail an; wir speichern Name und E-Mail-Adresse.',
 				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag über die Nutzung der App).',
-				retention: `Kontodaten ${ACCOUNT_LIFETIME} Anmelde-Links gelten 15 Minuten und werden danach gelöscht.`,
+				retention: `Kontodaten ${ACCOUNT_LIFETIME} Anmelde-Links gelten 15 Minuten und werden kurz nach Ablauf gelöscht.`,
 				recipients:
 					'Google (Google-Login), wenn du diese Anmeldeart wählst; unser E-Mail-Versanddienstleister für den Anmelde-Link.',
 			},
@@ -172,7 +172,8 @@ export const PRIVACY: { intro: string; description: string; sections: PrivacySec
 					'Die App und die Website bereitstellen. Nach der Anmeldung setzt der Server ein Sitzungs-Cookie, dazu ein Cookie, das nur den angemeldeten Zustand anzeigt; beide sind technisch notwendig (§ 25 Abs. 2 TDDDG).',
 				legalBasis: 'Art. 6 Abs. 1 lit. b DSGVO (Vertrag) und lit. f (berechtigtes Interesse am sicheren Betrieb).',
 				retention: 'Die Cookies bis zum Abmelden oder bis zum Ablauf der Sitzung.',
-				recipients: 'Unser Hosting-Anbieter, der den Server in unserem Auftrag betreibt (Art. 28 DSGVO).',
+				recipients:
+					'Unser Hosting-Anbieter Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, der den Server in unserem Auftrag in Deutschland betreibt (Art. 28 DSGVO).',
 			},
 		},
 		{
