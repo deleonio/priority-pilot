@@ -39,6 +39,7 @@
 	},
 	"billing": {
 		"managedBy": "Abonnement actief, beheerd via {{provider}}",
+		"yearlyPerMonth": "of {{price}}/maand bij jaarbetaling",
 		"manageInPlay": "Beheren in Google Play",
 		"restore": {
 			"action": "Aankopen herstellen",

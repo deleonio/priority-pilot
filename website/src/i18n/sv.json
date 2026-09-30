@@ -172,6 +172,7 @@
 		"free": "0 €",
 		"quarterly": "{price} per kvartal",
 		"yearly": "eller {price} per år",
+		"yearlyPerMonth": "eller {price}/månad vid årsbetalning",
 		"discounts": "Betalar du kvartalsvis sparar du 10 %, betalar du årsvis 20 %. Alla priser är slutpriser; enligt § 19 UStG (tysk regel för småföretagare) tas ingen moms ut.",
 		"basics": "Uppgifter, serier, checklistor, deadlines, poäng och balansanalys",
 		"includesPrevious": "Allt i {plan}, plus:",
