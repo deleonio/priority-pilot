@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.17._
+_Enthält v0.11.0 – v0.11.18._
 
 ### 🎉 New Features
 
@@ -14,6 +14,7 @@ _Enthält v0.11.0 – v0.11.17._
 - docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
 - feat(server): add feedback_send mcp tool for app feedback by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1915
 - feat(frontend): publish terms of use and link them in app help (#1891) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1918
+- feat(server): credit remaining paypal term on upgrade invoice by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1917
 
 ### 🐞 Bug Fixes
 
@@ -177,7 +178,7 @@ _Enthält v0.7.0 – v0.7.13._
 - docs: sync arc42 architecture doc to current state 2026-09-26 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1744
 - fix(server): backfill subscriptions pendingPlan columns via startup migrator (#1742) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1746
 - feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
-- feat(frontend): show balamentum wordmark on the login page (#1741) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1747
+- feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
 - feat(frontend): pill radius on login input and toolbar gap polish (#1745) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1748
 - feat(frontend): revert #1745 toolbar popover polish to stock kolibri by @deleonio in https://github.com/deleonio/priority-pilot/pull/1749
 - fix(frontend): remove #1623 gap write for stock kol-toolbar by @deleonio in https://github.com/deleonio/priority-pilot/pull/1750
