@@ -413,7 +413,10 @@ jobs:
             fi
           fi
 
-          if [ "$HAS_BLOCK" != "true" ]; then
+          # needs-human ohne Block ist gewollt (s. o.) — der Hart-fail hier liess den
+          # Lauf rot enden, bevor ai:needs-human gesetzt und ai:needs-analyse konsumiert
+          # war (#1800): Rueckfragen standen am Ticket, die Labels blieben unveraendert.
+          if [ "$HAS_BLOCK" != "true" ] && [ "$verdict" != "needs-human" ]; then
             echo "::error title=❌ Analyse fehlt::Kein KI-ANALYSE-Block im Harness-Kommentar, Issue-Body oder sonstigen Kommentaren. Lauf muss wiederholt werden."
             exit 1
           fi
