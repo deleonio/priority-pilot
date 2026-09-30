@@ -75,6 +75,9 @@ von `sync` erzeugten `capacitor.config.json`), verifiziert wird sie über `/.wel
 der Website. Prüfen auf dem Gerät: `adb shell pm get-app-links de.balamentum.app` muss die Domain als
 `verified` zeigen.
 
+Die Sitzung bleibt über App-Neustarts erhalten: `MainActivity.onPause()` ruft `CookieManager.flush()` auf,
+damit der WebView das Session-Cookie vor dem Beenden der App oder des Geräts auf die Platte schreibt.
+
 ## Icons und Splash neu erzeugen
 
 Icons entstehen aus dem Web-Logo, der Splash aus der Wortmarke (Marke oben, „balamentum" darunter).
