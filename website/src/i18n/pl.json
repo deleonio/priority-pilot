@@ -175,6 +175,7 @@
 		"free": "0 €",
 		"quarterly": "{price} na kwartał",
 		"yearly": "lub {price} rocznie",
+		"yearlyPerMonth": "lub {price}/miesiąc przy płatności rocznej",
 		"discounts": "Przy płatności kwartalnej oszczędzasz 10 %, przy rocznej 20 %. Wszystkie ceny są cenami końcowymi; na podstawie § 19 UStG (niemieckie zwolnienie dla małych przedsiębiorców) nie jest naliczany podatek VAT.",
 		"basics": "Zadania, serie, listy kontrolne, terminy, punkty i analiza równowagi",
 		"includesPrevious": "Wszystko z {plan}, a do tego:",

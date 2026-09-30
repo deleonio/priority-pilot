@@ -89,6 +89,10 @@ const PLAN_PRICES: Record<Plan, PlanPrice> = {
 	pro: { monthly: 999, quarterly: 2697, yearly: 9590 },
 };
 
+/** @public Monatsäquivalent der Jahreszahlung in Cent (abgerundet, #1898); `null` für Free. Nutzer: Website-Render und Tests. */
+export const yearlyMonthlyEquivalent = (yearlyCents: number): number | null =>
+	yearlyCents === 0 ? null : Math.floor(yearlyCents / 12);
+
 /**
  * PayPal-Abo-Plan-ID je kostenpflichtiger Kombination Paket×Zeitraum (#1494 AK4). `envVar` benennt
  * nur den Namen der Umgebungsvariable mit der echten Plan-ID zur Laufzeit — kein Secret im Code.

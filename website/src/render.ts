@@ -3,7 +3,12 @@
  * Anbieterdaten statisches HTML erzeugen. Kein Framework; einziges Client-JS ist der Sprung
  * angemeldeter Nutzer in die App ({@link SIGNED_IN_REDIRECT}).
  */
-import type { FeatureId, Plan, PlansCatalog } from '../../server/src/logics/plans.ts';
+import {
+	yearlyMonthlyEquivalent,
+	type FeatureId,
+	type Plan,
+	type PlansCatalog,
+} from '../../server/src/logics/plans.ts';
 import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import { PRIVACY } from './privacy.ts';
 import type de from './i18n/de.json';
@@ -256,6 +261,7 @@ const planCard = (context: LandingContext, plan: Plan): string => {
 		),
 	];
 	const amount = price.monthly === 0 ? messages.pricing.free : formatPrice(price.monthly, locale);
+	const perMonth = yearlyMonthlyEquivalent(price.yearly);
 	return `				<article class="kern-card plan" data-plan="${plan}">
 					<div class="kern-card__container">
 						<header class="kern-card__header">
@@ -265,6 +271,7 @@ const planCard = (context: LandingContext, plan: Plan): string => {
 							<p class="plan__price"><strong>${t(amount)}</strong>${price.monthly === 0 ? '' : ` <span>${t(messages.pricing.perMonth)}</span>`}</p>
 							${price.quarterly === 0 ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.quarterly, { price: formatPrice(price.quarterly, locale) }))}</p>`}
 							${price.yearly === 0 ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.yearly, { price: formatPrice(price.yearly, locale) }))}</p>`}
+							${perMonth === null ? '' : `<p class="plan__yearly">${t(fill(messages.pricing.yearlyPerMonth, { price: formatPrice(perMonth, locale) }))}</p>`}
 							${index === 0 ? '' : `<p class="plan__includes">${t(fill(messages.pricing.includesPrevious, { plan: messages.pricing.plans[plans[index - 1]] }))}</p>`}
 							<ul class="plan__features">
 ${items.map((item) => `								<li>${t(item)}</li>`).join('\n')}
