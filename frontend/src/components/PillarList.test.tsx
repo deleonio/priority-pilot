@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Pillar } from 'client';
 import { ResponseError } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import i18next from '../i18n/config';
 import { api } from '../api';
 import { PillarList } from './PillarList';
 
@@ -210,5 +211,43 @@ describe('PillarList — Kurzbeschreibung je Säule bleibt (#934 AK3)', () => {
 		expect(descriptions).toHaveLength(pillars.length);
 		expect(descriptions[0]?.textContent).toBe(pillars[0].description);
 		expect(descriptions[1]?.textContent).toBe(pillars[1].description);
+	});
+});
+
+/**
+ * #1848 AK7 — Beschreibung in der UI-Sprache über `pillars.<key>.description` (Namespace `common`),
+ * sonst der (deutsche) Server-Text. Spec: docs/spec/issue-1848.md.
+ */
+describe('PillarList — übersetzte Beschreibung (#1848 AK7)', () => {
+	afterEach(async () => {
+		await i18next.changeLanguage('de');
+	});
+
+	const mitKey = (key: string): Pillar => ({ ...pillar(1, 'Körper', 'Deutscher Servertext', 20), key }) as Pillar;
+
+	it('zeigt die Übersetzung, wenn der Schlüssel existiert', async () => {
+		i18next.addResourceBundle(
+			'en',
+			'common',
+			{ pillars: { koerper: { description: 'English body text' } } },
+			true,
+			true,
+		);
+		await i18next.changeLanguage('en');
+		vi.mocked(api.listPillars).mockResolvedValueOnce([mitKey('koerper')]);
+
+		render(<PillarList />);
+
+		expect(await screen.findByText('English body text')).toBeInTheDocument();
+		expect(screen.queryByText('Deutscher Servertext')).not.toBeInTheDocument();
+	});
+
+	it('fällt auf den Server-Text zurück, wenn der Schlüssel fehlt', async () => {
+		await i18next.changeLanguage('en');
+		vi.mocked(api.listPillars).mockResolvedValueOnce([mitKey('gibt-es-nicht')]);
+
+		render(<PillarList />);
+
+		expect(await screen.findByText('Deutscher Servertext')).toBeInTheDocument();
 	});
 });
