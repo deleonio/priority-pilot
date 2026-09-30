@@ -89,7 +89,7 @@ export const PlanHint = ({ feature, inModal = false }: { feature: FeatureId; inM
 					(isNativeChannel() ? (
 						'Mehr unter Einstellungen › Pakete.'
 					) : (
-						<a href={PAKETE_ROUTE} target="_blank" rel="noopener noreferrer">
+						<a href={`${import.meta.env.BASE_URL}${PAKETE_ROUTE.slice(1)}`} target="_blank" rel="noopener noreferrer">
 							Pakete ansehen
 						</a>
 					))}
