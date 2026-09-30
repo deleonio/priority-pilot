@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { planLabel } from '../lib/planOffers';
+import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { useEntitlement } from '../lib/usePlan';
 import { CopyButton } from './CopyButton';
 
@@ -105,6 +106,8 @@ const ScopeToggle = ({ token, disabled, onToggle }: { token: ApiToken; disabled:
  * Klick löst die irreversible Aktion aus.
  */
 export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
+	const createDetails = useFollowingOpen(open);
+	const existingDetails = useFollowingOpen(open);
 	const [tokens, setTokens] = useState<ApiToken[] | null>(null);
 	const [name, setName] = useState(DEFAULT_TOKEN_NAME);
 	// Laufzeit-Auswahl (#1357, AK6) — leer = keine Auswahl getroffen, Pflichtfeld ohne Vorauswahl.
@@ -239,7 +242,7 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 		<div className="api-tokens" data-testid="api-tokens-panel">
 			<KolCard className="settings-card" _label="Access-Token" _level={2}>
 				<p>Mit einem Access-Token bindest du KI-Clients wie Claude an Balamentum an.</p>
-				<KolDetails _label="Access-Token erstellen" _level={3} _open={open}>
+				<KolDetails _label="Access-Token erstellen" _level={3} {...createDetails}>
 					<div className="api-tokens__create">
 						<p>
 							Ein Token spricht dieselben Schnittstellen an wie diese Oberfläche — mit deinen Daten und deinen Rechten.
@@ -304,7 +307,7 @@ export const ApiTokensSection = ({ open = true }: { open?: boolean }) => {
 						)}
 					</div>
 				</KolDetails>
-				<KolDetails _label="Vorhandene Access-Token" _level={3} _open={open}>
+				<KolDetails _label="Vorhandene Access-Token" _level={3} {...existingDetails}>
 					{/*
 						#1358: Die Herabstufung war vorher nirgends sichtbar — ein Token, das gestern noch
 						schreiben durfte, meldete nach dem Update nur einen Fehler im MCP-Client.

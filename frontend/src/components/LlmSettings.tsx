@@ -13,6 +13,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
 import { useIsMobile } from '../lib/use-is-mobile';
+import { useFollowingOpen } from '../lib/useFollowingOpen';
 import { LlmProviderFormDialog } from './LlmProviderFormDialog';
 import { LlmProviderDeleteDialog } from './LlmProviderDeleteDialog';
 
@@ -46,6 +47,8 @@ interface LlmSettingsProps {
  *   Status-Hinweis zeigt an, was ggf. noch fehlt.
  */
 export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSettingsProps) => {
+	const selectDetails = useFollowingOpen(open);
+	const manageDetails = useFollowingOpen(open);
 	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [models, setModels] = useState<LlmModel[] | null>(null);
 	/** True, wenn die Liste nicht live vom Provider kam, sondern aus dem eingebauten Katalog. */
@@ -218,7 +221,7 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 			{/* Provider-Auswahl und Provider-Verwaltung sind je ein `KolDetails` in der Karte (#1903,
 			    Regel 1: in der Karte klappt `KolDetails`). Die Detail-Labels benennen die Gruppe, die
 			    Control-Labels darin die Bedienelemente; kein Label wiederholt den anderen. */}
-			<KolDetails _label="Provider-Auswahl" _level={3} _open={open}>
+			<KolDetails _label="Provider-Auswahl" _level={3} {...selectDetails}>
 				<div className="settings-card-stack">
 					{providers === null ? (
 						<p>Provider werden geladen…</p>
@@ -320,7 +323,7 @@ export const LlmSettings = ({ onChanged, open = true, disabled = false }: LlmSet
 			    Das frühere `<p class="llm-provider-admin__heading">` war eine als Überschrift
 			    gesetzte Textzeile ohne Überschriften-Semantik — jetzt trägt das Detail-Label
 			    den Namen (Design-Lauf 2026-09). */}
-			<KolDetails _label="Provider verwalten" _level={3} _open={open}>
+			<KolDetails _label="Provider verwalten" _level={3} {...manageDetails}>
 				<div className="llm-provider-admin">
 					<KolButton
 						_label="Neuer Provider"

@@ -246,3 +246,35 @@ test.describe('#1527 KI-Gate: Säulen-Berater ohne Berechtigung', () => {
 		await expect(head.getByTestId('plan-badge-ai_assist')).toHaveCount(0);
 	});
 });
+
+// ── #1903 (AK3): Details folgen dem Schalter, bleiben aber manuell aufklappbar ─────────────────
+
+test.describe('#1903 KI-Tab: Details bei Schalter aus', () => {
+	const LABELS = ['Provider-Auswahl', 'Provider verwalten', 'Access-Token erstellen', 'Vorhandene Access-Token'];
+	const detailsSummary = (page: Page, label: string) =>
+		page.locator('.settings-llm kol-details summary').filter({ hasText: new RegExp(`^${label}$`) });
+	const isOpen = (page: Page, label: string) =>
+		detailsSummary(page, label).evaluate((el) => el.closest('details')?.open === true);
+
+	test('AK3: Schalter aus → alle zu; manuell aufgeklappt bleibt offen nach Re-Render; Schalter an → alle offen', async ({
+		page,
+	}) => {
+		await openLlmTab(page);
+		const aiSwitch = switchControl(page, /^KI aktivieren$/);
+
+		await aiSwitch.click();
+		await expect(aiSwitch).not.toBeChecked();
+		for (const label of LABELS) await expect.poll(() => isOpen(page, label)).toBe(false);
+
+		await detailsSummary(page, 'Access-Token erstellen').click();
+		await expect.poll(() => isOpen(page, 'Access-Token erstellen')).toBe(true);
+		// Re-Render auslösen (State in ApiTokensSection) — das Detail darf nicht zurückklappen.
+		await page.getByRole('searchbox', { name: /Name des Tokens/ }).fill('Re-Render');
+		await page.waitForTimeout(300);
+		expect(await isOpen(page, 'Access-Token erstellen')).toBe(true);
+
+		await aiSwitch.click();
+		await expect(aiSwitch).toBeChecked();
+		for (const label of LABELS) await expect.poll(() => isOpen(page, label)).toBe(true);
+	});
+});
