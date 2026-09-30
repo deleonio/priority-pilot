@@ -39,5 +39,11 @@
 		"hours": "Stunden",
 		"minutes": "Minuten",
 		"seconds": "Sekunden"
+	},
+	"streak": {
+		"help": {
+			"label": "So zählt der Streak",
+			"text": "Ein Tag zählt, wenn du an ihm mindestens eine Aufgabe abhakst. Verspätet Erledigtes zählt für den Fälligkeitstag. Der Streak ist die ununterbrochene Folge solcher Tage bis heute oder gestern. Fehlt ein Tag bis gestern, fällt er auf 0 — die Bestmarke bleibt."
+		}
 	}
 }

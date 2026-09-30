@@ -1,6 +1,7 @@
-import { KolCard } from '@public-ui/react-v19';
+import { KolCard, KolDetails } from '@public-ui/react-v19';
 import type { Streak } from 'client';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 
 /**
@@ -24,6 +25,7 @@ import { api } from '../api';
 const tage = (anzahl: number): string => `${anzahl} ${anzahl === 1 ? 'Tag' : 'Tage'}`;
 
 export const StreakCard = () => {
+	const { t } = useTranslation('common');
 	const [streak, setStreak] = useState<Streak | null>(null);
 
 	useEffect(() => {
@@ -75,6 +77,9 @@ export const StreakCard = () => {
 						<span className="dashboard-streak-best-value">{tage(streak.best)}</span>
 						<span className="dashboard-streak-label">Bestmarke</span>
 					</p>
+					<KolDetails _label={t('streak.help.label')} _open={false}>
+						<p data-testid="streak-help">{t('streak.help.text')}</p>
+					</KolDetails>
 				</div>
 			)}
 		</KolCard>
