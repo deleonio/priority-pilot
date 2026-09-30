@@ -300,6 +300,9 @@ jobs:
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
             echo "::notice title=✅ Team-Lauf fertig::Label ai:needs-review an PR #${PR_NR} gesetzt."
+          elif grep -qE "hit your (session|usage|weekly|monthly) limit" /tmp/claude-output.log 2>/dev/null; then
+            # Konto-Limit ist kein Soft-Abort: Labels unangetastet lassen (Details: llm-fair-usage-check).
+            echo "::warning::LLM-Kontingent erreicht – kein Soft-Abort, Labels unverändert"
           elif [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
             # Zweiter Soft-Abort: nicht endlos weiterlaufen lassen. ai:to-big-issue ist ein
             # reines Info-Signal an den Menschen und löst bewusst nichts aus.

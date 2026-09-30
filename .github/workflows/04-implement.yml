@@ -577,7 +577,11 @@ jobs:
             echo "::notice::Label gesetzt: ai:needs-review an PR #${PR_NR}"
 
           else
-            if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
+            if grep -qE "hit your (session|usage|weekly|monthly) limit" /tmp/claude-output.log 2>/dev/null; then
+              # Konto-Limit ist kein Soft-Abort: Labels unangetastet lassen, Hinweis in der Job-Summary
+              # (llm-fair-usage-check) — das Ticket ist nicht zu gross.
+              echo "::warning::LLM-Kontingent erreicht – kein Soft-Abort, Labels unverändert"
+            elif [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
               # Obergrenze erreicht: ai:to-big-issue ist ein reines Info-Signal an den
               # Menschen (löst bewusst nichts automatisch aus).
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
