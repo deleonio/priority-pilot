@@ -47,5 +47,11 @@
 			"none": "Aucun achat à restaurer pour votre compte Google.",
 			"failed": "Vos achats n’ont pas pu être restaurés. Veuillez réessayer plus tard."
 		}
+	},
+	"legal": {
+		"heading": "Mentions légales",
+		"terms": "Conditions d’utilisation",
+		"privacy": "Confidentialité",
+		"newTab": "Les deux liens ouvrent le site web dans un nouvel onglet."
 	}
 }

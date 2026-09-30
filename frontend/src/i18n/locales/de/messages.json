@@ -47,5 +47,11 @@
 			"none": "Für dein Google-Konto gibt es keine Käufe, die sich wiederherstellen lassen.",
 			"failed": "Die Käufe konnten nicht wiederhergestellt werden. Bitte versuche es später erneut."
 		}
+	},
+	"legal": {
+		"heading": "Rechtliches",
+		"terms": "Nutzungsbedingungen",
+		"privacy": "Datenschutz",
+		"newTab": "Beide Links öffnen die Website in einem neuen Tab."
 	}
 }

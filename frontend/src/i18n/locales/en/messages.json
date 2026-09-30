@@ -47,5 +47,11 @@
 			"none": "There are no purchases to restore for your Google account.",
 			"failed": "Your purchases could not be restored. Please try again later."
 		}
+	},
+	"legal": {
+		"heading": "Legal",
+		"terms": "Terms of use",
+		"privacy": "Privacy policy",
+		"newTab": "Both links open the website in a new tab."
 	}
 }

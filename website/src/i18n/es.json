@@ -240,7 +240,8 @@
 		"imprintPath": "aviso-legal/",
 		"accountDeletion": "Eliminar cuenta",
 		"accountDeletionPath": "eliminar-cuenta/",
-		"privacy": "Privacidad"
+		"privacy": "Privacidad",
+		"terms": "Condiciones de uso"
 	},
 	"imprint": {
 		"title": "Aviso legal",

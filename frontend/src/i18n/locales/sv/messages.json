@@ -47,5 +47,11 @@
 			"none": "Det finns inga köp att återställa för ditt Google-konto.",
 			"failed": "Köpen kunde inte återställas. Försök igen senare."
 		}
+	},
+	"legal": {
+		"heading": "Juridiskt",
+		"terms": "Användarvillkor",
+		"privacy": "Integritetspolicy",
+		"newTab": "Båda länkarna öppnar webbplatsen i en ny flik."
 	}
 }

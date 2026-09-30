@@ -3,9 +3,16 @@
  * Anbieterdaten statisches HTML erzeugen. Kein Framework; einziges Client-JS ist der Sprung
  * angemeldeter Nutzer in die App ({@link SIGNED_IN_REDIRECT}).
  */
-import type { FeatureId, Plan, PlansCatalog } from '../../server/src/logics/plans.ts';
+import {
+	PLAN_VALUES,
+	getPlansCatalog,
+	type FeatureId,
+	type Plan,
+	type PlansCatalog,
+} from '../../server/src/logics/plans.ts';
 import type { OPERATOR } from '../../frontend/src/lib/operator.ts';
 import { PRIVACY } from './privacy.ts';
+import { TERMS } from './terms.ts';
 import type de from './i18n/de.json';
 
 export type Messages = typeof de;
@@ -178,6 +185,7 @@ ${body}
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.imprintPath}">${t(messages.footer.imprint)}</a>
 				<a class="kern-link" href="${homePath(locale)}${messages.footer.accountDeletionPath}">${t(messages.footer.accountDeletion)}</a>
 				<a class="kern-link" href="/datenschutz/">${t(messages.footer.privacy)}</a>
+				<a class="kern-link" href="/nutzungsbedingungen/" hreflang="de">${t(messages.footer.terms)}</a>
 			</div>
 			<nav class="container" aria-label="${t(messages.meta.language)}">
 				<ul class="site-footer__languages">
@@ -458,6 +466,50 @@ ${section.list.map((item) => `						<li>${t(item)}</li>`).join('\n')}
 	return shell(context, {
 		title: 'Datenschutz – Balamentum',
 		description: PRIVACY.description,
+		path: pathFor(),
+		pathFor,
+		body,
+	});
+};
+
+/**
+ * Nutzungsbedingungen (#1891): nur Deutsch unter der festen URL `/nutzungsbedingungen/`, Muster
+ * {@link renderPrivacy}. Paketnamen und Preise kommen aus `plans.ts`, nicht aus dem Text.
+ */
+export const renderTerms = (context: PageContext & { allMessages: Record<Locale, Messages> }): string => {
+	const { locale, messages } = context;
+	const pathFor = (): string => '/nutzungsbedingungen/';
+	const { prices } = getPlansCatalog();
+	const priceList = PLAN_VALUES.map((plan) => {
+		const price = prices[plan];
+		const amount =
+			price.monthly === 0
+				? messages.pricing.free
+				: `${formatPrice(price.monthly, locale)} im Monat, ${formatPrice(price.quarterly, locale)} im Quartal oder ${formatPrice(price.yearly, locale)} im Jahr`;
+		return `						<li>${t(`${messages.pricing.plans[plan]}: ${amount}`)}</li>`;
+	});
+	const body = `			<section class="section">
+					<div class="container container--narrow imprint">
+						<h1 class="kern-heading-large">Nutzungsbedingungen</h1>
+						<p class="kern-body kern-body--large">${t(TERMS.intro)}</p>
+${TERMS.sections
+	.flatMap((section) => [
+		`					<h2 class="kern-title">${t(section.heading)}</h2>`,
+		...(section.priceLead
+			? [
+					`					<p class="kern-body">${t(section.priceLead)}</p>`,
+					`					<ul class="kern-body">
+${priceList.join('\n')}
+					</ul>`,
+				]
+			: []),
+		...section.paragraphs.map((paragraph) => `					<p class="kern-body">${t(paragraph)}</p>`),
+	])
+	.join('\n')}				</div>
+			</section>`;
+	return shell(context, {
+		title: 'Nutzungsbedingungen – Balamentum',
+		description: TERMS.description,
 		path: pathFor(),
 		pathFor,
 		body,

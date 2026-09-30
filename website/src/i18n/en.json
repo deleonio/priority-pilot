@@ -234,7 +234,8 @@
 		"imprintPath": "imprint/",
 		"accountDeletion": "Delete account",
 		"accountDeletionPath": "delete-account/",
-		"privacy": "Privacy policy"
+		"privacy": "Privacy policy",
+		"terms": "Terms of use"
 	},
 	"imprint": {
 		"title": "Imprint",

@@ -47,5 +47,11 @@
 			"none": "Na Twoim koncie Google nie ma zakupów do przywrócenia.",
 			"failed": "Nie udało się przywrócić zakupów. Spróbuj ponownie później."
 		}
+	},
+	"legal": {
+		"heading": "Informacje prawne",
+		"terms": "Regulamin",
+		"privacy": "Prywatność",
+		"newTab": "Oba linki otwierają stronę w nowej karcie."
 	}
 }

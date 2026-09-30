@@ -47,5 +47,11 @@
 			"none": "Non ci sono acquisti da ripristinare per il tuo account Google.",
 			"failed": "Non è stato possibile ripristinare gli acquisti. Riprova più tardi."
 		}
+	},
+	"legal": {
+		"heading": "Note legali",
+		"terms": "Termini di utilizzo",
+		"privacy": "Privacy",
+		"newTab": "Entrambi i link aprono il sito web in una nuova scheda."
 	}
 }

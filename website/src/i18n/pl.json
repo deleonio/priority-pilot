@@ -240,7 +240,8 @@
 		"imprintPath": "nota-prawna/",
 		"accountDeletion": "Usuń konto",
 		"accountDeletionPath": "usun-konto/",
-		"privacy": "Prywatność"
+		"privacy": "Prywatność",
+		"terms": "Regulamin"
 	},
 	"imprint": {
 		"title": "Nota prawna",

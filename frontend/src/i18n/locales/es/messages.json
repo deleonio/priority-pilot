@@ -47,5 +47,11 @@
 			"none": "No hay compras que restaurar para tu cuenta de Google.",
 			"failed": "No se han podido restaurar las compras. Inténtalo de nuevo más tarde."
 		}
+	},
+	"legal": {
+		"heading": "Información legal",
+		"terms": "Condiciones de uso",
+		"privacy": "Privacidad",
+		"newTab": "Ambos enlaces abren el sitio web en una pestaña nueva."
 	}
 }
