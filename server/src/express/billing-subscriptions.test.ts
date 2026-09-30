@@ -236,6 +236,43 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.ok(first !== undefined && first > 999 - 499 && first < 999, `erster Zyklus reduziert, war ${first}`);
 	});
 
+	it('#1912: zwei abgebrochene Upgrade-Anläufe hinterlassen genau ein ausstehendes Abo neben dem aktiven', async () => {
+		let counter = 0;
+		server = await startTestServer(
+			withClient({
+				createSubscription: (async () => {
+					counter += 1;
+					return { approvalUrl: 'https://paypal.example/upgrade', externalSubscriptionId: `I-NEW-${counter}` };
+				}) as FakePaypalClient['createSubscription'],
+			}),
+		);
+		const cookie = await login('retry-1912@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-OLD',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+		});
+
+		assert.equal((await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' })).status, 200);
+		assert.equal((await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' })).status, 200);
+
+		const pending = await Subscription.findAll({ where: { userId: me.id, status: 'approval_pending' } });
+		assert.deepEqual(
+			pending.map((sub) => sub.get('externalSubscriptionId')),
+			['I-NEW-2'],
+		);
+		const active = await Subscription.findAll({ where: { userId: me.id, status: 'active' } });
+		assert.deepEqual(
+			active.map((sub) => sub.get('externalSubscriptionId')),
+			['I-OLD'],
+		);
+	});
+
 	it('#1912 AK6: Downgrade bleibt beim revise-Weg — kein neues Abo, kein Guthaben', async () => {
 		let created = false;
 		let revisedTo: string | undefined;
