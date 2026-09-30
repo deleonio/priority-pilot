@@ -174,6 +174,7 @@ export const main = async (): Promise<void> => {
 		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
 		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
 		const { runCarePush } = await import('./logics/carePush.js');
+		const { runStreakReminder } = await import('./logics/streakReminder.js');
 		const { cleanupOrphanedGroupInvitations } = await import('./logics/groupInvitationCleanup.js');
 		const { sendStartupStatusMail } = await import('./logics/startupStatusMail.js');
 		const { launchServer } = await import('./express/index.js');
@@ -304,7 +305,7 @@ export const main = async (): Promise<void> => {
 
 		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
 		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDailyTopTasksPush, runCarePush]);
+		startScheduler([runDueTaskReminders, runDailyTopTasksPush, runCarePush, runStreakReminder]);
 
 		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,
