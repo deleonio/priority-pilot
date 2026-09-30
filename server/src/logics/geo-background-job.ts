@@ -11,14 +11,18 @@ import { selectSeriesRepresentatives } from './series.js';
  * Aufgaben im Alarmabstand (`User.alarmDistanceKm`, Default 1 km) und verschickt je Nutzer
  * **eine** gebundelte Push-Nachricht (der Service Worker ersetzt über `tag: 'priority-pilot'`
  * ohnehin aufeinanderfolgende Pushes — Einzel-Pushes je Aufgabe sind ausgeschlossen).
- * Wiederholungen werden über {@link NotificationLog} je Aufgabe und Zeitfenster unterdrückt
- * (Muster: `dueTaskReminders.ts`).
+ * Der Push geht nur beim **Eintritt** in den Alarmabstand (Flanke gegenüber der zuletzt
+ * gemeldeten Position, #1926) und je Aufgabe höchstens einmal in 24 h — Wiederholungen werden
+ * über {@link NotificationLog} unterdrückt (Muster: `dueTaskReminders.ts`).
  */
 
 const KIND = 'geo-nearby-task';
 
-/** Lauf-/Dedup-Fenster in ms — Default aus den Geo-Settings (`intervalMinutes`, #1098). */
+/** Lauf-Intervall in ms — Default aus den Geo-Settings (`intervalMinutes`, #1098). */
 export const GEO_PUSH_INTERVAL_MS = 5 * 60 * 1000;
+
+/** Dedup-Fenster je Aufgabe (#1926): höchstens ein Push in 24 h. */
+const DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // F3: In-Memory-Queue pro User zur Serialisierung von parallelen Läufen.
 // Mehrere Hook-Instanzen melden gleichzeitig Position → parallele runGeoPushNotifications
@@ -49,32 +53,25 @@ interface GeoPushGroup {
 	tasks: NearbyGeoTask[];
 }
 
-/** Dedup-Schlüssel je Aufgabe und Intervallfenster (Unique-Index `kind+dedupeKey`). */
-const dedupeKeyFor = (taskId: number, now: Date, intervalMs: number): string =>
-	`${taskId}:${Math.floor(now.getTime() / intervalMs)}`;
-
-/** Alarmabstand des Nutzers aus den Geo-Settings (#1098), sonst der Default. */
-const alarmDistanceFor = async (userId: number): Promise<number> => {
-	const user = await User.findByPk(userId);
-	return user?.alarmDistanceKm ?? DEFAULT_ALARM_DISTANCE_KM;
-};
-
-/** Dedup-Fenster in ms für einen User (aus User.intervalMinutes oder Default). */
-const intervalMsFor = async (userId: number): Promise<number> => {
-	const user = await User.findByPk(userId);
-	return (user?.intervalMinutes ?? 5) * 60 * 1000;
-};
+/** Dedup-Schlüssel je Aufgabe und Tagesfenster (Unique-Index `kind+dedupeKey`; zwei Pushes liegen ≥ 24 h auseinander, also in verschiedenen Fenstern). */
+const dedupeKeyFor = (taskId: number, now: Date): string => `${taskId}:${Math.floor(now.getTime() / DEDUPE_WINDOW_MS)}`;
 
 /**
  * Ermittelt je gemeldeter Position die offenen Aufgaben (`status != 'Done'`) **mit** Koordinaten
- * im Alarmabstand des Nutzers (Haversine), gruppiert je Nutzer und um bereits gemeldete Aufgaben
- * bereinigt (Dedup-Fenster = User-spezifisches Intervall #1098 F2).
+ * im Alarmabstand des Nutzers (Haversine), gruppiert je Nutzer. Kandidaten sind nur Aufgaben, die
+ * die zuletzt gespeicherte Position noch nicht im Alarmabstand hatte (Flanke, #1926 AK2/AK3), und
+ * die in den letzten 24 h nicht gemeldet wurden (AK4). Die Position wird danach immer als neue
+ * letzte Position gespeichert (AK6).
  */
 export const collectGeoPushGroups = async (positions: GeoPosition[], now: Date): Promise<GeoPushGroup[]> => {
 	const groups = new Map<number, GeoPushGroup>();
 	for (const position of positions) {
-		const alarmDistanceKm = await alarmDistanceFor(position.userId);
-		const intervalMs = await intervalMsFor(position.userId);
+		const user = await User.findByPk(position.userId);
+		const alarmDistanceKm = user?.alarmDistanceKm ?? DEFAULT_ALARM_DISTANCE_KM;
+		const previous =
+			user?.lastGeoLatitude != null && user.lastGeoLongitude != null
+				? { lat: user.lastGeoLatitude, lon: user.lastGeoLongitude }
+				: null;
 		// #1518 AK8: je Serie nur die aktuelle Instanz — „1 Aufgabe in der Nähe" statt Sammelmeldung.
 		const candidates = selectSeriesRepresentatives(
 			await Task.findAll({
@@ -87,27 +84,29 @@ export const collectGeoPushGroups = async (positions: GeoPosition[], now: Date):
 			}),
 			now,
 		);
+		const distanceKm = (lat: number, lon: number, task: Task): number =>
+			Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10;
+		// Flanke (#1926): Aufgaben, die schon an der letzten Position im Alarmabstand lagen, sind kein Eintritt.
 		const nearby = candidates
-			.map((task) => ({
-				id: task.id,
-				title: task.title,
-				distanceKm:
-					Math.round(haversineKm(position.lat, position.lon, task.latitude as number, task.longitude as number) * 10) /
-					10,
-			}))
-			.filter((task) => task.distanceKm <= alarmDistanceKm);
+			.filter((task) => distanceKm(position.lat, position.lon, task) <= alarmDistanceKm)
+			.filter((task) => previous === null || distanceKm(previous.lat, previous.lon, task) > alarmDistanceKm)
+			.map((task) => ({ id: task.id, title: task.title, distanceKm: distanceKm(position.lat, position.lon, task) }));
+		await User.update(
+			{ lastGeoLatitude: position.lat, lastGeoLongitude: position.lon },
+			{ where: { id: position.userId } },
+		);
 		if (nearby.length === 0) {
 			continue;
 		}
 
-		// Dedup (AK6): Aufgaben, die innerhalb des letzten Intervalls bereits gemeldet wurden,
-		// aussortieren — `sentAt` ist die Wahrheit, nicht das Epochen-Fenster des Schlüssels.
+		// Dedup (AK4): Aufgaben, die in den letzten 24 h bereits gemeldet wurden, aussortieren —
+		// `sentAt` ist die Wahrheit, nicht das Tagesfenster des Schlüssels.
 		// F3: userId-Filter reduziert N+1 bei wachsender NotificationLog-Tabelle.
 		const recent = await NotificationLog.findAll({
 			where: {
 				kind: KIND,
 				userId: position.userId,
-				sentAt: { [Op.gte]: new Date(now.getTime() - intervalMs) },
+				sentAt: { [Op.gte]: new Date(now.getTime() - DEDUPE_WINDOW_MS) },
 			},
 		});
 		const recentlySent = new Set(recent.map((row) => Number(row.dedupeKey.split(':')[0])));
@@ -142,7 +141,7 @@ const buildPayload = (tasks: NearbyGeoTask[]): { title: string; body: string; ur
 /**
  * Versendet die gebundelten „Aufgaben in der Nähe"-Nachrichten (eine je Nutzer, an alle
  * Subscriptions via {@link sendPushToUser}) und protokolliert je gemeldeter Aufgabe einen
- * {@link NotificationLog}-Eintrag. Idempotent innerhalb des Intervallfensters (AK6).
+ * {@link NotificationLog}-Eintrag. Idempotent innerhalb des 24-h-Fensters (#1926 AK4).
  *
  * @param send injizierbarer Versand (siehe `logics/push.ts`); Tests reichen einen Mock herein.
  */
@@ -164,14 +163,13 @@ export const runGeoPushNotifications = async (
 		if (plan !== undefined && shouldBlockFeature(plan, 'location_reminders')) {
 			return;
 		}
-		const intervalMs = await intervalMsFor(group.userId);
 		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
 		if (sent > 0) {
 			await NotificationLog.bulkCreate(
 				group.tasks.map((task) => ({
 					userId: group.userId,
 					kind: KIND,
-					dedupeKey: dedupeKeyFor(task.id, now, intervalMs),
+					dedupeKey: dedupeKeyFor(task.id, now),
 					sentAt: now,
 				})),
 				{ ignoreDuplicates: true },

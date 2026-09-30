@@ -27,6 +27,9 @@ class User extends Model {
 	public displayDistanceKm!: number;
 	public alarmDistanceKm!: number;
 	public intervalMinutes!: number;
+	/** Zuletzt gemeldete Position (#1926) — Bezug der Flankenerkennung „Eintritt in den Alarmabstand"; `null` = noch keine Meldung. */
+	public lastGeoLatitude!: number | null;
+	public lastGeoLongitude!: number | null;
 	/** Fürsorge-Push (#1794) — eigener Schalter (Default ein), unabhängig vom Push-Hauptschalter. */
 	public carePushEnabled!: boolean;
 	/** IANA-Zeitzone des Nutzers (#1794) — Ruhezeit + Kalendertag-Dedup; `null` = UTC-Fallback. */
@@ -99,6 +102,16 @@ User.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 5,
+		},
+		lastGeoLatitude: {
+			type: DataTypes.FLOAT,
+			allowNull: true,
+			defaultValue: null,
+		},
+		lastGeoLongitude: {
+			type: DataTypes.FLOAT,
+			allowNull: true,
+			defaultValue: null,
 		},
 		carePushEnabled: {
 			type: DataTypes.BOOLEAN,

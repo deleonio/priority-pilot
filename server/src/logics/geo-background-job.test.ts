@@ -186,44 +186,78 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.equal(payload.url ?? '', `/tasks/${apotheke.id}`, 'Deep-Link führt zur nächsten Aufgabe');
 	});
 
-	it('AK6: Dedup — kein erneuter Versand innerhalb des Intervalls, wieder danach', async () => {
-		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
-		await seedSubscription(1, 'https://push.example/a');
-		const calls: { endpoint: string; body: string }[] = [];
-		const send = okSender(calls);
+	// #1926: Push nur beim Eintritt in den Alarmabstand (Flanke), je Aufgabe höchstens einmal in 24 h.
+	// Ersetzt das 5-min-Dedup-Fenster (#1101 AK6) und das Intervall-Fenster (#1098 F2).
+	describe('#1926: Flanke außen → innen + 24-h-Fenster (docs/spec/issue-1101.md)', () => {
+		const MIN = 60 * 1000;
+		const HOUR = 60 * MIN;
+		const at = (offsetMs: number) => new Date(NOW.getTime() + offsetMs);
+		const setup = async () => {
+			await seedUser(1, 5);
+			await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
+			await seedSubscription(1, 'https://push.example/a');
+			const calls: { endpoint: string; body: string }[] = [];
+			const run = (lat: number, when: Date) =>
+				runGeoPushNotifications([{ userId: 1, lat, lon: LON }], okSender(calls), when);
+			return { calls, run };
+		};
 
-		await runGeoPushNotifications([position], send, NOW);
-		assert.equal(calls.length, 1, 'erster Lauf sendet');
+		it('AK1: 24 h durchgehend im Alarmabstand (Meldung alle 5 min) → genau ein Push beim ersten Eintritt', async () => {
+			const { calls, run } = await setup();
+			for (let step = 0; step <= 288; step += 1) {
+				await run(LAT_NEAR, at(step * 5 * MIN));
+			}
+			assert.equal(calls.length, 1);
+		});
 
-		await runGeoPushNotifications([position], send, new Date(NOW.getTime() + GEO_PUSH_INTERVAL_MS - 1000));
-		assert.equal(calls.length, 1, 'zweiter Lauf im selben Intervall sendet nicht erneut');
+		it('AK2: Eintritt von außen sendet sofort und einmal; weitere Meldungen innen senden nichts', async () => {
+			const { calls, run } = await setup();
+			await run(LAT_FAR, NOW);
+			assert.equal(calls.length, 0, 'außerhalb kein Push');
+			await run(LAT_NEAR, at(5 * MIN));
+			assert.equal(calls.length, 1, 'Eintritt sendet im selben Lauf');
+			await run(LAT_NEAR, at(11 * MIN));
+			assert.equal(calls.length, 1, 'Aufenthalt innen sendet nichts, auch nicht nach dem alten 5-min-Fenster');
+		});
 
-		const logs = await NotificationLog.findAll({ where: { kind: 'geo-nearby-task' } });
-		assert.equal(logs.length, 1, 'genau ein Dedup-Eintrag je Task und Fenster');
+		it('AK3: bereits gespeicherte Position im Alarmabstand → erneute Meldung (App-Öffnen) nach > 24 h sendet nichts', async () => {
+			const { calls, run } = await setup();
+			await run(LAT_NEAR, NOW);
+			await run(LAT_NEAR, at(30 * HOUR));
+			assert.equal(calls.length, 1);
+		});
 
-		await runGeoPushNotifications([position], send, new Date(NOW.getTime() + GEO_PUSH_INTERVAL_MS + 1000));
-		assert.equal(calls.length, 2, 'nach Ablauf des Fensters wird wieder gemeldet');
-	});
+		it('AK4: Wiedereintritt nach 2 h sendet nichts, nach Ablauf von 24 h seit dem letzten Push wieder', async () => {
+			const { calls, run } = await setup();
+			await run(LAT_NEAR, NOW);
+			await run(LAT_FAR, at(1 * HOUR));
+			await run(LAT_NEAR, at(2 * HOUR));
+			assert.equal(calls.length, 1, 'Wiedereintritt innerhalb von 24 h unterdrückt');
+			await run(LAT_FAR, at(3 * HOUR));
+			await run(LAT_NEAR, at(25 * HOUR));
+			assert.equal(calls.length, 2, 'Wiedereintritt nach 24 h sendet wieder');
+		});
 
-	// F2 (#1102-Review): Das Dedup-Fenster ist das KONFIGURIERTE Intervall (User.intervalMinutes),
-	// nicht hart 5 Minuten — sonst ist der Schutz bei größerem Intervall nach 5 min weg.
-	it('F2: Dedup-Fenster folgt User.intervalMinutes (60 min), nicht dem 5-min-Default', async () => {
-		await seedUser(1, 60);
-		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
-		await seedSubscription(1, 'https://push.example/a');
-		const calls: { endpoint: string; body: string }[] = [];
-		const send = okSender(calls);
+		it('AK6: letzte Position wird auch ohne Push gespeichert (kein Kandidat, Paket gesperrt)', async () => {
+			type WithLast = { lastGeoLatitude: number | null; lastGeoLongitude: number | null };
+			const lastOf = async () => (await User.findByPk(1)) as unknown as WithLast;
+			const { run } = await setup();
 
-		await runGeoPushNotifications([position], send, NOW);
-		assert.equal(calls.length, 1, 'erster Lauf sendet');
+			await run(LAT_FAR, NOW);
+			let last = await lastOf();
+			assert.ok(Math.abs((last.lastGeoLatitude ?? 0) - LAT_FAR) < 1e-6, 'Position ohne Kandidat gespeichert');
+			assert.ok(Math.abs((last.lastGeoLongitude ?? 0) - LON) < 1e-6);
 
-		// 10 min später: außerhalb des 5-min-Defaults, aber INNERHALB des 60-min-Intervalls.
-		await runGeoPushNotifications([position], send, new Date(NOW.getTime() + 10 * 60 * 1000));
-		assert.equal(calls.length, 1, 'innerhalb des konfigurierten 60-min-Fensters kein erneuter Versand');
-
-		// 61 min später: Fenster abgelaufen → erneuter Versand.
-		await runGeoPushNotifications([position], send, new Date(NOW.getTime() + 61 * 60 * 1000));
-		assert.equal(calls.length, 2, 'nach Ablauf des konfigurierten Fensters wird wieder gemeldet');
+			await User.update({ plan: 'free' }, { where: { id: 1 } });
+			process.env.MONETIZATION_ENFORCED = 'true';
+			try {
+				await run(LAT_NEAR, at(5 * MIN));
+			} finally {
+				delete process.env.MONETIZATION_ENFORCED;
+			}
+			last = await lastOf();
+			assert.ok(Math.abs((last.lastGeoLatitude ?? 0) - LAT_NEAR) < 1e-6, 'Position bei gesperrtem Paket gespeichert');
+		});
 	});
 
 	it('AK6: ohne Tasks im Alarmabstand bleibt der Lauf ein No-op', async () => {

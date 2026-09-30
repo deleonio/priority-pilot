@@ -717,7 +717,7 @@ export const migrateTaskAddress = async (db: Sequelize): Promise<void> => {
 };
 
 /**
- * Geo-Config-Spalten am User (#1098: Anzeige-/Alarm-Entfernung, Positionsermittlungs-Intervall)
+ * Geo-Config-Spalten am User (#1098: Anzeige-/Alarm-Entfernung, Positionsermittlungs-Intervall; #1926: letzte Position)
  * mit denselben Defaults wie das Modell (`server/src/models/user.ts`) bzw. `GEO_CONFIG_DEFAULTS`
  * der Route. `NOT NULL` mit Default, damit SQLite die Spalte auf Bestands-Zeilen füllen kann
  * (ALTER TABLE ADD COLUMN NOT NULL erfordert einen DEFAULT-Wert, siehe migratePillarDescription).
@@ -726,6 +726,8 @@ const USER_GEO_COLUMNS = [
 	{ column: 'displayDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 5' },
 	{ column: 'alarmDistanceKm', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	{ column: 'intervalMinutes', definition: 'INTEGER NOT NULL DEFAULT 5' },
+	{ column: 'lastGeoLatitude', definition: 'FLOAT' },
+	{ column: 'lastGeoLongitude', definition: 'FLOAT' },
 ] as const;
 
 /**
