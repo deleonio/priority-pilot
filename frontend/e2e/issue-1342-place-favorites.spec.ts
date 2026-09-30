@@ -187,7 +187,7 @@ test.describe('Balamentum — #1894: Tab „Orte"', () => {
 		await login(page);
 		await page.goto('/app/settings/standort');
 		await waitForStableView(page, 'Standort');
-		await expect(page.getByTestId('place-favorites-panel')).toHaveCount(0);
+		await expect(page.getByTestId('place-favorites-panel')).toBeHidden();
 
 		const ortTab = page.getByRole('tab', { name: 'Orte', exact: true });
 		await expect(ortTab).toBeVisible();

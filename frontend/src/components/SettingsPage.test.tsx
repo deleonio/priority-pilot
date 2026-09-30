@@ -690,7 +690,7 @@ describe('SettingsPage – Remount-Key PillarWeightsForm (Review #1306 Finding 2
  * Rote Spec-Tests für Fixup PR #1300 (Finding #2) — Tab-Gating „Nutzerverwaltung" (Rollensystem
  * admin/member). Ohne `isAdmin` taucht der Tab weder in der Tab-Liste noch als Panel auf (#1080-
  * Muster: nicht nur ausgeblendet, sondern gar nicht erst aufgenommen); mit `isAdmin` erscheint er
- * als letzter Tab (Index 8 seit #1529, ans Ende angehängt) mit `AdminUsersSection` im Panel
+ * als letzter Tab (Index 9 seit #1894, ans Ende angehängt) mit `AdminUsersSection` im Panel
  * `slot="tab-9"`.
  */
 describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwaltung"', () => {
@@ -739,7 +739,7 @@ describe('SettingsPage – Rollensystem admin/member: Tab-Gating „Nutzerverwal
  *
  * Panel bleibt gemountet unabhängig vom aktiven Tab (siehe Kommentar SettingsPage.tsx:531) — Zugriff
  * per `container.querySelector`, kein `tab`-Prop nötig. Ohne `isAdmin` liegt „Zugriff" auf
- * `slot="tab-9"` (letzter Tab; Test-Pflege #1529: vorher `tab-7`, seit den Reitern „Pakete"/„Abo"
+ * `slot="tab-9"` (letzter Tab; Test-Pflege #1529: vorher `tab-6`, seit den Reitern „Pakete"/„Abo"
  * um zwei Positionen verschoben).
  */
 describe('SettingsPage – #1352: Tab „Zugriff" (API-Tokens)', () => {
@@ -1290,18 +1290,18 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 	it('AK1: mit Admin-Rolle rendert die Auswahl-Karte „Eigenes Paket" im Panel tab-7 (Pakete)', () => {
 		const { container } = render(<SettingsPage {...defaultProps} isAdmin currentUserId={7} />);
 
-		const tab6 = panel(container, 'tab-7');
-		expect(tab6, 'Pakete-Panel existiert').not.toBeNull();
+		const tab7 = panel(container, 'tab-7');
+		expect(tab7, 'Pakete-Panel existiert').not.toBeNull();
 		// Komponentenagnostisch: KI-UX empfiehlt KolSingleSelect, toleriert das native KolSelect.
-		const ownSelection = tab6?.querySelector(
+		const ownSelection = tab7?.querySelector(
 			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
 		);
 		expect(ownSelection, 'Auswahl „Eigenes Paket wechseln" lebt im tab-7-Panel').toBeTruthy();
 
 		// Nicht auch in der Nutzerverwaltung (dort ist das Paket nur noch Badge, AK2).
-		const tab8 = panel(container, 'tab-9');
+		const tab9 = panel(container, 'tab-9');
 		expect(
-			tab8?.querySelector('kol-single-select, kol-select'),
+			tab9?.querySelector('kol-single-select, kol-select'),
 			'Nutzerverwaltung hat keine Auswahl-Komponente mehr',
 		).toBeNull();
 	});
@@ -1309,10 +1309,10 @@ describe('SettingsPage – #1565: eigene Paket-Karte im Tab Pakete', () => {
 	it('AK4: ohne Admin-Rolle rendert das Pakete-Panel keine Auswahl-Karte', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
-		const tab6 = panel(container, 'tab-7');
-		expect(tab6, 'Pakete-Panel existiert auch für Mitglieder (Matrix bleibt, AK4)').not.toBeNull();
+		const tab7 = panel(container, 'tab-7');
+		expect(tab7, 'Pakete-Panel existiert auch für Mitglieder (Matrix bleibt, AK4)').not.toBeNull();
 		expect(
-			tab6?.querySelector(
+			tab7?.querySelector(
 				'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
 			),
 			'Mitgliedern wird die Auswahl-Karte nicht gerendert',
@@ -1345,9 +1345,9 @@ describe('SettingsPage – #1566: Tester sieht die Paket-Karte, aber nicht die N
 	it('AK3: mit isTester rendert das Pakete-Panel die Auswahl-Karte „Eigenes Paket"', () => {
 		const { container } = render(<SettingsPageWithTester {...defaultProps} isTester currentUserId={7} />);
 
-		const tab6 = panel(container, 'tab-7');
-		expect(tab6, 'Pakete-Panel existiert auch für Tester').not.toBeNull();
-		const ownSelection = tab6?.querySelector(
+		const tab7 = panel(container, 'tab-7');
+		expect(tab7, 'Pakete-Panel existiert auch für Tester').not.toBeNull();
+		const ownSelection = tab7?.querySelector(
 			'kol-single-select[_label="Eigenes Paket wechseln"], kol-select[_label="Eigenes Paket wechseln"]',
 		);
 		expect(ownSelection, 'Tester erhält dieselbe Auswahl-Karte wie ein Admin (#1565 AK1)').toBeTruthy();
