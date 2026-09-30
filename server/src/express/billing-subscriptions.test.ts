@@ -151,13 +151,13 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-CHANGE-ME',
-			plan: 'plus',
+			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'plus', period: 'monthly' });
 
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { approvalUrl?: string };
@@ -169,7 +169,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(calledWith?.[0], 'I-CHANGE-ME', 'Der Client muss mit der externen Abo-ID aufgerufen werden');
 		assert.ok(calledWith?.[1], 'Der Client muss mit der Ziel-Plan-ID aufgerufen werden');
 		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-CHANGE-ME' } });
-		assert.equal(sub?.get('plan'), 'plus', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
+		assert.equal(sub?.get('plan'), 'pro', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
 	});
 
 	it('AK4: liefert der Client keine Zustimmungs-URL, enthält die Antwort auch keine', async () => {
@@ -180,17 +180,131 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			userId: me.id,
 			provider: 'paypal',
 			externalSubscriptionId: 'I-CHANGE-NOURL',
-			plan: 'plus',
+			plan: 'pro',
 			period: 'monthly',
 			status: 'active',
 			currentPeriodEnd: new Date('2026-12-01'),
 		});
 
-		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'plus', period: 'monthly' });
 
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { approvalUrl?: string };
 		assert.equal(body.approvalUrl, undefined);
+	});
+
+	it('#1912 AK3: Upgrade legt ein neues Abo mit reduziertem ersten Zyklus an (kein revise) und kündigt das alte noch nicht', async () => {
+		const created: { planId: string; override?: { firstCycleCents?: number } }[] = [];
+		let revised = false;
+		let cancelled = false;
+		server = await startTestServer(
+			withClient({
+				createSubscription: (async (planId: string, override?: { firstCycleCents?: number }) => {
+					created.push({ planId, override });
+					return { approvalUrl: 'https://paypal.example/upgrade', externalSubscriptionId: 'I-NEW' };
+				}) as FakePaypalClient['createSubscription'],
+				revise: async () => {
+					revised = true;
+					return {};
+				},
+				cancel: async () => {
+					cancelled = true;
+				},
+			}),
+		);
+		const cookie = await login('ak3-1912@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		const dayMs = 24 * 60 * 60 * 1000;
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-OLD',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * dayMs),
+		});
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' });
+
+		assert.equal(res.status, 200);
+		assert.equal(((await res.json()) as { approvalUrl?: string }).approvalUrl, 'https://paypal.example/upgrade');
+		assert.equal(revised, false, 'Upgrade darf nicht per revise laufen');
+		assert.equal(cancelled, false, 'Altes Abo erst nach Bestätigung des neuen kündigen');
+		assert.equal(created.length, 1, 'Genau ein neues Abo wird angelegt');
+		const first = created[0].override?.firstCycleCents;
+		assert.ok(first !== undefined && first > 999 - 499 && first < 999, `erster Zyklus reduziert, war ${first}`);
+	});
+
+	it('#1912: zwei abgebrochene Upgrade-Anläufe hinterlassen genau ein ausstehendes Abo neben dem aktiven', async () => {
+		let counter = 0;
+		server = await startTestServer(
+			withClient({
+				createSubscription: (async () => {
+					counter += 1;
+					return { approvalUrl: 'https://paypal.example/upgrade', externalSubscriptionId: `I-NEW-${counter}` };
+				}) as FakePaypalClient['createSubscription'],
+			}),
+		);
+		const cookie = await login('retry-1912@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-OLD',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+		});
+
+		assert.equal((await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' })).status, 200);
+		assert.equal((await post('/billing/subscriptions/change', cookie, { plan: 'pro', period: 'monthly' })).status, 200);
+
+		const pending = await Subscription.findAll({ where: { userId: me.id, status: 'approval_pending' } });
+		assert.deepEqual(
+			pending.map((sub) => sub.get('externalSubscriptionId')),
+			['I-NEW-2'],
+		);
+		const active = await Subscription.findAll({ where: { userId: me.id, status: 'active' } });
+		assert.deepEqual(
+			active.map((sub) => sub.get('externalSubscriptionId')),
+			['I-OLD'],
+		);
+	});
+
+	it('#1912 AK6: Downgrade bleibt beim revise-Weg — kein neues Abo, kein Guthaben', async () => {
+		let created = false;
+		let revisedTo: string | undefined;
+		server = await startTestServer(
+			withClient({
+				createSubscription: async () => {
+					created = true;
+					return { approvalUrl: 'x', externalSubscriptionId: 'I-X' };
+				},
+				revise: async (_id: string, planId: string) => {
+					revisedTo = planId;
+					return {};
+				},
+			}),
+		);
+		const cookie = await login('ak6-1912@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-DOWN',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+		});
+
+		const res = await post('/billing/subscriptions/change', cookie, { plan: 'plus', period: 'monthly' });
+
+		assert.equal(res.status, 200);
+		assert.equal(created, false);
+		assert.ok(revisedTo, 'Downgrade nutzt weiter revise');
 	});
 
 	it('AK5: GET /billing/invoices liefert nur eigene Rechnungen', async () => {

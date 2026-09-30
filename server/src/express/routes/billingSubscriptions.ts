@@ -1,12 +1,16 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { Op, type Order } from 'sequelize';
 import { Subscription } from '../../models/index.js';
 import { OPEN_SUBSCRIPTION_STATUSES } from '../../models/subscription.js';
 import Invoice from '../../models/invoice.js';
 import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
-import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
+import { rankOf } from '../../logics/billing/lifecycle.js';
+import { PERIOD_MONTHS } from '../../logics/paypal.js';
+import { getPlansCatalog, PLAN_VALUES, type Plan } from '../../logics/plans.js';
+import { prorateUpgrade } from '../../logics/proration.js';
 
 /**
  * Abo-Verwaltung für den angemeldeten Nutzer (Issue #1505, T6d): Anlegen, Kündigen, Wechseln und
@@ -66,6 +70,9 @@ const serializeInvoice = (invoice: Invoice): InvoiceDto => ({
 	taxNote: invoice.taxNote,
 });
 
+// Neben dem laufenden Abo kann ein ausstehendes Upgrade liegen; Kündigung und Wechsel gelten dem laufenden.
+const ACTIVE_FIRST: Order = [['status', 'ASC']];
+
 export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps = {}): Router => {
 	const router = Router();
 	// Kauf im Web gibt es nur bei PayPal (ADR 0013); Store-Kanäle blockt `rejectStoreChannel`.
@@ -120,6 +127,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			}
 			const subscription = await Subscription.findOne({
 				where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
+				order: ACTIVE_FIRST,
 			});
 			if (!subscription) {
 				sendError(res, 404, 'Kein Abo gefunden.');
@@ -135,7 +143,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 	);
 
 	// POST /billing/subscriptions/change — löst den Paketwechsel bei PayPal aus (AK4). `plan`
-	// bleibt unverändert; wirksam wird der Wechsel erst über das Webhook-Ereignis.
+	// bleibt unverändert; wirksam wird der Wechsel erst über das Webhook-Ereignis. Ein Upgrade legt
+	// ein neues Abo mit um das Guthaben reduziertem ersten Zyklus an (#1912); das alte kündigt erst
+	// die Bestätigung des neuen (`replacePredecessors`). Downgrades laufen weiter über `revise`.
 	router.post('/billing/subscriptions/change', async (req: Request, res: Response<ReviseDto | ErrorDto>) => {
 		const userId = getUserId(req);
 		if (userId === undefined) {
@@ -150,12 +160,46 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		}
 		const subscription = await Subscription.findOne({
 			where: { userId, status: OPEN_SUBSCRIPTION_STATUSES },
+			order: ACTIVE_FIRST,
 		});
 		if (!subscription) {
 			sendError(res, 404, 'Kein Abo gefunden.');
 			return;
 		}
 		try {
+			const currentPlan = subscription.get('plan') as Plan;
+			if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(currentPlan)) {
+				const now = new Date();
+				const currentPeriod = subscription.get('period') as Period;
+				const periodEnd = subscription.get('currentPeriodEnd') as Date;
+				const periodStart = new Date(periodEnd);
+				periodStart.setUTCMonth(periodStart.getUTCMonth() - PERIOD_MONTHS[currentPeriod]);
+				const { prices } = getPlansCatalog();
+				const { creditCents, firstCycleCents } = prorateUpgrade({
+					oldPriceCents: prices[currentPlan][currentPeriod],
+					newPriceCents: prices[body.plan][body.period],
+					periodStart,
+					periodEnd,
+					now,
+				});
+				const { approvalUrl, externalSubscriptionId } = await checkout.create(body.plan, body.period, firstCycleCents);
+				// Ein abgebrochener früherer Upgrade-Anlauf bliebe sonst als offenes Abo liegen.
+				await Subscription.destroy({
+					where: { userId, status: 'approval_pending', id: { [Op.ne]: subscription.get('id') } },
+				});
+				await Subscription.create({
+					userId,
+					provider: provider.id,
+					externalSubscriptionId,
+					plan: body.plan,
+					period: body.period,
+					status: 'approval_pending',
+					currentPeriodEnd: new Date(now.getTime() + PERIOD_MS[body.period]),
+					creditCents,
+				});
+				res.status(200).json({ approvalUrl });
+				return;
+			}
 			const { approvalUrl } = await checkout.change(
 				subscription.get('externalSubscriptionId') as string,
 				body.plan,
