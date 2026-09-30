@@ -59,8 +59,10 @@ const createCustomProvider = async (page: import('@playwright/test').Page): Prom
 async function containerMetrics(
 	page: import('@playwright/test').Page,
 ): Promise<{ innerLeft: number; innerWidth: number }> {
+	// Test-Pflege #1903: gemessen am Inhaltscontainer im `KolDetails` „Provider verwalten" — das
+	// Detail rückt seinen Inhalt innerhalb der Karte ein, das Tab-Panel ist nicht mehr der Container.
 	return page
-		.locator('.settings-llm')
+		.locator('.settings-llm .llm-provider-admin')
 		.first()
 		.evaluate((el) => {
 			const rect = el.getBoundingClientRect();

@@ -63,7 +63,9 @@ test.describe('Balamentum — #1525: KI-Schalter Paket-Sperre (375px)', () => {
 
 		const planAlert = page.locator('.settings-llm-switch-row kol-alert');
 		await expect(planAlert).toBeVisible();
-		await expect(planAlert).toContainText('Pro');
+		// Test-Pflege #1903: der Satz zum eigenen LLM-„Pro“vider entfällt (Q2=B) — er trug bisher den
+		// Treffer; `ai_assist` verlangt das Paket „Plus“ (Paketname aus dem Entitlement).
+		await expect(planAlert).toContainText('Plus');
 
 		await planAlert.getByRole('button').click();
 		await expect(page.getByRole('heading', { name: 'Pakete im Vergleich' })).toBeVisible();
