@@ -711,13 +711,18 @@ export const SettingsPage = ({
 				</div>
 				{/* #1903: Tab „KI" — Schalter oben, darunter die Karten „KI-Provider" und „Access-Token".
 				    Deren `KolDetails` folgen dem Schalter (eingeklappt, nicht entfernt; Regel 2). */}
+				{/* Kategorien: thematische Ordnungsebene neben den Säulen (Route /settings/kategorien).
+				    Panel-Rezept wie die übrigen Tabs (Design-Lauf 2026-09): `.settings-panel` plus eine
+				    `KolCard` als Gruppierungsfläche. */}
 				<div slot="tab-2" className="settings-categories settings-panel">
 					<KolCard className="settings-card" _label="Kategorien verwalten" _level={2}>
 						<CategoryList onCategoryChanged={onCategoryChanged} />
 					</KolCard>
 				</div>
-				{/* #1902: „Pakete" und „Abo" (#1529) als EIN Reiter mit zwei Karten untereinander — oben das
-				    laufende Abo, unten die buchbaren Pakete (Regel 1: Karten nur oberste Ebene). */}
+				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
+				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
+				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
+				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
 				<div slot="tab-3" className="settings-geo settings-panel" ref={settingsGeoRef}>
 					<KolCard className="settings-card" _label="Standorterfassung" _level={2}>
 						<div className="settings-card-stack">
@@ -860,9 +865,6 @@ export const SettingsPage = ({
 				<div slot="tab-4" className="settings-places settings-panel">
 					<PlaceFavoritesSection />
 				</div>
-				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 5, Route
-				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten
-				        per Modal, Löschen mit sequenzieller Bestätigung. */}
 				<div slot="tab-5" className="settings-llm settings-panel">
 					{/* #1080/#1335: der eine Schalter — blendet die KI-Bedienelemente (KI-Anlege-Dialog mit
 							Berater, Lektorate) aus. Der frühere Feinschalter „Schnellerfassung aktiv" samt
@@ -916,16 +918,14 @@ export const SettingsPage = ({
 					<LlmSettings open={aiEnabled} disabled={showAiPlanAlert} />
 					<ApiTokensSection open={aiEnabled} />
 				</div>
-				{/* #1151: Die Geo-Einstellungen bekommen einen eigenen Tab „Standort" (Index 3, Route
-				        /settings/standort) — der Tab „Allgemein" bleibt frei von Standort-Settings. Reihenfolge
-				        wie bisher: Switch (+ Alerts), Ermitteln-Button, Addressanzeige, drei Slider. Die
-				        Remount-Keys ziehen mit um (KI-UX: der React-Adapter setzt Props erst nach dem Mount). */}
+				{/* #1211: Gruppen-Verwaltung (AK6–AK8) — eigener Tab „Gruppen" (Index 6, Route
+				        /settings/gruppen). Liste als Accordions mit Rolle + Mitgliederzahl, Anlegen/Bearbeiten
+				        per Modal, Löschen mit sequenzieller Bestätigung. */}
 				<div slot="tab-6" className="settings-groups settings-panel">
 					<GroupsSection />
 				</div>
-				{/* Kategorien: thematische Ordnungsebene neben den Säulen (Route /settings/kategorien).
-				    Panel-Rezept wie die übrigen Tabs (Design-Lauf 2026-09): `.settings-panel` plus eine
-				    `KolCard` als Gruppierungsfläche. */}
+				{/* #1902: „Pakete" und „Abo" (#1529) als EIN Reiter mit zwei Karten untereinander — oben das
+				    laufende Abo, unten die buchbaren Pakete (Regel 1: Karten nur oberste Ebene). */}
 				<div slot="tab-7" className="settings-plans settings-panel">
 					{/* #1565 AK1: kostenfreier Paket-Selbst-Wechsel in eigener Karte ÜBER dem Abo —
 					        die Bedienaktion vor dem Lesestoff. Gating um die KARTE (nicht den Tab), damit

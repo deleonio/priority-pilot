@@ -78,8 +78,8 @@ const TaskGraphPanel = lazy(() =>
 // #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
 // Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
 const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/graph'];
-// #1529/#1902: „Pakete & Abo" (Index 7) hängt HINTER „Kategorien" und VOR den rollenabhängigen
-// Segmenten — so bleiben die Indizes 0–6 der bestehenden Segmente stabil.
+// #1529/#1902: „Pakete & Abo" (Index 7) steht nach „Gruppen" und VOR den rollenabhängigen
+// Segmenten — so bleiben die Indizes 0–7 für Member stabil.
 const BASE_SETTINGS_PATH_SEGMENTS: string[] = [
 	'general',
 	'pillars',
@@ -336,8 +336,8 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
 
 	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default).
-	 * Rollensystem admin/member: Das Segment `nutzer` (Index 5) existiert nur für Admins — für Member
-	 * gilt es als unbekannt, sonst zeigte `KolTabs` mit `_selected=5` bei fünf Tabs ein leeres Panel. */
+	 * Rollensystem admin/member: Das Segment `nutzer` (Index 8) existiert nur für Admins — für Member
+	 * gilt es als unbekannt, sonst zeigte `KolTabs` mit `_selected=8` bei acht Tabs ein leeres Panel. */
 	const isAdmin = user.role === 'admin';
 	// #1566: Tester arbeitet wie ein Admin, sieht aber die Nutzerverwaltung nicht — das Tab-Gating
 	// unten bleibt an `isAdmin` gebunden, nur die eigene Paket-Karte öffnet sich zusätzlich.
