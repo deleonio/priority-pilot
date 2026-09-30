@@ -4,17 +4,22 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.11 - 2026-09-30
 
-_Enthält v0.11.0 – v0.11.6._
+_Enthält v0.11.0 – v0.11.8._
 
 ### 🎉 New Features
 
 - feat(server): add pacing hint to MCP tool descriptions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1881
 - feat(server): add evening streak reminder push (#1836) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1883
 - feat(server): send care push in the user's app language (#1879) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1880
+- docs(skills): add ticket-import skill for document-to-issue imports by @deleonio in https://github.com/deleonio/priority-pilot/pull/1905
 
 ### 🐞 Bug Fixes
 
 - docs(arc42): align package model with free/plus/pro and adr 0018 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1888
+
+### 🚀 Improvements
+
+- feat(server): allow editing completed tasks and recalculate score (#1821) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1886
 
 ### 🔧 Engineering
 
@@ -24,6 +29,7 @@ _Enthält v0.11.0 – v0.11.6._
 
 - Säulenbeschreibungen erklären, wie die Balance zustande kommt (#1849) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1884
 - feat(frontend): explain streak counting rule on streak card (#1819) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1885
+- ci(deploy): demo.apk mit Produktionsschlüssel signieren (#1779) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1906
 
 ## v0.10 - 2026-09-30
 
@@ -389,7 +395,6 @@ _Enthält v0.2.0 – v0.2.134._
 - feat(frontend): distinguish own and instance-wide llm providers (#1549) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1567
 - feat(server): add tester role with admin access except user management by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1572
 - feat(frontend): make header sticky with uniform padding by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1575
-- fix(server): ungescopten Aufgabenwald beim Start nicht mehr in die Logs schreiben by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1579
 - fix(server): ungescopten Aufgabenwald beim Start nicht mehr in die Logs schreiben by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1579
 - docs(arc42): sync architecture doc to current state 2026-09-19 by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1580
 - docs: canonical gate as verify mirror + prompt-audit coverage (#1576) by @deleonio in https://github.com/deleonio/priority-pilot/pull/1581
