@@ -258,11 +258,11 @@ const taskFieldProperties = {
 	},
 } as const;
 
-/**
- * Der Katalog. Reihenfolge = Reihenfolge in `tools/list`; der Snapshot-Test (`tools.test.ts`, AK8)
- * sortiert selbst.
- */
-export const mcpTools: McpTool[] = [
+/** @public Staffelungs-Regel für KI-Clients (nur Tests importieren sie); hängt an jeder Werkzeugbeschreibung, dieselbe Regel steht in `docs/arc42.md` (IF-07). */
+export const MCP_PACING_HINT =
+	'Pacing: at most 1 call per second; space out repeated or bulk calls (pause between writes).';
+
+const catalog: McpTool[] = [
 	{
 		name: 'task_list',
 		description:
@@ -767,5 +767,14 @@ export const mcpTools: McpTool[] = [
 		run: (ctx, args) => callApi(ctx, '/pillars/weights', { method: 'PUT', body: args }),
 	},
 ];
+
+/**
+ * Der Katalog. Reihenfolge = Reihenfolge in `tools/list`; der Snapshot-Test (`tools.test.ts`, AK8)
+ * sortiert selbst.
+ */
+export const mcpTools: McpTool[] = catalog.map((tool) => ({
+	...tool,
+	description: `${tool.description} ${MCP_PACING_HINT}`,
+}));
 
 export const findMcpTool = (name: unknown): McpTool | undefined => mcpTools.find((tool) => tool.name === name);
