@@ -31,13 +31,12 @@ on:
         type: boolean
 
 concurrency:
-  # Gruppe hängt am Provider: Die gemeinsame Gruppe `llm` der Phasen 01-05 schützt das
-  # z.ai-Kontingent (Rationale: 01-triage.yml). Der Documenter läuft per Default über
-  # OpenRouter und zieht davon nichts ab — eigene Gruppe `llm-openrouter`, damit er nicht
-  # hinter langen Fixups wartet. Notbremse LLM_PROVIDER_DOCUMENTER=zai|claude → zurück in
-  # `llm`. Der precheck-Job verhindert zusätzlich falsches Nachziehen — kurz hintereinander
-  # gemergte PRs reihen sich ein statt zu parallelisieren.
-  group: ${{ (vars.LLM_PROVIDER_DOCUMENTER || 'openrouter') == 'openrouter' && 'llm-openrouter' || 'llm' }}
+  # Eigene, statische Gruppe — Rationale ist die Abarbeitung, nicht der Provider: Der
+  # Documenter läuft nach dem Merge und kollidiert mit keinem Lauf der Phasen 01-05; auch die
+  # Notbremse LLM_PROVIDER_DOCUMENTER=zai|claude ändert das nicht (er zieht dann parallel vom
+  # z.ai-Kontingent, bewusst akzeptiert). Der precheck-Job verhindert zusätzlich falsches
+  # Nachziehen — kurz hintereinander gemergte PRs reihen sich ein statt zu parallelisieren.
+  group: llm-documenter
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,

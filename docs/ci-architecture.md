@@ -332,18 +332,22 @@ unten sind damit nicht mehr live.
 - **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call**; es war als Subagent-Modell
   im Spiel und ist seit der Umstellung auf `glm-4.7` (2026-09) nicht mehr konfiguriert. Die
   Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nie betroffen gewesen.
-  Die `concurrency`-Gruppen deckeln die Parallelität strukturell: die Ticket-Phasen
-  (`01-triage` … `05-review`) teilen sich EINE gemeinsame statische Gruppe `llm` (Teil-
-  Rücktausch von PR #1301, dort noch 6 eigene Phasen-Gruppen); die Cron-/Ad-hoc-Läufe bleiben
+  Die `concurrency`-Gruppen folgen der Abarbeitung, nicht dem LLM: Triage (01), UX (02) und
+  Review (05) haben je eine eigene statische Gruppe (`llm-triage`, `llm-ux`, `llm-review`);
+  die Git-Phasen Spec (03), Umsetzung/Fixup (04) und team.yml serialisieren über EINE
+  gemeinsame Gruppe `llm` (die engste Kopplung der Kette — Spec erzeugt, was Implement
+  konsumiert). Die Cron-/Ad-hoc-Läufe bleiben
   in ihrer eigenen gemeinsamen Gruppe `llm-sync` (s. [pipeline-flow.md](./pipeline-flow.md)).
-  `06-document` wählt die Gruppe nach Provider: per Default `llm-openrouter` (kein
-  z.ai-Kontingent), mit der Notbremse `LLM_PROVIDER_DOCUMENTER` wieder `llm`.
-  Obergrenze: **bis zu 3 gleichzeitige Agent-Läufe** (Ticket-Pipeline-, Sync- und
-  OpenRouter-Documenter-Slot) —
-  ein erschöpftes Kontingent trifft damit unter den Ticket-Läufen höchstens einen Lauf statt
-  bis zu 6 gleichzeitig verlorene/kollidierende. Innerhalb einer Gruppe reihen sich weitere
-  Läufe FIFO ein, statt parallel Kontingent zu ziehen. Bekannte Kehrseite: eine lange
-  Fixup-Schleife kann kurzzeitig eine Triage/ein Review derselben Gruppe blockieren.
+  `06-document` hat eine eigene, statische Gruppe `llm-documenter` — unabhängig vom Provider,
+  denn der Documenter läuft nach dem Merge und hat keine Abarbeitungs-Abhängigkeit zu den
+  Ticket-Phasen (auch die Notbremse `LLM_PROVIDER_DOCUMENTER` ändert daran nichts; er zieht
+  dann parallel vom z.ai-Kontingent, bewusst akzeptiert).
+  Obergrenze: **bis zu 6 gleichzeitige Agent-Läufe** (Triage-, UX-, Git-, Review-, Sync- und
+  Documenter-Slot) — ein erschöpftes Kontingent (z.ai) trifft damit mehrere Ticket-Läufe
+  parallel, bewusst akzeptiert gegen die Fixup-Blockade. Innerhalb einer Gruppe reihen sich
+  weitere Läufe FIFO ein. Kopplung: steht `vars.PHASE_RUNNER` auf einem Einzel-Runner
+  (z. B. pi5), queuen die getrennten Gruppen dort trotzdem hintereinander — der Split wirkt
+  nur hosted.
 - **Sperrzeiten:** Das einzige gebuchte Modell mit Spitzenzeit-Aufschlag ist `glm-5-turbo`
   (Mo–Fr 14:00–18:00 UTC+8 = dt. Vormittag, DST-abhängig 07:00–11:00 MEZ / 08:00–12:00 MESZ;
   am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Check in `setup-agent`

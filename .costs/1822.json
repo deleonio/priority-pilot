@@ -66,5 +66,21 @@
 		"verdict": "reviewed",
 		"findings": 0,
 		"nits": 0
+	},
+	{
+		"timestamp": "2026-09-29T23:51:38.272Z",
+		"tokensIn": 375276,
+		"tokensOut": 6586,
+		"cost": 0,
+		"issueId": "1822",
+		"phase": "documenter",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 311552,
+		"turns": 4,
+		"durationSeconds": 137,
+		"valueCost": 0.38342760000000004,
+		"effort": "low"
 	}
 ]
