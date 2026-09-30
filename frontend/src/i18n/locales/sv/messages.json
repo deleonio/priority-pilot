@@ -39,6 +39,7 @@
 	},
 	"billing": {
 		"managedBy": "Prenumeration aktiv, hanteras via {{provider}}",
+		"yearlyPerMonth": "eller {{price}}/månad vid årsbetalning",
 		"manageInPlay": "Hantera i Google Play",
 		"restore": {
 			"action": "Återställ köp",

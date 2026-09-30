@@ -1,6 +1,7 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
 import { KolAlert, KolSpin, KolTableStateful } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import type { components } from 'client';
 import { formatEuro } from '../lib/format';
@@ -52,6 +53,7 @@ export const PlansSection = () => {
 	const { plan } = usePlan();
 	// Der Kanal wechselt zur Laufzeit nicht, der gewählte Hook bleibt über alle Renders derselbe.
 	const usePurchase = purchaseHookFor(getChannel());
+	const { t } = useTranslation('messages');
 	const purchase = usePurchase();
 	const matrixRef = useRef<HTMLDivElement>(null);
 	/**
@@ -138,7 +140,7 @@ export const PlansSection = () => {
 				// #1898: Monatsäquivalent der Jahreszahlung als zweite Zeile der Monatszelle; im Store-Modus entfällt es.
 				const perMonth = yearlyMonthlyEquivalent(catalog.prices[key].yearly);
 				if (period === 'monthly' && storePrice === undefined && perMonth !== null) {
-					row[key] += `\noder ${formatEuro(perMonth)}/Monat bei Jahreszahlung`;
+					row[key] += `\n${t('billing.yearlyPerMonth', { price: formatEuro(perMonth) })}`;
 				}
 			}
 			return row;
