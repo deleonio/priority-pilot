@@ -103,6 +103,21 @@ test.describe('Öffentliche Website', () => {
 		await expect(page.getByRole('heading', { level: 1, name: 'Datenschutz' })).toBeVisible();
 	});
 
+	test('Nutzungsbedingungen: Footer-Link auf 375 px sichtbar, antippbar und erreichbar (#1891)', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 800 });
+		await page.goto('/');
+		const link = page.getByRole('contentinfo').getByRole('link', { name: 'Nutzungsbedingungen' });
+		await link.scrollIntoViewIfNeeded();
+		const box = await link.boundingBox();
+		expect(box, 'Bounding-Box').not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+		expect(box!.height).toBeGreaterThanOrEqual(24);
+		await link.click();
+		await expect(page).toHaveURL(/\/nutzungsbedingungen\/$/);
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	});
+
 	test('kein horizontales Scrollen', async ({ page }) => {
 		for (const path of [
 			'/',
@@ -118,6 +133,7 @@ test.describe('Öffentliche Website', () => {
 			'/impressum/',
 			'/konto-loeschen/',
 			'/datenschutz/',
+			'/nutzungsbedingungen/',
 			'/ru/delete-account/',
 		]) {
 			await page.goto(path);

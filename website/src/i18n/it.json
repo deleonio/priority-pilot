@@ -238,7 +238,8 @@
 		"imprintPath": "note-legali/",
 		"accountDeletion": "Elimina account",
 		"accountDeletionPath": "elimina-account/",
-		"privacy": "Privacy"
+		"privacy": "Privacy",
+		"terms": "Termini di utilizzo"
 	},
 	"imprint": {
 		"title": "Note legali",

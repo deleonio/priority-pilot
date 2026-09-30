@@ -3,10 +3,43 @@
  * Optionale Felder (aktuell `ustId`, `contentResponsible`) bleiben bei leerem Wert ungerendert.
  */
 
+import { useTranslation } from 'react-i18next';
 import { OPERATOR } from '../lib/operator';
 
 /** E-Mail-Adresse aus den Operator-Angaben, als mailto-Link gerendert. */
 const OperatorEmail = () => <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>;
+
+/**
+ * Nutzungsbedingungen und Datenschutz liegen auf der Website an der Wurzel, die App unter `/app/`
+ * (ADR 0015) — daher `origin` statt `BASE_URL` (#1891).
+ */
+const LegalLinks = () => {
+	const { t } = useTranslation('messages');
+	const links = [
+		{ path: '/nutzungsbedingungen/', label: t('legal.terms') },
+		{ path: '/datenschutz/', label: t('legal.privacy') },
+	];
+	return (
+		<>
+			<h3>{t('legal.heading')}</h3>
+			<p id="legal-links-hint">{t('legal.newTab')}</p>
+			<ul className="help-legal-links">
+				{links.map(({ path, label }) => (
+					<li key={path}>
+						<a
+							href={`${window.location.origin}${path}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-describedby="legal-links-hint"
+						>
+							{label}
+						</a>
+					</li>
+				))}
+			</ul>
+		</>
+	);
+};
 
 export const Impress = () => (
 	<div>
@@ -60,5 +93,7 @@ export const Impress = () => (
 			Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
 			teilzunehmen.
 		</p>
+
+		<LegalLinks />
 	</div>
 );

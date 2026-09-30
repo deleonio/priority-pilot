@@ -26,6 +26,7 @@ import {
 	renderAssetLinks,
 	renderLanding,
 	renderPrivacy,
+	renderTerms,
 	renderRobots,
 	renderSitemap,
 	type Locale,
@@ -99,6 +100,10 @@ for (const locale of LOCALES) {
 // Datenschutzerklärung: eine feste deutsche Seite an der Wurzel, Footer-Link in allen Sprachen (#1672).
 write(join('datenschutz', 'index.html'), renderPrivacy({ locale: 'de', messages: de, siteUrl, allMessages }));
 paths.push('/datenschutz/');
+
+// Nutzungsbedingungen: wie die Datenschutzerklärung eine feste deutsche Seite (#1891).
+write(join('nutzungsbedingungen', 'index.html'), renderTerms({ locale: 'de', messages: de, siteUrl, allMessages }));
+paths.push('/nutzungsbedingungen/');
 
 write('robots.txt', renderRobots(siteUrl));
 if (siteUrl) {

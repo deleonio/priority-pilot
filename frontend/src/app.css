@@ -2880,6 +2880,21 @@ kol-toolbar {
 	outline-offset: 2px;
 }
 
+/* Rechtliche Links im Impressum-Tab (#1891): eigene Zeile je Link, 44 px antippbar. */
+.help-legal-links {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--pp-space-2);
+}
+
+.help-legal-links a {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+}
+
 /* Hilfe-Seiten-Layout: 2/3 Inhalt + 1/3 Sidebar (TOC, Auswahl-Regler). Mobil einspaltig mit
 	 der Sidebar ÜBER dem Text (Changelog: Auswahl-Regler erreichbar, Handbuch: TOC als Einstieg).
 	 Ab Desktop-Standard-Breakpoint 48rem liegt die Sidebar rechts. `minmax(0, …)` hält lange
