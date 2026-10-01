@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-01
 
-_Enthält v0.12.0 – v0.12.8._
+_Enthält v0.12.0 – v0.12.9._
 
 ### 🎉 New Features
 
@@ -21,6 +21,7 @@ _Enthält v0.12.0 – v0.12.8._
 - fix(billing): PayPal-Paketwechsel, Kündigung abgebrochener Checkouts, Zeitraum-Persistenz by @deleonio in https://github.com/deleonio/priority-pilot/pull/1998
 - feat(plans): lower pro prices to 8.99/24.27/86.30 eur by @deleonio in https://github.com/deleonio/priority-pilot/pull/2026
 - docs(adr): add ADR 0019 waitlist launch access model (#1961) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2027
+- docs(skill): ticket-coordination — check-in cadence while issue phases run by @deleonio in https://github.com/deleonio/priority-pilot/pull/2029
 
 ## v0.11 - 2026-09-30
 
@@ -284,7 +285,7 @@ _Enthält v0.4.0 – v0.4.22._
 ### Other Changes
 
 - fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
-- fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
+- fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
 - fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
 - docs(mobile-ui-rules): align checklist touch-target to 44px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1626
 - fix(pillars): resumable recalc with live progress and rate-limit retry by @deleonio in https://github.com/deleonio/priority-pilot/pull/1628
