@@ -61,7 +61,7 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push is a finding |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
-| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase running on the branch → hand the resolution to a subagent (section 6, one per PR, in parallel); phase running → wait for its end. After the subagent's push: if the PR already had its review verdict, re-arm `ai:needs-review`. A conflict that needs a product decision goes to the author |
+| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. `ai:needs-fixup` set or a fixup queued → the fixup run merges main into the branch before it starts and resolves the conflict markers as its first step; post the resolution rule (which side wins, what to merge into one) as an inline review comment on the conflicting file instead of pushing — the fixup reads review threads and the collected review comment, not plain PR comments. No phase running or queued on the branch → hand the resolution to a subagent (section 6, one per PR, in parallel); phase running → wait for its end. After the subagent's push: if the PR already had its review verdict, re-arm `ai:needs-review`. A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
 | All sub-issues of an epic closed | check the merged PRs for named follow-up work that no ticket covers; ask the author about a follow-up ticket. Never close the epic yourself |
@@ -147,6 +147,13 @@ pipeline and later readers see it.
     `ai:needs-po-review`, but the old `ai:needs-human` can stay. Both together mean "ready to
     route", not "blocked": check the analysis timestamp is after the answer, then route and drop
     `ai:needs-human` in the same write.
+15. **Two tickets, one shared building block.** When two analyses each plan the same piece (a
+    model, a check function), an issue comment alone does not reach the later phases: spec and
+    implementation work from the spec document and the PR. Post the directive on both issues
+    before the spec, then — as soon as the first spec fixes names — post the identical contract
+    (model name, file, fields, function signature) on both draft PRs before their implementation
+    starts. Check the implementation diff against it; a deviation is a blocking PO comment on
+    the PR before the review, so the review sends it into fixup.
 
 ## 5. Tool notes
 

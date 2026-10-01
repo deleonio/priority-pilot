@@ -19,6 +19,7 @@ import {
 import { acquireGlobalRun, releaseGlobalRun } from '../../logics/reassignLock.js';
 import { BACKGROUND_PORTION_SIZE, readBackgroundRun, startBackgroundRun } from '../../logics/reassignBackgroundRun.js';
 import { ladeCareWirkung, type CareWirkung } from '../../logics/careWirkung.js';
+import { activateTopWaitlist, activateWaitlistEntry, listWaitlistRanked } from '../../logics/waitlist.js';
 
 /**
  * Nutzerverwaltung für Admins (Rollensystem admin/member/tester) plus Batch-Endpunkt zur
@@ -54,6 +55,16 @@ const toDto = (user: User): AdminUserDto => ({
 });
 
 const LAST_ADMIN_MESSAGE = 'Es muss mindestens einen Administrator geben — ernenne zuerst eine andere Person.';
+
+/** List-DTO der Warteliste (#1982): Position 1-basiert, referralCount = geworbene Anmeldungen. */
+type AdminWaitlistEntryDto = {
+	id: number;
+	email: string;
+	status: 'waiting' | 'activated';
+	position: number;
+	referralCount: number;
+	createdAt: string;
+};
 
 /**
  * Stuft `id` auf eine Nicht-Admin-Rolle (`member`/`tester`) zurück — aber nur, wenn danach noch
@@ -328,6 +339,64 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 		async (_req: Request, res: Response<CareWirkung | ErrorDto>) => {
 			try {
 				res.json(await ladeCareWirkung());
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/waitlist — Warteliste im Referral-Rang (#1982, ADR 0019): die Freischalt-Reihenfolge
+	// (Eingeladene zuerst, dann Warteliste nach Rang) wird von `logics/waitlist.ts` vorgeberechnet.
+	adminRouter.get(
+		'/admin/waitlist',
+		requireRole('admin'),
+		async (_req: Request, res: Response<AdminWaitlistEntryDto[] | ErrorDto>) => {
+			try {
+				res.json(await listWaitlistRanked());
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// POST /admin/waitlist/:id/activate — schaltet einen einzelnen Eintrag frei (idempotent);
+	// danach nimmt der bestehende Login-Flow die Adresse an (`isDbEmailAllowed`/`AllowedEmail`,
+	// #1982 AK3).
+	adminRouter.post(
+		'/admin/waitlist/:id/activate',
+		requireRole('admin'),
+		async (req: Request, res: Response<{ status: 'activated' } | ErrorDto>) => {
+			const id = Number(req.params.id);
+			if (!Number.isInteger(id) || id <= 0) {
+				sendError(res, 400, 'Ungültige Eintrags-Id.');
+				return;
+			}
+			try {
+				const status = await activateWaitlistEntry(id);
+				if (status === null) {
+					sendError(res, 404, 'Wartelisten-Eintrag nicht gefunden.');
+					return;
+				}
+				res.json({ status });
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// POST /admin/waitlist/activate-top — schaltet die Top-N-Einträge nach Position auf einmal frei
+	// („Welle“); bereits freigeschaltete zählen nicht doppelt (#1982 AK4).
+	adminRouter.post(
+		'/admin/waitlist/activate-top',
+		requireRole('admin'),
+		async (req: Request, res: Response<{ activatedCount: number } | ErrorDto>) => {
+			const { count } = (req.body ?? {}) as { count?: unknown };
+			if (typeof count !== 'number' || !Number.isInteger(count) || count <= 0) {
+				sendError(res, 400, 'count muss eine ganze Zahl >= 1 sein.');
+				return;
+			}
+			try {
+				res.json({ activatedCount: await activateTopWaitlist(count) });
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

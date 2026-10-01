@@ -2146,6 +2146,121 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /admin/waitlist:
+    get:
+      summary: Warteliste im Referral-Rang auslesen
+      description: >-
+        Launch-Zugang über die Warteliste (#1982, ADR 0019) — nur für Admins (403 sonst).
+        Liefert alle Einträge mit 1-basierter Position (Rangformel: geworbene Anmeldungen
+        absteigend, Anmeldezeitpunkt aufsteigend) und dem Freischalt-Status.
+      operationId: listAdminWaitlist
+      tags: [admin]
+      responses:
+        '200':
+          description: Warteliste im Rang
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminWaitlistEntry'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/waitlist/{id}/activate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Wartelisten-Eintrags
+        schema:
+          type: integer
+    post:
+      summary: Einzelnen Wartelisten-Eintrag freischalten
+      description: >-
+        Setzt den Status auf `activated` (idempotent, #1982 AK3) und legt die
+        DB-Zulassung (AllowedEmail, origin 'warteliste') an. Danach nimmt der
+        bestehende Login-Flow die Adresse an (isDbEmailAllowed prüft die Freischaltung).
+      operationId: activateAdminWaitlistEntry
+      tags: [admin]
+      responses:
+        '200':
+          description: Eintrag ist freigeschaltet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [activated]
+        '400':
+          description: Ungültige Eintrags-Id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Eintrag unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/waitlist/activate-top:
+    post:
+      summary: Top-N-Einträge der Warteliste freischalten (Welle)
+      description: >-
+        Schaltet die N höchstplatzierten Einträge nach Position auf einmal frei (#1982 AK4).
+        Bereits freigeschaltete belegen ihren Platz in den Top N, werden aber nicht erneut
+        gezählt — `activatedCount` meldet nur die neu freigeschalteten Einträge.
+      operationId: activateAdminWaitlistTop
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [count]
+              properties:
+                count:
+                  type: integer
+                  minimum: 1
+                  description: Größe der Freischalt-Welle.
+      responses:
+        '200':
+          description: Anzahl neu freigeschalteter Einträge
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [activatedCount]
+                properties:
+                  activatedCount:
+                    type: integer
+                    minimum: 0
+        '400':
+          description: count fehlt oder ist keine ganze Zahl >= 1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Angemeldeter Nutzer ist kein Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /admin/care-wirkung:
     get:
       summary: Wirkung der Fürsorge-Vorschläge und -Pushes auswerten (#1798)
@@ -3229,6 +3344,36 @@ paths:
                 $ref: '#/components/schemas/Error'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /auth/waitlist:
+    post:
+      summary: Auf die Warteliste eintragen
+      description: >-
+        Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und sessionlos:
+        Unbekannte Adressen tragen sich selbst ein und erhalten sofort ihre 1-basierte
+        Position im Referral-Rang und den persönlichen Empfehlungs-Code. Idempotent —
+        wiederholter Aufruf derselben (normalisierten) Adresse liefert denselben Eintrag.
+        Ein unbekannter oder eigener `ref`-Code wird still ignoriert.
+      operationId: joinWaitlist
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistJoinRequest'
+      responses:
+        '200':
+          description: Position und Empfehlungs-Code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistJoined'
+        '400':
+          description: Ungültige E-Mail-Adresse
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /auth/native/exchange:
     post:
       summary: Einmal-Code aus dem App-Login einlösen
@@ -3897,6 +4042,33 @@ components:
           type: integer
           minimum: 0
           description: KI-Anfragen im laufenden Monat (#1783) — nur in der Nutzerliste.
+    AdminWaitlistEntry:
+      type: object
+      description: Eintrag der Warteliste im Referral-Rang (#1982, ADR 0019).
+      required: [id, email, status, position, referralCount, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          description: Normalisierte E-Mail-Adresse (trim + lowercase).
+        status:
+          type: string
+          enum: [waiting, activated]
+          description: >-
+            Freischalt-Status — reine Anzeige; die Login-Wirkung trägt der AllowedEmail-Eintrag
+            (isDbEmailAllowed).
+        position:
+          type: integer
+          minimum: 1
+          description: 1-basierte Position im Referral-Rang.
+        referralCount:
+          type: integer
+          minimum: 0
+          description: Anzahl geworbener Anmeldungen über den persönlichen Empfehlungs-Code.
+        createdAt:
+          type: string
+          format: date-time
     AdminUserRoleUpdate:
       type: object
       description: Payload zum Ändern der Rolle eines Nutzers (Rollensystem admin/member/tester).
@@ -3923,7 +4095,7 @@ components:
           type: string
         origin:
           type: string
-          enum: [einladung, delegation, admin]
+          enum: [einladung, delegation, admin, warteliste]
         createdAt:
           type: string
           format: date-time
@@ -6300,6 +6472,33 @@ components:
         token:
           type: string
           description: Token aus dem Anmeldelink (Parameter `magic`).
+    WaitlistJoinRequest:
+      type: object
+      description: Eintrag auf die Warteliste des Launch-Zugangs (#1982, ADR 0019).
+      required: [email]
+      properties:
+        email:
+          type: string
+          description: E-Mail-Adresse; wird normalisiert (trim + lowercase) gespeichert.
+        ref:
+          type: string
+          description: Persönlicher Empfehlungs-Code des Werbers, falls über dessen Link beigetreten.
+    WaitlistJoined:
+      type: object
+      description: Antwort nach dem Wartelisten-Eintrag (#1982).
+      required: [position, referralCode]
+      properties:
+        position:
+          type: integer
+          minimum: 1
+          description: 1-basierte Position im Referral-Rang (geworbene Anmeldungen absteigend, Anmeldezeitpunkt aufsteigend).
+        referralCode:
+          type: string
+          description: Persönlicher Empfehlungs-Code — Bestandteil des Empfehlungs-Links (`?ref=…`).
+        total:
+          type: integer
+          minimum: 1
+          description: Gesamtzahl der Einträge — Kontext für die Positions-Anzeige („Position 3 von 87“).
     TermsConsentInput:
       type: object
       description: Zustimmung zu Nutzungsbedingungen und Datenschutzerklärung (#1901).

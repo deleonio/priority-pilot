@@ -62,7 +62,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 		// diese Einschränkung würde der Server Mails an beliebige Fremdadressen verschicken.
 		const mayReceiveLink = isOpenSignup()
 			? (await User.count({ where: { email: normalizedEmail } })) > 0
-			: isEmailAllowed(normalizedEmail) || (await isDbEmailAllowed(normalizedEmail));
+			: (await isDbEmailAllowed(normalizedEmail)) || isEmailAllowed(normalizedEmail);
 
 		if (mayReceiveLink) {
 			const token = await createLoginToken(normalizedEmail);
@@ -90,8 +90,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 		const { token } = (req.body ?? {}) as Partial<MagicLinkVerifyRequestDto>;
 		const email = typeof token === 'string' && token !== '' ? await consumeLoginToken(token) : null;
 		// Allowlist erneut prüfen: Sie kann sich zwischen Anfordern und Einlösen geändert haben.
-		// #1983 (AK3): DB-Zulassungen (Einladung/Delegation/Admin) gewähren ebenfalls Zugang.
-		if (!email || !(isEmailAllowed(email) || (await isDbEmailAllowed(email)))) {
+		if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 			sendError(res, 400, 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt.');
 			return;
 		}

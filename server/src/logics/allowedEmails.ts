@@ -1,5 +1,4 @@
-import type { AllowedEmailOrigin } from '../models/allowedEmail.js';
-import { AllowedEmail } from '../models/index.js';
+import AllowedEmail, { type AllowedEmailOrigin } from '../models/allowedEmail.js';
 
 // Multi-User-Allowlist (Issue #193): Liest die erlaubten E-Mail-Adressen aus der Umgebung.
 //
@@ -12,6 +11,8 @@ import { AllowedEmail } from '../models/index.js';
 //
 // Alle Adressen werden normalisiert (trim + lowercase). Der Vergleich in isEmailAllowed()
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
+// Neben der Env-Allowlist steht die DB-Zulassung (`AllowedEmail`, Freischaltung mit Herkunft):
+// `isDbEmailAllowed()` prüft sie, die Aufrufer kombinieren beide Quellen (siehe unten).
 
 /** Normalisiert eine E-Mail-Adresse für den Vergleich (trim + lowercase). */
 const normalize = (email: string): string => email.trim().toLowerCase();
@@ -92,7 +93,7 @@ export const getConfiguredEmails = (): string[] => {
 };
 
 /**
- * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist. Bei offener Registrierung
+ * Prüft, ob die übergebene E-Mail in der Env-Allowlist enthalten ist. Bei offener Registrierung
  * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant. Liefert false, wenn keine Allowlist
  * konfiguriert ist (statt zu werfen) — so bleibt der Aufruf in der Middleware robust.
  */
@@ -109,20 +110,29 @@ export const isEmailAllowed = (email: string): boolean => {
 };
 
 /**
- * DB-Zweig der Zulassung (#1983, AK1): true, wenn die normalisierte Adresse als `AllowedEmail`
- * gespeichert ist — Einladung, Delegation oder Admin-Freischaltung. Wirkt neben der Env-Allowlist
- * (`isEmailAllowed` bleibt unverändert sync, AK7); DB-Fehler werden nicht gefangen, die
- * Aufrufstellen (Auth-Gates) entscheiden über den Fehlerfall.
+/**
+ * Prüft, ob die Adresse in der DB-Zulassung (`allowed_emails`) steht — Freischaltung mit Herkunft
+ * (`AllowedEmail.origin`): Warteliste (`'warteliste'`, #1982/ADR 0019), Einladung, Delegation oder
+ * Admin (#1983). Normalisiert wie `isEmailAllowed`; leere Adresse → false. Die Env-Allowlist wird
+ * hier bewusst NICHT geprüft — die Aufrufer kombinieren beide Quellen:
+ * `(await isDbEmailAllowed(email)) || isEmailAllowed(email)`. DB-Fehler werden nicht gefangen,
+ * die Aufrufstellen (Auth-Gates) entscheiden über den Fehlerfall.
  */
-export const isDbEmailAllowed = async (email: string): Promise<boolean> =>
-	(await AllowedEmail.count({ where: { email: normalize(email) } })) > 0;
+export const isDbEmailAllowed = async (email: string): Promise<boolean> => {
+	const normalized = normalize(email);
+	if (normalized === '') {
+		return false;
+	}
+	const allowed = await AllowedEmail.findOne({ where: { email: normalized } });
+	return allowed !== null;
+};
 
 /**
- * Schaltet eine Adresse per DB-Eintrag frei (#1983): vorhandene Einträge bleiben unverändert
+ * Schaltet eine Adresse per DB-Eintrag frei (#1982/#1983): vorhandene Einträge bleiben unverändert
  * (die erste Herkunft gewinnt), für neue entsteht genau eine Zeile — idempotent, wiederholte
- * Einladungen an dieselbe Adresse erzeugen keine zweite.
+ * Einladungen oder Freischaltungen derselben Adresse erzeugen keine zweite.
  */
-export const allowEmailInDb = async (email: string, origin: AllowedEmailOrigin): Promise<void> => {
+export const allowEmail = async (email: string, origin: AllowedEmailOrigin): Promise<void> => {
 	const normalized = normalize(email);
 	await AllowedEmail.findOrCreate({
 		where: { email: normalized },

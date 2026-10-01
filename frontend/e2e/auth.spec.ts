@@ -34,7 +34,9 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 test.describe('AK1 — Pillen-Rundung der Anmeldeseite (#1745)', () => {
 	test('E-Mail-Eingabefeld rundet wie die Pillen-Knöpfe (computed border-radius gleich)', async ({ page }) => {
 		await mockUnauthenticated(page);
-		// Magic-Link-Formular freischalten — nur dort rendert `.login-page__input` (Muster silent-login.spec.ts).
+		// Magic-Link-Formular freischalten — nur dort rendert `#magic-link-email` (Muster silent-login.spec.ts).
+		// #1982: Die Warteliste rendert ein zweites `.login-page__input` — per Id auf das Magic-Link-Feld
+		// scopen; beide teilen dieselbe CSS-Klasse, die Regel gilt für beide gleichermaßen.
 		await page.route('**/auth/providers', (route: Route) =>
 			route.fulfill({
 				status: 200,
@@ -44,7 +46,7 @@ test.describe('AK1 — Pillen-Rundung der Anmeldeseite (#1745)', () => {
 		);
 		await page.goto('/app/');
 
-		const input = page.locator('.login-page__input');
+		const input = page.locator('#magic-link-email');
 		const button = page.locator('.login-page__btn').first();
 		await expect(input).toBeVisible();
 		await expect(button).toBeVisible();

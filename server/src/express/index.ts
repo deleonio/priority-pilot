@@ -224,9 +224,7 @@ export const createApp = (deps: AppDeps = {}) => {
 				async (_accessToken, _refreshToken, profile, done) => {
 					try {
 						const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
-						// #1983 (AK3): DB-Zulassungen (Einladung/Delegation/Admin) lassen die Google-
-						// Anmeldung ebenfalls zu — neben der Env-Allowlist.
-						if (!isEmailAllowed(email) && !(await isDbEmailAllowed(email))) {
+						if (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email)) {
 							return done(null, false);
 						}
 						const displayName = profile.displayName ?? email;

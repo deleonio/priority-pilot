@@ -5129,6 +5129,18 @@ a.plan-badge:focus-visible {
 	font-size: var(--pp-font-size-sm);
 }
 
+/*
+ * Wartelisten-Ergebnis (#1982): Position, Empfehlungs-Link und Kopieren in EINEM Status-Block
+ * (eine role=status-Instanz). Der lange Link bricht überall um, statt den 375px-Viewport
+ * horizontal überlaufen zu lassen (AK6).
+ */
+.login-page__status--waitlist {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	overflow-wrap: anywhere;
+}
+
 /* Zustimmungsschritt nach dem Login (#1901) — im .login-page-Rahmen, Haken mit Link darunter */
 .consent-step__group {
 	display: flex;

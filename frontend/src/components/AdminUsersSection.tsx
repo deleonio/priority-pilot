@@ -19,9 +19,13 @@ const FILTER_OPTIONS: { label: string; value: ReassignStatusFilter }[] = [
 const roleLabel = (role: AdminUser['role']): string =>
 	role === 'admin' ? 'Admin' : role === 'tester' ? 'Tester' : 'Mitglied';
 
-/** Herkunfts-Text je Zulassung (#1983) — Herkunft immer als Text-Badge, nie nur Farbe (KI-UX). */
-const originLabel = (origin: AllowedEmail['origin']): string =>
-	origin === 'einladung' ? 'Einladung' : origin === 'delegation' ? 'Delegation' : 'Admin';
+/** Herkunfts-Text je Zulassung (#1982/#1983) — Herkunft immer als Text-Badge, nie nur Farbe (KI-UX). */
+const ORIGIN_LABELS: Record<AllowedEmail['origin'], string> = {
+	einladung: 'Einladung',
+	delegation: 'Delegation',
+	admin: 'Admin',
+	warteliste: 'Warteliste',
+};
 
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
 const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
@@ -167,7 +171,7 @@ export const AdminUsersSection = () => {
 								{allowedEmails.map((entry) => (
 									<li key={entry.email} className="admin-allowed-email">
 										<span className="admin-user-email">{entry.email}</span>
-										<KolBadge _label={originLabel(entry.origin)} />
+										<KolBadge _label={ORIGIN_LABELS[entry.origin]} />
 									</li>
 								))}
 							</ul>

@@ -34,6 +34,9 @@ import './careSuggestionDismissal.js';
 // Ebenso ohne Assoziationen: Wirkungsmessung der Fürsorge (#1798).
 import './careSuggestionEvent.js';
 import './carePushToggle.js';
+// Ebenso ohne Assoziationen: Wartelisten-Eintrag des Launch-Zugangs (#1982, ADR 0019) — gelesen
+// und geschrieben ausschließlich über `logics/waitlist.ts`.
+import './waitlistEntry.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',

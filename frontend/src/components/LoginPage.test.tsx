@@ -12,6 +12,7 @@ vi.mock('../api', () => ({
 	api: {
 		getAuthProviders: vi.fn(),
 		requestMagicLink: vi.fn(),
+		addToWaitlist: vi.fn(),
 	},
 }));
 
@@ -165,5 +166,46 @@ describe('LoginPage — Login-Card-Struktur (#1769)', () => {
 		expect(form, 'Magic-Link-Formular muss vorhanden sein').toBeTruthy();
 		expect(form?.classList.contains('login-page__form'), 'Formular trägt .login-page__form').toBe(true);
 		expect(form?.getAttribute('style'), 'kein Inline-style-Attribut mehr').toBeNull();
+	});
+});
+
+describe('LoginPage — Wartelisten-Eintrag (#1982, AK5)', () => {
+	// `addToWaitlist` gibt es im API-Client noch nicht (rote Spec-Tests) — gecasteter Zugriff,
+	// damit der Pre-Commit-tsc an dieser Stelle nicht stirbt (Muster #1566).
+	const addToWaitlist = (api as unknown as { addToWaitlist: ReturnType<typeof vi.fn> }).addToWaitlist;
+
+	beforeEach(() => {
+		window.history.replaceState(null, '', '/app/');
+		providers.mockResolvedValue({ google: true, magicLink: true });
+	});
+	afterEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('trägt Unbekannte ein und zeigt Position mit Bezugsgröße und den Empfehlungs-Link', async () => {
+		addToWaitlist.mockResolvedValue({ position: 3, referralCode: 'ref-abc' });
+		render(<LoginPage />);
+
+		fireEvent.change(await screen.findByLabelText('Auf die Warteliste per E-Mail'), {
+			target: { value: 'unbekannt@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /Warteliste/ }));
+
+		expect(addToWaitlist).toHaveBeenCalledWith('unbekannt@example.com', undefined);
+		const status = await screen.findByRole('status');
+		expect(status.textContent).toMatch(/Position 3/);
+		expect(status.textContent).toMatch(/ref-abc/);
+	});
+
+	it('meldet einen gescheiterten Eintrag als Alert (Fuer sorge-Tonalität statt Schuldspruch)', async () => {
+		addToWaitlist.mockRejectedValue(new Error('500'));
+		render(<LoginPage />);
+
+		fireEvent.change(await screen.findByLabelText('Auf die Warteliste per E-Mail'), {
+			target: { value: 'unbekannt@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: /Warteliste/ }));
+
+		expect(await screen.findByRole('alert').then((a) => a.textContent)).toMatch(/nicht geklappt|versuch es/i);
 	});
 });

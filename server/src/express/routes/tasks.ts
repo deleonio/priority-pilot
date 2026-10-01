@@ -13,7 +13,7 @@ import { isCategoryExistent, remapCategoryForRecipient, validateCategoryId } fro
 import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
-import { allowEmailInDb } from '../../logics/allowedEmails.js';
+import { allowEmail } from '../../logics/allowedEmails.js';
 import { sendAccountAccessMail } from '../../logics/accessMail.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
@@ -263,7 +263,7 @@ const resolveRecipientByEmail = async (input: unknown): Promise<EmailRecipientRe
 		return { ok: true, recipientInput: existing.id, newRecipientEmail: null };
 	}
 	const recipient = await upsertOAuthUser({ email });
-	await allowEmailInDb(email, 'delegation');
+	await allowEmail(email, 'delegation');
 	return { ok: true, recipientInput: recipient.id, newRecipientEmail: email };
 };
 

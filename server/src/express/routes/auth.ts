@@ -15,6 +15,7 @@ import { applyDuePendingPlan, applyDueGracePeriod, GRACE_PERIOD_DAYS } from '../
 import { sanitizeReturnPath } from '../../logics/silentReturnPath.js';
 import { consumeLoginToken, createNativeLoginCode, nativeLoginToken } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
+import { InvalidWaitlistEmailError, joinWaitlist } from '../../logics/waitlist.js';
 import { deleteAccount } from '../../logics/deleteAccount.js';
 import { sendError } from '../http-error.js';
 import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
@@ -332,7 +333,7 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 		typeof code === 'string' && code !== '' && typeof state === 'string' && state !== ''
 			? await consumeLoginToken(nativeLoginToken(code, state), 'native')
 			: null;
-	if (!email || !(isEmailAllowed(email) || (await isDbEmailAllowed(email)))) {
+	if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 		sendError(res, 400, 'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.');
 		return;
 	}
@@ -344,6 +345,23 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 		}
 		res.status(204).end();
 	});
+});
+
+// POST /auth/waitlist — Launch-Zugang über die Warteliste (#1982, ADR 0019). Öffentlich und
+// sessionlos (läuft unter dem authLimiter oben): Unbekannte tragen sich selbst ein und erhalten
+// sofort ihre 1-basierte Position im Referral-Rang plus persönlichen Empfehlungs-Code.
+// Idempotent — wiederholter Aufruf derselben Adresse liefert denselben Eintrag, kein Duplikat.
+authRouter.post('/auth/waitlist', async (req, res) => {
+	const { email, ref } = (req.body ?? {}) as { email?: string; ref?: string };
+	try {
+		res.json(await joinWaitlist(String(email ?? ''), ref));
+	} catch (err) {
+		if (err instanceof InvalidWaitlistEmailError) {
+			sendError(res, 400, 'Bitte gib eine gültige E-Mail-Adresse an.');
+			return;
+		}
+		throw err;
+	}
 });
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401). Die Rolle kommt frisch aus der DB
@@ -563,7 +581,7 @@ if (process.env.NODE_ENV === 'test') {
 		// Issue #1136: Ohne konfigurierte Allowlist (Pass-Through-Modus, siehe `isAuthActive`) ist
 		// jede Adresse erlaubt — sonst bliebe der Endpunkt in einer auth-losen E2E-Umgebung unbenutzbar.
 		const hasAllowlist = !!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
-		if (!email || (hasAllowlist && !isEmailAllowed(email) && !(await isDbEmailAllowed(email)))) {
+		if (!email || (hasAllowlist && !(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 			res.status(401).json({ message: 'Nicht eingeloggt.' });
 			return;
 		}

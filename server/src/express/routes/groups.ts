@@ -7,7 +7,7 @@ import { Group, GroupInvitation, GroupInviteLink, GroupMember, Series, Task, Use
 import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { requirePlanFeature } from '../planGuard.js';
-import { allowEmailInDb } from '../../logics/allowedEmails.js';
+import { allowEmail } from '../../logics/allowedEmails.js';
 import { sendAccountAccessMail } from '../../logics/accessMail.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 
@@ -408,7 +408,7 @@ groupsRouter.post(
 					invitedName = displayNameOf(existingUser);
 				} else {
 					const invitee = await upsertOAuthUser({ email });
-					await allowEmailInDb(email, 'einladung');
+					await allowEmail(email, 'einladung');
 					invitedUserId = invitee.id;
 					invitedName = invitee.displayName;
 					newInviteeEmail = email;
