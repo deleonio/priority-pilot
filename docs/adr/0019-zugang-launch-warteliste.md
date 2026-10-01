@@ -14,7 +14,7 @@ Für den Launch wird deshalb ein Zugangsmodell gebraucht, das Interessenten nich
 
 **1. Die Allowlist bleibt Admin-Instrument.** `GOOGLE_ALLOWED_EMAILS` bleibt unangetastet und dient weiterhin dem Administrator, um Einzelne verbindlich freizuschalten (z. B. Team, Dienstleister). Sie ist nicht mehr das Zugangsmodell für den Launch.
 
-**2. Warteliste mit Referral-Rang als Zugangsmodell zum Launch.** Interessenten melden sich an und landen auf einer Warteliste statt im Anmeldefehler. Der Rang auf der Liste wächst durch Empfehlungen (Referral), so dass engagierte Interessenten nach vorne rücken. Umsetzung: #1982.
+**2. Warteliste mit Referral-Rang als Zugangsmodell zum Launch.** Interessenten melden sich an und landen auf einer Warteliste statt im Anmeldefehler. Der Rang auf der Liste wächst durch Empfehlungen (Referral), so dass engagierte Interessenten nach vorne rücken. Nachteile: Wartende können frustriert abspringen, und der Referral-Rang ist missbrauchsanfällig (Selbst-Einladungen über eigene Aliasse). Beides wird in Kauf genommen, weil der Kontrollgewinn überwiegt — Zustrom und Support-Last bleiben steuerbar, während ein Absprungender ohne Warteliste ohnehin unerreichbar verloren wäre und Rang-Manipulation nur die eigene Position verbessert, ohne andere zu verdrängen. Umsetzung: #1982.
 
 **3. Automatische Freischaltung über Gruppen-Einladungen.** Empfänger von Gruppen-Einladungen werden ohne Warteliste automatisch freigeschaltet — Einladungen sind der direkte Weg in die App. Umsetzung: #1983.
 
@@ -27,7 +27,7 @@ Für den Launch wird deshalb ein Zugangsmodell gebraucht, das Interessenten nich
 
 ## Ersetzte Punkte aus ADR 0015
 
-- **Punkt 6, Satz „Die Allowlist bleibt als Alternative erhalten; der Produktions-Startcheck akzeptiert beides"** → ersetzt durch die Entscheidungen 1–3: Die Allowlist bleibt als Admin-Instrument erhalten, das Launch-Zugangsmodell sind Warteliste und Einladungs-Freischaltung. `OPEN_SIGNUP` bleibt als Notfallschalter einzelner Instanzen bestehen (Entscheidung 4), ist aber nicht mehr das launch-übliche Modell.
+- **Punkt 6, Satz „Die Allowlist bleibt als Alternative erhalten; der Produktions-Startcheck akzeptiert beides"** → ersetzt durch die Entscheidungen 1–3: Die Allowlist bleibt als Admin-Instrument erhalten, das Launch-Zugangsmodell sind Warteliste und Einladungs-Freischaltung. `OPEN_SIGNUP` bleibt als Notfallschalter einzelner Instanzen bestehen (Alternative 4, „voll offen"), ist aber nicht mehr das launch-übliche Modell.
 
 Alles andere aus ADR 0015 gilt weiter, vor allem Website an der Wurzel, App unter `/app/` und die Kill-Switch-Regel für den alten Service Worker.
 
