@@ -70,4 +70,14 @@ describe('GET /suggestions — Vorschlagsliste (#122)', () => {
 		assert.ok(!ids.includes(blockiert.id), 'blockierter Task fehlt in der Vorschlagsliste');
 		assert.ok(ids.includes(blocker.id), 'freier Blocker ist enthalten');
 	});
+
+	it('#2043 AK1: GET /next liefert dieselbe Aufgabe wie Rang 1 von GET /suggestions', async () => {
+		await Task.create({ title: 'Teuer', priority: 3, estimatedEffort: 1 });
+		const billig = await Task.create({ title: 'Billig', priority: 3, estimatedEffort: 0.1 });
+
+		const suggestions = (await (await get('/suggestions')).json()) as Array<{ id: number }>;
+		const next = (await (await get('/next')).json()) as { id: number };
+		assert.equal(suggestions[0].id, billig.id);
+		assert.equal(next.id, suggestions[0].id);
+	});
 });

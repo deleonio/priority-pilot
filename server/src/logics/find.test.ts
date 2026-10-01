@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Series, Task, Pillar, ScoreEntry } from '../models/index.js';
-import { findNextImportantTask, findSuggestedTasks } from './find.js';
+import { bewerteKandidaten, findNextImportantTask, findSuggestedTasks } from './find.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
 beforeEach(resetDb);
@@ -364,5 +364,87 @@ describe('find — Vorlauf 3 Tage (Issue #1641)', () => {
 		assert.ok(naechste !== null);
 		assert.equal(naechste.id, sonst.id, 'die Serie darf nicht gewählt werden');
 		assert.ok(!vorschlaege.includes(seriesTask.id));
+	});
+});
+
+describe('find — gemeinsame Fünf-Faktor-Bewertung (#2043, docs/spec/issue-2043.md)', () => {
+	it('AK1: findNextImportantTask liefert Rang 1 der Vorschlags-Bewertung (nicht nur Priorität)', async () => {
+		// Gleiche Priorität; der Task mit höherer id ist deutlich billiger und muss gewinnen.
+		await Task.create({ title: 'Teuer', priority: 3, estimatedEffort: 1 });
+		const billig = await Task.create({ title: 'Billig', priority: 3, estimatedEffort: 0.1 });
+		const next = await findNextImportantTask();
+		const liste = await findSuggestedTasks();
+		assert.equal(liste[0].id, billig.id);
+		assert.equal(next?.id, liste[0].id);
+	});
+
+	it('AK2: mehr offene Nachfolger heben den Score; ohne Nachfolger ist der Entsperr-Beitrag 0', async () => {
+		const ohne = await Task.create({ title: 'Ohne', priority: 3, estimatedEffort: 0.5 });
+		const einer = await Task.create({ title: 'Einer', priority: 3, estimatedEffort: 0.5 });
+		const zwei = await Task.create({ title: 'Zwei', priority: 3, estimatedEffort: 0.5 });
+		for (const [blocker, anzahl] of [
+			[einer, 1],
+			[zwei, 2],
+		] as const) {
+			for (let i = 0; i < anzahl; i++) {
+				const nachfolger = await Task.create({
+					title: `Nachfolger ${blocker.title} ${i}`,
+					priority: 1,
+					estimatedEffort: 0.5,
+				});
+				await nachfolger.addDependency(blocker);
+			}
+		}
+		const bewertung = await bewerteKandidaten();
+		const je = (id: number) => bewertung.find((b) => b.task.id === id)!;
+		assert.equal(je(ohne.id).beitraege.entsperr, 0);
+		assert.ok(je(einer.id).beitraege.entsperr > 0);
+		assert.ok(je(zwei.id).beitraege.entsperr > je(einer.id).beitraege.entsperr);
+		assert.deepEqual(
+			bewertung.map((b) => b.task.id),
+			[zwei.id, einer.id, ohne.id],
+		);
+	});
+
+	it('AK2: erledigte Nachfolger zählen nicht', async () => {
+		const blocker = await Task.create({ title: 'Blocker', priority: 3, estimatedEffort: 0.5 });
+		const fertig = await Task.create({ title: 'Fertig', priority: 3, estimatedEffort: 0.5, status: 'Done' });
+		await fertig.addDependency(blocker);
+		const [eintrag] = await bewerteKandidaten();
+		assert.equal(eintrag.beitraege.entsperr, 0);
+	});
+
+	it('AK3: geringerer Aufwand hebt den Score bei sonst gleichen Aufgaben', async () => {
+		await Task.create({ title: 'Teuer', priority: 3, estimatedEffort: 0.9 });
+		await Task.create({ title: 'Mittel', priority: 3, estimatedEffort: 0.5 });
+		const billig = await Task.create({ title: 'Billig', priority: 3, estimatedEffort: 0.2 });
+		const bewertung = await bewerteKandidaten();
+		assert.equal(bewertung[0].task.id, billig.id);
+		assert.deepEqual(
+			bewertung.map((b) => b.beitraege.aufwand),
+			[...bewertung.map((b) => b.beitraege.aufwand)].sort((a, b) => b - a),
+		);
+		assert.ok(bewertung[0].beitraege.aufwand > bewertung[2].beitraege.aufwand);
+	});
+
+	it('AK4: Score ist die Summe der fünf Faktor-Beiträge', async () => {
+		const saeule = await Pillar.create({ name: 'S', weight: 20 });
+		const task = await Task.create({
+			title: 'Voll',
+			priority: 4,
+			estimatedEffort: 0.3,
+			deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+		});
+		await task.addPillar(saeule.id, { through: { share: 100, confidence: 100 } });
+		const nachfolger = await Task.create({ title: 'Nachfolger', priority: 1, estimatedEffort: 0.5 });
+		await nachfolger.addDependency(task);
+		const bewertung = await bewerteKandidaten();
+		assert.ok(bewertung.length > 0);
+		for (const { score, beitraege } of bewertung) {
+			assert.deepEqual(Object.keys(beitraege).sort(), ['aufwand', 'balance', 'deadline', 'entsperr', 'prio']);
+			const summe = Object.values(beitraege).reduce((a, b) => a + b, 0);
+			assert.ok(Math.abs(score - summe) < 1e-9, `score ${score} ≠ Summe ${summe}`);
+		}
+		assert.ok(bewertung[0].beitraege.prio > 0 && bewertung[0].beitraege.deadline > 0);
 	});
 });

@@ -5,7 +5,7 @@ import type { PillarWithContribution } from '../models/task.js';
 
 /**
  * Lädt alle offenen Tasks (inkl. Säulen-Beiträge) und filtert die mit noch offener Abhängigkeit
- * heraus — gemeinsame Vorstufe von `findNextImportantTask` (Top-1) und `findSuggestedTasks` (Liste).
+ * heraus — gemeinsame Vorstufe der Bewertung `bewerteKandidaten` (Grundlage von `/next` und `/suggestions`).
  * Der Abhängigkeitsfilter (AC3) bleibt damit für beide Wege identisch.
  */
 const ladeFreieTasks = async (userId?: number, now: Date = new Date()): Promise<Task[]> => {
@@ -34,23 +34,20 @@ const ladeFreieTasks = async (userId?: number, now: Date = new Date()): Promise<
 	return independentTasks;
 };
 
+/** GET /next (#2043): Rang 1 derselben Bewertung, die `/suggestions` ordnet — `null` ohne freie Tasks. */
 export const findNextImportantTask = async (userId?: number): Promise<Task | null> => {
-	// Alle offenen, nicht blockierten Tasks — inkl. Säulen-Beiträge, damit der zurückgegebene Task
-	// direkt serialisierbar ist (GET /next gibt einen vollständigen Task zurück).
-	const independentTasks = await ladeFreieTasks(userId);
-
-	// Höhere Priorität zuerst
-	independentTasks.sort((a, b) => b.priority - a.priority);
-
-	// Gib den wichtigsten Task aus der sortierten Liste zurück
-	return independentTasks.length > 0 ? independentTasks[0] : null;
+	const [erster] = await bewerteKandidaten(userId);
+	return erster?.task ?? null;
 };
 
 // ── Vorschlags-Engine (#122, Konzept §4.3) ──────────────────────────────────────────────────────
 //
 // Scoring-Vertrag (deterministische Defaults aus Triage/Owner-Kommentar):
-//   score     = W_PRIO·nPrio + W_DEADLINE·nDeadline + W_BALANCE·nBalance
+//   score     = W_PRIO·nPrio + W_UNLOCK·nUnlock + W_BALANCE·nBalance + W_DEADLINE·nDeadline
+//               + W_EFFORT·nEffort                                         (#2043, gilt auch für /next)
 //   nPrio     = (priority − 1) / 4                                       // 1→0.0, 3→0.5, 5→1.0
+//   nUnlock   = min(1, offene Nachfolger / UNLOCK_DECKEL)                // keine Nachfolger → 0
+//   nEffort   = 1 − estimatedEffort                                      // 0.1→0.9, 1→0.0
 //   nDeadline = überfällig 1.0 · heute 0.8 · ≤7 Tage 0.5 · >7 Tage 0.2 · keine 0.0
 //   nBalance  = Σ (shareᵢ/100)·nDefizitᵢ,  nDefizit = soll>0 ? max(0, soll−ist)/soll : 0
 //               soll = weight/Σweights,  ist = punkteSäule/Σpunkte (aggregierePunkteProSaeule)
@@ -59,6 +56,11 @@ export const findNextImportantTask = async (userId?: number): Promise<Task | nul
 const W_PRIO = 0.5;
 const W_DEADLINE = 0.3;
 const W_BALANCE = 0.2;
+const W_UNLOCK = 0.2;
+const W_EFFORT = 0.1;
+
+/** Ab so vielen offenen Nachfolgern ist die Entsperr-Wirkung voll (nUnlock = 1). */
+const UNLOCK_DECKEL = 3;
 
 /** Prozent-Normierung der `share`-Werte (0–100 ⇒ 0–1). */
 const PERCENT = 100;
@@ -92,6 +94,15 @@ const normDeadline = (deadline: Date | null | undefined, jetzt: Date): number =>
 	}
 	return 0.2; // weiter in der Zukunft
 };
+
+/** Entsperr-Wirkung (0–1): Zahl der noch offenen Nachfolger, gedeckelt. */
+const normUnlock = async (task: Task): Promise<number> => {
+	const offen = (await task.getDependents()).filter((nachfolger) => nachfolger.status !== 'Done').length;
+	return Math.min(1, offen / UNLOCK_DECKEL);
+};
+
+/** Aufwand (0.1–1) als Faktor; geringer Aufwand ⇒ höherer Wert. */
+const normEffort = (estimatedEffort: number): number => 1 - estimatedEffort;
 
 /** Soll-Anteil je Säule (`weight/Σweights`) — leere Map, wenn keine Gewichte vorliegen. */
 const sollProSaeule = (pillars: Pillar[]): Map<number, number> => {
@@ -138,13 +149,18 @@ const normBalance = (
 	return summe;
 };
 
+export interface Bewertung {
+	task: Task;
+	score: number;
+	beitraege: { prio: number; entsperr: number; balance: number; deadline: number; aufwand: number };
+}
+
 /**
- * „Was ist jetzt dran?"-Liste (#122): die nach Score sortierte, post-gefilterte Vorschlagsliste.
- * Der Abhängigkeitsfilter aus `findNextImportantTask` bleibt vorgeschaltet (AC3); danach werden
- * Priorität, Deadline-Nähe und Balance-Korrektur kombiniert und der Überlastungsschutz angewandt.
+ * Gemeinsame Fünf-Faktor-Bewertung (#2043) der freien Tasks, vor dem Post-Filter, nach Score
+ * absteigend. Grundlage von `findNextImportantTask` (Rang 1) und `findSuggestedTasks` (Liste).
  */
-export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
-	const kandidaten = await ladeFreieTasks(userId);
+export const bewerteKandidaten = async (userId?: number, now: Date = new Date()): Promise<Bewertung[]> => {
+	const kandidaten = await ladeFreieTasks(userId, now);
 	if (kandidaten.length === 0) {
 		return [];
 	}
@@ -165,26 +181,39 @@ export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
 			},
 		],
 	});
-	const beitraege: PunkteBeitrag[] = scoreEintraege.map((entry) => {
+	const punkteBeitraege: PunkteBeitrag[] = scoreEintraege.map((entry) => {
 		const taskPillars: PillarWithContribution[] = entry.Task?.Pillars ?? [];
 		return {
 			punkte: entry.punkte,
 			beitraege: taskPillars.map((pillar) => ({ pillarId: pillar.id, share: pillar.TaskPillar.share })),
 		};
 	});
-	const ist = istProSaeule(aggregierePunkteProSaeule(beitraege));
+	const ist = istProSaeule(aggregierePunkteProSaeule(punkteBeitraege));
 
-	const jetzt = new Date();
-	const bewertet = kandidaten.map((task) => {
-		const score =
-			W_PRIO * normPriority(task.priority) +
-			W_DEADLINE * normDeadline(task.deadline ?? null, jetzt) +
-			W_BALANCE * normBalance(task.Pillars ?? [], soll, ist);
-		return { task, score };
-	});
+	const bewertet: Bewertung[] = [];
+	for (const task of kandidaten) {
+		const beitraege = {
+			prio: W_PRIO * normPriority(task.priority),
+			entsperr: W_UNLOCK * (await normUnlock(task)),
+			balance: W_BALANCE * normBalance(task.Pillars ?? [], soll, ist),
+			deadline: W_DEADLINE * normDeadline(task.deadline ?? null, now),
+			aufwand: W_EFFORT * normEffort(task.estimatedEffort),
+		};
+		const score = Object.values(beitraege).reduce((summe, beitrag) => summe + beitrag, 0);
+		bewertet.push({ task, score, beitraege });
+	}
 
 	// Höchster Score zuerst; bei Gleichstand höhere Priorität, dann stabile id-Reihenfolge.
 	bewertet.sort((a, b) => b.score - a.score || b.task.priority - a.task.priority || a.task.id - b.task.id);
+	return bewertet;
+};
+
+/**
+ * „Was ist jetzt dran?"-Liste (#122): die Bewertung aus `bewerteKandidaten`, danach der
+ * Überlastungsschutz als Post-Filter (ändert das Ranking nicht).
+ */
+export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
+	const bewertet = await bewerteKandidaten(userId);
 
 	// Überlastungsschutz: höchstens MAX_PRO_SAEULE Tasks je Säule, insgesamt ≤ MAX_VORSCHLAEGE.
 	const proSaeule = new Map<number, number>();
