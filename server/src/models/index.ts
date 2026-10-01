@@ -23,6 +23,7 @@ import AiUsage from './aiUsage.js';
 import Subscription from './subscription.js';
 import WebhookEvent from './webhookEvent.js';
 import LoginToken from './loginToken.js';
+import AllowedEmail from './allowedEmail.js';
 // Nur Registrierung: `invoices`/`invoice_sequences` werden von `logics/invoices.ts` direkt
 // importiert; hier zählt allein, dass `sequelize.sync()` die Tabellen kennt.
 import './invoice.js';
@@ -127,4 +128,5 @@ export {
 	Subscription,
 	WebhookEvent,
 	LoginToken,
+	AllowedEmail,
 };

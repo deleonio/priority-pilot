@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '../../database.js';
 import { sendError, type ErrorDto } from '../http-error.js';
-import { AiUsage, User } from '../../models/index.js';
+import { AiUsage, AllowedEmail, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
 import { PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { requireRole } from '../requireAuth.js';
@@ -40,6 +40,9 @@ type AdminUserDto = {
 	/** KI-Anfragen im laufenden Monat (#1783 AK7) — nur in der Nutzerliste. */
 	aiRequestsThisMonth?: number;
 };
+
+/** Zugelassene Adresse mit Herkunft (#1983, AK6) — auch ohne bestehendes Konto. */
+type AllowedEmailDto = components['schemas']['AllowedEmail'];
 
 const toDto = (user: User): AdminUserDto => ({
 	id: user.id,
@@ -103,6 +106,28 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 				const usage = await AiUsage.findAll({ where: { yearMonth: currentYearMonth() } });
 				const countByUser = new Map(usage.map((row) => [row.userId, row.count]));
 				res.json(users.map((user) => ({ ...toDto(user), aiRequestsThisMonth: countByUser.get(user.id) ?? 0 })));
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+			}
+		},
+	);
+
+	// GET /admin/allowed-emails — zugelassene Adressen mit Herkunft (#1983, AK6). Auch Adressen
+	// ohne Konto erscheinen hier (Einladung/Delegation pflegt die Zulassung, das Konto entsteht
+	// beim ersten Login); die Nutzerliste oben bleibt davon unberührt.
+	adminRouter.get(
+		'/admin/allowed-emails',
+		requireRole('admin'),
+		async (_req: Request, res: Response<AllowedEmailDto[] | ErrorDto>) => {
+			try {
+				const entries = await AllowedEmail.findAll({ order: [['createdAt', 'ASC']] });
+				res.json(
+					entries.map((entry) => ({
+						email: entry.email,
+						origin: entry.origin,
+						createdAt: entry.createdAt.toISOString(),
+					})),
+				);
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 			}

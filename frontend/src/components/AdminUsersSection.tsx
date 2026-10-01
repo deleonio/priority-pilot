@@ -1,5 +1,5 @@
 import { KolAlert, KolBadge, KolButton, KolInputRadio, KolSpin } from '@public-ui/react-v19';
-import type { AdminUser, ReassignStatusFilter } from 'client';
+import type { AdminUser, AllowedEmail, ReassignStatusFilter } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -18,6 +18,10 @@ const FILTER_OPTIONS: { label: string; value: ReassignStatusFilter }[] = [
 /** Rollen-Text je serverseitiger Rolle — Rolle immer als Text, nie nur als Farbe (analog GroupDetail). */
 const roleLabel = (role: AdminUser['role']): string =>
 	role === 'admin' ? 'Admin' : role === 'tester' ? 'Tester' : 'Mitglied';
+
+/** Herkunfts-Text je Zulassung (#1983) — Herkunft immer als Text-Badge, nie nur Farbe (KI-UX). */
+const originLabel = (origin: AllowedEmail['origin']): string =>
+	origin === 'einladung' ? 'Einladung' : origin === 'delegation' ? 'Delegation' : 'Admin';
 
 /** Optionen der Rollen-Radiogruppe je Zeile — stabile Objektidentität wie in `AppearanceSetting.tsx`. */
 const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
@@ -39,6 +43,7 @@ const ROLE_OPTIONS: { label: string; value: AdminUser['role'] }[] = [
  */
 export const AdminUsersSection = () => {
 	const [users, setUsers] = useState<AdminUser[] | null>(null);
+	const [allowedEmails, setAllowedEmails] = useState<AllowedEmail[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const load = useCallback(async (): Promise<void> => {
@@ -52,9 +57,25 @@ export const AdminUsersSection = () => {
 		}
 	}, []);
 
+	// #1983 (AK6): Zugelassene Adressen mit Herkunft — eigener Loader, damit ein Fehler der
+	// Nutzerliste die Zulassungsliste nicht mitleert (und umgekehrt).
+	const loadAllowedEmails = useCallback(async (): Promise<void> => {
+		try {
+			const loaded = await api.getAllowedEmails();
+			setAllowedEmails(Array.isArray(loaded) ? loaded : []);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	}, []);
+
 	useEffect(() => {
 		void load();
 	}, [load]);
+
+	useEffect(() => {
+		void loadAllowedEmails();
+	}, [loadAllowedEmails]);
 
 	// Batch: Säulenverteilung aller Aufgaben neu berechnen (Admin-Trigger). Zweistufige
 	// Bestätigung nach dem UX-Pattern „Sequenzielle Bestätigung“: erst die Absicht, dann
@@ -136,6 +157,22 @@ export const AdminUsersSection = () => {
 							</li>
 						))}
 					</ul>
+					{/* #1983 (AK6): Zugelassene Adressen als eigene Liste im Karten-Listenmuster —
+					    eigene Klassen, damit Bestands-Lokatoren (.admin-user) unberührt bleiben.
+					    Herkunft als Text-Badge (KI-UX), Abschnitt nur bei Einträgen sichtbar. */}
+					{allowedEmails !== null && allowedEmails.length > 0 && (
+						<>
+							<h4 className="admin-allowed-heading">Freigeschaltete Adressen</h4>
+							<ul className="admin-allowed-list">
+								{allowedEmails.map((entry) => (
+									<li key={entry.email} className="admin-allowed-email">
+										<span className="admin-user-email">{entry.email}</span>
+										<KolBadge _label={originLabel(entry.origin)} />
+									</li>
+								))}
+							</ul>
+						</>
+					)}
 				</>
 			)}
 			<div className="admin-reassign">

@@ -70,7 +70,9 @@ describe('Zulassung unbekannter Adressen durch Einladung/Delegation (#1983)', ()
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ token }),
 		});
-		assert.equal(res.status, 200, `freigeschaltete Adresse muss Zugang bekommen, kam ${res.status}`);
+		// Test-Pflege (#1983 Impl): Verify antwortet vertragsgemäß 204 (openapi, Muster
+		// magic-link.test.ts) — ursprüngliche Spec-Assertion 200 widersprach dem Bestandsvertrag.
+		assert.equal(res.status, 204, `freigeschaltete Adresse muss Zugang bekommen, kam ${res.status}`);
 		const cookie = res.headers.get('set-cookie');
 		assert.ok(cookie, 'Verify muss eine Session setzen');
 	});

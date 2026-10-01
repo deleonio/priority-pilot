@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { isEmailAllowed } from '../logics/allowedEmails.js';
+import { isDbEmailAllowed, isEmailAllowed } from '../logics/allowedEmails.js';
 import { sendError } from './http-error.js';
 import type { UserRole } from '../models/user.js';
 import { User } from '../models/index.js';
@@ -37,18 +37,33 @@ export const getUserId = (req: Request): number | undefined => {
  * Anders als früher unabhängig von `GOOGLE_ALLOWED_EMAIL` — sobald ein Auth-Kontext konfiguriert
  * ist (siehe {@link isAuthActive}), erzwingt jede API-Route eine gültige Session (401 sonst).
  * Ist zusätzlich eine Allowlist gesetzt, wird die E-Mail bei jedem Request erneut geprüft, damit ein
- * nachträglich gesperrter Account auch mit bestehender Session sofort herausfällt.
+ * nachträglich gesperrter Account auch mit bestehender Session sofort herausfällt. #1983 (AK3):
+ * Neben der Env-Allowlist zulassen auch DB-Zulassungen (Einladung/Delegation/Admin) den Request.
  */
-export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 	if (!isAuthActive()) {
 		// Lokaler Entwicklungsmodus ohne Auth-Konfiguration: kein Gate, keine Nutzer-Bindung.
 		next();
 		return;
 	}
 	const user = req.session?.user;
-	if (!user || typeof user.id !== 'number' || (hasAllowlist() && !isEmailAllowed(user.email))) {
+	if (!user || typeof user.id !== 'number') {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
+	}
+	if (hasAllowlist() && !isEmailAllowed(user.email)) {
+		// Express 4 fängt abgelehnte Promises einer async-Middleware nicht ein — der DB-Zweig wird
+		// deshalb hier gefangen; bei DB-Fehler bleibt der Initialwert (Abweisung).
+		let dbAllowed = false;
+		try {
+			dbAllowed = await isDbEmailAllowed(user.email);
+		} catch {
+			// siehe oben — dbAllowed bleibt false
+		}
+		if (!dbAllowed) {
+			res.status(401).json({ message: 'Nicht eingeloggt.' });
+			return;
+		}
 	}
 	next();
 };

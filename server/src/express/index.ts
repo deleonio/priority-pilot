@@ -51,7 +51,7 @@ import type { MailSender } from '../logics/mail.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { buildTaskGraph } from '../logics/graph.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
-import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
+import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { apiTokenAuth, isApiTokenRequest, apiTokenScopeGuard } from './apiTokenAuth.js';
 import { createCsrfUtilities } from './csrf.js';
@@ -224,7 +224,9 @@ export const createApp = (deps: AppDeps = {}) => {
 				async (_accessToken, _refreshToken, profile, done) => {
 					try {
 						const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
-						if (!isEmailAllowed(email)) {
+						// #1983 (AK3): DB-Zulassungen (Einladung/Delegation/Admin) lassen die Google-
+						// Anmeldung ebenfalls zu — neben der Env-Allowlist.
+						if (!isEmailAllowed(email) && !(await isDbEmailAllowed(email))) {
 							return done(null, false);
 						}
 						const displayName = profile.displayName ?? email;

@@ -3,6 +3,7 @@ import type {
 	ActivityAdvisorInput,
 	ActivityAdvisorResult,
 	AdminUser,
+	AllowedEmail,
 	ApiToken,
 	BalanceStatus,
 	Category,
@@ -522,6 +523,15 @@ export const api = {
 
 	async getAdminUsers(init: Init = {}): Promise<AdminUser[]> {
 		const { data, error, response } = await client.GET('/admin/users', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	/** #1983: Zugelassene Adressen mit Herkunft (auch ohne Konto) — Admin-Sicht. */
+	async getAllowedEmails(init: Init = {}): Promise<AllowedEmail[]> {
+		const { data, error, response } = await client.GET('/admin/allowed-emails', { signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

@@ -1,3 +1,6 @@
+import type { AllowedEmailOrigin } from '../models/allowedEmail.js';
+import { AllowedEmail } from '../models/index.js';
+
 // Multi-User-Allowlist (Issue #193): Liest die erlaubten E-Mail-Adressen aus der Umgebung.
 //
 // Konfigurationsquellen (Priorität):
@@ -103,4 +106,26 @@ export const isEmailAllowed = (email: string): boolean => {
 		return false;
 	}
 	return emails.includes(normalize(email));
+};
+
+/**
+ * DB-Zweig der Zulassung (#1983, AK1): true, wenn die normalisierte Adresse als `AllowedEmail`
+ * gespeichert ist — Einladung, Delegation oder Admin-Freischaltung. Wirkt neben der Env-Allowlist
+ * (`isEmailAllowed` bleibt unverändert sync, AK7); DB-Fehler werden nicht gefangen, die
+ * Aufrufstellen (Auth-Gates) entscheiden über den Fehlerfall.
+ */
+export const isDbEmailAllowed = async (email: string): Promise<boolean> =>
+	(await AllowedEmail.count({ where: { email: normalize(email) } })) > 0;
+
+/**
+ * Schaltet eine Adresse per DB-Eintrag frei (#1983): vorhandene Einträge bleiben unverändert
+ * (die erste Herkunft gewinnt), für neue entsteht genau eine Zeile — idempotent, wiederholte
+ * Einladungen an dieselbe Adresse erzeugen keine zweite.
+ */
+export const allowEmailInDb = async (email: string, origin: AllowedEmailOrigin): Promise<void> => {
+	const normalized = normalize(email);
+	await AllowedEmail.findOrCreate({
+		where: { email: normalized },
+		defaults: { email: normalized, origin, createdAt: new Date() },
+	});
 };
