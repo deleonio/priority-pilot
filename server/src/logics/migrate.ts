@@ -1043,6 +1043,12 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlan` VARCHAR(255)');
 		console.log('Spalte pendingPlan an subscriptions nachgezogen.');
 	}
+	// Vorgemerkter Zeitraum eines geplanten Wechsels: zusammen mit pendingPlan fällig — ohne ihn
+	// rechnete die nächste Abbuchung nach einem Downgrade mit der alten Periode weiter.
+	if (!existing.includes('pendingPeriod')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPeriod` VARCHAR(255)');
+		console.log('Spalte pendingPeriod an subscriptions nachgezogen.');
+	}
 	if (!existing.includes('pendingPlanEffectiveAt')) {
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlanEffectiveAt` DATETIME');
 		console.log('Spalte pendingPlanEffectiveAt an subscriptions nachgezogen.');

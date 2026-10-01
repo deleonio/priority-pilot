@@ -16,7 +16,11 @@ export const usePaypalPurchase = (): PurchaseUi => {
 	const [bookingKey, setBookingKey] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [changeTarget, setChangeTarget] = useState<{ plan: Exclude<Plan, 'free'>; period: Period } | null>(null);
-	const [pendingWait, setPendingWait] = useState<{ expectedPlan: Plan } | null>(null);
+	// Nach dem Wechsel ohne `approvalUrl`: Upgrade → auf Plan-Bestätigung pollen; sonst Hinweis auf
+	// die Wirkung zum Periodenende — ein Plan-Poll liefe bei Downgrade/Zeitraumwechsel in den Timeout.
+	const [pendingWait, setPendingWait] = useState<{ kind: 'poll'; expectedPlan: Plan } | { kind: 'deferred' } | null>(
+		null,
+	);
 
 	const handleBook = async (targetPlan: Exclude<Plan, 'free'>, period: Period): Promise<void> => {
 		const key = `${targetPlan}-${period}`;
@@ -79,7 +83,12 @@ export const usePaypalPurchase = (): PurchaseUi => {
 					{actionError}
 				</KolAlert>
 			)}
-			{pendingWait !== null && refresh !== undefined && (
+			{pendingWait?.kind === 'deferred' && (
+				<KolAlert _type="info" _alert _label="Wechsel vorgemerkt">
+					Wechsel bei PayPal eingereicht — das neue Paket gilt ab dem Ende der laufenden Periode.
+				</KolAlert>
+			)}
+			{pendingWait?.kind === 'poll' && refresh !== undefined && (
 				<BillingReturnWait refresh={refresh} expectedPlan={pendingWait.expectedPlan} currentPlan={plan} />
 			)}
 		</>
@@ -90,14 +99,14 @@ export const usePaypalPurchase = (): PurchaseUi => {
 			targetPlan={changeTarget.plan}
 			targetPeriod={changeTarget.period}
 			onClose={() => setChangeTarget(null)}
-			onChanged={(approvalUrl) => {
+			onChanged={(approvalUrl, immediate) => {
 				const target = changeTarget;
 				setChangeTarget(null);
 				if (approvalUrl !== undefined) {
 					window.location.href = approvalUrl;
 					return;
 				}
-				setPendingWait({ expectedPlan: target.plan });
+				setPendingWait(immediate ? { kind: 'poll', expectedPlan: target.plan } : { kind: 'deferred' });
 			}}
 		/>
 	);

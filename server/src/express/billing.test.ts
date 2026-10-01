@@ -158,6 +158,148 @@ describe('Billing/Webhook-API (#1495)', () => {
 		assert.equal(sub?.get('pendingPlan'), 'plus', 'Der geplante Downgrade muss vermerkt sein');
 	});
 
+	// Fehlaktivierung trotz abgebrochener Zahlung (Sandbox-Befund): der Webhook kann auf beliebige
+	// Ereignisse abonniert sein („alle Events" im Dashboard) — der Server darf den Plan deshalb nur
+	// aus UPDATED/ACTIVATED ändern, nicht aus jedem plan_id-tragenden Ereignis wie CREATED.
+	it('ein CREATED-Ereignis mit höherwertiger plan_id aktiviert ein awaiting Approval liegendes Abo nicht', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		await Subscription.create({
+			userId: 11,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-CREATED',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-CREATED-1',
+				event_type: 'BILLING.SUBSCRIPTION.CREATED',
+				resource: { id: 'I-CREATED', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-CREATED' } });
+		assert.equal(sub?.get('status'), 'approval_pending', 'CREATED darf ein Abo nicht aktivieren');
+		assert.equal(sub?.get('plan'), 'plus', 'CREATED darf den Plan nicht ändern');
+	});
+
+	it('ein Planwechsel-Ereignis auf einer bereits gekündigten Zeile belebt das Abo nicht wieder auf', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		// Zustand nach replacePredecessors (#1912): abgelöstes Abo gekündigt und auf free gesetzt.
+		await Subscription.create({
+			userId: 12,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-DEAD',
+			plan: 'free',
+			period: 'monthly',
+			status: 'cancelled',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-DEAD-1',
+				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
+				resource: { id: 'I-DEAD', plan_id: 'PAYPAL_PLAN_ID_PRO_MONTHLY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-DEAD' } });
+		assert.equal(sub?.get('status'), 'cancelled', 'Ein gekündigtes Abo darf nicht reaktiviert werden');
+		assert.equal(sub?.get('plan'), 'free');
+	});
+
+	it('ein gleichrangiger Zeitraumwechsel (plan_id mit neuer Periode) trägt die Periode sofort in die Zeile', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		await Subscription.create({
+			userId: 13,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PERIOD-SAME',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-PERIOD-SAME-1',
+				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
+				resource: { id: 'I-PERIOD-SAME', plan_id: 'PAYPAL_PLAN_ID_PLUS_YEARLY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PERIOD-SAME' } });
+		assert.equal(sub?.get('plan'), 'plus');
+		assert.equal(sub?.get('period'), 'yearly', 'Der Zeitraumwechsel muss in der Zeile ankommen');
+	});
+
+	it('ein Upgrade über eine plan_id mit anderem Zeitraum schreibt Plan und Periode sofort', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		await Subscription.create({
+			userId: 15,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-UP-PERIOD',
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-UP-PERIOD-1',
+				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
+				resource: { id: 'I-UP-PERIOD', plan_id: 'PAYPAL_PLAN_ID_PRO_YEARLY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-UP-PERIOD' } });
+		assert.equal(sub?.get('plan'), 'pro', 'Upgrade wirkt sofort');
+		assert.equal(sub?.get('period'), 'yearly', 'Die Periode des Ziel-Plans muss übernommen werden');
+	});
+
+	it('ein Downgrade mit Zeitraumwechsel merkt Paket UND Periode vor und wendet beide zum Periodenende an', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		const periodEnd = new Date('2026-12-01');
+		await Subscription.create({
+			userId: 14,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-DOWN-PERIOD',
+			plan: 'pro',
+			period: 'yearly',
+			status: 'active',
+			currentPeriodEnd: periodEnd,
+		});
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-DOWN-PERIOD-1',
+				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
+				resource: { id: 'I-DOWN-PERIOD', plan_id: 'PAYPAL_PLAN_ID_PLUS_MONTHLY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-DOWN-PERIOD' } });
+		assert.equal(sub?.get('plan'), 'pro', 'Vor dem Periodenende bleibt das bezahlte Paket');
+		assert.equal(sub?.get('pendingPlan'), 'plus');
+		assert.equal(sub?.get('period'), 'yearly', 'Vor dem Periodenende bleibt die alte Periode');
+		assert.equal((sub?.get('pendingPlanEffectiveAt') as Date).getTime(), periodEnd.getTime());
+
+		const applied = await applyDuePendingPlan(sub!, new Date('2026-12-01T00:00:01Z'));
+		assert.equal(applied, true);
+		assert.equal(sub?.get('plan'), 'plus');
+		assert.equal(sub?.get('period'), 'monthly', 'Zum Periodenende muss auch der Zeitraum wechseln');
+	});
+
 	it('AK5: die Rückkehr-URL ohne zugehöriges Webhook-Ereignis ändert den Plan nicht', async () => {
 		server = await startTestServer(withVerifier('verified'));
 		await Subscription.create({

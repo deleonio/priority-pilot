@@ -136,6 +136,41 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(sub?.get('plan'), 'pro', 'Der Plan darf sich durch den Aufruf allein nicht ändern (ADR 0013)');
 	});
 
+	// Fehlaktivierung/Cancel-Befund aus der Sandbox: ein abgebrochener Checkout liegt als
+	// approval_pending-Zeile herauf; PayPal kann ein nie zugestimmtes Abo nicht kündigen (422 →
+	// pauschal 502). Ein nie bestätigter Checkout wird lokal entfernt, ohne PayPal zu rufen.
+	it('POST /billing/subscriptions/cancel auf einer approval_pending-Zeile löscht sie lokal, ohne PayPal zu rufen', async () => {
+		let cancelCalls = 0;
+		server = await startTestServer(
+			withClient({
+				cancel: async () => {
+					cancelCalls += 1;
+				},
+			}),
+		);
+		const cookie = await login('cancel-pending@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-NEVER-APPROVED',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+
+		const res = await post('/billing/subscriptions/cancel', cookie);
+
+		assert.equal(res.status, 200, 'Ein abgebrochener Checkout muss kündbar sein');
+		assert.equal(cancelCalls, 0, 'PayPal muss für ein nie zugestimmtes Abo nicht gerufen werden');
+		assert.equal(
+			await Subscription.count({ where: { userId: me.id } }),
+			0,
+			'Die approval_pending-Zeile muss entfernt werden',
+		);
+	});
+
 	it('AK4: POST /billing/subscriptions/change ruft den Revise-Aufruf mit der Ziel-Plan-ID auf und liefert die Zustimmungs-URL', async () => {
 		let calledWith: [string, string] | undefined;
 		server = await startTestServer(
@@ -234,7 +269,7 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(cancelled, false, 'Altes Abo erst nach Bestätigung des neuen kündigen');
 		assert.equal(created.length, 1, 'Genau ein neues Abo wird angelegt');
 		const first = created[0].override?.firstCycleCents;
-		assert.ok(first !== undefined && first > 999 - 499 && first < 999, `erster Zyklus reduziert, war ${first}`);
+		assert.ok(first !== undefined && first > 899 - 399 && first < 899, `erster Zyklus reduziert, war ${first}`);
 	});
 
 	it('#1912: zwei abgebrochene Upgrade-Anläufe hinterlassen genau ein ausstehendes Abo neben dem aktiven', async () => {
@@ -517,9 +552,30 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			const sameRes = await post(PREVIEW, same.cookie, { plan: 'plus', period: 'yearly' });
 
 			assert.equal(downRes.status, 200);
-			assert.deepEqual(await downRes.json(), { creditCents: 0, dueCents: prices.plus.monthly });
+			assert.deepEqual(await downRes.json(), {
+				creditCents: 0,
+				dueCents: prices.plus.monthly,
+				immediate: false,
+			});
 			assert.equal(sameRes.status, 200);
-			assert.deepEqual(await sameRes.json(), { creditCents: 0, dueCents: prices.plus.yearly });
+			assert.deepEqual(await sameRes.json(), {
+				creditCents: 0,
+				dueCents: prices.plus.yearly,
+				immediate: false,
+			});
+		});
+
+		// Sofort-/Periodenende-Semantik (ADR 0013): nur der Rangsprung nach oben wirkt sofort — die
+		// Oberfläche hat bewusst keine eigene Rangfolge (planOffers), die Aussage kommt vom Server.
+		it('die Vorschau nennt mit immediate, ob der Wechsel sofort wirksam wird (Upgrade) oder zum Periodenende', async () => {
+			server = await startTestServer(withClient({}));
+			const up = await seedActive('immediate-up@example.com', 'plus');
+
+			const res = await post(PREVIEW, up.cookie, { plan: 'pro', period: 'monthly' });
+
+			assert.equal(res.status, 200);
+			const preview = (await res.json()) as { immediate?: boolean };
+			assert.equal(preview.immediate, true, 'Ein Upgrade wirkt sofort');
 		});
 
 		it('AK3: ungültiges plan/period → 400', async () => {

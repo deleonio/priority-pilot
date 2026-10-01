@@ -37,7 +37,7 @@ const USER = {
 
 const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-const openChangeDialog = async (page: Page, preview: { creditCents: number; dueCents: number }) => {
+const openChangeDialog = async (page: Page, preview: { creditCents: number; dueCents: number; immediate: boolean }) => {
 	await page.route('**/api/v1/plans', (route: Route) => route.fulfill(json(CATALOG)));
 	await page.route('**/auth/me', (route: Route) => route.fulfill(json(USER)));
 	await page.route('**/api/v1/billing/invoices', (route: Route) => route.fulfill(json([])));
@@ -51,7 +51,7 @@ const openChangeDialog = async (page: Page, preview: { creditCents: number; dueC
 
 test.describe('Balamentum — #1913: Betragsvorschau im Wechsel-Dialog', () => {
 	test('AK4: Dialog zeigt Guthaben und fälligen Betrag, bevor „Wechseln bestätigen“ aktiv ist', async ({ page }) => {
-		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 750 });
+		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 750, immediate: true });
 
 		await expect(dialog).toContainText('7,50 €');
 		await expect(dialog).toContainText('2,49 €');
@@ -60,7 +60,7 @@ test.describe('Balamentum — #1913: Betragsvorschau im Wechsel-Dialog', () => {
 
 	test('AK5: bei 375 px liegen Betrag und Guthaben vollständig im Viewport (Bounding-Box)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 750 });
+		const dialog = await openChangeDialog(page, { creditCents: 249, dueCents: 750, immediate: true });
 		await expect(dialog).toContainText('7,50 €');
 
 		for (const text of ['7,50 €', '2,49 €']) {

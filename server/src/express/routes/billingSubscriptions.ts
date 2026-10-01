@@ -51,7 +51,8 @@ const rejectStoreChannel = (req: Request, res: Response<ErrorDto>): boolean => {
 };
 
 type ApprovalDto = { approvalUrl: string };
-type PreviewDto = { creditCents: number; dueCents: number };
+/** `immediate`: wirkt der Wechsel sofort (Upgrade) oder erst zum Periodenende (ADR 0013) — die Oberfläche hat keine eigene Rangfolge. */
+type PreviewDto = { creditCents: number; dueCents: number; immediate: boolean };
 type ReviseDto = { approvalUrl?: string };
 type InvoiceDto = {
 	id: number;
@@ -134,7 +135,9 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 	});
 
 	// POST /billing/subscriptions/cancel — löst die Kündigung bei PayPal aus (AK3). `plan` bleibt
-	// unverändert; wirksam wird die Kündigung erst über `BILLING.SUBSCRIPTION.CANCELLED`.
+	// unverändert; wirksam wird die Kündigung erst über `BILLING.SUBSCRIPTION.CANCELLED`. Ein nie
+	// bestätigter Checkout (`approval_pending`) wurde bei PayPal nie zugestimmt und ist dort nicht
+	// kündbar — seine Zeile wird lokal entfernt, sonst blockierte sie jede Neubuchung (409).
 	router.post(
 		'/billing/subscriptions/cancel',
 		async (req: Request, res: Response<Record<string, never> | ErrorDto>) => {
@@ -149,6 +152,11 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			});
 			if (!subscription) {
 				sendError(res, 404, 'Kein Abo gefunden.');
+				return;
+			}
+			if (subscription.get('status') === 'approval_pending') {
+				await subscription.destroy();
+				res.status(200).json({});
 				return;
 			}
 			try {
@@ -241,10 +249,12 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 		}
 		if (subscription.get('provider') === provider.id && rankOf(body.plan) > rankOf(subscription.get('plan') as Plan)) {
 			const { creditCents, firstCycleCents } = upgradeProration(subscription, body.plan, body.period, new Date());
-			res.status(200).json({ creditCents, dueCents: firstCycleCents });
+			res.status(200).json({ creditCents, dueCents: firstCycleCents, immediate: true });
 			return;
 		}
-		res.status(200).json({ creditCents: 0, dueCents: getPlansCatalog().prices[body.plan][body.period] });
+		res
+			.status(200)
+			.json({ creditCents: 0, dueCents: getPlansCatalog().prices[body.plan][body.period], immediate: false });
 	});
 
 	// GET /billing/invoices — eigene Rechnungen des angemeldeten Nutzers (AK5).
