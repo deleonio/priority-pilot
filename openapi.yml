@@ -656,7 +656,8 @@ paths:
     get:
       summary: Nächsten wichtigen Task ermitteln
       description: >-
-        Liefert den Task mit höchster Priorität, dessen Abhängigkeiten alle
+        Liefert den Task mit dem höchsten Score derselben Bewertung, die
+        `GET /suggestions` ordnet; nur Tasks, deren Abhängigkeiten alle
         abgeschlossen sind (siehe `findNextImportantTask`).
       operationId: getNextTask
       responses:
@@ -675,8 +676,8 @@ paths:
       summary: '"Was ist jetzt dran?"-Vorschlagsliste'
       description: >-
         Liefert die nach Score sortierte, post-gefilterte Vorschlagsliste
-        (Konzept §4.3): Priorität, Deadline-Nähe und Balance-Korrektur fließen
-        ein, der Überlastungsschutz begrenzt die Liste (siehe
+        (Konzept §4.3): Priorität, Entsperr-Wirkung, Balance-Korrektur,
+        Deadline-Nähe und Aufwand fließen ein, der Überlastungsschutz begrenzt die Liste (siehe
         `findSuggestedTasks`). Der Abhängigkeitsfilter aus `GET /next` bleibt
         vorgeschaltet.
       operationId: getSuggestions
