@@ -11,7 +11,11 @@ Auftrag: $ARGUMENTS
 The coordinator does not write product code. It moves issues through the pipeline by setting
 labels, reads the phase outputs, decides as PO where the pipeline asks for it, and removes
 blockers. Scope is **exactly** the epics named by the author, in the given order — nothing else
-from the backlog.
+from the backlog. When the author names themes instead of epics (e.g. "payment, onboarding,
+store"), map each theme to its leaf issues across all epics (titles carry `[P-Stufe/Aufwand]`,
+epics carry rank tables), order by theme first, then rank, and list the mapping in the first
+report so the author can correct it. A "max. N parallel" limit counts issues in a phase, not PRs
+the author drives themselves.
 
 Note: this file's prose is English; everything addressed to the author (chat, issue comments)
 stays German and follows the [vermenschlichen](../vermenschlichen/SKILL.md) rules. Label chain and
@@ -130,6 +134,11 @@ pipeline and later readers see it.
     push to that branch meanwhile (also a base merge) can make its push fail or land on top
     unseen. Do not push while a phase runs on the branch; when it happened, check the head
     after the run (own commit present, on top of the foreign one) before routing on.
+14. **Stale `ai:needs-human` after an answered triage question.** When the author answers the
+    triage question, the re-triage writes a final KI-ANALYSE (no open questions) and adds
+    `ai:needs-po-review`, but the old `ai:needs-human` can stay. Both together mean "ready to
+    route", not "blocked": check the analysis timestamp is after the answer, then route and drop
+    `ai:needs-human` in the same write.
 
 ## 5. Tool notes
 

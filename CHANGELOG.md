@@ -4,7 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-01
 
-_Keine für Nutzer sichtbaren Änderungen._
+_Enthält v0.12.0 – v0.12.2._
+
+### 🔧 Engineering
+
+- docs(skill): ticket-coordination theme scope and stale ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/2023
+
+### Other Changes
+
+- fix(billing): PayPal-Paketwechsel, Kündigung abgebrochener Checkouts, Zeitraum-Persistenz by @deleonio in https://github.com/deleonio/priority-pilot/pull/1998
 
 ## v0.11 - 2026-09-30
 
@@ -170,6 +178,7 @@ _Enthält v0.8.0 – v0.8.17._
 - docs: align arc42 error contract with code - no global express handler by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1762
 - feat(frontend): restructure login card, german label, site link (#1753) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1763
 - Revert "feat(frontend): restructure login card, german label, site link (#1753)" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1764
+- Revert "feat(frontend): restructure login card hierarchy and add website link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1771
 - Revert "feat(frontend): restructure login card hierarchy and add website link" by @deleonio in https://github.com/deleonio/priority-pilot/pull/1771
 - feat(native): show wordmark splash with mark above and name below by @deleonio in https://github.com/deleonio/priority-pilot/pull/1773
 - feat(frontend): restructure login card and add website link by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1772

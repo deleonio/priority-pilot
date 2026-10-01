@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import Subscription from '../models/subscription.js';
-import { rankOf, syncUserPlan } from './billing/lifecycle.js';
+import { rankOf, syncUserPlan, applyDuePendingPlan } from './billing/lifecycle.js';
 import { PAYPAL_PLAN_IDS, type Plan } from './plans.js';
 
 export { applyDuePendingPlan, isGracePeriodExpired } from './billing/lifecycle.js';
@@ -44,6 +44,19 @@ export interface PaypalClient {
 interface FirstCycleOverride {
 	firstCycleCents: number;
 	startTime: Date;
+}
+
+/**
+ * HTTP-Fehler eines PayPal-Aufrufs. `status` trennt Ablehnung (4xx — z. B. Kündigung eines nie
+ * zugestimmten Abos) von Nichterreichbarkeit (5xx/Netzfehler): nur zweitere ist ein 502-Fall.
+ */
+export class PaypalHttpError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+	) {
+		super(message);
+	}
 }
 
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
@@ -112,16 +125,18 @@ export const verifyWebhookSignature = async (
 };
 
 /**
- * Paket zu einer PayPal-Plan-ID. Zur Laufzeit trägt die Umgebungsvariable die echte Plan-ID
- * (`PAYPAL_PLAN_IDS[plan][period].envVar`, #1494). Ist sie nicht gesetzt (Test-/Entwicklungslauf
- * ohne PayPal-Zugang), gilt zusätzlich der Variablenname selbst als Kennung — so bleibt die
- * Zuordnung ohne Zugangsdaten deterministisch prüfbar.
+ * Paket×Zeitraum zu einer PayPal-Plan-ID. Zur Laufzeit trägt die Umgebungsvariable die echte
+ * Plan-ID (`PAYPAL_PLAN_IDS[plan][period].envVar`, #1494). Ist sie nicht gesetzt (Test-/
+ * Entwicklungslauf ohne PayPal-Zugang), gilt zusätzlich der Variablenname selbst als Kennung —
+ * so bleibt die Zuordnung ohne Zugangsdaten deterministisch prüfbar.
  */
-const planFromPaypalPlanId = (planId: string): Plan | undefined => {
+const planPeriodFromPaypalPlanId = (
+	planId: string,
+): { plan: Exclude<Plan, 'free'>; period: BillingPeriod } | undefined => {
 	for (const [plan, periods] of Object.entries(PAYPAL_PLAN_IDS)) {
-		for (const entry of Object.values(periods)) {
+		for (const [period, entry] of Object.entries(periods)) {
 			if (planId === process.env[entry.envVar]?.trim() || planId === entry.envVar) {
-				return plan as Plan;
+				return { plan: plan as Exclude<Plan, 'free'>, period: period as BillingPeriod };
 			}
 		}
 	}
@@ -129,9 +144,9 @@ const planFromPaypalPlanId = (planId: string): Plan | undefined => {
 };
 
 /**
- * Umkehrung von {@link planFromPaypalPlanId} (#1505 AK1/AK4): PayPal-Plan-ID zu Paket×Zeitraum,
- * für den Aufruf von `PaypalClient.createSubscription`/`revise`. Fällt wie dort ohne gesetzte
- * Umgebungsvariable auf den Variablennamen selbst zurück.
+ * Umkehrung von {@link planPeriodFromPaypalPlanId} (#1505 AK1/AK4): PayPal-Plan-ID zu
+ * Paket×Zeitraum, für den Aufruf von `PaypalClient.createSubscription`/`revise`. Fällt wie dort
+ * ohne gesetzte Umgebungsvariable auf den Variablennamen selbst zurück.
  */
 export const paypalPlanIdFor = (plan: Exclude<Plan, 'free'>, period: BillingPeriod): string => {
 	const entry = PAYPAL_PLAN_IDS[plan][period];
@@ -199,7 +214,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 			body: JSON.stringify({ reason: 'Vom Nutzer gekündigt.' }),
 		});
 		if (!res.ok) {
-			throw new Error('PayPal-Abo konnte nicht gekündigt werden.');
+			throw new PaypalHttpError('PayPal-Abo konnte nicht gekündigt werden.', res.status);
 		}
 	},
 	async revise(externalSubscriptionId, targetPlanId) {
@@ -240,9 +255,11 @@ export const PERIOD_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3,
  * - Kündigung (`BILLING.SUBSCRIPTION.CANCELLED`) → Status `cancelled`, das bezahlte Paket läuft bis
  *   `currentPeriodEnd` weiter, der Fall auf `free` steht in `pendingPlan` (Muster Google Play `CANCELED`, #1896).
  * - Ablauf (`BILLING.SUBSCRIPTION.EXPIRED`) → Paket sofort zurück auf `free`, Status `cancelled`.
- * - Höheres Paket → wirkt **sofort**, damit der Nutzer das Bezahlte umgehend nutzen kann.
+ * - Höheres Paket → wirkt **sofort** (inklusive Zeitraum des Ziel-Plans), damit der Nutzer das
+ *   Bezahlte umgehend nutzen kann.
  * - Niedrigeres Paket → wirkt erst ab `currentPeriodEnd`; bis dahin bleibt das bezahlte Paket
- *   aktiv und der Wechsel steht in `pendingPlan`/`pendingPlanEffectiveAt`.
+ *   aktiv und Paket und Zeitraum stehen in `pendingPlan`/`pendingPeriod`/`pendingPlanEffectiveAt`.
+ * - Gleichrangiges Paket mit anderem Zeitraum → Zeitraumwechsel, Zeile folgt sofort dem Ziel.
  *
  * Wie PayPal den Restzeitraum abrechnet, ist für diese Entscheidung ohne Belang — maßgeblich ist
  * allein die eigene Freischaltung.
@@ -269,36 +286,77 @@ export const applyPlanChange = async (
 		await subscription.update({
 			status: 'cancelled',
 			pendingPlan: 'free',
+			pendingPeriod: null,
 			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
 		});
 		return;
 	}
 
 	if (eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
-		await subscription.update({ plan: 'free', status: 'cancelled', pendingPlan: null, pendingPlanEffectiveAt: null });
+		await subscription.update({
+			plan: 'free',
+			status: 'cancelled',
+			pendingPlan: null,
+			pendingPeriod: null,
+			pendingPlanEffectiveAt: null,
+		});
 		await syncUserPlan(subscription, 'free');
 		return;
 	}
 
-	const target = planFromPaypalPlanId(event.resource?.plan_id ?? '');
+	// Plan-Änderungen allein aus UPDATED/ACTIVATED: Der Webhook kann im PayPal-Dashboard auf
+	// beliebige Ereignisse abonniert sein („alle Events"), und weitere Typen wie CREATED tragen
+	// ebenfalls eine `plan_id` — sie beweisen aber keine Zustimmung und dürfen nichts freischalten.
+	if (eventType !== 'BILLING.SUBSCRIPTION.UPDATED' && eventType !== 'BILLING.SUBSCRIPTION.ACTIVATED') {
+		return;
+	}
+
+	const target = planPeriodFromPaypalPlanId(event.resource?.plan_id ?? '');
 	if (!target) {
+		return;
+	}
+
+	// Eine gekündigte Zeile wird durch kein Planwechsel-Ereignis wiederbelebt — Spätereignisse für
+	// ein abgelöstes Abo (#1912) trügen sonst ein höheres plan_id zurück in die Zeile.
+	if (subscription.get('status') === 'cancelled') {
 		return;
 	}
 
 	const currentPeriodEnd = subscription.get('currentPeriodEnd') as Date;
 	const current = String(subscription.get('plan'));
-	if (rankOf(target) > rankOf(current)) {
-		await subscription.update({ plan: target, status: 'active', pendingPlan: null, pendingPlanEffectiveAt: null });
-		await syncUserPlan(subscription, target);
+	if (rankOf(target.plan) > rankOf(current)) {
+		await subscription.update({
+			plan: target.plan,
+			period: target.period,
+			status: 'active',
+			pendingPlan: null,
+			pendingPeriod: null,
+			pendingPlanEffectiveAt: null,
+		});
+		await syncUserPlan(subscription, target.plan);
 		return;
 	}
-	if (rankOf(target) < rankOf(current)) {
-		// Downgrade: Paket bleibt bis zum Periodenende unverändert, der Wechsel wird nur vorgemerkt.
+	if (rankOf(target.plan) < rankOf(current)) {
+		// Downgrade: Paket bleibt bis zum Periodenende unverändert, Paket und Zeitraum werden nur
+		// vorgemerkt — die Anzeige („Aktuelles Paket") schlägt bis dahin auf die alte Kombination.
 		await subscription.update({
-			pendingPlan: target,
+			pendingPlan: target.plan,
+			pendingPeriod: target.period,
 			pendingPlanEffectiveAt: currentPeriodEnd > now ? currentPeriodEnd : now,
 		});
+		return;
 	}
+	// Gleichrangig: reiner Zeitraumwechsel, Plan und Periode der Zeile folgen sofort dem Ziel
+	// (Abrechnung zum nächsten Zyklus). Der Wechsel ist eine erneute Entscheidung für das aktuelle
+	// Paket — eine ältere Downgrade-Vormerkung ist damit hinfällig (Review #1998), sonst fiele der
+	// Nutzer zum Periodenende still zurück, obwohl PayPal fortan das höhere Paket abrechnet.
+	await subscription.update({
+		plan: target.plan,
+		period: target.period,
+		pendingPlan: null,
+		pendingPeriod: null,
+		pendingPlanEffectiveAt: null,
+	});
 };
 
 /**
@@ -338,8 +396,9 @@ export interface ApplyPaymentEventDeps {
  * Wendet ein verifiziertes Zahlungsereignis auf das Abo an (AK1/AK3/AK4, T6e/#1506):
  *
  * - Erfolgreiche Abbuchung (`PAYMENT.SALE.COMPLETED`, ersatzweise
- *   `BILLING.SUBSCRIPTION.ACTIVATED`) → Periode um einen Zeitraum verschieben, `status: 'active'`,
- *   `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
+ *   `BILLING.SUBSCRIPTION.ACTIVATED`) → zunächst eine fällige Downgrade-Vormerkung anwenden
+ *   (Paket und Zeitraum des NEUEN Zyklus), dann Periode um einen Zeitraum verschieben,
+ *   `status: 'active'`, `firstFailureAt` löschen, danach `deps.issueInvoice` aufrufen.
  * - Fehlgeschlagener Einzug (`BILLING.SUBSCRIPTION.PAYMENT.FAILED`) → nur beim ersten Mal
  *   `firstFailureAt` setzen und `status: 'past_due'`; ein weiterer Fehlschlag verlängert die
  *   bereits laufende Frist nicht.
@@ -356,6 +415,11 @@ export const applyPaymentEvent = async (
 	const eventType = event.event_type ?? '';
 
 	if (eventType === 'PAYMENT.SALE.COMPLETED' || eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+		// Eine fällige Downgrade-Vormerkung (Paket+Zeitraum) wird VOR der Verlängerung angewendet:
+		// Die Abbuchung startet den neuen Zyklus, Verlängerung und Rechnung müssen daher mit dem
+		// neuen Paket×Zeitraum rechnen — das `applyDuePendingPlan` beim nächsten `/auth/me` käme
+		// zu spät (Verlängerung um die alte Periode, Rechnung zum alten Preis).
+		await applyDuePendingPlan(subscription, now);
 		const period = String(subscription.get('period'));
 		const currentPeriodEnd = new Date(subscription.get('currentPeriodEnd') as Date);
 		currentPeriodEnd.setUTCMonth(currentPeriodEnd.getUTCMonth() + (PERIOD_MONTHS[period] ?? 1));

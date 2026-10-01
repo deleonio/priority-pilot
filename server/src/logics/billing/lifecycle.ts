@@ -33,7 +33,8 @@ export const syncUserPlan = async (subscription: Subscription, plan: Plan): Prom
 
 /**
  * Wendet einen fälligen, vorgemerkten Paketwechsel an (AK4): ist `pendingPlanEffectiveAt` erreicht,
- * wird `pendingPlan` zum aktiven Paket und die Vormerkung gelöscht.
+ * wird `pendingPlan` zum aktiven Paket, ein vorgemerkter Zeitraum (`pendingPeriod`) gleichzeitig
+ * mit übernommen und die Vormerkung gelöscht.
  *
  * Bewusst beim Lesen des Abos aufgerufen (statt über einen eigenen wiederkehrenden Lauf): der
  * Wechsel wirkt genau dann, wenn der Zustand gebraucht wird, und hängt nicht daran, dass der Anbieter
@@ -41,11 +42,18 @@ export const syncUserPlan = async (subscription: Subscription, plan: Plan): Prom
  */
 export const applyDuePendingPlan = async (subscription: Subscription, now: Date): Promise<boolean> => {
 	const pendingPlan = subscription.get('pendingPlan') as string | null | undefined;
+	const pendingPeriod = subscription.get('pendingPeriod') as string | null | undefined;
 	const effectiveAt = subscription.get('pendingPlanEffectiveAt') as Date | string | null | undefined;
 	if (!pendingPlan || !effectiveAt || new Date(effectiveAt).getTime() > now.getTime()) {
 		return false;
 	}
-	await subscription.update({ plan: pendingPlan, pendingPlan: null, pendingPlanEffectiveAt: null });
+	await subscription.update({
+		plan: pendingPlan,
+		...(pendingPeriod ? { period: pendingPeriod } : {}),
+		pendingPlan: null,
+		pendingPeriod: null,
+		pendingPlanEffectiveAt: null,
+	});
 	await syncUserPlan(subscription, pendingPlan as Plan);
 	return true;
 };

@@ -125,7 +125,8 @@ test.describe('Balamentum — #1496: Buchungs- und Verwaltungsflow', () => {
 			route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify({ creditCents: 249, dueCents: 750 }),
+				// immediate: true = Upgrade — nur dann wartet die Oberfläche auf die Plan-Bestätigung.
+				body: JSON.stringify({ creditCents: 249, dueCents: 750, immediate: true }),
 			}),
 		);
 		let capturedBody: unknown;

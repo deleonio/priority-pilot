@@ -6043,8 +6043,10 @@ components:
       type: object
       description: >-
         Vorschau des Paketwechsels (#1913): `creditCents` ist das angerechnete Guthaben
-        (0 ohne Upgrade), `dueCents` der fällige Betrag des ersten Zyklus.
-      required: [creditCents, dueCents]
+        (0 ohne Upgrade), `dueCents` der fällige Betrag des ersten Zyklus. `immediate`
+        sagt, ob der Wechsel sofort wirkt (Upgrade) oder erst zum Periodenende
+        (ADR 0013) — die Oberfläche trägt bewusst keine eigene Paket-Rangfolge.
+      required: [creditCents, dueCents, immediate]
       properties:
         creditCents:
           type: integer
@@ -6052,6 +6054,8 @@ components:
         dueCents:
           type: integer
           minimum: 0
+        immediate:
+          type: boolean
     Invoice:
       type: object
       description: >-

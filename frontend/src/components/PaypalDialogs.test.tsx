@@ -13,6 +13,7 @@ import { ChangeDialog } from './PaypalDialogs';
 interface Preview {
 	creditCents: number;
 	dueCents: number;
+	immediate: boolean;
 }
 
 vi.mock('@public-ui/react-v19', () => ({
@@ -54,7 +55,7 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 	afterEach(cleanup);
 
 	it('AK4: lädt die Vorschau beim Öffnen und zeigt Guthaben und fälligen Betrag formatiert', async () => {
-		previewBillingChange.mockResolvedValue({ creditCents: 249, dueCents: 750 });
+		previewBillingChange.mockResolvedValue({ creditCents: 249, dueCents: 750, immediate: true });
 
 		renderDialog();
 
@@ -73,12 +74,12 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		expect(confirm.disabled).toBe(true);
 		expect(screen.getByRole('status')).toBeTruthy();
 
-		resolve({ creditCents: 0, dueCents: 999 });
+		resolve({ creditCents: 0, dueCents: 999, immediate: true });
 		await waitFor(() => expect(confirm.disabled).toBe(false));
 	});
 
 	it('AK4: ohne Guthaben (creditCents 0) entfällt die Guthaben-Zeile, der fällige Betrag bleibt', async () => {
-		previewBillingChange.mockResolvedValue({ creditCents: 0, dueCents: 499 });
+		previewBillingChange.mockResolvedValue({ creditCents: 0, dueCents: 499, immediate: false });
 
 		renderDialog('plus');
 
@@ -105,10 +106,25 @@ describe('ChangeDialog — Vorschau des fälligen Betrags (#1913)', () => {
 		view.rerender(<ChangeDialog targetPlan="pro" targetPeriod="monthly" onClose={() => {}} onChanged={() => {}} />);
 		await waitFor(() => expect(pending.pro).toBeDefined());
 
-		pending.pro({ creditCents: 100, dueCents: 899 });
-		pending.plus({ creditCents: 0, dueCents: 499 });
+		pending.pro({ creditCents: 100, dueCents: 899, immediate: true });
+		pending.plus({ creditCents: 0, dueCents: 499, immediate: false });
 
 		expect(await screen.findByText(/8,99 €/)).toBeTruthy();
 		await waitFor(() => expect(screen.queryByText(/4,99 €/)).toBeNull());
+	});
+
+	// Paketwechsel-Fix (Sandbox-Befund): nur ein Upgrade wartet auf die Plan-Bestätigung; bei
+	// Downgrade/Zeitraumwechsel würde ein Plan-Poll garantiert in den Timeout laufen. Der Dialog
+	// reicht `immediate` aus der Vorschau an onChanged durch.
+	it('confirm reicht die Sofort-Wirksamkeit aus der Vorschau an onChanged durch', async () => {
+		previewBillingChange.mockResolvedValue({ creditCents: 0, dueCents: 499, immediate: false });
+		changeBillingSubscription.mockResolvedValue({});
+		const onChanged = vi.fn();
+		render(<ChangeDialog targetPlan="plus" targetPeriod="monthly" onClose={() => {}} onChanged={onChanged} />);
+
+		await screen.findByText(/4,99 €/);
+		screen.getByRole('button', { name: 'Wechseln bestätigen' }).click();
+
+		await waitFor(() => expect(onChanged).toHaveBeenCalledWith(undefined, false));
 	});
 });
