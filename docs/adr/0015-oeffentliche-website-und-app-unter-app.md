@@ -22,7 +22,7 @@ Eine Route in der SPA hätte gereicht, um die Seite anzuzeigen. Sie wäre aber o
 
 **5. Kill-Switch für den alten Service Worker.** Unter `/sw.js` liefert die Website einen Service Worker aus, der sich beim nächsten Update-Check des alten App-Workers installiert, dessen Caches löscht, sich abmeldet und offene Fenster neu lädt. Die App registriert ihren Worker danach unter `/app/`.
 
-**6. Offene Registrierung per Schalter.** `OPEN_SIGNUP=true` lässt jedes Google-Konto zu (`server/src/logics/allowedEmails.ts`). Die Allowlist bleibt als Alternative erhalten; der Produktions-Startcheck akzeptiert beides.
+**6. Offene Registrierung per Schalter.** `OPEN_SIGNUP=true` lässt jedes Google-Konto zu (`server/src/logics/allowedEmails.ts`). Die Allowlist bleibt als Alternative erhalten; der Produktions-Startcheck akzeptiert beides. _(Abgelöst durch [ADR 0019](0019-zugang-launch-warteliste.md): Zum Launch sind Warteliste und Einladungs-Freischaltung das Zugangsmodell, die Allowlist bleibt Admin-Instrument.)_
 
 ## Konsequenzen
 
