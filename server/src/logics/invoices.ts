@@ -88,19 +88,33 @@ export const issueInvoiceForPeriod = async (
 		taxNote: TAX_NOTE,
 		lineItems,
 	});
-	if (creditCents > 0) {
-		await subscription.update({ creditCents: 0 });
-	}
 
 	const user = await User.findByPk(subscription.get('userId') as number);
 	const number = invoice.get('number') as string;
 	// PDF zum Erzeugungszeitpunkt bauen und speichern (#1955 AK3) — Anhang und späterer Download
-	// teilen dieselben Bytes (byte-identisch).
-	const pdfBytes = await buildInvoicePdf(invoice, OPERATOR, {
-		displayName: String(user?.get('displayName') ?? ''),
-		email: String(user?.get('email') ?? ''),
-	});
+	// teilen dieselben Bytes (byte-identisch). Wirft der Bau, bleibt keine halbe Rechnung stehen:
+	// Der Idempotenz-Guard oben liefert sonst bei jedem Retry die unvollständige Rechnung ohne
+	// PDF — also zerstören und hochreichen, der Retry erzeugt sie komplett neu (inkl. Guthaben,
+	// das erst nach gelungenem PDF-Bau verrechnet wird).
+	let pdfBytes: Uint8Array;
+	try {
+		pdfBytes = await buildInvoicePdf(
+			invoice,
+			OPERATOR,
+			{
+				displayName: String(user?.get('displayName') ?? ''),
+				email: String(user?.get('email') ?? ''),
+			},
+			`Paket ${plan} (${period})`,
+		);
+	} catch (error) {
+		await invoice.destroy();
+		throw error;
+	}
 	await invoice.update({ pdfBytes: Buffer.from(pdfBytes) });
+	if (creditCents > 0) {
+		await subscription.update({ creditCents: 0 });
+	}
 	if (user) {
 		const sent = await sendMailToUser(
 			user,

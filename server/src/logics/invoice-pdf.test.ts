@@ -58,10 +58,14 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 			taxNote: TAX_NOTE,
 		});
 
-	it('enthält Nummer, Datum, beide Parteien, Zeitraum, Betrag und §19-Hinweis', async () => {
-		const text = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT).join('\n');
+	it('enthält Nummer, Datum, beide Parteien, Leistung, Zeitraum, Betrag und §19-Hinweis', async () => {
+		const text = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT, 'Paket plus (monthly)').join('\n');
 
 		assert.ok(text.includes('INV-2026-100001'), 'Rechnungsnummer muss im PDF stehen');
+		assert.ok(
+			text.includes('Leistung: Paket plus (monthly)'),
+			'Leistungsbeschreibung (Paket/Periode, AK2) muss drinstehen',
+		);
 		assert.ok(
 			text.includes('2026-02-01') && text.includes('2026-03-01'),
 			'Leistungszeitraum muss als ISO-Datum drinstehen',
@@ -80,19 +84,20 @@ describe('invoicePdf.ts — PDF-Inhalt (#1955 AK2)', () => {
 	});
 
 	it('ohne ustId keine USt-IdNr.-Zeile, mit ustId erscheint sie', async () => {
-		const base = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT).join('\n');
+		const base = invoicePdfLines(await invoice(), OPERATOR, RECIPIENT, 'Paket plus (monthly)').join('\n');
 		assert.ok(!base.includes('USt-IdNr'), 'Ohne ustId darf keine USt-IdNr.-Zeile erscheinen');
 
 		const withId = invoicePdfLines(
 			await invoice('INV-2026-100002'),
 			{ ...OPERATOR, ustId: 'DE123456789' },
 			RECIPIENT,
+			'Paket plus (monthly)',
 		).join('\n');
 		assert.ok(withId.includes('DE123456789'), 'Bei gesetzter ustId muss die USt-IdNr. im PDF stehen');
 	});
 
 	it('buildInvoicePdf liefert ein echtes PDF (%PDF-Magic)', async () => {
-		const bytes = await buildInvoicePdf(await invoice(), OPERATOR, RECIPIENT);
+		const bytes = await buildInvoicePdf(await invoice(), OPERATOR, RECIPIENT, 'Paket plus (monthly)');
 		assert.ok(bytes.length > 0, 'PDF-Bytes dürfen nicht leer sein');
 		assert.equal(Buffer.from(bytes).subarray(0, 5).toString(), '%PDF-', 'PDF muss mit der %PDF-Magic beginnen');
 	});

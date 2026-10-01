@@ -28,11 +28,17 @@ const isoDate = (date: Date): string => date.toISOString().slice(0, 10);
 const formatEuro = (amountCents: number): string => (amountCents / 100).toFixed(2).replace('.', ',');
 
 /**
- * Die Textzeilen des Rechnungs-PDFs (AK2): Nummer, Datum, beide Parteien, Leistungszeitraum,
- * Betrag und der `taxNote` (§19 UStG, kein Steuerausweis). Die USt-IdNr.-Zeile erscheint nur bei
- * gesetztem `operator.ustId`.
+ * Die Textzeilen des Rechnungs-PDFs (AK2): Nummer, Datum, beide Parteien, Leistungsbeschreibung
+ * (`service`, z. B. `Paket plus (monthly)`), Leistungszeitraum, Betrag und der `taxNote`
+ * (§19 UStG, kein Steuerausweis). Die USt-IdNr.-Zeile erscheint nur bei gesetztem
+ * `operator.ustId`.
  */
-export const invoicePdfLines = (invoice: Invoice, operator: InvoiceOperator, recipient: InvoiceRecipient): string[] => [
+export const invoicePdfLines = (
+	invoice: Invoice,
+	operator: InvoiceOperator,
+	recipient: InvoiceRecipient,
+	service: string,
+): string[] => [
 	`Rechnung ${invoice.get('number') as string}`,
 	`Rechnungsdatum: ${isoDate(invoice.createdAt)}`,
 	'',
@@ -46,6 +52,7 @@ export const invoicePdfLines = (invoice: Invoice, operator: InvoiceOperator, rec
 	recipient.displayName,
 	recipient.email,
 	'',
+	`Leistung: ${service}`,
 	`Leistungszeitraum: ${isoDate(invoice.get('periodStart') as Date)} bis ${isoDate(invoice.get('periodEnd') as Date)}`,
 	`Betrag: ${formatEuro(invoice.get('amountCents') as number)} EUR`,
 	'',
@@ -60,11 +67,12 @@ export const buildInvoicePdf = async (
 	invoice: Invoice,
 	operator: InvoiceOperator,
 	recipient: InvoiceRecipient,
+	service: string,
 ): Promise<Uint8Array> => {
 	const doc = await PDFDocument.create();
 	const font = await doc.embedFont(StandardFonts.Helvetica);
 	const page = doc.addPage([595, 842]);
-	page.drawText(invoicePdfLines(invoice, operator, recipient).join('\n'), {
+	page.drawText(invoicePdfLines(invoice, operator, recipient, service).join('\n'), {
 		x: 48,
 		y: 794,
 		size: 11,
