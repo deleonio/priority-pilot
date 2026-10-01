@@ -1,7 +1,7 @@
 ---
 name: ticket-tree
-description: "Solution plan and issue tree for a larger initiative - research code and external constraints, write the solution plan, cut it into issues of at most medium complexity, wire them under an epic with native blocked-by relations and derive the implementation order (waves, critical path). Use for 'Loesungsplan', 'Issue-Baum', 'Issue Tree', 'Epic planen', 'plane Vorhaben X in Tickets' (German: plan an initiative as a ticket tree)."
-argument-hint: "<Vorhaben, z. B. Android-App mit Capacitor>"
+description: "Solution plan and issue tree for a larger initiative - research code and external constraints, write the solution plan, cut it into issues of at most medium complexity, assign every issue a priority (stage + rank) and effort (S/M/L) that show in titles, bodies and the epic's rank table, wire them under an epic with native blocked-by relations and derive the implementation order (waves, critical path). Also cuts a finished prioritized catalog (Maßnahmenkatalog) directly into a tree (catalog mode). Use for 'Loesungsplan', 'Issue-Baum', 'Issue Tree', 'Epic planen', 'plane Vorhaben X in Tickets', 'Maßnahmenkatalog', 'Katalog in Issues' (German: plan an initiative as a ticket tree)."
+argument-hint: "<Vorhaben oder Pfad zu einem Maßnahmenkatalog>"
 ---
 
 # Workflow: Ticket tree (solution plan + issue tree)
@@ -17,6 +17,22 @@ stay German and follow the [vermenschlichen](../vermenschlichen/SKILL.md) rules.
 
 Not a pipeline phase: it runs locally with the author present. It sets **no pipeline labels**;
 each issue enters the pipeline later on its own via `ai:needs-analyse`.
+
+## Catalog mode (input: Maßnahmenkatalog)
+
+If the argument is a path to a finished, prioritized catalog — numbered measures, stages like
+P0–P3, effort S/M/L; the file may live outside the repo (e.g. an Obsidian vault) — the tree is
+cut from the catalog instead of a freshly drafted solution plan:
+
+- Read the catalog completely; stages, ranks and efforts come from it (Step 4). Step 2 shrinks
+  to locating code touchpoints for the „Wo tritt es auf?“ fields.
+- Step 3 becomes the epic's source section: catalog path and date, the binding decisions it
+  builds on, one **ADR issue** per binding decision it consciously changes, and a
+  **Bestands-Verweise** table: open issues that already cover a catalog measure are
+  referenced, never duplicated — they may also serve as `blocked-by` targets (mark them
+  „besteht schon“ in the wave table).
+- Every issue body carries a source line instead of the Plan line:
+  `Quelle: Maßnahmenkatalog <Stufe> Nr. <n> — <kurzer Grund>`.
 
 ## Step 1 — Collect, and find what already exists
 
@@ -67,6 +83,16 @@ An issue is **at most „Mittel“** when all of these hold:
 Anything „Komplex“, or requirements joined by „und“, gets split further. Merge tiny
 same-layer items into one issue instead of creating micro-tickets.
 
+Every issue carries **priority and effort**, visible in title, body and epic:
+
+- **Priority** = stage + global rank. Stages come from the plan (P0–P3 if the source is a
+  catalog, otherwise the release stages from Step 3). Rank order: stage ascending, then plan
+  order; ADR/decision and manual issues rank ahead of what they block.
+- **Effort** on the catalog scale: S = bis eine Woche, M = zwei bis sechs Wochen,
+  L = über sechs Wochen (single developer). When a measure is split, the parts' efforts
+  roughly sum to the whole. Default mapping to the ticket.yml complexity: Einfach ↔ S,
+  Mittel ↔ M — complexity stays the pipeline signal, effort is the planning size.
+
 Issue kinds, in typical order:
 
 1. **ADR** — decision work first.
@@ -85,20 +111,45 @@ required fields, `Thema` and `Komplexität` set to `Einfach` or `Mittel`). Under
 
 ```markdown
 Teil von #<Epic>. Blockiert durch #<a>, #<b>.   (oder: Keine Blocker.)
+Priorität: <Stufe> · Rang <r> von <n>. Aufwand: <S|M|L> (<bis eine Woche | zwei bis sechs Wochen | über sechs Wochen>) — auch im Titel als [<Stufe>/<Aufwand>].
 Plan: <Plan-Dokument/Abschnitt, falls vorhanden>
 ```
 
-Title: names the goal, not the solution, with an area prefix — `ADR NNNN:`, `Server:`,
-`Frontend:`, `Website:`, `CI:`, `Manuell:`, or the product surface (e.g. `Android-App:`).
+Title: `[<Stufe>/<Aufwand>]` before the area prefix — e.g. `[P0/S] Server: …` — so priority and
+effort survive every list view, search result and external tool; the rank is too long for
+titles and stays in body and epic. The area prefix names the goal, not the solution:
+`ADR NNNN:`, `Server:`, `Frontend:`, `Website:`, `CI:`, `Manuell:`, or the product surface
+(e.g. `Android-App:`).
 
-## Step 5 — Dependencies and order
+## Step 4b — Grouping (tree depth)
+
+- **Up to ~15 issues: flat.** Epic → issues, like every existing epic in this repo
+  (#1340, #1455, #1889, #1780). Waves, rank and blocked-by carry the structure.
+- **Beyond ~15 issues: one thematic middle layer.** Cut the leaves into 5–10 **group issues**
+  (`Gruppe:` title prefix, e.g. `[P0] Gruppe: Zugang und Registrierung` — group stage = the
+  highest stage of its leaves, no effort). Groups are mini-epics, not work items; they never
+  carry pipeline labels and are never `blocked-by` targets — dependency edges stay
+  leaf-to-leaf, across groups if needed.
+- **Container bodies must pass the quality check.** The precheck on issue creation/edit
+  (00-validate, verify-issue-quality.sh) knows no „Sammelticket" exemption — epic and group
+  bodies carry the four template fields like every issue (see #1455 for the epic pattern):
+  short „Was ist das Problem?" (why this container exists), „Wo tritt es auf?" (the tree
+  position), „Wie soll es sein?" (scope sentence + „nicht in die Pipeline geben"),
+  „Woran messen wir das?" (leaves bundled, progress bar reflects them). The plan itself
+  (epic) and the numbered leaf list in rank order (group) go under
+  `Screenshots / weitere Hinweise (optional)` — otherwise the bot flags `ticket:incomplete`.
+- Structure then reads: epic's sub-issue list shows the groups in rank order (rank of a group
+  = rank of its best leaf), each group's list shows its leaves in rank order. The epic's rank
+  table stays global — it remains the single place where all leaves compete.
+- Never add a third layer; if a group exceeds ~8 leaves, split the theme instead.
 
 - `blocked-by` **only for real dependencies**: the issue needs an API, table, decision or
   artifact of its predecessor, or an acceptance criterion can't be verified without it. Never
   for mere preference.
 - List **direct** blockers only (no transitive ones). No cycles.
 - **Waves** = topological levels: wave = 1 + max(wave of the blockers); issues without
-  blockers are wave 1. Within a wave, earlier stages go first.
+  blockers are wave 1. Within a wave, earlier stages go first, then rank order. Priority and
+  waves are independent: rank = importance, wave = startability.
 - **Critical path** = the longest blocker chain; name it (per stage, if stages exist).
 - Keep wave 1 wide — as many independent starts as the plan allows.
 
@@ -110,9 +161,12 @@ asked for the issues to be created.
 
 ## Step 7 — Create
 
-1. **Epic** without labels, placeholder body („Sammelticket, nicht in die Pipeline geben“).
-2. **Sub-issues in wave order** (blockers exist before their successors, and the epic's
-   sub-issue list reads as the execution order). Attach each as a real sub-issue — MCP
+1. **Epic** without labels, placeholder body („Sammelticket, nicht in die Pipeline geben“) —
+   the final body (item 4) carries the four template fields plus the plan, so the quality
+   precheck passes (item 4b in Step 4b above).
+2. **Sub-issues in wave order, within a wave in rank order** (blockers exist before their
+   successors, and the epic's sub-issue list reads as the execution order, the rank as its
+   importance). Attach each as a real sub-issue — MCP
    `issue_write` with `parent_issue_number`, or via gh:
    `gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p=<epic-node-id> -f c=<child-node-id>`
 3. **Native `blocked-by`** for every pair (successor B is blocked by K):
@@ -130,9 +184,10 @@ asked for the issues to be created.
    The GitHub MCP tools cannot set issue dependencies. In a session without `gh`, hand this
    block with all pairs to the author to run locally; the „Blockiert durch“ line in each body
    is the fallback until then.
-4. **Final epic body:** plan (Step 3), wave table (stage columns if stages exist), critical
-   path, a Mermaid graph (`graph LR`, edge = „blockiert“, node labels without `#`), and the
-   start notes below.
+4. **Final epic body:** plan (Step 3), a **rank table** (Rang | Issue | Titel | Stufe | Welle |
+   Aufwand — one row per issue, in rank order) with effort totals per stage, wave table
+   (stage columns if stages exist), critical path, a Mermaid graph (`graph LR`,
+   edge = „blockiert“, node labels without `#`), and the start notes below.
 5. **Check:** sub-issue count matches the table; spot-check a few relations with
    `gh api "repos/$REPO/issues/<B>/dependencies/blocked_by" --jq '.[].number'`.
 

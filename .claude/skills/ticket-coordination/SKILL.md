@@ -19,20 +19,32 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 
 ## 1. Plan the order
 
-1. Read the epic body (waves, critical path) and its sub-issues with state and labels.
+1. Read the epic body (waves, critical path, rank table) and its sub-issues with state and
+   labels. Trees can be three-level (epic → `Gruppe:` issues → leaves): collect the leaves
+   through the groups; epic and groups are containers, not work items.
 2. Per open sub-issue check the native `blocked-by` relations **and** the "Blockiert durch" line
    in the body — they can point into another epic (cross-epic dependency).
-3. Never label: the epic itself ("Nicht in die Pipeline geben"), tickets titled `Manuell:` or
-   marked "Aufgabe für den PO", tickets marked "zurückgestellt".
+3. Never label: the epic itself ("Nicht in die Pipeline geben"), group tickets titled `Gruppe:`
+   ("Sammelticket (Gruppe)"), tickets titled `Manuell:` or marked "Aufgabe für den PO", tickets
+   marked "zurückgestellt".
 4. A manual ticket on the critical path blocks everything behind it. Ask the author at once (one
    question, concrete options) instead of waiting silently.
-5. Order: follow the waves. Phases queue first in, first out per concurrency group; which
-   phases share a group is described in [CI-Architektur](../../../docs/ci-architecture.md) (at
-   the time of writing: spec, implementation and fixup share one queue; triage, UX, review and
-   documentation each have their own). **Start every issue whose blockers are closed** — issues
+5. Priority and effort are part of every leaf issue: the title prefix `[P0/M]` (stage / effort)
+   and the body line `Priorität: <Stufe> · Rang <r> von <n>. Aufwand: <S|M|L> (…)`. The epic's
+   rank table is the source of truth; the title prefix is the shortcut that survives every list
+   view and search.
+6. Order: waves decide startability, rank decides importance. Phases queue first in, first out
+   per concurrency group; which phases share a group is described in
+   [CI-Architektur](../../../docs/ci-architecture.md) (at the time of writing: spec,
+   implementation and fixup share one queue; triage, UX, review and documentation each have
+   their own). **Start leaves whose blockers are closed, highest rank first**, and keep a
+   working set of at most four issues in flight (the author may set a different limit) — do not
+   start a lower-ranked leaf while a higher-ranked startable one is still unlabelled. Issues
    without dependencies on each other run in parallel; the queues serialise what has to wait.
    Only dependent issues wait for their blocker's merge. A run shown as "pending" is queued, not
-   stuck — never re-arm it.
+   stuck — never re-arm it. Name stage and effort (title prefix) whenever a check-in or decision
+   reports what was started or what comes next — the author thinks in „wie wichtig, wie viel
+   Kraft".
 
 ## 2. Drive one issue
 
@@ -68,7 +80,7 @@ pipeline and later readers see it.
 - **Schedule the next check-in before asking the author.** A pending question blocks the
   session; without a scheduled wake-up the whole coordination stalls until the answer.
 - The check-in message carries **state only**; the rules live here. Template:
-  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Offen beim Autor: … Reihenfolge danach: … Nicht anfassen: …`
+  `Check-in ticket-coordination (Skill). Epics: … Stand <UTC>: <je Issue: [Stufe/Aufwand]-Kürzel aus dem Titel, Phase, PR, Run-ID, was als Nächstes zu prüfen ist>. Offen beim Autor: … Reihenfolge danach (mit Rang): … Nicht anfassen: …`
 - Report only on change (phase switch, merge, blocker, question). A quiet check-in stays quiet.
 - Notifications can arrive late, twice, or after the fact. Verify the current state before
   acting on one.
