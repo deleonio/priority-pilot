@@ -46,6 +46,19 @@ interface FirstCycleOverride {
 	startTime: Date;
 }
 
+/**
+ * HTTP-Fehler eines PayPal-Aufrufs. `status` trennt Ablehnung (4xx — z. B. Kündigung eines nie
+ * zugestimmten Abos) von Nichterreichbarkeit (5xx/Netzfehler): nur zweitere ist ein 502-Fall.
+ */
+export class PaypalHttpError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+	) {
+		super(message);
+	}
+}
+
 const apiBase = (): string => process.env.PAYPAL_API_BASE?.trim() || 'https://api-m.paypal.com';
 
 /** Die fünf Header, die PayPal zur Signaturprüfung erwartet (Groß-/Kleinschreibung egal). */
@@ -201,7 +214,7 @@ export const createPaypalClient = (fetchImpl: typeof fetch = fetch): PaypalClien
 			body: JSON.stringify({ reason: 'Vom Nutzer gekündigt.' }),
 		});
 		if (!res.ok) {
-			throw new Error('PayPal-Abo konnte nicht gekündigt werden.');
+			throw new PaypalHttpError('PayPal-Abo konnte nicht gekündigt werden.', res.status);
 		}
 	},
 	async revise(externalSubscriptionId, targetPlanId) {
@@ -334,8 +347,16 @@ export const applyPlanChange = async (
 		return;
 	}
 	// Gleichrangig: reiner Zeitraumwechsel, Plan und Periode der Zeile folgen sofort dem Ziel
-	// (Abrechnung zum nächsten Zyklus).
-	await subscription.update({ plan: target.plan, period: target.period });
+	// (Abrechnung zum nächsten Zyklus). Der Wechsel ist eine erneute Entscheidung für das aktuelle
+	// Paket — eine ältere Downgrade-Vormerkung ist damit hinfällig (Review #1998), sonst fiele der
+	// Nutzer zum Periodenende still zurück, obwohl PayPal fortan das höhere Paket abrechnet.
+	await subscription.update({
+		plan: target.plan,
+		period: target.period,
+		pendingPlan: null,
+		pendingPeriod: null,
+		pendingPlanEffectiveAt: null,
+	});
 };
 
 /**

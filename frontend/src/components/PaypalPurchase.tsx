@@ -85,7 +85,7 @@ export const usePaypalPurchase = (): PurchaseUi => {
 			)}
 			{pendingWait?.kind === 'deferred' && (
 				<KolAlert _type="info" _alert _label="Wechsel vorgemerkt">
-					Wechsel bei PayPal eingereicht — das neue Paket gilt ab dem Ende der laufenden Periode.
+					Wechsel bei PayPal eingereicht — er wird mit der nächsten Abrechnung wirksam.
 				</KolAlert>
 			)}
 			{pendingWait?.kind === 'poll' && refresh !== undefined && (
@@ -107,6 +107,9 @@ export const usePaypalPurchase = (): PurchaseUi => {
 					return;
 				}
 				setPendingWait(immediate ? { kind: 'poll', expectedPlan: target.plan } : { kind: 'deferred' });
+				// Ein Refresh holt den serverseitig sofort wirksamen Zeitraumwechsel in die Anzeige
+				// (Review #1998) — ohne ihn stünde die alte Periode bis zum nächsten Fokus-Refresh.
+				if (!immediate) void refresh?.();
 			}}
 		/>
 	);

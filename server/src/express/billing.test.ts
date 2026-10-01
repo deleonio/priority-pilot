@@ -301,6 +301,47 @@ describe('Billing/Webhook-API (#1495)', () => {
 		assert.equal(sub?.get('period'), 'monthly', 'Zum Periodenende muss auch der Zeitraum wechseln');
 	});
 
+	// Review #1998 (Blocker): Ein gleichrangiger Zeitraumwechsel ist eine erneute Entscheidung für
+	// das aktuelle Paket — eine ältere Downgrade-Vormerkung muss damit entfallen, sonst fiele der
+	// Nutzer zum Periodenende still auf das niedrigere Paket, obwohl er zuletzt das höhere
+	// gewählt hat (und PayPal fortan das höhere abrechnet).
+	it('ein gleichrangiger Zeitraumwechsel verwirft eine ältere Downgrade-Vormerkung', async () => {
+		server = await startTestServer(withVerifier('verified'));
+		await Subscription.create({
+			userId: 16,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-PERIOD-DROP',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-12-01'),
+			pendingPlan: 'plus',
+			pendingPeriod: 'monthly',
+			pendingPlanEffectiveAt: new Date('2026-12-01'),
+		});
+		await rawPost(
+			'/webhooks/paypal',
+			JSON.stringify({
+				id: 'WH-PERIOD-DROP-1',
+				event_type: 'BILLING.SUBSCRIPTION.UPDATED',
+				resource: { id: 'I-PERIOD-DROP', plan_id: 'PAYPAL_PLAN_ID_PRO_YEARLY' },
+			}),
+			{ 'paypal-transmission-sig': 'ok' },
+		);
+
+		const sub = await Subscription.findOne({ where: { externalSubscriptionId: 'I-PERIOD-DROP' } });
+		assert.equal(sub?.get('period'), 'yearly', 'Der Zeitraumwechsel wirkt');
+		assert.equal(sub?.get('pendingPlan'), null, 'Die Downgrade-Vormerkung ist entfallen');
+		assert.equal(sub?.get('pendingPeriod'), null);
+		assert.equal(sub?.get('pendingPlanEffectiveAt'), null);
+		assert.equal(
+			await applyDuePendingPlan(sub!, new Date('2026-12-01T00:00:01Z')),
+			false,
+			'Nach dem Periodenende fällt nichts mehr zurück',
+		);
+		assert.equal(sub?.get('plan'), 'pro', 'Das Paket bleibt unverändert');
+	});
+
 	it('AK5: die Rückkehr-URL ohne zugehöriges Webhook-Ereignis ändert den Plan nicht', async () => {
 		server = await startTestServer(withVerifier('verified'));
 		await Subscription.create({

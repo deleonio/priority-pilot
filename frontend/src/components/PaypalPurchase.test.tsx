@@ -82,7 +82,9 @@ describe('usePaypalPurchase — Warteverhalten nach dem Wechsel', () => {
 
 		expect(await screen.findByRole('alert', { name: 'Wechsel vorgemerkt' })).toBeTruthy();
 		expect(screen.queryByRole('alert', { name: 'Zahlung wird bestätigt' })).toBeNull();
-		expect(refresh).not.toHaveBeenCalled();
+		// Ein Refresh holt den serverseitig sofort wirksamen Zeitraumwechsel in die Anzeige
+		// (Review #1998) — ohne ihn stünde die alte Periode bis zum nächsten Fokus-Refresh.
+		await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
 	});
 
 	it('ein Upgrade ohne approvalUrl wartet wie bisher auf die Bestätigung (Poll)', async () => {

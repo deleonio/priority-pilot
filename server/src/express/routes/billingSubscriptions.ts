@@ -8,7 +8,7 @@ import { getUserId } from '../requireAuth.js';
 import { sendError, parseId, type ErrorDto } from '../http-error.js';
 import { createPaypalProvider, type PaypalProviderDeps } from '../../logics/billing/paypalProvider.js';
 import { rankOf } from '../../logics/billing/lifecycle.js';
-import { PERIOD_MONTHS } from '../../logics/paypal.js';
+import { PaypalHttpError, PERIOD_MONTHS } from '../../logics/paypal.js';
 import { getPlansCatalog, PLAN_VALUES, type Plan } from '../../logics/plans.js';
 import { prorateUpgrade } from '../../logics/proration.js';
 
@@ -136,8 +136,7 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 
 	// POST /billing/subscriptions/cancel — löst die Kündigung bei PayPal aus (AK3). `plan` bleibt
 	// unverändert; wirksam wird die Kündigung erst über `BILLING.SUBSCRIPTION.CANCELLED`. Ein nie
-	// bestätigter Checkout (`approval_pending`) wurde bei PayPal nie zugestimmt und ist dort nicht
-	// kündbar — seine Zeile wird lokal entfernt, sonst blockierte sie jede Neubuchung (409).
+	// bestätigter Checkout (`approval_pending`) blockiert sonst jede Neubuchung (409).
 	router.post(
 		'/billing/subscriptions/cancel',
 		async (req: Request, res: Response<Record<string, never> | ErrorDto>) => {
@@ -155,6 +154,19 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				return;
 			}
 			if (subscription.get('status') === 'approval_pending') {
+				// Enges Fenster (Review #1998): Die Zustimmung kann bei PayPal bereits eingegangen
+				// sein, bevor ACTIVATED verarbeitet ist. Der Kündigungs-Ruf klärt das: Erfolg oder
+				// 4xx (nie zugestimmt/nicht mehr kündbar) räumt die Zeile lokal auf — bei
+				// Zustimmung kündigt derselbe Ruf das echte Abo dort. 5xx/Netzfehler ⇒ 502, die
+				// Zeile bleibt für einen neuen Anlauf.
+				try {
+					await checkout.cancel(subscription.get('externalSubscriptionId') as string);
+				} catch (error) {
+					if (!(error instanceof PaypalHttpError) || error.status >= 500) {
+						sendError(res, 502, 'PayPal war nicht erreichbar.');
+						return;
+					}
+				}
 				await subscription.destroy();
 				res.status(200).json({});
 				return;

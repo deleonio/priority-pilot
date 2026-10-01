@@ -8,6 +8,7 @@ import { Subscription } from '../models/index.js';
 import Invoice from '../models/invoice.js';
 import type { AppDeps } from './index.js';
 import { getPlansCatalog } from '../logics/plans.js';
+import { PaypalHttpError } from '../logics/paypal.js';
 
 /**
  * Rote Spec-Tests für #1505 (Spec docs/spec/issue-1505.md) — AK1-AK5 und AK7. Die Routen
@@ -137,14 +138,15 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 	});
 
 	// Fehlaktivierung/Cancel-Befund aus der Sandbox: ein abgebrochener Checkout liegt als
-	// approval_pending-Zeile herauf; PayPal kann ein nie zugestimmtes Abo nicht kündigen (422 →
-	// pauschal 502). Ein nie bestätigter Checkout wird lokal entfernt, ohne PayPal zu rufen.
-	it('POST /billing/subscriptions/cancel auf einer approval_pending-Zeile löscht sie lokal, ohne PayPal zu rufen', async () => {
-		let cancelCalls = 0;
+	// approval_pending-Zeile herauf; PayPal lehnt die Kündigung eines nie zugestimmten Abos mit
+	// 4xx ab (vorher: pauschal 502, Zeile blieb für immer offen). 4xx ⇒ lokal entfernen; war die
+	// Zustimmung bereits bei PayPal eingegangen (enges Fenster vor ACTIVATED, Review #1998),
+	// kündigt derselbe Ruf das echte Abo dort — nur Netz-/Serverfehler lassen die Zeile stehen.
+	it('POST /billing/subscriptions/cancel auf einer approval_pending-Zeile: PayPal-Ablehnung (4xx) entfernt sie lokal', async () => {
 		server = await startTestServer(
 			withClient({
 				cancel: async () => {
-					cancelCalls += 1;
+					throw new PaypalHttpError('nicht kündbar', 422);
 				},
 			}),
 		);
@@ -162,13 +164,70 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 
 		const res = await post('/billing/subscriptions/cancel', cookie);
 
-		assert.equal(res.status, 200, 'Ein abgebrochener Checkout muss kündbar sein');
-		assert.equal(cancelCalls, 0, 'PayPal muss für ein nie zugestimmtes Abo nicht gerufen werden');
+		assert.equal(res.status, 200, 'Eine PayPal-Ablehnung (4xx) muss die Zeile lokal aufräumen');
 		assert.equal(
-			await Subscription.count({ where: { userId: me.id } }),
+			await Subscription.count({ where: { userId: me.id, status: 'approval_pending' } }),
 			0,
 			'Die approval_pending-Zeile muss entfernt werden',
 		);
+	});
+
+	it('POST /billing/subscriptions/cancel auf einer approval_pending-Zeile: Netzfehler lässt sie für einen neuen Anlauf stehen', async () => {
+		server = await startTestServer(
+			withClient({
+				cancel: async () => {
+					throw new Error('ECONNREFUSED');
+				},
+			}),
+		);
+		const cookie = await login('cancel-unreachable@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-UNREACHABLE',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+
+		const res = await post('/billing/subscriptions/cancel', cookie);
+
+		assert.equal(res.status, 502, 'Ein Netzfehler darf die Zeile nicht beseitigen');
+		assert.equal(
+			await Subscription.count({ where: { userId: me.id, status: 'approval_pending' } }),
+			1,
+			'Nach Netzfehler bleibt die Zeile für einen neuen Anlauf stehen',
+		);
+	});
+
+	it('POST /billing/subscriptions/cancel auf einer approval_pending-Zeile kündigt ein dort bereits zugestimmtes Abo wirklich', async () => {
+		let cancelCalls = 0;
+		server = await startTestServer(
+			withClient({
+				cancel: async () => {
+					cancelCalls += 1;
+				},
+			}),
+		);
+		const cookie = await login('cancel-approved-race@example.com');
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: 'I-APPROVED-RACE',
+			plan: 'pro',
+			period: 'monthly',
+			status: 'approval_pending',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+
+		const res = await post('/billing/subscriptions/cancel', cookie);
+
+		assert.equal(res.status, 200);
+		assert.equal(cancelCalls, 1, 'PayPal muss gefragt werden — die Zustimmung kann bereits vorliegen');
+		assert.equal(await Subscription.count({ where: { userId: me.id } }), 0, 'Die Zeile wird danach entfernt');
 	});
 
 	it('AK4: POST /billing/subscriptions/change ruft den Revise-Aufruf mit der Ziel-Plan-ID auf und liefert die Zustimmungs-URL', async () => {
@@ -269,7 +328,11 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 		assert.equal(cancelled, false, 'Altes Abo erst nach Bestätigung des neuen kündigen');
 		assert.equal(created.length, 1, 'Genau ein neues Abo wird angelegt');
 		const first = created[0].override?.firstCycleCents;
-		assert.ok(first !== undefined && first > 899 - 399 && first < 899, `erster Zyklus reduziert, war ${first}`);
+		const { prices } = getPlansCatalog();
+		assert.ok(
+			first !== undefined && first > prices.pro.monthly - prices.plus.monthly && first < prices.pro.monthly,
+			`erster Zyklus reduziert, war ${first}`,
+		);
 	});
 
 	it('#1912: zwei abgebrochene Upgrade-Anläufe hinterlassen genau ein ausstehendes Abo neben dem aktiven', async () => {
