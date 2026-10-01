@@ -325,13 +325,20 @@ Zahlen pflegt die JSON. `weeklyBudgetUsd` wurde einmalig aus dem Ø der Wochenwe
 ### Monitoring
 
 ```bash
-# Wöchentliche Berichte (Turns zuerst, dann Token/USD); Baseline-Kohorte optional
+# Wöchentliche Berichte (Turns zuerst, dann Token/USD); Baseline-Kohorte optional.
+# Interventionen können explizit übergeben werden (Default: docs/kosten-interventionen.json);
+# Zielwerte und Wochenbudget kommen aus docs/kosten-ziele.json.
 node .github/scripts/turns-report.ts --dir .costs --baseline 2026-W35
-node .github/scripts/tokens-report.ts --dir .costs --baseline 2026-W35
+node .github/scripts/tokens-report.ts --dir .costs --baseline 2026-W35 [--interventions <pfad>]
 
 # Phasenweise Analyse
 node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs
 ```
+
+Der Kosten-Report zeigt oben das Status-Dashboard (alle Ziel-KPIs, aktuell 8), in
+„Läufe je Woche" die Δ-Soll-Spalte samt Monatsprognose und am Ende die Interventions-
+Tabelle (Ø Wert je Run, 7 Tage davor/danach); der Turn-Report ergänzt die Ticket-
+Kohorten-Sicht je Intervention (Turns, Erstgrün, Lead-Time).
 
 ---
 

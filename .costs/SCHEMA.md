@@ -141,7 +141,9 @@ Anthropic-Referenzstufen:
 Unbekannte Modelle zählen als `mid` (mit Warnung im Job-Log). Vollständige Zuordnung:
 `MODEL_CLASSES` in `cost-from-transcript.ts`. Zweck ist die vergleichbare Effizienz-Messung
 über alle Provider — `cost` bleibt die echte Abrechnungsbasis, `valueCost` ist der
-Bewertungsmaßstab.
+Bewertungsmaßstab. Auch die KOSTEN-BASIS des Prompt-Audits (`audit-basis.ts`) summiert
+`valueCost`: `:free`-/Fremdtarif-Läufe mit `cost` 0 würden ihre Phase sonst gratis
+erscheinen lassen.
 
 **GLM-Läufe werden zum z.ai-Listenpreis bewertet, nicht zur Klassenstufe.** Die Stufe war
 für sie zu grob: `glm-5.3` zählt als `flagship` ($5/$25), kostet real aber 3/10 EUR — der
