@@ -314,7 +314,13 @@ die Frage ist „hat die letzte Änderung etwas bewegt", nicht nur „wo stehen 
    - Messung: Cache-Read / Input je Provider — openrouter-Läufe färben den Gesamtwert sonst rot
 
 Jede Harness-Änderung wird in `docs/kosten-interventionen.json` eingetragen; der Turn-Report
-vergleicht dann die 20 Pipeline-Tickets davor mit den 20 danach.
+vergleicht dann die 20 Pipeline-Tickets davor mit den 20 danach, der Kosten-Report die Ø
+Läufe der 7 Tage davor/danach und markiert die Tage im Trend-Chart.
+
+Zielwerte und Wochenbudget liest der Report maschinell aus `docs/kosten-ziele.json`
+(KPI-Schlüssel unter `kpis.*`, `goal` = Anzeigetext, `okMax`/`okMin` = Ziel-Schwelle,
+`weeklyBudgetUsd` = Soll je Woche) — diese Liste hier bleibt die Definition der KPIs, die
+Zahlen pflegt die JSON. `weeklyBudgetUsd` wurde einmalig aus dem Ø der Wochenwerte abgeleitet.
 
 ### Monitoring
 

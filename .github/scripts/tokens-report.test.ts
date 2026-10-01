@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { classifyTicket, renderFocusReport, renderReport, ticketTotals } from './tokens-report.ts';
+import { classifyTicket, loadGoals, renderFocusReport, renderReport, ticketTotals } from './tokens-report.ts';
 import type { CostEntry } from './cost-record.ts';
 
 /**
@@ -95,8 +95,8 @@ describe('tokens-report', () => {
 			const report = renderReport(dir);
 			assert.match(
 				report,
-				/\| 2026-W53\*? \| 1 \| \$1\.00 \| — \| — \| — \|/,
-				'der 1.1.2027 gehört noch zur W53 von 2026 — ein Fehler am Jahreswechsel verschiebt die ganze Wochen-Tabelle (nur messende Läufe zählen, die wertlosen implement/documenter-Einträge nicht)',
+				/\| 2026-W53\*? \| 1 \| \$1\.00 \|[^|]*\| — \| — \| — \|/,
+				'der 1.1.2027 gehört noch zur W53 von 2026 — ein Fehler am Jahreswechsel verschiebt die ganze Wochen-Tabelle (nur messende Läufe zählen, die wertlosen implement/documenter-Einträge nicht; eine Zeile zwischen Wert und Provider-Zellen = Δ-Soll-Spalte)',
 			);
 			assert.match(
 				report,
@@ -296,10 +296,10 @@ describe('tokens-report', () => {
 			]);
 			const report = renderReport(dir);
 			// Status-Dashboard: nur die Ziel-KPIs — Pipeline-Kosten unter Ziel = 🟢, die übrigen
-			// Ziele ohne Daten (kein Review/Cache/Modell in den Fixtures) bleiben „—" (6 Ziel-Zeilen:
-			// Review-Runden zählen je Herkunft)
+			// Ziele ohne Daten (kein Review/Cache/Modell/Turns in den Fixtures) bleiben „—"
+			// (8 Ziel-Zeilen: Review-Runden je Herkunft, Turns- und Erstgrün-Ziel ohne Fenster)
 			assert.match(report, /### Status — Ziele auf einen Blick/);
-			assert.match(report, /\*\*1 von 6 Zielen erfüllt\*\*/);
+			assert.match(report, /\*\*1 von 8 Zielen erfüllt\*\*/);
 			assert.match(report, /\| Kosten je Ticket Pipeline — Median \(messende\) \| \$2\.00 \| < \$3\.00 \|.*🟢 \|/);
 			// Änderungsbericht: Siegelwoche (laufende Woche mit „*") und das versiegelte Ticket
 			assert.match(report, /### Was hat sich verändert — letzte Woche/);
@@ -496,5 +496,76 @@ describe('tokens-report', () => {
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+
+	it('führt Turns- und Erstgrün-Ziel im Kennzahlen-Block (KPI 2+3 des Optimierungsplans)', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-kpi23-'));
+		try {
+			// #101 mit Fixup (15 Turns, kein Erstgrün), #102 first-pass (8 Turns)
+			writeTicket(dir, '101', [
+				entry({ issueId: '101', phase: 'implement', valueCost: 1, turns: 10 }),
+				entry({ issueId: '101', phase: 'fixup', valueCost: 0.5, turns: 5, timestamp: '2026-08-24T11:00:00Z' }),
+				entry({ issueId: '101', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
+			]);
+			writeTicket(dir, '102', [
+				entry({ issueId: '102', phase: 'implement', valueCost: 2, turns: 8 }),
+				entry({ issueId: '102', phase: 'documenter', timestamp: '2026-08-24T12:00:00Z' }),
+			]);
+			const report = renderReport(dir, { interventions: [], goals: {} });
+			assert.match(report, /\| Turns je Ticket Pipeline — Median \| 15 \|/);
+			assert.match(report, /\| First-Pass-Grün Pipeline \(kein Fixup\) \| 1\/2 = 50 % \|.*steigend \|/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('stellt dem Wochenwert das Soll gegenüber und prognostiziert den Monat linear', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-budget-'));
+		try {
+			writeTicket(dir, '950', [
+				entry({ issueId: '950', phase: 'implement', valueCost: 1, timestamp: '2026-09-02T10:00:00Z' }),
+				entry({ issueId: '950', phase: 'review', valueCost: 2, timestamp: '2026-09-03T10:00:00Z' }),
+				entry({ issueId: '950', phase: 'implement', valueCost: 2, timestamp: '2026-09-09T10:00:00Z' }),
+				entry({ issueId: '950', phase: 'review', valueCost: 3, timestamp: '2026-09-10T10:00:00Z' }),
+				entry({ issueId: '950', phase: 'documenter', timestamp: '2026-09-10T12:00:00Z' }),
+			]);
+			const report = renderReport(dir, { interventions: [], goals: { weeklyBudgetUsd: 3 } });
+			// W36 = $3.00 (Soll erfüllt), W37 = $5.00 (rot über Soll) — laufende Woche trägt den Stern
+			assert.match(report, /\| 2026-W36 \| 2 \| \$3\.00 \| \+\$0\.00 \|/);
+			assert.match(report, /\| 2026-W37\* \| 2 \| \$5\.00 \| \+\$2\.00 🔴 \|/);
+			// Monat bis dato $8.00 an 10 von 30 Tagen → Prognose $24.00 (Anker = jüngster messender Tag)
+			assert.match(
+				report,
+				/\*\*Budget:\*\* Soll \$3\.00\/Woche · 2026-09 bis dato \$8\.00 · Prognose bei gleichem Tempo \$24\.00\/Monat\./,
+			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('markiert Interventionstage im Trend-Chart und stellt Ø Wert je Run davor/danach', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'tokens-report-iv-'));
+		try {
+			writeTicket(dir, '960', [
+				entry({ issueId: '960', phase: 'review', valueCost: 1, timestamp: '2026-09-01T10:00:00Z' }),
+				entry({ issueId: '960', phase: 'review', valueCost: 1, timestamp: '2026-09-01T11:00:00Z' }),
+				entry({ issueId: '960', phase: 'review', valueCost: 2, timestamp: '2026-09-03T10:00:00Z' }),
+				entry({ issueId: '960', phase: 'review', valueCost: 2, timestamp: '2026-09-04T10:00:00Z' }),
+				entry({ issueId: '960', phase: 'documenter', timestamp: '2026-09-04T12:00:00Z' }),
+			]);
+			const report = renderReport(dir, {
+				interventions: [{ date: '2026-09-03', label: 'Test-Intervention' }],
+				goals: {},
+			});
+			assert.match(report, /x-axis \["09-01", "09-03\*", "09-04"\]/, 'Interventionstag trägt den Stern');
+			assert.match(report, /### Interventionen — Ø Wert je Run, 7 Tage davor\/danach/);
+			assert.match(report, /\| 2026-09-03 \| Test-Intervention \| 2\/2 \| \$1\.00 → \$2\.00 \| ↑ 100 % \|/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('liest Ziel-Dateien fehlertolerant: fehlende Datei = leere Ziele, Defaults gelten', () => {
+		assert.deepEqual(loadGoals(join(tmpdir(), 'gibt-es-nicht-kosten-ziele.json')), {});
 	});
 });

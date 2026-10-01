@@ -175,6 +175,9 @@ export const rollingMedian = (values: readonly number[], window: number): number
 
 // ─── Sammel-Helfer ───────────────────────────────────────────────────────────
 
+/** Optionales Zahlenfeld als 0 — `undefined`/NaN heißt „unbekannt", aber Summen brauchen eine Zahl. */
+export const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
+
 /** Map-Eintrag holen oder anlegen — ersetzt das vierfach kopierte `let x = m.get(k); if (!x) …`. */
 export const getOrInit = <K, V>(map: Map<K, V>, key: K, init: () => V): V => {
 	let v = map.get(key);
