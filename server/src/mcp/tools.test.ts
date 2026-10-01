@@ -342,6 +342,15 @@ describe('MCP-Werkzeuge v1 (#1353 AK3–AK8)', () => {
 		assert.deepEqual(mcpNext.result, httpBody);
 	});
 
+	it('#2044 AK5: next_task liefert die Score-Aufschlüsselung mit', async () => {
+		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
+		const token = await createToken(cookie);
+		await createTaskViaApi(cookie, 'Mit Begründung');
+
+		const mcpNext = await mcpCall<{ scoreBreakdown?: { total: number } } | null>(token, 'next_task');
+		assert.equal(typeof mcpNext.result?.scoreBreakdown?.total, 'number');
+	});
+
 	it('AK4: next_task liefert null, wenn es keine freie Aufgabe gibt', async () => {
 		const cookie = await server.register('mcp-tools-a@example.com', 'password123');
 		const token = await createToken(cookie);

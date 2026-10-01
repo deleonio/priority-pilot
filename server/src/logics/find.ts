@@ -35,10 +35,13 @@ const ladeFreieTasks = async (userId?: number, now: Date = new Date()): Promise<
 };
 
 /** GET /next (#2043): Rang 1 derselben Bewertung, die `/suggestions` ordnet — `null` ohne freie Tasks. */
-export const findNextImportantTask = async (userId?: number): Promise<Task | null> => {
+export const findNextBewertung = async (userId?: number): Promise<Bewertung | null> => {
 	const [erster] = await bewerteKandidaten(userId);
-	return erster?.task ?? null;
+	return erster ?? null;
 };
+
+export const findNextImportantTask = async (userId?: number): Promise<Task | null> =>
+	(await findNextBewertung(userId))?.task ?? null;
 
 // ── Vorschlags-Engine (#122, Konzept §4.3) ──────────────────────────────────────────────────────
 //
@@ -212,13 +215,14 @@ export const bewerteKandidaten = async (userId?: number, now: Date = new Date())
  * „Was ist jetzt dran?"-Liste (#122): die Bewertung aus `bewerteKandidaten`, danach der
  * Überlastungsschutz als Post-Filter (ändert das Ranking nicht).
  */
-export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
+export const findSuggestedBewertungen = async (userId?: number): Promise<Bewertung[]> => {
 	const bewertet = await bewerteKandidaten(userId);
 
 	// Überlastungsschutz: höchstens MAX_PRO_SAEULE Tasks je Säule, insgesamt ≤ MAX_VORSCHLAEGE.
 	const proSaeule = new Map<number, number>();
-	const liste: Task[] = [];
-	for (const { task } of bewertet) {
+	const liste: Bewertung[] = [];
+	for (const eintrag of bewertet) {
+		const { task } = eintrag;
 		if (liste.length >= MAX_VORSCHLAEGE) {
 			break;
 		}
@@ -227,10 +231,28 @@ export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
 		if (ueberlastet) {
 			continue; // weitere Tasks dieser Säule zurückstellen
 		}
-		liste.push(task);
+		liste.push(eintrag);
 		for (const pillar of taskPillars) {
 			proSaeule.set(pillar.id, (proSaeule.get(pillar.id) ?? 0) + 1);
 		}
 	}
 	return liste;
+};
+
+export const findSuggestedTasks = async (userId?: number): Promise<Task[]> =>
+	(await findSuggestedBewertungen(userId)).map(({ task }) => task);
+
+/** Score-Aufschlüsselung (#2044): Beiträge 1:1 aus `Bewertung`; Beitrag 0 ⇒ Schlüssel fehlt. */
+export const toScoreBreakdown = ({ score, beitraege }: Bewertung) => {
+	const faktoren = {
+		priority: beitraege.prio,
+		unlock: beitraege.entsperr,
+		balance: beitraege.balance,
+		deadline: beitraege.deadline,
+		effort: beitraege.aufwand,
+	};
+	return {
+		total: score,
+		...Object.fromEntries(Object.entries(faktoren).filter(([, beitrag]) => beitrag !== 0)),
+	};
 };
