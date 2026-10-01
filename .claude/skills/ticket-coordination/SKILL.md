@@ -55,13 +55,13 @@ phases: [Pipeline-Flow](../../../docs/pipeline-flow.md).
 | Situation | Action |
 | --- | --- |
 | Next issue is free (all blockers closed) | set `ai:needs-analyse` |
-| `ai:needs-po-review` present | read KI-ANALYSE (Ampel, Offene Fragen) and the `ai-phase-routing` table; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
-| Analysis has open questions or 🟡/🔴 | put the question to the author with the options from the analysis; do not route. Parser false alarms (constraints listed as questions) you clear yourself with a comment |
+| `ai:needs-po-review` present, or a fresh KI-ANALYSE without it (sub-issues of a split carry only `ai:analysed`) | read KI-ANALYSE (Ampel, Offene Fragen) and the `ai-phase-routing` table; set the **first** phase with Run = ja: ux → `ai:needs-ux-ui`, else spec → `ai:needs-spec`, else `ai:needs-impl` |
+| Analysis has open questions or 🟡/🔴 | put the question to the author with the options from the analysis; do not route. Parser false alarms (constraints listed as questions) you clear yourself with a comment. A `<!-- ai-triage-decision -->` comment with `ai:needs-human` is the same case before any analysis: after the answer post it as a PO comment, then set `ai:analysed` + `ai:needs-analyse` without `ai:needs-human` |
 | `ai:needs-human` after a phase | read the run log first (section 4, item 3); only a real open question goes to the author |
 | `ai:continued` on the issue | soft abort at the time limit, the next run resumes — wait. A second run without push is a finding |
 | PR of the issue appears | subscribe to its activity immediately |
 | `ai:needs-human` on the PR | read the stop comment; fix small causes yourself (base merge, re-review), otherwise ask the author |
-| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had its review verdict, re-arm `ai:needs-review`. A conflict that needs a product decision goes to the author |
+| PR has a merge conflict (`mergeable_state: dirty`) | check every open PR of the epic at each check-in and after each merge to main. No phase **running** on the branch → hand the resolution to a subagent at once (section 6, one per PR, in parallel), even if a fixup is merely queued or crashed — waiting for the queue costs hours when phases stall. Phase running → wait for its end; the fixup run merges main before it starts and resolves the markers itself, so give it the resolution rule as an inline review comment on the conflicting file (it reads review threads, not plain PR comments). After the subagent's push: if the PR already had a green verdict, re-arm `ai:needs-review`; an attached `ai:needs-fixup` stays (its findings are still open). A conflict that needs a product decision goes to the author |
 | Author comments as PO on a PR or issue | apply at once (ticket body, ADR, labels), adjust dependent tickets |
 | PR merged, issue closed | check main CI, start the next issue in the same turn |
 | All sub-issues of an epic closed | check the merged PRs for named follow-up work that no ticket covers; ask the author about a follow-up ticket. Never close the epic yourself |
@@ -165,6 +165,10 @@ pipeline and later readers see it.
     the same step (else the pipeline fixup runs on the branch in parallel) and post the proof
     as an `<!-- ai-fixup-decisions -->` comment with the fixed-findings table; a thread reply
     alone lets the re-review end in a false `ai:needs-human`.
+18. **Blocker merged → automatic re-triage.** When a blocker's PR merges, the pipeline itself sets
+    `ai:needs-analyse` on the blocked issue. Do not route it before that run ends: the re-triage
+    rewrites the label set and drops your trigger. Post PO notes on the issue right away — the
+    re-triage works them into the analysis — and route on its `ai:needs-po-review`.
 
 ## 5. Tool notes
 
