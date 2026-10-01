@@ -4,7 +4,11 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-01
 
-_Enthält v0.12.0 – v0.12.5._
+_Enthält v0.12.0 – v0.12.6._
+
+### 🎉 New Features
+
+- feat(server): generate compliant PDF invoices and email them (#1955) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2025
 
 ### 🔧 Engineering
 
@@ -312,7 +316,7 @@ _Enthält v0.3.0 – v0.3.8._
 - fix(server): reliable pillar recalculation with status filter by @deleonio in https://github.com/deleonio/priority-pilot/pull/1615
 - fix(ci): bump version before build so deployed footer matches changelog by @deleonio in https://github.com/deleonio/priority-pilot/pull/1619
 - feat(frontend): add week view to the daily plan (#1617) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1620
-- feat(frontend): add week view to the daily plan (#1617) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1620
+- feat(frontend): serve the app under /app/ and add a public website by @deleonio in https://github.com/deleonio/priority-pilot/pull/1621
 - feat(frontend): serve the app under /app/ and add a public website by @deleonio in https://github.com/deleonio/priority-pilot/pull/1621
 
 ## v0.2 - 2026-09-22
