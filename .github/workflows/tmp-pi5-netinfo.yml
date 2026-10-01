@@ -1,0 +1,19 @@
+name: tmp-pi5-netinfo
+# Temporaerer Diagnose-Job: sucht den SSH-Eingang zum Pi 5 wieder (Speedport-Quirk:
+# IPv4 inbound tot, mDNS publiziert keinen AAAA). Wird nach Gebrauch wieder entfernt.
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  info:
+    runs-on: pi5
+    timeout-minutes: 3
+    steps:
+      - name: netinfo
+        run: |
+          hostname
+          ip -br link
+          ip -6 addr show scope global
+          ip -4 addr show
+          ip route show default
