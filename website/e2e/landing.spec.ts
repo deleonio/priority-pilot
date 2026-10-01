@@ -25,7 +25,7 @@ test.describe('Öffentliche Website', () => {
 		const pricing = page.locator('#pricing');
 		await pricing.scrollIntoViewIfNeeded();
 		await expect(pricing.locator('[data-plan]')).toHaveCount(3);
-		for (const price of ['4,99 €', '13,47 €', '47,90 €', '9,99 €', '26,97 €', '95,90 €']) {
+		for (const price of ['4,99 €', '13,47 €', '47,90 €', '8,99 €', '24,27 €', '86,30 €']) {
 			await expect(pricing.getByText(price).first()).toBeVisible();
 		}
 		const viewport = page.viewportSize()?.width ?? 0;
@@ -41,11 +41,11 @@ test.describe('Öffentliche Website', () => {
 		await page.goto('/');
 		const pricing = page.locator('#pricing');
 		await pricing.scrollIntoViewIfNeeded();
-		await expect(pricing.locator('[data-plan="free"]').getByText(/3,99|7,99/)).toHaveCount(0);
+		await expect(pricing.locator('[data-plan="free"]').getByText(/3,99|7,19/)).toHaveCount(0);
 		const viewport = page.viewportSize()?.width ?? 0;
 		for (const [plan, amount] of [
 			['plus', '3,99 €'],
-			['pro', '7,99 €'],
+			['pro', '7,19 €'],
 		]) {
 			const hint = pricing.locator(`[data-plan="${plan}"]`).getByText(amount);
 			await expect(hint).toBeVisible();

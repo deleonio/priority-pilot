@@ -27,9 +27,9 @@ Die Preisstrategie im Epic #1780 ersetzt die vier Stufen (Free, Pro, Max, Ultima
 | Paket |  Monat | Quartal (−10 %) | Jahr (−20 %) |
 | ----- | -----: | --------------: | -----------: |
 | Plus  | 4,99 € |         13,47 € |      47,90 € |
-| Pro   | 9,99 € |         26,97 € |      95,90 € |
+| Pro   | 8,99 € |         24,27 € |      86,30 € |
 
-Maßgeblich zur Laufzeit bleibt `server/src/logics/plans.ts`; die Preise hier sind der Entscheidungsstand.
+Maßgeblich zur Laufzeit bleibt `server/src/logics/plans.ts`; die Preise hier sind der Entscheidungsstand. Angepasst am 2026-10-01: Pro von 9,99/26,97/95,90 € auf 8,99/24,27/86,30 € gesenkt (Plus unverändert); die PayPal-Abo-Pläne tragen die aktuellen Beträge.
 
 **3. Grundsätze.** Das Kernerlebnis ist kostenlos, die Fürsorge gehört vollständig in Free. Begrenzt werden Funktionen, nie die Zahl der Aufgaben. Der Aufgaben-Graph ist vor dem Kauf erlebbar. Bestandskunden zahlen nicht mehr: Pro und Max werden Plus, Ultimate wird Pro (#1785).
 
