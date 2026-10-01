@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+	<rect width="1200" height="520" fill="#0f131a"/>
+	<rect x="1" y="1" width="1198" height="518" rx="14" fill="none" stroke="#2a3140" stroke-width="2"/>
+	<text x="36" y="52" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="24" font-weight="600" fill="#e6edf3">Balamentum</text>
+	<text x="1164" y="52" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="20" fill="#9aa4b2" text-anchor="end">Copy that cares</text>
+	<text x="60" y="126" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="26" font-weight="600" fill="#e6edf3">The review question: “Does the text care, or does it just log?”</text><rect x="60" y="168" width="520" height="230" rx="12" fill="#161b22" stroke="#b42318" stroke-width="2"/>
+	<circle cx="100" cy="210" r="13" fill="none" stroke="#f0503c" stroke-width="2.5"/>
+	<path d="M93,203 L107,217 M107,203 L93,217" stroke="#f0503c" stroke-width="2.5"/>
+	<text x="128" y="217" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="19" fill="#f0503c">logs</text>
+	<text x="92" y="268" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" fill="#e6edf3">“You have been neglecting</text>
+	<text x="92" y="298" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" fill="#e6edf3">your body pillar.”</text><rect x="620" y="168" width="520" height="230" rx="12" fill="#161b22" stroke="#1a7f37" stroke-width="2"/>
+	<circle cx="660" cy="210" r="13" fill="none" stroke="#43d488" stroke-width="2.5"/>
+	<path d="M653,210 L659,217 L670,202" stroke="#43d488" stroke-width="2.5" fill="none"/>
+	<text x="688" y="217" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="19" fill="#43d488">cares</text>
+	<text x="652" y="260" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" fill="#e6edf3">“Your body could use a break.</text>
+	<text x="652" y="290" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" fill="#e6edf3">A short walk or an earlier night</text>
+	<text x="652" y="320" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" fill="#e6edf3">already does a lot today — starting</text>
+	<text x="652" y="350" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" fill="#e6edf3">small counts.”</text><text x="60" y="448" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="19" fill="#9aa4b2">Example from Balamentum’s care copy: situation “deficit”, pillar “body”.</text>
+	<text x="36" y="490" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="20" fill="#9aa4b2">Illustration: the same finding, two tones.</text>
+</svg>
