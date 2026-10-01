@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-01
 
-_Enthält v0.12.0 – v0.12.10._
+_Enthält v0.12.0 – v0.12.11._
 
 ### 🎉 New Features
 
@@ -23,6 +23,7 @@ _Enthält v0.12.0 – v0.12.10._
 - feat(plans): lower pro prices to 8.99/24.27/86.30 eur by @deleonio in https://github.com/deleonio/priority-pilot/pull/2026
 - docs(adr): add ADR 0019 waitlist launch access model (#1961) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2027
 - docs(skill): ticket-coordination — check-in cadence while issue phases run by @deleonio in https://github.com/deleonio/priority-pilot/pull/2029
+- feat(server,frontend): waitlist with referral rank (#1982) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2034
 
 ## v0.11 - 2026-09-30
 
