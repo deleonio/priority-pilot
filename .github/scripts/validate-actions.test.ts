@@ -13,7 +13,7 @@ import { classifyTarget, isValidationTarget, validateSource } from './validate-a
  */
 
 const workflow = (body: string): string =>
-	`on: push\n${body}jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo\n`;
+	`on: push\n${body}jobs:\n  a:\n    runs-on: \${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}\n    steps:\n      - run: echo\n`;
 
 describe('classifyTarget', () => {
 	it('erkennt Composite-Actions am Dateinamen, alles andere ist ein Workflow', () => {

@@ -51,7 +51,7 @@ on:
 jobs:
   set-agent-config:
     name: Update AGENT_RUNTIME / LLM_PROVIDER
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
       id-token: write # Für GitHub-App-Token

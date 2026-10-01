@@ -47,7 +47,7 @@ concurrency:
 
 jobs:
   cleanup:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: pnpm-/Playwright-Caches ohne Zugriff seit 7 Tagen + verwaiste Altbestaende loeschen
         env:

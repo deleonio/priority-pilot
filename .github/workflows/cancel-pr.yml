@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   cancel:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.PHASE_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight

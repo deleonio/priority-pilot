@@ -1,0 +1,32 @@
+name: tmp-pi5-netinfo
+# Temporaerer Diagnose-Job: sucht den SSH-Eingang zum Pi 5 wieder (Speedport-Quirk:
+# IPv4 inbound tot, wlan0 hat aktuell keine IPv6). Wird nach Gebrauch wieder entfernt.
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  info:
+    runs-on: pi5
+    timeout-minutes: 3
+    steps:
+      - name: diagnose
+        run: |
+          echo "=== ipv6 sysctls ==="
+          docker run --rm --network host --privileged --pid host alpine sh -c "
+            for f in disable_ipv6 accept_ra forwarding; do
+              for i in all default wlan0 docker0; do
+                printf '%s.%s = ' \$i \$f; cat /proc/sys/net/ipv6/conf/\$i/\$f 2>/dev/null || echo '?'
+              done
+            done
+            echo '=== sshd listen ==='
+            cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | awk 'NR==1 || \$4==\"0A\"' | head -12
+            echo '=== avahi procs ==='
+            ps aux 2>/dev/null | grep -E 'avahi|NetworkManager|dhcpcd|systemd-network' | grep -v grep | head -8
+          "
+          echo "=== firewall ==="
+          docker run --rm --network host --privileged alpine sh -c "
+            iptables -S INPUT 2>&1 | head -15
+            echo '--- nft ---'
+            nft list ruleset 2>&1 | head -25
+          " 2>&1
