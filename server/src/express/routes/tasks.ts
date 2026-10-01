@@ -14,7 +14,7 @@ import { getUserId, ownerScope } from '../requireAuth.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
-import { sendAccountAccessMail } from '../../logics/accessMail.js';
+import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 import { notifyTaskCreated } from '../../logics/taskCreatedNotification.js';
 import { notifyTaskCompleted } from '../../logics/taskCompletedNotification.js';
@@ -778,7 +778,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			}
 			// #1983 (AK5): Benachrichtigung an die externe Adresse — E-Mail mit direktem Zugang,
 			// nach dem Commit und vor der Antwort abgewartet (Nebenwirkung beobachtbar).
-			if (newRecipientEmail !== null) {
+			const accessMailThrottled = newRecipientEmail !== null && !claimAccessMailSlot(userId ?? 0);
+			if (newRecipientEmail !== null && !accessMailThrottled) {
 				try {
 					await sendAccountAccessMail(newRecipientEmail, {
 						subject: `Aufgabe „${created.title}" bei Balamentum`,
@@ -801,7 +802,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 500, 'Interner Serverfehler.');
 				return;
 			}
-			res.status(201).json((await serializeTasksFor(req, [withPillars]))[0]);
+			const dto = (await serializeTasksFor(req, [withPillars]))[0];
+			res.status(201).json(accessMailThrottled ? { ...dto, accessMailThrottled } : dto);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
@@ -1035,7 +1037,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 			});
 			// #1983 (AK5): Zugangs-Mail an die externe Adresse — nach dem Commit und vor der Antwort
 			// abgewartet; ein Versandfehler lässt die Übergabe unberührt (Muster #1224/#1363).
-			if (patchNewRecipientEmail !== null) {
+			const accessMailThrottled = patchNewRecipientEmail !== null && !claimAccessMailSlot(getUserId(req) ?? 0);
+			if (patchNewRecipientEmail !== null && !accessMailThrottled) {
 				try {
 					await sendAccountAccessMail(patchNewRecipientEmail, {
 						subject: `Aufgabe „${task.title}" bei Balamentum`,
@@ -1080,7 +1083,8 @@ export const createTasksRouter = ({ pushSender }: TasksRouterDeps = {}): Router 
 				sendError(res, 404, 'Task nicht gefunden.');
 				return;
 			}
-			res.json(serializeTask(withPillars));
+			const dto = serializeTask(withPillars);
+			res.json(accessMailThrottled ? { ...dto, accessMailThrottled } : dto);
 		} catch (error) {
 			handleWriteError(res, error);
 		}
