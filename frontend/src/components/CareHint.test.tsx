@@ -89,6 +89,18 @@ describe('CareHint (#1793)', () => {
 		vi.clearAllMocks();
 	});
 
+	// #1967 AK4: ärztlicher Rat + TelefonSeelsorge als Light-DOM-`a` in beiden Varianten.
+	it.each([
+		['mit Vorschlag', [vorlage]],
+		['ohne Vorschlag', []],
+	])('#1967 AK4: %s zeigt ärztlichen Rat und tel:-Link zur TelefonSeelsorge', async (_name, vorschlaege) => {
+		getCareSuggestions.mockResolvedValue({ vorschlaege });
+		render(<CareHint />);
+		const el = await zeigeHinweis();
+		expect(el.textContent).toContain('ärztlichen Rat');
+		expect(el.querySelector('a[href="tel:08001110111"]')).not.toBeNull();
+	});
+
 	it('AK1: rendert genau EINEN Hinweis mit Säulenname und Titel des ersten Vorschlags', async () => {
 		getCareSuggestions.mockResolvedValue({ vorschlaege: [vorlage, zweite] });
 		render(<CareHint />);

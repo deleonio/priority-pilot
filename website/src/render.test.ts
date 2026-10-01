@@ -536,3 +536,31 @@ describe('renderPrivacy vollständig (#1892)', () => {
 		expect(html).toMatch(/gehasht|Hash/i);
 	});
 });
+
+/** #1967 AK3 (docs/spec/issue-1967.md): Zweckbestimmung in jeder Sprachversion und in den AGB. */
+describe('Zweckbestimmung (#1967)', () => {
+	const medizinprodukt: Record<Locale, RegExp> = {
+		de: /kein Medizinprodukt/u,
+		en: /not a medical device/iu,
+		es: /producto sanitario/iu,
+		fr: /dispositif médical/iu,
+		it: /dispositivo medico/iu,
+		nl: /medisch hulpmiddel/iu,
+		pl: /wyrob(em)? medyczn/iu,
+		pt: /dispositivo médico/iu,
+		ru: /медицинск/iu,
+		sv: /medicinteknisk/iu,
+	};
+
+	for (const locale of LOCALES) {
+		it(`${locale}: Landingpage nennt „kein Medizinprodukt“`, () => {
+			expect(landing(locale)).toMatch(medizinprodukt[locale]);
+		});
+	}
+
+	it('AGB führen die Zweckbestimmung als Absatz', () => {
+		expect(renderTerms, 'renderTerms fehlt').toBeTypeOf('function');
+		const html = renderTerms!({ locale: 'de', messages: de, siteUrl: '', allMessages });
+		expect(html).toMatch(/<p[^>]*>[^<]*kein Medizinprodukt[^<]*<\/p>/u);
+	});
+});
