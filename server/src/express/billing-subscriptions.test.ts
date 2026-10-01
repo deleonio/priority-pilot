@@ -6,6 +6,7 @@ import { Subscription } from '../models/index.js';
 // (Muster models/invoice.test.ts), um diese Testdatei nicht an einer fremden Produktivlücke
 // scheitern zu lassen (SKILL.md: Import-/Syntaxfehler ist kein legitimes Rot).
 import Invoice from '../models/invoice.js';
+import { issueInvoiceForPeriod } from '../logics/invoices.js';
 import type { AppDeps } from './index.js';
 import { getPlansCatalog } from '../logics/plans.js';
 import { PaypalHttpError } from '../logics/paypal.js';
@@ -701,5 +702,70 @@ describe('Abo-Verwaltungs-API (#1505)', () => {
 			const res = await fetch(`${server.baseUrl}/billing/invoices`);
 			assert.equal(res.status, 401);
 		});
+	});
+});
+
+describe('Rechnungs-PDF-Download (#1955 AK4)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	const login = (email: string) => server.login(email);
+	const get = (path: string, cookie?: string) =>
+		fetch(`${server.baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {} });
+
+	/** Legt Nutzer + PayPal-Abo an und erzeugt über den Rechnungslauf eine Rechnung samt PDF-Bytes. */
+	const issueFor = async (email: string) => {
+		const cookie = await login(email);
+		const me = (await (await get('/auth/me', cookie)).json()) as { id: number };
+		const sub = await Subscription.create({
+			userId: me.id,
+			provider: 'paypal',
+			externalSubscriptionId: `I-${email}`,
+			plan: 'plus',
+			period: 'monthly',
+			status: 'active',
+			currentPeriodEnd: new Date('2026-12-01'),
+		});
+		const invoice = await issueInvoiceForPeriod(sub, new Date('2026-11-01T10:00:00Z'), async () => {});
+		return { cookie, invoice };
+	};
+
+	it('AK4: GET /billing/invoices/{id}/pdf liefert dem Eigentümer Header und byte-identische Bytes', async () => {
+		server = await startTestServer(withClient({}));
+		const { cookie, invoice } = await issueFor('pdf-owner@example.com');
+		const number = invoice.get('number') as string;
+
+		const res = await get(`/billing/invoices/${invoice.get('id')}/pdf`, cookie);
+
+		assert.equal(res.status, 200);
+		assert.ok(
+			(res.headers.get('content-type') ?? '').includes('application/pdf'),
+			'Content-Type muss application/pdf sein',
+		);
+		assert.ok(
+			(res.headers.get('content-disposition') ?? '').includes(number),
+			'Content-Disposition muss den Dateinamen aus der Rechnungsnummer tragen',
+		);
+		await invoice.reload();
+		const stored = (invoice.get({ plain: true }) as { pdfBytes?: Uint8Array }).pdfBytes;
+		assert.ok(stored, 'Die Rechnung muss gespeicherte PDF-Bytes haben');
+		const body = Buffer.from(await res.arrayBuffer());
+		assert.ok(body.equals(Buffer.from(stored)), 'Der Download muss byte-identisch zu den gespeicherten Bytes sein');
+	});
+
+	it('AK4: GET /billing/invoices/{id}/pdf einer fremden Rechnung antwortet 404', async () => {
+		server = await startTestServer(withClient({}));
+		const { invoice } = await issueFor('pdf-b@example.com');
+		const cookieA = await login('pdf-a@example.com');
+
+		const res = await get(`/billing/invoices/${invoice.get('id')}/pdf`, cookieA);
+
+		assert.equal(res.status, 404, 'Fremde PDFs dürfen weder inhaltlich noch über den Status verraten werden');
 	});
 });

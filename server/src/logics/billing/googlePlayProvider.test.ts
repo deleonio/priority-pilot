@@ -4,6 +4,9 @@ import { Subscription, User } from '../../models/index.js';
 import { resetDb, closeDb } from '../../test/helpers.js';
 import { applyDuePendingPlan } from './lifecycle.js';
 import { applyPlayState } from './googlePlayProvider.js';
+// Invoice ist (Stand #1495) nicht aus models/index.ts re-exportiert — direkter Import (Muster
+// billing-subscriptions.test.ts).
+import Invoice from '../../models/invoice.js';
 
 /**
  * #1694/#1696: Die Stände eines Play-Abos wirken über den vorhandenen Lebenszyklus auf Paket, Kulanz,
@@ -134,5 +137,24 @@ describe('applyPlayState (#1694)', () => {
 		assert.equal(subscription.get('plan'), 'free');
 		assert.deepEqual(subscription.get('currentPeriodEnd'), NOW);
 		assert.equal(await planOf(user.id), 'free');
+	});
+});
+
+describe('#1955 AK6 — Google Play erzeugt keine Rechnung', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	// Regressionsschutz: Google stellt den Beleg (ADR 0017) — nur der PayPal-Pfad erzeugt Rechnungen.
+	// Bewusst bereits vor der PDF-Umsetzung grün: das Verhalten ist heute korrekt und soll es bleiben.
+	it('Play-Stand (ACTIVE, verlängert) löst keine Rechnungserzeugung aus', async () => {
+		const { subscription } = await setup();
+
+		await applyPlayState(subscription, play('ACTIVE', NEXT_END), false, NOW);
+
+		assert.equal(await Invoice.count(), 0, 'Google-Play-Zahlungen dürfen keine eigene Rechnung auslösen');
 	});
 });
