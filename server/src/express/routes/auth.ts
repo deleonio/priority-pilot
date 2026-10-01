@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { Op, UniqueConstraintError } from 'sequelize';
-import { isEmailAllowed } from '../../logics/allowedEmails.js';
+import { isDbEmailAllowed, isEmailAllowed } from '../../logics/allowedEmails.js';
 import sequelize from '../../database.js';
 import { Pillar, Subscription, User } from '../../models/index.js';
 import type { UserRole } from '../../models/user.js';
@@ -333,7 +333,7 @@ authRouter.post('/auth/native/exchange', async (req, res) => {
 		typeof code === 'string' && code !== '' && typeof state === 'string' && state !== ''
 			? await consumeLoginToken(nativeLoginToken(code, state), 'native')
 			: null;
-	if (!email || !(await isEmailAllowed(email))) {
+	if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 		sendError(res, 400, 'Der Anmeldecode ist abgelaufen oder wurde schon benutzt.');
 		return;
 	}
@@ -581,7 +581,7 @@ if (process.env.NODE_ENV === 'test') {
 		// Issue #1136: Ohne konfigurierte Allowlist (Pass-Through-Modus, siehe `isAuthActive`) ist
 		// jede Adresse erlaubt — sonst bliebe der Endpunkt in einer auth-losen E2E-Umgebung unbenutzbar.
 		const hasAllowlist = !!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
-		if (!email || (hasAllowlist && !(await isEmailAllowed(email)))) {
+		if (!email || (hasAllowlist && !(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 			res.status(401).json({ message: 'Nicht eingeloggt.' });
 			return;
 		}

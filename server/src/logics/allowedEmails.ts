@@ -9,8 +9,10 @@
 //
 // Alle Adressen werden normalisiert (trim + lowercase). Der Vergleich in isEmailAllowed()
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
+// Neben der Env-Allowlist steht die DB-Zulassung (`AllowedEmail`, Freischaltung mit Herkunft):
+// `isDbEmailAllowed()` prüft sie, die Aufrufer kombinieren beide Quellen (siehe unten).
 
-import WaitlistEntry from '../models/waitlistEntry.js';
+import AllowedEmail from '../models/allowedEmail.js';
 
 /** Normalisiert eine E-Mail-Adresse für den Vergleich (trim + lowercase). */
 const normalize = (email: string): string => email.trim().toLowerCase();
@@ -91,24 +93,34 @@ export const getConfiguredEmails = (): string[] => {
 };
 
 /**
- * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist oder auf der Warteliste
- * freigeschaltet wurde (`status = 'activated'`, #1982/ADR 0019). Bei offener Registrierung
- * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant.
- * Liefert false, wenn keine Allowlist konfiguriert ist (statt zu werfen) — so bleibt der Aufruf
- * in der Middleware robust. Async, weil die Freischaltung in der DB steht — alle Aufrufer awaiten.
+ * Prüft, ob die übergebene E-Mail in der Env-Allowlist enthalten ist. Bei offener Registrierung
+ * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant. Liefert false, wenn keine Allowlist
+ * konfiguriert ist (statt zu werfen) — so bleibt der Aufruf in der Middleware robust.
  */
-export const isEmailAllowed = async (email: string): Promise<boolean> => {
+export const isEmailAllowed = (email: string): boolean => {
 	if (isOpenSignup()) {
 		return normalize(email) !== '';
 	}
 	const raw = process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim() || '';
-	if (parseEmails(raw).includes(normalize(email))) {
-		return true;
+	const emails = parseEmails(raw);
+	if (emails.length === 0) {
+		return false;
 	}
+	return emails.includes(normalize(email));
+};
+
+/**
+ * Prüft, ob die Adresse in der DB-Zulassung (`allowed_emails`) steht — Freischaltung mit Herkunft
+ * (`AllowedEmail.origin`): Warteliste (`'warteliste'`, #1982/ADR 0019), später Einladung/Delegation
+ * (#1983). Normalisiert wie `isEmailAllowed`; leere Adresse → false. Die Env-Allowlist wird hier
+ * bewusst NICHT geprüft — die Aufrufer kombinieren beide Quellen:
+ * `(await isDbEmailAllowed(email)) || isEmailAllowed(email)`.
+ */
+export const isDbEmailAllowed = async (email: string): Promise<boolean> => {
 	const normalized = normalize(email);
 	if (normalized === '') {
 		return false;
 	}
-	const activated = await WaitlistEntry.findOne({ where: { email: normalized, status: 'activated' } });
-	return activated !== null;
+	const allowed = await AllowedEmail.findOne({ where: { email: normalized } });
+	return allowed !== null;
 };

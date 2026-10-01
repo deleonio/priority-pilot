@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { sendError, type ErrorDto } from '../http-error.js';
 import { hasGoogleOAuth } from '../requireAuth.js';
 import { establishSession } from '../establishSession.js';
-import { isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
+import { isDbEmailAllowed, isEmailAllowed, isOpenSignup } from '../../logics/allowedEmails.js';
 import { sendMailToUser, type MailSender } from '../../logics/mail.js';
 import { buildMagicLinkUrl, consumeLoginToken, createLoginToken, isMagicLinkEnabled } from '../../logics/magicLink.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
@@ -62,7 +62,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 		// diese Einschränkung würde der Server Mails an beliebige Fremdadressen verschicken.
 		const mayReceiveLink = isOpenSignup()
 			? (await User.count({ where: { email: normalizedEmail } })) > 0
-			: await isEmailAllowed(normalizedEmail);
+			: (await isDbEmailAllowed(normalizedEmail)) || isEmailAllowed(normalizedEmail);
 
 		if (mayReceiveLink) {
 			const token = await createLoginToken(normalizedEmail);
@@ -90,7 +90,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 		const { token } = (req.body ?? {}) as Partial<MagicLinkVerifyRequestDto>;
 		const email = typeof token === 'string' && token !== '' ? await consumeLoginToken(token) : null;
 		// Allowlist erneut prüfen: Sie kann sich zwischen Anfordern und Einlösen geändert haben.
-		if (!email || !isEmailAllowed(email)) {
+		if (!email || (!(await isDbEmailAllowed(email)) && !isEmailAllowed(email))) {
 			sendError(res, 400, 'Der Anmeldelink ist abgelaufen oder wurde schon benutzt.');
 			return;
 		}

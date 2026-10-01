@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 // ROTER Spec-Test (#193): Die Multi-User-Allowlist-Logik existiert noch nicht. Der Import schlägt
 // fehl, bis `server/src/logics/allowedEmails.ts` `isEmailAllowed` und `getConfiguredEmails`
 // gemäß diesem Vertrag (AK 1–7, AK-9) bereitstellt.
-import { isEmailAllowed, getConfiguredEmails } from './allowedEmails.js';
+import { isDbEmailAllowed, isEmailAllowed, getConfiguredEmails } from './allowedEmails.js';
+import AllowedEmail from '../models/allowedEmail.js';
 import sequelize from '../database.js';
 
-// #1982: `isEmailAllowed` liest bei Nicht-Treffern zusätzlich die Wartelisten-Freischaltungen aus
-// der DB — die Tabelle einmalig synchen. Die Suite selbst schreibt keine Einträge.
+// #1982/#1983-Vertrag: `isEmailAllowed` (Env) bleibt sync und unberührt; die DB-Zulassung prüft
+// `isDbEmailAllowed` gegen `allowed_emails` — die Tabelle einmalig synchen.
 before(async () => {
 	await sequelize.sync();
 });
@@ -43,25 +44,25 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 	it('AK-1: Backward-Compat — einzelne GOOGLE_ALLOWED_EMAIL ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAIL = 'a@b.com';
-		assert.equal(await isEmailAllowed('a@b.com'), true);
+		assert.equal(isEmailAllowed('a@b.com'), true);
 	});
 
 	it('AK-2: CSV — erste E-Mail aus GOOGLE_ALLOWED_EMAILS ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com,c@d.com';
-		assert.equal(await isEmailAllowed('a@b.com'), true);
+		assert.equal(isEmailAllowed('a@b.com'), true);
 	});
 
 	it('AK-3: CSV — zweite E-Mail aus GOOGLE_ALLOWED_EMAILS ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com,c@d.com';
-		assert.equal(await isEmailAllowed('c@d.com'), true);
+		assert.equal(isEmailAllowed('c@d.com'), true);
 	});
 
 	it('AK-4: JSON-Array — E-Mail aus dem Array ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = '["a@b.com","c@d.com"]';
-		assert.equal(await isEmailAllowed('c@d.com'), true);
+		assert.equal(isEmailAllowed('c@d.com'), true);
 	});
 
 	it('AK-5: kein Env-Var gesetzt — getConfiguredEmails() wirft', () => {
@@ -72,13 +73,13 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 	it('AK-6: case-insensitiv — A@B.COM ist bei a@b.com erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAIL = 'a@b.com';
-		assert.equal(await isEmailAllowed('A@B.COM'), true);
+		assert.equal(isEmailAllowed('A@B.COM'), true);
 	});
 
 	it('AK-7: Whitespace — Leerzeichen um die E-Mails werden getrimmt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = ' a@b.com , c@d.com ';
-		assert.equal(await isEmailAllowed(' a@b.com '), true);
+		assert.equal(isEmailAllowed(' a@b.com '), true);
 	});
 
 	// Hilfsfunktion: fängt console.log während eines Aufrufs ab.
@@ -127,13 +128,13 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 		it('lässt bei OPEN_SIGNUP=true jede Adresse zu, auch ohne Allowlist', async () => {
 			clearEnv();
 			process.env.OPEN_SIGNUP = 'true';
-			assert.equal(await isEmailAllowed('neu@example.com'), true);
+			assert.equal(isEmailAllowed('neu@example.com'), true);
 		});
 
 		it('weist auch bei OPEN_SIGNUP=true eine leere Adresse ab', async () => {
 			clearEnv();
 			process.env.OPEN_SIGNUP = 'true';
-			assert.equal(await isEmailAllowed('  '), false);
+			assert.equal(isEmailAllowed('  '), false);
 		});
 
 		it('getConfiguredEmails() wirft bei OPEN_SIGNUP=true ohne Allowlist nicht', () => {
@@ -146,7 +147,16 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 			clearEnv();
 			process.env.OPEN_SIGNUP = 'false';
 			process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com';
-			assert.equal(await isEmailAllowed('neu@example.com'), false);
+			assert.equal(isEmailAllowed('neu@example.com'), false);
+		});
+	});
+
+	describe('isDbEmailAllowed — DB-Zulassung (#1982, #1983-Vertrag)', () => {
+		it('erkennt eine zugelassene Adresse normalisiert (trim + lowercase), leere bleibt false', async () => {
+			await AllowedEmail.create({ email: 'anna@example.com', origin: 'warteliste' });
+			assert.equal(await isDbEmailAllowed('  Anna@Example.COM '), true, 'Normalisierung wie isEmailAllowed');
+			assert.equal(await isDbEmailAllowed('ben@example.com'), false, 'unbekannte Adresse ist nicht zugelassen');
+			assert.equal(await isDbEmailAllowed('  '), false, 'leere Adresse bleibt abgelehnt');
 		});
 	});
 });

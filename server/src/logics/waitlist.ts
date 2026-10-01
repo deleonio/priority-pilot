@@ -1,11 +1,14 @@
 import { UniqueConstraintError } from 'sequelize';
+import AllowedEmail from '../models/allowedEmail.js';
 import WaitlistEntry, { newReferralCode } from '../models/waitlistEntry.js';
 
 /**
  * Warteliste mit Referral-Rang (ADR 0019, #1982): Eintrag, Rangformel und Admin-Freischaltung.
  * Rangformel: Position = Rang in der Sortierung (Anzahl geworbener Anmeldungen absteigend,
  * Anmeldezeitpunkt aufsteigend) — eine neue geworbene Anmeldung verbessert die Position des
- * Werbenden sofort. E-Mails werden normalisiert (trim + lowercase) wie in allowedEmails.ts.
+ * Werbenden sofort. Freischalten legt eine DB-Zulassung (`AllowedEmail`, origin `'warteliste'`)
+ * an, worauf `isDbEmailAllowed` die Adresse annimmt; `WaitlistEntry.status` ist reine Anzeige.
+ * E-Mails werden normalisiert (trim + lowercase) wie in allowedEmails.ts.
  */
 
 /** Signalisiert eine ungültige E-Mail — die Route übersetzt das in 400. */
@@ -109,6 +112,15 @@ export const listWaitlistRanked = async (): Promise<WaitlistRankedEntry[]> =>
 		createdAt: createdAt.toISOString(),
 	}));
 
+/**
+ * Legt die DB-Zulassung für eine freigeschaltete Adresse an (idempotent, #1983-Vertrag): Der
+ * Login nimmt die Adresse ab sofort über `isDbEmailAllowed` an — `status = 'activated'` allein
+ * wäre nur Anzeige.
+ */
+const allowEmail = async (email: string): Promise<void> => {
+	await AllowedEmail.findOrCreate({ where: { email }, defaults: { email, origin: 'warteliste' } });
+};
+
 /** Schaltet einen einzelnen Eintrag frei (idempotent); `null`, wenn die Id unbekannt ist. */
 export const activateWaitlistEntry = async (id: number): Promise<'activated' | null> => {
 	const entry = await WaitlistEntry.findByPk(id);
@@ -118,6 +130,7 @@ export const activateWaitlistEntry = async (id: number): Promise<'activated' | n
 	if (entry.status !== 'activated') {
 		await entry.update({ status: 'activated' });
 	}
+	await allowEmail(entry.email);
 	return 'activated';
 };
 
@@ -136,5 +149,10 @@ export const activateTopWaitlist = async (count: number): Promise<number> => {
 		{ status: 'activated' },
 		{ where: { id: waiting.map((entry) => entry.id) } },
 	);
+	// Sequentiell statt Promise.all: findOrCreate öffnet je eine Transaktion, und die Tests
+	// laufen auf einer einzigen In-Memory-SQLite-Verbindung (Muster wie admin.ts-Subquery-Hinweis).
+	for (const entry of waiting) {
+		await allowEmail(entry.email);
+	}
 	return affected;
 };

@@ -335,7 +335,8 @@ export const createAdminRouter = (pillarClassifier: PillarClassifier = classifyP
 	);
 
 	// POST /admin/waitlist/:id/activate — schaltet einen einzelnen Eintrag frei (idempotent);
-	// danach nimmt der bestehende Login-Flow die Adresse an (`isEmailAllowed`, #1982 AK3).
+	// danach nimmt der bestehende Login-Flow die Adresse an (`isDbEmailAllowed`/`AllowedEmail`,
+	// #1982 AK3).
 	adminRouter.post(
 		'/admin/waitlist/:id/activate',
 		requireRole('admin'),

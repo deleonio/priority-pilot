@@ -28,16 +28,22 @@ Anmeldungen verbessern die Position; Admins schalten einzelne Adressen oder die 
 ## API-Vertrag (Admin, `requireRole('admin')`)
 
 - `GET /admin/waitlist` — Liste `{ id, email, status, position, referralCount, createdAt }`.
-- `POST /admin/waitlist/:id/activate` (AK3) — setzt `status = 'activated'`.
+- `POST /admin/waitlist/:id/activate` (AK3) — setzt `status = 'activated'` (reine Anzeige) und
+  legt die DB-Zulassung (`AllowedEmail`) an.
 - `POST /admin/waitlist/activate-top` — Body `{ count }` (AK4, „Welle“): schaltet die Top-N-Einträge
   nach Position frei; Antwort `{ activatedCount }` zählt bereits freigeschaltete nicht doppelt.
 
 ## Freischaltung wirkt auf den Login (AK3)
 
-`isEmailAllowed` (`server/src/logics/allowedEmails.ts`) bleibt die zentrale Login-Prüfung: Nebst
-env-Allowlist und `OPEN_SIGNUP` akzeptieren **alle** ihrer Aufrufer
-(`express/index.ts:227`, `routes/auth.ts`) ab sofort auch Adressen mit `status = 'activated'` in
-der Warteliste. Nicht freigeschaltete Adressen bleiben abgelehnt.
+Die Freischaltung schreibt pro Adresse einen Eintrag in die DB-Zulassung `AllowedEmail`
+(`server/src/models/allowedEmail.ts`, `email` unique normalisiert, `origin: 'warteliste'`) — der
+Vertrag, den #1983 für Einladung/Delegation fortführt. Neue Funktion
+`isDbEmailAllowed(email)` in `server/src/logics/allowedEmails.ts` prüft dagegen; `isEmailAllowed`
+(Env-Allowlist) bleibt unverändert sync. Alle Login-Prüfstellen (`express/index.ts` Google-Verify,
+`requireAuth.ts`, `routes/auth.ts`, `routes/magicLink.ts`) kombinieren
+`(await isDbEmailAllowed(email)) || isEmailAllowed(email)` — freigeschaltete Adressen kommen rein,
+nicht freigeschaltete bleiben abgelehnt. `WaitlistEntry.status = 'activated'` ist reine Anzeige der
+Admin-Sicht.
 
 ## Anmeldeseite (AK5/AK6)
 
@@ -57,8 +63,8 @@ der Warteliste. Nicht freigeschaltete Adressen bleiben abgelehnt.
   anders normalisierter Schreibweise → dieselbe Position, kein Duplikat; ungültige E-Mail → 400.
 - TF2 dito (AK2) — Referral-Entry des Werbers rückt auf Position 1 vor älteren Einträgen ohne
   Referrals; unbekannter/eigener Code ohne Fehler.
-- TF3 dito (AK3) — Admin-Aktivierung → `test-login` (=`isEmailAllowed`-Aufrufer) nimmt die Adresse
-  an; nicht freigeschaltete bleibt 401.
+- TF3 dito (AK3) — Admin-Aktivierung → `test-login` (Aufrufer der kombinierten Login-Prüfung)
+  nimmt die Adresse an; nicht freigeschaltete bleibt 401.
 - TF4 dito (AK4) — Top-2-Welle trifft genau die zwei Höchstplatzierten, `activatedCount = 2`,
   Wiederholung zählt 0.
 - TF5 `frontend/src/components/LoginPage.test.tsx` (AK5) — Eintragsfeld-Zustandsmaschine,

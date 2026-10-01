@@ -36,6 +36,9 @@ import './carePushToggle.js';
 // Ebenso ohne Assoziationen: Wartelisten-Eintrag des Launch-Zugangs (#1982, ADR 0019) — gelesen
 // und geschrieben ausschließlich über `logics/waitlist.ts`.
 import './waitlistEntry.js';
+// Ebenso ohne Assoziationen: DB-Zulassung freigeschalteter Adressen mit Herkunft (#1982/#1983) —
+// gelesen über `logics/allowedEmails.ts` (isDbEmailAllowed), geschrieben über `logics/waitlist.ts`.
+import './allowedEmail.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',

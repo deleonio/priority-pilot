@@ -5,7 +5,8 @@ import sequelize from '../database.js';
 /**
  * Wartelisten-Eintrag für den Launch-Zugang (ADR 0019, #1982). Unbekannte Adressen tragen sich
  * selbst ein und sehen ihre Position im Referral-Rang; Admins schalten einzelne Einträge oder
- * die Top N frei (`status = 'activated'`), worauf `isEmailAllowed` die Adresse annimmt.
+ * die Top N frei — `status = 'activated'` ist reine Anzeige, die Login-Wirkung trägt der
+ * zugelegte `AllowedEmail`-Eintrag (`isDbEmailAllowed`, origin `'warteliste'`).
  * `referralCode` ist der persönliche Empfehlungs-Code, `referredByCode` der Code des Werbers
  * (null, wenn ohne Empfehlung beigetreten). E-Mails werden normalisiert gespeichert
  * (trim + lowercase, wie `logics/allowedEmails.ts`).

@@ -2156,8 +2156,9 @@ paths:
     post:
       summary: Einzelnen Wartelisten-Eintrag freischalten
       description: >-
-        Setzt den Status auf `activated` (idempotent, #1982 AK3). Danach nimmt der
-        bestehende Login-Flow die Adresse an (`isEmailAllowed` prüft die Freischaltung).
+        Setzt den Status auf `activated` (idempotent, #1982 AK3) und legt die
+        DB-Zulassung (AllowedEmail, origin 'warteliste') an. Danach nimmt der
+        bestehende Login-Flow die Adresse an (isDbEmailAllowed prüft die Freischaltung).
       operationId: activateAdminWaitlistEntry
       tags: [admin]
       responses:
@@ -4029,7 +4030,9 @@ components:
         status:
           type: string
           enum: [waiting, activated]
-          description: Freischalt-Status — `activated` lässt den Login-Flow die Adresse zu.
+          description: >-
+            Freischalt-Status — reine Anzeige; die Login-Wirkung trägt der AllowedEmail-Eintrag
+            (isDbEmailAllowed).
         position:
           type: integer
           minimum: 1

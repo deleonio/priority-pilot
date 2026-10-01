@@ -6,8 +6,9 @@ import { resetDb, closeDb, startTestServer, applyTestAuthEnv, type TestServer } 
 // Vertrag: POST /auth/waitlist ({ email, ref? }) → { position, referralCode } (idempotent,
 // Normalisierung trim+lowercase); Admin-Endpunkte GET /admin/waitlist,
 // POST /admin/waitlist/:id/activate, POST /admin/waitlist/activate-top ({ count }).
-// Freischaltung wirkt über isEmailAllowed — geprüft hier über POST /auth/test-login, einen
-// echten isEmailAllowed-Aufrufer (Muster: admin.api.test.ts).
+// Freischaltung legt eine DB-Zulassung (AllowedEmail, origin 'warteliste') an — geprüft hier
+// über POST /auth/test-login, einen echten Aufrufer der kombinierten Login-Prüfung
+// (Muster: admin.api.test.ts).
 process.env.GOOGLE_ALLOWED_EMAILS = 'admin@example.com';
 applyTestAuthEnv('waitlist-test');
 
