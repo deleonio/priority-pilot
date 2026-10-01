@@ -20,6 +20,11 @@ import { api } from '../api';
 import { startNativeGoogleLogin } from '../lib/nativeAuth';
 import { LoginPage } from './LoginPage';
 
+// Tab-Session-Cache der Komponente zwischen den Tests leeren (Render-Reihenfolge soll nicht zählen).
+afterEach(() => {
+	sessionStorage.clear();
+});
+
 const providers = vi.mocked(api.getAuthProviders);
 const requestMagicLink = vi.mocked(api.requestMagicLink);
 
