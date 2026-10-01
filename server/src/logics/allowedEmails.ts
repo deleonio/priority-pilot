@@ -9,6 +9,10 @@
 //
 // Alle Adressen werden normalisiert (trim + lowercase). Der Vergleich in isEmailAllowed()
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
+// Neben der Env-Allowlist steht die DB-Zulassung (`AllowedEmail`, Freischaltung mit Herkunft):
+// `isDbEmailAllowed()` prüft sie, die Aufrufer kombinieren beide Quellen (siehe unten).
+
+import AllowedEmail from '../models/allowedEmail.js';
 
 /** Normalisiert eine E-Mail-Adresse für den Vergleich (trim + lowercase). */
 const normalize = (email: string): string => email.trim().toLowerCase();
@@ -89,7 +93,7 @@ export const getConfiguredEmails = (): string[] => {
 };
 
 /**
- * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist. Bei offener Registrierung
+ * Prüft, ob die übergebene E-Mail in der Env-Allowlist enthalten ist. Bei offener Registrierung
  * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant. Liefert false, wenn keine Allowlist
  * konfiguriert ist (statt zu werfen) — so bleibt der Aufruf in der Middleware robust.
  */
@@ -103,4 +107,20 @@ export const isEmailAllowed = (email: string): boolean => {
 		return false;
 	}
 	return emails.includes(normalize(email));
+};
+
+/**
+ * Prüft, ob die Adresse in der DB-Zulassung (`allowed_emails`) steht — Freischaltung mit Herkunft
+ * (`AllowedEmail.origin`): Warteliste (`'warteliste'`, #1982/ADR 0019), später Einladung/Delegation
+ * (#1983). Normalisiert wie `isEmailAllowed`; leere Adresse → false. Die Env-Allowlist wird hier
+ * bewusst NICHT geprüft — die Aufrufer kombinieren beide Quellen:
+ * `(await isDbEmailAllowed(email)) || isEmailAllowed(email)`.
+ */
+export const isDbEmailAllowed = async (email: string): Promise<boolean> => {
+	const normalized = normalize(email);
+	if (normalized === '') {
+		return false;
+	}
+	const allowed = await AllowedEmail.findOne({ where: { email: normalized } });
+	return allowed !== null;
 };

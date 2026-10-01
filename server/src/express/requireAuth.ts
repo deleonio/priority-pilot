@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { isEmailAllowed } from '../logics/allowedEmails.js';
+import { isDbEmailAllowed, isEmailAllowed } from '../logics/allowedEmails.js';
 import { sendError } from './http-error.js';
 import type { UserRole } from '../models/user.js';
 import { User } from '../models/index.js';
@@ -38,15 +38,23 @@ export const getUserId = (req: Request): number | undefined => {
  * ist (siehe {@link isAuthActive}), erzwingt jede API-Route eine gültige Session (401 sonst).
  * Ist zusätzlich eine Allowlist gesetzt, wird die E-Mail bei jedem Request erneut geprüft, damit ein
  * nachträglich gesperrter Account auch mit bestehender Session sofort herausfällt.
+ *
+ * Async, weil die Prüfung seit #1982 zusätzlich die DB-Zulassungen aus der DB liest
+ * (`isDbEmailAllowed`, kombiniert mit der Env-Allowlist) — wie `requireRole` darunter als
+ * Promise-Middleware.
  */
-export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 	if (!isAuthActive()) {
 		// Lokaler Entwicklungsmodus ohne Auth-Konfiguration: kein Gate, keine Nutzer-Bindung.
 		next();
 		return;
 	}
 	const user = req.session?.user;
-	if (!user || typeof user.id !== 'number' || (hasAllowlist() && !isEmailAllowed(user.email))) {
+	if (
+		!user ||
+		typeof user.id !== 'number' ||
+		(hasAllowlist() && !(await isDbEmailAllowed(user.email)) && !isEmailAllowed(user.email))
+	) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}

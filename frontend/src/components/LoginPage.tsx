@@ -17,7 +17,13 @@ function getErrorFromSearch(): ErrorParam {
 	return params.get('error');
 }
 
+/** Empfehlungs-Code aus dem persönlichen Link (`?ref=…`), falls der Einstieg darüber erfolgt (#1982). */
+function getRefFromSearch(): string | null {
+	return new URLSearchParams(window.location.search).get('ref');
+}
+
 type MagicLinkState = 'idle' | 'sending' | 'sent' | 'failed';
+type WaitlistState = 'idle' | 'sending' | 'done' | 'failed';
 
 function getErrorMessage(error: string): string {
 	return ERROR_MESSAGES[error] ?? 'Ein unbekannter Anmeldefehler ist aufgetreten. Bitte versuche es erneut.';
@@ -38,6 +44,11 @@ export const LoginPage = () => {
 	const [magicLinkEnabled, setMagicLinkEnabled] = useState(false);
 	const [email, setEmail] = useState('');
 	const [magicLinkState, setMagicLinkState] = useState<MagicLinkState>('idle');
+	const [referralRef] = useState(getRefFromSearch);
+	const [waitlistEmail, setWaitlistEmail] = useState('');
+	const [waitlistState, setWaitlistState] = useState<WaitlistState>('idle');
+	const [waitlistResult, setWaitlistResult] = useState<{ position: number; total?: number; link: string } | null>(null);
+	const [referralCopied, setReferralCopied] = useState(false);
 
 	useEffect(() => {
 		api
@@ -53,6 +64,37 @@ export const LoginPage = () => {
 			.requestMagicLink(email)
 			.then(() => setMagicLinkState('sent'))
 			.catch(() => setMagicLinkState('failed'));
+	};
+
+	// Wartelisten-Eintrag (#1982): idempotent — ein wiederholter Eintrag (auch Duplikat) ist
+	// Erfolg und zeigt dieselbe Position erneut. Der ref-Code kommt aus dem persönlichen Link.
+	const handleWaitlistJoin = (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		setWaitlistState('sending');
+		api
+			.addToWaitlist(waitlistEmail, referralRef ?? undefined)
+			.then(({ position, referralCode, total }) => {
+				setWaitlistResult({
+					position,
+					total,
+					link: `${window.location.origin}/app/?ref=${referralCode}`,
+				});
+				setWaitlistState('done');
+			})
+			.catch(() => setWaitlistState('failed'));
+	};
+
+	const copyReferralLink = async () => {
+		if (waitlistResult === null) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(waitlistResult.link);
+			setReferralCopied(true);
+			window.setTimeout(() => setReferralCopied(false), 2000);
+		} catch {
+			// Clipboard verweigert — der Link bleibt lesbar sichtbar, das Kopieren entfällt nur.
+		}
 	};
 
 	const handleLogin = () => {
@@ -158,6 +200,55 @@ export const LoginPage = () => {
 							)}
 						</form>
 					)}
+
+					{/* Warteliste des Launch-Zugangs (#1982, ADR 0019) — eigener Abschnitt unterhalb der
+					    Login-Wege, immer sichtbar (nicht an SMTP/magicLink gebunden). Duplikat-Eintrag
+					    ist Erfolg: Position + Empfehlungs-Link erscheinen erneut (AK1/AK5). */}
+					<form onSubmit={handleWaitlistJoin} className="login-page__form">
+						<p className="login-page__divider">Noch ohne Zugang?</p>
+						<label className="login-page__label" htmlFor="waitlist-email">
+							Auf die Warteliste per E-Mail
+						</label>
+						<input
+							id="waitlist-email"
+							type="email"
+							autoComplete="email"
+							required
+							placeholder="name@beispiel.de"
+							value={waitlistEmail}
+							onChange={(event) => setWaitlistEmail(event.target.value)}
+							className="login-page__input"
+						/>
+						<button
+							type="submit"
+							disabled={waitlistState === 'sending'}
+							className="login-page__btn login-page__btn--secondary"
+						>
+							Auf die Warteliste
+						</button>
+						{waitlistState === 'done' && waitlistResult !== null && (
+							<p role="status" className="login-page__status login-page__status--waitlist">
+								<span>
+									Position {waitlistResult.position}
+									{typeof waitlistResult.total === 'number' ? ` von ${waitlistResult.total}` : ''} — je mehr Freundinnen
+									und Freunde du einlädst, desto weiter rückst du auf.
+								</span>
+								<span className="login-page__ref-link">{waitlistResult.link}</span>{' '}
+								<button
+									type="button"
+									onClick={() => void copyReferralLink()}
+									className="login-page__btn login-page__btn--secondary"
+								>
+									{referralCopied ? 'Kopiert ✓' : 'Empfehlungs-Link kopieren'}
+								</button>
+							</p>
+						)}
+						{waitlistState === 'failed' && (
+							<p role="alert" className="login-page__alert">
+								Der Eintrag auf die Warteliste hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.
+							</p>
+						)}
+					</form>
 				</div>
 
 				{/* Zurück zur öffentlichen Website — nur im Web, in der App gibt es dort nichts (#1769) */}
