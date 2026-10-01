@@ -300,7 +300,7 @@ describe('tokens-report', () => {
 			// (8 Ziel-Zeilen: Review-Runden je Herkunft, Turns- und Erstgrün-Ziel ohne Fenster)
 			assert.match(report, /### Status — Ziele auf einen Blick/);
 			assert.match(report, /\*\*1 von 8 Zielen erfüllt\*\*/);
-			assert.match(report, /\| Kosten je Ticket Pipeline — Median \(messende\) \| \$2\.00 \| < \$3\.00 \|.*🟢 \|/);
+			assert.match(report, /\| Kosten je Ticket Pipeline — Median \(messende\) \| \$2\.00 \| <= \$3\.00 \|.*🟢 \|/);
 			// Änderungsbericht: Siegelwoche (laufende Woche mit „*") und das versiegelte Ticket
 			assert.match(report, /### Was hat sich verändert — letzte Woche/);
 			assert.match(report, /\*\*2026-W35\*: 1 Tickets versiegelt · \$2\.00 gesamt · \$2\.00 je Ticket\*\*/);

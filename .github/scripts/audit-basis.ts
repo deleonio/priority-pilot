@@ -58,9 +58,11 @@ export function renderAuditBasis(dir: string): string {
 	}
 
 	const sum = (list: CostEntry[], pick: (e: CostEntry) => number): number => list.reduce((a, e) => a + pick(e), 0);
+	const valueOf = (e: CostEntry): number => e.valueCost ?? ZERO(e.cost);
 	// $-Spalte = valueCost (Verbrauchsbewertung zu Referenzpreisen, wie im Kosten-Report), nicht
 	// `cost`: openrouter-/Fremdtarif-Läufe haben cost = 0 und würden ihre Phase sonst gratis
 	// erscheinen lassen — der Documenter-Wechsel auf ein :free-Modell machte genau das akut.
+	// Legacy-Läufe vor #984 haben kein valueCost (optional) — Fallback auf cost, sonst 0 $.
 	const phases = new Map<
 		string,
 		{
@@ -96,7 +98,7 @@ export function renderAuditBasis(dir: string): string {
 		p.tickets.add(e.issueId);
 		p.tokensIn += e.tokensIn;
 		p.tokensOut += e.tokensOut;
-		p.value += ZERO(e.valueCost);
+		p.value += valueOf(e);
 		p.sidechain += e.sidechainTokens ?? 0;
 		if ((e.sidechainTokens ?? 0) > 0) p.delegated += 1;
 		if (isMeasured(e)) {
@@ -121,7 +123,7 @@ export function renderAuditBasis(dir: string): string {
 				`${(p.tokensIn / M).toLocaleString('de-DE', { maximumFractionDigits: 1 })} | ${num(p.tokensOut / 1000)} | ${p.value.toFixed(2)} |`,
 		);
 	}
-	const totalValue = sum(entries, (e) => ZERO(e.valueCost));
+	const totalValue = sum(entries, valueOf);
 	const totalTurns = sum(measured, (e) => e.turns as number);
 	lines.push(
 		`| **Gesamt** | **${entries.length}** | **${raw.length}** | **${num(totalTurns)}** | **${avg(totalTurns, measured.length)}** | ` +

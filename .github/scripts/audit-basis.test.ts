@@ -89,7 +89,7 @@ describe('audit-basis', () => {
 		inTmp('audit-basis-legacy', (dir) => {
 			writeTicket(dir, '300', [
 				entry({ issueId: '300', phase: 'implement', turns: 20 }),
-				entry({ issueId: '300', phase: 'review', cost: 5, valueCost: 5 }), // Altlauf vor #984, kein turns-Feld
+				entry({ issueId: '300', phase: 'review', cost: 5 }), // Altlauf vor #984: kein valueCost, kein turns-Feld
 			]);
 			const out = renderAuditBasis(dir);
 			assert.match(out, /\| review \| 1 \| 1 \| 0 \| — \| .* \| .* \| 5\.00 \|/);
