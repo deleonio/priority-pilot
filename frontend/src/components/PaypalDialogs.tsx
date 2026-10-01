@@ -43,14 +43,15 @@ interface ChangeDialogProps {
 	targetPlan: Exclude<Plan, 'free'>;
 	targetPeriod: Period;
 	onClose: () => void;
-	onChanged: (approvalUrl: string | undefined) => void;
+	/** `immediate` aus der Vorschau: nur ein Upgrade wartet auf die Plan-Bestätigung, alles andere wirkt zum Periodenende (ADR 0013). */
+	onChanged: (approvalUrl: string | undefined, immediate: boolean) => void;
 }
 
 /** Bestätigungsdialog vor einem Paketwechsel (#1496 AK3) — zeigt vorab Guthaben und fälligen Betrag (#1913). */
 export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: ChangeDialogProps) => {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [preview, setPreview] = useState<{ creditCents: number; dueCents: number } | null>(null);
+	const [preview, setPreview] = useState<{ creditCents: number; dueCents: number; immediate: boolean } | null>(null);
 	const [previewFailed, setPreviewFailed] = useState(false);
 	const cancelRef = useRef<HTMLKolButtonElement>(null);
 
@@ -77,7 +78,7 @@ export const ChangeDialog = ({ targetPlan, targetPeriod, onClose, onChanged }: C
 		setBusy(true);
 		try {
 			const { approvalUrl } = await api.changeBillingSubscription({ plan: targetPlan, period: targetPeriod });
-			onChanged(approvalUrl);
+			onChanged(approvalUrl, preview !== null && preview.immediate);
 		} catch (reason) {
 			setError((await toApiError(reason)).message);
 			setBusy(false);

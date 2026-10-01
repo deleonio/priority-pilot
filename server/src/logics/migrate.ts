@@ -1028,9 +1028,9 @@ export const migratePillarRecalcColumns = async (db: Sequelize): Promise<void> =
 /**
  * Zieht die Pending-Plan-Spalten (#1505) und `firstFailureAt` (#1506) auf einer **bestehenden**
  * `subscriptions`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog
- * `migrateTaskPinnedColumns`. Alle drei sind nullable (kein DEFAULT nötig), Bestandsabos bleiben
- * ohne Vormerkung. Idempotent: bereits vorhandene Spalten werden übersprungen; bei frischer DB
- * No-op — `sync()` legt Tabelle inkl. Spalten an.
+ * `migrateTaskPinnedColumns`. Alle ergänzten Spalten sind nullable (kein DEFAULT nötig),
+ * Bestandsabos bleiben ohne Vormerkung. Idempotent: bereits vorhandene Spalten werden
+ * übersprungen; bei frischer DB No-op — `sync()` legt Tabelle inkl. Spalten an.
  */
 export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Promise<void> => {
 	const [columns] = await db.query("PRAGMA table_info('subscriptions')");
@@ -1042,6 +1042,12 @@ export const migrateSubscriptionPendingPlanColumns = async (db: Sequelize): Prom
 	if (!existing.includes('pendingPlan')) {
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlan` VARCHAR(255)');
 		console.log('Spalte pendingPlan an subscriptions nachgezogen.');
+	}
+	// Vorgemerkter Zeitraum eines geplanten Wechsels: zusammen mit pendingPlan fällig — ohne ihn
+	// rechnete die nächste Abbuchung nach einem Downgrade mit der alten Periode weiter.
+	if (!existing.includes('pendingPeriod')) {
+		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPeriod` VARCHAR(255)');
+		console.log('Spalte pendingPeriod an subscriptions nachgezogen.');
 	}
 	if (!existing.includes('pendingPlanEffectiveAt')) {
 		await db.query('ALTER TABLE `subscriptions` ADD COLUMN `pendingPlanEffectiveAt` DATETIME');

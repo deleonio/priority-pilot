@@ -205,8 +205,9 @@ export const main = async (): Promise<void> => {
 		await migratePlaceFavoriteAddressUnique(sequelize);
 		// Unique-Index (provider, externalSubscriptionId) auf subscriptions (#1690) — vor sync().
 		await migrateSubscriptionExternalIdUnique(sequelize);
-		// Fehlende pendingPlan-/firstFailureAt-Spalten an subscriptions nachziehen (#1742) — vor
-		// sync(), damit Abo-Lesezugriffe auf Bestands-DBs nicht mit `no such column` brechen.
+		// Fehlende Vormerk-/Kulanz-Spalten an subscriptions nachziehen (#1742, `pendingPeriod`
+		// inklusive) — vor sync(), damit Abo-Lesezugriffe auf Bestands-DBs nicht mit `no such
+		// column` brechen.
 		await migrateSubscriptionPendingPlanColumns(sequelize);
 		// Rechnungspositionen nachziehen (#1912) — vor sync().
 		await migrateInvoiceLineItemsColumn(sequelize);
