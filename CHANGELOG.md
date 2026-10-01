@@ -4,7 +4,7 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-01
 
-_Enthält v0.12.0 – v0.12.7._
+_Enthält v0.12.0 – v0.12.8._
 
 ### 🎉 New Features
 
@@ -14,6 +14,7 @@ _Enthält v0.12.0 – v0.12.7._
 
 - docs(skill): ticket-coordination theme scope and stale ai:needs-human by @deleonio in https://github.com/deleonio/priority-pilot/pull/2023
 - docs(adr): store prices set to web prices (#1800) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2024
+- docs(skill): ticket-coordination pitfall triage finds ticket already fulfilled by @deleonio in https://github.com/deleonio/priority-pilot/pull/2028
 
 ### Other Changes
 
@@ -282,6 +283,7 @@ _Enthält v0.4.0 – v0.4.22._
 
 ### Other Changes
 
+- fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
 - fix(website): remove automatic pwa redirect to /app/ by @deleonio in https://github.com/deleonio/priority-pilot/pull/1624
 - fix(frontend): keep header button focus outline within viewport by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1625
 - docs(mobile-ui-rules): align checklist touch-target to 44px by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1626
