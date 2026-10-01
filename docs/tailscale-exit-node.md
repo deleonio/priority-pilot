@@ -1,19 +1,23 @@
 # Tailscale Exit Node: CI-Traffic über Nürnberg routen
 
 Anleitung, um einen GitHub-Actions-Runner über einen eigenen Nürnberger Server als
-**Tailscale-Exit-Node** zu routen — sodass ausgehende CI-Requests (z. B. an z.ai/OpenRouter) mit der
-deutschen IP des Servers ankommen. Manuell anstoßbar via
+**Tailscale-Exit-Node** zu routen — sodass ausgehende CI-Requests an z.ai mit der deutschen IP des
+Servers ankommen. Manuell anstoßbar via
 [`tailscale-test.yml`](../.github/workflows/tailscale-test.yml).
 
-> **Status:** LLM-Egress aller 6 Claude-Pipeline-Phasen (01–06) und des manuellen Test-Workflows
-> läuft über den Nürnberger Exit Node — eingehängt zentral in
-> [`setup-claude`](../.github/actions/setup-claude/action.yml). Aktiviert/Deaktiviert über die
-> Variable `TAILSCALE_EXIT_NODE` (Kill-Switch), siehe [Grenzen](#grenzen).
+> **Status:** Der Exit Node ist nur für den Fall gedacht, dass der LLM-Provider **z.ai** ist und der
+> Lauf auf einem **gehosteten GitHub-Runner** (Azure-IP) stattfindet — z.ai blockt Azure-IPs. Die
+> Tailscale-Schritte hängen zentral in
+> [`setup-agent`](../.github/actions/setup-agent/action.yml) und greifen nur bei
+> `llm-provider == 'zai' && runner.name != 'pi5'`. Ein **pi5-Selbst-Runner** sitzt im Heimnetz
+> (deutsche IP, kein tailscaled/TUN im Container) und überspringt den Exit Node; andere Provider
+> (Claude API, OpenRouter) haben kein IP-Block-Problem und laufen ebenfalls direkt. Aktiviert wird
+> zusätzlich über die Variable `TAILSCALE_EXIT_NODE` (Kill-Switch), siehe
+> [Grenzen](#grenzen--betriebsverhalten).
 >
-> **Verifiziert (2026-08-14):** Phase 04 (Review) und 05 (Fixup) egressieren belegt über
+> **Verifiziert (2026-08-14):** Phase 04 (Review) und 05 (Fixup) egressierten belegt über
 > `167.233.90.149` (Nuremberg, DE) — Log-Zeile `Exit-Node aktiv — IP … (Nuremberg, DE)` im
-> Step _DNS fixen + Egress-IP protokollieren_. Da der Connect zentral in `setup-claude` hängt,
-> gilt derselbe Pfad für alle 6 Phasen.
+> Step _DNS fixen + Egress-IP protokollieren_.
 >
 > **Weiterführend:** [`server-setup.md`](server-setup.md) (Host-Einrichtung),
 > [`ci-architecture.md`](ci-architecture.md) (Provider/Modell-Architektur).
@@ -22,12 +26,14 @@ deutschen IP des Servers ankommen. Manuell anstoßbar via
 
 ```mermaid
 flowchart LR
-    gh(["GitHub Runner<br/>(Azure-IP, DE/US)"]) -->|Tailscale-Tunnel| exit["Nürnberg Exit Node<br/>(DE-IP)"]
-    exit -->|egress| api["z.ai / OpenRouter"]
+    gh(["GitHub Runner<br/>(Azure-IP, DE/US)"]) -->|Tailscale-Tunnel<br/>nur Provider zai| exit["Nürnberg Exit Node<br/>(DE-IP)"]
+    exit -->|egress| api["z.ai"]
+    gh -.->|ohne Exit Node<br/>pi5 / andere Provider| api
 ```
 
-Ohne Tailscale läuft der gesamte Runner-Traffic über Microsoft-Azure-IPs; nach
-`tailscale up --exit-node` geht er durch den Nürnberger Server.
+Gehostete Runner egressieren über Microsoft-Azure-IPs; nach `tailscale up --exit-node` geht der
+LLM-Traffic durch den Nürnberger Server. Auf pi5 (Heimnetz, bereits deutsche IP) und bei
+Providern ohne IP-Block bleibt es beim direkten Weg.
 
 ## Voraussetzungen
 
@@ -87,7 +93,7 @@ Im Repo unter **Settings → Secrets and variables → Actions** anlegen:
 | **Variable** | `TAILSCALE_EXIT_NODE` | Tailscale-Name oder `100.x.y.z`-IP des Nürnberger Servers (Admin-Console). |
 
 > **Warum die Variable als `vars.` und nicht als Secret?** Eine **leere Variable deaktiviert das
-> gesamte Routing** (Kill-Switch): in `setup-claude` prüft die `if:`-Bedingung
+> gesamte Routing** (Kill-Switch): in `setup-agent` prüft die `if:`-Bedingung
 > `inputs.tailscale-exit-node != ''` — leer → Tailscale-Schritte übersprungen → exakt heutiges
 > Verhalten. Secrets eignen sich dafür nicht (ein leeres Secret ist nicht sauber abfragbar und
 > maskiert Werte unnötig, die nicht sensitiv sind).
@@ -135,27 +141,28 @@ Schritten:
 
 ## Grenzen & Betriebsverhalten
 
-- **Pipeline angebunden:** Alle 6 Claude-Phasen (01–06) verbinden sich im
-  [`setup-claude`](../.github/actions/setup-claude/action.yml)-Composite mit dem Exit Node, **bevor**
-  der `claude -p`-Aufruf läuft. So egressiert der gesamte LLM-Traffic über die Nürnberger IP;
-  pre-LLM-Setup (App-Token, Cache, `npm install`) bleibt bewusst direkt (keine Exit-Node-Last für
-  GitHub/npm).
+- **Pipeline angebunden (bedingt):** Alle 6 Phasen (01–06) verbinden sich im
+  [`setup-agent`](../.github/actions/setup-agent/action.yml)-Composite mit dem Exit Node, **bevor**
+  der Agenten-Lauf startet — aber nur wenn Provider `zai` ist **und** der Runner kein pi5 ist
+  (`llm-provider == 'zai' && runner.name != 'pi5'`). Nur dieser LLM-Traffic egressiert über die
+  Nürnberger IP; pre-LLM-Setup (App-Token, Cache, `npm install`) bleibt bewusst direkt (keine
+  Exit-Node-Last für GitHub/npm).
 - **Kill-Switch (`vars.TAILSCALE_EXIT_NODE`):** Variable vorhanden → Routing aktiv. Variable leer
   bzw. gelöscht → Tailscale-Schritte werden übersprungen, die Pipeline läuft wie ohne Exit Node.
   Globaler Aus-Schalter ohne Code-Änderung (z. B. bei einer Nürnberg-Störung).
 - **Fail-closed:** Ist die Variable gesetzt, der Connect scheitert aber (Nürnberg down / Key
-  falsch), wird `setup-claude` rot → der `claude -p`-Schritt wird übersprungen. Besser gar nicht
+  falsch), wird `setup-agent` rot → der Agenten-Lauf wird übersprungen. Besser gar nicht
   laufen als LLM direkt von einer Azure-IP und wieder als „Account geteilt" geflaggt werden.
   Gleiches gilt für einen **fehlenden `TAILSCALE_AUTH_KEY`**: ein vorgelagerter Preflight-Step
   scheitert hart, statt die Tailscale-Schritte still zu überspringen (das wäre fail-open).
   Escape: Variable `TAILSCALE_EXIT_NODE` löschen.
-- **Zuverlässigkeitsabhängigkeit:** Solange das Routing aktiv ist, hängt jeder LLM-Lauf an
-  Nürnberg + Tailscale. Ein Ausfall stoppt die Pipeline (fail-closed), beschädigt aber nichts —
-  nach Wiederherstellung laufen die Phasen normal weiter.
+- **Zuverlässigkeitsabhängigkeit:** Solange das Routing aktiv ist (zai + gehosteter Runner), hängt
+  jeder z.ai-Lauf an Nürnberg + Tailscale. Ein Ausfall stoppt diese Läufe (fail-closed),
+  beschädigt aber nichts — nach Wiederherstellung laufen die Phasen normal weiter.
 - **Merge-Ref-Staleness bei PR-Phasen (04/05/06):** `pull_request`-Workflows checken den
   _Merge-Ref_ (PR-Head + `main`) aus, den GitHub beim Trigger-Event berechnet — nicht den
   aktuellen `main`. Der Ref kann Stunden alt sein: Am 2026-08-14 lief der Review von PR #652
   mit einem Merge-Ref von 07:18 UTC und damit **ohne** den um 08:29 UTC gemergten
-  systemd-resolved-Fix. Konsequenz: `setup-claude`-Änderungen greifen für offene PRs erst nach
+  systemd-resolved-Fix. Konsequenz: `setup-agent`-Änderungen greifen für offene PRs erst nach
   Branch-Update (merge/rebase mit `main`). Konfig-Verhalten (Secrets/`vars.`, Kill-Switch) ist
   davon nicht betroffen — das wird zur Laufzeit injiziert.
