@@ -1,0 +1,23 @@
+name: tmp-pi5-netinfo
+# Temporaerer Diagnose-Job: sucht den SSH-Eingang zum Pi 5 wieder (Speedport-Quirk:
+# IPv4 inbound tot, mDNS publiziert keinen AAAA). Wird nach Gebrauch wieder entfernt.
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  info:
+    runs-on: pi5
+    timeout-minutes: 3
+    steps:
+      - name: netinfo
+        run: |
+          echo "=== container ==="
+          hostname
+          cat /proc/net/if_inet6
+          echo "=== docker ==="
+          ls -la /var/run/docker.sock 2>&1 || true
+          command -v docker || true
+          docker ps --format '{{.Names}}' 2>&1 | head -5 || true
+          echo "=== host via docker ==="
+          docker run --rm --network host alpine sh -c "cat /proc/net/if_inet6; echo ---ROUTE; ip route show default 2>/dev/null || cat /proc/net/route" 2>&1 || true
