@@ -719,3 +719,92 @@ describe('Dashboard — Fürsorge-Hinweis vor „Nächste Aufgabe" (#1793)', () 
 		expect(careHint.compareDocumentPosition(nextTask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1985 (TF2–TF4 — docs/spec/issue-1985.md): die Karte „Nächste Aufgabe“
+ * baut aus den additiven `reasons`-Werten von `GET /next` bis zu vier Begründungssätze
+ * (absteigend nach scoreBreakdown-Anteil, KI-UX: ohne Technik-Werte) und zeigt ohne Anteile
+ * genau einen Fallback-Satz aus Priorität und Frist.
+ */
+describe('Dashboard — Begründungssätze der „Nächste Aufgabe“-Karte (#1985)', () => {
+	const frist = new Date(2026, 9, 12); // 12.10.2026
+
+	const mitBegruendung = (
+		overrides: Partial<Pick<Task, 'deadline'>> & { scoreBreakdown?: object; reasons?: object },
+	): Task =>
+		({
+			...task(42, [], 2, TaskStatus.Open),
+			...overrides,
+		}) as unknown as Task;
+
+	const renderKarte = (nextTask: Task): { container: HTMLElement } =>
+		render(<Dashboard tasks={[nextTask]} forest={[] as TaskTreeNode[]} nextTask={nextTask} pillars={[]} />);
+
+	const saetze = (container: HTMLElement): string[] =>
+		[...container.querySelectorAll('.dashboard-next-task-reasons li')].map((li) => li.textContent ?? '');
+
+	it('AK2: vier Begründungssätze, absteigend nach Anteil, unter dem Titel', () => {
+		const nextTask = mitBegruendung({
+			deadline: frist,
+			scoreBreakdown: { total: 1, balance: 0.5, unlock: 0.3, deadline: 0.15, priority: 0.05 },
+			reasons: {
+				balance: { pillars: ['Beziehungen'] },
+				unlock: { openCount: 2 },
+				deadline: { date: '2026-10-12', daysUntil: 11 },
+				priority: { priority: 4 },
+			},
+		});
+		const { container } = renderKarte(nextTask);
+
+		const liste = saetze(container);
+		expect(liste).toHaveLength(4);
+		expect(liste[0]!).toMatch(/Säule Beziehungen kam diese Woche zu kurz\./);
+		expect(liste[1]!).toMatch(/Schaltet 2 offene Aufgaben frei\./);
+		expect(liste[2]!).toMatch(/Fällig am \d{1,2}\.\d{1,2}\.\d{4}/);
+		expect(liste[3]!).toMatch(/Priorität 4\./);
+
+		// UX-Lesefluss: Liste unter dem Titel (DOM-Reihenfolge), vor der Aktionszeile.
+		const titel = container.querySelector('.dashboard-next-task-title');
+		const gruende = container.querySelector('.dashboard-next-task-reasons');
+		expect(gruende).not.toBeNull();
+		expect(titel && titel.compareDocumentPosition(gruende!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it('AK3: andere Anteile → andere Sätze in anderer Reihenfolge', () => {
+		const nextTask = mitBegruendung({
+			deadline: frist,
+			scoreBreakdown: { total: 1, deadline: 0.6, unlock: 0.3, priority: 0.1 },
+			reasons: {
+				unlock: { openCount: 1 },
+				deadline: { date: '2026-10-12', daysUntil: 3 },
+				priority: { priority: 2 },
+			},
+		});
+		const { container } = renderKarte(nextTask);
+
+		const liste = saetze(container);
+		expect(liste).toHaveLength(3);
+		expect(liste[0]!).toMatch(/Fällig am \d{1,2}\.\d{1,2}\.\d{4}/);
+		expect(liste[1]!).toMatch(/Schaltet 1 offene Aufgabe frei\./);
+		expect(liste[2]!).toMatch(/Priorität 2\./);
+		expect(container.textContent).not.toMatch(/kam diese Woche zu kurz/);
+	});
+
+	it('AK4: ohne Anteile genau ein Fallback-Satz aus Priorität und Frist', () => {
+		const nextTask = mitBegruendung({ deadline: frist, scoreBreakdown: { total: 0 } });
+		const { container } = renderKarte(nextTask);
+
+		const liste = saetze(container);
+		expect(liste).toHaveLength(1);
+		expect(liste[0]!).toMatch(/^Priorität 3, fällig am \d{1,2}\.\d{1,2}\.\d{4}\.$/);
+	});
+
+	it('AK4: ohne Frist genau der Prioritäts-Fallback', () => {
+		const nextTask = mitBegruendung({ deadline: null, scoreBreakdown: { total: 0 } });
+		const { container } = renderKarte(nextTask);
+
+		const liste = saetze(container);
+		expect(liste).toHaveLength(1);
+		expect(liste[0]!).toBe('Priorität 3.');
+	});
+});
