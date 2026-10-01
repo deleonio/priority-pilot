@@ -4852,6 +4852,13 @@ components:
             das Feld oder mit der eigenen ID bleibt der Eigentümer unverändert.
             Übergabe schreibt nur die Eigentumsfelder; Abhängigkeiten, die der
             Empfänger nicht sehen kann, lehnen die Übergabe mit 409 ab.
+        recipientEmail:
+          type: string
+          description: >-
+            Optionaler Empfänger per E-Mail statt userId (#1983, AK5): Ein bekanntes
+            Konto wird wie userId behandelt (Shared-Group-Prüfung), eine unbekannte
+            Adresse wird zum Konto angelegt, mit Herkunft delegation freigeschaltet
+            und per Zugangs-Mail benachrichtigt.
         status:
           $ref: '#/components/schemas/TaskStatus'
         priority:

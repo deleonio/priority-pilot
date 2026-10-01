@@ -125,6 +125,36 @@ test.describe('#1300 Rollensystem admin/member — Tab „Nutzerverwaltung" bei 
 		await expect(testUserRow.getByRole('radio', { name: 'Admin' })).toBeChecked();
 	});
 
+	// #1983 AK6: Liste der freigeschalteten Adressen mit Herkunfts-Badge bei 375px ohne Überlauf.
+	test('Freigeschaltete Adressen zeigen Herkunft als Badge ohne horizontalen Überlauf', async ({ page }) => {
+		await mockAuthMe(page, ADMIN_USER);
+		await mockAdminUsers(page);
+		await page.route('**/api/v1/admin/allowed-emails', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify([
+					{ email: 'eine-sehr-lange-eingeladene-adresse@beispiel-familie.de', origin: 'einladung' },
+					{ email: 'delegiert@beispiel.de', origin: 'delegation' },
+				]),
+			}),
+		);
+		await page.setViewportSize(MOBILE);
+		await page.goto('/app/settings/nutzer');
+		await waitForStableView(page, 'Balamentum');
+
+		const list = page.locator('.admin-allowed-list');
+		await expect(list.locator('li.admin-allowed-email')).toHaveCount(2);
+		const invited = list.locator('li', { hasText: 'eine-sehr-lange-eingeladene-adresse@beispiel-familie.de' });
+		await expect(invited.getByText('Einladung', { exact: true })).toBeVisible();
+		await expect(
+			list.locator('li', { hasText: 'delegiert@beispiel.de' }).getByText('Delegation', { exact: true }),
+		).toBeVisible();
+
+		const { scroller } = await page.locator('.settings-admin-users').evaluate(measureHorizontalScroll);
+		expect(scroller, 'kein horizontaler Scroll-Container mit der Adressliste bei 375px').toBeNull();
+	});
+
 	// Fixup PR #1602, Finding #3: 375px-Nachweis der zweistufigen Bestätigungs-Dialogleiste
 	// (Säulenverteilung neu berechnen) — zwei Modals mit je zwei Buttons und ein Button mit sehr
 	// langem Label sind genau der Fall, der auf Telefonbreite umbricht.

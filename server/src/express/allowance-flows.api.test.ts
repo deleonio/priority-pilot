@@ -77,9 +77,22 @@ describe('Zulassung unbekannter Adressen durch Einladung/Delegation (#1983)', ()
 		assert.ok(cookie, 'Verify muss eine Session setzen');
 	});
 
+	it('Session-Gate: nur per DB zugelassene Adresse bekommt Session und geschützte Route (AK3)', async () => {
+		const { AllowedEmail } = await import('../models/allowedEmail.js');
+		await AllowedEmail.create({ email: 'zugelassen@beispiel.de', origin: 'admin' });
+
+		// Env-Allowlist kennt die Adresse nicht — Test-Login und requireAuth lassen sie nur über die DB zu.
+		const cookie = await server.login('zugelassen@beispiel.de');
+		const res = await fetch(`${server.baseUrl}/tasks`, { headers: { cookie } });
+		assert.equal(res.status, 200, `DB-Zulassung muss die geschützte Route öffnen, kam ${res.status}`);
+	});
+
 	// ── AK5: Aufgaben-Übergabe an unbekannte Adresse ────────────────────────────────
 
 	it('Aufgaben-Übergabe an unbekannte E-Mail → Freischaltung origin delegation (AK5)', async () => {
+		process.env.SMTP_HOST = 'smtp.test';
+		process.env.MAIL_FROM = 'test@balamentum.de';
+		process.env.PUBLIC_BASE_URL = 'https://test';
 		const aliceCookie = await server.login(TEST_EMAIL_ALICE, { displayName: 'Alice Admin', role: 'admin' });
 		const res = await fetch(`${server.baseUrl}/tasks`, {
 			method: 'POST',
@@ -90,6 +103,14 @@ describe('Zulassung unbekannter Adressen durch Einladung/Delegation (#1983)', ()
 
 		const { isDbEmailAllowed } = await import('../logics/allowedEmails.js');
 		assert.equal(await isDbEmailAllowed('delegiert@beispiel.de'), true, 'Adresse muss freigeschaltet sein');
+
+		// Benachrichtigung: die Zugangs-Mail legt vor dem Versand einen Magic-Link-Token an.
+		const { default: LoginToken } = await import('../models/loginToken.js');
+		assert.equal(
+			await LoginToken.count({ where: { email: 'delegiert@beispiel.de' } }),
+			1,
+			'Zugangs-Mail muss ausgelöst sein',
+		);
 	});
 
 	// ── AK6: Admin-Sicht der Zulassungen ────────────────────────────────────────────
