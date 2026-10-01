@@ -1,0 +1,53 @@
+[
+	{
+		"timestamp": "2026-10-01T04:12:31.793Z",
+		"tokensIn": 764435,
+		"tokensOut": 2909,
+		"cost": 0.08898948143999999,
+		"issueId": "1800",
+		"phase": "implement",
+		"model": "glm-5.3-flash",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 574784,
+		"turns": 9,
+		"durationSeconds": 130,
+		"valueCost": 0.08898948143999999,
+		"effort": "low"
+	},
+	{
+		"timestamp": "2026-10-01T04:30:13.969Z",
+		"tokensIn": 374810,
+		"tokensOut": 1949,
+		"cost": 0.07382669616,
+		"issueId": "1800",
+		"phase": "review",
+		"model": "glm-5.3-flash",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 186816,
+		"turns": 5,
+		"durationSeconds": 134,
+		"valueCost": 0.07382669616,
+		"effort": "low",
+		"verdict": "reviewed",
+		"findings": 0,
+		"nits": 1
+	},
+	{
+		"timestamp": "2026-10-01T04:34:45.209Z",
+		"tokensIn": 412733,
+		"tokensOut": 4761,
+		"cost": 0,
+		"issueId": "1800",
+		"phase": "documenter",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 364896,
+		"turns": 5,
+		"durationSeconds": 91,
+		"valueCost": 0.32439480000000004,
+		"effort": "low"
+	}
+]
