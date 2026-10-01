@@ -30,6 +30,14 @@ const istUnterdrueckt = (vorschlag: CareVorschlag, jetzt: number): boolean =>
 const endeDesTages = (jetzt: Date): number =>
 	new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() + 1).getTime();
 
+/** #1967: Zweckbestimmung + Krisenhinweis; Light-DOM-`a` statt KolLink (sonst im Shadow-DOM, #1873). */
+const HILFE = (
+	<p className="care-hint-help">
+		Kein Ersatz für ärztlichen Rat. In einer Krise erreichst du die{' '}
+		<a href="tel:08001110111">TelefonSeelsorge: 0800 111 0 111</a> (kostenfrei, rund um die Uhr).
+	</p>
+);
+
 /**
  * Fürsorge-Hinweis auf dem Dashboard (#1793, Ton: `docs/fuersorge-tonalitaet.md`): zeigt höchstens
  * EINEN Vorschlag aus `GET /scores/care-suggestions` (der erste; kein Nachrücken nach einer Aktion)
@@ -65,6 +73,7 @@ export const CareHint = () => {
 			<div className="care-hint" data-testid="care-hint" role="status" aria-label="Fürsorge-Hinweis">
 				<KolAlert _type="info" _variant="card" _label="Fürsorge-Hinweis">
 					<p>Gerade gibt es keinen Vorschlag für dich. Mach in deinem Tempo weiter.</p>
+					{HILFE}
 				</KolAlert>
 			</div>
 		);
@@ -134,6 +143,7 @@ export const CareHint = () => {
 						{vorschlag.saeuleName} kam diese Woche zu kurz. {vorschlag.beschreibung ?? vorschlag.titel}?
 					</p>
 				)}
+				{HILFE}
 				{fehler && <p role="alert">Konnte nicht angelegt werden. Versuch es gleich noch einmal.</p>}
 				<div className="care-hint-actions">
 					<KolButton

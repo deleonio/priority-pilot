@@ -157,3 +157,15 @@ Neue Fürsorge-Texte (z. B. für eine neue Säule, einen neuen Anlass) folgen de
 3. Prüffrage stellen: „Sorgt der Text, oder protokolliert er nur?“ — nur „sorgt“ zählt.
 4. Übersetzung in alle zehn App-Sprachen gemäß Abschnitt 5 (Anreden-Konvention je Sprache beachten).
 5. Ablage als i18n-Key unter `frontend/src/i18n/locales/<sprache>/`, Referenztext hier ergänzen.
+
+## 7. Zweckbestimmung und Begriffsliste
+
+Balamentum dient der **Lebensbalance und Selbstfürsorge**. Es ist **kein Medizinprodukt** und kein Ersatz für ärztlichen Rat. Die Liste ist für alle Texte verbindlich (Website, App, Store); Spiegel der Zu-meiden-Liste: `website/src/i18n-mdr-wording.test.ts`.
+
+| Erlaubt                                                 | Zu meiden                                                   |
+| ------------------------------------------------------- | ----------------------------------------------------------- |
+| Lebensbalance, Selbstfürsorge, Impuls, Ausgleich, Pause | Burnout-Prävention, Therapie, Heilung, Diagnose, Behandlung |
+| „kann guttun“, „darf heute sein“                        | Stressabbau, „hilft gegen …“, Heil- oder Wirkversprechen    |
+| „kein Medizinprodukt, kein Ersatz für ärztlichen Rat“   | Aussagen zu Krankheit, Symptomen oder Genesung              |
+
+Der Fürsorge-Hinweis nennt bei Krisen die TelefonSeelsorge: 0800 111 0 111 (kostenfrei, rund um die Uhr).

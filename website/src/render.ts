@@ -303,6 +303,7 @@ export const renderLanding = (context: LandingContext): string => {
 							<a class="kern-btn kern-btn--secondary" href="${EMAIL_LOGIN_PATH}"><span class="kern-label">${t(m.hero.emailCta)}</span></a>
 						</div>
 						<p class="kern-body kern-body--small hero__note">${t(m.hero.ctaNote)}</p>
+						<p class="kern-body kern-body--small hero__note">${t(m.hero.purpose)}</p>
 						<p class="kern-body"><a class="kern-link" href="${APP_PATH}">${t(m.hero.secondary)}</a></p>
 					</div>
 ${shots.has('dashboard') ? `					${shotImage('dashboard', m.hero.screenshotAlt, 'shot hero__shot', false)}\n` : ''}				</div>
