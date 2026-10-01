@@ -4,11 +4,15 @@ _Diese Datei wird automatisch aus den GitHub-Releases generiert — nicht von Ha
 
 ## v0.12 - 2026-10-01
 
-_Enthält v0.12.0 – v0.12.16._
+_Enthält v0.12.0 – v0.12.18._
 
 ### 🎉 New Features
 
 - feat(server): generate compliant PDF invoices and email them (#1955) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2025
+
+### 🚀 Improvements
+
+- feat(server): shared five-factor scoring for /next and /suggestions by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2045
 
 ### 🔧 Engineering
 
@@ -30,6 +34,7 @@ _Enthält v0.12.0 – v0.12.16._
 - feat(server): auto-provision unknown invitee and delegation recipients by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2035
 - fix(server): redeliver undelivered invoice mails (#2030) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2040
 - feat(website,frontend): add medical-device disclaimer and crisis hotline hint by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/2042
+- docs(skill): add coordination pitfalls for split subs and re-triage by @deleonio in https://github.com/deleonio/priority-pilot/pull/2047
 
 ## v0.11 - 2026-09-30
 
@@ -159,7 +164,6 @@ _Enthält v0.9.0 – v0.9.18._
 - docs: add care-tone guide with rules and sample texts in 10 languages by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1806
 - docs(project): add website workspace to monorepo list by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1807
 - ci: add signed test apk artifact until internal test track (#1801) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1808
-- chore(ci): route documenter through openrouter free model by default by @deleonio in https://github.com/deleonio/priority-pilot/pull/1755
 - chore(ci): route documenter through openrouter free model by default by @deleonio in https://github.com/deleonio/priority-pilot/pull/1755
 - chore: add n-way phase comparison charts to the focus report by @deleonio in https://github.com/deleonio/priority-pilot/pull/1811
 - feat(frontend): enable balance sorting by default (#1792) by @my-github-action-bot[bot] in https://github.com/deleonio/priority-pilot/pull/1812
