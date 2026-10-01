@@ -19,6 +19,15 @@ vi.mock('@public-ui/react-v19', () => ({
 			{props.children}
 		</div>
 	),
+	// Modal (CancelDialog) rendert auf KolDialog — ohne Export scheitert AK3 am fehlenden Mock, nicht am Verhalten.
+	KolDialog: (props: { _label: string; children?: React.ReactNode } & Record<string, unknown>) => {
+		const { _label, children, ...rest } = props;
+		return (
+			<div role="dialog" aria-label={_label} {...rest}>
+				{children}
+			</div>
+		);
+	},
 	// data-testid u. a. Rest-Props durchreichen (Analyse setzt auf `cancel-subscription` ab).
 	KolButton: (props: { _label: string; _on?: { onClick?: (e: unknown) => void } } & Record<string, unknown>) => {
 		const { _label, _on, ...rest } = props;

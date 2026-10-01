@@ -136,7 +136,8 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 
 	// POST /billing/subscriptions/cancel — löst die Kündigung bei PayPal aus (AK3). `plan` bleibt
 	// unverändert; wirksam wird die Kündigung erst über `BILLING.SUBSCRIPTION.CANCELLED`. Ein nie
-	// bestätigter Checkout (`approval_pending`) blockiert sonst jede Neubuchung (409).
+	// bestätigter Checkout (`approval_pending`) blockiert sonst jede Neubuchung (409). Ein bereits
+	// gekündigtes Abo antwortet ebenfalls 409 (#2048).
 	router.post(
 		'/billing/subscriptions/cancel',
 		async (req: Request, res: Response<Record<string, never> | ErrorDto>) => {
@@ -150,6 +151,15 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 				order: ACTIVE_FIRST,
 			});
 			if (!subscription) {
+				// Gekündigt mit laufendem Zeitraum ist kein fehlendes Abo — verständlicher 409 statt 404 (#2048).
+				const cancelled = await Subscription.findOne({
+					where: { userId, status: 'cancelled', currentPeriodEnd: { [Op.gt]: new Date() } },
+					order: ACTIVE_FIRST,
+				});
+				if (cancelled) {
+					sendError(res, 409, 'Das Abo ist bereits gekündigt.');
+					return;
+				}
 				sendError(res, 404, 'Kein Abo gefunden.');
 				return;
 			}
@@ -174,7 +184,13 @@ export const createBillingSubscriptionsRouter = (deps: BillingSubscriptionsDeps 
 			try {
 				await checkout.cancel(subscription.get('externalSubscriptionId') as string);
 				res.status(200).json({});
-			} catch {
+			} catch (error) {
+				// 4xx heißt: PayPal lehnt ab (bereits gekündigt, 422 SUBSCRIPTION_STATUS_INVALID) —
+				// verständlicher 409 statt 502 (#2048). 5xx/Netzfehler bleiben 502.
+				if (error instanceof PaypalHttpError && error.status < 500) {
+					sendError(res, 409, 'Das Abo ist bereits gekündigt.');
+					return;
+				}
 				sendError(res, 502, 'PayPal war nicht erreichbar.');
 			}
 		},

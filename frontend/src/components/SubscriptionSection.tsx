@@ -89,7 +89,21 @@ export const SubscriptionSection = () => {
 	const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 	const [invoicesError, setInvoicesError] = useState<string | null>(null);
 	const [cancelOpen, setCancelOpen] = useState(false);
-	const canCancel = subscription?.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal';
+	// Merker nach erfolgreicher Kündigung: der Webhook stellt den Status erst verzögert um (#2048).
+	const [locallyCancelled, setLocallyCancelled] = useState(false);
+	// Kündigen gibt es nur für PayPal im Web und nur, solange das Abo aktiv und noch nicht
+	// (auch lokal) gekündigt ist (#2048).
+	const canCancel =
+		subscription?.provider === 'paypal' &&
+		CHANNEL_PROVIDER[getChannel()] === 'paypal' &&
+		subscription.status === 'active' &&
+		!locallyCancelled;
+	const isPaypalWeb = subscription?.provider === 'paypal' && CHANNEL_PROVIDER[getChannel()] === 'paypal';
+	// Gekündigt mit laufendem Zeitraum: serverseitiger Status ODER lokaler Merker (#2048).
+	const isCancelled =
+		subscription != null &&
+		new Date(subscription.currentPeriodEnd).getTime() > Date.now() &&
+		(subscription.status === 'cancelled' || locallyCancelled);
 
 	// Ehemalige Abonnenten (`subscription === null`) sehen ihre Rechnungen weiter, aber keine leere Gruppe (#1940).
 	const showInvoices = subscription != null || (subscription === null && invoices !== null && invoices.length > 0);
@@ -127,8 +141,13 @@ export const SubscriptionSection = () => {
 						{subscription.graceUntil !== null && (
 							<p data-testid="subscription-grace-until">Kulanzfrist bis {formatDate(subscription.graceUntil)}</p>
 						)}
+						{isCancelled && (
+							<p data-testid="subscription-cancelled" aria-live="polite">
+								Gekündigt, läuft bis {formatDate(subscription.currentPeriodEnd)}, danach Free
+							</p>
+						)}
 						{/* Kündigen über die eigene Route gibt es nur für PayPal im Web; sonst verwaltet der Anbieter (#1695). */}
-						{!canCancel && <ManagedBy provider={subscription.provider} />}
+						{!isPaypalWeb && <ManagedBy provider={subscription.provider} />}
 					</section>
 				</>
 			) : (
@@ -189,7 +208,15 @@ export const SubscriptionSection = () => {
 				</KolDetails>
 			)}
 
-			{cancelOpen && <CancelDialog onClose={() => setCancelOpen(false)} onCancelled={() => setCancelOpen(false)} />}
+			{cancelOpen && (
+				<CancelDialog
+					onClose={() => setCancelOpen(false)}
+					onCancelled={() => {
+						setLocallyCancelled(true);
+						setCancelOpen(false);
+					}}
+				/>
+			)}
 		</div>
 	);
 };
