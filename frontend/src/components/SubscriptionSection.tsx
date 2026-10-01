@@ -18,6 +18,16 @@ const PERIOD_LABELS: Record<string, string> = { monthly: 'monatlich', quarterly:
 /** Zeitpunkte in Abo-Status und Rechnungsliste als „TT.MM.JJJJ" (Muster `ApiTokensSection.tsx`). */
 const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE');
 
+/** PDF-Download je Rechnung (#1955 AK5) — Anker-Navigation; die Session läuft als Cookie mit, der Server liefert Content-Disposition. */
+const downloadInvoicePdf = (invoice: Invoice): void => {
+	const link = document.createElement('a');
+	link.href = `/api/v1/billing/invoices/${invoice.id}/pdf`;
+	link.download = `${invoice.number}.pdf`;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+};
+
 interface CancelDialogProps {
 	onClose: () => void;
 	onCancelled: () => void;
@@ -162,6 +172,15 @@ export const SubscriptionSection = () => {
 											{formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}
 										</span>
 										<span>{formatEuro(invoice.amountCents)}</span>
+										<span>
+											<KolButton
+												data-testid="invoice-download"
+												_label="PDF herunterladen"
+												_variant="secondary"
+												_icons={{ left: { icon: 'fa-solid fa-download' } }}
+												_on={{ onClick: () => downloadInvoicePdf(invoice) }}
+											/>
+										</span>
 									</li>
 								))}
 							</ul>

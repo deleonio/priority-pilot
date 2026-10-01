@@ -104,3 +104,29 @@ describe('logics/mail — Versand-Helfer (#1426, TF8)', () => {
 		}
 	});
 });
+
+describe('sendMailToUser — Attachments (#1955 AK1)', () => {
+	it('reicht Attachments unverändert an den Sender durch', async () => {
+		const calls: unknown[] = [];
+		const attachment = {
+			filename: 'INV-2026-100005.pdf',
+			contentType: 'application/pdf',
+			content: new TextEncoder().encode('%PDF-1.4 test'),
+		};
+		// `attachments` ist erst Teil des Vertrags, sobald #1955 das Mail-Interface erweitert hat —
+		// der Cast hält den Test bis dahin TS-stabil; rot ist die fehlende Durchreichung.
+		const payload = {
+			subject: 'Ihre Rechnung INV-2026-100005',
+			text: 'Rechnung',
+			attachments: [attachment],
+		} as Parameters<typeof sendMailToUser>[1];
+
+		const ok = await sendMailToUser({ email: 'ada@example.com' }, payload, async (sent) => {
+			calls.push(sent);
+		});
+
+		assert.equal(ok, true);
+		const forwarded = (calls[0] ?? {}) as { attachments?: unknown };
+		assert.deepEqual(forwarded.attachments, [attachment], 'Attachments müssen 1:1 beim Sender ankommen');
+	});
+});

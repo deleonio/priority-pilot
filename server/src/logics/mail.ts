@@ -6,12 +6,20 @@ import nodemailer from 'nodemailer';
  * kein Secret in der DB — Spiegel des VAPID-Musters in `push.ts`).
  */
 
+/** Anhang (z. B. Rechnungs-PDF, #1955) — wird unverändert an den Versand durchgereicht. */
+interface MailAttachment {
+	filename: string;
+	contentType: string;
+	content: Uint8Array;
+}
+
 interface MailPayload {
 	to: string;
 	subject: string;
 	text: string;
 	/** Optionale CC-Adresse (z. B. Betriebs-Postfach bei der Status-Mail). */
 	cc?: string;
+	attachments?: MailAttachment[];
 }
 
 /**
@@ -27,7 +35,7 @@ export const isMailConfigured = (): boolean => !!(process.env.SMTP_HOST?.trim() 
  * Standard-Versand über nodemailer. Wird nur erreicht, wenn kein Test-Sender injiziert ist;
  * die aufrufenden Endpunkte/Trigger haben SMTP zuvor über {@link isMailConfigured} abgesichert.
  */
-const defaultSender: MailSender = async ({ to, cc, subject, text }) => {
+const defaultSender: MailSender = async ({ to, cc, subject, text, attachments }) => {
 	const transport = nodemailer.createTransport({
 		host: process.env.SMTP_HOST?.trim(),
 		port: Number(process.env.SMTP_PORT?.trim() || 587),
@@ -36,7 +44,14 @@ const defaultSender: MailSender = async ({ to, cc, subject, text }) => {
 			? { user: process.env.SMTP_USER?.trim(), pass: process.env.SMTP_PASSWORD?.trim() }
 			: undefined,
 	});
-	await transport.sendMail({ from: process.env.MAIL_FROM?.trim(), to, cc, subject, text });
+	await transport.sendMail({
+		from: process.env.MAIL_FROM?.trim(),
+		to,
+		cc,
+		subject,
+		text,
+		attachments: attachments?.map((attachment) => ({ ...attachment, content: Buffer.from(attachment.content) })),
+	});
 };
 
 /** Empfänger (Ausschnitt) — Nutzer ohne `email` werden übersprungen. */
@@ -56,14 +71,20 @@ interface MailRecipient {
  */
 export const sendMailToUser = async (
 	user: MailRecipient,
-	payload: { subject: string; text: string; cc?: string },
+	payload: { subject: string; text: string; cc?: string; attachments?: MailAttachment[] },
 	send: MailSender = defaultSender,
 ): Promise<boolean> => {
 	if (!user.email) {
 		return false;
 	}
 	try {
-		await send({ to: user.email, cc: payload.cc, subject: payload.subject, text: payload.text });
+		await send({
+			to: user.email,
+			cc: payload.cc,
+			subject: payload.subject,
+			text: payload.text,
+			attachments: payload.attachments,
+		});
 		return true;
 	} catch {
 		// Bewusst KEINE Fehlerdetails loggen (könnten Transport-Meldungen mit Zugangsdaten enthalten) —

@@ -145,6 +145,7 @@ export const main = async (): Promise<void> => {
 			migrateSubscriptionExternalIdUnique,
 			migrateSubscriptionPendingPlanColumns,
 			migrateInvoiceLineItemsColumn,
+			migrateInvoicePdfBytesColumn,
 			migrateLegacyPlans,
 			migrateUserIdColumns,
 			migratePillarDescription,
@@ -211,6 +212,8 @@ export const main = async (): Promise<void> => {
 		await migrateSubscriptionPendingPlanColumns(sequelize);
 		// Rechnungspositionen nachziehen (#1912) — vor sync().
 		await migrateInvoiceLineItemsColumn(sequelize);
+		// Rechnungs-PDF-Bytes nachziehen (#1955) — vor sync().
+		await migrateInvoicePdfBytesColumn(sequelize);
 		// Altpakete max/ultimate auf plus/pro umstellen (#1785) — nach den Spalten-Migrationen.
 		await migrateLegacyPlans(sequelize);
 		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.

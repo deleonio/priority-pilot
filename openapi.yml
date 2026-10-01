@@ -3484,7 +3484,8 @@ paths:
       summary: Eigene Rechnungen auflisten
       description: >-
         Liefert die Rechnungen des angemeldeten Nutzers (Issue #1505, T6d, AK5),
-        neueste zuerst. Kein PDF, keine Zahlungsdaten (AK9).
+        neueste zuerst. Keine Zahlungsdaten (AK9) — die PDF-Bytes liefert
+        `GET /billing/invoices/{id}/pdf` (#1955).
       operationId: listBillingInvoices
       tags: [billing]
       responses:
@@ -3525,6 +3526,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Invoice'
+        '401':
+          description: Anmeldung erforderlich
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /billing/invoices/{id}/pdf:
+    get:
+      summary: Rechnungs-PDF herunterladen
+      description: >-
+        Liefert das zum Erzeugungszeitpunkt gespeicherte PDF der eigenen Rechnung
+        (Issue #1955, AK3/AK4) als Download — byte-identisch zum PDF-Anhang der
+        Rechnungsmail. Fremde oder unbekannte Rechnungen — darunter Altrechnungen
+        ohne gespeichertes PDF — liefern 404, wie `GET /billing/invoices/{id}`.
+      operationId: getBillingInvoicePdf
+      tags: [billing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Id der Rechnung
+      responses:
+        '200':
+          description: Das gespeicherte Rechnungs-PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         '401':
           description: Anmeldung erforderlich
           content:
@@ -6059,8 +6093,9 @@ components:
     Invoice:
       type: object
       description: >-
-        Rechnung zu einem Abrechnungszeitraum (#1505 AK5). Kein PDF, kein
-        Zahlungsmittel (AK9) — `taxNote` trägt den §19-UStG-Hinweis.
+        Rechnung zu einem Abrechnungszeitraum (#1505 AK5). Kein Zahlungsmittel
+        (AK9) — `taxNote` trägt den §19-UStG-Hinweis; das gespeicherte PDF
+        liefert `GET /billing/invoices/{id}/pdf` (#1955).
       required: [id, number, periodStart, periodEnd, amountCents, taxNote]
       properties:
         id:
