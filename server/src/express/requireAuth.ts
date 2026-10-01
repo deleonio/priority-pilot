@@ -38,15 +38,18 @@ export const getUserId = (req: Request): number | undefined => {
  * ist (siehe {@link isAuthActive}), erzwingt jede API-Route eine gültige Session (401 sonst).
  * Ist zusätzlich eine Allowlist gesetzt, wird die E-Mail bei jedem Request erneut geprüft, damit ein
  * nachträglich gesperrter Account auch mit bestehender Session sofort herausfällt.
+ *
+ * Async, weil die Prüfung seit #1982 zusätzlich die Wartelisten-Freischaltungen aus der DB liest
+ * (`isEmailAllowed`) — wie `requireRole` darunter als Promise-Middleware.
  */
-export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 	if (!isAuthActive()) {
 		// Lokaler Entwicklungsmodus ohne Auth-Konfiguration: kein Gate, keine Nutzer-Bindung.
 		next();
 		return;
 	}
 	const user = req.session?.user;
-	if (!user || typeof user.id !== 'number' || (hasAllowlist() && !isEmailAllowed(user.email))) {
+	if (!user || typeof user.id !== 'number' || (hasAllowlist() && !(await isEmailAllowed(user.email)))) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}

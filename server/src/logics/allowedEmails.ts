@@ -10,6 +10,8 @@
 // Alle Adressen werden normalisiert (trim + lowercase). Der Vergleich in isEmailAllowed()
 // erfolgt ebenfalls normalisiert, sodass Groß-/Kleinschreibung und Whitespace ignoriert werden.
 
+import WaitlistEntry from '../models/waitlistEntry.js';
+
 /** Normalisiert eine E-Mail-Adresse für den Vergleich (trim + lowercase). */
 const normalize = (email: string): string => email.trim().toLowerCase();
 
@@ -89,18 +91,24 @@ export const getConfiguredEmails = (): string[] => {
 };
 
 /**
- * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist. Bei offener Registrierung
- * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant. Liefert false, wenn keine Allowlist
- * konfiguriert ist (statt zu werfen) — so bleibt der Aufruf in der Middleware robust.
+ * Prüft, ob die übergebene E-Mail in der Allowlist enthalten ist oder auf der Warteliste
+ * freigeschaltet wurde (`status = 'activated'`, #1982/ADR 0019). Bei offener Registrierung
+ * (`OPEN_SIGNUP`) ist jede nicht-leere Adresse erlaubt. Case-insensitiv und whitespace-tolerant.
+ * Liefert false, wenn keine Allowlist konfiguriert ist (statt zu werfen) — so bleibt der Aufruf
+ * in der Middleware robust. Async, weil die Freischaltung in der DB steht — alle Aufrufer awaiten.
  */
-export const isEmailAllowed = (email: string): boolean => {
+export const isEmailAllowed = async (email: string): Promise<boolean> => {
 	if (isOpenSignup()) {
 		return normalize(email) !== '';
 	}
 	const raw = process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim() || '';
-	const emails = parseEmails(raw);
-	if (emails.length === 0) {
+	if (parseEmails(raw).includes(normalize(email))) {
+		return true;
+	}
+	const normalized = normalize(email);
+	if (normalized === '') {
 		return false;
 	}
-	return emails.includes(normalize(email));
+	const activated = await WaitlistEntry.findOne({ where: { email: normalized, status: 'activated' } });
+	return activated !== null;
 };

@@ -1,9 +1,16 @@
-import { describe, it, afterEach } from 'node:test';
+import { describe, it, afterEach, before } from 'node:test';
 import assert from 'node:assert/strict';
 // ROTER Spec-Test (#193): Die Multi-User-Allowlist-Logik existiert noch nicht. Der Import schlägt
 // fehl, bis `server/src/logics/allowedEmails.ts` `isEmailAllowed` und `getConfiguredEmails`
 // gemäß diesem Vertrag (AK 1–7, AK-9) bereitstellt.
 import { isEmailAllowed, getConfiguredEmails } from './allowedEmails.js';
+import sequelize from '../database.js';
+
+// #1982: `isEmailAllowed` liest bei Nicht-Treffern zusätzlich die Wartelisten-Freischaltungen aus
+// der DB — die Tabelle einmalig synchen. Die Suite selbst schreibt keine Einträge.
+before(async () => {
+	await sequelize.sync();
+});
 
 const ENV_KEYS = ['GOOGLE_ALLOWED_EMAIL', 'GOOGLE_ALLOWED_EMAILS', 'OPEN_SIGNUP'] as const;
 
@@ -33,28 +40,28 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 		restoreEnv();
 	});
 
-	it('AK-1: Backward-Compat — einzelne GOOGLE_ALLOWED_EMAIL ist erlaubt', () => {
+	it('AK-1: Backward-Compat — einzelne GOOGLE_ALLOWED_EMAIL ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAIL = 'a@b.com';
-		assert.equal(isEmailAllowed('a@b.com'), true);
+		assert.equal(await isEmailAllowed('a@b.com'), true);
 	});
 
-	it('AK-2: CSV — erste E-Mail aus GOOGLE_ALLOWED_EMAILS ist erlaubt', () => {
+	it('AK-2: CSV — erste E-Mail aus GOOGLE_ALLOWED_EMAILS ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com,c@d.com';
-		assert.equal(isEmailAllowed('a@b.com'), true);
+		assert.equal(await isEmailAllowed('a@b.com'), true);
 	});
 
-	it('AK-3: CSV — zweite E-Mail aus GOOGLE_ALLOWED_EMAILS ist erlaubt', () => {
+	it('AK-3: CSV — zweite E-Mail aus GOOGLE_ALLOWED_EMAILS ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com,c@d.com';
-		assert.equal(isEmailAllowed('c@d.com'), true);
+		assert.equal(await isEmailAllowed('c@d.com'), true);
 	});
 
-	it('AK-4: JSON-Array — E-Mail aus dem Array ist erlaubt', () => {
+	it('AK-4: JSON-Array — E-Mail aus dem Array ist erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = '["a@b.com","c@d.com"]';
-		assert.equal(isEmailAllowed('c@d.com'), true);
+		assert.equal(await isEmailAllowed('c@d.com'), true);
 	});
 
 	it('AK-5: kein Env-Var gesetzt — getConfiguredEmails() wirft', () => {
@@ -62,16 +69,16 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 		assert.throws(() => getConfiguredEmails());
 	});
 
-	it('AK-6: case-insensitiv — A@B.COM ist bei a@b.com erlaubt', () => {
+	it('AK-6: case-insensitiv — A@B.COM ist bei a@b.com erlaubt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAIL = 'a@b.com';
-		assert.equal(isEmailAllowed('A@B.COM'), true);
+		assert.equal(await isEmailAllowed('A@B.COM'), true);
 	});
 
-	it('AK-7: Whitespace — Leerzeichen um die E-Mails werden getrimmt', () => {
+	it('AK-7: Whitespace — Leerzeichen um die E-Mails werden getrimmt', async () => {
 		clearEnv();
 		process.env.GOOGLE_ALLOWED_EMAILS = ' a@b.com , c@d.com ';
-		assert.equal(isEmailAllowed(' a@b.com '), true);
+		assert.equal(await isEmailAllowed(' a@b.com '), true);
 	});
 
 	// Hilfsfunktion: fängt console.log während eines Aufrufs ab.
@@ -117,16 +124,16 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 	});
 
 	describe('OPEN_SIGNUP — offene Registrierung für die öffentliche Website', () => {
-		it('lässt bei OPEN_SIGNUP=true jede Adresse zu, auch ohne Allowlist', () => {
+		it('lässt bei OPEN_SIGNUP=true jede Adresse zu, auch ohne Allowlist', async () => {
 			clearEnv();
 			process.env.OPEN_SIGNUP = 'true';
-			assert.equal(isEmailAllowed('neu@example.com'), true);
+			assert.equal(await isEmailAllowed('neu@example.com'), true);
 		});
 
-		it('weist auch bei OPEN_SIGNUP=true eine leere Adresse ab', () => {
+		it('weist auch bei OPEN_SIGNUP=true eine leere Adresse ab', async () => {
 			clearEnv();
 			process.env.OPEN_SIGNUP = 'true';
-			assert.equal(isEmailAllowed('  '), false);
+			assert.equal(await isEmailAllowed('  '), false);
 		});
 
 		it('getConfiguredEmails() wirft bei OPEN_SIGNUP=true ohne Allowlist nicht', () => {
@@ -135,11 +142,11 @@ describe('allowedEmails — Multi-User-Allowlist (Issue #193)', () => {
 			assert.deepEqual(getConfiguredEmails(), []);
 		});
 
-		it('OPEN_SIGNUP=false lässt die Allowlist greifen', () => {
+		it('OPEN_SIGNUP=false lässt die Allowlist greifen', async () => {
 			clearEnv();
 			process.env.OPEN_SIGNUP = 'false';
 			process.env.GOOGLE_ALLOWED_EMAILS = 'a@b.com';
-			assert.equal(isEmailAllowed('neu@example.com'), false);
+			assert.equal(await isEmailAllowed('neu@example.com'), false);
 		});
 	});
 });

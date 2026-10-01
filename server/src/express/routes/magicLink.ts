@@ -62,7 +62,7 @@ export const createMagicLinkRouter = (mailSender?: MailSender) => {
 		// diese Einschränkung würde der Server Mails an beliebige Fremdadressen verschicken.
 		const mayReceiveLink = isOpenSignup()
 			? (await User.count({ where: { email: normalizedEmail } })) > 0
-			: isEmailAllowed(normalizedEmail);
+			: await isEmailAllowed(normalizedEmail);
 
 		if (mayReceiveLink) {
 			const token = await createLoginToken(normalizedEmail);

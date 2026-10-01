@@ -224,7 +224,7 @@ export const createApp = (deps: AppDeps = {}) => {
 				async (_accessToken, _refreshToken, profile, done) => {
 					try {
 						const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
-						if (!isEmailAllowed(email)) {
+						if (!(await isEmailAllowed(email))) {
 							return done(null, false);
 						}
 						const displayName = profile.displayName ?? email;
