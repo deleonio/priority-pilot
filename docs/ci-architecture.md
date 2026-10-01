@@ -77,9 +77,13 @@ Setup-Step mit klarer Fehlermeldung fehl.
 
 ### LLM-Egress über Tailscale-Exit-Node
 
-Optional wird der gesamte LLM-Traffic eines Laufs über einen Nürnberger Tailscale-Exit-Node
-geleitet, sodass z.ai/OpenRouter alle Requests von **einer konsistenten IP** sehen — das verhindert
-das „Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs. Eingehängt zentral im
+Optional wird der LLM-Traffic eines Laufs über einen Nürnberger Tailscale-Exit-Node geleitet —
+aber nur, wenn der Provider **z.ai** ist **und** der Lauf auf einem **gehosteten GitHub-Runner**
+stattfindet (`llm-provider == 'zai' && runner.name != 'pi5'`): z.ai blockt Azure-IPs, und nur dort
+lohnt die feste IP, die das „Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs
+verhindert. Der pi5-Selbst-Runner sitzt im Heimnetz (deutsche IP, kein tailscaled/TUN im
+Container) und überspringt den Exit Node; Claude API/OpenRouter laufen ebenfalls direkt.
+Eingehängt zentral im
 [`setup-agent`](../.github/actions/setup-agent/action.yml)-Composite (Connect + DNS-Fix) **vor**
 dem Agenten-Aufruf — laufzeitunabhängig, weil der Tarif am Provider hängt, nicht an der CLI.
 Kill-Switch und Fail-closed-Verhalten: siehe [`tailscale-exit-node.md`](tailscale-exit-node.md).
