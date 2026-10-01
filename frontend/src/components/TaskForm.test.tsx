@@ -2831,3 +2831,115 @@ describe('Titel-Länge beim Speichern (#1818, AK4)', () => {
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #1962 — Hauptsäulen-Modus (Spec: docs/spec/issue-1962.md).
+ *
+ * Vertrag: Der Aufgaben-Dialog bietet eine Auswahlliste „Hauptsäule“; ohne Wahl rendert der
+ * Säulen-Editor keine Beitragszeilen (kein erzwungenes Vorbelegen aller fünf Säulen mehr), mit
+ * Wahl genau eine (Anteil 100 %) — absendbar mit genau einem Beitrag im Payload (AK2). Ein
+ * Vorschlags-Block („Vorschlag übernehmen“ / „Verwerfen“) bietet die Restverteilung an:
+ * Übernehmen wendet Hauptsäule 80 % + Rest je 5 % an, Verwerfen behält den Ein-Säulen-Zustand
+ * (AK3, KI-UX: Vorschlag nie automatisch anwenden).
+ *
+ * Diese Specs sind rot, solange TaskForm weder die Hauptsäulen-Auswahl noch den Vorschlags-Block
+ * rendert bzw. weiterhin alle fünf Säulen beim Mount vorbefüllt (`fillContributions`).
+ */
+describe('#1962 — Hauptsäulen-Modus', () => {
+	const fivePillars: Pillar[] = [
+		{ id: 1, name: 'Körper', description: '', weight: 20 },
+		{ id: 2, name: 'Mentale Gesundheit', description: '', weight: 20 },
+		{ id: 3, name: 'Beziehungen', description: '', weight: 20 },
+		{ id: 4, name: 'Wirksamkeit', description: '', weight: 20 },
+		{ id: 5, name: 'Sinn', description: '', weight: 20 },
+	];
+
+	const chooseMainPillar = async (id: number): Promise<void> => {
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText('Hauptsäule'), { target: { value: String(id) } });
+		});
+	};
+
+	const rowLabels = (): (string | null)[] =>
+		Array.from(document.querySelectorAll('.pillar-row input')).map((input) => input.getAttribute('aria-label'));
+
+	it('AK2 — kein erzwungenes Vorbelegen: ohne Wahl keine Zeilen, mit Hauptsäule genau eine und Payload mit genau einem Beitrag', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+		});
+
+		// Vor der Wahl keine stillen Vorbelegungen der übrigen Säulen (heute: alle fünf vorbefüllt).
+		expect(screen.getByLabelText('Hauptsäule')).toBeInTheDocument();
+		expect(document.querySelectorAll('.pillar-row')).toHaveLength(0);
+
+		await chooseMainPillar(2);
+		expect(rowLabels()).toEqual(['Mentale Gesundheit: 100 %']);
+
+		await fillTitle('Hauptsäulen-Task');
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
+		expect(taskCreate.pillars).toEqual([{ pillarId: 2, share: 100, confidence: 100 }]);
+	});
+
+	it('AK3 — Regelfallback übernehmen: fünf Zeilen, Hauptsäule 80 %, Rest je 5 %, Payload summiert 100', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+		});
+		await chooseMainPillar(1);
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+
+		expect(rowLabels()).toEqual([
+			'Körper: 80 %',
+			'Mentale Gesundheit: 5 %',
+			'Beziehungen: 5 %',
+			'Wirksamkeit: 5 %',
+			'Sinn: 5 %',
+		]);
+
+		await fillTitle('Vollverteilt');
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
+		expect(taskCreate.pillars).toEqual([
+			{ pillarId: 1, share: 80, confidence: 100 },
+			{ pillarId: 2, share: 5, confidence: 100 },
+			{ pillarId: 3, share: 5, confidence: 100 },
+			{ pillarId: 4, share: 5, confidence: 100 },
+			{ pillarId: 5, share: 5, confidence: 100 },
+		]);
+	});
+
+	it('AK3 — Verwerfen: danach speichert nur die Hauptsäule (keine stillen 20-%-Vorbelegungen)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} pillars={fivePillars} />);
+		});
+		await chooseMainPillar(1);
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Vorschlag übernehmen' }));
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }));
+		});
+
+		expect(rowLabels()).toEqual(['Körper: 100 %']);
+
+		await fillTitle('Nur Hauptsäule');
+		await clickSave();
+
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { pillars: unknown[] } }];
+		expect(taskCreate.pillars).toEqual([{ pillarId: 1, share: 100, confidence: 100 }]);
+	});
+});
