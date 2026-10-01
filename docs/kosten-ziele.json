@@ -1,0 +1,13 @@
+{
+	"weeklyBudgetUsd": 400,
+	"kpis": {
+		"kostenJeTicketPipelineMedian": { "goal": "<= $3.00", "okMax": 3 },
+		"turnsJeTicketPipeline": { "goal": "Index sinkend (Ziel < 100)" },
+		"firstPassGruenPipeline": { "goal": "steigend (Bewegung nur ausserhalb des Wilson-Bands zaehlen)" },
+		"reviewRundenPipeline": { "goal": "<= 1,2", "okMax": 1.2 },
+		"reviewRundenExtern": { "goal": "<= 1,2", "okMax": 1.2 },
+		"cacheEffizienzClaude": { "goal": "> 95 %", "okMin": 0.95 },
+		"flagshipAnteilClaude": { "goal": "<= 10 %", "okMax": 0.1 },
+		"smallAnteilClaude": { "goal": "> 50 %", "okMin": 0.5 }
+	}
+}

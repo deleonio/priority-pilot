@@ -16,7 +16,7 @@
 // Aufruf: node .github/scripts/audit-basis.ts [verzeichnis]   (Default: .costs)
 
 import { classifyTicket, isComplete, readTickets, type TicketClass } from './tokens-report.ts';
-import { pct } from './report-stats.ts';
+import { pct, ZERO } from './report-stats.ts';
 import type { CostEntry } from './cost-record.ts';
 
 const M = 1_000_000;
@@ -58,6 +58,11 @@ export function renderAuditBasis(dir: string): string {
 	}
 
 	const sum = (list: CostEntry[], pick: (e: CostEntry) => number): number => list.reduce((a, e) => a + pick(e), 0);
+	const valueOf = (e: CostEntry): number => e.valueCost ?? ZERO(e.cost);
+	// $-Spalte = valueCost (Verbrauchsbewertung zu Referenzpreisen, wie im Kosten-Report), nicht
+	// `cost`: openrouter-/Fremdtarif-Läufe haben cost = 0 und würden ihre Phase sonst gratis
+	// erscheinen lassen — der Documenter-Wechsel auf ein :free-Modell machte genau das akut.
+	// Legacy-Läufe vor #984 haben kein valueCost (optional) — Fallback auf cost, sonst 0 $.
 	const phases = new Map<
 		string,
 		{
@@ -67,7 +72,7 @@ export function renderAuditBasis(dir: string): string {
 			measured: number;
 			tokensIn: number;
 			tokensOut: number;
-			cost: number;
+			value: number;
 			delegated: number;
 			sidechain: number;
 		}
@@ -83,7 +88,7 @@ export function renderAuditBasis(dir: string): string {
 				measured: 0,
 				tokensIn: 0,
 				tokensOut: 0,
-				cost: 0,
+				value: 0,
 				delegated: 0,
 				sidechain: 0,
 			};
@@ -93,7 +98,7 @@ export function renderAuditBasis(dir: string): string {
 		p.tickets.add(e.issueId);
 		p.tokensIn += e.tokensIn;
 		p.tokensOut += e.tokensOut;
-		p.cost += e.cost;
+		p.value += valueOf(e);
 		p.sidechain += e.sidechainTokens ?? 0;
 		if ((e.sidechainTokens ?? 0) > 0) p.delegated += 1;
 		if (isMeasured(e)) {
@@ -109,21 +114,23 @@ export function renderAuditBasis(dir: string): string {
 	});
 
 	lines.push(
-		`| Phase | Runs | Tickets | Turns | Ø T/Run | Tok in (M) | Tok out (k) | $ |`,
+		`| Phase | Runs | Tickets | Turns | Ø T/Run | Tok in (M) | Tok out (k) | Wert (USD) |`,
 		`| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`,
 	);
 	for (const [phase, p] of sorted) {
 		lines.push(
 			`| ${phase} | ${p.runs} | ${p.tickets.size} | ${num(p.turns)} | ${avg(p.turns, p.measured)} | ` +
-				`${(p.tokensIn / M).toLocaleString('de-DE', { maximumFractionDigits: 1 })} | ${num(p.tokensOut / 1000)} | ${p.cost.toFixed(2)} |`,
+				`${(p.tokensIn / M).toLocaleString('de-DE', { maximumFractionDigits: 1 })} | ${num(p.tokensOut / 1000)} | ${p.value.toFixed(2)} |`,
 		);
 	}
-	const totalCost = sum(entries, (e) => e.cost);
+	const totalValue = sum(entries, valueOf);
 	const totalTurns = sum(measured, (e) => e.turns as number);
 	lines.push(
 		`| **Gesamt** | **${entries.length}** | **${raw.length}** | **${num(totalTurns)}** | **${avg(totalTurns, measured.length)}** | ` +
 			`**${(sum(entries, (e) => e.tokensIn) / M).toLocaleString('de-DE', { maximumFractionDigits: 1 })}** | ` +
-			`**${num(sum(entries, (e) => e.tokensOut) / 1000)}** | **${totalCost.toFixed(2)}** |`,
+			`**${num(sum(entries, (e) => e.tokensOut) / 1000)}** | **${totalValue.toFixed(2)}** |`,
+		'',
+		`Wert = valueCost (Verbrauchsbewertung zu Referenzpreisen) — Läufe ohne Preisliste (openrouter, :free-Modelle) zählen mit, statt eine Phase als 0 $ zu verzerren.`,
 		'',
 	);
 

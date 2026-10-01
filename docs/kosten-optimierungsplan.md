@@ -314,18 +314,31 @@ die Frage ist „hat die letzte Änderung etwas bewegt", nicht nur „wo stehen 
    - Messung: Cache-Read / Input je Provider — openrouter-Läufe färben den Gesamtwert sonst rot
 
 Jede Harness-Änderung wird in `docs/kosten-interventionen.json` eingetragen; der Turn-Report
-vergleicht dann die 20 Pipeline-Tickets davor mit den 20 danach.
+vergleicht dann die 20 Pipeline-Tickets davor mit den 20 danach, der Kosten-Report die Ø
+Läufe der 7 Tage davor/danach und markiert die Tage im Trend-Chart.
+
+Zielwerte und Wochenbudget liest der Report maschinell aus `docs/kosten-ziele.json`
+(KPI-Schlüssel unter `kpis.*`, `goal` = Anzeigetext, `okMax`/`okMin` = Ziel-Schwelle,
+`weeklyBudgetUsd` = Soll je Woche) — diese Liste hier bleibt die Definition der KPIs, die
+Zahlen pflegt die JSON. `weeklyBudgetUsd` wurde einmalig aus dem Ø der Wochenwerte abgeleitet.
 
 ### Monitoring
 
 ```bash
-# Wöchentliche Berichte (Turns zuerst, dann Token/USD); Baseline-Kohorte optional
+# Wöchentliche Berichte (Turns zuerst, dann Token/USD); Baseline-Kohorte optional.
+# Interventionen können explizit übergeben werden (Default: docs/kosten-interventionen.json);
+# Zielwerte und Wochenbudget kommen aus docs/kosten-ziele.json.
 node .github/scripts/turns-report.ts --dir .costs --baseline 2026-W35
-node .github/scripts/tokens-report.ts --dir .costs --baseline 2026-W35
+node .github/scripts/tokens-report.ts --dir .costs --baseline 2026-W35 [--interventions <pfad>]
 
 # Phasenweise Analyse
 node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs
 ```
+
+Der Kosten-Report zeigt oben das Status-Dashboard (alle Ziel-KPIs, aktuell 8), in
+„Läufe je Woche" die Δ-Soll-Spalte samt Monatsprognose und am Ende die Interventions-
+Tabelle (Ø Wert je Run, 7 Tage davor/danach); der Turn-Report ergänzt die Ticket-
+Kohorten-Sicht je Intervention (Turns, Erstgrün, Lead-Time).
 
 ---
 

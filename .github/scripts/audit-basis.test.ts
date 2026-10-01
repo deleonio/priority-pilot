@@ -39,10 +39,18 @@ const inTmp = (name: string, run: (dir: string) => void): void => {
 };
 
 describe('audit-basis', () => {
-	it('summiert Turns, Token und $ je Phase in einer Tabelle', () => {
+	it('summiert Turns, Token und Wert je Phase in einer Tabelle', () => {
 		inTmp('audit-basis-sum', (dir) => {
 			writeTicket(dir, '100', [
-				entry({ issueId: '100', phase: 'implement', turns: 10, tokensIn: 2_000_000, tokensOut: 5_000, cost: 2 }),
+				entry({
+					issueId: '100',
+					phase: 'implement',
+					turns: 10,
+					tokensIn: 2_000_000,
+					tokensOut: 5_000,
+					cost: 2,
+					valueCost: 2,
+				}),
 				entry({
 					issueId: '100',
 					phase: 'review',
@@ -50,6 +58,7 @@ describe('audit-basis', () => {
 					tokensIn: 1_000_000,
 					tokensOut: 2_000,
 					cost: 1,
+					valueCost: 1,
 					timestamp: '2026-08-24T11:00:00Z',
 				}),
 			]);
@@ -63,11 +72,24 @@ describe('audit-basis', () => {
 		});
 	});
 
+	it('bewertet :free-/Fremdtarif-Läufe zum Verbrauchswert statt 0 $ (valueCost-Basis)', () => {
+		inTmp('audit-basis-value', (dir) => {
+			// Documenter auf openrouter-:free-Modell: cost = 0 (Fremdtarif), valueCost = Bewertung
+			writeTicket(dir, '400', [
+				entry({ issueId: '400', phase: 'documenter', turns: 4, cost: 0, valueCost: 3, provider: 'openrouter' }),
+			]);
+			const out = renderAuditBasis(dir);
+			assert.match(out, /\| documenter \| 1 \| 1 \| 4 \| 4 \| 0 \| 0 \| 3\.00 \|/);
+			assert.match(out, /\| \*\*Gesamt\*\* .*3\.00\*\* \|/);
+			assert.match(out, /Wert = valueCost/);
+		});
+	});
+
 	it('schließt Läufe ohne turns-Feld aus Turn-Ø aus, zeigt sie aber in Runs/$', () => {
 		inTmp('audit-basis-legacy', (dir) => {
 			writeTicket(dir, '300', [
 				entry({ issueId: '300', phase: 'implement', turns: 20 }),
-				entry({ issueId: '300', phase: 'review', cost: 5 }), // Altlauf vor #984, kein turns-Feld
+				entry({ issueId: '300', phase: 'review', cost: 5 }), // Altlauf vor #984: kein valueCost, kein turns-Feld
 			]);
 			const out = renderAuditBasis(dir);
 			assert.match(out, /\| review \| 1 \| 1 \| 0 \| — \| .* \| .* \| 5\.00 \|/);

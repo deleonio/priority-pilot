@@ -1,8 +1,11 @@
 # Kosten-Baseline — Referenzlauf Ticket #912
 
 - **Gemessen:** 2026-08-20 · Quelle: Workflow [`Kosten-Baseline`](../.github/workflows/cost-baseline.yml), [Lauf 32348989596](https://github.com/deleonio/priority-pilot/actions/runs/32348989596)
-- **Ticket:** [#912](https://github.com/deleonio/priority-pilot/issues/912) — „Header-Toolbar: Avatar wieder ganz rechts positionieren", umgesetzt in [PR #926](https://github.com/deleonio/priority-pilot/pull/926)
+- **Ticket:** [#912](https://github.com/deleonio/priority-pilot/issues/912) — „Header-Toolbar: Avatar wieder ganz rechts positioniert", umgesetzt in [PR #926](https://github.com/deleonio/priority-pilot/pull/926)
 - **Zweck:** die in [ADR 0004](adr/0004-analyse-getriebenes-routing.md) geforderte Messgrundlage („erst messen, dann umbauen")
+- **Stand:** historische Referenz — kein Skript liest diese Datei. Der Kosten-Report wählt
+  seine Baseline dynamisch (erste Abschlusswoche mit n >= 20, per `--baseline` übersteuerbar);
+  Zielwerte stehen in [`kosten-ziele.json`](kosten-ziele.json).
 
 Dies ist die erste vollständige Messung eines Tickets über alle Phasen. Sie deckt den
 Zustand **nach** den Schritten 1–3 der Harness-Optimierung ab (label-getriebene Modellwahl,

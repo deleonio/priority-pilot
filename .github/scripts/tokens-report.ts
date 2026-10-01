@@ -26,7 +26,8 @@
 // ausschliesslich löschbare TypeScript-Syntax.
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { totalsByPhase, type PhaseTotal } from './cost-aggregate.ts';
 import { classifyModel, usageBlocksUsd, valueRates, type BlockUsd } from './cost-from-transcript.ts';
 import type { CostEntry } from './cost-record.ts';
@@ -50,10 +51,12 @@ import {
 	rollingMedian,
 	sealWeek,
 	share,
+	shareWithInterval,
 	trendArrow,
 	usd,
 	weekOf,
 	xychart,
+	ZERO,
 } from './report-stats.ts';
 
 export type TicketTotal = {
@@ -69,8 +72,6 @@ export type TicketTotal = {
 	/** Phasen-Verteilung in Erstauftreten-Reihenfolge, z. B. „analyse:1 … fixup:4". */
 	phases: string[];
 };
-
-const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
 /** Feld im Datensatz vorhanden (im Gegensatz zu ZERO: „—" vs. 0 unterscheidbar). */
 const defined = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
@@ -111,6 +112,47 @@ export function readTickets(dir: string): { tickets: TicketEntries[]; skipped: s
 		tickets.push({ issue: name.replace(/\.json$/, ''), entries });
 	}
 	return { tickets, skipped };
+}
+
+/** Harness-Intervention: Datum (Berlin-Tag, ISO) und Beschriftung — aus docs/kosten-interventionen.json. */
+export type Intervention = { date: string; label: string; issue?: number | null };
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+export const INTERVENTIONS_PATH = join(HERE, '..', '..', 'docs', 'kosten-interventionen.json');
+
+/** Liest die Interventions-Liste; fehlende oder kaputte Datei = keine Interventionen (kein Abbruch). */
+export function loadInterventions(path: string = INTERVENTIONS_PATH): Intervention[] {
+	try {
+		const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+		if (!Array.isArray(parsed)) return [];
+		return parsed
+			.filter((x): x is Intervention => typeof x?.date === 'string' && typeof x?.label === 'string')
+			.sort((a, b) => a.date.localeCompare(b.date));
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Zielwert eines KPI aus docs/kosten-ziele.json — die maschinenlesbare Fassung der
+ * „Erfolgsmessung" im Kosten-Optimierungsplan. `okMax`/`okMin` sind die Ziel-Schwellen
+ * (okMax = erfüllt bei ist <= Schwelle, okMin bei ist >= Schwelle), `goal` der Anzeigetext.
+ * Richtungs-Ziele (sinkend/steigend) tragen nur `goal` — ihr Prädikat bleibt im Code.
+ */
+export type KpiGoal = { goal?: string; okMax?: number; okMin?: number };
+export type CostGoals = { weeklyBudgetUsd?: number; kpis?: Record<string, KpiGoal> };
+
+export const GOALS_PATH = join(HERE, '..', '..', 'docs', 'kosten-ziele.json');
+
+/** Liest die Ziele; fehlende oder kaputte Datei = leere Ziele + Warnung, die Defaults im Code gelten. */
+export function loadGoals(path: string = GOALS_PATH): CostGoals {
+	try {
+		const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+		return typeof parsed === 'object' && parsed !== null ? (parsed as CostGoals) : {};
+	} catch {
+		process.stderr.write(`kosten-ziele nicht lesbar (${path}) — hartkodierte Ziel-Defaults gelten.\n`);
+		return {};
+	}
 }
 
 /** Summiert die Einträge EINES Tickets zur Berichtszeile. */
@@ -276,13 +318,16 @@ const currentWeekOf = (entries: readonly CostEntry[]): string | undefined => {
 	return last === undefined ? undefined : weekOf(last);
 };
 
-export type ReportOptions = { baseline?: string };
+export type ReportOptions = { baseline?: string; interventions?: Intervention[]; goals?: CostGoals };
 
 /** Markdown-Bericht: KPIs mit Baseline/Index, Phasen, Block-Kosten, Trend, Kohorten, Ticket-Tabelle. */
 export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	// EINMAL lesen, mehrfach auswerten. VOLLSTÄNDIGKEITS-FILTER: alle Kennzahlen laufen NUR
 	// über vollständige Tickets (`classifyTicket`); Fixup-Beine, abgebrochene und sonstige
 	// Durchläufe verzerrten Ø je Ticket und Review-Runden — als Fußnote bleiben sie sichtbar.
+	const interventions = opts.interventions ?? loadInterventions();
+	const goals = opts.goals ?? loadGoals();
+	const ivDays = new Set(interventions.map((iv) => iv.date));
 	const { tickets: rawAll, skipped } = readTickets(dir);
 	const classified = classifyAll(rawAll);
 	const raw = classified.filter((t) => isComplete(t.class));
@@ -422,28 +467,89 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 			const es = set.flatMap((t) => t.entries);
 			return es.length > 0 ? es.filter((e) => e.provider === provider).length / es.length : Number.NaN;
 		};
+	// Turns je Pipeline-Ticket wie im Turn-Report (Issue #1197): Summe der erfassten turns
+	// je Ticket, nur Tickets mit mindestens einem gemessenen Lauf — Lücken sind keine 0.
+	const ticketTurns = (t: ClassifiedTicket): number | undefined => {
+		const ms = t.entries.filter((e) => typeof e.turns === 'number');
+		return ms.length > 0 ? ms.reduce((a, e) => a + (e.turns as number), 0) : undefined;
+	};
+	const medTurns: Metric = (set) =>
+		median(
+			ofOrigin(set, 'pipeline')
+				.map(ticketTurns)
+				.filter((n): n is number => n !== undefined),
+		);
+	const firstPassRate: Metric = (set) => {
+		const pipe = ofOrigin(set, 'pipeline');
+		return pipe.length > 0
+			? pipe.filter((t) => !t.entries.some((e) => e.phase === 'fixup')).length / pipe.length
+			: Number.NaN;
+	};
+	const firstPassText = (set: readonly ClassifiedTicket[]): string => {
+		const pipe = ofOrigin(set, 'pipeline');
+		return shareWithInterval(pipe.filter((t) => !t.entries.some((e) => e.phase === 'fixup')).length, pipe.length);
+	};
 
 	const fmtVal = (v: number, f: (n: number) => string): string => (Number.isFinite(v) ? f(v) : '—');
+	type KpiVals = { ist: number; base: number; last20: number; prev20: number };
 	type Kpi = {
 		label: string;
 		metric: Metric;
 		f: (n: number) => string;
+		/** Schlüssel in docs/kosten-ziele.json — goal-Text und ok-Schwelle dort pflegbar. */
+		key?: string;
 		goal: string;
-		ok?: (v: number) => boolean;
+		/** undefined = „nicht bewertbar" (z. B. Fenster noch nicht voll) → Status „—". */
+		ok?: (c: KpiVals) => boolean | undefined;
 		origin?: Origin;
+		/** Ist-Zelle statt k.f (Erstgrün als k/n mit Wilson-Intervall). */
+		istText?: (set: readonly ClassifiedTicket[]) => string;
+	};
+	const goalOf = (key: string, fallback: string): string => goals.kpis?.[key]?.goal ?? fallback;
+	// okMax/okMin aus kosten-ziele.json überschreiben die Code-Schwelle; ohne Schwelle dort
+	// gilt das Fallback-Prädikat (Richtungs-Ziele wie „sinkend" bleiben sowieso im Code).
+	const okOf = (
+		key: string,
+		fallback: (c: KpiVals) => boolean | undefined,
+	): ((c: KpiVals) => boolean | undefined) | undefined => {
+		const g = goals.kpis?.[key];
+		if (g && (typeof g.okMax === 'number' || typeof g.okMin === 'number')) {
+			return (c) => (typeof g.okMax === 'number' ? c.ist <= g.okMax : c.ist >= (g.okMin as number));
+		}
+		return fallback;
 	};
 	// EINE Liste, zwei Sichten: die Zeilen mit Ziel speisen das Status-Dashboard oben, die
 	// volle Liste die Detail-Tabelle unten — so laufen die Kennzahlen nicht auseinander.
 	const kpis: Kpi[] = [
 		{
 			label: 'Kosten je Ticket Pipeline — Median (messende)',
+			key: 'kostenJeTicketPipelineMedian',
 			metric: medianCostOf('pipeline'),
 			f: usd,
-			goal: '< $3.00',
-			ok: (v) => v < 3,
+			goal: goalOf('kostenJeTicketPipelineMedian', '<= $3.00'),
+			ok: okOf('kostenJeTicketPipelineMedian', (c) => c.ist <= 3),
 			origin: 'pipeline',
 		},
 		{ label: 'Kosten je Ticket Pipeline — p75', metric: p75CostOf('pipeline'), f: usd, goal: '—', origin: 'pipeline' },
+		{
+			label: 'Turns je Ticket Pipeline — Median',
+			key: 'turnsJeTicketPipeline',
+			metric: medTurns,
+			f: num,
+			goal: goalOf('turnsJeTicketPipeline', 'Index sinkend (< 100)'),
+			ok: okOf('turnsJeTicketPipeline', (c) => (c.base > 0 ? c.ist < c.base : undefined)),
+			origin: 'pipeline',
+		},
+		{
+			label: 'First-Pass-Grün Pipeline (kein Fixup)',
+			key: 'firstPassGruenPipeline',
+			metric: firstPassRate,
+			f: pct,
+			goal: goalOf('firstPassGruenPipeline', 'steigend'),
+			ok: okOf('firstPassGruenPipeline', (c) => (Number.isFinite(c.prev20) ? c.last20 > c.prev20 : undefined)),
+			origin: 'pipeline',
+			istText: firstPassText,
+		},
 		{
 			label: 'Kosten je Ticket extern — Median (messende)',
 			metric: medianCostOf('extern'),
@@ -454,43 +560,48 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		{ label: 'Kosten je Ticket extern — p75', metric: p75CostOf('extern'), f: usd, goal: '—', origin: 'extern' },
 		{
 			label: 'Review-Runden je Ticket Pipeline (mit Review)',
+			key: 'reviewRundenPipeline',
 			metric: reviewRoundsOf('pipeline'),
 			f: (v) => frac(v, 1),
-			goal: '≤ 1,2',
-			ok: (v) => v <= 1.2,
+			goal: goalOf('reviewRundenPipeline', '<= 1,2'),
+			ok: okOf('reviewRundenPipeline', (c) => c.ist <= 1.2),
 			origin: 'pipeline',
 		},
 		{
 			label: 'Review-Runden je Ticket extern (mit Review)',
+			key: 'reviewRundenExtern',
 			metric: reviewRoundsOf('extern'),
 			f: (v) => frac(v, 1),
-			goal: '≤ 1,2',
-			ok: (v) => v <= 1.2,
+			goal: goalOf('reviewRundenExtern', '<= 1,2'),
+			ok: okOf('reviewRundenExtern', (c) => c.ist <= 1.2),
 			origin: 'extern',
 		},
 		{ label: 'Review-Abdeckung (Tickets mit Review)', metric: reviewCoverage, f: pct, goal: '—' },
 		{
 			label: 'Cache-Effizienz claude (Read / Input)',
+			key: 'cacheEffizienzClaude',
 			metric: cacheRatio('claude'),
 			f: pct,
-			goal: '> 95 %',
-			ok: (v) => v > 0.95,
+			goal: goalOf('cacheEffizienzClaude', '> 95 %'),
+			ok: okOf('cacheEffizienzClaude', (c) => c.ist > 0.95),
 		},
 		{ label: 'Cache-Effizienz zai', metric: cacheRatio('zai'), f: pct, goal: '—' },
 		{ label: 'Cache-Effizienz openrouter', metric: cacheRatio('openrouter'), f: pct, goal: '—' },
 		{
 			label: 'Flagship-Anteil der Claude-Läufe',
+			key: 'flagshipAnteilClaude',
 			metric: claudeClassShare('flagship'),
 			f: pct,
-			goal: '< 10 %',
-			ok: (v) => v < 0.1,
+			goal: goalOf('flagshipAnteilClaude', '<= 10 %'),
+			ok: okOf('flagshipAnteilClaude', (c) => c.ist <= 0.1),
 		},
 		{
 			label: 'Small-Anteil der Claude-Läufe (haiku)',
+			key: 'smallAnteilClaude',
 			metric: claudeClassShare('small'),
 			f: pct,
-			goal: '> 50 %',
-			ok: (v) => v > 0.5,
+			goal: goalOf('smallAnteilClaude', '> 50 %'),
+			ok: okOf('smallAnteilClaude', (c) => c.ist > 0.5),
 		},
 		{ label: 'Provider-Mix claude', metric: providerShare('claude'), f: pct, goal: '—' },
 		{ label: 'Provider-Mix zai', metric: providerShare('zai'), f: pct, goal: '—' },
@@ -498,7 +609,7 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	];
 	// Ticket-Fenster je Herkunft: „letzte 20 Pipeline-Tickets" statt „Pipeline-Anteil der
 	// letzten 20 Tickets" — sonst vergleicht das Fenster bei wechselndem Mix 3 mit 17 Tickets.
-	const kpiCompute = (k: Kpi): { ist: number; base: number; last20: number; prev20: number } => {
+	const kpiCompute = (k: Kpi): KpiVals => {
 		const pool = k.origin ? ofOrigin(chrono, k.origin) : chrono;
 		const w = k.origin ? windows(pool, WINDOW) : win;
 		return {
@@ -508,10 +619,14 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 			prev20: w.prev ? k.metric(w.prev) : Number.NaN,
 		};
 	};
-	const kpiStatus = (k: Kpi, ist: number): string => (k.ok && Number.isFinite(ist) ? (k.ok(ist) ? '🟢' : '🔴') : '—');
+	const kpiStatus = (k: Kpi, c: KpiVals): string => {
+		if (!k.ok || !Number.isFinite(c.ist)) return '—';
+		const verdict = k.ok(c);
+		return verdict === undefined ? '—' : verdict ? '🟢' : '🔴';
+	};
 	const kpiRow = (k: Kpi): string => {
 		const c = kpiCompute(k);
-		return `| ${k.label} | ${fmtVal(c.ist, k.f)} | ${fmtVal(c.base, k.f)} | ${fmtIndex(indexTo(c.base, c.ist))} | ${trendArrow(c.prev20, c.last20)} | ${k.goal} | ${kpiStatus(k, c.ist)} |`;
+		return `| ${k.label} | ${k.istText ? k.istText(raw) : fmtVal(c.ist, k.f)} | ${fmtVal(c.base, k.f)} | ${fmtIndex(indexTo(c.base, c.ist))} | ${trendArrow(c.prev20, c.last20)} | ${k.goal} | ${kpiStatus(k, c)} |`;
 	};
 	const nOf = (set: readonly ClassifiedTicket[]): string =>
 		`n=${ofOrigin(set, 'pipeline').length}/${ofOrigin(set, 'extern').length}`;
@@ -520,17 +635,22 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	// ─── Status: die Ziel-KPIs auf einen Blick ─────────────────────────────────
 	// Erste Sektion des Reports: erfüllt/verfehlt, ohne durch die Detail-Tabelle zu lesen.
 	const targets = kpis.filter((k) => k.ok);
-	const fulfilled = targets.filter((k) => kpiStatus(k, kpiCompute(k).ist) === '🟢').length;
+	const fulfilled = targets.filter((k) => kpiStatus(k, kpiCompute(k)) === '🟢').length;
 	lines.push('### Status — Ziele auf einen Blick', '');
 	lines.push(`**${fulfilled} von ${targets.length} Zielen erfüllt**`, '');
 	lines.push('| Ziel-KPI | Ist | Ziel | Index | Trend | Status |', '| --- | ---: | ---: | ---: | :---: | :---: |');
 	for (const k of targets) {
 		const c = kpiCompute(k);
 		lines.push(
-			`| ${k.label} | ${fmtVal(c.ist, k.f)} | ${k.goal} | ${fmtIndex(indexTo(c.base, c.ist))} | ${trendArrow(c.prev20, c.last20)} | ${kpiStatus(k, c.ist)} |`,
+			`| ${k.label} | ${k.istText ? k.istText(raw) : fmtVal(c.ist, k.f)} | ${k.goal} | ${fmtIndex(indexTo(c.base, c.ist))} | ${trendArrow(c.prev20, c.last20)} | ${kpiStatus(k, c)} |`,
 		);
 	}
-	lines.push('', '> Index und Trend wie in der Kennzahlen-Tabelle unten erklärt; „—" = nicht messbar.', '');
+	lines.push(
+		'',
+		'> Index und Trend wie in der Kennzahlen-Tabelle unten erklärt; „—" = nicht messbar bzw. Fenster noch',
+		'> nicht voll (Richtungs-Ziele). Erstgrün als k/n mit Wilson-Intervall ab n >= 8.',
+		'',
+	);
 
 	// ─── Was hat sich verändert — letzte Siegelwoche ───────────────────────────
 	// Die Änderungen stehen sonst verstreut (Kohorten-Tabelle, Ampel-Trend, Richtung) —
@@ -593,7 +713,7 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		'| --- | ---: | ---: | ---: | :---: | ---: | :---: |',
 		...kpis.map(kpiRow),
 		'',
-		'> Ziele aus `docs/kosten-optimierungsplan.md`. n = Pipeline/extern. Index = Ist / Baseline × 100 (Baseline = erste',
+		'> Ziele aus `docs/kosten-ziele.json` (KPI-Definitionen: `docs/kosten-optimierungsplan.md`, „Erfolgsmessung"). n = Pipeline/extern. Index = Ist / Baseline × 100 (Baseline = erste',
 		`> Abschlusswoche mit n ≥ ${BASELINE_MIN_N}, per \`--baseline\` änderbar). Δ vergleicht die letzten ${WINDOW}`,
 		`> versiegelten Tickets (je Herkunft) mit den ${WINDOW} davor („→" = unter ±10 %, „—" = älteres Fenster nicht voll).`,
 		'> Modell-Klassen (`classifyModel`) statt Namens-Regex; Cache je Provider, weil das Ziel dem',
@@ -723,10 +843,14 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 	if (days.length > 0) {
 		lines.push(`### Zeitlicher Trend — nur messende Läufe, letzte ${TREND_DAYS} Tage`, '');
 		const perRun = days.map(([, v]) => v.vc / v.runs);
+		// „*" hinter dem Tag = Harness-Intervention — Bewegungen im Chart lassen sich so direkt
+		// einer Änderung zuordnen (ASCII wie beim Wochen-Stern der laufenden Woche).
+		const markDay = (day: string): string => (ivDays.has(day) ? `${day.slice(5)}*` : day.slice(5));
+		const dayLabels = days.map(([d]) => markDay(d));
 		lines.push(
 			...xychart({
 				title: 'Ø Kosten je Run (USD)',
-				labels: days.map(([d]) => d.slice(5)),
+				labels: dayLabels,
 				yLabel: 'Ø USD je Run',
 				yMax: Math.max(2, Math.ceil(Math.max(...perRun) + 0.5)),
 				series: [
@@ -742,7 +866,7 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		lines.push(
 			...xychart({
 				title: `Kumulierter Wert (USD, ${TREND_DAYS} Tage)`,
-				labels: days.map(([d]) => d.slice(5)),
+				labels: dayLabels,
 				yLabel: 'USD kumuliert',
 				yMax: Math.ceil(cum + 1),
 				series: [{ kind: 'line', name: 'Kumuliert', values: cumSeries, digits: 2 }],
@@ -752,6 +876,9 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 			'',
 			'> Nur Läufe mit Messung (valueCost > 0, seit #984). Wenige Runs pro Tag können den',
 			'> Tageswert stark bewegen — der 7-Tage-Median zählt, nicht der Einzelpunkt. Tages-Grenzen gelten in Berliner Zeit.',
+			...(ivDays.size > 0
+				? ['> „*" hinter dem Tag = Harness-Intervention (docs/kosten-interventionen.json, s. „Interventionen“ unten).']
+				: []),
 			'',
 		);
 
@@ -815,16 +942,48 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 		// gearbeitet wurde (Turns) oder nur das Preisschild gewechselt hat (Provider-Mix).
 		const runWeeks = [...byWeek.entries()].sort(([a], [b]) => a.localeCompare(b));
 		const providers = ['claude', 'zai', 'openrouter'];
+		// Wochenbudget (kosten-ziele.json): Δ je Woche macht Überschreitungen lesbar, die
+		// Monatsprognose linear nach verstrichenen Tagen — Anker ist wie bei „Richtung" der
+		// jüngste messende Tag, nicht die Wanduhr (der Report bleibt deterministisch).
+		const budget = goals.weeklyBudgetUsd;
+		const deltaCell =
+			budget !== undefined
+				? (vc: number): string => {
+						const d = vc - budget;
+						return `${d < 0 ? '-' : '+'}$${Math.abs(d).toFixed(2)}${vc > budget ? ' 🔴' : ''}`;
+					}
+				: undefined;
 		lines.push('### Läufe je Woche — Budget und Preis je Turn', '');
-		lines.push(`| Woche | Läufe | Wert (USD) | ${providers.map((p) => `$/Turn ${p}`).join(' | ')} |`);
-		lines.push(`| --- | ---: | ---: |${' ---: |'.repeat(providers.length)}`);
+		const head = [
+			'Woche',
+			'Läufe',
+			'Wert (USD)',
+			...(budget !== undefined ? [`Δ Soll ${usd(budget)}`] : []),
+			...providers.map((p) => `$/Turn ${p}`),
+		];
+		lines.push(`| ${head.join(' | ')} |`);
+		lines.push(`| --- |${' ---: |'.repeat(head.length - 1)}`);
 		for (const [wk, w] of runWeeks) {
 			const pv = byWeekProvider.get(wk);
 			const cells = providers.map((p) => {
 				const x = pv?.get(p);
 				return x && x.turns > 0 ? `$${(x.vc / x.turns).toFixed(3)}` : '—';
 			});
-			lines.push(`| ${mark(wk)} | ${w.runs} | ${usd(w.vc)} | ${cells.join(' | ')} |`);
+			const mid = deltaCell ? [usd(w.vc), deltaCell(w.vc)] : [usd(w.vc)];
+			lines.push(`| ${mark(wk)} | ${w.runs} | ${mid.join(' | ')} | ${cells.join(' | ')} |`);
+		}
+		if (budget !== undefined) {
+			const anchorDayStr = new Date(anchorDay).toISOString().slice(0, 10);
+			const ym = anchorDayStr.slice(0, 7);
+			const mtd = messende
+				.filter((e) => berlinDay(e.timestamp).startsWith(ym))
+				.reduce((a, e) => a + ZERO(e.valueCost), 0);
+			const dayNo = Number(anchorDayStr.slice(8, 10));
+			const daysTotal = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)).getUTCDate();
+			lines.push(
+				'',
+				`**Budget:** Soll ${usd(budget)}/Woche · ${ym} bis dato ${usd(mtd)} · Prognose bei gleichem Tempo ${usd((mtd / dayNo) * daysTotal)}/Monat.`,
+			);
 		}
 		lines.push('');
 		// Phasen-Trendtabelle: Ø je Phase je Woche PLUS Anteil am Wochenwert — Ø zeigt, ob
@@ -910,6 +1069,47 @@ export function renderReport(dir: string, opts: ReportOptions = {}): string {
 			'> (z. B. kaum implement-Läufe im alten Fenster) — je Phase lesen, nicht nur die Summe.',
 			'',
 		);
+
+		// ─── Interventionen: Ø Wert je Run, 7 Tage davor/danach ────────────────────
+		// Kalendertägliches Gegenstück zur Ticket-Kohorten-Sicht im Turn-Report (dort je 20
+		// versiegelte Pipeline-Tickets mit Erstgrün/Lead-Time): hier steht der Lauf-Verbrauch
+		// rund um die Harness-Änderung — messende Läufe, Davor = Interventionstag −7 … −1,
+		// Danach = Interventionstag … +6 (Berliner Tage, ± wie „Richtung" gegen ±10 % Rauschen).
+		if (interventions.length > 0) {
+			lines.push('### Interventionen — Ø Wert je Run, 7 Tage davor/danach', '');
+			lines.push(
+				'| Datum | Intervention | Läufe vor/nach | Ø Wert je Run vor → nach | Trend |',
+				'| --- | --- | ---: | ---: | :---: |',
+			);
+			const dayMs = (day: string): number => Date.parse(`${day}T00:00:00Z`);
+			for (const iv of interventions) {
+				let bRuns = 0;
+				let bVc = 0;
+				let aRuns = 0;
+				let aVc = 0;
+				for (const e of messende) {
+					const diff = (dayMs(berlinDay(e.timestamp)) - dayMs(iv.date)) / 86_400_000;
+					if (diff >= -7 && diff <= -1) {
+						bRuns += 1;
+						bVc += ZERO(e.valueCost);
+					} else if (diff >= 0 && diff <= 6) {
+						aRuns += 1;
+						aVc += ZERO(e.valueCost);
+					}
+				}
+				const label = iv.issue ? `${iv.label} (#${iv.issue})` : iv.label;
+				const cell = (runs: number, vc: number): string => (runs >= 2 ? usd(vc / runs) : '—');
+				lines.push(
+					`| ${iv.date} | ${label} | ${bRuns}/${aRuns} | ${cell(bRuns, bVc)} → ${cell(aRuns, aVc)} | ${bRuns >= 2 && aRuns >= 2 ? trendArrow(bVc / bRuns, aVc / aRuns) : '—'} |`,
+				);
+			}
+			lines.push(
+				'',
+				'> Quelle: `docs/kosten-interventionen.json`. Nur messende Läufe (valueCost > 0); „—" = unter 2 Runs',
+				'> je Seite. Ticket-Kohorten-Sicht (Turns, Erstgrün, Lead-Time je 20 Tickets) steht im Turn-Report.',
+				'',
+			);
+		}
 
 		// ─── Messabdeckung je Woche ───────────────────────────────────────────────
 		// Trends dürfen nicht an Messlücken hängen: Die Turn-Erfassung startete erst W35,
@@ -1343,8 +1543,14 @@ export const parseIssueList = (raw: string | undefined): string[] =>
 const main = (argv: readonly string[]): number => {
 	const dir = flag(argv, 'dir') ?? '.costs';
 	const issues = parseIssueList(flag(argv, 'issues'));
+	const ivPath = flag(argv, 'interventions');
 	process.stdout.write(
-		issues.length > 0 ? renderFocusReport(dir, issues) : renderReport(dir, { baseline: flag(argv, 'baseline') }),
+		issues.length > 0
+			? renderFocusReport(dir, issues)
+			: renderReport(dir, {
+					baseline: flag(argv, 'baseline'),
+					interventions: ivPath ? loadInterventions(ivPath) : undefined,
+				}),
 	);
 	return 0;
 };

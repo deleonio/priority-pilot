@@ -21,9 +21,6 @@
 // Stil-Spiegel von tokens-report.ts: Node-Eintritt, keine externen Deps, ESM, ausschliesslich
 // löschbare TypeScript-Syntax.
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { totalsByPhase } from './cost-aggregate.ts';
 import type { CostEntry } from './cost-record.ts';
 import {
@@ -32,10 +29,12 @@ import {
 	chooseBaseline,
 	classifyTicket,
 	isComplete,
+	loadInterventions,
 	originOf,
 	readTickets,
 	WINDOW,
 	windows,
+	type Intervention,
 	type Origin,
 	type TicketClass,
 } from './tokens-report.ts';
@@ -59,6 +58,7 @@ import {
 	weekOf,
 	wilson,
 	xychart,
+	ZERO,
 } from './report-stats.ts';
 
 export type TicketTurns = {
@@ -106,7 +106,6 @@ const phaseRank = (phase: string): number => {
 
 /** Ein Lauf zählt nur mit, wenn er das Feld wirklich trägt — `0` wäre eine Aussage, `undefined` ist keine. */
 const isMeasured = (e: CostEntry): boolean => typeof e.turns === 'number' && Number.isFinite(e.turns);
-const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
 /**
  * Liest `dir` und summiert Turns je Ticket. Sortierung: Turns absteigend (die Schleifen-Tickets
@@ -160,24 +159,8 @@ export function turnTotals(dir: string): TurnTotals {
 
 const has = (phaseRuns: Record<string, number>, phase: string): boolean => (phaseRuns[phase] ?? 0) > 0;
 
-/** Harness-Intervention: Datum (Berlin-Tag, ISO) und Beschriftung — aus docs/kosten-interventionen.json. */
-export type Intervention = { date: string; label: string; issue?: number | null };
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-export const INTERVENTIONS_PATH = join(HERE, '..', '..', 'docs', 'kosten-interventionen.json');
-
-/** Liest die Interventions-Liste; fehlende oder kaputte Datei = keine Interventionen (kein Abbruch). */
-export function loadInterventions(path: string = INTERVENTIONS_PATH): Intervention[] {
-	try {
-		const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
-		if (!Array.isArray(parsed)) return [];
-		return parsed
-			.filter((x): x is Intervention => typeof x?.date === 'string' && typeof x?.label === 'string')
-			.sort((a, b) => a.date.localeCompare(b.date));
-	} catch {
-		return [];
-	}
-}
+// Interventionen (docs/kosten-interventionen.json) lädt `loadInterventions` aus tokens-report.ts —
+// eine Definition, beide Renderer.
 
 export type TurnReportOptions = { baseline?: string; interventions?: Intervention[] };
 
