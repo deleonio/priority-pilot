@@ -8,7 +8,7 @@ import sequelize from '../../database.js';
 import { resolveGeoUser } from './geoConfig.js';
 import { requirePlanFeature } from '../planGuard.js';
 import { allowEmail } from '../../logics/allowedEmails.js';
-import { sendAccountAccessMail } from '../../logics/accessMail.js';
+import { claimAccessMailSlot, sendAccountAccessMail } from '../../logics/accessMail.js';
 import { upsertOAuthUser } from '../../logics/oauthUser.js';
 
 /**
@@ -295,6 +295,7 @@ type GroupInvitationDto = {
 	userId: number;
 	displayName?: string;
 	status: string;
+	accessMailThrottled?: boolean;
 };
 
 type ReceivedInvitationDto = {
@@ -446,7 +447,12 @@ groupsRouter.post(
 				status: 'pending',
 				createdAt: new Date(),
 			});
+			let accessMailThrottled = false;
 			if (newInviteeEmail !== null) {
+				// #2041: je Nutzer begrenzt — an der Grenze entfällt nur die Mail.
+				accessMailThrottled = !claimAccessMailSlot(user.id);
+			}
+			if (newInviteeEmail !== null && !accessMailThrottled) {
 				// #1983 (AK4): Die Einladungs-Benachrichtigung an die neue Adresse ist eine E-Mail
 				// mit direktem Konto-Zugang — nach angelegter Einladung, vor der Antwort abgewartet
 				// (Nebenwirkung beobachtbar). Transportfehler schluckt sendAccountAccessMail selbst.
@@ -468,6 +474,7 @@ groupsRouter.post(
 				userId: created.invitedUserId,
 				displayName: invitedName,
 				status: created.status,
+				...(accessMailThrottled ? { accessMailThrottled } : {}),
 			});
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');

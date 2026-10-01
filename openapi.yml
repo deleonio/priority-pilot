@@ -4385,6 +4385,9 @@ components:
         status:
           type: string
           enum: [pending, accepted, declined]
+        accessMailThrottled:
+          type: boolean
+          description: Nur gesetzt (true), wenn die Zugangs-Mail an eine neue Adresse wegen der Tagesgrenze je Nutzer entfiel (#2041).
     ReceivedInvitation:
       type: object
       description: Offene Einladung aus Sicht des Eingeladenen (#1212).
@@ -4571,6 +4574,9 @@ components:
         - estimatedEffort
         - pillars
       properties:
+        accessMailThrottled:
+          type: boolean
+          description: Nur gesetzt (true), wenn die Zugangs-Mail an eine neue Empfänger-Adresse wegen der Tagesgrenze je Nutzer entfiel (#2041).
         id:
           type: integer
         title:

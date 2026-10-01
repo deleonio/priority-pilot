@@ -46,3 +46,25 @@ export const sendAccountAccessMail = async (
 		send,
 	);
 };
+
+/** Obergrenze an Zugangs-Mails an unbekannte Adressen je auslösendem Nutzer und 24 h (#2041). */
+const ACCESS_MAIL_DAILY_LIMIT = 10;
+const ACCESS_MAIL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Gleitendes Fenster im Speicher (Muster aiQuotaMeter.ts, keine Tabelle): Zeitstempel je Nutzer. */
+const accessMailSends = new Map<number, number[]>();
+
+/**
+ * Belegt einen Slot im Tageskontingent des Nutzers (#2041). `false` = Grenze erreicht, die Mail
+ * entfällt; Einladung/Delegation und Freischaltung laufen trotzdem. Ein Neustart setzt den Zähler zurück.
+ */
+export const claimAccessMailSlot = (userId: number, now: number = Date.now()): boolean => {
+	const recent = (accessMailSends.get(userId) ?? []).filter((at) => now - at < ACCESS_MAIL_WINDOW_MS);
+	if (recent.length >= ACCESS_MAIL_DAILY_LIMIT) {
+		accessMailSends.set(userId, recent);
+		return false;
+	}
+	recent.push(now);
+	accessMailSends.set(userId, recent);
+	return true;
+};
