@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+	<rect width="1200" height="620" fill="#0f131a"/>
+	<rect x="1" y="1" width="1198" height="618" rx="14" fill="none" stroke="#2a3140" stroke-width="2"/>
+	<text x="36" y="52" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="24" font-weight="600" fill="#e6edf3">Balamentum</text>
+	<text x="1164" y="52" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="20" fill="#9aa4b2" text-anchor="end">A streak that only adds</text>
+	<rect x="60" y="140" width="520" height="150" rx="12" fill="#161b22" stroke="#2a3140" stroke-width="2"/>
+		<circle cx="108" cy="188" r="24" fill="none" stroke="#43d488" stroke-width="2.5"/>
+		<text x="108" y="197" font-family="'JetBrains Mono', 'SF Mono', Menlo, monospace" font-size="22" fill="#43d488" text-anchor="middle">1</text>
+		<text x="156" y="196" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="600" fill="#e6edf3">Today still has hours left</text>
+		<text x="156" y="232" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="17" fill="#9aa4b2">no pre-midnight break — today is not a break</text><rect x="620" y="140" width="520" height="150" rx="12" fill="#161b22" stroke="#2a3140" stroke-width="2"/>
+		<circle cx="668" cy="188" r="24" fill="none" stroke="#43d488" stroke-width="2.5"/>
+		<text x="668" y="197" font-family="'JetBrains Mono', 'SF Mono', Menlo, monospace" font-size="22" fill="#43d488" text-anchor="middle">2</text>
+		<text x="716" y="196" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="600" fill="#e6edf3">The best mark never shrinks</text>
+		<text x="716" y="232" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="17" fill="#9aa4b2">a record, not a balance — gaps cost the run</text><rect x="60" y="330" width="520" height="150" rx="12" fill="#161b22" stroke="#2a3140" stroke-width="2"/>
+		<circle cx="108" cy="378" r="24" fill="none" stroke="#43d488" stroke-width="2.5"/>
+		<text x="108" y="387" font-family="'JetBrains Mono', 'SF Mono', Menlo, monospace" font-size="22" fill="#43d488" text-anchor="middle">3</text>
+		<text x="156" y="386" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="600" fill="#e6edf3">Late completions rescue their day</text>
+		<text x="156" y="422" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="17" fill="#9aa4b2">finishing a day late credits the day it was due</text><rect x="620" y="330" width="520" height="150" rx="12" fill="#161b22" stroke="#2a3140" stroke-width="2"/>
+		<circle cx="668" cy="378" r="24" fill="none" stroke="#43d488" stroke-width="2.5"/>
+		<text x="668" y="387" font-family="'JetBrains Mono', 'SF Mono', Menlo, monospace" font-size="22" fill="#43d488" text-anchor="middle">4</text>
+		<text x="716" y="386" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="600" fill="#e6edf3">The counting rule is in the UI</text>
+		<text x="716" y="422" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="17" fill="#9aa4b2">an open rule is a tool, a secret one an opponent</text><text x="60" y="558" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="19" fill="#9aa4b2">Four rules, one effect: the counter collects — it never subtracts.</text>
+	<text x="36" y="590" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="20" fill="#9aa4b2">Illustration: the four rules behind the streak in Balamentum, as shipped.</text>
+</svg>
